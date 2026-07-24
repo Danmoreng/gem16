@@ -1004,11 +1004,14 @@ void TestCausalPrefillAcrossWrappedRing() {
   DeviceBuffer<float> device_chunk_keys(chunk_keys.size());
   DeviceBuffer<float> device_chunk_values(chunk_values.size());
   DeviceBuffer<float> device_scores(tokens * query_heads * capacity);
+  DeviceBuffer<float> device_fused_scores(tokens * query_heads * capacity);
   DeviceBuffer<float> device_output(queries.size());
+  DeviceBuffer<float> device_fused_output(queries.size());
   if (device_queries.get() == nullptr || device_cache_keys.get() == nullptr ||
       device_cache_values.get() == nullptr || device_chunk_keys.get() == nullptr ||
       device_chunk_values.get() == nullptr || device_scores.get() == nullptr ||
-      device_output.get() == nullptr) {
+      device_fused_scores.get() == nullptr || device_output.get() == nullptr ||
+      device_fused_output.get() == nullptr) {
     return;
   }
   if (!CudaOk(cudaMemcpy(device_queries.get(), queries.data(), device_queries.bytes(),
@@ -1033,19 +1036,31 @@ void TestCausalPrefillAcrossWrappedRing() {
       device_output.get(), start_position, tokens, query_heads, kv_heads,
       head_dimension, capacity, true, nullptr);
   CUDA_TEST_CHECK(attention.ok());
+  const auto fused_attention =
+      gem16gb::internal::LaunchFusedCausalAttentionPrefill(
+          device_queries.get(), device_chunk_keys.get(),
+          device_chunk_values.get(), device_cache_keys.get(),
+          device_cache_values.get(), device_fused_scores.get(),
+          device_fused_output.get(), start_position, tokens, query_heads,
+          kv_heads, head_dimension, capacity, true, nullptr);
+  CUDA_TEST_CHECK(fused_attention.ok());
   const auto append = gem16gb::internal::LaunchAppendKvBatch(
       device_chunk_keys.get(), device_chunk_values.get(), device_cache_keys.get(),
       device_cache_values.get(), start_position, tokens,
       kv_heads * head_dimension, capacity, nullptr);
   CUDA_TEST_CHECK(append.ok());
-  if (!attention.ok() || !append.ok() ||
+  if (!attention.ok() || !fused_attention.ok() || !append.ok() ||
       !CudaOk(cudaDeviceSynchronize(), "prefill ring synchronize")) {
     return;
   }
   std::array<float, queries.size()> output{};
+  std::array<float, queries.size()> fused_output{};
   std::array<float, cache_keys.size()> appended_keys{};
   if (!CudaOk(cudaMemcpy(output.data(), device_output.get(), device_output.bytes(),
                          cudaMemcpyDeviceToHost), "copy prefill output") ||
+      !CudaOk(cudaMemcpy(fused_output.data(), device_fused_output.get(),
+                         device_fused_output.bytes(), cudaMemcpyDeviceToHost),
+              "copy fused prefill output") ||
       !CudaOk(cudaMemcpy(appended_keys.data(), device_cache_keys.get(),
                          device_cache_keys.bytes(), cudaMemcpyDeviceToHost),
               "copy appended prefill keys")) {
@@ -1054,8 +1069,11 @@ void TestCausalPrefillAcrossWrappedRing() {
   for (std::size_t dimension = 0; dimension < head_dimension; ++dimension) {
     CUDA_TEST_CHECK(std::fabs(output[dimension] -
                               first_expected.value()[dimension]) < 2.0e-5F);
+    CUDA_TEST_CHECK(fused_output[dimension] == output[dimension]);
     CUDA_TEST_CHECK(std::fabs(output[head_dimension + dimension] -
                               second_expected.value()[dimension]) < 2.0e-5F);
+    CUDA_TEST_CHECK(fused_output[head_dimension + dimension] ==
+                    output[head_dimension + dimension]);
   }
   CUDA_TEST_CHECK(appended_keys[2] == chunk_keys[0]);
   CUDA_TEST_CHECK(appended_keys[3] == chunk_keys[1]);

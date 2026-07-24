@@ -76,7 +76,9 @@ build/Linux/blackwell-release/bin/gem16gb-run \
 The checkpoint-declared FP8 K/V semantics are the default. Use `--kv-cache bf16` only for the explicitly labeled
 BF16 correctness comparison. `--projection-path reference` selects the slow CUDA scalar projections; it is never
 an automatic fallback. `--enable-fused-gate-up` enables the experimental closed native Gate/Up/GELU operator and
-is reported explicitly as `fused_gate_up` in result JSON.
+is reported explicitly as `fused_gate_up` in result JSON. Native prefill fuses causal score, softmax, and value
+reduction by default without changing their arithmetic order. `--disable-fused-prefill-attention` retains the
+three-kernel reference path for correctness and A/B performance checks; JSON records the selected path.
 
 Reproduce the committed-token gate without copying token IDs manually:
 
@@ -241,7 +243,9 @@ outside version control.
 
 Prompt ingestion uses a native 32-token chunk plan by default. Its FP8 attention and NVFP4 MLP projections use real
 16-row by 8-column MMA tiles that reuse checkpoint weight fragments across prompt tokens while retaining causal
-local/global attention. Pass `--serial-prefill` to
+local/global attention. Its causal attention combines score, softmax, and value phases into one block while
+preserving the reference reduction order. Pass `--disable-fused-prefill-attention` for the unfused native A/B path,
+or `--serial-prefill` to
 `gem16gb-run` or `gem16gb-bench decode` for the retained one-token correctness bridge.
 
 ## Validate real-checkpoint layer assembly

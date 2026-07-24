@@ -709,12 +709,14 @@ class InferenceEngine {
                                   std::uint64_t max_context,
                                   ProjectionPath projection_path,
                                   KvCacheMode kv_cache_mode,
-                                  bool enable_fused_gate_up) {
+                                  bool enable_fused_gate_up,
+                                  bool enable_fused_prefill_attention) {
     const NvtxRange range("gem16gb.initialize");
     max_context_ = max_context;
     projection_path_ = projection_path;
     kv_cache_mode_ = kv_cache_mode;
     enable_fused_gate_up_ = enable_fused_gate_up;
+    enable_fused_prefill_attention_ = enable_fused_prefill_attention;
     cudaDeviceProp properties{};
     cudaError_t error = cudaGetDeviceProperties(&properties, 0);
     if (error != cudaSuccess) return CudaFailure("cudaGetDeviceProperties", error);
@@ -1116,21 +1118,37 @@ class InferenceEngine {
           k_norm, v_norm, k_fp8, v_fp8, layer.k_cache_scale,
           layer.v_cache_scale, tokens, layer.kv_elements, stream_);
       if (!status.ok()) return status;
-      status = internal::LaunchCausalAttentionPrefillFp8(
-          q_norm, k_fp8, v_fp8, layer.key_cache_fp8, layer.value_cache_fp8,
-          layer.k_cache_scale, layer.v_cache_scale, scores, attention,
-          start_position, tokens, kQueryHeads, layer.kv_heads,
-          layer.head_dimension, capacity, !layer.global, stream_);
+      if (enable_fused_prefill_attention_) {
+        status = internal::LaunchFusedCausalAttentionPrefillFp8(
+            q_norm, k_fp8, v_fp8, layer.key_cache_fp8, layer.value_cache_fp8,
+            layer.k_cache_scale, layer.v_cache_scale, scores, attention,
+            start_position, tokens, kQueryHeads, layer.kv_heads,
+            layer.head_dimension, capacity, !layer.global, stream_);
+      } else {
+        status = internal::LaunchCausalAttentionPrefillFp8(
+            q_norm, k_fp8, v_fp8, layer.key_cache_fp8, layer.value_cache_fp8,
+            layer.k_cache_scale, layer.v_cache_scale, scores, attention,
+            start_position, tokens, kQueryHeads, layer.kv_heads,
+            layer.head_dimension, capacity, !layer.global, stream_);
+      }
       if (!status.ok()) return status;
       status = internal::LaunchAppendKvFp8Batch(
           k_fp8, v_fp8, layer.key_cache_fp8, layer.value_cache_fp8,
           start_position, tokens, layer.kv_elements, capacity, stream_);
     } else {
-      status = internal::LaunchCausalAttentionPrefill(
-          q_norm, k_norm, v_norm, layer.key_cache_bf16,
-          layer.value_cache_bf16, scores, attention, start_position, tokens,
-          kQueryHeads, layer.kv_heads, layer.head_dimension, capacity,
-          !layer.global, stream_);
+      if (enable_fused_prefill_attention_) {
+        status = internal::LaunchFusedCausalAttentionPrefill(
+            q_norm, k_norm, v_norm, layer.key_cache_bf16,
+            layer.value_cache_bf16, scores, attention, start_position, tokens,
+            kQueryHeads, layer.kv_heads, layer.head_dimension, capacity,
+            !layer.global, stream_);
+      } else {
+        status = internal::LaunchCausalAttentionPrefill(
+            q_norm, k_norm, v_norm, layer.key_cache_bf16,
+            layer.value_cache_bf16, scores, attention, start_position, tokens,
+            kQueryHeads, layer.kv_heads, layer.head_dimension, capacity,
+            !layer.global, stream_);
+      }
       if (!status.ok()) return status;
       status = internal::LaunchAppendKvBatch(
           k_norm, v_norm, layer.key_cache_bf16, layer.value_cache_bf16,
@@ -1520,6 +1538,7 @@ class InferenceEngine {
   ProjectionPath projection_path_ = ProjectionPath::kNativeSm120;
   KvCacheMode kv_cache_mode_ = KvCacheMode::kCheckpointFp8;
   bool enable_fused_gate_up_ = false;
+  bool enable_fused_prefill_attention_ = true;
 };
 
 double Milliseconds(std::chrono::steady_clock::duration duration) {
@@ -1770,7 +1789,8 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
   Status status = engine.Initialize(options.model_directory, options.max_context_tokens,
                                     options.projection_path,
                                     options.kv_cache_mode,
-                                    options.enable_fused_gate_up);
+                                    options.enable_fused_gate_up,
+                                    options.enable_fused_prefill_attention);
   if (!status.ok()) return status;
   status = engine.SetSuppressedTokens(options.suppressed_token_ids);
   if (!status.ok()) return status;
@@ -1784,6 +1804,8 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
   result.kv_cache_mode = options.kv_cache_mode;
   result.fused_gate_up = options.projection_path == ProjectionPath::kNativeSm120 &&
                          options.enable_fused_gate_up;
+  result.fused_prefill_attention =
+      options.use_native_prefill && options.enable_fused_prefill_attention;
   result.model_load_milliseconds = Milliseconds(load_end - load_start);
   result.weight_arena_bytes = engine.weight_bytes();
   result.kv_cache_bytes = engine.cache_bytes();
@@ -1942,7 +1964,8 @@ Result<DecodeBenchmarkResult> RunDecodeBenchmark(
   InferenceEngine engine;
   Status status = engine.Initialize(options.model_directory, planned_context,
                                     options.projection_path, options.kv_cache_mode,
-                                    options.enable_fused_gate_up);
+                                    options.enable_fused_gate_up,
+                                    options.enable_fused_prefill_attention);
   if (!status.ok()) return status;
   const auto load_end = std::chrono::steady_clock::now();
 
@@ -2064,6 +2087,8 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
          << "  \"token_loop_allocations\": "
          << (result.token_loop_allocations ? "true" : "false") << ",\n"
          << "  \"fused_gate_up\": " << (result.fused_gate_up ? "true" : "false") << ",\n"
+         << "  \"fused_prefill_attention\": "
+         << (result.fused_prefill_attention ? "true" : "false") << ",\n"
          << "  \"model_load_ms\": " << result.model_load_milliseconds << ",\n"
          << "  \"prompt_ms\": " << result.prompt_milliseconds << ",\n"
          << "  \"decode_ms\": " << result.decode_milliseconds << ",\n"
@@ -2126,6 +2151,8 @@ Status WriteDecodeBenchmarkJson(const DecodeBenchmarkResult& result,
          << "\",\"kv_cache_layout\":\"hybrid_local_ring_global_contiguous"
          << "\",\"fused_gate_up\":"
          << (result.options.enable_fused_gate_up ? "true" : "false")
+         << ",\"fused_prefill_attention\":"
+         << (result.options.enable_fused_prefill_attention ? "true" : "false")
          << ",\"context_tokens\":" << result.options.context_tokens
          << ",\"generated_tokens\":" << result.options.generated_tokens
          << ",\"warmup_runs\":" << result.options.warmup_runs
@@ -2194,7 +2221,9 @@ Status WritePrefillBenchmarkJson(const DecodeBenchmarkResult& result,
          << ",\"prefill_path\":\""
          << (result.options.use_native_prefill ? "native_chunked_sm120"
                                                : "serial_decode_bridge")
-         << "\",\"kv_cache_layout\":\"hybrid_local_ring_global_contiguous\","
+         << "\",\"fused_prefill_attention\":"
+         << (result.options.enable_fused_prefill_attention ? "true" : "false")
+         << ",\"kv_cache_layout\":\"hybrid_local_ring_global_contiguous\","
          << "\"model_load_ms\":" << result.model_load_milliseconds
          << ",\"memory_bytes\":{\"weights\":" << result.weight_arena_bytes
          << ",\"kv_cache\":" << result.kv_cache_bytes

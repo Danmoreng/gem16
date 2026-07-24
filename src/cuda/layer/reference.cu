@@ -436,6 +436,111 @@ __global__ void PrefillValueKernel(
   output[index] = sum;
 }
 
+// Fuses score, softmax, and value phases while preserving the reference
+// operation order within every dot product, reduction, and value accumulator.
+template <typename CacheType, bool kFp8>
+__global__ void FusedCausalAttentionPrefillKernel(
+    const float* query, const CacheType* chunk_key,
+    const CacheType* chunk_value, const CacheType* key_cache,
+    const CacheType* value_cache, const std::uint16_t* key_scale_bf16,
+    const std::uint16_t* value_scale_bf16, float* scores, float* output,
+    std::uint64_t start_position, std::uint64_t tokens,
+    std::uint64_t query_heads, std::uint64_t kv_heads,
+    std::uint64_t head_dimension, std::uint64_t cache_capacity,
+    std::uint64_t score_stride, bool sliding) {
+  const std::uint64_t vector = blockIdx.x;
+  const std::uint64_t query_token = vector / query_heads;
+  const std::uint64_t query_head = vector % query_heads;
+  const std::uint64_t kv_head =
+      query_head / (query_heads / kv_heads);
+  const std::uint64_t position = start_position + query_token;
+  const std::uint64_t window_start =
+      PrefillWindowStart(position, cache_capacity, sliding);
+  const std::uint64_t key_count = position - window_start + 1U;
+  const float* query_head_data =
+      query + (query_token * query_heads + query_head) * head_dimension;
+  float* vector_scores = scores + vector * score_stride;
+  const float key_scale =
+      kFp8 ? static_cast<float>(__ushort_as_bfloat16(key_scale_bf16[0]))
+           : 1.0F;
+  const float value_scale =
+      kFp8 ? static_cast<float>(__ushort_as_bfloat16(value_scale_bf16[0]))
+           : 1.0F;
+
+  for (std::uint64_t key = threadIdx.x; key < key_count;
+       key += blockDim.x) {
+    const std::uint64_t absolute_key = window_start + key;
+    const bool in_chunk = absolute_key >= start_position;
+    const std::uint64_t source_token =
+        in_chunk ? absolute_key - start_position
+                 : absolute_key % cache_capacity;
+    const CacheType* source = in_chunk ? chunk_key : key_cache;
+    source += (source_token * kv_heads + kv_head) * head_dimension;
+    float score = 0.0F;
+    for (std::uint64_t dimension = 0; dimension < head_dimension;
+         ++dimension) {
+      float key_value;
+      if constexpr (kFp8) {
+        __nv_fp8_e4m3 quantized;
+        quantized.__x = source[dimension];
+        key_value = static_cast<float>(quantized) * key_scale;
+      } else {
+        key_value = source[dimension];
+      }
+      score = fmaf(query_head_data[dimension], key_value, score);
+    }
+    vector_scores[key] = score;
+  }
+  __syncthreads();
+
+  float local_maximum = -FLT_MAX;
+  for (std::uint64_t key = threadIdx.x; key < key_count;
+       key += blockDim.x) {
+    local_maximum = fmaxf(local_maximum, vector_scores[key]);
+  }
+  const float maximum = BlockMaximum(local_maximum);
+  float local_sum = 0.0F;
+  for (std::uint64_t key = threadIdx.x; key < key_count;
+       key += blockDim.x) {
+    const float probability = expf(vector_scores[key] - maximum);
+    vector_scores[key] = probability;
+    local_sum += probability;
+  }
+  const float denominator = BlockSum(local_sum);
+  for (std::uint64_t key = threadIdx.x; key < key_count;
+       key += blockDim.x) {
+    vector_scores[key] /= denominator;
+  }
+  __syncthreads();
+
+  float* output_head =
+      output + (query_token * query_heads + query_head) * head_dimension;
+  for (std::uint64_t dimension = threadIdx.x; dimension < head_dimension;
+       dimension += blockDim.x) {
+    float sum = 0.0F;
+    for (std::uint64_t key = 0; key < key_count; ++key) {
+      const std::uint64_t absolute_key = window_start + key;
+      const bool in_chunk = absolute_key >= start_position;
+      const std::uint64_t source_token =
+          in_chunk ? absolute_key - start_position
+                   : absolute_key % cache_capacity;
+      const CacheType* source = in_chunk ? chunk_value : value_cache;
+      const std::uint64_t source_index =
+          (source_token * kv_heads + kv_head) * head_dimension + dimension;
+      float value;
+      if constexpr (kFp8) {
+        __nv_fp8_e4m3 quantized;
+        quantized.__x = source[source_index];
+        value = static_cast<float>(quantized) * value_scale;
+      } else {
+        value = source[source_index];
+      }
+      sum = fmaf(vector_scores[key], value, sum);
+    }
+    output_head[dimension] = sum;
+  }
+}
+
 std::uint64_t Blocks(std::uint64_t elements) {
   return (elements + kThreads - 1U) / kThreads;
 }
@@ -845,6 +950,71 @@ Status LaunchCausalAttentionPrefillFp8(
     std::uint64_t head_dimension, std::uint64_t cache_capacity, bool sliding,
     cudaStream_t stream) {
   return LaunchCausalAttentionPrefillImpl<std::uint8_t, true>(
+      query, chunk_key, chunk_value, key_cache, value_cache, key_scale_bf16,
+      value_scale_bf16, scores, output, start_position, tokens, query_heads,
+      kv_heads, head_dimension, cache_capacity, sliding, stream);
+}
+
+template <typename CacheType, bool kFp8>
+Status LaunchFusedCausalAttentionPrefillImpl(
+    const float* query, const CacheType* chunk_key,
+    const CacheType* chunk_value, const CacheType* key_cache,
+    const CacheType* value_cache, const std::uint16_t* key_scale_bf16,
+    const std::uint16_t* value_scale_bf16, float* scores, float* output,
+    std::uint64_t start_position, std::uint64_t tokens,
+    std::uint64_t query_heads, std::uint64_t kv_heads,
+    std::uint64_t head_dimension, std::uint64_t cache_capacity, bool sliding,
+    cudaStream_t stream) {
+  if (query == nullptr || chunk_key == nullptr || chunk_value == nullptr ||
+      key_cache == nullptr || value_cache == nullptr || scores == nullptr ||
+      output == nullptr || (kFp8 && (key_scale_bf16 == nullptr ||
+                                    value_scale_bf16 == nullptr)) ||
+      tokens == 0U || query_heads == 0U || kv_heads == 0U ||
+      query_heads % kv_heads != 0U || head_dimension == 0U ||
+      cache_capacity == 0U || tokens > cache_capacity ||
+      tokens * query_heads > static_cast<std::uint64_t>(
+                                   std::numeric_limits<unsigned>::max())) {
+    return Invalid("fused causal prefill attention arguments are invalid");
+  }
+  const std::uint64_t final_position = start_position + tokens - 1U;
+  const std::uint64_t score_stride =
+      sliding ? std::min(final_position + 1U, cache_capacity)
+              : final_position + 1U;
+  FusedCausalAttentionPrefillKernel<CacheType, kFp8>
+      <<<static_cast<unsigned>(tokens * query_heads), kThreads, 0, stream>>>(
+          query, chunk_key, chunk_value, key_cache, value_cache,
+          key_scale_bf16, value_scale_bf16, scores, output, start_position,
+          tokens, query_heads, kv_heads, head_dimension, cache_capacity,
+          score_stride, sliding);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("launch fused causal prefill attention", error);
+}
+
+Status LaunchFusedCausalAttentionPrefill(
+    const float* query, const float* chunk_key, const float* chunk_value,
+    const float* key_cache, const float* value_cache, float* scores,
+    float* output, std::uint64_t start_position, std::uint64_t tokens,
+    std::uint64_t query_heads, std::uint64_t kv_heads,
+    std::uint64_t head_dimension, std::uint64_t cache_capacity, bool sliding,
+    cudaStream_t stream) {
+  return LaunchFusedCausalAttentionPrefillImpl<float, false>(
+      query, chunk_key, chunk_value, key_cache, value_cache, nullptr, nullptr,
+      scores, output, start_position, tokens, query_heads, kv_heads,
+      head_dimension, cache_capacity, sliding, stream);
+}
+
+Status LaunchFusedCausalAttentionPrefillFp8(
+    const float* query, const std::uint8_t* chunk_key,
+    const std::uint8_t* chunk_value, const std::uint8_t* key_cache,
+    const std::uint8_t* value_cache, const std::uint16_t* key_scale_bf16,
+    const std::uint16_t* value_scale_bf16, float* scores, float* output,
+    std::uint64_t start_position, std::uint64_t tokens,
+    std::uint64_t query_heads, std::uint64_t kv_heads,
+    std::uint64_t head_dimension, std::uint64_t cache_capacity, bool sliding,
+    cudaStream_t stream) {
+  return LaunchFusedCausalAttentionPrefillImpl<std::uint8_t, true>(
       query, chunk_key, chunk_value, key_cache, value_cache, key_scale_bf16,
       value_scale_bf16, scores, output, start_position, tokens, query_heads,
       kv_heads, head_dimension, cache_capacity, sliding, stream);

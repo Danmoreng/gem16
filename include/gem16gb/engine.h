@@ -43,6 +43,7 @@ struct GreedyInferenceOptions {
   ProjectionPath projection_path = ProjectionPath::kNativeSm120;
   KvCacheMode kv_cache_mode = KvCacheMode::kCheckpointFp8;
   bool enable_fused_gate_up = false;
+  bool enable_fused_prefill_attention = true;
   bool use_native_prefill = true;
   // Optional synchronous observer invoked once for every selected output
   // token, including a stop token. The callback and its context must remain
@@ -75,6 +76,7 @@ struct GreedyInferenceResult {
   bool stopped = false;
   bool teacher_forcing = false;
   bool fused_gate_up = false;
+  bool fused_prefill_attention = false;
   bool logits_dumped = false;
   bool state_dumped = false;
 };
@@ -102,6 +104,7 @@ struct DecodeBenchmarkOptions {
   ProjectionPath projection_path = ProjectionPath::kNativeSm120;
   KvCacheMode kv_cache_mode = KvCacheMode::kCheckpointFp8;
   bool enable_fused_gate_up = false;
+  bool enable_fused_prefill_attention = true;
   bool use_native_prefill = true;
 };
 

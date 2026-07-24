@@ -88,6 +88,7 @@ struct Options {
   gem16gb::KvCacheMode kv_cache_mode =
       gem16gb::KvCacheMode::kCheckpointFp8;
   bool enable_fused_gate_up = false;
+  bool enable_fused_prefill_attention = true;
 };
 
 gem16gb::Result<Options> ParseOptions(int argc, char** argv) {
@@ -140,6 +141,8 @@ gem16gb::Result<Options> ParseOptions(int argc, char** argv) {
       }
     } else if (argument == "--enable-fused-gate-up") {
       options.enable_fused_gate_up = true;
+    } else if (argument == "--disable-fused-prefill-attention") {
+      options.enable_fused_prefill_attention = false;
     } else if (argument == "--kv-cache" && index + 1 < argc) {
       const std::string_view mode = argv[++index];
       if (mode == "fp8") {
@@ -242,6 +245,8 @@ gem16gb::Result<TurnOutput> RunTurn(
   inference_options.projection_path = cli.projection_path;
   inference_options.kv_cache_mode = cli.kv_cache_mode;
   inference_options.enable_fused_gate_up = cli.enable_fused_gate_up;
+  inference_options.enable_fused_prefill_attention =
+      cli.enable_fused_prefill_attention;
   inference_options.state_dump_path = cli.state_dump_path;
   inference_options.state_dump_position = cli.state_dump_position;
   TokenStreamContext stream_context{&processor, &std::cout};
@@ -286,6 +291,8 @@ gem16gb::Result<TurnOutput> RunTurn(
               << (inference.value().state_dumped ? "true" : "false")
               << ",\"fused_gate_up\":"
               << (inference.value().fused_gate_up ? "true" : "false")
+              << ",\"fused_prefill_attention\":"
+              << (inference.value().fused_prefill_attention ? "true" : "false")
               << ",\"kv_cache_mode\":"
               << JsonEscape(
                      inference.value().kv_cache_mode ==

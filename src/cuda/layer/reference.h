@@ -139,4 +139,22 @@ namespace gem16gb::internal {
     std::uint64_t head_dimension, std::uint64_t cache_capacity,
     bool sliding, cudaStream_t stream);
 
+[[nodiscard]] Status LaunchFusedCausalAttentionPrefill(
+    const float* query, const float* chunk_key, const float* chunk_value,
+    const float* key_cache, const float* value_cache, float* scores,
+    float* output, std::uint64_t start_position, std::uint64_t tokens,
+    std::uint64_t query_heads, std::uint64_t kv_heads,
+    std::uint64_t head_dimension, std::uint64_t cache_capacity,
+    bool sliding, cudaStream_t stream);
+
+[[nodiscard]] Status LaunchFusedCausalAttentionPrefillFp8(
+    const float* query, const std::uint8_t* chunk_key,
+    const std::uint8_t* chunk_value, const std::uint8_t* key_cache,
+    const std::uint8_t* value_cache, const std::uint16_t* key_scale_bf16,
+    const std::uint16_t* value_scale_bf16, float* scores, float* output,
+    std::uint64_t start_position, std::uint64_t tokens,
+    std::uint64_t query_heads, std::uint64_t kv_heads,
+    std::uint64_t head_dimension, std::uint64_t cache_capacity,
+    bool sliding, cudaStream_t stream);
+
 }  // namespace gem16gb::internal

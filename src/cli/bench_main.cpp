@@ -35,12 +35,12 @@ void Usage(std::ostream& output) {
          << "      [--context <tokens>] [--tokens <count>] [--seed <integer>]\n"
          << "      [--warmups <count>] [--repetitions <count>]\n"
          << "      [--kv-cache <fp8|bf16>] [--projection-path <native|reference>]\n"
-         << "      [--enable-fused-gate-up] [--serial-prefill]\n"
+         << "      [--enable-fused-gate-up] [--disable-fused-prefill-attention] [--serial-prefill]\n"
          << "\n"
          << "Prefill mode (CUDA):\n"
          << "  gem16gb-bench prefill --model <checkpoint-dir> --context <tokens>\n"
          << "      [--warmups <count>] [--repetitions <count>] [--seed <integer>]\n"
-         << "      [--enable-fused-gate-up] [--serial-prefill]\n";
+         << "      [--enable-fused-gate-up] [--disable-fused-prefill-attention] [--serial-prefill]\n";
 }
 
 bool ParsePositiveU32(std::string_view value, std::uint32_t& parsed) {
@@ -110,6 +110,8 @@ int RunDecodeMode(int argc, char** argv) {
       }
     } else if (argument == "--enable-fused-gate-up") {
       options.enable_fused_gate_up = true;
+    } else if (argument == "--disable-fused-prefill-attention") {
+      options.enable_fused_prefill_attention = false;
     } else if (argument == "--serial-prefill") {
       options.use_native_prefill = false;
     } else {
@@ -172,6 +174,8 @@ int RunPrefillMode(int argc, char** argv) {
       else return 64;
     } else if (argument == "--enable-fused-gate-up") {
       options.enable_fused_gate_up = true;
+    } else if (argument == "--disable-fused-prefill-attention") {
+      options.enable_fused_prefill_attention = false;
     } else if (argument == "--serial-prefill") {
       options.use_native_prefill = false;
     } else {
