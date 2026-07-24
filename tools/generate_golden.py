@@ -62,7 +62,67 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--max-model-len", type=int, default=8192)
     parser.add_argument("--max-tokens", type=int, default=32)
+    parser.add_argument(
+        "--prompts",
+        type=Path,
+        help="optional JSON prompt-suite document; defaults to the original three prompts",
+    )
+    parser.add_argument(
+        "--kv-cache-dtype",
+        choices=("auto", "bfloat16", "fp8"),
+        default="auto",
+        help="vLLM K/V cache dtype; auto resolves the checkpoint declaration",
+    )
     return parser.parse_args()
+
+
+def validate_prompts(prompts: Any) -> list[dict[str, Any]]:
+    if not isinstance(prompts, list) or not prompts:
+        raise GoldenError("prompt suite must contain a non-empty prompts list")
+    validated: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
+    for index, prompt in enumerate(prompts):
+        if not isinstance(prompt, dict):
+            raise GoldenError(f"prompt {index} must be an object")
+        prompt_id = prompt.get("id")
+        messages = prompt.get("messages")
+        enable_thinking = prompt.get("enable_thinking")
+        if not isinstance(prompt_id, str) or not prompt_id:
+            raise GoldenError(f"prompt {index} has an invalid id")
+        if prompt_id in seen_ids:
+            raise GoldenError(f"duplicate prompt id: {prompt_id}")
+        if not isinstance(enable_thinking, bool):
+            raise GoldenError(f"prompt {prompt_id} has no boolean enable_thinking")
+        if not isinstance(messages, list) or not messages:
+            raise GoldenError(f"prompt {prompt_id} has no messages")
+        for message_index, message in enumerate(messages):
+            if (
+                not isinstance(message, dict)
+                or message.get("role") not in ("user", "assistant")
+                or not isinstance(message.get("content"), str)
+                or not message["content"]
+            ):
+                raise GoldenError(
+                    f"prompt {prompt_id} message {message_index} is malformed"
+                )
+        seen_ids.add(prompt_id)
+        validated.append(
+            {
+                "id": prompt_id,
+                "messages": messages,
+                "enable_thinking": enable_thinking,
+            }
+        )
+    return validated
+
+
+def load_prompts(path: Path | None) -> list[dict[str, Any]]:
+    if path is None:
+        return validate_prompts(list(PROMPTS))
+    document = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(document, dict) or document.get("schema_version") != 1:
+        raise GoldenError("prompt suite must be a schema-version-1 object")
+    return validate_prompts(document.get("prompts"))
 
 
 def package_versions(names: tuple[str, ...]) -> dict[str, str]:
@@ -120,6 +180,7 @@ def main() -> int:
 
     try:
         lock = json.loads(args.lock.read_text(encoding="utf-8"))
+        prompts = load_prompts(args.prompts)
         from transformers import AutoTokenizer
         import torch
         from vllm import LLM, SamplingParams
@@ -128,7 +189,7 @@ def main() -> int:
             raise GoldenError("CUDA is not available to the reference runtime")
         model = args.model.resolve(strict=True)
         tokenizer = AutoTokenizer.from_pretrained(str(model), local_files_only=True)
-        tokenized = [(prompt, prompt_token_ids(tokenizer, prompt)) for prompt in PROMPTS]
+        tokenized = [(prompt, prompt_token_ids(tokenizer, prompt)) for prompt in prompts]
 
         llm = LLM(
             model=str(model),
@@ -142,6 +203,7 @@ def main() -> int:
             enable_chunked_prefill=True,
             seed=0,
             limit_mm_per_prompt={"image": 0, "audio": 0, "video": 0},
+            kv_cache_dtype=args.kv_cache_dtype,
         )
         sampling = SamplingParams(
             temperature=0.0,
@@ -207,6 +269,8 @@ def main() -> int:
                 "enforce_eager": True,
                 "prefix_caching": False,
                 "chunked_prefill": True,
+                "kv_cache_dtype": args.kv_cache_dtype,
+                "prompt_suite": None if args.prompts is None else str(args.prompts),
             },
             "prompts": fixtures,
         }

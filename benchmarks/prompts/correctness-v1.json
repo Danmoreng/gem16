@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "description": "Deterministic Gemma 4 chat correctness prompts spanning languages, reasoning modes, formats, and conversation history.",
+  "prompts": [
+    {
+      "id": "exact_blue_no_thinking",
+      "messages": [{"role": "user", "content": "Reply with exactly the word blue."}],
+      "enable_thinking": false
+    },
+    {
+      "id": "sky_sentence_no_thinking",
+      "messages": [{"role": "user", "content": "Explain why the sky is blue in one sentence."}],
+      "enable_thinking": false
+    },
+    {
+      "id": "integer_product_thinking",
+      "messages": [{"role": "user", "content": "What is 17 multiplied by 19?"}],
+      "enable_thinking": true
+    },
+    {
+      "id": "arithmetic_exact_no_thinking",
+      "messages": [{"role": "user", "content": "Compute 144 divided by 12. Reply with only the integer."}],
+      "enable_thinking": false
+    },
+    {
+      "id": "german_capital_no_thinking",
+      "messages": [{"role": "user", "content": "Antworte mit genau einem Wort: Was ist die Hauptstadt von Frankreich?"}],
+      "enable_thinking": false
+    },
+    {
+      "id": "list_selection_no_thinking",
+      "messages": [{"role": "user", "content": "From red, green, blue, yellow, return only the third item."}],
+      "enable_thinking": false
+    },
+    {
+      "id": "json_shape_no_thinking",
+      "messages": [{"role": "user", "content": "Return one compact JSON object with the integer keys x=2 and y=3. No explanation."}],
+      "enable_thinking": false
+    },
+    {
+      "id": "fixed_summary_no_thinking",
+      "messages": [{"role": "user", "content": "Summarize in at most eight words: Water freezes at zero degrees Celsius under standard atmospheric pressure."}],
+      "enable_thinking": false
+    },
+    {
+      "id": "cpp_semantics_no_thinking",
+      "messages": [{"role": "user", "content": "In one short sentence, what does const mean for a C++ variable?"}],
+      "enable_thinking": false
+    },
+    {
+      "id": "unicode_translation_no_thinking",
+      "messages": [{"role": "user", "content": "Translate \"Gute Nacht\" to English. Reply with only the translation."}],
+      "enable_thinking": false
+    },
+    {
+      "id": "conversation_recall_no_thinking",
+      "messages": [
+        {"role": "user", "content": "Remember that the codeword is orchid."},
+        {"role": "assistant", "content": "Understood."},
+        {"role": "user", "content": "What is the codeword? Reply with one word."}
+      ],
+      "enable_thinking": false
+    },
+    {
+      "id": "logic_thinking",
+      "messages": [{"role": "user", "content": "All zargs are blue. This object is a zarg. What color is it?"}],
+      "enable_thinking": true
+    }
+  ]
+}

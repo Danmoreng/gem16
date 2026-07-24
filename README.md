@@ -81,6 +81,27 @@ python3 tools/validate_inference.py \
   --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497
 ```
 
+For a broader, position-aligned comparison, `gem16gb-run` supports diagnostic
+teacher forcing. The preceding reference token is fed at every decode
+position, while the engine's unmodified greedy prediction and full logits are
+recorded. This prevents one early argmax difference from changing all later
+inputs:
+
+```bash
+python3 tools/teacher_forced_compare.py \
+  --run build/Linux/blackwell-release/bin/gem16gb-run \
+  --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 \
+  --golden tests/golden/vllm-gemma4-12b-nvfp4-correctness-v1-fp8.json \
+  --kv-cache fp8 \
+  --output build/teacher-forced-fp8.json
+```
+
+The committed suite contains 12 chats and 127 FP8-reference positions. The
+current engine agrees with vLLM FP8 at 118/127 Top-1 positions (92.9%); the
+vLLM Top-1 is in the engine Top-5 at all positions. With both engines using
+BF16 K/V, agreement rises to 127/131 (96.9%). These are diagnostic
+measurements, not an accepted correctness tolerance or performance result.
+
 ## Command-line chat characterization
 
 Run the native C++ application directly:

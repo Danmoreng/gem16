@@ -25,7 +25,8 @@ of the correctness and native-kernel gates below.
   storage and independently growing global storage. The checkpoint-scale FP8 numerical semantics and one-byte
   allocation are implemented; fused/optimized attention reads remain pending.
 - Extend the now-committed trusted vLLM token/top-logprob fixture with full-vocabulary logits and selected hidden
-  states.
+  states. The 12-prompt FP8/BF16 teacher-forced suite is complete and places every vLLM Top-1 in gem16gb's Top-5;
+  full reference vectors remain pending.
 - Finish the quality and native-dispatch gates for the patched same-source closest-parity GGUF, then select and lock
   quality-acceptable GGUFs for llama.cpp tiers B and C. Unpatched upstream conversion remains blocked.
 - Extend the implemented deterministic weight/scale/KV base arena with execution-derived activation, logits,

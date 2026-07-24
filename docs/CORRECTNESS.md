@@ -120,6 +120,36 @@ cache was verified as `torch.uint8` E4M3 storage with layout `[blocks, 2, 16, 8,
 therefore narrowed to FP8 attention/cache-write arithmetic and attention reduction order, not tokenizer,
 sampling, or the corrected NVFP4 MLP contract.
 
+### Broader teacher-forced comparison
+
+The version-1 correctness suite expands the original three prompts to 12 deterministic chats covering exact
+answers, longer prose, Thinking and non-Thinking modes, German/Unicode, JSON, summarization, C++ semantics, and
+multi-turn recall. It contains 127 generated positions with the explicit vLLM FP8 cache and 131 with explicit vLLM
+BF16. Both fixtures retain the exact templated prompt IDs and top-20 log probabilities.
+
+`gem16gb-run --teacher-forced-token-ids` feeds the preceding reference token at each later decode step but still
+records the engine's unmodified greedy prediction and full-vocabulary logits. Stop tokens do not terminate this
+diagnostic mode. This separates per-position numerical agreement from autoregressive drift after the first
+different argmax.
+
+The 2026-07-24 Blackwell characterization produced:
+
+| Engine/reference cache pair | Top-1 | Fully agreeing prompts | Reference Top-1 in Top-5 | Mean Top-20 overlap | Mean selected-logprob absolute delta |
+|---|---:|---:|---:|---:|---:|
+| gem16gb FP8 / vLLM FP8 | 118/127 (92.9%) | 8/12 | 127/127 | 14.606/20 | 0.1064 |
+| llama.cpp F16 / vLLM FP8 | 119/127 (93.7%) | 9/12 | 127/127 | 15.646/20 | 0.1195 |
+| gem16gb BF16 / vLLM BF16 | 127/131 (96.9%) | 10/12 | 131/131 | 14.878/20 | 0.0580 |
+| llama.cpp F16 / vLLM BF16 | 129/131 (98.5%) | 10/12 | 131/131 | 15.870/20 | 0.0419 |
+
+These are strict token-ID counts. One BF16 mismatch shared by gem16gb and llama.cpp is an exact vLLM logprob tie
+whose deterministic tie choice differs; it remains counted as a mismatch.
+
+The llama.cpp candidate still differs in attention-weight storage: its conversion maps the source FP8 attention
+weights to BF16, so neither F16-cache row is exact format parity. Nevertheless, the results establish that gem16gb
+is close to both independent engines across a materially broader sample. BF16 K/V improves gem16gb's Top-1
+agreement and selected-token logprobs, proving that FP8 cache arithmetic explains part, but not all, of the
+remaining drift. No tolerance is accepted from these measurements alone.
+
 The native C++ tokenizer/template path reproduces all three committed reference prompt-ID sequences exactly:
 20 tokens for exact-blue, 23 for the sky sentence, and 27 for the thinking arithmetic prompt. The application reads
 the actual template file and accepts only the pinned supported revision. Its renderer currently supports
@@ -142,12 +172,12 @@ python tools/verify_sm120_sass.py build/<OS>/blackwell-release/bin/gem16gb-cuda-
 
 ## Not yet established
 
-Broad projection distributions, accepted layer tolerances, full-vocabulary reference logits, broad cross-engine
-generation agreement, and task quality have not been measured. Prompt-derived hidden/KV comparison is now
-implemented for selected positions, but no tolerance has yet been accepted. Therefore `tests/tolerances.yaml` is
-intentionally empty. The committed vLLM
-fixture provides greedy token IDs and top-20 log probabilities, but it is not a substitute for full-logit Level 3
-metrics. Tolerances will be added only after reference distributions exist.
+Accepted layer tolerances, full-vocabulary reference logits, broad task quality, and a statistically justified
+generation threshold have not been measured. Prompt-derived hidden/KV and 12-prompt teacher-forced top-20
+comparisons are implemented, but no tolerance has yet been accepted. Therefore `tests/tolerances.yaml` is
+intentionally empty. The committed vLLM fixtures provide greedy token IDs and top-20 log probabilities, but they
+are not substitutes for full-reference-logit Level 3 metrics. Tolerances will be added only after those
+distributions exist.
 
 ## Direct reference runtime
 
@@ -183,6 +213,11 @@ PATH="$PWD/third_party/cache/unsloth-nvfp4-env/bin:$PATH" \
   --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 \
   --output tests/golden/vllm-gemma4-12b-nvfp4.json
 ```
+
+Add `--prompts benchmarks/prompts/correctness-v1.json`, `--max-tokens 24`, and either
+`--kv-cache-dtype fp8` or `--kv-cache-dtype bfloat16` to reproduce the broad fixtures. Compare llama.cpp at the
+same forced token positions with `tools/teacher_forced_llama.py`; unlike the native runtime, these Python programs
+are offline correctness tooling only.
 
 Reproduce the physical manifest comparison with:
 

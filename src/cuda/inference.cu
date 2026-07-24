@@ -23,7 +23,9 @@
 #include <cstdint>
 #include <cstring>
 #include <fstream>
+#include <functional>
 #include <limits>
+#include <numeric>
 #include <ostream>
 #include <string>
 #include <unordered_map>
@@ -1204,12 +1206,17 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
   if (options.max_generated_tokens == 0U) {
     return Error(StatusCode::kInvalidArgument, "--max-tokens must be positive");
   }
+  const bool teacher_forcing = !options.teacher_forced_token_ids.empty();
+  const std::uint64_t generation_steps =
+      teacher_forcing
+          ? static_cast<std::uint64_t>(options.teacher_forced_token_ids.size())
+          : options.max_generated_tokens;
   if (options.max_context_tokens == 0U || options.max_context_tokens > kSlidingWindow) {
     return Error(StatusCode::kUnsupported,
                  "the initial contiguous correctness cache supports 1..1024 tokens");
   }
   if (options.input_token_ids.size() > options.max_context_tokens ||
-      options.max_generated_tokens - 1U >
+      generation_steps - 1U >
           options.max_context_tokens - options.input_token_ids.size()) {
     return Error(StatusCode::kInvalidArgument,
                  "prompt plus generated decode positions exceed --max-context");
@@ -1221,8 +1228,8 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
   }
   if (options.state_dump_position.has_value()) {
     const std::uint64_t maximum_forward_position =
-        static_cast<std::uint64_t>(options.input_token_ids.size()) +
-        options.max_generated_tokens - 2U;
+        static_cast<std::uint64_t>(options.input_token_ids.size() - 1U) +
+        (generation_steps - 1U);
     if (*options.state_dump_position > maximum_forward_position) {
       return Error(StatusCode::kInvalidArgument,
                    "state dump position is outside the requested inference");
@@ -1231,6 +1238,12 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
   for (const std::uint32_t token : options.input_token_ids) {
     if (token >= kVocabulary) {
       return Error(StatusCode::kInvalidArgument, "input token ID exceeds vocabulary");
+    }
+  }
+  for (const std::uint32_t token : options.teacher_forced_token_ids) {
+    if (token >= kVocabulary) {
+      return Error(StatusCode::kInvalidArgument,
+                   "teacher-forced token ID exceeds vocabulary");
     }
   }
   for (const std::uint32_t token : options.stop_token_ids) {
@@ -1250,12 +1263,12 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
       return Error(StatusCode::kUnsupported,
                    "raw full-logit dumps currently require a little-endian host");
     }
-    if (options.max_generated_tokens >
+    if (generation_steps >
         std::numeric_limits<std::size_t>::max() / kVocabulary) {
       return Error(StatusCode::kInvalidArgument, "requested logit capture is too large");
     }
     Status status = captured_logits.Allocate(
-        static_cast<std::size_t>(options.max_generated_tokens * kVocabulary),
+        static_cast<std::size_t>(generation_steps * kVocabulary),
         "full-logit capture");
     if (!status.ok()) return status;
   }
@@ -1277,7 +1290,9 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
   const auto load_end = std::chrono::steady_clock::now();
 
   GreedyInferenceResult result;
-  result.output_token_ids.reserve(static_cast<std::size_t>(options.max_generated_tokens));
+  result.output_token_ids.reserve(static_cast<std::size_t>(generation_steps));
+  result.teacher_forced_token_ids = options.teacher_forced_token_ids;
+  result.teacher_forcing = teacher_forcing;
   result.projection_path = options.projection_path;
   result.kv_cache_mode = options.kv_cache_mode;
   result.model_load_milliseconds = Milliseconds(load_end - load_start);
@@ -1310,7 +1325,8 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
   const auto prompt_end = std::chrono::steady_clock::now();
   result.prompt_milliseconds = Milliseconds(prompt_end - prompt_start);
   result.output_token_ids.push_back(next_token);
-  if (std::find(options.stop_token_ids.begin(), options.stop_token_ids.end(), next_token) !=
+  if (!teacher_forcing &&
+      std::find(options.stop_token_ids.begin(), options.stop_token_ids.end(), next_token) !=
       options.stop_token_ids.end()) {
     result.stopped = true;
     result.stop_token_id = next_token;
@@ -1318,7 +1334,7 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
 
   const auto decode_start = std::chrono::steady_clock::now();
   for (std::uint64_t generated = 1U;
-       generated < options.max_generated_tokens && !result.stopped; ++generated) {
+       generated < generation_steps && !result.stopped; ++generated) {
     const std::uint64_t position = options.input_token_ids.size() + generated - 1U;
     const std::size_t logit_offset =
         static_cast<std::size_t>(generated * kVocabulary);
@@ -1330,18 +1346,30 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
     const bool capture_state =
         options.state_dump_position.has_value() &&
         *options.state_dump_position == position;
+    const std::uint32_t input_token =
+        teacher_forcing
+            ? options.teacher_forced_token_ids[static_cast<std::size_t>(generated - 1U)]
+            : next_token;
     auto forwarded = engine.Forward(
-        next_token, position, true, logit_capture,
+        input_token, position, true, logit_capture,
         capture_state ? captured_state.span() : std::span<float>());
     if (!forwarded.ok()) return forwarded.status();
     state_captured = state_captured || capture_state;
     next_token = forwarded.value();
     result.output_token_ids.push_back(next_token);
-    if (std::find(options.stop_token_ids.begin(), options.stop_token_ids.end(), next_token) !=
+    if (!teacher_forcing &&
+        std::find(options.stop_token_ids.begin(), options.stop_token_ids.end(), next_token) !=
         options.stop_token_ids.end()) {
       result.stopped = true;
       result.stop_token_id = next_token;
     }
+  }
+  if (teacher_forcing) {
+    result.teacher_forced_matches = static_cast<std::uint64_t>(
+        std::inner_product(
+            result.output_token_ids.begin(), result.output_token_ids.end(),
+            result.teacher_forced_token_ids.begin(), std::size_t{0},
+            std::plus<>(), std::equal_to<>()));
   }
   const auto decode_end = std::chrono::steady_clock::now();
   result.decode_milliseconds = Milliseconds(decode_end - decode_start);
@@ -1402,6 +1430,9 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
                  ? "uint8_e4m3fn"
                  : "float32_bf16_semantics")
          << "\",\n"
+         << "  \"decoding_mode\": \""
+         << (result.teacher_forcing ? "teacher_forced" : "greedy")
+         << "\",\n"
          << "  \"fallbacks\": " << result.fallback_count << ",\n"
          << "  \"source_layout_direct\": "
          << (result.source_layout_direct ? "true" : "false") << ",\n"
@@ -1441,7 +1472,15 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
     if (index != 0U) output << ',';
     output << result.output_token_ids[index];
   }
-  output << "]\n}\n";
+  output << "],\n"
+         << "  \"teacher_forced_token_ids\": [";
+  for (std::size_t index = 0; index < result.teacher_forced_token_ids.size(); ++index) {
+    if (index != 0U) output << ',';
+    output << result.teacher_forced_token_ids[index];
+  }
+  output << "],\n"
+         << "  \"teacher_forced_matches\": "
+         << result.teacher_forced_matches << "\n}\n";
   return output.good() ? Status::Ok()
                        : Error(StatusCode::kIoError, "failed to write inference JSON");
 }

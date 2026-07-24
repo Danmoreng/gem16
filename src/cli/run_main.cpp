@@ -38,6 +38,7 @@ void PrintUsage() {
       << "Usage:\n"
       << "  gem16gb-run --print-kernel-capabilities\n"
       << "  gem16gb-run --model <checkpoint> --input-token-ids <id,id,...>\n"
+      << "              [--teacher-forced-token-ids <id,id,...>]\n"
       << "              [--stop-token-ids <id,id,...>]\n"
       << "              [--suppress-token-ids <id,id,...>]\n"
       << "              [--dump-logits <raw-f32-path>]\n"
@@ -45,7 +46,9 @@ void PrintUsage() {
       << "              [--projection-path native|reference]\n"
       << "              [--kv-cache fp8|bf16]\n"
       << "              [--max-tokens N] [--max-context N] --greedy\n"
-      << "\nThe inference path is a correctness characterization and is not benchmark-qualified.\n";
+      << "\nTeacher forcing uses the forced list length as the number of output\n"
+      << "positions and reports the model's greedy prediction at every position.\n"
+      << "The inference path is a correctness characterization and is not benchmark-qualified.\n";
 }
 
 }  // namespace
@@ -74,6 +77,12 @@ int main(int argc, char** argv) {
     } else if (argument == "--max-tokens" && index + 1 < argc) {
       if (!ParseUnsigned(argv[++index], options.max_generated_tokens)) {
         std::cerr << "error: --max-tokens must be an unsigned integer\n";
+        return 64;
+      }
+    } else if (argument == "--teacher-forced-token-ids" && index + 1 < argc) {
+      if (!ParseTokenIds(argv[++index], options.teacher_forced_token_ids)) {
+        std::cerr
+            << "error: --teacher-forced-token-ids must be a comma-separated unsigned list\n";
         return 64;
       }
     } else if (argument == "--max-context" && index + 1 < argc) {
