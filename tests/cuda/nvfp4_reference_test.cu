@@ -937,6 +937,109 @@ void TestWrappedKvRingAttention() {
   }
 }
 
+void TestCausalPrefillAcrossWrappedRing() {
+  constexpr std::uint64_t tokens = 2;
+  constexpr std::uint64_t query_heads = 1;
+  constexpr std::uint64_t kv_heads = 1;
+  constexpr std::uint64_t head_dimension = 2;
+  constexpr std::uint64_t capacity = 3;
+  constexpr std::uint64_t start_position = 4;
+  constexpr std::array<float, 4> queries = {1.0F, 0.0F, 0.5F, 0.5F};
+  // Before the chunk: slot 0 = absolute 3, slot 1 = stale absolute 1,
+  // slot 2 = absolute 2. Current positions 4 and 5 remain in staging.
+  constexpr std::array<float, 6> cache_keys = {
+      1.0F, 1.0F, 0.0F, 1.0F, 1.0F, 0.0F};
+  constexpr std::array<float, 6> cache_values = {
+      4.0F, 40.0F, 2.0F, 20.0F, 3.0F, 30.0F};
+  constexpr std::array<float, 4> chunk_keys = {
+      2.0F, 0.0F, 0.0F, 2.0F};
+  constexpr std::array<float, 4> chunk_values = {
+      5.0F, 50.0F, 6.0F, 60.0F};
+  constexpr std::array<float, 6> first_logical_keys = {
+      1.0F, 0.0F, 1.0F, 1.0F, 2.0F, 0.0F};
+  constexpr std::array<float, 6> first_logical_values = {
+      3.0F, 30.0F, 4.0F, 40.0F, 5.0F, 50.0F};
+  constexpr std::array<float, 6> second_logical_keys = {
+      1.0F, 1.0F, 2.0F, 0.0F, 0.0F, 2.0F};
+  constexpr std::array<float, 6> second_logical_values = {
+      4.0F, 40.0F, 5.0F, 50.0F, 6.0F, 60.0F};
+  const auto first_expected = gem16gb::layer::LocalAttentionDecode(
+      std::span<const float>(queries.data(), head_dimension),
+      first_logical_keys, first_logical_values, query_heads, kv_heads,
+      head_dimension, capacity);
+  const auto second_expected = gem16gb::layer::LocalAttentionDecode(
+      std::span<const float>(queries.data() + head_dimension, head_dimension),
+      second_logical_keys, second_logical_values, query_heads, kv_heads,
+      head_dimension, capacity);
+  CUDA_TEST_CHECK(first_expected.ok());
+  CUDA_TEST_CHECK(second_expected.ok());
+  if (!first_expected.ok() || !second_expected.ok()) return;
+
+  DeviceBuffer<float> device_queries(queries.size());
+  DeviceBuffer<float> device_cache_keys(cache_keys.size());
+  DeviceBuffer<float> device_cache_values(cache_values.size());
+  DeviceBuffer<float> device_chunk_keys(chunk_keys.size());
+  DeviceBuffer<float> device_chunk_values(chunk_values.size());
+  DeviceBuffer<float> device_scores(tokens * query_heads * capacity);
+  DeviceBuffer<float> device_output(queries.size());
+  if (device_queries.get() == nullptr || device_cache_keys.get() == nullptr ||
+      device_cache_values.get() == nullptr || device_chunk_keys.get() == nullptr ||
+      device_chunk_values.get() == nullptr || device_scores.get() == nullptr ||
+      device_output.get() == nullptr) {
+    return;
+  }
+  if (!CudaOk(cudaMemcpy(device_queries.get(), queries.data(), device_queries.bytes(),
+                         cudaMemcpyHostToDevice), "copy prefill queries") ||
+      !CudaOk(cudaMemcpy(device_cache_keys.get(), cache_keys.data(),
+                         device_cache_keys.bytes(), cudaMemcpyHostToDevice),
+              "copy prefill cache keys") ||
+      !CudaOk(cudaMemcpy(device_cache_values.get(), cache_values.data(),
+                         device_cache_values.bytes(), cudaMemcpyHostToDevice),
+              "copy prefill cache values") ||
+      !CudaOk(cudaMemcpy(device_chunk_keys.get(), chunk_keys.data(),
+                         device_chunk_keys.bytes(), cudaMemcpyHostToDevice),
+              "copy prefill chunk keys") ||
+      !CudaOk(cudaMemcpy(device_chunk_values.get(), chunk_values.data(),
+                         device_chunk_values.bytes(), cudaMemcpyHostToDevice),
+              "copy prefill chunk values")) {
+    return;
+  }
+  const auto attention = gem16gb::internal::LaunchCausalAttentionPrefill(
+      device_queries.get(), device_chunk_keys.get(), device_chunk_values.get(),
+      device_cache_keys.get(), device_cache_values.get(), device_scores.get(),
+      device_output.get(), start_position, tokens, query_heads, kv_heads,
+      head_dimension, capacity, true, nullptr);
+  CUDA_TEST_CHECK(attention.ok());
+  const auto append = gem16gb::internal::LaunchAppendKvBatch(
+      device_chunk_keys.get(), device_chunk_values.get(), device_cache_keys.get(),
+      device_cache_values.get(), start_position, tokens,
+      kv_heads * head_dimension, capacity, nullptr);
+  CUDA_TEST_CHECK(append.ok());
+  if (!attention.ok() || !append.ok() ||
+      !CudaOk(cudaDeviceSynchronize(), "prefill ring synchronize")) {
+    return;
+  }
+  std::array<float, queries.size()> output{};
+  std::array<float, cache_keys.size()> appended_keys{};
+  if (!CudaOk(cudaMemcpy(output.data(), device_output.get(), device_output.bytes(),
+                         cudaMemcpyDeviceToHost), "copy prefill output") ||
+      !CudaOk(cudaMemcpy(appended_keys.data(), device_cache_keys.get(),
+                         device_cache_keys.bytes(), cudaMemcpyDeviceToHost),
+              "copy appended prefill keys")) {
+    return;
+  }
+  for (std::size_t dimension = 0; dimension < head_dimension; ++dimension) {
+    CUDA_TEST_CHECK(std::fabs(output[dimension] -
+                              first_expected.value()[dimension]) < 2.0e-5F);
+    CUDA_TEST_CHECK(std::fabs(output[head_dimension + dimension] -
+                              second_expected.value()[dimension]) < 2.0e-5F);
+  }
+  CUDA_TEST_CHECK(appended_keys[2] == chunk_keys[0]);
+  CUDA_TEST_CHECK(appended_keys[3] == chunk_keys[1]);
+  CUDA_TEST_CHECK(appended_keys[4] == chunk_keys[2]);
+  CUDA_TEST_CHECK(appended_keys[5] == chunk_keys[3]);
+}
+
 }  // namespace
 
 int main() {
@@ -953,6 +1056,7 @@ int main() {
   TestLocalLayerReferenceOperators();
   TestPhysicalFp8KvCache();
   TestWrappedKvRingAttention();
+  TestCausalPrefillAcrossWrappedRing();
   if (failures != 0) {
     std::cerr << failures << " CUDA test assertion(s) failed\n";
     return 1;

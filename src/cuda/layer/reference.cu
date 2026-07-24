@@ -246,6 +246,196 @@ __global__ void ScaleKernel(float* values, const std::uint16_t* scalar,
   }
 }
 
+__global__ void RotaryBatchKernel(
+    float* states, std::uint64_t heads, std::uint64_t head_dimension,
+    std::uint64_t pair_stride, std::uint64_t rotating_pairs,
+    std::uint64_t frequency_dimension, std::uint64_t start_position,
+    double theta, double scaling_factor, std::uint64_t pairs_per_token,
+    std::uint64_t total_pairs) {
+  const std::uint64_t pair =
+      static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+  if (pair >= total_pairs) return;
+  const std::uint64_t token = pair / pairs_per_token;
+  const std::uint64_t in_token = pair % pairs_per_token;
+  const std::uint64_t head = in_token / rotating_pairs;
+  const std::uint64_t index = in_token % rotating_pairs;
+  const double exponent = 2.0 * static_cast<double>(index) /
+                          static_cast<double>(frequency_dimension);
+  const double angle = static_cast<double>(start_position + token) /
+                       (pow(theta, exponent) * scaling_factor);
+  const float cosine = static_cast<float>(cos(angle));
+  const float sine = static_cast<float>(sin(angle));
+  float* token_states = states + token * heads * head_dimension;
+  const std::uint64_t first = head * head_dimension + index;
+  const std::uint64_t second = first + pair_stride;
+  const float first_value = token_states[first];
+  const float second_value = token_states[second];
+  token_states[first] = first_value * cosine - second_value * sine;
+  token_states[second] = second_value * cosine + first_value * sine;
+}
+
+__global__ void QuantizeKvBatchKernel(
+    const float* key, const float* value, std::uint8_t* key_fp8,
+    std::uint8_t* value_fp8, const std::uint16_t* key_scale_bf16,
+    const std::uint16_t* value_scale_bf16, std::uint64_t elements) {
+  const std::uint64_t index =
+      static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+  if (index >= elements) return;
+  const float key_scale =
+      static_cast<float>(__ushort_as_bfloat16(key_scale_bf16[0]));
+  const float value_scale =
+      static_cast<float>(__ushort_as_bfloat16(value_scale_bf16[0]));
+  const __nv_fp8_e4m3 quantized_key(key[index] / key_scale);
+  const __nv_fp8_e4m3 quantized_value(value[index] / value_scale);
+  key_fp8[index] = quantized_key.__x;
+  value_fp8[index] = quantized_value.__x;
+}
+
+template <typename T>
+__global__ void AppendKvBatchKernel(
+    const T* key, const T* value, T* key_cache, T* value_cache,
+    std::uint64_t start_position, std::uint64_t elements_per_token,
+    std::uint64_t cache_capacity, std::uint64_t total_elements) {
+  const std::uint64_t index =
+      static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+  if (index >= total_elements) return;
+  const std::uint64_t token = index / elements_per_token;
+  const std::uint64_t element = index % elements_per_token;
+  const std::uint64_t slot = (start_position + token) % cache_capacity;
+  const std::uint64_t destination = slot * elements_per_token + element;
+  key_cache[destination] = key[index];
+  value_cache[destination] = value[index];
+}
+
+__device__ __forceinline__ std::uint64_t PrefillWindowStart(
+    std::uint64_t position, std::uint64_t capacity, bool sliding) {
+  return sliding && position + 1U > capacity ? position + 1U - capacity : 0U;
+}
+
+template <typename CacheType, bool kFp8>
+__global__ void PrefillScoreKernel(
+    const float* query, const CacheType* chunk_key,
+    const CacheType* key_cache, const std::uint16_t* key_scale_bf16,
+    float* scores, std::uint64_t start_position, std::uint64_t tokens,
+    std::uint64_t query_heads, std::uint64_t kv_heads,
+    std::uint64_t head_dimension, std::uint64_t cache_capacity,
+    std::uint64_t score_stride, bool sliding, std::uint64_t total_scores) {
+  const std::uint64_t index =
+      static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+  if (index >= total_scores) return;
+  const std::uint64_t query_token = index / (query_heads * score_stride);
+  const std::uint64_t remainder = index % (query_heads * score_stride);
+  const std::uint64_t query_head = remainder / score_stride;
+  const std::uint64_t score_slot = remainder % score_stride;
+  const std::uint64_t position = start_position + query_token;
+  const std::uint64_t window_start =
+      PrefillWindowStart(position, cache_capacity, sliding);
+  const std::uint64_t key_count = position - window_start + 1U;
+  if (score_slot >= key_count) {
+    scores[index] = -FLT_MAX;
+    return;
+  }
+  const std::uint64_t absolute_key = window_start + score_slot;
+  const std::uint64_t kv_head = query_head / (query_heads / kv_heads);
+  const std::uint64_t source_token =
+      absolute_key >= start_position ? absolute_key - start_position
+                                     : absolute_key % cache_capacity;
+  const CacheType* source = absolute_key >= start_position ? chunk_key : key_cache;
+  source += (source_token * kv_heads + kv_head) * head_dimension;
+  const float* query_head_data =
+      query + (query_token * query_heads + query_head) * head_dimension;
+  const float scale = kFp8
+                          ? static_cast<float>(__ushort_as_bfloat16(key_scale_bf16[0]))
+                          : 1.0F;
+  float score = 0.0F;
+  for (std::uint64_t dimension = 0; dimension < head_dimension; ++dimension) {
+    float key_value;
+    if constexpr (kFp8) {
+      __nv_fp8_e4m3 quantized;
+      quantized.__x = source[dimension];
+      key_value = static_cast<float>(quantized) * scale;
+    } else {
+      key_value = source[dimension];
+    }
+    score = fmaf(query_head_data[dimension], key_value, score);
+  }
+  scores[index] = score;
+}
+
+__global__ void PrefillSoftmaxKernel(
+    float* scores, std::uint64_t start_position, std::uint64_t query_heads,
+    std::uint64_t cache_capacity, std::uint64_t score_stride, bool sliding) {
+  const std::uint64_t vector = blockIdx.x;
+  const std::uint64_t query_token = vector / query_heads;
+  const std::uint64_t position = start_position + query_token;
+  const std::uint64_t window_start =
+      PrefillWindowStart(position, cache_capacity, sliding);
+  const std::uint64_t key_count = position - window_start + 1U;
+  float* vector_scores = scores + vector * score_stride;
+  float local_maximum = -FLT_MAX;
+  for (std::uint64_t key = threadIdx.x; key < key_count; key += blockDim.x) {
+    local_maximum = fmaxf(local_maximum, vector_scores[key]);
+  }
+  const float maximum = BlockMaximum(local_maximum);
+  float local_sum = 0.0F;
+  for (std::uint64_t key = threadIdx.x; key < key_count; key += blockDim.x) {
+    const float probability = expf(vector_scores[key] - maximum);
+    vector_scores[key] = probability;
+    local_sum += probability;
+  }
+  const float denominator = BlockSum(local_sum);
+  for (std::uint64_t key = threadIdx.x; key < key_count; key += blockDim.x) {
+    vector_scores[key] /= denominator;
+  }
+}
+
+template <typename CacheType, bool kFp8>
+__global__ void PrefillValueKernel(
+    const float* scores, const CacheType* chunk_value,
+    const CacheType* value_cache, const std::uint16_t* value_scale_bf16,
+    float* output, std::uint64_t start_position, std::uint64_t query_heads,
+    std::uint64_t kv_heads, std::uint64_t head_dimension,
+    std::uint64_t cache_capacity, std::uint64_t score_stride, bool sliding,
+    std::uint64_t total_elements) {
+  const std::uint64_t index =
+      static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+  if (index >= total_elements) return;
+  const std::uint64_t elements_per_token = query_heads * head_dimension;
+  const std::uint64_t query_token = index / elements_per_token;
+  const std::uint64_t in_token = index % elements_per_token;
+  const std::uint64_t query_head = in_token / head_dimension;
+  const std::uint64_t dimension = in_token % head_dimension;
+  const std::uint64_t kv_head = query_head / (query_heads / kv_heads);
+  const std::uint64_t position = start_position + query_token;
+  const std::uint64_t window_start =
+      PrefillWindowStart(position, cache_capacity, sliding);
+  const std::uint64_t key_count = position - window_start + 1U;
+  const float scale = kFp8
+                          ? static_cast<float>(__ushort_as_bfloat16(value_scale_bf16[0]))
+                          : 1.0F;
+  float sum = 0.0F;
+  for (std::uint64_t key = 0; key < key_count; ++key) {
+    const std::uint64_t absolute_key = window_start + key;
+    const std::uint64_t source_token =
+        absolute_key >= start_position ? absolute_key - start_position
+                                       : absolute_key % cache_capacity;
+    const CacheType* source = absolute_key >= start_position ? chunk_value : value_cache;
+    const std::uint64_t source_index =
+        (source_token * kv_heads + kv_head) * head_dimension + dimension;
+    float value;
+    if constexpr (kFp8) {
+      __nv_fp8_e4m3 quantized;
+      quantized.__x = source[source_index];
+      value = static_cast<float>(quantized) * scale;
+    } else {
+      value = source[source_index];
+    }
+    sum = fmaf(scores[(query_token * query_heads + query_head) * score_stride + key],
+               value, sum);
+  }
+  output[index] = sum;
+}
+
 std::uint64_t Blocks(std::uint64_t elements) {
   return (elements + kThreads - 1U) / kThreads;
 }
@@ -458,6 +648,206 @@ Status LaunchLocalAttentionDecodeFp8(
   return error == cudaSuccess
              ? Status::Ok()
              : CudaFailure("launch FP8 attention values", error);
+}
+
+Status LaunchRotaryEmbeddingBatch(
+    float* states, std::uint64_t tokens, std::uint64_t heads,
+    std::uint64_t head_dimension, std::uint64_t rotary_dimensions,
+    std::uint64_t start_position, double theta, cudaStream_t stream) {
+  if (states == nullptr || tokens == 0U || heads == 0U ||
+      rotary_dimensions == 0U || rotary_dimensions > head_dimension ||
+      rotary_dimensions % 2U != 0U || !std::isfinite(theta) || theta <= 0.0) {
+    return Invalid("batched RoPE geometry is invalid");
+  }
+  const std::uint64_t pairs_per_token = heads * (rotary_dimensions / 2U);
+  const std::uint64_t total_pairs = tokens * pairs_per_token;
+  const std::uint64_t blocks = Blocks(total_pairs);
+  if (!ValidGrid(blocks)) return Invalid("batched RoPE grid exceeds CUDA limits");
+  RotaryBatchKernel<<<static_cast<unsigned>(blocks), kThreads, 0, stream>>>(
+      states, heads, head_dimension, rotary_dimensions / 2U,
+      rotary_dimensions / 2U, rotary_dimensions, start_position, theta, 1.0,
+      pairs_per_token, total_pairs);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess ? Status::Ok()
+                              : CudaFailure("launch batched RoPE", error);
+}
+
+Status LaunchProportionalRotaryEmbeddingBatch(
+    float* states, std::uint64_t tokens, std::uint64_t heads,
+    std::uint64_t head_dimension, double rotary_factor,
+    std::uint64_t start_position, double theta, double scaling_factor,
+    cudaStream_t stream) {
+  if (states == nullptr || tokens == 0U || heads == 0U ||
+      head_dimension == 0U || head_dimension % 2U != 0U ||
+      !std::isfinite(rotary_factor) || rotary_factor <= 0.0 ||
+      rotary_factor > 1.0 || !std::isfinite(theta) || theta <= 0.0 ||
+      !std::isfinite(scaling_factor) || scaling_factor <= 0.0) {
+    return Invalid("batched proportional RoPE geometry is invalid");
+  }
+  const std::uint64_t half = head_dimension / 2U;
+  const std::uint64_t rotating_pairs =
+      static_cast<std::uint64_t>(rotary_factor * static_cast<double>(half));
+  const std::uint64_t pairs_per_token = heads * rotating_pairs;
+  const std::uint64_t total_pairs = tokens * pairs_per_token;
+  const std::uint64_t blocks = Blocks(total_pairs);
+  if (rotating_pairs == 0U || !ValidGrid(blocks)) {
+    return Invalid("batched proportional RoPE extent is invalid");
+  }
+  RotaryBatchKernel<<<static_cast<unsigned>(blocks), kThreads, 0, stream>>>(
+      states, heads, head_dimension, half, rotating_pairs, head_dimension,
+      start_position, theta, scaling_factor, pairs_per_token, total_pairs);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("launch batched proportional RoPE", error);
+}
+
+Status LaunchQuantizeKvFp8Batch(
+    const float* key, const float* value, std::uint8_t* key_fp8,
+    std::uint8_t* value_fp8, const std::uint16_t* key_scale_bf16,
+    const std::uint16_t* value_scale_bf16, std::uint64_t tokens,
+    std::uint64_t elements_per_token, cudaStream_t stream) {
+  if (key == nullptr || value == nullptr || key_fp8 == nullptr ||
+      value_fp8 == nullptr || key_scale_bf16 == nullptr ||
+      value_scale_bf16 == nullptr || tokens == 0U || elements_per_token == 0U) {
+    return Invalid("batched FP8 KV quantization arguments are invalid");
+  }
+  const std::uint64_t elements = tokens * elements_per_token;
+  const std::uint64_t blocks = Blocks(elements);
+  if (!ValidGrid(blocks)) return Invalid("batched FP8 KV grid exceeds CUDA limits");
+  QuantizeKvBatchKernel<<<static_cast<unsigned>(blocks), kThreads, 0, stream>>>(
+      key, value, key_fp8, value_fp8, key_scale_bf16, value_scale_bf16,
+      elements);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("launch batched FP8 KV quantization", error);
+}
+
+Status LaunchAppendKvBatch(
+    const float* key, const float* value, float* key_cache,
+    float* value_cache, std::uint64_t start_position, std::uint64_t tokens,
+    std::uint64_t elements_per_token, std::uint64_t cache_capacity,
+    cudaStream_t stream) {
+  if (key == nullptr || value == nullptr || key_cache == nullptr ||
+      value_cache == nullptr || tokens == 0U || elements_per_token == 0U ||
+      cache_capacity == 0U || tokens > cache_capacity) {
+    return Invalid("batched KV append arguments are invalid");
+  }
+  const std::uint64_t elements = tokens * elements_per_token;
+  const std::uint64_t blocks = Blocks(elements);
+  if (!ValidGrid(blocks)) return Invalid("batched KV append grid exceeds CUDA limits");
+  AppendKvBatchKernel<<<static_cast<unsigned>(blocks), kThreads, 0, stream>>>(
+      key, value, key_cache, value_cache, start_position, elements_per_token,
+      cache_capacity, elements);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess ? Status::Ok()
+                              : CudaFailure("launch batched KV append", error);
+}
+
+Status LaunchAppendKvFp8Batch(
+    const std::uint8_t* key, const std::uint8_t* value,
+    std::uint8_t* key_cache, std::uint8_t* value_cache,
+    std::uint64_t start_position, std::uint64_t tokens,
+    std::uint64_t elements_per_token, std::uint64_t cache_capacity,
+    cudaStream_t stream) {
+  if (key == nullptr || value == nullptr || key_cache == nullptr ||
+      value_cache == nullptr || tokens == 0U || elements_per_token == 0U ||
+      cache_capacity == 0U || tokens > cache_capacity) {
+    return Invalid("batched FP8 KV append arguments are invalid");
+  }
+  const std::uint64_t elements = tokens * elements_per_token;
+  const std::uint64_t blocks = Blocks(elements);
+  if (!ValidGrid(blocks)) return Invalid("batched FP8 KV append grid exceeds CUDA limits");
+  AppendKvBatchKernel<<<static_cast<unsigned>(blocks), kThreads, 0, stream>>>(
+      key, value, key_cache, value_cache, start_position, elements_per_token,
+      cache_capacity, elements);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("launch batched FP8 KV append", error);
+}
+
+template <typename CacheType, bool kFp8>
+Status LaunchCausalAttentionPrefillImpl(
+    const float* query, const CacheType* chunk_key,
+    const CacheType* chunk_value, const CacheType* key_cache,
+    const CacheType* value_cache, const std::uint16_t* key_scale_bf16,
+    const std::uint16_t* value_scale_bf16, float* scores, float* output,
+    std::uint64_t start_position, std::uint64_t tokens,
+    std::uint64_t query_heads, std::uint64_t kv_heads,
+    std::uint64_t head_dimension, std::uint64_t cache_capacity, bool sliding,
+    cudaStream_t stream) {
+  if (query == nullptr || chunk_key == nullptr || chunk_value == nullptr ||
+      key_cache == nullptr || value_cache == nullptr || scores == nullptr ||
+      output == nullptr || (kFp8 && (key_scale_bf16 == nullptr ||
+                                    value_scale_bf16 == nullptr)) ||
+      tokens == 0U || query_heads == 0U || kv_heads == 0U ||
+      query_heads % kv_heads != 0U || head_dimension == 0U ||
+      cache_capacity == 0U || tokens > cache_capacity) {
+    return Invalid("causal prefill attention arguments are invalid");
+  }
+  const std::uint64_t final_position = start_position + tokens - 1U;
+  const std::uint64_t score_stride =
+      sliding ? std::min(final_position + 1U, cache_capacity)
+              : final_position + 1U;
+  const std::uint64_t total_scores = tokens * query_heads * score_stride;
+  const std::uint64_t total_elements = tokens * query_heads * head_dimension;
+  const std::uint64_t score_blocks = Blocks(total_scores);
+  const std::uint64_t value_blocks = Blocks(total_elements);
+  if (!ValidGrid(score_blocks) || !ValidGrid(value_blocks) ||
+      tokens * query_heads > static_cast<std::uint64_t>(
+                                   std::numeric_limits<unsigned>::max())) {
+    return Invalid("causal prefill attention grid exceeds CUDA limits");
+  }
+  PrefillScoreKernel<CacheType, kFp8>
+      <<<static_cast<unsigned>(score_blocks), kThreads, 0, stream>>>(
+          query, chunk_key, key_cache, key_scale_bf16, scores, start_position,
+          tokens, query_heads, kv_heads, head_dimension, cache_capacity,
+          score_stride, sliding, total_scores);
+  cudaError_t error = cudaGetLastError();
+  if (error != cudaSuccess) return CudaFailure("launch prefill scores", error);
+  PrefillSoftmaxKernel<<<static_cast<unsigned>(tokens * query_heads), kThreads,
+                         0, stream>>>(scores, start_position, query_heads,
+                                     cache_capacity, score_stride, sliding);
+  error = cudaGetLastError();
+  if (error != cudaSuccess) return CudaFailure("launch prefill softmax", error);
+  PrefillValueKernel<CacheType, kFp8>
+      <<<static_cast<unsigned>(value_blocks), kThreads, 0, stream>>>(
+          scores, chunk_value, value_cache, value_scale_bf16, output,
+          start_position, query_heads, kv_heads, head_dimension, cache_capacity,
+          score_stride, sliding, total_elements);
+  error = cudaGetLastError();
+  return error == cudaSuccess ? Status::Ok()
+                              : CudaFailure("launch prefill values", error);
+}
+
+Status LaunchCausalAttentionPrefill(
+    const float* query, const float* chunk_key, const float* chunk_value,
+    const float* key_cache, const float* value_cache, float* scores,
+    float* output, std::uint64_t start_position, std::uint64_t tokens,
+    std::uint64_t query_heads, std::uint64_t kv_heads,
+    std::uint64_t head_dimension, std::uint64_t cache_capacity, bool sliding,
+    cudaStream_t stream) {
+  return LaunchCausalAttentionPrefillImpl<float, false>(
+      query, chunk_key, chunk_value, key_cache, value_cache, nullptr, nullptr,
+      scores, output, start_position, tokens, query_heads, kv_heads,
+      head_dimension, cache_capacity, sliding, stream);
+}
+
+Status LaunchCausalAttentionPrefillFp8(
+    const float* query, const std::uint8_t* chunk_key,
+    const std::uint8_t* chunk_value, const std::uint8_t* key_cache,
+    const std::uint8_t* value_cache, const std::uint16_t* key_scale_bf16,
+    const std::uint16_t* value_scale_bf16, float* scores, float* output,
+    std::uint64_t start_position, std::uint64_t tokens,
+    std::uint64_t query_heads, std::uint64_t kv_heads,
+    std::uint64_t head_dimension, std::uint64_t cache_capacity, bool sliding,
+    cudaStream_t stream) {
+  return LaunchCausalAttentionPrefillImpl<std::uint8_t, true>(
+      query, chunk_key, chunk_value, key_cache, value_cache, key_scale_bf16,
+      value_scale_bf16, scores, output, start_position, tokens, query_heads,
+      kv_heads, head_dimension, cache_capacity, sliding, stream);
 }
 
 Status LaunchScale(float* values, const std::uint16_t* scalar_bf16,
