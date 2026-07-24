@@ -78,12 +78,71 @@ struct GreedyInferenceResult {
   bool state_dumped = false;
 };
 
+struct BenchmarkDistribution {
+  std::uint64_t sample_count = 0;
+  double mean = 0.0;
+  double median = 0.0;
+  double standard_deviation = 0.0;
+  double minimum = 0.0;
+  double maximum = 0.0;
+  double p95 = 0.0;
+  double p99 = 0.0;
+  double confidence_95_low = 0.0;
+  double confidence_95_high = 0.0;
+};
+
+struct DecodeBenchmarkOptions {
+  std::filesystem::path model_directory;
+  std::uint32_t context_tokens = 128;
+  std::uint32_t generated_tokens = 256;
+  std::uint32_t warmup_runs = 3;
+  std::uint32_t measured_runs = 10;
+  std::uint32_t prompt_seed = 0;
+  ProjectionPath projection_path = ProjectionPath::kNativeSm120;
+  KvCacheMode kv_cache_mode = KvCacheMode::kCheckpointFp8;
+  bool enable_fused_gate_up = false;
+};
+
+struct DecodeBenchmarkRun {
+  double prompt_milliseconds = 0.0;
+  double decode_milliseconds = 0.0;
+  double decode_tokens_per_second = 0.0;
+  std::uint32_t first_output_token_id = 0;
+  std::uint32_t last_output_token_id = 0;
+  std::uint64_t output_token_checksum = 0;
+  std::vector<double> inter_token_latency_milliseconds;
+};
+
+struct DecodeBenchmarkResult {
+  DecodeBenchmarkOptions options;
+  double model_load_milliseconds = 0.0;
+  std::uint64_t weight_arena_bytes = 0;
+  std::uint64_t kv_cache_bytes = 0;
+  std::uint64_t workspace_bytes = 0;
+  BenchmarkDistribution prompt_milliseconds;
+  BenchmarkDistribution decode_tokens_per_second;
+  BenchmarkDistribution inter_token_latency_milliseconds;
+  std::vector<DecodeBenchmarkRun> runs;
+  bool deterministic_outputs = false;
+  bool source_layout_direct = true;
+  bool token_loop_allocations = false;
+  bool benchmark_qualified = false;
+};
+
 // Correctness-first, batch-one CUDA characterization. It accepts already-tokenized input,
 // executes every decoder layer, and performs greedy selection on the GPU. The result remains
 // explicitly unqualified until prompt-derived hidden-state and full-logit gates pass.
 [[nodiscard]] Result<GreedyInferenceResult> RunGreedyInference(
     const GreedyInferenceOptions& options);
 [[nodiscard]] Status WriteGreedyInferenceJson(const GreedyInferenceResult& result,
+                                              std::ostream& output);
+
+// Persistent-engine, batch-one decode characterization. The prompt token IDs are generated
+// deterministically from prompt_seed, the first selected token is untimed for decode, and each
+// requested generated token contributes one measured inter-token interval.
+[[nodiscard]] Result<DecodeBenchmarkResult> RunDecodeBenchmark(
+    const DecodeBenchmarkOptions& options);
+[[nodiscard]] Status WriteDecodeBenchmarkJson(const DecodeBenchmarkResult& result,
                                               std::ostream& output);
 
 }  // namespace gem16gb

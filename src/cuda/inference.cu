@@ -24,6 +24,7 @@
 #include <cstring>
 #include <fstream>
 #include <functional>
+#include <iomanip>
 #include <limits>
 #include <numeric>
 #include <ostream>
@@ -661,10 +662,7 @@ class InferenceEngine {
     if (!status.ok()) return status;
     status = AllocateWorkspace();
     if (!status.ok()) return status;
-    error = cudaMemsetAsync(cache_.data(), 0, static_cast<std::size_t>(cache_.bytes()), stream_);
-    if (error != cudaSuccess) return CudaFailure("clear KV cache", error);
-    error = cudaStreamSynchronize(stream_);
-    return error == cudaSuccess ? Status::Ok() : CudaFailure("initialize inference", error);
+    return ResetCache();
   }
 
   [[nodiscard]] Result<std::uint32_t> Forward(
@@ -739,6 +737,14 @@ class InferenceEngine {
   [[nodiscard]] std::uint64_t weight_bytes() const { return model_.weight_bytes(); }
   [[nodiscard]] std::uint64_t cache_bytes() const { return cache_.bytes(); }
   [[nodiscard]] std::uint64_t workspace_bytes() const { return workspace_.bytes(); }
+
+  [[nodiscard]] Status ResetCache() {
+    cudaError_t error = cudaMemsetAsync(
+        cache_.data(), 0, static_cast<std::size_t>(cache_.bytes()), stream_);
+    if (error != cudaSuccess) return CudaFailure("clear KV cache", error);
+    error = cudaStreamSynchronize(stream_);
+    return error == cudaSuccess ? Status::Ok() : CudaFailure("reset KV cache", error);
+  }
 
   [[nodiscard]] Status SetSuppressedTokens(std::span<const std::uint32_t> tokens) {
     if (tokens.size() > kMaximumSuppressedTokens) {
@@ -1127,6 +1133,80 @@ double Milliseconds(std::chrono::steady_clock::duration duration) {
   return std::chrono::duration<double, std::milli>(duration).count();
 }
 
+double Percentile(std::vector<double> sorted, double quantile) {
+  if (sorted.empty()) return 0.0;
+  std::sort(sorted.begin(), sorted.end());
+  const double rank = quantile * static_cast<double>(sorted.size() - 1U);
+  const std::size_t lower = static_cast<std::size_t>(rank);
+  const std::size_t upper = std::min(lower + 1U, sorted.size() - 1U);
+  const double fraction = rank - static_cast<double>(lower);
+  return sorted[lower] + fraction * (sorted[upper] - sorted[lower]);
+}
+
+double StudentTCritical95(std::size_t degrees_of_freedom) {
+  constexpr std::array values = {
+      0.0, 12.706, 4.303, 3.182, 2.776, 2.571, 2.447, 2.365,
+      2.306, 2.262, 2.228, 2.201, 2.179, 2.160, 2.145, 2.131,
+      2.120, 2.110, 2.101, 2.093, 2.086, 2.080, 2.074, 2.069,
+      2.064, 2.060, 2.056, 2.052, 2.048, 2.045, 2.042};
+  return degrees_of_freedom < values.size() ? values[degrees_of_freedom] : 1.96;
+}
+
+BenchmarkDistribution Summarize(std::span<const double> samples) {
+  BenchmarkDistribution summary;
+  summary.sample_count = static_cast<std::uint64_t>(samples.size());
+  if (samples.empty()) return summary;
+  summary.minimum = *std::min_element(samples.begin(), samples.end());
+  summary.maximum = *std::max_element(samples.begin(), samples.end());
+  summary.mean = std::accumulate(samples.begin(), samples.end(), 0.0) /
+                 static_cast<double>(samples.size());
+  std::vector<double> values(samples.begin(), samples.end());
+  summary.median = Percentile(values, 0.5);
+  summary.p95 = Percentile(values, 0.95);
+  summary.p99 = Percentile(std::move(values), 0.99);
+  if (samples.size() > 1U) {
+    double squared_deviation = 0.0;
+    for (const double value : samples) {
+      const double deviation = value - summary.mean;
+      squared_deviation += deviation * deviation;
+    }
+    summary.standard_deviation =
+        std::sqrt(squared_deviation / static_cast<double>(samples.size() - 1U));
+    const double margin = StudentTCritical95(samples.size() - 1U) *
+                          summary.standard_deviation /
+                          std::sqrt(static_cast<double>(samples.size()));
+    summary.confidence_95_low = summary.mean - margin;
+    summary.confidence_95_high = summary.mean + margin;
+  } else {
+    summary.confidence_95_low = summary.mean;
+    summary.confidence_95_high = summary.mean;
+  }
+  return summary;
+}
+
+std::uint64_t UpdateTokenChecksum(std::uint64_t checksum, std::uint32_t token) {
+  constexpr std::uint64_t kFnvPrime = 1099511628211ULL;
+  for (unsigned shift = 0; shift < 32U; shift += 8U) {
+    checksum ^= static_cast<std::uint8_t>(token >> shift);
+    checksum *= kFnvPrime;
+  }
+  return checksum;
+}
+
+void WriteDistributionJson(std::ostream& output,
+                           const BenchmarkDistribution& distribution) {
+  output << "{\"sample_count\":" << distribution.sample_count
+         << ",\"mean\":" << distribution.mean
+         << ",\"median\":" << distribution.median
+         << ",\"standard_deviation\":" << distribution.standard_deviation
+         << ",\"minimum\":" << distribution.minimum
+         << ",\"maximum\":" << distribution.maximum
+         << ",\"p95\":" << distribution.p95
+         << ",\"p99\":" << distribution.p99
+         << ",\"confidence_95\":[" << distribution.confidence_95_low << ','
+         << distribution.confidence_95_high << "]}";
+}
+
 Status WriteStateDump(const std::filesystem::path& path, std::uint64_t position,
                       ProjectionPath projection_path,
                       KvCacheMode kv_cache_mode,
@@ -1436,6 +1516,119 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
   return result;
 }
 
+Result<DecodeBenchmarkResult> RunDecodeBenchmark(
+    const DecodeBenchmarkOptions& options) {
+  if (options.model_directory.empty()) {
+    return Error(StatusCode::kInvalidArgument, "decode benchmark requires --model");
+  }
+  if (options.context_tokens == 0U || options.generated_tokens == 0U ||
+      options.warmup_runs == 0U || options.measured_runs == 0U) {
+    return Error(StatusCode::kInvalidArgument,
+                 "context, tokens, warmups, and repetitions must be positive");
+  }
+  const std::uint64_t planned_context =
+      static_cast<std::uint64_t>(options.context_tokens) + options.generated_tokens;
+  if (planned_context > kSlidingWindow) {
+    return Error(StatusCode::kUnsupported,
+                 "the initial contiguous benchmark cache supports prompt plus decode up to 1024 tokens");
+  }
+
+  std::vector<std::uint32_t> prompt(options.context_tokens);
+  for (std::size_t index = 0; index < prompt.size(); ++index) {
+    const std::uint64_t value = static_cast<std::uint64_t>(options.prompt_seed) +
+                                static_cast<std::uint64_t>(index) * 7919U;
+    prompt[index] = 1000U + static_cast<std::uint32_t>(value % 9000U);
+  }
+
+  const auto load_start = std::chrono::steady_clock::now();
+  InferenceEngine engine;
+  Status status = engine.Initialize(options.model_directory, planned_context,
+                                    options.projection_path, options.kv_cache_mode,
+                                    options.enable_fused_gate_up);
+  if (!status.ok()) return status;
+  const auto load_end = std::chrono::steady_clock::now();
+
+  const auto run_once = [&]() -> Result<DecodeBenchmarkRun> {
+    Status reset_status = engine.ResetCache();
+    if (!reset_status.ok()) return reset_status;
+
+    DecodeBenchmarkRun run;
+    run.inter_token_latency_milliseconds.resize(options.generated_tokens);
+    const auto prompt_start = std::chrono::steady_clock::now();
+    std::uint32_t next_token = 0U;
+    for (std::size_t index = 0; index < prompt.size(); ++index) {
+      const bool select_token = index + 1U == prompt.size();
+      auto forwarded = engine.Forward(prompt[index], index, select_token);
+      if (!forwarded.ok()) return forwarded.status();
+      if (select_token) next_token = forwarded.value();
+    }
+    const auto prompt_end = std::chrono::steady_clock::now();
+    run.prompt_milliseconds = Milliseconds(prompt_end - prompt_start);
+    run.first_output_token_id = next_token;
+    run.output_token_checksum = UpdateTokenChecksum(14695981039346656037ULL, next_token);
+
+    const auto decode_start = std::chrono::steady_clock::now();
+    for (std::uint32_t generated = 0U; generated < options.generated_tokens; ++generated) {
+      const std::uint64_t position =
+          static_cast<std::uint64_t>(options.context_tokens) + generated;
+      const auto token_start = std::chrono::steady_clock::now();
+      auto forwarded = engine.Forward(next_token, position, true);
+      if (!forwarded.ok()) return forwarded.status();
+      const auto token_end = std::chrono::steady_clock::now();
+      next_token = forwarded.value();
+      run.inter_token_latency_milliseconds[generated] =
+          Milliseconds(token_end - token_start);
+      run.output_token_checksum = UpdateTokenChecksum(run.output_token_checksum, next_token);
+    }
+    const auto decode_end = std::chrono::steady_clock::now();
+    run.decode_milliseconds = Milliseconds(decode_end - decode_start);
+    run.decode_tokens_per_second =
+        static_cast<double>(options.generated_tokens) * 1000.0 /
+        run.decode_milliseconds;
+    run.last_output_token_id = next_token;
+    return run;
+  };
+
+  for (std::uint32_t warmup = 0U; warmup < options.warmup_runs; ++warmup) {
+    auto discarded = run_once();
+    if (!discarded.ok()) return discarded.status();
+  }
+
+  DecodeBenchmarkResult result;
+  result.options = options;
+  result.model_load_milliseconds = Milliseconds(load_end - load_start);
+  result.weight_arena_bytes = engine.weight_bytes();
+  result.kv_cache_bytes = engine.cache_bytes();
+  result.workspace_bytes = engine.workspace_bytes();
+  result.runs.reserve(options.measured_runs);
+  std::vector<double> prompt_samples;
+  std::vector<double> throughput_samples;
+  std::vector<double> latency_samples;
+  prompt_samples.reserve(options.measured_runs);
+  throughput_samples.reserve(options.measured_runs);
+  latency_samples.reserve(static_cast<std::size_t>(options.measured_runs) *
+                          options.generated_tokens);
+  for (std::uint32_t repetition = 0U; repetition < options.measured_runs; ++repetition) {
+    auto measured = run_once();
+    if (!measured.ok()) return measured.status();
+    prompt_samples.push_back(measured.value().prompt_milliseconds);
+    throughput_samples.push_back(measured.value().decode_tokens_per_second);
+    latency_samples.insert(latency_samples.end(),
+                           measured.value().inter_token_latency_milliseconds.begin(),
+                           measured.value().inter_token_latency_milliseconds.end());
+    result.runs.push_back(std::move(measured.value()));
+  }
+  result.prompt_milliseconds = Summarize(prompt_samples);
+  result.decode_tokens_per_second = Summarize(throughput_samples);
+  result.inter_token_latency_milliseconds = Summarize(latency_samples);
+  result.deterministic_outputs = std::all_of(
+      result.runs.begin(), result.runs.end(),
+      [&result](const DecodeBenchmarkRun& run) {
+        return run.output_token_checksum == result.runs.front().output_token_checksum;
+      });
+  return result;
+}
+
 Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostream& output) {
   output << "{\n  \"schema_version\": 1,\n"
          << "  \"status\": \"characterization\",\n"
@@ -1510,6 +1703,66 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
          << result.teacher_forced_matches << "\n}\n";
   return output.good() ? Status::Ok()
                        : Error(StatusCode::kIoError, "failed to write inference JSON");
+}
+
+Status WriteDecodeBenchmarkJson(const DecodeBenchmarkResult& result,
+                                std::ostream& output) {
+  output << std::setprecision(17)
+         << "{\"schema_version\":1,\"status\":\"characterization\","
+         << "\"benchmark_qualified\":false,\"mode\":\"decode\",\"batch_size\":1,"
+         << "\"precision\":\"bf16_state_fp8_attention_nvfp4_mlp\","
+         << "\"projection_path\":\""
+         << (result.options.projection_path == ProjectionPath::kNativeSm120
+                 ? "native_sm120" : "cuda_reference")
+         << "\",\"kv_cache_mode\":\""
+         << (result.options.kv_cache_mode == KvCacheMode::kCheckpointFp8
+                 ? "checkpoint_fp8" : "bf16_correctness")
+         << "\",\"fused_gate_up\":"
+         << (result.options.enable_fused_gate_up ? "true" : "false")
+         << ",\"context_tokens\":" << result.options.context_tokens
+         << ",\"generated_tokens\":" << result.options.generated_tokens
+         << ",\"warmup_runs\":" << result.options.warmup_runs
+         << ",\"measured_runs\":" << result.options.measured_runs
+         << ",\"prompt_seed\":" << result.options.prompt_seed
+         << ",\"prompt_token_formula\":\"1000+((seed+index*7919)%9000)\","
+         << "\"timing_boundary\":\"host_end_to_end_forward_and_greedy_selection\","
+         << "\"first_selected_token_excluded_from_decode\":true,"
+         << "\"model_loaded_once\":true,\"cache_reset_outside_timing\":true,"
+         << "\"source_layout_direct\":" << (result.source_layout_direct ? "true" : "false")
+         << ",\"token_loop_allocations\":" << (result.token_loop_allocations ? "true" : "false")
+         << ",\"deterministic_outputs\":" << (result.deterministic_outputs ? "true" : "false")
+         << ",\"model_load_ms\":" << result.model_load_milliseconds
+         << ",\"memory_bytes\":{\"weights\":" << result.weight_arena_bytes
+         << ",\"kv_cache\":" << result.kv_cache_bytes
+         << ",\"workspace\":" << result.workspace_bytes << "},"
+         << "\"summary\":{\"time_to_first_token_ms\":";
+  WriteDistributionJson(output, result.prompt_milliseconds);
+  output << ",\"decode_tokens_per_second\":";
+  WriteDistributionJson(output, result.decode_tokens_per_second);
+  output << ",\"inter_token_latency_ms\":";
+  WriteDistributionJson(output, result.inter_token_latency_milliseconds);
+  output << "},\"runs\":[";
+  for (std::size_t run_index = 0; run_index < result.runs.size(); ++run_index) {
+    if (run_index != 0U) output << ',';
+    const DecodeBenchmarkRun& run = result.runs[run_index];
+    output << "{\"run\":" << run_index
+           << ",\"time_to_first_token_ms\":" << run.prompt_milliseconds
+           << ",\"decode_ms\":" << run.decode_milliseconds
+           << ",\"decode_tokens_per_second\":" << run.decode_tokens_per_second
+           << ",\"first_output_token_id\":" << run.first_output_token_id
+           << ",\"last_output_token_id\":" << run.last_output_token_id
+           << ",\"output_token_checksum\":" << run.output_token_checksum
+           << ",\"inter_token_latency_ms\":[";
+    for (std::size_t index = 0; index < run.inter_token_latency_milliseconds.size(); ++index) {
+      if (index != 0U) output << ',';
+      output << run.inter_token_latency_milliseconds[index];
+    }
+    output << "]}";
+  }
+  output << "]}\n";
+  return output.good() ? Status::Ok()
+                       : Error(StatusCode::kIoError,
+                               "failed to write decode benchmark JSON");
 }
 
 }  // namespace gem16gb

@@ -207,6 +207,24 @@ explicitly; the JSON result retains the one-state byte count only as an audit lo
 The current base plan covers immutable text weights, scales, and KV payload. Activation, graph, sampling, kernel,
 and prefill workspaces remain explicitly marked as unplanned rather than being estimated without an execution plan.
 
+## Characterize decode
+
+The CUDA benchmark keeps the model loaded across warm-ups and measured repetitions and emits raw inter-token
+latencies plus summary statistics as JSON:
+
+```powershell
+.\build\Windows\blackwell-release\bin\gem16gb-bench.exe decode `
+  --model .\models\checkpoints\unsloth-gemma-4-12b-it-NVFP4-b1f6497 `
+  --context 128 `
+  --tokens 256 `
+  --warmups 3 `
+  --repetitions 10 `
+  --enable-fused-gate-up
+```
+
+This is currently a development characterization, not an accepted competitive result. Prompt plus decode is
+limited to 1,024 positions until the hybrid long-context KV cache lands.
+
 ## Validate real-checkpoint layer assembly
 
 After a Blackwell CUDA build, run all three real-checkpoint characterization gates with one cross-platform tool:

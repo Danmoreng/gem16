@@ -8,6 +8,7 @@
 #include <string_view>
 
 #include "gem16gb/memory.h"
+#include "gem16gb/engine.h"
 #if GEM16GB_HAS_CUDA
 #include "cuda/fp8/checkpoint_probe.h"
 #include "cuda/layer/checkpoint_probe.h"
@@ -27,7 +28,14 @@ void Usage(std::ostream& output) {
          << "Kernel mode (CUDA):\n"
          << "  gem16gb-bench kernel --model <checkpoint-dir>\n"
          << "      [--projection <gate|up|down|mlp|q|k|v|o|local-attention|global-attention|decoder-layer>]\n"
-         << "      [--warmups <count>] [--iterations <count>]\n";
+         << "      [--warmups <count>] [--iterations <count>]\n"
+         << "\n"
+         << "Decode mode (CUDA):\n"
+         << "  gem16gb-bench decode --model <checkpoint-dir>\n"
+         << "      [--context <tokens>] [--tokens <count>] [--seed <integer>]\n"
+         << "      [--warmups <count>] [--repetitions <count>]\n"
+         << "      [--kv-cache <fp8|bf16>] [--projection-path <native|reference>]\n"
+         << "      [--enable-fused-gate-up]\n";
 }
 
 bool ParsePositiveU32(std::string_view value, std::uint32_t& parsed) {
@@ -38,6 +46,96 @@ bool ParsePositiveU32(std::string_view value, std::uint32_t& parsed) {
   }
   parsed = candidate;
   return true;
+}
+
+bool ParseU32(std::string_view value, std::uint32_t& parsed) {
+  std::uint32_t candidate = 0;
+  const auto result = std::from_chars(value.data(), value.data() + value.size(), candidate);
+  if (result.ec != std::errc{} || result.ptr != value.data() + value.size()) return false;
+  parsed = candidate;
+  return true;
+}
+
+int RunDecodeMode(int argc, char** argv) {
+  gem16gb::DecodeBenchmarkOptions options;
+  for (int index = 2; index < argc; ++index) {
+    const std::string_view argument(argv[index]);
+    if (argument == "--model" && index + 1 < argc) {
+      options.model_directory = std::filesystem::path(argv[++index]);
+    } else if (argument == "--context" && index + 1 < argc) {
+      if (!ParsePositiveU32(argv[++index], options.context_tokens)) {
+        std::cerr << "error: --context must be a positive integer\n";
+        return 64;
+      }
+    } else if (argument == "--tokens" && index + 1 < argc) {
+      if (!ParsePositiveU32(argv[++index], options.generated_tokens)) {
+        std::cerr << "error: --tokens must be a positive integer\n";
+        return 64;
+      }
+    } else if (argument == "--seed" && index + 1 < argc) {
+      if (!ParseU32(argv[++index], options.prompt_seed)) {
+        std::cerr << "error: --seed must be an unsigned integer\n";
+        return 64;
+      }
+    } else if (argument == "--warmups" && index + 1 < argc) {
+      if (!ParsePositiveU32(argv[++index], options.warmup_runs)) {
+        std::cerr << "error: --warmups must be a positive integer\n";
+        return 64;
+      }
+    } else if (argument == "--repetitions" && index + 1 < argc) {
+      if (!ParsePositiveU32(argv[++index], options.measured_runs)) {
+        std::cerr << "error: --repetitions must be a positive integer\n";
+        return 64;
+      }
+    } else if (argument == "--kv-cache" && index + 1 < argc) {
+      const std::string_view value(argv[++index]);
+      if (value == "fp8") options.kv_cache_mode = gem16gb::KvCacheMode::kCheckpointFp8;
+      else if (value == "bf16") options.kv_cache_mode = gem16gb::KvCacheMode::kBf16Correctness;
+      else {
+        std::cerr << "error: --kv-cache must be fp8 or bf16\n";
+        return 64;
+      }
+    } else if (argument == "--projection-path" && index + 1 < argc) {
+      const std::string_view value(argv[++index]);
+      if (value == "native") options.projection_path = gem16gb::ProjectionPath::kNativeSm120;
+      else if (value == "reference") options.projection_path = gem16gb::ProjectionPath::kCudaReference;
+      else {
+        std::cerr << "error: --projection-path must be native or reference\n";
+        return 64;
+      }
+    } else if (argument == "--enable-fused-gate-up") {
+      options.enable_fused_gate_up = true;
+    } else {
+      std::cerr << "error: unknown or incomplete decode option: " << argument << '\n';
+      Usage(std::cerr);
+      return 64;
+    }
+  }
+  if (options.model_directory.empty()) {
+    std::cerr << "error: decode mode requires --model\n";
+    return 64;
+  }
+
+  auto result = gem16gb::RunDecodeBenchmark(options);
+  if (!result.ok()) {
+    std::cerr << "error: " << result.status().message() << '\n';
+    return 1;
+  }
+  const auto& benchmark = result.value();
+  std::cerr << std::fixed << std::setprecision(3)
+            << "Decode characterization\n"
+            << "  context/generated: " << options.context_tokens << '/' << options.generated_tokens << '\n'
+            << "  runs: " << options.warmup_runs << " warm-up, " << options.measured_runs << " measured\n"
+            << "  median throughput: " << benchmark.decode_tokens_per_second.median << " tokens/s\n"
+            << "  p50/p95/p99 latency: " << benchmark.inter_token_latency_milliseconds.median << "/"
+            << benchmark.inter_token_latency_milliseconds.p95 << "/"
+            << benchmark.inter_token_latency_milliseconds.p99 << " ms\n";
+  const auto status = gem16gb::WriteDecodeBenchmarkJson(benchmark, std::cout);
+  if (!status.ok()) {
+    std::cerr << "error: " << status.message() << '\n';
+    return 1;
+  }
+  return 0;
 }
 
 bool ParseProfile(std::string_view value, gem16gb::ContextProfile& profile) {
@@ -450,6 +548,7 @@ int main(int argc, char** argv) {
   const std::string_view requested = argc > 1 ? std::string_view(argv[1]) : std::string_view{};
   if (requested == "memory") return RunMemoryMode(argc, argv);
   if (requested == "kernel") return RunKernelMode(argc, argv);
+  if (requested == "decode") return RunDecodeMode(argc, argv);
 
   bool known = false;
   for (const auto mode : modes) known = known || requested == mode;

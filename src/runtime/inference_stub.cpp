@@ -14,4 +14,14 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult&, std::ostream&) {
                 "greedy inference JSON requires a CUDA inference result");
 }
 
+Result<DecodeBenchmarkResult> RunDecodeBenchmark(const DecodeBenchmarkOptions&) {
+  return Status(StatusCode::kUnsupported,
+                "decode benchmarking requires a CUDA build compiled for SM120a");
+}
+
+Status WriteDecodeBenchmarkJson(const DecodeBenchmarkResult&, std::ostream&) {
+  return Status(StatusCode::kUnsupported,
+                "decode benchmark JSON requires a CUDA benchmark result");
+}
+
 }  // namespace gem16gb

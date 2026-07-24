@@ -1,7 +1,29 @@
 # Benchmarking
 
-There are no accepted comparative benchmark results yet. `gem16gb-bench` returns a machine-readable
-`not_implemented` status and a non-zero exit code.
+There are no accepted comparative benchmark results yet. `gem16gb-bench decode` now provides a real,
+machine-readable batch-one decode characterization; the other end-to-end benchmark modes still return
+`not_implemented` and a non-zero exit code.
+
+The decode command keeps one model instance resident across all runs, clears the preallocated KV cache outside
+the timing boundary, performs the configured warm-ups, and retains every measured inter-token latency in JSON.
+It reports median/mean throughput, standard deviation, a Student-t 95% confidence interval across runs, and pooled
+p50/p95/p99 inter-token latency. Prompt IDs follow the same deterministic formula as the tracked vLLM harness. The
+first token selected after prompt ingestion is excluded from decode, after which exactly `--tokens` full forward,
+greedy-selection, and device-to-host intervals are timed:
+
+```powershell
+.\build\Windows\blackwell-release\bin\gem16gb-bench.exe decode `
+  --model .\models\checkpoints\unsloth-gemma-4-12b-it-NVFP4-b1f6497 `
+  --context 128 `
+  --tokens 256 `
+  --warmups 3 `
+  --repetitions 10 `
+  --enable-fused-gate-up
+```
+
+The current cache implementation limits prompt plus measured decode positions to 1,024 tokens. Results remain
+labeled `characterization` and `benchmark_qualified: false` until the hybrid long-context cache, quality gates,
+and required system telemetry are complete.
 
 Future results must use the matrices, timing boundaries, repetition policy, quality gates, and three llama.cpp
 baseline labels defined in `AGENTS.md`. Raw runs will be written below
