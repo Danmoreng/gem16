@@ -43,7 +43,7 @@ void PrintUsage() {
       << "              [--suppress-token-ids <id,id,...>]\n"
       << "              [--dump-logits <raw-f32-path>]\n"
       << "              [--dump-state <path> --dump-state-position N]\n"
-      << "              [--projection-path native|reference]\n"
+      << "              [--projection-path native|reference] [--enable-fused-gate-up]\n"
       << "              [--kv-cache fp8|bf16]\n"
       << "              [--max-tokens N] [--max-context N] --greedy\n"
       << "\nTeacher forcing uses the forced list length as the number of output\n"
@@ -121,6 +121,8 @@ int main(int argc, char** argv) {
         std::cerr << "error: --projection-path must be native or reference\n";
         return 64;
       }
+    } else if (argument == "--enable-fused-gate-up") {
+      options.enable_fused_gate_up = true;
     } else if (argument == "--kv-cache" && index + 1 < argc) {
       const std::string_view mode = argv[++index];
       if (mode == "fp8") {

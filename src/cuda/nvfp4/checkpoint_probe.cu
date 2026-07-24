@@ -1,5 +1,6 @@
 #include "cuda/nvfp4/checkpoint_probe.h"
 
+#include "cuda/nvfp4/gemv.h"
 #include "cuda/nvfp4/reference.h"
 #include "cuda/nvfp4/sm120.h"
 #include "gem16gb/model.h"
@@ -240,6 +241,7 @@ Result<Nvfp4CheckpointProbeResult> RunLayer0Nvfp4CheckpointProbe(
   DeviceBuffer<std::uint8_t> device_weight_scales;
   DeviceBuffer<float> device_reference_output;
   DeviceBuffer<float> device_native_output;
+  DeviceBuffer<float> device_simt_output;
   for (const Status status : {
            device_activation.Allocate(k_size, "allocate activation"),
            device_packed_activation.Allocate(k_size / 2U, "allocate packed activation"),
@@ -248,6 +250,7 @@ Result<Nvfp4CheckpointProbeResult> RunLayer0Nvfp4CheckpointProbe(
            device_weight_scales.Allocate(scale_info->byte_length, "allocate weight scales"),
            device_reference_output.Allocate(rows, "allocate reference output"),
            device_native_output.Allocate(rows, "allocate native output"),
+           device_simt_output.Allocate(rows, "allocate SIMT GEMV output"),
        }) {
     if (!status.ok()) return status;
   }
@@ -279,9 +282,12 @@ Result<Nvfp4CheckpointProbeResult> RunLayer0Nvfp4CheckpointProbe(
   const bool activation_match =
       gpu_packed_activation == host_quantized.value().packed_e2m1 &&
       gpu_activation_scales == host_quantized.value().block_scales_e4m3fn;
-  if (!activation_match) {
-    return Error(StatusCode::kDataLoss, "CPU and CUDA activation quantization bytes differ");
-  }
+  // The projection comparison remains valid when a quantization-boundary value differs: every
+  // device projection consumes the same CUDA-produced bytes. Build the sample oracle from those
+  // exact bytes instead of silently comparing it with the CPU quantizer's neighboring value.
+  nvfp4::QuantizedActivation projection_activation = host_quantized.value();
+  projection_activation.packed_e2m1 = gpu_packed_activation;
+  projection_activation.block_scales_e4m3fn = gpu_activation_scales;
 
   const auto reference_launch = [&] {
     return LaunchNvfp4ReferenceProjection(
@@ -301,22 +307,40 @@ Result<Nvfp4CheckpointProbeResult> RunLayer0Nvfp4CheckpointProbe(
   auto native_ms = Measure(warmups, iterations, native_launch);
   if (!native_ms.ok()) return native_ms.status();
 
+  const auto simt_launch = [&] {
+    return LaunchNvfp4SimtGemvProjection(
+        device_packed_activation.get(), device_activation_scales.get(), device_weight.get(),
+        device_weight_scales.get(), device_simt_output.get(), rows, k_size,
+        input_divisor.value(), weight_divisor.value(), nullptr);
+  };
+  auto simt_ms = Measure(warmups, iterations, simt_launch);
+  if (!simt_ms.ok()) return simt_ms.status();
+
   std::vector<float> reference_output(rows);
   std::vector<float> native_output(rows);
+  std::vector<float> simt_output(rows);
   cuda_error = cudaMemcpy(reference_output.data(), device_reference_output.get(),
                           device_reference_output.bytes(), cudaMemcpyDeviceToHost);
   if (cuda_error != cudaSuccess) return CudaFailure("copy reference output", cuda_error);
   cuda_error = cudaMemcpy(native_output.data(), device_native_output.get(),
                           device_native_output.bytes(), cudaMemcpyDeviceToHost);
   if (cuda_error != cudaSuccess) return CudaFailure("copy native output", cuda_error);
+  cuda_error = cudaMemcpy(simt_output.data(), device_simt_output.get(),
+                          device_simt_output.bytes(), cudaMemcpyDeviceToHost);
+  if (cuda_error != cudaSuccess) return CudaFailure("copy SIMT GEMV output", cuda_error);
 
   double max_abs = 0.0;
   double square_sum = 0.0;
   double dot = 0.0;
   double reference_square_sum = 0.0;
   double native_square_sum = 0.0;
+  double simt_max_abs = 0.0;
+  double simt_square_sum = 0.0;
+  double simt_dot = 0.0;
+  double simt_square_sum_output = 0.0;
   for (std::size_t row = 0; row < reference_output.size(); ++row) {
-    if (!std::isfinite(reference_output[row]) || !std::isfinite(native_output[row])) {
+    if (!std::isfinite(reference_output[row]) || !std::isfinite(native_output[row]) ||
+        !std::isfinite(simt_output[row])) {
       return Error(StatusCode::kDataLoss, "checkpoint probe produced a non-finite output");
     }
     const double reference = reference_output[row];
@@ -327,6 +351,12 @@ Result<Nvfp4CheckpointProbeResult> RunLayer0Nvfp4CheckpointProbe(
     dot += reference * native;
     reference_square_sum += reference * reference;
     native_square_sum += native * native;
+    const double simt = simt_output[row];
+    const double simt_difference = simt - reference;
+    simt_max_abs = std::max(simt_max_abs, std::fabs(simt_difference));
+    simt_square_sum += simt_difference * simt_difference;
+    simt_dot += reference * simt;
+    simt_square_sum_output += simt * simt;
   }
 
   Nvfp4CheckpointProbeResult result;
@@ -339,17 +369,22 @@ Result<Nvfp4CheckpointProbeResult> RunLayer0Nvfp4CheckpointProbe(
   result.device_bytes = device_activation.bytes() + device_packed_activation.bytes() +
                         device_activation_scales.bytes() + device_weight.bytes() +
                         device_weight_scales.bytes() + device_reference_output.bytes() +
-                        device_native_output.bytes();
+                        device_native_output.bytes() + device_simt_output.bytes();
   result.input_global_divisor = input_divisor.value();
   result.weight_global_divisor = weight_divisor.value();
   result.activation_bytes_match = activation_match;
   result.activation_quantize_ms = quantize_ms.value();
   result.cuda_reference_ms = reference_ms.value();
   result.sm120_direct_ms = native_ms.value();
+  result.simt_gemv_ms = simt_ms.value();
   result.reference_native_max_abs = max_abs;
   result.reference_native_rms = std::sqrt(square_sum / static_cast<double>(rows));
   result.reference_native_cosine =
       dot / std::sqrt(reference_square_sum * native_square_sum);
+  result.reference_simt_max_abs = simt_max_abs;
+  result.reference_simt_rms = std::sqrt(simt_square_sum / static_cast<double>(rows));
+  result.reference_simt_cosine =
+      simt_dot / std::sqrt(reference_square_sum * simt_square_sum_output);
 
   const std::array<std::uint64_t, 8> sample_rows = {
       0, 1, 7, 8, 127, rows / 4U, rows / 2U, rows - 1U};
@@ -360,7 +395,7 @@ Result<Nvfp4CheckpointProbeResult> RunLayer0Nvfp4CheckpointProbe(
         static_cast<std::size_t>(row) * packed_row_bytes, packed_row_bytes);
     const auto row_scales = weight_scales.value().subspan(
         static_cast<std::size_t>(row) * scale_row_bytes, scale_row_bytes);
-    auto oracle = nvfp4::ReferenceDotProduct(host_quantized.value(), row_weights, row_scales,
+    auto oracle = nvfp4::ReferenceDotProduct(projection_activation, row_weights, row_scales,
                                              weight_divisor.value());
     if (!oracle.ok()) return oracle.status();
     result.oracle_reference_max_abs = std::max(
@@ -369,7 +404,11 @@ Result<Nvfp4CheckpointProbeResult> RunLayer0Nvfp4CheckpointProbe(
     result.oracle_native_max_abs = std::max(
         result.oracle_native_max_abs,
         std::fabs(oracle.value() - static_cast<double>(native_output[row])));
-    result.samples.push_back({row, oracle.value(), reference_output[row], native_output[row]});
+    result.oracle_simt_max_abs = std::max(
+        result.oracle_simt_max_abs,
+        std::fabs(oracle.value() - static_cast<double>(simt_output[row])));
+    result.samples.push_back(
+        {row, oracle.value(), reference_output[row], native_output[row], simt_output[row]});
   }
   return result;
 }

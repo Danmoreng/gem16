@@ -15,6 +15,7 @@ struct Nvfp4ProbeSample {
   double oracle = 0.0;
   float cuda_reference = 0.0F;
   float sm120_direct = 0.0F;
+  float simt_gemv = 0.0F;
 };
 
 struct Nvfp4CheckpointProbeResult {
@@ -31,11 +32,16 @@ struct Nvfp4CheckpointProbeResult {
   double activation_quantize_ms = 0.0;
   double cuda_reference_ms = 0.0;
   double sm120_direct_ms = 0.0;
+  double simt_gemv_ms = 0.0;
   double reference_native_max_abs = 0.0;
   double reference_native_rms = 0.0;
   double reference_native_cosine = 0.0;
+  double reference_simt_max_abs = 0.0;
+  double reference_simt_rms = 0.0;
+  double reference_simt_cosine = 0.0;
   double oracle_reference_max_abs = 0.0;
   double oracle_native_max_abs = 0.0;
+  double oracle_simt_max_abs = 0.0;
   std::vector<Nvfp4ProbeSample> samples;
 };
 
@@ -47,6 +53,8 @@ struct Nvfp4MlpCheckpointProbeResult {
   std::uint64_t native_down_activation_mismatched_bytes = 0;
   double cuda_reference_ms = 0.0;
   double sm120_direct_ms = 0.0;
+  double sm120_unfused_gate_up_ms = 0.0;
+  double sm120_fused_gate_up_ms = 0.0;
   double reference_native_max_abs = 0.0;
   double reference_native_rms = 0.0;
   double reference_native_cosine = 0.0;

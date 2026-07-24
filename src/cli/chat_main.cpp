@@ -63,7 +63,7 @@ void PrintUsage() {
       << "Usage:\n"
       << "  gem16gb-chat --model <checkpoint> [--max-tokens N] [--max-context N]\n"
       << "                [--thinking] [--system <text>]\n"
-      << "                [--projection-path native|reference]\n"
+      << "                [--projection-path native|reference] [--enable-fused-gate-up]\n"
       << "                [--kv-cache fp8|bf16]\n"
       << "                [--dump-state <path> --dump-state-position N]\n"
       << "  gem16gb-chat --model <checkpoint> --message <text> [--json]\n"
@@ -87,6 +87,7 @@ struct Options {
       gem16gb::ProjectionPath::kNativeSm120;
   gem16gb::KvCacheMode kv_cache_mode =
       gem16gb::KvCacheMode::kCheckpointFp8;
+  bool enable_fused_gate_up = false;
 };
 
 gem16gb::Result<Options> ParseOptions(int argc, char** argv) {
@@ -137,6 +138,8 @@ gem16gb::Result<Options> ParseOptions(int argc, char** argv) {
         return gem16gb::Status(gem16gb::StatusCode::kInvalidArgument,
                               "--projection-path must be native or reference");
       }
+    } else if (argument == "--enable-fused-gate-up") {
+      options.enable_fused_gate_up = true;
     } else if (argument == "--kv-cache" && index + 1 < argc) {
       const std::string_view mode = argv[++index];
       if (mode == "fp8") {
@@ -238,6 +241,7 @@ gem16gb::Result<TurnOutput> RunTurn(
   inference_options.max_context_tokens = cli.max_context;
   inference_options.projection_path = cli.projection_path;
   inference_options.kv_cache_mode = cli.kv_cache_mode;
+  inference_options.enable_fused_gate_up = cli.enable_fused_gate_up;
   inference_options.state_dump_path = cli.state_dump_path;
   inference_options.state_dump_position = cli.state_dump_position;
   TokenStreamContext stream_context{&processor, &std::cout};
@@ -280,6 +284,8 @@ gem16gb::Result<TurnOutput> RunTurn(
                          : "cuda_reference")
               << ",\"state_dumped\":"
               << (inference.value().state_dumped ? "true" : "false")
+              << ",\"fused_gate_up\":"
+              << (inference.value().fused_gate_up ? "true" : "false")
               << ",\"kv_cache_mode\":"
               << JsonEscape(
                      inference.value().kv_cache_mode ==

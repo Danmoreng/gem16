@@ -42,6 +42,7 @@ struct GreedyInferenceOptions {
   std::uint64_t max_context_tokens = 128;
   ProjectionPath projection_path = ProjectionPath::kNativeSm120;
   KvCacheMode kv_cache_mode = KvCacheMode::kCheckpointFp8;
+  bool enable_fused_gate_up = false;
   // Optional synchronous observer invoked once for every selected output
   // token, including a stop token. The callback and its context must remain
   // valid for the duration of RunGreedyInference. Benchmark callers leave it
@@ -72,6 +73,7 @@ struct GreedyInferenceResult {
   bool benchmark_qualified = false;
   bool stopped = false;
   bool teacher_forcing = false;
+  bool fused_gate_up = false;
   bool logits_dumped = false;
   bool state_dumped = false;
 };

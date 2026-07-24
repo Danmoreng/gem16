@@ -270,7 +270,9 @@ int RunKernelMode(int argc, char** argv) {
               << "  reference/native Down-input differing bytes: "
               << probe.native_down_activation_mismatched_bytes << '\n'
               << "  reference/native final max abs: " << probe.reference_native_max_abs << '\n'
-              << "  SM120 direct MLP average: " << probe.sm120_direct_ms << " ms\n";
+              << "  SM120 direct MLP average: " << probe.sm120_direct_ms << " ms\n"
+              << "  unfused Gate/Up average: " << probe.sm120_unfused_gate_up_ms << " ms\n"
+              << "  fused Gate/Up average: " << probe.sm120_fused_gate_up_ms << " ms\n";
     std::cout << std::setprecision(17)
               << "{\"schema_version\":1,\"status\":\"characterization\","
               << "\"benchmark_qualified\":false,\"mode\":\"kernel\",\"fallbacks\":0,"
@@ -288,7 +290,11 @@ int RunKernelMode(int argc, char** argv) {
               << ",\"timing_ms\":{\"warmups\":" << warmups
               << ",\"iterations\":" << iterations
               << ",\"cuda_reference_single\":" << probe.cuda_reference_ms
-              << ",\"sm120_direct_average\":" << probe.sm120_direct_ms << '}'
+              << ",\"sm120_direct_average\":" << probe.sm120_direct_ms
+              << ",\"sm120_unfused_gate_up_average\":"
+              << probe.sm120_unfused_gate_up_ms
+              << ",\"sm120_fused_gate_up_average\":"
+              << probe.sm120_fused_gate_up_ms << '}'
               << ",\"error\":{\"reference_native_max_abs\":"
               << probe.reference_native_max_abs
               << ",\"reference_native_rms\":" << probe.reference_native_rms
@@ -378,7 +384,9 @@ int RunKernelMode(int argc, char** argv) {
             << "  CPU/GPU activation bytes: "
             << (probe.activation_bytes_match ? "exact match" : "MISMATCH") << '\n'
             << "  CUDA reference/native max abs: " << probe.reference_native_max_abs << '\n'
-            << "  SM120 direct average: " << probe.sm120_direct_ms << " ms\n";
+            << "  CUDA reference/SIMT max abs: " << probe.reference_simt_max_abs << '\n'
+            << "  SM120 direct average: " << probe.sm120_direct_ms << " ms\n"
+            << "  SIMT GEMV average: " << probe.simt_gemv_ms << " ms\n";
 
   std::cout << std::setprecision(17)
             << "{\"schema_version\":1,\"status\":\"characterization\","
@@ -401,20 +409,26 @@ int RunKernelMode(int argc, char** argv) {
             << ",\"iterations\":" << iterations
             << ",\"activation_quantize_average\":" << probe.activation_quantize_ms
             << ",\"cuda_reference_single\":" << probe.cuda_reference_ms
-            << ",\"sm120_direct_average\":" << probe.sm120_direct_ms << '}'
+            << ",\"sm120_direct_average\":" << probe.sm120_direct_ms
+            << ",\"simt_gemv_average\":" << probe.simt_gemv_ms << '}'
             << ",\"error\":{\"reference_native_max_abs\":"
             << probe.reference_native_max_abs
             << ",\"reference_native_rms\":" << probe.reference_native_rms
             << ",\"reference_native_cosine\":" << probe.reference_native_cosine
             << ",\"oracle_reference_max_abs\":" << probe.oracle_reference_max_abs
-            << ",\"oracle_native_max_abs\":" << probe.oracle_native_max_abs << '}'
+            << ",\"oracle_native_max_abs\":" << probe.oracle_native_max_abs
+            << ",\"reference_simt_max_abs\":" << probe.reference_simt_max_abs
+            << ",\"reference_simt_rms\":" << probe.reference_simt_rms
+            << ",\"reference_simt_cosine\":" << probe.reference_simt_cosine
+            << ",\"oracle_simt_max_abs\":" << probe.oracle_simt_max_abs << '}'
             << ",\"samples\":[";
   for (std::size_t index = 0; index < probe.samples.size(); ++index) {
     if (index != 0) std::cout << ',';
     const auto& sample = probe.samples[index];
     std::cout << "{\"row\":" << sample.row << ",\"oracle\":" << sample.oracle
               << ",\"cuda_reference\":" << sample.cuda_reference
-              << ",\"sm120_direct\":" << sample.sm120_direct << '}';
+              << ",\"sm120_direct\":" << sample.sm120_direct
+              << ",\"simt_gemv\":" << sample.simt_gemv << '}';
   }
   std::cout << "]}\n";
   return probe.activation_bytes_match ? 0 : 1;

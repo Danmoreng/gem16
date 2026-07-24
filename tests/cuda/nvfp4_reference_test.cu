@@ -2,14 +2,16 @@
 #include "cuda/fp8/sm120.h"
 #include "cuda/layer/reference.h"
 #include "cuda/nvfp4/reference.h"
+#include "cuda/nvfp4/gemv.h"
 #include "cuda/nvfp4/sm120.h"
 #include "cuda/nvfp4/mlp.h"
 #include "gem16gb/fp8.h"
 #include "gem16gb/layer.h"
 #include "gem16gb/nvfp4.h"
 
-#include <cuda_runtime.h>
+#include <cuda_bf16.h>
 #include <cuda_fp8.h>
+#include <cuda_runtime.h>
 
 #include <algorithm>
 #include <array>
@@ -231,9 +233,15 @@ void TestDirectSourceSm120Projection() {
   DeviceBuffer<std::uint8_t> device_weight(packed_weight.size());
   DeviceBuffer<std::uint8_t> device_weight_scales(weight_scales.size());
   DeviceBuffer<float> device_output(rows);
+  DeviceBuffer<float> device_simt_output(rows);
+  DeviceBuffer<float> device_fused_gate(rows);
+  DeviceBuffer<float> device_fused_up(rows);
+  DeviceBuffer<float> device_fused_product(rows);
   if (device_activation.get() == nullptr || device_activation_scales.get() == nullptr ||
       device_weight.get() == nullptr || device_weight_scales.get() == nullptr ||
-      device_output.get() == nullptr) {
+      device_output.get() == nullptr || device_simt_output.get() == nullptr ||
+      device_fused_gate.get() == nullptr || device_fused_up.get() == nullptr ||
+      device_fused_product.get() == nullptr) {
     return;
   }
   if (!CudaOk(cudaMemcpy(device_activation.get(), quantized.value().packed_e2m1.data(),
@@ -257,12 +265,41 @@ void TestDirectSourceSm120Projection() {
       device_weight_scales.get(), device_output.get(), rows, k_size, activation_divisor,
       weight_divisor, nullptr);
   CUDA_TEST_CHECK(status.ok());
-  if (!status.ok() || !CudaOk(cudaDeviceSynchronize(), "native projection synchronize")) return;
+  const gem16gb::Status simt_status = gem16gb::internal::LaunchNvfp4SimtGemvProjection(
+      device_activation.get(), device_activation_scales.get(), device_weight.get(),
+      device_weight_scales.get(), device_simt_output.get(), rows, k_size,
+      activation_divisor, weight_divisor, nullptr);
+  CUDA_TEST_CHECK(simt_status.ok());
+  const gem16gb::Status fused_status = gem16gb::internal::LaunchNvfp4Sm120FusedGateUp(
+      device_activation.get(), device_activation_scales.get(), device_weight.get(),
+      device_weight_scales.get(), device_weight.get(), device_weight_scales.get(),
+      device_fused_gate.get(), device_fused_up.get(), device_fused_product.get(), rows,
+      k_size, activation_divisor, weight_divisor, activation_divisor, weight_divisor,
+      nullptr);
+  CUDA_TEST_CHECK(fused_status.ok());
+  if (!status.ok() || !simt_status.ok() || !fused_status.ok() ||
+      !CudaOk(cudaDeviceSynchronize(), "native projection synchronize")) return;
 
   std::array<float, rows> output{};
+  std::array<float, rows> simt_output{};
+  std::array<float, rows> fused_gate{};
+  std::array<float, rows> fused_up{};
+  std::array<float, rows> fused_product{};
   if (!CudaOk(cudaMemcpy(output.data(), device_output.get(), device_output.bytes(),
                          cudaMemcpyDeviceToHost),
-              "copy native projection output")) {
+              "copy native projection output") ||
+      !CudaOk(cudaMemcpy(simt_output.data(), device_simt_output.get(),
+                         device_simt_output.bytes(), cudaMemcpyDeviceToHost),
+              "copy SIMT GEMV projection output") ||
+      !CudaOk(cudaMemcpy(fused_gate.data(), device_fused_gate.get(),
+                         device_fused_gate.bytes(), cudaMemcpyDeviceToHost),
+              "copy fused Gate output") ||
+      !CudaOk(cudaMemcpy(fused_up.data(), device_fused_up.get(),
+                         device_fused_up.bytes(), cudaMemcpyDeviceToHost),
+              "copy fused Up output") ||
+      !CudaOk(cudaMemcpy(fused_product.data(), device_fused_product.get(),
+                         device_fused_product.bytes(), cudaMemcpyDeviceToHost),
+              "copy fused product output")) {
     return;
   }
   for (std::size_t row = 0; row < rows; ++row) {
@@ -275,6 +312,17 @@ void TestDirectSourceSm120Projection() {
     CUDA_TEST_CHECK(expected.ok());
     if (expected.ok()) {
       CUDA_TEST_CHECK(std::fabs(static_cast<double>(output[row]) - expected.value()) < 1.0e-5);
+      CUDA_TEST_CHECK(
+          std::fabs(static_cast<double>(simt_output[row]) - expected.value()) < 1.0e-4);
+      const float rounded = static_cast<float>(__float2bfloat16_rn(output[row]));
+      const float inner = 0.7978845608028654F *
+                          (rounded + 0.044715F * rounded * rounded * rounded);
+      const float gelu = static_cast<float>(
+          __float2bfloat16_rn(0.5F * rounded * (1.0F + std::tanh(inner))));
+      const float product = static_cast<float>(__float2bfloat16_rn(gelu * rounded));
+      CUDA_TEST_CHECK(fused_gate[row] == rounded);
+      CUDA_TEST_CHECK(fused_up[row] == rounded);
+      CUDA_TEST_CHECK(fused_product[row] == product);
     }
   }
 }

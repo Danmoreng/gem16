@@ -67,14 +67,16 @@ The llama.cpp benchmark is deliberately before engine kernel optimization, but a
 4. ~~Implement an explicit correctness-only CUDA W4A4 route that consumes packed E2M1 values and E4M3 scales.~~
 5. ~~Implement and round-trip-test direct SM120 fragment views over source weight/scale storage for Gate, Up, and
    Down.~~ No persistent repack is required by the current direct route.
-6. Continue tuning the implemented SM120a `m16n8k64` decode projection for `T=1`; disassembly already proves
-   `OMMA.SF.16864.F32.E2M1.E2M1.UE4M3.4X`. Compare it against a bandwidth-oriented packed-NVFP4 SIMT/GEMV candidate
-   before declaring the production winner.
+6. ~~Compare the implemented SM120a `m16n8k64` decode projection for `T=1` with a bandwidth-oriented
+   packed-NVFP4 SIMT/GEMV candidate.~~ The direct MMA route is 3.1x–6.2x faster on the real Gate/Up/Down shapes and
+   remains the production candidate. Disassembly proves `OMMA.SF.16864.F32.E2M1.E2M1.UE4M3.4X`; retain the SIMT
+   implementation only as a direct-source characterization control.
 7. The correctness-first Layer-0 MLP chain now implements Gate/Up, Gemma GELU-tanh product, Down, post-MLP norm,
    residual, and layer scalar as part of the complete device-resident decoder-layer characterization. Both NVFP4
    activation boundaries remain byte-identical across its reference/native paths. Next compare it with trusted
-   prompt-derived layer data, then fuse launches and remeasure without using isolated hot-cache numbers as a layer
-   estimate.
+   prompt-derived layer data. An opt-in closed Gate/Up/GELU kernel now removes four intermediate launches and
+   unnecessary diagnostic stores; its isolated result is about 1.7% faster, but Windows end-to-end medians remain
+   noisy and slightly negative, so it is not enabled by default.
 8. Add a separate native prefill plan, initially qualified against pinned CUTLASS/cuBLASLt block-scaled GEMM. Do
    not reuse the decode plan merely for implementation convenience.
 9. The checkpoint's FP8 Q/K/V/O projection path is implemented with an independent CPU oracle, CUDA reference,

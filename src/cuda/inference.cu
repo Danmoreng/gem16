@@ -640,10 +640,12 @@ class InferenceEngine {
   [[nodiscard]] Status Initialize(const std::filesystem::path& model_directory,
                                   std::uint64_t max_context,
                                   ProjectionPath projection_path,
-                                  KvCacheMode kv_cache_mode) {
+                                  KvCacheMode kv_cache_mode,
+                                  bool enable_fused_gate_up) {
     max_context_ = max_context;
     projection_path_ = projection_path;
     kv_cache_mode_ = kv_cache_mode;
+    enable_fused_gate_up_ = enable_fused_gate_up;
     cudaDeviceProp properties{};
     cudaError_t error = cudaGetDeviceProperties(&properties, 0);
     if (error != cudaSuccess) return CudaFailure("cudaGetDeviceProperties", error);
@@ -1033,16 +1035,30 @@ class InferenceEngine {
     status = internal::LaunchNvfp4ReferenceActivationQuantization(
         normalized, mlp_packed, mlp_scales, kHidden, layer.gate.input_divisor, stream_);
     if (!status.ok()) return status;
-    status = LaunchNvfp4Projection(mlp_packed, mlp_scales, layer.gate, gate,
-                                   projection_path_, stream_);
-    if (!status.ok()) return status;
-    status = LaunchNvfp4Projection(mlp_packed, mlp_scales, layer.up, up,
-                                   projection_path_, stream_);
-    if (!status.ok()) return status;
-    status = LaunchRoundBf16(gate, kIntermediate, stream_);
-    if (!status.ok()) return status;
-    status = LaunchRoundBf16(up, kIntermediate, stream_);
-    if (!status.ok()) return status;
+    if (projection_path_ == ProjectionPath::kNativeSm120 && enable_fused_gate_up_) {
+      status = internal::LaunchNvfp4Sm120FusedGateUp(
+          mlp_packed, mlp_scales, layer.gate.packed_weight, layer.gate.scales,
+          layer.up.packed_weight, layer.up.scales, capture == nullptr ? nullptr : gate,
+          capture == nullptr ? nullptr : up, product, kIntermediate, kHidden,
+          layer.gate.input_divisor, layer.gate.weight_divisor,
+          layer.up.input_divisor, layer.up.weight_divisor, stream_);
+      if (!status.ok()) return status;
+    } else {
+      status = LaunchNvfp4Projection(mlp_packed, mlp_scales, layer.gate, gate,
+                                     projection_path_, stream_);
+      if (!status.ok()) return status;
+      status = LaunchNvfp4Projection(mlp_packed, mlp_scales, layer.up, up,
+                                     projection_path_, stream_);
+      if (!status.ok()) return status;
+      status = LaunchRoundBf16(gate, kIntermediate, stream_);
+      if (!status.ok()) return status;
+      status = LaunchRoundBf16(up, kIntermediate, stream_);
+      if (!status.ok()) return status;
+      status = internal::LaunchGeluTanhProduct(gate, up, product, kIntermediate, stream_);
+      if (!status.ok()) return status;
+      status = LaunchRoundBf16(product, kIntermediate, stream_);
+      if (!status.ok()) return status;
+    }
     if (capture != nullptr) {
       status = capture_values(capture->gate, gate, kIntermediate,
                               "copy MLP gate state");
@@ -1051,10 +1067,6 @@ class InferenceEngine {
                               "copy MLP up state");
       if (!status.ok()) return status;
     }
-    status = internal::LaunchGeluTanhProduct(gate, up, product, kIntermediate, stream_);
-    if (!status.ok()) return status;
-    status = LaunchRoundBf16(product, kIntermediate, stream_);
-    if (!status.ok()) return status;
     if (capture != nullptr) {
       status = capture_values(capture->gelu_product, product, kIntermediate,
                               "copy MLP GELU product state");
@@ -1108,6 +1120,7 @@ class InferenceEngine {
   std::uint32_t suppressed_token_count_ = 0;
   ProjectionPath projection_path_ = ProjectionPath::kNativeSm120;
   KvCacheMode kv_cache_mode_ = KvCacheMode::kCheckpointFp8;
+  bool enable_fused_gate_up_ = false;
 };
 
 double Milliseconds(std::chrono::steady_clock::duration duration) {
@@ -1283,7 +1296,8 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
   InferenceEngine engine;
   Status status = engine.Initialize(options.model_directory, options.max_context_tokens,
                                     options.projection_path,
-                                    options.kv_cache_mode);
+                                    options.kv_cache_mode,
+                                    options.enable_fused_gate_up);
   if (!status.ok()) return status;
   status = engine.SetSuppressedTokens(options.suppressed_token_ids);
   if (!status.ok()) return status;
@@ -1295,6 +1309,8 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
   result.teacher_forcing = teacher_forcing;
   result.projection_path = options.projection_path;
   result.kv_cache_mode = options.kv_cache_mode;
+  result.fused_gate_up = options.projection_path == ProjectionPath::kNativeSm120 &&
+                         options.enable_fused_gate_up;
   result.model_load_milliseconds = Milliseconds(load_end - load_start);
   result.weight_arena_bytes = engine.weight_bytes();
   result.kv_cache_bytes = engine.cache_bytes();
@@ -1448,6 +1464,7 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
          << (result.source_layout_direct ? "true" : "false") << ",\n"
          << "  \"token_loop_allocations\": "
          << (result.token_loop_allocations ? "true" : "false") << ",\n"
+         << "  \"fused_gate_up\": " << (result.fused_gate_up ? "true" : "false") << ",\n"
          << "  \"model_load_ms\": " << result.model_load_milliseconds << ",\n"
          << "  \"prompt_ms\": " << result.prompt_milliseconds << ",\n"
          << "  \"decode_ms\": " << result.decode_milliseconds << ",\n"

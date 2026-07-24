@@ -72,6 +72,7 @@ if(GEM16GB_ENABLE_CUDA)
     src/cuda/layer/reference.cu
     src/cuda/layer/checkpoint_probe.cu
     src/cuda/nvfp4/checkpoint_probe.cu
+    src/cuda/nvfp4/gemv.cu
     src/cuda/nvfp4/mlp.cu
     src/cuda/nvfp4/mlp_checkpoint_probe.cu
     src/cuda/nvfp4/reference.cu
@@ -103,6 +104,9 @@ if(GEM16GB_ENABLE_CUDA)
       -diag-suppress=2810
     )
     set_property(SOURCE src/cuda/nvfp4/sm120.cu APPEND PROPERTY COMPILE_OPTIONS
+      -Xcompiler=/wd4211
+    )
+    set_property(SOURCE src/cuda/nvfp4/gemv.cu APPEND PROPERTY COMPILE_OPTIONS
       -Xcompiler=/wd4211
     )
     set_property(SOURCE src/cuda/nvfp4/mlp.cu APPEND PROPERTY COMPILE_OPTIONS

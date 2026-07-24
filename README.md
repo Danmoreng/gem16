@@ -20,6 +20,10 @@ approximately 16 GB of VRAM. The first model is the mixed FP8/NVFP4
   projection. A complete real-checkpoint Layer-0 characterization now composes FP8 local attention and the NVFP4
   MLP without a host roundtrip or persistent weight repack. It is a correctness characterization, not yet a
   trusted-hidden-state or performance qualification.
+- A direct-source packed-NVFP4 SIMT/GEMV alternative and a closed SM120a Gate/Up/GELU operator are available for
+  controlled characterization. The SIMT path lost decisively to native MMA, while Gate/Up fusion remains opt-in
+  through `--enable-fused-gate-up` because its small isolated gain did not produce a stable Windows end-to-end
+  median improvement.
 - A CUDA-only, batch-one greedy characterization now loads the complete text model into one weight arena, executes
   all 48 layers with separate K/V caches, applies the tied BF16 output head and exact logit softcap, and selects the
   token on the GPU. The default applies the checkpoint's static E4M3 FP8 K/V scales; an explicit BF16 correctness
@@ -71,7 +75,8 @@ build/Linux/blackwell-release/bin/gem16gb-run \
 
 The checkpoint-declared FP8 K/V semantics are the default. Use `--kv-cache bf16` only for the explicitly labeled
 BF16 correctness comparison. `--projection-path reference` selects the slow CUDA scalar projections; it is never
-an automatic fallback.
+an automatic fallback. `--enable-fused-gate-up` enables the experimental closed native Gate/Up/GELU operator and
+is reported explicitly as `fused_gate_up` in result JSON.
 
 Reproduce the committed-token gate without copying token IDs manually:
 
