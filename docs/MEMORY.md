@@ -49,3 +49,9 @@ The native prefill arena is allocated once during engine initialization. It hold
 tiles and a causal score matrix sized as `32 * 16 * planned_context * sizeof(float)`. Thus the dominant score region
 is 128 MiB at 65,536 positions and 512 MiB at the 262,144-position maximum; it remains below the initial 1 GiB
 activation-arena target and performs no growth inside prompt processing.
+
+The maximum 262,144-position FP8 execution plan was also initialized and executed successfully on the 16 GB
+development GPU. Measured arenas were 9,200,135,680 weight bytes, 2,315,255,808 hybrid KV bytes, and 568,663,552
+workspace bytes (12,084,055,040 bytes total, excluding CUDA context/runtime allocations). This proves allocation
+and single-token execution at the full configured extent; it is not evidence for practical 262K prefill latency or
+long-context output quality.
