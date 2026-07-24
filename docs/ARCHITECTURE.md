@@ -18,7 +18,7 @@ architecture backend should reuse those contracts while supplying its own kernel
 
 ## Planned execution split
 
-Prefill and decode will use immutable, separate execution plans. Both will draw from named preallocated device
+Prefill and decode use separate execution plans. Both draw from named preallocated device
 arenas. Decode will eventually use fixed addresses and CUDA Graph replay; it may not allocate, access files, or
 compile code in the token loop.
 
@@ -31,7 +31,9 @@ not yet graph-captured or benchmark-qualified.
 
 The first full-model path intentionally accepts token IDs and uses a hybrid cache through the checkpoint's 262,144
 position contract. Its 40 local-attention layers use fixed 1,024-token rings; its eight full-attention layers use
-absolute, growing storage. Prompt tokens pass through the one-token decode plan as a temporary correctness bridge. The pure C++
+absolute, growing storage. Native prefill processes fixed 32-token chunks layer-by-layer, batches direct-source FP8
+and NVFP4 SM120 MMA across tokens, and evaluates causal attention against prior cache state plus staged current-chunk
+K/V before committing the chunk to the cache. The retained `--serial-prefill` path is a correctness oracle. The pure C++
 `GemmaChatProcessor` loads the checkpoint vocabulary, merge ranks, byte fallback, generation controls, and exact
 pinned Jinja artifact. It implements the supported text-only behavior of that template natively and rejects a
 different template revision rather than silently approximating it. This makes real chat flows testable now while

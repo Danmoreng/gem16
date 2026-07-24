@@ -33,7 +33,7 @@ approximately 16 GB of VRAM. The first model is the mixed FP8/NVFP4
   byte-fallback BPE encode/decode, enforces the pinned `chat_template.jinja` contract, and sources EOS/suppressed
   tokens from `generation_config.json`.
 
-Optimized prefill, sampling, CUDA Graphs, persistent chat
+Sampling, CUDA Graphs, persistent chat
 sessions, and benchmark-qualified inference do **not** work yet. The default cache now stores one physical E4M3FN
 byte per K/V value and dequantizes with the checkpoint's per-layer BF16 scales during attention. It is still an
 unfused correctness kernel rather than a performance result. The exact-blue greedy gate passes, while the longer
@@ -225,6 +225,10 @@ latencies plus summary statistics as JSON:
 This is currently a development characterization, not an accepted competitive result. The hybrid KV cache keeps
 1,024 positions in each local-attention ring and grows the eight global-attention layers through the requested
 context, up to the checkpoint's 262,144-position contract.
+
+Prompt ingestion uses a native 32-token chunk plan by default. It batches dynamic FP8 attention projections and
+NVFP4 MLP projections across tokens while retaining causal local/global attention. Pass `--serial-prefill` to
+`gem16gb-run` or `gem16gb-bench decode` for the retained one-token correctness bridge.
 
 ## Validate real-checkpoint layer assembly
 

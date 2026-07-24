@@ -44,6 +44,7 @@ void PrintUsage() {
       << "              [--dump-logits <raw-f32-path>]\n"
       << "              [--dump-state <path> --dump-state-position N]\n"
       << "              [--projection-path native|reference] [--enable-fused-gate-up]\n"
+      << "              [--serial-prefill]\n"
       << "              [--kv-cache fp8|bf16]\n"
       << "              [--max-tokens N] [--max-context N] --greedy\n"
       << "\nTeacher forcing uses the forced list length as the number of output\n"
@@ -123,6 +124,8 @@ int main(int argc, char** argv) {
       }
     } else if (argument == "--enable-fused-gate-up") {
       options.enable_fused_gate_up = true;
+    } else if (argument == "--serial-prefill") {
+      options.use_native_prefill = false;
     } else if (argument == "--kv-cache" && index + 1 < argc) {
       const std::string_view mode = argv[++index];
       if (mode == "fp8") {

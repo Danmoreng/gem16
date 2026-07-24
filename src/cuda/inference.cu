@@ -48,6 +48,7 @@ constexpr std::uint64_t kAlignment = 256;
 constexpr std::uint64_t kMaximumSuppressedTokens = 16;
 constexpr float kEpsilon = 1.0e-6F;
 constexpr unsigned kThreads = 256;
+constexpr std::uint64_t kPrefillChunkTokens = 32;
 
 Status Error(StatusCode code, std::string message) {
   return Status(code, std::move(message));
@@ -495,6 +496,17 @@ struct WorkspaceOffsets {
   std::uint64_t total = 0;
 };
 
+struct PrefillOffsets {
+  std::uint64_t token_ids = 0;
+  std::uint64_t hidden_a = 0, hidden_b = 0, normalized = 0;
+  std::uint64_t fp8_activation = 0, fp8_scales = 0;
+  std::uint64_t q = 0, k = 0, v = 0, q_norm = 0, k_norm = 0, v_norm = 0;
+  std::uint64_t k_fp8 = 0, v_fp8 = 0, scores = 0, attention = 0;
+  std::uint64_t o_activation = 0, o_scales = 0, projection = 0, post_norm = 0;
+  std::uint64_t mlp_packed = 0, mlp_scales = 0, gate = 0, up = 0, product = 0;
+  std::uint64_t down_packed = 0, down_scales = 0;
+};
+
 class LayoutBuilder {
  public:
   template <typename T>
@@ -530,6 +542,21 @@ __global__ void EmbeddingKernel(const std::uint16_t* weights, std::uint32_t toke
   const float weight = static_cast<float>(__ushort_as_bfloat16(weights[
       static_cast<std::uint64_t>(token) * kHidden + index]));
   const float scale = static_cast<float>(__float2bfloat16_rn(sqrtf(static_cast<float>(kHidden))));
+  output[index] = static_cast<float>(__float2bfloat16_rn(weight * scale));
+}
+
+__global__ void EmbeddingBatchKernel(const std::uint16_t* weights,
+                                     const std::uint32_t* tokens, float* output,
+                                     std::uint64_t total_elements) {
+  const std::uint64_t index =
+      static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+  if (index >= total_elements) return;
+  const std::uint64_t token_index = index / kHidden;
+  const std::uint64_t hidden_index = index % kHidden;
+  const float weight = static_cast<float>(__ushort_as_bfloat16(
+      weights[static_cast<std::uint64_t>(tokens[token_index]) * kHidden + hidden_index]));
+  const float scale = static_cast<float>(
+      __float2bfloat16_rn(sqrtf(static_cast<float>(kHidden))));
   output[index] = static_cast<float>(__float2bfloat16_rn(weight * scale));
 }
 
@@ -630,6 +657,36 @@ Status LaunchNvfp4Projection(const std::uint8_t* activation, const std::uint8_t*
       binding.contracting, binding.input_divisor, binding.weight_divisor, stream);
 }
 
+Status LaunchFp8ProjectionBatch(const std::uint8_t* activation, const float* scales,
+                                const Fp8Binding& binding, float* output,
+                                std::uint64_t tokens, ProjectionPath path,
+                                cudaStream_t stream) {
+  if (path == ProjectionPath::kCudaReference) {
+    return internal::LaunchFp8ReferenceProjectionBatch(
+        activation, scales, binding.weight, binding.scales, output, tokens,
+        binding.rows, binding.contracting, stream);
+  }
+  return internal::LaunchFp8Sm120DirectProjectionBatch(
+      activation, scales, binding.weight, binding.scales, output, tokens,
+      binding.rows, binding.contracting, stream);
+}
+
+Status LaunchNvfp4ProjectionBatch(
+    const std::uint8_t* activation, const std::uint8_t* scales,
+    const Nvfp4Binding& binding, float* output, std::uint64_t tokens,
+    ProjectionPath path, cudaStream_t stream) {
+  if (path == ProjectionPath::kCudaReference) {
+    return internal::LaunchNvfp4ReferenceProjectionBatch(
+        activation, scales, binding.packed_weight, binding.scales, output,
+        tokens, binding.rows, binding.contracting, binding.input_divisor,
+        binding.weight_divisor, stream);
+  }
+  return internal::LaunchNvfp4Sm120DirectProjectionBatch(
+      activation, scales, binding.packed_weight, binding.scales, output, tokens,
+      binding.rows, binding.contracting, binding.input_divisor,
+      binding.weight_divisor, stream);
+}
+
 class InferenceEngine {
  public:
   InferenceEngine() = default;
@@ -662,6 +719,8 @@ class InferenceEngine {
     status = AllocateCache();
     if (!status.ok()) return status;
     status = AllocateWorkspace();
+    if (!status.ok()) return status;
+    status = AllocatePrefillWorkspace();
     if (!status.ok()) return status;
     return ResetCache();
   }
@@ -737,7 +796,65 @@ class InferenceEngine {
 
   [[nodiscard]] std::uint64_t weight_bytes() const { return model_.weight_bytes(); }
   [[nodiscard]] std::uint64_t cache_bytes() const { return cache_.bytes(); }
-  [[nodiscard]] std::uint64_t workspace_bytes() const { return workspace_.bytes(); }
+  [[nodiscard]] std::uint64_t workspace_bytes() const {
+    return workspace_.bytes() + prefill_workspace_.bytes();
+  }
+
+  [[nodiscard]] Result<std::uint32_t> Prefill(
+      std::span<const std::uint32_t> token_ids) {
+    if (token_ids.empty() || token_ids.size() > max_context_) {
+      return Error(StatusCode::kInvalidArgument, "prefill token extent is invalid");
+    }
+    std::uint32_t selected_token = 0U;
+    for (std::size_t begin = 0; begin < token_ids.size(); begin += kPrefillChunkTokens) {
+      const std::uint64_t tokens = std::min<std::size_t>(
+          kPrefillChunkTokens, token_ids.size() - begin);
+      auto* device_tokens = Pointer<std::uint32_t>(prefill_workspace_, prefill_offsets_.token_ids);
+      cudaError_t error = cudaMemcpyAsync(
+          device_tokens, token_ids.data() + begin,
+          static_cast<std::size_t>(tokens * sizeof(std::uint32_t)),
+          cudaMemcpyHostToDevice, stream_);
+      if (error != cudaSuccess) return CudaFailure("copy prefill token IDs", error);
+      float* hidden = Pointer<float>(prefill_workspace_, prefill_offsets_.hidden_a);
+      const std::uint64_t hidden_elements = tokens * kHidden;
+      EmbeddingBatchKernel<<<static_cast<unsigned>((hidden_elements + kThreads - 1U) /
+                                                   kThreads),
+                             kThreads, 0, stream_>>>(
+          model_.embedding(), device_tokens, hidden, hidden_elements);
+      error = cudaGetLastError();
+      if (error != cudaSuccess) return CudaFailure("launch prefill embedding", error);
+      for (const auto& layer : model_.layers()) {
+        Status status = RunLayerBatch(layer, begin, tokens);
+        if (!status.ok()) return status;
+      }
+      float* normalized = Pointer<float>(prefill_workspace_, prefill_offsets_.normalized);
+      Status status = internal::LaunchRmsNorm(
+          hidden, model_.final_norm(), normalized, tokens, kHidden, kEpsilon, stream_);
+      if (!status.ok()) return status;
+      status = LaunchRoundBf16(normalized, hidden_elements, stream_);
+      if (!status.ok()) return status;
+      if (begin + tokens == token_ids.size()) {
+        float* last = normalized + (tokens - 1U) * kHidden;
+        float* logits = Pointer<float>(workspace_, offsets_.logits);
+        auto* selected = Pointer<std::uint32_t>(workspace_, offsets_.selected);
+        OutputHeadKernel<<<static_cast<unsigned>(kVocabulary), kThreads, 0, stream_>>>(
+            model_.embedding(), last, logits);
+        error = cudaGetLastError();
+        if (error != cudaSuccess) return CudaFailure("launch prefill output head", error);
+        ArgmaxKernel<<<1U, kThreads, 0, stream_>>>(
+            logits, Pointer<std::uint32_t>(workspace_, offsets_.suppressed),
+            suppressed_token_count_, selected);
+        error = cudaGetLastError();
+        if (error != cudaSuccess) return CudaFailure("launch prefill argmax", error);
+        error = cudaMemcpyAsync(&selected_token, selected, sizeof(selected_token),
+                                cudaMemcpyDeviceToHost, stream_);
+        if (error != cudaSuccess) return CudaFailure("copy prefill token", error);
+      }
+    }
+    const cudaError_t error = cudaStreamSynchronize(stream_);
+    if (error != cudaSuccess) return CudaFailure("synchronize prefill", error);
+    return selected_token;
+  }
 
   [[nodiscard]] Status ResetCache() {
     cudaError_t error = cudaMemsetAsync(
@@ -845,6 +962,254 @@ class InferenceEngine {
     if (!size.ok()) return size.status();
     offsets_.total = size.value();
     return workspace_.Allocate(size.value(), "allocate inference workspace arena");
+  }
+
+  [[nodiscard]] Status AllocatePrefillWorkspace() {
+    LayoutBuilder layout;
+#define GEM16GB_PREFILL_ADD(field, type, elements)          \
+    do {                                                     \
+      auto next = layout.Add<type>(elements);                \
+      if (!next.ok()) return next.status();                   \
+      prefill_offsets_.field = next.value();                  \
+    } while (false)
+    constexpr std::uint64_t tokens = kPrefillChunkTokens;
+    constexpr std::uint64_t max_q = kQueryHeads * 512U;
+    constexpr std::uint64_t max_kv = 8U * 256U;
+    GEM16GB_PREFILL_ADD(token_ids, std::uint32_t, tokens);
+    GEM16GB_PREFILL_ADD(hidden_a, float, tokens * kHidden);
+    GEM16GB_PREFILL_ADD(hidden_b, float, tokens * kHidden);
+    GEM16GB_PREFILL_ADD(normalized, float, tokens * kHidden);
+    GEM16GB_PREFILL_ADD(fp8_activation, std::uint8_t, tokens * max_q);
+    GEM16GB_PREFILL_ADD(fp8_scales, float, tokens);
+    GEM16GB_PREFILL_ADD(q, float, tokens * max_q);
+    GEM16GB_PREFILL_ADD(k, float, tokens * max_kv);
+    GEM16GB_PREFILL_ADD(v, float, tokens * max_kv);
+    GEM16GB_PREFILL_ADD(q_norm, float, tokens * max_q);
+    GEM16GB_PREFILL_ADD(k_norm, float, tokens * max_kv);
+    GEM16GB_PREFILL_ADD(v_norm, float, tokens * max_kv);
+    GEM16GB_PREFILL_ADD(k_fp8, std::uint8_t, tokens * max_kv);
+    GEM16GB_PREFILL_ADD(v_fp8, std::uint8_t, tokens * max_kv);
+    GEM16GB_PREFILL_ADD(scores, float, tokens * kQueryHeads * max_context_);
+    GEM16GB_PREFILL_ADD(attention, float, tokens * max_q);
+    GEM16GB_PREFILL_ADD(o_activation, std::uint8_t, tokens * max_q);
+    GEM16GB_PREFILL_ADD(o_scales, float, tokens);
+    GEM16GB_PREFILL_ADD(projection, float, tokens * kHidden);
+    GEM16GB_PREFILL_ADD(post_norm, float, tokens * kHidden);
+    GEM16GB_PREFILL_ADD(mlp_packed, std::uint8_t, tokens * kHidden / 2U);
+    GEM16GB_PREFILL_ADD(mlp_scales, std::uint8_t, tokens * kHidden / 16U);
+    GEM16GB_PREFILL_ADD(gate, float, tokens * kIntermediate);
+    GEM16GB_PREFILL_ADD(up, float, tokens * kIntermediate);
+    GEM16GB_PREFILL_ADD(product, float, tokens * kIntermediate);
+    GEM16GB_PREFILL_ADD(down_packed, std::uint8_t, tokens * kIntermediate / 2U);
+    GEM16GB_PREFILL_ADD(down_scales, std::uint8_t, tokens * kIntermediate / 16U);
+#undef GEM16GB_PREFILL_ADD
+    auto size = AlignUp(layout.size(), kAlignment);
+    if (!size.ok()) return size.status();
+    return prefill_workspace_.Allocate(size.value(), "allocate native prefill workspace");
+  }
+
+  [[nodiscard]] Status RunLayerBatch(const LayerBinding& layer,
+                                     std::uint64_t start_position,
+                                     std::uint64_t tokens) {
+    float* hidden_a = Pointer<float>(prefill_workspace_, prefill_offsets_.hidden_a);
+    float* hidden_b = Pointer<float>(prefill_workspace_, prefill_offsets_.hidden_b);
+    float* normalized = Pointer<float>(prefill_workspace_, prefill_offsets_.normalized);
+    auto* fp8 = Pointer<std::uint8_t>(prefill_workspace_, prefill_offsets_.fp8_activation);
+    float* fp8_scales = Pointer<float>(prefill_workspace_, prefill_offsets_.fp8_scales);
+    float* q = Pointer<float>(prefill_workspace_, prefill_offsets_.q);
+    float* k = Pointer<float>(prefill_workspace_, prefill_offsets_.k);
+    float* v = Pointer<float>(prefill_workspace_, prefill_offsets_.v);
+    float* q_norm = Pointer<float>(prefill_workspace_, prefill_offsets_.q_norm);
+    float* k_norm = Pointer<float>(prefill_workspace_, prefill_offsets_.k_norm);
+    float* v_norm = Pointer<float>(prefill_workspace_, prefill_offsets_.v_norm);
+    float* attention = Pointer<float>(prefill_workspace_, prefill_offsets_.attention);
+    float* projection = Pointer<float>(prefill_workspace_, prefill_offsets_.projection);
+    float* post_norm = Pointer<float>(prefill_workspace_, prefill_offsets_.post_norm);
+    const std::uint64_t hidden_elements = tokens * kHidden;
+    Status status = internal::LaunchRmsNorm(hidden_a, layer.input_norm, normalized,
+                                            tokens, kHidden, kEpsilon, stream_);
+    if (!status.ok()) return status;
+    status = LaunchRoundBf16(normalized, hidden_elements, stream_);
+    if (!status.ok()) return status;
+    status = internal::LaunchFp8ReferenceTokenQuantizationBatch(
+        normalized, fp8, fp8_scales, tokens, kHidden, stream_);
+    if (!status.ok()) return status;
+    status = LaunchFp8ProjectionBatch(fp8, fp8_scales, layer.q, q, tokens,
+                                      projection_path_, stream_);
+    if (!status.ok()) return status;
+    status = LaunchFp8ProjectionBatch(fp8, fp8_scales, layer.k, k, tokens,
+                                      projection_path_, stream_);
+    if (!status.ok()) return status;
+    if (layer.global) {
+      const cudaError_t error = cudaMemcpyAsync(
+          v, k, static_cast<std::size_t>(tokens * layer.kv_elements * sizeof(float)),
+          cudaMemcpyDeviceToDevice, stream_);
+      if (error != cudaSuccess) return CudaFailure("reuse batched global K for V", error);
+    } else {
+      status = LaunchFp8ProjectionBatch(fp8, fp8_scales, layer.v, v, tokens,
+                                        projection_path_, stream_);
+      if (!status.ok()) return status;
+    }
+    for (const Status next : {
+             LaunchRoundBf16(q, tokens * layer.query_elements, stream_),
+             LaunchRoundBf16(k, tokens * layer.kv_elements, stream_),
+             LaunchRoundBf16(v, tokens * layer.kv_elements, stream_),
+             internal::LaunchRmsNorm(q, layer.q_norm, q_norm,
+                                     tokens * kQueryHeads, layer.head_dimension,
+                                     kEpsilon, stream_),
+             internal::LaunchRmsNorm(k, layer.k_norm, k_norm,
+                                     tokens * layer.kv_heads, layer.head_dimension,
+                                     kEpsilon, stream_),
+             internal::LaunchRmsNorm(v, nullptr, v_norm,
+                                     tokens * layer.kv_heads, layer.head_dimension,
+                                     kEpsilon, stream_)}) {
+      if (!next.ok()) return next;
+    }
+    for (const Status next : {
+             LaunchRoundBf16(q_norm, tokens * layer.query_elements, stream_),
+             LaunchRoundBf16(k_norm, tokens * layer.kv_elements, stream_),
+             LaunchRoundBf16(v_norm, tokens * layer.kv_elements, stream_)}) {
+      if (!next.ok()) return next;
+    }
+    if (layer.global) {
+      status = internal::LaunchProportionalRotaryEmbeddingBatch(
+          q_norm, tokens, kQueryHeads, layer.head_dimension, 0.25,
+          start_position, 1000000.0, 1.0, stream_);
+      if (!status.ok()) return status;
+      status = internal::LaunchProportionalRotaryEmbeddingBatch(
+          k_norm, tokens, layer.kv_heads, layer.head_dimension, 0.25,
+          start_position, 1000000.0, 1.0, stream_);
+    } else {
+      status = internal::LaunchRotaryEmbeddingBatch(
+          q_norm, tokens, kQueryHeads, layer.head_dimension,
+          layer.head_dimension, start_position, 10000.0, stream_);
+      if (!status.ok()) return status;
+      status = internal::LaunchRotaryEmbeddingBatch(
+          k_norm, tokens, layer.kv_heads, layer.head_dimension,
+          layer.head_dimension, start_position, 10000.0, stream_);
+    }
+    if (!status.ok()) return status;
+    status = LaunchRoundBf16(q_norm, tokens * layer.query_elements, stream_);
+    if (!status.ok()) return status;
+    status = LaunchRoundBf16(k_norm, tokens * layer.kv_elements, stream_);
+    if (!status.ok()) return status;
+    const std::uint64_t capacity =
+        layer.global ? max_context_ : std::min(max_context_, kSlidingWindow);
+    float* scores = Pointer<float>(prefill_workspace_, prefill_offsets_.scores);
+    if (kv_cache_mode_ == KvCacheMode::kCheckpointFp8) {
+      auto* k_fp8 = Pointer<std::uint8_t>(prefill_workspace_, prefill_offsets_.k_fp8);
+      auto* v_fp8 = Pointer<std::uint8_t>(prefill_workspace_, prefill_offsets_.v_fp8);
+      status = internal::LaunchQuantizeKvFp8Batch(
+          k_norm, v_norm, k_fp8, v_fp8, layer.k_cache_scale,
+          layer.v_cache_scale, tokens, layer.kv_elements, stream_);
+      if (!status.ok()) return status;
+      status = internal::LaunchCausalAttentionPrefillFp8(
+          q_norm, k_fp8, v_fp8, layer.key_cache_fp8, layer.value_cache_fp8,
+          layer.k_cache_scale, layer.v_cache_scale, scores, attention,
+          start_position, tokens, kQueryHeads, layer.kv_heads,
+          layer.head_dimension, capacity, !layer.global, stream_);
+      if (!status.ok()) return status;
+      status = internal::LaunchAppendKvFp8Batch(
+          k_fp8, v_fp8, layer.key_cache_fp8, layer.value_cache_fp8,
+          start_position, tokens, layer.kv_elements, capacity, stream_);
+    } else {
+      status = internal::LaunchCausalAttentionPrefill(
+          q_norm, k_norm, v_norm, layer.key_cache_bf16,
+          layer.value_cache_bf16, scores, attention, start_position, tokens,
+          kQueryHeads, layer.kv_heads, layer.head_dimension, capacity,
+          !layer.global, stream_);
+      if (!status.ok()) return status;
+      status = internal::LaunchAppendKvBatch(
+          k_norm, v_norm, layer.key_cache_bf16, layer.value_cache_bf16,
+          start_position, tokens, layer.kv_elements, capacity, stream_);
+    }
+    if (!status.ok()) return status;
+    status = LaunchRoundBf16(attention, tokens * layer.query_elements, stream_);
+    if (!status.ok()) return status;
+    auto* o_activation = Pointer<std::uint8_t>(prefill_workspace_, prefill_offsets_.o_activation);
+    float* o_scales = Pointer<float>(prefill_workspace_, prefill_offsets_.o_scales);
+    status = internal::LaunchFp8ReferenceTokenQuantizationBatch(
+        attention, o_activation, o_scales, tokens, layer.query_elements, stream_);
+    if (!status.ok()) return status;
+    status = LaunchFp8ProjectionBatch(o_activation, o_scales, layer.o, projection,
+                                      tokens, projection_path_, stream_);
+    if (!status.ok()) return status;
+    status = LaunchRoundBf16(projection, hidden_elements, stream_);
+    if (!status.ok()) return status;
+    status = internal::LaunchRmsNorm(projection, layer.post_attention_norm,
+                                     post_norm, tokens, kHidden, kEpsilon, stream_);
+    if (!status.ok()) return status;
+    status = LaunchRoundBf16(post_norm, hidden_elements, stream_);
+    if (!status.ok()) return status;
+    status = internal::LaunchAddResidual(post_norm, hidden_a, hidden_b,
+                                         hidden_elements, stream_);
+    if (!status.ok()) return status;
+    status = LaunchRoundBf16(hidden_b, hidden_elements, stream_);
+    if (!status.ok()) return status;
+
+    auto* mlp_packed = Pointer<std::uint8_t>(prefill_workspace_, prefill_offsets_.mlp_packed);
+    auto* mlp_scales = Pointer<std::uint8_t>(prefill_workspace_, prefill_offsets_.mlp_scales);
+    float* gate = Pointer<float>(prefill_workspace_, prefill_offsets_.gate);
+    float* up = Pointer<float>(prefill_workspace_, prefill_offsets_.up);
+    float* product = Pointer<float>(prefill_workspace_, prefill_offsets_.product);
+    status = internal::LaunchRmsNorm(hidden_b, layer.pre_mlp_norm, normalized,
+                                     tokens, kHidden, kEpsilon, stream_);
+    if (!status.ok()) return status;
+    status = LaunchRoundBf16(normalized, hidden_elements, stream_);
+    if (!status.ok()) return status;
+    status = internal::LaunchNvfp4ReferenceActivationQuantization(
+        normalized, mlp_packed, mlp_scales, hidden_elements,
+        layer.gate.input_divisor, stream_);
+    if (!status.ok()) return status;
+    if (projection_path_ == ProjectionPath::kNativeSm120 && enable_fused_gate_up_) {
+      status = internal::LaunchNvfp4Sm120FusedGateUpBatch(
+          mlp_packed, mlp_scales, layer.gate.packed_weight, layer.gate.scales,
+          layer.up.packed_weight, layer.up.scales, nullptr, nullptr, product,
+          tokens, kIntermediate, kHidden, layer.gate.input_divisor,
+          layer.gate.weight_divisor, layer.up.input_divisor,
+          layer.up.weight_divisor, stream_);
+    } else {
+      status = LaunchNvfp4ProjectionBatch(mlp_packed, mlp_scales, layer.gate,
+                                          gate, tokens, projection_path_, stream_);
+      if (!status.ok()) return status;
+      status = LaunchNvfp4ProjectionBatch(mlp_packed, mlp_scales, layer.up,
+                                          up, tokens, projection_path_, stream_);
+      if (!status.ok()) return status;
+      status = LaunchRoundBf16(gate, tokens * kIntermediate, stream_);
+      if (!status.ok()) return status;
+      status = LaunchRoundBf16(up, tokens * kIntermediate, stream_);
+      if (!status.ok()) return status;
+      status = internal::LaunchGeluTanhProduct(gate, up, product,
+                                               tokens * kIntermediate, stream_);
+    }
+    if (!status.ok()) return status;
+    status = LaunchRoundBf16(product, tokens * kIntermediate, stream_);
+    if (!status.ok()) return status;
+    auto* down_packed = Pointer<std::uint8_t>(prefill_workspace_, prefill_offsets_.down_packed);
+    auto* down_scales = Pointer<std::uint8_t>(prefill_workspace_, prefill_offsets_.down_scales);
+    status = internal::LaunchNvfp4ReferenceActivationQuantization(
+        product, down_packed, down_scales, tokens * kIntermediate,
+        layer.down.input_divisor, stream_);
+    if (!status.ok()) return status;
+    status = LaunchNvfp4ProjectionBatch(down_packed, down_scales, layer.down,
+                                        projection, tokens, projection_path_, stream_);
+    if (!status.ok()) return status;
+    status = LaunchRoundBf16(projection, hidden_elements, stream_);
+    if (!status.ok()) return status;
+    status = internal::LaunchRmsNorm(projection, layer.post_mlp_norm, post_norm,
+                                     tokens, kHidden, kEpsilon, stream_);
+    if (!status.ok()) return status;
+    status = LaunchRoundBf16(post_norm, hidden_elements, stream_);
+    if (!status.ok()) return status;
+    status = internal::LaunchAddResidual(post_norm, hidden_b, hidden_a,
+                                         hidden_elements, stream_);
+    if (!status.ok()) return status;
+    status = LaunchRoundBf16(hidden_a, hidden_elements, stream_);
+    if (!status.ok()) return status;
+    status = internal::LaunchScale(hidden_a, layer.layer_scalar,
+                                   hidden_elements, stream_);
+    if (!status.ok()) return status;
+    return LaunchRoundBf16(hidden_a, hidden_elements, stream_);
   }
 
   [[nodiscard]] Status RunLayer(const LayerBinding& layer, std::uint64_t position,
@@ -1132,7 +1497,9 @@ class InferenceEngine {
   LoadedModel model_;
   DeviceAllocation cache_;
   DeviceAllocation workspace_;
+  DeviceAllocation prefill_workspace_;
   WorkspaceOffsets offsets_{};
+  PrefillOffsets prefill_offsets_{};
   cudaStream_t stream_ = nullptr;
   std::uint64_t max_context_ = 0;
   std::uint32_t suppressed_token_count_ = 0;
@@ -1414,7 +1781,12 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
   const auto prompt_start = std::chrono::steady_clock::now();
   std::uint32_t next_token = 0;
   bool state_captured = false;
-  for (std::size_t index = 0; index < options.input_token_ids.size(); ++index) {
+  if (options.use_native_prefill && options.logits_dump_path.empty() &&
+      options.state_dump_path.empty()) {
+    auto prefilled = engine.Prefill(options.input_token_ids);
+    if (!prefilled.ok()) return prefilled.status();
+    next_token = prefilled.value();
+  } else for (std::size_t index = 0; index < options.input_token_ids.size(); ++index) {
     const bool select = index + 1U == options.input_token_ids.size();
     const std::span<float> logit_capture =
         select && !captured_logits.span().empty()
@@ -1568,11 +1940,17 @@ Result<DecodeBenchmarkResult> RunDecodeBenchmark(
     run.inter_token_latency_milliseconds.resize(options.generated_tokens);
     const auto prompt_start = std::chrono::steady_clock::now();
     std::uint32_t next_token = 0U;
-    for (std::size_t index = 0; index < prompt.size(); ++index) {
-      const bool select_token = index + 1U == prompt.size();
-      auto forwarded = engine.Forward(prompt[index], index, select_token);
-      if (!forwarded.ok()) return forwarded.status();
-      if (select_token) next_token = forwarded.value();
+    if (options.use_native_prefill) {
+      auto prefilled = engine.Prefill(prompt);
+      if (!prefilled.ok()) return prefilled.status();
+      next_token = prefilled.value();
+    } else {
+      for (std::size_t index = 0; index < prompt.size(); ++index) {
+        auto forwarded = engine.Forward(prompt[index], index,
+                                        index + 1U == prompt.size());
+        if (!forwarded.ok()) return forwarded.status();
+        if (index + 1U == prompt.size()) next_token = forwarded.value();
+      }
     }
     const auto prompt_end = std::chrono::steady_clock::now();
     run.prompt_milliseconds = Milliseconds(prompt_end - prompt_start);
@@ -1743,6 +2121,10 @@ Status WriteDecodeBenchmarkJson(const DecodeBenchmarkResult& result,
          << "\"timing_boundary\":\"host_end_to_end_forward_and_greedy_selection\","
          << "\"first_selected_token_excluded_from_decode\":true,"
          << "\"model_loaded_once\":true,\"cache_reset_outside_timing\":true,"
+         << "\"prefill_path\":\""
+         << (result.options.use_native_prefill ? "native_chunked_sm120"
+                                               : "serial_decode_bridge")
+         << "\","
          << "\"source_layout_direct\":" << (result.source_layout_direct ? "true" : "false")
          << ",\"token_loop_allocations\":" << (result.token_loop_allocations ? "true" : "false")
          << ",\"deterministic_outputs\":" << (result.deterministic_outputs ? "true" : "false")

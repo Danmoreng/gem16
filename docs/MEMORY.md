@@ -41,6 +41,11 @@ context extent. Separate K/V storage is retained for both. Optional
 full-logit diagnostics use host memory (`steps * 262144 * 4` bytes) allocated before generation and do not change
 persistent device storage.
 
-A real FP8 allocation at a 1,026-position execution plan measured 176,177,152 bytes: 167,772,160 bytes for the
+A real FP8 allocation at a 1,026-position execution plan measured 176,177,152 cache bytes: 167,772,160 bytes for the
 40 local K/V rings plus 8,404,992 bytes for eight global K/V extents. This exactly matches the formula above and
 crosses the first local-ring wrap in full-model execution.
+
+The native prefill arena is allocated once during engine initialization. It holds 32-token hidden/projection/MLP
+tiles and a causal score matrix sized as `32 * 16 * planned_context * sizeof(float)`. Thus the dominant score region
+is 128 MiB at 65,536 positions and 512 MiB at the 262,144-position maximum; it remains below the initial 1 GiB
+activation-arena target and performs no growth inside prompt processing.

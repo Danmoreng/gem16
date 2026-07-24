@@ -35,7 +35,7 @@ void Usage(std::ostream& output) {
          << "      [--context <tokens>] [--tokens <count>] [--seed <integer>]\n"
          << "      [--warmups <count>] [--repetitions <count>]\n"
          << "      [--kv-cache <fp8|bf16>] [--projection-path <native|reference>]\n"
-         << "      [--enable-fused-gate-up]\n";
+         << "      [--enable-fused-gate-up] [--serial-prefill]\n";
 }
 
 bool ParsePositiveU32(std::string_view value, std::uint32_t& parsed) {
@@ -105,6 +105,8 @@ int RunDecodeMode(int argc, char** argv) {
       }
     } else if (argument == "--enable-fused-gate-up") {
       options.enable_fused_gate_up = true;
+    } else if (argument == "--serial-prefill") {
+      options.use_native_prefill = false;
     } else {
       std::cerr << "error: unknown or incomplete decode option: " << argument << '\n';
       Usage(std::cerr);
