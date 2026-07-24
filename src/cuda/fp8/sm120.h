@@ -21,4 +21,15 @@ namespace gem16gb::internal {
     std::uint64_t contracting_elements,
     cudaStream_t stream);
 
+[[nodiscard]] Status LaunchFp8Sm120DirectProjectionBatch(
+    const std::uint8_t* activation_e4m3fn,
+    const float* activation_scales,
+    const std::uint8_t* weight_e4m3fn,
+    const std::uint16_t* weight_scales_bf16,
+    float* output,
+    std::uint64_t tokens,
+    std::uint64_t rows,
+    std::uint64_t contracting_elements,
+    cudaStream_t stream);
+
 }  // namespace gem16gb::internal

@@ -28,6 +28,10 @@ Status CudaFailure(const char* operation, cudaError_t error) {
 
 __global__ void QuantizeTokenReferenceKernel(const float* input, std::uint8_t* output,
                                              float* output_scale, std::uint64_t elements) {
+  const std::uint64_t token = blockIdx.x;
+  input += token * elements;
+  output += token * elements;
+  output_scale += token;
   __shared__ float maxima[kThreads];
   float local_maximum = 0.0F;
   for (std::uint64_t index = threadIdx.x; index < elements; index += blockDim.x) {
@@ -55,10 +59,15 @@ __global__ void ProjectionReferenceKernel(const std::uint8_t* activation,
                                           const std::uint8_t* weight,
                                           const std::uint16_t* weight_scales,
                                           float* output,
+                                          std::uint64_t tokens,
                                           std::uint64_t rows,
                                           std::uint64_t contracting_elements) {
+  const std::uint64_t token = blockIdx.y;
   const std::uint64_t row = static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
-  if (row >= rows) return;
+  if (token >= tokens || row >= rows) return;
+  activation += token * contracting_elements;
+  activation_scale += token;
+  output += token * rows;
   const std::uint8_t* weight_row = weight + row * contracting_elements;
   float accumulator = 0.0F;
   for (std::uint64_t index = 0; index < contracting_elements; ++index) {
@@ -82,11 +91,30 @@ Status LaunchFp8ReferenceTokenQuantization(const float* input, std::uint8_t* out
     return Invalid("FP8 token quantization requires non-null device pointers");
   }
   if (elements == 0U) return Invalid("FP8 token quantization requires a nonzero extent");
-  QuantizeTokenReferenceKernel<<<1, kThreads, 0, stream>>>(input, output_e4m3fn, output_scale,
-                                                           elements);
+  QuantizeTokenReferenceKernel<<<1, kThreads, 0, stream>>>(input, output_e4m3fn,
+                                                           output_scale, elements);
   const cudaError_t error = cudaGetLastError();
   return error == cudaSuccess ? Status::Ok()
                               : CudaFailure("launch FP8 token quantization", error);
+}
+
+Status LaunchFp8ReferenceTokenQuantizationBatch(
+    const float* input, std::uint8_t* output_e4m3fn, float* output_scales,
+    std::uint64_t tokens, std::uint64_t elements_per_token,
+    cudaStream_t stream) {
+  if (input == nullptr || output_e4m3fn == nullptr || output_scales == nullptr) {
+    return Invalid("FP8 batched token quantization requires non-null device pointers");
+  }
+  if (tokens == 0U || elements_per_token == 0U ||
+      tokens > static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
+    return Invalid("FP8 batched token quantization extent is invalid");
+  }
+  QuantizeTokenReferenceKernel<<<static_cast<unsigned>(tokens), kThreads, 0, stream>>>(
+      input, output_e4m3fn, output_scales, elements_per_token);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("launch batched FP8 token quantization", error);
 }
 
 Status LaunchFp8ReferenceProjection(const std::uint8_t* activation_e4m3fn,
@@ -106,12 +134,42 @@ Status LaunchFp8ReferenceProjection(const std::uint8_t* activation_e4m3fn,
   if (blocks > static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
     return Invalid("FP8 reference projection grid exceeds CUDA limits");
   }
-  ProjectionReferenceKernel<<<static_cast<unsigned>(blocks), kThreads, 0, stream>>>(
-      activation_e4m3fn, activation_scale, weight_e4m3fn, weight_scales_bf16, output, rows,
-      contracting_elements);
+  ProjectionReferenceKernel<<<dim3(static_cast<unsigned>(blocks), 1U), kThreads, 0, stream>>>(
+      activation_e4m3fn, activation_scale, weight_e4m3fn, weight_scales_bf16, output, 1U,
+      rows, contracting_elements);
   const cudaError_t error = cudaGetLastError();
   return error == cudaSuccess ? Status::Ok()
                               : CudaFailure("launch FP8 reference projection", error);
+}
+
+Status LaunchFp8ReferenceProjectionBatch(
+    const std::uint8_t* activation_e4m3fn, const float* activation_scales,
+    const std::uint8_t* weight_e4m3fn,
+    const std::uint16_t* weight_scales_bf16, float* output,
+    std::uint64_t tokens, std::uint64_t rows,
+    std::uint64_t contracting_elements, cudaStream_t stream) {
+  if (activation_e4m3fn == nullptr || activation_scales == nullptr ||
+      weight_e4m3fn == nullptr || weight_scales_bf16 == nullptr ||
+      output == nullptr) {
+    return Invalid("FP8 batched reference projection requires non-null device pointers");
+  }
+  if (tokens == 0U || rows == 0U || contracting_elements == 0U ||
+      tokens > 65535U) {
+    return Invalid("FP8 batched reference projection dimensions are invalid");
+  }
+  const std::uint64_t blocks = (rows + kThreads - 1U) / kThreads;
+  if (blocks > static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
+    return Invalid("FP8 batched reference projection grid exceeds CUDA limits");
+  }
+  ProjectionReferenceKernel<<<dim3(static_cast<unsigned>(blocks),
+                                   static_cast<unsigned>(tokens)),
+                              kThreads, 0, stream>>>(
+      activation_e4m3fn, activation_scales, weight_e4m3fn,
+      weight_scales_bf16, output, tokens, rows, contracting_elements);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("launch batched FP8 reference projection", error);
 }
 
 }  // namespace gem16gb::internal

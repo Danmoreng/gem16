@@ -80,14 +80,19 @@ __global__ void ProjectionReferenceKernel(const std::uint8_t* packed_activation_
                                           const std::uint8_t* packed_weight_e2m1,
                                           const std::uint8_t* weight_scales_e4m3fn,
                                           float* output,
+                                          std::uint64_t tokens,
                                           std::uint64_t rows,
                                           std::uint64_t contracting_elements,
                                           float output_divisor) {
+  const std::uint64_t token = blockIdx.y;
   const std::uint64_t row = static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
-  if (row >= rows) return;
+  if (token >= tokens || row >= rows) return;
 
   const std::uint64_t packed_row_bytes = contracting_elements / 2U;
   const std::uint64_t scale_row_bytes = contracting_elements / kBlockElements;
+  packed_activation_e2m1 += token * packed_row_bytes;
+  activation_scales_e4m3fn += token * scale_row_bytes;
+  output += token * rows;
   const std::uint8_t* weight_row = packed_weight_e2m1 + row * packed_row_bytes;
   const std::uint8_t* weight_scale_row = weight_scales_e4m3fn + row * scale_row_bytes;
   float accumulator = 0.0F;
@@ -172,12 +177,55 @@ Status LaunchNvfp4ReferenceProjection(const std::uint8_t* packed_activation_e2m1
   if (grid > static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
     return Invalid("NVFP4 reference projection grid exceeds CUDA limits");
   }
-  ProjectionReferenceKernel<<<static_cast<unsigned>(grid), threads, 0, stream>>>(
+  ProjectionReferenceKernel<<<dim3(static_cast<unsigned>(grid), 1U), threads, 0, stream>>>(
       packed_activation_e2m1, activation_scales_e4m3fn, packed_weight_e2m1,
-      weight_scales_e4m3fn, output, rows, contracting_elements, output_divisor);
+      weight_scales_e4m3fn, output, 1U, rows, contracting_elements, output_divisor);
   const cudaError_t error = cudaGetLastError();
   return error == cudaSuccess ? Status::Ok()
                               : CudaFailure("launch NVFP4 reference projection", error);
+}
+
+Status LaunchNvfp4ReferenceProjectionBatch(
+    const std::uint8_t* packed_activation_e2m1,
+    const std::uint8_t* activation_scales_e4m3fn,
+    const std::uint8_t* packed_weight_e2m1,
+    const std::uint8_t* weight_scales_e4m3fn, float* output,
+    std::uint64_t tokens, std::uint64_t rows,
+    std::uint64_t contracting_elements, float activation_global_divisor,
+    float weight_global_divisor, cudaStream_t stream) {
+  if (packed_activation_e2m1 == nullptr || activation_scales_e4m3fn == nullptr ||
+      packed_weight_e2m1 == nullptr || weight_scales_e4m3fn == nullptr ||
+      output == nullptr) {
+    return Invalid("batched NVFP4 reference projection requires non-null device pointers");
+  }
+  if (tokens == 0U || tokens > 65535U || rows == 0U ||
+      contracting_elements == 0U ||
+      contracting_elements % kBlockElements != 0U) {
+    return Invalid("batched NVFP4 reference projection dimensions are invalid");
+  }
+  if (!PositiveFinite(activation_global_divisor) ||
+      !PositiveFinite(weight_global_divisor)) {
+    return Invalid("batched NVFP4 reference projection divisors are invalid");
+  }
+  const float output_divisor = activation_global_divisor * weight_global_divisor;
+  if (!PositiveFinite(output_divisor)) {
+    return Invalid("batched NVFP4 reference projection divisor product overflowed");
+  }
+  constexpr unsigned threads = 128;
+  const std::uint64_t grid = (rows + threads - 1U) / threads;
+  if (grid > static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
+    return Invalid("batched NVFP4 reference projection grid exceeds CUDA limits");
+  }
+  ProjectionReferenceKernel<<<dim3(static_cast<unsigned>(grid),
+                                   static_cast<unsigned>(tokens)),
+                              threads, 0, stream>>>(
+      packed_activation_e2m1, activation_scales_e4m3fn, packed_weight_e2m1,
+      weight_scales_e4m3fn, output, tokens, rows, contracting_elements,
+      output_divisor);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("launch batched NVFP4 reference projection", error);
 }
 
 }  // namespace gem16gb::internal

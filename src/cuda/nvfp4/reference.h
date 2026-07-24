@@ -30,4 +30,17 @@ namespace gem16gb::internal {
     float weight_global_divisor,
     cudaStream_t stream);
 
+[[nodiscard]] Status LaunchNvfp4ReferenceProjectionBatch(
+    const std::uint8_t* packed_activation_e2m1,
+    const std::uint8_t* activation_scales_e4m3fn,
+    const std::uint8_t* packed_weight_e2m1,
+    const std::uint8_t* weight_scales_e4m3fn,
+    float* output,
+    std::uint64_t tokens,
+    std::uint64_t rows,
+    std::uint64_t contracting_elements,
+    float activation_global_divisor,
+    float weight_global_divisor,
+    cudaStream_t stream);
+
 }  // namespace gem16gb::internal

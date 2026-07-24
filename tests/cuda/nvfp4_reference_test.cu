@@ -204,6 +204,7 @@ void StoreNibble(std::vector<std::uint8_t>& packed, std::size_t row, std::size_t
 void TestDirectSourceSm120Projection() {
   constexpr std::size_t rows = 8;
   constexpr std::size_t k_size = 64;
+  constexpr std::size_t tokens = 2;
   constexpr float activation_divisor = 2.0F;
   constexpr float weight_divisor = 4.0F;
 
@@ -237,11 +238,22 @@ void TestDirectSourceSm120Projection() {
   DeviceBuffer<float> device_fused_gate(rows);
   DeviceBuffer<float> device_fused_up(rows);
   DeviceBuffer<float> device_fused_product(rows);
+  DeviceBuffer<std::uint8_t> device_batch_activation(
+      tokens * quantized.value().packed_e2m1.size());
+  DeviceBuffer<std::uint8_t> device_batch_activation_scales(
+      tokens * quantized.value().block_scales_e4m3fn.size());
+  DeviceBuffer<float> device_batch_reference(tokens * rows);
+  DeviceBuffer<float> device_batch_native(tokens * rows);
+  DeviceBuffer<float> device_batch_product(tokens * rows);
   if (device_activation.get() == nullptr || device_activation_scales.get() == nullptr ||
       device_weight.get() == nullptr || device_weight_scales.get() == nullptr ||
       device_output.get() == nullptr || device_simt_output.get() == nullptr ||
       device_fused_gate.get() == nullptr || device_fused_up.get() == nullptr ||
-      device_fused_product.get() == nullptr) {
+      device_fused_product.get() == nullptr ||
+      device_batch_activation.get() == nullptr ||
+      device_batch_activation_scales.get() == nullptr ||
+      device_batch_reference.get() == nullptr || device_batch_native.get() == nullptr ||
+      device_batch_product.get() == nullptr) {
     return;
   }
   if (!CudaOk(cudaMemcpy(device_activation.get(), quantized.value().packed_e2m1.data(),
@@ -258,6 +270,23 @@ void TestDirectSourceSm120Projection() {
                          device_weight_scales.bytes(), cudaMemcpyHostToDevice),
               "copy native weight scales")) {
     return;
+  }
+  for (std::size_t token = 0; token < tokens; ++token) {
+    if (!CudaOk(cudaMemcpy(
+                    device_batch_activation.get() +
+                        token * quantized.value().packed_e2m1.size(),
+                    quantized.value().packed_e2m1.data(),
+                    quantized.value().packed_e2m1.size(), cudaMemcpyHostToDevice),
+                "copy batched native activation") ||
+        !CudaOk(cudaMemcpy(
+                    device_batch_activation_scales.get() +
+                        token * quantized.value().block_scales_e4m3fn.size(),
+                    quantized.value().block_scales_e4m3fn.data(),
+                    quantized.value().block_scales_e4m3fn.size(),
+                    cudaMemcpyHostToDevice),
+                "copy batched native activation scales")) {
+      return;
+    }
   }
 
   const gem16gb::Status status = gem16gb::internal::LaunchNvfp4Sm120DirectProjection(
@@ -277,7 +306,31 @@ void TestDirectSourceSm120Projection() {
       k_size, activation_divisor, weight_divisor, activation_divisor, weight_divisor,
       nullptr);
   CUDA_TEST_CHECK(fused_status.ok());
+  const auto batch_reference_status =
+      gem16gb::internal::LaunchNvfp4ReferenceProjectionBatch(
+          device_batch_activation.get(), device_batch_activation_scales.get(),
+          device_weight.get(), device_weight_scales.get(),
+          device_batch_reference.get(), tokens, rows, k_size,
+          activation_divisor, weight_divisor, nullptr);
+  const auto batch_native_status =
+      gem16gb::internal::LaunchNvfp4Sm120DirectProjectionBatch(
+          device_batch_activation.get(), device_batch_activation_scales.get(),
+          device_weight.get(), device_weight_scales.get(),
+          device_batch_native.get(), tokens, rows, k_size, activation_divisor,
+          weight_divisor, nullptr);
+  const auto batch_fused_status =
+      gem16gb::internal::LaunchNvfp4Sm120FusedGateUpBatch(
+          device_batch_activation.get(), device_batch_activation_scales.get(),
+          device_weight.get(), device_weight_scales.get(), device_weight.get(),
+          device_weight_scales.get(), nullptr, nullptr,
+          device_batch_product.get(), tokens, rows, k_size, activation_divisor,
+          weight_divisor, activation_divisor, weight_divisor, nullptr);
+  CUDA_TEST_CHECK(batch_reference_status.ok());
+  CUDA_TEST_CHECK(batch_native_status.ok());
+  CUDA_TEST_CHECK(batch_fused_status.ok());
   if (!status.ok() || !simt_status.ok() || !fused_status.ok() ||
+      !batch_reference_status.ok() || !batch_native_status.ok() ||
+      !batch_fused_status.ok() ||
       !CudaOk(cudaDeviceSynchronize(), "native projection synchronize")) return;
 
   std::array<float, rows> output{};
@@ -285,6 +338,9 @@ void TestDirectSourceSm120Projection() {
   std::array<float, rows> fused_gate{};
   std::array<float, rows> fused_up{};
   std::array<float, rows> fused_product{};
+  std::array<float, tokens * rows> batch_reference{};
+  std::array<float, tokens * rows> batch_native{};
+  std::array<float, tokens * rows> batch_product{};
   if (!CudaOk(cudaMemcpy(output.data(), device_output.get(), device_output.bytes(),
                          cudaMemcpyDeviceToHost),
               "copy native projection output") ||
@@ -299,7 +355,16 @@ void TestDirectSourceSm120Projection() {
               "copy fused Up output") ||
       !CudaOk(cudaMemcpy(fused_product.data(), device_fused_product.get(),
                          device_fused_product.bytes(), cudaMemcpyDeviceToHost),
-              "copy fused product output")) {
+              "copy fused product output") ||
+      !CudaOk(cudaMemcpy(batch_reference.data(), device_batch_reference.get(),
+                         device_batch_reference.bytes(), cudaMemcpyDeviceToHost),
+              "copy batched reference output") ||
+      !CudaOk(cudaMemcpy(batch_native.data(), device_batch_native.get(),
+                         device_batch_native.bytes(), cudaMemcpyDeviceToHost),
+              "copy batched native output") ||
+      !CudaOk(cudaMemcpy(batch_product.data(), device_batch_product.get(),
+                         device_batch_product.bytes(), cudaMemcpyDeviceToHost),
+              "copy batched fused output")) {
     return;
   }
   for (std::size_t row = 0; row < rows; ++row) {
@@ -323,6 +388,11 @@ void TestDirectSourceSm120Projection() {
       CUDA_TEST_CHECK(fused_gate[row] == rounded);
       CUDA_TEST_CHECK(fused_up[row] == rounded);
       CUDA_TEST_CHECK(fused_product[row] == product);
+      for (std::size_t token = 0; token < tokens; ++token) {
+        CUDA_TEST_CHECK(batch_reference[token * rows + row] == output[row]);
+        CUDA_TEST_CHECK(batch_native[token * rows + row] == output[row]);
+        CUDA_TEST_CHECK(batch_product[token * rows + row] == product);
+      }
     }
   }
 }
@@ -394,6 +464,7 @@ void TestMlpElementwiseBridge() {
 void TestFp8ReferenceAndDirectProjection() {
   constexpr std::size_t rows = 8;
   constexpr std::size_t k_size = 32;
+  constexpr std::size_t tokens = 2;
   std::array<float, k_size> host_activation{};
   for (std::size_t index = 0; index < host_activation.size(); ++index) {
     host_activation[index] =
@@ -427,10 +498,17 @@ void TestFp8ReferenceAndDirectProjection() {
   DeviceBuffer<std::uint16_t> device_weight_scales(rows);
   DeviceBuffer<float> device_reference(rows);
   DeviceBuffer<float> device_native(rows);
+  DeviceBuffer<float> device_batch_input(tokens * k_size);
+  DeviceBuffer<std::uint8_t> device_batch_activation(tokens * k_size);
+  DeviceBuffer<float> device_batch_scales(tokens);
+  DeviceBuffer<float> device_batch_reference(tokens * rows);
+  DeviceBuffer<float> device_batch_native(tokens * rows);
   if (device_input.get() == nullptr || device_activation.get() == nullptr ||
       device_activation_scale.get() == nullptr || device_weight.get() == nullptr ||
       device_weight_scales.get() == nullptr || device_reference.get() == nullptr ||
-      device_native.get() == nullptr) {
+      device_native.get() == nullptr || device_batch_input.get() == nullptr ||
+      device_batch_activation.get() == nullptr || device_batch_scales.get() == nullptr ||
+      device_batch_reference.get() == nullptr || device_batch_native.get() == nullptr) {
     return;
   }
   if (!CudaOk(cudaMemcpy(device_input.get(), host_activation.data(), device_input.bytes(),
@@ -441,6 +519,13 @@ void TestFp8ReferenceAndDirectProjection() {
                          device_weight_scales.bytes(), cudaMemcpyHostToDevice),
               "copy FP8 weight scales")) {
     return;
+  }
+  for (std::size_t token = 0; token < tokens; ++token) {
+    if (!CudaOk(cudaMemcpy(device_batch_input.get() + token * k_size,
+                           host_activation.data(), k_size * sizeof(float),
+                           cudaMemcpyHostToDevice), "copy batched FP8 input")) {
+      return;
+    }
   }
 
   const auto quantize_status = gem16gb::internal::LaunchFp8ReferenceTokenQuantization(
@@ -469,16 +554,43 @@ void TestFp8ReferenceAndDirectProjection() {
       device_weight_scales.get(), device_native.get(), rows, k_size, nullptr);
   CUDA_TEST_CHECK(reference_status.ok());
   CUDA_TEST_CHECK(native_status.ok());
+  const auto batch_quantize_status =
+      gem16gb::internal::LaunchFp8ReferenceTokenQuantizationBatch(
+          device_batch_input.get(), device_batch_activation.get(),
+          device_batch_scales.get(), tokens, k_size, nullptr);
+  const auto batch_reference_status =
+      gem16gb::internal::LaunchFp8ReferenceProjectionBatch(
+          device_batch_activation.get(), device_batch_scales.get(),
+          device_weight.get(), device_weight_scales.get(),
+          device_batch_reference.get(), tokens, rows, k_size, nullptr);
+  const auto batch_native_status =
+      gem16gb::internal::LaunchFp8Sm120DirectProjectionBatch(
+          device_batch_activation.get(), device_batch_scales.get(),
+          device_weight.get(), device_weight_scales.get(),
+          device_batch_native.get(), tokens, rows, k_size, nullptr);
+  CUDA_TEST_CHECK(batch_quantize_status.ok());
+  CUDA_TEST_CHECK(batch_reference_status.ok());
+  CUDA_TEST_CHECK(batch_native_status.ok());
   if (!reference_status.ok() || !native_status.ok() ||
+      !batch_quantize_status.ok() || !batch_reference_status.ok() ||
+      !batch_native_status.ok() ||
       !CudaOk(cudaDeviceSynchronize(), "FP8 projection synchronize")) {
     return;
   }
   std::array<float, rows> reference_output{};
   std::array<float, rows> native_output{};
+  std::array<float, tokens * rows> batch_reference_output{};
+  std::array<float, tokens * rows> batch_native_output{};
   if (!CudaOk(cudaMemcpy(reference_output.data(), device_reference.get(), device_reference.bytes(),
                          cudaMemcpyDeviceToHost), "copy FP8 reference output") ||
       !CudaOk(cudaMemcpy(native_output.data(), device_native.get(), device_native.bytes(),
-                         cudaMemcpyDeviceToHost), "copy FP8 native output")) {
+                         cudaMemcpyDeviceToHost), "copy FP8 native output") ||
+      !CudaOk(cudaMemcpy(batch_reference_output.data(),
+                         device_batch_reference.get(), device_batch_reference.bytes(),
+                         cudaMemcpyDeviceToHost), "copy batched FP8 reference output") ||
+      !CudaOk(cudaMemcpy(batch_native_output.data(), device_batch_native.get(),
+                         device_batch_native.bytes(), cudaMemcpyDeviceToHost),
+              "copy batched FP8 native output")) {
     return;
   }
   for (std::size_t row = 0; row < rows; ++row) {
@@ -492,6 +604,12 @@ void TestFp8ReferenceAndDirectProjection() {
                          1.0e-4);
       CUDA_TEST_CHECK(std::fabs(static_cast<double>(native_output[row]) - expected.value()) <
                          1.0e-4);
+      for (std::size_t token = 0; token < tokens; ++token) {
+        CUDA_TEST_CHECK(batch_reference_output[token * rows + row] ==
+                        reference_output[row]);
+        CUDA_TEST_CHECK(batch_native_output[token * rows + row] ==
+                        native_output[row]);
+      }
     }
   }
 }

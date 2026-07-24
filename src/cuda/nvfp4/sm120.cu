@@ -44,10 +44,18 @@ __global__ void Sm120DirectProjectionKernel(const std::uint8_t* packed_activatio
                                             const std::uint8_t* packed_weight_e2m1,
                                             const std::uint8_t* weight_scales_e4m3fn,
                                             float* output,
+                                            std::uint64_t tokens,
                                             std::uint64_t rows,
                                             std::uint64_t contracting_elements,
                                             float output_divisor) {
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1200
+  const std::uint64_t token = blockIdx.y;
+  if (token >= tokens) return;
+  const std::uint64_t packed_token_bytes = contracting_elements / 2U;
+  const std::uint64_t scale_token_bytes = contracting_elements / 16U;
+  packed_activation_e2m1 += token * packed_token_bytes;
+  activation_scales_e4m3fn += token * scale_token_bytes;
+  output += token * rows;
   const unsigned warp = threadIdx.x / kWarpSize;
   const unsigned lane = threadIdx.x & (kWarpSize - 1U);
   const std::uint64_t global_warp =
@@ -119,6 +127,7 @@ __global__ void Sm120DirectProjectionKernel(const std::uint8_t* packed_activatio
   (void)packed_weight_e2m1;
   (void)weight_scales_e4m3fn;
   (void)output;
+  (void)tokens;
   (void)rows;
   (void)contracting_elements;
   (void)output_divisor;
@@ -135,11 +144,23 @@ __global__ void Sm120FusedGateUpKernel(
     float* gate_output,
     float* up_output,
     float* product_output,
+    std::uint64_t tokens,
     std::uint64_t rows,
     std::uint64_t contracting_elements,
     float gate_output_divisor,
     float up_output_divisor) {
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1200
+  const std::uint64_t token = blockIdx.y;
+  if (token >= tokens) return;
+  const std::uint64_t packed_token_bytes = contracting_elements / 2U;
+  const std::uint64_t scale_token_bytes = contracting_elements / 16U;
+  packed_activation_e2m1 += token * packed_token_bytes;
+  activation_scales_e4m3fn += token * scale_token_bytes;
+  if (gate_output != nullptr) {
+    gate_output += token * rows;
+    up_output += token * rows;
+  }
+  product_output += token * rows;
   const unsigned warp = threadIdx.x / kWarpSize;
   const unsigned lane = threadIdx.x & (kWarpSize - 1U);
   const std::uint64_t global_warp =
@@ -248,6 +269,7 @@ __global__ void Sm120FusedGateUpKernel(
   (void)gate_output;
   (void)up_output;
   (void)product_output;
+  (void)tokens;
   (void)rows;
   (void)contracting_elements;
   (void)gate_output_divisor;
@@ -287,13 +309,56 @@ Status LaunchNvfp4Sm120DirectProjection(const std::uint8_t* packed_activation_e2
   if (blocks > static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
     return Invalid("SM120 NVFP4 direct projection grid exceeds CUDA limits");
   }
-  Sm120DirectProjectionKernel<<<static_cast<unsigned>(blocks), kThreadsPerBlock, 0, stream>>>(
+  Sm120DirectProjectionKernel<<<dim3(static_cast<unsigned>(blocks), 1U),
+                                kThreadsPerBlock, 0, stream>>>(
       packed_activation_e2m1, activation_scales_e4m3fn, packed_weight_e2m1,
-      weight_scales_e4m3fn, output, rows, contracting_elements, output_divisor);
+      weight_scales_e4m3fn, output, 1U, rows, contracting_elements,
+      output_divisor);
   const cudaError_t error = cudaGetLastError();
   return error == cudaSuccess
              ? Status::Ok()
              : CudaFailure("launch direct-source SM120 NVFP4 projection", error);
+}
+
+Status LaunchNvfp4Sm120DirectProjectionBatch(
+    const std::uint8_t* packed_activation_e2m1,
+    const std::uint8_t* activation_scales_e4m3fn,
+    const std::uint8_t* packed_weight_e2m1,
+    const std::uint8_t* weight_scales_e4m3fn, float* output,
+    std::uint64_t tokens, std::uint64_t rows,
+    std::uint64_t contracting_elements, float activation_global_divisor,
+    float weight_global_divisor, cudaStream_t stream) {
+  if (packed_activation_e2m1 == nullptr || activation_scales_e4m3fn == nullptr ||
+      packed_weight_e2m1 == nullptr || weight_scales_e4m3fn == nullptr ||
+      output == nullptr) {
+    return Invalid("batched SM120 NVFP4 projection requires non-null device pointers");
+  }
+  if (tokens == 0U || tokens > 65535U || rows == 0U ||
+      contracting_elements == 0U ||
+      contracting_elements % kElementsPerKBlock != 0U ||
+      !PositiveFinite(activation_global_divisor) ||
+      !PositiveFinite(weight_global_divisor)) {
+    return Invalid("batched SM120 NVFP4 projection geometry or divisors are invalid");
+  }
+  const float output_divisor = activation_global_divisor * weight_global_divisor;
+  if (!PositiveFinite(output_divisor)) {
+    return Invalid("batched SM120 NVFP4 projection divisor product overflowed");
+  }
+  const std::uint64_t row_tiles = (rows + kRowsPerWarp - 1U) / kRowsPerWarp;
+  const std::uint64_t blocks = (row_tiles + kWarpsPerBlock - 1U) / kWarpsPerBlock;
+  if (blocks > static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
+    return Invalid("batched SM120 NVFP4 projection grid exceeds CUDA limits");
+  }
+  Sm120DirectProjectionKernel<<<dim3(static_cast<unsigned>(blocks),
+                                     static_cast<unsigned>(tokens)),
+                                kThreadsPerBlock, 0, stream>>>(
+      packed_activation_e2m1, activation_scales_e4m3fn, packed_weight_e2m1,
+      weight_scales_e4m3fn, output, tokens, rows, contracting_elements,
+      output_divisor);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("launch batched direct-source SM120 NVFP4 projection", error);
 }
 
 Status LaunchNvfp4Sm120FusedGateUp(
@@ -341,14 +406,68 @@ Status LaunchNvfp4Sm120FusedGateUp(
   if (blocks > static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
     return Invalid("SM120 fused Gate/Up grid exceeds CUDA limits");
   }
-  Sm120FusedGateUpKernel<<<static_cast<unsigned>(blocks), kThreadsPerBlock, 0, stream>>>(
+  Sm120FusedGateUpKernel<<<dim3(static_cast<unsigned>(blocks), 1U),
+                           kThreadsPerBlock, 0, stream>>>(
       packed_activation_e2m1, activation_scales_e4m3fn, packed_gate_weight_e2m1,
       gate_weight_scales_e4m3fn, packed_up_weight_e2m1, up_weight_scales_e4m3fn,
-      gate_output, up_output, product_output, rows, contracting_elements,
+      gate_output, up_output, product_output, 1U, rows, contracting_elements,
       gate_output_divisor, up_output_divisor);
   const cudaError_t error = cudaGetLastError();
   return error == cudaSuccess ? Status::Ok()
                               : CudaFailure("launch fused SM120 NVFP4 Gate/Up", error);
+}
+
+Status LaunchNvfp4Sm120FusedGateUpBatch(
+    const std::uint8_t* packed_activation_e2m1,
+    const std::uint8_t* activation_scales_e4m3fn,
+    const std::uint8_t* packed_gate_weight_e2m1,
+    const std::uint8_t* gate_weight_scales_e4m3fn,
+    const std::uint8_t* packed_up_weight_e2m1,
+    const std::uint8_t* up_weight_scales_e4m3fn, float* gate_output,
+    float* up_output, float* product_output, std::uint64_t tokens,
+    std::uint64_t rows, std::uint64_t contracting_elements,
+    float gate_activation_global_divisor, float gate_weight_global_divisor,
+    float up_activation_global_divisor, float up_weight_global_divisor,
+    cudaStream_t stream) {
+  if (packed_activation_e2m1 == nullptr || activation_scales_e4m3fn == nullptr ||
+      packed_gate_weight_e2m1 == nullptr || gate_weight_scales_e4m3fn == nullptr ||
+      packed_up_weight_e2m1 == nullptr || up_weight_scales_e4m3fn == nullptr ||
+      product_output == nullptr || (gate_output == nullptr) != (up_output == nullptr)) {
+    return Invalid("batched SM120 fused Gate/Up pointer contract is invalid");
+  }
+  if (tokens == 0U || tokens > 65535U || rows == 0U ||
+      contracting_elements == 0U ||
+      contracting_elements % kElementsPerKBlock != 0U ||
+      !PositiveFinite(gate_activation_global_divisor) ||
+      !PositiveFinite(gate_weight_global_divisor) ||
+      !PositiveFinite(up_activation_global_divisor) ||
+      !PositiveFinite(up_weight_global_divisor)) {
+    return Invalid("batched SM120 fused Gate/Up geometry or divisors are invalid");
+  }
+  const float gate_output_divisor =
+      gate_activation_global_divisor * gate_weight_global_divisor;
+  const float up_output_divisor =
+      up_activation_global_divisor * up_weight_global_divisor;
+  if (!PositiveFinite(gate_output_divisor) || !PositiveFinite(up_output_divisor)) {
+    return Invalid("batched SM120 fused Gate/Up divisor product overflowed");
+  }
+  const std::uint64_t row_tiles = (rows + kRowsPerWarp - 1U) / kRowsPerWarp;
+  const std::uint64_t blocks = (row_tiles + kWarpsPerBlock - 1U) / kWarpsPerBlock;
+  if (blocks > static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
+    return Invalid("batched SM120 fused Gate/Up grid exceeds CUDA limits");
+  }
+  Sm120FusedGateUpKernel<<<dim3(static_cast<unsigned>(blocks),
+                                static_cast<unsigned>(tokens)),
+                           kThreadsPerBlock, 0, stream>>>(
+      packed_activation_e2m1, activation_scales_e4m3fn,
+      packed_gate_weight_e2m1, gate_weight_scales_e4m3fn,
+      packed_up_weight_e2m1, up_weight_scales_e4m3fn, gate_output, up_output,
+      product_output, tokens, rows, contracting_elements,
+      gate_output_divisor, up_output_divisor);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("launch batched fused SM120 NVFP4 Gate/Up", error);
 }
 
 }  // namespace gem16gb::internal
