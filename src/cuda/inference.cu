@@ -12,6 +12,7 @@
 #include <cuda_bf16.h>
 #include <cuda_fp8.h>
 #include <cuda_runtime.h>
+#include <nvtx3/nvToolsExt.h>
 
 #include <algorithm>
 #include <array>
@@ -49,6 +50,14 @@ constexpr std::uint64_t kMaximumSuppressedTokens = 16;
 constexpr float kEpsilon = 1.0e-6F;
 constexpr unsigned kThreads = 256;
 constexpr std::uint64_t kPrefillChunkTokens = 32;
+
+class NvtxRange {
+ public:
+  explicit NvtxRange(const char* name) { nvtxRangePushA(name); }
+  NvtxRange(const NvtxRange&) = delete;
+  NvtxRange& operator=(const NvtxRange&) = delete;
+  ~NvtxRange() { nvtxRangePop(); }
+};
 
 Status Error(StatusCode code, std::string message) {
   return Status(code, std::move(message));
@@ -701,6 +710,7 @@ class InferenceEngine {
                                   ProjectionPath projection_path,
                                   KvCacheMode kv_cache_mode,
                                   bool enable_fused_gate_up) {
+    const NvtxRange range("gem16gb.initialize");
     max_context_ = max_context;
     projection_path_ = projection_path;
     kv_cache_mode_ = kv_cache_mode;
@@ -728,6 +738,7 @@ class InferenceEngine {
   [[nodiscard]] Result<std::uint32_t> Forward(
       std::uint32_t token, std::uint64_t position, bool select_token,
       std::span<float> host_logits = {}, std::span<float> host_state = {}) {
+    const NvtxRange range("gem16gb.decode.forward");
     if (token >= kVocabulary || position >= max_context_) {
       return Error(StatusCode::kInvalidArgument, "token or position exceeds inference plan");
     }
@@ -802,6 +813,7 @@ class InferenceEngine {
 
   [[nodiscard]] Result<std::uint32_t> Prefill(
       std::span<const std::uint32_t> token_ids) {
+    const NvtxRange range("gem16gb.prefill");
     if (token_ids.empty() || token_ids.size() > max_context_) {
       return Error(StatusCode::kInvalidArgument, "prefill token extent is invalid");
     }
@@ -1011,6 +1023,7 @@ class InferenceEngine {
   [[nodiscard]] Status RunLayerBatch(const LayerBinding& layer,
                                      std::uint64_t start_position,
                                      std::uint64_t tokens) {
+    const NvtxRange range("gem16gb.prefill.layer");
     float* hidden_a = Pointer<float>(prefill_workspace_, prefill_offsets_.hidden_a);
     float* hidden_b = Pointer<float>(prefill_workspace_, prefill_offsets_.hidden_b);
     float* normalized = Pointer<float>(prefill_workspace_, prefill_offsets_.normalized);
@@ -1215,6 +1228,7 @@ class InferenceEngine {
   [[nodiscard]] Status RunLayer(const LayerBinding& layer, std::uint64_t position,
                                 const LayerStateCapture* capture,
                                 float* host_state) {
+    const NvtxRange range("gem16gb.decode.layer");
     float* hidden_a = Pointer<float>(workspace_, offsets_.hidden_a);
     float* hidden_b = Pointer<float>(workspace_, offsets_.hidden_b);
     float* normalized = Pointer<float>(workspace_, offsets_.normalized);

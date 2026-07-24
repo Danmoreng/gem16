@@ -226,6 +226,19 @@ This is currently a development characterization, not an accepted competitive re
 1,024 positions in each local-attention ring and grows the eight global-attention layers through the requested
 context, up to the checkpoint's 262,144-position contract.
 
+On Windows, a short Nsight Systems prefill/decode capture with NVTX phase ranges can be collected and summarized
+without opening the GUI:
+
+```powershell
+.\tools\profile_windows.ps1 `
+  -Model .\models\checkpoints\unsloth-gemma-4-12b-it-NVFP4-b1f6497 `
+  -Context 128 `
+  -DecodeTokens 16
+```
+
+Reports and exported SQLite databases are written below the selected build directory's `profiles` folder and stay
+outside version control.
+
 Prompt ingestion uses a native 32-token chunk plan by default. It batches dynamic FP8 attention projections and
 NVFP4 MLP projections across tokens while retaining causal local/global attention. Pass `--serial-prefill` to
 `gem16gb-run` or `gem16gb-bench decode` for the retained one-token correctness bridge.

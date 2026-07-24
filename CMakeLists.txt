@@ -128,7 +128,7 @@ if(GEM16GB_ENABLE_CUDA)
       -diag-suppress=2810
     )
   endif()
-  target_link_libraries(gem16gb_core PRIVATE CUDA::cudart)
+  target_link_libraries(gem16gb_core PRIVATE CUDA::cudart CUDA::nvtx3)
   target_compile_definitions(gem16gb_core
     PUBLIC GEM16GB_HAS_CUDA=1
     PRIVATE GEM16GB_COMPILED_CUDA_ARCH="${GEM16GB_CUDA_ARCHITECTURE}"
