@@ -115,6 +115,14 @@ if(GEM16GB_ENABLE_CUDA)
     set_property(SOURCE src/cuda/nvfp4/checkpoint_probe.cu APPEND PROPERTY COMPILE_OPTIONS
       -diag-suppress=2810
     )
+    # inference.cu contains internal-linkage kernels, which make CUDA 13.3's
+    # generated registration stub trigger C4211 under MSVC. NVCC also emits
+    # 2810 for Status results that are assigned and checked in this file.
+    # Keep both compiler-specific suppressions local to this translation unit.
+    set_property(SOURCE src/cuda/inference.cu APPEND PROPERTY COMPILE_OPTIONS
+      -Xcompiler=/wd4211
+      -diag-suppress=2810
+    )
   endif()
   target_link_libraries(gem16gb_core PRIVATE CUDA::cudart)
   target_compile_definitions(gem16gb_core
