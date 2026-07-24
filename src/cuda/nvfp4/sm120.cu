@@ -15,6 +15,7 @@ namespace {
 
 constexpr std::uint64_t kElementsPerKBlock = 64;
 constexpr std::uint64_t kRowsPerWarp = 8;
+constexpr std::uint64_t kTokensPerMma = 16;
 constexpr unsigned kWarpSize = 32;
 constexpr unsigned kWarpsPerBlock = 4;
 constexpr unsigned kThreadsPerBlock = kWarpSize * kWarpsPerBlock;
@@ -277,6 +278,176 @@ __global__ void Sm120FusedGateUpKernel(
 #endif
 }
 
+template <bool kFusedGateUp>
+__global__ void Sm120MatrixProjectionKernel(
+    const std::uint8_t* packed_activation_e2m1,
+    const std::uint8_t* activation_scales_e4m3fn,
+    const std::uint8_t* packed_weight_e2m1,
+    const std::uint8_t* weight_scales_e4m3fn,
+    const std::uint8_t* packed_up_weight_e2m1,
+    const std::uint8_t* up_weight_scales_e4m3fn, float* gate_output,
+    float* up_output, float* output, std::uint64_t tokens,
+    std::uint64_t rows, std::uint64_t contracting_elements,
+    float output_divisor, float up_output_divisor) {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1200
+  const unsigned warp = threadIdx.x / kWarpSize;
+  const unsigned lane = threadIdx.x & (kWarpSize - 1U);
+  const unsigned group = lane >> 2U;
+  const unsigned thread_in_group = lane & 3U;
+  const std::uint64_t global_warp =
+      static_cast<std::uint64_t>(blockIdx.x) * kWarpsPerBlock + warp;
+  const std::uint64_t row_tiles = (rows + kRowsPerWarp - 1U) / kRowsPerWarp;
+  if (global_warp >= row_tiles) return;
+
+  const std::uint64_t token_base =
+      static_cast<std::uint64_t>(blockIdx.y) * kTokensPerMma;
+  const std::uint64_t token_low = token_base + group;
+  const std::uint64_t token_high = token_low + 8U;
+  const std::uint64_t weight_column = global_warp * kRowsPerWarp + group;
+  const std::uint64_t packed_row_bytes = contracting_elements / 2U;
+  const std::uint64_t scale_row_bytes = contracting_elements / 16U;
+  const std::uint64_t k_blocks = contracting_elements / kElementsPerKBlock;
+
+  float d0 = 0.0F;
+  float d1 = 0.0F;
+  float d2 = 0.0F;
+  float d3 = 0.0F;
+  float up0 = 0.0F;
+  float up1 = 0.0F;
+  float up2 = 0.0F;
+  float up3 = 0.0F;
+  constexpr std::uint16_t instruction_byte_id = 0;
+  constexpr std::uint16_t instruction_thread_id = 0;
+
+  for (std::uint64_t k_block = 0; k_block < k_blocks; ++k_block) {
+    const std::uint64_t k_offset =
+        k_block * 32U + static_cast<std::uint64_t>(thread_in_group) * 4U;
+    const std::uint32_t a0 = token_low < tokens
+                                 ? LoadU32(packed_activation_e2m1 +
+                                           token_low * packed_row_bytes + k_offset)
+                                 : 0U;
+    const std::uint32_t a1 = token_high < tokens
+                                 ? LoadU32(packed_activation_e2m1 +
+                                           token_high * packed_row_bytes + k_offset)
+                                 : 0U;
+    const std::uint32_t a2 = token_low < tokens
+                                 ? LoadU32(packed_activation_e2m1 +
+                                           token_low * packed_row_bytes + k_offset + 16U)
+                                 : 0U;
+    const std::uint32_t a3 = token_high < tokens
+                                 ? LoadU32(packed_activation_e2m1 +
+                                           token_high * packed_row_bytes + k_offset + 16U)
+                                 : 0U;
+
+    std::uint32_t scale_a = 0U;
+    // With thread-id-a=0, the lower two lanes in each quad supply the four
+    // block scales for rows group and group+8 respectively.
+    if (thread_in_group < 2U) {
+      const std::uint64_t scale_token =
+          token_low + static_cast<std::uint64_t>(thread_in_group) * 8U;
+      if (scale_token < tokens) {
+        scale_a = LoadU32(activation_scales_e4m3fn +
+                          scale_token * scale_row_bytes + k_block * 4U);
+      }
+    }
+
+    std::uint32_t b0 = 0U;
+    std::uint32_t b1 = 0U;
+    std::uint32_t scale_b = 0U;
+    std::uint32_t up_b0 = 0U;
+    std::uint32_t up_b1 = 0U;
+    std::uint32_t up_scale_b = 0U;
+    if (weight_column < rows) {
+      const std::uint64_t weight_offset =
+          weight_column * packed_row_bytes + k_offset;
+      const std::uint64_t scale_offset =
+          weight_column * scale_row_bytes + k_block * 4U;
+      b0 = LoadU32(packed_weight_e2m1 + weight_offset);
+      b1 = LoadU32(packed_weight_e2m1 + weight_offset + 16U);
+      scale_b = LoadU32(weight_scales_e4m3fn + scale_offset);
+      if constexpr (kFusedGateUp) {
+        up_b0 = LoadU32(packed_up_weight_e2m1 + weight_offset);
+        up_b1 = LoadU32(packed_up_weight_e2m1 + weight_offset + 16U);
+        up_scale_b = LoadU32(up_weight_scales_e4m3fn + scale_offset);
+      }
+    }
+    asm volatile(
+        "mma.sync.aligned.m16n8k64.row.col.kind::mxf4nvf4.block_scale.scale_vec::4X.f32.e2m1.e2m1.f32.ue4m3 "
+        "{%0, %1, %2, %3}, "
+        "{%4, %5, %6, %7}, "
+        "{%8, %9}, "
+        "{%10, %11, %12, %13}, "
+        "%14, {%16, %17}, "
+        "%15, {%16, %17};\n"
+        : "+f"(d0), "+f"(d1), "+f"(d2), "+f"(d3)
+        : "r"(a0), "r"(a1), "r"(a2), "r"(a3), "r"(b0), "r"(b1),
+          "f"(d0), "f"(d1), "f"(d2), "f"(d3), "r"(scale_a), "r"(scale_b),
+          "h"(instruction_byte_id), "h"(instruction_thread_id));
+    if constexpr (kFusedGateUp) {
+      asm volatile(
+          "mma.sync.aligned.m16n8k64.row.col.kind::mxf4nvf4.block_scale.scale_vec::4X.f32.e2m1.e2m1.f32.ue4m3 "
+          "{%0, %1, %2, %3}, "
+          "{%4, %5, %6, %7}, "
+          "{%8, %9}, "
+          "{%10, %11, %12, %13}, "
+          "%14, {%16, %17}, "
+          "%15, {%16, %17};\n"
+          : "+f"(up0), "+f"(up1), "+f"(up2), "+f"(up3)
+          : "r"(a0), "r"(a1), "r"(a2), "r"(a3), "r"(up_b0), "r"(up_b1),
+            "f"(up0), "f"(up1), "f"(up2), "f"(up3), "r"(scale_a),
+            "r"(up_scale_b), "h"(instruction_byte_id),
+            "h"(instruction_thread_id));
+    }
+  }
+
+  const std::uint64_t output_column =
+      global_warp * kRowsPerWarp + thread_in_group * 2U;
+  const float gate_values[4] = {d0, d1, d2, d3};
+  const float up_values[4] = {up0, up1, up2, up3};
+#pragma unroll
+  for (unsigned pair = 0; pair < 4U; ++pair) {
+    const std::uint64_t token = pair < 2U ? token_low : token_high;
+    const std::uint64_t column = output_column + (pair & 1U);
+    if (token >= tokens || column >= rows) continue;
+    const float gate = gate_values[pair] / output_divisor;
+    if constexpr (kFusedGateUp) {
+      const float rounded_gate =
+          static_cast<float>(__float2bfloat16_rn(gate));
+      const float rounded_up = static_cast<float>(
+          __float2bfloat16_rn(up_values[pair] / up_output_divisor));
+      const float inner = kSqrtTwoOverPi *
+                          (rounded_gate + kGeluCubic * rounded_gate * rounded_gate *
+                                              rounded_gate);
+      const float gelu = static_cast<float>(__float2bfloat16_rn(
+          0.5F * rounded_gate * (1.0F + tanhf(inner))));
+      if (gate_output != nullptr) {
+        gate_output[token * rows + column] = rounded_gate;
+        up_output[token * rows + column] = rounded_up;
+      }
+      output[token * rows + column] =
+          static_cast<float>(__float2bfloat16_rn(gelu * rounded_up));
+    } else {
+      output[token * rows + column] = gate;
+    }
+  }
+#else
+  (void)packed_activation_e2m1;
+  (void)activation_scales_e4m3fn;
+  (void)packed_weight_e2m1;
+  (void)weight_scales_e4m3fn;
+  (void)packed_up_weight_e2m1;
+  (void)up_weight_scales_e4m3fn;
+  (void)gate_output;
+  (void)up_output;
+  (void)output;
+  (void)tokens;
+  (void)rows;
+  (void)contracting_elements;
+  (void)output_divisor;
+  (void)up_output_divisor;
+#endif
+}
+
 }  // namespace
 
 Status LaunchNvfp4Sm120DirectProjection(const std::uint8_t* packed_activation_e2m1,
@@ -349,12 +520,14 @@ Status LaunchNvfp4Sm120DirectProjectionBatch(
   if (blocks > static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
     return Invalid("batched SM120 NVFP4 projection grid exceeds CUDA limits");
   }
-  Sm120DirectProjectionKernel<<<dim3(static_cast<unsigned>(blocks),
-                                     static_cast<unsigned>(tokens)),
-                                kThreadsPerBlock, 0, stream>>>(
+  const std::uint64_t token_tiles =
+      (tokens + kTokensPerMma - 1U) / kTokensPerMma;
+  Sm120MatrixProjectionKernel<false><<<
+      dim3(static_cast<unsigned>(blocks), static_cast<unsigned>(token_tiles)),
+      kThreadsPerBlock, 0, stream>>>(
       packed_activation_e2m1, activation_scales_e4m3fn, packed_weight_e2m1,
-      weight_scales_e4m3fn, output, tokens, rows, contracting_elements,
-      output_divisor);
+      weight_scales_e4m3fn, nullptr, nullptr, nullptr, nullptr, output, tokens,
+      rows, contracting_elements, output_divisor, 1.0F);
   const cudaError_t error = cudaGetLastError();
   return error == cudaSuccess
              ? Status::Ok()
@@ -456,9 +629,11 @@ Status LaunchNvfp4Sm120FusedGateUpBatch(
   if (blocks > static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
     return Invalid("batched SM120 fused Gate/Up grid exceeds CUDA limits");
   }
-  Sm120FusedGateUpKernel<<<dim3(static_cast<unsigned>(blocks),
-                                static_cast<unsigned>(tokens)),
-                           kThreadsPerBlock, 0, stream>>>(
+  const std::uint64_t token_tiles =
+      (tokens + kTokensPerMma - 1U) / kTokensPerMma;
+  Sm120MatrixProjectionKernel<true><<<
+      dim3(static_cast<unsigned>(blocks), static_cast<unsigned>(token_tiles)),
+      kThreadsPerBlock, 0, stream>>>(
       packed_activation_e2m1, activation_scales_e4m3fn,
       packed_gate_weight_e2m1, gate_weight_scales_e4m3fn,
       packed_up_weight_e2m1, up_weight_scales_e4m3fn, gate_output, up_output,

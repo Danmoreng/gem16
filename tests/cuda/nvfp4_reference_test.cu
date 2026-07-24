@@ -204,7 +204,7 @@ void StoreNibble(std::vector<std::uint8_t>& packed, std::size_t row, std::size_t
 void TestDirectSourceSm120Projection() {
   constexpr std::size_t rows = 8;
   constexpr std::size_t k_size = 64;
-  constexpr std::size_t tokens = 2;
+  constexpr std::size_t tokens = 17;
   constexpr float activation_divisor = 2.0F;
   constexpr float weight_divisor = 4.0F;
 
@@ -272,18 +272,27 @@ void TestDirectSourceSm120Projection() {
     return;
   }
   for (std::size_t token = 0; token < tokens; ++token) {
+    std::vector<std::uint8_t> token_activation =
+        quantized.value().packed_e2m1;
+    std::rotate(token_activation.begin(),
+                token_activation.begin() +
+                    static_cast<std::ptrdiff_t>(token % token_activation.size()),
+                token_activation.end());
+    std::vector<std::uint8_t> token_scales =
+        quantized.value().block_scales_e4m3fn;
+    const std::uint8_t scale =
+        std::array<std::uint8_t, 3>{0x30U, 0x38U, 0x40U}[token % 3U];
+    std::fill(token_scales.begin(), token_scales.end(), scale);
     if (!CudaOk(cudaMemcpy(
                     device_batch_activation.get() +
                         token * quantized.value().packed_e2m1.size(),
-                    quantized.value().packed_e2m1.data(),
-                    quantized.value().packed_e2m1.size(), cudaMemcpyHostToDevice),
+                    token_activation.data(), token_activation.size(),
+                    cudaMemcpyHostToDevice),
                 "copy batched native activation") ||
         !CudaOk(cudaMemcpy(
                     device_batch_activation_scales.get() +
                         token * quantized.value().block_scales_e4m3fn.size(),
-                    quantized.value().block_scales_e4m3fn.data(),
-                    quantized.value().block_scales_e4m3fn.size(),
-                    cudaMemcpyHostToDevice),
+                    token_scales.data(), token_scales.size(), cudaMemcpyHostToDevice),
                 "copy batched native activation scales")) {
       return;
     }
@@ -389,9 +398,19 @@ void TestDirectSourceSm120Projection() {
       CUDA_TEST_CHECK(fused_up[row] == rounded);
       CUDA_TEST_CHECK(fused_product[row] == product);
       for (std::size_t token = 0; token < tokens; ++token) {
-        CUDA_TEST_CHECK(batch_reference[token * rows + row] == output[row]);
-        CUDA_TEST_CHECK(batch_native[token * rows + row] == output[row]);
-        CUDA_TEST_CHECK(batch_product[token * rows + row] == product);
+        const float batch_value = batch_reference[token * rows + row];
+        const float batch_rounded =
+            static_cast<float>(__float2bfloat16_rn(batch_value));
+        const float batch_inner =
+            0.7978845608028654F *
+            (batch_rounded + 0.044715F * batch_rounded * batch_rounded *
+                                 batch_rounded);
+        const float batch_gelu = static_cast<float>(__float2bfloat16_rn(
+            0.5F * batch_rounded * (1.0F + std::tanh(batch_inner))));
+        const float batch_expected = static_cast<float>(
+            __float2bfloat16_rn(batch_gelu * batch_rounded));
+        CUDA_TEST_CHECK(batch_native[token * rows + row] == batch_value);
+        CUDA_TEST_CHECK(batch_product[token * rows + row] == batch_expected);
       }
     }
   }
@@ -464,7 +483,7 @@ void TestMlpElementwiseBridge() {
 void TestFp8ReferenceAndDirectProjection() {
   constexpr std::size_t rows = 8;
   constexpr std::size_t k_size = 32;
-  constexpr std::size_t tokens = 2;
+  constexpr std::size_t tokens = 17;
   std::array<float, k_size> host_activation{};
   for (std::size_t index = 0; index < host_activation.size(); ++index) {
     host_activation[index] =
@@ -521,8 +540,14 @@ void TestFp8ReferenceAndDirectProjection() {
     return;
   }
   for (std::size_t token = 0; token < tokens; ++token) {
+    std::array<float, k_size> token_input{};
+    const float factor = static_cast<float>(token % 5U + 1U) * 0.25F;
+    for (std::size_t index = 0; index < k_size; ++index) {
+      token_input[index] =
+          host_activation[(index + token) % k_size] * factor;
+    }
     if (!CudaOk(cudaMemcpy(device_batch_input.get() + token * k_size,
-                           host_activation.data(), k_size * sizeof(float),
+                           token_input.data(), k_size * sizeof(float),
                            cudaMemcpyHostToDevice), "copy batched FP8 input")) {
       return;
     }
@@ -605,10 +630,8 @@ void TestFp8ReferenceAndDirectProjection() {
       CUDA_TEST_CHECK(std::fabs(static_cast<double>(native_output[row]) - expected.value()) <
                          1.0e-4);
       for (std::size_t token = 0; token < tokens; ++token) {
-        CUDA_TEST_CHECK(batch_reference_output[token * rows + row] ==
-                        reference_output[row]);
         CUDA_TEST_CHECK(batch_native_output[token * rows + row] ==
-                        native_output[row]);
+                        batch_reference_output[token * rows + row]);
       }
     }
   }

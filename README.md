@@ -239,8 +239,9 @@ without opening the GUI:
 Reports and exported SQLite databases are written below the selected build directory's `profiles` folder and stay
 outside version control.
 
-Prompt ingestion uses a native 32-token chunk plan by default. It batches dynamic FP8 attention projections and
-NVFP4 MLP projections across tokens while retaining causal local/global attention. Pass `--serial-prefill` to
+Prompt ingestion uses a native 32-token chunk plan by default. Its FP8 attention and NVFP4 MLP projections use real
+16-row by 8-column MMA tiles that reuse checkpoint weight fragments across prompt tokens while retaining causal
+local/global attention. Pass `--serial-prefill` to
 `gem16gb-run` or `gem16gb-bench decode` for the retained one-token correctness bridge.
 
 ## Validate real-checkpoint layer assembly
