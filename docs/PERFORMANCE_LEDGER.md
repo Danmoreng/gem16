@@ -6,6 +6,34 @@ Repeated isolated projection measurements keep one 33.3 MB tensor family hot in 
 estimate a layer. The complete MLP row cycles through the 99.5 MB three-projection working set and is the more useful
 decode characterization.
 
+## Native prefill and long-context decode characterization
+
+The following console characterizations were collected on the same Windows Blackwell development machine after
+commits `0d2065e` and `914aba1`, using direct checkpoint loading, checkpoint FP8 KV, native SM120 projections, and
+the opt-in fused Gate/Up path. They are not accepted benchmark artifacts: 128 and 512 prefill use the full 3 warm-up/
+10 measured policy, while the expensive 2K and 8K scaling points deliberately use fewer repetitions. The existing
+llama.cpp and vLLM values come from their separately retained development runs, so ratios are orientation rather
+than parity claims.
+
+| Prompt | gem16gb prefill tok/s | Repetitions | llama.cpp | vLLM | gem/llama | gem/vLLM |
+|---:|---:|---:|---:|---:|---:|---:|
+| 128 | 87.72 | 3/10 | 2,215 | 4,679 | 0.040x | 0.019x |
+| 512 | 82.42 | 3/10 | 2,628 | 6,146 | 0.031x | 0.013x |
+| 2,048 | 69.92 | 1/3 | 2,539 | 4,913 | 0.028x | 0.014x |
+| 8,192 | 55.83 | 1/1 | 2,362 | 3,929 | 0.024x | 0.014x |
+
+| Existing context | gem16gb decode tok/s | gem p50/p95/p99 ms | Repetitions | llama.cpp | vLLM | gem/llama | gem/vLLM |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 128 | 21.02 | 47.70 / 50.69 / 52.17 | 3/10 | 29.67 | 37.06 | 0.709x | 0.567x |
+| 2,048 | 15.71 | 63.50 / 67.04 / 70.69 | 1/3 | 28.87 | 35.98 | 0.544x | 0.437x |
+| 8,192 | 12.68 | 78.66 / 80.95 / 88.14 | 1/1 | 28.08 | 35.36 | 0.451x | 0.358x |
+
+The implementation result is positive for capability and negative for competitiveness: native prefill preserves
+serial-path output checksums at 8 and 128 tokens and supports the hybrid cache through 8K in real runs, but its
+token-parallel MMA grid is still 25x–75x behind the current prefill references. Decode also loses relative ground as
+global context grows. The next performance work should replace token-parallel projection tiles with true M-dimension
+GEMM tiling and fuse/stream causal attention; micro-optimizing the existing launch schedule cannot close this gap.
+
 | Date | Commit | Hypothesis | Configuration | Before | After | Quality delta | VRAM delta | Decision |
 |---|---|---|---|---:|---:|---:|---:|---|
 | 2026-07-23 | working tree | Direct source-layout SM120 MMA can consume the checkpoint without persistent repack | Gate `[15360,3840]`, W4A4 NVFP4, 3 warm-ups/10 iterations | CUDA scalar reference 0.2785 ms | SM120 direct 0.0334 ms | max abs `1.1920929e-7`; cosine `0.9999999999999999` | 0 persistent repack bytes | Retain direct route; continue qualification |
