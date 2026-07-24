@@ -21,9 +21,10 @@ greedy-selection, and device-to-host intervals are timed:
   --enable-fused-gate-up
 ```
 
-The current cache implementation limits prompt plus measured decode positions to 1,024 tokens. Results remain
-labeled `characterization` and `benchmark_qualified: false` until the hybrid long-context cache, quality gates,
-and required system telemetry are complete.
+The hybrid cache supports the checkpoint's full 262,144-position contract: local-attention layers use a 1,024-token
+ring while global-attention layers grow through the configured context. Results remain labeled `characterization`
+and `benchmark_qualified: false` until native prefill, long-context quality gates, and required system telemetry
+are complete.
 
 Future results must use the matrices, timing boundaries, repetition policy, quality gates, and three llama.cpp
 baseline labels defined in `AGENTS.md`. Raw runs will be written below

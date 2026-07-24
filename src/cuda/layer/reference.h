@@ -66,7 +66,9 @@ namespace gem16gb::internal {
                                                 std::uint64_t kv_heads,
                                                 std::uint64_t head_dimension,
                                                 std::uint64_t tokens,
-                                                cudaStream_t stream);
+                                                cudaStream_t stream,
+                                                std::uint64_t cache_capacity = 0,
+                                                std::uint64_t first_slot = 0);
 
 [[nodiscard]] Status LaunchLocalAttentionDecodeFp8(
     const float* query,
@@ -80,7 +82,9 @@ namespace gem16gb::internal {
     std::uint64_t kv_heads,
     std::uint64_t head_dimension,
     std::uint64_t tokens,
-    cudaStream_t stream);
+    cudaStream_t stream,
+    std::uint64_t cache_capacity = 0,
+    std::uint64_t first_slot = 0);
 
 [[nodiscard]] Status LaunchScale(float* values,
                                  const std::uint16_t* scalar_bf16,

@@ -29,13 +29,14 @@ into one aligned arena, keeps separate K/V state and reusable workspace allocati
 tied BF16 embedding/output matrix, exact logit softcap, and GPU argmax, and performs no token-loop allocation. It is
 not yet graph-captured or benchmark-qualified.
 
-The first full-model path intentionally accepts token IDs and limits the contiguous correctness cache to 1,024
-positions. Prompt tokens pass through the one-token decode plan as a temporary correctness bridge. The pure C++
+The first full-model path intentionally accepts token IDs and uses a hybrid cache through the checkpoint's 262,144
+position contract. Its 40 local-attention layers use fixed 1,024-token rings; its eight full-attention layers use
+absolute, growing storage. Prompt tokens pass through the one-token decode plan as a temporary correctness bridge. The pure C++
 `GemmaChatProcessor` loads the checkpoint vocabulary, merge ranks, byte fallback, generation controls, and exact
 pinned Jinja artifact. It implements the supported text-only behavior of that template natively and rejects a
 different template revision rather than silently approximating it. This makes real chat flows testable now while
 preserving a narrow execution contract. A separate parallel prefill graph, circular local cache, growing global
-cache, FP8 cache storage, and sampling plans remain required production components.
+cache storage and sampling plans remain required production components.
 
 The reusable `ChatMessage`, `Tokenizer`, and `GemmaChatProcessor` interfaces are deliberately independent of
 terminal I/O. A future OpenAI-compatible Chat Completions server can reuse this request-to-token boundary; HTTP,
@@ -72,6 +73,6 @@ bound are retained in every result; shared physical cache selection is rejected.
 
 The greedy characterization measures a 1,465,856-byte execution workspace containing hidden-state ping-pong,
 quantized activations and scales, projection intermediates, attention scores, full logits, and GPU argmax state.
-Its default short-context cache stores physical E4M3FN bytes with checkpoint BF16 scales; an explicit float32
+Its default hybrid cache stores physical E4M3FN bytes with checkpoint BF16 scales; an explicit float32
 BF16-semantics diagnostic allocation remains available. The general planner remains conservative until production
-prefill, circular/local cache, graph, and sampling shapes are defined.
+prefill, graph, and sampling shapes are defined.

@@ -90,14 +90,20 @@ __global__ void RotaryKernel(float* states, std::uint64_t head_dimension,
 __global__ void AttentionScoreKernel(const float* query, const float* key_cache,
                                      float* scores, std::uint64_t kv_heads,
                                      std::uint64_t head_dimension, std::uint64_t tokens,
-                                     std::uint64_t pairs, std::uint64_t queries_per_kv) {
+                                     std::uint64_t pairs, std::uint64_t queries_per_kv,
+                                     std::uint64_t cache_capacity,
+                                     std::uint64_t first_slot) {
   const std::uint64_t pair = static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
   if (pair >= pairs) return;
   const std::uint64_t query_head = pair / tokens;
   const std::uint64_t token = pair % tokens;
+  const std::uint64_t unwrapped_slot = first_slot + token;
+  const std::uint64_t cache_slot = unwrapped_slot < cache_capacity
+                                       ? unwrapped_slot
+                                       : unwrapped_slot - cache_capacity;
   const std::uint64_t kv_head = query_head / queries_per_kv;
   const float* query_head_data = query + query_head * head_dimension;
-  const float* key = key_cache + (token * kv_heads + kv_head) * head_dimension;
+  const float* key = key_cache + (cache_slot * kv_heads + kv_head) * head_dimension;
   float score = 0.0F;
   for (std::uint64_t dimension = 0; dimension < head_dimension; ++dimension) {
     score = fmaf(query_head_data[dimension], key[dimension], score);
@@ -110,16 +116,21 @@ __global__ void AttentionScoreFp8Kernel(
     const std::uint16_t* key_scale_bf16, float* scores,
     std::uint64_t kv_heads, std::uint64_t head_dimension,
     std::uint64_t tokens, std::uint64_t pairs,
-    std::uint64_t queries_per_kv) {
+    std::uint64_t queries_per_kv, std::uint64_t cache_capacity,
+    std::uint64_t first_slot) {
   const std::uint64_t pair =
       static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
   if (pair >= pairs) return;
   const std::uint64_t query_head = pair / tokens;
   const std::uint64_t token = pair % tokens;
+  const std::uint64_t unwrapped_slot = first_slot + token;
+  const std::uint64_t cache_slot = unwrapped_slot < cache_capacity
+                                       ? unwrapped_slot
+                                       : unwrapped_slot - cache_capacity;
   const std::uint64_t kv_head = query_head / queries_per_kv;
   const float* query_head_data = query + query_head * head_dimension;
   const std::uint8_t* key =
-      key_cache + (token * kv_heads + kv_head) * head_dimension;
+      key_cache + (cache_slot * kv_heads + kv_head) * head_dimension;
   const float key_scale =
       static_cast<float>(__ushort_as_bfloat16(key_scale_bf16[0]));
   float score = 0.0F;
@@ -155,7 +166,9 @@ __global__ void AttentionValueKernel(const float* scores, const float* value_cac
                                      float* output, std::uint64_t query_heads,
                                      std::uint64_t kv_heads, std::uint64_t head_dimension,
                                      std::uint64_t tokens, std::uint64_t elements,
-                                     std::uint64_t queries_per_kv) {
+                                     std::uint64_t queries_per_kv,
+                                     std::uint64_t cache_capacity,
+                                     std::uint64_t first_slot) {
   const std::uint64_t element = static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
   if (element >= elements) return;
   const std::uint64_t query_head = element / head_dimension;
@@ -163,8 +176,12 @@ __global__ void AttentionValueKernel(const float* scores, const float* value_cac
   const std::uint64_t kv_head = query_head / queries_per_kv;
   float value = 0.0F;
   for (std::uint64_t token = 0; token < tokens; ++token) {
+    const std::uint64_t unwrapped_slot = first_slot + token;
+    const std::uint64_t cache_slot = unwrapped_slot < cache_capacity
+                                         ? unwrapped_slot
+                                         : unwrapped_slot - cache_capacity;
     const std::uint64_t cache_offset =
-        (token * kv_heads + kv_head) * head_dimension + dimension;
+        (cache_slot * kv_heads + kv_head) * head_dimension + dimension;
     value = fmaf(scores[query_head * tokens + token], value_cache[cache_offset], value);
   }
   output[element] = value;
@@ -176,7 +193,8 @@ __global__ void AttentionValueFp8Kernel(
     const std::uint16_t* value_scale_bf16, float* output,
     std::uint64_t query_heads, std::uint64_t kv_heads,
     std::uint64_t head_dimension, std::uint64_t tokens,
-    std::uint64_t elements, std::uint64_t queries_per_kv) {
+    std::uint64_t elements, std::uint64_t queries_per_kv,
+    std::uint64_t cache_capacity, std::uint64_t first_slot) {
   const std::uint64_t element =
       static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
   if (element >= elements) return;
@@ -187,8 +205,12 @@ __global__ void AttentionValueFp8Kernel(
       static_cast<float>(__ushort_as_bfloat16(value_scale_bf16[0]));
   float value = 0.0F;
   for (std::uint64_t token = 0; token < tokens; ++token) {
+    const std::uint64_t unwrapped_slot = first_slot + token;
+    const std::uint64_t cache_slot = unwrapped_slot < cache_capacity
+                                         ? unwrapped_slot
+                                         : unwrapped_slot - cache_capacity;
     const std::uint64_t cache_offset =
-        (token * kv_heads + kv_head) * head_dimension + dimension;
+        (cache_slot * kv_heads + kv_head) * head_dimension + dimension;
     __nv_fp8_e4m3 quantized;
     quantized.__x = value_cache[cache_offset];
     value = fmaf(scores[query_head * tokens + token],
@@ -349,10 +371,13 @@ Status LaunchLocalAttentionDecode(const float* query, const float* key_cache,
                                   const float* value_cache, float* scores, float* output,
                                   std::uint64_t query_heads, std::uint64_t kv_heads,
                                   std::uint64_t head_dimension, std::uint64_t tokens,
-                                  cudaStream_t stream) {
+                                  cudaStream_t stream, std::uint64_t cache_capacity,
+                                  std::uint64_t first_slot) {
   if (query == nullptr || key_cache == nullptr || value_cache == nullptr || scores == nullptr ||
       output == nullptr) return Invalid("local attention requires non-null pointers");
+  if (cache_capacity == 0U) cache_capacity = tokens;
   if (query_heads == 0U || kv_heads == 0U || head_dimension == 0U || tokens == 0U ||
+      tokens > cache_capacity || first_slot >= cache_capacity ||
       query_heads % kv_heads != 0U || query_heads > std::numeric_limits<std::uint64_t>::max() / tokens ||
       query_heads > std::numeric_limits<std::uint64_t>::max() / head_dimension) {
     return Invalid("local attention geometry is invalid");
@@ -366,7 +391,8 @@ Status LaunchLocalAttentionDecode(const float* query, const float* key_cache,
   }
   const std::uint64_t queries_per_kv = query_heads / kv_heads;
   AttentionScoreKernel<<<static_cast<unsigned>(score_blocks), kThreads, 0, stream>>>(
-      query, key_cache, scores, kv_heads, head_dimension, tokens, pairs, queries_per_kv);
+      query, key_cache, scores, kv_heads, head_dimension, tokens, pairs,
+      queries_per_kv, cache_capacity, first_slot);
   cudaError_t error = cudaGetLastError();
   if (error != cudaSuccess) return CudaFailure("launch attention scores", error);
   AttentionSoftmaxKernel<<<static_cast<unsigned>(query_heads), kThreads, 0, stream>>>(scores, tokens);
@@ -374,7 +400,7 @@ Status LaunchLocalAttentionDecode(const float* query, const float* key_cache,
   if (error != cudaSuccess) return CudaFailure("launch attention softmax", error);
   AttentionValueKernel<<<static_cast<unsigned>(value_blocks), kThreads, 0, stream>>>(
       scores, value_cache, output, query_heads, kv_heads, head_dimension, tokens, elements,
-      queries_per_kv);
+      queries_per_kv, cache_capacity, first_slot);
   error = cudaGetLastError();
   return error == cudaSuccess ? Status::Ok() : CudaFailure("launch attention values", error);
 }
@@ -385,14 +411,17 @@ Status LaunchLocalAttentionDecodeFp8(
     const std::uint16_t* value_scale_bf16, float* scores, float* output,
     std::uint64_t query_heads, std::uint64_t kv_heads,
     std::uint64_t head_dimension, std::uint64_t tokens,
-    cudaStream_t stream) {
+    cudaStream_t stream, std::uint64_t cache_capacity,
+    std::uint64_t first_slot) {
   if (query == nullptr || key_cache == nullptr || value_cache == nullptr ||
       key_scale_bf16 == nullptr || value_scale_bf16 == nullptr ||
       scores == nullptr || output == nullptr) {
     return Invalid("FP8 local attention requires non-null pointers and scales");
   }
+  if (cache_capacity == 0U) cache_capacity = tokens;
   if (query_heads == 0U || kv_heads == 0U || head_dimension == 0U ||
       tokens == 0U || query_heads % kv_heads != 0U ||
+      tokens > cache_capacity || first_slot >= cache_capacity ||
       query_heads > std::numeric_limits<std::uint64_t>::max() / tokens ||
       query_heads > std::numeric_limits<std::uint64_t>::max() / head_dimension) {
     return Invalid("FP8 local attention geometry is invalid");
@@ -409,7 +438,7 @@ Status LaunchLocalAttentionDecodeFp8(
   AttentionScoreFp8Kernel<<<static_cast<unsigned>(score_blocks), kThreads, 0,
                             stream>>>(
       query, key_cache, key_scale_bf16, scores, kv_heads, head_dimension,
-      tokens, pairs, queries_per_kv);
+      tokens, pairs, queries_per_kv, cache_capacity, first_slot);
   cudaError_t error = cudaGetLastError();
   if (error != cudaSuccess) {
     return CudaFailure("launch FP8 attention scores", error);
@@ -423,7 +452,8 @@ Status LaunchLocalAttentionDecodeFp8(
   AttentionValueFp8Kernel<<<static_cast<unsigned>(value_blocks), kThreads, 0,
                             stream>>>(
       scores, value_cache, value_scale_bf16, output, query_heads, kv_heads,
-      head_dimension, tokens, elements, queries_per_kv);
+      head_dimension, tokens, elements, queries_per_kv, cache_capacity,
+      first_slot);
   error = cudaGetLastError();
   return error == cudaSuccess
              ? Status::Ok()

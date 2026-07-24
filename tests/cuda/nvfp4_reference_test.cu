@@ -715,6 +715,110 @@ void TestPhysicalFp8KvCache() {
   }
 }
 
+void TestWrappedKvRingAttention() {
+  constexpr std::uint64_t query_heads = 1;
+  constexpr std::uint64_t kv_heads = 1;
+  constexpr std::uint64_t head_dimension = 2;
+  constexpr std::uint64_t tokens = 3;
+  constexpr std::uint64_t first_slot = 1;
+  constexpr std::array<float, 2> query = {1.0F, 0.0F};
+  constexpr std::array<float, 6> logical_keys = {
+      1.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F};
+  constexpr std::array<float, 6> logical_values = {
+      1.0F, 10.0F, 2.0F, 20.0F, 3.0F, 30.0F};
+  constexpr std::array<float, 6> physical_keys = {
+      1.0F, 1.0F, 1.0F, 0.0F, 0.0F, 1.0F};
+  constexpr std::array<float, 6> physical_values = {
+      3.0F, 30.0F, 1.0F, 10.0F, 2.0F, 20.0F};
+  constexpr std::array<std::uint16_t, 1> unit_scale = {0x3F80U};
+
+  const auto expected = gem16gb::layer::LocalAttentionDecode(
+      query, logical_keys, logical_values, query_heads, kv_heads,
+      head_dimension, tokens);
+  CUDA_TEST_CHECK(expected.ok());
+  if (!expected.ok()) return;
+
+  DeviceBuffer<float> device_query(query.size());
+  DeviceBuffer<float> device_keys(physical_keys.size());
+  DeviceBuffer<float> device_values(physical_values.size());
+  DeviceBuffer<float> device_scores(query_heads * tokens);
+  DeviceBuffer<float> device_output(query.size());
+  DeviceBuffer<float> append_key(head_dimension);
+  DeviceBuffer<float> append_value(head_dimension);
+  DeviceBuffer<std::uint8_t> fp8_keys(physical_keys.size());
+  DeviceBuffer<std::uint8_t> fp8_values(physical_values.size());
+  DeviceBuffer<std::uint16_t> device_scale(unit_scale.size());
+  DeviceBuffer<float> fp8_output(query.size());
+  if (device_query.get() == nullptr || device_keys.get() == nullptr ||
+      device_values.get() == nullptr || device_scores.get() == nullptr ||
+      device_output.get() == nullptr || append_key.get() == nullptr ||
+      append_value.get() == nullptr || fp8_keys.get() == nullptr ||
+      fp8_values.get() == nullptr || device_scale.get() == nullptr ||
+      fp8_output.get() == nullptr) {
+    return;
+  }
+  if (!CudaOk(cudaMemcpy(device_query.get(), query.data(), device_query.bytes(),
+                         cudaMemcpyHostToDevice), "copy ring query") ||
+      !CudaOk(cudaMemcpy(device_keys.get(), physical_keys.data(), device_keys.bytes(),
+                         cudaMemcpyHostToDevice), "copy ring keys") ||
+      !CudaOk(cudaMemcpy(device_values.get(), physical_values.data(),
+                         device_values.bytes(), cudaMemcpyHostToDevice),
+              "copy ring values") ||
+      !CudaOk(cudaMemcpy(device_scale.get(), unit_scale.data(), device_scale.bytes(),
+                         cudaMemcpyHostToDevice), "copy ring FP8 scale")) {
+    return;
+  }
+
+  const auto float_status = gem16gb::internal::LaunchLocalAttentionDecode(
+      device_query.get(), device_keys.get(), device_values.get(),
+      device_scores.get(), device_output.get(), query_heads, kv_heads,
+      head_dimension, tokens, nullptr, tokens, first_slot);
+  CUDA_TEST_CHECK(float_status.ok());
+  for (std::uint64_t token = 0; token < tokens; ++token) {
+    if (!CudaOk(cudaMemcpy(append_key.get(),
+                           logical_keys.data() + token * head_dimension,
+                           append_key.bytes(), cudaMemcpyHostToDevice),
+                "copy ring FP8 key") ||
+        !CudaOk(cudaMemcpy(append_value.get(),
+                           logical_values.data() + token * head_dimension,
+                           append_value.bytes(), cudaMemcpyHostToDevice),
+                "copy ring FP8 value")) {
+      return;
+    }
+    const std::uint64_t physical_slot = (first_slot + token) % tokens;
+    const auto append_status = gem16gb::internal::LaunchAppendKvFp8(
+        append_key.get(), append_value.get(), fp8_keys.get(), fp8_values.get(),
+        device_scale.get(), device_scale.get(), physical_slot, kv_heads,
+        head_dimension, nullptr);
+    CUDA_TEST_CHECK(append_status.ok());
+    if (!append_status.ok()) return;
+  }
+  const auto fp8_status = gem16gb::internal::LaunchLocalAttentionDecodeFp8(
+      device_query.get(), fp8_keys.get(), fp8_values.get(), device_scale.get(),
+      device_scale.get(), device_scores.get(), fp8_output.get(), query_heads,
+      kv_heads, head_dimension, tokens, nullptr, tokens, first_slot);
+  CUDA_TEST_CHECK(fp8_status.ok());
+  if (!float_status.ok() || !fp8_status.ok() ||
+      !CudaOk(cudaDeviceSynchronize(), "ring attention synchronize")) {
+    return;
+  }
+  std::array<float, query.size()> float_result{};
+  std::array<float, query.size()> fp8_result{};
+  if (!CudaOk(cudaMemcpy(float_result.data(), device_output.get(),
+                         device_output.bytes(), cudaMemcpyDeviceToHost),
+              "copy ring float output") ||
+      !CudaOk(cudaMemcpy(fp8_result.data(), fp8_output.get(), fp8_output.bytes(),
+                         cudaMemcpyDeviceToHost), "copy ring FP8 output")) {
+    return;
+  }
+  for (std::size_t index = 0; index < expected.value().size(); ++index) {
+    CUDA_TEST_CHECK(std::fabs(float_result[index] - expected.value()[index]) <
+                    2.0e-5F);
+    CUDA_TEST_CHECK(std::fabs(fp8_result[index] - expected.value()[index]) <
+                    2.0e-5F);
+  }
+}
+
 }  // namespace
 
 int main() {
@@ -730,6 +834,7 @@ int main() {
   TestFp8ReferenceAndDirectProjection();
   TestLocalLayerReferenceOperators();
   TestPhysicalFp8KvCache();
+  TestWrappedKvRingAttention();
   if (failures != 0) {
     std::cerr << failures << " CUDA test assertion(s) failed\n";
     return 1;

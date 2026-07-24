@@ -21,7 +21,7 @@ of the correctness and native-kernel gates below.
   it. Do not begin HTTP/server work before persistent engine sessions and the correctness gate are in place.
 - Replace token-at-a-time prompt ingestion with a separate native prefill plan. The current prompt timing is a
   correctness bridge and must not be reported as prompt throughput.
-- Replace the initial contiguous physical FP8 cache, currently capped at 1,024 total positions, with circular local
+- [x] Replace the initial contiguous physical FP8 cache, formerly capped at 1,024 total positions, with circular local
   storage and independently growing global storage. The checkpoint-scale FP8 numerical semantics and one-byte
   allocation are implemented; fused/optimized attention reads remain pending.
 - Extend the now-committed trusted vLLM token/top-logprob fixture with full-vocabulary logits and selected hidden

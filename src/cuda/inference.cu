@@ -43,6 +43,7 @@ constexpr std::uint64_t kVocabulary = 262144;
 constexpr std::uint64_t kQueryHeads = 16;
 constexpr std::uint64_t kLayers = 48;
 constexpr std::uint64_t kSlidingWindow = 1024;
+constexpr std::uint64_t kMaximumContext = 262144;
 constexpr std::uint64_t kAlignment = 256;
 constexpr std::uint64_t kMaximumSuppressedTokens = 16;
 constexpr float kEpsilon = 1.0e-6F;
@@ -769,14 +770,16 @@ class InferenceEngine {
     std::array<CacheOffsets, kLayers> offsets{};
     for (std::size_t index = 0; index < kLayers; ++index) {
       const auto& layer = model_.layers()[index];
+      const std::uint64_t cache_tokens =
+          layer.global ? max_context_ : std::min(max_context_, kSlidingWindow);
       Result<std::uint64_t> key =
           kv_cache_mode_ == KvCacheMode::kCheckpointFp8
-              ? layout.Add<std::uint8_t>(max_context_ * layer.kv_elements)
-              : layout.Add<float>(max_context_ * layer.kv_elements);
+              ? layout.Add<std::uint8_t>(cache_tokens * layer.kv_elements)
+              : layout.Add<float>(cache_tokens * layer.kv_elements);
       Result<std::uint64_t> value =
           kv_cache_mode_ == KvCacheMode::kCheckpointFp8
-              ? layout.Add<std::uint8_t>(max_context_ * layer.kv_elements)
-              : layout.Add<float>(max_context_ * layer.kv_elements);
+              ? layout.Add<std::uint8_t>(cache_tokens * layer.kv_elements)
+              : layout.Add<float>(cache_tokens * layer.kv_elements);
       if (!key.ok()) return key.status();
       if (!value.ok()) return value.status();
       offsets[index] = {key.value(), value.value()};
@@ -955,26 +958,35 @@ class InferenceEngine {
         return CudaFailure("copy layer V input state", capture_error);
       }
     }
+    const std::uint64_t cache_capacity =
+        layer.global ? max_context_ : std::min(max_context_, kSlidingWindow);
+    const std::uint64_t cache_slot = layer.global ? position : position % cache_capacity;
+    const std::uint64_t attention_tokens =
+        layer.global ? position + 1U : std::min(position + 1U, cache_capacity);
+    const std::uint64_t first_slot =
+        layer.global || position + 1U <= cache_capacity
+            ? 0U
+            : (position + 1U) % cache_capacity;
     if (kv_cache_mode_ == KvCacheMode::kCheckpointFp8) {
       status = internal::LaunchAppendKvFp8(
           k_norm, v_norm, layer.key_cache_fp8, layer.value_cache_fp8,
-          layer.k_cache_scale, layer.v_cache_scale, position, layer.kv_heads,
+          layer.k_cache_scale, layer.v_cache_scale, cache_slot, layer.kv_heads,
           layer.head_dimension, stream_);
       if (!status.ok()) return status;
       status = internal::LaunchLocalAttentionDecodeFp8(
           q_norm, layer.key_cache_fp8, layer.value_cache_fp8,
           layer.k_cache_scale, layer.v_cache_scale, scores, attention,
-          kQueryHeads, layer.kv_heads, layer.head_dimension, position + 1U,
-          stream_);
+          kQueryHeads, layer.kv_heads, layer.head_dimension, attention_tokens,
+          stream_, cache_capacity, first_slot);
     } else {
       status = internal::LaunchAppendKv(
           k_norm, v_norm, layer.key_cache_bf16, layer.value_cache_bf16,
-          position, layer.kv_heads, layer.head_dimension, stream_);
+          cache_slot, layer.kv_heads, layer.head_dimension, stream_);
       if (!status.ok()) return status;
       status = internal::LaunchLocalAttentionDecode(
           q_norm, layer.key_cache_bf16, layer.value_cache_bf16, scores,
           attention, kQueryHeads, layer.kv_heads, layer.head_dimension,
-          position + 1U, stream_);
+          attention_tokens, stream_, cache_capacity, first_slot);
     }
     if (!status.ok()) return status;
     status = LaunchRoundBf16(attention, layer.query_elements, stream_);
@@ -1304,9 +1316,9 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
       teacher_forcing
           ? static_cast<std::uint64_t>(options.teacher_forced_token_ids.size())
           : options.max_generated_tokens;
-  if (options.max_context_tokens == 0U || options.max_context_tokens > kSlidingWindow) {
+  if (options.max_context_tokens == 0U || options.max_context_tokens > kMaximumContext) {
     return Error(StatusCode::kUnsupported,
-                 "the initial contiguous correctness cache supports 1..1024 tokens");
+                 "the hybrid KV cache supports 1..262144 tokens");
   }
   if (options.input_token_ids.size() > options.max_context_tokens ||
       generation_steps - 1U >
@@ -1528,9 +1540,9 @@ Result<DecodeBenchmarkResult> RunDecodeBenchmark(
   }
   const std::uint64_t planned_context =
       static_cast<std::uint64_t>(options.context_tokens) + options.generated_tokens;
-  if (planned_context > kSlidingWindow) {
+  if (planned_context > kMaximumContext) {
     return Error(StatusCode::kUnsupported,
-                 "the initial contiguous benchmark cache supports prompt plus decode up to 1024 tokens");
+                 "the hybrid benchmark cache supports prompt plus decode up to 262144 tokens");
   }
 
   std::vector<std::uint32_t> prompt(options.context_tokens);
@@ -1649,6 +1661,8 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
                  ? "uint8_e4m3fn"
                  : "float32_bf16_semantics")
          << "\",\n"
+         << "  \"kv_cache_layout\": \"hybrid_local_ring_global_contiguous\",\n"
+         << "  \"local_attention_window\": " << kSlidingWindow << ",\n"
          << "  \"decoding_mode\": \""
          << (result.teacher_forcing ? "teacher_forced" : "greedy")
          << "\",\n"
@@ -1717,6 +1731,7 @@ Status WriteDecodeBenchmarkJson(const DecodeBenchmarkResult& result,
          << "\",\"kv_cache_mode\":\""
          << (result.options.kv_cache_mode == KvCacheMode::kCheckpointFp8
                  ? "checkpoint_fp8" : "bf16_correctness")
+         << "\",\"kv_cache_layout\":\"hybrid_local_ring_global_contiguous"
          << "\",\"fused_gate_up\":"
          << (result.options.enable_fused_gate_up ? "true" : "false")
          << ",\"context_tokens\":" << result.options.context_tokens

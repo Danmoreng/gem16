@@ -35,8 +35,12 @@ Graph, kernel, and prefill workspaces remain explicitly unplanned until their ex
 `total_arena_bytes` is therefore the known base arena, not a peak-VRAM claim.
 
 The current full-model characterization separately measures a 9,200,135,680-byte aligned device weight arena and
-a roughly 1.47 MB reusable workspace. At 64 positions its contiguous physical E4M3FN K/V cache allocates
-11,010,048 bytes; the explicit float32 BF16-semantics diagnostic cache allocates 44,040,192 bytes. This confirms the
-one-byte payload accounting, but the initial cache does not yet apply sliding-window reclamation. Optional
+a roughly 1.47 MB reusable workspace. The runtime now applies the planned hybrid layout: 40 local layers allocate
+at most 1,024 physical slots and reuse them as chronological rings, while eight global layers allocate the requested
+context extent. Separate K/V storage is retained for both. Optional
 full-logit diagnostics use host memory (`steps * 262144 * 4` bytes) allocated before generation and do not change
 persistent device storage.
+
+A real FP8 allocation at a 1,026-position execution plan measured 176,177,152 bytes: 167,772,160 bytes for the
+40 local K/V rings plus 8,404,992 bytes for eight global K/V extents. This exactly matches the formula above and
+crosses the first local-ring wrap in full-model execution.
