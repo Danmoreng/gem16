@@ -146,5 +146,7 @@ struct DecodeBenchmarkResult {
     const DecodeBenchmarkOptions& options);
 [[nodiscard]] Status WriteDecodeBenchmarkJson(const DecodeBenchmarkResult& result,
                                               std::ostream& output);
+[[nodiscard]] Status WritePrefillBenchmarkJson(const DecodeBenchmarkResult& result,
+                                               std::ostream& output);
 
 }  // namespace gem16gb

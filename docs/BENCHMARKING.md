@@ -31,6 +31,15 @@ Native chunked prefill is now the default. The JSON records `prefill_path: nativ
 a one-run context-128 parity check produced the same output checksum for both paths and reduced TTFT from 5,238.8 ms
 to 1,479.0 ms. This is implementation evidence, not a repeated or accepted performance result.
 
+`gem16gb-bench prefill` reports prompt token/s and TTFT separately with the same warm-up, repetition, raw-run, and
+confidence-interval policy. For example:
+
+```powershell
+.\build\Windows\blackwell-release\bin\gem16gb-bench.exe prefill `
+  --model .\models\checkpoints\unsloth-gemma-4-12b-it-NVFP4-b1f6497 `
+  --context 128 --warmups 3 --repetitions 10 --enable-fused-gate-up
+```
+
 Future results must use the matrices, timing boundaries, repetition policy, quality gates, and three llama.cpp
 baseline labels defined in `AGENTS.md`. Raw runs will be written below
 `benchmarks/results/<date>/<git-sha>/<machine-id>/` and never overwritten. Throughput speedup and latency reduction

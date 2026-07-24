@@ -2162,4 +2162,46 @@ Status WriteDecodeBenchmarkJson(const DecodeBenchmarkResult& result,
                                "failed to write decode benchmark JSON");
 }
 
+Status WritePrefillBenchmarkJson(const DecodeBenchmarkResult& result,
+                                 std::ostream& output) {
+  std::vector<double> throughput;
+  throughput.reserve(result.runs.size());
+  for (const auto& run : result.runs) {
+    throughput.push_back(static_cast<double>(result.options.context_tokens) *
+                         1000.0 / run.prompt_milliseconds);
+  }
+  const BenchmarkDistribution throughput_summary = Summarize(throughput);
+  output << std::setprecision(17)
+         << "{\"schema_version\":1,\"status\":\"characterization\","
+         << "\"benchmark_qualified\":false,\"mode\":\"prefill\",\"batch_size\":1,"
+         << "\"prompt_tokens\":" << result.options.context_tokens
+         << ",\"warmup_runs\":" << result.options.warmup_runs
+         << ",\"measured_runs\":" << result.options.measured_runs
+         << ",\"prefill_path\":\""
+         << (result.options.use_native_prefill ? "native_chunked_sm120"
+                                               : "serial_decode_bridge")
+         << "\",\"kv_cache_layout\":\"hybrid_local_ring_global_contiguous\","
+         << "\"model_load_ms\":" << result.model_load_milliseconds
+         << ",\"memory_bytes\":{\"weights\":" << result.weight_arena_bytes
+         << ",\"kv_cache\":" << result.kv_cache_bytes
+         << ",\"workspace\":" << result.workspace_bytes << "},"
+         << "\"summary\":{\"prompt_tokens_per_second\":";
+  WriteDistributionJson(output, throughput_summary);
+  output << ",\"time_to_first_token_ms\":";
+  WriteDistributionJson(output, result.prompt_milliseconds);
+  output << "},\"runs\":[";
+  for (std::size_t index = 0; index < result.runs.size(); ++index) {
+    if (index != 0U) output << ',';
+    output << "{\"run\":" << index
+           << ",\"prompt_ms\":" << result.runs[index].prompt_milliseconds
+           << ",\"prompt_tokens_per_second\":" << throughput[index]
+           << ",\"first_output_token_id\":"
+           << result.runs[index].first_output_token_id << '}';
+  }
+  output << "]}\n";
+  return output.good() ? Status::Ok()
+                       : Error(StatusCode::kIoError,
+                               "failed to write prefill benchmark JSON");
+}
+
 }  // namespace gem16gb

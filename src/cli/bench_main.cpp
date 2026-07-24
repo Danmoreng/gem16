@@ -35,6 +35,11 @@ void Usage(std::ostream& output) {
          << "      [--context <tokens>] [--tokens <count>] [--seed <integer>]\n"
          << "      [--warmups <count>] [--repetitions <count>]\n"
          << "      [--kv-cache <fp8|bf16>] [--projection-path <native|reference>]\n"
+         << "      [--enable-fused-gate-up] [--serial-prefill]\n"
+         << "\n"
+         << "Prefill mode (CUDA):\n"
+         << "  gem16gb-bench prefill --model <checkpoint-dir> --context <tokens>\n"
+         << "      [--warmups <count>] [--repetitions <count>] [--seed <integer>]\n"
          << "      [--enable-fused-gate-up] [--serial-prefill]\n";
 }
 
@@ -138,6 +143,62 @@ int RunDecodeMode(int argc, char** argv) {
     return 1;
   }
   return 0;
+}
+
+int RunPrefillMode(int argc, char** argv) {
+  gem16gb::DecodeBenchmarkOptions options;
+  options.generated_tokens = 1U;
+  for (int index = 2; index < argc; ++index) {
+    const std::string_view argument(argv[index]);
+    if (argument == "--model" && index + 1 < argc) {
+      options.model_directory = std::filesystem::path(argv[++index]);
+    } else if (argument == "--context" && index + 1 < argc) {
+      if (!ParsePositiveU32(argv[++index], options.context_tokens)) return 64;
+    } else if (argument == "--seed" && index + 1 < argc) {
+      if (!ParseU32(argv[++index], options.prompt_seed)) return 64;
+    } else if (argument == "--warmups" && index + 1 < argc) {
+      if (!ParsePositiveU32(argv[++index], options.warmup_runs)) return 64;
+    } else if (argument == "--repetitions" && index + 1 < argc) {
+      if (!ParsePositiveU32(argv[++index], options.measured_runs)) return 64;
+    } else if (argument == "--kv-cache" && index + 1 < argc) {
+      const std::string_view value(argv[++index]);
+      if (value == "fp8") options.kv_cache_mode = gem16gb::KvCacheMode::kCheckpointFp8;
+      else if (value == "bf16") options.kv_cache_mode = gem16gb::KvCacheMode::kBf16Correctness;
+      else return 64;
+    } else if (argument == "--projection-path" && index + 1 < argc) {
+      const std::string_view value(argv[++index]);
+      if (value == "native") options.projection_path = gem16gb::ProjectionPath::kNativeSm120;
+      else if (value == "reference") options.projection_path = gem16gb::ProjectionPath::kCudaReference;
+      else return 64;
+    } else if (argument == "--enable-fused-gate-up") {
+      options.enable_fused_gate_up = true;
+    } else if (argument == "--serial-prefill") {
+      options.use_native_prefill = false;
+    } else {
+      std::cerr << "error: unknown or incomplete prefill option: " << argument << '\n';
+      Usage(std::cerr);
+      return 64;
+    }
+  }
+  if (options.model_directory.empty()) {
+    std::cerr << "error: prefill mode requires --model\n";
+    return 64;
+  }
+  auto result = gem16gb::RunDecodeBenchmark(options);
+  if (!result.ok()) {
+    std::cerr << "error: " << result.status().message() << '\n';
+    return 1;
+  }
+  const double median_tokens_per_second =
+      static_cast<double>(options.context_tokens) * 1000.0 /
+      result.value().prompt_milliseconds.median;
+  std::cerr << std::fixed << std::setprecision(3)
+            << "Prefill characterization\n"
+            << "  prompt tokens: " << options.context_tokens << '\n'
+            << "  median: " << median_tokens_per_second << " tokens/s\n"
+            << "  median TTFT: " << result.value().prompt_milliseconds.median << " ms\n";
+  const auto status = gem16gb::WritePrefillBenchmarkJson(result.value(), std::cout);
+  return status.ok() ? 0 : 1;
 }
 
 bool ParseProfile(std::string_view value, gem16gb::ContextProfile& profile) {
@@ -551,6 +612,7 @@ int main(int argc, char** argv) {
   if (requested == "memory") return RunMemoryMode(argc, argv);
   if (requested == "kernel") return RunKernelMode(argc, argv);
   if (requested == "decode") return RunDecodeMode(argc, argv);
+  if (requested == "prefill") return RunPrefillMode(argc, argv);
 
   bool known = false;
   for (const auto mode : modes) known = known || requested == mode;

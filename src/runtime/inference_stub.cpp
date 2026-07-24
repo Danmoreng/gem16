@@ -24,4 +24,9 @@ Status WriteDecodeBenchmarkJson(const DecodeBenchmarkResult&, std::ostream&) {
                 "decode benchmark JSON requires a CUDA benchmark result");
 }
 
+Status WritePrefillBenchmarkJson(const DecodeBenchmarkResult&, std::ostream&) {
+  return Status(StatusCode::kUnsupported,
+                "prefill benchmark JSON requires a CUDA benchmark result");
+}
+
 }  // namespace gem16gb
