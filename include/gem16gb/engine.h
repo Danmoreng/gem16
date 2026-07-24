@@ -23,6 +23,9 @@ enum class KvCacheMode {
   kBf16Correctness,
 };
 
+using GeneratedTokenCallback = Status (*)(void* context,
+                                          std::uint32_t token_id);
+
 struct GreedyInferenceOptions {
   std::filesystem::path model_directory;
   std::vector<std::uint32_t> input_token_ids;
@@ -39,6 +42,12 @@ struct GreedyInferenceOptions {
   std::uint64_t max_context_tokens = 128;
   ProjectionPath projection_path = ProjectionPath::kNativeSm120;
   KvCacheMode kv_cache_mode = KvCacheMode::kCheckpointFp8;
+  // Optional synchronous observer invoked once for every selected output
+  // token, including a stop token. The callback and its context must remain
+  // valid for the duration of RunGreedyInference. Benchmark callers leave it
+  // null so terminal I/O never enters benchmark timing.
+  GeneratedTokenCallback generated_token_callback = nullptr;
+  void* generated_token_callback_context = nullptr;
 };
 
 struct GreedyInferenceResult {

@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <iosfwd>
 #include <memory>
 #include <span>
 #include <string>
@@ -30,6 +31,9 @@ class Tokenizer {
   [[nodiscard]] Result<std::vector<std::uint32_t>> Encode(std::string_view text) const;
   [[nodiscard]] Result<std::string> Decode(std::span<const std::uint32_t> token_ids,
                                            bool skip_special_tokens) const;
+  [[nodiscard]] Status WriteDecodedToken(std::uint32_t token_id,
+                                         bool skip_special_tokens,
+                                         std::ostream& output) const;
 
  private:
   explicit Tokenizer(std::shared_ptr<const Impl> implementation)
@@ -51,6 +55,9 @@ class GemmaChatProcessor {
       bool add_generation_prompt = true) const;
   [[nodiscard]] Result<std::string> Decode(std::span<const std::uint32_t> token_ids,
                                            bool skip_special_tokens) const;
+  [[nodiscard]] Status WriteDecodedToken(std::uint32_t token_id,
+                                         bool skip_special_tokens,
+                                         std::ostream& output) const;
 
   [[nodiscard]] const GenerationTokenControls& generation_controls() const {
     return generation_controls_;

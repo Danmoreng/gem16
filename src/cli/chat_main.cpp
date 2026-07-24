@@ -182,9 +182,34 @@ struct TurnOutput {
   std::string display_text;
 };
 
+struct TokenStreamContext {
+  const gem16gb::GemmaChatProcessor* processor = nullptr;
+  std::ostream* output = nullptr;
+};
+
+gem16gb::Status StreamGeneratedToken(void* opaque_context,
+                                     std::uint32_t token_id) {
+  auto* context = static_cast<TokenStreamContext*>(opaque_context);
+  if (context == nullptr || context->processor == nullptr ||
+      context->output == nullptr) {
+    return gem16gb::Status(gem16gb::StatusCode::kInternal,
+                           "chat token stream is not initialized");
+  }
+  auto status =
+      context->processor->WriteDecodedToken(token_id, true, *context->output);
+  if (!status.ok()) return status;
+  context->output->flush();
+  if (!*context->output) {
+    return gem16gb::Status(gem16gb::StatusCode::kIoError,
+                           "failed to flush chat token stream");
+  }
+  return gem16gb::Status::Ok();
+}
+
 gem16gb::Result<TurnOutput> RunTurn(
     const Options& cli, const gem16gb::GemmaChatProcessor& processor,
-    std::vector<gem16gb::ChatMessage>& messages, bool write_json) {
+    std::vector<gem16gb::ChatMessage>& messages, bool write_json,
+    bool stream_tokens) {
   auto rendered = processor.Render(messages, cli.thinking);
   if (!rendered.ok()) return rendered.status();
   auto prompt_ids = processor.Encode(messages, cli.thinking);
@@ -215,6 +240,11 @@ gem16gb::Result<TurnOutput> RunTurn(
   inference_options.kv_cache_mode = cli.kv_cache_mode;
   inference_options.state_dump_path = cli.state_dump_path;
   inference_options.state_dump_position = cli.state_dump_position;
+  TokenStreamContext stream_context{&processor, &std::cout};
+  if (stream_tokens) {
+    inference_options.generated_token_callback = StreamGeneratedToken;
+    inference_options.generated_token_callback_context = &stream_context;
+  }
   auto inference = gem16gb::RunGreedyInference(inference_options);
   if (!inference.ok()) return inference.status();
 
@@ -291,15 +321,14 @@ int main(int argc, char** argv) {
   }
   if (options.has_one_shot_message) {
     messages.push_back({"user", options.one_shot_message});
-    auto response =
-        RunTurn(options, processor.value(), messages, options.json);
+    const bool stream_tokens = !options.json && !options.render_only;
+    auto response = RunTurn(options, processor.value(), messages,
+                            options.json, stream_tokens);
     if (!response.ok()) {
       std::cerr << "error: " << response.status().message() << '\n';
       return 2;
     }
-    if (!options.json && !options.render_only) {
-      std::cout << response.value().display_text << '\n';
-    }
+    if (stream_tokens) std::cout << '\n';
     return 0;
   }
 
@@ -315,14 +344,14 @@ int main(int argc, char** argv) {
     if (input == "/quit" || input == "/exit") break;
     if (input.empty()) continue;
     messages.push_back({"user", input});
-    auto response =
-        RunTurn(options, processor.value(), messages, false);
+    std::cout << "model> " << std::flush;
+    auto response = RunTurn(options, processor.value(), messages, false, true);
     if (!response.ok()) {
       messages.pop_back();
-      std::cerr << "error: " << response.status().message() << '\n';
+      std::cerr << "\nerror: " << response.status().message() << '\n';
       continue;
     }
-    std::cout << "model> " << response.value().display_text << '\n';
+    std::cout << '\n';
     messages.push_back(
         {"assistant", std::move(response).value().content});
   }

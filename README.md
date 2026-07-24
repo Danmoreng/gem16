@@ -111,9 +111,10 @@ build/Linux/blackwell-release/bin/gem16gb-chat \
   --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497
 ```
 
-Enter `/quit` to exit. Add `--thinking` to enable the checkpoint template's thinking form. The current
-characterization reloads the model and reprocesses the full conversation on every turn; persistent sessions follow
-after the model-wide correctness gate. For an auditable one-turn result:
+Generated text streams token-by-token in interactive mode. Enter `/quit` to exit. Add `--thinking` to enable the
+checkpoint template's thinking form. The current characterization reloads the model and reprocesses the full
+conversation on every turn; persistent sessions follow after the model-wide correctness gate. For an auditable
+one-turn result:
 
 ```bash
 build/Linux/blackwell-release/bin/gem16gb-chat \

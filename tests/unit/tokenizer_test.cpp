@@ -3,6 +3,7 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -35,7 +36,9 @@ void TestBpeEncodeDecodeAndSpecialTokens() {
           "b": 2,
           "ab": 3,
           "▁": 4,
-          "▁ab": 5
+          "▁ab": 5,
+          "<0xC3>": 6,
+          "<0xA9>": 7
         },
         "merges": [
           ["a", "b"],
@@ -60,6 +63,19 @@ void TestBpeEncodeDecodeAndSpecialTokens() {
       auto without_special = tokenizer.value().Decode(encoded.value(), true);
       GEM16GB_CHECK(without_special.ok());
       if (without_special.ok()) GEM16GB_CHECK(without_special.value() == "ab ab");
+
+      std::ostringstream streamed;
+      auto status = tokenizer.value().WriteDecodedToken(0U, true, streamed);
+      GEM16GB_CHECK(status.ok());
+      status = tokenizer.value().WriteDecodedToken(3U, true, streamed);
+      GEM16GB_CHECK(status.ok());
+      status = tokenizer.value().WriteDecodedToken(5U, true, streamed);
+      GEM16GB_CHECK(status.ok());
+      status = tokenizer.value().WriteDecodedToken(6U, true, streamed);
+      GEM16GB_CHECK(status.ok());
+      status = tokenizer.value().WriteDecodedToken(7U, true, streamed);
+      GEM16GB_CHECK(status.ok());
+      GEM16GB_CHECK(streamed.str() == "ab ab\xC3\xA9");
     }
   }
   std::filesystem::remove(path, error);

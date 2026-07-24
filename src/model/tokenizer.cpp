@@ -9,6 +9,7 @@
 #include <cstdio>
 #include <fstream>
 #include <limits>
+#include <ostream>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -422,6 +423,49 @@ Result<std::string> Tokenizer::Decode(std::span<const std::uint32_t> token_ids,
   return result;
 }
 
+Status Tokenizer::WriteDecodedToken(std::uint32_t token_id,
+                                    bool skip_special_tokens,
+                                    std::ostream& output) const {
+  if (implementation_ == nullptr) {
+    return Error(StatusCode::kInternal, "tokenizer is not initialized");
+  }
+  if (token_id >= implementation_->tokens.size() ||
+      implementation_->tokens[token_id].empty()) {
+    return Error(StatusCode::kInvalidArgument,
+                 "token ID is absent from tokenizer vocabulary");
+  }
+  const bool special = implementation_->special_ids.contains(token_id);
+  if (skip_special_tokens && special) return Status::Ok();
+
+  const std::string& token = implementation_->tokens[token_id];
+  if (special) {
+    output.write(token.data(), static_cast<std::streamsize>(token.size()));
+  } else {
+    unsigned char fallback = 0;
+    if (ParseByteFallback(token, fallback)) {
+      output.put(static_cast<char>(fallback));
+    } else {
+      std::size_t begin = 0;
+      while (begin < token.size()) {
+        const std::size_t marker = token.find(kSpaceMarker, begin);
+        if (marker == std::string::npos) {
+          output.write(token.data() + begin,
+                       static_cast<std::streamsize>(token.size() - begin));
+          break;
+        }
+        output.write(token.data() + begin,
+                     static_cast<std::streamsize>(marker - begin));
+        output.put(' ');
+        begin = marker + kSpaceMarker.size();
+      }
+    }
+  }
+  if (!output) {
+    return Error(StatusCode::kIoError, "failed to write decoded token");
+  }
+  return Status::Ok();
+}
+
 Result<GemmaChatProcessor> GemmaChatProcessor::Load(
     const std::filesystem::path& model_directory) {
   auto tokenizer = Tokenizer::Load(model_directory / "tokenizer.json");
@@ -523,6 +567,12 @@ Result<std::vector<std::uint32_t>> GemmaChatProcessor::Encode(
 Result<std::string> GemmaChatProcessor::Decode(
     std::span<const std::uint32_t> token_ids, bool skip_special_tokens) const {
   return tokenizer_.Decode(token_ids, skip_special_tokens);
+}
+
+Status GemmaChatProcessor::WriteDecodedToken(std::uint32_t token_id,
+                                             bool skip_special_tokens,
+                                             std::ostream& output) const {
+  return tokenizer_.WriteDecodedToken(token_id, skip_special_tokens, output);
 }
 
 }  // namespace gem16gb

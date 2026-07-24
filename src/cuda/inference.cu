@@ -1325,6 +1325,11 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
   const auto prompt_end = std::chrono::steady_clock::now();
   result.prompt_milliseconds = Milliseconds(prompt_end - prompt_start);
   result.output_token_ids.push_back(next_token);
+  if (options.generated_token_callback != nullptr) {
+    status = options.generated_token_callback(
+        options.generated_token_callback_context, next_token);
+    if (!status.ok()) return status;
+  }
   if (!teacher_forcing &&
       std::find(options.stop_token_ids.begin(), options.stop_token_ids.end(), next_token) !=
       options.stop_token_ids.end()) {
@@ -1357,6 +1362,11 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
     state_captured = state_captured || capture_state;
     next_token = forwarded.value();
     result.output_token_ids.push_back(next_token);
+    if (options.generated_token_callback != nullptr) {
+      status = options.generated_token_callback(
+          options.generated_token_callback_context, next_token);
+      if (!status.ok()) return status;
+    }
     if (!teacher_forcing &&
         std::find(options.stop_token_ids.begin(), options.stop_token_ids.end(), next_token) !=
         options.stop_token_ids.end()) {
