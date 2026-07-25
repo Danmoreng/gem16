@@ -15,12 +15,12 @@ promoted only when it wins the prescribed repeated benchmark and passes all appl
 winner becomes the sole production implementation; rejected and superseded implementations do not remain as
 user-selectable optimization modes.
 
-The initial Linux reference point is commit `1bc942b`; the online-attention/1,024-token candidate at `c0f42de`
-advances the same 512-token characterization as follows:
+The initial Linux reference point is commit `1bc942b`; online attention, the 1,024-token plan, and the first
+large-M NVFP4 winner advance the same 512-token characterization as follows:
 
 | Workload | Initial gem16gb | Current gem16gb | vLLM | Current/vLLM |
 |---|---:|---:|---:|---:|
-| Prefill, 512 prompt tokens, batch 1 | 698.25 tok/s | 973.15 tok/s | 6,146.50 tok/s | 0.158x |
+| Prefill, 512 prompt tokens, batch 1 | 698.25 tok/s | 1,095.56 tok/s | 6,146.50 tok/s | 0.178x |
 
 These numbers are diagnostic rather than a parity claim because the retained vLLM run and gem16gb do not yet have
 identical timing boundaries and cache precision. The optimization goal does not depend on presenting the ratio as
@@ -34,11 +34,11 @@ established this program:
 
 | Phase | Initial gem16gb | Current gem16gb | vLLM | Current gap |
 |---|---:|---:|---:|---:|
-| NVFP4 MLP projections | 289.78 ms | 286.97 ms | 24.23 ms | 11.84x |
-| Attention | 199.77 ms | 24.41 ms | 13.11 ms | 1.86x |
-| FP8 attention projections | 131.13 ms | 122.95 ms | 27.15 ms | 4.53x |
-| Other GPU work | 115.98 ms | 105.92 ms | 9.98 ms | 10.61x |
-| Total GPU time | 736.66 ms | 540.25 ms | 74.47 ms | 7.25x |
+| NVFP4 MLP projections | 289.78 ms | 233.33 ms | 24.23 ms | 9.63x |
+| Attention | 199.77 ms | 25.04 ms | 13.11 ms | 1.91x |
+| FP8 attention projections | 131.13 ms | 127.23 ms | 27.15 ms | 4.69x |
+| Other GPU work | 115.98 ms | 107.93 ms | 9.98 ms | 10.81x |
+| Total GPU time | 736.66 ms | 493.53 ms | 74.47 ms | 6.63x |
 
 The initial gem16gb path launched approximately 9,235 GPU operations per execution, versus 747 for vLLM. Online
 attention and the 1,024-token plan reduce this to approximately 2,311. Attention is no longer the dominant gap;
@@ -86,6 +86,12 @@ or legacy-path switch. Long-context tiers may select a smaller compile-time plan
 geometry requires it.
 
 ### 3. Rebuild NVFP4 prefill projections around large SM120 CTA tiles
+
+Status: in progress. The first promoted reuse step retains each source weight/scale fragment across eight
+independent `m16n8k64` token tiles (M128), reducing NVFP4 profile time by 18.7% and context-512/2,048 end-to-end
+time by about 11%. It uses 128 registers with zero stack/local memory. A tested M256 extension is rejected because
+it reaches 255 registers and a 248-byte stack frame. Shared-memory staging, asynchronous pipelining, larger-N CTA
+cooperation, and the measured swizzle decision below remain open.
 
 Replace the current warp-level token tiling with a shape-specific block pipeline that:
 

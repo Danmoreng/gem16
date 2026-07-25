@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "status": "characterization",
+  "profile_runs": 2,
+  "prompt_tokens": 512,
+  "gpu_time_per_execution_ms": {"nvfp4_projection": 233.3258735, "fp8_projection": 127.228411, "rotary_batch": 58.308794, "online_local_attention": 15.763817, "online_global_attention": 9.280764, "online_attention_total": 25.044581, "all_gpu_operations": 493.525},
+  "kernel_resources": {"nvfp4_m128": {"registers": 128, "shared_bytes": 1024, "stack_bytes": 0, "local_bytes": 0}, "rejected_nvfp4_m256": {"registers": 255, "shared_bytes": 1024, "stack_bytes": 248, "local_bytes": 0}},
+  "report": "build/Linux/blackwell-release/profiles/linux/prefill-512-nvfp4-m128.nsys-rep"
+}

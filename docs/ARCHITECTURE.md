@@ -41,7 +41,7 @@ uses one full graph replay for ordinary greedy decode but is not yet benchmark-q
 The first full-model path intentionally accepts token IDs and uses a hybrid cache through the checkpoint's 262,144
 position contract. Its 40 local-attention layers use fixed 1,024-token rings; its eight full-attention layers use
 absolute, growing storage. Checkpoint-FP8 prefill uses one fixed 1,024-token chunk, batches direct-source FP8 and
-NVFP4 SM120 MMA across tokens, reuses each projection weight fragment across two consecutive 16-token MMA tiles,
+NVFP4 SM120 MMA across tokens, reuses each NVFP4 weight fragment across eight consecutive 16-token MMA tiles,
 and evaluates local D256 and global D512 causal attention with shape-specific online Tensor-Core kernels. Those
 kernels stage current-chunk K/V directly, read older positions from the circular or growing cache, retain row max,
 normalization sum, and output accumulators in FP32, and never materialize a global score matrix. K/V is committed

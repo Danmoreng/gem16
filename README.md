@@ -243,9 +243,9 @@ without opening the GUI:
 Reports and exported SQLite databases are written below the selected build directory's `profiles` folder and stay
 outside version control.
 
-Prompt ingestion uses one native 1,024-token chunk plan for checkpoint-FP8 execution. Its FP8 attention and NVFP4
-MLP projection warps each evaluate two consecutive 16-row by 8-column MMA tiles, reusing loaded checkpoint weight
-fragments across 32 prompt rows. Shape-specific local D256 and global D512 attention kernels perform QK and PV on
+Prompt ingestion uses one native 1,024-token chunk plan for checkpoint-FP8 execution. FP8 attention-projection
+warps evaluate two consecutive 16-row by 8-column MMA tiles; NVFP4 MLP projection warps retain each source weight
+and scale fragment across eight such tiles, or 128 prompt rows. Shape-specific local D256 and global D512 attention kernels perform QK and PV on
 Tensor Cores while retaining FP32 online-softmax state, reading older K/V from the hybrid cache, and avoiding a
 global score matrix. The token-at-a-time bridge and scalar attention implementation remain test/probe references
 and are not selectable from `gem16gb-run` or `gem16gb-bench`.
