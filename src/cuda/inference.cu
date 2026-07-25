@@ -50,7 +50,10 @@ constexpr std::uint64_t kMaximumSuppressedTokens = 16;
 constexpr float kEpsilon = 1.0e-6F;
 constexpr unsigned kThreads = 256;
 constexpr unsigned kFusedOutputHeadBlocks = 4096;
-constexpr std::uint64_t kPrefillChunkTokens = 32;
+constexpr std::uint64_t kDefaultPrefillChunkTokens = 128;
+constexpr std::uint64_t kMinimumPrefillChunkTokens = 32;
+constexpr std::uint64_t kPrefillChunkQuantum = 32;
+constexpr std::uint64_t kPrefillScoreBudgetBytes = 512ULL * 1024ULL * 1024ULL;
 
 class NvtxRange {
  public:
@@ -68,6 +71,19 @@ Status CudaFailure(const char* operation, cudaError_t error) {
   return Error(StatusCode::kInternal,
                std::string(operation) + ": " + cudaGetErrorName(error) + ": " +
                    cudaGetErrorString(error));
+}
+
+std::uint64_t PrefillChunkTokensForContext(std::uint64_t max_context) {
+  const std::uint64_t score_bytes_per_token =
+      kQueryHeads * max_context * sizeof(float);
+  const std::uint64_t budget_tokens =
+      score_bytes_per_token == 0U ? kDefaultPrefillChunkTokens
+                                  : kPrefillScoreBudgetBytes / score_bytes_per_token;
+  const std::uint64_t bounded =
+      std::min(kDefaultPrefillChunkTokens, budget_tokens);
+  const std::uint64_t quantized =
+      (bounded / kPrefillChunkQuantum) * kPrefillChunkQuantum;
+  return std::max(kMinimumPrefillChunkTokens, quantized);
 }
 
 Result<std::uint64_t> AlignUp(std::uint64_t value, std::uint64_t alignment) {
@@ -820,6 +836,7 @@ class InferenceEngine {
                                   KvCacheMode kv_cache_mode) {
     const NvtxRange range("gem16gb.initialize");
     max_context_ = max_context;
+    prefill_chunk_tokens_ = PrefillChunkTokensForContext(max_context_);
     kv_cache_mode_ = kv_cache_mode;
     cudaDeviceProp properties{};
     cudaError_t error = cudaGetDeviceProperties(&properties, 0);
@@ -975,6 +992,9 @@ class InferenceEngine {
   [[nodiscard]] std::uint64_t decode_graph_device_bytes() const {
     return decode_graph_device_bytes_;
   }
+  [[nodiscard]] std::uint64_t prefill_chunk_tokens() const {
+    return prefill_chunk_tokens_;
+  }
 
   [[nodiscard]] Result<std::uint32_t> Prefill(
       std::span<const std::uint32_t> token_ids) {
@@ -983,9 +1003,9 @@ class InferenceEngine {
       return Error(StatusCode::kInvalidArgument, "prefill token extent is invalid");
     }
     std::uint32_t selected_token = 0U;
-    for (std::size_t begin = 0; begin < token_ids.size(); begin += kPrefillChunkTokens) {
+    for (std::size_t begin = 0; begin < token_ids.size(); begin += prefill_chunk_tokens_) {
       const std::uint64_t tokens = std::min<std::size_t>(
-          kPrefillChunkTokens, token_ids.size() - begin);
+          prefill_chunk_tokens_, token_ids.size() - begin);
       auto* device_tokens = Pointer<std::uint32_t>(prefill_workspace_, prefill_offsets_.token_ids);
       cudaError_t error = cudaMemcpyAsync(
           device_tokens, token_ids.data() + begin,
@@ -1152,7 +1172,7 @@ class InferenceEngine {
       if (!next.ok()) return next.status();                   \
       prefill_offsets_.field = next.value();                  \
     } while (false)
-    constexpr std::uint64_t tokens = kPrefillChunkTokens;
+    const std::uint64_t tokens = prefill_chunk_tokens_;
     constexpr std::uint64_t max_q = kQueryHeads * 512U;
     constexpr std::uint64_t max_kv = 8U * 256U;
     GEM16GB_PREFILL_ADD(token_ids, std::uint32_t, tokens);
@@ -1884,6 +1904,7 @@ class InferenceEngine {
   GraphExecutable full_decode_graph_;
   cudaStream_t stream_ = nullptr;
   std::uint64_t max_context_ = 0;
+  std::uint64_t prefill_chunk_tokens_ = kMinimumPrefillChunkTokens;
   std::uint64_t decode_graph_device_bytes_ = 0;
   std::uint32_t suppressed_token_count_ = 0;
   KvCacheMode kv_cache_mode_ = KvCacheMode::kCheckpointFp8;
@@ -2151,6 +2172,7 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
   result.kv_cache_bytes = engine.cache_bytes();
   result.workspace_bytes = engine.workspace_bytes();
   result.decode_graph_device_bytes = engine.decode_graph_device_bytes();
+  result.prefill_chunk_tokens = engine.prefill_chunk_tokens();
   result.source_layout_direct = true;
   result.token_loop_allocations = false;
   result.benchmark_qualified = false;
@@ -2356,6 +2378,7 @@ Result<DecodeBenchmarkResult> RunDecodeBenchmark(
   result.kv_cache_bytes = engine.cache_bytes();
   result.workspace_bytes = engine.workspace_bytes();
   result.decode_graph_device_bytes = engine.decode_graph_device_bytes();
+  result.prefill_chunk_tokens = engine.prefill_chunk_tokens();
   result.runs.reserve(options.measured_runs);
   std::vector<double> prompt_samples;
   std::vector<double> throughput_samples;
@@ -2423,6 +2446,7 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
          << "  \"weight_arena_bytes\": " << result.weight_arena_bytes << ",\n"
          << "  \"kv_cache_bytes\": " << result.kv_cache_bytes << ",\n"
          << "  \"workspace_bytes\": " << result.workspace_bytes << ",\n"
+         << "  \"prefill_chunk_tokens\": " << result.prefill_chunk_tokens << ",\n"
          << "  \"decode_graph_device_bytes\": "
          << result.decode_graph_device_bytes << ",\n"
          << "  \"logits_dumped\": " << (result.logits_dumped ? "true" : "false") << ",\n"
@@ -2496,6 +2520,7 @@ Status WriteDecodeBenchmarkJson(const DecodeBenchmarkResult& result,
          << ",\"memory_bytes\":{\"weights\":" << result.weight_arena_bytes
          << ",\"kv_cache\":" << result.kv_cache_bytes
          << ",\"workspace\":" << result.workspace_bytes << "},"
+         << "\"prefill_chunk_tokens\":" << result.prefill_chunk_tokens << ','
          << "\"decode_graph_device_bytes\":"
          << result.decode_graph_device_bytes << ','
          << "\"summary\":{\"time_to_first_token_ms\":";
@@ -2551,6 +2576,7 @@ Status WritePrefillBenchmarkJson(const DecodeBenchmarkResult& result,
          << ",\"memory_bytes\":{\"weights\":" << result.weight_arena_bytes
          << ",\"kv_cache\":" << result.kv_cache_bytes
          << ",\"workspace\":" << result.workspace_bytes << "},"
+         << "\"prefill_chunk_tokens\":" << result.prefill_chunk_tokens << ','
          << "\"decode_graph_device_bytes\":"
          << result.decode_graph_device_bytes << ','
          << "\"summary\":{\"prompt_tokens_per_second\":";

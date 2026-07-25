@@ -56,6 +56,7 @@ struct GreedyInferenceResult {
   std::uint64_t kv_cache_bytes = 0;
   std::uint64_t workspace_bytes = 0;
   std::uint64_t decode_graph_device_bytes = 0;
+  std::uint64_t prefill_chunk_tokens = 0;
   std::uint64_t fallback_count = 0;
   std::uint64_t logits_dump_steps = 0;
   std::uint64_t teacher_forced_matches = 0;
@@ -111,6 +112,7 @@ struct DecodeBenchmarkResult {
   std::uint64_t kv_cache_bytes = 0;
   std::uint64_t workspace_bytes = 0;
   std::uint64_t decode_graph_device_bytes = 0;
+  std::uint64_t prefill_chunk_tokens = 0;
   BenchmarkDistribution prompt_milliseconds;
   BenchmarkDistribution decode_tokens_per_second;
   BenchmarkDistribution inter_token_latency_milliseconds;

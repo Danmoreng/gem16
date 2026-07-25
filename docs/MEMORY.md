@@ -45,10 +45,12 @@ A real FP8 allocation at a 1,026-position execution plan measured 176,177,152 ca
 40 local K/V rings plus 8,404,992 bytes for eight global K/V extents. This exactly matches the formula above and
 crosses the first local-ring wrap in full-model execution.
 
-The native prefill arena is allocated once during engine initialization. It holds 32-token hidden/projection/MLP
-tiles and a causal score matrix sized as `32 * 16 * planned_context * sizeof(float)`. Thus the dominant score region
-is 128 MiB at 65,536 positions and 512 MiB at the 262,144-position maximum; it remains below the initial 1 GiB
-activation-arena target and performs no growth inside prompt processing.
+The native prefill arena is allocated once during engine initialization. It holds a context-budgeted hidden/
+projection/MLP tile (128 tokens for normal and standard context plans, then 64 or 32 tokens in 32-token steps) and a
+causal score matrix sized as `prefill_chunk_tokens * 16 * planned_context * sizeof(float)`. The score budget is
+bounded at 512 MiB, so the maximum context plan selects 32-token chunks and remains below the initial 1 GiB
+activation-arena target. The selected chunk size is reported in every inference result and never changes inside
+prompt processing.
 
 The maximum 262,144-position FP8 execution plan was also initialized and executed successfully on the 16 GB
 development GPU. Measured arenas were 9,200,135,680 weight bytes, 2,315,255,808 hybrid KV bytes, and 568,663,552

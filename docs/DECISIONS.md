@@ -3,7 +3,8 @@
 ## 2026-07-25: Promote measured winners and remove production optimization switches
 
 Date: 2026-07-25
-Decision: Expose one production execution plan: native SM120 projections, 32-token chunked prefill, fused causal
+Decision: Expose one production execution plan: native SM120 projections, context-budgeted chunked prefill (128 tokens
+by default), fused causal
 prefill attention, separate Gate/Up/GELU, complete decode graphs, and fused warp-row output reduction. Remove the
 six public projection/prefill/fusion/graph A/B switches and their option fields. Keep slower and reference
 implementations callable only from dedicated tests and characterization probes.
