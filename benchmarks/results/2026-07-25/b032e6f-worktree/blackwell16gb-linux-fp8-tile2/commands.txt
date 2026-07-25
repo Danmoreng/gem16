@@ -1,0 +1,8 @@
+cmake --build --preset blackwell-release -j 16
+ctest --preset blackwell-release --output-on-failure
+python3 tools/validate_inference.py --run build/Linux/blackwell-release/bin/gem16gb-run --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497
+build/Linux/blackwell-release/bin/gem16gb-bench prefill --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 --context 512 --warmups 3 --repetitions 10
+/tmp/gem16gb-ref-b032e6f/build/Linux/blackwell-release/bin/gem16gb-bench prefill --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 --context 512 --warmups 3 --repetitions 10
+nsys profile --trace=cuda,nvtx,osrt --sample=none --cpuctxsw=none --force-overwrite=true --output=build/Linux/blackwell-release/profiles/linux/prefill-512-fp8-tile2 build/Linux/blackwell-release/bin/gem16gb-bench prefill --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 --context 512 --warmups 1 --repetitions 1
+nsys stats --report cuda_gpu_kern_sum,nvtx_gpu_proj_sum build/Linux/blackwell-release/profiles/linux/prefill-512-fp8-tile2.nsys-rep
+cuobjdump --dump-resource-usage build/Linux/blackwell-release/bin/gem16gb-bench

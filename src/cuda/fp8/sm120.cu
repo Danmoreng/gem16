@@ -14,6 +14,7 @@ namespace {
 constexpr std::uint64_t kElementsPerKBlock = 32;
 constexpr std::uint64_t kRowsPerWarp = 8;
 constexpr std::uint64_t kTokensPerMma = 16;
+constexpr std::uint64_t kTokenTilesPerWarp = 2;
 constexpr unsigned kWarpSize = 32;
 constexpr unsigned kWarpsPerBlock = 4;
 constexpr unsigned kThreadsPerBlock = kWarpSize * kWarpsPerBlock;
@@ -124,8 +125,8 @@ __global__ void Sm120DirectProjectionKernel(const std::uint8_t* activation,
 #endif
 }
 
-// Each warp forms a real 16x8 output tile. The checkpoint weight fragment is
-// loaded once and reused for 16 prompt rows instead of launching 16 GEMVs.
+// Each warp forms two consecutive 16x8 output tiles. The checkpoint weight
+// fragment is loaded once and reused for 32 prompt rows.
 __global__ void Sm120MatrixProjectionKernel(
     const std::uint8_t* activation, const float* activation_scale,
     const std::uint8_t* weight, const std::uint16_t* weight_scales,
@@ -141,10 +142,12 @@ __global__ void Sm120MatrixProjectionKernel(
   const std::uint64_t row_tiles = (rows + kRowsPerWarp - 1U) / kRowsPerWarp;
   if (global_warp >= row_tiles) return;
 
-  const std::uint64_t token_base =
-      static_cast<std::uint64_t>(blockIdx.y) * kTokensPerMma;
+  const std::uint64_t token_base = static_cast<std::uint64_t>(blockIdx.y) *
+                                   kTokensPerMma * kTokenTilesPerWarp;
   const std::uint64_t token_low = token_base + group;
   const std::uint64_t token_high = token_low + 8U;
+  const std::uint64_t next_token_low = token_low + kTokensPerMma;
+  const std::uint64_t next_token_high = token_high + kTokensPerMma;
   const std::uint64_t weight_column = global_warp * kRowsPerWarp + group;
   const std::uint64_t k_blocks = contracting_elements / kElementsPerKBlock;
 
@@ -152,6 +155,10 @@ __global__ void Sm120MatrixProjectionKernel(
   float d1 = 0.0F;
   float d2 = 0.0F;
   float d3 = 0.0F;
+  float d4 = 0.0F;
+  float d5 = 0.0F;
+  float d6 = 0.0F;
+  float d7 = 0.0F;
   for (std::uint64_t k_block = 0; k_block < k_blocks; ++k_block) {
     const std::uint64_t k_offset =
         k_block * kElementsPerKBlock +
@@ -172,6 +179,26 @@ __global__ void Sm120MatrixProjectionKernel(
                                  ? LoadU32(activation + token_high * contracting_elements +
                                            k_offset + 16U)
                                  : 0U;
+    const std::uint32_t a4 = next_token_low < tokens
+                                 ? LoadU32(activation +
+                                           next_token_low * contracting_elements +
+                                           k_offset)
+                                 : 0U;
+    const std::uint32_t a5 = next_token_high < tokens
+                                 ? LoadU32(activation +
+                                           next_token_high * contracting_elements +
+                                           k_offset)
+                                 : 0U;
+    const std::uint32_t a6 = next_token_low < tokens
+                                 ? LoadU32(activation +
+                                           next_token_low * contracting_elements +
+                                           k_offset + 16U)
+                                 : 0U;
+    const std::uint32_t a7 = next_token_high < tokens
+                                 ? LoadU32(activation +
+                                           next_token_high * contracting_elements +
+                                           k_offset + 16U)
+                                 : 0U;
 
     std::uint32_t b0 = 0U;
     std::uint32_t b1 = 0U;
@@ -190,31 +217,32 @@ __global__ void Sm120MatrixProjectionKernel(
         : "+f"(d0), "+f"(d1), "+f"(d2), "+f"(d3)
         : "r"(a0), "r"(a1), "r"(a2), "r"(a3), "r"(b0), "r"(b1),
           "f"(d0), "f"(d1), "f"(d2), "f"(d3));
+    asm volatile(
+        "mma.sync.aligned.m16n8k32.row.col.f32.e4m3.e4m3.f32 "
+        "{%0, %1, %2, %3}, "
+        "{%4, %5, %6, %7}, "
+        "{%8, %9}, "
+        "{%10, %11, %12, %13};\n"
+        : "+f"(d4), "+f"(d5), "+f"(d6), "+f"(d7)
+        : "r"(a4), "r"(a5), "r"(a6), "r"(a7), "r"(b0), "r"(b1),
+          "f"(d4), "f"(d5), "f"(d6), "f"(d7));
   }
 
   const std::uint64_t output_column =
       global_warp * kRowsPerWarp + thread_in_group * 2U;
-  if (token_low < tokens) {
-    const float input_scale = activation_scale[token_low];
-    if (output_column < rows) {
-      output[token_low * rows + output_column] =
-          d0 * input_scale * DecodeBf16(weight_scales + output_column);
-    }
-    if (output_column + 1U < rows) {
-      output[token_low * rows + output_column + 1U] =
-          d1 * input_scale * DecodeBf16(weight_scales + output_column + 1U);
-    }
-  }
-  if (token_high < tokens) {
-    const float input_scale = activation_scale[token_high];
-    if (output_column < rows) {
-      output[token_high * rows + output_column] =
-          d2 * input_scale * DecodeBf16(weight_scales + output_column);
-    }
-    if (output_column + 1U < rows) {
-      output[token_high * rows + output_column + 1U] =
-          d3 * input_scale * DecodeBf16(weight_scales + output_column + 1U);
-    }
+  const float values[8] = {d0, d1, d2, d3, d4, d5, d6, d7};
+#pragma unroll
+  for (unsigned pair = 0; pair < 8U; ++pair) {
+    const std::uint64_t tile_offset =
+        static_cast<std::uint64_t>(pair / 4U) * kTokensPerMma;
+    const std::uint64_t token =
+        (pair & 2U) == 0U ? token_low + tile_offset
+                          : token_high + tile_offset;
+    const std::uint64_t column = output_column + (pair & 1U);
+    if (token >= tokens || column >= rows) continue;
+    const float input_scale = activation_scale[token];
+    output[token * rows + column] =
+        values[pair] * input_scale * DecodeBf16(weight_scales + column);
   }
 #else
   (void)activation;
@@ -282,8 +310,10 @@ Status LaunchFp8Sm120DirectProjectionBatch(
   }
   const std::uint64_t token_tiles =
       (tokens + kTokensPerMma - 1U) / kTokensPerMma;
+  const std::uint64_t grouped_token_tiles =
+      (token_tiles + kTokenTilesPerWarp - 1U) / kTokenTilesPerWarp;
   Sm120MatrixProjectionKernel<<<dim3(static_cast<unsigned>(blocks),
-                                     static_cast<unsigned>(token_tiles)),
+                                     static_cast<unsigned>(grouped_token_tiles)),
                                 kThreadsPerBlock, 0, stream>>>(
       activation_e4m3fn, activation_scales, weight_e4m3fn,
       weight_scales_bf16, output, tokens, rows, contracting_elements);

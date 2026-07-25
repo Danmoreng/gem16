@@ -1,5 +1,22 @@
 # Decisions
 
+## 2026-07-25: Reuse FP8 weights across two prefill token tiles
+
+Date: 2026-07-25
+Decision: Assign two consecutive 16-token MMA tiles to each production FP8 batch-projection warp, reusing the
+loaded Q/K/V/O weight fragment for both. Replace the one-tile mapping directly without a selector.
+Context: After the NVFP4 promotion, FP8 attention projections still consumed 16.0% of context-512 projected GPU
+time. Their source-layout `m16n8k32` mapping had the same adjacent-token weight reload as the old NVFP4 kernel.
+Alternatives: Retain one tile per warp; add a configurable tile count; defer all projection work until a complete
+asynchronous pipeline exists. The first wastes measured bandwidth, the second violates the single-winner plan, and
+the third leaves an independently validated gain unused.
+Consequences: Accumulator count grows while each tile retains its original K-order. `cuobjdump` reports 56
+registers and zero stack/local memory. Source layout, scales, arena sizes, and tail masking are unchanged.
+Evidence: Against a separately built `b032e6f` binary at context 512 with 3 warm-ups and 10 measured runs, median
+throughput improves from 587.87 to 605.33 tok/s (+2.97%) and TTFT falls from 870.95 to 845.82 ms (-2.89%). Nsight
+Systems measures 280.18 to 245.73 ms (-12.30%) for FP8 projection kernels across two prefill executions. Exact-blue,
+exact 129/257-token eight-step sequences, and release unit/CUDA tests pass.
+
 ## 2026-07-25: Reuse NVFP4 weights across two prefill token tiles
 
 Date: 2026-07-25

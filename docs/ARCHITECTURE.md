@@ -42,7 +42,7 @@ The first full-model path intentionally accepts token IDs and uses a hybrid cach
 position contract. Its 40 local-attention layers use fixed 1,024-token rings; its eight full-attention layers use
 absolute, growing storage. Native prefill processes context-budgeted chunks (128 tokens by default, reduced in
 32-token steps for the longest context plans) layer-by-layer, batches direct-source FP8 and NVFP4 SM120 MMA across
-tokens, reuses each NVFP4 weight fragment across two consecutive 16-token MMA tiles, and evaluates causal attention
+tokens, reuses each projection weight fragment across two consecutive 16-token MMA tiles, and evaluates causal attention
 against prior cache state plus staged current-chunk
 K/V before committing the chunk to the cache. The serial path remains a test/probe oracle and is not a runtime option. The pure C++
 `GemmaChatProcessor` loads the checkpoint vocabulary, merge ranks, byte fallback, generation controls, and exact

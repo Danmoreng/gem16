@@ -42,6 +42,13 @@ exactly identical eight-token sequences, the exact-blue fixture passes, CUDA/uni
 use no stack or local memory. Raw samples and profile summaries are under
 `benchmarks/results/2026-07-25/8f05333-worktree/blackwell16gb-linux-nvfp4-tile2/`.
 
+Applying the same two-tile mapping to the FP8 Q/K/V/O batch projections raises the context-512 median from 587.87
+to 605.33 tok/s (+2.97%) against a separately built `b032e6f` reference and lowers median TTFT from 870.95 to
+845.82 ms (-2.89%). Nsight Systems measures 280.18 to 245.73 ms (-12.30%) in FP8 projection kernels across two
+prefill executions. The kernel uses 56 registers with no stack or local memory; exact-blue and the exact 129/257
+eight-token sequence gates pass. Evidence is under
+`benchmarks/results/2026-07-25/b032e6f-worktree/blackwell16gb-linux-fp8-tile2/`.
+
 The following console characterizations were collected on the same Windows Blackwell development machine after
 commits `0d2065e` and `914aba1`, using direct checkpoint loading, checkpoint FP8 KV, native SM120 projections, and
 the opt-in fused Gate/Up path. They are not accepted benchmark artifacts: 128 and 512 prefill use the full 3 warm-up/
@@ -70,6 +77,7 @@ fusion removes two launches per layer, while wider/pipelined projection tiles re
 
 | Date | Commit | Hypothesis | Configuration | Before | After | Quality delta | VRAM delta | Decision |
 |---|---|---|---|---:|---:|---:|---:|---|
+| 2026-07-25 | `b032e6f` worktree | Adjacent FP8 token tiles can share each attention-projection weight fragment exactly as the NVFP4 winner does | Linux RTX 5080 Laptop, CUDA 13.3, FP8 KV, context 512, 3/10; separately built reference | One token tile/warp: 587.87 tok/s, 870.95 ms TTFT | Two token tiles/warp: 605.33 tok/s (+2.97%), 845.82 ms TTFT (-2.89%) | Exact 129/257-token eight-step sequences; exact-blue and CUDA/unit gates pass; no spill | No arena or persistent-memory change | Promote as the sole FP8 batch projection; Nsight measures -12.30% FP8 projection time |
 | 2026-07-25 | `8f05333` worktree | One warp can amortize each NVFP4 weight-fragment load over two 16-token MMA tiles without changing either tile's accumulation order | Linux RTX 5080 Laptop, CUDA 13.3, FP8 KV, context 512, 3/10; separately built reference immediately followed by candidate | One token tile/warp: 542.58 tok/s, 943.64 ms TTFT | Two token tiles/warp: 587.68 tok/s (+8.31%), 871.23 ms TTFT (-7.67%) | Exact 129/257-token eight-step sequences; exact-blue gate; CUDA/unit tests pass; no local-memory spill | No arena or persistent-memory change | Promote the two-tile kernel as the only production NVFP4 batch projection; Nsight measures -18.33% NVFP4 projection time |
 | 2026-07-25 | `960528d` plus consolidation worktree | One fixed production plan prevents known-slower paths while Linux resolves the last Gate/Up ambiguity | RTX 5080 Laptop GPU, Linux, CUDA 13.3, FP8 KV; Prefill 3/10 at 128 and 512; Decode context 128, 64 tokens, 1/3 | Fused Gate/Up: 527.53/410.16 Prefill tok/s and 25.86 Decode tok/s | Separate Gate/Up/GELU: 573.32/441.73 Prefill tok/s and 26.08 Decode tok/s | Deterministic output checksums retained; existing operator gates cover both implementations | No arena change | Select separate Gate/Up/GELU; remove all six production optimization switch families while retaining references in tests/probes |
 | 2026-07-25 | `36c5041` worktree | Larger prompt tiles reduce launch overhead and improve M-dimensional projection occupancy without changing arithmetic | Linux RTX 5080 Laptop, CUDA 13.3, FP8 KV, context-budgeted 128-token chunk, 3/10 | 32-token chunks: 577.15/442.68 Prefill tok/s at 128/512; 15.32/16.13 MB workspace | 128-token chunks: 725.48/545.25 tok/s; 56.77/59.94 MB workspace | Exact 129/257-token eight-step sequences; exact-blue gate; CUDA/unit tests pass | +41.44/+43.81 MB workspace; long plans lower chunk size to retain a 512 MiB score budget | Promote 128-token default; retain only deterministic memory-bounded selection for long contexts |
