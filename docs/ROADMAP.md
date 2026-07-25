@@ -96,8 +96,10 @@ The llama.cpp benchmark is deliberately before engine kernel optimization, but a
    activation-boundary fusions are promoted as the sole prefill path, reducing context-512 launches by 40.0% and
    improving 128/512/2,048-token medians by 8.0%/9.5%/10.2%. Exact projection rounding, Q/K norm, RoPE, and final
    rounding are now a second sole-path fusion; persistent exact RoPE tables raise medians another
-   15.17%/15.14%/16.76% and reduce launches to 964 per 512-token prefill. Complete the small K/V-write boundary,
-   then return to the now-dominant NVFP4 and FP8 projection pipelines.
+   15.17%/15.14%/16.76% and reduce launches to 964 per 512-token prefill. The final K/V-write fusion was correct
+   and reduced the affected boundary and launch count, but only moved the context-512 median by 0.79% with strongly
+   overlapping intervals; it was removed completely. Fusion work is closed with no alternate path, and work now
+   returns to the dominant NVFP4 and FP8 projection pipelines.
    The ordered execution and qualification contract for online Tensor-Core attention, larger prompt chunks,
    pipelined projections, and later fusion is now fixed in
    [the prefill optimization plan](PREFILL_OPTIMIZATION_PLAN.md).

@@ -146,9 +146,11 @@ and zero stack/local memory. Operator output is bit-identical to the CUDA refere
 
 ### 5. Fuse only profile-proven bandwidth and launch boundaries
 
-Status: two promotions complete. Exact RMSNorm/quantization and MLP activation boundaries are the sole production
-prefill path. Projection BF16 rounding, Q/K RMSNorm, RoPE, and post-RoPE BF16 rounding are also one exact standard
-kernel backed by persistent max-context RoPE tables. K/V write remains the final measured boundary in this phase.
+Status: closed. Exact RMSNorm/quantization and MLP activation boundaries are the sole production prefill path.
+Projection BF16 rounding, Q/K RMSNorm, RoPE, and post-RoPE BF16 rounding are also one exact standard kernel backed
+by persistent max-context RoPE tables. The final post-attention K/V-write fusion was correct and locally faster,
+but its `+0.79%` context-512 end-to-end result had strongly overlapping mean intervals; the complete candidate was
+removed. No phase-5 variant remains. Further work returns to the dominant NVFP4 and FP8 projection pipelines.
 
 After attention and projection kernels are no longer the old bottlenecks, profile again and consider, in order:
 
@@ -178,8 +180,15 @@ Against detached `ccbe4ed`, noisy 128/512 cases use 3/30 medians and improve fro
 1,831.33/2,182.51 tok/s (`+15.17%/+15.14%`) with non-overlapping mean 95% intervals; the required 2,048-token 3/10
 median improves from 1,716.56 to 2,004.23 tok/s (`+16.76%`). Nsight reports 1,300 to 964 launches and 250.03 to
 208.01 ms kernel time per 512-token prefill. The hot kernel uses 35 registers, 3,072 shared bytes, zero stack/local;
-peak process VRAM is 9,586 MiB. All model-quality metrics remain unchanged. K/V append is next, after which the
-profile points back to NVFP4 and FP8 projections.
+peak process VRAM is 9,586 MiB. All model-quality metrics remain unchanged. This left the post-attention K/V
+append as the final unmeasured boundary before returning to the projection profile.
+
+The K/V-append experiment then combined attention BF16 rounding, FP8 token quantization, and the safe
+post-attention ring commit. It reduced the production launch count from 964 to 868 per 512-token prefill and the
+affected GPU boundary from about 2.12 to 1.30 ms, while preserving bit-identical FP8 bytes, scales, and wrapped
+cache contents. Its 3/10 end-to-end medians were 2,285.60 versus 2,303.73 tok/s, and the mean 95% intervals
+overlapped strongly. Per promotion policy the entire candidate was deleted rather than retained behind a switch.
+Phase 5 is therefore closed on `f76d478` and projection work resumes from that sole standard path.
 
 ## Mandatory correctness gates
 
