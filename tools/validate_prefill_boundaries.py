@@ -121,6 +121,9 @@ def run_case(
             inference.get("fallbacks") == 0,
             inference.get("token_loop_allocations") is False,
             inference.get("kv_cache_mode") == "checkpoint_fp8",
+            inference.get("fp8_prefill_tile") == "m64n64k64",
+            inference.get("fp8_prefill_pipeline_stages") == 2,
+            inference.get("grouped_qkv_prefill") is True,
             inference.get("logits_dump_steps") == len(targets),
         )
     )

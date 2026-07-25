@@ -55,6 +55,12 @@ def validate_result(document: dict[str, Any], expected: list[int]) -> None:
         raise ValidationError("inference did not report exact load-time scale swizzling")
     if document.get("persistent_repack_bytes") != 0:
         raise ValidationError("inference retained a persistent repack allocation")
+    if document.get("fp8_prefill_tile") != "m64n64k64":
+        raise ValidationError("inference did not use the required pipelined FP8 prefill tile")
+    if document.get("fp8_prefill_pipeline_stages") != 2:
+        raise ValidationError("inference did not report the two-stage FP8 prefill pipeline")
+    if document.get("grouped_qkv_prefill") is not True:
+        raise ValidationError("inference did not group Q/K/V prefill projections")
     if document.get("token_loop_allocations") is not False:
         raise ValidationError("inference reported token-loop allocations")
     if document.get("kv_cache_mode") != "checkpoint_fp8":

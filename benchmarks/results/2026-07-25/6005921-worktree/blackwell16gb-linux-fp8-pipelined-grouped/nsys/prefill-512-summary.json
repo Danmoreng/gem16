@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "profile_executions": 2,
+  "reference_commit": "6005921",
+  "reference": {
+    "fp8_projection_total_ms": 228.170838,
+    "fp8_projection_per_execution_ms": 114.085419,
+    "fp8_projection_instances": 368,
+    "total_kernel_per_execution_ms": 330.21
+  },
+  "candidate": {
+    "report": "build/Linux/blackwell-release/profiles/linux/prefill-512-fp8-pipelined-grouped-final.nsys-rep",
+    "fp8_projection_total_ms": 124.412668,
+    "fp8_projection_per_execution_ms": 62.206334,
+    "fp8_projection_instances": 192,
+    "fp8_launches_per_execution": 96,
+    "total_kernel_per_execution_ms": 273.951585,
+    "kernel_resources": {"registers": 60, "static_shared_bytes": 17408, "stack_bytes": 0, "local_bytes": 0}
+  },
+  "change": {
+    "fp8_projection_time_percent": -45.4739,
+    "fp8_launches_per_execution": -88,
+    "total_kernel_time_percent": -17.036
+  }
+}

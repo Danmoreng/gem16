@@ -840,6 +840,28 @@ Status LaunchFp8ProjectionBatch(const std::uint8_t* activation, const float* sca
       binding.rows, binding.contracting, stream);
 }
 
+Status LaunchFp8QkvProjectionBatch(
+    const std::uint8_t* activation, const float* scales,
+    const Fp8Binding& q_binding, float* q_output,
+    const Fp8Binding& k_binding, float* k_output,
+    const Fp8Binding* v_binding, float* v_output, std::uint64_t tokens,
+    cudaStream_t stream) {
+  if (q_binding.contracting != k_binding.contracting ||
+      (v_binding != nullptr &&
+       q_binding.contracting != v_binding->contracting)) {
+    return Status(StatusCode::kInvalidArgument,
+                  "grouped FP8 Q/K/V projections require one contracting dimension");
+  }
+  return internal::LaunchFp8Sm120GroupedQkvProjectionBatch(
+      activation, scales, q_binding.weight, q_binding.scales, q_output,
+      q_binding.rows, k_binding.weight, k_binding.scales, k_output,
+      k_binding.rows, v_binding == nullptr ? nullptr : v_binding->weight,
+      v_binding == nullptr ? nullptr : v_binding->scales,
+      v_binding == nullptr ? nullptr : v_output,
+      v_binding == nullptr ? 0U : v_binding->rows, tokens,
+      q_binding.contracting, stream);
+}
+
 Status LaunchNvfp4ProjectionBatch(
     const std::uint8_t* activation, const std::uint8_t* scales,
     const Nvfp4Binding& binding, float* output, std::uint64_t tokens,
@@ -1280,21 +1302,15 @@ class InferenceEngine {
     status = internal::LaunchFp8ReferenceTokenQuantizationBatch(
         normalized, fp8, fp8_scales, tokens, kHidden, stream_);
     if (!status.ok()) return status;
-    status = LaunchFp8ProjectionBatch(fp8, fp8_scales, layer.q, q, tokens,
-                                      stream_);
-    if (!status.ok()) return status;
-    status = LaunchFp8ProjectionBatch(fp8, fp8_scales, layer.k, k, tokens,
-                                      stream_);
+    status = LaunchFp8QkvProjectionBatch(
+        fp8, fp8_scales, layer.q, q, layer.k, k,
+        layer.global ? nullptr : &layer.v, v, tokens, stream_);
     if (!status.ok()) return status;
     if (layer.global) {
       const cudaError_t error = cudaMemcpyAsync(
           v, k, static_cast<std::size_t>(tokens * layer.kv_elements * sizeof(float)),
           cudaMemcpyDeviceToDevice, stream_);
       if (error != cudaSuccess) return CudaFailure("reuse batched global K for V", error);
-    } else {
-      status = LaunchFp8ProjectionBatch(fp8, fp8_scales, layer.v, v, tokens,
-                                        stream_);
-      if (!status.ok()) return status;
     }
     for (const Status next : {
              LaunchRoundBf16(q, tokens * layer.query_elements, stream_),
@@ -2498,6 +2514,9 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
          << (result.token_loop_allocations ? "true" : "false") << ",\n"
          << "  \"fused_gate_up\": false,\n"
          << "  \"fused_prefill_attention\": true,\n"
+         << "  \"fp8_prefill_tile\": \"m64n64k64\",\n"
+         << "  \"fp8_prefill_pipeline_stages\": 2,\n"
+         << "  \"grouped_qkv_prefill\": true,\n"
          << "  \"fused_output_head\": true,\n"
          << "  \"decode_graphs\": "
          << (result.decode_graphs ? "true" : "false") << ",\n"
@@ -2563,6 +2582,9 @@ Status WriteDecodeBenchmarkJson(const DecodeBenchmarkResult& result,
          << "\",\"kv_cache_layout\":\"hybrid_local_ring_global_contiguous"
          << "\",\"fused_gate_up\":false"
          << ",\"fused_prefill_attention\":true"
+         << ",\"fp8_prefill_tile\":\"m64n64k64\""
+         << ",\"fp8_prefill_pipeline_stages\":2"
+         << ",\"grouped_qkv_prefill\":true"
          << ",\"fused_output_head\":true"
          << ",\"decode_graphs\":true"
          << ",\"context_tokens\":" << result.options.context_tokens
@@ -2636,6 +2658,9 @@ Status WritePrefillBenchmarkJson(const DecodeBenchmarkResult& result,
          << ",\"measured_runs\":" << result.options.measured_runs
          << ",\"prefill_path\":\"native_chunked_sm120\""
          << ",\"fused_prefill_attention\":true"
+         << ",\"fp8_prefill_tile\":\"m64n64k64\""
+         << ",\"fp8_prefill_pipeline_stages\":2"
+         << ",\"grouped_qkv_prefill\":true"
          << ",\"decode_graphs\":true"
          << ",\"kv_cache_layout\":\"hybrid_local_ring_global_contiguous\","
          << "\"model_load_ms\":" << result.model_load_milliseconds

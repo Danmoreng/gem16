@@ -40,8 +40,10 @@ uses one full graph replay for ordinary greedy decode but is not yet benchmark-q
 
 The first full-model path intentionally accepts token IDs and uses a hybrid cache through the checkpoint's 262,144
 position contract. Its 40 local-attention layers use fixed 1,024-token rings; its eight full-attention layers use
-absolute, growing storage. Checkpoint-FP8 prefill uses one fixed 1,024-token chunk, batches direct-source FP8 and
-NVFP4 SM120 MMA across tokens, reuses each NVFP4 weight fragment across eight consecutive 16-token MMA tiles,
+absolute, growing storage. Checkpoint-FP8 prefill uses one fixed 1,024-token chunk. Attention projections run in
+256-thread M64xN64xK64 FP8 CTAs with two exact `cp.async` stages for source-layout activations and weights; local
+Q/K/V and global Q/K share one grouped launch. NVFP4 SM120 MMA is batched across tokens and reuses each NVFP4
+weight fragment across eight consecutive 16-token MMA tiles,
 and groups eight NVFP4 warps into an M128xN64 CTA. Two shared-memory stages cooperatively transfer the CTA's exact
 packed activation bytes and E4M3 scale words with `cp.async`, overlapping the next K64 slice with the current MMA
 stack. This replaces eight redundant per-warp activation-load streams without changing checkpoint weights or FP32
@@ -81,6 +83,13 @@ For the pinned checkpoint, Gate and Up have identical input and weight global di
 decode plan may therefore quantize their shared input once, contract both matrices, and apply Gemma's GELU-tanh
 product in one closed operator. Down performs its own dynamic-local quantization and may fuse its residual epilogue.
 The attention projections remain a separate dynamic-FP8/per-channel-FP8 path.
+
+The production FP8 prefill projection is a 256-thread M64xN64xK64 CTA. It double-buffers two K32 fragments at a
+time, cooperatively copying 64 activation rows and 64 source-layout weight rows into 17,408 bytes of static shared
+memory before issuing FP32-accumulating E4M3 MMA. Four M16 tiles reuse each staged weight fragment. The kernel uses
+60 registers with zero stack/local memory. Local Q/K/V and global Q/K are grouped through the kernel's binding
+dimension, reducing FP8 projection launches from 184 to 96 per context-512 prefill without changing any output;
+there is no grouped/ungrouped runtime selector.
 
 Checkpoint-FP8 prefill attention uses BF16 Tensor-Core QK and probability-times-V operations with FP32 online
 softmax state. This deliberately changes the scalar FP32 reference's reduction tree and rounds MMA operands, so it

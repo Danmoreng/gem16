@@ -1,5 +1,28 @@
 # Decisions
 
+## 2026-07-25: Pipeline source-layout FP8 prefill and group Q/K/V
+
+Date: 2026-07-25
+Decision: Replace the 32-token-per-warp FP8 batch projection with one 256-thread M64xN64xK64 CTA. Double-buffer
+exact source-layout activation and weight bytes in shared memory with `cp.async`, reuse every weight fragment over
+four M16 MMA tiles, and group local Q/K/V or global Q/K through one binding-dimension launch. Make this the only
+FP8 prefill projection path; keep the latency-oriented T=1 decode kernel separate and expose no selector.
+Context: At context 512, the prior direct matrix kernel consumed 114.09 ms per prefill and launched 184 times.
+Increasing per-warp M reuse alone was neutral or regressive because it did not address redundant, weakly
+coalesced operand traffic across warps. The CTA tile lets eight warps share staged operands and overlap the next
+K64 slice, while grouping removes otherwise independent launches without changing any projection arithmetic.
+Alternatives: Retain two M16 tiles per warp; use four/eight tiles without CTA staging; preserve grouped and
+ungrouped runtime variants; repack FP8 checkpoint weights. The M64/M128 warp-only candidates lost at short context,
+parallel variants violate the single-winner policy, and persistent repacking is unnecessary.
+Consequences: FP8 checkpoint bytes, per-token scales, per-channel BF16 scales, and FP32 K order are unchanged.
+The kernel uses 60 registers and 17,408 bytes static shared memory with zero stack/local memory. FP8 launches fall
+from 184 to 96 per context-512 prefill; no persistent allocation, arena size, or token-loop allocation changes.
+Runtime JSON and validators require `m64n64k64`, two pipeline stages, and grouped Q/K/V.
+Evidence: Against exact commit `6005921`, final 3/10 medians rise from 1,348.97/1,460.83/1,358.11 to
+1,583.23/1,769.04/1,562.05 tok/s at 128/512/2,048 (`+17.4%/+21.1%/+15.0%`). Nsight reduces FP8 projection time
+from 114.09 to 62.21 ms per context-512 prefill (`-45.5%`). CTest, the exact grouped-Q/K/V operator fixture,
+exact-blue, vLLM boundaries 129/257, and all 127 teacher-forced positions preserve their prior results.
+
 ## 2026-07-25: Tile exact NVFP4 weight scales into the final allocation
 
 Date: 2026-07-25

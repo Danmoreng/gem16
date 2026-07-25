@@ -20,7 +20,7 @@ large-M NVFP4 winner advance the same 512-token characterization as follows:
 
 | Workload | Initial gem16gb | Current gem16gb | vLLM | Current/vLLM |
 |---|---:|---:|---:|---:|
-| Prefill, 512 prompt tokens, batch 1 | 698.25 tok/s | 1,453.52 tok/s | 6,146.50 tok/s | 0.237x |
+| Prefill, 512 prompt tokens, batch 1 | 698.25 tok/s | 1,769.04 tok/s | 6,146.50 tok/s | 0.288x |
 
 These numbers are diagnostic rather than a parity claim because the retained vLLM run and gem16gb do not yet have
 identical timing boundaries and cache precision. The optimization goal does not depend on presenting the ratio as
@@ -34,17 +34,17 @@ established this program:
 
 | Phase | Initial gem16gb | Current gem16gb | vLLM | Current gap |
 |---|---:|---:|---:|---:|
-| NVFP4 MLP projections | 289.78 ms | 94.78 ms | 24.23 ms | 3.91x |
-| Attention | 199.77 ms | 22.74 ms | 13.11 ms | 1.73x |
-| FP8 attention projections | 131.13 ms | 114.09 ms | 27.15 ms | 4.20x |
-| Other GPU work | 115.98 ms | 98.60 ms | 9.98 ms | 9.88x |
-| Total GPU time | 736.66 ms | 330.21 ms | 74.47 ms | 4.43x |
+| NVFP4 MLP projections | 289.78 ms | 92.92 ms | 24.23 ms | 3.84x |
+| Attention | 199.77 ms | 22.22 ms | 13.11 ms | 1.69x |
+| FP8 attention projections | 131.13 ms | 62.21 ms | 27.15 ms | 2.29x |
+| Other GPU work | 115.98 ms | 96.60 ms | 9.98 ms | 9.68x |
+| Total GPU time | 736.66 ms | 273.95 ms | 74.47 ms | 3.68x |
 
 The initial gem16gb path launched approximately 9,235 GPU operations per execution, versus 747 for vLLM. Online
-attention and the 1,024-token plan reduce this to approximately 2,311. Attention is no longer the dominant gap;
-NVFP4 projections now consume about 29% of current GPU time and remain 3.9x slower than vLLM. FP8 projections
-have a comparable absolute cost, while launch-heavy "other" work has become the largest aggregate gap. Complete
-the NVFP4 pipeline qualification before moving to the ordered FP8 phase.
+attention, the 1,024-token plan, and grouped FP8 projections reduce this to approximately 2,213 kernel launches.
+Attention is no longer the dominant gap. NVFP4 projections consume about 34% of current GPU time and remain 3.8x
+slower than vLLM; the qualified FP8 projection block is down to 2.3x. Launch-heavy "other" work is now the largest
+aggregate gap, so the ordered fusion phase follows before another projection redesign.
 
 The neighboring Apache-2.0 NInfer implementation supplies useful implementation concepts, not a compatible
 runtime path: shape-specific plans, BF16 Tensor-Core QK/PV, FP32 online softmax, swizzled shared-memory staging,
@@ -128,10 +128,21 @@ second device copy exists. Phase 3 is closed. Proceed to the ordered large/group
 
 ### 4. Rebuild and group the FP8 attention projections
 
+Status: implemented and model-qualified in the `6005921` worktree; phase closed.
+
 Apply the same large-token-tile and pipeline discipline to Q, K/V, and O while preserving per-token dynamic FP8
 activation quantization and per-channel weight scaling. Evaluate shape-specific combined Q/K/V scheduling and the
 full-attention K-projection reuse already required by model semantics. Promote grouping only when it reduces
 end-to-end time; do not retain separate grouped/ungrouped user modes.
+
+The promoted kernel uses one 256-thread M64xN64xK64 CTA. Eight warps cooperate on two ping-pong stages containing
+exact source-layout E4M3 activation and weight bytes; each staged weight fragment feeds four M16 MMA tiles. Local
+Q/K/V and global Q/K occupy one binding-dimension launch, while O uses the same kernel independently. At context
+512, Nsight reports 184 to 96 FP8 launches and 114.09 to 62.21 ms per prefill (`-45.5%`). The final 3/10 medians
+versus commit `6005921` improve from 1,348.97/1,460.83/1,358.11 to
+1,583.23/1,769.04/1,562.05 tok/s at 128/512/2,048. The kernel uses 60 registers, 17,408 bytes static shared memory,
+and zero stack/local memory. Operator output is bit-identical to the CUDA reference, boundary logits and all
+12-prompt teacher-forced metrics are unchanged, and no alternate production selector remains. Proceed to phase 5.
 
 ### 5. Fuse only profile-proven bandwidth and launch boundaries
 
