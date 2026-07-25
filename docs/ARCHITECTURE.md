@@ -55,8 +55,13 @@ only after the layer's attention finishes. The serial path remains a test/probe 
 `GemmaChatProcessor` loads the checkpoint vocabulary, merge ranks, byte fallback, generation controls, and exact
 pinned Jinja artifact. It implements the supported text-only behavior of that template natively and rejects a
 different template revision rather than silently approximating it. This makes real chat flows testable now while
-preserving a narrow execution contract. A separate parallel prefill graph, circular local cache, growing global
-cache storage and sampling plans remain required production components.
+preserving a narrow execution contract. Interactive chat owns one `ConversationSession` for its lifetime. The
+session keeps weights, arenas, CUDA Graphs, and hybrid KV storage resident, records exactly which token IDs have
+materialized cache entries, and requires every later prompt to extend that prefix exactly. The CLI preserves the
+original generated IDs instead of decode/re-encode round trips, then tokenizes only the continuation delimiter,
+new user message, and generation header. The new suffix uses batch prefill at the existing absolute cache position;
+generated tokens continue through the ordinary decode graph. A separate parallel prefill graph and sampling plans
+remain required production components.
 
 The reusable `ChatMessage`, `Tokenizer`, and `GemmaChatProcessor` interfaces are deliberately independent of
 terminal I/O. A future OpenAI-compatible Chat Completions server can reuse this request-to-token boundary; HTTP,

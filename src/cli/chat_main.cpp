@@ -169,6 +169,11 @@ struct TurnOutput {
   std::string display_text;
 };
 
+struct ConversationPromptState {
+  std::vector<std::uint32_t> cached_prefix_token_ids;
+  std::optional<std::uint32_t> pending_assistant_token_id;
+};
+
 struct TokenStreamContext {
   const gem16gb::GemmaChatProcessor* processor = nullptr;
   std::ostream* output = nullptr;
@@ -196,20 +201,45 @@ gem16gb::Status StreamGeneratedToken(void* opaque_context,
 gem16gb::Result<TurnOutput> RunTurn(
     const Options& cli, const gem16gb::GemmaChatProcessor& processor,
     std::vector<gem16gb::ChatMessage>& messages, bool write_json,
-    bool stream_tokens) {
-  auto rendered = processor.Render(messages, cli.thinking);
-  if (!rendered.ok()) return rendered.status();
-  auto prompt_ids = processor.Encode(messages, cli.thinking);
+    bool stream_tokens, gem16gb::ConversationSession* session,
+    ConversationPromptState* prompt_state) {
+  std::optional<std::string> rendered;
+  if (cli.render_only) {
+    auto render_result = processor.Render(messages, cli.thinking);
+    if (!render_result.ok()) return render_result.status();
+    rendered = std::move(render_result).value();
+  }
+  gem16gb::Result<std::vector<std::uint32_t>> prompt_ids = [&]() {
+    if (prompt_state == nullptr ||
+        prompt_state->cached_prefix_token_ids.empty()) {
+      return processor.Encode(messages, cli.thinking);
+    }
+    auto continuation =
+        processor.EncodeContinuation(messages.back().content, cli.thinking);
+    if (!continuation.ok()) {
+      return gem16gb::Result<std::vector<std::uint32_t>>(
+          continuation.status());
+    }
+    std::vector<std::uint32_t> token_ids =
+        prompt_state->cached_prefix_token_ids;
+    if (prompt_state->pending_assistant_token_id.has_value()) {
+      token_ids.push_back(*prompt_state->pending_assistant_token_id);
+    }
+    token_ids.insert(token_ids.end(), continuation.value().begin(),
+                     continuation.value().end());
+    return gem16gb::Result<std::vector<std::uint32_t>>(
+        std::move(token_ids));
+  }();
   if (!prompt_ids.ok()) return prompt_ids.status();
 
   if (cli.render_only) {
     if (write_json) {
-      std::cout << "{\"rendered_prompt\":" << JsonEscape(rendered.value())
+      std::cout << "{\"rendered_prompt\":" << JsonEscape(*rendered)
                 << ",\"prompt_token_ids\":";
       WriteTokenIds(prompt_ids.value());
       std::cout << "}\n";
     } else {
-      std::cout << rendered.value() << '\n';
+      std::cout << *rendered << '\n';
     }
     return TurnOutput{};
   }
@@ -231,8 +261,32 @@ gem16gb::Result<TurnOutput> RunTurn(
     inference_options.generated_token_callback = StreamGeneratedToken;
     inference_options.generated_token_callback_context = &stream_context;
   }
-  auto inference = gem16gb::RunGreedyInference(inference_options);
+  auto inference =
+      session == nullptr
+          ? gem16gb::RunGreedyInference(inference_options)
+          : session->Generate(
+                inference_options.input_token_ids,
+                inference_options.max_generated_tokens,
+                inference_options.generated_token_callback,
+                inference_options.generated_token_callback_context);
   if (!inference.ok()) return inference.status();
+
+  if (prompt_state != nullptr) {
+    prompt_state->cached_prefix_token_ids =
+        inference_options.input_token_ids;
+    if (inference.value().output_token_ids.size() > 1U) {
+      prompt_state->cached_prefix_token_ids.insert(
+          prompt_state->cached_prefix_token_ids.end(),
+          inference.value().output_token_ids.begin(),
+          inference.value().output_token_ids.end() - 1);
+    }
+    prompt_state->pending_assistant_token_id.reset();
+    if (!inference.value().stopped &&
+        !inference.value().output_token_ids.empty()) {
+      prompt_state->pending_assistant_token_id =
+          inference.value().output_token_ids.back();
+    }
+  }
 
   std::vector<std::uint32_t> content_ids =
       inference.value().output_token_ids;
@@ -309,7 +363,7 @@ int main(int argc, char** argv) {
     messages.push_back({"user", options.one_shot_message});
     const bool stream_tokens = !options.json && !options.render_only;
     auto response = RunTurn(options, processor.value(), messages,
-                            options.json, stream_tokens);
+                            options.json, stream_tokens, nullptr, nullptr);
     if (!response.ok()) {
       std::cerr << "error: " << response.status().message() << '\n';
       return 2;
@@ -318,8 +372,25 @@ int main(int argc, char** argv) {
     return 0;
   }
 
-  std::cout << "gem16gb native chat characterization (/quit to exit)\n"
-            << "The current engine reloads the model and reprocesses history for each turn.\n";
+  gem16gb::ConversationSessionOptions session_options;
+  session_options.model_directory = options.model_directory;
+  session_options.stop_token_ids =
+      processor.value().generation_controls().stop_token_ids;
+  session_options.suppressed_token_ids =
+      processor.value().generation_controls().suppressed_token_ids;
+  session_options.max_context_tokens = options.max_context;
+  session_options.kv_cache_mode = options.kv_cache_mode;
+  auto session = gem16gb::ConversationSession::Create(session_options);
+  if (!session.ok()) {
+    std::cerr << "error: " << session.status().message() << '\n';
+    return 2;
+  }
+
+  std::cout << "gem16gb resident chat session (/quit to exit)\n"
+            << "Model weights and the exact conversation KV prefix stay resident.\n";
+  ConversationPromptState prompt_state;
+  prompt_state.cached_prefix_token_ids.reserve(
+      static_cast<std::size_t>(options.max_context));
   while (true) {
     std::cout << "you> " << std::flush;
     std::string input;
@@ -331,11 +402,12 @@ int main(int argc, char** argv) {
     if (input.empty()) continue;
     messages.push_back({"user", input});
     std::cout << "model> " << std::flush;
-    auto response = RunTurn(options, processor.value(), messages, false, true);
+    auto response = RunTurn(options, processor.value(), messages, false, true,
+                            &session.value(), &prompt_state);
     if (!response.ok()) {
       messages.pop_back();
       std::cerr << "\nerror: " << response.status().message() << '\n';
-      continue;
+      break;
     }
     std::cout << '\n';
     messages.push_back(

@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <iosfwd>
+#include <memory>
 #include <optional>
 #include <span>
 #include <vector>
@@ -70,6 +71,41 @@ struct GreedyInferenceResult {
   bool decode_graphs = false;
   bool logits_dumped = false;
   bool state_dumped = false;
+};
+
+struct ConversationSessionOptions {
+  std::filesystem::path model_directory;
+  std::vector<std::uint32_t> stop_token_ids;
+  std::vector<std::uint32_t> suppressed_token_ids;
+  std::uint64_t max_context_tokens = 1024;
+  KvCacheMode kv_cache_mode = KvCacheMode::kCheckpointFp8;
+};
+
+// A batch-one conversation owns one resident model, workspace, and KV cache.
+// Each turn supplies the fully rendered conversation so the session can prove
+// that its existing cache is an exact token prefix before processing only the
+// newly appended suffix.
+class ConversationSession {
+ public:
+  ConversationSession(const ConversationSession&) = delete;
+  ConversationSession& operator=(const ConversationSession&) = delete;
+  ConversationSession(ConversationSession&&) noexcept;
+  ConversationSession& operator=(ConversationSession&&) noexcept;
+  ~ConversationSession();
+
+  [[nodiscard]] static Result<ConversationSession> Create(
+      const ConversationSessionOptions& options);
+  [[nodiscard]] Result<GreedyInferenceResult> Generate(
+      std::span<const std::uint32_t> full_prompt_token_ids,
+      std::uint64_t max_generated_tokens,
+      GeneratedTokenCallback generated_token_callback = nullptr,
+      void* generated_token_callback_context = nullptr);
+  [[nodiscard]] std::uint64_t cached_token_count() const;
+
+ private:
+  struct Impl;
+  explicit ConversationSession(std::unique_ptr<Impl> impl);
+  std::unique_ptr<Impl> impl_;
 };
 
 struct BenchmarkDistribution {

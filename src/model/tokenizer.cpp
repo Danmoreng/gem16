@@ -564,6 +564,17 @@ Result<std::vector<std::uint32_t>> GemmaChatProcessor::Encode(
   return tokenizer_.Encode(rendered.value());
 }
 
+Result<std::vector<std::uint32_t>> GemmaChatProcessor::EncodeContinuation(
+    std::string_view user_content, bool enable_thinking) const {
+  std::string rendered = "<turn|>\n<|turn>user\n";
+  rendered.append(Trim(user_content));
+  rendered.append("<turn|>\n<|turn>model\n");
+  if (!enable_thinking) {
+    rendered.append("<|channel>thought\n<channel|>");
+  }
+  return tokenizer_.Encode(rendered);
+}
+
 Result<std::string> GemmaChatProcessor::Decode(
     std::span<const std::uint32_t> token_ids, bool skip_special_tokens) const {
   return tokenizer_.Decode(token_ids, skip_special_tokens);

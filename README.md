@@ -121,13 +121,16 @@ Run the native C++ application directly:
 
 ```bash
 build/Linux/blackwell-release/bin/gem16gb-chat \
-  --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497
+  --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 \
+  --max-context 8192 --max-tokens 256
 ```
 
 Generated text streams token-by-token in interactive mode. Enter `/quit` to exit. Add `--thinking` to enable the
-checkpoint template's thinking form. The current characterization reloads the model and reprocesses the full
-conversation on every turn; persistent sessions follow after the model-wide correctness gate. For an auditable
-one-turn result:
+checkpoint template's thinking form. Interactive mode creates one resident engine: weights, fixed arenas, CUDA
+Graphs, and the conversation KV cache remain allocated until exit. Later turns preserve the exact generated token
+prefix and prefill only the newly appended turn delimiter, user message, and generation header; the earlier
+conversation is not tokenized or executed again. `--max-context` is the total resident conversation budget for the
+session. For an auditable one-turn result:
 
 ```bash
 build/Linux/blackwell-release/bin/gem16gb-chat \

@@ -1,5 +1,33 @@
 # Decisions
 
+## 2026-07-26: Make interactive chat a resident exact-token session
+
+Date: 2026-07-26
+Decision: Create one engine for the lifetime of `gem16gb-chat`, retain its weights, arenas, CUDA Graphs, and hybrid
+KV cache across turns, and batch-prefill only tokens appended after the materialized cache prefix. Preserve the
+original generated token IDs at the CLI boundary; do not reconstruct prior assistant output through text
+decode/re-encode. Require every submitted prompt to extend the cached token prefix exactly and fail visibly on a
+mismatch. This is the sole interactive path and has no cache/reload selector.
+Context: The former loop called `RunGreedyInference` for every user message. It reloaded roughly 9 GB of weights,
+cleared the cache, rendered the entire history, and recomputed every prior token. A first resident prototype proved
+why text is not a valid cache identity: decoded `blau` re-encoded without the generated channel tokens and failed
+the exact prefix gate. Continuing from the actual autoregressive token sequence is both cheaper and faithful to
+the state that produced the answer.
+Alternatives: Reload and prefill the complete conversation; compare only decoded text; silently reset when token
+prefixes differ; or add a user-selectable session mode. Full replay discards the available KV state, decoded text
+does not uniquely identify BPE tokens, silent reset hides a performance and semantic change, and a selector would
+retain an inferior interactive path.
+Consequences: Initial prompt processing is unchanged. Each later turn pre-fills the preserved final assistant token
+when a turn ended at the length limit, followed by the newly tokenized exact Gemma turn delimiter, user content,
+and generation header. Existing conversation K/V remains in the local rings and global contiguous cache. The
+session pre-reserves host token bookkeeping through `--max-context`; generation retains the no-allocation token
+loop. A failed inference poisons the session because partially written KV state cannot be rolled back safely.
+Evidence: The release and host builds pass, CTest passes both host and CUDA suites, and a real resident GPU smoke
+test completed three dependent turns (`blau`, recall `blau`, translate `blue`) after a single model load. Both
+continuations passed the exact token-prefix check and returned without another weight load or full-history prefill.
+A separate two-turn run with `--max-tokens 1` validates the pending, not-yet-materialized final assistant token;
+a two-turn thinking-template run validates the same prefix continuation with generated channel tokens.
+
 ## 2026-07-25: Precompute exact RoPE and fuse the full Q/K normalization boundary
 
 Date: 2026-07-25

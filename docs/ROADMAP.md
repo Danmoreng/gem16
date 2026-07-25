@@ -22,8 +22,10 @@ of the correctness and native-kernel gates below.
   select `563`. State v5 has narrowed the first material difference to Layer-0 attention context at prompt position
   one. Match cache-write, score/softmax, and value-reduction arithmetic before extending the gate to 512 tokens.
 - The pure C++ chat CLI now uses native byte-fallback BPE from `tokenizer.json`, a version-bound implementation of
-  the exact checkpoint `chat_template.jinja`, and its EOS/suppressed-token lists. Retain the model across turns and
-  replace serialized prompt ingestion with native prefill after resolving the early distribution divergence.
+  the exact checkpoint `chat_template.jinja`, and its EOS/suppressed-token lists. Interactive chat now retains one
+  model, execution plan, and exact-token KV cache across turns; it batch-prefills only the newly appended
+  conversation suffix and rejects a non-extending token prefix rather than silently rebuilding or corrupting the
+  session.
 - Keep chat processing independent of terminal I/O so a later OpenAI-compatible Chat Completions server can reuse
   it. Do not begin HTTP/server work before persistent engine sessions and the correctness gate are in place.
 - [x] Replace token-at-a-time prompt ingestion with a separate native context-budgeted prefill plan (128-token

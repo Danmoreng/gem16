@@ -53,6 +53,8 @@ class GemmaChatProcessor {
   [[nodiscard]] Result<std::vector<std::uint32_t>> Encode(
       std::span<const ChatMessage> messages, bool enable_thinking,
       bool add_generation_prompt = true) const;
+  [[nodiscard]] Result<std::vector<std::uint32_t>> EncodeContinuation(
+      std::string_view user_content, bool enable_thinking) const;
   [[nodiscard]] Result<std::string> Decode(std::span<const std::uint32_t> token_ids,
                                            bool skip_special_tokens) const;
   [[nodiscard]] Status WriteDecodedToken(std::uint32_t token_id,

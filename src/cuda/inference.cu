@@ -1074,8 +1074,15 @@ class InferenceEngine {
   [[nodiscard]] Result<std::uint32_t> Prefill(
       std::span<const std::uint32_t> token_ids,
       std::span<float> host_logits = {}) {
+    return PrefillAt(token_ids, 0U, host_logits);
+  }
+
+  [[nodiscard]] Result<std::uint32_t> PrefillAt(
+      std::span<const std::uint32_t> token_ids, std::uint64_t start_position,
+      std::span<float> host_logits = {}) {
     const NvtxRange range("gem16gb.prefill");
-    if (token_ids.empty() || token_ids.size() > max_context_) {
+    if (token_ids.empty() || start_position > max_context_ ||
+        token_ids.size() > max_context_ - start_position) {
       return Error(StatusCode::kInvalidArgument, "prefill token extent is invalid");
     }
     if (!host_logits.empty() && host_logits.size() != kVocabulary) {
@@ -1102,7 +1109,7 @@ class InferenceEngine {
       if (error != cudaSuccess) return CudaFailure("launch prefill embedding", error);
       Status status;
       for (const auto& layer : model_.layers()) {
-        status = RunLayerBatch(layer, begin, tokens);
+        status = RunLayerBatch(layer, start_position + begin, tokens);
         if (!status.ok()) return status;
       }
       float* normalized = Pointer<float>(prefill_workspace_, prefill_offsets_.normalized);
@@ -2079,6 +2086,220 @@ Status WriteStateDump(const std::filesystem::path& path, std::uint64_t position,
 }
 
 }  // namespace
+
+struct ConversationSession::Impl {
+  InferenceEngine engine;
+  std::vector<std::uint32_t> cached_token_ids;
+  std::vector<std::uint32_t> stop_token_ids;
+  std::uint64_t max_context_tokens = 0U;
+  KvCacheMode kv_cache_mode = KvCacheMode::kCheckpointFp8;
+  double model_load_milliseconds = 0.0;
+  bool poisoned = false;
+};
+
+ConversationSession::ConversationSession(std::unique_ptr<Impl> impl)
+    : impl_(std::move(impl)) {}
+
+ConversationSession::ConversationSession(ConversationSession&&) noexcept =
+    default;
+ConversationSession& ConversationSession::operator=(
+    ConversationSession&&) noexcept = default;
+ConversationSession::~ConversationSession() = default;
+
+Result<ConversationSession> ConversationSession::Create(
+    const ConversationSessionOptions& options) {
+  if (options.model_directory.empty()) {
+    return Error(StatusCode::kInvalidArgument,
+                 "conversation session requires --model");
+  }
+  if (options.max_context_tokens == 0U ||
+      options.max_context_tokens > kMaximumContext) {
+    return Error(StatusCode::kUnsupported,
+                 "the hybrid KV cache supports 1..262144 tokens");
+  }
+  for (const std::uint32_t token : options.stop_token_ids) {
+    if (token >= kVocabulary) {
+      return Error(StatusCode::kInvalidArgument,
+                   "stop token ID exceeds vocabulary");
+    }
+  }
+  for (const std::uint32_t token : options.suppressed_token_ids) {
+    if (token >= kVocabulary) {
+      return Error(StatusCode::kInvalidArgument,
+                   "suppressed token ID exceeds vocabulary");
+    }
+  }
+
+  auto impl = std::make_unique<Impl>();
+  impl->stop_token_ids = options.stop_token_ids;
+  impl->max_context_tokens = options.max_context_tokens;
+  impl->kv_cache_mode = options.kv_cache_mode;
+  impl->cached_token_ids.reserve(
+      static_cast<std::size_t>(options.max_context_tokens));
+  const auto load_start = std::chrono::steady_clock::now();
+  Status status = impl->engine.Initialize(options.model_directory,
+                                         options.max_context_tokens,
+                                         options.kv_cache_mode);
+  if (!status.ok()) return status;
+  status = impl->engine.SetSuppressedTokens(options.suppressed_token_ids);
+  if (!status.ok()) return status;
+  impl->model_load_milliseconds =
+      Milliseconds(std::chrono::steady_clock::now() - load_start);
+  return ConversationSession(std::move(impl));
+}
+
+Result<GreedyInferenceResult> ConversationSession::Generate(
+    std::span<const std::uint32_t> full_prompt_token_ids,
+    std::uint64_t max_generated_tokens,
+    GeneratedTokenCallback generated_token_callback,
+    void* generated_token_callback_context) {
+  if (impl_ == nullptr) {
+    return Error(StatusCode::kInternal,
+                 "conversation session was moved from");
+  }
+  if (impl_->poisoned) {
+    return Error(StatusCode::kInternal,
+                 "conversation session cannot continue after an inference failure");
+  }
+  if (full_prompt_token_ids.empty()) {
+    return Error(StatusCode::kInvalidArgument,
+                 "conversation turn requires prompt token IDs");
+  }
+  if (max_generated_tokens == 0U) {
+    return Error(StatusCode::kInvalidArgument,
+                 "--max-tokens must be positive");
+  }
+  if (full_prompt_token_ids.size() > impl_->max_context_tokens ||
+      max_generated_tokens - 1U >
+          impl_->max_context_tokens - full_prompt_token_ids.size()) {
+    return Error(StatusCode::kInvalidArgument,
+                 "conversation prompt plus generated positions exceed --max-context");
+  }
+  for (const std::uint32_t token : full_prompt_token_ids) {
+    if (token >= kVocabulary) {
+      return Error(StatusCode::kInvalidArgument,
+                   "input token ID exceeds vocabulary");
+    }
+  }
+  const std::size_t comparable_tokens = std::min(
+      impl_->cached_token_ids.size(), full_prompt_token_ids.size());
+  const auto mismatch = std::mismatch(
+      impl_->cached_token_ids.begin(),
+      impl_->cached_token_ids.begin() + comparable_tokens,
+      full_prompt_token_ids.begin());
+  if (impl_->cached_token_ids.size() > full_prompt_token_ids.size() ||
+      mismatch.first !=
+          impl_->cached_token_ids.begin() + comparable_tokens) {
+    const std::size_t mismatch_index = static_cast<std::size_t>(
+        mismatch.first - impl_->cached_token_ids.begin());
+    const std::string cached_id =
+        mismatch_index < impl_->cached_token_ids.size()
+            ? std::to_string(impl_->cached_token_ids[mismatch_index])
+            : "end";
+    const std::string rendered_id =
+        mismatch_index < full_prompt_token_ids.size()
+            ? std::to_string(full_prompt_token_ids[mismatch_index])
+            : "end";
+    return Error(
+        StatusCode::kInvalidArgument,
+        "rendered conversation differs from the resident KV-cache prefix at token " +
+            std::to_string(mismatch_index) + " (cached " + cached_id +
+            ", rendered " + rendered_id + ")");
+  }
+  const std::size_t prefix_tokens = impl_->cached_token_ids.size();
+  const std::span<const std::uint32_t> suffix =
+      full_prompt_token_ids.subspan(prefix_tokens);
+  if (suffix.empty()) {
+    return Error(StatusCode::kInvalidArgument,
+                 "conversation turn adds no uncached prompt tokens");
+  }
+
+  GreedyInferenceResult result;
+  result.output_token_ids.reserve(
+      static_cast<std::size_t>(max_generated_tokens));
+  result.kv_cache_mode = impl_->kv_cache_mode;
+  result.decode_graphs = true;
+  result.model_load_milliseconds = impl_->model_load_milliseconds;
+  result.weight_arena_bytes = impl_->engine.weight_bytes();
+  result.kv_cache_bytes = impl_->engine.cache_bytes();
+  result.workspace_bytes = impl_->engine.workspace_bytes();
+  result.decode_graph_device_bytes =
+      impl_->engine.decode_graph_device_bytes();
+  result.prefill_chunk_tokens = impl_->engine.prefill_chunk_tokens();
+  result.packed_weight_source_layout_direct = true;
+  result.token_loop_allocations = false;
+  result.benchmark_qualified = false;
+
+  const auto prompt_start = std::chrono::steady_clock::now();
+  auto prefilled = impl_->engine.PrefillAt(suffix, prefix_tokens);
+  if (!prefilled.ok()) {
+    impl_->poisoned = true;
+    return prefilled.status();
+  }
+  impl_->cached_token_ids.insert(impl_->cached_token_ids.end(),
+                                 suffix.begin(), suffix.end());
+  std::uint32_t next_token = prefilled.value();
+  result.prompt_milliseconds = Milliseconds(
+      std::chrono::steady_clock::now() - prompt_start);
+  result.output_token_ids.push_back(next_token);
+  if (generated_token_callback != nullptr) {
+    Status status = generated_token_callback(
+        generated_token_callback_context, next_token);
+    if (!status.ok()) {
+      impl_->poisoned = true;
+      return status;
+    }
+  }
+  if (std::find(impl_->stop_token_ids.begin(), impl_->stop_token_ids.end(),
+                next_token) != impl_->stop_token_ids.end()) {
+    result.stopped = true;
+    result.stop_token_id = next_token;
+  }
+
+  const auto decode_start = std::chrono::steady_clock::now();
+  for (std::uint64_t generated = 1U;
+       generated < max_generated_tokens && !result.stopped; ++generated) {
+    const std::uint64_t position = impl_->cached_token_ids.size();
+    const std::uint32_t input_token = next_token;
+    auto forwarded =
+        impl_->engine.Forward(input_token, position, true);
+    if (!forwarded.ok()) {
+      impl_->poisoned = true;
+      return forwarded.status();
+    }
+    impl_->cached_token_ids.push_back(input_token);
+    next_token = forwarded.value();
+    result.output_token_ids.push_back(next_token);
+    if (generated_token_callback != nullptr) {
+      Status status = generated_token_callback(
+          generated_token_callback_context, next_token);
+      if (!status.ok()) {
+        impl_->poisoned = true;
+        return status;
+      }
+    }
+    if (std::find(impl_->stop_token_ids.begin(),
+                  impl_->stop_token_ids.end(), next_token) !=
+        impl_->stop_token_ids.end()) {
+      result.stopped = true;
+      result.stop_token_id = next_token;
+    }
+  }
+  result.decode_milliseconds = Milliseconds(
+      std::chrono::steady_clock::now() - decode_start);
+  const std::uint64_t measured_decode_tokens =
+      result.output_token_ids.size() - 1U;
+  if (measured_decode_tokens != 0U && result.decode_milliseconds > 0.0) {
+    result.decode_tokens_per_second =
+        static_cast<double>(measured_decode_tokens) * 1000.0 /
+        result.decode_milliseconds;
+  }
+  return result;
+}
+
+std::uint64_t ConversationSession::cached_token_count() const {
+  return impl_ == nullptr ? 0U : impl_->cached_token_ids.size();
+}
 
 Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& options) {
   if (options.model_directory.empty()) {
