@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "status": "development_characterization_not_accepted_benchmark",
+  "batch_size": 1,
+  "results": [
+    {
+      "mode": "prefill",
+      "prompt_tokens": 128,
+      "median_tokens_per_second": 577.1474274213382,
+      "median_ttft_ms": 222.161665,
+      "llama_cpp_median_tokens_per_second": 2214.7,
+      "vllm_median_tokens_per_second": 4679.485759956933,
+      "gem16gb_over_llama_cpp": 0.260598,
+      "gem16gb_over_vllm": 0.123336
+    },
+    {
+      "mode": "prefill",
+      "prompt_tokens": 512,
+      "median_tokens_per_second": 442.6814399431445,
+      "median_ttft_ms": 1156.587907,
+      "llama_cpp_median_tokens_per_second": 2628.27,
+      "vllm_median_tokens_per_second": 6146.496982614533,
+      "gem16gb_over_llama_cpp": 0.168431,
+      "gem16gb_over_vllm": 0.072022
+    },
+    {
+      "mode": "decode",
+      "existing_context_tokens": 128,
+      "generated_tokens": 256,
+      "median_tokens_per_second": 24.573277216919415,
+      "p50_inter_token_latency_ms": 40.612562999999994,
+      "p95_inter_token_latency_ms": 42.6621046,
+      "p99_inter_token_latency_ms": 43.046317009999996,
+      "llama_cpp_median_tokens_per_second": 29.66885,
+      "vllm_median_tokens_per_second": 37.05653584957774,
+      "gem16gb_over_llama_cpp": 0.828252,
+      "gem16gb_over_vllm": 0.663129,
+      "deterministic_outputs": true
+    }
+  ],
+  "comparison_limitations": [
+    "gem16gb uses checkpoint FP8 KV while the retained llama.cpp and vLLM characterizations use BF16 KV",
+    "llama.cpp maps checkpoint FP8 attention weights to BF16",
+    "prefill timing boundaries differ across engines",
+    "the baseline artifacts and this worktree remain development characterizations",
+    "continuous power, clock, and thermal telemetry was not captured"
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "machine_id": "blackwell16gb-linux",
+  "operating_system": "Arch Linux",
+  "kernel": "7.1.3-arch1-3",
+  "gpu": {
+    "name": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "uuid": "GPU-93070293-2184-eb69-555b-1d856a4fdbb8",
+    "compute_capability": "12.0",
+    "vram_total_mib": 16303,
+    "vbios": "98.03.5C.00.F2",
+    "display_active": false
+  },
+  "driver_version": "610.43.03",
+  "cuda_toolkit": "13.3.73",
+  "cuda_runtime": "13.3",
+  "cmake": "4.4.0",
+  "ninja": "1.13.2",
+  "pre_run_snapshot": {
+    "free_vram_mib": 15867,
+    "board_power_w": 13.85,
+    "graphics_clock_mhz": 240,
+    "temperature_c": 46,
+    "other_compute_processes": 0
+  },
+  "continuous_telemetry_captured": false
+}

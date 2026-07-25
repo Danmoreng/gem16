@@ -17,8 +17,7 @@ greedy-selection, and device-to-host intervals are timed:
   --context 128 `
   --tokens 256 `
   --warmups 3 `
-  --repetitions 10 `
-  --enable-fused-gate-up
+  --repetitions 10
 ```
 
 The hybrid cache supports the checkpoint's full 262,144-position contract: local-attention layers use a 1,024-token
@@ -26,8 +25,7 @@ ring while global-attention layers grow through the configured context. Results 
 and `benchmark_qualified: false` until long-context quality gates and required system telemetry
 are complete.
 
-Native chunked prefill is now the default. The JSON records `prefill_path: native_chunked_sm120`; passing
-`--serial-prefill` selects and records the retained decode-bridge path. On the Windows Blackwell development machine,
+Native chunked prefill is the only production path. The JSON records `prefill_path: native_chunked_sm120`. On the Windows Blackwell development machine,
 a one-run context-128 parity check produced the same output checksum for both paths and reduced TTFT from 5,238.8 ms
 to 1,479.0 ms. This is implementation evidence, not a repeated or accepted performance result.
 
@@ -37,7 +35,7 @@ confidence-interval policy. For example:
 ```powershell
 .\build\Windows\blackwell-release\bin\gem16gb-bench.exe prefill `
   --model .\models\checkpoints\unsloth-gemma-4-12b-it-NVFP4-b1f6497 `
-  --context 128 --warmups 3 --repetitions 10 --enable-fused-gate-up
+  --context 128 --warmups 3 --repetitions 10
 ```
 
 Future results must use the matrices, timing boundaries, repetition policy, quality gates, and three llama.cpp

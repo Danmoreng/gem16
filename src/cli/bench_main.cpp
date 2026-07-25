@@ -34,15 +34,11 @@ void Usage(std::ostream& output) {
          << "  gem16gb-bench decode --model <checkpoint-dir>\n"
          << "      [--context <tokens>] [--tokens <count>] [--seed <integer>]\n"
          << "      [--warmups <count>] [--repetitions <count>]\n"
-         << "      [--kv-cache <fp8|bf16>] [--projection-path <native|reference>]\n"
-         << "      [--enable-fused-gate-up] [--disable-fused-output-head]\n"
-         << "      [--disable-decode-graphs]\n"
-         << "      [--disable-fused-prefill-attention] [--serial-prefill]\n"
+         << "      [--kv-cache <fp8|bf16>]\n"
          << "\n"
          << "Prefill mode (CUDA):\n"
          << "  gem16gb-bench prefill --model <checkpoint-dir> --context <tokens>\n"
-         << "      [--warmups <count>] [--repetitions <count>] [--seed <integer>]\n"
-         << "      [--enable-fused-gate-up] [--disable-fused-prefill-attention] [--serial-prefill]\n";
+         << "      [--warmups <count>] [--repetitions <count>] [--seed <integer>]\n";
 }
 
 bool ParsePositiveU32(std::string_view value, std::uint32_t& parsed) {
@@ -102,24 +98,6 @@ int RunDecodeMode(int argc, char** argv) {
         std::cerr << "error: --kv-cache must be fp8 or bf16\n";
         return 64;
       }
-    } else if (argument == "--projection-path" && index + 1 < argc) {
-      const std::string_view value(argv[++index]);
-      if (value == "native") options.projection_path = gem16gb::ProjectionPath::kNativeSm120;
-      else if (value == "reference") options.projection_path = gem16gb::ProjectionPath::kCudaReference;
-      else {
-        std::cerr << "error: --projection-path must be native or reference\n";
-        return 64;
-      }
-    } else if (argument == "--enable-fused-gate-up") {
-      options.enable_fused_gate_up = true;
-    } else if (argument == "--disable-fused-prefill-attention") {
-      options.enable_fused_prefill_attention = false;
-    } else if (argument == "--disable-fused-output-head") {
-      options.enable_fused_output_head = false;
-    } else if (argument == "--disable-decode-graphs") {
-      options.enable_decode_graphs = false;
-    } else if (argument == "--serial-prefill") {
-      options.use_native_prefill = false;
     } else {
       std::cerr << "error: unknown or incomplete decode option: " << argument << '\n';
       Usage(std::cerr);
@@ -173,21 +151,6 @@ int RunPrefillMode(int argc, char** argv) {
       if (value == "fp8") options.kv_cache_mode = gem16gb::KvCacheMode::kCheckpointFp8;
       else if (value == "bf16") options.kv_cache_mode = gem16gb::KvCacheMode::kBf16Correctness;
       else return 64;
-    } else if (argument == "--projection-path" && index + 1 < argc) {
-      const std::string_view value(argv[++index]);
-      if (value == "native") options.projection_path = gem16gb::ProjectionPath::kNativeSm120;
-      else if (value == "reference") options.projection_path = gem16gb::ProjectionPath::kCudaReference;
-      else return 64;
-    } else if (argument == "--enable-fused-gate-up") {
-      options.enable_fused_gate_up = true;
-    } else if (argument == "--disable-fused-prefill-attention") {
-      options.enable_fused_prefill_attention = false;
-    } else if (argument == "--disable-fused-output-head") {
-      options.enable_fused_output_head = false;
-    } else if (argument == "--disable-decode-graphs") {
-      options.enable_decode_graphs = false;
-    } else if (argument == "--serial-prefill") {
-      options.use_native_prefill = false;
     } else {
       std::cerr << "error: unknown or incomplete prefill option: " << argument << '\n';
       Usage(std::cerr);

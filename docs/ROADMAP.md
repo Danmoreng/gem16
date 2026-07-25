@@ -19,8 +19,8 @@ of the correctness and native-kernel gates below.
   replace serialized prompt ingestion with native prefill after resolving the early distribution divergence.
 - Keep chat processing independent of terminal I/O so a later OpenAI-compatible Chat Completions server can reuse
   it. Do not begin HTTP/server work before persistent engine sessions and the correctness gate are in place.
-- [x] Replace token-at-a-time prompt ingestion with a separate native 32-token prefill plan. Keep
-  `--serial-prefill` as the explicit correctness bridge while the batched path is optimized further.
+- [x] Replace token-at-a-time prompt ingestion with a separate native 32-token prefill plan. Keep the serial
+  implementation only as a test/probe reference; production CLIs expose the measured native winner.
 - [x] Replace the initial contiguous physical FP8 cache, formerly capped at 1,024 total positions, with circular local
   storage and independently growing global storage. The checkpoint-scale FP8 numerical semantics and one-byte
   allocation are implemented; fused/optimized attention reads remain pending.

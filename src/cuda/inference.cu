@@ -765,44 +765,6 @@ __global__ void ArgmaxKernel(const float* logits, const std::uint32_t* suppresse
   if (threadIdx.x == 0U) selected[0] = scratch[0].token;
 }
 
-__global__ void ControlledArgmaxKernel(
-    const float* logits, const std::uint32_t* suppressed,
-    const internal::DecodeControl* control, std::uint32_t* selected) {
-  __shared__ ArgmaxValue scratch[kThreads];
-  ArgmaxValue best{-FLT_MAX, 0U};
-  for (std::uint64_t index = threadIdx.x; index < kVocabulary;
-       index += blockDim.x) {
-    bool skip = false;
-    for (std::uint32_t suppressed_index = 0;
-         suppressed_index < control->suppressed_token_count;
-         ++suppressed_index) {
-      if (index == suppressed[suppressed_index]) {
-        skip = true;
-        break;
-      }
-    }
-    if (skip) continue;
-    const float value = logits[index];
-    if (value > best.value || (value == best.value && index < best.token)) {
-      best = {value, static_cast<std::uint32_t>(index)};
-    }
-  }
-  scratch[threadIdx.x] = best;
-  __syncthreads();
-  for (unsigned stride = kThreads / 2U; stride != 0U; stride >>= 1U) {
-    if (threadIdx.x < stride) {
-      const ArgmaxValue other = scratch[threadIdx.x + stride];
-      if (other.value > scratch[threadIdx.x].value ||
-          (other.value == scratch[threadIdx.x].value &&
-           other.token < scratch[threadIdx.x].token)) {
-        scratch[threadIdx.x] = other;
-      }
-    }
-    __syncthreads();
-  }
-  if (threadIdx.x == 0U) selected[0] = scratch[0].token;
-}
-
 Status LaunchRoundBf16(float* values, std::uint64_t elements, cudaStream_t stream) {
   const std::uint64_t blocks = (elements + kThreads - 1U) / kThreads;
   RoundBf16Kernel<<<static_cast<unsigned>(blocks), kThreads, 0, stream>>>(values, elements);
@@ -812,12 +774,7 @@ Status LaunchRoundBf16(float* values, std::uint64_t elements, cudaStream_t strea
 
 Status LaunchFp8Projection(const std::uint8_t* activation, const float* scale,
                            const Fp8Binding& binding, float* output,
-                           ProjectionPath path, cudaStream_t stream) {
-  if (path == ProjectionPath::kCudaReference) {
-    return internal::LaunchFp8ReferenceProjection(
-        activation, scale, binding.weight, binding.scales, output, binding.rows,
-        binding.contracting, stream);
-  }
+                           cudaStream_t stream) {
   return internal::LaunchFp8Sm120DirectProjection(
       activation, scale, binding.weight, binding.scales, output, binding.rows,
       binding.contracting, stream);
@@ -825,12 +782,7 @@ Status LaunchFp8Projection(const std::uint8_t* activation, const float* scale,
 
 Status LaunchNvfp4Projection(const std::uint8_t* activation, const std::uint8_t* scales,
                              const Nvfp4Binding& binding, float* output,
-                             ProjectionPath path, cudaStream_t stream) {
-  if (path == ProjectionPath::kCudaReference) {
-    return internal::LaunchNvfp4ReferenceProjection(
-        activation, scales, binding.packed_weight, binding.scales, output, binding.rows,
-        binding.contracting, binding.input_divisor, binding.weight_divisor, stream);
-  }
+                             cudaStream_t stream) {
   return internal::LaunchNvfp4Sm120DirectProjection(
       activation, scales, binding.packed_weight, binding.scales, output, binding.rows,
       binding.contracting, binding.input_divisor, binding.weight_divisor, stream);
@@ -838,13 +790,7 @@ Status LaunchNvfp4Projection(const std::uint8_t* activation, const std::uint8_t*
 
 Status LaunchFp8ProjectionBatch(const std::uint8_t* activation, const float* scales,
                                 const Fp8Binding& binding, float* output,
-                                std::uint64_t tokens, ProjectionPath path,
-                                cudaStream_t stream) {
-  if (path == ProjectionPath::kCudaReference) {
-    return internal::LaunchFp8ReferenceProjectionBatch(
-        activation, scales, binding.weight, binding.scales, output, tokens,
-        binding.rows, binding.contracting, stream);
-  }
+                                std::uint64_t tokens, cudaStream_t stream) {
   return internal::LaunchFp8Sm120DirectProjectionBatch(
       activation, scales, binding.weight, binding.scales, output, tokens,
       binding.rows, binding.contracting, stream);
@@ -853,13 +799,7 @@ Status LaunchFp8ProjectionBatch(const std::uint8_t* activation, const float* sca
 Status LaunchNvfp4ProjectionBatch(
     const std::uint8_t* activation, const std::uint8_t* scales,
     const Nvfp4Binding& binding, float* output, std::uint64_t tokens,
-    ProjectionPath path, cudaStream_t stream) {
-  if (path == ProjectionPath::kCudaReference) {
-    return internal::LaunchNvfp4ReferenceProjectionBatch(
-        activation, scales, binding.packed_weight, binding.scales, output,
-        tokens, binding.rows, binding.contracting, binding.input_divisor,
-        binding.weight_divisor, stream);
-  }
+    cudaStream_t stream) {
   return internal::LaunchNvfp4Sm120DirectProjectionBatch(
       activation, scales, binding.packed_weight, binding.scales, output, tokens,
       binding.rows, binding.contracting, binding.input_divisor,
@@ -877,20 +817,10 @@ class InferenceEngine {
 
   [[nodiscard]] Status Initialize(const std::filesystem::path& model_directory,
                                   std::uint64_t max_context,
-                                  ProjectionPath projection_path,
-                                  KvCacheMode kv_cache_mode,
-                                  bool enable_fused_gate_up,
-                                  bool enable_fused_prefill_attention,
-                                  bool enable_fused_output_head,
-                                  bool enable_decode_graphs) {
+                                  KvCacheMode kv_cache_mode) {
     const NvtxRange range("gem16gb.initialize");
     max_context_ = max_context;
-    projection_path_ = projection_path;
     kv_cache_mode_ = kv_cache_mode;
-    enable_fused_gate_up_ = enable_fused_gate_up;
-    enable_fused_prefill_attention_ = enable_fused_prefill_attention;
-    enable_fused_output_head_ = enable_fused_output_head;
-    enable_decode_graphs_ = enable_decode_graphs;
     cudaDeviceProp properties{};
     cudaError_t error = cudaGetDeviceProperties(&properties, 0);
     if (error != cudaSuccess) return CudaFailure("cudaGetDeviceProperties", error);
@@ -908,34 +838,32 @@ class InferenceEngine {
     if (!status.ok()) return status;
     status = AllocatePrefillWorkspace();
     if (!status.ok()) return status;
-    if (enable_decode_graphs_) {
-      status = decode_host_state_.Allocate(
-          (sizeof(HostDecodeState) + sizeof(float) - 1U) / sizeof(float),
-          "allocate decode graph host control");
-      if (!status.ok()) return status;
-      std::size_t free_before = 0U;
-      std::size_t total_before = 0U;
-      cudaError_t memory_error = cudaMemGetInfo(&free_before, &total_before);
-      if (memory_error != cudaSuccess) {
-        return CudaFailure("measure memory before decode graph capture",
-                           memory_error);
-      }
-      status = PrepareDecodeGraphs();
-      if (!status.ok()) return status;
-      std::size_t free_after = 0U;
-      std::size_t total_after = 0U;
-      memory_error = cudaMemGetInfo(&free_after, &total_after);
-      if (memory_error != cudaSuccess) {
-        return CudaFailure("measure memory after decode graph capture",
-                           memory_error);
-      }
-      if (total_before != total_after) {
-        return Error(StatusCode::kInternal,
-                     "device total memory changed during decode graph capture");
-      }
-      decode_graph_device_bytes_ =
-          free_before > free_after ? free_before - free_after : 0U;
+    status = decode_host_state_.Allocate(
+        (sizeof(HostDecodeState) + sizeof(float) - 1U) / sizeof(float),
+        "allocate decode graph host control");
+    if (!status.ok()) return status;
+    std::size_t free_before = 0U;
+    std::size_t total_before = 0U;
+    cudaError_t memory_error = cudaMemGetInfo(&free_before, &total_before);
+    if (memory_error != cudaSuccess) {
+      return CudaFailure("measure memory before decode graph capture",
+                         memory_error);
     }
+    status = PrepareDecodeGraphs();
+    if (!status.ok()) return status;
+    std::size_t free_after = 0U;
+    std::size_t total_after = 0U;
+    memory_error = cudaMemGetInfo(&free_after, &total_after);
+    if (memory_error != cudaSuccess) {
+      return CudaFailure("measure memory after decode graph capture",
+                         memory_error);
+    }
+    if (total_before != total_after) {
+      return Error(StatusCode::kInternal,
+                   "device total memory changed during decode graph capture");
+    }
+    decode_graph_device_bytes_ =
+        free_before > free_after ? free_before - free_after : 0U;
     return ResetCache();
   }
 
@@ -950,8 +878,7 @@ class InferenceEngine {
     if (!host_state.empty() && host_state.size() != state_layout.elements) {
       return Error(StatusCode::kInternal, "host state capture span has invalid size");
     }
-    if (enable_decode_graphs_ && select_token && host_logits.empty() &&
-        host_state.empty()) {
+    if (select_token && host_logits.empty() && host_state.empty()) {
       HostDecodeState* host = host_decode_state();
       host->control.token = token;
       host->control.position = position;
@@ -998,68 +925,38 @@ class InferenceEngine {
     }
 
     auto* selected = Pointer<std::uint32_t>(workspace_, offsets_.selected);
-    if (enable_fused_output_head_) {
-      float* diagnostic_logits = nullptr;
-      if (!host_logits.empty()) {
-        if (host_logits.size() != kVocabulary) {
-          return Error(StatusCode::kInternal,
-                       "host logit capture span has invalid size");
-        }
-        diagnostic_logits = Pointer<float>(workspace_, offsets_.logits);
+    float* diagnostic_logits = nullptr;
+    if (!host_logits.empty()) {
+      if (host_logits.size() != kVocabulary) {
+        return Error(StatusCode::kInternal,
+                     "host logit capture span has invalid size");
       }
-      FusedOutputHeadCandidatesKernel<<<kFusedOutputHeadBlocks, kThreads, 0,
-                                        stream_>>>(
-          model_.embedding(), normalized,
-          Pointer<std::uint32_t>(workspace_, offsets_.suppressed),
-          suppressed_token_count_, nullptr,
-          Pointer<ArgmaxValue>(workspace_, offsets_.output_candidates),
-          diagnostic_logits);
-      error = cudaGetLastError();
+      diagnostic_logits = Pointer<float>(workspace_, offsets_.logits);
+    }
+    FusedOutputHeadCandidatesKernel<<<kFusedOutputHeadBlocks, kThreads, 0,
+                                      stream_>>>(
+        model_.embedding(), normalized,
+        Pointer<std::uint32_t>(workspace_, offsets_.suppressed),
+        suppressed_token_count_, nullptr,
+        Pointer<ArgmaxValue>(workspace_, offsets_.output_candidates),
+        diagnostic_logits);
+    error = cudaGetLastError();
+    if (error != cudaSuccess) {
+      return CudaFailure("launch fused output-head candidates", error);
+    }
+    if (diagnostic_logits != nullptr) {
+      error = cudaMemcpyAsync(host_logits.data(), diagnostic_logits,
+                              host_logits.size_bytes(),
+                              cudaMemcpyDeviceToHost, stream_);
       if (error != cudaSuccess) {
-        return CudaFailure("launch fused output-head candidates", error);
+        return CudaFailure("copy fused full logits", error);
       }
-      if (diagnostic_logits != nullptr) {
-        error = cudaMemcpyAsync(host_logits.data(), diagnostic_logits,
-                                host_logits.size_bytes(),
-                                cudaMemcpyDeviceToHost, stream_);
-        if (error != cudaSuccess) {
-          return CudaFailure("copy fused full logits", error);
-        }
-      }
-      OutputHeadCandidateArgmaxKernel<<<1U, kThreads, 0, stream_>>>(
-          Pointer<ArgmaxValue>(workspace_, offsets_.output_candidates),
-          selected);
-      error = cudaGetLastError();
-      if (error != cudaSuccess) {
-        return CudaFailure("launch fused output-head argmax", error);
-      }
-    } else {
-      float* logits = Pointer<float>(workspace_, offsets_.logits);
-      OutputHeadKernel<<<static_cast<unsigned>(kVocabulary), kThreads, 0,
-                         stream_>>>(model_.embedding(), normalized, logits);
-      error = cudaGetLastError();
-      if (error != cudaSuccess) {
-        return CudaFailure("launch tied output head", error);
-      }
-      if (!host_logits.empty()) {
-        if (host_logits.size() != kVocabulary) {
-          return Error(StatusCode::kInternal,
-                       "host logit capture span has invalid size");
-        }
-        error = cudaMemcpyAsync(host_logits.data(), logits,
-                                host_logits.size_bytes(),
-                                cudaMemcpyDeviceToHost, stream_);
-        if (error != cudaSuccess) {
-          return CudaFailure("copy full logits", error);
-        }
-      }
-      ArgmaxKernel<<<1U, kThreads, 0, stream_>>>(
-          logits, Pointer<std::uint32_t>(workspace_, offsets_.suppressed),
-          suppressed_token_count_, selected);
-      error = cudaGetLastError();
-      if (error != cudaSuccess) {
-        return CudaFailure("launch greedy argmax", error);
-      }
+    }
+    OutputHeadCandidateArgmaxKernel<<<1U, kThreads, 0, stream_>>>(
+        Pointer<ArgmaxValue>(workspace_, offsets_.output_candidates), selected);
+    error = cudaGetLastError();
+    if (error != cudaSuccess) {
+      return CudaFailure("launch fused output-head argmax", error);
     }
     std::uint32_t host_token = 0;
     error = cudaMemcpyAsync(&host_token, selected, sizeof(host_token), cudaMemcpyDeviceToHost,
@@ -1150,10 +1047,7 @@ class InferenceEngine {
                    "the initial greedy path supports at most 16 suppressed tokens");
     }
     suppressed_token_count_ = static_cast<std::uint32_t>(tokens.size());
-    if (enable_decode_graphs_) {
-      host_decode_state()->control.suppressed_token_count =
-          suppressed_token_count_;
-    }
+    host_decode_state()->control.suppressed_token_count = suppressed_token_count_;
     if (tokens.empty()) return Status::Ok();
     const cudaError_t error = cudaMemcpyAsync(
         Pointer<std::uint32_t>(workspace_, offsets_.suppressed), tokens.data(),
@@ -1322,10 +1216,10 @@ class InferenceEngine {
         normalized, fp8, fp8_scales, tokens, kHidden, stream_);
     if (!status.ok()) return status;
     status = LaunchFp8ProjectionBatch(fp8, fp8_scales, layer.q, q, tokens,
-                                      projection_path_, stream_);
+                                      stream_);
     if (!status.ok()) return status;
     status = LaunchFp8ProjectionBatch(fp8, fp8_scales, layer.k, k, tokens,
-                                      projection_path_, stream_);
+                                      stream_);
     if (!status.ok()) return status;
     if (layer.global) {
       const cudaError_t error = cudaMemcpyAsync(
@@ -1334,7 +1228,7 @@ class InferenceEngine {
       if (error != cudaSuccess) return CudaFailure("reuse batched global K for V", error);
     } else {
       status = LaunchFp8ProjectionBatch(fp8, fp8_scales, layer.v, v, tokens,
-                                        projection_path_, stream_);
+                                        stream_);
       if (!status.ok()) return status;
     }
     for (const Status next : {
@@ -1390,37 +1284,21 @@ class InferenceEngine {
           k_norm, v_norm, k_fp8, v_fp8, layer.k_cache_scale,
           layer.v_cache_scale, tokens, layer.kv_elements, stream_);
       if (!status.ok()) return status;
-      if (enable_fused_prefill_attention_) {
-        status = internal::LaunchFusedCausalAttentionPrefillFp8(
-            q_norm, k_fp8, v_fp8, layer.key_cache_fp8, layer.value_cache_fp8,
-            layer.k_cache_scale, layer.v_cache_scale, scores, attention,
-            start_position, tokens, kQueryHeads, layer.kv_heads,
-            layer.head_dimension, capacity, !layer.global, stream_);
-      } else {
-        status = internal::LaunchCausalAttentionPrefillFp8(
-            q_norm, k_fp8, v_fp8, layer.key_cache_fp8, layer.value_cache_fp8,
-            layer.k_cache_scale, layer.v_cache_scale, scores, attention,
-            start_position, tokens, kQueryHeads, layer.kv_heads,
-            layer.head_dimension, capacity, !layer.global, stream_);
-      }
+      status = internal::LaunchFusedCausalAttentionPrefillFp8(
+          q_norm, k_fp8, v_fp8, layer.key_cache_fp8, layer.value_cache_fp8,
+          layer.k_cache_scale, layer.v_cache_scale, scores, attention,
+          start_position, tokens, kQueryHeads, layer.kv_heads,
+          layer.head_dimension, capacity, !layer.global, stream_);
       if (!status.ok()) return status;
       status = internal::LaunchAppendKvFp8Batch(
           k_fp8, v_fp8, layer.key_cache_fp8, layer.value_cache_fp8,
           start_position, tokens, layer.kv_elements, capacity, stream_);
     } else {
-      if (enable_fused_prefill_attention_) {
-        status = internal::LaunchFusedCausalAttentionPrefill(
-            q_norm, k_norm, v_norm, layer.key_cache_bf16,
-            layer.value_cache_bf16, scores, attention, start_position, tokens,
-            kQueryHeads, layer.kv_heads, layer.head_dimension, capacity,
-            !layer.global, stream_);
-      } else {
-        status = internal::LaunchCausalAttentionPrefill(
-            q_norm, k_norm, v_norm, layer.key_cache_bf16,
-            layer.value_cache_bf16, scores, attention, start_position, tokens,
-            kQueryHeads, layer.kv_heads, layer.head_dimension, capacity,
-            !layer.global, stream_);
-      }
+      status = internal::LaunchFusedCausalAttentionPrefill(
+          q_norm, k_norm, v_norm, layer.key_cache_bf16,
+          layer.value_cache_bf16, scores, attention, start_position, tokens,
+          kQueryHeads, layer.kv_heads, layer.head_dimension, capacity,
+          !layer.global, stream_);
       if (!status.ok()) return status;
       status = internal::LaunchAppendKvBatch(
           k_norm, v_norm, layer.key_cache_bf16, layer.value_cache_bf16,
@@ -1435,7 +1313,7 @@ class InferenceEngine {
         attention, o_activation, o_scales, tokens, layer.query_elements, stream_);
     if (!status.ok()) return status;
     status = LaunchFp8ProjectionBatch(o_activation, o_scales, layer.o, projection,
-                                      tokens, projection_path_, stream_);
+                                      tokens, stream_);
     if (!status.ok()) return status;
     status = LaunchRoundBf16(projection, hidden_elements, stream_);
     if (!status.ok()) return status;
@@ -1464,27 +1342,18 @@ class InferenceEngine {
         normalized, mlp_packed, mlp_scales, hidden_elements,
         layer.gate.input_divisor, stream_);
     if (!status.ok()) return status;
-    if (projection_path_ == ProjectionPath::kNativeSm120 && enable_fused_gate_up_) {
-      status = internal::LaunchNvfp4Sm120FusedGateUpBatch(
-          mlp_packed, mlp_scales, layer.gate.packed_weight, layer.gate.scales,
-          layer.up.packed_weight, layer.up.scales, nullptr, nullptr, product,
-          tokens, kIntermediate, kHidden, layer.gate.input_divisor,
-          layer.gate.weight_divisor, layer.up.input_divisor,
-          layer.up.weight_divisor, stream_);
-    } else {
-      status = LaunchNvfp4ProjectionBatch(mlp_packed, mlp_scales, layer.gate,
-                                          gate, tokens, projection_path_, stream_);
-      if (!status.ok()) return status;
-      status = LaunchNvfp4ProjectionBatch(mlp_packed, mlp_scales, layer.up,
-                                          up, tokens, projection_path_, stream_);
-      if (!status.ok()) return status;
-      status = LaunchRoundBf16(gate, tokens * kIntermediate, stream_);
-      if (!status.ok()) return status;
-      status = LaunchRoundBf16(up, tokens * kIntermediate, stream_);
-      if (!status.ok()) return status;
-      status = internal::LaunchGeluTanhProduct(gate, up, product,
-                                               tokens * kIntermediate, stream_);
-    }
+    status = LaunchNvfp4ProjectionBatch(mlp_packed, mlp_scales, layer.gate,
+                                        gate, tokens, stream_);
+    if (!status.ok()) return status;
+    status = LaunchNvfp4ProjectionBatch(mlp_packed, mlp_scales, layer.up,
+                                        up, tokens, stream_);
+    if (!status.ok()) return status;
+    status = LaunchRoundBf16(gate, tokens * kIntermediate, stream_);
+    if (!status.ok()) return status;
+    status = LaunchRoundBf16(up, tokens * kIntermediate, stream_);
+    if (!status.ok()) return status;
+    status = internal::LaunchGeluTanhProduct(gate, up, product,
+                                             tokens * kIntermediate, stream_);
     if (!status.ok()) return status;
     status = LaunchRoundBf16(product, tokens * kIntermediate, stream_);
     if (!status.ok()) return status;
@@ -1495,7 +1364,7 @@ class InferenceEngine {
         layer.down.input_divisor, stream_);
     if (!status.ok()) return status;
     status = LaunchNvfp4ProjectionBatch(down_packed, down_scales, layer.down,
-                                        projection, tokens, projection_path_, stream_);
+                                        projection, tokens, stream_);
     if (!status.ok()) return status;
     status = LaunchRoundBf16(projection, hidden_elements, stream_);
     if (!status.ok()) return status;
@@ -1639,40 +1508,21 @@ class InferenceEngine {
     status = LaunchRoundBf16(normalized, kHidden, stream_);
     if (!status.ok()) return status;
     auto* selected = Pointer<std::uint32_t>(workspace_, offsets_.selected);
-    if (enable_fused_output_head_) {
-      FusedOutputHeadCandidatesKernel<<<kFusedOutputHeadBlocks, kThreads, 0,
-                                        stream_>>>(
-          model_.embedding(), normalized,
-          Pointer<std::uint32_t>(workspace_, offsets_.suppressed), 0U, control,
-          Pointer<ArgmaxValue>(workspace_, offsets_.output_candidates),
-          nullptr);
-      error = cudaGetLastError();
-      if (error != cudaSuccess) {
-        return CudaFailure("launch controlled fused output-head candidates",
-                           error);
-      }
-      OutputHeadCandidateArgmaxKernel<<<1U, kThreads, 0, stream_>>>(
-          Pointer<ArgmaxValue>(workspace_, offsets_.output_candidates),
-          selected);
-      error = cudaGetLastError();
-      if (error != cudaSuccess) {
-        return CudaFailure("launch controlled fused output-head argmax", error);
-      }
-    } else {
-      float* logits = Pointer<float>(workspace_, offsets_.logits);
-      OutputHeadKernel<<<static_cast<unsigned>(kVocabulary), kThreads, 0,
-                         stream_>>>(model_.embedding(), normalized, logits);
-      error = cudaGetLastError();
-      if (error != cudaSuccess) {
-        return CudaFailure("launch controlled output head", error);
-      }
-      ControlledArgmaxKernel<<<1U, kThreads, 0, stream_>>>(
-          logits, Pointer<std::uint32_t>(workspace_, offsets_.suppressed),
-          control, selected);
-      error = cudaGetLastError();
-      if (error != cudaSuccess) {
-        return CudaFailure("launch controlled argmax", error);
-      }
+    FusedOutputHeadCandidatesKernel<<<kFusedOutputHeadBlocks, kThreads, 0,
+                                      stream_>>>(
+        model_.embedding(), normalized,
+        Pointer<std::uint32_t>(workspace_, offsets_.suppressed), 0U, control,
+        Pointer<ArgmaxValue>(workspace_, offsets_.output_candidates), nullptr);
+    error = cudaGetLastError();
+    if (error != cudaSuccess) {
+      return CudaFailure("launch controlled fused output-head candidates",
+                         error);
+    }
+    OutputHeadCandidateArgmaxKernel<<<1U, kThreads, 0, stream_>>>(
+        Pointer<ArgmaxValue>(workspace_, offsets_.output_candidates), selected);
+    error = cudaGetLastError();
+    if (error != cudaSuccess) {
+      return CudaFailure("launch controlled fused output-head argmax", error);
     }
     error = cudaMemcpyAsync(&host->selected_token, selected,
                             sizeof(host->selected_token),
@@ -1729,11 +1579,9 @@ class InferenceEngine {
     status = internal::LaunchFp8ReferenceTokenQuantization(
         normalized, fp8_activation, fp8_scale, kHidden, stream_);
     if (!status.ok()) return status;
-    status = LaunchFp8Projection(fp8_activation, fp8_scale, layer.q, q,
-                                 projection_path_, stream_);
+    status = LaunchFp8Projection(fp8_activation, fp8_scale, layer.q, q, stream_);
     if (!status.ok()) return status;
-    status = LaunchFp8Projection(fp8_activation, fp8_scale, layer.k, k,
-                                 projection_path_, stream_);
+    status = LaunchFp8Projection(fp8_activation, fp8_scale, layer.k, k, stream_);
     if (!status.ok()) return status;
     if (layer.global) {
       const cudaError_t error = cudaMemcpyAsync(
@@ -1743,8 +1591,7 @@ class InferenceEngine {
         return CudaFailure("reuse global K projection for V", error);
       }
     } else {
-      status = LaunchFp8Projection(fp8_activation, fp8_scale, layer.v, v,
-                                   projection_path_, stream_);
+      status = LaunchFp8Projection(fp8_activation, fp8_scale, layer.v, v, stream_);
       if (!status.ok()) return status;
     }
     for (const Status next : {
@@ -1820,8 +1667,7 @@ class InferenceEngine {
     status = internal::LaunchFp8ReferenceTokenQuantization(
         attention, o_activation, o_scale, layer.query_elements, stream_);
     if (!status.ok()) return status;
-    status = LaunchFp8Projection(o_activation, o_scale, layer.o, projection,
-                                 projection_path_, stream_);
+    status = LaunchFp8Projection(o_activation, o_scale, layer.o, projection, stream_);
     if (!status.ok()) return status;
     status = LaunchRoundBf16(projection, kHidden, stream_);
     if (!status.ok()) return status;
@@ -1864,33 +1710,21 @@ class InferenceEngine {
         normalized, mlp_packed, mlp_scales, kHidden, layer.gate.input_divisor,
         stream_);
     if (!status.ok()) return status;
-    if (projection_path_ == ProjectionPath::kNativeSm120 &&
-        enable_fused_gate_up_) {
-      status = internal::LaunchNvfp4Sm120FusedGateUp(
-          mlp_packed, mlp_scales, layer.gate.packed_weight, layer.gate.scales,
-          layer.up.packed_weight, layer.up.scales,
-          capture == nullptr ? nullptr : gate,
-          capture == nullptr ? nullptr : up, product, kIntermediate, kHidden,
-          layer.gate.input_divisor, layer.gate.weight_divisor,
-          layer.up.input_divisor, layer.up.weight_divisor, stream_);
-      if (!status.ok()) return status;
-    } else {
-      status = LaunchNvfp4Projection(mlp_packed, mlp_scales, layer.gate, gate,
-                                     projection_path_, stream_);
-      if (!status.ok()) return status;
-      status = LaunchNvfp4Projection(mlp_packed, mlp_scales, layer.up, up,
-                                     projection_path_, stream_);
-      if (!status.ok()) return status;
-      status = LaunchRoundBf16(gate, kIntermediate, stream_);
-      if (!status.ok()) return status;
-      status = LaunchRoundBf16(up, kIntermediate, stream_);
-      if (!status.ok()) return status;
-      status = internal::LaunchGeluTanhProduct(gate, up, product, kIntermediate,
-                                               stream_);
-      if (!status.ok()) return status;
-      status = LaunchRoundBf16(product, kIntermediate, stream_);
-      if (!status.ok()) return status;
-    }
+    status = LaunchNvfp4Projection(mlp_packed, mlp_scales, layer.gate, gate,
+                                   stream_);
+    if (!status.ok()) return status;
+    status = LaunchNvfp4Projection(mlp_packed, mlp_scales, layer.up, up,
+                                   stream_);
+    if (!status.ok()) return status;
+    status = LaunchRoundBf16(gate, kIntermediate, stream_);
+    if (!status.ok()) return status;
+    status = LaunchRoundBf16(up, kIntermediate, stream_);
+    if (!status.ok()) return status;
+    status = internal::LaunchGeluTanhProduct(gate, up, product, kIntermediate,
+                                             stream_);
+    if (!status.ok()) return status;
+    status = LaunchRoundBf16(product, kIntermediate, stream_);
+    if (!status.ok()) return status;
     if (capture != nullptr) {
       status = capture_values(capture->gate, gate, kIntermediate,
                               "copy MLP gate state");
@@ -1907,7 +1741,7 @@ class InferenceEngine {
         layer.down.input_divisor, stream_);
     if (!status.ok()) return status;
     status = LaunchNvfp4Projection(down_packed, down_scales, layer.down,
-                                   projection, projection_path_, stream_);
+                                   projection, stream_);
     if (!status.ok()) return status;
     status = LaunchRoundBf16(projection, kHidden, stream_);
     if (!status.ok()) return status;
@@ -1955,7 +1789,7 @@ class InferenceEngine {
     float* attention = Pointer<float>(workspace_, offsets_.attention);
 
     Status status;
-    if (enable_decode_graphs_ && capture == nullptr) {
+    if (capture == nullptr) {
       const cudaError_t error =
           cudaGraphLaunch(decode_prefix_graphs_[layer_index].get(), stream_);
       if (error != cudaSuccess) return CudaFailure("launch decode prefix graph", error);
@@ -2028,7 +1862,7 @@ class InferenceEngine {
           attention_tokens, stream_, cache_capacity, first_slot);
     }
     if (!status.ok()) return status;
-    if (enable_decode_graphs_ && capture == nullptr) {
+    if (capture == nullptr) {
       const cudaError_t error =
           cudaGraphLaunch(decode_suffix_graphs_[layer_index].get(), stream_);
       return error == cudaSuccess
@@ -2052,12 +1886,7 @@ class InferenceEngine {
   std::uint64_t max_context_ = 0;
   std::uint64_t decode_graph_device_bytes_ = 0;
   std::uint32_t suppressed_token_count_ = 0;
-  ProjectionPath projection_path_ = ProjectionPath::kNativeSm120;
   KvCacheMode kv_cache_mode_ = KvCacheMode::kCheckpointFp8;
-  bool enable_fused_gate_up_ = false;
-  bool enable_fused_prefill_attention_ = true;
-  bool enable_fused_output_head_ = true;
-  bool enable_decode_graphs_ = true;
 };
 
 double Milliseconds(std::chrono::steady_clock::duration duration) {
@@ -2139,7 +1968,6 @@ void WriteDistributionJson(std::ostream& output,
 }
 
 Status WriteStateDump(const std::filesystem::path& path, std::uint64_t position,
-                      ProjectionPath projection_path,
                       KvCacheMode kv_cache_mode,
                       std::span<const float> captured_state) {
   if constexpr (std::endian::native != std::endian::little) {
@@ -2164,8 +1992,7 @@ Status WriteStateDump(const std::filesystem::path& path, std::uint64_t position,
   const std::uint64_t hidden_elements = kHidden;
   const std::uint64_t total_elements =
       static_cast<std::uint64_t>(captured_state.size());
-  const std::uint32_t path_id =
-      projection_path == ProjectionPath::kNativeSm120 ? 0U : 1U;
+  const std::uint32_t path_id = 0U;
   const std::uint32_t kv_cache_mode_id =
       kv_cache_mode == KvCacheMode::kCheckpointFp8 ? 0U : 1U;
   write(version);
@@ -2305,13 +2132,9 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
 
   const auto load_start = std::chrono::steady_clock::now();
   InferenceEngine engine;
-  Status status = engine.Initialize(options.model_directory, options.max_context_tokens,
-                                    options.projection_path,
-                                    options.kv_cache_mode,
-                                    options.enable_fused_gate_up,
-                                    options.enable_fused_prefill_attention,
-                                    options.enable_fused_output_head,
-                                    options.enable_decode_graphs);
+  Status status = engine.Initialize(options.model_directory,
+                                    options.max_context_tokens,
+                                    options.kv_cache_mode);
   if (!status.ok()) return status;
   status = engine.SetSuppressedTokens(options.suppressed_token_ids);
   if (!status.ok()) return status;
@@ -2321,15 +2144,8 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
   result.output_token_ids.reserve(static_cast<std::size_t>(generation_steps));
   result.teacher_forced_token_ids = options.teacher_forced_token_ids;
   result.teacher_forcing = teacher_forcing;
-  result.projection_path = options.projection_path;
   result.kv_cache_mode = options.kv_cache_mode;
-  result.fused_gate_up = options.projection_path == ProjectionPath::kNativeSm120 &&
-                         options.enable_fused_gate_up;
-  result.fused_prefill_attention =
-      options.use_native_prefill && options.enable_fused_prefill_attention;
-  result.fused_output_head = options.enable_fused_output_head;
-  result.decode_graphs =
-      options.enable_decode_graphs && options.state_dump_path.empty();
+  result.decode_graphs = options.state_dump_path.empty();
   result.model_load_milliseconds = Milliseconds(load_end - load_start);
   result.weight_arena_bytes = engine.weight_bytes();
   result.kv_cache_bytes = engine.cache_bytes();
@@ -2342,8 +2158,7 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
   const auto prompt_start = std::chrono::steady_clock::now();
   std::uint32_t next_token = 0;
   bool state_captured = false;
-  if (options.use_native_prefill && options.logits_dump_path.empty() &&
-      options.state_dump_path.empty()) {
+  if (options.logits_dump_path.empty() && options.state_dump_path.empty()) {
     auto prefilled = engine.Prefill(options.input_token_ids);
     if (!prefilled.ok()) return prefilled.status();
     next_token = prefilled.value();
@@ -2451,8 +2266,7 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
                    "generation stopped before the requested state dump position");
     }
     status = WriteStateDump(options.state_dump_path,
-                            *options.state_dump_position,
-                            options.projection_path, options.kv_cache_mode,
+                            *options.state_dump_position, options.kv_cache_mode,
                             captured_state.span());
     if (!status.ok()) return status;
     result.state_dumped = true;
@@ -2488,11 +2302,7 @@ Result<DecodeBenchmarkResult> RunDecodeBenchmark(
   const auto load_start = std::chrono::steady_clock::now();
   InferenceEngine engine;
   Status status = engine.Initialize(options.model_directory, planned_context,
-                                    options.projection_path, options.kv_cache_mode,
-                                    options.enable_fused_gate_up,
-                                    options.enable_fused_prefill_attention,
-                                    options.enable_fused_output_head,
-                                    options.enable_decode_graphs);
+                                    options.kv_cache_mode);
   if (!status.ok()) return status;
   const auto load_end = std::chrono::steady_clock::now();
 
@@ -2504,18 +2314,9 @@ Result<DecodeBenchmarkResult> RunDecodeBenchmark(
     run.inter_token_latency_milliseconds.resize(options.generated_tokens);
     const auto prompt_start = std::chrono::steady_clock::now();
     std::uint32_t next_token = 0U;
-    if (options.use_native_prefill) {
-      auto prefilled = engine.Prefill(prompt);
-      if (!prefilled.ok()) return prefilled.status();
-      next_token = prefilled.value();
-    } else {
-      for (std::size_t index = 0; index < prompt.size(); ++index) {
-        auto forwarded = engine.Forward(prompt[index], index,
-                                        index + 1U == prompt.size());
-        if (!forwarded.ok()) return forwarded.status();
-        if (index + 1U == prompt.size()) next_token = forwarded.value();
-      }
-    }
+    auto prefilled = engine.Prefill(prompt);
+    if (!prefilled.ok()) return prefilled.status();
+    next_token = prefilled.value();
     const auto prompt_end = std::chrono::steady_clock::now();
     run.prompt_milliseconds = Milliseconds(prompt_end - prompt_start);
     run.first_output_token_id = next_token;
@@ -2589,11 +2390,7 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
          << "  \"status\": \"characterization\",\n"
          << "  \"benchmark_qualified\": false,\n"
          << "  \"precision\": \"bf16_state_fp8_attention_nvfp4_mlp\",\n"
-         << "  \"projection_path\": \""
-         << (result.projection_path == ProjectionPath::kNativeSm120
-                 ? "native_sm120"
-                 : "cuda_reference")
-         << "\",\n"
+         << "  \"projection_path\": \"native_sm120\",\n"
          << "  \"kv_cache_mode\": \""
          << (result.kv_cache_mode == KvCacheMode::kCheckpointFp8
                  ? "checkpoint_fp8"
@@ -2614,11 +2411,9 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
          << (result.source_layout_direct ? "true" : "false") << ",\n"
          << "  \"token_loop_allocations\": "
          << (result.token_loop_allocations ? "true" : "false") << ",\n"
-         << "  \"fused_gate_up\": " << (result.fused_gate_up ? "true" : "false") << ",\n"
-         << "  \"fused_prefill_attention\": "
-         << (result.fused_prefill_attention ? "true" : "false") << ",\n"
-         << "  \"fused_output_head\": "
-         << (result.fused_output_head ? "true" : "false") << ",\n"
+         << "  \"fused_gate_up\": false,\n"
+         << "  \"fused_prefill_attention\": true,\n"
+         << "  \"fused_output_head\": true,\n"
          << "  \"decode_graphs\": "
          << (result.decode_graphs ? "true" : "false") << ",\n"
          << "  \"model_load_ms\": " << result.model_load_milliseconds << ",\n"
@@ -2676,21 +2471,14 @@ Status WriteDecodeBenchmarkJson(const DecodeBenchmarkResult& result,
          << "{\"schema_version\":1,\"status\":\"characterization\","
          << "\"benchmark_qualified\":false,\"mode\":\"decode\",\"batch_size\":1,"
          << "\"precision\":\"bf16_state_fp8_attention_nvfp4_mlp\","
-         << "\"projection_path\":\""
-         << (result.options.projection_path == ProjectionPath::kNativeSm120
-                 ? "native_sm120" : "cuda_reference")
-         << "\",\"kv_cache_mode\":\""
+         << "\"projection_path\":\"native_sm120\",\"kv_cache_mode\":\""
          << (result.options.kv_cache_mode == KvCacheMode::kCheckpointFp8
                  ? "checkpoint_fp8" : "bf16_correctness")
          << "\",\"kv_cache_layout\":\"hybrid_local_ring_global_contiguous"
-         << "\",\"fused_gate_up\":"
-         << (result.options.enable_fused_gate_up ? "true" : "false")
-         << ",\"fused_prefill_attention\":"
-         << (result.options.enable_fused_prefill_attention ? "true" : "false")
-         << ",\"fused_output_head\":"
-         << (result.options.enable_fused_output_head ? "true" : "false")
-         << ",\"decode_graphs\":"
-         << (result.options.enable_decode_graphs ? "true" : "false")
+         << "\",\"fused_gate_up\":false"
+         << ",\"fused_prefill_attention\":true"
+         << ",\"fused_output_head\":true"
+         << ",\"decode_graphs\":true"
          << ",\"context_tokens\":" << result.options.context_tokens
          << ",\"generated_tokens\":" << result.options.generated_tokens
          << ",\"warmup_runs\":" << result.options.warmup_runs
@@ -2700,10 +2488,7 @@ Status WriteDecodeBenchmarkJson(const DecodeBenchmarkResult& result,
          << "\"timing_boundary\":\"host_end_to_end_forward_and_greedy_selection\","
          << "\"first_selected_token_excluded_from_decode\":true,"
          << "\"model_loaded_once\":true,\"cache_reset_outside_timing\":true,"
-         << "\"prefill_path\":\""
-         << (result.options.use_native_prefill ? "native_chunked_sm120"
-                                               : "serial_decode_bridge")
-         << "\","
+         << "\"prefill_path\":\"native_chunked_sm120\","
          << "\"source_layout_direct\":" << (result.source_layout_direct ? "true" : "false")
          << ",\"token_loop_allocations\":" << (result.token_loop_allocations ? "true" : "false")
          << ",\"deterministic_outputs\":" << (result.deterministic_outputs ? "true" : "false")
@@ -2758,13 +2543,9 @@ Status WritePrefillBenchmarkJson(const DecodeBenchmarkResult& result,
          << "\"prompt_tokens\":" << result.options.context_tokens
          << ",\"warmup_runs\":" << result.options.warmup_runs
          << ",\"measured_runs\":" << result.options.measured_runs
-         << ",\"prefill_path\":\""
-         << (result.options.use_native_prefill ? "native_chunked_sm120"
-                                               : "serial_decode_bridge")
-         << "\",\"fused_prefill_attention\":"
-         << (result.options.enable_fused_prefill_attention ? "true" : "false")
-         << ",\"decode_graphs\":"
-         << (result.options.enable_decode_graphs ? "true" : "false")
+         << ",\"prefill_path\":\"native_chunked_sm120\""
+         << ",\"fused_prefill_attention\":true"
+         << ",\"decode_graphs\":true"
          << ",\"kv_cache_layout\":\"hybrid_local_ring_global_contiguous\","
          << "\"model_load_ms\":" << result.model_load_milliseconds
          << ",\"memory_bytes\":{\"weights\":" << result.weight_arena_bytes

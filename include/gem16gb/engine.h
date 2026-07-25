@@ -13,11 +13,6 @@ namespace gem16gb {
 
 void PrintKernelCapabilities(std::ostream& output);
 
-enum class ProjectionPath {
-  kNativeSm120,
-  kCudaReference,
-};
-
 enum class KvCacheMode {
   kCheckpointFp8,
   kBf16Correctness,
@@ -40,13 +35,7 @@ struct GreedyInferenceOptions {
   std::optional<std::uint64_t> state_dump_position;
   std::uint64_t max_generated_tokens = 1;
   std::uint64_t max_context_tokens = 128;
-  ProjectionPath projection_path = ProjectionPath::kNativeSm120;
   KvCacheMode kv_cache_mode = KvCacheMode::kCheckpointFp8;
-  bool enable_fused_gate_up = false;
-  bool enable_fused_prefill_attention = true;
-  bool enable_fused_output_head = true;
-  bool enable_decode_graphs = true;
-  bool use_native_prefill = true;
   // Optional synchronous observer invoked once for every selected output
   // token, including a stop token. The callback and its context must remain
   // valid for the duration of RunGreedyInference. Benchmark callers leave it
@@ -71,16 +60,12 @@ struct GreedyInferenceResult {
   std::uint64_t logits_dump_steps = 0;
   std::uint64_t teacher_forced_matches = 0;
   std::uint64_t state_dump_position = 0;
-  ProjectionPath projection_path = ProjectionPath::kNativeSm120;
   KvCacheMode kv_cache_mode = KvCacheMode::kCheckpointFp8;
   bool source_layout_direct = false;
   bool token_loop_allocations = false;
   bool benchmark_qualified = false;
   bool stopped = false;
   bool teacher_forcing = false;
-  bool fused_gate_up = false;
-  bool fused_prefill_attention = false;
-  bool fused_output_head = false;
   bool decode_graphs = false;
   bool logits_dumped = false;
   bool state_dumped = false;
@@ -106,13 +91,7 @@ struct DecodeBenchmarkOptions {
   std::uint32_t warmup_runs = 3;
   std::uint32_t measured_runs = 10;
   std::uint32_t prompt_seed = 0;
-  ProjectionPath projection_path = ProjectionPath::kNativeSm120;
   KvCacheMode kv_cache_mode = KvCacheMode::kCheckpointFp8;
-  bool enable_fused_gate_up = false;
-  bool enable_fused_prefill_attention = true;
-  bool enable_fused_output_head = true;
-  bool enable_decode_graphs = true;
-  bool use_native_prefill = true;
 };
 
 struct DecodeBenchmarkRun {

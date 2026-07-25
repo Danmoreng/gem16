@@ -80,8 +80,7 @@ Invoke-Profile "prefill-$Context" @(
   "prefill", "--model", $modelPath,
   "--context", "$Context",
   "--warmups", "$Warmups",
-  "--repetitions", "$Repetitions",
-  "--enable-fused-gate-up"
+  "--repetitions", "$Repetitions"
 )
 
 Invoke-Profile "decode-$Context" @(
@@ -89,6 +88,5 @@ Invoke-Profile "decode-$Context" @(
   "--context", "$Context",
   "--tokens", "$DecodeTokens",
   "--warmups", "$Warmups",
-  "--repetitions", "$Repetitions",
-  "--enable-fused-gate-up"
+  "--repetitions", "$Repetitions"
 )

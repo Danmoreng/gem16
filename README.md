@@ -20,14 +20,12 @@ approximately 16 GB of VRAM. The first model is the mixed FP8/NVFP4
   projection. A complete real-checkpoint Layer-0 characterization now composes FP8 local attention and the NVFP4
   MLP without a host roundtrip or persistent weight repack. It is a correctness characterization, not yet a
   trusted-hidden-state or performance qualification.
-- A direct-source packed-NVFP4 SIMT/GEMV alternative and a closed SM120a Gate/Up/GELU operator are available for
-  controlled characterization. The SIMT path lost decisively to native MMA, while Gate/Up fusion remains opt-in
-  through `--enable-fused-gate-up` because its small isolated gain did not produce a stable Windows end-to-end
-  median improvement.
+- Direct-source packed-NVFP4 SIMT/GEMV and closed SM120a Gate/Up/GELU alternatives remain available only in
+  characterization probes. The production engine uses the measured winner: native MMA with separate Gate/Up/GELU,
+  which won Linux end-to-end Prefill and Decode A/B measurements.
 - A CUDA-only, batch-one greedy characterization now loads the complete text model into one weight arena, executes
   all 48 layers with separate K/V caches, and selects the token on the GPU. Decode evaluates eight tied-BF16
-  vocabulary rows per block, applies the exact logit softcap, and reduces only one candidate per block; the original
-  full-logit head remains available through `--disable-fused-output-head`. The default applies the checkpoint's
+  vocabulary rows per block, applies the exact logit softcap, and reduces only one candidate per block. The engine applies the checkpoint's
   static E4M3 FP8 K/V scales; an explicit BF16 correctness mode remains available. Both modes run with zero
   fallbacks and no allocation in the token loop. Checkpoint EOS and suppressed-token controls are applied explicitly.
 - `gem16gb-chat` is a pure C++ application. It loads the checkpoint's `tokenizer.json`, performs native
@@ -78,13 +76,10 @@ build/Linux/blackwell-release/bin/gem16gb-run \
 ```
 
 The checkpoint-declared FP8 K/V semantics are the default. Use `--kv-cache bf16` only for the explicitly labeled
-BF16 correctness comparison. `--projection-path reference` selects the slow CUDA scalar projections; it is never
-an automatic fallback. `--enable-fused-gate-up` enables the experimental closed native Gate/Up/GELU operator and
-is reported explicitly as `fused_gate_up` in result JSON. Native prefill fuses causal score, softmax, and value
-reduction by default without changing their arithmetic order. `--disable-fused-prefill-attention` retains the
-three-kernel reference path for correctness and A/B performance checks. Decode fuses the tied BF16 output head,
-softcap, and greedy reduction by default; `--disable-fused-output-head` restores the full-logit head plus separate
-argmax. JSON records each selected path.
+BF16 correctness comparison. The production path is fixed to native SM120 projection, chunked prefill, fused causal
+prefill attention, separate Gate/Up/GELU, complete decode graphs, and fused output-head reduction. Slower
+alternatives are not exposed by the product CLIs; reference implementations remain in operator probes and tests.
+JSON records the fixed path.
 
 Reproduce the committed-token gate without copying token IDs manually:
 
@@ -226,17 +221,14 @@ latencies plus summary statistics as JSON:
   --context 128 `
   --tokens 256 `
   --warmups 3 `
-  --repetitions 10 `
-  --enable-fused-gate-up
+  --repetitions 10
 ```
 
 This is currently a development characterization, not an accepted competitive result. The hybrid KV cache keeps
 1,024 positions in each local-attention ring and grows the eight global-attention layers through the requested
-context, up to the checkpoint's 262,144-position contract. A complete greedy-forward CUDA Graph and retained static
-per-layer diagnostic graphs are prepared before the token loop and enabled by default. Use
-`--disable-decode-graphs` for a direct arithmetic and performance A/B; result JSON records both the selected path
-and measured graph-associated device-memory growth. Use `--disable-fused-output-head` to compare the retained
-full-logit output head and separate argmax against the default warp-row candidate reduction.
+context, up to the checkpoint's 262,144-position contract. A complete greedy-forward CUDA Graph and static
+per-layer diagnostic graphs are prepared before the token loop. Result JSON records the fixed path and measured
+graph-associated device-memory growth.
 
 On Windows, a short Nsight Systems prefill/decode capture with NVTX phase ranges can be collected and summarized
 without opening the GUI:
@@ -254,9 +246,8 @@ outside version control.
 Prompt ingestion uses a native 32-token chunk plan by default. Its FP8 attention and NVFP4 MLP projections use real
 16-row by 8-column MMA tiles that reuse checkpoint weight fragments across prompt tokens while retaining causal
 local/global attention. Its causal attention combines score, softmax, and value phases into one block while
-preserving the reference reduction order. Pass `--disable-fused-prefill-attention` for the unfused native A/B path,
-or `--serial-prefill` to
-`gem16gb-run` or `gem16gb-bench decode` for the retained one-token correctness bridge.
+preserving the reference reduction order. The token-at-a-time bridge and unfused attention implementation remain
+test/probe references and are not selectable from `gem16gb-run` or `gem16gb-bench`.
 
 ## Validate real-checkpoint layer assembly
 

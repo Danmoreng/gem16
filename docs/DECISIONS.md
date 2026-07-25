@@ -1,12 +1,35 @@
 # Decisions
 
+## 2026-07-25: Promote measured winners and remove production optimization switches
+
+Date: 2026-07-25
+Decision: Expose one production execution plan: native SM120 projections, 32-token chunked prefill, fused causal
+prefill attention, separate Gate/Up/GELU, complete decode graphs, and fused warp-row output reduction. Remove the
+six public projection/prefill/fusion/graph A/B switches and their option fields. Keep slower and reference
+implementations callable only from dedicated tests and characterization probes.
+Context: The CLI had accumulated six optimization switch families and 68 source/documentation occurrences. This
+made a validated fast path look optional and allowed ordinary runs to select known-slower plans. Gate/Up was the
+only unresolved choice because a 1.7% isolated kernel gain had not survived Windows end-to-end measurement.
+Alternatives: Keep every A/B switch indefinitely; enable every fusion; delete reference kernels as well as runtime
+dispatch; introduce an automatic tuner. Persistent switches weaken the product contract, while deleting probes
+would weaken correctness evidence and an automatic tuner would make plans non-deterministic.
+Consequences: Product CLIs have no optimization opt-ins or opt-outs. A diagnostic logits/state request may still
+use its required capture mechanics, and explicit BF16 K/V remains a labeled numerical correctness mode rather than
+a performance implementation choice. New implementations must beat the current plan with correctness evidence
+before replacing it; they are characterized through tests/probes rather than shipped as permanent toggles.
+Evidence: Existing gates establish fused prefill attention (+5.6%), complete decode graphs (+31% over direct in the
+same Windows characterization), and fused output reduction (+0.75%) with matching token checks. Linux Gate/Up A/B
+at commit `960528d` selected separate operations: Prefill 128 was 573.32 versus 527.53 tok/s, Prefill 512 was 441.73
+versus 410.16 tok/s, and context-128 Decode was 26.08 versus 25.86 tok/s. All compared runs retained deterministic
+checksums.
+
 ## 2026-07-25: Use warp-row candidate reduction for greedy decode output
 
 Date: 2026-07-25
 Decision: Make the decode-only tied-BF16 output path evaluate one vocabulary row per warp, execute eight rows per
 block, apply the configured softcap to every row, and retain one candidate per block before a final GPU reduction.
-Keep the original full-logit output head and separate argmax behind `--disable-fused-output-head`, and use it for
-arithmetic and performance A/B checks.
+Keep the original full-logit output head and separate argmax for internal arithmetic and performance probes. The
+later production-path consolidation removes its public runtime switch.
 Context: The original head launched one 256-thread block for each of 262,144 rows, wrote every float32 logit, and
 then scanned that array in a separate argmax kernel. An initially fused implementation preserved the exact
 256-thread addition order but serialized multiple rows per block and was slower. Row-per-warp execution exposes

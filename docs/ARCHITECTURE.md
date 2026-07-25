@@ -27,9 +27,9 @@ full logits. Decode may not allocate, access files, capture graphs, or compile c
 
 The ordinary greedy output stage assigns one vocabulary row to each warp, evaluates eight rows concurrently per
 block, applies the checkpoint's softcap to every logit, and writes one `(value, token)` candidate per block. A small
-second reduction chooses the token with the same lowest-token tie break as the retained full-logit head. This
-changes only the dot-product addition tree; `--disable-fused-output-head` restores the original 256-thread row
-reduction and separate argmax. Diagnostic logit capture can write the warp-row logits without changing selection.
+second reduction chooses the token with the same lowest-token tie break as the reference full-logit head. This
+changes only the dot-product addition tree. Diagnostic logit capture writes the warp-row logits without changing
+selection; the reference head is restricted to tests and characterization probes.
 
 The model-specific sequence is attention normalization and FP8 projections, specialized local/global attention,
 then NVFP4 MLP projections and residual updates. This sequence now exists both as an independent Layer-0 comparison
@@ -42,7 +42,7 @@ The first full-model path intentionally accepts token IDs and uses a hybrid cach
 position contract. Its 40 local-attention layers use fixed 1,024-token rings; its eight full-attention layers use
 absolute, growing storage. Native prefill processes fixed 32-token chunks layer-by-layer, batches direct-source FP8
 and NVFP4 SM120 MMA across tokens, and evaluates causal attention against prior cache state plus staged current-chunk
-K/V before committing the chunk to the cache. The retained `--serial-prefill` path is a correctness oracle. The pure C++
+K/V before committing the chunk to the cache. The serial path remains a test/probe oracle and is not a runtime option. The pure C++
 `GemmaChatProcessor` loads the checkpoint vocabulary, merge ranks, byte fallback, generation controls, and exact
 pinned Jinja artifact. It implements the supported text-only behavior of that template natively and rejects a
 different template revision rather than silently approximating it. This makes real chat flows testable now while

@@ -63,8 +63,6 @@ void PrintUsage() {
       << "Usage:\n"
       << "  gem16gb-chat --model <checkpoint> [--max-tokens N] [--max-context N]\n"
       << "                [--thinking] [--system <text>]\n"
-      << "                [--projection-path native|reference] [--enable-fused-gate-up]\n"
-      << "                [--disable-fused-output-head] [--disable-decode-graphs]\n"
       << "                [--kv-cache fp8|bf16]\n"
       << "                [--dump-state <path> --dump-state-position N]\n"
       << "  gem16gb-chat --model <checkpoint> --message <text> [--json]\n"
@@ -84,14 +82,8 @@ struct Options {
   bool json = false;
   std::filesystem::path state_dump_path;
   std::optional<std::uint64_t> state_dump_position;
-  gem16gb::ProjectionPath projection_path =
-      gem16gb::ProjectionPath::kNativeSm120;
   gem16gb::KvCacheMode kv_cache_mode =
       gem16gb::KvCacheMode::kCheckpointFp8;
-  bool enable_fused_gate_up = false;
-  bool enable_fused_prefill_attention = true;
-  bool enable_fused_output_head = true;
-  bool enable_decode_graphs = true;
 };
 
 gem16gb::Result<Options> ParseOptions(int argc, char** argv) {
@@ -132,24 +124,6 @@ gem16gb::Result<Options> ParseOptions(int argc, char** argv) {
             "--dump-state-position must be an unsigned integer");
       }
       options.state_dump_position = position;
-    } else if (argument == "--projection-path" && index + 1 < argc) {
-      const std::string_view path = argv[++index];
-      if (path == "native") {
-        options.projection_path = gem16gb::ProjectionPath::kNativeSm120;
-      } else if (path == "reference") {
-        options.projection_path = gem16gb::ProjectionPath::kCudaReference;
-      } else {
-        return gem16gb::Status(gem16gb::StatusCode::kInvalidArgument,
-                              "--projection-path must be native or reference");
-      }
-    } else if (argument == "--enable-fused-gate-up") {
-      options.enable_fused_gate_up = true;
-    } else if (argument == "--disable-fused-prefill-attention") {
-      options.enable_fused_prefill_attention = false;
-    } else if (argument == "--disable-fused-output-head") {
-      options.enable_fused_output_head = false;
-    } else if (argument == "--disable-decode-graphs") {
-      options.enable_decode_graphs = false;
     } else if (argument == "--kv-cache" && index + 1 < argc) {
       const std::string_view mode = argv[++index];
       if (mode == "fp8") {
@@ -249,13 +223,7 @@ gem16gb::Result<TurnOutput> RunTurn(
       processor.generation_controls().suppressed_token_ids;
   inference_options.max_generated_tokens = cli.max_tokens;
   inference_options.max_context_tokens = cli.max_context;
-  inference_options.projection_path = cli.projection_path;
   inference_options.kv_cache_mode = cli.kv_cache_mode;
-  inference_options.enable_fused_gate_up = cli.enable_fused_gate_up;
-  inference_options.enable_fused_prefill_attention =
-      cli.enable_fused_prefill_attention;
-  inference_options.enable_fused_output_head = cli.enable_fused_output_head;
-  inference_options.enable_decode_graphs = cli.enable_decode_graphs;
   inference_options.state_dump_path = cli.state_dump_path;
   inference_options.state_dump_position = cli.state_dump_position;
   TokenStreamContext stream_context{&processor, &std::cout};
@@ -290,20 +258,12 @@ gem16gb::Result<TurnOutput> RunTurn(
     WriteTokenIds(inference.value().output_token_ids);
     std::cout << ",\"finish_reason\":"
               << JsonEscape(inference.value().stopped ? "stop" : "length")
-              << ",\"projection_path\":"
-              << JsonEscape(
-                     inference.value().projection_path ==
-                             gem16gb::ProjectionPath::kNativeSm120
-                         ? "native_sm120"
-                         : "cuda_reference")
+              << ",\"projection_path\":\"native_sm120\""
               << ",\"state_dumped\":"
               << (inference.value().state_dumped ? "true" : "false")
-              << ",\"fused_gate_up\":"
-              << (inference.value().fused_gate_up ? "true" : "false")
-              << ",\"fused_prefill_attention\":"
-              << (inference.value().fused_prefill_attention ? "true" : "false")
-              << ",\"fused_output_head\":"
-              << (inference.value().fused_output_head ? "true" : "false")
+              << ",\"fused_gate_up\":false"
+              << ",\"fused_prefill_attention\":true"
+              << ",\"fused_output_head\":true"
               << ",\"decode_graphs\":"
               << (inference.value().decode_graphs ? "true" : "false")
               << ",\"kv_cache_mode\":"

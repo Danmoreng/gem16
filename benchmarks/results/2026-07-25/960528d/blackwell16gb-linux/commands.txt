@@ -1,0 +1,13 @@
+# Pre-consolidation characterization; these optimization flags are no longer accepted.
+build/Linux/blackwell-release/bin/gem16gb-bench prefill --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 --context 128 --warmups 3 --repetitions 10 --enable-fused-gate-up
+build/Linux/blackwell-release/bin/gem16gb-bench prefill --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 --context 512 --warmups 3 --repetitions 10 --enable-fused-gate-up
+build/Linux/blackwell-release/bin/gem16gb-bench prefill --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 --context 2048 --warmups 3 --repetitions 10 --enable-fused-gate-up
+build/Linux/blackwell-release/bin/gem16gb-bench prefill --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 --context 128 --warmups 3 --repetitions 10
+build/Linux/blackwell-release/bin/gem16gb-bench prefill --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 --context 512 --warmups 3 --repetitions 10
+build/Linux/blackwell-release/bin/gem16gb-bench decode --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 --context 128 --tokens 64 --warmups 1 --repetitions 3
+build/Linux/blackwell-release/bin/gem16gb-bench decode --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 --context 128 --tokens 64 --warmups 1 --repetitions 3 --enable-fused-gate-up
+
+# Consolidated production path.
+build/Linux/blackwell-release/bin/gem16gb-bench prefill --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 --context 128 --warmups 3 --repetitions 10
+build/Linux/blackwell-release/bin/gem16gb-bench prefill --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 --context 512 --warmups 3 --repetitions 10
+build/Linux/blackwell-release/bin/gem16gb-bench decode --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 --context 128 --tokens 256 --warmups 3 --repetitions 10
