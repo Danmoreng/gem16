@@ -1,5 +1,29 @@
 # Decisions
 
+## 2026-07-25: Use warp-row candidate reduction for greedy decode output
+
+Date: 2026-07-25
+Decision: Make the decode-only tied-BF16 output path evaluate one vocabulary row per warp, execute eight rows per
+block, apply the configured softcap to every row, and retain one candidate per block before a final GPU reduction.
+Keep the original full-logit output head and separate argmax behind `--disable-fused-output-head`, and use it for
+arithmetic and performance A/B checks.
+Context: The original head launched one 256-thread block for each of 262,144 rows, wrote every float32 logit, and
+then scanned that array in a separate argmax kernel. An initially fused implementation preserved the exact
+256-thread addition order but serialized multiple rows per block and was slower. Row-per-warp execution exposes
+enough parallel rows while avoiding the full-logit write/read in ordinary greedy decode.
+Alternatives: Retain only the full-logit path; accept the slower exact-order fused implementation; skip the monotonic
+softcap during argmax; change the BF16 tied weights to a lower precision. The latter two violate the checkpoint and
+benchmark contracts and were rejected without measurement.
+Consequences: Decode dot products use a 32-lane rather than 256-thread addition tree, so diagnostic logits can
+differ by a few float32 ULPs. Full-logit capture uses the same warp arithmetic when fusion is enabled, allowing
+explicit comparison. The softcap, suppression behavior, lowest-token tie break, and no-allocation token loop remain
+unchanged. The candidate array costs 32 KiB and the full-logit implementation remains available.
+Evidence: At context 128 with 64 generated tokens and 3/10 runs, median throughput improves from 27.02 to
+27.22 tok/s and median inter-token latency falls from 36.94 to 36.62 ms. Nsight measures the isolated output stage
+at about 3.031 ms instead of 3.315 ms. Across 31 sky positions, fused versus retained logits have max absolute error
+`7.6294e-6`, RMS error `1.0358e-6`, cosine similarity `0.9999999999999948`, Top-1 agreement 31/31, and mean Top-20
+overlap 20/20. The 31-token sky and 32-token integer autoregressive sequences are identical.
+
 ## 2026-07-24: Match checkpoint FP8 K/V semantics by default and label BF16 explicitly
 
 Date: 2026-07-24

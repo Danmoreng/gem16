@@ -49,6 +49,7 @@ constexpr std::uint64_t kAlignment = 256;
 constexpr std::uint64_t kMaximumSuppressedTokens = 16;
 constexpr float kEpsilon = 1.0e-6F;
 constexpr unsigned kThreads = 256;
+constexpr unsigned kFusedOutputHeadBlocks = 4096;
 constexpr std::uint64_t kPrefillChunkTokens = 32;
 
 class NvtxRange {
@@ -517,6 +518,7 @@ struct WorkspaceOffsets {
   std::uint64_t down_packed = 0;
   std::uint64_t down_scales = 0;
   std::uint64_t logits = 0;
+  std::uint64_t output_candidates = 0;
   std::uint64_t selected = 0;
   std::uint64_t suppressed = 0;
   std::uint64_t total = 0;
@@ -632,6 +634,101 @@ struct ArgmaxValue {
   float value;
   std::uint32_t token;
 };
+
+__device__ bool IsSuppressed(
+    std::uint64_t token, const std::uint32_t* suppressed,
+    std::uint32_t suppressed_count) {
+  for (std::uint32_t index = 0; index < suppressed_count; ++index) {
+    if (token == suppressed[index]) return true;
+  }
+  return false;
+}
+
+__global__ void FusedOutputHeadCandidatesKernel(
+    const std::uint16_t* weights, const float* hidden,
+    const std::uint32_t* suppressed, std::uint32_t suppressed_count,
+    const internal::DecodeControl* control, ArgmaxValue* candidates,
+    float* diagnostic_logits) {
+  constexpr unsigned kWarpSize = 32U;
+  constexpr unsigned kWarpsPerBlock = kThreads / kWarpSize;
+  __shared__ ArgmaxValue warp_candidates[kWarpsPerBlock];
+  const unsigned warp = threadIdx.x / kWarpSize;
+  const unsigned lane = threadIdx.x % kWarpSize;
+  ArgmaxValue best{-FLT_MAX, 0U};
+  const std::uint32_t dynamic_suppressed_count =
+      control == nullptr ? suppressed_count : control->suppressed_token_count;
+  for (std::uint64_t token =
+           static_cast<std::uint64_t>(blockIdx.x) * kWarpsPerBlock + warp;
+       token < kVocabulary;
+       token += static_cast<std::uint64_t>(gridDim.x) * kWarpsPerBlock) {
+    float sum = 0.0F;
+    const std::uint64_t base = token * kHidden;
+    for (std::uint64_t index = lane; index < kHidden;
+         index += kWarpSize) {
+      const float weight = static_cast<float>(
+          __ushort_as_bfloat16(weights[base + index]));
+      sum = fmaf(weight, hidden[index], sum);
+    }
+    for (unsigned offset = kWarpSize / 2U; offset != 0U; offset >>= 1U) {
+      sum += __shfl_down_sync(0xFFFFFFFFU, sum, offset);
+    }
+    if (lane == 0U) {
+      const float softcapped = tanhf(sum / 30.0F) * 30.0F;
+      if (diagnostic_logits != nullptr) diagnostic_logits[token] = softcapped;
+      if (!IsSuppressed(token, suppressed, dynamic_suppressed_count)) {
+        if (softcapped > best.value ||
+            (softcapped == best.value && token < best.token)) {
+          best = {softcapped, static_cast<std::uint32_t>(token)};
+        }
+      }
+    }
+  }
+  if (lane == 0U) warp_candidates[warp] = best;
+  __syncthreads();
+  if (warp == 0U) {
+    best = lane < kWarpsPerBlock ? warp_candidates[lane]
+                                 : ArgmaxValue{-FLT_MAX, 0U};
+    for (unsigned offset = kWarpSize / 2U; offset != 0U; offset >>= 1U) {
+      const float other_value =
+          __shfl_down_sync(0xFFFFFFFFU, best.value, offset);
+      const std::uint32_t other_token =
+          __shfl_down_sync(0xFFFFFFFFU, best.token, offset);
+      if (other_value > best.value ||
+          (other_value == best.value && other_token < best.token)) {
+        best = {other_value, other_token};
+      }
+    }
+    if (lane == 0U) candidates[blockIdx.x] = best;
+  }
+}
+
+__global__ void OutputHeadCandidateArgmaxKernel(
+    const ArgmaxValue* candidates, std::uint32_t* selected) {
+  __shared__ ArgmaxValue scratch[kThreads];
+  ArgmaxValue best{-FLT_MAX, 0U};
+  for (std::uint32_t index = threadIdx.x; index < kFusedOutputHeadBlocks;
+       index += blockDim.x) {
+    const ArgmaxValue candidate = candidates[index];
+    if (candidate.value > best.value ||
+        (candidate.value == best.value && candidate.token < best.token)) {
+      best = candidate;
+    }
+  }
+  scratch[threadIdx.x] = best;
+  __syncthreads();
+  for (unsigned stride = kThreads / 2U; stride != 0U; stride >>= 1U) {
+    if (threadIdx.x < stride) {
+      const ArgmaxValue other = scratch[threadIdx.x + stride];
+      if (other.value > scratch[threadIdx.x].value ||
+          (other.value == scratch[threadIdx.x].value &&
+           other.token < scratch[threadIdx.x].token)) {
+        scratch[threadIdx.x] = other;
+      }
+    }
+    __syncthreads();
+  }
+  if (threadIdx.x == 0U) selected[0] = scratch[0].token;
+}
 
 __global__ void ArgmaxKernel(const float* logits, const std::uint32_t* suppressed,
                              std::uint32_t suppressed_count, std::uint32_t* selected) {
@@ -784,6 +881,7 @@ class InferenceEngine {
                                   KvCacheMode kv_cache_mode,
                                   bool enable_fused_gate_up,
                                   bool enable_fused_prefill_attention,
+                                  bool enable_fused_output_head,
                                   bool enable_decode_graphs) {
     const NvtxRange range("gem16gb.initialize");
     max_context_ = max_context;
@@ -791,6 +889,7 @@ class InferenceEngine {
     kv_cache_mode_ = kv_cache_mode;
     enable_fused_gate_up_ = enable_fused_gate_up;
     enable_fused_prefill_attention_ = enable_fused_prefill_attention;
+    enable_fused_output_head_ = enable_fused_output_head;
     enable_decode_graphs_ = enable_decode_graphs;
     cudaDeviceProp properties{};
     cudaError_t error = cudaGetDeviceProperties(&properties, 0);
@@ -898,25 +997,70 @@ class InferenceEngine {
       return 0U;
     }
 
-    float* logits = Pointer<float>(workspace_, offsets_.logits);
     auto* selected = Pointer<std::uint32_t>(workspace_, offsets_.selected);
-    OutputHeadKernel<<<static_cast<unsigned>(kVocabulary), kThreads, 0, stream_>>>(
-        model_.embedding(), normalized, logits);
-    error = cudaGetLastError();
-    if (error != cudaSuccess) return CudaFailure("launch tied output head", error);
-    if (!host_logits.empty()) {
-      if (host_logits.size() != kVocabulary) {
-        return Error(StatusCode::kInternal, "host logit capture span has invalid size");
+    if (enable_fused_output_head_) {
+      float* diagnostic_logits = nullptr;
+      if (!host_logits.empty()) {
+        if (host_logits.size() != kVocabulary) {
+          return Error(StatusCode::kInternal,
+                       "host logit capture span has invalid size");
+        }
+        diagnostic_logits = Pointer<float>(workspace_, offsets_.logits);
       }
-      error = cudaMemcpyAsync(host_logits.data(), logits, host_logits.size_bytes(),
-                              cudaMemcpyDeviceToHost, stream_);
-      if (error != cudaSuccess) return CudaFailure("copy full logits", error);
+      FusedOutputHeadCandidatesKernel<<<kFusedOutputHeadBlocks, kThreads, 0,
+                                        stream_>>>(
+          model_.embedding(), normalized,
+          Pointer<std::uint32_t>(workspace_, offsets_.suppressed),
+          suppressed_token_count_, nullptr,
+          Pointer<ArgmaxValue>(workspace_, offsets_.output_candidates),
+          diagnostic_logits);
+      error = cudaGetLastError();
+      if (error != cudaSuccess) {
+        return CudaFailure("launch fused output-head candidates", error);
+      }
+      if (diagnostic_logits != nullptr) {
+        error = cudaMemcpyAsync(host_logits.data(), diagnostic_logits,
+                                host_logits.size_bytes(),
+                                cudaMemcpyDeviceToHost, stream_);
+        if (error != cudaSuccess) {
+          return CudaFailure("copy fused full logits", error);
+        }
+      }
+      OutputHeadCandidateArgmaxKernel<<<1U, kThreads, 0, stream_>>>(
+          Pointer<ArgmaxValue>(workspace_, offsets_.output_candidates),
+          selected);
+      error = cudaGetLastError();
+      if (error != cudaSuccess) {
+        return CudaFailure("launch fused output-head argmax", error);
+      }
+    } else {
+      float* logits = Pointer<float>(workspace_, offsets_.logits);
+      OutputHeadKernel<<<static_cast<unsigned>(kVocabulary), kThreads, 0,
+                         stream_>>>(model_.embedding(), normalized, logits);
+      error = cudaGetLastError();
+      if (error != cudaSuccess) {
+        return CudaFailure("launch tied output head", error);
+      }
+      if (!host_logits.empty()) {
+        if (host_logits.size() != kVocabulary) {
+          return Error(StatusCode::kInternal,
+                       "host logit capture span has invalid size");
+        }
+        error = cudaMemcpyAsync(host_logits.data(), logits,
+                                host_logits.size_bytes(),
+                                cudaMemcpyDeviceToHost, stream_);
+        if (error != cudaSuccess) {
+          return CudaFailure("copy full logits", error);
+        }
+      }
+      ArgmaxKernel<<<1U, kThreads, 0, stream_>>>(
+          logits, Pointer<std::uint32_t>(workspace_, offsets_.suppressed),
+          suppressed_token_count_, selected);
+      error = cudaGetLastError();
+      if (error != cudaSuccess) {
+        return CudaFailure("launch greedy argmax", error);
+      }
     }
-    ArgmaxKernel<<<1U, kThreads, 0, stream_>>>(
-        logits, Pointer<std::uint32_t>(workspace_, offsets_.suppressed),
-        suppressed_token_count_, selected);
-    error = cudaGetLastError();
-    if (error != cudaSuccess) return CudaFailure("launch greedy argmax", error);
     std::uint32_t host_token = 0;
     error = cudaMemcpyAsync(&host_token, selected, sizeof(host_token), cudaMemcpyDeviceToHost,
                             stream_);
@@ -1096,6 +1240,7 @@ class InferenceEngine {
     GEM16GB_ADD(down_packed, std::uint8_t, kIntermediate / 2U);
     GEM16GB_ADD(down_scales, std::uint8_t, kIntermediate / 16U);
     GEM16GB_ADD(logits, float, kVocabulary);
+    GEM16GB_ADD(output_candidates, ArgmaxValue, kFusedOutputHeadBlocks);
     GEM16GB_ADD(selected, std::uint32_t, 1U);
     GEM16GB_ADD(suppressed, std::uint32_t, kMaximumSuppressedTokens);
 #undef GEM16GB_ADD
@@ -1493,20 +1638,41 @@ class InferenceEngine {
     if (!status.ok()) return status;
     status = LaunchRoundBf16(normalized, kHidden, stream_);
     if (!status.ok()) return status;
-    float* logits = Pointer<float>(workspace_, offsets_.logits);
     auto* selected = Pointer<std::uint32_t>(workspace_, offsets_.selected);
-    OutputHeadKernel<<<static_cast<unsigned>(kVocabulary), kThreads, 0,
-                       stream_>>>(model_.embedding(), normalized, logits);
-    error = cudaGetLastError();
-    if (error != cudaSuccess) {
-      return CudaFailure("launch controlled output head", error);
-    }
-    ControlledArgmaxKernel<<<1U, kThreads, 0, stream_>>>(
-        logits, Pointer<std::uint32_t>(workspace_, offsets_.suppressed),
-        control, selected);
-    error = cudaGetLastError();
-    if (error != cudaSuccess) {
-      return CudaFailure("launch controlled argmax", error);
+    if (enable_fused_output_head_) {
+      FusedOutputHeadCandidatesKernel<<<kFusedOutputHeadBlocks, kThreads, 0,
+                                        stream_>>>(
+          model_.embedding(), normalized,
+          Pointer<std::uint32_t>(workspace_, offsets_.suppressed), 0U, control,
+          Pointer<ArgmaxValue>(workspace_, offsets_.output_candidates),
+          nullptr);
+      error = cudaGetLastError();
+      if (error != cudaSuccess) {
+        return CudaFailure("launch controlled fused output-head candidates",
+                           error);
+      }
+      OutputHeadCandidateArgmaxKernel<<<1U, kThreads, 0, stream_>>>(
+          Pointer<ArgmaxValue>(workspace_, offsets_.output_candidates),
+          selected);
+      error = cudaGetLastError();
+      if (error != cudaSuccess) {
+        return CudaFailure("launch controlled fused output-head argmax", error);
+      }
+    } else {
+      float* logits = Pointer<float>(workspace_, offsets_.logits);
+      OutputHeadKernel<<<static_cast<unsigned>(kVocabulary), kThreads, 0,
+                         stream_>>>(model_.embedding(), normalized, logits);
+      error = cudaGetLastError();
+      if (error != cudaSuccess) {
+        return CudaFailure("launch controlled output head", error);
+      }
+      ControlledArgmaxKernel<<<1U, kThreads, 0, stream_>>>(
+          logits, Pointer<std::uint32_t>(workspace_, offsets_.suppressed),
+          control, selected);
+      error = cudaGetLastError();
+      if (error != cudaSuccess) {
+        return CudaFailure("launch controlled argmax", error);
+      }
     }
     error = cudaMemcpyAsync(&host->selected_token, selected,
                             sizeof(host->selected_token),
@@ -1890,6 +2056,7 @@ class InferenceEngine {
   KvCacheMode kv_cache_mode_ = KvCacheMode::kCheckpointFp8;
   bool enable_fused_gate_up_ = false;
   bool enable_fused_prefill_attention_ = true;
+  bool enable_fused_output_head_ = true;
   bool enable_decode_graphs_ = true;
 };
 
@@ -2143,6 +2310,7 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
                                     options.kv_cache_mode,
                                     options.enable_fused_gate_up,
                                     options.enable_fused_prefill_attention,
+                                    options.enable_fused_output_head,
                                     options.enable_decode_graphs);
   if (!status.ok()) return status;
   status = engine.SetSuppressedTokens(options.suppressed_token_ids);
@@ -2159,6 +2327,7 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
                          options.enable_fused_gate_up;
   result.fused_prefill_attention =
       options.use_native_prefill && options.enable_fused_prefill_attention;
+  result.fused_output_head = options.enable_fused_output_head;
   result.decode_graphs =
       options.enable_decode_graphs && options.state_dump_path.empty();
   result.model_load_milliseconds = Milliseconds(load_end - load_start);
@@ -2322,6 +2491,7 @@ Result<DecodeBenchmarkResult> RunDecodeBenchmark(
                                     options.projection_path, options.kv_cache_mode,
                                     options.enable_fused_gate_up,
                                     options.enable_fused_prefill_attention,
+                                    options.enable_fused_output_head,
                                     options.enable_decode_graphs);
   if (!status.ok()) return status;
   const auto load_end = std::chrono::steady_clock::now();
@@ -2447,6 +2617,8 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
          << "  \"fused_gate_up\": " << (result.fused_gate_up ? "true" : "false") << ",\n"
          << "  \"fused_prefill_attention\": "
          << (result.fused_prefill_attention ? "true" : "false") << ",\n"
+         << "  \"fused_output_head\": "
+         << (result.fused_output_head ? "true" : "false") << ",\n"
          << "  \"decode_graphs\": "
          << (result.decode_graphs ? "true" : "false") << ",\n"
          << "  \"model_load_ms\": " << result.model_load_milliseconds << ",\n"
@@ -2515,6 +2687,8 @@ Status WriteDecodeBenchmarkJson(const DecodeBenchmarkResult& result,
          << (result.options.enable_fused_gate_up ? "true" : "false")
          << ",\"fused_prefill_attention\":"
          << (result.options.enable_fused_prefill_attention ? "true" : "false")
+         << ",\"fused_output_head\":"
+         << (result.options.enable_fused_output_head ? "true" : "false")
          << ",\"decode_graphs\":"
          << (result.options.enable_decode_graphs ? "true" : "false")
          << ",\"context_tokens\":" << result.options.context_tokens

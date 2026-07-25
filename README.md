@@ -25,10 +25,11 @@ approximately 16 GB of VRAM. The first model is the mixed FP8/NVFP4
   through `--enable-fused-gate-up` because its small isolated gain did not produce a stable Windows end-to-end
   median improvement.
 - A CUDA-only, batch-one greedy characterization now loads the complete text model into one weight arena, executes
-  all 48 layers with separate K/V caches, applies the tied BF16 output head and exact logit softcap, and selects the
-  token on the GPU. The default applies the checkpoint's static E4M3 FP8 K/V scales; an explicit BF16 correctness
-  mode remains available. Both modes run with zero fallbacks and no allocation in the token loop. Checkpoint EOS
-  and suppressed-token controls are applied explicitly.
+  all 48 layers with separate K/V caches, and selects the token on the GPU. Decode evaluates eight tied-BF16
+  vocabulary rows per block, applies the exact logit softcap, and reduces only one candidate per block; the original
+  full-logit head remains available through `--disable-fused-output-head`. The default applies the checkpoint's
+  static E4M3 FP8 K/V scales; an explicit BF16 correctness mode remains available. Both modes run with zero
+  fallbacks and no allocation in the token loop. Checkpoint EOS and suppressed-token controls are applied explicitly.
 - `gem16gb-chat` is a pure C++ application. It loads the checkpoint's `tokenizer.json`, performs native
   byte-fallback BPE encode/decode, enforces the pinned `chat_template.jinja` contract, and sources EOS/suppressed
   tokens from `generation_config.json`.
@@ -38,8 +39,8 @@ now replays the complete 48-layer forward pass as one CUDA Graph. A pinned host 
 token, position, and suppression count to device-side RoPE, KV append, ring selection, attention, and argmax logic;
 graph capture and instantiation remain outside the token loop. The 96 position-independent per-layer graphs remain
 available to diagnostic paths that request hidden states or logits. The default cache stores one physical E4M3FN
-byte per K/V value and dequantizes with the checkpoint's per-layer BF16 scales during attention. It is still an
-unfused correctness kernel rather than a performance result. The exact-blue greedy gate passes, while the longer
+byte per K/V value and dequantizes with the checkpoint's per-layer BF16 scales during attention. Attention is still
+a correctness-oriented implementation rather than a qualified performance result. The exact-blue greedy gate passes, while the longer
 sky gate currently diverges from vLLM/llama.cpp at its third generated token. Unsupported modes fail visibly and
 never fall back to a higher precision path.
 
@@ -81,7 +82,9 @@ BF16 correctness comparison. `--projection-path reference` selects the slow CUDA
 an automatic fallback. `--enable-fused-gate-up` enables the experimental closed native Gate/Up/GELU operator and
 is reported explicitly as `fused_gate_up` in result JSON. Native prefill fuses causal score, softmax, and value
 reduction by default without changing their arithmetic order. `--disable-fused-prefill-attention` retains the
-three-kernel reference path for correctness and A/B performance checks; JSON records the selected path.
+three-kernel reference path for correctness and A/B performance checks. Decode fuses the tied BF16 output head,
+softcap, and greedy reduction by default; `--disable-fused-output-head` restores the full-logit head plus separate
+argmax. JSON records each selected path.
 
 Reproduce the committed-token gate without copying token IDs manually:
 
@@ -232,7 +235,8 @@ This is currently a development characterization, not an accepted competitive re
 context, up to the checkpoint's 262,144-position contract. A complete greedy-forward CUDA Graph and retained static
 per-layer diagnostic graphs are prepared before the token loop and enabled by default. Use
 `--disable-decode-graphs` for a direct arithmetic and performance A/B; result JSON records both the selected path
-and measured graph-associated device-memory growth.
+and measured graph-associated device-memory growth. Use `--disable-fused-output-head` to compare the retained
+full-logit output head and separate argmax against the default warp-row candidate reduction.
 
 On Windows, a short Nsight Systems prefill/decode capture with NVTX phase ranges can be collected and summarized
 without opening the GUI:

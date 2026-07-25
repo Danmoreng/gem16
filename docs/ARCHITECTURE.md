@@ -25,11 +25,17 @@ suppression count to device-side RoPE, KV append, ring selection, attention, and
 position-independent segments per layer are also retained for diagnostic forwards that request hidden states or
 full logits. Decode may not allocate, access files, capture graphs, or compile code in the token loop.
 
+The ordinary greedy output stage assigns one vocabulary row to each warp, evaluates eight rows concurrently per
+block, applies the checkpoint's softcap to every logit, and writes one `(value, token)` candidate per block. A small
+second reduction chooses the token with the same lowest-token tie break as the retained full-logit head. This
+changes only the dot-product addition tree; `--disable-fused-output-head` restores the original 256-thread row
+reduction and separate argmax. Diagnostic logit capture can write the warp-row logits without changing selection.
+
 The model-specific sequence is attention normalization and FP8 projections, specialized local/global attention,
 then NVFP4 MLP projections and residual updates. This sequence now exists both as an independent Layer-0 comparison
 probe and as an unfused, batch-one 48-layer greedy characterization. The latter loads the complete text-only model
 into one aligned arena, keeps separate K/V state and reusable workspace allocations fixed for the run, applies the
-tied BF16 embedding/output matrix, exact logit softcap, and GPU argmax, and performs no token-loop allocation. It
+tied BF16 embedding/output matrix, exact logit softcap, and GPU candidate reduction, and performs no token-loop allocation. It
 uses one full graph replay for ordinary greedy decode but is not yet benchmark-qualified.
 
 The first full-model path intentionally accepts token IDs and uses a hybrid cache through the checkpoint's 262,144
@@ -76,8 +82,9 @@ deterministic 256-byte-aligned base arena. It places immutable weights/model sta
 payload in named regions with checked offsets. The required separate K/V size and a diagnostic one-state lower
 bound are retained in every result; shared physical cache selection is rejected.
 
-The greedy characterization measures a 1,465,856-byte execution workspace containing hidden-state ping-pong,
-quantized activations and scales, projection intermediates, attention scores, full logits, and GPU argmax state.
+The greedy characterization uses an execution workspace containing hidden-state ping-pong, quantized activations
+and scales, projection intermediates, attention scores, retained full logits, a 32 KiB fused-output candidate
+array, and GPU argmax state. Its exact size grows with the planned attention context and is reported per run.
 Its default hybrid cache stores physical E4M3FN bytes with checkpoint BF16 scales; an explicit float32
 BF16-semantics diagnostic allocation remains available. The general planner remains conservative until production
 prefill, graph, and sampling shapes are defined.

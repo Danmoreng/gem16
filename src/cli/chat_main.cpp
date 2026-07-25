@@ -64,6 +64,7 @@ void PrintUsage() {
       << "  gem16gb-chat --model <checkpoint> [--max-tokens N] [--max-context N]\n"
       << "                [--thinking] [--system <text>]\n"
       << "                [--projection-path native|reference] [--enable-fused-gate-up]\n"
+      << "                [--disable-fused-output-head] [--disable-decode-graphs]\n"
       << "                [--kv-cache fp8|bf16]\n"
       << "                [--dump-state <path> --dump-state-position N]\n"
       << "  gem16gb-chat --model <checkpoint> --message <text> [--json]\n"
@@ -89,6 +90,7 @@ struct Options {
       gem16gb::KvCacheMode::kCheckpointFp8;
   bool enable_fused_gate_up = false;
   bool enable_fused_prefill_attention = true;
+  bool enable_fused_output_head = true;
   bool enable_decode_graphs = true;
 };
 
@@ -144,6 +146,8 @@ gem16gb::Result<Options> ParseOptions(int argc, char** argv) {
       options.enable_fused_gate_up = true;
     } else if (argument == "--disable-fused-prefill-attention") {
       options.enable_fused_prefill_attention = false;
+    } else if (argument == "--disable-fused-output-head") {
+      options.enable_fused_output_head = false;
     } else if (argument == "--disable-decode-graphs") {
       options.enable_decode_graphs = false;
     } else if (argument == "--kv-cache" && index + 1 < argc) {
@@ -250,6 +254,7 @@ gem16gb::Result<TurnOutput> RunTurn(
   inference_options.enable_fused_gate_up = cli.enable_fused_gate_up;
   inference_options.enable_fused_prefill_attention =
       cli.enable_fused_prefill_attention;
+  inference_options.enable_fused_output_head = cli.enable_fused_output_head;
   inference_options.enable_decode_graphs = cli.enable_decode_graphs;
   inference_options.state_dump_path = cli.state_dump_path;
   inference_options.state_dump_position = cli.state_dump_position;
@@ -297,6 +302,8 @@ gem16gb::Result<TurnOutput> RunTurn(
               << (inference.value().fused_gate_up ? "true" : "false")
               << ",\"fused_prefill_attention\":"
               << (inference.value().fused_prefill_attention ? "true" : "false")
+              << ",\"fused_output_head\":"
+              << (inference.value().fused_output_head ? "true" : "false")
               << ",\"decode_graphs\":"
               << (inference.value().decode_graphs ? "true" : "false")
               << ",\"kv_cache_mode\":"

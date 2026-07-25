@@ -44,6 +44,7 @@ void PrintUsage() {
       << "              [--dump-logits <raw-f32-path>]\n"
       << "              [--dump-state <path> --dump-state-position N]\n"
       << "              [--projection-path native|reference] [--enable-fused-gate-up]\n"
+      << "              [--disable-fused-output-head] [--disable-decode-graphs]\n"
       << "              [--serial-prefill]\n"
       << "              [--kv-cache fp8|bf16]\n"
       << "              [--max-tokens N] [--max-context N] --greedy\n"
@@ -126,6 +127,8 @@ int main(int argc, char** argv) {
       options.enable_fused_gate_up = true;
     } else if (argument == "--disable-fused-prefill-attention") {
       options.enable_fused_prefill_attention = false;
+    } else if (argument == "--disable-fused-output-head") {
+      options.enable_fused_output_head = false;
     } else if (argument == "--disable-decode-graphs") {
       options.enable_decode_graphs = false;
     } else if (argument == "--serial-prefill") {

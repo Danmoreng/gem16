@@ -44,6 +44,7 @@ struct GreedyInferenceOptions {
   KvCacheMode kv_cache_mode = KvCacheMode::kCheckpointFp8;
   bool enable_fused_gate_up = false;
   bool enable_fused_prefill_attention = true;
+  bool enable_fused_output_head = true;
   bool enable_decode_graphs = true;
   bool use_native_prefill = true;
   // Optional synchronous observer invoked once for every selected output
@@ -79,6 +80,7 @@ struct GreedyInferenceResult {
   bool teacher_forcing = false;
   bool fused_gate_up = false;
   bool fused_prefill_attention = false;
+  bool fused_output_head = false;
   bool decode_graphs = false;
   bool logits_dumped = false;
   bool state_dumped = false;
@@ -108,6 +110,7 @@ struct DecodeBenchmarkOptions {
   KvCacheMode kv_cache_mode = KvCacheMode::kCheckpointFp8;
   bool enable_fused_gate_up = false;
   bool enable_fused_prefill_attention = true;
+  bool enable_fused_output_head = true;
   bool enable_decode_graphs = true;
   bool use_native_prefill = true;
 };
