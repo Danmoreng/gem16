@@ -238,6 +238,181 @@ __global__ void AppendKvFp8Kernel(
   value_cache[offset + index] = quantized_value.__x;
 }
 
+__device__ std::uint64_t ControlledTokenCount(
+    const DecodeControl* control, std::uint64_t cache_capacity,
+    bool sliding) {
+  const std::uint64_t count = control->position + 1U;
+  return sliding && count > cache_capacity ? cache_capacity : count;
+}
+
+__device__ std::uint64_t ControlledFirstSlot(
+    const DecodeControl* control, std::uint64_t cache_capacity,
+    bool sliding) {
+  const std::uint64_t count = control->position + 1U;
+  return sliding && count > cache_capacity ? count % cache_capacity : 0U;
+}
+
+__global__ void ControlledRotaryKernel(
+    float* states, std::uint64_t head_dimension, std::uint64_t pair_stride,
+    std::uint64_t rotating_pairs, std::uint64_t frequency_dimension,
+    const DecodeControl* control, double theta, double scaling_factor,
+    std::uint64_t pairs) {
+  const std::uint64_t pair =
+      static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+  if (pair >= pairs) return;
+  const std::uint64_t head = pair / rotating_pairs;
+  const std::uint64_t index = pair % rotating_pairs;
+  const double exponent = 2.0 * static_cast<double>(index) /
+                          static_cast<double>(frequency_dimension);
+  const double angle = static_cast<double>(control->position) /
+                       (pow(theta, exponent) * scaling_factor);
+  const float cosine = static_cast<float>(cos(angle));
+  const float sine = static_cast<float>(sin(angle));
+  const std::uint64_t first = head * head_dimension + index;
+  const std::uint64_t second = first + pair_stride;
+  const float first_value = states[first];
+  const float second_value = states[second];
+  states[first] = first_value * cosine - second_value * sine;
+  states[second] = second_value * cosine + first_value * sine;
+}
+
+template <typename CacheType, bool kFp8>
+__global__ void ControlledAppendKvKernel(
+    const float* key, const float* value, CacheType* key_cache,
+    CacheType* value_cache, const std::uint16_t* key_scale_bf16,
+    const std::uint16_t* value_scale_bf16, const DecodeControl* control,
+    std::uint64_t elements, std::uint64_t cache_capacity, bool sliding) {
+  const std::uint64_t index =
+      static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+  if (index >= elements) return;
+  const std::uint64_t slot =
+      sliding ? control->position % cache_capacity : control->position;
+  const std::uint64_t offset = slot * elements + index;
+  if constexpr (kFp8) {
+    const float key_scale =
+        static_cast<float>(__ushort_as_bfloat16(key_scale_bf16[0]));
+    const float value_scale =
+        static_cast<float>(__ushort_as_bfloat16(value_scale_bf16[0]));
+    const __nv_fp8_e4m3 quantized_key(key[index] / key_scale);
+    const __nv_fp8_e4m3 quantized_value(value[index] / value_scale);
+    key_cache[offset] = quantized_key.__x;
+    value_cache[offset] = quantized_value.__x;
+  } else {
+    key_cache[offset] = key[index];
+    value_cache[offset] = value[index];
+  }
+}
+
+template <typename CacheType, bool kFp8>
+__global__ void ControlledAttentionScoreKernel(
+    const float* query, const CacheType* key_cache,
+    const std::uint16_t* key_scale_bf16, float* scores,
+    const DecodeControl* control, std::uint64_t query_heads,
+    std::uint64_t kv_heads, std::uint64_t head_dimension,
+    std::uint64_t cache_capacity, bool sliding) {
+  const std::uint64_t query_head = blockIdx.x;
+  if (query_head >= query_heads) return;
+  const std::uint64_t tokens =
+      ControlledTokenCount(control, cache_capacity, sliding);
+  const std::uint64_t first_slot =
+      ControlledFirstSlot(control, cache_capacity, sliding);
+  const std::uint64_t kv_head = query_head / (query_heads / kv_heads);
+  const float* query_head_data = query + query_head * head_dimension;
+  const float key_scale =
+      kFp8 ? static_cast<float>(__ushort_as_bfloat16(key_scale_bf16[0]))
+           : 1.0F;
+  for (std::uint64_t token = threadIdx.x; token < tokens;
+       token += blockDim.x) {
+    const std::uint64_t unwrapped_slot = first_slot + token;
+    const std::uint64_t cache_slot = unwrapped_slot < cache_capacity
+                                         ? unwrapped_slot
+                                         : unwrapped_slot - cache_capacity;
+    const CacheType* key =
+        key_cache + (cache_slot * kv_heads + kv_head) * head_dimension;
+    float score = 0.0F;
+    for (std::uint64_t dimension = 0; dimension < head_dimension;
+         ++dimension) {
+      float key_value;
+      if constexpr (kFp8) {
+        __nv_fp8_e4m3 quantized;
+        quantized.__x = key[dimension];
+        key_value = static_cast<float>(quantized) * key_scale;
+      } else {
+        key_value = key[dimension];
+      }
+      score = fmaf(query_head_data[dimension], key_value, score);
+    }
+    scores[query_head * tokens + token] = score;
+  }
+}
+
+__global__ void ControlledAttentionSoftmaxKernel(
+    float* scores, const DecodeControl* control,
+    std::uint64_t cache_capacity, bool sliding) {
+  const std::uint64_t tokens =
+      ControlledTokenCount(control, cache_capacity, sliding);
+  float local_maximum = -FLT_MAX;
+  const std::uint64_t base = static_cast<std::uint64_t>(blockIdx.x) * tokens;
+  for (std::uint64_t token = threadIdx.x; token < tokens;
+       token += blockDim.x) {
+    local_maximum = fmaxf(local_maximum, scores[base + token]);
+  }
+  const float maximum = BlockMaximum(local_maximum);
+  float local_sum = 0.0F;
+  for (std::uint64_t token = threadIdx.x; token < tokens;
+       token += blockDim.x) {
+    const float probability = expf(scores[base + token] - maximum);
+    scores[base + token] = probability;
+    local_sum += probability;
+  }
+  const float denominator = BlockSum(local_sum);
+  for (std::uint64_t token = threadIdx.x; token < tokens;
+       token += blockDim.x) {
+    scores[base + token] /= denominator;
+  }
+}
+
+template <typename CacheType, bool kFp8>
+__global__ void ControlledAttentionValueKernel(
+    const float* scores, const CacheType* value_cache,
+    const std::uint16_t* value_scale_bf16, float* output,
+    const DecodeControl* control, std::uint64_t query_heads,
+    std::uint64_t kv_heads, std::uint64_t head_dimension,
+    std::uint64_t cache_capacity, bool sliding, std::uint64_t elements) {
+  const std::uint64_t element =
+      static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+  if (element >= elements) return;
+  const std::uint64_t tokens =
+      ControlledTokenCount(control, cache_capacity, sliding);
+  const std::uint64_t first_slot =
+      ControlledFirstSlot(control, cache_capacity, sliding);
+  const std::uint64_t query_head = element / head_dimension;
+  const std::uint64_t dimension = element % head_dimension;
+  const std::uint64_t kv_head = query_head / (query_heads / kv_heads);
+  const float value_scale =
+      kFp8 ? static_cast<float>(__ushort_as_bfloat16(value_scale_bf16[0]))
+           : 1.0F;
+  float value = 0.0F;
+  for (std::uint64_t token = 0; token < tokens; ++token) {
+    const std::uint64_t unwrapped_slot = first_slot + token;
+    const std::uint64_t cache_slot = unwrapped_slot < cache_capacity
+                                         ? unwrapped_slot
+                                         : unwrapped_slot - cache_capacity;
+    const std::uint64_t offset =
+        (cache_slot * kv_heads + kv_head) * head_dimension + dimension;
+    float cache_value;
+    if constexpr (kFp8) {
+      __nv_fp8_e4m3 quantized;
+      quantized.__x = value_cache[offset];
+      cache_value = static_cast<float>(quantized) * value_scale;
+    } else {
+      cache_value = value_cache[offset];
+    }
+    value = fmaf(scores[query_head * tokens + token], cache_value, value);
+  }
+  output[element] = value;
+}
+
 __global__ void ScaleKernel(float* values, const std::uint16_t* scalar,
                             std::uint64_t elements) {
   const std::uint64_t index = static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
@@ -609,6 +784,59 @@ Status LaunchProportionalRotaryEmbedding(float* states, std::uint64_t heads,
   return error == cudaSuccess ? Status::Ok() : CudaFailure("launch proportional RoPE", error);
 }
 
+Status LaunchRotaryEmbeddingControlled(
+    float* states, std::uint64_t heads, std::uint64_t head_dimension,
+    std::uint64_t rotary_dimensions, const DecodeControl* control,
+    double theta, cudaStream_t stream) {
+  if (states == nullptr || control == nullptr || heads == 0U ||
+      rotary_dimensions == 0U || rotary_dimensions > head_dimension ||
+      rotary_dimensions % 2U != 0U || !std::isfinite(theta) || theta <= 0.0) {
+    return Invalid("controlled RoPE arguments are invalid");
+  }
+  const std::uint64_t pairs = heads * (rotary_dimensions / 2U);
+  const std::uint64_t blocks = Blocks(pairs);
+  if (!ValidGrid(blocks)) return Invalid("controlled RoPE grid exceeds CUDA limits");
+  ControlledRotaryKernel<<<static_cast<unsigned>(blocks), kThreads, 0, stream>>>(
+      states, head_dimension, rotary_dimensions / 2U,
+      rotary_dimensions / 2U, rotary_dimensions, control, theta, 1.0, pairs);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("launch controlled RoPE", error);
+}
+
+Status LaunchProportionalRotaryEmbeddingControlled(
+    float* states, std::uint64_t heads, std::uint64_t head_dimension,
+    double rotary_factor, const DecodeControl* control, double theta,
+    double scaling_factor, cudaStream_t stream) {
+  if (states == nullptr || control == nullptr || heads == 0U ||
+      head_dimension == 0U || head_dimension % 2U != 0U ||
+      !std::isfinite(rotary_factor) || rotary_factor <= 0.0 ||
+      rotary_factor > 1.0 || !std::isfinite(theta) || theta <= 0.0 ||
+      !std::isfinite(scaling_factor) || scaling_factor <= 0.0) {
+    return Invalid("controlled proportional RoPE arguments are invalid");
+  }
+  const std::uint64_t half = head_dimension / 2U;
+  const std::uint64_t rotating_pairs =
+      static_cast<std::uint64_t>(rotary_factor * static_cast<double>(half));
+  if (rotating_pairs == 0U || rotating_pairs > half ||
+      heads > std::numeric_limits<std::uint64_t>::max() / rotating_pairs) {
+    return Invalid("controlled proportional RoPE factor is invalid");
+  }
+  const std::uint64_t pairs = heads * rotating_pairs;
+  const std::uint64_t blocks = Blocks(pairs);
+  if (!ValidGrid(blocks)) {
+    return Invalid("controlled proportional RoPE grid exceeds CUDA limits");
+  }
+  ControlledRotaryKernel<<<static_cast<unsigned>(blocks), kThreads, 0, stream>>>(
+      states, head_dimension, half, rotating_pairs, head_dimension, control,
+      theta, scaling_factor, pairs);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("launch controlled proportional RoPE", error);
+}
+
 Status LaunchAppendKv(const float* key, const float* value, float* key_cache,
                       float* value_cache, std::uint64_t slot, std::uint64_t kv_heads,
                       std::uint64_t head_dimension, cudaStream_t stream) {
@@ -660,6 +888,60 @@ Status LaunchAppendKvFp8(
   const cudaError_t error = cudaGetLastError();
   return error == cudaSuccess ? Status::Ok()
                               : CudaFailure("launch FP8 KV append", error);
+}
+
+Status LaunchAppendKvControlled(
+    const float* key, const float* value, float* key_cache,
+    float* value_cache, const DecodeControl* control,
+    std::uint64_t kv_heads, std::uint64_t head_dimension,
+    std::uint64_t cache_capacity, bool sliding, cudaStream_t stream) {
+  if (key == nullptr || value == nullptr || key_cache == nullptr ||
+      value_cache == nullptr || control == nullptr || kv_heads == 0U ||
+      head_dimension == 0U || cache_capacity == 0U ||
+      kv_heads > std::numeric_limits<std::uint64_t>::max() / head_dimension) {
+    return Invalid("controlled KV append arguments are invalid");
+  }
+  const std::uint64_t elements = kv_heads * head_dimension;
+  const std::uint64_t blocks = Blocks(elements);
+  if (!ValidGrid(blocks)) {
+    return Invalid("controlled KV append grid exceeds CUDA limits");
+  }
+  ControlledAppendKvKernel<float, false>
+      <<<static_cast<unsigned>(blocks), kThreads, 0, stream>>>(
+          key, value, key_cache, value_cache, nullptr, nullptr, control,
+          elements, cache_capacity, sliding);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("launch controlled KV append", error);
+}
+
+Status LaunchAppendKvFp8Controlled(
+    const float* key, const float* value, std::uint8_t* key_cache,
+    std::uint8_t* value_cache, const std::uint16_t* key_scale_bf16,
+    const std::uint16_t* value_scale_bf16, const DecodeControl* control,
+    std::uint64_t kv_heads, std::uint64_t head_dimension,
+    std::uint64_t cache_capacity, bool sliding, cudaStream_t stream) {
+  if (key == nullptr || value == nullptr || key_cache == nullptr ||
+      value_cache == nullptr || key_scale_bf16 == nullptr ||
+      value_scale_bf16 == nullptr || control == nullptr || kv_heads == 0U ||
+      head_dimension == 0U || cache_capacity == 0U ||
+      kv_heads > std::numeric_limits<std::uint64_t>::max() / head_dimension) {
+    return Invalid("controlled FP8 KV append arguments are invalid");
+  }
+  const std::uint64_t elements = kv_heads * head_dimension;
+  const std::uint64_t blocks = Blocks(elements);
+  if (!ValidGrid(blocks)) {
+    return Invalid("controlled FP8 KV append grid exceeds CUDA limits");
+  }
+  ControlledAppendKvKernel<std::uint8_t, true>
+      <<<static_cast<unsigned>(blocks), kThreads, 0, stream>>>(
+          key, value, key_cache, value_cache, key_scale_bf16,
+          value_scale_bf16, control, elements, cache_capacity, sliding);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("launch controlled FP8 KV append", error);
 }
 
 Status LaunchLocalAttentionDecode(const float* query, const float* key_cache,
@@ -753,6 +1035,80 @@ Status LaunchLocalAttentionDecodeFp8(
   return error == cudaSuccess
              ? Status::Ok()
              : CudaFailure("launch FP8 attention values", error);
+}
+
+template <typename CacheType, bool kFp8>
+Status LaunchLocalAttentionDecodeControlledImpl(
+    const float* query, const CacheType* key_cache,
+    const CacheType* value_cache, const std::uint16_t* key_scale_bf16,
+    const std::uint16_t* value_scale_bf16, float* scores, float* output,
+    const DecodeControl* control, std::uint64_t query_heads,
+    std::uint64_t kv_heads, std::uint64_t head_dimension,
+    std::uint64_t cache_capacity, bool sliding, cudaStream_t stream) {
+  if (query == nullptr || key_cache == nullptr || value_cache == nullptr ||
+      scores == nullptr || output == nullptr || control == nullptr ||
+      (kFp8 && (key_scale_bf16 == nullptr || value_scale_bf16 == nullptr)) ||
+      query_heads == 0U || kv_heads == 0U || head_dimension == 0U ||
+      cache_capacity == 0U || query_heads % kv_heads != 0U ||
+      query_heads > std::numeric_limits<std::uint64_t>::max() /
+                        cache_capacity ||
+      query_heads > std::numeric_limits<std::uint64_t>::max() /
+                        head_dimension) {
+    return Invalid("controlled attention arguments are invalid");
+  }
+  const std::uint64_t elements = query_heads * head_dimension;
+  const std::uint64_t value_blocks = Blocks(elements);
+  if (!ValidGrid(value_blocks) ||
+      !ValidGrid(query_heads)) {
+    return Invalid("controlled attention grid exceeds CUDA limits");
+  }
+  ControlledAttentionScoreKernel<CacheType, kFp8>
+      <<<static_cast<unsigned>(query_heads), kThreads, 0, stream>>>(
+          query, key_cache, key_scale_bf16, scores, control, query_heads,
+          kv_heads, head_dimension, cache_capacity, sliding);
+  cudaError_t error = cudaGetLastError();
+  if (error != cudaSuccess) {
+    return CudaFailure("launch controlled attention scores", error);
+  }
+  ControlledAttentionSoftmaxKernel
+      <<<static_cast<unsigned>(query_heads), kThreads, 0, stream>>>(
+          scores, control, cache_capacity, sliding);
+  error = cudaGetLastError();
+  if (error != cudaSuccess) {
+    return CudaFailure("launch controlled attention softmax", error);
+  }
+  ControlledAttentionValueKernel<CacheType, kFp8>
+      <<<static_cast<unsigned>(value_blocks), kThreads, 0, stream>>>(
+          scores, value_cache, value_scale_bf16, output, control, query_heads,
+          kv_heads, head_dimension, cache_capacity, sliding, elements);
+  error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("launch controlled attention values", error);
+}
+
+Status LaunchLocalAttentionDecodeControlled(
+    const float* query, const float* key_cache, const float* value_cache,
+    float* scores, float* output, const DecodeControl* control,
+    std::uint64_t query_heads, std::uint64_t kv_heads,
+    std::uint64_t head_dimension, std::uint64_t cache_capacity,
+    bool sliding, cudaStream_t stream) {
+  return LaunchLocalAttentionDecodeControlledImpl<float, false>(
+      query, key_cache, value_cache, nullptr, nullptr, scores, output, control,
+      query_heads, kv_heads, head_dimension, cache_capacity, sliding, stream);
+}
+
+Status LaunchLocalAttentionDecodeFp8Controlled(
+    const float* query, const std::uint8_t* key_cache,
+    const std::uint8_t* value_cache, const std::uint16_t* key_scale_bf16,
+    const std::uint16_t* value_scale_bf16, float* scores, float* output,
+    const DecodeControl* control, std::uint64_t query_heads,
+    std::uint64_t kv_heads, std::uint64_t head_dimension,
+    std::uint64_t cache_capacity, bool sliding, cudaStream_t stream) {
+  return LaunchLocalAttentionDecodeControlledImpl<std::uint8_t, true>(
+      query, key_cache, value_cache, key_scale_bf16, value_scale_bf16, scores,
+      output, control, query_heads, kv_heads, head_dimension, cache_capacity,
+      sliding, stream);
 }
 
 Status LaunchRotaryEmbeddingBatch(

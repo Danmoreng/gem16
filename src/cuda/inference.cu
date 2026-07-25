@@ -491,6 +491,7 @@ class LoadedModel {
 };
 
 struct WorkspaceOffsets {
+  std::uint64_t decode_control = 0;
   std::uint64_t hidden_a = 0;
   std::uint64_t hidden_b = 0;
   std::uint64_t normalized = 0;
@@ -519,6 +520,11 @@ struct WorkspaceOffsets {
   std::uint64_t selected = 0;
   std::uint64_t suppressed = 0;
   std::uint64_t total = 0;
+};
+
+struct HostDecodeState {
+  internal::DecodeControl control{};
+  std::uint32_t selected_token = 0;
 };
 
 struct PrefillOffsets {
@@ -567,6 +573,19 @@ __global__ void EmbeddingKernel(const std::uint16_t* weights, std::uint32_t toke
   const float weight = static_cast<float>(__ushort_as_bfloat16(weights[
       static_cast<std::uint64_t>(token) * kHidden + index]));
   const float scale = static_cast<float>(__float2bfloat16_rn(sqrtf(static_cast<float>(kHidden))));
+  output[index] = static_cast<float>(__float2bfloat16_rn(weight * scale));
+}
+
+__global__ void ControlledEmbeddingKernel(
+    const std::uint16_t* weights, const internal::DecodeControl* control,
+    float* output) {
+  const std::uint64_t index =
+      static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+  if (index >= kHidden) return;
+  const float weight = static_cast<float>(__ushort_as_bfloat16(
+      weights[static_cast<std::uint64_t>(control->token) * kHidden + index]));
+  const float scale = static_cast<float>(
+      __float2bfloat16_rn(sqrtf(static_cast<float>(kHidden))));
   output[index] = static_cast<float>(__float2bfloat16_rn(weight * scale));
 }
 
@@ -621,6 +640,44 @@ __global__ void ArgmaxKernel(const float* logits, const std::uint32_t* suppresse
   for (std::uint64_t index = threadIdx.x; index < kVocabulary; index += blockDim.x) {
     bool skip = false;
     for (std::uint32_t suppressed_index = 0; suppressed_index < suppressed_count;
+         ++suppressed_index) {
+      if (index == suppressed[suppressed_index]) {
+        skip = true;
+        break;
+      }
+    }
+    if (skip) continue;
+    const float value = logits[index];
+    if (value > best.value || (value == best.value && index < best.token)) {
+      best = {value, static_cast<std::uint32_t>(index)};
+    }
+  }
+  scratch[threadIdx.x] = best;
+  __syncthreads();
+  for (unsigned stride = kThreads / 2U; stride != 0U; stride >>= 1U) {
+    if (threadIdx.x < stride) {
+      const ArgmaxValue other = scratch[threadIdx.x + stride];
+      if (other.value > scratch[threadIdx.x].value ||
+          (other.value == scratch[threadIdx.x].value &&
+           other.token < scratch[threadIdx.x].token)) {
+        scratch[threadIdx.x] = other;
+      }
+    }
+    __syncthreads();
+  }
+  if (threadIdx.x == 0U) selected[0] = scratch[0].token;
+}
+
+__global__ void ControlledArgmaxKernel(
+    const float* logits, const std::uint32_t* suppressed,
+    const internal::DecodeControl* control, std::uint32_t* selected) {
+  __shared__ ArgmaxValue scratch[kThreads];
+  ArgmaxValue best{-FLT_MAX, 0U};
+  for (std::uint64_t index = threadIdx.x; index < kVocabulary;
+       index += blockDim.x) {
+    bool skip = false;
+    for (std::uint32_t suppressed_index = 0;
+         suppressed_index < control->suppressed_token_count;
          ++suppressed_index) {
       if (index == suppressed[suppressed_index]) {
         skip = true;
@@ -753,6 +810,10 @@ class InferenceEngine {
     status = AllocatePrefillWorkspace();
     if (!status.ok()) return status;
     if (enable_decode_graphs_) {
+      status = decode_host_state_.Allocate(
+          (sizeof(HostDecodeState) + sizeof(float) - 1U) / sizeof(float),
+          "allocate decode graph host control");
+      if (!status.ok()) return status;
       std::size_t free_before = 0U;
       std::size_t total_before = 0U;
       cudaError_t memory_error = cudaMemGetInfo(&free_before, &total_before);
@@ -789,6 +850,22 @@ class InferenceEngine {
     const StateCaptureLayout state_layout = MakeStateCaptureLayout();
     if (!host_state.empty() && host_state.size() != state_layout.elements) {
       return Error(StatusCode::kInternal, "host state capture span has invalid size");
+    }
+    if (enable_decode_graphs_ && select_token && host_logits.empty() &&
+        host_state.empty()) {
+      HostDecodeState* host = host_decode_state();
+      host->control.token = token;
+      host->control.position = position;
+      const cudaError_t launch_error =
+          cudaGraphLaunch(full_decode_graph_.get(), stream_);
+      if (launch_error != cudaSuccess) {
+        return CudaFailure("launch full decode graph", launch_error);
+      }
+      const cudaError_t sync_error = cudaStreamSynchronize(stream_);
+      if (sync_error != cudaSuccess) {
+        return CudaFailure("synchronize full decode graph", sync_error);
+      }
+      return host->selected_token;
     }
     float* hidden_a = Pointer<float>(workspace_, offsets_.hidden_a);
     EmbeddingKernel<<<static_cast<unsigned>((kHidden + kThreads - 1U) / kThreads), kThreads,
@@ -929,6 +1006,10 @@ class InferenceEngine {
                    "the initial greedy path supports at most 16 suppressed tokens");
     }
     suppressed_token_count_ = static_cast<std::uint32_t>(tokens.size());
+    if (enable_decode_graphs_) {
+      host_decode_state()->control.suppressed_token_count =
+          suppressed_token_count_;
+    }
     if (tokens.empty()) return Status::Ok();
     const cudaError_t error = cudaMemcpyAsync(
         Pointer<std::uint32_t>(workspace_, offsets_.suppressed), tokens.data(),
@@ -989,6 +1070,7 @@ class InferenceEngine {
       if (!next.ok()) return next.status();                 \
       offsets_.field = next.value();                        \
     } while (false)
+    GEM16GB_ADD(decode_control, internal::DecodeControl, 1U);
     GEM16GB_ADD(hidden_a, float, kHidden);
     GEM16GB_ADD(hidden_b, float, kHidden);
     GEM16GB_ADD(normalized, float, kHidden);
@@ -1318,6 +1400,122 @@ class InferenceEngine {
     return Status::Ok();
   }
 
+  [[nodiscard]] HostDecodeState* host_decode_state() const {
+    return reinterpret_cast<HostDecodeState*>(decode_host_state_.span().data());
+  }
+
+  [[nodiscard]] Status LaunchControlledDecodeLayer(
+      const LayerBinding& layer) {
+    Status status = LaunchDecodePrefix(layer);
+    if (!status.ok()) return status;
+    auto* control = Pointer<internal::DecodeControl>(
+        workspace_, offsets_.decode_control);
+    float* q_norm = Pointer<float>(workspace_, offsets_.q_norm);
+    float* k_norm = Pointer<float>(workspace_, offsets_.k_norm);
+    float* v_norm = Pointer<float>(workspace_, offsets_.v_norm);
+    float* scores = Pointer<float>(workspace_, offsets_.scores);
+    float* attention = Pointer<float>(workspace_, offsets_.attention);
+    if (layer.global) {
+      status = internal::LaunchProportionalRotaryEmbeddingControlled(
+          q_norm, kQueryHeads, layer.head_dimension, 0.25, control,
+          1000000.0, 1.0, stream_);
+      if (!status.ok()) return status;
+      status = internal::LaunchProportionalRotaryEmbeddingControlled(
+          k_norm, layer.kv_heads, layer.head_dimension, 0.25, control,
+          1000000.0, 1.0, stream_);
+    } else {
+      status = internal::LaunchRotaryEmbeddingControlled(
+          q_norm, kQueryHeads, layer.head_dimension, layer.head_dimension,
+          control, 10000.0, stream_);
+      if (!status.ok()) return status;
+      status = internal::LaunchRotaryEmbeddingControlled(
+          k_norm, layer.kv_heads, layer.head_dimension, layer.head_dimension,
+          control, 10000.0, stream_);
+    }
+    if (!status.ok()) return status;
+    status = LaunchRoundBf16(q_norm, layer.query_elements, stream_);
+    if (!status.ok()) return status;
+    status = LaunchRoundBf16(k_norm, layer.kv_elements, stream_);
+    if (!status.ok()) return status;
+    const std::uint64_t capacity =
+        layer.global ? max_context_ : std::min(max_context_, kSlidingWindow);
+    if (kv_cache_mode_ == KvCacheMode::kCheckpointFp8) {
+      status = internal::LaunchAppendKvFp8Controlled(
+          k_norm, v_norm, layer.key_cache_fp8, layer.value_cache_fp8,
+          layer.k_cache_scale, layer.v_cache_scale, control, layer.kv_heads,
+          layer.head_dimension, capacity, !layer.global, stream_);
+      if (!status.ok()) return status;
+      status = internal::LaunchLocalAttentionDecodeFp8Controlled(
+          q_norm, layer.key_cache_fp8, layer.value_cache_fp8,
+          layer.k_cache_scale, layer.v_cache_scale, scores, attention, control,
+          kQueryHeads, layer.kv_heads, layer.head_dimension, capacity,
+          !layer.global, stream_);
+    } else {
+      status = internal::LaunchAppendKvControlled(
+          k_norm, v_norm, layer.key_cache_bf16, layer.value_cache_bf16,
+          control, layer.kv_heads, layer.head_dimension, capacity,
+          !layer.global, stream_);
+      if (!status.ok()) return status;
+      status = internal::LaunchLocalAttentionDecodeControlled(
+          q_norm, layer.key_cache_bf16, layer.value_cache_bf16, scores,
+          attention, control, kQueryHeads, layer.kv_heads,
+          layer.head_dimension, capacity, !layer.global, stream_);
+    }
+    if (!status.ok()) return status;
+    return LaunchDecodeSuffix(layer, nullptr, nullptr);
+  }
+
+  [[nodiscard]] Status LaunchFullDecodeGraphBody() {
+    HostDecodeState* host = host_decode_state();
+    auto* control = Pointer<internal::DecodeControl>(
+        workspace_, offsets_.decode_control);
+    cudaError_t error = cudaMemcpyAsync(
+        control, &host->control, sizeof(host->control), cudaMemcpyHostToDevice,
+        stream_);
+    if (error != cudaSuccess) {
+      return CudaFailure("copy decode graph control", error);
+    }
+    float* hidden = Pointer<float>(workspace_, offsets_.hidden_a);
+    ControlledEmbeddingKernel<<<
+        static_cast<unsigned>((kHidden + kThreads - 1U) / kThreads), kThreads,
+        0, stream_>>>(model_.embedding(), control, hidden);
+    error = cudaGetLastError();
+    if (error != cudaSuccess) {
+      return CudaFailure("launch controlled embedding", error);
+    }
+    for (const LayerBinding& layer : model_.layers()) {
+      Status status = LaunchControlledDecodeLayer(layer);
+      if (!status.ok()) return status;
+    }
+    float* normalized = Pointer<float>(workspace_, offsets_.normalized);
+    Status status = internal::LaunchRmsNorm(
+        hidden, model_.final_norm(), normalized, 1U, kHidden, kEpsilon, stream_);
+    if (!status.ok()) return status;
+    status = LaunchRoundBf16(normalized, kHidden, stream_);
+    if (!status.ok()) return status;
+    float* logits = Pointer<float>(workspace_, offsets_.logits);
+    auto* selected = Pointer<std::uint32_t>(workspace_, offsets_.selected);
+    OutputHeadKernel<<<static_cast<unsigned>(kVocabulary), kThreads, 0,
+                       stream_>>>(model_.embedding(), normalized, logits);
+    error = cudaGetLastError();
+    if (error != cudaSuccess) {
+      return CudaFailure("launch controlled output head", error);
+    }
+    ControlledArgmaxKernel<<<1U, kThreads, 0, stream_>>>(
+        logits, Pointer<std::uint32_t>(workspace_, offsets_.suppressed),
+        control, selected);
+    error = cudaGetLastError();
+    if (error != cudaSuccess) {
+      return CudaFailure("launch controlled argmax", error);
+    }
+    error = cudaMemcpyAsync(&host->selected_token, selected,
+                            sizeof(host->selected_token),
+                            cudaMemcpyDeviceToHost, stream_);
+    return error == cudaSuccess
+               ? Status::Ok()
+               : CudaFailure("copy controlled selected token", error);
+  }
+
   [[nodiscard]] Status PrepareDecodeGraphs() {
     cudaError_t error = cudaStreamSynchronize(stream_);
     if (error != cudaSuccess) {
@@ -1338,7 +1536,10 @@ class InferenceEngine {
           "capture decode suffix graph");
       if (!status.ok()) return status;
     }
-    return Status::Ok();
+    *host_decode_state() = HostDecodeState{};
+    return CaptureDecodeGraph(
+        full_decode_graph_, [this]() { return LaunchFullDecodeGraphBody(); },
+        "capture full decode graph");
   }
 
   [[nodiscard]] Status LaunchDecodePrefix(const LayerBinding& layer) {
@@ -1675,10 +1876,12 @@ class InferenceEngine {
   DeviceAllocation cache_;
   DeviceAllocation workspace_;
   DeviceAllocation prefill_workspace_;
+  PinnedHostAllocation decode_host_state_;
   WorkspaceOffsets offsets_{};
   PrefillOffsets prefill_offsets_{};
   std::array<GraphExecutable, kLayers> decode_prefix_graphs_{};
   std::array<GraphExecutable, kLayers> decode_suffix_graphs_{};
+  GraphExecutable full_decode_graph_;
   cudaStream_t stream_ = nullptr;
   std::uint64_t max_context_ = 0;
   std::uint64_t decode_graph_device_bytes_ = 0;

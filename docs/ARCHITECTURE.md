@@ -18,18 +18,19 @@ architecture backend should reuse those contracts while supplying its own kernel
 
 ## Planned execution split
 
-Prefill and decode use separate execution plans. Both draw from named preallocated device
-arenas. Decode uses fixed addresses and captures two position-independent CUDA Graph segments per layer during
-initialization. RoPE, KV append, and attention stay outside those graphs because their scalar launch parameters
-depend on the active position and context. Decode may not allocate, access files, capture graphs, or compile code
-in the token loop.
+Prefill and decode use separate execution plans. Both draw from named preallocated device arenas. Decode uses fixed
+addresses and captures a complete greedy forward graph during initialization. A preallocated pinned-host control
+record is copied into a device control record at graph launch and supplies the current token, position, and
+suppression count to device-side RoPE, KV append, ring selection, attention, and argmax logic. Two
+position-independent segments per layer are also retained for diagnostic forwards that request hidden states or
+full logits. Decode may not allocate, access files, capture graphs, or compile code in the token loop.
 
 The model-specific sequence is attention normalization and FP8 projections, specialized local/global attention,
 then NVFP4 MLP projections and residual updates. This sequence now exists both as an independent Layer-0 comparison
 probe and as an unfused, batch-one 48-layer greedy characterization. The latter loads the complete text-only model
 into one aligned arena, keeps separate K/V state and reusable workspace allocations fixed for the run, applies the
 tied BF16 embedding/output matrix, exact logit softcap, and GPU argmax, and performs no token-loop allocation. It
-uses partial graph replay but is not yet benchmark-qualified.
+uses one full graph replay for ordinary greedy decode but is not yet benchmark-qualified.
 
 The first full-model path intentionally accepts token IDs and uses a hybrid cache through the checkpoint's 262,144
 position contract. Its 40 local-attention layers use fixed 1,024-token rings; its eight full-attention layers use

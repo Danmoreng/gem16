@@ -8,6 +8,12 @@
 
 namespace gem16gb::internal {
 
+struct DecodeControl {
+  std::uint32_t token = 0;
+  std::uint32_t suppressed_token_count = 0;
+  std::uint64_t position = 0;
+};
+
 [[nodiscard]] Status LaunchRmsNorm(const float* input,
                                    const std::uint16_t* weight_bf16,
                                    float* output,
@@ -33,6 +39,16 @@ namespace gem16gb::internal {
                                                        double scaling_factor,
                                                        cudaStream_t stream);
 
+[[nodiscard]] Status LaunchRotaryEmbeddingControlled(
+    float* states, std::uint64_t heads, std::uint64_t head_dimension,
+    std::uint64_t rotary_dimensions, const DecodeControl* control,
+    double theta, cudaStream_t stream);
+
+[[nodiscard]] Status LaunchProportionalRotaryEmbeddingControlled(
+    float* states, std::uint64_t heads, std::uint64_t head_dimension,
+    double rotary_factor, const DecodeControl* control, double theta,
+    double scaling_factor, cudaStream_t stream);
+
 [[nodiscard]] Status LaunchAppendKv(const float* key,
                                     const float* value,
                                     float* key_cache,
@@ -52,6 +68,19 @@ namespace gem16gb::internal {
                                        std::uint64_t kv_heads,
                                        std::uint64_t head_dimension,
                                        cudaStream_t stream);
+
+[[nodiscard]] Status LaunchAppendKvControlled(
+    const float* key, const float* value, float* key_cache,
+    float* value_cache, const DecodeControl* control,
+    std::uint64_t kv_heads, std::uint64_t head_dimension,
+    std::uint64_t cache_capacity, bool sliding, cudaStream_t stream);
+
+[[nodiscard]] Status LaunchAppendKvFp8Controlled(
+    const float* key, const float* value, std::uint8_t* key_cache,
+    std::uint8_t* value_cache, const std::uint16_t* key_scale_bf16,
+    const std::uint16_t* value_scale_bf16, const DecodeControl* control,
+    std::uint64_t kv_heads, std::uint64_t head_dimension,
+    std::uint64_t cache_capacity, bool sliding, cudaStream_t stream);
 
 // Correctness-first batch-one decode attention. `scores` is a caller-owned
 // workspace of query_heads * tokens floats and is overwritten with probabilities.
@@ -85,6 +114,21 @@ namespace gem16gb::internal {
     cudaStream_t stream,
     std::uint64_t cache_capacity = 0,
     std::uint64_t first_slot = 0);
+
+[[nodiscard]] Status LaunchLocalAttentionDecodeControlled(
+    const float* query, const float* key_cache, const float* value_cache,
+    float* scores, float* output, const DecodeControl* control,
+    std::uint64_t query_heads, std::uint64_t kv_heads,
+    std::uint64_t head_dimension, std::uint64_t cache_capacity,
+    bool sliding, cudaStream_t stream);
+
+[[nodiscard]] Status LaunchLocalAttentionDecodeFp8Controlled(
+    const float* query, const std::uint8_t* key_cache,
+    const std::uint8_t* value_cache, const std::uint16_t* key_scale_bf16,
+    const std::uint16_t* value_scale_bf16, float* scores, float* output,
+    const DecodeControl* control, std::uint64_t query_heads,
+    std::uint64_t kv_heads, std::uint64_t head_dimension,
+    std::uint64_t cache_capacity, bool sliding, cudaStream_t stream);
 
 [[nodiscard]] Status LaunchScale(float* values,
                                  const std::uint16_t* scalar_bf16,
