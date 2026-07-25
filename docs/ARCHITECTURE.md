@@ -42,7 +42,10 @@ The first full-model path intentionally accepts token IDs and uses a hybrid cach
 position contract. Its 40 local-attention layers use fixed 1,024-token rings; its eight full-attention layers use
 absolute, growing storage. Checkpoint-FP8 prefill uses one fixed 1,024-token chunk, batches direct-source FP8 and
 NVFP4 SM120 MMA across tokens, reuses each NVFP4 weight fragment across eight consecutive 16-token MMA tiles,
-and evaluates local D256 and global D512 causal attention with shape-specific online Tensor-Core kernels. Those
+and groups eight NVFP4 warps into an M128xN64 CTA. Each K64 step cooperatively stages the CTA's exact packed
+activation bytes and E4M3 scale words once in shared memory, replacing eight redundant per-warp activation-load
+streams without changing checkpoint weights or FP32 K accumulation. It evaluates local D256 and global D512
+causal attention with shape-specific online Tensor-Core kernels. Those
 kernels stage current-chunk K/V directly, read older positions from the circular or growing cache, retain row max,
 normalization sum, and output accumulators in FP32, and never materialize a global score matrix. K/V is committed
 only after the layer's attention finishes. The serial path remains a test/probe oracle and is not a runtime option. The pure C++
@@ -83,6 +86,12 @@ softmax state. This deliberately changes the scalar FP32 reference's reduction t
 is qualified with local/global operator error distributions plus vLLM model-logit gates rather than bit identity.
 The local kernel uses 32-query by 32-key tiles; the global kernel uses 16-query by 16-key tiles. Both consume the
 physical E4M3 K/V bytes and checkpoint BF16 scales without a persistent conversion or fallback.
+
+The production NVFP4 prefill projection uses 256-thread M128xN64xK64 CTAs. Its shared activation stage is a
+temporary 4,608-byte payload within the kernel allocation, not an arena or checkpoint-layout copy. Gate, Up, and
+Down continue to read packed E2M1 weights and E4M3 weight scales directly from the source-format final device
+allocation. The selected kernel uses 123 registers, 5,632 total static shared bytes including toolchain overhead,
+and no stack or local memory.
 
 ## Memory-plan boundary
 

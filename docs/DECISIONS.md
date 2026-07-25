@@ -1,5 +1,27 @@
 # Decisions
 
+## 2026-07-25: Reuse each NVFP4 activation K64 slice across an M128xN64 CTA
+
+Date: 2026-07-25
+Decision: Make the sole production NVFP4 prefill kernel use eight-warp, 256-thread M128xN64xK64 CTAs. Retain the
+existing M128 per-warp accumulator stack and direct N8 packed-weight fragments, but cooperatively stage the exact
+M128xK64 packed activation bytes and E4M3 activation-scale words once in shared memory for all eight output warps.
+Context: After the M128 register-reuse promotion, Nsight still attributed about 47% of projected prefill GPU time
+to NVFP4. Every output warp independently issued the same activation loads and address arithmetic while only its
+N8 weight fragment differed.
+Alternatives: Prefetch the next weight fragment in registers; extend each warp to M256; retain four-warp N32
+CTAs; add a selectable CTA size; decode or repack weights. Adjacent 3/10 measurement found register prefetch
+neutral/slightly slower and it was removed. M256 spills. Permanent geometry choices conflict with the one-winner
+plan, and weight conversion is unnecessary before exact activation reuse is exhausted.
+Consequences: The kernel uses 123 registers, 5,632 static shared bytes, zero stack/local memory, and no new arena
+or persistent allocation. Packed checkpoint weights and scales remain unchanged. K64 and FP32 accumulation order
+within every M16N8 result is identical. No runtime selector or fallback is added.
+Evidence: Against a separately built `2366c03` reference, 3/10 median prefill improves by 26.0%/29.8%/26.7% at
+128/512/2,048 tokens. The 512 and 2,048 confidence intervals do not overlap. Nsight reduces Gate+Up, Down, and
+total NVFP4 time by 49.4%, 54.4%, and 51.2%. Release CTest, exact-blue, vLLM 129/257 boundary logits, and every
+teacher-forced aggregate remain unchanged. Evidence is retained under
+`benchmarks/results/2026-07-25/abb430c-worktree/blackwell16gb-linux-nvfp4-cta-m128n64/`.
+
 ## 2026-07-25: Vectorize checkpoint-FP8 key reads without reordering QK
 
 Date: 2026-07-25

@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "status": "characterization",
+  "profile_runs": 2,
+  "prompt_tokens": 512,
+  "reference_commit": "2366c03",
+  "gpu_time_per_execution_ms": {
+    "reference": {"gate_up": 149.9697225, "down": 84.735528, "nvfp4_total": 234.7052505, "all_gpu_operations": 497.91069},
+    "candidate": {"gate_up": 75.9449365, "down": 38.630668, "nvfp4_total": 114.5756045, "all_gpu_operations": 350.2379845}
+  },
+  "reduction_percent": {"gate_up": 49.360, "down": 54.410, "nvfp4_total": 51.183, "all_gpu_operations": 29.658},
+  "launch_geometry": {
+    "reference_gate_up": {"grid": [480, 4, 1], "block": [128, 1, 1]},
+    "reference_down": {"grid": [120, 4, 1], "block": [128, 1, 1]},
+    "candidate_gate_up": {"grid": [240, 4, 1], "block": [256, 1, 1]},
+    "candidate_down": {"grid": [60, 4, 1], "block": [256, 1, 1]}
+  },
+  "kernel_resources": {
+    "registers": 123,
+    "shared_bytes": 5632,
+    "stack_bytes": 0,
+    "local_bytes": 0
+  },
+  "reports": {
+    "reference": "build/Linux/blackwell-release/profiles/linux/prefill-512-nvfp4-m128-reference-adjacent.nsys-rep",
+    "candidate": "build/Linux/blackwell-release/profiles/linux/prefill-512-nvfp4-cta-m128n64.nsys-rep"
+  }
+}

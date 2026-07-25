@@ -94,6 +94,18 @@ zero stack/local memory; the attempted M256 extension is rejected at 255 registe
 CTest, exact-blue, both vLLM boundary logits, and every aggregate metric in the 12-prompt/127-position suite are
 unchanged. No workspace, weight layout, or persistent memory changes.
 
+The next CTA promotion groups eight of those warps into an M128xN64 block and cooperatively stages each K64
+activation slice and its E4M3 scales once in shared memory. Against a separately built `2366c03` reference, 3/10
+median throughput rises from 1,000.70/1,099.00/1,031.94 to 1,260.67/1,427.00/1,307.64 tok/s at
+128/512/2,048 (+26.0%/+29.8%/+26.7%); median TTFT falls by 20.6%/23.0%/21.1%. At 512 and 2,048 the 95%
+confidence intervals do not overlap. Adjacent Nsight profiles reduce Gate+Up from 149.97 to 75.94 ms per
+execution (-49.4%), Down from 84.74 to 38.63 ms (-54.4%), and total NVFP4 projection time from 234.71 to
+114.58 ms (-51.2%). The CTA uses 123 registers, 5,632 static shared bytes, and zero stack/local memory. It adds no
+arena or persistent allocation and leaves packed weights in their source layout. CTest, exact-blue, vLLM boundary
+rank/logprob metrics, and all 12-prompt/127-position teacher-forced aggregates are identical to the parent.
+Evidence is under
+`benchmarks/results/2026-07-25/abb430c-worktree/blackwell16gb-linux-nvfp4-cta-m128n64/`.
+
 The following console characterizations were collected on the same Windows Blackwell development machine after
 commits `0d2065e` and `914aba1`, using direct checkpoint loading, checkpoint FP8 KV, native SM120 projections, and
 the opt-in fused Gate/Up path. They are not accepted benchmark artifacts: 128 and 512 prefill use the full 3 warm-up/
@@ -122,6 +134,7 @@ fusion removes two launches per layer, while wider/pipelined projection tiles re
 
 | Date | Commit | Hypothesis | Configuration | Before | After | Quality delta | VRAM delta | Decision |
 |---|---|---|---|---:|---:|---:|---:|---|
+| 2026-07-25 | `abb430c` worktree | One M128 activation K64 slice can be staged once and reused across eight N8 output warps without changing native MMA arithmetic | Linux RTX 5080 Laptop, CUDA 13.3, FP8 KV; context 128/512/2,048, adjacent 3/10; Nsight context 512 | M128xN32: 1,000.70/1,099.00/1,031.94 tok/s; NVFP4 234.71 ms/execution | M128xN64 CTA: 1,260.67/1,427.00/1,307.64 tok/s (+26.0%/+29.8%/+26.7%); NVFP4 114.58 ms (-51.2%) | Exact same boundary metrics and 118/127 teacher-forced Top-1 aggregate; exact-blue and CTest pass | No arena or persistent-memory change; 123 registers, 5,632 shared bytes, zero stack/local memory | Promote M128xN64 shared-activation CTA as the sole NVFP4 prefill kernel; continue asynchronous pipeline work |
 | 2026-07-25 | `a375583` worktree | Retaining each packed NVFP4 weight/scale fragment across a larger M tile reduces repeated source-layout traffic without changing per-tile arithmetic | Linux RTX 5080 Laptop, CUDA 13.3, FP8 KV; context 128/512/2,048, 3/10; Nsight context 512 | M32: 948.73/973.15/915.24 tok/s; NVFP4 286.97 ms/execution | M128: 1,024.10/1,095.56/1,032.91 tok/s (+7.9%/+12.6%/+12.9%); NVFP4 233.33 ms (-18.7%) | Exact same 118/127 teacher-forced Top-1 aggregate and boundary/full-generation gates; CTest passes | No arena or persistent-memory change; 128 registers, zero stack/local memory | Promote M128 as the sole production NVFP4 batch tile; reject M256 because it creates a 248-byte stack frame; continue CTA pipeline work |
 | 2026-07-25 | `c0f42de` plus qualification worktree | Shape-specific Tensor-Core online attention and a full 1,024-token prompt tile remove score traffic, scalar QK/PV, and repeated layer launches | Linux RTX 5080 Laptop, CUDA 13.3, FP8 KV; context 128/512/2,048, 3/10; Nsight context 512 | Score-matrix path: 698.25 tok/s at 512; attention 199.77 ms/execution; ~9,235 GPU ops | Online path: 973.15 tok/s at 512 (+39.4%); attention 24.41 ms (8.18x faster); ~2,311 GPU ops; chunk 1,024 gives 915.24 tok/s at 2K vs 893.60 for chunk 512 | CUDA operator max abs <=0.001013 and cosine >=0.999993; vLLM Top-1 rank 1 at 129/257; exact-blue; 118/127 teacher-forced Top-1 | Score arena removed; context-2K workspace 435,275,264 bytes, +216,823,808 vs chunk 512; zero hot-kernel stack/local memory | Retain online local/global attention and 1,024 as the sole checkpoint-FP8 production plan; optimize NVFP4 projections next |
 | 2026-07-25 | `c0c9b42` worktree | Wide FP8 key loads can remove inefficient byte transactions without changing attention arithmetic | Linux RTX 5080 Laptop, CUDA 13.3, FP8 KV, context 512, 3/10; separately built reference | Scalar byte loads: 603.42 tok/s, 848.50 ms TTFT | Aligned 16-byte loads: 698.25 tok/s (+15.72%), 733.27 ms TTFT (-13.58%) | Bit-identical 32-D FP8 fused/reference operator output; exact 129/257 sequences; exact-blue and CUDA/unit gates pass | No arena or persistent-memory change | Promote wide loads as the only checkpoint-FP8 fused prefill attention path; Nsight measures -43.37% attention time |

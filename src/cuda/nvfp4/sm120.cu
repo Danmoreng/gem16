@@ -21,6 +21,9 @@ constexpr std::uint64_t kFusedGateUpTokenTilesPerWarp = 2;
 constexpr unsigned kWarpSize = 32;
 constexpr unsigned kWarpsPerBlock = 4;
 constexpr unsigned kThreadsPerBlock = kWarpSize * kWarpsPerBlock;
+constexpr unsigned kPrefillWarpsPerBlock = 8;
+constexpr unsigned kPrefillThreadsPerBlock =
+    kWarpSize * kPrefillWarpsPerBlock;
 constexpr float kSqrtTwoOverPi = 0.7978845608028654F;
 constexpr float kGeluCubic = 0.044715F;
 
@@ -316,7 +319,8 @@ __global__ void Sm120FusedGateUpKernel(
 #endif
 }
 
-template <bool kFusedGateUp, std::uint64_t kTokenTiles>
+template <bool kFusedGateUp, std::uint64_t kTokenTiles,
+          unsigned kBlockWarps, bool kStageActivation>
 __global__ void Sm120MatrixProjectionKernel(
     const std::uint8_t* packed_activation_e2m1,
     const std::uint8_t* activation_scales_e4m3fn,
@@ -329,18 +333,28 @@ __global__ void Sm120MatrixProjectionKernel(
     float output_divisor, float up_output_divisor) {
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1200
   static_assert(kTokenTiles >= 1U);
+  static_assert(kBlockWarps >= 1U);
+  constexpr unsigned kStagedTokens =
+      static_cast<unsigned>(kTokensPerMma * kTokenTiles);
+  constexpr unsigned kPackedWordsPerKBlock =
+      static_cast<unsigned>(kElementsPerKBlock / 8U);
+  __shared__ alignas(16) std::uint32_t staged_activation
+      [kStageActivation ? kStagedTokens * kPackedWordsPerKBlock : 1U];
+  __shared__ alignas(16) std::uint32_t staged_activation_scales
+      [kStageActivation ? kStagedTokens : 1U];
   const unsigned warp = threadIdx.x / kWarpSize;
   const unsigned lane = threadIdx.x & (kWarpSize - 1U);
   const unsigned group = lane >> 2U;
   const unsigned thread_in_group = lane & 3U;
   const std::uint64_t global_warp =
-      static_cast<std::uint64_t>(blockIdx.x) * kWarpsPerBlock + warp;
+      static_cast<std::uint64_t>(blockIdx.x) * kBlockWarps + warp;
   const std::uint64_t row_tiles = (rows + kRowsPerWarp - 1U) / kRowsPerWarp;
-  if (global_warp >= row_tiles) return;
+  const bool warp_active = global_warp < row_tiles;
 
   const std::uint64_t token_base = static_cast<std::uint64_t>(blockIdx.y) *
                                    kTokensPerMma * kTokenTiles;
-  const std::uint64_t weight_column = global_warp * kRowsPerWarp + group;
+  const std::uint64_t weight_column =
+      warp_active ? global_warp * kRowsPerWarp + group : rows;
   const std::uint64_t packed_row_bytes = contracting_elements / 2U;
   const std::uint64_t scale_row_bytes = contracting_elements / 16U;
   const std::uint64_t k_blocks = contracting_elements / kElementsPerKBlock;
@@ -351,6 +365,31 @@ __global__ void Sm120MatrixProjectionKernel(
   for (std::uint64_t k_block = 0; k_block < k_blocks; ++k_block) {
     const std::uint64_t k_offset =
         k_block * 32U + static_cast<std::uint64_t>(thread_in_group) * 4U;
+    if constexpr (kStageActivation) {
+      for (unsigned index = threadIdx.x;
+           index < kStagedTokens * kPackedWordsPerKBlock;
+           index += blockDim.x) {
+        const unsigned token_offset = index / kPackedWordsPerKBlock;
+        const unsigned word = index % kPackedWordsPerKBlock;
+        const std::uint64_t token = token_base + token_offset;
+        staged_activation[index] =
+            token < tokens
+                ? LoadU32(packed_activation_e2m1 +
+                          token * packed_row_bytes + k_block * 32U +
+                          static_cast<std::uint64_t>(word) * 4U)
+                : 0U;
+      }
+      for (unsigned token_offset = threadIdx.x;
+           token_offset < kStagedTokens; token_offset += blockDim.x) {
+        const std::uint64_t token = token_base + token_offset;
+        staged_activation_scales[token_offset] =
+            token < tokens
+                ? LoadU32(activation_scales_e4m3fn +
+                          token * scale_row_bytes + k_block * 4U)
+                : 0U;
+      }
+      __syncthreads();
+    }
     std::uint32_t b0 = 0U;
     std::uint32_t b1 = 0U;
     std::uint32_t scale_b = 0U;
@@ -381,26 +420,37 @@ __global__ void Sm120MatrixProjectionKernel(
           token_base + tile * kTokensPerMma;
       const std::uint64_t token_low = tile_token_base + group;
       const std::uint64_t token_high = token_low + 8U;
-      const std::uint32_t a0 =
-          token_low < tokens
-              ? LoadU32(packed_activation_e2m1 +
-                        token_low * packed_row_bytes + k_offset)
-              : 0U;
-      const std::uint32_t a1 =
-          token_high < tokens
-              ? LoadU32(packed_activation_e2m1 +
-                        token_high * packed_row_bytes + k_offset)
-              : 0U;
-      const std::uint32_t a2 =
-          token_low < tokens
-              ? LoadU32(packed_activation_e2m1 +
-                        token_low * packed_row_bytes + k_offset + 16U)
-              : 0U;
-      const std::uint32_t a3 =
-          token_high < tokens
-              ? LoadU32(packed_activation_e2m1 +
-                        token_high * packed_row_bytes + k_offset + 16U)
-              : 0U;
+      const unsigned staged_low =
+          static_cast<unsigned>(tile * kTokensPerMma) + group;
+      const unsigned staged_high = staged_low + 8U;
+      const std::uint32_t a0 = kStageActivation
+          ? staged_activation[staged_low * kPackedWordsPerKBlock +
+                              thread_in_group]
+          : (token_low < tokens
+                 ? LoadU32(packed_activation_e2m1 +
+                           token_low * packed_row_bytes + k_offset)
+                 : 0U);
+      const std::uint32_t a1 = kStageActivation
+          ? staged_activation[staged_high * kPackedWordsPerKBlock +
+                              thread_in_group]
+          : (token_high < tokens
+                 ? LoadU32(packed_activation_e2m1 +
+                           token_high * packed_row_bytes + k_offset)
+                 : 0U);
+      const std::uint32_t a2 = kStageActivation
+          ? staged_activation[staged_low * kPackedWordsPerKBlock +
+                              thread_in_group + 4U]
+          : (token_low < tokens
+                 ? LoadU32(packed_activation_e2m1 +
+                           token_low * packed_row_bytes + k_offset + 16U)
+                 : 0U);
+      const std::uint32_t a3 = kStageActivation
+          ? staged_activation[staged_high * kPackedWordsPerKBlock +
+                              thread_in_group + 4U]
+          : (token_high < tokens
+                 ? LoadU32(packed_activation_e2m1 +
+                           token_high * packed_row_bytes + k_offset + 16U)
+                 : 0U);
       std::uint32_t scale_a = 0U;
       // With thread-id-a=0, the lower two lanes in each quad supply the four
       // block scales for rows group and group+8 respectively.
@@ -408,8 +458,11 @@ __global__ void Sm120MatrixProjectionKernel(
         const std::uint64_t scale_token =
             token_low + static_cast<std::uint64_t>(thread_in_group) * 8U;
         if (scale_token < tokens) {
-          scale_a = LoadU32(activation_scales_e4m3fn +
-                            scale_token * scale_row_bytes + k_block * 4U);
+          scale_a = kStageActivation
+              ? staged_activation_scales[
+                    staged_low + thread_in_group * 8U]
+              : LoadU32(activation_scales_e4m3fn +
+                        scale_token * scale_row_bytes + k_block * 4U);
         }
       }
       MmaNvfp4(accumulator[tile][0], accumulator[tile][1],
@@ -420,6 +473,9 @@ __global__ void Sm120MatrixProjectionKernel(
                   up_accumulator[tile][2], up_accumulator[tile][3], a0, a1,
                   a2, a3, up_b0, up_b1, scale_a, up_scale_b);
       }
+    }
+    if constexpr (kStageActivation) {
+      __syncthreads();
     }
   }
 
@@ -543,7 +599,9 @@ Status LaunchNvfp4Sm120DirectProjectionBatch(
     return Invalid("batched SM120 NVFP4 projection divisor product overflowed");
   }
   const std::uint64_t row_tiles = (rows + kRowsPerWarp - 1U) / kRowsPerWarp;
-  const std::uint64_t blocks = (row_tiles + kWarpsPerBlock - 1U) / kWarpsPerBlock;
+  const std::uint64_t blocks =
+      (row_tiles + kPrefillWarpsPerBlock - 1U) /
+      kPrefillWarpsPerBlock;
   if (blocks > static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
     return Invalid("batched SM120 NVFP4 projection grid exceeds CUDA limits");
   }
@@ -552,9 +610,10 @@ Status LaunchNvfp4Sm120DirectProjectionBatch(
   const std::uint64_t grouped_token_tiles =
       (token_tiles + kPrefillTokenTilesPerWarp - 1U) /
       kPrefillTokenTilesPerWarp;
-  Sm120MatrixProjectionKernel<false, kPrefillTokenTilesPerWarp><<<
+  Sm120MatrixProjectionKernel<false, kPrefillTokenTilesPerWarp,
+                              kPrefillWarpsPerBlock, true><<<
       dim3(static_cast<unsigned>(blocks), static_cast<unsigned>(grouped_token_tiles)),
-      kThreadsPerBlock, 0, stream>>>(
+      kPrefillThreadsPerBlock, 0, stream>>>(
       packed_activation_e2m1, activation_scales_e4m3fn, packed_weight_e2m1,
       weight_scales_e4m3fn, nullptr, nullptr, nullptr, nullptr, output, tokens,
       rows, contracting_elements, output_divisor, 1.0F);
@@ -664,7 +723,8 @@ Status LaunchNvfp4Sm120FusedGateUpBatch(
   const std::uint64_t grouped_token_tiles =
       (token_tiles + kFusedGateUpTokenTilesPerWarp - 1U) /
       kFusedGateUpTokenTilesPerWarp;
-  Sm120MatrixProjectionKernel<true, kFusedGateUpTokenTilesPerWarp><<<
+  Sm120MatrixProjectionKernel<true, kFusedGateUpTokenTilesPerWarp,
+                              kWarpsPerBlock, false><<<
       dim3(static_cast<unsigned>(blocks), static_cast<unsigned>(grouped_token_tiles)),
       kThreadsPerBlock, 0, stream>>>(
       packed_activation_e2m1, activation_scales_e4m3fn,

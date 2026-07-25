@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "status": "characterization",
+  "reference_commit": "2366c03",
+  "candidate_commit": "abb430c-worktree",
+  "warmup_runs": 3,
+  "measured_runs": 10,
+  "seed": 0,
+  "results": [
+    {
+      "prompt_tokens": 128,
+      "workspace_bytes": 435152384,
+      "reference": {
+        "median_tokens_per_second": 1000.6965110087384,
+        "mean_tokens_per_second": 925.2517533405189,
+        "confidence_95_tokens_per_second": [804.8890673617437, 1045.614439319294],
+        "median_ttft_ms": 127.918194,
+        "raw_prompt_ms": [119.329296, 163.407827, 211.915823, 128.883559, 120.087657, 116.952109, 126.952829, 169.947177, 152.538288, 123.258141]
+      },
+      "candidate": {
+        "median_tokens_per_second": 1260.67220692499,
+        "mean_tokens_per_second": 1149.7270759368473,
+        "confidence_95_tokens_per_second": [989.1173302274007, 1310.336821646294],
+        "median_ttft_ms": 101.6258845,
+        "raw_prompt_ms": [96.345775, 95.84736, 136.872777, 168.324956, 104.696041, 98.555728, 96.886128, 96.411809, 112.726246, 153.838455]
+      },
+      "median_throughput_change_percent": 25.979,
+      "median_ttft_reduction_percent": 20.554
+    },
+    {
+      "prompt_tokens": 512,
+      "workspace_bytes": 435176960,
+      "reference": {
+        "median_tokens_per_second": 1099.0042362015029,
+        "mean_tokens_per_second": 1097.5935026946065,
+        "confidence_95_tokens_per_second": [1054.656286875075, 1140.530718514138],
+        "median_ttft_ms": 466.1630205,
+        "raw_prompt_ms": [505.157429, 435.333269, 496.404379, 439.758765, 490.074841, 444.271045, 483.727762, 450.329916, 477.724597, 454.601444]
+      },
+      "candidate": {
+        "median_tokens_per_second": 1427.0018370183377,
+        "mean_tokens_per_second": 1431.1895576595557,
+        "confidence_95_tokens_per_second": [1369.819626137607, 1492.5594891815044],
+        "median_ttft_ms": 358.882935,
+        "raw_prompt_ms": [326.581975, 393.143899, 344.189868, 353.240145, 377.760217, 337.067654, 383.435127, 343.984152, 364.525725, 365.143863]
+      },
+      "median_throughput_change_percent": 29.845,
+      "median_ttft_reduction_percent": 23.013
+    },
+    {
+      "prompt_tokens": 2048,
+      "workspace_bytes": 435275264,
+      "reference": {
+        "median_tokens_per_second": 1031.9416013692826,
+        "mean_tokens_per_second": 1031.7252860551969,
+        "confidence_95_tokens_per_second": [1030.072289527518, 1033.378282582876],
+        "median_ttft_ms": 1984.608757,
+        "raw_prompt_ms": [1977.969885, 1982.027292, 1980.30906, 1982.818806, 1983.801568, 1985.415946, 1986.950032, 1989.295639, 1990.75212, 1990.994565]
+      },
+      "candidate": {
+        "median_tokens_per_second": 1307.6429729012648,
+        "mean_tokens_per_second": 1308.5012945210058,
+        "confidence_95_tokens_per_second": [1306.054827414521, 1310.947761627491],
+        "median_ttft_ms": 1566.176756,
+        "raw_prompt_ms": [1559.917035, 1566.364102, 1558.22912, 1563.924458, 1566.371085, 1562.761818, 1565.98941, 1568.632836, 1567.377763, 1572.022441]
+      },
+      "median_throughput_change_percent": 26.717,
+      "median_ttft_reduction_percent": 21.084
+    }
+  ]
+}
