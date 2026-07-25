@@ -8,6 +8,13 @@ of the correctness and native-kernel gates below.
 
 ## Active gate
 
+- Execute the binding [prefill optimization plan](PREFILL_OPTIMIZATION_PLAN.md): first replace scalar,
+  score-materializing local/global prefill attention with FP32-online-softmax Tensor-Core kernels; then promote the
+  best deterministic 512/1,024-token prompt plan, rebuild NVFP4 and FP8 projections around large pipelined CTA
+  tiles, and finally apply only profile-proven fusions. Every stable promotion requires correctness, generation,
+  logit, 3-warm-up/10-run benchmark, Nsight, spill, allocation, and peak-VRAM evidence and becomes the sole
+  production path.
+
 - The first arena-backed 48-layer decode characterization loads all text-only tensors once, uses fixed
   workspace/KV arenas, executes the tied output head and GPU argmax, and supports explicit checkpoint-FP8 and BF16
   K/V semantics. Physical byte-per-value E4M3FN storage is implemented. The exact-blue gate passes, but the sky
@@ -80,8 +87,10 @@ The llama.cpp benchmark is deliberately before engine kernel optimization, but a
 8. ~~Add a separate native prefill plan without reusing the decode plan.~~ The promoted plan uses context-budgeted
    128-token chunks, fused causal attention, and NVFP4 warps that reuse each weight fragment across 32 prompt rows.
    FP8 and NVFP4 projections now both reuse weights across two consecutive MMA token tiles. Continue with true
-   asynchronous block-level projection pipelines. Fused FP8 attention now uses bit-identical 16-byte key reads;
-   the next attention step is an online FlashAttention-style design with an explicit numerical qualification.
+   asynchronous block-level projection pipelines. Fused FP8 attention now uses bit-identical 16-byte key reads.
+   The ordered execution and qualification contract for online Tensor-Core attention, larger prompt chunks,
+   pipelined projections, and later fusion is now fixed in
+   [the prefill optimization plan](PREFILL_OPTIMIZATION_PLAN.md).
 9. The checkpoint's FP8 Q/K/V/O projection path is implemented with an independent CPU oracle, CUDA reference,
    direct-source `QMMA.16832` route, and real Layer-0 checks. The unfused local-attention decode sublayer assembles
    input RMSNorm, Q/K/V, per-head Q/K and scale-free V normalization, RoPE, separate K/V append/read, FP32 softmax,

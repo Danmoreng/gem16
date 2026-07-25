@@ -8,6 +8,14 @@ decode characterization.
 
 ## Native prefill and long-context decode characterization
 
+The active work program, required gates, and promotion policy are fixed in
+[`docs/PREFILL_OPTIMIZATION_PLAN.md`](PREFILL_OPTIMIZATION_PLAN.md). At `1bc942b`, the Linux 512-token median is
+698.25 tok/s versus the retained vLLM orientation point of 6,146.50 tok/s. A direct Nsight comparison attributes
+approximately 289.78/199.77/131.13 ms of gem16gb GPU time per execution to NVFP4 projections, attention, and FP8
+projections, versus 24.23/13.11/27.15 ms for vLLM. The plan therefore prioritizes online Tensor-Core attention,
+then larger deterministic prompt chunks, large pipelined NVFP4 CTA tiles, large/grouped FP8 projection tiles, and
+only then residual profile-proven fusions. These values identify work; they are not parity benchmark claims.
+
 The first consolidated Linux run at base commit `960528d` fixes the production plan to native SM120 projections,
 chunked/fused prefill, separate Gate/Up/GELU, complete decode graphs, and fused output reduction. It uses checkpoint
 FP8 KV and the standard 3 warm-up/10 measured policy. These ratios are orientation only: retained llama.cpp and
