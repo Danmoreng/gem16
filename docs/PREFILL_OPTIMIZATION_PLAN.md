@@ -15,11 +15,12 @@ promoted only when it wins the prescribed repeated benchmark and passes all appl
 winner becomes the sole production implementation; rejected and superseded implementations do not remain as
 user-selectable optimization modes.
 
-The initial Linux reference point is commit `1bc942b`:
+The initial Linux reference point is commit `1bc942b`; the online-attention/1,024-token candidate at `c0f42de`
+advances the same 512-token characterization as follows:
 
-| Workload | gem16gb median | vLLM median | Relative throughput |
-|---|---:|---:|---:|
-| Prefill, 512 prompt tokens, batch 1 | 698.25 tok/s, 733.27 ms TTFT | 6,146.50 tok/s, 83.3 ms TTFT | 0.114x |
+| Workload | Initial gem16gb | Current gem16gb | vLLM | Current/vLLM |
+|---|---:|---:|---:|---:|
+| Prefill, 512 prompt tokens, batch 1 | 698.25 tok/s | 973.15 tok/s | 6,146.50 tok/s | 0.158x |
 
 These numbers are diagnostic rather than a parity claim because the retained vLLM run and gem16gb do not yet have
 identical timing boundaries and cache precision. The optimization goal does not depend on presenting the ratio as
@@ -28,22 +29,21 @@ a headline result; accepted comparisons must satisfy `docs/BENCHMARKING.md` and 
 ## Profile-derived diagnosis
 
 A direct Linux Nsight Systems characterization of both engines at 512 tokens gives the following approximate GPU
-cost per prefill execution:
+cost per prefill execution. The current column is the online-attention path; the initial column is the profile that
+established this program:
 
-| Phase | gem16gb | vLLM | Gap |
-|---|---:|---:|---:|
-| NVFP4 MLP projections | 289.78 ms | 24.23 ms | 11.96x |
-| Attention | 199.77 ms | 13.11 ms | 15.24x |
-| FP8 attention projections | 131.13 ms | 27.15 ms | 4.83x |
-| Other GPU work | 115.98 ms | 9.98 ms | 11.62x |
-| Total GPU time | 736.66 ms | 74.47 ms | 9.89x |
+| Phase | Initial gem16gb | Current gem16gb | vLLM | Current gap |
+|---|---:|---:|---:|---:|
+| NVFP4 MLP projections | 289.78 ms | 286.97 ms | 24.23 ms | 11.84x |
+| Attention | 199.77 ms | 24.41 ms | 13.11 ms | 1.86x |
+| FP8 attention projections | 131.13 ms | 122.95 ms | 27.15 ms | 4.53x |
+| Other GPU work | 115.98 ms | 105.92 ms | 9.98 ms | 10.61x |
+| Total GPU time | 736.66 ms | 540.25 ms | 74.47 ms | 7.25x |
 
-gem16gb launches approximately 9,235 kernels per execution in this profile, versus 747 for vLLM. The current
-gem16gb attention assigns a CTA to one query/head pair, computes QK and PV with scalar reductions, materializes a
-large global score matrix, and executes a 512-token prompt as four 128-token layer passes. vLLM uses a Triton
-online-softmax attention kernel with Tensor-Core dot products and processes the prompt in one pass. Launch reduction
-alone cannot close the gap: attention and both projection families require larger tiles and substantially more
-reuse.
+The initial gem16gb path launched approximately 9,235 GPU operations per execution, versus 747 for vLLM. Online
+attention and the 1,024-token plan reduce this to approximately 2,311. Attention is no longer the dominant gap;
+NVFP4 projections now consume about 53% of current GPU time and remain almost 12x slower than vLLM. Large
+projection tiles and substantially more weight reuse are therefore the next critical work.
 
 The neighboring Apache-2.0 NInfer implementation supplies useful implementation concepts, not a compatible
 runtime path: shape-specific plans, BF16 Tensor-Core QK/PV, FP32 online softmax, swizzled shared-memory staging,
@@ -53,6 +53,8 @@ local/global Gemma attention geometry, circular local cache addressing, and its 
 ## Ordered implementation program
 
 ### 1. Online Tensor-Core prefill attention
+
+Status: implemented and model-qualified at `c0f42de`; final artifact bookkeeping remains part of the milestone.
 
 Implement Gemma-specific attention without a global score matrix:
 
@@ -71,6 +73,11 @@ as an internal verified milestone only when production behavior is not regressed
 both attention geometries are qualified and the online implementation is the sole production path.
 
 ### 2. Promote the largest deterministic winning prompt chunk
+
+Status: 1,024 selected as the sole checkpoint-FP8 standard. At 2,048 prompt tokens it reaches 915.24 tok/s versus
+893.60 tok/s for 512-token chunks (+2.42%), with non-overlapping 95% confidence intervals. At 512 tokens the
+difference is statistically indistinguishable; 1,024 uses about 217 MB more reusable workspace and remains within
+the 16 GB budget.
 
 After the score arena is removed, measure complete-prompt chunks of `512` and `1,024` tokens against the current
 context-budgeted plan. Select the fastest size that is deterministic, fits the measured arena budget across context
@@ -121,7 +128,7 @@ Every promoted milestone must pass:
   changed code;
 - comparison with the retained unfused/reference operator, reporting maximum absolute error, RMS error, cosine
   similarity, and row-sum/finite checks where applicable;
-- exact-blue generation and exact eight-token sequences for the fixed 129- and 257-token prompt fixtures;
+- exact-blue generation and vLLM Top-1/full-logit comparison at the fixed 129- and 257-token prefill boundaries;
 - the committed teacher-forced suite and full-logit comparison when the changed arithmetic can affect logits;
 - checks at chunk boundaries, a wrapped local cache, and at least one global-attention layer;
 - unchanged tokenizer, chat template, sampling configuration, checkpoint revision, and prompt token IDs.
@@ -130,6 +137,11 @@ Tensor-Core online softmax deliberately changes floating-point reduction order, 
 attention oracle is not a valid universal requirement. Any tolerance used for promotion must be derived from the
 observed distribution, recorded in `tests/tolerances.yaml`, and supported by model-logit and generation evidence.
 No tolerance may be relaxed only to accept a speedup.
+
+The former eight-token boundary sequences were generated by the old gem16gb path itself and are not a trustworthy
+reference: direct vLLM generation differs from them. The committed boundary fixture is produced offline by vLLM
+0.25.1 from the pinned checkpoint and checks the only position computed by batch prefill. Later positions belong
+to the separate teacher-forced decode suite.
 
 ## Mandatory performance and resource gates
 

@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "status": "characterization",
+  "profile_runs": 2,
+  "prompt_tokens": 512,
+  "gpu_time_per_execution_ms": {
+    "nvfp4_projection": 286.967315,
+    "fp8_projection": 122.952145,
+    "rotary_batch": 56.479149,
+    "online_local_attention": 15.368405,
+    "online_global_attention": 9.04282,
+    "online_attention_total": 24.411225,
+    "all_gpu_operations": 540.25
+  },
+  "gpu_operations_per_execution": 2311,
+  "kernel_resources": {
+    "online_local": {"registers": 252, "shared_bytes": 50176, "stack_bytes": 0, "local_bytes": 0},
+    "online_global": {"registers": 254, "shared_bytes": 50176, "stack_bytes": 0, "local_bytes": 0}
+  },
+  "report": "build/Linux/blackwell-release/profiles/linux/prefill-512-online-attention.nsys-rep"
+}

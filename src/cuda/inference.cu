@@ -1003,10 +1003,15 @@ class InferenceEngine {
   }
 
   [[nodiscard]] Result<std::uint32_t> Prefill(
-      std::span<const std::uint32_t> token_ids) {
+      std::span<const std::uint32_t> token_ids,
+      std::span<float> host_logits = {}) {
     const NvtxRange range("gem16gb.prefill");
     if (token_ids.empty() || token_ids.size() > max_context_) {
       return Error(StatusCode::kInvalidArgument, "prefill token extent is invalid");
+    }
+    if (!host_logits.empty() && host_logits.size() != kVocabulary) {
+      return Error(StatusCode::kInternal,
+                   "host prefill logit capture span has invalid size");
     }
     std::uint32_t selected_token = 0U;
     for (std::size_t begin = 0; begin < token_ids.size(); begin += prefill_chunk_tokens_) {
@@ -1044,6 +1049,14 @@ class InferenceEngine {
             model_.embedding(), last, logits);
         error = cudaGetLastError();
         if (error != cudaSuccess) return CudaFailure("launch prefill output head", error);
+        if (!host_logits.empty()) {
+          error = cudaMemcpyAsync(host_logits.data(), logits,
+                                  host_logits.size_bytes(),
+                                  cudaMemcpyDeviceToHost, stream_);
+          if (error != cudaSuccess) {
+            return CudaFailure("copy prefill full logits", error);
+          }
+        }
         ArgmaxKernel<<<1U, kThreads, 0, stream_>>>(
             logits, Pointer<std::uint32_t>(workspace_, offsets_.suppressed),
             suppressed_token_count_, selected);
@@ -2184,7 +2197,8 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
   result.teacher_forced_token_ids = options.teacher_forced_token_ids;
   result.teacher_forcing = teacher_forcing;
   result.kv_cache_mode = options.kv_cache_mode;
-  result.decode_graphs = options.state_dump_path.empty();
+  result.decode_graphs =
+      options.state_dump_path.empty() && options.logits_dump_path.empty();
   result.model_load_milliseconds = Milliseconds(load_end - load_start);
   result.weight_arena_bytes = engine.weight_bytes();
   result.kv_cache_bytes = engine.cache_bytes();
@@ -2198,8 +2212,12 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
   const auto prompt_start = std::chrono::steady_clock::now();
   std::uint32_t next_token = 0;
   bool state_captured = false;
-  if (options.logits_dump_path.empty() && options.state_dump_path.empty()) {
-    auto prefilled = engine.Prefill(options.input_token_ids);
+  if (options.state_dump_path.empty()) {
+    const std::span<float> prefill_logits =
+        captured_logits.span().empty()
+            ? std::span<float>()
+            : captured_logits.span().first(static_cast<std::size_t>(kVocabulary));
+    auto prefilled = engine.Prefill(options.input_token_ids, prefill_logits);
     if (!prefilled.ok()) return prefilled.status();
     next_token = prefilled.value();
   } else for (std::size_t index = 0; index < options.input_token_ids.size(); ++index) {

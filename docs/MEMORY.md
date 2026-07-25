@@ -45,15 +45,15 @@ A real FP8 allocation at a 1,026-position execution plan measured 176,177,152 ca
 40 local K/V rings plus 8,404,992 bytes for eight global K/V extents. This exactly matches the formula above and
 crosses the first local-ring wrap in full-model execution.
 
-The native prefill arena is allocated once during engine initialization. It holds a context-budgeted hidden/
-projection/MLP tile (128 tokens for normal and standard context plans, then 64 or 32 tokens in 32-token steps) and a
-causal score matrix sized as `prefill_chunk_tokens * 16 * planned_context * sizeof(float)`. The score budget is
-bounded at 512 MiB, so the maximum context plan selects 32-token chunks and remains below the initial 1 GiB
-activation-arena target. The selected chunk size is reported in every inference result and never changes inside
-prompt processing.
+The native prefill arena is allocated once during engine initialization. Checkpoint-FP8 execution holds one fixed
+1,024-token hidden/projection/MLP tile and no causal score matrix: local and global SM120 attention maintain online
+softmax state inside their CTAs. At context 128/512/2,048 the measured total reusable workspace is
+435,152,384/435,176,960/435,275,264 bytes. The explicit BF16 correctness mode still uses the scalar attention
+oracle and therefore retains the context-budgeted score matrix and deterministic 512 MiB score-budget selector.
+The selected chunk size is reported in every inference result and never changes inside prompt processing.
 
-The maximum 262,144-position FP8 execution plan was also initialized and executed successfully on the 16 GB
-development GPU. Measured arenas were 9,200,135,680 weight bytes, 2,315,255,808 hybrid KV bytes, and 568,663,552
-workspace bytes (12,084,055,040 bytes total, excluding CUDA context/runtime allocations). This proves allocation
-and single-token execution at the full configured extent; it is not evidence for practical 262K prefill latency or
-long-context output quality.
+The maximum 262,144-position FP8 execution plan was initialized and executed successfully before online attention
+removed its score arena. That retained measurement was 9,200,135,680 weight bytes, 2,315,255,808 hybrid KV bytes,
+and 568,663,552 workspace bytes. The current fixed FP8 prefill tile is smaller than that old workspace result, but
+a fresh maximum-context peak-VRAM capture is still required before replacing the retained figure. Neither result
+is evidence for practical 262K prefill latency or long-context output quality.

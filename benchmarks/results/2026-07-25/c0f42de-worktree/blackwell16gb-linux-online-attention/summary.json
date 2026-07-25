@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "status": "characterization",
+  "git_commit": "c0f42de-worktree",
+  "benchmarks": "chunk-comparison.json",
+  "correctness": "correctness.json",
+  "nsys_summary": "nsys/prefill-512-summary.json",
+  "production_change": "online_tensor_core_attention_and_prefill_chunk_1024",
+  "decision": "retain_online_local_global_attention_and_chunk_1024"
+}

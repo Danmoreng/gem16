@@ -40,11 +40,12 @@ uses one full graph replay for ordinary greedy decode but is not yet benchmark-q
 
 The first full-model path intentionally accepts token IDs and uses a hybrid cache through the checkpoint's 262,144
 position contract. Its 40 local-attention layers use fixed 1,024-token rings; its eight full-attention layers use
-absolute, growing storage. Native prefill processes context-budgeted chunks (128 tokens by default, reduced in
-32-token steps for the longest context plans) layer-by-layer, batches direct-source FP8 and NVFP4 SM120 MMA across
-tokens, reuses each projection weight fragment across two consecutive 16-token MMA tiles, and evaluates causal attention
-against prior cache state plus staged current-chunk
-K/V before committing the chunk to the cache. The serial path remains a test/probe oracle and is not a runtime option. The pure C++
+absolute, growing storage. Checkpoint-FP8 prefill uses one fixed 1,024-token chunk, batches direct-source FP8 and
+NVFP4 SM120 MMA across tokens, reuses each projection weight fragment across two consecutive 16-token MMA tiles,
+and evaluates local D256 and global D512 causal attention with shape-specific online Tensor-Core kernels. Those
+kernels stage current-chunk K/V directly, read older positions from the circular or growing cache, retain row max,
+normalization sum, and output accumulators in FP32, and never materialize a global score matrix. K/V is committed
+only after the layer's attention finishes. The serial path remains a test/probe oracle and is not a runtime option. The pure C++
 `GemmaChatProcessor` loads the checkpoint vocabulary, merge ranks, byte fallback, generation controls, and exact
 pinned Jinja artifact. It implements the supported text-only behavior of that template natively and rejects a
 different template revision rather than silently approximating it. This makes real chat flows testable now while
@@ -77,9 +78,11 @@ decode plan may therefore quantize their shared input once, contract both matric
 product in one closed operator. Down performs its own dynamic-local quantization and may fuse its residual epilogue.
 The attention projections remain a separate dynamic-FP8/per-channel-FP8 path.
 
-Checkpoint-FP8 prefill attention preserves the scalar reference's QK FMA order while loading each aligned key row
-as 16-byte vectors. Register extraction restores monotonically increasing dimensions before every FMA, so the
-optimized fused kernel remains bit-identical to the scalar score/softmax/value chain without uncoalesced byte loads.
+Checkpoint-FP8 prefill attention uses BF16 Tensor-Core QK and probability-times-V operations with FP32 online
+softmax state. This deliberately changes the scalar FP32 reference's reduction tree and rounds MMA operands, so it
+is qualified with local/global operator error distributions plus vLLM model-logit gates rather than bit identity.
+The local kernel uses 32-query by 32-key tiles; the global kernel uses 16-query by 16-key tiles. Both consume the
+physical E4M3 K/V bytes and checkpoint BF16 scales without a persistent conversion or fallback.
 
 ## Memory-plan boundary
 
@@ -89,8 +92,9 @@ payload in named regions with checked offsets. The required separate K/V size an
 bound are retained in every result; shared physical cache selection is rejected.
 
 The greedy characterization uses an execution workspace containing hidden-state ping-pong, quantized activations
-and scales, projection intermediates, attention scores, retained full logits, a 32 KiB fused-output candidate
-array, and GPU argmax state. Its exact size grows with the planned attention context and is reported per run.
+and scales, projection intermediates, retained full logits, a 32 KiB fused-output candidate array, and GPU argmax
+state. The checkpoint-FP8 prefill arena contains no attention-score region; only the explicit BF16 correctness
+mode retains the scalar attention score workspace. Exact sizes are reported per run.
 Its default hybrid cache stores physical E4M3FN bytes with checkpoint BF16 scales; an explicit float32
 BF16-semantics diagnostic allocation remains available. The general planner remains conservative until production
 prefill, graph, and sampling shapes are defined.

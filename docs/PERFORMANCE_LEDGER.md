@@ -65,6 +65,24 @@ projected prefill GPU time. A dedicated 32-dimensional FP8 operator fixture is b
 score/softmax/value chain; exact-blue and the 129/257 eight-token sequences also match. Evidence is under
 `benchmarks/results/2026-07-25/c0c9b42-worktree/blackwell16gb-linux-vectorized-attention/`.
 
+The Gemma-specific online-attention promotion then replaces the score matrix and scalar QK/PV loops with distinct
+local D256 and global D512 BF16 Tensor-Core kernels, FP32 online-softmax state, and direct current-chunk/cached K/V
+staging. At context 512 the 1,024-token plan reaches 973.15 tok/s median versus the preceding 698.25 tok/s
+orientation point (+39.4%) and lowers median TTFT to 526.17 ms. Nsight attributes 24.41 ms per execution to both
+online attention families, down from 199.77 ms (8.18x), while GPU operations fall from about 9,235 to 2,311. The
+remaining per-execution costs are approximately 286.97 ms NVFP4 projections and 122.95 ms FP8 projections, making
+the large NVFP4 CTA phase the next bottleneck. Local/global operator errors are respectively bounded by
+max-absolute 0.001013/0.000538 with cosine at least 0.999993/0.999997; both hot kernels have zero stack and local
+memory. Direct vLLM boundary fixtures place the vLLM Top-1 at engine rank 1 for both 129 and 257 prompt tokens.
+
+A 3-warm-up/10-run chunk comparison selects 1,024 as the sole checkpoint-FP8 plan. At 2,048 prompt tokens its
+915.24 tok/s median and 95% CI `[913.44, 918.03]` beat the 512-token plan's 893.60 tok/s and
+`[892.82, 894.88]` (+2.42%). Context-512 medians, 973.15 and 976.41 tok/s, are statistically indistinguishable;
+the longer plan therefore decides the selection. Reusable workspace rises from 218,451,456 to 435,275,264 bytes
+at context 2,048 and remains within the 16 GB budget. The fixed exact-blue generation, full CTest suite, and direct
+boundary gate pass. The production-path teacher-forced comparison remains 118/127 Top-1, while its Top-5 coverage
+is 126/127 after logit capture was corrected to stop bypassing batch prefill.
+
 The following console characterizations were collected on the same Windows Blackwell development machine after
 commits `0d2065e` and `914aba1`, using direct checkpoint loading, checkpoint FP8 KV, native SM120 projections, and
 the opt-in fused Gate/Up path. They are not accepted benchmark artifacts: 128 and 512 prefill use the full 3 warm-up/
@@ -93,6 +111,7 @@ fusion removes two launches per layer, while wider/pipelined projection tiles re
 
 | Date | Commit | Hypothesis | Configuration | Before | After | Quality delta | VRAM delta | Decision |
 |---|---|---|---|---:|---:|---:|---:|---|
+| 2026-07-25 | `c0f42de` plus qualification worktree | Shape-specific Tensor-Core online attention and a full 1,024-token prompt tile remove score traffic, scalar QK/PV, and repeated layer launches | Linux RTX 5080 Laptop, CUDA 13.3, FP8 KV; context 128/512/2,048, 3/10; Nsight context 512 | Score-matrix path: 698.25 tok/s at 512; attention 199.77 ms/execution; ~9,235 GPU ops | Online path: 973.15 tok/s at 512 (+39.4%); attention 24.41 ms (8.18x faster); ~2,311 GPU ops; chunk 1,024 gives 915.24 tok/s at 2K vs 893.60 for chunk 512 | CUDA operator max abs <=0.001013 and cosine >=0.999993; vLLM Top-1 rank 1 at 129/257; exact-blue; 118/127 teacher-forced Top-1 | Score arena removed; context-2K workspace 435,275,264 bytes, +216,823,808 vs chunk 512; zero hot-kernel stack/local memory | Retain online local/global attention and 1,024 as the sole checkpoint-FP8 production plan; optimize NVFP4 projections next |
 | 2026-07-25 | `c0c9b42` worktree | Wide FP8 key loads can remove inefficient byte transactions without changing attention arithmetic | Linux RTX 5080 Laptop, CUDA 13.3, FP8 KV, context 512, 3/10; separately built reference | Scalar byte loads: 603.42 tok/s, 848.50 ms TTFT | Aligned 16-byte loads: 698.25 tok/s (+15.72%), 733.27 ms TTFT (-13.58%) | Bit-identical 32-D FP8 fused/reference operator output; exact 129/257 sequences; exact-blue and CUDA/unit gates pass | No arena or persistent-memory change | Promote wide loads as the only checkpoint-FP8 fused prefill attention path; Nsight measures -43.37% attention time |
 | 2026-07-25 | `b032e6f` worktree | Adjacent FP8 token tiles can share each attention-projection weight fragment exactly as the NVFP4 winner does | Linux RTX 5080 Laptop, CUDA 13.3, FP8 KV, context 512, 3/10; separately built reference | One token tile/warp: 587.87 tok/s, 870.95 ms TTFT | Two token tiles/warp: 605.33 tok/s (+2.97%), 845.82 ms TTFT (-2.89%) | Exact 129/257-token eight-step sequences; exact-blue and CUDA/unit gates pass; no spill | No arena or persistent-memory change | Promote as the sole FP8 batch projection; Nsight measures -12.30% FP8 projection time |
 | 2026-07-25 | `8f05333` worktree | One warp can amortize each NVFP4 weight-fragment load over two 16-token MMA tiles without changing either tile's accumulation order | Linux RTX 5080 Laptop, CUDA 13.3, FP8 KV, context 512, 3/10; separately built reference immediately followed by candidate | One token tile/warp: 542.58 tok/s, 943.64 ms TTFT | Two token tiles/warp: 587.68 tok/s (+8.31%), 871.23 ms TTFT (-7.67%) | Exact 129/257-token eight-step sequences; exact-blue gate; CUDA/unit tests pass; no local-memory spill | No arena or persistent-memory change | Promote the two-tile kernel as the only production NVFP4 batch projection; Nsight measures -18.33% NVFP4 projection time |

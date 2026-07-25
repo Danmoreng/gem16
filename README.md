@@ -243,13 +243,12 @@ without opening the GUI:
 Reports and exported SQLite databases are written below the selected build directory's `profiles` folder and stay
 outside version control.
 
-Prompt ingestion uses a native 128-token chunk plan by default, reduced deterministically for very long context
-plans to keep the causal score arena bounded. Its FP8 attention and NVFP4 MLP projection warps each evaluate two
-consecutive 16-row by 8-column MMA tiles, reusing loaded checkpoint weight fragments across 32 prompt rows. Causal
-local/global attention combines score, softmax, and value phases into one block while
-preserving the reference reduction order. Its FP8 QK phase reads each aligned key row in 16-byte transactions and
-unpacks those bytes into the original serial FMA order. The token-at-a-time bridge and unfused attention implementation remain
-test/probe references and are not selectable from `gem16gb-run` or `gem16gb-bench`.
+Prompt ingestion uses one native 1,024-token chunk plan for checkpoint-FP8 execution. Its FP8 attention and NVFP4
+MLP projection warps each evaluate two consecutive 16-row by 8-column MMA tiles, reusing loaded checkpoint weight
+fragments across 32 prompt rows. Shape-specific local D256 and global D512 attention kernels perform QK and PV on
+Tensor Cores while retaining FP32 online-softmax state, reading older K/V from the hybrid cache, and avoiding a
+global score matrix. The token-at-a-time bridge and scalar attention implementation remain test/probe references
+and are not selectable from `gem16gb-run` or `gem16gb-bench`.
 
 ## Validate real-checkpoint layer assembly
 

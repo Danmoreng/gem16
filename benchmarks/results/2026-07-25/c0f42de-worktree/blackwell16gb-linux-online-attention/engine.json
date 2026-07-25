@@ -1,0 +1,14 @@
+{
+  "batch_size": 1,
+  "checkpoint_revision": "b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
+  "decode_graphs": true,
+  "fallbacks": 0,
+  "git_commit": "c0f42de-worktree",
+  "kv_cache": "checkpoint_fp8",
+  "prefill_attention": "online_tensor_core_local_d256_global_d512",
+  "prefill_chunk_tokens": 1024,
+  "projection_path": "native_sm120",
+  "schema_version": 1,
+  "source_layout_direct": true,
+  "token_loop_allocations": false
+}

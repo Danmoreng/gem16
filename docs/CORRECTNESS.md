@@ -89,10 +89,28 @@ position, but only through compensating arithmetic errors that have since been c
 valid current evidence.
 
 `--dump-logits` captures every selected position as full-vocabulary raw little-endian float32 after preallocating
-host storage, and `tools/compare_logits.py` compares it with the committed vLLM top-20 distributions. The earlier
+host storage, and `tools/compare_logits.py` compares it with the committed vLLM top-20 distributions. When no
+layer-state dump is requested, the first captured position now comes directly from the batch-prefill output head;
+older revisions silently replaced the whole prompt with token-at-a-time diagnostic forwards whenever logits were
+requested. Later captured positions remain ordinary teacher-forced decode. A layer-state dump still uses the
+serial diagnostic route because batch layer-state capture is not implemented. The earlier
 BF16-engine versus auto-FP8-vLLM comparison placed token `563` at engine rank 2 and token `7412` at engine rank 1;
 this was a real distribution difference, but it was caused by comparing different K/V modes rather than an argmax
 tie or sampling randomness.
+
+### Direct prefill-boundary reference
+
+`tools/generate_prefill_boundary_golden.py` runs vLLM 0.25.1 offline on two deterministic direct-token prompts of
+129 and 257 tokens and records complete greedy IDs plus Top-20 log probabilities. The fixture is pinned to the
+checkpoint revision and records the reference runtime, GPU, cache mode, and execution controls. It replaces an
+older boundary check whose expected eight-token sequences came from gem16gb itself and therefore could not serve
+as external correctness evidence.
+
+`tools/validate_prefill_boundaries.py` captures only the first generated position through the real batch-prefill
+plan and compares its full logits with that fixture. At checkpoint `c0f42de` plus the diagnostic capture fix, both
+the 129- and 257-token cases place the vLLM Top-1 at engine rank 1 with selected-token logprob absolute deltas
+0.22294 and 0.50785. Both runs report zero fallbacks and no token-loop allocations for the sole 1,024-token plan.
+Later fixture positions are deliberately excluded from this boundary gate because they exercise decode.
 
 `--dump-state <file> --dump-state-position <position>` captures, for every decoder layer, attention context/output,
 both normalized residual branches, Gate, Up, GELU product, MLP output, final hidden state, and newly appended K/V
@@ -132,7 +150,7 @@ records the engine's unmodified greedy prediction and full-vocabulary logits. St
 diagnostic mode. This separates per-position numerical agreement from autoregressive drift after the first
 different argmax.
 
-The 2026-07-24 Blackwell characterization produced:
+The 2026-07-24 serial-diagnostic characterization produced:
 
 | Engine/reference cache pair | Top-1 | Fully agreeing prompts | Reference Top-1 in Top-5 | Mean Top-20 overlap | Mean selected-logprob absolute delta |
 |---|---:|---:|---:|---:|---:|
@@ -143,6 +161,13 @@ The 2026-07-24 Blackwell characterization produced:
 
 These are strict token-ID counts. One BF16 mismatch shared by gem16gb and llama.cpp is an exact vLLM logprob tie
 whose deterministic tie choice differs; it remains counted as a mismatch.
+
+After logit capture was corrected to retain the production batch-prefill path, the FP8 comparison remains exactly
+118/127 Top-1 and 8/12 fully agreeing prompts. The vLLM Top-1 is now in the engine Top-5 at 126/127 positions,
+mean Top-20 overlap is 14.803/20, and mean selected-logprob absolute delta is 0.1629. The one rank-7 position is a
+later forced step of `sky_sentence_no_thinking`; it reflects the production KV state produced by batch prefill,
+not the online-attention boundary itself. These current values supersede the serial-diagnostic FP8 row for
+production-path qualification while retaining the older row as provenance.
 
 The llama.cpp candidate still differs in attention-weight storage: its conversion maps the source FP8 attention
 weights to BF16, so neither F16-cache row is exact format parity. Nevertheless, the results establish that gem16gb
@@ -172,12 +197,11 @@ python tools/verify_sm120_sass.py build/<OS>/blackwell-release/bin/gem16gb-cuda-
 
 ## Not yet established
 
-Accepted layer tolerances, full-vocabulary reference logits, broad task quality, and a statistically justified
-generation threshold have not been measured. Prompt-derived hidden/KV and 12-prompt teacher-forced top-20
-comparisons are implemented, but no tolerance has yet been accepted. Therefore `tests/tolerances.yaml` is
-intentionally empty. The committed vLLM fixtures provide greedy token IDs and top-20 log probabilities, but they
-are not substitutes for full-reference-logit Level 3 metrics. Tolerances will be added only after those
-distributions exist.
+Accepted model-wide layer tolerances, broad task quality, and a statistically justified generation threshold have
+not been measured. `tests/tolerances.yaml` now contains shape-specific local/global online-attention operator
+tolerances derived from CUDA-versus-FP32-oracle distributions; these are not global model tolerances. Prompt-derived
+hidden/KV, direct prefill full-logit, and 12-prompt teacher-forced Top-20 comparisons are implemented, but the
+committed vLLM Top-20 fixtures are not substitutes for full-reference-logit Level 3 metrics at every position.
 
 ## Direct reference runtime
 
