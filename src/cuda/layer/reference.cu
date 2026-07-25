@@ -493,6 +493,94 @@ __global__ void RotaryBatchKernel(
   token_states[second] = second_value * cosine + first_value * sine;
 }
 
+__global__ void RotaryTableBatchKernel(
+    float* cosine, float* sine, std::uint64_t rotating_pairs,
+    std::uint64_t frequency_dimension, std::uint64_t start_position,
+    double theta, double scaling_factor, std::uint64_t total_pairs) {
+  const std::uint64_t pair =
+      static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+  if (pair >= total_pairs) return;
+  const std::uint64_t token = pair / rotating_pairs;
+  const std::uint64_t index = pair % rotating_pairs;
+  const double exponent = 2.0 * static_cast<double>(index) /
+                          static_cast<double>(frequency_dimension);
+  const double angle = static_cast<double>(start_position + token) /
+                       (pow(theta, exponent) * scaling_factor);
+  cosine[pair] = static_cast<float>(cos(angle));
+  sine[pair] = static_cast<float>(sin(angle));
+}
+
+__global__ void ProjectionRmsNormRotaryBf16BatchKernel(
+    const float* query, const std::uint16_t* query_norm,
+    float* normalized_query, const float* key,
+    const std::uint16_t* key_norm, float* normalized_key,
+    const float* rotary_cosine, const float* rotary_sine,
+    std::uint64_t query_heads, std::uint64_t kv_heads,
+    std::uint64_t head_dimension, std::uint64_t rotating_pairs,
+    float epsilon) {
+  const std::uint64_t heads_per_token = query_heads + kv_heads;
+  const std::uint64_t token = blockIdx.x / heads_per_token;
+  const std::uint64_t combined_head = blockIdx.x % heads_per_token;
+  const bool is_query = combined_head < query_heads;
+  const std::uint64_t heads = is_query ? query_heads : kv_heads;
+  const std::uint64_t head =
+      is_query ? combined_head : combined_head - query_heads;
+  const float* input = is_query ? query : key;
+  const std::uint16_t* weight = is_query ? query_norm : key_norm;
+  float* output = is_query ? normalized_query : normalized_key;
+  const std::uint64_t base =
+      (token * heads + head) * head_dimension;
+
+  float squared_sum = 0.0F;
+  for (std::uint64_t index = threadIdx.x; index < head_dimension;
+       index += blockDim.x) {
+    const float value = static_cast<float>(
+        __float2bfloat16_rn(input[base + index]));
+    squared_sum = fmaf(value, value, squared_sum);
+  }
+  const float inverse_rms =
+      rsqrtf(BlockSum(squared_sum) / static_cast<float>(head_dimension) +
+             epsilon);
+
+  const std::uint64_t half = head_dimension / 2U;
+  for (std::uint64_t index = threadIdx.x; index < head_dimension;
+       index += blockDim.x) {
+    const bool rotated = index < rotating_pairs ||
+                         (index >= half && index < half + rotating_pairs);
+    if (rotated) continue;
+    const float rounded_input = static_cast<float>(
+        __float2bfloat16_rn(input[base + index]));
+    const float scale =
+        static_cast<float>(__ushort_as_bfloat16(weight[index]));
+    output[base + index] = static_cast<float>(__float2bfloat16_rn(
+        rounded_input * inverse_rms * scale));
+  }
+
+  if (threadIdx.x >= rotating_pairs) return;
+  const std::uint64_t index = threadIdx.x;
+  const std::uint64_t first = base + index;
+  const std::uint64_t second = first + half;
+  const float first_input = static_cast<float>(
+      __float2bfloat16_rn(input[first]));
+  const float second_input = static_cast<float>(
+      __float2bfloat16_rn(input[second]));
+  const float first_scale =
+      static_cast<float>(__ushort_as_bfloat16(weight[index]));
+  const float second_scale =
+      static_cast<float>(__ushort_as_bfloat16(weight[index + half]));
+  const float first_value = static_cast<float>(__float2bfloat16_rn(
+      first_input * inverse_rms * first_scale));
+  const float second_value = static_cast<float>(__float2bfloat16_rn(
+      second_input * inverse_rms * second_scale));
+  const std::uint64_t rotary_index = token * rotating_pairs + index;
+  const float cosine = rotary_cosine[rotary_index];
+  const float sine = rotary_sine[rotary_index];
+  output[first] = static_cast<float>(__float2bfloat16_rn(
+      first_value * cosine - second_value * sine));
+  output[second] = static_cast<float>(__float2bfloat16_rn(
+      second_value * cosine + first_value * sine));
+}
+
 __global__ void QuantizeKvBatchKernel(
     const float* key, const float* value, std::uint8_t* key_fp8,
     std::uint8_t* value_fp8, const std::uint16_t* key_scale_bf16,
@@ -1268,6 +1356,67 @@ Status LaunchProportionalRotaryEmbeddingBatch(
   return error == cudaSuccess
              ? Status::Ok()
              : CudaFailure("launch batched proportional RoPE", error);
+}
+
+Status LaunchProjectionRmsNormRotaryBf16Batch(
+    const float* query, const std::uint16_t* query_norm_bf16,
+    float* normalized_query, const float* key,
+    const std::uint16_t* key_norm_bf16, float* normalized_key,
+    const float* rotary_cosine, const float* rotary_sine,
+    std::uint64_t tokens, std::uint64_t query_heads,
+    std::uint64_t kv_heads, std::uint64_t head_dimension,
+    double rotary_factor, float epsilon, cudaStream_t stream) {
+  if (query == nullptr || query_norm_bf16 == nullptr ||
+      normalized_query == nullptr || key == nullptr ||
+      key_norm_bf16 == nullptr || normalized_key == nullptr || tokens == 0U ||
+      rotary_cosine == nullptr || rotary_sine == nullptr ||
+      query_heads == 0U || kv_heads == 0U || head_dimension == 0U ||
+      head_dimension > kThreads * 2U || head_dimension % 2U != 0U ||
+      !std::isfinite(rotary_factor) || rotary_factor <= 0.0 ||
+      rotary_factor > 1.0 ||
+      !std::isfinite(epsilon) || epsilon <= 0.0F) {
+    return Invalid("fused projection RMSNorm/RoPE geometry is invalid");
+  }
+  const std::uint64_t rotating_pairs = static_cast<std::uint64_t>(
+      rotary_factor * static_cast<double>(head_dimension / 2U));
+  const std::uint64_t blocks = tokens * (query_heads + kv_heads);
+  if (rotating_pairs == 0U || rotating_pairs > kThreads ||
+      !ValidGrid(blocks)) {
+    return Invalid("fused projection RMSNorm/RoPE extent is invalid");
+  }
+  ProjectionRmsNormRotaryBf16BatchKernel
+      <<<static_cast<unsigned>(blocks), kThreads, 0, stream>>>(
+          query, query_norm_bf16, normalized_query, key, key_norm_bf16,
+          normalized_key, rotary_cosine, rotary_sine, query_heads, kv_heads,
+          head_dimension, rotating_pairs, epsilon);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("launch fused projection RMSNorm/RoPE", error);
+}
+
+Status LaunchRotaryEmbeddingTableBatch(
+    float* cosine, float* sine, std::uint64_t tokens,
+    std::uint64_t rotating_pairs, std::uint64_t frequency_dimension,
+    std::uint64_t start_position, double theta, double scaling_factor,
+    cudaStream_t stream) {
+  if (cosine == nullptr || sine == nullptr || tokens == 0U ||
+      rotating_pairs == 0U || frequency_dimension == 0U ||
+      rotating_pairs * 2U > frequency_dimension ||
+      !std::isfinite(theta) || theta <= 0.0 ||
+      !std::isfinite(scaling_factor) || scaling_factor <= 0.0) {
+    return Invalid("batched RoPE table geometry is invalid");
+  }
+  const std::uint64_t total_pairs = tokens * rotating_pairs;
+  const std::uint64_t blocks = Blocks(total_pairs);
+  if (!ValidGrid(blocks)) return Invalid("batched RoPE table grid exceeds CUDA limits");
+  RotaryTableBatchKernel<<<static_cast<unsigned>(blocks), kThreads, 0, stream>>>(
+      cosine, sine, rotating_pairs, frequency_dimension, start_position,
+      theta, scaling_factor, total_pairs);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("launch batched RoPE table", error);
 }
 
 Status LaunchQuantizeKvFp8Batch(

@@ -127,6 +127,8 @@ def validate_inference(
         "fused_prefill_rmsnorm_fp8_quantization": True,
         "fused_prefill_rmsnorm_nvfp4_quantization": True,
         "fused_prefill_gated_gelu_nvfp4_quantization": True,
+        "fused_prefill_qk_rmsnorm_rope": True,
+        "prefill_rope_table": "precomputed_exact_max_context",
         "token_loop_allocations": False,
         "decoding_mode": "teacher_forced",
         "kv_cache_mode": expected_mode,

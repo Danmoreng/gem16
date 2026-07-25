@@ -113,6 +113,14 @@ preserve the former operation order and bytes exactly; the unfused sequence rema
 There is no fused/unfused runtime selector. Diagnostic decode can still request the normalized intermediate when
 capturing hidden states, while ordinary prefill omits that store.
 
+Q/K prefill uses another exact closed boundary. One CTA per token/head performs the projection-output BF16 cast,
+the original 256-thread RMSNorm reduction, normalized BF16 cast, RoPE, and the post-RoPE BF16 cast. Q and K share
+the launch but never share reduction state. Local D256 and proportional global D512 cosine/sine tables use the
+former double-precision `pow`/`cos`/`sin` expressions and are generated once during initialization for every
+position in the planned context. The tables cost 1,536 bytes per context token and eliminate per-layer
+trigonometry. The hot fused kernel uses 35 registers, 3,072 bytes shared memory, and zero stack/local memory; the
+initialization-only table kernel is outside prompt timing. The unfused sequence remains only in CUDA tests.
+
 ## Memory-plan boundary
 
 The first runtime component now converts parsed model metadata and the authoritative text-only manifest into a

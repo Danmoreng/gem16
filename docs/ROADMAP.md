@@ -94,8 +94,10 @@ The llama.cpp benchmark is deliberately before engine kernel optimization, but a
    tiled exactly once into the final GPU allocation; packed weights remain direct and persistent bytes are
    unchanged. Large/grouped FP8 projection work is complete. Exact RMSNorm/quantization, residual, and MLP
    activation-boundary fusions are promoted as the sole prefill path, reducing context-512 launches by 40.0% and
-   improving 128/512/2,048-token medians by 8.0%/9.5%/10.2%. Continue with exact Q/K norm, RoPE, and K/V-write
-   fusion; the earlier arithmetic-sharing RoPE experiment remains rejected because it changed logits.
+   improving 128/512/2,048-token medians by 8.0%/9.5%/10.2%. Exact projection rounding, Q/K norm, RoPE, and final
+   rounding are now a second sole-path fusion; persistent exact RoPE tables raise medians another
+   15.17%/15.14%/16.76% and reduce launches to 964 per 512-token prefill. Complete the small K/V-write boundary,
+   then return to the now-dominant NVFP4 and FP8 projection pipelines.
    The ordered execution and qualification contract for online Tensor-Core attention, larger prompt chunks,
    pipelined projections, and later fusion is now fixed in
    [the prefill optimization plan](PREFILL_OPTIMIZATION_PLAN.md).

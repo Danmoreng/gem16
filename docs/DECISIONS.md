@@ -1,5 +1,29 @@
 # Decisions
 
+## 2026-07-25: Precompute exact RoPE and fuse the full Q/K normalization boundary
+
+Date: 2026-07-25
+Decision: Generate local D256 and proportional global D512 cosine/sine tables once during engine initialization for
+every position in the planned context. Make one CTA per token/head preserve projection BF16 rounding, the original
+256-thread RMSNorm reduction, normalized BF16 rounding, RoPE, and post-RoPE BF16 rounding. Group Q and K blocks in
+one launch without sharing reduction state. Make this the sole prefill path and expose no selector.
+Context: After the first boundary promotion, the old RoPE kernels still consumed 50.58 ms per 512-token prefill
+and repeated identical double-precision `pow`/`cos`/`sin` work for every head in every layer. Together with Q/K
+rounding and normalization they required eight launches per layer.
+Alternatives: Merely group Q/K launches; share trigonometry inside each layer; use approximate float intrinsics;
+retain runtime variants; or store no table. The first fused prototype was exact but only won long prompts and kept
+the expensive trig stackframe in the hot kernel. An earlier approximate sharing probe changed logits. Persistent
+tables preserve the exact float values, remove hot-path trigonometry, and cost only 1,536 bytes per planned token.
+Consequences: Prefill executes one 35-register, 3,072-byte-shared, zero-stack/local kernel instead of eight launches
+per layer. The initialization-only table kernel retains the exact double expressions and is included in model-load
+time. At context 2,048 the workspace grows by 3,147,264 bytes and measured process peak grows 4 MiB to 9,586 MiB.
+Runtime JSON and validators require the fused kernel and `precomputed_exact_max_context` table.
+Evidence: Against detached `ccbe4ed`, adjacent 3/30 medians improve 15.17%/15.14% at 128/512 with non-overlapping
+mean 95% intervals; 2,048 improves 16.76% in the required 3/10 run. Nsight reduces launches from 1,300 to 964 and
+GPU kernel time from 250.03 to 208.01 ms per 512-token prefill. Local/global CUDA outputs are bit-identical to the
+eight-kernel oracle. CTest, exact-blue, vLLM boundaries 129/257, and every aggregate metric in the
+12-prompt/127-position teacher-forced suite remain unchanged.
+
 ## 2026-07-25: Fuse exact prefill normalization and MLP quantization boundaries
 
 Date: 2026-07-25

@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "profile": "build/Linux/blackwell-release/profiles/linux/prefill-512-phase5-qk-rope-final.nsys-rep",
+  "executions_in_trace": 2,
+  "initialization_only_rope_table_instances": 2,
+  "before": {
+    "profile": "prefill-512-phase5-fused-final-metadata.nsys-rep",
+    "kernel_instances_per_prefill": 1300,
+    "kernel_time_ns_per_prefill": 250029926.5
+  },
+  "after": {
+    "kernel_instances_per_prefill": 964,
+    "kernel_time_ns_per_prefill": 208014578.5,
+    "qk_rmsnorm_rope_instances": 48,
+    "qk_rmsnorm_rope_time_ns": 3616613,
+    "projection_rmsnorm_rope": {
+      "registers": 35,
+      "shared_bytes": 3072,
+      "stack_bytes": 0,
+      "local_bytes": 0
+    }
+  },
+  "kernel_launch_reduction_percent": 25.84615384615384,
+  "kernel_time_reduction_percent": 16.804127645096113,
+  "trace_total_kernel_time_ns": 416029157,
+  "trace_total_kernel_instances": 1930
+}

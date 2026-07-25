@@ -1,0 +1,11 @@
+cmake --build --preset blackwell-release -j16
+ctest --preset blackwell-release --output-on-failure
+python3 tools/validate_inference.py --run build/Linux/blackwell-release/bin/gem16gb-run --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497
+python3 tools/validate_prefill_boundaries.py --run build/Linux/blackwell-release/bin/gem16gb-run --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497
+python3 tools/teacher_forced_compare.py --run build/Linux/blackwell-release/bin/gem16gb-run --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 --golden tests/golden/vllm-gemma4-12b-nvfp4-correctness-v1-fp8.json --kv-cache fp8 --output build/teacher-forced-fp8-qk-rope-final.json
+build/Linux/blackwell-release/bin/gem16gb-bench prefill --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 --context <128|512|2048> --warmups 3 --repetitions <30|30|10> --seed 0
+/tmp/gem16gb-ccbe4ed/build/Linux/blackwell-release/bin/gem16gb-bench prefill --model /home/sebastian/Development/gem16gb/models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 --context <128|512|2048> --warmups 3 --repetitions <30|30|10> --seed 0
+nsys profile --trace=cuda,nvtx,osrt --sample=none --cpuctxsw=none --force-overwrite=true --output build/Linux/blackwell-release/profiles/linux/prefill-512-phase5-qk-rope-final build/Linux/blackwell-release/bin/gem16gb-bench prefill --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 --context 512 --warmups 1 --repetitions 1 --seed 0
+nsys stats --report cuda_gpu_kern_sum build/Linux/blackwell-release/profiles/linux/prefill-512-phase5-qk-rope-final.nsys-rep
+cuobjdump --dump-resource-usage build/Linux/blackwell-release/bin/gem16gb-bench
+nvidia-smi --query-compute-apps=pid,used_memory --format=csv,noheader,nounits --loop-ms=100

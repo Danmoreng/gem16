@@ -69,6 +69,10 @@ def validate_result(document: dict[str, Any], expected: list[int]) -> None:
         raise ValidationError("inference did not fuse prefill RMSNorm/NVFP4 quantization")
     if document.get("fused_prefill_gated_gelu_nvfp4_quantization") is not True:
         raise ValidationError("inference did not fuse prefill Gate/Up/GELU/NVFP4 quantization")
+    if document.get("fused_prefill_qk_rmsnorm_rope") is not True:
+        raise ValidationError("inference did not fuse prefill Q/K RMSNorm/RoPE")
+    if document.get("prefill_rope_table") != "precomputed_exact_max_context":
+        raise ValidationError("inference did not use the exact persistent prefill RoPE table")
     if document.get("token_loop_allocations") is not False:
         raise ValidationError("inference reported token-loop allocations")
     if document.get("kv_cache_mode") != "checkpoint_fp8":

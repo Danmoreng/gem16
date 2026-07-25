@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "context_tokens": 2048,
+  "weight_arena_bytes": 9200135680,
+  "kv_cache_bytes": 184557568,
+  "workspace_before_bytes": 435275264,
+  "workspace_after_bytes": 438422528,
+  "workspace_delta_bytes": 3147264,
+  "rope_table_bytes_per_planned_token": 1536,
+  "peak_process_vram_mib": 9586,
+  "peak_process_vram_before_mib": 9582,
+  "persistent_repack_bytes": 0,
+  "token_loop_allocations": false
+}

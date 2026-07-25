@@ -1213,6 +1213,168 @@ void TestLocalLayerReferenceOperators() {
   }
 }
 
+void TestFusedProjectionRmsNormRotaryBf16Batch() {
+  const auto run_case = [](std::uint64_t head_dimension,
+                           double rotary_factor, double theta,
+                           const char* label) {
+    constexpr std::uint64_t tokens = 3;
+    constexpr std::uint64_t query_heads = 2;
+    constexpr std::uint64_t kv_heads = 1;
+    constexpr std::uint64_t start_position = 29;
+    const std::size_t query_elements =
+        tokens * query_heads * head_dimension;
+    const std::size_t key_elements = tokens * kv_heads * head_dimension;
+    std::vector<float> query(query_elements);
+    std::vector<float> key(key_elements);
+    std::vector<std::uint16_t> query_norm(head_dimension);
+    std::vector<std::uint16_t> key_norm(head_dimension);
+    for (std::size_t index = 0; index < query.size(); ++index) {
+      query[index] = static_cast<float>(
+          static_cast<int>((index * 17U + 3U) % 61U) - 30) * 0.0173F;
+    }
+    for (std::size_t index = 0; index < key.size(); ++index) {
+      key[index] = static_cast<float>(
+          static_cast<int>((index * 13U + 5U) % 53U) - 26) * 0.0197F;
+    }
+    for (std::size_t index = 0; index < head_dimension; ++index) {
+      query_norm[index] = (index % 3U) == 0U ? 0x3F80U : 0x3F00U;
+      key_norm[index] = (index % 5U) == 0U ? 0x3FC0U : 0x3F80U;
+    }
+
+    DeviceBuffer<float> reference_query(query_elements);
+    DeviceBuffer<float> reference_key(key_elements);
+    DeviceBuffer<float> candidate_query(query_elements);
+    DeviceBuffer<float> candidate_key(key_elements);
+    DeviceBuffer<float> reference_query_output(query_elements);
+    DeviceBuffer<float> reference_key_output(key_elements);
+    DeviceBuffer<float> candidate_query_output(query_elements);
+    DeviceBuffer<float> candidate_key_output(key_elements);
+    const std::uint64_t rotating_pairs = static_cast<std::uint64_t>(
+        rotary_factor * static_cast<double>(head_dimension / 2U));
+    DeviceBuffer<float> rotary_cosine(tokens * rotating_pairs);
+    DeviceBuffer<float> rotary_sine(tokens * rotating_pairs);
+    DeviceBuffer<std::uint16_t> device_query_norm(head_dimension);
+    DeviceBuffer<std::uint16_t> device_key_norm(head_dimension);
+    if (reference_query.get() == nullptr || reference_key.get() == nullptr ||
+        candidate_query.get() == nullptr || candidate_key.get() == nullptr ||
+        reference_query_output.get() == nullptr ||
+        reference_key_output.get() == nullptr ||
+        candidate_query_output.get() == nullptr ||
+        candidate_key_output.get() == nullptr ||
+        rotary_cosine.get() == nullptr || rotary_sine.get() == nullptr ||
+        device_query_norm.get() == nullptr || device_key_norm.get() == nullptr ||
+        !CudaOk(cudaMemcpy(reference_query.get(), query.data(),
+                           reference_query.bytes(), cudaMemcpyHostToDevice),
+                "copy fused Q reference input") ||
+        !CudaOk(cudaMemcpy(reference_key.get(), key.data(),
+                           reference_key.bytes(), cudaMemcpyHostToDevice),
+                "copy fused K reference input") ||
+        !CudaOk(cudaMemcpy(candidate_query.get(), query.data(),
+                           candidate_query.bytes(), cudaMemcpyHostToDevice),
+                "copy fused Q candidate input") ||
+        !CudaOk(cudaMemcpy(candidate_key.get(), key.data(),
+                           candidate_key.bytes(), cudaMemcpyHostToDevice),
+                "copy fused K candidate input") ||
+        !CudaOk(cudaMemcpy(device_query_norm.get(), query_norm.data(),
+                           device_query_norm.bytes(), cudaMemcpyHostToDevice),
+                "copy fused Q norm") ||
+        !CudaOk(cudaMemcpy(device_key_norm.get(), key_norm.data(),
+                           device_key_norm.bytes(), cudaMemcpyHostToDevice),
+                "copy fused K norm")) {
+      return;
+    }
+
+    RoundBf16ForComparisonKernel<<<
+        static_cast<unsigned>((query_elements + 255U) / 256U), 256>>>(
+        reference_query.get(), query_elements);
+    RoundBf16ForComparisonKernel<<<
+        static_cast<unsigned>((key_elements + 255U) / 256U), 256>>>(
+        reference_key.get(), key_elements);
+    auto status = gem16gb::internal::LaunchRmsNormBf16(
+        reference_query.get(), device_query_norm.get(),
+        reference_query_output.get(), tokens * query_heads, head_dimension,
+        1.0e-6F, nullptr);
+    CUDA_TEST_CHECK(status.ok());
+    status = gem16gb::internal::LaunchRmsNormBf16(
+        reference_key.get(), device_key_norm.get(), reference_key_output.get(),
+        tokens * kv_heads, head_dimension, 1.0e-6F, nullptr);
+    CUDA_TEST_CHECK(status.ok());
+    if (rotary_factor == 1.0) {
+      status = gem16gb::internal::LaunchRotaryEmbeddingBatch(
+          reference_query_output.get(), tokens, query_heads, head_dimension,
+          head_dimension, start_position, theta, nullptr);
+      CUDA_TEST_CHECK(status.ok());
+      status = gem16gb::internal::LaunchRotaryEmbeddingBatch(
+          reference_key_output.get(), tokens, kv_heads, head_dimension,
+          head_dimension, start_position, theta, nullptr);
+    } else {
+      status = gem16gb::internal::LaunchProportionalRotaryEmbeddingBatch(
+          reference_query_output.get(), tokens, query_heads, head_dimension,
+          rotary_factor, start_position, theta, 1.0, nullptr);
+      CUDA_TEST_CHECK(status.ok());
+      status = gem16gb::internal::LaunchProportionalRotaryEmbeddingBatch(
+          reference_key_output.get(), tokens, kv_heads, head_dimension,
+          rotary_factor, start_position, theta, 1.0, nullptr);
+    }
+    CUDA_TEST_CHECK(status.ok());
+    RoundBf16ForComparisonKernel<<<
+        static_cast<unsigned>((query_elements + 255U) / 256U), 256>>>(
+        reference_query_output.get(), query_elements);
+    RoundBf16ForComparisonKernel<<<
+        static_cast<unsigned>((key_elements + 255U) / 256U), 256>>>(
+        reference_key_output.get(), key_elements);
+
+    const auto table_status =
+        gem16gb::internal::LaunchRotaryEmbeddingTableBatch(
+            rotary_cosine.get(), rotary_sine.get(), tokens, rotating_pairs,
+            head_dimension, start_position, theta, 1.0, nullptr);
+    const auto fused_status =
+        gem16gb::internal::LaunchProjectionRmsNormRotaryBf16Batch(
+            candidate_query.get(), device_query_norm.get(),
+            candidate_query_output.get(), candidate_key.get(),
+            device_key_norm.get(), candidate_key_output.get(),
+            rotary_cosine.get(), rotary_sine.get(), tokens, query_heads,
+            kv_heads, head_dimension, rotary_factor, 1.0e-6F, nullptr);
+    CUDA_TEST_CHECK(table_status.ok());
+    CUDA_TEST_CHECK(fused_status.ok());
+    if (!status.ok() || !table_status.ok() || !fused_status.ok() ||
+        !CudaOk(cudaGetLastError(), "launch fused Q/K comparison kernels") ||
+        !CudaOk(cudaDeviceSynchronize(), label)) {
+      return;
+    }
+
+    std::vector<float> reference_query_host(query_elements);
+    std::vector<float> reference_key_host(key_elements);
+    std::vector<float> candidate_query_host(query_elements);
+    std::vector<float> candidate_key_host(key_elements);
+    if (!CudaOk(cudaMemcpy(reference_query_host.data(),
+                           reference_query_output.get(),
+                           reference_query_output.bytes(),
+                           cudaMemcpyDeviceToHost),
+                "copy reference fused Q output") ||
+        !CudaOk(cudaMemcpy(reference_key_host.data(),
+                           reference_key_output.get(),
+                           reference_key_output.bytes(), cudaMemcpyDeviceToHost),
+                "copy reference fused K output") ||
+        !CudaOk(cudaMemcpy(candidate_query_host.data(),
+                           candidate_query_output.get(),
+                           candidate_query_output.bytes(),
+                           cudaMemcpyDeviceToHost),
+                "copy candidate fused Q output") ||
+        !CudaOk(cudaMemcpy(candidate_key_host.data(),
+                           candidate_key_output.get(),
+                           candidate_key_output.bytes(), cudaMemcpyDeviceToHost),
+                "copy candidate fused K output")) {
+      return;
+    }
+    CUDA_TEST_CHECK(reference_query_host == candidate_query_host);
+    CUDA_TEST_CHECK(reference_key_host == candidate_key_host);
+  };
+
+  run_case(256U, 1.0, 10000.0, "fused local Q/K RMSNorm RoPE");
+  run_case(512U, 0.25, 1000000.0, "fused global Q/K RMSNorm RoPE");
+}
+
 void TestPhysicalFp8KvCache() {
   constexpr std::uint64_t query_heads = 2;
   constexpr std::uint64_t kv_heads = 1;
@@ -1967,6 +2129,7 @@ int main() {
   TestMlpElementwiseBridge();
   TestFp8ReferenceAndDirectProjection();
   TestLocalLayerReferenceOperators();
+  TestFusedProjectionRmsNormRotaryBf16Batch();
   TestPhysicalFp8KvCache();
   TestWrappedKvRingAttention();
   TestCausalPrefillAcrossWrappedRing();

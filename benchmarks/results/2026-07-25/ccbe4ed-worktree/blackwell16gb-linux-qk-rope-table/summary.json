@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "decision": "promote",
+  "reference_commit": "ccbe4ed",
+  "prefill_median_tokens_per_second": {
+    "128": {"before": 1590.1734141399284, "after": 1831.3341908938878, "gain_percent": 15.165690396377007, "repetitions": 30},
+    "512": {"before": 1895.5169491799861, "after": 2182.506602471618, "gain_percent": 15.140442474850225, "repetitions": 30},
+    "2048": {"before": 1716.5604091191062, "after": 2004.2272869931899, "gain_percent": 16.75833115723009, "repetitions": 10}
+  },
+  "kernel_launch_reduction_percent": 25.84615384615384,
+  "kernel_time_reduction_percent": 16.804127645096113,
+  "peak_vram_mib": 9586,
+  "quality_changed": false,
+  "next_profile_target": "post-attention K/V commit boundary, then NVFP4 and FP8 projection pipelines"
+}

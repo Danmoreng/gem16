@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "ctest_blackwell_release": {"passed": 2, "failed": 0},
+  "operator_boundaries": {
+    "local_d256_projection_round_rmsnorm_rope_round": "bit_identical",
+    "global_partial_d512_projection_round_rmsnorm_rope_round": "bit_identical",
+    "q_and_k_reductions": "independent_original_256_thread_tree",
+    "rope_table_values": "exact_float_results_of_original_double_expressions"
+  },
+  "exact_blue_output_token_ids": [9503, 106],
+  "prefill_boundaries": {
+    "129": {"reference_top1_rank": 1, "selected_logprob_absolute_delta": 0.22294383115368532},
+    "257": {"reference_top1_rank": 1, "selected_logprob_absolute_delta": 0.5078492581757832}
+  },
+  "teacher_forced": {
+    "prompts": 12,
+    "positions": 127,
+    "top1_agreements": 118,
+    "reference_top1_in_engine_top5": 126,
+    "reference_top1_in_engine_top20": 127,
+    "mean_top20_overlap": 14.803149606299213,
+    "mean_selected_logprob_absolute_delta": 0.16290292032249432
+  },
+  "quality_changed_from_ccbe4ed": false
+}

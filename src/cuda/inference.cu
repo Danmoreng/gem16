@@ -582,6 +582,8 @@ struct PrefillOffsets {
   std::uint64_t o_activation = 0, o_scales = 0, projection = 0, post_norm = 0;
   std::uint64_t mlp_packed = 0, mlp_scales = 0, gate = 0, up = 0, product = 0;
   std::uint64_t down_packed = 0, down_scales = 0;
+  std::uint64_t local_rope_cosine = 0, local_rope_sine = 0;
+  std::uint64_t global_rope_cosine = 0, global_rope_sine = 0;
 };
 
 class LayoutBuilder {
@@ -906,6 +908,20 @@ class InferenceEngine {
     if (!status.ok()) return status;
     status = AllocatePrefillWorkspace();
     if (!status.ok()) return status;
+    status = internal::LaunchRotaryEmbeddingTableBatch(
+        Pointer<float>(prefill_workspace_, prefill_offsets_.local_rope_cosine),
+        Pointer<float>(prefill_workspace_, prefill_offsets_.local_rope_sine),
+        max_context_, 128U, 256U, 0U, 10000.0, 1.0, stream_);
+    if (!status.ok()) return status;
+    status = internal::LaunchRotaryEmbeddingTableBatch(
+        Pointer<float>(prefill_workspace_, prefill_offsets_.global_rope_cosine),
+        Pointer<float>(prefill_workspace_, prefill_offsets_.global_rope_sine),
+        max_context_, 64U, 512U, 0U, 1000000.0, 1.0, stream_);
+    if (!status.ok()) return status;
+    error = cudaStreamSynchronize(stream_);
+    if (error != cudaSuccess) {
+      return CudaFailure("prepare persistent prefill RoPE tables", error);
+    }
     status = decode_host_state_.Allocate(
         (sizeof(HostDecodeState) + sizeof(float) - 1U) / sizeof(float),
         "allocate decode graph host control");
@@ -1074,12 +1090,13 @@ class InferenceEngine {
           model_.embedding(), device_tokens, hidden, hidden_elements);
       error = cudaGetLastError();
       if (error != cudaSuccess) return CudaFailure("launch prefill embedding", error);
+      Status status;
       for (const auto& layer : model_.layers()) {
-        Status status = RunLayerBatch(layer, begin, tokens);
+        status = RunLayerBatch(layer, begin, tokens);
         if (!status.ok()) return status;
       }
       float* normalized = Pointer<float>(prefill_workspace_, prefill_offsets_.normalized);
-      Status status = internal::LaunchRmsNormBf16(
+      status = internal::LaunchRmsNormBf16(
           hidden, model_.final_norm(), normalized, tokens, kHidden, kEpsilon, stream_);
       if (!status.ok()) return status;
       if (begin + tokens == token_ids.size()) {
@@ -1265,6 +1282,10 @@ class InferenceEngine {
     GEM16GB_PREFILL_ADD(product, float, tokens * kIntermediate);
     GEM16GB_PREFILL_ADD(down_packed, std::uint8_t, tokens * kIntermediate / 2U);
     GEM16GB_PREFILL_ADD(down_scales, std::uint8_t, tokens * kIntermediate / 16U);
+    GEM16GB_PREFILL_ADD(local_rope_cosine, float, max_context_ * 128U);
+    GEM16GB_PREFILL_ADD(local_rope_sine, float, max_context_ * 128U);
+    GEM16GB_PREFILL_ADD(global_rope_cosine, float, max_context_ * 64U);
+    GEM16GB_PREFILL_ADD(global_rope_sine, float, max_context_ * 64U);
 #undef GEM16GB_PREFILL_ADD
     auto size = AlignUp(layout.size(), kAlignment);
     if (!size.ok()) return size.status();
@@ -1303,41 +1324,26 @@ class InferenceEngine {
       if (error != cudaSuccess) return CudaFailure("reuse batched global K for V", error);
     }
     for (const Status next : {
-             LaunchRoundBf16(q, tokens * layer.query_elements, stream_),
-             LaunchRoundBf16(k, tokens * layer.kv_elements, stream_),
              LaunchRoundBf16(v, tokens * layer.kv_elements, stream_),
-             internal::LaunchRmsNormBf16(q, layer.q_norm, q_norm,
-                                     tokens * kQueryHeads, layer.head_dimension,
-                                     kEpsilon, stream_),
-             internal::LaunchRmsNormBf16(k, layer.k_norm, k_norm,
-                                     tokens * layer.kv_heads, layer.head_dimension,
-                                     kEpsilon, stream_),
              internal::LaunchRmsNormBf16(v, nullptr, v_norm,
                                      tokens * layer.kv_heads, layer.head_dimension,
                                      kEpsilon, stream_)}) {
       if (!next.ok()) return next;
     }
-    if (layer.global) {
-      status = internal::LaunchProportionalRotaryEmbeddingBatch(
-          q_norm, tokens, kQueryHeads, layer.head_dimension, 0.25,
-          start_position, 1000000.0, 1.0, stream_);
-      if (!status.ok()) return status;
-      status = internal::LaunchProportionalRotaryEmbeddingBatch(
-          k_norm, tokens, layer.kv_heads, layer.head_dimension, 0.25,
-          start_position, 1000000.0, 1.0, stream_);
-    } else {
-      status = internal::LaunchRotaryEmbeddingBatch(
-          q_norm, tokens, kQueryHeads, layer.head_dimension,
-          layer.head_dimension, start_position, 10000.0, stream_);
-      if (!status.ok()) return status;
-      status = internal::LaunchRotaryEmbeddingBatch(
-          k_norm, tokens, layer.kv_heads, layer.head_dimension,
-          layer.head_dimension, start_position, 10000.0, stream_);
-    }
-    if (!status.ok()) return status;
-    status = LaunchRoundBf16(q_norm, tokens * layer.query_elements, stream_);
-    if (!status.ok()) return status;
-    status = LaunchRoundBf16(k_norm, tokens * layer.kv_elements, stream_);
+    status = internal::LaunchProjectionRmsNormRotaryBf16Batch(
+        q, layer.q_norm, q_norm, k, layer.k_norm, k_norm,
+        layer.global
+            ? Pointer<float>(prefill_workspace_, prefill_offsets_.global_rope_cosine) +
+                  start_position * 64U
+            : Pointer<float>(prefill_workspace_, prefill_offsets_.local_rope_cosine) +
+                  start_position * 128U,
+        layer.global
+            ? Pointer<float>(prefill_workspace_, prefill_offsets_.global_rope_sine) +
+                  start_position * 64U
+            : Pointer<float>(prefill_workspace_, prefill_offsets_.local_rope_sine) +
+                  start_position * 128U,
+        tokens, kQueryHeads, layer.kv_heads, layer.head_dimension,
+        layer.global ? 0.25 : 1.0, kEpsilon, stream_);
     if (!status.ok()) return status;
     const std::uint64_t capacity =
         layer.global ? max_context_ : std::min(max_context_, kSlidingWindow);
@@ -2448,6 +2454,8 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
          << "  \"fused_prefill_rmsnorm_fp8_quantization\": true,\n"
          << "  \"fused_prefill_rmsnorm_nvfp4_quantization\": true,\n"
          << "  \"fused_prefill_gated_gelu_nvfp4_quantization\": true,\n"
+         << "  \"fused_prefill_qk_rmsnorm_rope\": true,\n"
+         << "  \"prefill_rope_table\": \"precomputed_exact_max_context\",\n"
          << "  \"fused_output_head\": true,\n"
          << "  \"decode_graphs\": "
          << (result.decode_graphs ? "true" : "false") << ",\n"
@@ -2520,6 +2528,8 @@ Status WriteDecodeBenchmarkJson(const DecodeBenchmarkResult& result,
          << ",\"fused_prefill_rmsnorm_fp8_quantization\":true"
          << ",\"fused_prefill_rmsnorm_nvfp4_quantization\":true"
          << ",\"fused_prefill_gated_gelu_nvfp4_quantization\":true"
+         << ",\"fused_prefill_qk_rmsnorm_rope\":true"
+         << ",\"prefill_rope_table\":\"precomputed_exact_max_context\""
          << ",\"fused_output_head\":true"
          << ",\"decode_graphs\":true"
          << ",\"context_tokens\":" << result.options.context_tokens
@@ -2600,6 +2610,8 @@ Status WritePrefillBenchmarkJson(const DecodeBenchmarkResult& result,
          << ",\"fused_prefill_rmsnorm_fp8_quantization\":true"
          << ",\"fused_prefill_rmsnorm_nvfp4_quantization\":true"
          << ",\"fused_prefill_gated_gelu_nvfp4_quantization\":true"
+         << ",\"fused_prefill_qk_rmsnorm_rope\":true"
+         << ",\"prefill_rope_table\":\"precomputed_exact_max_context\""
          << ",\"decode_graphs\":true"
          << ",\"kv_cache_layout\":\"hybrid_local_ring_global_contiguous\","
          << "\"model_load_ms\":" << result.model_load_milliseconds

@@ -128,6 +128,8 @@ def run_case(
             inference.get("fused_prefill_rmsnorm_fp8_quantization") is True,
             inference.get("fused_prefill_rmsnorm_nvfp4_quantization") is True,
             inference.get("fused_prefill_gated_gelu_nvfp4_quantization") is True,
+            inference.get("fused_prefill_qk_rmsnorm_rope") is True,
+            inference.get("prefill_rope_table") == "precomputed_exact_max_context",
             inference.get("logits_dump_steps") == len(targets),
         )
     )

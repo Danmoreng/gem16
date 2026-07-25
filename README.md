@@ -23,6 +23,9 @@ approximately 16 GB of VRAM. The first model is the mixed FP8/NVFP4
 - Direct-source packed-NVFP4 SIMT/GEMV and combined Gate/Up projection alternatives remain available only in
   characterization probes. Production keeps the two native MMA projections separate, then fuses their exact BF16,
   GELU-tanh, and NVFP4-activation boundary into one prefill kernel. Decode retains its separately qualified plan.
+- Prefill rounds Q/K projection values, performs per-head RMSNorm, applies local or proportional RoPE, and rounds
+  the result in one exact kernel. Local/global cosine and sine tables are generated once for the planned context at
+  engine initialization and reused by every layer; there is no runtime selector or per-layer trigonometry.
 - A CUDA-only, batch-one greedy characterization now loads the complete text model into one weight arena, executes
   all 48 layers with separate K/V caches, and selects the token on the GPU. Decode evaluates eight tied-BF16
   vocabulary rows per block, applies the exact logit softcap, and reduces only one candidate per block. The engine applies the checkpoint's
@@ -78,7 +81,8 @@ build/Linux/blackwell-release/bin/gem16gb-run \
 The checkpoint-declared FP8 K/V semantics are the default. Use `--kv-cache bf16` only for the explicitly labeled
 BF16 correctness comparison. The production path is fixed to native SM120 projection, chunked prefill, fused causal
 prefill attention, fused exact prefill normalization/quantization boundaries, separate Gate/Up projections with a
-fused GELU-tanh/NVFP4 epilogue, complete decode graphs, and fused output-head reduction. Slower
+fused GELU-tanh/NVFP4 epilogue, fused Q/K RMSNorm/RoPE with persistent exact tables, complete decode graphs, and
+fused output-head reduction. Slower
 alternatives are not exposed by the product CLIs; reference implementations remain in operator probes and tests.
 JSON records the fixed path.
 

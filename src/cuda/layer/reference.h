@@ -165,6 +165,25 @@ struct DecodeControl {
     std::uint64_t start_position, double theta, double scaling_factor,
     cudaStream_t stream);
 
+// Preserve projection BF16 rounding, per-head BF16 RMSNorm, RoPE, and the
+// post-RoPE BF16 boundary in one CTA per token/head. Q and K share one launch
+// and one exactly precomputed per-token trigonometric table while retaining
+// independent per-head reductions.
+[[nodiscard]] Status LaunchRotaryEmbeddingTableBatch(
+    float* cosine, float* sine, std::uint64_t tokens,
+    std::uint64_t rotating_pairs, std::uint64_t frequency_dimension,
+    std::uint64_t start_position, double theta, double scaling_factor,
+    cudaStream_t stream);
+
+[[nodiscard]] Status LaunchProjectionRmsNormRotaryBf16Batch(
+    const float* query, const std::uint16_t* query_norm_bf16,
+    float* normalized_query, const float* key,
+    const std::uint16_t* key_norm_bf16, float* normalized_key,
+    const float* rotary_cosine, const float* rotary_sine,
+    std::uint64_t tokens, std::uint64_t query_heads,
+    std::uint64_t kv_heads, std::uint64_t head_dimension,
+    double rotary_factor, float epsilon, cudaStream_t stream);
+
 [[nodiscard]] Status LaunchQuantizeKvFp8Batch(
     const float* key, const float* value, std::uint8_t* key_fp8,
     std::uint8_t* value_fp8, const std::uint16_t* key_scale_bf16,

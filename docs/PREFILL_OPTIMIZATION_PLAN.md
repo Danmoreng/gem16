@@ -20,7 +20,7 @@ large-M NVFP4 winner advance the same 512-token characterization as follows:
 
 | Workload | Initial gem16gb | Current gem16gb | vLLM | Current/vLLM |
 |---|---:|---:|---:|---:|
-| Prefill, 512 prompt tokens, batch 1 | 698.25 tok/s | 1,914.76 tok/s | 6,146.50 tok/s | 0.312x |
+| Prefill, 512 prompt tokens, batch 1 | 698.25 tok/s | 2,182.51 tok/s | 6,146.50 tok/s | 0.355x |
 
 These numbers are diagnostic rather than a parity claim because the retained vLLM run and gem16gb do not yet have
 identical timing boundaries and cache precision. The optimization goal does not depend on presenting the ratio as
@@ -34,17 +34,17 @@ established this program:
 
 | Phase | Initial gem16gb | Current gem16gb | vLLM | Current gap |
 |---|---:|---:|---:|---:|
-| NVFP4 MLP projections | 289.78 ms | 92.92 ms | 24.23 ms | 3.84x |
-| Attention | 199.77 ms | 22.22 ms | 13.11 ms | 1.69x |
-| FP8 attention projections | 131.13 ms | 62.21 ms | 27.15 ms | 2.29x |
-| Other GPU work | 115.98 ms | 96.60 ms | 9.98 ms | 9.68x |
-| Total GPU time | 736.66 ms | 273.95 ms | 74.47 ms | 3.68x |
+| NVFP4 MLP projections | 289.78 ms | 97.68 ms | 24.23 ms | 4.03x |
+| Attention | 199.77 ms | 23.10 ms | 13.11 ms | 1.76x |
+| FP8 attention projections | 131.13 ms | 64.60 ms | 27.15 ms | 2.38x |
+| Other GPU work | 115.98 ms | 22.63 ms | 9.98 ms | 2.27x |
+| Total GPU time | 736.66 ms | 208.01 ms | 74.47 ms | 2.79x |
 
 The initial gem16gb path launched approximately 9,235 GPU operations per execution, versus 747 for vLLM. Online
-attention, the 1,024-token plan, and grouped FP8 projections reduce this to approximately 2,213 kernel launches.
-Attention is no longer the dominant gap. NVFP4 projections consume about 34% of current GPU time and remain 3.8x
-slower than vLLM; the qualified FP8 projection block is down to 2.3x. Launch-heavy "other" work is now the largest
-aggregate gap, so the ordered fusion phase follows before another projection redesign.
+attention, the 1,024-token plan, grouped FP8 projections, and exact boundary/RoPE fusion reduce this to 964 kernel
+launches. Attention and launch-heavy residual work are no longer the dominant gaps. NVFP4 and FP8 projections now
+consume 47% and 31% of current GPU time and remain 4.0x and 2.4x slower than vLLM. Finish the small K/V-write
+boundary, then return to projection pipelines rather than adding generic fusion machinery.
 
 The neighboring Apache-2.0 NInfer implementation supplies useful implementation concepts, not a compatible
 runtime path: shape-specific plans, BF16 Tensor-Core QK/PV, FP32 online softmax, swizzled shared-memory staging,
@@ -146,8 +146,9 @@ and zero stack/local memory. Operator output is bit-identical to the CUDA refere
 
 ### 5. Fuse only profile-proven bandwidth and launch boundaries
 
-Status: first promotion complete; exact RMSNorm/quantization and MLP activation boundaries are now the sole
-production prefill path. Q/K normalization, RoPE, and K/V write remain the next measured fusion target.
+Status: two promotions complete. Exact RMSNorm/quantization and MLP activation boundaries are the sole production
+prefill path. Projection BF16 rounding, Q/K RMSNorm, RoPE, and post-RoPE BF16 rounding are also one exact standard
+kernel backed by persistent max-context RoPE tables. K/V write remains the final measured boundary in this phase.
 
 After attention and projection kernels are no longer the old bottlenecks, profile again and consider, in order:
 
@@ -167,6 +168,18 @@ bit-identical payloads and scales versus the former sequence. Against detached `
 (`+8.0%/+9.5%/+10.2%`). Nsight reduces launches from 2,165 to 1,300 per prefill (`-40.0%`) and total GPU kernel
 time by 8.73% at 512. Exact-blue, both vLLM boundary checks, and the 12-prompt teacher-forced metrics are unchanged;
 peak process VRAM is 9,582 MiB with no arena growth.
+
+The second promotion removes redundant trigonometry as well as launches. Initialization computes local D256 and
+global partial-D512 cosine/sine tables with the same double-precision expressions as the former RoPE kernel and
+stores their float results for every planned position. Every layer then consumes those exact values while one CTA
+preserves projection BF16 rounding, the original 256-thread RMSNorm reduction tree, normalized BF16 rounding,
+RoPE, and the final BF16 boundary. Local and global CUDA fixtures are bit-identical to all eight former kernels.
+Against detached `ccbe4ed`, noisy 128/512 cases use 3/30 medians and improve from 1,590.17/1,895.52 to
+1,831.33/2,182.51 tok/s (`+15.17%/+15.14%`) with non-overlapping mean 95% intervals; the required 2,048-token 3/10
+median improves from 1,716.56 to 2,004.23 tok/s (`+16.76%`). Nsight reports 1,300 to 964 launches and 250.03 to
+208.01 ms kernel time per 512-token prefill. The hot kernel uses 35 registers, 3,072 shared bytes, zero stack/local;
+peak process VRAM is 9,586 MiB. All model-quality metrics remain unchanged. K/V append is next, after which the
+profile points back to NVFP4 and FP8 projections.
 
 ## Mandatory correctness gates
 
