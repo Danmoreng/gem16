@@ -84,15 +84,18 @@ The llama.cpp benchmark is deliberately before engine kernel optimization, but a
 7. The correctness-first Layer-0 MLP chain now implements Gate/Up, Gemma GELU-tanh product, Down, post-MLP norm,
    residual, and layer scalar as part of the complete device-resident decoder-layer characterization. Both NVFP4
    activation boundaries remain byte-identical across its reference/native paths. Next compare it with trusted
-   prompt-derived layer data. A closed Gate/Up/GELU probe was slightly faster in isolation but lost Linux
-   end-to-end comparisons; production therefore exposes only the faster separate Gate/Up/GELU sequence.
+   prompt-derived layer data. Combined Gate/Up projections remain rejected, but prefill now keeps the two winning
+   projections separate and fuses their exact BF16/GELU-tanh/NVFP4 activation boundary.
 8. ~~Add a separate native prefill plan without reusing the decode plan.~~ The promoted plan uses one 1,024-token
    checkpoint-FP8 chunk, online Tensor-Core attention, and M128xN64 NVFP4 CTAs that reuse an exact K64 activation
    slice across eight output warps. FP8 projections now use the qualified two-stage M64xN64xK64 CTA, reuse each
    weight fragment across four MMA token tiles, and group local Q/K/V or global Q/K into one launch.
    NVFP4 activation staging now uses a qualified two-stage `cp.async` pipeline. Local E4M3 weight-scale bytes are
    tiled exactly once into the final GPU allocation; packed weights remain direct and persistent bytes are
-   unchanged. Large/grouped FP8 projection work is complete; continue with profile-proven boundary fusion.
+   unchanged. Large/grouped FP8 projection work is complete. Exact RMSNorm/quantization, residual, and MLP
+   activation-boundary fusions are promoted as the sole prefill path, reducing context-512 launches by 40.0% and
+   improving 128/512/2,048-token medians by 8.0%/9.5%/10.2%. Continue with exact Q/K norm, RoPE, and K/V-write
+   fusion; the earlier arithmetic-sharing RoPE experiment remains rejected because it changed logits.
    The ordered execution and qualification contract for online Tensor-Core attention, larger prompt chunks,
    pipelined projections, and later fusion is now fixed in
    [the prefill optimization plan](PREFILL_OPTIMIZATION_PLAN.md).

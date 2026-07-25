@@ -124,6 +124,10 @@ def run_case(
             inference.get("fp8_prefill_tile") == "m64n64k64",
             inference.get("fp8_prefill_pipeline_stages") == 2,
             inference.get("grouped_qkv_prefill") is True,
+            inference.get("fused_rmsnorm_boundaries") is True,
+            inference.get("fused_prefill_rmsnorm_fp8_quantization") is True,
+            inference.get("fused_prefill_rmsnorm_nvfp4_quantization") is True,
+            inference.get("fused_prefill_gated_gelu_nvfp4_quantization") is True,
             inference.get("logits_dump_steps") == len(targets),
         )
     )

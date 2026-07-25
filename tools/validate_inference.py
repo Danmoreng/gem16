@@ -61,6 +61,14 @@ def validate_result(document: dict[str, Any], expected: list[int]) -> None:
         raise ValidationError("inference did not report the two-stage FP8 prefill pipeline")
     if document.get("grouped_qkv_prefill") is not True:
         raise ValidationError("inference did not group Q/K/V prefill projections")
+    if document.get("fused_rmsnorm_boundaries") is not True:
+        raise ValidationError("inference did not fuse RMSNorm BF16 boundaries")
+    if document.get("fused_prefill_rmsnorm_fp8_quantization") is not True:
+        raise ValidationError("inference did not fuse prefill RMSNorm/FP8 quantization")
+    if document.get("fused_prefill_rmsnorm_nvfp4_quantization") is not True:
+        raise ValidationError("inference did not fuse prefill RMSNorm/NVFP4 quantization")
+    if document.get("fused_prefill_gated_gelu_nvfp4_quantization") is not True:
+        raise ValidationError("inference did not fuse prefill Gate/Up/GELU/NVFP4 quantization")
     if document.get("token_loop_allocations") is not False:
         raise ValidationError("inference reported token-loop allocations")
     if document.get("kv_cache_mode") != "checkpoint_fp8":

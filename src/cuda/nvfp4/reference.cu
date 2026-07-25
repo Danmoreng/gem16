@@ -1,5 +1,6 @@
 #include "cuda/nvfp4/reference.h"
 
+#include <cuda_bf16.h>
 #include <cuda_fp4.h>
 #include <cuda_fp8.h>
 #include <cuda_runtime.h>
@@ -15,6 +16,8 @@ namespace gem16gb::internal {
 namespace {
 
 constexpr std::uint64_t kBlockElements = 16;
+constexpr float kSqrtTwoOverPi = 0.7978845608028654F;
+constexpr float kGeluCubic = 0.044715F;
 
 Status Invalid(std::string message) {
   return Status(StatusCode::kInvalidArgument, std::move(message));
@@ -72,6 +75,128 @@ __global__ void QuantizeActivationReferenceKernel(const float* input,
     const __nv_fp4_e2m1 high(high_value);
     packed_e2m1[index / 2U] =
         static_cast<std::uint8_t>((low.__x & 0x0FU) | ((high.__x & 0x0FU) << 4U));
+  }
+}
+
+__global__ void RmsNormQuantizeActivationKernel(
+    const float* input, const std::uint16_t* weight,
+    std::uint8_t* packed_e2m1, std::uint8_t* block_scales_e4m3fn,
+    std::uint64_t elements, float epsilon, float global_divisor) {
+  constexpr unsigned kThreads = 256;
+  const std::uint64_t token = blockIdx.x;
+  input += token * elements;
+  packed_e2m1 += token * (elements / 2U);
+  block_scales_e4m3fn += token * (elements / kBlockElements);
+  __shared__ float reduction[kThreads];
+  float squared_sum = 0.0F;
+  for (std::uint64_t index = threadIdx.x; index < elements;
+       index += blockDim.x) {
+    const float value = input[index];
+    squared_sum = fmaf(value, value, squared_sum);
+  }
+  reduction[threadIdx.x] = squared_sum;
+  __syncthreads();
+  for (unsigned stride = kThreads / 2U; stride != 0U; stride >>= 1U) {
+    if (threadIdx.x < stride) {
+      reduction[threadIdx.x] += reduction[threadIdx.x + stride];
+    }
+    __syncthreads();
+  }
+  const float inverse_rms =
+      rsqrtf(reduction[0] / static_cast<float>(elements) + epsilon);
+  const std::uint64_t blocks = elements / kBlockElements;
+  for (std::uint64_t block = threadIdx.x; block < blocks;
+       block += blockDim.x) {
+    const std::uint64_t begin = block * kBlockElements;
+    float normalized[kBlockElements];
+    float amax = 0.0F;
+#pragma unroll
+    for (std::uint64_t local = 0; local < kBlockElements; ++local) {
+      const std::uint64_t index = begin + local;
+      const float norm_scale =
+          weight == nullptr
+              ? 1.0F
+              : static_cast<float>(__ushort_as_bfloat16(weight[index]));
+      normalized[local] = static_cast<float>(__float2bfloat16_rn(
+          input[index] * inverse_rms * norm_scale));
+      amax = fmaxf(amax, fabsf(normalized[local]));
+    }
+    const __nv_fp8_e4m3 scale(
+        (amax * ReciprocalApproximateFtz(6.0F)) * global_divisor);
+    block_scales_e4m3fn[block] = scale.__x;
+    const float decoded_scale = static_cast<float>(scale);
+    const float output_scale =
+        decoded_scale == 0.0F
+            ? 0.0F
+            : ReciprocalApproximateFtz(
+                  decoded_scale * ReciprocalApproximateFtz(global_divisor));
+#pragma unroll
+    for (std::uint64_t pair = 0; pair < kBlockElements / 2U; ++pair) {
+      const __nv_fp4_e2m1 low(normalized[pair * 2U] * output_scale);
+      const __nv_fp4_e2m1 high(normalized[pair * 2U + 1U] * output_scale);
+      packed_e2m1[begin / 2U + pair] = static_cast<std::uint8_t>(
+          (low.__x & 0x0FU) | ((high.__x & 0x0FU) << 4U));
+    }
+  }
+}
+
+__global__ void GatedGeluQuantizeActivationKernel(
+    const float* gate, const float* up, std::uint8_t* packed_e2m1,
+    std::uint8_t* block_scales_e4m3fn, std::uint64_t blocks,
+    float global_divisor) {
+  constexpr unsigned kThreads = 128;
+  constexpr unsigned kGroupsPerBlock = kThreads / kBlockElements;
+  const unsigned lane_in_group = threadIdx.x % kBlockElements;
+  const std::uint64_t block =
+      static_cast<std::uint64_t>(blockIdx.x) * kGroupsPerBlock +
+      threadIdx.x / kBlockElements;
+  const bool valid = block < blocks;
+  const std::uint64_t index = block * kBlockElements + lane_in_group;
+  const float gate_value = valid
+                               ? static_cast<float>(
+                                     __float2bfloat16_rn(gate[index]))
+                               : 0.0F;
+  const float up_value = valid
+                             ? static_cast<float>(__float2bfloat16_rn(up[index]))
+                             : 0.0F;
+  const float inner = kSqrtTwoOverPi *
+                      (gate_value + kGeluCubic * gate_value * gate_value *
+                                        gate_value);
+  const float gelu = static_cast<float>(__float2bfloat16_rn(
+      0.5F * gate_value * (1.0F + tanhf(inner))));
+  const float product =
+      static_cast<float>(__float2bfloat16_rn(gelu * up_value));
+  float amax = fabsf(product);
+  constexpr unsigned kFullMask = 0xFFFFFFFFU;
+#pragma unroll
+  for (unsigned offset = kBlockElements / 2U; offset != 0U; offset >>= 1U) {
+    amax = fmaxf(amax,
+                 __shfl_down_sync(kFullMask, amax, offset, kBlockElements));
+  }
+  std::uint32_t scale_bits = 0U;
+  if (valid && lane_in_group == 0U) {
+    const __nv_fp8_e4m3 scale(
+        (amax * ReciprocalApproximateFtz(6.0F)) * global_divisor);
+    scale_bits = scale.__x;
+    block_scales_e4m3fn[block] = scale.__x;
+  }
+  scale_bits =
+      __shfl_sync(kFullMask, scale_bits, 0, kBlockElements);
+  __nv_fp8_e4m3 scale;
+  scale.__x = static_cast<std::uint8_t>(scale_bits);
+  const float decoded_scale = static_cast<float>(scale);
+  const float output_scale =
+      decoded_scale == 0.0F
+          ? 0.0F
+          : ReciprocalApproximateFtz(
+                decoded_scale * ReciprocalApproximateFtz(global_divisor));
+  const float high_product =
+      __shfl_down_sync(kFullMask, product, 1, kBlockElements);
+  if (valid && (lane_in_group & 1U) == 0U) {
+    const __nv_fp4_e2m1 low(product * output_scale);
+    const __nv_fp4_e2m1 high(high_product * output_scale);
+    packed_e2m1[index / 2U] = static_cast<std::uint8_t>(
+        (low.__x & 0x0FU) | ((high.__x & 0x0FU) << 4U));
   }
 }
 
@@ -145,6 +270,66 @@ Status LaunchNvfp4ReferenceActivationQuantization(const float* input,
   const cudaError_t error = cudaGetLastError();
   return error == cudaSuccess ? Status::Ok()
                               : CudaFailure("launch NVFP4 reference activation quantization", error);
+}
+
+Status LaunchRmsNormNvfp4ActivationQuantizationBatch(
+    const float* input, const std::uint16_t* weight_bf16,
+    std::uint8_t* packed_e2m1, std::uint8_t* block_scales_e4m3fn,
+    std::uint64_t tokens, std::uint64_t elements_per_token, float epsilon,
+    float global_divisor, cudaStream_t stream) {
+  if (input == nullptr || packed_e2m1 == nullptr ||
+      block_scales_e4m3fn == nullptr) {
+    return Invalid("fused RMSNorm NVFP4 quantization requires non-null pointers");
+  }
+  if (tokens == 0U || elements_per_token == 0U ||
+      elements_per_token % kBlockElements != 0U ||
+      !std::isfinite(epsilon) || epsilon <= 0.0F ||
+      tokens > static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
+    return Invalid("fused RMSNorm NVFP4 quantization extent is invalid");
+  }
+  if (!PositiveFinite(global_divisor)) {
+    return Invalid("fused RMSNorm NVFP4 divisor must be positive and finite");
+  }
+  constexpr unsigned threads = 256;
+  RmsNormQuantizeActivationKernel<<<static_cast<unsigned>(tokens), threads, 0,
+                                    stream>>>(
+      input, weight_bf16, packed_e2m1, block_scales_e4m3fn,
+      elements_per_token, epsilon, global_divisor);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("launch fused RMSNorm NVFP4 quantization", error);
+}
+
+Status LaunchGatedGeluNvfp4ActivationQuantization(
+    const float* gate, const float* up, std::uint8_t* packed_e2m1,
+    std::uint8_t* block_scales_e4m3fn, std::uint64_t elements,
+    float global_divisor, cudaStream_t stream) {
+  if (gate == nullptr || up == nullptr || packed_e2m1 == nullptr ||
+      block_scales_e4m3fn == nullptr) {
+    return Invalid("fused Gate/Up GELU NVFP4 quantization requires non-null pointers");
+  }
+  if (elements == 0U || elements % kBlockElements != 0U) {
+    return Invalid("fused Gate/Up GELU NVFP4 extent must be divisible by 16");
+  }
+  if (!PositiveFinite(global_divisor)) {
+    return Invalid("fused Gate/Up GELU NVFP4 divisor must be positive and finite");
+  }
+  const std::uint64_t blocks = elements / kBlockElements;
+  constexpr unsigned threads = 128;
+  constexpr unsigned groups_per_block = threads / kBlockElements;
+  const std::uint64_t grid =
+      (blocks + groups_per_block - 1U) / groups_per_block;
+  if (grid > static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
+    return Invalid("fused Gate/Up GELU NVFP4 grid exceeds CUDA limits");
+  }
+  GatedGeluQuantizeActivationKernel<<<static_cast<unsigned>(grid), threads, 0,
+                                      stream>>>(
+      gate, up, packed_e2m1, block_scales_e4m3fn, blocks, global_divisor);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("launch fused Gate/Up GELU NVFP4 quantization", error);
 }
 
 Status LaunchNvfp4ReferenceProjection(const std::uint8_t* packed_activation_e2m1,

@@ -23,6 +23,18 @@ namespace gem16gb::internal {
     std::uint64_t elements_per_token,
     cudaStream_t stream);
 
+// Production prefill boundary: Gemma RMSNorm, BF16 state rounding, and
+// dynamic per-token FP8 quantization in one CTA per token.
+[[nodiscard]] Status LaunchRmsNormFp8TokenQuantizationBatch(
+    const float* input,
+    const std::uint16_t* weight_bf16,
+    std::uint8_t* output_e4m3fn,
+    float* output_scales,
+    std::uint64_t tokens,
+    std::uint64_t elements_per_token,
+    float epsilon,
+    cudaStream_t stream);
+
 [[nodiscard]] Status LaunchFp8ReferenceProjection(
     const std::uint8_t* activation_e4m3fn,
     const float* activation_scale,

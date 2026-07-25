@@ -20,7 +20,7 @@ large-M NVFP4 winner advance the same 512-token characterization as follows:
 
 | Workload | Initial gem16gb | Current gem16gb | vLLM | Current/vLLM |
 |---|---:|---:|---:|---:|
-| Prefill, 512 prompt tokens, batch 1 | 698.25 tok/s | 1,769.04 tok/s | 6,146.50 tok/s | 0.288x |
+| Prefill, 512 prompt tokens, batch 1 | 698.25 tok/s | 1,914.76 tok/s | 6,146.50 tok/s | 0.312x |
 
 These numbers are diagnostic rather than a parity claim because the retained vLLM run and gem16gb do not yet have
 identical timing boundaries and cache precision. The optimization goal does not depend on presenting the ratio as
@@ -146,6 +146,9 @@ and zero stack/local memory. Operator output is bit-identical to the CUDA refere
 
 ### 5. Fuse only profile-proven bandwidth and launch boundaries
 
+Status: first promotion complete; exact RMSNorm/quantization and MLP activation boundaries are now the sole
+production prefill path. Q/K normalization, RoPE, and K/V write remain the next measured fusion target.
+
 After attention and projection kernels are no longer the old bottlenecks, profile again and consider, in order:
 
 1. RMSNorm plus activation quantization;
@@ -155,6 +158,15 @@ After attention and projection kernels are no longer the old bottlenecks, profil
 
 Each fusion must retain a test oracle, report numerical reordering, and improve repeated end-to-end prefill. An
 isolated kernel win is insufficient, as shown by the previously rejected Gate/Up fusion.
+
+The first accepted set preserves every observable BF16 and E4M3/E2M1 boundary while combining RMSNorm with FP8 or
+NVFP4 token quantization, combining post-projection norm/residual/optional layer scale, and combining separate
+Gate/Up outputs with Gemma GELU-tanh and the Down-input NVFP4 quantizer. Dedicated CUDA fixtures require
+bit-identical payloads and scales versus the former sequence. Against detached `bdb1294`, 3/10 medians rise from
+1,540.69/1,748.61/1,563.23 to 1,664.23/1,914.76/1,722.95 tok/s at 128/512/2,048 tokens
+(`+8.0%/+9.5%/+10.2%`). Nsight reduces launches from 2,165 to 1,300 per prefill (`-40.0%`) and total GPU kernel
+time by 8.73% at 512. Exact-blue, both vLLM boundary checks, and the 12-prompt teacher-forced metrics are unchanged;
+peak process VRAM is 9,582 MiB with no arena growth.
 
 ## Mandatory correctness gates
 

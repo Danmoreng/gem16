@@ -20,9 +20,9 @@ approximately 16 GB of VRAM. The first model is the mixed FP8/NVFP4
   Packed E2M1 weights remain in checkpoint layout; local E4M3 scale bytes are tiled exactly once at load time into
   their final arena allocation. A complete real-checkpoint Layer-0 characterization composes FP8 local attention
   and the NVFP4 MLP without a host roundtrip or persistent second copy.
-- Direct-source packed-NVFP4 SIMT/GEMV and closed SM120a Gate/Up/GELU alternatives remain available only in
-  characterization probes. The production engine uses the measured winner: native MMA with separate Gate/Up/GELU,
-  which won Linux end-to-end Prefill and Decode A/B measurements.
+- Direct-source packed-NVFP4 SIMT/GEMV and combined Gate/Up projection alternatives remain available only in
+  characterization probes. Production keeps the two native MMA projections separate, then fuses their exact BF16,
+  GELU-tanh, and NVFP4-activation boundary into one prefill kernel. Decode retains its separately qualified plan.
 - A CUDA-only, batch-one greedy characterization now loads the complete text model into one weight arena, executes
   all 48 layers with separate K/V caches, and selects the token on the GPU. Decode evaluates eight tied-BF16
   vocabulary rows per block, applies the exact logit softcap, and reduces only one candidate per block. The engine applies the checkpoint's
@@ -77,7 +77,8 @@ build/Linux/blackwell-release/bin/gem16gb-run \
 
 The checkpoint-declared FP8 K/V semantics are the default. Use `--kv-cache bf16` only for the explicitly labeled
 BF16 correctness comparison. The production path is fixed to native SM120 projection, chunked prefill, fused causal
-prefill attention, separate Gate/Up/GELU, complete decode graphs, and fused output-head reduction. Slower
+prefill attention, fused exact prefill normalization/quantization boundaries, separate Gate/Up projections with a
+fused GELU-tanh/NVFP4 epilogue, complete decode graphs, and fused output-head reduction. Slower
 alternatives are not exposed by the product CLIs; reference implementations remain in operator probes and tests.
 JSON records the fixed path.
 

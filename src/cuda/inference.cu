@@ -977,10 +977,8 @@ class InferenceEngine {
       if (!status.ok()) return status;
     }
     float* normalized = Pointer<float>(workspace_, offsets_.normalized);
-    Status status = internal::LaunchRmsNorm(hidden_a, model_.final_norm(), normalized, 1U,
+    Status status = internal::LaunchRmsNormBf16(hidden_a, model_.final_norm(), normalized, 1U,
                                             kHidden, kEpsilon, stream_);
-    if (!status.ok()) return status;
-    status = LaunchRoundBf16(normalized, kHidden, stream_);
     if (!status.ok()) return status;
     if (!select_token) {
       if (!host_state.empty()) {
@@ -1081,10 +1079,8 @@ class InferenceEngine {
         if (!status.ok()) return status;
       }
       float* normalized = Pointer<float>(prefill_workspace_, prefill_offsets_.normalized);
-      Status status = internal::LaunchRmsNorm(
+      Status status = internal::LaunchRmsNormBf16(
           hidden, model_.final_norm(), normalized, tokens, kHidden, kEpsilon, stream_);
-      if (!status.ok()) return status;
-      status = LaunchRoundBf16(normalized, hidden_elements, stream_);
       if (!status.ok()) return status;
       if (begin + tokens == token_ids.size()) {
         float* last = normalized + (tokens - 1U) * kHidden;
@@ -1281,7 +1277,6 @@ class InferenceEngine {
     const NvtxRange range("gem16gb.prefill.layer");
     float* hidden_a = Pointer<float>(prefill_workspace_, prefill_offsets_.hidden_a);
     float* hidden_b = Pointer<float>(prefill_workspace_, prefill_offsets_.hidden_b);
-    float* normalized = Pointer<float>(prefill_workspace_, prefill_offsets_.normalized);
     auto* fp8 = Pointer<std::uint8_t>(prefill_workspace_, prefill_offsets_.fp8_activation);
     float* fp8_scales = Pointer<float>(prefill_workspace_, prefill_offsets_.fp8_scales);
     float* q = Pointer<float>(prefill_workspace_, prefill_offsets_.q);
@@ -1292,15 +1287,10 @@ class InferenceEngine {
     float* v_norm = Pointer<float>(prefill_workspace_, prefill_offsets_.v_norm);
     float* attention = Pointer<float>(prefill_workspace_, prefill_offsets_.attention);
     float* projection = Pointer<float>(prefill_workspace_, prefill_offsets_.projection);
-    float* post_norm = Pointer<float>(prefill_workspace_, prefill_offsets_.post_norm);
     const std::uint64_t hidden_elements = tokens * kHidden;
-    Status status = internal::LaunchRmsNorm(hidden_a, layer.input_norm, normalized,
-                                            tokens, kHidden, kEpsilon, stream_);
-    if (!status.ok()) return status;
-    status = LaunchRoundBf16(normalized, hidden_elements, stream_);
-    if (!status.ok()) return status;
-    status = internal::LaunchFp8ReferenceTokenQuantizationBatch(
-        normalized, fp8, fp8_scales, tokens, kHidden, stream_);
+    Status status = internal::LaunchRmsNormFp8TokenQuantizationBatch(
+        hidden_a, layer.input_norm, fp8, fp8_scales, tokens, kHidden,
+        kEpsilon, stream_);
     if (!status.ok()) return status;
     status = LaunchFp8QkvProjectionBatch(
         fp8, fp8_scales, layer.q, q, layer.k, k,
@@ -1316,21 +1306,15 @@ class InferenceEngine {
              LaunchRoundBf16(q, tokens * layer.query_elements, stream_),
              LaunchRoundBf16(k, tokens * layer.kv_elements, stream_),
              LaunchRoundBf16(v, tokens * layer.kv_elements, stream_),
-             internal::LaunchRmsNorm(q, layer.q_norm, q_norm,
+             internal::LaunchRmsNormBf16(q, layer.q_norm, q_norm,
                                      tokens * kQueryHeads, layer.head_dimension,
                                      kEpsilon, stream_),
-             internal::LaunchRmsNorm(k, layer.k_norm, k_norm,
+             internal::LaunchRmsNormBf16(k, layer.k_norm, k_norm,
                                      tokens * layer.kv_heads, layer.head_dimension,
                                      kEpsilon, stream_),
-             internal::LaunchRmsNorm(v, nullptr, v_norm,
+             internal::LaunchRmsNormBf16(v, nullptr, v_norm,
                                      tokens * layer.kv_heads, layer.head_dimension,
                                      kEpsilon, stream_)}) {
-      if (!next.ok()) return next;
-    }
-    for (const Status next : {
-             LaunchRoundBf16(q_norm, tokens * layer.query_elements, stream_),
-             LaunchRoundBf16(k_norm, tokens * layer.kv_elements, stream_),
-             LaunchRoundBf16(v_norm, tokens * layer.kv_elements, stream_)}) {
       if (!next.ok()) return next;
     }
     if (layer.global) {
@@ -1407,30 +1391,18 @@ class InferenceEngine {
     if (!status.ok()) return status;
     status = LaunchRoundBf16(projection, hidden_elements, stream_);
     if (!status.ok()) return status;
-    status = internal::LaunchRmsNorm(projection, layer.post_attention_norm,
-                                     post_norm, tokens, kHidden, kEpsilon, stream_);
-    if (!status.ok()) return status;
-    status = LaunchRoundBf16(post_norm, hidden_elements, stream_);
-    if (!status.ok()) return status;
-    status = internal::LaunchAddResidual(post_norm, hidden_a, hidden_b,
-                                         hidden_elements, stream_);
-    if (!status.ok()) return status;
-    status = LaunchRoundBf16(hidden_b, hidden_elements, stream_);
+    status = internal::LaunchRmsNormResidualBf16(
+        projection, layer.post_attention_norm, hidden_a, nullptr, hidden_b,
+        tokens, kHidden, kEpsilon, nullptr, stream_);
     if (!status.ok()) return status;
 
     auto* mlp_packed = Pointer<std::uint8_t>(prefill_workspace_, prefill_offsets_.mlp_packed);
     auto* mlp_scales = Pointer<std::uint8_t>(prefill_workspace_, prefill_offsets_.mlp_scales);
     float* gate = Pointer<float>(prefill_workspace_, prefill_offsets_.gate);
     float* up = Pointer<float>(prefill_workspace_, prefill_offsets_.up);
-    float* product = Pointer<float>(prefill_workspace_, prefill_offsets_.product);
-    status = internal::LaunchRmsNorm(hidden_b, layer.pre_mlp_norm, normalized,
-                                     tokens, kHidden, kEpsilon, stream_);
-    if (!status.ok()) return status;
-    status = LaunchRoundBf16(normalized, hidden_elements, stream_);
-    if (!status.ok()) return status;
-    status = internal::LaunchNvfp4ReferenceActivationQuantization(
-        normalized, mlp_packed, mlp_scales, hidden_elements,
-        layer.gate.input_divisor, stream_);
+    status = internal::LaunchRmsNormNvfp4ActivationQuantizationBatch(
+        hidden_b, layer.pre_mlp_norm, mlp_packed, mlp_scales, tokens, kHidden,
+        kEpsilon, layer.gate.input_divisor, stream_);
     if (!status.ok()) return status;
     status = LaunchNvfp4ProjectionBatch(mlp_packed, mlp_scales, layer.gate,
                                         gate, tokens, stream_);
@@ -1438,19 +1410,10 @@ class InferenceEngine {
     status = LaunchNvfp4ProjectionBatch(mlp_packed, mlp_scales, layer.up,
                                         up, tokens, stream_);
     if (!status.ok()) return status;
-    status = LaunchRoundBf16(gate, tokens * kIntermediate, stream_);
-    if (!status.ok()) return status;
-    status = LaunchRoundBf16(up, tokens * kIntermediate, stream_);
-    if (!status.ok()) return status;
-    status = internal::LaunchGeluTanhProduct(gate, up, product,
-                                             tokens * kIntermediate, stream_);
-    if (!status.ok()) return status;
-    status = LaunchRoundBf16(product, tokens * kIntermediate, stream_);
-    if (!status.ok()) return status;
     auto* down_packed = Pointer<std::uint8_t>(prefill_workspace_, prefill_offsets_.down_packed);
     auto* down_scales = Pointer<std::uint8_t>(prefill_workspace_, prefill_offsets_.down_scales);
-    status = internal::LaunchNvfp4ReferenceActivationQuantization(
-        product, down_packed, down_scales, tokens * kIntermediate,
+    status = internal::LaunchGatedGeluNvfp4ActivationQuantization(
+        gate, up, down_packed, down_scales, tokens * kIntermediate,
         layer.down.input_divisor, stream_);
     if (!status.ok()) return status;
     status = LaunchNvfp4ProjectionBatch(down_packed, down_scales, layer.down,
@@ -1458,20 +1421,9 @@ class InferenceEngine {
     if (!status.ok()) return status;
     status = LaunchRoundBf16(projection, hidden_elements, stream_);
     if (!status.ok()) return status;
-    status = internal::LaunchRmsNorm(projection, layer.post_mlp_norm, post_norm,
-                                     tokens, kHidden, kEpsilon, stream_);
-    if (!status.ok()) return status;
-    status = LaunchRoundBf16(post_norm, hidden_elements, stream_);
-    if (!status.ok()) return status;
-    status = internal::LaunchAddResidual(post_norm, hidden_b, hidden_a,
-                                         hidden_elements, stream_);
-    if (!status.ok()) return status;
-    status = LaunchRoundBf16(hidden_a, hidden_elements, stream_);
-    if (!status.ok()) return status;
-    status = internal::LaunchScale(hidden_a, layer.layer_scalar,
-                                   hidden_elements, stream_);
-    if (!status.ok()) return status;
-    return LaunchRoundBf16(hidden_a, hidden_elements, stream_);
+    return internal::LaunchRmsNormResidualBf16(
+        projection, layer.post_mlp_norm, hidden_b, nullptr, hidden_a, tokens,
+        kHidden, kEpsilon, layer.layer_scalar, stream_);
   }
 
   template <typename Launch>
@@ -1592,10 +1544,8 @@ class InferenceEngine {
       if (!status.ok()) return status;
     }
     float* normalized = Pointer<float>(workspace_, offsets_.normalized);
-    Status status = internal::LaunchRmsNorm(
+    Status status = internal::LaunchRmsNormBf16(
         hidden, model_.final_norm(), normalized, 1U, kHidden, kEpsilon, stream_);
-    if (!status.ok()) return status;
-    status = LaunchRoundBf16(normalized, kHidden, stream_);
     if (!status.ok()) return status;
     auto* selected = Pointer<std::uint32_t>(workspace_, offsets_.selected);
     FusedOutputHeadCandidatesKernel<<<kFusedOutputHeadBlocks, kThreads, 0,
@@ -1661,10 +1611,8 @@ class InferenceEngine {
     float* k_norm = Pointer<float>(workspace_, offsets_.k_norm);
     float* v_norm = Pointer<float>(workspace_, offsets_.v_norm);
 
-    Status status = internal::LaunchRmsNorm(
+    Status status = internal::LaunchRmsNormBf16(
         hidden_a, layer.input_norm, normalized, 1U, kHidden, kEpsilon, stream_);
-    if (!status.ok()) return status;
-    status = LaunchRoundBf16(normalized, kHidden, stream_);
     if (!status.ok()) return status;
     status = internal::LaunchFp8ReferenceTokenQuantization(
         normalized, fp8_activation, fp8_scale, kHidden, stream_);
@@ -1688,15 +1636,12 @@ class InferenceEngine {
              LaunchRoundBf16(q, layer.query_elements, stream_),
              LaunchRoundBf16(k, layer.kv_elements, stream_),
              LaunchRoundBf16(v, layer.kv_elements, stream_),
-             internal::LaunchRmsNorm(q, layer.q_norm, q_norm, kQueryHeads,
+             internal::LaunchRmsNormBf16(q, layer.q_norm, q_norm, kQueryHeads,
                                      layer.head_dimension, kEpsilon, stream_),
-             internal::LaunchRmsNorm(k, layer.k_norm, k_norm, layer.kv_heads,
+             internal::LaunchRmsNormBf16(k, layer.k_norm, k_norm, layer.kv_heads,
                                      layer.head_dimension, kEpsilon, stream_),
-             internal::LaunchRmsNorm(v, nullptr, v_norm, layer.kv_heads,
+             internal::LaunchRmsNormBf16(v, nullptr, v_norm, layer.kv_heads,
                                      layer.head_dimension, kEpsilon, stream_),
-             LaunchRoundBf16(q_norm, layer.query_elements, stream_),
-             LaunchRoundBf16(k_norm, layer.kv_elements, stream_),
-             LaunchRoundBf16(v_norm, layer.kv_elements, stream_),
          }) {
       if (!next.ok()) return next;
     }
@@ -1766,30 +1711,22 @@ class InferenceEngine {
                               "copy attention output state");
       if (!status.ok()) return status;
     }
-    status = internal::LaunchRmsNorm(projection, layer.post_attention_norm,
-                                     post_norm, 1U, kHidden, kEpsilon, stream_);
-    if (!status.ok()) return status;
-    status = LaunchRoundBf16(post_norm, kHidden, stream_);
+    status = internal::LaunchRmsNormResidualBf16(
+        projection, layer.post_attention_norm, hidden_a, post_norm, hidden_b,
+        1U, kHidden, kEpsilon, nullptr, stream_);
     if (!status.ok()) return status;
     if (capture != nullptr) {
       status = capture_hidden(capture->post_attention_norm, post_norm,
                               "copy post-attention norm state");
       if (!status.ok()) return status;
     }
-    status = internal::LaunchAddResidual(post_norm, hidden_a, hidden_b, kHidden,
-                                         stream_);
-    if (!status.ok()) return status;
-    status = LaunchRoundBf16(hidden_b, kHidden, stream_);
-    if (!status.ok()) return status;
     if (capture != nullptr) {
       status = capture_hidden(capture->post_attention_residual, hidden_b,
                               "copy post-attention residual state");
       if (!status.ok()) return status;
     }
-    status = internal::LaunchRmsNorm(hidden_b, layer.pre_mlp_norm, normalized,
+    status = internal::LaunchRmsNormBf16(hidden_b, layer.pre_mlp_norm, normalized,
                                      1U, kHidden, kEpsilon, stream_);
-    if (!status.ok()) return status;
-    status = LaunchRoundBf16(normalized, kHidden, stream_);
     if (!status.ok()) return status;
     if (capture != nullptr) {
       status = capture_hidden(capture->pre_feedforward_norm, normalized,
@@ -1840,25 +1777,15 @@ class InferenceEngine {
                               "copy MLP output state");
       if (!status.ok()) return status;
     }
-    status = internal::LaunchRmsNorm(projection, layer.post_mlp_norm, post_norm,
-                                     1U, kHidden, kEpsilon, stream_);
-    if (!status.ok()) return status;
-    status = LaunchRoundBf16(post_norm, kHidden, stream_);
+    status = internal::LaunchRmsNormResidualBf16(
+        projection, layer.post_mlp_norm, hidden_b, post_norm, hidden_a, 1U,
+        kHidden, kEpsilon, layer.layer_scalar, stream_);
     if (!status.ok()) return status;
     if (capture != nullptr) {
       status = capture_hidden(capture->post_feedforward_norm, post_norm,
                               "copy post-feedforward norm state");
       if (!status.ok()) return status;
     }
-    status = internal::LaunchAddResidual(post_norm, hidden_b, hidden_a, kHidden,
-                                         stream_);
-    if (!status.ok()) return status;
-    status = LaunchRoundBf16(hidden_a, kHidden, stream_);
-    if (!status.ok()) return status;
-    status = internal::LaunchScale(hidden_a, layer.layer_scalar, kHidden, stream_);
-    if (!status.ok()) return status;
-    status = LaunchRoundBf16(hidden_a, kHidden, stream_);
-    if (!status.ok()) return status;
     if (capture != nullptr) {
       status = capture_hidden(capture->hidden, hidden_a,
                               "copy layer hidden state");
@@ -2517,6 +2444,10 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
          << "  \"fp8_prefill_tile\": \"m64n64k64\",\n"
          << "  \"fp8_prefill_pipeline_stages\": 2,\n"
          << "  \"grouped_qkv_prefill\": true,\n"
+         << "  \"fused_rmsnorm_boundaries\": true,\n"
+         << "  \"fused_prefill_rmsnorm_fp8_quantization\": true,\n"
+         << "  \"fused_prefill_rmsnorm_nvfp4_quantization\": true,\n"
+         << "  \"fused_prefill_gated_gelu_nvfp4_quantization\": true,\n"
          << "  \"fused_output_head\": true,\n"
          << "  \"decode_graphs\": "
          << (result.decode_graphs ? "true" : "false") << ",\n"
@@ -2585,6 +2516,10 @@ Status WriteDecodeBenchmarkJson(const DecodeBenchmarkResult& result,
          << ",\"fp8_prefill_tile\":\"m64n64k64\""
          << ",\"fp8_prefill_pipeline_stages\":2"
          << ",\"grouped_qkv_prefill\":true"
+         << ",\"fused_rmsnorm_boundaries\":true"
+         << ",\"fused_prefill_rmsnorm_fp8_quantization\":true"
+         << ",\"fused_prefill_rmsnorm_nvfp4_quantization\":true"
+         << ",\"fused_prefill_gated_gelu_nvfp4_quantization\":true"
          << ",\"fused_output_head\":true"
          << ",\"decode_graphs\":true"
          << ",\"context_tokens\":" << result.options.context_tokens
@@ -2661,6 +2596,10 @@ Status WritePrefillBenchmarkJson(const DecodeBenchmarkResult& result,
          << ",\"fp8_prefill_tile\":\"m64n64k64\""
          << ",\"fp8_prefill_pipeline_stages\":2"
          << ",\"grouped_qkv_prefill\":true"
+         << ",\"fused_rmsnorm_boundaries\":true"
+         << ",\"fused_prefill_rmsnorm_fp8_quantization\":true"
+         << ",\"fused_prefill_rmsnorm_nvfp4_quantization\":true"
+         << ",\"fused_prefill_gated_gelu_nvfp4_quantization\":true"
          << ",\"decode_graphs\":true"
          << ",\"kv_cache_layout\":\"hybrid_local_ring_global_contiguous\","
          << "\"model_load_ms\":" << result.model_load_milliseconds

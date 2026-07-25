@@ -1,5 +1,29 @@
 # Decisions
 
+## 2026-07-25: Fuse exact prefill normalization and MLP quantization boundaries
+
+Date: 2026-07-25
+Decision: Replace the production prefill sequences at RMSNorm/FP8 quantization, RMSNorm/NVFP4 quantization,
+post-projection norm/residual/optional layer scale, and Gate/Up/GELU-tanh/NVFP4 quantization with shape-specific
+fused kernels. Preserve every prescribed BF16 cast and quantized payload exactly. Make the fused implementation
+the sole production path; retain the former sequence only as a CUDA test oracle and expose no selector.
+Context: After the projection phases, context-512 prefill still launched 2,165 kernels. Repeated standalone
+rounding, RMSNorm, GELU, and quantization kernels dominated launch-heavy residual work even though their producer
+and consumer share the same token geometry.
+Alternatives: Keep the separate sequence; combine Gate and Up projections; share Q/K RoPE trigonometric arithmetic;
+or retain runtime A/B modes. Separate launches leave a measured end-to-end gain unused. Combined projections had
+lost the prior Linux A/B. Sharing RoPE arithmetic was re-tested and rejected because it changed boundary logits.
+Runtime variants violate the single-winner policy.
+Consequences: Gate and Up projections remain separate, but their exact BF16 outputs feed one GELU/product/NVFP4
+kernel. Normalization fusions retain BF16 rounding before residual and optional layer scaling. Runtime JSON and
+validators require all four fused families. Launches fall to 1,300 per context-512 prefill; arenas and persistent
+checkpoint storage are unchanged. The selected kernels use at most 40 registers and 3,072 bytes shared memory and
+have zero stack/local memory.
+Evidence: Against detached `bdb1294`, final 3/10 medians improve from 1,540.69/1,748.61/1,563.23 to
+1,664.23/1,914.76/1,722.95 tok/s at 128/512/2,048 (`+8.0%/+9.5%/+10.2%`). Nsight measures 40.0% fewer launches
+and 8.73% less total kernel time at 512. CTest, exact-blue, vLLM boundaries 129/257, and all aggregate metrics in
+the 12-prompt/127-position teacher-forced suite remain unchanged. Peak process VRAM is 9,582 MiB.
+
 ## 2026-07-25: Pipeline source-layout FP8 prefill and group Q/K/V
 
 Date: 2026-07-25

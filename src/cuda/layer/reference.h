@@ -22,6 +22,25 @@ struct DecodeControl {
                                    float epsilon,
                                    cudaStream_t stream);
 
+// Production inference stores RMSNorm boundaries as BF16 values in FP32
+// workspace slots. Perform that required rounding in the RMSNorm kernel.
+[[nodiscard]] Status LaunchRmsNormBf16(const float* input,
+                                       const std::uint16_t* weight_bf16,
+                                       float* output,
+                                       std::uint64_t vectors,
+                                       std::uint64_t width,
+                                       float epsilon,
+                                       cudaStream_t stream);
+
+// Gemma applies a BF16 RMSNorm boundary, residual addition, another BF16
+// boundary, and optionally a BF16 layer scalar plus a final BF16 boundary.
+// Preserve that exact ordering in one reduction kernel.
+[[nodiscard]] Status LaunchRmsNormResidualBf16(
+    const float* input, const std::uint16_t* weight_bf16,
+    const float* residual, float* normalized_output, float* output,
+    std::uint64_t vectors, std::uint64_t width, float epsilon,
+    const std::uint16_t* scalar_bf16, cudaStream_t stream);
+
 [[nodiscard]] Status LaunchRotaryEmbedding(float* states,
                                            std::uint64_t heads,
                                            std::uint64_t head_dimension,

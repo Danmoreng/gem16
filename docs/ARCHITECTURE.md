@@ -105,6 +105,14 @@ static shared bytes including toolchain overhead; the decode kernel uses 40 regi
 memory. The scale transformation preserves all bytes, leaves the 9,200,135,680-byte weight arena unchanged, and
 is mandatory rather than selectable.
 
+Prefill materializes no redundant normalized or MLP-product tensor solely to cross a quantization boundary.
+Shape-specific kernels combine RMSNorm with the exact BF16 cast and dynamic FP8/NVFP4 token quantizer, combine
+post-projection normalization with residual and optional BF16 layer scaling, and combine the separate Gate/Up
+projection outputs with the exact BF16/GELU-tanh/product boundaries and Down-input NVFP4 packing. These kernels
+preserve the former operation order and bytes exactly; the unfused sequence remains only as the CUDA test oracle.
+There is no fused/unfused runtime selector. Diagnostic decode can still request the normalized intermediate when
+capturing hidden states, while ordinary prefill omits that store.
+
 ## Memory-plan boundary
 
 The first runtime component now converts parsed model metadata and the authoritative text-only manifest into a

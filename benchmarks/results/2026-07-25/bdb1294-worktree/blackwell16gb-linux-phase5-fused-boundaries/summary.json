@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "decision": "promote",
+  "reference_commit": "bdb1294",
+  "prefill_median_tokens_per_second": {
+    "128": {"before": 1540.6860115317195, "after": 1664.2269302842917, "gain_percent": 8.018565615},
+    "512": {"before": 1748.6105655699184, "after": 1914.7620624204119, "gain_percent": 9.501915413},
+    "2048": {"before": 1563.2330304785683, "after": 1722.9533991846467, "gain_percent": 10.217310253}
+  },
+  "kernel_launch_reduction_percent": 39.953810624,
+  "kernel_time_reduction_percent": 8.732075231,
+  "peak_vram_mib": 9582,
+  "quality_changed": false,
+  "arena_bytes_changed": false,
+  "next_profile_target": "exact RoPE BF16 boundary and K/V write without changing trigonometric arithmetic"
+}
