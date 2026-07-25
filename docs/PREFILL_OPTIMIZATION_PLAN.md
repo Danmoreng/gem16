@@ -42,7 +42,7 @@ established this program:
 
 The initial gem16gb path launched approximately 9,235 GPU operations per execution, versus 747 for vLLM. Online
 attention and the 1,024-token plan reduce this to approximately 2,311. Attention is no longer the dominant gap;
-NVFP4 projections now consume about 53% of current GPU time and remain almost 12x slower than vLLM. Large
+NVFP4 projections now consume about 53% of current GPU time and remain almost 10x slower than vLLM. Large
 projection tiles and substantially more weight reuse are therefore the next critical work.
 
 The neighboring Apache-2.0 NInfer implementation supplies useful implementation concepts, not a compatible
@@ -105,6 +105,27 @@ Replace the current warp-level token tiling with a shape-specific block pipeline
 
 Gate, Up, and Down are measured individually and end to end. A layout transformation is accepted only when its
 end-to-end benefit, exact value preservation, and memory cost are recorded in `docs/WEIGHT_LAYOUT.md`.
+
+#### Phase-3 handoff after the M128 promotion
+
+The current production geometry is one warp per N8 output slice and eight M16 token tiles per retained packed
+weight fragment. Four warps therefore cover M128xN32 while preserving the original K64 accumulation order. This
+is the stable resume point at commit `2366c03`; increasing the per-warp accumulator footprint to M256 is not a
+viable continuation because it spills.
+
+Inspection of NInfer's Apache-2.0 Q4 row-split GEMM identifies the next transferable mechanisms: shape-specific
+M64xN64/M64xN128 CTA schedules, K64 iteration, two- or three-stage `cp.async` pipelines, XOR-swizzled shared
+memory, CTA-wide reuse, and optional accumulator-fragment ping-pong. Its Q4 values are decoded to BF16 shared
+memory before BF16 MMA, so that numerical/storage path is not reusable for this engine's native block-scaled
+E2M1 MMA and must not be copied.
+
+The next experiment is an exact direct-layout M128xN32xK64 CTA pipeline. It should stage and double-buffer packed
+weight bytes and their E4M3 scale words while the current K64 fragment executes, share activation data across the
+four N8 warps only when that reduces measured traffic, and load each repeated weight-scale word once per lane
+quad before broadcasting it. Start without a load-time swizzle so the existing direct-checkpoint layout remains
+the control. Preserve FP32 accumulator order, confirm zero stack/local memory, and qualify Gate, Up, and Down
+separately before running the required 128/512/2,048 end-to-end matrix. Only if this CTA pipeline remains limited
+by source-layout loads should an exact streamed load-time swizzle be measured.
 
 ### 4. Rebuild and group the FP8 attention projections
 
