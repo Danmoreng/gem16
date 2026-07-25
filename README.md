@@ -247,7 +247,8 @@ Prompt ingestion uses a native 128-token chunk plan by default, reduced determin
 plans to keep the causal score arena bounded. Its FP8 attention and NVFP4 MLP projection warps each evaluate two
 consecutive 16-row by 8-column MMA tiles, reusing loaded checkpoint weight fragments across 32 prompt rows. Causal
 local/global attention combines score, softmax, and value phases into one block while
-preserving the reference reduction order. The token-at-a-time bridge and unfused attention implementation remain
+preserving the reference reduction order. Its FP8 QK phase reads each aligned key row in 16-byte transactions and
+unpacks those bytes into the original serial FMA order. The token-at-a-time bridge and unfused attention implementation remain
 test/probe references and are not selectable from `gem16gb-run` or `gem16gb-bench`.
 
 ## Validate real-checkpoint layer assembly

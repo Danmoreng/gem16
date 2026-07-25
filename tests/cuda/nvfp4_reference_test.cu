@@ -1116,6 +1116,121 @@ void TestCausalPrefillAcrossWrappedRing() {
   CUDA_TEST_CHECK(appended_keys[5] == chunk_keys[3]);
 }
 
+void TestVectorizedFp8CausalPrefill() {
+  constexpr std::uint64_t tokens = 3;
+  constexpr std::uint64_t query_heads = 2;
+  constexpr std::uint64_t kv_heads = 1;
+  constexpr std::uint64_t head_dimension = 32;
+  constexpr std::uint64_t capacity = 4;
+  constexpr std::uint64_t start_position = 1;
+  constexpr std::uint64_t score_stride = 4;
+  constexpr std::array<std::uint16_t, 1> scale = {0x3F00U};  // 0.5
+
+  std::vector<float> queries(tokens * query_heads * head_dimension);
+  for (std::size_t index = 0; index < queries.size(); ++index) {
+    queries[index] =
+        static_cast<float>(static_cast<int>((index * 11U) % 23U) - 11) *
+        0.03125F;
+  }
+  const auto make_fp8 = [](std::size_t count, std::size_t multiplier) {
+    std::vector<std::uint8_t> values(count);
+    for (std::size_t index = 0; index < count; ++index) {
+      const float value =
+          static_cast<float>(static_cast<int>((index * multiplier) % 15U) - 7) /
+          4.0F;
+      const auto encoded = gem16gb::fp8::EncodeE4M3Fn(value);
+      CUDA_TEST_CHECK(encoded.ok());
+      if (!encoded.ok()) return std::vector<std::uint8_t>{};
+      values[index] = encoded.value();
+    }
+    return values;
+  };
+  const auto chunk_keys =
+      make_fp8(tokens * kv_heads * head_dimension, 5U);
+  const auto chunk_values =
+      make_fp8(tokens * kv_heads * head_dimension, 7U);
+  const auto cache_keys =
+      make_fp8(capacity * kv_heads * head_dimension, 3U);
+  const auto cache_values =
+      make_fp8(capacity * kv_heads * head_dimension, 13U);
+  if (chunk_keys.empty() || chunk_values.empty() || cache_keys.empty() ||
+      cache_values.empty()) {
+    return;
+  }
+
+  DeviceBuffer<float> device_queries(queries.size());
+  DeviceBuffer<std::uint8_t> device_chunk_keys(chunk_keys.size());
+  DeviceBuffer<std::uint8_t> device_chunk_values(chunk_values.size());
+  DeviceBuffer<std::uint8_t> device_cache_keys(cache_keys.size());
+  DeviceBuffer<std::uint8_t> device_cache_values(cache_values.size());
+  DeviceBuffer<std::uint16_t> device_scale(scale.size());
+  DeviceBuffer<float> device_reference_scores(tokens * query_heads * score_stride);
+  DeviceBuffer<float> device_fused_scores(tokens * query_heads * score_stride);
+  DeviceBuffer<float> device_reference_output(queries.size());
+  DeviceBuffer<float> device_fused_output(queries.size());
+  if (device_queries.get() == nullptr || device_chunk_keys.get() == nullptr ||
+      device_chunk_values.get() == nullptr ||
+      device_cache_keys.get() == nullptr ||
+      device_cache_values.get() == nullptr || device_scale.get() == nullptr ||
+      device_reference_scores.get() == nullptr ||
+      device_fused_scores.get() == nullptr ||
+      device_reference_output.get() == nullptr ||
+      device_fused_output.get() == nullptr) {
+    return;
+  }
+  if (!CudaOk(cudaMemcpy(device_queries.get(), queries.data(),
+                         device_queries.bytes(), cudaMemcpyHostToDevice),
+              "copy vectorized-prefill queries") ||
+      !CudaOk(cudaMemcpy(device_chunk_keys.get(), chunk_keys.data(),
+                         device_chunk_keys.bytes(), cudaMemcpyHostToDevice),
+              "copy vectorized-prefill chunk keys") ||
+      !CudaOk(cudaMemcpy(device_chunk_values.get(), chunk_values.data(),
+                         device_chunk_values.bytes(), cudaMemcpyHostToDevice),
+              "copy vectorized-prefill chunk values") ||
+      !CudaOk(cudaMemcpy(device_cache_keys.get(), cache_keys.data(),
+                         device_cache_keys.bytes(), cudaMemcpyHostToDevice),
+              "copy vectorized-prefill cache keys") ||
+      !CudaOk(cudaMemcpy(device_cache_values.get(), cache_values.data(),
+                         device_cache_values.bytes(), cudaMemcpyHostToDevice),
+              "copy vectorized-prefill cache values") ||
+      !CudaOk(cudaMemcpy(device_scale.get(), scale.data(), device_scale.bytes(),
+                         cudaMemcpyHostToDevice),
+              "copy vectorized-prefill scale")) {
+    return;
+  }
+
+  const auto reference = gem16gb::internal::LaunchCausalAttentionPrefillFp8(
+      device_queries.get(), device_chunk_keys.get(),
+      device_chunk_values.get(), device_cache_keys.get(),
+      device_cache_values.get(), device_scale.get(), device_scale.get(),
+      device_reference_scores.get(), device_reference_output.get(),
+      start_position, tokens, query_heads, kv_heads, head_dimension, capacity,
+      false, nullptr);
+  const auto fused = gem16gb::internal::LaunchFusedCausalAttentionPrefillFp8(
+      device_queries.get(), device_chunk_keys.get(),
+      device_chunk_values.get(), device_cache_keys.get(),
+      device_cache_values.get(), device_scale.get(), device_scale.get(),
+      device_fused_scores.get(), device_fused_output.get(), start_position,
+      tokens, query_heads, kv_heads, head_dimension, capacity, false, nullptr);
+  CUDA_TEST_CHECK(reference.ok());
+  CUDA_TEST_CHECK(fused.ok());
+  if (!reference.ok() || !fused.ok() ||
+      !CudaOk(cudaDeviceSynchronize(), "vectorized FP8 prefill synchronize")) {
+    return;
+  }
+  std::vector<float> reference_output(queries.size());
+  std::vector<float> fused_output(queries.size());
+  if (!CudaOk(cudaMemcpy(reference_output.data(), device_reference_output.get(),
+                         device_reference_output.bytes(), cudaMemcpyDeviceToHost),
+              "copy reference vectorized-prefill output") ||
+      !CudaOk(cudaMemcpy(fused_output.data(), device_fused_output.get(),
+                         device_fused_output.bytes(), cudaMemcpyDeviceToHost),
+              "copy fused vectorized-prefill output")) {
+    return;
+  }
+  CUDA_TEST_CHECK(reference_output == fused_output);
+}
+
 }  // namespace
 
 int main() {
@@ -1133,6 +1248,7 @@ int main() {
   TestPhysicalFp8KvCache();
   TestWrappedKvRingAttention();
   TestCausalPrefillAcrossWrappedRing();
+  TestVectorizedFp8CausalPrefill();
   if (failures != 0) {
     std::cerr << failures << " CUDA test assertion(s) failed\n";
     return 1;

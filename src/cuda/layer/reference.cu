@@ -652,17 +652,39 @@ __global__ void FusedCausalAttentionPrefillKernel(
     const CacheType* source = in_chunk ? chunk_key : key_cache;
     source += (source_token * kv_heads + kv_head) * head_dimension;
     float score = 0.0F;
-    for (std::uint64_t dimension = 0; dimension < head_dimension;
-         ++dimension) {
-      float key_value;
-      if constexpr (kFp8) {
+    if constexpr (kFp8) {
+      std::uint64_t dimension = 0U;
+      // CUDA device allocations are at least 256-byte aligned. Requiring the
+      // row extent and the resolved row address to retain uint4 alignment
+      // makes the wide load explicit; uncommon test geometries stay scalar.
+      if (head_dimension % sizeof(uint4) == 0U &&
+          reinterpret_cast<std::uintptr_t>(source) % alignof(uint4) == 0U) {
+        for (; dimension < head_dimension; dimension += 16U) {
+          const uint4 packed =
+              *reinterpret_cast<const uint4*>(source + dimension);
+          const std::uint32_t words[4] = {packed.x, packed.y, packed.z,
+                                          packed.w};
+#pragma unroll
+          for (unsigned index = 0U; index < 16U; ++index) {
+            __nv_fp8_e4m3 quantized;
+            quantized.__x = static_cast<std::uint8_t>(
+                words[index >> 2U] >> ((index & 3U) * 8U));
+            score = fmaf(query_head_data[dimension + index],
+                         static_cast<float>(quantized) * key_scale, score);
+          }
+        }
+      }
+      for (; dimension < head_dimension; ++dimension) {
         __nv_fp8_e4m3 quantized;
         quantized.__x = source[dimension];
-        key_value = static_cast<float>(quantized) * key_scale;
-      } else {
-        key_value = source[dimension];
+        score = fmaf(query_head_data[dimension],
+                     static_cast<float>(quantized) * key_scale, score);
       }
-      score = fmaf(query_head_data[dimension], key_value, score);
+    } else {
+      for (std::uint64_t dimension = 0; dimension < head_dimension;
+           ++dimension) {
+        score = fmaf(query_head_data[dimension], source[dimension], score);
+      }
     }
     vector_scores[key] = score;
   }

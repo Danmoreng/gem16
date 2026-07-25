@@ -77,6 +77,10 @@ decode plan may therefore quantize their shared input once, contract both matric
 product in one closed operator. Down performs its own dynamic-local quantization and may fuse its residual epilogue.
 The attention projections remain a separate dynamic-FP8/per-channel-FP8 path.
 
+Checkpoint-FP8 prefill attention preserves the scalar reference's QK FMA order while loading each aligned key row
+as 16-byte vectors. Register extraction restores monotonically increasing dimensions before every FMA, so the
+optimized fused kernel remains bit-identical to the scalar score/softmax/value chain without uncoalesced byte loads.
+
 ## Memory-plan boundary
 
 The first runtime component now converts parsed model metadata and the authoritative text-only manifest into a

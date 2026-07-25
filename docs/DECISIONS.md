@@ -1,5 +1,26 @@
 # Decisions
 
+## 2026-07-25: Vectorize checkpoint-FP8 key reads without reordering QK
+
+Date: 2026-07-25
+Decision: Make fused checkpoint-FP8 prefill attention load aligned key rows in 16-byte vectors, extract their FP8
+bytes in increasing dimension order, and retain the existing serial FP32 FMA accumulation. Use the scalar loop only
+for internal geometries whose row address or extent is not 16-byte aligned; product model shapes always satisfy the
+wide-load invariant. This is deterministic geometry handling, not a runtime performance option.
+Context: Linux Nsight Systems attributed 41.3% of context-512 projected GPU time to the fused attention kernel.
+Each score thread consumed a contiguous FP8 key row one byte at a time; the compiler could not combine those loads
+across the loop-carried FMA dependency.
+Alternatives: Parallelize each QK dot product across a warp; introduce an approximate or tensor-core attention
+route; retain scalar loads. The warp prototype was faster but changed the first generated token on 129/257-token
+synthetic prompts and was discarded. Wider loads obtain a larger gain without changing arithmetic.
+Consequences: The production FP8 kernel uses 48 registers, 3 KiB shared memory, and no stack/local memory. Score
+storage, softmax, value accumulation, cache semantics, arena sizes, and launch count are unchanged. A true online
+FlashAttention design remains the next architectural opportunity but must establish its own numerical evidence.
+Evidence: Against a separately built `c0c9b42` reference at context 512 with 3 warm-ups and 10 runs, throughput
+improves from 603.42 to 698.25 tok/s (+15.72%) and TTFT falls from 848.50 to 733.27 ms (-13.58%). Nsight measures
+705.49 to 399.53 ms (-43.37%) fused-attention time. A 32-dimensional FP8 fused/reference fixture is bit-identical;
+exact-blue, exact 129/257-token eight-step sequences, and release unit/CUDA tests pass.
+
 ## 2026-07-25: Reuse FP8 weights across two prefill token tiles
 
 Date: 2026-07-25
