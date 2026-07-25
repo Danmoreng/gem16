@@ -246,7 +246,8 @@ outside version control.
 Prompt ingestion uses one native 1,024-token chunk plan for checkpoint-FP8 execution. FP8 attention-projection
 warps evaluate two consecutive 16-row by 8-column MMA tiles; NVFP4 MLP projection warps retain each source weight
 and scale fragment across eight such tiles, or 128 prompt rows. Eight NVFP4 warps form an M128xN64 CTA and stage
-the exact packed activation bytes and E4M3 scale words once in shared memory for CTA-wide reuse. Shape-specific
+the exact packed activation bytes and E4M3 scale words once for CTA-wide reuse. Two shared-memory stages use
+`cp.async` to overlap the next K64 slice with current native MMA work. Shape-specific
 local D256 and global D512 attention kernels perform QK and PV on
 Tensor Cores while retaining FP32 online-softmax state, reading older K/V from the hybrid cache, and avoiding a
 global score matrix. The token-at-a-time bridge and scalar attention implementation remain test/probe references

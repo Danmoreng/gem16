@@ -106,6 +106,16 @@ rank/logprob metrics, and all 12-prompt/127-position teacher-forced aggregates a
 Evidence is under
 `benchmarks/results/2026-07-25/abb430c-worktree/blackwell16gb-linux-nvfp4-cta-m128n64/`.
 
+The CTA's synchronous activation stage is next replaced directly by two ping-pong buffers populated with 16-byte
+packed-activation and 4-byte scale `cp.async` transfers. A neighboring 30-run context-512 comparison raises mean
+throughput from 1,412.39 to 1,439.57 tok/s (+1.92%) and median from 1,413.45 to 1,437.55 (+1.71%); paired
+differences have a 95% interval of +10.68 to +43.69 tok/s. The 2,048-token 3/10 median rises from 1,307.64 to
+1,329.51 tok/s (+1.67%) with non-overlapping confidence intervals. Nsight reduces NVFP4 time from 119.04 to
+98.94 ms per execution (-16.9%) and projected total GPU time from 364.08 to 336.71 ms (-7.5%). The generated SASS
+contains `LDGSTS`; the selected kernel uses 124 registers, 10,240 shared bytes, and zero stack/local memory. All
+fixed generation, boundary-logit, and teacher-forced metrics remain identical. Evidence is under
+`benchmarks/results/2026-07-25/d8b73ce-worktree/blackwell16gb-linux-nvfp4-async-pipeline/`.
+
 The following console characterizations were collected on the same Windows Blackwell development machine after
 commits `0d2065e` and `914aba1`, using direct checkpoint loading, checkpoint FP8 KV, native SM120 projections, and
 the opt-in fused Gate/Up path. They are not accepted benchmark artifacts: 128 and 512 prefill use the full 3 warm-up/
@@ -134,6 +144,7 @@ fusion removes two launches per layer, while wider/pipelined projection tiles re
 
 | Date | Commit | Hypothesis | Configuration | Before | After | Quality delta | VRAM delta | Decision |
 |---|---|---|---|---:|---:|---:|---:|---|
+| 2026-07-25 | `d8b73ce` worktree | The next exact activation K64 slice can overlap the current MMA stack through ping-pong `cp.async` staging | Linux RTX 5080 Laptop, CUDA 13.3, FP8 KV; context 128/2,048 3/10, context 512 adjacent 3/30; Nsight context 512 | Synchronous N64 CTA: 1,413.45 tok/s median at 512; NVFP4 119.04 ms/execution | Two-stage async CTA: 1,437.55 tok/s (+1.71%); NVFP4 98.94 ms (-16.9%); 2K 1,329.51 tok/s (+1.67%) | Exact same boundary metrics and 118/127 teacher-forced Top-1 aggregate; exact-blue and CTest pass | No arena/persistent change; shared 5,632 to 10,240 bytes; 124 registers, zero stack/local memory | Promote the two-stage `cp.async` CTA as the sole NVFP4 prefill pipeline |
 | 2026-07-25 | `abb430c` worktree | One M128 activation K64 slice can be staged once and reused across eight N8 output warps without changing native MMA arithmetic | Linux RTX 5080 Laptop, CUDA 13.3, FP8 KV; context 128/512/2,048, adjacent 3/10; Nsight context 512 | M128xN32: 1,000.70/1,099.00/1,031.94 tok/s; NVFP4 234.71 ms/execution | M128xN64 CTA: 1,260.67/1,427.00/1,307.64 tok/s (+26.0%/+29.8%/+26.7%); NVFP4 114.58 ms (-51.2%) | Exact same boundary metrics and 118/127 teacher-forced Top-1 aggregate; exact-blue and CTest pass | No arena or persistent-memory change; 123 registers, 5,632 shared bytes, zero stack/local memory | Promote M128xN64 shared-activation CTA as the sole NVFP4 prefill kernel; continue asynchronous pipeline work |
 | 2026-07-25 | `a375583` worktree | Retaining each packed NVFP4 weight/scale fragment across a larger M tile reduces repeated source-layout traffic without changing per-tile arithmetic | Linux RTX 5080 Laptop, CUDA 13.3, FP8 KV; context 128/512/2,048, 3/10; Nsight context 512 | M32: 948.73/973.15/915.24 tok/s; NVFP4 286.97 ms/execution | M128: 1,024.10/1,095.56/1,032.91 tok/s (+7.9%/+12.6%/+12.9%); NVFP4 233.33 ms (-18.7%) | Exact same 118/127 teacher-forced Top-1 aggregate and boundary/full-generation gates; CTest passes | No arena or persistent-memory change; 128 registers, zero stack/local memory | Promote M128 as the sole production NVFP4 batch tile; reject M256 because it creates a 248-byte stack frame; continue CTA pipeline work |
 | 2026-07-25 | `c0f42de` plus qualification worktree | Shape-specific Tensor-Core online attention and a full 1,024-token prompt tile remove score traffic, scalar QK/PV, and repeated layer launches | Linux RTX 5080 Laptop, CUDA 13.3, FP8 KV; context 128/512/2,048, 3/10; Nsight context 512 | Score-matrix path: 698.25 tok/s at 512; attention 199.77 ms/execution; ~9,235 GPU ops | Online path: 973.15 tok/s at 512 (+39.4%); attention 24.41 ms (8.18x faster); ~2,311 GPU ops; chunk 1,024 gives 915.24 tok/s at 2K vs 893.60 for chunk 512 | CUDA operator max abs <=0.001013 and cosine >=0.999993; vLLM Top-1 rank 1 at 129/257; exact-blue; 118/127 teacher-forced Top-1 | Score arena removed; context-2K workspace 435,275,264 bytes, +216,823,808 vs chunk 512; zero hot-kernel stack/local memory | Retain online local/global attention and 1,024 as the sole checkpoint-FP8 production plan; optimize NVFP4 projections next |

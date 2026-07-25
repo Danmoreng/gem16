@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "status": "characterization",
+  "reference_commit": "d8b73ce",
+  "seed": 0,
+  "results": [
+    {
+      "prompt_tokens": 128,
+      "warmup_runs": 3,
+      "measured_runs": 10,
+      "reference_evidence": "../../abb430c-worktree/blackwell16gb-linux-nvfp4-cta-m128n64/prefill.json",
+      "reference_median_tokens_per_second": 1260.67220692499,
+      "candidate_median_tokens_per_second": 1284.9569819827811,
+      "candidate_mean_tokens_per_second": 1187.8432334357524,
+      "candidate_confidence_95_tokens_per_second": [1030.2107487295368, 1345.4757181419679],
+      "candidate_median_ttft_ms": 99.832422,
+      "candidate_raw_prompt_ms": [94.563864, 92.809024, 130.573667, 169.597852, 109.243977, 94.883242, 95.165232, 93.409279, 104.499612, 134.777389]
+    },
+    {
+      "prompt_tokens": 512,
+      "warmup_runs": 3,
+      "measured_runs": 30,
+      "reference": {
+        "median_tokens_per_second": 1413.448762503099,
+        "mean_tokens_per_second": 1412.3851828571583,
+        "confidence_95_tokens_per_second": [1392.3921308364966, 1432.37823487782],
+        "median_ttft_ms": 362.2345735,
+        "raw_prompt_ms": [333.691524, 407.715579, 338.94807, 378.41778, 362.794679, 348.970471, 384.955718, 343.972671, 380.667759, 354.631995, 362.681065, 370.587359, 351.235297, 375.10532, 353.749741, 366.215944, 362.184845, 357.860899, 368.974375, 356.98144, 367.799723, 359.901955, 361.695749, 365.641517, 358.778208, 366.777296, 360.067125, 365.360559, 362.284302, 361.980212]
+      },
+      "candidate": {
+        "median_tokens_per_second": 1437.5535244208786,
+        "mean_tokens_per_second": 1439.5664086399352,
+        "confidence_95_tokens_per_second": [1419.3561107046542, 1459.7767065752162],
+        "median_ttft_ms": 356.160666,
+        "raw_prompt_ms": [324.074324, 390.61052, 346.38339, 343.864658, 378.355553, 332.856038, 377.46816, 346.251242, 353.150207, 366.607938, 340.977094, 370.90796, 345.070188, 360.392896, 359.884984, 347.947814, 367.184269, 346.556524, 362.138098, 356.232225, 352.089348, 362.394819, 351.198407, 359.375558, 356.540253, 356.089107, 359.058173, 354.676919, 360.576951, 355.554214]
+      },
+      "median_throughput_change_percent": 1.705,
+      "mean_throughput_change_percent": 1.924,
+      "median_ttft_reduction_percent": 1.677,
+      "paired_difference_tokens_per_second": {
+        "mean": 27.181225782776938,
+        "standard_deviation": 44.19944309567869,
+        "confidence_95": [10.676882490630959, 43.68556907492292],
+        "t_statistic": 3.3683163087915693,
+        "degrees_of_freedom": 29
+      }
+    },
+    {
+      "prompt_tokens": 2048,
+      "warmup_runs": 3,
+      "measured_runs": 10,
+      "reference_evidence": "../../abb430c-worktree/blackwell16gb-linux-nvfp4-cta-m128n64/prefill.json",
+      "reference_median_tokens_per_second": 1307.6429729012648,
+      "reference_confidence_95_tokens_per_second": [1306.054827414521, 1310.947761627491],
+      "candidate_median_tokens_per_second": 1329.5050827583682,
+      "candidate_mean_tokens_per_second": 1330.6947831001523,
+      "candidate_confidence_95_tokens_per_second": [1327.8208219748733, 1333.5687442254314],
+      "candidate_median_ttft_ms": 1540.423311,
+      "candidate_raw_prompt_ms": [1538.527222, 1537.707885, 1529.537998, 1541.516736, 1533.091651, 1539.574675, 1541.501218, 1541.271947, 1543.493724, 1544.359246]
+    }
+  ]
+}

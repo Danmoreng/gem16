@@ -20,7 +20,7 @@ large-M NVFP4 winner advance the same 512-token characterization as follows:
 
 | Workload | Initial gem16gb | Current gem16gb | vLLM | Current/vLLM |
 |---|---:|---:|---:|---:|
-| Prefill, 512 prompt tokens, batch 1 | 698.25 tok/s | 1,427.00 tok/s | 6,146.50 tok/s | 0.232x |
+| Prefill, 512 prompt tokens, batch 1 | 698.25 tok/s | 1,437.55 tok/s | 6,146.50 tok/s | 0.234x |
 
 These numbers are diagnostic rather than a parity claim because the retained vLLM run and gem16gb do not yet have
 identical timing boundaries and cache precision. The optimization goal does not depend on presenting the ratio as
@@ -34,15 +34,15 @@ established this program:
 
 | Phase | Initial gem16gb | Current gem16gb | vLLM | Current gap |
 |---|---:|---:|---:|---:|
-| NVFP4 MLP projections | 289.78 ms | 114.58 ms | 24.23 ms | 4.73x |
-| Attention | 199.77 ms | 22.67 ms | 13.11 ms | 1.73x |
-| FP8 attention projections | 131.13 ms | 113.76 ms | 27.15 ms | 4.19x |
-| Other GPU work | 115.98 ms | 99.23 ms | 9.98 ms | 9.94x |
-| Total GPU time | 736.66 ms | 350.24 ms | 74.47 ms | 4.70x |
+| NVFP4 MLP projections | 289.78 ms | 98.94 ms | 24.23 ms | 4.08x |
+| Attention | 199.77 ms | 22.91 ms | 13.11 ms | 1.75x |
+| FP8 attention projections | 131.13 ms | 114.83 ms | 27.15 ms | 4.23x |
+| Other GPU work | 115.98 ms | 100.03 ms | 9.98 ms | 10.02x |
+| Total GPU time | 736.66 ms | 336.71 ms | 74.47 ms | 4.52x |
 
 The initial gem16gb path launched approximately 9,235 GPU operations per execution, versus 747 for vLLM. Online
 attention and the 1,024-token plan reduce this to approximately 2,311. Attention is no longer the dominant gap;
-NVFP4 projections now consume about 33% of current GPU time and remain 4.7x slower than vLLM. FP8 projections
+NVFP4 projections now consume about 29% of current GPU time and remain 4.1x slower than vLLM. FP8 projections
 have a comparable absolute cost, while launch-heavy "other" work has become the largest aggregate gap. Complete
 the NVFP4 pipeline qualification before moving to the ordered FP8 phase.
 
@@ -89,12 +89,11 @@ geometry requires it.
 ### 3. Rebuild NVFP4 prefill projections around large SM120 CTA tiles
 
 Status: in progress. The first promoted reuse step retains each source weight/scale fragment across eight
-independent `m16n8k64` token tiles (M128). The next promotion groups eight warps into an M128xN64 CTA and stages
-the exact K64 activation slice once for CTA-wide reuse. Relative to `2366c03`, it reduces NVFP4 profile time by
-51.2% and improves context-128/512/2,048 median throughput by 26.0%/29.8%/26.7%. It uses 123 registers and 5,632
-shared bytes with zero stack/local memory. A tested per-warp M256 extension remains rejected because it reaches
-255 registers and a 248-byte stack frame. Asynchronous double buffering and the measured swizzle decision below
-remain open.
+independent `m16n8k64` token tiles (M128). Eight warps then form an M128xN64 CTA, and its two `cp.async` stages
+overlap exact K64 activation transfers with the current MMA stack. Relative to `2366c03`, CTA reuse reduces
+NVFP4 profile time by 51.2%; the asynchronous stage removes another 16.9%. The current kernel uses 124 registers
+and 10,240 shared bytes with zero stack/local memory. Tested M256 and N128 extensions remain rejected for spills
+and an end-to-end loss respectively. The measured load-time swizzle decision below remains open.
 
 Replace the current warp-level token tiling with a shape-specific block pipeline that:
 
@@ -109,11 +108,11 @@ Replace the current warp-level token tiling with a shape-specific block pipeline
 Gate, Up, and Down are measured individually and end to end. A layout transformation is accepted only when its
 end-to-end benefit, exact value preservation, and memory cost are recorded in `docs/WEIGHT_LAYOUT.md`.
 
-#### Phase-3 state after the M128xN64 CTA promotion
+#### Phase-3 state after the M128xN64 asynchronous CTA promotion
 
 The current production geometry is one warp per N8 output slice and eight M16 token tiles per retained packed
-weight fragment. Eight warps cover M128xN64 and cooperatively stage the M128xK64 activation tile plus scales,
-while each warp still consumes direct-layout N8 weights and preserves the original K64 accumulation order.
+weight fragment. Eight warps cover M128xN64 and double-buffer the M128xK64 activation tile plus scales with
+`cp.async`, while each warp still consumes direct-layout N8 weights and preserves the original K64 accumulation order.
 Increasing the per-warp accumulator footprint to M256 is not viable because it spills.
 
 Inspection of NInfer's Apache-2.0 Q4 row-split GEMM identifies the next transferable mechanisms: shape-specific
@@ -122,12 +121,11 @@ memory, CTA-wide reuse, and optional accumulator-fragment ping-pong. Its Q4 valu
 memory before BF16 MMA, so that numerical/storage path is not reusable for this engine's native block-scaled
 E2M1 MMA and must not be copied.
 
-The synchronous shared-activation stage is now qualified. The next experiment should double-buffer its exact
-packed bytes and scales with `cp.async`, overlapping the next K64 stage with the current MMA stack while preserving
-the same FP32 accumulation order. Compare N64 and N128 CTA cooperation only if register-limited occupancy remains
-spillfree. Start without a load-time weight swizzle so the current direct-checkpoint layout remains the control.
-Only if the asynchronous CTA remains limited by weight/scale source-layout loads should an exact streamed
-load-time swizzle be measured.
+The two-stage activation pipeline is qualified. N128 is rejected because its 3/10 context-512 median loses about
+2.5% despite remaining spillfree. The next experiment is the load-time weight/scale-layout decision: profile the
+remaining direct source loads, implement an exact streamed final-allocation swizzle only when it targets that
+measured bottleneck, and compare it against the current direct-checkpoint control. Quantized values and FP32
+accumulation order must remain unchanged, and a second persistent device copy is forbidden.
 
 ### 4. Rebuild and group the FP8 attention projections
 

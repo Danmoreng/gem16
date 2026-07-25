@@ -45,6 +45,79 @@ __device__ __forceinline__ std::uint32_t LoadU32(const std::uint8_t* source) {
   return *reinterpret_cast<const std::uint32_t*>(source);
 }
 
+__device__ __forceinline__ unsigned SharedAddress(const void* pointer) {
+  return static_cast<unsigned>(__cvta_generic_to_shared(pointer));
+}
+
+template <unsigned kBytes>
+__device__ __forceinline__ void CopyAsyncZeroFill(
+    void* shared_destination, const void* global_source, int source_bytes) {
+  static_assert(kBytes == 4U || kBytes == 16U);
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1200
+  asm volatile("cp.async.ca.shared.global [%0], [%1], %2, %3;\n"
+               :
+               : "r"(SharedAddress(shared_destination)), "l"(global_source),
+                 "n"(kBytes), "r"(source_bytes));
+#else
+  (void)shared_destination;
+  (void)global_source;
+  (void)source_bytes;
+#endif
+}
+
+__device__ __forceinline__ void CommitAsyncCopies() {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1200
+  asm volatile("cp.async.commit_group;\n");
+#endif
+}
+
+__device__ __forceinline__ void WaitForAsyncCopies() {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1200
+  asm volatile("cp.async.wait_group 0;\n");
+#endif
+}
+
+__device__ __forceinline__ void StageNvfp4ActivationAsync(
+    std::uint32_t* staged_activation,
+    std::uint32_t* staged_activation_scales,
+    const std::uint8_t* packed_activation_e2m1,
+    const std::uint8_t* activation_scales_e4m3fn,
+    std::uint64_t token_base, std::uint64_t k_block,
+    std::uint64_t packed_row_bytes, std::uint64_t scale_row_bytes,
+    std::uint64_t tokens, unsigned staged_tokens) {
+  constexpr unsigned kPackedWordsPerKBlock =
+      static_cast<unsigned>(kElementsPerKBlock / 8U);
+  constexpr unsigned kAsyncWords = 4U;
+  constexpr unsigned kCopiesPerToken =
+      kPackedWordsPerKBlock / kAsyncWords;
+  for (unsigned copy = threadIdx.x;
+       copy < staged_tokens * kCopiesPerToken; copy += blockDim.x) {
+    const unsigned token_offset = copy / kCopiesPerToken;
+    const unsigned half = copy % kCopiesPerToken;
+    const std::uint64_t token = token_base + token_offset;
+    const bool valid = token < tokens;
+    const std::uint8_t* source = valid
+        ? packed_activation_e2m1 + token * packed_row_bytes +
+              k_block * 32U + static_cast<std::uint64_t>(half) * 16U
+        : packed_activation_e2m1;
+    CopyAsyncZeroFill<16U>(
+        staged_activation + token_offset * kPackedWordsPerKBlock +
+            half * kAsyncWords,
+        source, valid ? 16 : 0);
+  }
+  for (unsigned token_offset = threadIdx.x; token_offset < staged_tokens;
+       token_offset += blockDim.x) {
+    const std::uint64_t token = token_base + token_offset;
+    const bool valid = token < tokens;
+    const std::uint8_t* source = valid
+        ? activation_scales_e4m3fn + token * scale_row_bytes +
+              k_block * 4U
+        : activation_scales_e4m3fn;
+    CopyAsyncZeroFill<4U>(staged_activation_scales + token_offset,
+                          source, valid ? 4 : 0);
+  }
+}
+
 __device__ __forceinline__ void MmaNvfp4(
     float& d0, float& d1, float& d2, float& d3, std::uint32_t a0,
     std::uint32_t a1, std::uint32_t a2, std::uint32_t a3,
@@ -339,9 +412,10 @@ __global__ void Sm120MatrixProjectionKernel(
   constexpr unsigned kPackedWordsPerKBlock =
       static_cast<unsigned>(kElementsPerKBlock / 8U);
   __shared__ alignas(16) std::uint32_t staged_activation
+      [kStageActivation ? 2U : 1U]
       [kStageActivation ? kStagedTokens * kPackedWordsPerKBlock : 1U];
   __shared__ alignas(16) std::uint32_t staged_activation_scales
-      [kStageActivation ? kStagedTokens : 1U];
+      [kStageActivation ? 2U : 1U][kStageActivation ? kStagedTokens : 1U];
   const unsigned warp = threadIdx.x / kWarpSize;
   const unsigned lane = threadIdx.x & (kWarpSize - 1U);
   const unsigned group = lane >> 2U;
@@ -362,34 +436,32 @@ __global__ void Sm120MatrixProjectionKernel(
   float accumulator[kTokenTiles][4] = {};
   float up_accumulator[kTokenTiles][4] = {};
 
+  if constexpr (kStageActivation) {
+    StageNvfp4ActivationAsync(
+        staged_activation[0], staged_activation_scales[0],
+        packed_activation_e2m1, activation_scales_e4m3fn, token_base, 0U,
+        packed_row_bytes, scale_row_bytes, tokens, kStagedTokens);
+    CommitAsyncCopies();
+    WaitForAsyncCopies();
+    __syncthreads();
+  }
+
   for (std::uint64_t k_block = 0; k_block < k_blocks; ++k_block) {
+    const unsigned current_stage = static_cast<unsigned>(k_block & 1U);
+    const bool has_next_stage = k_block + 1U < k_blocks;
+    if constexpr (kStageActivation) {
+      if (has_next_stage) {
+        const unsigned next_stage = current_stage ^ 1U;
+        StageNvfp4ActivationAsync(
+            staged_activation[next_stage],
+            staged_activation_scales[next_stage], packed_activation_e2m1,
+            activation_scales_e4m3fn, token_base, k_block + 1U,
+            packed_row_bytes, scale_row_bytes, tokens, kStagedTokens);
+        CommitAsyncCopies();
+      }
+    }
     const std::uint64_t k_offset =
         k_block * 32U + static_cast<std::uint64_t>(thread_in_group) * 4U;
-    if constexpr (kStageActivation) {
-      for (unsigned index = threadIdx.x;
-           index < kStagedTokens * kPackedWordsPerKBlock;
-           index += blockDim.x) {
-        const unsigned token_offset = index / kPackedWordsPerKBlock;
-        const unsigned word = index % kPackedWordsPerKBlock;
-        const std::uint64_t token = token_base + token_offset;
-        staged_activation[index] =
-            token < tokens
-                ? LoadU32(packed_activation_e2m1 +
-                          token * packed_row_bytes + k_block * 32U +
-                          static_cast<std::uint64_t>(word) * 4U)
-                : 0U;
-      }
-      for (unsigned token_offset = threadIdx.x;
-           token_offset < kStagedTokens; token_offset += blockDim.x) {
-        const std::uint64_t token = token_base + token_offset;
-        staged_activation_scales[token_offset] =
-            token < tokens
-                ? LoadU32(activation_scales_e4m3fn +
-                          token * scale_row_bytes + k_block * 4U)
-                : 0U;
-      }
-      __syncthreads();
-    }
     std::uint32_t b0 = 0U;
     std::uint32_t b1 = 0U;
     std::uint32_t scale_b = 0U;
@@ -424,28 +496,32 @@ __global__ void Sm120MatrixProjectionKernel(
           static_cast<unsigned>(tile * kTokensPerMma) + group;
       const unsigned staged_high = staged_low + 8U;
       const std::uint32_t a0 = kStageActivation
-          ? staged_activation[staged_low * kPackedWordsPerKBlock +
+          ? staged_activation[current_stage]
+                             [staged_low * kPackedWordsPerKBlock +
                               thread_in_group]
           : (token_low < tokens
                  ? LoadU32(packed_activation_e2m1 +
                            token_low * packed_row_bytes + k_offset)
                  : 0U);
       const std::uint32_t a1 = kStageActivation
-          ? staged_activation[staged_high * kPackedWordsPerKBlock +
+          ? staged_activation[current_stage]
+                             [staged_high * kPackedWordsPerKBlock +
                               thread_in_group]
           : (token_high < tokens
                  ? LoadU32(packed_activation_e2m1 +
                            token_high * packed_row_bytes + k_offset)
                  : 0U);
       const std::uint32_t a2 = kStageActivation
-          ? staged_activation[staged_low * kPackedWordsPerKBlock +
+          ? staged_activation[current_stage]
+                             [staged_low * kPackedWordsPerKBlock +
                               thread_in_group + 4U]
           : (token_low < tokens
                  ? LoadU32(packed_activation_e2m1 +
                            token_low * packed_row_bytes + k_offset + 16U)
                  : 0U);
       const std::uint32_t a3 = kStageActivation
-          ? staged_activation[staged_high * kPackedWordsPerKBlock +
+          ? staged_activation[current_stage]
+                             [staged_high * kPackedWordsPerKBlock +
                               thread_in_group + 4U]
           : (token_high < tokens
                  ? LoadU32(packed_activation_e2m1 +
@@ -459,8 +535,8 @@ __global__ void Sm120MatrixProjectionKernel(
             token_low + static_cast<std::uint64_t>(thread_in_group) * 8U;
         if (scale_token < tokens) {
           scale_a = kStageActivation
-              ? staged_activation_scales[
-                    staged_low + thread_in_group * 8U]
+              ? staged_activation_scales[current_stage]
+                    [staged_low + thread_in_group * 8U]
               : LoadU32(activation_scales_e4m3fn +
                         scale_token * scale_row_bytes + k_block * 4U);
         }
@@ -475,7 +551,10 @@ __global__ void Sm120MatrixProjectionKernel(
       }
     }
     if constexpr (kStageActivation) {
-      __syncthreads();
+      if (has_next_stage) {
+        WaitForAsyncCopies();
+        __syncthreads();
+      }
     }
   }
 

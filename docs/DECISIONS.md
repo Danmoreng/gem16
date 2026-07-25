@@ -1,5 +1,27 @@
 # Decisions
 
+## 2026-07-25: Pipeline NVFP4 activation staging with two cp.async buffers
+
+Date: 2026-07-25
+Decision: Make the production M128xN64 NVFP4 prefill CTA double-buffer its exact packed activation bytes and E4M3
+activation scales. Use 16-byte and 4-byte `cp.async` transfers with zero fill for token tails, and issue the next
+K64 stage while the current stage feeds eight native block-scaled OMMAs. Replace the synchronous stage directly.
+Context: CTA-wide activation reuse removed more than half of NVFP4 time, but every K64 iteration still synchronously
+loaded and stored its shared tile before MMA work could begin. The independent K64 accumulation provides a natural
+ping-pong boundary without changing arithmetic.
+Alternatives: Retain synchronous staging; add a runtime pipeline selector; use an N128 CTA; prefetch weights only
+in registers. N128 loses about 2.5% end to end and was removed. Register-only weight prefetch was neutral. A public
+selector conflicts with the single-winner plan.
+Consequences: Static shared memory rises from 5,632 to 10,240 bytes and registers from 123 to 124; stack/local
+memory remain zero. SASS contains the expected `LDGSTS` asynchronous copies. Arena, checkpoint layout, launch
+count, weight loads, token-tail values, and FP32 K accumulation are unchanged.
+Evidence: A neighboring 30-run context-512 comparison raises mean/median throughput by 1.92%/1.71%. Paired
+throughput differences have a 95% interval of +10.68 to +43.69 tok/s (`t=3.37`, 29 degrees of freedom). At 2,048
+tokens the 3/10 median rises from 1,307.64 to 1,329.51 tok/s with non-overlapping confidence intervals. Nsight
+reduces NVFP4 time by 16.9% and projected total GPU time by 7.5%. All fixed correctness metrics remain identical.
+Evidence is retained under
+`benchmarks/results/2026-07-25/d8b73ce-worktree/blackwell16gb-linux-nvfp4-async-pipeline/`.
+
 ## 2026-07-25: Reuse each NVFP4 activation K64 slice across an M128xN64 CTA
 
 Date: 2026-07-25

@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "status": "characterization",
+  "profile_runs": 2,
+  "prompt_tokens": 512,
+  "reference_commit": "d8b73ce",
+  "gpu_time_per_execution_ms": {
+    "synchronous": {"nvfp4_total": 119.037471, "all_gpu_operations": 364.0770165},
+    "two_stage_cp_async": {"nvfp4_total": 98.9412305, "all_gpu_operations": 336.710208}
+  },
+  "reduction_percent": {"nvfp4_total": 16.882, "all_gpu_operations": 7.517},
+  "gpu_operations_per_execution": {"synchronous": 2311, "two_stage_cp_async": 2311},
+  "kernel_resources": {
+    "registers": 124,
+    "shared_bytes": 10240,
+    "stack_bytes": 0,
+    "local_bytes": 0,
+    "sass_async_copy": "LDGSTS"
+  },
+  "reports": {
+    "synchronous": "build/Linux/blackwell-release/profiles/linux/prefill-512-nvfp4-cta-sync-reference-pipeline.nsys-rep",
+    "two_stage_cp_async": "build/Linux/blackwell-release/profiles/linux/prefill-512-nvfp4-cta-async-pipeline.nsys-rep"
+  }
+}

@@ -87,7 +87,8 @@ The llama.cpp benchmark is deliberately before engine kernel optimization, but a
 8. ~~Add a separate native prefill plan without reusing the decode plan.~~ The promoted plan uses one 1,024-token
    checkpoint-FP8 chunk, online Tensor-Core attention, and M128xN64 NVFP4 CTAs that reuse an exact K64 activation
    slice across eight output warps. FP8 projections reuse weights across two consecutive MMA token tiles. Continue
-   with asynchronous NVFP4 staging and then large/grouped FP8 projection pipelines.
+   NVFP4 activation staging now uses a qualified two-stage `cp.async` pipeline. Finish the measured direct-layout
+   versus load-time-swizzle decision, then continue with large/grouped FP8 projection pipelines.
    The ordered execution and qualification contract for online Tensor-Core attention, larger prompt chunks,
    pipelined projections, and later fusion is now fixed in
    [the prefill optimization plan](PREFILL_OPTIMIZATION_PLAN.md).

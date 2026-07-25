@@ -15,10 +15,11 @@ registers are direct little-endian 32-bit loads for eight nibbles at K offsets `
 This mapping needs no persistent weight copy and avoids the fourfold scale duplication present in a naive
 lane-fragment materialization.
 
-The qualified M128xN64 prefill CTA leaves that weight mapping unchanged. It stages only the current K64 slice of
-the quantized activation and its activation scales for reuse by eight output warps; no weight or weight-scale
-payload is transformed. Nsight measures a 51.2% NVFP4 projection-time reduction from this direct-layout CTA, so a
-load-time weight/scale swizzle remains an unproven later experiment rather than part of the selected allocation.
+The qualified M128xN64 prefill CTA leaves that weight mapping unchanged. It double-buffers only the current and
+next K64 slices of the quantized activation and their activation scales for reuse by eight output warps; no weight
+or weight-scale payload is transformed. Nsight measures a 51.2% NVFP4 reduction from CTA reuse and a further
+16.9% from asynchronous activation staging while keeping direct-layout weights. A load-time weight/scale swizzle
+therefore remains an unproven later experiment rather than part of the selected allocation.
 
 If a measured kernel ultimately requires transformation, it remains a load-time implementation detail rather than
 a checkpoint conversion. It must:
