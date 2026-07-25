@@ -22,4 +22,16 @@ namespace gem16gb::internal {
     std::uint64_t head_dimension, std::uint64_t cache_capacity,
     cudaStream_t stream);
 
+// Product-shape global Gemma prefill attention. Two warps share Q/K/V staging
+// and independently accumulate one 256-element half of each 512-element row.
+[[nodiscard]] Status LaunchOnlineCausalAttentionPrefillFp8GlobalSm120(
+    const float* query, const std::uint8_t* chunk_key,
+    const std::uint8_t* chunk_value, const std::uint8_t* key_cache,
+    const std::uint8_t* value_cache, const std::uint16_t* key_scale_bf16,
+    const std::uint16_t* value_scale_bf16, float* output,
+    std::uint64_t start_position, std::uint64_t tokens,
+    std::uint64_t query_heads, std::uint64_t kv_heads,
+    std::uint64_t head_dimension, std::uint64_t cache_capacity,
+    cudaStream_t stream);
+
 }  // namespace gem16gb::internal

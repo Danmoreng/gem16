@@ -31,7 +31,6 @@ constexpr int kOutputTiles = kHeadDimension / 8;
 constexpr int kPvSteps = kKeyColumns / 16;
 constexpr int kSharedElements =
     (kQueryRows + 2 * kKeyColumns) * kHeadDimension;
-constexpr float kLog2E = 1.4426950408889634074F;
 constexpr unsigned kFullWarpMask = 0xffffffffU;
 
 static_assert(kSharedElements * sizeof(__nv_bfloat16) == 48 * 1024);
@@ -106,12 +105,6 @@ __device__ __forceinline__ float WarpSum(float value) {
     value += __shfl_xor_sync(kFullWarpMask, value, offset, Width);
   }
   return value;
-}
-
-__device__ __forceinline__ float Exp2Approx(float value) {
-  float output;
-  asm("ex2.approx.f32 %0, %1;" : "=f"(output) : "f"(value));
-  return output;
 }
 
 __device__ __forceinline__ std::uint32_t PackBf16x2(float low, float high) {
@@ -422,15 +415,11 @@ __launch_bounds__(kThreads, 1) __global__ void OnlineLocalAttentionFp8Kernel(
 
     const float next_maximum0 = fmaxf(maximum0, block_maximum0);
     const float next_maximum1 = fmaxf(maximum1, block_maximum1);
-    const float next_maximum0_log2 = next_maximum0 * kLog2E;
-    const float next_maximum1_log2 = next_maximum1 * kLog2E;
     const float alpha0 = isfinite(maximum0)
-                             ? Exp2Approx(maximum0 * kLog2E -
-                                          next_maximum0_log2)
+                             ? expf(maximum0 - next_maximum0)
                              : 0.0F;
     const float alpha1 = isfinite(maximum1)
-                             ? Exp2Approx(maximum1 * kLog2E -
-                                          next_maximum1_log2)
+                             ? expf(maximum1 - next_maximum1)
                              : 0.0F;
 
     float block_sum0 = 0.0F;
@@ -439,24 +428,20 @@ __launch_bounds__(kThreads, 1) __global__ void OnlineLocalAttentionFp8Kernel(
 #pragma unroll
     for (int score_tile = 0; score_tile < kScoreTiles; ++score_tile) {
       const float probability00 = isfinite(scores[score_tile][0])
-                                      ? Exp2Approx(scores[score_tile][0] *
-                                                       kLog2E -
-                                                   next_maximum0_log2)
+                                      ? expf(scores[score_tile][0] -
+                                             next_maximum0)
                                       : 0.0F;
       const float probability01 = isfinite(scores[score_tile][1])
-                                      ? Exp2Approx(scores[score_tile][1] *
-                                                       kLog2E -
-                                                   next_maximum0_log2)
+                                      ? expf(scores[score_tile][1] -
+                                             next_maximum0)
                                       : 0.0F;
       const float probability10 = isfinite(scores[score_tile][2])
-                                      ? Exp2Approx(scores[score_tile][2] *
-                                                       kLog2E -
-                                                   next_maximum1_log2)
+                                      ? expf(scores[score_tile][2] -
+                                             next_maximum1)
                                       : 0.0F;
       const float probability11 = isfinite(scores[score_tile][3])
-                                      ? Exp2Approx(scores[score_tile][3] *
-                                                       kLog2E -
-                                                   next_maximum1_log2)
+                                      ? expf(scores[score_tile][3] -
+                                             next_maximum1)
                                       : 0.0F;
       block_sum0 += probability00 + probability01;
       block_sum1 += probability10 + probability11;
@@ -568,6 +553,475 @@ __launch_bounds__(kThreads, 1) __global__ void OnlineLocalAttentionFp8Kernel(
   }
 }
 
+constexpr int kGlobalHeadDimension = 512;
+constexpr int kGlobalQueryRows = 16;
+constexpr int kGlobalKeyColumns = 16;
+constexpr int kGlobalThreads = 64;
+constexpr int kGlobalQueryHeads = 16;
+constexpr int kGlobalKvHeads = 1;
+constexpr int kGlobalOutputHalf = 256;
+constexpr int kGlobalScoreTiles = kGlobalKeyColumns / 8;
+constexpr int kGlobalQkSteps = kGlobalHeadDimension / 16;
+constexpr int kGlobalOutputTiles = kGlobalOutputHalf / 8;
+constexpr int kGlobalPvSteps = kGlobalKeyColumns / 16;
+constexpr int kGlobalSharedElements =
+    (kGlobalQueryRows + kGlobalKeyColumns) * kGlobalHeadDimension +
+    kGlobalKeyColumns * kGlobalHeadDimension;
+
+static_assert(kGlobalSharedElements * sizeof(__nv_bfloat16) == 48 * 1024);
+
+__device__ __forceinline__ void StageGlobalQuery(
+    __nv_bfloat16* destination, const float* query, int query_head,
+    int query_start, int tokens, int thread) {
+  constexpr int kElementsPerVector = 4;
+  constexpr int kVectorsPerRow =
+      kGlobalHeadDimension / kElementsPerVector;
+  for (int chunk = thread;
+       chunk < kGlobalQueryRows * kVectorsPerRow;
+       chunk += kGlobalThreads) {
+    const int row = chunk / kVectorsPerRow;
+    const int dimension = (chunk % kVectorsPerRow) * kElementsPerVector;
+    float values[kElementsPerVector] = {};
+    if (query_start + row < tokens) {
+      const float4 packed = *reinterpret_cast<const float4*>(
+          query +
+          ((query_start + row) * kGlobalQueryHeads + query_head) *
+              kGlobalHeadDimension +
+          dimension);
+      values[0] = packed.x;
+      values[1] = packed.y;
+      values[2] = packed.z;
+      values[3] = packed.w;
+    }
+#pragma unroll
+    for (int element = 0; element < kElementsPerVector; ++element) {
+      destination[row * kGlobalHeadDimension +
+                  Swizzle(row, dimension + element)] =
+          __float2bfloat16_rn(values[element]);
+    }
+  }
+}
+
+__device__ __forceinline__ void StageGlobalFp8Key(
+    __nv_bfloat16* destination, const std::uint8_t* chunk,
+    const std::uint8_t* cache, float scale, int key_start,
+    int max_query_position, int chunk_start, int cache_capacity, int thread) {
+  constexpr int kElementsPerVector = 8;
+  constexpr int kVectorsPerRow =
+      kGlobalHeadDimension / kElementsPerVector;
+  for (int chunk_index = thread;
+       chunk_index < kGlobalKeyColumns * kVectorsPerRow;
+       chunk_index += kGlobalThreads) {
+    const int row = chunk_index / kVectorsPerRow;
+    const int dimension =
+        (chunk_index % kVectorsPerRow) * kElementsPerVector;
+    const int absolute_key = key_start + row;
+    std::uint32_t words[2] = {};
+    if (absolute_key <= max_query_position) {
+      const bool in_chunk = absolute_key >= chunk_start;
+      const int source_token =
+          in_chunk ? absolute_key - chunk_start
+                   : absolute_key % cache_capacity;
+      const std::uint8_t* source = in_chunk ? chunk : cache;
+      const uint2 packed = *reinterpret_cast<const uint2*>(
+          source + source_token * kGlobalHeadDimension + dimension);
+      words[0] = packed.x;
+      words[1] = packed.y;
+    }
+#pragma unroll
+    for (int element = 0; element < kElementsPerVector; ++element) {
+      __nv_fp8_e4m3 quantized;
+      quantized.__x = static_cast<std::uint8_t>(
+          words[element >> 2] >> ((element & 3) * 8));
+      destination[row * kGlobalHeadDimension +
+                  Swizzle(row, dimension + element)] =
+          __float2bfloat16_rn(static_cast<float>(quantized) * scale);
+    }
+  }
+}
+
+__device__ __forceinline__ void StageGlobalFp8Value(
+    __nv_bfloat16* destination, const std::uint8_t* chunk,
+    const std::uint8_t* cache, float scale, int key_start,
+    int max_query_position, int chunk_start, int cache_capacity, int thread) {
+  constexpr int kElementsPerVector = 8;
+  constexpr int kVectorsPerRow =
+      kGlobalHeadDimension / kElementsPerVector;
+  for (int chunk_index = thread;
+       chunk_index < kGlobalKeyColumns * kVectorsPerRow;
+       chunk_index += kGlobalThreads) {
+    const int row = chunk_index / kVectorsPerRow;
+    const int dimension =
+        (chunk_index % kVectorsPerRow) * kElementsPerVector;
+    const int output_half = dimension / kGlobalOutputHalf;
+    const int half_dimension = dimension % kGlobalOutputHalf;
+    const int absolute_key = key_start + row;
+    std::uint32_t words[2] = {};
+    if (absolute_key <= max_query_position) {
+      const bool in_chunk = absolute_key >= chunk_start;
+      const int source_token =
+          in_chunk ? absolute_key - chunk_start
+                   : absolute_key % cache_capacity;
+      const std::uint8_t* source = in_chunk ? chunk : cache;
+      const uint2 packed = *reinterpret_cast<const uint2*>(
+          source + source_token * kGlobalHeadDimension + dimension);
+      words[0] = packed.x;
+      words[1] = packed.y;
+    }
+#pragma unroll
+    for (int element = 0; element < kElementsPerVector; ++element) {
+      __nv_fp8_e4m3 quantized;
+      quantized.__x = static_cast<std::uint8_t>(
+          words[element >> 2] >> ((element & 3) * 8));
+      destination[(output_half * kGlobalKeyColumns + row) *
+                      kGlobalOutputHalf +
+                  Swizzle(row, half_dimension + element)] =
+          __float2bfloat16_rn(static_cast<float>(quantized) * scale);
+    }
+  }
+}
+
+__launch_bounds__(kGlobalThreads, 1) __global__
+    void OnlineGlobalAttentionFp8Kernel(
+        const float* __restrict__ query,
+        const std::uint8_t* __restrict__ chunk_key,
+        const std::uint8_t* __restrict__ chunk_value,
+        const std::uint8_t* __restrict__ key_cache,
+        const std::uint8_t* __restrict__ value_cache,
+        const std::uint16_t* __restrict__ key_scale_bf16,
+        const std::uint16_t* __restrict__ value_scale_bf16,
+        float* __restrict__ output, int start_position, int tokens,
+        int cache_capacity) {
+  __shared__ __align__(16) __nv_bfloat16 shared[kGlobalSharedElements];
+  __nv_bfloat16* query_shared = shared;
+  __nv_bfloat16* key_shared =
+      query_shared + kGlobalQueryRows * kGlobalHeadDimension;
+  __nv_bfloat16* value_shared =
+      key_shared + kGlobalKeyColumns * kGlobalHeadDimension;
+
+  const int query_block = static_cast<int>(blockIdx.x);
+  const int query_head = static_cast<int>(blockIdx.y);
+  const int thread = static_cast<int>(threadIdx.x);
+  const int output_half = thread >> 5;
+  const int lane = thread & 31;
+  const int query_start = query_block * kGlobalQueryRows;
+  if (query_head >= kGlobalQueryHeads || query_start >= tokens) return;
+
+  const int group_lane = lane >> 2;
+  const int lane_in_group = lane & 3;
+  const int a_matrix = lane >> 3;
+  const int a_row_in_matrix = lane & 7;
+  const int a_row_offset =
+      a_row_in_matrix + ((a_matrix & 1) << 3);
+  const int b_row_in_matrix = lane & 7;
+  const int b_contracting_offset = ((lane >> 3) & 1) << 3;
+
+  const unsigned query_shared_base = SharedAddress(query_shared);
+  const unsigned key_shared_base = SharedAddress(key_shared);
+  const unsigned value_shared_base = SharedAddress(
+      value_shared + output_half * kGlobalKeyColumns * kGlobalOutputHalf);
+  const unsigned query_lane_base =
+      query_shared_base + static_cast<unsigned>(a_row_offset * 1024);
+  const unsigned query_address_select =
+      static_cast<unsigned>((a_matrix >> 1) << 4);
+  const unsigned query_row_select =
+      static_cast<unsigned>(a_row_in_matrix << 4);
+  const unsigned key_lane_base =
+      key_shared_base + static_cast<unsigned>(b_row_in_matrix * 1024) +
+      (static_cast<unsigned>(lane >> 4) << 13);
+  const unsigned key_address_select =
+      static_cast<unsigned>((b_contracting_offset >> 3) << 4);
+  const unsigned key_row_select =
+      static_cast<unsigned>(b_row_in_matrix << 4);
+  const unsigned value_lane_base =
+      value_shared_base +
+      static_cast<unsigned>(((lane >> 3) & 1) * 4096) +
+      static_cast<unsigned>(b_row_in_matrix * 512);
+  const unsigned value_address_select =
+      static_cast<unsigned>((lane >> 4) << 4);
+  const unsigned value_row_select =
+      static_cast<unsigned>(b_row_in_matrix << 4);
+
+  StageGlobalQuery(query_shared, query, query_head, query_start, tokens,
+                   thread);
+
+  float accumulator[kGlobalOutputTiles][4];
+#pragma unroll
+  for (int output_tile = 0; output_tile < kGlobalOutputTiles;
+       ++output_tile) {
+#pragma unroll
+    for (int element = 0; element < 4; ++element) {
+      accumulator[output_tile][element] = 0.0F;
+    }
+  }
+  float maximum0 = -CUDART_INF_F;
+  float maximum1 = -CUDART_INF_F;
+  float sum0 = 0.0F;
+  float sum1 = 0.0F;
+
+  const int query_rows = min(kGlobalQueryRows, tokens - query_start);
+  const int max_query_position =
+      start_position + query_start + query_rows - 1;
+  const int key_block_count = max_query_position / kGlobalKeyColumns + 1;
+  const float key_scale =
+      static_cast<float>(__ushort_as_bfloat16(key_scale_bf16[0]));
+  const float value_scale =
+      static_cast<float>(__ushort_as_bfloat16(value_scale_bf16[0]));
+
+  for (int key_block = 0; key_block < key_block_count; ++key_block) {
+    const int key_start = key_block * kGlobalKeyColumns;
+    StageGlobalFp8Key(key_shared, chunk_key, key_cache, key_scale, key_start,
+                      max_query_position, start_position, cache_capacity,
+                      thread);
+    __syncthreads();
+
+    float scores[kGlobalScoreTiles][4];
+#pragma unroll
+    for (int score_tile = 0; score_tile < kGlobalScoreTiles;
+         ++score_tile) {
+      scores[score_tile][0] = 0.0F;
+      scores[score_tile][1] = 0.0F;
+      scores[score_tile][2] = 0.0F;
+      scores[score_tile][3] = 0.0F;
+    }
+    unsigned query_fragments[2][4];
+    unsigned key_fragments[2][kGlobalScoreTiles][2];
+    LoadMatrixX4(
+        query_fragments[0][0], query_fragments[0][1],
+        query_fragments[0][2], query_fragments[0][3],
+        SwizzledAddress(query_lane_base, 0U, query_address_select,
+                         query_row_select));
+    LoadMatrixX4(
+        key_fragments[0][0][0], key_fragments[0][0][1],
+        key_fragments[0][1][0], key_fragments[0][1][1],
+        SwizzledAddress(key_lane_base, 0U, key_address_select,
+                         key_row_select));
+#pragma unroll
+    for (int step = 0; step < kGlobalQkSteps; ++step) {
+      const int current = step & 1;
+      const int next = current ^ 1;
+      if (step + 1 < kGlobalQkSteps) {
+        const unsigned contracting_offset =
+            static_cast<unsigned>((step + 1) << 5);
+        LoadMatrixX4(
+            query_fragments[next][0], query_fragments[next][1],
+            query_fragments[next][2], query_fragments[next][3],
+            SwizzledAddress(query_lane_base, contracting_offset,
+                             query_address_select, query_row_select));
+        LoadMatrixX4(
+            key_fragments[next][0][0], key_fragments[next][0][1],
+            key_fragments[next][1][0], key_fragments[next][1][1],
+            SwizzledAddress(key_lane_base, contracting_offset,
+                             key_address_select, key_row_select));
+      }
+#pragma unroll
+      for (int score_tile = 0; score_tile < kGlobalScoreTiles;
+           ++score_tile) {
+        MmaBf16(
+            scores[score_tile][0], scores[score_tile][1],
+            scores[score_tile][2], scores[score_tile][3],
+            query_fragments[current][0], query_fragments[current][1],
+            query_fragments[current][2], query_fragments[current][3],
+            key_fragments[current][score_tile][0],
+            key_fragments[current][score_tile][1]);
+      }
+    }
+
+    const int row0 = group_lane;
+    const int row1 = row0 + 8;
+    const int query_row0 = query_start + row0;
+    const int query_row1 = query_start + row1;
+    const bool row0_valid = query_row0 < tokens;
+    const bool row1_valid = query_row1 < tokens;
+    const int query_position0 =
+        row0_valid ? start_position + query_row0 : -1;
+    const int query_position1 =
+        row1_valid ? start_position + query_row1 : -1;
+    const bool full_score_tile =
+        query_rows == kGlobalQueryRows &&
+        key_start + kGlobalKeyColumns - 1 <= start_position + query_start;
+
+    float block_maximum0 = -CUDART_INF_F;
+    float block_maximum1 = -CUDART_INF_F;
+    if (full_score_tile) {
+#pragma unroll
+      for (int score_tile = 0; score_tile < kGlobalScoreTiles;
+           ++score_tile) {
+        block_maximum0 =
+            fmaxf(block_maximum0,
+                  fmaxf(scores[score_tile][0], scores[score_tile][1]));
+        block_maximum1 =
+            fmaxf(block_maximum1,
+                  fmaxf(scores[score_tile][2], scores[score_tile][3]));
+      }
+    } else {
+#pragma unroll
+      for (int score_tile = 0; score_tile < kGlobalScoreTiles;
+           ++score_tile) {
+        const int key0 =
+            key_start + score_tile * 8 + 2 * lane_in_group;
+        const int key1 = key0 + 1;
+        scores[score_tile][0] =
+            row0_valid && key0 <= query_position0 ? scores[score_tile][0]
+                                                   : -CUDART_INF_F;
+        scores[score_tile][1] =
+            row0_valid && key1 <= query_position0 ? scores[score_tile][1]
+                                                   : -CUDART_INF_F;
+        scores[score_tile][2] =
+            row1_valid && key0 <= query_position1 ? scores[score_tile][2]
+                                                   : -CUDART_INF_F;
+        scores[score_tile][3] =
+            row1_valid && key1 <= query_position1 ? scores[score_tile][3]
+                                                   : -CUDART_INF_F;
+        block_maximum0 =
+            fmaxf(block_maximum0,
+                  fmaxf(scores[score_tile][0], scores[score_tile][1]));
+        block_maximum1 =
+            fmaxf(block_maximum1,
+                  fmaxf(scores[score_tile][2], scores[score_tile][3]));
+      }
+    }
+    block_maximum0 = WarpMaximum<4>(block_maximum0);
+    block_maximum1 = WarpMaximum<4>(block_maximum1);
+
+    const float next_maximum0 = fmaxf(maximum0, block_maximum0);
+    const float next_maximum1 = fmaxf(maximum1, block_maximum1);
+    const float alpha0 = isfinite(maximum0)
+                             ? expf(maximum0 - next_maximum0)
+                             : 0.0F;
+    const float alpha1 = isfinite(maximum1)
+                             ? expf(maximum1 - next_maximum1)
+                             : 0.0F;
+
+    float block_sum0 = 0.0F;
+    float block_sum1 = 0.0F;
+    unsigned probability_fragments[kGlobalPvSteps][4];
+#pragma unroll
+    for (int score_tile = 0; score_tile < kGlobalScoreTiles;
+         ++score_tile) {
+      const float probability00 = isfinite(scores[score_tile][0])
+                                      ? expf(scores[score_tile][0] -
+                                             next_maximum0)
+                                      : 0.0F;
+      const float probability01 = isfinite(scores[score_tile][1])
+                                      ? expf(scores[score_tile][1] -
+                                             next_maximum0)
+                                      : 0.0F;
+      const float probability10 = isfinite(scores[score_tile][2])
+                                      ? expf(scores[score_tile][2] -
+                                             next_maximum1)
+                                      : 0.0F;
+      const float probability11 = isfinite(scores[score_tile][3])
+                                      ? expf(scores[score_tile][3] -
+                                             next_maximum1)
+                                      : 0.0F;
+      block_sum0 += probability00 + probability01;
+      block_sum1 += probability10 + probability11;
+      if (score_tile == 0) {
+        probability_fragments[0][0] =
+            PackBf16x2(probability00, probability01);
+        probability_fragments[0][1] =
+            PackBf16x2(probability10, probability11);
+      } else {
+        probability_fragments[0][2] =
+            PackBf16x2(probability00, probability01);
+        probability_fragments[0][3] =
+            PackBf16x2(probability10, probability11);
+      }
+    }
+
+    sum0 = fmaf(sum0, alpha0, block_sum0);
+    sum1 = fmaf(sum1, alpha1, block_sum1);
+    maximum0 = next_maximum0;
+    maximum1 = next_maximum1;
+#pragma unroll
+    for (int output_tile = 0; output_tile < kGlobalOutputTiles;
+         ++output_tile) {
+      accumulator[output_tile][0] *= alpha0;
+      accumulator[output_tile][1] *= alpha0;
+      accumulator[output_tile][2] *= alpha1;
+      accumulator[output_tile][3] *= alpha1;
+    }
+
+    StageGlobalFp8Value(value_shared, chunk_value, value_cache, value_scale,
+                        key_start, max_query_position, start_position,
+                        cache_capacity, thread);
+    __syncthreads();
+
+    constexpr int kOutputTilePairs = kGlobalOutputTiles / 2;
+    constexpr int kValueLoads = kGlobalPvSteps * kOutputTilePairs;
+    unsigned value_fragments[2][4];
+    LoadMatrixX4Transposed(
+        value_fragments[0][0], value_fragments[0][1],
+        value_fragments[0][2], value_fragments[0][3],
+        SwizzledAddress(value_lane_base, 0U, value_address_select,
+                         value_row_select));
+#pragma unroll
+    for (int load = 0; load < kValueLoads; ++load) {
+      const int output_tile = load * 2;
+      const int current = load & 1;
+      const int next = current ^ 1;
+      if (load + 1 < kValueLoads) {
+        const int next_output_tile = (load + 1) * 2;
+        LoadMatrixX4Transposed(
+            value_fragments[next][0], value_fragments[next][1],
+            value_fragments[next][2], value_fragments[next][3],
+            SwizzledAddress(value_lane_base,
+                             static_cast<unsigned>(next_output_tile << 4),
+                             value_address_select, value_row_select));
+      }
+      MmaBf16(
+          accumulator[output_tile][0], accumulator[output_tile][1],
+          accumulator[output_tile][2], accumulator[output_tile][3],
+          probability_fragments[0][0], probability_fragments[0][1],
+          probability_fragments[0][2], probability_fragments[0][3],
+          value_fragments[current][0], value_fragments[current][1]);
+      MmaBf16(
+          accumulator[output_tile + 1][0],
+          accumulator[output_tile + 1][1],
+          accumulator[output_tile + 1][2],
+          accumulator[output_tile + 1][3],
+          probability_fragments[0][0], probability_fragments[0][1],
+          probability_fragments[0][2], probability_fragments[0][3],
+          value_fragments[current][2], value_fragments[current][3]);
+    }
+  }
+
+  sum0 = WarpSum<4>(sum0);
+  sum1 = WarpSum<4>(sum1);
+  const float inverse_sum0 = sum0 > 0.0F ? __frcp_rn(sum0) : 0.0F;
+  const float inverse_sum1 = sum1 > 0.0F ? __frcp_rn(sum1) : 0.0F;
+#pragma unroll
+  for (int output_tile = 0; output_tile < kGlobalOutputTiles;
+       ++output_tile) {
+    const int dimension =
+        output_half * kGlobalOutputHalf + output_tile * 8 +
+        2 * lane_in_group;
+    const int query_row0 = query_start + group_lane;
+    const int query_row1 = query_row0 + 8;
+    if (query_row0 < tokens) {
+      float* output_row =
+          output +
+          (query_row0 * kGlobalQueryHeads + query_head) *
+              kGlobalHeadDimension;
+      output_row[dimension] =
+          accumulator[output_tile][0] * inverse_sum0;
+      output_row[dimension + 1] =
+          accumulator[output_tile][1] * inverse_sum0;
+    }
+    if (query_row1 < tokens) {
+      float* output_row =
+          output +
+          (query_row1 * kGlobalQueryHeads + query_head) *
+              kGlobalHeadDimension;
+      output_row[dimension] =
+          accumulator[output_tile][2] * inverse_sum1;
+      output_row[dimension + 1] =
+          accumulator[output_tile][3] * inverse_sum1;
+    }
+  }
+}
+
 }  // namespace
 
 Status LaunchOnlineCausalAttentionPrefillFp8LocalSm120(
@@ -610,6 +1064,49 @@ Status LaunchOnlineCausalAttentionPrefillFp8LocalSm120(
   return error == cudaSuccess
              ? Status::Ok()
              : CudaFailure("launch online local FP8 prefill attention", error);
+}
+
+Status LaunchOnlineCausalAttentionPrefillFp8GlobalSm120(
+    const float* query, const std::uint8_t* chunk_key,
+    const std::uint8_t* chunk_value, const std::uint8_t* key_cache,
+    const std::uint8_t* value_cache, const std::uint16_t* key_scale_bf16,
+    const std::uint16_t* value_scale_bf16, float* output,
+    std::uint64_t start_position, std::uint64_t tokens,
+    std::uint64_t query_heads, std::uint64_t kv_heads,
+    std::uint64_t head_dimension, std::uint64_t cache_capacity,
+    cudaStream_t stream) {
+  if (query == nullptr || chunk_key == nullptr || chunk_value == nullptr ||
+      key_cache == nullptr || value_cache == nullptr ||
+      key_scale_bf16 == nullptr || value_scale_bf16 == nullptr ||
+      output == nullptr || tokens == 0U ||
+      query_heads != kGlobalQueryHeads || kv_heads != kGlobalKvHeads ||
+      head_dimension != kGlobalHeadDimension || cache_capacity == 0U ||
+      tokens > cache_capacity || start_position >= cache_capacity ||
+      start_position >
+          static_cast<std::uint64_t>(std::numeric_limits<int>::max()) ||
+      tokens > static_cast<std::uint64_t>(std::numeric_limits<int>::max()) ||
+      cache_capacity >
+          static_cast<std::uint64_t>(std::numeric_limits<int>::max()) ||
+      start_position + tokens > cache_capacity) {
+    return Invalid("online global FP8 prefill attention arguments are invalid");
+  }
+  const std::uint64_t query_blocks =
+      (tokens + static_cast<std::uint64_t>(kGlobalQueryRows) - 1U) /
+      static_cast<std::uint64_t>(kGlobalQueryRows);
+  if (query_blocks >
+      static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
+    return Invalid("online global FP8 prefill attention grid exceeds CUDA limits");
+  }
+  const dim3 grid(static_cast<unsigned>(query_blocks), kGlobalQueryHeads);
+  OnlineGlobalAttentionFp8Kernel<<<grid, kGlobalThreads, 0, stream>>>(
+      query, chunk_key, chunk_value, key_cache, value_cache,
+      key_scale_bf16, value_scale_bf16, output,
+      static_cast<int>(start_position), static_cast<int>(tokens),
+      static_cast<int>(cache_capacity));
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("launch online global FP8 prefill attention", error);
 }
 
 }  // namespace gem16gb::internal

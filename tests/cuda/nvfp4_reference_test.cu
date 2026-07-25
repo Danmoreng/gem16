@@ -1,3 +1,4 @@
+#include "cuda/attention/sm120.h"
 #include "cuda/fp8/reference.h"
 #include "cuda/fp8/sm120.h"
 #include "cuda/layer/reference.h"
@@ -64,6 +65,47 @@ class DeviceBuffer {
   void* data_ = nullptr;
   std::size_t elements_ = 0;
 };
+
+void CheckAttentionMetrics(const std::vector<float>& reference,
+                           const std::vector<float>& candidate,
+                           const char* label, float maximum_limit,
+                           double rms_limit, double cosine_limit) {
+  CUDA_TEST_CHECK(reference.size() == candidate.size());
+  if (reference.size() != candidate.size() || reference.empty()) return;
+  double squared_error = 0.0;
+  double reference_squared = 0.0;
+  double candidate_squared = 0.0;
+  double dot = 0.0;
+  float maximum_absolute_error = 0.0F;
+  bool finite = true;
+  for (std::size_t index = 0; index < reference.size(); ++index) {
+    const float reference_value = reference[index];
+    const float candidate_value = candidate[index];
+    const double difference =
+        static_cast<double>(candidate_value) - reference_value;
+    finite = finite && std::isfinite(reference_value) &&
+             std::isfinite(candidate_value);
+    maximum_absolute_error =
+        std::max(maximum_absolute_error,
+                 static_cast<float>(std::fabs(difference)));
+    squared_error += difference * difference;
+    reference_squared +=
+        static_cast<double>(reference_value) * reference_value;
+    candidate_squared +=
+        static_cast<double>(candidate_value) * candidate_value;
+    dot += static_cast<double>(reference_value) * candidate_value;
+  }
+  const double rms_error =
+      std::sqrt(squared_error / static_cast<double>(reference.size()));
+  const double cosine =
+      dot / std::sqrt(reference_squared * candidate_squared);
+  std::cout << label << ": max_abs=" << maximum_absolute_error
+            << " rms=" << rms_error << " cosine=" << cosine << '\n';
+  CUDA_TEST_CHECK(finite);
+  CUDA_TEST_CHECK(maximum_absolute_error < maximum_limit);
+  CUDA_TEST_CHECK(rms_error < rms_limit);
+  CUDA_TEST_CHECK(cosine > cosine_limit);
+}
 
 void TestCudaIntrinsicConformanceAndProjection() {
   std::array<float, 16> host_activation{};
@@ -1231,6 +1273,272 @@ void TestVectorizedFp8CausalPrefill() {
   CUDA_TEST_CHECK(reference_output == fused_output);
 }
 
+void TestOnlineLocalFp8CausalPrefill() {
+  constexpr std::uint64_t tokens = 64;
+  constexpr std::uint64_t query_heads = 16;
+  constexpr std::uint64_t kv_heads = 8;
+  constexpr std::uint64_t head_dimension = 256;
+  constexpr std::uint64_t capacity = 1024;
+  constexpr std::array<std::uint16_t, 1> key_scale = {0x3E80U};
+  constexpr std::array<std::uint16_t, 1> value_scale = {0x3F00U};
+
+  std::vector<float> queries(tokens * query_heads * head_dimension);
+  for (std::size_t index = 0; index < queries.size(); ++index) {
+    const float value =
+        static_cast<float>(static_cast<int>((index * 17U) % 31U) - 15) /
+        64.0F;
+    queries[index] = RoundBf16Reference(value);
+  }
+  const auto make_fp8 = [](std::size_t count, std::size_t multiplier,
+                           std::size_t offset) {
+    std::vector<std::uint8_t> values(count);
+    for (std::size_t index = 0; index < count; ++index) {
+      const float value =
+          static_cast<float>(
+              static_cast<int>(((index + offset) * multiplier) % 31U) - 15) /
+          8.0F;
+      const auto encoded = gem16gb::fp8::EncodeE4M3Fn(value);
+      CUDA_TEST_CHECK(encoded.ok());
+      if (!encoded.ok()) return std::vector<std::uint8_t>{};
+      values[index] = encoded.value();
+    }
+    return values;
+  };
+  const auto chunk_keys =
+      make_fp8(tokens * kv_heads * head_dimension, 5U, 1U);
+  const auto chunk_values =
+      make_fp8(tokens * kv_heads * head_dimension, 7U, 3U);
+  const auto cache_keys =
+      make_fp8(capacity * kv_heads * head_dimension, 11U, 5U);
+  const auto cache_values =
+      make_fp8(capacity * kv_heads * head_dimension, 13U, 7U);
+  if (chunk_keys.empty() || chunk_values.empty() || cache_keys.empty() ||
+      cache_values.empty()) {
+    return;
+  }
+
+  DeviceBuffer<float> device_queries(queries.size());
+  DeviceBuffer<std::uint8_t> device_chunk_keys(chunk_keys.size());
+  DeviceBuffer<std::uint8_t> device_chunk_values(chunk_values.size());
+  DeviceBuffer<std::uint8_t> device_cache_keys(cache_keys.size());
+  DeviceBuffer<std::uint8_t> device_cache_values(cache_values.size());
+  DeviceBuffer<std::uint16_t> device_key_scale(key_scale.size());
+  DeviceBuffer<std::uint16_t> device_value_scale(value_scale.size());
+  DeviceBuffer<float> device_scores(tokens * query_heads * capacity);
+  DeviceBuffer<float> device_reference_output(queries.size());
+  DeviceBuffer<float> device_online_output(queries.size());
+  if (device_queries.get() == nullptr ||
+      device_chunk_keys.get() == nullptr ||
+      device_chunk_values.get() == nullptr ||
+      device_cache_keys.get() == nullptr ||
+      device_cache_values.get() == nullptr ||
+      device_key_scale.get() == nullptr ||
+      device_value_scale.get() == nullptr || device_scores.get() == nullptr ||
+      device_reference_output.get() == nullptr ||
+      device_online_output.get() == nullptr) {
+    return;
+  }
+  if (!CudaOk(cudaMemcpy(device_queries.get(), queries.data(),
+                         device_queries.bytes(), cudaMemcpyHostToDevice),
+              "copy online-prefill queries") ||
+      !CudaOk(cudaMemcpy(device_chunk_keys.get(), chunk_keys.data(),
+                         device_chunk_keys.bytes(), cudaMemcpyHostToDevice),
+              "copy online-prefill chunk keys") ||
+      !CudaOk(cudaMemcpy(device_chunk_values.get(), chunk_values.data(),
+                         device_chunk_values.bytes(), cudaMemcpyHostToDevice),
+              "copy online-prefill chunk values") ||
+      !CudaOk(cudaMemcpy(device_cache_keys.get(), cache_keys.data(),
+                         device_cache_keys.bytes(), cudaMemcpyHostToDevice),
+              "copy online-prefill cache keys") ||
+      !CudaOk(cudaMemcpy(device_cache_values.get(), cache_values.data(),
+                         device_cache_values.bytes(), cudaMemcpyHostToDevice),
+              "copy online-prefill cache values") ||
+      !CudaOk(cudaMemcpy(device_key_scale.get(), key_scale.data(),
+                         device_key_scale.bytes(), cudaMemcpyHostToDevice),
+              "copy online-prefill key scale") ||
+      !CudaOk(cudaMemcpy(device_value_scale.get(), value_scale.data(),
+                         device_value_scale.bytes(), cudaMemcpyHostToDevice),
+              "copy online-prefill value scale")) {
+    return;
+  }
+
+  const auto run_case = [&](std::uint64_t start_position,
+                            const char* label) {
+    const auto reference =
+        gem16gb::internal::LaunchFusedCausalAttentionPrefillFp8(
+            device_queries.get(), device_chunk_keys.get(),
+            device_chunk_values.get(), device_cache_keys.get(),
+            device_cache_values.get(), device_key_scale.get(),
+            device_value_scale.get(), device_scores.get(),
+            device_reference_output.get(), start_position, tokens,
+            query_heads, kv_heads, head_dimension, capacity, true, nullptr);
+    const auto online =
+        gem16gb::internal::LaunchOnlineCausalAttentionPrefillFp8LocalSm120(
+            device_queries.get(), device_chunk_keys.get(),
+            device_chunk_values.get(), device_cache_keys.get(),
+            device_cache_values.get(), device_key_scale.get(),
+            device_value_scale.get(), device_online_output.get(),
+            start_position, tokens, query_heads, kv_heads, head_dimension,
+            capacity, nullptr);
+    CUDA_TEST_CHECK(reference.ok());
+    CUDA_TEST_CHECK(online.ok());
+    if (!reference.ok() || !online.ok() ||
+        !CudaOk(cudaDeviceSynchronize(), label)) {
+      return;
+    }
+
+    std::vector<float> reference_output(queries.size());
+    std::vector<float> online_output(queries.size());
+    if (!CudaOk(cudaMemcpy(reference_output.data(),
+                           device_reference_output.get(),
+                           device_reference_output.bytes(),
+                           cudaMemcpyDeviceToHost),
+                "copy online-prefill reference output") ||
+        !CudaOk(cudaMemcpy(online_output.data(), device_online_output.get(),
+                           device_online_output.bytes(),
+                           cudaMemcpyDeviceToHost),
+                "copy online-prefill tensor-core output")) {
+      return;
+    }
+
+    const std::string metric_label =
+        std::string("online local FP8 prefill ") + label;
+    CheckAttentionMetrics(reference_output, online_output,
+                          metric_label.c_str(), 1.5e-3F, 3.0e-4, 0.99998);
+  };
+
+  run_case(0U, "initial causal window");
+  run_case(1100U, "wrapped 1024-token window");
+}
+
+void TestOnlineGlobalFp8CausalPrefill() {
+  constexpr std::uint64_t tokens = 32;
+  constexpr std::uint64_t query_heads = 16;
+  constexpr std::uint64_t kv_heads = 1;
+  constexpr std::uint64_t head_dimension = 512;
+  constexpr std::uint64_t capacity = 128;
+  constexpr std::uint64_t start_position = 37;
+  constexpr std::uint64_t score_stride = start_position + tokens;
+  constexpr std::array<std::uint16_t, 1> key_scale = {0x3E80U};
+  constexpr std::array<std::uint16_t, 1> value_scale = {0x3F00U};
+
+  std::vector<float> queries(tokens * query_heads * head_dimension);
+  for (std::size_t index = 0; index < queries.size(); ++index) {
+    const float value =
+        static_cast<float>(static_cast<int>((index * 19U) % 37U) - 18) /
+        64.0F;
+    queries[index] = RoundBf16Reference(value);
+  }
+  const auto make_fp8 = [](std::size_t count, std::size_t multiplier,
+                           std::size_t offset) {
+    std::vector<std::uint8_t> values(count);
+    for (std::size_t index = 0; index < count; ++index) {
+      const float value =
+          static_cast<float>(
+              static_cast<int>(((index + offset) * multiplier) % 31U) - 15) /
+          8.0F;
+      const auto encoded = gem16gb::fp8::EncodeE4M3Fn(value);
+      CUDA_TEST_CHECK(encoded.ok());
+      if (!encoded.ok()) return std::vector<std::uint8_t>{};
+      values[index] = encoded.value();
+    }
+    return values;
+  };
+  const auto chunk_keys = make_fp8(tokens * head_dimension, 5U, 1U);
+  const auto chunk_values = make_fp8(tokens * head_dimension, 7U, 3U);
+  const auto cache_keys = make_fp8(capacity * head_dimension, 11U, 5U);
+  const auto cache_values = make_fp8(capacity * head_dimension, 13U, 7U);
+  if (chunk_keys.empty() || chunk_values.empty() || cache_keys.empty() ||
+      cache_values.empty()) {
+    return;
+  }
+
+  DeviceBuffer<float> device_queries(queries.size());
+  DeviceBuffer<std::uint8_t> device_chunk_keys(chunk_keys.size());
+  DeviceBuffer<std::uint8_t> device_chunk_values(chunk_values.size());
+  DeviceBuffer<std::uint8_t> device_cache_keys(cache_keys.size());
+  DeviceBuffer<std::uint8_t> device_cache_values(cache_values.size());
+  DeviceBuffer<std::uint16_t> device_key_scale(key_scale.size());
+  DeviceBuffer<std::uint16_t> device_value_scale(value_scale.size());
+  DeviceBuffer<float> device_scores(tokens * query_heads * score_stride);
+  DeviceBuffer<float> device_reference_output(queries.size());
+  DeviceBuffer<float> device_online_output(queries.size());
+  if (device_queries.get() == nullptr ||
+      device_chunk_keys.get() == nullptr ||
+      device_chunk_values.get() == nullptr ||
+      device_cache_keys.get() == nullptr ||
+      device_cache_values.get() == nullptr ||
+      device_key_scale.get() == nullptr ||
+      device_value_scale.get() == nullptr || device_scores.get() == nullptr ||
+      device_reference_output.get() == nullptr ||
+      device_online_output.get() == nullptr) {
+    return;
+  }
+  if (!CudaOk(cudaMemcpy(device_queries.get(), queries.data(),
+                         device_queries.bytes(), cudaMemcpyHostToDevice),
+              "copy global online-prefill queries") ||
+      !CudaOk(cudaMemcpy(device_chunk_keys.get(), chunk_keys.data(),
+                         device_chunk_keys.bytes(), cudaMemcpyHostToDevice),
+              "copy global online-prefill chunk keys") ||
+      !CudaOk(cudaMemcpy(device_chunk_values.get(), chunk_values.data(),
+                         device_chunk_values.bytes(), cudaMemcpyHostToDevice),
+              "copy global online-prefill chunk values") ||
+      !CudaOk(cudaMemcpy(device_cache_keys.get(), cache_keys.data(),
+                         device_cache_keys.bytes(), cudaMemcpyHostToDevice),
+              "copy global online-prefill cache keys") ||
+      !CudaOk(cudaMemcpy(device_cache_values.get(), cache_values.data(),
+                         device_cache_values.bytes(), cudaMemcpyHostToDevice),
+              "copy global online-prefill cache values") ||
+      !CudaOk(cudaMemcpy(device_key_scale.get(), key_scale.data(),
+                         device_key_scale.bytes(), cudaMemcpyHostToDevice),
+              "copy global online-prefill key scale") ||
+      !CudaOk(cudaMemcpy(device_value_scale.get(), value_scale.data(),
+                         device_value_scale.bytes(), cudaMemcpyHostToDevice),
+              "copy global online-prefill value scale")) {
+    return;
+  }
+
+  const auto reference =
+      gem16gb::internal::LaunchFusedCausalAttentionPrefillFp8(
+          device_queries.get(), device_chunk_keys.get(),
+          device_chunk_values.get(), device_cache_keys.get(),
+          device_cache_values.get(), device_key_scale.get(),
+          device_value_scale.get(), device_scores.get(),
+          device_reference_output.get(), start_position, tokens, query_heads,
+          kv_heads, head_dimension, capacity, false, nullptr);
+  const auto online =
+      gem16gb::internal::LaunchOnlineCausalAttentionPrefillFp8GlobalSm120(
+          device_queries.get(), device_chunk_keys.get(),
+          device_chunk_values.get(), device_cache_keys.get(),
+          device_cache_values.get(), device_key_scale.get(),
+          device_value_scale.get(), device_online_output.get(),
+          start_position, tokens, query_heads, kv_heads, head_dimension,
+          capacity, nullptr);
+  CUDA_TEST_CHECK(reference.ok());
+  CUDA_TEST_CHECK(online.ok());
+  if (!reference.ok() || !online.ok() ||
+      !CudaOk(cudaDeviceSynchronize(), "global online-prefill synchronize")) {
+    return;
+  }
+
+  std::vector<float> reference_output(queries.size());
+  std::vector<float> online_output(queries.size());
+  if (!CudaOk(cudaMemcpy(reference_output.data(),
+                         device_reference_output.get(),
+                         device_reference_output.bytes(),
+                         cudaMemcpyDeviceToHost),
+              "copy global online-prefill reference output") ||
+      !CudaOk(cudaMemcpy(online_output.data(), device_online_output.get(),
+                         device_online_output.bytes(),
+                         cudaMemcpyDeviceToHost),
+              "copy global online-prefill tensor-core output")) {
+    return;
+  }
+  CheckAttentionMetrics(reference_output, online_output,
+                        "online global FP8 prefill", 8.0e-4F, 2.0e-4,
+                        0.99999);
+}
+
 }  // namespace
 
 int main() {
@@ -1249,6 +1557,8 @@ int main() {
   TestWrappedKvRingAttention();
   TestCausalPrefillAcrossWrappedRing();
   TestVectorizedFp8CausalPrefill();
+  TestOnlineLocalFp8CausalPrefill();
+  TestOnlineGlobalFp8CausalPrefill();
   if (failures != 0) {
     std::cerr << failures << " CUDA test assertion(s) failed\n";
     return 1;

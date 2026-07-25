@@ -1,5 +1,29 @@
-# Tolerances are intentionally empty until reference distributions exist.
-# Each future entry must name the operator, dtype path, metric, and evidence.
 schema_version: 1
-operators: {}
-
+operators:
+  online_prefill_attention_fp8_local_sm120:
+    reference: serial_fp32_softmax_and_value_accumulation
+    dtype_path: bf16_q_fp8_kv_bf16_tensor_core
+    fixtures:
+      - initial_causal_64_tokens
+      - wrapped_sliding_window_64_tokens_at_position_1100
+    limits:
+      max_absolute_error: 0.0015
+      rms_error: 0.0003
+      cosine_similarity_minimum: 0.99998
+    observed_2026_07_25:
+      max_absolute_error: [0.00101256, 0.000653118]
+      rms_error: [0.000211126, 0.00021603]
+      cosine_similarity: [0.999999, 0.999993]
+  online_prefill_attention_fp8_global_sm120:
+    reference: serial_fp32_softmax_and_value_accumulation
+    dtype_path: bf16_q_fp8_kv_bf16_tensor_core
+    fixtures:
+      - global_causal_32_tokens_at_position_37
+    limits:
+      max_absolute_error: 0.0008
+      rms_error: 0.0002
+      cosine_similarity_minimum: 0.99999
+    observed_2026_07_25:
+      max_absolute_error: 0.000537872
+      rms_error: 0.000125679
+      cosine_similarity: 0.999997

@@ -1,5 +1,6 @@
 #include "gem16gb/engine.h"
 
+#include "cuda/attention/sm120.h"
 #include "cuda/fp8/reference.h"
 #include "cuda/fp8/sm120.h"
 #include "cuda/layer/reference.h"
@@ -50,7 +51,7 @@ constexpr std::uint64_t kMaximumSuppressedTokens = 16;
 constexpr float kEpsilon = 1.0e-6F;
 constexpr unsigned kThreads = 256;
 constexpr unsigned kFusedOutputHeadBlocks = 4096;
-constexpr std::uint64_t kDefaultPrefillChunkTokens = 128;
+constexpr std::uint64_t kDefaultPrefillChunkTokens = 1024;
 constexpr std::uint64_t kMinimumPrefillChunkTokens = 32;
 constexpr std::uint64_t kPrefillChunkQuantum = 32;
 constexpr std::uint64_t kPrefillScoreBudgetBytes = 512ULL * 1024ULL * 1024ULL;
@@ -73,7 +74,11 @@ Status CudaFailure(const char* operation, cudaError_t error) {
                    cudaGetErrorString(error));
 }
 
-std::uint64_t PrefillChunkTokensForContext(std::uint64_t max_context) {
+std::uint64_t PrefillChunkTokensForContext(
+    std::uint64_t max_context, KvCacheMode kv_cache_mode) {
+  if (kv_cache_mode == KvCacheMode::kCheckpointFp8) {
+    return kDefaultPrefillChunkTokens;
+  }
   const std::uint64_t score_bytes_per_token =
       kQueryHeads * max_context * sizeof(float);
   const std::uint64_t budget_tokens =
@@ -835,9 +840,10 @@ class InferenceEngine {
                                   std::uint64_t max_context,
                                   KvCacheMode kv_cache_mode) {
     const NvtxRange range("gem16gb.initialize");
-    max_context_ = max_context;
-    prefill_chunk_tokens_ = PrefillChunkTokensForContext(max_context_);
     kv_cache_mode_ = kv_cache_mode;
+    max_context_ = max_context;
+    prefill_chunk_tokens_ =
+        PrefillChunkTokensForContext(max_context_, kv_cache_mode_);
     cudaDeviceProp properties{};
     cudaError_t error = cudaGetDeviceProperties(&properties, 0);
     if (error != cudaSuccess) return CudaFailure("cudaGetDeviceProperties", error);
@@ -1189,7 +1195,10 @@ class InferenceEngine {
     GEM16GB_PREFILL_ADD(v_norm, float, tokens * max_kv);
     GEM16GB_PREFILL_ADD(k_fp8, std::uint8_t, tokens * max_kv);
     GEM16GB_PREFILL_ADD(v_fp8, std::uint8_t, tokens * max_kv);
-    GEM16GB_PREFILL_ADD(scores, float, tokens * kQueryHeads * max_context_);
+    if (kv_cache_mode_ == KvCacheMode::kBf16Correctness) {
+      GEM16GB_PREFILL_ADD(scores, float,
+                          tokens * kQueryHeads * max_context_);
+    }
     GEM16GB_PREFILL_ADD(attention, float, tokens * max_q);
     GEM16GB_PREFILL_ADD(o_activation, std::uint8_t, tokens * max_q);
     GEM16GB_PREFILL_ADD(o_scales, float, tokens);
@@ -1296,7 +1305,6 @@ class InferenceEngine {
     if (!status.ok()) return status;
     const std::uint64_t capacity =
         layer.global ? max_context_ : std::min(max_context_, kSlidingWindow);
-    float* scores = Pointer<float>(prefill_workspace_, prefill_offsets_.scores);
     if (kv_cache_mode_ == KvCacheMode::kCheckpointFp8) {
       auto* k_fp8 = Pointer<std::uint8_t>(prefill_workspace_, prefill_offsets_.k_fp8);
       auto* v_fp8 = Pointer<std::uint8_t>(prefill_workspace_, prefill_offsets_.v_fp8);
@@ -1304,16 +1312,26 @@ class InferenceEngine {
           k_norm, v_norm, k_fp8, v_fp8, layer.k_cache_scale,
           layer.v_cache_scale, tokens, layer.kv_elements, stream_);
       if (!status.ok()) return status;
-      status = internal::LaunchFusedCausalAttentionPrefillFp8(
-          q_norm, k_fp8, v_fp8, layer.key_cache_fp8, layer.value_cache_fp8,
-          layer.k_cache_scale, layer.v_cache_scale, scores, attention,
-          start_position, tokens, kQueryHeads, layer.kv_heads,
-          layer.head_dimension, capacity, !layer.global, stream_);
+      status = layer.global
+                   ? internal::LaunchOnlineCausalAttentionPrefillFp8GlobalSm120(
+                         q_norm, k_fp8, v_fp8, layer.key_cache_fp8,
+                         layer.value_cache_fp8, layer.k_cache_scale,
+                         layer.v_cache_scale, attention, start_position,
+                         tokens, kQueryHeads, layer.kv_heads,
+                         layer.head_dimension, capacity, stream_)
+                   : internal::LaunchOnlineCausalAttentionPrefillFp8LocalSm120(
+                         q_norm, k_fp8, v_fp8, layer.key_cache_fp8,
+                         layer.value_cache_fp8, layer.k_cache_scale,
+                         layer.v_cache_scale, attention, start_position,
+                         tokens, kQueryHeads, layer.kv_heads,
+                         layer.head_dimension, capacity, stream_);
       if (!status.ok()) return status;
       status = internal::LaunchAppendKvFp8Batch(
           k_fp8, v_fp8, layer.key_cache_fp8, layer.value_cache_fp8,
           start_position, tokens, layer.kv_elements, capacity, stream_);
     } else {
+      float* scores =
+          Pointer<float>(prefill_workspace_, prefill_offsets_.scores);
       status = internal::LaunchFusedCausalAttentionPrefill(
           q_norm, k_norm, v_norm, layer.key_cache_bf16,
           layer.value_cache_bf16, scores, attention, start_position, tokens,
