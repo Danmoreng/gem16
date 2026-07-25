@@ -244,9 +244,9 @@ Reports and exported SQLite databases are written below the selected build direc
 outside version control.
 
 Prompt ingestion uses a native 128-token chunk plan by default, reduced deterministically for very long context
-plans to keep the causal score arena bounded. Its FP8 attention and NVFP4 MLP projections use real
-16-row by 8-column MMA tiles that reuse checkpoint weight fragments across prompt tokens while retaining causal
-local/global attention. Its causal attention combines score, softmax, and value phases into one block while
+plans to keep the causal score arena bounded. Its FP8 attention projections use real 16-row by 8-column MMA tiles;
+each NVFP4 warp evaluates two such token tiles and reuses the loaded checkpoint weight fragments across 32 prompt
+rows. Causal local/global attention combines score, softmax, and value phases into one block while
 preserving the reference reduction order. The token-at-a-time bridge and unfused attention implementation remain
 test/probe references and are not selectable from `gem16gb-run` or `gem16gb-bench`.
 

@@ -1,5 +1,28 @@
 # Decisions
 
+## 2026-07-25: Reuse NVFP4 weights across two prefill token tiles
+
+Date: 2026-07-25
+Decision: Make the production NVFP4 batch projection assign two consecutive 16-token MMA tiles to each warp. Load
+each source-layout Gate, Up, or Down weight fragment and scale once per contracting block, then issue one MMA for
+each token tile with independent activation fragments, scales, and accumulators. This replaces the prior one-tile
+kernel directly and adds no runtime selector.
+Context: After widening prefill chunks, Nsight Systems attributed 35.5% of projected context-512 GPU time to NVFP4
+projections. The old mapping made separate warps reread identical weight fragments for adjacent token tiles even
+though batch-one prefill has abundant token-parallel work.
+Alternatives: Keep one tile per warp; add a user-selectable tile count; change the K-dimension accumulation order;
+stage a larger weight tile in shared memory. A permanent selector conflicts with the single-winner execution plan,
+changing accumulation order weakens the numerical comparison, and shared staging is not justified before measuring
+this register-only reuse.
+Consequences: Each warp carries twice as many output accumulators. The unfused and fused forms use 72 and 80
+registers respectively, but `cuobjdump` reports zero stack and local memory. Arena sizes, source weight layout,
+global/local scaling, FP32 accumulation order within each tile, and tail masking are unchanged.
+Evidence: A separately built `8f05333` reference and the promoted kernel were measured with 3 warm-ups and 10 runs
+at context 512. Median throughput changes from 542.58 to 587.68 tok/s (+8.31%); TTFT changes from 943.64 to
+871.23 ms (-7.67%). Nsight Systems reports 669.99 to 547.20 ms (-18.33%) for NVFP4 projection kernels across two
+prefill executions. Exact eight-token sequences match at prompt lengths 129 and 257, the exact-blue fixture passes,
+and all release unit/CUDA tests pass.
+
 ## 2026-07-25: Promote measured winners and remove production optimization switches
 
 Date: 2026-07-25

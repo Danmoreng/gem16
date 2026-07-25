@@ -75,11 +75,11 @@ The llama.cpp benchmark is deliberately before engine kernel optimization, but a
 7. The correctness-first Layer-0 MLP chain now implements Gate/Up, Gemma GELU-tanh product, Down, post-MLP norm,
    residual, and layer scalar as part of the complete device-resident decoder-layer characterization. Both NVFP4
    activation boundaries remain byte-identical across its reference/native paths. Next compare it with trusted
-   prompt-derived layer data. An opt-in closed Gate/Up/GELU kernel now removes four intermediate launches and
-   unnecessary diagnostic stores; its isolated result is about 1.7% faster, but Windows end-to-end medians remain
-   noisy and slightly negative, so it is not enabled by default.
-8. Add a separate native prefill plan, initially qualified against pinned CUTLASS/cuBLASLt block-scaled GEMM. Do
-   not reuse the decode plan merely for implementation convenience.
+   prompt-derived layer data. A closed Gate/Up/GELU probe was slightly faster in isolation but lost Linux
+   end-to-end comparisons; production therefore exposes only the faster separate Gate/Up/GELU sequence.
+8. ~~Add a separate native prefill plan without reusing the decode plan.~~ The promoted plan uses context-budgeted
+   128-token chunks, fused causal attention, and NVFP4 warps that reuse each weight fragment across 32 prompt rows.
+   Continue with wider/pipelined FP8 projection tiles and attention work identified by Linux Nsight Systems.
 9. The checkpoint's FP8 Q/K/V/O projection path is implemented with an independent CPU oracle, CUDA reference,
    direct-source `QMMA.16832` route, and real Layer-0 checks. The unfused local-attention decode sublayer assembles
    input RMSNorm, Q/K/V, per-head Q/K and scale-free V normalization, RoPE, separate K/V append/read, FP32 softmax,

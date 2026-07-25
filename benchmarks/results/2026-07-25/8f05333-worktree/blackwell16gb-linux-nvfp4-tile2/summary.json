@@ -1,0 +1,13 @@
+{
+  "benchmarks": [
+    "gem16gb/prefill-128.json",
+    "gem16gb/prefill-512.json",
+    "reference/prefill-512.json"
+  ],
+  "correctness": "correctness.json",
+  "git_commit": "8f05333-worktree",
+  "nsys_summary": "nsys/prefill-512-summary.json",
+  "production_change": "nvfp4_prefill_token_tiles_per_warp=2",
+  "schema_version": 1,
+  "status": "characterization"
+}

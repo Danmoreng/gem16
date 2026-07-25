@@ -33,6 +33,15 @@ and 2.38 s to 1.89 s projected GPU time. Raw runs are under
 `benchmarks/results/2026-07-25/36c5041-worktree/blackwell16gb-linux-chunk128/`; the result reports the selected
 chunk size. The context-budgeted selector keeps the score arena at or below 512 MiB for long-context plans.
 
+The next Linux promotion makes every NVFP4 prefill warp consume two consecutive 16-token MMA tiles while loading
+each Gate, Up, or Down weight fragment once. Against a separately built `8f05333` reference under the same 3/10
+policy at context 512, median throughput rises from 542.58 to 587.68 tok/s (+8.31%) and median TTFT falls from
+943.64 to 871.23 ms (-7.67%). Nsight Systems attributes 669.99 ms to the reference NVFP4 projection kernels and
+547.20 ms to the promoted kernels (-18.33%) across two prefill executions. The 129- and 257-token prompts retain
+exactly identical eight-token sequences, the exact-blue fixture passes, CUDA/unit tests pass, and the hot kernels
+use no stack or local memory. Raw samples and profile summaries are under
+`benchmarks/results/2026-07-25/8f05333-worktree/blackwell16gb-linux-nvfp4-tile2/`.
+
 The following console characterizations were collected on the same Windows Blackwell development machine after
 commits `0d2065e` and `914aba1`, using direct checkpoint loading, checkpoint FP8 KV, native SM120 projections, and
 the opt-in fused Gate/Up path. They are not accepted benchmark artifacts: 128 and 512 prefill use the full 3 warm-up/
@@ -61,6 +70,7 @@ fusion removes two launches per layer, while wider/pipelined projection tiles re
 
 | Date | Commit | Hypothesis | Configuration | Before | After | Quality delta | VRAM delta | Decision |
 |---|---|---|---|---:|---:|---:|---:|---|
+| 2026-07-25 | `8f05333` worktree | One warp can amortize each NVFP4 weight-fragment load over two 16-token MMA tiles without changing either tile's accumulation order | Linux RTX 5080 Laptop, CUDA 13.3, FP8 KV, context 512, 3/10; separately built reference immediately followed by candidate | One token tile/warp: 542.58 tok/s, 943.64 ms TTFT | Two token tiles/warp: 587.68 tok/s (+8.31%), 871.23 ms TTFT (-7.67%) | Exact 129/257-token eight-step sequences; exact-blue gate; CUDA/unit tests pass; no local-memory spill | No arena or persistent-memory change | Promote the two-tile kernel as the only production NVFP4 batch projection; Nsight measures -18.33% NVFP4 projection time |
 | 2026-07-25 | `960528d` plus consolidation worktree | One fixed production plan prevents known-slower paths while Linux resolves the last Gate/Up ambiguity | RTX 5080 Laptop GPU, Linux, CUDA 13.3, FP8 KV; Prefill 3/10 at 128 and 512; Decode context 128, 64 tokens, 1/3 | Fused Gate/Up: 527.53/410.16 Prefill tok/s and 25.86 Decode tok/s | Separate Gate/Up/GELU: 573.32/441.73 Prefill tok/s and 26.08 Decode tok/s | Deterministic output checksums retained; existing operator gates cover both implementations | No arena change | Select separate Gate/Up/GELU; remove all six production optimization switch families while retaining references in tests/probes |
 | 2026-07-25 | `36c5041` worktree | Larger prompt tiles reduce launch overhead and improve M-dimensional projection occupancy without changing arithmetic | Linux RTX 5080 Laptop, CUDA 13.3, FP8 KV, context-budgeted 128-token chunk, 3/10 | 32-token chunks: 577.15/442.68 Prefill tok/s at 128/512; 15.32/16.13 MB workspace | 128-token chunks: 725.48/545.25 tok/s; 56.77/59.94 MB workspace | Exact 129/257-token eight-step sequences; exact-blue gate; CUDA/unit tests pass | +41.44/+43.81 MB workspace; long plans lower chunk size to retain a 512 MiB score budget | Promote 128-token default; retain only deterministic memory-bounded selection for long contexts |
 | 2026-07-25 | working tree | Projection work and launch count explain the large prefill/decode gap | Nsight Systems 2026.1.3; native chunked prefill and persistent decode; context 128; FP8 KV; fused Gate+Up | Prefill trace: 21,846 launches; decode trace: 85,116 launches over 34 forwards | Prefill GPU time: Gate+Up 53%, FP8 projections 20%, NVFP4 Down 17%; decode GPU time: 45%, 21%, and 18% respectively | Existing native/serial checksum gate remains unchanged; this entry only adds instrumentation | Nsight reports remain in the untracked build profile directory | Build a true M-dimensional projection path first; follow with CUDA Graph decode |
