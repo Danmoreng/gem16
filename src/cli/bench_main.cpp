@@ -35,7 +35,8 @@ void Usage(std::ostream& output) {
          << "      [--context <tokens>] [--tokens <count>] [--seed <integer>]\n"
          << "      [--warmups <count>] [--repetitions <count>]\n"
          << "      [--kv-cache <fp8|bf16>] [--projection-path <native|reference>]\n"
-         << "      [--enable-fused-gate-up] [--disable-fused-prefill-attention] [--serial-prefill]\n"
+         << "      [--enable-fused-gate-up] [--disable-decode-graphs]\n"
+         << "      [--disable-fused-prefill-attention] [--serial-prefill]\n"
          << "\n"
          << "Prefill mode (CUDA):\n"
          << "  gem16gb-bench prefill --model <checkpoint-dir> --context <tokens>\n"
@@ -112,6 +113,8 @@ int RunDecodeMode(int argc, char** argv) {
       options.enable_fused_gate_up = true;
     } else if (argument == "--disable-fused-prefill-attention") {
       options.enable_fused_prefill_attention = false;
+    } else if (argument == "--disable-decode-graphs") {
+      options.enable_decode_graphs = false;
     } else if (argument == "--serial-prefill") {
       options.use_native_prefill = false;
     } else {
@@ -176,6 +179,8 @@ int RunPrefillMode(int argc, char** argv) {
       options.enable_fused_gate_up = true;
     } else if (argument == "--disable-fused-prefill-attention") {
       options.enable_fused_prefill_attention = false;
+    } else if (argument == "--disable-decode-graphs") {
+      options.enable_decode_graphs = false;
     } else if (argument == "--serial-prefill") {
       options.use_native_prefill = false;
     } else {

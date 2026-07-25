@@ -126,6 +126,8 @@ int main(int argc, char** argv) {
       options.enable_fused_gate_up = true;
     } else if (argument == "--disable-fused-prefill-attention") {
       options.enable_fused_prefill_attention = false;
+    } else if (argument == "--disable-decode-graphs") {
+      options.enable_decode_graphs = false;
     } else if (argument == "--serial-prefill") {
       options.use_native_prefill = false;
     } else if (argument == "--kv-cache" && index + 1 < argc) {

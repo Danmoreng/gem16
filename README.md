@@ -33,8 +33,10 @@ approximately 16 GB of VRAM. The first model is the mixed FP8/NVFP4
   byte-fallback BPE encode/decode, enforces the pinned `chat_template.jinja` contract, and sources EOS/suppressed
   tokens from `generation_config.json`.
 
-Sampling, CUDA Graphs, persistent chat
-sessions, and benchmark-qualified inference do **not** work yet. The default cache now stores one physical E4M3FN
+Sampling, full-forward single-launch CUDA Graph replay, persistent chat
+sessions, and benchmark-qualified inference do **not** work yet. Decode now captures the position-independent
+prefix and suffix of every layer into 96 reusable graph executables during initialization; RoPE, KV append, and
+context-dependent attention remain explicit launches. The default cache stores one physical E4M3FN
 byte per K/V value and dequantizes with the checkpoint's per-layer BF16 scales during attention. It is still an
 unfused correctness kernel rather than a performance result. The exact-blue greedy gate passes, while the longer
 sky gate currently diverges from vLLM/llama.cpp at its third generated token. Unsupported modes fail visibly and
@@ -226,7 +228,9 @@ latencies plus summary statistics as JSON:
 
 This is currently a development characterization, not an accepted competitive result. The hybrid KV cache keeps
 1,024 positions in each local-attention ring and grows the eight global-attention layers through the requested
-context, up to the checkpoint's 262,144-position contract.
+context, up to the checkpoint's 262,144-position contract. Static per-layer CUDA Graph segments are prepared before
+the token loop and enabled by default. Use `--disable-decode-graphs` for a direct arithmetic and performance A/B;
+result JSON records both the selected path and measured graph-associated device-memory growth.
 
 On Windows, a short Nsight Systems prefill/decode capture with NVTX phase ranges can be collected and summarized
 without opening the GUI:

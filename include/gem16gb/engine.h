@@ -44,6 +44,7 @@ struct GreedyInferenceOptions {
   KvCacheMode kv_cache_mode = KvCacheMode::kCheckpointFp8;
   bool enable_fused_gate_up = false;
   bool enable_fused_prefill_attention = true;
+  bool enable_decode_graphs = true;
   bool use_native_prefill = true;
   // Optional synchronous observer invoked once for every selected output
   // token, including a stop token. The callback and its context must remain
@@ -64,6 +65,7 @@ struct GreedyInferenceResult {
   std::uint64_t weight_arena_bytes = 0;
   std::uint64_t kv_cache_bytes = 0;
   std::uint64_t workspace_bytes = 0;
+  std::uint64_t decode_graph_device_bytes = 0;
   std::uint64_t fallback_count = 0;
   std::uint64_t logits_dump_steps = 0;
   std::uint64_t teacher_forced_matches = 0;
@@ -77,6 +79,7 @@ struct GreedyInferenceResult {
   bool teacher_forcing = false;
   bool fused_gate_up = false;
   bool fused_prefill_attention = false;
+  bool decode_graphs = false;
   bool logits_dumped = false;
   bool state_dumped = false;
 };
@@ -105,6 +108,7 @@ struct DecodeBenchmarkOptions {
   KvCacheMode kv_cache_mode = KvCacheMode::kCheckpointFp8;
   bool enable_fused_gate_up = false;
   bool enable_fused_prefill_attention = true;
+  bool enable_decode_graphs = true;
   bool use_native_prefill = true;
 };
 
@@ -124,6 +128,7 @@ struct DecodeBenchmarkResult {
   std::uint64_t weight_arena_bytes = 0;
   std::uint64_t kv_cache_bytes = 0;
   std::uint64_t workspace_bytes = 0;
+  std::uint64_t decode_graph_device_bytes = 0;
   BenchmarkDistribution prompt_milliseconds;
   BenchmarkDistribution decode_tokens_per_second;
   BenchmarkDistribution inter_token_latency_milliseconds;

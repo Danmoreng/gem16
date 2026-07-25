@@ -107,6 +107,22 @@ class DeviceAllocation {
   std::uint64_t bytes_ = 0;
 };
 
+class GraphExecutable {
+ public:
+  GraphExecutable() = default;
+  GraphExecutable(const GraphExecutable&) = delete;
+  GraphExecutable& operator=(const GraphExecutable&) = delete;
+  ~GraphExecutable() {
+    if (executable_ != nullptr) (void)cudaGraphExecDestroy(executable_);
+  }
+
+  [[nodiscard]] cudaGraphExec_t get() const { return executable_; }
+  void Adopt(cudaGraphExec_t executable) { executable_ = executable; }
+
+ private:
+  cudaGraphExec_t executable_ = nullptr;
+};
+
 class PinnedHostAllocation {
  public:
   PinnedHostAllocation() = default;
@@ -710,13 +726,15 @@ class InferenceEngine {
                                   ProjectionPath projection_path,
                                   KvCacheMode kv_cache_mode,
                                   bool enable_fused_gate_up,
-                                  bool enable_fused_prefill_attention) {
+                                  bool enable_fused_prefill_attention,
+                                  bool enable_decode_graphs) {
     const NvtxRange range("gem16gb.initialize");
     max_context_ = max_context;
     projection_path_ = projection_path;
     kv_cache_mode_ = kv_cache_mode;
     enable_fused_gate_up_ = enable_fused_gate_up;
     enable_fused_prefill_attention_ = enable_fused_prefill_attention;
+    enable_decode_graphs_ = enable_decode_graphs;
     cudaDeviceProp properties{};
     cudaError_t error = cudaGetDeviceProperties(&properties, 0);
     if (error != cudaSuccess) return CudaFailure("cudaGetDeviceProperties", error);
@@ -734,6 +752,30 @@ class InferenceEngine {
     if (!status.ok()) return status;
     status = AllocatePrefillWorkspace();
     if (!status.ok()) return status;
+    if (enable_decode_graphs_) {
+      std::size_t free_before = 0U;
+      std::size_t total_before = 0U;
+      cudaError_t memory_error = cudaMemGetInfo(&free_before, &total_before);
+      if (memory_error != cudaSuccess) {
+        return CudaFailure("measure memory before decode graph capture",
+                           memory_error);
+      }
+      status = PrepareDecodeGraphs();
+      if (!status.ok()) return status;
+      std::size_t free_after = 0U;
+      std::size_t total_after = 0U;
+      memory_error = cudaMemGetInfo(&free_after, &total_after);
+      if (memory_error != cudaSuccess) {
+        return CudaFailure("measure memory after decode graph capture",
+                           memory_error);
+      }
+      if (total_before != total_after) {
+        return Error(StatusCode::kInternal,
+                     "device total memory changed during decode graph capture");
+      }
+      decode_graph_device_bytes_ =
+          free_before > free_after ? free_before - free_after : 0U;
+    }
     return ResetCache();
   }
 
@@ -760,7 +802,7 @@ class InferenceEngine {
       const LayerStateCapture* layer_capture =
           host_state.empty() ? nullptr : &state_layout.layers[layer_index];
       Status status =
-          RunLayer(layer, position, layer_capture, host_state.data());
+          RunLayer(layer_index, layer, position, layer_capture, host_state.data());
       if (!status.ok()) return status;
     }
     float* normalized = Pointer<float>(workspace_, offsets_.normalized);
@@ -811,6 +853,9 @@ class InferenceEngine {
   [[nodiscard]] std::uint64_t cache_bytes() const { return cache_.bytes(); }
   [[nodiscard]] std::uint64_t workspace_bytes() const {
     return workspace_.bytes() + prefill_workspace_.bytes();
+  }
+  [[nodiscard]] std::uint64_t decode_graph_device_bytes() const {
+    return decode_graph_device_bytes_;
   }
 
   [[nodiscard]] Result<std::uint32_t> Prefill(
@@ -1243,14 +1288,64 @@ class InferenceEngine {
     return LaunchRoundBf16(hidden_a, hidden_elements, stream_);
   }
 
-  [[nodiscard]] Status RunLayer(const LayerBinding& layer, std::uint64_t position,
-                                const LayerStateCapture* capture,
-                                float* host_state) {
-    const NvtxRange range("gem16gb.decode.layer");
+  template <typename Launch>
+  [[nodiscard]] Status CaptureDecodeGraph(GraphExecutable& destination,
+                                          Launch&& launch,
+                                          const char* label) {
+    cudaError_t error =
+        cudaStreamBeginCapture(stream_, cudaStreamCaptureModeThreadLocal);
+    if (error != cudaSuccess) return CudaFailure(label, error);
+    const Status launch_status = launch();
+    cudaGraph_t graph = nullptr;
+    error = cudaStreamEndCapture(stream_, &graph);
+    if (!launch_status.ok()) {
+      if (graph != nullptr) (void)cudaGraphDestroy(graph);
+      return launch_status;
+    }
+    if (error != cudaSuccess) {
+      if (graph != nullptr) (void)cudaGraphDestroy(graph);
+      return CudaFailure(label, error);
+    }
+    cudaGraphExec_t executable = nullptr;
+    error = cudaGraphInstantiate(&executable, graph, nullptr, nullptr, 0U);
+    const cudaError_t destroy_error = cudaGraphDestroy(graph);
+    if (error != cudaSuccess) return CudaFailure(label, error);
+    if (destroy_error != cudaSuccess) {
+      (void)cudaGraphExecDestroy(executable);
+      return CudaFailure(label, destroy_error);
+    }
+    destination.Adopt(executable);
+    return Status::Ok();
+  }
+
+  [[nodiscard]] Status PrepareDecodeGraphs() {
+    cudaError_t error = cudaStreamSynchronize(stream_);
+    if (error != cudaSuccess) {
+      return CudaFailure("synchronize before decode graph capture", error);
+    }
+    for (std::size_t index = 0; index < model_.layers().size(); ++index) {
+      const LayerBinding& layer = model_.layers()[index];
+      Status status = CaptureDecodeGraph(
+          decode_prefix_graphs_[index],
+          [this, &layer]() { return LaunchDecodePrefix(layer); },
+          "capture decode prefix graph");
+      if (!status.ok()) return status;
+      status = CaptureDecodeGraph(
+          decode_suffix_graphs_[index],
+          [this, &layer]() {
+            return LaunchDecodeSuffix(layer, nullptr, nullptr);
+          },
+          "capture decode suffix graph");
+      if (!status.ok()) return status;
+    }
+    return Status::Ok();
+  }
+
+  [[nodiscard]] Status LaunchDecodePrefix(const LayerBinding& layer) {
     float* hidden_a = Pointer<float>(workspace_, offsets_.hidden_a);
-    float* hidden_b = Pointer<float>(workspace_, offsets_.hidden_b);
     float* normalized = Pointer<float>(workspace_, offsets_.normalized);
-    auto* fp8_activation = Pointer<std::uint8_t>(workspace_, offsets_.fp8_activation);
+    auto* fp8_activation =
+        Pointer<std::uint8_t>(workspace_, offsets_.fp8_activation);
     float* fp8_scale = Pointer<float>(workspace_, offsets_.fp8_scale);
     float* q = Pointer<float>(workspace_, offsets_.q);
     float* k = Pointer<float>(workspace_, offsets_.k);
@@ -1258,32 +1353,9 @@ class InferenceEngine {
     float* q_norm = Pointer<float>(workspace_, offsets_.q_norm);
     float* k_norm = Pointer<float>(workspace_, offsets_.k_norm);
     float* v_norm = Pointer<float>(workspace_, offsets_.v_norm);
-    float* scores = Pointer<float>(workspace_, offsets_.scores);
-    float* attention = Pointer<float>(workspace_, offsets_.attention);
-    auto* o_activation = Pointer<std::uint8_t>(workspace_, offsets_.o_activation);
-    float* o_scale = Pointer<float>(workspace_, offsets_.o_scale);
-    float* projection = Pointer<float>(workspace_, offsets_.projection);
-    float* post_norm = Pointer<float>(workspace_, offsets_.post_norm);
-    const auto capture_values =
-        [this, capture, host_state](std::size_t offset, const float* source,
-                                    std::size_t elements,
-                                    const char* label) -> Status {
-      if (capture == nullptr) return Status::Ok();
-      const cudaError_t error = cudaMemcpyAsync(
-          host_state + offset, source,
-          elements * sizeof(float),
-          cudaMemcpyDeviceToHost, stream_);
-      return error == cudaSuccess ? Status::Ok() : CudaFailure(label, error);
-    };
-    const auto capture_hidden =
-        [&capture_values](std::size_t offset, const float* source,
-                          const char* label) -> Status {
-      return capture_values(offset, source, static_cast<std::size_t>(kHidden),
-                            label);
-    };
 
-    Status status = internal::LaunchRmsNorm(hidden_a, layer.input_norm, normalized, 1U,
-                                            kHidden, kEpsilon, stream_);
+    Status status = internal::LaunchRmsNorm(
+        hidden_a, layer.input_norm, normalized, 1U, kHidden, kEpsilon, stream_);
     if (!status.ok()) return status;
     status = LaunchRoundBf16(normalized, kHidden, stream_);
     if (!status.ok()) return status;
@@ -1297,9 +1369,12 @@ class InferenceEngine {
                                  projection_path_, stream_);
     if (!status.ok()) return status;
     if (layer.global) {
-      const cudaError_t error = cudaMemcpyAsync(v, k, layer.kv_elements * sizeof(float),
-                                                cudaMemcpyDeviceToDevice, stream_);
-      if (error != cudaSuccess) return CudaFailure("reuse global K projection for V", error);
+      const cudaError_t error = cudaMemcpyAsync(
+          v, k, layer.kv_elements * sizeof(float), cudaMemcpyDeviceToDevice,
+          stream_);
+      if (error != cudaSuccess) {
+        return CudaFailure("reuse global K projection for V", error);
+      }
     } else {
       status = LaunchFp8Projection(fp8_activation, fp8_scale, layer.v, v,
                                    projection_path_, stream_);
@@ -1320,6 +1395,206 @@ class InferenceEngine {
              LaunchRoundBf16(v_norm, layer.kv_elements, stream_),
          }) {
       if (!next.ok()) return next;
+    }
+    return Status::Ok();
+  }
+
+  [[nodiscard]] Status LaunchDecodeSuffix(
+      const LayerBinding& layer, const LayerStateCapture* capture,
+      float* host_state) {
+    float* hidden_a = Pointer<float>(workspace_, offsets_.hidden_a);
+    float* hidden_b = Pointer<float>(workspace_, offsets_.hidden_b);
+    float* normalized = Pointer<float>(workspace_, offsets_.normalized);
+    float* attention = Pointer<float>(workspace_, offsets_.attention);
+    auto* o_activation =
+        Pointer<std::uint8_t>(workspace_, offsets_.o_activation);
+    float* o_scale = Pointer<float>(workspace_, offsets_.o_scale);
+    float* projection = Pointer<float>(workspace_, offsets_.projection);
+    float* post_norm = Pointer<float>(workspace_, offsets_.post_norm);
+    auto* mlp_packed =
+        Pointer<std::uint8_t>(workspace_, offsets_.mlp_packed);
+    auto* mlp_scales =
+        Pointer<std::uint8_t>(workspace_, offsets_.mlp_scales);
+    float* gate = Pointer<float>(workspace_, offsets_.gate);
+    float* up = Pointer<float>(workspace_, offsets_.up);
+    float* product = Pointer<float>(workspace_, offsets_.product);
+    auto* down_packed =
+        Pointer<std::uint8_t>(workspace_, offsets_.down_packed);
+    auto* down_scales =
+        Pointer<std::uint8_t>(workspace_, offsets_.down_scales);
+    const auto capture_values =
+        [this, capture, host_state](std::size_t offset, const float* source,
+                                    std::size_t elements,
+                                    const char* label) -> Status {
+      if (capture == nullptr) return Status::Ok();
+      const cudaError_t error = cudaMemcpyAsync(
+          host_state + offset, source, elements * sizeof(float),
+          cudaMemcpyDeviceToHost, stream_);
+      return error == cudaSuccess ? Status::Ok() : CudaFailure(label, error);
+    };
+    const auto capture_hidden =
+        [&capture_values](std::size_t offset, const float* source,
+                          const char* label) -> Status {
+      return capture_values(offset, source, static_cast<std::size_t>(kHidden),
+                            label);
+    };
+
+    Status status = LaunchRoundBf16(attention, layer.query_elements, stream_);
+    if (!status.ok()) return status;
+    if (capture != nullptr) {
+      const cudaError_t error = cudaMemcpyAsync(
+          host_state + capture->attention_context, attention,
+          capture->attention_elements * sizeof(float), cudaMemcpyDeviceToHost,
+          stream_);
+      if (error != cudaSuccess) {
+        return CudaFailure("copy attention context state", error);
+      }
+    }
+    status = internal::LaunchFp8ReferenceTokenQuantization(
+        attention, o_activation, o_scale, layer.query_elements, stream_);
+    if (!status.ok()) return status;
+    status = LaunchFp8Projection(o_activation, o_scale, layer.o, projection,
+                                 projection_path_, stream_);
+    if (!status.ok()) return status;
+    status = LaunchRoundBf16(projection, kHidden, stream_);
+    if (!status.ok()) return status;
+    if (capture != nullptr) {
+      status = capture_hidden(capture->attention_output, projection,
+                              "copy attention output state");
+      if (!status.ok()) return status;
+    }
+    status = internal::LaunchRmsNorm(projection, layer.post_attention_norm,
+                                     post_norm, 1U, kHidden, kEpsilon, stream_);
+    if (!status.ok()) return status;
+    status = LaunchRoundBf16(post_norm, kHidden, stream_);
+    if (!status.ok()) return status;
+    if (capture != nullptr) {
+      status = capture_hidden(capture->post_attention_norm, post_norm,
+                              "copy post-attention norm state");
+      if (!status.ok()) return status;
+    }
+    status = internal::LaunchAddResidual(post_norm, hidden_a, hidden_b, kHidden,
+                                         stream_);
+    if (!status.ok()) return status;
+    status = LaunchRoundBf16(hidden_b, kHidden, stream_);
+    if (!status.ok()) return status;
+    if (capture != nullptr) {
+      status = capture_hidden(capture->post_attention_residual, hidden_b,
+                              "copy post-attention residual state");
+      if (!status.ok()) return status;
+    }
+    status = internal::LaunchRmsNorm(hidden_b, layer.pre_mlp_norm, normalized,
+                                     1U, kHidden, kEpsilon, stream_);
+    if (!status.ok()) return status;
+    status = LaunchRoundBf16(normalized, kHidden, stream_);
+    if (!status.ok()) return status;
+    if (capture != nullptr) {
+      status = capture_hidden(capture->pre_feedforward_norm, normalized,
+                              "copy pre-feedforward norm state");
+      if (!status.ok()) return status;
+    }
+    status = internal::LaunchNvfp4ReferenceActivationQuantization(
+        normalized, mlp_packed, mlp_scales, kHidden, layer.gate.input_divisor,
+        stream_);
+    if (!status.ok()) return status;
+    if (projection_path_ == ProjectionPath::kNativeSm120 &&
+        enable_fused_gate_up_) {
+      status = internal::LaunchNvfp4Sm120FusedGateUp(
+          mlp_packed, mlp_scales, layer.gate.packed_weight, layer.gate.scales,
+          layer.up.packed_weight, layer.up.scales,
+          capture == nullptr ? nullptr : gate,
+          capture == nullptr ? nullptr : up, product, kIntermediate, kHidden,
+          layer.gate.input_divisor, layer.gate.weight_divisor,
+          layer.up.input_divisor, layer.up.weight_divisor, stream_);
+      if (!status.ok()) return status;
+    } else {
+      status = LaunchNvfp4Projection(mlp_packed, mlp_scales, layer.gate, gate,
+                                     projection_path_, stream_);
+      if (!status.ok()) return status;
+      status = LaunchNvfp4Projection(mlp_packed, mlp_scales, layer.up, up,
+                                     projection_path_, stream_);
+      if (!status.ok()) return status;
+      status = LaunchRoundBf16(gate, kIntermediate, stream_);
+      if (!status.ok()) return status;
+      status = LaunchRoundBf16(up, kIntermediate, stream_);
+      if (!status.ok()) return status;
+      status = internal::LaunchGeluTanhProduct(gate, up, product, kIntermediate,
+                                               stream_);
+      if (!status.ok()) return status;
+      status = LaunchRoundBf16(product, kIntermediate, stream_);
+      if (!status.ok()) return status;
+    }
+    if (capture != nullptr) {
+      status = capture_values(capture->gate, gate, kIntermediate,
+                              "copy MLP gate state");
+      if (!status.ok()) return status;
+      status = capture_values(capture->up, up, kIntermediate,
+                              "copy MLP up state");
+      if (!status.ok()) return status;
+      status = capture_values(capture->gelu_product, product, kIntermediate,
+                              "copy MLP GELU product state");
+      if (!status.ok()) return status;
+    }
+    status = internal::LaunchNvfp4ReferenceActivationQuantization(
+        product, down_packed, down_scales, kIntermediate,
+        layer.down.input_divisor, stream_);
+    if (!status.ok()) return status;
+    status = LaunchNvfp4Projection(down_packed, down_scales, layer.down,
+                                   projection, projection_path_, stream_);
+    if (!status.ok()) return status;
+    status = LaunchRoundBf16(projection, kHidden, stream_);
+    if (!status.ok()) return status;
+    if (capture != nullptr) {
+      status = capture_hidden(capture->mlp_output, projection,
+                              "copy MLP output state");
+      if (!status.ok()) return status;
+    }
+    status = internal::LaunchRmsNorm(projection, layer.post_mlp_norm, post_norm,
+                                     1U, kHidden, kEpsilon, stream_);
+    if (!status.ok()) return status;
+    status = LaunchRoundBf16(post_norm, kHidden, stream_);
+    if (!status.ok()) return status;
+    if (capture != nullptr) {
+      status = capture_hidden(capture->post_feedforward_norm, post_norm,
+                              "copy post-feedforward norm state");
+      if (!status.ok()) return status;
+    }
+    status = internal::LaunchAddResidual(post_norm, hidden_b, hidden_a, kHidden,
+                                         stream_);
+    if (!status.ok()) return status;
+    status = LaunchRoundBf16(hidden_a, kHidden, stream_);
+    if (!status.ok()) return status;
+    status = internal::LaunchScale(hidden_a, layer.layer_scalar, kHidden, stream_);
+    if (!status.ok()) return status;
+    status = LaunchRoundBf16(hidden_a, kHidden, stream_);
+    if (!status.ok()) return status;
+    if (capture != nullptr) {
+      status = capture_hidden(capture->hidden, hidden_a,
+                              "copy layer hidden state");
+      if (!status.ok()) return status;
+    }
+    return Status::Ok();
+  }
+
+  [[nodiscard]] Status RunLayer(std::size_t layer_index,
+                                const LayerBinding& layer, std::uint64_t position,
+                                const LayerStateCapture* capture,
+                                float* host_state) {
+    const NvtxRange range("gem16gb.decode.layer");
+    float* q_norm = Pointer<float>(workspace_, offsets_.q_norm);
+    float* k_norm = Pointer<float>(workspace_, offsets_.k_norm);
+    float* v_norm = Pointer<float>(workspace_, offsets_.v_norm);
+    float* scores = Pointer<float>(workspace_, offsets_.scores);
+    float* attention = Pointer<float>(workspace_, offsets_.attention);
+
+    Status status;
+    if (enable_decode_graphs_ && capture == nullptr) {
+      const cudaError_t error =
+          cudaGraphLaunch(decode_prefix_graphs_[layer_index].get(), stream_);
+      if (error != cudaSuccess) return CudaFailure("launch decode prefix graph", error);
+    } else {
+      status = LaunchDecodePrefix(layer);
+      if (!status.ok()) return status;
     }
     if (layer.global) {
       status = internal::LaunchProportionalRotaryEmbedding(
@@ -1386,144 +1661,14 @@ class InferenceEngine {
           attention_tokens, stream_, cache_capacity, first_slot);
     }
     if (!status.ok()) return status;
-    status = LaunchRoundBf16(attention, layer.query_elements, stream_);
-    if (!status.ok()) return status;
-    if (capture != nullptr) {
-      const cudaError_t capture_error = cudaMemcpyAsync(
-          host_state + capture->attention_context, attention,
-          capture->attention_elements * sizeof(float),
-          cudaMemcpyDeviceToHost, stream_);
-      if (capture_error != cudaSuccess) {
-        return CudaFailure("copy attention context state", capture_error);
-      }
+    if (enable_decode_graphs_ && capture == nullptr) {
+      const cudaError_t error =
+          cudaGraphLaunch(decode_suffix_graphs_[layer_index].get(), stream_);
+      return error == cudaSuccess
+                 ? Status::Ok()
+                 : CudaFailure("launch decode suffix graph", error);
     }
-    status = internal::LaunchFp8ReferenceTokenQuantization(
-        attention, o_activation, o_scale, layer.query_elements, stream_);
-    if (!status.ok()) return status;
-    status = LaunchFp8Projection(o_activation, o_scale, layer.o, projection,
-                                 projection_path_, stream_);
-    if (!status.ok()) return status;
-    status = LaunchRoundBf16(projection, kHidden, stream_);
-    if (!status.ok()) return status;
-    if (capture != nullptr) {
-      status = capture_hidden(capture->attention_output, projection,
-                              "copy attention output state");
-      if (!status.ok()) return status;
-    }
-    status = internal::LaunchRmsNorm(projection, layer.post_attention_norm, post_norm, 1U,
-                                    kHidden, kEpsilon, stream_);
-    if (!status.ok()) return status;
-    status = LaunchRoundBf16(post_norm, kHidden, stream_);
-    if (!status.ok()) return status;
-    if (capture != nullptr) {
-      status = capture_hidden(capture->post_attention_norm, post_norm,
-                              "copy post-attention norm state");
-      if (!status.ok()) return status;
-    }
-    status = internal::LaunchAddResidual(post_norm, hidden_a, hidden_b, kHidden, stream_);
-    if (!status.ok()) return status;
-    status = LaunchRoundBf16(hidden_b, kHidden, stream_);
-    if (!status.ok()) return status;
-    if (capture != nullptr) {
-      status = capture_hidden(capture->post_attention_residual, hidden_b,
-                              "copy post-attention residual state");
-      if (!status.ok()) return status;
-    }
-
-    auto* mlp_packed = Pointer<std::uint8_t>(workspace_, offsets_.mlp_packed);
-    auto* mlp_scales = Pointer<std::uint8_t>(workspace_, offsets_.mlp_scales);
-    float* gate = Pointer<float>(workspace_, offsets_.gate);
-    float* up = Pointer<float>(workspace_, offsets_.up);
-    float* product = Pointer<float>(workspace_, offsets_.product);
-    auto* down_packed = Pointer<std::uint8_t>(workspace_, offsets_.down_packed);
-    auto* down_scales = Pointer<std::uint8_t>(workspace_, offsets_.down_scales);
-    status = internal::LaunchRmsNorm(hidden_b, layer.pre_mlp_norm, normalized, 1U, kHidden,
-                                    kEpsilon, stream_);
-    if (!status.ok()) return status;
-    status = LaunchRoundBf16(normalized, kHidden, stream_);
-    if (!status.ok()) return status;
-    if (capture != nullptr) {
-      status = capture_hidden(capture->pre_feedforward_norm, normalized,
-                              "copy pre-feedforward norm state");
-      if (!status.ok()) return status;
-    }
-    status = internal::LaunchNvfp4ReferenceActivationQuantization(
-        normalized, mlp_packed, mlp_scales, kHidden, layer.gate.input_divisor, stream_);
-    if (!status.ok()) return status;
-    if (projection_path_ == ProjectionPath::kNativeSm120 && enable_fused_gate_up_) {
-      status = internal::LaunchNvfp4Sm120FusedGateUp(
-          mlp_packed, mlp_scales, layer.gate.packed_weight, layer.gate.scales,
-          layer.up.packed_weight, layer.up.scales, capture == nullptr ? nullptr : gate,
-          capture == nullptr ? nullptr : up, product, kIntermediate, kHidden,
-          layer.gate.input_divisor, layer.gate.weight_divisor,
-          layer.up.input_divisor, layer.up.weight_divisor, stream_);
-      if (!status.ok()) return status;
-    } else {
-      status = LaunchNvfp4Projection(mlp_packed, mlp_scales, layer.gate, gate,
-                                     projection_path_, stream_);
-      if (!status.ok()) return status;
-      status = LaunchNvfp4Projection(mlp_packed, mlp_scales, layer.up, up,
-                                     projection_path_, stream_);
-      if (!status.ok()) return status;
-      status = LaunchRoundBf16(gate, kIntermediate, stream_);
-      if (!status.ok()) return status;
-      status = LaunchRoundBf16(up, kIntermediate, stream_);
-      if (!status.ok()) return status;
-      status = internal::LaunchGeluTanhProduct(gate, up, product, kIntermediate, stream_);
-      if (!status.ok()) return status;
-      status = LaunchRoundBf16(product, kIntermediate, stream_);
-      if (!status.ok()) return status;
-    }
-    if (capture != nullptr) {
-      status = capture_values(capture->gate, gate, kIntermediate,
-                              "copy MLP gate state");
-      if (!status.ok()) return status;
-      status = capture_values(capture->up, up, kIntermediate,
-                              "copy MLP up state");
-      if (!status.ok()) return status;
-    }
-    if (capture != nullptr) {
-      status = capture_values(capture->gelu_product, product, kIntermediate,
-                              "copy MLP GELU product state");
-      if (!status.ok()) return status;
-    }
-    status = internal::LaunchNvfp4ReferenceActivationQuantization(
-        product, down_packed, down_scales, kIntermediate, layer.down.input_divisor, stream_);
-    if (!status.ok()) return status;
-    status = LaunchNvfp4Projection(down_packed, down_scales, layer.down, projection,
-                                   projection_path_, stream_);
-    if (!status.ok()) return status;
-    status = LaunchRoundBf16(projection, kHidden, stream_);
-    if (!status.ok()) return status;
-    if (capture != nullptr) {
-      status = capture_hidden(capture->mlp_output, projection,
-                              "copy MLP output state");
-      if (!status.ok()) return status;
-    }
-    status = internal::LaunchRmsNorm(projection, layer.post_mlp_norm, post_norm, 1U, kHidden,
-                                    kEpsilon, stream_);
-    if (!status.ok()) return status;
-    status = LaunchRoundBf16(post_norm, kHidden, stream_);
-    if (!status.ok()) return status;
-    if (capture != nullptr) {
-      status = capture_hidden(capture->post_feedforward_norm, post_norm,
-                              "copy post-feedforward norm state");
-      if (!status.ok()) return status;
-    }
-    status = internal::LaunchAddResidual(post_norm, hidden_b, hidden_a, kHidden, stream_);
-    if (!status.ok()) return status;
-    status = LaunchRoundBf16(hidden_a, kHidden, stream_);
-    if (!status.ok()) return status;
-    status = internal::LaunchScale(hidden_a, layer.layer_scalar, kHidden, stream_);
-    if (!status.ok()) return status;
-    status = LaunchRoundBf16(hidden_a, kHidden, stream_);
-    if (!status.ok()) return status;
-    if (capture != nullptr) {
-      status =
-          capture_hidden(capture->hidden, hidden_a, "copy layer hidden state");
-      if (!status.ok()) return status;
-    }
-    return Status::Ok();
+    return LaunchDecodeSuffix(layer, capture, host_state);
   }
 
   LoadedModel model_;
@@ -1532,13 +1677,17 @@ class InferenceEngine {
   DeviceAllocation prefill_workspace_;
   WorkspaceOffsets offsets_{};
   PrefillOffsets prefill_offsets_{};
+  std::array<GraphExecutable, kLayers> decode_prefix_graphs_{};
+  std::array<GraphExecutable, kLayers> decode_suffix_graphs_{};
   cudaStream_t stream_ = nullptr;
   std::uint64_t max_context_ = 0;
+  std::uint64_t decode_graph_device_bytes_ = 0;
   std::uint32_t suppressed_token_count_ = 0;
   ProjectionPath projection_path_ = ProjectionPath::kNativeSm120;
   KvCacheMode kv_cache_mode_ = KvCacheMode::kCheckpointFp8;
   bool enable_fused_gate_up_ = false;
   bool enable_fused_prefill_attention_ = true;
+  bool enable_decode_graphs_ = true;
 };
 
 double Milliseconds(std::chrono::steady_clock::duration duration) {
@@ -1790,7 +1939,8 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
                                     options.projection_path,
                                     options.kv_cache_mode,
                                     options.enable_fused_gate_up,
-                                    options.enable_fused_prefill_attention);
+                                    options.enable_fused_prefill_attention,
+                                    options.enable_decode_graphs);
   if (!status.ok()) return status;
   status = engine.SetSuppressedTokens(options.suppressed_token_ids);
   if (!status.ok()) return status;
@@ -1806,10 +1956,13 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
                          options.enable_fused_gate_up;
   result.fused_prefill_attention =
       options.use_native_prefill && options.enable_fused_prefill_attention;
+  result.decode_graphs =
+      options.enable_decode_graphs && options.state_dump_path.empty();
   result.model_load_milliseconds = Milliseconds(load_end - load_start);
   result.weight_arena_bytes = engine.weight_bytes();
   result.kv_cache_bytes = engine.cache_bytes();
   result.workspace_bytes = engine.workspace_bytes();
+  result.decode_graph_device_bytes = engine.decode_graph_device_bytes();
   result.source_layout_direct = true;
   result.token_loop_allocations = false;
   result.benchmark_qualified = false;
@@ -1965,7 +2118,8 @@ Result<DecodeBenchmarkResult> RunDecodeBenchmark(
   Status status = engine.Initialize(options.model_directory, planned_context,
                                     options.projection_path, options.kv_cache_mode,
                                     options.enable_fused_gate_up,
-                                    options.enable_fused_prefill_attention);
+                                    options.enable_fused_prefill_attention,
+                                    options.enable_decode_graphs);
   if (!status.ok()) return status;
   const auto load_end = std::chrono::steady_clock::now();
 
@@ -2027,6 +2181,7 @@ Result<DecodeBenchmarkResult> RunDecodeBenchmark(
   result.weight_arena_bytes = engine.weight_bytes();
   result.kv_cache_bytes = engine.cache_bytes();
   result.workspace_bytes = engine.workspace_bytes();
+  result.decode_graph_device_bytes = engine.decode_graph_device_bytes();
   result.runs.reserve(options.measured_runs);
   std::vector<double> prompt_samples;
   std::vector<double> throughput_samples;
@@ -2089,6 +2244,8 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
          << "  \"fused_gate_up\": " << (result.fused_gate_up ? "true" : "false") << ",\n"
          << "  \"fused_prefill_attention\": "
          << (result.fused_prefill_attention ? "true" : "false") << ",\n"
+         << "  \"decode_graphs\": "
+         << (result.decode_graphs ? "true" : "false") << ",\n"
          << "  \"model_load_ms\": " << result.model_load_milliseconds << ",\n"
          << "  \"prompt_ms\": " << result.prompt_milliseconds << ",\n"
          << "  \"decode_ms\": " << result.decode_milliseconds << ",\n"
@@ -2096,6 +2253,8 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
          << "  \"weight_arena_bytes\": " << result.weight_arena_bytes << ",\n"
          << "  \"kv_cache_bytes\": " << result.kv_cache_bytes << ",\n"
          << "  \"workspace_bytes\": " << result.workspace_bytes << ",\n"
+         << "  \"decode_graph_device_bytes\": "
+         << result.decode_graph_device_bytes << ",\n"
          << "  \"logits_dumped\": " << (result.logits_dumped ? "true" : "false") << ",\n"
          << "  \"logits_dump_format\": \"raw_float32_little_endian\",\n"
          << "  \"logits_dump_steps\": " << result.logits_dump_steps << ",\n"
@@ -2153,6 +2312,8 @@ Status WriteDecodeBenchmarkJson(const DecodeBenchmarkResult& result,
          << (result.options.enable_fused_gate_up ? "true" : "false")
          << ",\"fused_prefill_attention\":"
          << (result.options.enable_fused_prefill_attention ? "true" : "false")
+         << ",\"decode_graphs\":"
+         << (result.options.enable_decode_graphs ? "true" : "false")
          << ",\"context_tokens\":" << result.options.context_tokens
          << ",\"generated_tokens\":" << result.options.generated_tokens
          << ",\"warmup_runs\":" << result.options.warmup_runs
@@ -2173,6 +2334,8 @@ Status WriteDecodeBenchmarkJson(const DecodeBenchmarkResult& result,
          << ",\"memory_bytes\":{\"weights\":" << result.weight_arena_bytes
          << ",\"kv_cache\":" << result.kv_cache_bytes
          << ",\"workspace\":" << result.workspace_bytes << "},"
+         << "\"decode_graph_device_bytes\":"
+         << result.decode_graph_device_bytes << ','
          << "\"summary\":{\"time_to_first_token_ms\":";
   WriteDistributionJson(output, result.prompt_milliseconds);
   output << ",\"decode_tokens_per_second\":";
@@ -2223,11 +2386,15 @@ Status WritePrefillBenchmarkJson(const DecodeBenchmarkResult& result,
                                                : "serial_decode_bridge")
          << "\",\"fused_prefill_attention\":"
          << (result.options.enable_fused_prefill_attention ? "true" : "false")
+         << ",\"decode_graphs\":"
+         << (result.options.enable_decode_graphs ? "true" : "false")
          << ",\"kv_cache_layout\":\"hybrid_local_ring_global_contiguous\","
          << "\"model_load_ms\":" << result.model_load_milliseconds
          << ",\"memory_bytes\":{\"weights\":" << result.weight_arena_bytes
          << ",\"kv_cache\":" << result.kv_cache_bytes
          << ",\"workspace\":" << result.workspace_bytes << "},"
+         << "\"decode_graph_device_bytes\":"
+         << result.decode_graph_device_bytes << ','
          << "\"summary\":{\"prompt_tokens_per_second\":";
   WriteDistributionJson(output, throughput_summary);
   output << ",\"time_to_first_token_ms\":";
