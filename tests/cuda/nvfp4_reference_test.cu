@@ -5,6 +5,7 @@
 #include "cuda/nvfp4/reference.h"
 #include "cuda/nvfp4/gemv.h"
 #include "cuda/nvfp4/sm120.h"
+#include "cuda/nvfp4/sm120_layout.h"
 #include "cuda/nvfp4/mlp.h"
 #include "gem16gb/fp8.h"
 #include "gem16gb/layer.h"
@@ -269,12 +270,21 @@ void TestDirectSourceSm120Projection() {
       StoreNibble(packed_weight, row, k, k_size / 2U, code);
     }
   }
+  const auto scale_layout =
+      gem16gb::internal::PlanSm120Nvfp4SourceLayout(rows, k_size);
+  CUDA_TEST_CHECK(scale_layout.ok());
+  if (!scale_layout.ok()) return;
+  const auto tiled_weight_scales =
+      gem16gb::internal::TileSm120Nvfp4WeightScales(scale_layout.value(), weight_scales);
+  CUDA_TEST_CHECK(tiled_weight_scales.ok());
+  if (!tiled_weight_scales.ok()) return;
 
   DeviceBuffer<std::uint8_t> device_activation(quantized.value().packed_e2m1.size());
   DeviceBuffer<std::uint8_t> device_activation_scales(
       quantized.value().block_scales_e4m3fn.size());
   DeviceBuffer<std::uint8_t> device_weight(packed_weight.size());
   DeviceBuffer<std::uint8_t> device_weight_scales(weight_scales.size());
+  DeviceBuffer<std::uint8_t> device_tiled_weight_scales(weight_scales.size());
   DeviceBuffer<float> device_output(rows);
   DeviceBuffer<float> device_simt_output(rows);
   DeviceBuffer<float> device_fused_gate(rows);
@@ -289,6 +299,7 @@ void TestDirectSourceSm120Projection() {
   DeviceBuffer<float> device_batch_product(tokens * rows);
   if (device_activation.get() == nullptr || device_activation_scales.get() == nullptr ||
       device_weight.get() == nullptr || device_weight_scales.get() == nullptr ||
+      device_tiled_weight_scales.get() == nullptr ||
       device_output.get() == nullptr || device_simt_output.get() == nullptr ||
       device_fused_gate.get() == nullptr || device_fused_up.get() == nullptr ||
       device_fused_product.get() == nullptr ||
@@ -310,7 +321,11 @@ void TestDirectSourceSm120Projection() {
               "copy native weights") ||
       !CudaOk(cudaMemcpy(device_weight_scales.get(), weight_scales.data(),
                          device_weight_scales.bytes(), cudaMemcpyHostToDevice),
-              "copy native weight scales")) {
+              "copy source weight scales") ||
+      !CudaOk(cudaMemcpy(device_tiled_weight_scales.get(),
+                         tiled_weight_scales.value().data(),
+                         device_tiled_weight_scales.bytes(), cudaMemcpyHostToDevice),
+              "copy tiled native weight scales")) {
     return;
   }
   for (std::size_t token = 0; token < tokens; ++token) {
@@ -342,7 +357,7 @@ void TestDirectSourceSm120Projection() {
 
   const gem16gb::Status status = gem16gb::internal::LaunchNvfp4Sm120DirectProjection(
       device_activation.get(), device_activation_scales.get(), device_weight.get(),
-      device_weight_scales.get(), device_output.get(), rows, k_size, activation_divisor,
+      device_tiled_weight_scales.get(), device_output.get(), rows, k_size, activation_divisor,
       weight_divisor, nullptr);
   CUDA_TEST_CHECK(status.ok());
   const gem16gb::Status simt_status = gem16gb::internal::LaunchNvfp4SimtGemvProjection(
@@ -352,7 +367,8 @@ void TestDirectSourceSm120Projection() {
   CUDA_TEST_CHECK(simt_status.ok());
   const gem16gb::Status fused_status = gem16gb::internal::LaunchNvfp4Sm120FusedGateUp(
       device_activation.get(), device_activation_scales.get(), device_weight.get(),
-      device_weight_scales.get(), device_weight.get(), device_weight_scales.get(),
+      device_tiled_weight_scales.get(), device_weight.get(),
+      device_tiled_weight_scales.get(),
       device_fused_gate.get(), device_fused_up.get(), device_fused_product.get(), rows,
       k_size, activation_divisor, weight_divisor, activation_divisor, weight_divisor,
       nullptr);
@@ -366,14 +382,14 @@ void TestDirectSourceSm120Projection() {
   const auto batch_native_status =
       gem16gb::internal::LaunchNvfp4Sm120DirectProjectionBatch(
           device_batch_activation.get(), device_batch_activation_scales.get(),
-          device_weight.get(), device_weight_scales.get(),
+          device_weight.get(), device_tiled_weight_scales.get(),
           device_batch_native.get(), tokens, rows, k_size, activation_divisor,
           weight_divisor, nullptr);
   const auto batch_fused_status =
       gem16gb::internal::LaunchNvfp4Sm120FusedGateUpBatch(
           device_batch_activation.get(), device_batch_activation_scales.get(),
-          device_weight.get(), device_weight_scales.get(), device_weight.get(),
-          device_weight_scales.get(), nullptr, nullptr,
+          device_weight.get(), device_tiled_weight_scales.get(), device_weight.get(),
+          device_tiled_weight_scales.get(), nullptr, nullptr,
           device_batch_product.get(), tokens, rows, k_size, activation_divisor,
           weight_divisor, activation_divisor, weight_divisor, nullptr);
   CUDA_TEST_CHECK(batch_reference_status.ok());

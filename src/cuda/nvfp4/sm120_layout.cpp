@@ -1,5 +1,6 @@
 #include "cuda/nvfp4/sm120_layout.h"
 
+#include <algorithm>
 #include <limits>
 #include <string>
 #include <utility>
@@ -52,6 +53,50 @@ Result<Sm120Nvfp4SourceLayout> PlanSm120Nvfp4SourceLayout(
   layout.scale_bytes = logical_elements.value() / kElementsPerScale;
   layout.persistent_repack_bytes = 0;
   return layout;
+}
+
+Result<std::vector<std::uint8_t>> TileSm120Nvfp4WeightScales(
+    const Sm120Nvfp4SourceLayout& layout,
+    std::span<const std::uint8_t> source_weight_scales_e4m3fn) {
+  const auto expected = PlanSm120Nvfp4SourceLayout(layout.rows, layout.contracting_elements);
+  if (!expected.ok()) return expected.status();
+  if (layout.row_tiles != expected.value().row_tiles ||
+      layout.k_blocks != expected.value().k_blocks ||
+      layout.packed_weight_bytes != expected.value().packed_weight_bytes ||
+      layout.scale_bytes != expected.value().scale_bytes ||
+      layout.persistent_repack_bytes != 0U) {
+    return Invalid("SM120 NVFP4 source layout metadata is inconsistent");
+  }
+  if (source_weight_scales_e4m3fn.size() != layout.scale_bytes ||
+      layout.scale_bytes > std::numeric_limits<std::size_t>::max()) {
+    return Invalid("SM120 NVFP4 source scales do not match the planned byte count");
+  }
+
+  std::vector<std::uint8_t> tiled(static_cast<std::size_t>(layout.scale_bytes));
+  const std::uint64_t source_row_bytes =
+      layout.contracting_elements / kElementsPerScale;
+  constexpr std::uint64_t kScalesPerKBlock =
+      kElementsPerKBlock / kElementsPerScale;
+  for (std::uint64_t row_tile = 0; row_tile < layout.row_tiles; ++row_tile) {
+    const std::uint64_t first_row = row_tile * kRowsPerTile;
+    const std::uint64_t tile_rows =
+        std::min(kRowsPerTile, layout.rows - first_row);
+    const std::uint64_t tile_offset = first_row * layout.k_blocks * kScalesPerKBlock;
+    for (std::uint64_t k_block = 0; k_block < layout.k_blocks; ++k_block) {
+      for (std::uint64_t row = 0; row < tile_rows; ++row) {
+        const std::uint64_t source_offset =
+            (first_row + row) * source_row_bytes +
+            k_block * kScalesPerKBlock;
+        const std::uint64_t destination_offset =
+            tile_offset + (k_block * tile_rows + row) * kScalesPerKBlock;
+        std::copy_n(source_weight_scales_e4m3fn.begin() +
+                        static_cast<std::ptrdiff_t>(source_offset),
+                    static_cast<std::size_t>(kScalesPerKBlock),
+                    tiled.begin() + static_cast<std::ptrdiff_t>(destination_offset));
+      }
+    }
+  }
+  return tiled;
 }
 
 Result<Sm120Nvfp4WeightLaneFragment> LoadSm120Nvfp4WeightLaneFragment(

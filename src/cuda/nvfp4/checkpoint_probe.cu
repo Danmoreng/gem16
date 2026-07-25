@@ -3,6 +3,7 @@
 #include "cuda/nvfp4/gemv.h"
 #include "cuda/nvfp4/reference.h"
 #include "cuda/nvfp4/sm120.h"
+#include "cuda/nvfp4/sm120_layout.h"
 #include "gem16gb/model.h"
 #include "gem16gb/nvfp4.h"
 #include "platform/mapped_file.h"
@@ -298,15 +299,6 @@ Result<Nvfp4CheckpointProbeResult> RunLayer0Nvfp4CheckpointProbe(
   auto reference_ms = Measure(1, 1, reference_launch);
   if (!reference_ms.ok()) return reference_ms.status();
 
-  const auto native_launch = [&] {
-    return LaunchNvfp4Sm120DirectProjection(
-        device_packed_activation.get(), device_activation_scales.get(), device_weight.get(),
-        device_weight_scales.get(), device_native_output.get(), rows, k_size,
-        input_divisor.value(), weight_divisor.value(), nullptr);
-  };
-  auto native_ms = Measure(warmups, iterations, native_launch);
-  if (!native_ms.ok()) return native_ms.status();
-
   const auto simt_launch = [&] {
     return LaunchNvfp4SimtGemvProjection(
         device_packed_activation.get(), device_activation_scales.get(), device_weight.get(),
@@ -315,6 +307,24 @@ Result<Nvfp4CheckpointProbeResult> RunLayer0Nvfp4CheckpointProbe(
   };
   auto simt_ms = Measure(warmups, iterations, simt_launch);
   if (!simt_ms.ok()) return simt_ms.status();
+
+  const auto scale_layout = PlanSm120Nvfp4SourceLayout(rows, k_size);
+  if (!scale_layout.ok()) return scale_layout.status();
+  const auto tiled_weight_scales =
+      TileSm120Nvfp4WeightScales(scale_layout.value(), weight_scales.value());
+  if (!tiled_weight_scales.ok()) return tiled_weight_scales.status();
+  copy_status = CopyToDevice(device_weight_scales.get(), tiled_weight_scales.value(),
+                             "copy tiled weight scales");
+  if (!copy_status.ok()) return copy_status;
+
+  const auto native_launch = [&] {
+    return LaunchNvfp4Sm120DirectProjection(
+        device_packed_activation.get(), device_activation_scales.get(), device_weight.get(),
+        device_weight_scales.get(), device_native_output.get(), rows, k_size,
+        input_divisor.value(), weight_divisor.value(), nullptr);
+  };
+  auto native_ms = Measure(warmups, iterations, native_launch);
+  if (!native_ms.ok()) return native_ms.status();
 
   std::vector<float> reference_output(rows);
   std::vector<float> native_output(rows);

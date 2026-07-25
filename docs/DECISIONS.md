@@ -1,5 +1,29 @@
 # Decisions
 
+## 2026-07-25: Tile exact NVFP4 weight scales into the final allocation
+
+Date: 2026-07-25
+Decision: Keep packed E2M1 weights in checkpoint row-major order, but reorder every manifest-classified
+`NVFP4_LOCAL_SCALE_E4M3` tensor at load time to `[row tile 8][K64 block][row][4 scale bytes]`. Stream each bounded
+host tensor directly into its final arena address. Make this the only native SM120 scale layout for decode and
+prefill; expose no selector and retain source order only in correctness/SIMT probes.
+Context: Each output warp needs one four-byte scale vector for each of eight rows. Source row-major order places
+those words at large row strides. The tiled order places them in one 32-byte region and lets decode use a constant
+32-byte K-step instead of repeated strided 64-bit address construction.
+Alternatives: Keep direct scale order; repack packed weights too; retain both device layouts; expose an opt-in.
+Direct scales leave measured performance unused. Packed-weight repacking has no evidence, while duplicate layouts
+and switches violate the memory and single-winner contracts.
+Consequences: Every quantized value, scale byte, global divisor, and FP32 K accumulation remains unchanged. The
+weight arena remains 9,200,135,680 bytes; the largest transient host vector is 3,686,400 bytes and exists only
+during model load. Prefill uses 128 registers/10,240 shared bytes and decode uses 40 registers; both report zero
+stack/local memory. Runtime JSON distinguishes direct packed weights from the mandatory scale layout.
+Evidence: Against detached `e17049b`, 128/512/2,048-token prefill medians improve by 1.10%/1.43%/3.19%. Nsight
+reduces NVFP4 time by 4.61% and all GPU-operation time by 2.22% at 512. A short context-128 decode rises from
+25.54 to 31.63 tok/s with identical checksum; the complete Layer-0 MLP falls from 0.480 to 0.260 ms. CTest,
+exact-blue, 129/257 vLLM boundaries, Layer-0, and all 127 teacher-forced positions preserve their prior metrics.
+Evidence is retained under
+`benchmarks/results/2026-07-25/e17049b-worktree/blackwell16gb-linux-nvfp4-scale-tile/`.
+
 ## 2026-07-25: Pipeline NVFP4 activation staging with two cp.async buffers
 
 Date: 2026-07-25

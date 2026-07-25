@@ -70,9 +70,9 @@ The NVFP4 MLP backend has three deliberately separate layers:
 
 1. A platform-independent numeric contract and CPU oracle define E2M1, E4M3FN, compressed-tensors global-scale
    divisors, dynamic local activation quantization, and the observable output cast.
-2. A loader-owned weight view prefers the source Safetensors layout directly. If measurement proves a final
-   architecture-specific layout necessary, a streamed transformation may replace it without changing any
-   quantized code or scale and without retaining a second device copy.
+2. A loader-owned weight view keeps packed E2M1 values in source Safetensors order and transforms only local E4M3
+   scale byte order to the measured SM120 row8/K64 access order. Each bounded host tensor is written directly to
+   its final arena address; no raw device copy or second persistent layout exists.
 3. Operator-owned decode and prefill plans select only explicitly qualified implementations for an exact shape and
    token extent. A correctness route, packed SIMT/GEMV route, and native SM120a MMA route are distinct capabilities;
    none may silently stand in for another.
@@ -90,9 +90,11 @@ physical E4M3 K/V bytes and checkpoint BF16 scales without a persistent conversi
 
 The production NVFP4 prefill projection uses 256-thread M128xN64xK64 CTAs. Its two shared activation stages are a
 temporary 9,216-byte payload within the kernel allocation, not an arena or checkpoint-layout copy. Gate, Up, and
-Down continue to read packed E2M1 weights and E4M3 weight scales directly from the source-format final device
-allocation. The selected kernel uses 124 registers, 10,240 total static shared bytes including toolchain overhead,
-and no stack or local memory.
+Down read packed E2M1 weights directly from source order and read local scales from
+`[8 output rows][K64 block][row][4 E4M3 scales]`. The selected prefill kernel uses 128 registers and 10,240 total
+static shared bytes including toolchain overhead; the decode kernel uses 40 registers. Both have zero stack/local
+memory. The scale transformation preserves all bytes, leaves the 9,200,135,680-byte weight arena unchanged, and
+is mandatory rather than selectable.
 
 ## Memory-plan boundary
 

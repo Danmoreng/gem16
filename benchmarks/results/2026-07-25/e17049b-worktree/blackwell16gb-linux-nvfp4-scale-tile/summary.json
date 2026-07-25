@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "status": "characterization",
+  "git_commit": "e17049b-worktree",
+  "reference_commit": "e17049b",
+  "benchmarks": ["prefill.json", "decode.json"],
+  "correctness": "correctness.json",
+  "nsys_summary": "nsys/prefill-512-summary.json",
+  "production_change": "exact_load_time_nvfp4_weight_scale_tiling",
+  "decision": "promote_as_sole_nvfp4_runtime_scale_layout"
+}

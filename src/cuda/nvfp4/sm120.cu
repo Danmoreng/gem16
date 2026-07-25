@@ -182,8 +182,10 @@ __global__ void Sm120DirectProjectionKernel(const std::uint8_t* packed_activatio
   const unsigned k_quarter = lane & 3U;
   const std::uint64_t source_row = global_warp * kRowsPerWarp + row_in_tile;
   const std::uint64_t packed_row_bytes = contracting_elements / 2U;
-  const std::uint64_t scale_row_bytes = contracting_elements / 16U;
   const std::uint64_t k_blocks = contracting_elements / kElementsPerKBlock;
+  const std::uint8_t* weight_scale_base =
+      weight_scales_e4m3fn +
+      (global_warp * k_blocks * kRowsPerWarp + row_in_tile) * 4U;
 
   float d0 = 0.0F;
   float d1 = 0.0F;
@@ -205,7 +207,7 @@ __global__ void Sm120DirectProjectionKernel(const std::uint8_t* packed_activatio
                                         static_cast<std::uint64_t>(k_quarter) * 4U;
       b_first = LoadU32(packed_weight_e2m1 + weight_byte);
       b_second = LoadU32(packed_weight_e2m1 + weight_byte + 16U);
-      scale_b = LoadU32(weight_scales_e4m3fn + source_row * scale_row_bytes + k_block * 4U);
+      scale_b = LoadU32(weight_scale_base + k_block * kRowsPerWarp * 4U);
     }
     const std::uint32_t scale_a = LoadU32(activation_scales_e4m3fn + k_block * 4U);
 
@@ -287,8 +289,13 @@ __global__ void Sm120FusedGateUpKernel(
   const unsigned k_quarter = lane & 3U;
   const std::uint64_t source_row = global_warp * kRowsPerWarp + row_in_tile;
   const std::uint64_t packed_row_bytes = contracting_elements / 2U;
-  const std::uint64_t scale_row_bytes = contracting_elements / 16U;
   const std::uint64_t k_blocks = contracting_elements / kElementsPerKBlock;
+  const std::uint8_t* gate_scale_base =
+      gate_weight_scales_e4m3fn +
+      (global_warp * k_blocks * kRowsPerWarp + row_in_tile) * 4U;
+  const std::uint8_t* up_scale_base =
+      up_weight_scales_e4m3fn +
+      (global_warp * k_blocks * kRowsPerWarp + row_in_tile) * 4U;
 
   float gate0 = 0.0F;
   float gate1 = 0.0F;
@@ -316,13 +323,12 @@ __global__ void Sm120FusedGateUpKernel(
     if (source_row < rows) {
       const std::uint64_t weight_byte = source_row * packed_row_bytes + k_block * 32U +
                                         static_cast<std::uint64_t>(k_quarter) * 4U;
-      const std::uint64_t scale_byte = source_row * scale_row_bytes + k_block * 4U;
       gate_b_first = LoadU32(packed_gate_weight_e2m1 + weight_byte);
       gate_b_second = LoadU32(packed_gate_weight_e2m1 + weight_byte + 16U);
-      gate_scale_b = LoadU32(gate_weight_scales_e4m3fn + scale_byte);
+      gate_scale_b = LoadU32(gate_scale_base + k_block * kRowsPerWarp * 4U);
       up_b_first = LoadU32(packed_up_weight_e2m1 + weight_byte);
       up_b_second = LoadU32(packed_up_weight_e2m1 + weight_byte + 16U);
-      up_scale_b = LoadU32(up_weight_scales_e4m3fn + scale_byte);
+      up_scale_b = LoadU32(up_scale_base + k_block * kRowsPerWarp * 4U);
     }
 
     asm volatile(
@@ -430,8 +436,18 @@ __global__ void Sm120MatrixProjectionKernel(
   const std::uint64_t weight_column =
       warp_active ? global_warp * kRowsPerWarp + group : rows;
   const std::uint64_t packed_row_bytes = contracting_elements / 2U;
-  const std::uint64_t scale_row_bytes = contracting_elements / 16U;
+  const std::uint64_t activation_scale_row_bytes = contracting_elements / 16U;
   const std::uint64_t k_blocks = contracting_elements / kElementsPerKBlock;
+  const std::uint8_t* weight_scale_base = weight_scales_e4m3fn +
+      (warp_active
+           ? (global_warp * k_blocks * kRowsPerWarp + group) * 4U
+           : 0U);
+  const std::uint8_t* up_weight_scale_base = up_weight_scales_e4m3fn == nullptr
+      ? nullptr
+      : up_weight_scales_e4m3fn +
+            (warp_active
+                 ? (global_warp * k_blocks * kRowsPerWarp + group) * 4U
+                 : 0U);
 
   float accumulator[kTokenTiles][4] = {};
   float up_accumulator[kTokenTiles][4] = {};
@@ -440,7 +456,7 @@ __global__ void Sm120MatrixProjectionKernel(
     StageNvfp4ActivationAsync(
         staged_activation[0], staged_activation_scales[0],
         packed_activation_e2m1, activation_scales_e4m3fn, token_base, 0U,
-        packed_row_bytes, scale_row_bytes, tokens, kStagedTokens);
+        packed_row_bytes, activation_scale_row_bytes, tokens, kStagedTokens);
     CommitAsyncCopies();
     WaitForAsyncCopies();
     __syncthreads();
@@ -456,7 +472,7 @@ __global__ void Sm120MatrixProjectionKernel(
             staged_activation[next_stage],
             staged_activation_scales[next_stage], packed_activation_e2m1,
             activation_scales_e4m3fn, token_base, k_block + 1U,
-            packed_row_bytes, scale_row_bytes, tokens, kStagedTokens);
+            packed_row_bytes, activation_scale_row_bytes, tokens, kStagedTokens);
         CommitAsyncCopies();
       }
     }
@@ -471,15 +487,13 @@ __global__ void Sm120MatrixProjectionKernel(
     if (weight_column < rows) {
       const std::uint64_t weight_offset =
           weight_column * packed_row_bytes + k_offset;
-      const std::uint64_t scale_offset =
-          weight_column * scale_row_bytes + k_block * 4U;
       b0 = LoadU32(packed_weight_e2m1 + weight_offset);
       b1 = LoadU32(packed_weight_e2m1 + weight_offset + 16U);
-      scale_b = LoadU32(weight_scales_e4m3fn + scale_offset);
+      scale_b = LoadU32(weight_scale_base + k_block * kRowsPerWarp * 4U);
       if constexpr (kFusedGateUp) {
         up_b0 = LoadU32(packed_up_weight_e2m1 + weight_offset);
         up_b1 = LoadU32(packed_up_weight_e2m1 + weight_offset + 16U);
-        up_scale_b = LoadU32(up_weight_scales_e4m3fn + scale_offset);
+        up_scale_b = LoadU32(up_weight_scale_base + k_block * kRowsPerWarp * 4U);
       }
     }
     // Retain each 8-column weight fragment while a warp advances through a
@@ -538,7 +552,7 @@ __global__ void Sm120MatrixProjectionKernel(
               ? staged_activation_scales[current_stage]
                     [staged_low + thread_in_group * 8U]
               : LoadU32(activation_scales_e4m3fn +
-                        scale_token * scale_row_bytes + k_block * 4U);
+                        scale_token * activation_scale_row_bytes + k_block * 4U);
         }
       }
       MmaNvfp4(accumulator[tile][0], accumulator[tile][1],
@@ -626,9 +640,9 @@ Status LaunchNvfp4Sm120DirectProjection(const std::uint8_t* packed_activation_e2
       packed_weight_e2m1 == nullptr || weight_scales_e4m3fn == nullptr || output == nullptr) {
     return Invalid("SM120 NVFP4 direct projection requires non-null device pointers");
   }
-  if (rows == 0U || contracting_elements == 0U ||
+  if (rows == 0U || rows % kRowsPerWarp != 0U || contracting_elements == 0U ||
       contracting_elements % kElementsPerKBlock != 0U) {
-    return Invalid("SM120 NVFP4 direct projection requires positive dimensions and K divisible by 64");
+    return Invalid("SM120 NVFP4 direct projection requires rows divisible by 8 and K divisible by 64");
   }
   if (!PositiveFinite(activation_global_divisor) || !PositiveFinite(weight_global_divisor)) {
     return Invalid("SM120 NVFP4 direct projection global divisors must be positive and finite");
@@ -650,7 +664,7 @@ Status LaunchNvfp4Sm120DirectProjection(const std::uint8_t* packed_activation_e2
   const cudaError_t error = cudaGetLastError();
   return error == cudaSuccess
              ? Status::Ok()
-             : CudaFailure("launch direct-source SM120 NVFP4 projection", error);
+             : CudaFailure("launch scale-tiled SM120 NVFP4 projection", error);
 }
 
 Status LaunchNvfp4Sm120DirectProjectionBatch(
@@ -667,6 +681,7 @@ Status LaunchNvfp4Sm120DirectProjectionBatch(
     return Invalid("batched SM120 NVFP4 projection requires non-null device pointers");
   }
   if (tokens == 0U || tokens > 65535U || rows == 0U ||
+      rows % kRowsPerWarp != 0U ||
       contracting_elements == 0U ||
       contracting_elements % kElementsPerKBlock != 0U ||
       !PositiveFinite(activation_global_divisor) ||
@@ -699,7 +714,7 @@ Status LaunchNvfp4Sm120DirectProjectionBatch(
   const cudaError_t error = cudaGetLastError();
   return error == cudaSuccess
              ? Status::Ok()
-             : CudaFailure("launch batched direct-source SM120 NVFP4 projection", error);
+             : CudaFailure("launch batched scale-tiled SM120 NVFP4 projection", error);
 }
 
 Status LaunchNvfp4Sm120FusedGateUp(
@@ -725,9 +740,9 @@ Status LaunchNvfp4Sm120FusedGateUp(
       product_output == nullptr || (gate_output == nullptr) != (up_output == nullptr)) {
     return Invalid("SM120 fused Gate/Up requires input/product pointers and paired diagnostics");
   }
-  if (rows == 0U || contracting_elements == 0U ||
+  if (rows == 0U || rows % kRowsPerWarp != 0U || contracting_elements == 0U ||
       contracting_elements % kElementsPerKBlock != 0U) {
-    return Invalid("SM120 fused Gate/Up requires positive dimensions and K divisible by 64");
+    return Invalid("SM120 fused Gate/Up requires rows divisible by 8 and K divisible by 64");
   }
   if (!PositiveFinite(gate_activation_global_divisor) ||
       !PositiveFinite(gate_weight_global_divisor) ||
@@ -777,6 +792,7 @@ Status LaunchNvfp4Sm120FusedGateUpBatch(
     return Invalid("batched SM120 fused Gate/Up pointer contract is invalid");
   }
   if (tokens == 0U || tokens > 65535U || rows == 0U ||
+      rows % kRowsPerWarp != 0U ||
       contracting_elements == 0U ||
       contracting_elements % kElementsPerKBlock != 0U ||
       !PositiveFinite(gate_activation_global_divisor) ||

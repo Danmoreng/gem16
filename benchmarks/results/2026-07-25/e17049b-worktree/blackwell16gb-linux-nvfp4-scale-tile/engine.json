@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "git_commit": "e17049b-worktree",
+  "reference_commit": "e17049b",
+  "checkpoint_revision": "b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
+  "batch_size": 1,
+  "kv_cache": "checkpoint_fp8",
+  "projection_path": "native_sm120",
+  "nvfp4_prefill_cta": "m128_n64_k64",
+  "nvfp4_activation_staging": "two_stage_cp_async_exact_source_bytes",
+  "packed_weight_layout": "checkpoint_row_major_direct",
+  "weight_scale_layout": "sm120_row8_k64",
+  "load_time_scale_swizzle": "exact_final_allocation",
+  "persistent_repack_bytes": 0,
+  "weight_arena_bytes": 9200135680,
+  "prefill_chunk_tokens": 1024,
+  "fallbacks": 0,
+  "token_loop_allocations": false
+}

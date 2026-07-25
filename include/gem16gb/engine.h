@@ -62,7 +62,7 @@ struct GreedyInferenceResult {
   std::uint64_t teacher_forced_matches = 0;
   std::uint64_t state_dump_position = 0;
   KvCacheMode kv_cache_mode = KvCacheMode::kCheckpointFp8;
-  bool source_layout_direct = false;
+  bool packed_weight_source_layout_direct = false;
   bool token_loop_allocations = false;
   bool benchmark_qualified = false;
   bool stopped = false;
@@ -118,7 +118,7 @@ struct DecodeBenchmarkResult {
   BenchmarkDistribution inter_token_latency_milliseconds;
   std::vector<DecodeBenchmarkRun> runs;
   bool deterministic_outputs = false;
-  bool source_layout_direct = true;
+  bool packed_weight_source_layout_direct = true;
   bool token_loop_allocations = false;
   bool benchmark_qualified = false;
 };

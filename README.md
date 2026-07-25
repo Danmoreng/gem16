@@ -16,10 +16,10 @@ approximately 16 GB of VRAM. The first model is the mixed FP8/NVFP4
   reports the required separate K/V cache plus the one-state diagnostic lower bound for every context profile.
 - The exact host NVFP4 codec covers E2M1, E4M3FN, dynamic-local activation quantization, compressed-tensors global
   divisors, and a binary64 projection oracle with pinned-checkpoint byte fixtures.
-- The CUDA build contains an explicit correctness-only W4A4 projection and an experimental direct-source SM120a
-  projection. A complete real-checkpoint Layer-0 characterization now composes FP8 local attention and the NVFP4
-  MLP without a host roundtrip or persistent weight repack. It is a correctness characterization, not yet a
-  trusted-hidden-state or performance qualification.
+- The CUDA build contains an explicit correctness-only W4A4 projection and the production SM120a projection.
+  Packed E2M1 weights remain in checkpoint layout; local E4M3 scale bytes are tiled exactly once at load time into
+  their final arena allocation. A complete real-checkpoint Layer-0 characterization composes FP8 local attention
+  and the NVFP4 MLP without a host roundtrip or persistent second copy.
 - Direct-source packed-NVFP4 SIMT/GEMV and closed SM120a Gate/Up/GELU alternatives remain available only in
   characterization probes. The production engine uses the measured winner: native MMA with separate Gate/Up/GELU,
   which won Linux end-to-end Prefill and Decode A/B measurements.
@@ -247,7 +247,9 @@ Prompt ingestion uses one native 1,024-token chunk plan for checkpoint-FP8 execu
 warps evaluate two consecutive 16-row by 8-column MMA tiles; NVFP4 MLP projection warps retain each source weight
 and scale fragment across eight such tiles, or 128 prompt rows. Eight NVFP4 warps form an M128xN64 CTA and stage
 the exact packed activation bytes and E4M3 scale words once for CTA-wide reuse. Two shared-memory stages use
-`cp.async` to overlap the next K64 slice with current native MMA work. Shape-specific
+`cp.async` to overlap the next K64 slice with current native MMA work. Weight scales use the sole
+`[row8][K64][row][4 scales]` runtime layout, created byte-exactly in the final GPU allocation during model load;
+packed weights are never repacked. Shape-specific
 local D256 and global D512 attention kernels perform QK and PV on
 Tensor Cores while retaining FP32 online-softmax state, reading older K/V from the hybrid cache, and avoiding a
 global score matrix. The token-at-a-time bridge and scalar attention implementation remain test/probe references

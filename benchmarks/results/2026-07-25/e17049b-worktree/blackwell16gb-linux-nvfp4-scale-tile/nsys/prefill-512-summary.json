@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "status": "characterization",
+  "profile_runs": 2,
+  "prompt_tokens": 512,
+  "reference_commit": "e17049b",
+  "gpu_time_ms": {
+    "reference": {"nvfp4_total": 198.716995, "all_gpu_operations": 675.384803},
+    "scale_tiled": {"nvfp4_total": 189.551026, "all_gpu_operations": 660.411307}
+  },
+  "reduction_percent": {"nvfp4_total": 4.613, "all_gpu_operations": 2.217},
+  "gpu_operations_per_execution": {"reference": 2311, "scale_tiled": 2311},
+  "kernel_resources": {
+    "prefill_registers": 128,
+    "prefill_shared_bytes": 10240,
+    "decode_registers": 40,
+    "stack_bytes": 0,
+    "local_bytes": 0,
+    "sass_async_copy": "LDGSTS"
+  },
+  "reports": {
+    "reference": "/tmp/nsys-report-f628.nsys-rep",
+    "scale_tiled": "build/Linux/blackwell-release/profiles/linux/prefill-512-nvfp4-scale-tiled-final.nsys-rep"
+  }
+}

@@ -20,7 +20,7 @@ large-M NVFP4 winner advance the same 512-token characterization as follows:
 
 | Workload | Initial gem16gb | Current gem16gb | vLLM | Current/vLLM |
 |---|---:|---:|---:|---:|
-| Prefill, 512 prompt tokens, batch 1 | 698.25 tok/s | 1,437.55 tok/s | 6,146.50 tok/s | 0.234x |
+| Prefill, 512 prompt tokens, batch 1 | 698.25 tok/s | 1,453.52 tok/s | 6,146.50 tok/s | 0.237x |
 
 These numbers are diagnostic rather than a parity claim because the retained vLLM run and gem16gb do not yet have
 identical timing boundaries and cache precision. The optimization goal does not depend on presenting the ratio as
@@ -34,15 +34,15 @@ established this program:
 
 | Phase | Initial gem16gb | Current gem16gb | vLLM | Current gap |
 |---|---:|---:|---:|---:|
-| NVFP4 MLP projections | 289.78 ms | 98.94 ms | 24.23 ms | 4.08x |
-| Attention | 199.77 ms | 22.91 ms | 13.11 ms | 1.75x |
-| FP8 attention projections | 131.13 ms | 114.83 ms | 27.15 ms | 4.23x |
-| Other GPU work | 115.98 ms | 100.03 ms | 9.98 ms | 10.02x |
-| Total GPU time | 736.66 ms | 336.71 ms | 74.47 ms | 4.52x |
+| NVFP4 MLP projections | 289.78 ms | 94.78 ms | 24.23 ms | 3.91x |
+| Attention | 199.77 ms | 22.74 ms | 13.11 ms | 1.73x |
+| FP8 attention projections | 131.13 ms | 114.09 ms | 27.15 ms | 4.20x |
+| Other GPU work | 115.98 ms | 98.60 ms | 9.98 ms | 9.88x |
+| Total GPU time | 736.66 ms | 330.21 ms | 74.47 ms | 4.43x |
 
 The initial gem16gb path launched approximately 9,235 GPU operations per execution, versus 747 for vLLM. Online
 attention and the 1,024-token plan reduce this to approximately 2,311. Attention is no longer the dominant gap;
-NVFP4 projections now consume about 29% of current GPU time and remain 4.1x slower than vLLM. FP8 projections
+NVFP4 projections now consume about 29% of current GPU time and remain 3.9x slower than vLLM. FP8 projections
 have a comparable absolute cost, while launch-heavy "other" work has become the largest aggregate gap. Complete
 the NVFP4 pipeline qualification before moving to the ordered FP8 phase.
 
@@ -88,12 +88,12 @@ geometry requires it.
 
 ### 3. Rebuild NVFP4 prefill projections around large SM120 CTA tiles
 
-Status: in progress. The first promoted reuse step retains each source weight/scale fragment across eight
+Status: implemented and qualified. The first promoted reuse step retains each packed weight/scale fragment across eight
 independent `m16n8k64` token tiles (M128). Eight warps then form an M128xN64 CTA, and its two `cp.async` stages
 overlap exact K64 activation transfers with the current MMA stack. Relative to `2366c03`, CTA reuse reduces
-NVFP4 profile time by 51.2%; the asynchronous stage removes another 16.9%. The current kernel uses 124 registers
-and 10,240 shared bytes with zero stack/local memory. Tested M256 and N128 extensions remain rejected for spills
-and an end-to-end loss respectively. The measured load-time swizzle decision below remains open.
+NVFP4 profile time by 51.2%; the asynchronous stage removes another 16.9%. Exact load-time scale tiling removes a
+further 4.61%. The current kernel uses 128 registers and 10,240 shared bytes with zero stack/local memory. Tested
+M256 and N128 extensions remain rejected for spills and an end-to-end loss respectively.
 
 Replace the current warp-level token tiling with a shape-specific block pipeline that:
 
@@ -121,11 +121,10 @@ memory, CTA-wide reuse, and optional accumulator-fragment ping-pong. Its Q4 valu
 memory before BF16 MMA, so that numerical/storage path is not reusable for this engine's native block-scaled
 E2M1 MMA and must not be copied.
 
-The two-stage activation pipeline is qualified. N128 is rejected because its 3/10 context-512 median loses about
-2.5% despite remaining spillfree. The next experiment is the load-time weight/scale-layout decision: profile the
-remaining direct source loads, implement an exact streamed final-allocation swizzle only when it targets that
-measured bottleneck, and compare it against the current direct-checkpoint control. Quantized values and FP32
-accumulation order must remain unchanged, and a second persistent device copy is forbidden.
+The two-stage activation pipeline and exact final-allocation scale layout are qualified. N128 is rejected because
+its 3/10 context-512 median loses about 2.5% despite remaining spillfree. The loader now transforms only local scale
+byte order to `[row8][K64][row][4 scales]`; packed weights and FP32 accumulation order remain unchanged, and no
+second device copy exists. Phase 3 is closed. Proceed to the ordered large/grouped FP8 projection phase.
 
 ### 4. Rebuild and group the FP8 attention projections
 

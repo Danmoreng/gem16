@@ -305,7 +305,9 @@ int RunKernelMode(int argc, char** argv) {
               << "\"benchmark_qualified\":false,\"mode\":\"kernel\",\"fallbacks\":0,"
               << "\"operator\":\"layer0_decoder\",\"precision\":\"fp8_attention_nvfp4_mlp\","
               << "\"context_tokens\":" << probe.context_tokens
-              << ",\"source_layout_direct\":true,\"persistent_repack_bytes\":0,"
+              << ",\"packed_weight_source_layout_direct\":true,"
+              << "\"weight_scale_layout\":\"sm120_row8_k64\","
+              << "\"load_time_scale_swizzle\":true,\"persistent_repack_bytes\":0,"
               << "\"no_host_roundtrip_between_sublayers\":true,\"layer_scalar_applied\":"
               << (probe.layer_scalar_applied ? "true" : "false")
               << ",\"mlp_input_mismatched_bytes\":" << probe.mlp_input_mismatched_bytes
@@ -417,7 +419,9 @@ int RunKernelMode(int argc, char** argv) {
               << "\"operator\":\"nvfp4_layer0_mlp\",\"shape\":{\"hidden\":3840,"
               << "\"intermediate\":15360},\"precision\":\"w4a4_nvfp4\","
               << "\"instruction\":" << std::quoted(probe.instruction)
-              << ",\"source_layout_direct\":true,\"persistent_repack_bytes\":0"
+              << ",\"packed_weight_source_layout_direct\":true,"
+              << "\"weight_scale_layout\":\"sm120_row8_k64\","
+              << "\"load_time_scale_swizzle\":true,\"persistent_repack_bytes\":0"
               << ",\"device_bytes\":" << probe.device_bytes
               << ",\"input_activation_bytes_match\":"
               << (probe.input_activation_bytes_match ? "true" : "false")
@@ -535,7 +539,9 @@ int RunKernelMode(int argc, char** argv) {
             << ",\"shape\":[" << probe.rows << ',' << probe.contracting_elements << ']'
             << ",\"precision\":\"w4a4_nvfp4\",\"instruction\":"
             << std::quoted(probe.instruction)
-            << ",\"source_layout_direct\":true,\"persistent_repack_bytes\":0"
+            << ",\"packed_weight_source_layout_direct\":true,"
+            << "\"weight_scale_layout\":\"sm120_row8_k64\","
+            << "\"load_time_scale_swizzle\":true,\"persistent_repack_bytes\":0"
             << ",\"packed_weight_bytes\":" << probe.packed_weight_bytes
             << ",\"weight_scale_bytes\":" << probe.weight_scale_bytes
             << ",\"device_bytes\":" << probe.device_bytes

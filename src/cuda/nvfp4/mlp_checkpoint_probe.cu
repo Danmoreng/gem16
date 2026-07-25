@@ -3,6 +3,7 @@
 #include "cuda/nvfp4/mlp.h"
 #include "cuda/nvfp4/reference.h"
 #include "cuda/nvfp4/sm120.h"
+#include "cuda/nvfp4/sm120_layout.h"
 #include "gem16gb/model.h"
 #include "gem16gb/nvfp4.h"
 #include "platform/mapped_file.h"
@@ -374,6 +375,28 @@ Result<Nvfp4MlpCheckpointProbeResult> RunLayer0Nvfp4MlpCheckpointProbe(
   // Continue timing when a boundary value rounds differently in the CPU oracle. All measured
   // device paths consume the same CUDA-produced bytes and the mismatch remains explicit in the
   // result instead of invalidating the kernel comparison.
+
+  const auto upload_tiled_scales = [&](const ProjectionBinding& binding,
+                                        DeviceBuffer<std::uint8_t>& destination,
+                                        const char* label) -> Status {
+    const auto layout = PlanSm120Nvfp4SourceLayout(
+        binding.rows, binding.contracting_elements);
+    if (!layout.ok()) return layout.status();
+    const auto tiled =
+        TileSm120Nvfp4WeightScales(layout.value(), binding.weight_scales);
+    if (!tiled.ok()) return tiled.status();
+    return CopyToDevice(destination.get(), tiled.value(), label);
+  };
+  for (const Status status : {
+           upload_tiled_scales(gate.value(), gate_scales,
+                               "copy tiled Gate scales"),
+           upload_tiled_scales(up.value(), up_scales,
+                               "copy tiled Up scales"),
+           upload_tiled_scales(down.value(), down_scales,
+                               "copy tiled Down scales"),
+       }) {
+    if (!status.ok()) return status;
+  }
 
   const auto unfused_gate_up = [&] {
     Status status = LaunchNvfp4Sm120DirectProjection(

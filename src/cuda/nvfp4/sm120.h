@@ -8,9 +8,9 @@
 
 namespace gem16gb::internal {
 
-// Experimental direct-source SM120a W4A4 projection. Both operands remain in low-nibble-first
-// row-major source layout and local scales remain compact E4M3FN groups of 16. This capability is
-// not production-qualified until real-shape, disassembly, layer, and benchmark gates pass.
+// Native SM120a W4A4 projection. Packed operands remain in low-nibble-first source layout. Weight
+// scale bytes must use TileSm120Nvfp4WeightScales' exact 8-row/K64 runtime order; activation
+// scales remain row-major compact E4M3FN groups of 16.
 [[nodiscard]] Status LaunchNvfp4Sm120DirectProjection(
     const std::uint8_t* packed_activation_e2m1,
     const std::uint8_t* activation_scales_e4m3fn,

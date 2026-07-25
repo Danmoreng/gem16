@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "status": "characterization",
+  "context_tokens": 128,
+  "generated_tokens": 32,
+  "warmup_runs": 1,
+  "measured_runs": 3,
+  "reference_commit": "e17049b",
+  "reference_median_tokens_per_second": 25.541567310036346,
+  "candidate_median_tokens_per_second": 31.632301915438784,
+  "throughput_change_percent": 23.846,
+  "reference_median_inter_token_latency_ms": 37.8239,
+  "candidate_median_inter_token_latency_ms": 30.025083,
+  "latency_reduction_percent": 20.619,
+  "output_token_checksum": 5699158372770001676,
+  "deterministic_outputs": true
+}

@@ -52,8 +52,15 @@ def run_probe(bench: Path, model: Path, projection: str) -> dict[str, Any]:
         raise ValidationError(f"{projection} must not claim benchmark qualification")
     if document.get("fallbacks") != 0:
         raise ValidationError(f"{projection} used a fallback")
-    if document.get("source_layout_direct") is not True:
-        raise ValidationError(f"{projection} did not use the direct source layout")
+    if projection == "decoder-layer":
+        if document.get("packed_weight_source_layout_direct") is not True:
+            raise ValidationError(f"{projection} did not use direct packed weights")
+        if document.get("weight_scale_layout") != "sm120_row8_k64":
+            raise ValidationError(f"{projection} did not use tiled SM120 weight scales")
+        if document.get("load_time_scale_swizzle") is not True:
+            raise ValidationError(f"{projection} omitted load-time scale swizzling")
+    elif document.get("source_layout_direct") is not True:
+        raise ValidationError(f"{projection} did not use its direct source layout")
     if document.get("persistent_repack_bytes") != 0:
         raise ValidationError(f"{projection} retained a persistent repack")
     error_metrics = document.get("error")

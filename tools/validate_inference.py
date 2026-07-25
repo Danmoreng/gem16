@@ -47,8 +47,14 @@ def validate_result(document: dict[str, Any], expected: list[int]) -> None:
         raise ValidationError("inference must not claim benchmark qualification")
     if document.get("fallbacks") != 0:
         raise ValidationError("inference used a precision fallback")
-    if document.get("source_layout_direct") is not True:
-        raise ValidationError("inference did not consume the source layout directly")
+    if document.get("packed_weight_source_layout_direct") is not True:
+        raise ValidationError("inference did not consume packed weights directly")
+    if document.get("weight_scale_layout") != "sm120_row8_k64":
+        raise ValidationError("inference did not use the required SM120 weight-scale layout")
+    if document.get("load_time_scale_swizzle") is not True:
+        raise ValidationError("inference did not report exact load-time scale swizzling")
+    if document.get("persistent_repack_bytes") != 0:
+        raise ValidationError("inference retained a persistent repack allocation")
     if document.get("token_loop_allocations") is not False:
         raise ValidationError("inference reported token-loop allocations")
     if document.get("kv_cache_mode") != "checkpoint_fp8":

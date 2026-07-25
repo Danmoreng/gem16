@@ -2,6 +2,7 @@
 
 #include "test.h"
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -96,6 +97,46 @@ void TestDirectLaneMappingRoundTrip() {
   }
 }
 
+void TestScaleTilingIsExactAndCoalesced() {
+  constexpr std::size_t rows = 9;
+  constexpr std::size_t k_size = 128;
+  const auto layout = gem16gb::internal::PlanSm120Nvfp4SourceLayout(rows, k_size);
+  GEM16GB_CHECK(layout.ok());
+  if (!layout.ok()) return;
+  std::vector<std::uint8_t> source(layout.value().scale_bytes);
+  for (std::size_t index = 0; index < source.size(); ++index) {
+    source[index] = static_cast<std::uint8_t>((index * 37U + 11U) & 0xFFU);
+  }
+  const auto tiled =
+      gem16gb::internal::TileSm120Nvfp4WeightScales(layout.value(), source);
+  GEM16GB_CHECK(tiled.ok());
+  if (!tiled.ok()) return;
+  GEM16GB_CHECK(tiled.value().size() == source.size());
+
+  constexpr std::size_t scales_per_k_block = 4;
+  const std::size_t k_blocks = k_size / 64U;
+  for (std::size_t row_tile = 0; row_tile < 2U; ++row_tile) {
+    const std::size_t first_row = row_tile * 8U;
+    const std::size_t tile_rows = std::min<std::size_t>(8U, rows - first_row);
+    for (std::size_t k_block = 0; k_block < k_blocks; ++k_block) {
+      for (std::size_t row = 0; row < tile_rows; ++row) {
+        for (std::size_t scale = 0; scale < scales_per_k_block; ++scale) {
+          const std::size_t source_offset =
+              (first_row + row) * (k_size / 16U) +
+              k_block * scales_per_k_block + scale;
+          const std::size_t tiled_offset =
+              first_row * k_blocks * scales_per_k_block +
+              (k_block * tile_rows + row) * scales_per_k_block + scale;
+          GEM16GB_CHECK(tiled.value()[tiled_offset] == source[source_offset]);
+        }
+      }
+    }
+  }
+  GEM16GB_CHECK(!gem16gb::internal::TileSm120Nvfp4WeightScales(
+                       layout.value(), std::span<const std::uint8_t>(source).first(1U))
+                       .ok());
+}
+
 void TestTailRowsAndValidation() {
   const auto layout = gem16gb::internal::PlanSm120Nvfp4SourceLayout(9, 64);
   GEM16GB_CHECK(layout.ok());
@@ -119,5 +160,6 @@ void TestTailRowsAndValidation() {
 void RunSm120LayoutTests() {
   TestRealCheckpointGeometry();
   TestDirectLaneMappingRoundTrip();
+  TestScaleTilingIsExactAndCoalesced();
   TestTailRowsAndValidation();
 }

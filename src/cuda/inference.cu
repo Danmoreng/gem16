@@ -7,6 +7,7 @@
 #include "cuda/nvfp4/mlp.h"
 #include "cuda/nvfp4/reference.h"
 #include "cuda/nvfp4/sm120.h"
+#include "cuda/nvfp4/sm120_layout.h"
 #include "gem16gb/model.h"
 #include "platform/mapped_file.h"
 
@@ -234,6 +235,7 @@ struct DeviceTensor {
   std::byte* data = nullptr;
   float scalar_f32 = 0.0F;
   bool has_scalar_f32 = false;
+  bool sm120_scale_tiled = false;
 };
 
 struct Fp8Binding {
@@ -333,6 +335,26 @@ class LoadedModel {
           return Error(StatusCode::kDataLoss, "tensor upload range is invalid: " + tensor.name);
         }
         const std::byte* source = mapped.value().data() + tensor.byte_offset;
+        std::vector<std::uint8_t> tiled_scales;
+        if (tensor.quantization_class == "NVFP4_LOCAL_SCALE_E4M3") {
+          if (tensor.shape.size() != 2U ||
+              tensor.shape[1] > std::numeric_limits<std::uint64_t>::max() / 16U) {
+            return Error(StatusCode::kDataLoss,
+                         "invalid NVFP4 local-scale geometry: " + tensor.name);
+          }
+          const auto layout = internal::PlanSm120Nvfp4SourceLayout(
+              tensor.shape[0], tensor.shape[1] * 16U);
+          if (!layout.ok()) return layout.status();
+          const auto tiled = internal::TileSm120Nvfp4WeightScales(
+              layout.value(),
+              std::span<const std::uint8_t>(
+                  reinterpret_cast<const std::uint8_t*>(source),
+                  static_cast<std::size_t>(tensor.byte_length)));
+          if (!tiled.ok()) return tiled.status();
+          tiled_scales = std::move(tiled).value();
+          source = reinterpret_cast<const std::byte*>(tiled_scales.data());
+          view.sm120_scale_tiled = true;
+        }
         const cudaError_t error = cudaMemcpy(view.data, source,
                                              static_cast<std::size_t>(tensor.byte_length),
                                              cudaMemcpyHostToDevice);
@@ -415,6 +437,7 @@ class LoadedModel {
         packed.value()->info->logical_shape != std::vector<std::uint64_t>{rows, contracting} ||
         scales.value()->info->storage_dtype != "F8_E4M3" ||
         scales.value()->info->shape != std::vector<std::uint64_t>{rows, contracting / 16U} ||
+        !scales.value()->sm120_scale_tiled ||
         !input.value()->has_scalar_f32 || !weight.value()->has_scalar_f32 ||
         !std::isfinite(input.value()->scalar_f32) || input.value()->scalar_f32 <= 0.0F ||
         !std::isfinite(weight.value()->scalar_f32) || weight.value()->scalar_f32 <= 0.0F) {
@@ -2205,7 +2228,7 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
   result.workspace_bytes = engine.workspace_bytes();
   result.decode_graph_device_bytes = engine.decode_graph_device_bytes();
   result.prefill_chunk_tokens = engine.prefill_chunk_tokens();
-  result.source_layout_direct = true;
+  result.packed_weight_source_layout_direct = true;
   result.token_loop_allocations = false;
   result.benchmark_qualified = false;
 
@@ -2466,8 +2489,11 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
          << (result.teacher_forcing ? "teacher_forced" : "greedy")
          << "\",\n"
          << "  \"fallbacks\": " << result.fallback_count << ",\n"
-         << "  \"source_layout_direct\": "
-         << (result.source_layout_direct ? "true" : "false") << ",\n"
+         << "  \"packed_weight_source_layout_direct\": "
+         << (result.packed_weight_source_layout_direct ? "true" : "false") << ",\n"
+         << "  \"weight_scale_layout\": \"sm120_row8_k64\",\n"
+         << "  \"load_time_scale_swizzle\": true,\n"
+         << "  \"persistent_repack_bytes\": 0,\n"
          << "  \"token_loop_allocations\": "
          << (result.token_loop_allocations ? "true" : "false") << ",\n"
          << "  \"fused_gate_up\": false,\n"
@@ -2549,7 +2575,11 @@ Status WriteDecodeBenchmarkJson(const DecodeBenchmarkResult& result,
          << "\"first_selected_token_excluded_from_decode\":true,"
          << "\"model_loaded_once\":true,\"cache_reset_outside_timing\":true,"
          << "\"prefill_path\":\"native_chunked_sm120\","
-         << "\"source_layout_direct\":" << (result.source_layout_direct ? "true" : "false")
+         << "\"packed_weight_source_layout_direct\":"
+         << (result.packed_weight_source_layout_direct ? "true" : "false")
+         << ",\"weight_scale_layout\":\"sm120_row8_k64\""
+         << ",\"load_time_scale_swizzle\":true"
+         << ",\"persistent_repack_bytes\":0"
          << ",\"token_loop_allocations\":" << (result.token_loop_allocations ? "true" : "false")
          << ",\"deterministic_outputs\":" << (result.deterministic_outputs ? "true" : "false")
          << ",\"model_load_ms\":" << result.model_load_milliseconds

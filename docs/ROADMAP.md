@@ -43,8 +43,9 @@ of the correctness and native-kernel gates below.
   E2M1, E4M3FN, source-nibble, global-divisor, activation-quantization, and FP32-accumulation contracts are now
   executable and tested.
 - Assemble Gate/Up, GELU-tanh product, Down, and residual without weakening the now-complete real-checkpoint proof:
-  all three Layer-0 shapes consume source weight and scale storage directly, CPU/GPU activation bytes match exactly,
-  and CUDA reference/native output differences are at most `1.1920929e-7` in the characterization fixture.
+  all three Layer-0 shapes consume the source packed weights directly and the mandatory exact load-time
+  `row8/K64` scale layout, CPU/GPU activation bytes match exactly, and CUDA reference/native output differences
+  are at most `1.1920929e-7` in the characterization fixture.
 - Preserve the now-complete unfused Layer-0 device chain while replacing its deterministic hidden/cache fixture
   with prompt-derived trusted Layer-0 input, output, and K/V state. Both NVFP4 activation boundaries currently
   remain byte-identical between CUDA-reference and direct SM120 execution.
@@ -73,8 +74,9 @@ The llama.cpp benchmark is deliberately before engine kernel optimization, but a
    comparison against the committed vLLM top-20 fixture are implemented; full reference vectors remain pending.
 3. ~~Implement the exact host NVFP4 codec and projection oracle, including real-checkpoint byte-pattern fixtures.~~
 4. ~~Implement an explicit correctness-only CUDA W4A4 route that consumes packed E2M1 values and E4M3 scales.~~
-5. ~~Implement and round-trip-test direct SM120 fragment views over source weight/scale storage for Gate, Up, and
-   Down.~~ No persistent repack is required by the current direct route.
+5. ~~Implement and round-trip-test direct SM120 fragment views over source packed-weight storage for Gate, Up, and
+   Down.~~ Packed weights require no repack; local scales now use the exact mandatory load-time `row8/K64` layout
+   directly in their final allocation, without a second persistent copy.
 6. ~~Compare the implemented SM120a `m16n8k64` decode projection for `T=1` with a bandwidth-oriented
    packed-NVFP4 SIMT/GEMV candidate.~~ The direct MMA route is 3.1x–6.2x faster on the real Gate/Up/Down shapes and
    remains the production candidate. Disassembly proves `OMMA.SF.16864.F32.E2M1.E2M1.UE4M3.4X`; retain the SIMT
@@ -87,8 +89,9 @@ The llama.cpp benchmark is deliberately before engine kernel optimization, but a
 8. ~~Add a separate native prefill plan without reusing the decode plan.~~ The promoted plan uses one 1,024-token
    checkpoint-FP8 chunk, online Tensor-Core attention, and M128xN64 NVFP4 CTAs that reuse an exact K64 activation
    slice across eight output warps. FP8 projections reuse weights across two consecutive MMA token tiles. Continue
-   NVFP4 activation staging now uses a qualified two-stage `cp.async` pipeline. Finish the measured direct-layout
-   versus load-time-swizzle decision, then continue with large/grouped FP8 projection pipelines.
+   NVFP4 activation staging now uses a qualified two-stage `cp.async` pipeline. Local E4M3 weight-scale bytes are
+   tiled exactly once into the final GPU allocation; packed weights remain direct and persistent bytes are
+   unchanged. Continue with large/grouped FP8 projection pipelines.
    The ordered execution and qualification contract for online Tensor-Core attention, larger prompt chunks,
    pipelined projections, and later fusion is now fixed in
    [the prefill optimization plan](PREFILL_OPTIMIZATION_PLAN.md).

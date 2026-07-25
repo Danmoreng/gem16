@@ -6,6 +6,7 @@
 #include "cuda/nvfp4/mlp.h"
 #include "cuda/nvfp4/reference.h"
 #include "cuda/nvfp4/sm120.h"
+#include "cuda/nvfp4/sm120_layout.h"
 #include "gem16gb/model.h"
 #include "platform/mapped_file.h"
 
@@ -252,6 +253,18 @@ Status UploadBinding(const HostNvfp4Binding& host, DeviceNvfp4Binding& device) {
   error = cudaMemcpy(device.weight_scales.get(), host.weight_scales.data(),
                      host.weight_scales.size(), cudaMemcpyHostToDevice);
   return error == cudaSuccess ? Status::Ok() : CudaFailure("copy NVFP4 scales", error);
+}
+
+Status UploadSm120Scales(const HostNvfp4Binding& host,
+                         DeviceNvfp4Binding& device) {
+  const auto layout = PlanSm120Nvfp4SourceLayout(host.rows, host.contracting);
+  if (!layout.ok()) return layout.status();
+  const auto tiled = TileSm120Nvfp4WeightScales(layout.value(), host.weight_scales);
+  if (!tiled.ok()) return tiled.status();
+  const cudaError_t error = cudaMemcpy(device.weight_scales.get(), tiled.value().data(),
+                                       tiled.value().size(), cudaMemcpyHostToDevice);
+  return error == cudaSuccess ? Status::Ok()
+                              : CudaFailure("copy tiled NVFP4 scales", error);
 }
 
 std::vector<float> DeterministicHidden() {
@@ -721,6 +734,13 @@ Result<LayerCheckpointProbeResult> RunLayerCheckpointProbe(
                             pre_mlp_norm_weight.get(), post_mlp_norm_weight.get(),
                             layer_scalar_weight.get(), device_gate, device_up, device_down);
     if (!status.ok()) return status;
+    for (const Status scale_status : {
+             UploadSm120Scales(gate, device_gate),
+             UploadSm120Scales(up, device_up),
+             UploadSm120Scales(down, device_down),
+         }) {
+      if (!scale_status.ok()) return scale_status;
+    }
     status = RunDecoderTail(ProjectionPath::kSm120, native_tail, native.final.get(),
                             pre_mlp_norm_weight.get(), post_mlp_norm_weight.get(),
                             layer_scalar_weight.get(), device_gate, device_up, device_down);
