@@ -10,6 +10,10 @@
 #include <string_view>
 #include <vector>
 
+#if defined(_WIN32)
+#include "windows_utf8.h"
+#endif
+
 #include "gem16gb/engine.h"
 #include "gem16gb/tokenizer.h"
 
@@ -334,7 +338,7 @@ gem16gb::Result<TurnOutput> RunTurn(
 
 }  // namespace
 
-int main(int argc, char** argv) {
+int ChatMain(int argc, char** argv) {
   if (argc == 2 &&
       (std::string_view(argv[1]) == "--help" ||
        std::string_view(argv[1]) == "-h")) {
@@ -415,3 +419,63 @@ int main(int argc, char** argv) {
   }
   return 0;
 }
+
+#if defined(_WIN32)
+
+namespace {
+
+class ConsoleUtf8Scope {
+ public:
+  ConsoleUtf8Scope()
+      : original_input_code_page_(GetConsoleCP()),
+        original_output_code_page_(GetConsoleOutputCP()) {
+    if (original_input_code_page_ != 0U) {
+      input_changed_ = SetConsoleCP(CP_UTF8) != 0;
+    }
+    if (original_output_code_page_ != 0U) {
+      output_changed_ = SetConsoleOutputCP(CP_UTF8) != 0;
+    }
+  }
+
+  ~ConsoleUtf8Scope() {
+    if (input_changed_) (void)SetConsoleCP(original_input_code_page_);
+    if (output_changed_) (void)SetConsoleOutputCP(original_output_code_page_);
+  }
+
+  ConsoleUtf8Scope(const ConsoleUtf8Scope&) = delete;
+  ConsoleUtf8Scope& operator=(const ConsoleUtf8Scope&) = delete;
+
+ private:
+  UINT original_input_code_page_ = 0U;
+  UINT original_output_code_page_ = 0U;
+  bool input_changed_ = false;
+  bool output_changed_ = false;
+};
+
+}  // namespace
+
+int wmain(int argc, wchar_t** wide_argv) {
+  ConsoleUtf8Scope console_utf8;
+  std::vector<std::string> utf8_arguments;
+  utf8_arguments.reserve(static_cast<std::size_t>(argc));
+  for (int index = 0; index < argc; ++index) {
+    auto converted = gem16gb::cli::WideToUtf8(wide_argv[index]);
+    if (!converted.has_value()) {
+      std::cerr << "error: a command-line argument is not valid Unicode\n";
+      return 64;
+    }
+    utf8_arguments.push_back(std::move(*converted));
+  }
+  std::vector<char*> arguments;
+  arguments.reserve(utf8_arguments.size());
+  for (std::string& argument : utf8_arguments) {
+    arguments.push_back(argument.data());
+  }
+  return ChatMain(argc, arguments.data());
+}
+
+#else
+
+int main(int argc, char** argv) { return ChatMain(argc, argv); }
+
+#endif

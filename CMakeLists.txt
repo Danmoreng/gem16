@@ -169,6 +169,9 @@ if(BUILD_TESTING AND GEM16GB_BUILD_TESTS)
     tests/unit/tokenizer_test.cpp
     tests/unit/test_main.cpp
   )
+  if(WIN32)
+    target_sources(gem16gb-unit-tests PRIVATE tests/unit/windows_utf8_test.cpp)
+  endif()
   target_include_directories(gem16gb-unit-tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src" "${CMAKE_CURRENT_SOURCE_DIR}/tests/unit")
   target_link_libraries(gem16gb-unit-tests PRIVATE gem16gb_core)
   gem16gb_set_project_warnings(gem16gb-unit-tests)
