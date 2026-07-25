@@ -93,7 +93,9 @@ independent `m16n8k64` token tiles (M128). Eight warps then form an M128xN64 CTA
 overlap exact K64 activation transfers with the current MMA stack. Relative to `2366c03`, CTA reuse reduces
 NVFP4 profile time by 51.2%; the asynchronous stage removes another 16.9%. Exact load-time scale tiling removes a
 further 4.61%. The current kernel uses 128 registers and 10,240 shared bytes with zero stack/local memory. Tested
-M256 and N128 extensions remain rejected for spills and an end-to-end loss respectively.
+per-warp M256 and N128 extensions remain rejected for spills and an end-to-end loss respectively. A later
+spill-free M256xN64 CTA made two M128 warp groups share a weight stage, but lost 3.84%/3.15% end to end at
+128/512 tokens; it was removed as well.
 
 Replace the current warp-level token tiling with a shape-specific block pipeline that:
 
@@ -189,6 +191,12 @@ affected GPU boundary from about 2.12 to 1.30 ms, while preserving bit-identical
 cache contents. Its 3/10 end-to-end medians were 2,285.60 versus 2,303.73 tok/s, and the mean 95% intervals
 overlapped strongly. Per promotion policy the entire candidate was deleted rather than retained behind a switch.
 Phase 5 is therefore closed on `f76d478` and projection work resumes from that sole standard path.
+
+A subsequent projection-grouping experiment assigned Gate and Up to independent eight-warp groups inside one
+16-warp CTA and shared only the already-qualified M128 activation stage. It was arithmetically exact, used 126
+registers with zero stack/local memory, and removed one launch per layer, but reduced adjacent 3/10 medians by
+1.29% at 128 tokens and 3.34% at 512. The 512-thread scheduling unit outweighed the saved activation traffic, so
+the complete implementation was deleted. Separate M128xN64 Gate and Up launches remain the sole standard.
 
 ## Mandatory correctness gates
 
