@@ -305,6 +305,7 @@ void TestDirectSourceSm120Projection() {
       tokens * quantized.value().block_scales_e4m3fn.size());
   DeviceBuffer<float> device_batch_reference(tokens * rows);
   DeviceBuffer<float> device_batch_native(tokens * rows);
+  DeviceBuffer<std::uint16_t> device_batch_native_bf16(tokens * rows);
   DeviceBuffer<float> device_batch_product(tokens * rows);
   if (device_activation.get() == nullptr || device_activation_scales.get() == nullptr ||
       device_weight.get() == nullptr || device_weight_scales.get() == nullptr ||
@@ -315,6 +316,7 @@ void TestDirectSourceSm120Projection() {
       device_batch_activation.get() == nullptr ||
       device_batch_activation_scales.get() == nullptr ||
       device_batch_reference.get() == nullptr || device_batch_native.get() == nullptr ||
+      device_batch_native_bf16.get() == nullptr ||
       device_batch_product.get() == nullptr) {
     return;
   }
@@ -394,6 +396,12 @@ void TestDirectSourceSm120Projection() {
           device_weight.get(), device_tiled_weight_scales.get(),
           device_batch_native.get(), tokens, rows, k_size, activation_divisor,
           weight_divisor, nullptr);
+  const auto batch_native_bf16_status =
+      gem16gb::internal::LaunchNvfp4Sm120DirectProjectionBf16Batch(
+          device_batch_activation.get(), device_batch_activation_scales.get(),
+          device_weight.get(), device_tiled_weight_scales.get(),
+          device_batch_native_bf16.get(), tokens, rows, k_size,
+          activation_divisor, weight_divisor, nullptr);
   const auto batch_fused_status =
       gem16gb::internal::LaunchNvfp4Sm120FusedGateUpBatch(
           device_batch_activation.get(), device_batch_activation_scales.get(),
@@ -403,9 +411,11 @@ void TestDirectSourceSm120Projection() {
           weight_divisor, activation_divisor, weight_divisor, nullptr);
   CUDA_TEST_CHECK(batch_reference_status.ok());
   CUDA_TEST_CHECK(batch_native_status.ok());
+  CUDA_TEST_CHECK(batch_native_bf16_status.ok());
   CUDA_TEST_CHECK(batch_fused_status.ok());
   if (!status.ok() || !simt_status.ok() || !fused_status.ok() ||
       !batch_reference_status.ok() || !batch_native_status.ok() ||
+      !batch_native_bf16_status.ok() ||
       !batch_fused_status.ok() ||
       !CudaOk(cudaDeviceSynchronize(), "native projection synchronize")) return;
 
@@ -416,6 +426,7 @@ void TestDirectSourceSm120Projection() {
   std::array<float, rows> fused_product{};
   std::array<float, tokens * rows> batch_reference{};
   std::array<float, tokens * rows> batch_native{};
+  std::array<std::uint16_t, tokens * rows> batch_native_bf16{};
   std::array<float, tokens * rows> batch_product{};
   if (!CudaOk(cudaMemcpy(output.data(), device_output.get(), device_output.bytes(),
                          cudaMemcpyDeviceToHost),
@@ -438,6 +449,11 @@ void TestDirectSourceSm120Projection() {
       !CudaOk(cudaMemcpy(batch_native.data(), device_batch_native.get(),
                          device_batch_native.bytes(), cudaMemcpyDeviceToHost),
               "copy batched native output") ||
+      !CudaOk(cudaMemcpy(batch_native_bf16.data(),
+                         device_batch_native_bf16.get(),
+                         device_batch_native_bf16.bytes(),
+                         cudaMemcpyDeviceToHost),
+              "copy batched native BF16 output") ||
       !CudaOk(cudaMemcpy(batch_product.data(), device_batch_product.get(),
                          device_batch_product.bytes(), cudaMemcpyDeviceToHost),
               "copy batched fused output")) {
@@ -477,6 +493,9 @@ void TestDirectSourceSm120Projection() {
         const float batch_expected = static_cast<float>(
             __float2bfloat16_rn(batch_gelu * batch_rounded));
         CUDA_TEST_CHECK(batch_native[token * rows + row] == batch_value);
+        CUDA_TEST_CHECK(
+            batch_native_bf16[token * rows + row] ==
+            __bfloat16_as_ushort(__float2bfloat16_rn(batch_value)));
         CUDA_TEST_CHECK(batch_product[token * rows + row] == batch_expected);
       }
     }
@@ -985,34 +1004,50 @@ void TestLocalLayerReferenceOperators() {
   constexpr std::size_t fused_gelu_elements = 32;
   std::array<float, fused_gelu_elements> fused_gelu_gate{};
   std::array<float, fused_gelu_elements> fused_gelu_up{};
+  std::array<std::uint16_t, fused_gelu_elements> fused_gelu_gate_bf16{};
+  std::array<std::uint16_t, fused_gelu_elements> fused_gelu_up_bf16{};
   for (std::size_t index = 0; index < fused_gelu_elements; ++index) {
     fused_gelu_gate[index] =
         static_cast<float>(static_cast<int>(index % 19U) - 9) * 0.15625F;
     fused_gelu_up[index] =
         static_cast<float>(static_cast<int>(index % 13U) - 6) * 0.21875F;
+    fused_gelu_gate_bf16[index] =
+        __bfloat16_as_ushort(__float2bfloat16_rn(fused_gelu_gate[index]));
+    fused_gelu_up_bf16[index] =
+        __bfloat16_as_ushort(__float2bfloat16_rn(fused_gelu_up[index]));
   }
   DeviceBuffer<float> device_fused_gelu_gate_reference(fused_gelu_elements);
   DeviceBuffer<float> device_fused_gelu_up_reference(fused_gelu_elements);
   DeviceBuffer<float> device_fused_gelu_gate(fused_gelu_elements);
   DeviceBuffer<float> device_fused_gelu_up(fused_gelu_elements);
+  DeviceBuffer<std::uint16_t> device_fused_gelu_gate_bf16(fused_gelu_elements);
+  DeviceBuffer<std::uint16_t> device_fused_gelu_up_bf16(fused_gelu_elements);
   DeviceBuffer<float> device_fused_gelu_product(fused_gelu_elements);
   DeviceBuffer<std::uint8_t> device_fused_gelu_reference_packed(
       fused_gelu_elements / 2U);
   DeviceBuffer<std::uint8_t> device_fused_gelu_packed(
       fused_gelu_elements / 2U);
+  DeviceBuffer<std::uint8_t> device_fused_gelu_bf16_packed(
+      fused_gelu_elements / 2U);
   DeviceBuffer<std::uint8_t> device_fused_gelu_reference_scales(
       fused_gelu_elements / 16U);
   DeviceBuffer<std::uint8_t> device_fused_gelu_scales(
+      fused_gelu_elements / 16U);
+  DeviceBuffer<std::uint8_t> device_fused_gelu_bf16_scales(
       fused_gelu_elements / 16U);
   if (device_fused_gelu_gate_reference.get() == nullptr ||
       device_fused_gelu_up_reference.get() == nullptr ||
       device_fused_gelu_gate.get() == nullptr ||
       device_fused_gelu_up.get() == nullptr ||
+      device_fused_gelu_gate_bf16.get() == nullptr ||
+      device_fused_gelu_up_bf16.get() == nullptr ||
       device_fused_gelu_product.get() == nullptr ||
       device_fused_gelu_reference_packed.get() == nullptr ||
       device_fused_gelu_packed.get() == nullptr ||
+      device_fused_gelu_bf16_packed.get() == nullptr ||
       device_fused_gelu_reference_scales.get() == nullptr ||
       device_fused_gelu_scales.get() == nullptr ||
+      device_fused_gelu_bf16_scales.get() == nullptr ||
       !CudaOk(cudaMemcpy(device_fused_gelu_gate_reference.get(),
                          fused_gelu_gate.data(),
                          device_fused_gelu_gate_reference.bytes(),
@@ -1030,7 +1065,17 @@ void TestLocalLayerReferenceOperators() {
       !CudaOk(cudaMemcpy(device_fused_gelu_up.get(), fused_gelu_up.data(),
                          device_fused_gelu_up.bytes(),
                          cudaMemcpyHostToDevice),
-              "copy fused GELU up")) return;
+              "copy fused GELU up") ||
+      !CudaOk(cudaMemcpy(device_fused_gelu_gate_bf16.get(),
+                         fused_gelu_gate_bf16.data(),
+                         device_fused_gelu_gate_bf16.bytes(),
+                         cudaMemcpyHostToDevice),
+              "copy fused GELU BF16 gate") ||
+      !CudaOk(cudaMemcpy(device_fused_gelu_up_bf16.get(),
+                         fused_gelu_up_bf16.data(),
+                         device_fused_gelu_up_bf16.bytes(),
+                         cudaMemcpyHostToDevice),
+              "copy fused GELU BF16 up")) return;
   RoundBf16ForComparisonKernel<<<1, 256>>>(
       device_fused_gelu_gate_reference.get(), fused_gelu_elements);
   RoundBf16ForComparisonKernel<<<1, 256>>>(
@@ -1052,21 +1097,34 @@ void TestLocalLayerReferenceOperators() {
           device_fused_gelu_gate.get(), device_fused_gelu_up.get(),
           device_fused_gelu_packed.get(), device_fused_gelu_scales.get(),
           fused_gelu_elements, 1.125F, nullptr);
+  const auto gelu_nvfp4_bf16_status =
+      gem16gb::internal::LaunchGatedGeluNvfp4ActivationQuantizationBf16(
+          device_fused_gelu_gate_bf16.get(),
+          device_fused_gelu_up_bf16.get(),
+          device_fused_gelu_bf16_packed.get(),
+          device_fused_gelu_bf16_scales.get(), fused_gelu_elements, 1.125F,
+          nullptr);
   CUDA_TEST_CHECK(gelu_product_status.ok());
   CUDA_TEST_CHECK(gelu_nvfp4_reference_status.ok());
   CUDA_TEST_CHECK(gelu_nvfp4_fused_status.ok());
+  CUDA_TEST_CHECK(gelu_nvfp4_bf16_status.ok());
   if (!gelu_product_status.ok() || !gelu_nvfp4_reference_status.ok() ||
       !gelu_nvfp4_fused_status.ok() ||
+      !gelu_nvfp4_bf16_status.ok() ||
       !CudaOk(cudaGetLastError(), "launch fused GELU comparison kernels") ||
       !CudaOk(cudaDeviceSynchronize(), "fused GELU NVFP4 synchronize")) return;
   std::array<std::uint8_t, fused_gelu_elements / 2U>
       gpu_fused_gelu_reference_packed{};
   std::array<std::uint8_t, fused_gelu_elements / 2U>
       gpu_fused_gelu_packed{};
+  std::array<std::uint8_t, fused_gelu_elements / 2U>
+      gpu_fused_gelu_bf16_packed{};
   std::array<std::uint8_t, fused_gelu_elements / 16U>
       gpu_fused_gelu_reference_scales{};
   std::array<std::uint8_t, fused_gelu_elements / 16U>
       gpu_fused_gelu_scales{};
+  std::array<std::uint8_t, fused_gelu_elements / 16U>
+      gpu_fused_gelu_bf16_scales{};
   if (!CudaOk(cudaMemcpy(gpu_fused_gelu_reference_packed.data(),
                          device_fused_gelu_reference_packed.get(),
                          device_fused_gelu_reference_packed.bytes(),
@@ -1077,6 +1135,11 @@ void TestLocalLayerReferenceOperators() {
                          device_fused_gelu_packed.bytes(),
                          cudaMemcpyDeviceToHost),
               "copy fused GELU packed output") ||
+      !CudaOk(cudaMemcpy(gpu_fused_gelu_bf16_packed.data(),
+                         device_fused_gelu_bf16_packed.get(),
+                         device_fused_gelu_bf16_packed.bytes(),
+                         cudaMemcpyDeviceToHost),
+              "copy fused GELU BF16 packed output") ||
       !CudaOk(cudaMemcpy(gpu_fused_gelu_reference_scales.data(),
                          device_fused_gelu_reference_scales.get(),
                          device_fused_gelu_reference_scales.bytes(),
@@ -1086,11 +1149,20 @@ void TestLocalLayerReferenceOperators() {
                          device_fused_gelu_scales.get(),
                          device_fused_gelu_scales.bytes(),
                          cudaMemcpyDeviceToHost),
-              "copy fused GELU scales")) return;
+              "copy fused GELU scales") ||
+      !CudaOk(cudaMemcpy(gpu_fused_gelu_bf16_scales.data(),
+                         device_fused_gelu_bf16_scales.get(),
+                         device_fused_gelu_bf16_scales.bytes(),
+                         cudaMemcpyDeviceToHost),
+              "copy fused GELU BF16 scales")) return;
   CUDA_TEST_CHECK(gpu_fused_gelu_reference_packed ==
                   gpu_fused_gelu_packed);
+  CUDA_TEST_CHECK(gpu_fused_gelu_reference_packed ==
+                  gpu_fused_gelu_bf16_packed);
   CUDA_TEST_CHECK(gpu_fused_gelu_reference_scales ==
                   gpu_fused_gelu_scales);
+  CUDA_TEST_CHECK(gpu_fused_gelu_reference_scales ==
+                  gpu_fused_gelu_bf16_scales);
 
   constexpr std::array<float, norm_input.size()> norm_residual = {
       0.25F, -0.5F, 0.75F, -1.0F, 1.25F, -1.5F, 1.75F, -2.0F};

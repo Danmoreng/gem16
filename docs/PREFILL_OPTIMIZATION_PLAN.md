@@ -198,6 +198,15 @@ registers with zero stack/local memory, and removed one launch per layer, but re
 1.29% at 128 tokens and 3.34% at 512. The 512-thread scheduling unit outweighed the saved activation traffic, so
 the complete implementation was deleted. Separate M128xN64 Gate and Up launches remain the sole standard.
 
+The accepted follow-up instead changes only the Gate/Up epilogue representation: both projections write the
+model-required BF16 boundary directly, and the fused GELU/NVFP4 quantizer consumes that BF16 storage. This removes
+two FP32 round trips and the dead FP32 product arena without changing the numerical boundary. Relative to detached
+`f76d478`, adjacent medians improve by 1.25%/4.07%/2.44% at 128/512/2,048 tokens; the 2,048-token confidence
+intervals do not overlap. The 512-token profile reduces NVFP4 time by 4.68% and GELU time by 17.9%. At the 2,048
+context the reusable workspace falls by 125,829,120 bytes to 312,593,408 bytes, with a measured 9,466 MiB process
+peak. Exact-blue, both vLLM boundaries, all teacher-forced aggregates, and CTest are unchanged. Direct BF16
+Gate/Up output is therefore the sole production path; no FP32 or user-selectable variant remains.
+
 ## Mandatory correctness gates
 
 Every promoted milestone must pass:

@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <limits>
 #include <string>
+#include <type_traits>
 #include <utility>
 
 namespace gem16gb::internal {
@@ -399,7 +400,8 @@ __global__ void Sm120FusedGateUpKernel(
 }
 
 template <bool kFusedGateUp, std::uint64_t kTokenTiles,
-          unsigned kBlockWarps, bool kStageActivation>
+          unsigned kBlockWarps, bool kStageActivation,
+          typename Output = float>
 __global__ void Sm120MatrixProjectionKernel(
     const std::uint8_t* packed_activation_e2m1,
     const std::uint8_t* activation_scales_e4m3fn,
@@ -407,7 +409,7 @@ __global__ void Sm120MatrixProjectionKernel(
     const std::uint8_t* weight_scales_e4m3fn,
     const std::uint8_t* packed_up_weight_e2m1,
     const std::uint8_t* up_weight_scales_e4m3fn, float* gate_output,
-    float* up_output, float* output, std::uint64_t tokens,
+    float* up_output, Output* output, std::uint64_t tokens,
     std::uint64_t rows, std::uint64_t contracting_elements,
     float output_divisor, float up_output_divisor) {
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1200
@@ -576,8 +578,23 @@ __global__ void Sm120MatrixProjectionKernel(
       global_warp * kRowsPerWarp + thread_in_group * 2U;
 #pragma unroll
   for (std::uint64_t tile = 0; tile < kTokenTiles; ++tile) {
+    if constexpr (std::is_same_v<Output, std::uint16_t>) {
 #pragma unroll
-    for (unsigned pair = 0; pair < 4U; ++pair) {
+      for (unsigned token_half = 0; token_half < 2U; ++token_half) {
+        const std::uint64_t token =
+            token_base + tile * kTokensPerMma + group + token_half * 8U;
+        if (token >= tokens || output_column + 1U >= rows) continue;
+        const unsigned pair = token_half * 2U;
+        const std::uint32_t low = __bfloat16_as_ushort(__float2bfloat16_rn(
+            accumulator[tile][pair] / output_divisor));
+        const std::uint32_t high = __bfloat16_as_ushort(__float2bfloat16_rn(
+            accumulator[tile][pair + 1U] / output_divisor));
+        *reinterpret_cast<std::uint32_t*>(
+            output + token * rows + output_column) = low | (high << 16U);
+      }
+    } else {
+#pragma unroll
+      for (unsigned pair = 0; pair < 4U; ++pair) {
       const std::uint64_t token =
           token_base + tile * kTokensPerMma + group +
           ((pair & 2U) == 0U ? 0U : 8U);
@@ -603,6 +620,7 @@ __global__ void Sm120MatrixProjectionKernel(
             static_cast<float>(__float2bfloat16_rn(gelu * rounded_up));
       } else {
         output[token * rows + column] = gate;
+      }
       }
     }
   }
@@ -715,6 +733,61 @@ Status LaunchNvfp4Sm120DirectProjectionBatch(
   return error == cudaSuccess
              ? Status::Ok()
              : CudaFailure("launch batched scale-tiled SM120 NVFP4 projection", error);
+}
+
+Status LaunchNvfp4Sm120DirectProjectionBf16Batch(
+    const std::uint8_t* packed_activation_e2m1,
+    const std::uint8_t* activation_scales_e4m3fn,
+    const std::uint8_t* packed_weight_e2m1,
+    const std::uint8_t* weight_scales_e4m3fn, std::uint16_t* output_bf16,
+    std::uint64_t tokens, std::uint64_t rows,
+    std::uint64_t contracting_elements, float activation_global_divisor,
+    float weight_global_divisor, cudaStream_t stream) {
+  if (packed_activation_e2m1 == nullptr ||
+      activation_scales_e4m3fn == nullptr || packed_weight_e2m1 == nullptr ||
+      weight_scales_e4m3fn == nullptr || output_bf16 == nullptr) {
+    return Invalid("batched SM120 NVFP4 BF16 projection requires non-null device pointers");
+  }
+  if (tokens == 0U || tokens > 65535U || rows == 0U ||
+      rows % kRowsPerWarp != 0U || contracting_elements == 0U ||
+      contracting_elements % kElementsPerKBlock != 0U ||
+      !PositiveFinite(activation_global_divisor) ||
+      !PositiveFinite(weight_global_divisor)) {
+    return Invalid("batched SM120 NVFP4 BF16 projection geometry or divisors are invalid");
+  }
+  const float output_divisor =
+      activation_global_divisor * weight_global_divisor;
+  if (!PositiveFinite(output_divisor)) {
+    return Invalid("batched SM120 NVFP4 BF16 projection divisor product overflowed");
+  }
+  const std::uint64_t row_tiles =
+      (rows + kRowsPerWarp - 1U) / kRowsPerWarp;
+  const std::uint64_t blocks =
+      (row_tiles + kPrefillWarpsPerBlock - 1U) /
+      kPrefillWarpsPerBlock;
+  if (blocks >
+      static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
+    return Invalid("batched SM120 NVFP4 BF16 projection grid exceeds CUDA limits");
+  }
+  const std::uint64_t token_tiles =
+      (tokens + kTokensPerMma - 1U) / kTokensPerMma;
+  const std::uint64_t grouped_token_tiles =
+      (token_tiles + kPrefillTokenTilesPerWarp - 1U) /
+      kPrefillTokenTilesPerWarp;
+  Sm120MatrixProjectionKernel<false, kPrefillTokenTilesPerWarp,
+                              kPrefillWarpsPerBlock, true,
+                              std::uint16_t><<<
+      dim3(static_cast<unsigned>(blocks),
+           static_cast<unsigned>(grouped_token_tiles)),
+      kPrefillThreadsPerBlock, 0, stream>>>(
+      packed_activation_e2m1, activation_scales_e4m3fn,
+      packed_weight_e2m1, weight_scales_e4m3fn, nullptr, nullptr, nullptr,
+      nullptr, output_bf16, tokens, rows, contracting_elements,
+      output_divisor, 1.0F);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("launch batched SM120 NVFP4 BF16 projection", error);
 }
 
 Status LaunchNvfp4Sm120FusedGateUp(

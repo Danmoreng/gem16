@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <limits>
 #include <string>
+#include <type_traits>
 #include <utility>
 
 namespace gem16gb::internal {
@@ -140,8 +141,18 @@ __global__ void RmsNormQuantizeActivationKernel(
   }
 }
 
+template <typename Input>
+__device__ __forceinline__ float LoadBf16Boundary(Input value) {
+  if constexpr (std::is_same_v<Input, std::uint16_t>) {
+    return static_cast<float>(__ushort_as_bfloat16(value));
+  } else {
+    return static_cast<float>(__float2bfloat16_rn(value));
+  }
+}
+
+template <typename Input>
 __global__ void GatedGeluQuantizeActivationKernel(
-    const float* gate, const float* up, std::uint8_t* packed_e2m1,
+    const Input* gate, const Input* up, std::uint8_t* packed_e2m1,
     std::uint8_t* block_scales_e4m3fn, std::uint64_t blocks,
     float global_divisor) {
   constexpr unsigned kThreads = 128;
@@ -152,13 +163,8 @@ __global__ void GatedGeluQuantizeActivationKernel(
       threadIdx.x / kBlockElements;
   const bool valid = block < blocks;
   const std::uint64_t index = block * kBlockElements + lane_in_group;
-  const float gate_value = valid
-                               ? static_cast<float>(
-                                     __float2bfloat16_rn(gate[index]))
-                               : 0.0F;
-  const float up_value = valid
-                             ? static_cast<float>(__float2bfloat16_rn(up[index]))
-                             : 0.0F;
+  const float gate_value = valid ? LoadBf16Boundary(gate[index]) : 0.0F;
+  const float up_value = valid ? LoadBf16Boundary(up[index]) : 0.0F;
   const float inner = kSqrtTwoOverPi *
                       (gate_value + kGeluCubic * gate_value * gate_value *
                                         gate_value);
@@ -323,13 +329,45 @@ Status LaunchGatedGeluNvfp4ActivationQuantization(
   if (grid > static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
     return Invalid("fused Gate/Up GELU NVFP4 grid exceeds CUDA limits");
   }
-  GatedGeluQuantizeActivationKernel<<<static_cast<unsigned>(grid), threads, 0,
-                                      stream>>>(
+  GatedGeluQuantizeActivationKernel<float><<<
+      static_cast<unsigned>(grid), threads, 0, stream>>>(
       gate, up, packed_e2m1, block_scales_e4m3fn, blocks, global_divisor);
   const cudaError_t error = cudaGetLastError();
   return error == cudaSuccess
              ? Status::Ok()
              : CudaFailure("launch fused Gate/Up GELU NVFP4 quantization", error);
+}
+
+Status LaunchGatedGeluNvfp4ActivationQuantizationBf16(
+    const std::uint16_t* gate_bf16, const std::uint16_t* up_bf16,
+    std::uint8_t* packed_e2m1, std::uint8_t* block_scales_e4m3fn,
+    std::uint64_t elements, float global_divisor, cudaStream_t stream) {
+  if (gate_bf16 == nullptr || up_bf16 == nullptr || packed_e2m1 == nullptr ||
+      block_scales_e4m3fn == nullptr) {
+    return Invalid("fused BF16 Gate/Up GELU NVFP4 quantization requires non-null pointers");
+  }
+  if (elements == 0U || elements % kBlockElements != 0U) {
+    return Invalid("fused BF16 Gate/Up GELU NVFP4 extent must be divisible by 16");
+  }
+  if (!PositiveFinite(global_divisor)) {
+    return Invalid("fused BF16 Gate/Up GELU NVFP4 divisor must be positive and finite");
+  }
+  const std::uint64_t blocks = elements / kBlockElements;
+  constexpr unsigned threads = 128;
+  constexpr unsigned groups_per_block = threads / kBlockElements;
+  const std::uint64_t grid =
+      (blocks + groups_per_block - 1U) / groups_per_block;
+  if (grid > static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
+    return Invalid("fused BF16 Gate/Up GELU NVFP4 grid exceeds CUDA limits");
+  }
+  GatedGeluQuantizeActivationKernel<std::uint16_t><<<
+      static_cast<unsigned>(grid), threads, 0, stream>>>(
+      gate_bf16, up_bf16, packed_e2m1, block_scales_e4m3fn, blocks,
+      global_divisor);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("launch fused BF16 Gate/Up GELU NVFP4 quantization", error);
 }
 
 Status LaunchNvfp4ReferenceProjection(const std::uint8_t* packed_activation_e2m1,

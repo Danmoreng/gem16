@@ -43,6 +43,17 @@ namespace gem16gb::internal {
     float global_divisor,
     cudaStream_t stream);
 
+// Same production boundary when Gate and Up already carry the required BF16
+// projection epilogue values.
+[[nodiscard]] Status LaunchGatedGeluNvfp4ActivationQuantizationBf16(
+    const std::uint16_t* gate_bf16,
+    const std::uint16_t* up_bf16,
+    std::uint8_t* packed_e2m1,
+    std::uint8_t* block_scales_e4m3fn,
+    std::uint64_t elements,
+    float global_divisor,
+    cudaStream_t stream);
+
 [[nodiscard]] Status LaunchNvfp4ReferenceProjection(
     const std::uint8_t* packed_activation_e2m1,
     const std::uint8_t* activation_scales_e4m3fn,

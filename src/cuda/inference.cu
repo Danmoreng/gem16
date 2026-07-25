@@ -580,7 +580,7 @@ struct PrefillOffsets {
   std::uint64_t q = 0, k = 0, v = 0, q_norm = 0, k_norm = 0, v_norm = 0;
   std::uint64_t k_fp8 = 0, v_fp8 = 0, scores = 0, attention = 0;
   std::uint64_t o_activation = 0, o_scales = 0, projection = 0, post_norm = 0;
-  std::uint64_t mlp_packed = 0, mlp_scales = 0, gate = 0, up = 0, product = 0;
+  std::uint64_t mlp_packed = 0, mlp_scales = 0, gate = 0, up = 0;
   std::uint64_t down_packed = 0, down_scales = 0;
   std::uint64_t local_rope_cosine = 0, local_rope_sine = 0;
   std::uint64_t global_rope_cosine = 0, global_rope_sine = 0;
@@ -871,6 +871,16 @@ Status LaunchNvfp4ProjectionBatch(
   return internal::LaunchNvfp4Sm120DirectProjectionBatch(
       activation, scales, binding.packed_weight, binding.scales, output, tokens,
       binding.rows, binding.contracting, binding.input_divisor,
+      binding.weight_divisor, stream);
+}
+
+Status LaunchNvfp4ProjectionBf16Batch(
+    const std::uint8_t* activation, const std::uint8_t* scales,
+    const Nvfp4Binding& binding, std::uint16_t* output_bf16,
+    std::uint64_t tokens, cudaStream_t stream) {
+  return internal::LaunchNvfp4Sm120DirectProjectionBf16Batch(
+      activation, scales, binding.packed_weight, binding.scales, output_bf16,
+      tokens, binding.rows, binding.contracting, binding.input_divisor,
       binding.weight_divisor, stream);
 }
 
@@ -1277,9 +1287,8 @@ class InferenceEngine {
     GEM16GB_PREFILL_ADD(post_norm, float, tokens * kHidden);
     GEM16GB_PREFILL_ADD(mlp_packed, std::uint8_t, tokens * kHidden / 2U);
     GEM16GB_PREFILL_ADD(mlp_scales, std::uint8_t, tokens * kHidden / 16U);
-    GEM16GB_PREFILL_ADD(gate, float, tokens * kIntermediate);
-    GEM16GB_PREFILL_ADD(up, float, tokens * kIntermediate);
-    GEM16GB_PREFILL_ADD(product, float, tokens * kIntermediate);
+    GEM16GB_PREFILL_ADD(gate, std::uint16_t, tokens * kIntermediate);
+    GEM16GB_PREFILL_ADD(up, std::uint16_t, tokens * kIntermediate);
     GEM16GB_PREFILL_ADD(down_packed, std::uint8_t, tokens * kIntermediate / 2U);
     GEM16GB_PREFILL_ADD(down_scales, std::uint8_t, tokens * kIntermediate / 16U);
     GEM16GB_PREFILL_ADD(local_rope_cosine, float, max_context_ * 128U);
@@ -1404,21 +1413,21 @@ class InferenceEngine {
 
     auto* mlp_packed = Pointer<std::uint8_t>(prefill_workspace_, prefill_offsets_.mlp_packed);
     auto* mlp_scales = Pointer<std::uint8_t>(prefill_workspace_, prefill_offsets_.mlp_scales);
-    float* gate = Pointer<float>(prefill_workspace_, prefill_offsets_.gate);
-    float* up = Pointer<float>(prefill_workspace_, prefill_offsets_.up);
+    auto* gate = Pointer<std::uint16_t>(prefill_workspace_, prefill_offsets_.gate);
+    auto* up = Pointer<std::uint16_t>(prefill_workspace_, prefill_offsets_.up);
     status = internal::LaunchRmsNormNvfp4ActivationQuantizationBatch(
         hidden_b, layer.pre_mlp_norm, mlp_packed, mlp_scales, tokens, kHidden,
         kEpsilon, layer.gate.input_divisor, stream_);
     if (!status.ok()) return status;
-    status = LaunchNvfp4ProjectionBatch(mlp_packed, mlp_scales, layer.gate,
-                                        gate, tokens, stream_);
+    status = LaunchNvfp4ProjectionBf16Batch(
+        mlp_packed, mlp_scales, layer.gate, gate, tokens, stream_);
     if (!status.ok()) return status;
-    status = LaunchNvfp4ProjectionBatch(mlp_packed, mlp_scales, layer.up,
-                                        up, tokens, stream_);
+    status = LaunchNvfp4ProjectionBf16Batch(
+        mlp_packed, mlp_scales, layer.up, up, tokens, stream_);
     if (!status.ok()) return status;
     auto* down_packed = Pointer<std::uint8_t>(prefill_workspace_, prefill_offsets_.down_packed);
     auto* down_scales = Pointer<std::uint8_t>(prefill_workspace_, prefill_offsets_.down_scales);
-    status = internal::LaunchGatedGeluNvfp4ActivationQuantization(
+    status = internal::LaunchGatedGeluNvfp4ActivationQuantizationBf16(
         gate, up, down_packed, down_scales, tokens * kIntermediate,
         layer.down.input_divisor, stream_);
     if (!status.ok()) return status;
