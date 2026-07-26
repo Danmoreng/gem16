@@ -1,11 +1,12 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "repository": "unsloth/gemma-4-12b-it-NVFP4",
   "revision": "b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
-  "resolved_at_utc": "2026-07-21T18:07:34Z",
+  "resolved_at_utc": "2026-07-26T07:27:08Z",
   "model_card_revision": "ddf89cce51c143253e819998750d4adbc20ff0e6",
   "config_revision": "cff080c927ba3783c002481be518cb17ec3372c6",
   "tokenizer_revision": "cff080c927ba3783c002481be518cb17ec3372c6",
+  "tokenizer_config_revision": "707f0a3b8a3c7ad586ed01e27eafbad8a27dd0f7",
   "files": [
     {"path":".gitattributes","size":1570,"sha256":"34448b82c17d60fec9b65b1f093c115ddbaadc04beb1b0140b6bfed2e012a930","git_oid":"52373fe24473b1aa44333d318f578ae6bf04b49b"},
     {"path":"README.md","size":29820,"sha256":"9e2712c56330ea7eefc00a10fd3c37a63364b92e52f10e12266b01a3dc6a9887","git_oid":"f43dcf66ea657ff11cc683e53122b219bce2e8df"},
@@ -16,7 +17,6 @@
     {"path":"processor_config.json","size":1382,"sha256":"6b938e76555b3e9946890770e1abcd442a4718f34041a58e8139dc8ad34545c9","git_oid":"b889adcd78015bf5a0139438c5fb0b7067529a61"},
     {"path":"recipe.yaml","size":661,"sha256":"bb19ac4f3bf8c4ffb9b88701bef8faf06c679ae9461751cc849375bb1731c17b","git_oid":"c27417aceaf0637177e9d44c48ea59ccef873503"},
     {"path":"tokenizer.json","size":32169726,"sha256":"adbaa8175acf7609b4359724f40eff359ec4fac1a8647eeb99d4422be708e1cf","git_oid":"03d63e59c9102f1ba39ef281fe2e24fa71d0eb1b","lfs_oid":"adbaa8175acf7609b4359724f40eff359ec4fac1a8647eeb99d4422be708e1cf","xet_hash":"233f0b992a852d6f1f9e030e23a1429f666a6d3c1e9be00ab0f2d63786768dd9"},
-    {"path":"tokenizer_config.json","size":2725,"sha256":"de3d45511a4ab7320083c0a4b65ec834fcf3d6c1027002714fceead12d2a6b86","git_oid":"7ee98d44536a5bf67852f4a9ce90ce7654399814"}
+    {"path":"tokenizer_config.json","size":3089,"sha256":"a62f4e85a47c0c136edaaa3a4f591fd6783717299a9def47e5ad03a49f6a5eb9","git_oid":"6520cdc25462a5eba96fdac6d8cf3caa461feb35","source":{"repository":"google/gemma-4-12B-it","revision":"707f0a3b8a3c7ad586ed01e27eafbad8a27dd0f7","path":"tokenizer_config.json"}}
   ]
 }
-

@@ -1,11 +1,24 @@
 # Checkpoint format
 
-## Pinned source
+## Pinned sources
 
-- Repository: `unsloth/gemma-4-12b-it-NVFP4`
-- Revision: `b1f649734b34aa5575b03d186abd1b9be3d0d5c4`
+- Weight/checkpoint repository: `unsloth/gemma-4-12b-it-NVFP4`
+- Weight/checkpoint revision: `b1f649734b34aa5575b03d186abd1b9be3d0d5c4`
+- `tokenizer_config.json` repository: `google/gemma-4-12B-it`
+- `tokenizer_config.json` revision: `707f0a3b8a3c7ad586ed01e27eafbad8a27dd0f7`
+- `tokenizer_config.json` SHA-256: `a62f4e85a47c0c136edaaa3a4f591fd6783717299a9def47e5ad03a49f6a5eb9`
 - Compressed-tensors version declared by config: `0.17.2.a20260707`
 - Lock: `models/gemma4-12b-nvfp4.lock.json`
+
+The downloaded directory is an explicitly composite Hugging Face snapshot: model weights, quantization schema,
+tokenizer vocabulary, generation controls, and chat template remain byte-identical to the locked Unsloth source;
+only `tokenizer_config.json` is sourced from the official Google instruction-model repository. The lock's
+per-file `source` object records this exception. No weight payload is converted, repacked, or duplicated.
+
+The engine parses and validates the Google tokenizer metadata at startup. The tokenizer-level
+`model_max_length` value is Google's intentionally unbounded sentinel and never drives arena sizing; the model
+contract remains `config.json:text_config.max_position_embeddings = 262144`. Response close markers declared by
+`response_template` must each encode to one token and appear in `generation_config.json:eos_token_id`.
 
 This is a mixed checkpoint, not an all-NVFP4 checkpoint. The pinned config targets attention projections with
 per-channel FP8 weights and per-token dynamic FP8 inputs. It targets language-model MLP gate/up/down projections

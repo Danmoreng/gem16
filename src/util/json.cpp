@@ -180,9 +180,16 @@ class Parser {
       if (result.ec == std::errc{} && result.ptr == token.data() + token.size()) {
         return Value(parsed);
       }
-      return Error("integer is outside int64 range");
+      if (result.ec != std::errc::result_out_of_range) {
+        return Error("invalid integer");
+      }
     }
 
+    // JSON itself does not limit integer magnitude. Preserve exactly representable
+    // int64 values above, and represent larger finite JSON numbers as binary64.
+    // Typed consumers that require an integer continue to reject this value via
+    // is_integer(), while metadata sentinels such as tokenizer model_max_length
+    // remain parseable.
     std::string terminated(token);
     char* end = nullptr;
     const double parsed = std::strtod(terminated.c_str(), &end);

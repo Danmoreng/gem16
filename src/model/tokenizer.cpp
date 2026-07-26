@@ -16,6 +16,7 @@
 #include <utility>
 #include <vector>
 
+#include "model/tokenizer_config.h"
 #include "util/json.h"
 
 namespace gem16gb {
@@ -120,21 +121,6 @@ bool ParseByteFallback(std::string_view token, unsigned char& value) {
   }
   value = static_cast<unsigned char>(parsed);
   return true;
-}
-
-std::string StripThinking(std::string_view text) {
-  std::string result;
-  std::size_t begin = 0;
-  while (begin <= text.size()) {
-    const std::size_t delimiter = text.find("<channel|>", begin);
-    const std::size_t end = delimiter == std::string_view::npos ? text.size() : delimiter;
-    const std::string_view part = text.substr(begin, end - begin);
-    const std::size_t channel = part.find("<|channel>");
-    result.append(part.substr(0, channel == std::string_view::npos ? part.size() : channel));
-    if (delimiter == std::string_view::npos) break;
-    begin = delimiter + std::string_view("<channel|>").size();
-  }
-  return Trim(result);
 }
 
 Result<std::vector<std::uint32_t>> IntegerList(const json::Value* value,
@@ -470,6 +456,12 @@ Result<GemmaChatProcessor> GemmaChatProcessor::Load(
     const std::filesystem::path& model_directory) {
   auto tokenizer = Tokenizer::Load(model_directory / "tokenizer.json");
   if (!tokenizer.ok()) return tokenizer.status();
+  auto tokenizer_config = internal::LoadTokenizerConfig(
+      model_directory / "tokenizer_config.json");
+  if (!tokenizer_config.ok()) return tokenizer_config.status();
+  auto tokenizer_contract =
+      internal::ValidatePrimaryTokenizerConfig(tokenizer_config.value());
+  if (!tokenizer_contract.ok()) return tokenizer_contract;
   auto chat_template =
       ReadFile(model_directory / "chat_template.jinja", kMaximumTemplateBytes);
   if (!chat_template.ok()) return chat_template.status();
@@ -498,9 +490,29 @@ Result<GemmaChatProcessor> GemmaChatProcessor::Load(
     if (!parsed_suppressed.ok()) return parsed_suppressed.status();
     suppressed = std::move(parsed_suppressed).value();
   }
+
+  for (const std::string& token : tokenizer_config.value().content_close_tokens) {
+    auto encoded = tokenizer.value().Encode(token);
+    if (!encoded.ok()) return encoded.status();
+    if (encoded.value().size() != 1U) {
+      return Error(StatusCode::kDataLoss,
+                   "tokenizer_config.json response close marker is not one token: " +
+                       token);
+    }
+    if (std::find(stop.value().begin(), stop.value().end(),
+                  encoded.value().front()) == stop.value().end()) {
+      return Error(StatusCode::kDataLoss,
+                   "generation_config.json does not stop on tokenizer response close marker: " +
+                       token);
+    }
+  }
   return GemmaChatProcessor(
       std::move(tokenizer).value(),
-      GenerationTokenControls{std::move(stop).value(), std::move(suppressed)});
+      GenerationTokenControls{std::move(stop).value(), std::move(suppressed)},
+      tokenizer_config.value().thinking_open,
+      tokenizer_config.value().thinking_close,
+      tokenizer_config.value().content_close_tokens,
+      tokenizer_config.value().tool_call_start_token);
 }
 
 Result<std::string> GemmaChatProcessor::Render(
@@ -539,9 +551,15 @@ Result<std::string> GemmaChatProcessor::Render(
     result.append("<|turn>");
     result.append(rendered_role);
     result.push_back('\n');
-    result.append(message.role == "assistant"
-                      ? StripThinking(message.content)
-                      : Trim(message.content));
+    if (message.role == "assistant") {
+      auto content = internal::ExtractResponseContent(
+          message.content, thinking_open_, thinking_close_,
+          content_close_tokens_, tool_call_start_token_);
+      if (!content.ok()) return content.status();
+      result.append(content.value());
+    } else {
+      result.append(Trim(message.content));
+    }
     result.append("<turn|>\n");
     previous_role = message.role;
   }
@@ -578,6 +596,15 @@ Result<std::vector<std::uint32_t>> GemmaChatProcessor::EncodeContinuation(
 Result<std::string> GemmaChatProcessor::Decode(
     std::span<const std::uint32_t> token_ids, bool skip_special_tokens) const {
   return tokenizer_.Decode(token_ids, skip_special_tokens);
+}
+
+Result<std::string> GemmaChatProcessor::DecodeResponseText(
+    std::span<const std::uint32_t> token_ids) const {
+  auto decoded = tokenizer_.Decode(token_ids, false);
+  if (!decoded.ok()) return decoded.status();
+  return internal::ExtractResponseContent(
+      decoded.value(), thinking_open_, thinking_close_, content_close_tokens_,
+      tool_call_start_token_);
 }
 
 Status GemmaChatProcessor::WriteDecodedToken(std::uint32_t token_id,

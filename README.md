@@ -6,8 +6,10 @@ approximately 16 GB of VRAM. The first model is the mixed FP8/NVFP4
 
 ## What works
 
-- The model repository is pinned to commit `b1f649734b34aa5575b03d186abd1b9be3d0d5c4`, including file sizes,
-  SHA-256 digests, Git object IDs, and Xet/LFS identities.
+- Model weights and quantization metadata are pinned to Unsloth commit
+  `b1f649734b34aa5575b03d186abd1b9be3d0d5c4`. The runtime tokenizer metadata is the official Google
+  `tokenizer_config.json` from commit `707f0a3b8a3c7ad586ed01e27eafbad8a27dd0f7`. Every file source, size,
+  SHA-256 digest, Git object ID, and available Xet/LFS identity is locked independently.
 - `gem16gb-inspect` memory-maps a single Safetensors file or indexed shards, validates offsets and byte lengths,
   parses the compressed-tensors quantization schema, classifies all 1,389 tensors in the pinned snapshot, and
   exports JSON.
@@ -32,8 +34,9 @@ approximately 16 GB of VRAM. The first model is the mixed FP8/NVFP4
   static E4M3 FP8 K/V scales; an explicit BF16 correctness mode remains available. Both modes run with zero
   fallbacks and no allocation in the token loop. Checkpoint EOS and suppressed-token controls are applied explicitly.
 - `gem16gb-chat` is a pure C++ application. It loads the checkpoint's `tokenizer.json`, performs native
-  byte-fallback BPE encode/decode, enforces the pinned `chat_template.jinja` contract, and sources EOS/suppressed
-  tokens from `generation_config.json`.
+  byte-fallback BPE encode/decode, enforces the pinned `chat_template.jinja` contract, validates Google's current
+  `tokenizer_config.json`, parses visible response text with its thinking/content delimiters, and sources the
+  actual stop/suppressed token IDs from `generation_config.json`.
 
 Sampling, persistent chat sessions, and benchmark-qualified inference do **not** work yet. Normal greedy decode
 now replays the complete 48-layer forward pass as one CUDA Graph. A pinned host control record supplies the current
@@ -182,8 +185,9 @@ The trusted vLLM reference runtime remains Linux-only because upstream vLLM has 
 runtime; run those reference-generation and characterization commands on Linux rather than changing their
 semantics.
 
-The downloader resumes partial files, verifies sizes and SHA-256 digests, and never imports or executes code
-from the model repository.
+The downloader resolves each file from its independently pinned source, resumes only partial files carrying the
+same URL/size/digest identity, verifies sizes and SHA-256 digests before atomic replacement, and never imports or
+executes code from either model repository.
 
 ## Inspect
 

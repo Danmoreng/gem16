@@ -303,7 +303,7 @@ gem16gb::Result<TurnOutput> RunTurn(
   }
   auto assistant_content = processor.Decode(content_ids, false);
   if (!assistant_content.ok()) return assistant_content.status();
-  auto assistant_text = processor.Decode(content_ids, true);
+  auto assistant_text = processor.DecodeResponseText(content_ids);
   if (!assistant_text.ok()) return assistant_text.status();
 
   if (write_json) {

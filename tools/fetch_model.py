@@ -37,6 +37,41 @@ def safe_target(root: Path, relative: str) -> Path:
     return root / parsed.name
 
 
+def source_path(relative: str) -> str:
+    parsed = PurePosixPath(relative)
+    if parsed.is_absolute() or ".." in parsed.parts or not parsed.parts:
+        raise ValueError(f"unsafe source path in lock: {relative!r}")
+    return parsed.as_posix()
+
+
+def immutable_revision(value: object, description: str) -> str:
+    revision = str(value)
+    if len(revision) != 40 or revision == "main" or any(
+        character not in "0123456789abcdefABCDEF" for character in revision
+    ):
+        raise ValueError(f"{description} must be a full immutable commit SHA")
+    return revision
+
+
+def resolve_source(
+    lock: dict[str, object], entry: dict[str, object]
+) -> tuple[str, str, str]:
+    source = entry.get("source")
+    if source is None:
+        source = {}
+    if not isinstance(source, dict):
+        raise ValueError(f"source for {entry.get('path')!r} must be an object")
+    repository = str(source.get("repository", lock["repository"]))
+    if not repository or repository.startswith("/") or repository.endswith("/"):
+        raise ValueError(f"invalid Hugging Face repository: {repository!r}")
+    revision = immutable_revision(
+        source.get("revision", lock["revision"]),
+        f"source revision for {entry.get('path')!r}",
+    )
+    relative = source_path(str(source.get("path", entry["path"])))
+    return repository, revision, relative
+
+
 def verify(path: Path, entry: dict[str, object]) -> bool:
     expected_size = int(entry["size"])
     expected_hash = str(entry["sha256"])
@@ -49,10 +84,26 @@ def verify(path: Path, entry: dict[str, object]) -> bool:
     return True
 
 
-def download(url: str, destination: Path, expected_size: int) -> None:
+def download(
+    url: str, destination: Path, expected_size: int, expected_hash: str
+) -> None:
     partial = destination.with_name(destination.name + ".part")
-    if destination.exists() and destination.stat().st_size < expected_size and not partial.exists():
-        destination.replace(partial)
+    partial_metadata = destination.with_name(destination.name + ".part.json")
+    identity = {
+        "url": url,
+        "size": expected_size,
+        "sha256": expected_hash,
+    }
+    identity_text = json.dumps(identity, sort_keys=True) + "\n"
+    metadata_matches = False
+    if partial_metadata.is_file():
+        metadata_matches = partial_metadata.read_text(encoding="utf-8") == identity_text
+    if partial.exists() and not metadata_matches:
+        partial.unlink()
+    if partial_metadata.exists() and not metadata_matches:
+        partial_metadata.unlink()
+    if not partial.exists():
+        partial_metadata.write_text(identity_text, encoding="utf-8")
     offset = partial.stat().st_size if partial.exists() else 0
     if offset > expected_size:
         raise RuntimeError(f"partial file is larger than lock size: {partial}")
@@ -80,16 +131,25 @@ def download(url: str, destination: Path, expected_size: int) -> None:
     print()
     if partial.stat().st_size != expected_size:
         raise RuntimeError(f"size mismatch after download for {destination.name}")
+    actual_hash = digest(partial)
+    if actual_hash != expected_hash:
+        partial.unlink()
+        partial_metadata.unlink(missing_ok=True)
+        raise RuntimeError(
+            f"SHA-256 mismatch for downloaded {destination.name}: "
+            f"expected {expected_hash}, got {actual_hash}"
+        )
     partial.replace(destination)
+    partial_metadata.unlink(missing_ok=True)
 
 
 def main() -> int:
     args = parse_args()
     lock = json.loads(args.lock.read_text(encoding="utf-8"))
-    revision = str(lock["revision"])
-    if len(revision) != 40 or revision == "main":
-        raise ValueError("model lock revision must be a full immutable commit SHA")
-    repository = str(lock["repository"])
+    schema_version = int(lock.get("schema_version", 0))
+    if schema_version not in (1, 2):
+        raise ValueError(f"unsupported model lock schema_version: {schema_version}")
+    immutable_revision(lock["revision"], "model lock revision")
     args.destination.mkdir(parents=True, exist_ok=True)
     failures = 0
     for entry in lock["files"]:
@@ -101,9 +161,10 @@ def main() -> int:
                 print(f"missing or wrong size: {target}", file=sys.stderr)
                 failures += 1
                 continue
-            quoted_path = urllib.parse.quote(str(entry["path"]), safe="")
+            repository, revision, relative = resolve_source(lock, entry)
+            quoted_path = urllib.parse.quote(relative, safe="/")
             url = f"https://huggingface.co/{repository}/resolve/{revision}/{quoted_path}"
-            download(url, target, int(entry["size"]))
+            download(url, target, int(entry["size"]), str(entry["sha256"]))
             if not verify(target, entry):
                 raise RuntimeError(f"verification unexpectedly failed: {target}")
         except RuntimeError as error:
@@ -114,4 +175,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

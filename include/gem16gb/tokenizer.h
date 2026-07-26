@@ -57,6 +57,8 @@ class GemmaChatProcessor {
       std::string_view user_content, bool enable_thinking) const;
   [[nodiscard]] Result<std::string> Decode(std::span<const std::uint32_t> token_ids,
                                            bool skip_special_tokens) const;
+  [[nodiscard]] Result<std::string> DecodeResponseText(
+      std::span<const std::uint32_t> token_ids) const;
   [[nodiscard]] Status WriteDecodedToken(std::uint32_t token_id,
                                          bool skip_special_tokens,
                                          std::ostream& output) const;
@@ -66,11 +68,23 @@ class GemmaChatProcessor {
   }
 
  private:
-  GemmaChatProcessor(Tokenizer tokenizer, GenerationTokenControls controls)
-      : tokenizer_(std::move(tokenizer)), generation_controls_(std::move(controls)) {}
+  GemmaChatProcessor(Tokenizer tokenizer, GenerationTokenControls controls,
+                     std::string thinking_open, std::string thinking_close,
+                     std::vector<std::string> content_close_tokens,
+                     std::string tool_call_start_token)
+      : tokenizer_(std::move(tokenizer)),
+        generation_controls_(std::move(controls)),
+        thinking_open_(std::move(thinking_open)),
+        thinking_close_(std::move(thinking_close)),
+        content_close_tokens_(std::move(content_close_tokens)),
+        tool_call_start_token_(std::move(tool_call_start_token)) {}
 
   Tokenizer tokenizer_;
   GenerationTokenControls generation_controls_;
+  std::string thinking_open_;
+  std::string thinking_close_;
+  std::vector<std::string> content_close_tokens_;
+  std::string tool_call_start_token_;
 };
 
 }  // namespace gem16gb

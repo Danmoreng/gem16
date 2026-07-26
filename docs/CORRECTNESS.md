@@ -182,6 +182,12 @@ system/developer, user, and assistant text roles; tool calls and multimodal cont
 template branches are implemented. A separate German/Unicode probe containing umlauts, `ß`, and an emoji also
 matches the Transformers tokenizer exactly across all 27 prompt IDs.
 
+The tokenizer metadata is independently pinned to Google's instruction-model revision
+`707f0a3b8a3c7ad586ed01e27eafbad8a27dd0f7`. Startup rejects the older Unsloth metadata where `eos_token` aliases
+`<turn|>`, validates every Google `response_template` close marker against the generation stop-token IDs, and
+uses the declared thinking/content delimiters when producing visible assistant text. Google's very large
+tokenizer `model_max_length` sentinel is parsed but deliberately excluded from the model context and memory plan.
+
 The patched same-source llama.cpp candidate supplies an independent comparison despite mapping FP8 attention
 weights to BF16. It matches 50/65 reference output tokens overall: exact-blue is 2/2, the sky answer matches vLLM's
 first 18 tokens before diverging, and the thinking trace matches 28/32. At the current first gem16gb sky

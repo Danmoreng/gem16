@@ -4,6 +4,7 @@
 
 #include "model/config.h"
 #include "model/manifest.h"
+#include "model/tokenizer_config.h"
 
 namespace gem16gb {
 
@@ -26,12 +27,17 @@ Result<ModelManifest> InspectCheckpoint(const InspectOptions& options) {
   }
   auto config = internal::LoadModelConfig(options.model_directory / "config.json");
   if (!config.ok()) return config.status();
+  auto tokenizer_config = internal::LoadTokenizerConfig(
+      options.model_directory / "tokenizer_config.json");
+  if (!tokenizer_config.ok()) return tokenizer_config.status();
   if (options.validate) {
     auto validation = internal::ValidatePrimaryModelContract(config.value());
+    if (!validation.ok()) return validation;
+    validation =
+        internal::ValidatePrimaryTokenizerConfig(tokenizer_config.value());
     if (!validation.ok()) return validation;
   }
   return internal::BuildManifest(options.model_directory, config.value(), options.validate);
 }
 
 }  // namespace gem16gb
-

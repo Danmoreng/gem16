@@ -31,6 +31,7 @@ add_library(gem16gb_core STATIC
   src/model/manifest.cpp
   src/model/safetensors.cpp
   src/model/tokenizer.cpp
+  src/model/tokenizer_config.cpp
   src/runtime/capabilities.cpp
   src/runtime/memory.cpp
   src/runtime/memory_plan.cpp

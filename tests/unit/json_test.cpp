@@ -22,4 +22,12 @@ void RunJsonTests() {
   GEM16GB_CHECK(!gem16gb::json::Parse("{} trailing").ok());
   GEM16GB_CHECK(!gem16gb::json::Parse(std::string{"\"\xC0\x80\"", 4}).ok());
   GEM16GB_CHECK(gem16gb::json::Escape("a\n\"b") == "a\\n\\\"b");
+
+  auto large_number = gem16gb::json::Parse("1000000000000000019884624838656");
+  GEM16GB_CHECK(large_number.ok());
+  if (large_number.ok()) {
+    GEM16GB_CHECK(large_number.value().is_number());
+    GEM16GB_CHECK(!large_number.value().is_integer());
+    GEM16GB_CHECK(large_number.value().as_number() > 1.0e29);
+  }
 }

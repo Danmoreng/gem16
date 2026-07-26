@@ -1,5 +1,31 @@
 # Decisions
 
+## 2026-07-26: Compose Unsloth weights with Google's current tokenizer metadata
+
+Date: 2026-07-26
+Decision: Keep every weight, quantization, vocabulary, generation, and chat-template artifact at the locked
+Unsloth revision, but source `tokenizer_config.json` from official Google Gemma 4 12B IT commit
+`707f0a3b8a3c7ad586ed01e27eafbad8a27dd0f7`. Represent this as a per-file immutable source in lock schema v2.
+Parse and validate Google's token roles and response template at engine startup, use its thinking/content
+delimiters for visible response extraction, and retain `generation_config.json` as the authoritative stop-ID list.
+Context: The Unsloth snapshot predates Google's response template and aliases `eos_token` to the turn-end token.
+Google now distinguishes `<eos>` from `<turn|>` and publishes structured response boundaries. Merely copying the
+new file into one local checkpoint would make provenance irreproducible, while merely locking it without reading
+it would leave engine behavior unchanged.
+Alternatives: Continue using Unsloth metadata; follow Google's `main`; silently overlay a bundled runtime file; or
+replace the complete checkpoint with Google's BF16 source. Those choices respectively retain stale semantics,
+lose reproducibility, hide the effective checkpoint composition, or discard the selected NVFP4/FP8 weights.
+Consequences: `tools/fetch_model.py` resolves file-specific sources and resumes only partial files whose URL, size,
+and digest identity matches. A downloaded checkpoint directory remains directly loadable and contains one
+canonical `tokenizer_config.json`. Google's approximately 1e30 tokenizer-length sentinel is accepted as generic
+JSON metadata but never replaces the 262,144-position model contract. Generated tool calls still fail visibly
+until the phase-one runtime deliberately supports them.
+Evidence: The official file is locked at 3,089 bytes with SHA-256
+`a62f4e85a47c0c136edaaa3a4f591fd6783717299a9def47e5ad03a49f6a5eb9`. Host C++ tests cover the large JSON number,
+Google schema validation, response extraction, and rejection of the old EOS alias. Python tests cover per-file
+source selection, safe replacement, and identity-bound resume. The fully materialized local snapshot passes lock
+verification, `gem16gb-inspect --validate`, and native chat render-only loading.
+
 ## 2026-07-26: Make interactive chat a resident exact-token session
 
 Date: 2026-07-26
