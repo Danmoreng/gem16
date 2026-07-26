@@ -225,6 +225,53 @@
       ]
     }
   },
+  "follow_up": {
+    "gem16gb_after_determinism_fix": {
+      "runtime_revision": "a669da6-worktree",
+      "change": "Fence shared online-decode reduction results before reuse",
+      "prompt_tokens_per_second": {
+        "median": 1892.3713948577984,
+        "confidence_interval_95": [
+          1886.5065311768124,
+          1894.1698489835915
+        ]
+      },
+      "time_to_first_token_ms": {
+        "median": 8657.92,
+        "confidence_interval_95": [
+          8649.676624428457,
+          8684.913375571543
+        ]
+      },
+      "decode_tokens_per_second": {
+        "median": 31.216188350270127,
+        "confidence_interval_95": [
+          31.05041458537703,
+          31.260513703452393
+        ]
+      },
+      "average_inter_token_latency_ms": {
+        "median": 32.034660633484165,
+        "confidence_interval_95": [
+          31.988460965027617,
+          32.20703224764206
+        ]
+      },
+      "generated_tokens": 1106,
+      "unique_output_hashes": 1,
+      "output_token_sha256": "44399253201aa729d72cf7a027b42ce2de9b1aa4ca98c1e9156435bb7e6628a8",
+      "deterministic_outputs": true,
+      "stop_reasons": [
+        "stop"
+      ],
+      "median_change_from_original_percent": {
+        "prompt_tokens_per_second": -0.2634632581818286,
+        "time_to_first_token_ms": 0.26415413353158,
+        "decode_tokens_per_second": -0.3433993456997908,
+        "average_inter_token_latency_ms": 0.34458198023212816
+      }
+    }
+  },
   "limitations": [
     "This is not an accepted parity benchmark.",
     "gem16gb was non-deterministic across nominally greedy runs.",

@@ -157,7 +157,9 @@ __device__ __forceinline__ float DecodeBlockMaximum(float value,
     if (lane == 0) warp_values[0] = value;
   }
   __syncthreads();
-  return warp_values[0];
+  const float block_value = warp_values[0];
+  __syncthreads();
+  return block_value;
 }
 
 __device__ __forceinline__ float DecodeBlockSum(float value,
@@ -177,7 +179,9 @@ __device__ __forceinline__ float DecodeBlockSum(float value,
     if (lane == 0) warp_values[0] = value;
   }
   __syncthreads();
-  return warp_values[0];
+  const float block_value = warp_values[0];
+  __syncthreads();
+  return block_value;
 }
 
 template <int kHeadDimensionValue, int kKvHeadsValue,

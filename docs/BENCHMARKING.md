@@ -85,7 +85,12 @@ At base commit `7d29580`, median prefill throughput is 1,897.37/4,328.03/2,160.8
 gem16gb/vLLM/llama.cpp; median decode is 31.324/33.971/28.843 tok/s. The representative outputs are plausible
 German summaries, but gem16gb produces ten distinct output hashes and lengths across ten nominally greedy runs,
 while vLLM and llama.cpp are stable. The result therefore remains a development characterization and records a
-determinism/correctness issue that must be closed before promotion.
+determinism/correctness issue. The underlying shared-memory reduction race was subsequently fixed, but the retained
+comparison is not rewritten. A same-workload gem16gb-only follow-up after the fix measures 1,892.37 tok/s prefill
+and 31.216 tok/s decode, changes of -0.26% and -0.34% from the original medians. All ten runs now generate the
+same 1,106-token output, share one hash, and stop normally. The decode-only barrier cannot explain the similarly
+sized prefill shift, so the sub-percent decode delta is conservatively treated as barrier cost plus run-to-run
+system drift rather than a precisely isolated kernel penalty.
 
 The previously cited 6,146.50 tok/s vLLM result is specifically the retained 512-token prefill point. The retained
 8,192-token point is 3,929.14 tok/s; the shared Wikipedia result above is the separate 16,384-token measurement.

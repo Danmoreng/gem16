@@ -33,6 +33,29 @@ runs produced ten different hashes and output lengths. vLLM and llama.cpp each p
 The gem16gb result is therefore a correctness/reproducibility finding and must be resolved before this workload can
 be promoted to an accepted baseline.
 
+The race was subsequently isolated to reuse of shared reduction storage in the long-context online decode
+attention and fixed after this characterization. The retained numbers and hashes above intentionally describe the
+original base commit.
+
+## Post-fix gem16gb rerun
+
+An engine-only rerun after adding the shared-result consumption barriers used the same workload, binary
+configuration, three warm-ups, and ten measured repetitions:
+
+| Metric | Original | Post-fix | Change |
+|---|---:|---:|---:|
+| Prefill | 1,897.37 tok/s | 1,892.37 tok/s | -0.26% |
+| TTFT | 8,635.11 ms | 8,657.92 ms | +0.26% |
+| Decode | 31.324 tok/s | 31.216 tok/s | -0.34% |
+| ITL | 31.925 ms | 32.035 ms | +0.34% |
+
+All ten post-fix runs generate exactly 1,106 tokens, stop normally, and share output hash
+`44399253201aa729d72cf7a027b42ce2de9b1aa4ca98c1e9156435bb7e6628a8`. The decoded output is a coherent,
+structured German summary covering the article's definitions, history, applications, opportunities, and risks.
+The observed performance change is sub-percent. Because the decode-only barrier cannot affect prefill and no
+continuous clock, power, or temperature telemetry was captured, this rerun supports a small cost but cannot
+separate roughly 0.3% barrier overhead from same-machine run-to-run drift.
+
 The older vLLM value of 6,146.50 tok/s is a 512-token prefill point. Its retained 8,192-token point is
 3,929.14 tok/s; neither number describes this 16K summarization workload.
 

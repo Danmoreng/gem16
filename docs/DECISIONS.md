@@ -1,5 +1,29 @@
 # Decisions
 
+## 2026-07-26: Fence shared online-decode reduction results before reuse
+
+Date: 2026-07-26
+Decision: In both online-decode block reductions, copy the final shared maximum or sum into a thread-local register,
+then execute a second block barrier before returning. Keep the selected split/merge algorithm, FP8 KV format,
+fixed graph geometry, and accumulation order unchanged. Add repeated local/global/16K operator output checks and a
+fresh-process 512+256 greedy determinism gate.
+Context: The shared 16K Wikipedia benchmark produced ten different nominally greedy gem16gb outputs while vLLM
+and llama.cpp were stable. A 512+256 prompt was stable, but a 16K+64 reproducer diverged as early as output step 22.
+Prefill logits were bit-identical and the controlled reference-attention path was deterministic, isolating the
+problem to online decode attention. Racecheck then reported Read/Write hazards in both Split and Merge.
+Alternatives: Accept numerically plausible greedy drift; disable CUDA Graphs; clear the partial workspace on every
+layer; or fall back to the score-matrix attention path. Drift violates the correctness contract, the direct
+controlled path reproduced the issue without graphs, workspace clearing did not help, and the reference path
+would discard the promoted long-context performance.
+Consequences: Two additional `__syncthreads()` operations protect each shared reduction result before the same
+array is reused. There is no allocation, format, kernel-grid, cache, or arithmetic-order change. The new tool can
+force full-length generation without EOS and exits non-zero when `--require-deterministic` observes multiple
+hashes.
+Evidence: Targeted Racecheck changes from reported Split/Merge hazards and corrupted instrumented output to zero
+hazards. Repeated operator outputs are bit-identical; the 16K global fixture retains maximum absolute error
+`1.04308e-7`, RMS `2.19933e-8`, and cosine 1.0. Five fresh-process 16K+64 production-graph runs share hash
+`0b373ccd...e43d52`; five 512+256 runs share `8cc1cc48...6fce2`. CTest and exact-blue `[9503,106]` pass.
+
 ## 2026-07-26: Group prefill GQA heads, widen FP8 M, and use 2K FP8 chunks
 
 Date: 2026-07-26

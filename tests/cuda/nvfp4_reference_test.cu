@@ -22,6 +22,7 @@
 #include <cstdint>
 #include <iostream>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace {
@@ -1967,6 +1968,32 @@ void TestOnlineFp8DecodeAttentionShape(
   }
   CheckAttentionMetrics(reference_output, online_output, label, 2.0e-3F,
                         3.0e-4, 0.99999);
+  std::vector<float> repeated_output(query.size());
+  for (int repetition = 0; repetition < 4; ++repetition) {
+    const auto repeated =
+        gem16gb::internal::LaunchOnlineAttentionDecodeFp8Sm120(
+            device_query.get(), device_keys.get(), device_values.get(),
+            device_key_scale.get(), device_value_scale.get(),
+            device_workspace.get(), device_online_output.get(),
+            device_control.get(), query_heads, kv_heads, head_dimension,
+            capacity, sliding, nullptr);
+    CUDA_TEST_CHECK(repeated.ok());
+    if (!repeated.ok() ||
+        !CudaOk(cudaDeviceSynchronize(),
+                "repeated online FP8 decode synchronize") ||
+        !CudaOk(cudaMemcpy(repeated_output.data(), device_online_output.get(),
+                           device_online_output.bytes(),
+                           cudaMemcpyDeviceToHost),
+                "copy repeated online-decode output")) {
+      return;
+    }
+    CUDA_TEST_CHECK(std::equal(
+        online_output.begin(), online_output.end(), repeated_output.begin(),
+        [](float left, float right) {
+          return std::bit_cast<std::uint32_t>(left) ==
+                 std::bit_cast<std::uint32_t>(right);
+        }));
+  }
 }
 
 void TestOnlineFp8DecodeAttention() {
@@ -1974,6 +2001,8 @@ void TestOnlineFp8DecodeAttention() {
                                     "online local FP8 decode");
   TestOnlineFp8DecodeAttentionShape(1, 512, 1536, 768, false,
                                     "online global FP8 decode");
+  TestOnlineFp8DecodeAttentionShape(1, 512, 16384, 16383, false,
+                                    "long online global FP8 decode");
 }
 
 void TestVectorizedFp8CausalPrefill() {
@@ -2359,11 +2388,20 @@ void TestOnlineGlobalFp8CausalPrefill() {
 
 }  // namespace
 
-int main() {
+int main(int argc, char** argv) {
   int device_count = 0;
   if (!CudaOk(cudaGetDeviceCount(&device_count), "cudaGetDeviceCount") || device_count == 0) {
     std::cerr << "CUDA test requires one device\n";
     return 1;
+  }
+  if (argc == 2 && std::string_view(argv[1]) == "online-decode") {
+    TestOnlineFp8DecodeAttention();
+    if (failures != 0) {
+      std::cerr << failures << " CUDA test assertion(s) failed\n";
+      return 1;
+    }
+    std::cout << "online decode CUDA tests passed\n";
+    return 0;
   }
   TestCudaIntrinsicConformanceAndProjection();
   TestVllmNvfp4QuantizationBoundary();

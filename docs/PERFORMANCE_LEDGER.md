@@ -18,9 +18,21 @@ closest-parity GGUF maps source FP8 attention weights to BF16.
 
 All representative outputs were plausible German summaries. vLLM generated the same 1,215-token output in all ten
 runs and llama.cpp the same 1,088-token output. gem16gb generated 1,021-1,254 tokens with ten distinct hashes.
-This nominally greedy non-determinism is an open correctness/reproducibility issue, so these results remain a
-development characterization. Full methodology and retained samples are in
+This nominally greedy non-determinism makes the retained result a development characterization. It was subsequently
+traced to a shared-memory race in the long-context online decode-attention reductions and fixed after the benchmark;
+the original samples remain unchanged as provenance. Full methodology and retained samples are in
 `benchmarks/baselines/wikipedia_summary_16k/`.
+
+The smaller correction gate uses 512 prompt tokens, 256 forced generation steps, and five fresh engine processes.
+It produces one hash before and after the fix because the race did not manifest at that history length. The
+minimized failing gate instead uses the same 16K prompt with only 64 generation steps: before the fix, three runs
+produce three hashes and diverge at output steps 22 and 59; afterward, five runs have one hash. Targeted CUDA
+Racecheck reports zero Split/Merge hazards after the added result-consumption barriers. This entry is correctness
+evidence. The subsequent engine-only full-workload rerun produces one 1,106-token hash across all ten measurements.
+Its median prefill/decode results are 1,892.37/31.216 tok/s versus 1,897.37/31.324 tok/s originally, or
+-0.26%/-0.34%. Median TTFT/ITL move from 8,635.11/31.925 ms to 8,657.92/32.035 ms. Because the new barriers execute
+only in decode while prefill shifts by a similar fraction, treat the decode difference as a sub-percent combined
+barrier and system-drift cost, not a fully isolated kernel delta.
 
 ## Native prefill and long-context decode characterization
 

@@ -98,6 +98,35 @@ BF16-engine versus auto-FP8-vLLM comparison placed token `563` at engine rank 2 
 this was a real distribution difference, but it was caused by comparing different K/V modes rather than an argmax
 tie or sampling randomness.
 
+### Greedy determinism gate
+
+`tools/check_greedy_determinism.py` launches a fresh `gem16gb-run` process for every repetition, requires an exact
+fixed prompt and generation length, hashes token IDs as little-endian `uint32`, and reports the first token index
+that differs from run zero. It can derive a short prompt from the pinned Wikipedia workload while preserving the
+chat-template suffix. The normal regression gate uses 512 prompt tokens, 256 generated tokens, checkpoint FP8 KV,
+and five fresh processes.
+
+The 16K Wikipedia characterization exposed a real race in the long-context online decode-attention reductions.
+Both `DecodeBlockMaximum` and `DecodeBlockSum` synchronized before every thread loaded the shared block result, but
+then allowed faster threads to reuse the same shared array while slower threads were still consuming that result.
+CUDA Racecheck reported hazards in both Split and Merge and produced visibly corrupted operator outputs under
+instrumentation. Each helper now copies the shared result to a register and executes a second block barrier before
+the array can be reused.
+
+After the fix, targeted Racecheck reports zero hazards. The local, global, and 16,384-position global operator
+fixtures are bit-identical across four repeated launches; the long global result remains within maximum absolute
+error `1.04308e-7`, RMS `2.19933e-8`, and cosine 1.0 of the score-matrix reference. Five fresh-process 16K+64
+production-graph runs all hash to
+`0b373ccd43b43fc40e2029fae386a1573ff0f891613ec444dd29af4954e43d52`; five 512+256 runs all hash to
+`8cc1cc480f6c1799467fb105efafe387c57f86ed2e1231af059f6355d376fce2`.
+
+The complete 16K Wikipedia workload was then repeated with three warm-ups and ten measured runs. Every run
+generates exactly 1,106 tokens, stops normally, and hashes to
+`44399253201aa729d72cf7a027b42ce2de9b1aa4ca98c1e9156435bb7e6628a8`. Decoding the representative output with
+the pinned tokenizer produces a coherent German summary of the article's definitions, history, applications,
+opportunities, and risks. This closes the workload-specific greedy-determinism issue; it does not replace the
+separate cross-runtime logit and quality gates.
+
 ### Direct prefill-boundary reference
 
 `tools/generate_prefill_boundary_golden.py` runs vLLM 0.25.1 offline on two deterministic direct-token prompts of
