@@ -2,6 +2,7 @@
 #include "cuda/fp8/reference.h"
 #include "cuda/fp8/sm120.h"
 #include "cuda/layer/reference.h"
+#include "cuda/nvfp4/cutlass_sm120.h"
 #include "cuda/nvfp4/reference.h"
 #include "cuda/nvfp4/gemv.h"
 #include "cuda/nvfp4/sm120.h"
@@ -524,6 +525,152 @@ float RoundBf16Reference(float value) {
   std::uint32_t bits = std::bit_cast<std::uint32_t>(value);
   bits += 0x7FFFU + ((bits >> 16U) & 1U);
   return std::bit_cast<float>(bits & 0xFFFF0000U);
+}
+
+void TestCutlassSm120Projection() {
+  constexpr std::size_t tokens = 2048;
+  constexpr std::size_t rows = 128;
+  constexpr std::size_t k_size = 3840;
+  constexpr float activation_divisor = 2.0F;
+  constexpr float weight_divisor = 4.0F;
+  constexpr std::size_t packed_elements = tokens * k_size / 2U;
+  constexpr std::size_t activation_scale_elements = tokens * k_size / 16U;
+  constexpr std::size_t packed_weight_elements = rows * k_size / 2U;
+  constexpr std::size_t weight_scale_elements = rows * k_size / 16U;
+  constexpr std::size_t workspace_bytes = 8U * 1024U * 1024U;
+
+  std::vector<std::uint8_t> activation(packed_elements);
+  std::vector<std::uint8_t> activation_scales(activation_scale_elements);
+  std::vector<std::uint8_t> weight(packed_weight_elements);
+  std::vector<std::uint8_t> weight_scales(weight_scale_elements);
+  for (std::size_t index = 0; index < activation.size(); ++index) {
+    activation[index] = static_cast<std::uint8_t>(
+        ((index * 5U + 3U) & 0x0FU) |
+        (((index * 11U + 7U) & 0x0FU) << 4U));
+  }
+  for (std::size_t index = 0; index < weight.size(); ++index) {
+    weight[index] = static_cast<std::uint8_t>(
+        ((index * 13U + 1U) & 0x0FU) |
+        (((index * 7U + 9U) & 0x0FU) << 4U));
+  }
+  for (std::size_t index = 0; index < activation_scales.size(); ++index) {
+    activation_scales[index] =
+        std::array<std::uint8_t, 3>{0x30U, 0x38U, 0x40U}[index % 3U];
+  }
+  for (std::size_t index = 0; index < weight_scales.size(); ++index) {
+    weight_scales[index] =
+        std::array<std::uint8_t, 3>{0x30U, 0x38U, 0x40U}[(index / 3U) % 3U];
+  }
+
+  const auto layout =
+      gem16gb::internal::PlanSm120Nvfp4SourceLayout(rows, k_size);
+  CUDA_TEST_CHECK(layout.ok());
+  if (!layout.ok()) return;
+  const auto tiled_weight =
+      gem16gb::internal::TileSm120Nvfp4Weights(layout.value(), weight);
+  const auto tiled_scales =
+      gem16gb::internal::TileSm120Nvfp4WeightScales(layout.value(),
+                                                    weight_scales);
+  CUDA_TEST_CHECK(tiled_weight.ok());
+  CUDA_TEST_CHECK(tiled_scales.ok());
+  if (!tiled_weight.ok() || !tiled_scales.ok()) return;
+
+  DeviceBuffer<std::uint8_t> device_activation(activation.size());
+  DeviceBuffer<std::uint8_t> device_activation_scales(
+      activation_scales.size());
+  DeviceBuffer<std::uint8_t> device_interleaved_activation_scales(
+      activation_scales.size());
+  DeviceBuffer<std::uint8_t> device_weight(weight.size());
+  DeviceBuffer<std::uint8_t> device_weight_scales(weight_scales.size());
+  DeviceBuffer<std::uint8_t> device_weight_scratch(weight.size());
+  DeviceBuffer<std::uint8_t> device_weight_scale_scratch(
+      weight_scales.size());
+  DeviceBuffer<std::uint8_t> device_workspace(workspace_bytes);
+  DeviceBuffer<std::uint16_t> device_reference(tokens * rows);
+  DeviceBuffer<std::uint16_t> device_cutlass(tokens * rows);
+  if (device_activation.get() == nullptr ||
+      device_activation_scales.get() == nullptr ||
+      device_interleaved_activation_scales.get() == nullptr ||
+      device_weight.get() == nullptr ||
+      device_weight_scales.get() == nullptr ||
+      device_weight_scratch.get() == nullptr ||
+      device_weight_scale_scratch.get() == nullptr ||
+      device_workspace.get() == nullptr || device_reference.get() == nullptr ||
+      device_cutlass.get() == nullptr) {
+    return;
+  }
+  if (!CudaOk(cudaMemcpy(device_activation.get(), activation.data(),
+                         device_activation.bytes(), cudaMemcpyHostToDevice),
+              "copy CUTLASS test activation") ||
+      !CudaOk(cudaMemcpy(device_activation_scales.get(),
+                         activation_scales.data(),
+                         device_activation_scales.bytes(),
+                         cudaMemcpyHostToDevice),
+              "copy CUTLASS test activation scales") ||
+      !CudaOk(cudaMemcpy(device_weight.get(), tiled_weight.value().data(),
+                         device_weight.bytes(), cudaMemcpyHostToDevice),
+              "copy CUTLASS test weight") ||
+      !CudaOk(cudaMemcpy(device_weight_scales.get(),
+                         tiled_scales.value().data(),
+                         device_weight_scales.bytes(),
+                         cudaMemcpyHostToDevice),
+              "copy CUTLASS test weight scales")) {
+    return;
+  }
+
+  const auto reference_status =
+      gem16gb::internal::LaunchNvfp4Sm120DirectProjectionBf16Batch(
+          device_activation.get(), device_activation_scales.get(),
+          device_weight.get(), device_weight_scales.get(),
+          device_reference.get(), tokens, rows, k_size, activation_divisor,
+          weight_divisor, nullptr);
+  const auto interleave_status =
+      gem16gb::internal::LaunchNvfp4CutlassInterleaveActivationScales(
+          device_activation_scales.get(),
+          device_interleaved_activation_scales.get(), tokens, k_size, nullptr);
+  const auto cutlass_status =
+      gem16gb::internal::LaunchNvfp4CutlassProjectionBf16Batch(
+          device_activation.get(),
+          device_interleaved_activation_scales.get(), device_weight.get(),
+          device_weight_scales.get(), device_weight_scratch.get(),
+          device_weight_scale_scratch.get(), device_workspace.get(),
+          workspace_bytes, device_cutlass.get(), tokens, rows, k_size,
+          activation_divisor, weight_divisor, nullptr);
+  CUDA_TEST_CHECK(reference_status.ok());
+  CUDA_TEST_CHECK(interleave_status.ok());
+  CUDA_TEST_CHECK(cutlass_status.ok());
+  if (!reference_status.ok() || !interleave_status.ok() ||
+      !cutlass_status.ok() ||
+      !CudaOk(cudaDeviceSynchronize(), "CUTLASS projection synchronize")) {
+    return;
+  }
+
+  std::vector<std::uint16_t> reference_bits(tokens * rows);
+  std::vector<std::uint16_t> cutlass_bits(tokens * rows);
+  if (!CudaOk(cudaMemcpy(reference_bits.data(), device_reference.get(),
+                         device_reference.bytes(), cudaMemcpyDeviceToHost),
+              "copy CUTLASS reference output") ||
+      !CudaOk(cudaMemcpy(cutlass_bits.data(), device_cutlass.get(),
+                         device_cutlass.bytes(), cudaMemcpyDeviceToHost),
+              "copy CUTLASS output")) {
+    return;
+  }
+  std::vector<float> reference(reference_bits.size());
+  std::vector<float> cutlass(cutlass_bits.size());
+  std::size_t exact_mismatches = 0U;
+  for (std::size_t index = 0; index < reference.size(); ++index) {
+    reference[index] =
+        std::bit_cast<float>(static_cast<std::uint32_t>(reference_bits[index])
+                             << 16U);
+    cutlass[index] =
+        std::bit_cast<float>(static_cast<std::uint32_t>(cutlass_bits[index])
+                             << 16U);
+    exact_mismatches += reference_bits[index] != cutlass_bits[index] ? 1U : 0U;
+  }
+  std::cout << "CUTLASS NVFP4 exact BF16 mismatches: " << exact_mismatches
+            << '/' << reference.size() << '\n';
+  CheckAttentionMetrics(reference, cutlass, "CUTLASS NVFP4 projection",
+                        0.125F, 0.02, 0.9999);
 }
 
 void TestMlpElementwiseBridge() {
@@ -2406,6 +2553,7 @@ int main(int argc, char** argv) {
   TestCudaIntrinsicConformanceAndProjection();
   TestVllmNvfp4QuantizationBoundary();
   TestDirectSourceSm120Projection();
+  TestCutlassSm120Projection();
   TestMlpElementwiseBridge();
   TestFp8ReferenceAndDirectProjection();
   TestLocalLayerReferenceOperators();

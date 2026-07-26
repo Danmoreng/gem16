@@ -1,5 +1,34 @@
 # Decisions
 
+## 2026-07-26: Use CUTLASS SM120 block-scaled GEMM for Gate/Up prefill
+
+Date: 2026-07-26
+Decision: Run the large Gate and Up prompt projections through the pinned CUTLASS 4.5.2 SM120
+128x128x128 block-scaled persistent GEMM with BF16 output. Interleave activation scales once per layer and
+transform one active projection at a time from the sole persistent Row8/K64 allocation into preallocated prompt
+scratch. Reuse that scratch for Up immediately after Gate. Retain the native Row8/K64 path for Down and all
+token-at-a-time decode.
+Context: After grouped online attention, 2K chunks, and M128 FP8 projections, projections accounted for 65% of
+the 8K prefill profile. Isolated CUTLASS runs at the real Gate/Up and Down geometries showed substantially more
+headroom than further raster-order or L2-persistence changes to the native CTA. The persistent Row8/K64 layout is
+still the measured decode winner, so replacing it globally would trade away a higher-priority path.
+Alternatives: Retain the native prefill CTA; keep a second persistent CUTLASS weight layout; transform every
+projection including Down; or restore row-major weights globally. The first leaves confirmed prompt throughput
+unused, the second violates the single-copy memory contract, Down did not yet have an end-to-end promotion result,
+and the fourth regresses the qualified decode layout.
+Consequences: Gate and Up each pay an in-timing device layout conversion but use a TMA/warp-specialized
+block-scaled Tensor-Core GEMM afterward. One 29,491,200-byte weight scratch, 3,686,400-byte weight-scale scratch,
+padded activation scales, and an 8 MiB CUTLASS workspace increase the 8K reusable workspace from 630,276,096 to
+672,333,824 bytes. The 9,200,135,680-byte persistent weight arena, KV cache, decode implementation, checkpoint
+bytes, and `persistent_repack_bytes=0` remain unchanged. Runtime JSON records the distinct Gate/Up and Down plans.
+Evidence: Under 3 warm-ups and 10 measured runs, 8K median prefill improves from 2,135.93 to 2,584.77 tok/s
+(+21.0%) and TTFT from 3,835.33 to 3,169.34 ms (-17.4%); 2K improves from approximately 2,428 to 2,984.77 tok/s
+(+22.9%). A real-geometry 2,048x128x3,840 CUDA fixture has zero differing BF16 outputs against the native kernel.
+CTest, exact-blue `[9503,106]`, vLLM boundary Top-1 at 129/257, and teacher-forced 118/127 Top-1,
+126/127 Top-5, and 127/127 Top-20 pass unchanged. Five 8K decode runs remain internally deterministic and median
+decode throughput changes by -0.63% in a short regression run, consistent with an untouched decode path and
+measurement noise.
+
 ## 2026-07-26: Fence shared online-decode reduction results before reuse
 
 Date: 2026-07-26

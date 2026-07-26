@@ -16,6 +16,8 @@ option(GEM16GB_ENABLE_CUDA "Build the CUDA capability path" OFF)
 option(GEM16GB_BUILD_TESTS "Build host tests" ON)
 option(GEM16GB_ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
 option(GEM16GB_WARNINGS_AS_ERRORS "Treat project warnings as errors" ON)
+set(GEM16GB_CUTLASS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/cutlass" CACHE PATH
+    "Path to the pinned CUTLASS source tree")
 
 include(CompilerWarnings)
 include(Sanitizers)
@@ -79,6 +81,15 @@ if(GEM16GB_ENABLE_CUDA)
     src/cuda/nvfp4/mlp_checkpoint_probe.cu
     src/cuda/nvfp4/reference.cu
     src/cuda/nvfp4/sm120.cu
+    src/cuda/nvfp4/cutlass_sm120.cu
+  )
+  if(NOT EXISTS "${GEM16GB_CUTLASS_DIR}/include/cutlass/cutlass.h")
+    message(FATAL_ERROR
+      "SM120 CUDA builds require CUTLASS headers at GEM16GB_CUTLASS_DIR=${GEM16GB_CUTLASS_DIR}")
+  endif()
+  target_include_directories(gem16gb_core SYSTEM PRIVATE
+    "${GEM16GB_CUTLASS_DIR}/include"
+    "${GEM16GB_CUTLASS_DIR}/tools/util/include"
   )
   if(MSVC)
     # CUDA 13.3's cuda_fp4.hpp and nvcc's generated registration stub trigger these host warnings.

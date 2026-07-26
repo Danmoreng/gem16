@@ -23,8 +23,9 @@ approximately 16 GB of VRAM. The first model is the mixed FP8/NVFP4
   their final arena allocation. A complete real-checkpoint Layer-0 characterization composes FP8 local attention
   and the NVFP4 MLP without a host roundtrip or persistent second copy.
 - Direct-source packed-NVFP4 SIMT/GEMV and combined Gate/Up projection alternatives remain available only in
-  characterization probes. Production keeps the two native MMA projections separate, then fuses their exact BF16,
-  GELU-tanh, and NVFP4-activation boundary into one prefill kernel. Decode retains its separately qualified plan.
+  characterization probes. Production prefill runs separate Gate and Up CUTLASS SM120 block-scaled Tensor-Core
+  projections, then fuses their exact BF16, GELU-tanh, and NVFP4-activation boundary. Down and decode retain their
+  separately qualified native Row8/K64 plans.
 - Prefill rounds Q/K projection values, performs per-head RMSNorm, applies local or proportional RoPE, and rounds
   the result in one exact kernel. Local/global cosine and sine tables are generated once for the planned context at
   engine initialization and reused by every layer; there is no runtime selector or per-layer trigonometry.
@@ -53,6 +54,7 @@ never fall back to a higher precision path.
 CMake 3.28+, Ninja, and a C++20 compiler are required.
 
 ```bash
+git submodule update --init --recursive
 ./scripts/build.sh --host --test
 ```
 
@@ -63,9 +65,9 @@ For the CUDA capability probe with the pinned local toolkit:
 build/Linux/blackwell-release/bin/gem16gb-run --print-kernel-capabilities
 ```
 
-The CUDA build targets only `120a`. Its experimental projection disassembles to
-`OMMA.SF.16864.F32.E2M1.E2M1.UE4M3.4X`, but the capability report deliberately remains
-`native_nvfp4_kernels=false` until real-shape, layer, logit, and benchmark gates pass.
+The CUDA build targets only `120a` and requires the pinned CUTLASS submodule. Its native projection disassembles
+to `OMMA.SF.16864.F32.E2M1.E2M1.UE4M3.4X`, but the capability report deliberately remains
+`native_nvfp4_kernels=false` until all benchmark-qualification gates pass.
 
 ## Greedy inference characterization
 
@@ -83,9 +85,10 @@ build/Linux/blackwell-release/bin/gem16gb-run \
 
 The checkpoint-declared FP8 K/V semantics are the default. Use `--kv-cache bf16` only for the explicitly labeled
 BF16 correctness comparison. The production path is fixed to native SM120 projection, chunked prefill, fused causal
-prefill attention, fused exact prefill normalization/quantization boundaries, separate Gate/Up projections with a
-fused GELU-tanh/NVFP4 epilogue, fused Q/K RMSNorm/RoPE with persistent exact tables, complete decode graphs, and
-fused output-head reduction. Checkpoint-FP8 decode plans up to 512 positions retain the score/softmax/value path;
+prefill attention, fused exact prefill normalization/quantization boundaries, separate CUTLASS Gate/Up projections
+with a fused GELU-tanh/NVFP4 epilogue, native Down, fused Q/K RMSNorm/RoPE with persistent exact tables, complete
+decode graphs, and fused output-head reduction. Checkpoint-FP8 decode plans up to 512 positions retain the
+score/softmax/value path;
 larger plans use shape-specific GQA grouping, 256-token local and 512-token global splits, FP32 partial softmax
 state, and a graph-captured LSE merge without a global score matrix. Slower
 alternatives are not exposed by the product CLIs; reference implementations remain in operator probes and tests.
@@ -261,13 +264,15 @@ Prompt ingestion uses one native 2,048-token chunk plan for checkpoint-FP8 execu
 use 256-thread M128xN64xK64 CTAs: two shared-memory stages copy exact source-layout activation and weight bytes with
 `cp.async`, while each weight fragment serves eight 16-token MMA tiles. Local Q/K/V and global Q/K are grouped into
 one launch; O uses the same tiled kernel after attention. Decode likewise groups the existing T=1 direct-source
-Q/K/V CTAs into one binding-dimension launch per layer. NVFP4 MLP projection warps retain each tiled weight and
-scale fragment across eight tiles, or 128 prompt rows. Eight NVFP4 warps form an M128xN64 CTA and stage
-the exact packed activation bytes and E4M3 scale words once for CTA-wide reuse. Two shared-memory stages use
-`cp.async` to overlap the next K64 slice with current native MMA work. Weight scales use the sole
+Q/K/V CTAs into one binding-dimension launch per layer. Gate and Up use CUTLASS SM120 128x128x128
+warp-specialized block-scaled GEMMs. Their compact activation scales are interleaved once per layer, while one
+projection at a time is transformed from the persistent Row8/K64 layout into preallocated row-major weight and
+CUTLASS scale scratch. Down retains the native M128xN64xK64 CTA and its two-stage `cp.async` pipeline. Weight
+scales use the sole persistent
 `[row8][K64][row][4 scales]` runtime layout. Packed weights likewise use
 `[row8][K64][row][32 packed bytes]`. Both are created byte-exactly in the final GPU allocation during model load,
-with no persistent source-layout device copy. Shape-specific
+with no persistent source-layout device copy; the temporary Gate/Up transform is included in prefill timing and
+reused immediately. Shape-specific
 local D256 and global D512 attention kernels perform QK and PV on
 Tensor Cores while retaining FP32 online-softmax state, reading older K/V from the hybrid cache, and avoiding a
 global score matrix. Local CTAs share K/V across two query heads; global CTAs share it across four. For 2K chunks,

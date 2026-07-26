@@ -6,6 +6,7 @@
 #include "cuda/layer/reference.h"
 #include "cuda/nvfp4/mlp.h"
 #include "cuda/nvfp4/reference.h"
+#include "cuda/nvfp4/cutlass_sm120.h"
 #include "cuda/nvfp4/sm120.h"
 #include "cuda/nvfp4/sm120_layout.h"
 #include "gem16gb/model.h"
@@ -664,6 +665,9 @@ struct PrefillOffsets {
   std::uint64_t o_activation = 0, o_scales = 0, projection = 0, post_norm = 0;
   std::uint64_t mlp_packed = 0, mlp_scales = 0, gate = 0, up = 0;
   std::uint64_t down_packed = 0, down_scales = 0;
+  std::uint64_t cutlass_activation_scales = 0;
+  std::uint64_t cutlass_weight = 0, cutlass_weight_scales = 0;
+  std::uint64_t cutlass_workspace = 0;
   std::uint64_t local_rope_cosine = 0, local_rope_sine = 0;
   std::uint64_t global_rope_cosine = 0, global_rope_sine = 0;
 };
@@ -975,16 +979,6 @@ Status LaunchNvfp4ProjectionBatch(
   return internal::LaunchNvfp4Sm120DirectProjectionBatch(
       activation, scales, binding.packed_weight, binding.scales, output, tokens,
       binding.rows, binding.contracting, binding.input_divisor,
-      binding.weight_divisor, stream);
-}
-
-Status LaunchNvfp4ProjectionBf16Batch(
-    const std::uint8_t* activation, const std::uint8_t* scales,
-    const Nvfp4Binding& binding, std::uint16_t* output_bf16,
-    std::uint64_t tokens, cudaStream_t stream) {
-  return internal::LaunchNvfp4Sm120DirectProjectionBf16Batch(
-      activation, scales, binding.packed_weight, binding.scales, output_bf16,
-      tokens, binding.rows, binding.contracting, binding.input_divisor,
       binding.weight_divisor, stream);
 }
 
@@ -1403,6 +1397,19 @@ class InferenceEngine {
     GEM16GB_PREFILL_ADD(up, std::uint16_t, tokens * kIntermediate);
     GEM16GB_PREFILL_ADD(down_packed, std::uint8_t, tokens * kIntermediate / 2U);
     GEM16GB_PREFILL_ADD(down_scales, std::uint8_t, tokens * kIntermediate / 16U);
+    constexpr std::uint64_t kCutlassScaleRows = 128U;
+    constexpr std::uint64_t kCutlassWorkspaceBytes = 8U * 1024U * 1024U;
+    const std::uint64_t cutlass_tokens =
+        ((tokens + kCutlassScaleRows - 1U) / kCutlassScaleRows) *
+        kCutlassScaleRows;
+    GEM16GB_PREFILL_ADD(cutlass_activation_scales, std::uint8_t,
+                        cutlass_tokens * kHidden / 16U);
+    GEM16GB_PREFILL_ADD(cutlass_weight, std::uint8_t,
+                        kIntermediate * kHidden / 2U);
+    GEM16GB_PREFILL_ADD(cutlass_weight_scales, std::uint8_t,
+                        kIntermediate * kHidden / 16U);
+    GEM16GB_PREFILL_ADD(cutlass_workspace, std::uint8_t,
+                        kCutlassWorkspaceBytes);
     GEM16GB_PREFILL_ADD(local_rope_cosine, float, max_context_ * 128U);
     GEM16GB_PREFILL_ADD(local_rope_sine, float, max_context_ * 128U);
     GEM16GB_PREFILL_ADD(global_rope_cosine, float, max_context_ * 64U);
@@ -1539,11 +1546,31 @@ class InferenceEngine {
         hidden_b, layer.pre_mlp_norm, mlp_packed, mlp_scales, tokens, kHidden,
         kEpsilon, layer.gate.input_divisor, stream_);
     if (!status.ok()) return status;
-    status = LaunchNvfp4ProjectionBf16Batch(
-        mlp_packed, mlp_scales, layer.gate, gate, tokens, stream_);
+    auto* cutlass_activation_scales = Pointer<std::uint8_t>(
+        prefill_workspace_, prefill_offsets_.cutlass_activation_scales);
+    auto* cutlass_weight = Pointer<std::uint8_t>(
+        prefill_workspace_, prefill_offsets_.cutlass_weight);
+    auto* cutlass_weight_scales = Pointer<std::uint8_t>(
+        prefill_workspace_, prefill_offsets_.cutlass_weight_scales);
+    auto* cutlass_workspace = Pointer<std::uint8_t>(
+        prefill_workspace_, prefill_offsets_.cutlass_workspace);
+    constexpr std::size_t kCutlassWorkspaceBytes = 8U * 1024U * 1024U;
+    status = internal::LaunchNvfp4CutlassInterleaveActivationScales(
+        mlp_scales, cutlass_activation_scales, tokens, kHidden, stream_);
     if (!status.ok()) return status;
-    status = LaunchNvfp4ProjectionBf16Batch(
-        mlp_packed, mlp_scales, layer.up, up, tokens, stream_);
+    status = internal::LaunchNvfp4CutlassProjectionBf16Batch(
+        mlp_packed, cutlass_activation_scales, layer.gate.packed_weight,
+        layer.gate.scales, cutlass_weight, cutlass_weight_scales,
+        cutlass_workspace, kCutlassWorkspaceBytes, gate, tokens,
+        layer.gate.rows, layer.gate.contracting, layer.gate.input_divisor,
+        layer.gate.weight_divisor, stream_);
+    if (!status.ok()) return status;
+    status = internal::LaunchNvfp4CutlassProjectionBf16Batch(
+        mlp_packed, cutlass_activation_scales, layer.up.packed_weight,
+        layer.up.scales, cutlass_weight, cutlass_weight_scales,
+        cutlass_workspace, kCutlassWorkspaceBytes, up, tokens, layer.up.rows,
+        layer.up.contracting, layer.up.input_divisor, layer.up.weight_divisor,
+        stream_);
     if (!status.ok()) return status;
     auto* down_packed = Pointer<std::uint8_t>(prefill_workspace_, prefill_offsets_.down_packed);
     auto* down_scales = Pointer<std::uint8_t>(prefill_workspace_, prefill_offsets_.down_scales);
@@ -2806,6 +2833,9 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
          << "  \"fused_gate_up\": false,\n"
          << "  \"fused_prefill_attention\": true,\n"
          << "  \"fp8_prefill_tile\": \"m128n64k64\",\n"
+         << "  \"nvfp4_gate_up_prefill_tile\": \"cutlass_m128n128k128\",\n"
+         << "  \"nvfp4_gate_up_prefill_weight_scratch\": true,\n"
+         << "  \"nvfp4_down_prefill_tile\": \"native_m128n64k64\",\n"
          << "  \"fp8_prefill_pipeline_stages\": 2,\n"
          << "  \"local_prefill_query_heads_per_cta\": 2,\n"
          << "  \"global_prefill_query_heads_per_cta\": 4,\n"
@@ -2891,6 +2921,9 @@ Status WriteDecodeBenchmarkJson(const DecodeBenchmarkResult& result,
          << "\",\"fused_gate_up\":false"
          << ",\"fused_prefill_attention\":true"
          << ",\"fp8_prefill_tile\":\"m128n64k64\""
+         << ",\"nvfp4_gate_up_prefill_tile\":\"cutlass_m128n128k128\""
+         << ",\"nvfp4_gate_up_prefill_weight_scratch\":true"
+         << ",\"nvfp4_down_prefill_tile\":\"native_m128n64k64\""
          << ",\"fp8_prefill_pipeline_stages\":2"
          << ",\"local_prefill_query_heads_per_cta\":2"
          << ",\"global_prefill_query_heads_per_cta\":4"
@@ -2978,6 +3011,9 @@ Status WritePrefillBenchmarkJson(const DecodeBenchmarkResult& result,
          << ",\"prefill_path\":\"native_chunked_sm120\""
          << ",\"fused_prefill_attention\":true"
          << ",\"fp8_prefill_tile\":\"m128n64k64\""
+         << ",\"nvfp4_gate_up_prefill_tile\":\"cutlass_m128n128k128\""
+         << ",\"nvfp4_gate_up_prefill_weight_scratch\":true"
+         << ",\"nvfp4_down_prefill_tile\":\"native_m128n64k64\""
          << ",\"fp8_prefill_pipeline_stages\":2"
          << ",\"local_prefill_query_heads_per_cta\":2"
          << ",\"global_prefill_query_heads_per_cta\":4"
