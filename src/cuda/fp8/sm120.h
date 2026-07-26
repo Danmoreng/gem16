@@ -21,6 +21,27 @@ namespace gem16gb::internal {
     std::uint64_t contracting_elements,
     cudaStream_t stream);
 
+// Batch-one grouped Q/K/V projection. One CUDA launch contains the independent
+// direct-source projection CTAs, reducing decode-graph node count without
+// changing MMA ordering or projection outputs.
+[[nodiscard]] Status LaunchFp8Sm120GroupedQkvProjection(
+    const std::uint8_t* activation_e4m3fn,
+    const float* activation_scale,
+    const std::uint8_t* q_weight_e4m3fn,
+    const std::uint16_t* q_weight_scales_bf16,
+    float* q_output,
+    std::uint64_t q_rows,
+    const std::uint8_t* k_weight_e4m3fn,
+    const std::uint16_t* k_weight_scales_bf16,
+    float* k_output,
+    std::uint64_t k_rows,
+    const std::uint8_t* v_weight_e4m3fn,
+    const std::uint16_t* v_weight_scales_bf16,
+    float* v_output,
+    std::uint64_t v_rows,
+    std::uint64_t contracting_elements,
+    cudaStream_t stream);
+
 [[nodiscard]] Status LaunchFp8Sm120DirectProjectionBatch(
     const std::uint8_t* activation_e4m3fn,
     const float* activation_scales,

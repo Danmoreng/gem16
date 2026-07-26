@@ -260,7 +260,8 @@ outside version control.
 Prompt ingestion uses one native 1,024-token chunk plan for checkpoint-FP8 execution. FP8 attention projections
 use 256-thread M64xN64xK64 CTAs: two shared-memory stages copy exact source-layout activation and weight bytes with
 `cp.async`, while each weight fragment serves four 16-token MMA tiles. Local Q/K/V and global Q/K are grouped into
-one launch; O uses the same tiled kernel after attention. NVFP4 MLP projection warps retain each source weight and
+one launch; O uses the same tiled kernel after attention. Decode likewise groups the existing T=1 direct-source
+Q/K/V CTAs into one binding-dimension launch per layer. NVFP4 MLP projection warps retain each source weight and
 scale fragment across eight tiles, or 128 prompt rows. Eight NVFP4 warps form an M128xN64 CTA and stage
 the exact packed activation bytes and E4M3 scale words once for CTA-wide reuse. Two shared-memory stages use
 `cp.async` to overlap the next K64 slice with current native MMA work. Weight scales use the sole

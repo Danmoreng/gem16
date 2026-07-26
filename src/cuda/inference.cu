@@ -826,6 +826,28 @@ Status LaunchFp8Projection(const std::uint8_t* activation, const float* scale,
       binding.contracting, stream);
 }
 
+Status LaunchFp8QkvProjection(
+    const std::uint8_t* activation, const float* scale,
+    const Fp8Binding& q_binding, float* q_output,
+    const Fp8Binding& k_binding, float* k_output,
+    const Fp8Binding* v_binding, float* v_output, cudaStream_t stream) {
+  if (q_binding.contracting != k_binding.contracting ||
+      (v_binding != nullptr &&
+       q_binding.contracting != v_binding->contracting)) {
+    return Status(StatusCode::kInvalidArgument,
+                  "grouped decode FP8 Q/K/V projections require one "
+                  "contracting dimension");
+  }
+  return internal::LaunchFp8Sm120GroupedQkvProjection(
+      activation, scale, q_binding.weight, q_binding.scales, q_output,
+      q_binding.rows, k_binding.weight, k_binding.scales, k_output,
+      k_binding.rows, v_binding == nullptr ? nullptr : v_binding->weight,
+      v_binding == nullptr ? nullptr : v_binding->scales,
+      v_binding == nullptr ? nullptr : v_output,
+      v_binding == nullptr ? 0U : v_binding->rows, q_binding.contracting,
+      stream);
+}
+
 Status LaunchNvfp4Projection(const std::uint8_t* activation, const std::uint8_t* scales,
                              const Nvfp4Binding& binding, float* output,
                              cudaStream_t stream) {
@@ -1648,9 +1670,9 @@ class InferenceEngine {
     status = internal::LaunchFp8ReferenceTokenQuantization(
         normalized, fp8_activation, fp8_scale, kHidden, stream_);
     if (!status.ok()) return status;
-    status = LaunchFp8Projection(fp8_activation, fp8_scale, layer.q, q, stream_);
-    if (!status.ok()) return status;
-    status = LaunchFp8Projection(fp8_activation, fp8_scale, layer.k, k, stream_);
+    status = LaunchFp8QkvProjection(
+        fp8_activation, fp8_scale, layer.q, q, layer.k, k,
+        layer.global ? nullptr : &layer.v, v, stream_);
     if (!status.ok()) return status;
     if (layer.global) {
       const cudaError_t error = cudaMemcpyAsync(
@@ -1659,9 +1681,6 @@ class InferenceEngine {
       if (error != cudaSuccess) {
         return CudaFailure("reuse global K projection for V", error);
       }
-    } else {
-      status = LaunchFp8Projection(fp8_activation, fp8_scale, layer.v, v, stream_);
-      if (!status.ok()) return status;
     }
     for (const Status next : {
              LaunchRoundBf16(q, layer.query_elements, stream_),
@@ -2697,6 +2716,7 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
          << "  \"fp8_prefill_tile\": \"m64n64k64\",\n"
          << "  \"fp8_prefill_pipeline_stages\": 2,\n"
          << "  \"grouped_qkv_prefill\": true,\n"
+         << "  \"grouped_qkv_decode\": true,\n"
          << "  \"fused_rmsnorm_boundaries\": true,\n"
          << "  \"fused_prefill_rmsnorm_fp8_quantization\": true,\n"
          << "  \"fused_prefill_rmsnorm_nvfp4_quantization\": true,\n"
@@ -2779,6 +2799,7 @@ Status WriteDecodeBenchmarkJson(const DecodeBenchmarkResult& result,
          << ",\"fp8_prefill_tile\":\"m64n64k64\""
          << ",\"fp8_prefill_pipeline_stages\":2"
          << ",\"grouped_qkv_prefill\":true"
+         << ",\"grouped_qkv_decode\":true"
          << ",\"fused_rmsnorm_boundaries\":true"
          << ",\"fused_prefill_rmsnorm_fp8_quantization\":true"
          << ",\"fused_prefill_rmsnorm_nvfp4_quantization\":true"
@@ -2861,6 +2882,7 @@ Status WritePrefillBenchmarkJson(const DecodeBenchmarkResult& result,
          << ",\"fp8_prefill_tile\":\"m64n64k64\""
          << ",\"fp8_prefill_pipeline_stages\":2"
          << ",\"grouped_qkv_prefill\":true"
+         << ",\"grouped_qkv_decode\":true"
          << ",\"fused_rmsnorm_boundaries\":true"
          << ",\"fused_prefill_rmsnorm_fp8_quantization\":true"
          << ",\"fused_prefill_rmsnorm_nvfp4_quantization\":true"

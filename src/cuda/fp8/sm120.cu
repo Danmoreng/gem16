@@ -159,13 +159,20 @@ __device__ __forceinline__ void StageFp8OperandsAsync(
 
 __global__ void Sm120DirectProjectionKernel(const std::uint8_t* activation,
                                             const float* activation_scale,
-                                            const std::uint8_t* weight,
-                                            const std::uint16_t* weight_scales,
-                                            float* output,
+                                            Fp8MatrixBinding first,
+                                            Fp8MatrixBinding second,
+                                            Fp8MatrixBinding third,
+                                            unsigned binding_count,
                                             std::uint64_t tokens,
-                                            std::uint64_t rows,
                                             std::uint64_t contracting_elements) {
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 890
+  if (blockIdx.z >= binding_count) return;
+  const Fp8MatrixBinding binding =
+      blockIdx.z == 0U ? first : (blockIdx.z == 1U ? second : third);
+  const std::uint8_t* weight = binding.weight;
+  const std::uint16_t* weight_scales = binding.weight_scales;
+  float* output = binding.output;
+  const std::uint64_t rows = binding.rows;
   const std::uint64_t token = blockIdx.y;
   if (token >= tokens) return;
   activation += token * contracting_elements;
@@ -235,11 +242,11 @@ __global__ void Sm120DirectProjectionKernel(const std::uint8_t* activation,
 #else
   (void)activation;
   (void)activation_scale;
-  (void)weight;
-  (void)weight_scales;
-  (void)output;
+  (void)first;
+  (void)second;
+  (void)third;
+  (void)binding_count;
   (void)tokens;
-  (void)rows;
   (void)contracting_elements;
 #endif
 }
@@ -402,14 +409,78 @@ Status LaunchFp8Sm120DirectProjection(const std::uint8_t* activation_e4m3fn,
   if (blocks > static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
     return Invalid("SM120 FP8 direct projection grid exceeds CUDA limits");
   }
+  const Fp8MatrixBinding binding{weight_e4m3fn, weight_scales_bf16, output,
+                                 rows};
+  const Fp8MatrixBinding empty{};
   Sm120DirectProjectionKernel<<<dim3(static_cast<unsigned>(blocks), 1U),
                                 kThreadsPerBlock, 0, stream>>>(
-      activation_e4m3fn, activation_scale, weight_e4m3fn, weight_scales_bf16, output, 1U,
-      rows, contracting_elements);
+      activation_e4m3fn, activation_scale, binding, empty, empty, 1U, 1U,
+      contracting_elements);
   const cudaError_t error = cudaGetLastError();
   return error == cudaSuccess
              ? Status::Ok()
              : CudaFailure("launch direct-source SM120 FP8 projection", error);
+}
+
+Status LaunchFp8Sm120GroupedQkvProjection(
+    const std::uint8_t* activation_e4m3fn, const float* activation_scale,
+    const std::uint8_t* q_weight_e4m3fn,
+    const std::uint16_t* q_weight_scales_bf16, float* q_output,
+    std::uint64_t q_rows, const std::uint8_t* k_weight_e4m3fn,
+    const std::uint16_t* k_weight_scales_bf16, float* k_output,
+    std::uint64_t k_rows, const std::uint8_t* v_weight_e4m3fn,
+    const std::uint16_t* v_weight_scales_bf16, float* v_output,
+    std::uint64_t v_rows, std::uint64_t contracting_elements,
+    cudaStream_t stream) {
+  if (activation_e4m3fn == nullptr || activation_scale == nullptr ||
+      q_weight_e4m3fn == nullptr || q_weight_scales_bf16 == nullptr ||
+      q_output == nullptr || k_weight_e4m3fn == nullptr ||
+      k_weight_scales_bf16 == nullptr || k_output == nullptr) {
+    return Invalid(
+        "grouped direct SM120 FP8 Q/K projections require non-null device "
+        "pointers");
+  }
+  const bool has_v = v_weight_e4m3fn != nullptr ||
+                     v_weight_scales_bf16 != nullptr || v_output != nullptr ||
+                     v_rows != 0U;
+  if (has_v && (v_weight_e4m3fn == nullptr ||
+                v_weight_scales_bf16 == nullptr || v_output == nullptr ||
+                v_rows == 0U)) {
+    return Invalid(
+        "grouped direct SM120 FP8 V projection binding is incomplete");
+  }
+  if (q_rows == 0U || k_rows == 0U || contracting_elements == 0U ||
+      contracting_elements % kElementsPerKBlock != 0U) {
+    return Invalid("grouped direct SM120 FP8 projection dimensions are invalid");
+  }
+  const std::uint64_t maximum_rows =
+      has_v ? std::max(q_rows, std::max(k_rows, v_rows))
+            : std::max(q_rows, k_rows);
+  const std::uint64_t row_tiles =
+      (maximum_rows + kRowsPerWarp - 1U) / kRowsPerWarp;
+  const std::uint64_t blocks =
+      (row_tiles + kWarpsPerBlock - 1U) / kWarpsPerBlock;
+  if (blocks >
+      static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
+    return Invalid(
+        "grouped direct SM120 FP8 projection grid exceeds CUDA limits");
+  }
+  const Fp8MatrixBinding q{q_weight_e4m3fn, q_weight_scales_bf16, q_output,
+                           q_rows};
+  const Fp8MatrixBinding k{k_weight_e4m3fn, k_weight_scales_bf16, k_output,
+                           k_rows};
+  const Fp8MatrixBinding v{v_weight_e4m3fn, v_weight_scales_bf16, v_output,
+                           v_rows};
+  Sm120DirectProjectionKernel<<<
+      dim3(static_cast<unsigned>(blocks), 1U, has_v ? 3U : 2U),
+      kThreadsPerBlock, 0, stream>>>(
+      activation_e4m3fn, activation_scale, q, k, v, has_v ? 3U : 2U, 1U,
+      contracting_elements);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure(
+                   "launch grouped direct-source SM120 FP8 projection", error);
 }
 
 Status LaunchFp8Sm120DirectProjectionBatch(

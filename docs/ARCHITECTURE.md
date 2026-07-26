@@ -42,7 +42,9 @@ The first full-model path intentionally accepts token IDs and uses a hybrid cach
 position contract. Its 40 local-attention layers use fixed 1,024-token rings; its eight full-attention layers use
 absolute, growing storage. Checkpoint-FP8 prefill uses one fixed 1,024-token chunk. Attention projections run in
 256-thread M64xN64xK64 FP8 CTAs with two exact `cp.async` stages for source-layout activations and weights; local
-Q/K/V and global Q/K share one grouped launch. NVFP4 SM120 MMA is batched across tokens and reuses each NVFP4
+Q/K/V and global Q/K share one grouped launch. Decode uses the same binding-dimension grouping around the
+latency-oriented T=1 direct-source kernel, reducing three independent graph nodes to one while retaining each
+projection's original CTAs and MMA ordering. NVFP4 SM120 MMA is batched across tokens and reuses each NVFP4
 weight fragment across eight consecutive 16-token MMA tiles,
 and groups eight NVFP4 warps into an M128xN64 CTA. Two shared-memory stages cooperatively transfer the CTA's exact
 packed activation bytes and E4M3 scale words with `cp.async`, overlapping the next K64 slice with the current MMA

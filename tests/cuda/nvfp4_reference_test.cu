@@ -603,6 +603,9 @@ void TestFp8ReferenceAndDirectProjection() {
   DeviceBuffer<std::uint16_t> device_weight_scales(rows);
   DeviceBuffer<float> device_reference(rows);
   DeviceBuffer<float> device_native(rows);
+  DeviceBuffer<float> device_direct_grouped_q(rows);
+  DeviceBuffer<float> device_direct_grouped_k(rows);
+  DeviceBuffer<float> device_direct_grouped_v(rows);
   DeviceBuffer<float> device_batch_input(tokens * k_size);
   DeviceBuffer<std::uint8_t> device_batch_activation(tokens * k_size);
   DeviceBuffer<float> device_batch_scales(tokens);
@@ -615,6 +618,9 @@ void TestFp8ReferenceAndDirectProjection() {
       device_activation_scale.get() == nullptr || device_weight.get() == nullptr ||
       device_weight_scales.get() == nullptr || device_reference.get() == nullptr ||
       device_native.get() == nullptr || device_batch_input.get() == nullptr ||
+      device_direct_grouped_q.get() == nullptr ||
+      device_direct_grouped_k.get() == nullptr ||
+      device_direct_grouped_v.get() == nullptr ||
       device_batch_activation.get() == nullptr || device_batch_scales.get() == nullptr ||
       device_batch_reference.get() == nullptr || device_batch_native.get() == nullptr ||
       device_grouped_q.get() == nullptr || device_grouped_k.get() == nullptr ||
@@ -668,8 +674,17 @@ void TestFp8ReferenceAndDirectProjection() {
   const auto native_status = gem16gb::internal::LaunchFp8Sm120DirectProjection(
       device_activation.get(), device_activation_scale.get(), device_weight.get(),
       device_weight_scales.get(), device_native.get(), rows, k_size, nullptr);
+  const auto direct_grouped_status =
+      gem16gb::internal::LaunchFp8Sm120GroupedQkvProjection(
+          device_activation.get(), device_activation_scale.get(),
+          device_weight.get(), device_weight_scales.get(),
+          device_direct_grouped_q.get(), rows, device_weight.get(),
+          device_weight_scales.get(), device_direct_grouped_k.get(), rows,
+          device_weight.get(), device_weight_scales.get(),
+          device_direct_grouped_v.get(), rows, k_size, nullptr);
   CUDA_TEST_CHECK(reference_status.ok());
   CUDA_TEST_CHECK(native_status.ok());
+  CUDA_TEST_CHECK(direct_grouped_status.ok());
   const auto batch_quantize_status =
       gem16gb::internal::LaunchFp8ReferenceTokenQuantizationBatch(
           device_batch_input.get(), device_batch_activation.get(),
@@ -697,6 +712,7 @@ void TestFp8ReferenceAndDirectProjection() {
   CUDA_TEST_CHECK(batch_native_status.ok());
   CUDA_TEST_CHECK(grouped_native_status.ok());
   if (!reference_status.ok() || !native_status.ok() ||
+      !direct_grouped_status.ok() ||
       !batch_quantize_status.ok() || !batch_reference_status.ok() ||
       !batch_native_status.ok() || !grouped_native_status.ok() ||
       !CudaOk(cudaDeviceSynchronize(), "FP8 projection synchronize")) {
@@ -704,6 +720,9 @@ void TestFp8ReferenceAndDirectProjection() {
   }
   std::array<float, rows> reference_output{};
   std::array<float, rows> native_output{};
+  std::array<float, rows> direct_grouped_q_output{};
+  std::array<float, rows> direct_grouped_k_output{};
+  std::array<float, rows> direct_grouped_v_output{};
   std::array<float, tokens * rows> batch_reference_output{};
   std::array<float, tokens * rows> batch_native_output{};
   std::array<float, tokens * rows> grouped_q_output{};
@@ -713,6 +732,18 @@ void TestFp8ReferenceAndDirectProjection() {
                          cudaMemcpyDeviceToHost), "copy FP8 reference output") ||
       !CudaOk(cudaMemcpy(native_output.data(), device_native.get(), device_native.bytes(),
                          cudaMemcpyDeviceToHost), "copy FP8 native output") ||
+      !CudaOk(cudaMemcpy(direct_grouped_q_output.data(),
+                         device_direct_grouped_q.get(),
+                         device_direct_grouped_q.bytes(), cudaMemcpyDeviceToHost),
+              "copy direct grouped FP8 Q output") ||
+      !CudaOk(cudaMemcpy(direct_grouped_k_output.data(),
+                         device_direct_grouped_k.get(),
+                         device_direct_grouped_k.bytes(), cudaMemcpyDeviceToHost),
+              "copy direct grouped FP8 K output") ||
+      !CudaOk(cudaMemcpy(direct_grouped_v_output.data(),
+                         device_direct_grouped_v.get(),
+                         device_direct_grouped_v.bytes(), cudaMemcpyDeviceToHost),
+              "copy direct grouped FP8 V output") ||
       !CudaOk(cudaMemcpy(batch_reference_output.data(),
                          device_batch_reference.get(), device_batch_reference.bytes(),
                          cudaMemcpyDeviceToHost), "copy batched FP8 reference output") ||
@@ -741,6 +772,9 @@ void TestFp8ReferenceAndDirectProjection() {
                          1.0e-4);
       CUDA_TEST_CHECK(std::fabs(static_cast<double>(native_output[row]) - expected.value()) <
                          1.0e-4);
+      CUDA_TEST_CHECK(direct_grouped_q_output[row] == native_output[row]);
+      CUDA_TEST_CHECK(direct_grouped_k_output[row] == native_output[row]);
+      CUDA_TEST_CHECK(direct_grouped_v_output[row] == native_output[row]);
       for (std::size_t token = 0; token < tokens; ++token) {
         CUDA_TEST_CHECK(batch_native_output[token * rows + row] ==
                         batch_reference_output[token * rows + row]);
