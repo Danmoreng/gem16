@@ -1,12 +1,59 @@
 # Decisions
 
+## 2026-07-26: Pipeline global-prefill FP8 staging inside the existing 96 KiB tile
+
+Date: 2026-07-26
+Decision: Keep the vectorized global-prefill attention arithmetic, but split its shared K/V operand storage into
+one overlaid BF16 operand tile and two raw-FP8 ping-pong tiles. Use aligned 16-byte `cp.async` copies so the current
+V load overlaps QK/online softmax and the next K load overlaps PV, then perform the existing E4M3x4-to-paired-BF16
+conversion before each operand is consumed. Runtime metadata reports `global_prefill_fp8_staging` as
+`async_fp8x16_fp8x4_bf16x2`.
+Context: After vectorized staging, global attention remained the largest attention kernel at 22.8% of an adjacent
+8K profile. K and V occupied separate 16 KiB BF16 tiles even though QK and PV never consume them concurrently,
+leaving enough shared memory to retain raw FP8 for the following operand without increasing the 96 KiB allocation.
+Alternatives: Allocate larger independent BF16 K/V plus ping-pong storage; change the MMA or online-softmax order;
+or keep synchronous staging. The first exceeds the SM120 opt-in shared-memory budget, the second adds unnecessary
+correctness risk, and the third leaves global-memory latency exposed.
+Consequences: The persistent arenas, reusable workspace, 96 KiB per-CTA shared-memory footprint, physical FP8 KV
+cache, MMA order, and online-softmax reduction order are unchanged. The local-prefill and all decode paths are
+unchanged.
+Evidence: Nsight measures the global kernel from 1.03791 to 0.98382 seconds across two 8K prefill executions
+(-5.21%). Under 3 warm-ups and 10 measured runs, median 8K prefill improves from 3,683.18 to 3,704.64 tok/s
+(+0.58%) and TTFT from 2,224.17 to 2,211.28 ms (-0.58%), with a candidate 95% throughput CI of
+`[3,692.82, 3,709.30]`. An exploratory 16K run improves from 3,095.57 to 3,154.66 tok/s (+1.91%). The global
+operator retains max absolute error 0.000538, RMS error 0.000126, and cosine similarity 0.999997. CTest,
+exact-blue, both vLLM boundary Top-1 cases, and teacher-forced 121/127 Top-1 plus 127/127 Top-5/Top-20 pass.
+Three restored-path 8K decode runs retain the existing checksum at 33.236 tok/s.
+
+## 2026-07-26: Reject Tensor-Core attention for single-token FP8 decode
+
+Date: 2026-07-26
+Decision: Retain the online scalar-FMA split-GQA decode-attention kernel over the physical FP8 KV cache. Do not
+ship either the BF16 or TF32 Tensor-Core decode prototypes.
+Context: Decode attention is an obvious remaining Tensor-Core candidate, but its M dimension is one. WMMA therefore
+pads one live query row to a 16-row tile, adds shared staging and synchronization, and reduces the number of
+resident CTAs. The long global layers amortize these costs better than local layers, so full and global-only
+variants were measured separately.
+Alternatives: BF16 WMMA for QK/PV; TF32 WMMA for QK/PV with FP32 accumulation; Tensor Cores only for global layers;
+or smaller split groups. BF16 exceeded the CUDA operator tolerance (local max absolute error 0.000158; long-global
+cosine 0.999962). TF32 passed the operator gates, including long-global max absolute error 0.00000551, but every
+end-to-end variant regressed.
+Consequences: No experimental Tensor-Core decode code or selector remains. Decode continues to read E4M3 K/V
+directly, uses FP32 online-softmax state, performs no token-loop allocation, and retains the deterministic output
+checksum.
+Evidence: Against the 33.349 tok/s 8K/256 scalar baseline, TF32 local+global reaches 28.797 tok/s (-13.65%),
+global-only with split groups of 16 reaches 32.232 tok/s (-3.35%), and global-only with groups of 8 reaches
+32.292 tok/s (-3.17%). After removing the prototypes, a 1-warm-up/3-measured 8K/256 run reaches 33.236 tok/s with
+p50/p95/p99 latency 30.054/30.682/31.045 ms and the unchanged checksum `14820510372112584179`; the difference from
+the baseline is within run-to-run variation.
+
 ## 2026-07-26: Vectorize global-attention FP8 staging
 
 Date: 2026-07-26
 Decision: Stage global-attention K/V in aligned 16-byte vectors, convert each packed word through E4M3x4, and
 write paired BF16 values into the existing shared-memory tiles. Preserve the QK, online-softmax, and PV arithmetic
-and retain the local-attention path unchanged. Runtime metadata reports `global_prefill_fp8_staging` as
-`fp8x4_bf16x2`.
+and retain the local-attention path unchanged. Runtime metadata originally reported `global_prefill_fp8_staging`
+as `fp8x4_bf16x2`; the subsequent pipelining decision supersedes that staging label.
 Context: After CUTLASS covered all prompt projections, an adjacent 8K profile attributed 1.287 seconds, or 27.1%
 of kernel time, to the global-attention kernel. Its scalar byte extraction and scalar BF16 stores were repeated
 for every staged K/V tile.

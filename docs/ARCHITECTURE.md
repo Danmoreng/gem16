@@ -107,8 +107,10 @@ CTA. K/V staging is shared within each group while softmax and output state rema
 physical E4M3 K/V bytes and checkpoint BF16 scales without a persistent conversion or fallback. A 2,048-token
 current chunk may exceed the local 1,024-token ring because current K/V is read directly; only the newest
 1,024-token suffix is committed after attention, avoiding concurrent modulo-aliasing writes. Global K/V staging
-uses aligned 16-byte loads, vector E4M3x4 conversion, and paired BF16 stores; the attention MMA and online-softmax
-reduction order are unchanged.
+uses two raw-FP8 ping-pong tiles and one overlaid BF16 operand tile within the existing 96 KiB shared allocation.
+Aligned 16-byte asynchronous copies overlap current-V traffic with QK/online softmax and next-K traffic with PV;
+vector E4M3x4 conversion and paired BF16 stores complete before each operand is consumed. The attention MMA and
+online-softmax reduction order are unchanged.
 
 Gate, Up, and Down prefill use CUTLASS 4.5.2 SM120 block-scaled Tensor-Core GEMMs with a 128x128x128 thread-block tile,
 automatic TMA/warp-specialized schedule, and BF16 output. CUTLASS consumes a different operand layout from the

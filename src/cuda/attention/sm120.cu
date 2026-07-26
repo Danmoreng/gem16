@@ -65,6 +65,32 @@ __device__ __forceinline__ unsigned SharedAddress(const void* pointer) {
   return static_cast<unsigned>(__cvta_generic_to_shared(pointer));
 }
 
+__device__ __forceinline__ void CopyAsync16(
+    void* shared_destination, const void* global_source, int source_bytes) {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1200
+  asm volatile("cp.async.ca.shared.global [%0], [%1], 16, %2;\n"
+               :
+               : "r"(SharedAddress(shared_destination)), "l"(global_source),
+                 "r"(source_bytes));
+#else
+  (void)shared_destination;
+  (void)global_source;
+  (void)source_bytes;
+#endif
+}
+
+__device__ __forceinline__ void CommitAsyncCopies() {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1200
+  asm volatile("cp.async.commit_group;\n");
+#endif
+}
+
+__device__ __forceinline__ void WaitForAsyncCopies() {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1200
+  asm volatile("cp.async.wait_group 0;\n");
+#endif
+}
+
 __device__ __forceinline__ int Swizzle(int row, int column) {
   return (((column >> 3) ^ (row & 7)) << 3) | (column & 7);
 }
@@ -849,12 +875,17 @@ constexpr int kGlobalScoreTiles = kGlobalKeyColumns / 8;
 constexpr int kGlobalQkSteps = kGlobalHeadDimension / 16;
 constexpr int kGlobalOutputTiles = kGlobalOutputHalf / 8;
 constexpr int kGlobalPvSteps = kGlobalKeyColumns / 16;
-constexpr int kGlobalSharedElements =
-    (kGlobalQueryHeadsPerBlock * kGlobalQueryRows + kGlobalKeyColumns) *
-        kGlobalHeadDimension +
+constexpr int kGlobalOperandElements =
     kGlobalKeyColumns * kGlobalHeadDimension;
+constexpr int kGlobalRawBytes = kGlobalKeyColumns * kGlobalHeadDimension;
+constexpr int kGlobalSharedBytes =
+    (kGlobalQueryHeadsPerBlock * kGlobalQueryRows *
+         kGlobalHeadDimension +
+     kGlobalOperandElements) *
+        sizeof(__nv_bfloat16) +
+    2 * kGlobalRawBytes;
 
-static_assert(kGlobalSharedElements * sizeof(__nv_bfloat16) == 96 * 1024);
+static_assert(kGlobalSharedBytes == 96 * 1024);
 
 __device__ __forceinline__ void StageGlobalQuery(
     __nv_bfloat16* destination, const float* query, int query_head_base,
@@ -895,9 +926,9 @@ __device__ __forceinline__ void StageGlobalQuery(
   }
 }
 
-__device__ __forceinline__ void StageGlobalFp8Key(
-    __nv_bfloat16* destination, const std::uint8_t* chunk,
-    const std::uint8_t* cache, float scale, int key_start,
+__device__ __forceinline__ void StageGlobalFp8RawAsync(
+    std::uint8_t* destination, const std::uint8_t* chunk,
+    const std::uint8_t* cache, int key_start,
     int max_query_position, int chunk_start, int cache_capacity, int thread) {
   constexpr int kElementsPerVector = 16;
   constexpr int kVectorsPerRow =
@@ -909,20 +940,34 @@ __device__ __forceinline__ void StageGlobalFp8Key(
     const int dimension =
         (chunk_index % kVectorsPerRow) * kElementsPerVector;
     const int absolute_key = key_start + row;
-    std::uint32_t words[4] = {};
-    if (absolute_key <= max_query_position) {
-      const bool in_chunk = absolute_key >= chunk_start;
-      const int source_token =
-          in_chunk ? absolute_key - chunk_start
-                   : absolute_key % cache_capacity;
-      const std::uint8_t* source = in_chunk ? chunk : cache;
-      const uint4 packed = *reinterpret_cast<const uint4*>(
-          source + source_token * kGlobalHeadDimension + dimension);
-      words[0] = packed.x;
-      words[1] = packed.y;
-      words[2] = packed.z;
-      words[3] = packed.w;
-    }
+    const bool valid = absolute_key <= max_query_position;
+    const bool in_chunk = valid && absolute_key >= chunk_start;
+    const int source_token =
+        in_chunk ? absolute_key - chunk_start
+                 : (valid ? absolute_key % cache_capacity : 0);
+    const std::uint8_t* source = in_chunk ? chunk : cache;
+    CopyAsync16(destination + row * kGlobalHeadDimension + dimension,
+                source + source_token * kGlobalHeadDimension + dimension,
+                valid ? kElementsPerVector : 0);
+  }
+}
+
+__device__ __forceinline__ void ConvertGlobalFp8Key(
+    __nv_bfloat16* destination, const std::uint8_t* source, float scale,
+    int thread) {
+  constexpr int kElementsPerVector = 16;
+  constexpr int kVectorsPerRow =
+      kGlobalHeadDimension / kElementsPerVector;
+  for (int chunk_index = thread;
+       chunk_index < kGlobalKeyColumns * kVectorsPerRow;
+       chunk_index += kGlobalThreads) {
+    const int row = chunk_index / kVectorsPerRow;
+    const int dimension =
+        (chunk_index % kVectorsPerRow) * kElementsPerVector;
+    const uint4 packed = *reinterpret_cast<const uint4*>(
+        source + row * kGlobalHeadDimension + dimension);
+    const std::uint32_t words[4] = {
+        packed.x, packed.y, packed.z, packed.w};
 #pragma unroll
     for (int word = 0; word < 4; ++word) {
       __nv_fp8x4_e4m3 quantized;
@@ -942,10 +987,9 @@ __device__ __forceinline__ void StageGlobalFp8Key(
   }
 }
 
-__device__ __forceinline__ void StageGlobalFp8Value(
-    __nv_bfloat16* destination, const std::uint8_t* chunk,
-    const std::uint8_t* cache, float scale, int key_start,
-    int max_query_position, int chunk_start, int cache_capacity, int thread) {
+__device__ __forceinline__ void ConvertGlobalFp8Value(
+    __nv_bfloat16* destination, const std::uint8_t* source, float scale,
+    int thread) {
   constexpr int kElementsPerVector = 16;
   constexpr int kVectorsPerRow =
       kGlobalHeadDimension / kElementsPerVector;
@@ -957,21 +1001,10 @@ __device__ __forceinline__ void StageGlobalFp8Value(
         (chunk_index % kVectorsPerRow) * kElementsPerVector;
     const int output_half = dimension / kGlobalOutputHalf;
     const int half_dimension = dimension % kGlobalOutputHalf;
-    const int absolute_key = key_start + row;
-    std::uint32_t words[4] = {};
-    if (absolute_key <= max_query_position) {
-      const bool in_chunk = absolute_key >= chunk_start;
-      const int source_token =
-          in_chunk ? absolute_key - chunk_start
-                   : absolute_key % cache_capacity;
-      const std::uint8_t* source = in_chunk ? chunk : cache;
-      const uint4 packed = *reinterpret_cast<const uint4*>(
-          source + source_token * kGlobalHeadDimension + dimension);
-      words[0] = packed.x;
-      words[1] = packed.y;
-      words[2] = packed.z;
-      words[3] = packed.w;
-    }
+    const uint4 packed = *reinterpret_cast<const uint4*>(
+        source + row * kGlobalHeadDimension + dimension);
+    const std::uint32_t words[4] = {
+        packed.x, packed.y, packed.z, packed.w};
 #pragma unroll
     for (int word = 0; word < 4; ++word) {
       __nv_fp8x4_e4m3 quantized;
@@ -1004,13 +1037,16 @@ __launch_bounds__(kGlobalThreads, 1) __global__
         const std::uint16_t* __restrict__ value_scale_bf16,
         float* __restrict__ output, int start_position, int tokens,
         int cache_capacity) {
-  __shared__ __align__(16) __nv_bfloat16 shared[kGlobalSharedElements];
-  __nv_bfloat16* query_shared = shared;
-  __nv_bfloat16* key_shared =
+  __shared__ __align__(16) std::uint8_t shared[kGlobalSharedBytes];
+  __nv_bfloat16* query_shared =
+      reinterpret_cast<__nv_bfloat16*>(shared);
+  __nv_bfloat16* operand_shared =
       query_shared + kGlobalQueryHeadsPerBlock * kGlobalQueryRows *
                          kGlobalHeadDimension;
-  __nv_bfloat16* value_shared =
-      key_shared + kGlobalKeyColumns * kGlobalHeadDimension;
+  __nv_bfloat16* key_shared = operand_shared;
+  __nv_bfloat16* value_shared = operand_shared;
+  std::uint8_t* raw_shared = reinterpret_cast<std::uint8_t*>(
+      operand_shared + kGlobalOperandElements);
 
   const int query_block = static_cast<int>(blockIdx.x);
   const int query_head_base =
@@ -1080,18 +1116,30 @@ __launch_bounds__(kGlobalThreads, 1) __global__
   const int query_rows = min(kGlobalQueryRows, tokens - query_start);
   const int max_query_position =
       start_position + query_start + query_rows - 1;
-  const int key_block_count = max_query_position / kGlobalKeyColumns + 1;
+  const int key_block_count =
+      max_query_position / kGlobalKeyColumns + 1;
   const float key_scale =
       static_cast<float>(__ushort_as_bfloat16(key_scale_bf16[0]));
   const float value_scale =
       static_cast<float>(__ushort_as_bfloat16(value_scale_bf16[0]));
 
+  StageGlobalFp8RawAsync(
+      raw_shared, chunk_key, key_cache, 0, max_query_position,
+      start_position, cache_capacity, thread);
+  CommitAsyncCopies();
+  WaitForAsyncCopies();
+  __syncthreads();
+  ConvertGlobalFp8Key(key_shared, raw_shared, key_scale, thread);
+  __syncthreads();
+
   for (int key_block = 0; key_block < key_block_count; ++key_block) {
     const int key_start = key_block * kGlobalKeyColumns;
-    StageGlobalFp8Key(key_shared, chunk_key, key_cache, key_scale, key_start,
-                      max_query_position, start_position, cache_capacity,
-                      thread);
-    __syncthreads();
+    const int current_raw = key_block & 1;
+    const int next_raw = current_raw ^ 1;
+    StageGlobalFp8RawAsync(
+        raw_shared + current_raw * kGlobalRawBytes, chunk_value, value_cache,
+        key_start, max_query_position, start_position, cache_capacity, thread);
+    CommitAsyncCopies();
 
     float scores[kGlobalScoreTiles][4];
 #pragma unroll
@@ -1261,10 +1309,21 @@ __launch_bounds__(kGlobalThreads, 1) __global__
       accumulator[output_tile][3] *= alpha1;
     }
 
-    StageGlobalFp8Value(value_shared, chunk_value, value_cache, value_scale,
-                        key_start, max_query_position, start_position,
-                        cache_capacity, thread);
+    WaitForAsyncCopies();
     __syncthreads();
+    ConvertGlobalFp8Value(
+        value_shared, raw_shared + current_raw * kGlobalRawBytes,
+        value_scale, thread);
+    __syncthreads();
+
+    const bool has_next_key = key_block + 1 < key_block_count;
+    if (has_next_key) {
+      StageGlobalFp8RawAsync(
+          raw_shared + next_raw * kGlobalRawBytes, chunk_key, key_cache,
+          key_start + kGlobalKeyColumns, max_query_position, start_position,
+          cache_capacity, thread);
+      CommitAsyncCopies();
+    }
 
     constexpr int kOutputTilePairs = kGlobalOutputTiles / 2;
     constexpr int kValueLoads = kGlobalPvSteps * kOutputTilePairs;
@@ -1302,6 +1361,14 @@ __launch_bounds__(kGlobalThreads, 1) __global__
           probability_fragments[0][0], probability_fragments[0][1],
           probability_fragments[0][2], probability_fragments[0][3],
           value_fragments[current][2], value_fragments[current][3]);
+    }
+    if (has_next_key) {
+      WaitForAsyncCopies();
+      __syncthreads();
+      ConvertGlobalFp8Key(
+          key_shared, raw_shared + next_raw * kGlobalRawBytes, key_scale,
+          thread);
+      __syncthreads();
     }
   }
 

@@ -69,8 +69,13 @@ def validate_result(document: dict[str, Any], expected: list[int]) -> None:
         raise ValidationError("inference did not group local GQA heads per prefill CTA")
     if document.get("global_prefill_query_heads_per_cta") != 4:
         raise ValidationError("inference did not group global GQA heads per prefill CTA")
-    if document.get("global_prefill_fp8_staging") != "fp8x4_bf16x2":
-        raise ValidationError("inference did not use vectorized global FP8 staging")
+    if (
+        document.get("global_prefill_fp8_staging")
+        != "async_fp8x16_fp8x4_bf16x2"
+    ):
+        raise ValidationError(
+            "inference did not use pipelined global FP8 staging"
+        )
     if document.get("prefill_chunk_tokens") != 2048:
         raise ValidationError("inference did not use the required checkpoint-FP8 prefill chunk")
     if document.get("grouped_qkv_prefill") is not False:
