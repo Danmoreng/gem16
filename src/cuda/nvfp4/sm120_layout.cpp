@@ -55,6 +55,51 @@ Result<Sm120Nvfp4SourceLayout> PlanSm120Nvfp4SourceLayout(
   return layout;
 }
 
+Result<std::vector<std::uint8_t>> TileSm120Nvfp4Weights(
+    const Sm120Nvfp4SourceLayout& layout,
+    std::span<const std::uint8_t> source_packed_weight_e2m1) {
+  const auto expected = PlanSm120Nvfp4SourceLayout(layout.rows, layout.contracting_elements);
+  if (!expected.ok()) return expected.status();
+  if (layout.row_tiles != expected.value().row_tiles ||
+      layout.k_blocks != expected.value().k_blocks ||
+      layout.packed_weight_bytes != expected.value().packed_weight_bytes ||
+      layout.scale_bytes != expected.value().scale_bytes ||
+      layout.persistent_repack_bytes != 0U) {
+    return Invalid("SM120 NVFP4 source layout metadata is inconsistent");
+  }
+  if (source_packed_weight_e2m1.size() != layout.packed_weight_bytes ||
+      layout.packed_weight_bytes > std::numeric_limits<std::size_t>::max()) {
+    return Invalid("SM120 NVFP4 source weights do not match the planned byte count");
+  }
+
+  constexpr std::uint64_t kPackedBytesPerKBlock =
+      kElementsPerKBlock / kElementsPerPackedByte;
+  const std::uint64_t source_row_bytes =
+      layout.contracting_elements / kElementsPerPackedByte;
+  std::vector<std::uint8_t> tiled(static_cast<std::size_t>(layout.packed_weight_bytes));
+  for (std::uint64_t row_tile = 0; row_tile < layout.row_tiles; ++row_tile) {
+    const std::uint64_t first_row = row_tile * kRowsPerTile;
+    const std::uint64_t tile_rows =
+        std::min(kRowsPerTile, layout.rows - first_row);
+    const std::uint64_t tile_offset =
+        first_row * layout.k_blocks * kPackedBytesPerKBlock;
+    for (std::uint64_t k_block = 0; k_block < layout.k_blocks; ++k_block) {
+      for (std::uint64_t row = 0; row < tile_rows; ++row) {
+        const std::uint64_t source_offset =
+            (first_row + row) * source_row_bytes +
+            k_block * kPackedBytesPerKBlock;
+        const std::uint64_t destination_offset =
+            tile_offset + (k_block * tile_rows + row) * kPackedBytesPerKBlock;
+        std::copy_n(source_packed_weight_e2m1.begin() +
+                        static_cast<std::ptrdiff_t>(source_offset),
+                    static_cast<std::size_t>(kPackedBytesPerKBlock),
+                    tiled.begin() + static_cast<std::ptrdiff_t>(destination_offset));
+      }
+    }
+  }
+  return tiled;
+}
+
 Result<std::vector<std::uint8_t>> TileSm120Nvfp4WeightScales(
     const Sm120Nvfp4SourceLayout& layout,
     std::span<const std::uint8_t> source_weight_scales_e4m3fn) {
@@ -128,16 +173,28 @@ Result<Sm120Nvfp4WeightLaneFragment> LoadSm120Nvfp4WeightLaneFragment(
   fragment.source_row = row_tile * kRowsPerTile + row_in_tile;
   if (fragment.source_row >= layout.rows) return fragment;
 
-  const std::uint64_t packed_row_bytes = layout.contracting_elements / 2U;
-  const std::uint64_t packed_k_block_offset = k_block * (kElementsPerKBlock / 2U);
-  const std::uint64_t first_offset = fragment.source_row * packed_row_bytes +
-                                     packed_k_block_offset + k_quarter * 4U;
+  const std::uint64_t first_row = row_tile * kRowsPerTile;
+  const std::uint64_t tile_rows =
+      std::min(kRowsPerTile, layout.rows - first_row);
+  constexpr std::uint64_t kPackedBytesPerKBlock =
+      kElementsPerKBlock / kElementsPerPackedByte;
+  const std::uint64_t tile_weight_offset =
+      first_row * layout.k_blocks * kPackedBytesPerKBlock;
+  const std::uint64_t first_offset =
+      tile_weight_offset +
+      (k_block * tile_rows + row_in_tile) * kPackedBytesPerKBlock +
+      k_quarter * 4U;
   const std::uint64_t second_offset = first_offset + 16U;
   fragment.packed_e2m1[0] = LoadLittleU32(packed_weight_e2m1, first_offset);
   fragment.packed_e2m1[1] = LoadLittleU32(packed_weight_e2m1, second_offset);
 
-  const std::uint64_t scale_row_bytes = layout.contracting_elements / kElementsPerScale;
-  const std::uint64_t scale_offset = fragment.source_row * scale_row_bytes + k_block * 4U;
+  constexpr std::uint64_t kScalesPerKBlock =
+      kElementsPerKBlock / kElementsPerScale;
+  const std::uint64_t tile_scale_offset =
+      first_row * layout.k_blocks * kScalesPerKBlock;
+  const std::uint64_t scale_offset =
+      tile_scale_offset +
+      (k_block * tile_rows + row_in_tile) * kScalesPerKBlock;
   fragment.packed_e4m3fn_scales = LoadLittleU32(weight_scales_e4m3fn, scale_offset);
   fragment.active = true;
   return fragment;

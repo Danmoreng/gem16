@@ -45,11 +45,12 @@ absolute, growing storage. Checkpoint-FP8 prefill uses one fixed 1,024-token chu
 Q/K/V and global Q/K share one grouped launch. Decode uses the same binding-dimension grouping around the
 latency-oriented T=1 direct-source kernel, reducing three independent graph nodes to one while retaining each
 projection's original CTAs and MMA ordering. NVFP4 SM120 MMA is batched across tokens and reuses each NVFP4
-weight fragment across eight consecutive 16-token MMA tiles,
+Row8/K64 weight fragment across eight consecutive 16-token MMA tiles,
 and groups eight NVFP4 warps into an M128xN64 CTA. Two shared-memory stages cooperatively transfer the CTA's exact
 packed activation bytes and E4M3 scale words with `cp.async`, overlapping the next K64 slice with the current MMA
-stack. This replaces eight redundant per-warp activation-load streams without changing checkpoint weights or FP32
-K accumulation. It evaluates local D256 and global D512
+stack. Packed E2M1 weights and their E4M3 scales are transformed byte-exactly into the sole final Row8/K64 device
+layout at model load; no raw GPU copy survives. This replaces strided per-row weight loads without changing any
+nibble, scale, global divisor, or FP32 K accumulation. It evaluates local D256 and global D512
 causal attention with shape-specific online Tensor-Core kernels. Those
 kernels stage current-chunk K/V directly, read older positions from the circular or growing cache, retain row max,
 normalization sum, and output accumulators in FP32, and never materialize a global score matrix. K/V is committed

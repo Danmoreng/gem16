@@ -155,7 +155,7 @@ struct DecodeBenchmarkResult {
   BenchmarkDistribution inter_token_latency_milliseconds;
   std::vector<DecodeBenchmarkRun> runs;
   bool deterministic_outputs = false;
-  bool packed_weight_source_layout_direct = true;
+  bool packed_weight_source_layout_direct = false;
   bool token_loop_allocations = false;
   bool benchmark_qualified = false;
 };

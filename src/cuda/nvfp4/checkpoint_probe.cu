@@ -310,9 +310,15 @@ Result<Nvfp4CheckpointProbeResult> RunLayer0Nvfp4CheckpointProbe(
 
   const auto scale_layout = PlanSm120Nvfp4SourceLayout(rows, k_size);
   if (!scale_layout.ok()) return scale_layout.status();
+  const auto tiled_weight =
+      TileSm120Nvfp4Weights(scale_layout.value(), packed_weight.value());
   const auto tiled_weight_scales =
       TileSm120Nvfp4WeightScales(scale_layout.value(), weight_scales.value());
+  if (!tiled_weight.ok()) return tiled_weight.status();
   if (!tiled_weight_scales.ok()) return tiled_weight_scales.status();
+  copy_status = CopyToDevice(device_weight.get(), tiled_weight.value(),
+                             "copy tiled weight");
+  if (!copy_status.ok()) return copy_status;
   copy_status = CopyToDevice(device_weight_scales.get(), tiled_weight_scales.value(),
                              "copy tiled weight scales");
   if (!copy_status.ok()) return copy_status;

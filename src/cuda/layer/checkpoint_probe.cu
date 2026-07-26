@@ -255,14 +255,21 @@ Status UploadBinding(const HostNvfp4Binding& host, DeviceNvfp4Binding& device) {
   return error == cudaSuccess ? Status::Ok() : CudaFailure("copy NVFP4 scales", error);
 }
 
-Status UploadSm120Scales(const HostNvfp4Binding& host,
+Status UploadSm120Layout(const HostNvfp4Binding& host,
                          DeviceNvfp4Binding& device) {
   const auto layout = PlanSm120Nvfp4SourceLayout(host.rows, host.contracting);
   if (!layout.ok()) return layout.status();
-  const auto tiled = TileSm120Nvfp4WeightScales(layout.value(), host.weight_scales);
-  if (!tiled.ok()) return tiled.status();
-  const cudaError_t error = cudaMemcpy(device.weight_scales.get(), tiled.value().data(),
-                                       tiled.value().size(), cudaMemcpyHostToDevice);
+  const auto tiled_weight =
+      TileSm120Nvfp4Weights(layout.value(), host.packed_weight);
+  if (!tiled_weight.ok()) return tiled_weight.status();
+  const auto tiled_scales =
+      TileSm120Nvfp4WeightScales(layout.value(), host.weight_scales);
+  if (!tiled_scales.ok()) return tiled_scales.status();
+  cudaError_t error = cudaMemcpy(device.packed_weight.get(), tiled_weight.value().data(),
+                                 tiled_weight.value().size(), cudaMemcpyHostToDevice);
+  if (error != cudaSuccess) return CudaFailure("copy tiled NVFP4 weight", error);
+  error = cudaMemcpy(device.weight_scales.get(), tiled_scales.value().data(),
+                     tiled_scales.value().size(), cudaMemcpyHostToDevice);
   return error == cudaSuccess ? Status::Ok()
                               : CudaFailure("copy tiled NVFP4 scales", error);
 }
@@ -735,9 +742,9 @@ Result<LayerCheckpointProbeResult> RunLayerCheckpointProbe(
                             layer_scalar_weight.get(), device_gate, device_up, device_down);
     if (!status.ok()) return status;
     for (const Status scale_status : {
-             UploadSm120Scales(gate, device_gate),
-             UploadSm120Scales(up, device_up),
-             UploadSm120Scales(down, device_down),
+             UploadSm120Layout(gate, device_gate),
+             UploadSm120Layout(up, device_up),
+             UploadSm120Layout(down, device_down),
          }) {
       if (!scale_status.ok()) return scale_status;
     }

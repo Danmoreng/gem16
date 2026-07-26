@@ -53,10 +53,14 @@ def run_probe(bench: Path, model: Path, projection: str) -> dict[str, Any]:
     if document.get("fallbacks") != 0:
         raise ValidationError(f"{projection} used a fallback")
     if projection == "decoder-layer":
-        if document.get("packed_weight_source_layout_direct") is not True:
-            raise ValidationError(f"{projection} did not use direct packed weights")
+        if document.get("packed_weight_source_layout_direct") is not False:
+            raise ValidationError(f"{projection} did not report tiled packed weights")
+        if document.get("weight_layout") != "sm120_row8_k64":
+            raise ValidationError(f"{projection} did not use tiled SM120 weights")
         if document.get("weight_scale_layout") != "sm120_row8_k64":
             raise ValidationError(f"{projection} did not use tiled SM120 weight scales")
+        if document.get("load_time_weight_swizzle") is not True:
+            raise ValidationError(f"{projection} omitted load-time weight swizzling")
         if document.get("load_time_scale_swizzle") is not True:
             raise ValidationError(f"{projection} omitted load-time scale swizzling")
     elif document.get("source_layout_direct") is not True:

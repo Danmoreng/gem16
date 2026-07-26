@@ -261,12 +261,13 @@ Prompt ingestion uses one native 1,024-token chunk plan for checkpoint-FP8 execu
 use 256-thread M64xN64xK64 CTAs: two shared-memory stages copy exact source-layout activation and weight bytes with
 `cp.async`, while each weight fragment serves four 16-token MMA tiles. Local Q/K/V and global Q/K are grouped into
 one launch; O uses the same tiled kernel after attention. Decode likewise groups the existing T=1 direct-source
-Q/K/V CTAs into one binding-dimension launch per layer. NVFP4 MLP projection warps retain each source weight and
+Q/K/V CTAs into one binding-dimension launch per layer. NVFP4 MLP projection warps retain each tiled weight and
 scale fragment across eight tiles, or 128 prompt rows. Eight NVFP4 warps form an M128xN64 CTA and stage
 the exact packed activation bytes and E4M3 scale words once for CTA-wide reuse. Two shared-memory stages use
 `cp.async` to overlap the next K64 slice with current native MMA work. Weight scales use the sole
-`[row8][K64][row][4 scales]` runtime layout, created byte-exactly in the final GPU allocation during model load;
-packed weights are never repacked. Shape-specific
+`[row8][K64][row][4 scales]` runtime layout. Packed weights likewise use
+`[row8][K64][row][32 packed bytes]`. Both are created byte-exactly in the final GPU allocation during model load,
+with no persistent source-layout device copy. Shape-specific
 local D256 and global D512 attention kernels perform QK and PV on
 Tensor Cores while retaining FP32 online-softmax state, reading older K/V from the hybrid cache, and avoiding a
 global score matrix. The token-at-a-time bridge and scalar attention implementation remain test/probe references

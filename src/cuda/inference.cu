@@ -56,6 +56,7 @@ constexpr std::uint64_t kDefaultPrefillChunkTokens = 1024;
 constexpr std::uint64_t kMinimumPrefillChunkTokens = 32;
 constexpr std::uint64_t kPrefillChunkQuantum = 32;
 constexpr std::uint64_t kPrefillScoreBudgetBytes = 512ULL * 1024ULL * 1024ULL;
+constexpr std::uint64_t kWeightLayoutHostStagingBytes = 4ULL * 1024ULL * 1024ULL;
 
 class NvtxRange {
  public:
@@ -235,8 +236,66 @@ struct DeviceTensor {
   std::byte* data = nullptr;
   float scalar_f32 = 0.0F;
   bool has_scalar_f32 = false;
+  bool sm120_weight_tiled = false;
   bool sm120_scale_tiled = false;
 };
+
+Status UploadSm120TiledBlocks(
+    std::byte* destination, std::span<const std::uint8_t> source,
+    const internal::Sm120Nvfp4SourceLayout& layout,
+    std::uint64_t bytes_per_k_block, std::uint64_t source_row_bytes,
+    const char* operation) {
+  if (destination == nullptr || bytes_per_k_block == 0U ||
+      source_row_bytes != layout.k_blocks * bytes_per_k_block ||
+      source.size() != layout.rows * source_row_bytes) {
+    return Error(StatusCode::kDataLoss,
+                 "invalid source buffer for SM120 tiled upload");
+  }
+  constexpr std::uint64_t kRowsPerTile = 8U;
+  const std::uint64_t full_tile_bytes =
+      kRowsPerTile * layout.k_blocks * bytes_per_k_block;
+  const std::uint64_t tiles_per_batch = std::max<std::uint64_t>(
+      1U, kWeightLayoutHostStagingBytes /
+              std::max<std::uint64_t>(1U, full_tile_bytes));
+  const std::uint64_t staging_bytes = std::min<std::uint64_t>(
+      source.size(), tiles_per_batch * full_tile_bytes);
+  std::vector<std::uint8_t> staging(
+      static_cast<std::size_t>(staging_bytes));
+
+  for (std::uint64_t first_tile = 0; first_tile < layout.row_tiles;
+       first_tile += tiles_per_batch) {
+    const std::uint64_t end_tile =
+        std::min(layout.row_tiles, first_tile + tiles_per_batch);
+    const std::uint64_t first_row = first_tile * kRowsPerTile;
+    std::uint64_t cursor = 0U;
+    for (std::uint64_t row_tile = first_tile; row_tile < end_tile;
+         ++row_tile) {
+      const std::uint64_t tile_first_row = row_tile * kRowsPerTile;
+      const std::uint64_t tile_rows =
+          std::min(kRowsPerTile, layout.rows - tile_first_row);
+      for (std::uint64_t k_block = 0; k_block < layout.k_blocks;
+           ++k_block) {
+        for (std::uint64_t row = 0; row < tile_rows; ++row) {
+          const std::uint64_t source_offset =
+              (tile_first_row + row) * source_row_bytes +
+              k_block * bytes_per_k_block;
+          std::memcpy(staging.data() + cursor,
+                      source.data() + source_offset,
+                      static_cast<std::size_t>(bytes_per_k_block));
+          cursor += bytes_per_k_block;
+        }
+      }
+    }
+    const std::uint64_t destination_offset =
+        first_row * layout.k_blocks * bytes_per_k_block;
+    const cudaError_t error =
+        cudaMemcpy(destination + destination_offset, staging.data(),
+                   static_cast<std::size_t>(cursor),
+                   cudaMemcpyHostToDevice);
+    if (error != cudaSuccess) return CudaFailure(operation, error);
+  }
+  return Status::Ok();
+}
 
 struct Fp8Binding {
   const std::uint8_t* weight = nullptr;
@@ -335,8 +394,26 @@ class LoadedModel {
           return Error(StatusCode::kDataLoss, "tensor upload range is invalid: " + tensor.name);
         }
         const std::byte* source = mapped.value().data() + tensor.byte_offset;
-        std::vector<std::uint8_t> tiled_scales;
-        if (tensor.quantization_class == "NVFP4_LOCAL_SCALE_E4M3") {
+        bool uploaded = false;
+        if (tensor.quantization_class == "NVFP4_PACKED") {
+          if (tensor.logical_shape.size() != 2U) {
+            return Error(StatusCode::kDataLoss,
+                         "invalid NVFP4 packed-weight geometry: " + tensor.name);
+          }
+          const auto layout = internal::PlanSm120Nvfp4SourceLayout(
+              tensor.logical_shape[0], tensor.logical_shape[1]);
+          if (!layout.ok()) return layout.status();
+          const Status tiled_upload = UploadSm120TiledBlocks(
+              view.data,
+              std::span<const std::uint8_t>(
+                  reinterpret_cast<const std::uint8_t*>(source),
+                  static_cast<std::size_t>(tensor.byte_length)),
+              layout.value(), 32U, tensor.logical_shape[1] / 2U,
+              "upload tiled NVFP4 weight");
+          if (!tiled_upload.ok()) return tiled_upload;
+          view.sm120_weight_tiled = true;
+          uploaded = true;
+        } else if (tensor.quantization_class == "NVFP4_LOCAL_SCALE_E4M3") {
           if (tensor.shape.size() != 2U ||
               tensor.shape[1] > std::numeric_limits<std::uint64_t>::max() / 16U) {
             return Error(StatusCode::kDataLoss,
@@ -345,20 +422,24 @@ class LoadedModel {
           const auto layout = internal::PlanSm120Nvfp4SourceLayout(
               tensor.shape[0], tensor.shape[1] * 16U);
           if (!layout.ok()) return layout.status();
-          const auto tiled = internal::TileSm120Nvfp4WeightScales(
-              layout.value(),
+          const Status tiled_upload = UploadSm120TiledBlocks(
+              view.data,
               std::span<const std::uint8_t>(
                   reinterpret_cast<const std::uint8_t*>(source),
-                  static_cast<std::size_t>(tensor.byte_length)));
-          if (!tiled.ok()) return tiled.status();
-          tiled_scales = std::move(tiled).value();
-          source = reinterpret_cast<const std::byte*>(tiled_scales.data());
+                  static_cast<std::size_t>(tensor.byte_length)),
+              layout.value(), 4U, tensor.shape[1],
+              "upload tiled NVFP4 scales");
+          if (!tiled_upload.ok()) return tiled_upload;
           view.sm120_scale_tiled = true;
+          uploaded = true;
         }
-        const cudaError_t error = cudaMemcpy(view.data, source,
-                                             static_cast<std::size_t>(tensor.byte_length),
-                                             cudaMemcpyHostToDevice);
-        if (error != cudaSuccess) return CudaFailure("upload checkpoint tensor", error);
+        if (!uploaded) {
+          const cudaError_t error = cudaMemcpy(
+              view.data, source, static_cast<std::size_t>(tensor.byte_length),
+              cudaMemcpyHostToDevice);
+          if (error != cudaSuccess)
+            return CudaFailure("upload checkpoint tensor", error);
+        }
         if (tensor.storage_dtype == "F32" && tensor.byte_length == sizeof(float)) {
           std::uint32_t bits = 0;
           std::memcpy(&bits, source, sizeof(bits));
@@ -435,6 +516,7 @@ class LoadedModel {
     if (!weight.ok()) return weight.status();
     if (packed.value()->info->storage_dtype != "U8" ||
         packed.value()->info->logical_shape != std::vector<std::uint64_t>{rows, contracting} ||
+        !packed.value()->sm120_weight_tiled ||
         scales.value()->info->storage_dtype != "F8_E4M3" ||
         scales.value()->info->shape != std::vector<std::uint64_t>{rows, contracting / 16U} ||
         !scales.value()->sm120_scale_tiled ||
@@ -2255,7 +2337,7 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
       impl_->engine.decode_graph_device_bytes();
   result.prefill_chunk_tokens = impl_->engine.prefill_chunk_tokens();
   result.max_context_tokens = impl_->max_context_tokens;
-  result.packed_weight_source_layout_direct = true;
+  result.packed_weight_source_layout_direct = false;
   result.token_loop_allocations = false;
   result.benchmark_qualified = false;
 
@@ -2437,7 +2519,7 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
   result.decode_graph_device_bytes = engine.decode_graph_device_bytes();
   result.prefill_chunk_tokens = engine.prefill_chunk_tokens();
   result.max_context_tokens = options.max_context_tokens;
-  result.packed_weight_source_layout_direct = true;
+  result.packed_weight_source_layout_direct = false;
   result.token_loop_allocations = false;
   result.benchmark_qualified = false;
 
@@ -2706,7 +2788,9 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
          << "  \"fallbacks\": " << result.fallback_count << ",\n"
          << "  \"packed_weight_source_layout_direct\": "
          << (result.packed_weight_source_layout_direct ? "true" : "false") << ",\n"
+         << "  \"weight_layout\": \"sm120_row8_k64\",\n"
          << "  \"weight_scale_layout\": \"sm120_row8_k64\",\n"
+         << "  \"load_time_weight_swizzle\": true,\n"
          << "  \"load_time_scale_swizzle\": true,\n"
          << "  \"persistent_repack_bytes\": 0,\n"
          << "  \"token_loop_allocations\": "
@@ -2820,7 +2904,9 @@ Status WriteDecodeBenchmarkJson(const DecodeBenchmarkResult& result,
          << "\"prefill_path\":\"native_chunked_sm120\","
          << "\"packed_weight_source_layout_direct\":"
          << (result.packed_weight_source_layout_direct ? "true" : "false")
+         << ",\"weight_layout\":\"sm120_row8_k64\""
          << ",\"weight_scale_layout\":\"sm120_row8_k64\""
+         << ",\"load_time_weight_swizzle\":true"
          << ",\"load_time_scale_swizzle\":true"
          << ",\"persistent_repack_bytes\":0"
          << ",\"token_loop_allocations\":" << (result.token_loop_allocations ? "true" : "false")

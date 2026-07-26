@@ -63,11 +63,18 @@ void TestDirectLaneMappingRoundTrip() {
   const auto layout = gem16gb::internal::PlanSm120Nvfp4SourceLayout(rows, k_size);
   GEM16GB_CHECK(layout.ok());
   if (!layout.ok()) return;
+  const auto tiled_weights =
+      gem16gb::internal::TileSm120Nvfp4Weights(layout.value(), packed);
+  const auto tiled_scales =
+      gem16gb::internal::TileSm120Nvfp4WeightScales(layout.value(), scales);
+  GEM16GB_CHECK(tiled_weights.ok());
+  GEM16GB_CHECK(tiled_scales.ok());
+  if (!tiled_weights.ok() || !tiled_scales.ok()) return;
 
   std::vector<std::uint8_t> reconstructed(packed.size(), 0U);
   for (std::uint32_t lane = 0; lane < 32U; ++lane) {
     const auto fragment = gem16gb::internal::LoadSm120Nvfp4WeightLaneFragment(
-        layout.value(), packed, scales, 0, 0, lane);
+        layout.value(), tiled_weights.value(), tiled_scales.value(), 0, 0, lane);
     GEM16GB_CHECK(fragment.ok());
     if (!fragment.ok()) continue;
     GEM16GB_CHECK(fragment.value().active);
@@ -95,6 +102,47 @@ void TestDirectLaneMappingRoundTrip() {
       GEM16GB_CHECK(SourceNibble(reconstructed, row, k) == SourceNibble(packed, row, k));
     }
   }
+}
+
+void TestWeightTilingIsExactAndCoalesced() {
+  constexpr std::size_t rows = 9;
+  constexpr std::size_t k_size = 128;
+  constexpr std::size_t packed_bytes_per_k_block = 32;
+  const auto layout = gem16gb::internal::PlanSm120Nvfp4SourceLayout(rows, k_size);
+  GEM16GB_CHECK(layout.ok());
+  if (!layout.ok()) return;
+  std::vector<std::uint8_t> source(layout.value().packed_weight_bytes);
+  for (std::size_t index = 0; index < source.size(); ++index) {
+    source[index] = static_cast<std::uint8_t>((index * 29U + 7U) & 0xFFU);
+  }
+  const auto tiled =
+      gem16gb::internal::TileSm120Nvfp4Weights(layout.value(), source);
+  GEM16GB_CHECK(tiled.ok());
+  if (!tiled.ok()) return;
+  GEM16GB_CHECK(tiled.value().size() == source.size());
+
+  const std::size_t k_blocks = k_size / 64U;
+  const std::size_t source_row_bytes = k_size / 2U;
+  for (std::size_t row_tile = 0; row_tile < 2U; ++row_tile) {
+    const std::size_t first_row = row_tile * 8U;
+    const std::size_t tile_rows = std::min<std::size_t>(8U, rows - first_row);
+    for (std::size_t k_block = 0; k_block < k_blocks; ++k_block) {
+      for (std::size_t row = 0; row < tile_rows; ++row) {
+        for (std::size_t byte = 0; byte < packed_bytes_per_k_block; ++byte) {
+          const std::size_t source_offset =
+              (first_row + row) * source_row_bytes +
+              k_block * packed_bytes_per_k_block + byte;
+          const std::size_t tiled_offset =
+              first_row * k_blocks * packed_bytes_per_k_block +
+              (k_block * tile_rows + row) * packed_bytes_per_k_block + byte;
+          GEM16GB_CHECK(tiled.value()[tiled_offset] == source[source_offset]);
+        }
+      }
+    }
+  }
+  GEM16GB_CHECK(!gem16gb::internal::TileSm120Nvfp4Weights(
+                       layout.value(), std::span<const std::uint8_t>(source).first(1U))
+                       .ok());
 }
 
 void TestScaleTilingIsExactAndCoalesced() {
@@ -143,15 +191,22 @@ void TestTailRowsAndValidation() {
   if (!layout.ok()) return;
   std::vector<std::uint8_t> packed(layout.value().packed_weight_bytes, 0U);
   std::vector<std::uint8_t> scales(layout.value().scale_bytes, 0x38U);
+  const auto tiled_weights =
+      gem16gb::internal::TileSm120Nvfp4Weights(layout.value(), packed);
+  const auto tiled_scales =
+      gem16gb::internal::TileSm120Nvfp4WeightScales(layout.value(), scales);
+  GEM16GB_CHECK(tiled_weights.ok());
+  GEM16GB_CHECK(tiled_scales.ok());
+  if (!tiled_weights.ok() || !tiled_scales.ok()) return;
   const auto active = gem16gb::internal::LoadSm120Nvfp4WeightLaneFragment(
-      layout.value(), packed, scales, 1, 0, 0);
+      layout.value(), tiled_weights.value(), tiled_scales.value(), 1, 0, 0);
   const auto inactive = gem16gb::internal::LoadSm120Nvfp4WeightLaneFragment(
-      layout.value(), packed, scales, 1, 0, 4);
+      layout.value(), tiled_weights.value(), tiled_scales.value(), 1, 0, 4);
   GEM16GB_CHECK(active.ok() && active.value().active && active.value().source_row == 8U);
   GEM16GB_CHECK(inactive.ok() && !inactive.value().active && inactive.value().source_row == 9U);
   GEM16GB_CHECK(!gem16gb::internal::PlanSm120Nvfp4SourceLayout(8, 48).ok());
   GEM16GB_CHECK(!gem16gb::internal::LoadSm120Nvfp4WeightLaneFragment(
-                       layout.value(), packed, scales, 2, 0, 0)
+                       layout.value(), tiled_weights.value(), tiled_scales.value(), 2, 0, 0)
                        .ok());
 }
 
@@ -160,6 +215,7 @@ void TestTailRowsAndValidation() {
 void RunSm120LayoutTests() {
   TestRealCheckpointGeometry();
   TestDirectLaneMappingRoundTrip();
+  TestWeightTilingIsExactAndCoalesced();
   TestScaleTilingIsExactAndCoalesced();
   TestTailRowsAndValidation();
 }

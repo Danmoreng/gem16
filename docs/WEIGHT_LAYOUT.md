@@ -1,44 +1,47 @@
 # Weight layout
 
-Packed NVFP4 values are consumed directly from the checkpoint representation. The inspector records source shape,
-logical shape, byte offset, alignment, storage dtype, and scale relationships. The production device view changes
-only local-scale byte order at load time.
+The engine accepts the checkpoint's row-major NVFP4 tensors directly, but does not retain that byte order on the
+GPU. At model load it validates each `NVFP4_PACKED` tensor against its manifest `logical_shape`, preserves every
+low-nibble-first E2M1 value exactly, and writes the bytes into the sole final device allocation in this order:
 
-Source matrices are packed row-major as two E2M1 values per byte and have one positive E4M3FN scale per 16
-contracting elements. SM120 block-scaled MMA consumes K in 64-element steps, so each step pairs four source scale
-bytes with its 64 E2M1 values. Gate/Up `[15360,3840]` and Down `[3840,15360]` require no logical padding for the
-native geometry.
+```text
+[row tile of 8][K block of 64][row within tile][32 packed E2M1 bytes]
+```
 
-For an eight-output-row by 64-K tile, lane `l` owns source row `l / 4` and K quarter `l % 4`. Its two FP4 operand
-registers are direct little-endian 32-bit loads for eight nibbles at K offsets `(l % 4) * 8` and
-`32 + (l % 4) * 8`. Packed weights need no persistent copy and avoid the fourfold materialization of a naive
-lane-fragment layout.
-
-The qualified M128xN64 prefill CTA double-buffers current and next K64 activation slices for reuse by eight output
-warps. Local weight-scale bytes use the sole runtime order:
+Its matching `NVFP4_LOCAL_SCALE_E4M3` tensor uses:
 
 ```text
 [row tile of 8][K block of 64][row within tile][4 source E4M3 scale bytes]
 ```
 
-Thus the eight scale-vector words required by one output warp occupy one contiguous 32-byte region. The loader
-recognizes tensors through the authoritative `NVFP4_LOCAL_SCALE_E4M3` manifest class, preserves every byte, and
-copies one bounded transformed tensor directly into its final device-arena address. Maximum transient host staging
-is 3,686,400 bytes; persistent device growth is zero and the 9,200,135,680-byte weight arena is unchanged.
+Source matrices contain two E2M1 values per byte and one positive E4M3FN scale per 16 contracting elements.
+Gate/Up `[15360,3840]` and Down `[3840,15360]` need no padding for the Row8/K64 geometry.
 
-Against `e17049b`, the final layout reduces context-512 NVFP4 Nsight time by 4.61% and total GPU-operation time by
-2.22%. Prefill medians improve by 1.10%/1.43%/3.19% at 128/512/2,048 tokens. Removing strided scale addressing is
-larger for decode: the complete Layer-0 MLP falls from 0.480 to 0.260 ms and a context-128 short decode rises from
-25.54 to 31.63 tok/s with identical checksum.
+For an eight-output-row by K64 tile, lane `l` owns row `l / 4` and K quarter `l % 4`. Its two FP4 operand
+registers are little-endian 32-bit loads at packed offsets `(l % 4) * 4` and `16 + (l % 4) * 4` within that row.
+The eight row fragments required by a warp now occupy one contiguous 256-byte region instead of eight locations
+separated by a full source row. The corresponding eight scale-vector words occupy one contiguous 32-byte region.
+Decode and prefill use this same final layout; there is no parallel source-layout production kernel.
 
-The scale tiling is a load-time implementation detail rather than checkpoint conversion. It:
+The loader transforms bounded groups of row tiles into a reusable host staging vector of at most 4 MiB and copies
+each group directly to its final weight-arena address. It never uploads a raw NVFP4 tensor and therefore never
+holds both GPU layouts. Model-load timing includes the transformation and transfers. The persistent weight arena
+remains 9,200,135,680 bytes, `persistent_repack_bytes` remains zero, and deleting any runtime state still leaves
+the original Hugging Face checkpoint as the only persistent weight copy.
 
-- preserves every source nibble and local-scale byte exactly;
-- streams one bounded source region at a time into the final device allocation;
-- retains neither a raw device copy nor parallel cuBLASLt/CUTLASS and custom-kernel copies;
-- exposes deterministic byte counts, alignment, padding, and provenance in runtime metadata;
-- passes source-to-layout logical mapping tests plus real checkpoint layer/model gates;
-- includes transformation and bounded staging time in model load.
+The layout contract is tested at three levels:
 
-The source-scale ordering survives only in correctness and SIMT probes. Production has no selector or parallel scale
-layout; all native decode and prefill kernels require the tiled final allocation.
+- host tests prove byte-exact mapping for multiple K blocks, multiple row tiles, and tail rows;
+- CUDA tests compare tiled SM120 projections with source-layout reference/SIMT projections;
+- checkpoint probes and full inference require the tiled binding and retain the fixed exact-blue output
+  `[9503, 106]` with checkpoint FP8 KV.
+
+On the Linux RTX 5080 Laptop characterization machine, the 8K-context/64-token decode median improves from
+31.604 to 33.143 tok/s (+4.87%) under the same 1-warm-up/3-run policy. Median inter-token latency is 30.184 ms.
+The current 8K prefill characterization is 1,560.234 tok/s with 5,250.495 ms median TTFT. These are development
+characterizations, not qualified cross-engine benchmark claims.
+
+The source ordering survives only in CPU/CUDA reference and SIMT probes. Runtime JSON reports
+`weight_layout=sm120_row8_k64`, `weight_scale_layout=sm120_row8_k64`,
+`load_time_weight_swizzle=true`, `load_time_scale_swizzle=true`, and
+`packed_weight_source_layout_direct=false`.

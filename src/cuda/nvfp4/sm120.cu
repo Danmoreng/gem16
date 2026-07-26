@@ -181,12 +181,13 @@ __global__ void Sm120DirectProjectionKernel(const std::uint8_t* packed_activatio
 
   const unsigned row_in_tile = lane >> 2U;
   const unsigned k_quarter = lane & 3U;
-  const std::uint64_t source_row = global_warp * kRowsPerWarp + row_in_tile;
-  const std::uint64_t packed_row_bytes = contracting_elements / 2U;
+  const std::uint64_t first_row = global_warp * kRowsPerWarp;
+  const std::uint64_t source_row = first_row + row_in_tile;
+  const std::uint64_t tile_rows =
+      min(static_cast<std::uint64_t>(kRowsPerWarp), rows - first_row);
   const std::uint64_t k_blocks = contracting_elements / kElementsPerKBlock;
-  const std::uint8_t* weight_scale_base =
-      weight_scales_e4m3fn +
-      (global_warp * k_blocks * kRowsPerWarp + row_in_tile) * 4U;
+  const std::uint64_t weight_tile_offset = first_row * k_blocks * 32U;
+  const std::uint64_t scale_tile_offset = first_row * k_blocks * 4U;
 
   float d0 = 0.0F;
   float d1 = 0.0F;
@@ -204,11 +205,14 @@ __global__ void Sm120DirectProjectionKernel(const std::uint8_t* packed_activatio
     std::uint32_t b_second = 0;
     std::uint32_t scale_b = 0;
     if (source_row < rows) {
-      const std::uint64_t weight_byte = source_row * packed_row_bytes + k_block * 32U +
-                                        static_cast<std::uint64_t>(k_quarter) * 4U;
+      const std::uint64_t weight_byte =
+          weight_tile_offset + (k_block * tile_rows + row_in_tile) * 32U +
+          static_cast<std::uint64_t>(k_quarter) * 4U;
       b_first = LoadU32(packed_weight_e2m1 + weight_byte);
       b_second = LoadU32(packed_weight_e2m1 + weight_byte + 16U);
-      scale_b = LoadU32(weight_scale_base + k_block * kRowsPerWarp * 4U);
+      const std::uint64_t scale_byte =
+          scale_tile_offset + (k_block * tile_rows + row_in_tile) * 4U;
+      scale_b = LoadU32(weight_scales_e4m3fn + scale_byte);
     }
     const std::uint32_t scale_a = LoadU32(activation_scales_e4m3fn + k_block * 4U);
 
@@ -288,15 +292,13 @@ __global__ void Sm120FusedGateUpKernel(
 
   const unsigned row_in_tile = lane >> 2U;
   const unsigned k_quarter = lane & 3U;
-  const std::uint64_t source_row = global_warp * kRowsPerWarp + row_in_tile;
-  const std::uint64_t packed_row_bytes = contracting_elements / 2U;
+  const std::uint64_t first_row = global_warp * kRowsPerWarp;
+  const std::uint64_t source_row = first_row + row_in_tile;
+  const std::uint64_t tile_rows =
+      min(static_cast<std::uint64_t>(kRowsPerWarp), rows - first_row);
   const std::uint64_t k_blocks = contracting_elements / kElementsPerKBlock;
-  const std::uint8_t* gate_scale_base =
-      gate_weight_scales_e4m3fn +
-      (global_warp * k_blocks * kRowsPerWarp + row_in_tile) * 4U;
-  const std::uint8_t* up_scale_base =
-      up_weight_scales_e4m3fn +
-      (global_warp * k_blocks * kRowsPerWarp + row_in_tile) * 4U;
+  const std::uint64_t weight_tile_offset = first_row * k_blocks * 32U;
+  const std::uint64_t scale_tile_offset = first_row * k_blocks * 4U;
 
   float gate0 = 0.0F;
   float gate1 = 0.0F;
@@ -322,14 +324,17 @@ __global__ void Sm120FusedGateUpKernel(
     std::uint32_t up_b_second = 0;
     std::uint32_t up_scale_b = 0;
     if (source_row < rows) {
-      const std::uint64_t weight_byte = source_row * packed_row_bytes + k_block * 32U +
-                                        static_cast<std::uint64_t>(k_quarter) * 4U;
+      const std::uint64_t weight_byte =
+          weight_tile_offset + (k_block * tile_rows + row_in_tile) * 32U +
+          static_cast<std::uint64_t>(k_quarter) * 4U;
+      const std::uint64_t scale_byte =
+          scale_tile_offset + (k_block * tile_rows + row_in_tile) * 4U;
       gate_b_first = LoadU32(packed_gate_weight_e2m1 + weight_byte);
       gate_b_second = LoadU32(packed_gate_weight_e2m1 + weight_byte + 16U);
-      gate_scale_b = LoadU32(gate_scale_base + k_block * kRowsPerWarp * 4U);
+      gate_scale_b = LoadU32(gate_weight_scales_e4m3fn + scale_byte);
       up_b_first = LoadU32(packed_up_weight_e2m1 + weight_byte);
       up_b_second = LoadU32(packed_up_weight_e2m1 + weight_byte + 16U);
-      up_scale_b = LoadU32(up_scale_base + k_block * kRowsPerWarp * 4U);
+      up_scale_b = LoadU32(up_weight_scales_e4m3fn + scale_byte);
     }
 
     asm volatile(
@@ -440,16 +445,15 @@ __global__ void Sm120MatrixProjectionKernel(
   const std::uint64_t packed_row_bytes = contracting_elements / 2U;
   const std::uint64_t activation_scale_row_bytes = contracting_elements / 16U;
   const std::uint64_t k_blocks = contracting_elements / kElementsPerKBlock;
-  const std::uint8_t* weight_scale_base = weight_scales_e4m3fn +
-      (warp_active
-           ? (global_warp * k_blocks * kRowsPerWarp + group) * 4U
-           : 0U);
-  const std::uint8_t* up_weight_scale_base = up_weight_scales_e4m3fn == nullptr
-      ? nullptr
-      : up_weight_scales_e4m3fn +
-            (warp_active
-                 ? (global_warp * k_blocks * kRowsPerWarp + group) * 4U
-                 : 0U);
+  const std::uint64_t first_weight_row = global_warp * kRowsPerWarp;
+  const std::uint64_t weight_tile_rows =
+      warp_active
+          ? min(static_cast<std::uint64_t>(kRowsPerWarp), rows - first_weight_row)
+          : 0U;
+  const std::uint64_t weight_tile_offset =
+      first_weight_row * k_blocks * 32U;
+  const std::uint64_t scale_tile_offset =
+      first_weight_row * k_blocks * 4U;
 
   float accumulator[kTokenTiles][4] = {};
   float up_accumulator[kTokenTiles][4] = {};
@@ -488,14 +492,17 @@ __global__ void Sm120MatrixProjectionKernel(
     std::uint32_t up_scale_b = 0U;
     if (weight_column < rows) {
       const std::uint64_t weight_offset =
-          weight_column * packed_row_bytes + k_offset;
+          weight_tile_offset + (k_block * weight_tile_rows + group) * 32U +
+          static_cast<std::uint64_t>(thread_in_group) * 4U;
+      const std::uint64_t scale_offset =
+          scale_tile_offset + (k_block * weight_tile_rows + group) * 4U;
       b0 = LoadU32(packed_weight_e2m1 + weight_offset);
       b1 = LoadU32(packed_weight_e2m1 + weight_offset + 16U);
-      scale_b = LoadU32(weight_scale_base + k_block * kRowsPerWarp * 4U);
+      scale_b = LoadU32(weight_scales_e4m3fn + scale_offset);
       if constexpr (kFusedGateUp) {
         up_b0 = LoadU32(packed_up_weight_e2m1 + weight_offset);
         up_b1 = LoadU32(packed_up_weight_e2m1 + weight_offset + 16U);
-        up_scale_b = LoadU32(up_weight_scale_base + k_block * kRowsPerWarp * 4U);
+        up_scale_b = LoadU32(up_weight_scales_e4m3fn + scale_offset);
       }
     }
     // Retain each 8-column weight fragment while a warp advances through a

@@ -376,24 +376,32 @@ Result<Nvfp4MlpCheckpointProbeResult> RunLayer0Nvfp4MlpCheckpointProbe(
   // device paths consume the same CUDA-produced bytes and the mismatch remains explicit in the
   // result instead of invalidating the kernel comparison.
 
-  const auto upload_tiled_scales = [&](const ProjectionBinding& binding,
-                                        DeviceBuffer<std::uint8_t>& destination,
-                                        const char* label) -> Status {
+  const auto upload_sm120_layout = [&](const ProjectionBinding& binding,
+                                        DeviceBuffer<std::uint8_t>& weight_destination,
+                                        DeviceBuffer<std::uint8_t>& scale_destination,
+                                        const char* weight_label,
+                                        const char* scale_label) -> Status {
     const auto layout = PlanSm120Nvfp4SourceLayout(
         binding.rows, binding.contracting_elements);
     if (!layout.ok()) return layout.status();
-    const auto tiled =
+    const auto tiled_weight =
+        TileSm120Nvfp4Weights(layout.value(), binding.packed_weight);
+    if (!tiled_weight.ok()) return tiled_weight.status();
+    const auto tiled_scales =
         TileSm120Nvfp4WeightScales(layout.value(), binding.weight_scales);
-    if (!tiled.ok()) return tiled.status();
-    return CopyToDevice(destination.get(), tiled.value(), label);
+    if (!tiled_scales.ok()) return tiled_scales.status();
+    Status copy_status =
+        CopyToDevice(weight_destination.get(), tiled_weight.value(), weight_label);
+    if (!copy_status.ok()) return copy_status;
+    return CopyToDevice(scale_destination.get(), tiled_scales.value(), scale_label);
   };
   for (const Status status : {
-           upload_tiled_scales(gate.value(), gate_scales,
-                               "copy tiled Gate scales"),
-           upload_tiled_scales(up.value(), up_scales,
-                               "copy tiled Up scales"),
-           upload_tiled_scales(down.value(), down_scales,
-                               "copy tiled Down scales"),
+           upload_sm120_layout(gate.value(), gate_weight, gate_scales,
+                               "copy tiled Gate weight", "copy tiled Gate scales"),
+           upload_sm120_layout(up.value(), up_weight, up_scales,
+                               "copy tiled Up weight", "copy tiled Up scales"),
+           upload_sm120_layout(down.value(), down_weight, down_scales,
+                               "copy tiled Down weight", "copy tiled Down scales"),
        }) {
     if (!status.ok()) return status;
   }

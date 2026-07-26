@@ -1,5 +1,28 @@
 # Decisions
 
+## 2026-07-26: Tile packed NVFP4 weights into the sole final SM120 allocation
+
+Date: 2026-07-26
+Decision: Transform every manifest-classified `NVFP4_PACKED` tensor at load time from checkpoint row-major order
+to `[row tile 8][K64 block][row][32 packed E2M1 bytes]`. Use the existing matching Row8/K64 scale order for both
+T=1 and batch SM120 kernels. Stream bounded transformed windows directly into the final arena, retain no raw GPU
+copy, expose no runtime selector, and preserve source order only in reference/SIMT probes.
+Context: After attention and grouped Q/K/V improvements, NVFP4 Gate/Up/Down still consumed about 10.56 ms of an
+8K decode forward. Each output warp loaded eight rows whose K64 fragments were separated by a full source-row
+stride even though the corresponding scale words had already been tiled contiguously.
+Alternatives: Keep source-row weights; retain source plus a decode-only tiled copy; tile only Gate/Up; or perform
+layout conversion inside each kernel. These respectively leave measured decode speed unused, violate the 16 GB
+single-copy contract, split the MLP layout, or repeat address/data movement in the hot path.
+Consequences: Every packed nibble, E4M3 scale byte, global divisor, and MMA accumulation order is unchanged.
+Decode and prefill share one runtime layout. A reusable host staging vector is bounded at 4 MiB, the persistent
+weight arena stays 9,200,135,680 bytes, and `persistent_repack_bytes` remains zero. Model-load timing includes the
+CPU transformation and direct-to-final-allocation transfers.
+Evidence: Host mapping tests cover K blocks, row tiles, and tail rows. CUDA native projections match the
+source-layout reference, and the complete Layer-0 MLP has maximum absolute difference 0 and cosine 1. Exact-blue
+remains `[9503,106]`; 129/257-token prefill retains vLLM Top-1 rank 1; the teacher-forced suite remains 118/127
+Top-1 and 126/127 Top-5; and CTest passes. FP8-KV 8K decode improves from 31.604 to 33.143 tok/s median (+4.87%)
+under the same 1-warm-up/3-run policy.
+
 ## 2026-07-26: Split and merge long-context FP8 decode attention
 
 Date: 2026-07-26
