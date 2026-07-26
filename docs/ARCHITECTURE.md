@@ -40,9 +40,10 @@ uses one full graph replay for ordinary greedy decode but is not yet benchmark-q
 
 The first full-model path intentionally accepts token IDs and uses a hybrid cache through the checkpoint's 262,144
 position contract. Its 40 local-attention layers use fixed 1,024-token rings; its eight full-attention layers use
-absolute, growing storage. Checkpoint-FP8 prefill uses one fixed 2,048-token chunk. Attention projections run in
-256-thread M128xN64xK64 FP8 CTAs with two exact `cp.async` stages for source-layout activations and weights; local
-Q/K/V and global Q/K share one grouped launch. Decode uses the same binding-dimension grouping around the
+absolute, growing storage. Checkpoint-FP8 prefill uses one fixed 2,048-token chunk. Attention projections run as
+CUTLASS SM120 128x128x64 warp-specialized FP8 GEMMs directly over checkpoint-order activation and weight bytes,
+followed by explicit per-token/per-channel scaling in FP32. Q/K/V are separate prompt GEMMs. Decode uses the
+binding-dimension grouping around the
 latency-oriented T=1 direct-source kernel, reducing three independent graph nodes to one while retaining each
 projection's original CTAs and MMA ordering. Gate, Up, and Down prefill use CUTLASS SM120 block-scaled GEMM over a
 temporary arena view. Packed E2M1 weights and their
@@ -90,12 +91,12 @@ decode plan may therefore quantize their shared input once, contract both matric
 product in one closed operator. Down performs its own dynamic-local quantization and may fuse its residual epilogue.
 The attention projections remain a separate dynamic-FP8/per-channel-FP8 path.
 
-The production FP8 prefill projection is a 256-thread M128xN64xK64 CTA. It double-buffers two K32 fragments at a
-time, cooperatively copying 128 activation rows and 64 source-layout weight rows into 25,600 bytes of static shared
-memory before issuing FP32-accumulating E4M3 MMA. Eight M16 tiles reuse each staged weight fragment. The kernel uses
-96 registers with zero stack/local memory. Local Q/K/V and global Q/K are grouped through the kernel's binding
-dimension, reducing FP8 projection launches from 184 to 96 per context-512 prefill without changing any output;
-there is no grouped/ungrouped runtime selector.
+The production FP8 prefill projection is a CUTLASS 4.5.2 SM120 128x128x64 Tensor-Core GEMM with an automatic
+warp-specialized schedule and FP32 output. Checkpoint `[N,K]` weights are already the column-major B memory order
+expected by the GEMM, so no repack or second weight copy is needed. A 256-thread scale kernel then applies the
+dynamic per-token activation scale followed by the per-output-channel BF16 checkpoint scale, matching the former
+FP32 multiplication order exactly. Q, K, optional V, and O are separate prompt GEMMs and reuse the existing 8 MiB
+CUTLASS workspace sequentially. The T=1 decode plan retains its grouped native direct-source projection.
 
 Checkpoint-FP8 prefill attention uses BF16 Tensor-Core QK and probability-times-V operations with FP32 online
 softmax state. This deliberately changes the scalar FP32 reference's reduction tree and rounds MMA operands, so it

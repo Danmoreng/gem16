@@ -59,18 +59,20 @@ def validate_result(document: dict[str, Any], expected: list[int]) -> None:
         raise ValidationError("inference did not report exact load-time scale swizzling")
     if document.get("persistent_repack_bytes") != 0:
         raise ValidationError("inference retained a persistent repack allocation")
-    if document.get("fp8_prefill_tile") != "m128n64k64":
-        raise ValidationError("inference did not use the required pipelined FP8 prefill tile")
-    if document.get("fp8_prefill_pipeline_stages") != 2:
-        raise ValidationError("inference did not report the two-stage FP8 prefill pipeline")
+    if document.get("fp8_prefill_tile") != "cutlass_m128n128k64":
+        raise ValidationError("inference did not use the required CUTLASS FP8 prefill tile")
+    if document.get("fp8_prefill_pipeline_stages") != 0:
+        raise ValidationError("inference reported a manual FP8 prefill pipeline")
+    if document.get("fp8_prefill_schedule") != "cutlass_auto":
+        raise ValidationError("inference did not report the required CUTLASS FP8 schedule")
     if document.get("local_prefill_query_heads_per_cta") != 2:
         raise ValidationError("inference did not group local GQA heads per prefill CTA")
     if document.get("global_prefill_query_heads_per_cta") != 4:
         raise ValidationError("inference did not group global GQA heads per prefill CTA")
     if document.get("prefill_chunk_tokens") != 2048:
         raise ValidationError("inference did not use the required checkpoint-FP8 prefill chunk")
-    if document.get("grouped_qkv_prefill") is not True:
-        raise ValidationError("inference did not group Q/K/V prefill projections")
+    if document.get("grouped_qkv_prefill") is not False:
+        raise ValidationError("inference did not report separate CUTLASS Q/K/V projections")
     if document.get("fused_rmsnorm_boundaries") is not True:
         raise ValidationError("inference did not fuse RMSNorm BF16 boundaries")
     if document.get("fused_prefill_rmsnorm_fp8_quantization") is not True:

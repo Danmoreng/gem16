@@ -1,5 +1,31 @@
 # Decisions
 
+## 2026-07-26: Use CUTLASS SM120 for FP8 prefill projections
+
+Date: 2026-07-26
+Decision: Run prompt Q, K, optional V, and O projections through CUTLASS 4.5.2 SM120 128x128x64
+warp-specialized FP8 GEMMs with FP32 accumulation/output. Consume checkpoint `[N,K]` weight bytes directly as
+CUTLASS column-major B, then apply each token's FP32 activation scale and each output channel's BF16 weight scale
+in a separate device kernel using the original left-to-right multiplication order. Retain the grouped native
+direct-source path for token-at-a-time decode.
+Context: After CUTLASS NVFP4 covered the full MLP, FP8 Q/K/V/O was the largest remaining projection family.
+The source-layout M128xN64xK64 kernel improved substantially over the original direct path, but still managed
+tiling, staging, and scheduling manually. The checkpoint's FP8 weight ordering already matches a regular GEMM B
+operand, so CUTLASS requires no per-layer transform.
+Alternatives: Continue tuning the native CTA; keep grouped Q/K/V in one launch; fuse per-row/per-column scaling
+into a custom CUTLASS epilogue; or retain a raw unscaled FP32 buffer. The first left confirmed end-to-end
+throughput unused, the grouped launch was slower than independently scheduled GEMMs, and epilogue fusion is
+deferred until it proves a further gain without changing scaling order. The existing projection buffers hold the
+raw accumulators transiently, so no new arena is necessary.
+Consequences: Runtime metadata reports `cutlass_m128n128k64`, `cutlass_auto`, and no grouped prefill Q/K/V.
+Persistent weights, KV storage, reusable workspace (673,808,384 bytes at 8K), and
+`persistent_repack_bytes=0` remain unchanged.
+Evidence: A real 128x4,096x3,840 fixture is bit-exact across 524,288 FP32 outputs versus the prior kernel. Under
+3 warm-ups and 10 measured 8K runs, median prefill improves from 2,910.53 to 3,539.55 tok/s (+21.61%) and TTFT
+from 2,814.61 to 2,314.42 ms (-17.77%), with a 95% throughput CI of `[3,528.28, 3,543.69]`. CUDA tests,
+exact-blue, vLLM boundary Top-1 at 129/257, and teacher-forced 121/127 Top-1 plus 127/127 Top-5/Top-20 pass.
+Three 8K decode runs retain one checksum and a 33.073 tok/s median.
+
 ## 2026-07-26: Extend CUTLASS block-scaled GEMM to Down prefill
 
 Date: 2026-07-26

@@ -261,9 +261,10 @@ Reports and exported SQLite databases are written below the selected build direc
 outside version control.
 
 Prompt ingestion uses one native 2,048-token chunk plan for checkpoint-FP8 execution. FP8 attention projections
-use 256-thread M128xN64xK64 CTAs: two shared-memory stages copy exact source-layout activation and weight bytes with
-`cp.async`, while each weight fragment serves eight 16-token MMA tiles. Local Q/K/V and global Q/K are grouped into
-one launch; O uses the same tiled kernel after attention. Decode likewise groups the existing T=1 direct-source
+use CUTLASS SM120 128x128x64 warp-specialized Tensor-Core GEMMs directly over checkpoint-order activation and
+weight bytes. A following device kernel applies dynamic per-token FP32 activation scales and per-output-channel
+BF16 weight scales in the original multiplication order. Q, K, optional V, and O run as separate GEMMs. Decode
+likewise groups the existing T=1 direct-source
 Q/K/V CTAs into one binding-dimension launch per layer. Gate, Up, and Down use CUTLASS SM120 128x128x128
 warp-specialized block-scaled GEMMs. Compact activation scales are interleaved once per projection boundary, while
 one projection at a time is transformed from the persistent Row8/K64 layout into preallocated row-major weight and

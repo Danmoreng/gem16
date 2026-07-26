@@ -71,6 +71,7 @@ if(GEM16GB_ENABLE_CUDA)
     src/cuda/dispatch.cu
     src/cuda/inference.cu
     src/cuda/fp8/checkpoint_probe.cu
+    src/cuda/fp8/cutlass_sm120.cu
     src/cuda/fp8/reference.cu
     src/cuda/fp8/sm120.cu
     src/cuda/layer/reference.cu

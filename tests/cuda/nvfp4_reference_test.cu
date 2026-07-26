@@ -1,4 +1,5 @@
 #include "cuda/attention/sm120.h"
+#include "cuda/fp8/cutlass_sm120.h"
 #include "cuda/fp8/reference.h"
 #include "cuda/fp8/sm120.h"
 #include "cuda/layer/reference.h"
@@ -769,6 +770,8 @@ void TestFp8ReferenceAndDirectProjection() {
   DeviceBuffer<float> device_batch_scales(tokens);
   DeviceBuffer<float> device_batch_reference(tokens * rows);
   DeviceBuffer<float> device_batch_native(tokens * rows);
+  DeviceBuffer<float> device_batch_cutlass(tokens * rows);
+  DeviceBuffer<std::uint8_t> device_cutlass_workspace(8U * 1024U * 1024U);
   DeviceBuffer<float> device_grouped_q(tokens * rows);
   DeviceBuffer<float> device_grouped_k(tokens * rows);
   DeviceBuffer<float> device_grouped_v(tokens * rows);
@@ -781,6 +784,8 @@ void TestFp8ReferenceAndDirectProjection() {
       device_direct_grouped_v.get() == nullptr ||
       device_batch_activation.get() == nullptr || device_batch_scales.get() == nullptr ||
       device_batch_reference.get() == nullptr || device_batch_native.get() == nullptr ||
+      device_batch_cutlass.get() == nullptr ||
+      device_cutlass_workspace.get() == nullptr ||
       device_grouped_q.get() == nullptr || device_grouped_k.get() == nullptr ||
       device_grouped_v.get() == nullptr) {
     return;
@@ -857,6 +862,13 @@ void TestFp8ReferenceAndDirectProjection() {
           device_batch_activation.get(), device_batch_scales.get(),
           device_weight.get(), device_weight_scales.get(),
           device_batch_native.get(), tokens, rows, k_size, nullptr);
+  const auto batch_cutlass_status =
+      gem16gb::internal::LaunchFp8CutlassProjectionBatch(
+          device_batch_activation.get(), device_batch_scales.get(),
+          device_weight.get(), device_weight_scales.get(),
+          device_batch_cutlass.get(), tokens, rows, k_size,
+          device_cutlass_workspace.get(), device_cutlass_workspace.bytes(),
+          nullptr);
   const auto grouped_native_status =
       gem16gb::internal::LaunchFp8Sm120GroupedQkvProjectionBatch(
           device_batch_activation.get(), device_batch_scales.get(),
@@ -868,11 +880,13 @@ void TestFp8ReferenceAndDirectProjection() {
   CUDA_TEST_CHECK(batch_quantize_status.ok());
   CUDA_TEST_CHECK(batch_reference_status.ok());
   CUDA_TEST_CHECK(batch_native_status.ok());
+  CUDA_TEST_CHECK(batch_cutlass_status.ok());
   CUDA_TEST_CHECK(grouped_native_status.ok());
   if (!reference_status.ok() || !native_status.ok() ||
       !direct_grouped_status.ok() ||
       !batch_quantize_status.ok() || !batch_reference_status.ok() ||
-      !batch_native_status.ok() || !grouped_native_status.ok() ||
+      !batch_native_status.ok() || !batch_cutlass_status.ok() ||
+      !grouped_native_status.ok() ||
       !CudaOk(cudaDeviceSynchronize(), "FP8 projection synchronize")) {
     return;
   }
@@ -883,6 +897,7 @@ void TestFp8ReferenceAndDirectProjection() {
   std::array<float, rows> direct_grouped_v_output{};
   std::array<float, tokens * rows> batch_reference_output{};
   std::array<float, tokens * rows> batch_native_output{};
+  std::array<float, tokens * rows> batch_cutlass_output{};
   std::array<float, tokens * rows> grouped_q_output{};
   std::array<float, tokens * rows> grouped_k_output{};
   std::array<float, tokens * rows> grouped_v_output{};
@@ -908,6 +923,9 @@ void TestFp8ReferenceAndDirectProjection() {
       !CudaOk(cudaMemcpy(batch_native_output.data(), device_batch_native.get(),
                          device_batch_native.bytes(), cudaMemcpyDeviceToHost),
               "copy batched FP8 native output") ||
+      !CudaOk(cudaMemcpy(batch_cutlass_output.data(), device_batch_cutlass.get(),
+                         device_batch_cutlass.bytes(), cudaMemcpyDeviceToHost),
+              "copy batched CUTLASS FP8 output") ||
       !CudaOk(cudaMemcpy(grouped_q_output.data(), device_grouped_q.get(),
                          device_grouped_q.bytes(), cudaMemcpyDeviceToHost),
               "copy grouped FP8 Q output") ||
@@ -936,6 +954,8 @@ void TestFp8ReferenceAndDirectProjection() {
       for (std::size_t token = 0; token < tokens; ++token) {
         CUDA_TEST_CHECK(batch_native_output[token * rows + row] ==
                         batch_reference_output[token * rows + row]);
+        CUDA_TEST_CHECK(batch_cutlass_output[token * rows + row] ==
+                        batch_reference_output[token * rows + row]);
         CUDA_TEST_CHECK(grouped_q_output[token * rows + row] ==
                         batch_reference_output[token * rows + row]);
         CUDA_TEST_CHECK(grouped_k_output[token * rows + row] ==
@@ -945,6 +965,105 @@ void TestFp8ReferenceAndDirectProjection() {
       }
     }
   }
+}
+
+void TestFp8CutlassPrefillGeometry() {
+  constexpr std::size_t tokens = 128U;
+  constexpr std::size_t rows = 4096U;
+  constexpr std::size_t k_size = 3840U;
+  constexpr std::size_t workspace_bytes = 8U * 1024U * 1024U;
+  constexpr std::array<std::uint8_t, 7> fp8_values = {
+      0x00U, 0x30U, 0x38U, 0x40U, 0xB0U, 0xB8U, 0xC0U};
+  std::vector<std::uint8_t> activation(tokens * k_size);
+  std::vector<std::uint8_t> weight(rows * k_size);
+  std::vector<float> activation_scales(tokens);
+  std::vector<std::uint16_t> weight_scales(rows);
+  for (std::size_t index = 0; index < activation.size(); ++index) {
+    activation[index] = fp8_values[(index * 5U + index / k_size) %
+                                   fp8_values.size()];
+  }
+  for (std::size_t index = 0; index < weight.size(); ++index) {
+    weight[index] =
+        fp8_values[(index * 3U + index / k_size) % fp8_values.size()];
+  }
+  for (std::size_t token = 0; token < tokens; ++token) {
+    activation_scales[token] =
+        std::array<float, 4>{0.125F, 0.25F, 0.5F, 1.0F}[token % 4U];
+  }
+  for (std::size_t row = 0; row < rows; ++row) {
+    weight_scales[row] =
+        std::array<std::uint16_t, 4>{0x3E00U, 0x3E80U, 0x3F00U,
+                                     0x3F80U}[row % 4U];
+  }
+
+  DeviceBuffer<std::uint8_t> device_activation(activation.size());
+  DeviceBuffer<float> device_activation_scales(activation_scales.size());
+  DeviceBuffer<std::uint8_t> device_weight(weight.size());
+  DeviceBuffer<std::uint16_t> device_weight_scales(weight_scales.size());
+  DeviceBuffer<float> device_native(tokens * rows);
+  DeviceBuffer<float> device_cutlass(tokens * rows);
+  DeviceBuffer<std::uint8_t> device_workspace(workspace_bytes);
+  if (device_activation.get() == nullptr ||
+      device_activation_scales.get() == nullptr ||
+      device_weight.get() == nullptr ||
+      device_weight_scales.get() == nullptr ||
+      device_native.get() == nullptr || device_cutlass.get() == nullptr ||
+      device_workspace.get() == nullptr) {
+    return;
+  }
+  if (!CudaOk(cudaMemcpy(device_activation.get(), activation.data(),
+                         device_activation.bytes(), cudaMemcpyHostToDevice),
+              "copy real FP8 activation") ||
+      !CudaOk(cudaMemcpy(device_activation_scales.get(),
+                         activation_scales.data(),
+                         device_activation_scales.bytes(),
+                         cudaMemcpyHostToDevice),
+              "copy real FP8 activation scales") ||
+      !CudaOk(cudaMemcpy(device_weight.get(), weight.data(),
+                         device_weight.bytes(), cudaMemcpyHostToDevice),
+              "copy real FP8 weight") ||
+      !CudaOk(cudaMemcpy(device_weight_scales.get(), weight_scales.data(),
+                         device_weight_scales.bytes(),
+                         cudaMemcpyHostToDevice),
+              "copy real FP8 weight scales")) {
+    return;
+  }
+  const auto native_status =
+      gem16gb::internal::LaunchFp8Sm120DirectProjectionBatch(
+          device_activation.get(), device_activation_scales.get(),
+          device_weight.get(), device_weight_scales.get(), device_native.get(),
+          tokens, rows, k_size, nullptr);
+  const auto cutlass_status =
+      gem16gb::internal::LaunchFp8CutlassProjectionBatch(
+          device_activation.get(), device_activation_scales.get(),
+          device_weight.get(), device_weight_scales.get(), device_cutlass.get(),
+          tokens, rows, k_size, device_workspace.get(),
+          device_workspace.bytes(), nullptr);
+  CUDA_TEST_CHECK(native_status.ok());
+  CUDA_TEST_CHECK(cutlass_status.ok());
+  if (!native_status.ok() || !cutlass_status.ok() ||
+      !CudaOk(cudaDeviceSynchronize(),
+              "real FP8 CUTLASS projection synchronize")) {
+    return;
+  }
+  std::vector<float> native(tokens * rows);
+  std::vector<float> cutlass(tokens * rows);
+  if (!CudaOk(cudaMemcpy(native.data(), device_native.get(),
+                         device_native.bytes(), cudaMemcpyDeviceToHost),
+              "copy real native FP8 output") ||
+      !CudaOk(cudaMemcpy(cutlass.data(), device_cutlass.get(),
+                         device_cutlass.bytes(), cudaMemcpyDeviceToHost),
+              "copy real CUTLASS FP8 output")) {
+    return;
+  }
+  std::size_t exact_mismatches = 0U;
+  for (std::size_t index = 0; index < native.size(); ++index) {
+    exact_mismatches += native[index] != cutlass[index] ? 1U : 0U;
+  }
+  std::cout << "CUTLASS FP8 128x4096x3840 exact mismatches: "
+            << exact_mismatches << '/' << native.size() << '\n';
+  CheckAttentionMetrics(native, cutlass, "CUTLASS FP8 128x4096x3840",
+                        0.125F, 0.02, 0.99999);
 }
 
 void TestLocalLayerReferenceOperators() {
@@ -2594,6 +2713,7 @@ int main(int argc, char** argv) {
   TestCutlassSm120Projection();
   TestMlpElementwiseBridge();
   TestFp8ReferenceAndDirectProjection();
+  TestFp8CutlassPrefillGeometry();
   TestLocalLayerReferenceOperators();
   TestFusedProjectionRmsNormRotaryBf16Batch();
   TestPhysicalFp8KvCache();

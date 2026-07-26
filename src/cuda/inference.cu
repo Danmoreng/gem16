@@ -1,6 +1,7 @@
 #include "gem16gb/engine.h"
 
 #include "cuda/attention/sm120.h"
+#include "cuda/fp8/cutlass_sm120.h"
 #include "cuda/fp8/reference.h"
 #include "cuda/fp8/sm120.h"
 #include "cuda/layer/reference.h"
@@ -944,10 +945,13 @@ Status LaunchNvfp4Projection(const std::uint8_t* activation, const std::uint8_t*
 
 Status LaunchFp8ProjectionBatch(const std::uint8_t* activation, const float* scales,
                                 const Fp8Binding& binding, float* output,
-                                std::uint64_t tokens, cudaStream_t stream) {
-  return internal::LaunchFp8Sm120DirectProjectionBatch(
+                                std::uint64_t tokens, void* cutlass_workspace,
+                                std::size_t cutlass_workspace_bytes,
+                                cudaStream_t stream) {
+  return internal::LaunchFp8CutlassProjectionBatch(
       activation, scales, binding.weight, binding.scales, output, tokens,
-      binding.rows, binding.contracting, stream);
+      binding.rows, binding.contracting, cutlass_workspace,
+      cutlass_workspace_bytes, stream);
 }
 
 Status LaunchFp8QkvProjectionBatch(
@@ -955,6 +959,7 @@ Status LaunchFp8QkvProjectionBatch(
     const Fp8Binding& q_binding, float* q_output,
     const Fp8Binding& k_binding, float* k_output,
     const Fp8Binding* v_binding, float* v_output, std::uint64_t tokens,
+    void* cutlass_workspace, std::size_t cutlass_workspace_bytes,
     cudaStream_t stream) {
   if (q_binding.contracting != k_binding.contracting ||
       (v_binding != nullptr &&
@@ -962,14 +967,20 @@ Status LaunchFp8QkvProjectionBatch(
     return Status(StatusCode::kInvalidArgument,
                   "grouped FP8 Q/K/V projections require one contracting dimension");
   }
-  return internal::LaunchFp8Sm120GroupedQkvProjectionBatch(
-      activation, scales, q_binding.weight, q_binding.scales, q_output,
-      q_binding.rows, k_binding.weight, k_binding.scales, k_output,
-      k_binding.rows, v_binding == nullptr ? nullptr : v_binding->weight,
-      v_binding == nullptr ? nullptr : v_binding->scales,
-      v_binding == nullptr ? nullptr : v_output,
-      v_binding == nullptr ? 0U : v_binding->rows, tokens,
-      q_binding.contracting, stream);
+  Status status = internal::LaunchFp8CutlassProjectionBatch(
+      activation, scales, q_binding.weight, q_binding.scales, q_output, tokens,
+      q_binding.rows, q_binding.contracting, cutlass_workspace,
+      cutlass_workspace_bytes, stream);
+  if (!status.ok()) return status;
+  status = internal::LaunchFp8CutlassProjectionBatch(
+      activation, scales, k_binding.weight, k_binding.scales, k_output, tokens,
+      k_binding.rows, k_binding.contracting, cutlass_workspace,
+      cutlass_workspace_bytes, stream);
+  if (!status.ok() || v_binding == nullptr) return status;
+  return internal::LaunchFp8CutlassProjectionBatch(
+      activation, scales, v_binding->weight, v_binding->scales, v_output,
+      tokens, v_binding->rows, v_binding->contracting, cutlass_workspace,
+      cutlass_workspace_bytes, stream);
 }
 
 class InferenceEngine {
@@ -1426,6 +1437,9 @@ class InferenceEngine {
     float* v_norm = Pointer<float>(prefill_workspace_, prefill_offsets_.v_norm);
     float* attention = Pointer<float>(prefill_workspace_, prefill_offsets_.attention);
     float* projection = Pointer<float>(prefill_workspace_, prefill_offsets_.projection);
+    auto* cutlass_workspace = Pointer<std::uint8_t>(
+        prefill_workspace_, prefill_offsets_.cutlass_workspace);
+    constexpr std::size_t kCutlassWorkspaceBytes = 8U * 1024U * 1024U;
     const std::uint64_t hidden_elements = tokens * kHidden;
     Status status = internal::LaunchRmsNormFp8TokenQuantizationBatch(
         hidden_a, layer.input_norm, fp8, fp8_scales, tokens, kHidden,
@@ -1433,7 +1447,8 @@ class InferenceEngine {
     if (!status.ok()) return status;
     status = LaunchFp8QkvProjectionBatch(
         fp8, fp8_scales, layer.q, q, layer.k, k,
-        layer.global ? nullptr : &layer.v, v, tokens, stream_);
+        layer.global ? nullptr : &layer.v, v, tokens, cutlass_workspace,
+        kCutlassWorkspaceBytes, stream_);
     if (!status.ok()) return status;
     if (layer.global) {
       const cudaError_t error = cudaMemcpyAsync(
@@ -1519,7 +1534,8 @@ class InferenceEngine {
         attention, o_activation, o_scales, tokens, layer.query_elements, stream_);
     if (!status.ok()) return status;
     status = LaunchFp8ProjectionBatch(o_activation, o_scales, layer.o, projection,
-                                      tokens, stream_);
+                                      tokens, cutlass_workspace,
+                                      kCutlassWorkspaceBytes, stream_);
     if (!status.ok()) return status;
     status = LaunchRoundBf16(projection, hidden_elements, stream_);
     if (!status.ok()) return status;
@@ -1542,9 +1558,6 @@ class InferenceEngine {
         prefill_workspace_, prefill_offsets_.cutlass_weight);
     auto* cutlass_weight_scales = Pointer<std::uint8_t>(
         prefill_workspace_, prefill_offsets_.cutlass_weight_scales);
-    auto* cutlass_workspace = Pointer<std::uint8_t>(
-        prefill_workspace_, prefill_offsets_.cutlass_workspace);
-    constexpr std::size_t kCutlassWorkspaceBytes = 8U * 1024U * 1024U;
     status = internal::LaunchNvfp4CutlassInterleaveActivationScales(
         mlp_scales, cutlass_activation_scales, tokens, kHidden, stream_);
     if (!status.ok()) return status;
@@ -2829,14 +2842,15 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
          << (result.token_loop_allocations ? "true" : "false") << ",\n"
          << "  \"fused_gate_up\": false,\n"
          << "  \"fused_prefill_attention\": true,\n"
-         << "  \"fp8_prefill_tile\": \"m128n64k64\",\n"
+         << "  \"fp8_prefill_tile\": \"cutlass_m128n128k64\",\n"
          << "  \"nvfp4_gate_up_prefill_tile\": \"cutlass_m128n128k128\",\n"
          << "  \"nvfp4_gate_up_prefill_weight_scratch\": true,\n"
          << "  \"nvfp4_down_prefill_tile\": \"cutlass_m128n128k128\",\n"
-         << "  \"fp8_prefill_pipeline_stages\": 2,\n"
+         << "  \"fp8_prefill_pipeline_stages\": 0,\n"
+         << "  \"fp8_prefill_schedule\": \"cutlass_auto\",\n"
          << "  \"local_prefill_query_heads_per_cta\": 2,\n"
          << "  \"global_prefill_query_heads_per_cta\": 4,\n"
-         << "  \"grouped_qkv_prefill\": true,\n"
+         << "  \"grouped_qkv_prefill\": false,\n"
          << "  \"grouped_qkv_decode\": true,\n"
          << "  \"fused_rmsnorm_boundaries\": true,\n"
          << "  \"fused_prefill_rmsnorm_fp8_quantization\": true,\n"
@@ -2917,14 +2931,15 @@ Status WriteDecodeBenchmarkJson(const DecodeBenchmarkResult& result,
          << "\",\"kv_cache_layout\":\"hybrid_local_ring_global_contiguous"
          << "\",\"fused_gate_up\":false"
          << ",\"fused_prefill_attention\":true"
-         << ",\"fp8_prefill_tile\":\"m128n64k64\""
+         << ",\"fp8_prefill_tile\":\"cutlass_m128n128k64\""
          << ",\"nvfp4_gate_up_prefill_tile\":\"cutlass_m128n128k128\""
          << ",\"nvfp4_gate_up_prefill_weight_scratch\":true"
          << ",\"nvfp4_down_prefill_tile\":\"cutlass_m128n128k128\""
-         << ",\"fp8_prefill_pipeline_stages\":2"
+         << ",\"fp8_prefill_pipeline_stages\":0"
+         << ",\"fp8_prefill_schedule\":\"cutlass_auto\""
          << ",\"local_prefill_query_heads_per_cta\":2"
          << ",\"global_prefill_query_heads_per_cta\":4"
-         << ",\"grouped_qkv_prefill\":true"
+         << ",\"grouped_qkv_prefill\":false"
          << ",\"grouped_qkv_decode\":true"
          << ",\"fused_rmsnorm_boundaries\":true"
          << ",\"fused_prefill_rmsnorm_fp8_quantization\":true"
@@ -3007,14 +3022,15 @@ Status WritePrefillBenchmarkJson(const DecodeBenchmarkResult& result,
          << ",\"measured_runs\":" << result.options.measured_runs
          << ",\"prefill_path\":\"native_chunked_sm120\""
          << ",\"fused_prefill_attention\":true"
-         << ",\"fp8_prefill_tile\":\"m128n64k64\""
+         << ",\"fp8_prefill_tile\":\"cutlass_m128n128k64\""
          << ",\"nvfp4_gate_up_prefill_tile\":\"cutlass_m128n128k128\""
          << ",\"nvfp4_gate_up_prefill_weight_scratch\":true"
          << ",\"nvfp4_down_prefill_tile\":\"cutlass_m128n128k128\""
-         << ",\"fp8_prefill_pipeline_stages\":2"
+         << ",\"fp8_prefill_pipeline_stages\":0"
+         << ",\"fp8_prefill_schedule\":\"cutlass_auto\""
          << ",\"local_prefill_query_heads_per_cta\":2"
          << ",\"global_prefill_query_heads_per_cta\":4"
-         << ",\"grouped_qkv_prefill\":true"
+         << ",\"grouped_qkv_prefill\":false"
          << ",\"grouped_qkv_decode\":true"
          << ",\"fused_rmsnorm_boundaries\":true"
          << ",\"fused_prefill_rmsnorm_fp8_quantization\":true"
