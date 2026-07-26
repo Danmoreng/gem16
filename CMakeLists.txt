@@ -93,6 +93,19 @@ if(GEM16GB_ENABLE_CUDA)
     "${GEM16GB_CUTLASS_DIR}/tools/util/include"
   )
   if(MSVC)
+    # CUTLASS 4.x's CuTe templates do not parse under the strict conformance
+    # mode that MSVC enables implicitly for C++20. Keep the documented
+    # preprocessor requirements and permissive parser mode local to the two
+    # translation units that instantiate CUTLASS kernels.
+    set_property(SOURCE
+      src/cuda/fp8/cutlass_sm120.cu
+      src/cuda/nvfp4/cutlass_sm120.cu
+      APPEND PROPERTY COMPILE_OPTIONS
+        -Xcompiler=/Zc:preprocessor
+        -Xcompiler=/Zc:__cplusplus
+        -Xcompiler=/bigobj
+        -Xcompiler=/permissive
+    )
     # CUDA 13.3's cuda_fp4.hpp and nvcc's generated registration stub trigger these host warnings.
     # Keep the suppression on the one translation unit that includes the FP4 intrinsic header.
     set_property(SOURCE src/cuda/nvfp4/reference.cu APPEND PROPERTY COMPILE_OPTIONS

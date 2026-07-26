@@ -18,6 +18,9 @@
 #include "cutlass/gemm/kernel/gemm_universal.hpp"
 #include "cutlass/gemm/kernel/tile_scheduler_params.h"
 #include "cutlass/util/packed_stride.hpp"
+#if defined(_WIN32)
+#include "cuda/cutlass_windows_launch.cuh"
+#endif
 
 namespace gem16gb::internal {
 namespace {
@@ -208,11 +211,28 @@ Status LaunchGemm(
                     decltype(arguments.scheduler.max_swizzle_size)>) {
     arguments.scheduler.max_swizzle_size = 1;
   }
-  Gemm gemm;
   const std::size_t required = Gemm::get_workspace_size(arguments);
+#if defined(_WIN32)
+  constexpr std::size_t kWindowsParamsPadding =
+      alignof(typename Gemm::Params) - 1U;
+  if (required > workspace_bytes ||
+      kWindowsParamsPadding > workspace_bytes - required ||
+      sizeof(typename Gemm::Params) >
+          workspace_bytes - required - kWindowsParamsPadding) {
+#else
   if (required > workspace_bytes) {
+#endif
     return Invalid("CUTLASS NVFP4 workspace is too small");
   }
+#if defined(_WIN32)
+  cutlass::Status status = cutlass_windows::InitializeAndRun<Gemm>(
+      arguments, workspace, workspace_bytes, stream);
+  if (status != cutlass::Status::kSuccess) {
+    return Internal(std::string("CUTLASS NVFP4 Windows launch failed: ") +
+                    cutlass::cutlassGetStatusString(status));
+  }
+#else
+  Gemm gemm;
   cutlass::Status status = gemm.can_implement(arguments);
   if (status != cutlass::Status::kSuccess) {
     return Invalid(std::string("CUTLASS cannot implement NVFP4 projection: ") +
@@ -228,6 +248,7 @@ Status LaunchGemm(
     return Internal(std::string("CUTLASS NVFP4 launch failed: ") +
                     cutlass::cutlassGetStatusString(status));
   }
+#endif
   return Status::Ok();
 }
 
