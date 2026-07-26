@@ -120,7 +120,10 @@ The llama.cpp benchmark is deliberately before engine kernel optimization, but a
 10. The first fixed-address execution workspace and full-model BF16-semantics cache are implemented for contexts up
    to 1,024. Complete production workspace planning and add circular/FP8 cache, decode fusion, and CUDA Graph replay
    only after the unfused model passes layer, logit, and generation gates.
-11. Validate 64K, then 128K context. MTP and multimodal work remain later milestones.
+11. Validate 64K, then 128K context. MTP remains a later milestone. Once the text goals are met, execute the
+   binding [multimodal expansion plan](MULTIMODAL.md): first lock processor/embedding fixtures and residency-aware
+   memory planning, then qualify audio, then vision projection plus its blockwise local-attention semantics, and
+   finally resident multimodal chat and video-frame reuse.
 12. After the Blackwell backend is correct and competitive, add architecture-specific backends for additional 16 GB
    CUDA GPUs without weakening benchmark or memory contracts.
 

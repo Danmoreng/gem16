@@ -4,6 +4,12 @@
 approximately 16 GB of VRAM. The first model is the mixed FP8/NVFP4
 `unsloth/gemma-4-12b-it-NVFP4` checkpoint, and the first optimized backend is Blackwell SM120/SM120a.
 
+The current runtime is text-only. The pinned 12B Unified checkpoint also contains native encoder-free image,
+audio, and video-input components. Their planned direct-load integration, vision-specific attention semantics,
+memory accounting, correctness gates, and implementation order are specified in
+[docs/MULTIMODAL.md](docs/MULTIMODAL.md). This document is a plan, not a claim that multimodal execution already
+works.
+
 ## What works
 
 - Model weights and quantization metadata are pinned to Unsloth commit

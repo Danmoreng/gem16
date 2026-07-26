@@ -1,5 +1,35 @@
 # Decisions
 
+## 2026-07-26: Extend the 12B engine through its native Unified multimodal path
+
+Date: 2026-07-26
+Decision: Add image and audio input by consuming the pinned Gemma 4 12B Unified checkpoint's encoder-free BF16
+modality projections directly, then add video as sampled frames over the qualified image path. Preserve explicit
+text-only residency, reuse the existing mixed FP8/NVFP4 transformer and generated-token decode graph, implement
+vision's blockwise bidirectional sliding-attention semantics during prefill, and bind resident cached prefixes to
+canonical media identity as well as token IDs. Treat [the multimodal expansion plan](MULTIMODAL.md) as the ordered
+implementation and qualification contract.
+Context: The current engine deliberately excludes 104,759,808 bytes of modality tensors, accepts text token IDs,
+and validates resident cache reuse by token prefix. The checkpoint already contains a 4,915,200-byte direct audio
+projection and 99,844,608 bytes of vision projection/embedding tensors, with no separate encoder. Placeholder token
+IDs alone cannot identify image/audio-derived K/V, and causal-only prefill would violate
+`use_bidirectional_attention="vision"`.
+Alternatives: Move to the 26B A4B model; attach separate vision/audio encoders; preprocess media in Python at
+runtime; requantize the BF16 modality tensors; make all runs load modality weights; or treat projected media as
+ordinary causal text embeddings. These alternatives respectively weaken the 16 GB target or audio capability,
+duplicate model components, violate the native C++ runtime boundary, alter the checkpoint without evidence,
+regress text-only residency, or change model semantics.
+Consequences: Multimodal work remains after the text correctness/performance gates. It requires strict
+`processor_config.json` parsing, ordered content parts, media preprocessing, BF16 modality operators,
+vision-aware local prefill attention, media-safe session identity, new memory regions, and independent quality and
+performance fixtures. Text-only execution must load no modality weights and retain its current transformer and
+decode behavior. Multimodal support cannot be advertised as implemented until the plan's gates pass.
+Evidence: The locked manifest contains 9,200,026,528 text-only bytes and 104,759,808 skipped modality bytes.
+`config.json` declares image/audio/video placeholders, a 1,120-entry two-axis vision position table, direct
+640-to-3,840 audio projection, and vision-only bidirectional attention. `processor_config.json` declares 16 kHz,
+640 samples per audio token, a 750-token audio limit, 16-pixel image patches, 3x3 spatial merging, and a 280-token
+default image budget.
+
 ## 2026-07-26: Pipeline global-prefill FP8 staging inside the existing 96 KiB tile
 
 Date: 2026-07-26

@@ -73,6 +73,23 @@ The greedy plan copies checkpoint `suppress_tokens` into fixed workspace before 
 checkpoint EOS token. Optional full-logit capture preallocates host storage before the token loop and writes raw
 little-endian float32 only after generation; it is a correctness diagnostic and invalidates timing comparisons.
 
+## Planned multimodal boundary
+
+The pinned Gemma 4 12B Unified checkpoint contains an encoder-free vision embedder and a direct audio-waveform
+projection in addition to the currently resident text tensor set. The multimodal expansion will compile ordered
+text/image/audio content into one immutable prompt plan, project media rows into the existing 3,840-wide input
+embedding sequence, and reuse the current 48-layer transformer and generated-token decode graph.
+
+Vision is not only an input-projection change. Image and video spans require same-block bidirectional visibility in
+sliding-attention layers while full-attention layers remain causal. Prefill chunk boundaries must therefore keep a
+complete vision block available to the online-attention kernel. Audio remains causal. Resident session identity
+must also include canonical media digests because token placeholders alone do not identify the media-derived K/V
+state.
+
+The complete tensor inventory, processor contracts, mask formula, arena additions, public-boundary changes,
+correctness/benchmark matrices, and ordered delivery gates are binding in
+[MULTIMODAL.md](MULTIMODAL.md). Until those gates pass, all production paths remain explicitly text-only.
+
 ## NVFP4 execution boundary
 
 The NVFP4 MLP backend has three deliberately separate layers:
