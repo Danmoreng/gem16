@@ -275,7 +275,9 @@ with no persistent source-layout device copy; each temporary prefill transform i
 scratch is reused immediately. Shape-specific
 local D256 and global D512 attention kernels perform QK and PV on
 Tensor Cores while retaining FP32 online-softmax state, reading older K/V from the hybrid cache, and avoiding a
-global score matrix. Local CTAs share K/V across two query heads; global CTAs share it across four. For 2K chunks,
+global score matrix. Local CTAs share K/V across two query heads; global CTAs share it across four. The global
+kernel stages aligned 16-byte K/V vectors, converts four E4M3 values at a time, and stores paired BF16 values into
+shared memory. For 2K chunks,
 local layers commit only the newest 1K suffix to their ring after attention. The token-at-a-time bridge and scalar attention implementation remain test/probe references
 and are not selectable from `gem16gb-run` or `gem16gb-bench`.
 

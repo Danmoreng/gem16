@@ -1,5 +1,30 @@
 # Decisions
 
+## 2026-07-26: Vectorize global-attention FP8 staging
+
+Date: 2026-07-26
+Decision: Stage global-attention K/V in aligned 16-byte vectors, convert each packed word through E4M3x4, and
+write paired BF16 values into the existing shared-memory tiles. Preserve the QK, online-softmax, and PV arithmetic
+and retain the local-attention path unchanged. Runtime metadata reports `global_prefill_fp8_staging` as
+`fp8x4_bf16x2`.
+Context: After CUTLASS covered all prompt projections, an adjacent 8K profile attributed 1.287 seconds, or 27.1%
+of kernel time, to the global-attention kernel. Its scalar byte extraction and scalar BF16 stores were repeated
+for every staged K/V tile.
+Alternatives: Share QK/softmax work between output-half warps; process two heads per CTA; retain scalar staging;
+or use only 8-byte vector loads. Shared reduction state made global attention 1.48% slower, the 128-thread
+two-head CTA reduced end-to-end prefill to 2,912 tok/s, and the 8-byte variant produced only a noisy sub-percent
+end-to-end gain. All three rejected implementations were removed.
+Consequences: The persistent weights, KV cache, reusable workspace, shared-memory footprint, MMA order, and
+online-softmax reduction order are unchanged. The wider access is valid because global head rows are 512-byte
+aligned and the staged dimension advances in 16-byte units. Decode and local attention are unchanged.
+Evidence: Nsight measures the global kernel from 1.2867 to 1.0379 seconds across two 8K prefill executions
+(-19.34%) and profiled end-to-end throughput from 3,420.02 to 3,587.25 tok/s (+4.89%). Under 3 warm-ups and 10
+measured runs, median 8K prefill improves from 3,539.55 to 3,683.18 tok/s (+4.06%) and TTFT from 2,314.42 to
+2,224.17 ms (-3.90%), with a 95% throughput CI of `[3,680.21, 3,692.22]`. The global CUDA operator retains max
+absolute error 0.000538, RMS error 0.000126, and cosine similarity 0.999997. CTest, exact-blue, vLLM boundary
+Top-1 at 129/257, and teacher-forced 121/127 Top-1 plus 127/127 Top-5/Top-20 pass. Three 8K decode runs retain one
+checksum and a 33.349 tok/s median.
+
 ## 2026-07-26: Use CUTLASS SM120 for FP8 prefill projections
 
 Date: 2026-07-26

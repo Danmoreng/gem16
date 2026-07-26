@@ -106,7 +106,9 @@ The local kernel uses 32-query by 32-key tiles and processes the two query heads
 CTA. K/V staging is shared within each group while softmax and output state remain per head. Both consume the
 physical E4M3 K/V bytes and checkpoint BF16 scales without a persistent conversion or fallback. A 2,048-token
 current chunk may exceed the local 1,024-token ring because current K/V is read directly; only the newest
-1,024-token suffix is committed after attention, avoiding concurrent modulo-aliasing writes.
+1,024-token suffix is committed after attention, avoiding concurrent modulo-aliasing writes. Global K/V staging
+uses aligned 16-byte loads, vector E4M3x4 conversion, and paired BF16 stores; the attention MMA and online-softmax
+reduction order are unchanged.
 
 Gate, Up, and Down prefill use CUTLASS 4.5.2 SM120 block-scaled Tensor-Core GEMMs with a 128x128x128 thread-block tile,
 automatic TMA/warp-specialized schedule, and BF16 output. CUTLASS consumes a different operand layout from the

@@ -126,6 +126,7 @@ def run_case(
             inference.get("fp8_prefill_schedule") == "cutlass_auto",
             inference.get("local_prefill_query_heads_per_cta") == 2,
             inference.get("global_prefill_query_heads_per_cta") == 4,
+            inference.get("global_prefill_fp8_staging") == "fp8x4_bf16x2",
             inference.get("prefill_chunk_tokens") == 2048,
             inference.get("grouped_qkv_prefill") is False,
             inference.get("fused_rmsnorm_boundaries") is True,
