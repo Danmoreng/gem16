@@ -192,7 +192,7 @@ vision + audio                 = 104,759,808 bytes
 all checkpoint tensor payload  = 9,304,786,336 bytes
 ```
 
-Video uses the vision tensor set. `gem16gb-inspect` must retain text-only classification for compatibility and add
+Video uses the vision tensor set. `gem16-inspect` must retain text-only classification for compatibility and add
 explicit capability/residency totals for text, image/video, and audio. Execution code must bind these names through
 the manifest and reject shape or dtype changes.
 

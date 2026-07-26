@@ -188,7 +188,7 @@ Decision: In both online-decode block reductions, copy the final shared maximum 
 then execute a second block barrier before returning. Keep the selected split/merge algorithm, FP8 KV format,
 fixed graph geometry, and accumulation order unchanged. Add repeated local/global/16K operator output checks and a
 fresh-process 512+256 greedy determinism gate.
-Context: The shared 16K Wikipedia benchmark produced ten different nominally greedy gem16gb outputs while vLLM
+Context: The shared 16K Wikipedia benchmark produced ten different nominally greedy gem16 outputs while vLLM
 and llama.cpp were stable. A 512+256 prompt was stable, but a 16K+64 reproducer diverged as early as output step 22.
 Prefill logits were bit-identical and the controlled reference-attention path was deterministic, isolating the
 problem to online decode attention. Racecheck then reported Read/Write hazards in both Split and Merge.
@@ -308,12 +308,12 @@ Evidence: The official file is locked at 3,089 bytes with SHA-256
 `a62f4e85a47c0c136edaaa3a4f591fd6783717299a9def47e5ad03a49f6a5eb9`. Host C++ tests cover the large JSON number,
 Google schema validation, response extraction, and rejection of the old EOS alias. Python tests cover per-file
 source selection, safe replacement, and identity-bound resume. The fully materialized local snapshot passes lock
-verification, `gem16gb-inspect --validate`, and native chat render-only loading.
+verification, `gem16-inspect --validate`, and native chat render-only loading.
 
 ## 2026-07-26: Make interactive chat a resident exact-token session
 
 Date: 2026-07-26
-Decision: Create one engine for the lifetime of `gem16gb-chat`, retain its weights, arenas, CUDA Graphs, and hybrid
+Decision: Create one engine for the lifetime of `gem16-chat`, retain its weights, arenas, CUDA Graphs, and hybrid
 KV cache across turns, and batch-prefill only tokens appended after the materialized cache prefix. Preserve the
 original generated token IDs at the CLI boundary; do not reconstruct prior assistant output through text
 decode/re-encode. Require every submitted prompt to extend the cached token prefix exactly and fail visibly on a
@@ -602,7 +602,7 @@ Consequences: Normal chat follows the checkpoint. BF16 remains useful for isolat
 from different cache modes must never be presented as parity comparisons.
 The one-byte cache gives valid allocator accounting; optimized cache/attention kernels remain required for
 performance qualification.
-Evidence: Explicit BF16 vLLM and gem16gb both generate `[818,7217,7412]`. The current physical-FP8 gem16gb path
+Evidence: Explicit BF16 vLLM and gem16 both generate `[818,7217,7412]`. The current physical-FP8 gem16 path
 also generates `[818,7217,7412]`, while FP8-vLLM and llama.cpp generate `[818,7217,563]`; the FP8 attention
 difference remains open. At context 64 the physical FP8 allocation is 11,010,048 bytes versus 44,040,192 bytes for
 the float32 BF16-semantics diagnostic cache.
@@ -619,7 +619,7 @@ add a broad dependency and still require careful model-specific semantics, while
 without reading the artifact would violate the checkpoint contract.
 Alternatives: Retain the Python bridge; embed Python; vendor a general Jinja interpreter; accept only manual token
 IDs.
-Consequences: `gem16gb-chat` is a self-contained C++ process and the tokenizer/processor can later serve HTTP
+Consequences: `gem16-chat` is a self-contained C++ process and the tokenizer/processor can later serve HTTP
 requests. The supported template revision is explicit. Tool-call and multimodal branches remain unsupported until
 implemented and tested. The engine still reloads weights per turn until a persistent session API is introduced.
 Evidence: Native C++ rendering and BPE reproduce the committed 20-, 23-, and 27-token prompts exactly, and the
@@ -640,7 +640,7 @@ Consequences: Product correctness is based on operator contracts, distribution m
 task quality. Early disagreement still blocks acceptance until configuration differences are excluded; tolerances
 are not invented merely to accept it.
 Evidence: The sky step-2 disagreement was investigated rather than waived. FP8-versus-BF16 K/V semantics determine
-vLLM's result, but the current precision-matched FP8 gem16gb path still differs and remains an active correctness
+vLLM's result, but the current precision-matched FP8 gem16 path still differs and remains an active correctness
 gate.
 
 ## 2026-07-23: Qualify unfused full-layer composition before fusion
@@ -750,7 +750,7 @@ kernel path.
 Context: Parser and manifest work must build on machines without CUDA, while performance builds must remain
 architecture-specific.  
 Alternatives: Require CUDA for every build; silently build host-only when CUDA is absent.  
-Consequences: CPU CI stays useful; `GEM16GB_ENABLE_CUDA=ON` fails if CUDA is missing; native capability remains false
+Consequences: CPU CI stays useful; `GEM16_ENABLE_CUDA=ON` fails if CUDA is missing; native capability remains false
 until implemented.  
 Evidence: The neighboring `qwen35x` repository successfully uses optional CUDA language enablement, but its
 silent CPU fallback was tightened here to a fatal error when CUDA is explicitly requested.

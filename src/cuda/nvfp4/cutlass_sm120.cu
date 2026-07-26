@@ -22,7 +22,7 @@
 #include "cuda/cutlass_windows_launch.cuh"
 #endif
 
-namespace gem16gb::internal {
+namespace gem16::internal {
 namespace {
 
 using namespace cute;
@@ -354,4 +354,4 @@ Status LaunchNvfp4CutlassProjectionBf16Batch(
       cutlass_workspace_bytes, stream);
 }
 
-}  // namespace gem16gb::internal
+}  // namespace gem16::internal

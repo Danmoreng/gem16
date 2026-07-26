@@ -1,4 +1,4 @@
-#include "gem16gb/model.h"
+#include "gem16/model.h"
 
 #include <array>
 
@@ -6,7 +6,7 @@
 #include "model/manifest.h"
 #include "model/tokenizer_config.h"
 
-namespace gem16gb {
+namespace gem16 {
 
 Result<ModelManifest> InspectCheckpoint(const InspectOptions& options) {
   if (options.model_directory.empty()) {
@@ -40,4 +40,4 @@ Result<ModelManifest> InspectCheckpoint(const InspectOptions& options) {
   return internal::BuildManifest(options.model_directory, config.value(), options.validate);
 }
 
-}  // namespace gem16gb
+}  // namespace gem16

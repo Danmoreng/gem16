@@ -3,10 +3,10 @@
 #include <filesystem>
 #include <iosfwd>
 
-#include "gem16gb/status.h"
-#include "gem16gb/types.h"
+#include "gem16/status.h"
+#include "gem16/types.h"
 
-namespace gem16gb {
+namespace gem16 {
 
 struct InspectOptions {
   std::filesystem::path model_directory;
@@ -17,4 +17,4 @@ struct InspectOptions {
 [[nodiscard]] Status WriteManifestJson(const ModelManifest& manifest, std::ostream& output);
 void PrintManifestSummary(const ModelManifest& manifest, std::ostream& output);
 
-}  // namespace gem16gb
+}  // namespace gem16

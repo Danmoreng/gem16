@@ -7,7 +7,7 @@
 #include "cuda/nvfp4/reference.h"
 #include "cuda/nvfp4/sm120.h"
 #include "cuda/nvfp4/sm120_layout.h"
-#include "gem16gb/model.h"
+#include "gem16/model.h"
 #include "platform/mapped_file.h"
 
 #include <cuda_runtime.h>
@@ -24,7 +24,7 @@
 #include <utility>
 #include <vector>
 
-namespace gem16gb::internal {
+namespace gem16::internal {
 namespace {
 
 constexpr std::uint64_t kHidden = 3840;
@@ -841,4 +841,4 @@ Result<LayerCheckpointProbeResult> RunLayer0DecoderCheckpointProbe(
   return RunLayerCheckpointProbe(model_directory, kLocalGeometry, true);
 }
 
-}  // namespace gem16gb::internal
+}  // namespace gem16::internal

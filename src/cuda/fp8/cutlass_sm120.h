@@ -5,9 +5,9 @@
 
 #include <cuda_runtime_api.h>
 
-#include "gem16gb/status.h"
+#include "gem16/status.h"
 
-namespace gem16gb::internal {
+namespace gem16::internal {
 
 // Prompt-only FP8 GEMM. The checkpoint stores each [N,K] weight tensor in the
 // column-major B memory order expected by CUTLASS, so no weight repack is
@@ -26,4 +26,4 @@ namespace gem16gb::internal {
     std::size_t workspace_bytes,
     cudaStream_t stream);
 
-}  // namespace gem16gb::internal
+}  // namespace gem16::internal

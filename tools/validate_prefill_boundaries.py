@@ -169,7 +169,7 @@ def main() -> int:
         cases = golden.get("cases") if isinstance(golden, dict) else None
         if not isinstance(cases, list) or not cases:
             raise ValidationError("golden fixture has no cases")
-        with tempfile.TemporaryDirectory(prefix="gem16gb-prefill-boundaries-") as raw:
+        with tempfile.TemporaryDirectory(prefix="gem16-prefill-boundaries-") as raw:
             directory = Path(raw)
             results = [run_case(executable, model, case, directory) for case in cases]
     except (

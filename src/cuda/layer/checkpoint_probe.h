@@ -4,9 +4,9 @@
 #include <filesystem>
 #include <vector>
 
-#include "gem16gb/status.h"
+#include "gem16/status.h"
 
-namespace gem16gb::internal {
+namespace gem16::internal {
 
 struct AttentionProbeSample {
   std::uint64_t element = 0;
@@ -39,4 +39,4 @@ RunLayer5GlobalAttentionCheckpointProbe(const std::filesystem::path& model_direc
 [[nodiscard]] Result<LayerCheckpointProbeResult>
 RunLayer0DecoderCheckpointProbe(const std::filesystem::path& model_directory);
 
-}  // namespace gem16gb::internal
+}  // namespace gem16::internal

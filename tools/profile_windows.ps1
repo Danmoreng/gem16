@@ -19,7 +19,7 @@ $ErrorActionPreference = "Stop"
 $repository = Split-Path -Parent $PSScriptRoot
 $modelPath = (Resolve-Path -LiteralPath $Model).Path
 $buildPath = (Resolve-Path -LiteralPath (Join-Path $repository $BuildDirectory)).Path
-$benchmark = Join-Path $buildPath "bin\gem16gb-bench.exe"
+$benchmark = Join-Path $buildPath "bin\gem16-bench.exe"
 if (-not (Test-Path -LiteralPath $benchmark -PathType Leaf)) {
   throw "Benchmark executable not found: $benchmark"
 }

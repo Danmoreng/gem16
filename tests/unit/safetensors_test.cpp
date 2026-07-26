@@ -34,19 +34,19 @@ void WriteSafetensors(const std::filesystem::path& path, std::string header, std
 
 void RunSafetensorsTests() {
   const auto unique = std::chrono::steady_clock::now().time_since_epoch().count();
-  const auto root = std::filesystem::temp_directory_path() / ("gem16gb-safetensors-test-" + std::to_string(unique));
+  const auto root = std::filesystem::temp_directory_path() / ("gem16-safetensors-test-" + std::to_string(unique));
   std::error_code error;
   std::filesystem::remove_all(root, error);
   std::filesystem::create_directories(root);
 
   WriteSafetensors(root / "model.safetensors",
                    R"({"a":{"dtype":"U8","shape":[4],"data_offsets":[0,4]},"b":{"dtype":"BF16","shape":[2],"data_offsets":[4,8]}})", 8);
-  auto valid = gem16gb::internal::LoadSafetensorsDirectory(root);
-  GEM16GB_CHECK(valid.ok());
+  auto valid = gem16::internal::LoadSafetensorsDirectory(root);
+  GEM16_CHECK(valid.ok());
   if (valid.ok()) {
-    GEM16GB_CHECK(valid.value().size() == 2);
-    GEM16GB_CHECK(valid.value()[0].name == "a");
-    GEM16GB_CHECK(valid.value()[1].length == 4);
+    GEM16_CHECK(valid.value().size() == 2);
+    GEM16_CHECK(valid.value()[0].name == "a");
+    GEM16_CHECK(valid.value()[1].length == 4);
   }
 
   std::u8string unicode_name = u8"checkpoint-";
@@ -55,18 +55,18 @@ void RunSafetensorsTests() {
   const auto unicode_root = root / std::filesystem::path(unicode_name);
   std::filesystem::create_directories(unicode_root);
   WriteSafetensors(unicode_root / "model.safetensors", R"({"a":{"dtype":"U8","shape":[4],"data_offsets":[0,4]}})", 4);
-  GEM16GB_CHECK(gem16gb::internal::LoadSafetensorsDirectory(unicode_root).ok());
+  GEM16_CHECK(gem16::internal::LoadSafetensorsDirectory(unicode_root).ok());
 
   WriteSafetensors(root / "model.safetensors",
                    R"({"a":{"dtype":"U8","shape":[4],"data_offsets":[0,4]},"b":{"dtype":"U8","shape":[4],"data_offsets":[2,6]}})", 6);
-  GEM16GB_CHECK(!gem16gb::internal::LoadSafetensorsDirectory(root).ok());
+  GEM16_CHECK(!gem16::internal::LoadSafetensorsDirectory(root).ok());
 
   std::filesystem::remove(root / "model.safetensors");
   {
     std::ofstream index(root / "model.safetensors.index.json");
     index << R"({"weight_map":{"a":"../escape.safetensors"}})";
   }
-  GEM16GB_CHECK(!gem16gb::internal::LoadSafetensorsDirectory(root).ok());
+  GEM16_CHECK(!gem16::internal::LoadSafetensorsDirectory(root).ok());
 
   const auto external = root.parent_path() / (root.filename().string() + "-external.safetensors");
   WriteSafetensors(external, R"({"a":{"dtype":"U8","shape":[4],"data_offsets":[0,4]}})", 4);
@@ -76,19 +76,19 @@ void RunSafetensorsTests() {
   }
   std::filesystem::create_symlink(external, root / "linked.safetensors", error);
   if (!error) {
-    GEM16GB_CHECK(!gem16gb::internal::LoadSafetensorsDirectory(root).ok());
+    GEM16_CHECK(!gem16::internal::LoadSafetensorsDirectory(root).ok());
   } else {
 #if defined(_WIN32)
     constexpr int kWindowsPrivilegeNotHeld = 1314;
-    GEM16GB_CHECK(error == std::errc::permission_denied || error == std::errc::operation_not_permitted ||
+    GEM16_CHECK(error == std::errc::permission_denied || error == std::errc::operation_not_permitted ||
                   error.value() == kWindowsPrivilegeNotHeld);
 #else
-    GEM16GB_CHECK(!error);
+    GEM16_CHECK(!error);
 #endif
   }
 
   std::filesystem::remove_all(root, error);
-  GEM16GB_CHECK(!error);
+  GEM16_CHECK(!error);
   std::filesystem::remove(external, error);
-  GEM16GB_CHECK(!error);
+  GEM16_CHECK(!error);
 }

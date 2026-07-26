@@ -6,7 +6,7 @@ Level 0 currently covers bounded JSON parsing, duplicate-key rejection, little-e
 shape-product overflow, known dtype byte sizes, payload bounds, exact byte lengths, overlapping ranges, duplicate
 tensors across shards, index agreement, UTF-8 strings, shard path traversal rejection, and symlink escape rejection.
 
-`gem16gb-inspect --validate` additionally checks the expected primary architecture dimensions and quantization mode,
+`gem16-inspect --validate` additionally checks the expected primary architecture dimensions and quantization mode,
 then requires each classified NVFP4 packed weight to have local, global, and input scale tensors.
 
 An independent Python reader compares the raw Safetensors headers against the exported C++ manifest. For pinned
@@ -81,8 +81,8 @@ synthetic-cache characterization cannot honestly be compared directly with a pro
 The full-model greedy characterization now has precision-matched generation gates. For
 `exact_blue_no_thinking`, the checkpoint tokenizer and exact `chat_template.jinja` produce the committed 20 prompt
 IDs, and the engine matches vLLM's complete `[9503, 106]` response (`blue<turn|>`). The longer
-`sky_sentence_no_thinking` case currently emits `[818, 7217, 7412]` with gem16gb's physical FP8 cache, while
-FP8-vLLM and the compared llama.cpp run emit `[818, 7217, 563]`. Explicit BF16 vLLM and gem16gb both emit
+`sky_sentence_no_thinking` case currently emits `[818, 7217, 7412]` with gem16's physical FP8 cache, while
+FP8-vLLM and the compared llama.cpp run emit `[818, 7217, 563]`. Explicit BF16 vLLM and gem16 both emit
 `[818, 7217, 7412]`. This is deterministic greedy decoding, so the FP8 mismatch remains a blocking correctness
 investigation rather than sampling variation. A previous working-tree revision matched the FP8 references at this
 position, but only through compensating arithmetic errors that have since been corrected; that token match is not
@@ -100,7 +100,7 @@ tie or sampling randomness.
 
 ### Greedy determinism gate
 
-`tools/check_greedy_determinism.py` launches a fresh `gem16gb-run` process for every repetition, requires an exact
+`tools/check_greedy_determinism.py` launches a fresh `gem16-run` process for every repetition, requires an exact
 fixed prompt and generation length, hashes token IDs as little-endian `uint32`, and reports the first token index
 that differs from run zero. It can derive a short prompt from the pinned Wikipedia workload while preserving the
 chat-template suffix. The normal regression gate uses 512 prompt tokens, 256 generated tokens, checkpoint FP8 KV,
@@ -132,7 +132,7 @@ separate cross-runtime logit and quality gates.
 `tools/generate_prefill_boundary_golden.py` runs vLLM 0.25.1 offline on two deterministic direct-token prompts of
 129 and 257 tokens and records complete greedy IDs plus Top-20 log probabilities. The fixture is pinned to the
 checkpoint revision and records the reference runtime, GPU, cache mode, and execution controls. It replaces an
-older boundary check whose expected eight-token sequences came from gem16gb itself and therefore could not serve
+older boundary check whose expected eight-token sequences came from gem16 itself and therefore could not serve
 as external correctness evidence.
 
 `tools/validate_prefill_boundaries.py` captures only the first generated position through the real batch-prefill
@@ -149,7 +149,7 @@ multiprocessing for diagnostic hooks and emits the same format; `tools/compare_s
 maximum, cosine, and optional intra-layer metrics.
 
 The state comparison exposed and fixed two concrete operator errors. vLLM rounds the tanh-GELU result to BF16
-before multiplying it by the BF16 Up projection; gem16gb previously rounded only the product. vLLM's NVFP4
+before multiplying it by the BF16 Up projection; gem16 previously rounded only the product. vLLM's NVFP4
 activation quantizer also uses `rcp.approx.ftz.f32` in both scale construction and normalization, rather than exact
 division. The production CUDA quantizer now follows that arithmetic and a real vLLM boundary fixture pins its
 packed E2M1 bytes and E4M3 scale.
@@ -159,7 +159,7 @@ is a small Layer-30 attention output difference (attention context is still exac
 again after Layer 31 and the final captured Layer-47 hidden state is bit-identical. This is strong evidence for the
 projection, norm, RoPE, residual, and MLP contracts at a single-token attention position.
 
-The first cache reuse at prompt position one is now the earliest material mismatch. In Layer 0, gem16gb versus
+The first cache reuse at prompt position one is now the earliest material mismatch. In Layer 0, gem16 versus
 FP8-vLLM attention context has RMS `3.846e-3`, maximum `6.25e-2`, and cosine `0.9999921`; the current V input is
 bit-identical and K differs only by RMS `1.249e-4`. By generated position 24 the Layer-0 attention-context
 difference reaches RMS `6.640e-3`, maximum `1.875e-1`, and then propagates through the model. The physical vLLM
@@ -174,7 +174,7 @@ answers, longer prose, Thinking and non-Thinking modes, German/Unicode, JSON, su
 multi-turn recall. It contains 127 generated positions with the explicit vLLM FP8 cache and 131 with explicit vLLM
 BF16. Both fixtures retain the exact templated prompt IDs and top-20 log probabilities.
 
-`gem16gb-run --teacher-forced-token-ids` feeds the preceding reference token at each later decode step but still
+`gem16-run --teacher-forced-token-ids` feeds the preceding reference token at each later decode step but still
 records the engine's unmodified greedy prediction and full-vocabulary logits. Stop tokens do not terminate this
 diagnostic mode. This separates per-position numerical agreement from autoregressive drift after the first
 different argmax.
@@ -183,12 +183,12 @@ The 2026-07-24 serial-diagnostic characterization produced:
 
 | Engine/reference cache pair | Top-1 | Fully agreeing prompts | Reference Top-1 in Top-5 | Mean Top-20 overlap | Mean selected-logprob absolute delta |
 |---|---:|---:|---:|---:|---:|
-| gem16gb FP8 / vLLM FP8 | 118/127 (92.9%) | 8/12 | 127/127 | 14.606/20 | 0.1064 |
+| gem16 FP8 / vLLM FP8 | 118/127 (92.9%) | 8/12 | 127/127 | 14.606/20 | 0.1064 |
 | llama.cpp F16 / vLLM FP8 | 119/127 (93.7%) | 9/12 | 127/127 | 15.646/20 | 0.1195 |
-| gem16gb BF16 / vLLM BF16 | 127/131 (96.9%) | 10/12 | 131/131 | 14.878/20 | 0.0580 |
+| gem16 BF16 / vLLM BF16 | 127/131 (96.9%) | 10/12 | 131/131 | 14.878/20 | 0.0580 |
 | llama.cpp F16 / vLLM BF16 | 129/131 (98.5%) | 10/12 | 131/131 | 15.870/20 | 0.0419 |
 
-These are strict token-ID counts. One BF16 mismatch shared by gem16gb and llama.cpp is an exact vLLM logprob tie
+These are strict token-ID counts. One BF16 mismatch shared by gem16 and llama.cpp is an exact vLLM logprob tie
 whose deterministic tie choice differs; it remains counted as a mismatch.
 
 After logit capture was corrected to retain the production batch-prefill path, the FP8 comparison remains exactly
@@ -199,8 +199,8 @@ not the online-attention boundary itself. These current values supersede the ser
 production-path qualification while retaining the older row as provenance.
 
 The llama.cpp candidate still differs in attention-weight storage: its conversion maps the source FP8 attention
-weights to BF16, so neither F16-cache row is exact format parity. Nevertheless, the results establish that gem16gb
-is close to both independent engines across a materially broader sample. BF16 K/V improves gem16gb's Top-1
+weights to BF16, so neither F16-cache row is exact format parity. Nevertheless, the results establish that gem16
+is close to both independent engines across a materially broader sample. BF16 K/V improves gem16's Top-1
 agreement and selected-token logprobs, proving that FP8 cache arithmetic explains part, but not all, of the
 remaining drift. No tolerance is accepted from these measurements alone.
 
@@ -219,15 +219,15 @@ tokenizer `model_max_length` sentinel is parsed but deliberately excluded from t
 
 The patched same-source llama.cpp candidate supplies an independent comparison despite mapping FP8 attention
 weights to BF16. It matches 50/65 reference output tokens overall: exact-blue is 2/2, the sky answer matches vLLM's
-first 18 tokens before diverging, and the thinking trace matches 28/32. At the current first gem16gb sky
-divergence, llama.cpp and FP8-vLLM both select token `563`, while gem16gb selects `7412`. This makes the remaining
+first 18 tokens before diverging, and the thinking trace matches 28/32. At the current first gem16 sky
+divergence, llama.cpp and FP8-vLLM both select token `563`, while gem16 selects `7412`. This makes the remaining
 attention discrepancy important even though later cross-engine differences still require distribution and quality
 analysis rather than automatic acceptance or rejection.
 
 Reproduce the instruction check with:
 
 ```bash
-python tools/verify_sm120_sass.py build/<OS>/blackwell-release/bin/gem16gb-cuda-tests
+python tools/verify_sm120_sass.py build/<OS>/blackwell-release/bin/gem16-cuda-tests
 ```
 
 ## Not yet established
@@ -281,6 +281,6 @@ are offline correctness tooling only.
 Reproduce the physical manifest comparison with:
 
 ```bash
-build/host-debug/bin/gem16gb-inspect --model <checkpoint> --validate --json build/manifest.json
+build/host-debug/bin/gem16-inspect --model <checkpoint> --validate --json build/manifest.json
 python3 tools/compare_manifests.py --model <checkpoint> --manifest build/manifest.json
 ```

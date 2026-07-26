@@ -11,7 +11,7 @@
 #include <type_traits>
 #include <utility>
 
-namespace gem16gb::internal {
+namespace gem16::internal {
 namespace {
 
 constexpr std::uint64_t kElementsPerKBlock = 64;
@@ -913,4 +913,4 @@ Status LaunchNvfp4Sm120FusedGateUpBatch(
              : CudaFailure("launch batched fused SM120 NVFP4 Gate/Up", error);
 }
 
-}  // namespace gem16gb::internal
+}  // namespace gem16::internal

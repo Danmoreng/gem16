@@ -24,24 +24,24 @@ void StoreSourceNibble(std::vector<std::uint8_t>& packed, std::size_t row, std::
 }
 
 void TestRealCheckpointGeometry() {
-  const auto gate = gem16gb::internal::PlanSm120Nvfp4SourceLayout(15360, 3840);
-  GEM16GB_CHECK(gate.ok());
+  const auto gate = gem16::internal::PlanSm120Nvfp4SourceLayout(15360, 3840);
+  GEM16_CHECK(gate.ok());
   if (gate.ok()) {
-    GEM16GB_CHECK(gate.value().row_tiles == 1920U);
-    GEM16GB_CHECK(gate.value().k_blocks == 60U);
-    GEM16GB_CHECK(gate.value().packed_weight_bytes == 29491200U);
-    GEM16GB_CHECK(gate.value().scale_bytes == 3686400U);
-    GEM16GB_CHECK(gate.value().persistent_repack_bytes == 0U);
+    GEM16_CHECK(gate.value().row_tiles == 1920U);
+    GEM16_CHECK(gate.value().k_blocks == 60U);
+    GEM16_CHECK(gate.value().packed_weight_bytes == 29491200U);
+    GEM16_CHECK(gate.value().scale_bytes == 3686400U);
+    GEM16_CHECK(gate.value().persistent_repack_bytes == 0U);
   }
 
-  const auto down = gem16gb::internal::PlanSm120Nvfp4SourceLayout(3840, 15360);
-  GEM16GB_CHECK(down.ok());
+  const auto down = gem16::internal::PlanSm120Nvfp4SourceLayout(3840, 15360);
+  GEM16_CHECK(down.ok());
   if (down.ok()) {
-    GEM16GB_CHECK(down.value().row_tiles == 480U);
-    GEM16GB_CHECK(down.value().k_blocks == 240U);
-    GEM16GB_CHECK(down.value().packed_weight_bytes == 29491200U);
-    GEM16GB_CHECK(down.value().scale_bytes == 3686400U);
-    GEM16GB_CHECK(down.value().persistent_repack_bytes == 0U);
+    GEM16_CHECK(down.value().row_tiles == 480U);
+    GEM16_CHECK(down.value().k_blocks == 240U);
+    GEM16_CHECK(down.value().packed_weight_bytes == 29491200U);
+    GEM16_CHECK(down.value().scale_bytes == 3686400U);
+    GEM16_CHECK(down.value().persistent_repack_bytes == 0U);
   }
 }
 
@@ -60,24 +60,24 @@ void TestDirectLaneMappingRoundTrip() {
     }
   }
 
-  const auto layout = gem16gb::internal::PlanSm120Nvfp4SourceLayout(rows, k_size);
-  GEM16GB_CHECK(layout.ok());
+  const auto layout = gem16::internal::PlanSm120Nvfp4SourceLayout(rows, k_size);
+  GEM16_CHECK(layout.ok());
   if (!layout.ok()) return;
   const auto tiled_weights =
-      gem16gb::internal::TileSm120Nvfp4Weights(layout.value(), packed);
+      gem16::internal::TileSm120Nvfp4Weights(layout.value(), packed);
   const auto tiled_scales =
-      gem16gb::internal::TileSm120Nvfp4WeightScales(layout.value(), scales);
-  GEM16GB_CHECK(tiled_weights.ok());
-  GEM16GB_CHECK(tiled_scales.ok());
+      gem16::internal::TileSm120Nvfp4WeightScales(layout.value(), scales);
+  GEM16_CHECK(tiled_weights.ok());
+  GEM16_CHECK(tiled_scales.ok());
   if (!tiled_weights.ok() || !tiled_scales.ok()) return;
 
   std::vector<std::uint8_t> reconstructed(packed.size(), 0U);
   for (std::uint32_t lane = 0; lane < 32U; ++lane) {
-    const auto fragment = gem16gb::internal::LoadSm120Nvfp4WeightLaneFragment(
+    const auto fragment = gem16::internal::LoadSm120Nvfp4WeightLaneFragment(
         layout.value(), tiled_weights.value(), tiled_scales.value(), 0, 0, lane);
-    GEM16GB_CHECK(fragment.ok());
+    GEM16_CHECK(fragment.ok());
     if (!fragment.ok()) continue;
-    GEM16GB_CHECK(fragment.value().active);
+    GEM16_CHECK(fragment.value().active);
     const std::size_t row = lane / 4U;
     const std::size_t quarter = lane % 4U;
     for (std::size_t word = 0; word < 2U; ++word) {
@@ -93,13 +93,13 @@ void TestDirectLaneMappingRoundTrip() {
         (static_cast<std::uint32_t>(scales[row * 4U + 1U]) << 8U) |
         (static_cast<std::uint32_t>(scales[row * 4U + 2U]) << 16U) |
         (static_cast<std::uint32_t>(scales[row * 4U + 3U]) << 24U);
-    GEM16GB_CHECK(fragment.value().packed_e4m3fn_scales == expected_scales);
+    GEM16_CHECK(fragment.value().packed_e4m3fn_scales == expected_scales);
   }
 
-  GEM16GB_CHECK(reconstructed == packed);
+  GEM16_CHECK(reconstructed == packed);
   for (std::size_t row = 0; row < rows; ++row) {
     for (std::size_t k = 0; k < k_size; ++k) {
-      GEM16GB_CHECK(SourceNibble(reconstructed, row, k) == SourceNibble(packed, row, k));
+      GEM16_CHECK(SourceNibble(reconstructed, row, k) == SourceNibble(packed, row, k));
     }
   }
 }
@@ -108,18 +108,18 @@ void TestWeightTilingIsExactAndCoalesced() {
   constexpr std::size_t rows = 9;
   constexpr std::size_t k_size = 128;
   constexpr std::size_t packed_bytes_per_k_block = 32;
-  const auto layout = gem16gb::internal::PlanSm120Nvfp4SourceLayout(rows, k_size);
-  GEM16GB_CHECK(layout.ok());
+  const auto layout = gem16::internal::PlanSm120Nvfp4SourceLayout(rows, k_size);
+  GEM16_CHECK(layout.ok());
   if (!layout.ok()) return;
   std::vector<std::uint8_t> source(layout.value().packed_weight_bytes);
   for (std::size_t index = 0; index < source.size(); ++index) {
     source[index] = static_cast<std::uint8_t>((index * 29U + 7U) & 0xFFU);
   }
   const auto tiled =
-      gem16gb::internal::TileSm120Nvfp4Weights(layout.value(), source);
-  GEM16GB_CHECK(tiled.ok());
+      gem16::internal::TileSm120Nvfp4Weights(layout.value(), source);
+  GEM16_CHECK(tiled.ok());
   if (!tiled.ok()) return;
-  GEM16GB_CHECK(tiled.value().size() == source.size());
+  GEM16_CHECK(tiled.value().size() == source.size());
 
   const std::size_t k_blocks = k_size / 64U;
   const std::size_t source_row_bytes = k_size / 2U;
@@ -135,12 +135,12 @@ void TestWeightTilingIsExactAndCoalesced() {
           const std::size_t tiled_offset =
               first_row * k_blocks * packed_bytes_per_k_block +
               (k_block * tile_rows + row) * packed_bytes_per_k_block + byte;
-          GEM16GB_CHECK(tiled.value()[tiled_offset] == source[source_offset]);
+          GEM16_CHECK(tiled.value()[tiled_offset] == source[source_offset]);
         }
       }
     }
   }
-  GEM16GB_CHECK(!gem16gb::internal::TileSm120Nvfp4Weights(
+  GEM16_CHECK(!gem16::internal::TileSm120Nvfp4Weights(
                        layout.value(), std::span<const std::uint8_t>(source).first(1U))
                        .ok());
 }
@@ -148,18 +148,18 @@ void TestWeightTilingIsExactAndCoalesced() {
 void TestScaleTilingIsExactAndCoalesced() {
   constexpr std::size_t rows = 9;
   constexpr std::size_t k_size = 128;
-  const auto layout = gem16gb::internal::PlanSm120Nvfp4SourceLayout(rows, k_size);
-  GEM16GB_CHECK(layout.ok());
+  const auto layout = gem16::internal::PlanSm120Nvfp4SourceLayout(rows, k_size);
+  GEM16_CHECK(layout.ok());
   if (!layout.ok()) return;
   std::vector<std::uint8_t> source(layout.value().scale_bytes);
   for (std::size_t index = 0; index < source.size(); ++index) {
     source[index] = static_cast<std::uint8_t>((index * 37U + 11U) & 0xFFU);
   }
   const auto tiled =
-      gem16gb::internal::TileSm120Nvfp4WeightScales(layout.value(), source);
-  GEM16GB_CHECK(tiled.ok());
+      gem16::internal::TileSm120Nvfp4WeightScales(layout.value(), source);
+  GEM16_CHECK(tiled.ok());
   if (!tiled.ok()) return;
-  GEM16GB_CHECK(tiled.value().size() == source.size());
+  GEM16_CHECK(tiled.value().size() == source.size());
 
   constexpr std::size_t scales_per_k_block = 4;
   const std::size_t k_blocks = k_size / 64U;
@@ -175,37 +175,37 @@ void TestScaleTilingIsExactAndCoalesced() {
           const std::size_t tiled_offset =
               first_row * k_blocks * scales_per_k_block +
               (k_block * tile_rows + row) * scales_per_k_block + scale;
-          GEM16GB_CHECK(tiled.value()[tiled_offset] == source[source_offset]);
+          GEM16_CHECK(tiled.value()[tiled_offset] == source[source_offset]);
         }
       }
     }
   }
-  GEM16GB_CHECK(!gem16gb::internal::TileSm120Nvfp4WeightScales(
+  GEM16_CHECK(!gem16::internal::TileSm120Nvfp4WeightScales(
                        layout.value(), std::span<const std::uint8_t>(source).first(1U))
                        .ok());
 }
 
 void TestTailRowsAndValidation() {
-  const auto layout = gem16gb::internal::PlanSm120Nvfp4SourceLayout(9, 64);
-  GEM16GB_CHECK(layout.ok());
+  const auto layout = gem16::internal::PlanSm120Nvfp4SourceLayout(9, 64);
+  GEM16_CHECK(layout.ok());
   if (!layout.ok()) return;
   std::vector<std::uint8_t> packed(layout.value().packed_weight_bytes, 0U);
   std::vector<std::uint8_t> scales(layout.value().scale_bytes, 0x38U);
   const auto tiled_weights =
-      gem16gb::internal::TileSm120Nvfp4Weights(layout.value(), packed);
+      gem16::internal::TileSm120Nvfp4Weights(layout.value(), packed);
   const auto tiled_scales =
-      gem16gb::internal::TileSm120Nvfp4WeightScales(layout.value(), scales);
-  GEM16GB_CHECK(tiled_weights.ok());
-  GEM16GB_CHECK(tiled_scales.ok());
+      gem16::internal::TileSm120Nvfp4WeightScales(layout.value(), scales);
+  GEM16_CHECK(tiled_weights.ok());
+  GEM16_CHECK(tiled_scales.ok());
   if (!tiled_weights.ok() || !tiled_scales.ok()) return;
-  const auto active = gem16gb::internal::LoadSm120Nvfp4WeightLaneFragment(
+  const auto active = gem16::internal::LoadSm120Nvfp4WeightLaneFragment(
       layout.value(), tiled_weights.value(), tiled_scales.value(), 1, 0, 0);
-  const auto inactive = gem16gb::internal::LoadSm120Nvfp4WeightLaneFragment(
+  const auto inactive = gem16::internal::LoadSm120Nvfp4WeightLaneFragment(
       layout.value(), tiled_weights.value(), tiled_scales.value(), 1, 0, 4);
-  GEM16GB_CHECK(active.ok() && active.value().active && active.value().source_row == 8U);
-  GEM16GB_CHECK(inactive.ok() && !inactive.value().active && inactive.value().source_row == 9U);
-  GEM16GB_CHECK(!gem16gb::internal::PlanSm120Nvfp4SourceLayout(8, 48).ok());
-  GEM16GB_CHECK(!gem16gb::internal::LoadSm120Nvfp4WeightLaneFragment(
+  GEM16_CHECK(active.ok() && active.value().active && active.value().source_row == 8U);
+  GEM16_CHECK(inactive.ok() && !inactive.value().active && inactive.value().source_row == 9U);
+  GEM16_CHECK(!gem16::internal::PlanSm120Nvfp4SourceLayout(8, 48).ok());
+  GEM16_CHECK(!gem16::internal::LoadSm120Nvfp4WeightLaneFragment(
                        layout.value(), tiled_weights.value(), tiled_scales.value(), 2, 0, 0)
                        .ok());
 }

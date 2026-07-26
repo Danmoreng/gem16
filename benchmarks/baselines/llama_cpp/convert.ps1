@@ -31,4 +31,4 @@ $arguments = @(
     "--outtype", "auto",
     "--outfile", $OutputGguf
 ) + $ConverterOptions + @($ModelDir)
-Invoke-Gem16gbChecked $python $arguments
+Invoke-Gem16Checked $python $arguments

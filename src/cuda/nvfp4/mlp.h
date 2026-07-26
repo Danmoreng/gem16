@@ -4,9 +4,9 @@
 
 #include <cuda_runtime_api.h>
 
-#include "gem16gb/status.h"
+#include "gem16/status.h"
 
-namespace gem16gb::internal {
+namespace gem16::internal {
 
 // Correctness-first elementwise bridge between the Gate/Up projections and Down quantization.
 // This is Gemma's GELU tanh approximation, multiplied by Up, with no host round trip.
@@ -22,4 +22,4 @@ namespace gem16gb::internal {
                                        std::uint64_t elements,
                                        cudaStream_t stream);
 
-}  // namespace gem16gb::internal
+}  // namespace gem16::internal

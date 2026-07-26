@@ -4,9 +4,9 @@
 
 #include <cuda_runtime_api.h>
 
-#include "gem16gb/status.h"
+#include "gem16/status.h"
 
-namespace gem16gb::internal {
+namespace gem16::internal {
 
 [[nodiscard]] Status LaunchFp8ReferenceTokenQuantization(
     const float* input,
@@ -56,4 +56,4 @@ namespace gem16gb::internal {
     std::uint64_t contracting_elements,
     cudaStream_t stream);
 
-}  // namespace gem16gb::internal
+}  // namespace gem16::internal

@@ -2,7 +2,7 @@
 
 ## Current loader path
 
-`gem16gb-inspect` validates required checkpoint metadata, parses `config.json`, compiles its quantization target regexes
+`gem16-inspect` validates required checkpoint metadata, parses `config.json`, compiles its quantization target regexes
 once, memory-maps Safetensors files, and builds a deterministic tensor manifest. No model payload is copied into
 host RAM by the inspector.
 
@@ -11,7 +11,7 @@ text-only residency, and tied-weight aliasing. Execution code must consume it ra
 
 ## Hardware backend boundary
 
-`gem16gb` targets the approximately 16 GB NVIDIA CUDA GPU class. Architecture-specific kernels and dispatch live
+`gem16` targets the approximately 16 GB NVIDIA CUDA GPU class. Architecture-specific kernels and dispatch live
 behind explicit capability checks; the first implementation is Blackwell SM120/SM120a. Model execution plans,
 allocator contracts, tensor manifests, and correctness fixtures must not encode a retail board name. A later CUDA
 architecture backend should reuse those contracts while supplying its own kernels and measured dispatch choices.

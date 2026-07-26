@@ -9,7 +9,7 @@
 #include <string>
 #include <utility>
 
-namespace gem16gb::internal {
+namespace gem16::internal {
 namespace {
 
 constexpr std::uint64_t kElementsPerKBlock = 32;
@@ -584,4 +584,4 @@ Status LaunchFp8Sm120GroupedQkvProjectionBatch(
              : CudaFailure("launch grouped SM120 FP8 Q/K/V projection", error);
 }
 
-}  // namespace gem16gb::internal
+}  // namespace gem16::internal

@@ -18,7 +18,7 @@ of the correctness and native-kernel gates below.
 - The first arena-backed 48-layer decode characterization loads all text-only tensors once, uses fixed
   workspace/KV arenas, executes the tied output head and GPU argmax, and supports explicit checkpoint-FP8 and BF16
   K/V semantics. Physical byte-per-value E4M3FN storage is implemented. The exact-blue gate passes, but the sky
-  gate currently diverges from FP8-vLLM and llama.cpp at generated token 3: gem16gb selects `7412`, both references
+  gate currently diverges from FP8-vLLM and llama.cpp at generated token 3: gem16 selects `7412`, both references
   select `563`. State v5 has narrowed the first material difference to Layer-0 attention context at prompt position
   one. Match cache-write, score/softmax, and value-reduction arithmetic before extending the gate to 512 tokens.
 - The pure C++ chat CLI now uses native byte-fallback BPE from `tokenizer.json`, a version-bound implementation of
@@ -35,7 +35,7 @@ of the correctness and native-kernel gates below.
   storage and independently growing global storage. The checkpoint-scale FP8 numerical semantics and one-byte
   allocation are implemented; fused/optimized attention reads remain pending.
 - Extend the now-committed trusted vLLM token/top-logprob fixture with full-vocabulary logits and selected hidden
-  states. The 12-prompt FP8/BF16 teacher-forced suite is complete and places every vLLM Top-1 in gem16gb's Top-5;
+  states. The 12-prompt FP8/BF16 teacher-forced suite is complete and places every vLLM Top-1 in gem16's Top-5;
   full reference vectors remain pending.
 - Finish the quality and native-dispatch gates for the patched same-source closest-parity GGUF, then select and lock
   quality-acceptable GGUFs for llama.cpp tiers B and C. Unpatched upstream conversion remains blocked.

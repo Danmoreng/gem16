@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Benchmark one exact-token Wikipedia workload on gem16gb, vLLM, or llama.cpp."""
+"""Benchmark one exact-token Wikipedia workload on gem16, vLLM, or llama.cpp."""
 
 from __future__ import annotations
 
@@ -68,7 +68,7 @@ def positive_int(value: str) -> int:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--engine", required=True, choices=("gem16gb", "vllm", "llama-cpp")
+        "--engine", required=True, choices=("gem16", "vllm", "llama-cpp")
     )
     parser.add_argument("--workload", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
@@ -233,7 +233,7 @@ def summarize_runs(runs: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def run_gem16gb(
+def run_gem16(
     executable: Path,
     model: Path,
     prompt_file: Path,
@@ -262,16 +262,16 @@ def run_gem16gb(
     if completed.returncode != 0:
         detail = completed.stderr.strip() or completed.stdout.strip()
         raise BenchmarkError(
-            f"gem16gb exited with {completed.returncode}: {detail[-2000:]}"
+            f"gem16 exited with {completed.returncode}: {detail[-2000:]}"
         )
     result = json.loads(completed.stdout)
     output_tokens = result.get("output_token_ids")
     if not isinstance(output_tokens, list) or not all(
         isinstance(token, int) for token in output_tokens
     ):
-        raise BenchmarkError("gem16gb output token IDs are malformed")
+        raise BenchmarkError("gem16 output token IDs are malformed")
     if result.get("fallbacks") != 0 or result.get("token_loop_allocations") is not False:
-        raise BenchmarkError("gem16gb reported a fallback or token-loop allocation")
+        raise BenchmarkError("gem16 reported a fallback or token-loop allocation")
     run = metric_run(
         prompt_tokens,
         output_tokens,
@@ -440,9 +440,9 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
     runtime: dict[str, Any]
     configuration: dict[str, Any]
 
-    if args.engine == "gem16gb":
+    if args.engine == "gem16":
         if args.model is None or args.executable is None:
-            raise BenchmarkError("gem16gb requires --model and --executable")
+            raise BenchmarkError("gem16 requires --model and --executable")
         model = args.model.resolve(strict=True)
         executable = args.executable.resolve(strict=True)
         prompt_file = args.output.with_suffix(".prompt-token-ids.txt").resolve()
@@ -452,7 +452,7 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
         )
 
         def run_once() -> tuple[dict[str, Any], list[int]]:
-            return run_gem16gb(
+            return run_gem16(
                 executable, model, prompt_file, len(prompt), generation
             )
 

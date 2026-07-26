@@ -5,7 +5,7 @@
 #include <string>
 #include <utility>
 
-namespace gem16gb::internal {
+namespace gem16::internal {
 namespace {
 
 constexpr std::uint64_t kRowsPerTile = 8;
@@ -200,4 +200,4 @@ Result<Sm120Nvfp4WeightLaneFragment> LoadSm120Nvfp4WeightLaneFragment(
   return fragment;
 }
 
-}  // namespace gem16gb::internal
+}  // namespace gem16::internal

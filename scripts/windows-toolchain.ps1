@@ -1,6 +1,6 @@
 Set-StrictMode -Version Latest
 
-function Invoke-Gem16gbChecked {
+function Invoke-Gem16Checked {
     param(
         [Parameter(Mandatory = $true)][string]$FilePath,
         [Parameter()][string[]]$Arguments = @()
@@ -13,7 +13,7 @@ function Invoke-Gem16gbChecked {
     }
 }
 
-function Import-Gem16gbVisualStudioEnvironment {
+function Import-Gem16VisualStudioEnvironment {
     if (Get-Command cl.exe -ErrorAction SilentlyContinue) {
         return
     }
@@ -84,7 +84,7 @@ function Import-Gem16gbVisualStudioEnvironment {
     }
 }
 
-function Import-Gem16gbCudaEnvironment {
+function Import-Gem16CudaEnvironment {
     $candidates = @()
     if ($env:CUDA_PATH) {
         $candidates += $env:CUDA_PATH
@@ -120,7 +120,7 @@ function Import-Gem16gbCudaEnvironment {
     }
 }
 
-function Assert-Gem16gbCommand {
+function Assert-Gem16Command {
     param(
         [Parameter(Mandatory = $true)][string]$Name,
         [Parameter(Mandatory = $true)][string]$InstallHint

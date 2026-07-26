@@ -1,4 +1,4 @@
-#include "gem16gb/engine.h"
+#include "gem16/engine.h"
 
 #include "cuda/attention/sm120.h"
 #include "cuda/fp8/cutlass_sm120.h"
@@ -10,7 +10,7 @@
 #include "cuda/nvfp4/cutlass_sm120.h"
 #include "cuda/nvfp4/sm120.h"
 #include "cuda/nvfp4/sm120_layout.h"
-#include "gem16gb/model.h"
+#include "gem16/model.h"
 #include "platform/mapped_file.h"
 
 #include <cuda_bf16.h>
@@ -39,7 +39,7 @@
 #include <utility>
 #include <vector>
 
-namespace gem16gb {
+namespace gem16 {
 namespace {
 
 constexpr std::uint64_t kHidden = 3840;
@@ -995,7 +995,7 @@ class InferenceEngine {
   [[nodiscard]] Status Initialize(const std::filesystem::path& model_directory,
                                   std::uint64_t max_context,
                                   KvCacheMode kv_cache_mode) {
-    const NvtxRange range("gem16gb.initialize");
+    const NvtxRange range("gem16.initialize");
     kv_cache_mode_ = kv_cache_mode;
     max_context_ = max_context;
     prefill_chunk_tokens_ =
@@ -1063,7 +1063,7 @@ class InferenceEngine {
   [[nodiscard]] Result<std::uint32_t> Forward(
       std::uint32_t token, std::uint64_t position, bool select_token,
       std::span<float> host_logits = {}, std::span<float> host_state = {}) {
-    const NvtxRange range("gem16gb.decode.forward");
+    const NvtxRange range("gem16.decode.forward");
     if (token >= kVocabulary || position >= max_context_) {
       return Error(StatusCode::kInvalidArgument, "token or position exceeds inference plan");
     }
@@ -1179,7 +1179,7 @@ class InferenceEngine {
   [[nodiscard]] Result<std::uint32_t> PrefillAt(
       std::span<const std::uint32_t> token_ids, std::uint64_t start_position,
       std::span<float> host_logits = {}) {
-    const NvtxRange range("gem16gb.prefill");
+    const NvtxRange range("gem16.prefill");
     if (token_ids.empty() || start_position > max_context_ ||
         token_ids.size() > max_context_ - start_position) {
       return Error(StatusCode::kInvalidArgument, "prefill token extent is invalid");
@@ -1315,43 +1315,43 @@ class InferenceEngine {
 
   [[nodiscard]] Status AllocateWorkspace() {
     LayoutBuilder layout;
-#define GEM16GB_ADD(field, type, elements)                 \
+#define GEM16_ADD(field, type, elements)                 \
     do {                                                   \
       auto next = layout.Add<type>(elements);              \
       if (!next.ok()) return next.status();                 \
       offsets_.field = next.value();                        \
     } while (false)
-    GEM16GB_ADD(decode_control, internal::DecodeControl, 1U);
-    GEM16GB_ADD(hidden_a, float, kHidden);
-    GEM16GB_ADD(hidden_b, float, kHidden);
-    GEM16GB_ADD(normalized, float, kHidden);
-    GEM16GB_ADD(fp8_activation, std::uint8_t, kHidden);
-    GEM16GB_ADD(fp8_scale, float, 1U);
-    GEM16GB_ADD(q, float, kQueryHeads * 512U);
-    GEM16GB_ADD(k, float, 8U * 256U);
-    GEM16GB_ADD(v, float, 8U * 256U);
-    GEM16GB_ADD(q_norm, float, kQueryHeads * 512U);
-    GEM16GB_ADD(k_norm, float, 8U * 256U);
-    GEM16GB_ADD(v_norm, float, 8U * 256U);
-    GEM16GB_ADD(scores, float,
+    GEM16_ADD(decode_control, internal::DecodeControl, 1U);
+    GEM16_ADD(hidden_a, float, kHidden);
+    GEM16_ADD(hidden_b, float, kHidden);
+    GEM16_ADD(normalized, float, kHidden);
+    GEM16_ADD(fp8_activation, std::uint8_t, kHidden);
+    GEM16_ADD(fp8_scale, float, 1U);
+    GEM16_ADD(q, float, kQueryHeads * 512U);
+    GEM16_ADD(k, float, 8U * 256U);
+    GEM16_ADD(v, float, 8U * 256U);
+    GEM16_ADD(q_norm, float, kQueryHeads * 512U);
+    GEM16_ADD(k_norm, float, 8U * 256U);
+    GEM16_ADD(v_norm, float, 8U * 256U);
+    GEM16_ADD(scores, float,
                 internal::DecodeAttentionWorkspaceElements(max_context_));
-    GEM16GB_ADD(attention, float, kQueryHeads * 512U);
-    GEM16GB_ADD(o_activation, std::uint8_t, kQueryHeads * 512U);
-    GEM16GB_ADD(o_scale, float, 1U);
-    GEM16GB_ADD(projection, float, kHidden);
-    GEM16GB_ADD(post_norm, float, kHidden);
-    GEM16GB_ADD(mlp_packed, std::uint8_t, kHidden / 2U);
-    GEM16GB_ADD(mlp_scales, std::uint8_t, kHidden / 16U);
-    GEM16GB_ADD(gate, float, kIntermediate);
-    GEM16GB_ADD(up, float, kIntermediate);
-    GEM16GB_ADD(product, float, kIntermediate);
-    GEM16GB_ADD(down_packed, std::uint8_t, kIntermediate / 2U);
-    GEM16GB_ADD(down_scales, std::uint8_t, kIntermediate / 16U);
-    GEM16GB_ADD(logits, float, kVocabulary);
-    GEM16GB_ADD(output_candidates, ArgmaxValue, kFusedOutputHeadBlocks);
-    GEM16GB_ADD(selected, std::uint32_t, 1U);
-    GEM16GB_ADD(suppressed, std::uint32_t, kMaximumSuppressedTokens);
-#undef GEM16GB_ADD
+    GEM16_ADD(attention, float, kQueryHeads * 512U);
+    GEM16_ADD(o_activation, std::uint8_t, kQueryHeads * 512U);
+    GEM16_ADD(o_scale, float, 1U);
+    GEM16_ADD(projection, float, kHidden);
+    GEM16_ADD(post_norm, float, kHidden);
+    GEM16_ADD(mlp_packed, std::uint8_t, kHidden / 2U);
+    GEM16_ADD(mlp_scales, std::uint8_t, kHidden / 16U);
+    GEM16_ADD(gate, float, kIntermediate);
+    GEM16_ADD(up, float, kIntermediate);
+    GEM16_ADD(product, float, kIntermediate);
+    GEM16_ADD(down_packed, std::uint8_t, kIntermediate / 2U);
+    GEM16_ADD(down_scales, std::uint8_t, kIntermediate / 16U);
+    GEM16_ADD(logits, float, kVocabulary);
+    GEM16_ADD(output_candidates, ArgmaxValue, kFusedOutputHeadBlocks);
+    GEM16_ADD(selected, std::uint32_t, 1U);
+    GEM16_ADD(suppressed, std::uint32_t, kMaximumSuppressedTokens);
+#undef GEM16_ADD
     auto size = AlignUp(layout.size(), kAlignment);
     if (!size.ok()) return size.status();
     offsets_.total = size.value();
@@ -1360,7 +1360,7 @@ class InferenceEngine {
 
   [[nodiscard]] Status AllocatePrefillWorkspace() {
     LayoutBuilder layout;
-#define GEM16GB_PREFILL_ADD(field, type, elements)          \
+#define GEM16_PREFILL_ADD(field, type, elements)          \
     do {                                                     \
       auto next = layout.Add<type>(elements);                \
       if (!next.ok()) return next.status();                   \
@@ -1369,53 +1369,53 @@ class InferenceEngine {
     const std::uint64_t tokens = prefill_chunk_tokens_;
     constexpr std::uint64_t max_q = kQueryHeads * 512U;
     constexpr std::uint64_t max_kv = 8U * 256U;
-    GEM16GB_PREFILL_ADD(token_ids, std::uint32_t, tokens);
-    GEM16GB_PREFILL_ADD(hidden_a, float, tokens * kHidden);
-    GEM16GB_PREFILL_ADD(hidden_b, float, tokens * kHidden);
-    GEM16GB_PREFILL_ADD(normalized, float, tokens * kHidden);
-    GEM16GB_PREFILL_ADD(fp8_activation, std::uint8_t, tokens * max_q);
-    GEM16GB_PREFILL_ADD(fp8_scales, float, tokens);
-    GEM16GB_PREFILL_ADD(q, float, tokens * max_q);
-    GEM16GB_PREFILL_ADD(k, float, tokens * max_kv);
-    GEM16GB_PREFILL_ADD(v, float, tokens * max_kv);
-    GEM16GB_PREFILL_ADD(q_norm, float, tokens * max_q);
-    GEM16GB_PREFILL_ADD(k_norm, float, tokens * max_kv);
-    GEM16GB_PREFILL_ADD(v_norm, float, tokens * max_kv);
-    GEM16GB_PREFILL_ADD(k_fp8, std::uint8_t, tokens * max_kv);
-    GEM16GB_PREFILL_ADD(v_fp8, std::uint8_t, tokens * max_kv);
+    GEM16_PREFILL_ADD(token_ids, std::uint32_t, tokens);
+    GEM16_PREFILL_ADD(hidden_a, float, tokens * kHidden);
+    GEM16_PREFILL_ADD(hidden_b, float, tokens * kHidden);
+    GEM16_PREFILL_ADD(normalized, float, tokens * kHidden);
+    GEM16_PREFILL_ADD(fp8_activation, std::uint8_t, tokens * max_q);
+    GEM16_PREFILL_ADD(fp8_scales, float, tokens);
+    GEM16_PREFILL_ADD(q, float, tokens * max_q);
+    GEM16_PREFILL_ADD(k, float, tokens * max_kv);
+    GEM16_PREFILL_ADD(v, float, tokens * max_kv);
+    GEM16_PREFILL_ADD(q_norm, float, tokens * max_q);
+    GEM16_PREFILL_ADD(k_norm, float, tokens * max_kv);
+    GEM16_PREFILL_ADD(v_norm, float, tokens * max_kv);
+    GEM16_PREFILL_ADD(k_fp8, std::uint8_t, tokens * max_kv);
+    GEM16_PREFILL_ADD(v_fp8, std::uint8_t, tokens * max_kv);
     if (kv_cache_mode_ == KvCacheMode::kBf16Correctness) {
-      GEM16GB_PREFILL_ADD(scores, float,
+      GEM16_PREFILL_ADD(scores, float,
                           tokens * kQueryHeads * max_context_);
     }
-    GEM16GB_PREFILL_ADD(attention, float, tokens * max_q);
-    GEM16GB_PREFILL_ADD(o_activation, std::uint8_t, tokens * max_q);
-    GEM16GB_PREFILL_ADD(o_scales, float, tokens);
-    GEM16GB_PREFILL_ADD(projection, float, tokens * kHidden);
-    GEM16GB_PREFILL_ADD(post_norm, float, tokens * kHidden);
-    GEM16GB_PREFILL_ADD(mlp_packed, std::uint8_t, tokens * kHidden / 2U);
-    GEM16GB_PREFILL_ADD(mlp_scales, std::uint8_t, tokens * kHidden / 16U);
-    GEM16GB_PREFILL_ADD(gate, std::uint16_t, tokens * kIntermediate);
-    GEM16GB_PREFILL_ADD(up, std::uint16_t, tokens * kIntermediate);
-    GEM16GB_PREFILL_ADD(down_packed, std::uint8_t, tokens * kIntermediate / 2U);
-    GEM16GB_PREFILL_ADD(down_scales, std::uint8_t, tokens * kIntermediate / 16U);
+    GEM16_PREFILL_ADD(attention, float, tokens * max_q);
+    GEM16_PREFILL_ADD(o_activation, std::uint8_t, tokens * max_q);
+    GEM16_PREFILL_ADD(o_scales, float, tokens);
+    GEM16_PREFILL_ADD(projection, float, tokens * kHidden);
+    GEM16_PREFILL_ADD(post_norm, float, tokens * kHidden);
+    GEM16_PREFILL_ADD(mlp_packed, std::uint8_t, tokens * kHidden / 2U);
+    GEM16_PREFILL_ADD(mlp_scales, std::uint8_t, tokens * kHidden / 16U);
+    GEM16_PREFILL_ADD(gate, std::uint16_t, tokens * kIntermediate);
+    GEM16_PREFILL_ADD(up, std::uint16_t, tokens * kIntermediate);
+    GEM16_PREFILL_ADD(down_packed, std::uint8_t, tokens * kIntermediate / 2U);
+    GEM16_PREFILL_ADD(down_scales, std::uint8_t, tokens * kIntermediate / 16U);
     constexpr std::uint64_t kCutlassScaleRows = 128U;
     constexpr std::uint64_t kCutlassWorkspaceBytes = 8U * 1024U * 1024U;
     const std::uint64_t cutlass_tokens =
         ((tokens + kCutlassScaleRows - 1U) / kCutlassScaleRows) *
         kCutlassScaleRows;
-    GEM16GB_PREFILL_ADD(cutlass_activation_scales, std::uint8_t,
+    GEM16_PREFILL_ADD(cutlass_activation_scales, std::uint8_t,
                         cutlass_tokens * kIntermediate / 16U);
-    GEM16GB_PREFILL_ADD(cutlass_weight, std::uint8_t,
+    GEM16_PREFILL_ADD(cutlass_weight, std::uint8_t,
                         kIntermediate * kHidden / 2U);
-    GEM16GB_PREFILL_ADD(cutlass_weight_scales, std::uint8_t,
+    GEM16_PREFILL_ADD(cutlass_weight_scales, std::uint8_t,
                         kIntermediate * kHidden / 16U);
-    GEM16GB_PREFILL_ADD(cutlass_workspace, std::uint8_t,
+    GEM16_PREFILL_ADD(cutlass_workspace, std::uint8_t,
                         kCutlassWorkspaceBytes);
-    GEM16GB_PREFILL_ADD(local_rope_cosine, float, max_context_ * 128U);
-    GEM16GB_PREFILL_ADD(local_rope_sine, float, max_context_ * 128U);
-    GEM16GB_PREFILL_ADD(global_rope_cosine, float, max_context_ * 64U);
-    GEM16GB_PREFILL_ADD(global_rope_sine, float, max_context_ * 64U);
-#undef GEM16GB_PREFILL_ADD
+    GEM16_PREFILL_ADD(local_rope_cosine, float, max_context_ * 128U);
+    GEM16_PREFILL_ADD(local_rope_sine, float, max_context_ * 128U);
+    GEM16_PREFILL_ADD(global_rope_cosine, float, max_context_ * 64U);
+    GEM16_PREFILL_ADD(global_rope_sine, float, max_context_ * 64U);
+#undef GEM16_PREFILL_ADD
     auto size = AlignUp(layout.size(), kAlignment);
     if (!size.ok()) return size.status();
     return prefill_workspace_.Allocate(size.value(), "allocate native prefill workspace");
@@ -1424,7 +1424,7 @@ class InferenceEngine {
   [[nodiscard]] Status RunLayerBatch(const LayerBinding& layer,
                                      std::uint64_t start_position,
                                      std::uint64_t tokens) {
-    const NvtxRange range("gem16gb.prefill.layer");
+    const NvtxRange range("gem16.prefill.layer");
     float* hidden_a = Pointer<float>(prefill_workspace_, prefill_offsets_.hidden_a);
     float* hidden_b = Pointer<float>(prefill_workspace_, prefill_offsets_.hidden_b);
     auto* fp8 = Pointer<std::uint8_t>(prefill_workspace_, prefill_offsets_.fp8_activation);
@@ -1975,7 +1975,7 @@ class InferenceEngine {
                                 const LayerBinding& layer, std::uint64_t position,
                                 const LayerStateCapture* capture,
                                 float* host_state) {
-    const NvtxRange range("gem16gb.decode.layer");
+    const NvtxRange range("gem16.decode.layer");
     float* q_norm = Pointer<float>(workspace_, offsets_.q_norm);
     float* k_norm = Pointer<float>(workspace_, offsets_.k_norm);
     float* v_norm = Pointer<float>(workspace_, offsets_.v_norm);
@@ -2879,7 +2879,7 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
          << "  \"logits_dump_vocabulary\": " << kVocabulary << ",\n"
          << "  \"state_dumped\": "
          << (result.state_dumped ? "true" : "false") << ",\n"
-         << "  \"state_dump_format\": \"gem16gb_layer_state_v5\",\n"
+         << "  \"state_dump_format\": \"gem16_layer_state_v5\",\n"
          << "  \"state_dump_position\": ";
   if (result.state_dumped) {
     output << result.state_dump_position;
@@ -3072,4 +3072,4 @@ Status WritePrefillBenchmarkJson(const DecodeBenchmarkResult& result,
                                "failed to write prefill benchmark JSON");
 }
 
-}  // namespace gem16gb
+}  // namespace gem16

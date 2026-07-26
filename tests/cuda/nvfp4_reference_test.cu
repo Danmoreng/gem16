@@ -9,9 +9,9 @@
 #include "cuda/nvfp4/sm120.h"
 #include "cuda/nvfp4/sm120_layout.h"
 #include "cuda/nvfp4/mlp.h"
-#include "gem16gb/fp8.h"
-#include "gem16gb/layer.h"
-#include "gem16gb/nvfp4.h"
+#include "gem16/fp8.h"
+#include "gem16/layer.h"
+#include "gem16/nvfp4.h"
 
 #include <cuda_bf16.h>
 #include <cuda_fp8.h>
@@ -124,9 +124,9 @@ void TestCudaIntrinsicConformanceAndProjection() {
   std::array<float, 16> host_activation{};
   for (std::size_t index = 0; index < host_activation.size(); ++index) {
     host_activation[index] =
-        gem16gb::nvfp4::DecodeE2M1(static_cast<std::uint8_t>(index)) / 2.0F;
+        gem16::nvfp4::DecodeE2M1(static_cast<std::uint8_t>(index)) / 2.0F;
   }
-  const auto host_quantized = gem16gb::nvfp4::QuantizeActivation(host_activation, 2.0F);
+  const auto host_quantized = gem16::nvfp4::QuantizeActivation(host_activation, 2.0F);
   CUDA_TEST_CHECK(host_quantized.ok());
   if (!host_quantized.ok()) return;
 
@@ -143,8 +143,8 @@ void TestCudaIntrinsicConformanceAndProjection() {
     return;
   }
 
-  const gem16gb::Status quantize_status =
-      gem16gb::internal::LaunchNvfp4ReferenceActivationQuantization(
+  const gem16::Status quantize_status =
+      gem16::internal::LaunchNvfp4ReferenceActivationQuantization(
           device_activation.get(), device_packed.get(), device_scales.get(),
           host_activation.size(), 2.0F, nullptr);
   CUDA_TEST_CHECK(quantize_status.ok());
@@ -180,7 +180,7 @@ void TestCudaIntrinsicConformanceAndProjection() {
                                     device_weight_scales.bytes(), cudaMemcpyHostToDevice),
                              "copy weight scales to device"));
 
-  const gem16gb::Status projection_status = gem16gb::internal::LaunchNvfp4ReferenceProjection(
+  const gem16::Status projection_status = gem16::internal::LaunchNvfp4ReferenceProjection(
       device_packed.get(), device_scales.get(), device_weight.get(), device_weight_scales.get(),
       device_output.get(), 1, 16, 2.0F, 9600.0F, nullptr);
   CUDA_TEST_CHECK(projection_status.ok());
@@ -192,7 +192,7 @@ void TestCudaIntrinsicConformanceAndProjection() {
   CUDA_TEST_CHECK(CudaOk(cudaMemcpy(&gpu_output, device_output.get(), sizeof(gpu_output),
                                     cudaMemcpyDeviceToHost),
                              "copy projection output to host"));
-  const auto expected = gem16gb::nvfp4::ReferenceDotProduct(
+  const auto expected = gem16::nvfp4::ReferenceDotProduct(
       host_quantized.value(), weight, weight_scales, 9600.0F);
   CUDA_TEST_CHECK(expected.ok());
   if (expected.ok()) {
@@ -227,7 +227,7 @@ void TestVllmNvfp4QuantizationBoundary() {
     return;
   }
   const auto status =
-      gem16gb::internal::LaunchNvfp4ReferenceActivationQuantization(
+      gem16::internal::LaunchNvfp4ReferenceActivationQuantization(
           device_activation.get(), device_packed.get(), device_scale.get(),
           activation.size(), 0.375F, nullptr);
   CUDA_TEST_CHECK(status.ok());
@@ -266,11 +266,11 @@ void TestDirectSourceSm120Projection() {
   std::array<float, k_size> host_activation{};
   for (std::size_t k = 0; k < k_size; ++k) {
     host_activation[k] =
-        gem16gb::nvfp4::DecodeE2M1(static_cast<std::uint8_t>(k & 0x0FU)) /
+        gem16::nvfp4::DecodeE2M1(static_cast<std::uint8_t>(k & 0x0FU)) /
         activation_divisor;
   }
   const auto quantized =
-      gem16gb::nvfp4::QuantizeActivation(host_activation, activation_divisor);
+      gem16::nvfp4::QuantizeActivation(host_activation, activation_divisor);
   CUDA_TEST_CHECK(quantized.ok());
   if (!quantized.ok()) return;
 
@@ -283,13 +283,13 @@ void TestDirectSourceSm120Projection() {
     }
   }
   const auto scale_layout =
-      gem16gb::internal::PlanSm120Nvfp4SourceLayout(rows, k_size);
+      gem16::internal::PlanSm120Nvfp4SourceLayout(rows, k_size);
   CUDA_TEST_CHECK(scale_layout.ok());
   if (!scale_layout.ok()) return;
   const auto tiled_weight =
-      gem16gb::internal::TileSm120Nvfp4Weights(scale_layout.value(), packed_weight);
+      gem16::internal::TileSm120Nvfp4Weights(scale_layout.value(), packed_weight);
   const auto tiled_weight_scales =
-      gem16gb::internal::TileSm120Nvfp4WeightScales(scale_layout.value(), weight_scales);
+      gem16::internal::TileSm120Nvfp4WeightScales(scale_layout.value(), weight_scales);
   CUDA_TEST_CHECK(tiled_weight.ok());
   CUDA_TEST_CHECK(tiled_weight_scales.ok());
   if (!tiled_weight.ok() || !tiled_weight_scales.ok()) return;
@@ -377,17 +377,17 @@ void TestDirectSourceSm120Projection() {
     }
   }
 
-  const gem16gb::Status status = gem16gb::internal::LaunchNvfp4Sm120DirectProjection(
+  const gem16::Status status = gem16::internal::LaunchNvfp4Sm120DirectProjection(
       device_activation.get(), device_activation_scales.get(), device_tiled_weight.get(),
       device_tiled_weight_scales.get(), device_output.get(), rows, k_size, activation_divisor,
       weight_divisor, nullptr);
   CUDA_TEST_CHECK(status.ok());
-  const gem16gb::Status simt_status = gem16gb::internal::LaunchNvfp4SimtGemvProjection(
+  const gem16::Status simt_status = gem16::internal::LaunchNvfp4SimtGemvProjection(
       device_activation.get(), device_activation_scales.get(), device_weight.get(),
       device_weight_scales.get(), device_simt_output.get(), rows, k_size,
       activation_divisor, weight_divisor, nullptr);
   CUDA_TEST_CHECK(simt_status.ok());
-  const gem16gb::Status fused_status = gem16gb::internal::LaunchNvfp4Sm120FusedGateUp(
+  const gem16::Status fused_status = gem16::internal::LaunchNvfp4Sm120FusedGateUp(
       device_activation.get(), device_activation_scales.get(), device_tiled_weight.get(),
       device_tiled_weight_scales.get(), device_tiled_weight.get(),
       device_tiled_weight_scales.get(),
@@ -396,25 +396,25 @@ void TestDirectSourceSm120Projection() {
       nullptr);
   CUDA_TEST_CHECK(fused_status.ok());
   const auto batch_reference_status =
-      gem16gb::internal::LaunchNvfp4ReferenceProjectionBatch(
+      gem16::internal::LaunchNvfp4ReferenceProjectionBatch(
           device_batch_activation.get(), device_batch_activation_scales.get(),
           device_weight.get(), device_weight_scales.get(),
           device_batch_reference.get(), tokens, rows, k_size,
           activation_divisor, weight_divisor, nullptr);
   const auto batch_native_status =
-      gem16gb::internal::LaunchNvfp4Sm120DirectProjectionBatch(
+      gem16::internal::LaunchNvfp4Sm120DirectProjectionBatch(
           device_batch_activation.get(), device_batch_activation_scales.get(),
           device_tiled_weight.get(), device_tiled_weight_scales.get(),
           device_batch_native.get(), tokens, rows, k_size, activation_divisor,
           weight_divisor, nullptr);
   const auto batch_native_bf16_status =
-      gem16gb::internal::LaunchNvfp4Sm120DirectProjectionBf16Batch(
+      gem16::internal::LaunchNvfp4Sm120DirectProjectionBf16Batch(
           device_batch_activation.get(), device_batch_activation_scales.get(),
           device_tiled_weight.get(), device_tiled_weight_scales.get(),
           device_batch_native_bf16.get(), tokens, rows, k_size,
           activation_divisor, weight_divisor, nullptr);
   const auto batch_fused_status =
-      gem16gb::internal::LaunchNvfp4Sm120FusedGateUpBatch(
+      gem16::internal::LaunchNvfp4Sm120FusedGateUpBatch(
           device_batch_activation.get(), device_batch_activation_scales.get(),
           device_tiled_weight.get(), device_tiled_weight_scales.get(),
           device_tiled_weight.get(),
@@ -476,7 +476,7 @@ void TestDirectSourceSm120Projection() {
         packed_weight.data() + row * k_size / 2U, k_size / 2U);
     const std::span<const std::uint8_t> scale_row(
         weight_scales.data() + row * k_size / 16U, k_size / 16U);
-    const auto expected = gem16gb::nvfp4::ReferenceDotProduct(
+    const auto expected = gem16::nvfp4::ReferenceDotProduct(
         quantized.value(), weight_row, scale_row, weight_divisor);
     CUDA_TEST_CHECK(expected.ok());
     if (expected.ok()) {
@@ -563,13 +563,13 @@ void TestCutlassSm120Projection() {
   }
 
   const auto layout =
-      gem16gb::internal::PlanSm120Nvfp4SourceLayout(rows, k_size);
+      gem16::internal::PlanSm120Nvfp4SourceLayout(rows, k_size);
   CUDA_TEST_CHECK(layout.ok());
   if (!layout.ok()) return;
   const auto tiled_weight =
-      gem16gb::internal::TileSm120Nvfp4Weights(layout.value(), weight);
+      gem16::internal::TileSm120Nvfp4Weights(layout.value(), weight);
   const auto tiled_scales =
-      gem16gb::internal::TileSm120Nvfp4WeightScales(layout.value(),
+      gem16::internal::TileSm120Nvfp4WeightScales(layout.value(),
                                                     weight_scales);
   CUDA_TEST_CHECK(tiled_weight.ok());
   CUDA_TEST_CHECK(tiled_scales.ok());
@@ -619,17 +619,17 @@ void TestCutlassSm120Projection() {
   }
 
   const auto reference_status =
-      gem16gb::internal::LaunchNvfp4Sm120DirectProjectionBf16Batch(
+      gem16::internal::LaunchNvfp4Sm120DirectProjectionBf16Batch(
           device_activation.get(), device_activation_scales.get(),
           device_weight.get(), device_weight_scales.get(),
           device_reference.get(), tokens, rows, k_size, activation_divisor,
           weight_divisor, nullptr);
   const auto interleave_status =
-      gem16gb::internal::LaunchNvfp4CutlassInterleaveActivationScales(
+      gem16::internal::LaunchNvfp4CutlassInterleaveActivationScales(
           device_activation_scales.get(),
           device_interleaved_activation_scales.get(), tokens, k_size, nullptr);
   const auto cutlass_status =
-      gem16gb::internal::LaunchNvfp4CutlassProjectionBf16Batch(
+      gem16::internal::LaunchNvfp4CutlassProjectionBf16Batch(
           device_activation.get(),
           device_interleaved_activation_scales.get(), device_weight.get(),
           device_weight_scales.get(), device_weight_scratch.get(),
@@ -702,10 +702,10 @@ void TestMlpElementwiseBridge() {
     return;
   }
 
-  const auto product_status = gem16gb::internal::LaunchGeluTanhProduct(
+  const auto product_status = gem16::internal::LaunchGeluTanhProduct(
       device_gate.get(), device_up.get(), device_product.get(), gate.size(), nullptr);
   CUDA_TEST_CHECK(product_status.ok());
-  const auto residual_status = gem16gb::internal::LaunchAddResidual(
+  const auto residual_status = gem16::internal::LaunchAddResidual(
       device_product.get(), device_residual.get(), device_output.get(), gate.size(), nullptr);
   CUDA_TEST_CHECK(residual_status.ok());
   if (!product_status.ok() || !residual_status.ok() ||
@@ -734,7 +734,7 @@ void TestFp8ReferenceAndDirectProjection() {
     host_activation[index] =
         static_cast<float>(static_cast<int>(index % 13U) - 6) * 0.125F;
   }
-  const auto host_quantized = gem16gb::fp8::QuantizeToken(host_activation);
+  const auto host_quantized = gem16::fp8::QuantizeToken(host_activation);
   CUDA_TEST_CHECK(host_quantized.ok());
   if (!host_quantized.ok()) return;
 
@@ -743,7 +743,7 @@ void TestFp8ReferenceAndDirectProjection() {
     for (std::size_t k = 0; k < k_size; ++k) {
       const float value = static_cast<float>(static_cast<int>((row * 5U + k * 3U) % 15U) - 7) /
                           4.0F;
-      const auto encoded = gem16gb::fp8::EncodeE4M3Fn(value);
+      const auto encoded = gem16::fp8::EncodeE4M3Fn(value);
       CUDA_TEST_CHECK(encoded.ok());
       if (!encoded.ok()) return;
       host_weight[row * k_size + k] = encoded.value();
@@ -813,7 +813,7 @@ void TestFp8ReferenceAndDirectProjection() {
     }
   }
 
-  const auto quantize_status = gem16gb::internal::LaunchFp8ReferenceTokenQuantization(
+  const auto quantize_status = gem16::internal::LaunchFp8ReferenceTokenQuantization(
       device_input.get(), device_activation.get(), device_activation_scale.get(), k_size, nullptr);
   CUDA_TEST_CHECK(quantize_status.ok());
   if (!quantize_status.ok() || !CudaOk(cudaDeviceSynchronize(), "FP8 quantize synchronize")) {
@@ -831,14 +831,14 @@ void TestFp8ReferenceAndDirectProjection() {
   CUDA_TEST_CHECK(std::equal(gpu_activation.begin(), gpu_activation.end(),
                              host_quantized.value().values_e4m3fn.begin()));
 
-  const auto reference_status = gem16gb::internal::LaunchFp8ReferenceProjection(
+  const auto reference_status = gem16::internal::LaunchFp8ReferenceProjection(
       device_activation.get(), device_activation_scale.get(), device_weight.get(),
       device_weight_scales.get(), device_reference.get(), rows, k_size, nullptr);
-  const auto native_status = gem16gb::internal::LaunchFp8Sm120DirectProjection(
+  const auto native_status = gem16::internal::LaunchFp8Sm120DirectProjection(
       device_activation.get(), device_activation_scale.get(), device_weight.get(),
       device_weight_scales.get(), device_native.get(), rows, k_size, nullptr);
   const auto direct_grouped_status =
-      gem16gb::internal::LaunchFp8Sm120GroupedQkvProjection(
+      gem16::internal::LaunchFp8Sm120GroupedQkvProjection(
           device_activation.get(), device_activation_scale.get(),
           device_weight.get(), device_weight_scales.get(),
           device_direct_grouped_q.get(), rows, device_weight.get(),
@@ -849,28 +849,28 @@ void TestFp8ReferenceAndDirectProjection() {
   CUDA_TEST_CHECK(native_status.ok());
   CUDA_TEST_CHECK(direct_grouped_status.ok());
   const auto batch_quantize_status =
-      gem16gb::internal::LaunchFp8ReferenceTokenQuantizationBatch(
+      gem16::internal::LaunchFp8ReferenceTokenQuantizationBatch(
           device_batch_input.get(), device_batch_activation.get(),
           device_batch_scales.get(), tokens, k_size, nullptr);
   const auto batch_reference_status =
-      gem16gb::internal::LaunchFp8ReferenceProjectionBatch(
+      gem16::internal::LaunchFp8ReferenceProjectionBatch(
           device_batch_activation.get(), device_batch_scales.get(),
           device_weight.get(), device_weight_scales.get(),
           device_batch_reference.get(), tokens, rows, k_size, nullptr);
   const auto batch_native_status =
-      gem16gb::internal::LaunchFp8Sm120DirectProjectionBatch(
+      gem16::internal::LaunchFp8Sm120DirectProjectionBatch(
           device_batch_activation.get(), device_batch_scales.get(),
           device_weight.get(), device_weight_scales.get(),
           device_batch_native.get(), tokens, rows, k_size, nullptr);
   const auto batch_cutlass_status =
-      gem16gb::internal::LaunchFp8CutlassProjectionBatch(
+      gem16::internal::LaunchFp8CutlassProjectionBatch(
           device_batch_activation.get(), device_batch_scales.get(),
           device_weight.get(), device_weight_scales.get(),
           device_batch_cutlass.get(), tokens, rows, k_size,
           device_cutlass_workspace.get(), device_cutlass_workspace.bytes(),
           nullptr);
   const auto grouped_native_status =
-      gem16gb::internal::LaunchFp8Sm120GroupedQkvProjectionBatch(
+      gem16::internal::LaunchFp8Sm120GroupedQkvProjectionBatch(
           device_batch_activation.get(), device_batch_scales.get(),
           device_weight.get(), device_weight_scales.get(),
           device_grouped_q.get(), rows, device_weight.get(),
@@ -938,7 +938,7 @@ void TestFp8ReferenceAndDirectProjection() {
     return;
   }
   for (std::size_t row = 0; row < rows; ++row) {
-    const auto expected = gem16gb::fp8::ReferenceDotProduct(
+    const auto expected = gem16::fp8::ReferenceDotProduct(
         host_quantized.value(),
         std::span<const std::uint8_t>(host_weight.data() + row * k_size, k_size),
         positive_weight_scales[row]);
@@ -1029,12 +1029,12 @@ void TestFp8CutlassPrefillGeometry() {
     return;
   }
   const auto native_status =
-      gem16gb::internal::LaunchFp8Sm120DirectProjectionBatch(
+      gem16::internal::LaunchFp8Sm120DirectProjectionBatch(
           device_activation.get(), device_activation_scales.get(),
           device_weight.get(), device_weight_scales.get(), device_native.get(),
           tokens, rows, k_size, nullptr);
   const auto cutlass_status =
-      gem16gb::internal::LaunchFp8CutlassProjectionBatch(
+      gem16::internal::LaunchFp8CutlassProjectionBatch(
           device_activation.get(), device_activation_scales.get(),
           device_weight.get(), device_weight_scales.get(), device_cutlass.get(),
           tokens, rows, k_size, device_workspace.get(),
@@ -1083,7 +1083,7 @@ void TestLocalLayerReferenceOperators() {
       2.0F, 4.0F, 6.0F, 8.0F, 10.0F, 12.0F, 14.0F, 16.0F,
       3.0F, 6.0F, 9.0F, 12.0F, 15.0F, 18.0F, 21.0F, 24.0F};
 
-  const auto host_attention = gem16gb::layer::LocalAttentionDecode(
+  const auto host_attention = gem16::layer::LocalAttentionDecode(
       query, key_cache, value_cache, query_heads, kv_heads, head_dimension, tokens);
   CUDA_TEST_CHECK(host_attention.ok());
   if (!host_attention.ok()) return;
@@ -1103,7 +1103,7 @@ void TestLocalLayerReferenceOperators() {
       !CudaOk(cudaMemcpy(device_values.get(), value_cache.data(), device_values.bytes(), cudaMemcpyHostToDevice),
               "copy layer values")) return;
 
-  const auto attention_status = gem16gb::internal::LaunchLocalAttentionDecode(
+  const auto attention_status = gem16::internal::LaunchLocalAttentionDecode(
       device_query.get(), device_keys.get(), device_values.get(), device_scores.get(),
       device_output.get(), query_heads, kv_heads, head_dimension, tokens, nullptr);
   CUDA_TEST_CHECK(attention_status.ok());
@@ -1120,7 +1120,7 @@ void TestLocalLayerReferenceOperators() {
   constexpr std::array<float, 4> norm_weight = {1.0F, 0.5F, 2.0F, 1.5F};
   constexpr std::array<std::uint16_t, 4> norm_weight_bf16 = {
       0x3F80U, 0x3F00U, 0x4000U, 0x3FC0U};
-  const auto host_norm = gem16gb::layer::RmsNorm(norm_input, norm_weight, 2, 4, 1.0e-6F);
+  const auto host_norm = gem16::layer::RmsNorm(norm_input, norm_weight, 2, 4, 1.0e-6F);
   CUDA_TEST_CHECK(host_norm.ok());
   DeviceBuffer<float> device_norm_input(norm_input.size());
   DeviceBuffer<std::uint16_t> device_norm_weight(norm_weight_bf16.size());
@@ -1135,9 +1135,9 @@ void TestLocalLayerReferenceOperators() {
               "copy norm input") ||
       !CudaOk(cudaMemcpy(device_norm_weight.get(), norm_weight_bf16.data(), device_norm_weight.bytes(),
                          cudaMemcpyHostToDevice), "copy norm weight")) return;
-  const auto norm_status = gem16gb::internal::LaunchRmsNorm(
+  const auto norm_status = gem16::internal::LaunchRmsNorm(
       device_norm_input.get(), device_norm_weight.get(), device_norm_output.get(), 2, 4, 1.0e-6F, nullptr);
-  const auto fused_norm_status = gem16gb::internal::LaunchRmsNormBf16(
+  const auto fused_norm_status = gem16::internal::LaunchRmsNormBf16(
       device_norm_input.get(), device_norm_weight.get(),
       device_norm_fused_output.get(), 2, 4, 1.0e-6F, nullptr);
   if (!CudaOk(cudaMemcpy(device_norm_rounded_output.get(),
@@ -1178,11 +1178,11 @@ void TestLocalLayerReferenceOperators() {
       device_norm_fp8_reference_scales.get() == nullptr ||
       device_norm_fp8_fused_scales.get() == nullptr) return;
   const auto norm_fp8_reference_status =
-      gem16gb::internal::LaunchFp8ReferenceTokenQuantizationBatch(
+      gem16::internal::LaunchFp8ReferenceTokenQuantizationBatch(
           device_norm_rounded_output.get(), device_norm_fp8_reference.get(),
           device_norm_fp8_reference_scales.get(), 2, 4, nullptr);
   const auto norm_fp8_fused_status =
-      gem16gb::internal::LaunchRmsNormFp8TokenQuantizationBatch(
+      gem16::internal::LaunchRmsNormFp8TokenQuantizationBatch(
           device_norm_input.get(), device_norm_weight.get(),
           device_norm_fp8_fused.get(), device_norm_fp8_fused_scales.get(), 2,
           4, 1.0e-6F, nullptr);
@@ -1257,18 +1257,18 @@ void TestLocalLayerReferenceOperators() {
                          device_norm_nvfp4_weight.bytes(),
                          cudaMemcpyHostToDevice),
               "copy RMSNorm NVFP4 weight")) return;
-  const auto norm_nvfp4_status = gem16gb::internal::LaunchRmsNormBf16(
+  const auto norm_nvfp4_status = gem16::internal::LaunchRmsNormBf16(
       device_norm_nvfp4_input.get(), device_norm_nvfp4_weight.get(),
       device_norm_nvfp4_reference.get(), norm_nvfp4_tokens,
       norm_nvfp4_width, 1.0e-6F, nullptr);
   const auto norm_nvfp4_reference_status =
-      gem16gb::internal::LaunchNvfp4ReferenceActivationQuantization(
+      gem16::internal::LaunchNvfp4ReferenceActivationQuantization(
           device_norm_nvfp4_reference.get(),
           device_norm_nvfp4_reference_packed.get(),
           device_norm_nvfp4_reference_scales.get(), norm_nvfp4_elements,
           1.25F, nullptr);
   const auto norm_nvfp4_fused_status =
-      gem16gb::internal::LaunchRmsNormNvfp4ActivationQuantizationBatch(
+      gem16::internal::LaunchRmsNormNvfp4ActivationQuantizationBatch(
           device_norm_nvfp4_input.get(), device_norm_nvfp4_weight.get(),
           device_norm_nvfp4_fused_packed.get(),
           device_norm_nvfp4_fused_scales.get(), norm_nvfp4_tokens,
@@ -1391,25 +1391,25 @@ void TestLocalLayerReferenceOperators() {
       device_fused_gelu_gate_reference.get(), fused_gelu_elements);
   RoundBf16ForComparisonKernel<<<1, 256>>>(
       device_fused_gelu_up_reference.get(), fused_gelu_elements);
-  const auto gelu_product_status = gem16gb::internal::LaunchGeluTanhProduct(
+  const auto gelu_product_status = gem16::internal::LaunchGeluTanhProduct(
       device_fused_gelu_gate_reference.get(),
       device_fused_gelu_up_reference.get(), device_fused_gelu_product.get(),
       fused_gelu_elements, nullptr);
   RoundBf16ForComparisonKernel<<<1, 256>>>(device_fused_gelu_product.get(),
                                            fused_gelu_elements);
   const auto gelu_nvfp4_reference_status =
-      gem16gb::internal::LaunchNvfp4ReferenceActivationQuantization(
+      gem16::internal::LaunchNvfp4ReferenceActivationQuantization(
           device_fused_gelu_product.get(),
           device_fused_gelu_reference_packed.get(),
           device_fused_gelu_reference_scales.get(), fused_gelu_elements,
           1.125F, nullptr);
   const auto gelu_nvfp4_fused_status =
-      gem16gb::internal::LaunchGatedGeluNvfp4ActivationQuantization(
+      gem16::internal::LaunchGatedGeluNvfp4ActivationQuantization(
           device_fused_gelu_gate.get(), device_fused_gelu_up.get(),
           device_fused_gelu_packed.get(), device_fused_gelu_scales.get(),
           fused_gelu_elements, 1.125F, nullptr);
   const auto gelu_nvfp4_bf16_status =
-      gem16gb::internal::LaunchGatedGeluNvfp4ActivationQuantizationBf16(
+      gem16::internal::LaunchGatedGeluNvfp4ActivationQuantizationBf16(
           device_fused_gelu_gate_bf16.get(),
           device_fused_gelu_up_bf16.get(),
           device_fused_gelu_bf16_packed.get(),
@@ -1509,18 +1509,18 @@ void TestLocalLayerReferenceOperators() {
                          sizeof(norm_layer_scalar_bf16),
                          cudaMemcpyHostToDevice),
               "copy RMSNorm layer scalar")) return;
-  auto residual_status = gem16gb::internal::LaunchAddResidual(
+  auto residual_status = gem16::internal::LaunchAddResidual(
       device_norm_rounded_output.get(), device_norm_residual.get(),
       device_norm_reference_final.get(), norm_residual.size(), nullptr);
   RoundBf16ForComparisonKernel<<<1, 256>>>(device_norm_reference_final.get(),
                                            norm_residual.size());
   auto fused_residual_status =
-      gem16gb::internal::LaunchRmsNormResidualBf16(
+      gem16::internal::LaunchRmsNormResidualBf16(
           device_norm_input.get(), device_norm_weight.get(),
           device_norm_residual.get(), device_norm_fused_output.get(),
           device_norm_fused_final.get(), 2, 4, 1.0e-6F, nullptr, nullptr);
   const auto bf16_input_residual_status =
-      gem16gb::internal::LaunchRmsNormResidualBf16Input(
+      gem16::internal::LaunchRmsNormResidualBf16Input(
           device_norm_input_bf16.get(), device_norm_weight.get(),
           device_norm_residual.get(), device_norm_bf16_input_normalized.get(),
           device_norm_bf16_input_final.get(), 2, 4, 1.0e-6F, nullptr,
@@ -1563,12 +1563,12 @@ void TestLocalLayerReferenceOperators() {
   CUDA_TEST_CHECK(gpu_norm_fused == gpu_norm_bf16_input_normalized);
   CUDA_TEST_CHECK(gpu_norm_fused_final == gpu_norm_bf16_input_final);
 
-  const auto scalar_status = gem16gb::internal::LaunchScale(
+  const auto scalar_status = gem16::internal::LaunchScale(
       device_norm_reference_final.get(), device_norm_layer_scalar.get(),
       norm_residual.size(), nullptr);
   RoundBf16ForComparisonKernel<<<1, 256>>>(device_norm_reference_final.get(),
                                            norm_residual.size());
-  fused_residual_status = gem16gb::internal::LaunchRmsNormResidualBf16(
+  fused_residual_status = gem16::internal::LaunchRmsNormResidualBf16(
       device_norm_input.get(), device_norm_weight.get(),
       device_norm_residual.get(), device_norm_fused_output.get(),
       device_norm_fused_final.get(), 2, 4, 1.0e-6F,
@@ -1594,8 +1594,8 @@ void TestLocalLayerReferenceOperators() {
   if (device_rope.get() == nullptr ||
       !CudaOk(cudaMemcpy(device_rope.get(), host_rope.data(), device_rope.bytes(), cudaMemcpyHostToDevice),
               "copy RoPE input")) return;
-  CUDA_TEST_CHECK(gem16gb::layer::ApplyRotaryEmbedding(host_rope, 1, 8, 8, 37, 10000.0).ok());
-  const auto rope_status = gem16gb::internal::LaunchRotaryEmbedding(
+  CUDA_TEST_CHECK(gem16::layer::ApplyRotaryEmbedding(host_rope, 1, 8, 8, 37, 10000.0).ok());
+  const auto rope_status = gem16::internal::LaunchRotaryEmbedding(
       device_rope.get(), 1, 8, 8, 37, 10000.0, nullptr);
   CUDA_TEST_CHECK(rope_status.ok());
   if (!rope_status.ok() || !CudaOk(cudaDeviceSynchronize(), "RoPE synchronize")) return;
@@ -1615,10 +1615,10 @@ void TestLocalLayerReferenceOperators() {
       !CudaOk(cudaMemcpy(device_proportional_rope.get(), host_proportional_rope.data(),
                          device_proportional_rope.bytes(), cudaMemcpyHostToDevice),
               "copy proportional RoPE input")) return;
-  CUDA_TEST_CHECK(gem16gb::layer::ApplyProportionalRotaryEmbedding(
+  CUDA_TEST_CHECK(gem16::layer::ApplyProportionalRotaryEmbedding(
                       host_proportional_rope, 1, 512, 0.25, 31, 1'000'000.0)
                       .ok());
-  const auto proportional_status = gem16gb::internal::LaunchProportionalRotaryEmbedding(
+  const auto proportional_status = gem16::internal::LaunchProportionalRotaryEmbedding(
       device_proportional_rope.get(), 1, 512, 0.25, 31, 1'000'000.0, 1.0, nullptr);
   CUDA_TEST_CHECK(proportional_status.ok());
   if (!proportional_status.ok() ||
@@ -1710,29 +1710,29 @@ void TestFusedProjectionRmsNormRotaryBf16Batch() {
     RoundBf16ForComparisonKernel<<<
         static_cast<unsigned>((key_elements + 255U) / 256U), 256>>>(
         reference_key.get(), key_elements);
-    auto status = gem16gb::internal::LaunchRmsNormBf16(
+    auto status = gem16::internal::LaunchRmsNormBf16(
         reference_query.get(), device_query_norm.get(),
         reference_query_output.get(), tokens * query_heads, head_dimension,
         1.0e-6F, nullptr);
     CUDA_TEST_CHECK(status.ok());
-    status = gem16gb::internal::LaunchRmsNormBf16(
+    status = gem16::internal::LaunchRmsNormBf16(
         reference_key.get(), device_key_norm.get(), reference_key_output.get(),
         tokens * kv_heads, head_dimension, 1.0e-6F, nullptr);
     CUDA_TEST_CHECK(status.ok());
     if (rotary_factor == 1.0) {
-      status = gem16gb::internal::LaunchRotaryEmbeddingBatch(
+      status = gem16::internal::LaunchRotaryEmbeddingBatch(
           reference_query_output.get(), tokens, query_heads, head_dimension,
           head_dimension, start_position, theta, nullptr);
       CUDA_TEST_CHECK(status.ok());
-      status = gem16gb::internal::LaunchRotaryEmbeddingBatch(
+      status = gem16::internal::LaunchRotaryEmbeddingBatch(
           reference_key_output.get(), tokens, kv_heads, head_dimension,
           head_dimension, start_position, theta, nullptr);
     } else {
-      status = gem16gb::internal::LaunchProportionalRotaryEmbeddingBatch(
+      status = gem16::internal::LaunchProportionalRotaryEmbeddingBatch(
           reference_query_output.get(), tokens, query_heads, head_dimension,
           rotary_factor, start_position, theta, 1.0, nullptr);
       CUDA_TEST_CHECK(status.ok());
-      status = gem16gb::internal::LaunchProportionalRotaryEmbeddingBatch(
+      status = gem16::internal::LaunchProportionalRotaryEmbeddingBatch(
           reference_key_output.get(), tokens, kv_heads, head_dimension,
           rotary_factor, start_position, theta, 1.0, nullptr);
     }
@@ -1745,11 +1745,11 @@ void TestFusedProjectionRmsNormRotaryBf16Batch() {
         reference_key_output.get(), key_elements);
 
     const auto table_status =
-        gem16gb::internal::LaunchRotaryEmbeddingTableBatch(
+        gem16::internal::LaunchRotaryEmbeddingTableBatch(
             rotary_cosine.get(), rotary_sine.get(), tokens, rotating_pairs,
             head_dimension, start_position, theta, 1.0, nullptr);
     const auto fused_status =
-        gem16gb::internal::LaunchProjectionRmsNormRotaryBf16Batch(
+        gem16::internal::LaunchProjectionRmsNormRotaryBf16Batch(
             candidate_query.get(), device_query_norm.get(),
             candidate_query_output.get(), candidate_key.get(),
             device_key_norm.get(), candidate_key_output.get(),
@@ -1856,20 +1856,20 @@ void TestPhysicalFp8KvCache() {
                 "copy FP8-cache V input")) {
       return;
     }
-    const auto append = gem16gb::internal::LaunchAppendKvFp8(
+    const auto append = gem16::internal::LaunchAppendKvFp8(
         device_keys.get(), device_values.get(), device_fp8_keys.get(),
         device_fp8_values.get(), device_key_scale.get(),
         device_value_scale.get(), token, kv_heads, head_dimension, nullptr);
     CUDA_TEST_CHECK(append.ok());
     if (!append.ok()) return;
   }
-  const auto fp8_attention = gem16gb::internal::LaunchLocalAttentionDecodeFp8(
+  const auto fp8_attention = gem16::internal::LaunchLocalAttentionDecodeFp8(
       device_query.get(), device_fp8_keys.get(), device_fp8_values.get(),
       device_key_scale.get(), device_value_scale.get(), device_scores.get(),
       device_fp8_output.get(), query_heads, kv_heads, head_dimension, tokens,
       nullptr);
   CUDA_TEST_CHECK(fp8_attention.ok());
-  const auto float_attention = gem16gb::internal::LaunchLocalAttentionDecode(
+  const auto float_attention = gem16::internal::LaunchLocalAttentionDecode(
       device_query.get(), device_float_keys.get(), device_float_values.get(),
       device_scores.get(), device_float_output.get(), query_heads, kv_heads,
       head_dimension, tokens, nullptr);
@@ -1911,7 +1911,7 @@ void TestWrappedKvRingAttention() {
       3.0F, 30.0F, 1.0F, 10.0F, 2.0F, 20.0F};
   constexpr std::array<std::uint16_t, 1> unit_scale = {0x3F80U};
 
-  const auto expected = gem16gb::layer::LocalAttentionDecode(
+  const auto expected = gem16::layer::LocalAttentionDecode(
       query, logical_keys, logical_values, query_heads, kv_heads,
       head_dimension, tokens);
   CUDA_TEST_CHECK(expected.ok());
@@ -1931,7 +1931,7 @@ void TestWrappedKvRingAttention() {
   DeviceBuffer<std::uint16_t> device_scale(unit_scale.size());
   DeviceBuffer<float> fp8_output(query.size());
   DeviceBuffer<float> controlled_fp8_output(query.size());
-  DeviceBuffer<gem16gb::internal::DecodeControl> device_control(1);
+  DeviceBuffer<gem16::internal::DecodeControl> device_control(1);
   if (device_query.get() == nullptr || device_keys.get() == nullptr ||
       device_values.get() == nullptr || device_scores.get() == nullptr ||
       device_output.get() == nullptr || controlled_scores.get() == nullptr ||
@@ -1942,7 +1942,7 @@ void TestWrappedKvRingAttention() {
       device_control.get() == nullptr) {
     return;
   }
-  constexpr gem16gb::internal::DecodeControl control = {
+  constexpr gem16::internal::DecodeControl control = {
       .token = 0, .suppressed_token_count = 0, .position = 3};
   if (!CudaOk(cudaMemcpy(device_query.get(), query.data(), device_query.bytes(),
                          cudaMemcpyHostToDevice), "copy ring query") ||
@@ -1958,13 +1958,13 @@ void TestWrappedKvRingAttention() {
     return;
   }
 
-  const auto float_status = gem16gb::internal::LaunchLocalAttentionDecode(
+  const auto float_status = gem16::internal::LaunchLocalAttentionDecode(
       device_query.get(), device_keys.get(), device_values.get(),
       device_scores.get(), device_output.get(), query_heads, kv_heads,
       head_dimension, tokens, nullptr, tokens, first_slot);
   CUDA_TEST_CHECK(float_status.ok());
   const auto controlled_float_status =
-      gem16gb::internal::LaunchLocalAttentionDecodeControlled(
+      gem16::internal::LaunchLocalAttentionDecodeControlled(
           device_query.get(), device_keys.get(), device_values.get(),
           controlled_scores.get(), controlled_output.get(), device_control.get(),
           query_heads, kv_heads, head_dimension, tokens, true, nullptr);
@@ -1981,19 +1981,19 @@ void TestWrappedKvRingAttention() {
       return;
     }
     const std::uint64_t physical_slot = (first_slot + token) % tokens;
-    const auto append_status = gem16gb::internal::LaunchAppendKvFp8(
+    const auto append_status = gem16::internal::LaunchAppendKvFp8(
         append_key.get(), append_value.get(), fp8_keys.get(), fp8_values.get(),
         device_scale.get(), device_scale.get(), physical_slot, kv_heads,
         head_dimension, nullptr);
     CUDA_TEST_CHECK(append_status.ok());
     if (!append_status.ok()) return;
   }
-  const auto fp8_status = gem16gb::internal::LaunchLocalAttentionDecodeFp8(
+  const auto fp8_status = gem16::internal::LaunchLocalAttentionDecodeFp8(
       device_query.get(), fp8_keys.get(), fp8_values.get(), device_scale.get(),
       device_scale.get(), device_scores.get(), fp8_output.get(), query_heads,
       kv_heads, head_dimension, tokens, nullptr, tokens, first_slot);
   const auto controlled_fp8_status =
-      gem16gb::internal::LaunchLocalAttentionDecodeFp8Controlled(
+      gem16::internal::LaunchLocalAttentionDecodeFp8Controlled(
           device_query.get(), fp8_keys.get(), fp8_values.get(),
           device_scale.get(), device_scale.get(), controlled_scores.get(),
           controlled_fp8_output.get(), device_control.get(), query_heads,
@@ -2059,11 +2059,11 @@ void TestCausalPrefillAcrossWrappedRing() {
       1.0F, 1.0F, 2.0F, 0.0F, 0.0F, 2.0F};
   constexpr std::array<float, 6> second_logical_values = {
       4.0F, 40.0F, 5.0F, 50.0F, 6.0F, 60.0F};
-  const auto first_expected = gem16gb::layer::LocalAttentionDecode(
+  const auto first_expected = gem16::layer::LocalAttentionDecode(
       std::span<const float>(queries.data(), head_dimension),
       first_logical_keys, first_logical_values, query_heads, kv_heads,
       head_dimension, capacity);
-  const auto second_expected = gem16gb::layer::LocalAttentionDecode(
+  const auto second_expected = gem16::layer::LocalAttentionDecode(
       std::span<const float>(queries.data() + head_dimension, head_dimension),
       second_logical_keys, second_logical_values, query_heads, kv_heads,
       head_dimension, capacity);
@@ -2103,21 +2103,21 @@ void TestCausalPrefillAcrossWrappedRing() {
               "copy prefill chunk values")) {
     return;
   }
-  const auto attention = gem16gb::internal::LaunchCausalAttentionPrefill(
+  const auto attention = gem16::internal::LaunchCausalAttentionPrefill(
       device_queries.get(), device_chunk_keys.get(), device_chunk_values.get(),
       device_cache_keys.get(), device_cache_values.get(), device_scores.get(),
       device_output.get(), start_position, tokens, query_heads, kv_heads,
       head_dimension, capacity, true, nullptr);
   CUDA_TEST_CHECK(attention.ok());
   const auto fused_attention =
-      gem16gb::internal::LaunchFusedCausalAttentionPrefill(
+      gem16::internal::LaunchFusedCausalAttentionPrefill(
           device_queries.get(), device_chunk_keys.get(),
           device_chunk_values.get(), device_cache_keys.get(),
           device_cache_values.get(), device_fused_scores.get(),
           device_fused_output.get(), start_position, tokens, query_heads,
           kv_heads, head_dimension, capacity, true, nullptr);
   CUDA_TEST_CHECK(fused_attention.ok());
-  const auto append = gem16gb::internal::LaunchAppendKvBatch(
+  const auto append = gem16::internal::LaunchAppendKvBatch(
       device_chunk_keys.get(), device_chunk_values.get(), device_cache_keys.get(),
       device_cache_values.get(), start_position, tokens,
       kv_heads * head_dimension, capacity, nullptr);
@@ -2179,7 +2179,7 @@ void TestOnlineFp8DecodeAttentionShape(
               static_cast<int>((index * multiplier + index / 37U) % 29U) -
               14) *
           0.125F;
-      const auto encoded = gem16gb::fp8::EncodeE4M3Fn(value);
+      const auto encoded = gem16::fp8::EncodeE4M3Fn(value);
       CUDA_TEST_CHECK(encoded.ok());
       if (!encoded.ok()) return std::vector<std::uint8_t>{};
       values[index] = encoded.value();
@@ -2193,7 +2193,7 @@ void TestOnlineFp8DecodeAttentionShape(
   if (keys.empty() || values.empty()) return;
 
   const std::size_t workspace_elements = static_cast<std::size_t>(
-      gem16gb::internal::DecodeAttentionWorkspaceElements(capacity));
+      gem16::internal::DecodeAttentionWorkspaceElements(capacity));
   DeviceBuffer<float> device_query(query.size());
   DeviceBuffer<std::uint8_t> device_keys(keys.size());
   DeviceBuffer<std::uint8_t> device_values(values.size());
@@ -2203,7 +2203,7 @@ void TestOnlineFp8DecodeAttentionShape(
   DeviceBuffer<float> device_workspace(workspace_elements);
   DeviceBuffer<float> device_reference_output(query.size());
   DeviceBuffer<float> device_online_output(query.size());
-  DeviceBuffer<gem16gb::internal::DecodeControl> device_control(1);
+  DeviceBuffer<gem16::internal::DecodeControl> device_control(1);
   if (device_query.get() == nullptr || device_keys.get() == nullptr ||
       device_values.get() == nullptr || device_key_scale.get() == nullptr ||
       device_value_scale.get() == nullptr ||
@@ -2214,7 +2214,7 @@ void TestOnlineFp8DecodeAttentionShape(
       device_control.get() == nullptr) {
     return;
   }
-  const gem16gb::internal::DecodeControl control = {
+  const gem16::internal::DecodeControl control = {
       .token = 0, .suppressed_token_count = 0, .position = position};
   if (!CudaOk(cudaMemcpy(device_query.get(), query.data(),
                          device_query.bytes(), cudaMemcpyHostToDevice),
@@ -2238,14 +2238,14 @@ void TestOnlineFp8DecodeAttentionShape(
   }
 
   const auto reference =
-      gem16gb::internal::LaunchLocalAttentionDecodeFp8(
+      gem16::internal::LaunchLocalAttentionDecodeFp8(
           device_query.get(), device_keys.get(), device_values.get(),
           device_key_scale.get(), device_value_scale.get(),
           device_reference_scores.get(), device_reference_output.get(),
           query_heads, kv_heads, head_dimension, tokens, nullptr, capacity,
           first_slot);
   const auto online =
-      gem16gb::internal::LaunchOnlineAttentionDecodeFp8Sm120(
+      gem16::internal::LaunchOnlineAttentionDecodeFp8Sm120(
           device_query.get(), device_keys.get(), device_values.get(),
           device_key_scale.get(), device_value_scale.get(),
           device_workspace.get(), device_online_output.get(),
@@ -2275,7 +2275,7 @@ void TestOnlineFp8DecodeAttentionShape(
   std::vector<float> repeated_output(query.size());
   for (int repetition = 0; repetition < 4; ++repetition) {
     const auto repeated =
-        gem16gb::internal::LaunchOnlineAttentionDecodeFp8Sm120(
+        gem16::internal::LaunchOnlineAttentionDecodeFp8Sm120(
             device_query.get(), device_keys.get(), device_values.get(),
             device_key_scale.get(), device_value_scale.get(),
             device_workspace.get(), device_online_output.get(),
@@ -2331,7 +2331,7 @@ void TestVectorizedFp8CausalPrefill() {
       const float value =
           static_cast<float>(static_cast<int>((index * multiplier) % 15U) - 7) /
           4.0F;
-      const auto encoded = gem16gb::fp8::EncodeE4M3Fn(value);
+      const auto encoded = gem16::fp8::EncodeE4M3Fn(value);
       CUDA_TEST_CHECK(encoded.ok());
       if (!encoded.ok()) return std::vector<std::uint8_t>{};
       values[index] = encoded.value();
@@ -2392,14 +2392,14 @@ void TestVectorizedFp8CausalPrefill() {
     return;
   }
 
-  const auto reference = gem16gb::internal::LaunchCausalAttentionPrefillFp8(
+  const auto reference = gem16::internal::LaunchCausalAttentionPrefillFp8(
       device_queries.get(), device_chunk_keys.get(),
       device_chunk_values.get(), device_cache_keys.get(),
       device_cache_values.get(), device_scale.get(), device_scale.get(),
       device_reference_scores.get(), device_reference_output.get(),
       start_position, tokens, query_heads, kv_heads, head_dimension, capacity,
       false, nullptr);
-  const auto fused = gem16gb::internal::LaunchFusedCausalAttentionPrefillFp8(
+  const auto fused = gem16::internal::LaunchFusedCausalAttentionPrefillFp8(
       device_queries.get(), device_chunk_keys.get(),
       device_chunk_values.get(), device_cache_keys.get(),
       device_cache_values.get(), device_scale.get(), device_scale.get(),
@@ -2448,7 +2448,7 @@ void TestOnlineLocalFp8CausalPrefill() {
           static_cast<float>(
               static_cast<int>(((index + offset) * multiplier) % 31U) - 15) /
           8.0F;
-      const auto encoded = gem16gb::fp8::EncodeE4M3Fn(value);
+      const auto encoded = gem16::fp8::EncodeE4M3Fn(value);
       CUDA_TEST_CHECK(encoded.ok());
       if (!encoded.ok()) return std::vector<std::uint8_t>{};
       values[index] = encoded.value();
@@ -2516,7 +2516,7 @@ void TestOnlineLocalFp8CausalPrefill() {
   const auto run_case = [&](std::uint64_t start_position,
                             const char* label) {
     const auto reference =
-        gem16gb::internal::LaunchFusedCausalAttentionPrefillFp8(
+        gem16::internal::LaunchFusedCausalAttentionPrefillFp8(
             device_queries.get(), device_chunk_keys.get(),
             device_chunk_values.get(), device_cache_keys.get(),
             device_cache_values.get(), device_key_scale.get(),
@@ -2524,7 +2524,7 @@ void TestOnlineLocalFp8CausalPrefill() {
             device_reference_output.get(), start_position, tokens,
             query_heads, kv_heads, head_dimension, capacity, true, nullptr);
     const auto online =
-        gem16gb::internal::LaunchOnlineCausalAttentionPrefillFp8LocalSm120(
+        gem16::internal::LaunchOnlineCausalAttentionPrefillFp8LocalSm120(
             device_queries.get(), device_chunk_keys.get(),
             device_chunk_values.get(), device_cache_keys.get(),
             device_cache_values.get(), device_key_scale.get(),
@@ -2588,7 +2588,7 @@ void TestOnlineGlobalFp8CausalPrefill() {
           static_cast<float>(
               static_cast<int>(((index + offset) * multiplier) % 31U) - 15) /
           8.0F;
-      const auto encoded = gem16gb::fp8::EncodeE4M3Fn(value);
+      const auto encoded = gem16::fp8::EncodeE4M3Fn(value);
       CUDA_TEST_CHECK(encoded.ok());
       if (!encoded.ok()) return std::vector<std::uint8_t>{};
       values[index] = encoded.value();
@@ -2650,7 +2650,7 @@ void TestOnlineGlobalFp8CausalPrefill() {
   }
 
   const auto reference =
-      gem16gb::internal::LaunchFusedCausalAttentionPrefillFp8(
+      gem16::internal::LaunchFusedCausalAttentionPrefillFp8(
           device_queries.get(), device_chunk_keys.get(),
           device_chunk_values.get(), device_cache_keys.get(),
           device_cache_values.get(), device_key_scale.get(),
@@ -2658,7 +2658,7 @@ void TestOnlineGlobalFp8CausalPrefill() {
           device_reference_output.get(), start_position, tokens, query_heads,
           kv_heads, head_dimension, capacity, false, nullptr);
   const auto online =
-      gem16gb::internal::LaunchOnlineCausalAttentionPrefillFp8GlobalSm120(
+      gem16::internal::LaunchOnlineCausalAttentionPrefillFp8GlobalSm120(
           device_queries.get(), device_chunk_keys.get(),
           device_chunk_values.get(), device_cache_keys.get(),
           device_cache_values.get(), device_key_scale.get(),

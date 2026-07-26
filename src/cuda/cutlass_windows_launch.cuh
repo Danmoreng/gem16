@@ -11,7 +11,7 @@
 #include "cutlass/arch/synclog.hpp"
 #include "cutlass/cutlass.h"
 
-namespace gem16gb::internal::cutlass_windows {
+namespace gem16::internal::cutlass_windows {
 
 // MSVC cannot pass an over-aligned type by value. CUDA 13.3's CUtensorMap is
 // alignas(128), which makes CUTLASS' normal device_kernel(Params) entry point
@@ -89,6 +89,6 @@ cutlass::Status InitializeAndRun(
                               : cutlass::Status::kErrorInternal;
 }
 
-}  // namespace gem16gb::internal::cutlass_windows
+}  // namespace gem16::internal::cutlass_windows
 
 #endif

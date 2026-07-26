@@ -4,9 +4,9 @@
 #include <span>
 #include <vector>
 
-#include "gem16gb/status.h"
+#include "gem16/status.h"
 
-namespace gem16gb::layer {
+namespace gem16::layer {
 
 // Correctness-only host implementation of Gemma 4 RMSNorm. Input contains
 // `vectors` consecutive vectors of `width` elements. An empty weight span
@@ -52,4 +52,4 @@ namespace gem16gb::layer {
     std::uint64_t head_dimension,
     std::uint64_t tokens);
 
-}  // namespace gem16gb::layer
+}  // namespace gem16::layer

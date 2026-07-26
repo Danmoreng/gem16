@@ -7,9 +7,9 @@
 #include <string>
 #include <string_view>
 
-#include "gem16gb/memory.h"
-#include "gem16gb/engine.h"
-#if GEM16GB_HAS_CUDA
+#include "gem16/memory.h"
+#include "gem16/engine.h"
+#if GEM16_HAS_CUDA
 #include "cuda/fp8/checkpoint_probe.h"
 #include "cuda/layer/checkpoint_probe.h"
 #include "cuda/nvfp4/checkpoint_probe.h"
@@ -18,26 +18,26 @@
 namespace {
 
 void Usage(std::ostream& output) {
-  output << "Usage: gem16gb-bench <model-load|prefill|decode|end-to-end|kernel|memory|quality|mtp> [options]\n"
+  output << "Usage: gem16-bench <model-load|prefill|decode|end-to-end|kernel|memory|quality|mtp> [options]\n"
          << "\n"
          << "Memory mode:\n"
-         << "  gem16gb-bench memory --model <checkpoint-dir>\n"
+         << "  gem16-bench memory --model <checkpoint-dir>\n"
          << "      --profile <interactive|standard|long|xlong|max>\n"
          << "      --kv-storage separate [--kv-element-bytes <1|2>]\n"
          << "\n"
          << "Kernel mode (CUDA):\n"
-         << "  gem16gb-bench kernel --model <checkpoint-dir>\n"
+         << "  gem16-bench kernel --model <checkpoint-dir>\n"
          << "      [--projection <gate|up|down|mlp|q|k|v|o|local-attention|global-attention|decoder-layer>]\n"
          << "      [--warmups <count>] [--iterations <count>]\n"
          << "\n"
          << "Decode mode (CUDA):\n"
-         << "  gem16gb-bench decode --model <checkpoint-dir>\n"
+         << "  gem16-bench decode --model <checkpoint-dir>\n"
          << "      [--context <tokens>] [--tokens <count>] [--seed <integer>]\n"
          << "      [--warmups <count>] [--repetitions <count>]\n"
          << "      [--kv-cache <fp8|bf16>]\n"
          << "\n"
          << "Prefill mode (CUDA):\n"
-         << "  gem16gb-bench prefill --model <checkpoint-dir> --context <tokens>\n"
+         << "  gem16-bench prefill --model <checkpoint-dir> --context <tokens>\n"
          << "      [--warmups <count>] [--repetitions <count>] [--seed <integer>]\n";
 }
 
@@ -60,7 +60,7 @@ bool ParseU32(std::string_view value, std::uint32_t& parsed) {
 }
 
 int RunDecodeMode(int argc, char** argv) {
-  gem16gb::DecodeBenchmarkOptions options;
+  gem16::DecodeBenchmarkOptions options;
   for (int index = 2; index < argc; ++index) {
     const std::string_view argument(argv[index]);
     if (argument == "--model" && index + 1 < argc) {
@@ -92,8 +92,8 @@ int RunDecodeMode(int argc, char** argv) {
       }
     } else if (argument == "--kv-cache" && index + 1 < argc) {
       const std::string_view value(argv[++index]);
-      if (value == "fp8") options.kv_cache_mode = gem16gb::KvCacheMode::kCheckpointFp8;
-      else if (value == "bf16") options.kv_cache_mode = gem16gb::KvCacheMode::kBf16Correctness;
+      if (value == "fp8") options.kv_cache_mode = gem16::KvCacheMode::kCheckpointFp8;
+      else if (value == "bf16") options.kv_cache_mode = gem16::KvCacheMode::kBf16Correctness;
       else {
         std::cerr << "error: --kv-cache must be fp8 or bf16\n";
         return 64;
@@ -109,7 +109,7 @@ int RunDecodeMode(int argc, char** argv) {
     return 64;
   }
 
-  auto result = gem16gb::RunDecodeBenchmark(options);
+  auto result = gem16::RunDecodeBenchmark(options);
   if (!result.ok()) {
     std::cerr << "error: " << result.status().message() << '\n';
     return 1;
@@ -123,7 +123,7 @@ int RunDecodeMode(int argc, char** argv) {
             << "  p50/p95/p99 latency: " << benchmark.inter_token_latency_milliseconds.median << "/"
             << benchmark.inter_token_latency_milliseconds.p95 << "/"
             << benchmark.inter_token_latency_milliseconds.p99 << " ms\n";
-  const auto status = gem16gb::WriteDecodeBenchmarkJson(benchmark, std::cout);
+  const auto status = gem16::WriteDecodeBenchmarkJson(benchmark, std::cout);
   if (!status.ok()) {
     std::cerr << "error: " << status.message() << '\n';
     return 1;
@@ -132,7 +132,7 @@ int RunDecodeMode(int argc, char** argv) {
 }
 
 int RunPrefillMode(int argc, char** argv) {
-  gem16gb::DecodeBenchmarkOptions options;
+  gem16::DecodeBenchmarkOptions options;
   options.generated_tokens = 1U;
   for (int index = 2; index < argc; ++index) {
     const std::string_view argument(argv[index]);
@@ -148,8 +148,8 @@ int RunPrefillMode(int argc, char** argv) {
       if (!ParsePositiveU32(argv[++index], options.measured_runs)) return 64;
     } else if (argument == "--kv-cache" && index + 1 < argc) {
       const std::string_view value(argv[++index]);
-      if (value == "fp8") options.kv_cache_mode = gem16gb::KvCacheMode::kCheckpointFp8;
-      else if (value == "bf16") options.kv_cache_mode = gem16gb::KvCacheMode::kBf16Correctness;
+      if (value == "fp8") options.kv_cache_mode = gem16::KvCacheMode::kCheckpointFp8;
+      else if (value == "bf16") options.kv_cache_mode = gem16::KvCacheMode::kBf16Correctness;
       else return 64;
     } else {
       std::cerr << "error: unknown or incomplete prefill option: " << argument << '\n';
@@ -161,7 +161,7 @@ int RunPrefillMode(int argc, char** argv) {
     std::cerr << "error: prefill mode requires --model\n";
     return 64;
   }
-  auto result = gem16gb::RunDecodeBenchmark(options);
+  auto result = gem16::RunDecodeBenchmark(options);
   if (!result.ok()) {
     std::cerr << "error: " << result.status().message() << '\n';
     return 1;
@@ -174,30 +174,30 @@ int RunPrefillMode(int argc, char** argv) {
             << "  prompt tokens: " << options.context_tokens << '\n'
             << "  median: " << median_tokens_per_second << " tokens/s\n"
             << "  median TTFT: " << result.value().prompt_milliseconds.median << " ms\n";
-  const auto status = gem16gb::WritePrefillBenchmarkJson(result.value(), std::cout);
+  const auto status = gem16::WritePrefillBenchmarkJson(result.value(), std::cout);
   return status.ok() ? 0 : 1;
 }
 
-bool ParseProfile(std::string_view value, gem16gb::ContextProfile& profile) {
-  if (value == "interactive") profile = gem16gb::ContextProfile::kInteractive;
-  else if (value == "standard") profile = gem16gb::ContextProfile::kStandard;
-  else if (value == "long") profile = gem16gb::ContextProfile::kLong;
-  else if (value == "xlong") profile = gem16gb::ContextProfile::kXlong;
-  else if (value == "max") profile = gem16gb::ContextProfile::kMax;
+bool ParseProfile(std::string_view value, gem16::ContextProfile& profile) {
+  if (value == "interactive") profile = gem16::ContextProfile::kInteractive;
+  else if (value == "standard") profile = gem16::ContextProfile::kStandard;
+  else if (value == "long") profile = gem16::ContextProfile::kLong;
+  else if (value == "xlong") profile = gem16::ContextProfile::kXlong;
+  else if (value == "max") profile = gem16::ContextProfile::kMax;
   else return false;
   return true;
 }
 
-bool ParseKvStorage(std::string_view value, gem16gb::KvStorage& storage) {
-  if (value == "shared") storage = gem16gb::KvStorage::kShared;
-  else if (value == "separate") storage = gem16gb::KvStorage::kSeparate;
+bool ParseKvStorage(std::string_view value, gem16::KvStorage& storage) {
+  if (value == "shared") storage = gem16::KvStorage::kShared;
+  else if (value == "separate") storage = gem16::KvStorage::kSeparate;
   else return false;
   return true;
 }
 
 int RunMemoryMode(int argc, char** argv) {
   std::filesystem::path model_directory;
-  gem16gb::MemoryPlanOptions options;
+  gem16::MemoryPlanOptions options;
   for (int index = 2; index < argc; ++index) {
     const std::string_view argument(argv[index]);
     if (argument == "--model" && index + 1 < argc) {
@@ -231,13 +231,13 @@ int RunMemoryMode(int argc, char** argv) {
     return 64;
   }
 
-  auto plan = gem16gb::PlanCheckpointMemory(model_directory, options);
+  auto plan = gem16::PlanCheckpointMemory(model_directory, options);
   if (!plan.ok()) {
     std::cerr << "error: " << plan.status().message() << '\n';
     return 1;
   }
-  gem16gb::PrintMemoryPlanSummary(plan.value(), std::cerr);
-  const auto write_status = gem16gb::WriteMemoryPlanJson(plan.value(), std::cout);
+  gem16::PrintMemoryPlanSummary(plan.value(), std::cerr);
+  const auto write_status = gem16::WriteMemoryPlanJson(plan.value(), std::cout);
   if (!write_status.ok()) {
     std::cerr << "error: " << write_status.message() << '\n';
     return 1;
@@ -284,9 +284,9 @@ int RunKernelMode(int argc, char** argv) {
     return 64;
   }
 
-#if GEM16GB_HAS_CUDA
+#if GEM16_HAS_CUDA
   if (projection == "decoder-layer") {
-    auto result = gem16gb::internal::RunLayer0DecoderCheckpointProbe(model_directory);
+    auto result = gem16::internal::RunLayer0DecoderCheckpointProbe(model_directory);
     if (!result.ok()) {
       std::cerr << "error: " << result.status().message() << '\n';
       return 1;
@@ -329,7 +329,7 @@ int RunKernelMode(int argc, char** argv) {
     return 0;
   }
   if (projection == "global-attention") {
-    auto result = gem16gb::internal::RunLayer5GlobalAttentionCheckpointProbe(model_directory);
+    auto result = gem16::internal::RunLayer5GlobalAttentionCheckpointProbe(model_directory);
     if (!result.ok()) {
       std::cerr << "error: " << result.status().message() << '\n';
       return 1;
@@ -363,7 +363,7 @@ int RunKernelMode(int argc, char** argv) {
     return 0;
   }
   if (projection == "local-attention") {
-    auto result = gem16gb::internal::RunLayer0LocalAttentionCheckpointProbe(model_directory);
+    auto result = gem16::internal::RunLayer0LocalAttentionCheckpointProbe(model_directory);
     if (!result.ok()) {
       std::cerr << "error: " << result.status().message() << '\n';
       return 1;
@@ -395,7 +395,7 @@ int RunKernelMode(int argc, char** argv) {
     return 0;
   }
   if (projection == "mlp") {
-    auto result = gem16gb::internal::RunLayer0Nvfp4MlpCheckpointProbe(
+    auto result = gem16::internal::RunLayer0Nvfp4MlpCheckpointProbe(
         model_directory, warmups, iterations);
     if (!result.ok()) {
       std::cerr << "error: " << result.status().message() << '\n';
@@ -462,7 +462,7 @@ int RunKernelMode(int argc, char** argv) {
                : 1;
   }
   if (projection == "q" || projection == "k" || projection == "v" || projection == "o") {
-    auto result = gem16gb::internal::RunLayer0Fp8CheckpointProbe(
+    auto result = gem16::internal::RunLayer0Fp8CheckpointProbe(
         model_directory, projection, warmups, iterations);
     if (!result.ok()) {
       std::cerr << "error: " << result.status().message() << '\n';
@@ -517,7 +517,7 @@ int RunKernelMode(int argc, char** argv) {
     std::cout << "]}\n";
     return probe.activation_bytes_match && probe.activation_scale_match ? 0 : 1;
   }
-  auto result = gem16gb::internal::RunLayer0Nvfp4CheckpointProbe(
+  auto result = gem16::internal::RunLayer0Nvfp4CheckpointProbe(
       model_directory, projection, warmups, iterations);
   if (!result.ok()) {
     std::cerr << "error: " << result.status().message() << '\n';

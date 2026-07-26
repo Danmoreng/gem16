@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Capture Gemma 4 layer outputs and newly produced K/V states from vLLM.
 
-This is an offline correctness reference tool, not a gem16gb runtime
+This is an offline correctness reference tool, not a gem16 runtime
 dependency. Run it with the pinned vLLM environment from docs/CORRECTNESS.md.
 """
 

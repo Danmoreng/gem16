@@ -1,3 +1,3 @@
 # Consolidated production path with 128-token prefill chunks.
-build/Linux/blackwell-release/bin/gem16gb-bench prefill --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 --context 128 --warmups 3 --repetitions 10
-build/Linux/blackwell-release/bin/gem16gb-bench prefill --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 --context 512 --warmups 3 --repetitions 10
+build/Linux/blackwell-release/bin/gem16-bench prefill --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 --context 128 --warmups 3 --repetitions 10
+build/Linux/blackwell-release/bin/gem16-bench prefill --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 --context 512 --warmups 3 --repetitions 10

@@ -5,9 +5,9 @@
 #include <span>
 #include <vector>
 
-#include "gem16gb/status.h"
+#include "gem16/status.h"
 
-namespace gem16gb::nvfp4 {
+namespace gem16::nvfp4 {
 
 inline constexpr std::size_t kBlockElements = 16;
 inline constexpr std::size_t kPackedElementsPerByte = 2;
@@ -44,4 +44,4 @@ struct QuantizedActivation {
     std::span<const std::uint8_t> weight_scales_e4m3fn,
     float weight_global_divisor);
 
-}  // namespace gem16gb::nvfp4
+}  // namespace gem16::nvfp4

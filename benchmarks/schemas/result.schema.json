@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://gem16gb.local/schemas/result.schema.json",
-  "title": "gem16gb benchmark result envelope",
+  "$id": "https://gem16.local/schemas/result.schema.json",
+  "title": "gem16 benchmark result envelope",
   "type": "object",
   "required": ["schema_version", "status", "mode", "fallbacks"],
   "properties": {

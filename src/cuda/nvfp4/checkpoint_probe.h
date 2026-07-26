@@ -6,9 +6,9 @@
 #include <string_view>
 #include <vector>
 
-#include "gem16gb/status.h"
+#include "gem16/status.h"
 
-namespace gem16gb::internal {
+namespace gem16::internal {
 
 struct Nvfp4ProbeSample {
   std::uint64_t row = 0;
@@ -74,4 +74,4 @@ struct Nvfp4MlpCheckpointProbeResult {
     std::uint32_t warmups,
     std::uint32_t iterations);
 
-}  // namespace gem16gb::internal
+}  // namespace gem16::internal

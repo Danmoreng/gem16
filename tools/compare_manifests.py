@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Independently compare gem16gb-inspect output with raw Safetensors headers."""
+"""Independently compare gem16-inspect output with raw Safetensors headers."""
 
 from __future__ import annotations
 
@@ -218,37 +218,37 @@ def compare_manifests(
 ) -> ComparisonReport:
     engine_tensors = engine_document.get("tensors")
     if not isinstance(engine_tensors, list):
-        raise ManifestError("gem16gb manifest has no tensor array")
+        raise ManifestError("gem16 manifest has no tensor array")
     engine: dict[str, dict[str, Any]] = {}
     for tensor in engine_tensors:
         if not isinstance(tensor, dict) or not isinstance(tensor.get("name"), str):
-            raise ManifestError("gem16gb manifest tensor entry is malformed")
+            raise ManifestError("gem16 manifest tensor entry is malformed")
         name = tensor["name"]
         if name in engine:
-            raise ManifestError(f"duplicate tensor in gem16gb manifest: {name}")
+            raise ManifestError(f"duplicate tensor in gem16 manifest: {name}")
         engine[name] = tensor
 
     mismatches: list[str] = []
     for missing in sorted(set(reference) - set(engine)):
-        mismatches.append(f"missing from gem16gb manifest: {missing}")
+        mismatches.append(f"missing from gem16 manifest: {missing}")
     for extra in sorted(set(engine) - set(reference)):
-        mismatches.append(f"extra in gem16gb manifest: {extra}")
+        mismatches.append(f"extra in gem16 manifest: {extra}")
     for name in sorted(set(reference) & set(engine)):
         for field in PHYSICAL_FIELDS:
             if reference[name][field] != engine[name].get(field):
                 mismatches.append(
-                    f"{name}.{field}: reference={reference[name][field]!r} gem16gb={engine[name].get(field)!r}"
+                    f"{name}.{field}: reference={reference[name][field]!r} gem16={engine[name].get(field)!r}"
                 )
         if reference[name]["alignment"] != engine[name].get("alignment"):
             mismatches.append(
                 f"{name}.alignment: reference={reference[name]['alignment']!r} "
-                f"gem16gb={engine[name].get('alignment')!r}"
+                f"gem16={engine[name].get('alignment')!r}"
             )
 
     payload_bytes = sum(tensor["byte_length"] for tensor in reference.values())
     if engine_document.get("total_tensor_bytes") != payload_bytes:
         mismatches.append(
-            f"total_tensor_bytes: reference={payload_bytes} gem16gb={engine_document.get('total_tensor_bytes')!r}"
+            f"total_tensor_bytes: reference={payload_bytes} gem16={engine_document.get('total_tensor_bytes')!r}"
         )
     return ComparisonReport(
         schema_version=1,

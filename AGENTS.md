@@ -1,6 +1,6 @@
 # AGENTS.md
 
-## Project: gem16gb — 16 GB CUDA Inference Engine
+## Project: gem16 — 16 GB CUDA Inference Engine
 
 **Status:** Repository initialization specification  
 **Hardware class:** NVIDIA CUDA GPUs with approximately 16 GB VRAM
@@ -61,7 +61,7 @@ Do not trade a higher-priority requirement for a lower-priority one without an e
 The normal user workflow must accept a Hugging Face checkpoint directory directly:
 
 ```bash
-gem16gb-run \
+gem16-run \
   --model /models/unsloth-gemma-4-12b-it-NVFP4 \
   --prompt "Explain why the sky is blue."
 ```
@@ -239,7 +239,7 @@ Do not confuse:
 
 ## 4.4 Tensor inventory is authoritative
 
-The first repository tool to implement is `gem16gb-inspect`.
+The first repository tool to implement is `gem16-inspect`.
 
 It must print and optionally export JSON containing:
 
@@ -639,14 +639,14 @@ Never publish a single unexplained “X times faster” number.
 Implement:
 
 ```bash
-gem16gb-bench model-load
-gem16gb-bench prefill
-gem16gb-bench decode
-gem16gb-bench end-to-end
-gem16gb-bench kernel
-gem16gb-bench memory
-gem16gb-bench quality
-gem16gb-bench mtp
+gem16-bench model-load
+gem16-bench prefill
+gem16-bench decode
+gem16-bench end-to-end
+gem16-bench kernel
+gem16-bench memory
+gem16-bench quality
+gem16-bench mtp
 ```
 
 Output machine-readable JSON and a concise terminal summary.
@@ -1013,7 +1013,7 @@ Initialize approximately:
 │   ├── CudaArchitectures.cmake
 │   └── Sanitizers.cmake
 ├── include/
-│   └── gem16gb/
+│   └── gem16/
 │       ├── engine.h
 │       ├── model.h
 │       ├── sampling.h
@@ -2261,7 +2261,7 @@ Only after ordinary decode is competitive.
 ## Inspect
 
 ```bash
-gem16gb-inspect \
+gem16-inspect \
   --model /models/gemma-4-12b-it-NVFP4 \
   --json manifest.json \
   --validate
@@ -2270,7 +2270,7 @@ gem16gb-inspect \
 ## Run
 
 ```bash
-gem16gb-run \
+gem16-run \
   --model /models/gemma-4-12b-it-NVFP4 \
   --context-profile standard \
   --prompt "Write a CUDA reduction kernel." \
@@ -2283,7 +2283,7 @@ gem16gb-run \
 ## Deterministic correctness
 
 ```bash
-gem16gb-run \
+gem16-run \
   --model /models/gemma-4-12b-it-NVFP4 \
   --input-token-ids tests/golden/prompt_001.tokens \
   --greedy \
@@ -2295,7 +2295,7 @@ gem16gb-run \
 ## Benchmark
 
 ```bash
-gem16gb-bench end-to-end \
+gem16-bench end-to-end \
   --model /models/gemma-4-12b-it-NVFP4 \
   --suite benchmarks/prompts/core.json \
   --context-profile standard \
@@ -2307,7 +2307,7 @@ gem16gb-bench end-to-end \
 ## Capabilities
 
 ```bash
-gem16gb-run --print-kernel-capabilities
+gem16-run --print-kernel-capabilities
 ```
 
 ---

@@ -23,18 +23,18 @@ if ($Sanitize) {
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $preset = if ($Cuda) { "blackwell-release" } else { "host-debug" }
 
-Import-Gem16gbVisualStudioEnvironment
-Assert-Gem16gbCommand "cmake.exe" "Install CMake 3.28 or newer."
-Assert-Gem16gbCommand "ninja.exe" "Install Ninja or the Visual Studio CMake tools component."
+Import-Gem16VisualStudioEnvironment
+Assert-Gem16Command "cmake.exe" "Install CMake 3.28 or newer."
+Assert-Gem16Command "ninja.exe" "Install Ninja or the Visual Studio CMake tools component."
 
 if ($Cuda) {
-    Import-Gem16gbCudaEnvironment
-    Assert-Gem16gbCommand "nvcc.exe" "Install the pinned NVIDIA CUDA toolkit and set CUDA_PATH."
+    Import-Gem16CudaEnvironment
+    Assert-Gem16Command "nvcc.exe" "Install the pinned NVIDIA CUDA toolkit and set CUDA_PATH."
 }
 
 Push-Location $repoRoot
 try {
-    Invoke-Gem16gbChecked "cmake.exe" @("--preset", $preset, "-S", $repoRoot)
+    Invoke-Gem16Checked "cmake.exe" @("--preset", $preset, "-S", $repoRoot)
     if ($ConfigureOnly) {
         return
     }
@@ -43,10 +43,10 @@ try {
     if ($Jobs -gt 0) {
         $buildArguments += $Jobs.ToString()
     }
-    Invoke-Gem16gbChecked "cmake.exe" $buildArguments
+    Invoke-Gem16Checked "cmake.exe" $buildArguments
 
     if ($Test) {
-        Invoke-Gem16gbChecked "ctest.exe" @("--preset", $preset)
+        Invoke-Gem16Checked "ctest.exe" @("--preset", $preset)
     }
 } finally {
     Pop-Location

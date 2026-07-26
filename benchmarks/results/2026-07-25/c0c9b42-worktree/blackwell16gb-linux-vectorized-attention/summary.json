@@ -1,5 +1,5 @@
 {
-  "benchmarks": ["gem16gb/prefill-128.json", "gem16gb/prefill-512.json", "reference/prefill-512.json"],
+  "benchmarks": ["gem16/prefill-128.json", "gem16/prefill-512.json", "reference/prefill-512.json"],
   "correctness": "correctness.json",
   "git_commit": "c0c9b42-worktree",
   "nsys_summary": "nsys/prefill-512-summary.json",

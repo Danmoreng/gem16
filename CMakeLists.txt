@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.28)
 
-project(gem16gb VERSION 0.1.0 LANGUAGES CXX)
+project(gem16 VERSION 0.1.0 LANGUAGES CXX)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
@@ -12,18 +12,18 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 
-option(GEM16GB_ENABLE_CUDA "Build the CUDA capability path" OFF)
-option(GEM16GB_BUILD_TESTS "Build host tests" ON)
-option(GEM16GB_ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
-option(GEM16GB_WARNINGS_AS_ERRORS "Treat project warnings as errors" ON)
-set(GEM16GB_CUTLASS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/cutlass" CACHE PATH
+option(GEM16_ENABLE_CUDA "Build the CUDA capability path" OFF)
+option(GEM16_BUILD_TESTS "Build host tests" ON)
+option(GEM16_ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
+option(GEM16_WARNINGS_AS_ERRORS "Treat project warnings as errors" ON)
+set(GEM16_CUTLASS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/cutlass" CACHE PATH
     "Path to the pinned CUTLASS source tree")
 
 include(CompilerWarnings)
 include(Sanitizers)
 include(CudaArchitectures)
 
-add_library(gem16gb_core STATIC
+add_library(gem16_core STATIC
   src/numeric/fp8.cpp
   src/numeric/layer.cpp
   src/numeric/nvfp4.cpp
@@ -40,33 +40,33 @@ add_library(gem16gb_core STATIC
   src/util/json.cpp
 )
 if(WIN32)
-  target_sources(gem16gb_core PRIVATE src/platform/mapped_file_windows.cpp)
+  target_sources(gem16_core PRIVATE src/platform/mapped_file_windows.cpp)
 else()
-  target_sources(gem16gb_core PRIVATE src/platform/mapped_file_posix.cpp)
+  target_sources(gem16_core PRIVATE src/platform/mapped_file_posix.cpp)
 endif()
 # GCC 16 emits a false positive from std::variant's move constructor at -O3.
 # Keep the suppression local to the JSON translation unit.
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   set_property(SOURCE src/util/json.cpp APPEND PROPERTY COMPILE_OPTIONS -Wno-maybe-uninitialized)
 endif()
-target_include_directories(gem16gb_core
+target_include_directories(gem16_core
   PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
   PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src"
 )
-target_compile_features(gem16gb_core PUBLIC cxx_std_20)
-gem16gb_set_project_warnings(gem16gb_core)
-gem16gb_enable_sanitizers(gem16gb_core)
+target_compile_features(gem16_core PUBLIC cxx_std_20)
+gem16_set_project_warnings(gem16_core)
+gem16_enable_sanitizers(gem16_core)
 
-if(GEM16GB_ENABLE_CUDA)
+if(GEM16_ENABLE_CUDA)
   include(CheckLanguage)
   check_language(CUDA)
   if(NOT CMAKE_CUDA_COMPILER)
-    message(FATAL_ERROR "GEM16GB_ENABLE_CUDA=ON, but no CUDA compiler was found")
+    message(FATAL_ERROR "GEM16_ENABLE_CUDA=ON, but no CUDA compiler was found")
   endif()
   enable_language(CUDA)
   find_package(CUDAToolkit REQUIRED)
-  gem16gb_configure_cuda_architectures()
-  target_sources(gem16gb_core PRIVATE
+  gem16_configure_cuda_architectures()
+  target_sources(gem16_core PRIVATE
     src/cuda/attention/sm120.cu
     src/cuda/dispatch.cu
     src/cuda/inference.cu
@@ -84,13 +84,13 @@ if(GEM16GB_ENABLE_CUDA)
     src/cuda/nvfp4/sm120.cu
     src/cuda/nvfp4/cutlass_sm120.cu
   )
-  if(NOT EXISTS "${GEM16GB_CUTLASS_DIR}/include/cutlass/cutlass.h")
+  if(NOT EXISTS "${GEM16_CUTLASS_DIR}/include/cutlass/cutlass.h")
     message(FATAL_ERROR
-      "SM120 CUDA builds require CUTLASS headers at GEM16GB_CUTLASS_DIR=${GEM16GB_CUTLASS_DIR}")
+      "SM120 CUDA builds require CUTLASS headers at GEM16_CUTLASS_DIR=${GEM16_CUTLASS_DIR}")
   endif()
-  target_include_directories(gem16gb_core SYSTEM PRIVATE
-    "${GEM16GB_CUTLASS_DIR}/include"
-    "${GEM16GB_CUTLASS_DIR}/tools/util/include"
+  target_include_directories(gem16_core SYSTEM PRIVATE
+    "${GEM16_CUTLASS_DIR}/include"
+    "${GEM16_CUTLASS_DIR}/tools/util/include"
   )
   if(MSVC)
     # CUTLASS 4.x's CuTe templates do not parse under the strict conformance
@@ -158,33 +158,33 @@ if(GEM16GB_ENABLE_CUDA)
       -diag-suppress=2810
     )
   endif()
-  target_link_libraries(gem16gb_core PRIVATE CUDA::cudart CUDA::nvtx3)
-  target_compile_definitions(gem16gb_core
-    PUBLIC GEM16GB_HAS_CUDA=1
-    PRIVATE GEM16GB_COMPILED_CUDA_ARCH="${GEM16GB_CUDA_ARCHITECTURE}"
+  target_link_libraries(gem16_core PRIVATE CUDA::cudart CUDA::nvtx3)
+  target_compile_definitions(gem16_core
+    PUBLIC GEM16_HAS_CUDA=1
+    PRIVATE GEM16_COMPILED_CUDA_ARCH="${GEM16_CUDA_ARCHITECTURE}"
   )
-  set_target_properties(gem16gb_core PROPERTIES
-    CUDA_ARCHITECTURES "${GEM16GB_CUDA_ARCHITECTURE}"
+  set_target_properties(gem16_core PROPERTIES
+    CUDA_ARCHITECTURES "${GEM16_CUDA_ARCHITECTURE}"
     CUDA_SEPARABLE_COMPILATION ON
   )
-  message(STATUS "gem16gb CUDA capability scaffold: enabled for ${CMAKE_CUDA_ARCHITECTURES}")
+  message(STATUS "gem16 CUDA capability scaffold: enabled for ${CMAKE_CUDA_ARCHITECTURES}")
 else()
-  target_sources(gem16gb_core PRIVATE src/runtime/inference_stub.cpp)
-  target_compile_definitions(gem16gb_core PUBLIC GEM16GB_HAS_CUDA=0)
-  message(STATUS "gem16gb CUDA capability scaffold: disabled")
+  target_sources(gem16_core PRIVATE src/runtime/inference_stub.cpp)
+  target_compile_definitions(gem16_core PUBLIC GEM16_HAS_CUDA=0)
+  message(STATUS "gem16 CUDA capability scaffold: disabled")
 endif()
 
 foreach(tool IN ITEMS inspect run bench chat)
-  add_executable(gem16gb-${tool} src/cli/${tool}_main.cpp)
-  target_link_libraries(gem16gb-${tool} PRIVATE gem16gb_core)
-  gem16gb_set_project_warnings(gem16gb-${tool})
-  gem16gb_enable_sanitizers(gem16gb-${tool})
+  add_executable(gem16-${tool} src/cli/${tool}_main.cpp)
+  target_link_libraries(gem16-${tool} PRIVATE gem16_core)
+  gem16_set_project_warnings(gem16-${tool})
+  gem16_enable_sanitizers(gem16-${tool})
 endforeach()
-target_include_directories(gem16gb-bench PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+target_include_directories(gem16-bench PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
 include(CTest)
-if(BUILD_TESTING AND GEM16GB_BUILD_TESTS)
-  add_executable(gem16gb-unit-tests
+if(BUILD_TESTING AND GEM16_BUILD_TESTS)
+  add_executable(gem16-unit-tests
     tests/unit/fp8_test.cpp
     tests/unit/json_test.cpp
     tests/unit/layer_test.cpp
@@ -196,24 +196,24 @@ if(BUILD_TESTING AND GEM16GB_BUILD_TESTS)
     tests/unit/test_main.cpp
   )
   if(WIN32)
-    target_sources(gem16gb-unit-tests PRIVATE tests/unit/windows_utf8_test.cpp)
+    target_sources(gem16-unit-tests PRIVATE tests/unit/windows_utf8_test.cpp)
   endif()
-  target_include_directories(gem16gb-unit-tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src" "${CMAKE_CURRENT_SOURCE_DIR}/tests/unit")
-  target_link_libraries(gem16gb-unit-tests PRIVATE gem16gb_core)
-  gem16gb_set_project_warnings(gem16gb-unit-tests)
-  gem16gb_enable_sanitizers(gem16gb-unit-tests)
-  add_test(NAME gem16gb-unit COMMAND gem16gb-unit-tests)
+  target_include_directories(gem16-unit-tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src" "${CMAKE_CURRENT_SOURCE_DIR}/tests/unit")
+  target_link_libraries(gem16-unit-tests PRIVATE gem16_core)
+  gem16_set_project_warnings(gem16-unit-tests)
+  gem16_enable_sanitizers(gem16-unit-tests)
+  add_test(NAME gem16-unit COMMAND gem16-unit-tests)
 
-  if(GEM16GB_ENABLE_CUDA)
-    add_executable(gem16gb-cuda-tests tests/cuda/nvfp4_reference_test.cu)
-    target_include_directories(gem16gb-cuda-tests PRIVATE
+  if(GEM16_ENABLE_CUDA)
+    add_executable(gem16-cuda-tests tests/cuda/nvfp4_reference_test.cu)
+    target_include_directories(gem16-cuda-tests PRIVATE
       "${CMAKE_CURRENT_SOURCE_DIR}/src"
     )
-    target_link_libraries(gem16gb-cuda-tests PRIVATE gem16gb_core CUDA::cudart)
-    set_target_properties(gem16gb-cuda-tests PROPERTIES
-      CUDA_ARCHITECTURES "${GEM16GB_CUDA_ARCHITECTURE}"
+    target_link_libraries(gem16-cuda-tests PRIVATE gem16_core CUDA::cudart)
+    set_target_properties(gem16-cuda-tests PROPERTIES
+      CUDA_ARCHITECTURES "${GEM16_CUDA_ARCHITECTURE}"
     )
-    gem16gb_set_project_warnings(gem16gb-cuda-tests)
-    add_test(NAME gem16gb-cuda COMMAND gem16gb-cuda-tests)
+    gem16_set_project_warnings(gem16-cuda-tests)
+    add_test(NAME gem16-cuda COMMAND gem16-cuda-tests)
   endif()
 endif()

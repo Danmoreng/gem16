@@ -1,11 +1,11 @@
 #pragma once
 
-#include "gem16gb/memory.h"
-#include "gem16gb/status.h"
-#include "gem16gb/types.h"
+#include "gem16/memory.h"
+#include "gem16/status.h"
+#include "gem16/types.h"
 #include "model/config.h"
 
-namespace gem16gb::internal {
+namespace gem16::internal {
 
 [[nodiscard]] Result<std::uint64_t> ContextTokens(ContextProfile profile);
 [[nodiscard]] Result<MemoryPlan> BuildMemoryPlan(
@@ -13,4 +13,4 @@ namespace gem16gb::internal {
     const ModelManifest& manifest,
     const MemoryPlanOptions& options);
 
-}  // namespace gem16gb::internal
+}  // namespace gem16::internal

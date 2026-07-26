@@ -4,9 +4,9 @@
 
 #include <cuda_runtime_api.h>
 
-#include "gem16gb/status.h"
+#include "gem16/status.h"
 
-namespace gem16gb::internal {
+namespace gem16::internal {
 
 // Native SM120a W4A4 projection. Packed weight and weight-scale bytes must use
 // TileSm120Nvfp4Weights/TileSm120Nvfp4WeightScales' exact 8-row/K64 runtime order. Nibbles remain
@@ -91,4 +91,4 @@ namespace gem16gb::internal {
     float up_weight_global_divisor,
     cudaStream_t stream);
 
-}  // namespace gem16gb::internal
+}  // namespace gem16::internal

@@ -8,7 +8,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-namespace gem16gb::internal {
+namespace gem16::internal {
 
 Result<MappedFile> MappedFile::Open(const std::filesystem::path& path) {
   MappedFile result;
@@ -58,4 +58,4 @@ void MappedFile::Swap(MappedFile& other) noexcept {
   std::swap(size_, other.size_);
 }
 
-}  // namespace gem16gb::internal
+}  // namespace gem16::internal

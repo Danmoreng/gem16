@@ -10,7 +10,7 @@
 #include <string>
 #include <utility>
 
-namespace gem16gb::internal {
+namespace gem16::internal {
 namespace {
 
 constexpr unsigned kThreads = 256;
@@ -259,4 +259,4 @@ Status LaunchFp8ReferenceProjectionBatch(
              : CudaFailure("launch batched FP8 reference projection", error);
 }
 
-}  // namespace gem16gb::internal
+}  // namespace gem16::internal

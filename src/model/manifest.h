@@ -2,16 +2,16 @@
 
 #include <filesystem>
 
-#include "gem16gb/status.h"
-#include "gem16gb/types.h"
+#include "gem16/status.h"
+#include "gem16/types.h"
 #include "model/config.h"
 
-namespace gem16gb::internal {
+namespace gem16::internal {
 
 [[nodiscard]] Result<ModelManifest> BuildManifest(
     const std::filesystem::path& model_directory,
     const ModelConfig& config,
     bool validate);
 
-}  // namespace gem16gb::internal
+}  // namespace gem16::internal
 

@@ -9,9 +9,9 @@
 #include <string_view>
 #include <vector>
 
-#include "gem16gb/status.h"
+#include "gem16/status.h"
 
-namespace gem16gb {
+namespace gem16 {
 
 struct ChatMessage {
   std::string role;
@@ -87,4 +87,4 @@ class GemmaChatProcessor {
   std::string tool_call_start_token_;
 };
 
-}  // namespace gem16gb
+}  // namespace gem16

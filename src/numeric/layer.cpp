@@ -1,4 +1,4 @@
-#include "gem16gb/layer.h"
+#include "gem16/layer.h"
 
 #include <algorithm>
 #include <cmath>
@@ -7,7 +7,7 @@
 #include <string>
 #include <utility>
 
-namespace gem16gb::layer {
+namespace gem16::layer {
 namespace {
 
 Status Invalid(std::string message) {
@@ -204,4 +204,4 @@ Result<std::vector<float>> LocalAttentionDecode(std::span<const float> query,
   return output;
 }
 
-}  // namespace gem16gb::layer
+}  // namespace gem16::layer

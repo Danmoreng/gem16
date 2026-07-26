@@ -1,4 +1,4 @@
-#include "gem16gb/tokenizer.h"
+#include "gem16/tokenizer.h"
 
 #include <algorithm>
 #include <array>
@@ -19,7 +19,7 @@
 #include "model/tokenizer_config.h"
 #include "util/json.h"
 
-namespace gem16gb {
+namespace gem16 {
 namespace {
 
 constexpr std::uint64_t kMaximumTokenizerBytes = 64U * 1024U * 1024U;
@@ -613,4 +613,4 @@ Status GemmaChatProcessor::WriteDecodedToken(std::uint32_t token_id,
   return tokenizer_.WriteDecodedToken(token_id, skip_special_tokens, output);
 }
 
-}  // namespace gem16gb
+}  // namespace gem16

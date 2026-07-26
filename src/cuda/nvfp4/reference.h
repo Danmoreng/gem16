@@ -4,9 +4,9 @@
 
 #include <cuda_runtime_api.h>
 
-#include "gem16gb/status.h"
+#include "gem16/status.h"
 
-namespace gem16gb::internal {
+namespace gem16::internal {
 
 // Correctness-only CUDA route. These launchers deliberately make no native-NVFP4 performance
 // claim and are never a fallback for the future SM120 MMA path.
@@ -79,4 +79,4 @@ namespace gem16gb::internal {
     float weight_global_divisor,
     cudaStream_t stream);
 
-}  // namespace gem16gb::internal
+}  // namespace gem16::internal

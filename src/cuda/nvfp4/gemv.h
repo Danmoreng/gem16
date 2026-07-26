@@ -4,9 +4,9 @@
 
 #include <cuda_runtime_api.h>
 
-#include "gem16gb/status.h"
+#include "gem16/status.h"
 
-namespace gem16gb::internal {
+namespace gem16::internal {
 
 // Experimental batch-one, direct-source NVFP4 GEMV. One warp owns one output row while the
 // block cooperatively stages the packed activation and its E4M3 scales once for eight rows.
@@ -23,4 +23,4 @@ namespace gem16gb::internal {
     float weight_global_divisor,
     cudaStream_t stream);
 
-}  // namespace gem16gb::internal
+}  // namespace gem16::internal

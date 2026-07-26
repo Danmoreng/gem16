@@ -4,9 +4,9 @@
 
 #include <cstdint>
 
-#include "gem16gb/status.h"
+#include "gem16/status.h"
 
-namespace gem16gb::internal {
+namespace gem16::internal {
 
 struct DecodeControl;
 
@@ -55,4 +55,4 @@ struct DecodeControl;
 [[nodiscard]] std::uint64_t DecodeAttentionWorkspaceElements(
     std::uint64_t max_context);
 
-}  // namespace gem16gb::internal
+}  // namespace gem16::internal

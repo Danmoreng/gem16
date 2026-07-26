@@ -5,9 +5,9 @@
 #include <string>
 #include <vector>
 
-#include "gem16gb/status.h"
+#include "gem16/status.h"
 
-namespace gem16gb::internal {
+namespace gem16::internal {
 
 struct QuantizationRule {
   std::string group_name;
@@ -51,5 +51,5 @@ struct ModelConfig {
 [[nodiscard]] Result<ModelConfig> LoadModelConfig(const std::filesystem::path& path);
 [[nodiscard]] Status ValidatePrimaryModelContract(const ModelConfig& config);
 
-}  // namespace gem16gb::internal
+}  // namespace gem16::internal
 

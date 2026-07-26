@@ -4,9 +4,9 @@
 
 #include <cuda_runtime_api.h>
 
-#include "gem16gb/status.h"
+#include "gem16/status.h"
 
-namespace gem16gb::internal {
+namespace gem16::internal {
 
 // Experimental T=1 direct-source FP8 projection. E4M3 activation and checkpoint weight bytes
 // are consumed without a persistent repack; FP32 MMA accumulators are scaled by the dynamic
@@ -75,4 +75,4 @@ namespace gem16gb::internal {
     std::uint64_t contracting_elements,
     cudaStream_t stream);
 
-}  // namespace gem16gb::internal
+}  // namespace gem16::internal

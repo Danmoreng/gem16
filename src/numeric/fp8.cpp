@@ -1,6 +1,6 @@
-#include "gem16gb/fp8.h"
+#include "gem16/fp8.h"
 
-#include "gem16gb/nvfp4.h"
+#include "gem16/nvfp4.h"
 
 #include <algorithm>
 #include <bit>
@@ -10,7 +10,7 @@
 #include <string>
 #include <utility>
 
-namespace gem16gb::fp8 {
+namespace gem16::fp8 {
 namespace {
 
 Status Invalid(std::string message) {
@@ -89,4 +89,4 @@ Result<double> ReferenceDotProduct(const QuantizedToken& activation,
          static_cast<double>(weight_scale);
 }
 
-}  // namespace gem16gb::fp8
+}  // namespace gem16::fp8

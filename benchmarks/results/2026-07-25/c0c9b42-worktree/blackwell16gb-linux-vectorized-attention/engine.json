@@ -4,7 +4,7 @@
   "benchmark_qualified": false,
   "checkpoint_revision": "b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
   "compiled_architecture": "120a",
-  "engine": "gem16gb",
+  "engine": "gem16",
   "execution_plan": {
     "fp8_prefill_key_load_bytes": 16,
     "fp8_prefill_qk_accumulation": "serial_dimension_order_fp32_fma",

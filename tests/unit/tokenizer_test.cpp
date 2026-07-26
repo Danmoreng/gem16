@@ -1,4 +1,4 @@
-#include "gem16gb/tokenizer.h"
+#include "gem16/tokenizer.h"
 
 #include <chrono>
 #include <filesystem>
@@ -17,10 +17,10 @@ void TestBpeEncodeDecodeAndSpecialTokens() {
       std::chrono::steady_clock::now().time_since_epoch().count();
   const std::filesystem::path directory =
       std::filesystem::temp_directory_path() /
-      ("gem16gb-tokenizer-test-" + std::to_string(suffix));
+      ("gem16-tokenizer-test-" + std::to_string(suffix));
   std::error_code error;
   std::filesystem::create_directories(directory, error);
-  GEM16GB_CHECK(!error);
+  GEM16_CHECK(!error);
   const std::filesystem::path path = directory / "tokenizer.json";
   {
     std::ofstream output(path, std::ios::binary);
@@ -47,42 +47,42 @@ void TestBpeEncodeDecodeAndSpecialTokens() {
         ]
       }
     })";
-    GEM16GB_CHECK(output.good());
+    GEM16_CHECK(output.good());
   }
 
-  auto tokenizer = gem16gb::Tokenizer::Load(path);
-  GEM16GB_CHECK(tokenizer.ok());
+  auto tokenizer = gem16::Tokenizer::Load(path);
+  GEM16_CHECK(tokenizer.ok());
   if (tokenizer.ok()) {
     auto encoded = tokenizer.value().Encode("<s>ab ab");
-    GEM16GB_CHECK(encoded.ok());
+    GEM16_CHECK(encoded.ok());
     if (encoded.ok()) {
-      GEM16GB_CHECK(encoded.value() ==
+      GEM16_CHECK(encoded.value() ==
                     std::vector<std::uint32_t>({0U, 3U, 5U}));
       auto decoded = tokenizer.value().Decode(encoded.value(), false);
-      GEM16GB_CHECK(decoded.ok());
-      if (decoded.ok()) GEM16GB_CHECK(decoded.value() == "<s>ab ab");
+      GEM16_CHECK(decoded.ok());
+      if (decoded.ok()) GEM16_CHECK(decoded.value() == "<s>ab ab");
       auto without_special = tokenizer.value().Decode(encoded.value(), true);
-      GEM16GB_CHECK(without_special.ok());
-      if (without_special.ok()) GEM16GB_CHECK(without_special.value() == "ab ab");
+      GEM16_CHECK(without_special.ok());
+      if (without_special.ok()) GEM16_CHECK(without_special.value() == "ab ab");
 
       std::ostringstream streamed;
       auto status = tokenizer.value().WriteDecodedToken(0U, true, streamed);
-      GEM16GB_CHECK(status.ok());
+      GEM16_CHECK(status.ok());
       status = tokenizer.value().WriteDecodedToken(3U, true, streamed);
-      GEM16GB_CHECK(status.ok());
+      GEM16_CHECK(status.ok());
       status = tokenizer.value().WriteDecodedToken(5U, true, streamed);
-      GEM16GB_CHECK(status.ok());
+      GEM16_CHECK(status.ok());
       status = tokenizer.value().WriteDecodedToken(6U, true, streamed);
-      GEM16GB_CHECK(status.ok());
+      GEM16_CHECK(status.ok());
       status = tokenizer.value().WriteDecodedToken(7U, true, streamed);
-      GEM16GB_CHECK(status.ok());
-      GEM16GB_CHECK(streamed.str() == "ab ab\xC3\xA9");
+      GEM16_CHECK(status.ok());
+      GEM16_CHECK(streamed.str() == "ab ab\xC3\xA9");
     }
   }
   std::filesystem::remove(path, error);
-  GEM16GB_CHECK(!error);
+  GEM16_CHECK(!error);
   std::filesystem::remove(directory, error);
-  GEM16GB_CHECK(!error);
+  GEM16_CHECK(!error);
 }
 
 void TestGoogleTokenizerConfigAndResponseTemplate() {
@@ -90,10 +90,10 @@ void TestGoogleTokenizerConfigAndResponseTemplate() {
       std::chrono::steady_clock::now().time_since_epoch().count();
   const std::filesystem::path directory =
       std::filesystem::temp_directory_path() /
-      ("gem16gb-tokenizer-config-test-" + std::to_string(suffix));
+      ("gem16-tokenizer-config-test-" + std::to_string(suffix));
   std::error_code error;
   std::filesystem::create_directories(directory, error);
-  GEM16GB_CHECK(!error);
+  GEM16_CHECK(!error);
   const std::filesystem::path path = directory / "tokenizer_config.json";
   {
     std::ofstream output(path, std::ios::binary);
@@ -127,40 +127,40 @@ void TestGoogleTokenizerConfigAndResponseTemplate() {
         "start_anchor": ["<|turn>model\n", "<tool_response|>"]
       }
     })json";
-    GEM16GB_CHECK(output.good());
+    GEM16_CHECK(output.good());
   }
 
-  auto config = gem16gb::internal::LoadTokenizerConfig(path);
-  GEM16GB_CHECK(config.ok());
+  auto config = gem16::internal::LoadTokenizerConfig(path);
+  GEM16_CHECK(config.ok());
   if (config.ok()) {
-    GEM16GB_CHECK(
-        gem16gb::internal::ValidatePrimaryTokenizerConfig(config.value()).ok());
-    GEM16GB_CHECK(config.value().model_max_length > 1.0e29);
-    auto content = gem16gb::internal::ExtractResponseContent(
+    GEM16_CHECK(
+        gem16::internal::ValidatePrimaryTokenizerConfig(config.value()).ok());
+    GEM16_CHECK(config.value().model_max_length > 1.0e29);
+    auto content = gem16::internal::ExtractResponseContent(
         "<|channel>thought\nsecret<channel|>  visible answer <turn|>",
         config.value().thinking_open, config.value().thinking_close,
         config.value().content_close_tokens,
         config.value().tool_call_start_token);
-    GEM16GB_CHECK(content.ok());
-    if (content.ok()) GEM16GB_CHECK(content.value() == "visible answer");
+    GEM16_CHECK(content.ok());
+    if (content.ok()) GEM16_CHECK(content.value() == "visible answer");
 
-    auto tool_call = gem16gb::internal::ExtractResponseContent(
+    auto tool_call = gem16::internal::ExtractResponseContent(
         "<|tool_call>call:test{}<tool_call|>",
         config.value().thinking_open, config.value().thinking_close,
         config.value().content_close_tokens,
         config.value().tool_call_start_token);
-    GEM16GB_CHECK(!tool_call.ok());
+    GEM16_CHECK(!tool_call.ok());
 
     auto old_config = config.value();
     old_config.eos_token = "<turn|>";
-    GEM16GB_CHECK(
-        !gem16gb::internal::ValidatePrimaryTokenizerConfig(old_config).ok());
+    GEM16_CHECK(
+        !gem16::internal::ValidatePrimaryTokenizerConfig(old_config).ok());
   }
 
   std::filesystem::remove(path, error);
-  GEM16GB_CHECK(!error);
+  GEM16_CHECK(!error);
   std::filesystem::remove(directory, error);
-  GEM16GB_CHECK(!error);
+  GEM16_CHECK(!error);
 }
 
 struct TokenizerTests {

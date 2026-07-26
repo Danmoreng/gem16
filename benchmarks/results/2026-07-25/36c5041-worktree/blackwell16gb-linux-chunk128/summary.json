@@ -1,7 +1,7 @@
 {
   "benchmarks": [
-    "gem16gb/prefill-128.json",
-    "gem16gb/prefill-512.json"
+    "gem16/prefill-128.json",
+    "gem16/prefill-512.json"
   ],
   "git_commit": "36c5041-worktree",
   "nsys_report": "build/Linux/blackwell-release/profiles/linux/prefill-512-chunk128.nsys-rep",

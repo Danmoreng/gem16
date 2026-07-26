@@ -10,7 +10,7 @@
 #include <string>
 #include <utility>
 
-namespace gem16gb::internal {
+namespace gem16::internal {
 namespace {
 
 constexpr std::uint64_t kScaleGroupElements = 16;
@@ -166,4 +166,4 @@ Status LaunchNvfp4SimtGemvProjection(const std::uint8_t* packed_activation_e2m1,
                               : CudaFailure("launch direct-source NVFP4 SIMT GEMV", error);
 }
 
-}  // namespace gem16gb::internal
+}  // namespace gem16::internal

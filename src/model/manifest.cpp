@@ -12,7 +12,7 @@
 #include "model/safetensors.h"
 #include "util/json.h"
 
-namespace gem16gb::internal {
+namespace gem16::internal {
 namespace {
 
 struct CompiledRule {
@@ -307,9 +307,9 @@ Result<ModelManifest> BuildManifest(const std::filesystem::path& model_directory
   return manifest;
 }
 
-}  // namespace gem16gb::internal
+}  // namespace gem16::internal
 
-namespace gem16gb {
+namespace gem16 {
 
 Status WriteManifestJson(const ModelManifest& manifest, std::ostream& output) {
   output << "{\n  \"schema_version\": 1,\n  \"model_directory\": ";
@@ -380,4 +380,4 @@ void PrintManifestSummary(const ModelManifest& manifest, std::ostream& output) {
          << "Text-only skipped bytes: " << manifest.skipped_tensor_bytes << '\n';
 }
 
-}  // namespace gem16gb
+}  // namespace gem16

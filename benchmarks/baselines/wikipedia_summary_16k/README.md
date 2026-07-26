@@ -1,6 +1,6 @@
 # Wikipedia 16K summarization characterization
 
-This development characterization gives gem16gb, vLLM, and llama.cpp the exact same 16,384-token prompt and allows
+This development characterization gives gem16, vLLM, and llama.cpp the exact same 16,384-token prompt and allows
 up to 8,192 new tokens. The source is English Wikipedia's `Artificial intelligence` article at revision
 `1366077412`; the German instruction requests a structured summary of its concepts, history, applications,
 opportunities, and risks. Thinking is disabled.
@@ -20,24 +20,24 @@ limit rather than a forced output length.
 
 | Engine | KV cache | Prefill | TTFT | Decode | ITL | Generated tokens | Greedy output |
 |---|---|---:|---:|---:|---:|---:|---|
-| gem16gb | checkpoint FP8 | 1,897.37 tok/s | 8,635.11 ms | 31.324 tok/s | 31.925 ms | 1,021-1,254 | 10/10 unique |
+| gem16 | checkpoint FP8 | 1,897.37 tok/s | 8,635.11 ms | 31.324 tok/s | 31.925 ms | 1,021-1,254 | 10/10 unique |
 | vLLM 0.25.1 | FP8 | 4,328.03 tok/s | 3,785.56 ms | 33.971 tok/s | 29.437 ms | 1,215 | identical 10/10 |
 | llama.cpp | Q8_0 | 2,160.83 tok/s | 7,582.29 ms | 28.843 tok/s | 34.670 ms | 1,088 | identical 10/10 |
 
-gem16gb reaches 43.84% of vLLM prefill throughput and 92.21% of its decode throughput. Against llama.cpp it
+gem16 reaches 43.84% of vLLM prefill throughput and 92.21% of its decode throughput. Against llama.cpp it
 reaches 87.81% of prefill and 108.60% of decode throughput. These are development ratios, not parity speedups:
 llama.cpp uses the patched closest-parity GGUF, maps the source FP8 attention weights to BF16, and uses Q8_0 KV.
 
-The three decoded representative outputs are plausible German summaries. However, gem16gb's ten nominally greedy
+The three decoded representative outputs are plausible German summaries. However, gem16's ten nominally greedy
 runs produced ten different hashes and output lengths. vLLM and llama.cpp each produced one stable hash and length.
-The gem16gb result is therefore a correctness/reproducibility finding and must be resolved before this workload can
+The gem16 result is therefore a correctness/reproducibility finding and must be resolved before this workload can
 be promoted to an accepted baseline.
 
 The race was subsequently isolated to reuse of shared reduction storage in the long-context online decode
 attention and fixed after this characterization. The retained numbers and hashes above intentionally describe the
 original base commit.
 
-## Post-fix gem16gb rerun
+## Post-fix gem16 rerun
 
 An engine-only rerun after adding the shared-result consumption barriers used the same workload, binary
 configuration, three warm-ups, and ten measured repetitions:
@@ -71,13 +71,13 @@ third_party/cache/unsloth-nvfp4-env/bin/python \
 ```
 
 Then run `tools/benchmark_wikipedia_workload.py` once per engine with the shared workload. The tool supports
-`--engine gem16gb`, `--engine vllm`, and `--engine llama-cpp`:
+`--engine gem16`, `--engine vllm`, and `--engine llama-cpp`:
 
 ```bash
 python3 tools/benchmark_wikipedia_workload.py \
-  --engine gem16gb --workload <workload.json> --output <gem16gb.json> \
+  --engine gem16 --workload <workload.json> --output <gem16.json> \
   --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 \
-  --executable build/Linux/blackwell-release/bin/gem16gb-run
+  --executable build/Linux/blackwell-release/bin/gem16-run
 
 HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 VLLM_NO_USAGE_STATS=1 \
 third_party/cache/unsloth-nvfp4-env/bin/python \
@@ -100,5 +100,5 @@ comparison configuration, medians, confidence intervals, and samples.
 - This is a development characterization, not an accepted parity benchmark.
 - No continuous power, clock, temperature, or per-token percentile telemetry was captured.
 - The engines stopped after different numbers of tokens, so their later decode contexts are not identical.
-- gem16gb and vLLM consume the direct mixed FP8/NVFP4 checkpoint. llama.cpp consumes the patched closest-parity
+- gem16 and vLLM consume the direct mixed FP8/NVFP4 checkpoint. llama.cpp consumes the patched closest-parity
   GGUF and therefore differs in attention weight and KV precision.

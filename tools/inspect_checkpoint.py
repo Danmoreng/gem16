@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the built gem16gb-inspect executable with a stable repository-relative default."""
+"""Run the built gem16-inspect executable with a stable repository-relative default."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ import subprocess
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("model", type=Path)
-    executable = "gem16gb-inspect.exe" if os.name == "nt" else "gem16gb-inspect"
+    executable = "gem16-inspect.exe" if os.name == "nt" else "gem16-inspect"
     parser.add_argument(
         "--binary",
         type=Path,

@@ -7,7 +7,7 @@
 #include <string_view>
 #include <utility>
 
-namespace gem16gb::internal {
+namespace gem16::internal {
 namespace {
 
 Result<std::uint64_t> CheckedAdd(std::uint64_t left, std::uint64_t right, std::string_view label) {
@@ -200,4 +200,4 @@ Result<MemoryPlan> BuildMemoryPlan(const ModelConfig& config, const ModelManifes
   return plan;
 }
 
-}  // namespace gem16gb::internal
+}  // namespace gem16::internal

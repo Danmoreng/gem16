@@ -22,7 +22,7 @@
 #include "cuda/cutlass_windows_launch.cuh"
 #endif
 
-namespace gem16gb::internal {
+namespace gem16::internal {
 namespace {
 
 using namespace cute;
@@ -201,4 +201,4 @@ Status LaunchFp8CutlassProjectionBatch(
              : CudaFailure("launch CUTLASS FP8 output scaling", error);
 }
 
-}  // namespace gem16gb::internal
+}  // namespace gem16::internal

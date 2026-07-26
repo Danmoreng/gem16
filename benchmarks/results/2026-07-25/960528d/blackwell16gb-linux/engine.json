@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "engine": "gem16gb",
+  "engine": "gem16",
   "base_commit": "960528d024ff65233f60507157d003eb7645c514",
   "worktree_changes": "production path consolidation",
   "build": "build/Linux/blackwell-release",

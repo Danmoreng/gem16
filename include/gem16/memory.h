@@ -6,9 +6,9 @@
 #include <string>
 #include <vector>
 
-#include "gem16gb/status.h"
+#include "gem16/status.h"
 
-namespace gem16gb {
+namespace gem16 {
 
 enum class ContextProfile { kInteractive, kStandard, kLong, kXlong, kMax };
 enum class KvStorage { kUnspecified, kShared, kSeparate };
@@ -59,4 +59,4 @@ struct MemoryPlan {
 [[nodiscard]] Status WriteMemoryPlanJson(const MemoryPlan& plan, std::ostream& output);
 void PrintMemoryPlanSummary(const MemoryPlan& plan, std::ostream& output);
 
-}  // namespace gem16gb
+}  // namespace gem16

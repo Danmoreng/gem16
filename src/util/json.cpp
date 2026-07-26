@@ -6,7 +6,7 @@
 #include <limits>
 #include <sstream>
 
-namespace gem16gb::json {
+namespace gem16::json {
 namespace {
 
 class Parser {
@@ -429,4 +429,4 @@ std::string Escape(std::string_view input) {
   return output.str();
 }
 
-}  // namespace gem16gb::json
+}  // namespace gem16::json

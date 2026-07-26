@@ -5,9 +5,9 @@
 #include <span>
 #include <vector>
 
-#include "gem16gb/status.h"
+#include "gem16/status.h"
 
-namespace gem16gb::internal {
+namespace gem16::internal {
 
 struct Sm120Nvfp4SourceLayout {
   std::uint64_t rows = 0;
@@ -59,4 +59,4 @@ struct Sm120Nvfp4WeightLaneFragment {
     std::uint64_t k_block,
     std::uint32_t lane);
 
-}  // namespace gem16gb::internal
+}  // namespace gem16::internal

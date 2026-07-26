@@ -8,7 +8,7 @@
 #include <string_view>
 #include <vector>
 
-#include "gem16gb/engine.h"
+#include "gem16/engine.h"
 
 namespace {
 
@@ -46,8 +46,8 @@ bool ParseTokenIdsFile(std::string_view path, std::vector<std::uint32_t>& tokens
 void PrintUsage() {
   std::cout
       << "Usage:\n"
-      << "  gem16gb-run --print-kernel-capabilities\n"
-      << "  gem16gb-run --model <checkpoint> --input-token-ids <id,id,...>\n"
+      << "  gem16-run --print-kernel-capabilities\n"
+      << "  gem16-run --model <checkpoint> --input-token-ids <id,id,...>\n"
       << "              [--input-token-ids-file <comma-separated-token-file>]\n"
       << "              [--teacher-forced-token-ids <id,id,...>]\n"
       << "              [--stop-token-ids <id,id,...>]\n"
@@ -65,7 +65,7 @@ void PrintUsage() {
 
 int main(int argc, char** argv) {
   if (argc == 2 && std::string_view(argv[1]) == "--print-kernel-capabilities") {
-    gem16gb::PrintKernelCapabilities(std::cout);
+    gem16::PrintKernelCapabilities(std::cout);
     return 0;
   }
   if (argc == 2 && (std::string_view(argv[1]) == "--help" || std::string_view(argv[1]) == "-h")) {
@@ -73,7 +73,7 @@ int main(int argc, char** argv) {
     return 0;
   }
 
-  gem16gb::GreedyInferenceOptions options;
+  gem16::GreedyInferenceOptions options;
   bool greedy = false;
   for (int index = 1; index < argc; ++index) {
     const std::string_view argument(argv[index]);
@@ -134,9 +134,9 @@ int main(int argc, char** argv) {
     } else if (argument == "--kv-cache" && index + 1 < argc) {
       const std::string_view mode = argv[++index];
       if (mode == "fp8") {
-        options.kv_cache_mode = gem16gb::KvCacheMode::kCheckpointFp8;
+        options.kv_cache_mode = gem16::KvCacheMode::kCheckpointFp8;
       } else if (mode == "bf16") {
-        options.kv_cache_mode = gem16gb::KvCacheMode::kBf16Correctness;
+        options.kv_cache_mode = gem16::KvCacheMode::kBf16Correctness;
       } else {
         std::cerr << "error: --kv-cache must be fp8 or bf16\n";
         return 64;
@@ -152,13 +152,13 @@ int main(int argc, char** argv) {
     std::cerr << "error: the initial inference path requires explicit --greedy\n";
     return 64;
   }
-  auto result = gem16gb::RunGreedyInference(options);
+  auto result = gem16::RunGreedyInference(options);
   if (!result.ok()) {
     std::cerr << "error: " << result.status().message()
               << "; no precision fallback was attempted\n";
     return 2;
   }
-  const gem16gb::Status write = gem16gb::WriteGreedyInferenceJson(result.value(), std::cout);
+  const gem16::Status write = gem16::WriteGreedyInferenceJson(result.value(), std::cout);
   if (!write.ok()) {
     std::cerr << "error: " << write.message() << '\n';
     return 1;

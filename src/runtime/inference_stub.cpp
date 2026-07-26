@@ -1,8 +1,8 @@
-#include "gem16gb/engine.h"
+#include "gem16/engine.h"
 
 #include <ostream>
 
-namespace gem16gb {
+namespace gem16 {
 
 struct ConversationSession::Impl {};
 
@@ -54,4 +54,4 @@ Status WritePrefillBenchmarkJson(const DecodeBenchmarkResult&, std::ostream&) {
                 "prefill benchmark JSON requires a CUDA benchmark result");
 }
 
-}  // namespace gem16gb
+}  // namespace gem16

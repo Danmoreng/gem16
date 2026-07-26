@@ -9,7 +9,7 @@
   },
   "reference": {
     "commit": "bdb1294",
-    "binary": "/tmp/gem16gb-bdb1294/build/Linux/blackwell-release/bin/gem16gb-bench",
+    "binary": "/tmp/gem16-bdb1294/build/Linux/blackwell-release/bin/gem16-bench",
     "runs": {
       "128": {
         "median_tokens_per_second": 1540.6860115317195,

@@ -12,7 +12,7 @@
 
 #include "util/json.h"
 
-namespace gem16gb::internal {
+namespace gem16::internal {
 namespace {
 
 constexpr std::uint64_t kMaximumTokenizerConfigBytes = 1024U * 1024U;
@@ -293,4 +293,4 @@ Result<std::string> ExtractResponseContent(
   return Trim(result);
 }
 
-}  // namespace gem16gb::internal
+}  // namespace gem16::internal

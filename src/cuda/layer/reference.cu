@@ -12,7 +12,7 @@
 #include <type_traits>
 #include <utility>
 
-namespace gem16gb::internal {
+namespace gem16::internal {
 namespace {
 
 constexpr unsigned kThreads = 256;
@@ -1678,4 +1678,4 @@ Status LaunchScale(float* values, const std::uint16_t* scalar_bf16,
   return error == cudaSuccess ? Status::Ok() : CudaFailure("launch layer scale", error);
 }
 
-}  // namespace gem16gb::internal
+}  // namespace gem16::internal

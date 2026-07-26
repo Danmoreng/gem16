@@ -1,6 +1,6 @@
-# gem16gb
+# gem16
 
-`gem16gb` is an early-stage C++20/CUDA inference engine for high-performance inference on NVIDIA GPUs with
+`gem16` is an early-stage C++20/CUDA inference engine for high-performance inference on NVIDIA GPUs with
 approximately 16 GB of VRAM. The first model is the mixed FP8/NVFP4
 `unsloth/gemma-4-12b-it-NVFP4` checkpoint, and the first optimized backend is Blackwell SM120/SM120a.
 
@@ -16,11 +16,11 @@ works.
   `b1f649734b34aa5575b03d186abd1b9be3d0d5c4`. The runtime tokenizer metadata is the official Google
   `tokenizer_config.json` from commit `707f0a3b8a3c7ad586ed01e27eafbad8a27dd0f7`. Every file source, size,
   SHA-256 digest, Git object ID, and available Xet/LFS identity is locked independently.
-- `gem16gb-inspect` memory-maps a single Safetensors file or indexed shards, validates offsets and byte lengths,
+- `gem16-inspect` memory-maps a single Safetensors file or indexed shards, validates offsets and byte lengths,
   parses the compressed-tensors quantization schema, classifies all 1,389 tensors in the pinned snapshot, and
   exports JSON.
 - Host parser tests work on Linux and Windows without CUDA. Linux also has opt-in ASan/UBSan builds.
-- `gem16gb-bench memory` builds an aligned, deterministic base arena from the real text-only tensor inventory and
+- `gem16-bench memory` builds an aligned, deterministic base arena from the real text-only tensor inventory and
   reports the required separate K/V cache plus the one-state diagnostic lower bound for every context profile.
 - The exact host NVFP4 codec covers E2M1, E4M3FN, dynamic-local activation quantization, compressed-tensors global
   divisors, and a binary64 projection oracle with pinned-checkpoint byte fixtures.
@@ -40,7 +40,7 @@ works.
   vocabulary rows per block, applies the exact logit softcap, and reduces only one candidate per block. The engine applies the checkpoint's
   static E4M3 FP8 K/V scales; an explicit BF16 correctness mode remains available. Both modes run with zero
   fallbacks and no allocation in the token loop. Checkpoint EOS and suppressed-token controls are applied explicitly.
-- `gem16gb-chat` is a pure C++ application. It loads the checkpoint's `tokenizer.json`, performs native
+- `gem16-chat` is a pure C++ application. It loads the checkpoint's `tokenizer.json`, performs native
   byte-fallback BPE encode/decode, enforces the pinned `chat_template.jinja` contract, validates Google's current
   `tokenizer_config.json`, parses visible response text with its thinking/content delimiters, and sources the
   actual stop/suppressed token IDs from `generation_config.json`.
@@ -68,7 +68,7 @@ For the CUDA capability probe with the pinned local toolkit:
 
 ```bash
 ./scripts/build.sh --cuda --test
-build/Linux/blackwell-release/bin/gem16gb-run --print-kernel-capabilities
+build/Linux/blackwell-release/bin/gem16-run --print-kernel-capabilities
 ```
 
 The CUDA build targets only `120a` and requires the pinned CUTLASS submodule. Its native projection disassembles
@@ -81,7 +81,7 @@ The first end-to-end path accepts token IDs so tokenizer behavior cannot hide mo
 reported as `status=characterization` and `benchmark_qualified=false`:
 
 ```bash
-build/Linux/blackwell-release/bin/gem16gb-run \
+build/Linux/blackwell-release/bin/gem16-run \
   --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 \
   --input-token-ids 2,105,2364,107,40654,607,7121,506,3658,3730,236761,106,107,105,4368,107,100,45518,107,101 \
   --max-tokens 2 \
@@ -104,11 +104,11 @@ Reproduce the committed-token gate without copying token IDs manually:
 
 ```bash
 python3 tools/validate_inference.py \
-  --run build/Linux/blackwell-release/bin/gem16gb-run \
+  --run build/Linux/blackwell-release/bin/gem16-run \
   --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497
 ```
 
-For a broader, position-aligned comparison, `gem16gb-run` supports diagnostic
+For a broader, position-aligned comparison, `gem16-run` supports diagnostic
 teacher forcing. The preceding reference token is fed at every decode
 position, while the engine's unmodified greedy prediction and full logits are
 recorded. This prevents one early argmax difference from changing all later
@@ -116,7 +116,7 @@ inputs:
 
 ```bash
 python3 tools/teacher_forced_compare.py \
-  --run build/Linux/blackwell-release/bin/gem16gb-run \
+  --run build/Linux/blackwell-release/bin/gem16-run \
   --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 \
   --golden tests/golden/vllm-gemma4-12b-nvfp4-correctness-v1-fp8.json \
   --kv-cache fp8 \
@@ -134,7 +134,7 @@ measurements, not an accepted correctness tolerance or performance result.
 Run the native C++ application directly:
 
 ```bash
-build/Linux/blackwell-release/bin/gem16gb-chat \
+build/Linux/blackwell-release/bin/gem16-chat \
   --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 \
   --max-context 8192 --max-tokens 256
 ```
@@ -147,7 +147,7 @@ conversation is not tokenized or executed again. `--max-context` is the total re
 session. For an auditable one-turn result:
 
 ```bash
-build/Linux/blackwell-release/bin/gem16gb-chat \
+build/Linux/blackwell-release/bin/gem16-chat \
   --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 \
   --message "Reply with exactly the word blue." --max-tokens 8 --max-context 64 --json
 ```
@@ -174,7 +174,7 @@ discovers toolkits installed in NVIDIA's standard Windows location:
 
 ```powershell
 .\scripts\build.ps1 -Cuda -Test
-.\build\Windows\blackwell-release\bin\gem16gb-run.exe --print-kernel-capabilities
+.\build\Windows\blackwell-release\bin\gem16-run.exe --print-kernel-capabilities
 ```
 
 The target layout is the same on both operating systems, while CMake caches stay isolated under `build/Linux` and
@@ -203,7 +203,7 @@ executes code from either model repository.
 ## Inspect
 
 ```bash
-build/Linux/host-debug/bin/gem16gb-inspect \
+build/Linux/host-debug/bin/gem16-inspect \
   --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 \
   --validate \
   --json manifest.json
@@ -212,7 +212,7 @@ build/Linux/host-debug/bin/gem16gb-inspect \
 The equivalent Windows command is:
 
 ```powershell
-.\build\Windows\host-debug\bin\gem16gb-inspect.exe `
+.\build\Windows\host-debug\bin\gem16-inspect.exe `
   --model .\models\checkpoints\unsloth-gemma-4-12b-it-NVFP4-b1f6497 `
   --validate `
   --json .\manifest.json
@@ -224,7 +224,7 @@ Final K and V states require separate storage because their normalization and Ro
 explicitly; the JSON result retains the one-state byte count only as an audit lower bound:
 
 ```powershell
-.\build\Windows\host-debug\bin\gem16gb-bench.exe memory `
+.\build\Windows\host-debug\bin\gem16-bench.exe memory `
   --model .\models\checkpoints\unsloth-gemma-4-12b-it-NVFP4-b1f6497 `
   --profile long `
   --kv-storage separate
@@ -239,7 +239,7 @@ The CUDA benchmark keeps the model loaded across warm-ups and measured repetitio
 latencies plus summary statistics as JSON:
 
 ```powershell
-.\build\Windows\blackwell-release\bin\gem16gb-bench.exe decode `
+.\build\Windows\blackwell-release\bin\gem16-bench.exe decode `
   --model .\models\checkpoints\unsloth-gemma-4-12b-it-NVFP4-b1f6497 `
   --context 128 `
   --tokens 256 `
@@ -286,7 +286,7 @@ kernel pipelines aligned 16-byte asynchronous K/V copies through two raw-FP8 pin
 values at a time, and stores paired BF16 values into one overlaid operand tile. Current-V traffic overlaps QK and
 next-K traffic overlaps PV without increasing its 96 KiB shared-memory allocation. For 2K chunks,
 local layers commit only the newest 1K suffix to their ring after attention. The token-at-a-time bridge and scalar attention implementation remain test/probe references
-and are not selectable from `gem16gb-run` or `gem16gb-bench`.
+and are not selectable from `gem16-run` or `gem16-bench`.
 
 ## Validate real-checkpoint layer assembly
 
@@ -294,7 +294,7 @@ After a Blackwell CUDA build, run all three real-checkpoint characterization gat
 
 ```powershell
 python .\tools\validate_layer_checkpoint.py `
-  --bench .\build\Windows\blackwell-release\bin\gem16gb-bench.exe `
+  --bench .\build\Windows\blackwell-release\bin\gem16-bench.exe `
   --model .\models\checkpoints\unsloth-gemma-4-12b-it-NVFP4-b1f6497 `
   --output .\build\Windows\blackwell-release\layer-checkpoint-validation.json
 ```

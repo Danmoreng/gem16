@@ -4,7 +4,7 @@
   "benchmark_qualified": false,
   "checkpoint_revision": "b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
   "compiled_architecture": "120a",
-  "engine": "gem16gb",
+  "engine": "gem16",
   "execution_plan": {
     "fp8_prefill_token_tiles_per_warp": 2,
     "nvfp4_prefill_token_tiles_per_warp": 2,

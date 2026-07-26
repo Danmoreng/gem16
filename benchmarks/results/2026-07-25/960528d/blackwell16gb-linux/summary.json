@@ -10,8 +10,8 @@
       "median_ttft_ms": 222.161665,
       "llama_cpp_median_tokens_per_second": 2214.7,
       "vllm_median_tokens_per_second": 4679.485759956933,
-      "gem16gb_over_llama_cpp": 0.260598,
-      "gem16gb_over_vllm": 0.123336
+      "gem16_over_llama_cpp": 0.260598,
+      "gem16_over_vllm": 0.123336
     },
     {
       "mode": "prefill",
@@ -20,8 +20,8 @@
       "median_ttft_ms": 1156.587907,
       "llama_cpp_median_tokens_per_second": 2628.27,
       "vllm_median_tokens_per_second": 6146.496982614533,
-      "gem16gb_over_llama_cpp": 0.168431,
-      "gem16gb_over_vllm": 0.072022
+      "gem16_over_llama_cpp": 0.168431,
+      "gem16_over_vllm": 0.072022
     },
     {
       "mode": "decode",
@@ -33,13 +33,13 @@
       "p99_inter_token_latency_ms": 43.046317009999996,
       "llama_cpp_median_tokens_per_second": 29.66885,
       "vllm_median_tokens_per_second": 37.05653584957774,
-      "gem16gb_over_llama_cpp": 0.828252,
-      "gem16gb_over_vllm": 0.663129,
+      "gem16_over_llama_cpp": 0.828252,
+      "gem16_over_vllm": 0.663129,
       "deterministic_outputs": true
     }
   ],
   "comparison_limitations": [
-    "gem16gb uses checkpoint FP8 KV while the retained llama.cpp and vLLM characterizations use BF16 KV",
+    "gem16 uses checkpoint FP8 KV while the retained llama.cpp and vLLM characterizations use BF16 KV",
     "llama.cpp maps checkpoint FP8 attention weights to BF16",
     "prefill timing boundaries differ across engines",
     "the baseline artifacts and this worktree remain development characterizations",

@@ -3,7 +3,7 @@
 #include <iostream>
 #include <string_view>
 
-namespace gem16gb::test {
+namespace gem16::test {
 
 inline int failures = 0;
 
@@ -14,7 +14,7 @@ inline void Check(bool condition, std::string_view expression, std::string_view 
   }
 }
 
-}  // namespace gem16gb::test
+}  // namespace gem16::test
 
-#define GEM16GB_CHECK(expression) ::gem16gb::test::Check(static_cast<bool>(expression), #expression, __FILE__, __LINE__)
+#define GEM16_CHECK(expression) ::gem16::test::Check(static_cast<bool>(expression), #expression, __FILE__, __LINE__)
 

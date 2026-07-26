@@ -1,4 +1,4 @@
-#include "gem16gb/nvfp4.h"
+#include "gem16/nvfp4.h"
 
 #include <algorithm>
 #include <array>
@@ -7,7 +7,7 @@
 #include <string>
 #include <utility>
 
-namespace gem16gb::nvfp4 {
+namespace gem16::nvfp4 {
 namespace {
 
 constexpr std::array<float, 8> kPositiveE2M1 = {
@@ -200,4 +200,4 @@ Result<double> ReferenceDotProduct(const QuantizedActivation& activation,
   return accumulator / divisor;
 }
 
-}  // namespace gem16gb::nvfp4
+}  // namespace gem16::nvfp4

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare vLLM NVFP4 activation quantization with the gem16gb host contract.
+"""Compare vLLM NVFP4 activation quantization with the gem16 host contract.
 
 This is offline correctness tooling. The C++ runtime does not depend on Python,
 PyTorch, or vLLM.

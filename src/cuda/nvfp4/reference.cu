@@ -13,7 +13,7 @@
 #include <type_traits>
 #include <utility>
 
-namespace gem16gb::internal {
+namespace gem16::internal {
 namespace {
 
 constexpr std::uint64_t kBlockElements = 16;
@@ -451,4 +451,4 @@ Status LaunchNvfp4ReferenceProjectionBatch(
              : CudaFailure("launch batched NVFP4 reference projection", error);
 }
 
-}  // namespace gem16gb::internal
+}  // namespace gem16::internal

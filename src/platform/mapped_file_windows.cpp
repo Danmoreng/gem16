@@ -8,7 +8,7 @@
 #include <string>
 #include <system_error>
 
-namespace gem16gb::internal {
+namespace gem16::internal {
 namespace {
 
 std::string WindowsError(DWORD error) {
@@ -76,4 +76,4 @@ void MappedFile::Swap(MappedFile& other) noexcept {
   std::swap(size_, other.size_);
 }
 
-}  // namespace gem16gb::internal
+}  // namespace gem16::internal

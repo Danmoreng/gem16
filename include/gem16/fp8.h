@@ -4,9 +4,9 @@
 #include <span>
 #include <vector>
 
-#include "gem16gb/status.h"
+#include "gem16/status.h"
 
-namespace gem16gb::fp8 {
+namespace gem16::fp8 {
 
 inline constexpr float kE4M3FnMax = 448.0F;
 
@@ -33,4 +33,4 @@ struct QuantizedToken {
     std::span<const std::uint8_t> weight_e4m3fn,
     std::uint16_t weight_scale_bf16);
 
-}  // namespace gem16gb::fp8
+}  // namespace gem16::fp8

@@ -4,9 +4,9 @@
 
 #include <cuda_runtime_api.h>
 
-#include "gem16gb/status.h"
+#include "gem16/status.h"
 
-namespace gem16gb::internal {
+namespace gem16::internal {
 
 struct DecodeControl {
   std::uint32_t token = 0;
@@ -247,4 +247,4 @@ struct DecodeControl {
     std::uint64_t head_dimension, std::uint64_t cache_capacity,
     bool sliding, cudaStream_t stream);
 
-}  // namespace gem16gb::internal
+}  // namespace gem16::internal

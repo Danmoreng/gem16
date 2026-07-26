@@ -9,9 +9,9 @@
       "binaryDir": "${sourceDir}/build/${hostSystemName}/host-debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "GEM16GB_ENABLE_CUDA": "OFF",
-        "GEM16GB_ENABLE_SANITIZERS": "OFF",
-        "GEM16GB_BUILD_TESTS": "ON"
+        "GEM16_ENABLE_CUDA": "OFF",
+        "GEM16_ENABLE_SANITIZERS": "OFF",
+        "GEM16_BUILD_TESTS": "ON"
       }
     },
     {
@@ -24,7 +24,7 @@
         "lhs": "${hostSystemName}",
         "rhs": "Linux"
       },
-      "cacheVariables": { "GEM16GB_ENABLE_SANITIZERS": "ON" }
+      "cacheVariables": { "GEM16_ENABLE_SANITIZERS": "ON" }
     },
     {
       "name": "blackwell-release",
@@ -33,9 +33,9 @@
       "binaryDir": "${sourceDir}/build/${hostSystemName}/blackwell-release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "GEM16GB_ENABLE_CUDA": "ON",
-        "GEM16GB_CUDA_ARCHITECTURE": "120a",
-        "GEM16GB_BUILD_TESTS": "ON"
+        "GEM16_ENABLE_CUDA": "ON",
+        "GEM16_CUDA_ARCHITECTURE": "120a",
+        "GEM16_BUILD_TESTS": "ON"
       }
     }
   ],

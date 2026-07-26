@@ -27,8 +27,8 @@ if (Test-Path -LiteralPath $targetDir) {
     throw "Patched target already exists: $targetDir"
 }
 
-Invoke-Gem16gbChecked "git.exe" @("clone", "--shared", $sourceDir, $targetDir)
-Invoke-Gem16gbChecked "git.exe" @("-C", $targetDir, "checkout", "--detach", $expectedCommit)
-Invoke-Gem16gbChecked "git.exe" @("-C", $targetDir, "apply", "--unidiff-zero", "--check", $patchFile)
-Invoke-Gem16gbChecked "git.exe" @("-C", $targetDir, "apply", "--unidiff-zero", $patchFile)
+Invoke-Gem16Checked "git.exe" @("clone", "--shared", $sourceDir, $targetDir)
+Invoke-Gem16Checked "git.exe" @("-C", $targetDir, "checkout", "--detach", $expectedCommit)
+Invoke-Gem16Checked "git.exe" @("-C", $targetDir, "apply", "--unidiff-zero", "--check", $patchFile)
+Invoke-Gem16Checked "git.exe" @("-C", $targetDir, "apply", "--unidiff-zero", $patchFile)
 Write-Host "Prepared patched converter source at $targetDir" -ForegroundColor Green

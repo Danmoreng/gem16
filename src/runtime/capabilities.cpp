@@ -1,18 +1,18 @@
-#include "gem16gb/engine.h"
+#include "gem16/engine.h"
 
 #include <ostream>
 #include <string>
 
-namespace gem16gb {
+namespace gem16 {
 namespace internal {
-#if GEM16GB_HAS_CUDA
+#if GEM16_HAS_CUDA
 std::string CudaCapabilityReport();
 #endif
 }  // namespace internal
 
 void PrintKernelCapabilities(std::ostream& output) {
-  output << "compiled_cuda=" << (GEM16GB_HAS_CUDA ? "true" : "false") << '\n';
-#if GEM16GB_HAS_CUDA
+  output << "compiled_cuda=" << (GEM16_HAS_CUDA ? "true" : "false") << '\n';
+#if GEM16_HAS_CUDA
   output << internal::CudaCapabilityReport();
 #else
   output << "compiled_architectures=none\n"
@@ -23,5 +23,5 @@ void PrintKernelCapabilities(std::ostream& output) {
 #endif
 }
 
-}  // namespace gem16gb
+}  // namespace gem16
 

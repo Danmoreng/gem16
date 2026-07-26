@@ -2,8 +2,8 @@
 
 #include "cuda/fp8/reference.h"
 #include "cuda/fp8/sm120.h"
-#include "gem16gb/fp8.h"
-#include "gem16gb/model.h"
+#include "gem16/fp8.h"
+#include "gem16/model.h"
 #include "platform/mapped_file.h"
 
 #include <cuda_runtime.h>
@@ -21,7 +21,7 @@
 #include <utility>
 #include <vector>
 
-namespace gem16gb::internal {
+namespace gem16::internal {
 namespace {
 
 constexpr char kLayer0AttentionBase[] = "model.language_model.layers.0.self_attn.";
@@ -327,4 +327,4 @@ Result<Fp8CheckpointProbeResult> RunLayer0Fp8CheckpointProbe(
   return result;
 }
 
-}  // namespace gem16gb::internal
+}  // namespace gem16::internal

@@ -7,7 +7,7 @@
 #include <limits>
 #include <string>
 
-namespace gem16gb::internal {
+namespace gem16::internal {
 namespace {
 
 constexpr unsigned kThreads = 256;
@@ -74,4 +74,4 @@ Status LaunchAddResidual(const float* mlp_output, const float* residual, float* 
                            mlp_output, residual, output);
 }
 
-}  // namespace gem16gb::internal
+}  // namespace gem16::internal

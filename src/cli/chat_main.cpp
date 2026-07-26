@@ -14,8 +14,8 @@
 #include "windows_utf8.h"
 #endif
 
-#include "gem16gb/engine.h"
-#include "gem16gb/tokenizer.h"
+#include "gem16/engine.h"
+#include "gem16/tokenizer.h"
 
 namespace {
 
@@ -65,12 +65,12 @@ void WriteTokenIds(std::span<const std::uint32_t> token_ids) {
 void PrintUsage() {
   std::cout
       << "Usage:\n"
-      << "  gem16gb-chat --model <checkpoint> [--max-tokens N] [--max-context N]\n"
+      << "  gem16-chat --model <checkpoint> [--max-tokens N] [--max-context N]\n"
       << "                [--thinking] [--system <text>]\n"
       << "                [--kv-cache fp8|bf16]\n"
       << "                [--dump-state <path> --dump-state-position N]\n"
-      << "  gem16gb-chat --model <checkpoint> --message <text> [--json]\n"
-      << "  gem16gb-chat --model <checkpoint> --message <text> --render-only --json\n";
+      << "  gem16-chat --model <checkpoint> --message <text> [--json]\n"
+      << "  gem16-chat --model <checkpoint> --message <text> --render-only --json\n";
 }
 
 struct Options {
@@ -86,11 +86,11 @@ struct Options {
   bool json = false;
   std::filesystem::path state_dump_path;
   std::optional<std::uint64_t> state_dump_position;
-  gem16gb::KvCacheMode kv_cache_mode =
-      gem16gb::KvCacheMode::kCheckpointFp8;
+  gem16::KvCacheMode kv_cache_mode =
+      gem16::KvCacheMode::kCheckpointFp8;
 };
 
-gem16gb::Result<Options> ParseOptions(int argc, char** argv) {
+gem16::Result<Options> ParseOptions(int argc, char** argv) {
   Options options;
   for (int index = 1; index < argc; ++index) {
     const std::string_view argument(argv[index]);
@@ -104,12 +104,12 @@ gem16gb::Result<Options> ParseOptions(int argc, char** argv) {
       options.has_one_shot_message = true;
     } else if (argument == "--max-tokens" && index + 1 < argc) {
       if (!ParseUnsigned(argv[++index], options.max_tokens)) {
-        return gem16gb::Status(gem16gb::StatusCode::kInvalidArgument,
+        return gem16::Status(gem16::StatusCode::kInvalidArgument,
                               "--max-tokens must be an unsigned integer");
       }
     } else if (argument == "--max-context" && index + 1 < argc) {
       if (!ParseUnsigned(argv[++index], options.max_context)) {
-        return gem16gb::Status(gem16gb::StatusCode::kInvalidArgument,
+        return gem16::Status(gem16::StatusCode::kInvalidArgument,
                               "--max-context must be an unsigned integer");
       }
     } else if (argument == "--thinking") {
@@ -123,46 +123,46 @@ gem16gb::Result<Options> ParseOptions(int argc, char** argv) {
     } else if (argument == "--dump-state-position" && index + 1 < argc) {
       std::uint64_t position = 0;
       if (!ParseUnsigned(argv[++index], position)) {
-        return gem16gb::Status(
-            gem16gb::StatusCode::kInvalidArgument,
+        return gem16::Status(
+            gem16::StatusCode::kInvalidArgument,
             "--dump-state-position must be an unsigned integer");
       }
       options.state_dump_position = position;
     } else if (argument == "--kv-cache" && index + 1 < argc) {
       const std::string_view mode = argv[++index];
       if (mode == "fp8") {
-        options.kv_cache_mode = gem16gb::KvCacheMode::kCheckpointFp8;
+        options.kv_cache_mode = gem16::KvCacheMode::kCheckpointFp8;
       } else if (mode == "bf16") {
-        options.kv_cache_mode = gem16gb::KvCacheMode::kBf16Correctness;
+        options.kv_cache_mode = gem16::KvCacheMode::kBf16Correctness;
       } else {
-        return gem16gb::Status(gem16gb::StatusCode::kInvalidArgument,
+        return gem16::Status(gem16::StatusCode::kInvalidArgument,
                               "--kv-cache must be fp8 or bf16");
       }
     } else {
-      return gem16gb::Status(gem16gb::StatusCode::kInvalidArgument,
+      return gem16::Status(gem16::StatusCode::kInvalidArgument,
                             "unknown or incomplete option: " +
                                 std::string(argument));
     }
   }
   if (options.model_directory.empty()) {
-    return gem16gb::Status(gem16gb::StatusCode::kInvalidArgument,
+    return gem16::Status(gem16::StatusCode::kInvalidArgument,
                           "--model is required");
   }
   if ((options.render_only || options.json) &&
       !options.has_one_shot_message) {
-    return gem16gb::Status(
-        gem16gb::StatusCode::kInvalidArgument,
+    return gem16::Status(
+        gem16::StatusCode::kInvalidArgument,
         "--render-only and --json require a one-shot --message");
   }
   if ((!options.state_dump_path.empty() ||
        options.state_dump_position.has_value()) &&
       !options.has_one_shot_message) {
-    return gem16gb::Status(
-        gem16gb::StatusCode::kInvalidArgument,
+    return gem16::Status(
+        gem16::StatusCode::kInvalidArgument,
         "state capture requires a one-shot --message");
   }
   if (options.max_tokens == 0U || options.max_context == 0U) {
-    return gem16gb::Status(gem16gb::StatusCode::kInvalidArgument,
+    return gem16::Status(gem16::StatusCode::kInvalidArgument,
                           "token and context limits must be positive");
   }
   return options;
@@ -179,16 +179,16 @@ struct ConversationPromptState {
 };
 
 struct TokenStreamContext {
-  const gem16gb::GemmaChatProcessor* processor = nullptr;
+  const gem16::GemmaChatProcessor* processor = nullptr;
   std::ostream* output = nullptr;
 };
 
-gem16gb::Status StreamGeneratedToken(void* opaque_context,
+gem16::Status StreamGeneratedToken(void* opaque_context,
                                      std::uint32_t token_id) {
   auto* context = static_cast<TokenStreamContext*>(opaque_context);
   if (context == nullptr || context->processor == nullptr ||
       context->output == nullptr) {
-    return gem16gb::Status(gem16gb::StatusCode::kInternal,
+    return gem16::Status(gem16::StatusCode::kInternal,
                            "chat token stream is not initialized");
   }
   auto status =
@@ -196,16 +196,16 @@ gem16gb::Status StreamGeneratedToken(void* opaque_context,
   if (!status.ok()) return status;
   context->output->flush();
   if (!*context->output) {
-    return gem16gb::Status(gem16gb::StatusCode::kIoError,
+    return gem16::Status(gem16::StatusCode::kIoError,
                            "failed to flush chat token stream");
   }
-  return gem16gb::Status::Ok();
+  return gem16::Status::Ok();
 }
 
-gem16gb::Result<TurnOutput> RunTurn(
-    const Options& cli, const gem16gb::GemmaChatProcessor& processor,
-    std::vector<gem16gb::ChatMessage>& messages, bool write_json,
-    bool stream_tokens, gem16gb::ConversationSession* session,
+gem16::Result<TurnOutput> RunTurn(
+    const Options& cli, const gem16::GemmaChatProcessor& processor,
+    std::vector<gem16::ChatMessage>& messages, bool write_json,
+    bool stream_tokens, gem16::ConversationSession* session,
     ConversationPromptState* prompt_state) {
   std::optional<std::string> rendered;
   if (cli.render_only) {
@@ -213,7 +213,7 @@ gem16gb::Result<TurnOutput> RunTurn(
     if (!render_result.ok()) return render_result.status();
     rendered = std::move(render_result).value();
   }
-  gem16gb::Result<std::vector<std::uint32_t>> prompt_ids = [&]() {
+  gem16::Result<std::vector<std::uint32_t>> prompt_ids = [&]() {
     if (prompt_state == nullptr ||
         prompt_state->cached_prefix_token_ids.empty()) {
       return processor.Encode(messages, cli.thinking);
@@ -221,7 +221,7 @@ gem16gb::Result<TurnOutput> RunTurn(
     auto continuation =
         processor.EncodeContinuation(messages.back().content, cli.thinking);
     if (!continuation.ok()) {
-      return gem16gb::Result<std::vector<std::uint32_t>>(
+      return gem16::Result<std::vector<std::uint32_t>>(
           continuation.status());
     }
     std::vector<std::uint32_t> token_ids =
@@ -231,7 +231,7 @@ gem16gb::Result<TurnOutput> RunTurn(
     }
     token_ids.insert(token_ids.end(), continuation.value().begin(),
                      continuation.value().end());
-    return gem16gb::Result<std::vector<std::uint32_t>>(
+    return gem16::Result<std::vector<std::uint32_t>>(
         std::move(token_ids));
   }();
   if (!prompt_ids.ok()) return prompt_ids.status();
@@ -248,7 +248,7 @@ gem16gb::Result<TurnOutput> RunTurn(
     return TurnOutput{};
   }
 
-  gem16gb::GreedyInferenceOptions inference_options;
+  gem16::GreedyInferenceOptions inference_options;
   inference_options.model_directory = cli.model_directory;
   inference_options.input_token_ids = std::move(prompt_ids).value();
   inference_options.stop_token_ids =
@@ -267,7 +267,7 @@ gem16gb::Result<TurnOutput> RunTurn(
   }
   auto inference =
       session == nullptr
-          ? gem16gb::RunGreedyInference(inference_options)
+          ? gem16::RunGreedyInference(inference_options)
           : session->Generate(
                 inference_options.input_token_ids,
                 inference_options.max_generated_tokens,
@@ -327,7 +327,7 @@ gem16gb::Result<TurnOutput> RunTurn(
               << ",\"kv_cache_mode\":"
               << JsonEscape(
                      inference.value().kv_cache_mode ==
-                             gem16gb::KvCacheMode::kCheckpointFp8
+                             gem16::KvCacheMode::kCheckpointFp8
                          ? "checkpoint_fp8"
                          : "bf16_correctness")
               << ",\"benchmark_qualified\":false}\n";
@@ -353,13 +353,13 @@ int ChatMain(int argc, char** argv) {
   }
   const Options options = std::move(parsed).value();
   auto processor =
-      gem16gb::GemmaChatProcessor::Load(options.model_directory);
+      gem16::GemmaChatProcessor::Load(options.model_directory);
   if (!processor.ok()) {
     std::cerr << "error: " << processor.status().message() << '\n';
     return 2;
   }
 
-  std::vector<gem16gb::ChatMessage> messages;
+  std::vector<gem16::ChatMessage> messages;
   if (options.has_system_message) {
     messages.push_back({"system", options.system_message});
   }
@@ -376,7 +376,7 @@ int ChatMain(int argc, char** argv) {
     return 0;
   }
 
-  gem16gb::ConversationSessionOptions session_options;
+  gem16::ConversationSessionOptions session_options;
   session_options.model_directory = options.model_directory;
   session_options.stop_token_ids =
       processor.value().generation_controls().stop_token_ids;
@@ -384,13 +384,13 @@ int ChatMain(int argc, char** argv) {
       processor.value().generation_controls().suppressed_token_ids;
   session_options.max_context_tokens = options.max_context;
   session_options.kv_cache_mode = options.kv_cache_mode;
-  auto session = gem16gb::ConversationSession::Create(session_options);
+  auto session = gem16::ConversationSession::Create(session_options);
   if (!session.ok()) {
     std::cerr << "error: " << session.status().message() << '\n';
     return 2;
   }
 
-  std::cout << "gem16gb resident chat session (/quit to exit)\n"
+  std::cout << "gem16 resident chat session (/quit to exit)\n"
             << "Model weights and the exact conversation KV prefix stay resident.\n";
   ConversationPromptState prompt_state;
   prompt_state.cached_prefix_token_ids.reserve(
@@ -459,7 +459,7 @@ int wmain(int argc, wchar_t** wide_argv) {
   std::vector<std::string> utf8_arguments;
   utf8_arguments.reserve(static_cast<std::size_t>(argc));
   for (int index = 0; index < argc; ++index) {
-    auto converted = gem16gb::cli::WideToUtf8(wide_argv[index]);
+    auto converted = gem16::cli::WideToUtf8(wide_argv[index]);
     if (!converted.has_value()) {
       std::cerr << "error: a command-line argument is not valid Unicode\n";
       return 64;

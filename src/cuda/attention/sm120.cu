@@ -15,9 +15,9 @@
 // The BF16 MMA fragment mapping, XOR shared-memory swizzle, and online-softmax
 // schedule in this file are adapted from NInfer's Apache-2.0
 // gqa_attention_prefill_bf16.cuh. The staging and addressing are rewritten for
-// gem16gb's float Q, physical E4M3 K/V, current-chunk source, and circular cache.
+// gem16's float Q, physical E4M3 K/V, current-chunk source, and circular cache.
 
-namespace gem16gb::internal {
+namespace gem16::internal {
 namespace {
 
 constexpr int kHeadDimension = 256;
@@ -1615,4 +1615,4 @@ Status LaunchOnlineAttentionDecodeFp8Sm120(
              : CudaFailure("launch online FP8 decode attention merge", error);
 }
 
-}  // namespace gem16gb::internal
+}  // namespace gem16::internal

@@ -4,8 +4,8 @@
 #include "cuda/nvfp4/reference.h"
 #include "cuda/nvfp4/sm120.h"
 #include "cuda/nvfp4/sm120_layout.h"
-#include "gem16gb/model.h"
-#include "gem16gb/nvfp4.h"
+#include "gem16/model.h"
+#include "gem16/nvfp4.h"
 #include "platform/mapped_file.h"
 
 #include <cuda_runtime.h>
@@ -23,7 +23,7 @@
 #include <utility>
 #include <vector>
 
-namespace gem16gb::internal {
+namespace gem16::internal {
 namespace {
 
 constexpr char kLayer0MlpBase[] = "model.language_model.layers.0.mlp.";
@@ -429,4 +429,4 @@ Result<Nvfp4CheckpointProbeResult> RunLayer0Nvfp4CheckpointProbe(
   return result;
 }
 
-}  // namespace gem16gb::internal
+}  // namespace gem16::internal

@@ -1,7 +1,7 @@
 # vLLM direct-checkpoint characterization
 
 This is a development characterization of vLLM 0.25.1 loading the pinned
-`unsloth/gemma-4-12b-it-NVFP4` checkpoint directly. It is not an accepted baseline or a gem16gb performance claim.
+`unsloth/gemma-4-12b-it-NVFP4` checkpoint directly. It is not an accepted baseline or a gem16 performance claim.
 
 The run used batch one, BF16 KV cache, no CPU offload, token-ID input, no detokenization, no prefix cache, text-only
 loading, chunked prefill, greedy decoding, CUDA Graphs, three warmups, and ten measured repetitions. vLLM selected

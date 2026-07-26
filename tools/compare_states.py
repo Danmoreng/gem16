@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare two gem16gb layer-state dumps.
+"""Compare two gem16 layer-state dumps.
 
 This is correctness tooling only. The runtime and chat CLI do not depend on
 Python.
@@ -74,7 +74,7 @@ def read_floats(data: bytes, offset: int, elements: int) -> tuple[array, int]:
 def load_state(path: Path) -> StateDump:
     data = path.read_bytes()
     if len(data) < len(MAGIC) + HEADER.size or data[: len(MAGIC)] != MAGIC:
-        raise ValueError(f"{path}: not a gem16gb layer-state dump")
+        raise ValueError(f"{path}: not a gem16 layer-state dump")
     offset = len(MAGIC)
     (
         version,

@@ -1,14 +1,14 @@
-#include "gem16gb/memory.h"
+#include "gem16/memory.h"
 
 #include <iomanip>
 #include <ostream>
 
-#include "gem16gb/model.h"
+#include "gem16/model.h"
 #include "model/config.h"
 #include "runtime/memory_plan.h"
 #include "util/json.h"
 
-namespace gem16gb {
+namespace gem16 {
 
 Result<MemoryPlan> PlanCheckpointMemory(const std::filesystem::path& model_directory,
                                         const MemoryPlanOptions& options) {
@@ -86,4 +86,4 @@ void PrintMemoryPlanSummary(const MemoryPlan& plan, std::ostream& output) {
   output.precision(previous_precision);
 }
 
-}  // namespace gem16gb
+}  // namespace gem16

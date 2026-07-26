@@ -11,7 +11,7 @@
 #define NOMINMAX
 #include <windows.h>
 
-namespace gem16gb::cli {
+namespace gem16::cli {
 
 inline std::optional<std::string> WideToUtf8(std::wstring_view text) {
   if (text.empty()) return std::string{};
@@ -31,6 +31,6 @@ inline std::optional<std::string> WideToUtf8(std::wstring_view text) {
   return result;
 }
 
-}  // namespace gem16gb::cli
+}  // namespace gem16::cli
 
 #endif

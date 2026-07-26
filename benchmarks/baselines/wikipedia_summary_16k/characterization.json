@@ -22,7 +22,7 @@
     "measured_repetitions": 10
   },
   "results": {
-    "gem16gb": {
+    "gem16": {
       "checkpoint": "direct mixed FP8/NVFP4 Hugging Face checkpoint",
       "kv_cache": "checkpoint FP8",
       "prompt_tokens_per_second": {
@@ -226,7 +226,7 @@
     }
   },
   "follow_up": {
-    "gem16gb_after_determinism_fix": {
+    "gem16_after_determinism_fix": {
       "runtime_revision": "a669da6-worktree",
       "change": "Fence shared online-decode reduction results before reuse",
       "prompt_tokens_per_second": {
@@ -274,7 +274,7 @@
   },
   "limitations": [
     "This is not an accepted parity benchmark.",
-    "gem16gb was non-deterministic across nominally greedy runs.",
+    "gem16 was non-deterministic across nominally greedy runs.",
     "llama.cpp maps source FP8 attention weights to BF16 and uses Q8_0 KV.",
     "The engines generated different token counts, so decode trajectories differ.",
     "No continuous power, clock, temperature, or per-token percentile telemetry was captured."

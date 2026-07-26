@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check exact greedy token identity across fresh gem16gb processes."""
+"""Check exact greedy token identity across fresh gem16 processes."""
 
 from __future__ import annotations
 
@@ -143,7 +143,7 @@ def run_once(
     if completed.returncode != 0:
         detail = completed.stderr.strip() or completed.stdout.strip()
         raise DeterminismError(
-            f"gem16gb exited with {completed.returncode}: {detail[-2000:]}"
+            f"gem16 exited with {completed.returncode}: {detail[-2000:]}"
         )
     result = json.loads(completed.stdout)
     tokens = result.get("output_token_ids")
@@ -152,9 +152,9 @@ def run_once(
         or len(tokens) != generated_tokens
         or not all(isinstance(token, int) for token in tokens)
     ):
-        raise DeterminismError("gem16gb returned malformed or short output")
+        raise DeterminismError("gem16 returned malformed or short output")
     if result.get("fallbacks") != 0 or result.get("token_loop_allocations") is not False:
-        raise DeterminismError("gem16gb reported a fallback or token-loop allocation")
+        raise DeterminismError("gem16 reported a fallback or token-loop allocation")
     return result, tokens
 
 
@@ -223,7 +223,7 @@ def main() -> int:
         document = {
             "schema_version": 1,
             "status": "correctness_gate",
-            "engine": "gem16gb",
+            "engine": "gem16",
             "execution_scope": "fresh_process_per_run",
             "configuration": {
                 "kv_cache": "checkpoint_fp8",

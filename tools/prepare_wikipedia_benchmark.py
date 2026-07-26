@@ -69,7 +69,7 @@ def fetch_extract(title: str, revision: int) -> tuple[str, dict[str, Any]]:
     url = f"https://en.wikipedia.org/w/api.php?{parameters}"
     request = urllib.request.Request(
         url,
-        headers={"User-Agent": "gem16gb-benchmark/1.0 (https://github.com/Danmoreng/gem16gb)"},
+        headers={"User-Agent": "gem16-benchmark/1.0 (https://github.com/Danmoreng/gem16)"},
     )
     with urllib.request.urlopen(request, timeout=60) as response:
         document = json.load(response)

@@ -6,9 +6,9 @@
 #include <string_view>
 #include <vector>
 
-#include "gem16gb/status.h"
+#include "gem16/status.h"
 
-namespace gem16gb::internal {
+namespace gem16::internal {
 
 struct TokenizerConfig {
   std::string tokenizer_class;
@@ -38,4 +38,4 @@ struct TokenizerConfig {
     std::span<const std::string> content_close_tokens,
     std::string_view tool_call_start_token);
 
-}  // namespace gem16gb::internal
+}  // namespace gem16::internal

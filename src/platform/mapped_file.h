@@ -5,9 +5,9 @@
 #include <filesystem>
 #include <utility>
 
-#include "gem16gb/status.h"
+#include "gem16/status.h"
 
-namespace gem16gb::internal {
+namespace gem16::internal {
 
 class MappedFile {
  public:
@@ -43,4 +43,4 @@ class MappedFile {
   std::uint64_t size_ = 0;
 };
 
-}  // namespace gem16gb::internal
+}  // namespace gem16::internal

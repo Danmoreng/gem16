@@ -1,6 +1,6 @@
 # Benchmarking
 
-There are no accepted comparative benchmark results yet. `gem16gb-bench decode` now provides a real,
+There are no accepted comparative benchmark results yet. `gem16-bench decode` now provides a real,
 machine-readable batch-one decode characterization; the other end-to-end benchmark modes still return
 `not_implemented` and a non-zero exit code.
 
@@ -12,7 +12,7 @@ first token selected after prompt ingestion is excluded from decode, after which
 greedy-selection, and device-to-host intervals are timed:
 
 ```powershell
-.\build\Windows\blackwell-release\bin\gem16gb-bench.exe decode `
+.\build\Windows\blackwell-release\bin\gem16-bench.exe decode `
   --model .\models\checkpoints\unsloth-gemma-4-12b-it-NVFP4-b1f6497 `
   --context 128 `
   --tokens 256 `
@@ -29,11 +29,11 @@ Native chunked prefill is the only production path. The JSON records `prefill_pa
 a one-run context-128 parity check produced the same output checksum for both paths and reduced TTFT from 5,238.8 ms
 to 1,479.0 ms. This is implementation evidence, not a repeated or accepted performance result.
 
-`gem16gb-bench prefill` reports prompt token/s and TTFT separately with the same warm-up, repetition, raw-run, and
+`gem16-bench prefill` reports prompt token/s and TTFT separately with the same warm-up, repetition, raw-run, and
 confidence-interval policy. For example:
 
 ```powershell
-.\build\Windows\blackwell-release\bin\gem16gb-bench.exe prefill `
+.\build\Windows\blackwell-release\bin\gem16-bench.exe prefill `
   --model .\models\checkpoints\unsloth-gemma-4-12b-it-NVFP4-b1f6497 `
   --context 128 --warmups 3 --repetitions 10
 ```
@@ -77,16 +77,16 @@ shape. The characterization remains development evidence rather than an accepted
 
 The retained real-workload characterization gives all three engines the same 16,384 prompt token IDs from a pinned
 Wikipedia article revision, permits up to 8,192 generated tokens with normal EOS handling, and measures both TTFT
-and the decode intervals after the first token. It uses checkpoint FP8 KV for gem16gb, FP8 KV for vLLM, and Q8_0 KV
+and the decode intervals after the first token. It uses checkpoint FP8 KV for gem16, FP8 KV for vLLM, and Q8_0 KV
 for the patched closest-parity llama.cpp GGUF. The prompt hash, commands, raw samples, confidence intervals, and
 format limitations are recorded under `benchmarks/baselines/wikipedia_summary_16k/`.
 
 At base commit `7d29580`, median prefill throughput is 1,897.37/4,328.03/2,160.83 tok/s for
-gem16gb/vLLM/llama.cpp; median decode is 31.324/33.971/28.843 tok/s. The representative outputs are plausible
-German summaries, but gem16gb produces ten distinct output hashes and lengths across ten nominally greedy runs,
+gem16/vLLM/llama.cpp; median decode is 31.324/33.971/28.843 tok/s. The representative outputs are plausible
+German summaries, but gem16 produces ten distinct output hashes and lengths across ten nominally greedy runs,
 while vLLM and llama.cpp are stable. The result therefore remains a development characterization and records a
 determinism/correctness issue. The underlying shared-memory reduction race was subsequently fixed, but the retained
-comparison is not rewritten. A same-workload gem16gb-only follow-up after the fix measures 1,892.37 tok/s prefill
+comparison is not rewritten. A same-workload gem16-only follow-up after the fix measures 1,892.37 tok/s prefill
 and 31.216 tok/s decode, changes of -0.26% and -0.34% from the original medians. All ten runs now generate the
 same 1,106-token output, share one hash, and stop normally. The decode-only barrier cannot explain the similarly
 sized prefill shift, so the sub-percent decode delta is conservatively treated as barrier cost plus run-to-run

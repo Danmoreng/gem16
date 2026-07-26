@@ -5,9 +5,9 @@
 
 #include <cuda_runtime_api.h>
 
-#include "gem16gb/status.h"
+#include "gem16/status.h"
 
-namespace gem16gb::internal {
+namespace gem16::internal {
 
 // CUTLASS SM120 block-scaled MMA consumes scale factors in a padded 128x4
 // interleave. This conversion writes only to the caller-owned prefill arena.
@@ -38,4 +38,4 @@ namespace gem16gb::internal {
     float weight_global_divisor,
     cudaStream_t stream);
 
-}  // namespace gem16gb::internal
+}  // namespace gem16::internal

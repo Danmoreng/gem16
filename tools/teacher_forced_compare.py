@@ -318,7 +318,7 @@ def main() -> int:
             logits_directory.mkdir(parents=True, exist_ok=True)
             temporary: tempfile.TemporaryDirectory[str] | None = None
         else:
-            temporary = tempfile.TemporaryDirectory(prefix="gem16gb-logits-")
+            temporary = tempfile.TemporaryDirectory(prefix="gem16-logits-")
             logits_directory = Path(temporary.name)
 
         try:

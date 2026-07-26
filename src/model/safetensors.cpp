@@ -10,7 +10,7 @@
 #include "platform/mapped_file.h"
 #include "util/json.h"
 
-namespace gem16gb::internal {
+namespace gem16::internal {
 namespace {
 
 constexpr std::uint64_t kMaxHeaderBytes = 256U * 1024U * 1024U;
@@ -206,4 +206,4 @@ Result<std::vector<StoredTensor>> LoadSafetensorsDirectory(const std::filesystem
   return result;
 }
 
-}  // namespace gem16gb::internal
+}  // namespace gem16::internal

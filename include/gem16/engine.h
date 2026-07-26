@@ -8,9 +8,9 @@
 #include <span>
 #include <vector>
 
-#include "gem16gb/status.h"
+#include "gem16/status.h"
 
-namespace gem16gb {
+namespace gem16 {
 
 void PrintKernelCapabilities(std::ostream& output);
 
@@ -178,4 +178,4 @@ struct DecodeBenchmarkResult {
 [[nodiscard]] Status WritePrefillBenchmarkJson(const DecodeBenchmarkResult& result,
                                                std::ostream& output);
 
-}  // namespace gem16gb
+}  // namespace gem16
