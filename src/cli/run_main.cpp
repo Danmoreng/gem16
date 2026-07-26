@@ -1,6 +1,8 @@
 #include <charconv>
 #include <cstdint>
+#include <fstream>
 #include <iostream>
+#include <iterator>
 #include <limits>
 #include <string>
 #include <string_view>
@@ -33,11 +35,20 @@ bool ParseTokenIds(std::string_view text, std::vector<std::uint32_t>& tokens) {
   return !tokens.empty();
 }
 
+bool ParseTokenIdsFile(std::string_view path, std::vector<std::uint32_t>& tokens) {
+  std::ifstream input(std::string(path), std::ios::binary);
+  if (!input) return false;
+  const std::string text{std::istreambuf_iterator<char>(input),
+                         std::istreambuf_iterator<char>()};
+  return !input.bad() && ParseTokenIds(text, tokens);
+}
+
 void PrintUsage() {
   std::cout
       << "Usage:\n"
       << "  gem16gb-run --print-kernel-capabilities\n"
       << "  gem16gb-run --model <checkpoint> --input-token-ids <id,id,...>\n"
+      << "              [--input-token-ids-file <comma-separated-token-file>]\n"
       << "              [--teacher-forced-token-ids <id,id,...>]\n"
       << "              [--stop-token-ids <id,id,...>]\n"
       << "              [--suppress-token-ids <id,id,...>]\n"
@@ -69,8 +80,18 @@ int main(int argc, char** argv) {
     if (argument == "--model" && index + 1 < argc) {
       options.model_directory = argv[++index];
     } else if (argument == "--input-token-ids" && index + 1 < argc) {
-      if (!ParseTokenIds(argv[++index], options.input_token_ids)) {
-        std::cerr << "error: --input-token-ids must be a comma-separated unsigned list\n";
+      if (!options.input_token_ids.empty() ||
+          !ParseTokenIds(argv[++index], options.input_token_ids)) {
+        std::cerr << "error: --input-token-ids must be a comma-separated unsigned "
+                     "list and cannot be combined with --input-token-ids-file\n";
+        return 64;
+      }
+    } else if (argument == "--input-token-ids-file" && index + 1 < argc) {
+      if (!options.input_token_ids.empty() ||
+          !ParseTokenIdsFile(argv[++index], options.input_token_ids)) {
+        std::cerr << "error: --input-token-ids-file must name a readable "
+                     "comma-separated unsigned list and cannot be combined with "
+                     "--input-token-ids\n";
         return 64;
       }
     } else if (argument == "--max-tokens" && index + 1 < argc) {

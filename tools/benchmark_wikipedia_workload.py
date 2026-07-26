@@ -236,15 +236,16 @@ def summarize_runs(runs: list[dict[str, Any]]) -> dict[str, Any]:
 def run_gem16gb(
     executable: Path,
     model: Path,
-    prompt: list[int],
+    prompt_file: Path,
+    prompt_tokens: int,
     generation: dict[str, Any],
 ) -> tuple[dict[str, Any], list[int]]:
     command = [
         str(executable),
         "--model",
         str(model),
-        "--input-token-ids",
-        ",".join(str(token) for token in prompt),
+        "--input-token-ids-file",
+        str(prompt_file),
         "--stop-token-ids",
         ",".join(str(token) for token in generation["stop_token_ids"]),
         "--suppress-token-ids",
@@ -254,7 +255,7 @@ def run_gem16gb(
         "--max-tokens",
         str(generation["max_new_tokens"]),
         "--max-context",
-        str(len(prompt) + generation["max_new_tokens"]),
+        str(prompt_tokens + generation["max_new_tokens"]),
         "--greedy",
     ]
     completed = subprocess.run(command, check=False, capture_output=True, text=True)
@@ -272,7 +273,7 @@ def run_gem16gb(
     if result.get("fallbacks") != 0 or result.get("token_loop_allocations") is not False:
         raise BenchmarkError("gem16gb reported a fallback or token-loop allocation")
     run = metric_run(
-        len(prompt),
+        prompt_tokens,
         output_tokens,
         float(result["prompt_ms"]),
         float(result["decode_ms"]),
@@ -444,11 +445,22 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
             raise BenchmarkError("gem16gb requires --model and --executable")
         model = args.model.resolve(strict=True)
         executable = args.executable.resolve(strict=True)
+        prompt_file = args.output.with_suffix(".prompt-token-ids.txt").resolve()
+        prompt_file.parent.mkdir(parents=True, exist_ok=True)
+        prompt_file.write_text(
+            ",".join(str(token) for token in prompt), encoding="ascii"
+        )
 
         def run_once() -> tuple[dict[str, Any], list[int]]:
-            return run_gem16gb(executable, model, prompt, generation)
+            return run_gem16gb(
+                executable, model, prompt_file, len(prompt), generation
+            )
 
-        runtime = {"executable": str(executable), "checkpoint": str(model)}
+        runtime = {
+            "executable": str(executable),
+            "checkpoint": str(model),
+            "prompt_token_file": str(prompt_file),
+        }
         configuration = {"kv_cache": "checkpoint_fp8"}
     elif args.engine == "vllm":
         if args.model is None:
