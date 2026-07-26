@@ -41,6 +41,14 @@ struct DecodeControl {
     std::uint64_t vectors, std::uint64_t width, float epsilon,
     const std::uint16_t* scalar_bf16, cudaStream_t stream);
 
+// Equivalent boundary for a projection that already materialized BF16 rather
+// than BF16 values expanded into FP32 workspace slots.
+[[nodiscard]] Status LaunchRmsNormResidualBf16Input(
+    const std::uint16_t* input_bf16, const std::uint16_t* weight_bf16,
+    const float* residual, float* normalized_output, float* output,
+    std::uint64_t vectors, std::uint64_t width, float epsilon,
+    const std::uint16_t* scalar_bf16, cudaStream_t stream);
+
 [[nodiscard]] Status LaunchRotaryEmbedding(float* states,
                                            std::uint64_t heads,
                                            std::uint64_t head_dimension,

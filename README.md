@@ -23,9 +23,9 @@ approximately 16 GB of VRAM. The first model is the mixed FP8/NVFP4
   their final arena allocation. A complete real-checkpoint Layer-0 characterization composes FP8 local attention
   and the NVFP4 MLP without a host roundtrip or persistent second copy.
 - Direct-source packed-NVFP4 SIMT/GEMV and combined Gate/Up projection alternatives remain available only in
-  characterization probes. Production prefill runs separate Gate and Up CUTLASS SM120 block-scaled Tensor-Core
-  projections, then fuses their exact BF16, GELU-tanh, and NVFP4-activation boundary. Down and decode retain their
-  separately qualified native Row8/K64 plans.
+  characterization probes. Production prefill runs Gate, Up, and Down through CUTLASS SM120 block-scaled
+  Tensor-Core projections, with exact BF16/GELU-tanh/NVFP4 boundaries between them. Decode retains its separately
+  qualified native Row8/K64 plan.
 - Prefill rounds Q/K projection values, performs per-head RMSNorm, applies local or proportional RoPE, and rounds
   the result in one exact kernel. Local/global cosine and sine tables are generated once for the planned context at
   engine initialization and reused by every layer; there is no runtime selector or per-layer trigonometry.
@@ -264,15 +264,14 @@ Prompt ingestion uses one native 2,048-token chunk plan for checkpoint-FP8 execu
 use 256-thread M128xN64xK64 CTAs: two shared-memory stages copy exact source-layout activation and weight bytes with
 `cp.async`, while each weight fragment serves eight 16-token MMA tiles. Local Q/K/V and global Q/K are grouped into
 one launch; O uses the same tiled kernel after attention. Decode likewise groups the existing T=1 direct-source
-Q/K/V CTAs into one binding-dimension launch per layer. Gate and Up use CUTLASS SM120 128x128x128
-warp-specialized block-scaled GEMMs. Their compact activation scales are interleaved once per layer, while one
-projection at a time is transformed from the persistent Row8/K64 layout into preallocated row-major weight and
-CUTLASS scale scratch. Down retains the native M128xN64xK64 CTA and its two-stage `cp.async` pipeline. Weight
-scales use the sole persistent
+Q/K/V CTAs into one binding-dimension launch per layer. Gate, Up, and Down use CUTLASS SM120 128x128x128
+warp-specialized block-scaled GEMMs. Compact activation scales are interleaved once per projection boundary, while
+one projection at a time is transformed from the persistent Row8/K64 layout into preallocated row-major weight and
+CUTLASS scale scratch. Weight scales use the sole persistent
 `[row8][K64][row][4 scales]` runtime layout. Packed weights likewise use
 `[row8][K64][row][32 packed bytes]`. Both are created byte-exactly in the final GPU allocation during model load,
-with no persistent source-layout device copy; the temporary Gate/Up transform is included in prefill timing and
-reused immediately. Shape-specific
+with no persistent source-layout device copy; each temporary prefill transform is included in timing and its
+scratch is reused immediately. Shape-specific
 local D256 and global D512 attention kernels perform QK and PV on
 Tensor Cores while retaining FP32 online-softmax state, reading older K/V from the hybrid cache, and avoiding a
 global score matrix. Local CTAs share K/V across two query heads; global CTAs share it across four. For 2K chunks,

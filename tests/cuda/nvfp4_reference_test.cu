@@ -528,15 +528,14 @@ float RoundBf16Reference(float value) {
 }
 
 void TestCutlassSm120Projection() {
-  constexpr std::size_t tokens = 2048;
-  constexpr std::size_t rows = 128;
-  constexpr std::size_t k_size = 3840;
+  const auto run_case = [](std::size_t tokens, std::size_t rows,
+                           std::size_t k_size, const char* label) {
   constexpr float activation_divisor = 2.0F;
   constexpr float weight_divisor = 4.0F;
-  constexpr std::size_t packed_elements = tokens * k_size / 2U;
-  constexpr std::size_t activation_scale_elements = tokens * k_size / 16U;
-  constexpr std::size_t packed_weight_elements = rows * k_size / 2U;
-  constexpr std::size_t weight_scale_elements = rows * k_size / 16U;
+  const std::size_t packed_elements = tokens * k_size / 2U;
+  const std::size_t activation_scale_elements = tokens * k_size / 16U;
+  const std::size_t packed_weight_elements = rows * k_size / 2U;
+  const std::size_t weight_scale_elements = rows * k_size / 16U;
   constexpr std::size_t workspace_bytes = 8U * 1024U * 1024U;
 
   std::vector<std::uint8_t> activation(packed_elements);
@@ -667,10 +666,12 @@ void TestCutlassSm120Projection() {
                              << 16U);
     exact_mismatches += reference_bits[index] != cutlass_bits[index] ? 1U : 0U;
   }
-  std::cout << "CUTLASS NVFP4 exact BF16 mismatches: " << exact_mismatches
-            << '/' << reference.size() << '\n';
-  CheckAttentionMetrics(reference, cutlass, "CUTLASS NVFP4 projection",
-                        0.125F, 0.02, 0.9999);
+  std::cout << label << " exact BF16 mismatches: " << exact_mismatches << '/'
+            << reference.size() << '\n';
+  CheckAttentionMetrics(reference, cutlass, label, 0.125F, 0.02, 0.9999);
+  };
+  run_case(2048U, 128U, 3840U, "CUTLASS NVFP4 Gate/Up projection");
+  run_case(128U, 3840U, 15360U, "CUTLASS NVFP4 Down projection");
 }
 
 void TestMlpElementwiseBridge() {
@@ -1357,15 +1358,30 @@ void TestLocalLayerReferenceOperators() {
 
   constexpr std::array<float, norm_input.size()> norm_residual = {
       0.25F, -0.5F, 0.75F, -1.0F, 1.25F, -1.5F, 1.75F, -2.0F};
+  std::array<std::uint16_t, norm_input.size()> norm_input_bf16{};
+  for (std::size_t index = 0; index < norm_input.size(); ++index) {
+    norm_input_bf16[index] = static_cast<std::uint16_t>(
+        std::bit_cast<std::uint32_t>(norm_input[index]) >> 16U);
+  }
   constexpr std::uint16_t norm_layer_scalar_bf16 = 0x3FC0U;
+  DeviceBuffer<std::uint16_t> device_norm_input_bf16(norm_input_bf16.size());
   DeviceBuffer<float> device_norm_residual(norm_residual.size());
   DeviceBuffer<float> device_norm_reference_final(norm_residual.size());
   DeviceBuffer<float> device_norm_fused_final(norm_residual.size());
+  DeviceBuffer<float> device_norm_bf16_input_normalized(norm_residual.size());
+  DeviceBuffer<float> device_norm_bf16_input_final(norm_residual.size());
   DeviceBuffer<std::uint16_t> device_norm_layer_scalar(1);
-  if (device_norm_residual.get() == nullptr ||
+  if (device_norm_input_bf16.get() == nullptr ||
+      device_norm_residual.get() == nullptr ||
       device_norm_reference_final.get() == nullptr ||
       device_norm_fused_final.get() == nullptr ||
+      device_norm_bf16_input_normalized.get() == nullptr ||
+      device_norm_bf16_input_final.get() == nullptr ||
       device_norm_layer_scalar.get() == nullptr ||
+      !CudaOk(cudaMemcpy(device_norm_input_bf16.get(), norm_input_bf16.data(),
+                         device_norm_input_bf16.bytes(),
+                         cudaMemcpyHostToDevice),
+              "copy BF16 RMSNorm input") ||
       !CudaOk(cudaMemcpy(device_norm_residual.get(), norm_residual.data(),
                          device_norm_residual.bytes(), cudaMemcpyHostToDevice),
               "copy RMSNorm residual") ||
@@ -1384,13 +1400,23 @@ void TestLocalLayerReferenceOperators() {
           device_norm_input.get(), device_norm_weight.get(),
           device_norm_residual.get(), device_norm_fused_output.get(),
           device_norm_fused_final.get(), 2, 4, 1.0e-6F, nullptr, nullptr);
+  const auto bf16_input_residual_status =
+      gem16gb::internal::LaunchRmsNormResidualBf16Input(
+          device_norm_input_bf16.get(), device_norm_weight.get(),
+          device_norm_residual.get(), device_norm_bf16_input_normalized.get(),
+          device_norm_bf16_input_final.get(), 2, 4, 1.0e-6F, nullptr,
+          nullptr);
   CUDA_TEST_CHECK(residual_status.ok());
   CUDA_TEST_CHECK(fused_residual_status.ok());
+  CUDA_TEST_CHECK(bf16_input_residual_status.ok());
   if (!residual_status.ok() || !fused_residual_status.ok() ||
+      !bf16_input_residual_status.ok() ||
       !CudaOk(cudaGetLastError(), "launch comparison residual BF16 rounding") ||
       !CudaOk(cudaDeviceSynchronize(), "fused RMSNorm residual synchronize")) return;
   std::array<float, norm_input.size()> gpu_norm_reference_final{};
   std::array<float, norm_input.size()> gpu_norm_fused_final{};
+  std::array<float, norm_input.size()> gpu_norm_bf16_input_normalized{};
+  std::array<float, norm_input.size()> gpu_norm_bf16_input_final{};
   if (!CudaOk(cudaMemcpy(gpu_norm_fused.data(), device_norm_fused_output.get(),
                          device_norm_fused_output.bytes(), cudaMemcpyDeviceToHost),
               "copy fused RMSNorm residual norm") ||
@@ -1402,9 +1428,21 @@ void TestLocalLayerReferenceOperators() {
       !CudaOk(cudaMemcpy(gpu_norm_fused_final.data(),
                          device_norm_fused_final.get(),
                          device_norm_fused_final.bytes(), cudaMemcpyDeviceToHost),
-              "copy fused RMSNorm residual output")) return;
+              "copy fused RMSNorm residual output") ||
+      !CudaOk(cudaMemcpy(gpu_norm_bf16_input_normalized.data(),
+                         device_norm_bf16_input_normalized.get(),
+                         device_norm_bf16_input_normalized.bytes(),
+                         cudaMemcpyDeviceToHost),
+              "copy BF16-input RMSNorm normalized output") ||
+      !CudaOk(cudaMemcpy(gpu_norm_bf16_input_final.data(),
+                         device_norm_bf16_input_final.get(),
+                         device_norm_bf16_input_final.bytes(),
+                         cudaMemcpyDeviceToHost),
+              "copy BF16-input RMSNorm residual output")) return;
   CUDA_TEST_CHECK(gpu_norm_rounded == gpu_norm_fused);
   CUDA_TEST_CHECK(gpu_norm_reference_final == gpu_norm_fused_final);
+  CUDA_TEST_CHECK(gpu_norm_fused == gpu_norm_bf16_input_normalized);
+  CUDA_TEST_CHECK(gpu_norm_fused_final == gpu_norm_bf16_input_final);
 
   const auto scalar_status = gem16gb::internal::LaunchScale(
       device_norm_reference_final.get(), device_norm_layer_scalar.get(),

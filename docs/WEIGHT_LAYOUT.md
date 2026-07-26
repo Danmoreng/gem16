@@ -21,9 +21,9 @@ For an eight-output-row by K64 tile, lane `l` owns row `l / 4` and K quarter `l 
 registers are little-endian 32-bit loads at packed offsets `(l % 4) * 4` and `16 + (l % 4) * 4` within that row.
 The eight row fragments required by a warp now occupy one contiguous 256-byte region instead of eight locations
 separated by a full source row. The corresponding eight scale-vector words occupy one contiguous 32-byte region.
-This is the sole persistent runtime layout used directly by decode and native Down prefill. Gate and Up prefill
-derive one temporary CUTLASS operand view at a time in the preallocated prompt arena, reuse that scratch
-immediately, and retain no second persistent layout.
+This is the sole persistent runtime layout used directly by decode. Gate, Up, and Down prefill derive one
+temporary CUTLASS operand view at a time in the preallocated prompt arena, reuse that scratch immediately, and
+retain no second persistent layout.
 
 The loader transforms bounded groups of row tiles into a reusable host staging vector of at most 4 MiB and copies
 each group directly to its final weight-arena address. It never uploads a raw NVFP4 tensor and therefore never
@@ -41,8 +41,9 @@ The layout contract is tested at three levels:
 On the Linux RTX 5080 Laptop characterization machine, the persistent Row8/K64 promotion improved the
 8K-context/64-token decode median from 31.604 to 33.143 tok/s (+4.87%) under the same 1-warm-up/3-run policy.
 The later temporary CUTLASS Gate/Up view improved the 8K prefill median from 2,135.93 to 2,584.77 tok/s (+21.0%)
-and median TTFT from 3,835.33 to 3,169.34 ms (-17.4%). These are development characterizations, not qualified
-cross-engine benchmark claims.
+and median TTFT from 3,835.33 to 3,169.34 ms (-17.4%). Extending that view to Down then improved an adjacent
+3-warm-up/10-run median from 2,594.28 to 2,910.53 tok/s (+12.19%) and TTFT from 3,157.72 to 2,814.61 ms
+(-10.87%). These are development characterizations, not qualified cross-engine benchmark claims.
 
 The source ordering survives only in CPU/CUDA reference and SIMT probes. Runtime JSON reports
 `weight_layout=sm120_row8_k64`, `weight_scale_layout=sm120_row8_k64`,

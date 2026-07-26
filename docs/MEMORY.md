@@ -47,10 +47,11 @@ crosses the first local-ring wrap in full-model execution.
 
 The native prefill arena is allocated once during engine initialization. Checkpoint-FP8 execution holds one fixed
 2,048-token hidden/projection/MLP tile and no causal score matrix: local and global SM120 attention maintain online
-softmax state inside their CTAs. Gate and Up additionally share preallocated temporary storage for one row-major
+softmax state inside their CTAs. Gate, Up, and Down additionally share preallocated temporary storage for one row-major
 packed weight (29,491,200 bytes), its CUTLASS-interleaved scales (3,686,400 bytes), padded activation scales, and
-an 8 MiB CUTLASS workspace. The 8K execution plan measures 672,333,824 reusable workspace bytes versus
-630,276,096 before this path, an increase of 42,057,728 bytes. Persistent weights, KV storage, and
+an 8 MiB CUTLASS workspace. Accommodating Down's 15,360-element contracting dimension enlarges the reusable
+activation-scale view by 1,474,560 bytes. The 8K execution plan measures 673,808,384 reusable workspace bytes
+versus 630,276,096 before CUTLASS prefill, an increase of 43,532,288 bytes. Persistent weights, KV storage, and
 `persistent_repack_bytes=0` are unchanged. The explicit BF16 correctness mode still uses the scalar attention
 oracle and therefore retains the context-budgeted score matrix and deterministic 512 MiB score-budget selector.
 The selected chunk size is reported in every inference result and never changes inside prompt processing.

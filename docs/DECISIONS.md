@@ -1,5 +1,29 @@
 # Decisions
 
+## 2026-07-26: Extend CUTLASS block-scaled GEMM to Down prefill
+
+Date: 2026-07-26
+Decision: Run Down through the same CUTLASS 4.5.2 SM120 128x128x128 block-scaled GEMM used by Gate and Up.
+Interleave the newly quantized Down-input scales for its 15,360-element contracting dimension, transform the
+active Down weight into the existing preallocated CUTLASS scratch, write BF16 directly into the projection
+buffer, and consume that buffer in the fused residual/RMSNorm boundary. Keep the native Row8/K64 path for
+token-at-a-time decode.
+Context: After promoting Gate/Up, adjacent Nsight attribution placed native Down at 16.1% of 8K profiled kernel
+time, versus 7.8% for both CUTLASS Gate and Up together. The real Down shape therefore had enough work to amortize
+the in-arena layout conversion, while the decode-optimal persistent layout still could not be replaced globally.
+Alternatives: Retain native Down; keep a persistent second CUTLASS layout; or convert Down back through FP32 before
+the next boundary. The first leaves a measured bottleneck, the second violates the single-copy contract, and the
+third adds traffic with no numerical benefit.
+Consequences: The weight, weight-scale, and CUTLASS workspace scratch already fit Down. Only the padded
+activation-scale view grows by 1,474,560 bytes, taking the 8K reusable workspace from 672,333,824 to 673,808,384
+bytes. Persistent weights remain 9,200,135,680 bytes, `persistent_repack_bytes` remains zero, and decode is
+unchanged.
+Evidence: The real 128x3,840x15,360 Down fixture has zero BF16 mismatches across 491,520 outputs. Under 3 warm-ups
+and 10 measured 8K runs, the adjacent median improves from 2,594.28 to 2,910.53 tok/s (+12.19%) and TTFT from
+3,157.72 to 2,814.61 ms (-10.87%), with a 95% throughput CI of `[2,904.41, 2,915.00]`. CUDA tests, exact-blue,
+vLLM boundary Top-1 at 129/257, and teacher-forced 121/127 Top-1 plus 127/127 Top-5/Top-20 pass. Three 8K decode
+runs retain one checksum and a 32.661 tok/s median.
+
 ## 2026-07-26: Use CUTLASS SM120 block-scaled GEMM for Gate/Up prefill
 
 Date: 2026-07-26

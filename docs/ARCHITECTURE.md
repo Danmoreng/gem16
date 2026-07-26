@@ -44,12 +44,10 @@ absolute, growing storage. Checkpoint-FP8 prefill uses one fixed 2,048-token chu
 256-thread M128xN64xK64 FP8 CTAs with two exact `cp.async` stages for source-layout activations and weights; local
 Q/K/V and global Q/K share one grouped launch. Decode uses the same binding-dimension grouping around the
 latency-oriented T=1 direct-source kernel, reducing three independent graph nodes to one while retaining each
-projection's original CTAs and MMA ordering. Gate/Up prefill uses CUTLASS SM120 block-scaled GEMM over a temporary
-arena view, while native Down prefill reuses each NVFP4 Row8/K64 weight fragment across eight consecutive 16-token
-MMA tiles in an M128xN64 CTA. Its two shared-memory stages transfer exact packed activation bytes and E4M3 scale
-words with `cp.async`, overlapping the next K64 slice with the current MMA stack. Packed E2M1 weights and their
+projection's original CTAs and MMA ordering. Gate, Up, and Down prefill use CUTLASS SM120 block-scaled GEMM over a
+temporary arena view. Packed E2M1 weights and their
 E4M3 scales are transformed byte-exactly into the sole final Row8/K64 device layout at model load; no raw GPU copy
-survives. This replaces strided per-row decode/Down weight loads without changing any nibble, scale, global
+survives. This replaces strided per-row decode weight loads without changing any nibble, scale, global
 divisor, or FP32 K accumulation. It evaluates local D256 and global D512
 causal attention with shape-specific online Tensor-Core kernels. Those
 kernels stage current-chunk K/V directly, read older positions from the circular or growing cache, retain row max,
@@ -109,19 +107,20 @@ physical E4M3 K/V bytes and checkpoint BF16 scales without a persistent conversi
 current chunk may exceed the local 1,024-token ring because current K/V is read directly; only the newest
 1,024-token suffix is committed after attention, avoiding concurrent modulo-aliasing writes.
 
-Gate and Up prefill use CUTLASS 4.5.2 SM120 block-scaled Tensor-Core GEMMs with a 128x128x128 thread-block tile,
+Gate, Up, and Down prefill use CUTLASS 4.5.2 SM120 block-scaled Tensor-Core GEMMs with a 128x128x128 thread-block tile,
 automatic TMA/warp-specialized schedule, and BF16 output. CUTLASS consumes a different operand layout from the
 decode-optimized persistent allocation: compact activation scales are converted once per layer into its padded
 128x4 interleave, and one active projection is converted from Row8/K64 into preallocated row-major packed-weight
-and interleaved-scale scratch. Gate and Up reuse the same scratch sequentially. The conversion and GEMM are both
-inside measured prompt processing; there is no allocation, persistent second weight copy, or disk conversion.
+and interleaved-scale scratch. All three projections reuse the same scratch sequentially; Down's larger contracting
+dimension also reuses an enlarged activation-scale view. The conversion and GEMM are both inside measured prompt
+processing; there is no allocation, persistent second weight copy, or disk conversion. Down writes BF16 directly
+into the projection buffer, which the fused residual/RMSNorm boundary consumes without an intervening FP32 round
+kernel.
 
-Down prefill and all decode projections retain the native 256-thread M128xN64xK64 / T=1 implementations over the
-sole persistent `[8 output rows][K64 block][row]` weight and scale allocation. The native batch kernel's two shared
-activation stages are a temporary 9,216-byte kernel payload; it uses 128 registers and 10,240 total static shared
-bytes including toolchain overhead. The decode kernel uses 40 registers. Both have zero stack/local memory. All
-layout transformations preserve every packed value and scale byte, leave the 9,200,135,680-byte weight arena
-unchanged, and are mandatory rather than selectable.
+All decode projections retain the native T=1 implementation over the sole persistent
+`[8 output rows][K64 block][row]` weight and scale allocation. The decode kernel uses 40 registers and zero
+stack/local memory. All layout transformations preserve every packed value and scale byte, leave the
+9,200,135,680-byte weight arena unchanged, and are mandatory rather than selectable.
 
 Prefill materializes no redundant normalized or MLP-product tensor solely to cross a quantization boundary.
 Shape-specific kernels combine RMSNorm with the exact BF16 cast and dynamic FP8/NVFP4 token quantizer, combine

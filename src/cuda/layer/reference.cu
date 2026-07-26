@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <limits>
 #include <string>
+#include <type_traits>
 #include <utility>
 
 namespace gem16gb::internal {
@@ -71,8 +72,18 @@ __global__ void RmsNormKernel(const float* input, const std::uint16_t* weight,
   }
 }
 
+template <typename Input>
+__device__ float LoadBoundaryValue(const Input* input, std::uint64_t index) {
+  if constexpr (std::is_same_v<Input, std::uint16_t>) {
+    return static_cast<float>(__ushort_as_bfloat16(input[index]));
+  } else {
+    return input[index];
+  }
+}
+
+template <typename Input>
 __global__ void RmsNormResidualBf16Kernel(
-    const float* input, const std::uint16_t* weight, const float* residual,
+    const Input* input, const std::uint16_t* weight, const float* residual,
     float* normalized_output, float* output, std::uint64_t width,
     float epsilon, const std::uint16_t* scalar) {
   const std::uint64_t vector = blockIdx.x;
@@ -80,7 +91,7 @@ __global__ void RmsNormResidualBf16Kernel(
   float squared_sum = 0.0F;
   for (std::uint64_t index = threadIdx.x; index < width;
        index += blockDim.x) {
-    const float value = input[base + index];
+    const float value = LoadBoundaryValue(input, base + index);
     squared_sum = fmaf(value, value, squared_sum);
   }
   const float inverse_rms =
@@ -96,7 +107,7 @@ __global__ void RmsNormResidualBf16Kernel(
             ? 1.0F
             : static_cast<float>(__ushort_as_bfloat16(weight[index]));
     const float normalized = static_cast<float>(__float2bfloat16_rn(
-        input[base + index] * inverse_rms * norm_scale));
+        LoadBoundaryValue(input, base + index) * inverse_rms * norm_scale));
     if (normalized_output != nullptr) {
       normalized_output[base + index] = normalized;
     }
@@ -923,14 +934,39 @@ Status LaunchRmsNormResidualBf16(
       epsilon <= 0.0F || !ValidGrid(vectors)) {
     return Invalid("fused RMSNorm residual geometry or epsilon is invalid");
   }
-  RmsNormResidualBf16Kernel<<<static_cast<unsigned>(vectors), kThreads, 0,
-                              stream>>>(
+  RmsNormResidualBf16Kernel<float>
+      <<<static_cast<unsigned>(vectors), kThreads, 0, stream>>>(
       input, weight_bf16, residual, normalized_output, output, width, epsilon,
       scalar_bf16);
   const cudaError_t error = cudaGetLastError();
   return error == cudaSuccess
              ? Status::Ok()
              : CudaFailure("launch fused RMSNorm residual", error);
+}
+
+Status LaunchRmsNormResidualBf16Input(
+    const std::uint16_t* input_bf16, const std::uint16_t* weight_bf16,
+    const float* residual, float* normalized_output, float* output,
+    std::uint64_t vectors, std::uint64_t width, float epsilon,
+    const std::uint16_t* scalar_bf16, cudaStream_t stream) {
+  if (input_bf16 == nullptr || residual == nullptr || output == nullptr) {
+    return Invalid(
+        "fused BF16-input RMSNorm residual requires non-null input, residual, "
+        "and output");
+  }
+  if (vectors == 0U || width == 0U || !std::isfinite(epsilon) ||
+      epsilon <= 0.0F || !ValidGrid(vectors)) {
+    return Invalid(
+        "fused BF16-input RMSNorm residual geometry or epsilon is invalid");
+  }
+  RmsNormResidualBf16Kernel<std::uint16_t>
+      <<<static_cast<unsigned>(vectors), kThreads, 0, stream>>>(
+          input_bf16, weight_bf16, residual, normalized_output, output, width,
+          epsilon, scalar_bf16);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("launch fused BF16-input RMSNorm residual", error);
 }
 
 Status LaunchRotaryEmbedding(float* states, std::uint64_t heads,

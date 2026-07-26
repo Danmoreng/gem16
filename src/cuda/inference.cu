@@ -972,16 +972,6 @@ Status LaunchFp8QkvProjectionBatch(
       q_binding.contracting, stream);
 }
 
-Status LaunchNvfp4ProjectionBatch(
-    const std::uint8_t* activation, const std::uint8_t* scales,
-    const Nvfp4Binding& binding, float* output, std::uint64_t tokens,
-    cudaStream_t stream) {
-  return internal::LaunchNvfp4Sm120DirectProjectionBatch(
-      activation, scales, binding.packed_weight, binding.scales, output, tokens,
-      binding.rows, binding.contracting, binding.input_divisor,
-      binding.weight_divisor, stream);
-}
-
 class InferenceEngine {
  public:
   InferenceEngine() = default;
@@ -1403,7 +1393,7 @@ class InferenceEngine {
         ((tokens + kCutlassScaleRows - 1U) / kCutlassScaleRows) *
         kCutlassScaleRows;
     GEM16GB_PREFILL_ADD(cutlass_activation_scales, std::uint8_t,
-                        cutlass_tokens * kHidden / 16U);
+                        cutlass_tokens * kIntermediate / 16U);
     GEM16GB_PREFILL_ADD(cutlass_weight, std::uint8_t,
                         kIntermediate * kHidden / 2U);
     GEM16GB_PREFILL_ADD(cutlass_weight_scales, std::uint8_t,
@@ -1578,13 +1568,20 @@ class InferenceEngine {
         gate, up, down_packed, down_scales, tokens * kIntermediate,
         layer.down.input_divisor, stream_);
     if (!status.ok()) return status;
-    status = LaunchNvfp4ProjectionBatch(down_packed, down_scales, layer.down,
-                                        projection, tokens, stream_);
+    status = internal::LaunchNvfp4CutlassInterleaveActivationScales(
+        down_scales, cutlass_activation_scales, tokens, kIntermediate,
+        stream_);
     if (!status.ok()) return status;
-    status = LaunchRoundBf16(projection, hidden_elements, stream_);
+    auto* down_bf16 = reinterpret_cast<std::uint16_t*>(projection);
+    status = internal::LaunchNvfp4CutlassProjectionBf16Batch(
+        down_packed, cutlass_activation_scales, layer.down.packed_weight,
+        layer.down.scales, cutlass_weight, cutlass_weight_scales,
+        cutlass_workspace, kCutlassWorkspaceBytes, down_bf16, tokens,
+        layer.down.rows, layer.down.contracting, layer.down.input_divisor,
+        layer.down.weight_divisor, stream_);
     if (!status.ok()) return status;
-    return internal::LaunchRmsNormResidualBf16(
-        projection, layer.post_mlp_norm, hidden_b, nullptr, hidden_a, tokens,
+    return internal::LaunchRmsNormResidualBf16Input(
+        down_bf16, layer.post_mlp_norm, hidden_b, nullptr, hidden_a, tokens,
         kHidden, kEpsilon, layer.layer_scalar, stream_);
   }
 
@@ -2835,7 +2832,7 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
          << "  \"fp8_prefill_tile\": \"m128n64k64\",\n"
          << "  \"nvfp4_gate_up_prefill_tile\": \"cutlass_m128n128k128\",\n"
          << "  \"nvfp4_gate_up_prefill_weight_scratch\": true,\n"
-         << "  \"nvfp4_down_prefill_tile\": \"native_m128n64k64\",\n"
+         << "  \"nvfp4_down_prefill_tile\": \"cutlass_m128n128k128\",\n"
          << "  \"fp8_prefill_pipeline_stages\": 2,\n"
          << "  \"local_prefill_query_heads_per_cta\": 2,\n"
          << "  \"global_prefill_query_heads_per_cta\": 4,\n"
@@ -2923,7 +2920,7 @@ Status WriteDecodeBenchmarkJson(const DecodeBenchmarkResult& result,
          << ",\"fp8_prefill_tile\":\"m128n64k64\""
          << ",\"nvfp4_gate_up_prefill_tile\":\"cutlass_m128n128k128\""
          << ",\"nvfp4_gate_up_prefill_weight_scratch\":true"
-         << ",\"nvfp4_down_prefill_tile\":\"native_m128n64k64\""
+         << ",\"nvfp4_down_prefill_tile\":\"cutlass_m128n128k128\""
          << ",\"fp8_prefill_pipeline_stages\":2"
          << ",\"local_prefill_query_heads_per_cta\":2"
          << ",\"global_prefill_query_heads_per_cta\":4"
@@ -3013,7 +3010,7 @@ Status WritePrefillBenchmarkJson(const DecodeBenchmarkResult& result,
          << ",\"fp8_prefill_tile\":\"m128n64k64\""
          << ",\"nvfp4_gate_up_prefill_tile\":\"cutlass_m128n128k128\""
          << ",\"nvfp4_gate_up_prefill_weight_scratch\":true"
-         << ",\"nvfp4_down_prefill_tile\":\"native_m128n64k64\""
+         << ",\"nvfp4_down_prefill_tile\":\"cutlass_m128n128k128\""
          << ",\"fp8_prefill_pipeline_stages\":2"
          << ",\"local_prefill_query_heads_per_cta\":2"
          << ",\"global_prefill_query_heads_per_cta\":4"
