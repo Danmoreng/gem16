@@ -52,7 +52,7 @@ constexpr std::uint64_t kMaximumSuppressedTokens = 16;
 constexpr float kEpsilon = 1.0e-6F;
 constexpr unsigned kThreads = 256;
 constexpr unsigned kFusedOutputHeadBlocks = 4096;
-constexpr std::uint64_t kDefaultPrefillChunkTokens = 1024;
+constexpr std::uint64_t kDefaultPrefillChunkTokens = 2048;
 constexpr std::uint64_t kMinimumPrefillChunkTokens = 32;
 constexpr std::uint64_t kPrefillChunkQuantum = 32;
 constexpr std::uint64_t kPrefillScoreBudgetBytes = 512ULL * 1024ULL * 1024ULL;
@@ -87,7 +87,7 @@ std::uint64_t PrefillChunkTokensForContext(
       score_bytes_per_token == 0U ? kDefaultPrefillChunkTokens
                                   : kPrefillScoreBudgetBytes / score_bytes_per_token;
   const std::uint64_t bounded =
-      std::min(kDefaultPrefillChunkTokens, budget_tokens);
+      std::min({kDefaultPrefillChunkTokens, kSlidingWindow, budget_tokens});
   const std::uint64_t quantized =
       (bounded / kPrefillChunkQuantum) * kPrefillChunkQuantum;
   return std::max(kMinimumPrefillChunkTokens, quantized);
@@ -1489,9 +1489,17 @@ class InferenceEngine {
                          tokens, kQueryHeads, layer.kv_heads,
                          layer.head_dimension, capacity, stream_);
       if (!status.ok()) return status;
+      // A local chunk may be wider than its ring. Attention reads the whole
+      // current chunk directly, but only its newest ring-capacity suffix must
+      // survive for later chunks. Restricting the commit also avoids
+      // concurrent modulo-aliasing writes for positions one ring apart.
+      const std::uint64_t commit_offset =
+          layer.global || tokens <= capacity ? 0U : tokens - capacity;
       status = internal::LaunchAppendKvFp8Batch(
-          k_fp8, v_fp8, layer.key_cache_fp8, layer.value_cache_fp8,
-          start_position, tokens, layer.kv_elements, capacity, stream_);
+          k_fp8 + commit_offset * layer.kv_elements,
+          v_fp8 + commit_offset * layer.kv_elements, layer.key_cache_fp8,
+          layer.value_cache_fp8, start_position + commit_offset,
+          tokens - commit_offset, layer.kv_elements, capacity, stream_);
     } else {
       float* scores =
           Pointer<float>(prefill_workspace_, prefill_offsets_.scores);
@@ -2797,8 +2805,10 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
          << (result.token_loop_allocations ? "true" : "false") << ",\n"
          << "  \"fused_gate_up\": false,\n"
          << "  \"fused_prefill_attention\": true,\n"
-         << "  \"fp8_prefill_tile\": \"m64n64k64\",\n"
+         << "  \"fp8_prefill_tile\": \"m128n64k64\",\n"
          << "  \"fp8_prefill_pipeline_stages\": 2,\n"
+         << "  \"local_prefill_query_heads_per_cta\": 2,\n"
+         << "  \"global_prefill_query_heads_per_cta\": 4,\n"
          << "  \"grouped_qkv_prefill\": true,\n"
          << "  \"grouped_qkv_decode\": true,\n"
          << "  \"fused_rmsnorm_boundaries\": true,\n"
@@ -2880,8 +2890,10 @@ Status WriteDecodeBenchmarkJson(const DecodeBenchmarkResult& result,
          << "\",\"kv_cache_layout\":\"hybrid_local_ring_global_contiguous"
          << "\",\"fused_gate_up\":false"
          << ",\"fused_prefill_attention\":true"
-         << ",\"fp8_prefill_tile\":\"m64n64k64\""
+         << ",\"fp8_prefill_tile\":\"m128n64k64\""
          << ",\"fp8_prefill_pipeline_stages\":2"
+         << ",\"local_prefill_query_heads_per_cta\":2"
+         << ",\"global_prefill_query_heads_per_cta\":4"
          << ",\"grouped_qkv_prefill\":true"
          << ",\"grouped_qkv_decode\":true"
          << ",\"fused_rmsnorm_boundaries\":true"
@@ -2965,8 +2977,10 @@ Status WritePrefillBenchmarkJson(const DecodeBenchmarkResult& result,
          << ",\"measured_runs\":" << result.options.measured_runs
          << ",\"prefill_path\":\"native_chunked_sm120\""
          << ",\"fused_prefill_attention\":true"
-         << ",\"fp8_prefill_tile\":\"m64n64k64\""
+         << ",\"fp8_prefill_tile\":\"m128n64k64\""
          << ",\"fp8_prefill_pipeline_stages\":2"
+         << ",\"local_prefill_query_heads_per_cta\":2"
+         << ",\"global_prefill_query_heads_per_cta\":4"
          << ",\"grouped_qkv_prefill\":true"
          << ",\"grouped_qkv_decode\":true"
          << ",\"fused_rmsnorm_boundaries\":true"

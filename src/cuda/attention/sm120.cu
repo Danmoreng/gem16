@@ -23,16 +23,18 @@ namespace {
 constexpr int kHeadDimension = 256;
 constexpr int kQueryRows = 32;
 constexpr int kKeyColumns = 32;
-constexpr int kThreads = 64;
 constexpr int kQueryHeads = 16;
 constexpr int kKvHeads = 8;
 constexpr int kGroupSize = kQueryHeads / kKvHeads;
+constexpr int kQueryHeadsPerBlock = kGroupSize;
+constexpr int kThreads = 128;
 constexpr int kScoreTiles = kKeyColumns / 8;
 constexpr int kQkSteps = kHeadDimension / 16;
 constexpr int kOutputTiles = kHeadDimension / 8;
 constexpr int kPvSteps = kKeyColumns / 16;
 constexpr int kSharedElements =
-    (kQueryRows + 2 * kKeyColumns) * kHeadDimension;
+    (kQueryHeadsPerBlock * kQueryRows + 2 * kKeyColumns) *
+    kHeadDimension;
 constexpr unsigned kFullWarpMask = 0xffffffffU;
 
 constexpr int kDecodeThreads = 256;
@@ -47,7 +49,7 @@ constexpr int kDecodeGlobalHeadDimension = 512;
 constexpr int kDecodeGlobalGroup = 4;
 constexpr int kDecodeGlobalChunk = 512;
 
-static_assert(kSharedElements * sizeof(__nv_bfloat16) == 48 * 1024);
+static_assert(kSharedElements * sizeof(__nv_bfloat16) == 64 * 1024);
 
 Status Invalid(std::string message) {
   return Status(StatusCode::kInvalidArgument, std::move(message));
@@ -388,18 +390,24 @@ __device__ __forceinline__ int WindowStart(int query_position,
 }
 
 __device__ __forceinline__ void StageQuery(
-    __nv_bfloat16* destination, const float* query, int query_head,
+    __nv_bfloat16* destination, const float* query, int query_head_base,
     int query_start, int tokens, int thread) {
   constexpr int kElementsPerVector = 4;
   constexpr int kVectorsPerRow = kHeadDimension / kElementsPerVector;
-  for (int chunk = thread; chunk < kQueryRows * kVectorsPerRow;
+  constexpr int kVectorsPerHead = kQueryRows * kVectorsPerRow;
+  for (int chunk = thread;
+       chunk < kQueryHeadsPerBlock * kVectorsPerHead;
        chunk += kThreads) {
-    const int row = chunk / kVectorsPerRow;
-    const int dimension = (chunk % kVectorsPerRow) * kElementsPerVector;
+    const int head = chunk / kVectorsPerHead;
+    const int head_chunk = chunk - head * kVectorsPerHead;
+    const int row = head_chunk / kVectorsPerRow;
+    const int dimension =
+        (head_chunk % kVectorsPerRow) * kElementsPerVector;
     float values[kElementsPerVector] = {};
     if (query_start + row < tokens) {
       const float4 packed = *reinterpret_cast<const float4*>(
-          query + ((query_start + row) * kQueryHeads + query_head) *
+          query + ((query_start + row) * kQueryHeads +
+                   query_head_base + head) *
                       kHeadDimension +
           dimension);
       values[0] = packed.x;
@@ -409,7 +417,8 @@ __device__ __forceinline__ void StageQuery(
     }
 #pragma unroll
     for (int element = 0; element < kElementsPerVector; ++element) {
-      destination[row * kHeadDimension + Swizzle(row, dimension + element)] =
+      destination[(head * kQueryRows + row) * kHeadDimension +
+                  Swizzle(row, dimension + element)] =
           __float2bfloat16_rn(values[element]);
     }
   }
@@ -465,18 +474,22 @@ __launch_bounds__(kThreads, 1) __global__ void OnlineLocalAttentionFp8Kernel(
     int cache_capacity) {
   __shared__ __align__(16) __nv_bfloat16 shared[kSharedElements];
   __nv_bfloat16* query_shared = shared;
-  __nv_bfloat16* key_shared = query_shared + kQueryRows * kHeadDimension;
+  __nv_bfloat16* key_shared =
+      query_shared + kQueryHeadsPerBlock * kQueryRows * kHeadDimension;
   __nv_bfloat16* value_shared =
       key_shared + kKeyColumns * kHeadDimension;
 
   const int query_block = static_cast<int>(blockIdx.x);
-  const int query_head = static_cast<int>(blockIdx.y);
+  const int query_head_base =
+      static_cast<int>(blockIdx.y) * kQueryHeadsPerBlock;
   const int thread = static_cast<int>(threadIdx.x);
-  const int warp = thread >> 5;
+  const int head_in_block = thread >> 6;
+  const int query_head = query_head_base + head_in_block;
+  const int warp_in_head = (thread >> 5) & 1;
   const int lane = thread & 31;
   const int query_start = query_block * kQueryRows;
-  const int kv_head = query_head / kGroupSize;
-  const int warp_row_start = warp * 16;
+  const int kv_head = static_cast<int>(blockIdx.y);
+  const int warp_row_start = warp_in_head * 16;
   if (query_head >= kQueryHeads || query_start >= tokens) return;
 
   const int group_lane = lane >> 2;
@@ -488,7 +501,8 @@ __launch_bounds__(kThreads, 1) __global__ void OnlineLocalAttentionFp8Kernel(
   const int b_row_in_matrix = lane & 7;
   const int b_contracting_offset = ((lane >> 3) & 1) << 3;
 
-  const unsigned query_shared_base = SharedAddress(query_shared);
+  const unsigned query_shared_base = SharedAddress(
+      query_shared + head_in_block * kQueryRows * kHeadDimension);
   const unsigned key_shared_base = SharedAddress(key_shared);
   const unsigned value_shared_base = SharedAddress(value_shared);
   const unsigned query_lane_base =
@@ -514,7 +528,8 @@ __launch_bounds__(kThreads, 1) __global__ void OnlineLocalAttentionFp8Kernel(
   const unsigned value_row_select =
       static_cast<unsigned>(b_row_in_matrix << 4);
 
-  StageQuery(query_shared, query, query_head, query_start, tokens, thread);
+  StageQuery(query_shared, query, query_head_base, query_start, tokens,
+             thread);
 
   float accumulator[kOutputTiles][4];
 #pragma unroll
@@ -821,7 +836,8 @@ __launch_bounds__(kThreads, 1) __global__ void OnlineLocalAttentionFp8Kernel(
 constexpr int kGlobalHeadDimension = 512;
 constexpr int kGlobalQueryRows = 16;
 constexpr int kGlobalKeyColumns = 16;
-constexpr int kGlobalThreads = 64;
+constexpr int kGlobalQueryHeadsPerBlock = 4;
+constexpr int kGlobalThreads = 256;
 constexpr int kGlobalQueryHeads = 16;
 constexpr int kGlobalKvHeads = 1;
 constexpr int kGlobalOutputHalf = 256;
@@ -830,27 +846,34 @@ constexpr int kGlobalQkSteps = kGlobalHeadDimension / 16;
 constexpr int kGlobalOutputTiles = kGlobalOutputHalf / 8;
 constexpr int kGlobalPvSteps = kGlobalKeyColumns / 16;
 constexpr int kGlobalSharedElements =
-    (kGlobalQueryRows + kGlobalKeyColumns) * kGlobalHeadDimension +
+    (kGlobalQueryHeadsPerBlock * kGlobalQueryRows + kGlobalKeyColumns) *
+        kGlobalHeadDimension +
     kGlobalKeyColumns * kGlobalHeadDimension;
 
-static_assert(kGlobalSharedElements * sizeof(__nv_bfloat16) == 48 * 1024);
+static_assert(kGlobalSharedElements * sizeof(__nv_bfloat16) == 96 * 1024);
 
 __device__ __forceinline__ void StageGlobalQuery(
-    __nv_bfloat16* destination, const float* query, int query_head,
+    __nv_bfloat16* destination, const float* query, int query_head_base,
     int query_start, int tokens, int thread) {
   constexpr int kElementsPerVector = 4;
   constexpr int kVectorsPerRow =
       kGlobalHeadDimension / kElementsPerVector;
+  constexpr int kVectorsPerHead =
+      kGlobalQueryRows * kVectorsPerRow;
   for (int chunk = thread;
-       chunk < kGlobalQueryRows * kVectorsPerRow;
+       chunk < kGlobalQueryHeadsPerBlock * kVectorsPerHead;
        chunk += kGlobalThreads) {
-    const int row = chunk / kVectorsPerRow;
-    const int dimension = (chunk % kVectorsPerRow) * kElementsPerVector;
+    const int head = chunk / kVectorsPerHead;
+    const int head_chunk = chunk - head * kVectorsPerHead;
+    const int row = head_chunk / kVectorsPerRow;
+    const int dimension =
+        (head_chunk % kVectorsPerRow) * kElementsPerVector;
     float values[kElementsPerVector] = {};
     if (query_start + row < tokens) {
       const float4 packed = *reinterpret_cast<const float4*>(
           query +
-          ((query_start + row) * kGlobalQueryHeads + query_head) *
+          ((query_start + row) * kGlobalQueryHeads +
+           query_head_base + head) *
               kGlobalHeadDimension +
           dimension);
       values[0] = packed.x;
@@ -860,7 +883,8 @@ __device__ __forceinline__ void StageGlobalQuery(
     }
 #pragma unroll
     for (int element = 0; element < kElementsPerVector; ++element) {
-      destination[row * kGlobalHeadDimension +
+      destination[(head * kGlobalQueryRows + row) *
+                      kGlobalHeadDimension +
                   Swizzle(row, dimension + element)] =
           __float2bfloat16_rn(values[element]);
     }
@@ -960,14 +984,18 @@ __launch_bounds__(kGlobalThreads, 1) __global__
   __shared__ __align__(16) __nv_bfloat16 shared[kGlobalSharedElements];
   __nv_bfloat16* query_shared = shared;
   __nv_bfloat16* key_shared =
-      query_shared + kGlobalQueryRows * kGlobalHeadDimension;
+      query_shared + kGlobalQueryHeadsPerBlock * kGlobalQueryRows *
+                         kGlobalHeadDimension;
   __nv_bfloat16* value_shared =
       key_shared + kGlobalKeyColumns * kGlobalHeadDimension;
 
   const int query_block = static_cast<int>(blockIdx.x);
-  const int query_head = static_cast<int>(blockIdx.y);
+  const int query_head_base =
+      static_cast<int>(blockIdx.y) * kGlobalQueryHeadsPerBlock;
   const int thread = static_cast<int>(threadIdx.x);
-  const int output_half = thread >> 5;
+  const int head_in_block = thread >> 6;
+  const int query_head = query_head_base + head_in_block;
+  const int output_half = (thread >> 5) & 1;
   const int lane = thread & 31;
   const int query_start = query_block * kGlobalQueryRows;
   if (query_head >= kGlobalQueryHeads || query_start >= tokens) return;
@@ -981,7 +1009,9 @@ __launch_bounds__(kGlobalThreads, 1) __global__
   const int b_row_in_matrix = lane & 7;
   const int b_contracting_offset = ((lane >> 3) & 1) << 3;
 
-  const unsigned query_shared_base = SharedAddress(query_shared);
+  const unsigned query_shared_base = SharedAddress(
+      query_shared + head_in_block * kGlobalQueryRows *
+                         kGlobalHeadDimension);
   const unsigned key_shared_base = SharedAddress(key_shared);
   const unsigned value_shared_base = SharedAddress(
       value_shared + output_half * kGlobalKeyColumns * kGlobalOutputHalf);
@@ -1007,7 +1037,7 @@ __launch_bounds__(kGlobalThreads, 1) __global__
   const unsigned value_row_select =
       static_cast<unsigned>(b_row_in_matrix << 4);
 
-  StageGlobalQuery(query_shared, query, query_head, query_start, tokens,
+  StageGlobalQuery(query_shared, query, query_head_base, query_start, tokens,
                    thread);
 
   float accumulator[kGlobalOutputTiles][4];
@@ -1303,7 +1333,7 @@ Status LaunchOnlineCausalAttentionPrefillFp8LocalSm120(
       key_scale_bf16 == nullptr || value_scale_bf16 == nullptr ||
       output == nullptr || tokens == 0U || query_heads != kQueryHeads ||
       kv_heads != kKvHeads || head_dimension != kHeadDimension ||
-      cache_capacity == 0U || tokens > cache_capacity ||
+      cache_capacity == 0U ||
       start_position >
           static_cast<std::uint64_t>(std::numeric_limits<int>::max()) ||
       tokens > static_cast<std::uint64_t>(std::numeric_limits<int>::max()) ||
@@ -1320,7 +1350,9 @@ Status LaunchOnlineCausalAttentionPrefillFp8LocalSm120(
       static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
     return Invalid("online local FP8 prefill attention grid exceeds CUDA limits");
   }
-  const dim3 grid(static_cast<unsigned>(query_blocks), kQueryHeads);
+  static_assert(kQueryHeads % kQueryHeadsPerBlock == 0);
+  const dim3 grid(static_cast<unsigned>(query_blocks),
+                  kQueryHeads / kQueryHeadsPerBlock);
   OnlineLocalAttentionFp8Kernel<<<grid, kThreads, 0, stream>>>(
       query, chunk_key, chunk_value, key_cache, value_cache, key_scale_bf16,
       value_scale_bf16, output, static_cast<int>(start_position),
@@ -1362,7 +1394,9 @@ Status LaunchOnlineCausalAttentionPrefillFp8GlobalSm120(
       static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
     return Invalid("online global FP8 prefill attention grid exceeds CUDA limits");
   }
-  const dim3 grid(static_cast<unsigned>(query_blocks), kGlobalQueryHeads);
+  static_assert(kGlobalQueryHeads % kGlobalQueryHeadsPerBlock == 0);
+  const dim3 grid(static_cast<unsigned>(query_blocks),
+                  kGlobalQueryHeads / kGlobalQueryHeadsPerBlock);
   OnlineGlobalAttentionFp8Kernel<<<grid, kGlobalThreads, 0, stream>>>(
       query, chunk_key, chunk_value, key_cache, value_cache,
       key_scale_bf16, value_scale_bf16, output,

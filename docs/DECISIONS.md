@@ -1,5 +1,35 @@
 # Decisions
 
+## 2026-07-26: Group prefill GQA heads, widen FP8 M, and use 2K FP8 chunks
+
+Date: 2026-07-26
+Decision: Make each local prefill-attention CTA process the two query heads sharing one KV head and each global
+CTA process four query heads sharing the sole KV head. Stage K/V once for that group while retaining independent
+per-head FP32 online-softmax state and the existing MMA order. Widen the two-stage FP8 projection CTA from
+M64xN64xK64 to M128xN64xK64 so each weight fragment serves eight M16 tiles. Use 2,048-token chunks for
+checkpoint-FP8 prefill; after local attention, commit only the newest 1,024-token suffix to its ring. Keep BF16
+correctness prefill capped at 1,024 tokens.
+Context: The 8K Nsight baseline attributed 52.6% of GPU time to attention. Its one-head CTAs redundantly staged
+the same local K/V twice and the same global K/V sixteen times. After grouping, projections became the dominant
+cost, while a 1,024-token chunk still repeated every layer launch group eight times at 8K.
+Alternatives: Group two instead of four global heads; leave local heads independent; retain M64 FP8 projection;
+or make a local chunk wider than its ring and commit all positions modulo the ring. Two global heads left measured
+performance unused. Independent local heads repeat K/V traffic. M64 loses the adjacent A/B. Committing more than
+one ring concurrently creates modulo-aliasing writes and is rejected.
+Consequences: Local/global attention CTAs use 128/256 threads and group 2/4 query heads. Their static shared-memory
+allocations including toolchain overhead are 66,560/99,328 bytes; both use 254 registers with zero stack/local
+memory. The FP8 projection uses 96 registers and 25,600 bytes shared with zero stack/local memory. The 8K prefill
+workspace grows from 322,457,600 to 630,276,096 bytes, remaining below the 1 GiB activation-arena target. No
+persistent allocation or checkpoint representation changes. Runtime JSON and validators require the M128 tile,
+head grouping, and 2K checkpoint-FP8 chunk.
+Evidence: Under 3 warm-ups and 10 measured runs, 8K reaches 2,138.50 tok/s with 95% CI
+`[2,134.61, 2,144.24]` and 3,830.72 ms median TTFT. The preceding 1K plan measured 2,107.04 tok/s under the same
+policy; the Row8/K64 starting point was 1,560.23 tok/s and 5,250.50 ms TTFT. Final improvement over that starting
+point is +37.1% throughput and -27.0% TTFT. Nsight reduces global/local attention from 4.440/1.242 seconds to
+1.207/0.892 seconds across two 8K prefills; projections are now 65.0% of kernel time. CTest, exact-blue
+`[9503,106]`, vLLM boundary rank 1 at 129/257, and teacher-forced 118/127 Top-1 plus 126/127 Top-5 all pass.
+The 8K decode regression retains checksum `17504476492555856403` in all runs and reaches 33.676 tok/s median.
+
 ## 2026-07-26: Tile packed NVFP4 weights into the sole final SM120 allocation
 
 Date: 2026-07-26

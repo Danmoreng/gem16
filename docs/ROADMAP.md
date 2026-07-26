@@ -90,8 +90,10 @@ The llama.cpp benchmark is deliberately before engine kernel optimization, but a
    projections separate and fuses their exact BF16/GELU-tanh/NVFP4 activation boundary.
 8. ~~Add a separate native prefill plan without reusing the decode plan.~~ The promoted plan uses one 1,024-token
    checkpoint-FP8 chunk, online Tensor-Core attention, and M128xN64 NVFP4 CTAs that reuse an exact K64 activation
-   slice across eight output warps. FP8 projections now use the qualified two-stage M64xN64xK64 CTA, reuse each
-   weight fragment across four MMA token tiles, and group local Q/K/V or global Q/K into one launch.
+   slice across eight output warps. FP8 projections now use the qualified two-stage M128xN64xK64 CTA, reuse each
+   weight fragment across eight MMA token tiles, and group local Q/K/V or global Q/K into one launch. Local/global
+   attention CTAs share staged K/V across 2/4 query heads, and checkpoint-FP8 prefill uses a qualified 2,048-token
+   chunk while committing only the newest 1,024 local positions to the ring.
    NVFP4 activation staging now uses a qualified two-stage `cp.async` pipeline. Packed E2M1 weights and local E4M3
    weight-scale bytes are tiled exactly once into the sole final Row8/K64 GPU allocation; persistent bytes are
    unchanged and no raw GPU copy survives. Large/grouped FP8 projection work is complete. Exact

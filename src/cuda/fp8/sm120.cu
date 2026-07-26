@@ -15,7 +15,7 @@ namespace {
 constexpr std::uint64_t kElementsPerKBlock = 32;
 constexpr std::uint64_t kRowsPerWarp = 8;
 constexpr std::uint64_t kTokensPerMma = 16;
-constexpr std::uint64_t kTokenTilesPerWarp = 4;
+constexpr std::uint64_t kTokenTilesPerWarp = 8;
 constexpr std::uint64_t kKBlocksPerStage = 2;
 constexpr std::uint64_t kElementsPerStage =
     kElementsPerKBlock * kKBlocksPerStage;
@@ -251,9 +251,9 @@ __global__ void Sm120DirectProjectionKernel(const std::uint8_t* activation,
 #endif
 }
 
-// Eight warps form one 64-column by 64-token CTA tile. Two consecutive K32
+// Eight warps form one 64-column by 128-token CTA tile. Two consecutive K32
 // fragments of source-layout FP8 activation and weights are double-buffered
-// through shared memory, while every weight fragment is reused for four
+// through shared memory, while every weight fragment is reused for eight
 // independent 16-token MMA tiles. This is the sole matrix path; T=1 remains
 // on the latency-oriented direct kernel above.
 __global__ void Sm120MatrixProjectionKernel(

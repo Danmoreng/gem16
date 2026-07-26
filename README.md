@@ -257,9 +257,9 @@ without opening the GUI:
 Reports and exported SQLite databases are written below the selected build directory's `profiles` folder and stay
 outside version control.
 
-Prompt ingestion uses one native 1,024-token chunk plan for checkpoint-FP8 execution. FP8 attention projections
-use 256-thread M64xN64xK64 CTAs: two shared-memory stages copy exact source-layout activation and weight bytes with
-`cp.async`, while each weight fragment serves four 16-token MMA tiles. Local Q/K/V and global Q/K are grouped into
+Prompt ingestion uses one native 2,048-token chunk plan for checkpoint-FP8 execution. FP8 attention projections
+use 256-thread M128xN64xK64 CTAs: two shared-memory stages copy exact source-layout activation and weight bytes with
+`cp.async`, while each weight fragment serves eight 16-token MMA tiles. Local Q/K/V and global Q/K are grouped into
 one launch; O uses the same tiled kernel after attention. Decode likewise groups the existing T=1 direct-source
 Q/K/V CTAs into one binding-dimension launch per layer. NVFP4 MLP projection warps retain each tiled weight and
 scale fragment across eight tiles, or 128 prompt rows. Eight NVFP4 warps form an M128xN64 CTA and stage
@@ -270,7 +270,8 @@ the exact packed activation bytes and E4M3 scale words once for CTA-wide reuse. 
 with no persistent source-layout device copy. Shape-specific
 local D256 and global D512 attention kernels perform QK and PV on
 Tensor Cores while retaining FP32 online-softmax state, reading older K/V from the hybrid cache, and avoiding a
-global score matrix. The token-at-a-time bridge and scalar attention implementation remain test/probe references
+global score matrix. Local CTAs share K/V across two query heads; global CTAs share it across four. For 2K chunks,
+local layers commit only the newest 1K suffix to their ring after attention. The token-at-a-time bridge and scalar attention implementation remain test/probe references
 and are not selectable from `gem16gb-run` or `gem16gb-bench`.
 
 ## Validate real-checkpoint layer assembly

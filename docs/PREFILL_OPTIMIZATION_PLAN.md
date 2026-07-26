@@ -15,12 +15,12 @@ promoted only when it wins the prescribed repeated benchmark and passes all appl
 winner becomes the sole production implementation; rejected and superseded implementations do not remain as
 user-selectable optimization modes.
 
-The initial Linux reference point is commit `1bc942b`; online attention, the 1,024-token plan, and the first
-large-M NVFP4 winner advance the same 512-token characterization as follows:
+The initial Linux reference point is commit `1bc942b`; subsequent online attention, projection, boundary-fusion,
+GQA-grouping, and 2,048-token-plan promotions advance the same 512-token characterization as follows:
 
 | Workload | Initial gem16gb | Current gem16gb | vLLM | Current/vLLM |
 |---|---:|---:|---:|---:|
-| Prefill, 512 prompt tokens, batch 1 | 698.25 tok/s | 2,182.51 tok/s | 6,146.50 tok/s | 0.355x |
+| Prefill, 512 prompt tokens, batch 1 | 698.25 tok/s | 2,336.07 tok/s | 6,146.50 tok/s | 0.380x |
 
 These numbers are diagnostic rather than a parity claim because the retained vLLM run and gem16gb do not yet have
 identical timing boundaries and cache precision. The optimization goal does not depend on presenting the ratio as
@@ -41,10 +41,10 @@ established this program:
 | Total GPU time | 736.66 ms | 208.01 ms | 74.47 ms | 2.79x |
 
 The initial gem16gb path launched approximately 9,235 GPU operations per execution, versus 747 for vLLM. Online
-attention, the 1,024-token plan, grouped FP8 projections, and exact boundary/RoPE fusion reduce this to 964 kernel
-launches. Attention and launch-heavy residual work are no longer the dominant gaps. NVFP4 and FP8 projections now
-consume 47% and 31% of current GPU time and remain 4.0x and 2.4x slower than vLLM. Finish the small K/V-write
-boundary, then return to projection pipelines rather than adding generic fusion machinery.
+attention, larger prompt chunks, grouped FP8 projections, and exact boundary/RoPE fusion removed most of that
+launch pressure. The current 8K profile groups 2/4 local/global query heads per attention CTA, uses an
+M128xN64xK64 FP8 projection, and runs four 2K chunks. FP8 plus NVFP4 projections consume 65.0% of kernel time;
+attention consumes 26.6%. Projection pipelines, not generic fusion, are again the next work.
 
 The neighboring Apache-2.0 NInfer implementation supplies useful implementation concepts, not a compatible
 runtime path: shape-specific plans, BF16 Tensor-Core QK/PV, FP32 online softmax, swizzled shared-memory staging,
@@ -75,10 +75,11 @@ both attention geometries are qualified and the online implementation is the sol
 
 ### 2. Promote the largest deterministic winning prompt chunk
 
-Status: 1,024 selected as the sole checkpoint-FP8 standard. At 2,048 prompt tokens it reaches 915.24 tok/s versus
-893.60 tok/s for 512-token chunks (+2.42%), with non-overlapping 95% confidence intervals. At 512 tokens the
-difference is statistically indistinguishable; 1,024 uses about 217 MB more reusable workspace and remains within
-the 16 GB budget.
+Status: 2,048 selected as the sole checkpoint-FP8 standard after GQA head grouping made launch repetition worth
+revisiting. At 8K it reaches 2,138.50 tok/s versus 2,107.04 tok/s for 1,024-token chunks under 3/10 measurement
+(+1.49%). The reusable 8K workspace rises from 322,457,600 to 630,276,096 bytes and remains below its 1 GiB target.
+Local attention reads the complete current chunk directly, then commits only its newest 1,024-token suffix to the
+ring so positions one ring apart never race on a modulo address. BF16 correctness prefill remains capped at 1,024.
 
 After the score arena is removed, measure complete-prompt chunks of `512` and `1,024` tokens against the current
 context-budgeted plan. Select the fastest size that is deterministic, fits the measured arena budget across context
@@ -130,21 +131,22 @@ second device copy exists. Phase 3 is closed. Proceed to the ordered large/group
 
 ### 4. Rebuild and group the FP8 attention projections
 
-Status: implemented and model-qualified in the `6005921` worktree; phase closed.
+Status: implemented and model-qualified; the original M64 winner from `6005921` was superseded on 2026-07-26 by
+the spill-free M128 extension.
 
 Apply the same large-token-tile and pipeline discipline to Q, K/V, and O while preserving per-token dynamic FP8
 activation quantization and per-channel weight scaling. Evaluate shape-specific combined Q/K/V scheduling and the
 full-attention K-projection reuse already required by model semantics. Promote grouping only when it reduces
 end-to-end time; do not retain separate grouped/ungrouped user modes.
 
-The promoted kernel uses one 256-thread M64xN64xK64 CTA. Eight warps cooperate on two ping-pong stages containing
-exact source-layout E4M3 activation and weight bytes; each staged weight fragment feeds four M16 MMA tiles. Local
-Q/K/V and global Q/K occupy one binding-dimension launch, while O uses the same kernel independently. At context
-512, Nsight reports 184 to 96 FP8 launches and 114.09 to 62.21 ms per prefill (`-45.5%`). The final 3/10 medians
-versus commit `6005921` improve from 1,348.97/1,460.83/1,358.11 to
-1,583.23/1,769.04/1,562.05 tok/s at 128/512/2,048. The kernel uses 60 registers, 17,408 bytes static shared memory,
-and zero stack/local memory. Operator output is bit-identical to the CUDA reference, boundary logits and all
-12-prompt teacher-forced metrics are unchanged, and no alternate production selector remains. Proceed to phase 5.
+The production kernel uses one 256-thread M128xN64xK64 CTA. Eight warps cooperate on two ping-pong stages
+containing exact source-layout E4M3 activation and weight bytes; each staged weight fragment feeds eight M16 MMA
+tiles. Local Q/K/V and global Q/K occupy one binding-dimension launch, while O uses the same kernel independently.
+The M64 promotion originally cut context-512 FP8 projection time by 45.5%; the later M128 extension cuts a further
+1.66% in adjacent 8K profiles and improves the immediate 8K end-to-end median by 2.13%. The current kernel uses
+96 registers, 25,600 bytes static shared memory, and zero stack/local memory. Operator output is bit-identical to
+the CUDA reference, boundary logits and all 12-prompt teacher-forced metrics are unchanged, and no alternate
+production selector remains.
 
 ### 5. Fuse only profile-proven bandwidth and launch boundaries
 
