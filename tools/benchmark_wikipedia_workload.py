@@ -1,0 +1,693 @@
+#!/usr/bin/env python3
+"""Benchmark one exact-token Wikipedia workload on gem16gb, vLLM, or llama.cpp."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import importlib.metadata
+import json
+import math
+from pathlib import Path
+import platform
+import statistics
+import struct
+import subprocess
+import sys
+import time
+from typing import Any
+import urllib.error
+import urllib.request
+
+
+T_CRITICAL_95 = {
+    1: 12.706,
+    2: 4.303,
+    3: 3.182,
+    4: 2.776,
+    5: 2.571,
+    6: 2.447,
+    7: 2.365,
+    8: 2.306,
+    9: 2.262,
+    10: 2.228,
+    11: 2.201,
+    12: 2.179,
+    13: 2.160,
+    14: 2.145,
+    15: 2.131,
+    16: 2.120,
+    17: 2.110,
+    18: 2.101,
+    19: 2.093,
+    20: 2.086,
+    21: 2.080,
+    22: 2.074,
+    23: 2.069,
+    24: 2.064,
+    25: 2.060,
+    26: 2.056,
+    27: 2.052,
+    28: 2.048,
+    29: 2.045,
+    30: 2.042,
+}
+
+
+class BenchmarkError(RuntimeError):
+    pass
+
+
+def positive_int(value: str) -> int:
+    parsed = int(value)
+    if parsed < 1:
+        raise argparse.ArgumentTypeError("value must be positive")
+    return parsed
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--engine", required=True, choices=("gem16gb", "vllm", "llama-cpp")
+    )
+    parser.add_argument("--workload", required=True, type=Path)
+    parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--model", type=Path)
+    parser.add_argument("--executable", type=Path)
+    parser.add_argument("--gguf", type=Path)
+    parser.add_argument("--warmups", type=positive_int, default=3)
+    parser.add_argument("--repetitions", type=positive_int, default=10)
+    parser.add_argument("--gpu-memory-utilization", type=float, default=0.90)
+    parser.add_argument("--vllm-kv-cache-dtype", default="fp8")
+    parser.add_argument(
+        "--llama-kv-cache-type",
+        choices=("f16", "bf16", "q8_0"),
+        default="q8_0",
+    )
+    parser.add_argument("--llama-port", type=positive_int, default=8097)
+    parser.add_argument("--enforce-eager", action="store_true")
+    return parser.parse_args()
+
+
+def repository_state() -> dict[str, Any]:
+    root = Path(__file__).resolve().parents[1]
+    commit = subprocess.run(
+        ["git", "-C", str(root), "rev-parse", "HEAD"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    dirty = bool(
+        subprocess.run(
+            ["git", "-C", str(root), "status", "--porcelain"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout
+    )
+    return {"git_commit": commit, "worktree_dirty_at_start": dirty}
+
+
+def summarize(samples: list[float]) -> dict[str, Any]:
+    if len(samples) < 2:
+        raise BenchmarkError("at least two measured repetitions are required")
+    if not all(math.isfinite(value) for value in samples):
+        raise BenchmarkError("benchmark samples contain a non-finite value")
+    mean = statistics.mean(samples)
+    standard_deviation = statistics.stdev(samples)
+    critical = T_CRITICAL_95.get(len(samples) - 1, 1.960)
+    half_width = critical * standard_deviation / math.sqrt(len(samples))
+    return {
+        "sample_count": len(samples),
+        "mean": mean,
+        "median": statistics.median(samples),
+        "standard_deviation": standard_deviation,
+        "minimum": min(samples),
+        "maximum": max(samples),
+        "confidence_interval_95": [mean - half_width, mean + half_width],
+        "samples": samples,
+    }
+
+
+def token_checksum(tokens: list[int]) -> str:
+    serialized = ",".join(str(token) for token in tokens).encode("ascii")
+    return hashlib.sha256(serialized).hexdigest()
+
+
+def token_u32_checksum(tokens: list[int]) -> str:
+    digest = hashlib.sha256()
+    for token in tokens:
+        if token > 0xFFFFFFFF:
+            raise BenchmarkError("workload token ID exceeds uint32")
+        digest.update(struct.pack("<I", token))
+    return digest.hexdigest()
+
+
+def load_workload(path: Path) -> tuple[dict[str, Any], list[int], dict[str, Any]]:
+    document = json.loads(path.read_text(encoding="utf-8"))
+    prompt = document.get("prompt")
+    generation = document.get("generation")
+    if document.get("schema_version") != 1 or not isinstance(prompt, dict):
+        raise BenchmarkError("workload is not a schema-version-1 prompt")
+    tokens = prompt.get("token_ids")
+    if (
+        not isinstance(tokens, list)
+        or len(tokens) != prompt.get("target_tokens")
+        or not all(isinstance(token, int) and token >= 0 for token in tokens)
+        or not isinstance(generation, dict)
+    ):
+        raise BenchmarkError("workload token or generation fields are malformed")
+    expected_checksum = prompt.get("token_ids_sha256")
+    if not isinstance(expected_checksum, str) or (
+        token_u32_checksum(tokens) != expected_checksum
+    ):
+        raise BenchmarkError("workload token IDs do not match their SHA-256")
+    return document, tokens, generation
+
+
+def metric_run(
+    prompt_tokens: int,
+    output_tokens: list[int],
+    prompt_ms: float,
+    decode_ms: float,
+    stop_reason: Any,
+) -> dict[str, Any]:
+    if prompt_ms <= 0.0 or decode_ms < 0.0 or not output_tokens:
+        raise BenchmarkError("engine returned invalid timing or output data")
+    decode_intervals = len(output_tokens) - 1
+    decode_throughput = (
+        decode_intervals * 1000.0 / decode_ms
+        if decode_intervals > 0 and decode_ms > 0.0
+        else 0.0
+    )
+    return {
+        "prompt_tokens": prompt_tokens,
+        "generated_tokens": len(output_tokens),
+        "measured_decode_intervals": decode_intervals,
+        "prompt_ms": prompt_ms,
+        "prompt_tokens_per_second": prompt_tokens * 1000.0 / prompt_ms,
+        "decode_ms": decode_ms,
+        "decode_tokens_per_second": decode_throughput,
+        "average_inter_token_latency_ms": (
+            decode_ms / decode_intervals if decode_intervals > 0 else 0.0
+        ),
+        "stop_reason": stop_reason,
+        "output_token_sha256": token_checksum(output_tokens),
+        "first_output_token_id": output_tokens[0],
+        "last_output_token_id": output_tokens[-1],
+    }
+
+
+def outputs_are_deterministic(runs: list[dict[str, Any]]) -> bool:
+    identities = {
+        (run["generated_tokens"], run["output_token_sha256"]) for run in runs
+    }
+    return len(identities) == 1
+
+
+def summarize_runs(runs: list[dict[str, Any]]) -> dict[str, Any]:
+    return {
+        "prompt_tokens_per_second": summarize(
+            [run["prompt_tokens_per_second"] for run in runs]
+        ),
+        "time_to_first_token_ms": summarize([run["prompt_ms"] for run in runs]),
+        "decode_tokens_per_second": summarize(
+            [run["decode_tokens_per_second"] for run in runs]
+        ),
+        "average_inter_token_latency_ms": summarize(
+            [run["average_inter_token_latency_ms"] for run in runs]
+        ),
+        "generated_tokens": summarize(
+            [float(run["generated_tokens"]) for run in runs]
+        ),
+        "measured_decode_intervals": summarize(
+            [float(run["measured_decode_intervals"]) for run in runs]
+        ),
+        "deterministic_outputs": outputs_are_deterministic(runs),
+        "output_token_sha256_values": sorted(
+            {run["output_token_sha256"] for run in runs}
+        ),
+        "stop_reason_values": sorted(
+            {str(run["stop_reason"]) for run in runs}
+        ),
+    }
+
+
+def run_gem16gb(
+    executable: Path,
+    model: Path,
+    prompt: list[int],
+    generation: dict[str, Any],
+) -> tuple[dict[str, Any], list[int]]:
+    command = [
+        str(executable),
+        "--model",
+        str(model),
+        "--input-token-ids",
+        ",".join(str(token) for token in prompt),
+        "--stop-token-ids",
+        ",".join(str(token) for token in generation["stop_token_ids"]),
+        "--suppress-token-ids",
+        ",".join(str(token) for token in generation["suppress_token_ids"]),
+        "--kv-cache",
+        "fp8",
+        "--max-tokens",
+        str(generation["max_new_tokens"]),
+        "--max-context",
+        str(len(prompt) + generation["max_new_tokens"]),
+        "--greedy",
+    ]
+    completed = subprocess.run(command, check=False, capture_output=True, text=True)
+    if completed.returncode != 0:
+        detail = completed.stderr.strip() or completed.stdout.strip()
+        raise BenchmarkError(
+            f"gem16gb exited with {completed.returncode}: {detail[-2000:]}"
+        )
+    result = json.loads(completed.stdout)
+    output_tokens = result.get("output_token_ids")
+    if not isinstance(output_tokens, list) or not all(
+        isinstance(token, int) for token in output_tokens
+    ):
+        raise BenchmarkError("gem16gb output token IDs are malformed")
+    if result.get("fallbacks") != 0 or result.get("token_loop_allocations") is not False:
+        raise BenchmarkError("gem16gb reported a fallback or token-loop allocation")
+    run = metric_run(
+        len(prompt),
+        output_tokens,
+        float(result["prompt_ms"]),
+        float(result["decode_ms"]),
+        result.get("finish_reason"),
+    )
+    run["model_load_ms"] = float(result["model_load_ms"])
+    run["workspace_bytes"] = int(result["workspace_bytes"])
+    run["kv_cache_bytes"] = int(result["kv_cache_bytes"])
+    return run, output_tokens
+
+
+def metric_value(metrics: Any, name: str) -> float:
+    if metrics is None or not hasattr(metrics, name):
+        raise BenchmarkError(f"vLLM request metrics do not expose {name}")
+    value = float(getattr(metrics, name))
+    if not math.isfinite(value):
+        raise BenchmarkError(f"vLLM request metric {name} is not finite")
+    return value
+
+
+def run_vllm_request(
+    llm: Any,
+    sampling_params_type: Any,
+    prompt: list[int],
+    generation: dict[str, Any],
+    suppressed_token_strings: list[str],
+) -> tuple[dict[str, Any], list[int]]:
+    sampling = sampling_params_type(
+        temperature=0.0,
+        max_tokens=generation["max_new_tokens"],
+        stop_token_ids=generation["stop_token_ids"],
+        seed=generation["seed"],
+        detokenize=False,
+        bad_words=suppressed_token_strings,
+    )
+    started = time.perf_counter()
+    request = llm.generate(
+        [{"prompt_token_ids": prompt}], sampling, use_tqdm=False
+    )[0]
+    wall_ms = (time.perf_counter() - started) * 1000.0
+    completion = request.outputs[0]
+    output_tokens = list(completion.token_ids)
+    metrics = request.metrics
+    prompt_ms = metric_value(metrics, "first_token_latency") * 1000.0
+    first_token_ts = metric_value(metrics, "first_token_ts")
+    last_token_ts = metric_value(metrics, "last_token_ts")
+    decode_ms = max(0.0, (last_token_ts - first_token_ts) * 1000.0)
+    run = metric_run(
+        len(prompt),
+        output_tokens,
+        prompt_ms,
+        decode_ms,
+        completion.finish_reason,
+    )
+    run["wall_ms"] = wall_ms
+    run["stop_reason_detail"] = completion.stop_reason
+    return run, output_tokens
+
+
+def http_json(
+    url: str, body: dict[str, Any] | None = None, timeout: float = 10.0
+) -> dict[str, Any]:
+    data = None if body is None else json.dumps(body).encode("utf-8")
+    request = urllib.request.Request(
+        url,
+        data=data,
+        headers={"Content-Type": "application/json"},
+        method="GET" if data is None else "POST",
+    )
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        result = json.load(response)
+    if not isinstance(result, dict):
+        raise BenchmarkError(f"HTTP endpoint returned a non-object: {url}")
+    return result
+
+
+def wait_for_server(process: subprocess.Popen[Any], base_url: str) -> None:
+    deadline = time.monotonic() + 180.0
+    while time.monotonic() < deadline:
+        if process.poll() is not None:
+            raise BenchmarkError(f"llama-server exited during startup: {process.returncode}")
+        try:
+            health = http_json(f"{base_url}/health")
+            if health.get("status") == "ok":
+                return
+        except (OSError, urllib.error.URLError, json.JSONDecodeError):
+            pass
+        time.sleep(1.0)
+    raise BenchmarkError("timed out waiting for llama-server")
+
+
+def run_llama_request(
+    base_url: str, prompt: list[int], generation: dict[str, Any]
+) -> tuple[dict[str, Any], list[int]]:
+    body = {
+        "prompt": prompt,
+        "n_predict": generation["max_new_tokens"],
+        "temperature": 0.0,
+        "seed": generation["seed"],
+        "ignore_eos": False,
+        "cache_prompt": False,
+        "n_keep": -1,
+        "repeat_penalty": 1.0,
+        "presence_penalty": 0.0,
+        "frequency_penalty": 0.0,
+        "dry_multiplier": 0.0,
+        "samplers": ["temperature"],
+        "return_tokens": True,
+        "logit_bias": [
+            [token, False] for token in generation["suppress_token_ids"]
+        ],
+    }
+    started = time.perf_counter()
+    response = http_json(f"{base_url}/completion", body, timeout=1800.0)
+    wall_ms = (time.perf_counter() - started) * 1000.0
+    output_tokens = response.get("tokens")
+    timings = response.get("timings")
+    if (
+        not isinstance(output_tokens, list)
+        or not all(isinstance(token, int) for token in output_tokens)
+        or not isinstance(timings, dict)
+        or response.get("tokens_evaluated") != len(prompt)
+        or response.get("truncated") is not False
+    ):
+        raise BenchmarkError("llama.cpp response has invalid token, timing, or context data")
+    predicted_ms = float(timings["predicted_ms"])
+    predicted_n = int(timings["predicted_n"])
+    if predicted_n != len(output_tokens):
+        raise BenchmarkError("llama.cpp timing token count differs from returned tokens")
+    # llama.cpp starts this timer after the first sampled token but reports all
+    # generated tokens in predicted_n. Use N-1 explicitly for parity.
+    run = metric_run(
+        len(prompt),
+        output_tokens,
+        float(timings["prompt_ms"]),
+        predicted_ms,
+        response.get("stop_type"),
+    )
+    run["wall_ms"] = wall_ms
+    run["server_predicted_tokens_per_second"] = float(
+        timings["predicted_per_second"]
+    )
+    run["tokens_cached"] = int(response.get("tokens_cached", 0))
+    return run, output_tokens
+
+
+def package_versions(names: tuple[str, ...]) -> dict[str, str]:
+    versions: dict[str, str] = {}
+    for name in names:
+        try:
+            versions[name] = importlib.metadata.version(name)
+        except importlib.metadata.PackageNotFoundError:
+            versions[name] = "not-installed"
+    return versions
+
+
+def benchmark(args: argparse.Namespace) -> dict[str, Any]:
+    workload_path = args.workload.resolve(strict=True)
+    workload, prompt, generation = load_workload(workload_path)
+    if args.repetitions < 2:
+        raise BenchmarkError("at least two measured repetitions are required")
+    all_runs: list[dict[str, Any]] = []
+    representative: list[int] | None = None
+    runtime: dict[str, Any]
+    configuration: dict[str, Any]
+
+    if args.engine == "gem16gb":
+        if args.model is None or args.executable is None:
+            raise BenchmarkError("gem16gb requires --model and --executable")
+        model = args.model.resolve(strict=True)
+        executable = args.executable.resolve(strict=True)
+
+        def run_once() -> tuple[dict[str, Any], list[int]]:
+            return run_gem16gb(executable, model, prompt, generation)
+
+        runtime = {"executable": str(executable), "checkpoint": str(model)}
+        configuration = {"kv_cache": "checkpoint_fp8"}
+    elif args.engine == "vllm":
+        if args.model is None:
+            raise BenchmarkError("vLLM requires --model")
+        if not 0.0 < args.gpu_memory_utilization <= 1.0:
+            raise BenchmarkError("GPU memory utilization must be in (0, 1]")
+        import torch
+        from transformers import AutoTokenizer
+        from vllm import LLM, SamplingParams
+
+        if not torch.cuda.is_available():
+            raise BenchmarkError("CUDA is unavailable to vLLM")
+        model = args.model.resolve(strict=True)
+        tokenizer = AutoTokenizer.from_pretrained(str(model), local_files_only=True)
+        suppressed_token_strings = [
+            tokenizer.decode([token], skip_special_tokens=False)
+            for token in generation["suppress_token_ids"]
+        ]
+        if not all(suppressed_token_strings):
+            raise BenchmarkError("cannot decode one or more suppressed token IDs")
+        max_model_len = len(prompt) + generation["max_new_tokens"]
+        llm = LLM(
+            model=str(model),
+            tokenizer=str(model),
+            max_model_len=max_model_len,
+            gpu_memory_utilization=args.gpu_memory_utilization,
+            cpu_offload_gb=0,
+            enforce_eager=args.enforce_eager,
+            enable_prefix_caching=False,
+            enable_chunked_prefill=True,
+            kv_cache_dtype=args.vllm_kv_cache_dtype,
+            max_num_seqs=1,
+            disable_log_stats=False,
+            seed=generation["seed"],
+            limit_mm_per_prompt={"image": 0, "audio": 0, "video": 0},
+        )
+
+        def run_once() -> tuple[dict[str, Any], list[int]]:
+            return run_vllm_request(
+                llm,
+                SamplingParams,
+                prompt,
+                generation,
+                suppressed_token_strings,
+            )
+
+        device = torch.cuda.get_device_properties(0)
+        runtime = {
+            "checkpoint": str(model),
+            "python": platform.python_version(),
+            "packages": package_versions(
+                ("vllm", "torch", "transformers", "compressed-tensors")
+            ),
+            "torch_cuda": torch.version.cuda,
+            "device_name": device.name,
+        }
+        configuration = {
+            "kv_cache": args.vllm_kv_cache_dtype,
+            "gpu_memory_utilization": args.gpu_memory_utilization,
+            "cpu_offload_gb": 0,
+            "enforce_eager": args.enforce_eager,
+            "cuda_graphs_requested": not args.enforce_eager,
+            "prefix_caching": False,
+            "chunked_prefill": True,
+        }
+    else:
+        if args.executable is None or args.gguf is None:
+            raise BenchmarkError("llama.cpp requires --executable and --gguf")
+        executable = args.executable.resolve(strict=True)
+        gguf = args.gguf.resolve(strict=True)
+        base_url = f"http://127.0.0.1:{args.llama_port}"
+        log_path = args.output.with_suffix(".server.log")
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        log_file = log_path.open("w", encoding="utf-8")
+        command = [
+            str(executable),
+            "--model",
+            str(gguf),
+            "--ctx-size",
+            str(len(prompt) + generation["max_new_tokens"]),
+            "--n-gpu-layers",
+            "all",
+            "--split-mode",
+            "none",
+            "--flash-attn",
+            "on",
+            "--cache-type-k",
+            args.llama_kv_cache_type,
+            "--cache-type-v",
+            args.llama_kv_cache_type,
+            "--parallel",
+            "1",
+            "--batch-size",
+            "2048",
+            "--ubatch-size",
+            "512",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            str(args.llama_port),
+            "--no-webui",
+            "--offline",
+        ]
+        process = subprocess.Popen(command, stdout=log_file, stderr=subprocess.STDOUT)
+        try:
+            print("waiting for llama-server model load", flush=True)
+            wait_for_server(process, base_url)
+
+            def run_once() -> tuple[dict[str, Any], list[int]]:
+                return run_llama_request(base_url, prompt, generation)
+
+            for index in range(args.warmups):
+                print(f"warmup {index + 1}/{args.warmups}", flush=True)
+                run_once()
+            for index in range(args.repetitions):
+                print(f"measured {index + 1}/{args.repetitions}", flush=True)
+                run, output_tokens = run_once()
+                all_runs.append(run)
+                if representative is None:
+                    representative = output_tokens
+        finally:
+            process.terminate()
+            try:
+                process.wait(timeout=30)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=10)
+            log_file.close()
+        runtime = {
+            "executable": str(executable),
+            "gguf": str(gguf),
+            "server_log": str(log_path),
+        }
+        configuration = {
+            "kv_cache": args.llama_kv_cache_type,
+            "gpu_layers": "all",
+            "flash_attention": True,
+            "batch_size": 2048,
+            "ubatch_size": 512,
+            "parallel": 1,
+            "cache_prompt": False,
+        }
+
+    if args.engine != "llama-cpp":
+        for index in range(args.warmups):
+            print(f"warmup {index + 1}/{args.warmups}", flush=True)
+            run_once()
+        for index in range(args.repetitions):
+            print(f"measured {index + 1}/{args.repetitions}", flush=True)
+            run, output_tokens = run_once()
+            all_runs.append(run)
+            if representative is None:
+                representative = output_tokens
+
+    if representative is None:
+        raise BenchmarkError("benchmark produced no representative output")
+    return {
+        "schema_version": 1,
+        "status": "development_characterization",
+        "engine": args.engine,
+        "benchmark_source": repository_state(),
+        "workload": {
+            "path": str(workload_path),
+            "id": workload.get("id"),
+            "source": workload.get("source"),
+            "prompt_tokens": len(prompt),
+            "prompt_token_ids_sha256": workload["prompt"]["token_ids_sha256"],
+            "max_new_tokens": generation["max_new_tokens"],
+            "temperature": generation["temperature"],
+            "seed": generation["seed"],
+            "stop_token_ids": generation["stop_token_ids"],
+            "suppress_token_ids": generation["suppress_token_ids"],
+        },
+        "runtime": runtime,
+        "configuration": {
+            **configuration,
+            "batch_size": 1,
+            "warmups": args.warmups,
+            "measured_repetitions": args.repetitions,
+            "primary_statistic": "median",
+        },
+        "summary": summarize_runs(all_runs),
+        "runs": all_runs,
+        "representative_output_token_ids": representative,
+        "limitations": [
+            "No continuous power, clock, or thermal telemetry was captured.",
+            "TTFT includes prompt processing and first-token selection.",
+            "Decode throughput uses generated_tokens - 1 intervals after the first token.",
+            "Engine checkpoint and KV precisions must be read from configuration before comparison.",
+        ],
+    }
+
+
+def main() -> int:
+    args = parse_args()
+    try:
+        document = benchmark(args)
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(
+            json.dumps(document, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        print(
+            json.dumps(
+                {
+                    "output": str(args.output),
+                    "engine": document["engine"],
+                    "prompt_tokens_per_second": document["summary"][
+                        "prompt_tokens_per_second"
+                    ]["median"],
+                    "decode_tokens_per_second": document["summary"][
+                        "decode_tokens_per_second"
+                    ]["median"],
+                    "generated_tokens": document["summary"]["generated_tokens"][
+                        "median"
+                    ],
+                    "deterministic_outputs": document["summary"][
+                        "deterministic_outputs"
+                    ],
+                    "stop_reason_values": document["summary"][
+                        "stop_reason_values"
+                    ],
+                },
+                sort_keys=True,
+            ),
+            flush=True,
+        )
+        return 0
+    except (
+        BenchmarkError,
+        OSError,
+        ValueError,
+        json.JSONDecodeError,
+        subprocess.CalledProcessError,
+        urllib.error.URLError,
+    ) as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

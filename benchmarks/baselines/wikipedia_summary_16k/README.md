@@ -1,0 +1,81 @@
+# Wikipedia 16K summarization characterization
+
+This development characterization gives gem16gb, vLLM, and llama.cpp the exact same 16,384-token prompt and allows
+up to 8,192 new tokens. The source is English Wikipedia's `Artificial intelligence` article at revision
+`1366077412`; the German instruction requests a structured summary of its concepts, history, applications,
+opportunities, and risks. Thinking is disabled.
+
+The prompt token IDs are the comparison boundary. Their SHA-256, serialized as little-endian `uint32`, is:
+
+```text
+d07ad4d805944f0b87869da0c5bb44d99e8c43c0eb57d05a108ad80a6abb51a8
+```
+
+All engines use batch one, greedy selection, seed zero, the checkpoint stop/suppression controls, three warm-ups,
+and ten measured repetitions. TTFT includes prompt processing and selection of the first output token. Decode
+throughput measures the `generated_tokens - 1` intervals after that first token. EOS is allowed, so 8,192 is a
+limit rather than a forced output length.
+
+## Results
+
+| Engine | KV cache | Prefill | TTFT | Decode | ITL | Generated tokens | Greedy output |
+|---|---|---:|---:|---:|---:|---:|---|
+| gem16gb | checkpoint FP8 | 1,897.37 tok/s | 8,635.11 ms | 31.324 tok/s | 31.925 ms | 1,021-1,254 | 10/10 unique |
+| vLLM 0.25.1 | FP8 | 4,328.03 tok/s | 3,785.56 ms | 33.971 tok/s | 29.437 ms | 1,215 | identical 10/10 |
+| llama.cpp | Q8_0 | 2,160.83 tok/s | 7,582.29 ms | 28.843 tok/s | 34.670 ms | 1,088 | identical 10/10 |
+
+gem16gb reaches 43.84% of vLLM prefill throughput and 92.21% of its decode throughput. Against llama.cpp it
+reaches 87.81% of prefill and 108.60% of decode throughput. These are development ratios, not parity speedups:
+llama.cpp uses the patched closest-parity GGUF, maps the source FP8 attention weights to BF16, and uses Q8_0 KV.
+
+The three decoded representative outputs are plausible German summaries. However, gem16gb's ten nominally greedy
+runs produced ten different hashes and output lengths. vLLM and llama.cpp each produced one stable hash and length.
+The gem16gb result is therefore a correctness/reproducibility finding and must be resolved before this workload can
+be promoted to an accepted baseline.
+
+The older vLLM value of 6,146.50 tok/s is a 512-token prefill point. Its retained 8,192-token point is
+3,929.14 tok/s; neither number describes this 16K summarization workload.
+
+## Reproduction
+
+First create the pinned exact-token workload with the local checkpoint tokenizer:
+
+```bash
+third_party/cache/unsloth-nvfp4-env/bin/python \
+  tools/prepare_wikipedia_benchmark.py \
+  --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 \
+  --output benchmarks/results/<date>/<git-sha>/<machine-id>/wikipedia-summary-16k/workload.json
+```
+
+Then run `tools/benchmark_wikipedia_workload.py` once per engine with the shared workload. The tool supports
+`--engine gem16gb`, `--engine vllm`, and `--engine llama-cpp`:
+
+```bash
+python3 tools/benchmark_wikipedia_workload.py \
+  --engine gem16gb --workload <workload.json> --output <gem16gb.json> \
+  --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 \
+  --executable build/Linux/blackwell-release/bin/gem16gb-run
+
+HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 VLLM_NO_USAGE_STATS=1 \
+third_party/cache/unsloth-nvfp4-env/bin/python \
+  tools/benchmark_wikipedia_workload.py \
+  --engine vllm --workload <workload.json> --output <vllm.json> \
+  --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497
+
+python3 tools/benchmark_wikipedia_workload.py \
+  --engine llama-cpp --workload <workload.json> --output <llama-cpp.json> \
+  --executable build/llama_cpp/release/bin/llama-server \
+  --gguf build/llama_cpp/gemma4-12b-nvfp4-patched.gguf \
+  --llama-kv-cache-type q8_0
+```
+
+Full per-run artifacts remain under `benchmarks/results/`; the tracked `characterization.json` retains the
+comparison configuration, medians, confidence intervals, and samples.
+
+## Limitations
+
+- This is a development characterization, not an accepted parity benchmark.
+- No continuous power, clock, temperature, or per-token percentile telemetry was captured.
+- The engines stopped after different numbers of tokens, so their later decode contexts are not identical.
+- gem16gb and vLLM consume the direct mixed FP8/NVFP4 checkpoint. llama.cpp consumes the patched closest-parity
+  GGUF and therefore differs in attention weight and KV precision.

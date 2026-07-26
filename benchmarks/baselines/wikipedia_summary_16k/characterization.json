@@ -1,0 +1,235 @@
+{
+  "schema_version": 1,
+  "status": "development_characterization",
+  "date": "2026-07-26",
+  "base_commit": "7d295806fe7ae91d36078b0c8f4c44623fdd7c65",
+  "hardware": {
+    "device_name": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "compute_capability": "12.0",
+    "memory_mib": 16303,
+    "driver": "610.43.03"
+  },
+  "workload": {
+    "id": "wikipedia-artificial-intelligence-summary-16k",
+    "wikipedia_title": "Artificial intelligence",
+    "wikipedia_revision": 1366077412,
+    "prompt_tokens": 16384,
+    "prompt_token_ids_sha256": "d07ad4d805944f0b87869da0c5bb44d99e8c43c0eb57d05a108ad80a6abb51a8",
+    "max_new_tokens": 8192,
+    "temperature": 0.0,
+    "seed": 0,
+    "warmups": 3,
+    "measured_repetitions": 10
+  },
+  "results": {
+    "gem16gb": {
+      "checkpoint": "direct mixed FP8/NVFP4 Hugging Face checkpoint",
+      "kv_cache": "checkpoint FP8",
+      "prompt_tokens_per_second": {
+        "median": 1897.3702683866632,
+        "confidence_interval_95": [
+          1896.6096752944745,
+          1899.2512893217295
+        ],
+        "samples": [
+          1901.5497677031337,
+          1899.7351687545508,
+          1899.5677741295192,
+          1898.3308499618804,
+          1896.9066435728164,
+          1897.8338932005097,
+          1896.792448024599,
+          1896.4257975949747,
+          1896.2085088653305,
+          1895.9539712737053
+        ]
+      },
+      "time_to_first_token_ms": {
+        "median": 8635.11,
+        "confidence_interval_95": [
+          8626.564436467068,
+          8638.57156353293
+        ]
+      },
+      "decode_tokens_per_second": {
+        "median": 31.3237539162672,
+        "confidence_interval_95": [
+          31.3137104779973,
+          31.346756774209748
+        ],
+        "samples": [
+          31.378790721318815,
+          31.350401885470976,
+          31.35166777363758,
+          31.312240262093194,
+          31.32119970332901,
+          31.329090596358455,
+          31.326308129205387,
+          31.313468468723308,
+          31.306244247331055,
+          31.312924473567456
+        ]
+      },
+      "average_inter_token_latency_ms": 31.92465402845067,
+      "generated_tokens": [
+        1038,
+        1129,
+        1115,
+        1254,
+        1175,
+        1021,
+        1103,
+        1108,
+        1069,
+        1102
+      ],
+      "unique_output_hashes": 10,
+      "deterministic_outputs": false,
+      "stop_reasons": [
+        "stop"
+      ]
+    },
+    "vllm": {
+      "version": "0.25.1",
+      "checkpoint": "direct mixed FP8/NVFP4 Hugging Face checkpoint",
+      "kv_cache": "FP8",
+      "prompt_tokens_per_second": {
+        "median": 4328.033894340306,
+        "confidence_interval_95": [
+          4321.635718579685,
+          4335.235926143308
+        ],
+        "samples": [
+          4342.973438647449,
+          4321.745642327167,
+          4319.488220725015,
+          4337.832674026562,
+          4324.035625492373,
+          4335.662638461343,
+          4332.032163188239,
+          4314.155852326928,
+          4321.131748738612,
+          4335.300219681278
+        ]
+      },
+      "time_to_first_token_ms": {
+        "median": 3785.555839538574,
+        "confidence_interval_95": [
+          3779.2712232526733,
+          3791.163823896985
+        ]
+      },
+      "decode_tokens_per_second": {
+        "median": 33.97123775238085,
+        "confidence_interval_95": [
+          33.95370290886199,
+          34.01807041000665
+        ],
+        "samples": [
+          34.073047230392845,
+          34.049036692356175,
+          34.00248066744593,
+          33.983050606849254,
+          33.995547371183584,
+          33.95942489791245,
+          33.95765076210471,
+          33.95059290546076,
+          33.941959164999375,
+          33.946076295638115
+        ]
+      },
+      "average_inter_token_latency_ms": 29.436670168040006,
+      "generated_tokens": [
+        1215,
+        1215,
+        1215,
+        1215,
+        1215,
+        1215,
+        1215,
+        1215,
+        1215,
+        1215
+      ],
+      "unique_output_hashes": 1,
+      "deterministic_outputs": true,
+      "stop_reasons": [
+        "stop"
+      ]
+    },
+    "llama_cpp": {
+      "checkpoint": "patched same-source closest-parity GGUF",
+      "kv_cache": "Q8_0",
+      "prompt_tokens_per_second": {
+        "median": 2160.8257907356647,
+        "confidence_interval_95": [
+          2158.2087561717985,
+          2163.390538098806
+        ],
+        "samples": [
+          2168.0302867902856,
+          2158.566640079829,
+          2161.0772885866522,
+          2162.235496004338,
+          2160.5742928846767,
+          2155.0218889140406,
+          2163.771512912634,
+          2156.849735606872,
+          2161.5525710192846,
+          2160.3167585544074
+        ]
+      },
+      "time_to_first_token_ms": {
+        "median": 7582.2865,
+        "confidence_interval_95": [
+          7573.310671857452,
+          7591.483928142549
+        ]
+      },
+      "decode_tokens_per_second": {
+        "median": 28.843049540177475,
+        "confidence_interval_95": [
+          28.82939851552165,
+          28.873158854693063
+        ],
+        "samples": [
+          28.909657506463052,
+          28.886000879335576,
+          28.84681193765469,
+          28.826707650271413,
+          28.839287142700265,
+          28.849640873725306,
+          28.87906404414655,
+          28.834197581153013,
+          28.813488381179493,
+          28.827930854444222
+        ]
+      },
+      "average_inter_token_latency_ms": 34.67039834406624,
+      "generated_tokens": [
+        1088,
+        1088,
+        1088,
+        1088,
+        1088,
+        1088,
+        1088,
+        1088,
+        1088,
+        1088
+      ],
+      "unique_output_hashes": 1,
+      "deterministic_outputs": true,
+      "stop_reasons": [
+        "eos"
+      ]
+    }
+  },
+  "limitations": [
+    "This is not an accepted parity benchmark.",
+    "gem16gb was non-deterministic across nominally greedy runs.",
+    "llama.cpp maps source FP8 attention weights to BF16 and uses Q8_0 KV.",
+    "The engines generated different token counts, so decode trajectories differ.",
+    "No continuous power, clock, temperature, or per-token percentile telemetry was captured."
+  ]
+}

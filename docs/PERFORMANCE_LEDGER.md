@@ -6,6 +6,22 @@ Repeated isolated projection measurements keep one 33.3 MB tensor family hot in 
 estimate a layer. The complete MLP row cycles through the 99.5 MB three-projection working set and is the more useful
 decode characterization.
 
+## Wikipedia 16K end-to-end characterization
+
+At base commit `7d29580`, a pinned Wikipedia summarization workload supplied the exact same 16,384 prompt token IDs
+to gem16gb, vLLM 0.25.1, and the patched same-source llama.cpp candidate. Each engine used batch one, greedy
+selection, three warm-ups, ten measurements, and an 8,192-token output limit with normal EOS handling. Median
+prefill was 1,897.37/4,328.03/2,160.83 tok/s and median decode was 31.324/33.971/28.843 tok/s respectively.
+gem16gb therefore reached 43.84% of vLLM prefill and 92.21% of vLLM decode, while reaching 87.81% of llama.cpp
+prefill and 108.60% of llama.cpp decode. gem16gb and vLLM used FP8 KV; llama.cpp used Q8_0 KV and its
+closest-parity GGUF maps source FP8 attention weights to BF16.
+
+All representative outputs were plausible German summaries. vLLM generated the same 1,215-token output in all ten
+runs and llama.cpp the same 1,088-token output. gem16gb generated 1,021-1,254 tokens with ten distinct hashes.
+This nominally greedy non-determinism is an open correctness/reproducibility issue, so these results remain a
+development characterization. Full methodology and retained samples are in
+`benchmarks/baselines/wikipedia_summary_16k/`.
+
 ## Native prefill and long-context decode characterization
 
 The 2026-07-26 long-context decode promotion replaces the three-kernel score/softmax/value path above 512 planned

@@ -72,3 +72,20 @@ The full table, methodology, raw samples, and limitations are under `benchmarks/
 vLLM reported capacity for 10,303 BF16 KV-cache tokens at 95% GPU-memory utilization, so this run cannot cover 32K
 or 65K. FlashInfer also used fallback tactics after some autotuning OOMs, including an untuned 8,192-token prefill
 shape. The characterization remains development evidence rather than an accepted baseline.
+
+## Shared Wikipedia 16K summarization workload
+
+The retained real-workload characterization gives all three engines the same 16,384 prompt token IDs from a pinned
+Wikipedia article revision, permits up to 8,192 generated tokens with normal EOS handling, and measures both TTFT
+and the decode intervals after the first token. It uses checkpoint FP8 KV for gem16gb, FP8 KV for vLLM, and Q8_0 KV
+for the patched closest-parity llama.cpp GGUF. The prompt hash, commands, raw samples, confidence intervals, and
+format limitations are recorded under `benchmarks/baselines/wikipedia_summary_16k/`.
+
+At base commit `7d29580`, median prefill throughput is 1,897.37/4,328.03/2,160.83 tok/s for
+gem16gb/vLLM/llama.cpp; median decode is 31.324/33.971/28.843 tok/s. The representative outputs are plausible
+German summaries, but gem16gb produces ten distinct output hashes and lengths across ten nominally greedy runs,
+while vLLM and llama.cpp are stable. The result therefore remains a development characterization and records a
+determinism/correctness issue that must be closed before promotion.
+
+The previously cited 6,146.50 tok/s vLLM result is specifically the retained 512-token prefill point. The retained
+8,192-token point is 3,929.14 tok/s; the shared Wikipedia result above is the separate 16,384-token measurement.
