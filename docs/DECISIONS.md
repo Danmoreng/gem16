@@ -1,5 +1,31 @@
 # Decisions
 
+## 2026-07-26: Split and merge long-context FP8 decode attention
+
+Date: 2026-07-26
+Decision: For checkpoint-FP8 plans above 512 positions, replace the materialized score matrix and separate
+softmax/value kernels with shape-specific split attention inside the complete decode graph. Group the two local
+queries per KV head and four global queries at a time, compute normalized partial outputs with FP32 log-sum-exp
+state, and merge token splits in a second kernel. Use 256-token local splits and 512-token global splits. Retain the
+prior score/softmax/value path for plans through 512 positions and for explicit BF16 K/V correctness mode.
+Context: The prior controlled decode path serially reduced D256/D512 QK inside one thread, wrote every score to
+global memory, reread it for softmax, and scanned the cache again for PV. Its cost grew sharply at 8K even though
+vLLM remained nearly context-flat. A single CTA per query with token-serial online softmax would remove score
+traffic but expose too little parallelism, especially for the eight global layers.
+Alternatives: Use one CTA per query; retain separate score and value kernels while only parallelizing QK; use one
+fixed split size for both Gemma geometries; or select a plan dynamically in the token loop. These respectively
+underfill the GPU, retain avoidable traffic, ignore distinct D256/D512 work, or weaken deterministic CUDA Graph
+execution.
+Consequences: Decode workspace stores normalized split outputs and LSE values rather than only scores, but remains
+approximately the previous global score size plus small LSE storage. Kernel grids and addresses are fixed during
+graph capture; there are no token-loop allocations or host decisions. JSON reports `fp8_online_split_gqa` versus
+`score_softmax_value_reference`. The remaining 8K gap is now primarily projection and output-head work.
+Evidence: Product-shape CUDA comparisons have maximum absolute error `3.73e-8` local and `1.86e-7` global with
+cosine 1.0. All host/CUDA tests and exact-blue generation pass. On the Linux RTX 5080 Laptop, context-8K decode is
+30.02 tok/s with 33.21/35.19/36.65 ms p50/p95/p99 over 3 warm-ups and 10 measured runs; all runs share checksum
+`17504476492555856403`. The node-level Nsight trace measures about 5.1 ms/token for all 48 decode-attention layers
+and merges. The short-path regression check is 32.13 tok/s at context 128.
+
 ## 2026-07-26: Compose Unsloth weights with Google's current tokenizer metadata
 
 Date: 2026-07-26

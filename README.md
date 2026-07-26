@@ -85,7 +85,9 @@ The checkpoint-declared FP8 K/V semantics are the default. Use `--kv-cache bf16`
 BF16 correctness comparison. The production path is fixed to native SM120 projection, chunked prefill, fused causal
 prefill attention, fused exact prefill normalization/quantization boundaries, separate Gate/Up projections with a
 fused GELU-tanh/NVFP4 epilogue, fused Q/K RMSNorm/RoPE with persistent exact tables, complete decode graphs, and
-fused output-head reduction. Slower
+fused output-head reduction. Checkpoint-FP8 decode plans up to 512 positions retain the score/softmax/value path;
+larger plans use shape-specific GQA grouping, 256-token local and 512-token global splits, FP32 partial softmax
+state, and a graph-captured LSE merge without a global score matrix. Slower
 alternatives are not exposed by the product CLIs; reference implementations remain in operator probes and tests.
 JSON records the fixed path.
 

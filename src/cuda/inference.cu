@@ -1234,7 +1234,8 @@ class InferenceEngine {
     GEM16GB_ADD(q_norm, float, kQueryHeads * 512U);
     GEM16GB_ADD(k_norm, float, 8U * 256U);
     GEM16GB_ADD(v_norm, float, 8U * 256U);
-    GEM16GB_ADD(scores, float, kQueryHeads * max_context_);
+    GEM16GB_ADD(scores, float,
+                internal::DecodeAttentionWorkspaceElements(max_context_));
     GEM16GB_ADD(attention, float, kQueryHeads * 512U);
     GEM16GB_ADD(o_activation, std::uint8_t, kQueryHeads * 512U);
     GEM16GB_ADD(o_scale, float, 1U);
@@ -1523,11 +1524,19 @@ class InferenceEngine {
           layer.k_cache_scale, layer.v_cache_scale, control, layer.kv_heads,
           layer.head_dimension, capacity, !layer.global, stream_);
       if (!status.ok()) return status;
-      status = internal::LaunchLocalAttentionDecodeFp8Controlled(
-          q_norm, layer.key_cache_fp8, layer.value_cache_fp8,
-          layer.k_cache_scale, layer.v_cache_scale, scores, attention, control,
-          kQueryHeads, layer.kv_heads, layer.head_dimension, capacity,
-          !layer.global, stream_);
+      if (capacity <= 512U) {
+        status = internal::LaunchLocalAttentionDecodeFp8Controlled(
+            q_norm, layer.key_cache_fp8, layer.value_cache_fp8,
+            layer.k_cache_scale, layer.v_cache_scale, scores, attention,
+            control, kQueryHeads, layer.kv_heads, layer.head_dimension,
+            capacity, !layer.global, stream_);
+      } else {
+        status = internal::LaunchOnlineAttentionDecodeFp8Sm120(
+            q_norm, layer.key_cache_fp8, layer.value_cache_fp8,
+            layer.k_cache_scale, layer.v_cache_scale, scores, attention,
+            control, kQueryHeads, layer.kv_heads, layer.head_dimension,
+            capacity, !layer.global, stream_);
+      }
     } else {
       status = internal::LaunchAppendKvControlled(
           k_norm, v_norm, layer.key_cache_bf16, layer.value_cache_bf16,
@@ -2226,6 +2235,7 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
   result.decode_graph_device_bytes =
       impl_->engine.decode_graph_device_bytes();
   result.prefill_chunk_tokens = impl_->engine.prefill_chunk_tokens();
+  result.max_context_tokens = impl_->max_context_tokens;
   result.packed_weight_source_layout_direct = true;
   result.token_loop_allocations = false;
   result.benchmark_qualified = false;
@@ -2407,6 +2417,7 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
   result.workspace_bytes = engine.workspace_bytes();
   result.decode_graph_device_bytes = engine.decode_graph_device_bytes();
   result.prefill_chunk_tokens = engine.prefill_chunk_tokens();
+  result.max_context_tokens = options.max_context_tokens;
   result.packed_weight_source_layout_direct = true;
   result.token_loop_allocations = false;
   result.benchmark_qualified = false;
@@ -2652,6 +2663,12 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
          << "  \"benchmark_qualified\": false,\n"
          << "  \"precision\": \"bf16_state_fp8_attention_nvfp4_mlp\",\n"
          << "  \"projection_path\": \"native_sm120\",\n"
+         << "  \"decode_attention_path\": \""
+         << (result.kv_cache_mode == KvCacheMode::kCheckpointFp8 &&
+                     result.max_context_tokens > 512U
+                 ? "fp8_online_split_gqa"
+                 : "score_softmax_value_reference")
+         << "\",\n"
          << "  \"kv_cache_mode\": \""
          << (result.kv_cache_mode == KvCacheMode::kCheckpointFp8
                  ? "checkpoint_fp8"
@@ -2745,7 +2762,15 @@ Status WriteDecodeBenchmarkJson(const DecodeBenchmarkResult& result,
          << "{\"schema_version\":1,\"status\":\"characterization\","
          << "\"benchmark_qualified\":false,\"mode\":\"decode\",\"batch_size\":1,"
          << "\"precision\":\"bf16_state_fp8_attention_nvfp4_mlp\","
-         << "\"projection_path\":\"native_sm120\",\"kv_cache_mode\":\""
+         << "\"projection_path\":\"native_sm120\","
+         << "\"decode_attention_path\":\""
+         << (result.options.kv_cache_mode == KvCacheMode::kCheckpointFp8 &&
+                     static_cast<std::uint64_t>(result.options.context_tokens) +
+                             result.options.generated_tokens >
+                         512U
+                 ? "fp8_online_split_gqa"
+                 : "score_softmax_value_reference")
+         << "\",\"kv_cache_mode\":\""
          << (result.options.kv_cache_mode == KvCacheMode::kCheckpointFp8
                  ? "checkpoint_fp8" : "bf16_correctness")
          << "\",\"kv_cache_layout\":\"hybrid_local_ring_global_contiguous"

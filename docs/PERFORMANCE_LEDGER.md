@@ -8,6 +8,23 @@ decode characterization.
 
 ## Native prefill and long-context decode characterization
 
+The 2026-07-26 long-context decode promotion replaces the three-kernel score/softmax/value path above 512 planned
+positions with product-shape checkpoint-FP8 online attention. Local D256 layers group the two queries sharing each
+KV head and split the 1,024-token ring into 256-token ranges. Global D512 layers process four of the sixteen
+queries sharing the sole KV head together and split the growing cache into 512-token ranges. CTAs write normalized
+partial outputs plus FP32 log-sum-exp state; one small graph-captured kernel merges those states. Plans through 512
+positions retain the prior path because the split plan under-occupies the GPU there.
+
+On the Linux RTX 5080 Laptop, the promoted 8,192-context path reaches 30.02 output tok/s with 33.21/35.19/36.65 ms
+p50/p95/p99 latency over 3 warm-ups and 10 measured runs of 64 output tokens. All ten runs produce checksum
+`17504476492555856403`. The immediately preceding development tree was reported at approximately 15 tok/s at 8K;
+that observation has no retained adjacent raw artifact and is therefore not used as an accepted speedup claim.
+The older retained orientation point is 12.68 tok/s but also predates later projection improvements. A
+CUDA-Graph-node Nsight trace attributes approximately 2.80 ms/token to local split plus merge and 2.32 ms/token to
+global split plus merge. The attention operator agrees with the score-matrix oracle at max absolute error
+`3.73e-8` local and `1.86e-7` global, with cosine 1.0 for both production shapes. Context 128 retains its prior path
+and measures 32.13 tok/s in the 1/3 regression check.
+
 The active work program, required gates, and promotion policy are fixed in
 [`docs/PREFILL_OPTIMIZATION_PLAN.md`](PREFILL_OPTIMIZATION_PLAN.md). At `1bc942b`, the Linux 512-token median is
 698.25 tok/s versus the retained vLLM orientation point of 6,146.50 tok/s. A direct Nsight comparison attributes

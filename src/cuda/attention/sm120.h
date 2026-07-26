@@ -8,6 +8,8 @@
 
 namespace gem16gb::internal {
 
+struct DecodeControl;
+
 // Product-shape local Gemma prefill attention. Q is BF16-valued float storage;
 // K/V use the checkpoint's physical E4M3 cache representation and BF16 scale.
 // The kernel consumes current-chunk K/V directly, so callers append the chunk
@@ -33,5 +35,24 @@ namespace gem16gb::internal {
     std::uint64_t query_heads, std::uint64_t kv_heads,
     std::uint64_t head_dimension, std::uint64_t cache_capacity,
     cudaStream_t stream);
+
+// Product-shape batch-one decode attention over the checkpoint's physical
+// E4M3 K/V cache. Token ranges are split across CTAs; each CTA computes a
+// normalized partial output and FP32 log-sum-exp state without materializing
+// the score matrix. A second kernel merges the partials. `workspace` requires
+// DecodeAttentionWorkspaceElements(max_context) floats.
+[[nodiscard]] Status LaunchOnlineAttentionDecodeFp8Sm120(
+    const float* query, const std::uint8_t* key_cache,
+    const std::uint8_t* value_cache,
+    const std::uint16_t* key_scale_bf16,
+    const std::uint16_t* value_scale_bf16, float* workspace, float* output,
+    const DecodeControl* control, std::uint64_t query_heads,
+    std::uint64_t kv_heads, std::uint64_t head_dimension,
+    std::uint64_t cache_capacity, bool sliding, cudaStream_t stream);
+
+// Covers both the local D256/256-token split and global D512/512-token split.
+// The returned count includes normalized partial outputs and their LSE values.
+[[nodiscard]] std::uint64_t DecodeAttentionWorkspaceElements(
+    std::uint64_t max_context);
 
 }  // namespace gem16gb::internal

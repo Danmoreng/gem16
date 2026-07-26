@@ -1806,6 +1806,133 @@ void TestCausalPrefillAcrossWrappedRing() {
   CUDA_TEST_CHECK(appended_keys[5] == chunk_keys[3]);
 }
 
+void TestOnlineFp8DecodeAttentionShape(
+    std::uint64_t kv_heads, std::uint64_t head_dimension,
+    std::uint64_t capacity, std::uint64_t position, bool sliding,
+    const char* label) {
+  constexpr std::uint64_t query_heads = 16;
+  constexpr std::array<std::uint16_t, 1> key_scale = {0x3F00U};
+  constexpr std::array<std::uint16_t, 1> value_scale = {0x3F40U};
+  const std::uint64_t tokens =
+      sliding ? std::min(position + 1U, capacity) : position + 1U;
+  const std::uint64_t first_slot =
+      sliding && position + 1U > capacity ? (position + 1U) % capacity : 0U;
+  std::vector<float> query(query_heads * head_dimension);
+  for (std::size_t index = 0; index < query.size(); ++index) {
+    query[index] =
+        static_cast<float>(static_cast<int>((index * 11U) % 31U) - 15) *
+        0.015625F;
+  }
+  const auto make_cache = [](std::size_t count, std::size_t multiplier) {
+    std::vector<std::uint8_t> values(count);
+    for (std::size_t index = 0; index < count; ++index) {
+      const float value =
+          static_cast<float>(
+              static_cast<int>((index * multiplier + index / 37U) % 29U) -
+              14) *
+          0.125F;
+      const auto encoded = gem16gb::fp8::EncodeE4M3Fn(value);
+      CUDA_TEST_CHECK(encoded.ok());
+      if (!encoded.ok()) return std::vector<std::uint8_t>{};
+      values[index] = encoded.value();
+    }
+    return values;
+  };
+  const auto keys =
+      make_cache(capacity * kv_heads * head_dimension, 7U);
+  const auto values =
+      make_cache(capacity * kv_heads * head_dimension, 13U);
+  if (keys.empty() || values.empty()) return;
+
+  const std::size_t workspace_elements = static_cast<std::size_t>(
+      gem16gb::internal::DecodeAttentionWorkspaceElements(capacity));
+  DeviceBuffer<float> device_query(query.size());
+  DeviceBuffer<std::uint8_t> device_keys(keys.size());
+  DeviceBuffer<std::uint8_t> device_values(values.size());
+  DeviceBuffer<std::uint16_t> device_key_scale(key_scale.size());
+  DeviceBuffer<std::uint16_t> device_value_scale(value_scale.size());
+  DeviceBuffer<float> device_reference_scores(query_heads * tokens);
+  DeviceBuffer<float> device_workspace(workspace_elements);
+  DeviceBuffer<float> device_reference_output(query.size());
+  DeviceBuffer<float> device_online_output(query.size());
+  DeviceBuffer<gem16gb::internal::DecodeControl> device_control(1);
+  if (device_query.get() == nullptr || device_keys.get() == nullptr ||
+      device_values.get() == nullptr || device_key_scale.get() == nullptr ||
+      device_value_scale.get() == nullptr ||
+      device_reference_scores.get() == nullptr ||
+      device_workspace.get() == nullptr ||
+      device_reference_output.get() == nullptr ||
+      device_online_output.get() == nullptr ||
+      device_control.get() == nullptr) {
+    return;
+  }
+  const gem16gb::internal::DecodeControl control = {
+      .token = 0, .suppressed_token_count = 0, .position = position};
+  if (!CudaOk(cudaMemcpy(device_query.get(), query.data(),
+                         device_query.bytes(), cudaMemcpyHostToDevice),
+              "copy online-decode query") ||
+      !CudaOk(cudaMemcpy(device_keys.get(), keys.data(), device_keys.bytes(),
+                         cudaMemcpyHostToDevice),
+              "copy online-decode keys") ||
+      !CudaOk(cudaMemcpy(device_values.get(), values.data(),
+                         device_values.bytes(), cudaMemcpyHostToDevice),
+              "copy online-decode values") ||
+      !CudaOk(cudaMemcpy(device_key_scale.get(), key_scale.data(),
+                         device_key_scale.bytes(), cudaMemcpyHostToDevice),
+              "copy online-decode key scale") ||
+      !CudaOk(cudaMemcpy(device_value_scale.get(), value_scale.data(),
+                         device_value_scale.bytes(), cudaMemcpyHostToDevice),
+              "copy online-decode value scale") ||
+      !CudaOk(cudaMemcpy(device_control.get(), &control, sizeof(control),
+                         cudaMemcpyHostToDevice),
+              "copy online-decode control")) {
+    return;
+  }
+
+  const auto reference =
+      gem16gb::internal::LaunchLocalAttentionDecodeFp8(
+          device_query.get(), device_keys.get(), device_values.get(),
+          device_key_scale.get(), device_value_scale.get(),
+          device_reference_scores.get(), device_reference_output.get(),
+          query_heads, kv_heads, head_dimension, tokens, nullptr, capacity,
+          first_slot);
+  const auto online =
+      gem16gb::internal::LaunchOnlineAttentionDecodeFp8Sm120(
+          device_query.get(), device_keys.get(), device_values.get(),
+          device_key_scale.get(), device_value_scale.get(),
+          device_workspace.get(), device_online_output.get(),
+          device_control.get(), query_heads, kv_heads, head_dimension,
+          capacity, sliding, nullptr);
+  CUDA_TEST_CHECK(reference.ok());
+  CUDA_TEST_CHECK(online.ok());
+  if (!reference.ok() || !online.ok() ||
+      !CudaOk(cudaDeviceSynchronize(), "online FP8 decode synchronize")) {
+    return;
+  }
+  std::vector<float> reference_output(query.size());
+  std::vector<float> online_output(query.size());
+  if (!CudaOk(cudaMemcpy(reference_output.data(),
+                         device_reference_output.get(),
+                         device_reference_output.bytes(),
+                         cudaMemcpyDeviceToHost),
+              "copy online-decode reference") ||
+      !CudaOk(cudaMemcpy(online_output.data(), device_online_output.get(),
+                         device_online_output.bytes(),
+                         cudaMemcpyDeviceToHost),
+              "copy online-decode output")) {
+    return;
+  }
+  CheckAttentionMetrics(reference_output, online_output, label, 2.0e-3F,
+                        3.0e-4, 0.99999);
+}
+
+void TestOnlineFp8DecodeAttention() {
+  TestOnlineFp8DecodeAttentionShape(8, 256, 1024, 1100, true,
+                                    "online local FP8 decode");
+  TestOnlineFp8DecodeAttentionShape(1, 512, 1536, 768, false,
+                                    "online global FP8 decode");
+}
+
 void TestVectorizedFp8CausalPrefill() {
   constexpr std::uint64_t tokens = 3;
   constexpr std::uint64_t query_heads = 2;
@@ -2204,6 +2331,7 @@ int main() {
   TestFusedProjectionRmsNormRotaryBf16Batch();
   TestPhysicalFp8KvCache();
   TestWrappedKvRingAttention();
+  TestOnlineFp8DecodeAttention();
   TestCausalPrefillAcrossWrappedRing();
   TestVectorizedFp8CausalPrefill();
   TestOnlineLocalFp8CausalPrefill();
