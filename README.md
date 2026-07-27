@@ -183,6 +183,7 @@ and the direct mixed checkpoint and available GGUF baseline differ in some tenso
 - [`docs/CHECKPOINT_FORMAT.md`](docs/CHECKPOINT_FORMAT.md) — source tensors and quantization schema
 - [`docs/CORRECTNESS.md`](docs/CORRECTNESS.md) — numerical validation strategy and current gates
 - [`docs/MEMORY.md`](docs/MEMORY.md) — device arenas, KV cache, and context profiles
+- [`docs/MTP.md`](docs/MTP.md) — pinned assistant, feasibility evidence, and implementation plan
 - [`docs/BENCHMARKING.md`](docs/BENCHMARKING.md) — benchmark methodology and comparison contract
 - [`docs/PERFORMANCE_LEDGER.md`](docs/PERFORMANCE_LEDGER.md) — detailed measurements and profiling evidence
 - [`docs/ROADMAP.md`](docs/ROADMAP.md) — remaining milestones

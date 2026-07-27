@@ -1,5 +1,25 @@
 # Decisions
 
+## 2026-07-27: Use Google's separate BF16 12B assistant for first MTP support
+
+Date: 2026-07-27
+Decision: Pin `google/gemma-4-12B-it-assistant` separately and implement its published BF16 Safetensors payload
+before considering community FP8/NVFP4 conversions. Share the target KV states required by its Q-only layers, but
+retain the assistant's own 1,024-dimensional tied LM head.
+Context: The pinned Unsloth target contains no MTP tensors. Google's official assistant is a four-layer
+`gemma4_unified_assistant` with a 3,840-dimensional target interface, 1,024-dimensional internal state, and an
+806.54 MiB BF16 payload. Its exact vocabulary mapping matches the target. vLLM loads and wires the pair directly,
+confirming checkpoint compatibility; natural-prompt acceptance is promising but strongly workload-dependent.
+Alternatives: Treat MTP as embedded target weights; use a community quantized assistant first; quantize the
+assistant ourselves; or skip MTP. The first is contradicted by the complete target manifest, the next two weaken
+provenance and first-result quality, and the memory estimate does not justify skipping the official model.
+Consequences: MTP is an optional second checkpoint and adds about 807 MiB persistent payload but no independent KV
+cache. The maximum-context target peak plus payload is about 13,051 MiB before MTP-specific graph/workspace costs,
+leaving about 3,252 MiB on the reference GPU. Ordinary decode remains mandatory because poor acceptance can make
+MTP slower. Direct-load, exact verification, acceptance, incremental-VRAM, and effective-throughput gates apply.
+Evidence: `docs/MTP.md`, the pinned 48-tensor assistant header, lock-file hashes, successful vLLM eager execution,
+and vLLM's target Layer 46/47 cross-model KV mapping.
+
 ## 2026-07-27: Use one mixed run for the bounded 64K text gate
 
 Date: 2026-07-27

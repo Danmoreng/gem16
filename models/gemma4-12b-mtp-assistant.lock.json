@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "repository": "google/gemma-4-12B-it-assistant",
+  "revision": "364bd03c9952e5b7da73665ee30c9eccfc408345",
+  "resolved_at_utc": "2026-07-27T23:12:00Z",
+  "model_card_revision": "364bd03c9952e5b7da73665ee30c9eccfc408345",
+  "config_revision": "364bd03c9952e5b7da73665ee30c9eccfc408345",
+  "tokenizer_revision": "364bd03c9952e5b7da73665ee30c9eccfc408345",
+  "files": [
+    {
+      "path": ".gitattributes",
+      "size": 1624,
+      "sha256": "484fac0cb8b057eefe1992c8b72ac6e7438c7d17bd60c0e278b401c2190f7e72",
+      "git_oid": "602d20f6eefed4b62821062891a7a495e25435f9"
+    },
+    {
+      "path": "README.md",
+      "size": 29899,
+      "sha256": "eb9c31937729ee1da6767900f2d3ee79e72f070fdb0181b68983df742abc97d8",
+      "git_oid": "d4d487c449ba880eda5b75718a36a2b65b7ac65b"
+    },
+    {
+      "path": "config.json",
+      "size": 2346,
+      "sha256": "b6f19209588fcefe41f65b193fad6148446253c470d36e29441ecc5158a54e6d",
+      "git_oid": "9889070ccf194bd3cab6f61954218a4058696537"
+    },
+    {
+      "path": "generation_config.json",
+      "size": 233,
+      "sha256": "02b56bd11e1cd1e363e701a85a2fd7fbaa2992ec3358c1cd7cc44ead7208f505",
+      "git_oid": "6e4ef65e8cf563a9177fd933423f89eed2f74d74"
+    },
+    {
+      "path": "model.safetensors",
+      "size": 845719296,
+      "sha256": "3279c173daddd7186e79d652ad94022415736d3a1370625696c898429b06d6df",
+      "git_oid": "dcecf2bfdf2086d661e44134663920bdaacec1e7",
+      "lfs_oid": "3279c173daddd7186e79d652ad94022415736d3a1370625696c898429b06d6df"
+    },
+    {
+      "path": "tokenizer.json",
+      "size": 32169884,
+      "sha256": "c001d9ada50af662c94f5ab17ec7e09f6438d1bec8246c47fee6510693d8de35",
+      "git_oid": "0645e1e88640880b270ab18c952d52b04e7e396d",
+      "lfs_oid": "c001d9ada50af662c94f5ab17ec7e09f6438d1bec8246c47fee6510693d8de35"
+    },
+    {
+      "path": "tokenizer_config.json",
+      "size": 822,
+      "sha256": "089594a3924fcfd4cb1c596a7906fbf476193519e5198f780912eed02b177e42",
+      "git_oid": "1a6bee041ca75778c514a071efbdb568b0f3d7b0"
+    }
+  ]
+}
