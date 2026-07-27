@@ -9,6 +9,7 @@
 #include "cuda/nvfp4/sm120.h"
 #include "cuda/nvfp4/sm120_layout.h"
 #include "cuda/nvfp4/mlp.h"
+#include "cuda/sampling/sampling.h"
 #include "gem16/fp8.h"
 #include "gem16/layer.h"
 #include "gem16/nvfp4.h"
@@ -2690,6 +2691,194 @@ void TestOnlineGlobalFp8CausalPrefill() {
                         0.99999);
 }
 
+void TestGpuSampling() {
+  constexpr std::uint32_t kVocabulary = 8U;
+  const std::array<float, kVocabulary> logits =
+      {5.0F, 4.0F, 3.0F, 2.0F, 1.0F, -1.0F, -2.0F, -3.0F};
+  const std::array<std::uint32_t, 2> history = {0U, 5U};
+  const std::array<std::uint32_t, 1> suppressed = {1U};
+  DeviceBuffer<float> device_logits(kVocabulary);
+  DeviceBuffer<float> adjusted(kVocabulary);
+  DeviceBuffer<double> cumulative(kVocabulary);
+  DeviceBuffer<std::uint32_t> token_ids(kVocabulary);
+  DeviceBuffer<std::uint32_t> sorted_token_ids(kVocabulary);
+  DeviceBuffer<std::uint32_t> repetition_mask((kVocabulary + 31U) / 32U);
+  DeviceBuffer<std::uint32_t> device_history(history.size());
+  DeviceBuffer<std::uint32_t> device_suppressed(suppressed.size());
+  DeviceBuffer<std::uint32_t> selected(1U);
+  auto workspace_bytes =
+      gem16::internal::SamplingWorkspaceBytes(kVocabulary, nullptr);
+  CUDA_TEST_CHECK(workspace_bytes.ok());
+  if (!workspace_bytes.ok()) return;
+  DeviceBuffer<std::uint8_t> workspace(workspace_bytes.value());
+  if (!CudaOk(cudaMemset(repetition_mask.get(), 0, repetition_mask.bytes()),
+              "clear sampling repetition mask") ||
+      !CudaOk(cudaMemcpy(device_history.get(), history.data(), history.size() *
+                         sizeof(std::uint32_t), cudaMemcpyHostToDevice),
+              "copy sampling history") ||
+      !CudaOk(cudaMemcpy(device_suppressed.get(), suppressed.data(),
+                         suppressed.size() * sizeof(std::uint32_t),
+                         cudaMemcpyHostToDevice),
+              "copy sampling suppression")) {
+    return;
+  }
+  auto status = gem16::internal::LaunchMarkRepetitionTokens(
+      device_history.get(), history.size(), repetition_mask.get(), nullptr);
+  CUDA_TEST_CHECK(status.ok());
+  gem16::SamplingOptions options;
+  options.enabled = true;
+  options.temperature = 1.0F;
+  options.top_k = 1U;
+  options.repetition_penalty = 2.0F;
+  if (!CudaOk(cudaMemcpy(device_logits.get(), logits.data(),
+                         device_logits.bytes(), cudaMemcpyHostToDevice),
+              "copy synthetic sampling logits")) {
+    return;
+  }
+  status = gem16::internal::LaunchSampleToken(
+      device_logits.get(), adjusted.get(), cumulative.get(), token_ids.get(),
+      sorted_token_ids.get(), repetition_mask.get(), device_suppressed.get(),
+      suppressed.size(), kVocabulary, options, 0U, nullptr, selected.get(),
+      workspace.get(), workspace.bytes(), nullptr);
+  CUDA_TEST_CHECK(status.ok());
+  std::uint32_t host_selected = 0U;
+  if (!CudaOk(cudaMemcpy(&host_selected, selected.get(), sizeof(host_selected),
+                         cudaMemcpyDeviceToHost),
+              "copy synthetic sampled token")) {
+    return;
+  }
+  // Token 0 is reduced by repetition penalty and token 1 is suppressed, so
+  // exact top-k=1 must select token 2.
+  CUDA_TEST_CHECK(host_selected == 2U);
+
+  options.top_k = 4U;
+  options.top_p = 0.9F;
+  options.min_p = 0.05F;
+  options.seed = 42U;
+  if (!CudaOk(cudaMemcpy(device_logits.get(), logits.data(),
+                         device_logits.bytes(), cudaMemcpyHostToDevice),
+              "restore synthetic sampling logits")) {
+    return;
+  }
+  status = gem16::internal::LaunchSampleToken(
+      device_logits.get(), adjusted.get(), cumulative.get(), token_ids.get(),
+      sorted_token_ids.get(), repetition_mask.get(), device_suppressed.get(),
+      suppressed.size(), kVocabulary, options, 7U, nullptr, selected.get(),
+      workspace.get(), workspace.bytes(), nullptr);
+  CUDA_TEST_CHECK(status.ok());
+  if (!CudaOk(cudaMemcpy(&host_selected, selected.get(), sizeof(host_selected),
+                         cudaMemcpyDeviceToHost),
+              "copy seeded synthetic sampled token")) {
+    return;
+  }
+  CUDA_TEST_CHECK(host_selected == 2U);
+
+  options.top_k = 0U;
+  options.top_p = 1.0F;
+  options.min_p = 0.0F;
+  options.seed = 0U;
+  if (!CudaOk(cudaMemcpy(device_logits.get(), logits.data(),
+                         device_logits.bytes(), cudaMemcpyHostToDevice),
+              "restore full-vocabulary sampling logits")) {
+    return;
+  }
+  status = gem16::internal::LaunchSampleToken(
+      device_logits.get(), adjusted.get(), cumulative.get(), token_ids.get(),
+      sorted_token_ids.get(), repetition_mask.get(), device_suppressed.get(),
+      suppressed.size(), kVocabulary, options, 0U, nullptr, selected.get(),
+      workspace.get(), workspace.bytes(), nullptr);
+  CUDA_TEST_CHECK(status.ok());
+  if (!CudaOk(cudaMemcpy(&host_selected, selected.get(), sizeof(host_selected),
+                         cudaMemcpyDeviceToHost),
+              "copy full-vocabulary sampled token")) {
+    return;
+  }
+  CUDA_TEST_CHECK(host_selected == 0U);
+
+  options.top_k = 4U;
+  options.top_p = 0.9F;
+  options.min_p = 0.05F;
+  options.seed = 42U;
+  DeviceBuffer<gem16::internal::DecodeControl> control(1U);
+  gem16::internal::DecodeControl host_control{};
+  host_control.token = 4U;
+  host_control.sampling_step = 8U;
+  if (!CudaOk(cudaMemcpy(control.get(), &host_control, sizeof(host_control),
+                         cudaMemcpyHostToDevice),
+              "copy controlled sampling state")) {
+    return;
+  }
+  status = gem16::internal::LaunchMarkControlledRepetitionToken(
+      control.get(), repetition_mask.get(), nullptr);
+  CUDA_TEST_CHECK(status.ok());
+  if (!CudaOk(cudaMemcpy(device_logits.get(), logits.data(),
+                         device_logits.bytes(), cudaMemcpyHostToDevice),
+              "restore controlled sampling logits")) {
+    return;
+  }
+  status = gem16::internal::LaunchSampleToken(
+      device_logits.get(), adjusted.get(), cumulative.get(), token_ids.get(),
+      sorted_token_ids.get(), repetition_mask.get(), device_suppressed.get(),
+      suppressed.size(), kVocabulary, options, 7U, control.get(),
+      selected.get(), workspace.get(), workspace.bytes(), nullptr);
+  CUDA_TEST_CHECK(status.ok());
+  if (!CudaOk(cudaMemcpy(&host_selected, selected.get(), sizeof(host_selected),
+                         cudaMemcpyDeviceToHost),
+              "copy controlled sampled token")) {
+    return;
+  }
+  // Device control overrides the captured scalar step. Marking token 4 does
+  // not affect the retained top-p set, and pinned step 8 selects token 0.
+  CUDA_TEST_CHECK(host_selected == 0U);
+
+  cudaStream_t stream = nullptr;
+  cudaGraph_t graph = nullptr;
+  cudaGraphExec_t executable = nullptr;
+  if (!CudaOk(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking),
+              "create sampling graph stream")) {
+    return;
+  }
+  host_control.sampling_step = 7U;
+  bool graph_ok =
+      CudaOk(cudaMemcpy(control.get(), &host_control, sizeof(host_control),
+                        cudaMemcpyHostToDevice),
+             "reset sampling graph control") &&
+      CudaOk(cudaMemcpy(device_logits.get(), logits.data(),
+                        device_logits.bytes(), cudaMemcpyHostToDevice),
+             "restore sampling graph logits") &&
+      CudaOk(cudaStreamBeginCapture(stream, cudaStreamCaptureModeGlobal),
+             "begin sampling graph capture");
+  if (graph_ok) {
+    status = gem16::internal::LaunchSampleToken(
+        device_logits.get(), adjusted.get(), cumulative.get(), token_ids.get(),
+        sorted_token_ids.get(), repetition_mask.get(),
+        device_suppressed.get(), suppressed.size(), kVocabulary, options, 0U,
+        control.get(), selected.get(), workspace.get(), workspace.bytes(),
+        stream);
+    CUDA_TEST_CHECK(status.ok());
+    graph_ok = status.ok() &&
+               CudaOk(cudaStreamEndCapture(stream, &graph),
+                      "end sampling graph capture") &&
+               CudaOk(cudaGraphInstantiate(&executable, graph, nullptr,
+                                           nullptr, 0U),
+                      "instantiate sampling graph") &&
+               CudaOk(cudaGraphLaunch(executable, stream),
+                      "launch sampling graph") &&
+               CudaOk(cudaStreamSynchronize(stream),
+                      "synchronize sampling graph");
+  }
+  if (graph_ok) {
+    CUDA_TEST_CHECK(CudaOk(
+        cudaMemcpy(&host_selected, selected.get(), sizeof(host_selected),
+                   cudaMemcpyDeviceToHost),
+        "copy sampling graph token"));
+    CUDA_TEST_CHECK(host_selected == 2U);
+  }
+  if (executable != nullptr) (void)cudaGraphExecDestroy(executable);
+  if (graph != nullptr) (void)cudaGraphDestroy(graph);
+  (void)cudaStreamDestroy(stream);
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -2697,6 +2886,15 @@ int main(int argc, char** argv) {
   if (!CudaOk(cudaGetDeviceCount(&device_count), "cudaGetDeviceCount") || device_count == 0) {
     std::cerr << "CUDA test requires one device\n";
     return 1;
+  }
+  if (argc == 2 && std::string_view(argv[1]) == "sampling") {
+    TestGpuSampling();
+    if (failures != 0) {
+      std::cerr << failures << " CUDA test assertion(s) failed\n";
+      return 1;
+    }
+    std::cout << "sampling CUDA tests passed\n";
+    return 0;
   }
   if (argc == 2 && std::string_view(argv[1]) == "online-decode") {
     TestOnlineFp8DecodeAttention();
@@ -2723,6 +2921,7 @@ int main(int argc, char** argv) {
   TestVectorizedFp8CausalPrefill();
   TestOnlineLocalFp8CausalPrefill();
   TestOnlineGlobalFp8CausalPrefill();
+  TestGpuSampling();
   if (failures != 0) {
     std::cerr << failures << " CUDA test assertion(s) failed\n";
     return 1;

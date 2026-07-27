@@ -1,0 +1,8 @@
+ctest --test-dir build/Linux/blackwell-release --output-on-failure
+tools/validate_sampling.py --run build/Linux/blackwell-release/bin/gem16-run --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 --output correctness.json
+build/Linux/blackwell-release/bin/gem16-bench decode --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 --context 128 --tokens 256 --warmups 3 --repetitions 10 --seed 0 --kv-cache fp8
+build/Linux/blackwell-release/bin/gem16-bench decode --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 --context 128 --tokens 256 --warmups 3 --repetitions 10 --seed 0 --kv-cache fp8 --sample --temperature 0.8 --top-k 64 --top-p 0.95 --min-p 0.02 --repetition-penalty 1.1 --sampling-seed 42
+nsys profile --trace=cuda,nvtx --sample=none --cpuctxsw=none gem16-run <four-output sampled command>
+compute-sanitizer --tool memcheck --error-exitcode=99 build/Linux/blackwell-release/bin/gem16-cuda-tests
+compute-sanitizer --tool racecheck --error-exitcode=99 build/Linux/blackwell-release/bin/gem16-cuda-tests sampling
+gem16-bench decode <common 3/10 options> --sample --temperature 1 --top-k 0 --top-p 1 --min-p 0 --repetition-penalty 1 --sampling-seed 42

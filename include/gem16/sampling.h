@@ -2,6 +2,8 @@
 
 #include <cstdint>
 
+#include "gem16/status.h"
+
 namespace gem16 {
 
 struct SamplingOptions {
@@ -14,5 +16,8 @@ struct SamplingOptions {
   float repetition_penalty = 1.0F;
   std::uint64_t seed = 0;
 };
+
+[[nodiscard]] Status ValidateSamplingOptions(const SamplingOptions& options,
+                                             std::uint32_t vocabulary);
 
 }  // namespace gem16

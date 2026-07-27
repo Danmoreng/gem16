@@ -10,13 +10,13 @@
 #include "cuda/nvfp4/cutlass_sm120.h"
 #include "cuda/nvfp4/sm120.h"
 #include "cuda/nvfp4/sm120_layout.h"
+#include "cuda/sampling/sampling.h"
 #include "gem16/model.h"
 #include "platform/mapped_file.h"
 
 #include <cuda_bf16.h>
 #include <cuda_fp8.h>
 #include <cuda_runtime.h>
-#include <cub/device/device_radix_sort.cuh>
 #include <nvtx3/nvToolsExt.h>
 
 #include <algorithm>
@@ -52,6 +52,7 @@ constexpr std::uint64_t kSlidingWindow = 1024;
 constexpr std::uint64_t kMaximumContext = 262144;
 constexpr std::uint64_t kAlignment = 256;
 constexpr std::uint64_t kMaximumSuppressedTokens = 16;
+constexpr std::uint64_t kRepetitionMaskWords = (kVocabulary + 31U) / 32U;
 constexpr float kEpsilon = 1.0e-6F;
 constexpr unsigned kThreads = 256;
 constexpr unsigned kFusedOutputHeadBlocks = 4096;
@@ -648,6 +649,7 @@ struct WorkspaceOffsets {
   std::uint64_t down_scales = 0;
   std::uint64_t logits = 0;
   std::uint64_t sampling_logits = 0;
+  std::uint64_t sampling_cumulative = 0;
   std::uint64_t sampling_token_ids = 0;
   std::uint64_t sorted_token_ids = 0;
   std::uint64_t sampling_sort_workspace = 0;
@@ -904,100 +906,6 @@ __global__ void ArgmaxKernel(const float* logits, const std::uint32_t* suppresse
   if (threadIdx.x == 0U) selected[0] = scratch[0].token;
 }
 
-__global__ void MarkRepetitionTokensKernel(const std::uint32_t* tokens,
-                                            std::uint64_t count,
-                                            std::uint8_t* mask) {
-  const std::uint64_t index =
-      static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
-  if (index < count) mask[tokens[index]] = 1U;
-}
-
-__global__ void MarkRepetitionTokenKernel(std::uint32_t token,
-                                          std::uint8_t* mask) {
-  if (threadIdx.x == 0U) mask[token] = 1U;
-}
-
-__global__ void PrepareSamplingLogitsKernel(
-    const float* logits, float* adjusted, std::uint32_t* token_ids,
-    const std::uint8_t* repetition_mask, float repetition_penalty,
-    float inverse_temperature, const std::uint32_t* suppressed,
-    std::uint32_t suppressed_count) {
-  const std::uint64_t token =
-      static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
-  if (token >= kVocabulary) return;
-  float value = logits[token];
-  if (repetition_penalty != 1.0F && repetition_mask[token] != 0U) {
-    value = value < 0.0F ? value * repetition_penalty
-                         : value / repetition_penalty;
-  }
-  if (IsSuppressed(token, suppressed, suppressed_count)) value = -FLT_MAX;
-  adjusted[token] = value * inverse_temperature;
-  token_ids[token] = static_cast<std::uint32_t>(token);
-}
-
-__device__ std::uint64_t SplitMix64(std::uint64_t value) {
-  value += 0x9E3779B97F4A7C15ULL;
-  value = (value ^ (value >> 30U)) * 0xBF58476D1CE4E5B9ULL;
-  value = (value ^ (value >> 27U)) * 0x94D049BB133111EBULL;
-  return value ^ (value >> 31U);
-}
-
-// Correctness-first exact categorical selection over the sorted, filtered
-// vocabulary. Serial accumulation makes seeded results independent of block
-// scheduling while selection remains entirely on the GPU.
-__global__ void SampleSortedLogitsKernel(
-    const float* sorted_logits, const std::uint32_t* sorted_token_ids,
-    std::uint32_t top_k, float top_p, float min_p, std::uint64_t seed,
-    std::uint64_t step, std::uint32_t* selected) {
-  if (blockIdx.x != 0U || threadIdx.x != 0U) return;
-  std::uint32_t eligible = top_k == 0U
-                               ? static_cast<std::uint32_t>(kVocabulary)
-                               : min(top_k, static_cast<std::uint32_t>(kVocabulary));
-  const float maximum = sorted_logits[0];
-  if (!isfinite(maximum)) {
-    selected[0] = 0U;
-    return;
-  }
-  if (min_p > 0.0F) {
-    std::uint32_t count = 1U;
-    while (count < eligible &&
-           expf(sorted_logits[count] - maximum) >= min_p) {
-      ++count;
-    }
-    eligible = count;
-  }
-  double total = 0.0;
-  for (std::uint32_t index = 0U; index < eligible; ++index) {
-    total += static_cast<double>(expf(sorted_logits[index] - maximum));
-  }
-  if (top_p < 1.0F) {
-    const double cutoff = static_cast<double>(top_p) * total;
-    double cumulative = 0.0;
-    std::uint32_t count = 0U;
-    do {
-      cumulative += static_cast<double>(expf(sorted_logits[count] - maximum));
-      ++count;
-    } while (count < eligible && cumulative < cutoff);
-    eligible = count;
-    total = cumulative;
-  }
-  const std::uint64_t random_bits = SplitMix64(seed ^ SplitMix64(step));
-  const double uniform =
-      (static_cast<double>(random_bits >> 11U) + 0.5) *
-      (1.0 / 9007199254740992.0);
-  const double target = uniform * total;
-  double cumulative = 0.0;
-  std::uint32_t chosen = eligible - 1U;
-  for (std::uint32_t index = 0U; index < eligible; ++index) {
-    cumulative += static_cast<double>(expf(sorted_logits[index] - maximum));
-    if (target < cumulative) {
-      chosen = index;
-      break;
-    }
-  }
-  selected[0] = sorted_token_ids[chosen];
-}
-
 Status LaunchRoundBf16(float* values, std::uint64_t elements, cudaStream_t stream) {
   const std::uint64_t blocks = (elements + kThreads - 1U) / kThreads;
   RoundBf16Kernel<<<static_cast<unsigned>(blocks), kThreads, 0, stream>>>(values, elements);
@@ -1174,13 +1082,11 @@ class InferenceEngine {
     if (!host_state.empty() && host_state.size() != state_layout.elements) {
       return Error(StatusCode::kInternal, "host state capture span has invalid size");
     }
-    Status mark_status = MarkRepetitionToken(token);
-    if (!mark_status.ok()) return mark_status;
-    if (select_token && !sampling_.enabled && host_logits.empty() &&
-        host_state.empty()) {
+    if (select_token && host_logits.empty() && host_state.empty()) {
       HostDecodeState* host = host_decode_state();
       host->control.token = token;
       host->control.position = position;
+      if (sampling_.enabled) host->control.sampling_step = sampling_step_++;
       const cudaError_t launch_error =
           cudaGraphLaunch(full_decode_graph_.get(), stream_);
       if (launch_error != cudaSuccess) {
@@ -1192,6 +1098,8 @@ class InferenceEngine {
       }
       return host->selected_token;
     }
+    Status mark_status = MarkRepetitionToken(token);
+    if (!mark_status.ok()) return mark_status;
     float* hidden_a = Pointer<float>(workspace_, offsets_.hidden_a);
     EmbeddingKernel<<<static_cast<unsigned>((kHidden + kThreads - 1U) / kThreads), kThreads,
                       0, stream_>>>(model_.embedding(), token, hidden_a);
@@ -1329,16 +1237,13 @@ class InferenceEngine {
           static_cast<std::size_t>(tokens * sizeof(std::uint32_t)),
           cudaMemcpyHostToDevice, stream_);
       if (error != cudaSuccess) return CudaFailure("copy prefill token IDs", error);
+      Status status;
       if (sampling_.enabled && sampling_.repetition_penalty != 1.0F) {
-        MarkRepetitionTokensKernel<<<
-            static_cast<unsigned>((tokens + kThreads - 1U) / kThreads),
-            kThreads, 0, stream_>>>(
+        status = internal::LaunchMarkRepetitionTokens(
             device_tokens, tokens,
-            Pointer<std::uint8_t>(workspace_, offsets_.repetition_mask));
-        error = cudaGetLastError();
-        if (error != cudaSuccess) {
-          return CudaFailure("mark prefill repetition tokens", error);
-        }
+            Pointer<std::uint32_t>(workspace_, offsets_.repetition_mask),
+            stream_);
+        if (!status.ok()) return status;
       }
       float* hidden = Pointer<float>(prefill_workspace_, prefill_offsets_.hidden_a);
       const std::uint64_t hidden_elements = tokens * kHidden;
@@ -1348,7 +1253,6 @@ class InferenceEngine {
           model_.embedding(), device_tokens, hidden, hidden_elements);
       error = cudaGetLastError();
       if (error != cudaSuccess) return CudaFailure("launch prefill embedding", error);
-      Status status;
       for (const auto& layer : model_.layers()) {
         status = RunLayerBatch(layer, start_position + begin, tokens);
         if (!status.ok()) return status;
@@ -1413,8 +1317,9 @@ class InferenceEngine {
     if (error != cudaSuccess) return CudaFailure("clear KV cache", error);
     if (sampling_.enabled) {
       error = cudaMemsetAsync(
-          Pointer<std::uint8_t>(workspace_, offsets_.repetition_mask), 0,
-          static_cast<std::size_t>(kVocabulary), stream_);
+          Pointer<std::uint32_t>(workspace_, offsets_.repetition_mask), 0,
+          static_cast<std::size_t>(kRepetitionMaskWords * sizeof(std::uint32_t)),
+          stream_);
       if (error != cudaSuccess) {
         return CudaFailure("clear repetition mask", error);
       }
@@ -1425,18 +1330,9 @@ class InferenceEngine {
   }
 
   [[nodiscard]] Status SetSampling(const SamplingOptions& options) {
-    if (options.enabled &&
-        (!std::isfinite(options.temperature) || options.temperature <= 0.0F ||
-         !std::isfinite(options.top_p) || options.top_p <= 0.0F ||
-         options.top_p > 1.0F || !std::isfinite(options.min_p) ||
-         options.min_p < 0.0F || options.min_p > 1.0F ||
-         !std::isfinite(options.repetition_penalty) ||
-         options.repetition_penalty <= 0.0F || options.top_k > kVocabulary)) {
-      return Error(StatusCode::kInvalidArgument,
-                   "sampling requires temperature > 0, top-p in (0,1], "
-                   "min-p in [0,1], repetition penalty > 0, and top-k no "
-                   "larger than the vocabulary");
-    }
+    Status status = ValidateSamplingOptions(
+        options, static_cast<std::uint32_t>(kVocabulary));
+    if (!status.ok()) return status;
     sampling_ = options;
     sampling_step_ = 0U;
     return Status::Ok();
@@ -1464,47 +1360,26 @@ class InferenceEngine {
     if (!sampling_.enabled || sampling_.repetition_penalty == 1.0F) {
       return Status::Ok();
     }
-    MarkRepetitionTokenKernel<<<1U, 1U, 0, stream_>>>(
-        token, Pointer<std::uint8_t>(workspace_, offsets_.repetition_mask));
-    const cudaError_t error = cudaGetLastError();
-    return error == cudaSuccess
-               ? Status::Ok()
-               : CudaFailure("mark repetition token", error);
+    return internal::LaunchMarkRepetitionToken(
+        token, Pointer<std::uint32_t>(workspace_, offsets_.repetition_mask),
+        stream_);
   }
 
-  [[nodiscard]] Status SelectSampledToken(float* logits,
-                                           std::uint32_t* selected) {
-    constexpr unsigned kBlocks =
-        static_cast<unsigned>((kVocabulary + kThreads - 1U) / kThreads);
-    PrepareSamplingLogitsKernel<<<kBlocks, kThreads, 0, stream_>>>(
+  [[nodiscard]] Status SelectSampledToken(
+      float* logits, std::uint32_t* selected,
+      const internal::DecodeControl* control = nullptr) {
+    return internal::LaunchSampleToken(
         logits, Pointer<float>(workspace_, offsets_.sampling_logits),
-        Pointer<std::uint32_t>(workspace_, offsets_.sampling_token_ids),
-        Pointer<std::uint8_t>(workspace_, offsets_.repetition_mask),
-        sampling_.repetition_penalty, 1.0F / sampling_.temperature,
-        Pointer<std::uint32_t>(workspace_, offsets_.suppressed),
-        suppressed_token_count_);
-    cudaError_t error = cudaGetLastError();
-    if (error != cudaSuccess) {
-      return CudaFailure("prepare sampling logits", error);
-    }
-    error = cub::DeviceRadixSort::SortPairsDescending(
-        Pointer<std::uint8_t>(workspace_, offsets_.sampling_sort_workspace),
-        sampling_sort_workspace_bytes_,
-        Pointer<float>(workspace_, offsets_.sampling_logits), logits,
+        Pointer<double>(workspace_, offsets_.sampling_cumulative),
         Pointer<std::uint32_t>(workspace_, offsets_.sampling_token_ids),
         Pointer<std::uint32_t>(workspace_, offsets_.sorted_token_ids),
-        static_cast<int>(kVocabulary), 0, sizeof(float) * 8, stream_);
-    if (error != cudaSuccess) {
-      return CudaFailure("sort sampling logits", error);
-    }
-    SampleSortedLogitsKernel<<<1U, 1U, 0, stream_>>>(
-        logits, Pointer<std::uint32_t>(workspace_, offsets_.sorted_token_ids),
-        sampling_.top_k, sampling_.top_p, sampling_.min_p, sampling_.seed,
-        sampling_step_++, selected);
-    error = cudaGetLastError();
-    return error == cudaSuccess
-               ? Status::Ok()
-               : CudaFailure("select sampled token", error);
+        Pointer<std::uint32_t>(workspace_, offsets_.repetition_mask),
+        Pointer<std::uint32_t>(workspace_, offsets_.suppressed),
+        suppressed_token_count_, static_cast<std::uint32_t>(kVocabulary),
+        sampling_, control == nullptr ? sampling_step_++ : 0U, control,
+        selected,
+        Pointer<std::uint8_t>(workspace_, offsets_.sampling_sort_workspace),
+        sampling_sort_workspace_bytes_, stream_);
   }
 
   [[nodiscard]] Status AllocateCache() {
@@ -1585,20 +1460,16 @@ class InferenceEngine {
     GEM16_ADD(logits, float, kVocabulary);
     if (sampling_.enabled) {
       GEM16_ADD(sampling_logits, float, kVocabulary);
+      GEM16_ADD(sampling_cumulative, double, kVocabulary);
       GEM16_ADD(sampling_token_ids, std::uint32_t, kVocabulary);
       GEM16_ADD(sorted_token_ids, std::uint32_t, kVocabulary);
-      cudaError_t sort_error = cub::DeviceRadixSort::SortPairsDescending(
-          nullptr, sampling_sort_workspace_bytes_,
-          static_cast<float*>(nullptr), static_cast<float*>(nullptr),
-          static_cast<std::uint32_t*>(nullptr),
-          static_cast<std::uint32_t*>(nullptr),
-          static_cast<int>(kVocabulary), 0, sizeof(float) * 8, stream_);
-      if (sort_error != cudaSuccess) {
-        return CudaFailure("size sampling radix-sort workspace", sort_error);
-      }
+      auto sort_bytes = internal::SamplingWorkspaceBytes(
+          static_cast<std::uint32_t>(kVocabulary), stream_);
+      if (!sort_bytes.ok()) return sort_bytes.status();
+      sampling_sort_workspace_bytes_ = sort_bytes.value();
       GEM16_ADD(sampling_sort_workspace, std::uint8_t,
                 sampling_sort_workspace_bytes_);
-      GEM16_ADD(repetition_mask, std::uint8_t, kVocabulary);
+      GEM16_ADD(repetition_mask, std::uint32_t, kRepetitionMaskWords);
     }
     GEM16_ADD(output_candidates, ArgmaxValue, kFusedOutputHeadBlocks);
     GEM16_ADD(selected, std::uint32_t, 1U);
@@ -1963,6 +1834,13 @@ class InferenceEngine {
     if (error != cudaSuccess) {
       return CudaFailure("copy decode graph control", error);
     }
+    if (sampling_.enabled && sampling_.repetition_penalty != 1.0F) {
+      Status mark_status = internal::LaunchMarkControlledRepetitionToken(
+          control,
+          Pointer<std::uint32_t>(workspace_, offsets_.repetition_mask),
+          stream_);
+      if (!mark_status.ok()) return mark_status;
+    }
     float* hidden = Pointer<float>(workspace_, offsets_.hidden_a);
     ControlledEmbeddingKernel<<<
         static_cast<unsigned>((kHidden + kThreads - 1U) / kThreads), kThreads,
@@ -1980,21 +1858,31 @@ class InferenceEngine {
         hidden, model_.final_norm(), normalized, 1U, kHidden, kEpsilon, stream_);
     if (!status.ok()) return status;
     auto* selected = Pointer<std::uint32_t>(workspace_, offsets_.selected);
+    float* sampling_logits = sampling_.enabled
+                                 ? Pointer<float>(workspace_, offsets_.logits)
+                                 : nullptr;
     FusedOutputHeadCandidatesKernel<<<kFusedOutputHeadBlocks, kThreads, 0,
                                       stream_>>>(
         model_.embedding(), normalized,
         Pointer<std::uint32_t>(workspace_, offsets_.suppressed), 0U, control,
-        Pointer<ArgmaxValue>(workspace_, offsets_.output_candidates), nullptr);
+        Pointer<ArgmaxValue>(workspace_, offsets_.output_candidates),
+        sampling_logits);
     error = cudaGetLastError();
     if (error != cudaSuccess) {
       return CudaFailure("launch controlled fused output-head candidates",
                          error);
     }
-    OutputHeadCandidateArgmaxKernel<<<1U, kThreads, 0, stream_>>>(
-        Pointer<ArgmaxValue>(workspace_, offsets_.output_candidates), selected);
-    error = cudaGetLastError();
-    if (error != cudaSuccess) {
-      return CudaFailure("launch controlled fused output-head argmax", error);
+    if (sampling_.enabled) {
+      status = SelectSampledToken(sampling_logits, selected, control);
+      if (!status.ok()) return status;
+    } else {
+      OutputHeadCandidateArgmaxKernel<<<1U, kThreads, 0, stream_>>>(
+          Pointer<ArgmaxValue>(workspace_, offsets_.output_candidates),
+          selected);
+      error = cudaGetLastError();
+      if (error != cudaSuccess) {
+        return CudaFailure("launch controlled fused output-head argmax", error);
+      }
     }
     error = cudaMemcpyAsync(&host->selected_token, selected,
                             sizeof(host->selected_token),
@@ -2632,7 +2520,7 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
       static_cast<std::size_t>(max_generated_tokens));
   result.kv_cache_mode = impl_->kv_cache_mode;
   result.sampling = impl_->sampling;
-  result.decode_graphs = !impl_->sampling.enabled;
+  result.decode_graphs = true;
   result.model_load_milliseconds = impl_->model_load_milliseconds;
   result.weight_arena_bytes = impl_->engine.weight_bytes();
   result.kv_cache_bytes = impl_->engine.cache_bytes();
@@ -2820,7 +2708,7 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
   result.teacher_forcing = teacher_forcing;
   result.kv_cache_mode = options.kv_cache_mode;
   result.sampling = options.sampling;
-  result.decode_graphs = !options.sampling.enabled &&
+  result.decode_graphs =
       options.state_dump_path.empty() && options.logits_dump_path.empty();
   result.model_load_milliseconds = Milliseconds(load_end - load_start);
   result.weight_arena_bytes = engine.weight_bytes();
@@ -3230,8 +3118,7 @@ Status WriteDecodeBenchmarkJson(const DecodeBenchmarkResult& result,
          << ",\"fused_prefill_qk_rmsnorm_rope\":true"
          << ",\"prefill_rope_table\":\"precomputed_exact_max_context\""
          << ",\"fused_output_head\":true"
-         << ",\"decode_graphs\":"
-         << (result.options.sampling.enabled ? "false" : "true")
+         << ",\"decode_graphs\":true"
          << ",\"decoding_mode\":\""
          << (result.options.sampling.enabled ? "sampled" : "greedy") << '"'
          << ",\"sampling\":{\"enabled\":"

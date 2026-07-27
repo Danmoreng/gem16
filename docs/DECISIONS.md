@@ -15,13 +15,18 @@ Alternatives: Approximate vocabulary filtering; CPU sampling after a full-logit 
 or use a persistent converted candidate format. Approximation and CPU selection violate the primary quality/hot
 path contract, while changing greedy would add regression risk. A parallel prefix selector is deferred because the
 initial final scan is only about 7 microseconds at top-k 64.
-Consequences: Sampling adds 5,540,352 workspace bytes at context 128 and currently bypasses whole-model graph
-capture. The filter order and RNG mapping are public reproducibility contracts. Conversation sessions retain RNG
-step and repetition history across turns. Greedy output IDs, graph replay, and workspace remain unchanged.
-Evidence: The checkpoint-backed CPU oracle, repeated seeded runs, top-k-1/greedy equivalence, CTest, and chat/run
-integration pass. Adjacent 3-warm-up/10-run context-128 decode is 32.596 sampled tok/s versus 32.819 greedy tok/s
-(0.9932x). Nsight finds no token-loop allocation; sampling preparation/radix/select total about 76 microseconds per
-output in the four-output trace.
+Consequences: Sampling adds 7,408,128 workspace bytes at context 128, including an in-place double-precision
+probability scan; repetition history uses an atomic bitset so duplicate prompt tokens cannot create byte-write
+races. The filter order and RNG mapping are public
+reproducibility contracts. Conversation sessions retain RNG step and repetition history across turns. The sampled
+whole-model graph reads its changing step from the copied device control; diagnostic captures retain the direct
+path. Greedy output IDs, graph replay, and workspace remain unchanged.
+Evidence: The checkpoint-backed CPU oracle, synthetic CUDA operator and graph-replay tests, repeated seeded runs,
+top-k-1/greedy equivalence, CTest, and chat/run integration pass. The initial direct-path 3-warm-up/10-run result was
+32.596 sampled tok/s versus 32.819 greedy tok/s. After whole-model graph capture and atomic repetition bitset,
+final nearby 3/10 runs measure 32.989 top-k-64 sampled and 33.003 unfiltered full-vocabulary sampled versus 32.839
+greedy tok/s, all treated as performance parity within run variance. Nsight records one graph
+launch per post-prefill token and no token-loop allocation.
 
 ## 2026-07-27: Index the contiguous global KV cache directly during prefill
 

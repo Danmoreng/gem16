@@ -8,6 +8,7 @@ void RunFp8Tests();
 void RunMemoryPlanTests();
 void RunNvfp4Tests();
 void RunSafetensorsTests();
+void RunSamplingTests();
 void RunSm120LayoutTests();
 #if defined(_WIN32)
 void RunWindowsUtf8Tests();
@@ -20,6 +21,7 @@ int main() {
   RunMemoryPlanTests();
   RunNvfp4Tests();
   RunSafetensorsTests();
+  RunSamplingTests();
   RunSm120LayoutTests();
 #if defined(_WIN32)
   RunWindowsUtf8Tests();

@@ -169,7 +169,7 @@ baseline differ in some tensor and KV-cache formats. Commands, caveats, and hist
 - Inference is currently text-only and batch one; image, audio, and video tensors are not loaded onto the GPU.
 - Generation supports unchanged fused greedy selection and explicit seeded GPU sampling with temperature, exact
   top-k/top-p/min-p filtering, and full-history repetition penalty. The initial sampled path uses a preallocated
-  full-vocabulary radix sort and is not yet CUDA-Graph captured.
+  full-vocabulary radix sort inside the whole-model decode CUDA Graph.
 - The optimized CUDA backend requires Blackwell SM120/SM120a. Other NVIDIA architectures are not performance
   targets yet.
 - Continuous batching, a server API, speculative decoding, and persistent prompt-cache files are out of scope for

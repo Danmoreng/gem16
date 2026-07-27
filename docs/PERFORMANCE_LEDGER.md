@@ -30,6 +30,24 @@ supersedes the pre-CUTLASS 65% projection diagnosis and selects attention stagin
 Artifacts remain under
 `benchmarks/results/2026-07-27/304a113/blackwell16gb-linux-refresh/`.
 
+## 2026-07-27 sampled whole-model graph and operator isolation
+
+Sampling is moved from the monolithic inference translation unit into `src/cuda/sampling/`, with shared host
+validation, synthetic CUDA processor/RNG tests, and model-independent radix-sort graph capture/replay. The sampled
+whole-model graph now copies token, position, suppression count, and RNG step through its fixed control record,
+marks repetition history, performs exact selection, and copies one token to the host. Diagnostic state/logit
+captures keep the direct path.
+
+Final nearby context-128, 256-output, 3-warm-up/10-run measurements are 32.989 tok/s for top-k-64 sampling,
+33.003 tok/s for unfiltered full-vocabulary sampling, and 32.839 tok/s for greedy. The small positive deltas are
+treated as parity/run variance, not sampling speedups. The atomic repetition bitset removes duplicate-token write
+races. A CUB double-precision inclusive probability scan plus final binary searches replace the bring-up serial
+scan and bring unfiltered sampling from 22.166 tok/s to parity. Sampling workspace overhead is 7,408,128 bytes.
+All modes are deterministic. A four-output Nsight trace records exactly three `cudaGraphLaunch` calls for the three
+post-prefill outputs. All four `cudaMalloc` calls end before `gem16.initialize`, and none occur in sampled prefill
+or decode. This closes the sampling implementation gate. Artifacts are under
+`benchmarks/results/2026-07-27/f1730fd-worktree/blackwell16gb-linux-sampling-graph/`.
+
 ## 2026-07-27 exact GPU sampling bring-up
 
 The first explicit sampling plan applies temperature, exact top-k/top-p/min-p, full-history repetition penalty,
@@ -43,7 +61,8 @@ A four-output Nsight trace attributes 0.231 ms total to CUB radix onesweep, 0.02
 use 24/36 registers with zero stack or local memory. All four observed `cudaMalloc` calls end before
 `gem16.initialize`; sampled prefill/decode contains none. The CPU full-logit oracle selects token 532 from the same
 three eligible tokens, repeated seeded runs match, top-k 1 matches greedy, and changing the seed changes a
-multi-step sequence. Keep the correctness-first serial final scan for now: it is not the bottleneck at top-k 64.
+multi-step sequence. This serial bring-up selector was subsequently replaced by the parallel probability-scan plan
+recorded above.
 Artifacts are under
 `benchmarks/results/2026-07-27/61c141d-worktree/blackwell16gb-linux-gpu-sampling/`.
 

@@ -37,6 +37,7 @@ add_library(gem16_core STATIC
   src/runtime/capabilities.cpp
   src/runtime/memory.cpp
   src/runtime/memory_plan.cpp
+  src/runtime/sampling.cpp
   src/util/json.cpp
 )
 if(WIN32)
@@ -83,6 +84,7 @@ if(GEM16_ENABLE_CUDA)
     src/cuda/nvfp4/reference.cu
     src/cuda/nvfp4/sm120.cu
     src/cuda/nvfp4/cutlass_sm120.cu
+    src/cuda/sampling/sampling.cu
   )
   if(NOT EXISTS "${GEM16_CUTLASS_DIR}/include/cutlass/cutlass.h")
     message(FATAL_ERROR
@@ -157,6 +159,9 @@ if(GEM16_ENABLE_CUDA)
       -Xcompiler=/wd4211
       -diag-suppress=2810
     )
+    set_property(SOURCE src/cuda/sampling/sampling.cu APPEND PROPERTY COMPILE_OPTIONS
+      -Xcompiler=/wd4211
+    )
   endif()
   target_link_libraries(gem16_core PRIVATE CUDA::cudart CUDA::nvtx3)
   target_compile_definitions(gem16_core
@@ -191,6 +196,7 @@ if(BUILD_TESTING AND GEM16_BUILD_TESTS)
     tests/unit/memory_plan_test.cpp
     tests/unit/nvfp4_test.cpp
     tests/unit/safetensors_test.cpp
+    tests/unit/sampling_test.cpp
     tests/unit/sm120_layout_test.cpp
     tests/unit/tokenizer_test.cpp
     tests/unit/test_main.cpp

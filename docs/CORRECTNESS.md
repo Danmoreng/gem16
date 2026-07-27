@@ -95,11 +95,18 @@ unmodified softcapped logits for a real checkpoint prompt, independently applies
 penalty, temperature, top-k, min-p, top-p, and the pinned SplitMix64 seed/step mapping on the CPU, and requires the
 same selected token. It also launches a fresh second process and requires seeded output identity. The initial
 combined fixture (`temperature=0.8`, `top-k=64`, `top-p=0.95`, `min-p=0.02`, repetition penalty `1.1`, seed `42`)
-selects token `532` from three final eligible tokens in both implementations. Separate end-to-end checks prove
+selects `[532, 497, 236786, 6981]` from `[3, 3, 43, 1]` final eligible tokens across four steps in both
+implementations, including generated-token repetition-history updates. Separate end-to-end checks prove
 `top-k=1` reproduces unchanged greedy IDs and a different seed changes a multi-step sampled sequence. Nsight CUDA
 API tracing places all four `cudaMalloc` calls before the end of `gem16.initialize` and none inside sampled prefill
-or decode. Sampling's radix sort and serial final scan are correctness-first and not yet a performance-qualified or
-CUDA-Graph path.
+or decode. A model-independent CUDA operator test pins repetition and suppression processing, top-k-1 selection,
+seed/step results, device-control step override, and successful radix-sort graph capture/replay on an eight-token
+fixture. Repetition history is an atomic 32-bit bitset, so duplicate prompt IDs are race-free. The complete CUDA
+test binary passes compute-sanitizer memcheck with zero errors, and the sampling-only suite passes racecheck with
+zero hazards. A full-suite racecheck separately reports an existing `RmsNormQuantizeTokenKernel` hazard outside
+sampling; it remains an open CUDA-test issue and is not hidden by the sampling-only result. End-to-end sampled
+decode uses one whole-model graph replay per post-prefill token. Synthetic and end-to-end tests cover both bounded
+top-k and unfiltered full-vocabulary selection; the probability scan and final binary searches are GPU-resident.
 
 `--dump-logits` captures every selected position as full-vocabulary raw little-endian float32 after preallocating
 host storage, and `tools/compare_logits.py` compares it with the committed vLLM top-20 distributions. When no

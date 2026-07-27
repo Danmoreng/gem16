@@ -15,9 +15,10 @@ of the correctness and native-kernel gates below.
   the largest 8K families. A fresh controlled comparison now confirms gem16 leads the patched closest-parity
   llama.cpp candidate across the common matrix while reaching 57–78% of direct-vLLM prefill and 85–86% of its
   decode throughput under disclosed non-parity timing boundaries. The bounded staging sprint is closed. The first
-  exact GPU sampling plan now covers temperature, top-k, top-p, min-p,
-  repetition penalty, and deterministic seeded RNG without changing the greedy path or allocating in the token
-  loop. Sampling qualification and profiling are active; the next gate after that is 64K/text-quality validation.
+  exact GPU sampling plan now covers temperature, top-k, top-p, min-p, repetition penalty, and deterministic
+  seeded RNG without changing the greedy path or allocating in the token loop. It is isolated in an operator
+  module, has synthetic and checkpoint-backed CPU/GPU gates, and runs inside the whole-model decode CUDA Graph at
+  measured greedy-performance parity. The active gate is now 64K/text-quality validation.
   Every performance promotion still requires correctness, generation, logit, 3-warm-up/10-run benchmark, Nsight,
   spill, allocation, and peak-VRAM evidence and becomes the sole production path.
 

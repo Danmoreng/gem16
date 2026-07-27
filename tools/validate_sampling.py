@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Validate gem16 GPU sampling against dumped full logits.
 
-This is an end-to-end, checkpoint-backed gate. It intentionally duplicates the
-specified SplitMix64 stream and processor order so changes require an explicit
-golden/tool update rather than silently changing seeded output.
+This is an end-to-end, checkpoint-backed multi-step gate. It intentionally
+duplicates the specified SplitMix64 stream, processor order, and generated-token
+history updates so changes require an explicit golden/tool update rather than
+silently changing seeded output.
 """
 
 from __future__ import annotations
@@ -67,7 +68,7 @@ def sample_reference(
 def run_once(args: argparse.Namespace, logits_path: pathlib.Path) -> dict:
     command = [
         str(args.run), "--model", str(args.model), "--input-token-ids",
-        args.input_token_ids, "--max-tokens", "1", "--max-context",
+        args.input_token_ids, "--max-tokens", str(args.steps), "--max-context",
         str(args.max_context), "--sample", "--temperature", str(args.temperature),
         "--top-k", str(args.top_k), "--top-p", str(args.top_p), "--min-p",
         str(args.min_p), "--repetition-penalty", str(args.repetition_penalty),
@@ -83,6 +84,7 @@ def main() -> int:
     parser.add_argument("--model", type=pathlib.Path, required=True)
     parser.add_argument("--input-token-ids", default="2,105,2364,107")
     parser.add_argument("--max-context", type=int, default=128)
+    parser.add_argument("--steps", type=int, default=4)
     parser.add_argument("--temperature", type=float, default=0.8)
     parser.add_argument("--top-k", type=int, default=64)
     parser.add_argument("--top-p", type=float, default=0.95)
@@ -96,21 +98,31 @@ def main() -> int:
         logits_path = pathlib.Path(directory) / "logits.bin"
         first = run_once(args, logits_path)
         data = logits_path.read_bytes()
-        if len(data) != VOCABULARY * 4:
+        expected_bytes = args.steps * VOCABULARY * 4
+        if len(data) != expected_bytes:
             raise RuntimeError(f"unexpected logit dump size: {len(data)}")
-        logits = list(struct.unpack(f"<{VOCABULARY}f", data))
-        expected, eligible = sample_reference(
-            logits, history, args.temperature, args.top_k, args.top_p,
-            args.min_p, args.repetition_penalty, args.seed, 0)
+        unpacked = struct.unpack(f"<{args.steps * VOCABULARY}f", data)
+        expected_tokens: list[int] = []
+        eligible_counts: list[int] = []
+        for step in range(args.steps):
+            begin = step * VOCABULARY
+            logits = list(unpacked[begin : begin + VOCABULARY])
+            expected, eligible = sample_reference(
+                logits, history, args.temperature, args.top_k, args.top_p,
+                args.min_p, args.repetition_penalty, args.seed, step)
+            expected_tokens.append(expected)
+            eligible_counts.append(eligible)
+            history.add(expected)
         second = run_once(args, pathlib.Path(directory) / "repeat.bin")
-    actual = first["output_token_ids"][0]
+    actual_tokens = first["output_token_ids"]
+    repeat_match = actual_tokens == second["output_token_ids"]
     report = {
         "schema_version": 1,
-        "status": "ok" if actual == expected and first["output_token_ids"] == second["output_token_ids"] else "failed",
-        "actual_token_id": actual,
-        "reference_token_id": expected,
-        "eligible_tokens_after_filters": eligible,
-        "seeded_repeat_match": first["output_token_ids"] == second["output_token_ids"],
+        "status": "ok" if actual_tokens == expected_tokens and repeat_match else "failed",
+        "actual_token_ids": actual_tokens,
+        "reference_token_ids": expected_tokens,
+        "eligible_tokens_after_filters": eligible_counts,
+        "seeded_repeat_match": repeat_match,
         "sampling": first["sampling"],
     }
     text = json.dumps(report, indent=2, sort_keys=True) + "\n"

@@ -12,6 +12,7 @@ struct DecodeControl {
   std::uint32_t token = 0;
   std::uint32_t suppressed_token_count = 0;
   std::uint64_t position = 0;
+  std::uint64_t sampling_step = 0;
 };
 
 [[nodiscard]] Status LaunchRmsNorm(const float* input,

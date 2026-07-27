@@ -56,6 +56,11 @@ versus 630,276,096 before CUTLASS prefill, an increase of 43,532,288 bytes. Pers
 oracle and therefore retains the context-budgeted score matrix and deterministic 512 MiB score-budget selector.
 The selected chunk size is reported in every inference result and never changes inside prompt processing.
 
+Explicit sampling conditionally adds adjusted/sorted vocabulary logits, input/sorted token IDs, CUB radix-sort
+scratch, an in-place double-precision probability scan, and a 32-bit atomic repetition bitset to the deterministic
+workspace. At context 128 this is 7,408,128 bytes above greedy. Disabled sampling allocates none of those regions. Both modes keep their whole-model graph at
+fixed addresses and allocate nothing in the token loop.
+
 The maximum 262,144-position FP8 execution plan was initialized and executed successfully before online attention
 removed its score arena. That retained measurement was 9,200,135,680 weight bytes, 2,315,255,808 hybrid KV bytes,
 and 568,663,552 workspace bytes. The current fixed FP8 prefill tile is smaller than that old workspace result, but
