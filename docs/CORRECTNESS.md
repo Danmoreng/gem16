@@ -171,6 +171,13 @@ bytes and 767,170,304 workspace bytes, and reported 36,293.4 ms prefill plus 39,
 memory was 10,418 MiB; sampled power, SM clock, and temperature peaked at 81.94 W, 1,957 MHz, and 61 C. This is a
 single mixed correctness/soak run by explicit bounded policy, not a statistically qualified performance result.
 
+The subsequent Wikipedia QA capacity probes place questions at token 130,999 of a 131,072-token prompt and token
+261,815 of a 261,888-token prompt. Both complete 256 forced decode positions with no fallback or allocation. The
+128K response answers all three question groups coherently before emitting the normal turn-end token. The
+maximum-context response correctly retrieves the Dartmouth 1956 origin and Turing test and begins the requested
+application/chance/risk list, but the forced 256-token sample ends before that final list is complete. This proves
+usable retrieval at both context tiers without treating one qualitative response as a general task-quality score.
+
 ### Direct prefill-boundary reference
 
 `tools/generate_prefill_boundary_golden.py` runs vLLM 0.25.1 offline on two deterministic direct-token prompts of

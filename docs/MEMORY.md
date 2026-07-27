@@ -67,8 +67,10 @@ KV bytes, and 674,200,064 reusable workspace bytes. A 20 ms `nvidia-smi` process
 and decode observed 9,852 MiB peak process VRAM. Nsight records four CUDA allocations, all completed during
 initialization and none in prefill or the token loop.
 
-The maximum 262,144-position FP8 execution plan was initialized and executed successfully before online attention
-removed its score arena. That retained measurement was 9,200,135,680 weight bytes, 2,315,255,808 hybrid KV bytes,
-and 568,663,552 workspace bytes. The current fixed FP8 prefill tile is smaller than that old workspace result, but
-a fresh maximum-context peak-VRAM capture is still required before replacing the retained figure. Neither result
-is evidence for practical 262K prefill latency or long-context output quality.
+Fresh single-run Wikipedia QA characterizations now exercise both extended profiles with the current production
+path. At 131,072 prompt plus 256 output positions, the runtime reports 1,243,611,136 KV bytes and 870,823,424
+workspace bytes; sampled total GPU usage peaks at 11,022 MiB. At 261,888 prompt plus 256 output positions, exactly
+filling the 262,144-position model limit, it reports 2,315,255,808 KV bytes and 1,080,129,024 workspace bytes;
+sampled total GPU usage peaks at 12,244 MiB. Both runs complete with no fallback or token-loop allocation. On the
+16,303 MiB test GPU these sampled peaks leave approximately 5,281 MiB and 4,059 MiB respectively, although that
+headroom includes the measurement conditions and is not a promise for unrelated concurrent GPU use.

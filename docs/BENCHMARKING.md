@@ -120,3 +120,22 @@ system drift rather than a precisely isolated kernel penalty.
 
 The previously cited 6,146.50 tok/s vLLM result is specifically the retained 512-token prefill point. The retained
 8,192-token point is 3,929.14 tok/s; the shared Wikipedia result above is the separate 16,384-token measurement.
+
+## Single-run 128K and maximum-context QA characterization
+
+`tools/benchmark_long_context_qa.py` repeats the pinned Wikipedia article body to a requested exact token count,
+places three article-grounded questions at the end, forces 256 greedy output positions for a stable decode sample,
+and collects GPU telemetry. The maximum-context case uses 261,888 prompt plus 256 output positions because a full
+262,144-token prompt would leave no legal decode position.
+
+| Prompt/output positions | Prefill | Prompt throughput | Decode | Decode throughput | Peak sampled GPU memory |
+|---:|---:|---:|---:|---:|---:|
+| 131,072 + 256 | 116.734 s | 1,122.83 tok/s | 12.833 s | 19.87 tok/s | 11,022 MiB |
+| 261,888 + 256 | 410.978 s | 637.23 tok/s | 18.461 s | 13.81 tok/s | 12,244 MiB |
+
+Both runs use checkpoint FP8 KV, complete all requested positions, report zero fallbacks and no token-loop
+allocation, and retain the hybrid local-ring/global-contiguous cache. The 128K answer completes all requested
+article questions before its first turn-end token. The maximum-context answer correctly covers the Dartmouth 1956
+origin, Turing test, and requested applications/opportunities, but reaches the forced 256-token limit while
+answering the final risk portion. These are one-run capacity, latency, and quality characterizations rather than
+statistically qualified performance results.

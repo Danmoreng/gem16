@@ -25,7 +25,9 @@ of the correctness and native-kernel gates below.
   mixed retrieval and 1,024-token soak: all markers at 10/50/90% are returned in order, the hybrid cache completes
   repeated local-ring wraparound with no fallback or token-loop allocation, and peak sampled GPU memory is
   10,418 MiB. This run is correctness/soak evidence, not a repeated performance result. Further kernel optimization
-  is paused; the next gate is 128K memory/feasibility characterization followed by MTP feasibility.
+  is paused. Single-run Wikipedia QA probes now also complete at 131,072 prompt positions and at the exact
+  262,144-position prompt-plus-decode limit, peaking at 11,022 and 12,244 MiB. The active gate is now MTP
+  checkpoint and memory feasibility.
   Every performance promotion still requires correctness, generation, logit, 3-warm-up/10-run benchmark, Nsight,
   spill, allocation, and peak-VRAM evidence and becomes the sole production path.
 
