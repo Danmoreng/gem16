@@ -78,6 +78,9 @@ __global__ void RmsNormQuantizeTokenKernel(
   }
   const float inverse_rms =
       rsqrtf(reduction[0] / static_cast<float>(elements) + epsilon);
+  // Every thread must consume reduction[0] before the same shared array is
+  // reused for the maximum reduction.
+  __syncthreads();
   float local_maximum = 0.0F;
   for (std::uint64_t index = threadIdx.x; index < elements;
        index += blockDim.x) {

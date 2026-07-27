@@ -1,5 +1,33 @@
 # Decisions
 
+## 2026-07-27: Fuse exact decode boundaries and controlled Q/K processing
+
+Date: 2026-07-27
+Decision: Reuse the exact RMSNorm/FP8, RMSNorm/NVFP4, and Gate/Up/GELU/NVFP4 production boundaries in ordinary
+decode. Replace separate Q/K projection rounding, per-head RMSNorm, controlled RoPE, and final rounding with one
+whole-model-graph kernel that reads the dynamic position from `DecodeControl` and indexes the immutable exact RoPE
+tables. Retain the unfused route for diagnostic hidden-state capture and CUDA comparison, not as a production
+selector.
+Context: A fresh 8K graph-node profile attributed substantial latency to 624 pointwise kernel nodes per token that
+repeated already-qualified boundaries or separately launched Q/K processing. Direct projection, attention, and the
+tied output head were bandwidth-dominant and offered no similarly low-risk change. The retained vLLM result was
+38.056 tok/s versus gem16's 32.586 tok/s at the same 8K matrix point, subject to the documented timing caveats.
+Alternatives: Retune NVFP4 block warps; combine attention residual and the next MLP quantization; change projection
+rounding inside MMA epilogues; or retain all pointwise launches. Two/eight NVFP4 warps per block were neutral, the
+combined residual candidate regressed 1.7%, and rounded projection stores had already regressed. All rejected code
+was removed.
+Consequences: Production greedy and sampled graphs execute 964 rather than 1,588 kernel nodes per token in the
+profiled 8K plan. Persistent weights, KV layout, reusable workspace, quantized bytes, and token-loop allocation
+behavior are unchanged. The new Q/K kernel uses 24 registers, 2,048 bytes shared memory, and zero stack/local
+memory. Diagnostic forwards retain their prior intermediate values and ordering.
+Evidence: Final 3-warm-up/10-run medians are 34.446/34.257/33.545 tok/s at context 128/2,048/8,192. The final 8K
+result is 2.10% above the nearby 32.853 tok/s parent and reaches 88.1% of retained vLLM. Graph-node profiling reduces
+summed kernel time from 31.517 to 30.447 ms/token despite slower candidate-profile clocks. Qualification added a
+required barrier before reusing the RMSNorm/FP8 shared reduction array; final timings include that correctness fix. CTest, exact-blue,
+129/257 boundaries, the 12-prompt teacher-forced suite, sampled CPU/GPU validation, targeted memcheck/racecheck,
+and deterministic decode checks pass. Peak process VRAM is 9,852 MiB and no CUDA allocation occurs in the token
+loop.
+
 ## 2026-07-27: Keep greedy unchanged and use exact sorted GPU sampling
 
 Date: 2026-07-27

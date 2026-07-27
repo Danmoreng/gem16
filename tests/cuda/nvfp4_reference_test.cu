@@ -1790,6 +1790,60 @@ void TestFusedProjectionRmsNormRotaryBf16Batch() {
     }
     CUDA_TEST_CHECK(reference_query_host == candidate_query_host);
     CUDA_TEST_CHECK(reference_key_host == candidate_key_host);
+
+    DeviceBuffer<float> controlled_query_output(query_heads * head_dimension);
+    DeviceBuffer<float> controlled_key_output(kv_heads * head_dimension);
+    DeviceBuffer<float> controlled_cosine((start_position + 1U) * rotating_pairs);
+    DeviceBuffer<float> controlled_sine((start_position + 1U) * rotating_pairs);
+    DeviceBuffer<gem16::internal::DecodeControl> control(1U);
+    gem16::internal::DecodeControl host_control{};
+    host_control.position = start_position;
+    if (controlled_query_output.get() == nullptr ||
+        controlled_key_output.get() == nullptr ||
+        controlled_cosine.get() == nullptr || controlled_sine.get() == nullptr ||
+        control.get() == nullptr ||
+        !CudaOk(cudaMemcpy(control.get(), &host_control, sizeof(host_control),
+                           cudaMemcpyHostToDevice),
+                "copy controlled fused Q/K state")) {
+      return;
+    }
+    const auto controlled_table_status =
+        gem16::internal::LaunchRotaryEmbeddingTableBatch(
+            controlled_cosine.get(), controlled_sine.get(), start_position + 1U,
+            rotating_pairs, head_dimension, 0U, theta, 1.0, nullptr);
+    const auto controlled_status =
+        gem16::internal::LaunchProjectionRmsNormRotaryBf16Controlled(
+            candidate_query.get(), device_query_norm.get(),
+            controlled_query_output.get(), candidate_key.get(),
+            device_key_norm.get(), controlled_key_output.get(),
+            controlled_cosine.get(), controlled_sine.get(), control.get(),
+            query_heads, kv_heads, head_dimension, rotary_factor, 1.0e-6F,
+            nullptr);
+    CUDA_TEST_CHECK(controlled_table_status.ok());
+    CUDA_TEST_CHECK(controlled_status.ok());
+    if (!controlled_table_status.ok() || !controlled_status.ok() ||
+        !CudaOk(cudaDeviceSynchronize(), "controlled fused Q/K synchronize")) {
+      return;
+    }
+    std::vector<float> controlled_query_host(query_heads * head_dimension);
+    std::vector<float> controlled_key_host(kv_heads * head_dimension);
+    if (!CudaOk(cudaMemcpy(controlled_query_host.data(),
+                           controlled_query_output.get(),
+                           controlled_query_output.bytes(),
+                           cudaMemcpyDeviceToHost),
+                "copy controlled fused Q output") ||
+        !CudaOk(cudaMemcpy(controlled_key_host.data(), controlled_key_output.get(),
+                           controlled_key_output.bytes(),
+                           cudaMemcpyDeviceToHost),
+                "copy controlled fused K output")) {
+      return;
+    }
+    CUDA_TEST_CHECK(std::equal(controlled_query_host.begin(),
+                               controlled_query_host.end(),
+                               candidate_query_host.begin()));
+    CUDA_TEST_CHECK(std::equal(controlled_key_host.begin(),
+                               controlled_key_host.end(),
+                               candidate_key_host.begin()));
   };
 
   run_case(256U, 1.0, 10000.0, "fused local Q/K RMSNorm RoPE");
@@ -2903,6 +2957,16 @@ int main(int argc, char** argv) {
       return 1;
     }
     std::cout << "online decode CUDA tests passed\n";
+    return 0;
+  }
+  if (argc == 2 && std::string_view(argv[1]) == "decode-fusion") {
+    TestLocalLayerReferenceOperators();
+    TestFusedProjectionRmsNormRotaryBf16Batch();
+    if (failures != 0) {
+      std::cerr << failures << " CUDA test assertion(s) failed\n";
+      return 1;
+    }
+    std::cout << "decode fusion CUDA tests passed\n";
     return 0;
   }
   TestCudaIntrinsicConformanceAndProjection();

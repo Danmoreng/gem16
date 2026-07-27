@@ -1,0 +1,200 @@
+{
+  "schema_version": 1,
+  "note": "CUDA graph node tracing adds overhead; compare kernel attribution, not profiled throughput. Last measured decode repetition only.",
+  "baseline": {
+    "profile": "decode-8192",
+    "measured_decode_tokens": 32,
+    "decode_window_ms": 1032.661752,
+    "kernels": [
+      {
+        "name": "Sm120DirectProjectionKernel",
+        "launches": 7680,
+        "total_ms": 494.330557,
+        "ms_per_token": 15.44782990625
+      },
+      {
+        "name": "SplitOnlineDecodeAttentionFp8Kernel",
+        "launches": 1536,
+        "total_ms": 170.346153,
+        "ms_per_token": 5.32331728125
+      },
+      {
+        "name": "FusedOutputHeadCandidatesKernel",
+        "launches": 32,
+        "total_ms": 120.673299,
+        "ms_per_token": 3.77104059375
+      },
+      {
+        "name": "RmsNormResidualBf16Kernel",
+        "launches": 3072,
+        "total_ms": 64.631239,
+        "ms_per_token": 2.01972621875
+      },
+      {
+        "name": "RmsNormKernel",
+        "launches": 7712,
+        "total_ms": 50.777319,
+        "ms_per_token": 1.58679121875
+      },
+      {
+        "name": "ControlledRotaryKernel",
+        "launches": 3072,
+        "total_ms": 46.790473,
+        "ms_per_token": 1.46220228125
+      },
+      {
+        "name": "QuantizeTokenReferenceKernel",
+        "launches": 3072,
+        "total_ms": 22.223467,
+        "ms_per_token": 0.69448334375
+      },
+      {
+        "name": "RoundBf16Kernel",
+        "launches": 16896,
+        "total_ms": 19.77965,
+        "ms_per_token": 0.6181140625
+      },
+      {
+        "name": "QuantizeActivationReferenceKernel",
+        "launches": 3072,
+        "total_ms": 7.934421,
+        "ms_per_token": 0.24795065625
+      },
+      {
+        "name": "MergeOnlineDecodeAttentionKernel",
+        "launches": 1536,
+        "total_ms": 5.56331,
+        "ms_per_token": 0.1738534375
+      },
+      {
+        "name": "ControlledAppendKvKernel",
+        "launches": 1536,
+        "total_ms": 3.462389,
+        "ms_per_token": 0.10819965625
+      },
+      {
+        "name": "GeluTanhProductKernel",
+        "launches": 1536,
+        "total_ms": 1.790328,
+        "ms_per_token": 0.05594775
+      },
+      {
+        "name": "OutputHeadCandidateArgmaxKernel",
+        "launches": 32,
+        "total_ms": 0.177659,
+        "ms_per_token": 0.00555184375
+      },
+      {
+        "name": "ControlledEmbeddingKernel",
+        "launches": 32,
+        "total_ms": 0.067007,
+        "ms_per_token": 0.00209396875
+      }
+    ],
+    "cuda_malloc_calls": 4,
+    "latest_cuda_malloc_end_ns": 1720802988,
+    "initialize_start_ns": 35323347,
+    "initialize_end_ns": 1740638852
+  },
+  "candidate": {
+    "profile": "decode-final",
+    "measured_decode_tokens": 32,
+    "decode_window_ms": 989.859906,
+    "kernels": [
+      {
+        "name": "Sm120DirectProjectionKernel",
+        "launches": 7680,
+        "total_ms": 517.087117,
+        "ms_per_token": 16.15897240625
+      },
+      {
+        "name": "SplitOnlineDecodeAttentionFp8Kernel",
+        "launches": 1536,
+        "total_ms": 183.466987,
+        "ms_per_token": 5.73334334375
+      },
+      {
+        "name": "FusedOutputHeadCandidatesKernel",
+        "launches": 32,
+        "total_ms": 124.970302,
+        "ms_per_token": 3.9053219375
+      },
+      {
+        "name": "RmsNormResidualBf16Kernel",
+        "launches": 3072,
+        "total_ms": 68.487395,
+        "ms_per_token": 2.14023109375
+      },
+      {
+        "name": "RmsNormQuantizeTokenKernel",
+        "launches": 1536,
+        "total_ms": 25.822854,
+        "ms_per_token": 0.8069641875
+      },
+      {
+        "name": "QuantizeTokenReferenceKernel",
+        "launches": 1536,
+        "total_ms": 13.067245,
+        "ms_per_token": 0.40835140625
+      },
+      {
+        "name": "RmsNormQuantizeActivationKernel",
+        "launches": 1536,
+        "total_ms": 12.476305,
+        "ms_per_token": 0.38988453125
+      },
+      {
+        "name": "RoundBf16Kernel",
+        "launches": 6144,
+        "total_ms": 7.797243,
+        "ms_per_token": 0.24366384375
+      },
+      {
+        "name": "MergeOnlineDecodeAttentionKernel",
+        "launches": 1536,
+        "total_ms": 6.052689,
+        "ms_per_token": 0.18914653125
+      },
+      {
+        "name": "ProjectionRmsNormRotaryBf16ControlledKernel",
+        "launches": 1536,
+        "total_ms": 4.843746,
+        "ms_per_token": 0.1513670625
+      },
+      {
+        "name": "RmsNormKernel",
+        "launches": 1568,
+        "total_ms": 3.797496,
+        "ms_per_token": 0.11867175
+      },
+      {
+        "name": "ControlledAppendKvKernel",
+        "launches": 1536,
+        "total_ms": 3.710334,
+        "ms_per_token": 0.1159479375
+      },
+      {
+        "name": "GatedGeluQuantizeActivationKernel",
+        "launches": 1536,
+        "total_ms": 2.47441,
+        "ms_per_token": 0.0773253125
+      },
+      {
+        "name": "OutputHeadCandidateArgmaxKernel",
+        "launches": 32,
+        "total_ms": 0.190622,
+        "ms_per_token": 0.0059569375
+      },
+      {
+        "name": "ControlledEmbeddingKernel",
+        "launches": 32,
+        "total_ms": 0.068191,
+        "ms_per_token": 0.00213096875
+      }
+    ],
+    "cuda_malloc_calls": 4,
+    "latest_cuda_malloc_end_ns": 1644711428,
+    "initialize_start_ns": 33151081,
+    "initialize_end_ns": 1660349576
+  }
+}

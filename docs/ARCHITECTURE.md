@@ -44,7 +44,7 @@ to the context-128 workspace and performs no token-loop allocation. The same bou
 
 The model-specific sequence is attention normalization and FP8 projections, specialized local/global attention,
 then NVFP4 MLP projections and residual updates. This sequence now exists both as an independent Layer-0 comparison
-probe and as an unfused, batch-one 48-layer greedy characterization. The latter loads the complete text-only model
+probe and as a fused, batch-one 48-layer greedy characterization. The latter loads the complete text-only model
 into one aligned arena, keeps separate K/V state and reusable workspace allocations fixed for the run, applies the
 tied BF16 embedding/output matrix, exact logit softcap, and GPU candidate reduction, and performs no token-loop allocation. It
 uses one full graph replay for ordinary greedy decode but is not yet benchmark-qualified.
@@ -160,21 +160,22 @@ All decode projections retain the native T=1 implementation over the sole persis
 stack/local memory. All layout transformations preserve every packed value and scale byte, leave the
 9,200,135,680-byte weight arena unchanged, and are mandatory rather than selectable.
 
-Prefill materializes no redundant normalized or MLP-product tensor solely to cross a quantization boundary.
-Shape-specific kernels combine RMSNorm with the exact BF16 cast and dynamic FP8/NVFP4 token quantizer, combine
-post-projection normalization with residual and optional BF16 layer scaling, and combine the separate Gate/Up
-projection outputs with the exact BF16/GELU-tanh/product boundaries and Down-input NVFP4 packing. These kernels
-preserve the former operation order and bytes exactly; the unfused sequence remains only as the CUDA test oracle.
-There is no fused/unfused runtime selector. Diagnostic decode can still request the normalized intermediate when
-capturing hidden states, while ordinary prefill omits that store.
+Prefill and ordinary decode materialize no redundant normalized or MLP-product tensor solely to cross a
+quantization boundary. Shape-specific kernels combine RMSNorm with the exact BF16 cast and dynamic FP8/NVFP4 token
+quantizer, and combine the separate Gate/Up projection outputs with the exact BF16/GELU-tanh/product boundaries and
+Down-input NVFP4 packing. Prefill additionally combines post-projection normalization with residual and optional
+BF16 layer scaling. These kernels preserve the former operation order and bytes exactly; the unfused sequence
+remains only as the CUDA test oracle and diagnostic hidden-state path. There is no fused/unfused runtime selector.
 
-Q/K prefill uses another exact closed boundary. One CTA per token/head performs the projection-output BF16 cast,
+Q/K prefill and whole-model decode use another exact closed boundary. One CTA per token/head performs the projection-output BF16 cast,
 the original 256-thread RMSNorm reduction, normalized BF16 cast, RoPE, and the post-RoPE BF16 cast. Q and K share
 the launch but never share reduction state. Local D256 and proportional global D512 cosine/sine tables use the
 former double-precision `pow`/`cos`/`sin` expressions and are generated once during initialization for every
-position in the planned context. The tables cost 1,536 bytes per context token and eliminate per-layer
-trigonometry. The hot fused kernel uses 35 registers, 3,072 bytes shared memory, and zero stack/local memory; the
-initialization-only table kernel is outside prompt timing. The unfused sequence remains only in CUDA tests.
+position in the planned context. Decode reads its dynamic position from the graph control record and indexes the
+same immutable tables. The tables cost 1,536 bytes per context token and eliminate per-layer trigonometry. The
+prefill kernel uses 35 registers and 3,072 bytes shared memory; the decode kernel uses 24 registers and 2,048 bytes
+shared memory. Both have zero stack/local memory. The initialization-only table kernel is outside prompt and decode
+timing. The unfused sequence remains available for diagnostics and CUDA tests.
 
 ## Memory-plan boundary
 

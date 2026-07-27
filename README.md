@@ -156,10 +156,11 @@ The engine passes its host and CUDA test suites and has real-checkpoint coverage
 complete 48-layer generation. Teacher-forced logits agree closely with the reference implementations, but they are
 not bit-identical; small numerical differences can still cause later greedy tokens to diverge autoregressively.
 
-Prefill and decode are benchmarked separately at long context. Current Windows development measurements place
-prefill ahead of the closest available `llama.cpp` comparison and ordinary decode in roughly the same range. These
-results are characterization, not a headline parity claim: the direct mixed checkpoint and the available GGUF
-baseline differ in some tensor and KV-cache formats. Commands, caveats, and historical measurements live in
+Prefill and decode are benchmarked separately at long context. On the Linux RTX 5080 Laptop reference machine,
+the current 8K/256 decode median is 33.545 tok/s and the retained direct-vLLM characterization is 38.056 tok/s;
+gem16 reaches 88.1% under disclosed non-parity timing boundaries. It remains ahead of the patched closest-parity
+`llama.cpp` candidate. These results are characterization, not a headline parity claim: timing boundaries differ,
+and the direct mixed checkpoint and available GGUF baseline differ in some tensor and KV-cache formats. Commands, caveats, and historical measurements live in
 [`docs/PERFORMANCE_LEDGER.md`](docs/PERFORMANCE_LEDGER.md), while the required comparison rules are documented in
 [`docs/BENCHMARKING.md`](docs/BENCHMARKING.md).
 
@@ -169,7 +170,7 @@ baseline differ in some tensor and KV-cache formats. Commands, caveats, and hist
 - Inference is currently text-only and batch one; image, audio, and video tensors are not loaded onto the GPU.
 - Generation supports unchanged fused greedy selection and explicit seeded GPU sampling with temperature, exact
   top-k/top-p/min-p filtering, and full-history repetition penalty. The initial sampled path uses a preallocated
-  full-vocabulary radix sort inside the whole-model decode CUDA Graph.
+  full-vocabulary radix sort and probability scan inside the whole-model decode CUDA Graph.
 - The optimized CUDA backend requires Blackwell SM120/SM120a. Other NVIDIA architectures are not performance
   targets yet.
 - Continuous batching, a server API, speculative decoding, and persistent prompt-cache files are out of scope for

@@ -30,6 +30,30 @@ supersedes the pre-CUTLASS 65% projection diagnosis and selects attention stagin
 Artifacts remain under
 `benchmarks/results/2026-07-27/304a113/blackwell16gb-linux-refresh/`.
 
+## 2026-07-27 exact decode-boundary and controlled Q/K fusion
+
+A fresh whole-model graph-node profile at context 8K identified 1,588 kernel nodes per output token. Ordinary
+decode still launched pointwise sequences already fused and qualified for prefill, while Q/K used eight separate
+rounding, normalization, and RoPE launches per layer. Decode now reuses the exact RMSNorm/FP8,
+RMSNorm/NVFP4, and Gate/Up/GELU/NVFP4 boundaries. A new controlled Q/K kernel reads the dynamic graph position and
+uses the same initialization-time exact local/global RoPE tables while preserving every BF16 boundary.
+
+The final graph has 964 kernel nodes/token (-39.3%). Under graph-node tracing, summed kernel time falls from
+31.517 to 30.447 ms/token (-3.39%) even though projection, attention, and output-head kernels are individually
+slower in the candidate trace, making the direction conservative. Final 3-warm-up/10-run medians are
+34.446/34.257/33.545 tok/s at context 128/2,048/8,192. The final 8K result is +2.10% over the nearby 32.853 tok/s
+parent and reaches 88.1% of the retained 38.056 tok/s direct-vLLM characterization, versus 85.6% previously. The
+new Q/K kernel uses 24 registers, 2,048 bytes shared memory, and zero stack/local memory. Arenas are unchanged;
+peak process VRAM is 9,852 MiB and Nsight observes no token-loop allocation.
+
+CTest, exact-blue, 129/257 boundaries, teacher-forced 121/127 Top-1 plus 127/127 Top-5/Top-20, sampled CPU/GPU
+selection, byte-exact local/global controlled-Q/K fixtures, memcheck, racecheck, and deterministic decode checks
+pass. Qualification also added the missing shared-reduction consumption barrier to the reused decode RMSNorm/FP8
+kernel; the final benchmark includes that correctness fix. NVFP4 two/eight-warp geometries were neutral; a
+combined attention-residual/MLP-quantization kernel regressed
+about 1.7%; both experiments were removed. Artifacts are under
+`benchmarks/results/2026-07-27/4096fc8-worktree/blackwell16gb-linux-decode-sprint/`.
+
 ## 2026-07-27 sampled whole-model graph and operator isolation
 
 Sampling is moved from the monolithic inference translation unit into `src/cuda/sampling/`, with shared host

@@ -18,7 +18,10 @@ of the correctness and native-kernel gates below.
   exact GPU sampling plan now covers temperature, top-k, top-p, min-p, repetition penalty, and deterministic
   seeded RNG without changing the greedy path or allocating in the token loop. It is isolated in an operator
   module, has synthetic and checkpoint-backed CPU/GPU gates, and runs inside the whole-model decode CUDA Graph at
-  measured greedy-performance parity. The active gate is now 64K/text-quality validation.
+  measured greedy-performance parity. A bounded decode-fusion sprint then reused the exact quantization boundaries
+  and combined controlled Q/K rounding, normalization, and RoPE, reducing graph kernel nodes by 39.3% and raising
+  final 128/2,048/8,192 medians to 34.446/34.257/33.545 tok/s. At 8K this reaches 88.1% of the retained direct-vLLM
+  characterization, up from 85.6%. The decode sprint is closed; the active gate is now 64K/text-quality validation.
   Every performance promotion still requires correctness, generation, logit, 3-warm-up/10-run benchmark, Nsight,
   spill, allocation, and peak-VRAM evidence and becomes the sole production path.
 

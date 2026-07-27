@@ -193,6 +193,15 @@ struct DecodeControl {
     std::uint64_t kv_heads, std::uint64_t head_dimension,
     double rotary_factor, float epsilon, cudaStream_t stream);
 
+[[nodiscard]] Status LaunchProjectionRmsNormRotaryBf16Controlled(
+    const float* query, const std::uint16_t* query_norm_bf16,
+    float* normalized_query, const float* key,
+    const std::uint16_t* key_norm_bf16, float* normalized_key,
+    const float* rotary_cosine, const float* rotary_sine,
+    const DecodeControl* control, std::uint64_t query_heads,
+    std::uint64_t kv_heads, std::uint64_t head_dimension,
+    double rotary_factor, float epsilon, cudaStream_t stream);
+
 [[nodiscard]] Status LaunchQuantizeKvFp8Batch(
     const float* key, const float* value, std::uint8_t* key_fp8,
     std::uint8_t* value_fp8, const std::uint16_t* key_scale_bf16,

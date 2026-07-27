@@ -61,6 +61,12 @@ scratch, an in-place double-precision probability scan, and a 32-bit atomic repe
 workspace. At context 128 this is 7,408,128 bytes above greedy. Disabled sampling allocates none of those regions. Both modes keep their whole-model graph at
 fixed addresses and allocate nothing in the token loop.
 
+The decode boundary and controlled Q/K fusion reuse the existing activation, quantization, RoPE-table, and graph
+regions; they add no arena bytes. At context 8,192 the final plan reports 9,200,135,680 weight bytes, 236,978,176
+KV bytes, and 674,200,064 reusable workspace bytes. A 20 ms `nvidia-smi` process probe across model load, prefill,
+and decode observed 9,852 MiB peak process VRAM. Nsight records four CUDA allocations, all completed during
+initialization and none in prefill or the token loop.
+
 The maximum 262,144-position FP8 execution plan was initialized and executed successfully before online attention
 removed its score arena. That retained measurement was 9,200,135,680 weight bytes, 2,315,255,808 hybrid KV bytes,
 and 568,663,552 workspace bytes. The current fixed FP8 prefill tile is smaller than that old workspace result, but

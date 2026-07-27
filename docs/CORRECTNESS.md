@@ -90,6 +90,16 @@ distribution probe; acceptance depends on deterministic execution, operator cont
 metrics, and task quality. A previous revision matched the FP8 references only through compensating arithmetic
 errors and is not valid evidence.
 
+The production whole-model decode graph now reuses the byte-exact prefill RMSNorm/FP8, RMSNorm/NVFP4, and
+Gate/Up/GELU/NVFP4 boundaries. Its controlled Q/K kernel additionally preserves projection BF16 rounding, the
+256-thread RMSNorm reduction, exact precomputed local/proportional RoPE values, and final BF16 rounding in one
+launch. CUDA fixtures compare both D256 local and D512 partial-rotary global outputs byte-for-byte against the
+unfused sequence at a nonzero dynamic position. The targeted fusion suite passes compute-sanitizer memcheck with
+zero errors and racecheck with zero hazards. Qualification fixed the prior `RmsNormQuantizeTokenKernel` hazard by
+fencing the first shared reduction result before the same array is reused for the maximum reduction. Exact-blue remains `[9503, 106]`; 129/257 prefill boundaries pass; the
+12-prompt suite remains 121/127 Top-1 and 127/127 Top-5/Top-20; and each 128/2,048/8,192 10-run decode set retains
+one checksum.
+
 The explicit GPU sampling plan has an end-to-end reference gate in `tools/validate_sampling.py`. It dumps the
 unmodified softcapped logits for a real checkpoint prompt, independently applies full-history sign-aware repetition
 penalty, temperature, top-k, min-p, top-p, and the pinned SplitMix64 seed/step mapping on the CPU, and requires the
@@ -103,8 +113,8 @@ or decode. A model-independent CUDA operator test pins repetition and suppressio
 seed/step results, device-control step override, and successful radix-sort graph capture/replay on an eight-token
 fixture. Repetition history is an atomic 32-bit bitset, so duplicate prompt IDs are race-free. The complete CUDA
 test binary passes compute-sanitizer memcheck with zero errors, and the sampling-only suite passes racecheck with
-zero hazards. A full-suite racecheck separately reports an existing `RmsNormQuantizeTokenKernel` hazard outside
-sampling; it remains an open CUDA-test issue and is not hidden by the sampling-only result. End-to-end sampled
+zero hazards. The formerly reported `RmsNormQuantizeTokenKernel` hazard was subsequently fixed and is covered by
+the decode-fusion racecheck gate. End-to-end sampled
 decode uses one whole-model graph replay per post-prefill token. Synthetic and end-to-end tests cover both bounded
 top-k and unfiltered full-vocabulary selection; the probability scan and final binary searches are GPU-resident.
 

@@ -1757,7 +1757,7 @@ class InferenceEngine {
 
   [[nodiscard]] Status LaunchControlledDecodeLayer(
       const LayerBinding& layer) {
-    Status status = LaunchDecodePrefix(layer);
+    Status status = LaunchDecodePrefix(layer, false);
     if (!status.ok()) return status;
     auto* control = Pointer<internal::DecodeControl>(
         workspace_, offsets_.decode_control);
@@ -1766,27 +1766,23 @@ class InferenceEngine {
     float* v_norm = Pointer<float>(workspace_, offsets_.v_norm);
     float* scores = Pointer<float>(workspace_, offsets_.scores);
     float* attention = Pointer<float>(workspace_, offsets_.attention);
-    if (layer.global) {
-      status = internal::LaunchProportionalRotaryEmbeddingControlled(
-          q_norm, kQueryHeads, layer.head_dimension, 0.25, control,
-          1000000.0, 1.0, stream_);
-      if (!status.ok()) return status;
-      status = internal::LaunchProportionalRotaryEmbeddingControlled(
-          k_norm, layer.kv_heads, layer.head_dimension, 0.25, control,
-          1000000.0, 1.0, stream_);
-    } else {
-      status = internal::LaunchRotaryEmbeddingControlled(
-          q_norm, kQueryHeads, layer.head_dimension, layer.head_dimension,
-          control, 10000.0, stream_);
-      if (!status.ok()) return status;
-      status = internal::LaunchRotaryEmbeddingControlled(
-          k_norm, layer.kv_heads, layer.head_dimension, layer.head_dimension,
-          control, 10000.0, stream_);
-    }
-    if (!status.ok()) return status;
-    status = LaunchRoundBf16(q_norm, layer.query_elements, stream_);
-    if (!status.ok()) return status;
-    status = LaunchRoundBf16(k_norm, layer.kv_elements, stream_);
+    const float* rotary_cosine =
+        layer.global
+            ? Pointer<float>(prefill_workspace_,
+                             prefill_offsets_.global_rope_cosine)
+            : Pointer<float>(prefill_workspace_,
+                             prefill_offsets_.local_rope_cosine);
+    const float* rotary_sine =
+        layer.global
+            ? Pointer<float>(prefill_workspace_,
+                             prefill_offsets_.global_rope_sine)
+            : Pointer<float>(prefill_workspace_,
+                             prefill_offsets_.local_rope_sine);
+    status = internal::LaunchProjectionRmsNormRotaryBf16Controlled(
+        Pointer<float>(workspace_, offsets_.q), layer.q_norm, q_norm,
+        Pointer<float>(workspace_, offsets_.k), layer.k_norm, k_norm,
+        rotary_cosine, rotary_sine, control, kQueryHeads, layer.kv_heads,
+        layer.head_dimension, layer.global ? 0.25 : 1.0, kEpsilon, stream_);
     if (!status.ok()) return status;
     const std::uint64_t capacity =
         layer.global ? max_context_ : std::min(max_context_, kSlidingWindow);
@@ -1918,9 +1914,9 @@ class InferenceEngine {
         "capture full decode graph");
   }
 
-  [[nodiscard]] Status LaunchDecodePrefix(const LayerBinding& layer) {
+  [[nodiscard]] Status LaunchDecodePrefix(const LayerBinding& layer,
+                                          bool normalize_query_key = true) {
     float* hidden_a = Pointer<float>(workspace_, offsets_.hidden_a);
-    float* normalized = Pointer<float>(workspace_, offsets_.normalized);
     auto* fp8_activation =
         Pointer<std::uint8_t>(workspace_, offsets_.fp8_activation);
     float* fp8_scale = Pointer<float>(workspace_, offsets_.fp8_scale);
@@ -1931,11 +1927,9 @@ class InferenceEngine {
     float* k_norm = Pointer<float>(workspace_, offsets_.k_norm);
     float* v_norm = Pointer<float>(workspace_, offsets_.v_norm);
 
-    Status status = internal::LaunchRmsNormBf16(
-        hidden_a, layer.input_norm, normalized, 1U, kHidden, kEpsilon, stream_);
-    if (!status.ok()) return status;
-    status = internal::LaunchFp8ReferenceTokenQuantization(
-        normalized, fp8_activation, fp8_scale, kHidden, stream_);
+    Status status = internal::LaunchRmsNormFp8TokenQuantizationBatch(
+        hidden_a, layer.input_norm, fp8_activation, fp8_scale, 1U, kHidden,
+        kEpsilon, stream_);
     if (!status.ok()) return status;
     status = LaunchFp8QkvProjection(
         fp8_activation, fp8_scale, layer.q, q, layer.k, k,
@@ -1949,16 +1943,21 @@ class InferenceEngine {
         return CudaFailure("reuse global K projection for V", error);
       }
     }
+    status = LaunchRoundBf16(v, layer.kv_elements, stream_);
+    if (!status.ok()) return status;
+    status = internal::LaunchRmsNormBf16(
+        v, nullptr, v_norm, layer.kv_heads, layer.head_dimension, kEpsilon,
+        stream_);
+    if (!status.ok() || !normalize_query_key) return status;
     for (const Status next : {
              LaunchRoundBf16(q, layer.query_elements, stream_),
              LaunchRoundBf16(k, layer.kv_elements, stream_),
-             LaunchRoundBf16(v, layer.kv_elements, stream_),
              internal::LaunchRmsNormBf16(q, layer.q_norm, q_norm, kQueryHeads,
-                                     layer.head_dimension, kEpsilon, stream_),
-             internal::LaunchRmsNormBf16(k, layer.k_norm, k_norm, layer.kv_heads,
-                                     layer.head_dimension, kEpsilon, stream_),
-             internal::LaunchRmsNormBf16(v, nullptr, v_norm, layer.kv_heads,
-                                     layer.head_dimension, kEpsilon, stream_),
+                                         layer.head_dimension, kEpsilon,
+                                         stream_),
+             internal::LaunchRmsNormBf16(k, layer.k_norm, k_norm,
+                                         layer.kv_heads, layer.head_dimension,
+                                         kEpsilon, stream_),
          }) {
       if (!next.ok()) return next;
     }
@@ -2036,23 +2035,26 @@ class InferenceEngine {
       status = capture_hidden(capture->post_attention_norm, post_norm,
                               "copy post-attention norm state");
       if (!status.ok()) return status;
-    }
-    if (capture != nullptr) {
       status = capture_hidden(capture->post_attention_residual, hidden_b,
                               "copy post-attention residual state");
       if (!status.ok()) return status;
     }
-    status = internal::LaunchRmsNormBf16(hidden_b, layer.pre_mlp_norm, normalized,
-                                     1U, kHidden, kEpsilon, stream_);
-    if (!status.ok()) return status;
-    if (capture != nullptr) {
+    if (capture == nullptr) {
+      status = internal::LaunchRmsNormNvfp4ActivationQuantizationBatch(
+          hidden_b, layer.pre_mlp_norm, mlp_packed, mlp_scales, 1U, kHidden,
+          kEpsilon, layer.gate.input_divisor, stream_);
+    } else {
+      status = internal::LaunchRmsNormBf16(
+          hidden_b, layer.pre_mlp_norm, normalized, 1U, kHidden, kEpsilon,
+          stream_);
+      if (!status.ok()) return status;
       status = capture_hidden(capture->pre_feedforward_norm, normalized,
                               "copy pre-feedforward norm state");
       if (!status.ok()) return status;
+      status = internal::LaunchNvfp4ReferenceActivationQuantization(
+          normalized, mlp_packed, mlp_scales, kHidden,
+          layer.gate.input_divisor, stream_);
     }
-    status = internal::LaunchNvfp4ReferenceActivationQuantization(
-        normalized, mlp_packed, mlp_scales, kHidden, layer.gate.input_divisor,
-        stream_);
     if (!status.ok()) return status;
     status = LaunchNvfp4Projection(mlp_packed, mlp_scales, layer.gate, gate,
                                    stream_);
@@ -2060,16 +2062,20 @@ class InferenceEngine {
     status = LaunchNvfp4Projection(mlp_packed, mlp_scales, layer.up, up,
                                    stream_);
     if (!status.ok()) return status;
-    status = LaunchRoundBf16(gate, kIntermediate, stream_);
-    if (!status.ok()) return status;
-    status = LaunchRoundBf16(up, kIntermediate, stream_);
-    if (!status.ok()) return status;
-    status = internal::LaunchGeluTanhProduct(gate, up, product, kIntermediate,
-                                             stream_);
-    if (!status.ok()) return status;
-    status = LaunchRoundBf16(product, kIntermediate, stream_);
-    if (!status.ok()) return status;
-    if (capture != nullptr) {
+    if (capture == nullptr) {
+      status = internal::LaunchGatedGeluNvfp4ActivationQuantization(
+          gate, up, down_packed, down_scales, kIntermediate,
+          layer.down.input_divisor, stream_);
+    } else {
+      status = LaunchRoundBf16(gate, kIntermediate, stream_);
+      if (!status.ok()) return status;
+      status = LaunchRoundBf16(up, kIntermediate, stream_);
+      if (!status.ok()) return status;
+      status = internal::LaunchGeluTanhProduct(gate, up, product, kIntermediate,
+                                               stream_);
+      if (!status.ok()) return status;
+      status = LaunchRoundBf16(product, kIntermediate, stream_);
+      if (!status.ok()) return status;
       status = capture_values(capture->gate, gate, kIntermediate,
                               "copy MLP gate state");
       if (!status.ok()) return status;
@@ -2079,10 +2085,10 @@ class InferenceEngine {
       status = capture_values(capture->gelu_product, product, kIntermediate,
                               "copy MLP GELU product state");
       if (!status.ok()) return status;
+      status = internal::LaunchNvfp4ReferenceActivationQuantization(
+          product, down_packed, down_scales, kIntermediate,
+          layer.down.input_divisor, stream_);
     }
-    status = internal::LaunchNvfp4ReferenceActivationQuantization(
-        product, down_packed, down_scales, kIntermediate,
-        layer.down.input_divisor, stream_);
     if (!status.ok()) return status;
     status = LaunchNvfp4Projection(down_packed, down_scales, layer.down,
                                    projection, stream_);

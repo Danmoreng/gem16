@@ -1,0 +1,220 @@
+{
+  "base_commit": "4096fc8",
+  "comparison": {
+    "final_8192_over_nearby_parent": 1.02104162827385,
+    "final_8192_over_retained_vllm": 0.8814578003627187,
+    "retained_vllm_8192_tokens_per_second": 38.05591492097051,
+    "vllm_caveat": "directional characterization: request timing boundaries differ and continuous telemetry was not captured"
+  },
+  "correctness": {
+    "exact_blue": "ok",
+    "memcheck_errors": 0,
+    "prefill_boundaries": "ok",
+    "racecheck_hazards": 0,
+    "rmsnorm_fp8_reduction_barrier": true,
+    "sampling": "ok",
+    "teacher_forced": {
+      "maximum_reference_top20_logprob_absolute_delta": 14.367080674082704,
+      "maximum_selected_logprob_absolute_delta": 4.521632307429378,
+      "mean_reference_top20_logprob_absolute_delta": 1.4890053180600553,
+      "mean_reference_top20_overlap": 14.803149606299213,
+      "mean_selected_logprob_absolute_delta": 0.12057386499578471,
+      "positions_compared": 127,
+      "prompts_compared": 12,
+      "prompts_with_all_top1_agree": 9,
+      "reference_top1_in_engine_top20": 127,
+      "reference_top1_in_engine_top20_rate": 1.0,
+      "reference_top1_in_engine_top5": 127,
+      "reference_top1_in_engine_top5_rate": 1.0,
+      "top1_agreement_rate": 0.952755905511811,
+      "top1_agreements": 121
+    }
+  },
+  "final": {
+    "128": {
+      "decode_tokens_per_second": {
+        "confidence_95": [
+          34.31075682904516,
+          34.67697155275093
+        ],
+        "maximum": 34.964453144232905,
+        "mean": 34.493864190898044,
+        "median": 34.44612581836997,
+        "minimum": 34.19279722002867,
+        "p95": 34.90323067153664,
+        "p99": 34.95220864969365,
+        "sample_count": 10,
+        "standard_deviation": 0.25598422625983314
+      },
+      "inter_token_latency_ms": {
+        "confidence_95": [
+          28.951242003703847,
+          29.032895510358586
+        ],
+        "maximum": 33.705343,
+        "mean": 28.992068757031216,
+        "median": 28.995958,
+        "minimum": 26.279404,
+        "p95": 30.58015855,
+        "p99": 30.97402724,
+        "sample_count": 2560,
+        "standard_deviation": 1.0539226937497486
+      },
+      "memory_bytes": {
+        "kv_cache": 66060288,
+        "weights": 9200135680,
+        "workspace": 661288704
+      },
+      "unique_output_checksums": 1
+    },
+    "2048": {
+      "decode_tokens_per_second": {
+        "confidence_95": [
+          34.14326783461925,
+          34.299515102246474
+        ],
+        "maximum": 34.34470115662623,
+        "mean": 34.22139146843286,
+        "median": 34.25675526061242,
+        "minimum": 34.02767820011221,
+        "p95": 34.33860910753479,
+        "p99": 34.34348274680794,
+        "sample_count": 10,
+        "standard_deviation": 0.10921689740935092
+      },
+      "inter_token_latency_ms": {
+        "confidence_95": [
+          29.20251776857096,
+          29.240941797835372
+        ],
+        "maximum": 33.768962,
+        "mean": 29.221729783203166,
+        "median": 29.1936685,
+        "minimum": 27.956583,
+        "p95": 29.94137755,
+        "p99": 30.698595389999987,
+        "sample_count": 2560,
+        "standard_deviation": 0.4959487728836628
+      },
+      "memory_bytes": {
+        "kv_cache": 186646528,
+        "weights": 9200135680,
+        "workspace": 664368896
+      },
+      "unique_output_checksums": 1
+    },
+    "8192": {
+      "decode_tokens_per_second": {
+        "confidence_95": [
+          33.516796169063554,
+          33.58212214099214
+        ],
+        "maximum": 33.65313343839709,
+        "mean": 33.54945915502785,
+        "median": 33.54468305702943,
+        "minimum": 33.500820234802376,
+        "p95": 33.61894029460733,
+        "p99": 33.64629480963914,
+        "sample_count": 10,
+        "standard_deviation": 0.045662878350702006
+      },
+      "inter_token_latency_ms": {
+        "confidence_95": [
+          29.78823784393365,
+          29.825285903722502
+        ],
+        "maximum": 32.477013,
+        "mean": 29.806761873828076,
+        "median": 29.795831,
+        "minimum": 27.286469,
+        "p95": 30.461691449999996,
+        "p99": 30.91556287,
+        "sample_count": 2560,
+        "standard_deviation": 0.47818878295046074
+      },
+      "memory_bytes": {
+        "kv_cache": 236978176,
+        "weights": 9200135680,
+        "workspace": 674200064
+      },
+      "unique_output_checksums": 1
+    }
+  },
+  "memory": {
+    "peak_process_vram_mib": 9852,
+    "pid": 51694,
+    "samples": 279,
+    "sampling_interval_ms": 20
+  },
+  "nearby_parent_8192": {
+    "decode_tokens_per_second": {
+      "confidence_95": [
+        32.82033927474645,
+        32.91264346560073
+      ],
+      "maximum": 32.98922902123481,
+      "mean": 32.86649137017359,
+      "median": 32.853394149795164,
+      "minimum": 32.790890564151404,
+      "p95": 32.96611974419262,
+      "p99": 32.984607165826375,
+      "sample_count": 10,
+      "standard_deviation": 0.06452066327992907
+    },
+    "inter_token_latency_ms": {
+      "confidence_95": [
+        30.413158095409994,
+        30.43924904052756
+      ],
+      "maximum": 32.242686,
+      "mean": 30.426203567968777,
+      "median": 30.373346499999997,
+      "minimum": 28.584358,
+      "p95": 30.975738149999998,
+      "p99": 31.305779579999996,
+      "sample_count": 2560,
+      "standard_deviation": 0.3367625015427098
+    },
+    "memory_bytes": {
+      "kv_cache": 236978176,
+      "weights": 9200135680,
+      "workspace": 674200064
+    },
+    "unique_output_checksums": 1
+  },
+  "profile": {
+    "baseline_kernel_nodes_per_token": 1588,
+    "baseline_summed_kernel_ms_per_token": 31.51710221875,
+    "candidate_kernel_nodes_per_token": 964,
+    "candidate_summed_kernel_ms_per_token": 30.44727925,
+    "controlled_qk_resources": {
+      "local_bytes": 0,
+      "registers": 24,
+      "shared_bytes": 2048,
+      "stack_bytes": 0
+    },
+    "node_reduction_fraction": 0.3929471032745592,
+    "rmsnorm_fp8_resources": {
+      "local_bytes": 0,
+      "registers": 32,
+      "shared_bytes": 2048,
+      "stack_bytes": 0
+    },
+    "summed_kernel_time_reduction_fraction": 0.03394420468368897,
+    "trace_caveat": "CUDA graph node tracing adds overhead; individual candidate projection/attention kernels ran slower, so use attribution rather than profiled throughput"
+  },
+  "rejected": {
+    "combined_attention_residual_quantization": "removed after 33.473 tok/s versus 34.046 tok/s before the candidate, approximately 1.7% regression",
+    "nvfp4_decode_warps": "two and eight warps per block were neutral in adjacent smoke runs"
+  },
+  "schema_version": 1,
+  "status": "qualified_development_characterization",
+  "workload": {
+    "batch_size": 1,
+    "generated_tokens": 256,
+    "kv_cache": "checkpoint_fp8",
+    "measured_runs": 10,
+    "timing_boundary": "host_end_to_end_forward_and_greedy_selection",
+    "warmups": 3
+  }
+}
