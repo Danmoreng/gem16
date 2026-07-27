@@ -73,7 +73,7 @@ def validate_result(document: dict[str, Any], expected: list[int]) -> None:
         raise ValidationError("inference did not use vectorized local FP8 staging")
     if (
         document.get("global_prefill_fp8_staging")
-        != "async_fp8x16_fp8x4_bf16x2"
+        != "async_contiguous_fp8x16_fp8x4_bf16x2"
     ):
         raise ValidationError(
             "inference did not use pipelined global FP8 staging"

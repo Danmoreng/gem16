@@ -1,5 +1,30 @@
 # Decisions
 
+## 2026-07-27: Index the contiguous global KV cache directly during prefill
+
+Date: 2026-07-27
+Decision: Use each absolute key position directly when global-prefill attention stages older K/V from its
+contiguous cache. Remove `cache_capacity` and the redundant runtime modulo from the internal global staging helper;
+retain modulo addressing exclusively in the local circular cache. Runtime metadata reports
+`global_prefill_fp8_staging` as `async_contiguous_fp8x16_fp8x4_bf16x2`.
+Context: After vectorizing local staging, global attention was the largest individual 8K kernel family. The global
+helper inherited ring-style indexing even though its launch contract proves `start_position + tokens <=
+cache_capacity` and global K/V storage is contiguous. Consequently every valid older `absolute_key` is already
+strictly below capacity, making `absolute_key % cache_capacity` identical to `absolute_key` while still requiring
+runtime integer division in every staged vector.
+Alternatives: Retain defensive modulo; specialize only power-of-two capacities; or change global cache layout. The
+first preserves provably dead work, the second would constrain valid context plans, and the third is unnecessary.
+A separate paired-BF16 global-query-store experiment was also exact but lost 0.42% in an adjacent 8K comparison
+and was removed.
+Consequences: Cache bounds validation, allocation, physical layout, K/V bytes, attention arithmetic, shared memory,
+and decode are unchanged. The local ring retains its required modulo. The global kernel retains 254 registers,
+99,328 reported shared bytes, and zero stack/local memory.
+Evidence: Two adjacent parent/candidate 3-warm-up/10-run pairs combine to 3,801.98 versus 3,827.47 tok/s median at
+8K (+0.67%), with median TTFT 2,154.66 versus 2,140.32 ms (-0.67%). Nsight reduces global-attention time from
+1.03955 to 0.96426 seconds (-7.24%) across two profiled prefills and total kernel time from 4.44462 to 4.39667
+seconds (-1.08%). CTest, exact-blue, 129/257 boundaries, and the 12-prompt teacher-forced suite pass unchanged;
+an 8K decode regression retains one checksum.
+
 ## 2026-07-27: Vectorize local-prefill FP8 staging
 
 Date: 2026-07-27

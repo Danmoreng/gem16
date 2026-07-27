@@ -1,0 +1,22 @@
+{
+  "candidate": {
+    "global_attention_total_ms": 964.256476,
+    "kernel_resources": {
+      "local_bytes": 0,
+      "registers": 254,
+      "reported_shared_bytes": 99328,
+      "stack_bytes": 0
+    },
+    "total_kernel_ms": 4396.673914
+  },
+  "change": {
+    "global_attention_percent": -7.242504155252993,
+    "total_kernel_percent": -1.0787540061337086
+  },
+  "profile_executions": 2,
+  "reference": {
+    "global_attention_total_ms": 1039.54561,
+    "total_kernel_ms": 4444.620435
+  },
+  "schema_version": 1
+}

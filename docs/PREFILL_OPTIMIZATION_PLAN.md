@@ -23,8 +23,9 @@ baseline refresh is 3,704.64 tok/s at 8K with 2,211.28 ms TTFT; it is developmen
 The 2026-07-27 Linux refresh at `304a113` measures 2,575.72/4,277.03/4,318.31/3,674.54 tok/s at
 `128`/`512`/`2,048`/`8,192`; short-prompt samples are clock-bimodal, while the 8K 95% interval is stable. The first
 post-refresh promotion vectorizes local-attention FP8 staging and raises the same 8K median to 3,815.49 tok/s.
-Cross-engine claims must reconcile timing boundaries and cache precision under `docs/BENCHMARKING.md` and
-`AGENTS.md`.
+The bounded global-attention follow-up removes redundant modulo from contiguous-cache staging and reaches a
+combined adjacent median of 3,827.47 tok/s versus its 3,801.98 tok/s parent (+0.67%). Cross-engine claims must
+reconcile timing boundaries and cache precision under `docs/BENCHMARKING.md` and `AGENTS.md`.
 
 ## Profile-derived diagnosis
 
@@ -45,8 +46,10 @@ attention, larger prompt chunks, grouped FP8 projections, and exact boundary/RoP
 launch pressure. The former 65.0% projection/26.6% attention split predates the subsequent CUTLASS projection and
 global-attention staging promotions. The refreshed Linux 8K trace instead attributes 21.9% to global attention, 20.9% to local
 attention, 20.2% to FP8 projection GEMMs, and 17.9% to NVFP4 projection GEMMs. Vectorized local FP8 staging then
-reduces local attention by 26.88% and total profiled kernel time by 4.39%, making global attention the largest
-remaining individual family in the adjacent candidate trace.
+reduces local attention by 26.88% and total profiled kernel time by 4.39%. Direct contiguous indexing then reduces
+global attention by 7.24%. Global attention and FP8 projection GEMMs each account for approximately 21.9% of the
+latest profiled kernel time; the bounded attention-staging sprint is closed pending a fresh controlled
+cross-engine comparison.
 
 The neighboring Apache-2.0 NInfer implementation supplies useful implementation concepts, not a compatible
 runtime path: shape-specific plans, BF16 Tensor-Core QK/PV, FP32 online softmax, swizzled shared-memory staging,

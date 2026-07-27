@@ -937,7 +937,7 @@ __device__ __forceinline__ void StageGlobalQuery(
 __device__ __forceinline__ void StageGlobalFp8RawAsync(
     std::uint8_t* destination, const std::uint8_t* chunk,
     const std::uint8_t* cache, int key_start,
-    int max_query_position, int chunk_start, int cache_capacity, int thread) {
+    int max_query_position, int chunk_start, int thread) {
   constexpr int kElementsPerVector = 16;
   constexpr int kVectorsPerRow =
       kGlobalHeadDimension / kElementsPerVector;
@@ -950,9 +950,11 @@ __device__ __forceinline__ void StageGlobalFp8RawAsync(
     const int absolute_key = key_start + row;
     const bool valid = absolute_key <= max_query_position;
     const bool in_chunk = valid && absolute_key >= chunk_start;
+    // Global K/V storage is contiguous and the launcher proves every valid
+    // absolute key is below cache_capacity; unlike the local ring, no modulo
+    // mapping is required here.
     const int source_token =
-        in_chunk ? absolute_key - chunk_start
-                 : (valid ? absolute_key % cache_capacity : 0);
+        in_chunk ? absolute_key - chunk_start : (valid ? absolute_key : 0);
     const std::uint8_t* source = in_chunk ? chunk : cache;
     CopyAsync16(destination + row * kGlobalHeadDimension + dimension,
                 source + source_token * kGlobalHeadDimension + dimension,
@@ -1131,9 +1133,8 @@ __launch_bounds__(kGlobalThreads, 1) __global__
   const float value_scale =
       static_cast<float>(__ushort_as_bfloat16(value_scale_bf16[0]));
 
-  StageGlobalFp8RawAsync(
-      raw_shared, chunk_key, key_cache, 0, max_query_position,
-      start_position, cache_capacity, thread);
+  StageGlobalFp8RawAsync(raw_shared, chunk_key, key_cache, 0,
+                         max_query_position, start_position, thread);
   CommitAsyncCopies();
   WaitForAsyncCopies();
   __syncthreads();
@@ -1146,7 +1147,7 @@ __launch_bounds__(kGlobalThreads, 1) __global__
     const int next_raw = current_raw ^ 1;
     StageGlobalFp8RawAsync(
         raw_shared + current_raw * kGlobalRawBytes, chunk_value, value_cache,
-        key_start, max_query_position, start_position, cache_capacity, thread);
+        key_start, max_query_position, start_position, thread);
     CommitAsyncCopies();
 
     float scores[kGlobalScoreTiles][4];
@@ -1329,7 +1330,7 @@ __launch_bounds__(kGlobalThreads, 1) __global__
       StageGlobalFp8RawAsync(
           raw_shared + next_raw * kGlobalRawBytes, chunk_key, key_cache,
           key_start + kGlobalKeyColumns, max_query_position, start_position,
-          cache_capacity, thread);
+          thread);
       CommitAsyncCopies();
     }
 

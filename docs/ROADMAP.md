@@ -10,10 +10,12 @@ of the correctness and native-kernel gates below.
 
 - Continue the binding [prefill optimization plan](PREFILL_OPTIMIZATION_PLAN.md) from the refreshed Linux profile.
   Online Tensor-Core attention, the deterministic 2,048-token prompt plan, CUTLASS NVFP4/FP8 projections, and
-  profile-proven fusions are promoted. The 2026-07-27 refresh identifies attention as the largest aggregate 8K
-  family; vectorized local FP8 staging is the next promoted improvement and leaves global attention as the largest
-  individual family. Every stable promotion still requires correctness, generation, logit, 3-warm-up/10-run
-  benchmark, Nsight, spill, allocation, and peak-VRAM evidence and becomes the sole production path.
+  profile-proven fusions are promoted. The 2026-07-27 bounded staging sprint vectorizes local FP8 conversion and
+  removes redundant modulo from contiguous global-cache reads. Attention and FP8 projection GEMMs are now tied as
+  the largest 8K families; further prefill work waits for a fresh controlled cross-engine comparison. The next text
+  feature is GPU sampling: temperature, top-k, top-p, repetition penalty, deterministic seeded RNG, and then min-p.
+  Every performance promotion still requires correctness, generation, logit, 3-warm-up/10-run benchmark, Nsight,
+  spill, allocation, and peak-VRAM evidence and becomes the sole production path.
 
 - The arena-backed 48-layer engine loads all text-only tensors once, uses fixed workspace/KV arenas, executes the
   tied output head and GPU argmax, and supports explicit checkpoint-FP8 and BF16 K/V semantics. Physical

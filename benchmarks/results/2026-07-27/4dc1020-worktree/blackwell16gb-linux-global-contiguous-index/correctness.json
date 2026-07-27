@@ -1,0 +1,19 @@
+{
+  "ctest_blackwell_release": {
+    "failed": 0,
+    "passed": 2
+  },
+  "decode_8192": {
+    "checksum_count": 1
+  },
+  "exact_blue": "pass",
+  "prefill_boundaries_129_257": "pass",
+  "schema_version": 1,
+  "teacher_forced": {
+    "positions": 127,
+    "prompts": 12,
+    "reference_top1_in_engine_top20": 127,
+    "reference_top1_in_engine_top5": 127,
+    "top1_agreements": 121
+  }
+}

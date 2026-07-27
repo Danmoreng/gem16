@@ -128,8 +128,10 @@ loads aligned 16-byte E4M3 vectors, converts four values per instruction, and wr
 changing the attention arithmetic or 64 KiB operand allocation. Global K/V staging uses two raw-FP8 ping-pong
 tiles and one overlaid BF16 operand tile within the existing 96 KiB shared allocation.
 Aligned 16-byte asynchronous copies overlap current-V traffic with QK/online softmax and next-K traffic with PV;
-vector E4M3x4 conversion and paired BF16 stores complete before each operand is consumed. The attention MMA and
-online-softmax reduction order are unchanged.
+vector E4M3x4 conversion and paired BF16 stores complete before each operand is consumed. Older global K/V uses
+the absolute token position directly because the cache is contiguous and launch validation proves it is in bounds;
+only the local circular cache applies modulo addressing. The attention MMA and online-softmax reduction order are
+unchanged.
 
 Gate, Up, and Down prefill use CUTLASS 4.5.2 SM120 block-scaled Tensor-Core GEMMs with a 128x128x128 thread-block tile,
 automatic TMA/warp-specialized schedule, and BF16 output. CUTLASS consumes a different operand layout from the

@@ -129,7 +129,7 @@ def run_case(
             inference.get("local_prefill_fp8_staging")
             == "fp8x16_fp8x4_bf16x2",
             inference.get("global_prefill_fp8_staging")
-            == "async_fp8x16_fp8x4_bf16x2",
+            == "async_contiguous_fp8x16_fp8x4_bf16x2",
             inference.get("prefill_chunk_tokens") == 2048,
             inference.get("grouped_qkv_prefill") is False,
             inference.get("fused_rmsnorm_boundaries") is True,

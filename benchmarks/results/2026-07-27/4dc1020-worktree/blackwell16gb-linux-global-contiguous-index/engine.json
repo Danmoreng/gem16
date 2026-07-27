@@ -1,0 +1,18 @@
+{
+  "checkpoint_revision": "b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
+  "fallbacks": 0,
+  "git_commit": "4dc1020-worktree",
+  "global_cache_indexing": "absolute_contiguous",
+  "global_prefill_fp8_staging": "async_contiguous_fp8x16_fp8x4_bf16x2",
+  "kernel_resources": {
+    "local_bytes": 0,
+    "registers": 254,
+    "reported_shared_bytes": 99328,
+    "stack_bytes": 0
+  },
+  "local_cache_indexing": "circular_modulo",
+  "persistent_repack_bytes": 0,
+  "reference_commit": "4dc1020863f279087963c9f2e9d24c3c18c7a352",
+  "schema_version": 1,
+  "token_loop_allocations": false
+}
