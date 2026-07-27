@@ -30,6 +30,23 @@ supersedes the pre-CUTLASS 65% projection diagnosis and selects attention stagin
 Artifacts remain under
 `benchmarks/results/2026-07-27/304a113/blackwell16gb-linux-refresh/`.
 
+## 2026-07-27 exact GPU sampling bring-up
+
+The first explicit sampling plan applies temperature, exact top-k/top-p/min-p, full-history repetition penalty,
+and seeded SplitMix64 selection on the GPU. Sampling-disabled execution retains the prior fused greedy graph and
+does not allocate sampling workspace. An adjacent context-128, 256-output, 3-warm-up/10-run characterization
+measures 32.596 sampled tok/s versus 32.819 greedy tok/s (`0.9932x`, a 0.68% reduction). Workspace rises from
+661,288,704 to 666,829,056 bytes (+5,540,352 bytes); model, cache, and graph allocations are unchanged.
+
+A four-output Nsight trace attributes 0.231 ms total to CUB radix onesweep, 0.027 ms to final selection, and
+0.017 ms to logit preparation, versus 13.409 ms in the shared fused output head. The preparation/selection kernels
+use 24/36 registers with zero stack or local memory. All four observed `cudaMalloc` calls end before
+`gem16.initialize`; sampled prefill/decode contains none. The CPU full-logit oracle selects token 532 from the same
+three eligible tokens, repeated seeded runs match, top-k 1 matches greedy, and changing the seed changes a
+multi-step sequence. Keep the correctness-first serial final scan for now: it is not the bottleneck at top-k 64.
+Artifacts are under
+`benchmarks/results/2026-07-27/61c141d-worktree/blackwell16gb-linux-gpu-sampling/`.
+
 ## 2026-07-27 current-commit cross-engine characterization
 
 At commit `c93a40d`, fresh same-machine 3-warm-up/10-run measurements compare gem16 with direct-checkpoint vLLM

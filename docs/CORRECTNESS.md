@@ -90,6 +90,17 @@ distribution probe; acceptance depends on deterministic execution, operator cont
 metrics, and task quality. A previous revision matched the FP8 references only through compensating arithmetic
 errors and is not valid evidence.
 
+The explicit GPU sampling plan has an end-to-end reference gate in `tools/validate_sampling.py`. It dumps the
+unmodified softcapped logits for a real checkpoint prompt, independently applies full-history sign-aware repetition
+penalty, temperature, top-k, min-p, top-p, and the pinned SplitMix64 seed/step mapping on the CPU, and requires the
+same selected token. It also launches a fresh second process and requires seeded output identity. The initial
+combined fixture (`temperature=0.8`, `top-k=64`, `top-p=0.95`, `min-p=0.02`, repetition penalty `1.1`, seed `42`)
+selects token `532` from three final eligible tokens in both implementations. Separate end-to-end checks prove
+`top-k=1` reproduces unchanged greedy IDs and a different seed changes a multi-step sampled sequence. Nsight CUDA
+API tracing places all four `cudaMalloc` calls before the end of `gem16.initialize` and none inside sampled prefill
+or decode. Sampling's radix sort and serial final scan are correctness-first and not yet a performance-qualified or
+CUDA-Graph path.
+
 `--dump-logits` captures every selected position as full-vocabulary raw little-endian float32 after preallocating
 host storage, and `tools/compare_logits.py` compares it with the committed vLLM top-20 distributions. When no
 layer-state dump is requested, the first captured position now comes directly from the batch-prefill output head;

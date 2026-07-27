@@ -16,6 +16,7 @@
 #include <cuda_bf16.h>
 #include <cuda_fp8.h>
 #include <cuda_runtime.h>
+#include <cub/device/device_radix_sort.cuh>
 #include <nvtx3/nvToolsExt.h>
 
 #include <algorithm>
@@ -646,6 +647,11 @@ struct WorkspaceOffsets {
   std::uint64_t down_packed = 0;
   std::uint64_t down_scales = 0;
   std::uint64_t logits = 0;
+  std::uint64_t sampling_logits = 0;
+  std::uint64_t sampling_token_ids = 0;
+  std::uint64_t sorted_token_ids = 0;
+  std::uint64_t sampling_sort_workspace = 0;
+  std::uint64_t repetition_mask = 0;
   std::uint64_t output_candidates = 0;
   std::uint64_t selected = 0;
   std::uint64_t suppressed = 0;
@@ -898,6 +904,100 @@ __global__ void ArgmaxKernel(const float* logits, const std::uint32_t* suppresse
   if (threadIdx.x == 0U) selected[0] = scratch[0].token;
 }
 
+__global__ void MarkRepetitionTokensKernel(const std::uint32_t* tokens,
+                                            std::uint64_t count,
+                                            std::uint8_t* mask) {
+  const std::uint64_t index =
+      static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+  if (index < count) mask[tokens[index]] = 1U;
+}
+
+__global__ void MarkRepetitionTokenKernel(std::uint32_t token,
+                                          std::uint8_t* mask) {
+  if (threadIdx.x == 0U) mask[token] = 1U;
+}
+
+__global__ void PrepareSamplingLogitsKernel(
+    const float* logits, float* adjusted, std::uint32_t* token_ids,
+    const std::uint8_t* repetition_mask, float repetition_penalty,
+    float inverse_temperature, const std::uint32_t* suppressed,
+    std::uint32_t suppressed_count) {
+  const std::uint64_t token =
+      static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+  if (token >= kVocabulary) return;
+  float value = logits[token];
+  if (repetition_penalty != 1.0F && repetition_mask[token] != 0U) {
+    value = value < 0.0F ? value * repetition_penalty
+                         : value / repetition_penalty;
+  }
+  if (IsSuppressed(token, suppressed, suppressed_count)) value = -FLT_MAX;
+  adjusted[token] = value * inverse_temperature;
+  token_ids[token] = static_cast<std::uint32_t>(token);
+}
+
+__device__ std::uint64_t SplitMix64(std::uint64_t value) {
+  value += 0x9E3779B97F4A7C15ULL;
+  value = (value ^ (value >> 30U)) * 0xBF58476D1CE4E5B9ULL;
+  value = (value ^ (value >> 27U)) * 0x94D049BB133111EBULL;
+  return value ^ (value >> 31U);
+}
+
+// Correctness-first exact categorical selection over the sorted, filtered
+// vocabulary. Serial accumulation makes seeded results independent of block
+// scheduling while selection remains entirely on the GPU.
+__global__ void SampleSortedLogitsKernel(
+    const float* sorted_logits, const std::uint32_t* sorted_token_ids,
+    std::uint32_t top_k, float top_p, float min_p, std::uint64_t seed,
+    std::uint64_t step, std::uint32_t* selected) {
+  if (blockIdx.x != 0U || threadIdx.x != 0U) return;
+  std::uint32_t eligible = top_k == 0U
+                               ? static_cast<std::uint32_t>(kVocabulary)
+                               : min(top_k, static_cast<std::uint32_t>(kVocabulary));
+  const float maximum = sorted_logits[0];
+  if (!isfinite(maximum)) {
+    selected[0] = 0U;
+    return;
+  }
+  if (min_p > 0.0F) {
+    std::uint32_t count = 1U;
+    while (count < eligible &&
+           expf(sorted_logits[count] - maximum) >= min_p) {
+      ++count;
+    }
+    eligible = count;
+  }
+  double total = 0.0;
+  for (std::uint32_t index = 0U; index < eligible; ++index) {
+    total += static_cast<double>(expf(sorted_logits[index] - maximum));
+  }
+  if (top_p < 1.0F) {
+    const double cutoff = static_cast<double>(top_p) * total;
+    double cumulative = 0.0;
+    std::uint32_t count = 0U;
+    do {
+      cumulative += static_cast<double>(expf(sorted_logits[count] - maximum));
+      ++count;
+    } while (count < eligible && cumulative < cutoff);
+    eligible = count;
+    total = cumulative;
+  }
+  const std::uint64_t random_bits = SplitMix64(seed ^ SplitMix64(step));
+  const double uniform =
+      (static_cast<double>(random_bits >> 11U) + 0.5) *
+      (1.0 / 9007199254740992.0);
+  const double target = uniform * total;
+  double cumulative = 0.0;
+  std::uint32_t chosen = eligible - 1U;
+  for (std::uint32_t index = 0U; index < eligible; ++index) {
+    cumulative += static_cast<double>(expf(sorted_logits[index] - maximum));
+    if (target < cumulative) {
+      chosen = index;
+      break;
+    }
+  }
+  selected[0] = sorted_token_ids[chosen];
+}
+
 Status LaunchRoundBf16(float* values, std::uint64_t elements, cudaStream_t stream) {
   const std::uint64_t blocks = (elements + kThreads - 1U) / kThreads;
   RoundBf16Kernel<<<static_cast<unsigned>(blocks), kThreads, 0, stream>>>(values, elements);
@@ -994,8 +1094,11 @@ class InferenceEngine {
 
   [[nodiscard]] Status Initialize(const std::filesystem::path& model_directory,
                                   std::uint64_t max_context,
-                                  KvCacheMode kv_cache_mode) {
+                                  KvCacheMode kv_cache_mode,
+                                  const SamplingOptions& sampling = {}) {
     const NvtxRange range("gem16.initialize");
+    Status sampling_status = SetSampling(sampling);
+    if (!sampling_status.ok()) return sampling_status;
     kv_cache_mode_ = kv_cache_mode;
     max_context_ = max_context;
     prefill_chunk_tokens_ =
@@ -1071,7 +1174,10 @@ class InferenceEngine {
     if (!host_state.empty() && host_state.size() != state_layout.elements) {
       return Error(StatusCode::kInternal, "host state capture span has invalid size");
     }
-    if (select_token && host_logits.empty() && host_state.empty()) {
+    Status mark_status = MarkRepetitionToken(token);
+    if (!mark_status.ok()) return mark_status;
+    if (select_token && !sampling_.enabled && host_logits.empty() &&
+        host_state.empty()) {
       HostDecodeState* host = host_decode_state();
       host->control.token = token;
       host->control.position = position;
@@ -1124,30 +1230,55 @@ class InferenceEngine {
       }
       diagnostic_logits = Pointer<float>(workspace_, offsets_.logits);
     }
-    FusedOutputHeadCandidatesKernel<<<kFusedOutputHeadBlocks, kThreads, 0,
-                                      stream_>>>(
-        model_.embedding(), normalized,
-        Pointer<std::uint32_t>(workspace_, offsets_.suppressed),
-        suppressed_token_count_, nullptr,
-        Pointer<ArgmaxValue>(workspace_, offsets_.output_candidates),
-        diagnostic_logits);
-    error = cudaGetLastError();
-    if (error != cudaSuccess) {
-      return CudaFailure("launch fused output-head candidates", error);
-    }
-    if (diagnostic_logits != nullptr) {
-      error = cudaMemcpyAsync(host_logits.data(), diagnostic_logits,
-                              host_logits.size_bytes(),
-                              cudaMemcpyDeviceToHost, stream_);
+    if (sampling_.enabled) {
+      diagnostic_logits = Pointer<float>(workspace_, offsets_.logits);
+      FusedOutputHeadCandidatesKernel<<<kFusedOutputHeadBlocks, kThreads, 0,
+                                        stream_>>>(
+          model_.embedding(), normalized,
+          Pointer<std::uint32_t>(workspace_, offsets_.suppressed),
+          suppressed_token_count_, nullptr,
+          Pointer<ArgmaxValue>(workspace_, offsets_.output_candidates),
+          diagnostic_logits);
+      error = cudaGetLastError();
       if (error != cudaSuccess) {
-        return CudaFailure("copy fused full logits", error);
+        return CudaFailure("launch sampled fused output head", error);
       }
-    }
-    OutputHeadCandidateArgmaxKernel<<<1U, kThreads, 0, stream_>>>(
-        Pointer<ArgmaxValue>(workspace_, offsets_.output_candidates), selected);
-    error = cudaGetLastError();
-    if (error != cudaSuccess) {
-      return CudaFailure("launch fused output-head argmax", error);
+      if (!host_logits.empty()) {
+        error = cudaMemcpyAsync(host_logits.data(), diagnostic_logits,
+                                host_logits.size_bytes(),
+                                cudaMemcpyDeviceToHost, stream_);
+        if (error != cudaSuccess) {
+          return CudaFailure("copy sampled full logits", error);
+        }
+      }
+      status = SelectSampledToken(diagnostic_logits, selected);
+      if (!status.ok()) return status;
+    } else {
+      FusedOutputHeadCandidatesKernel<<<kFusedOutputHeadBlocks, kThreads, 0,
+                                        stream_>>>(
+          model_.embedding(), normalized,
+          Pointer<std::uint32_t>(workspace_, offsets_.suppressed),
+          suppressed_token_count_, nullptr,
+          Pointer<ArgmaxValue>(workspace_, offsets_.output_candidates),
+          diagnostic_logits);
+      error = cudaGetLastError();
+      if (error != cudaSuccess) {
+        return CudaFailure("launch fused output-head candidates", error);
+      }
+      if (diagnostic_logits != nullptr) {
+        error = cudaMemcpyAsync(host_logits.data(), diagnostic_logits,
+                                host_logits.size_bytes(),
+                                cudaMemcpyDeviceToHost, stream_);
+        if (error != cudaSuccess) {
+          return CudaFailure("copy fused full logits", error);
+        }
+      }
+      OutputHeadCandidateArgmaxKernel<<<1U, kThreads, 0, stream_>>>(
+          Pointer<ArgmaxValue>(workspace_, offsets_.output_candidates), selected);
+      error = cudaGetLastError();
+      if (error != cudaSuccess) {
+        return CudaFailure("launch fused output-head argmax", error);
+      }
     }
     std::uint32_t host_token = 0;
     error = cudaMemcpyAsync(&host_token, selected, sizeof(host_token), cudaMemcpyDeviceToHost,
@@ -1198,6 +1329,17 @@ class InferenceEngine {
           static_cast<std::size_t>(tokens * sizeof(std::uint32_t)),
           cudaMemcpyHostToDevice, stream_);
       if (error != cudaSuccess) return CudaFailure("copy prefill token IDs", error);
+      if (sampling_.enabled && sampling_.repetition_penalty != 1.0F) {
+        MarkRepetitionTokensKernel<<<
+            static_cast<unsigned>((tokens + kThreads - 1U) / kThreads),
+            kThreads, 0, stream_>>>(
+            device_tokens, tokens,
+            Pointer<std::uint8_t>(workspace_, offsets_.repetition_mask));
+        error = cudaGetLastError();
+        if (error != cudaSuccess) {
+          return CudaFailure("mark prefill repetition tokens", error);
+        }
+      }
       float* hidden = Pointer<float>(prefill_workspace_, prefill_offsets_.hidden_a);
       const std::uint64_t hidden_elements = tokens * kHidden;
       EmbeddingBatchKernel<<<static_cast<unsigned>((hidden_elements + kThreads - 1U) /
@@ -1219,10 +1361,22 @@ class InferenceEngine {
         float* last = normalized + (tokens - 1U) * kHidden;
         float* logits = Pointer<float>(workspace_, offsets_.logits);
         auto* selected = Pointer<std::uint32_t>(workspace_, offsets_.selected);
-        OutputHeadKernel<<<static_cast<unsigned>(kVocabulary), kThreads, 0, stream_>>>(
-            model_.embedding(), last, logits);
+        if (sampling_.enabled) {
+          FusedOutputHeadCandidatesKernel<<<kFusedOutputHeadBlocks, kThreads, 0,
+                                            stream_>>>(
+              model_.embedding(), last,
+              Pointer<std::uint32_t>(workspace_, offsets_.suppressed),
+              suppressed_token_count_, nullptr,
+              Pointer<ArgmaxValue>(workspace_, offsets_.output_candidates),
+              logits);
+        } else {
+          OutputHeadKernel<<<static_cast<unsigned>(kVocabulary), kThreads, 0,
+                             stream_>>>(model_.embedding(), last, logits);
+        }
         error = cudaGetLastError();
-        if (error != cudaSuccess) return CudaFailure("launch prefill output head", error);
+        if (error != cudaSuccess) {
+          return CudaFailure("launch prefill output head", error);
+        }
         if (!host_logits.empty()) {
           error = cudaMemcpyAsync(host_logits.data(), logits,
                                   host_logits.size_bytes(),
@@ -1231,11 +1385,18 @@ class InferenceEngine {
             return CudaFailure("copy prefill full logits", error);
           }
         }
-        ArgmaxKernel<<<1U, kThreads, 0, stream_>>>(
-            logits, Pointer<std::uint32_t>(workspace_, offsets_.suppressed),
-            suppressed_token_count_, selected);
-        error = cudaGetLastError();
-        if (error != cudaSuccess) return CudaFailure("launch prefill argmax", error);
+        if (sampling_.enabled) {
+          status = SelectSampledToken(logits, selected);
+          if (!status.ok()) return status;
+        } else {
+          ArgmaxKernel<<<1U, kThreads, 0, stream_>>>(
+              logits, Pointer<std::uint32_t>(workspace_, offsets_.suppressed),
+              suppressed_token_count_, selected);
+          error = cudaGetLastError();
+          if (error != cudaSuccess) {
+            return CudaFailure("launch prefill argmax", error);
+          }
+        }
         error = cudaMemcpyAsync(&selected_token, selected, sizeof(selected_token),
                                 cudaMemcpyDeviceToHost, stream_);
         if (error != cudaSuccess) return CudaFailure("copy prefill token", error);
@@ -1250,8 +1411,35 @@ class InferenceEngine {
     cudaError_t error = cudaMemsetAsync(
         cache_.data(), 0, static_cast<std::size_t>(cache_.bytes()), stream_);
     if (error != cudaSuccess) return CudaFailure("clear KV cache", error);
+    if (sampling_.enabled) {
+      error = cudaMemsetAsync(
+          Pointer<std::uint8_t>(workspace_, offsets_.repetition_mask), 0,
+          static_cast<std::size_t>(kVocabulary), stream_);
+      if (error != cudaSuccess) {
+        return CudaFailure("clear repetition mask", error);
+      }
+    }
+    sampling_step_ = 0U;
     error = cudaStreamSynchronize(stream_);
     return error == cudaSuccess ? Status::Ok() : CudaFailure("reset KV cache", error);
+  }
+
+  [[nodiscard]] Status SetSampling(const SamplingOptions& options) {
+    if (options.enabled &&
+        (!std::isfinite(options.temperature) || options.temperature <= 0.0F ||
+         !std::isfinite(options.top_p) || options.top_p <= 0.0F ||
+         options.top_p > 1.0F || !std::isfinite(options.min_p) ||
+         options.min_p < 0.0F || options.min_p > 1.0F ||
+         !std::isfinite(options.repetition_penalty) ||
+         options.repetition_penalty <= 0.0F || options.top_k > kVocabulary)) {
+      return Error(StatusCode::kInvalidArgument,
+                   "sampling requires temperature > 0, top-p in (0,1], "
+                   "min-p in [0,1], repetition penalty > 0, and top-k no "
+                   "larger than the vocabulary");
+    }
+    sampling_ = options;
+    sampling_step_ = 0U;
+    return Status::Ok();
   }
 
   [[nodiscard]] Status SetSuppressedTokens(std::span<const std::uint32_t> tokens) {
@@ -1272,6 +1460,53 @@ class InferenceEngine {
   }
 
  private:
+  [[nodiscard]] Status MarkRepetitionToken(std::uint32_t token) {
+    if (!sampling_.enabled || sampling_.repetition_penalty == 1.0F) {
+      return Status::Ok();
+    }
+    MarkRepetitionTokenKernel<<<1U, 1U, 0, stream_>>>(
+        token, Pointer<std::uint8_t>(workspace_, offsets_.repetition_mask));
+    const cudaError_t error = cudaGetLastError();
+    return error == cudaSuccess
+               ? Status::Ok()
+               : CudaFailure("mark repetition token", error);
+  }
+
+  [[nodiscard]] Status SelectSampledToken(float* logits,
+                                           std::uint32_t* selected) {
+    constexpr unsigned kBlocks =
+        static_cast<unsigned>((kVocabulary + kThreads - 1U) / kThreads);
+    PrepareSamplingLogitsKernel<<<kBlocks, kThreads, 0, stream_>>>(
+        logits, Pointer<float>(workspace_, offsets_.sampling_logits),
+        Pointer<std::uint32_t>(workspace_, offsets_.sampling_token_ids),
+        Pointer<std::uint8_t>(workspace_, offsets_.repetition_mask),
+        sampling_.repetition_penalty, 1.0F / sampling_.temperature,
+        Pointer<std::uint32_t>(workspace_, offsets_.suppressed),
+        suppressed_token_count_);
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+      return CudaFailure("prepare sampling logits", error);
+    }
+    error = cub::DeviceRadixSort::SortPairsDescending(
+        Pointer<std::uint8_t>(workspace_, offsets_.sampling_sort_workspace),
+        sampling_sort_workspace_bytes_,
+        Pointer<float>(workspace_, offsets_.sampling_logits), logits,
+        Pointer<std::uint32_t>(workspace_, offsets_.sampling_token_ids),
+        Pointer<std::uint32_t>(workspace_, offsets_.sorted_token_ids),
+        static_cast<int>(kVocabulary), 0, sizeof(float) * 8, stream_);
+    if (error != cudaSuccess) {
+      return CudaFailure("sort sampling logits", error);
+    }
+    SampleSortedLogitsKernel<<<1U, 1U, 0, stream_>>>(
+        logits, Pointer<std::uint32_t>(workspace_, offsets_.sorted_token_ids),
+        sampling_.top_k, sampling_.top_p, sampling_.min_p, sampling_.seed,
+        sampling_step_++, selected);
+    error = cudaGetLastError();
+    return error == cudaSuccess
+               ? Status::Ok()
+               : CudaFailure("select sampled token", error);
+  }
+
   [[nodiscard]] Status AllocateCache() {
     LayoutBuilder layout;
     struct CacheOffsets { std::uint64_t key; std::uint64_t value; };
@@ -1348,6 +1583,23 @@ class InferenceEngine {
     GEM16_ADD(down_packed, std::uint8_t, kIntermediate / 2U);
     GEM16_ADD(down_scales, std::uint8_t, kIntermediate / 16U);
     GEM16_ADD(logits, float, kVocabulary);
+    if (sampling_.enabled) {
+      GEM16_ADD(sampling_logits, float, kVocabulary);
+      GEM16_ADD(sampling_token_ids, std::uint32_t, kVocabulary);
+      GEM16_ADD(sorted_token_ids, std::uint32_t, kVocabulary);
+      cudaError_t sort_error = cub::DeviceRadixSort::SortPairsDescending(
+          nullptr, sampling_sort_workspace_bytes_,
+          static_cast<float*>(nullptr), static_cast<float*>(nullptr),
+          static_cast<std::uint32_t*>(nullptr),
+          static_cast<std::uint32_t*>(nullptr),
+          static_cast<int>(kVocabulary), 0, sizeof(float) * 8, stream_);
+      if (sort_error != cudaSuccess) {
+        return CudaFailure("size sampling radix-sort workspace", sort_error);
+      }
+      GEM16_ADD(sampling_sort_workspace, std::uint8_t,
+                sampling_sort_workspace_bytes_);
+      GEM16_ADD(repetition_mask, std::uint8_t, kVocabulary);
+    }
     GEM16_ADD(output_candidates, ArgmaxValue, kFusedOutputHeadBlocks);
     GEM16_ADD(selected, std::uint32_t, 1U);
     GEM16_ADD(suppressed, std::uint32_t, kMaximumSuppressedTokens);
@@ -2080,8 +2332,11 @@ class InferenceEngine {
   std::uint64_t max_context_ = 0;
   std::uint64_t prefill_chunk_tokens_ = kMinimumPrefillChunkTokens;
   std::uint64_t decode_graph_device_bytes_ = 0;
+  std::uint64_t sampling_step_ = 0;
+  std::size_t sampling_sort_workspace_bytes_ = 0;
   std::uint32_t suppressed_token_count_ = 0;
   KvCacheMode kv_cache_mode_ = KvCacheMode::kCheckpointFp8;
+  SamplingOptions sampling_{};
 };
 
 double Milliseconds(std::chrono::steady_clock::duration duration) {
@@ -2249,6 +2504,7 @@ struct ConversationSession::Impl {
   std::uint64_t max_context_tokens = 0U;
   KvCacheMode kv_cache_mode = KvCacheMode::kCheckpointFp8;
   double model_load_milliseconds = 0.0;
+  SamplingOptions sampling;
   bool poisoned = false;
 };
 
@@ -2289,12 +2545,14 @@ Result<ConversationSession> ConversationSession::Create(
   impl->stop_token_ids = options.stop_token_ids;
   impl->max_context_tokens = options.max_context_tokens;
   impl->kv_cache_mode = options.kv_cache_mode;
+  impl->sampling = options.sampling;
   impl->cached_token_ids.reserve(
       static_cast<std::size_t>(options.max_context_tokens));
   const auto load_start = std::chrono::steady_clock::now();
   Status status = impl->engine.Initialize(options.model_directory,
                                          options.max_context_tokens,
-                                         options.kv_cache_mode);
+                                         options.kv_cache_mode,
+                                         options.sampling);
   if (!status.ok()) return status;
   status = impl->engine.SetSuppressedTokens(options.suppressed_token_ids);
   if (!status.ok()) return status;
@@ -2373,7 +2631,8 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
   result.output_token_ids.reserve(
       static_cast<std::size_t>(max_generated_tokens));
   result.kv_cache_mode = impl_->kv_cache_mode;
-  result.decode_graphs = true;
+  result.sampling = impl_->sampling;
+  result.decode_graphs = !impl_->sampling.enabled;
   result.model_load_milliseconds = impl_->model_load_milliseconds;
   result.weight_arena_bytes = impl_->engine.weight_bytes();
   result.kv_cache_bytes = impl_->engine.cache_bytes();
@@ -2468,6 +2727,10 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
     return Error(StatusCode::kInvalidArgument, "--max-tokens must be positive");
   }
   const bool teacher_forcing = !options.teacher_forced_token_ids.empty();
+  if (teacher_forcing && options.sampling.enabled) {
+    return Error(StatusCode::kInvalidArgument,
+                 "teacher-forced diagnostics require greedy prediction");
+  }
   const std::uint64_t generation_steps =
       teacher_forcing
           ? static_cast<std::uint64_t>(options.teacher_forced_token_ids.size())
@@ -2544,7 +2807,8 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
   InferenceEngine engine;
   Status status = engine.Initialize(options.model_directory,
                                     options.max_context_tokens,
-                                    options.kv_cache_mode);
+                                    options.kv_cache_mode,
+                                    options.sampling);
   if (!status.ok()) return status;
   status = engine.SetSuppressedTokens(options.suppressed_token_ids);
   if (!status.ok()) return status;
@@ -2555,7 +2819,8 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
   result.teacher_forced_token_ids = options.teacher_forced_token_ids;
   result.teacher_forcing = teacher_forcing;
   result.kv_cache_mode = options.kv_cache_mode;
-  result.decode_graphs =
+  result.sampling = options.sampling;
+  result.decode_graphs = !options.sampling.enabled &&
       options.state_dump_path.empty() && options.logits_dump_path.empty();
   result.model_load_milliseconds = Milliseconds(load_end - load_start);
   result.weight_arena_bytes = engine.weight_bytes();
@@ -2719,7 +2984,7 @@ Result<DecodeBenchmarkResult> RunDecodeBenchmark(
   const auto load_start = std::chrono::steady_clock::now();
   InferenceEngine engine;
   Status status = engine.Initialize(options.model_directory, planned_context,
-                                    options.kv_cache_mode);
+                                    options.kv_cache_mode, options.sampling);
   if (!status.ok()) return status;
   const auto load_end = std::chrono::steady_clock::now();
 
@@ -2828,8 +3093,19 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
          << "  \"kv_cache_layout\": \"hybrid_local_ring_global_contiguous\",\n"
          << "  \"local_attention_window\": " << kSlidingWindow << ",\n"
          << "  \"decoding_mode\": \""
-         << (result.teacher_forcing ? "teacher_forced" : "greedy")
+         << (result.teacher_forcing
+                 ? "teacher_forced"
+                 : (result.sampling.enabled ? "sampled" : "greedy"))
          << "\",\n"
+         << "  \"sampling\": {\"enabled\":"
+         << (result.sampling.enabled ? "true" : "false")
+         << ",\"temperature\":" << result.sampling.temperature
+         << ",\"top_k\":" << result.sampling.top_k
+         << ",\"top_p\":" << result.sampling.top_p
+         << ",\"min_p\":" << result.sampling.min_p
+         << ",\"repetition_penalty\":"
+         << result.sampling.repetition_penalty
+         << ",\"seed\":" << result.sampling.seed << "},\n"
          << "  \"fallbacks\": " << result.fallback_count << ",\n"
          << "  \"packed_weight_source_layout_direct\": "
          << (result.packed_weight_source_layout_direct ? "true" : "false") << ",\n"
@@ -2954,14 +3230,26 @@ Status WriteDecodeBenchmarkJson(const DecodeBenchmarkResult& result,
          << ",\"fused_prefill_qk_rmsnorm_rope\":true"
          << ",\"prefill_rope_table\":\"precomputed_exact_max_context\""
          << ",\"fused_output_head\":true"
-         << ",\"decode_graphs\":true"
+         << ",\"decode_graphs\":"
+         << (result.options.sampling.enabled ? "false" : "true")
+         << ",\"decoding_mode\":\""
+         << (result.options.sampling.enabled ? "sampled" : "greedy") << '"'
+         << ",\"sampling\":{\"enabled\":"
+         << (result.options.sampling.enabled ? "true" : "false")
+         << ",\"temperature\":" << result.options.sampling.temperature
+         << ",\"top_k\":" << result.options.sampling.top_k
+         << ",\"top_p\":" << result.options.sampling.top_p
+         << ",\"min_p\":" << result.options.sampling.min_p
+         << ",\"repetition_penalty\":"
+         << result.options.sampling.repetition_penalty
+         << ",\"seed\":" << result.options.sampling.seed << '}'
          << ",\"context_tokens\":" << result.options.context_tokens
          << ",\"generated_tokens\":" << result.options.generated_tokens
          << ",\"warmup_runs\":" << result.options.warmup_runs
          << ",\"measured_runs\":" << result.options.measured_runs
          << ",\"prompt_seed\":" << result.options.prompt_seed
          << ",\"prompt_token_formula\":\"1000+((seed+index*7919)%9000)\","
-         << "\"timing_boundary\":\"host_end_to_end_forward_and_greedy_selection\","
+         << "\"timing_boundary\":\"host_end_to_end_forward_and_gpu_selection\","
          << "\"first_selected_token_excluded_from_decode\":true,"
          << "\"model_loaded_once\":true,\"cache_reset_outside_timing\":true,"
          << "\"prefill_path\":\"native_chunked_sm120\","

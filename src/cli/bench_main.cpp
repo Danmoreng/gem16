@@ -34,7 +34,9 @@ void Usage(std::ostream& output) {
          << "  gem16-bench decode --model <checkpoint-dir>\n"
          << "      [--context <tokens>] [--tokens <count>] [--seed <integer>]\n"
          << "      [--warmups <count>] [--repetitions <count>]\n"
-         << "      [--kv-cache <fp8|bf16>]\n"
+         << "      [--kv-cache <fp8|bf16>] [--sample] [--temperature F]\n"
+         << "      [--top-k N] [--top-p F] [--min-p F]\n"
+         << "      [--repetition-penalty F] [--sampling-seed N]\n"
          << "\n"
          << "Prefill mode (CUDA):\n"
          << "  gem16-bench prefill --model <checkpoint-dir> --context <tokens>\n"
@@ -57,6 +59,12 @@ bool ParseU32(std::string_view value, std::uint32_t& parsed) {
   if (result.ec != std::errc{} || result.ptr != value.data() + value.size()) return false;
   parsed = candidate;
   return true;
+}
+
+bool ParseFloat(std::string_view value, float& parsed) {
+  const auto result =
+      std::from_chars(value.data(), value.data() + value.size(), parsed);
+  return result.ec == std::errc{} && result.ptr == value.data() + value.size();
 }
 
 int RunDecodeMode(int argc, char** argv) {
@@ -88,6 +96,31 @@ int RunDecodeMode(int argc, char** argv) {
     } else if (argument == "--repetitions" && index + 1 < argc) {
       if (!ParsePositiveU32(argv[++index], options.measured_runs)) {
         std::cerr << "error: --repetitions must be a positive integer\n";
+        return 64;
+      }
+    } else if (argument == "--sample") {
+      options.sampling.enabled = true;
+    } else if (argument == "--temperature" && index + 1 < argc) {
+      options.sampling.enabled = true;
+      if (!ParseFloat(argv[++index], options.sampling.temperature)) return 64;
+    } else if (argument == "--top-p" && index + 1 < argc) {
+      options.sampling.enabled = true;
+      if (!ParseFloat(argv[++index], options.sampling.top_p)) return 64;
+    } else if (argument == "--min-p" && index + 1 < argc) {
+      options.sampling.enabled = true;
+      if (!ParseFloat(argv[++index], options.sampling.min_p)) return 64;
+    } else if (argument == "--repetition-penalty" && index + 1 < argc) {
+      options.sampling.enabled = true;
+      if (!ParseFloat(argv[++index], options.sampling.repetition_penalty)) return 64;
+    } else if (argument == "--top-k" && index + 1 < argc) {
+      options.sampling.enabled = true;
+      if (!ParseU32(argv[++index], options.sampling.top_k)) return 64;
+    } else if (argument == "--sampling-seed" && index + 1 < argc) {
+      options.sampling.enabled = true;
+      const std::string_view value(argv[++index]);
+      const auto parsed = std::from_chars(value.data(), value.data() + value.size(),
+                                          options.sampling.seed);
+      if (parsed.ec != std::errc{} || parsed.ptr != value.data() + value.size()) {
         return 64;
       }
     } else if (argument == "--kv-cache" && index + 1 < argc) {

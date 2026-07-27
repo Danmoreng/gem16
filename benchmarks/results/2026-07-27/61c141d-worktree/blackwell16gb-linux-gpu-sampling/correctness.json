@@ -1,0 +1,17 @@
+{
+  "actual_token_id": 532,
+  "eligible_tokens_after_filters": 3,
+  "reference_token_id": 532,
+  "sampling": {
+    "enabled": true,
+    "min_p": 0.02,
+    "repetition_penalty": 1.1,
+    "seed": 42,
+    "temperature": 0.8,
+    "top_k": 64,
+    "top_p": 0.95
+  },
+  "schema_version": 1,
+  "seeded_repeat_match": true,
+  "status": "ok"
+}

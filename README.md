@@ -23,7 +23,7 @@ weights. The first optimized backend targets Blackwell SM120/SM120a and batch-on
 |---|---|
 | Checkpoint | Direct loading of the pinned Gemma 4 12B Unified mixed FP8/NVFP4 Safetensors checkpoint |
 | Platforms | Linux x86-64 and Windows x64 builds; native CUDA path targets Blackwell SM120/SM120a |
-| Inference | Text-only, batch one, greedy generation with resident model and conversation KV state |
+| Inference | Text-only, batch one, greedy or seeded GPU sampling with resident model and conversation KV state |
 | CLI | Native tokenizer and chat template, UTF-8 output, token streaming, multi-turn chat |
 | Prefill | Native variable-length prefill with CUTLASS FP8/NVFP4 Tensor Core projections |
 | Decode | Native T=1 projection plans, FP8 KV cache, and whole-model CUDA Graph replay |
@@ -167,8 +167,9 @@ baseline differ in some tensor and KV-cache formats. Commands, caveats, and hist
 
 - Only the pinned Gemma 4 12B Unified checkpoint family is supported.
 - Inference is currently text-only and batch one; image, audio, and video tensors are not loaded onto the GPU.
-- Generation currently uses greedy selection. Temperature, top-k, top-p, and repetition-penalty sampling are not
-  implemented yet.
+- Generation supports unchanged fused greedy selection and explicit seeded GPU sampling with temperature, exact
+  top-k/top-p/min-p filtering, and full-history repetition penalty. The initial sampled path uses a preallocated
+  full-vocabulary radix sort and is not yet CUDA-Graph captured.
 - The optimized CUDA backend requires Blackwell SM120/SM120a. Other NVIDIA architectures are not performance
   targets yet.
 - Continuous batching, a server API, speculative decoding, and persistent prompt-cache files are out of scope for

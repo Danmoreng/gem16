@@ -1,5 +1,28 @@
 # Decisions
 
+## 2026-07-27: Keep greedy unchanged and use exact sorted GPU sampling
+
+Date: 2026-07-27
+Decision: Sampling is explicit rather than implicit in temperature defaults. Disabled sampling keeps the existing
+fused greedy CUDA Graph and workspace. Enabled sampling applies sign-aware full-history repetition penalty,
+suppression, temperature, descending radix sort, top-k, min-p relative to the maximum probability, then top-p,
+and draws from a SplitMix64 stream keyed by seed and output step. All recurring state and sort scratch is
+preallocated; only the selected token returns to the host.
+Context: Phase-one requires temperature, top-k, top-p, repetition penalty, deterministic seeded RNG, and min-p,
+without weakening greedy correctness or the no-allocation token loop. Exact top-p over the 262,144-token vocabulary
+requires more than the greedy plan's one candidate per block.
+Alternatives: Approximate vocabulary filtering; CPU sampling after a full-logit transfer; mutate the greedy graph;
+or use a persistent converted candidate format. Approximation and CPU selection violate the primary quality/hot
+path contract, while changing greedy would add regression risk. A parallel prefix selector is deferred because the
+initial final scan is only about 7 microseconds at top-k 64.
+Consequences: Sampling adds 5,540,352 workspace bytes at context 128 and currently bypasses whole-model graph
+capture. The filter order and RNG mapping are public reproducibility contracts. Conversation sessions retain RNG
+step and repetition history across turns. Greedy output IDs, graph replay, and workspace remain unchanged.
+Evidence: The checkpoint-backed CPU oracle, repeated seeded runs, top-k-1/greedy equivalence, CTest, and chat/run
+integration pass. Adjacent 3-warm-up/10-run context-128 decode is 32.596 sampled tok/s versus 32.819 greedy tok/s
+(0.9932x). Nsight finds no token-loop allocation; sampling preparation/radix/select total about 76 microseconds per
+output in the four-output trace.
+
 ## 2026-07-27: Index the contiguous global KV cache directly during prefill
 
 Date: 2026-07-27

@@ -31,6 +31,14 @@ second reduction chooses the token with the same lowest-token tie break as the r
 changes only the dot-product addition tree. Diagnostic logit capture writes the warp-row logits without changing
 selection; the reference head is restricted to tests and characterization probes.
 
+Sampling is an explicit, separate output plan; disabled sampling preserves the fused greedy graph and workspace.
+The initial exact plan materializes softcapped logits, applies full-history repetition penalty and suppression,
+divides by temperature, and performs a descending CUB radix sort in preallocated workspace. A GPU selector then
+applies top-k, min-p relative to the maximum probability, and top-p in that order before drawing from a SplitMix64
+stream keyed by seed and output step. Only the selected token is copied to the host. Sampling adds about 5.5 MiB to
+the context-128 workspace, performs no token-loop allocation, and is not yet graph captured. Its serial final
+probability scan is a correctness-first implementation to profile before replacing with a parallel selector.
+
 The model-specific sequence is attention normalization and FP8 projections, specialized local/global attention,
 then NVFP4 MLP projections and residual updates. This sequence now exists both as an independent Layer-0 comparison
 probe and as an unfused, batch-one 48-layer greedy characterization. The latter loads the complete text-only model
@@ -62,8 +70,8 @@ session keeps weights, arenas, CUDA Graphs, and hybrid KV storage resident, reco
 materialized cache entries, and requires every later prompt to extend that prefix exactly. The CLI preserves the
 original generated IDs instead of decode/re-encode round trips, then tokenizes only the continuation delimiter,
 new user message, and generation header. The new suffix uses batch prefill at the existing absolute cache position;
-generated tokens continue through the ordinary decode graph. A separate parallel prefill graph and sampling plans
-remain required production components.
+generated tokens continue through the ordinary decode graph for greedy generation or through the direct sampled
+plan when sampling is enabled. Sampling graph capture and a faster final selection scan remain production work.
 
 The reusable `ChatMessage`, `Tokenizer`, and `GemmaChatProcessor` interfaces are deliberately independent of
 terminal I/O. A future OpenAI-compatible Chat Completions server can reuse this request-to-token boundary; HTTP,
@@ -173,7 +181,8 @@ bound are retained in every result; shared physical cache selection is rejected.
 
 The greedy characterization uses an execution workspace containing hidden-state ping-pong, quantized activations
 and scales, projection intermediates, retained full logits, a 32 KiB fused-output candidate array, and GPU argmax
-state. The checkpoint-FP8 prefill arena contains no attention-score region; only the explicit BF16 correctness
+state. Sampling conditionally adds adjusted/sorted logits, token-index pairs, a vocabulary repetition mask, and
+CUB radix-sort scratch; none of these regions is allocated for greedy generation. The checkpoint-FP8 prefill arena contains no attention-score region; only the explicit BF16 correctness
 mode retains the scalar attention score workspace. Exact sizes are reported per run.
 Its default hybrid cache stores physical E4M3FN bytes with checkpoint BF16 scales; an explicit float32
 BF16-semantics diagnostic allocation remains available. The general planner remains conservative until production

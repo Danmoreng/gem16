@@ -8,6 +8,7 @@
 #include <span>
 #include <vector>
 
+#include "gem16/sampling.h"
 #include "gem16/status.h"
 
 namespace gem16 {
@@ -37,6 +38,7 @@ struct GreedyInferenceOptions {
   std::uint64_t max_generated_tokens = 1;
   std::uint64_t max_context_tokens = 128;
   KvCacheMode kv_cache_mode = KvCacheMode::kCheckpointFp8;
+  SamplingOptions sampling;
   // Optional synchronous observer invoked once for every selected output
   // token, including a stop token. The callback and its context must remain
   // valid for the duration of RunGreedyInference. Benchmark callers leave it
@@ -64,6 +66,7 @@ struct GreedyInferenceResult {
   std::uint64_t teacher_forced_matches = 0;
   std::uint64_t state_dump_position = 0;
   KvCacheMode kv_cache_mode = KvCacheMode::kCheckpointFp8;
+  SamplingOptions sampling;
   bool packed_weight_source_layout_direct = false;
   bool token_loop_allocations = false;
   bool benchmark_qualified = false;
@@ -80,6 +83,7 @@ struct ConversationSessionOptions {
   std::vector<std::uint32_t> suppressed_token_ids;
   std::uint64_t max_context_tokens = 1024;
   KvCacheMode kv_cache_mode = KvCacheMode::kCheckpointFp8;
+  SamplingOptions sampling;
 };
 
 // A batch-one conversation owns one resident model, workspace, and KV cache.
@@ -130,6 +134,7 @@ struct DecodeBenchmarkOptions {
   std::uint32_t measured_runs = 10;
   std::uint32_t prompt_seed = 0;
   KvCacheMode kv_cache_mode = KvCacheMode::kCheckpointFp8;
+  SamplingOptions sampling;
 };
 
 struct DecodeBenchmarkRun {
@@ -161,8 +166,9 @@ struct DecodeBenchmarkResult {
 };
 
 // Correctness-first, batch-one CUDA characterization. It accepts already-tokenized input,
-// executes every decoder layer, and performs greedy selection on the GPU. The result remains
-// explicitly unqualified until prompt-derived hidden-state and full-logit gates pass.
+// executes every decoder layer, and performs greedy or explicit sampled selection on the GPU.
+// The legacy name is retained for API compatibility. The result remains explicitly unqualified
+// until prompt-derived hidden-state and full-logit gates pass.
 [[nodiscard]] Result<GreedyInferenceResult> RunGreedyInference(
     const GreedyInferenceOptions& options);
 [[nodiscard]] Status WriteGreedyInferenceJson(const GreedyInferenceResult& result,

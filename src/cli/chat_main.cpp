@@ -25,6 +25,12 @@ bool ParseUnsigned(std::string_view text, std::uint64_t& value) {
   return result.ec == std::errc{} && result.ptr == text.data() + text.size();
 }
 
+bool ParseFloat(std::string_view text, float& value) {
+  const auto result =
+      std::from_chars(text.data(), text.data() + text.size(), value);
+  return result.ec == std::errc{} && result.ptr == text.data() + text.size();
+}
+
 std::string JsonEscape(std::string_view value) {
   std::string result;
   result.reserve(value.size() + 2U);
@@ -68,6 +74,8 @@ void PrintUsage() {
       << "  gem16-chat --model <checkpoint> [--max-tokens N] [--max-context N]\n"
       << "                [--thinking] [--system <text>]\n"
       << "                [--kv-cache fp8|bf16]\n"
+      << "                [--sample] [--temperature F] [--top-k N] [--top-p F]\n"
+      << "                [--min-p F] [--repetition-penalty F] [--seed N]\n"
       << "                [--dump-state <path> --dump-state-position N]\n"
       << "  gem16-chat --model <checkpoint> --message <text> [--json]\n"
       << "  gem16-chat --model <checkpoint> --message <text> --render-only --json\n";
@@ -88,6 +96,7 @@ struct Options {
   std::optional<std::uint64_t> state_dump_position;
   gem16::KvCacheMode kv_cache_mode =
       gem16::KvCacheMode::kCheckpointFp8;
+  gem16::SamplingOptions sampling;
 };
 
 gem16::Result<Options> ParseOptions(int argc, char** argv) {
@@ -128,6 +137,47 @@ gem16::Result<Options> ParseOptions(int argc, char** argv) {
             "--dump-state-position must be an unsigned integer");
       }
       options.state_dump_position = position;
+    } else if (argument == "--sample") {
+      options.sampling.enabled = true;
+    } else if (argument == "--temperature" && index + 1 < argc) {
+      options.sampling.enabled = true;
+      if (!ParseFloat(argv[++index], options.sampling.temperature)) {
+        return gem16::Status(gem16::StatusCode::kInvalidArgument,
+                             "--temperature must be a number");
+      }
+    } else if (argument == "--top-p" && index + 1 < argc) {
+      options.sampling.enabled = true;
+      if (!ParseFloat(argv[++index], options.sampling.top_p)) {
+        return gem16::Status(gem16::StatusCode::kInvalidArgument,
+                             "--top-p must be a number");
+      }
+    } else if (argument == "--min-p" && index + 1 < argc) {
+      options.sampling.enabled = true;
+      if (!ParseFloat(argv[++index], options.sampling.min_p)) {
+        return gem16::Status(gem16::StatusCode::kInvalidArgument,
+                             "--min-p must be a number");
+      }
+    } else if (argument == "--repetition-penalty" && index + 1 < argc) {
+      options.sampling.enabled = true;
+      if (!ParseFloat(argv[++index], options.sampling.repetition_penalty)) {
+        return gem16::Status(gem16::StatusCode::kInvalidArgument,
+                             "--repetition-penalty must be a number");
+      }
+    } else if (argument == "--top-k" && index + 1 < argc) {
+      std::uint64_t value = 0U;
+      options.sampling.enabled = true;
+      if (!ParseUnsigned(argv[++index], value) ||
+          value > std::numeric_limits<std::uint32_t>::max()) {
+        return gem16::Status(gem16::StatusCode::kInvalidArgument,
+                             "--top-k must be an unsigned 32-bit integer");
+      }
+      options.sampling.top_k = static_cast<std::uint32_t>(value);
+    } else if (argument == "--seed" && index + 1 < argc) {
+      options.sampling.enabled = true;
+      if (!ParseUnsigned(argv[++index], options.sampling.seed)) {
+        return gem16::Status(gem16::StatusCode::kInvalidArgument,
+                             "--seed must be an unsigned integer");
+      }
     } else if (argument == "--kv-cache" && index + 1 < argc) {
       const std::string_view mode = argv[++index];
       if (mode == "fp8") {
@@ -258,6 +308,7 @@ gem16::Result<TurnOutput> RunTurn(
   inference_options.max_generated_tokens = cli.max_tokens;
   inference_options.max_context_tokens = cli.max_context;
   inference_options.kv_cache_mode = cli.kv_cache_mode;
+  inference_options.sampling = cli.sampling;
   inference_options.state_dump_path = cli.state_dump_path;
   inference_options.state_dump_position = cli.state_dump_position;
   TokenStreamContext stream_context{&processor, &std::cout};
@@ -324,6 +375,19 @@ gem16::Result<TurnOutput> RunTurn(
               << ",\"fused_output_head\":true"
               << ",\"decode_graphs\":"
               << (inference.value().decode_graphs ? "true" : "false")
+              << ",\"decoding_mode\":"
+              << JsonEscape(inference.value().sampling.enabled ? "sampled"
+                                                                : "greedy")
+              << ",\"sampling\":{\"enabled\":"
+              << (inference.value().sampling.enabled ? "true" : "false")
+              << ",\"temperature\":"
+              << inference.value().sampling.temperature
+              << ",\"top_k\":" << inference.value().sampling.top_k
+              << ",\"top_p\":" << inference.value().sampling.top_p
+              << ",\"min_p\":" << inference.value().sampling.min_p
+              << ",\"repetition_penalty\":"
+              << inference.value().sampling.repetition_penalty
+              << ",\"seed\":" << inference.value().sampling.seed << '}'
               << ",\"kv_cache_mode\":"
               << JsonEscape(
                      inference.value().kv_cache_mode ==
@@ -384,6 +448,7 @@ int ChatMain(int argc, char** argv) {
       processor.value().generation_controls().suppressed_token_ids;
   session_options.max_context_tokens = options.max_context;
   session_options.kv_cache_mode = options.kv_cache_mode;
+  session_options.sampling = options.sampling;
   auto session = gem16::ConversationSession::Create(session_options);
   if (!session.ok()) {
     std::cerr << "error: " << session.status().message() << '\n';

@@ -17,6 +17,11 @@ bool ParseUnsigned(std::string_view text, std::uint64_t& value) {
   return result.ec == std::errc{} && result.ptr == text.data() + text.size();
 }
 
+bool ParseFloat(std::string_view text, float& value) {
+  const auto result = std::from_chars(text.data(), text.data() + text.size(), value);
+  return result.ec == std::errc{} && result.ptr == text.data() + text.size();
+}
+
 bool ParseTokenIds(std::string_view text, std::vector<std::uint32_t>& tokens) {
   if (text.empty()) return false;
   std::size_t begin = 0;
@@ -55,7 +60,10 @@ void PrintUsage() {
       << "              [--dump-logits <raw-f32-path>]\n"
       << "              [--dump-state <path> --dump-state-position N]\n"
       << "              [--kv-cache fp8|bf16]\n"
-      << "              [--max-tokens N] [--max-context N] --greedy\n"
+      << "              [--max-tokens N] [--max-context N]\n"
+      << "              (--greedy | --sample [--temperature F] [--top-k N]\n"
+      << "               [--top-p F] [--min-p F] [--repetition-penalty F]\n"
+      << "               [--seed N])\n"
       << "\nTeacher forcing uses the forced list length as the number of output\n"
       << "positions and reports the model's greedy prediction at every position.\n"
       << "The inference path is a correctness characterization and is not benchmark-qualified.\n";
@@ -75,6 +83,7 @@ int main(int argc, char** argv) {
 
   gem16::GreedyInferenceOptions options;
   bool greedy = false;
+  bool sampled = false;
   for (int index = 1; index < argc; ++index) {
     const std::string_view argument(argv[index]);
     if (argument == "--model" && index + 1 < argc) {
@@ -143,13 +152,55 @@ int main(int argc, char** argv) {
       }
     } else if (argument == "--greedy") {
       greedy = true;
+    } else if (argument == "--sample") {
+      sampled = true;
+      options.sampling.enabled = true;
+    } else if (argument == "--temperature" && index + 1 < argc) {
+      sampled = options.sampling.enabled = true;
+      if (!ParseFloat(argv[++index], options.sampling.temperature)) {
+        std::cerr << "error: --temperature must be a number\n";
+        return 64;
+      }
+    } else if (argument == "--top-p" && index + 1 < argc) {
+      sampled = options.sampling.enabled = true;
+      if (!ParseFloat(argv[++index], options.sampling.top_p)) {
+        std::cerr << "error: --top-p must be a number\n";
+        return 64;
+      }
+    } else if (argument == "--min-p" && index + 1 < argc) {
+      sampled = options.sampling.enabled = true;
+      if (!ParseFloat(argv[++index], options.sampling.min_p)) {
+        std::cerr << "error: --min-p must be a number\n";
+        return 64;
+      }
+    } else if (argument == "--repetition-penalty" && index + 1 < argc) {
+      sampled = options.sampling.enabled = true;
+      if (!ParseFloat(argv[++index], options.sampling.repetition_penalty)) {
+        std::cerr << "error: --repetition-penalty must be a number\n";
+        return 64;
+      }
+    } else if (argument == "--top-k" && index + 1 < argc) {
+      std::uint64_t value = 0U;
+      sampled = options.sampling.enabled = true;
+      if (!ParseUnsigned(argv[++index], value) ||
+          value > std::numeric_limits<std::uint32_t>::max()) {
+        std::cerr << "error: --top-k must be an unsigned 32-bit integer\n";
+        return 64;
+      }
+      options.sampling.top_k = static_cast<std::uint32_t>(value);
+    } else if (argument == "--seed" && index + 1 < argc) {
+      sampled = options.sampling.enabled = true;
+      if (!ParseUnsigned(argv[++index], options.sampling.seed)) {
+        std::cerr << "error: --seed must be an unsigned integer\n";
+        return 64;
+      }
     } else {
       std::cerr << "error: unknown or incomplete option: " << argument << '\n';
       return 64;
     }
   }
-  if (!greedy) {
-    std::cerr << "error: the initial inference path requires explicit --greedy\n";
+  if (greedy == sampled) {
+    std::cerr << "error: select exactly one of --greedy or --sample/sampling options\n";
     return 64;
   }
   auto result = gem16::RunGreedyInference(options);
