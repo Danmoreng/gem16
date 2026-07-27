@@ -69,6 +69,8 @@ def validate_result(document: dict[str, Any], expected: list[int]) -> None:
         raise ValidationError("inference did not group local GQA heads per prefill CTA")
     if document.get("global_prefill_query_heads_per_cta") != 4:
         raise ValidationError("inference did not group global GQA heads per prefill CTA")
+    if document.get("local_prefill_fp8_staging") != "fp8x16_fp8x4_bf16x2":
+        raise ValidationError("inference did not use vectorized local FP8 staging")
     if (
         document.get("global_prefill_fp8_staging")
         != "async_fp8x16_fp8x4_bf16x2"

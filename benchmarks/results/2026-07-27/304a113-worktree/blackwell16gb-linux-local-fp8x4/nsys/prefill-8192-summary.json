@@ -1,0 +1,23 @@
+{
+  "candidate": {
+    "kernel_resources": {
+      "local_bytes": 0,
+      "registers": 254,
+      "reported_shared_bytes": 66560,
+      "stack_bytes": 0
+    },
+    "local_attention_total_ms": 709.192643,
+    "total_kernel_ms": 4444.620435
+  },
+  "change": {
+    "local_attention_time_percent": -26.88467871270782,
+    "total_kernel_time_percent": -4.385510168651042
+  },
+  "profile_executions": 2,
+  "reference": {
+    "local_attention_total_ms": 969.964476,
+    "total_kernel_ms": 4648.479998
+  },
+  "reference_commit": "304a113593e80369ba01fd621777582cfd18a787",
+  "schema_version": 1
+}

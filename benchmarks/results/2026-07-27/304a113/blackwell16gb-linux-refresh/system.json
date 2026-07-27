@@ -1,0 +1,6 @@
+{
+  "captured_at": "2026-07-27T17:42:42+02:00",
+  "git_commit": "304a113593e80369ba01fd621777582cfd18a787",
+  "uname": "Linux arch-legion 7.1.3-arch1-3 #1 SMP PREEMPT_DYNAMIC Mon, 13 Jul 2026 20:15:15 +0000 x86_64 GNU/Linux",
+  "nvidia_smi": "NVIDIA GeForce RTX 5080 Laptop GPU, GPU-93070293-2184-eb69-555b-1d856a4fdbb8, 610.43.03, 16303 MiB, [N/A], 3090 MHz"
+}

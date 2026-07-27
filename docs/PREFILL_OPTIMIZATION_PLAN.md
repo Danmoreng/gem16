@@ -15,16 +15,16 @@ promoted only when it wins the prescribed repeated benchmark and passes all appl
 winner becomes the sole production implementation; rejected and superseded implementations do not remain as
 user-selectable optimization modes.
 
-The initial Linux reference point is commit `1bc942b`; subsequent online attention, projection, boundary-fusion,
-GQA-grouping, and 2,048-token-plan promotions advance the same 512-token characterization as follows:
-
-| Workload | Initial gem16 | Current gem16 | vLLM | Current/vLLM |
-|---|---:|---:|---:|---:|
-| Prefill, 512 prompt tokens, batch 1 | 698.25 tok/s | 2,336.07 tok/s | 6,146.50 tok/s | 0.380x |
-
-These numbers are diagnostic rather than a parity claim because the retained vLLM run and gem16 do not yet have
-identical timing boundaries and cache precision. The optimization goal does not depend on presenting the ratio as
-a headline result; accepted comparisons must satisfy `docs/BENCHMARKING.md` and `AGENTS.md`.
+The initial Linux reference point is commit `1bc942b`. Online attention, larger prompt chunks, projection
+pipelines, boundary fusion, GQA grouping, CUTLASS FP8/NVFP4 prefill GEMMs, and global-attention staging have since
+superseded that implementation. The former 512-token “current” row is intentionally removed because it predates
+the CUTLASS promotions and had become misleading. The latest retained Linux long-prompt point before the current
+baseline refresh is 3,704.64 tok/s at 8K with 2,211.28 ms TTFT; it is development evidence, not a parity claim.
+The 2026-07-27 Linux refresh at `304a113` measures 2,575.72/4,277.03/4,318.31/3,674.54 tok/s at
+`128`/`512`/`2,048`/`8,192`; short-prompt samples are clock-bimodal, while the 8K 95% interval is stable. The first
+post-refresh promotion vectorizes local-attention FP8 staging and raises the same 8K median to 3,815.49 tok/s.
+Cross-engine claims must reconcile timing boundaries and cache precision under `docs/BENCHMARKING.md` and
+`AGENTS.md`.
 
 ## Profile-derived diagnosis
 
@@ -42,9 +42,11 @@ established this program:
 
 The initial gem16 path launched approximately 9,235 GPU operations per execution, versus 747 for vLLM. Online
 attention, larger prompt chunks, grouped FP8 projections, and exact boundary/RoPE fusion removed most of that
-launch pressure. The current 8K profile groups 2/4 local/global query heads per attention CTA, uses an
-M128xN64xK64 FP8 projection, and runs four 2K chunks. FP8 plus NVFP4 projections consume 65.0% of kernel time;
-attention consumes 26.6%. Projection pipelines, not generic fusion, are again the next work.
+launch pressure. The former 65.0% projection/26.6% attention split predates the subsequent CUTLASS projection and
+global-attention staging promotions. The refreshed Linux 8K trace instead attributes 21.9% to global attention, 20.9% to local
+attention, 20.2% to FP8 projection GEMMs, and 17.9% to NVFP4 projection GEMMs. Vectorized local FP8 staging then
+reduces local attention by 26.88% and total profiled kernel time by 4.39%, making global attention the largest
+remaining individual family in the adjacent candidate trace.
 
 The neighboring Apache-2.0 NInfer implementation supplies useful implementation concepts, not a compatible
 runtime path: shape-specific plans, BF16 Tensor-Core QK/PV, FP32 online softmax, swizzled shared-memory staging,

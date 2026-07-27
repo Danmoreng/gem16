@@ -1,0 +1,21 @@
+{
+  "batch_size": 1,
+  "checkpoint_revision": "b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
+  "fallbacks": 0,
+  "git_commit": "304a113-worktree",
+  "global_prefill_fp8_staging": "async_fp8x16_fp8x4_bf16x2",
+  "kv_cache": "checkpoint_fp8",
+  "local_kernel_resources": {
+    "local_bytes": 0,
+    "registers": 254,
+    "reported_shared_bytes": 66560,
+    "stack_bytes": 0
+  },
+  "local_prefill_fp8_staging": "fp8x16_fp8x4_bf16x2",
+  "persistent_repack_bytes": 0,
+  "prefill_chunk_tokens": 2048,
+  "reference_commit": "304a113593e80369ba01fd621777582cfd18a787",
+  "schema_version": 1,
+  "token_loop_allocations": false,
+  "weight_arena_bytes": 9200135680
+}

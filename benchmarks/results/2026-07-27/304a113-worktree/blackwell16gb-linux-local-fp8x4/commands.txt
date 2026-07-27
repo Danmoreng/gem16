@@ -1,0 +1,9 @@
+build/Linux/blackwell-release/bin/gem16-bench prefill --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 --context 128 --warmups 3 --repetitions 10 --seed 0
+build/Linux/blackwell-release/bin/gem16-bench prefill --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 --context 512 --warmups 3 --repetitions 10 --seed 0
+build/Linux/blackwell-release/bin/gem16-bench prefill --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 --context 2048 --warmups 3 --repetitions 10 --seed 0
+build/Linux/blackwell-release/bin/gem16-bench prefill --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 --context 8192 --warmups 3 --repetitions 10 --seed 0
+build/Linux/blackwell-release/bin/gem16-bench decode --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 --context 8192 --tokens 256 --warmups 1 --repetitions 3 --seed 0 --kv-cache fp8
+nsys profile --trace=cuda,nvtx,osrt --sample=none --cpuctxsw=none --force-overwrite=true --output benchmarks/results/2026-07-27/304a113-worktree/blackwell16gb-linux-local-fp8x4/nsys/prefill-8192 build/Linux/blackwell-release/bin/gem16-bench prefill --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 --context 8192 --warmups 1 --repetitions 1 --seed 0
+python3 tools/validate_inference.py --run build/Linux/blackwell-release/bin/gem16-run --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497
+python3 tools/validate_prefill_boundaries.py --run build/Linux/blackwell-release/bin/gem16-run --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497
+python3 tools/teacher_forced_compare.py --run build/Linux/blackwell-release/bin/gem16-run --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 --golden tests/golden/vllm-gemma4-12b-nvfp4-correctness-v1-fp8.json --output teacher-forced.json

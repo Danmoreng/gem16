@@ -74,19 +74,21 @@ execution paths for comparison; this is not a production workspace or peak-VRAM 
 
 `tools/validate_layer_checkpoint.py` runs the local-attention, full-attention, and complete-decoder probes and
 exports one combined JSON record. It enforces structural correctness gates but intentionally applies no model-wide
-numeric tolerance. The next trusted fixture must use a real token sequence and contain the Layer-0 input, resulting
-Layer-0 output, and matching K/V state needed to reproduce the selected decode position. The current deterministic
-synthetic-cache characterization cannot honestly be compared directly with a prompt-derived hidden state.
+numeric tolerance. Prompt-derived vLLM state-v5 captures now provide real-token Layer-0 and per-layer boundaries;
+the deterministic synthetic-cache probes remain independent operator-composition oracles rather than substitutes
+for those runtime distributions.
 
-The full-model greedy characterization now has precision-matched generation gates. For
+The full-model greedy characterization includes precision-matched generation gates. For
 `exact_blue_no_thinking`, the checkpoint tokenizer and exact `chat_template.jinja` produce the committed 20 prompt
 IDs, and the engine matches vLLM's complete `[9503, 106]` response (`blue<turn|>`). The longer
-`sky_sentence_no_thinking` case currently emits `[818, 7217, 7412]` with gem16's physical FP8 cache, while
-FP8-vLLM and the compared llama.cpp run emit `[818, 7217, 563]`. Explicit BF16 vLLM and gem16 both emit
-`[818, 7217, 7412]`. This is deterministic greedy decoding, so the FP8 mismatch remains a blocking correctness
-investigation rather than sampling variation. A previous working-tree revision matched the FP8 references at this
-position, but only through compensating arithmetic errors that have since been corrected; that token match is not
-valid current evidence.
+`sky_sentence_no_thinking` case emits `[818, 7217, 7412]` with gem16's physical FP8 cache, while the retained
+FP8-vLLM and llama.cpp characterizations emit `[818, 7217, 563]`. Explicit BF16 vLLM and gem16 both emit
+`[818, 7217, 7412]`. State-v5 comparisons localized the FP8 difference and found no missing model operation or
+format violation. Because the runtimes use different reduction orders and llama.cpp also maps source FP8 attention
+weights to BF16, exact greedy-token identity is not a universal gate. This case remains a sensitive regression and
+distribution probe; acceptance depends on deterministic execution, operator contracts, teacher-forced rank/logit
+metrics, and task quality. A previous revision matched the FP8 references only through compensating arithmetic
+errors and is not valid evidence.
 
 `--dump-logits` captures every selected position as full-vocabulary raw little-endian float32 after preallocating
 host storage, and `tools/compare_logits.py` compares it with the committed vLLM top-20 distributions. When no
@@ -159,13 +161,14 @@ is a small Layer-30 attention output difference (attention context is still exac
 again after Layer 31 and the final captured Layer-47 hidden state is bit-identical. This is strong evidence for the
 projection, norm, RoPE, residual, and MLP contracts at a single-token attention position.
 
-The first cache reuse at prompt position one is now the earliest material mismatch. In Layer 0, gem16 versus
-FP8-vLLM attention context has RMS `3.846e-3`, maximum `6.25e-2`, and cosine `0.9999921`; the current V input is
-bit-identical and K differs only by RMS `1.249e-4`. By generated position 24 the Layer-0 attention-context
-difference reaches RMS `6.640e-3`, maximum `1.875e-1`, and then propagates through the model. The physical vLLM
-cache was verified as `torch.uint8` E4M3 storage with layout `[blocks, 2, 16, 8, 256]`. The remaining work is
-therefore narrowed to FP8 attention/cache-write arithmetic and attention reduction order, not tokenizer,
-sampling, or the corrected NVFP4 MLP contract.
+The first cache reuse at prompt position one is the earliest material cross-runtime difference. In Layer 0,
+gem16 versus FP8-vLLM attention context has RMS `3.846e-3`, maximum `6.25e-2`, and cosine `0.9999921`; the current
+V input is bit-identical and K differs only by RMS `1.249e-4`. By generated position 24 the Layer-0
+attention-context difference reaches RMS `6.640e-3`, maximum `1.875e-1`, and then propagates through the model.
+The physical vLLM cache was verified as `torch.uint8` E4M3 storage with layout `[blocks, 2, 16, 8, 256]`. This
+localization excludes tokenizer, sampling, and the corrected NVFP4 MLP contract. The residual difference is
+consistent with implementation-specific FP8 cache-write and attention reduction arithmetic; it is monitored by
+rank/logit and quality gates rather than requiring bit identity.
 
 ### Broader teacher-forced comparison
 
@@ -219,10 +222,9 @@ tokenizer `model_max_length` sentinel is parsed but deliberately excluded from t
 
 The patched same-source llama.cpp candidate supplies an independent comparison despite mapping FP8 attention
 weights to BF16. It matches 50/65 reference output tokens overall: exact-blue is 2/2, the sky answer matches vLLM's
-first 18 tokens before diverging, and the thinking trace matches 28/32. At the current first gem16 sky
-divergence, llama.cpp and FP8-vLLM both select token `563`, while gem16 selects `7412`. This makes the remaining
-attention discrepancy important even though later cross-engine differences still require distribution and quality
-analysis rather than automatic acceptance or rejection.
+first 18 tokens before diverging, and the thinking trace matches 28/32. At gem16's first sky divergence, llama.cpp
+and FP8-vLLM select token `563`, while gem16 selects `7412`. This remains useful sensitivity evidence, but no one
+runtime is treated as bit-exact ground truth; distribution and quality analysis determine acceptance.
 
 Reproduce the instruction check with:
 

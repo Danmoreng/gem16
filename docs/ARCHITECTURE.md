@@ -123,8 +123,10 @@ The local kernel uses 32-query by 32-key tiles and processes the two query heads
 CTA. K/V staging is shared within each group while softmax and output state remain per head. Both consume the
 physical E4M3 K/V bytes and checkpoint BF16 scales without a persistent conversion or fallback. A 2,048-token
 current chunk may exceed the local 1,024-token ring because current K/V is read directly; only the newest
-1,024-token suffix is committed after attention, avoiding concurrent modulo-aliasing writes. Global K/V staging
-uses two raw-FP8 ping-pong tiles and one overlaid BF16 operand tile within the existing 96 KiB shared allocation.
+1,024-token suffix is committed after attention, avoiding concurrent modulo-aliasing writes. Local K/V staging
+loads aligned 16-byte E4M3 vectors, converts four values per instruction, and writes paired BF16 values without
+changing the attention arithmetic or 64 KiB operand allocation. Global K/V staging uses two raw-FP8 ping-pong
+tiles and one overlaid BF16 operand tile within the existing 96 KiB shared allocation.
 Aligned 16-byte asynchronous copies overlap current-V traffic with QK/online softmax and next-K traffic with PV;
 vector E4M3x4 conversion and paired BF16 stores complete before each operand is consumed. The attention MMA and
 online-softmax reduction order are unchanged.

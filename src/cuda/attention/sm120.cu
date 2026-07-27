@@ -459,7 +459,7 @@ __device__ __forceinline__ void StageFp8Kv(
     const std::uint8_t* cache, float scale, int kv_head, int key_start,
     int max_query_position, int chunk_start, int kv_heads, int cache_capacity,
     int thread) {
-  constexpr int kElementsPerVector = 8;
+  constexpr int kElementsPerVector = 16;
   constexpr int kVectorsPerRow = kHeadDimension / kElementsPerVector;
   for (int chunk_index = thread;
        chunk_index < kKeyColumns * kVectorsPerRow;
@@ -468,26 +468,34 @@ __device__ __forceinline__ void StageFp8Kv(
     const int dimension =
         (chunk_index % kVectorsPerRow) * kElementsPerVector;
     const int absolute_key = key_start + row;
-    std::uint32_t words[2] = {};
+    uint4 packed = {};
     if (absolute_key <= max_query_position) {
       const bool in_chunk = absolute_key >= chunk_start;
       const int source_token =
           in_chunk ? absolute_key - chunk_start
                    : absolute_key % cache_capacity;
       const std::uint8_t* source = in_chunk ? chunk : cache;
-      const uint2 packed = *reinterpret_cast<const uint2*>(
+      packed = *reinterpret_cast<const uint4*>(
           source + ((source_token * kv_heads + kv_head) * kHeadDimension) +
           dimension);
-      words[0] = packed.x;
-      words[1] = packed.y;
     }
+    const std::uint32_t words[4] = {
+        packed.x, packed.y, packed.z, packed.w};
 #pragma unroll
-    for (int element = 0; element < kElementsPerVector; ++element) {
-      __nv_fp8_e4m3 quantized;
-      quantized.__x = static_cast<std::uint8_t>(
-          words[element >> 2] >> ((element & 3) * 8));
-      destination[row * kHeadDimension + Swizzle(row, dimension + element)] =
-          __float2bfloat16_rn(static_cast<float>(quantized) * scale);
+    for (int word = 0; word < 4; ++word) {
+      __nv_fp8x4_e4m3 quantized;
+      quantized.__x = words[word];
+      float4 values = static_cast<float4>(quantized);
+      values.x *= scale;
+      values.y *= scale;
+      values.z *= scale;
+      values.w *= scale;
+      auto* output = destination + row * kHeadDimension +
+                     Swizzle(row, dimension + word * 4);
+      *reinterpret_cast<__nv_bfloat162*>(output) =
+          __floats2bfloat162_rn(values.x, values.y);
+      *reinterpret_cast<__nv_bfloat162*>(output + 2) =
+          __floats2bfloat162_rn(values.z, values.w);
     }
   }
 }

@@ -6,6 +6,30 @@ Repeated isolated projection measurements keep one 33.3 MB tensor family hot in 
 estimate a layer. The complete MLP row cycles through the 99.5 MB three-projection working set and is the more useful
 decode characterization.
 
+## 2026-07-27 Linux baseline refresh
+
+After returning from Windows development, commit `304a113` was configured and built from a clean Linux
+Blackwell-release tree. Host and CUDA CTest pass. The current direct-load checkpoint-FP8 plan was then measured at
+batch one with three warm-ups and ten runs:
+
+| Workload | Median throughput | Median TTFT | p50/p95/p99 ITL | Determinism |
+|---|---:|---:|---:|---|
+| Prefill 128 | 2,575.72 tok/s | 49.70 ms | — | one first-token ID |
+| Prefill 512 | 4,277.03 tok/s | 119.78 ms | — | one first-token ID |
+| Prefill 2,048 | 4,318.31 tok/s | 475.05 ms | — | one first-token ID |
+| Prefill 8,192 | 3,674.54 tok/s | 2,229.39 ms | — | one first-token ID |
+| Decode 128/256 | 32.912 tok/s | 58.59 ms | 30.38/32.11/32.42 ms | one checksum |
+| Decode 2,048/256 | 33.082 tok/s | 483.25 ms | 30.20/30.83/31.35 ms | one checksum |
+| Decode 8,192/256 | 32.380 tok/s | 2,253.46 ms | 30.84/31.39/31.66 ms | one checksum |
+
+The 128/512/2,048 prefill samples are visibly bimodal because clocks were not locked and short executions alternate
+between power states; retain their raw distributions and do not overstate small differences. The 8K samples are
+stable, with throughput 95% CI `[3,663.63, 3,680.90]`. A current Nsight trace attributes 21.9%/20.9%/20.2%/17.9%
+of GPU kernel time to global attention, local attention, FP8 projection GEMMs, and NVFP4 projection GEMMs. This
+supersedes the pre-CUTLASS 65% projection diagnosis and selects attention staging as the next measured target.
+Artifacts remain under
+`benchmarks/results/2026-07-27/304a113/blackwell16gb-linux-refresh/`.
+
 ## Wikipedia 16K end-to-end characterization
 
 At base commit `7d29580`, a pinned Wikipedia summarization workload supplied the exact same 16,384 prompt token IDs
@@ -189,6 +213,7 @@ fusion removes two launches per layer, while wider/pipelined projection tiles re
 
 | Date | Commit | Hypothesis | Configuration | Before | After | Quality delta | VRAM delta | Decision |
 |---|---|---|---|---:|---:|---:|---:|---|
+| 2026-07-27 | `304a113` worktree | Aligned 16-byte local K/V loads, E4M3x4 conversion, and paired BF16 stores can remove scalar staging overhead without changing attention arithmetic | Linux RTX 5080 Laptop, CUDA 13.3, checkpoint FP8 KV; prefill 128/512/2,048/8,192 with 3 warm-ups/10 measured; adjacent 8K Nsight | 2,575.72/4,277.03/4,318.31/3,674.54 tok/s; 8K local kernel 0.96996 s/two prefills | 2,544.03/4,447.47/4,433.51/3,815.49 tok/s (-1.23%/+3.99%/+2.67%/+3.84%); 8K TTFT 2,229.39 to 2,147.04 ms; local kernel 0.70919 s (-26.88%); total profiled kernels -4.39% | Local CUDA fixtures and CTest pass; exact-blue and 129/257 boundaries pass; teacher-forced remains 121/127 Top-1 and 127/127 Top-5/Top-20; 8K decode checksum unchanged | No arena, workspace, persistent allocation, or shared-memory growth; 254 registers, 66,560 bytes shared, zero stack/local | Promote vector FP8x4/BF16x2 local staging; short-context samples are clock-bimodal, stable 8K intervals do not overlap |
 | 2026-07-26 | working tree | Overlay the mutually exclusive BF16 K/V operands and use the recovered shared space for raw-FP8 ping-pong buffers, overlapping V copies with QK and next-K copies with PV | Linux RTX 5080 Laptop, CUDA 13.3, checkpoint FP8 KV; 8K prefill, adjacent Nsight and 3 warm-ups/10 measured | 3,683.18 tok/s, 2,224.17 ms TTFT; global kernel 1.03791 s/two prefills | 3,704.64 tok/s (+0.58%), 2,211.28 ms TTFT (-0.58%), 95% throughput CI `[3,692.82, 3,709.30]`; global kernel 0.98382 s (-5.21%); exploratory 16K 3,154.66 tok/s (+1.91%) | Global operator max abs 0.000538, RMS 0.000126, cosine 0.999997; exact-blue and 129/257 vLLM Top-1 pass; teacher-forced 121/127 Top-1 and 127/127 Top-5/Top-20; restored 8K decode checksum deterministic | No arena, persistent allocation, workspace, or shared-memory growth; global CTA remains 96 KiB | Promote asynchronous raw-FP8 double buffering for global prefill; local prefill and decode unchanged |
 | 2026-07-26 | rejected worktree | T=1 decode attention may benefit from Tensor-Core QK/PV despite its one-row query geometry | Linux RTX 5080 Laptop, CUDA 13.3, physical FP8 KV; 8K context/256 generated, BF16 and TF32 WMMA prototypes | Scalar online split GQA: 33.349 tok/s | TF32 local+global 28.797 tok/s (-13.65%); global-only split-16 32.232 (-3.35%); global-only split-8 32.292 (-3.17%); restored scalar 33.236 tok/s | BF16 rejected numerically; TF32 operators pass (long-global max abs 0.00000551, cosine 1); restored checksum `14820510372112584179`; CTest passes | Prototype added no persistent allocation; all prototype code removed | Reject: at M=1, tile padding, staging, synchronization, and lower CTA residency cost more than Tensor-Core arithmetic saves |
 | 2026-07-26 | working tree | Aligned 16-byte loads, E4M3x4 conversion, and paired BF16 stores can remove scalar global-attention K/V staging overhead without changing its MMA or online-softmax order | Linux RTX 5080 Laptop, CUDA 13.3, checkpoint FP8 KV; 8K prefill, adjacent Nsight and 3 warm-ups/10 measured | 3,539.55 tok/s, 2,314.42 ms TTFT; global kernel 1.2867 s/two prefills | 3,683.18 tok/s (+4.06%), 2,224.17 ms TTFT (-3.90%), 95% throughput CI `[3,680.21, 3,692.22]`; global kernel 1.0379 s (-19.34%) | Global operator max abs 0.000538, RMS 0.000126, cosine 0.999997; exact-blue and 129/257 vLLM Top-1 pass; teacher-forced 121/127 Top-1 and 127/127 Top-5/Top-20; three 8K decode runs deterministic | No arena, persistent allocation, or shared-memory change; 8K workspace remains 673,808,384 bytes | Promote vector FP8x4/BF16x2 global K/V staging; retain local attention and all attention arithmetic |

@@ -1,5 +1,32 @@
 # Decisions
 
+## 2026-07-27: Vectorize local-prefill FP8 staging
+
+Date: 2026-07-27
+Decision: Load local-attention K/V rows in aligned 16-byte vectors, decode each packed word with E4M3x4 conversion,
+and store paired BF16 values into the existing swizzled shared-memory operands. Preserve the QK, online-softmax,
+PV, masking, and accumulation order. Runtime metadata reports `local_prefill_fp8_staging` as
+`fp8x16_fp8x4_bf16x2`.
+Context: A fresh Linux 8K profile at `304a113` attributed 20.9% of GPU kernel time to local prefill attention. Its
+staging loop loaded eight bytes at a time, extracted individual FP8 bytes, and performed scalar BF16 stores for
+both K and V in every tile. Global attention had already demonstrated that wider loads and FP8x4 conversion reduce
+this overhead without changing the attention algorithm.
+Alternatives: Keep scalar extraction; add raw-FP8 asynchronous ping-pong buffers like the global kernel; or change
+local attention tile geometry. Scalar staging leaves a measured bottleneck. Async staging requires a larger
+scheduling and shared-memory change, while the exact vector conversion isolates the currently proven opportunity.
+Tile changes would alter more arithmetic and scheduling at once.
+Consequences: The kernel retains 254 registers, zero stack/local memory, and 66,560 bytes reported shared memory.
+Persistent arenas, reusable workspace, K/V format, attention reduction order, and decode are unchanged. Product
+rows are naturally 256-byte aligned and each staged dimension advances by 16 bytes. Validators require the new
+runtime metadata so the selected path remains observable.
+Evidence: Against the fresh same-session baseline, 3-warm-up/10-run median prefill changes by
+-1.23%/+3.99%/+2.67%/+3.84% at 128/512/2,048/8,192 tokens; the short points show strong clock-related bimodality,
+while the stable 8K confidence intervals do not overlap. At 8K, TTFT falls from 2,229.39 to 2,147.04 ms and Nsight
+reduces local-attention kernel time from 0.96996 to 0.70919 seconds (-26.88%) across two measured prefills; total
+profiled kernel time falls from 4.64848 to 4.44462 seconds. CTest, exact-blue, 129/257 prefill boundaries, and the
+12-prompt teacher-forced suite pass; the suite retains 121/127 Top-1 and 127/127 Top-5/Top-20. A 1-warm-up/3-run
+8K decode check retains one checksum at 33.01 tok/s.
+
 ## 2026-07-26: Extend the 12B engine through its native Unified multimodal path
 
 Date: 2026-07-26

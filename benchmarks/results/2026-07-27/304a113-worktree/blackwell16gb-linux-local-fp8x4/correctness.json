@@ -1,0 +1,34 @@
+{
+  "ctest_blackwell_release": {
+    "failed": 0,
+    "passed": 2
+  },
+  "decode_8192": {
+    "checksum_count": 1,
+    "deterministic": true
+  },
+  "exact_blue_output_token_ids": [
+    9503,
+    106
+  ],
+  "prefill_boundaries": {
+    "129": {
+      "reference_top1_rank": 1,
+      "selected_logprob_absolute_delta": 0.5643207549193541
+    },
+    "257": {
+      "reference_top1_rank": 1,
+      "selected_logprob_absolute_delta": 0.42346381887003126
+    }
+  },
+  "schema_version": 1,
+  "teacher_forced": {
+    "mean_selected_logprob_absolute_delta": 0.12057386499578471,
+    "mean_top20_overlap": 14.803149606299213,
+    "positions": 127,
+    "prompts": 12,
+    "reference_top1_in_engine_top20": 127,
+    "reference_top1_in_engine_top5": 127,
+    "top1_agreements": 121
+  }
+}

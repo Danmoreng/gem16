@@ -1,0 +1,19 @@
+{
+  "correctness_metrics_changed": false,
+  "decision": "promote",
+  "local_attention_time_change_percent": -26.88467871270782,
+  "median_8192_ttft_change_percent": -3.694141529470951,
+  "median_prefill_gain_percent": {
+    "128": -1.2301007751909565,
+    "2048": 2.6677702908983303,
+    "512": 3.9851384614081553,
+    "8192": 3.835809330072304
+  },
+  "next_bottleneck": "global_prefill_attention",
+  "persistent_vram_delta_bytes": 0,
+  "profiled_total_kernel_time_change_percent": -4.385510168651042,
+  "schema_version": 1,
+  "short_prefill_clock_bimodal": true,
+  "standard_path": "vectorized_local_fp8_staging",
+  "workspace_delta_bytes": 0
+}

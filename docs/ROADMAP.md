@@ -8,19 +8,20 @@ of the correctness and native-kernel gates below.
 
 ## Active gate
 
-- Execute the binding [prefill optimization plan](PREFILL_OPTIMIZATION_PLAN.md): first replace scalar,
-  score-materializing local/global prefill attention with FP32-online-softmax Tensor-Core kernels; then promote the
-  best deterministic 512/1,024-token prompt plan, rebuild NVFP4 and FP8 projections around large pipelined CTA
-  tiles, and finally apply only profile-proven fusions. Every stable promotion requires correctness, generation,
-  logit, 3-warm-up/10-run benchmark, Nsight, spill, allocation, and peak-VRAM evidence and becomes the sole
-  production path.
+- Continue the binding [prefill optimization plan](PREFILL_OPTIMIZATION_PLAN.md) from the refreshed Linux profile.
+  Online Tensor-Core attention, the deterministic 2,048-token prompt plan, CUTLASS NVFP4/FP8 projections, and
+  profile-proven fusions are promoted. The 2026-07-27 refresh identifies attention as the largest aggregate 8K
+  family; vectorized local FP8 staging is the next promoted improvement and leaves global attention as the largest
+  individual family. Every stable promotion still requires correctness, generation, logit, 3-warm-up/10-run
+  benchmark, Nsight, spill, allocation, and peak-VRAM evidence and becomes the sole production path.
 
-- The first arena-backed 48-layer decode characterization loads all text-only tensors once, uses fixed
-  workspace/KV arenas, executes the tied output head and GPU argmax, and supports explicit checkpoint-FP8 and BF16
-  K/V semantics. Physical byte-per-value E4M3FN storage is implemented. The exact-blue gate passes, but the sky
-  gate currently diverges from FP8-vLLM and llama.cpp at generated token 3: gem16 selects `7412`, both references
-  select `563`. State v5 has narrowed the first material difference to Layer-0 attention context at prompt position
-  one. Match cache-write, score/softmax, and value-reduction arithmetic before extending the gate to 512 tokens.
+- The arena-backed 48-layer engine loads all text-only tensors once, uses fixed workspace/KV arenas, executes the
+  tied output head and GPU argmax, and supports explicit checkpoint-FP8 and BF16 K/V semantics. Physical
+  byte-per-value E4M3FN storage is implemented. Cross-runtime generation is not expected to be bit-identical:
+  gem16, direct FP8-vLLM, and the closest llama.cpp candidate use different kernels and, for llama.cpp, different
+  attention-weight and KV formats. The former sky-token mismatch has been deeply localized and is retained as
+  numerical-characterization evidence, not an active exact-token blocker. Current gates are deterministic output,
+  operator contracts, teacher-forced rank/distribution metrics, and broader quality evaluation.
 - The pure C++ chat CLI now uses native byte-fallback BPE from `tokenizer.json`, a version-bound implementation of
   the exact checkpoint `chat_template.jinja`, and its EOS/suppressed-token lists. Interactive chat now retains one
   model, execution plan, and exact-token KV cache across turns; it batch-prefills only the newly appended
@@ -32,8 +33,8 @@ of the correctness and native-kernel gates below.
   default). Keep the serial
   implementation only as a test/probe reference; production CLIs expose the measured native winner.
 - [x] Replace the initial contiguous physical FP8 cache, formerly capped at 1,024 total positions, with circular local
-  storage and independently growing global storage. The checkpoint-scale FP8 numerical semantics and one-byte
-  allocation are implemented; fused/optimized attention reads remain pending.
+  storage and independently growing global storage. Checkpoint-scale FP8 numerical semantics, one-byte allocation,
+  online prefill attention, and split/merge long-context decode reads are implemented and deterministic.
 - Extend the now-committed trusted vLLM token/top-logprob fixture with full-vocabulary logits and selected hidden
   states. The 12-prompt FP8/BF16 teacher-forced suite is complete and places every vLLM Top-1 in gem16's Top-5;
   full reference vectors remain pending.
