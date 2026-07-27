@@ -12,8 +12,11 @@ of the correctness and native-kernel gates below.
   Online Tensor-Core attention, the deterministic 2,048-token prompt plan, CUTLASS NVFP4/FP8 projections, and
   profile-proven fusions are promoted. The 2026-07-27 bounded staging sprint vectorizes local FP8 conversion and
   removes redundant modulo from contiguous global-cache reads. Attention and FP8 projection GEMMs are now tied as
-  the largest 8K families; further prefill work waits for a fresh controlled cross-engine comparison. The next text
-  feature is GPU sampling: temperature, top-k, top-p, repetition penalty, deterministic seeded RNG, and then min-p.
+  the largest 8K families. A fresh controlled comparison now confirms gem16 leads the patched closest-parity
+  llama.cpp candidate across the common matrix while reaching 57–78% of direct-vLLM prefill and 85–86% of its
+  decode throughput under disclosed non-parity timing boundaries. The bounded staging sprint is closed. The active
+  text feature is GPU sampling: temperature, top-k, top-p, repetition penalty, deterministic seeded RNG, and then
+  min-p.
   Every performance promotion still requires correctness, generation, logit, 3-warm-up/10-run benchmark, Nsight,
   spill, allocation, and peak-VRAM evidence and becomes the sole production path.
 

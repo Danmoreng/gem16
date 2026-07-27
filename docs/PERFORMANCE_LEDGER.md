@@ -30,6 +30,22 @@ supersedes the pre-CUTLASS 65% projection diagnosis and selects attention stagin
 Artifacts remain under
 `benchmarks/results/2026-07-27/304a113/blackwell16gb-linux-refresh/`.
 
+## 2026-07-27 current-commit cross-engine characterization
+
+At commit `c93a40d`, fresh same-machine 3-warm-up/10-run measurements compare gem16 with direct-checkpoint vLLM
+0.25.1 using checkpoint FP8 KV and with the patched closest-parity llama.cpp candidate using BF16 KV and
+BF16-mapped attention weights. gem16 reaches 57.1%/67.0%/77.0%/77.5% of vLLM prefill at 128/512/2,048/8,192 and
+84.7%/85.5%/85.6% of vLLM decode at 128/2,048/8,192. Against llama.cpp it reaches
+110.9%/166.6%/177.8%/164.8% in prefill and 112.6%/117.0%/116.4% in decode.
+
+The result is directional, not exact parity: timing boundaries differ, llama.cpp formats differ, vLLM's FP4
+autotuner records OOM/default fallbacks and an untuned 8K shape, and continuous power/clock telemetry is absent.
+The bounded attention-staging sprint is therefore closed rather than presented as vLLM parity. Current Nsight
+leaves FP8 GEMMs and global attention tied at approximately 21.9% each, with no further low-risk staging change
+selected. Work moves to required GPU sampling while the retained profile remains the basis for a later performance
+sprint. Full methodology and raw samples are under
+`benchmarks/results/2026-07-27/c93a40d/blackwell16gb-linux-cross-engine/`.
+
 ## Wikipedia 16K end-to-end characterization
 
 At base commit `7d29580`, a pinned Wikipedia summarization workload supplied the exact same 16,384 prompt token IDs

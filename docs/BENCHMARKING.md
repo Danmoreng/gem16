@@ -60,6 +60,32 @@ The pinned SM120a competitor build is complete. Its NVFP4 object contains native
 `OMMA.SF.16864.F32.E2M1.E2M1.UE4M3.4X` instructions. This is a binary capability check only; runtime dispatch must
 still be captured with the selected model before a tier-B result is valid.
 
+## 2026-07-27 current-commit cross-engine characterization
+
+A fresh same-machine run at gem16 commit `c93a40d` uses batch one, identical deterministic prompt-token formulas,
+three warm-ups, ten measurements, checkpoint-FP8 KV for gem16 and direct vLLM, and no CPU offload or prefix-cache
+hits. The patched closest-parity llama.cpp candidate is freshly measured with BF16 KV, BF16-mapped source FP8
+attention weights, and its native aggregate `llama-bench` boundaries. Median throughput is:
+
+| Workload | gem16 | direct FP8 vLLM | patched llama.cpp | gem16/vLLM | gem16/llama.cpp |
+|---|---:|---:|---:|---:|---:|
+| Prefill 128 | 2,567.35 | 4,499.51 | 2,314.14 | 0.571x | 1.109x |
+| Prefill 512 | 4,257.75 | 6,359.49 | 2,554.91 | 0.670x | 1.666x |
+| Prefill 2,048 | 4,387.67 | 5,699.97 | 2,467.41 | 0.770x | 1.778x |
+| Prefill 8,192 | 3,832.65 | 4,942.20 | 2,325.15 | 0.775x | 1.648x |
+| Decode 128/256 | 33.21 | 39.20 | 29.49 | 0.847x | 1.126x |
+| Decode 2,048/256 | 33.25 | 38.88 | 28.43 | 0.855x | 1.170x |
+| Decode 8,192/256 | 32.59 | 38.06 | 27.99 | 0.856x | 1.164x |
+
+This is still characterization rather than a parity headline. vLLM request TTFT includes scheduling and its first
+output token, gem16 reports its documented host forward/selection boundary, and llama.cpp uses narrower
+prompt-processing and aggregate-generation metrics. vLLM's FP4 autotuner encountered OOM and fallback tactics,
+including an untuned 8K shape; llama.cpp changes attention-weight and KV precision. No run captured continuous
+power/clock/thermal telemetry. The result nevertheless establishes the current engineering position: gem16 leads
+the closest practical llama.cpp candidate across the matrix, while direct vLLM remains 22–43% ahead in prefill and
+14–15% ahead in decode. Raw data and commands are under
+`benchmarks/results/2026-07-27/c93a40d/blackwell16gb-linux-cross-engine/`.
+
 ## Direct vLLM development comparison
 
 A batch-one vLLM 0.25.1 characterization now loads the pinned Hugging Face checkpoint directly with native FP8
