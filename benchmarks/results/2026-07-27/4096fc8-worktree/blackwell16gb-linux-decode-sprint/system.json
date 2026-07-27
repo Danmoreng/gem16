@@ -1,7 +1,0 @@
-{
-  "checkpoint_revision": "b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
-  "cuda": "13.3.73",
-  "driver": "610.43.03",
-  "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
-  "schema_version": 1
-}

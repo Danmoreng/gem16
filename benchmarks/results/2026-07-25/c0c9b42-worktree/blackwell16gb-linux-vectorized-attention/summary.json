@@ -1,9 +1,0 @@
-{
-  "benchmarks": ["gem16/prefill-128.json", "gem16/prefill-512.json", "reference/prefill-512.json"],
-  "correctness": "correctness.json",
-  "git_commit": "c0c9b42-worktree",
-  "nsys_summary": "nsys/prefill-512-summary.json",
-  "production_change": "fp8_prefill_key_load_bytes=16",
-  "schema_version": 1,
-  "status": "characterization"
-}

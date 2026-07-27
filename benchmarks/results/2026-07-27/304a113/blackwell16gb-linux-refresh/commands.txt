@@ -1,8 +1,0 @@
-build/Linux/blackwell-release/bin/gem16-bench prefill --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 --context 128 --warmups 3 --repetitions 10 --seed 0
-build/Linux/blackwell-release/bin/gem16-bench prefill --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 --context 512 --warmups 3 --repetitions 10 --seed 0
-build/Linux/blackwell-release/bin/gem16-bench prefill --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 --context 2048 --warmups 3 --repetitions 10 --seed 0
-build/Linux/blackwell-release/bin/gem16-bench prefill --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 --context 8192 --warmups 3 --repetitions 10 --seed 0
-build/Linux/blackwell-release/bin/gem16-bench decode --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 --context 128 --tokens 256 --warmups 3 --repetitions 10 --seed 0 --kv-cache fp8
-build/Linux/blackwell-release/bin/gem16-bench decode --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 --context 2048 --tokens 256 --warmups 3 --repetitions 10 --seed 0 --kv-cache fp8
-build/Linux/blackwell-release/bin/gem16-bench decode --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 --context 8192 --tokens 256 --warmups 3 --repetitions 10 --seed 0 --kv-cache fp8
-nsys profile --trace=cuda,nvtx,osrt --sample=none --cpuctxsw=none --force-overwrite=true --output benchmarks/results/2026-07-27/304a113/blackwell16gb-linux-refresh/nsys/prefill-8192 build/Linux/blackwell-release/bin/gem16-bench prefill --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 --context 8192 --warmups 1 --repetitions 1 --seed 0

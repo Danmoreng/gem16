@@ -1,8 +1,0 @@
-{
-  "candidate": {"fp8_projection_time_ns": 245727606, "prefill_projected_gpu_time_ns": 1716404275},
-  "fp8_projection_time_reduction": 0.12296070136816105,
-  "prefill_projected_gpu_time_reduction": 0.02246219267756411,
-  "reference_b032e6f": {"fp8_projection_time_ns": 280178558, "prefill_projected_gpu_time_ns": 1755844390},
-  "schema_version": 1,
-  "tool": "Nsight Systems 2026.1.3.425"
-}

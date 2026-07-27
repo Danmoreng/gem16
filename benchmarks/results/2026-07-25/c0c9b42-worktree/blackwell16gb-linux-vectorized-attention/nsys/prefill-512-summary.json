@@ -1,8 +1,0 @@
-{
-  "attention_time_reduction": 0.43368263157712626,
-  "candidate": {"attention_time_ns": 399531157, "prefill_projected_gpu_time_ns": 1473315800},
-  "prefill_projected_gpu_time_reduction": 0.14162658444788601,
-  "reference_c0c9b42": {"attention_time_ns": 705489853, "prefill_projected_gpu_time_ns": 1716404275},
-  "schema_version": 1,
-  "tool": "Nsight Systems 2026.1.3.425"
-}
