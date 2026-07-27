@@ -21,7 +21,11 @@ of the correctness and native-kernel gates below.
   measured greedy-performance parity. A bounded decode-fusion sprint then reused the exact quantization boundaries
   and combined controlled Q/K rounding, normalization, and RoPE, reducing graph kernel nodes by 39.3% and raising
   final 128/2,048/8,192 medians to 34.446/34.257/33.545 tok/s. At 8K this reaches 88.1% of the retained direct-vLLM
-  characterization, up from 85.6%. The decode sprint is closed; the active gate is now 64K/text-quality validation.
+  characterization, up from 85.6%. The decode sprint is closed. The bounded 64K text gate now passes a single
+  mixed retrieval and 1,024-token soak: all markers at 10/50/90% are returned in order, the hybrid cache completes
+  repeated local-ring wraparound with no fallback or token-loop allocation, and peak sampled GPU memory is
+  10,418 MiB. This run is correctness/soak evidence, not a repeated performance result. Further kernel optimization
+  is paused; the next gate is 128K memory/feasibility characterization followed by MTP feasibility.
   Every performance promotion still requires correctness, generation, logit, 3-warm-up/10-run benchmark, Nsight,
   spill, allocation, and peak-VRAM evidence and becomes the sole production path.
 

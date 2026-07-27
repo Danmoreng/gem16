@@ -1,5 +1,25 @@
 # Decisions
 
+## 2026-07-27: Use one mixed run for the bounded 64K text gate
+
+Date: 2026-07-27
+Decision: Close the practical 64K text gate with one exact 65,536-token mixed prompt containing retrieval markers
+at 10%, 50%, and 90%, followed by a forced 1,024-token greedy soak. Collect cache/allocation assertions and sampled
+GPU resource telemetry in the same run. Do not present its timings as a statistically qualified benchmark.
+Context: The prior synthetic 64K characterization already covered repeated prefill/decode timing, while repeating
+another 64K workload ten times would add substantial wall time without being needed for a new performance claim.
+The remaining question was whether meaningful distant information survives while the production cache executes a
+long generation beyond the 64K boundary.
+Alternatives: Repeat the full performance policy; run separate retrieval, soak, memory, and allocation jobs; or
+skip long-context quality. The first is disproportionate without a performance promotion, the second repeats the
+36-second prefill and model load for every check, and the third leaves the active correctness gate open.
+Consequences: `tools/qualify_long_context.py` is a bounded correctness/soak harness, not a replacement for the
+3-warm-up/10-run benchmark contract. It preserves one raw engine result locally under the ignored results tree.
+A future performance headline or regression claim still requires the normal repetition and telemetry policy.
+Evidence: The first run returned all three exact codes in order at output offsets 0, 8, and 17, completed all 1,024
+requested output tokens with zero fallbacks and no token-loop allocation, and used the hybrid local-ring/global
+cache. Peak sampled GPU memory was 10,418 MiB. Prefill/decode took 36,293.4/39,610.3 ms in this single run.
+
 ## 2026-07-27: Fuse exact decode boundaries and controlled Q/K processing
 
 Date: 2026-07-27

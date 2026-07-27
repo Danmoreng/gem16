@@ -157,6 +157,20 @@ the pinned tokenizer produces a coherent German summary of the article's definit
 opportunities, and risks. This closes the workload-specific greedy-determinism issue; it does not replace the
 separate cross-runtime logit and quality gates.
 
+### Mixed 64K qualification
+
+`tools/qualify_long_context.py` builds one exact 65,536-token chat prompt from the pinned Wikipedia filler and
+places three unique retrieval markers at approximately 10%, 50%, and 90% of the context. It asks for all three
+codes in order, then forces 1,024 greedy output positions to exercise long-generation cache updates and repeated
+local-ring wraparound. The harness also samples GPU memory, power, clocks, and temperature while requiring the
+hybrid local-ring/global-contiguous cache, zero fallbacks, and no token-loop allocation.
+
+The 2026-07-27 bounded run returned `ZEBRA-4821`, `COBALT-7395`, and `ORCHID-1604` at output offsets 0, 8, and 17,
+in the requested order. It completed all 1,024 output positions with `finish_reason=length`, used 713,031,680 KV
+bytes and 767,170,304 workspace bytes, and reported 36,293.4 ms prefill plus 39,610.3 ms decode. Peak sampled GPU
+memory was 10,418 MiB; sampled power, SM clock, and temperature peaked at 81.94 W, 1,957 MHz, and 61 C. This is a
+single mixed correctness/soak run by explicit bounded policy, not a statistically qualified performance result.
+
 ### Direct prefill-boundary reference
 
 `tools/generate_prefill_boundary_golden.py` runs vLLM 0.25.1 offline on two deterministic direct-token prompts of
