@@ -85,6 +85,7 @@ if(GEM16_ENABLE_CUDA)
     src/cuda/nvfp4/reference.cu
     src/cuda/nvfp4/sm120.cu
     src/cuda/nvfp4/cutlass_sm120.cu
+    src/cuda/output_head.cu
     src/cuda/sampling/sampling.cu
   )
   if(NOT EXISTS "${GEM16_CUTLASS_DIR}/include/cutlass/cutlass.h")

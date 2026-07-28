@@ -29,7 +29,10 @@ The ordinary greedy output stage assigns one vocabulary row to each warp, evalua
 block, applies the checkpoint's softcap to every logit, and writes one `(value, token)` candidate per block. A small
 second reduction chooses the token with the same lowest-token tie break as the reference full-logit head. This
 changes only the dot-product addition tree. Diagnostic logit capture writes the warp-row logits without changing
-selection; the reference head is restricted to tests and characterization probes.
+selection; the reference head is restricted to tests and characterization probes. The output-head kernels, their
+candidate type, and all launch/error handling live in `src/cuda/output_head.{h,cu}`; `inference.cu` retains only
+fixed-arena ownership and execution-plan dispatch. This boundary is deliberately format- and model-specific rather
+than a generic graph abstraction.
 
 Sampling is an explicit, separate output plan; disabled sampling preserves the fused greedy graph and workspace.
 The exact plan lives in `src/cuda/sampling/`, materializes softcapped logits, applies full-history repetition
