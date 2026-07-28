@@ -38,6 +38,7 @@ add_library(gem16_core STATIC
   src/runtime/memory.cpp
   src/runtime/memory_plan.cpp
   src/runtime/sampling.cpp
+  src/runtime/result_json.cpp
   src/util/json.cpp
 )
 if(WIN32)
