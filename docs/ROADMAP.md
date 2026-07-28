@@ -58,9 +58,11 @@ of the correctness and native-kernel gates below.
   different MTP output remains forbidden, and llama.cpp investigation is out of scope. The next architectural
   milestone before multimodal is the incremental GPU-controlled decode graph: device-control parity, one complete
   fixed-D2 group graph, GPU-chained groups, device stop/tail handling, a nonblocking GPU-producer/host-consumer
-  streaming ring, and only then adaptive D1/D2/ordinary graph branches. Multimodal expansion remains queued until
-  fixed-D2 GPU chaining and asynchronous streaming are complete or a new decision documents a blocker, as detailed
-  in [the MTP plan](MTP.md).
+  streaming ring, and only then adaptive D1/D2/ordinary graph branches. A device-resident `ngram-mod` proposer may
+  follow as an optional measured branch that skips MTP on hits and shares the exact verifier; current llama.cpp
+  Wikipedia screens show no benefit over MTP-D2, so it is not promoted by assumption. Multimodal expansion remains
+  queued until fixed-D2 GPU chaining and asynchronous streaming are complete or a new decision documents a blocker,
+  as detailed in [the MTP plan](MTP.md).
   Every performance promotion still requires correctness, generation, logit, 3-warm-up/10-run benchmark, Nsight,
   spill, allocation, and peak-VRAM evidence and becomes the sole production path.
 
@@ -173,7 +175,9 @@ The llama.cpp benchmark is deliberately before engine kernel optimization, but a
 11. Long-context and exact MTP correctness are established. Before multimodal work, execute the incremental
    [GPU-controlled MTP decode graph roadmap](MTP.md#gpu-controlled-decode-graph-roadmap): device-control parity,
    complete fixed-D2 group capture, GPU chaining, stop/tail semantics, asynchronous streaming, then adaptive graph
-   branches. After fixed-D2 chaining and nonblocking streaming pass their gates, execute the binding
+   branches. Afterwards, optionally qualify a fixed-shape GPU N-Gram proposer against MTP-only execution; it is not
+   a prerequisite when representative hit-rate and throughput gates fail. After fixed-D2 chaining and nonblocking
+   streaming pass their gates, execute the binding
    [multimodal expansion plan](MULTIMODAL.md): first lock processor/embedding fixtures and residency-aware memory
    planning, then qualify audio, then vision projection plus its blockwise local-attention semantics, and finally
    resident multimodal chat and video-frame reuse.

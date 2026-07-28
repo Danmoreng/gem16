@@ -8,8 +8,10 @@ architectural milestone before multimodal expansion. Deliver it incrementally: f
 control record while retaining the current host loop and checking host/device state parity; then capture one
 complete fixed-D2 group; then chain fixed-D2 groups on the GPU; then add stop and tail handling; then add a
 preallocated asynchronous GPU-to-host streaming ring; finally add adaptive D1/D2/ordinary conditional branches.
-No step may change target arithmetic, kernel order within a row, acceptance, committed KV state, or ordinary/MTP
-greedy identity merely to make capture easier.
+After that fixed graph is stable, evaluate an optional device-resident `ngram-mod` proposer as a higher-priority
+conditional branch that can skip MTP on a measured hit and reuse the same exact target verifier. No step may change
+target arithmetic, kernel order within a row, acceptance, committed KV state, or ordinary/MTP greedy identity
+merely to make capture easier.
 Context: Active D2 already keeps both assistant proposals, batched target verification, GPU acceptance, and KV
 commit device-resident, but copies one compact `MtpGroupResult` to pinned memory and synchronizes the compute
 stream after every group. Host code then updates the next token, processed position, stop state, callbacks, and
@@ -30,11 +32,16 @@ preallocated single-producer/single-consumer ring: GPU compute publishes verifie
 invokes callbacks, and the compute stream does not wait on the host during normal operation. Backpressure, EOS,
 maximum length, D1/ordinary tail execution, context limits, and output ordering must be explicit. Every phase must
 pass the fixed 1,135-ID hash and 632/372 counters, ring-wrap and stop tests, allocation checks, resource accounting,
-and before/after profiling; only a complete 3/10 run may qualify a performance headline.
+and before/after profiling; only a complete 3/10 run may qualify a performance headline. Phase one remains the
+narrow MTP control implementation; it must not add an unused generic proposer framework. If N-Gram later passes its
+hit-rate and end-to-end gates, evolve only the common token/position/draft-count prefix into a measured
+multi-proposer control and keep N-Gram's fixed hash storage in a separate arena region.
 Evidence: Current `GenerateAssistantDraftsDevice` has no intermediate host synchronization, while
 `VerifyAcceptCommitAssistantBatch` ends in one D2H result copy and `cudaStreamSynchronize`; ordinary decode already
 uses a device `DecodeControl`; the exact suffix-graph experiment and current Nsight profiles bound both feasibility
-and performance uncertainty.
+and performance uncertainty. Current llama.cpp Wikipedia screens show that conservative N-Gram configurations
+produce no drafts and aggressive short matches reduce MTP throughput, so optional N-Gram integration requires
+fresh gem16-specific evidence rather than assumed benefit.
 
 ## 2026-07-29: Reopen exact MTP for structural verifier work
 

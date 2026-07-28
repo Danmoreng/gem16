@@ -191,6 +191,26 @@ Delivery is deliberately incremental:
 6. **Adaptive graph branches.** Only after fixed D2 and streaming are stable, add conditional D1/D2/ordinary paths
    for the existing adaptive policy. D4 may follow as a separately captured fixed shape. Sampling and concurrent
    sessions remain outside this milestone.
+7. **Optional N-Gram proposer branch.** After the graph above is stable, measure a device-resident `ngram-mod`
+   lookup ahead of MTP. On a qualified hit it supplies fixed D2 or D4 proposal tokens and skips the assistant; on a
+   miss it falls through to MTP. Both sources reuse the same exact target verification, acceptance, transactional
+   commit, stop/tail, and streaming nodes. Do not concatenate an unverified N-Gram prefix with MTP hidden-state
+   recurrence, and do not add long variable target batches until an ordinary-identical verifier exists for each
+   captured shape.
+
+The optional N-Gram design uses a fixed-capacity arena hash table populated from the device token history after
+prefill and updated only with emitted target-verified tokens. Lookup, collision policy, occupancy/reset behavior,
+and draft-length selection must be deterministic. Initial evaluation is D2, then D4; 48–64-token llama.cpp-style
+drafts are out of scope until exact long-batch target verification is independently proven. The graph control may
+later expose `proposal_source`, `proposal_count`, and a shared proposal-token region, but the first
+`MtpDeviceControl` change remains model-specific and must not introduce unused abstraction.
+
+Current llama.cpp fixed-1,135-token screens justify evaluation but not promotion. Match lengths 8–24 produced no
+N-Gram proposals on the Wikipedia summary. Match length 2 generated drafts, but N-Gram-only mean accepted drafts
+were only about 0.12–0.13 and active N-Gram/MTP cascades reached about 45.86–48.96 tok/s versus a 50.01 tok/s
+single-run MTP-D2 screen. llama.cpp gives draftless proposers priority over MTP rather than merging their token
+streams. Therefore gem16 must report per-source hit, proposed, accepted, rejected, and fallback counts, and retain
+N-Gram only if representative end-to-end suites improve without changing ordinary output.
 
 Every phase retains the ordinary non-MTP route as the semantic reference and must prove the fixed Wikipedia
 1,135-ID SHA-256 `43bc3380fc1cce5182a679fa3a340c04bcc79c52e73d5102ec1f737f57d0a1e1`, 632 accepted and 372 rejected drafts
@@ -263,5 +283,7 @@ for the next no-roundtrip phase and their memory cost is documented.
 13. **Next, before multimodal:** execute the GPU-controlled decode-graph roadmap above. Start with the
    device-resident control record and host/device transition parity; do not begin with a monolithic graph or
    streaming protocol. Fixed-D2 group capture, GPU chaining, stop/tail handling, asynchronous streaming, and
-   adaptive graph branches follow as separate correctness-gated changes. Multimodal implementation remains queued
-   until fixed-D2 GPU chaining and nonblocking streaming are complete or a new decision documents a blocker.
+   adaptive graph branches follow as separate correctness-gated changes. A device-resident N-Gram proposer is an
+   optional later branch only after those foundations and its own hit-rate/performance gates. Multimodal
+   implementation remains queued until fixed-D2 GPU chaining and nonblocking streaming are complete or a new
+   decision documents a blocker; optional N-Gram qualification is not itself a multimodal blocker.

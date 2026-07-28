@@ -136,8 +136,12 @@ only target-verified token IDs and monotonically published indices. A host polle
 existing callback, but normal compute progress does not wait for callback completion. Ring capacity, system-visible
 memory ordering, shutdown, and backpressure are explicit plan properties; no growing host container, per-token
 allocation, or pageable transfer is introduced. Adaptive D1/D2/ordinary graph branches follow fixed-D2 streaming,
-not precede it. The previously removed verifier-suffix graph remains evidence that graph capture alone is not a
-performance result: every phase requires an Nsight timeline, memory accounting, and exact ordinary/MTP identity.
+not precede it. An optional later `ngram-mod` child branch may look up fixed D2/D4 proposals from a deterministic,
+fixed-capacity device hash table before MTP; a hit skips assistant execution and a miss falls through to MTP, while
+both paths share the exact verifier and transaction nodes. This is proposal-source routing, not token-level merging.
+It is retained only if per-source hit/acceptance telemetry and representative end-to-end benchmarks win. The
+previously removed verifier-suffix graph remains evidence that graph capture alone is not a performance result:
+every phase requires an Nsight timeline, memory accounting, and exact ordinary/MTP identity.
 The detailed order and gates are binding in [MTP.md](MTP.md).
 
 ## Planned multimodal boundary
