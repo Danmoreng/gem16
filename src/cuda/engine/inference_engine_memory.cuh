@@ -226,6 +226,9 @@
     auto stop_tokens = layout.Add<std::uint32_t>(kMaximumSuppressedTokens);
     auto transaction = layout.Add<internal::MtpGroupTransaction>(1U);
     auto row_controls = layout.Add<internal::DecodeControl>(3U);
+    auto chain_result = layout.Add<internal::MtpChainResult>(1U);
+    auto chain_outputs = layout.Add<std::uint32_t>(max_context_);
+    auto chain_proposals = layout.Add<std::uint32_t>(2U * max_context_);
     auto committed_hidden = layout.Add<float>(kHidden);
     if (!attention_workspace.ok()) return attention_workspace.status();
     if (!candidates.ok()) return candidates.status();
@@ -233,6 +236,9 @@
     if (!stop_tokens.ok()) return stop_tokens.status();
     if (!transaction.ok()) return transaction.status();
     if (!row_controls.ok()) return row_controls.status();
+    if (!chain_result.ok()) return chain_result.status();
+    if (!chain_outputs.ok()) return chain_outputs.status();
+    if (!chain_proposals.ok()) return chain_proposals.status();
     if (!committed_hidden.ok()) return committed_hidden.status();
     mtp_offsets_.attention_workspace = attention_workspace.value();
     mtp_offsets_.output_candidates = candidates.value();
@@ -240,6 +246,9 @@
     mtp_offsets_.stop_tokens = stop_tokens.value();
     mtp_offsets_.transaction = transaction.value();
     mtp_offsets_.row_controls = row_controls.value();
+    mtp_offsets_.chain_result = chain_result.value();
+    mtp_offsets_.chain_outputs = chain_outputs.value();
+    mtp_offsets_.chain_proposals = chain_proposals.value();
     mtp_offsets_.committed_hidden = committed_hidden.value();
     auto size = AlignUp(layout.size(), kAlignment);
     if (!size.ok()) return size.status();

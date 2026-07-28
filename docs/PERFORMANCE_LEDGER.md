@@ -1,5 +1,34 @@
 # Performance ledger
 
+## 2026-07-28 GPU-chained fixed-D2 conditional graph
+
+The pinned CUDA 13.3 runtime supports conditional `while` graph nodes on the Windows SM120 target. The complete
+fixed-D2 group is now the body of one such node. Its final device kernel writes only target-verified tokens and
+proposal IDs to fixed arena buffers, accumulates exact MTP counters, advances `MtpDeviceControl.current`, and sets
+the next loop condition. The host supplies one initial control record and receives outputs only after the chain
+finishes; no D2H/H2D dependency exists between groups. Capacity below three exits to the existing exact D1 or
+ordinary tail, while a stop token exits immediately.
+
+The required Wikipedia 16K screen with one warm-up and three measured runs reaches 55.063 tok/s median (55.081
+mean), versus 54.783 tok/s for one-host-replay-per-group. All runs retain the exact 1,135-ID SHA-256
+`43bc3380fc1cce5182a679fa3a340c04bcc79c52e73d5102ec1f737f57d0a1e1`, 632 accepted and 372 rejected drafts over
+502 groups, deterministic stop semantics, and zero token-loop allocations. At this workload's 24,576-position
+budget, output/proposal/aggregate device storage raises reported workspace from 706,618,368 to 706,913,280 bytes.
+The matching pinned host payload is allocated during initialization. At the 262,144-position maximum, the device
+and pinned-host chain payloads are each approximately 3.0 MiB.
+
+The exact 16K/256-output Nsight trace contains one `cudaGraphLaunch`, six whole-process `cudaStreamSynchronize`
+calls, and one 4.684-second `gem16.mtp.fixed_d2_chain` range covering all 111 groups. Host-replayed group capture had
+111 graph launches and 116 synchronizations. Whole-process `cudaLaunchKernel` API calls rise from 14,770 to 16,205
+because initialization captures one additional complete body graph; recurring decode still has no host kernel
+dispatch. Graph-associated device bytes rise from 14,680,064 to 20,971,520. A focused CUDA fixture executes two
+conditional iterations and verifies aggregate counters, output placement, proposal order, and termination.
+
+The measured throughput increment is intentionally described as modest: complete group capture already removed
+most launch overhead, so the remaining decode is GPU-kernel dominated. The architectural benefit is removal of the
+per-group host dependency required for subsequent nonblocking streaming. Final tail handling and callback streaming
+remain the next phase.
+
 ## 2026-07-28 complete fixed-D2 MTP group graph
 
 The fixed-D2 checkpoint-FP8 path now captures one complete speculative group: both assistant proposal steps,

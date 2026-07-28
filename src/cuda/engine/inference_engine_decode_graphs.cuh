@@ -489,6 +489,7 @@
   DeviceAllocation mtp_workspace_;
   PinnedHostAllocation decode_host_state_;
   PinnedHostAllocation mtp_host_result_;
+  PinnedHostAllocation mtp_host_chain_;
   WorkspaceOffsets offsets_{};
   PrefillOffsets prefill_offsets_{};
   MtpWorkspaceOffsets mtp_offsets_{};
@@ -496,6 +497,7 @@
   std::array<GraphExecutable, kLayers> decode_suffix_graphs_{};
   GraphExecutable full_decode_graph_;
   GraphExecutable mtp_d2_graph_;
+  GraphExecutable mtp_d2_chain_graph_;
   cudaStream_t stream_ = nullptr;
   std::uint64_t max_context_ = 0;
   std::uint64_t prefill_chunk_tokens_ = kMinimumPrefillChunkTokens;

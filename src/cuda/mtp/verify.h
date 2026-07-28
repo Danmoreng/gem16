@@ -51,6 +51,16 @@ struct alignas(16) MtpGroupTransaction {
   MtpDeviceControl control{};
 };
 
+struct alignas(16) MtpChainResult {
+  std::uint64_t output_count = 0U;
+  std::uint64_t proposed_count = 0U;
+  std::uint64_t accepted_count = 0U;
+  std::uint64_t rejected_count = 0U;
+  std::uint64_t group_count = 0U;
+  std::uint32_t stopped = 0U;
+  std::uint32_t stop_token = 0U;
+};
+
 static_assert(std::is_trivially_copyable_v<MtpGroupTransaction>);
 static_assert(offsetof(MtpGroupTransaction, control) % 16U == 0U);
 
@@ -115,5 +125,10 @@ static_assert(offsetof(MtpGroupTransaction, control) % 16U == 0U);
     std::uint64_t elements_per_token, std::uint64_t capacity,
     const MtpGroupResult* result, const MtpDeviceControl* control,
     cudaStream_t stream);
+
+[[nodiscard]] Status LaunchAdvanceMtpD2Chain(
+    MtpGroupTransaction* transaction, MtpChainResult* chain_result,
+    std::uint32_t* output_tokens, std::uint32_t* proposed_tokens,
+    cudaGraphConditionalHandle condition, cudaStream_t stream);
 
 }  // namespace gem16::internal

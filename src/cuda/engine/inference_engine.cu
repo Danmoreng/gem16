@@ -256,6 +256,9 @@ struct MtpWorkspaceOffsets {
   std::uint64_t stop_tokens = 0;
   std::uint64_t transaction = 0;
   std::uint64_t row_controls = 0;
+  std::uint64_t chain_result = 0;
+  std::uint64_t chain_outputs = 0;
+  std::uint64_t chain_proposals = 0;
   std::uint64_t committed_hidden = 0;
   std::uint64_t total = 0;
 };
@@ -469,6 +472,9 @@ Status InferenceEngine::PrepareMtpDeviceControl(std::uint32_t input_token, std::
 Status InferenceEngine::VerifyAcceptCommitAssistantBatch(std::uint32_t input_token, std::uint64_t start_position, std::uint32_t proposal_count, internal::MtpGroupResult* host_result) { return impl_->VerifyAcceptCommitAssistantBatch(input_token, start_position, proposal_count, host_result); }
 Status InferenceEngine::ExecuteFixedD2GraphGroup(std::uint32_t input_token, std::uint64_t start_position, internal::MtpGroupResult* host_result) { return impl_->ExecuteFixedD2GraphGroup(input_token, start_position, host_result); }
 Status InferenceEngine::PrepareFixedD2Graph() { return impl_->PrepareFixedD2Graph(); }
+Status InferenceEngine::ExecuteFixedD2GraphChain(internal::MtpChainResult* host_result) { return impl_->ExecuteFixedD2GraphChain(host_result); }
+const std::uint32_t* InferenceEngine::mtp_chain_outputs() const { return impl_->mtp_chain_outputs(); }
+const std::uint32_t* InferenceEngine::mtp_chain_proposals() const { return impl_->mtp_chain_proposals(); }
 Status InferenceEngine::CheckMtpDeviceControlParity(std::uint32_t input_token, std::uint64_t processed_position, std::uint64_t remaining_output_capacity, std::uint64_t output_write_position, bool stopped, std::uint32_t stop_token) const { return impl_->CheckMtpDeviceControlParity(input_token, processed_position, remaining_output_capacity, output_write_position, stopped, stop_token); }
 Status InferenceEngine::ResetCache() { return impl_->ResetCache(); }
 Status InferenceEngine::SetSampling(const SamplingOptions& options) { return impl_->SetSampling(options); }

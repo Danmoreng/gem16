@@ -185,10 +185,10 @@ Delivery is deliberately incremental:
    embedding, all 48 target layers, final norm/output selection, acceptance, KV/hidden commit, and control update.
    The host initially replays one group at a time and still reads the result. This isolates graph-capture and
    controlled-position correctness from loop and streaming changes.
-3. **GPU-chained fixed-D2 loop.** After proving the required conditional-graph facility is available in the pinned
-   CUDA toolchain, use it with device control to repeat complete groups until a fixed output budget is exhausted. Store verified target
-   tokens in a preallocated device output buffer. No D2H/H2D dependency is permitted between groups; collected
-   output is copied only after completion in this first non-streaming form.
+3. **Complete: GPU-chained fixed-D2 loop.** CUDA 13.3 conditional `while` nodes repeat complete groups while the
+   device control has capacity for another three-row verification batch. Verified target tokens, proposals, and
+   aggregate counters are stored in preallocated device buffers. There is no D2H/H2D dependency between groups;
+   the result is copied only after the conditional graph finishes in this non-streaming form.
 4. **Stop and tail semantics.** Move EOS/stop-token checks, remaining-length accounting, context-limit checks, and
    the final D1 or ordinary step onto the device. Committed positions and token counts must match the current host
    scheduler at acceptance lengths 0, 1, and 2, including local-ring wraparound.
@@ -320,3 +320,12 @@ for the next no-roundtrip phase and their memory cost is documented.
    14,680,064 graph-associated device bytes, and retains zero token-loop allocations. The 256-output Nsight trace
    records 111 `cudaGraphLaunch` calls, reduces whole-process `cudaLaunchKernel` calls from 185,830 to 14,770, and
    retains 116 stream synchronizations. One synchronization per group remains; GPU chaining is the next phase.
+16. **Complete GPU-chained fixed D2:** one CUDA conditional `while` node now repeats the complete group graph until
+   stop or fewer than three output slots remain. A fixed device buffer retains target-verified outputs and proposal
+   IDs, while a compact aggregate stores group/acceptance counters; all are copied only after graph completion.
+   The exact Wikipedia 16K one-warm-up/three-run gate reaches 55.063 tok/s median, retains the 1,135-ID SHA-256 and
+   632/372 acceptance counts over 502 groups, and stops on the same token. The 256-output Nsight trace contains one
+   `cudaGraphLaunch` and six whole-process stream synchronizations, versus 111 graph launches and 116
+   synchronizations for host replay. Ring wrap at local-cache position 1,024 and a focused two-iteration
+   conditional-node fixture are exact. Final D1/ordinary tails remain host-scheduled, and callbacks are delivered
+   only after the bulk chain completes; stop/tail consolidation plus asynchronous streaming is the next phase.

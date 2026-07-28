@@ -99,6 +99,7 @@ struct GreedyInferenceResult {
   bool mtp_enabled = false;
   bool mtp_adaptive = false;
   bool mtp_fixed_d2_graph = false;
+  bool mtp_gpu_chained = false;
   bool token_loop_allocations = false;
   bool benchmark_qualified = false;
   bool stopped = false;

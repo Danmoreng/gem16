@@ -248,7 +248,8 @@
                                      proposal_count, host_result);
   }
 
-  [[nodiscard]] Status LaunchControlledMtpD2GroupBody() {
+  [[nodiscard]] Status LaunchControlledMtpD2GroupBody(
+      bool copy_transaction = true) {
     constexpr std::uint32_t kProposalCount = 2U;
     constexpr std::uint64_t kTokens = 3U;
     auto* device_transaction = Pointer<internal::MtpGroupTransaction>(
@@ -346,12 +347,13 @@
     status = internal::LaunchCommitMtpHidden(
         normalized, committed_hidden, kHidden, device_result, stream_);
     if (!status.ok()) return status;
-    auto* pinned_transaction =
-        reinterpret_cast<internal::MtpGroupTransaction*>(
-            mtp_host_result_.span().data());
-    error = cudaMemcpyAsync(pinned_transaction, device_transaction,
-                            sizeof(internal::MtpGroupTransaction),
-                            cudaMemcpyDeviceToHost, stream_);
+    if (!copy_transaction) return Status::Ok();
+    auto* pinned_transaction = reinterpret_cast<internal::MtpGroupTransaction*>(
+        mtp_host_result_.span().data());
+    error = cudaMemcpyAsync(
+        pinned_transaction, device_transaction,
+        sizeof(internal::MtpGroupTransaction), cudaMemcpyDeviceToHost,
+        stream_);
     return error == cudaSuccess
                ? Status::Ok()
                : CudaFailure("copy controlled MTP D2 transaction", error);
@@ -429,6 +431,8 @@
         [this]() { return LaunchControlledMtpD2GroupBody(); },
         "capture complete fixed-D2 group graph");
     if (!status.ok()) return status;
+    status = PrepareFixedD2ChainGraph();
+    if (!status.ok()) return status;
     std::size_t free_after = 0U;
     error = cudaMemGetInfo(&free_after, &total_bytes);
     if (error != cudaSuccess) {
@@ -438,6 +442,177 @@
       decode_graph_device_bytes_ += free_before - free_after;
     }
     return Status::Ok();
+  }
+
+  [[nodiscard]] Status PrepareFixedD2ChainGraph() {
+    cudaGraph_t root = nullptr;
+    cudaGraph_t body_source = nullptr;
+    cudaGraphExec_t executable = nullptr;
+    const auto cleanup = [&]() {
+      if (body_source != nullptr) (void)cudaGraphDestroy(body_source);
+      if (root != nullptr) (void)cudaGraphDestroy(root);
+      if (executable != nullptr) (void)cudaGraphExecDestroy(executable);
+    };
+    cudaError_t error = cudaGraphCreate(&root, 0U);
+    if (error != cudaSuccess) {
+      return CudaFailure("create fixed-D2 chain graph", error);
+    }
+    cudaGraphConditionalHandle condition = 0U;
+    error = cudaGraphConditionalHandleCreate(
+        &condition, root, 1U, cudaGraphCondAssignDefault);
+    if (error != cudaSuccess) {
+      cleanup();
+      return CudaFailure("create fixed-D2 chain condition", error);
+    }
+    cudaGraphNodeParams parameters{};
+    parameters.type = cudaGraphNodeTypeConditional;
+    parameters.conditional.handle = condition;
+    parameters.conditional.type = cudaGraphCondTypeWhile;
+    parameters.conditional.size = 1U;
+    parameters.conditional.ctx = nullptr;
+    cudaGraphNode_t conditional_node = nullptr;
+    error = cudaGraphAddNode(&conditional_node, root, nullptr, nullptr, 0U,
+                             &parameters);
+    if (error != cudaSuccess) {
+      cleanup();
+      return CudaFailure("add fixed-D2 chain conditional", error);
+    }
+    error = cudaStreamBeginCapture(stream_, cudaStreamCaptureModeThreadLocal);
+    if (error != cudaSuccess) {
+      cleanup();
+      return CudaFailure("begin fixed-D2 chain body capture", error);
+    }
+    Status status = LaunchControlledMtpD2GroupBody(false);
+    if (status.ok()) {
+      status = internal::LaunchAdvanceMtpD2Chain(
+          Pointer<internal::MtpGroupTransaction>(
+              mtp_workspace_, mtp_offsets_.transaction),
+          Pointer<internal::MtpChainResult>(
+              mtp_workspace_, mtp_offsets_.chain_result),
+          Pointer<std::uint32_t>(mtp_workspace_, mtp_offsets_.chain_outputs),
+          Pointer<std::uint32_t>(mtp_workspace_,
+                                 mtp_offsets_.chain_proposals),
+          condition, stream_);
+    }
+    error = cudaStreamEndCapture(stream_, &body_source);
+    if (!status.ok() || error != cudaSuccess) {
+      cleanup();
+      return !status.ok()
+                 ? status
+                 : CudaFailure("end fixed-D2 chain body capture", error);
+    }
+    cudaGraphNode_t body_node = nullptr;
+    error = cudaGraphAddChildGraphNode(
+        &body_node, parameters.conditional.phGraph_out[0], nullptr, 0U,
+        body_source);
+    if (error != cudaSuccess) {
+      cleanup();
+      return CudaFailure("add fixed-D2 chain body", error);
+    }
+    error = cudaGraphInstantiate(&executable, root, nullptr, nullptr, 0U);
+    if (error != cudaSuccess) {
+      cleanup();
+      return CudaFailure("instantiate fixed-D2 chain graph", error);
+    }
+    mtp_d2_chain_graph_.Adopt(executable);
+    executable = nullptr;
+    cleanup();
+    return Status::Ok();
+  }
+
+  [[nodiscard]] Status ExecuteFixedD2GraphChain(
+      internal::MtpChainResult* host_result) {
+    const NvtxRange range("gem16.mtp.fixed_d2_chain");
+    if (host_result == nullptr || mtp_d2_chain_graph_.get() == nullptr) {
+      return Error(StatusCode::kInvalidArgument,
+                   "fixed-D2 chain graph is unavailable");
+    }
+    auto* device_result = Pointer<internal::MtpChainResult>(
+        mtp_workspace_, mtp_offsets_.chain_result);
+    cudaError_t error = cudaMemsetAsync(
+        device_result, 0, sizeof(internal::MtpChainResult), stream_);
+    if (error == cudaSuccess) {
+      error = cudaGraphLaunch(mtp_d2_chain_graph_.get(), stream_);
+    }
+    if (error == cudaSuccess) error = cudaStreamSynchronize(stream_);
+    if (error != cudaSuccess) {
+      return CudaFailure("execute fixed-D2 chain graph", error);
+    }
+    auto* host_bytes = reinterpret_cast<std::byte*>(
+        mtp_host_chain_.span().data());
+    auto* pinned_result =
+        reinterpret_cast<internal::MtpChainResult*>(host_bytes);
+    error = cudaMemcpy(pinned_result, device_result,
+                       sizeof(internal::MtpChainResult),
+                       cudaMemcpyDeviceToHost);
+    if (error != cudaSuccess) {
+      return CudaFailure("copy fixed-D2 chain result", error);
+    }
+    if (pinned_result->group_count == 0U ||
+        pinned_result->proposed_count != 2U * pinned_result->group_count ||
+        pinned_result->accepted_count + pinned_result->rejected_count !=
+            pinned_result->proposed_count ||
+        pinned_result->output_count > max_context_ ||
+        pinned_result->proposed_count > 2U * max_context_) {
+      return Error(StatusCode::kInternal,
+                   "fixed-D2 chain result is inconsistent");
+    }
+    auto* pinned_outputs = reinterpret_cast<std::uint32_t*>(
+        host_bytes + sizeof(internal::MtpChainResult));
+    auto* pinned_proposals = pinned_outputs + max_context_;
+    const auto* transaction = reinterpret_cast<const internal::MtpGroupTransaction*>(
+        mtp_host_result_.span().data());
+    const std::uint64_t output_begin =
+        transaction->control.current.output_write_position;
+    error = cudaMemcpy(
+        pinned_outputs,
+        Pointer<std::uint32_t>(mtp_workspace_, mtp_offsets_.chain_outputs) +
+            output_begin,
+        static_cast<std::size_t>(pinned_result->output_count) *
+            sizeof(std::uint32_t),
+        cudaMemcpyDeviceToHost);
+    if (error == cudaSuccess) {
+      error = cudaMemcpy(
+          pinned_proposals,
+          Pointer<std::uint32_t>(mtp_workspace_, mtp_offsets_.chain_proposals),
+          static_cast<std::size_t>(pinned_result->proposed_count) *
+              sizeof(std::uint32_t),
+          cudaMemcpyDeviceToHost);
+    }
+    auto* pinned_transaction = reinterpret_cast<internal::MtpGroupTransaction*>(
+        mtp_host_result_.span().data());
+    if (error == cudaSuccess) {
+      error = cudaMemcpy(
+          pinned_transaction,
+          Pointer<internal::MtpGroupTransaction>(
+              mtp_workspace_, mtp_offsets_.transaction),
+          sizeof(internal::MtpGroupTransaction), cudaMemcpyDeviceToHost);
+    }
+    if (error != cudaSuccess) {
+      return CudaFailure("copy fixed-D2 chain payload", error);
+    }
+    const internal::MtpDeviceState& final_state =
+        pinned_transaction->control.current;
+    if (final_state.output_write_position !=
+            output_begin + pinned_result->output_count ||
+        final_state.stopped != pinned_result->stopped ||
+        final_state.stop_token != pinned_result->stop_token) {
+      return Error(StatusCode::kInternal,
+                   "fixed-D2 chain final state is inconsistent");
+    }
+    *host_result = *pinned_result;
+    return Status::Ok();
+  }
+
+  [[nodiscard]] const std::uint32_t* mtp_chain_outputs() const {
+    const auto* host_bytes = reinterpret_cast<const std::byte*>(
+        mtp_host_chain_.span().data());
+    return reinterpret_cast<const std::uint32_t*>(
+        host_bytes + sizeof(internal::MtpChainResult));
+  }
+
+  [[nodiscard]] const std::uint32_t* mtp_chain_proposals() const {
+    return mtp_chain_outputs() + max_context_;
   }
 
   [[nodiscard]] Status CheckMtpDeviceControlParity(

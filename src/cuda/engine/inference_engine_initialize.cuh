@@ -67,6 +67,14 @@
       status = mtp_host_result_.Allocate(kHostTransactionFloats,
                                          "MTP group host transaction");
       if (!status.ok()) return status;
+      const std::size_t chain_host_bytes =
+          sizeof(internal::MtpChainResult) +
+          static_cast<std::size_t>(3U * max_context_) *
+              sizeof(std::uint32_t);
+      status = mtp_host_chain_.Allocate(
+          (chain_host_bytes + sizeof(float) - 1U) / sizeof(float),
+          "MTP chain host result");
+      if (!status.ok()) return status;
     }
     status = internal::LaunchRotaryEmbeddingTableBatch(
         Pointer<float>(prefill_workspace_, prefill_offsets_.local_rope_cosine),

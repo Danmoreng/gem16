@@ -606,6 +606,54 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
            !result.stopped) {
       const std::size_t remaining = static_cast<std::size_t>(
           generation_steps - result.output_token_ids.size());
+      const bool fixed_d2_chain =
+          remaining >= 3U && options.mtp_draft_tokens == 2U &&
+          !options.mtp_adaptive &&
+          options.kv_cache_mode == KvCacheMode::kCheckpointFp8 &&
+          options.max_context_tokens > kSlidingWindow;
+      if (fixed_d2_chain) {
+        status = engine.PrepareMtpDeviceControl(
+            next_token, processed_position, remaining,
+            result.output_token_ids.size(), result.stopped,
+            result.stop_token_id);
+        if (!status.ok()) return status;
+        internal::MtpChainResult chain;
+        status = engine.ExecuteFixedD2GraphChain(&chain);
+        if (!status.ok()) return status;
+        result.mtp_fixed_d2_graph = true;
+        result.mtp_gpu_chained = true;
+        result.mtp_verification_groups += chain.group_count;
+        result.mtp_d2_groups += chain.group_count;
+        result.mtp_proposed_tokens += chain.proposed_count;
+        result.mtp_target_forwards += 3U * chain.group_count;
+        result.mtp_target_batches += chain.group_count;
+        result.mtp_accepted_tokens += chain.accepted_count;
+        result.mtp_rejected_tokens += chain.rejected_count;
+        result.mtp_proposed_token_ids.insert(
+            result.mtp_proposed_token_ids.end(),
+            engine.mtp_chain_proposals(),
+            engine.mtp_chain_proposals() + chain.proposed_count);
+        processed_position += chain.output_count;
+        const std::uint32_t* chained_outputs = engine.mtp_chain_outputs();
+        for (std::uint64_t index = 0U; index < chain.output_count; ++index) {
+          next_token = chained_outputs[index];
+          result.output_token_ids.push_back(next_token);
+          if (options.generated_token_callback != nullptr) {
+            status = options.generated_token_callback(
+                options.generated_token_callback_context, next_token);
+            if (!status.ok()) return status;
+          }
+        }
+        result.stopped = chain.stopped != 0U;
+        result.stop_token_id = chain.stop_token;
+        status = engine.CheckMtpDeviceControlParity(
+            next_token, processed_position,
+            generation_steps - result.output_token_ids.size(),
+            result.output_token_ids.size(), result.stopped,
+            result.stop_token_id);
+        if (!status.ok()) return status;
+        continue;
+      }
       const bool adaptive_fallback =
           adaptive_scheduler.use_ordinary_fallback();
       if (remaining == 1U || adaptive_fallback) {

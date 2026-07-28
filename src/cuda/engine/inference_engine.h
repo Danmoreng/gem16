@@ -51,6 +51,10 @@ class InferenceEngine {
       std::uint32_t input_token, std::uint64_t start_position,
       internal::MtpGroupResult* host_result);
   [[nodiscard]] Status PrepareFixedD2Graph();
+  [[nodiscard]] Status ExecuteFixedD2GraphChain(
+      internal::MtpChainResult* host_result);
+  [[nodiscard]] const std::uint32_t* mtp_chain_outputs() const;
+  [[nodiscard]] const std::uint32_t* mtp_chain_proposals() const;
   [[nodiscard]] Status CheckMtpDeviceControlParity(
       std::uint32_t input_token, std::uint64_t processed_position,
       std::uint64_t remaining_output_capacity,

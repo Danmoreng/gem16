@@ -3017,6 +3017,174 @@ void TestMtpDeviceControlTransitions() {
   run_case({10U, 99U, 30U, 0U, 0U}, 1U, 1U, 2U, true);
 }
 
+void TestMtpConditionalD2Chain() {
+  DeviceBuffer<std::uint32_t> drafts(2U);
+  DeviceBuffer<std::uint32_t> verified(3U);
+  DeviceBuffer<std::uint32_t> outputs(16U);
+  DeviceBuffer<std::uint32_t> proposals(16U);
+  DeviceBuffer<gem16::internal::MtpGroupTransaction> transaction(1U);
+  DeviceBuffer<gem16::internal::MtpChainResult> chain_result(1U);
+  if (drafts.get() == nullptr || verified.get() == nullptr ||
+      outputs.get() == nullptr || proposals.get() == nullptr ||
+      transaction.get() == nullptr || chain_result.get() == nullptr) {
+    return;
+  }
+  const std::array<std::uint32_t, 2U> host_drafts{11U, 99U};
+  const std::array<std::uint32_t, 3U> host_verified{11U, 12U, 13U};
+  gem16::internal::MtpGroupTransaction host_transaction{};
+  host_transaction.control.current.input_token = 7U;
+  host_transaction.control.current.processed_position = 20U;
+  host_transaction.control.current.remaining_output_capacity = 5U;
+  host_transaction.control.current.output_write_position = 4U;
+  host_transaction.control.next = host_transaction.control.current;
+  host_transaction.control.fixed_draft_tokens = 2U;
+  if (!CudaOk(cudaMemcpy(drafts.get(), host_drafts.data(), drafts.bytes(),
+                         cudaMemcpyHostToDevice),
+              "copy MTP chain drafts") ||
+      !CudaOk(cudaMemcpy(verified.get(), host_verified.data(),
+                         verified.bytes(), cudaMemcpyHostToDevice),
+              "copy MTP chain verified tokens") ||
+      !CudaOk(cudaMemcpy(transaction.get(), &host_transaction,
+                         sizeof(host_transaction), cudaMemcpyHostToDevice),
+              "copy MTP chain transaction") ||
+      !CudaOk(cudaMemset(chain_result.get(), 0, chain_result.bytes()),
+              "clear MTP chain result")) {
+    return;
+  }
+
+  cudaGraph_t root = nullptr;
+  cudaGraph_t body_source = nullptr;
+  cudaGraphExec_t executable = nullptr;
+  cudaStream_t stream = nullptr;
+  bool graph_ok = CudaOk(cudaStreamCreateWithFlags(
+                             &stream, cudaStreamNonBlocking),
+                         "create MTP conditional stream") &&
+                  CudaOk(cudaGraphCreate(&root, 0U),
+                         "create MTP conditional graph");
+  cudaGraphConditionalHandle condition = 0U;
+  if (graph_ok) {
+    graph_ok = CudaOk(cudaGraphConditionalHandleCreate(
+                          &condition, root, 1U,
+                          cudaGraphCondAssignDefault),
+                      "create MTP conditional handle");
+  }
+  cudaGraphNodeParams parameters{};
+  parameters.type = cudaGraphNodeTypeConditional;
+  parameters.conditional.handle = condition;
+  parameters.conditional.type = cudaGraphCondTypeWhile;
+  parameters.conditional.size = 1U;
+  parameters.conditional.ctx = nullptr;
+  cudaGraphNode_t conditional_node = nullptr;
+  if (graph_ok) {
+    graph_ok = CudaOk(cudaGraphAddNode(&conditional_node, root, nullptr,
+                                       nullptr, 0U, &parameters),
+                      "add MTP conditional node");
+  }
+  if (graph_ok) {
+    graph_ok = CudaOk(
+        cudaStreamBeginCapture(stream, cudaStreamCaptureModeThreadLocal),
+        "begin MTP chain body capture");
+  }
+  if (graph_ok) {
+    auto status = gem16::internal::LaunchAcceptMtpGroup(
+        drafts.get(), verified.get(), 2U, nullptr, 0U,
+        &transaction.get()->result, &transaction.get()->control, stream);
+    CUDA_TEST_CHECK(status.ok());
+    graph_ok = status.ok();
+  }
+  if (graph_ok) {
+    auto status = gem16::internal::LaunchAdvanceMtpD2Chain(
+        transaction.get(), chain_result.get(), outputs.get(), proposals.get(),
+        condition, stream);
+    CUDA_TEST_CHECK(status.ok());
+    graph_ok = status.ok();
+  }
+  if (graph_ok) {
+    graph_ok = CudaOk(cudaStreamEndCapture(stream, &body_source),
+                      "end MTP chain body capture");
+  }
+  cudaGraphNode_t body_node = nullptr;
+  if (graph_ok) {
+    graph_ok = CudaOk(cudaGraphAddChildGraphNode(
+                          &body_node, parameters.conditional.phGraph_out[0],
+                          nullptr, 0U, body_source),
+                      "add MTP chain body");
+  }
+  if (graph_ok) {
+    graph_ok = CudaOk(cudaGraphInstantiate(&executable, root, nullptr,
+                                           nullptr, 0U),
+                      "instantiate MTP conditional graph") &&
+               CudaOk(cudaGraphLaunch(executable, stream),
+                      "launch MTP conditional graph") &&
+               CudaOk(cudaStreamSynchronize(stream),
+                      "synchronize MTP conditional graph");
+  }
+  gem16::internal::MtpChainResult host_result{};
+  std::array<std::uint32_t, 4U> host_outputs{};
+  std::array<std::uint32_t, 4U> host_proposals{};
+  if (graph_ok) {
+    graph_ok = CudaOk(cudaMemcpy(&host_result, chain_result.get(),
+                                 sizeof(host_result), cudaMemcpyDeviceToHost),
+                      "copy MTP chain result") &&
+               CudaOk(cudaMemcpy(host_outputs.data(), outputs.get() + 4U,
+                                 sizeof(host_outputs), cudaMemcpyDeviceToHost),
+                      "copy MTP chain outputs") &&
+               CudaOk(cudaMemcpy(host_proposals.data(), proposals.get(),
+                                 sizeof(host_proposals),
+                                 cudaMemcpyDeviceToHost),
+                      "copy MTP chain proposals");
+  }
+  if (graph_ok) {
+    CUDA_TEST_CHECK(host_result.group_count == 2U);
+    CUDA_TEST_CHECK(host_result.output_count == 4U);
+    CUDA_TEST_CHECK(host_result.proposed_count == 4U);
+    CUDA_TEST_CHECK(host_result.accepted_count == 2U);
+    CUDA_TEST_CHECK(host_result.rejected_count == 2U);
+    CUDA_TEST_CHECK((host_outputs ==
+                     std::array<std::uint32_t, 4U>{11U, 12U, 11U, 12U}));
+    CUDA_TEST_CHECK((host_proposals ==
+                     std::array<std::uint32_t, 4U>{11U, 99U, 11U, 99U}));
+  }
+  if (graph_ok) {
+    host_transaction = {};
+    host_transaction.control.current.input_token = 7U;
+    host_transaction.control.current.processed_position = 30U;
+    host_transaction.control.current.remaining_output_capacity = 3U;
+    host_transaction.control.next = host_transaction.control.current;
+    host_transaction.control.fixed_draft_tokens = 2U;
+    graph_ok = CudaOk(cudaMemcpy(transaction.get(), &host_transaction,
+                                 sizeof(host_transaction),
+                                 cudaMemcpyHostToDevice),
+                      "reset MTP chain transaction") &&
+               CudaOk(cudaMemset(chain_result.get(), 0,
+                                 chain_result.bytes()),
+                      "reset MTP chain result") &&
+               CudaOk(cudaGraphLaunch(executable, stream),
+                      "replay MTP conditional graph") &&
+               CudaOk(cudaStreamSynchronize(stream),
+                      "synchronize replayed MTP conditional graph") &&
+               CudaOk(cudaMemcpy(&host_result, chain_result.get(),
+                                 sizeof(host_result), cudaMemcpyDeviceToHost),
+                      "copy replayed MTP chain result") &&
+               CudaOk(cudaMemcpy(&host_transaction, transaction.get(),
+                                 sizeof(host_transaction),
+                                 cudaMemcpyDeviceToHost),
+                      "copy replayed MTP chain transaction");
+  }
+  if (graph_ok) {
+    CUDA_TEST_CHECK(host_result.group_count == 1U);
+    CUDA_TEST_CHECK(host_result.output_count == 2U);
+    CUDA_TEST_CHECK(
+        host_transaction.control.current.remaining_output_capacity == 1U);
+    CUDA_TEST_CHECK(host_transaction.control.current.processed_position ==
+                    32U);
+  }
+  if (executable != nullptr) (void)cudaGraphExecDestroy(executable);
+  if (body_source != nullptr) (void)cudaGraphDestroy(body_source);
+  if (root != nullptr) (void)cudaGraphDestroy(root);
+  if (stream != nullptr) (void)cudaStreamDestroy(stream);
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -3070,6 +3238,7 @@ int main(int argc, char** argv) {
   TestOnlineLocalFp8CausalPrefill();
   TestOnlineGlobalFp8CausalPrefill();
   TestMtpDeviceControlTransitions();
+  TestMtpConditionalD2Chain();
   TestGpuSampling();
   if (failures != 0) {
     std::cerr << failures << " CUDA test assertion(s) failed\n";

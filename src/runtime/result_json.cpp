@@ -193,11 +193,15 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
          << "\",\"group_execution\":\""
          << (!result.mtp_enabled
                  ? "disabled"
+                 : result.mtp_gpu_chained
+                       ? "gpu_chained_fixed_d2_conditional_graph"
                  : result.mtp_fixed_d2_graph
                        ? "complete_fixed_d2_cuda_graph_host_replay"
                        : "direct_launch")
          << "\",\"host_synchronizations_per_group\":"
-         << (result.mtp_enabled ? 1 : 0)
+         << (result.mtp_enabled && !result.mtp_gpu_chained ? 1 : 0)
+         << ",\"host_synchronizations_per_chain\":"
+         << (result.mtp_gpu_chained ? 1 : 0)
          << ",\"short_batch_projection_path\":\""
          << (!result.mtp_enabled
                  ? "disabled"

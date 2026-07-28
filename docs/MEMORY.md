@@ -48,6 +48,12 @@ assistant-plus-verifier workspace measures 2,213,376 bytes with FP8 KV and 7,374
 fixed regions hold GPU acceptance, stop IDs, and one committed hidden row. The qualified 24,576-context D2 run
 peaks at 10,838 MiB under 200 ms telemetry. No assistant KV cache or second weight layout is allocated.
 
+GPU-chained fixed D2 additionally reserves three `uint32_t` entries per context position: one verified-output slot
+and two proposal slots, plus a small aggregate record. The same payload is allocated once in pinned host memory for
+the post-chain transfer. This is 294,912 bytes on the Wikipedia benchmark's 24,576-position plan and 3,145,728 bytes
+at the 262,144-position maximum, plus alignment and the aggregate. The conditional executable raises measured
+graph-associated device memory from 14,680,064 to 20,971,520 bytes on the 32K profiling plan.
+
 The runtime now applies the planned hybrid layout: 40 local layers allocate
 at most 1,024 physical slots and reuse them as chronological rings, while eight global layers allocate the requested
 context extent. Separate K/V storage is retained for both. Optional

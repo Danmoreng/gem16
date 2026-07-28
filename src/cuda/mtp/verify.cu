@@ -64,6 +64,39 @@ __global__ void BuildControlledMtpD2InputsKernel(
   row_controls[row].token = inputs[row];
 }
 
+__global__ void AdvanceMtpD2ChainKernel(
+    MtpGroupTransaction* transaction, MtpChainResult* chain_result,
+    std::uint32_t* output_tokens, std::uint32_t* proposed_tokens,
+    cudaGraphConditionalHandle condition) {
+  if (blockIdx.x != 0U || threadIdx.x != 0U) return;
+  MtpDeviceControl& control = transaction->control;
+  const MtpGroupResult& group = transaction->result;
+  const std::uint64_t output_begin = control.current.output_write_position;
+  const std::uint64_t proposal_begin = chain_result->proposed_count;
+  for (std::uint32_t index = 0U; index < group.output_count; ++index) {
+    output_tokens[output_begin + index] = group.verified[index];
+  }
+  for (std::uint32_t index = 0U; index < group.proposal_count; ++index) {
+    proposed_tokens[proposal_begin + index] = group.proposed[index];
+  }
+  chain_result->output_count += group.output_count;
+  chain_result->proposed_count += group.proposal_count;
+  chain_result->accepted_count += group.accepted_count;
+  chain_result->rejected_count +=
+      group.proposal_count - group.accepted_count;
+  ++chain_result->group_count;
+  chain_result->stopped = group.stopped;
+  chain_result->stop_token = group.stop_token;
+  control.current = control.next;
+  control.transition_valid = 0U;
+  const unsigned int continue_loop =
+      control.current.stopped == 0U &&
+              control.current.remaining_output_capacity >= 3U
+          ? 1U
+          : 0U;
+  cudaGraphSetConditional(condition, continue_loop);
+}
+
 __global__ void AcceptMtpGroupKernel(
     const std::uint32_t* drafts, const std::uint32_t* verified,
     std::uint32_t proposal_count, const std::uint32_t* stop_tokens,
@@ -414,6 +447,24 @@ Status LaunchCommitMtpKvFp8ControlledD2(
   return error == cudaSuccess
              ? Status::Ok()
              : CudaFailure("launch controlled MTP D2 FP8 KV commit", error);
+}
+
+Status LaunchAdvanceMtpD2Chain(
+    MtpGroupTransaction* transaction, MtpChainResult* chain_result,
+    std::uint32_t* output_tokens, std::uint32_t* proposed_tokens,
+    cudaGraphConditionalHandle condition, cudaStream_t stream) {
+  if (transaction == nullptr || chain_result == nullptr ||
+      output_tokens == nullptr || proposed_tokens == nullptr ||
+      condition == 0U) {
+    return Status(StatusCode::kInvalidArgument,
+                  "MTP D2 chain-advance arguments are invalid");
+  }
+  AdvanceMtpD2ChainKernel<<<1U, 1U, 0, stream>>>(
+      transaction, chain_result, output_tokens, proposed_tokens, condition);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("launch MTP D2 chain advance", error);
 }
 
 }  // namespace gem16::internal
