@@ -153,3 +153,12 @@ medians are 31.798 and 42.639 effective target-verified tok/s, respectively (1.3
 telemetry are retained under the ignored result path documented in the performance ledger. This result does not
 make MTP universally preferable: every new workload must retain identical output semantics and report ordinary,
 explicit draft, acceptance, and adaptive/fallback behavior under the same repetition policy.
+
+External MTP characterizations use the same prompt and also include a fixed-1,135-token, ignore-EOS screen to
+control output count when numerical differences change the stop point. Patched graph-vLLM reaches 57.390 tok/s in
+a 3/10 stop-terminated D2 run and 57.363 tok/s in the fixed-length screen. That fixed screen reserves 0.85/0.90
+GPU utilization for ordinary/MTP because MTP rejected the lower reservation. Current llama.cpp reaches 48.38 tok/s
+fixed-length D2. Neither runtime's MTP output equals its own ordinary greedy output, so these values are hardware
+bounds only and cannot be called exact speculative speedups or compared as quality-parity headlines. vLLM uses the
+direct mixed checkpoint and FP8 KV; llama.cpp uses BF16-mapped attention and Q8_0 KV. See the corresponding
+`mtp-characterization.json` files for complete disclosure.

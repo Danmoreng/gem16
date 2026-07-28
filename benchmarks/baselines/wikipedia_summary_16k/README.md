@@ -109,6 +109,20 @@ run; sampled peak GPU memory is 10,838 MiB. No fallback or token-loop allocation
 commands, output hashes, and continuous telemetry remain ignored under
 `benchmarks/results/2026-07-28/18ff81e-worktree/blackwell16gb-mtp-performance/qualification/`.
 
+### External MTP feasibility follow-up
+
+The same prompt now has official-assistant MTP characterizations in both external runtimes. Patched graph-vLLM
+D1/D2/D4 screens reach 49.59/58.69/56.06 tok/s; D2 reaches 57.390 median tok/s over 3 warm-ups and 10 runs. Current
+upstream llama.cpp reaches 48.38 D2 tok/s in a fixed-1,135-token screen and 50.21/49.75 D2/D4 under normal stop
+semantics. The llama path proves real Layer-46/47 shared KV and complete target/assistant GPU layer residency.
+
+Neither result is exact against the runtime's own ordinary route. At fixed 1,135-token length, vLLM first differs
+at output index 2 and llama.cpp at index 133. llama.cpp also uses BF16-mapped source attention and Q8_0 KV. These
+are therefore hardware bounds, not parity baselines. vLLM's 35.75 ms D2 group time is below the 37.65
+ms required for 60 tok/s at gem16's measured acceptance, while exact gem16 currently takes about 52.98 ms/group.
+Details are in `benchmarks/baselines/vllm/mtp-characterization.json` and
+`benchmarks/baselines/llama_cpp/mtp-characterization.json`.
+
 ## Reproduction
 
 First create the pinned exact-token workload with the local checkpoint tokenizer:
@@ -129,9 +143,10 @@ python3 tools/benchmark_wikipedia_workload.py \
   --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 \
   --executable build/Linux/blackwell-release/bin/gem16-run
 
-# Add these arguments for an explicit MTP mode:
+# Add these arguments for explicit vLLM MTP:
 # --assistant-model models/checkpoints/google-gemma-4-12B-it-assistant-364bd03
 # --mtp-draft-tokens 1|2|4
+# Add --fixed-output-tokens 1135 to disable stop handling for a length-controlled screen.
 
 HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 VLLM_NO_USAGE_STATS=1 \
 third_party/cache/unsloth-nvfp4-env/bin/python \
@@ -144,6 +159,10 @@ python3 tools/benchmark_wikipedia_workload.py \
   --executable build/llama_cpp/release/bin/llama-server \
   --gguf build/llama_cpp/gemma4-12b-nvfp4-patched.gguf \
   --llama-kv-cache-type q8_0
+
+# Add these arguments for explicit llama.cpp MTP:
+# --assistant-model build/llama_cpp/gemma4-12b-assistant-bf16.gguf
+# --mtp-draft-tokens 1|2|4
 ```
 
 Full per-run artifacts remain under `benchmarks/results/`; the tracked `characterization.json` retains the

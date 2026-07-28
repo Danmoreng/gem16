@@ -3,6 +3,22 @@
 Upstream is pinned to commit `846e991ec3c7ccec49112ff2c5b00b710e5f551d`, the `master` tip resolved on
 2026-07-21. A development characterization has been captured; no accepted or headline baseline exists yet.
 
+## Gemma 4 MTP capability
+
+Both the pinned runtime and current upstream `da5b448622ce8f8265bed15a7f80c5cf17894511` implement the dedicated
+`gemma4-assistant` architecture and `draft-mtp` scheduler. The pinned converter accepts Google's official BF16
+assistant and emits a 861,520,160-byte GGUF with SHA-256
+`7b82a9f31fa365fb8ce533424cfad6c5106086f40b3eade4d91d8c5bb63d8224`. Runtime logs prove all 49 target and all
+5 assistant layer groups are on GPU and that assistant layers 0/1/2 share target Layer-46 K/V while layer 3 shares
+Layer-47 K/V.
+
+On the 16K Wikipedia workload, current-upstream fixed-1,135-token screens reach 28.56 ordinary and 48.38 D2 tok/s.
+Stop-terminated D2/D4 screens reach 50.21/49.75 tok/s. The older pinned runtime reaches 43.52/47.65/47.52 tok/s for
+D1/D2/D4. This is not exact format parity: target FP8 attention weights are BF16 in the patched GGUF and K/V is
+Q8_0. It is also not internally token-exact: current-upstream ordinary and D2 first differ at fixed output index
+133. These results establish working official-assistant/shared-KV support, not an accepted performance baseline.
+See `mtp-characterization.json`.
+
 ## Same-source gate
 
 The exact pinned Hugging Face checkpoint cannot currently pass upstream's converter. The converter recognizes

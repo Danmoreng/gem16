@@ -1,5 +1,27 @@
 # Decisions
 
+## 2026-07-29: Use external MTP only as a hardware bound and allow one final exact-verifier sprint
+
+Date: 2026-07-29
+Decision: Treat patched graph-vLLM and current llama.cpp Gemma 4 MTP as non-exact performance characterizations,
+not baselines. Use vLLM's fixed-length 35.75 ms/group result as evidence that 60 effective tok/s is physically
+possible at gem16's acceptance, and permit one bounded profile-driven sprint on gem16's exact target verifier.
+Do not adopt either runtime's numerically different batched target semantics. If the sprint cannot materially
+close gem16's 52.98-to-37.65 ms/group requirement, end text optimization and proceed to multimodal.
+Context: Exact gem16 D2 reaches 42.639 tok/s at mean accepted drafts 1.259. Patched vLLM reaches 57.390 tok/s over
+3 warm-ups/10 runs and 57.363 tok/s at fixed 1,135-token length despite lower acceptance, because its verifier
+groups take 35.75 ms. Current llama.cpp reaches 48.38 fixed-length D2 tok/s. vLLM ordinary/MTP first differ at
+fixed index 2; llama.cpp first differs at index 133 and also uses BF16-mapped attention plus Q8_0 KV.
+Alternatives: Declare 60 impossible from gem16's current cost; copy vLLM's faster numerical route; fully qualify
+llama.cpp as parity; or optimize indefinitely. The first ignores measured hardware headroom, the next two violate
+exactness/format disclosure, and the last violates the bounded optimization policy.
+Consequences: The remaining performance objective is verifier-group latency, not acceptance or host scheduling.
+A successful candidate still requires exact 1,135-token identity and normal 3/10 qualification. External numbers
+cannot become correctness evidence or headline cross-engine speedups.
+Evidence: `benchmarks/baselines/vllm/mtp-characterization.json`,
+`benchmarks/baselines/llama_cpp/mtp-characterization.json`, direct official-assistant conversion, target-Layer-46/47
+shared-KV logs, fixed-output screens, vLLM 3/10 results, and continuous vLLM telemetry.
+
 ## 2026-07-28: Use GPU MTP transactions and decode-sized verifier projections
 
 Date: 2026-07-28

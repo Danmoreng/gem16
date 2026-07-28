@@ -8,6 +8,36 @@ loading, chunked prefill, greedy decoding, CUDA Graphs, three warmups, and ten m
 `CutlassFP8ScaledMMLinearKernel` for FP8 attention projections and `FlashInferCutlassNvFp4LinearKernel` for the
 NVFP4 MLP. The full configuration and every sample are retained in `direct-bf16-kv-characterization.json`.
 
+## Gemma 4 MTP characterization
+
+vLLM 0.25.1 directly loads the official BF16 assistant and shares its three sliding layers with target Layer 46
+and its full layer with target Layer 47. Its unmodified CUDA-Graph initialization fails because Python-list
+suppression indexing constructs a CPU index tensor during capture. The auditable patch in
+`patches/gemma4-mtp-suppress-graph.patch` replaces the two-ID list operation with graph-safe scalar indexing while
+applying the same two suppression assignments.
+
+On the 16,384-token Wikipedia workload with direct mixed FP8/NVFP4 target weights and FP8 KV, graph D1/D2/D4
+screens reach 49.59/58.69/56.06 effective tok/s. The retained D2 3-warmup/10-run characterization reaches 57.390
+median tok/s with mean 95% CI `[57.370,57.468]`, 556 accepted drafts over 513 groups, and a sampled 14,166 MiB
+peak; median group latency is 36.24 ms. A separate fixed-1,135-token screen reaches 57.363 tok/s and 35.75 ms per
+verifier group. Its ordinary
+and MTP processes reserve 0.85 and 0.90 GPU-memory-utilization respectively because MTP initialization rejected
+the lower KV reservation; this does not qualify as an identical-memory-policy comparison.
+
+Apply the patch only to the pinned reference environment after verifying the original file SHA-256 is
+`4eee061c81430be28f029ed66360887a57f8711a75c863067d30e3840a488918`:
+
+```bash
+patch -p1 -d third_party/cache/unsloth-nvfp4-env/lib/python3.13/site-packages \
+  < benchmarks/baselines/vllm/patches/gemma4-mtp-suppress-graph.patch
+```
+
+These are **not exact speculative-decoding baseline results**. vLLM ordinary and MTP are each deterministic, but
+they first differ at output index 33 under stop semantics and index 2 in the fixed-length screen. The ordinary
+and MTP runs also choose different target batch shapes and, in the stop-terminated characterization, emit 1,215
+and 1,068 tokens. The numbers establish hardware/performance headroom only. Machine-readable details are in
+`mtp-characterization.json`; raw runs and 200 ms telemetry remain ignored under `benchmarks/results/`.
+
 ## Comparison with llama.cpp
 
 The llama.cpp candidate is the patched same-source closest-parity GGUF characterized in

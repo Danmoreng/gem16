@@ -1,5 +1,26 @@
 # Performance ledger
 
+## 2026-07-29 External Gemma 4 MTP feasibility matrix
+
+The same 16,384-token Wikipedia prompt was run through direct-checkpoint vLLM 0.25.1 and llama.cpp's official
+Gemma 4 assistant path. A one-line semantic vLLM patch replaces suppression-token list indexing, which performs a
+forbidden CPU index transfer during CUDA capture, with two scalar indices. Graph D1/D2/D4 screens reach
+49.59/58.69/56.06 tok/s. D2 then reaches 57.390 median tok/s over 3 warm-ups and 10 measured runs (mean 57.419,
+95% CI `[57.370,57.468]`), with 556 accepted drafts, 513 groups, and sampled peak memory 14,166 MiB. A separate
+fixed-1,135-token screen reaches 57.363 tok/s and 35.75 ms/group.
+
+Current upstream llama.cpp `da5b4486` directly executes a BF16 GGUF converted from Google's assistant, offloads all
+49 target and 5 assistant layer groups, and logs three Layer-46 plus one Layer-47 shared-KV binding. On the fixed
+1,135-token screen it reaches 28.56 ordinary and 48.38 D2 tok/s; stop-terminated D2/D4 screens reach 50.21/49.75
+tok/s. The target is the patched closest-parity GGUF with BF16-mapped attention and Q8_0 KV.
+
+Neither external MTP route is exact against its own ordinary greedy route: fixed-length vLLM first differs at index
+2 and llama.cpp at index 133. Their results are not promoted as baselines. They answer the hardware question:
+vLLM performs a D2 verifier group in 35.75 ms, below the 37.65 ms required for 60 tok/s at gem16's measured
+acceptance, while exact gem16 currently takes about 52.98 ms. Decision: retain external results only as a bound and
+allow one final bounded exact-verifier sprint. Raw data remains under the ignored result tree; committed summaries
+are `benchmarks/baselines/{vllm,llama_cpp}/mtp-characterization.json`.
+
 ## 2026-07-28 GPU MTP transaction and exact short-batch verifier kernels
 
 A 16K/256 D2 Nsight trace after long-context correctness restoration attributes verifier GPU time primarily to

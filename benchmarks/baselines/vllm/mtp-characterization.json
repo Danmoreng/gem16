@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "status": "non_exact_performance_characterization",
+  "date": "2026-07-29",
+  "runtime": {
+    "vllm": "0.25.1",
+    "torch": "2.11.0+cu130",
+    "target_checkpoint": "unsloth/gemma-4-12b-it-NVFP4@b1f6497",
+    "assistant_checkpoint": "google/gemma-4-12B-it-assistant@364bd03c9952e5b7da73665ee30c9eccfc408345",
+    "local_patch": "patches/gemma4-mtp-suppress-graph.patch",
+    "target_format": "direct mixed FP8 attention and NVFP4 MLP",
+    "kv_cache": "fp8",
+    "cuda_graphs": true,
+    "batch_size": 1
+  },
+  "workload": {
+    "id": "wikipedia-artificial-intelligence-summary-16k",
+    "prompt_tokens": 16384,
+    "prompt_token_ids_sha256": "d07ad4d805944f0b87869da0c5bb44d99e8c43c0eb57d05a108ad80a6abb51a8",
+    "temperature": 0.0
+  },
+  "stop_terminated_3_warmup_10_measured": {
+    "ordinary": {
+      "generated_tokens": 1215,
+      "median_decode_tokens_per_second": 33.35488766752269,
+      "mean_confidence_interval_95": [33.31635818175922, 33.48787168361857]
+    },
+    "mtp_d2": {
+      "generated_tokens": 1068,
+      "median_decode_tokens_per_second": 57.389670453872924,
+      "mean_confidence_interval_95": [57.36985792983694, 57.468077377463516],
+      "proposed_tokens": 1026,
+      "accepted_tokens": 556,
+      "verification_groups": 513,
+      "mean_accepted_drafts": 1.0838206627680311,
+      "median_group_latency_ms": 36.24209743177214,
+      "sampled_peak_gpu_memory_mib": 14166
+    }
+  },
+  "fixed_1135_token_1_warmup_2_measured": {
+    "ordinary_gpu_memory_utilization": 0.85,
+    "mtp_d2_gpu_memory_utilization": 0.90,
+    "ordinary_median_decode_tokens_per_second": 35.298545469317084,
+    "mtp_d2_median_decode_tokens_per_second": 57.362667068277,
+    "mtp_proposed_tokens": 1105,
+    "mtp_accepted_tokens": 581,
+    "mtp_verification_groups": 553,
+    "mtp_mean_accepted_drafts": 1.0506329113924051,
+    "mtp_median_group_latency_ms": 35.74858033001706
+  },
+  "correctness": {
+    "deterministic_within_each_configuration": true,
+    "ordinary_equals_mtp": false,
+    "stop_terminated_first_difference_index": 33,
+    "fixed_1135_first_difference_index": 2,
+    "headline_eligible": false
+  },
+  "limitations": [
+    "MTP and ordinary outputs differ, so these results are not an exact speculative-decoding baseline.",
+    "The stop-terminated comparison emits different output counts; the fixed-length screen controls output count separately.",
+    "The fixed-length ordinary/MTP screens use 0.85/0.90 GPU memory utilization because MTP initialization rejected the lower KV-cache reservation.",
+    "The local patch only replaces two-token list indexing with graph-safe scalar indexing.",
+    "FlashInfer autotuning reported default tactics and OOM fallbacks during initialization.",
+    "Raw results and 200 ms GPU telemetry remain under the ignored benchmarks/results tree."
+  ]
+}

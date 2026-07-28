@@ -42,9 +42,13 @@ of the correctness and native-kernel gates below.
   The qualified Wikipedia 16K gate uses three alternating warm-up pairs and ten alternating measured pairs:
   ordinary reaches 31.798 median tok/s and exact D2 reaches 42.639 (+34.1%) with all 1,135 IDs equal in every run.
   An exact verifier-suffix graph added memory without speed and was removed; full position-controlled graph work is
-  deferred while profiles remain kernel-bound. The active gate is the remaining bounded path toward the 60 tok/s
-  stretch target, followed by the binding [multimodal expansion plan](MULTIMODAL.md), as detailed in
-  [the MTP plan](MTP.md).
+  deferred while profiles remain kernel-bound. The external feasibility matrix is now complete: patched graph-vLLM
+  reaches 57.390 D2 tok/s and 35.75 ms/verifier group, while current llama.cpp reaches 48.38 fixed-length D2.
+  Both external MTP routes diverge from their own ordinary greedy sequence and are characterization only. vLLM's
+  group cost nevertheless proves hardware headroom below gem16's 37.65 ms/group requirement for 60 tok/s at the
+  measured acceptance. The active gate is one final bounded exact-verifier sprint; absent a material exact gain,
+  retain the qualified 42.639 tok/s result and begin the binding [multimodal expansion plan](MULTIMODAL.md), as
+  detailed in [the MTP plan](MTP.md).
   Every performance promotion still requires correctness, generation, logit, 3-warm-up/10-run benchmark, Nsight,
   spill, allocation, and peak-VRAM evidence and becomes the sole production path.
 

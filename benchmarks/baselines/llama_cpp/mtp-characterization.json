@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "status": "non_exact_performance_characterization",
+  "date": "2026-07-29",
+  "runtime": {
+    "pinned_commit": "846e991ec3c7ccec49112ff2c5b00b710e5f551d",
+    "current_upstream_commit": "da5b448622ce8f8265bed15a7f80c5cf17894511",
+    "target_gguf_sha256": "e4910e01c4275e58acbf2c38c4d4fb81acf61bb8aa04eed121eb5ac942705e8a",
+    "assistant_gguf_sha256": "7b82a9f31fa365fb8ce533424cfad6c5106086f40b3eade4d91d8c5bb63d8224",
+    "assistant_gguf_bytes": 861520160,
+    "target_format": "closest-parity patched GGUF with NVFP4 MLP and BF16-mapped attention",
+    "assistant_format": "BF16 GGUF converted from the official assistant",
+    "kv_cache": "q8_0",
+    "speculative_type": "draft-mtp",
+    "batch_size": 1
+  },
+  "capability": {
+    "assistant_architecture": "gemma4-assistant",
+    "official_assistant_conversion": "pass",
+    "target_layer_46_sliding_kv_sharing": "pass",
+    "target_layer_47_full_kv_sharing": "pass",
+    "gpu_layer_request": "all",
+    "target_layers_offloaded_to_gpu": "49/49",
+    "assistant_layers_offloaded_to_gpu": "5/5",
+    "target_cuda_model_buffer_mib": 11069.25,
+    "assistant_cuda_model_buffer_mib": 806.57,
+    "cpu_weight_offload_observed": false
+  },
+  "workload": {
+    "id": "wikipedia-artificial-intelligence-summary-16k",
+    "prompt_tokens": 16384,
+    "prompt_token_ids_sha256": "d07ad4d805944f0b87869da0c5bb44d99e8c43c0eb57d05a108ad80a6abb51a8",
+    "temperature": 0.0
+  },
+  "current_upstream_fixed_1135_token_1_warmup_2_measured": {
+    "ordinary_median_decode_tokens_per_second": 28.564042887066165,
+    "mtp_d2_median_decode_tokens_per_second": 48.375460785181296,
+    "mtp_proposed_tokens": 1013,
+    "mtp_accepted_tokens": 626,
+    "mtp_verification_groups": 509,
+    "mtp_mean_accepted_drafts": 1.2298624754420431
+  },
+  "current_upstream_stop_terminated_screens": {
+    "mtp_d2_median_decode_tokens_per_second": 50.211295140937956,
+    "mtp_d2_mean_acceptance_length_including_bonus": 2.27,
+    "mtp_d4_median_decode_tokens_per_second": 49.74574645733624,
+    "mtp_d4_mean_acceptance_length_including_bonus": 2.80
+  },
+  "pinned_runtime_stop_terminated_screens": {
+    "ordinary_median_decode_tokens_per_second": 28.372561932866887,
+    "mtp_d1_median_decode_tokens_per_second": 43.518419255278175,
+    "mtp_d2_median_decode_tokens_per_second": 47.65239515893468,
+    "mtp_d4_median_decode_tokens_per_second": 47.52233049324647
+  },
+  "correctness": {
+    "deterministic_within_each_configuration": true,
+    "ordinary_equals_mtp": false,
+    "current_fixed_1135_first_difference_index": 133,
+    "headline_eligible": false
+  },
+  "limitations": [
+    "The target GGUF maps source FP8 attention weights to BF16 and is not exact format parity.",
+    "Q8_0 KV differs from gem16 and vLLM checkpoint-FP8 KV.",
+    "MTP and ordinary outputs differ, so these results are not an exact speculative-decoding baseline.",
+    "Current-upstream values are two-run screens, not 3-warmup/10-run qualification.",
+    "The assistant converter warns that proportional RoPE is unknown even though the runtime executes the architecture."
+  ]
+}
