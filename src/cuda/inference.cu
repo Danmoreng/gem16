@@ -57,6 +57,9 @@ constexpr std::uint64_t kRepetitionMaskWords = (kVocabulary + 31U) / 32U;
 constexpr float kEpsilon = 1.0e-6F;
 constexpr unsigned kThreads = 256;
 constexpr unsigned kFusedOutputHeadBlocks = 4096;
+constexpr std::uint64_t kMaximumMtpDraftTokens = 4U;
+constexpr std::uint64_t kMaximumMtpVerifyTokens =
+    kMaximumMtpDraftTokens + 1U;
 constexpr std::uint64_t kDefaultPrefillChunkTokens = 2048;
 constexpr std::uint64_t kMinimumPrefillChunkTokens = 32;
 constexpr std::uint64_t kPrefillChunkQuantum = 32;
@@ -667,6 +670,19 @@ struct WorkspaceOffsets {
   std::uint64_t total = 0;
 };
 
+struct MtpWorkspaceOffsets {
+  struct LayerKv {
+    std::uint64_t key = 0;
+    std::uint64_t value = 0;
+    std::uint64_t backup_key = 0;
+    std::uint64_t backup_value = 0;
+  };
+  std::array<LayerKv, kLayers> layers{};
+  std::uint64_t output_candidates = 0;
+  std::uint64_t selected = 0;
+  std::uint64_t total = 0;
+};
+
 struct HostDecodeState {
   internal::DecodeControl control{};
   std::uint32_t selected_token = 0;
@@ -848,6 +864,142 @@ __global__ void FusedOutputHeadCandidatesKernel(
     }
     if (lane == 0U) candidates[blockIdx.x] = best;
   }
+}
+
+__global__ void FusedOutputHeadBatchCandidatesKernel(
+    const std::uint16_t* weights, const float* hidden,
+    const std::uint32_t* suppressed, std::uint32_t suppressed_count,
+    std::uint64_t rows, ArgmaxValue* candidates) {
+  constexpr unsigned kWarpSize = 32U;
+  constexpr unsigned kWarpsPerBlock = kThreads / kWarpSize;
+  __shared__ ArgmaxValue
+      warp_candidates[kMaximumMtpVerifyTokens][kWarpsPerBlock];
+  const unsigned warp = threadIdx.x / kWarpSize;
+  const unsigned lane = threadIdx.x % kWarpSize;
+  ArgmaxValue best[kMaximumMtpVerifyTokens];
+#pragma unroll
+  for (unsigned row = 0U; row < kMaximumMtpVerifyTokens; ++row) {
+    best[row] = {-FLT_MAX, 0U};
+  }
+  for (std::uint64_t token =
+           static_cast<std::uint64_t>(blockIdx.x) * kWarpsPerBlock + warp;
+       token < kVocabulary;
+       token += static_cast<std::uint64_t>(gridDim.x) * kWarpsPerBlock) {
+    float sums[kMaximumMtpVerifyTokens]{};
+    const std::uint64_t base = token * kHidden;
+    for (std::uint64_t index = lane; index < kHidden; index += kWarpSize) {
+      const float weight = static_cast<float>(
+          __ushort_as_bfloat16(weights[base + index]));
+#pragma unroll
+      for (unsigned row = 0U; row < kMaximumMtpVerifyTokens; ++row) {
+        if (row < rows) {
+          sums[row] = fmaf(weight, hidden[row * kHidden + index], sums[row]);
+        }
+      }
+    }
+#pragma unroll
+    for (unsigned row = 0U; row < kMaximumMtpVerifyTokens; ++row) {
+      if (row >= rows) continue;
+      for (unsigned offset = kWarpSize / 2U; offset != 0U; offset >>= 1U) {
+        sums[row] += __shfl_down_sync(0xFFFFFFFFU, sums[row], offset);
+      }
+      if (lane == 0U &&
+          !IsSuppressed(token, suppressed, suppressed_count)) {
+        const float value = tanhf(sums[row] / 30.0F) * 30.0F;
+        if (value > best[row].value ||
+            (value == best[row].value && token < best[row].token)) {
+          best[row] = {value, static_cast<std::uint32_t>(token)};
+        }
+      }
+    }
+  }
+  if (lane == 0U) {
+#pragma unroll
+    for (unsigned row = 0U; row < kMaximumMtpVerifyTokens; ++row) {
+      if (row < rows) warp_candidates[row][warp] = best[row];
+    }
+  }
+  __syncthreads();
+  if (warp == 0U) {
+#pragma unroll
+    for (unsigned row = 0U; row < kMaximumMtpVerifyTokens; ++row) {
+      if (row >= rows) continue;
+      ArgmaxValue value = lane < kWarpsPerBlock
+                              ? warp_candidates[row][lane]
+                              : ArgmaxValue{-FLT_MAX, 0U};
+      for (unsigned offset = kWarpSize / 2U; offset != 0U; offset >>= 1U) {
+        const float other_value =
+            __shfl_down_sync(0xFFFFFFFFU, value.value, offset);
+        const std::uint32_t other_token =
+            __shfl_down_sync(0xFFFFFFFFU, value.token, offset);
+        if (other_value > value.value ||
+            (other_value == value.value && other_token < value.token)) {
+          value = {other_value, other_token};
+        }
+      }
+      if (lane == 0U) {
+        candidates[row * kFusedOutputHeadBlocks + blockIdx.x] = value;
+      }
+    }
+  }
+}
+
+template <typename T, bool kRestore>
+__global__ void CopyCircularMtpKvKernel(
+    T* cache_key, T* cache_value, T* compact_key, T* compact_value, std::uint64_t start_position, std::uint64_t tokens,
+    std::uint64_t elements_per_token, std::uint64_t capacity) {
+  const std::uint64_t total = tokens * elements_per_token;
+  const std::uint64_t index =
+      static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+  if (index >= total) return;
+  const std::uint64_t token = index / elements_per_token;
+  const std::uint64_t element = index % elements_per_token;
+  const std::uint64_t cache_index =
+      ((start_position + token) % capacity) * elements_per_token + element;
+  if constexpr (kRestore) {
+    cache_key[cache_index] = compact_key[index];
+    cache_value[cache_index] = compact_value[index];
+  } else {
+    compact_key[index] = cache_key[cache_index];
+    compact_value[index] = cache_value[cache_index];
+  }
+}
+
+__global__ void SetMtpAttentionPositionKernel(
+    internal::DecodeControl* control, std::uint64_t position) {
+  if (blockIdx.x == 0U && threadIdx.x == 0U) control->position = position;
+}
+
+__global__ void OutputHeadBatchArgmaxKernel(
+    const ArgmaxValue* candidates, std::uint64_t rows,
+    std::uint32_t* selected) {
+  const std::uint64_t row = blockIdx.x;
+  if (row >= rows) return;
+  __shared__ ArgmaxValue scratch[kThreads];
+  ArgmaxValue best{-FLT_MAX, 0U};
+  candidates += row * kFusedOutputHeadBlocks;
+  for (std::uint32_t index = threadIdx.x; index < kFusedOutputHeadBlocks;
+       index += blockDim.x) {
+    const ArgmaxValue candidate = candidates[index];
+    if (candidate.value > best.value ||
+        (candidate.value == best.value && candidate.token < best.token)) {
+      best = candidate;
+    }
+  }
+  scratch[threadIdx.x] = best;
+  __syncthreads();
+  for (unsigned stride = kThreads / 2U; stride != 0U; stride >>= 1U) {
+    if (threadIdx.x < stride) {
+      const ArgmaxValue other = scratch[threadIdx.x + stride];
+      if (other.value > scratch[threadIdx.x].value ||
+          (other.value == scratch[threadIdx.x].value &&
+           other.token < scratch[threadIdx.x].token)) {
+        scratch[threadIdx.x] = other;
+      }
+    }
+    __syncthreads();
+  }
+  if (threadIdx.x == 0U) selected[row] = scratch[0].token;
 }
 
 __global__ void OutputHeadCandidateArgmaxKernel(
@@ -1067,6 +1219,10 @@ class InferenceEngine {
     if (!status.ok()) return status;
     status = AllocatePrefillWorkspace();
     if (!status.ok()) return status;
+    if (mtp_draft_tokens_ != 0U) {
+      status = AllocateMtpWorkspace();
+      if (!status.ok()) return status;
+    }
     status = internal::LaunchRotaryEmbeddingTableBatch(
         Pointer<float>(prefill_workspace_, prefill_offsets_.local_rope_cosine),
         Pointer<float>(prefill_workspace_, prefill_offsets_.local_rope_sine),
@@ -1253,7 +1409,7 @@ class InferenceEngine {
     return assistant_.tensor_count();
   }
   [[nodiscard]] std::uint64_t assistant_workspace_bytes() const {
-    return assistant_.workspace_bytes();
+    return assistant_.workspace_bytes() + mtp_workspace_.bytes();
   }
   [[nodiscard]] Status GenerateAssistantDrafts(
       std::uint32_t input_token, std::uint64_t processed_position,
@@ -1307,9 +1463,126 @@ class InferenceEngine {
     context.position = processed_position;
     return assistant_.GenerateDrafts(context, draft_token_ids, stream_);
   }
+
+  [[nodiscard]] Status VerifyAssistantDraftsBatch(
+      std::uint32_t input_token, std::uint64_t start_position,
+      std::span<const std::uint32_t> draft_token_ids,
+      std::span<std::uint32_t> verified_token_ids) {
+    const NvtxRange range("gem16.mtp.verify");
+    const std::uint64_t tokens = draft_token_ids.size() + 1U;
+    if (mtp_draft_tokens_ == 0U || draft_token_ids.empty() ||
+        draft_token_ids.size() > mtp_draft_tokens_ ||
+        tokens > kMaximumMtpVerifyTokens ||
+        verified_token_ids.size() != tokens || start_position >= max_context_ ||
+        tokens > max_context_ - start_position) {
+      return Error(StatusCode::kInvalidArgument,
+                   "batched MTP verification extent is invalid");
+    }
+    std::array<std::uint32_t, kMaximumMtpVerifyTokens> inputs{};
+    inputs[0] = input_token;
+    std::copy(draft_token_ids.begin(), draft_token_ids.end(),
+              inputs.begin() + 1U);
+    auto* device_tokens =
+        Pointer<std::uint32_t>(prefill_workspace_, prefill_offsets_.token_ids);
+    cudaError_t error = cudaMemcpyAsync(
+        device_tokens, inputs.data(),
+        static_cast<std::size_t>(tokens * sizeof(std::uint32_t)),
+        cudaMemcpyHostToDevice, stream_);
+    if (error != cudaSuccess) {
+      return CudaFailure("copy MTP verification token IDs", error);
+    }
+    float* hidden =
+        Pointer<float>(prefill_workspace_, prefill_offsets_.hidden_a);
+    const std::uint64_t hidden_elements = tokens * kHidden;
+    EmbeddingBatchKernel<<<
+        static_cast<unsigned>((hidden_elements + kThreads - 1U) / kThreads),
+        kThreads, 0, stream_>>>(model_.embedding(), device_tokens, hidden,
+                                hidden_elements);
+    error = cudaGetLastError();
+    if (error != cudaSuccess) {
+      return CudaFailure("launch MTP verification embedding", error);
+    }
+    for (std::size_t index = 0; index < model_.layers().size(); ++index) {
+      Status status = RunLayerBatch(model_.layers()[index], start_position,
+                                    tokens, index);
+      if (!status.ok()) return status;
+    }
+    float* normalized =
+        Pointer<float>(prefill_workspace_, prefill_offsets_.normalized);
+    Status status = internal::LaunchRmsNormBf16(
+        hidden, model_.final_norm(), normalized, tokens, kHidden, kEpsilon,
+        stream_);
+    if (!status.ok()) return status;
+    auto* candidates = Pointer<ArgmaxValue>(
+        mtp_workspace_, mtp_offsets_.output_candidates);
+    auto* selected =
+        Pointer<std::uint32_t>(mtp_workspace_, mtp_offsets_.selected);
+    FusedOutputHeadBatchCandidatesKernel<<<kFusedOutputHeadBlocks, kThreads, 0,
+                                           stream_>>>(
+        model_.embedding(), normalized,
+        Pointer<std::uint32_t>(workspace_, offsets_.suppressed),
+        suppressed_token_count_, tokens, candidates);
+    error = cudaGetLastError();
+    if (error != cudaSuccess) {
+      return CudaFailure("launch batched MTP output head", error);
+    }
+    OutputHeadBatchArgmaxKernel<<<static_cast<unsigned>(tokens), kThreads, 0,
+                                  stream_>>>(candidates, tokens, selected);
+    error = cudaGetLastError();
+    if (error != cudaSuccess) {
+      return CudaFailure("launch batched MTP argmax", error);
+    }
+    error = cudaMemcpyAsync(verified_token_ids.data(), selected,
+                            verified_token_ids.size_bytes(),
+                            cudaMemcpyDeviceToHost, stream_);
+    if (error != cudaSuccess) {
+      return CudaFailure("copy batched MTP target predictions", error);
+    }
+    error = cudaStreamSynchronize(stream_);
+    return error == cudaSuccess
+               ? Status::Ok()
+               : CudaFailure("synchronize batched MTP verification", error);
+  }
+
+  [[nodiscard]] Status CommitAssistantVerification(
+      std::uint64_t start_position, std::uint64_t committed_tokens) {
+    if (committed_tokens == 0U ||
+        committed_tokens > kMaximumMtpVerifyTokens ||
+        start_position >= max_context_ ||
+        committed_tokens > max_context_ - start_position) {
+      return Error(StatusCode::kInvalidArgument,
+                   "MTP verification commit extent is invalid");
+    }
+    for (std::size_t index = 0; index < model_.layers().size(); ++index) {
+      const LayerBinding& layer = model_.layers()[index];
+      const std::uint64_t capacity =
+          layer.global ? max_context_ : std::min(max_context_, kSlidingWindow);
+      Status status;
+      if (kv_cache_mode_ == KvCacheMode::kCheckpointFp8) {
+        status = internal::LaunchAppendKvFp8Batch(
+            Pointer<std::uint8_t>(mtp_workspace_, mtp_offsets_.layers[index].key),
+            Pointer<std::uint8_t>(mtp_workspace_, mtp_offsets_.layers[index].value),
+            layer.key_cache_fp8, layer.value_cache_fp8, start_position,
+            committed_tokens, layer.kv_elements, capacity, stream_);
+      } else {
+        status = internal::LaunchAppendKvBatch(
+            Pointer<float>(mtp_workspace_, mtp_offsets_.layers[index].key),
+            Pointer<float>(mtp_workspace_, mtp_offsets_.layers[index].value),
+            layer.key_cache_bf16, layer.value_cache_bf16, start_position,
+            committed_tokens, layer.kv_elements, capacity, stream_);
+      }
+      if (!status.ok()) return status;
+    }
+    latest_target_hidden_ =
+        Pointer<float>(prefill_workspace_, prefill_offsets_.normalized) +
+        (committed_tokens - 1U) * kHidden;
+    return Status::Ok();
+  }
+
   [[nodiscard]] std::uint64_t cache_bytes() const { return cache_.bytes(); }
   [[nodiscard]] std::uint64_t workspace_bytes() const {
-    return workspace_.bytes() + prefill_workspace_.bytes();
+    return workspace_.bytes() + prefill_workspace_.bytes() +
+           mtp_workspace_.bytes();
   }
   [[nodiscard]] std::uint64_t decode_graph_device_bytes() const {
     return decode_graph_device_bytes_;
@@ -1591,6 +1864,48 @@ class InferenceEngine {
     return workspace_.Allocate(size.value(), "allocate inference workspace arena");
   }
 
+  [[nodiscard]] Status AllocateMtpWorkspace() {
+    LayoutBuilder layout;
+    for (std::size_t index = 0; index < model_.layers().size(); ++index) {
+      const std::uint64_t elements =
+          kMaximumMtpVerifyTokens * model_.layers()[index].kv_elements;
+      Result<std::uint64_t> key =
+          kv_cache_mode_ == KvCacheMode::kCheckpointFp8
+              ? layout.Add<std::uint8_t>(elements)
+              : layout.Add<float>(elements);
+      Result<std::uint64_t> value =
+          kv_cache_mode_ == KvCacheMode::kCheckpointFp8
+              ? layout.Add<std::uint8_t>(elements)
+              : layout.Add<float>(elements);
+      Result<std::uint64_t> backup_key =
+          kv_cache_mode_ == KvCacheMode::kCheckpointFp8
+              ? layout.Add<std::uint8_t>(elements)
+              : layout.Add<float>(elements);
+      Result<std::uint64_t> backup_value =
+          kv_cache_mode_ == KvCacheMode::kCheckpointFp8
+              ? layout.Add<std::uint8_t>(elements)
+              : layout.Add<float>(elements);
+      if (!key.ok()) return key.status();
+      if (!value.ok()) return value.status();
+      if (!backup_key.ok()) return backup_key.status();
+      if (!backup_value.ok()) return backup_value.status();
+      mtp_offsets_.layers[index] = {
+          key.value(), value.value(), backup_key.value(), backup_value.value()};
+    }
+    auto candidates = layout.Add<ArgmaxValue>(
+        kMaximumMtpVerifyTokens * kFusedOutputHeadBlocks);
+    auto selected = layout.Add<std::uint32_t>(kMaximumMtpVerifyTokens);
+    if (!candidates.ok()) return candidates.status();
+    if (!selected.ok()) return selected.status();
+    mtp_offsets_.output_candidates = candidates.value();
+    mtp_offsets_.selected = selected.value();
+    auto size = AlignUp(layout.size(), kAlignment);
+    if (!size.ok()) return size.status();
+    mtp_offsets_.total = size.value();
+    return mtp_workspace_.Allocate(size.value(),
+                                   "allocate MTP verification workspace");
+  }
+
   [[nodiscard]] Status AllocatePrefillWorkspace() {
     LayoutBuilder layout;
 #define GEM16_PREFILL_ADD(field, type, elements)          \
@@ -1654,10 +1969,12 @@ class InferenceEngine {
     return prefill_workspace_.Allocate(size.value(), "allocate native prefill workspace");
   }
 
-  [[nodiscard]] Status RunLayerBatch(const LayerBinding& layer,
-                                     std::uint64_t start_position,
-                                     std::uint64_t tokens) {
-    const NvtxRange range("gem16.prefill.layer");
+  [[nodiscard]] Status RunLayerBatch(
+      const LayerBinding& layer, std::uint64_t start_position,
+      std::uint64_t tokens, std::size_t mtp_layer_index = kLayers) {
+    const bool mtp_verification = mtp_layer_index < kLayers;
+    const NvtxRange range(mtp_verification ? "gem16.mtp.verify.layer"
+                                           : "gem16.prefill.layer");
     float* hidden_a = Pointer<float>(prefill_workspace_, prefill_offsets_.hidden_a);
     float* hidden_b = Pointer<float>(prefill_workspace_, prefill_offsets_.hidden_b);
     auto* fp8 = Pointer<std::uint8_t>(prefill_workspace_, prefill_offsets_.fp8_activation);
@@ -1678,10 +1995,20 @@ class InferenceEngine {
         hidden_a, layer.input_norm, fp8, fp8_scales, tokens, kHidden,
         kEpsilon, stream_);
     if (!status.ok()) return status;
-    status = LaunchFp8QkvProjectionBatch(
-        fp8, fp8_scales, layer.q, q, layer.k, k,
-        layer.global ? nullptr : &layer.v, v, tokens, cutlass_workspace,
-        kCutlassWorkspaceBytes, stream_);
+    status = mtp_verification
+                 ? internal::LaunchFp8Sm120GroupedQkvProjectionBatch(
+                       fp8, fp8_scales, layer.q.weight, layer.q.scales, q,
+                       layer.q.rows, layer.k.weight, layer.k.scales, k,
+                       layer.k.rows,
+                       layer.global ? nullptr : layer.v.weight,
+                       layer.global ? nullptr : layer.v.scales,
+                       layer.global ? nullptr : v,
+                       layer.global ? 0U : layer.v.rows, tokens,
+                       layer.q.contracting, stream_)
+                 : LaunchFp8QkvProjectionBatch(
+                       fp8, fp8_scales, layer.q, q, layer.k, k,
+                       layer.global ? nullptr : &layer.v, v, tokens,
+                       cutlass_workspace, kCutlassWorkspaceBytes, stream_);
     if (!status.ok()) return status;
     if (layer.global) {
       const cudaError_t error = cudaMemcpyAsync(
@@ -1720,31 +2047,211 @@ class InferenceEngine {
           k_norm, v_norm, k_fp8, v_fp8, layer.k_cache_scale,
           layer.v_cache_scale, tokens, layer.kv_elements, stream_);
       if (!status.ok()) return status;
-      status = layer.global
-                   ? internal::LaunchOnlineCausalAttentionPrefillFp8GlobalSm120(
-                         q_norm, k_fp8, v_fp8, layer.key_cache_fp8,
-                         layer.value_cache_fp8, layer.k_cache_scale,
-                         layer.v_cache_scale, attention, start_position,
-                         tokens, kQueryHeads, layer.kv_heads,
-                         layer.head_dimension, capacity, stream_)
-                   : internal::LaunchOnlineCausalAttentionPrefillFp8LocalSm120(
-                         q_norm, k_fp8, v_fp8, layer.key_cache_fp8,
-                         layer.value_cache_fp8, layer.k_cache_scale,
-                         layer.v_cache_scale, attention, start_position,
-                         tokens, kQueryHeads, layer.kv_heads,
-                         layer.head_dimension, capacity, stream_);
-      if (!status.ok()) return status;
-      // A local chunk may be wider than its ring. Attention reads the whole
-      // current chunk directly, but only its newest ring-capacity suffix must
-      // survive for later chunks. Restricting the commit also avoids
-      // concurrent modulo-aliasing writes for positions one ring apart.
-      const std::uint64_t commit_offset =
-          layer.global || tokens <= capacity ? 0U : tokens - capacity;
-      status = internal::LaunchAppendKvFp8Batch(
-          k_fp8 + commit_offset * layer.kv_elements,
-          v_fp8 + commit_offset * layer.kv_elements, layer.key_cache_fp8,
-          layer.value_cache_fp8, start_position + commit_offset,
-          tokens - commit_offset, layer.kv_elements, capacity, stream_);
+      if (mtp_verification) {
+        auto* speculative_key = Pointer<std::uint8_t>(
+            mtp_workspace_, mtp_offsets_.layers[mtp_layer_index].key);
+        auto* speculative_value = Pointer<std::uint8_t>(
+            mtp_workspace_, mtp_offsets_.layers[mtp_layer_index].value);
+        const std::size_t bytes = static_cast<std::size_t>(
+            tokens * layer.kv_elements * sizeof(std::uint8_t));
+        cudaError_t copy_error = cudaMemcpyAsync(
+            speculative_key, k_fp8, bytes, cudaMemcpyDeviceToDevice, stream_);
+        if (copy_error == cudaSuccess) {
+          copy_error = cudaMemcpyAsync(speculative_value, v_fp8, bytes,
+                                       cudaMemcpyDeviceToDevice, stream_);
+        }
+        if (copy_error != cudaSuccess) {
+          return CudaFailure("retain speculative FP8 KV", copy_error);
+        }
+        if (!layer.global) {
+          const std::uint64_t elements = tokens * layer.kv_elements;
+          CopyCircularMtpKvKernel<std::uint8_t, false><<<
+              static_cast<unsigned>((elements + kThreads - 1U) / kThreads),
+              kThreads, 0, stream_>>>(
+              layer.key_cache_fp8, layer.value_cache_fp8,
+              Pointer<std::uint8_t>(
+                  mtp_workspace_,
+                  mtp_offsets_.layers[mtp_layer_index].backup_key),
+              Pointer<std::uint8_t>(
+                  mtp_workspace_,
+                  mtp_offsets_.layers[mtp_layer_index].backup_value),
+              start_position, tokens, layer.kv_elements, capacity);
+          copy_error = cudaGetLastError();
+          if (copy_error != cudaSuccess) {
+            return CudaFailure("backup local speculative FP8 KV", copy_error);
+          }
+        }
+        if (layer.global) {
+          status = internal::LaunchAppendKvFp8Batch(
+              k_fp8, v_fp8, layer.key_cache_fp8, layer.value_cache_fp8,
+              start_position, tokens, layer.kv_elements, capacity, stream_);
+          if (!status.ok()) return status;
+        }
+        float* decode_scores = Pointer<float>(workspace_, offsets_.scores);
+        auto* control = Pointer<internal::DecodeControl>(
+            workspace_, offsets_.decode_control);
+        for (std::uint64_t row = 0U; row < tokens; ++row) {
+          const std::uint64_t position = start_position + row;
+          if (!layer.global) {
+            status = internal::LaunchAppendKvFp8Batch(
+                k_fp8 + row * layer.kv_elements,
+                v_fp8 + row * layer.kv_elements, layer.key_cache_fp8,
+                layer.value_cache_fp8, position, 1U, layer.kv_elements,
+                capacity, stream_);
+            if (!status.ok()) return status;
+          }
+          const std::uint64_t attention_tokens =
+              layer.global ? position + 1U
+                           : std::min(position + 1U, capacity);
+          const std::uint64_t first_slot =
+              layer.global || position + 1U <= capacity
+                  ? 0U
+                  : (position + 1U) % capacity;
+          if (capacity <= 512U) {
+            status = internal::LaunchLocalAttentionDecodeFp8(
+                q_norm + row * layer.query_elements, layer.key_cache_fp8,
+                layer.value_cache_fp8, layer.k_cache_scale,
+                layer.v_cache_scale, decode_scores,
+                attention + row * layer.query_elements, kQueryHeads,
+                layer.kv_heads, layer.head_dimension, attention_tokens,
+                stream_, capacity, first_slot);
+          } else {
+            SetMtpAttentionPositionKernel<<<1U, 1U, 0, stream_>>>(control,
+                                                                 position);
+            copy_error = cudaGetLastError();
+            if (copy_error != cudaSuccess) {
+              return CudaFailure("set MTP attention position", copy_error);
+            }
+            status = internal::LaunchOnlineAttentionDecodeFp8Sm120(
+                q_norm + row * layer.query_elements, layer.key_cache_fp8,
+                layer.value_cache_fp8, layer.k_cache_scale,
+                layer.v_cache_scale, decode_scores,
+                attention + row * layer.query_elements, control, kQueryHeads,
+                layer.kv_heads, layer.head_dimension, capacity,
+                !layer.global, stream_);
+          }
+          if (!status.ok()) return status;
+        }
+        if (!layer.global) {
+          const std::uint64_t elements = tokens * layer.kv_elements;
+          CopyCircularMtpKvKernel<std::uint8_t, true><<<
+              static_cast<unsigned>((elements + kThreads - 1U) / kThreads),
+              kThreads, 0, stream_>>>(
+              layer.key_cache_fp8, layer.value_cache_fp8,
+              Pointer<std::uint8_t>(
+                  mtp_workspace_,
+                  mtp_offsets_.layers[mtp_layer_index].backup_key),
+              Pointer<std::uint8_t>(
+                  mtp_workspace_,
+                  mtp_offsets_.layers[mtp_layer_index].backup_value),
+              start_position, tokens, layer.kv_elements, capacity);
+          copy_error = cudaGetLastError();
+          if (copy_error != cudaSuccess) {
+            return CudaFailure("restore local speculative FP8 KV", copy_error);
+          }
+        }
+      } else {
+        status = layer.global
+                     ? internal::LaunchOnlineCausalAttentionPrefillFp8GlobalSm120(
+                           q_norm, k_fp8, v_fp8, layer.key_cache_fp8,
+                           layer.value_cache_fp8, layer.k_cache_scale,
+                           layer.v_cache_scale, attention, start_position,
+                           tokens, kQueryHeads, layer.kv_heads,
+                           layer.head_dimension, capacity, stream_)
+                     : internal::LaunchOnlineCausalAttentionPrefillFp8LocalSm120(
+                           q_norm, k_fp8, v_fp8, layer.key_cache_fp8,
+                           layer.value_cache_fp8, layer.k_cache_scale,
+                           layer.v_cache_scale, attention, start_position,
+                           tokens, kQueryHeads, layer.kv_heads,
+                           layer.head_dimension, capacity, stream_);
+        if (!status.ok()) return status;
+        const std::uint64_t commit_offset =
+            layer.global || tokens <= capacity ? 0U : tokens - capacity;
+        status = internal::LaunchAppendKvFp8Batch(
+            k_fp8 + commit_offset * layer.kv_elements,
+            v_fp8 + commit_offset * layer.kv_elements, layer.key_cache_fp8,
+            layer.value_cache_fp8, start_position + commit_offset,
+            tokens - commit_offset, layer.kv_elements, capacity, stream_);
+      }
+    } else if (mtp_verification) {
+      auto* speculative_key = Pointer<float>(
+          mtp_workspace_, mtp_offsets_.layers[mtp_layer_index].key);
+      auto* speculative_value = Pointer<float>(
+          mtp_workspace_, mtp_offsets_.layers[mtp_layer_index].value);
+      const std::size_t bytes = static_cast<std::size_t>(
+          tokens * layer.kv_elements * sizeof(float));
+      cudaError_t copy_error = cudaMemcpyAsync(
+          speculative_key, k_norm, bytes, cudaMemcpyDeviceToDevice, stream_);
+      if (copy_error == cudaSuccess) {
+        copy_error = cudaMemcpyAsync(speculative_value, v_norm, bytes,
+                                     cudaMemcpyDeviceToDevice, stream_);
+      }
+      if (copy_error != cudaSuccess) {
+        return CudaFailure("retain speculative BF16 KV", copy_error);
+      }
+      if (!layer.global) {
+        const std::uint64_t elements = tokens * layer.kv_elements;
+        CopyCircularMtpKvKernel<float, false><<<
+            static_cast<unsigned>((elements + kThreads - 1U) / kThreads),
+            kThreads, 0, stream_>>>(
+            layer.key_cache_bf16, layer.value_cache_bf16,
+            Pointer<float>(mtp_workspace_,
+                           mtp_offsets_.layers[mtp_layer_index].backup_key),
+            Pointer<float>(mtp_workspace_,
+                           mtp_offsets_.layers[mtp_layer_index].backup_value),
+            start_position, tokens, layer.kv_elements, capacity);
+        copy_error = cudaGetLastError();
+        if (copy_error != cudaSuccess) {
+          return CudaFailure("backup local speculative BF16 KV", copy_error);
+        }
+      }
+      if (layer.global) {
+        status = internal::LaunchAppendKvBatch(
+            k_norm, v_norm, layer.key_cache_bf16, layer.value_cache_bf16,
+            start_position, tokens, layer.kv_elements, capacity, stream_);
+        if (!status.ok()) return status;
+      }
+      float* decode_scores = Pointer<float>(workspace_, offsets_.scores);
+      for (std::uint64_t row = 0U; row < tokens; ++row) {
+        const std::uint64_t position = start_position + row;
+        if (!layer.global) {
+          status = internal::LaunchAppendKvBatch(
+              k_norm + row * layer.kv_elements,
+              v_norm + row * layer.kv_elements, layer.key_cache_bf16,
+              layer.value_cache_bf16, position, 1U, layer.kv_elements,
+              capacity, stream_);
+          if (!status.ok()) return status;
+        }
+        const std::uint64_t attention_tokens =
+            layer.global ? position + 1U : std::min(position + 1U, capacity);
+        const std::uint64_t first_slot =
+            layer.global || position + 1U <= capacity
+                ? 0U
+                : (position + 1U) % capacity;
+        status = internal::LaunchLocalAttentionDecode(
+            q_norm + row * layer.query_elements, layer.key_cache_bf16,
+            layer.value_cache_bf16, decode_scores,
+            attention + row * layer.query_elements, kQueryHeads,
+            layer.kv_heads, layer.head_dimension, attention_tokens, stream_,
+            capacity, first_slot);
+        if (!status.ok()) return status;
+      }
+      if (!layer.global) {
+        const std::uint64_t elements = tokens * layer.kv_elements;
+        CopyCircularMtpKvKernel<float, true><<<
+            static_cast<unsigned>((elements + kThreads - 1U) / kThreads),
+            kThreads, 0, stream_>>>(
+            layer.key_cache_bf16, layer.value_cache_bf16,
+            Pointer<float>(mtp_workspace_,
+                           mtp_offsets_.layers[mtp_layer_index].backup_key),
+            Pointer<float>(mtp_workspace_,
+                           mtp_offsets_.layers[mtp_layer_index].backup_value),
+            start_position, tokens, layer.kv_elements, capacity);
+        copy_error = cudaGetLastError();
+        if (copy_error != cudaSuccess) {
+          return CudaFailure("restore local speculative BF16 KV", copy_error);
+        }
+      }
     } else {
       float* scores =
           Pointer<float>(prefill_workspace_, prefill_offsets_.scores);
@@ -1766,9 +2273,14 @@ class InferenceEngine {
     status = internal::LaunchFp8ReferenceTokenQuantizationBatch(
         attention, o_activation, o_scales, tokens, layer.query_elements, stream_);
     if (!status.ok()) return status;
-    status = LaunchFp8ProjectionBatch(o_activation, o_scales, layer.o, projection,
-                                      tokens, cutlass_workspace,
-                                      kCutlassWorkspaceBytes, stream_);
+    status = mtp_verification
+                 ? internal::LaunchFp8Sm120DirectProjectionBatch(
+                       o_activation, o_scales, layer.o.weight, layer.o.scales,
+                       projection, tokens, layer.o.rows, layer.o.contracting,
+                       stream_)
+                 : LaunchFp8ProjectionBatch(
+                       o_activation, o_scales, layer.o, projection, tokens,
+                       cutlass_workspace, kCutlassWorkspaceBytes, stream_);
     if (!status.ok()) return status;
     status = LaunchRoundBf16(projection, hidden_elements, stream_);
     if (!status.ok()) return status;
@@ -1791,22 +2303,35 @@ class InferenceEngine {
         prefill_workspace_, prefill_offsets_.cutlass_weight);
     auto* cutlass_weight_scales = Pointer<std::uint8_t>(
         prefill_workspace_, prefill_offsets_.cutlass_weight_scales);
-    status = internal::LaunchNvfp4CutlassInterleaveActivationScales(
-        mlp_scales, cutlass_activation_scales, tokens, kHidden, stream_);
-    if (!status.ok()) return status;
-    status = internal::LaunchNvfp4CutlassProjectionBf16Batch(
-        mlp_packed, cutlass_activation_scales, layer.gate.packed_weight,
-        layer.gate.scales, cutlass_weight, cutlass_weight_scales,
-        cutlass_workspace, kCutlassWorkspaceBytes, gate, tokens,
-        layer.gate.rows, layer.gate.contracting, layer.gate.input_divisor,
-        layer.gate.weight_divisor, stream_);
-    if (!status.ok()) return status;
-    status = internal::LaunchNvfp4CutlassProjectionBf16Batch(
-        mlp_packed, cutlass_activation_scales, layer.up.packed_weight,
-        layer.up.scales, cutlass_weight, cutlass_weight_scales,
-        cutlass_workspace, kCutlassWorkspaceBytes, up, tokens, layer.up.rows,
-        layer.up.contracting, layer.up.input_divisor, layer.up.weight_divisor,
-        stream_);
+    if (mtp_verification) {
+      status = internal::LaunchNvfp4Sm120DirectProjectionBf16Batch(
+          mlp_packed, mlp_scales, layer.gate.packed_weight,
+          layer.gate.scales, gate, tokens, layer.gate.rows,
+          layer.gate.contracting, layer.gate.input_divisor,
+          layer.gate.weight_divisor, stream_);
+      if (!status.ok()) return status;
+      status = internal::LaunchNvfp4Sm120DirectProjectionBf16Batch(
+          mlp_packed, mlp_scales, layer.up.packed_weight, layer.up.scales, up,
+          tokens, layer.up.rows, layer.up.contracting,
+          layer.up.input_divisor, layer.up.weight_divisor, stream_);
+    } else {
+      status = internal::LaunchNvfp4CutlassInterleaveActivationScales(
+          mlp_scales, cutlass_activation_scales, tokens, kHidden, stream_);
+      if (!status.ok()) return status;
+      status = internal::LaunchNvfp4CutlassProjectionBf16Batch(
+          mlp_packed, cutlass_activation_scales, layer.gate.packed_weight,
+          layer.gate.scales, cutlass_weight, cutlass_weight_scales,
+          cutlass_workspace, kCutlassWorkspaceBytes, gate, tokens,
+          layer.gate.rows, layer.gate.contracting, layer.gate.input_divisor,
+          layer.gate.weight_divisor, stream_);
+      if (!status.ok()) return status;
+      status = internal::LaunchNvfp4CutlassProjectionBf16Batch(
+          mlp_packed, cutlass_activation_scales, layer.up.packed_weight,
+          layer.up.scales, cutlass_weight, cutlass_weight_scales,
+          cutlass_workspace, kCutlassWorkspaceBytes, up, tokens,
+          layer.up.rows, layer.up.contracting, layer.up.input_divisor,
+          layer.up.weight_divisor, stream_);
+    }
     if (!status.ok()) return status;
     auto* down_packed = Pointer<std::uint8_t>(prefill_workspace_, prefill_offsets_.down_packed);
     auto* down_scales = Pointer<std::uint8_t>(prefill_workspace_, prefill_offsets_.down_scales);
@@ -1814,17 +2339,25 @@ class InferenceEngine {
         gate, up, down_packed, down_scales, tokens * kIntermediate,
         layer.down.input_divisor, stream_);
     if (!status.ok()) return status;
-    status = internal::LaunchNvfp4CutlassInterleaveActivationScales(
-        down_scales, cutlass_activation_scales, tokens, kIntermediate,
-        stream_);
-    if (!status.ok()) return status;
     auto* down_bf16 = reinterpret_cast<std::uint16_t*>(projection);
-    status = internal::LaunchNvfp4CutlassProjectionBf16Batch(
-        down_packed, cutlass_activation_scales, layer.down.packed_weight,
-        layer.down.scales, cutlass_weight, cutlass_weight_scales,
-        cutlass_workspace, kCutlassWorkspaceBytes, down_bf16, tokens,
-        layer.down.rows, layer.down.contracting, layer.down.input_divisor,
-        layer.down.weight_divisor, stream_);
+    if (mtp_verification) {
+      status = internal::LaunchNvfp4Sm120DirectProjectionBf16Batch(
+          down_packed, down_scales, layer.down.packed_weight,
+          layer.down.scales, down_bf16, tokens, layer.down.rows,
+          layer.down.contracting, layer.down.input_divisor,
+          layer.down.weight_divisor, stream_);
+    } else {
+      status = internal::LaunchNvfp4CutlassInterleaveActivationScales(
+          down_scales, cutlass_activation_scales, tokens, kIntermediate,
+          stream_);
+      if (!status.ok()) return status;
+      status = internal::LaunchNvfp4CutlassProjectionBf16Batch(
+          down_packed, cutlass_activation_scales, layer.down.packed_weight,
+          layer.down.scales, cutlass_weight, cutlass_weight_scales,
+          cutlass_workspace, kCutlassWorkspaceBytes, down_bf16, tokens,
+          layer.down.rows, layer.down.contracting, layer.down.input_divisor,
+          layer.down.weight_divisor, stream_);
+    }
     if (!status.ok()) return status;
     return internal::LaunchRmsNormResidualBf16Input(
         down_bf16, layer.post_mlp_norm, hidden_b, nullptr, hidden_a, tokens,
@@ -2327,9 +2860,11 @@ class InferenceEngine {
   DeviceAllocation cache_;
   DeviceAllocation workspace_;
   DeviceAllocation prefill_workspace_;
+  DeviceAllocation mtp_workspace_;
   PinnedHostAllocation decode_host_state_;
   WorkspaceOffsets offsets_{};
   PrefillOffsets prefill_offsets_{};
+  MtpWorkspaceOffsets mtp_offsets_{};
   std::array<GraphExecutable, kLayers> decode_prefix_graphs_{};
   std::array<GraphExecutable, kLayers> decode_suffix_graphs_{};
   GraphExecutable full_decode_graph_;
@@ -2922,34 +3457,14 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
            !result.stopped) {
       const std::size_t remaining = static_cast<std::size_t>(
           generation_steps - result.output_token_ids.size());
-      const std::size_t proposal_count = std::min<std::size_t>(
-          options.mtp_draft_tokens, remaining);
-      std::array<std::uint32_t, 4> drafts{};
-      status = engine.GenerateAssistantDrafts(
-          next_token, processed_position,
-          std::span<std::uint32_t>(drafts).first(proposal_count));
-      if (!status.ok()) return status;
-      ++result.mtp_verification_groups;
-      result.mtp_proposed_tokens += proposal_count;
-      result.mtp_proposed_token_ids.insert(
-          result.mtp_proposed_token_ids.end(), drafts.begin(),
-          drafts.begin() + static_cast<std::ptrdiff_t>(proposal_count));
-      std::uint64_t accepted_in_group = 0U;
-      bool group_finished = false;
-      for (std::size_t draft_index = 0;
-           draft_index < proposal_count && !result.stopped; ++draft_index) {
+      if (remaining == 1U) {
         auto forwarded = engine.Forward(next_token, processed_position + 1U,
                                         true);
         if (!forwarded.ok()) return forwarded.status();
         ++processed_position;
         ++result.mtp_target_forwards;
-        const std::uint32_t verified_token = forwarded.value();
-        const bool accepted = verified_token == drafts[draft_index];
-        if (accepted) {
-          ++accepted_in_group;
-          ++result.mtp_accepted_tokens;
-        }
-        next_token = verified_token;
+        ++result.mtp_target_batches;
+        next_token = forwarded.value();
         result.output_token_ids.push_back(next_token);
         if (options.generated_token_callback != nullptr) {
           status = options.generated_token_callback(
@@ -2961,12 +3476,70 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
             options.stop_token_ids.end()) {
           result.stopped = true;
           result.stop_token_id = next_token;
-          group_finished = true;
         }
-        if (!accepted) group_finished = true;
-        if (group_finished) break;
+        continue;
       }
+      const std::size_t proposal_count = std::min<std::size_t>(
+          options.mtp_draft_tokens, remaining - 1U);
+      std::array<std::uint32_t, kMaximumMtpDraftTokens> drafts{};
+      status = engine.GenerateAssistantDrafts(
+          next_token, processed_position,
+          std::span<std::uint32_t>(drafts).first(proposal_count));
+      if (!status.ok()) return status;
+      ++result.mtp_verification_groups;
+      result.mtp_proposed_tokens += proposal_count;
+      result.mtp_proposed_token_ids.insert(
+          result.mtp_proposed_token_ids.end(), drafts.begin(),
+          drafts.begin() + static_cast<std::ptrdiff_t>(proposal_count));
+
+      std::array<std::uint32_t, kMaximumMtpVerifyTokens> verified{};
+      status = engine.VerifyAssistantDraftsBatch(
+          next_token, processed_position + 1U,
+          std::span<const std::uint32_t>(drafts).first(proposal_count),
+          std::span<std::uint32_t>(verified).first(proposal_count + 1U));
+      if (!status.ok()) return status;
+      result.mtp_target_forwards += proposal_count + 1U;
+      ++result.mtp_target_batches;
+
+      std::size_t matched = 0U;
+      while (matched < proposal_count &&
+             verified[matched] == drafts[matched]) {
+        ++matched;
+      }
+      std::size_t output_count =
+          matched == proposal_count ? proposal_count + 1U : matched + 1U;
+      for (std::size_t index = 0U; index < output_count; ++index) {
+        if (std::find(options.stop_token_ids.begin(),
+                      options.stop_token_ids.end(), verified[index]) !=
+            options.stop_token_ids.end()) {
+          output_count = index + 1U;
+          break;
+        }
+      }
+      const std::size_t accepted_in_group =
+          std::min(matched, output_count);
+      result.mtp_accepted_tokens += accepted_in_group;
       result.mtp_rejected_tokens += proposal_count - accepted_in_group;
+      status = engine.CommitAssistantVerification(processed_position + 1U,
+                                                  output_count);
+      if (!status.ok()) return status;
+      processed_position += output_count;
+      for (std::size_t index = 0U; index < output_count; ++index) {
+        next_token = verified[index];
+        result.output_token_ids.push_back(next_token);
+        if (options.generated_token_callback != nullptr) {
+          status = options.generated_token_callback(
+              options.generated_token_callback_context, next_token);
+          if (!status.ok()) return status;
+        }
+        if (std::find(options.stop_token_ids.begin(),
+                      options.stop_token_ids.end(), next_token) !=
+            options.stop_token_ids.end()) {
+          result.stopped = true;
+          result.stop_token_id = next_token;
+          break;
+        }
+      }
     }
   } else {
     for (std::uint64_t generated = 1U;
@@ -3255,7 +3828,7 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
          << "  \"mtp\": {\"enabled\":"
          << (result.mtp_enabled ? "true" : "false")
          << ",\"verification_mode\":\""
-         << (result.mtp_enabled ? "serial_exact_correctness" : "disabled")
+         << (result.mtp_enabled ? "batched_exact_target" : "disabled")
          << "\",\"draft_tokens\":" << result.mtp_draft_tokens
          << ",\"proposed_tokens\":" << result.mtp_proposed_tokens
          << ",\"accepted_tokens\":" << result.mtp_accepted_tokens
@@ -3263,6 +3836,7 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
          << ",\"verification_groups\":"
          << result.mtp_verification_groups
          << ",\"target_forwards\":" << result.mtp_target_forwards
+         << ",\"target_batches\":" << result.mtp_target_batches
          << ",\"mean_accepted_length\":"
          << (result.mtp_verification_groups == 0U
                  ? 0.0

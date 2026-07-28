@@ -40,10 +40,12 @@ a roughly 1.47 MB reusable workspace. The optional official MTP assistant is hel
 alignment padding. The loader keeps no second device layout and probes the uploaded prefix and suffix of every one
 of its 48 tensors. `cudaMemGetInfo` measured 847,249,408 additional bytes across assistant loading. At context 128,
 sequential 50 ms `nvidia-smi` polling observed 9,660 MiB total GPU use for target-only and 10,468 MiB for target
-plus assistant, an 808 MiB increment. Active correctness MTP now adds a separate 289,024-byte fixed workspace at
-context 128, including a 16-head FP32 score view, recurrent 3,840-wide feedback, layer intermediates, and output
-candidates. A repeated 50 ms probe with draft length four still peaks at 10,468 MiB. The score region grows by
-`16 * context * 4` bytes; no assistant KV cache or second weight layout is allocated.
+plus assistant, an 808 MiB increment. The assistant proposal workspace is 289,024 bytes at context 128, including
+a 16-head FP32 score view, recurrent 3,840-wide feedback, layer intermediates, and output candidates. Active
+batched verification additionally reserves fixed tentative/backup target K/V rows and five-row output selection:
+assistant-plus-verifier workspace measures 2,173,440 bytes with FP8 KV and 7,334,400 bytes with BF16 KV at context
+128. A fresh peak probe remains required. The score region grows by `16 * context * 4` bytes; no assistant KV cache
+or second weight layout is allocated.
 
 The runtime now applies the planned hybrid layout: 40 local layers allocate
 at most 1,024 physical slots and reuse them as chronological rings, while eight global layers allocate the requested

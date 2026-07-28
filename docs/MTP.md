@@ -83,10 +83,11 @@ The first allocator proof now loads all 48 tensors into one independent 256-byte
 845,713,928-byte source payload occupies 845,714,944 arena bytes (806.54 MiB, including 1,016 alignment bytes).
 `cudaMemGetInfo` measures an 847,249,408-byte device-memory delta (808 MiB) around that load. A sequential 50 ms
 `nvidia-smi` probe at context 128 measures 9,660 MiB total GPU usage for the target-only process and 10,468 MiB
-for target plus assistant, also an 808 MiB difference. Active correctness MTP adds a 289,024-byte fixed proposal
-workspace at context 128; the sampled process peak remains 10,468 MiB. The workspace grows by 64 bytes per context
-position for the 16-head FP32 attention-score oracle. Batched verification and later CUDA Graph pools remain to be
-measured at each context tier.
+for target plus assistant, also an 808 MiB difference. The original assistant proposal workspace is 289,024 bytes
+at context 128. Active batched MTP adds fixed tentative per-layer K/V and five-row output-selection storage: total
+assistant-plus-verifier workspace measures 2,173,440 bytes with FP8 KV and 7,334,400 bytes with BF16 KV at context
+128. The assistant score workspace grows by 64 bytes per context position; graph pools remain to be measured at
+each context tier.
 
 ## External runtime probe
 
@@ -128,9 +129,10 @@ third_party/cache/unsloth-nvfp4-env/bin/python tools/validate_mtp.py \
   --draft-tokens 4 --output /tmp/mtp-reference.json
 ```
 
-Active MTP currently supports greedy `gem16-run` generation only. Sampling, chat sessions, diagnostic dumps,
-batched verification, and an MTP CUDA Graph are deliberately rejected or deferred rather than silently using
-incorrect semantics.
+Active MTP currently supports greedy `gem16-run` generation only. It performs fixed-shape batched exact target
+verification for draft lengths 1, 2, and 4, retains tentative K/V rows in a fixed workspace, and commits only the
+host-confirmed prefix. Sampling, chat sessions, diagnostic dumps, GPU-side acceptance, and MTP CUDA Graphs remain
+deliberately rejected or deferred rather than silently using incorrect semantics.
 
 ## Implementation status and order
 
@@ -148,19 +150,20 @@ incorrect semantics.
    shared cache constant, matching the official proposer contract.
 5. **Complete:** implement BF16 target-embedding/pre-projection, four Q-only attention/MLP layers, final norm,
    post-projection feedback, the tied 1,024-dimensional LM head, and the assistant's two suppressed token IDs.
-6. **Complete for correctness:** implement draft lengths 1, 2, and 4 with serial exact target verification. Target
-   verification, not assistant agreement, chooses every emitted token; accepted prefixes update the existing target
-   cache normally and a mismatch emits the ordinary target token.
+6. **Complete for correctness:** implement draft lengths 1, 2, and 4 with fixed-shape batched exact target
+   verification. The target evaluates `[input token, draft_1, ...]` in one causal batch; target predictions, not
+   assistant agreement, choose every emitted token. Tentative per-layer K/V rows are retained in a fixed workspace,
+   local-ring writes are restored before host acceptance, and only the accepted prefix plus first mismatch is
+   committed to the target cache.
 7. **Complete for correctness:** report proposed/accepted/rejected token counts, proposed IDs, verification groups,
-   target forwards, mean accepted length, effective output tok/s, and incremental memory. FP8 and BF16 runs retain
-   exact ordinary greedy output, including a local-ring wrap test. `tools/validate_mtp.py` proves the first four
-   recurrent BF16 drafts exactly equal Transformers (`1884,5745,993,236771`) on a complete one-token shared cache.
-   Active full-process memcheck passes. Full-process initcheck is not accepted as MTP evidence because it reports
-   pre-existing uninitialized padded target-prefill reads in CUTLASS `ApplyScalesKernel` before proposal execution;
-   full-process racecheck exits before application output with no displayed hazards. Targeted assistant sanitizer
-   coverage remains required before performance promotion.
-8. Add batched target verification, GPU-side acceptance/commit, fixed-shape MTP CUDA Graphs, and adaptive draft
-   selection. The current `serial_exact_correctness` mode intentionally performs one ordinary target forward per
-   emitted token and is not a speedup claim.
+   evaluated target positions and batches, mean accepted length, effective output tok/s, and incremental memory.
+   FP8 and BF16 runs retain exact ordinary greedy output, including a local-ring wrap test. `tools/validate_mtp.py`
+   proves the first four recurrent BF16 drafts exactly equal Transformers (`1884,5745,993,236771`) on a complete
+   one-token shared cache. Active full-process memcheck passes. Full-process initcheck is not accepted as MTP
+   evidence because it reports pre-existing uninitialized padded target-prefill reads in CUTLASS
+   `ApplyScalesKernel` before proposal execution; full-process racecheck exits before application output with no
+   displayed hazards. Targeted assistant sanitizer coverage remains required before performance promotion.
+8. Profile and optimize the batched verifier, then add GPU-side acceptance/commit, fixed-shape MTP CUDA Graphs,
+   and adaptive draft selection. Current host acceptance is exact but has not passed the effective-throughput gate.
 9. Promote MTP only for workloads where end-to-end effective throughput wins; otherwise adaptively use ordinary
    decode.

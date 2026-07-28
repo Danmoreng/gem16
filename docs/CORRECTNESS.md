@@ -284,10 +284,12 @@ python tools/verify_sm120_sass.py build/<OS>/blackwell-release/bin/gem16-cuda-te
 ## MTP correctness
 
 The optional MTP path is exact-by-verification: assistant drafts never directly determine emitted output. For each
-proposal group, ordinary target forwards verify the draft prefix and the first mismatch emits the target token.
-Consequently active MTP must reproduce ordinary greedy token IDs exactly even when assistant arithmetic or cache
-precision changes acceptance. The current correctness scheduler supports draft lengths 1, 2, and 4 and reports all
-proposal IDs and acceptance counters under `verification_mode=serial_exact_correctness`.
+proposal group, one causal target batch evaluates the input token plus all drafts; the first mismatch emits its
+target token, while a fully accepted group emits the target's extra prediction. Tentative K/V rows remain separate
+until the host commits that exact prefix. Consequently active MTP must reproduce ordinary greedy token IDs exactly
+even when assistant arithmetic or cache precision changes acceptance. The current correctness scheduler supports
+draft lengths 1, 2, and 4 and reports all proposal IDs and acceptance counters under
+`verification_mode=batched_exact_target`.
 
 `tools/validate_mtp.py` supplies an independent assistant gate. It captures the complete BF16 target Layer-46/47
 shared cache at a one-token context, reconstructs the normalized target hidden state and scaled target embedding,
@@ -295,7 +297,7 @@ and compares four recurrent constant-position drafts against the official Transf
 fixture is exact for all four IDs: `[1884, 5745, 993, 236771]`. Separate FP8 and BF16 generation checks retain the
 ordinary target sequence for all draft lengths; an FP8 1,026-token prompt also covers local-ring wrap. Memcheck
 reports zero errors for active proposal and verification. This validates correctness execution, not speedup:
-serial verification still performs one target forward per emitted post-prefill token.
+the current batched verifier and host-side acceptance have not yet won effective end-to-end throughput.
 
 ## Not yet established
 

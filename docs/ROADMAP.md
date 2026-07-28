@@ -33,10 +33,12 @@ of the correctness and native-kernel gates below.
   while target-only inference rejects an assistant checkpoint explicitly. The separate fixed-address BF16
   assistant arena is now directly uploaded and fully bound: 845,713,928 source bytes require 845,714,944 arena
   bytes and the measured device-memory delta is 808 MiB. The full BF16 assistant now executes against target
-  Layers 46/47 with recurrent constant-position drafting at lengths 1, 2, and 4. Serial exact target verification
-  retains ordinary greedy IDs in FP8/BF16 and across local-ring wrap; a bounded fixture matches four Transformers
-  draft IDs exactly. The active gate is batched target verification, GPU-side acceptance/commit, MTP CUDA Graphs,
-  and a controlled effective-throughput qualification described in [the MTP plan](MTP.md).
+  Layers 46/47 with recurrent constant-position drafting at lengths 1, 2, and 4. Fixed-shape batched target
+  verification retains ordinary greedy IDs in FP8/BF16 and across local-ring wrap; a bounded fixture matches four
+  Transformers draft IDs exactly. The verifier retains transactional K/V rows, restores local-ring slots before
+  host acceptance, and commits only the exact prefix. The active gate is profile-driven verifier optimization,
+  GPU-side acceptance/commit, MTP CUDA Graphs, and a controlled effective-throughput qualification described in
+  [the MTP plan](MTP.md).
   Every performance promotion still requires correctness, generation, logit, 3-warm-up/10-run benchmark, Nsight,
   spill, allocation, and peak-VRAM evidence and becomes the sole production path.
 

@@ -1,5 +1,21 @@
 # Performance ledger
 
+## 2026-07-27 batched exact MTP target verification
+
+The first speedup-path change replaces serial target verification with a fixed-shape causal batch over the input
+plus up to four assistant drafts. Per-layer speculative K/V rows are retained in a fixed arena; local-ring slots
+are restored after each speculative attention pass and only a host-confirmed prefix is committed. This is a
+correctness checkpoint, not a promoted performance path. FP8/BF16 short sequences and a 1,026-token local-ring
+wrap retain ordinary greedy IDs, the independent four-draft Transformers fixture passes, CTest passes, and active
+BF16 memcheck reports zero errors.
+
+One 256-token natural-chat characterization at context 512 has mean accepted length 1.89 but reaches 35.44 tok/s
+versus 36.20 tok/s ordinary. The retained Nsight trace attributes 29.9% of GPU time to native NVFP4 target
+projections, 24.2% to FP8 target projections, 13.7% to target attention-score work, and 6.7% to the five-row
+batched output head. Host acceptance and the verifier's non-graph launch sequence remain material costs. Keep the
+transactional path for further profiling; do not present it as an MTP win. The raw artifact is ignored under the
+local MTP correctness/profile result directory.
+
 Kernel characterizations below are development evidence, not accepted end-to-end benchmark claims. They use one
 deterministic activation and the pinned Layer-0 checkpoint tensors on the current Windows Blackwell machine.
 Repeated isolated projection measurements keep one 33.3 MB tensor family hot in cache; do not add their times to

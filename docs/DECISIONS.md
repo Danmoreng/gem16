@@ -1,5 +1,27 @@
 # Decisions
 
+## 2026-07-27: Use fixed-shape batched target verification before graph optimization
+
+Date: 2026-07-27
+Decision: Replace serial MTP verification with one fixed-shape causal target batch over `[input, drafts]`, retain
+per-layer tentative K/V rows in a separate fixed arena, and commit only the host-confirmed accepted prefix plus the
+first mismatch. Use direct batch-native FP8/NVFP4 projections and per-row decode attention to preserve the
+qualified batch-one numerical boundaries. Label the path `batched_exact_target`.
+Context: Serial verification structurally could not improve target-forward count. Full causal prefill attention
+could not be used directly because its target cache writes must remain transactional and its output values differ
+from the exact decode route. The bounded maximum draft length is four, so temporary K/V and candidate storage are
+small and fixed.
+Alternatives: Mutate the live cache with no rollback; copy the entire cache; use a prefill-only semantic route; or
+wait for a full graph implementation. These respectively corrupt rejected drafts, waste long-context memory,
+weaken output equivalence, or delay measuring the actual target-batch bottleneck.
+Consequences: MTP exactly preserves ordinary greedy outputs for tested FP8/BF16 contexts and local-ring wrap while
+reducing target launch groups. Host token comparison and commit remain synchronization points, and the current
+implementation is not promoted as a speedup because its natural-prompt result still trails ordinary decode.
+Evidence: 16-token FP8 draft lengths 1/2/4 and BF16 outputs equal ordinary output. A 256-token natural chat prompt
+also retains exact output with D4, mean acceptance 1.89, and 35.44 versus 36.20 ordinary tok/s in one profiling
+characterization. Nsight attributes the current verifier primarily to direct target projections and batched output
+selection; it guides, but does not qualify, the next optimization.
+
 ## 2026-07-27: Qualify MTP assistant execution with serial exact target verification first
 
 Date: 2026-07-27

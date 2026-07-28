@@ -83,9 +83,13 @@ def main() -> int:
                 "0",
             ],
         )
+        # A target batch over D drafts yields D draft predictions plus one
+        # target-only prediction when every draft matches. Request that extra
+        # output position so the first proposal group always has D drafts.
+        generated_tokens = args.draft_tokens + 2
         ordinary = run_engine(
             args.binary,
-            [*common, "--max-tokens", str(args.draft_tokens + 1)],
+            [*common, "--max-tokens", str(generated_tokens)],
         )
         mtp = run_engine(
             args.binary,
@@ -96,7 +100,7 @@ def main() -> int:
                 "--mtp-draft-tokens",
                 str(args.draft_tokens),
                 "--max-tokens",
-                str(args.draft_tokens + 1),
+                str(generated_tokens),
             ],
         )
         state = load_state(state_path)
@@ -108,8 +112,10 @@ def main() -> int:
     if mtp["fallbacks"] != 0 or mtp["token_loop_allocations"] is not False:
         raise SystemExit("MTP run used a fallback or reported a token-loop allocation")
     statistics = mtp["mtp"]
-    if statistics["target_forwards"] != len(mtp["output_token_ids"]) - 1:
-        raise SystemExit("serial verification did not execute one target forward per output")
+    if statistics["target_batches"] == 0:
+        raise SystemExit("batched verification did not execute a target batch")
+    if statistics["target_forwards"] < len(mtp["output_token_ids"]) - 1:
+        raise SystemExit("batched verification evaluated too few target positions")
     if statistics["proposed_tokens"] != (
         statistics["accepted_tokens"] + statistics["rejected_tokens"]
     ):

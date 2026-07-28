@@ -73,6 +73,7 @@ struct GreedyInferenceResult {
   std::uint64_t mtp_rejected_tokens = 0;
   std::uint64_t mtp_verification_groups = 0;
   std::uint64_t mtp_target_forwards = 0;
+  std::uint64_t mtp_target_batches = 0;
   std::uint32_t mtp_draft_tokens = 0;
   std::uint64_t kv_cache_bytes = 0;
   std::uint64_t workspace_bytes = 0;

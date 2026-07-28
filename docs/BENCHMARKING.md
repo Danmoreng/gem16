@@ -142,10 +142,10 @@ statistically qualified performance results.
 
 ## MTP correctness timing
 
-The active `serial_exact_correctness` MTP scheduler is not a speedup result. It executes the complete BF16
-assistant but still performs one ordinary target forward for every emitted post-prefill token. Its throughput is
-reported only to expose current cost. A speedup comparison becomes valid only after batched target verification
-and GPU-side acceptance are implemented, and must use effective target-verified output tokens/s against ordinary
+The active `batched_exact_target` MTP scheduler is not yet a speedup result. It executes the complete BF16
+assistant, evaluates the input plus up to four drafts in one target batch, and host-commits only the verified
+prefix. Its throughput is reported only to expose current cost. A speedup comparison becomes valid only after the
+batched path, GPU-side acceptance, and graph plan win effective target-verified output tokens/s against ordinary
 gem16 under identical prompts, contexts, output counts, sampling, cache precision, and repetition policy.
 Proposed tokens are never counted as output. Draft lengths 1, 2, and 4 must report proposed, accepted, rejected,
-mean accepted length, incremental VRAM, and the ordinary fallback result.
+mean accepted length, target batches, incremental VRAM, and the ordinary fallback result.
