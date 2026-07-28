@@ -166,3 +166,18 @@ direct mixed checkpoint and FP8 KV; llama.cpp uses BF16-mapped attention and Q8_
 The active competitive gate is measured only on the fixed 16,384-prompt/1,135-output workload: 50.0 exact
 effective tok/s is the minimum and 55.0 tok/s is the stretch target. At the retained D2 acceptance these correspond
 to at most 45.18 and 41.07 ms per verifier group. The same 3-warm-up/10-run and exact-ID policy applies.
+
+Run the final paired qualification with the checked-in alternating orchestrator:
+
+```bash
+python tools/qualify_mtp.py \
+  --workload benchmarks/results/<workload>/workload.json \
+  --output benchmarks/results/<date>/<git-sha>/<machine>/mtp-qualification.json \
+  --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 \
+  --assistant-model models/checkpoints/google-gemma-4-12B-it-assistant-364bd03 \
+  --executable build/Windows/blackwell-release/bin/gem16-run.exe \
+  --warmup-pairs 3 --measured-pairs 10
+```
+
+The tool alternates which mode runs first in each pair, retains raw per-mode runs and pair order, and fails if any
+warm-up or measured output differs from the shared ordinary/MTP token sequence.
