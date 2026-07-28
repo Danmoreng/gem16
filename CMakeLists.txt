@@ -73,6 +73,7 @@ if(GEM16_ENABLE_CUDA)
     src/cuda/attention/prefill_global_sm120.cu
     src/cuda/attention/reference.cu
     src/cuda/dispatch.cu
+    src/cuda/engine/target_model.cu
     src/cuda/inference.cu
     src/cuda/fp8/checkpoint_probe.cu
     src/cuda/fp8/cutlass_sm120.cu

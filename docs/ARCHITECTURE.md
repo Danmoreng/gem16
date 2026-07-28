@@ -90,6 +90,10 @@ little-endian float32 only after generation; it is a correctness diagnostic and 
 
 ## MTP assistant boundary
 
+The target checkpoint's direct upload, SM120 Row8/K64 layout transformation, tensor validation, and fixed
+`LayerBinding` construction are isolated in `src/cuda/engine/target_model.{h,cu}`. The execution engine consumes
+those immutable bindings and owns only cache/workspace addresses.
+
 The optional official MTP assistant is a separate model owner, not part of the target weight arena. It memory-maps
 its source checkpoint, streams all 48 BF16 tensors into one independently allocated 256-byte-aligned device arena,
 and binds its tied embedding, pre/post projections, final norm, and four exact Q-only layer families at fixed
