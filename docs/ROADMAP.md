@@ -30,8 +30,11 @@ of the correctness and native-kernel gates below.
   feasibility is now positive: the target contains no embedded MTP family, while Google's separately published
   806.54 MiB BF16 four-layer assistant is pinned, directly compatible, and leaves estimated maximum-context
   headroom. The exact assistant config and 48-tensor BF16 manifest are now accepted by `gem16-inspect --validate`,
-  while target-only inference rejects an assistant checkpoint explicitly. The active gate is the separate BF16
-  assistant device arena and correctness-only proposal path described in [the MTP plan](MTP.md).
+  while target-only inference rejects an assistant checkpoint explicitly. The separate fixed-address BF16
+  assistant arena is now directly uploaded and fully bound: 845,713,928 source bytes require 845,714,944 arena
+  bytes, the measured device-memory delta is 808 MiB, and ordinary target output remains unchanged while proposal
+  execution is disabled. The active gate is binding assistant attention to target Layers 46/47 and implementing
+  the correctness-only proposal path described in [the MTP plan](MTP.md).
   Every performance promotion still requires correctness, generation, logit, 3-warm-up/10-run benchmark, Nsight,
   spill, allocation, and peak-VRAM evidence and becomes the sole production path.
 

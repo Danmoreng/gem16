@@ -53,6 +53,7 @@ void PrintUsage() {
       << "Usage:\n"
       << "  gem16-run --print-kernel-capabilities\n"
       << "  gem16-run --model <checkpoint> --input-token-ids <id,id,...>\n"
+      << "              [--assistant-model <official-mtp-checkpoint>]\n"
       << "              [--input-token-ids-file <comma-separated-token-file>]\n"
       << "              [--teacher-forced-token-ids <id,id,...>]\n"
       << "              [--stop-token-ids <id,id,...>]\n"
@@ -88,6 +89,8 @@ int main(int argc, char** argv) {
     const std::string_view argument(argv[index]);
     if (argument == "--model" && index + 1 < argc) {
       options.model_directory = argv[++index];
+    } else if (argument == "--assistant-model" && index + 1 < argc) {
+      options.assistant_model_directory = argv[++index];
     } else if (argument == "--input-token-ids" && index + 1 < argc) {
       if (!options.input_token_ids.empty() ||
           !ParseTokenIds(argv[++index], options.input_token_ids)) {

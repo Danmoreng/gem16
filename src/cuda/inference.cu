@@ -5,6 +5,7 @@
 #include "cuda/fp8/reference.h"
 #include "cuda/fp8/sm120.h"
 #include "cuda/layer/reference.h"
+#include "cuda/mtp/assistant.h"
 #include "cuda/nvfp4/mlp.h"
 #include "cuda/nvfp4/reference.h"
 #include "cuda/nvfp4/cutlass_sm120.h"
@@ -1006,10 +1007,11 @@ class InferenceEngine {
     if (stream_ != nullptr) (void)cudaStreamDestroy(stream_);
   }
 
-  [[nodiscard]] Status Initialize(const std::filesystem::path& model_directory,
-                                  std::uint64_t max_context,
-                                  KvCacheMode kv_cache_mode,
-                                  const SamplingOptions& sampling = {}) {
+  [[nodiscard]] Status Initialize(
+      const std::filesystem::path& model_directory,
+      std::uint64_t max_context, KvCacheMode kv_cache_mode,
+      const SamplingOptions& sampling = {},
+      const std::filesystem::path& assistant_model_directory = {}) {
     const NvtxRange range("gem16.initialize");
     Status sampling_status = SetSampling(sampling);
     if (!sampling_status.ok()) return sampling_status;
@@ -1028,6 +1030,31 @@ class InferenceEngine {
 
     Status status = model_.Load(model_directory);
     if (!status.ok()) return status;
+    if (!assistant_model_directory.empty()) {
+      const NvtxRange assistant_range("gem16.initialize.mtp_assistant");
+      std::size_t free_before_assistant = 0U;
+      std::size_t total_before_assistant = 0U;
+      error = cudaMemGetInfo(&free_before_assistant, &total_before_assistant);
+      if (error != cudaSuccess) {
+        return CudaFailure("measure memory before assistant load", error);
+      }
+      status = assistant_.Load(assistant_model_directory);
+      if (!status.ok()) return status;
+      std::size_t free_after_assistant = 0U;
+      std::size_t total_after_assistant = 0U;
+      error = cudaMemGetInfo(&free_after_assistant, &total_after_assistant);
+      if (error != cudaSuccess) {
+        return CudaFailure("measure memory after assistant load", error);
+      }
+      if (total_before_assistant != total_after_assistant) {
+        return Error(StatusCode::kInternal,
+                     "device total memory changed during assistant load");
+      }
+      assistant_device_memory_delta_bytes_ =
+          free_before_assistant > free_after_assistant
+              ? free_before_assistant - free_after_assistant
+              : 0U;
+    }
     status = AllocateCache();
     if (!status.ok()) return status;
     status = AllocateWorkspace();
@@ -1204,6 +1231,19 @@ class InferenceEngine {
   }
 
   [[nodiscard]] std::uint64_t weight_bytes() const { return model_.weight_bytes(); }
+  [[nodiscard]] bool assistant_loaded() const { return assistant_.loaded(); }
+  [[nodiscard]] std::uint64_t assistant_source_bytes() const {
+    return assistant_.source_bytes();
+  }
+  [[nodiscard]] std::uint64_t assistant_weight_bytes() const {
+    return assistant_.arena_bytes();
+  }
+  [[nodiscard]] std::uint64_t assistant_device_memory_delta_bytes() const {
+    return assistant_device_memory_delta_bytes_;
+  }
+  [[nodiscard]] std::uint64_t assistant_tensor_count() const {
+    return assistant_.tensor_count();
+  }
   [[nodiscard]] std::uint64_t cache_bytes() const { return cache_.bytes(); }
   [[nodiscard]] std::uint64_t workspace_bytes() const {
     return workspace_.bytes() + prefill_workspace_.bytes();
@@ -2219,6 +2259,7 @@ class InferenceEngine {
   }
 
   LoadedModel model_;
+  internal::AssistantModel assistant_;
   DeviceAllocation cache_;
   DeviceAllocation workspace_;
   DeviceAllocation prefill_workspace_;
@@ -2232,6 +2273,7 @@ class InferenceEngine {
   std::uint64_t max_context_ = 0;
   std::uint64_t prefill_chunk_tokens_ = kMinimumPrefillChunkTokens;
   std::uint64_t decode_graph_device_bytes_ = 0;
+  std::uint64_t assistant_device_memory_delta_bytes_ = 0;
   std::uint64_t sampling_step_ = 0;
   std::size_t sampling_sort_workspace_bytes_ = 0;
   std::uint32_t suppressed_token_count_ = 0;
@@ -2708,7 +2750,8 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
   Status status = engine.Initialize(options.model_directory,
                                     options.max_context_tokens,
                                     options.kv_cache_mode,
-                                    options.sampling);
+                                    options.sampling,
+                                    options.assistant_model_directory);
   if (!status.ok()) return status;
   status = engine.SetSuppressedTokens(options.suppressed_token_ids);
   if (!status.ok()) return status;
@@ -2724,6 +2767,12 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
       options.state_dump_path.empty() && options.logits_dump_path.empty();
   result.model_load_milliseconds = Milliseconds(load_end - load_start);
   result.weight_arena_bytes = engine.weight_bytes();
+  result.assistant_loaded = engine.assistant_loaded();
+  result.assistant_source_bytes = engine.assistant_source_bytes();
+  result.assistant_weight_arena_bytes = engine.assistant_weight_bytes();
+  result.assistant_device_memory_delta_bytes =
+      engine.assistant_device_memory_delta_bytes();
+  result.assistant_tensor_count = engine.assistant_tensor_count();
   result.kv_cache_bytes = engine.cache_bytes();
   result.workspace_bytes = engine.workspace_bytes();
   result.decode_graph_device_bytes = engine.decode_graph_device_bytes();
@@ -3045,6 +3094,14 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
          << "  \"decode_ms\": " << result.decode_milliseconds << ",\n"
          << "  \"decode_tokens_per_second\": " << result.decode_tokens_per_second << ",\n"
          << "  \"weight_arena_bytes\": " << result.weight_arena_bytes << ",\n"
+         << "  \"assistant\": {\"loaded\":"
+         << (result.assistant_loaded ? "true" : "false")
+         << ",\"execution_enabled\":false"
+         << ",\"tensor_count\":" << result.assistant_tensor_count
+         << ",\"source_bytes\":" << result.assistant_source_bytes
+         << ",\"arena_bytes\":" << result.assistant_weight_arena_bytes
+         << ",\"device_memory_delta_bytes\":"
+         << result.assistant_device_memory_delta_bytes << "},\n"
          << "  \"kv_cache_bytes\": " << result.kv_cache_bytes << ",\n"
          << "  \"workspace_bytes\": " << result.workspace_bytes << ",\n"
          << "  \"prefill_chunk_tokens\": " << result.prefill_chunk_tokens << ",\n"

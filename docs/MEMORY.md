@@ -35,7 +35,15 @@ Graph, kernel, and prefill workspaces remain explicitly unplanned until their ex
 `total_arena_bytes` is therefore the known base arena, not a peak-VRAM claim.
 
 The current full-model characterization separately measures a 9,200,135,680-byte aligned device weight arena and
-a roughly 1.47 MB reusable workspace. The runtime now applies the planned hybrid layout: 40 local layers allocate
+a roughly 1.47 MB reusable workspace. The optional official MTP assistant is held in a distinct fixed-address
+845,714,944-byte BF16 arena containing its exact 845,713,928-byte source payload and 1,016 bytes of 256-byte
+alignment padding. The loader keeps no second device layout and probes the uploaded prefix and suffix of every one
+of its 48 tensors. `cudaMemGetInfo` measured 847,249,408 additional bytes across assistant loading. At context 128,
+sequential 50 ms `nvidia-smi` polling observed 9,660 MiB total GPU use for target-only and 10,468 MiB for target
+plus assistant, an 808 MiB increment. Assistant execution and its future proposal/verification workspace were
+explicitly disabled in this measurement.
+
+The runtime now applies the planned hybrid layout: 40 local layers allocate
 at most 1,024 physical slots and reuse them as chronological rings, while eight global layers allocate the requested
 context extent. Separate K/V storage is retained for both. Optional
 full-logit diagnostics use host memory (`steps * 262144 * 4` bytes) allocated before generation and do not change

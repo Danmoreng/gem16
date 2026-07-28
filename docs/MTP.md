@@ -79,8 +79,12 @@ workspaces. It does not add a separate KV cache. Adding only the exact payload t
 | 128K QA | 11,022 MiB | about 11,829 MiB | about 4,474 MiB |
 | 262,144-position QA | 12,244 MiB | about 13,051 MiB | about 3,252 MiB |
 
-This is sufficient for implementation to proceed, but it is not an allocator proof. The production MTP plan must
-measure assistant alignment, verification buffers, proposal state, and CUDA Graph pools at each context tier.
+The first allocator proof now loads all 48 tensors into one independent 256-byte-aligned device arena. The exact
+845,713,928-byte source payload occupies 845,714,944 arena bytes (806.54 MiB, including 1,016 alignment bytes).
+`cudaMemGetInfo` measures an 847,249,408-byte device-memory delta (808 MiB) around that load. A sequential 50 ms
+`nvidia-smi` probe at context 128 measures 9,660 MiB total GPU usage for the target-only process and 10,468 MiB
+for target plus assistant, also an 808 MiB difference. Proposal state, verification buffers, and later CUDA Graph
+pools remain to be measured at each context tier.
 
 ## External runtime probe
 
@@ -107,7 +111,11 @@ therefore retain ordinary decode and promote MTP only where effective accepted o
    manifest. Primary inference rejects an assistant passed as the target instead of entering target-only code.
 2. **Complete:** verify the pinned assistant with `tools/fetch_model.py --lock
    models/gemma4-12b-mtp-assistant.lock.json`.
-3. Add a separate BF16 assistant arena; do not quantize or convert the first official result.
+3. **Complete:** add a separate fixed-address BF16 assistant arena without quantization or conversion. Every
+   tensor is bound at its exact shape, and device prefix/suffix probes cover all 48 uploads. `gem16-run
+   --assistant-model` reports source, arena, and measured device-delta bytes while leaving proposal execution off.
+   A 16-step paired run retains identical ordinary target IDs, memcheck reports zero errors, and Nsight places all
+   five `cudaMalloc` calls before the prefill range with none in prefill or decode.
 4. Bind assistant sliding/full attention to target cache states from Layers 46 and 47.
 5. Implement pre-projection, four Q-only layers, post-projection, and the exact assistant LM head.
 6. Build a correctness-only proposal/target-verification path for draft lengths 1, 2, and 4.

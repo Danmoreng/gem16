@@ -32,8 +32,9 @@ The optional MTP checkpoint is a separate direct-load snapshot:
 48 BF16 tensors and 845,713,928 payload bytes: the tied `[262144,1024]` assistant embedding/output matrix, four
 Q-only decoder layers, final norm, `[1024,7680]` pre-projection, and `[3840,1024]` post-projection. The first three
 layers require local Q/O dimensions 4,096; the final full-attention layer requires 8,192. Any K/V tensor, duplicate
-LM head, extra tensor, wrong dtype, or wrong shape is rejected. Assistant checkpoints remain inspect-only in the
-inference runtime until the MTP execution plan is explicitly enabled. See [MTP.md](MTP.md).
+LM head, extra tensor, wrong dtype, or wrong shape is rejected. `gem16-run --assistant-model` can now upload and bind
+this exact inventory into a separate BF16 arena beside the target, but reports `execution_enabled=false`; proposal
+execution remains disabled until the MTP plan is explicitly enabled. See [MTP.md](MTP.md).
 
 The engine parses and validates the Google tokenizer metadata at startup. The tokenizer-level
 `model_max_length` value is Google's intentionally unbounded sentinel and never drives arena sizing; the model

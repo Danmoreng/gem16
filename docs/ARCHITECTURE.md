@@ -85,6 +85,16 @@ The greedy plan copies checkpoint `suppress_tokens` into fixed workspace before 
 checkpoint EOS token. Optional full-logit capture preallocates host storage before the token loop and writes raw
 little-endian float32 only after generation; it is a correctness diagnostic and invalidates timing comparisons.
 
+## MTP assistant boundary
+
+The optional official MTP assistant is a separate model owner, not part of the target weight arena. It memory-maps
+its source checkpoint, streams all 48 BF16 tensors into one independently allocated 256-byte-aligned device arena,
+and binds its tied embedding, pre/post projections, final norm, and four exact Q-only layer families at fixed
+addresses. No converted or second device layout exists. Load-time device prefix/suffix probes cover every tensor.
+The target continues to own all KV storage; the assistant will read target Layers 46/47 once the proposal path is
+implemented. `--assistant-model` currently validates residency and reports memory while leaving assistant
+execution disabled, so ordinary target output and its decode graph are unchanged.
+
 ## Planned multimodal boundary
 
 The pinned Gemma 4 12B Unified checkpoint contains an encoder-free vision embedder and a direct audio-waveform

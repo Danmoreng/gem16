@@ -25,6 +25,9 @@ using GeneratedTokenCallback = Status (*)(void* context,
 
 struct GreedyInferenceOptions {
   std::filesystem::path model_directory;
+  // Optional official BF16 MTP assistant. The current gate loads and binds it
+  // into an independent fixed-address arena; proposal execution remains off.
+  std::filesystem::path assistant_model_directory;
   std::vector<std::uint32_t> input_token_ids;
   // When non-empty, capture one prediction per target and feed the preceding
   // target token into later decode positions. This isolates per-position
@@ -56,6 +59,10 @@ struct GreedyInferenceResult {
   double decode_milliseconds = 0.0;
   double decode_tokens_per_second = 0.0;
   std::uint64_t weight_arena_bytes = 0;
+  std::uint64_t assistant_source_bytes = 0;
+  std::uint64_t assistant_weight_arena_bytes = 0;
+  std::uint64_t assistant_device_memory_delta_bytes = 0;
+  std::uint64_t assistant_tensor_count = 0;
   std::uint64_t kv_cache_bytes = 0;
   std::uint64_t workspace_bytes = 0;
   std::uint64_t decode_graph_device_bytes = 0;
@@ -68,6 +75,7 @@ struct GreedyInferenceResult {
   KvCacheMode kv_cache_mode = KvCacheMode::kCheckpointFp8;
   SamplingOptions sampling;
   bool packed_weight_source_layout_direct = false;
+  bool assistant_loaded = false;
   bool token_loop_allocations = false;
   bool benchmark_qualified = false;
   bool stopped = false;
