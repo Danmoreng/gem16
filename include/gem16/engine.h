@@ -31,6 +31,10 @@ struct GreedyInferenceOptions {
   // Zero keeps the residency-only gate. Active correctness generation
   // supports exactly 1, 2, or 4 assistant drafts per verification group.
   std::uint32_t mtp_draft_tokens = 0;
+  // Explicit opt-in for deterministic context/acceptance-based selection up
+  // to mtp_draft_tokens, including ordinary decode fallback when proposals do
+  // not amortize target verification.
+  bool mtp_adaptive = false;
   std::vector<std::uint32_t> input_token_ids;
   // When non-empty, capture one prediction per target and feed the preceding
   // target token into later decode positions. This isolates per-position
@@ -74,6 +78,10 @@ struct GreedyInferenceResult {
   std::uint64_t mtp_verification_groups = 0;
   std::uint64_t mtp_target_forwards = 0;
   std::uint64_t mtp_target_batches = 0;
+  std::uint64_t mtp_d1_groups = 0;
+  std::uint64_t mtp_d2_groups = 0;
+  std::uint64_t mtp_d4_groups = 0;
+  std::uint64_t mtp_ordinary_fallback_tokens = 0;
   std::uint32_t mtp_draft_tokens = 0;
   std::uint64_t kv_cache_bytes = 0;
   std::uint64_t workspace_bytes = 0;
@@ -89,6 +97,7 @@ struct GreedyInferenceResult {
   bool packed_weight_source_layout_direct = false;
   bool assistant_loaded = false;
   bool mtp_enabled = false;
+  bool mtp_adaptive = false;
   bool token_loop_allocations = false;
   bool benchmark_qualified = false;
   bool stopped = false;

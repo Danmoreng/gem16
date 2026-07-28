@@ -6,6 +6,7 @@
 #include "cuda/fp8/sm120.h"
 #include "cuda/layer/reference.h"
 #include "cuda/mtp/assistant.h"
+#include "cuda/mtp/scheduler.h"
 #include "cuda/nvfp4/mlp.h"
 #include "cuda/nvfp4/reference.h"
 #include "cuda/nvfp4/cutlass_sm120.h"
@@ -680,7 +681,20 @@ struct MtpWorkspaceOffsets {
   std::array<LayerKv, kLayers> layers{};
   std::uint64_t output_candidates = 0;
   std::uint64_t selected = 0;
+  std::uint64_t stop_tokens = 0;
+  std::uint64_t group_result = 0;
+  std::uint64_t committed_hidden = 0;
   std::uint64_t total = 0;
+};
+
+struct MtpGroupResult {
+  std::array<std::uint32_t, kMaximumMtpDraftTokens> proposed{};
+  std::array<std::uint32_t, kMaximumMtpVerifyTokens> verified{};
+  std::uint32_t proposal_count = 0U;
+  std::uint32_t accepted_count = 0U;
+  std::uint32_t output_count = 0U;
+  std::uint32_t stop_token = 0U;
+  std::uint32_t stopped = 0U;
 };
 
 struct HostDecodeState {
@@ -1002,6 +1016,79 @@ __global__ void OutputHeadBatchArgmaxKernel(
   if (threadIdx.x == 0U) selected[row] = scratch[0].token;
 }
 
+__global__ void BuildMtpVerificationInputsKernel(
+    std::uint32_t input_token, const std::uint32_t* drafts,
+    std::uint32_t proposal_count, std::uint32_t* inputs) {
+  const std::uint32_t index = threadIdx.x;
+  if (blockIdx.x != 0U || index > proposal_count) return;
+  inputs[index] = index == 0U ? input_token : drafts[index - 1U];
+}
+
+__global__ void AcceptMtpGroupKernel(
+    const std::uint32_t* drafts, const std::uint32_t* verified,
+    std::uint32_t proposal_count, const std::uint32_t* stop_tokens,
+    std::uint32_t stop_count, MtpGroupResult* result) {
+  if (blockIdx.x != 0U || threadIdx.x != 0U) return;
+  result->proposal_count = proposal_count;
+  result->accepted_count = 0U;
+  result->output_count = 0U;
+  result->stop_token = 0U;
+  result->stopped = 0U;
+  for (std::uint32_t index = 0U; index < kMaximumMtpDraftTokens; ++index) {
+    result->proposed[index] = index < proposal_count ? drafts[index] : 0U;
+  }
+  for (std::uint32_t index = 0U; index < kMaximumMtpVerifyTokens; ++index) {
+    result->verified[index] = index <= proposal_count ? verified[index] : 0U;
+  }
+  while (result->accepted_count < proposal_count &&
+         verified[result->accepted_count] == drafts[result->accepted_count]) {
+    ++result->accepted_count;
+  }
+  result->output_count = result->accepted_count == proposal_count
+                             ? proposal_count + 1U
+                             : result->accepted_count + 1U;
+  for (std::uint32_t index = 0U; index < result->output_count; ++index) {
+    for (std::uint32_t stop = 0U; stop < stop_count; ++stop) {
+      if (verified[index] == stop_tokens[stop]) {
+        result->output_count = index + 1U;
+        result->accepted_count = min(result->accepted_count, index);
+        result->stop_token = verified[index];
+        result->stopped = 1U;
+        return;
+      }
+    }
+  }
+}
+
+template <typename T>
+__global__ void CommitMtpKvKernel(
+    const T* compact_key, const T* compact_value, T* cache_key,
+    T* cache_value, std::uint64_t start_position,
+    std::uint64_t elements_per_token, std::uint64_t capacity,
+    const MtpGroupResult* result) {
+  const std::uint64_t index =
+      static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+  const std::uint64_t total =
+      static_cast<std::uint64_t>(result->output_count) * elements_per_token;
+  if (index >= total) return;
+  const std::uint64_t token = index / elements_per_token;
+  const std::uint64_t element = index % elements_per_token;
+  const std::uint64_t cache_index =
+      ((start_position + token) % capacity) * elements_per_token + element;
+  cache_key[cache_index] = compact_key[index];
+  cache_value[cache_index] = compact_value[index];
+}
+
+__global__ void CommitMtpHiddenKernel(
+    const float* verified_hidden, float* committed_hidden,
+    const MtpGroupResult* result) {
+  const std::uint64_t index =
+      static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+  if (index >= kHidden) return;
+  const std::uint64_t row = result->output_count - 1U;
+  committed_hidden[index] = verified_hidden[row * kHidden + index];
+}
+
 __global__ void OutputHeadCandidateArgmaxKernel(
     const ArgmaxValue* candidates, std::uint32_t* selected) {
   __shared__ ArgmaxValue scratch[kThreads];
@@ -1222,6 +1309,11 @@ class InferenceEngine {
     if (mtp_draft_tokens_ != 0U) {
       status = AllocateMtpWorkspace();
       if (!status.ok()) return status;
+      constexpr std::size_t kHostResultFloats =
+          (sizeof(MtpGroupResult) + sizeof(float) - 1U) / sizeof(float);
+      status = mtp_host_result_.Allocate(kHostResultFloats,
+                                         "MTP group host result");
+      if (!status.ok()) return status;
     }
     status = internal::LaunchRotaryEmbeddingTableBatch(
         Pointer<float>(prefill_workspace_, prefill_offsets_.local_rope_cosine),
@@ -1411,14 +1503,13 @@ class InferenceEngine {
   [[nodiscard]] std::uint64_t assistant_workspace_bytes() const {
     return assistant_.workspace_bytes() + mtp_workspace_.bytes();
   }
-  [[nodiscard]] Status GenerateAssistantDrafts(
+  [[nodiscard]] Status GenerateAssistantDraftsDevice(
       std::uint32_t input_token, std::uint64_t processed_position,
-      std::span<std::uint32_t> draft_token_ids) {
+      std::uint32_t draft_count) {
     const NvtxRange range("gem16.mtp.propose");
     if (mtp_draft_tokens_ == 0U || !assistant_.prepared() ||
-        latest_target_hidden_ == nullptr || draft_token_ids.empty() ||
-        draft_token_ids.size() > mtp_draft_tokens_ ||
-        processed_position >= max_context_) {
+        latest_target_hidden_ == nullptr || draft_count == 0U ||
+        draft_count > mtp_draft_tokens_ || processed_position >= max_context_) {
       return Error(StatusCode::kInvalidArgument,
                    "active MTP proposal state is invalid");
     }
@@ -1461,35 +1552,35 @@ class InferenceEngine {
     context.full_kv = make_view(full);
     context.input_token = input_token;
     context.position = processed_position;
-    return assistant_.GenerateDrafts(context, draft_token_ids, stream_);
+    return assistant_.GenerateDraftsDevice(context, draft_count, stream_);
   }
 
-  [[nodiscard]] Status VerifyAssistantDraftsBatch(
+  [[nodiscard]] Status VerifyAcceptCommitAssistantBatch(
       std::uint32_t input_token, std::uint64_t start_position,
-      std::span<const std::uint32_t> draft_token_ids,
-      std::span<std::uint32_t> verified_token_ids) {
-    const NvtxRange range("gem16.mtp.verify");
-    const std::uint64_t tokens = draft_token_ids.size() + 1U;
-    if (mtp_draft_tokens_ == 0U || draft_token_ids.empty() ||
-        draft_token_ids.size() > mtp_draft_tokens_ ||
-        tokens > kMaximumMtpVerifyTokens ||
-        verified_token_ids.size() != tokens || start_position >= max_context_ ||
+      std::uint32_t proposal_count, MtpGroupResult* host_result) {
+    const NvtxRange range("gem16.mtp.verify_accept_commit");
+    const std::uint64_t tokens = proposal_count + 1U;
+    if (mtp_draft_tokens_ == 0U || proposal_count == 0U ||
+        proposal_count > mtp_draft_tokens_ ||
+        tokens > kMaximumMtpVerifyTokens || host_result == nullptr ||
+        start_position >= max_context_ ||
         tokens > max_context_ - start_position) {
       return Error(StatusCode::kInvalidArgument,
                    "batched MTP verification extent is invalid");
     }
-    std::array<std::uint32_t, kMaximumMtpVerifyTokens> inputs{};
-    inputs[0] = input_token;
-    std::copy(draft_token_ids.begin(), draft_token_ids.end(),
-              inputs.begin() + 1U);
+    const std::uint32_t* device_drafts = assistant_.device_draft_tokens();
+    if (device_drafts == nullptr) {
+      return Error(StatusCode::kInternal,
+                   "assistant device draft storage is unavailable");
+    }
     auto* device_tokens =
         Pointer<std::uint32_t>(prefill_workspace_, prefill_offsets_.token_ids);
-    cudaError_t error = cudaMemcpyAsync(
-        device_tokens, inputs.data(),
-        static_cast<std::size_t>(tokens * sizeof(std::uint32_t)),
-        cudaMemcpyHostToDevice, stream_);
+    BuildMtpVerificationInputsKernel<<<1U, kMaximumMtpVerifyTokens, 0,
+                                       stream_>>>(
+        input_token, device_drafts, proposal_count, device_tokens);
+    cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {
-      return CudaFailure("copy MTP verification token IDs", error);
+      return CudaFailure("build MTP verification token IDs", error);
     }
     float* hidden =
         Pointer<float>(prefill_workspace_, prefill_offsets_.hidden_a);
@@ -1532,50 +1623,65 @@ class InferenceEngine {
     if (error != cudaSuccess) {
       return CudaFailure("launch batched MTP argmax", error);
     }
-    error = cudaMemcpyAsync(verified_token_ids.data(), selected,
-                            verified_token_ids.size_bytes(),
-                            cudaMemcpyDeviceToHost, stream_);
+    auto* device_result = Pointer<MtpGroupResult>(
+        mtp_workspace_, mtp_offsets_.group_result);
+    AcceptMtpGroupKernel<<<1U, 1U, 0, stream_>>>(
+        device_drafts, selected, proposal_count,
+        Pointer<std::uint32_t>(mtp_workspace_, mtp_offsets_.stop_tokens),
+        mtp_stop_token_count_, device_result);
+    error = cudaGetLastError();
     if (error != cudaSuccess) {
-      return CudaFailure("copy batched MTP target predictions", error);
-    }
-    error = cudaStreamSynchronize(stream_);
-    return error == cudaSuccess
-               ? Status::Ok()
-               : CudaFailure("synchronize batched MTP verification", error);
-  }
-
-  [[nodiscard]] Status CommitAssistantVerification(
-      std::uint64_t start_position, std::uint64_t committed_tokens) {
-    if (committed_tokens == 0U ||
-        committed_tokens > kMaximumMtpVerifyTokens ||
-        start_position >= max_context_ ||
-        committed_tokens > max_context_ - start_position) {
-      return Error(StatusCode::kInvalidArgument,
-                   "MTP verification commit extent is invalid");
+      return CudaFailure("launch GPU MTP acceptance", error);
     }
     for (std::size_t index = 0; index < model_.layers().size(); ++index) {
       const LayerBinding& layer = model_.layers()[index];
       const std::uint64_t capacity =
           layer.global ? max_context_ : std::min(max_context_, kSlidingWindow);
-      Status status;
+      const std::uint64_t maximum_elements =
+          kMaximumMtpVerifyTokens * layer.kv_elements;
+      const unsigned blocks = static_cast<unsigned>(
+          (maximum_elements + kThreads - 1U) / kThreads);
       if (kv_cache_mode_ == KvCacheMode::kCheckpointFp8) {
-        status = internal::LaunchAppendKvFp8Batch(
+        CommitMtpKvKernel<<<blocks, kThreads, 0, stream_>>>(
             Pointer<std::uint8_t>(mtp_workspace_, mtp_offsets_.layers[index].key),
             Pointer<std::uint8_t>(mtp_workspace_, mtp_offsets_.layers[index].value),
             layer.key_cache_fp8, layer.value_cache_fp8, start_position,
-            committed_tokens, layer.kv_elements, capacity, stream_);
+            layer.kv_elements, capacity, device_result);
       } else {
-        status = internal::LaunchAppendKvBatch(
+        CommitMtpKvKernel<<<blocks, kThreads, 0, stream_>>>(
             Pointer<float>(mtp_workspace_, mtp_offsets_.layers[index].key),
             Pointer<float>(mtp_workspace_, mtp_offsets_.layers[index].value),
             layer.key_cache_bf16, layer.value_cache_bf16, start_position,
-            committed_tokens, layer.kv_elements, capacity, stream_);
+            layer.kv_elements, capacity, device_result);
       }
-      if (!status.ok()) return status;
+      error = cudaGetLastError();
+      if (error != cudaSuccess) {
+        return CudaFailure("launch GPU MTP KV commit", error);
+      }
     }
-    latest_target_hidden_ =
-        Pointer<float>(prefill_workspace_, prefill_offsets_.normalized) +
-        (committed_tokens - 1U) * kHidden;
+    float* committed_hidden =
+        Pointer<float>(mtp_workspace_, mtp_offsets_.committed_hidden);
+    CommitMtpHiddenKernel<<<
+        static_cast<unsigned>((kHidden + kThreads - 1U) / kThreads),
+        kThreads, 0, stream_>>>(normalized, committed_hidden, device_result);
+    error = cudaGetLastError();
+    if (error != cudaSuccess) {
+      return CudaFailure("launch GPU MTP hidden-state commit", error);
+    }
+    latest_target_hidden_ = committed_hidden;
+    auto* pinned_result = reinterpret_cast<MtpGroupResult*>(
+        mtp_host_result_.span().data());
+    error = cudaMemcpyAsync(pinned_result, device_result,
+                            sizeof(MtpGroupResult), cudaMemcpyDeviceToHost,
+                            stream_);
+    if (error != cudaSuccess) {
+      return CudaFailure("copy GPU MTP group result", error);
+    }
+    error = cudaStreamSynchronize(stream_);
+    if (error != cudaSuccess) {
+      return CudaFailure("synchronize GPU MTP group", error);
+    }
+    *host_result = *pinned_result;
     return Status::Ok();
   }
 
@@ -1738,6 +1844,25 @@ class InferenceEngine {
                                     : CudaFailure("configure suppressed token IDs", sync_error);
   }
 
+  [[nodiscard]] Status SetMtpStopTokens(
+      std::span<const std::uint32_t> tokens) {
+    if (mtp_draft_tokens_ == 0U) return Status::Ok();
+    if (tokens.size() > kMaximumSuppressedTokens) {
+      return Error(StatusCode::kUnsupported,
+                   "active MTP supports at most 16 stop-token IDs");
+    }
+    mtp_stop_token_count_ = static_cast<std::uint32_t>(tokens.size());
+    if (tokens.empty()) return Status::Ok();
+    const cudaError_t error = cudaMemcpyAsync(
+        Pointer<std::uint32_t>(mtp_workspace_, mtp_offsets_.stop_tokens),
+        tokens.data(), tokens.size_bytes(), cudaMemcpyHostToDevice, stream_);
+    if (error != cudaSuccess) return CudaFailure("copy MTP stop-token IDs", error);
+    const cudaError_t sync_error = cudaStreamSynchronize(stream_);
+    return sync_error == cudaSuccess
+               ? Status::Ok()
+               : CudaFailure("configure MTP stop-token IDs", sync_error);
+  }
+
  private:
   [[nodiscard]] Status MarkRepetitionToken(std::uint32_t token) {
     if (!sampling_.enabled || sampling_.repetition_penalty == 1.0F) {
@@ -1895,10 +2020,19 @@ class InferenceEngine {
     auto candidates = layout.Add<ArgmaxValue>(
         kMaximumMtpVerifyTokens * kFusedOutputHeadBlocks);
     auto selected = layout.Add<std::uint32_t>(kMaximumMtpVerifyTokens);
+    auto stop_tokens = layout.Add<std::uint32_t>(kMaximumSuppressedTokens);
+    auto group_result = layout.Add<MtpGroupResult>(1U);
+    auto committed_hidden = layout.Add<float>(kHidden);
     if (!candidates.ok()) return candidates.status();
     if (!selected.ok()) return selected.status();
+    if (!stop_tokens.ok()) return stop_tokens.status();
+    if (!group_result.ok()) return group_result.status();
+    if (!committed_hidden.ok()) return committed_hidden.status();
     mtp_offsets_.output_candidates = candidates.value();
     mtp_offsets_.selected = selected.value();
+    mtp_offsets_.stop_tokens = stop_tokens.value();
+    mtp_offsets_.group_result = group_result.value();
+    mtp_offsets_.committed_hidden = committed_hidden.value();
     auto size = AlignUp(layout.size(), kAlignment);
     if (!size.ok()) return size.status();
     mtp_offsets_.total = size.value();
@@ -1990,7 +2124,6 @@ class InferenceEngine {
     auto* cutlass_workspace = Pointer<std::uint8_t>(
         prefill_workspace_, prefill_offsets_.cutlass_workspace);
     constexpr std::size_t kCutlassWorkspaceBytes = 8U * 1024U * 1024U;
-    const std::uint64_t hidden_elements = tokens * kHidden;
     Status status = internal::LaunchRmsNormFp8TokenQuantizationBatch(
         hidden_a, layer.input_norm, fp8, fp8_scales, tokens, kHidden,
         kEpsilon, stream_);
@@ -2266,7 +2399,26 @@ class InferenceEngine {
           start_position, tokens, layer.kv_elements, capacity, stream_);
     }
     if (!status.ok()) return status;
-    status = LaunchRoundBf16(attention, tokens * layer.query_elements, stream_);
+    return LaunchLayerBatchSuffix(layer, tokens, mtp_verification);
+  }
+
+  [[nodiscard]] Status LaunchLayerBatchSuffix(
+      const LayerBinding& layer, std::uint64_t tokens,
+      bool mtp_verification) {
+    float* hidden_a =
+        Pointer<float>(prefill_workspace_, prefill_offsets_.hidden_a);
+    float* hidden_b =
+        Pointer<float>(prefill_workspace_, prefill_offsets_.hidden_b);
+    float* attention =
+        Pointer<float>(prefill_workspace_, prefill_offsets_.attention);
+    float* projection =
+        Pointer<float>(prefill_workspace_, prefill_offsets_.projection);
+    auto* cutlass_workspace = Pointer<std::uint8_t>(
+        prefill_workspace_, prefill_offsets_.cutlass_workspace);
+    constexpr std::size_t kCutlassWorkspaceBytes = 8U * 1024U * 1024U;
+    const std::uint64_t hidden_elements = tokens * kHidden;
+    Status status =
+        LaunchRoundBf16(attention, tokens * layer.query_elements, stream_);
     if (!status.ok()) return status;
     auto* o_activation = Pointer<std::uint8_t>(prefill_workspace_, prefill_offsets_.o_activation);
     float* o_scales = Pointer<float>(prefill_workspace_, prefill_offsets_.o_scales);
@@ -2865,6 +3017,7 @@ class InferenceEngine {
   DeviceAllocation prefill_workspace_;
   DeviceAllocation mtp_workspace_;
   PinnedHostAllocation decode_host_state_;
+  PinnedHostAllocation mtp_host_result_;
   WorkspaceOffsets offsets_{};
   PrefillOffsets prefill_offsets_{};
   MtpWorkspaceOffsets mtp_offsets_{};
@@ -2881,6 +3034,7 @@ class InferenceEngine {
   std::uint64_t sampling_step_ = 0;
   std::size_t sampling_sort_workspace_bytes_ = 0;
   std::uint32_t suppressed_token_count_ = 0;
+  std::uint32_t mtp_stop_token_count_ = 0;
   KvCacheMode kv_cache_mode_ = KvCacheMode::kCheckpointFp8;
   SamplingOptions sampling_{};
 };
@@ -3284,6 +3438,10 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
     return Error(StatusCode::kInvalidArgument,
                  "active MTP requires --assistant-model");
   }
+  if (options.mtp_adaptive && !mtp_enabled) {
+    return Error(StatusCode::kInvalidArgument,
+                 "--mtp-adaptive requires active MTP");
+  }
   if (mtp_enabled &&
       (teacher_forcing || options.sampling.enabled ||
        !options.logits_dump_path.empty() || !options.state_dump_path.empty())) {
@@ -3377,6 +3535,8 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
   if (!status.ok()) return status;
   status = engine.SetSuppressedTokens(options.suppressed_token_ids);
   if (!status.ok()) return status;
+  status = engine.SetMtpStopTokens(options.stop_token_ids);
+  if (!status.ok()) return status;
   const auto load_end = std::chrono::steady_clock::now();
 
   GreedyInferenceResult result;
@@ -3401,6 +3561,7 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
   result.assistant_tensor_count = engine.assistant_tensor_count();
   result.assistant_workspace_bytes = engine.assistant_workspace_bytes();
   result.mtp_enabled = mtp_enabled;
+  result.mtp_adaptive = options.mtp_adaptive;
   result.mtp_draft_tokens = options.mtp_draft_tokens;
   result.kv_cache_bytes = engine.cache_bytes();
   result.workspace_bytes = engine.workspace_bytes();
@@ -3456,79 +3617,73 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
   const auto decode_start = std::chrono::steady_clock::now();
   if (mtp_enabled) {
     std::uint64_t processed_position = options.input_token_ids.size() - 1U;
+    internal::AdaptiveMtpScheduler adaptive_scheduler(
+        options.mtp_draft_tokens, processed_position, options.mtp_adaptive);
+    const auto emit_ordinary_token = [&](bool adaptive_fallback) -> Status {
+      auto forwarded = engine.Forward(next_token, processed_position + 1U,
+                                      true);
+      if (!forwarded.ok()) return forwarded.status();
+      ++processed_position;
+      ++result.mtp_target_forwards;
+      ++result.mtp_target_batches;
+      if (adaptive_fallback) ++result.mtp_ordinary_fallback_tokens;
+      next_token = forwarded.value();
+      result.output_token_ids.push_back(next_token);
+      if (options.generated_token_callback != nullptr) {
+        Status callback_status = options.generated_token_callback(
+            options.generated_token_callback_context, next_token);
+        if (!callback_status.ok()) return callback_status;
+      }
+      if (std::find(options.stop_token_ids.begin(),
+                    options.stop_token_ids.end(), next_token) !=
+          options.stop_token_ids.end()) {
+        result.stopped = true;
+        result.stop_token_id = next_token;
+      }
+      return Status::Ok();
+    };
     while (result.output_token_ids.size() < generation_steps &&
            !result.stopped) {
       const std::size_t remaining = static_cast<std::size_t>(
           generation_steps - result.output_token_ids.size());
-      if (remaining == 1U) {
-        auto forwarded = engine.Forward(next_token, processed_position + 1U,
-                                        true);
-        if (!forwarded.ok()) return forwarded.status();
-        ++processed_position;
-        ++result.mtp_target_forwards;
-        ++result.mtp_target_batches;
-        next_token = forwarded.value();
-        result.output_token_ids.push_back(next_token);
-        if (options.generated_token_callback != nullptr) {
-          status = options.generated_token_callback(
-              options.generated_token_callback_context, next_token);
-          if (!status.ok()) return status;
-        }
-        if (std::find(options.stop_token_ids.begin(),
-                      options.stop_token_ids.end(), next_token) !=
-            options.stop_token_ids.end()) {
-          result.stopped = true;
-          result.stop_token_id = next_token;
-        }
+      const bool adaptive_fallback =
+          adaptive_scheduler.use_ordinary_fallback();
+      if (remaining == 1U || adaptive_fallback) {
+        status = emit_ordinary_token(adaptive_fallback);
+        if (!status.ok()) return status;
+        if (adaptive_fallback) adaptive_scheduler.ConsumeOrdinaryFallback();
         continue;
       }
       const std::size_t proposal_count = std::min<std::size_t>(
-          options.mtp_draft_tokens, remaining - 1U);
-      std::array<std::uint32_t, kMaximumMtpDraftTokens> drafts{};
-      status = engine.GenerateAssistantDrafts(
+          adaptive_scheduler.active_drafts(), remaining - 1U);
+      status = engine.GenerateAssistantDraftsDevice(
           next_token, processed_position,
-          std::span<std::uint32_t>(drafts).first(proposal_count));
+          static_cast<std::uint32_t>(proposal_count));
+      if (!status.ok()) return status;
+      MtpGroupResult group;
+      status = engine.VerifyAcceptCommitAssistantBatch(
+          next_token, processed_position + 1U,
+          static_cast<std::uint32_t>(proposal_count), &group);
       if (!status.ok()) return status;
       ++result.mtp_verification_groups;
+      if (proposal_count == 1U) {
+        ++result.mtp_d1_groups;
+      } else if (proposal_count == 2U) {
+        ++result.mtp_d2_groups;
+      } else if (proposal_count == 4U) {
+        ++result.mtp_d4_groups;
+      }
       result.mtp_proposed_tokens += proposal_count;
       result.mtp_proposed_token_ids.insert(
-          result.mtp_proposed_token_ids.end(), drafts.begin(),
-          drafts.begin() + static_cast<std::ptrdiff_t>(proposal_count));
-
-      std::array<std::uint32_t, kMaximumMtpVerifyTokens> verified{};
-      status = engine.VerifyAssistantDraftsBatch(
-          next_token, processed_position + 1U,
-          std::span<const std::uint32_t>(drafts).first(proposal_count),
-          std::span<std::uint32_t>(verified).first(proposal_count + 1U));
-      if (!status.ok()) return status;
+          result.mtp_proposed_token_ids.end(), group.proposed.begin(),
+          group.proposed.begin() + static_cast<std::ptrdiff_t>(proposal_count));
       result.mtp_target_forwards += proposal_count + 1U;
       ++result.mtp_target_batches;
-
-      std::size_t matched = 0U;
-      while (matched < proposal_count &&
-             verified[matched] == drafts[matched]) {
-        ++matched;
-      }
-      std::size_t output_count =
-          matched == proposal_count ? proposal_count + 1U : matched + 1U;
-      for (std::size_t index = 0U; index < output_count; ++index) {
-        if (std::find(options.stop_token_ids.begin(),
-                      options.stop_token_ids.end(), verified[index]) !=
-            options.stop_token_ids.end()) {
-          output_count = index + 1U;
-          break;
-        }
-      }
-      const std::size_t accepted_in_group =
-          std::min(matched, output_count);
-      result.mtp_accepted_tokens += accepted_in_group;
-      result.mtp_rejected_tokens += proposal_count - accepted_in_group;
-      status = engine.CommitAssistantVerification(processed_position + 1U,
-                                                  output_count);
-      if (!status.ok()) return status;
-      processed_position += output_count;
-      for (std::size_t index = 0U; index < output_count; ++index) {
-        next_token = verified[index];
+      result.mtp_accepted_tokens += group.accepted_count;
+      result.mtp_rejected_tokens += proposal_count - group.accepted_count;
+      processed_position += group.output_count;
+      for (std::uint32_t index = 0U; index < group.output_count; ++index) {
+        next_token = group.verified[index];
         result.output_token_ids.push_back(next_token);
         if (options.generated_token_callback != nullptr) {
           status = options.generated_token_callback(
@@ -3542,6 +3697,10 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
           result.stop_token_id = next_token;
           break;
         }
+      }
+      if (!result.stopped) {
+        adaptive_scheduler.Observe(processed_position,
+                                   group.accepted_count);
       }
     }
   } else {
@@ -3838,7 +3997,22 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
          << (result.mtp_enabled ? "true" : "false")
          << ",\"verification_mode\":\""
          << (result.mtp_enabled ? "batched_exact_target" : "disabled")
-         << "\",\"draft_tokens\":" << result.mtp_draft_tokens
+         << "\",\"acceptance_path\":\""
+         << (result.mtp_enabled ? "gpu_accept_commit" : "disabled")
+         << "\",\"host_synchronizations_per_group\":"
+         << (result.mtp_enabled ? 1 : 0)
+         << ",\"short_batch_projection_path\":\""
+         << (result.mtp_enabled
+                 ? "decode_order_fp8_qkv_nvfp4_down_t_le_5"
+                 : "disabled")
+         << "\",\"adaptive\":"
+         << (result.mtp_adaptive ? "true" : "false")
+         << ",\"draft_tokens\":" << result.mtp_draft_tokens
+         << ",\"d1_groups\":" << result.mtp_d1_groups
+         << ",\"d2_groups\":" << result.mtp_d2_groups
+         << ",\"d4_groups\":" << result.mtp_d4_groups
+         << ",\"ordinary_fallback_tokens\":"
+         << result.mtp_ordinary_fallback_tokens
          << ",\"proposed_tokens\":" << result.mtp_proposed_tokens
          << ",\"accepted_tokens\":" << result.mtp_accepted_tokens
          << ",\"rejected_tokens\":" << result.mtp_rejected_tokens

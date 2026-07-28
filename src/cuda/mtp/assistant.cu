@@ -543,11 +543,11 @@ Status AssistantModel::Prepare(std::uint64_t max_context) {
   return Status::Ok();
 }
 
-Status AssistantModel::GenerateDrafts(
-    const AssistantProposalContext& context,
-    std::span<std::uint32_t> draft_token_ids, cudaStream_t stream) {
-  if (!prepared() || stream == nullptr || draft_token_ids.empty() ||
-      draft_token_ids.size() > 4U || context.target_embedding == nullptr ||
+Status AssistantModel::GenerateDraftsDevice(
+    const AssistantProposalContext& context, std::uint32_t draft_count,
+    cudaStream_t stream) {
+  if (!prepared() || stream == nullptr || draft_count == 0U ||
+      draft_count > 4U || context.target_embedding == nullptr ||
       context.target_hidden == nullptr || context.input_token >= kVocabulary ||
       context.position >= impl_->max_context) {
     return Error(StatusCode::kInvalidArgument,
@@ -649,7 +649,7 @@ Status AssistantModel::GenerateDrafts(
     return CudaFailure("set assistant attention position", error);
   }
   const float* backbone_hidden = target_hidden;
-  for (std::size_t step = 0; step < draft_token_ids.size(); ++step) {
+  for (std::uint32_t step = 0; step < draft_count; ++step) {
     PreProjectionKernel<<<static_cast<unsigned>(kAssistantHidden), kThreads, 0,
                           stream>>>(
         context.target_embedding, selected, backbone_hidden,
@@ -758,9 +758,18 @@ Status AssistantModel::GenerateDrafts(
     }
     backbone_hidden = feedback;
   }
-  error = cudaMemcpyAsync(draft_token_ids.data(), device_drafts,
-                          draft_token_ids.size_bytes(),
-                          cudaMemcpyDeviceToHost, stream);
+  return Status::Ok();
+}
+
+Status AssistantModel::GenerateDrafts(
+    const AssistantProposalContext& context,
+    std::span<std::uint32_t> draft_token_ids, cudaStream_t stream) {
+  Status status = GenerateDraftsDevice(
+      context, static_cast<std::uint32_t>(draft_token_ids.size()), stream);
+  if (!status.ok()) return status;
+  cudaError_t error = cudaMemcpyAsync(
+      draft_token_ids.data(), device_draft_tokens(), draft_token_ids.size_bytes(),
+      cudaMemcpyDeviceToHost, stream);
   if (error != cudaSuccess) {
     return CudaFailure("copy assistant draft tokens", error);
   }
@@ -768,6 +777,12 @@ Status AssistantModel::GenerateDrafts(
   return error == cudaSuccess
              ? Status::Ok()
              : CudaFailure("synchronize assistant drafts", error);
+}
+
+const std::uint32_t* AssistantModel::device_draft_tokens() const {
+  return prepared()
+             ? impl_->Workspace<std::uint32_t>(impl_->offsets.draft_tokens)
+             : nullptr;
 }
 
 bool AssistantModel::loaded() const { return impl_->arena != nullptr; }

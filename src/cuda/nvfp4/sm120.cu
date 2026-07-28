@@ -769,28 +769,42 @@ Status LaunchNvfp4Sm120DirectProjectionBf16Batch(
   }
   const std::uint64_t row_tiles =
       (rows + kRowsPerWarp - 1U) / kRowsPerWarp;
+  const bool short_batch = tokens <= 5U;
+  const unsigned block_warps =
+      short_batch ? kWarpsPerBlock : kPrefillWarpsPerBlock;
   const std::uint64_t blocks =
-      (row_tiles + kPrefillWarpsPerBlock - 1U) /
-      kPrefillWarpsPerBlock;
+      (row_tiles + block_warps - 1U) / block_warps;
   if (blocks >
       static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
     return Invalid("batched SM120 NVFP4 BF16 projection grid exceeds CUDA limits");
   }
   const std::uint64_t token_tiles =
       (tokens + kTokensPerMma - 1U) / kTokensPerMma;
-  const std::uint64_t grouped_token_tiles =
-      (token_tiles + kPrefillTokenTilesPerWarp - 1U) /
-      kPrefillTokenTilesPerWarp;
-  Sm120MatrixProjectionKernel<false, kPrefillTokenTilesPerWarp,
-                              kPrefillWarpsPerBlock, true,
-                              std::uint16_t><<<
-      dim3(static_cast<unsigned>(blocks),
-           static_cast<unsigned>(grouped_token_tiles)),
-      kPrefillThreadsPerBlock, 0, stream>>>(
-      packed_activation_e2m1, activation_scales_e4m3fn,
-      packed_weight_e2m1, weight_scales_e4m3fn, nullptr, nullptr, nullptr,
-      nullptr, output_bf16, tokens, rows, contracting_elements,
-      output_divisor, 1.0F);
+  if (short_batch) {
+    Sm120MatrixProjectionKernel<false, 1U, kWarpsPerBlock, false,
+                                std::uint16_t><<<
+        dim3(static_cast<unsigned>(blocks),
+             static_cast<unsigned>(token_tiles)),
+        kThreadsPerBlock, 0, stream>>>(
+        packed_activation_e2m1, activation_scales_e4m3fn,
+        packed_weight_e2m1, weight_scales_e4m3fn, nullptr, nullptr, nullptr,
+        nullptr, output_bf16, tokens, rows, contracting_elements,
+        output_divisor, 1.0F);
+  } else {
+    const std::uint64_t grouped_token_tiles =
+        (token_tiles + kPrefillTokenTilesPerWarp - 1U) /
+        kPrefillTokenTilesPerWarp;
+    Sm120MatrixProjectionKernel<false, kPrefillTokenTilesPerWarp,
+                                kPrefillWarpsPerBlock, true,
+                                std::uint16_t><<<
+        dim3(static_cast<unsigned>(blocks),
+             static_cast<unsigned>(grouped_token_tiles)),
+        kPrefillThreadsPerBlock, 0, stream>>>(
+        packed_activation_e2m1, activation_scales_e4m3fn,
+        packed_weight_e2m1, weight_scales_e4m3fn, nullptr, nullptr, nullptr,
+        nullptr, output_bf16, tokens, rows, contracting_elements,
+        output_divisor, 1.0F);
+  }
   const cudaError_t error = cudaGetLastError();
   return error == cudaSuccess
              ? Status::Ok()
@@ -900,7 +914,8 @@ Status LaunchNvfp4Sm120FusedGateUpBatch(
       kFusedGateUpTokenTilesPerWarp;
   Sm120MatrixProjectionKernel<true, kFusedGateUpTokenTilesPerWarp,
                               kWarpsPerBlock, false><<<
-      dim3(static_cast<unsigned>(blocks), static_cast<unsigned>(grouped_token_tiles)),
+      dim3(static_cast<unsigned>(blocks),
+           static_cast<unsigned>(grouped_token_tiles)),
       kThreadsPerBlock, 0, stream>>>(
       packed_activation_e2m1, activation_scales_e4m3fn,
       packed_gate_weight_e2m1, gate_weight_scales_e4m3fn,

@@ -77,6 +77,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--mtp-draft-tokens", type=int, choices=(0, 1, 2, 4), default=0
     )
+    parser.add_argument("--mtp-adaptive", action="store_true")
     parser.add_argument("--executable", type=Path)
     parser.add_argument("--gguf", type=Path)
     parser.add_argument("--warmups", type=positive_int, default=3)
@@ -252,6 +253,18 @@ def summarize_runs(runs: list[dict[str, Any]]) -> dict[str, Any]:
             "target_batches": summarize(
                 [float(run["mtp"]["target_batches"]) for run in runs]
             ),
+            "d1_groups": summarize(
+                [float(run["mtp"]["d1_groups"]) for run in runs]
+            ),
+            "d2_groups": summarize(
+                [float(run["mtp"]["d2_groups"]) for run in runs]
+            ),
+            "d4_groups": summarize(
+                [float(run["mtp"]["d4_groups"]) for run in runs]
+            ),
+            "ordinary_fallback_tokens": summarize(
+                [float(run["mtp"]["ordinary_fallback_tokens"]) for run in runs]
+            ),
         }
     return summary
 
@@ -264,6 +277,7 @@ def run_gem16(
     generation: dict[str, Any],
     assistant_model: Path | None,
     mtp_draft_tokens: int,
+    mtp_adaptive: bool,
 ) -> tuple[dict[str, Any], list[int]]:
     command = [
         str(executable),
@@ -294,6 +308,8 @@ def run_gem16(
                 str(mtp_draft_tokens),
             ]
         )
+        if mtp_adaptive:
+            command.append("--mtp-adaptive")
     completed = subprocess.run(command, check=False, capture_output=True, text=True)
     if completed.returncode != 0:
         detail = completed.stderr.strip() or completed.stdout.strip()
@@ -324,6 +340,7 @@ def run_gem16(
             not isinstance(mtp, dict)
             or mtp.get("enabled") is not True
             or mtp.get("draft_tokens") != mtp_draft_tokens
+            or mtp.get("adaptive") is not mtp_adaptive
             or mtp.get("verification_mode") != "batched_exact_target"
         ):
             raise BenchmarkError("gem16 returned malformed MTP telemetry")
@@ -337,6 +354,10 @@ def run_gem16(
                 "target_forwards",
                 "target_batches",
                 "mean_accepted_length",
+                "d1_groups",
+                "d2_groups",
+                "d4_groups",
+                "ordinary_fallback_tokens",
             )
         }
     return run, output_tokens
@@ -513,6 +534,8 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
             )
         if args.mtp_draft_tokens != 0 and assistant_model is None:
             raise BenchmarkError("--mtp-draft-tokens requires --assistant-model")
+        if args.mtp_adaptive and args.mtp_draft_tokens == 0:
+            raise BenchmarkError("--mtp-adaptive requires --mtp-draft-tokens")
         prompt_file = args.output.with_suffix(".prompt-token-ids.txt").resolve()
         prompt_file.parent.mkdir(parents=True, exist_ok=True)
         prompt_file.write_text(
@@ -528,6 +551,7 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
                 generation,
                 assistant_model,
                 args.mtp_draft_tokens,
+                args.mtp_adaptive,
             )
 
         runtime = {
@@ -541,6 +565,7 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
         configuration = {
             "kv_cache": "checkpoint_fp8",
             "mtp_draft_tokens": args.mtp_draft_tokens,
+            "mtp_adaptive": args.mtp_adaptive,
             "mtp_verification_mode": (
                 "batched_exact_target"
                 if args.mtp_draft_tokens != 0

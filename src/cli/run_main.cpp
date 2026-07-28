@@ -54,7 +54,7 @@ void PrintUsage() {
       << "  gem16-run --print-kernel-capabilities\n"
       << "  gem16-run --model <checkpoint> --input-token-ids <id,id,...>\n"
       << "              [--assistant-model <official-mtp-checkpoint>]\n"
-      << "              [--mtp-draft-tokens 1|2|4]\n"
+      << "              [--mtp-draft-tokens 1|2|4] [--mtp-adaptive]\n"
       << "              [--input-token-ids-file <comma-separated-token-file>]\n"
       << "              [--teacher-forced-token-ids <id,id,...>]\n"
       << "              [--stop-token-ids <id,id,...>]\n"
@@ -100,6 +100,8 @@ int main(int argc, char** argv) {
         return 64;
       }
       options.mtp_draft_tokens = static_cast<std::uint32_t>(value);
+    } else if (argument == "--mtp-adaptive") {
+      options.mtp_adaptive = true;
     } else if (argument == "--input-token-ids" && index + 1 < argc) {
       if (!options.input_token_ids.empty() ||
           !ParseTokenIds(argv[++index], options.input_token_ids)) {

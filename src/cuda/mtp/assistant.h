@@ -79,6 +79,10 @@ class AssistantModel {
   [[nodiscard]] Status GenerateDrafts(
       const AssistantProposalContext& context,
       std::span<std::uint32_t> draft_token_ids, cudaStream_t stream);
+  [[nodiscard]] Status GenerateDraftsDevice(
+      const AssistantProposalContext& context, std::uint32_t draft_count,
+      cudaStream_t stream);
+  [[nodiscard]] const std::uint32_t* device_draft_tokens() const;
   [[nodiscard]] bool loaded() const;
   [[nodiscard]] bool prepared() const;
   [[nodiscard]] std::uint64_t arena_bytes() const;

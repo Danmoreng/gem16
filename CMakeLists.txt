@@ -196,6 +196,7 @@ if(BUILD_TESTING AND GEM16_BUILD_TESTS)
     tests/unit/json_test.cpp
     tests/unit/layer_test.cpp
     tests/unit/memory_plan_test.cpp
+    tests/unit/mtp_scheduler_test.cpp
     tests/unit/nvfp4_test.cpp
     tests/unit/safetensors_test.cpp
     tests/unit/sampling_test.cpp

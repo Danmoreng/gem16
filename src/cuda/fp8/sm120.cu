@@ -557,6 +557,32 @@ Status LaunchFp8Sm120GroupedQkvProjectionBatch(
             : std::max(q_rows, k_rows);
   const std::uint64_t row_tiles =
       (maximum_rows + kRowsPerWarp - 1U) / kRowsPerWarp;
+  if (tokens <= 5U) {
+    const std::uint64_t direct_blocks =
+        (row_tiles + kWarpsPerBlock - 1U) / kWarpsPerBlock;
+    if (direct_blocks >
+        static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
+      return Invalid("grouped direct SM120 FP8 Q/K/V grid exceeds CUDA limits");
+    }
+    const Fp8MatrixBinding q{q_weight_e4m3fn, q_weight_scales_bf16, q_output,
+                             q_rows};
+    const Fp8MatrixBinding k{k_weight_e4m3fn, k_weight_scales_bf16, k_output,
+                             k_rows};
+    const Fp8MatrixBinding v{v_weight_e4m3fn, v_weight_scales_bf16, v_output,
+                             v_rows};
+    Sm120DirectProjectionKernel<<<
+        dim3(static_cast<unsigned>(direct_blocks),
+             static_cast<unsigned>(tokens), has_v ? 3U : 2U),
+        kThreadsPerBlock, 0, stream>>>(
+        activation_e4m3fn, activation_scales, q, k, v, has_v ? 3U : 2U,
+        tokens, contracting_elements);
+    const cudaError_t direct_error = cudaGetLastError();
+    return direct_error == cudaSuccess
+               ? Status::Ok()
+               : CudaFailure(
+                     "launch grouped short-batch direct SM120 FP8 Q/K/V projection",
+                     direct_error);
+  }
   const std::uint64_t blocks =
       (row_tiles + kMatrixWarpsPerBlock - 1U) / kMatrixWarpsPerBlock;
   if (blocks > static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
