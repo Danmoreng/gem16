@@ -172,5 +172,10 @@ deliberately rejected or deferred rather than silently using incorrect semantics
    The exact direct decode-attention verifier remains mandatory: a faster causal-prefill attention candidate
    reached 55.06 tok/s but changed output at step 15 and was removed. NVFP4 CUTLASS verifier projections also
    changed the natural sequence and were removed.
-10. Promote MTP only for workloads where end-to-end effective throughput wins; otherwise adaptively use ordinary
+10. **16K blocker characterized:** the exact Wikipedia 16K workload with one warm-up and three runs measures
+   31.775 tok/s ordinary versus 29.634/31.702/28.866 for D1/D2/D4. Mean accepted lengths are
+   0.740/1.240/1.755. All MTP modes diverge from ordinary at generated index 68 and share a 979-token output versus
+   ordinary's 1,135 tokens, so this is neither an exactness pass nor a speedup result. Resolve the long-context
+   batched-target numerical difference and reduce assistant/global-attention proposal cost before repeating.
+11. Promote MTP only for workloads where end-to-end effective throughput wins; otherwise adaptively use ordinary
    decode.

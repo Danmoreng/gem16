@@ -1,5 +1,19 @@
 # Performance ledger
 
+## 2026-07-28 Wikipedia 16K MTP characterization
+
+The exact 16,384-token Wikipedia summarization workload was run at commit `2dba16d` with one warm-up and three
+measured repetitions per mode. Ordinary/D1/D2/D4 median decode is 31.775/29.634/31.702/28.866 tok/s. Relative to
+ordinary, D1 is -6.74%, D2 -0.23%, and D4 -9.15%; mean accepted lengths are 0.740/1.240/1.755. Thus the current MTP
+path has no long-context throughput win even before qualification.
+
+All modes are internally deterministic, but all MTP variants share an output that first differs from ordinary at
+generated index 68 and stops at 979 rather than 1,135 tokens. This violates exact ordinary/MTP equivalence and
+also gives later measurements different decode trajectories. No speedup is claimed. The result selects
+long-context exact target verification and assistant global-attention cost as blockers before more 16K performance
+work. Raw results remain under the ignored
+`benchmarks/results/2026-07-28/2dba16d/blackwell16gb-wikipedia16k-mtp/`.
+
 ## 2026-07-27 batched exact MTP target verification
 
 The first speedup-path change replaces serial target verification with a fixed-shape causal batch over the input

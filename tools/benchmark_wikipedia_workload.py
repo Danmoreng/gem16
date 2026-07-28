@@ -73,6 +73,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--workload", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--model", type=Path)
+    parser.add_argument("--assistant-model", type=Path)
+    parser.add_argument(
+        "--mtp-draft-tokens", type=int, choices=(0, 1, 2, 4), default=0
+    )
     parser.add_argument("--executable", type=Path)
     parser.add_argument("--gguf", type=Path)
     parser.add_argument("--warmups", type=positive_int, default=3)
@@ -206,7 +210,7 @@ def outputs_are_deterministic(runs: list[dict[str, Any]]) -> bool:
 
 
 def summarize_runs(runs: list[dict[str, Any]]) -> dict[str, Any]:
-    return {
+    summary = {
         "prompt_tokens_per_second": summarize(
             [run["prompt_tokens_per_second"] for run in runs]
         ),
@@ -231,6 +235,25 @@ def summarize_runs(runs: list[dict[str, Any]]) -> dict[str, Any]:
             {str(run["stop_reason"]) for run in runs}
         ),
     }
+    if all("mtp" in run for run in runs):
+        summary["mtp"] = {
+            "proposed_tokens": summarize(
+                [float(run["mtp"]["proposed_tokens"]) for run in runs]
+            ),
+            "accepted_tokens": summarize(
+                [float(run["mtp"]["accepted_tokens"]) for run in runs]
+            ),
+            "rejected_tokens": summarize(
+                [float(run["mtp"]["rejected_tokens"]) for run in runs]
+            ),
+            "mean_accepted_length": summarize(
+                [float(run["mtp"]["mean_accepted_length"]) for run in runs]
+            ),
+            "target_batches": summarize(
+                [float(run["mtp"]["target_batches"]) for run in runs]
+            ),
+        }
+    return summary
 
 
 def run_gem16(
@@ -239,6 +262,8 @@ def run_gem16(
     prompt_file: Path,
     prompt_tokens: int,
     generation: dict[str, Any],
+    assistant_model: Path | None,
+    mtp_draft_tokens: int,
 ) -> tuple[dict[str, Any], list[int]]:
     command = [
         str(executable),
@@ -258,6 +283,17 @@ def run_gem16(
         str(prompt_tokens + generation["max_new_tokens"]),
         "--greedy",
     ]
+    if mtp_draft_tokens != 0:
+        if assistant_model is None:
+            raise BenchmarkError("active gem16 MTP requires --assistant-model")
+        command.extend(
+            [
+                "--assistant-model",
+                str(assistant_model),
+                "--mtp-draft-tokens",
+                str(mtp_draft_tokens),
+            ]
+        )
     completed = subprocess.run(command, check=False, capture_output=True, text=True)
     if completed.returncode != 0:
         detail = completed.stderr.strip() or completed.stdout.strip()
@@ -282,6 +318,27 @@ def run_gem16(
     run["model_load_ms"] = float(result["model_load_ms"])
     run["workspace_bytes"] = int(result["workspace_bytes"])
     run["kv_cache_bytes"] = int(result["kv_cache_bytes"])
+    if mtp_draft_tokens != 0:
+        mtp = result.get("mtp")
+        if (
+            not isinstance(mtp, dict)
+            or mtp.get("enabled") is not True
+            or mtp.get("draft_tokens") != mtp_draft_tokens
+            or mtp.get("verification_mode") != "batched_exact_target"
+        ):
+            raise BenchmarkError("gem16 returned malformed MTP telemetry")
+        run["mtp"] = {
+            name: mtp[name]
+            for name in (
+                "proposed_tokens",
+                "accepted_tokens",
+                "rejected_tokens",
+                "verification_groups",
+                "target_forwards",
+                "target_batches",
+                "mean_accepted_length",
+            )
+        }
     return run, output_tokens
 
 
@@ -445,6 +502,17 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
             raise BenchmarkError("gem16 requires --model and --executable")
         model = args.model.resolve(strict=True)
         executable = args.executable.resolve(strict=True)
+        assistant_model = (
+            args.assistant_model.resolve(strict=True)
+            if args.assistant_model is not None
+            else None
+        )
+        if args.mtp_draft_tokens == 0 and assistant_model is not None:
+            raise BenchmarkError(
+                "--assistant-model requires nonzero --mtp-draft-tokens"
+            )
+        if args.mtp_draft_tokens != 0 and assistant_model is None:
+            raise BenchmarkError("--mtp-draft-tokens requires --assistant-model")
         prompt_file = args.output.with_suffix(".prompt-token-ids.txt").resolve()
         prompt_file.parent.mkdir(parents=True, exist_ok=True)
         prompt_file.write_text(
@@ -453,15 +521,32 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
 
         def run_once() -> tuple[dict[str, Any], list[int]]:
             return run_gem16(
-                executable, model, prompt_file, len(prompt), generation
+                executable,
+                model,
+                prompt_file,
+                len(prompt),
+                generation,
+                assistant_model,
+                args.mtp_draft_tokens,
             )
 
         runtime = {
             "executable": str(executable),
             "checkpoint": str(model),
+            "assistant_checkpoint": (
+                str(assistant_model) if assistant_model is not None else None
+            ),
             "prompt_token_file": str(prompt_file),
         }
-        configuration = {"kv_cache": "checkpoint_fp8"}
+        configuration = {
+            "kv_cache": "checkpoint_fp8",
+            "mtp_draft_tokens": args.mtp_draft_tokens,
+            "mtp_verification_mode": (
+                "batched_exact_target"
+                if args.mtp_draft_tokens != 0
+                else "disabled"
+            ),
+        }
     elif args.engine == "vllm":
         if args.model is None:
             raise BenchmarkError("vLLM requires --model")

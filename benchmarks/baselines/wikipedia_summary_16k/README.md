@@ -59,6 +59,29 @@ separate roughly 0.3% barrier overhead from same-machine run-to-run drift.
 The older vLLM value of 6,146.50 tok/s is a 512-token prefill point. Its retained 8,192-token point is
 3,929.14 tok/s; neither number describes this 16K summarization workload.
 
+## Current MTP quick characterization
+
+Commit `2dba16d` was run on the same exact 16,384-token prompt with one warm-up and three measured repetitions per
+mode. This intentionally shorter repetition policy answers a bounded development question and is not a qualified
+benchmark.
+
+| Mode | Median decode | Change vs ordinary | Mean accepted length | Generated tokens |
+|---|---:|---:|---:|---:|
+| Ordinary | 31.775 tok/s | — | — | 1,135 |
+| MTP D1 | 29.634 tok/s | -6.74% | 0.740 | 979 |
+| MTP D2 | 31.702 tok/s | -0.23% | 1.240 | 979 |
+| MTP D4 | 28.866 tok/s | -9.15% | 1.755 | 979 |
+
+All repetitions are internally deterministic and the three MTP modes produce one common output. However, that
+output first differs from ordinary greedy at zero-based generated index 68 (`58158` versus `119615`) and stops 156
+tokens earlier. This violates the exact ordinary/MTP gate. The table therefore establishes that the current MTP
+path provides no 16K win, but it cannot be used as an exact-output speedup comparison. D2 is effectively throughput
+parity in this short run; D1 and D4 regress. The long-context BF16 assistant attention and additional rejected
+proposals make longer drafting increasingly expensive.
+
+Raw outputs and the explicit limitation record remain under
+`benchmarks/results/2026-07-28/2dba16d/blackwell16gb-wikipedia16k-mtp/`.
+
 ## Reproduction
 
 First create the pinned exact-token workload with the local checkpoint tokenizer:
@@ -78,6 +101,10 @@ python3 tools/benchmark_wikipedia_workload.py \
   --engine gem16 --workload <workload.json> --output <gem16.json> \
   --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 \
   --executable build/Linux/blackwell-release/bin/gem16-run
+
+# Add these arguments for an explicit MTP mode:
+# --assistant-model models/checkpoints/google-gemma-4-12B-it-assistant-364bd03
+# --mtp-draft-tokens 1|2|4
 
 HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 VLLM_NO_USAGE_STATS=1 \
 third_party/cache/unsloth-nvfp4-env/bin/python \
