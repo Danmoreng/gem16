@@ -106,7 +106,9 @@ Q/K/V batch changes long-context greedy output; the T≤5 O projection uses the 
 than a short CUTLASS tile. T≤5 NVFP4 Down uses one unstaged token tile and four warps. Both retain K accumulation
 order. The MTP transaction kernels and their fixed result layout live in `src/cuda/mtp/verify.{h,cu}`, while the
 engine retains the fixed arenas and execution ordering. At FP8 capacities above 512, assistant attention reuses
-split-online decode attention. `--mtp-adaptive` optionally
+split-online decode attention. The SM120 attention implementation is divided by execution geometry into
+`attention/decode_sm120.cu`, `attention/prefill_local_sm120.cu`, and `attention/prefill_global_sm120.cu`; each
+translation unit keeps its complete kernel schedule and exact device primitives together. `--mtp-adaptive` optionally
 selects D4/D2/D1 and ordinary fallback from context and 16-group acceptance windows. This scheduler emits only
 target-verified tokens and therefore retains ordinary greedy output. Full position-controlled MTP graph capture
 remains deferred after an exact suffix graph failed to improve end-to-end throughput.

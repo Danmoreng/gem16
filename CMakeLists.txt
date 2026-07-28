@@ -68,7 +68,9 @@ if(GEM16_ENABLE_CUDA)
   find_package(CUDAToolkit REQUIRED)
   gem16_configure_cuda_architectures()
   target_sources(gem16_core PRIVATE
-    src/cuda/attention/sm120.cu
+    src/cuda/attention/decode_sm120.cu
+    src/cuda/attention/prefill_local_sm120.cu
+    src/cuda/attention/prefill_global_sm120.cu
     src/cuda/dispatch.cu
     src/cuda/inference.cu
     src/cuda/fp8/checkpoint_probe.cu
@@ -128,8 +130,12 @@ if(GEM16_ENABLE_CUDA)
     set_property(SOURCE src/cuda/fp8/sm120.cu APPEND PROPERTY COMPILE_OPTIONS
       -Xcompiler=/wd4211
     )
-    set_property(SOURCE src/cuda/attention/sm120.cu APPEND PROPERTY COMPILE_OPTIONS
-      -Xcompiler=/wd4211
+    set_property(SOURCE
+      src/cuda/attention/decode_sm120.cu
+      src/cuda/attention/prefill_local_sm120.cu
+      src/cuda/attention/prefill_global_sm120.cu
+      APPEND PROPERTY COMPILE_OPTIONS
+        -Xcompiler=/wd4211
     )
     set_property(SOURCE src/cuda/layer/reference.cu APPEND PROPERTY COMPILE_OPTIONS
       -Xcompiler=/wd4211
