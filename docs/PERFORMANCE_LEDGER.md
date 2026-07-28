@@ -1,5 +1,19 @@
 # Performance ledger
 
+## 2026-07-28 qualified GPU-chained fixed-D2 path
+
+The final Wikipedia 16K qualification alternates ordinary and fixed-D2 order within three warm-up pairs and ten
+measured pairs. All 26 executions emit the same 1,135 token IDs with SHA-256
+`43bc3380fc1cce5182a679fa3a340c04bcc79c52e73d5102ec1f737f57d0a1e1`. Ordinary measures 36.788 tok/s median
+(36.776 mean, standard deviation 0.085, 95% mean CI `[36.715,36.837]`). GPU-chained D2 measures 54.903 tok/s median
+(54.845 mean, standard deviation 0.402, CI `[54.557,55.132]`), a 1.492x throughput speedup (+49.2%).
+
+Every measured D2 run reports 1,004 proposed, 632 accepted, and 372 rejected drafts over 502 verifier groups, mean
+accepted length 1.259, zero ordinary fallback, and 706,913,280 reusable workspace bytes. The 50 tok/s minimum is
+qualified; the 55 tok/s stretch threshold is missed by 0.097 tok/s. No continuous power, clock, or thermal
+telemetry was captured in this run. Raw data and exact pair ordering are retained at the ignored path
+`benchmarks/results/2026-07-28/b07b178/blackwell16gb-windows-mtp-streaming/qualification.json`.
+
 ## 2026-07-28 GPU tail and mapped-pinned asynchronous streaming
 
 The fixed-D2 root graph now contains a dependent ordinary-tail conditional loop. When the D2 loop stops with one

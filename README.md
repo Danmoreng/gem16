@@ -177,9 +177,10 @@ and the direct mixed checkpoint and available GGUF baseline differ in some tenso
 - Optional greedy MTP supports exact batched target verification at D1/D2/D4, device-resident drafts,
   GPU-side acceptance/commit, and explicit `--mtp-adaptive` selection with ordinary fallback. On the exact
   Wikipedia 16K workload, a GPU-chained fixed-D2 conditional graph preserves all 1,135 ordinary IDs and measures
-  55.009 tok/s median in the one-warm-up/three-run milestone screen at batch one with checkpoint-FP8 KV. GPU stop,
-  final ordinary tails, and a mapped-pinned asynchronous callback ring are included. The final alternating 3/10
-  qualification is next; sampling and chat integration remain pending.
+  54.903 tok/s median versus 36.788 ordinary (1.492x, +49.2%) in the final three-warm-up/ten-run qualification at
+  batch one with checkpoint-FP8 KV. GPU stop, final ordinary tails, and a mapped-pinned asynchronous callback ring
+  are included. The 50 tok/s gate is passed; the 55 tok/s stretch target is missed by 0.097 tok/s. Sampling and chat
+  integration remain pending.
 - Continuous batching, a server API, and persistent prompt-cache files are out of scope for the current runtime.
 - Full benchmark qualification, wider quality evaluation, and additional long-context validation remain ongoing.
 

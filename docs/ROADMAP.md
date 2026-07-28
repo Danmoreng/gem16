@@ -39,8 +39,9 @@ of the correctness and native-kernel gates below.
   host acceptance, and commits only the exact prefix. The Wikipedia 16K gate now also retains all 1,135 ordinary
   IDs after narrowing FP8 CUTLASS verification to O and restoring direct grouped Q/K/V. GPU acceptance/commit,
   device-resident drafts, exact T≤5 FP8 Q/K/V and NVFP4 Down kernels, and explicit adaptive drafting are complete.
-  The qualified Wikipedia 16K gate uses three alternating warm-up pairs and ten alternating measured pairs:
-  ordinary reaches 31.798 median tok/s and exact D2 reaches 42.639 (+34.1%) with all 1,135 IDs equal in every run.
+  The final qualified Wikipedia 16K gate uses three alternating warm-up pairs and ten alternating measured pairs:
+  ordinary reaches 36.788 median tok/s and GPU-chained exact D2 reaches 54.903 (1.492x, +49.2%) with all 1,135 IDs
+  equal in all 26 runs. It passes the 50 tok/s minimum and misses the 55 tok/s stretch target by 0.097 tok/s.
   An exact verifier-suffix graph added memory without speed and was removed; full position-controlled graph work is
   deferred while profiles remain kernel-bound. The external feasibility matrix is now complete: patched graph-vLLM
   reaches 57.390 D2 tok/s and 35.75 ms/verifier group, while current llama.cpp reaches 48.38 fixed-length D2.
@@ -55,14 +56,13 @@ of the correctness and native-kernel gates below.
   profiled fixed-T3 FP8 projection family from 8.06 to 6.44 ms/group. A controlled 3-warm-up/5-run comparison raises
   median exact D2 from 45.805 to 47.432 tok/s (+3.55%) with the fixed 1,135-ID hash and 632/372 acceptance in every
   run. This remains a characterization below the 50 tok/s gate, not the required 3/10 qualification. Numerically
-  different MTP output remains forbidden, and llama.cpp investigation is out of scope. The next architectural
-  milestone before multimodal is the incremental GPU-controlled decode graph: device-control parity, one complete
-  fixed-D2 group graph, GPU-chained groups, device stop/tail handling, a nonblocking GPU-producer/host-consumer
-  streaming ring, and only then adaptive D1/D2/ordinary graph branches. A device-resident `ngram-mod` proposer may
+  different MTP output remains forbidden, and llama.cpp investigation is out of scope. The completed architectural
+  milestone includes device-control parity, one complete fixed-D2 group graph, GPU-chained groups, device stop/tail
+  handling, and a nonblocking GPU-producer/host-consumer streaming ring. Adaptive D1/D2/ordinary graph branches
+  remain a possible follow-up. A device-resident `ngram-mod` proposer may
   follow as an optional measured branch that skips MTP on hits and shares the exact verifier; current llama.cpp
   Wikipedia screens show no benefit over MTP-D2, so it is not promoted by assumption. Multimodal expansion remains
-  queued until fixed-D2 GPU chaining and asynchronous streaming are complete or a new decision documents a blocker,
-  as detailed in [the MTP plan](MTP.md).
+  now proceed after the qualified fixed-D2 GPU chain, as detailed in [the MTP plan](MTP.md).
   Every performance promotion still requires correctness, generation, logit, 3-warm-up/10-run benchmark, Nsight,
   spill, allocation, and peak-VRAM evidence and becomes the sole production path.
 

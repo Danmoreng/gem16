@@ -109,6 +109,12 @@ run; sampled peak GPU memory is 10,838 MiB. No fallback or token-loop allocation
 commands, output hashes, and continuous telemetry remain ignored under
 `benchmarks/results/2026-07-28/18ff81e-worktree/blackwell16gb-mtp-performance/qualification/`.
 
+The subsequent GPU-chained fixed-D2 path completes the same 3/10 alternating qualification at 36.788 ordinary and
+54.903 MTP tok/s median, a 1.492x speedup (+49.2%). All 26 warm-up and measured outputs retain the same 1,135 IDs;
+each measured MTP run reports 632 accepted and 372 rejected drafts over 502 groups with zero fallback. The 50 tok/s
+gate is passed, while the 55 tok/s stretch target is missed by 0.097 tok/s. Raw data is retained under
+`benchmarks/results/2026-07-28/b07b178/blackwell16gb-windows-mtp-streaming/qualification.json`.
+
 ### External MTP feasibility follow-up
 
 The same prompt now has official-assistant MTP characterizations in both external runtimes. Patched graph-vLLM

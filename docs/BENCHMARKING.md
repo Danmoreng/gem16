@@ -147,10 +147,11 @@ four drafts in one target batch, and accepts and commits only the verified prefi
 counted as output. Draft lengths 1, 2, and 4 report proposed, accepted, rejected, mean accepted length, target
 batches, incremental VRAM, draft-length group counts, and ordinary fallback tokens.
 
-The first qualified MTP result uses the exact 16,384-token Wikipedia workload, checkpoint-FP8 KV, three alternating
+The current qualified MTP result uses the exact 16,384-token Wikipedia workload, checkpoint-FP8 KV, three alternating
 warm-up pairs, and ten alternating measured ordinary/D2 pairs. All runs emit the same 1,135 IDs. Ordinary and D2
-medians are 31.798 and 42.639 effective target-verified tok/s, respectively (1.341x); raw runs and continuous
-telemetry are retained under the ignored result path documented in the performance ledger. This result does not
+medians are 36.788 and 54.903 effective target-verified tok/s, respectively (1.492x, +49.2%). Their 95% mean
+confidence intervals are `[36.715,36.837]` and `[54.557,55.132]`. Raw runs are retained under the ignored result
+path documented in the performance ledger; continuous telemetry was not captured. This result does not
 make MTP universally preferable: every new workload must retain identical output semantics and report ordinary,
 explicit draft, acceptance, and adaptive/fallback behavior under the same repetition policy.
 
@@ -165,7 +166,8 @@ direct mixed checkpoint and FP8 KV; llama.cpp uses BF16-mapped attention and Q8_
 
 The active competitive gate is measured only on the fixed 16,384-prompt/1,135-output workload: 50.0 exact
 effective tok/s is the minimum and 55.0 tok/s is the stretch target. At the retained D2 acceptance these correspond
-to at most 45.18 and 41.07 ms per verifier group. The same 3-warm-up/10-run and exact-ID policy applies.
+to at most 45.18 and 41.07 ms per verifier group. The GPU-chained path passes the minimum at 54.903 tok/s and misses
+the stretch target by 0.097 tok/s. The same 3-warm-up/10-run and exact-ID policy applies.
 
 Run the final paired qualification with the checked-in alternating orchestrator:
 

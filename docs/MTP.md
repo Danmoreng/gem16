@@ -337,4 +337,10 @@ for the next no-roundtrip phase and their memory cost is documented.
    reset, and local-KV ring wrap also pass. Wikipedia 16K with one warm-up/three runs measures 55.009 tok/s median,
    retaining the exact 1,135-ID SHA-256 and 632/372 counts over 502 groups. Nsight records one graph launch and five
    whole-process stream synchronizations; none is in the chained decode boundary. The 32K graph allocation is
-   23,068,672 bytes, and the mapped ring is fixed at 1,088 bytes. Alternating 3/10 qualification is next.
+   23,068,672 bytes, and the mapped ring is fixed at 1,088 bytes.
+18. **Complete alternating qualification:** three alternating warm-up pairs and ten alternating measured pairs
+   preserve the same 1,135 IDs in all 26 runs. Ordinary reaches 36.788 tok/s median (95% mean CI
+   `[36.715,36.837]`); fixed D2 reaches 54.903 tok/s (`[54.557,55.132]`), a 1.492x speedup (+49.2%). Every D2 run
+   reports 1,004 proposed, 632 accepted, and 372 rejected drafts over 502 groups with zero ordinary fallback. This
+   passes the 50 tok/s competitive gate and misses the 55 tok/s stretch target by 0.097 tok/s. Raw results are under
+   `benchmarks/results/2026-07-28/b07b178/blackwell16gb-windows-mtp-streaming/qualification.json`.
