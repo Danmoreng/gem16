@@ -19,6 +19,22 @@ The same snapshot contains 104,759,808 bytes of BF16 image/audio embedding and p
 text-only residency policy skips. Video reuses the image tensors. Their exact inventory, processor metadata,
 placeholder semantics, and planned residency modes are specified in [MULTIMODAL.md](MULTIMODAL.md).
 
+## Pinned MTP assistant
+
+The optional MTP checkpoint is a separate direct-load snapshot:
+
+- Repository: `google/gemma-4-12B-it-assistant`
+- Revision: `364bd03c9952e5b7da73665ee30c9eccfc408345`
+- Lock: `models/gemma4-12b-mtp-assistant.lock.json`
+- Architecture/model type: `Gemma4UnifiedAssistantForCausalLM` / `gemma4_unified_assistant`
+
+`gem16-inspect --validate` accepts this assistant without weakening primary-model validation. It requires exactly
+48 BF16 tensors and 845,713,928 payload bytes: the tied `[262144,1024]` assistant embedding/output matrix, four
+Q-only decoder layers, final norm, `[1024,7680]` pre-projection, and `[3840,1024]` post-projection. The first three
+layers require local Q/O dimensions 4,096; the final full-attention layer requires 8,192. Any K/V tensor, duplicate
+LM head, extra tensor, wrong dtype, or wrong shape is rejected. Assistant checkpoints remain inspect-only in the
+inference runtime until the MTP execution plan is explicitly enabled. See [MTP.md](MTP.md).
+
 The engine parses and validates the Google tokenizer metadata at startup. The tokenizer-level
 `model_max_length` value is Google's intentionally unbounded sentinel and never drives arena sizing; the model
 contract remains `config.json:text_config.max_position_embeddings = 262144`. Response close markers declared by

@@ -1,5 +1,6 @@
 #include "model/config.h"
 
+#include <array>
 #include <cmath>
 #include <fstream>
 #include <sstream>
@@ -73,8 +74,20 @@ double NumberOrZero(const json::Value* value) {
   return value != nullptr && value->is_number() ? value->as_number() : 0.0;
 }
 
-Status ContractError(std::string field, std::string expected) {
-  return Status(StatusCode::kUnsupported, "unsupported primary checkpoint config: " + std::move(field) + " must be " + std::move(expected));
+Status ContractError(std::string_view contract, std::string field,
+                     std::string expected) {
+  return Status(StatusCode::kUnsupported, "unsupported " + std::string(contract) +
+                                              " checkpoint config: " +
+                                              std::move(field) + " must be " +
+                                              std::move(expected));
+}
+
+Status PrimaryContractError(std::string field, std::string expected) {
+  return ContractError("primary", std::move(field), std::move(expected));
+}
+
+Status AssistantContractError(std::string field, std::string expected) {
+  return ContractError("assistant", std::move(field), std::move(expected));
 }
 
 }  // namespace
@@ -101,6 +114,7 @@ Result<ModelConfig> LoadModelConfig(const std::filesystem::path& path) {
   config.model_type = StringOrEmpty(Member(root, "model_type"));
   config.text_model_type = StringOrEmpty(Nested(root, "text_config", "model_type"));
   config.hidden_size = UnsignedOrZero(Nested(root, "text_config", "hidden_size"));
+  config.backbone_hidden_size = UnsignedOrZero(Member(root, "backbone_hidden_size"));
   config.intermediate_size = UnsignedOrZero(Nested(root, "text_config", "intermediate_size"));
   config.layer_count = UnsignedOrZero(Nested(root, "text_config", "num_hidden_layers"));
   config.vocabulary_size = UnsignedOrZero(Nested(root, "text_config", "vocab_size"));
@@ -111,8 +125,13 @@ Result<ModelConfig> LoadModelConfig(const std::filesystem::path& path) {
   config.global_kv_heads = UnsignedOrZero(Nested(root, "text_config", "num_global_key_value_heads"));
   config.local_head_dimension = UnsignedOrZero(Nested(root, "text_config", "head_dim"));
   config.global_head_dimension = UnsignedOrZero(Nested(root, "text_config", "global_head_dim"));
+  config.shared_kv_layer_count = UnsignedOrZero(Nested(root, "text_config", "num_kv_shared_layers"));
+  config.centroid_count = UnsignedOrZero(Member(root, "num_centroids"));
+  config.centroid_intermediate_top_k = UnsignedOrZero(Member(root, "centroid_intermediate_top_k"));
   config.attention_k_eq_v = BoolOrFalse(Nested(root, "text_config", "attention_k_eq_v"));
-  config.tied_embeddings = BoolOrFalse(Nested(root, "text_config", "tie_word_embeddings"));
+  config.tied_embeddings = BoolOrFalse(Member(root, "tie_word_embeddings")) ||
+                           BoolOrFalse(Nested(root, "text_config", "tie_word_embeddings"));
+  config.ordered_embeddings = BoolOrFalse(Member(root, "use_ordered_embeddings"));
   config.final_logit_softcap = NumberOrZero(Nested(root, "text_config", "final_logit_softcapping"));
   config.layer_types = StringArray(Nested(root, "text_config", "layer_types"));
 
@@ -155,27 +174,70 @@ Result<ModelConfig> LoadModelConfig(const std::filesystem::path& path) {
   return config;
 }
 
+bool IsPrimaryModel(const ModelConfig& config) {
+  return config.architecture == "Gemma4UnifiedForConditionalGeneration" &&
+         config.model_type == "gemma4_unified";
+}
+
+bool IsAssistantModel(const ModelConfig& config) {
+  return config.architecture == "Gemma4UnifiedAssistantForCausalLM" &&
+         config.model_type == "gemma4_unified_assistant";
+}
+
 Status ValidatePrimaryModelContract(const ModelConfig& config) {
-  if (config.architecture != "Gemma4UnifiedForConditionalGeneration") return ContractError("architecture", "Gemma4UnifiedForConditionalGeneration");
-  if (config.model_type != "gemma4_unified") return ContractError("model_type", "gemma4_unified");
-  if (config.text_model_type != "gemma4_unified_text") return ContractError("text_config.model_type", "gemma4_unified_text");
-  if (config.layer_count != 48) return ContractError("num_hidden_layers", "48");
-  if (config.hidden_size != 3840) return ContractError("hidden_size", "3840");
-  if (config.intermediate_size != 15360) return ContractError("intermediate_size", "15360");
-  if (config.query_heads != 16 || config.local_kv_heads != 8 || config.global_kv_heads != 1) return ContractError("attention head counts", "16 query / 8 local KV / 1 global KV");
-  if (config.local_head_dimension != 256 || config.global_head_dimension != 512) return ContractError("head dimensions", "256 local / 512 global");
-  if (config.sliding_window != 1024 || config.max_positions != 262144) return ContractError("context dimensions", "1024 sliding / 262144 maximum");
-  if (config.vocabulary_size != 262144) return ContractError("vocab_size", "262144");
-  if (!config.tied_embeddings || !config.attention_k_eq_v) return ContractError("tied embeddings and attention_k_eq_v", "true");
-  if (std::abs(config.final_logit_softcap - 30.0) > 1e-12) return ContractError("final_logit_softcapping", "30.0");
-  if (config.quant_method != "compressed-tensors" || config.quant_format != "mixed-precision") return ContractError("quantization schema", "compressed-tensors mixed-precision");
-  if (config.layer_types.size() != 48) return ContractError("layer_types length", "48");
+  if (config.architecture != "Gemma4UnifiedForConditionalGeneration") return PrimaryContractError("architecture", "Gemma4UnifiedForConditionalGeneration");
+  if (config.model_type != "gemma4_unified") return PrimaryContractError("model_type", "gemma4_unified");
+  if (config.text_model_type != "gemma4_unified_text") return PrimaryContractError("text_config.model_type", "gemma4_unified_text");
+  if (config.layer_count != 48) return PrimaryContractError("num_hidden_layers", "48");
+  if (config.hidden_size != 3840) return PrimaryContractError("hidden_size", "3840");
+  if (config.intermediate_size != 15360) return PrimaryContractError("intermediate_size", "15360");
+  if (config.query_heads != 16 || config.local_kv_heads != 8 || config.global_kv_heads != 1) return PrimaryContractError("attention head counts", "16 query / 8 local KV / 1 global KV");
+  if (config.local_head_dimension != 256 || config.global_head_dimension != 512) return PrimaryContractError("head dimensions", "256 local / 512 global");
+  if (config.sliding_window != 1024 || config.max_positions != 262144) return PrimaryContractError("context dimensions", "1024 sliding / 262144 maximum");
+  if (config.vocabulary_size != 262144) return PrimaryContractError("vocab_size", "262144");
+  if (!config.tied_embeddings || !config.attention_k_eq_v) return PrimaryContractError("tied embeddings and attention_k_eq_v", "true");
+  if (std::abs(config.final_logit_softcap - 30.0) > 1e-12) return PrimaryContractError("final_logit_softcapping", "30.0");
+  if (config.quant_method != "compressed-tensors" || config.quant_format != "mixed-precision") return PrimaryContractError("quantization schema", "compressed-tensors mixed-precision");
+  if (config.layer_types.size() != 48) return PrimaryContractError("layer_types length", "48");
   for (std::size_t index = 0; index < config.layer_types.size(); ++index) {
     const bool expected_global = (index % 6U) == 5U;
     const std::string_view expected = expected_global ? "full_attention" : "sliding_attention";
-    if (config.layer_types[index] != expected) return ContractError("layer_types pattern", "five sliding layers followed by one full layer");
+    if (config.layer_types[index] != expected) return PrimaryContractError("layer_types pattern", "five sliding layers followed by one full layer");
   }
   return Status::Ok();
+}
+
+Status ValidateAssistantModelContract(const ModelConfig& config) {
+  if (config.architecture != "Gemma4UnifiedAssistantForCausalLM") return AssistantContractError("architecture", "Gemma4UnifiedAssistantForCausalLM");
+  if (config.model_type != "gemma4_unified_assistant") return AssistantContractError("model_type", "gemma4_unified_assistant");
+  if (config.text_model_type != "gemma4_unified_text") return AssistantContractError("text_config.model_type", "gemma4_unified_text");
+  if (config.backbone_hidden_size != 3840 || config.hidden_size != 1024) return AssistantContractError("hidden dimensions", "3840 backbone / 1024 assistant");
+  if (config.intermediate_size != 8192 || config.layer_count != 4) return AssistantContractError("decoder dimensions", "4 layers / 8192 intermediate");
+  if (config.query_heads != 16 || config.local_kv_heads != 8 || config.global_kv_heads != 1) return AssistantContractError("attention head counts", "16 query / 8 local KV / 1 global KV");
+  if (config.local_head_dimension != 256 || config.global_head_dimension != 512) return AssistantContractError("head dimensions", "256 local / 512 global");
+  if (config.sliding_window != 1024 || config.max_positions != 262144) return AssistantContractError("context dimensions", "1024 sliding / 262144 maximum");
+  if (config.vocabulary_size != 262144 || !config.tied_embeddings) return AssistantContractError("vocabulary and tied embeddings", "262144 / true");
+  if (config.shared_kv_layer_count != 4) return AssistantContractError("num_kv_shared_layers", "4");
+  if (config.centroid_count != 2048 || config.centroid_intermediate_top_k != 32) return AssistantContractError("centroid metadata", "2048 centroids / top-k 32");
+  if (config.ordered_embeddings) return AssistantContractError("use_ordered_embeddings", "false");
+  constexpr std::array<std::string_view, 4> expected = {
+      "sliding_attention", "sliding_attention", "sliding_attention", "full_attention"};
+  if (config.layer_types.size() != expected.size()) return AssistantContractError("layer_types length", "4");
+  for (std::size_t index = 0; index < expected.size(); ++index) {
+    if (config.layer_types[index] != expected[index]) return AssistantContractError("layer_types pattern", "three sliding layers followed by one full layer");
+  }
+  if (!config.quant_method.empty() || !config.quant_format.empty() || !config.quantization_rules.empty()) {
+    return AssistantContractError("quantization schema", "absent for the BF16 assistant");
+  }
+  return Status::Ok();
+}
+
+Status ValidateInspectableModelContract(const ModelConfig& config) {
+  if (IsPrimaryModel(config)) return ValidatePrimaryModelContract(config);
+  if (IsAssistantModel(config)) return ValidateAssistantModelContract(config);
+  return Status(StatusCode::kUnsupported,
+                "unsupported checkpoint architecture/model_type: " +
+                    config.architecture + " / " + config.model_type);
 }
 
 }  // namespace gem16::internal

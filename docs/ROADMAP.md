@@ -29,8 +29,9 @@ of the correctness and native-kernel gates below.
   262,144-position prompt-plus-decode limit, peaking at 11,022 and 12,244 MiB. MTP checkpoint and memory
   feasibility is now positive: the target contains no embedded MTP family, while Google's separately published
   806.54 MiB BF16 four-layer assistant is pinned, directly compatible, and leaves estimated maximum-context
-  headroom. The active gate is the assistant inspector/loader and correctness-only proposal path described in
-  [the MTP plan](MTP.md).
+  headroom. The exact assistant config and 48-tensor BF16 manifest are now accepted by `gem16-inspect --validate`,
+  while target-only inference rejects an assistant checkpoint explicitly. The active gate is the separate BF16
+  assistant device arena and correctness-only proposal path described in [the MTP plan](MTP.md).
   Every performance promotion still requires correctness, generation, logit, 3-warm-up/10-run benchmark, Nsight,
   spill, allocation, and peak-VRAM evidence and becomes the sole production path.
 

@@ -81,6 +81,8 @@ std::string StorageClass(std::string_view dtype) {
 }
 
 std::string ExpectedRole(std::string_view name) {
+  if (name == "pre_projection.weight") return "mtp_pre_projection";
+  if (name == "post_projection.weight") return "mtp_post_projection";
   if (EndsWith(name, ".weight_packed")) return "projection_weight";
   if (EndsWith(name, ".weight_global_scale") || EndsWith(name, ".weight_scale_2")) return "weight_global_scale";
   if (EndsWith(name, ".input_global_scale")) return "activation_global_scale";
@@ -103,7 +105,7 @@ std::string ShapeText(const std::vector<std::uint64_t>& shape) {
   return output.str();
 }
 
-Status ValidateLayerTensorInventory(const ModelConfig& config, const std::set<std::string>& tensor_names) {
+Status ValidatePrimaryLayerTensorInventory(const ModelConfig& config, const std::set<std::string>& tensor_names) {
   constexpr std::array<std::string_view, 27> common_suffixes = {
       "input_layernorm.weight",
       "layer_scalar",
@@ -155,6 +157,82 @@ Status ValidateLayerTensorInventory(const ModelConfig& config, const std::set<st
   }
   for (const auto& name : actual) {
     if (!expected.contains(name)) return Status(StatusCode::kUnsupported, "unexpected decoder-layer tensor: " + name);
+  }
+  return Status::Ok();
+}
+
+Status ValidateAssistantTensorInventory(
+    const ModelConfig& config, const std::set<std::string>& tensor_names,
+    const std::map<std::string, const StoredTensor*, std::less<>>& stored_by_name) {
+  std::map<std::string, std::vector<std::uint64_t>, std::less<>> expected;
+  expected.emplace("model.embed_tokens.weight",
+                   std::vector<std::uint64_t>{config.vocabulary_size, config.hidden_size});
+  expected.emplace("model.norm.weight", std::vector<std::uint64_t>{config.hidden_size});
+  expected.emplace("pre_projection.weight",
+                   std::vector<std::uint64_t>{config.hidden_size,
+                                              2U * config.backbone_hidden_size});
+  expected.emplace("post_projection.weight",
+                   std::vector<std::uint64_t>{config.backbone_hidden_size,
+                                              config.hidden_size});
+
+  for (std::size_t layer = 0; layer < config.layer_types.size(); ++layer) {
+    const std::string prefix = "model.layers." + std::to_string(layer) + ".";
+    expected.emplace(prefix + "input_layernorm.weight",
+                     std::vector<std::uint64_t>{config.hidden_size});
+    expected.emplace(prefix + "layer_scalar", std::vector<std::uint64_t>{1});
+    expected.emplace(prefix + "mlp.down_proj.weight",
+                     std::vector<std::uint64_t>{config.hidden_size,
+                                                config.intermediate_size});
+    expected.emplace(prefix + "mlp.gate_proj.weight",
+                     std::vector<std::uint64_t>{config.intermediate_size,
+                                                config.hidden_size});
+    expected.emplace(prefix + "mlp.up_proj.weight",
+                     std::vector<std::uint64_t>{config.intermediate_size,
+                                                config.hidden_size});
+    expected.emplace(prefix + "post_attention_layernorm.weight",
+                     std::vector<std::uint64_t>{config.hidden_size});
+    expected.emplace(prefix + "post_feedforward_layernorm.weight",
+                     std::vector<std::uint64_t>{config.hidden_size});
+    expected.emplace(prefix + "pre_feedforward_layernorm.weight",
+                     std::vector<std::uint64_t>{config.hidden_size});
+    const bool global = config.layer_types[layer] == "full_attention";
+    const std::uint64_t projection_size =
+        config.query_heads *
+        (global ? config.global_head_dimension : config.local_head_dimension);
+    expected.emplace(prefix + "self_attn.o_proj.weight",
+                     std::vector<std::uint64_t>{config.hidden_size, projection_size});
+    expected.emplace(prefix + "self_attn.q_norm.weight",
+                     std::vector<std::uint64_t>{global ? config.global_head_dimension
+                                                       : config.local_head_dimension});
+    expected.emplace(prefix + "self_attn.q_proj.weight",
+                     std::vector<std::uint64_t>{projection_size, config.hidden_size});
+  }
+
+  if (tensor_names.size() != expected.size()) {
+    return Status(StatusCode::kDataLoss,
+                  "assistant tensor count must be " +
+                      std::to_string(expected.size()) + ", got " +
+                      std::to_string(tensor_names.size()));
+  }
+  for (const auto& [name, shape] : expected) {
+    const auto found = stored_by_name.find(name);
+    if (found == stored_by_name.end()) {
+      return Status(StatusCode::kDataLoss,
+                    "required assistant tensor is missing: " + name);
+    }
+    if (found->second->dtype != "BF16" || found->second->shape != shape) {
+      return Status(StatusCode::kDataLoss,
+                    "assistant tensor schema mismatch: " + name +
+                        " expected BF16 " + ShapeText(shape) + " got " +
+                        found->second->dtype + " " +
+                        ShapeText(found->second->shape));
+    }
+  }
+  for (const auto& name : tensor_names) {
+    if (!expected.contains(name)) {
+      return Status(StatusCode::kUnsupported,
+                    "unexpected assistant tensor: " + name);
+    }
   }
   return Status::Ok();
 }
@@ -293,15 +371,25 @@ Result<ModelManifest> BuildManifest(const std::filesystem::path& model_directory
     manifest.totals.push_back(std::move(total));
   }
   if (validate && config.tied_embeddings) {
-    if (!names.contains("model.language_model.embed_tokens.weight")) {
-      return Status(StatusCode::kDataLoss, "tied input/output embedding tensor is missing");
+    const std::string expected_embedding =
+        IsAssistantModel(config) ? "model.embed_tokens.weight"
+                                 : "model.language_model.embed_tokens.weight";
+    if (!names.contains(expected_embedding)) {
+      return Status(StatusCode::kDataLoss,
+                    "tied input/output embedding tensor is missing: " +
+                        expected_embedding);
     }
-    if (names.contains("lm_head.weight") || names.contains("model.language_model.lm_head.weight")) {
-      return Status(StatusCode::kDataLoss, "tied checkpoint unexpectedly stores a duplicate LM head");
+    if (names.contains("lm_head.weight") ||
+        names.contains("model.language_model.lm_head.weight")) {
+      return Status(StatusCode::kDataLoss,
+                    "tied checkpoint unexpectedly stores a duplicate LM head");
     }
   }
   if (validate) {
-    const auto inventory_status = ValidateLayerTensorInventory(config, names);
+    const auto inventory_status = IsAssistantModel(config)
+                                      ? ValidateAssistantTensorInventory(
+                                            config, names, stored_by_name)
+                                      : ValidatePrimaryLayerTensorInventory(config, names);
     if (!inventory_status.ok()) return inventory_status;
   }
   return manifest;

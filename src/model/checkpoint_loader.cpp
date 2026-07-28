@@ -27,15 +27,19 @@ Result<ModelManifest> InspectCheckpoint(const InspectOptions& options) {
   }
   auto config = internal::LoadModelConfig(options.model_directory / "config.json");
   if (!config.ok()) return config.status();
-  auto tokenizer_config = internal::LoadTokenizerConfig(
-      options.model_directory / "tokenizer_config.json");
-  if (!tokenizer_config.ok()) return tokenizer_config.status();
   if (options.validate) {
-    auto validation = internal::ValidatePrimaryModelContract(config.value());
+    auto validation = internal::ValidateInspectableModelContract(config.value());
     if (!validation.ok()) return validation;
-    validation =
-        internal::ValidatePrimaryTokenizerConfig(tokenizer_config.value());
-    if (!validation.ok()) return validation;
+  }
+  if (internal::IsPrimaryModel(config.value())) {
+    auto tokenizer_config = internal::LoadTokenizerConfig(
+        options.model_directory / "tokenizer_config.json");
+    if (!tokenizer_config.ok()) return tokenizer_config.status();
+    if (options.validate) {
+      auto validation =
+          internal::ValidatePrimaryTokenizerConfig(tokenizer_config.value());
+      if (!validation.ok()) return validation;
+    }
   }
   return internal::BuildManifest(options.model_directory, config.value(), options.validate);
 }

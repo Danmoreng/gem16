@@ -190,6 +190,7 @@ target_include_directories(gem16-bench PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src"
 include(CTest)
 if(BUILD_TESTING AND GEM16_BUILD_TESTS)
   add_executable(gem16-unit-tests
+    tests/unit/config_test.cpp
     tests/unit/fp8_test.cpp
     tests/unit/json_test.cpp
     tests/unit/layer_test.cpp

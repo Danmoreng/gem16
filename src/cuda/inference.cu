@@ -351,6 +351,12 @@ class LoadedModel {
     auto inspected = InspectCheckpoint({directory, true});
     if (!inspected.ok()) return inspected.status();
     manifest_ = std::move(inspected).value();
+    if (manifest_.architecture != "Gemma4UnifiedForConditionalGeneration" ||
+        manifest_.model_type != "gemma4_unified") {
+      return Error(StatusCode::kUnsupported,
+                   "the inference runtime requires the primary Gemma 4 target; "
+                   "assistant checkpoints are inspect-only until the MTP plan is enabled");
+    }
 
     std::uint64_t arena_bytes = 0;
     for (const auto& tensor : manifest_.tensors) {

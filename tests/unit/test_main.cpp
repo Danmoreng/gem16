@@ -2,6 +2,7 @@
 
 #include "test.h"
 
+void RunConfigTests();
 void RunJsonTests();
 void RunLayerTests();
 void RunFp8Tests();
@@ -15,6 +16,7 @@ void RunWindowsUtf8Tests();
 #endif
 
 int main() {
+  RunConfigTests();
   RunJsonTests();
   RunLayerTests();
   RunFp8Tests();

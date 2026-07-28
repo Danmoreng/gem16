@@ -101,10 +101,12 @@ The probe demonstrates that acceptance is highly workload-dependent. Independent
 also reports that MTP can be slower for single-stream workloads despite 36–71% draft-token acceptance. gem16 must
 therefore retain ordinary decode and promote MTP only where effective accepted output throughput improves.
 
-## Implementation order
+## Implementation status and order
 
-1. Extend the inspector/config parser for `gemma4_unified_assistant` and its 48-tensor manifest.
-2. Verify the pinned assistant with `tools/fetch_model.py --lock models/gemma4-12b-mtp-assistant.lock.json`.
+1. **Complete:** extend the inspector/config parser for `gemma4_unified_assistant` and its exact 48-tensor BF16
+   manifest. Primary inference rejects an assistant passed as the target instead of entering target-only code.
+2. **Complete:** verify the pinned assistant with `tools/fetch_model.py --lock
+   models/gemma4-12b-mtp-assistant.lock.json`.
 3. Add a separate BF16 assistant arena; do not quantize or convert the first official result.
 4. Bind assistant sliding/full attention to target cache states from Layers 46 and 47.
 5. Implement pre-projection, four Q-only layers, post-projection, and the exact assistant LM head.
