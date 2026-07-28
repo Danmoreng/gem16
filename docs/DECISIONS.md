@@ -1,5 +1,29 @@
 # Decisions
 
+## 2026-07-29: Reopen exact MTP for structural verifier work
+
+Date: 2026-07-29
+Decision: Reopen exact D2 optimization at the user's explicit direction, while retaining the binding requirement that
+MTP emit exactly the ordinary greedy token sequence. Restrict the reopened work to structural, profile-supported
+changes with enough modeled headroom to reach 50.0 tok/s; do not investigate or modify llama.cpp, weaken target
+arithmetic merely to copy another runtime, or proceed toward 55 tok/s before 50 qualifies. The first candidates are
+a three-row BF16 Tensor-Core target output head and a local-attention verifier that reads tentative K/V directly
+and reuses historical K/V across rows without changing causal visibility.
+Context: The retained exact result is 46.422 tok/s and needs approximately 3.5 ms less per D2 group to reach the
+45.18 ms/group gate. The last profile assigns roughly 4.8 ms/group to the target head and 6.9 ms/group to local
+attention; unlike the rejected CTA-size probes, either structural candidate can plausibly cover a material part of
+the gap. The user explicitly chose continued gem16 work and ordinary/MTP identity over llama.cpp investigation.
+Alternatives: Keep the sprint closed and move to multimodal; study llama.cpp's divergent verifier; repeat small
+projection geometry probes; or accept numerically different MTP output. These conflict with the current product
+direction, lack modeled headroom, or violate exact speculation.
+Consequences: The closure decision immediately below remains the provenance of the 46.422 result but no longer
+blocks bounded structural experiments. Every candidate must retain the 1,135-token SHA-256
+`43bc3380fc1cce5182a679fa3a340c04bcc79c52e73d5102ec1f737f57d0a1e1`, the 632/372 acceptance counters, zero
+fallback/allocation, and acceptable kernel resources. A result at or above 50.0 tok/s still requires the full
+alternating 3-warm-up/10-run qualification before any 55 tok/s work.
+Evidence: User direction in the active development session, the clean-head exact D2 profile, and the retained
+Wikipedia characterization at `fffefcb`.
+
 ## 2026-07-29: Close the exact MTP verifier sprint below the 50 tok/s gate
 
 Date: 2026-07-29

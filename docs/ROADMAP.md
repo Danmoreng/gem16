@@ -49,9 +49,14 @@ of the correctness and native-kernel gates below.
   closed. Three-row global attention, FP8 Q/K/V/O, output-head, and NVFP4 Down specialization raise the exact
   one-run Wikipedia characterization from the retained 44.347 tok/s Direct-O candidate to 46.422 tok/s, with all
   1,135 IDs and 632/372 acceptance unchanged. This remains below the 50.0 tok/s minimum, so it is not a 3/10
-  qualification and no 55 tok/s work is authorized. The MTP performance target is explicitly unmet; further
-  numerically different batched-target semantics remain forbidden. The active gate therefore moves to the binding
-  [multimodal expansion plan](MULTIMODAL.md), as detailed in [the MTP plan](MTP.md).
+  qualification and no 55 tok/s work is authorized. At the user's explicit direction, exact D2 work is now
+  reopened only for structural candidates with modeled headroom. Tensor-Core target-head and direct-tentative-K/V
+  local-attention variants were exact but slower and are removed. Retained shared-activation staging lowers the
+  profiled fixed-T3 FP8 projection family from 8.06 to 6.44 ms/group. A controlled 3-warm-up/5-run comparison raises
+  median exact D2 from 45.805 to 47.432 tok/s (+3.55%) with the fixed 1,135-ID hash and 632/372 acceptance in every
+  run. This remains a characterization below the 50 tok/s gate, not the required 3/10 qualification. Numerically
+  different MTP output remains forbidden, and llama.cpp investigation is out of scope. Multimodal expansion remains
+  queued behind this reopened 50 tok/s gate, as detailed in [the MTP plan](MTP.md).
   Every performance promotion still requires correctness, generation, logit, 3-warm-up/10-run benchmark, Nsight,
   spill, allocation, and peak-VRAM evidence and becomes the sole production path.
 

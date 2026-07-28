@@ -272,6 +272,17 @@ __global__ void Sm120DirectProjectionFixedBatchKernel(
       static_cast<std::uint64_t>(blockIdx.x) * kWarpsPerBlock + warp;
   const std::uint64_t row_tiles =
       (rows + kRowsPerWarp - 1U) / kRowsPerWarp;
+  extern __shared__ __align__(16) std::uint8_t staged_activation[];
+  const std::uint64_t activation_words =
+      kTokens * contracting_elements / sizeof(std::uint32_t);
+  auto* staged_words = reinterpret_cast<std::uint32_t*>(staged_activation);
+  const auto* activation_words_source =
+      reinterpret_cast<const std::uint32_t*>(activation);
+  for (std::uint64_t word = threadIdx.x; word < activation_words;
+       word += blockDim.x) {
+    staged_words[word] = activation_words_source[word];
+  }
+  __syncthreads();
   if (global_warp >= row_tiles) return;
 
   const unsigned source_row_in_tile = lane >> 2U;
@@ -296,8 +307,8 @@ __global__ void Sm120DirectProjectionFixedBatchKernel(
 #pragma unroll
     for (unsigned token = 0U; token < kTokens; ++token) {
       const std::uint8_t* token_activation =
-          activation + static_cast<std::uint64_t>(token) *
-                           contracting_elements;
+          staged_activation + static_cast<std::uint64_t>(token) *
+                                  contracting_elements;
       const std::uint32_t a_first =
           LoadU32(token_activation + activation_byte);
       const std::uint32_t a_second =
@@ -596,10 +607,13 @@ Status LaunchFp8Sm120DirectProjectionBatch(
                                    output, rows};
     const Fp8MatrixBinding empty{};
     if (tokens == 3U) {
+      const std::size_t shared_bytes =
+          static_cast<std::size_t>(tokens * contracting_elements);
       Sm120DirectProjectionFixedBatchKernel<3U><<<
-          dim3(static_cast<unsigned>(direct_blocks), 1U), kThreadsPerBlock, 0,
-          stream>>>(activation_e4m3fn, activation_scales, binding, empty,
-                    empty, 1U, contracting_elements);
+          dim3(static_cast<unsigned>(direct_blocks), 1U), kThreadsPerBlock,
+          shared_bytes, stream>>>(activation_e4m3fn, activation_scales,
+                                  binding, empty, empty, 1U,
+                                  contracting_elements);
     } else {
       Sm120DirectProjectionKernel<<<
           dim3(static_cast<unsigned>(direct_blocks),
@@ -686,10 +700,12 @@ Status LaunchFp8Sm120GroupedQkvProjectionBatch(
     const Fp8MatrixBinding v{v_weight_e4m3fn, v_weight_scales_bf16, v_output,
                              v_rows};
     if (tokens == 3U) {
+      const std::size_t shared_bytes =
+          static_cast<std::size_t>(tokens * contracting_elements);
       Sm120DirectProjectionFixedBatchKernel<3U><<<
           dim3(static_cast<unsigned>(direct_blocks), 1U,
                has_v ? 3U : 2U),
-          kThreadsPerBlock, 0, stream>>>(
+          kThreadsPerBlock, shared_bytes, stream>>>(
           activation_e4m3fn, activation_scales, q, k, v,
           has_v ? 3U : 2U, contracting_elements);
     } else {

@@ -1,5 +1,49 @@
 # Performance ledger
 
+## 2026-07-29 Reopened exact D2 structural sprint
+
+The retained `fffefcb` result is 46.422 tok/s, approximately 48.66 ms per D2 group, and needs about 3.5 ms/group
+to reach the 50.0 tok/s gate. The clean-head profile identifies two structural targets large enough to matter:
+the three-row target output head at approximately 4.8 ms/group and local verifier attention at approximately
+6.9 ms/group. Small CTA and launch-count probes are not reopened.
+
+The first hypothesis is that the BF16 tied head is instruction-limited as well as bandwidth-limited: its current
+warp-row kernel loads each weight once but executes three scalar FP32 FMA chains and warp reductions. A fixed T3
+SM120 BF16 Tensor-Core kernel can retain one weight read, pad only the inactive M dimension in transient workspace,
+apply the exact softcap and suppression rules, and reduce candidates on GPU. Its expected limiting resources are
+the 2.0 GB tied-weight traversal and Tensor-Core tile scheduling. Its MMA reduction order differs from the ordinary
+warp-row head, so it is a candidate only: the existing kernel remains the reference, and any changed Wikipedia ID,
+hash, or 632/502 acceptance result rejects the implementation regardless of speed. If it cannot save materially,
+the next candidate is local T3 attention with direct tentative K/V reads and enough split parallelism to avoid the
+under-occupancy of the previously rejected batch prototype.
+
+The fixed T3 WMMA prototype padded the three BF16 rows to M16, traversed each tied-weight byte once, retained the
+softcap and suppression rules, and preserved all 1,135 IDs, the fixed hash, and 632/372 acceptance. It reached only
+42.460 tok/s and 53.20 ms/group in the zero-warm-up/one-run screen. After removing it and rebuilding, the immediately
+adjacent scalar-head run under the same zero-warm-up/one-run command reached 46.662 tok/s and 48.41 ms/group,
+consistent with the retained 46.422 characterization. The 9.0% adjacent gap is therefore not a missing-warm-up
+artifact. Padding three rows to 16 makes Tensor-Core work and tile-management cost exceed the scalar warp-row head
+despite unchanged weight traffic. The complete kernel and API changes were removed; only the ignored raw candidate result is retained.
+Decision: reject target-head Tensor Cores at T3 and proceed to local attention rather than tuning this geometry.
+
+The direct-tentative-K/V local verifier was exact in both concurrent and sequential forms but reached only
+46.240 and 45.600 tok/s after address-strength reduction; the initial modulo-heavy sequential form reached
+41.095 tok/s. It removed cache backup/append/restore work, but simultaneous rows contend for bandwidth while
+sequential direct addressing does not recover the removed launch cost. Direct quantization into retained MTP K/V
+was also neutral at 46.228 tok/s. Both families were removed. Eight-head global grouping, whole-activation NVFP4
+staging, output-head hidden staging, and eight-warp or `cp.async` FP8 staging all regressed and were removed.
+
+A fresh 256-token profile showed the fixed T3 FP8 projections at 8.06 ms/group. The retained kernel now stages the
+three source E4M3 activation rows once per four-warp CTA in 11.25–24 KiB of dynamic shared memory, then preserves
+each independent K32 MMA chain and output scaling. Profiled fixed-T3 projection time falls from 8.06 to 6.44
+ms/group. In the controlled Wikipedia comparison, both baseline and candidate used three full warm-ups and five
+measured runs. Baseline median was 45.805 tok/s (95% CI 45.753–45.843); staged FP8 median was 47.432 tok/s (95% CI
+47.349–47.476), a 3.55% throughput gain. All five candidate runs emitted the fixed 1,135-ID hash, accepted/rejected
+632/372 drafts over 502 groups, and reported no fallback or token-loop allocation. The earlier 48.354 tok/s value
+was a valid zero-warm-up single-run screen, not the repeated result. Workspace remains 706,618,112 bytes. Decision:
+retain scalar shared-activation staging for both T3 grouped Q/K/V and O; the 50 tok/s gate remains unmet and this
+3/5 characterization is not the required 3/10 qualification.
+
 ## 2026-07-29 Exact D2 verifier specialization sprint
 
 A clean-head Direct-O profile at `50ba3a5` measures 52.107 ms per verifier group and 43.745 profiled tok/s over
