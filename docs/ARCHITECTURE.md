@@ -101,10 +101,12 @@ is paired with the next scaled target embedding. `--mtp-draft-tokens 1|2|4` acti
 batched exact target verification. Each batch retains tentative K/V rows in a dedicated fixed arena and restores
 local-ring writes after attention. Drafts remain device-resident; a GPU acceptance kernel applies stop IDs and
 selects the exact prefix, fixed kernels commit tentative K/V and the selected hidden row, and one compact pinned
-result is returned to the scheduler. Target verification uses decode-order direct grouped FP8 Q/K/V because the
-CUTLASS Q/K/V batch changes long-context greedy output; O retains exact CUTLASS. T≤5 Q/K/V uses the latency-oriented
-decode MMA, while T≤5 NVFP4 Down uses one unstaged token tile and four warps. Both retain K accumulation order. At
-FP8 capacities above 512, assistant attention reuses split-online decode attention. `--mtp-adaptive` optionally
+result is returned to the scheduler. Target verification uses decode-order direct FP8 Q/K/V because the CUTLASS
+Q/K/V batch changes long-context greedy output; the T≤5 O projection uses the same direct K32 accumulation rather
+than a short CUTLASS tile. T≤5 NVFP4 Down uses one unstaged token tile and four warps. Both retain K accumulation
+order. The MTP transaction kernels and their fixed result layout live in `src/cuda/mtp/verify.{h,cu}`, while the
+engine retains the fixed arenas and execution ordering. At FP8 capacities above 512, assistant attention reuses
+split-online decode attention. `--mtp-adaptive` optionally
 selects D4/D2/D1 and ordinary fallback from context and 16-group acceptance windows. This scheduler emits only
 target-verified tokens and therefore retains ordinary greedy output. Full position-controlled MTP graph capture
 remains deferred after an exact suffix graph failed to improve end-to-end throughput.

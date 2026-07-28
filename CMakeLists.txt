@@ -78,6 +78,7 @@ if(GEM16_ENABLE_CUDA)
     src/cuda/layer/reference.cu
     src/cuda/layer/checkpoint_probe.cu
     src/cuda/mtp/assistant.cu
+    src/cuda/mtp/verify.cu
     src/cuda/nvfp4/checkpoint_probe.cu
     src/cuda/nvfp4/gemv.cu
     src/cuda/nvfp4/mlp.cu

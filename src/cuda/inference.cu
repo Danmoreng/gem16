@@ -7,6 +7,7 @@
 #include "cuda/layer/reference.h"
 #include "cuda/mtp/assistant.h"
 #include "cuda/mtp/scheduler.h"
+#include "cuda/mtp/verify.h"
 #include "cuda/nvfp4/mlp.h"
 #include "cuda/nvfp4/reference.h"
 #include "cuda/nvfp4/cutlass_sm120.h"
@@ -690,15 +691,9 @@ struct MtpWorkspaceOffsets {
   std::uint64_t total = 0;
 };
 
-struct MtpGroupResult {
-  std::array<std::uint32_t, kMaximumMtpDraftTokens> proposed{};
-  std::array<std::uint32_t, kMaximumMtpVerifyTokens> verified{};
-  std::uint32_t proposal_count = 0U;
-  std::uint32_t accepted_count = 0U;
-  std::uint32_t output_count = 0U;
-  std::uint32_t stop_token = 0U;
-  std::uint32_t stopped = 0U;
-};
+using MtpGroupResult = internal::MtpGroupResult;
+static_assert(kMaximumMtpDraftTokens == internal::kMaximumMtpDraftTokens);
+static_assert(kMaximumMtpVerifyTokens == internal::kMaximumMtpVerifyTokens);
 
 struct HostDecodeState {
   internal::DecodeControl control{};
@@ -785,105 +780,6 @@ __global__ void EmbeddingBatchKernel(const std::uint16_t* weights,
   const float scale = static_cast<float>(
       __float2bfloat16_rn(sqrtf(static_cast<float>(kHidden))));
   output[index] = static_cast<float>(__float2bfloat16_rn(weight * scale));
-}
-
-template <typename T, bool kRestore>
-__global__ void CopyCircularMtpKvKernel(
-    T* cache_key, T* cache_value, T* compact_key, T* compact_value, std::uint64_t start_position, std::uint64_t tokens,
-    std::uint64_t elements_per_token, std::uint64_t capacity) {
-  const std::uint64_t total = tokens * elements_per_token;
-  const std::uint64_t index =
-      static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
-  if (index >= total) return;
-  const std::uint64_t token = index / elements_per_token;
-  const std::uint64_t element = index % elements_per_token;
-  const std::uint64_t cache_index =
-      ((start_position + token) % capacity) * elements_per_token + element;
-  if constexpr (kRestore) {
-    cache_key[cache_index] = compact_key[index];
-    cache_value[cache_index] = compact_value[index];
-  } else {
-    compact_key[index] = cache_key[cache_index];
-    compact_value[index] = cache_value[cache_index];
-  }
-}
-
-__global__ void SetMtpAttentionPositionKernel(
-    internal::DecodeControl* control, std::uint64_t position) {
-  if (blockIdx.x == 0U && threadIdx.x == 0U) control->position = position;
-}
-
-__global__ void BuildMtpVerificationInputsKernel(
-    std::uint32_t input_token, const std::uint32_t* drafts,
-    std::uint32_t proposal_count, std::uint32_t* inputs) {
-  const std::uint32_t index = threadIdx.x;
-  if (blockIdx.x != 0U || index > proposal_count) return;
-  inputs[index] = index == 0U ? input_token : drafts[index - 1U];
-}
-
-__global__ void AcceptMtpGroupKernel(
-    const std::uint32_t* drafts, const std::uint32_t* verified,
-    std::uint32_t proposal_count, const std::uint32_t* stop_tokens,
-    std::uint32_t stop_count, MtpGroupResult* result) {
-  if (blockIdx.x != 0U || threadIdx.x != 0U) return;
-  result->proposal_count = proposal_count;
-  result->accepted_count = 0U;
-  result->output_count = 0U;
-  result->stop_token = 0U;
-  result->stopped = 0U;
-  for (std::uint32_t index = 0U; index < kMaximumMtpDraftTokens; ++index) {
-    result->proposed[index] = index < proposal_count ? drafts[index] : 0U;
-  }
-  for (std::uint32_t index = 0U; index < kMaximumMtpVerifyTokens; ++index) {
-    result->verified[index] = index <= proposal_count ? verified[index] : 0U;
-  }
-  while (result->accepted_count < proposal_count &&
-         verified[result->accepted_count] == drafts[result->accepted_count]) {
-    ++result->accepted_count;
-  }
-  result->output_count = result->accepted_count == proposal_count
-                             ? proposal_count + 1U
-                             : result->accepted_count + 1U;
-  for (std::uint32_t index = 0U; index < result->output_count; ++index) {
-    for (std::uint32_t stop = 0U; stop < stop_count; ++stop) {
-      if (verified[index] == stop_tokens[stop]) {
-        result->output_count = index + 1U;
-        result->accepted_count = min(result->accepted_count, index);
-        result->stop_token = verified[index];
-        result->stopped = 1U;
-        return;
-      }
-    }
-  }
-}
-
-template <typename T>
-__global__ void CommitMtpKvKernel(
-    const T* compact_key, const T* compact_value, T* cache_key,
-    T* cache_value, std::uint64_t start_position,
-    std::uint64_t elements_per_token, std::uint64_t capacity,
-    const MtpGroupResult* result) {
-  const std::uint64_t index =
-      static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
-  const std::uint64_t total =
-      static_cast<std::uint64_t>(result->output_count) * elements_per_token;
-  if (index >= total) return;
-  const std::uint64_t token = index / elements_per_token;
-  const std::uint64_t element = index % elements_per_token;
-  const std::uint64_t cache_index =
-      ((start_position + token) % capacity) * elements_per_token + element;
-  cache_key[cache_index] = compact_key[index];
-  cache_value[cache_index] = compact_value[index];
-}
-
-__global__ void CommitMtpHiddenKernel(
-    const float* verified_hidden, float* committed_hidden,
-    const MtpGroupResult* result) {
-  const std::uint64_t index =
-      static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
-  if (index >= kHidden) return;
-  const std::uint64_t row = result->output_count - 1U;
-  committed_hidden[index] = verified_hidden[row * kHidden + index];
 }
 
 Status LaunchRoundBf16(float* values, std::uint64_t elements, cudaStream_t stream) {
@@ -1299,13 +1195,10 @@ class InferenceEngine {
     }
     auto* device_tokens =
         Pointer<std::uint32_t>(prefill_workspace_, prefill_offsets_.token_ids);
-    BuildMtpVerificationInputsKernel<<<1U, kMaximumMtpVerifyTokens, 0,
-                                       stream_>>>(
-        input_token, device_drafts, proposal_count, device_tokens);
-    cudaError_t error = cudaGetLastError();
-    if (error != cudaSuccess) {
-      return CudaFailure("build MTP verification token IDs", error);
-    }
+    Status status = internal::LaunchBuildMtpVerificationInputs(
+        input_token, device_drafts, proposal_count, device_tokens, stream_);
+    if (!status.ok()) return status;
+    cudaError_t error = cudaSuccess;
     float* hidden =
         Pointer<float>(prefill_workspace_, prefill_offsets_.hidden_a);
     const std::uint64_t hidden_elements = tokens * kHidden;
@@ -1318,13 +1211,13 @@ class InferenceEngine {
       return CudaFailure("launch MTP verification embedding", error);
     }
     for (std::size_t index = 0; index < model_.layers().size(); ++index) {
-      Status status = RunLayerBatch(model_.layers()[index], start_position,
-                                    tokens, index);
+      status = RunLayerBatch(model_.layers()[index], start_position, tokens,
+                             index);
       if (!status.ok()) return status;
     }
     float* normalized =
         Pointer<float>(prefill_workspace_, prefill_offsets_.normalized);
-    Status status = internal::LaunchRmsNormBf16(
+    status = internal::LaunchRmsNormBf16(
         hidden, model_.final_norm(), normalized, tokens, kHidden, kEpsilon,
         stream_);
     if (!status.ok()) return status;
@@ -1342,49 +1235,35 @@ class InferenceEngine {
     if (!status.ok()) return status;
     auto* device_result = Pointer<MtpGroupResult>(
         mtp_workspace_, mtp_offsets_.group_result);
-    AcceptMtpGroupKernel<<<1U, 1U, 0, stream_>>>(
+    status = internal::LaunchAcceptMtpGroup(
         device_drafts, selected, proposal_count,
         Pointer<std::uint32_t>(mtp_workspace_, mtp_offsets_.stop_tokens),
-        mtp_stop_token_count_, device_result);
-    error = cudaGetLastError();
-    if (error != cudaSuccess) {
-      return CudaFailure("launch GPU MTP acceptance", error);
-    }
+        mtp_stop_token_count_, device_result, stream_);
+    if (!status.ok()) return status;
     for (std::size_t index = 0; index < model_.layers().size(); ++index) {
       const LayerBinding& layer = model_.layers()[index];
       const std::uint64_t capacity =
           layer.global ? max_context_ : std::min(max_context_, kSlidingWindow);
-      const std::uint64_t maximum_elements =
-          kMaximumMtpVerifyTokens * layer.kv_elements;
-      const unsigned blocks = static_cast<unsigned>(
-          (maximum_elements + kThreads - 1U) / kThreads);
       if (kv_cache_mode_ == KvCacheMode::kCheckpointFp8) {
-        CommitMtpKvKernel<<<blocks, kThreads, 0, stream_>>>(
+        status = internal::LaunchCommitMtpKvFp8(
             Pointer<std::uint8_t>(mtp_workspace_, mtp_offsets_.layers[index].key),
             Pointer<std::uint8_t>(mtp_workspace_, mtp_offsets_.layers[index].value),
             layer.key_cache_fp8, layer.value_cache_fp8, start_position,
-            layer.kv_elements, capacity, device_result);
+            layer.kv_elements, capacity, device_result, stream_);
       } else {
-        CommitMtpKvKernel<<<blocks, kThreads, 0, stream_>>>(
+        status = internal::LaunchCommitMtpKvBf16(
             Pointer<float>(mtp_workspace_, mtp_offsets_.layers[index].key),
             Pointer<float>(mtp_workspace_, mtp_offsets_.layers[index].value),
             layer.key_cache_bf16, layer.value_cache_bf16, start_position,
-            layer.kv_elements, capacity, device_result);
+            layer.kv_elements, capacity, device_result, stream_);
       }
-      error = cudaGetLastError();
-      if (error != cudaSuccess) {
-        return CudaFailure("launch GPU MTP KV commit", error);
-      }
+      if (!status.ok()) return status;
     }
     float* committed_hidden =
         Pointer<float>(mtp_workspace_, mtp_offsets_.committed_hidden);
-    CommitMtpHiddenKernel<<<
-        static_cast<unsigned>((kHidden + kThreads - 1U) / kThreads),
-        kThreads, 0, stream_>>>(normalized, committed_hidden, device_result);
-    error = cudaGetLastError();
-    if (error != cudaSuccess) {
-      return CudaFailure("launch GPU MTP hidden-state commit", error);
-    }
+    status = internal::LaunchCommitMtpHidden(
+        normalized, committed_hidden, kHidden, device_result, stream_);
+    if (!status.ok()) return status;
     latest_target_hidden_ = committed_hidden;
     auto* pinned_result = reinterpret_cast<MtpGroupResult*>(
         mtp_host_result_.span().data());
@@ -1907,10 +1786,7 @@ class InferenceEngine {
           return CudaFailure("retain speculative FP8 KV", copy_error);
         }
         if (!layer.global) {
-          const std::uint64_t elements = tokens * layer.kv_elements;
-          CopyCircularMtpKvKernel<std::uint8_t, false><<<
-              static_cast<unsigned>((elements + kThreads - 1U) / kThreads),
-              kThreads, 0, stream_>>>(
+          status = internal::LaunchCopyCircularMtpKvFp8(
               layer.key_cache_fp8, layer.value_cache_fp8,
               Pointer<std::uint8_t>(
                   mtp_workspace_,
@@ -1918,11 +1794,9 @@ class InferenceEngine {
               Pointer<std::uint8_t>(
                   mtp_workspace_,
                   mtp_offsets_.layers[mtp_layer_index].backup_value),
-              start_position, tokens, layer.kv_elements, capacity);
-          copy_error = cudaGetLastError();
-          if (copy_error != cudaSuccess) {
-            return CudaFailure("backup local speculative FP8 KV", copy_error);
-          }
+              start_position, tokens, layer.kv_elements, capacity, false,
+              stream_);
+          if (!status.ok()) return status;
         }
         if (layer.global) {
           status = internal::LaunchAppendKvFp8Batch(
@@ -1959,12 +1833,9 @@ class InferenceEngine {
                 layer.kv_heads, layer.head_dimension, attention_tokens,
                 stream_, capacity, first_slot);
           } else {
-            SetMtpAttentionPositionKernel<<<1U, 1U, 0, stream_>>>(control,
-                                                                 position);
-            copy_error = cudaGetLastError();
-            if (copy_error != cudaSuccess) {
-              return CudaFailure("set MTP attention position", copy_error);
-            }
+            status = internal::LaunchSetMtpAttentionPosition(
+                control, position, stream_);
+            if (!status.ok()) return status;
             status = internal::LaunchOnlineAttentionDecodeFp8Sm120(
                 q_norm + row * layer.query_elements, layer.key_cache_fp8,
                 layer.value_cache_fp8, layer.k_cache_scale,
@@ -1976,10 +1847,7 @@ class InferenceEngine {
           if (!status.ok()) return status;
         }
         if (!layer.global) {
-          const std::uint64_t elements = tokens * layer.kv_elements;
-          CopyCircularMtpKvKernel<std::uint8_t, true><<<
-              static_cast<unsigned>((elements + kThreads - 1U) / kThreads),
-              kThreads, 0, stream_>>>(
+          status = internal::LaunchCopyCircularMtpKvFp8(
               layer.key_cache_fp8, layer.value_cache_fp8,
               Pointer<std::uint8_t>(
                   mtp_workspace_,
@@ -1987,11 +1855,9 @@ class InferenceEngine {
               Pointer<std::uint8_t>(
                   mtp_workspace_,
                   mtp_offsets_.layers[mtp_layer_index].backup_value),
-              start_position, tokens, layer.kv_elements, capacity);
-          copy_error = cudaGetLastError();
-          if (copy_error != cudaSuccess) {
-            return CudaFailure("restore local speculative FP8 KV", copy_error);
-          }
+              start_position, tokens, layer.kv_elements, capacity, true,
+              stream_);
+          if (!status.ok()) return status;
         }
       } else {
         status = layer.global
@@ -2033,20 +1899,15 @@ class InferenceEngine {
         return CudaFailure("retain speculative BF16 KV", copy_error);
       }
       if (!layer.global) {
-        const std::uint64_t elements = tokens * layer.kv_elements;
-        CopyCircularMtpKvKernel<float, false><<<
-            static_cast<unsigned>((elements + kThreads - 1U) / kThreads),
-            kThreads, 0, stream_>>>(
+        status = internal::LaunchCopyCircularMtpKvBf16(
             layer.key_cache_bf16, layer.value_cache_bf16,
             Pointer<float>(mtp_workspace_,
                            mtp_offsets_.layers[mtp_layer_index].backup_key),
             Pointer<float>(mtp_workspace_,
                            mtp_offsets_.layers[mtp_layer_index].backup_value),
-            start_position, tokens, layer.kv_elements, capacity);
-        copy_error = cudaGetLastError();
-        if (copy_error != cudaSuccess) {
-          return CudaFailure("backup local speculative BF16 KV", copy_error);
-        }
+            start_position, tokens, layer.kv_elements, capacity, false,
+            stream_);
+        if (!status.ok()) return status;
       }
       if (layer.global) {
         status = internal::LaunchAppendKvBatch(
@@ -2080,20 +1941,15 @@ class InferenceEngine {
         if (!status.ok()) return status;
       }
       if (!layer.global) {
-        const std::uint64_t elements = tokens * layer.kv_elements;
-        CopyCircularMtpKvKernel<float, true><<<
-            static_cast<unsigned>((elements + kThreads - 1U) / kThreads),
-            kThreads, 0, stream_>>>(
+        status = internal::LaunchCopyCircularMtpKvBf16(
             layer.key_cache_bf16, layer.value_cache_bf16,
             Pointer<float>(mtp_workspace_,
                            mtp_offsets_.layers[mtp_layer_index].backup_key),
             Pointer<float>(mtp_workspace_,
                            mtp_offsets_.layers[mtp_layer_index].backup_value),
-            start_position, tokens, layer.kv_elements, capacity);
-        copy_error = cudaGetLastError();
-        if (copy_error != cudaSuccess) {
-          return CudaFailure("restore local speculative BF16 KV", copy_error);
-        }
+            start_position, tokens, layer.kv_elements, capacity, true,
+            stream_);
+        if (!status.ok()) return status;
       }
     } else {
       float* scores =
