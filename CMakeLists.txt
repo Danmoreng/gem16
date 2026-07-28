@@ -183,6 +183,8 @@ if(GEM16_ENABLE_CUDA)
     )
     set_property(SOURCE src/cuda/sampling/sampling.cu APPEND PROPERTY COMPILE_OPTIONS
       -Xcompiler=/wd4211
+      # CUB/CCCL rejects MSVC's traditional preprocessor under CUDA 13.3.
+      -Xcompiler=/Zc:preprocessor
     )
   endif()
   target_link_libraries(gem16_core PRIVATE CUDA::cudart CUDA::nvtx3)
