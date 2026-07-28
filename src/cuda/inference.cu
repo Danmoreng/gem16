@@ -2425,9 +2425,14 @@ class InferenceEngine {
     status = internal::LaunchFp8ReferenceTokenQuantizationBatch(
         attention, o_activation, o_scales, tokens, layer.query_elements, stream_);
     if (!status.ok()) return status;
-    status = LaunchFp8ProjectionBatch(
-        o_activation, o_scales, layer.o, projection, tokens,
-        cutlass_workspace, kCutlassWorkspaceBytes, stream_);
+    status = mtp_verification
+                 ? internal::LaunchFp8Sm120DirectProjectionBatch(
+                       o_activation, o_scales, layer.o.weight, layer.o.scales,
+                       projection, tokens, layer.o.rows, layer.o.contracting,
+                       stream_)
+                 : LaunchFp8ProjectionBatch(
+                       o_activation, o_scales, layer.o, projection, tokens,
+                       cutlass_workspace, kCutlassWorkspaceBytes, stream_);
     if (!status.ok()) return status;
     status = LaunchRoundBf16(projection, hidden_elements, stream_);
     if (!status.ok()) return status;

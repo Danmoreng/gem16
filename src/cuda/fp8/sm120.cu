@@ -500,6 +500,29 @@ Status LaunchFp8Sm120DirectProjectionBatch(
     return Invalid("batched SM120 FP8 projection dimensions are invalid");
   }
   const std::uint64_t row_tiles = (rows + kRowsPerWarp - 1U) / kRowsPerWarp;
+  if (tokens <= 5U) {
+    const std::uint64_t direct_blocks =
+        (row_tiles + kWarpsPerBlock - 1U) / kWarpsPerBlock;
+    if (direct_blocks >
+        static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
+      return Invalid("short-batch direct SM120 FP8 projection grid exceeds CUDA limits");
+    }
+    const Fp8MatrixBinding binding{weight_e4m3fn, weight_scales_bf16,
+                                   output, rows};
+    const Fp8MatrixBinding empty{};
+    Sm120DirectProjectionKernel<<<
+        dim3(static_cast<unsigned>(direct_blocks),
+             static_cast<unsigned>(tokens)),
+        kThreadsPerBlock, 0, stream>>>(
+        activation_e4m3fn, activation_scales, binding, empty, empty, 1U,
+        tokens, contracting_elements);
+    const cudaError_t direct_error = cudaGetLastError();
+    return direct_error == cudaSuccess
+               ? Status::Ok()
+               : CudaFailure(
+                     "launch short-batch direct-source SM120 FP8 projection",
+                     direct_error);
+  }
   const std::uint64_t blocks =
       (row_tiles + kMatrixWarpsPerBlock - 1U) / kMatrixWarpsPerBlock;
   if (blocks > static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {

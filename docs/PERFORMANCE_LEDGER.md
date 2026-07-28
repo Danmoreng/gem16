@@ -1,5 +1,20 @@
 # Performance ledger
 
+## 2026-07-29 Exact short-batch O-projection candidate
+
+Before edit, a fresh Nsight Systems run on the 16K/256-output exact D2 path measures 53.081 ms per verifier group.
+Within `gem16.mtp.verify_accept_commit`, the FP8 CUTLASS O projection consumes 530.958 ms over 5,328 layer calls,
+or 4.783 ms/group and 9.16% of scoped kernel time. It launches an M128/N128 plan for only three verifier rows.
+Hypothesis: dispatching MTP O through the existing decode-order direct FP8 MMA over each of the three rows will
+preserve ordinary decode's K32 accumulation exactly while avoiding short-batch CUTLASS tile/setup overhead. The
+expected limiting resource is weight traffic plus launch latency; Q/K/V already uses the same direct arithmetic.
+The numerical contract is unchanged per row, the prefill CUTLASS route remains the fallback/reference path, and the
+candidate is rejected unless all 1,135 Wikipedia IDs remain exact and D2 throughput improves materially. The first
+full 16K candidate run emits all 1,135 retained IDs (SHA-256
+`43bc3380fc1cce5182a679fa3a340c04bcc79c52e73d5102ec1f737f57d0a1e1`), retains 632 accepted drafts over 502 D2
+groups, and reaches 44.347 tok/s. CUDA/unit tests pass. This is a one-run candidate, not a 3/10 qualification;
+keep the direct O path for the subsequent structural split and requalify only after the bounded sprint ends.
+
 ## 2026-07-29 Revised exact MTP target
 
 The competitive gate is now 50.0 effective target-verified tok/s minimum and 55.0 tok/s stretch on the fixed 16K
