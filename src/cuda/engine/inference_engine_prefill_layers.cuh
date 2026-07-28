@@ -113,44 +113,54 @@
         float* decode_scores = Pointer<float>(workspace_, offsets_.scores);
         auto* control = Pointer<internal::DecodeControl>(
             workspace_, offsets_.decode_control);
-        for (std::uint64_t row = 0U; row < tokens; ++row) {
-          const std::uint64_t position = start_position + row;
-          if (!layer.global) {
-            status = internal::LaunchAppendKvFp8Batch(
-                k_fp8 + row * layer.kv_elements,
-                v_fp8 + row * layer.kv_elements, layer.key_cache_fp8,
-                layer.value_cache_fp8, position, 1U, layer.kv_elements,
-                capacity, stream_);
-            if (!status.ok()) return status;
-          }
-          const std::uint64_t attention_tokens =
-              layer.global ? position + 1U
-                           : std::min(position + 1U, capacity);
-          const std::uint64_t first_slot =
-              layer.global || position + 1U <= capacity
-                  ? 0U
-                  : (position + 1U) % capacity;
-          if (capacity <= 512U) {
-            status = internal::LaunchLocalAttentionDecodeFp8(
-                q_norm + row * layer.query_elements, layer.key_cache_fp8,
-                layer.value_cache_fp8, layer.k_cache_scale,
-                layer.v_cache_scale, decode_scores,
-                attention + row * layer.query_elements, kQueryHeads,
-                layer.kv_heads, layer.head_dimension, attention_tokens,
-                stream_, capacity, first_slot);
-          } else {
-            status = internal::LaunchSetMtpAttentionPosition(
-                control, position, stream_);
-            if (!status.ok()) return status;
-            status = internal::LaunchOnlineAttentionDecodeFp8Sm120(
-                q_norm + row * layer.query_elements, layer.key_cache_fp8,
-                layer.value_cache_fp8, layer.k_cache_scale,
-                layer.v_cache_scale, decode_scores,
-                attention + row * layer.query_elements, control, kQueryHeads,
-                layer.kv_heads, layer.head_dimension, capacity,
-                !layer.global, stream_);
-          }
+        if (layer.global && capacity > 512U && tokens == 3U) {
+          status = internal::LaunchOnlineAttentionDecodeFp8GlobalD2Sm120(
+              q_norm, layer.key_cache_fp8, layer.value_cache_fp8,
+              layer.k_cache_scale, layer.v_cache_scale,
+              Pointer<float>(mtp_workspace_,
+                             mtp_offsets_.attention_workspace),
+              attention, start_position, capacity, stream_);
           if (!status.ok()) return status;
+        } else {
+          for (std::uint64_t row = 0U; row < tokens; ++row) {
+            const std::uint64_t position = start_position + row;
+            if (!layer.global) {
+              status = internal::LaunchAppendKvFp8Batch(
+                  k_fp8 + row * layer.kv_elements,
+                  v_fp8 + row * layer.kv_elements, layer.key_cache_fp8,
+                  layer.value_cache_fp8, position, 1U, layer.kv_elements,
+                  capacity, stream_);
+              if (!status.ok()) return status;
+            }
+            const std::uint64_t attention_tokens =
+                layer.global ? position + 1U
+                             : std::min(position + 1U, capacity);
+            const std::uint64_t first_slot =
+                layer.global || position + 1U <= capacity
+                    ? 0U
+                    : (position + 1U) % capacity;
+            if (capacity <= 512U) {
+              status = internal::LaunchLocalAttentionDecodeFp8(
+                  q_norm + row * layer.query_elements, layer.key_cache_fp8,
+                  layer.value_cache_fp8, layer.k_cache_scale,
+                  layer.v_cache_scale, decode_scores,
+                  attention + row * layer.query_elements, kQueryHeads,
+                  layer.kv_heads, layer.head_dimension, attention_tokens,
+                  stream_, capacity, first_slot);
+            } else {
+              status = internal::LaunchSetMtpAttentionPosition(
+                  control, position, stream_);
+              if (!status.ok()) return status;
+              status = internal::LaunchOnlineAttentionDecodeFp8Sm120(
+                  q_norm + row * layer.query_elements, layer.key_cache_fp8,
+                  layer.value_cache_fp8, layer.k_cache_scale,
+                  layer.v_cache_scale, decode_scores,
+                  attention + row * layer.query_elements, control,
+                  kQueryHeads, layer.kv_heads, layer.head_dimension, capacity,
+                  !layer.global, stream_);
+            }
+            if (!status.ok()) return status;
+          }
         }
         if (!layer.global) {
           status = internal::LaunchCopyCircularMtpKvFp8(

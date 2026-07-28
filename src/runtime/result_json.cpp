@@ -191,9 +191,23 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
          << "\",\"host_synchronizations_per_group\":"
          << (result.mtp_enabled ? 1 : 0)
          << ",\"short_batch_projection_path\":\""
-         << (result.mtp_enabled
-                 ? "decode_order_fp8_qkv_nvfp4_down_t_le_5"
-                 : "disabled")
+         << (!result.mtp_enabled
+                 ? "disabled"
+                 : result.mtp_draft_tokens == 2U
+                       ? "decode_order_fp8_t3_shared_qkv_o_nvfp4_down8"
+                       : "decode_order_fp8_qkv_nvfp4_down_t_le_5")
+         << "\",\"d2_attention_path\":\""
+         << (!result.mtp_enabled
+                 ? "disabled"
+                 : result.mtp_draft_tokens == 2U
+                       ? "global_t3_shared_kv_local_serial_exact"
+                       : "inactive")
+         << "\",\"d2_output_head_path\":\""
+         << (!result.mtp_enabled
+                 ? "disabled"
+                 : result.mtp_draft_tokens == 2U
+                       ? "fixed_rows_3_exact_softcap"
+                       : "inactive")
          << "\",\"adaptive\":"
          << (result.mtp_adaptive ? "true" : "false")
          << ",\"draft_tokens\":" << result.mtp_draft_tokens

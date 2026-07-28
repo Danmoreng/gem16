@@ -1,5 +1,27 @@
 # Decisions
 
+## 2026-07-29: Close the exact MTP verifier sprint below the 50 tok/s gate
+
+Date: 2026-07-29
+Decision: Retain the exact three-row global-attention, FP8 Q/K/V/O, output-head, and NVFP4 Down improvements, but
+close the bounded verifier sprint without claiming qualification. The full Wikipedia candidate reaches 46.422
+effective tok/s and remains below the binding 50.0 tok/s minimum. Do not continue toward 55 tok/s or adopt
+numerically different causal-prefill verification. Move the active roadmap gate to multimodal expansion.
+Context: The retained Direct-O candidate reached 44.347 tok/s. The final combination preserves all 1,135 ordinary
+IDs, the fixed output hash, 632 accepted and 372 rejected drafts over 502 groups, and zero fallback/allocation.
+Profiles still attribute the remaining time broadly across exact attention, NVFP4 projections, FP8 projections,
+the BF16 target head, and the official BF16 assistant; no remaining bounded candidate covers the required group
+reduction. The tested causal-prefill route is faster but changes output and remains invalid.
+Alternatives: Run a 3/10 qualification below the gate; continue unbounded tuning; weaken exactness; or claim the
+external vLLM result. These violate the explicit qualification threshold, bounded-sprint policy, ordinary/MTP
+identity, or external-characterization disclosure.
+Consequences: 46.422 tok/s is a one-run exact characterization, not a qualified headline. The retained kernels
+remain observable and tested, while rejected local-attention, grouping, CTA, assistant-head, and raw-logit
+experiments are absent. Future MTP work requires a new written, profile-supported decision after the multimodal
+milestone rather than silently reopening this sprint.
+Evidence: Clean-head and final Nsight profiles, the full exact Wikipedia candidate, CTest, kernel resource reports,
+and the 2026-07-29 performance-ledger entry.
+
 ## 2026-07-29: Set the exact MTP minimum at 50 tok/s and stretch target at 55 tok/s
 
 Date: 2026-07-29

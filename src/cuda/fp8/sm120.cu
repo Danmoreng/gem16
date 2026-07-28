@@ -251,6 +251,91 @@ __global__ void Sm120DirectProjectionKernel(const std::uint8_t* activation,
 #endif
 }
 
+template <unsigned kTokens>
+__global__ void Sm120DirectProjectionFixedBatchKernel(
+    const std::uint8_t* activation, const float* activation_scale,
+    Fp8MatrixBinding first, Fp8MatrixBinding second,
+    Fp8MatrixBinding third, unsigned binding_count,
+    std::uint64_t contracting_elements) {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 890
+  static_assert(kTokens == 3U);
+  if (blockIdx.z >= binding_count) return;
+  const Fp8MatrixBinding binding =
+      blockIdx.z == 0U ? first : (blockIdx.z == 1U ? second : third);
+  const std::uint8_t* weight = binding.weight;
+  const std::uint16_t* weight_scales = binding.weight_scales;
+  float* output = binding.output;
+  const std::uint64_t rows = binding.rows;
+  const unsigned warp = threadIdx.x / kWarpSize;
+  const unsigned lane = threadIdx.x & (kWarpSize - 1U);
+  const std::uint64_t global_warp =
+      static_cast<std::uint64_t>(blockIdx.x) * kWarpsPerBlock + warp;
+  const std::uint64_t row_tiles =
+      (rows + kRowsPerWarp - 1U) / kRowsPerWarp;
+  if (global_warp >= row_tiles) return;
+
+  const unsigned source_row_in_tile = lane >> 2U;
+  const unsigned k_quarter = lane & 3U;
+  const std::uint64_t source_row =
+      global_warp * kRowsPerWarp + source_row_in_tile;
+  const std::uint64_t k_blocks =
+      contracting_elements / kElementsPerKBlock;
+  Fp8Accumulator accumulators[kTokens]{};
+  for (std::uint64_t k_block = 0; k_block < k_blocks; ++k_block) {
+    const std::uint64_t activation_byte =
+        k_block * kElementsPerKBlock +
+        static_cast<std::uint64_t>(k_quarter) * 4U;
+    std::uint32_t b_first = 0U;
+    std::uint32_t b_second = 0U;
+    if (source_row < rows) {
+      const std::uint64_t weight_byte =
+          source_row * contracting_elements + activation_byte;
+      b_first = LoadU32(weight + weight_byte);
+      b_second = LoadU32(weight + weight_byte + 16U);
+    }
+#pragma unroll
+    for (unsigned token = 0U; token < kTokens; ++token) {
+      const std::uint8_t* token_activation =
+          activation + static_cast<std::uint64_t>(token) *
+                           contracting_elements;
+      const std::uint32_t a_first =
+          LoadU32(token_activation + activation_byte);
+      const std::uint32_t a_second =
+          LoadU32(token_activation + activation_byte + 16U);
+      AccumulateFp8(a_first, a_first, a_second, a_second, b_first, b_second,
+                    accumulators[token]);
+    }
+  }
+
+  if (lane < 4U) {
+    const std::uint64_t output_row =
+        global_warp * kRowsPerWarp + lane * 2U;
+#pragma unroll
+    for (unsigned token = 0U; token < kTokens; ++token) {
+      const float input_scale = activation_scale[token];
+      if (output_row < rows) {
+        output[static_cast<std::uint64_t>(token) * rows + output_row] =
+            accumulators[token].x0 * input_scale *
+            DecodeBf16(weight_scales + output_row);
+      }
+      if (output_row + 1U < rows) {
+        output[static_cast<std::uint64_t>(token) * rows + output_row + 1U] =
+            accumulators[token].x1 * input_scale *
+            DecodeBf16(weight_scales + output_row + 1U);
+      }
+    }
+  }
+#else
+  (void)activation;
+  (void)activation_scale;
+  (void)first;
+  (void)second;
+  (void)third;
+  (void)binding_count;
+  (void)contracting_elements;
+#endif
+}
+
 // Eight warps form one 64-column by 128-token CTA tile. Two consecutive K32
 // fragments of source-layout FP8 activation and weights are double-buffered
 // through shared memory, while every weight fragment is reused for eight
@@ -510,12 +595,19 @@ Status LaunchFp8Sm120DirectProjectionBatch(
     const Fp8MatrixBinding binding{weight_e4m3fn, weight_scales_bf16,
                                    output, rows};
     const Fp8MatrixBinding empty{};
-    Sm120DirectProjectionKernel<<<
-        dim3(static_cast<unsigned>(direct_blocks),
-             static_cast<unsigned>(tokens)),
-        kThreadsPerBlock, 0, stream>>>(
-        activation_e4m3fn, activation_scales, binding, empty, empty, 1U,
-        tokens, contracting_elements);
+    if (tokens == 3U) {
+      Sm120DirectProjectionFixedBatchKernel<3U><<<
+          dim3(static_cast<unsigned>(direct_blocks), 1U), kThreadsPerBlock, 0,
+          stream>>>(activation_e4m3fn, activation_scales, binding, empty,
+                    empty, 1U, contracting_elements);
+    } else {
+      Sm120DirectProjectionKernel<<<
+          dim3(static_cast<unsigned>(direct_blocks),
+               static_cast<unsigned>(tokens)),
+          kThreadsPerBlock, 0, stream>>>(
+          activation_e4m3fn, activation_scales, binding, empty, empty, 1U,
+          tokens, contracting_elements);
+    }
     const cudaError_t direct_error = cudaGetLastError();
     return direct_error == cudaSuccess
                ? Status::Ok()
@@ -593,12 +685,21 @@ Status LaunchFp8Sm120GroupedQkvProjectionBatch(
                              k_rows};
     const Fp8MatrixBinding v{v_weight_e4m3fn, v_weight_scales_bf16, v_output,
                              v_rows};
-    Sm120DirectProjectionKernel<<<
-        dim3(static_cast<unsigned>(direct_blocks),
-             static_cast<unsigned>(tokens), has_v ? 3U : 2U),
-        kThreadsPerBlock, 0, stream>>>(
-        activation_e4m3fn, activation_scales, q, k, v, has_v ? 3U : 2U,
-        tokens, contracting_elements);
+    if (tokens == 3U) {
+      Sm120DirectProjectionFixedBatchKernel<3U><<<
+          dim3(static_cast<unsigned>(direct_blocks), 1U,
+               has_v ? 3U : 2U),
+          kThreadsPerBlock, 0, stream>>>(
+          activation_e4m3fn, activation_scales, q, k, v,
+          has_v ? 3U : 2U, contracting_elements);
+    } else {
+      Sm120DirectProjectionKernel<<<
+          dim3(static_cast<unsigned>(direct_blocks),
+               static_cast<unsigned>(tokens), has_v ? 3U : 2U),
+          kThreadsPerBlock, 0, stream>>>(
+          activation_e4m3fn, activation_scales, q, k, v,
+          has_v ? 3U : 2U, tokens, contracting_elements);
+    }
     const cudaError_t direct_error = cudaGetLastError();
     return direct_error == cudaSuccess
                ? Status::Ok()

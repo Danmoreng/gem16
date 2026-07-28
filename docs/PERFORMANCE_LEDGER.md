@@ -1,5 +1,26 @@
 # Performance ledger
 
+## 2026-07-29 Exact D2 verifier specialization sprint
+
+A clean-head Direct-O profile at `50ba3a5` measures 52.107 ms per verifier group and 43.745 profiled tok/s over
+111 D2 groups. Global/local split-online attention consume 10.95/6.93 ms per group, followed by NVFP4 Gate/Up,
+Down, the target output head, and FP8 Q/K/V. The retained bounded candidates specialize only the fixed three-row
+D2 verifier: global attention shares historical K/V loads while preserving independent row reductions, FP8 Q/K/V
+and O share each weight load across three independent K32 accumulators, the output head compiles exactly three
+softcapped rows, and NVFP4 Down groups eight independent output warps per CTA. Their resource usage is respectively
+72/48/40/64 registers per thread, with zero stack or local memory. The global path adds 4,727,808 bytes at the 24K
+profile through an arena-planned row-strided partial workspace; persistent bytes are unchanged.
+
+The retained combination emits all 1,135 ordinary IDs with SHA-256
+`43bc3380fc1cce5182a679fa3a340c04bcc79c52e73d5102ec1f737f57d0a1e1`, preserves 632 accepted and 372 rejected
+drafts over 502 groups, reports zero fallback and token-loop allocation, and reaches 46.422 tok/s in the full
+one-run candidate screen. This is +4.4% over the retained 44.347 tok/s Direct-O candidate, but remains below the
+50.0 tok/s qualification gate, so no 3/10 qualification or 55 tok/s work is authorized. CTest passes. Rejected
+exact candidates are removed: batched local attention is neutral to slower, two-head global grouping is noisy and
+slower in median, eight-warp Gate/Up and 16-warp target output CTAs regress, 2,048 assistant output blocks regress,
+and skipping softcap shows no measurable potential and is forbidden for production regardless. Decision: retain
+the cumulative exact D2 improvement, mark the 50 tok/s objective unmet, and close the bounded verifier sprint.
+
 ## 2026-07-29 Exact short-batch O-projection candidate
 
 Before edit, a fresh Nsight Systems run on the 16K/256-output exact D2 path measures 53.081 ms per verifier group.

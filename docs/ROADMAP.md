@@ -45,13 +45,13 @@ of the correctness and native-kernel gates below.
   deferred while profiles remain kernel-bound. The external feasibility matrix is now complete: patched graph-vLLM
   reaches 57.390 D2 tok/s and 35.75 ms/verifier group, while current llama.cpp reaches 48.38 fixed-length D2.
   Both external MTP routes diverge from their own ordinary greedy sequence and are characterization only. vLLM's
-  group cost nevertheless proves sufficient hardware headroom. The active gate is one final bounded exact-verifier
-  sprint with 50.0 effective target-verified tok/s as the minimum and 55.0 tok/s as the stretch target. At measured
-  acceptance these require at most 45.18 and 41.07 ms/group, respectively, versus the current 52.98 ms/group.
-  Reaching 50 requires full exact 1,135-ID and 3/10 qualification before any remaining material candidate is tested
-  toward 55. If bounded exact candidates cannot reach 50, retain 42.639 only as a correct characterization, mark
-  the MTP performance target unmet, and then begin the binding [multimodal expansion plan](MULTIMODAL.md), as
-  detailed in [the MTP plan](MTP.md).
+  group cost nevertheless proves sufficient hardware headroom. The final bounded exact-verifier sprint is now
+  closed. Three-row global attention, FP8 Q/K/V/O, output-head, and NVFP4 Down specialization raise the exact
+  one-run Wikipedia characterization from the retained 44.347 tok/s Direct-O candidate to 46.422 tok/s, with all
+  1,135 IDs and 632/372 acceptance unchanged. This remains below the 50.0 tok/s minimum, so it is not a 3/10
+  qualification and no 55 tok/s work is authorized. The MTP performance target is explicitly unmet; further
+  numerically different batched-target semantics remain forbidden. The active gate therefore moves to the binding
+  [multimodal expansion plan](MULTIMODAL.md), as detailed in [the MTP plan](MTP.md).
   Every performance promotion still requires correctness, generation, logit, 3-warm-up/10-run benchmark, Nsight,
   spill, allocation, and peak-VRAM evidence and becomes the sole production path.
 

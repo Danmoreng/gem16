@@ -215,17 +215,24 @@
       mtp_offsets_.layers[index] = {
           key.value(), value.value(), backup_key.value(), backup_value.value()};
     }
+    auto attention_workspace = layout.Add<float>(
+        mtp_draft_tokens_ == 0U
+            ? 0U
+            : (mtp_draft_tokens_ + 1U) *
+                  internal::DecodeAttentionWorkspaceElements(max_context_));
     auto candidates = layout.Add<ArgmaxValue>(
         kMaximumMtpVerifyTokens * kFusedOutputHeadBlocks);
     auto selected = layout.Add<std::uint32_t>(kMaximumMtpVerifyTokens);
     auto stop_tokens = layout.Add<std::uint32_t>(kMaximumSuppressedTokens);
     auto group_result = layout.Add<MtpGroupResult>(1U);
     auto committed_hidden = layout.Add<float>(kHidden);
+    if (!attention_workspace.ok()) return attention_workspace.status();
     if (!candidates.ok()) return candidates.status();
     if (!selected.ok()) return selected.status();
     if (!stop_tokens.ok()) return stop_tokens.status();
     if (!group_result.ok()) return group_result.status();
     if (!committed_hidden.ok()) return committed_hidden.status();
+    mtp_offsets_.attention_workspace = attention_workspace.value();
     mtp_offsets_.output_candidates = candidates.value();
     mtp_offsets_.selected = selected.value();
     mtp_offsets_.stop_tokens = stop_tokens.value();

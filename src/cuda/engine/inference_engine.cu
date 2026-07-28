@@ -250,6 +250,7 @@ struct MtpWorkspaceOffsets {
     std::uint64_t backup_value = 0;
   };
   std::array<LayerKv, kLayers> layers{};
+  std::uint64_t attention_workspace = 0;
   std::uint64_t output_candidates = 0;
   std::uint64_t selected = 0;
   std::uint64_t stop_tokens = 0;

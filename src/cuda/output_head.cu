@@ -185,6 +185,80 @@ __global__ void FusedOutputHeadBatchCandidatesKernel(
   }
 }
 
+template <unsigned kRows>
+__global__ void FusedOutputHeadFixedBatchCandidatesKernel(
+    const std::uint16_t* weights, const float* hidden,
+    const std::uint32_t* suppressed, std::uint32_t suppressed_count,
+    OutputHeadCandidate* candidates) {
+  constexpr unsigned kWarpSize = 32U;
+  constexpr unsigned kWarpsPerBlock = kThreads / kWarpSize;
+  __shared__ OutputHeadCandidate warp_candidates[kRows][kWarpsPerBlock];
+  const unsigned warp = threadIdx.x / kWarpSize;
+  const unsigned lane = threadIdx.x % kWarpSize;
+  OutputHeadCandidate best[kRows];
+#pragma unroll
+  for (unsigned row = 0U; row < kRows; ++row) {
+    best[row] = {-FLT_MAX, 0U};
+  }
+  for (std::uint64_t token =
+           static_cast<std::uint64_t>(blockIdx.x) * kWarpsPerBlock + warp;
+       token < kVocabulary;
+       token += static_cast<std::uint64_t>(gridDim.x) * kWarpsPerBlock) {
+    float sums[kRows]{};
+    const std::uint64_t base = token * kHidden;
+    for (std::uint64_t index = lane; index < kHidden; index += kWarpSize) {
+      const float weight = static_cast<float>(
+          __ushort_as_bfloat16(weights[base + index]));
+#pragma unroll
+      for (unsigned row = 0U; row < kRows; ++row) {
+        sums[row] =
+            fmaf(weight, hidden[row * kHidden + index], sums[row]);
+      }
+    }
+#pragma unroll
+    for (unsigned row = 0U; row < kRows; ++row) {
+      for (unsigned offset = kWarpSize / 2U; offset != 0U; offset >>= 1U) {
+        sums[row] += __shfl_down_sync(0xFFFFFFFFU, sums[row], offset);
+      }
+      if (lane == 0U && !IsSuppressed(token, suppressed, suppressed_count)) {
+        const float value = tanhf(sums[row] / 30.0F) * 30.0F;
+        if (value > best[row].value ||
+            (value == best[row].value && token < best[row].token)) {
+          best[row] = {value, static_cast<std::uint32_t>(token)};
+        }
+      }
+    }
+  }
+  if (lane == 0U) {
+#pragma unroll
+    for (unsigned row = 0U; row < kRows; ++row) {
+      warp_candidates[row][warp] = best[row];
+    }
+  }
+  __syncthreads();
+  if (warp == 0U) {
+#pragma unroll
+    for (unsigned row = 0U; row < kRows; ++row) {
+      OutputHeadCandidate value =
+          lane < kWarpsPerBlock ? warp_candidates[row][lane]
+                                : OutputHeadCandidate{-FLT_MAX, 0U};
+      for (unsigned offset = kWarpSize / 2U; offset != 0U; offset >>= 1U) {
+        const float other_value =
+            __shfl_down_sync(0xFFFFFFFFU, value.value, offset);
+        const std::uint32_t other_token =
+            __shfl_down_sync(0xFFFFFFFFU, value.token, offset);
+        if (other_value > value.value ||
+            (other_value == value.value && other_token < value.token)) {
+          value = {other_value, other_token};
+        }
+      }
+      if (lane == 0U) {
+        candidates[row * kOutputHeadCandidateBlocks + blockIdx.x] = value;
+      }
+    }
+  }
+}
+
 template <bool kBatch>
 __global__ void OutputHeadArgmaxKernel(const OutputHeadCandidate* candidates,
                                        std::uint64_t rows,
@@ -274,9 +348,15 @@ Status LaunchFusedOutputHeadBatchCandidates(
     return Status(StatusCode::kInvalidArgument,
                   "batched output-head row count is invalid");
   }
-  FusedOutputHeadBatchCandidatesKernel<<<kOutputHeadCandidateBlocks, kThreads,
-                                         0, stream>>>(
-      weights, hidden, suppressed, suppressed_count, rows, candidates);
+  if (rows == 3U) {
+    FusedOutputHeadFixedBatchCandidatesKernel<3U>
+        <<<kOutputHeadCandidateBlocks, kThreads, 0, stream>>>(
+            weights, hidden, suppressed, suppressed_count, candidates);
+  } else {
+    FusedOutputHeadBatchCandidatesKernel<<<kOutputHeadCandidateBlocks,
+                                           kThreads, 0, stream>>>(
+        weights, hidden, suppressed, suppressed_count, rows, candidates);
+  }
   const cudaError_t error = cudaGetLastError();
   return error == cudaSuccess
              ? Status::Ok()

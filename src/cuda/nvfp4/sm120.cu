@@ -770,8 +770,9 @@ Status LaunchNvfp4Sm120DirectProjectionBf16Batch(
   const std::uint64_t row_tiles =
       (rows + kRowsPerWarp - 1U) / kRowsPerWarp;
   const bool short_batch = tokens <= 5U;
+  const bool d2_batch = tokens == 3U;
   const unsigned block_warps =
-      short_batch ? kWarpsPerBlock : kPrefillWarpsPerBlock;
+      short_batch && !d2_batch ? kWarpsPerBlock : kPrefillWarpsPerBlock;
   const std::uint64_t blocks =
       (row_tiles + block_warps - 1U) / block_warps;
   if (blocks >
@@ -781,15 +782,27 @@ Status LaunchNvfp4Sm120DirectProjectionBf16Batch(
   const std::uint64_t token_tiles =
       (tokens + kTokensPerMma - 1U) / kTokensPerMma;
   if (short_batch) {
-    Sm120MatrixProjectionKernel<false, 1U, kWarpsPerBlock, false,
-                                std::uint16_t><<<
-        dim3(static_cast<unsigned>(blocks),
-             static_cast<unsigned>(token_tiles)),
-        kThreadsPerBlock, 0, stream>>>(
-        packed_activation_e2m1, activation_scales_e4m3fn,
-        packed_weight_e2m1, weight_scales_e4m3fn, nullptr, nullptr, nullptr,
-        nullptr, output_bf16, tokens, rows, contracting_elements,
-        output_divisor, 1.0F);
+    if (d2_batch) {
+      Sm120MatrixProjectionKernel<false, 1U, kPrefillWarpsPerBlock, false,
+                                  std::uint16_t><<<
+          dim3(static_cast<unsigned>(blocks),
+               static_cast<unsigned>(token_tiles)),
+          kPrefillThreadsPerBlock, 0, stream>>>(
+          packed_activation_e2m1, activation_scales_e4m3fn,
+          packed_weight_e2m1, weight_scales_e4m3fn, nullptr, nullptr,
+          nullptr, nullptr, output_bf16, tokens, rows,
+          contracting_elements, output_divisor, 1.0F);
+    } else {
+      Sm120MatrixProjectionKernel<false, 1U, kWarpsPerBlock, false,
+                                  std::uint16_t><<<
+          dim3(static_cast<unsigned>(blocks),
+               static_cast<unsigned>(token_tiles)),
+          kThreadsPerBlock, 0, stream>>>(
+          packed_activation_e2m1, activation_scales_e4m3fn,
+          packed_weight_e2m1, weight_scales_e4m3fn, nullptr, nullptr,
+          nullptr, nullptr, output_bf16, tokens, rows,
+          contracting_elements, output_divisor, 1.0F);
+    }
   } else {
     const std::uint64_t grouped_token_tiles =
         (token_tiles + kPrefillTokenTilesPerWarp - 1U) /
