@@ -4,6 +4,9 @@
 #include <cstdint>
 #include <filesystem>
 #include <memory>
+#include <span>
+
+#include <cuda_runtime_api.h>
 
 #include "gem16/status.h"
 
@@ -33,6 +36,35 @@ struct AssistantBindings {
   std::array<AssistantLayerBinding, 4> layers{};
 };
 
+enum class AssistantKvCacheMode {
+  kCheckpointFp8,
+  kBf16,
+};
+
+struct AssistantSharedKvView {
+  AssistantKvCacheMode mode = AssistantKvCacheMode::kCheckpointFp8;
+  const std::uint8_t* key_fp8 = nullptr;
+  const std::uint8_t* value_fp8 = nullptr;
+  const float* key_bf16 = nullptr;
+  const float* value_bf16 = nullptr;
+  const std::uint16_t* key_scale_bf16 = nullptr;
+  const std::uint16_t* value_scale_bf16 = nullptr;
+  std::uint64_t tokens = 0;
+  std::uint64_t capacity = 0;
+  std::uint64_t first_slot = 0;
+  std::uint64_t kv_heads = 0;
+  std::uint64_t head_dimension = 0;
+};
+
+struct AssistantProposalContext {
+  const std::uint16_t* target_embedding = nullptr;
+  const float* target_hidden = nullptr;
+  AssistantSharedKvView sliding_kv;
+  AssistantSharedKvView full_kv;
+  std::uint32_t input_token = 0;
+  std::uint64_t position = 0;
+};
+
 // Owns the official BF16 MTP assistant in one independent, fixed-address
 // device arena. The target model and its KV cache remain separate owners.
 class AssistantModel {
@@ -43,8 +75,14 @@ class AssistantModel {
   ~AssistantModel();
 
   [[nodiscard]] Status Load(const std::filesystem::path& directory);
+  [[nodiscard]] Status Prepare(std::uint64_t max_context);
+  [[nodiscard]] Status GenerateDrafts(
+      const AssistantProposalContext& context,
+      std::span<std::uint32_t> draft_token_ids, cudaStream_t stream);
   [[nodiscard]] bool loaded() const;
+  [[nodiscard]] bool prepared() const;
   [[nodiscard]] std::uint64_t arena_bytes() const;
+  [[nodiscard]] std::uint64_t workspace_bytes() const;
   [[nodiscard]] std::uint64_t source_bytes() const;
   [[nodiscard]] std::uint64_t tensor_count() const;
   [[nodiscard]] const AssistantBindings& bindings() const;

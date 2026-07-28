@@ -25,9 +25,12 @@ using GeneratedTokenCallback = Status (*)(void* context,
 
 struct GreedyInferenceOptions {
   std::filesystem::path model_directory;
-  // Optional official BF16 MTP assistant. The current gate loads and binds it
-  // into an independent fixed-address arena; proposal execution remains off.
+  // Optional official BF16 MTP assistant, loaded and bound into an
+  // independent fixed-address arena.
   std::filesystem::path assistant_model_directory;
+  // Zero keeps the residency-only gate. Active correctness generation
+  // supports exactly 1, 2, or 4 assistant drafts per verification group.
+  std::uint32_t mtp_draft_tokens = 0;
   std::vector<std::uint32_t> input_token_ids;
   // When non-empty, capture one prediction per target and feed the preceding
   // target token into later decode positions. This isolates per-position
@@ -53,6 +56,7 @@ struct GreedyInferenceOptions {
 struct GreedyInferenceResult {
   std::vector<std::uint32_t> output_token_ids;
   std::vector<std::uint32_t> teacher_forced_token_ids;
+  std::vector<std::uint32_t> mtp_proposed_token_ids;
   std::uint32_t stop_token_id = 0;
   double model_load_milliseconds = 0.0;
   double prompt_milliseconds = 0.0;
@@ -63,6 +67,13 @@ struct GreedyInferenceResult {
   std::uint64_t assistant_weight_arena_bytes = 0;
   std::uint64_t assistant_device_memory_delta_bytes = 0;
   std::uint64_t assistant_tensor_count = 0;
+  std::uint64_t assistant_workspace_bytes = 0;
+  std::uint64_t mtp_proposed_tokens = 0;
+  std::uint64_t mtp_accepted_tokens = 0;
+  std::uint64_t mtp_rejected_tokens = 0;
+  std::uint64_t mtp_verification_groups = 0;
+  std::uint64_t mtp_target_forwards = 0;
+  std::uint32_t mtp_draft_tokens = 0;
   std::uint64_t kv_cache_bytes = 0;
   std::uint64_t workspace_bytes = 0;
   std::uint64_t decode_graph_device_bytes = 0;
@@ -76,6 +87,7 @@ struct GreedyInferenceResult {
   SamplingOptions sampling;
   bool packed_weight_source_layout_direct = false;
   bool assistant_loaded = false;
+  bool mtp_enabled = false;
   bool token_loop_allocations = false;
   bool benchmark_qualified = false;
   bool stopped = false;

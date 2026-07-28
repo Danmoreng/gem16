@@ -91,9 +91,13 @@ The optional official MTP assistant is a separate model owner, not part of the t
 its source checkpoint, streams all 48 BF16 tensors into one independently allocated 256-byte-aligned device arena,
 and binds its tied embedding, pre/post projections, final norm, and four exact Q-only layer families at fixed
 addresses. No converted or second device layout exists. Load-time device prefix/suffix probes cover every tensor.
-The target continues to own all KV storage; the assistant will read target Layers 46/47 once the proposal path is
-implemented. `--assistant-model` currently validates residency and reports memory while leaving assistant
-execution disabled, so ordinary target output and its decode graph are unchanged.
+The target continues to own all KV storage. Three Q-only sliding assistant layers read the target Layer-46 local
+ring, while the final Q-only full layer reads the target Layer-47 contiguous cache. All iterations in one draft
+group retain the target's last processed position and cache view; each projected 3,840-dimensional assistant state
+is paired with the next scaled target embedding. `--mtp-draft-tokens 1|2|4` activates BF16 assistant execution and
+serial exact target verification. This correctness scheduler emits only target-verified tokens and therefore
+retains ordinary greedy output. Batched verification, GPU-side acceptance, and MTP graph capture remain separate
+performance work.
 
 ## Planned multimodal boundary
 

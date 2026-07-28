@@ -1,5 +1,26 @@
 # Decisions
 
+## 2026-07-27: Qualify MTP assistant execution with serial exact target verification first
+
+Date: 2026-07-27
+Decision: Activate the complete BF16 assistant at draft lengths 1, 2, and 4 against target Layers 46/47, but first
+verify proposals with one ordinary target forward per emitted token. Emit only the target prediction at each
+position and label the route `serial_exact_correctness`; do not claim speculative speedup until batched target
+verification and GPU-side acceptance are implemented.
+Context: The official assistant architecture and recurrent constant-position semantics require independent
+operator validation before cache transactions and batched verification are allowed to affect multiple positions.
+Serial verification exercises the real assistant, acceptance, rejection, target cache progression, stop handling,
+and both cache precisions while making output equivalence structurally explicit.
+Alternatives: Implement batched verification and cache rollback in the first assistant execution change; trust
+vLLM output without an independent fixture; or count assistant proposals as output. These combine too many cache
+and numerical changes, depend on a runtime with a blocked graph path, or violate benchmark semantics.
+Consequences: Correctness MTP performs no token-loop allocation and reports complete acceptance telemetry, but it
+cannot provide a throughput speedup because every emitted post-prefill token still requires a target forward.
+Sampling, chat, and diagnostic dumps reject active MTP for now. The ordinary decode graph remains mandatory.
+Evidence: `tools/validate_mtp.py` matches four recurrent Transformers drafts exactly; draft lengths 1/2/4 retain
+the ordinary 16-token FP8 output, BF16 output also matches, local-ring wrap and stop handling pass, and active
+memcheck reports zero errors.
+
 ## 2026-07-27: Use Google's separate BF16 12B assistant for first MTP support
 
 Date: 2026-07-27

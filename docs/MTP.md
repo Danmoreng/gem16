@@ -83,8 +83,10 @@ The first allocator proof now loads all 48 tensors into one independent 256-byte
 845,713,928-byte source payload occupies 845,714,944 arena bytes (806.54 MiB, including 1,016 alignment bytes).
 `cudaMemGetInfo` measures an 847,249,408-byte device-memory delta (808 MiB) around that load. A sequential 50 ms
 `nvidia-smi` probe at context 128 measures 9,660 MiB total GPU usage for the target-only process and 10,468 MiB
-for target plus assistant, also an 808 MiB difference. Proposal state, verification buffers, and later CUDA Graph
-pools remain to be measured at each context tier.
+for target plus assistant, also an 808 MiB difference. Active correctness MTP adds a 289,024-byte fixed proposal
+workspace at context 128; the sampled process peak remains 10,468 MiB. The workspace grows by 64 bytes per context
+position for the 16-head FP32 attention-score oracle. Batched verification and later CUDA Graph pools remain to be
+measured at each context tier.
 
 ## External runtime probe
 
@@ -105,6 +107,31 @@ The probe demonstrates that acceptance is highly workload-dependent. Independent
 also reports that MTP can be slower for single-stream workloads despite 36–71% draft-token acceptance. gem16 must
 therefore retain ordinary decode and promote MTP only where effective accepted output throughput improves.
 
+## Correctness command
+
+```bash
+gem16-run \
+  --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 \
+  --assistant-model models/checkpoints/google-gemma-4-12B-it-assistant-364bd03 \
+  --mtp-draft-tokens 4 \
+  --input-token-ids 2,9259,107 \
+  --max-context 128 --max-tokens 16 --kv-cache fp8 --greedy
+```
+
+The independent bounded reference gate is:
+
+```bash
+third_party/cache/unsloth-nvfp4-env/bin/python tools/validate_mtp.py \
+  --binary build/Linux/blackwell-release/bin/gem16-run \
+  --target models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 \
+  --assistant models/checkpoints/google-gemma-4-12B-it-assistant-364bd03 \
+  --draft-tokens 4 --output /tmp/mtp-reference.json
+```
+
+Active MTP currently supports greedy `gem16-run` generation only. Sampling, chat sessions, diagnostic dumps,
+batched verification, and an MTP CUDA Graph are deliberately rejected or deferred rather than silently using
+incorrect semantics.
+
 ## Implementation status and order
 
 1. **Complete:** extend the inspector/config parser for `gemma4_unified_assistant` and its exact 48-tensor BF16
@@ -113,14 +140,27 @@ therefore retain ordinary decode and promote MTP only where effective accepted o
    models/gemma4-12b-mtp-assistant.lock.json`.
 3. **Complete:** add a separate fixed-address BF16 assistant arena without quantization or conversion. Every
    tensor is bound at its exact shape, and device prefix/suffix probes cover all 48 uploads. `gem16-run
-   --assistant-model` reports source, arena, and measured device-delta bytes while leaving proposal execution off.
-   A 16-step paired run retains identical ordinary target IDs, memcheck reports zero errors, and Nsight places all
-   five `cudaMalloc` calls before the prefill range with none in prefill or decode.
-4. Bind assistant sliding/full attention to target cache states from Layers 46 and 47.
-5. Implement pre-projection, four Q-only layers, post-projection, and the exact assistant LM head.
-6. Build a correctness-only proposal/target-verification path for draft lengths 1, 2, and 4.
-7. Require output equivalence with ordinary greedy decode and report proposed, accepted, rejected, mean acceptance
-   length, effective output tokens/s, and incremental VRAM.
-8. Add fixed-address MTP workspaces and CUDA Graphs only after direct execution passes.
+   --assistant-model` reports source, arena, and measured device-delta bytes. A 16-step paired residency run retains
+   identical ordinary target IDs, memcheck reports zero errors, and Nsight places all five `cudaMalloc` calls before
+   the prefill range with none in prefill or decode.
+4. **Complete:** bind the three sliding assistant layers to the target Layer-46 cache and the full assistant layer
+   to target Layer 47, for both checkpoint-FP8 and BF16 cache modes. Draft iterations keep the target position and
+   shared cache constant, matching the official proposer contract.
+5. **Complete:** implement BF16 target-embedding/pre-projection, four Q-only attention/MLP layers, final norm,
+   post-projection feedback, the tied 1,024-dimensional LM head, and the assistant's two suppressed token IDs.
+6. **Complete for correctness:** implement draft lengths 1, 2, and 4 with serial exact target verification. Target
+   verification, not assistant agreement, chooses every emitted token; accepted prefixes update the existing target
+   cache normally and a mismatch emits the ordinary target token.
+7. **Complete for correctness:** report proposed/accepted/rejected token counts, proposed IDs, verification groups,
+   target forwards, mean accepted length, effective output tok/s, and incremental memory. FP8 and BF16 runs retain
+   exact ordinary greedy output, including a local-ring wrap test. `tools/validate_mtp.py` proves the first four
+   recurrent BF16 drafts exactly equal Transformers (`1884,5745,993,236771`) on a complete one-token shared cache.
+   Active full-process memcheck passes. Full-process initcheck is not accepted as MTP evidence because it reports
+   pre-existing uninitialized padded target-prefill reads in CUTLASS `ApplyScalesKernel` before proposal execution;
+   full-process racecheck exits before application output with no displayed hazards. Targeted assistant sanitizer
+   coverage remains required before performance promotion.
+8. Add batched target verification, GPU-side acceptance/commit, fixed-shape MTP CUDA Graphs, and adaptive draft
+   selection. The current `serial_exact_correctness` mode intentionally performs one ordinary target forward per
+   emitted token and is not a speedup claim.
 9. Promote MTP only for workloads where end-to-end effective throughput wins; otherwise adaptively use ordinary
    decode.

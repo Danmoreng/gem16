@@ -139,3 +139,13 @@ article questions before its first turn-end token. The maximum-context answer co
 origin, Turing test, and requested applications/opportunities, but reaches the forced 256-token limit while
 answering the final risk portion. These are one-run capacity, latency, and quality characterizations rather than
 statistically qualified performance results.
+
+## MTP correctness timing
+
+The active `serial_exact_correctness` MTP scheduler is not a speedup result. It executes the complete BF16
+assistant but still performs one ordinary target forward for every emitted post-prefill token. Its throughput is
+reported only to expose current cost. A speedup comparison becomes valid only after batched target verification
+and GPU-side acceptance are implemented, and must use effective target-verified output tokens/s against ordinary
+gem16 under identical prompts, contexts, output counts, sampling, cache precision, and repetition policy.
+Proposed tokens are never counted as output. Draft lengths 1, 2, and 4 must report proposed, accepted, rejected,
+mean accepted length, incremental VRAM, and the ordinary fallback result.

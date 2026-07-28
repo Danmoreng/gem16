@@ -1011,7 +1011,8 @@ class InferenceEngine {
       const std::filesystem::path& model_directory,
       std::uint64_t max_context, KvCacheMode kv_cache_mode,
       const SamplingOptions& sampling = {},
-      const std::filesystem::path& assistant_model_directory = {}) {
+      const std::filesystem::path& assistant_model_directory = {},
+      std::uint32_t mtp_draft_tokens = 0U) {
     const NvtxRange range("gem16.initialize");
     Status sampling_status = SetSampling(sampling);
     if (!sampling_status.ok()) return sampling_status;
@@ -1054,7 +1055,12 @@ class InferenceEngine {
           free_before_assistant > free_after_assistant
               ? free_before_assistant - free_after_assistant
               : 0U;
+      if (mtp_draft_tokens != 0U) {
+        status = assistant_.Prepare(max_context_);
+        if (!status.ok()) return status;
+      }
     }
+    mtp_draft_tokens_ = mtp_draft_tokens;
     status = AllocateCache();
     if (!status.ok()) return status;
     status = AllocateWorkspace();
@@ -1129,6 +1135,7 @@ class InferenceEngine {
       if (sync_error != cudaSuccess) {
         return CudaFailure("synchronize full decode graph", sync_error);
       }
+      latest_target_hidden_ = Pointer<float>(workspace_, offsets_.normalized);
       return host->selected_token;
     }
     Status mark_status = MarkRepetitionToken(token);
@@ -1152,6 +1159,7 @@ class InferenceEngine {
     Status status = internal::LaunchRmsNormBf16(hidden_a, model_.final_norm(), normalized, 1U,
                                             kHidden, kEpsilon, stream_);
     if (!status.ok()) return status;
+    latest_target_hidden_ = normalized;
     if (!select_token) {
       if (!host_state.empty()) {
         error = cudaStreamSynchronize(stream_);
@@ -1244,6 +1252,61 @@ class InferenceEngine {
   [[nodiscard]] std::uint64_t assistant_tensor_count() const {
     return assistant_.tensor_count();
   }
+  [[nodiscard]] std::uint64_t assistant_workspace_bytes() const {
+    return assistant_.workspace_bytes();
+  }
+  [[nodiscard]] Status GenerateAssistantDrafts(
+      std::uint32_t input_token, std::uint64_t processed_position,
+      std::span<std::uint32_t> draft_token_ids) {
+    const NvtxRange range("gem16.mtp.propose");
+    if (mtp_draft_tokens_ == 0U || !assistant_.prepared() ||
+        latest_target_hidden_ == nullptr || draft_token_ids.empty() ||
+        draft_token_ids.size() > mtp_draft_tokens_ ||
+        processed_position >= max_context_) {
+      return Error(StatusCode::kInvalidArgument,
+                   "active MTP proposal state is invalid");
+    }
+    const auto make_view = [this, processed_position](
+                               const LayerBinding& layer) {
+      internal::AssistantSharedKvView view;
+      view.mode = kv_cache_mode_ == KvCacheMode::kCheckpointFp8
+                      ? internal::AssistantKvCacheMode::kCheckpointFp8
+                      : internal::AssistantKvCacheMode::kBf16;
+      view.key_fp8 = layer.key_cache_fp8;
+      view.value_fp8 = layer.value_cache_fp8;
+      view.key_bf16 = layer.key_cache_bf16;
+      view.value_bf16 = layer.value_cache_bf16;
+      view.key_scale_bf16 = layer.k_cache_scale;
+      view.value_scale_bf16 = layer.v_cache_scale;
+      view.capacity = layer.global
+                          ? max_context_
+                          : std::min(max_context_, kSlidingWindow);
+      view.tokens = layer.global
+                        ? processed_position + 1U
+                        : std::min(processed_position + 1U, view.capacity);
+      view.first_slot =
+          layer.global || processed_position + 1U <= view.capacity
+              ? 0U
+              : (processed_position + 1U) % view.capacity;
+      view.kv_heads = layer.kv_heads;
+      view.head_dimension = layer.head_dimension;
+      return view;
+    };
+    const LayerBinding& sliding = model_.layers()[46U];
+    const LayerBinding& full = model_.layers()[47U];
+    if (sliding.global || !full.global) {
+      return Error(StatusCode::kInternal,
+                   "target MTP shared-KV layer mapping is invalid");
+    }
+    internal::AssistantProposalContext context;
+    context.target_embedding = model_.embedding();
+    context.target_hidden = latest_target_hidden_;
+    context.sliding_kv = make_view(sliding);
+    context.full_kv = make_view(full);
+    context.input_token = input_token;
+    context.position = processed_position;
+    return assistant_.GenerateDrafts(context, draft_token_ids, stream_);
+  }
   [[nodiscard]] std::uint64_t cache_bytes() const { return cache_.bytes(); }
   [[nodiscard]] std::uint64_t workspace_bytes() const {
     return workspace_.bytes() + prefill_workspace_.bytes();
@@ -1309,6 +1372,7 @@ class InferenceEngine {
       if (!status.ok()) return status;
       if (begin + tokens == token_ids.size()) {
         float* last = normalized + (tokens - 1U) * kHidden;
+        latest_target_hidden_ = last;
         float* logits = Pointer<float>(workspace_, offsets_.logits);
         auto* selected = Pointer<std::uint32_t>(workspace_, offsets_.selected);
         if (sampling_.enabled) {
@@ -2274,6 +2338,8 @@ class InferenceEngine {
   std::uint64_t prefill_chunk_tokens_ = kMinimumPrefillChunkTokens;
   std::uint64_t decode_graph_device_bytes_ = 0;
   std::uint64_t assistant_device_memory_delta_bytes_ = 0;
+  std::uint32_t mtp_draft_tokens_ = 0U;
+  const float* latest_target_hidden_ = nullptr;
   std::uint64_t sampling_step_ = 0;
   std::size_t sampling_sort_workspace_bytes_ = 0;
   std::uint32_t suppressed_token_count_ = 0;
@@ -2669,6 +2735,23 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
     return Error(StatusCode::kInvalidArgument, "--max-tokens must be positive");
   }
   const bool teacher_forcing = !options.teacher_forced_token_ids.empty();
+  const bool mtp_enabled = options.mtp_draft_tokens != 0U;
+  if (mtp_enabled &&
+      (options.mtp_draft_tokens != 1U && options.mtp_draft_tokens != 2U &&
+       options.mtp_draft_tokens != 4U)) {
+    return Error(StatusCode::kInvalidArgument,
+                 "active MTP requires draft length 1, 2, or 4");
+  }
+  if (mtp_enabled && options.assistant_model_directory.empty()) {
+    return Error(StatusCode::kInvalidArgument,
+                 "active MTP requires --assistant-model");
+  }
+  if (mtp_enabled &&
+      (teacher_forcing || options.sampling.enabled ||
+       !options.logits_dump_path.empty() || !options.state_dump_path.empty())) {
+    return Error(StatusCode::kUnsupported,
+                 "the MTP correctness path currently requires greedy generation without diagnostic dumps");
+  }
   if (teacher_forcing && options.sampling.enabled) {
     return Error(StatusCode::kInvalidArgument,
                  "teacher-forced diagnostics require greedy prediction");
@@ -2751,7 +2834,8 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
                                     options.max_context_tokens,
                                     options.kv_cache_mode,
                                     options.sampling,
-                                    options.assistant_model_directory);
+                                    options.assistant_model_directory,
+                                    options.mtp_draft_tokens);
   if (!status.ok()) return status;
   status = engine.SetSuppressedTokens(options.suppressed_token_ids);
   if (!status.ok()) return status;
@@ -2759,6 +2843,10 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
 
   GreedyInferenceResult result;
   result.output_token_ids.reserve(static_cast<std::size_t>(generation_steps));
+  if (mtp_enabled) {
+    result.mtp_proposed_token_ids.reserve(
+        static_cast<std::size_t>(generation_steps * options.mtp_draft_tokens));
+  }
   result.teacher_forced_token_ids = options.teacher_forced_token_ids;
   result.teacher_forcing = teacher_forcing;
   result.kv_cache_mode = options.kv_cache_mode;
@@ -2773,6 +2861,9 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
   result.assistant_device_memory_delta_bytes =
       engine.assistant_device_memory_delta_bytes();
   result.assistant_tensor_count = engine.assistant_tensor_count();
+  result.assistant_workspace_bytes = engine.assistant_workspace_bytes();
+  result.mtp_enabled = mtp_enabled;
+  result.mtp_draft_tokens = options.mtp_draft_tokens;
   result.kv_cache_bytes = engine.cache_bytes();
   result.workspace_bytes = engine.workspace_bytes();
   result.decode_graph_device_bytes = engine.decode_graph_device_bytes();
@@ -2825,40 +2916,97 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
   }
 
   const auto decode_start = std::chrono::steady_clock::now();
-  for (std::uint64_t generated = 1U;
-       generated < generation_steps && !result.stopped; ++generated) {
-    const std::uint64_t position = options.input_token_ids.size() + generated - 1U;
-    const std::size_t logit_offset =
-        static_cast<std::size_t>(generated * kVocabulary);
-    const std::span<float> logit_capture =
-        captured_logits.span().empty()
-            ? std::span<float>()
-            : captured_logits.span().subspan(logit_offset,
-                                             static_cast<std::size_t>(kVocabulary));
-    const bool capture_state =
-        options.state_dump_position.has_value() &&
-        *options.state_dump_position == position;
-    const std::uint32_t input_token =
-        teacher_forcing
-            ? options.teacher_forced_token_ids[static_cast<std::size_t>(generated - 1U)]
-            : next_token;
-    auto forwarded = engine.Forward(
-        input_token, position, true, logit_capture,
-        capture_state ? captured_state.span() : std::span<float>());
-    if (!forwarded.ok()) return forwarded.status();
-    state_captured = state_captured || capture_state;
-    next_token = forwarded.value();
-    result.output_token_ids.push_back(next_token);
-    if (options.generated_token_callback != nullptr) {
-      status = options.generated_token_callback(
-          options.generated_token_callback_context, next_token);
+  if (mtp_enabled) {
+    std::uint64_t processed_position = options.input_token_ids.size() - 1U;
+    while (result.output_token_ids.size() < generation_steps &&
+           !result.stopped) {
+      const std::size_t remaining = static_cast<std::size_t>(
+          generation_steps - result.output_token_ids.size());
+      const std::size_t proposal_count = std::min<std::size_t>(
+          options.mtp_draft_tokens, remaining);
+      std::array<std::uint32_t, 4> drafts{};
+      status = engine.GenerateAssistantDrafts(
+          next_token, processed_position,
+          std::span<std::uint32_t>(drafts).first(proposal_count));
       if (!status.ok()) return status;
+      ++result.mtp_verification_groups;
+      result.mtp_proposed_tokens += proposal_count;
+      result.mtp_proposed_token_ids.insert(
+          result.mtp_proposed_token_ids.end(), drafts.begin(),
+          drafts.begin() + static_cast<std::ptrdiff_t>(proposal_count));
+      std::uint64_t accepted_in_group = 0U;
+      bool group_finished = false;
+      for (std::size_t draft_index = 0;
+           draft_index < proposal_count && !result.stopped; ++draft_index) {
+        auto forwarded = engine.Forward(next_token, processed_position + 1U,
+                                        true);
+        if (!forwarded.ok()) return forwarded.status();
+        ++processed_position;
+        ++result.mtp_target_forwards;
+        const std::uint32_t verified_token = forwarded.value();
+        const bool accepted = verified_token == drafts[draft_index];
+        if (accepted) {
+          ++accepted_in_group;
+          ++result.mtp_accepted_tokens;
+        }
+        next_token = verified_token;
+        result.output_token_ids.push_back(next_token);
+        if (options.generated_token_callback != nullptr) {
+          status = options.generated_token_callback(
+              options.generated_token_callback_context, next_token);
+          if (!status.ok()) return status;
+        }
+        if (std::find(options.stop_token_ids.begin(),
+                      options.stop_token_ids.end(), next_token) !=
+            options.stop_token_ids.end()) {
+          result.stopped = true;
+          result.stop_token_id = next_token;
+          group_finished = true;
+        }
+        if (!accepted) group_finished = true;
+        if (group_finished) break;
+      }
+      result.mtp_rejected_tokens += proposal_count - accepted_in_group;
     }
-    if (!teacher_forcing &&
-        std::find(options.stop_token_ids.begin(), options.stop_token_ids.end(), next_token) !=
-        options.stop_token_ids.end()) {
-      result.stopped = true;
-      result.stop_token_id = next_token;
+  } else {
+    for (std::uint64_t generated = 1U;
+         generated < generation_steps && !result.stopped; ++generated) {
+      const std::uint64_t position =
+          options.input_token_ids.size() + generated - 1U;
+      const std::size_t logit_offset =
+          static_cast<std::size_t>(generated * kVocabulary);
+      const std::span<float> logit_capture =
+          captured_logits.span().empty()
+              ? std::span<float>()
+              : captured_logits.span().subspan(
+                    logit_offset, static_cast<std::size_t>(kVocabulary));
+      const bool capture_state =
+          options.state_dump_position.has_value() &&
+          *options.state_dump_position == position;
+      const std::uint32_t input_token =
+          teacher_forcing
+              ? options.teacher_forced_token_ids[
+                    static_cast<std::size_t>(generated - 1U)]
+              : next_token;
+      auto forwarded = engine.Forward(
+          input_token, position, true, logit_capture,
+          capture_state ? captured_state.span() : std::span<float>());
+      if (!forwarded.ok()) return forwarded.status();
+      state_captured = state_captured || capture_state;
+      next_token = forwarded.value();
+      result.output_token_ids.push_back(next_token);
+      if (options.generated_token_callback != nullptr) {
+        status = options.generated_token_callback(
+            options.generated_token_callback_context, next_token);
+        if (!status.ok()) return status;
+      }
+      if (!teacher_forcing &&
+          std::find(options.stop_token_ids.begin(),
+                    options.stop_token_ids.end(), next_token) !=
+              options.stop_token_ids.end()) {
+        result.stopped = true;
+        result.stop_token_id = next_token;
+      }
     }
   }
   if (teacher_forcing) {
@@ -3096,12 +3244,37 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
          << "  \"weight_arena_bytes\": " << result.weight_arena_bytes << ",\n"
          << "  \"assistant\": {\"loaded\":"
          << (result.assistant_loaded ? "true" : "false")
-         << ",\"execution_enabled\":false"
+         << ",\"execution_enabled\":"
+         << (result.mtp_enabled ? "true" : "false")
          << ",\"tensor_count\":" << result.assistant_tensor_count
          << ",\"source_bytes\":" << result.assistant_source_bytes
          << ",\"arena_bytes\":" << result.assistant_weight_arena_bytes
+         << ",\"workspace_bytes\":" << result.assistant_workspace_bytes
          << ",\"device_memory_delta_bytes\":"
          << result.assistant_device_memory_delta_bytes << "},\n"
+         << "  \"mtp\": {\"enabled\":"
+         << (result.mtp_enabled ? "true" : "false")
+         << ",\"verification_mode\":\""
+         << (result.mtp_enabled ? "serial_exact_correctness" : "disabled")
+         << "\",\"draft_tokens\":" << result.mtp_draft_tokens
+         << ",\"proposed_tokens\":" << result.mtp_proposed_tokens
+         << ",\"accepted_tokens\":" << result.mtp_accepted_tokens
+         << ",\"rejected_tokens\":" << result.mtp_rejected_tokens
+         << ",\"verification_groups\":"
+         << result.mtp_verification_groups
+         << ",\"target_forwards\":" << result.mtp_target_forwards
+         << ",\"mean_accepted_length\":"
+         << (result.mtp_verification_groups == 0U
+                 ? 0.0
+                 : static_cast<double>(result.mtp_accepted_tokens) /
+                       static_cast<double>(result.mtp_verification_groups))
+         << ",\"proposed_token_ids\":[";
+  for (std::size_t index = 0; index < result.mtp_proposed_token_ids.size();
+       ++index) {
+    if (index != 0U) output << ',';
+    output << result.mtp_proposed_token_ids[index];
+  }
+  output << "]},\n"
          << "  \"kv_cache_bytes\": " << result.kv_cache_bytes << ",\n"
          << "  \"workspace_bytes\": " << result.workspace_bytes << ",\n"
          << "  \"prefill_chunk_tokens\": " << result.prefill_chunk_tokens << ",\n"

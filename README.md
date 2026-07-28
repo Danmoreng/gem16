@@ -27,6 +27,7 @@ weights. The first optimized backend targets Blackwell SM120/SM120a and batch-on
 | CLI | Native tokenizer and chat template, UTF-8 output, token streaming, multi-turn chat |
 | Prefill | Native variable-length prefill with CUTLASS FP8/NVFP4 Tensor Core projections |
 | Decode | Native T=1 projection plans, FP8 KV cache, and whole-model CUDA Graph replay |
+| MTP | Optional official BF16 assistant with exact serial target verification at draft lengths 1, 2, and 4 |
 | Memory | Direct source layout, text-only tensor loading, deterministic arenas, no CPU weight offload |
 | Tooling | Checkpoint inspection, memory planning, correctness probes, profiling, and prefill/decode benchmarks |
 | Validation | Host and CUDA tests plus operator, layer, logit, greedy-generation, and long-context checks |
@@ -173,8 +174,9 @@ and the direct mixed checkpoint and available GGUF baseline differ in some tenso
   full-vocabulary radix sort and probability scan inside the whole-model decode CUDA Graph.
 - The optimized CUDA backend requires Blackwell SM120/SM120a. Other NVIDIA architectures are not performance
   targets yet.
-- Continuous batching, a server API, speculative decoding, and persistent prompt-cache files are out of scope for
-  the current runtime.
+- MTP correctness generation is available in `gem16-run`, but still uses serial target verification. Batched
+  verification, GPU-side acceptance, adaptive drafting, MTP CUDA Graphs, and chat integration remain pending.
+- Continuous batching, a server API, and persistent prompt-cache files are out of scope for the current runtime.
 - Full benchmark qualification, wider quality evaluation, and additional long-context validation remain ongoing.
 
 ## Documentation
