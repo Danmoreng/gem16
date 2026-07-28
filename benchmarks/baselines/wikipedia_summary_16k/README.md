@@ -118,9 +118,10 @@ semantics. The llama path proves real Layer-46/47 shared KV and complete target/
 
 Neither result is exact against the runtime's own ordinary route. At fixed 1,135-token length, vLLM first differs
 at output index 2 and llama.cpp at index 133. llama.cpp also uses BF16-mapped source attention and Q8_0 KV. These
-are therefore hardware bounds, not parity baselines. vLLM's 35.75 ms D2 group time is below the 37.65
-ms required for 60 tok/s at gem16's measured acceptance, while exact gem16 currently takes about 52.98 ms/group.
-Details are in `benchmarks/baselines/vllm/mtp-characterization.json` and
+are therefore hardware bounds, not parity baselines. Exact gem16 currently takes about 52.98 ms/group. At its
+measured acceptance, the active 50 tok/s minimum and 55 tok/s stretch target require at most 45.18 and 41.07
+ms/group; vLLM's non-exact 35.75 ms route demonstrates hardware headroom for both. Details are in
+`benchmarks/baselines/vllm/mtp-characterization.json` and
 `benchmarks/baselines/llama_cpp/mtp-characterization.json`.
 
 ## Reproduction

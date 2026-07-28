@@ -113,11 +113,13 @@ D2/D4 tok/s under stop semantics. Its target uses the patched closest-parity GGU
 Q8_0 KV, and ordinary first differs from D2 at fixed output index 133, so it is likewise not an exact or
 format-parity baseline.
 
-The hardware conclusion is bounded. gem16's exact D2 groups take about 52.98 ms at mean accepted drafts 1.259;
-60 tok/s requires at most 37.65 ms/group at that acceptance. vLLM demonstrates 35.75 ms/group with a numerically
-different target batch route, while current llama.cpp remains around 48–50 tok/s. Thus 60 tok/s is physically
-plausible on this GPU, but not yet demonstrated by any internally exact comparator on this workload. Further gem16
-work should be one bounded exact-verifier sprint; non-exact causal/batched routes remain inadmissible.
+The hardware conclusion is bounded. gem16's exact D2 groups take about 52.98 ms at mean accepted drafts 1.259.
+The active minimum of 50.0 tok/s requires at most 45.18 ms/group at that acceptance, a 14.7% reduction; the 55.0
+tok/s stretch target requires at most 41.07 ms/group, a 22.5% reduction. Current llama.cpp reaches 48.38 tok/s in
+the controlled fixed-1,135-token D2 screen and about 50 tok/s under different stop semantics. vLLM demonstrates
+35.75 ms/group with a numerically different target batch route. Further gem16 work remains one bounded exact-
+verifier sprint; non-exact causal/batched routes remain inadmissible. A qualified 50 tok/s result meets the minimum,
+after which only material exact candidates may continue toward 55.
 
 Earlier eager probes remain useful acceptance evidence: a random-token prompt reached mean acceptance 1.22 and
 about 37.1 tok/s, while a natural CUDA essay reached 2.29 and about 65 tok/s. Together with the Wikipedia matrix,
@@ -204,11 +206,11 @@ than silently using incorrect semantics.
    ordinary versus 42.639 MTP D2 median tok/s, a 1.341x throughput speedup (+34.1%). All 20 measured outputs contain
    the same 1,135 IDs; mean accepted length is exactly 1.259 in every MTP run. The 95% mean CIs are
    `[31.783,31.806]` and `[42.623,42.658]`. Peak sampled GPU memory is 10,838 MiB. D2 remains workload-dependent;
-   explicit ordinary decode and adaptive fallback are retained. The 60 tok/s stretch target is not yet reached.
+   explicit ordinary decode and adaptive fallback are retained. The revised 50 tok/s minimum is not yet reached.
 12. **External feasibility matrix complete:** patched graph-vLLM reaches 57.390 D2 tok/s over 3/10 runs and current
    llama.cpp reaches 48.38 tok/s in a fixed-length D2 screen. Both execute the official assistant with shared target
    KV, but neither preserves its own ordinary greedy sequence, and llama.cpp also changes target/KV formats.
-   vLLM's 35.75 ms verifier-group latency proves sufficient hardware headroom for 60 tok/s at gem16's
-   acceptance, not an admissible numerical implementation. Permit one final bounded exact-verifier sprint; if it
-   cannot materially close the 52.98-to-37.65 ms/group gap, retain 42.639 as the exact result and proceed to
-   multimodal.
+   vLLM's 35.75 ms verifier-group latency proves sufficient hardware headroom, not an admissible numerical
+   implementation. The final bounded exact-verifier sprint targets 45.18 ms/group and 50 tok/s first, then 41.07
+   ms/group and 55 tok/s only through material exact candidates. If it cannot reach 50, retain 42.639 as a correct
+   characterization, mark the performance target unmet, and proceed to multimodal.

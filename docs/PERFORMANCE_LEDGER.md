@@ -1,5 +1,16 @@
 # Performance ledger
 
+## 2026-07-29 Revised exact MTP target
+
+The competitive gate is now 50.0 effective target-verified tok/s minimum and 55.0 tok/s stretch on the fixed 16K
+Wikipedia workload. Current exact gem16 D2 is 42.639 tok/s, mean accepted drafts are 1.259, and verifier groups take
+52.98 ms. Holding acceptance constant, 50 requires at most 45.18 ms/group (-14.7%) and 55 requires at most 41.07
+ms/group (-22.5%). The minimum exceeds current llama.cpp's controlled fixed-1,135-token D2 characterization of
+48.38 tok/s; the stretch target also clears its 50.21 tok/s stop-terminated result despite that run's different
+output semantics. No benchmark or kernel changed in this entry. Decision: retain one bounded exact-verifier sprint,
+qualify the first result at or above 50 with the full exact 3/10 gate, and continue toward 55 only for material,
+profile-supported exact candidates.
+
 ## 2026-07-29 External Gemma 4 MTP feasibility matrix
 
 The same 16,384-token Wikipedia prompt was run through direct-checkpoint vLLM 0.25.1 and llama.cpp's official

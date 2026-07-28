@@ -162,3 +162,7 @@ fixed-length D2. Neither runtime's MTP output equals its own ordinary greedy out
 bounds only and cannot be called exact speculative speedups or compared as quality-parity headlines. vLLM uses the
 direct mixed checkpoint and FP8 KV; llama.cpp uses BF16-mapped attention and Q8_0 KV. See the corresponding
 `mtp-characterization.json` files for complete disclosure.
+
+The active competitive gate is measured only on the fixed 16,384-prompt/1,135-output workload: 50.0 exact
+effective tok/s is the minimum and 55.0 tok/s is the stretch target. At the retained D2 acceptance these correspond
+to at most 45.18 and 41.07 ms per verifier group. The same 3-warm-up/10-run and exact-ID policy applies.

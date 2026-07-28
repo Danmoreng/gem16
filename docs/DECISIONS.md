@@ -1,10 +1,33 @@
 # Decisions
 
+## 2026-07-29: Set the exact MTP minimum at 50 tok/s and stretch target at 55 tok/s
+
+Date: 2026-07-29
+Decision: Replace the former 60 tok/s stretch gate with a qualified minimum of 50.0 effective target-verified tok/s
+and a stretch target of 55.0 tok/s on the fixed 16K Wikipedia workload. Qualification still requires exact ordinary
+identity over all 1,135 output IDs, three alternating warm-up pairs, ten alternating measured pairs, no fallback or
+token-loop allocation, and complete memory/resource evidence. Reaching 50 permits only further bounded, material,
+exact candidates toward 55; it does not reopen unrestricted text optimization.
+Context: Current gem16 D2 is 42.639 tok/s with 52.98 ms per verifier group and mean accepted drafts 1.259. At the
+same acceptance, 50 and 55 tok/s require at most 45.18 and 41.07 ms/group, reductions of 14.7% and 22.5%. Current
+llama.cpp reaches 48.38 tok/s in the controlled fixed-1,135-token D2 screen, so 50 tok/s exceeds that observed path;
+55 tok/s provides a clearer margin and also exceeds its 50.21 tok/s stop-terminated characterization. External MTP
+outputs remain non-exact and therefore provide performance bounds rather than correctness evidence.
+Alternatives: Retain 60 tok/s as the minimum practical objective; accept the existing 42.639 tok/s result; or define
+success against llama.cpp's stop-terminated run despite different outputs. The first demands an unnecessary 28.9%
+group-latency reduction, while the latter two do not satisfy the stated competitive objective or benchmark parity.
+Consequences: The exact-verifier sprint first targets 45.18 ms/group. If 50 tok/s qualifies, profile-proven exact
+work may continue toward 41.07 ms/group and 55 tok/s. If bounded candidates cannot reach 50, retain 42.639 as a
+correct characterization but mark the MTP performance target unmet rather than claiming success.
+Evidence: Qualified gem16 Wikipedia result, fixed-length current llama.cpp D2 characterization, and the external
+MTP feasibility summaries in `benchmarks/baselines/{llama_cpp,vllm}/mtp-characterization.json`.
+
 ## 2026-07-29: Use external MTP only as a hardware bound and allow one final exact-verifier sprint
 
 Date: 2026-07-29
 Decision: Treat patched graph-vLLM and current llama.cpp Gemma 4 MTP as non-exact performance characterizations,
-not baselines. Use vLLM's fixed-length 35.75 ms/group result as evidence that 60 effective tok/s is physically
+not baselines. The 60 tok/s threshold in this entry is superseded by the 50 minimum/55 stretch decision above.
+Use vLLM's fixed-length 35.75 ms/group result as evidence that 60 effective tok/s is physically
 possible at gem16's acceptance, and permit one bounded profile-driven sprint on gem16's exact target verifier.
 Do not adopt either runtime's numerically different batched target semantics. If the sprint cannot materially
 close gem16's 52.98-to-37.65 ms/group requirement, end text optimization and proceed to multimodal.
