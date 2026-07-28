@@ -47,6 +47,10 @@ class InferenceEngine {
   [[nodiscard]] Status VerifyAcceptCommitAssistantBatch(
       std::uint32_t input_token, std::uint64_t start_position,
       std::uint32_t proposal_count, internal::MtpGroupResult* host_result);
+  [[nodiscard]] Status ExecuteFixedD2GraphGroup(
+      std::uint32_t input_token, std::uint64_t start_position,
+      internal::MtpGroupResult* host_result);
+  [[nodiscard]] Status PrepareFixedD2Graph();
   [[nodiscard]] Status CheckMtpDeviceControlParity(
       std::uint32_t input_token, std::uint64_t processed_position,
       std::uint64_t remaining_output_capacity,

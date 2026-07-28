@@ -113,10 +113,11 @@ D2/D4 tok/s under stop semantics. Its target uses the patched closest-parity GGU
 Q8_0 KV, and ordinary first differs from D2 at fixed output index 133, so it is likewise not an exact or
 format-parity baseline.
 
-The hardware conclusion is bounded. The retained shared-activation FP8 path reaches 47.432 exact D2 tok/s and
-about 47.63 ms/group at mean accepted drafts 1.259 in a controlled 3-warm-up/5-run characterization. The active
-minimum of 50.0 tok/s requires at most 45.18 ms/group at that acceptance, about 2.45 ms/group or 5.1% below the
-current median; the 55.0 tok/s stretch target requires at most 41.07 ms/group. Current llama.cpp reaches 48.38 tok/s
+The hardware conclusion is bounded. Complete fixed-D2 group capture now reaches 54.783 exact D2 tok/s in the
+milestone's required one-warm-up/three-run Windows screen at mean accepted drafts 1.259. This clears the active
+50.0 tok/s minimum and approaches the 55.0 tok/s stretch target, but the final alternating 3-warm-up/10-run
+qualification remains deliberately deferred until GPU chaining, stop/tail handling, and streaming are complete.
+Current llama.cpp reaches 48.38 tok/s
 in the controlled fixed-1,135-token D2 screen and about 50 tok/s under different stop semantics. vLLM demonstrates
 35.75 ms/group with a numerically different target batch route. The GPU-controlled graph roadmap now precedes
 multimodal work, but non-exact causal/batched routes remain inadmissible and graph capture is not presumed to be a
@@ -288,9 +289,9 @@ for the next no-roundtrip phase and their memory cost is documented.
    implementation. The final bounded exact-verifier sprint targets 45.18 ms/group and 50 tok/s first, then 41.07
    ms/group and 55 tok/s only through material exact candidates. If it cannot reach 50, retain the best exact
    characterization and mark the performance target unmet rather than weakening semantics.
-13. **Next, before multimodal:** continue the GPU-controlled decode-graph roadmap above with complete fixed-D2
-   group capture now that the device-resident control record and host/device transition parity gate are complete.
-   GPU chaining, stop/tail handling, asynchronous streaming, and adaptive graph branches follow as separate
+13. **Next, before multimodal:** continue the GPU-controlled decode-graph roadmap above with GPU-chained fixed-D2
+   execution now that device-control parity and complete fixed-D2 group capture are complete. Stop/tail handling,
+   asynchronous streaming, and adaptive graph branches follow as separate
    correctness-gated changes. A device-resident N-Gram proposer is an
    optional later branch only after those foundations and its own hit-rate/performance gates. Multimodal
    implementation remains queued until fixed-D2 GPU chaining and nonblocking streaming are complete or a new
@@ -308,4 +309,14 @@ for the next no-roundtrip phase and their memory cost is documented.
    exactly 111 `cudaMemcpyAsync` calls for 111 control records. The full Transformers draft-reference script could
    not rerun on this Windows Python because its installed PyTorch lacks CUDA; its engine-side exact comparison
    completed before that failure, and the previously retained independent Transformers draft fixture remains the
-   reference evidence. Complete fixed-D2 group capture is the next phase.
+   reference evidence. This phase supplied the correctness foundation used by the complete fixed-D2 group graph.
+15. **Complete fixed-D2 group graph:** checkpoint-FP8 fixed D2 with a context budget above 1,024 captures both
+   assistant proposal steps, controlled verification inputs, all 48 target layers, output selection, GPU
+   acceptance, KV/hidden commit, control transition, and the compact D2H transaction in one reusable graph.
+   Short-context and BF16 modes retain the exact direct implementation. The Wikipedia 16K one-warm-up/three-run
+   gate measures 54.783 tok/s median versus the preceding device-control milestone's 45.217 tok/s (+21.2%), with
+   the unchanged 1,135-ID SHA-256, 632 accepted and 372 rejected drafts over 502 groups. A 1,022-token prompt plus
+   16 outputs crosses the local-cache ring boundary exactly, replays 13 D2 groups plus a direct D1 tail, reports
+   14,680,064 graph-associated device bytes, and retains zero token-loop allocations. The 256-output Nsight trace
+   records 111 `cudaGraphLaunch` calls, reduces whole-process `cudaLaunchKernel` calls from 185,830 to 14,770, and
+   retains 116 stream synchronizations. One synchronization per group remains; GPU chaining is the next phase.

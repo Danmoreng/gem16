@@ -98,6 +98,7 @@ struct GreedyInferenceResult {
   bool assistant_loaded = false;
   bool mtp_enabled = false;
   bool mtp_adaptive = false;
+  bool mtp_fixed_d2_graph = false;
   bool token_loop_allocations = false;
   bool benchmark_qualified = false;
   bool stopped = false;

@@ -61,6 +61,14 @@ struct DecodeControl;
     std::uint64_t start_position, std::uint64_t cache_capacity,
     cudaStream_t stream);
 
+[[nodiscard]] Status LaunchOnlineAttentionDecodeFp8GlobalD2ControlledSm120(
+    const float* query, const std::uint8_t* key_cache,
+    const std::uint8_t* value_cache,
+    const std::uint16_t* key_scale_bf16,
+    const std::uint16_t* value_scale_bf16, float* workspace, float* output,
+    const DecodeControl* row_controls, std::uint64_t cache_capacity,
+    cudaStream_t stream);
+
 // Covers both the local D256/256-token split and global D512/512-token split.
 // The returned count includes normalized partial outputs and their LSE values.
 [[nodiscard]] std::uint64_t DecodeAttentionWorkspaceElements(

@@ -1,7 +1,15 @@
   [[nodiscard]] Status RunLayerBatch(
       const LayerBinding& layer, std::uint64_t start_position,
-      std::uint64_t tokens, std::size_t mtp_layer_index = kLayers) {
+      std::uint64_t tokens, std::size_t mtp_layer_index = kLayers,
+      const internal::DecodeControl* mtp_row_controls = nullptr) {
     const bool mtp_verification = mtp_layer_index < kLayers;
+    const bool controlled_mtp_d2 = mtp_row_controls != nullptr;
+    if (controlled_mtp_d2 &&
+        (!mtp_verification || tokens != 3U ||
+         kv_cache_mode_ != KvCacheMode::kCheckpointFp8)) {
+      return Error(StatusCode::kInvalidArgument,
+                   "controlled MTP D2 layer geometry is invalid");
+    }
     const NvtxRange range(mtp_verification ? "gem16.mtp.verify.layer"
                                            : "gem16.prefill.layer");
     float* hidden_a = Pointer<float>(prefill_workspace_, prefill_offsets_.hidden_a);
@@ -51,20 +59,42 @@
                                      kEpsilon, stream_)}) {
       if (!next.ok()) return next;
     }
-    status = internal::LaunchProjectionRmsNormRotaryBf16Batch(
-        q, layer.q_norm, q_norm, k, layer.k_norm, k_norm,
-        layer.global
-            ? Pointer<float>(prefill_workspace_, prefill_offsets_.global_rope_cosine) +
-                  start_position * 64U
-            : Pointer<float>(prefill_workspace_, prefill_offsets_.local_rope_cosine) +
-                  start_position * 128U,
-        layer.global
-            ? Pointer<float>(prefill_workspace_, prefill_offsets_.global_rope_sine) +
-                  start_position * 64U
-            : Pointer<float>(prefill_workspace_, prefill_offsets_.local_rope_sine) +
-                  start_position * 128U,
-        tokens, kQueryHeads, layer.kv_heads, layer.head_dimension,
-        layer.global ? 0.25 : 1.0, kEpsilon, stream_);
+    if (controlled_mtp_d2) {
+      status = internal::LaunchProjectionRmsNormRotaryBf16BatchControlled(
+          q, layer.q_norm, q_norm, k, layer.k_norm, k_norm,
+          layer.global
+              ? Pointer<float>(prefill_workspace_,
+                               prefill_offsets_.global_rope_cosine)
+              : Pointer<float>(prefill_workspace_,
+                               prefill_offsets_.local_rope_cosine),
+          layer.global
+              ? Pointer<float>(prefill_workspace_,
+                               prefill_offsets_.global_rope_sine)
+              : Pointer<float>(prefill_workspace_,
+                               prefill_offsets_.local_rope_sine),
+          mtp_row_controls, tokens, kQueryHeads, layer.kv_heads,
+          layer.head_dimension, layer.global ? 0.25 : 1.0, kEpsilon,
+          stream_);
+    } else {
+      status = internal::LaunchProjectionRmsNormRotaryBf16Batch(
+          q, layer.q_norm, q_norm, k, layer.k_norm, k_norm,
+          layer.global
+              ? Pointer<float>(prefill_workspace_,
+                               prefill_offsets_.global_rope_cosine) +
+                    start_position * 64U
+              : Pointer<float>(prefill_workspace_,
+                               prefill_offsets_.local_rope_cosine) +
+                    start_position * 128U,
+          layer.global
+              ? Pointer<float>(prefill_workspace_,
+                               prefill_offsets_.global_rope_sine) +
+                    start_position * 64U
+              : Pointer<float>(prefill_workspace_,
+                               prefill_offsets_.local_rope_sine) +
+                    start_position * 128U,
+          tokens, kQueryHeads, layer.kv_heads, layer.head_dimension,
+          layer.global ? 0.25 : 1.0, kEpsilon, stream_);
+    }
     if (!status.ok()) return status;
     const std::uint64_t capacity =
         layer.global ? max_context_ : std::min(max_context_, kSlidingWindow);
@@ -92,44 +122,83 @@
           return CudaFailure("retain speculative FP8 KV", copy_error);
         }
         if (!layer.global) {
-          status = internal::LaunchCopyCircularMtpKvFp8(
-              layer.key_cache_fp8, layer.value_cache_fp8,
-              Pointer<std::uint8_t>(
-                  mtp_workspace_,
-                  mtp_offsets_.layers[mtp_layer_index].backup_key),
-              Pointer<std::uint8_t>(
-                  mtp_workspace_,
-                  mtp_offsets_.layers[mtp_layer_index].backup_value),
-              start_position, tokens, layer.kv_elements, capacity, false,
-              stream_);
+          status = controlled_mtp_d2
+                       ? internal::LaunchCopyCircularMtpKvFp8ControlledD2(
+                             layer.key_cache_fp8, layer.value_cache_fp8,
+                             Pointer<std::uint8_t>(
+                                 mtp_workspace_,
+                                 mtp_offsets_.layers[mtp_layer_index].backup_key),
+                             Pointer<std::uint8_t>(
+                                 mtp_workspace_,
+                                 mtp_offsets_.layers[mtp_layer_index].backup_value),
+                             layer.kv_elements, capacity, false,
+                             &Pointer<internal::MtpGroupTransaction>(
+                                  mtp_workspace_, mtp_offsets_.transaction)
+                                  ->control,
+                             stream_)
+                       : internal::LaunchCopyCircularMtpKvFp8(
+                             layer.key_cache_fp8, layer.value_cache_fp8,
+                             Pointer<std::uint8_t>(
+                                 mtp_workspace_,
+                                 mtp_offsets_.layers[mtp_layer_index].backup_key),
+                             Pointer<std::uint8_t>(
+                                 mtp_workspace_,
+                                 mtp_offsets_.layers[mtp_layer_index].backup_value),
+                             start_position, tokens, layer.kv_elements,
+                             capacity, false, stream_);
           if (!status.ok()) return status;
         }
         if (layer.global) {
-          status = internal::LaunchAppendKvFp8Batch(
-              k_fp8, v_fp8, layer.key_cache_fp8, layer.value_cache_fp8,
-              start_position, tokens, layer.kv_elements, capacity, stream_);
+          status = controlled_mtp_d2
+                       ? internal::LaunchAppendKvFp8BatchControlled(
+                             k_fp8, v_fp8, layer.key_cache_fp8,
+                             layer.value_cache_fp8, mtp_row_controls, tokens,
+                             layer.kv_elements, capacity, stream_)
+                       : internal::LaunchAppendKvFp8Batch(
+                             k_fp8, v_fp8, layer.key_cache_fp8,
+                             layer.value_cache_fp8, start_position, tokens,
+                             layer.kv_elements, capacity, stream_);
           if (!status.ok()) return status;
         }
         float* decode_scores = Pointer<float>(workspace_, offsets_.scores);
-        auto* control = Pointer<internal::DecodeControl>(
+        auto* direct_control = Pointer<internal::DecodeControl>(
             workspace_, offsets_.decode_control);
         if (layer.global && capacity > 512U && tokens == 3U) {
-          status = internal::LaunchOnlineAttentionDecodeFp8GlobalD2Sm120(
-              q_norm, layer.key_cache_fp8, layer.value_cache_fp8,
-              layer.k_cache_scale, layer.v_cache_scale,
-              Pointer<float>(mtp_workspace_,
-                             mtp_offsets_.attention_workspace),
-              attention, start_position, capacity, stream_);
+          status = controlled_mtp_d2
+                       ? internal::LaunchOnlineAttentionDecodeFp8GlobalD2ControlledSm120(
+                             q_norm, layer.key_cache_fp8,
+                             layer.value_cache_fp8, layer.k_cache_scale,
+                             layer.v_cache_scale,
+                             Pointer<float>(
+                                 mtp_workspace_,
+                                 mtp_offsets_.attention_workspace),
+                             attention, mtp_row_controls, capacity, stream_)
+                       : internal::LaunchOnlineAttentionDecodeFp8GlobalD2Sm120(
+                             q_norm, layer.key_cache_fp8,
+                             layer.value_cache_fp8, layer.k_cache_scale,
+                             layer.v_cache_scale,
+                             Pointer<float>(
+                                 mtp_workspace_,
+                                 mtp_offsets_.attention_workspace),
+                             attention, start_position, capacity, stream_);
           if (!status.ok()) return status;
         } else {
           for (std::uint64_t row = 0U; row < tokens; ++row) {
             const std::uint64_t position = start_position + row;
             if (!layer.global) {
-              status = internal::LaunchAppendKvFp8Batch(
-                  k_fp8 + row * layer.kv_elements,
-                  v_fp8 + row * layer.kv_elements, layer.key_cache_fp8,
-                  layer.value_cache_fp8, position, 1U, layer.kv_elements,
-                  capacity, stream_);
+              status = controlled_mtp_d2
+                           ? internal::LaunchAppendKvFp8BatchControlled(
+                                 k_fp8 + row * layer.kv_elements,
+                                 v_fp8 + row * layer.kv_elements,
+                                 layer.key_cache_fp8, layer.value_cache_fp8,
+                                 mtp_row_controls + row, 1U,
+                                 layer.kv_elements, capacity, stream_)
+                           : internal::LaunchAppendKvFp8Batch(
+                                 k_fp8 + row * layer.kv_elements,
+                                 v_fp8 + row * layer.kv_elements,
+                                 layer.key_cache_fp8, layer.value_cache_fp8,
+                                 position, 1U, layer.kv_elements, capacity,
+                                 stream_);
               if (!status.ok()) return status;
             }
             const std::uint64_t attention_tokens =
@@ -148,14 +217,20 @@
                   layer.kv_heads, layer.head_dimension, attention_tokens,
                   stream_, capacity, first_slot);
             } else {
-              status = internal::LaunchSetMtpAttentionPosition(
-                  control, position, stream_);
-              if (!status.ok()) return status;
+              const internal::DecodeControl* attention_control =
+                  direct_control;
+              if (controlled_mtp_d2) {
+                attention_control = mtp_row_controls + row;
+              } else {
+                status = internal::LaunchSetMtpAttentionPosition(
+                    direct_control, position, stream_);
+                if (!status.ok()) return status;
+              }
               status = internal::LaunchOnlineAttentionDecodeFp8Sm120(
                   q_norm + row * layer.query_elements, layer.key_cache_fp8,
                   layer.value_cache_fp8, layer.k_cache_scale,
                   layer.v_cache_scale, decode_scores,
-                  attention + row * layer.query_elements, control,
+                  attention + row * layer.query_elements, attention_control,
                   kQueryHeads, layer.kv_heads, layer.head_dimension, capacity,
                   !layer.global, stream_);
             }
@@ -163,16 +238,30 @@
           }
         }
         if (!layer.global) {
-          status = internal::LaunchCopyCircularMtpKvFp8(
-              layer.key_cache_fp8, layer.value_cache_fp8,
-              Pointer<std::uint8_t>(
-                  mtp_workspace_,
-                  mtp_offsets_.layers[mtp_layer_index].backup_key),
-              Pointer<std::uint8_t>(
-                  mtp_workspace_,
-                  mtp_offsets_.layers[mtp_layer_index].backup_value),
-              start_position, tokens, layer.kv_elements, capacity, true,
-              stream_);
+          status = controlled_mtp_d2
+                       ? internal::LaunchCopyCircularMtpKvFp8ControlledD2(
+                             layer.key_cache_fp8, layer.value_cache_fp8,
+                             Pointer<std::uint8_t>(
+                                 mtp_workspace_,
+                                 mtp_offsets_.layers[mtp_layer_index].backup_key),
+                             Pointer<std::uint8_t>(
+                                 mtp_workspace_,
+                                 mtp_offsets_.layers[mtp_layer_index].backup_value),
+                             layer.kv_elements, capacity, true,
+                             &Pointer<internal::MtpGroupTransaction>(
+                                  mtp_workspace_, mtp_offsets_.transaction)
+                                  ->control,
+                             stream_)
+                       : internal::LaunchCopyCircularMtpKvFp8(
+                             layer.key_cache_fp8, layer.value_cache_fp8,
+                             Pointer<std::uint8_t>(
+                                 mtp_workspace_,
+                                 mtp_offsets_.layers[mtp_layer_index].backup_key),
+                             Pointer<std::uint8_t>(
+                                 mtp_workspace_,
+                                 mtp_offsets_.layers[mtp_layer_index].backup_value),
+                             start_position, tokens, layer.kv_elements,
+                             capacity, true, stream_);
           if (!status.ok()) return status;
         }
       } else {

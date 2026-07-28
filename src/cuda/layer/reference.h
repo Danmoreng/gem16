@@ -193,6 +193,16 @@ struct DecodeControl {
     std::uint64_t kv_heads, std::uint64_t head_dimension,
     double rotary_factor, float epsilon, cudaStream_t stream);
 
+[[nodiscard]] Status LaunchProjectionRmsNormRotaryBf16BatchControlled(
+    const float* query, const std::uint16_t* query_norm_bf16,
+    float* normalized_query, const float* key,
+    const std::uint16_t* key_norm_bf16, float* normalized_key,
+    const float* rotary_cosine, const float* rotary_sine,
+    const DecodeControl* row_controls, std::uint64_t tokens,
+    std::uint64_t query_heads, std::uint64_t kv_heads,
+    std::uint64_t head_dimension, double rotary_factor, float epsilon,
+    cudaStream_t stream);
+
 [[nodiscard]] Status LaunchProjectionRmsNormRotaryBf16Controlled(
     const float* query, const std::uint16_t* query_norm_bf16,
     float* normalized_query, const float* key,
@@ -218,6 +228,13 @@ struct DecodeControl {
     const std::uint8_t* key, const std::uint8_t* value,
     std::uint8_t* key_cache, std::uint8_t* value_cache,
     std::uint64_t start_position, std::uint64_t tokens,
+    std::uint64_t elements_per_token, std::uint64_t cache_capacity,
+    cudaStream_t stream);
+
+[[nodiscard]] Status LaunchAppendKvFp8BatchControlled(
+    const std::uint8_t* key, const std::uint8_t* value,
+    std::uint8_t* key_cache, std::uint8_t* value_cache,
+    const DecodeControl* row_controls, std::uint64_t tokens,
     std::uint64_t elements_per_token, std::uint64_t cache_capacity,
     cudaStream_t stream);
 

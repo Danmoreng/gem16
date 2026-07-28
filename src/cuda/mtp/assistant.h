@@ -12,6 +12,8 @@
 
 namespace gem16::internal {
 
+struct MtpDeviceControl;
+
 struct AssistantLayerBinding {
   bool global = false;
   std::uint64_t query_elements = 0;
@@ -81,7 +83,7 @@ class AssistantModel {
       std::span<std::uint32_t> draft_token_ids, cudaStream_t stream);
   [[nodiscard]] Status GenerateDraftsDevice(
       const AssistantProposalContext& context, std::uint32_t draft_count,
-      cudaStream_t stream);
+      cudaStream_t stream, const MtpDeviceControl* control = nullptr);
   [[nodiscard]] const std::uint32_t* device_draft_tokens() const;
   [[nodiscard]] bool loaded() const;
   [[nodiscard]] bool prepared() const;

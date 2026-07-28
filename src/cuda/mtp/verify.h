@@ -58,6 +58,10 @@ static_assert(offsetof(MtpGroupTransaction, control) % 16U == 0U);
     std::uint32_t input_token, const std::uint32_t* drafts,
     std::uint32_t proposal_count, std::uint32_t* inputs, cudaStream_t stream);
 
+[[nodiscard]] Status LaunchBuildControlledMtpD2Inputs(
+    const MtpDeviceControl* control, const std::uint32_t* drafts,
+    std::uint32_t* inputs, DecodeControl* row_controls, cudaStream_t stream);
+
 [[nodiscard]] Status LaunchAcceptMtpGroup(
     const std::uint32_t* drafts, const std::uint32_t* verified,
     std::uint32_t proposal_count, const std::uint32_t* stop_tokens,
@@ -89,6 +93,12 @@ static_assert(offsetof(MtpGroupTransaction, control) % 16U == 0U);
     std::uint64_t elements_per_token, std::uint64_t capacity, bool restore,
     cudaStream_t stream);
 
+[[nodiscard]] Status LaunchCopyCircularMtpKvFp8ControlledD2(
+    std::uint8_t* cache_key, std::uint8_t* cache_value,
+    std::uint8_t* compact_key, std::uint8_t* compact_value,
+    std::uint64_t elements_per_token, std::uint64_t capacity, bool restore,
+    const MtpDeviceControl* control, cudaStream_t stream);
+
 [[nodiscard]] Status LaunchSetMtpAttentionPosition(DecodeControl* control,
                                                     std::uint64_t position,
                                                     cudaStream_t stream);
@@ -98,5 +108,12 @@ static_assert(offsetof(MtpGroupTransaction, control) % 16U == 0U);
                                            std::uint64_t hidden,
                                            const MtpGroupResult* result,
                                            cudaStream_t stream);
+
+[[nodiscard]] Status LaunchCommitMtpKvFp8ControlledD2(
+    const std::uint8_t* compact_key, const std::uint8_t* compact_value,
+    std::uint8_t* cache_key, std::uint8_t* cache_value,
+    std::uint64_t elements_per_token, std::uint64_t capacity,
+    const MtpGroupResult* result, const MtpDeviceControl* control,
+    cudaStream_t stream);
 
 }  // namespace gem16::internal

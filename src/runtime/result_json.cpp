@@ -190,6 +190,12 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
          << (result.mtp_enabled ? "gpu_accept_commit" : "disabled")
          << "\",\"device_control\":\""
          << (result.mtp_enabled ? "host_gpu_transition_parity" : "disabled")
+         << "\",\"group_execution\":\""
+         << (!result.mtp_enabled
+                 ? "disabled"
+                 : result.mtp_fixed_d2_graph
+                       ? "complete_fixed_d2_cuda_graph_host_replay"
+                       : "direct_launch")
          << "\",\"host_synchronizations_per_group\":"
          << (result.mtp_enabled ? 1 : 0)
          << ",\"short_batch_projection_path\":\""

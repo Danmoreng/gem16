@@ -353,9 +353,10 @@ void SplitOnlineDecodeAttentionFp8GlobalBatchKernel(
     const std::uint16_t* __restrict__ key_scale_bf16,
     const std::uint16_t* __restrict__ value_scale_bf16,
     float* __restrict__ partial_output, float* __restrict__ partial_lse,
-    std::uint64_t start_position, std::uint64_t cache_capacity,
-    int max_splits) {
+    std::uint64_t start_position, const DecodeControl* row_controls,
+    std::uint64_t cache_capacity, int max_splits) {
   static_assert(kRows == 3);
+  if (row_controls != nullptr) start_position = row_controls[0].position;
   constexpr int kGroups = kDecodeQueryHeads / kDecodeGlobalGroup;
   __shared__ float scores[kRows * kDecodeGlobalGroup * kDecodeGlobalChunk];
   __shared__ float reduction[kDecodeWarps];
@@ -511,7 +512,9 @@ __launch_bounds__(kDecodeThreads, 1) __global__
 void MergeOnlineDecodeAttentionGlobalBatchKernel(
     const float* __restrict__ partial_output,
     const float* __restrict__ partial_lse, float* __restrict__ output,
-    std::uint64_t start_position, int max_splits) {
+    std::uint64_t start_position, const DecodeControl* row_controls,
+    int max_splits) {
+  if (row_controls != nullptr) start_position = row_controls[0].position;
   __shared__ float reduction[kDecodeWarps];
   const int query_head = static_cast<int>(blockIdx.x);
   const int row = static_cast<int>(blockIdx.y);
@@ -764,7 +767,8 @@ Status LaunchOnlineAttentionDecodeFp8GlobalD2Sm120(
   SplitOnlineDecodeAttentionFp8GlobalBatchKernel<kRows>
       <<<blocks, kDecodeThreads, 0, stream>>>(
           query, key_cache, value_cache, key_scale_bf16, value_scale_bf16,
-          workspace, partial_lse, start_position, cache_capacity, max_splits);
+          workspace, partial_lse, start_position, nullptr, cache_capacity,
+          max_splits);
   cudaError_t error = cudaGetLastError();
   if (error != cudaSuccess) {
     return CudaFailure("launch global D2 split FP8 attention", error);
@@ -772,11 +776,56 @@ Status LaunchOnlineAttentionDecodeFp8GlobalD2Sm120(
   const dim3 merge_blocks(kDecodeQueryHeads, kRows);
   MergeOnlineDecodeAttentionGlobalBatchKernel<kRows>
       <<<merge_blocks, kDecodeThreads, 0, stream>>>(
-          workspace, partial_lse, output, start_position, max_splits);
+          workspace, partial_lse, output, start_position, nullptr, max_splits);
   error = cudaGetLastError();
   return error == cudaSuccess
              ? Status::Ok()
              : CudaFailure("launch global D2 FP8 attention merge", error);
+}
+
+Status LaunchOnlineAttentionDecodeFp8GlobalD2ControlledSm120(
+    const float* query, const std::uint8_t* key_cache,
+    const std::uint8_t* value_cache,
+    const std::uint16_t* key_scale_bf16,
+    const std::uint16_t* value_scale_bf16, float* workspace, float* output,
+    const DecodeControl* row_controls, std::uint64_t cache_capacity,
+    cudaStream_t stream) {
+  constexpr int kRows = 3;
+  if (query == nullptr || key_cache == nullptr || value_cache == nullptr ||
+      key_scale_bf16 == nullptr || value_scale_bf16 == nullptr ||
+      workspace == nullptr || output == nullptr || row_controls == nullptr ||
+      cache_capacity <= 512U ||
+      cache_capacity >
+          static_cast<std::uint64_t>(std::numeric_limits<int>::max())) {
+    return Invalid("controlled global D2 FP8 attention arguments are invalid");
+  }
+  const int max_splits = static_cast<int>(
+      (cache_capacity + kDecodeGlobalChunk - 1U) / kDecodeGlobalChunk);
+  constexpr int kGroups = kDecodeQueryHeads / kDecodeGlobalGroup;
+  const unsigned blocks = static_cast<unsigned>(max_splits * kGroups);
+  const std::uint64_t partial_elements_per_row =
+      static_cast<std::uint64_t>(max_splits) * kDecodeQueryHeads *
+      kDecodeGlobalHeadDimension;
+  float* partial_lse = workspace + kRows * partial_elements_per_row;
+  SplitOnlineDecodeAttentionFp8GlobalBatchKernel<kRows>
+      <<<blocks, kDecodeThreads, 0, stream>>>(
+          query, key_cache, value_cache, key_scale_bf16, value_scale_bf16,
+          workspace, partial_lse, 0U, row_controls, cache_capacity,
+          max_splits);
+  cudaError_t error = cudaGetLastError();
+  if (error != cudaSuccess) {
+    return CudaFailure("launch controlled global D2 split FP8 attention",
+                       error);
+  }
+  const dim3 merge_blocks(kDecodeQueryHeads, kRows);
+  MergeOnlineDecodeAttentionGlobalBatchKernel<kRows>
+      <<<merge_blocks, kDecodeThreads, 0, stream>>>(
+          workspace, partial_lse, output, 0U, row_controls, max_splits);
+  error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("launch controlled global D2 FP8 attention merge",
+                           error);
 }
 
 }  // namespace gem16::internal

@@ -103,6 +103,42 @@
                : CudaFailure("prepare GPU MTP device control", error);
   }
 
+  [[nodiscard]] Status ValidateCompletedMtpGroup(
+      std::uint32_t input_token, std::uint64_t start_position,
+      std::uint32_t proposal_count, MtpGroupResult* host_result) const {
+    if (host_result == nullptr) {
+      return Error(StatusCode::kInvalidArgument,
+                   "MTP host result is unavailable");
+    }
+    const auto* pinned_transaction =
+        reinterpret_cast<const internal::MtpGroupTransaction*>(
+            mtp_host_result_.span().data());
+    const internal::MtpDeviceControl& control =
+        pinned_transaction->control;
+    const MtpGroupResult& result = pinned_transaction->result;
+    if (control.transition_valid != 1U ||
+        control.fixed_draft_tokens != mtp_draft_tokens_ ||
+        control.proposal_count != proposal_count ||
+        control.current.input_token != input_token ||
+        control.current.processed_position + 1U != start_position ||
+        result.output_count == 0U ||
+        control.next.input_token !=
+            result.verified[result.output_count - 1U] ||
+        control.next.processed_position !=
+            control.current.processed_position + result.output_count ||
+        control.next.remaining_output_capacity !=
+            control.current.remaining_output_capacity - result.output_count ||
+        control.next.output_write_position !=
+            control.current.output_write_position + result.output_count ||
+        control.next.stopped != result.stopped ||
+        control.next.stop_token != result.stop_token) {
+      return Error(StatusCode::kInternal,
+                   "GPU MTP device-control transition disagrees with host reference");
+    }
+    *host_result = result;
+    return Status::Ok();
+  }
+
   [[nodiscard]] Status VerifyAcceptCommitAssistantBatch(
       std::uint32_t input_token, std::uint64_t start_position,
       std::uint32_t proposal_count, MtpGroupResult* host_result) {
@@ -208,29 +244,199 @@
     if (error != cudaSuccess) {
       return CudaFailure("synchronize GPU MTP group", error);
     }
-    const internal::MtpDeviceControl& control =
-        pinned_transaction->control;
-    const MtpGroupResult& result = pinned_transaction->result;
-    if (control.transition_valid != 1U ||
-        control.fixed_draft_tokens != mtp_draft_tokens_ ||
-        control.proposal_count != proposal_count ||
-        control.current.input_token != input_token ||
-        control.current.processed_position + 1U != start_position ||
-        result.output_count == 0U ||
-        control.next.input_token !=
-            result.verified[result.output_count - 1U] ||
-        control.next.processed_position !=
-            control.current.processed_position + result.output_count ||
-        control.next.remaining_output_capacity !=
-            control.current.remaining_output_capacity - result.output_count ||
-        control.next.output_write_position !=
-            control.current.output_write_position + result.output_count ||
-        control.next.stopped != result.stopped ||
-        control.next.stop_token != result.stop_token) {
-      return Error(StatusCode::kInternal,
-                   "GPU MTP device-control transition disagrees with host reference");
+    return ValidateCompletedMtpGroup(input_token, start_position,
+                                     proposal_count, host_result);
+  }
+
+  [[nodiscard]] Status LaunchControlledMtpD2GroupBody() {
+    constexpr std::uint32_t kProposalCount = 2U;
+    constexpr std::uint64_t kTokens = 3U;
+    auto* device_transaction = Pointer<internal::MtpGroupTransaction>(
+        mtp_workspace_, mtp_offsets_.transaction);
+    auto* device_control = &device_transaction->control;
+    auto* row_controls = Pointer<internal::DecodeControl>(
+        mtp_workspace_, mtp_offsets_.row_controls);
+
+    const auto make_view = [this](const LayerBinding& layer) {
+      internal::AssistantSharedKvView view;
+      view.mode = internal::AssistantKvCacheMode::kCheckpointFp8;
+      view.key_fp8 = layer.key_cache_fp8;
+      view.value_fp8 = layer.value_cache_fp8;
+      view.key_scale_bf16 = layer.k_cache_scale;
+      view.value_scale_bf16 = layer.v_cache_scale;
+      view.capacity =
+          layer.global ? max_context_ : std::min(max_context_, kSlidingWindow);
+      view.tokens = view.capacity;
+      view.first_slot = 0U;
+      view.kv_heads = layer.kv_heads;
+      view.head_dimension = layer.head_dimension;
+      return view;
+    };
+    const LayerBinding& sliding = model_.layers()[46U];
+    const LayerBinding& full = model_.layers()[47U];
+    internal::AssistantProposalContext assistant_context;
+    assistant_context.target_embedding = model_.embedding();
+    assistant_context.target_hidden = latest_target_hidden_;
+    assistant_context.sliding_kv = make_view(sliding);
+    assistant_context.full_kv = make_view(full);
+    Status status = assistant_.GenerateDraftsDevice(
+        assistant_context, kProposalCount, stream_, device_control);
+    if (!status.ok()) return status;
+
+    const std::uint32_t* device_drafts = assistant_.device_draft_tokens();
+    auto* device_tokens =
+        Pointer<std::uint32_t>(prefill_workspace_, prefill_offsets_.token_ids);
+    status = internal::LaunchBuildControlledMtpD2Inputs(
+        device_control, device_drafts, device_tokens, row_controls, stream_);
+    if (!status.ok()) return status;
+    float* hidden =
+        Pointer<float>(prefill_workspace_, prefill_offsets_.hidden_a);
+    constexpr std::uint64_t kHiddenElements = kTokens * kHidden;
+    EmbeddingBatchKernel<<<
+        static_cast<unsigned>((kHiddenElements + kThreads - 1U) / kThreads),
+        kThreads, 0, stream_>>>(
+        model_.embedding(), device_tokens, hidden, kHiddenElements);
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+      return CudaFailure("launch controlled MTP D2 embedding", error);
     }
-    *host_result = result;
+    for (std::size_t index = 0; index < model_.layers().size(); ++index) {
+      status = RunLayerBatch(model_.layers()[index], 0U, kTokens, index,
+                             row_controls);
+      if (!status.ok()) return status;
+    }
+    float* normalized =
+        Pointer<float>(prefill_workspace_, prefill_offsets_.normalized);
+    status = internal::LaunchRmsNormBf16(
+        hidden, model_.final_norm(), normalized, kTokens, kHidden, kEpsilon,
+        stream_);
+    if (!status.ok()) return status;
+    auto* candidates = Pointer<ArgmaxValue>(
+        mtp_workspace_, mtp_offsets_.output_candidates);
+    auto* selected =
+        Pointer<std::uint32_t>(mtp_workspace_, mtp_offsets_.selected);
+    status = internal::LaunchFusedOutputHeadBatchCandidates(
+        model_.embedding(), normalized,
+        Pointer<std::uint32_t>(workspace_, offsets_.suppressed),
+        suppressed_token_count_, kTokens, candidates, stream_);
+    if (!status.ok()) return status;
+    status = internal::LaunchOutputHeadBatchArgmax(
+        candidates, kTokens, selected, stream_);
+    if (!status.ok()) return status;
+    auto* device_result = &device_transaction->result;
+    status = internal::LaunchAcceptMtpGroup(
+        device_drafts, selected, kProposalCount,
+        Pointer<std::uint32_t>(mtp_workspace_, mtp_offsets_.stop_tokens),
+        mtp_stop_token_count_, device_result, device_control, stream_);
+    if (!status.ok()) return status;
+    for (std::size_t index = 0; index < model_.layers().size(); ++index) {
+      const LayerBinding& layer = model_.layers()[index];
+      const std::uint64_t capacity =
+          layer.global ? max_context_ : std::min(max_context_, kSlidingWindow);
+      status = internal::LaunchCommitMtpKvFp8ControlledD2(
+          Pointer<std::uint8_t>(mtp_workspace_, mtp_offsets_.layers[index].key),
+          Pointer<std::uint8_t>(mtp_workspace_,
+                                mtp_offsets_.layers[index].value),
+          layer.key_cache_fp8, layer.value_cache_fp8, layer.kv_elements,
+          capacity, device_result, device_control, stream_);
+      if (!status.ok()) return status;
+    }
+    float* committed_hidden =
+        Pointer<float>(mtp_workspace_, mtp_offsets_.committed_hidden);
+    status = internal::LaunchCommitMtpHidden(
+        normalized, committed_hidden, kHidden, device_result, stream_);
+    if (!status.ok()) return status;
+    auto* pinned_transaction =
+        reinterpret_cast<internal::MtpGroupTransaction*>(
+            mtp_host_result_.span().data());
+    error = cudaMemcpyAsync(pinned_transaction, device_transaction,
+                            sizeof(internal::MtpGroupTransaction),
+                            cudaMemcpyDeviceToHost, stream_);
+    return error == cudaSuccess
+               ? Status::Ok()
+               : CudaFailure("copy controlled MTP D2 transaction", error);
+  }
+
+  [[nodiscard]] Status ExecuteFixedD2GraphGroup(
+      std::uint32_t input_token, std::uint64_t start_position,
+      MtpGroupResult* host_result) {
+    const NvtxRange range("gem16.mtp.fixed_d2_graph");
+    if (mtp_draft_tokens_ != 2U || latest_target_hidden_ == nullptr ||
+        host_result == nullptr || start_position == 0U ||
+        start_position >= max_context_ || 3U > max_context_ - start_position) {
+      return Error(StatusCode::kInvalidArgument,
+                   "fixed-D2 graph state is invalid");
+    }
+    if (kv_cache_mode_ != KvCacheMode::kCheckpointFp8 ||
+        max_context_ <= kSlidingWindow) {
+      Status status = GenerateAssistantDraftsDevice(
+          input_token, start_position - 1U, 2U);
+      if (!status.ok()) return status;
+      return VerifyAcceptCommitAssistantBatch(
+          input_token, start_position, 2U, host_result);
+    }
+    if (mtp_d2_graph_.get() == nullptr) {
+      return Error(StatusCode::kInternal,
+                   "fixed-D2 graph was not prepared before generation");
+    }
+    cudaError_t error = cudaGraphLaunch(mtp_d2_graph_.get(), stream_);
+    if (error != cudaSuccess) {
+      return CudaFailure("launch complete fixed-D2 group graph", error);
+    }
+    error = cudaStreamSynchronize(stream_);
+    if (error != cudaSuccess) {
+      return CudaFailure("synchronize complete fixed-D2 group graph", error);
+    }
+    return ValidateCompletedMtpGroup(input_token, start_position, 2U,
+                                     host_result);
+  }
+
+  [[nodiscard]] Status PrepareFixedD2Graph() {
+    if (mtp_draft_tokens_ != 2U ||
+        kv_cache_mode_ != KvCacheMode::kCheckpointFp8 ||
+        max_context_ <= kSlidingWindow) {
+      return Status::Ok();
+    }
+    if (latest_target_hidden_ == nullptr) {
+      return Error(StatusCode::kInternal,
+                   "fixed-D2 graph requires a completed prefill");
+    }
+    float* committed_hidden =
+        Pointer<float>(mtp_workspace_, mtp_offsets_.committed_hidden);
+    cudaError_t error = cudaSuccess;
+    if (latest_target_hidden_ != committed_hidden) {
+      error = cudaMemcpyAsync(
+          committed_hidden, latest_target_hidden_, kHidden * sizeof(float),
+          cudaMemcpyDeviceToDevice, stream_);
+      if (error != cudaSuccess) {
+        return CudaFailure("stage initial fixed-D2 target hidden", error);
+      }
+      error = cudaStreamSynchronize(stream_);
+      if (error != cudaSuccess) {
+        return CudaFailure("synchronize fixed-D2 target hidden", error);
+      }
+      latest_target_hidden_ = committed_hidden;
+    }
+    if (mtp_d2_graph_.get() != nullptr) return Status::Ok();
+    std::size_t free_before = 0U;
+    std::size_t total_bytes = 0U;
+    error = cudaMemGetInfo(&free_before, &total_bytes);
+    if (error != cudaSuccess) {
+      return CudaFailure("query memory before fixed-D2 graph", error);
+    }
+    Status status = CaptureDecodeGraph(
+        mtp_d2_graph_,
+        [this]() { return LaunchControlledMtpD2GroupBody(); },
+        "capture complete fixed-D2 group graph");
+    if (!status.ok()) return status;
+    std::size_t free_after = 0U;
+    error = cudaMemGetInfo(&free_after, &total_bytes);
+    if (error != cudaSuccess) {
+      return CudaFailure("query memory after fixed-D2 graph", error);
+    }
+    if (free_before > free_after) {
+      decode_graph_device_bytes_ += free_before - free_after;
+    }
     return Status::Ok();
   }
 

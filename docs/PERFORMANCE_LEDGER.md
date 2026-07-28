@@ -1,5 +1,30 @@
 # Performance ledger
 
+## 2026-07-28 complete fixed-D2 MTP group graph
+
+The fixed-D2 checkpoint-FP8 path now captures one complete speculative group: both assistant proposal steps,
+controlled verification-input construction, embedding, all 48 target layers, final normalization and output
+selection, exact GPU acceptance, transactional KV/hidden commit, device-control transition, and compact result
+copy. Dynamic row positions and circular-cache slots are read from arena-backed control records, so the same graph
+replays across the full context. Capture, instantiation, and its 14,680,064 device bytes are prepared before the
+token loop. BF16 KV, contexts at or below the 1,024-token local window, adaptive MTP, and D1/D4 tails retain their
+existing exact direct paths.
+
+On the Windows RTX 5080 Laptop with CUDA 13.3, the exact Wikipedia 16K workload with one warm-up and three measured
+runs reaches 54.783 tok/s median, compared with 45.217 tok/s at the preceding device-control milestone (+21.2%).
+Every run emits the same 1,135 IDs and SHA-256
+`43bc3380fc1cce5182a679fa3a340c04bcc79c52e73d5102ec1f737f57d0a1e1`, with 632 accepted and 372 rejected drafts
+over 502 D2 groups. The reported workspace remains 706,618,368 bytes and token-loop allocations remain false. A
+1,022-token prompt plus 16 generated tokens crosses the local-cache ring boundary and remains ordinary-identical
+through 13 graph replays and one direct D1 tail.
+
+The exact 16K/256-output Nsight trace contains 111 complete graph replays. Whole-process `cudaLaunchKernel` API
+calls fall from 185,830 in the direct device-control trace to 14,770, while `cudaGraphLaunch` appears exactly 111
+times. Stream synchronizations are 116 versus 117 previously, and the `gem16.mtp.fixed_d2_graph` NVTX range averages
+42.768 ms/group. These counts include model initialization, prefill, and graph preparation; they demonstrate removal
+of recurring per-kernel host dispatch without claiming that unchanged GPU kernel work disappeared. The remaining
+production boundary is one host synchronization per group, targeted by the next GPU-chaining phase.
+
 ## 2026-07-28 Windows MTP device-control baseline
 
 Commit `b5ca0ef` was profiled on the Windows RTX 5080 Laptop GPU with CUDA 13.3 and Nsight Systems 2026.1.3. The

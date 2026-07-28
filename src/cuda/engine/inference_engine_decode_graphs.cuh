@@ -495,6 +495,7 @@
   std::array<GraphExecutable, kLayers> decode_prefix_graphs_{};
   std::array<GraphExecutable, kLayers> decode_suffix_graphs_{};
   GraphExecutable full_decode_graph_;
+  GraphExecutable mtp_d2_graph_;
   cudaStream_t stream_ = nullptr;
   std::uint64_t max_context_ = 0;
   std::uint64_t prefill_chunk_tokens_ = kMinimumPrefillChunkTokens;

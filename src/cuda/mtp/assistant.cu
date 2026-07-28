@@ -18,6 +18,7 @@
 
 #include "cuda/attention/sm120.h"
 #include "cuda/layer/reference.h"
+#include "cuda/mtp/verify.h"
 #include "cuda/nvfp4/mlp.h"
 #include "gem16/model.h"
 #include "gem16/types.h"
@@ -43,6 +44,16 @@ struct ArgmaxValue {
   float value;
   std::uint32_t token;
 };
+
+__global__ void InitializeControlledAssistantKernel(
+    const MtpDeviceControl* mtp_control, std::uint32_t* selected,
+    DecodeControl* attention_control) {
+  if (blockIdx.x != 0U || threadIdx.x != 0U) return;
+  selected[0] = mtp_control->current.input_token;
+  *attention_control = {};
+  attention_control->token = mtp_control->current.input_token;
+  attention_control->position = mtp_control->current.processed_position;
+}
 
 __device__ float BlockSum(float value) {
   __shared__ float scratch[kThreads];
@@ -545,11 +556,13 @@ Status AssistantModel::Prepare(std::uint64_t max_context) {
 
 Status AssistantModel::GenerateDraftsDevice(
     const AssistantProposalContext& context, std::uint32_t draft_count,
-    cudaStream_t stream) {
+    cudaStream_t stream, const MtpDeviceControl* control) {
   if (!prepared() || stream == nullptr || draft_count == 0U ||
       draft_count > 4U || context.target_embedding == nullptr ||
-      context.target_hidden == nullptr || context.input_token >= kVocabulary ||
-      context.position >= impl_->max_context) {
+      context.target_hidden == nullptr ||
+      (control == nullptr &&
+       (context.input_token >= kVocabulary ||
+        context.position >= impl_->max_context))) {
     return Error(StatusCode::kInvalidArgument,
                  "assistant proposal context is invalid");
   }
@@ -581,6 +594,11 @@ Status AssistantModel::GenerateDraftsDevice(
   if (context.sliding_kv.mode != context.full_kv.mode) {
     return Error(StatusCode::kInvalidArgument,
                  "assistant shared-KV modes disagree");
+  }
+  if (control != nullptr &&
+      context.sliding_kv.mode != AssistantKvCacheMode::kCheckpointFp8) {
+    return Error(StatusCode::kInvalidArgument,
+                 "controlled assistant D2 requires checkpoint FP8 KV");
   }
 
   float* target_hidden = impl_->Workspace<float>(impl_->offsets.target_hidden);
@@ -636,14 +654,19 @@ Status AssistantModel::GenerateDraftsDevice(
                : CudaFailure("launch assistant BF16 rounding", launch_error);
   };
 
-  error = cudaMemcpyAsync(selected, &context.input_token,
-                          sizeof(context.input_token), cudaMemcpyHostToDevice,
-                          stream);
-  if (error != cudaSuccess) {
-    return CudaFailure("copy initial assistant draft token", error);
+  if (control == nullptr) {
+    error = cudaMemcpyAsync(selected, &context.input_token,
+                            sizeof(context.input_token),
+                            cudaMemcpyHostToDevice, stream);
+    if (error != cudaSuccess) {
+      return CudaFailure("copy initial assistant draft token", error);
+    }
+    SetAssistantAttentionPositionKernel<<<1U, 1U, 0, stream>>>(
+        attention_control, context.position);
+  } else {
+    InitializeControlledAssistantKernel<<<1U, 1U, 0, stream>>>(
+        control, selected, attention_control);
   }
-  SetAssistantAttentionPositionKernel<<<1U, 1U, 0, stream>>>(
-      attention_control, context.position);
   error = cudaGetLastError();
   if (error != cudaSuccess) {
     return CudaFailure("set assistant attention position", error);
@@ -673,19 +696,27 @@ Status AssistantModel::GenerateDraftsDevice(
           layer.global ? 512U : 256U, kEpsilon, stream);
       if (!status.ok()) return status;
       if (layer.global) {
-        status = LaunchProportionalRotaryEmbedding(
-            normalized_query, kQueryHeads, 512U, 0.25, context.position,
-            1000000.0, 1.0, stream);
+        status = control == nullptr
+                     ? LaunchProportionalRotaryEmbedding(
+                           normalized_query, kQueryHeads, 512U, 0.25,
+                           context.position, 1000000.0, 1.0, stream)
+                     : LaunchProportionalRotaryEmbeddingControlled(
+                           normalized_query, kQueryHeads, 512U, 0.25,
+                           attention_control, 1000000.0, 1.0, stream);
       } else {
-        status = LaunchRotaryEmbedding(normalized_query, kQueryHeads, 256U,
-                                       256U, context.position, 10000.0,
-                                       stream);
+        status = control == nullptr
+                     ? LaunchRotaryEmbedding(
+                           normalized_query, kQueryHeads, 256U, 256U,
+                           context.position, 10000.0, stream)
+                     : LaunchRotaryEmbeddingControlled(
+                           normalized_query, kQueryHeads, 256U, 256U,
+                           attention_control, 10000.0, stream);
       }
       if (!status.ok()) return status;
       status = round_bf16(normalized_query, layer.query_elements);
       if (!status.ok()) return status;
       if (kv.mode == AssistantKvCacheMode::kCheckpointFp8 &&
-          kv.tokens > 512U) {
+          (control != nullptr || kv.tokens > 512U)) {
         status = LaunchOnlineAttentionDecodeFp8Sm120(
             normalized_query, kv.key_fp8, kv.value_fp8, kv.key_scale_bf16,
             kv.value_scale_bf16, scores, attention, attention_control,

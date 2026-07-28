@@ -52,6 +52,7 @@ namespace {
 
 constexpr std::uint64_t kVocabulary = 262144U;
 constexpr std::uint64_t kMaximumContext = 262144U;
+constexpr std::uint64_t kSlidingWindow = 1024U;
 
 Status Error(StatusCode code, std::string message) { return Status(code, std::move(message)); }
 Status CudaFailure(const char* operation, cudaError_t error) {
@@ -551,6 +552,13 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
     state_captured = state_captured || capture_state;
     if (select) next_token = forwarded.value();
   }
+  if (mtp_enabled && options.mtp_draft_tokens == 2U &&
+      !options.mtp_adaptive &&
+      options.kv_cache_mode == KvCacheMode::kCheckpointFp8 &&
+      options.max_context_tokens > kSlidingWindow) {
+    status = engine.PrepareFixedD2Graph();
+    if (!status.ok()) return status;
+  }
   const auto prompt_end = std::chrono::steady_clock::now();
   result.prompt_milliseconds = Milliseconds(prompt_end - prompt_start);
   result.output_token_ids.push_back(next_token);
@@ -613,14 +621,23 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
           result.output_token_ids.size(), result.stopped,
           result.stop_token_id);
       if (!status.ok()) return status;
-      status = engine.GenerateAssistantDraftsDevice(
-          next_token, processed_position,
-          static_cast<std::uint32_t>(proposal_count));
-      if (!status.ok()) return status;
       MtpGroupResult group;
-      status = engine.VerifyAcceptCommitAssistantBatch(
-          next_token, processed_position + 1U,
-          static_cast<std::uint32_t>(proposal_count), &group);
+      if (proposal_count == 2U && options.mtp_draft_tokens == 2U &&
+          !options.mtp_adaptive) {
+        result.mtp_fixed_d2_graph =
+            options.kv_cache_mode == KvCacheMode::kCheckpointFp8 &&
+            options.max_context_tokens > kSlidingWindow;
+        status = engine.ExecuteFixedD2GraphGroup(
+            next_token, processed_position + 1U, &group);
+      } else {
+        status = engine.GenerateAssistantDraftsDevice(
+            next_token, processed_position,
+            static_cast<std::uint32_t>(proposal_count));
+        if (!status.ok()) return status;
+        status = engine.VerifyAcceptCommitAssistantBatch(
+            next_token, processed_position + 1U,
+            static_cast<std::uint32_t>(proposal_count), &group);
+      }
       if (!status.ok()) return status;
       ++result.mtp_verification_groups;
       if (proposal_count == 1U) {
@@ -722,6 +739,7 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
     result.decode_tokens_per_second =
         static_cast<double>(measured_decode_tokens) * 1000.0 / result.decode_milliseconds;
   }
+  result.decode_graph_device_bytes = engine.decode_graph_device_bytes();
   if (!options.logits_dump_path.empty()) {
     result.logits_dump_steps = result.output_token_ids.size();
     const std::size_t dump_elements =

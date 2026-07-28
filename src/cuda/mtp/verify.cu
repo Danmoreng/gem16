@@ -53,6 +53,17 @@ __global__ void BuildMtpVerificationInputsKernel(
   inputs[index] = index == 0U ? input_token : drafts[index - 1U];
 }
 
+__global__ void BuildControlledMtpD2InputsKernel(
+    const MtpDeviceControl* control, const std::uint32_t* drafts,
+    std::uint32_t* inputs, DecodeControl* row_controls) {
+  const std::uint32_t row = threadIdx.x;
+  if (blockIdx.x != 0U || row >= 3U) return;
+  inputs[row] = row == 0U ? control->current.input_token : drafts[row - 1U];
+  row_controls[row] = {};
+  row_controls[row].position = control->current.processed_position + 1U + row;
+  row_controls[row].token = inputs[row];
+}
+
 __global__ void AcceptMtpGroupKernel(
     const std::uint32_t* drafts, const std::uint32_t* verified,
     std::uint32_t proposal_count, const std::uint32_t* stop_tokens,
@@ -126,6 +137,52 @@ __global__ void CommitMtpKvKernel(
       ((start_position + token) % capacity) * elements_per_token + element;
   cache_key[cache_index] = compact_key[index];
   cache_value[cache_index] = compact_value[index];
+}
+
+template <typename T>
+__global__ void CommitMtpKvControlledD2Kernel(
+    const T* compact_key, const T* compact_value, T* cache_key,
+    T* cache_value, std::uint64_t elements_per_token,
+    std::uint64_t capacity, const MtpGroupResult* result,
+    const MtpDeviceControl* control) {
+  const std::uint64_t index =
+      static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+  const std::uint64_t total =
+      static_cast<std::uint64_t>(result->output_count) * elements_per_token;
+  if (index >= total) return;
+  const std::uint64_t token = index / elements_per_token;
+  const std::uint64_t element = index % elements_per_token;
+  const std::uint64_t start_position =
+      control->current.processed_position + 1U;
+  const std::uint64_t cache_index =
+      ((start_position + token) % capacity) * elements_per_token + element;
+  cache_key[cache_index] = compact_key[index];
+  cache_value[cache_index] = compact_value[index];
+}
+
+template <typename T, bool kRestore>
+__global__ void CopyCircularMtpKvControlledD2Kernel(
+    T* cache_key, T* cache_value, T* compact_key, T* compact_value,
+    std::uint64_t elements_per_token, std::uint64_t capacity,
+    const MtpDeviceControl* control) {
+  constexpr std::uint64_t kTokens = 3U;
+  const std::uint64_t total = kTokens * elements_per_token;
+  const std::uint64_t index =
+      static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+  if (index >= total) return;
+  const std::uint64_t token = index / elements_per_token;
+  const std::uint64_t element = index % elements_per_token;
+  const std::uint64_t start_position =
+      control->current.processed_position + 1U;
+  const std::uint64_t cache_index =
+      ((start_position + token) % capacity) * elements_per_token + element;
+  if constexpr (kRestore) {
+    cache_key[cache_index] = compact_key[index];
+    cache_value[cache_index] = compact_value[index];
+  } else {
+    compact_key[index] = cache_key[cache_index];
+    compact_value[index] = cache_value[cache_index];
+  }
 }
 
 __global__ void CommitMtpHiddenKernel(const float* verified_hidden,
@@ -205,6 +262,22 @@ Status LaunchBuildMtpVerificationInputs(
              : CudaFailure("build MTP verification token IDs", error);
 }
 
+Status LaunchBuildControlledMtpD2Inputs(
+    const MtpDeviceControl* control, const std::uint32_t* drafts,
+    std::uint32_t* inputs, DecodeControl* row_controls, cudaStream_t stream) {
+  if (control == nullptr || drafts == nullptr || inputs == nullptr ||
+      row_controls == nullptr) {
+    return Status(StatusCode::kInvalidArgument,
+                  "controlled MTP D2 input arguments are invalid");
+  }
+  BuildControlledMtpD2InputsKernel<<<1U, 3U, 0, stream>>>(
+      control, drafts, inputs, row_controls);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("build controlled MTP D2 inputs", error);
+}
+
 Status LaunchAcceptMtpGroup(
     const std::uint32_t* drafts, const std::uint32_t* verified,
     std::uint32_t proposal_count, const std::uint32_t* stop_tokens,
@@ -263,6 +336,36 @@ Status LaunchCopyCircularMtpKvBf16(
                                          : "backup local speculative BF16 KV");
 }
 
+Status LaunchCopyCircularMtpKvFp8ControlledD2(
+    std::uint8_t* cache_key, std::uint8_t* cache_value,
+    std::uint8_t* compact_key, std::uint8_t* compact_value,
+    std::uint64_t elements_per_token, std::uint64_t capacity, bool restore,
+    const MtpDeviceControl* control, cudaStream_t stream) {
+  if (cache_key == nullptr || cache_value == nullptr ||
+      compact_key == nullptr || compact_value == nullptr ||
+      elements_per_token == 0U || capacity == 0U || control == nullptr) {
+    return Status(StatusCode::kInvalidArgument,
+                  "controlled MTP D2 circular-copy arguments are invalid");
+  }
+  const std::uint64_t elements = 3U * elements_per_token;
+  const std::uint64_t blocks = (elements + kThreads - 1U) / kThreads;
+  if (restore) {
+    CopyCircularMtpKvControlledD2Kernel<std::uint8_t, true>
+        <<<static_cast<unsigned>(blocks), kThreads, 0, stream>>>(
+            cache_key, cache_value, compact_key, compact_value,
+            elements_per_token, capacity, control);
+  } else {
+    CopyCircularMtpKvControlledD2Kernel<std::uint8_t, false>
+        <<<static_cast<unsigned>(blocks), kThreads, 0, stream>>>(
+            cache_key, cache_value, compact_key, compact_value,
+            elements_per_token, capacity, control);
+  }
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("launch controlled MTP D2 circular copy", error);
+}
+
 Status LaunchSetMtpAttentionPosition(DecodeControl* control,
                                      std::uint64_t position,
                                      cudaStream_t stream) {
@@ -284,6 +387,33 @@ Status LaunchCommitMtpHidden(const float* verified_hidden,
   return error == cudaSuccess
              ? Status::Ok()
              : CudaFailure("launch GPU MTP hidden-state commit", error);
+}
+
+Status LaunchCommitMtpKvFp8ControlledD2(
+    const std::uint8_t* compact_key, const std::uint8_t* compact_value,
+    std::uint8_t* cache_key, std::uint8_t* cache_value,
+    std::uint64_t elements_per_token, std::uint64_t capacity,
+    const MtpGroupResult* result, const MtpDeviceControl* control,
+    cudaStream_t stream) {
+  if (compact_key == nullptr || compact_value == nullptr ||
+      cache_key == nullptr || cache_value == nullptr ||
+      elements_per_token == 0U || capacity == 0U || result == nullptr ||
+      control == nullptr) {
+    return Status(StatusCode::kInvalidArgument,
+                  "controlled MTP D2 commit arguments are invalid");
+  }
+  const std::uint64_t maximum_elements =
+      kMaximumMtpVerifyTokens * elements_per_token;
+  const std::uint64_t blocks =
+      (maximum_elements + kThreads - 1U) / kThreads;
+  CommitMtpKvControlledD2Kernel<<<static_cast<unsigned>(blocks), kThreads, 0,
+                                  stream>>>(
+      compact_key, compact_value, cache_key, cache_value, elements_per_token,
+      capacity, result, control);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("launch controlled MTP D2 FP8 KV commit", error);
 }
 
 }  // namespace gem16::internal
