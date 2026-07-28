@@ -1,5 +1,30 @@
 # Performance ledger
 
+## 2026-07-28 Windows MTP device-control baseline
+
+Commit `b5ca0ef` was profiled on the Windows RTX 5080 Laptop GPU with CUDA 13.3 and Nsight Systems 2026.1.3. The
+direct `gem16-run` command used the exact 16,384-token Wikipedia prompt (little-endian token-ID SHA-256
+`d07ad4d805944f0b87869da0c5bb44d99e8c43c0eb57d05a108ad80a6abb51a8`), checkpoint-FP8 KV, the pinned official
+assistant, fixed D2, the checkpoint stop/suppression controls, and a 256-token output limit. The trace contains 111
+complete D2 groups. CPU context-switch tracing was unavailable without administrator privileges; CUDA API, GPU,
+memory, and NVTX traces are present. The raw report remains ignored under
+`benchmarks/results/2026-07-28/b5ca0ef/blackwell16gb-windows-mtp-device-control/nsys/`.
+
+The proposal CPU range averages 1.051 ms/group and the verify/accept/commit range averages 45.964 ms/group, for an
+approximately 47.015 ms sequential host-controlled group. The verify range projects to a 41.407 ms GPU critical
+span. A representative middle group contains 1,407 `cudaLaunchKernel` API calls; its host API time is 16.467 ms in
+launch calls and 26.208 ms in the final `cudaStreamSynchronize`. The synchronization time includes outstanding GPU
+work and therefore is not removable overhead by itself. The roughly 5--6 ms difference between the sequential CPU
+ranges and projected GPU span is the bounded scheduling/control opportunity; it is large enough to justify the
+incremental complete-group graph and GPU-chaining roadmap, but it is not a predicted speedup.
+
+For the representative group, fixed-T3 FP8 projection kernels consume 16.058 ms of summed GPU kernel time, global
+verifier attention 7.504 ms, local verifier attention 6.183 ms, the three-row target output head 2.951 ms, and the
+assistant output head plus BF16 GEMV 2.782 ms. These measurements reinforce the current decision: do not reopen the
+rejected small kernel-geometry probes; first remove the per-group host scheduling boundary without changing target
+arithmetic, acceptance, or commit semantics. The next code milestone is an arena-backed `MtpDeviceControl` with
+host/device transition parity while the existing host loop remains authoritative.
+
 ## 2026-07-29 Reopened exact D2 structural sprint
 
 The retained `fffefcb` result is 46.422 tok/s, approximately 48.66 ms per D2 group, and needs about 3.5 ms/group

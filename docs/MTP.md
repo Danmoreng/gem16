@@ -123,6 +123,13 @@ multimodal work, but non-exact causal/batched routes remain inadmissible and gra
 speedup. A qualified 50 tok/s result meets the minimum, after which only material exact candidates may continue
 toward 55.
 
+A current-head Windows Nsight Systems trace at commit `b5ca0ef` contains 111 exact 16K fixed-D2 groups. Proposal
+and verify/accept/commit CPU ranges total approximately 47.015 ms/group, while the verify range projects to a
+41.407 ms GPU critical span. A representative group issues 1,407 kernel-launch API calls before its final stream
+synchronization. The bounded 5--6 ms scheduling/control gap supports implementing device control and complete-group
+capture next; synchronization time includes GPU execution, so the trace does not assume that the whole wait is
+recoverable. Detailed kernel and API accounting is retained in `docs/PERFORMANCE_LEDGER.md`.
+
 Earlier eager probes remain useful acceptance evidence: a random-token prompt reached mean acceptance 1.22 and
 about 37.1 tok/s, while a natural CUDA essay reached 2.29 and about 65 tok/s. Together with the Wikipedia matrix,
 this confirms that ordinary fallback remains mandatory.
