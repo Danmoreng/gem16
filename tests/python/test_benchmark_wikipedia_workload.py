@@ -12,6 +12,19 @@ SPEC.loader.exec_module(MODULE)
 
 
 class BenchmarkWikipediaWorkloadTest(unittest.TestCase):
+    def test_zero_warmups_are_accepted(self) -> None:
+        self.assertEqual(MODULE.nonnegative_int("0"), 0)
+        with self.assertRaises(MODULE.argparse.ArgumentTypeError):
+            MODULE.nonnegative_int("-1")
+
+    def test_single_repetition_summary_is_a_characterization(self) -> None:
+        summary = MODULE.summarize([46.422])
+        self.assertEqual(summary["sample_count"], 1)
+        self.assertEqual(summary["mean"], 46.422)
+        self.assertEqual(summary["median"], 46.422)
+        self.assertEqual(summary["standard_deviation"], 0.0)
+        self.assertEqual(summary["confidence_interval_95"], [46.422, 46.422])
+
     def test_llama_mtp_counters_are_normalized(self) -> None:
         response = {
             "tokens": list(range(16)),

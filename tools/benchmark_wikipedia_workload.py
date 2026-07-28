@@ -65,6 +65,13 @@ def positive_int(value: str) -> int:
     return parsed
 
 
+def nonnegative_int(value: str) -> int:
+    parsed = int(value)
+    if parsed < 0:
+        raise argparse.ArgumentTypeError("value must be nonnegative")
+    return parsed
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -80,7 +87,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--mtp-adaptive", action="store_true")
     parser.add_argument("--executable", type=Path)
     parser.add_argument("--gguf", type=Path)
-    parser.add_argument("--warmups", type=positive_int, default=3)
+    parser.add_argument("--warmups", type=nonnegative_int, default=3)
     parser.add_argument("--repetitions", type=positive_int, default=10)
     parser.add_argument(
         "--fixed-output-tokens",
@@ -119,14 +126,18 @@ def repository_state() -> dict[str, Any]:
 
 
 def summarize(samples: list[float]) -> dict[str, Any]:
-    if len(samples) < 2:
-        raise BenchmarkError("at least two measured repetitions are required")
+    if not samples:
+        raise BenchmarkError("at least one measured repetition is required")
     if not all(math.isfinite(value) for value in samples):
         raise BenchmarkError("benchmark samples contain a non-finite value")
     mean = statistics.mean(samples)
-    standard_deviation = statistics.stdev(samples)
+    standard_deviation = statistics.stdev(samples) if len(samples) > 1 else 0.0
     critical = T_CRITICAL_95.get(len(samples) - 1, 1.960)
-    half_width = critical * standard_deviation / math.sqrt(len(samples))
+    half_width = (
+        critical * standard_deviation / math.sqrt(len(samples))
+        if len(samples) > 1
+        else 0.0
+    )
     return {
         "sample_count": len(samples),
         "mean": mean,
@@ -619,8 +630,6 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
         generation["max_new_tokens"] = args.fixed_output_tokens
         generation["stop_token_ids"] = []
         generation["ignore_eos"] = True
-    if args.repetitions < 2:
-        raise BenchmarkError("at least two measured repetitions are required")
     all_runs: list[dict[str, Any]] = []
     representative: list[int] | None = None
     runtime: dict[str, Any]
