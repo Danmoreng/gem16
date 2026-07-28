@@ -71,13 +71,16 @@ if(GEM16_ENABLE_CUDA)
     src/cuda/attention/decode_sm120.cu
     src/cuda/attention/prefill_local_sm120.cu
     src/cuda/attention/prefill_global_sm120.cu
+    src/cuda/attention/reference.cu
     src/cuda/dispatch.cu
     src/cuda/inference.cu
     src/cuda/fp8/checkpoint_probe.cu
     src/cuda/fp8/cutlass_sm120.cu
     src/cuda/fp8/reference.cu
     src/cuda/fp8/sm120.cu
-    src/cuda/layer/reference.cu
+    src/cuda/kv_cache/reference.cu
+    src/cuda/norm/reference.cu
+    src/cuda/rope/reference.cu
     src/cuda/layer/checkpoint_probe.cu
     src/cuda/mtp/assistant.cu
     src/cuda/mtp/verify.cu
@@ -134,11 +137,17 @@ if(GEM16_ENABLE_CUDA)
       src/cuda/attention/decode_sm120.cu
       src/cuda/attention/prefill_local_sm120.cu
       src/cuda/attention/prefill_global_sm120.cu
+    src/cuda/attention/reference.cu
       APPEND PROPERTY COMPILE_OPTIONS
         -Xcompiler=/wd4211
     )
-    set_property(SOURCE src/cuda/layer/reference.cu APPEND PROPERTY COMPILE_OPTIONS
-      -Xcompiler=/wd4211
+    set_property(SOURCE
+      src/cuda/attention/reference.cu
+      src/cuda/kv_cache/reference.cu
+      src/cuda/norm/reference.cu
+      src/cuda/rope/reference.cu
+      APPEND PROPERTY COMPILE_OPTIONS
+        -Xcompiler=/wd4211
     )
     set_property(SOURCE src/cuda/layer/checkpoint_probe.cu APPEND PROPERTY COMPILE_OPTIONS
       -Xcompiler=/wd4211
