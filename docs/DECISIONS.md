@@ -1,5 +1,41 @@
 # Decisions
 
+## 2026-07-29: Complete the GPU-controlled decode graph before multimodal expansion
+
+Date: 2026-07-29
+Decision: Make a fully GPU-controlled greedy MTP decode graph with asynchronous token streaming the next
+architectural milestone before multimodal expansion. Deliver it incrementally: first add a device-resident MTP
+control record while retaining the current host loop and checking host/device state parity; then capture one
+complete fixed-D2 group; then chain fixed-D2 groups on the GPU; then add stop and tail handling; then add a
+preallocated asynchronous GPU-to-host streaming ring; finally add adaptive D1/D2/ordinary conditional branches.
+No step may change target arithmetic, kernel order within a row, acceptance, committed KV state, or ordinary/MTP
+greedy identity merely to make capture easier.
+Context: Active D2 already keeps both assistant proposals, batched target verification, GPU acceptance, and KV
+commit device-resident, but copies one compact `MtpGroupResult` to pinned memory and synchronizes the compute
+stream after every group. Host code then updates the next token, processed position, stop state, callbacks, and
+adaptive scheduler before launching another group. Fixed arenas, stable addresses, ordinary decode's existing
+device control record, and GPU acceptance make removal of this final per-group control roundtrip feasible. The
+user selected host-independent decode and streaming as the long-term direction and requested small independently
+validated steps. The current exact 47.432 tok/s 3-warm-up/5-run characterization remains below the 50 tok/s gate;
+graph work is an architectural objective and not a guaranteed performance claim.
+Alternatives: Begin multimodal work now; capture only a verifier suffix; build one monolithic persistent kernel;
+or remove the host synchronization without moving variable token/position/stop state to the GPU. Multimodal work
+would postpone a foundational decode boundary, the suffix graph was already exact but neutral, a monolithic
+kernel is premature, and asynchronous host launches alone cannot safely resolve variable acceptance.
+Consequences: Multimodal implementation remains queued until the fixed-D2 GPU loop and nonblocking streaming
+boundary are complete or a documented blocker changes this decision. Phase one must introduce `MtpDeviceControl`
+with GPU/host parity assertions while preserving the current production scheduling. Later graph phases use fixed
+arena addresses and conditional graph execution where supported by the pinned toolchain. Streaming uses a
+preallocated single-producer/single-consumer ring: GPU compute publishes verified target tokens, a host poller
+invokes callbacks, and the compute stream does not wait on the host during normal operation. Backpressure, EOS,
+maximum length, D1/ordinary tail execution, context limits, and output ordering must be explicit. Every phase must
+pass the fixed 1,135-ID hash and 632/372 counters, ring-wrap and stop tests, allocation checks, resource accounting,
+and before/after profiling; only a complete 3/10 run may qualify a performance headline.
+Evidence: Current `GenerateAssistantDraftsDevice` has no intermediate host synchronization, while
+`VerifyAcceptCommitAssistantBatch` ends in one D2H result copy and `cudaStreamSynchronize`; ordinary decode already
+uses a device `DecodeControl`; the exact suffix-graph experiment and current Nsight profiles bound both feasibility
+and performance uncertainty.
+
 ## 2026-07-29: Reopen exact MTP for structural verifier work
 
 Date: 2026-07-29

@@ -113,13 +113,15 @@ D2/D4 tok/s under stop semantics. Its target uses the patched closest-parity GGU
 Q8_0 KV, and ordinary first differs from D2 at fixed output index 133, so it is likewise not an exact or
 format-parity baseline.
 
-The hardware conclusion is bounded. gem16's exact D2 groups take about 52.98 ms at mean accepted drafts 1.259.
-The active minimum of 50.0 tok/s requires at most 45.18 ms/group at that acceptance, a 14.7% reduction; the 55.0
-tok/s stretch target requires at most 41.07 ms/group, a 22.5% reduction. Current llama.cpp reaches 48.38 tok/s in
-the controlled fixed-1,135-token D2 screen and about 50 tok/s under different stop semantics. vLLM demonstrates
-35.75 ms/group with a numerically different target batch route. Further gem16 work remains one bounded exact-
-verifier sprint; non-exact causal/batched routes remain inadmissible. A qualified 50 tok/s result meets the minimum,
-after which only material exact candidates may continue toward 55.
+The hardware conclusion is bounded. The retained shared-activation FP8 path reaches 47.432 exact D2 tok/s and
+about 47.63 ms/group at mean accepted drafts 1.259 in a controlled 3-warm-up/5-run characterization. The active
+minimum of 50.0 tok/s requires at most 45.18 ms/group at that acceptance, about 2.45 ms/group or 5.1% below the
+current median; the 55.0 tok/s stretch target requires at most 41.07 ms/group. Current llama.cpp reaches 48.38 tok/s
+in the controlled fixed-1,135-token D2 screen and about 50 tok/s under different stop semantics. vLLM demonstrates
+35.75 ms/group with a numerically different target batch route. The GPU-controlled graph roadmap now precedes
+multimodal work, but non-exact causal/batched routes remain inadmissible and graph capture is not presumed to be a
+speedup. A qualified 50 tok/s result meets the minimum, after which only material exact candidates may continue
+toward 55.
 
 Earlier eager probes remain useful acceptance evidence: a random-token prompt reached mean acceptance 1.22 and
 about 37.1 tok/s, while a natural CUDA essay reached 2.29 and about 65 tok/s. Together with the Wikipedia matrix,
@@ -151,8 +153,52 @@ verification for draft lengths 1, 2, and 4, retains tentative K/V rows in a fixe
 the exact prefix on GPU. Drafts remain device-resident through verification; one small pinned result and one host
 synchronization remain per group for output callbacks and variable-length scheduling. `--mtp-adaptive` explicitly
 enables context/acceptance-based D4→D2→D1 selection and bounded ordinary decode fallback. Sampling, chat sessions,
-diagnostic dumps, and full position-controlled MTP CUDA Graphs remain deliberately rejected or deferred rather
-than silently using incorrect semantics.
+and diagnostic dumps remain deliberately rejected or deferred rather than silently using incorrect semantics.
+Full GPU-controlled greedy MTP decode and nonblocking streaming are now the next architectural milestone before
+multimodal expansion.
+
+## GPU-controlled decode graph roadmap
+
+The long-term production boundary is one fixed-address CUDA execution plan that continues greedy MTP generation
+without a blocking host control roundtrip after every verification group. The host remains responsible for request
+setup and may consume streamed verified tokens, but it must not supply the next token, accepted length, position,
+or stop decision before GPU compute can continue. This is an architectural and latency objective; it does not
+assume CUDA Graph replay alone will meet the 50 tok/s performance gate.
+
+Delivery is deliberately incremental:
+
+1. **Device control with host parity.** Add an arena-backed `MtpDeviceControl` containing the current input token,
+   processed position, remaining output capacity, stop state, output write position, and fixed-D2 mode. GPU
+   acceptance updates a shadow next state. The existing host loop and compact result synchronization remain, and
+   every group asserts that host and GPU transitions agree. This phase must not change production kernel ordering
+   or output.
+2. **Complete fixed-D2 group graph.** Capture both recurrent assistant proposal steps, verification-input build,
+   embedding, all 48 target layers, final norm/output selection, acceptance, KV/hidden commit, and control update.
+   The host initially replays one group at a time and still reads the result. This isolates graph-capture and
+   controlled-position correctness from loop and streaming changes.
+3. **GPU-chained fixed-D2 loop.** After proving the required conditional-graph facility is available in the pinned
+   CUDA toolchain, use it with device control to repeat complete groups until a fixed output budget is exhausted. Store verified target
+   tokens in a preallocated device output buffer. No D2H/H2D dependency is permitted between groups; collected
+   output is copied only after completion in this first non-streaming form.
+4. **Stop and tail semantics.** Move EOS/stop-token checks, remaining-length accounting, context-limit checks, and
+   the final D1 or ordinary step onto the device. Committed positions and token counts must match the current host
+   scheduler at acceptance lengths 0, 1, and 2, including local-ring wraparound.
+5. **Asynchronous streaming.** Add a bounded, preallocated single-producer/single-consumer output ring. GPU code
+   publishes only target-verified tokens in order with system-visible producer state; a host poller invokes the
+   existing callback without synchronizing the compute stream. Define ring capacity, memory ordering, normal
+   no-wait operation, shutdown, and explicit backpressure before promotion. Streaming time remains included in
+   end-to-end metrics even though callback work is not on the compute dependency chain.
+6. **Adaptive graph branches.** Only after fixed D2 and streaming are stable, add conditional D1/D2/ordinary paths
+   for the existing adaptive policy. D4 may follow as a separately captured fixed shape. Sampling and concurrent
+   sessions remain outside this milestone.
+
+Every phase retains the ordinary non-MTP route as the semantic reference and must prove the fixed Wikipedia
+1,135-ID SHA-256 `43bc3380fc1cce5182a679fa3a340c04bcc79c52e73d5102ec1f737f57d0a1e1`, 632 accepted and 372 rejected drafts
+over 502 groups, zero fallback, zero token-loop allocation, deterministic cache positions, and unchanged stop
+behavior. Add focused tests for control overflow, zero acceptance, one/two accepted drafts, final-length tails,
+stop in each emitted slot, ring wrap, slow consumers, and graph replay/reset. Each phase requires an Nsight timeline
+and direct-launch comparison; neutral graph steps may be retained only when they are necessary, bounded foundations
+for the next no-roundtrip phase and their memory cost is documented.
 
 ## Implementation status and order
 
@@ -212,5 +258,10 @@ than silently using incorrect semantics.
    KV, but neither preserves its own ordinary greedy sequence, and llama.cpp also changes target/KV formats.
    vLLM's 35.75 ms verifier-group latency proves sufficient hardware headroom, not an admissible numerical
    implementation. The final bounded exact-verifier sprint targets 45.18 ms/group and 50 tok/s first, then 41.07
-   ms/group and 55 tok/s only through material exact candidates. If it cannot reach 50, retain 42.639 as a correct
-   characterization, mark the performance target unmet, and proceed to multimodal.
+   ms/group and 55 tok/s only through material exact candidates. If it cannot reach 50, retain the best exact
+   characterization and mark the performance target unmet rather than weakening semantics.
+13. **Next, before multimodal:** execute the GPU-controlled decode-graph roadmap above. Start with the
+   device-resident control record and host/device transition parity; do not begin with a monolithic graph or
+   streaming protocol. Fixed-D2 group capture, GPU chaining, stop/tail handling, asynchronous streaming, and
+   adaptive graph branches follow as separate correctness-gated changes. Multimodal implementation remains queued
+   until fixed-D2 GPU chaining and nonblocking streaming are complete or a new decision documents a blocker.

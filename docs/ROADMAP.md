@@ -55,8 +55,12 @@ of the correctness and native-kernel gates below.
   profiled fixed-T3 FP8 projection family from 8.06 to 6.44 ms/group. A controlled 3-warm-up/5-run comparison raises
   median exact D2 from 45.805 to 47.432 tok/s (+3.55%) with the fixed 1,135-ID hash and 632/372 acceptance in every
   run. This remains a characterization below the 50 tok/s gate, not the required 3/10 qualification. Numerically
-  different MTP output remains forbidden, and llama.cpp investigation is out of scope. Multimodal expansion remains
-  queued behind this reopened 50 tok/s gate, as detailed in [the MTP plan](MTP.md).
+  different MTP output remains forbidden, and llama.cpp investigation is out of scope. The next architectural
+  milestone before multimodal is the incremental GPU-controlled decode graph: device-control parity, one complete
+  fixed-D2 group graph, GPU-chained groups, device stop/tail handling, a nonblocking GPU-producer/host-consumer
+  streaming ring, and only then adaptive D1/D2/ordinary graph branches. Multimodal expansion remains queued until
+  fixed-D2 GPU chaining and asynchronous streaming are complete or a new decision documents a blocker, as detailed
+  in [the MTP plan](MTP.md).
   Every performance promotion still requires correctness, generation, logit, 3-warm-up/10-run benchmark, Nsight,
   spill, allocation, and peak-VRAM evidence and becomes the sole production path.
 
@@ -166,10 +170,13 @@ The llama.cpp benchmark is deliberately before engine kernel optimization, but a
 10. The first fixed-address execution workspace and full-model BF16-semantics cache are implemented for contexts up
    to 1,024. Complete production workspace planning and add circular/FP8 cache, decode fusion, and CUDA Graph replay
    only after the unfused model passes layer, logit, and generation gates.
-11. Validate 64K, then 128K context. MTP remains a later milestone. Once the text goals are met, execute the
-   binding [multimodal expansion plan](MULTIMODAL.md): first lock processor/embedding fixtures and residency-aware
-   memory planning, then qualify audio, then vision projection plus its blockwise local-attention semantics, and
-   finally resident multimodal chat and video-frame reuse.
+11. Long-context and exact MTP correctness are established. Before multimodal work, execute the incremental
+   [GPU-controlled MTP decode graph roadmap](MTP.md#gpu-controlled-decode-graph-roadmap): device-control parity,
+   complete fixed-D2 group capture, GPU chaining, stop/tail semantics, asynchronous streaming, then adaptive graph
+   branches. After fixed-D2 chaining and nonblocking streaming pass their gates, execute the binding
+   [multimodal expansion plan](MULTIMODAL.md): first lock processor/embedding fixtures and residency-aware memory
+   planning, then qualify audio, then vision projection plus its blockwise local-attention semantics, and finally
+   resident multimodal chat and video-frame reuse.
 12. After the Blackwell backend is correct and competitive, add architecture-specific backends for additional 16 GB
    CUDA GPUs without weakening benchmark or memory contracts.
 

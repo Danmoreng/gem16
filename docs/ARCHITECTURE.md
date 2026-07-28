@@ -122,8 +122,23 @@ operators are likewise grouped by responsibility under `attention/reference.cu`,
 `norm/reference.cu`, and `rope/reference.cu`; `layer/reference.h` remains the narrow compatibility declaration
 surface while callers migrate to operator-specific headers. `--mtp-adaptive` optionally
 selects D4/D2/D1 and ordinary fallback from context and 16-group acceptance windows. This scheduler emits only
-target-verified tokens and therefore retains ordinary greedy output. Full position-controlled MTP graph capture
-remains deferred after an exact suffix graph failed to improve end-to-end throughput.
+target-verified tokens and therefore retains ordinary greedy output.
+
+The next execution boundary before multimodal is a fully GPU-controlled greedy MTP decode graph. It does not alter
+the target or assistant math. An arena-backed `MtpDeviceControl` will own the current input token, processed
+position, remaining length, stop state, output index, and graph mode. Development first mirrors the existing host
+transition and asserts parity after each compact result. A complete fixed-D2 graph then captures both assistant
+steps, all 48 target layers, acceptance, and transactional commit before conditional graph execution chains groups
+without a host dependency. Stop and final-tail handling move to device control only after fixed-D2 chaining passes.
+
+Streaming is a separate boundary from graph scheduling. A preallocated GPU-producer/host-consumer ring contains
+only target-verified token IDs and monotonically published indices. A host poller may decode text and invoke the
+existing callback, but normal compute progress does not wait for callback completion. Ring capacity, system-visible
+memory ordering, shutdown, and backpressure are explicit plan properties; no growing host container, per-token
+allocation, or pageable transfer is introduced. Adaptive D1/D2/ordinary graph branches follow fixed-D2 streaming,
+not precede it. The previously removed verifier-suffix graph remains evidence that graph capture alone is not a
+performance result: every phase requires an Nsight timeline, memory accounting, and exact ordinary/MTP identity.
+The detailed order and gates are binding in [MTP.md](MTP.md).
 
 ## Planned multimodal boundary
 
