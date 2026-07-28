@@ -28,6 +28,7 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <bit>
 #include <cfloat>
 #include <chrono>
@@ -42,6 +43,7 @@
 #include <numeric>
 #include <ostream>
 #include <string>
+#include <thread>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
@@ -171,15 +173,24 @@ class PinnedHostAllocation {
     if (data_ != nullptr) (void)cudaFreeHost(data_);
   }
 
-  [[nodiscard]] Status Allocate(std::size_t elements, const char* label) {
+  [[nodiscard]] Status Allocate(
+      std::size_t elements, const char* label,
+      unsigned int flags = cudaHostAllocDefault) {
     if (data_ != nullptr || elements == 0U ||
         elements > std::numeric_limits<std::size_t>::max() / sizeof(float)) {
       return Error(StatusCode::kInvalidArgument,
                    std::string("pinned ") + label + " size is invalid");
     }
-    const cudaError_t error =
-        cudaHostAlloc(&data_, elements * sizeof(float), cudaHostAllocDefault);
+    cudaError_t error = cudaHostAlloc(&data_, elements * sizeof(float), flags);
     if (error != cudaSuccess) return CudaFailure(label, error);
+    if ((flags & cudaHostAllocMapped) != 0U) {
+      error = cudaHostGetDevicePointer(&device_data_, data_, 0U);
+      if (error != cudaSuccess) {
+        (void)cudaFreeHost(data_);
+        data_ = nullptr;
+        return CudaFailure("map pinned host allocation", error);
+      }
+    }
     elements_ = elements;
     return Status::Ok();
   }
@@ -188,8 +199,11 @@ class PinnedHostAllocation {
     return {static_cast<float*>(data_), elements_};
   }
 
+  [[nodiscard]] void* device_data() const { return device_data_; }
+
  private:
   void* data_ = nullptr;
+  void* device_data_ = nullptr;
   std::size_t elements_ = 0;
 };
 
@@ -472,7 +486,7 @@ Status InferenceEngine::PrepareMtpDeviceControl(std::uint32_t input_token, std::
 Status InferenceEngine::VerifyAcceptCommitAssistantBatch(std::uint32_t input_token, std::uint64_t start_position, std::uint32_t proposal_count, internal::MtpGroupResult* host_result) { return impl_->VerifyAcceptCommitAssistantBatch(input_token, start_position, proposal_count, host_result); }
 Status InferenceEngine::ExecuteFixedD2GraphGroup(std::uint32_t input_token, std::uint64_t start_position, internal::MtpGroupResult* host_result) { return impl_->ExecuteFixedD2GraphGroup(input_token, start_position, host_result); }
 Status InferenceEngine::PrepareFixedD2Graph() { return impl_->PrepareFixedD2Graph(); }
-Status InferenceEngine::ExecuteFixedD2GraphChain(internal::MtpChainResult* host_result) { return impl_->ExecuteFixedD2GraphChain(host_result); }
+Status InferenceEngine::ExecuteFixedD2GraphChain(internal::MtpChainResult* host_result, GeneratedTokenCallback callback, void* callback_context) { return impl_->ExecuteFixedD2GraphChain(host_result, callback, callback_context); }
 const std::uint32_t* InferenceEngine::mtp_chain_outputs() const { return impl_->mtp_chain_outputs(); }
 const std::uint32_t* InferenceEngine::mtp_chain_proposals() const { return impl_->mtp_chain_proposals(); }
 Status InferenceEngine::CheckMtpDeviceControlParity(std::uint32_t input_token, std::uint64_t processed_position, std::uint64_t remaining_output_capacity, std::uint64_t output_write_position, bool stopped, std::uint32_t stop_token) const { return impl_->CheckMtpDeviceControlParity(input_token, processed_position, remaining_output_capacity, output_write_position, stopped, stop_token); }

@@ -1,5 +1,33 @@
 # Performance ledger
 
+## 2026-07-28 GPU tail and mapped-pinned asynchronous streaming
+
+The fixed-D2 root graph now contains a dependent ordinary-tail conditional loop. When the D2 loop stops with one
+or two output slots, the tail initializes ordinary decode directly from `MtpDeviceControl`, runs the exact target
+forward, updates cache/position/stop state, and repeats until the budget is empty or a stop token is emitted. No
+host scheduler decision occurs between the first D2 group and the final token.
+
+Verified D2 and tail outputs are simultaneously published through a fixed 256-token SPSC ring allocated with
+`cudaHostAllocMapped`. The single GPU producer waits only when `producer - consumer` reaches capacity, writes token
+payloads, executes a system fence, and advances the producer with a system-scope atomic. The host uses C++20
+`atomic_ref` acquire/release operations, invokes callbacks while `cudaStreamQuery` reports active compute, and
+advances the consumer without synchronizing the compute stream. Callback failure sets a mapped cancellation flag;
+the chain exits at the next group boundary. A CUDA fixture verifies ordered mapped publication and graph reset, then
+holds the consumer until all 256 slots fill, observes one backpressure event, releases it, and completes 258 outputs.
+
+The exact Wikipedia 16K one-warm-up/three-run screen reaches 55.009 tok/s median (54.937 mean), versus 55.063 tok/s
+before streaming. All three outputs retain the 1,135-ID SHA-256
+`43bc3380fc1cce5182a679fa3a340c04bcc79c52e73d5102ec1f737f57d0a1e1`, with 632 accepted and 372 rejected drafts
+over 502 groups and the same stop token. The ring adds 1,088 mapped pinned bytes; reported reusable device workspace
+remains 706,913,280 bytes on the 24,576-position benchmark plan. The 32K graph-associated allocation rises from
+20,971,520 to 23,068,672 bytes for the captured ordinary-tail body.
+
+The exact 16K/256 Nsight trace contains one `cudaGraphLaunch`, five whole-process stream synchronizations, and one
+4.773-second chained range. None of those synchronizations occurs in the callback polling boundary. Initialization
+captures the additional tail body, so whole-process launch API calls rise to 17,171; recurring decode remains one
+conditional graph launch. This phase is promoted because it preserves exactness, stays above 55 tok/s in the
+required milestone screen, and removes the final blocking output-callback boundary.
+
 ## 2026-07-28 GPU-chained fixed-D2 conditional graph
 
 The pinned CUDA 13.3 runtime supports conditional `while` graph nodes on the Windows SM120 target. The complete

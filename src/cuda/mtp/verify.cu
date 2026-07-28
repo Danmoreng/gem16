@@ -12,6 +12,30 @@ namespace {
 
 constexpr unsigned kThreads = 256U;
 
+__device__ bool PublishMtpStreamingTokens(
+    MtpStreamingRing* ring, const std::uint32_t* tokens,
+    std::uint32_t count) {
+  if (ring == nullptr) return true;
+  if (atomicAdd_system(&ring->cancelled, 0ULL) != 0ULL) return false;
+  const unsigned long long begin = atomicAdd_system(&ring->producer, 0ULL);
+  bool waited = false;
+  while (begin + count - atomicAdd_system(&ring->consumer, 0ULL) >
+         kMtpStreamingRingCapacity) {
+    if (!waited) {
+      atomicAdd_system(&ring->backpressure_events, 1ULL);
+      waited = true;
+    }
+    if (atomicAdd_system(&ring->cancelled, 0ULL) != 0ULL) return false;
+    __nanosleep(1000U);
+  }
+  for (std::uint32_t index = 0U; index < count; ++index) {
+    ring->tokens[(begin + index) % kMtpStreamingRingCapacity] = tokens[index];
+  }
+  __threadfence_system();
+  atomicExch_system(&ring->producer, begin + count);
+  return true;
+}
+
 Status CudaFailure(const char* operation, cudaError_t error) {
   return Status(StatusCode::kInternal,
                 std::string(operation) + ": " + cudaGetErrorName(error) +
@@ -67,7 +91,9 @@ __global__ void BuildControlledMtpD2InputsKernel(
 __global__ void AdvanceMtpD2ChainKernel(
     MtpGroupTransaction* transaction, MtpChainResult* chain_result,
     std::uint32_t* output_tokens, std::uint32_t* proposed_tokens,
-    cudaGraphConditionalHandle condition) {
+    MtpStreamingRing* streaming_ring,
+    cudaGraphConditionalHandle d2_condition,
+    cudaGraphConditionalHandle tail_condition) {
   if (blockIdx.x != 0U || threadIdx.x != 0U) return;
   MtpDeviceControl& control = transaction->control;
   const MtpGroupResult& group = transaction->result;
@@ -79,6 +105,8 @@ __global__ void AdvanceMtpD2ChainKernel(
   for (std::uint32_t index = 0U; index < group.proposal_count; ++index) {
     proposed_tokens[proposal_begin + index] = group.proposed[index];
   }
+  const bool published = PublishMtpStreamingTokens(
+      streaming_ring, group.verified.data(), group.output_count);
   chain_result->output_count += group.output_count;
   chain_result->proposed_count += group.proposal_count;
   chain_result->accepted_count += group.accepted_count;
@@ -90,11 +118,64 @@ __global__ void AdvanceMtpD2ChainKernel(
   control.current = control.next;
   control.transition_valid = 0U;
   const unsigned int continue_loop =
-      control.current.stopped == 0U &&
+      published && control.current.stopped == 0U &&
               control.current.remaining_output_capacity >= 3U
           ? 1U
           : 0U;
-  cudaGraphSetConditional(condition, continue_loop);
+  cudaGraphSetConditional(d2_condition, continue_loop);
+  cudaGraphSetConditional(
+      tail_condition,
+      published && continue_loop == 0U && control.current.stopped == 0U &&
+              control.current.remaining_output_capacity != 0U
+          ? 1U
+          : 0U);
+}
+
+__global__ void InitializeMtpOrdinaryTailKernel(
+    const MtpGroupTransaction* transaction, DecodeControl* decode_control,
+    std::uint32_t suppressed_token_count) {
+  if (blockIdx.x != 0U || threadIdx.x != 0U) return;
+  *decode_control = {};
+  decode_control->token = transaction->control.current.input_token;
+  decode_control->position =
+      transaction->control.current.processed_position + 1U;
+  decode_control->suppressed_token_count = suppressed_token_count;
+}
+
+__global__ void FinalizeMtpOrdinaryTailKernel(
+    const std::uint32_t* selected, const std::uint32_t* stop_tokens,
+    std::uint32_t stop_count, MtpGroupTransaction* transaction,
+    MtpChainResult* chain_result, std::uint32_t* output_tokens,
+    MtpStreamingRing* streaming_ring,
+    cudaGraphConditionalHandle tail_condition) {
+  if (blockIdx.x != 0U || threadIdx.x != 0U) return;
+  MtpDeviceControl& control = transaction->control;
+  const std::uint32_t token = selected[0];
+  output_tokens[control.current.output_write_position] = token;
+  const bool published =
+      PublishMtpStreamingTokens(streaming_ring, &token, 1U);
+  ++chain_result->output_count;
+  ++chain_result->ordinary_tail_count;
+  control.current.input_token = token;
+  ++control.current.processed_position;
+  --control.current.remaining_output_capacity;
+  ++control.current.output_write_position;
+  for (std::uint32_t index = 0U; index < stop_count; ++index) {
+    if (token == stop_tokens[index]) {
+      control.current.stopped = 1U;
+      control.current.stop_token = token;
+      chain_result->stopped = 1U;
+      chain_result->stop_token = token;
+      break;
+    }
+  }
+  control.next = control.current;
+  cudaGraphSetConditional(
+      tail_condition,
+      published && control.current.stopped == 0U &&
+              control.current.remaining_output_capacity != 0U
+          ? 1U
+          : 0U);
 }
 
 __global__ void AcceptMtpGroupKernel(
@@ -452,19 +533,58 @@ Status LaunchCommitMtpKvFp8ControlledD2(
 Status LaunchAdvanceMtpD2Chain(
     MtpGroupTransaction* transaction, MtpChainResult* chain_result,
     std::uint32_t* output_tokens, std::uint32_t* proposed_tokens,
-    cudaGraphConditionalHandle condition, cudaStream_t stream) {
+    MtpStreamingRing* streaming_ring,
+    cudaGraphConditionalHandle d2_condition,
+    cudaGraphConditionalHandle tail_condition, cudaStream_t stream) {
   if (transaction == nullptr || chain_result == nullptr ||
       output_tokens == nullptr || proposed_tokens == nullptr ||
-      condition == 0U) {
+      d2_condition == 0U || tail_condition == 0U) {
     return Status(StatusCode::kInvalidArgument,
                   "MTP D2 chain-advance arguments are invalid");
   }
   AdvanceMtpD2ChainKernel<<<1U, 1U, 0, stream>>>(
-      transaction, chain_result, output_tokens, proposed_tokens, condition);
+      transaction, chain_result, output_tokens, proposed_tokens,
+      streaming_ring, d2_condition, tail_condition);
   const cudaError_t error = cudaGetLastError();
   return error == cudaSuccess
              ? Status::Ok()
              : CudaFailure("launch MTP D2 chain advance", error);
+}
+
+Status LaunchInitializeMtpOrdinaryTail(
+    const MtpGroupTransaction* transaction, DecodeControl* decode_control,
+    std::uint32_t suppressed_token_count, cudaStream_t stream) {
+  if (transaction == nullptr || decode_control == nullptr) {
+    return Status(StatusCode::kInvalidArgument,
+                  "MTP ordinary-tail initialization arguments are invalid");
+  }
+  InitializeMtpOrdinaryTailKernel<<<1U, 1U, 0, stream>>>(
+      transaction, decode_control, suppressed_token_count);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("initialize MTP ordinary tail", error);
+}
+
+Status LaunchFinalizeMtpOrdinaryTail(
+    const std::uint32_t* selected, const std::uint32_t* stop_tokens,
+    std::uint32_t stop_count, MtpGroupTransaction* transaction,
+    MtpChainResult* chain_result, std::uint32_t* output_tokens,
+    MtpStreamingRing* streaming_ring,
+    cudaGraphConditionalHandle tail_condition, cudaStream_t stream) {
+  if (selected == nullptr || transaction == nullptr ||
+      chain_result == nullptr || output_tokens == nullptr ||
+      tail_condition == 0U || (stop_count != 0U && stop_tokens == nullptr)) {
+    return Status(StatusCode::kInvalidArgument,
+                  "MTP ordinary-tail finalization arguments are invalid");
+  }
+  FinalizeMtpOrdinaryTailKernel<<<1U, 1U, 0, stream>>>(
+      selected, stop_tokens, stop_count, transaction, chain_result,
+      output_tokens, streaming_ring, tail_condition);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("finalize MTP ordinary tail", error);
 }
 
 }  // namespace gem16::internal

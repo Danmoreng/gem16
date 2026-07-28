@@ -201,8 +201,12 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
          << "\",\"host_synchronizations_per_group\":"
          << (result.mtp_enabled && !result.mtp_gpu_chained ? 1 : 0)
          << ",\"host_synchronizations_per_chain\":"
-         << (result.mtp_gpu_chained ? 1 : 0)
-         << ",\"short_batch_projection_path\":\""
+         << 0
+         << ",\"streaming\":\""
+         << (result.mtp_gpu_chained
+                 ? "mapped_pinned_spsc_ring_256"
+                 : "synchronous_group_result")
+         << "\",\"short_batch_projection_path\":\""
          << (!result.mtp_enabled
                  ? "disabled"
                  : result.mtp_draft_tokens == 2U

@@ -618,7 +618,9 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
             result.stop_token_id);
         if (!status.ok()) return status;
         internal::MtpChainResult chain;
-        status = engine.ExecuteFixedD2GraphChain(&chain);
+        status = engine.ExecuteFixedD2GraphChain(
+            &chain, options.generated_token_callback,
+            options.generated_token_callback_context);
         if (!status.ok()) return status;
         result.mtp_fixed_d2_graph = true;
         result.mtp_gpu_chained = true;
@@ -627,6 +629,8 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
         result.mtp_proposed_tokens += chain.proposed_count;
         result.mtp_target_forwards += 3U * chain.group_count;
         result.mtp_target_batches += chain.group_count;
+        result.mtp_target_forwards += chain.ordinary_tail_count;
+        result.mtp_target_batches += chain.ordinary_tail_count;
         result.mtp_accepted_tokens += chain.accepted_count;
         result.mtp_rejected_tokens += chain.rejected_count;
         result.mtp_proposed_token_ids.insert(
@@ -638,11 +642,6 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
         for (std::uint64_t index = 0U; index < chain.output_count; ++index) {
           next_token = chained_outputs[index];
           result.output_token_ids.push_back(next_token);
-          if (options.generated_token_callback != nullptr) {
-            status = options.generated_token_callback(
-                options.generated_token_callback_context, next_token);
-            if (!status.ok()) return status;
-          }
         }
         result.stopped = chain.stopped != 0U;
         result.stop_token_id = chain.stop_token;

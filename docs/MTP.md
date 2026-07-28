@@ -189,14 +189,14 @@ Delivery is deliberately incremental:
    device control has capacity for another three-row verification batch. Verified target tokens, proposals, and
    aggregate counters are stored in preallocated device buffers. There is no D2H/H2D dependency between groups;
    the result is copied only after the conditional graph finishes in this non-streaming form.
-4. **Stop and tail semantics.** Move EOS/stop-token checks, remaining-length accounting, context-limit checks, and
-   the final D1 or ordinary step onto the device. Committed positions and token counts must match the current host
-   scheduler at acceptance lengths 0, 1, and 2, including local-ring wraparound.
-5. **Asynchronous streaming.** Add a bounded, preallocated single-producer/single-consumer output ring. GPU code
-   publishes only target-verified tokens in order with system-visible producer state; a host poller invokes the
-   existing callback without synchronizing the compute stream. Define ring capacity, memory ordering, normal
-   no-wait operation, shutdown, and explicit backpressure before promotion. Streaming time remains included in
-   end-to-end metrics even though callback work is not on the compute dependency chain.
+4. **Complete: stop and tail semantics.** EOS/stop checks and remaining-length accounting stay in device control.
+   When fixed D2 leaves one or two slots, a second conditional `while` node runs exact ordinary target forwards and
+   publishes their tokens without returning to the host scheduler. Position and ring-wrap gates match ordinary.
+5. **Complete: asynchronous streaming.** A bounded, preallocated 256-token single-producer/single-consumer ring in
+   mapped pinned memory carries only target-verified tokens. Device system-scope atomics publish in order; the host
+   invokes the existing callback while polling graph completion without synchronizing the compute stream. A slow
+   consumer applies explicit device backpressure, and callback failure publishes cancellation at the next group
+   boundary. Streaming and callback time remain inside end-to-end timing.
 6. **Adaptive graph branches.** Only after fixed D2 and streaming are stable, add conditional D1/D2/ordinary paths
    for the existing adaptive policy. D4 may follow as a separately captured fixed shape. Sampling and concurrent
    sessions remain outside this milestone.
@@ -329,3 +329,12 @@ for the next no-roundtrip phase and their memory cost is documented.
    synchronizations for host replay. Ring wrap at local-cache position 1,024 and a focused two-iteration
    conditional-node fixture are exact. Final D1/ordinary tails remain host-scheduled, and callbacks are delivered
    only after the bulk chain completes; stop/tail consolidation plus asynchronous streaming is the next phase.
+17. **Complete GPU tail and asynchronous streaming:** a dependent ordinary-tail conditional node consumes the last
+   one or two output slots entirely on device, including stop checks and cache updates. A 256-token mapped-pinned
+   SPSC ring publishes verified D2 and tail tokens with system-scope release/acquire ordering while the host polls
+   callbacks without a compute-stream synchronization. The slow-consumer fixture fills the ring, observes exactly
+   one backpressure event, releases the consumer, and completes 258 ordered outputs; mapped publication, graph
+   reset, and local-KV ring wrap also pass. Wikipedia 16K with one warm-up/three runs measures 55.009 tok/s median,
+   retaining the exact 1,135-ID SHA-256 and 632/372 counts over 502 groups. Nsight records one graph launch and five
+   whole-process stream synchronizations; none is in the chained decode boundary. The 32K graph allocation is
+   23,068,672 bytes, and the mapped ring is fixed at 1,088 bytes. Alternating 3/10 qualification is next.

@@ -21,12 +21,14 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <bit>
 #include <cmath>
 #include <cstdint>
 #include <iostream>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <vector>
 
 namespace {
@@ -3020,8 +3022,8 @@ void TestMtpDeviceControlTransitions() {
 void TestMtpConditionalD2Chain() {
   DeviceBuffer<std::uint32_t> drafts(2U);
   DeviceBuffer<std::uint32_t> verified(3U);
-  DeviceBuffer<std::uint32_t> outputs(16U);
-  DeviceBuffer<std::uint32_t> proposals(16U);
+  DeviceBuffer<std::uint32_t> outputs(512U);
+  DeviceBuffer<std::uint32_t> proposals(512U);
   DeviceBuffer<gem16::internal::MtpGroupTransaction> transaction(1U);
   DeviceBuffer<gem16::internal::MtpChainResult> chain_result(1U);
   if (drafts.get() == nullptr || verified.get() == nullptr ||
@@ -3056,17 +3058,35 @@ void TestMtpConditionalD2Chain() {
   cudaGraph_t body_source = nullptr;
   cudaGraphExec_t executable = nullptr;
   cudaStream_t stream = nullptr;
+  gem16::internal::MtpStreamingRing* host_streaming_ring = nullptr;
+  gem16::internal::MtpStreamingRing* device_streaming_ring = nullptr;
   bool graph_ok = CudaOk(cudaStreamCreateWithFlags(
                              &stream, cudaStreamNonBlocking),
                          "create MTP conditional stream") &&
+                  CudaOk(cudaHostAlloc(
+                             &host_streaming_ring,
+                             sizeof(gem16::internal::MtpStreamingRing),
+                             cudaHostAllocMapped),
+                         "allocate MTP mapped streaming ring") &&
+                  CudaOk(cudaHostGetDevicePointer(
+                             &device_streaming_ring, host_streaming_ring, 0U),
+                         "map MTP streaming ring") &&
                   CudaOk(cudaGraphCreate(&root, 0U),
                          "create MTP conditional graph");
+  if (graph_ok) *host_streaming_ring = {};
   cudaGraphConditionalHandle condition = 0U;
+  cudaGraphConditionalHandle tail_condition = 0U;
   if (graph_ok) {
     graph_ok = CudaOk(cudaGraphConditionalHandleCreate(
                           &condition, root, 1U,
                           cudaGraphCondAssignDefault),
                       "create MTP conditional handle");
+  }
+  if (graph_ok) {
+    graph_ok = CudaOk(cudaGraphConditionalHandleCreate(
+                          &tail_condition, root, 0U,
+                          cudaGraphCondAssignDefault),
+                      "create MTP tail conditional handle");
   }
   cudaGraphNodeParams parameters{};
   parameters.type = cudaGraphNodeTypeConditional;
@@ -3095,7 +3115,7 @@ void TestMtpConditionalD2Chain() {
   if (graph_ok) {
     auto status = gem16::internal::LaunchAdvanceMtpD2Chain(
         transaction.get(), chain_result.get(), outputs.get(), proposals.get(),
-        condition, stream);
+        device_streaming_ring, condition, tail_condition, stream);
     CUDA_TEST_CHECK(status.ok());
     graph_ok = status.ok();
   }
@@ -3109,6 +3129,18 @@ void TestMtpConditionalD2Chain() {
                           &body_node, parameters.conditional.phGraph_out[0],
                           nullptr, 0U, body_source),
                       "add MTP chain body");
+  }
+  cudaGraphNodeParams tail_parameters{};
+  tail_parameters.type = cudaGraphNodeTypeConditional;
+  tail_parameters.conditional.handle = tail_condition;
+  tail_parameters.conditional.type = cudaGraphCondTypeIf;
+  tail_parameters.conditional.size = 1U;
+  tail_parameters.conditional.ctx = nullptr;
+  cudaGraphNode_t tail_node = nullptr;
+  if (graph_ok) {
+    graph_ok = CudaOk(cudaGraphAddNode(&tail_node, root, &conditional_node,
+                                       nullptr, 1U, &tail_parameters),
+                      "add MTP tail conditional node");
   }
   if (graph_ok) {
     graph_ok = CudaOk(cudaGraphInstantiate(&executable, root, nullptr,
@@ -3144,6 +3176,14 @@ void TestMtpConditionalD2Chain() {
                      std::array<std::uint32_t, 4U>{11U, 12U, 11U, 12U}));
     CUDA_TEST_CHECK((host_proposals ==
                      std::array<std::uint32_t, 4U>{11U, 99U, 11U, 99U}));
+    CUDA_TEST_CHECK(host_streaming_ring->producer == 4U);
+    CUDA_TEST_CHECK(host_streaming_ring->consumer == 0U);
+    CUDA_TEST_CHECK(host_streaming_ring->backpressure_events == 0U);
+    CUDA_TEST_CHECK((std::array<std::uint32_t, 4U>{
+                         host_streaming_ring->tokens[0],
+                         host_streaming_ring->tokens[1],
+                         host_streaming_ring->tokens[2],
+                         host_streaming_ring->tokens[3]} == host_outputs));
   }
   if (graph_ok) {
     host_transaction = {};
@@ -3152,6 +3192,7 @@ void TestMtpConditionalD2Chain() {
     host_transaction.control.current.remaining_output_capacity = 3U;
     host_transaction.control.next = host_transaction.control.current;
     host_transaction.control.fixed_draft_tokens = 2U;
+    *host_streaming_ring = {};
     graph_ok = CudaOk(cudaMemcpy(transaction.get(), &host_transaction,
                                  sizeof(host_transaction),
                                  cudaMemcpyHostToDevice),
@@ -3179,10 +3220,61 @@ void TestMtpConditionalD2Chain() {
     CUDA_TEST_CHECK(host_transaction.control.current.processed_position ==
                     32U);
   }
+  if (graph_ok) {
+    host_transaction = {};
+    host_transaction.control.current.input_token = 7U;
+    host_transaction.control.current.processed_position = 40U;
+    host_transaction.control.current.remaining_output_capacity = 260U;
+    host_transaction.control.next = host_transaction.control.current;
+    host_transaction.control.fixed_draft_tokens = 2U;
+    *host_streaming_ring = {};
+    graph_ok = CudaOk(cudaMemcpy(transaction.get(), &host_transaction,
+                                 sizeof(host_transaction),
+                                 cudaMemcpyHostToDevice),
+                      "prepare backpressured MTP chain") &&
+               CudaOk(cudaMemset(chain_result.get(), 0,
+                                 chain_result.bytes()),
+                      "reset backpressured MTP chain result") &&
+               CudaOk(cudaGraphLaunch(executable, stream),
+                      "launch backpressured MTP conditional graph");
+  }
+  if (graph_ok) {
+    std::atomic_ref<unsigned long long> producer(
+        host_streaming_ring->producer);
+    std::atomic_ref<unsigned long long> consumer(
+        host_streaming_ring->consumer);
+    std::atomic_ref<unsigned long long> backpressure_events(
+        host_streaming_ring->backpressure_events);
+    while (backpressure_events.load(std::memory_order_acquire) == 0U) {
+      const cudaError_t query = cudaStreamQuery(stream);
+      if (query != cudaErrorNotReady) {
+        graph_ok = CudaOk(query, "poll backpressured MTP graph");
+        break;
+      }
+      std::this_thread::yield();
+    }
+    if (graph_ok) {
+      consumer.store(producer.load(std::memory_order_acquire),
+                     std::memory_order_release);
+      graph_ok = CudaOk(cudaStreamSynchronize(stream),
+                        "release backpressured MTP graph") &&
+                 CudaOk(cudaMemcpy(&host_result, chain_result.get(),
+                                   sizeof(host_result),
+                                   cudaMemcpyDeviceToHost),
+                        "copy backpressured MTP chain result");
+    }
+  }
+  if (graph_ok) {
+    CUDA_TEST_CHECK(host_result.group_count == 129U);
+    CUDA_TEST_CHECK(host_result.output_count == 258U);
+    CUDA_TEST_CHECK(host_streaming_ring->producer == 258U);
+    CUDA_TEST_CHECK(host_streaming_ring->backpressure_events == 1U);
+  }
   if (executable != nullptr) (void)cudaGraphExecDestroy(executable);
   if (body_source != nullptr) (void)cudaGraphDestroy(body_source);
   if (root != nullptr) (void)cudaGraphDestroy(root);
   if (stream != nullptr) (void)cudaStreamDestroy(stream);
+  if (host_streaming_ring != nullptr) (void)cudaFreeHost(host_streaming_ring);
 }
 
 }  // namespace

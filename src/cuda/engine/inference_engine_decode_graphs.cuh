@@ -490,6 +490,7 @@
   PinnedHostAllocation decode_host_state_;
   PinnedHostAllocation mtp_host_result_;
   PinnedHostAllocation mtp_host_chain_;
+  PinnedHostAllocation mtp_stream_ring_;
   WorkspaceOffsets offsets_{};
   PrefillOffsets prefill_offsets_{};
   MtpWorkspaceOffsets mtp_offsets_{};

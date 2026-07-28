@@ -447,9 +447,11 @@
   [[nodiscard]] Status PrepareFixedD2ChainGraph() {
     cudaGraph_t root = nullptr;
     cudaGraph_t body_source = nullptr;
+    cudaGraph_t tail_source = nullptr;
     cudaGraphExec_t executable = nullptr;
     const auto cleanup = [&]() {
       if (body_source != nullptr) (void)cudaGraphDestroy(body_source);
+      if (tail_source != nullptr) (void)cudaGraphDestroy(tail_source);
       if (root != nullptr) (void)cudaGraphDestroy(root);
       if (executable != nullptr) (void)cudaGraphExecDestroy(executable);
     };
@@ -463,6 +465,13 @@
     if (error != cudaSuccess) {
       cleanup();
       return CudaFailure("create fixed-D2 chain condition", error);
+    }
+    cudaGraphConditionalHandle tail_condition = 0U;
+    error = cudaGraphConditionalHandleCreate(
+        &tail_condition, root, 0U, cudaGraphCondAssignDefault);
+    if (error != cudaSuccess) {
+      cleanup();
+      return CudaFailure("create fixed-D2 tail condition", error);
     }
     cudaGraphNodeParams parameters{};
     parameters.type = cudaGraphNodeTypeConditional;
@@ -492,7 +501,9 @@
           Pointer<std::uint32_t>(mtp_workspace_, mtp_offsets_.chain_outputs),
           Pointer<std::uint32_t>(mtp_workspace_,
                                  mtp_offsets_.chain_proposals),
-          condition, stream_);
+          static_cast<internal::MtpStreamingRing*>(
+              mtp_stream_ring_.device_data()),
+          condition, tail_condition, stream_);
     }
     error = cudaStreamEndCapture(stream_, &body_source);
     if (!status.ok() || error != cudaSuccess) {
@@ -509,6 +520,40 @@
       cleanup();
       return CudaFailure("add fixed-D2 chain body", error);
     }
+    cudaGraphNodeParams tail_parameters{};
+    tail_parameters.type = cudaGraphNodeTypeConditional;
+    tail_parameters.conditional.handle = tail_condition;
+    tail_parameters.conditional.type = cudaGraphCondTypeWhile;
+    tail_parameters.conditional.size = 1U;
+    tail_parameters.conditional.ctx = nullptr;
+    cudaGraphNode_t tail_node = nullptr;
+    error = cudaGraphAddNode(&tail_node, root, &conditional_node, nullptr, 1U,
+                             &tail_parameters);
+    if (error != cudaSuccess) {
+      cleanup();
+      return CudaFailure("add fixed-D2 ordinary-tail conditional", error);
+    }
+    error = cudaStreamBeginCapture(stream_, cudaStreamCaptureModeThreadLocal);
+    if (error != cudaSuccess) {
+      cleanup();
+      return CudaFailure("begin fixed-D2 ordinary-tail capture", error);
+    }
+    status = LaunchControlledMtpOrdinaryTailBody(tail_condition);
+    error = cudaStreamEndCapture(stream_, &tail_source);
+    if (!status.ok() || error != cudaSuccess) {
+      cleanup();
+      return !status.ok()
+                 ? status
+                 : CudaFailure("end fixed-D2 ordinary-tail capture", error);
+    }
+    cudaGraphNode_t tail_body_node = nullptr;
+    error = cudaGraphAddChildGraphNode(
+        &tail_body_node, tail_parameters.conditional.phGraph_out[0], nullptr,
+        0U, tail_source);
+    if (error != cudaSuccess) {
+      cleanup();
+      return CudaFailure("add fixed-D2 ordinary-tail body", error);
+    }
     error = cudaGraphInstantiate(&executable, root, nullptr, nullptr, 0U);
     if (error != cudaSuccess) {
       cleanup();
@@ -520,8 +565,61 @@
     return Status::Ok();
   }
 
+  [[nodiscard]] Status LaunchControlledMtpOrdinaryTailBody(
+      cudaGraphConditionalHandle tail_condition) {
+    auto* transaction = Pointer<internal::MtpGroupTransaction>(
+        mtp_workspace_, mtp_offsets_.transaction);
+    auto* decode_control = Pointer<internal::DecodeControl>(
+        workspace_, offsets_.decode_control);
+    Status status = internal::LaunchInitializeMtpOrdinaryTail(
+        transaction, decode_control, suppressed_token_count_, stream_);
+    if (!status.ok()) return status;
+    float* hidden = Pointer<float>(workspace_, offsets_.hidden_a);
+    ControlledEmbeddingKernel<<<
+        static_cast<unsigned>((kHidden + kThreads - 1U) / kThreads),
+        kThreads, 0, stream_>>>(model_.embedding(), decode_control, hidden);
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+      return CudaFailure("launch controlled MTP ordinary-tail embedding",
+                         error);
+    }
+    for (const LayerBinding& layer : model_.layers()) {
+      status = LaunchControlledDecodeLayer(layer);
+      if (!status.ok()) return status;
+    }
+    float* normalized = Pointer<float>(workspace_, offsets_.normalized);
+    status = internal::LaunchRmsNormBf16(
+        hidden, model_.final_norm(), normalized, 1U, kHidden, kEpsilon,
+        stream_);
+    if (!status.ok()) return status;
+    auto* selected = Pointer<std::uint32_t>(workspace_, offsets_.selected);
+    status = internal::LaunchFusedOutputHeadCandidates(
+        model_.embedding(), normalized,
+        Pointer<std::uint32_t>(workspace_, offsets_.suppressed), 0U,
+        decode_control,
+        Pointer<ArgmaxValue>(workspace_, offsets_.output_candidates), nullptr,
+        stream_);
+    if (!status.ok()) return status;
+    status = internal::LaunchOutputHeadCandidateArgmax(
+        Pointer<ArgmaxValue>(workspace_, offsets_.output_candidates), selected,
+        stream_);
+    if (!status.ok()) return status;
+    return internal::LaunchFinalizeMtpOrdinaryTail(
+        selected,
+        Pointer<std::uint32_t>(mtp_workspace_, mtp_offsets_.stop_tokens),
+        mtp_stop_token_count_, transaction,
+        Pointer<internal::MtpChainResult>(
+            mtp_workspace_, mtp_offsets_.chain_result),
+        Pointer<std::uint32_t>(mtp_workspace_, mtp_offsets_.chain_outputs),
+        static_cast<internal::MtpStreamingRing*>(
+            mtp_stream_ring_.device_data()),
+        tail_condition, stream_);
+  }
+
   [[nodiscard]] Status ExecuteFixedD2GraphChain(
-      internal::MtpChainResult* host_result) {
+      internal::MtpChainResult* host_result,
+      GeneratedTokenCallback callback = nullptr,
+      void* callback_context = nullptr) {
     const NvtxRange range("gem16.mtp.fixed_d2_chain");
     if (host_result == nullptr || mtp_d2_chain_graph_.get() == nullptr) {
       return Error(StatusCode::kInvalidArgument,
@@ -529,14 +627,54 @@
     }
     auto* device_result = Pointer<internal::MtpChainResult>(
         mtp_workspace_, mtp_offsets_.chain_result);
+    auto* streaming_ring = reinterpret_cast<internal::MtpStreamingRing*>(
+        mtp_stream_ring_.span().data());
+    std::atomic_ref<unsigned long long> producer(streaming_ring->producer);
+    std::atomic_ref<unsigned long long> consumer(streaming_ring->consumer);
+    std::atomic_ref<unsigned long long> cancelled(streaming_ring->cancelled);
+    std::atomic_ref<unsigned long long> backpressure(
+        streaming_ring->backpressure_events);
+    producer.store(0U, std::memory_order_relaxed);
+    consumer.store(0U, std::memory_order_relaxed);
+    cancelled.store(0U, std::memory_order_relaxed);
+    backpressure.store(0U, std::memory_order_relaxed);
     cudaError_t error = cudaMemsetAsync(
         device_result, 0, sizeof(internal::MtpChainResult), stream_);
     if (error == cudaSuccess) {
       error = cudaGraphLaunch(mtp_d2_chain_graph_.get(), stream_);
     }
-    if (error == cudaSuccess) error = cudaStreamSynchronize(stream_);
     if (error != cudaSuccess) {
       return CudaFailure("execute fixed-D2 chain graph", error);
+    }
+    Status callback_status = Status::Ok();
+    unsigned long long consumed = 0U;
+    const auto consume_available = [&]() {
+      const unsigned long long published =
+          producer.load(std::memory_order_acquire);
+      while (consumed < published) {
+        const std::uint32_t token = streaming_ring->tokens[
+            consumed % internal::kMtpStreamingRingCapacity];
+        if (callback != nullptr && callback_status.ok()) {
+          callback_status = callback(callback_context, token);
+          if (!callback_status.ok()) {
+            cancelled.store(1U, std::memory_order_release);
+          }
+        }
+        ++consumed;
+        consumer.store(consumed, std::memory_order_release);
+      }
+    };
+    while (true) {
+      consume_available();
+      error = cudaStreamQuery(stream_);
+      if (error == cudaSuccess) {
+        consume_available();
+        break;
+      }
+      if (error != cudaErrorNotReady) {
+        return CudaFailure("poll fixed-D2 streaming graph", error);
+      }
+      std::this_thread::yield();
     }
     auto* host_bytes = reinterpret_cast<std::byte*>(
         mtp_host_chain_.span().data());
@@ -556,6 +694,10 @@
         pinned_result->proposed_count > 2U * max_context_) {
       return Error(StatusCode::kInternal,
                    "fixed-D2 chain result is inconsistent");
+    }
+    if (callback_status.ok() && consumed != pinned_result->output_count) {
+      return Error(StatusCode::kInternal,
+                   "fixed-D2 streaming token count is inconsistent");
     }
     auto* pinned_outputs = reinterpret_cast<std::uint32_t*>(
         host_bytes + sizeof(internal::MtpChainResult));
@@ -601,7 +743,7 @@
                    "fixed-D2 chain final state is inconsistent");
     }
     *host_result = *pinned_result;
-    return Status::Ok();
+    return callback_status;
   }
 
   [[nodiscard]] const std::uint32_t* mtp_chain_outputs() const {

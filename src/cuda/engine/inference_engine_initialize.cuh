@@ -75,6 +75,13 @@
           (chain_host_bytes + sizeof(float) - 1U) / sizeof(float),
           "MTP chain host result");
       if (!status.ok()) return status;
+      constexpr std::size_t kStreamingRingFloats =
+          (sizeof(internal::MtpStreamingRing) + sizeof(float) - 1U) /
+          sizeof(float);
+      status = mtp_stream_ring_.Allocate(
+          kStreamingRingFloats, "MTP mapped streaming ring",
+          cudaHostAllocMapped);
+      if (!status.ok()) return status;
     }
     status = internal::LaunchRotaryEmbeddingTableBatch(
         Pointer<float>(prefill_workspace_, prefill_offsets_.local_rope_cosine),

@@ -15,6 +15,15 @@ namespace gem16::internal {
 constexpr std::uint64_t kMaximumMtpDraftTokens = 4U;
 constexpr std::uint64_t kMaximumMtpVerifyTokens =
     kMaximumMtpDraftTokens + 1U;
+constexpr std::uint64_t kMtpStreamingRingCapacity = 256U;
+
+struct alignas(64) MtpStreamingRing {
+  unsigned long long producer = 0U;
+  unsigned long long consumer = 0U;
+  unsigned long long cancelled = 0U;
+  unsigned long long backpressure_events = 0U;
+  std::array<std::uint32_t, kMtpStreamingRingCapacity> tokens{};
+};
 
 struct MtpGroupResult {
   std::array<std::uint32_t, kMaximumMtpDraftTokens> proposed{};
@@ -57,6 +66,7 @@ struct alignas(16) MtpChainResult {
   std::uint64_t accepted_count = 0U;
   std::uint64_t rejected_count = 0U;
   std::uint64_t group_count = 0U;
+  std::uint64_t ordinary_tail_count = 0U;
   std::uint32_t stopped = 0U;
   std::uint32_t stop_token = 0U;
 };
@@ -129,6 +139,19 @@ static_assert(offsetof(MtpGroupTransaction, control) % 16U == 0U);
 [[nodiscard]] Status LaunchAdvanceMtpD2Chain(
     MtpGroupTransaction* transaction, MtpChainResult* chain_result,
     std::uint32_t* output_tokens, std::uint32_t* proposed_tokens,
-    cudaGraphConditionalHandle condition, cudaStream_t stream);
+    MtpStreamingRing* streaming_ring,
+    cudaGraphConditionalHandle d2_condition,
+    cudaGraphConditionalHandle tail_condition, cudaStream_t stream);
+
+[[nodiscard]] Status LaunchInitializeMtpOrdinaryTail(
+    const MtpGroupTransaction* transaction, DecodeControl* decode_control,
+    std::uint32_t suppressed_token_count, cudaStream_t stream);
+
+[[nodiscard]] Status LaunchFinalizeMtpOrdinaryTail(
+    const std::uint32_t* selected, const std::uint32_t* stop_tokens,
+    std::uint32_t stop_count, MtpGroupTransaction* transaction,
+    MtpChainResult* chain_result, std::uint32_t* output_tokens,
+    MtpStreamingRing* streaming_ring,
+    cudaGraphConditionalHandle tail_condition, cudaStream_t stream);
 
 }  // namespace gem16::internal

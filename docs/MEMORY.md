@@ -54,6 +54,10 @@ the post-chain transfer. This is 294,912 bytes on the Wikipedia benchmark's 24,5
 at the 262,144-position maximum, plus alignment and the aggregate. The conditional executable raises measured
 graph-associated device memory from 14,680,064 to 20,971,520 bytes on the 32K profiling plan.
 
+The asynchronous SPSC ring adds one fixed 1,088-byte mapped pinned allocation: four 64-bit producer/consumer,
+cancellation, and backpressure counters plus 256 token IDs and alignment. It has no token-loop allocation. Adding
+the dependent ordinary-tail conditional raises 32K graph-associated device memory to 23,068,672 bytes.
+
 The runtime now applies the planned hybrid layout: 40 local layers allocate
 at most 1,024 physical slots and reuse them as chronological rings, while eight global layers allocate the requested
 context extent. Separate K/V storage is retained for both. Optional
