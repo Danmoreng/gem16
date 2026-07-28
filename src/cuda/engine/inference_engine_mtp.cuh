@@ -67,6 +67,42 @@
     return assistant_.GenerateDraftsDevice(context, draft_count, stream_);
   }
 
+  [[nodiscard]] Status PrepareMtpDeviceControl(
+      std::uint32_t input_token, std::uint64_t processed_position,
+      std::uint64_t remaining_output_capacity,
+      std::uint64_t output_write_position, bool stopped,
+      std::uint32_t stop_token) {
+    if (mtp_draft_tokens_ == 0U || remaining_output_capacity == 0U ||
+        processed_position >= max_context_ ||
+        remaining_output_capacity > max_context_ - processed_position - 1U) {
+      return Error(StatusCode::kInvalidArgument,
+                   "MTP device-control state is invalid");
+    }
+    auto* pinned_transaction =
+        reinterpret_cast<internal::MtpGroupTransaction*>(
+            mtp_host_result_.span().data());
+    pinned_transaction->control = {};
+    pinned_transaction->control.current.input_token = input_token;
+    pinned_transaction->control.current.processed_position =
+        processed_position;
+    pinned_transaction->control.current.remaining_output_capacity =
+        remaining_output_capacity;
+    pinned_transaction->control.current.output_write_position =
+        output_write_position;
+    pinned_transaction->control.current.stopped = stopped ? 1U : 0U;
+    pinned_transaction->control.current.stop_token = stop_token;
+    pinned_transaction->control.next = pinned_transaction->control.current;
+    pinned_transaction->control.fixed_draft_tokens = mtp_draft_tokens_;
+    auto* device_transaction = Pointer<internal::MtpGroupTransaction>(
+        mtp_workspace_, mtp_offsets_.transaction);
+    const cudaError_t error = cudaMemcpyAsync(
+        &device_transaction->control, &pinned_transaction->control,
+        sizeof(internal::MtpDeviceControl), cudaMemcpyHostToDevice, stream_);
+    return error == cudaSuccess
+               ? Status::Ok()
+               : CudaFailure("prepare GPU MTP device control", error);
+  }
+
   [[nodiscard]] Status VerifyAcceptCommitAssistantBatch(
       std::uint32_t input_token, std::uint64_t start_position,
       std::uint32_t proposal_count, MtpGroupResult* host_result) {
@@ -125,12 +161,14 @@
     status = internal::LaunchOutputHeadBatchArgmax(candidates, tokens,
                                                    selected, stream_);
     if (!status.ok()) return status;
-    auto* device_result = Pointer<MtpGroupResult>(
-        mtp_workspace_, mtp_offsets_.group_result);
+    auto* device_transaction = Pointer<internal::MtpGroupTransaction>(
+        mtp_workspace_, mtp_offsets_.transaction);
+    auto* device_result = &device_transaction->result;
+    auto* device_control = &device_transaction->control;
     status = internal::LaunchAcceptMtpGroup(
         device_drafts, selected, proposal_count,
         Pointer<std::uint32_t>(mtp_workspace_, mtp_offsets_.stop_tokens),
-        mtp_stop_token_count_, device_result, stream_);
+        mtp_stop_token_count_, device_result, device_control, stream_);
     if (!status.ok()) return status;
     for (std::size_t index = 0; index < model_.layers().size(); ++index) {
       const LayerBinding& layer = model_.layers()[index];
@@ -157,11 +195,12 @@
         normalized, committed_hidden, kHidden, device_result, stream_);
     if (!status.ok()) return status;
     latest_target_hidden_ = committed_hidden;
-    auto* pinned_result = reinterpret_cast<MtpGroupResult*>(
-        mtp_host_result_.span().data());
-    error = cudaMemcpyAsync(pinned_result, device_result,
-                            sizeof(MtpGroupResult), cudaMemcpyDeviceToHost,
-                            stream_);
+    auto* pinned_transaction =
+        reinterpret_cast<internal::MtpGroupTransaction*>(
+            mtp_host_result_.span().data());
+    error = cudaMemcpyAsync(pinned_transaction, device_transaction,
+                            sizeof(internal::MtpGroupTransaction),
+                            cudaMemcpyDeviceToHost, stream_);
     if (error != cudaSuccess) {
       return CudaFailure("copy GPU MTP group result", error);
     }
@@ -169,6 +208,50 @@
     if (error != cudaSuccess) {
       return CudaFailure("synchronize GPU MTP group", error);
     }
-    *host_result = *pinned_result;
+    const internal::MtpDeviceControl& control =
+        pinned_transaction->control;
+    const MtpGroupResult& result = pinned_transaction->result;
+    if (control.transition_valid != 1U ||
+        control.fixed_draft_tokens != mtp_draft_tokens_ ||
+        control.proposal_count != proposal_count ||
+        control.current.input_token != input_token ||
+        control.current.processed_position + 1U != start_position ||
+        result.output_count == 0U ||
+        control.next.input_token !=
+            result.verified[result.output_count - 1U] ||
+        control.next.processed_position !=
+            control.current.processed_position + result.output_count ||
+        control.next.remaining_output_capacity !=
+            control.current.remaining_output_capacity - result.output_count ||
+        control.next.output_write_position !=
+            control.current.output_write_position + result.output_count ||
+        control.next.stopped != result.stopped ||
+        control.next.stop_token != result.stop_token) {
+      return Error(StatusCode::kInternal,
+                   "GPU MTP device-control transition disagrees with host reference");
+    }
+    *host_result = result;
+    return Status::Ok();
+  }
+
+  [[nodiscard]] Status CheckMtpDeviceControlParity(
+      std::uint32_t input_token, std::uint64_t processed_position,
+      std::uint64_t remaining_output_capacity,
+      std::uint64_t output_write_position, bool stopped,
+      std::uint32_t stop_token) const {
+    const auto* pinned_transaction =
+        reinterpret_cast<const internal::MtpGroupTransaction*>(
+            mtp_host_result_.span().data());
+    const internal::MtpDeviceState& next =
+        pinned_transaction->control.next;
+    if (next.input_token != input_token ||
+        next.processed_position != processed_position ||
+        next.remaining_output_capacity != remaining_output_capacity ||
+        next.output_write_position != output_write_position ||
+        next.stopped != (stopped ? 1U : 0U) ||
+        next.stop_token != stop_token) {
+      return Error(StatusCode::kInternal,
+                   "host MTP state disagrees with GPU device control");
+    }
     return Status::Ok();
   }

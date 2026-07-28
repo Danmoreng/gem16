@@ -3,6 +3,7 @@
 #include "cuda/fp8/reference.h"
 #include "cuda/fp8/sm120.h"
 #include "cuda/layer/reference.h"
+#include "cuda/mtp/verify.h"
 #include "cuda/nvfp4/cutlass_sm120.h"
 #include "cuda/nvfp4/reference.h"
 #include "cuda/nvfp4/gemv.h"
@@ -2933,6 +2934,89 @@ void TestGpuSampling() {
   (void)cudaStreamDestroy(stream);
 }
 
+void TestMtpDeviceControlTransitions() {
+  DeviceBuffer<std::uint32_t> drafts(
+      gem16::internal::kMaximumMtpDraftTokens);
+  DeviceBuffer<std::uint32_t> verified(
+      gem16::internal::kMaximumMtpVerifyTokens);
+  DeviceBuffer<std::uint32_t> stop_tokens(1U);
+  DeviceBuffer<gem16::internal::MtpGroupTransaction> transaction(1U);
+  if (drafts.get() == nullptr || verified.get() == nullptr ||
+      stop_tokens.get() == nullptr || transaction.get() == nullptr) {
+    return;
+  }
+
+  const std::array<std::uint32_t,
+                   gem16::internal::kMaximumMtpDraftTokens>
+      host_drafts{10U, 20U, 0U, 0U};
+  const std::uint32_t stop = 99U;
+  if (!CudaOk(cudaMemcpy(drafts.get(), host_drafts.data(), drafts.bytes(),
+                         cudaMemcpyHostToDevice),
+              "copy MTP transition drafts") ||
+      !CudaOk(cudaMemcpy(stop_tokens.get(), &stop, sizeof(stop),
+                         cudaMemcpyHostToDevice),
+              "copy MTP transition stop token")) {
+    return;
+  }
+
+  const auto run_case = [
+      &](const std::array<std::uint32_t,
+                          gem16::internal::kMaximumMtpVerifyTokens>&
+              host_verified,
+          std::uint32_t stop_count, std::uint32_t expected_accepted,
+          std::uint32_t expected_output, bool expected_stopped) {
+    gem16::internal::MtpGroupTransaction host_transaction{};
+    host_transaction.control.current.input_token = 7U;
+    host_transaction.control.current.processed_position = 99U;
+    host_transaction.control.current.remaining_output_capacity = 10U;
+    host_transaction.control.current.output_write_position = 4U;
+    host_transaction.control.next = host_transaction.control.current;
+    host_transaction.control.fixed_draft_tokens = 2U;
+    if (!CudaOk(cudaMemcpy(verified.get(), host_verified.data(),
+                           verified.bytes(), cudaMemcpyHostToDevice),
+                "copy MTP transition verified tokens") ||
+        !CudaOk(cudaMemcpy(transaction.get(), &host_transaction,
+                           sizeof(host_transaction), cudaMemcpyHostToDevice),
+                "copy MTP transition control")) {
+      return;
+    }
+    auto status = gem16::internal::LaunchAcceptMtpGroup(
+        drafts.get(), verified.get(), 2U, stop_tokens.get(), stop_count,
+        &transaction.get()->result, &transaction.get()->control, nullptr);
+    CUDA_TEST_CHECK(status.ok());
+    if (!status.ok() ||
+        !CudaOk(cudaMemcpy(&host_transaction, transaction.get(),
+                           sizeof(host_transaction), cudaMemcpyDeviceToHost),
+                "copy MTP transition result")) {
+      return;
+    }
+    const auto& result = host_transaction.result;
+    const auto& control = host_transaction.control;
+    CUDA_TEST_CHECK(result.accepted_count == expected_accepted);
+    CUDA_TEST_CHECK(result.output_count == expected_output);
+    CUDA_TEST_CHECK(result.stopped == (expected_stopped ? 1U : 0U));
+    CUDA_TEST_CHECK(control.transition_valid == 1U);
+    CUDA_TEST_CHECK(control.proposal_count == 2U);
+    CUDA_TEST_CHECK(control.next.input_token ==
+                    host_verified[expected_output - 1U]);
+    CUDA_TEST_CHECK(control.next.processed_position ==
+                    99U + expected_output);
+    CUDA_TEST_CHECK(control.next.remaining_output_capacity ==
+                    10U - expected_output);
+    CUDA_TEST_CHECK(control.next.output_write_position ==
+                    4U + expected_output);
+    CUDA_TEST_CHECK(control.next.stopped ==
+                    (expected_stopped ? 1U : 0U));
+    CUDA_TEST_CHECK(control.next.stop_token ==
+                    (expected_stopped ? stop : 0U));
+  };
+
+  run_case({30U, 40U, 50U, 0U, 0U}, 0U, 0U, 1U, false);
+  run_case({10U, 30U, 50U, 0U, 0U}, 0U, 1U, 2U, false);
+  run_case({10U, 20U, 30U, 0U, 0U}, 0U, 2U, 3U, false);
+  run_case({10U, 99U, 30U, 0U, 0U}, 1U, 1U, 2U, true);
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -2985,6 +3069,7 @@ int main(int argc, char** argv) {
   TestVectorizedFp8CausalPrefill();
   TestOnlineLocalFp8CausalPrefill();
   TestOnlineGlobalFp8CausalPrefill();
+  TestMtpDeviceControlTransitions();
   TestGpuSampling();
   if (failures != 0) {
     std::cerr << failures << " CUDA test assertion(s) failed\n";

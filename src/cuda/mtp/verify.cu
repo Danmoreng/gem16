@@ -56,7 +56,8 @@ __global__ void BuildMtpVerificationInputsKernel(
 __global__ void AcceptMtpGroupKernel(
     const std::uint32_t* drafts, const std::uint32_t* verified,
     std::uint32_t proposal_count, const std::uint32_t* stop_tokens,
-    std::uint32_t stop_count, MtpGroupResult* result) {
+    std::uint32_t stop_count, MtpGroupResult* result,
+    MtpDeviceControl* control) {
   if (blockIdx.x != 0U || threadIdx.x != 0U) return;
   result->proposal_count = proposal_count;
   result->accepted_count = 0U;
@@ -85,9 +86,26 @@ __global__ void AcceptMtpGroupKernel(
                                      : index;
         result->stop_token = verified[index];
         result->stopped = 1U;
-        return;
+        break;
       }
     }
+    if (result->stopped != 0U) break;
+  }
+  control->proposal_count = proposal_count;
+  control->transition_valid =
+      control->current.stopped == 0U &&
+              proposal_count <= control->fixed_draft_tokens &&
+              result->output_count <= control->current.remaining_output_capacity
+          ? 1U
+          : 0U;
+  control->next = control->current;
+  if (control->transition_valid != 0U) {
+    control->next.input_token = verified[result->output_count - 1U];
+    control->next.processed_position += result->output_count;
+    control->next.remaining_output_capacity -= result->output_count;
+    control->next.output_write_position += result->output_count;
+    control->next.stopped = result->stopped;
+    control->next.stop_token = result->stop_token;
   }
 }
 
@@ -190,9 +208,11 @@ Status LaunchBuildMtpVerificationInputs(
 Status LaunchAcceptMtpGroup(
     const std::uint32_t* drafts, const std::uint32_t* verified,
     std::uint32_t proposal_count, const std::uint32_t* stop_tokens,
-    std::uint32_t stop_count, MtpGroupResult* result, cudaStream_t stream) {
+    std::uint32_t stop_count, MtpGroupResult* result,
+    MtpDeviceControl* control, cudaStream_t stream) {
   AcceptMtpGroupKernel<<<1U, 1U, 0, stream>>>(
-      drafts, verified, proposal_count, stop_tokens, stop_count, result);
+      drafts, verified, proposal_count, stop_tokens, stop_count, result,
+      control);
   const cudaError_t error = cudaGetLastError();
   return error == cudaSuccess ? Status::Ok()
                               : CudaFailure("launch GPU MTP acceptance", error);

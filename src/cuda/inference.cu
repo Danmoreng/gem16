@@ -608,6 +608,11 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
       }
       const std::size_t proposal_count = std::min<std::size_t>(
           adaptive_scheduler.active_drafts(), remaining - 1U);
+      status = engine.PrepareMtpDeviceControl(
+          next_token, processed_position, remaining,
+          result.output_token_ids.size(), result.stopped,
+          result.stop_token_id);
+      if (!status.ok()) return status;
       status = engine.GenerateAssistantDraftsDevice(
           next_token, processed_position,
           static_cast<std::uint32_t>(proposal_count));
@@ -650,6 +655,12 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
           break;
         }
       }
+      status = engine.CheckMtpDeviceControlParity(
+          next_token, processed_position,
+          generation_steps - result.output_token_ids.size(),
+          result.output_token_ids.size(), result.stopped,
+          result.stop_token_id);
+      if (!status.ok()) return status;
       if (!result.stopped) {
         adaptive_scheduler.Observe(processed_position,
                                    group.accepted_count);

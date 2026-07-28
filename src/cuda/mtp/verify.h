@@ -1,7 +1,9 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
+#include <type_traits>
 
 #include <cuda_runtime_api.h>
 
@@ -24,6 +26,34 @@ struct MtpGroupResult {
   std::uint32_t stopped = 0U;
 };
 
+struct MtpDeviceState {
+  std::uint32_t input_token = 0U;
+  std::uint32_t stopped = 0U;
+  std::uint32_t stop_token = 0U;
+  std::uint32_t reserved = 0U;
+  std::uint64_t processed_position = 0U;
+  std::uint64_t remaining_output_capacity = 0U;
+  std::uint64_t output_write_position = 0U;
+};
+
+struct alignas(16) MtpDeviceControl {
+  MtpDeviceState current{};
+  MtpDeviceState next{};
+  std::uint32_t fixed_draft_tokens = 0U;
+  std::uint32_t proposal_count = 0U;
+  std::uint32_t transition_valid = 0U;
+  std::uint32_t reserved = 0U;
+};
+
+struct alignas(16) MtpGroupTransaction {
+  MtpGroupResult result{};
+  std::array<std::byte, 8U> control_alignment_padding{};
+  MtpDeviceControl control{};
+};
+
+static_assert(std::is_trivially_copyable_v<MtpGroupTransaction>);
+static_assert(offsetof(MtpGroupTransaction, control) % 16U == 0U);
+
 [[nodiscard]] Status LaunchBuildMtpVerificationInputs(
     std::uint32_t input_token, const std::uint32_t* drafts,
     std::uint32_t proposal_count, std::uint32_t* inputs, cudaStream_t stream);
@@ -31,7 +61,8 @@ struct MtpGroupResult {
 [[nodiscard]] Status LaunchAcceptMtpGroup(
     const std::uint32_t* drafts, const std::uint32_t* verified,
     std::uint32_t proposal_count, const std::uint32_t* stop_tokens,
-    std::uint32_t stop_count, MtpGroupResult* result, cudaStream_t stream);
+    std::uint32_t stop_count, MtpGroupResult* result, MtpDeviceControl* control,
+    cudaStream_t stream);
 
 [[nodiscard]] Status LaunchCommitMtpKvFp8(
     const std::uint8_t* compact_key, const std::uint8_t* compact_value,

@@ -188,6 +188,8 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
          << (result.mtp_enabled ? "batched_exact_target" : "disabled")
          << "\",\"acceptance_path\":\""
          << (result.mtp_enabled ? "gpu_accept_commit" : "disabled")
+         << "\",\"device_control\":\""
+         << (result.mtp_enabled ? "host_gpu_transition_parity" : "disabled")
          << "\",\"host_synchronizations_per_group\":"
          << (result.mtp_enabled ? 1 : 0)
          << ",\"short_batch_projection_path\":\""

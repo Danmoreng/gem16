@@ -39,9 +39,19 @@ class InferenceEngine {
   [[nodiscard]] Status GenerateAssistantDraftsDevice(
       std::uint32_t input_token, std::uint64_t processed_position,
       std::uint32_t draft_count);
+  [[nodiscard]] Status PrepareMtpDeviceControl(
+      std::uint32_t input_token, std::uint64_t processed_position,
+      std::uint64_t remaining_output_capacity,
+      std::uint64_t output_write_position, bool stopped,
+      std::uint32_t stop_token);
   [[nodiscard]] Status VerifyAcceptCommitAssistantBatch(
       std::uint32_t input_token, std::uint64_t start_position,
       std::uint32_t proposal_count, internal::MtpGroupResult* host_result);
+  [[nodiscard]] Status CheckMtpDeviceControlParity(
+      std::uint32_t input_token, std::uint64_t processed_position,
+      std::uint64_t remaining_output_capacity,
+      std::uint64_t output_write_position, bool stopped,
+      std::uint32_t stop_token) const;
   [[nodiscard]] Status ResetCache();
   [[nodiscard]] Status SetSampling(const SamplingOptions& options);
   [[nodiscard]] Status SetSuppressedTokens(

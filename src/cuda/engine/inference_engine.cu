@@ -254,7 +254,7 @@ struct MtpWorkspaceOffsets {
   std::uint64_t output_candidates = 0;
   std::uint64_t selected = 0;
   std::uint64_t stop_tokens = 0;
-  std::uint64_t group_result = 0;
+  std::uint64_t transaction = 0;
   std::uint64_t committed_hidden = 0;
   std::uint64_t total = 0;
 };
@@ -464,7 +464,9 @@ Result<std::uint32_t> InferenceEngine::Forward(std::uint32_t token, std::uint64_
 Result<std::uint32_t> InferenceEngine::Prefill(std::span<const std::uint32_t> token_ids, std::span<float> host_logits) { return impl_->Prefill(token_ids, host_logits); }
 Result<std::uint32_t> InferenceEngine::PrefillAt(std::span<const std::uint32_t> token_ids, std::uint64_t start_position, std::span<float> host_logits) { return impl_->PrefillAt(token_ids, start_position, host_logits); }
 Status InferenceEngine::GenerateAssistantDraftsDevice(std::uint32_t input_token, std::uint64_t processed_position, std::uint32_t draft_count) { return impl_->GenerateAssistantDraftsDevice(input_token, processed_position, draft_count); }
+Status InferenceEngine::PrepareMtpDeviceControl(std::uint32_t input_token, std::uint64_t processed_position, std::uint64_t remaining_output_capacity, std::uint64_t output_write_position, bool stopped, std::uint32_t stop_token) { return impl_->PrepareMtpDeviceControl(input_token, processed_position, remaining_output_capacity, output_write_position, stopped, stop_token); }
 Status InferenceEngine::VerifyAcceptCommitAssistantBatch(std::uint32_t input_token, std::uint64_t start_position, std::uint32_t proposal_count, internal::MtpGroupResult* host_result) { return impl_->VerifyAcceptCommitAssistantBatch(input_token, start_position, proposal_count, host_result); }
+Status InferenceEngine::CheckMtpDeviceControlParity(std::uint32_t input_token, std::uint64_t processed_position, std::uint64_t remaining_output_capacity, std::uint64_t output_write_position, bool stopped, std::uint32_t stop_token) const { return impl_->CheckMtpDeviceControlParity(input_token, processed_position, remaining_output_capacity, output_write_position, stopped, stop_token); }
 Status InferenceEngine::ResetCache() { return impl_->ResetCache(); }
 Status InferenceEngine::SetSampling(const SamplingOptions& options) { return impl_->SetSampling(options); }
 Status InferenceEngine::SetSuppressedTokens(std::span<const std::uint32_t> tokens) { return impl_->SetSuppressedTokens(tokens); }

@@ -174,11 +174,12 @@ assume CUDA Graph replay alone will meet the 50 tok/s performance gate.
 
 Delivery is deliberately incremental:
 
-1. **Device control with host parity.** Add an arena-backed `MtpDeviceControl` containing the current input token,
+1. **Complete: device control with host parity.** An arena-backed `MtpDeviceControl` contains the current input token,
    processed position, remaining output capacity, stop state, output write position, and fixed-D2 mode. GPU
    acceptance updates a shadow next state. The existing host loop and compact result synchronization remain, and
-   every group asserts that host and GPU transitions agree. This phase must not change production kernel ordering
-   or output.
+   every group asserts that host and GPU transitions agree. The host supplies the current record with one small
+   asynchronous H2D copy, while the existing D2H transaction returns both the group result and GPU-computed next
+   state. This phase does not change production kernel ordering, synchronization count, or output.
 2. **Complete fixed-D2 group graph.** Capture both recurrent assistant proposal steps, verification-input build,
    embedding, all 48 target layers, final norm/output selection, acceptance, KV/hidden commit, and control update.
    The host initially replays one group at a time and still reads the result. This isolates graph-capture and
@@ -287,10 +288,24 @@ for the next no-roundtrip phase and their memory cost is documented.
    implementation. The final bounded exact-verifier sprint targets 45.18 ms/group and 50 tok/s first, then 41.07
    ms/group and 55 tok/s only through material exact candidates. If it cannot reach 50, retain the best exact
    characterization and mark the performance target unmet rather than weakening semantics.
-13. **Next, before multimodal:** execute the GPU-controlled decode-graph roadmap above. Start with the
-   device-resident control record and host/device transition parity; do not begin with a monolithic graph or
-   streaming protocol. Fixed-D2 group capture, GPU chaining, stop/tail handling, asynchronous streaming, and
-   adaptive graph branches follow as separate correctness-gated changes. A device-resident N-Gram proposer is an
+13. **Next, before multimodal:** continue the GPU-controlled decode-graph roadmap above with complete fixed-D2
+   group capture now that the device-resident control record and host/device transition parity gate are complete.
+   GPU chaining, stop/tail handling, asynchronous streaming, and adaptive graph branches follow as separate
+   correctness-gated changes. A device-resident N-Gram proposer is an
    optional later branch only after those foundations and its own hit-rate/performance gates. Multimodal
    implementation remains queued until fixed-D2 GPU chaining and nonblocking streaming are complete or a new
    decision documents a blocker; optional N-Gram qualification is not itself a multimodal blocker.
+14. **Device-control parity phase complete:** `MtpGroupTransaction` now places the result and 16-byte-aligned
+   `MtpDeviceControl` in the fixed MTP arena. GPU acceptance derives the next token, processed position, remaining
+   output capacity, output offset, and stop state. The host validates the copied transition before using the result
+   and validates the complete post-update host state before scheduling another group. CUDA fixtures cover zero,
+   one, and two accepted D2 drafts plus stop-token truncation. Short BF16 D1/D2/D4 and FP8 D2 runs are exactly equal
+   to ordinary greedy output, report `device_control=host_gpu_transition_parity`, and use neither fallbacks nor
+   token-loop allocations. The Windows 16K Wikipedia gate (one warm-up, three measured runs) retains all 1,135 IDs
+   and SHA-256 `43bc3380fc1cce5182a679fa3a340c04bcc79c52e73d5102ec1f737f57d0a1e1`, with 632 accepted and 372 rejected
+   drafts over 502 groups. Median throughput is 45.217 tok/s; the 706,618,112-byte reported workspace is unchanged.
+   Nsight records the same 185,830 kernel launches and 117 stream synchronizations as the pre-change trace, plus
+   exactly 111 `cudaMemcpyAsync` calls for 111 control records. The full Transformers draft-reference script could
+   not rerun on this Windows Python because its installed PyTorch lacks CUDA; its engine-side exact comparison
+   completed before that failure, and the previously retained independent Transformers draft fixture remains the
+   reference evidence. Complete fixed-D2 group capture is the next phase.

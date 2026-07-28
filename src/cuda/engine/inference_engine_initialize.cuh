@@ -61,10 +61,11 @@
     if (mtp_draft_tokens_ != 0U) {
       status = AllocateMtpWorkspace();
       if (!status.ok()) return status;
-      constexpr std::size_t kHostResultFloats =
-          (sizeof(MtpGroupResult) + sizeof(float) - 1U) / sizeof(float);
-      status = mtp_host_result_.Allocate(kHostResultFloats,
-                                         "MTP group host result");
+      constexpr std::size_t kHostTransactionFloats =
+          (sizeof(internal::MtpGroupTransaction) + sizeof(float) - 1U) /
+          sizeof(float);
+      status = mtp_host_result_.Allocate(kHostTransactionFloats,
+                                         "MTP group host transaction");
       if (!status.ok()) return status;
     }
     status = internal::LaunchRotaryEmbeddingTableBatch(
