@@ -94,8 +94,10 @@ The target checkpoint's direct upload, SM120 Row8/K64 layout transformation, ten
 `LayerBinding` construction are isolated in `src/cuda/engine/target_model.{h,cu}`. The execution engine consumes
 those immutable bindings and owns only cache/workspace addresses. Its private Pimpl boundary is declared in
 `cuda/engine/inference_engine.h`: CUDA arenas, immutable plans, graph capture, prefill/decode execution, and MTP
-verification remain in `cuda/engine/inference_engine.cu`, while `cuda/inference.cu` contains host session, run, and
-benchmark orchestration.
+verification remain in one CUDA translation unit rooted at `cuda/engine/inference_engine.cu`, while
+`cuda/inference.cu` contains host session, run, and benchmark orchestration. Private class-body fragments group
+initialization, memory planning, ordinary forward, prefill layers, decode graphs, and MTP independently without
+introducing a cross-translation-unit launch boundary or changing kernel code generation.
 
 The optional official MTP assistant is a separate model owner, not part of the target weight arena. It memory-maps
 its source checkpoint, streams all 48 BF16 tensors into one independently allocated 256-byte-aligned device arena,
