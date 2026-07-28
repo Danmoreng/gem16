@@ -1,7 +1,5 @@
 #include "gem16/engine.h"
 
-#include <ostream>
-
 namespace gem16 {
 
 struct ConversationSession::Impl {};
@@ -34,24 +32,9 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions&) 
                 "greedy inference requires a CUDA build compiled for SM120a");
 }
 
-Status WriteGreedyInferenceJson(const GreedyInferenceResult&, std::ostream&) {
-  return Status(StatusCode::kUnsupported,
-                "greedy inference JSON requires a CUDA inference result");
-}
-
 Result<DecodeBenchmarkResult> RunDecodeBenchmark(const DecodeBenchmarkOptions&) {
   return Status(StatusCode::kUnsupported,
                 "decode benchmarking requires a CUDA build compiled for SM120a");
-}
-
-Status WriteDecodeBenchmarkJson(const DecodeBenchmarkResult&, std::ostream&) {
-  return Status(StatusCode::kUnsupported,
-                "decode benchmark JSON requires a CUDA benchmark result");
-}
-
-Status WritePrefillBenchmarkJson(const DecodeBenchmarkResult&, std::ostream&) {
-  return Status(StatusCode::kUnsupported,
-                "prefill benchmark JSON requires a CUDA benchmark result");
 }
 
 }  // namespace gem16

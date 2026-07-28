@@ -100,7 +100,7 @@ Status WriteStateDump(const std::filesystem::path& path, std::uint64_t position,
             captured_state.data() + capture.attention_context),
         static_cast<std::streamsize>(
             capture.attention_elements * sizeof(float)));
-    for (const auto [offset, elements] :
+    for (const auto& [offset, elements] :
          {std::pair{capture.attention_output,
                     static_cast<std::size_t>(kHidden)},
           std::pair{capture.post_attention_norm,
