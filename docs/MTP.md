@@ -85,9 +85,11 @@ The first allocator proof now loads all 48 tensors into one independent 256-byte
 `nvidia-smi` probe at context 128 measures 9,660 MiB total GPU usage for the target-only process and 10,468 MiB
 for target plus assistant, also an 808 MiB difference. The original assistant proposal workspace is 289,024 bytes
 at context 128. Active batched MTP adds fixed tentative per-layer K/V and five-row output-selection storage: total
-assistant-plus-verifier workspace measures 2,198,016 bytes with FP8 KV and 7,334,400 bytes with BF16 KV at context
-128. The FP8 assistant workspace reserves the larger of its reference-score and split-online requirements; graph
-pools remain to be measured at each context tier.
+assistant-plus-verifier workspace measures 2,213,376 bytes with FP8 KV and 7,374,336 bytes with BF16 KV at context
+128. The FP8 assistant workspace reserves the larger of its reference-score and split-online requirements. The
+GPU acceptance result, stop-token table, and committed-hidden row are fixed workspace regions. No MTP graph pool
+is retained: an exact 48-layer suffix-graph candidate added 6–8 MiB without improving 16K D2 throughput and was
+removed.
 
 ## External runtime probe
 
@@ -130,9 +132,12 @@ third_party/cache/unsloth-nvfp4-env/bin/python tools/validate_mtp.py \
 ```
 
 Active MTP currently supports greedy `gem16-run` generation only. It performs fixed-shape batched exact target
-verification for draft lengths 1, 2, and 4, retains tentative K/V rows in a fixed workspace, and commits only the
-host-confirmed prefix. Sampling, chat sessions, diagnostic dumps, GPU-side acceptance, and MTP CUDA Graphs remain
-deliberately rejected or deferred rather than silently using incorrect semantics.
+verification for draft lengths 1, 2, and 4, retains tentative K/V rows in a fixed workspace, and accepts and commits
+the exact prefix on GPU. Drafts remain device-resident through verification; one small pinned result and one host
+synchronization remain per group for output callbacks and variable-length scheduling. `--mtp-adaptive` explicitly
+enables context/acceptance-based D4→D2→D1 selection and bounded ordinary decode fallback. Sampling, chat sessions,
+diagnostic dumps, and full position-controlled MTP CUDA Graphs remain deliberately rejected or deferred rather
+than silently using incorrect semantics.
 
 ## Implementation status and order
 
@@ -168,17 +173,22 @@ deliberately rejected or deferred rather than silently using incorrect semantics
    FP8 CUTLASS batch promotion passed the bounded context-512 gate but was later narrowed to O only after Q/K/V
    failed the full 16K exactness gate. On the natural 53-token/256-output context-512 workload, 3 warm-ups plus 10
    alternating runs measure 42.90 tok/s MTP versus 35.27 ordinary (+21.6%), with mean accepted length 1.89. This is a workload-specific effective-throughput win, not a general 60 tok/s claim.
-9. Profile and optimize GPU-side acceptance/commit, fixed-shape MTP CUDA Graphs, and adaptive draft selection.
+9. **Complete bounded scheduler work:** drafts now remain device-resident, GPU acceptance applies stop IDs and
+   commits tentative K/V plus the selected hidden row before one compact D2H result, and `--mtp-adaptive` exposes
+   deterministic context/acceptance thresholds with ordinary fallback. An exact fixed-shape graph over each
+   layer's position-independent verifier suffix added 6–8 MiB but measured 35.291 versus 35.340 tok/s and was
+   removed. Full position-controlled graph capture is deferred because the refreshed profile is GPU-kernel-bound.
    The exact direct decode-attention verifier remains mandatory: a faster causal-prefill attention candidate
    reached 55.06 tok/s but changed output at step 15 and was removed. NVFP4 CUTLASS verifier projections also
    changed the natural sequence and were removed.
-10. **16K correctness restored with D2:** the divergence was isolated to using FP8 CUTLASS for target Q/K/V during
-   verification. The decode-order direct grouped Q/K/V batch is mandatory; CUTLASS remains valid for O. The full
-   1,135-token Wikipedia output is now exactly equal to ordinary. Long-context FP8 assistant attention reuses the
-   qualified split-online decode kernel instead of materializing scores. Under the requested correctness-only
-   policy of no warm-up and one run, D2 reaches 35.184 tok/s at mean accepted length 1.259, versus the retained
-   ordinary three-run median of 31.775 tok/s (+10.7% characterization only). Active FP8 memcheck passes above the
-   1,024-token boundary. A target-global multi-row attention kernel was exact but slower (34.767 tok/s) and removed.
-11. Repeat the controlled 16K performance matrix only after the next material optimization; preserve D2 as the
-   bounded correctness probe. Promote MTP only where qualified effective throughput wins; otherwise adaptively use
-   ordinary decode.
+10. **16K correctness and short-batch kernels complete:** target verification keeps decode-order direct grouped
+   Q/K/V and exact CUTLASS O. For T≤5, FP8 Q/K/V now uses the latency-oriented decode MMA over 2/3/5 rows instead
+   of staging a 128-token tile. NVFP4 Down uses one unstaged 16-token tile and four warps instead of the prefill
+   128-token/8-warp plan. Both preserve MMA K accumulation and all 1,135 ordinary IDs. D2 screening moves from
+   35.340 to 39.150 after FP8 Q/K/V and to 43.200 tok/s after NVFP4 Down. T1 Gate/Up, 8/16-head global attention,
+   and suffix graphs were exact but did not win and were removed. Active FP8 ring-wrap memcheck reports zero errors.
+11. **Qualified 16K D2 win:** three alternating warm-up pairs and ten alternating measured pairs produce 31.798
+   ordinary versus 42.639 MTP D2 median tok/s, a 1.341x throughput speedup (+34.1%). All 20 measured outputs contain
+   the same 1,135 IDs; mean accepted length is exactly 1.259 in every MTP run. The 95% mean CIs are
+   `[31.783,31.806]` and `[42.623,42.658]`. Peak sampled GPU memory is 10,838 MiB. D2 remains workload-dependent;
+   explicit ordinary decode and adaptive fallback are retained. The 60 tok/s stretch target is not yet reached.

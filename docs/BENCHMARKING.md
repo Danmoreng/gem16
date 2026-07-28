@@ -140,12 +140,16 @@ origin, Turing test, and requested applications/opportunities, but reaches the f
 answering the final risk portion. These are one-run capacity, latency, and quality characterizations rather than
 statistically qualified performance results.
 
-## MTP correctness timing
+## MTP timing
 
-The active `batched_exact_target` MTP scheduler is not yet a speedup result. It executes the complete BF16
-assistant, evaluates the input plus up to four drafts in one target batch, and host-commits only the verified
-prefix. Its throughput is reported only to expose current cost. A speedup comparison becomes valid only after the
-batched path, GPU-side acceptance, and graph plan win effective target-verified output tokens/s against ordinary
-gem16 under identical prompts, contexts, output counts, sampling, cache precision, and repetition policy.
-Proposed tokens are never counted as output. Draft lengths 1, 2, and 4 must report proposed, accepted, rejected,
-mean accepted length, target batches, incremental VRAM, and the ordinary fallback result.
+The active `batched_exact_target` scheduler executes the complete BF16 assistant, evaluates the input plus up to
+four drafts in one target batch, and accepts and commits only the verified prefix on GPU. Proposed tokens are never
+counted as output. Draft lengths 1, 2, and 4 report proposed, accepted, rejected, mean accepted length, target
+batches, incremental VRAM, draft-length group counts, and ordinary fallback tokens.
+
+The first qualified MTP result uses the exact 16,384-token Wikipedia workload, checkpoint-FP8 KV, three alternating
+warm-up pairs, and ten alternating measured ordinary/D2 pairs. All runs emit the same 1,135 IDs. Ordinary and D2
+medians are 31.798 and 42.639 effective target-verified tok/s, respectively (1.341x); raw runs and continuous
+telemetry are retained under the ignored result path documented in the performance ledger. This result does not
+make MTP universally preferable: every new workload must retain identical output semantics and report ordinary,
+explicit draft, acceptance, and adaptive/fallback behavior under the same repetition policy.

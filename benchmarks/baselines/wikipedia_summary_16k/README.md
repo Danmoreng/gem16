@@ -93,6 +93,22 @@ not a qualified comparison because repetition policies differ. The first exact d
 tok/s; retaining CUTLASS O measured 30.692; split-online assistant attention supplied the material gain. An exact
 batched-global target-attention experiment reached only 34.767 tok/s and was removed.
 
+### Qualified MTP performance follow-up
+
+The promoted path keeps drafts device-resident, performs acceptance/commit on GPU, and specializes exact T≤5 FP8
+Q/K/V and NVFP4 Down execution instead of using 128-token prefill tiles. Three alternating warm-up pairs followed
+by ten alternating measured ordinary/D2 pairs produce:
+
+| Mode | Median decode | Mean | 95% mean CI | Exact IDs |
+|---|---:|---:|---:|---:|
+| ordinary | 31.798 tok/s | 31.794 | `[31.783,31.806]` | 1,135/1,135 |
+| MTP D2 | 42.639 tok/s | 42.641 | `[42.623,42.658]` | 1,135/1,135 |
+
+The effective target-verified throughput speedup is 1.341x (+34.1%). Mean accepted length is 1.259 in every D2
+run; sampled peak GPU memory is 10,838 MiB. No fallback or token-loop allocation is reported. Generated raw data,
+commands, output hashes, and continuous telemetry remain ignored under
+`benchmarks/results/2026-07-28/18ff81e-worktree/blackwell16gb-mtp-performance/qualification/`.
+
 ## Reproduction
 
 First create the pinned exact-token workload with the local checkpoint tokenizer:

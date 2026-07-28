@@ -27,7 +27,7 @@ weights. The first optimized backend targets Blackwell SM120/SM120a and batch-on
 | CLI | Native tokenizer and chat template, UTF-8 output, token streaming, multi-turn chat |
 | Prefill | Native variable-length prefill with CUTLASS FP8/NVFP4 Tensor Core projections |
 | Decode | Native T=1 projection plans, FP8 KV cache, and whole-model CUDA Graph replay |
-| MTP | Optional official BF16 assistant with exact serial target verification at draft lengths 1, 2, and 4 |
+| MTP | Optional official BF16 assistant with exact batched D1/D2/D4 verification, GPU acceptance/commit, and adaptive fallback |
 | Memory | Direct source layout, text-only tensor loading, deterministic arenas, no CPU weight offload |
 | Tooling | Checkpoint inspection, memory planning, correctness probes, profiling, and prefill/decode benchmarks |
 | Validation | Host and CUDA tests plus operator, layer, logit, greedy-generation, and long-context checks |
@@ -174,8 +174,11 @@ and the direct mixed checkpoint and available GGUF baseline differ in some tenso
   full-vocabulary radix sort and probability scan inside the whole-model decode CUDA Graph.
 - The optimized CUDA backend requires Blackwell SM120/SM120a. Other NVIDIA architectures are not performance
   targets yet.
-- MTP correctness generation is available in `gem16-run`, but still uses serial target verification. Batched
-  verification, GPU-side acceptance, adaptive drafting, MTP CUDA Graphs, and chat integration remain pending.
+- Optional greedy MTP supports exact batched target verification at D1/D2/D4, device-resident drafts,
+  GPU-side acceptance/commit, and explicit `--mtp-adaptive` selection with ordinary fallback. On the exact
+  Wikipedia 16K workload, D2 preserves all 1,135 ordinary IDs and measures a qualified 42.639 tok/s median versus
+  31.798 ordinary (+34.1%) at batch one with checkpoint-FP8 KV. Full position-controlled MTP graph capture,
+  sampling, and chat integration remain pending.
 - Continuous batching, a server API, and persistent prompt-cache files are out of scope for the current runtime.
 - Full benchmark qualification, wider quality evaluation, and additional long-context validation remain ongoing.
 

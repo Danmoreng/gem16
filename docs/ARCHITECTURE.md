@@ -95,12 +95,16 @@ The target continues to own all KV storage. Three Q-only sliding assistant layer
 ring, while the final Q-only full layer reads the target Layer-47 contiguous cache. All iterations in one draft
 group retain the target's last processed position and cache view; each projected 3,840-dimensional assistant state
 is paired with the next scaled target embedding. `--mtp-draft-tokens 1|2|4` activates BF16 assistant execution and
-batched exact target verification. Each batch retains tentative K/V rows in a dedicated fixed arena, restores
-local-ring writes after attention, and host-commits only the accepted prefix plus mismatch. Target verification
-uses the decode-order direct grouped FP8 Q/K/V projection because the CUTLASS Q/K/V batch changes long-context
-greedy output; O retains its exact CUTLASS batch. At FP8 capacities above 512, assistant attention reuses the
-split-online decode kernel. This correctness scheduler emits only target-verified tokens and therefore retains
-ordinary greedy output. GPU-side acceptance and MTP graph capture remain separate performance work.
+batched exact target verification. Each batch retains tentative K/V rows in a dedicated fixed arena and restores
+local-ring writes after attention. Drafts remain device-resident; a GPU acceptance kernel applies stop IDs and
+selects the exact prefix, fixed kernels commit tentative K/V and the selected hidden row, and one compact pinned
+result is returned to the scheduler. Target verification uses decode-order direct grouped FP8 Q/K/V because the
+CUTLASS Q/K/V batch changes long-context greedy output; O retains exact CUTLASS. T≤5 Q/K/V uses the latency-oriented
+decode MMA, while T≤5 NVFP4 Down uses one unstaged token tile and four warps. Both retain K accumulation order. At
+FP8 capacities above 512, assistant attention reuses split-online decode attention. `--mtp-adaptive` optionally
+selects D4/D2/D1 and ordinary fallback from context and 16-group acceptance windows. This scheduler emits only
+target-verified tokens and therefore retains ordinary greedy output. Full position-controlled MTP graph capture
+remains deferred after an exact suffix graph failed to improve end-to-end throughput.
 
 ## Planned multimodal boundary
 

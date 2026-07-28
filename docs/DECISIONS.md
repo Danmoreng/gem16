@@ -1,5 +1,27 @@
 # Decisions
 
+## 2026-07-28: Use GPU MTP transactions and decode-sized verifier projections
+
+Date: 2026-07-28
+Decision: Keep assistant drafts on device, perform acceptance/stop handling and tentative K/V/hidden commit on GPU,
+and return one compact pinned group result. For verifier T≤5, dispatch FP8 Q/K/V through the latency-oriented
+decode-order MMA and NVFP4 Down through one unstaged 16-token/four-warp tile. Keep exact CUTLASS O, the existing
+fused Gate/Up, and split-online attention. Make context/acceptance adaptation explicit through `--mtp-adaptive`;
+leave explicit D1/D2/D4 unchanged. Do not retain the tested verifier-suffix CUDA Graph.
+Context: The restored 16K D2 path measured 35.184 tok/s. Nsight showed that host waits represented GPU work and
+that projection kernels designed for 128-token prefill tiles dominated the three-row verifier. It also showed that
+GPU acceptance was primarily a prerequisite for future scheduling rather than the main bottleneck.
+Alternatives: Keep host draft/acceptance transactions; use CUTLASS Q/K/V or NVFP4 Down; retain suffix graphs;
+change attention reduction order; or force one draft length globally. These respectively preserve two syncs,
+violate long-context exactness, add memory without speed, risk greedy drift, or lose workload-dependent fallback.
+Consequences: Qualified Wikipedia 16K D2 rises to 42.639 median tok/s versus 31.798 ordinary (1.341x), with all
+1,135 IDs exact in ten alternating measured pairs. Workspace adds 15,360 bytes at context 128; sampled 16K peak is
+10,838 MiB. One host synchronization remains per group for callbacks and variable output length. Full controlled
+MTP graph capture remains deferred because the exact suffix graph did not improve throughput.
+Evidence: 3 alternating warm-up pairs, 10 alternating measured pairs, Nsight scoped kernel attribution, resource
+capture with no per-thread local memory, native QMMA/OMMA SASS, Transformers drafts, D1/D2/D4 FP8 identity, BF16,
+ring-wrap, stop/adaptive tests, CTest, memcheck, allocation-boundary query, and raw telemetry.
+
 ## 2026-07-28: Preserve direct target Q/K/V and use split-online assistant attention at long context
 
 Date: 2026-07-28

@@ -1,5 +1,37 @@
 # Performance ledger
 
+## 2026-07-28 GPU MTP transaction and exact short-batch verifier kernels
+
+A 16K/256 D2 Nsight trace after long-context correctness restoration attributes verifier GPU time primarily to
+three direct projection families and split-online attention. GPU acceptance/commit first removes the assistant
+D2H synchronization and draft H2D copy: drafts remain device-resident, target predictions are compared on GPU,
+stop IDs are applied there, and fixed kernels commit tentative K/V plus one hidden row before a single compact
+pinned result. The complete 1,135-token run remains exact and moves from 35.184 to 35.340 tok/s; its principal value
+is one synchronization per group and a graphable transaction boundary. Workspace rises by 15,360 bytes at context
+128. FP8 ring-wrap memcheck reports zero errors.
+
+The profile then proves the existing FP8 batch kernel wastes a 128-token staging tile on D1/D2/D4. Dispatching T≤5
+through the same decode-order direct MMA over 2/3/5 rows preserves all IDs and raises D2 to 39.150 tok/s. The NVFP4
+Down batch has the same mismatch; one unstaged 16-token tile with four warps preserves the K64 MMA order and raises
+D2 to 43.200 tok/s. Resource capture reports 40 registers/thread for FP8 Q/K/V and 64 for NVFP4 Down, zero local
+bytes/thread, 128-thread CTAs, and expected `QMMA.16832.F32.E4M3.E4M3` plus
+`OMMA.SF.16864.F32.E2M1.E2M1.UE4M3.4X` SASS.
+
+Rejected exact candidates are retained only as evidence: 48 verifier-suffix graphs measure 35.291 versus 35.340
+tok/s and add 6–8 MiB; T1 Gate/Up measures 44.381 versus 44.498 tok/s; eight global query heads per K/V load move
+44.498 to only 44.661 tok/s; sixteen heads regress to 43.512 tok/s; an eight-warp unstaged Down measures 44.449
+versus 44.498 tok/s. All were removed. Explicit adaptive mode selects D4/D2/D1 from context and 16-group acceptance
+windows, then uses bounded ordinary fallback below the profiled break-even threshold. Explicit D1/D2/D4 behavior
+is unchanged.
+
+Qualification uses three alternating warm-up pairs and ten alternating measured ordinary/D2 pairs on the exact
+16,384-token Wikipedia prompt. Ordinary median is 31.798 tok/s (mean 31.794, 95% CI `[31.783,31.806]`); D2 median
+is 42.639 tok/s (mean 42.641, 95% CI `[42.623,42.658]`), a 1.341x throughput speedup (+34.1%). Every measured run
+emits the same 1,135 IDs, mean accepted length is 1.259 in all D2 runs, fallback/allocation counters remain zero,
+and sampled peak GPU memory is 10,838 MiB. CTest, Transformers D2 drafts, D1/D2/D4 short identity, BF16, local-ring
+wrap, stop handling, adaptive identity, memcheck, and prefill allocation-boundary checks pass. Raw qualification and
+telemetry are retained under the ignored `18ff81e-worktree/blackwell16gb-mtp-performance/qualification/` path.
+
 ## 2026-07-28 restore exact Wikipedia 16K MTP and accelerate assistant attention
 
 Using D2 with no warm-up and one run per correctness candidate isolated the generated-index-68 divergence to FP8

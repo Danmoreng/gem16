@@ -286,8 +286,9 @@ python tools/verify_sm120_sass.py build/<OS>/blackwell-release/bin/gem16-cuda-te
 The optional MTP path is exact-by-verification: assistant drafts never directly determine emitted output. For each
 proposal group, one causal target batch evaluates the input token plus all drafts; the first mismatch emits its
 target token, while a fully accepted group emits the target's extra prediction. Tentative K/V rows remain separate
-until the host commits that exact prefix. Consequently active MTP must reproduce ordinary greedy token IDs exactly
-even when assistant arithmetic or cache precision changes acceptance. The current correctness scheduler supports
+until a GPU acceptance kernel selects and commits that exact prefix plus the corresponding hidden row. One compact
+result returns to the host for callbacks and scheduling. Consequently active MTP must reproduce ordinary greedy
+token IDs exactly even when assistant arithmetic or cache precision changes acceptance. The scheduler supports
 draft lengths 1, 2, and 4 and reports all proposal IDs and acceptance counters under
 `verification_mode=batched_exact_target`.
 
@@ -296,8 +297,9 @@ shared cache at a one-token context, reconstructs the normalized target hidden s
 and compares four recurrent constant-position drafts against the official Transformers implementation. The pinned
 fixture is exact for all four IDs: `[1884, 5745, 993, 236771]`. Separate FP8 and BF16 generation checks retain the
 ordinary target sequence for all draft lengths; an FP8 1,026-token prompt also covers local-ring wrap. Memcheck
-reports zero errors for active proposal and verification. This validates correctness execution, not speedup:
-the current batched verifier and host-side acceptance have not yet won effective end-to-end throughput.
+reports zero errors for active proposal and verification. The full 16K gate extends this to 1,135 exact output IDs
+in every one of ten alternating measured D2 runs. The qualified throughput result is documented separately in
+`docs/PERFORMANCE_LEDGER.md`; exact ordinary/MTP identity remains mandatory regardless of speed.
 
 ## Not yet established
 

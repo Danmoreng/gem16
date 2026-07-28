@@ -37,10 +37,14 @@ of the correctness and native-kernel gates below.
   verification retains ordinary greedy IDs in FP8/BF16 and across local-ring wrap; a bounded fixture matches four
   Transformers draft IDs exactly. The verifier retains transactional K/V rows, restores local-ring slots before
   host acceptance, and commits only the exact prefix. The Wikipedia 16K gate now also retains all 1,135 ordinary
-  IDs after narrowing FP8 CUTLASS verification to O and restoring direct grouped Q/K/V. Split-online assistant
-  attention raises the one-run D2 characterization to 35.184 tok/s versus the retained 31.775 ordinary median;
-  this is not a qualified comparison. The active gate is GPU-side acceptance/commit, MTP CUDA Graphs, and a
-  controlled effective-throughput qualification described in [the MTP plan](MTP.md).
+  IDs after narrowing FP8 CUTLASS verification to O and restoring direct grouped Q/K/V. GPU acceptance/commit,
+  device-resident drafts, exact T≤5 FP8 Q/K/V and NVFP4 Down kernels, and explicit adaptive drafting are complete.
+  The qualified Wikipedia 16K gate uses three alternating warm-up pairs and ten alternating measured pairs:
+  ordinary reaches 31.798 median tok/s and exact D2 reaches 42.639 (+34.1%) with all 1,135 IDs equal in every run.
+  An exact verifier-suffix graph added memory without speed and was removed; full position-controlled graph work is
+  deferred while profiles remain kernel-bound. The active gate is the remaining bounded path toward the 60 tok/s
+  stretch target, followed by the binding [multimodal expansion plan](MULTIMODAL.md), as detailed in
+  [the MTP plan](MTP.md).
   Every performance promotion still requires correctness, generation, logit, 3-warm-up/10-run benchmark, Nsight,
   spill, allocation, and peak-VRAM evidence and becomes the sole production path.
 
