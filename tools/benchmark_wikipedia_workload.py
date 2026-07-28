@@ -82,6 +82,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--gguf", type=Path)
     parser.add_argument("--warmups", type=positive_int, default=3)
     parser.add_argument("--repetitions", type=positive_int, default=10)
+    parser.add_argument(
+        "--fixed-output-tokens",
+        type=positive_int,
+        help="override stop handling and force this many generated tokens",
+    )
     parser.add_argument("--gpu-memory-utilization", type=float, default=0.90)
     parser.add_argument("--vllm-kv-cache-dtype", default="fp8")
     parser.add_argument(
@@ -285,8 +290,6 @@ def run_gem16(
         str(model),
         "--input-token-ids-file",
         str(prompt_file),
-        "--stop-token-ids",
-        ",".join(str(token) for token in generation["stop_token_ids"]),
         "--suppress-token-ids",
         ",".join(str(token) for token in generation["suppress_token_ids"]),
         "--kv-cache",
@@ -297,6 +300,13 @@ def run_gem16(
         str(prompt_tokens + generation["max_new_tokens"]),
         "--greedy",
     ]
+    if generation["stop_token_ids"]:
+        command.extend(
+            [
+                "--stop-token-ids",
+                ",".join(str(token) for token in generation["stop_token_ids"]),
+            ]
+        )
     if mtp_draft_tokens != 0:
         if assistant_model is None:
             raise BenchmarkError("active gem16 MTP requires --assistant-model")
@@ -372,19 +382,45 @@ def metric_value(metrics: Any, name: str) -> float:
     return value
 
 
+def prometheus_counter_total(sample_name: str) -> float:
+    import prometheus_client
+
+    total = 0.0
+    for metric in prometheus_client.REGISTRY.collect():
+        for sample in metric.samples:
+            if sample.name == sample_name:
+                total += float(sample.value)
+    return total
+
+
 def run_vllm_request(
     llm: Any,
     sampling_params_type: Any,
     prompt: list[int],
     generation: dict[str, Any],
     suppressed_token_strings: list[str],
+    mtp_draft_tokens: int,
 ) -> tuple[dict[str, Any], list[int]]:
+    before = None
+    if mtp_draft_tokens != 0:
+        before = {
+            "drafts": prometheus_counter_total(
+                "vllm:spec_decode_num_drafts_total"
+            ),
+            "proposed": prometheus_counter_total(
+                "vllm:spec_decode_num_draft_tokens_total"
+            ),
+            "accepted": prometheus_counter_total(
+                "vllm:spec_decode_num_accepted_tokens_total"
+            ),
+        }
     sampling = sampling_params_type(
         temperature=0.0,
         max_tokens=generation["max_new_tokens"],
         stop_token_ids=generation["stop_token_ids"],
         seed=generation["seed"],
         detokenize=False,
+        ignore_eos=bool(generation.get("ignore_eos", False)),
         bad_words=suppressed_token_strings,
     )
     started = time.perf_counter()
@@ -408,6 +444,45 @@ def run_vllm_request(
     )
     run["wall_ms"] = wall_ms
     run["stop_reason_detail"] = completion.stop_reason
+    if before is not None:
+        drafts = int(
+            round(
+                prometheus_counter_total("vllm:spec_decode_num_drafts_total")
+                - before["drafts"]
+            )
+        )
+        proposed = int(
+            round(
+                prometheus_counter_total(
+                    "vllm:spec_decode_num_draft_tokens_total"
+                )
+                - before["proposed"]
+            )
+        )
+        accepted = int(
+            round(
+                prometheus_counter_total(
+                    "vllm:spec_decode_num_accepted_tokens_total"
+                )
+                - before["accepted"]
+            )
+        )
+        if drafts <= 0 or proposed < accepted:
+            raise BenchmarkError("vLLM returned malformed MTP counters")
+        run["mtp"] = {
+            "proposed_tokens": proposed,
+            "accepted_tokens": accepted,
+            "rejected_tokens": proposed - accepted,
+            "verification_groups": drafts,
+            "target_forwards": proposed + drafts,
+            "target_batches": drafts,
+            "mean_accepted_length": accepted / drafts,
+            "conventional_mean_acceptance_length": 1.0 + accepted / drafts,
+            "d1_groups": drafts if mtp_draft_tokens == 1 else 0,
+            "d2_groups": drafts if mtp_draft_tokens == 2 else 0,
+            "d4_groups": drafts if mtp_draft_tokens == 4 else 0,
+            "ordinary_fallback_tokens": 0,
+        }
     return run, output_tokens
 
 
@@ -444,14 +519,17 @@ def wait_for_server(process: subprocess.Popen[Any], base_url: str) -> None:
 
 
 def run_llama_request(
-    base_url: str, prompt: list[int], generation: dict[str, Any]
+    base_url: str,
+    prompt: list[int],
+    generation: dict[str, Any],
+    mtp_draft_tokens: int,
 ) -> tuple[dict[str, Any], list[int]]:
     body = {
         "prompt": prompt,
         "n_predict": generation["max_new_tokens"],
         "temperature": 0.0,
         "seed": generation["seed"],
-        "ignore_eos": False,
+        "ignore_eos": bool(generation.get("ignore_eos", False)),
         "cache_prompt": False,
         "n_keep": -1,
         "repeat_penalty": 1.0,
@@ -495,6 +573,31 @@ def run_llama_request(
         timings["predicted_per_second"]
     )
     run["tokens_cached"] = int(response.get("tokens_cached", 0))
+    if "draft_n" in timings:
+        proposed = int(timings["draft_n"])
+        accepted = int(timings["draft_n_accepted"])
+        groups = len(output_tokens) - accepted
+        if (
+            mtp_draft_tokens == 0
+            or groups <= 0
+            or proposed < accepted
+            or proposed > groups * mtp_draft_tokens
+        ):
+            raise BenchmarkError("llama.cpp returned malformed MTP counters")
+        run["mtp"] = {
+            "proposed_tokens": proposed,
+            "accepted_tokens": accepted,
+            "rejected_tokens": proposed - accepted,
+            "verification_groups": groups,
+            "target_forwards": proposed + groups,
+            "target_batches": groups,
+            "mean_accepted_length": accepted / groups,
+            "conventional_mean_acceptance_length": 1.0 + accepted / groups,
+            "d1_groups": groups if mtp_draft_tokens == 1 else 0,
+            "d2_groups": groups if mtp_draft_tokens == 2 else 0,
+            "d4_groups": groups if mtp_draft_tokens == 4 else 0,
+            "ordinary_fallback_tokens": 0,
+        }
     return run, output_tokens
 
 
@@ -511,6 +614,11 @@ def package_versions(names: tuple[str, ...]) -> dict[str, str]:
 def benchmark(args: argparse.Namespace) -> dict[str, Any]:
     workload_path = args.workload.resolve(strict=True)
     workload, prompt, generation = load_workload(workload_path)
+    generation = dict(generation)
+    if args.fixed_output_tokens is not None:
+        generation["max_new_tokens"] = args.fixed_output_tokens
+        generation["stop_token_ids"] = []
+        generation["ignore_eos"] = True
     if args.repetitions < 2:
         raise BenchmarkError("at least two measured repetitions are required")
     all_runs: list[dict[str, Any]] = []
@@ -575,6 +683,16 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
     elif args.engine == "vllm":
         if args.model is None:
             raise BenchmarkError("vLLM requires --model")
+        if args.mtp_adaptive:
+            raise BenchmarkError("vLLM does not expose gem16 --mtp-adaptive")
+        if args.mtp_draft_tokens == 0 and args.assistant_model is not None:
+            raise BenchmarkError(
+                "vLLM --assistant-model requires nonzero --mtp-draft-tokens"
+            )
+        if args.mtp_draft_tokens != 0 and args.assistant_model is None:
+            raise BenchmarkError(
+                "vLLM --mtp-draft-tokens requires --assistant-model"
+            )
         if not 0.0 < args.gpu_memory_utilization <= 1.0:
             raise BenchmarkError("GPU memory utilization must be in (0, 1]")
         import torch
@@ -584,6 +702,11 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
         if not torch.cuda.is_available():
             raise BenchmarkError("CUDA is unavailable to vLLM")
         model = args.model.resolve(strict=True)
+        assistant_model = (
+            args.assistant_model.resolve(strict=True)
+            if args.assistant_model is not None
+            else None
+        )
         tokenizer = AutoTokenizer.from_pretrained(str(model), local_files_only=True)
         suppressed_token_strings = [
             tokenizer.decode([token], skip_special_tokens=False)
@@ -606,6 +729,12 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
             disable_log_stats=False,
             seed=generation["seed"],
             limit_mm_per_prompt={"image": 0, "audio": 0, "video": 0},
+            spec_model=(
+                str(assistant_model) if assistant_model is not None else None
+            ),
+            spec_tokens=(
+                args.mtp_draft_tokens if args.mtp_draft_tokens != 0 else None
+            ),
         )
 
         def run_once() -> tuple[dict[str, Any], list[int]]:
@@ -615,11 +744,15 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
                 prompt,
                 generation,
                 suppressed_token_strings,
+                args.mtp_draft_tokens,
             )
 
         device = torch.cuda.get_device_properties(0)
         runtime = {
             "checkpoint": str(model),
+            "assistant_checkpoint": (
+                str(assistant_model) if assistant_model is not None else None
+            ),
             "python": platform.python_version(),
             "packages": package_versions(
                 ("vllm", "torch", "transformers", "compressed-tensors")
@@ -635,12 +768,31 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
             "cuda_graphs_requested": not args.enforce_eager,
             "prefix_caching": False,
             "chunked_prefill": True,
+            "mtp_draft_tokens": args.mtp_draft_tokens,
+            "mtp_backend": (
+                "Gemma4MTPModel" if args.mtp_draft_tokens != 0 else "disabled"
+            ),
         }
     else:
         if args.executable is None or args.gguf is None:
             raise BenchmarkError("llama.cpp requires --executable and --gguf")
+        if args.mtp_adaptive:
+            raise BenchmarkError("llama.cpp does not expose gem16 --mtp-adaptive")
+        if args.mtp_draft_tokens == 0 and args.assistant_model is not None:
+            raise BenchmarkError(
+                "llama.cpp --assistant-model requires nonzero --mtp-draft-tokens"
+            )
+        if args.mtp_draft_tokens != 0 and args.assistant_model is None:
+            raise BenchmarkError(
+                "llama.cpp --mtp-draft-tokens requires --assistant-model"
+            )
         executable = args.executable.resolve(strict=True)
         gguf = args.gguf.resolve(strict=True)
+        assistant_gguf = (
+            args.assistant_model.resolve(strict=True)
+            if args.assistant_model is not None
+            else None
+        )
         base_url = f"http://127.0.0.1:{args.llama_port}"
         log_path = args.output.with_suffix(".server.log")
         log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -674,13 +826,30 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
             "--no-webui",
             "--offline",
         ]
+        if assistant_gguf is not None:
+            command.extend(
+                [
+                    "--spec-type",
+                    "draft-mtp",
+                    "--spec-draft-model",
+                    str(assistant_gguf),
+                    "--spec-draft-n-max",
+                    str(args.mtp_draft_tokens),
+                    "--spec-draft-n-min",
+                    "1",
+                    "--spec-draft-ngl",
+                    "all",
+                ]
+            )
         process = subprocess.Popen(command, stdout=log_file, stderr=subprocess.STDOUT)
         try:
             print("waiting for llama-server model load", flush=True)
             wait_for_server(process, base_url)
 
             def run_once() -> tuple[dict[str, Any], list[int]]:
-                return run_llama_request(base_url, prompt, generation)
+                return run_llama_request(
+                    base_url, prompt, generation, args.mtp_draft_tokens
+                )
 
             for index in range(args.warmups):
                 print(f"warmup {index + 1}/{args.warmups}", flush=True)
@@ -702,6 +871,9 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
         runtime = {
             "executable": str(executable),
             "gguf": str(gguf),
+            "assistant_gguf": (
+                str(assistant_gguf) if assistant_gguf is not None else None
+            ),
             "server_log": str(log_path),
         }
         configuration = {
@@ -712,6 +884,10 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
             "ubatch_size": 512,
             "parallel": 1,
             "cache_prompt": False,
+            "mtp_draft_tokens": args.mtp_draft_tokens,
+            "mtp_backend": (
+                "draft-mtp" if assistant_gguf is not None else "disabled"
+            ),
         }
 
     if args.engine != "llama-cpp":
@@ -743,6 +919,8 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
             "seed": generation["seed"],
             "stop_token_ids": generation["stop_token_ids"],
             "suppress_token_ids": generation["suppress_token_ids"],
+            "fixed_output_tokens": args.fixed_output_tokens,
+            "ignore_eos": bool(generation.get("ignore_eos", False)),
         },
         "runtime": runtime,
         "configuration": {

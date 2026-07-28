@@ -1,0 +1,9 @@
+--- a/vllm/model_executor/models/gemma4_mtp.py
++++ b/vllm/model_executor/models/gemma4_mtp.py
+@@ -585 +585,5 @@
+-            logits[:, self._suppress_token_ids] = -float("inf")
++            # A Python list triggers construction and transfer of a CPU index
++            # tensor, which CUDA Graph capture rejects. There are only two
++            # checkpoint-defined IDs, so scalar indexing avoids that transfer.
++            for token_id in self._suppress_token_ids:
++                logits[:, token_id] = -float("inf")
