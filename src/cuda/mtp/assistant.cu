@@ -55,7 +55,7 @@ __device__ float BlockSum(float value) {
 }
 
 __global__ void PreProjectionKernel(
-    const std::uint16_t* target_embedding, std::uint32_t token,
+    const std::uint16_t* target_embedding, const std::uint32_t* token,
     const float* backbone_hidden, const std::uint16_t* weight,
     float* output) {
   const std::uint64_t row = blockIdx.x;
@@ -67,7 +67,7 @@ __global__ void PreProjectionKernel(
     float input = 0.0F;
     if (column < kBackboneHidden) {
       const float raw = static_cast<float>(__ushort_as_bfloat16(
-          target_embedding[static_cast<std::uint64_t>(token) *
+          target_embedding[static_cast<std::uint64_t>(token[0]) *
                                kBackboneHidden +
                            column]));
       input = static_cast<float>(__float2bfloat16_rn(raw * embedding_scale));
@@ -161,7 +161,8 @@ __global__ void AssistantOutputCandidatesKernel(
 }
 
 __global__ void AssistantOutputArgmaxKernel(
-    const ArgmaxValue* candidates, std::uint32_t* selected) {
+    const ArgmaxValue* candidates, std::uint32_t* selected,
+    std::uint32_t* draft_tokens, std::uint32_t draft_index) {
   __shared__ ArgmaxValue scratch[kThreads];
   ArgmaxValue best{-FLT_MAX, 0U};
   for (std::uint32_t index = threadIdx.x; index < kOutputHeadBlocks;
@@ -177,7 +178,10 @@ __global__ void AssistantOutputArgmaxKernel(
     }
     __syncthreads();
   }
-  if (threadIdx.x == 0U) selected[0] = scratch[0].token;
+  if (threadIdx.x == 0U) {
+    selected[0] = scratch[0].token;
+    draft_tokens[draft_index] = scratch[0].token;
+  }
 }
 
 Status Error(StatusCode code, std::string message) {
@@ -256,6 +260,7 @@ struct AssistantModel::Impl {
     std::uint64_t feedback_hidden = 0U;
     std::uint64_t candidates = 0U;
     std::uint64_t selected = 0U;
+    std::uint64_t draft_tokens = 0U;
   };
 
   ~Impl() {
@@ -508,6 +513,7 @@ Status AssistantModel::Prepare(std::uint64_t max_context) {
       Region{kBackboneHidden, sizeof(float), &impl_->offsets.feedback_hidden},
       Region{kOutputHeadBlocks, sizeof(ArgmaxValue), &impl_->offsets.candidates},
       Region{1U, sizeof(std::uint32_t), &impl_->offsets.selected},
+      Region{4U, sizeof(std::uint32_t), &impl_->offsets.draft_tokens},
   };
   for (const Region& region : regions) {
     Status status =
@@ -591,6 +597,8 @@ Status AssistantModel::GenerateDrafts(
   float* feedback = impl_->Workspace<float>(impl_->offsets.feedback_hidden);
   auto* candidates = impl_->Workspace<ArgmaxValue>(impl_->offsets.candidates);
   auto* selected = impl_->Workspace<std::uint32_t>(impl_->offsets.selected);
+  auto* device_drafts =
+      impl_->Workspace<std::uint32_t>(impl_->offsets.draft_tokens);
 
   const auto launch_gemv = [stream](
                                 const float* input,
@@ -615,12 +623,17 @@ Status AssistantModel::GenerateDrafts(
                : CudaFailure("launch assistant BF16 rounding", launch_error);
   };
 
-  std::uint32_t input_token = context.input_token;
+  error = cudaMemcpyAsync(selected, &context.input_token,
+                          sizeof(context.input_token), cudaMemcpyHostToDevice,
+                          stream);
+  if (error != cudaSuccess) {
+    return CudaFailure("copy initial assistant draft token", error);
+  }
   const float* backbone_hidden = target_hidden;
   for (std::size_t step = 0; step < draft_token_ids.size(); ++step) {
     PreProjectionKernel<<<static_cast<unsigned>(kAssistantHidden), kThreads, 0,
                           stream>>>(
-        context.target_embedding, input_token, backbone_hidden,
+        context.target_embedding, selected, backbone_hidden,
         impl_->bindings.pre_projection, hidden_a);
     error = cudaGetLastError();
     if (error != cudaSuccess) {
@@ -711,26 +724,24 @@ Status AssistantModel::GenerateDrafts(
     if (error != cudaSuccess) {
       return CudaFailure("launch assistant output candidates", error);
     }
-    AssistantOutputArgmaxKernel<<<1U, kThreads, 0, stream>>>(candidates,
-                                                             selected);
+    AssistantOutputArgmaxKernel<<<1U, kThreads, 0, stream>>>(
+        candidates, selected, device_drafts, static_cast<std::uint32_t>(step));
     error = cudaGetLastError();
     if (error != cudaSuccess) {
       return CudaFailure("launch assistant output argmax", error);
     }
-    error = cudaMemcpyAsync(&draft_token_ids[step], selected,
-                            sizeof(std::uint32_t), cudaMemcpyDeviceToHost,
-                            stream);
-    if (error != cudaSuccess) {
-      return CudaFailure("copy assistant draft token", error);
-    }
-    error = cudaStreamSynchronize(stream);
-    if (error != cudaSuccess) {
-      return CudaFailure("synchronize assistant draft token", error);
-    }
-    input_token = draft_token_ids[step];
     backbone_hidden = feedback;
   }
-  return Status::Ok();
+  error = cudaMemcpyAsync(draft_token_ids.data(), device_drafts,
+                          draft_token_ids.size_bytes(),
+                          cudaMemcpyDeviceToHost, stream);
+  if (error != cudaSuccess) {
+    return CudaFailure("copy assistant draft tokens", error);
+  }
+  error = cudaStreamSynchronize(stream);
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("synchronize assistant drafts", error);
 }
 
 bool AssistantModel::loaded() const { return impl_->arena != nullptr; }

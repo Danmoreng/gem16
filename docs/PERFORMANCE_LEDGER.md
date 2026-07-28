@@ -9,12 +9,20 @@ correctness checkpoint, not a promoted performance path. FP8/BF16 short sequence
 wrap retain ordinary greedy IDs, the independent four-draft Transformers fixture passes, CTest passes, and active
 BF16 memcheck reports zero errors.
 
-One 256-token natural-chat characterization at context 512 has mean accepted length 1.89 but reaches 35.44 tok/s
-versus 36.20 tok/s ordinary. The retained Nsight trace attributes 29.9% of GPU time to native NVFP4 target
-projections, 24.2% to FP8 target projections, 13.7% to target attention-score work, and 6.7% to the five-row
-batched output head. Host acceptance and the verifier's non-graph launch sequence remain material costs. Keep the
-transactional path for further profiling; do not present it as an MTP win. The raw artifact is ignored under the
-local MTP correctness/profile result directory.
+The initial natural-chat characterization had mean accepted length 1.89 but reached only 35.44 tok/s versus 36.20
+ordinary. Profile attribution selected target MLP and FP8 projections. The promoted exact verifier keeps each
+recursive assistant token on device until the group finishes, uses the byte-qualified fused native Gate/Up/GELU
+batch operator, and uses the existing FP8 CUTLASS batch projections. Under 3 warm-ups and 10 alternating
+context-512 runs on the same 53-token/256-output natural prompt, median MTP is 42.897 tok/s (mean 42.842,
+standard deviation 0.213) versus ordinary 35.270 tok/s (mean 35.207, standard deviation 0.147): +21.6% effective
+throughput. All MTP outputs equal ordinary greedy output; mean accepted length is 1.886 with 89 target batches.
+
+The native-NVFP4 fused Gate/Up profile reduces the former separate Gate/Up family, but direct batch attention,
+FP8 CUTLASS projections, batched output head, and assistant BF16 GEMVs remain significant. A causal-prefill
+attention candidate reaches 55.06 tok/s but diverges at output step 15; NVFP4 CUTLASS verifier projections also
+diverge on the natural sequence. Both candidates were removed. The remaining path is a workload-specific MTP win,
+not a 60 tok/s result. The raw artifact is ignored under
+`benchmarks/results/2026-07-27/4e5ac50-worktree/blackwell16gb-mtp-fused-verifier/`.
 
 Kernel characterizations below are development evidence, not accepted end-to-end benchmark claims. They use one
 deterministic activation and the pinned Layer-0 checkpoint tensors on the current Windows Blackwell machine.

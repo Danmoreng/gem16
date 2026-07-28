@@ -163,7 +163,14 @@ deliberately rejected or deferred rather than silently using incorrect semantics
    evidence because it reports pre-existing uninitialized padded target-prefill reads in CUTLASS
    `ApplyScalesKernel` before proposal execution; full-process racecheck exits before application output with no
    displayed hazards. Targeted assistant sanitizer coverage remains required before performance promotion.
-8. Profile and optimize the batched verifier, then add GPU-side acceptance/commit, fixed-shape MTP CUDA Graphs,
-   and adaptive draft selection. Current host acceptance is exact but has not passed the effective-throughput gate.
-9. Promote MTP only for workloads where end-to-end effective throughput wins; otherwise adaptively use ordinary
+8. **Complete first verifier optimization:** recursive assistant token selection remains device-resident through a
+   draft group; exact fused native Gate/Up/GELU reuse replaces separate MTP Gate and Up launches; and the existing
+   FP8 CUTLASS batch projections are exact on the bounded gate. On the natural 53-token/256-output context-512
+   workload, 3 warm-ups plus 10 alternating runs measure 42.90 tok/s MTP versus 35.27 ordinary (+21.6%), with mean
+   accepted length 1.89. This is a workload-specific effective-throughput win, not a general 60 tok/s claim.
+9. Profile and optimize GPU-side acceptance/commit, fixed-shape MTP CUDA Graphs, and adaptive draft selection.
+   The exact direct decode-attention verifier remains mandatory: a faster causal-prefill attention candidate
+   reached 55.06 tok/s but changed output at step 15 and was removed. NVFP4 CUTLASS verifier projections also
+   changed the natural sequence and were removed.
+10. Promote MTP only for workloads where end-to-end effective throughput wins; otherwise adaptively use ordinary
    decode.

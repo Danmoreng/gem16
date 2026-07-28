@@ -1995,20 +1995,10 @@ class InferenceEngine {
         hidden_a, layer.input_norm, fp8, fp8_scales, tokens, kHidden,
         kEpsilon, stream_);
     if (!status.ok()) return status;
-    status = mtp_verification
-                 ? internal::LaunchFp8Sm120GroupedQkvProjectionBatch(
-                       fp8, fp8_scales, layer.q.weight, layer.q.scales, q,
-                       layer.q.rows, layer.k.weight, layer.k.scales, k,
-                       layer.k.rows,
-                       layer.global ? nullptr : layer.v.weight,
-                       layer.global ? nullptr : layer.v.scales,
-                       layer.global ? nullptr : v,
-                       layer.global ? 0U : layer.v.rows, tokens,
-                       layer.q.contracting, stream_)
-                 : LaunchFp8QkvProjectionBatch(
-                       fp8, fp8_scales, layer.q, q, layer.k, k,
-                       layer.global ? nullptr : &layer.v, v, tokens,
-                       cutlass_workspace, kCutlassWorkspaceBytes, stream_);
+    status = LaunchFp8QkvProjectionBatch(
+        fp8, fp8_scales, layer.q, q, layer.k, k,
+        layer.global ? nullptr : &layer.v, v, tokens, cutlass_workspace,
+        kCutlassWorkspaceBytes, stream_);
     if (!status.ok()) return status;
     if (layer.global) {
       const cudaError_t error = cudaMemcpyAsync(
@@ -2273,14 +2263,9 @@ class InferenceEngine {
     status = internal::LaunchFp8ReferenceTokenQuantizationBatch(
         attention, o_activation, o_scales, tokens, layer.query_elements, stream_);
     if (!status.ok()) return status;
-    status = mtp_verification
-                 ? internal::LaunchFp8Sm120DirectProjectionBatch(
-                       o_activation, o_scales, layer.o.weight, layer.o.scales,
-                       projection, tokens, layer.o.rows, layer.o.contracting,
-                       stream_)
-                 : LaunchFp8ProjectionBatch(
-                       o_activation, o_scales, layer.o, projection, tokens,
-                       cutlass_workspace, kCutlassWorkspaceBytes, stream_);
+    status = LaunchFp8ProjectionBatch(
+        o_activation, o_scales, layer.o, projection, tokens,
+        cutlass_workspace, kCutlassWorkspaceBytes, stream_);
     if (!status.ok()) return status;
     status = LaunchRoundBf16(projection, hidden_elements, stream_);
     if (!status.ok()) return status;
@@ -2303,17 +2288,19 @@ class InferenceEngine {
         prefill_workspace_, prefill_offsets_.cutlass_weight);
     auto* cutlass_weight_scales = Pointer<std::uint8_t>(
         prefill_workspace_, prefill_offsets_.cutlass_weight_scales);
+    float* mtp_product = nullptr;
     if (mtp_verification) {
-      status = internal::LaunchNvfp4Sm120DirectProjectionBf16Batch(
+      // The fused native operator preserves the two BF16 projection
+      // boundaries and the BF16 GELU/product boundary. Reuse inactive
+      // CUTLASS weight scratch only for this transient batch product.
+      mtp_product = reinterpret_cast<float*>(cutlass_weight);
+      status = internal::LaunchNvfp4Sm120FusedGateUpBatch(
           mlp_packed, mlp_scales, layer.gate.packed_weight,
-          layer.gate.scales, gate, tokens, layer.gate.rows,
+          layer.gate.scales, layer.up.packed_weight, layer.up.scales, nullptr,
+          nullptr, mtp_product, tokens, layer.gate.rows,
           layer.gate.contracting, layer.gate.input_divisor,
-          layer.gate.weight_divisor, stream_);
-      if (!status.ok()) return status;
-      status = internal::LaunchNvfp4Sm120DirectProjectionBf16Batch(
-          mlp_packed, mlp_scales, layer.up.packed_weight, layer.up.scales, up,
-          tokens, layer.up.rows, layer.up.contracting,
-          layer.up.input_divisor, layer.up.weight_divisor, stream_);
+          layer.gate.weight_divisor, layer.up.input_divisor,
+          layer.up.weight_divisor, stream_);
     } else {
       status = internal::LaunchNvfp4CutlassInterleaveActivationScales(
           mlp_scales, cutlass_activation_scales, tokens, kHidden, stream_);
@@ -2335,9 +2322,15 @@ class InferenceEngine {
     if (!status.ok()) return status;
     auto* down_packed = Pointer<std::uint8_t>(prefill_workspace_, prefill_offsets_.down_packed);
     auto* down_scales = Pointer<std::uint8_t>(prefill_workspace_, prefill_offsets_.down_scales);
-    status = internal::LaunchGatedGeluNvfp4ActivationQuantizationBf16(
-        gate, up, down_packed, down_scales, tokens * kIntermediate,
-        layer.down.input_divisor, stream_);
+    status = mtp_verification
+                 ? internal::LaunchNvfp4ReferenceActivationQuantization(
+                       mtp_product, down_packed, down_scales,
+                       tokens * kIntermediate, layer.down.input_divisor,
+                       stream_)
+                 : internal::LaunchGatedGeluNvfp4ActivationQuantizationBf16(
+                       gate, up, down_packed, down_scales,
+                       tokens * kIntermediate, layer.down.input_divisor,
+                       stream_);
     if (!status.ok()) return status;
     auto* down_bf16 = reinterpret_cast<std::uint16_t*>(projection);
     if (mtp_verification) {

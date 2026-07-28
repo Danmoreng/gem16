@@ -1,5 +1,25 @@
 # Decisions
 
+## 2026-07-27: Reuse exact fused NVFP4 Gate/Up and FP8 CUTLASS batch projections for MTP
+
+Date: 2026-07-27
+Decision: In fixed-shape MTP target verification, keep recursive assistant selected tokens on device within each
+draft group, use the existing FP8 CUTLASS batch projection plan, and use the exact native fused Gate/Up/GELU batch
+operator followed by exact NVFP4 quantization. Keep the decode-specialized attention verifier and direct NVFP4
+Down projection.
+Context: The first exact batched verifier trailed ordinary decode. Nsight attributed its largest removable target
+costs to separate NVFP4 Gate/Up and FP8 projection work. The existing fused Gate/Up test proves its BF16 boundaries
+and product, while direct FP8/NVFP4 alternatives provide a correctness control.
+Alternatives: Use CUTLASS for all NVFP4 projections; replace attention with causal prefill attention; or retain
+separate Gate/Up. Full NVFP4 CUTLASS changes the natural greedy sequence. Causal-prefill attention reaches 55.06
+tok/s but first diverges at output step 15. Separate Gate/Up leaves a measured win unused.
+Consequences: A context-512 natural workload improves from 35.270 ordinary to 42.897 MTP tok/s (+21.6%) at mean
+accepted length 1.886, while retaining exact target output in short, natural, FP8/BF16, and ring-wrap checks.
+This is a conditional workload win only; graph capture, GPU acceptance, and more acceptance-sensitive workload
+measurement remain open before a 60 tok/s claim.
+Evidence: 3 warm-ups plus 10 alternating runs, Nsight kernel attribution, `tools/validate_mtp.py`, CTest, FP8/BF16
+ring-wrap equivalence, and active MTP memcheck. Raw results are retained locally under the ignored result path.
+
 ## 2026-07-27: Use fixed-shape batched target verification before graph optimization
 
 Date: 2026-07-27
