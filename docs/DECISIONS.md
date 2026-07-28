@@ -1,5 +1,23 @@
 # Decisions
 
+## 2026-07-28: Preserve direct target Q/K/V and use split-online assistant attention at long context
+
+Date: 2026-07-28
+Decision: MTP target verification must use decode-order direct grouped FP8 Q/K/V; CUTLASS remains enabled only for
+its byte-qualified O batch. For FP8 assistant cache capacities above 512, use the qualified split-online decode
+attention kernel with the constant proposal-group position. Keep the reference score path for short FP8 and BF16.
+Context: Wikipedia 16K MTP was deterministic but diverged from ordinary at output index 68. One-run D2 isolation
+showed that direct Q/K/V restores all 1,135 ordinary IDs, while CUTLASS O remains exact. At long context, assistant
+materialized-score attention then dominated proposal cost.
+Alternatives: Accept a deterministic batched-target sequence; disable all CUTLASS FP8 verification; retain scalar
+assistant attention; or share global Target K/V loads across verification rows. The first violates exactness, the
+second discards an exact O win, the third leaves measured cost, and the fourth was exact but slower.
+Consequences: Full Wikipedia D2 output is exact and one no-warm-up characterization reaches 35.184 tok/s, +10.7%
+against the retained ordinary median but not statistically qualified. Assistant workspace grows by 24,576 bytes at
+context 128. Runtime metadata identifies the assistant attention route.
+Evidence: Full 1,135-token comparison, D2 Transformers fixture, FP8 ring-wrap memcheck, CTest, one-run candidate
+ledger, and rejected 34.767 tok/s global multi-row target-attention result.
+
 ## 2026-07-27: Reuse exact fused NVFP4 Gate/Up and FP8 CUTLASS batch projections for MTP
 
 Date: 2026-07-27

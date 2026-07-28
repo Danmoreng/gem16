@@ -82,6 +82,17 @@ proposals make longer drafting increasingly expensive.
 Raw outputs and the explicit limitation record remain under
 `benchmarks/results/2026-07-28/2dba16d/blackwell16gb-wikipedia16k-mtp/`.
 
+### Correctness follow-up
+
+A bounded D2 investigation used no warm-up and one run per candidate. It identified FP8 CUTLASS target Q/K/V as
+the numerical divergence: restoring decode-order direct grouped Q/K/V while retaining exact CUTLASS O makes all
+1,135 generated tokens equal ordinary. Moving long-context FP8 assistant attention from materialized scores to the
+qualified split-online decode kernel retains the exact target output and raises the final D2 characterization to
+35.184 tok/s at mean accepted length 1.259. Against the retained 31.775 ordinary median this is a +10.7% indication,
+not a qualified comparison because repetition policies differ. The first exact direct candidate measured 30.031
+tok/s; retaining CUTLASS O measured 30.692; split-online assistant attention supplied the material gain. An exact
+batched-global target-attention experiment reached only 34.767 tok/s and was removed.
+
 ## Reproduction
 
 First create the pinned exact-token workload with the local checkpoint tokenizer:

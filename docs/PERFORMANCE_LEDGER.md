@@ -1,5 +1,20 @@
 # Performance ledger
 
+## 2026-07-28 restore exact Wikipedia 16K MTP and accelerate assistant attention
+
+Using D2 with no warm-up and one run per correctness candidate isolated the generated-index-68 divergence to FP8
+CUTLASS target Q/K/V. Restoring the decode-order direct grouped Q/K/V batch while retaining exact CUTLASS O makes
+the complete 1,135-token MTP output equal ordinary. The direct correction measures 30.031 tok/s; retaining CUTLASS
+O measures 30.692 tok/s. Reusing the qualified split-online FP8 decode-attention kernel for the assistant's
+long-context shared K/V raises D2 to 35.184 tok/s without changing acceptance (632 accepted of 1,004 proposed;
+mean accepted length 1.259) or target output. Compared only as characterization, this is +10.7% over the retained
+31.775 ordinary median; it is not a qualification because the ordinary result used three repetitions.
+
+A new target-global multi-row kernel shared K/V loads across D2's three verification rows and preserved all 1,135
+IDs, but reached only 34.767 tok/s. Its larger shared/register footprint lost to the independent-row route, so the
+candidate was removed. CTest, the two-draft Transformers fixture, FP8 local-ring wrap, and active FP8 memcheck above
+1,024 positions pass. Runtime JSON exposes `fp8_online_split_long_reference_short` for assistant attention.
+
 ## 2026-07-28 Wikipedia 16K MTP characterization
 
 The exact 16,384-token Wikipedia summarization workload was run at commit `2dba16d` with one warm-up and three

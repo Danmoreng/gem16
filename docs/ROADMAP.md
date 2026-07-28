@@ -36,9 +36,11 @@ of the correctness and native-kernel gates below.
   Layers 46/47 with recurrent constant-position drafting at lengths 1, 2, and 4. Fixed-shape batched target
   verification retains ordinary greedy IDs in FP8/BF16 and across local-ring wrap; a bounded fixture matches four
   Transformers draft IDs exactly. The verifier retains transactional K/V rows, restores local-ring slots before
-  host acceptance, and commits only the exact prefix. The active gate is profile-driven verifier optimization,
-  GPU-side acceptance/commit, MTP CUDA Graphs, and a controlled effective-throughput qualification described in
-  [the MTP plan](MTP.md).
+  host acceptance, and commits only the exact prefix. The Wikipedia 16K gate now also retains all 1,135 ordinary
+  IDs after narrowing FP8 CUTLASS verification to O and restoring direct grouped Q/K/V. Split-online assistant
+  attention raises the one-run D2 characterization to 35.184 tok/s versus the retained 31.775 ordinary median;
+  this is not a qualified comparison. The active gate is GPU-side acceptance/commit, MTP CUDA Graphs, and a
+  controlled effective-throughput qualification described in [the MTP plan](MTP.md).
   Every performance promotion still requires correctness, generation, logit, 3-warm-up/10-run benchmark, Nsight,
   spill, allocation, and peak-VRAM evidence and becomes the sole production path.
 

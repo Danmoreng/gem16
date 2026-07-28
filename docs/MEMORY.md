@@ -43,9 +43,9 @@ sequential 50 ms `nvidia-smi` polling observed 9,660 MiB total GPU use for targe
 plus assistant, an 808 MiB increment. The assistant proposal workspace is 289,024 bytes at context 128, including
 a 16-head FP32 score view, recurrent 3,840-wide feedback, layer intermediates, and output candidates. Active
 batched verification additionally reserves fixed tentative/backup target K/V rows and five-row output selection:
-assistant-plus-verifier workspace measures 2,173,440 bytes with FP8 KV and 7,334,400 bytes with BF16 KV at context
-128. A fresh peak probe remains required. The score region grows by `16 * context * 4` bytes; no assistant KV cache
-or second weight layout is allocated.
+assistant-plus-verifier workspace measures 2,198,016 bytes with FP8 KV and 7,334,400 bytes with BF16 KV at context
+128. FP8 mode reserves the larger of the reference-score and split-online attention requirements. A fresh peak
+probe remains required; no assistant KV cache or second weight layout is allocated.
 
 The runtime now applies the planned hybrid layout: 40 local layers allocate
 at most 1,024 physical slots and reuse them as chronological rings, while eight global layers allocate the requested

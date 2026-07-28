@@ -1995,10 +1995,20 @@ class InferenceEngine {
         hidden_a, layer.input_norm, fp8, fp8_scales, tokens, kHidden,
         kEpsilon, stream_);
     if (!status.ok()) return status;
-    status = LaunchFp8QkvProjectionBatch(
-        fp8, fp8_scales, layer.q, q, layer.k, k,
-        layer.global ? nullptr : &layer.v, v, tokens, cutlass_workspace,
-        kCutlassWorkspaceBytes, stream_);
+    status = mtp_verification
+                 ? internal::LaunchFp8Sm120GroupedQkvProjectionBatch(
+                       fp8, fp8_scales, layer.q.weight, layer.q.scales, q,
+                       layer.q.rows, layer.k.weight, layer.k.scales, k,
+                       layer.k.rows,
+                       layer.global ? nullptr : layer.v.weight,
+                       layer.global ? nullptr : layer.v.scales,
+                       layer.global ? nullptr : v,
+                       layer.global ? 0U : layer.v.rows, tokens,
+                       layer.q.contracting, stream_)
+                 : LaunchFp8QkvProjectionBatch(
+                       fp8, fp8_scales, layer.q, q, layer.k, k,
+                       layer.global ? nullptr : &layer.v, v, tokens,
+                       cutlass_workspace, kCutlassWorkspaceBytes, stream_);
     if (!status.ok()) return status;
     if (layer.global) {
       const cudaError_t error = cudaMemcpyAsync(
@@ -3816,7 +3826,13 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
          << ",\"source_bytes\":" << result.assistant_source_bytes
          << ",\"arena_bytes\":" << result.assistant_weight_arena_bytes
          << ",\"workspace_bytes\":" << result.assistant_workspace_bytes
-         << ",\"device_memory_delta_bytes\":"
+         << ",\"attention_path\":\""
+         << (!result.mtp_enabled
+                 ? "disabled"
+                 : result.kv_cache_mode == KvCacheMode::kCheckpointFp8
+                       ? "fp8_online_split_long_reference_short"
+                       : "bf16_score_softmax_value_reference")
+         << "\",\"device_memory_delta_bytes\":"
          << result.assistant_device_memory_delta_bytes << "},\n"
          << "  \"mtp\": {\"enabled\":"
          << (result.mtp_enabled ? "true" : "false")

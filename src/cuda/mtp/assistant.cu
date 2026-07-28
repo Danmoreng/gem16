@@ -16,6 +16,7 @@
 #include <utility>
 #include <vector>
 
+#include "cuda/attention/sm120.h"
 #include "cuda/layer/reference.h"
 #include "cuda/nvfp4/mlp.h"
 #include "gem16/model.h"
@@ -100,6 +101,11 @@ __global__ void Bf16GemvKernel(
   if (threadIdx.x == 0U) {
     output[row] = static_cast<float>(__float2bfloat16_rn(reduced));
   }
+}
+
+__global__ void SetAssistantAttentionPositionKernel(
+    DecodeControl* control, std::uint64_t position) {
+  if (blockIdx.x == 0U && threadIdx.x == 0U) control->position = position;
 }
 
 __global__ void RoundBf16Kernel(float* values, std::uint64_t elements) {
@@ -256,6 +262,7 @@ struct AssistantModel::Impl {
     std::uint64_t gate = 0U;
     std::uint64_t up = 0U;
     std::uint64_t product = 0U;
+    std::uint64_t attention_control = 0U;
     std::uint64_t scores = 0U;
     std::uint64_t feedback_hidden = 0U;
     std::uint64_t candidates = 0U;
@@ -495,6 +502,8 @@ Status AssistantModel::Prepare(std::uint64_t max_context) {
     std::uint64_t element_bytes;
     std::uint64_t* destination;
   };
+  const std::uint64_t attention_workspace_elements = std::max(
+      kQueryHeads * max_context, DecodeAttentionWorkspaceElements(max_context));
   const std::array regions = {
       Region{kBackboneHidden, sizeof(float), &impl_->offsets.target_hidden},
       Region{kAssistantHidden, sizeof(float), &impl_->offsets.hidden_a},
@@ -509,7 +518,9 @@ Status AssistantModel::Prepare(std::uint64_t max_context) {
       Region{kIntermediate, sizeof(float), &impl_->offsets.gate},
       Region{kIntermediate, sizeof(float), &impl_->offsets.up},
       Region{kIntermediate, sizeof(float), &impl_->offsets.product},
-      Region{kQueryHeads * max_context, sizeof(float), &impl_->offsets.scores},
+      Region{1U, sizeof(DecodeControl), &impl_->offsets.attention_control},
+      Region{attention_workspace_elements, sizeof(float),
+             &impl_->offsets.scores},
       Region{kBackboneHidden, sizeof(float), &impl_->offsets.feedback_hidden},
       Region{kOutputHeadBlocks, sizeof(ArgmaxValue), &impl_->offsets.candidates},
       Region{1U, sizeof(std::uint32_t), &impl_->offsets.selected},
@@ -593,6 +604,8 @@ Status AssistantModel::GenerateDrafts(
   float* gate = impl_->Workspace<float>(impl_->offsets.gate);
   float* up = impl_->Workspace<float>(impl_->offsets.up);
   float* product = impl_->Workspace<float>(impl_->offsets.product);
+  auto* attention_control =
+      impl_->Workspace<DecodeControl>(impl_->offsets.attention_control);
   float* scores = impl_->Workspace<float>(impl_->offsets.scores);
   float* feedback = impl_->Workspace<float>(impl_->offsets.feedback_hidden);
   auto* candidates = impl_->Workspace<ArgmaxValue>(impl_->offsets.candidates);
@@ -628,6 +641,12 @@ Status AssistantModel::GenerateDrafts(
                           stream);
   if (error != cudaSuccess) {
     return CudaFailure("copy initial assistant draft token", error);
+  }
+  SetAssistantAttentionPositionKernel<<<1U, 1U, 0, stream>>>(
+      attention_control, context.position);
+  error = cudaGetLastError();
+  if (error != cudaSuccess) {
+    return CudaFailure("set assistant attention position", error);
   }
   const float* backbone_hidden = target_hidden;
   for (std::size_t step = 0; step < draft_token_ids.size(); ++step) {
@@ -665,7 +684,14 @@ Status AssistantModel::GenerateDrafts(
       if (!status.ok()) return status;
       status = round_bf16(normalized_query, layer.query_elements);
       if (!status.ok()) return status;
-      if (kv.mode == AssistantKvCacheMode::kCheckpointFp8) {
+      if (kv.mode == AssistantKvCacheMode::kCheckpointFp8 &&
+          kv.tokens > 512U) {
+        status = LaunchOnlineAttentionDecodeFp8Sm120(
+            normalized_query, kv.key_fp8, kv.value_fp8, kv.key_scale_bf16,
+            kv.value_scale_bf16, scores, attention, attention_control,
+            kQueryHeads, kv.kv_heads, kv.head_dimension, kv.capacity,
+            !layer.global, stream);
+      } else if (kv.mode == AssistantKvCacheMode::kCheckpointFp8) {
         status = LaunchLocalAttentionDecodeFp8(
             normalized_query, kv.key_fp8, kv.value_fp8,
             kv.key_scale_bf16, kv.value_scale_bf16, scores, attention,

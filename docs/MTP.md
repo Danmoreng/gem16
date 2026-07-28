@@ -85,9 +85,9 @@ The first allocator proof now loads all 48 tensors into one independent 256-byte
 `nvidia-smi` probe at context 128 measures 9,660 MiB total GPU usage for the target-only process and 10,468 MiB
 for target plus assistant, also an 808 MiB difference. The original assistant proposal workspace is 289,024 bytes
 at context 128. Active batched MTP adds fixed tentative per-layer K/V and five-row output-selection storage: total
-assistant-plus-verifier workspace measures 2,173,440 bytes with FP8 KV and 7,334,400 bytes with BF16 KV at context
-128. The assistant score workspace grows by 64 bytes per context position; graph pools remain to be measured at
-each context tier.
+assistant-plus-verifier workspace measures 2,198,016 bytes with FP8 KV and 7,334,400 bytes with BF16 KV at context
+128. The FP8 assistant workspace reserves the larger of its reference-score and split-online requirements; graph
+pools remain to be measured at each context tier.
 
 ## External runtime probe
 
@@ -164,18 +164,21 @@ deliberately rejected or deferred rather than silently using incorrect semantics
    `ApplyScalesKernel` before proposal execution; full-process racecheck exits before application output with no
    displayed hazards. Targeted assistant sanitizer coverage remains required before performance promotion.
 8. **Complete first verifier optimization:** recursive assistant token selection remains device-resident through a
-   draft group; exact fused native Gate/Up/GELU reuse replaces separate MTP Gate and Up launches; and the existing
-   FP8 CUTLASS batch projections are exact on the bounded gate. On the natural 53-token/256-output context-512
-   workload, 3 warm-ups plus 10 alternating runs measure 42.90 tok/s MTP versus 35.27 ordinary (+21.6%), with mean
-   accepted length 1.89. This is a workload-specific effective-throughput win, not a general 60 tok/s claim.
+   draft group, and exact fused native Gate/Up/GELU reuse replaces separate MTP Gate and Up launches. The initial
+   FP8 CUTLASS batch promotion passed the bounded context-512 gate but was later narrowed to O only after Q/K/V
+   failed the full 16K exactness gate. On the natural 53-token/256-output context-512 workload, 3 warm-ups plus 10
+   alternating runs measure 42.90 tok/s MTP versus 35.27 ordinary (+21.6%), with mean accepted length 1.89. This is a workload-specific effective-throughput win, not a general 60 tok/s claim.
 9. Profile and optimize GPU-side acceptance/commit, fixed-shape MTP CUDA Graphs, and adaptive draft selection.
    The exact direct decode-attention verifier remains mandatory: a faster causal-prefill attention candidate
    reached 55.06 tok/s but changed output at step 15 and was removed. NVFP4 CUTLASS verifier projections also
    changed the natural sequence and were removed.
-10. **16K blocker characterized:** the exact Wikipedia 16K workload with one warm-up and three runs measures
-   31.775 tok/s ordinary versus 29.634/31.702/28.866 for D1/D2/D4. Mean accepted lengths are
-   0.740/1.240/1.755. All MTP modes diverge from ordinary at generated index 68 and share a 979-token output versus
-   ordinary's 1,135 tokens, so this is neither an exactness pass nor a speedup result. Resolve the long-context
-   batched-target numerical difference and reduce assistant/global-attention proposal cost before repeating.
-11. Promote MTP only for workloads where end-to-end effective throughput wins; otherwise adaptively use ordinary
-   decode.
+10. **16K correctness restored with D2:** the divergence was isolated to using FP8 CUTLASS for target Q/K/V during
+   verification. The decode-order direct grouped Q/K/V batch is mandatory; CUTLASS remains valid for O. The full
+   1,135-token Wikipedia output is now exactly equal to ordinary. Long-context FP8 assistant attention reuses the
+   qualified split-online decode kernel instead of materializing scores. Under the requested correctness-only
+   policy of no warm-up and one run, D2 reaches 35.184 tok/s at mean accepted length 1.259, versus the retained
+   ordinary three-run median of 31.775 tok/s (+10.7% characterization only). Active FP8 memcheck passes above the
+   1,024-token boundary. A target-global multi-row attention kernel was exact but slower (34.767 tok/s) and removed.
+11. Repeat the controlled 16K performance matrix only after the next material optimization; preserve D2 as the
+   bounded correctness probe. Promote MTP only where qualified effective throughput wins; otherwise adaptively use
+   ordinary decode.

@@ -96,9 +96,11 @@ ring, while the final Q-only full layer reads the target Layer-47 contiguous cac
 group retain the target's last processed position and cache view; each projected 3,840-dimensional assistant state
 is paired with the next scaled target embedding. `--mtp-draft-tokens 1|2|4` activates BF16 assistant execution and
 batched exact target verification. Each batch retains tentative K/V rows in a dedicated fixed arena, restores
-local-ring writes after attention, and host-commits only the accepted prefix plus mismatch. This correctness
-scheduler emits only target-verified tokens and therefore retains ordinary greedy output. GPU-side acceptance and
-MTP graph capture remain separate performance work.
+local-ring writes after attention, and host-commits only the accepted prefix plus mismatch. Target verification
+uses the decode-order direct grouped FP8 Q/K/V projection because the CUTLASS Q/K/V batch changes long-context
+greedy output; O retains its exact CUTLASS batch. At FP8 capacities above 512, assistant attention reuses the
+split-online decode kernel. This correctness scheduler emits only target-verified tokens and therefore retains
+ordinary greedy output. GPU-side acceptance and MTP graph capture remain separate performance work.
 
 ## Planned multimodal boundary
 
