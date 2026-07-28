@@ -59,6 +59,39 @@ class BenchmarkWikipediaWorkloadTest(unittest.TestCase):
         self.assertEqual(run["mtp"]["rejected_tokens"], 3)
         self.assertAlmostEqual(run["mtp"]["mean_accepted_length"], 9 / 7)
 
+    def test_llama_ngram_counters_are_normalized(self) -> None:
+        response = {
+            "tokens": list(range(12)),
+            "tokens_evaluated": 2,
+            "truncated": False,
+            "stop_type": "limit",
+            "tokens_cached": 0,
+            "timings": {
+                "prompt_ms": 2.0,
+                "predicted_ms": 4.0,
+                "predicted_n": 12,
+                "predicted_per_second": 3000.0,
+                "draft_n": 20,
+                "draft_n_accepted": 8,
+            },
+        }
+        generation = {
+            "max_new_tokens": 12,
+            "seed": 0,
+            "ignore_eos": True,
+            "suppress_token_ids": [],
+        }
+        with mock.patch.object(MODULE, "http_json", return_value=response), mock.patch.object(
+            MODULE.time, "perf_counter", side_effect=(1.0, 1.01)
+        ):
+            run, _ = MODULE.run_llama_request(
+                "http://127.0.0.1:1", [1, 2], generation, 8, ("ngram-mod",)
+            )
+        self.assertNotIn("mtp", run)
+        self.assertEqual(run["speculative"]["verification_groups"], 4)
+        self.assertEqual(run["speculative"]["accepted_tokens"], 8)
+        self.assertAlmostEqual(run["speculative"]["mean_accepted_length"], 2.0)
+
     def test_llama_mtp_counters_require_active_mode(self) -> None:
         response = {
             "tokens": [1, 2],

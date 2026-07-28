@@ -102,6 +102,16 @@ def parse_args() -> argparse.Namespace:
         default="q8_0",
     )
     parser.add_argument("--llama-port", type=positive_int, default=8097)
+    parser.add_argument(
+        "--llama-spec-types",
+        help=(
+            "comma-separated llama.cpp speculative implementations; defaults "
+            "to draft-mtp when an assistant is supplied"
+        ),
+    )
+    parser.add_argument("--llama-ngram-mod-n-match", type=positive_int, default=24)
+    parser.add_argument("--llama-ngram-mod-n-min", type=positive_int, default=48)
+    parser.add_argument("--llama-ngram-mod-n-max", type=positive_int, default=64)
     parser.add_argument("--enforce-eager", action="store_true")
     return parser.parse_args()
 
@@ -252,36 +262,41 @@ def summarize_runs(runs: list[dict[str, Any]]) -> dict[str, Any]:
             {str(run["stop_reason"]) for run in runs}
         ),
     }
-    if all("mtp" in run for run in runs):
-        summary["mtp"] = {
+    def summarize_speculation(field: str) -> dict[str, Any]:
+        return {
             "proposed_tokens": summarize(
-                [float(run["mtp"]["proposed_tokens"]) for run in runs]
+                [float(run[field]["proposed_tokens"]) for run in runs]
             ),
             "accepted_tokens": summarize(
-                [float(run["mtp"]["accepted_tokens"]) for run in runs]
+                [float(run[field]["accepted_tokens"]) for run in runs]
             ),
             "rejected_tokens": summarize(
-                [float(run["mtp"]["rejected_tokens"]) for run in runs]
+                [float(run[field]["rejected_tokens"]) for run in runs]
             ),
             "mean_accepted_length": summarize(
-                [float(run["mtp"]["mean_accepted_length"]) for run in runs]
+                [float(run[field]["mean_accepted_length"]) for run in runs]
             ),
             "target_batches": summarize(
-                [float(run["mtp"]["target_batches"]) for run in runs]
+                [float(run[field]["target_batches"]) for run in runs]
             ),
             "d1_groups": summarize(
-                [float(run["mtp"]["d1_groups"]) for run in runs]
+                [float(run[field]["d1_groups"]) for run in runs]
             ),
             "d2_groups": summarize(
-                [float(run["mtp"]["d2_groups"]) for run in runs]
+                [float(run[field]["d2_groups"]) for run in runs]
             ),
             "d4_groups": summarize(
-                [float(run["mtp"]["d4_groups"]) for run in runs]
+                [float(run[field]["d4_groups"]) for run in runs]
             ),
             "ordinary_fallback_tokens": summarize(
-                [float(run["mtp"]["ordinary_fallback_tokens"]) for run in runs]
+                [float(run[field]["ordinary_fallback_tokens"]) for run in runs]
             ),
         }
+
+    if all("speculative" in run for run in runs):
+        summary["speculative"] = summarize_speculation("speculative")
+    if all("mtp" in run for run in runs):
+        summary["mtp"] = summarize_speculation("mtp")
     return summary
 
 
@@ -533,7 +548,8 @@ def run_llama_request(
     base_url: str,
     prompt: list[int],
     generation: dict[str, Any],
-    mtp_draft_tokens: int,
+    maximum_draft_tokens: int,
+    speculative_types: tuple[str, ...] = ("draft-mtp",),
 ) -> tuple[dict[str, Any], list[int]]:
     body = {
         "prompt": prompt,
@@ -589,13 +605,17 @@ def run_llama_request(
         accepted = int(timings["draft_n_accepted"])
         groups = len(output_tokens) - accepted
         if (
-            mtp_draft_tokens == 0
+            maximum_draft_tokens == 0
             or groups <= 0
             or proposed < accepted
-            or proposed > groups * mtp_draft_tokens
+            or proposed > groups * maximum_draft_tokens
         ):
-            raise BenchmarkError("llama.cpp returned malformed MTP counters")
-        run["mtp"] = {
+            raise BenchmarkError("llama.cpp returned malformed speculative counters")
+        fixed_mtp = (
+            speculative_types == ("draft-mtp",)
+            and maximum_draft_tokens in (1, 2, 4)
+        )
+        counters = {
             "proposed_tokens": proposed,
             "accepted_tokens": accepted,
             "rejected_tokens": proposed - accepted,
@@ -604,11 +624,14 @@ def run_llama_request(
             "target_batches": groups,
             "mean_accepted_length": accepted / groups,
             "conventional_mean_acceptance_length": 1.0 + accepted / groups,
-            "d1_groups": groups if mtp_draft_tokens == 1 else 0,
-            "d2_groups": groups if mtp_draft_tokens == 2 else 0,
-            "d4_groups": groups if mtp_draft_tokens == 4 else 0,
+            "d1_groups": groups if fixed_mtp and maximum_draft_tokens == 1 else 0,
+            "d2_groups": groups if fixed_mtp and maximum_draft_tokens == 2 else 0,
+            "d4_groups": groups if fixed_mtp and maximum_draft_tokens == 4 else 0,
             "ordinary_fallback_tokens": 0,
         }
+        run["speculative"] = counters
+        if fixed_mtp:
+            run["mtp"] = dict(counters)
     return run, output_tokens
 
 
@@ -787,20 +810,49 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
             raise BenchmarkError("llama.cpp requires --executable and --gguf")
         if args.mtp_adaptive:
             raise BenchmarkError("llama.cpp does not expose gem16 --mtp-adaptive")
-        if args.mtp_draft_tokens == 0 and args.assistant_model is not None:
-            raise BenchmarkError(
-                "llama.cpp --assistant-model requires nonzero --mtp-draft-tokens"
+        allowed_spec_types = {"draft-mtp", "ngram-mod"}
+        if args.llama_spec_types is None:
+            speculative_types = (
+                ("draft-mtp",) if args.assistant_model is not None else ()
             )
-        if args.mtp_draft_tokens != 0 and args.assistant_model is None:
-            raise BenchmarkError(
-                "llama.cpp --mtp-draft-tokens requires --assistant-model"
+        else:
+            speculative_types = tuple(
+                item.strip()
+                for item in args.llama_spec_types.split(",")
+                if item.strip()
             )
+        if len(set(speculative_types)) != len(speculative_types) or not set(
+            speculative_types
+        ).issubset(allowed_spec_types):
+            raise BenchmarkError(
+                "llama.cpp speculative types must be unique draft-mtp/ngram-mod values"
+            )
+        has_mtp = "draft-mtp" in speculative_types
+        has_ngram_mod = "ngram-mod" in speculative_types
+        if has_mtp != (args.assistant_model is not None):
+            raise BenchmarkError(
+                "llama.cpp draft-mtp requires exactly one --assistant-model"
+            )
+        if has_mtp != (args.mtp_draft_tokens != 0):
+            raise BenchmarkError(
+                "llama.cpp draft-mtp requires nonzero --mtp-draft-tokens"
+            )
+        if not has_mtp and args.mtp_draft_tokens != 0:
+            raise BenchmarkError(
+                "llama.cpp --mtp-draft-tokens requires draft-mtp"
+            )
+        if args.llama_ngram_mod_n_min > args.llama_ngram_mod_n_max:
+            raise BenchmarkError("llama.cpp ngram-mod minimum exceeds maximum")
         executable = args.executable.resolve(strict=True)
         gguf = args.gguf.resolve(strict=True)
         assistant_gguf = (
             args.assistant_model.resolve(strict=True)
             if args.assistant_model is not None
             else None
+        )
+        maximum_draft_tokens = max(
+            args.mtp_draft_tokens if has_mtp else 0,
+            args.llama_ngram_mod_n_max if has_ngram_mod else 0,
         )
         base_url = f"http://127.0.0.1:{args.llama_port}"
         log_path = args.output.with_suffix(".server.log")
@@ -835,11 +887,11 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
             "--no-webui",
             "--offline",
         ]
+        if speculative_types:
+            command.extend(["--spec-type", ",".join(speculative_types)])
         if assistant_gguf is not None:
             command.extend(
                 [
-                    "--spec-type",
-                    "draft-mtp",
                     "--spec-draft-model",
                     str(assistant_gguf),
                     "--spec-draft-n-max",
@@ -850,6 +902,17 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
                     "all",
                 ]
             )
+        if has_ngram_mod:
+            command.extend(
+                [
+                    "--spec-ngram-mod-n-match",
+                    str(args.llama_ngram_mod_n_match),
+                    "--spec-ngram-mod-n-min",
+                    str(args.llama_ngram_mod_n_min),
+                    "--spec-ngram-mod-n-max",
+                    str(args.llama_ngram_mod_n_max),
+                ]
+            )
         process = subprocess.Popen(command, stdout=log_file, stderr=subprocess.STDOUT)
         try:
             print("waiting for llama-server model load", flush=True)
@@ -857,7 +920,8 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
 
             def run_once() -> tuple[dict[str, Any], list[int]]:
                 return run_llama_request(
-                    base_url, prompt, generation, args.mtp_draft_tokens
+                    base_url, prompt, generation, maximum_draft_tokens,
+                    speculative_types,
                 )
 
             for index in range(args.warmups):
@@ -893,9 +957,18 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
             "ubatch_size": 512,
             "parallel": 1,
             "cache_prompt": False,
+            "speculative_types": list(speculative_types),
+            "maximum_draft_tokens": maximum_draft_tokens,
             "mtp_draft_tokens": args.mtp_draft_tokens,
-            "mtp_backend": (
-                "draft-mtp" if assistant_gguf is not None else "disabled"
+            "mtp_backend": "draft-mtp" if has_mtp else "disabled",
+            "ngram_mod": (
+                {
+                    "n_match": args.llama_ngram_mod_n_match,
+                    "n_min": args.llama_ngram_mod_n_min,
+                    "n_max": args.llama_ngram_mod_n_max,
+                }
+                if has_ngram_mod
+                else None
             ),
         }
 

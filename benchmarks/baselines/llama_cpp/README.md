@@ -19,6 +19,21 @@ Q8_0. It is also not internally token-exact: current-upstream ordinary and D2 fi
 133. These results establish working official-assistant/shared-KV support, not an accepted performance baseline.
 See `mtp-characterization.json`.
 
+A later fixed-1,135-token Wikipedia screen at the same current-upstream build evaluated llama.cpp's ordered
+`ngram-mod,draft-mtp` cascade. `ngram-mod` is a higher-priority proposer, not a token-level merge: MTP runs only
+when N-Gram returns no draft. Match lengths 8, 12, 16, and 24 returned no N-Gram proposals on this output and ran
+at ordinary-decode speed when used alone. Aggressive match length 2 produced drafts, but N-Gram-only mean accepted
+length was only about 0.12–0.13; active N-Gram/MTP screens reached 45.86–48.96 tok/s versus 50.01 tok/s for the
+MTP-D2-only screen. Match 3/4 cascades likewise remained below MTP-only. Outputs changed when aggressive N-Gram
+caused larger target batches, so these are external performance characterizations rather than gem16 exactness
+evidence. The interrupted repeated comparison is not reported as a qualification.
+
+`tools/benchmark_wikipedia_workload.py` exposes this matrix through `--llama-spec-types`,
+`--llama-ngram-mod-n-match`, `--llama-ngram-mod-n-min`, and `--llama-ngram-mod-n-max`. It records generic aggregate
+speculative counters because llama.cpp's completion response does not identify the selected proposer for each
+group; source-specific server statistics require separate log instrumentation. Generated raw screens remain under
+ignored `benchmarks/results/`.
+
 ## Same-source gate
 
 The exact pinned Hugging Face checkpoint cannot currently pass upstream's converter. The converter recognizes
