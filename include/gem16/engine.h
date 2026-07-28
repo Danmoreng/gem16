@@ -111,11 +111,14 @@ struct GreedyInferenceResult {
 
 struct ConversationSessionOptions {
   std::filesystem::path model_directory;
+  std::filesystem::path assistant_model_directory;
   std::vector<std::uint32_t> stop_token_ids;
   std::vector<std::uint32_t> suppressed_token_ids;
   std::uint64_t max_context_tokens = 1024;
   KvCacheMode kv_cache_mode = KvCacheMode::kCheckpointFp8;
   SamplingOptions sampling;
+  std::uint32_t mtp_draft_tokens = 0;
+  bool mtp_adaptive = false;
 };
 
 // A batch-one conversation owns one resident model, workspace, and KV cache.

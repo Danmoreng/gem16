@@ -156,14 +156,15 @@ third_party/cache/unsloth-nvfp4-env/bin/python tools/validate_mtp.py \
   --draft-tokens 4 --output /tmp/mtp-reference.json
 ```
 
-Active MTP currently supports greedy `gem16-run` generation only. It performs fixed-shape batched exact target
+Active MTP supports greedy `gem16-run` and resident `gem16-chat` generation. It performs fixed-shape batched exact target
 verification for draft lengths 1, 2, and 4, retains tentative K/V rows in a fixed workspace, and accepts and commits
 the exact prefix on GPU. Drafts remain device-resident through verification; one small pinned result and one host
-synchronization remain per group for output callbacks and variable-length scheduling. `--mtp-adaptive` explicitly
-enables context/acceptance-based D4→D2→D1 selection and bounded ordinary decode fallback. Sampling, chat sessions,
-and diagnostic dumps remain deliberately rejected or deferred rather than silently using incorrect semantics.
-Full GPU-controlled greedy MTP decode and nonblocking streaming are now the next architectural milestone before
-multimodal expansion.
+synchronization remain per group for the non-chained D1/D4/adaptive paths. `--mtp-adaptive` explicitly enables
+context/acceptance-based D4→D2→D1 selection and bounded ordinary decode fallback. Resident chat loads the official
+assistant once, preserves the exact target KV prefix between turns, and reinitializes the fixed-D2 device control
+from each newly prefetched suffix. The GPU-chained D2 callback ring streams verified text without a per-group host
+roundtrip. Sampling and diagnostic dumps remain deliberately rejected rather than silently using incorrect
+semantics.
 
 ## GPU-controlled decode graph roadmap
 

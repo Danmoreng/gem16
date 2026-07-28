@@ -2,6 +2,7 @@
 #include <charconv>
 #include <cstdint>
 #include <filesystem>
+#include <iomanip>
 #include <iostream>
 #include <limits>
 #include <optional>
@@ -72,6 +73,9 @@ void PrintUsage() {
   std::cout
       << "Usage:\n"
       << "  gem16-chat --model <checkpoint> [--max-tokens N] [--max-context N]\n"
+      << "                [--assistant-model <official-mtp-checkpoint>]\n"
+      << "                [--mtp-draft-tokens 1|2|4] [--mtp-adaptive]\n"
+      << "                [--stats]\n"
       << "                [--thinking] [--system <text>]\n"
       << "                [--kv-cache fp8|bf16]\n"
       << "                [--sample] [--temperature F] [--top-k N] [--top-p F]\n"
@@ -83,6 +87,7 @@ void PrintUsage() {
 
 struct Options {
   std::filesystem::path model_directory;
+  std::filesystem::path assistant_model_directory;
   std::string system_message;
   std::string one_shot_message;
   std::uint64_t max_tokens = 128;
@@ -92,11 +97,14 @@ struct Options {
   bool thinking = false;
   bool render_only = false;
   bool json = false;
+  bool stats = false;
   std::filesystem::path state_dump_path;
   std::optional<std::uint64_t> state_dump_position;
   gem16::KvCacheMode kv_cache_mode =
       gem16::KvCacheMode::kCheckpointFp8;
   gem16::SamplingOptions sampling;
+  std::uint32_t mtp_draft_tokens = 0U;
+  bool mtp_adaptive = false;
 };
 
 gem16::Result<Options> ParseOptions(int argc, char** argv) {
@@ -105,6 +113,18 @@ gem16::Result<Options> ParseOptions(int argc, char** argv) {
     const std::string_view argument(argv[index]);
     if (argument == "--model" && index + 1 < argc) {
       options.model_directory = argv[++index];
+    } else if (argument == "--assistant-model" && index + 1 < argc) {
+      options.assistant_model_directory = argv[++index];
+    } else if (argument == "--mtp-draft-tokens" && index + 1 < argc) {
+      std::uint64_t value = 0U;
+      if (!ParseUnsigned(argv[++index], value) ||
+          (value != 1U && value != 2U && value != 4U)) {
+        return gem16::Status(gem16::StatusCode::kInvalidArgument,
+                             "--mtp-draft-tokens must be 1, 2, or 4");
+      }
+      options.mtp_draft_tokens = static_cast<std::uint32_t>(value);
+    } else if (argument == "--mtp-adaptive") {
+      options.mtp_adaptive = true;
     } else if (argument == "--system" && index + 1 < argc) {
       options.system_message = argv[++index];
       options.has_system_message = true;
@@ -127,6 +147,8 @@ gem16::Result<Options> ParseOptions(int argc, char** argv) {
       options.render_only = true;
     } else if (argument == "--json") {
       options.json = true;
+    } else if (argument == "--stats") {
+      options.stats = true;
     } else if (argument == "--dump-state" && index + 1 < argc) {
       options.state_dump_path = argv[++index];
     } else if (argument == "--dump-state-position" && index + 1 < argc) {
@@ -215,6 +237,20 @@ gem16::Result<Options> ParseOptions(int argc, char** argv) {
     return gem16::Status(gem16::StatusCode::kInvalidArgument,
                           "token and context limits must be positive");
   }
+  if (options.mtp_draft_tokens != 0U &&
+      options.assistant_model_directory.empty()) {
+    return gem16::Status(gem16::StatusCode::kInvalidArgument,
+                         "active MTP requires --assistant-model");
+  }
+  if (options.mtp_adaptive && options.mtp_draft_tokens == 0U) {
+    return gem16::Status(gem16::StatusCode::kInvalidArgument,
+                         "--mtp-adaptive requires active MTP");
+  }
+  if (options.mtp_draft_tokens != 0U && options.sampling.enabled) {
+    return gem16::Status(
+        gem16::StatusCode::kUnsupported,
+        "MTP chat currently requires greedy generation");
+  }
   return options;
 }
 
@@ -300,6 +336,7 @@ gem16::Result<TurnOutput> RunTurn(
 
   gem16::GreedyInferenceOptions inference_options;
   inference_options.model_directory = cli.model_directory;
+  inference_options.assistant_model_directory = cli.assistant_model_directory;
   inference_options.input_token_ids = std::move(prompt_ids).value();
   inference_options.stop_token_ids =
       processor.generation_controls().stop_token_ids;
@@ -309,6 +346,8 @@ gem16::Result<TurnOutput> RunTurn(
   inference_options.max_context_tokens = cli.max_context;
   inference_options.kv_cache_mode = cli.kv_cache_mode;
   inference_options.sampling = cli.sampling;
+  inference_options.mtp_draft_tokens = cli.mtp_draft_tokens;
+  inference_options.mtp_adaptive = cli.mtp_adaptive;
   inference_options.state_dump_path = cli.state_dump_path;
   inference_options.state_dump_position = cli.state_dump_position;
   TokenStreamContext stream_context{&processor, &std::cout};
@@ -357,6 +396,25 @@ gem16::Result<TurnOutput> RunTurn(
   auto assistant_text = processor.DecodeResponseText(content_ids);
   if (!assistant_text.ok()) return assistant_text.status();
 
+  if (cli.stats && !write_json) {
+    std::cerr << "\n[stats] decode "
+              << std::fixed << std::setprecision(3)
+              << inference.value().decode_tokens_per_second << " tok/s";
+    if (inference.value().mtp_enabled) {
+      std::cerr << ", MTP D" << inference.value().mtp_draft_tokens
+                << ", proposed " << inference.value().mtp_proposed_tokens
+                << ", accepted " << inference.value().mtp_accepted_tokens
+                << ", rejected " << inference.value().mtp_rejected_tokens
+                << ", groups "
+                << inference.value().mtp_verification_groups
+                << ", GPU chained "
+                << (inference.value().mtp_gpu_chained ? "yes" : "no");
+    } else {
+      std::cerr << ", MTP disabled";
+    }
+    std::cerr << '\n';
+  }
+
   if (write_json) {
     std::cout << "{\"assistant_content\":"
               << JsonEscape(assistant_content.value())
@@ -375,6 +433,24 @@ gem16::Result<TurnOutput> RunTurn(
               << ",\"fused_output_head\":true"
               << ",\"decode_graphs\":"
               << (inference.value().decode_graphs ? "true" : "false")
+              << ",\"mtp\":{\"enabled\":"
+              << (inference.value().mtp_enabled ? "true" : "false")
+              << ",\"draft_tokens\":"
+              << inference.value().mtp_draft_tokens
+              << ",\"adaptive\":"
+              << (inference.value().mtp_adaptive ? "true" : "false")
+              << ",\"gpu_chained\":"
+              << (inference.value().mtp_gpu_chained ? "true" : "false")
+              << ",\"proposed_tokens\":"
+              << inference.value().mtp_proposed_tokens
+              << ",\"accepted_tokens\":"
+              << inference.value().mtp_accepted_tokens
+              << ",\"rejected_tokens\":"
+              << inference.value().mtp_rejected_tokens
+              << ",\"verification_groups\":"
+              << inference.value().mtp_verification_groups
+              << ",\"ordinary_fallback_tokens\":"
+              << inference.value().mtp_ordinary_fallback_tokens << '}'
               << ",\"decoding_mode\":"
               << JsonEscape(inference.value().sampling.enabled ? "sampled"
                                                                 : "greedy")
@@ -442,6 +518,8 @@ int ChatMain(int argc, char** argv) {
 
   gem16::ConversationSessionOptions session_options;
   session_options.model_directory = options.model_directory;
+  session_options.assistant_model_directory =
+      options.assistant_model_directory;
   session_options.stop_token_ids =
       processor.value().generation_controls().stop_token_ids;
   session_options.suppressed_token_ids =
@@ -449,6 +527,8 @@ int ChatMain(int argc, char** argv) {
   session_options.max_context_tokens = options.max_context;
   session_options.kv_cache_mode = options.kv_cache_mode;
   session_options.sampling = options.sampling;
+  session_options.mtp_draft_tokens = options.mtp_draft_tokens;
+  session_options.mtp_adaptive = options.mtp_adaptive;
   auto session = gem16::ConversationSession::Create(session_options);
   if (!session.ok()) {
     std::cerr << "error: " << session.status().message() << '\n';
@@ -457,6 +537,11 @@ int ChatMain(int argc, char** argv) {
 
   std::cout << "gem16 resident chat session (/quit to exit)\n"
             << "Model weights and the exact conversation KV prefix stay resident.\n";
+  if (options.mtp_draft_tokens != 0U) {
+    std::cout << "MTP enabled: D" << options.mtp_draft_tokens
+              << (options.mtp_adaptive ? " adaptive" : " fixed")
+              << ", exact target verification, greedy decoding.\n";
+  }
   ConversationPromptState prompt_state;
   prompt_state.cached_prefix_token_ids.reserve(
       static_cast<std::size_t>(options.max_context));

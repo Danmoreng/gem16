@@ -80,6 +80,13 @@ generated tokens continue through a whole-model decode graph for both greedy and
 state or full-logit capture retains the direct layer-segment path so observability does not complicate the ordinary
 graph.
 
+Greedy conversation sessions may also own the official MTP assistant and its fixed workspace. After each new
+conversation suffix is prefetched at the resident absolute position, fixed D2 stages the new target hidden row and
+reuses the complete conditional graph, device stop/tail state, and mapped-pinned streaming ring. When generation
+finishes, the session records every emitted token except the final not-yet-forwarded token as materialized target
+KV, preserving the same prefix invariant as ordinary chat. D1, D4, and adaptive scheduling use the exact direct
+MTP path. Sampling plus MTP is rejected explicitly.
+
 The reusable `ChatMessage`, `Tokenizer`, and `GemmaChatProcessor` interfaces are deliberately independent of
 terminal I/O. A future OpenAI-compatible Chat Completions server can reuse this request-to-token boundary; HTTP,
 JSON request schemas, streaming, and session scheduling are not part of the current CLI milestone.

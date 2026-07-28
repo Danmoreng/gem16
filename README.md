@@ -126,12 +126,18 @@ Windows PowerShell:
 ```powershell
 .\build\Windows\blackwell-release\bin\gem16-chat.exe `
   --model .\models\checkpoints\unsloth-gemma-4-12b-it-NVFP4-b1f6497 `
+  --assistant-model .\models\checkpoints\google-gemma-4-12B-it-assistant-364bd03 `
+  --mtp-draft-tokens 2 `
   --max-context 8192 `
-  --max-tokens 512
+  --max-tokens 512 `
+  --stats
 ```
 
 The model and exact conversation prefix remain resident between turns. Generated text is decoded and written to
-the terminal incrementally. Enter `/quit` to leave the session.
+the terminal incrementally. The optional official assistant also remains resident. Fixed D2 uses the qualified
+GPU-chained conditional graph; `--stats` prints per-turn throughput, proposal/acceptance counts, verifier groups,
+and whether GPU chaining was active. MTP chat is greedy-only; combining MTP with sampling fails explicitly. Enter
+`/quit` to leave the session.
 
 ## Command-line tools
 
@@ -179,8 +185,8 @@ and the direct mixed checkpoint and available GGUF baseline differ in some tenso
   Wikipedia 16K workload, a GPU-chained fixed-D2 conditional graph preserves all 1,135 ordinary IDs and measures
   54.903 tok/s median versus 36.788 ordinary (1.492x, +49.2%) in the final three-warm-up/ten-run qualification at
   batch one with checkpoint-FP8 KV. GPU stop, final ordinary tails, and a mapped-pinned asynchronous callback ring
-  are included. The 50 tok/s gate is passed; the 55 tok/s stretch target is missed by 0.097 tok/s. Sampling and chat
-  integration remain pending.
+  are included. The 50 tok/s gate is passed; the 55 tok/s stretch target is missed by 0.097 tok/s. Exact greedy MTP
+  is available in resident multi-turn chat; MTP sampling remains pending.
 - Continuous batching, a server API, and persistent prompt-cache files are out of scope for the current runtime.
 - Full benchmark qualification, wider quality evaluation, and additional long-context validation remain ongoing.
 

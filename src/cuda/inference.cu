@@ -158,6 +158,8 @@ struct ConversationSession::Impl {
   KvCacheMode kv_cache_mode = KvCacheMode::kCheckpointFp8;
   double model_load_milliseconds = 0.0;
   SamplingOptions sampling;
+  std::uint32_t mtp_draft_tokens = 0U;
+  bool mtp_adaptive = false;
   bool poisoned = false;
 };
 
@@ -193,21 +195,45 @@ Result<ConversationSession> ConversationSession::Create(
                    "suppressed token ID exceeds vocabulary");
     }
   }
+  const bool mtp_enabled = options.mtp_draft_tokens != 0U;
+  if (mtp_enabled && options.mtp_draft_tokens != 1U &&
+      options.mtp_draft_tokens != 2U && options.mtp_draft_tokens != 4U) {
+    return Error(StatusCode::kInvalidArgument,
+                 "active MTP requires draft length 1, 2, or 4");
+  }
+  if (mtp_enabled && options.assistant_model_directory.empty()) {
+    return Error(StatusCode::kInvalidArgument,
+                 "active MTP requires --assistant-model");
+  }
+  if (options.mtp_adaptive && !mtp_enabled) {
+    return Error(StatusCode::kInvalidArgument,
+                 "--mtp-adaptive requires active MTP");
+  }
+  if (mtp_enabled && options.sampling.enabled) {
+    return Error(StatusCode::kUnsupported,
+                 "MTP chat currently requires greedy generation");
+  }
 
   auto impl = std::make_unique<Impl>();
   impl->stop_token_ids = options.stop_token_ids;
   impl->max_context_tokens = options.max_context_tokens;
   impl->kv_cache_mode = options.kv_cache_mode;
   impl->sampling = options.sampling;
+  impl->mtp_draft_tokens = options.mtp_draft_tokens;
+  impl->mtp_adaptive = options.mtp_adaptive;
   impl->cached_token_ids.reserve(
       static_cast<std::size_t>(options.max_context_tokens));
   const auto load_start = std::chrono::steady_clock::now();
   Status status = impl->engine.Initialize(options.model_directory,
                                          options.max_context_tokens,
                                          options.kv_cache_mode,
-                                         options.sampling);
+                                         options.sampling,
+                                         options.assistant_model_directory,
+                                         options.mtp_draft_tokens);
   if (!status.ok()) return status;
   status = impl->engine.SetSuppressedTokens(options.suppressed_token_ids);
+  if (!status.ok()) return status;
+  status = impl->engine.SetMtpStopTokens(options.stop_token_ids);
   if (!status.ok()) return status;
   impl->model_load_milliseconds =
       Milliseconds(std::chrono::steady_clock::now() - load_start);
@@ -283,11 +309,25 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
   GreedyInferenceResult result;
   result.output_token_ids.reserve(
       static_cast<std::size_t>(max_generated_tokens));
+  if (impl_->mtp_draft_tokens != 0U) {
+    result.mtp_proposed_token_ids.reserve(static_cast<std::size_t>(
+        max_generated_tokens * impl_->mtp_draft_tokens));
+  }
   result.kv_cache_mode = impl_->kv_cache_mode;
   result.sampling = impl_->sampling;
   result.decode_graphs = true;
   result.model_load_milliseconds = impl_->model_load_milliseconds;
   result.weight_arena_bytes = impl_->engine.weight_bytes();
+  result.assistant_loaded = impl_->engine.assistant_loaded();
+  result.assistant_source_bytes = impl_->engine.assistant_source_bytes();
+  result.assistant_weight_arena_bytes = impl_->engine.assistant_weight_bytes();
+  result.assistant_device_memory_delta_bytes =
+      impl_->engine.assistant_device_memory_delta_bytes();
+  result.assistant_tensor_count = impl_->engine.assistant_tensor_count();
+  result.assistant_workspace_bytes = impl_->engine.assistant_workspace_bytes();
+  result.mtp_enabled = impl_->mtp_draft_tokens != 0U;
+  result.mtp_adaptive = impl_->mtp_adaptive;
+  result.mtp_draft_tokens = impl_->mtp_draft_tokens;
   result.kv_cache_bytes = impl_->engine.cache_bytes();
   result.workspace_bytes = impl_->engine.workspace_bytes();
   result.decode_graph_device_bytes =
@@ -324,8 +364,206 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
     result.stop_token_id = next_token;
   }
 
+  if (result.mtp_enabled && impl_->mtp_draft_tokens == 2U &&
+      !impl_->mtp_adaptive &&
+      impl_->kv_cache_mode == KvCacheMode::kCheckpointFp8 &&
+      impl_->max_context_tokens > kSlidingWindow) {
+    Status status = impl_->engine.PrepareFixedD2Graph();
+    if (!status.ok()) {
+      impl_->poisoned = true;
+      return status;
+    }
+  }
+
   const auto decode_start = std::chrono::steady_clock::now();
-  for (std::uint64_t generated = 1U;
+  if (result.mtp_enabled) {
+    std::uint64_t processed_position = impl_->cached_token_ids.size() - 1U;
+    internal::AdaptiveMtpScheduler adaptive_scheduler(
+        impl_->mtp_draft_tokens, processed_position, impl_->mtp_adaptive);
+    const auto emit_ordinary_token = [&](bool adaptive_fallback) -> Status {
+      auto forwarded = impl_->engine.Forward(next_token,
+                                             processed_position + 1U, true);
+      if (!forwarded.ok()) return forwarded.status();
+      ++processed_position;
+      ++result.mtp_target_forwards;
+      ++result.mtp_target_batches;
+      if (adaptive_fallback) ++result.mtp_ordinary_fallback_tokens;
+      next_token = forwarded.value();
+      result.output_token_ids.push_back(next_token);
+      if (generated_token_callback != nullptr) {
+        Status callback_status = generated_token_callback(
+            generated_token_callback_context, next_token);
+        if (!callback_status.ok()) return callback_status;
+      }
+      if (std::find(impl_->stop_token_ids.begin(),
+                    impl_->stop_token_ids.end(), next_token) !=
+          impl_->stop_token_ids.end()) {
+        result.stopped = true;
+        result.stop_token_id = next_token;
+      }
+      return Status::Ok();
+    };
+    while (result.output_token_ids.size() < max_generated_tokens &&
+           !result.stopped) {
+      const std::size_t remaining = static_cast<std::size_t>(
+          max_generated_tokens - result.output_token_ids.size());
+      const bool fixed_d2_chain =
+          remaining >= 3U && impl_->mtp_draft_tokens == 2U &&
+          !impl_->mtp_adaptive &&
+          impl_->kv_cache_mode == KvCacheMode::kCheckpointFp8 &&
+          impl_->max_context_tokens > kSlidingWindow;
+      if (fixed_d2_chain) {
+        Status status = impl_->engine.PrepareMtpDeviceControl(
+            next_token, processed_position, remaining,
+            result.output_token_ids.size(), result.stopped,
+            result.stop_token_id);
+        if (!status.ok()) {
+          impl_->poisoned = true;
+          return status;
+        }
+        internal::MtpChainResult chain;
+        status = impl_->engine.ExecuteFixedD2GraphChain(
+            &chain, generated_token_callback,
+            generated_token_callback_context);
+        if (!status.ok()) {
+          impl_->poisoned = true;
+          return status;
+        }
+        result.mtp_fixed_d2_graph = true;
+        result.mtp_gpu_chained = true;
+        result.mtp_verification_groups += chain.group_count;
+        result.mtp_d2_groups += chain.group_count;
+        result.mtp_proposed_tokens += chain.proposed_count;
+        result.mtp_target_forwards += 3U * chain.group_count;
+        result.mtp_target_batches += chain.group_count;
+        result.mtp_target_forwards += chain.ordinary_tail_count;
+        result.mtp_target_batches += chain.ordinary_tail_count;
+        result.mtp_accepted_tokens += chain.accepted_count;
+        result.mtp_rejected_tokens += chain.rejected_count;
+        result.mtp_proposed_token_ids.insert(
+            result.mtp_proposed_token_ids.end(),
+            impl_->engine.mtp_chain_proposals(),
+            impl_->engine.mtp_chain_proposals() + chain.proposed_count);
+        processed_position += chain.output_count;
+        const std::uint32_t* chained_outputs =
+            impl_->engine.mtp_chain_outputs();
+        for (std::uint64_t index = 0U; index < chain.output_count; ++index) {
+          next_token = chained_outputs[index];
+          result.output_token_ids.push_back(next_token);
+        }
+        result.stopped = chain.stopped != 0U;
+        result.stop_token_id = chain.stop_token;
+        status = impl_->engine.CheckMtpDeviceControlParity(
+            next_token, processed_position,
+            max_generated_tokens - result.output_token_ids.size(),
+            result.output_token_ids.size(), result.stopped,
+            result.stop_token_id);
+        if (!status.ok()) {
+          impl_->poisoned = true;
+          return status;
+        }
+        continue;
+      }
+      const bool adaptive_fallback =
+          adaptive_scheduler.use_ordinary_fallback();
+      if (remaining == 1U || adaptive_fallback) {
+        Status status = emit_ordinary_token(adaptive_fallback);
+        if (!status.ok()) {
+          impl_->poisoned = true;
+          return status;
+        }
+        if (adaptive_fallback) adaptive_scheduler.ConsumeOrdinaryFallback();
+        continue;
+      }
+      const std::size_t proposal_count = std::min<std::size_t>(
+          adaptive_scheduler.active_drafts(), remaining - 1U);
+      Status status = impl_->engine.PrepareMtpDeviceControl(
+          next_token, processed_position, remaining,
+          result.output_token_ids.size(), result.stopped,
+          result.stop_token_id);
+      if (!status.ok()) {
+        impl_->poisoned = true;
+        return status;
+      }
+      MtpGroupResult group;
+      if (proposal_count == 2U && impl_->mtp_draft_tokens == 2U &&
+          !impl_->mtp_adaptive) {
+        result.mtp_fixed_d2_graph =
+            impl_->kv_cache_mode == KvCacheMode::kCheckpointFp8 &&
+            impl_->max_context_tokens > kSlidingWindow;
+        status = impl_->engine.ExecuteFixedD2GraphGroup(
+            next_token, processed_position + 1U, &group);
+      } else {
+        status = impl_->engine.GenerateAssistantDraftsDevice(
+            next_token, processed_position,
+            static_cast<std::uint32_t>(proposal_count));
+        if (status.ok()) {
+          status = impl_->engine.VerifyAcceptCommitAssistantBatch(
+              next_token, processed_position + 1U,
+              static_cast<std::uint32_t>(proposal_count), &group);
+        }
+      }
+      if (!status.ok()) {
+        impl_->poisoned = true;
+        return status;
+      }
+      ++result.mtp_verification_groups;
+      if (proposal_count == 1U) {
+        ++result.mtp_d1_groups;
+      } else if (proposal_count == 2U) {
+        ++result.mtp_d2_groups;
+      } else if (proposal_count == 4U) {
+        ++result.mtp_d4_groups;
+      }
+      result.mtp_proposed_tokens += proposal_count;
+      result.mtp_proposed_token_ids.insert(
+          result.mtp_proposed_token_ids.end(), group.proposed.begin(),
+          group.proposed.begin() +
+              static_cast<std::ptrdiff_t>(proposal_count));
+      result.mtp_target_forwards += proposal_count + 1U;
+      ++result.mtp_target_batches;
+      result.mtp_accepted_tokens += group.accepted_count;
+      result.mtp_rejected_tokens += proposal_count - group.accepted_count;
+      processed_position += group.output_count;
+      for (std::uint32_t index = 0U; index < group.output_count; ++index) {
+        next_token = group.verified[index];
+        result.output_token_ids.push_back(next_token);
+        if (generated_token_callback != nullptr) {
+          status = generated_token_callback(generated_token_callback_context,
+                                            next_token);
+          if (!status.ok()) {
+            impl_->poisoned = true;
+            return status;
+          }
+        }
+        if (std::find(impl_->stop_token_ids.begin(),
+                      impl_->stop_token_ids.end(), next_token) !=
+            impl_->stop_token_ids.end()) {
+          result.stopped = true;
+          result.stop_token_id = next_token;
+          break;
+        }
+      }
+      status = impl_->engine.CheckMtpDeviceControlParity(
+          next_token, processed_position,
+          max_generated_tokens - result.output_token_ids.size(),
+          result.output_token_ids.size(), result.stopped,
+          result.stop_token_id);
+      if (!status.ok()) {
+        impl_->poisoned = true;
+        return status;
+      }
+      if (!result.stopped) {
+        adaptive_scheduler.Observe(processed_position,
+                                   group.accepted_count);
+      }
+    }
+    if (result.output_token_ids.size() > 1U) {
+      impl_->cached_token_ids.insert(
+          impl_->cached_token_ids.end(), result.output_token_ids.begin(),
+          result.output_token_ids.end() - 1);
+    }
+  } else for (std::uint64_t generated = 1U;
        generated < max_generated_tokens && !result.stopped; ++generated) {
     const std::uint64_t position = impl_->cached_token_ids.size();
     const std::uint32_t input_token = next_token;

@@ -1,5 +1,24 @@
 # Decisions
 
+## 2026-07-28: Reuse exact greedy MTP in resident chat sessions
+
+Date: 2026-07-28
+Decision: Let `ConversationSession` optionally own the pinned official assistant and expose
+`--assistant-model`, `--mtp-draft-tokens 1|2|4`, and `--mtp-adaptive` through `gem16-chat`. Fixed D2 reuses the
+qualified GPU-chained graph and mapped-pinned callback ring. `--stats` makes the active mode, effective decode
+throughput, draft counters, verifier groups, and GPU chaining visible per turn. MTP chat remains greedy-only.
+Context: One-shot `gem16-run` already proved exact target verification, GPU acceptance/commit, stop/tail handling,
+and asynchronous streaming. Conversation sessions already retain exact target KV and validate that every rendered
+turn extends the materialized token prefix. The missing boundary was assistant ownership and MTP scheduling after
+`PrefillAt` on a later suffix.
+Alternatives: Reload through `RunGreedyInference` for every message; expose only one-shot MTP through the chat
+frontend; or silently fall back to ordinary chat. Reloading discards resident weights and KV, one-shot execution is
+not live multi-turn chat, and silent fallback would make MTP testing misleading.
+Consequences: Target and assistant weights, graph allocations, and cache remain resident for the session. At turn
+completion the host prefix records all generated IDs except the final not-yet-forwarded ID, exactly matching the
+committed target KV state. One-shot JSON reports MTP counters, while interactive `--stats` reports them per turn.
+Sampling with MTP fails before model loading. Ordinary and sampled chat behavior is unchanged.
+
 ## 2026-07-29: Complete the GPU-controlled decode graph before multimodal expansion
 
 Date: 2026-07-29
