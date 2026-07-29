@@ -2,6 +2,7 @@
 
 #include <string>
 
+#include "runtime/tool_call_parser.h"
 #include "test.h"
 
 namespace {
@@ -11,20 +12,14 @@ void TestResponseChannelRecognition() {
   controls.thinking_open_token_ids = {100U, 45518U, 108U};
   controls.thinking_close_token_id = 101U;
   gem16::ResponseChannelTracker tracker(controls);
-  GEM16_CHECK(tracker.Observe(100U) ==
-              gem16::ResponseTokenChannel::kControl);
-  GEM16_CHECK(tracker.Observe(45518U) ==
-              gem16::ResponseTokenChannel::kControl);
-  GEM16_CHECK(tracker.Observe(108U) ==
-              gem16::ResponseTokenChannel::kControl);
+  GEM16_CHECK(tracker.Observe(100U) == gem16::ResponseTokenChannel::kControl);
+  GEM16_CHECK(tracker.Observe(45518U) == gem16::ResponseTokenChannel::kControl);
+  GEM16_CHECK(tracker.Observe(108U) == gem16::ResponseTokenChannel::kControl);
   GEM16_CHECK(tracker.in_reasoning());
-  GEM16_CHECK(tracker.Observe(7U) ==
-              gem16::ResponseTokenChannel::kReasoning);
-  GEM16_CHECK(tracker.Observe(8U) ==
-              gem16::ResponseTokenChannel::kReasoning);
+  GEM16_CHECK(tracker.Observe(7U) == gem16::ResponseTokenChannel::kReasoning);
+  GEM16_CHECK(tracker.Observe(8U) == gem16::ResponseTokenChannel::kReasoning);
   GEM16_CHECK(tracker.reasoning_token_count() == 2U);
-  GEM16_CHECK(tracker.Observe(101U) ==
-              gem16::ResponseTokenChannel::kControl);
+  GEM16_CHECK(tracker.Observe(101U) == gem16::ResponseTokenChannel::kControl);
   GEM16_CHECK(!tracker.in_reasoning());
   GEM16_CHECK(tracker.Observe(9U) == gem16::ResponseTokenChannel::kText);
   GEM16_CHECK(tracker.reasoning_token_count() == 2U);
@@ -37,8 +32,7 @@ void TestProtocolNeutralGenerationTypes() {
   GEM16_CHECK(first == same);
   GEM16_CHECK(!(first == different));
   GEM16_CHECK(first.content.size() == 1U);
-  GEM16_CHECK(first.content.front().kind ==
-              gem16::GenerationContentKind::kText);
+  GEM16_CHECK(first.content.front().kind == gem16::GenerationContentKind::kText);
   GEM16_CHECK(first.content.front().text == "hello");
   gem16::AudioWaveform waveform;
   waveform.samples = {0.0F, 0.5F};
@@ -52,35 +46,25 @@ void TestProtocolNeutralGenerationTypes() {
   auto image = gem16::GenerationContentPart::Image(vision_image);
   GEM16_CHECK(image.kind == gem16::GenerationContentKind::kImage);
   GEM16_CHECK(image.image == vision_image);
-  const gem16::GenerationToolCall tool_call{
-      "call_1", "weather", R"({"location":"Berlin"})"};
-  const auto tool_call_part =
-      gem16::GenerationContentPart::ToolCall(tool_call);
-  GEM16_CHECK(tool_call_part.kind ==
-              gem16::GenerationContentKind::kToolCall);
+  const gem16::GenerationToolCall tool_call{"call_1", "weather", R"({"location":"Berlin"})"};
+  const auto tool_call_part = gem16::GenerationContentPart::ToolCall(tool_call);
+  GEM16_CHECK(tool_call_part.kind == gem16::GenerationContentKind::kToolCall);
   GEM16_CHECK(tool_call_part.tool_call == tool_call);
-  const gem16::GenerationToolResult tool_result{
-      "call_1", R"({"temperature":25})"};
-  const auto tool_result_part =
-      gem16::GenerationContentPart::ToolResult(tool_result);
-  GEM16_CHECK(tool_result_part.kind ==
-              gem16::GenerationContentKind::kToolResult);
+  const gem16::GenerationToolResult tool_result{"call_1", R"({"temperature":25})"};
+  const auto tool_result_part = gem16::GenerationContentPart::ToolResult(tool_result);
+  GEM16_CHECK(tool_result_part.kind == gem16::GenerationContentKind::kToolResult);
   GEM16_CHECK(tool_result_part.tool_result == tool_result);
 
   gem16::ChatGenerationRequest request;
   request.messages.push_back(first);
   request.tools.push_back(gem16::GenerationToolDefinition{
-      "weather", "Get current weather",
-      R"({"type":"object","properties":{"location":{"type":"string"}}})",
-      true});
-  request.tool_choice = {
-      gem16::GenerationToolChoiceMode::kFunction, "weather"};
+      "weather", "Get current weather", R"({"type":"object","properties":{"location":{"type":"string"}}})", true});
+  request.tool_choice = {gem16::GenerationToolChoiceMode::kFunction, "weather"};
   GEM16_CHECK(!request.max_generated_tokens.has_value());
   GEM16_CHECK(request.thinking.effort == gem16::ThinkingEffort::kMedium);
   GEM16_CHECK(request.tools.size() == 1U);
   GEM16_CHECK(request.tools.front().strict);
-  GEM16_CHECK(request.tool_choice.mode ==
-              gem16::GenerationToolChoiceMode::kFunction);
+  GEM16_CHECK(request.tool_choice.mode == gem16::GenerationToolChoiceMode::kFunction);
   GEM16_CHECK(request.tool_choice.function_name == "weather");
   GEM16_CHECK(request.parallel_tool_calls);
   gem16::GenerationEvent event;
@@ -92,19 +76,42 @@ void TestProtocolNeutralGenerationTypes() {
   GEM16_CHECK(event.tool_call_id == "call_1");
   GEM16_CHECK(event.tool_name == "weather");
   GEM16_CHECK(gem16::ThinkingBudgetTokens(gem16::ThinkingEffort::kOff) == 0U);
-  GEM16_CHECK(gem16::ThinkingBudgetTokens(
-                  gem16::ThinkingEffort::kSmall) == 1024U);
-  GEM16_CHECK(gem16::ThinkingBudgetTokens(
-                  gem16::ThinkingEffort::kMedium) == 4096U);
-  GEM16_CHECK(gem16::ThinkingBudgetTokens(
-                  gem16::ThinkingEffort::kHigh) == 8192U);
-  GEM16_CHECK(std::string(gem16::GenerationFinishReasonName(
-                  gem16::GenerationFinishReason::kStop)) == "stop");
-  GEM16_CHECK(std::string(gem16::GenerationFinishReasonName(
-                  gem16::GenerationFinishReason::kLength)) == "length");
-  GEM16_CHECK(std::string(gem16::GenerationFinishReasonName(
-                  gem16::GenerationFinishReason::kToolCalls)) ==
+  GEM16_CHECK(gem16::ThinkingBudgetTokens(gem16::ThinkingEffort::kSmall) == 1024U);
+  GEM16_CHECK(gem16::ThinkingBudgetTokens(gem16::ThinkingEffort::kMedium) == 4096U);
+  GEM16_CHECK(gem16::ThinkingBudgetTokens(gem16::ThinkingEffort::kHigh) == 8192U);
+  GEM16_CHECK(std::string(gem16::GenerationFinishReasonName(gem16::GenerationFinishReason::kStop)) == "stop");
+  GEM16_CHECK(std::string(gem16::GenerationFinishReasonName(gem16::GenerationFinishReason::kLength)) == "length");
+  GEM16_CHECK(std::string(gem16::GenerationFinishReasonName(gem16::GenerationFinishReason::kToolCalls)) ==
               "tool_calls");
+}
+
+void TestIncrementalGemmaToolCallParser() {
+  gem16::internal::GemmaToolCallParser parser;
+  auto first = parser.Push("Answer <|tool_");
+  GEM16_CHECK(first.ok());
+  GEM16_CHECK(parser.visible_text() == "Answer ");
+  auto second = parser.Push("call>call:weather{location:<|\"|>Berlin<|\"|>,days:[1,2]}");
+  GEM16_CHECK(second.ok());
+  if (second.ok()) {
+    GEM16_CHECK(second.value().size() == 1U);
+    GEM16_CHECK(second.value().front().kind == gem16::GenerationEventKind::kToolCallStart);
+    GEM16_CHECK(second.value().front().tool_name == "weather");
+  }
+  auto third = parser.Push("<tool_call|> tail", true);
+  GEM16_CHECK(third.ok());
+  if (third.ok()) {
+    GEM16_CHECK(third.value().size() == 3U);
+    GEM16_CHECK(third.value()[0].kind == gem16::GenerationEventKind::kToolCallArgumentsDelta);
+    GEM16_CHECK(third.value()[0].text_delta == R"({"location":"Berlin","days":[1,2]})");
+    GEM16_CHECK(third.value()[1].kind == gem16::GenerationEventKind::kToolCallEnd);
+    GEM16_CHECK(third.value()[2].kind == gem16::GenerationEventKind::kTextDelta);
+  }
+  GEM16_CHECK(parser.visible_text() == "Answer  tail");
+  GEM16_CHECK(parser.tool_calls().size() == 1U);
+  GEM16_CHECK(parser.tool_calls().front().arguments_json == R"({"location":"Berlin","days":[1,2]})");
+
+  gem16::internal::GemmaToolCallParser malformed;
+  GEM16_CHECK(!malformed.Push("<|tool_call>call:x{a:1}", true).ok());
 }
 
 }  // namespace
@@ -112,4 +119,5 @@ void TestProtocolNeutralGenerationTypes() {
 void RunChatTests() {
   TestResponseChannelRecognition();
   TestProtocolNeutralGenerationTypes();
+  TestIncrementalGemmaToolCallParser();
 }

@@ -2,8 +2,8 @@
 
 #include <algorithm>
 #include <array>
-#include <charconv>
 #include <cctype>
+#include <charconv>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -28,16 +28,13 @@ constexpr std::uint64_t kMaximumTemplateBytes = 1024U * 1024U;
 constexpr std::uint64_t kPinnedTemplateFnv1a = 0xe9f262823e5bda06ULL;
 constexpr std::string_view kSpaceMarker = "\xE2\x96\x81";
 
-Status Error(StatusCode code, std::string message) {
-  return Status(code, std::move(message));
-}
+Status Error(StatusCode code, std::string message) { return Status(code, std::move(message)); }
 
 Result<std::string> ReadFile(const std::filesystem::path& path, std::uint64_t limit) {
   std::error_code error;
   const std::uint64_t size = std::filesystem::file_size(path, error);
   if (error) {
-    return Error(StatusCode::kIoError,
-                 "cannot stat " + path.string() + ": " + error.message());
+    return Error(StatusCode::kIoError, "cannot stat " + path.string() + ": " + error.message());
   }
   if (size > limit || size > std::numeric_limits<std::size_t>::max()) {
     return Error(StatusCode::kDataLoss, "file exceeds safety limit: " + path.string());
@@ -58,8 +55,7 @@ const json::Value* Member(const json::Value& value, std::string_view name) {
   return value.is_object() ? value.find(name) : nullptr;
 }
 
-const json::Value* Nested(const json::Value& value, std::string_view parent,
-                          std::string_view child) {
+const json::Value* Nested(const json::Value& value, std::string_view parent, std::string_view child) {
   const json::Value* object = Member(value, parent);
   return object == nullptr ? nullptr : Member(*object, child);
 }
@@ -83,6 +79,248 @@ std::string Trim(std::string_view value) {
   while (begin < end && std::isspace(static_cast<unsigned char>(value[begin])) != 0) ++begin;
   while (end > begin && std::isspace(static_cast<unsigned char>(value[end - 1U])) != 0) --end;
   return std::string(value.substr(begin, end - begin));
+}
+
+std::string Upper(std::string_view value) {
+  std::string result(value);
+  std::transform(result.begin(), result.end(), result.begin(),
+                 [](unsigned char character) { return static_cast<char>(std::toupper(character)); });
+  return result;
+}
+
+Result<std::string> FormatToolArgument(const json::Value& value, bool escape_keys = true);
+
+Result<std::string> FormatToolObject(const json::Value::Object& object, bool escape_keys) {
+  std::string result = "{";
+  bool first = true;
+  for (const auto& [key, value] : object) {
+    auto formatted = FormatToolArgument(value, escape_keys);
+    if (!formatted.ok()) return formatted.status();
+    if (!first) result.push_back(',');
+    first = false;
+    if (escape_keys) {
+      result.append("<|\"|>");
+      result.append(key);
+      result.append("<|\"|>");
+    } else {
+      result.append(key);
+    }
+    result.push_back(':');
+    result.append(formatted.value());
+  }
+  result.push_back('}');
+  return result;
+}
+
+Result<std::string> FormatToolArgument(const json::Value& value, bool escape_keys) {
+  if (value.is_null()) return std::string("null");
+  if (value.is_bool()) return std::string(value.as_bool() ? "true" : "false");
+  if (value.is_string()) {
+    return std::string("<|\"|>") + value.as_string() + "<|\"|>";
+  }
+  if (value.is_integer()) return std::to_string(value.as_integer());
+  if (value.is_number()) {
+    std::array<char, 64> buffer{};
+    const auto converted = std::to_chars(buffer.data(), buffer.data() + buffer.size(), value.as_number());
+    if (converted.ec != std::errc{}) {
+      return Error(StatusCode::kDataLoss, "tool schema contains an unformattable number");
+    }
+    return std::string(buffer.data(), converted.ptr);
+  }
+  if (value.is_object()) return FormatToolObject(value.as_object(), escape_keys);
+  std::string result = "[";
+  bool first = true;
+  for (const json::Value& item : value.as_array()) {
+    auto formatted = FormatToolArgument(item, escape_keys);
+    if (!formatted.ok()) return formatted.status();
+    if (!first) result.push_back(',');
+    first = false;
+    result.append(formatted.value());
+  }
+  result.push_back(']');
+  return result;
+}
+
+Result<std::string> FormatRequired(const json::Value& required) {
+  if (!required.is_array()) {
+    return Error(StatusCode::kInvalidArgument, "tool parameter required must be an array");
+  }
+  std::string result = "required:[";
+  bool first = true;
+  for (const json::Value& item : required.as_array()) {
+    if (!item.is_string()) {
+      return Error(StatusCode::kInvalidArgument, "tool parameter required entries must be strings");
+    }
+    if (!first) result.push_back(',');
+    first = false;
+    result.append("<|\"|>");
+    result.append(item.as_string());
+    result.append("<|\"|>");
+  }
+  result.push_back(']');
+  return result;
+}
+
+Result<std::string> FormatSchemaProperties(const json::Value::Object& properties) {
+  std::string result;
+  bool first_property = true;
+  for (const auto& [name, property] : properties) {
+    if (!property.is_object()) {
+      return Error(StatusCode::kInvalidArgument, "each tool property must be an object");
+    }
+    const json::Value* type = property.find("type");
+    if (type == nullptr || !type->is_string()) {
+      return Error(StatusCode::kInvalidArgument, "each tool property requires a string type");
+    }
+    if (!first_property) result.push_back(',');
+    first_property = false;
+    result.append(name);
+    result.append(":{");
+    bool has_field = false;
+    auto append_field = [&](std::string_view key, std::string_view value) {
+      if (has_field) result.push_back(',');
+      has_field = true;
+      result.append(key);
+      result.append(value);
+    };
+
+    const json::Value* description = property.find("description");
+    if (description != nullptr && description->is_string() && !description->as_string().empty()) {
+      append_field("description:", std::string("<|\"|>") + description->as_string() + "<|\"|>");
+    }
+    const std::string upper_type = Upper(type->as_string());
+    const json::Value* enumeration = property.find("enum");
+    if (upper_type == "STRING" && enumeration != nullptr) {
+      auto formatted = FormatToolArgument(*enumeration);
+      if (!formatted.ok()) return formatted.status();
+      append_field("enum:", formatted.value());
+    }
+    if (upper_type == "ARRAY") {
+      const json::Value* items = property.find("items");
+      if (items != nullptr && items->is_object() && !items->as_object().empty()) {
+        std::string item_result = "{";
+        bool first_item = true;
+        for (const auto& [item_key, item_value] : items->as_object()) {
+          if (!first_item) item_result.push_back(',');
+          first_item = false;
+          item_result.append(item_key);
+          item_result.push_back(':');
+          if (item_key == "properties") {
+            if (!item_value.is_object()) {
+              return Error(StatusCode::kInvalidArgument, "array item properties must be an object");
+            }
+            auto nested = FormatSchemaProperties(item_value.as_object());
+            if (!nested.ok()) return nested.status();
+            item_result.push_back('{');
+            item_result.append(nested.value());
+            item_result.push_back('}');
+          } else if (item_key == "required") {
+            auto required = FormatRequired(item_value);
+            if (!required.ok()) return required.status();
+            item_result.append(required.value().substr(std::string_view("required:").size()));
+          } else if (item_key == "type" && item_value.is_string()) {
+            item_result.append("<|\"|>");
+            item_result.append(Upper(item_value.as_string()));
+            item_result.append("<|\"|>");
+          } else {
+            auto formatted = FormatToolArgument(item_value);
+            if (!formatted.ok()) return formatted.status();
+            item_result.append(formatted.value());
+          }
+        }
+        item_result.push_back('}');
+        append_field("items:", item_result);
+      }
+    }
+    const json::Value* nullable = property.find("nullable");
+    if (nullable != nullptr && nullable->is_bool() && nullable->as_bool()) {
+      append_field("nullable:", "true");
+    }
+    if (upper_type == "OBJECT") {
+      const json::Value* nested_properties = property.find("properties");
+      if (nested_properties != nullptr && nested_properties->is_object()) {
+        auto nested = FormatSchemaProperties(nested_properties->as_object());
+        if (!nested.ok()) return nested.status();
+        append_field("properties:", "{" + nested.value() + "}");
+      }
+      const json::Value* nested_required = property.find("required");
+      if (nested_required != nullptr && nested_required->is_array() && !nested_required->as_array().empty()) {
+        auto required = FormatRequired(*nested_required);
+        if (!required.ok()) return required.status();
+        append_field("", required.value());
+      }
+    }
+    append_field("type:", "<|\"|>" + upper_type + "<|\"|>");
+    result.push_back('}');
+  }
+  return result;
+}
+
+Result<std::string> FormatToolParameters(const json::Value& parameters) {
+  if (!parameters.is_object()) {
+    return Error(StatusCode::kInvalidArgument, "tool parameters must be a JSON object");
+  }
+  const json::Value* type = parameters.find("type");
+  if (type == nullptr || !type->is_string()) {
+    return Error(StatusCode::kInvalidArgument, "tool parameters require a string type");
+  }
+  std::string result = "parameters:{";
+  const json::Value* properties = parameters.find("properties");
+  if (properties != nullptr && properties->is_object() && !properties->as_object().empty()) {
+    auto formatted = FormatSchemaProperties(properties->as_object());
+    if (!formatted.ok()) return formatted.status();
+    result.append("properties:{");
+    result.append(formatted.value());
+    result.append("},");
+  }
+  const json::Value* required = parameters.find("required");
+  if (required != nullptr && required->is_array() && !required->as_array().empty()) {
+    auto formatted = FormatRequired(*required);
+    if (!formatted.ok()) return formatted.status();
+    result.append(formatted.value());
+    result.push_back(',');
+  }
+  result.append("type:<|\"|>");
+  result.append(Upper(type->as_string()));
+  result.append("<|\"|>}");
+  return result;
+}
+
+Result<std::string> FormatToolDefinition(const ChatToolDefinition& tool) {
+  if (tool.name.empty()) {
+    return Error(StatusCode::kInvalidArgument, "tool name must not be empty");
+  }
+  auto parameters =
+      json::Parse(tool.parameters_json, {.max_depth = 32, .max_values = 10000, .max_string_bytes = 1024U * 1024U});
+  if (!parameters.ok()) {
+    return Error(StatusCode::kInvalidArgument, "tool parameters are not valid JSON: " + parameters.status().message());
+  }
+  auto formatted_parameters = FormatToolParameters(parameters.value());
+  if (!formatted_parameters.ok()) return formatted_parameters.status();
+  std::string result = "<|tool>declaration:";
+  result.append(tool.name);
+  result.append("{description:<|\"|>");
+  result.append(tool.description);
+  result.append("<|\"|>,");
+  result.append(formatted_parameters.value());
+  result.append("}<tool|>");
+  return result;
+}
+
+Result<std::string> FormatToolCall(const ChatMessage::ToolCall& call) {
+  auto arguments =
+      json::Parse(call.arguments_json, {.max_depth = 32, .max_values = 10000, .max_string_bytes = 1024U * 1024U});
+  if (!arguments.ok() || !arguments.value().is_object()) {
+    return Error(StatusCode::kInvalidArgument, "tool call arguments must be a JSON object");
+  }
+  auto formatted = FormatToolObject(arguments.value().as_object(), false);
+  if (!formatted.ok()) return formatted.status();
+  return std::string("<|tool_call>call:") + call.name + formatted.value() + "<tool_call|>";
+}
+
+std::string FormatToolResponse(std::string_view name, std::string_view output) {
+  return std::string("<|tool_response>response:") + std::string(name) + "{value:<|\"|>" + std::string(output) +
+         "<|\"|>}<tool_response|>";
 }
 
 Result<std::vector<std::string_view>> Utf8Characters(std::string_view text) {
@@ -120,40 +358,31 @@ Result<std::vector<std::string_view>> Utf8Characters(std::string_view text) {
 bool ParseByteFallback(std::string_view token, unsigned char& value) {
   if (token.size() != 6U || !token.starts_with("<0x") || token.back() != '>') return false;
   unsigned parsed = 0;
-  const auto conversion =
-      std::from_chars(token.data() + 3, token.data() + 5, parsed, 16);
-  if (conversion.ec != std::errc{} || conversion.ptr != token.data() + 5 ||
-      parsed > 0xFFU) {
+  const auto conversion = std::from_chars(token.data() + 3, token.data() + 5, parsed, 16);
+  if (conversion.ec != std::errc{} || conversion.ptr != token.data() + 5 || parsed > 0xFFU) {
     return false;
   }
   value = static_cast<unsigned char>(parsed);
   return true;
 }
 
-Result<std::vector<std::uint32_t>> IntegerList(const json::Value* value,
-                                               std::string_view field,
-                                               bool allow_scalar) {
+Result<std::vector<std::uint32_t>> IntegerList(const json::Value* value, std::string_view field, bool allow_scalar) {
   std::vector<std::uint32_t> result;
   if (allow_scalar && value != nullptr && value->is_integer()) {
     if (value->as_integer() < 0 ||
-        static_cast<std::uint64_t>(value->as_integer()) >
-            std::numeric_limits<std::uint32_t>::max()) {
-      return Error(StatusCode::kDataLoss,
-                   "generation_config.json has invalid " + std::string(field));
+        static_cast<std::uint64_t>(value->as_integer()) > std::numeric_limits<std::uint32_t>::max()) {
+      return Error(StatusCode::kDataLoss, "generation_config.json has invalid " + std::string(field));
     }
     result.push_back(static_cast<std::uint32_t>(value->as_integer()));
     return result;
   }
   if (value == nullptr || !value->is_array()) {
-    return Error(StatusCode::kDataLoss,
-                 "generation_config.json has invalid " + std::string(field));
+    return Error(StatusCode::kDataLoss, "generation_config.json has invalid " + std::string(field));
   }
   for (const auto& item : value->as_array()) {
     if (!item.is_integer() || item.as_integer() < 0 ||
-        static_cast<std::uint64_t>(item.as_integer()) >
-            std::numeric_limits<std::uint32_t>::max()) {
-      return Error(StatusCode::kDataLoss,
-                   "generation_config.json has invalid " + std::string(field));
+        static_cast<std::uint64_t>(item.as_integer()) > std::numeric_limits<std::uint32_t>::max()) {
+      return Error(StatusCode::kDataLoss, "generation_config.json has invalid " + std::string(field));
     }
     result.push_back(static_cast<std::uint32_t>(item.as_integer()));
   }
@@ -164,6 +393,20 @@ Result<std::vector<std::uint32_t>> IntegerList(const json::Value* value,
 }
 
 }  // namespace
+
+namespace internal {
+
+Result<std::string> RenderGemmaToolDefinition(std::string_view name, std::string_view description,
+                                              std::string_view parameters_json) {
+  return FormatToolDefinition(
+      ChatToolDefinition{std::string(name), std::string(description), std::string(parameters_json)});
+}
+
+Result<std::string> RenderGemmaToolCall(std::string_view name, std::string_view arguments_json) {
+  return FormatToolCall(ChatMessage::ToolCall{{}, std::string(name), std::string(arguments_json)});
+}
+
+}  // namespace internal
 
 struct Tokenizer::Impl {
   struct Merge {
@@ -181,8 +424,7 @@ struct Tokenizer::Impl {
   std::vector<AddedToken> added_tokens;
   std::unordered_set<std::uint32_t> special_ids;
 
-  [[nodiscard]] Result<std::vector<std::uint32_t>> EncodeOrdinary(
-      std::string_view ordinary) const {
+  [[nodiscard]] Result<std::vector<std::uint32_t>> EncodeOrdinary(std::string_view ordinary) const {
     std::string normalized;
     normalized.reserve(ordinary.size());
     for (const char byte : ordinary) {
@@ -208,8 +450,7 @@ struct Tokenizer::Impl {
         (void)std::snprintf(fallback.data(), fallback.size(), "<0x%02X>", byte);
         const auto byte_token = vocabulary.find(fallback.data());
         if (byte_token == vocabulary.end()) {
-          return Error(StatusCode::kDataLoss,
-                       "tokenizer byte fallback is incomplete");
+          return Error(StatusCode::kDataLoss, "tokenizer byte fallback is incomplete");
         }
         symbols.push_back(byte_token->second);
       }
@@ -233,8 +474,7 @@ struct Tokenizer::Impl {
       std::vector<std::uint32_t> next;
       next.reserve(symbols.size());
       for (std::size_t index = 0; index < symbols.size();) {
-        if (index + 1U < symbols.size() &&
-            PairKey(symbols[index], symbols[index + 1U]) == best_pair) {
+        if (index + 1U < symbols.size() && PairKey(symbols[index], symbols[index + 1U]) == best_pair) {
           next.push_back(merge->second.result);
           index += 2U;
         } else {
@@ -251,35 +491,28 @@ struct Tokenizer::Impl {
 Result<Tokenizer> Tokenizer::Load(const std::filesystem::path& tokenizer_json) {
   auto text = ReadFile(tokenizer_json, kMaximumTokenizerBytes);
   if (!text.ok()) return text.status();
-  auto parsed = json::Parse(
-      text.value(),
-      {.max_depth = 128, .max_values = 2'000'000,
-       .max_string_bytes = 256U * 1024U * 1024U});
+  auto parsed =
+      json::Parse(text.value(), {.max_depth = 128, .max_values = 2'000'000, .max_string_bytes = 256U * 1024U * 1024U});
   if (!parsed.ok()) {
-    return Error(parsed.status().code(),
-                 tokenizer_json.string() + ": " + parsed.status().message());
+    return Error(parsed.status().code(), tokenizer_json.string() + ": " + parsed.status().message());
   }
   const json::Value* model = Member(parsed.value(), "model");
   const json::Value* vocabulary = model == nullptr ? nullptr : Member(*model, "vocab");
   const json::Value* merges = model == nullptr ? nullptr : Member(*model, "merges");
   const json::Value* model_type = model == nullptr ? nullptr : Member(*model, "type");
-  const json::Value* byte_fallback =
-      model == nullptr ? nullptr : Member(*model, "byte_fallback");
-  if (model == nullptr || !model->is_object() || model_type == nullptr ||
-      !model_type->is_string() || model_type->as_string() != "BPE" ||
-      byte_fallback == nullptr || !byte_fallback->is_bool() ||
-      !byte_fallback->as_bool() || vocabulary == nullptr ||
-      !vocabulary->is_object() || merges == nullptr || !merges->is_array()) {
-    return Error(StatusCode::kUnsupported,
-                 "tokenizer must be a byte-fallback BPE tokenizer");
+  const json::Value* byte_fallback = model == nullptr ? nullptr : Member(*model, "byte_fallback");
+  if (model == nullptr || !model->is_object() || model_type == nullptr || !model_type->is_string() ||
+      model_type->as_string() != "BPE" || byte_fallback == nullptr || !byte_fallback->is_bool() ||
+      !byte_fallback->as_bool() || vocabulary == nullptr || !vocabulary->is_object() || merges == nullptr ||
+      !merges->is_array()) {
+    return Error(StatusCode::kUnsupported, "tokenizer must be a byte-fallback BPE tokenizer");
   }
 
   auto implementation = std::make_shared<Impl>();
   std::uint32_t maximum_id = 0;
   for (const auto& [token, id_value] : vocabulary->as_object()) {
     if (!id_value.is_integer() || id_value.as_integer() < 0 ||
-        static_cast<std::uint64_t>(id_value.as_integer()) >
-            std::numeric_limits<std::uint32_t>::max()) {
+        static_cast<std::uint64_t>(id_value.as_integer()) > std::numeric_limits<std::uint32_t>::max()) {
       return Error(StatusCode::kDataLoss, "tokenizer vocabulary has an invalid ID");
     }
     maximum_id = std::max(maximum_id, static_cast<std::uint32_t>(id_value.as_integer()));
@@ -297,8 +530,8 @@ Result<Tokenizer> Tokenizer::Load(const std::filesystem::path& tokenizer_json) {
   std::uint32_t rank = 0;
   implementation->merges.reserve(merges->as_array().size());
   for (const auto& entry : merges->as_array()) {
-    if (!entry.is_array() || entry.as_array().size() != 2U ||
-        !entry.as_array()[0].is_string() || !entry.as_array()[1].is_string()) {
+    if (!entry.is_array() || entry.as_array().size() != 2U || !entry.as_array()[0].is_string() ||
+        !entry.as_array()[1].is_string()) {
       return Error(StatusCode::kDataLoss, "tokenizer merge is malformed");
     }
     const std::string& left_text = entry.as_array()[0].as_string();
@@ -306,15 +539,11 @@ Result<Tokenizer> Tokenizer::Load(const std::filesystem::path& tokenizer_json) {
     const auto left = implementation->vocabulary.find(left_text);
     const auto right = implementation->vocabulary.find(right_text);
     const auto result = implementation->vocabulary.find(left_text + right_text);
-    if (left == implementation->vocabulary.end() ||
-        right == implementation->vocabulary.end() ||
+    if (left == implementation->vocabulary.end() || right == implementation->vocabulary.end() ||
         result == implementation->vocabulary.end()) {
-      return Error(StatusCode::kDataLoss,
-                   "tokenizer merge references an absent vocabulary token");
+      return Error(StatusCode::kDataLoss, "tokenizer merge references an absent vocabulary token");
     }
-    implementation->merges.emplace(
-        PairKey(left->second, right->second),
-        Impl::Merge{rank++, result->second});
+    implementation->merges.emplace(PairKey(left->second, right->second), Impl::Merge{rank++, result->second});
   }
 
   const json::Value* added = Member(parsed.value(), "added_tokens");
@@ -325,10 +554,9 @@ Result<Tokenizer> Tokenizer::Load(const std::filesystem::path& tokenizer_json) {
     const json::Value* content = Member(entry, "content");
     const json::Value* id_value = Member(entry, "id");
     const json::Value* special = Member(entry, "special");
-    if (content == nullptr || !content->is_string() || id_value == nullptr ||
-        !id_value->is_integer() || id_value->as_integer() < 0 ||
-        static_cast<std::uint64_t>(id_value->as_integer()) >
-            std::numeric_limits<std::uint32_t>::max() ||
+    if (content == nullptr || !content->is_string() || id_value == nullptr || !id_value->is_integer() ||
+        id_value->as_integer() < 0 ||
+        static_cast<std::uint64_t>(id_value->as_integer()) > std::numeric_limits<std::uint32_t>::max() ||
         special == nullptr || !special->is_bool()) {
       return Error(StatusCode::kDataLoss, "tokenizer added token is malformed");
     }
@@ -363,8 +591,7 @@ Result<std::vector<std::uint32_t>> Tokenizer::Encode(std::string_view text) cons
       continue;
     }
     if (offset > ordinary_begin) {
-      auto ordinary =
-          implementation_->EncodeOrdinary(text.substr(ordinary_begin, offset - ordinary_begin));
+      auto ordinary = implementation_->EncodeOrdinary(text.substr(ordinary_begin, offset - ordinary_begin));
       if (!ordinary.ok()) return ordinary.status();
       result.insert(result.end(), ordinary.value().begin(), ordinary.value().end());
     }
@@ -380,8 +607,7 @@ Result<std::vector<std::uint32_t>> Tokenizer::Encode(std::string_view text) cons
   return result;
 }
 
-Result<std::string> Tokenizer::Decode(std::span<const std::uint32_t> token_ids,
-                                      bool skip_special_tokens) const {
+Result<std::string> Tokenizer::Decode(std::span<const std::uint32_t> token_ids, bool skip_special_tokens) const {
   if (implementation_ == nullptr) {
     return Error(StatusCode::kInternal, "tokenizer is not initialized");
   }
@@ -416,16 +642,12 @@ Result<std::string> Tokenizer::Decode(std::span<const std::uint32_t> token_ids,
   return result;
 }
 
-Status Tokenizer::WriteDecodedToken(std::uint32_t token_id,
-                                    bool skip_special_tokens,
-                                    std::ostream& output) const {
+Status Tokenizer::WriteDecodedToken(std::uint32_t token_id, bool skip_special_tokens, std::ostream& output) const {
   if (implementation_ == nullptr) {
     return Error(StatusCode::kInternal, "tokenizer is not initialized");
   }
-  if (token_id >= implementation_->tokens.size() ||
-      implementation_->tokens[token_id].empty()) {
-    return Error(StatusCode::kInvalidArgument,
-                 "token ID is absent from tokenizer vocabulary");
+  if (token_id >= implementation_->tokens.size() || implementation_->tokens[token_id].empty()) {
+    return Error(StatusCode::kInvalidArgument, "token ID is absent from tokenizer vocabulary");
   }
   const bool special = implementation_->special_ids.contains(token_id);
   if (skip_special_tokens && special) return Status::Ok();
@@ -442,12 +664,10 @@ Status Tokenizer::WriteDecodedToken(std::uint32_t token_id,
       while (begin < token.size()) {
         const std::size_t marker = token.find(kSpaceMarker, begin);
         if (marker == std::string::npos) {
-          output.write(token.data() + begin,
-                       static_cast<std::streamsize>(token.size() - begin));
+          output.write(token.data() + begin, static_cast<std::streamsize>(token.size() - begin));
           break;
         }
-        output.write(token.data() + begin,
-                     static_cast<std::streamsize>(marker - begin));
+        output.write(token.data() + begin, static_cast<std::streamsize>(marker - begin));
         output.put(' ');
         begin = marker + kSpaceMarker.size();
       }
@@ -459,157 +679,113 @@ Status Tokenizer::WriteDecodedToken(std::uint32_t token_id,
   return Status::Ok();
 }
 
-Result<GemmaChatProcessor> GemmaChatProcessor::Load(
-    const std::filesystem::path& model_directory) {
-  auto processor_text =
-      ReadFile(model_directory / "processor_config.json", 1024U * 1024U);
+Result<GemmaChatProcessor> GemmaChatProcessor::Load(const std::filesystem::path& model_directory) {
+  auto processor_text = ReadFile(model_directory / "processor_config.json", 1024U * 1024U);
   if (!processor_text.ok()) return processor_text.status();
   auto processor = json::Parse(processor_text.value());
   if (!processor.ok() || !processor.value().is_object()) {
     return Error(StatusCode::kDataLoss, "processor_config.json is malformed");
   }
-  const json::Value* sampling_rate =
-      Nested(processor.value(), "feature_extractor", "sampling_rate");
-  const json::Value* samples_per_token = Nested(
-      processor.value(), "feature_extractor", "audio_samples_per_token");
-  const json::Value* feature_size =
-      Nested(processor.value(), "feature_extractor", "feature_size");
-  const json::Value* sequence_length =
-      Member(processor.value(), "audio_seq_length");
-  const json::Value* milliseconds_per_token =
-      Member(processor.value(), "audio_ms_per_token");
-  const json::Value* image_patch_size =
-      Nested(processor.value(), "image_processor", "patch_size");
-  const json::Value* image_pooling =
-      Nested(processor.value(), "image_processor", "pooling_kernel_size");
-  const json::Value* image_tokens =
-      Member(processor.value(), "image_seq_length");
-  if (sampling_rate == nullptr || !sampling_rate->is_integer() ||
-      sampling_rate->as_integer() != 16000 || samples_per_token == nullptr ||
-      !samples_per_token->is_integer() ||
-      samples_per_token->as_integer() != 640 || feature_size == nullptr ||
-      !feature_size->is_integer() || feature_size->as_integer() != 640 ||
-      sequence_length == nullptr || !sequence_length->is_integer() ||
-      sequence_length->as_integer() != 750 ||
-      milliseconds_per_token == nullptr ||
-      !milliseconds_per_token->is_integer() ||
-      milliseconds_per_token->as_integer() != 40 ||
-      image_patch_size == nullptr || !image_patch_size->is_integer() ||
-      image_patch_size->as_integer() != 16 || image_pooling == nullptr ||
-      !image_pooling->is_integer() || image_pooling->as_integer() != 3 ||
-      image_tokens == nullptr || !image_tokens->is_integer() ||
+  const json::Value* sampling_rate = Nested(processor.value(), "feature_extractor", "sampling_rate");
+  const json::Value* samples_per_token = Nested(processor.value(), "feature_extractor", "audio_samples_per_token");
+  const json::Value* feature_size = Nested(processor.value(), "feature_extractor", "feature_size");
+  const json::Value* sequence_length = Member(processor.value(), "audio_seq_length");
+  const json::Value* milliseconds_per_token = Member(processor.value(), "audio_ms_per_token");
+  const json::Value* image_patch_size = Nested(processor.value(), "image_processor", "patch_size");
+  const json::Value* image_pooling = Nested(processor.value(), "image_processor", "pooling_kernel_size");
+  const json::Value* image_tokens = Member(processor.value(), "image_seq_length");
+  if (sampling_rate == nullptr || !sampling_rate->is_integer() || sampling_rate->as_integer() != 16000 ||
+      samples_per_token == nullptr || !samples_per_token->is_integer() || samples_per_token->as_integer() != 640 ||
+      feature_size == nullptr || !feature_size->is_integer() || feature_size->as_integer() != 640 ||
+      sequence_length == nullptr || !sequence_length->is_integer() || sequence_length->as_integer() != 750 ||
+      milliseconds_per_token == nullptr || !milliseconds_per_token->is_integer() ||
+      milliseconds_per_token->as_integer() != 40 || image_patch_size == nullptr || !image_patch_size->is_integer() ||
+      image_patch_size->as_integer() != 16 || image_pooling == nullptr || !image_pooling->is_integer() ||
+      image_pooling->as_integer() != 3 || image_tokens == nullptr || !image_tokens->is_integer() ||
       image_tokens->as_integer() != 280) {
-    return Error(StatusCode::kUnsupported,
-                 "processor_config.json differs from the qualified audio/vision schema");
+    return Error(StatusCode::kUnsupported, "processor_config.json differs from the qualified audio/vision schema");
   }
   auto tokenizer = Tokenizer::Load(model_directory / "tokenizer.json");
   if (!tokenizer.ok()) return tokenizer.status();
-  auto tokenizer_config = internal::LoadTokenizerConfig(
-      model_directory / "tokenizer_config.json");
+  auto tokenizer_config = internal::LoadTokenizerConfig(model_directory / "tokenizer_config.json");
   if (!tokenizer_config.ok()) return tokenizer_config.status();
-  auto tokenizer_contract =
-      internal::ValidatePrimaryTokenizerConfig(tokenizer_config.value());
+  auto tokenizer_contract = internal::ValidatePrimaryTokenizerConfig(tokenizer_config.value());
   if (!tokenizer_contract.ok()) return tokenizer_contract;
-  auto chat_template =
-      ReadFile(model_directory / "chat_template.jinja", kMaximumTemplateBytes);
+  auto chat_template = ReadFile(model_directory / "chat_template.jinja", kMaximumTemplateBytes);
   if (!chat_template.ok()) return chat_template.status();
   if (Fnv1a(chat_template.value()) != kPinnedTemplateFnv1a) {
-    return Error(
-        StatusCode::kUnsupported,
-        "chat_template.jinja differs from the natively supported pinned Gemma template");
+    return Error(StatusCode::kUnsupported,
+                 "chat_template.jinja differs from the natively supported pinned Gemma template");
   }
 
-  auto generation_text =
-      ReadFile(model_directory / "generation_config.json", 1024U * 1024U);
+  auto generation_text = ReadFile(model_directory / "generation_config.json", 1024U * 1024U);
   if (!generation_text.ok()) return generation_text.status();
   auto generation = json::Parse(generation_text.value());
   if (!generation.ok() || !generation.value().is_object()) {
     return Error(StatusCode::kDataLoss, "generation_config.json is malformed");
   }
-  auto stop = IntegerList(Member(generation.value(), "eos_token_id"),
-                          "eos_token_id", true);
+  auto stop = IntegerList(Member(generation.value(), "eos_token_id"), "eos_token_id", true);
   if (!stop.ok()) return stop.status();
   const json::Value* do_sample = Member(generation.value(), "do_sample");
   const json::Value* temperature = Member(generation.value(), "temperature");
   const json::Value* top_k = Member(generation.value(), "top_k");
   const json::Value* top_p = Member(generation.value(), "top_p");
-  if (do_sample == nullptr || !do_sample->is_bool() ||
-      !do_sample->as_bool() || temperature == nullptr ||
-      !temperature->is_number() ||
-      !std::isfinite(temperature->as_number()) ||
-      temperature->as_number() <= 0.0 || top_k == nullptr ||
-      !top_k->is_integer() || top_k->as_integer() < 0 ||
-      static_cast<std::uint64_t>(top_k->as_integer()) >
-          std::numeric_limits<std::uint32_t>::max() || top_p == nullptr ||
-      !top_p->is_number() || !std::isfinite(top_p->as_number()) ||
-      top_p->as_number() <= 0.0 || top_p->as_number() > 1.0) {
-    return Error(StatusCode::kDataLoss,
-                 "generation_config.json has invalid sampling defaults");
+  if (do_sample == nullptr || !do_sample->is_bool() || !do_sample->as_bool() || temperature == nullptr ||
+      !temperature->is_number() || !std::isfinite(temperature->as_number()) || temperature->as_number() <= 0.0 ||
+      top_k == nullptr || !top_k->is_integer() || top_k->as_integer() < 0 ||
+      static_cast<std::uint64_t>(top_k->as_integer()) > std::numeric_limits<std::uint32_t>::max() || top_p == nullptr ||
+      !top_p->is_number() || !std::isfinite(top_p->as_number()) || top_p->as_number() <= 0.0 ||
+      top_p->as_number() > 1.0) {
+    return Error(StatusCode::kDataLoss, "generation_config.json has invalid sampling defaults");
   }
   SamplingOptions recommended_sampling;
   recommended_sampling.enabled = true;
-  recommended_sampling.temperature =
-      static_cast<float>(temperature->as_number());
-  recommended_sampling.top_k =
-      static_cast<std::uint32_t>(top_k->as_integer());
+  recommended_sampling.temperature = static_cast<float>(temperature->as_number());
+  recommended_sampling.top_k = static_cast<std::uint32_t>(top_k->as_integer());
   recommended_sampling.top_p = static_cast<float>(top_p->as_number());
   auto sampling_status = ValidateSamplingOptions(recommended_sampling, 262144U);
   if (!sampling_status.ok()) return sampling_status;
 
-  const json::Value* suppressed_value =
-      Member(generation.value(), "suppress_tokens");
+  const json::Value* suppressed_value = Member(generation.value(), "suppress_tokens");
   std::vector<std::uint32_t> suppressed;
   if (suppressed_value != nullptr) {
-    auto parsed_suppressed =
-        IntegerList(suppressed_value, "suppress_tokens", false);
+    auto parsed_suppressed = IntegerList(suppressed_value, "suppress_tokens", false);
     if (!parsed_suppressed.ok()) return parsed_suppressed.status();
     suppressed = std::move(parsed_suppressed).value();
   }
 
   std::string thinking_open_marker = tokenizer_config.value().thinking_open;
-  while (!thinking_open_marker.empty() &&
-         std::isspace(static_cast<unsigned char>(thinking_open_marker.back()))) {
+  while (!thinking_open_marker.empty() && std::isspace(static_cast<unsigned char>(thinking_open_marker.back()))) {
     thinking_open_marker.pop_back();
   }
   auto thinking_open = tokenizer.value().Encode(thinking_open_marker);
   if (!thinking_open.ok()) return thinking_open.status();
   if (thinking_open.value().empty()) {
-    return Error(StatusCode::kDataLoss,
-                 "tokenizer thinking channel opener is empty");
+    return Error(StatusCode::kDataLoss, "tokenizer thinking channel opener is empty");
   }
-  auto thinking_close =
-      tokenizer.value().Encode(tokenizer_config.value().thinking_close);
+  auto thinking_close = tokenizer.value().Encode(tokenizer_config.value().thinking_close);
   if (!thinking_close.ok()) return thinking_close.status();
   if (thinking_close.value().size() != 1U) {
-    return Error(StatusCode::kDataLoss,
-                 "tokenizer thinking channel close marker is not one token");
+    return Error(StatusCode::kDataLoss, "tokenizer thinking channel close marker is not one token");
   }
 
   for (const std::string& token : tokenizer_config.value().content_close_tokens) {
     auto encoded = tokenizer.value().Encode(token);
     if (!encoded.ok()) return encoded.status();
     if (encoded.value().size() != 1U) {
-      return Error(StatusCode::kDataLoss,
-                   "tokenizer_config.json response close marker is not one token: " +
-                       token);
+      return Error(StatusCode::kDataLoss, "tokenizer_config.json response close marker is not one token: " + token);
     }
-    if (std::find(stop.value().begin(), stop.value().end(),
-                  encoded.value().front()) == stop.value().end()) {
+    if (std::find(stop.value().begin(), stop.value().end(), encoded.value().front()) == stop.value().end()) {
       return Error(StatusCode::kDataLoss,
-                   "generation_config.json does not stop on tokenizer response close marker: " +
-                       token);
+                   "generation_config.json does not stop on tokenizer response close marker: " + token);
     }
   }
   return GemmaChatProcessor(
       std::move(tokenizer).value(),
-      GenerationTokenControls{std::move(stop).value(), std::move(suppressed),
-                              std::move(thinking_open).value(),
-                              thinking_close.value().front(),
-                              recommended_sampling},
-      tokenizer_config.value().thinking_open,
-      tokenizer_config.value().thinking_close,
-      tokenizer_config.value().content_close_tokens,
-      tokenizer_config.value().tool_call_start_token);
+      GenerationTokenControls{std::move(stop).value(), std::move(suppressed), std::move(thinking_open).value(),
+                              thinking_close.value().front(), recommended_sampling},
+      tokenizer_config.value().thinking_open, tokenizer_config.value().thinking_close,
+      tokenizer_config.value().content_close_tokens, tokenizer_config.value().tool_call_start_token);
 }
 
 ResponseTokenChannel ResponseChannelTracker::Observe(std::uint32_t token_id) {
@@ -635,26 +811,28 @@ ResponseTokenChannel ResponseChannelTracker::Observe(std::uint32_t token_id) {
     return ResponseTokenChannel::kControl;
   }
   open_match_length_ = token_id == thinking_open_token_ids_.front() ? 1U : 0U;
-  return open_match_length_ == 0U ? ResponseTokenChannel::kText
-                                  : ResponseTokenChannel::kControl;
+  return open_match_length_ == 0U ? ResponseTokenChannel::kText : ResponseTokenChannel::kControl;
 }
 
-Result<std::string> GemmaChatProcessor::Render(
-    std::span<const ChatMessage> messages, bool enable_thinking,
-    bool add_generation_prompt) const {
+Result<std::string> GemmaChatProcessor::Render(std::span<const ChatMessage> messages, bool enable_thinking,
+                                               bool add_generation_prompt,
+                                               std::span<const ChatToolDefinition> tools) const {
   if (messages.empty()) {
     return Error(StatusCode::kInvalidArgument, "chat requires at least one message");
   }
   std::string result = "<bos>";
   std::size_t message_index = 0;
-  if (enable_thinking || messages.front().role == "system" ||
-      messages.front().role == "developer") {
+  if (enable_thinking || !tools.empty() || messages.front().role == "system" || messages.front().role == "developer") {
     result.append("<|turn>system\n");
     if (enable_thinking) result.append("<|think|>\n");
-    if (messages.front().role == "system" ||
-        messages.front().role == "developer") {
+    if (messages.front().role == "system" || messages.front().role == "developer") {
       result.append(Trim(messages.front().content));
       message_index = 1;
+    }
+    for (const ChatToolDefinition& tool : tools) {
+      auto formatted = FormatToolDefinition(tool);
+      if (!formatted.ok()) return formatted.status();
+      result.append(formatted.value());
     }
     result.append("<turn|>\n");
   }
@@ -662,25 +840,60 @@ Result<std::string> GemmaChatProcessor::Render(
   std::string previous_role;
   for (; message_index < messages.size(); ++message_index) {
     const ChatMessage& message = messages[message_index];
+    if (message.role == "tool") {
+      return Error(StatusCode::kInvalidArgument, "tool results must immediately follow an assistant tool call");
+    }
     if (message.role != "user" && message.role != "assistant") {
-      return Error(StatusCode::kUnsupported,
-                   "native chat currently supports system/developer, user, and assistant roles");
+      return Error(StatusCode::kUnsupported, "native chat message role is unsupported");
     }
     if (message.role == previous_role) {
-      return Error(StatusCode::kInvalidArgument,
-                   "native chat requires alternating user and assistant messages");
+      return Error(StatusCode::kInvalidArgument, "native chat requires alternating user and assistant messages");
     }
-    const std::string_view rendered_role =
-        message.role == "assistant" ? "model" : "user";
+    const std::string_view rendered_role = message.role == "assistant" ? "model" : "user";
     result.append("<|turn>");
     result.append(rendered_role);
     result.push_back('\n');
     if (message.role == "assistant") {
-      auto content = internal::ExtractResponseContent(
-          message.content, thinking_open_, thinking_close_,
-          content_close_tokens_, tool_call_start_token_);
-      if (!content.ok()) return content.status();
-      result.append(content.value());
+      if (!message.tool_calls.empty()) {
+        for (const ChatMessage::ToolCall& call : message.tool_calls) {
+          auto formatted = FormatToolCall(call);
+          if (!formatted.ok()) return formatted.status();
+          result.append(formatted.value());
+        }
+      }
+      if (!message.content.empty()) {
+        auto content = internal::ExtractResponseContent(message.content, thinking_open_, thinking_close_,
+                                                        content_close_tokens_, tool_call_start_token_);
+        if (!content.ok()) return content.status();
+        result.append(content.value());
+      }
+      bool rendered_tool_result = false;
+      while (message_index + 1U < messages.size() && messages[message_index + 1U].role == "tool") {
+        const ChatMessage& tool_result = messages[++message_index];
+        std::string tool_name = tool_result.tool_name;
+        if (tool_name.empty()) {
+          for (const ChatMessage::ToolCall& call : message.tool_calls) {
+            if (call.id == tool_result.tool_call_id) {
+              tool_name = call.name;
+              break;
+            }
+          }
+        }
+        if (tool_name.empty()) {
+          return Error(StatusCode::kInvalidArgument, "tool result does not match an assistant tool call");
+        }
+        result.append(FormatToolResponse(tool_name, tool_result.content));
+        rendered_tool_result = true;
+      }
+      if (!message.tool_calls.empty() && !rendered_tool_result) {
+        result.append("<|tool_response>");
+        previous_role = "assistant";
+        continue;
+      }
+      if (rendered_tool_result && message.content.empty() && message_index + 1U == messages.size()) {
+        previous_role = "tool";
+        continue;
+      }
     } else {
       result.append(Trim(message.content));
     }
@@ -688,9 +901,12 @@ Result<std::string> GemmaChatProcessor::Render(
     previous_role = message.role;
   }
   if (add_generation_prompt) {
+    if (previous_role == "tool") {
+      if (enable_thinking) result.append("<|channel>thought\n");
+      return result;
+    }
     if (previous_role != "user") {
-      return Error(StatusCode::kInvalidArgument,
-                   "generation prompt requires a final user message");
+      return Error(StatusCode::kInvalidArgument, "generation prompt requires a final user message");
     }
     result.append("<|turn>model\n");
     if (!enable_thinking) result.append("<|channel>thought\n<channel|>");
@@ -698,16 +914,16 @@ Result<std::string> GemmaChatProcessor::Render(
   return result;
 }
 
-Result<std::vector<std::uint32_t>> GemmaChatProcessor::Encode(
-    std::span<const ChatMessage> messages, bool enable_thinking,
-    bool add_generation_prompt) const {
-  auto rendered = Render(messages, enable_thinking, add_generation_prompt);
+Result<std::vector<std::uint32_t>> GemmaChatProcessor::Encode(std::span<const ChatMessage> messages,
+                                                              bool enable_thinking, bool add_generation_prompt,
+                                                              std::span<const ChatToolDefinition> tools) const {
+  auto rendered = Render(messages, enable_thinking, add_generation_prompt, tools);
   if (!rendered.ok()) return rendered.status();
   return tokenizer_.Encode(rendered.value());
 }
 
-Result<std::vector<std::uint32_t>> GemmaChatProcessor::EncodeContinuation(
-    std::string_view user_content, bool enable_thinking) const {
+Result<std::vector<std::uint32_t>> GemmaChatProcessor::EncodeContinuation(std::string_view user_content,
+                                                                          bool enable_thinking) const {
   std::string rendered = "<turn|>\n<|turn>user\n";
   rendered.append(Trim(user_content));
   rendered.append("<turn|>\n<|turn>model\n");
@@ -717,22 +933,19 @@ Result<std::vector<std::uint32_t>> GemmaChatProcessor::EncodeContinuation(
   return tokenizer_.Encode(rendered);
 }
 
-Result<std::string> GemmaChatProcessor::Decode(
-    std::span<const std::uint32_t> token_ids, bool skip_special_tokens) const {
+Result<std::string> GemmaChatProcessor::Decode(std::span<const std::uint32_t> token_ids,
+                                               bool skip_special_tokens) const {
   return tokenizer_.Decode(token_ids, skip_special_tokens);
 }
 
-Result<std::string> GemmaChatProcessor::DecodeResponseText(
-    std::span<const std::uint32_t> token_ids) const {
+Result<std::string> GemmaChatProcessor::DecodeResponseText(std::span<const std::uint32_t> token_ids) const {
   auto decoded = tokenizer_.Decode(token_ids, false);
   if (!decoded.ok()) return decoded.status();
-  return internal::ExtractResponseContent(
-      decoded.value(), thinking_open_, thinking_close_, content_close_tokens_,
-      tool_call_start_token_);
+  return internal::ExtractResponseContent(decoded.value(), thinking_open_, thinking_close_, content_close_tokens_,
+                                          tool_call_start_token_);
 }
 
-Status GemmaChatProcessor::WriteDecodedToken(std::uint32_t token_id,
-                                             bool skip_special_tokens,
+Status GemmaChatProcessor::WriteDecodedToken(std::uint32_t token_id, bool skip_special_tokens,
                                              std::ostream& output) const {
   return tokenizer_.WriteDecodedToken(token_id, skip_special_tokens, output);
 }

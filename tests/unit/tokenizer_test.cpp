@@ -13,11 +13,9 @@
 namespace {
 
 void TestBpeEncodeDecodeAndSpecialTokens() {
-  const auto suffix =
-      std::chrono::steady_clock::now().time_since_epoch().count();
+  const auto suffix = std::chrono::steady_clock::now().time_since_epoch().count();
   const std::filesystem::path directory =
-      std::filesystem::temp_directory_path() /
-      ("gem16-tokenizer-test-" + std::to_string(suffix));
+      std::filesystem::temp_directory_path() / ("gem16-tokenizer-test-" + std::to_string(suffix));
   std::error_code error;
   std::filesystem::create_directories(directory, error);
   GEM16_CHECK(!error);
@@ -56,8 +54,7 @@ void TestBpeEncodeDecodeAndSpecialTokens() {
     auto encoded = tokenizer.value().Encode("<s>ab ab");
     GEM16_CHECK(encoded.ok());
     if (encoded.ok()) {
-      GEM16_CHECK(encoded.value() ==
-                    std::vector<std::uint32_t>({0U, 3U, 5U}));
+      GEM16_CHECK(encoded.value() == std::vector<std::uint32_t>({0U, 3U, 5U}));
       auto decoded = tokenizer.value().Decode(encoded.value(), false);
       GEM16_CHECK(decoded.ok());
       if (decoded.ok()) GEM16_CHECK(decoded.value() == "<s>ab ab");
@@ -86,11 +83,9 @@ void TestBpeEncodeDecodeAndSpecialTokens() {
 }
 
 void TestGoogleTokenizerConfigAndResponseTemplate() {
-  const auto suffix =
-      std::chrono::steady_clock::now().time_since_epoch().count();
+  const auto suffix = std::chrono::steady_clock::now().time_since_epoch().count();
   const std::filesystem::path directory =
-      std::filesystem::temp_directory_path() /
-      ("gem16-tokenizer-config-test-" + std::to_string(suffix));
+      std::filesystem::temp_directory_path() / ("gem16-tokenizer-config-test-" + std::to_string(suffix));
   std::error_code error;
   std::filesystem::create_directories(directory, error);
   GEM16_CHECK(!error);
@@ -133,28 +128,40 @@ void TestGoogleTokenizerConfigAndResponseTemplate() {
   auto config = gem16::internal::LoadTokenizerConfig(path);
   GEM16_CHECK(config.ok());
   if (config.ok()) {
-    GEM16_CHECK(
-        gem16::internal::ValidatePrimaryTokenizerConfig(config.value()).ok());
+    GEM16_CHECK(gem16::internal::ValidatePrimaryTokenizerConfig(config.value()).ok());
     GEM16_CHECK(config.value().model_max_length > 1.0e29);
     auto content = gem16::internal::ExtractResponseContent(
-        "<|channel>thought\nsecret<channel|>  visible answer <turn|>",
-        config.value().thinking_open, config.value().thinking_close,
-        config.value().content_close_tokens,
-        config.value().tool_call_start_token);
+        "<|channel>thought\nsecret<channel|>  visible answer <turn|>", config.value().thinking_open,
+        config.value().thinking_close, config.value().content_close_tokens, config.value().tool_call_start_token);
     GEM16_CHECK(content.ok());
     if (content.ok()) GEM16_CHECK(content.value() == "visible answer");
 
     auto tool_call = gem16::internal::ExtractResponseContent(
-        "<|tool_call>call:test{}<tool_call|>",
-        config.value().thinking_open, config.value().thinking_close,
-        config.value().content_close_tokens,
-        config.value().tool_call_start_token);
-    GEM16_CHECK(!tool_call.ok());
+        "<|tool_call>call:test{}<tool_call|>", config.value().thinking_open, config.value().thinking_close,
+        config.value().content_close_tokens, config.value().tool_call_start_token);
+    GEM16_CHECK(tool_call.ok());
+    if (tool_call.ok()) GEM16_CHECK(tool_call.value().empty());
+
+    auto definition = gem16::internal::RenderGemmaToolDefinition(
+        "weather", "Get weather",
+        R"({"type":"object","properties":{"location":{"type":"string","description":"City"}},"required":["location"]})");
+    GEM16_CHECK(definition.ok());
+    if (definition.ok()) {
+      GEM16_CHECK(definition.value() ==
+                  "<|tool>declaration:weather{description:<|\"|>Get "
+                  "weather<|\"|>,parameters:{properties:{location:{description:<|\"|>City<|\"|>,type:<|\"|>STRING<|\"|>"
+                  "}},required:[<|\"|>location<|\"|>],type:<|\"|>OBJECT<|\"|>}}<tool|>");
+    }
+    auto rendered_call = gem16::internal::RenderGemmaToolCall("weather", R"({"location":"Berlin","days":[1,2]})");
+    GEM16_CHECK(rendered_call.ok());
+    if (rendered_call.ok()) {
+      GEM16_CHECK(rendered_call.value() ==
+                  "<|tool_call>call:weather{days:[1,2],location:<|\"|>Berlin<|\"|>}<tool_call|>");
+    }
 
     auto old_config = config.value();
     old_config.eos_token = "<turn|>";
-    GEM16_CHECK(
-        !gem16::internal::ValidatePrimaryTokenizerConfig(old_config).ok());
+    GEM16_CHECK(!gem16::internal::ValidatePrimaryTokenizerConfig(old_config).ok());
   }
 
   std::filesystem::remove(path, error);

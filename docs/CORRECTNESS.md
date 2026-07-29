@@ -126,6 +126,12 @@ Ordinary and sampled fixed-D2 sessions still produce `Blau` then `Blau` for the 
 both sampled MTP turns report GPU chaining, and no CUDA engine, graph, workspace, KV, sampling, or kernel code is
 changed by the orchestration boundary.
 
+The native tool-template gate compares a representative function declaration and assistant call against the exact
+output of the pinned `chat_template.jinja`. Unit coverage includes sorted properties, required fields, native quote
+tokens, JSON-to-Gemma argument conversion, marker splits inside `<|tool_call>`, repeated owned event payloads,
+Gemma-to-JSON argument conversion, visible text surrounding a call, and rejection of an unterminated call. The
+checkpoint-backed no-thinking render-only fixture remains byte- and token-identical after enabling the tool branch.
+
 The terminal stream applies the same checkpoint-qualified `ResponseChannelTracker` to generated IDs before
 decoding them. A real Windows fixed-D2 smoke test covers a forced reasoning close and observes separate
 `--- thinking ---` and `--- answer ---` sections without leaking the multi-token channel opener. A second run with

@@ -28,14 +28,14 @@ struct TokenizerConfig {
   bool tool_calls_repeat = false;
 };
 
-[[nodiscard]] Result<TokenizerConfig> LoadTokenizerConfig(
-    const std::filesystem::path& path);
-[[nodiscard]] Status ValidatePrimaryTokenizerConfig(
-    const TokenizerConfig& config);
-[[nodiscard]] Result<std::string> ExtractResponseContent(
-    std::string_view text, std::string_view thinking_open,
-    std::string_view thinking_close,
-    std::span<const std::string> content_close_tokens,
-    std::string_view tool_call_start_token);
+[[nodiscard]] Result<TokenizerConfig> LoadTokenizerConfig(const std::filesystem::path& path);
+[[nodiscard]] Status ValidatePrimaryTokenizerConfig(const TokenizerConfig& config);
+[[nodiscard]] Result<std::string> ExtractResponseContent(std::string_view text, std::string_view thinking_open,
+                                                         std::string_view thinking_close,
+                                                         std::span<const std::string> content_close_tokens,
+                                                         std::string_view tool_call_start_token);
+[[nodiscard]] Result<std::string> RenderGemmaToolDefinition(std::string_view name, std::string_view description,
+                                                            std::string_view parameters_json);
+[[nodiscard]] Result<std::string> RenderGemmaToolCall(std::string_view name, std::string_view arguments_json);
 
 }  // namespace gem16::internal

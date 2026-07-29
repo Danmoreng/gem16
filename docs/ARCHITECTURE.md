@@ -108,6 +108,17 @@ specialized paths. The reusable `Tokenizer` and `GemmaChatProcessor` remain inde
 SSE, OpenAI JSON, URLs, MIME/base64 processing, and terminal rendering belong above `ChatSession`, never in model
 or CUDA code.
 
+The pinned Gemma template's tool branch is implemented natively rather than by embedding a general Jinja runtime.
+JSON Schema function parameters are parsed with bounded depth/size, deterministically ordered, and rendered as
+checkpoint-native `<|tool>declaration:...<tool|>` records. Assistant calls and following tool results use the pinned
+`<|tool_call>call:name{...}<tool_call|>` and `<|tool_response>response:name{...}<tool_response|>` forms. Generated
+calls pass through an incremental parser whose markers, names, argument DSL, and repeated calls may span arbitrary
+host chunks. It emits structured events and converts the native argument DSL back to valid JSON before exposing a
+`GenerationToolCall`; malformed or unterminated calls fail visibly.
+The native execution gate currently accepts `auto` and `none` tool choice and the checkpoint's repeatable-call mode.
+Required/named forcing and disabling parallel calls fail as unsupported rather than being silently ignored; those
+policies require a later constrained-generation implementation.
+
 The intended serving ownership model has three levels. `ModelRuntime` will own immutable Target/Assistant weights,
 tokenizer/configuration, and kernel bindings once per process. `SessionState` will own KV, exact token/media prefix
 identity, sampling RNG/repetition state, and MTP controls per conversation. `ExecutionSlot` will own mutable graph

@@ -38,6 +38,7 @@ add_library(gem16_core STATIC
   src/model/tokenizer_config.cpp
   src/runtime/capabilities.cpp
   src/runtime/chat.cpp
+  src/runtime/tool_call_parser.cpp
   src/runtime/memory.cpp
   src/runtime/memory_plan.cpp
   src/runtime/sampling.cpp

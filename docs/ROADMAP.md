@@ -200,7 +200,9 @@ The llama.cpp benchmark is deliberately before engine kernel optimization, but a
 13. Execute the OpenAI-compatible agent-server sequence. **A1 complete:** the server-neutral request, content,
    event, response, and finish-reason types represent function definitions, tool choice, ordered tool calls and
    results, incremental text/reasoning/tool output, and multiple calls without binding the runtime to OpenAI JSON.
-   Next implement the checkpoint-native Gemma tool template and incremental parser, then expose it in resident chat.
+   **A2 complete:** bounded JSON schemas, assistant calls, and tool results render through the checkpoint-native
+   Gemma tool DSL; an arbitrary-chunk incremental parser returns validated JSON arguments and repeated structured
+   calls. Next expose tool definition, call, and result interaction in resident chat.
 14. After the Blackwell backend is correct and competitive, add architecture-specific backends for additional 16 GB
    CUDA GPUs without weakening benchmark or memory contracts.
 

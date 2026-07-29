@@ -17,33 +17,25 @@ namespace {
 
 constexpr std::uint64_t kMaximumTokenizerConfigBytes = 1024U * 1024U;
 
-Status Error(StatusCode code, std::string message) {
-  return Status(code, std::move(message));
-}
+Status Error(StatusCode code, std::string message) { return Status(code, std::move(message)); }
 
 Result<std::string> ReadConfig(const std::filesystem::path& path) {
   std::error_code error;
   const auto size = std::filesystem::file_size(path, error);
   if (error) {
-    return Error(StatusCode::kIoError,
-                 "cannot stat tokenizer_config.json: " + path.string() +
-                     ": " + error.message());
+    return Error(StatusCode::kIoError, "cannot stat tokenizer_config.json: " + path.string() + ": " + error.message());
   }
   if (size > kMaximumTokenizerConfigBytes) {
-    return Error(StatusCode::kDataLoss,
-                 "tokenizer_config.json exceeds 1 MiB safety limit: " +
-                     path.string());
+    return Error(StatusCode::kDataLoss, "tokenizer_config.json exceeds 1 MiB safety limit: " + path.string());
   }
   std::ifstream input(path, std::ios::binary);
   if (!input) {
-    return Error(StatusCode::kIoError,
-                 "cannot open tokenizer_config.json: " + path.string());
+    return Error(StatusCode::kIoError, "cannot open tokenizer_config.json: " + path.string());
   }
   std::ostringstream contents;
   contents << input.rdbuf();
   if (!input.good() && !input.eof()) {
-    return Error(StatusCode::kIoError,
-                 "failed while reading tokenizer_config.json: " + path.string());
+    return Error(StatusCode::kIoError, "failed while reading tokenizer_config.json: " + path.string());
   }
   return contents.str();
 }
@@ -52,32 +44,26 @@ const json::Value* Member(const json::Value* value, std::string_view name) {
   return value != nullptr && value->is_object() ? value->find(name) : nullptr;
 }
 
-Result<std::string> RequiredString(const json::Value* object,
-                                   std::string_view field) {
+Result<std::string> RequiredString(const json::Value* object, std::string_view field) {
   const json::Value* value = Member(object, field);
   if (value == nullptr || !value->is_string()) {
-    return Error(StatusCode::kDataLoss,
-                 "tokenizer_config.json field " + std::string(field) +
-                     " must be a string");
+    return Error(StatusCode::kDataLoss, "tokenizer_config.json field " + std::string(field) + " must be a string");
   }
   return value->as_string();
 }
 
-Result<std::vector<std::string>> RequiredStringArray(
-    const json::Value* object, std::string_view field) {
+Result<std::vector<std::string>> RequiredStringArray(const json::Value* object, std::string_view field) {
   const json::Value* value = Member(object, field);
   if (value == nullptr || !value->is_array() || value->as_array().empty()) {
     return Error(StatusCode::kDataLoss,
-                 "tokenizer_config.json field " + std::string(field) +
-                     " must be a non-empty string array");
+                 "tokenizer_config.json field " + std::string(field) + " must be a non-empty string array");
   }
   std::vector<std::string> result;
   result.reserve(value->as_array().size());
   for (const auto& item : value->as_array()) {
     if (!item.is_string()) {
       return Error(StatusCode::kDataLoss,
-                   "tokenizer_config.json field " + std::string(field) +
-                       " must contain only strings");
+                   "tokenizer_config.json field " + std::string(field) + " must contain only strings");
     }
     result.push_back(item.as_string());
   }
@@ -86,19 +72,16 @@ Result<std::vector<std::string>> RequiredStringArray(
 
 Status ContractError(std::string field, std::string expected) {
   return Error(StatusCode::kUnsupported,
-               "unsupported primary tokenizer_config.json: " +
-                   std::move(field) + " must be " + std::move(expected));
+               "unsupported primary tokenizer_config.json: " + std::move(field) + " must be " + std::move(expected));
 }
 
 std::string Trim(std::string_view value) {
   std::size_t begin = 0;
   std::size_t end = value.size();
-  while (begin < end &&
-         std::isspace(static_cast<unsigned char>(value[begin])) != 0) {
+  while (begin < end && std::isspace(static_cast<unsigned char>(value[begin])) != 0) {
     ++begin;
   }
-  while (end > begin &&
-         std::isspace(static_cast<unsigned char>(value[end - 1U])) != 0) {
+  while (end > begin && std::isspace(static_cast<unsigned char>(value[end - 1U])) != 0) {
     --end;
   }
   return std::string(value.substr(begin, end - begin));
@@ -106,21 +89,16 @@ std::string Trim(std::string_view value) {
 
 }  // namespace
 
-Result<TokenizerConfig> LoadTokenizerConfig(
-    const std::filesystem::path& path) {
+Result<TokenizerConfig> LoadTokenizerConfig(const std::filesystem::path& path) {
   auto text = ReadConfig(path);
   if (!text.ok()) return text.status();
   auto parsed = json::Parse(text.value(),
-                            {.max_depth = 64,
-                             .max_values = 10'000,
-                             .max_string_bytes = kMaximumTokenizerConfigBytes});
+                            {.max_depth = 64, .max_values = 10'000, .max_string_bytes = kMaximumTokenizerConfigBytes});
   if (!parsed.ok()) {
-    return Error(parsed.status().code(),
-                 path.string() + ": " + parsed.status().message());
+    return Error(parsed.status().code(), path.string() + ": " + parsed.status().message());
   }
   if (!parsed.value().is_object()) {
-    return Error(StatusCode::kDataLoss,
-                 "tokenizer_config.json root must be an object");
+    return Error(StatusCode::kDataLoss, "tokenizer_config.json root must be an object");
   }
   const json::Value* root = &parsed.value();
 
@@ -145,10 +123,9 @@ Result<TokenizerConfig> LoadTokenizerConfig(
   config.tool_call_start_token = std::move(tool_call_start).value();
 
   const json::Value* maximum = Member(root, "model_max_length");
-  if (maximum == nullptr || !maximum->is_number() ||
-      !std::isfinite(maximum->as_number()) || maximum->as_number() <= 0.0) {
-    return Error(StatusCode::kDataLoss,
-                 "tokenizer_config.json model_max_length must be a positive finite number");
+  if (maximum == nullptr || !maximum->is_number() || !std::isfinite(maximum->as_number()) ||
+      maximum->as_number() <= 0.0) {
+    return Error(StatusCode::kDataLoss, "tokenizer_config.json model_max_length must be a positive finite number");
   }
   config.model_max_length = maximum->as_number();
 
@@ -158,11 +135,9 @@ Result<TokenizerConfig> LoadTokenizerConfig(
   const json::Value* content = Member(fields, "content");
   const json::Value* thinking = Member(fields, "thinking");
   const json::Value* tool_calls = Member(fields, "tool_calls");
-  if (response == nullptr || !response->is_object() || defaults == nullptr ||
-      fields == nullptr || content == nullptr || thinking == nullptr ||
-      tool_calls == nullptr) {
-    return Error(StatusCode::kDataLoss,
-                 "tokenizer_config.json has no complete response_template");
+  if (response == nullptr || !response->is_object() || defaults == nullptr || fields == nullptr || content == nullptr ||
+      thinking == nullptr || tool_calls == nullptr) {
+    return Error(StatusCode::kDataLoss, "tokenizer_config.json has no complete response_template");
   }
 
   auto role = RequiredString(defaults, "role");
@@ -185,15 +160,12 @@ Result<TokenizerConfig> LoadTokenizerConfig(
   if (!tool_type.ok()) return tool_type.status();
   if (!tool_open.ok()) return tool_open.status();
   if (!tool_close.ok()) return tool_close.status();
-  if (content_type.value() != "text" || thinking_type.value() != "text" ||
-      tool_type.value() != "json") {
-    return Error(StatusCode::kUnsupported,
-                 "tokenizer_config.json response_template content types are unsupported");
+  if (content_type.value() != "text" || thinking_type.value() != "text" || tool_type.value() != "json") {
+    return Error(StatusCode::kUnsupported, "tokenizer_config.json response_template content types are unsupported");
   }
   const json::Value* repeats = Member(tool_calls, "repeats");
   if (repeats == nullptr || !repeats->is_bool()) {
-    return Error(StatusCode::kDataLoss,
-                 "tokenizer_config.json tool_calls.repeats must be a boolean");
+    return Error(StatusCode::kDataLoss, "tokenizer_config.json tool_calls.repeats must be a boolean");
   }
   config.response_role = std::move(role).value();
   config.response_start_anchors = std::move(anchors).value();
@@ -219,48 +191,36 @@ Status ValidatePrimaryTokenizerConfig(const TokenizerConfig& config) {
   if (config.eot_token != "<turn|>") {
     return ContractError("eot_token", "<turn|>");
   }
-  if (config.tool_response_end_token != "<tool_response|>" ||
-      config.tool_call_start_token != "<|tool_call>") {
+  if (config.tool_response_end_token != "<tool_response|>" || config.tool_call_start_token != "<|tool_call>") {
     return ContractError("tool boundary tokens", "the Google Gemma 4 contract");
   }
-  if (config.model_max_length <=
-      static_cast<double>(std::numeric_limits<std::uint64_t>::max())) {
-    return ContractError(
-        "model_max_length",
-        "Google's unbounded tokenizer sentinel (model context comes from config.json)");
+  if (config.model_max_length <= static_cast<double>(std::numeric_limits<std::uint64_t>::max())) {
+    return ContractError("model_max_length",
+                         "Google's unbounded tokenizer sentinel (model context comes from config.json)");
   }
   if (config.response_role != "assistant") {
     return ContractError("response_template.defaults.role", "assistant");
   }
-  if (config.response_start_anchors !=
-      std::vector<std::string>{"<|turn>model\n", "<tool_response|>"}) {
-    return ContractError("response_template.start_anchor",
-                         "the Google Gemma 4 anchors");
+  if (config.response_start_anchors != std::vector<std::string>{"<|turn>model\n", "<tool_response|>"}) {
+    return ContractError("response_template.start_anchor", "the Google Gemma 4 anchors");
   }
-  if (config.content_close_tokens !=
-      std::vector<std::string>{"<turn|>", "<|tool_response>", "<eos>"}) {
-    return ContractError("response_template.fields.content.close",
-                         "the Google Gemma 4 close-token list");
+  if (config.content_close_tokens != std::vector<std::string>{"<turn|>", "<|tool_response>", "<eos>"}) {
+    return ContractError("response_template.fields.content.close", "the Google Gemma 4 close-token list");
   }
-  if (config.thinking_open != "<|channel>thought\n" ||
-      config.thinking_close != "<channel|>") {
-    return ContractError("response_template.fields.thinking",
-                         "the Google Gemma 4 thinking delimiters");
+  if (config.thinking_open != "<|channel>thought\n" || config.thinking_close != "<channel|>") {
+    return ContractError("response_template.fields.thinking", "the Google Gemma 4 thinking delimiters");
   }
-  if (config.tool_call_open_pattern !=
-          "<\\|tool_call>call:(?P<name>\\w+)" ||
+  if (config.tool_call_open_pattern != "<\\|tool_call>call:(?P<name>\\w+)" ||
       config.tool_call_close != "<tool_call|>" || !config.tool_calls_repeat) {
-    return ContractError("response_template.fields.tool_calls",
-                         "the repeatable Google Gemma 4 tool-call contract");
+    return ContractError("response_template.fields.tool_calls", "the repeatable Google Gemma 4 tool-call contract");
   }
   return Status::Ok();
 }
 
-Result<std::string> ExtractResponseContent(
-    std::string_view text, std::string_view thinking_open,
-    std::string_view thinking_close,
-    std::span<const std::string> content_close_tokens,
-    std::string_view tool_call_start_token) {
+Result<std::string> ExtractResponseContent(std::string_view text, std::string_view thinking_open,
+                                           std::string_view thinking_close,
+                                           std::span<const std::string> content_close_tokens,
+                                           std::string_view tool_call_start_token) {
   std::string result;
   std::size_t begin = 0;
   while (begin <= text.size()) {
@@ -270,11 +230,9 @@ Result<std::string> ExtractResponseContent(
       break;
     }
     result.append(text.substr(begin, open - begin));
-    const std::size_t close =
-        text.find(thinking_close, open + thinking_open.size());
+    const std::size_t close = text.find(thinking_close, open + thinking_open.size());
     if (close == std::string_view::npos) {
-      return Error(StatusCode::kDataLoss,
-                   "model response has an unterminated thinking field");
+      return Error(StatusCode::kDataLoss, "model response has an unterminated thinking field");
     }
     begin = close + thinking_close.size();
   }
@@ -286,9 +244,14 @@ Result<std::string> ExtractResponseContent(
     }
   }
   result.resize(content_end);
-  if (result.find(tool_call_start_token) != std::string::npos) {
-    return Error(StatusCode::kUnsupported,
-                 "native chat does not yet support generated tool calls");
+  std::size_t tool_open = result.find(tool_call_start_token);
+  while (tool_open != std::string::npos) {
+    const std::size_t tool_close = result.find("<tool_call|>", tool_open);
+    if (tool_close == std::string::npos) {
+      return Error(StatusCode::kDataLoss, "model response has an unterminated tool call");
+    }
+    result.erase(tool_open, tool_close + std::string_view("<tool_call|>").size() - tool_open);
+    tool_open = result.find(tool_call_start_token, tool_open);
   }
   return Trim(result);
 }
