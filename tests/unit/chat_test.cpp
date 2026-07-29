@@ -44,7 +44,14 @@ void TestProtocolNeutralGenerationTypes() {
   gem16::ChatGenerationRequest request;
   request.messages.push_back(first);
   GEM16_CHECK(!request.max_generated_tokens.has_value());
-  GEM16_CHECK(request.thinking.effort == gem16::ThinkingEffort::kOff);
+  GEM16_CHECK(request.thinking.effort == gem16::ThinkingEffort::kMedium);
+  GEM16_CHECK(gem16::ThinkingBudgetTokens(gem16::ThinkingEffort::kOff) == 0U);
+  GEM16_CHECK(gem16::ThinkingBudgetTokens(
+                  gem16::ThinkingEffort::kSmall) == 256U);
+  GEM16_CHECK(gem16::ThinkingBudgetTokens(
+                  gem16::ThinkingEffort::kMedium) == 1024U);
+  GEM16_CHECK(gem16::ThinkingBudgetTokens(
+                  gem16::ThinkingEffort::kHigh) == 4096U);
   GEM16_CHECK(std::string(gem16::GenerationFinishReasonName(
                   gem16::GenerationFinishReason::kStop)) == "stop");
   GEM16_CHECK(std::string(gem16::GenerationFinishReasonName(

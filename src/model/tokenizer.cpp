@@ -519,8 +519,12 @@ Result<GemmaChatProcessor> GemmaChatProcessor::Load(
     suppressed = std::move(parsed_suppressed).value();
   }
 
-  auto thinking_open =
-      tokenizer.value().Encode(tokenizer_config.value().thinking_open);
+  std::string thinking_open_marker = tokenizer_config.value().thinking_open;
+  while (!thinking_open_marker.empty() &&
+         std::isspace(static_cast<unsigned char>(thinking_open_marker.back()))) {
+    thinking_open_marker.pop_back();
+  }
+  auto thinking_open = tokenizer.value().Encode(thinking_open_marker);
   if (!thinking_open.ok()) return thinking_open.status();
   if (thinking_open.value().empty()) {
     return Error(StatusCode::kDataLoss,

@@ -1,5 +1,34 @@
 # Decisions
 
+## 2026-07-29: Default chat to bounded thinking
+
+Date: 2026-07-29
+
+Decision: Chat requests use explicit `off`, `small`, `medium`, and `high` thinking efforts with nominal reasoning
+caps of 0, 256, 1,024, and 4,096 tokens. Medium is the chat default. If a stricter total output limit leaves less
+space, the effective reasoning cap is reduced while reserving half of a short output or 128 tokens of a longer
+output for visible content. The engine recognizes the checkpoint-qualified channel markers, counts only reasoning
+body tokens, and forcibly emits the close-channel token at the cap. While reasoning is open, MTP deliberately uses
+ordinary Target forwards; exact MTP may resume after closure. Sampling steps continue to advance by output
+position, including the explicitly forced close position.
+
+Context: The pinned template supports only a boolean thinking switch. The German Harry Potter diagnostic is badly
+wrong without thinking in both gem16 and direct vLLM, while thinking restores the correct second-book identity and
+major plot entities. Prompt-only budget instructions are not enforceable. Letting speculative groups cross a
+reasoning boundary would complicate transactional channel and budget state before correctness is established.
+
+Alternatives: Keep thinking opt-in; use an unenforced natural-language budget; count total output tokens as the
+reasoning budget; immediately add channel state to the conditional D2 graph.
+
+Consequences: Thinking quality is the default at additional latency. Reasoning before the close marker is initially
+ordinary even when MTP is enabled, with explicit telemetry; answer generation resumes exact MTP. A forced close is
+observable and reproducible. The preset values remain subject to the committed quality matrix, but may not change
+silently.
+
+Evidence: The initial real-checkpoint forced-small test closes at exactly 256 reasoning tokens. Greedy ordinary and
+fixed-D2 MTP produce byte-identical visible/raw streamed responses at the boundary; MTP reports 258 ordinary Target
+reasoning forwards and resumes GPU chaining for the answer at context 2,048.
+
 ## 2026-07-29: Establish a server-neutral generation boundary before multimodal work
 
 Date: 2026-07-29

@@ -134,8 +134,9 @@ Windows PowerShell:
 The model and exact conversation prefix remain resident between turns. Generated text is decoded and written to
 the terminal incrementally. The CLI now consumes the protocol-neutral `ChatSession` request/event API in
 `include/gem16/chat.h`; future HTTP/OpenAI adapters do not need terminal or CUDA-prefix knowledge. The optional
-official assistant also remains resident. Chat defaults to the pinned
-Google generation profile (`temperature=1.0`, `top_k=64`, `top_p=0.95`); use `--greedy` for explicit greedy
+official assistant also remains resident. Chat defaults to medium thinking (1,024 reasoning tokens maximum) and
+the pinned Google generation profile (`temperature=1.0`, `top_k=64`, `top_p=0.95`). Use
+`--thinking-budget off|small|medium|high` for 0/256/1,024/4,096-token reasoning caps and `--greedy` for explicit greedy
 decoding. Fixed D2 uses the GPU-chained conditional graph for greedy and sampled generation. With no
 `--max-tokens`, a turn runs until a checkpoint stop token or the remaining `--max-context` capacity; pass
 `--max-tokens N` for a stricter per-turn limit. `--stats` prints per-turn throughput, proposal/acceptance counts,

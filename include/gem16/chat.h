@@ -56,8 +56,11 @@ enum class ThinkingEffort {
 };
 
 struct ThinkingOptions {
-  ThinkingEffort effort = ThinkingEffort::kOff;
+  ThinkingEffort effort = ThinkingEffort::kMedium;
 };
+
+[[nodiscard]] std::uint64_t ThinkingBudgetTokens(ThinkingEffort effort);
+[[nodiscard]] const char* ThinkingEffortName(ThinkingEffort effort);
 
 struct ChatGenerationRequest {
   // Complete conversation through the new user turn. A resident session

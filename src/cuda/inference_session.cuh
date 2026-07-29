@@ -91,6 +91,7 @@ Result<ConversationSession> ConversationSession::Create(
 Result<GreedyInferenceResult> ConversationSession::Generate(
     std::span<const std::uint32_t> full_prompt_token_ids,
     std::uint64_t max_generated_tokens,
+    const ReasoningTokenOptions& reasoning,
     GeneratedTokenCallback generated_token_callback,
     void* generated_token_callback_context) {
   if (impl_ == nullptr) {
@@ -108,6 +109,13 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
   if (max_generated_tokens == 0U) {
     return Error(StatusCode::kInvalidArgument,
                  "--max-tokens must be positive");
+  }
+  if (reasoning.enabled &&
+      (reasoning.channel_open_token_ids.empty() ||
+       reasoning.channel_close_token_id >= kVocabulary ||
+       reasoning.max_reasoning_tokens == 0U)) {
+    return Error(StatusCode::kInvalidArgument,
+                 "enabled reasoning requires channel tokens and a positive budget");
   }
   if (full_prompt_token_ids.size() > impl_->max_context_tokens ||
       max_generated_tokens - 1U >
@@ -176,6 +184,8 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
   result.mtp_enabled = impl_->mtp_draft_tokens != 0U;
   result.mtp_adaptive = impl_->mtp_adaptive;
   result.mtp_draft_tokens = impl_->mtp_draft_tokens;
+  result.reasoning_enabled = reasoning.enabled;
+  result.reasoning_budget_tokens = reasoning.max_reasoning_tokens;
   result.kv_cache_bytes = impl_->engine.cache_bytes();
   result.workspace_bytes = impl_->engine.workspace_bytes();
   result.decode_graph_device_bytes =
@@ -197,7 +207,29 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
   std::uint32_t next_token = prefilled.value();
   result.prompt_milliseconds = Milliseconds(
       std::chrono::steady_clock::now() - prompt_start);
+  ResponseChannelTracker reasoning_tracker(
+      reasoning.channel_open_token_ids, reasoning.channel_close_token_id);
+  bool reasoning_started = false;
+  bool reasoning_complete = !reasoning.enabled;
+  const auto observe_reasoning_token = [&](std::uint32_t token) {
+    if (!reasoning.enabled || reasoning_complete) return;
+    const bool was_reasoning = reasoning_tracker.in_reasoning();
+    const ResponseTokenChannel channel = reasoning_tracker.Observe(token);
+    if (!was_reasoning && reasoning_tracker.in_reasoning()) {
+      reasoning_started = true;
+    }
+    result.reasoning_tokens = reasoning_tracker.reasoning_token_count();
+    if (was_reasoning && !reasoning_tracker.in_reasoning()) {
+      reasoning_complete = true;
+    } else if (!reasoning_started &&
+               channel == ResponseTokenChannel::kText &&
+               !reasoning_tracker.matching_open()) {
+      reasoning_complete = true;
+    }
+  };
+
   result.output_token_ids.push_back(next_token);
+  observe_reasoning_token(next_token);
   if (generated_token_callback != nullptr) {
     Status status = generated_token_callback(
         generated_token_callback_context, next_token);
@@ -226,6 +258,42 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
   const auto decode_start = std::chrono::steady_clock::now();
   if (result.mtp_enabled) {
     std::uint64_t processed_position = impl_->cached_token_ids.size() - 1U;
+    while (result.output_token_ids.size() < max_generated_tokens &&
+           !result.stopped && !reasoning_complete) {
+      const bool force_close = reasoning_tracker.in_reasoning() &&
+                               reasoning_tracker.reasoning_token_count() >=
+                                   reasoning.max_reasoning_tokens;
+      auto forwarded = impl_->engine.Forward(
+          next_token, processed_position + 1U, true);
+      if (!forwarded.ok()) {
+        impl_->poisoned = true;
+        return forwarded.status();
+      }
+      ++processed_position;
+      ++result.mtp_target_forwards;
+      ++result.mtp_target_batches;
+      ++result.reasoning_ordinary_target_tokens;
+      next_token = force_close ? reasoning.channel_close_token_id
+                               : forwarded.value();
+      result.reasoning_budget_forced =
+          result.reasoning_budget_forced || force_close;
+      result.output_token_ids.push_back(next_token);
+      observe_reasoning_token(next_token);
+      if (generated_token_callback != nullptr) {
+        Status status = generated_token_callback(
+            generated_token_callback_context, next_token);
+        if (!status.ok()) {
+          impl_->poisoned = true;
+          return status;
+        }
+      }
+      if (std::find(impl_->stop_token_ids.begin(),
+                    impl_->stop_token_ids.end(), next_token) !=
+          impl_->stop_token_ids.end()) {
+        result.stopped = true;
+        result.stop_token_id = next_token;
+      }
+    }
     internal::AdaptiveMtpScheduler adaptive_scheduler(
         impl_->mtp_draft_tokens, processed_position, impl_->mtp_adaptive);
     const auto emit_ordinary_token = [&](bool adaptive_fallback) -> Status {
@@ -415,6 +483,10 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
        generated < max_generated_tokens && !result.stopped; ++generated) {
     const std::uint64_t position = impl_->cached_token_ids.size();
     const std::uint32_t input_token = next_token;
+    const bool force_reasoning_close =
+        !reasoning_complete && reasoning_tracker.in_reasoning() &&
+        reasoning_tracker.reasoning_token_count() >=
+            reasoning.max_reasoning_tokens;
     auto forwarded =
         impl_->engine.Forward(input_token, position, true);
     if (!forwarded.ok()) {
@@ -422,8 +494,12 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
       return forwarded.status();
     }
     impl_->cached_token_ids.push_back(input_token);
-    next_token = forwarded.value();
+    next_token = force_reasoning_close ? reasoning.channel_close_token_id
+                                       : forwarded.value();
+    result.reasoning_budget_forced =
+        result.reasoning_budget_forced || force_reasoning_close;
     result.output_token_ids.push_back(next_token);
+    observe_reasoning_token(next_token);
     if (generated_token_callback != nullptr) {
       Status status = generated_token_callback(
           generated_token_callback_context, next_token);

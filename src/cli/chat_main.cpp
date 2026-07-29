@@ -77,7 +77,8 @@ void PrintUsage() {
       << "                [--assistant-model <official-mtp-checkpoint>]\n"
       << "                [--mtp-draft-tokens 1|2|4] [--mtp-adaptive]\n"
       << "                [--stats]\n"
-      << "                [--thinking] [--system <text>]\n"
+      << "                [--thinking-budget off|small|medium|high] [--thinking|--no-thinking]\n"
+      << "                [--show-thinking] [--system <text>]\n"
       << "                [--kv-cache fp8|bf16]\n"
       << "                [--greedy|--sample] [--temperature F] [--top-k N] [--top-p F]\n"
       << "                [--min-p F] [--repetition-penalty F] [--seed N]\n"
@@ -95,7 +96,8 @@ struct Options {
   std::uint64_t max_context = 1024;
   bool has_system_message = false;
   bool has_one_shot_message = false;
-  bool thinking = false;
+  gem16::ThinkingEffort thinking_effort = gem16::ThinkingEffort::kMedium;
+  bool show_thinking = true;
   bool render_only = false;
   bool json = false;
   bool stats = false;
@@ -152,7 +154,26 @@ gem16::Result<Options> ParseOptions(int argc, char** argv) {
                               "--max-context must be an unsigned integer");
       }
     } else if (argument == "--thinking") {
-      options.thinking = true;
+      options.thinking_effort = gem16::ThinkingEffort::kMedium;
+    } else if (argument == "--no-thinking") {
+      options.thinking_effort = gem16::ThinkingEffort::kOff;
+    } else if (argument == "--show-thinking") {
+      options.show_thinking = true;
+    } else if (argument == "--thinking-budget" && index + 1 < argc) {
+      const std::string_view effort = argv[++index];
+      if (effort == "off") {
+        options.thinking_effort = gem16::ThinkingEffort::kOff;
+      } else if (effort == "small") {
+        options.thinking_effort = gem16::ThinkingEffort::kSmall;
+      } else if (effort == "medium") {
+        options.thinking_effort = gem16::ThinkingEffort::kMedium;
+      } else if (effort == "high") {
+        options.thinking_effort = gem16::ThinkingEffort::kHigh;
+      } else {
+        return gem16::Status(
+            gem16::StatusCode::kInvalidArgument,
+            "--thinking-budget must be off, small, medium, or high");
+      }
     } else if (argument == "--render-only") {
       options.render_only = true;
     } else if (argument == "--json") {
@@ -338,6 +359,13 @@ void PrintTurnStats(const gem16::GreedyInferenceResult& inference) {
   } else {
     std::cerr << ", MTP disabled";
   }
+  if (inference.reasoning_enabled) {
+    std::cerr << ", thinking " << inference.reasoning_tokens << '/'
+              << inference.reasoning_budget_tokens
+              << (inference.reasoning_budget_forced ? " forced" : " natural")
+              << ", thinking ordinary target tokens "
+              << inference.reasoning_ordinary_target_tokens;
+  }
   std::cerr << '\n';
 }
 
@@ -347,15 +375,15 @@ gem16::Result<TurnOutput> RunTurn(
     bool stream_tokens, gem16::ChatSession* session) {
   std::optional<std::string> rendered;
   if (cli.render_only) {
-    auto render_result = processor.Render(messages, cli.thinking);
+    auto render_result = processor.Render(
+        messages, cli.thinking_effort != gem16::ThinkingEffort::kOff);
     if (!render_result.ok()) return render_result.status();
     rendered = std::move(render_result).value();
   }
   if (session != nullptr) {
     gem16::ChatGenerationRequest request;
     request.max_generated_tokens = cli.max_tokens;
-    request.thinking.effort = cli.thinking ? gem16::ThinkingEffort::kMedium
-                                           : gem16::ThinkingEffort::kOff;
+    request.thinking.effort = cli.thinking_effort;
     request.messages.reserve(messages.size());
     for (const gem16::ChatMessage& message : messages) {
       request.messages.push_back(
@@ -371,7 +399,8 @@ gem16::Result<TurnOutput> RunTurn(
                       std::move(generated.value().assistant_text)};
   }
 
-  auto prompt_ids = processor.Encode(messages, cli.thinking);
+  auto prompt_ids = processor.Encode(
+      messages, cli.thinking_effort != gem16::ThinkingEffort::kOff);
   if (!prompt_ids.ok()) return prompt_ids.status();
 
   if (cli.render_only) {

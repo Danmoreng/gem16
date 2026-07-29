@@ -7,6 +7,27 @@
 #include <utility>
 
 namespace gem16 {
+
+std::uint64_t ThinkingBudgetTokens(ThinkingEffort effort) {
+  switch (effort) {
+    case ThinkingEffort::kOff: return 0U;
+    case ThinkingEffort::kSmall: return 256U;
+    case ThinkingEffort::kMedium: return 1024U;
+    case ThinkingEffort::kHigh: return 4096U;
+  }
+  return 0U;
+}
+
+const char* ThinkingEffortName(ThinkingEffort effort) {
+  switch (effort) {
+    case ThinkingEffort::kOff: return "off";
+    case ThinkingEffort::kSmall: return "small";
+    case ThinkingEffort::kMedium: return "medium";
+    case ThinkingEffort::kHigh: return "high";
+  }
+  return "unknown";
+}
+
 namespace {
 
 Result<std::string> TextContent(const GenerationMessage& message) {
@@ -171,9 +192,23 @@ Result<ChatGenerationResponse> ChatSession::Generate(
                   "requested output exceeds the remaining context capacity");
   }
 
+  ReasoningTokenOptions reasoning;
+  reasoning.enabled = request.thinking.effort != ThinkingEffort::kOff;
+  if (reasoning.enabled) {
+    reasoning.channel_open_token_ids =
+        impl_->processor.generation_controls().thinking_open_token_ids;
+    reasoning.channel_close_token_id =
+        impl_->processor.generation_controls().thinking_close_token_id;
+    const std::uint64_t answer_reserve =
+        max_generated_tokens > 128U ? 128U : max_generated_tokens / 2U;
+    reasoning.max_reasoning_tokens = std::min(
+        ThinkingBudgetTokens(request.thinking.effort),
+        std::max<std::uint64_t>(1U, max_generated_tokens - answer_reserve));
+  }
+
   EventBridge bridge{callback, callback_context};
   auto inference = impl_->session.Generate(
-      prompt_ids.value(), max_generated_tokens,
+      prompt_ids.value(), max_generated_tokens, reasoning,
       callback == nullptr ? nullptr : ForwardTokenEvent,
       callback == nullptr ? nullptr : &bridge);
   if (!inference.ok()) return inference.status();

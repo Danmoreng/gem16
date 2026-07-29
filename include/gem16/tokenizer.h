@@ -39,11 +39,17 @@ enum class ResponseTokenChannel {
 class ResponseChannelTracker {
  public:
   explicit ResponseChannelTracker(const GenerationTokenControls& controls)
-      : thinking_open_token_ids_(controls.thinking_open_token_ids),
-        thinking_close_token_id_(controls.thinking_close_token_id) {}
+      : ResponseChannelTracker(controls.thinking_open_token_ids,
+                               controls.thinking_close_token_id) {}
+  ResponseChannelTracker(std::span<const std::uint32_t> thinking_open_token_ids,
+                         std::uint32_t thinking_close_token_id)
+      : thinking_open_token_ids_(thinking_open_token_ids.begin(),
+                                 thinking_open_token_ids.end()),
+        thinking_close_token_id_(thinking_close_token_id) {}
 
   [[nodiscard]] ResponseTokenChannel Observe(std::uint32_t token_id);
   [[nodiscard]] bool in_reasoning() const { return in_reasoning_; }
+  [[nodiscard]] bool matching_open() const { return open_match_length_ != 0U; }
   [[nodiscard]] std::uint64_t reasoning_token_count() const {
     return reasoning_token_count_;
   }

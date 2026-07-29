@@ -23,6 +23,13 @@ enum class KvCacheMode {
 using GeneratedTokenCallback = Status (*)(void* context,
                                           std::uint32_t token_id);
 
+struct ReasoningTokenOptions {
+  std::vector<std::uint32_t> channel_open_token_ids;
+  std::uint32_t channel_close_token_id = 0U;
+  std::uint64_t max_reasoning_tokens = 0U;
+  bool enabled = false;
+};
+
 struct GreedyInferenceOptions {
   std::filesystem::path model_directory;
   // Optional official BF16 MTP assistant, loaded and bound into an
@@ -82,6 +89,9 @@ struct GreedyInferenceResult {
   std::uint64_t mtp_d2_groups = 0;
   std::uint64_t mtp_d4_groups = 0;
   std::uint64_t mtp_ordinary_fallback_tokens = 0;
+  std::uint64_t reasoning_tokens = 0;
+  std::uint64_t reasoning_budget_tokens = 0;
+  std::uint64_t reasoning_ordinary_target_tokens = 0;
   std::uint32_t mtp_draft_tokens = 0;
   std::uint64_t kv_cache_bytes = 0;
   std::uint64_t workspace_bytes = 0;
@@ -100,6 +110,8 @@ struct GreedyInferenceResult {
   bool mtp_adaptive = false;
   bool mtp_fixed_d2_graph = false;
   bool mtp_gpu_chained = false;
+  bool reasoning_enabled = false;
+  bool reasoning_budget_forced = false;
   bool token_loop_allocations = false;
   bool benchmark_qualified = false;
   bool stopped = false;
@@ -138,6 +150,7 @@ class ConversationSession {
   [[nodiscard]] Result<GreedyInferenceResult> Generate(
       std::span<const std::uint32_t> full_prompt_token_ids,
       std::uint64_t max_generated_tokens,
+      const ReasoningTokenOptions& reasoning = {},
       GeneratedTokenCallback generated_token_callback = nullptr,
       void* generated_token_callback_context = nullptr);
   [[nodiscard]] std::uint64_t cached_token_count() const;

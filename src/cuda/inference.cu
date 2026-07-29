@@ -19,6 +19,7 @@
 #include "cuda/output_head.h"
 #include "cuda/sampling/sampling.h"
 #include "gem16/model.h"
+#include "gem16/tokenizer.h"
 #include "platform/mapped_file.h"
 
 #include <cuda_bf16.h>
