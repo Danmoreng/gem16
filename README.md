@@ -161,9 +161,21 @@ contract:
   --no-thinking --max-context 1024 --max-tokens 128
 ```
 
-See [docs/AUDIO.md](docs/AUDIO.md) for the qualified preprocessing and GPU
-embedding contract. Image preprocessing/execution is not implemented yet,
-even though its small checkpoint tensors are already resident.
+See [docs/AUDIO.md](docs/AUDIO.md) for the qualified audio contract. Image
+input is also available in one-shot chat; PNG, JPEG, and BMP files are decoded
+to RGB, processed into the checkpoint's native merged patches, and projected
+by the complete encoder-free vision embedder on the GPU:
+
+```powershell
+.\build\Windows\blackwell-release\bin\gem16-chat.exe `
+  --model .\models\checkpoints\unsloth-gemma-4-12b-it-NVFP4-b1f6497 `
+  --message "Beschreibe das Bild und lies sichtbaren Text." `
+  --image C:\path\image.png `
+  --no-thinking --max-context 1024 --max-tokens 128
+```
+
+See [docs/VISION.md](docs/VISION.md) for preprocessing, attention semantics,
+current format limits, and the verification record.
 
 ## Command-line tools
 

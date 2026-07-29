@@ -28,6 +28,19 @@ struct Nvfp4Binding {
   std::uint64_t contracting = 0;
 };
 
+struct VisionBinding {
+  const std::uint16_t* patch_ln1_weight = nullptr;
+  const std::uint16_t* patch_ln1_bias = nullptr;
+  const std::uint16_t* patch_dense_weight = nullptr;
+  const std::uint16_t* patch_dense_bias = nullptr;
+  const std::uint16_t* patch_ln2_weight = nullptr;
+  const std::uint16_t* patch_ln2_bias = nullptr;
+  const std::uint16_t* position_embedding = nullptr;
+  const std::uint16_t* position_norm_weight = nullptr;
+  const std::uint16_t* position_norm_bias = nullptr;
+  const std::uint16_t* projection_weight = nullptr;
+};
+
 struct LayerBinding {
   bool global = false;
   std::uint64_t kv_heads = 0;
@@ -70,6 +83,7 @@ class LoadedTargetModel {
   [[nodiscard]] const std::uint16_t* embedding() const;
   [[nodiscard]] const std::uint16_t* final_norm() const;
   [[nodiscard]] const std::uint16_t* audio_projection() const;
+  [[nodiscard]] const VisionBinding& vision() const;
   [[nodiscard]] std::uint64_t weight_bytes() const;
   void SetLayerBf16Cache(std::size_t layer, float* key, float* value);
   void SetLayerFp8Cache(std::size_t layer, std::uint8_t* key,

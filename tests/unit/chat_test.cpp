@@ -45,6 +45,13 @@ void TestProtocolNeutralGenerationTypes() {
   auto audio = gem16::GenerationContentPart::Audio(waveform);
   GEM16_CHECK(audio.kind == gem16::GenerationContentKind::kAudio);
   GEM16_CHECK(audio.audio == waveform);
+  gem16::VisionImage vision_image;
+  vision_image.patch_count = 1U;
+  vision_image.patches.resize(48U * 48U * 3U, 0.25F);
+  vision_image.positions = {0, 0};
+  auto image = gem16::GenerationContentPart::Image(vision_image);
+  GEM16_CHECK(image.kind == gem16::GenerationContentKind::kImage);
+  GEM16_CHECK(image.image == vision_image);
 
   gem16::ChatGenerationRequest request;
   request.messages.push_back(first);

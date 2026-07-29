@@ -306,6 +306,11 @@
     GEM16_PREFILL_ADD(token_ids, std::uint32_t, tokens);
     GEM16_PREFILL_ADD(audio_frames, float, tokens * 640U);
     GEM16_PREFILL_ADD(audio_normalized, float, tokens * 640U);
+    GEM16_PREFILL_ADD(vision_patches, float, 280U * 6912U);
+    GEM16_PREFILL_ADD(vision_patch_normalized, float, 280U * 6912U);
+    GEM16_PREFILL_ADD(vision_hidden_a, float, 280U * kHidden);
+    GEM16_PREFILL_ADD(vision_hidden_b, float, 280U * kHidden);
+    GEM16_PREFILL_ADD(vision_positions, std::int32_t, 280U * 2U);
     GEM16_PREFILL_ADD(hidden_a, float, tokens * kHidden);
     GEM16_PREFILL_ADD(hidden_b, float, tokens * kHidden);
     GEM16_PREFILL_ADD(normalized, float, tokens * kHidden);

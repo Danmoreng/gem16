@@ -1,6 +1,6 @@
 # Multimodal expansion plan
 
-Status: design and implementation specification; no multimodal runtime path is implemented yet
+Status: audio and single-image runtime paths implemented on Windows; video remains planned
 
 Target checkpoint: `unsloth/gemma-4-12b-it-NVFP4` at
 `b1f649734b34aa5575b03d186abd1b9be3d0d5c4`
@@ -62,20 +62,17 @@ The model capability and format sources are:
 The locked local artifacts remain authoritative for engine behavior. External documentation must be revalidated
 when reference packages change.
 
-## Current boundary
+## Current implementation boundary
 
-The repository currently:
-
-- parses and classifies the modality tensors but marks them as skipped in text-only mode;
-- plans and uploads only the 9,200,026,528-byte text tensor set;
-- accepts token IDs or text-only `ChatMessage::content`;
-- requires prefill to be causal;
-- identifies a resident conversation prefix only by token IDs;
-- runs reference generation with all vLLM multimodal limits set to zero;
-- has no native image decoder, image processor, audio decoder, resampler, modality projector, or multimodal
-  template branch.
-
-These are deliberate current limitations, not evidence that the checkpoint lacks multimodal support.
+The runtime now always uploads the text, audio, and vision tensor sets. It
+accepts ordered text/audio/image content parts, implements deterministic WAV
+and Windows image preprocessing, substitutes projected soft-token rows before
+layer 0, and retains the ordinary/MTP decode paths after multimodal prefill.
+Vision blocks are kept inside one prefill chunk and receive the checkpoint's
+bidirectional overlay only in sliding-attention layers; global layers remain
+causal. The current CLI supports one local image per one-shot request. Multiple
+images, interactive media attachment, portable Linux image codecs, and video
+frame input remain follow-up work.
 
 ## Pinned multimodal model contract
 
@@ -238,22 +235,11 @@ error; it must never truncate projected rows or leave a placeholder backed by th
 
 ### Modality residency
 
-Use explicit immutable model residency modes:
-
-```text
-text
-text+vision
-text+audio
-text+vision+audio
-```
-
-Video selects vision residency. The selected mode is fixed when the engine and arena are created. Text-only must
-remain available and must not upload or reserve the 104,759,808 modality bytes. A multimodal session keeps all
-selected weights resident and performs no weight offload between turns.
-
-An eventual product default may load both modality sets, but it may only replace text-only as the default after
-measured startup, peak-VRAM, and text-only regression evidence. The first implementation should require an explicit
-mode so benchmark provenance remains unambiguous.
+The product uses one immutable residency mode: text + vision + audio. The
+104,759,808 bytes of modality tensors are always loaded into their sole final
+GPU allocations. There is no user-facing modality switch and no weight offload
+between turns. Benchmark metadata must continue to report the complete resident
+tensor inventory.
 
 ## Media preprocessing
 

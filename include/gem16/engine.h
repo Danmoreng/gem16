@@ -30,6 +30,13 @@ struct AudioEmbeddingSegment {
   std::span<const float> frames;
 };
 
+struct VisionEmbeddingSegment {
+  std::uint64_t prompt_offset = 0U;
+  // Row-major [patch, 6912] and [patch, xy].
+  std::span<const float> patches;
+  std::span<const std::int32_t> positions;
+};
+
 struct ReasoningTokenOptions {
   std::vector<std::uint32_t> channel_open_token_ids;
   std::uint32_t channel_close_token_id = 0U;
@@ -160,7 +167,8 @@ class ConversationSession {
       const ReasoningTokenOptions& reasoning = {},
       GeneratedTokenCallback generated_token_callback = nullptr,
       void* generated_token_callback_context = nullptr,
-      std::span<const AudioEmbeddingSegment> audio_segments = {});
+      std::span<const AudioEmbeddingSegment> audio_segments = {},
+      std::span<const VisionEmbeddingSegment> vision_segments = {});
   [[nodiscard]] std::uint64_t cached_token_count() const;
 
  private:

@@ -100,3 +100,9 @@ filling the 262,144-position model limit, it reports 2,315,255,808 KV bytes and 
 sampled total GPU usage peaks at 12,244 MiB. Both runs complete with no fallback or token-loop allocation. On the
 16,303 MiB test GPU these sampled peaks leave approximately 5,281 MiB and 4,059 MiB respectively, although that
 headroom includes the measurement conditions and is not a promise for unrelated concurrent GPU use.
+
+The always-resident multimodal loader adds the checkpoint's exact 104,759,808
+audio/vision tensor bytes. Vision execution reserves 24,086,720 reusable bytes:
+two 280x6,912 float patch views, two 280x3,840 float hidden views, and 560
+`int32` position coordinates. These regions are allocated with the prefill arena
+and are never allocated or resized in the token loop.

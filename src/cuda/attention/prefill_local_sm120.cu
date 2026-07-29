@@ -157,6 +157,13 @@ __device__ __forceinline__ int WindowStart(int query_position,
   return max(0, query_position + 1 - cache_capacity);
 }
 
+__device__ __forceinline__ int QueryLimit(
+    int query_position, int vision_begin, int vision_end) {
+  return query_position >= vision_begin && query_position < vision_end
+             ? vision_end - 1
+             : query_position;
+}
+
 __device__ __forceinline__ void StageQuery(
     __nv_bfloat16* destination, const float* query, int query_head_base,
     int query_start, int tokens, int thread) {
@@ -247,7 +254,7 @@ __launch_bounds__(kThreads, 1) __global__ void OnlineLocalAttentionFp8Kernel(
     const std::uint16_t* __restrict__ key_scale_bf16,
     const std::uint16_t* __restrict__ value_scale_bf16,
     float* __restrict__ output, int start_position, int tokens,
-    int cache_capacity) {
+    int cache_capacity, int vision_begin, int vision_end) {
   __shared__ __align__(16) __nv_bfloat16 shared[kSharedElements];
   __nv_bfloat16* query_shared = shared;
   __nv_bfloat16* key_shared =
@@ -321,8 +328,13 @@ __launch_bounds__(kThreads, 1) __global__ void OnlineLocalAttentionFp8Kernel(
   float sum1 = 0.0F;
 
   const int query_rows = min(kQueryRows, tokens - query_start);
-  const int max_query_position =
-      start_position + query_start + query_rows - 1;
+  const int block_first_position = start_position + query_start;
+  const int block_last_position = block_first_position + query_rows - 1;
+  const bool block_has_vision = vision_begin < vision_end &&
+      block_first_position < vision_end && block_last_position >= vision_begin;
+  const int max_query_position = block_has_vision
+      ? max(block_last_position, vision_end - 1)
+      : block_last_position;
   const int first_window =
       WindowStart(start_position + query_start, cache_capacity);
   const int first_key_start =
@@ -414,9 +426,13 @@ __launch_bounds__(kThreads, 1) __global__ void OnlineLocalAttentionFp8Kernel(
         row0_valid ? start_position + query_row0 : -1;
     const int query_position1 =
         row1_valid ? start_position + query_row1 : -1;
+    const int query_limit0 = row0_valid
+        ? QueryLimit(query_position0, vision_begin, vision_end) : -1;
+    const int query_limit1 = row1_valid
+        ? QueryLimit(query_position1, vision_begin, vision_end) : -1;
     const int latest_window = WindowStart(
         start_position + query_start + kQueryRows - 1, cache_capacity);
-    const bool full_score_tile =
+    const bool full_score_tile = !block_has_vision &&
         query_rows == kQueryRows && key_start >= latest_window &&
         key_start + kKeyColumns - 1 <= start_position + query_start;
 
@@ -443,19 +459,19 @@ __launch_bounds__(kThreads, 1) __global__ void OnlineLocalAttentionFp8Kernel(
             key_start + score_tile * 8 + 2 * lane_in_group;
         const int key1 = key0 + 1;
         scores[score_tile][0] =
-            row0_valid && key0 >= window0 && key0 <= query_position0
+            row0_valid && key0 >= window0 && key0 <= query_limit0
                 ? scores[score_tile][0]
                 : -CUDART_INF_F;
         scores[score_tile][1] =
-            row0_valid && key1 >= window0 && key1 <= query_position0
+            row0_valid && key1 >= window0 && key1 <= query_limit0
                 ? scores[score_tile][1]
                 : -CUDART_INF_F;
         scores[score_tile][2] =
-            row1_valid && key0 >= window1 && key0 <= query_position1
+            row1_valid && key0 >= window1 && key0 <= query_limit1
                 ? scores[score_tile][2]
                 : -CUDART_INF_F;
         scores[score_tile][3] =
-            row1_valid && key1 >= window1 && key1 <= query_position1
+            row1_valid && key1 >= window1 && key1 <= query_limit1
                 ? scores[score_tile][3]
                 : -CUDART_INF_F;
         block_maximum0 =
@@ -620,7 +636,8 @@ Status LaunchOnlineCausalAttentionPrefillFp8LocalSm120(
     std::uint64_t start_position, std::uint64_t tokens,
     std::uint64_t query_heads, std::uint64_t kv_heads,
     std::uint64_t head_dimension, std::uint64_t cache_capacity,
-    cudaStream_t stream) {
+    cudaStream_t stream, std::uint64_t vision_begin,
+    std::uint64_t vision_end) {
   if (query == nullptr || chunk_key == nullptr || chunk_value == nullptr ||
       key_cache == nullptr || value_cache == nullptr ||
       key_scale_bf16 == nullptr || value_scale_bf16 == nullptr ||
@@ -633,7 +650,8 @@ Status LaunchOnlineCausalAttentionPrefillFp8LocalSm120(
       cache_capacity >
           static_cast<std::uint64_t>(std::numeric_limits<int>::max()) ||
       start_position + tokens - 1U >
-          static_cast<std::uint64_t>(std::numeric_limits<int>::max())) {
+          static_cast<std::uint64_t>(std::numeric_limits<int>::max()) ||
+      vision_begin > vision_end || vision_end > start_position + tokens) {
     return Invalid("online local FP8 prefill attention arguments are invalid");
   }
   const std::uint64_t query_blocks =
@@ -649,7 +667,8 @@ Status LaunchOnlineCausalAttentionPrefillFp8LocalSm120(
   OnlineLocalAttentionFp8Kernel<<<grid, kThreads, 0, stream>>>(
       query, chunk_key, chunk_value, key_cache, value_cache, key_scale_bf16,
       value_scale_bf16, output, static_cast<int>(start_position),
-      static_cast<int>(tokens), static_cast<int>(cache_capacity));
+      static_cast<int>(tokens), static_cast<int>(cache_capacity),
+      static_cast<int>(vision_begin), static_cast<int>(vision_end));
   const cudaError_t error = cudaGetLastError();
   return error == cudaSuccess
              ? Status::Ok()

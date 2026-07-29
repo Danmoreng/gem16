@@ -133,6 +133,19 @@ Result<ModelConfig> LoadModelConfig(const std::filesystem::path& path) {
   config.audio_token_id = UnsignedOrZero(Member(root, "audio_token_id"));
   config.begin_audio_token_id = UnsignedOrZero(Member(root, "boa_token_id"));
   config.end_audio_token_id = UnsignedOrZero(Member(root, "eoa_token_index"));
+  config.vision_embedding_dimension =
+      UnsignedOrZero(Nested(root, "vision_config", "mm_embed_dim"));
+  config.vision_position_count =
+      UnsignedOrZero(Nested(root, "vision_config", "mm_posemb_size"));
+  config.vision_soft_token_count =
+      UnsignedOrZero(Nested(root, "vision_config", "num_soft_tokens"));
+  config.vision_patch_size =
+      UnsignedOrZero(Nested(root, "vision_config", "patch_size"));
+  config.vision_pooling_kernel_size =
+      UnsignedOrZero(Nested(root, "vision_config", "pooling_kernel_size"));
+  config.image_token_id = UnsignedOrZero(Member(root, "image_token_id"));
+  config.begin_image_token_id = UnsignedOrZero(Member(root, "boi_token_id"));
+  config.end_image_token_id = UnsignedOrZero(Member(root, "eoi_token_id"));
   config.attention_k_eq_v = BoolOrFalse(Nested(root, "text_config", "attention_k_eq_v"));
   config.tied_embeddings = BoolOrFalse(Member(root, "tie_word_embeddings")) ||
                            BoolOrFalse(Nested(root, "text_config", "tie_word_embeddings"));
@@ -140,6 +153,8 @@ Result<ModelConfig> LoadModelConfig(const std::filesystem::path& path) {
   config.final_logit_softcap = NumberOrZero(Nested(root, "text_config", "final_logit_softcapping"));
   config.audio_rms_norm_epsilon =
       NumberOrZero(Nested(root, "audio_config", "rms_norm_eps"));
+  config.vision_rms_norm_epsilon =
+      NumberOrZero(Nested(root, "vision_config", "rms_norm_eps"));
   config.layer_types = StringArray(Nested(root, "text_config", "layer_types"));
 
   const auto* quantization = Member(root, "quantization_config");
@@ -210,6 +225,19 @@ Status ValidatePrimaryModelContract(const ModelConfig& config) {
     return PrimaryContractError(
         "audio embedding/token contract",
         "640 dimensions, token IDs 258881/256000/258883, epsilon 1e-6");
+  }
+  if (config.vision_embedding_dimension != 3840 ||
+      config.vision_position_count != 1120 ||
+      config.vision_soft_token_count != 280 ||
+      config.vision_patch_size != 16 ||
+      config.vision_pooling_kernel_size != 3 ||
+      config.image_token_id != 258880 ||
+      config.begin_image_token_id != 255999 ||
+      config.end_image_token_id != 258882 ||
+      std::abs(config.vision_rms_norm_epsilon - 1.0e-6) > 1.0e-12) {
+    return PrimaryContractError(
+        "vision embedding/token contract",
+        "3840 dimensions, 1120 positions, 280 tokens, 16x3 patches, token IDs 258880/255999/258882, epsilon 1e-6");
   }
   if (!config.tied_embeddings || !config.attention_k_eq_v) return PrimaryContractError("tied embeddings and attention_k_eq_v", "true");
   if (std::abs(config.final_logit_softcap - 30.0) > 1e-12) return PrimaryContractError("final_logit_softcapping", "30.0");

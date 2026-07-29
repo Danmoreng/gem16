@@ -19,7 +19,8 @@
   [[nodiscard]] Result<std::uint32_t> PrefillAt(
       std::span<const std::uint32_t> token_ids, std::uint64_t start_position,
       std::span<float> host_logits = {},
-      std::span<const AudioEmbeddingSegment> audio_segments = {}) {
+      std::span<const AudioEmbeddingSegment> audio_segments = {},
+      std::span<const VisionEmbeddingSegment> vision_segments = {}) {
     const NvtxRange range("gem16.prefill");
     if (token_ids.empty() || start_position > max_context_ ||
         token_ids.size() > max_context_ - start_position) {
@@ -30,9 +31,28 @@
                    "host prefill logit capture span has invalid size");
     }
     std::uint32_t selected_token = 0U;
-    for (std::size_t begin = 0; begin < token_ids.size(); begin += prefill_chunk_tokens_) {
-      const std::uint64_t tokens = std::min<std::size_t>(
+    for (std::size_t begin = 0; begin < token_ids.size();) {
+      std::uint64_t tokens = std::min<std::size_t>(
           prefill_chunk_tokens_, token_ids.size() - begin);
+      const std::uint64_t proposed_begin = start_position + begin;
+      const std::uint64_t proposed_end = proposed_begin + tokens;
+      for (const VisionEmbeddingSegment& segment : vision_segments) {
+        const std::uint64_t patch_count = segment.patches.size() / 6912U;
+        const std::uint64_t segment_end = segment.prompt_offset + patch_count;
+        if (proposed_begin < segment.prompt_offset &&
+            proposed_end > segment.prompt_offset &&
+            proposed_end < segment_end) {
+          tokens = segment.prompt_offset - proposed_begin;
+        } else if (proposed_begin >= segment.prompt_offset &&
+                   proposed_begin < segment_end &&
+                   proposed_end < segment_end) {
+          tokens = segment_end - proposed_begin;
+        }
+      }
+      if (tokens == 0U || tokens > prefill_chunk_tokens_) {
+        return Error(StatusCode::kInternal,
+                     "vision-aware prefill chunk planning failed");
+      }
       auto* device_tokens = Pointer<std::uint32_t>(prefill_workspace_, prefill_offsets_.token_ids);
       cudaError_t error = cudaMemcpyAsync(
           device_tokens, token_ids.data() + begin,
@@ -57,6 +77,8 @@
       if (error != cudaSuccess) return CudaFailure("launch prefill embedding", error);
       const std::uint64_t chunk_begin = start_position + begin;
       const std::uint64_t chunk_end = chunk_begin + tokens;
+      std::uint64_t vision_begin = 0U;
+      std::uint64_t vision_end = 0U;
       for (const AudioEmbeddingSegment& segment : audio_segments) {
         if (segment.frames.empty() || segment.frames.size() % 640U != 0U) {
           return Error(StatusCode::kInvalidArgument,
@@ -94,8 +116,56 @@
             overlap_frames, stream_);
         if (!status.ok()) return status;
       }
+      for (const VisionEmbeddingSegment& segment : vision_segments) {
+        if (segment.patches.empty() || segment.patches.size() % 6912U != 0U) {
+          return Error(StatusCode::kInvalidArgument,
+                       "vision embedding segment has invalid patch geometry");
+        }
+        const std::uint64_t patch_count = segment.patches.size() / 6912U;
+        const std::uint64_t segment_end = segment.prompt_offset + patch_count;
+        if (segment_end <= chunk_begin || segment.prompt_offset >= chunk_end) {
+          continue;
+        }
+        if (segment.prompt_offset < chunk_begin || segment_end > chunk_end ||
+            patch_count > 280U || segment.positions.size() != patch_count * 2U) {
+          return Error(StatusCode::kInvalidArgument,
+                       "vision embedding segment must fit wholly in one prefill chunk");
+        }
+        if (vision_end != 0U) {
+          return Error(StatusCode::kUnsupported,
+                       "one image per prefill chunk is currently supported");
+        }
+        auto* device_patches = Pointer<float>(
+            prefill_workspace_, prefill_offsets_.vision_patches);
+        auto* device_positions = Pointer<std::int32_t>(
+            prefill_workspace_, prefill_offsets_.vision_positions);
+        error = cudaMemcpyAsync(
+            device_patches, segment.patches.data(), segment.patches.size_bytes(),
+            cudaMemcpyHostToDevice, stream_);
+        if (error == cudaSuccess) {
+          error = cudaMemcpyAsync(
+              device_positions, segment.positions.data(),
+              segment.positions.size_bytes(), cudaMemcpyHostToDevice, stream_);
+        }
+        if (error != cudaSuccess) {
+          return CudaFailure("copy vision patches and positions", error);
+        }
+        status = internal::LaunchVisionProjection(
+            device_patches, device_positions,
+            Pointer<float>(prefill_workspace_,
+                           prefill_offsets_.vision_patch_normalized),
+            Pointer<float>(prefill_workspace_, prefill_offsets_.vision_hidden_a),
+            Pointer<float>(prefill_workspace_, prefill_offsets_.vision_hidden_b),
+            model_.vision(),
+            hidden + (segment.prompt_offset - chunk_begin) * kHidden,
+            patch_count, stream_);
+        if (!status.ok()) return status;
+        vision_begin = segment.prompt_offset;
+        vision_end = segment_end;
+      }
       for (const auto& layer : model_.layers()) {
-        status = RunLayerBatch(layer, start_position + begin, tokens);
+        status = RunLayerBatch(layer, start_position + begin, tokens, kLayers,
+                               nullptr, vision_begin, vision_end);
         if (!status.ok()) return status;
       }
       float* normalized = Pointer<float>(prefill_workspace_, prefill_offsets_.normalized);
@@ -140,6 +210,7 @@
                                 cudaMemcpyDeviceToHost, stream_);
         if (error != cudaSuccess) return CudaFailure("copy prefill token", error);
       }
+      begin += static_cast<std::size_t>(tokens);
     }
     const cudaError_t error = cudaStreamSynchronize(stream_);
     if (error != cudaSuccess) return CudaFailure("synchronize prefill", error);

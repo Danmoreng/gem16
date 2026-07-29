@@ -22,7 +22,8 @@ struct DecodeControl;
     std::uint64_t start_position, std::uint64_t tokens,
     std::uint64_t query_heads, std::uint64_t kv_heads,
     std::uint64_t head_dimension, std::uint64_t cache_capacity,
-    cudaStream_t stream);
+    cudaStream_t stream, std::uint64_t vision_begin = 0U,
+    std::uint64_t vision_end = 0U);
 
 // Product-shape global Gemma prefill attention. Two warps share Q/K/V staging
 // and independently accumulate one 256-element half of each 512-element row.

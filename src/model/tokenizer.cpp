@@ -478,6 +478,12 @@ Result<GemmaChatProcessor> GemmaChatProcessor::Load(
       Member(processor.value(), "audio_seq_length");
   const json::Value* milliseconds_per_token =
       Member(processor.value(), "audio_ms_per_token");
+  const json::Value* image_patch_size =
+      Nested(processor.value(), "image_processor", "patch_size");
+  const json::Value* image_pooling =
+      Nested(processor.value(), "image_processor", "pooling_kernel_size");
+  const json::Value* image_tokens =
+      Member(processor.value(), "image_seq_length");
   if (sampling_rate == nullptr || !sampling_rate->is_integer() ||
       sampling_rate->as_integer() != 16000 || samples_per_token == nullptr ||
       !samples_per_token->is_integer() ||
@@ -487,9 +493,14 @@ Result<GemmaChatProcessor> GemmaChatProcessor::Load(
       sequence_length->as_integer() != 750 ||
       milliseconds_per_token == nullptr ||
       !milliseconds_per_token->is_integer() ||
-      milliseconds_per_token->as_integer() != 40) {
+      milliseconds_per_token->as_integer() != 40 ||
+      image_patch_size == nullptr || !image_patch_size->is_integer() ||
+      image_patch_size->as_integer() != 16 || image_pooling == nullptr ||
+      !image_pooling->is_integer() || image_pooling->as_integer() != 3 ||
+      image_tokens == nullptr || !image_tokens->is_integer() ||
+      image_tokens->as_integer() != 280) {
     return Error(StatusCode::kUnsupported,
-                 "processor_config.json audio contract differs from the qualified 16-kHz/640-sample/750-row schema");
+                 "processor_config.json differs from the qualified audio/vision schema");
   }
   auto tokenizer = Tokenizer::Load(model_directory / "tokenizer.json");
   if (!tokenizer.ok()) return tokenizer.status();

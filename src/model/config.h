@@ -50,11 +50,20 @@ struct ModelConfig {
   std::uint64_t audio_token_id = 0;
   std::uint64_t begin_audio_token_id = 0;
   std::uint64_t end_audio_token_id = 0;
+  std::uint64_t vision_embedding_dimension = 0;
+  std::uint64_t vision_position_count = 0;
+  std::uint64_t vision_soft_token_count = 0;
+  std::uint64_t vision_patch_size = 0;
+  std::uint64_t vision_pooling_kernel_size = 0;
+  std::uint64_t image_token_id = 0;
+  std::uint64_t begin_image_token_id = 0;
+  std::uint64_t end_image_token_id = 0;
   bool attention_k_eq_v = false;
   bool tied_embeddings = false;
   bool ordered_embeddings = false;
   double final_logit_softcap = 0.0;
   double audio_rms_norm_epsilon = 0.0;
+  double vision_rms_norm_epsilon = 0.0;
   std::vector<std::string> layer_types;
 };
 

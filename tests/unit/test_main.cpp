@@ -8,6 +8,7 @@ void RunConfigTests();
 void RunJsonTests();
 void RunLayerTests();
 void RunFp8Tests();
+void RunImageTests();
 void RunMemoryPlanTests();
 void RunMtpSchedulerTests();
 void RunNvfp4Tests();
@@ -25,6 +26,7 @@ int main() {
   RunJsonTests();
   RunLayerTests();
   RunFp8Tests();
+  RunImageTests();
   RunMemoryPlanTests();
   RunMtpSchedulerTests();
   RunNvfp4Tests();

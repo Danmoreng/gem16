@@ -1,9 +1,15 @@
   [[nodiscard]] Status RunLayerBatch(
       const LayerBinding& layer, std::uint64_t start_position,
       std::uint64_t tokens, std::size_t mtp_layer_index = kLayers,
-      const internal::DecodeControl* mtp_row_controls = nullptr) {
+      const internal::DecodeControl* mtp_row_controls = nullptr,
+      std::uint64_t vision_begin = 0U, std::uint64_t vision_end = 0U) {
     const bool mtp_verification = mtp_layer_index < kLayers;
     const bool controlled_mtp_d2 = mtp_row_controls != nullptr;
+    if (vision_begin < vision_end &&
+        kv_cache_mode_ != KvCacheMode::kCheckpointFp8) {
+      return Error(StatusCode::kUnsupported,
+                   "vision bidirectional prefill currently requires checkpoint FP8 KV cache");
+    }
     if (controlled_mtp_d2 &&
         (!mtp_verification || tokens != 3U ||
          kv_cache_mode_ != KvCacheMode::kCheckpointFp8)) {
@@ -277,7 +283,8 @@
                            layer.value_cache_fp8, layer.k_cache_scale,
                            layer.v_cache_scale, attention, start_position,
                            tokens, kQueryHeads, layer.kv_heads,
-                           layer.head_dimension, capacity, stream_);
+                           layer.head_dimension, capacity, stream_,
+                           vision_begin, vision_end);
         if (!status.ok()) return status;
         const std::uint64_t commit_offset =
             layer.global || tokens <= capacity ? 0U : tokens - capacity;

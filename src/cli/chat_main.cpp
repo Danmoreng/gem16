@@ -85,6 +85,7 @@ void PrintUsage() {
       << "                [--dump-state <path> --dump-state-position N]\n"
       << "  gem16-chat --model <checkpoint> --message <text> [--json]\n"
       << "  gem16-chat --model <checkpoint> --message <text> --audio <wav>\n"
+      << "  gem16-chat --model <checkpoint> --message <text> --image <png|jpeg|bmp>\n"
       << "  gem16-chat --model <checkpoint> --message <text> --render-only --json\n";
 }
 
@@ -95,6 +96,8 @@ struct Options {
   std::string one_shot_message;
   std::filesystem::path audio_path;
   std::optional<gem16::AudioWaveform> audio;
+  std::filesystem::path image_path;
+  std::optional<gem16::VisionImage> image;
   std::optional<std::uint64_t> max_tokens;
   std::uint64_t max_context = 1024;
   bool has_system_message = false;
@@ -146,6 +149,8 @@ gem16::Result<Options> ParseOptions(int argc, char** argv) {
       options.has_one_shot_message = true;
     } else if (argument == "--audio" && index + 1 < argc) {
       options.audio_path = argv[++index];
+    } else if (argument == "--image" && index + 1 < argc) {
+      options.image_path = argv[++index];
     } else if (argument == "--max-tokens" && index + 1 < argc) {
       std::uint64_t value = 0U;
       if (!ParseUnsigned(argv[++index], value)) {
@@ -277,12 +282,25 @@ gem16::Result<Options> ParseOptions(int argc, char** argv) {
     return gem16::Status(gem16::StatusCode::kInvalidArgument,
                          "--audio requires a one-shot --message");
   }
+  if (!options.image_path.empty() && !options.has_one_shot_message) {
+    return gem16::Status(gem16::StatusCode::kInvalidArgument,
+                         "--image requires a one-shot --message");
+  }
   if (!options.audio_path.empty() &&
       (options.render_only || options.json ||
-       !options.state_dump_path.empty())) {
+       !options.state_dump_path.empty() ||
+       options.state_dump_position.has_value())) {
     return gem16::Status(
         gem16::StatusCode::kUnsupported,
         "--audio currently uses the live session path and cannot be combined with diagnostic output");
+  }
+  if (!options.image_path.empty() &&
+      (options.render_only || options.json ||
+       !options.state_dump_path.empty() ||
+       options.state_dump_position.has_value())) {
+    return gem16::Status(
+        gem16::StatusCode::kUnsupported,
+        "--image currently uses the live session path and cannot be combined with diagnostic output");
   }
   if ((!options.state_dump_path.empty() ||
        options.state_dump_position.has_value()) &&
@@ -455,6 +473,10 @@ gem16::Result<TurnOutput> RunTurn(
       request.messages.back().content.push_back(
           gem16::GenerationContentPart::Audio(*cli.audio));
     }
+    if (cli.image.has_value()) {
+      request.messages.back().content.push_back(
+          gem16::GenerationContentPart::Image(*cli.image));
+    }
     TokenStreamContext stream_context(processor, std::cout,
                                       cli.show_thinking);
     auto generated = session->Generate(
@@ -611,6 +633,14 @@ int ChatMain(int argc, char** argv) {
       return 2;
     }
     options.audio = std::move(audio).value();
+  }
+  if (!options.image_path.empty()) {
+    auto image = gem16::LoadVisionImage(options.image_path);
+    if (!image.ok()) {
+      std::cerr << "error: " << image.status().message() << '\n';
+      return 2;
+    }
+    options.image = std::move(image).value();
   }
   auto processor =
       gem16::GemmaChatProcessor::Load(options.model_directory);

@@ -37,11 +37,13 @@ constexpr std::size_t kMaximumAudioTokens = 750U;
 struct MaterializedMessages {
   std::vector<ChatMessage> messages;
   std::vector<std::vector<float>> audio_frames;
+  std::vector<VisionImage> images;
 };
 
 Result<std::string> MaterializeContent(
     const GenerationMessage& message,
-    std::vector<std::vector<float>>& audio_frames) {
+    std::vector<std::vector<float>>& audio_frames,
+    std::vector<VisionImage>& images) {
   if (message.content.empty()) {
     return Status(StatusCode::kInvalidArgument,
                   "generation message content must not be empty");
@@ -50,6 +52,27 @@ Result<std::string> MaterializeContent(
   for (const GenerationContentPart& part : message.content) {
     if (part.kind == GenerationContentKind::kText) {
       text.append(part.text);
+      continue;
+    }
+    if (part.kind == GenerationContentKind::kImage) {
+      if (message.role != "user") {
+        return Status(StatusCode::kInvalidArgument,
+                      "image content is supported only in user messages");
+      }
+      if (part.image.patch_count == 0U || part.image.patch_count > 280U ||
+          part.image.patches.size() !=
+              static_cast<std::size_t>(part.image.patch_count) * 6912U ||
+          part.image.positions.size() !=
+              static_cast<std::size_t>(part.image.patch_count) * 2U) {
+        return Status(StatusCode::kInvalidArgument,
+                      "image content has invalid processed patch geometry");
+      }
+      images.push_back(part.image);
+      text.append("<|image>");
+      for (std::uint32_t patch = 0U; patch < part.image.patch_count; ++patch) {
+        text.append("<|image|>");
+      }
+      text.append("<image|>");
       continue;
     }
     if (part.kind != GenerationContentKind::kAudio) {
@@ -98,9 +121,14 @@ Result<MaterializedMessages> MaterializeMessages(
   MaterializedMessages materialized;
   materialized.messages.reserve(messages.size());
   for (const GenerationMessage& message : messages) {
-    auto content = MaterializeContent(message, materialized.audio_frames);
+    auto content = MaterializeContent(message, materialized.audio_frames,
+                                      materialized.images);
     if (!content.ok()) return content.status();
     materialized.messages.push_back({message.role, std::move(content).value()});
+  }
+  if (materialized.images.size() > 1U) {
+    return Status(StatusCode::kUnsupported,
+                  "the initial vision path supports one image per conversation request");
   }
   return materialized;
 }
@@ -138,6 +166,43 @@ Result<std::vector<AudioEmbeddingSegment>> LocateAudioSegments(
     }
     segments.push_back(AudioEmbeddingSegment{first, frames});
     search = first + frame_count + 1U;
+  }
+  return segments;
+}
+
+Result<std::vector<VisionEmbeddingSegment>> LocateVisionSegments(
+    std::span<const std::uint32_t> prompt_ids,
+    const std::vector<VisionImage>& images) {
+  std::vector<VisionEmbeddingSegment> segments;
+  segments.reserve(images.size());
+  std::size_t search = 0U;
+  for (const VisionImage& image : images) {
+    const auto begin = std::find(prompt_ids.begin() + search,
+                                 prompt_ids.end(), 255999U);
+    if (begin == prompt_ids.end()) {
+      return Status(StatusCode::kDataLoss,
+                    "rendered prompt is missing the image boundary token");
+    }
+    const std::size_t first =
+        static_cast<std::size_t>(begin - prompt_ids.begin()) + 1U;
+    if (image.patch_count > prompt_ids.size() - first) {
+      return Status(StatusCode::kDataLoss,
+                    "rendered image placeholder extent is truncated");
+    }
+    for (std::size_t patch = 0U; patch < image.patch_count; ++patch) {
+      if (prompt_ids[first + patch] != 258880U) {
+        return Status(StatusCode::kDataLoss,
+                      "rendered image placeholder count is inconsistent");
+      }
+    }
+    if (first + image.patch_count >= prompt_ids.size() ||
+        prompt_ids[first + image.patch_count] != 258882U) {
+      return Status(StatusCode::kDataLoss,
+                    "rendered prompt is missing the image end token");
+    }
+    segments.push_back(VisionEmbeddingSegment{
+        first, image.patches, image.positions});
+    search = first + image.patch_count + 1U;
   }
   return segments;
 }
@@ -263,6 +328,9 @@ Result<ChatGenerationResponse> ChatSession::Generate(
   auto audio_segments = LocateAudioSegments(
       prompt_ids.value(), messages.value().audio_frames);
   if (!audio_segments.ok()) return audio_segments.status();
+  auto vision_segments = LocateVisionSegments(
+      prompt_ids.value(), messages.value().images);
+  if (!vision_segments.ok()) return vision_segments.status();
   if (prompt_ids.value().size() > impl_->max_context_tokens) {
     return Status(StatusCode::kInvalidArgument,
                   "conversation prompt exceeds the session context capacity");
@@ -295,7 +363,7 @@ Result<ChatGenerationResponse> ChatSession::Generate(
       prompt_ids.value(), max_generated_tokens, reasoning,
       callback == nullptr ? nullptr : ForwardTokenEvent,
       callback == nullptr ? nullptr : &bridge,
-      audio_segments.value());
+      audio_segments.value(), vision_segments.value());
   if (!inference.ok()) return inference.status();
 
   impl_->cached_prefix_token_ids = prompt_ids.value();

@@ -264,6 +264,7 @@ class LoadedTargetModel::Impl {
   [[nodiscard]] const std::uint16_t* audio_projection() const {
     return audio_projection_;
   }
+  [[nodiscard]] const VisionBinding& vision() const { return vision_; }
   [[nodiscard]] std::uint64_t weight_bytes() const { return weights_.bytes(); }
 
   void SetLayerBf16Cache(std::size_t layer, float* key, float* value) {
@@ -353,6 +354,36 @@ class LoadedTargetModel::Impl {
     final_norm_ = final_norm.value();
     audio_projection_ = audio_projection.value();
 
+    auto patch_ln1_weight = Bf16("model.vision_embedder.patch_ln1.weight", 6912U);
+    auto patch_ln1_bias = Bf16("model.vision_embedder.patch_ln1.bias", 6912U);
+    auto patch_dense_weight = Bf16(
+        "model.vision_embedder.patch_dense.weight", kHidden * 6912U);
+    auto patch_dense_bias = Bf16("model.vision_embedder.patch_dense.bias", kHidden);
+    auto patch_ln2_weight = Bf16("model.vision_embedder.patch_ln2.weight", kHidden);
+    auto patch_ln2_bias = Bf16("model.vision_embedder.patch_ln2.bias", kHidden);
+    auto position_embedding = Bf16(
+        "model.vision_embedder.pos_embedding", 1120U * 2U * kHidden);
+    auto position_norm_weight = Bf16("model.vision_embedder.pos_norm.weight", kHidden);
+    auto position_norm_bias = Bf16("model.vision_embedder.pos_norm.bias", kHidden);
+    auto vision_projection = Bf16(
+        "model.embed_vision.embedding_projection.weight", kHidden * kHidden);
+    if (!patch_ln1_weight.ok()) return patch_ln1_weight.status();
+    if (!patch_ln1_bias.ok()) return patch_ln1_bias.status();
+    if (!patch_dense_weight.ok()) return patch_dense_weight.status();
+    if (!patch_dense_bias.ok()) return patch_dense_bias.status();
+    if (!patch_ln2_weight.ok()) return patch_ln2_weight.status();
+    if (!patch_ln2_bias.ok()) return patch_ln2_bias.status();
+    if (!position_embedding.ok()) return position_embedding.status();
+    if (!position_norm_weight.ok()) return position_norm_weight.status();
+    if (!position_norm_bias.ok()) return position_norm_bias.status();
+    if (!vision_projection.ok()) return vision_projection.status();
+    vision_ = VisionBinding{
+        patch_ln1_weight.value(), patch_ln1_bias.value(),
+        patch_dense_weight.value(), patch_dense_bias.value(),
+        patch_ln2_weight.value(), patch_ln2_bias.value(),
+        position_embedding.value(), position_norm_weight.value(),
+        position_norm_bias.value(), vision_projection.value()};
+
     for (std::size_t index = 0; index < layers_.size(); ++index) {
       LayerBinding& layer = layers_[index];
       layer.global = index % 6U == 5U;
@@ -430,6 +461,7 @@ class LoadedTargetModel::Impl {
   const std::uint16_t* embedding_ = nullptr;
   const std::uint16_t* final_norm_ = nullptr;
   const std::uint16_t* audio_projection_ = nullptr;
+  VisionBinding vision_{};
 };
 
 
@@ -449,6 +481,7 @@ const std::uint16_t* LoadedTargetModel::final_norm() const { return impl_->final
 const std::uint16_t* LoadedTargetModel::audio_projection() const {
   return impl_->audio_projection();
 }
+const VisionBinding& LoadedTargetModel::vision() const { return impl_->vision(); }
 std::uint64_t LoadedTargetModel::weight_bytes() const { return impl_->weight_bytes(); }
 void LoadedTargetModel::SetLayerBf16Cache(std::size_t layer, float* key, float* value) {
   impl_->SetLayerBf16Cache(layer, key, value);

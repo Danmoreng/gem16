@@ -191,9 +191,11 @@ The llama.cpp benchmark is deliberately before engine kernel optimization, but a
    ordinary one-shot and resident interactive `gem16-chat` generation consume `ChatSession`; specialized
    render/JSON/state diagnostics retain their narrow path. Cancellation/final usage events and physical
    shared-weight multi-session ownership remain later S0 work. Next execute the binding
-   [multimodal expansion plan](MULTIMODAL.md): first lock processor/embedding fixtures and residency-aware memory
-   planning, then qualify audio, then vision projection plus its blockwise local-attention semantics, and finally
-   resident multimodal chat and video-frame reuse through the same request boundary.
+   [multimodal expansion plan](MULTIMODAL.md). Audio and the complete
+   encoder-free vision path are now implemented for one-shot Windows chat,
+   including GPU projection and sliding-layer bidirectional vision attention.
+   Next qualify portable image decoding and multiple/resident image requests,
+   then reuse the vision path for sampled video frames.
 13. After the Blackwell backend is correct and competitive, add architecture-specific backends for additional 16 GB
    CUDA GPUs without weakening benchmark or memory contracts.
 

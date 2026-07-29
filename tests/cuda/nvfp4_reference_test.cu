@@ -2619,6 +2619,58 @@ void TestOnlineLocalFp8CausalPrefill() {
 
   run_case(0U, "initial causal window");
   run_case(1100U, "wrapped 1024-token window");
+
+  const auto causal =
+      gem16::internal::LaunchOnlineCausalAttentionPrefillFp8LocalSm120(
+          device_queries.get(), device_chunk_keys.get(),
+          device_chunk_values.get(), device_cache_keys.get(),
+          device_cache_values.get(), device_key_scale.get(),
+          device_value_scale.get(), device_online_output.get(), 0U, tokens,
+          query_heads, kv_heads, head_dimension, capacity, nullptr);
+  CUDA_TEST_CHECK(causal.ok());
+  std::vector<float> causal_output(queries.size());
+  if (!causal.ok() ||
+      !CudaOk(cudaDeviceSynchronize(), "causal vision-mask control") ||
+      !CudaOk(cudaMemcpy(causal_output.data(), device_online_output.get(),
+                         device_online_output.bytes(), cudaMemcpyDeviceToHost),
+              "copy causal vision-mask control")) {
+    return;
+  }
+  constexpr std::uint64_t vision_begin = 8U;
+  constexpr std::uint64_t vision_end = 24U;
+  const auto bidirectional =
+      gem16::internal::LaunchOnlineCausalAttentionPrefillFp8LocalSm120(
+          device_queries.get(), device_chunk_keys.get(),
+          device_chunk_values.get(), device_cache_keys.get(),
+          device_cache_values.get(), device_key_scale.get(),
+          device_value_scale.get(), device_online_output.get(), 0U, tokens,
+          query_heads, kv_heads, head_dimension, capacity, nullptr,
+          vision_begin, vision_end);
+  CUDA_TEST_CHECK(bidirectional.ok());
+  std::vector<float> vision_output(queries.size());
+  if (!bidirectional.ok() ||
+      !CudaOk(cudaDeviceSynchronize(), "bidirectional vision-mask run") ||
+      !CudaOk(cudaMemcpy(vision_output.data(), device_online_output.get(),
+                         device_online_output.bytes(), cudaMemcpyDeviceToHost),
+              "copy bidirectional vision-mask output")) {
+    return;
+  }
+  const std::size_t row_elements = query_heads * head_dimension;
+  const auto row_difference = [&](std::uint64_t row) {
+    float maximum = 0.0F;
+    const std::size_t begin = static_cast<std::size_t>(row) * row_elements;
+    for (std::size_t index = begin; index < begin + row_elements; ++index) {
+      maximum = std::max(maximum,
+                         std::abs(causal_output[index] - vision_output[index]));
+    }
+    return maximum;
+  };
+  // Text before and after the image remains causal. Image queries gain access
+  // to later keys in the same image block.
+  CUDA_TEST_CHECK(row_difference(7U) < 1.0e-6F);
+  CUDA_TEST_CHECK(row_difference(8U) > 1.0e-4F);
+  CUDA_TEST_CHECK(row_difference(23U) < 1.0e-6F);
+  CUDA_TEST_CHECK(row_difference(32U) < 1.0e-6F);
 }
 
 void TestOnlineGlobalFp8CausalPrefill() {

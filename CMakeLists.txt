@@ -30,6 +30,7 @@ add_library(gem16_core STATIC
   src/cuda/nvfp4/sm120_layout.cpp
   src/model/checkpoint_loader.cpp
   src/model/audio.cpp
+  src/model/image.cpp
   src/model/config.cpp
   src/model/manifest.cpp
   src/model/safetensors.cpp
@@ -46,6 +47,7 @@ add_library(gem16_core STATIC
 )
 if(WIN32)
   target_sources(gem16_core PRIVATE src/platform/mapped_file_windows.cpp)
+  target_link_libraries(gem16_core PRIVATE windowscodecs ole32)
 else()
   target_sources(gem16_core PRIVATE src/platform/mapped_file_posix.cpp)
 endif()
@@ -100,6 +102,7 @@ if(GEM16_ENABLE_CUDA)
     src/cuda/nvfp4/cutlass_sm120.cu
     src/cuda/output_head.cu
     src/cuda/sampling/sampling.cu
+    src/cuda/vision/projection.cu
   )
   if(NOT EXISTS "${GEM16_CUTLASS_DIR}/include/cutlass/cutlass.h")
     message(FATAL_ERROR
@@ -221,6 +224,7 @@ if(BUILD_TESTING AND GEM16_BUILD_TESTS)
     tests/unit/chat_test.cpp
     tests/unit/config_test.cpp
     tests/unit/fp8_test.cpp
+    tests/unit/image_test.cpp
     tests/unit/json_test.cpp
     tests/unit/layer_test.cpp
     tests/unit/memory_plan_test.cpp

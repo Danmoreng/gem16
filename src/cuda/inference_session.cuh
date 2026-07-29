@@ -94,7 +94,8 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
     const ReasoningTokenOptions& reasoning,
     GeneratedTokenCallback generated_token_callback,
     void* generated_token_callback_context,
-    std::span<const AudioEmbeddingSegment> audio_segments) {
+    std::span<const AudioEmbeddingSegment> audio_segments,
+    std::span<const VisionEmbeddingSegment> vision_segments) {
   if (impl_ == nullptr) {
     return Error(StatusCode::kInternal,
                  "conversation session was moved from");
@@ -147,6 +148,30 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
       if (full_prompt_token_ids[segment.prompt_offset + frame] != 258881U) {
         return Error(StatusCode::kInvalidArgument,
                      "audio segment is not aligned with <|audio|> prompt tokens");
+      }
+    }
+  }
+  for (const VisionEmbeddingSegment& segment : vision_segments) {
+    if (segment.patches.empty() || segment.patches.size() % 6912U != 0U) {
+      return Error(StatusCode::kInvalidArgument,
+                   "vision segment requires complete 48x48 RGB patches");
+    }
+    const std::uint64_t patch_count = segment.patches.size() / 6912U;
+    if (patch_count == 0U || patch_count > 280U ||
+        segment.positions.size() != patch_count * 2U ||
+        segment.prompt_offset >= full_prompt_token_ids.size() ||
+        patch_count > full_prompt_token_ids.size() - segment.prompt_offset) {
+      return Error(StatusCode::kInvalidArgument,
+                   "vision segment does not fit in the rendered prompt");
+    }
+    for (std::uint64_t patch = 0U; patch < patch_count; ++patch) {
+      if (full_prompt_token_ids[segment.prompt_offset + patch] != 258880U ||
+          segment.positions[patch * 2U] < 0 ||
+          segment.positions[patch * 2U + 1U] < 0 ||
+          segment.positions[patch * 2U] >= 1120 ||
+          segment.positions[patch * 2U + 1U] >= 1120) {
+        return Error(StatusCode::kInvalidArgument,
+                     "vision segment token or position alignment is invalid");
       }
     }
   }
@@ -219,7 +244,7 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
 
   const auto prompt_start = std::chrono::steady_clock::now();
   auto prefilled = impl_->engine.PrefillAt(suffix, prefix_tokens, {},
-                                           audio_segments);
+                                           audio_segments, vision_segments);
   if (!prefilled.ok()) {
     impl_->poisoned = true;
     return prefilled.status();

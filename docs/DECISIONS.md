@@ -1371,3 +1371,24 @@ correct and competitive.
 Consequences: Blackwell remains the immediate kernel and benchmark target. Later GPU backends must preserve the same
 correctness, memory, and benchmark contracts, and exact board details remain benchmark metadata rather than product
 scope.
+
+## 2026-07-29: Implement the complete encoder-free vision path with fixed multimodal residency
+
+Date: 2026-07-29
+Decision: Always load the small audio and vision tensor sets, expose one-shot
+local image input, and implement the checkpoint's complete encoder-free vision
+embedder directly on CUDA. Apply bidirectional same-image visibility only to
+sliding-attention prefill layers; global layers and decode remain causal.
+Context: The unified checkpoint adds only 104,759,808 tensor bytes for both
+modalities and has no separate transformer vision tower. A user-facing residency
+matrix would add complexity without changing the 16 GB fit.
+Alternatives: Keep optional modality switches; use a separate vision model;
+approximate image attention as fully causal; make all attention layers
+bidirectional over image tokens.
+Consequences: Every engine can accept audio or vision without reload. Windows
+PNG/JPEG/BMP input is usable now, while Linux codec integration, multiple images,
+and video remain explicit follow-ups. BF16 KV mode rejects vision until its
+reference attention path implements the same block overlay.
+Evidence: Manifest validation binds all ten BF16 vision tensors; deterministic
+host and CUDA fixtures pass; real-checkpoint greedy and MTP D2 tests both read
+the visible sign `24` correctly from the qualified scene image.
