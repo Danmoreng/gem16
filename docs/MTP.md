@@ -163,8 +163,35 @@ synchronization remain per group for the non-chained D1/D4/adaptive paths. `--mt
 context/acceptance-based D4→D2→D1 selection and bounded ordinary decode fallback. Resident chat loads the official
 assistant once, preserves the exact target KV prefix between turns, and reinitializes the fixed-D2 device control
 from each newly prefetched suffix. The GPU-chained D2 callback ring streams verified text without a per-group host
-roundtrip. Sampling and diagnostic dumps remain deliberately rejected rather than silently using incorrect
-semantics.
+roundtrip. Sampling remains rejected in the current binary while the sampled-MTP gate below is implemented;
+diagnostic dumps remain outside active MTP rather than silently changing semantics.
+
+## Sampled-MTP qualification gate
+
+Sampled MTP is the next required feature before multimodal work. The first production contract is deterministic
+seed identity with ordinary target sampling, not greedy acceptance and not an unimplemented probability-ratio
+rejection sampler. For every verifier row, the target applies the same suppression, temperature, top-k, top-p,
+optional min-p, repetition penalty, and SplitMix64 output step that ordinary sampled decode would use along the
+draft prefix. A proposal is accepted only when it equals that target-selected token. On the first mismatch the
+target sample is emitted; later speculative rows and their K/V, hidden, repetition, and RNG state are discarded.
+If all proposals match, the final target row supplies the bonus token.
+
+The implementation order is:
+
+1. Parse and validate the pinned target `generation_config.json` sampling defaults. The recommended chat profile is
+   `temperature=1.0`, `top_k=64`, and `top_p=0.95`; explicit CLI overrides remain observable.
+2. Add a direct fixed-shape sampled verifier with full target logits, one row-specific repetition mask per verifier
+   row, and transactional commit of only the emitted prefix. Keep assistant proposals deterministic initially.
+3. Prove same-seed ordinary/MTP token identity for D1/D2/D4 across multiple seeds, stop positions, final-length
+   tails, repetition penalties, FP8/BF16 K/V, and local-ring wrap. Report acceptance separately from greedy.
+4. Extend fixed-D2 device control with the sampling step and capture the sampled verifier, commit, stop/tail, and
+   streaming path in the GPU-chained graph. No per-group host dependency or token-loop allocation is allowed.
+5. Add a real resident multi-turn chat gate, including unchanged RNG/repetition history across turns and exact
+   callback order, then run Linux 3-warm-up/10-run qualification with memory, clocks, power, and thermal evidence.
+
+Assistant probability materialization and standard `min(1,p/q)` speculative rejection are a separate possible
+future algorithm. They require proposal distributions and independent statistical qualification and must not be
+inferred from the current argmax assistant head.
 
 ## GPU-controlled decode graph roadmap
 
@@ -198,10 +225,13 @@ Delivery is deliberately incremental:
    invokes the existing callback while polling graph completion without synchronizing the compute stream. A slow
    consumer applies explicit device backpressure, and callback failure publishes cancellation at the next group
    boundary. Streaming and callback time remain inside end-to-end timing.
-6. **Adaptive graph branches.** Only after fixed D2 and streaming are stable, add conditional D1/D2/ordinary paths
-   for the existing adaptive policy. D4 may follow as a separately captured fixed shape. Sampling and concurrent
-   sessions remain outside this milestone.
-7. **Optional N-Gram proposer branch.** After the graph above is stable, measure a device-resident `ngram-mod`
+6. **Sampled fixed-D2 graph and resident chat.** Apply the sampled-MTP contract above with row-specific target
+   sampling state, transactional RNG/repetition commit, device stop/tail handling, and the existing asynchronous
+   streaming boundary. Qualify ordinary/MTP identity per seed and resident multi-turn continuation on Linux.
+7. **Adaptive graph branches.** After fixed D2 sampled streaming is stable, add conditional D1/D2/ordinary paths
+   for the existing adaptive policy. D4 may follow as a separately captured fixed shape.
+8. **Optional N-Gram proposer branch.** Much later, and only after the graph above is stable, measure a
+   device-resident `ngram-mod`
    lookup ahead of MTP. On a qualified hit it supplies fixed D2 or D4 proposal tokens and skips the assistant; on a
    miss it falls through to MTP. Both sources reuse the same exact target verification, acceptance, transactional
    commit, stop/tail, and streaming nodes. Do not concatenate an unverified N-Gram prefix with MTP hidden-state
@@ -345,3 +375,6 @@ for the next no-roundtrip phase and their memory cost is documented.
    reports 1,004 proposed, 632 accepted, and 372 rejected drafts over 502 groups with zero ordinary fallback. This
    passes the 50 tok/s competitive gate and misses the 55 tok/s stretch target by 0.097 tok/s. Raw results are under
    `benchmarks/results/2026-07-28/b07b178/blackwell16gb-windows-mtp-streaming/qualification.json`.
+19. **Next: sampled MTP chat qualification.** Implement the sampled-MTP gate above, then qualify a real resident
+   multi-turn session and reproduce the sampled and greedy GPU-chain evidence on Linux. Multimodal and N-Gram work
+   remain queued until this gate is complete.

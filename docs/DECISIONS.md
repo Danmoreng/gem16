@@ -1,5 +1,41 @@
 # Decisions
 
+## 2026-07-30: Qualify sampled MTP chat before multimodal work
+
+Date: 2026-07-30
+Decision: Make sampled MTP in resident `gem16-chat` the next product gate, ahead of multimodal expansion and any
+N-Gram proposer. The first qualified mode uses the target checkpoint's recommended `temperature=1.0`, `top_k=64`,
+and `top_p=0.95` settings, seeded GPU sampling, fixed D2 target verification, asynchronous token streaming, and
+resident multi-turn state. Assistant outputs remain deterministic proposals. For a fixed seed, each verifier row
+uses the same target sampling step and committed repetition history as ordinary sampled decode; only the longest
+proposal prefix equal to those target-selected tokens may be accepted. A mismatch emits the target sample and
+invalid later rows are discarded. This seed-identical target-sampling contract is the first implementation; do not
+reuse greedy argmax acceptance or claim standard probability-ratio speculative sampling without assistant
+probabilities and independent distribution evidence.
+Context: Greedy fixed-D2 MTP and its mapped-pinned streaming graph are qualified, while chat currently rejects MTP
+whenever sampling is enabled. The target sampling plan already implements the checkpoint's recommended controls,
+full-history repetition handling, suppression, deterministic RNG, and a whole-model CUDA Graph. The assistant only
+materializes argmax proposal IDs, not proposal probabilities, so the usual `min(1,p/q)` rejection sampler cannot be
+implemented correctly by relabeling the existing path. The user explicitly prioritized production sampled MTP
+chat, a real multi-turn model test, and Linux graph qualification before multimodal work.
+Alternatives: Keep MTP greedy-only; accept assistant drafts using greedy target IDs and sample only on mismatch;
+implement probability-ratio speculative sampling without assistant distributions; or start multimodal work first.
+The first misses the intended Gemma chat behavior, the next two change the requested target distribution, and the
+last conflicts with the new product priority.
+Consequences: Sampled verification needs full target logits for each fixed verifier row, row-specific repetition
+state, monotonically advancing target sampling steps, transactional commit of the accepted repetition state, and
+sample-aware device control for GPU chaining. Qualification compares ordinary and MTP outputs exactly for each
+seed over a multi-seed suite, then covers resident multi-turn continuation, stop/tail positions, ring wrap,
+streaming order, allocation accounting, and Linux 3-warm-up/10-run performance. MTP may be slower or accept fewer
+proposals under sampling; telemetry must disclose this and ordinary sampled fallback remains required. Chat should
+use checkpoint generation defaults only after they are parsed and validated rather than silently hard-coded.
+Implementation may split internal `.cuh` fragments while retaining one CUDA translation unit. The source-size goal
+remains below 1,000 lines where practical; files up to 2,000 lines are acceptable when a functional split would
+harm locality or generated code, and files above 2,000 require an explicit follow-up.
+Evidence: The pinned target `generation_config.json` and model card both specify sampling with temperature 1.0,
+top-k 64, and top-p 0.95. The existing sampler keys SplitMix64 by seed and output step, and the verifier already
+retains transactional target K/V and hidden state. The assistant currently exposes only device draft token IDs.
+
 ## 2026-07-28: Reuse exact greedy MTP in resident chat sessions
 
 Date: 2026-07-28
