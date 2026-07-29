@@ -15,6 +15,7 @@
 #include "windows_utf8.h"
 #endif
 
+#include "gem16/chat.h"
 #include "gem16/engine.h"
 #include "gem16/tokenizer.h"
 
@@ -270,14 +271,21 @@ gem16::Result<Options> ParseOptions(int argc, char** argv) {
   return options;
 }
 
+gem16::ChatSessionOptions MakeChatSessionOptions(const Options& options) {
+  gem16::ChatSessionOptions session_options;
+  session_options.model_directory = options.model_directory;
+  session_options.assistant_model_directory = options.assistant_model_directory;
+  session_options.max_context_tokens = options.max_context;
+  session_options.kv_cache_mode = options.kv_cache_mode;
+  session_options.sampling = options.sampling;
+  session_options.mtp_draft_tokens = options.mtp_draft_tokens;
+  session_options.mtp_adaptive = options.mtp_adaptive;
+  return session_options;
+}
+
 struct TurnOutput {
   std::string content;
   std::string display_text;
-};
-
-struct ConversationPromptState {
-  std::vector<std::uint32_t> cached_prefix_token_ids;
-  std::optional<std::uint32_t> pending_assistant_token_id;
 };
 
 struct TokenStreamContext {
@@ -286,7 +294,7 @@ struct TokenStreamContext {
 };
 
 gem16::Status StreamGeneratedToken(void* opaque_context,
-                                     std::uint32_t token_id) {
+                                    std::uint32_t token_id) {
   auto* context = static_cast<TokenStreamContext*>(opaque_context);
   if (context == nullptr || context->processor == nullptr ||
       context->output == nullptr) {
@@ -304,38 +312,62 @@ gem16::Status StreamGeneratedToken(void* opaque_context,
   return gem16::Status::Ok();
 }
 
+gem16::Status StreamGenerationEvent(
+    void* opaque_context, const gem16::GenerationEvent& event) {
+  if (event.kind != gem16::GenerationEventKind::kToken) {
+    return gem16::Status(gem16::StatusCode::kUnsupported,
+                         "chat CLI received an unsupported generation event");
+  }
+  return StreamGeneratedToken(opaque_context, event.token_id);
+}
+
+void PrintTurnStats(const gem16::GreedyInferenceResult& inference) {
+  std::cerr << "\n[stats] decode " << std::fixed << std::setprecision(3)
+            << inference.decode_tokens_per_second << " tok/s";
+  if (inference.mtp_enabled) {
+    std::cerr << ", MTP D" << inference.mtp_draft_tokens
+              << ", proposed " << inference.mtp_proposed_tokens
+              << ", accepted " << inference.mtp_accepted_tokens
+              << ", rejected " << inference.mtp_rejected_tokens
+              << ", groups " << inference.mtp_verification_groups
+              << ", GPU chained "
+              << (inference.mtp_gpu_chained ? "yes" : "no");
+  } else {
+    std::cerr << ", MTP disabled";
+  }
+  std::cerr << '\n';
+}
+
 gem16::Result<TurnOutput> RunTurn(
     const Options& cli, const gem16::GemmaChatProcessor& processor,
     std::vector<gem16::ChatMessage>& messages, bool write_json,
-    bool stream_tokens, gem16::ConversationSession* session,
-    ConversationPromptState* prompt_state) {
+    bool stream_tokens, gem16::ChatSession* session) {
   std::optional<std::string> rendered;
   if (cli.render_only) {
     auto render_result = processor.Render(messages, cli.thinking);
     if (!render_result.ok()) return render_result.status();
     rendered = std::move(render_result).value();
   }
-  gem16::Result<std::vector<std::uint32_t>> prompt_ids = [&]() {
-    if (prompt_state == nullptr ||
-        prompt_state->cached_prefix_token_ids.empty()) {
-      return processor.Encode(messages, cli.thinking);
+  if (session != nullptr) {
+    gem16::ChatGenerationRequest request;
+    request.max_generated_tokens = cli.max_tokens;
+    request.enable_thinking = cli.thinking;
+    request.messages.reserve(messages.size());
+    for (const gem16::ChatMessage& message : messages) {
+      request.messages.push_back(
+          gem16::GenerationMessage::Text(message.role, message.content));
     }
-    auto continuation =
-        processor.EncodeContinuation(messages.back().content, cli.thinking);
-    if (!continuation.ok()) {
-      return gem16::Result<std::vector<std::uint32_t>>(
-          continuation.status());
-    }
-    std::vector<std::uint32_t> token_ids =
-        prompt_state->cached_prefix_token_ids;
-    if (prompt_state->pending_assistant_token_id.has_value()) {
-      token_ids.push_back(*prompt_state->pending_assistant_token_id);
-    }
-    token_ids.insert(token_ids.end(), continuation.value().begin(),
-                     continuation.value().end());
-    return gem16::Result<std::vector<std::uint32_t>>(
-        std::move(token_ids));
-  }();
+    TokenStreamContext stream_context{&processor, &std::cout};
+    auto generated = session->Generate(
+        request, stream_tokens ? StreamGenerationEvent : nullptr,
+        stream_tokens ? &stream_context : nullptr);
+    if (!generated.ok()) return generated.status();
+    if (cli.stats && !write_json) PrintTurnStats(generated.value().inference);
+    return TurnOutput{std::move(generated.value().assistant_content),
+                      std::move(generated.value().assistant_text)};
+  }
+
+  auto prompt_ids = processor.Encode(messages, cli.thinking);
   if (!prompt_ids.ok()) return prompt_ids.status();
 
   if (cli.render_only) {
@@ -371,32 +403,8 @@ gem16::Result<TurnOutput> RunTurn(
     inference_options.generated_token_callback = StreamGeneratedToken;
     inference_options.generated_token_callback_context = &stream_context;
   }
-  auto inference =
-      session == nullptr
-          ? gem16::RunGreedyInference(inference_options)
-          : session->Generate(
-                inference_options.input_token_ids,
-                inference_options.max_generated_tokens,
-                inference_options.generated_token_callback,
-                inference_options.generated_token_callback_context);
+  auto inference = gem16::RunGreedyInference(inference_options);
   if (!inference.ok()) return inference.status();
-
-  if (prompt_state != nullptr) {
-    prompt_state->cached_prefix_token_ids =
-        inference_options.input_token_ids;
-    if (inference.value().output_token_ids.size() > 1U) {
-      prompt_state->cached_prefix_token_ids.insert(
-          prompt_state->cached_prefix_token_ids.end(),
-          inference.value().output_token_ids.begin(),
-          inference.value().output_token_ids.end() - 1);
-    }
-    prompt_state->pending_assistant_token_id.reset();
-    if (!inference.value().stopped &&
-        !inference.value().output_token_ids.empty()) {
-      prompt_state->pending_assistant_token_id =
-          inference.value().output_token_ids.back();
-    }
-  }
 
   std::vector<std::uint32_t> content_ids =
       inference.value().output_token_ids;
@@ -412,24 +420,7 @@ gem16::Result<TurnOutput> RunTurn(
   auto assistant_text = processor.DecodeResponseText(content_ids);
   if (!assistant_text.ok()) return assistant_text.status();
 
-  if (cli.stats && !write_json) {
-    std::cerr << "\n[stats] decode "
-              << std::fixed << std::setprecision(3)
-              << inference.value().decode_tokens_per_second << " tok/s";
-    if (inference.value().mtp_enabled) {
-      std::cerr << ", MTP D" << inference.value().mtp_draft_tokens
-                << ", proposed " << inference.value().mtp_proposed_tokens
-                << ", accepted " << inference.value().mtp_accepted_tokens
-                << ", rejected " << inference.value().mtp_rejected_tokens
-                << ", groups "
-                << inference.value().mtp_verification_groups
-                << ", GPU chained "
-                << (inference.value().mtp_gpu_chained ? "yes" : "no");
-    } else {
-      std::cerr << ", MTP disabled";
-    }
-    std::cerr << '\n';
-  }
+  if (cli.stats && !write_json) PrintTurnStats(inference.value());
 
   if (write_json) {
     std::cout << "{\"assistant_content\":"
@@ -537,30 +528,36 @@ int ChatMain(int argc, char** argv) {
   if (options.has_one_shot_message) {
     messages.push_back({"user", options.one_shot_message});
     const bool stream_tokens = !options.json && !options.render_only;
-    auto response = RunTurn(options, processor.value(), messages,
-                            options.json, stream_tokens, nullptr, nullptr);
-    if (!response.ok()) {
-      std::cerr << "error: " << response.status().message() << '\n';
-      return 2;
+    const bool diagnostic_path = options.json ||
+                                 !options.state_dump_path.empty() ||
+                                 options.state_dump_position.has_value();
+    if (options.render_only || diagnostic_path) {
+      auto response = RunTurn(options, processor.value(), messages,
+                              options.json, stream_tokens, nullptr);
+      if (!response.ok()) {
+        std::cerr << "error: " << response.status().message() << '\n';
+        return 2;
+      }
+    } else {
+      auto session = gem16::ChatSession::Create(
+          MakeChatSessionOptions(options), processor.value());
+      if (!session.ok()) {
+        std::cerr << "error: " << session.status().message() << '\n';
+        return 2;
+      }
+      auto response = RunTurn(options, processor.value(), messages,
+                              options.json, stream_tokens, &session.value());
+      if (!response.ok()) {
+        std::cerr << "error: " << response.status().message() << '\n';
+        return 2;
+      }
     }
     if (stream_tokens) std::cout << '\n';
     return 0;
   }
 
-  gem16::ConversationSessionOptions session_options;
-  session_options.model_directory = options.model_directory;
-  session_options.assistant_model_directory =
-      options.assistant_model_directory;
-  session_options.stop_token_ids =
-      processor.value().generation_controls().stop_token_ids;
-  session_options.suppressed_token_ids =
-      processor.value().generation_controls().suppressed_token_ids;
-  session_options.max_context_tokens = options.max_context;
-  session_options.kv_cache_mode = options.kv_cache_mode;
-  session_options.sampling = options.sampling;
-  session_options.mtp_draft_tokens = options.mtp_draft_tokens;
-  session_options.mtp_adaptive = options.mtp_adaptive;
-  auto session = gem16::ConversationSession::Create(session_options);
+  auto session = gem16::ChatSession::Create(
+      MakeChatSessionOptions(options), processor.value());
   if (!session.ok()) {
     std::cerr << "error: " << session.status().message() << '\n';
     return 2;
@@ -575,9 +572,6 @@ int ChatMain(int argc, char** argv) {
               << (options.sampling.enabled ? "sampled" : "greedy")
               << " decoding.\n";
   }
-  ConversationPromptState prompt_state;
-  prompt_state.cached_prefix_token_ids.reserve(
-      static_cast<std::size_t>(options.max_context));
   while (true) {
     std::cout << "you> " << std::flush;
     std::string input;
@@ -590,7 +584,7 @@ int ChatMain(int argc, char** argv) {
     messages.push_back({"user", input});
     std::cout << "model> " << std::flush;
     auto response = RunTurn(options, processor.value(), messages, false, true,
-                            &session.value(), &prompt_state);
+                            &session.value());
     if (!response.ok()) {
       messages.pop_back();
       std::cerr << "\nerror: " << response.status().message() << '\n';

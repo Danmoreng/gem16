@@ -1,5 +1,37 @@
 # Decisions
 
+## 2026-07-29: Establish a server-neutral generation boundary before multimodal work
+
+Date: 2026-07-29
+
+Decision: Insert server-readiness milestone S0 before multimodal M0. The public generation boundary uses owning,
+protocol-neutral messages/content parts, generation requests, token events, and responses. `gem16-chat` consumes
+that boundary rather than managing resident token/KV-prefix state itself. HTTP, SSE, OpenAI JSON, URLs, MIME,
+base64, and terminal I/O remain adapters above the core. The first implementation remains text-only and batch-one.
+The model/runtime split is staged as `ModelRuntime` (immutable shared weights and metadata), `SessionState` (KV,
+RNG, repetition and exact prompt/media identity), and `ExecutionSlot` (stream, graph, activation workspace and
+streaming ring). The current low-level `ConversationSession` remains the single-slot implementation behind the new
+boundary until shared-weight multi-session work has a real server consumer.
+
+Context: Multimodal content parts and a future OpenAI-compatible server would otherwise duplicate CLI prompt
+assembly and bind protocol details to model/runtime code. The current `ConversationSession` also owns a complete
+`InferenceEngine`, so constructing one per server conversation would duplicate resident weights. At the same time,
+refactoring graph/cache ownership without a concurrent serving milestone would create speculative machinery and
+risk the qualified batch-one path.
+
+Alternatives: Build multimodal directly into CLI messages; add HTTP first; immediately implement a generic
+multi-session scheduler; expose token IDs and CUDA cache-prefix bookkeeping to every adapter.
+
+Consequences: CLI and future HTTP adapters share the same request/event contract. Multimodal adds qualified content
+kinds without changing protocol adapters. A serialized one-slot server can be added without CUDA changes. True
+concurrent resident sessions and continuous batching still require deliberate execution-slot/session allocation;
+this decision does not claim otherwise. Diagnostic state/logit paths may temporarily retain their specialized
+low-level CLI route.
+
+Evidence: Resident chat already proves exact full-message extension, token/KV prefix reuse, sampled RNG/repetition
+continuity, asynchronous mapped-ring streaming, and callback cancellation. S0 moves that orchestration behind a
+public boundary without changing kernel order, graph addresses, arenas, or generated IDs.
+
 ## 2026-07-29: Qualify sampled MTP chat before multimodal work
 
 Date: 2026-07-29

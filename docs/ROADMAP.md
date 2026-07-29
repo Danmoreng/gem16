@@ -176,14 +176,20 @@ The llama.cpp benchmark is deliberately before engine kernel optimization, but a
    only after the unfused model passes layer, logit, and generation gates.
 11. Long-context, exact greedy MTP, and same-seed sampled MTP correctness are established. The fixed-D2 graph,
    GPU chaining, sampled/greedy stop and tail semantics, asynchronous streaming, resident two-turn gate, Windows
-   greedy 3/10 qualification, and Linux sampled/greedy 3/10 comparisons are complete. The sampled Linux result is
-   a reproducible 1.470x win but remains below 50 tok/s and lacks continuous telemetry; close that performance
-   disposition explicitly before promotion. Adaptive sampled branches may follow. N-Gram is intentionally deferred
-   and is not a multimodal prerequisite. After the sampled-MTP gate is closed, execute the binding
+   greedy 3/10 qualification, and Linux sampled/greedy 3/10 comparisons are complete. The user accepts the current
+   reproducible 1.470x sampled Linux result as the feature baseline despite its 46.234 tok/s median and missing
+   continuous resource telemetry; it must not be promoted as a publication-grade 50 tok/s result. Adaptive sampled
+   branches and N-Gram are intentionally deferred.
+12. Execute server-readiness milestone S0 before multimodal M0. **S0.1 complete:** the ADR fixes protocol/core and
+   future `ModelRuntime`/`SessionState`/`ExecutionSlot` ownership. **S0.2 complete:** public owning text content,
+   message, request, token-event, response, and finish-reason types form a server-neutral API. **S0.3 complete:**
+   ordinary one-shot and resident interactive `gem16-chat` generation consume `ChatSession`; specialized
+   render/JSON/state diagnostics retain their narrow path. Cancellation/final usage events and physical
+   shared-weight multi-session ownership remain later S0 work. Next execute the binding
    [multimodal expansion plan](MULTIMODAL.md): first lock processor/embedding fixtures and residency-aware memory
    planning, then qualify audio, then vision projection plus its blockwise local-attention semantics, and finally
-   resident multimodal chat and video-frame reuse.
-12. After the Blackwell backend is correct and competitive, add architecture-specific backends for additional 16 GB
+   resident multimodal chat and video-frame reuse through the same request boundary.
+13. After the Blackwell backend is correct and competitive, add architecture-specific backends for additional 16 GB
    CUDA GPUs without weakening benchmark or memory contracts.
 
 The detailed gates and ordering in `AGENTS.md` are authoritative.

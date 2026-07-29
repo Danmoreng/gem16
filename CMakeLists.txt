@@ -35,6 +35,7 @@ add_library(gem16_core STATIC
   src/model/tokenizer.cpp
   src/model/tokenizer_config.cpp
   src/runtime/capabilities.cpp
+  src/runtime/chat.cpp
   src/runtime/memory.cpp
   src/runtime/memory_plan.cpp
   src/runtime/sampling.cpp
@@ -214,6 +215,7 @@ target_include_directories(gem16-bench PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src"
 include(CTest)
 if(BUILD_TESTING AND GEM16_BUILD_TESTS)
   add_executable(gem16-unit-tests
+    tests/unit/chat_test.cpp
     tests/unit/config_test.cpp
     tests/unit/fp8_test.cpp
     tests/unit/json_test.cpp

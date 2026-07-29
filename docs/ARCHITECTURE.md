@@ -92,9 +92,22 @@ the sampling step through chained groups and the sampled ordinary tail. When gen
 records every emitted token except the final not-yet-forwarded token as materialized target KV, preserving the same
 prefix invariant as ordinary chat. D1, D4, and adaptive scheduling use the exact direct MTP path.
 
-The reusable `ChatMessage`, `Tokenizer`, and `GemmaChatProcessor` interfaces are deliberately independent of
-terminal I/O. A future OpenAI-compatible Chat Completions server can reuse this request-to-token boundary; HTTP,
-JSON request schemas, streaming, and session scheduling are not part of the current CLI milestone.
+`ChatSession` is the public server-neutral generation boundary. It accepts owning `GenerationMessage` content
+parts in a `ChatGenerationRequest`, materializes the exact Gemma prompt internally, owns continuation/pending-token
+bookkeeping, and emits protocol-neutral token events. `gem16-chat` is now an adapter over this API for ordinary
+one-shot and resident interactive generation; render-only, JSON diagnostics, and state capture retain their narrow
+specialized paths. The reusable `Tokenizer` and `GemmaChatProcessor` remain independent of terminal I/O. HTTP,
+SSE, OpenAI JSON, URLs, MIME/base64 processing, and terminal rendering belong above `ChatSession`, never in model
+or CUDA code.
+
+The intended serving ownership model has three levels. `ModelRuntime` will own immutable Target/Assistant weights,
+tokenizer/configuration, and kernel bindings once per process. `SessionState` will own KV, exact token/media prefix
+identity, sampling RNG/repetition state, and MTP controls per conversation. `ExecutionSlot` will own mutable graph
+addresses, activation/prefill workspace, stream, and mapped streaming ring per simultaneously active GPU request.
+The current lower-level `ConversationSession` remains the single-slot implementation and still owns its complete engine;
+S0 deliberately establishes the API boundary before moving qualified CUDA ownership. A serialized batch-one server
+can sit above this boundary. Shared-weight concurrent sessions and continuous batching remain later runtime work,
+not properties implied by the request API.
 
 The greedy plan copies checkpoint `suppress_tokens` into fixed workspace before prompt processing and stops on any
 checkpoint EOS token. Optional full-logit capture preallocates host storage before the token loop and writes raw

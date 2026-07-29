@@ -119,6 +119,11 @@ decode uses one whole-model graph replay per post-prefill token. Synthetic and e
 top-k and unfiltered full-vocabulary selection; the probability scan and final binary searches are GPU-resident.
 For bounded top-k, probability preparation and scan cover only that sorted prefix without changing selected IDs.
 
+The server-neutral `ChatSession` migration is covered by host API tests and the real checkpoint-backed resident
+chat validator. Ordinary and sampled fixed-D2 sessions still produce `Blau` then `Blau` for the two-turn fixture;
+both sampled MTP turns report GPU chaining, and no CUDA engine, graph, workspace, KV, sampling, or kernel code is
+changed by the orchestration boundary.
+
 Sampled MTP uses ordinary same-seed Target sampling as its executable reference. Each fixed verifier row receives
 its ordinary output step and a repetition mask containing committed history plus only the proposal inputs preceding
 that row. Acceptance compares Assistant IDs with those Target-selected IDs, commits the repetition mask for the

@@ -134,7 +134,9 @@ Windows PowerShell:
 ```
 
 The model and exact conversation prefix remain resident between turns. Generated text is decoded and written to
-the terminal incrementally. The optional official assistant also remains resident. Chat defaults to the pinned
+the terminal incrementally. The CLI now consumes the protocol-neutral `ChatSession` request/event API in
+`include/gem16/chat.h`; future HTTP/OpenAI adapters do not need terminal or CUDA-prefix knowledge. The optional
+official assistant also remains resident. Chat defaults to the pinned
 Google generation profile (`temperature=1.0`, `top_k=64`, `top_p=0.95`); use `--greedy` for explicit greedy
 decoding. Fixed D2 uses the GPU-chained conditional graph for greedy and sampled generation. `--stats` prints
 per-turn throughput, proposal/acceptance counts, verifier groups, and whether GPU chaining was active. Enter
