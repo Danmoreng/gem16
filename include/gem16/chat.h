@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -51,7 +52,9 @@ struct ChatGenerationRequest {
   // Complete conversation through the new user turn. A resident session
   // requires every later request to extend the previously committed messages.
   std::vector<GenerationMessage> messages;
-  std::uint64_t max_generated_tokens = 128U;
+  // Unset generates until a checkpoint stop token or the session's remaining
+  // context capacity. A value sets a stricter per-turn output limit.
+  std::optional<std::uint64_t> max_generated_tokens;
   bool enable_thinking = false;
 };
 

@@ -69,6 +69,7 @@ struct ChatSession::Impl {
   std::vector<GenerationMessage> committed_messages;
   std::vector<std::uint32_t> cached_prefix_token_ids;
   std::optional<std::uint32_t> pending_assistant_token_id;
+  std::uint64_t max_context_tokens = 0U;
 };
 
 ChatSession::ChatSession(std::unique_ptr<Impl> impl) : impl_(std::move(impl)) {}
@@ -104,6 +105,7 @@ Result<ChatSession> ChatSession::Create(const ChatSessionOptions& options,
                                      std::move(session).value());
   impl->cached_prefix_token_ids.reserve(
       static_cast<std::size_t>(options.max_context_tokens));
+  impl->max_context_tokens = options.max_context_tokens;
   return ChatSession(std::move(impl));
 }
 
@@ -113,9 +115,10 @@ Result<ChatGenerationResponse> ChatSession::Generate(
   if (impl_ == nullptr) {
     return Status(StatusCode::kInternal, "chat session was moved from");
   }
-  if (request.max_generated_tokens == 0U) {
+  if (request.max_generated_tokens.has_value() &&
+      *request.max_generated_tokens == 0U) {
     return Status(StatusCode::kInvalidArgument,
-                  "generation token limit must be positive");
+                  "generation token limit must be positive when specified");
   }
   auto messages = MaterializeTextMessages(request.messages);
   if (!messages.ok()) return messages.status();
@@ -154,10 +157,22 @@ Result<ChatGenerationResponse> ChatSession::Generate(
     return Result<std::vector<std::uint32_t>>(std::move(token_ids));
   }();
   if (!prompt_ids.ok()) return prompt_ids.status();
+  if (prompt_ids.value().size() > impl_->max_context_tokens) {
+    return Status(StatusCode::kInvalidArgument,
+                  "conversation prompt exceeds the session context capacity");
+  }
+  const std::uint64_t remaining_output_capacity =
+      impl_->max_context_tokens - prompt_ids.value().size() + 1U;
+  const std::uint64_t max_generated_tokens =
+      request.max_generated_tokens.value_or(remaining_output_capacity);
+  if (max_generated_tokens > remaining_output_capacity) {
+    return Status(StatusCode::kInvalidArgument,
+                  "requested output exceeds the remaining context capacity");
+  }
 
   EventBridge bridge{callback, callback_context};
   auto inference = impl_->session.Generate(
-      prompt_ids.value(), request.max_generated_tokens,
+      prompt_ids.value(), max_generated_tokens,
       callback == nullptr ? nullptr : ForwardTokenEvent,
       callback == nullptr ? nullptr : &bridge);
   if (!inference.ok()) return inference.status();

@@ -91,7 +91,7 @@ struct Options {
   std::filesystem::path assistant_model_directory;
   std::string system_message;
   std::string one_shot_message;
-  std::uint64_t max_tokens = 128;
+  std::optional<std::uint64_t> max_tokens;
   std::uint64_t max_context = 1024;
   bool has_system_message = false;
   bool has_one_shot_message = false;
@@ -140,10 +140,12 @@ gem16::Result<Options> ParseOptions(int argc, char** argv) {
       options.one_shot_message = argv[++index];
       options.has_one_shot_message = true;
     } else if (argument == "--max-tokens" && index + 1 < argc) {
-      if (!ParseUnsigned(argv[++index], options.max_tokens)) {
+      std::uint64_t value = 0U;
+      if (!ParseUnsigned(argv[++index], value)) {
         return gem16::Status(gem16::StatusCode::kInvalidArgument,
-                              "--max-tokens must be an unsigned integer");
+                             "--max-tokens must be an unsigned integer");
       }
+      options.max_tokens = value;
     } else if (argument == "--max-context" && index + 1 < argc) {
       if (!ParseUnsigned(argv[++index], options.max_context)) {
         return gem16::Status(gem16::StatusCode::kInvalidArgument,
@@ -255,9 +257,10 @@ gem16::Result<Options> ParseOptions(int argc, char** argv) {
         gem16::StatusCode::kInvalidArgument,
         "--greedy cannot be combined with sampling options");
   }
-  if (options.max_tokens == 0U || options.max_context == 0U) {
+  if ((options.max_tokens.has_value() && *options.max_tokens == 0U) ||
+      options.max_context == 0U) {
     return gem16::Status(gem16::StatusCode::kInvalidArgument,
-                          "token and context limits must be positive");
+                         "specified token and context limits must be positive");
   }
   if (options.mtp_draft_tokens != 0U &&
       options.assistant_model_directory.empty()) {
@@ -390,7 +393,12 @@ gem16::Result<TurnOutput> RunTurn(
       processor.generation_controls().stop_token_ids;
   inference_options.suppressed_token_ids =
       processor.generation_controls().suppressed_token_ids;
-  inference_options.max_generated_tokens = cli.max_tokens;
+  if (inference_options.input_token_ids.size() > cli.max_context) {
+    return gem16::Status(gem16::StatusCode::kInvalidArgument,
+                         "conversation prompt exceeds --max-context");
+  }
+  inference_options.max_generated_tokens = cli.max_tokens.value_or(
+      cli.max_context - inference_options.input_token_ids.size() + 1U);
   inference_options.max_context_tokens = cli.max_context;
   inference_options.kv_cache_mode = cli.kv_cache_mode;
   inference_options.sampling = cli.sampling;

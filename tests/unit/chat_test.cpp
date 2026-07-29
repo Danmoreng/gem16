@@ -19,7 +19,7 @@ void TestProtocolNeutralGenerationTypes() {
 
   gem16::ChatGenerationRequest request;
   request.messages.push_back(first);
-  GEM16_CHECK(request.max_generated_tokens == 128U);
+  GEM16_CHECK(!request.max_generated_tokens.has_value());
   GEM16_CHECK(!request.enable_thinking);
   GEM16_CHECK(std::string(gem16::GenerationFinishReasonName(
                   gem16::GenerationFinishReason::kStop)) == "stop");
