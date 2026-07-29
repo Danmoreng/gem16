@@ -174,8 +174,9 @@ contract:
   --no-thinking --max-context 1024 --max-tokens 128
 ```
 
-See [docs/AUDIO.md](docs/AUDIO.md) for the qualified audio contract. Image
-input is also available in one-shot chat; PNG, JPEG, and BMP files are decoded
+`--audio` and `--image` may be repeated in one one-shot message; media remain in command-line order after the text
+part. See [docs/AUDIO.md](docs/AUDIO.md) for the qualified audio contract. Image input is also available in one-shot
+chat; PNG, JPEG, and BMP files are decoded
 to RGB, processed into the checkpoint's native merged patches, and projected
 by the complete encoder-free vision embedder on the GPU:
 

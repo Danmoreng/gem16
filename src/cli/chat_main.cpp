@@ -86,20 +86,24 @@ void PrintUsage() {
       << "                [--min-p F] [--repetition-penalty F] [--seed N]\n"
       << "                [--dump-state <path> --dump-state-position N]\n"
       << "  gem16-chat --model <checkpoint> --message <text> [--json]\n"
-      << "  gem16-chat --model <checkpoint> --message <text> --audio <file>\n"
-      << "  gem16-chat --model <checkpoint> --message <text> --image <png|jpeg|bmp>\n"
+      << "  gem16-chat --model <checkpoint> --message <text> [--audio <file>|--image <file>]...\n"
       << "  gem16-chat --model <checkpoint> --message <text> --render-only --json\n";
 }
+
+enum class MediaFileKind { kAudio, kImage };
+
+struct MediaFile {
+  MediaFileKind kind = MediaFileKind::kAudio;
+  std::filesystem::path path;
+};
 
 struct Options {
   std::filesystem::path model_directory;
   std::filesystem::path assistant_model_directory;
   std::string system_message;
   std::string one_shot_message;
-  std::filesystem::path audio_path;
-  std::optional<gem16::AudioWaveform> audio;
-  std::filesystem::path image_path;
-  std::optional<gem16::VisionImage> image;
+  std::vector<MediaFile> media_files;
+  std::vector<gem16::GenerationContentPart> media_parts;
   std::optional<std::uint64_t> max_tokens;
   std::uint64_t max_context = 1024;
   bool has_system_message = false;
@@ -176,9 +180,11 @@ gem16::Result<Options> ParseOptions(int argc, char** argv) {
       options.one_shot_message = argv[++index];
       options.has_one_shot_message = true;
     } else if (argument == "--audio" && index + 1 < argc) {
-      options.audio_path = argv[++index];
+      options.media_files.push_back(
+          {MediaFileKind::kAudio, std::filesystem::path(argv[++index])});
     } else if (argument == "--image" && index + 1 < argc) {
-      options.image_path = argv[++index];
+      options.media_files.push_back(
+          {MediaFileKind::kImage, std::filesystem::path(argv[++index])});
     } else if (argument == "--max-tokens" && index + 1 < argc) {
       std::uint64_t value = 0U;
       if (!ParseUnsigned(argv[++index], value)) {
@@ -306,29 +312,17 @@ gem16::Result<Options> ParseOptions(int argc, char** argv) {
         gem16::StatusCode::kInvalidArgument,
         "--render-only and --json require a one-shot --message");
   }
-  if (!options.audio_path.empty() && !options.has_one_shot_message) {
+  if (!options.media_files.empty() && !options.has_one_shot_message) {
     return gem16::Status(gem16::StatusCode::kInvalidArgument,
-                         "--audio requires a one-shot --message");
+                         "--audio and --image require a one-shot --message");
   }
-  if (!options.image_path.empty() && !options.has_one_shot_message) {
-    return gem16::Status(gem16::StatusCode::kInvalidArgument,
-                         "--image requires a one-shot --message");
-  }
-  if (!options.audio_path.empty() &&
+  if (!options.media_files.empty() &&
       (options.render_only || options.json ||
        !options.state_dump_path.empty() ||
        options.state_dump_position.has_value())) {
     return gem16::Status(
         gem16::StatusCode::kUnsupported,
-        "--audio currently uses the live session path and cannot be combined with diagnostic output");
-  }
-  if (!options.image_path.empty() &&
-      (options.render_only || options.json ||
-       !options.state_dump_path.empty() ||
-       options.state_dump_position.has_value())) {
-    return gem16::Status(
-        gem16::StatusCode::kUnsupported,
-        "--image currently uses the live session path and cannot be combined with diagnostic output");
+        "media currently use the live session path and cannot be combined with diagnostic output");
   }
   if ((!options.state_dump_path.empty() ||
        options.state_dump_position.has_value()) &&
@@ -524,13 +518,8 @@ gem16::Result<TurnOutput> RunTurn(
       }
       request.messages.push_back(std::move(converted));
     }
-    if (cli.audio.has_value()) {
-      request.messages.back().content.push_back(
-          gem16::GenerationContentPart::Audio(*cli.audio));
-    }
-    if (cli.image.has_value()) {
-      request.messages.back().content.push_back(
-          gem16::GenerationContentPart::Image(*cli.image));
+    for (const gem16::GenerationContentPart& media : cli.media_parts) {
+      request.messages.back().content.push_back(media);
     }
     TokenStreamContext stream_context(processor, std::cout,
                                       cli.show_thinking);
@@ -683,21 +672,25 @@ int ChatMain(int argc, char** argv) {
     return 64;
   }
   Options options = std::move(parsed).value();
-  if (!options.audio_path.empty()) {
-    auto audio = gem16::LoadAudioFile(options.audio_path);
-    if (!audio.ok()) {
-      std::cerr << "error: " << audio.status().message() << '\n';
-      return 2;
+  options.media_parts.reserve(options.media_files.size());
+  for (const MediaFile& media : options.media_files) {
+    if (media.kind == MediaFileKind::kAudio) {
+      auto audio = gem16::LoadAudioFile(media.path);
+      if (!audio.ok()) {
+        std::cerr << "error: " << audio.status().message() << '\n';
+        return 2;
+      }
+      options.media_parts.push_back(
+          gem16::GenerationContentPart::Audio(std::move(audio).value()));
+    } else {
+      auto image = gem16::LoadVisionImage(media.path);
+      if (!image.ok()) {
+        std::cerr << "error: " << image.status().message() << '\n';
+        return 2;
+      }
+      options.media_parts.push_back(
+          gem16::GenerationContentPart::Image(std::move(image).value()));
     }
-    options.audio = std::move(audio).value();
-  }
-  if (!options.image_path.empty()) {
-    auto image = gem16::LoadVisionImage(options.image_path);
-    if (!image.ok()) {
-      std::cerr << "error: " << image.status().message() << '\n';
-      return 2;
-    }
-    options.image = std::move(image).value();
   }
   auto processor =
       gem16::GemmaChatProcessor::Load(options.model_directory);

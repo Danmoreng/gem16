@@ -1,5 +1,6 @@
 #include "gem16/engine.h"
 #include "cuda/engine/inference_engine.h"
+#include "cuda/engine/media_chunk_plan.h"
 
 #include "cuda/attention/sm120.h"
 #include "cuda/audio/projection.h"

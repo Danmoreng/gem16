@@ -32,23 +32,11 @@
     }
     std::uint32_t selected_token = 0U;
     for (std::size_t begin = 0; begin < token_ids.size();) {
-      std::uint64_t tokens = std::min<std::size_t>(
+      const std::uint64_t maximum_tokens = std::min<std::size_t>(
           prefill_chunk_tokens_, token_ids.size() - begin);
       const std::uint64_t proposed_begin = start_position + begin;
-      const std::uint64_t proposed_end = proposed_begin + tokens;
-      for (const VisionEmbeddingSegment& segment : vision_segments) {
-        const std::uint64_t patch_count = segment.patches.size() / 6912U;
-        const std::uint64_t segment_end = segment.prompt_offset + patch_count;
-        if (proposed_begin < segment.prompt_offset &&
-            proposed_end > segment.prompt_offset &&
-            proposed_end < segment_end) {
-          tokens = segment.prompt_offset - proposed_begin;
-        } else if (proposed_begin >= segment.prompt_offset &&
-                   proposed_begin < segment_end &&
-                   proposed_end < segment_end) {
-          tokens = segment_end - proposed_begin;
-        }
-      }
+      const std::uint64_t tokens = internal::PlanVisionAwarePrefillChunk(
+          proposed_begin, maximum_tokens, vision_segments);
       if (tokens == 0U || tokens > prefill_chunk_tokens_) {
         return Error(StatusCode::kInternal,
                      "vision-aware prefill chunk planning failed");

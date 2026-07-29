@@ -3,6 +3,7 @@
 #include <string>
 
 #include "runtime/tool_call_parser.h"
+#include "cuda/engine/media_chunk_plan.h"
 #include "test.h"
 
 namespace {
@@ -114,10 +115,27 @@ void TestIncrementalGemmaToolCallParser() {
   GEM16_CHECK(!malformed.Push("<|tool_call>call:x{a:1}", true).ok());
 }
 
+void TestMultipleImageChunkPlanning() {
+  std::vector<float> first_patches(2U * 6912U);
+  std::vector<float> second_patches(2U * 6912U);
+  std::vector<std::int32_t> positions(2U * 2U);
+  const std::vector<gem16::VisionEmbeddingSegment> segments = {
+      {10U, first_patches, positions}, {20U, second_patches, positions}};
+  GEM16_CHECK(gem16::internal::PlanVisionAwarePrefillChunk(
+                  0U, 32U, segments) == 10U);
+  GEM16_CHECK(gem16::internal::PlanVisionAwarePrefillChunk(
+                  10U, 22U, segments) == 2U);
+  GEM16_CHECK(gem16::internal::PlanVisionAwarePrefillChunk(
+                  12U, 20U, segments) == 8U);
+  GEM16_CHECK(gem16::internal::PlanVisionAwarePrefillChunk(
+                  20U, 12U, segments) == 2U);
+}
+
 }  // namespace
 
 void RunChatTests() {
   TestResponseChannelRecognition();
   TestProtocolNeutralGenerationTypes();
   TestIncrementalGemmaToolCallParser();
+  TestMultipleImageChunkPlanning();
 }

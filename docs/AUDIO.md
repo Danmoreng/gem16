@@ -2,8 +2,9 @@
 
 ## Supported test path
 
-`gem16-chat --message <text> --audio <file>` accepts one audio part after the
-text of a one-shot user message. The pinned miniaudio decoder accepts WAV,
+`gem16-chat --message <text> --audio <file>` accepts repeatable audio and image
+parts after the text of a one-shot user message. Their command-line order is
+preserved. The pinned miniaudio decoder accepts WAV,
 FLAC, and MP3, converts channel layouts and sample rates to mono float32 at
 16 kHz, and stops after the 30-second model limit. The complete encoded input,
 decoder output, and resampling work are bounded. Unsupported or malformed
@@ -37,7 +38,6 @@ loop.
 
 ## Current boundary
 
-This milestone qualifies audio in one-shot native chat. Multiple in-memory
-audio parts are supported by the public `ChatSession` request boundary, but the
-CLI exposes one `--audio` file. Interactive `/audio`, additional codecs,
+This milestone qualifies multiple audio/image parts in one-shot native chat and
+through the public `ChatSession` request boundary. Interactive `/audio`, additional codecs,
 video, and server multipart/base64 adapters remain follow-up work.

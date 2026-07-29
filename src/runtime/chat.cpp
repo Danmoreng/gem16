@@ -137,9 +137,6 @@ Result<MaterializedMessages> MaterializeMessages(std::span<const GenerationMessa
     chat_message.content = std::move(content).value();
     materialized.messages.push_back(std::move(chat_message));
   }
-  if (materialized.images.size() > 1U) {
-    return Status(StatusCode::kUnsupported, "the initial vision path supports one image per conversation request");
-  }
   return materialized;
 }
 

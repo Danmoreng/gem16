@@ -42,7 +42,8 @@ malformed, and unsupported images fail before GPU execution.
 
 The prompt renderer emits `<|image>`, one `<|image|>` placeholder per valid
 patch, and `<image|>`. Projected rows replace only those validated placeholders.
-An image block is never split across the fixed 2,048-token prefill tile.
+Each image block receives its own unsplit prefill chunk, so repeated images cannot
+share or confuse the qualified bidirectional image-mask range.
 
 ## Attention semantics
 
@@ -76,7 +77,7 @@ the next vision performance step.
 
 ## Current limits
 
-- one image per one-shot conversation request;
+- repeated images and audio are supported in one one-shot message;
 - PNG, JPEG, and BMP input through the portable stb_image decoder;
 - maximum 280 valid image soft tokens;
 - input-only vision and text output;

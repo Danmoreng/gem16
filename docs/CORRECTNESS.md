@@ -138,6 +138,11 @@ session to a grounded final answer. Tool-result continuation appends the checkpo
 the cached prefix; it does not re-render the earlier no-thinking generation prompt and therefore preserves exact KV
 identity.
 
+Multiple-media qualification covers pure host chunk-boundary fixtures, the complete host/CUDA suites, a real
+two-image Windows GPU request, and a mixed image-then-audio request using `freeman.wav`. The latter both described
+the image and transcribed the spoken audio, proving ordered placeholder discovery and independent projection of both
+modalities. Each image is isolated in one prefill chunk while audio may overlap ordinary chunks as before.
+
 The terminal stream applies the same checkpoint-qualified `ResponseChannelTracker` to generated IDs before
 decoding them. A real Windows fixed-D2 smoke test covers a forced reasoning close and observes separate
 `--- thinking ---` and `--- answer ---` sections without leaking the multi-token channel opener. A second run with
