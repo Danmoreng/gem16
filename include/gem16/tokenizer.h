@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <iosfwd>
@@ -22,7 +23,37 @@ struct ChatMessage {
 struct GenerationTokenControls {
   std::vector<std::uint32_t> stop_token_ids;
   std::vector<std::uint32_t> suppressed_token_ids;
+  std::vector<std::uint32_t> thinking_open_token_ids;
+  std::uint32_t thinking_close_token_id = 0U;
   SamplingOptions recommended_sampling;
+};
+
+enum class ResponseTokenChannel {
+  kControl,
+  kReasoning,
+  kText,
+};
+
+// Allocation-free per-token recognizer for the checkpoint-qualified thinking
+// channel. Construct it before generation from GenerationTokenControls.
+class ResponseChannelTracker {
+ public:
+  explicit ResponseChannelTracker(const GenerationTokenControls& controls)
+      : thinking_open_token_ids_(controls.thinking_open_token_ids),
+        thinking_close_token_id_(controls.thinking_close_token_id) {}
+
+  [[nodiscard]] ResponseTokenChannel Observe(std::uint32_t token_id);
+  [[nodiscard]] bool in_reasoning() const { return in_reasoning_; }
+  [[nodiscard]] std::uint64_t reasoning_token_count() const {
+    return reasoning_token_count_;
+  }
+
+ private:
+  std::vector<std::uint32_t> thinking_open_token_ids_;
+  std::uint32_t thinking_close_token_id_ = 0U;
+  std::size_t open_match_length_ = 0U;
+  std::uint64_t reasoning_token_count_ = 0U;
+  bool in_reasoning_ = false;
 };
 
 class Tokenizer {

@@ -6,6 +6,30 @@
 
 namespace {
 
+void TestResponseChannelRecognition() {
+  gem16::GenerationTokenControls controls;
+  controls.thinking_open_token_ids = {100U, 45518U, 108U};
+  controls.thinking_close_token_id = 101U;
+  gem16::ResponseChannelTracker tracker(controls);
+  GEM16_CHECK(tracker.Observe(100U) ==
+              gem16::ResponseTokenChannel::kControl);
+  GEM16_CHECK(tracker.Observe(45518U) ==
+              gem16::ResponseTokenChannel::kControl);
+  GEM16_CHECK(tracker.Observe(108U) ==
+              gem16::ResponseTokenChannel::kControl);
+  GEM16_CHECK(tracker.in_reasoning());
+  GEM16_CHECK(tracker.Observe(7U) ==
+              gem16::ResponseTokenChannel::kReasoning);
+  GEM16_CHECK(tracker.Observe(8U) ==
+              gem16::ResponseTokenChannel::kReasoning);
+  GEM16_CHECK(tracker.reasoning_token_count() == 2U);
+  GEM16_CHECK(tracker.Observe(101U) ==
+              gem16::ResponseTokenChannel::kControl);
+  GEM16_CHECK(!tracker.in_reasoning());
+  GEM16_CHECK(tracker.Observe(9U) == gem16::ResponseTokenChannel::kText);
+  GEM16_CHECK(tracker.reasoning_token_count() == 2U);
+}
+
 void TestProtocolNeutralGenerationTypes() {
   const auto first = gem16::GenerationMessage::Text("user", "hello");
   const auto same = gem16::GenerationMessage::Text("user", "hello");
@@ -29,4 +53,7 @@ void TestProtocolNeutralGenerationTypes() {
 
 }  // namespace
 
-void RunChatTests() { TestProtocolNeutralGenerationTypes(); }
+void RunChatTests() {
+  TestResponseChannelRecognition();
+  TestProtocolNeutralGenerationTypes();
+}

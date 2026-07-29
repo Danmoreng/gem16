@@ -519,6 +519,21 @@ Result<GemmaChatProcessor> GemmaChatProcessor::Load(
     suppressed = std::move(parsed_suppressed).value();
   }
 
+  auto thinking_open =
+      tokenizer.value().Encode(tokenizer_config.value().thinking_open);
+  if (!thinking_open.ok()) return thinking_open.status();
+  if (thinking_open.value().empty()) {
+    return Error(StatusCode::kDataLoss,
+                 "tokenizer thinking channel opener is empty");
+  }
+  auto thinking_close =
+      tokenizer.value().Encode(tokenizer_config.value().thinking_close);
+  if (!thinking_close.ok()) return thinking_close.status();
+  if (thinking_close.value().size() != 1U) {
+    return Error(StatusCode::kDataLoss,
+                 "tokenizer thinking channel close marker is not one token");
+  }
+
   for (const std::string& token : tokenizer_config.value().content_close_tokens) {
     auto encoded = tokenizer.value().Encode(token);
     if (!encoded.ok()) return encoded.status();
@@ -537,11 +552,40 @@ Result<GemmaChatProcessor> GemmaChatProcessor::Load(
   return GemmaChatProcessor(
       std::move(tokenizer).value(),
       GenerationTokenControls{std::move(stop).value(), std::move(suppressed),
+                              std::move(thinking_open).value(),
+                              thinking_close.value().front(),
                               recommended_sampling},
       tokenizer_config.value().thinking_open,
       tokenizer_config.value().thinking_close,
       tokenizer_config.value().content_close_tokens,
       tokenizer_config.value().tool_call_start_token);
+}
+
+ResponseTokenChannel ResponseChannelTracker::Observe(std::uint32_t token_id) {
+  if (in_reasoning_) {
+    if (token_id == thinking_close_token_id_) {
+      in_reasoning_ = false;
+      return ResponseTokenChannel::kControl;
+    }
+    ++reasoning_token_count_;
+    return ResponseTokenChannel::kReasoning;
+  }
+  if (token_id == thinking_close_token_id_) {
+    open_match_length_ = 0U;
+    return ResponseTokenChannel::kControl;
+  }
+  if (thinking_open_token_ids_.empty()) return ResponseTokenChannel::kText;
+  if (token_id == thinking_open_token_ids_[open_match_length_]) {
+    ++open_match_length_;
+    if (open_match_length_ == thinking_open_token_ids_.size()) {
+      open_match_length_ = 0U;
+      in_reasoning_ = true;
+    }
+    return ResponseTokenChannel::kControl;
+  }
+  open_match_length_ = token_id == thinking_open_token_ids_.front() ? 1U : 0U;
+  return open_match_length_ == 0U ? ResponseTokenChannel::kText
+                                  : ResponseTokenChannel::kControl;
 }
 
 Result<std::string> GemmaChatProcessor::Render(
