@@ -147,18 +147,23 @@ Status UploadSm120TiledBlocks(
 class LoadedTargetModel::Impl {
  public:
   [[nodiscard]] Status Load(const std::filesystem::path& directory) {
+    if (shared_ != nullptr) {
+      return Error(StatusCode::kInvalidArgument,
+                   "target model weights are already initialized");
+    }
+    shared_ = std::make_shared<SharedWeights>();
     auto inspected = InspectCheckpoint({directory, true});
     if (!inspected.ok()) return inspected.status();
-    manifest_ = std::move(inspected).value();
-    if (manifest_.architecture != "Gemma4UnifiedForConditionalGeneration" ||
-        manifest_.model_type != "gemma4_unified") {
+    shared_->manifest = std::move(inspected).value();
+    if (shared_->manifest.architecture != "Gemma4UnifiedForConditionalGeneration" ||
+        shared_->manifest.model_type != "gemma4_unified") {
       return Error(StatusCode::kUnsupported,
                    "the inference runtime requires the primary Gemma 4 target; "
                    "assistant checkpoints are inspect-only until the MTP plan is enabled");
     }
 
     std::uint64_t arena_bytes = 0;
-    for (const auto& tensor : manifest_.tensors) {
+    for (const auto& tensor : shared_->manifest.tensors) {
       auto aligned = AlignUp(arena_bytes, kAlignment);
       if (!aligned.ok()) return aligned.status();
       if (tensor.byte_length > std::numeric_limits<std::uint64_t>::max() - aligned.value()) {
@@ -168,17 +173,18 @@ class LoadedTargetModel::Impl {
     }
     auto final_size = AlignUp(arena_bytes, kAlignment);
     if (!final_size.ok()) return final_size.status();
-    Status status = weights_.Allocate(final_size.value(), "allocate unified model weight arena");
+    Status status = shared_->weights.Allocate(
+        final_size.value(), "allocate unified model weight arena");
     if (!status.ok()) return status;
 
     std::uint64_t offset = 0;
-    for (const auto& tensor : manifest_.tensors) {
+    for (const auto& tensor : shared_->manifest.tensors) {
       auto aligned = AlignUp(offset, kAlignment);
       if (!aligned.ok()) return aligned.status();
       DeviceTensor view;
       view.info = &tensor;
-      view.data = weights_.data() + aligned.value();
-      const auto inserted = tensors_.emplace(tensor.name, view);
+      view.data = shared_->weights.data() + aligned.value();
+      const auto inserted = shared_->tensors.emplace(tensor.name, view);
       if (!inserted.second) {
         return Error(StatusCode::kDataLoss, "duplicate device tensor: " + tensor.name);
       }
@@ -186,13 +192,13 @@ class LoadedTargetModel::Impl {
     }
 
     std::unordered_set<std::string> shards;
-    for (const auto& tensor : manifest_.tensors) {
+    for (const auto& tensor : shared_->manifest.tensors) {
       shards.insert(tensor.source_shard);
     }
     for (const auto& shard : shards) {
       auto mapped = internal::MappedFile::Open(directory / shard);
       if (!mapped.ok()) return mapped.status();
-      for (auto& [name, view] : tensors_) {
+      for (auto& [name, view] : shared_->tensors) {
         (void)name;
         const TensorInfo& tensor = *view.info;
         if (tensor.source_shard != shard) continue;
@@ -255,7 +261,32 @@ class LoadedTargetModel::Impl {
         }
       }
     }
-    return Bind();
+    const Status bind_status = Bind();
+    if (!bind_status.ok()) return bind_status;
+    shared_->layers = layers_;
+    shared_->embedding = embedding_;
+    shared_->final_norm = final_norm_;
+    shared_->audio_projection = audio_projection_;
+    shared_->vision = vision_;
+    return Status::Ok();
+  }
+
+  [[nodiscard]] Status ShareWeightsFrom(const Impl& source) {
+    if (shared_ != nullptr) {
+      return Error(StatusCode::kInvalidArgument,
+                   "target model weights are already initialized");
+    }
+    if (source.shared_ == nullptr) {
+      return Error(StatusCode::kInvalidArgument,
+                   "cannot share unloaded target model weights");
+    }
+    shared_ = source.shared_;
+    layers_ = shared_->layers;
+    embedding_ = shared_->embedding;
+    final_norm_ = shared_->final_norm;
+    audio_projection_ = shared_->audio_projection;
+    vision_ = shared_->vision;
+    return Status::Ok();
   }
 
   [[nodiscard]] const std::array<LayerBinding, kTargetLayerCount>& layers() const { return layers_; }
@@ -265,7 +296,9 @@ class LoadedTargetModel::Impl {
     return audio_projection_;
   }
   [[nodiscard]] const VisionBinding& vision() const { return vision_; }
-  [[nodiscard]] std::uint64_t weight_bytes() const { return weights_.bytes(); }
+  [[nodiscard]] std::uint64_t weight_bytes() const {
+    return shared_ == nullptr ? 0U : shared_->weights.bytes();
+  }
 
   void SetLayerBf16Cache(std::size_t layer, float* key, float* value) {
     layers_[layer].key_cache_bf16 = key;
@@ -279,9 +312,20 @@ class LoadedTargetModel::Impl {
   }
 
  private:
+  struct SharedWeights {
+    ModelManifest manifest;
+    DeviceAllocation weights;
+    std::unordered_map<std::string, DeviceTensor> tensors;
+    std::array<LayerBinding, kTargetLayerCount> layers{};
+    const std::uint16_t* embedding = nullptr;
+    const std::uint16_t* final_norm = nullptr;
+    const std::uint16_t* audio_projection = nullptr;
+    VisionBinding vision{};
+  };
+
   [[nodiscard]] Result<const DeviceTensor*> Tensor(const std::string& name) const {
-    const auto found = tensors_.find(name);
-    if (found == tensors_.end()) {
+    const auto found = shared_->tensors.find(name);
+    if (found == shared_->tensors.end()) {
       return Error(StatusCode::kNotFound, "required inference tensor is missing: " + name);
     }
     return &found->second;
@@ -454,9 +498,7 @@ class LoadedTargetModel::Impl {
     return Status::Ok();
   }
 
-  ModelManifest manifest_;
-  DeviceAllocation weights_;
-  std::unordered_map<std::string, DeviceTensor> tensors_;
+  std::shared_ptr<SharedWeights> shared_;
   std::array<LayerBinding, kTargetLayerCount> layers_{};
   const std::uint16_t* embedding_ = nullptr;
   const std::uint16_t* final_norm_ = nullptr;
@@ -472,6 +514,9 @@ LoadedTargetModel::~LoadedTargetModel() = default;
 
 Status LoadedTargetModel::Load(const std::filesystem::path& directory) {
   return impl_->Load(directory);
+}
+Status LoadedTargetModel::ShareWeightsFrom(const LoadedTargetModel& source) {
+  return impl_->ShareWeightsFrom(*source.impl_);
 }
 const std::array<LayerBinding, kTargetLayerCount>& LoadedTargetModel::layers() const {
   return impl_->layers();

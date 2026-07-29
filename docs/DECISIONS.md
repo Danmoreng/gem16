@@ -1451,3 +1451,21 @@ reference attention path implements the same block overlay.
 Evidence: Manifest validation binds all ten BF16 vision tensors; deterministic
 host and CUDA fixtures pass; real-checkpoint greedy and MTP D2 tests both read
 the visible sign `24` correctly from the qualified scene image.
+
+## 2026-07-29: Share immutable weights across isolated execution slots
+
+Date: 2026-07-29
+Decision: Introduce a process-wide `ModelRuntime`, conversation-owned
+`SessionState`, and independently allocated `ExecutionSlot`. Target and MTP
+weight arenas are reference-counted; KV bindings, CUDA streams, workspaces, and
+graphs are never shared between slots.
+Context: OpenAI-compatible multi-session serving must not reload roughly 9.2 GB
+of target weights per conversation, but mutable cache and graph addresses must
+remain isolated and deterministic.
+Alternatives: Keep one monolithic engine behind a global lock; share the entire
+engine; reload a model for each session.
+Consequences: Server startup performs the only checkpoint upload. Each future
+concurrent slot still consumes its own context-sized KV/workspace allocation,
+so admission control remains mandatory.
+Evidence: Windows host and SM120a builds and both CTest suites pass. A real
+target-plus-assistant server generated `OK` through the shared-runtime path.

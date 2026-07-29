@@ -216,7 +216,11 @@ The llama.cpp benchmark is deliberately before engine kernel optimization, but a
    resident `ChatSession`. **A8 complete:** the pinned official OpenAI Python
    SDK executes a real streamed weather-tool loop, parses typed call deltas and
    usage, appends the tool result, and verifies the grounded final answer. Next
-   split `ModelRuntime`, `SessionState`, and `ExecutionSlot` ownership.
+   split `ModelRuntime`, `SessionState`, and `ExecutionSlot` ownership. **A9
+   complete:** the server loads immutable target/assistant weights exactly once;
+   conversation history and sampling controls are session-owned, while KV,
+   streams, workspaces, mapped rings, and CUDA graphs are isolated per execution
+   slot. Next implement `/v1/responses` with `previous_response_id`.
 14. After the Blackwell backend is correct and competitive, add architecture-specific backends for additional 16 GB
    CUDA GPUs without weakening benchmark or memory contracts.
 

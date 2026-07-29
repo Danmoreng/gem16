@@ -281,9 +281,19 @@ struct AssistantModel::Impl {
     std::uint64_t draft_tokens = 0U;
   };
 
+  struct SharedWeights {
+    ~SharedWeights() {
+      if (arena != nullptr) (void)cudaFree(arena);
+    }
+    ModelManifest manifest;
+    std::unordered_map<std::string, DeviceTensor> tensors;
+    AssistantBindings bindings;
+    void* arena = nullptr;
+    std::uint64_t arena_size = 0U;
+  };
+
   ~Impl() {
     if (workspace != nullptr) (void)cudaFree(workspace);
-    if (arena != nullptr) (void)cudaFree(arena);
   }
 
   template <typename T>
@@ -293,8 +303,8 @@ struct AssistantModel::Impl {
 
   [[nodiscard]] Result<const std::uint16_t*> Bf16(
       const std::string& name, std::vector<std::uint64_t> shape) const {
-    const auto found = tensors.find(name);
-    if (found == tensors.end()) {
+    const auto found = shared->tensors.find(name);
+    if (found == shared->tensors.end()) {
       return Error(StatusCode::kNotFound,
                    "required assistant tensor is missing: " + name);
     }
@@ -318,14 +328,14 @@ struct AssistantModel::Impl {
     if (!pre.ok()) return pre.status();
     if (!post.ok()) return post.status();
     if (!norm.ok()) return norm.status();
-    bindings.embedding = embedding.value();
-    bindings.pre_projection = pre.value();
-    bindings.post_projection = post.value();
-    bindings.final_norm = norm.value();
+    shared->bindings.embedding = embedding.value();
+    shared->bindings.pre_projection = pre.value();
+    shared->bindings.post_projection = post.value();
+    shared->bindings.final_norm = norm.value();
 
-    for (std::size_t index = 0; index < bindings.layers.size(); ++index) {
-      AssistantLayerBinding& layer = bindings.layers[index];
-      layer.global = index + 1U == bindings.layers.size();
+    for (std::size_t index = 0; index < shared->bindings.layers.size(); ++index) {
+      AssistantLayerBinding& layer = shared->bindings.layers[index];
+      layer.global = index + 1U == shared->bindings.layers.size();
       layer.query_elements = layer.global ? 8192U : 4096U;
       const std::string base = "model.layers." + std::to_string(index) + ".";
       auto input_norm = Bf16(base + "input_layernorm.weight", {kAssistantHidden});
@@ -368,13 +378,9 @@ struct AssistantModel::Impl {
     return Status::Ok();
   }
 
-  ModelManifest manifest;
-  std::unordered_map<std::string, DeviceTensor> tensors;
-  AssistantBindings bindings;
+  std::shared_ptr<SharedWeights> shared;
   WorkspaceOffsets offsets;
-  void* arena = nullptr;
   void* workspace = nullptr;
-  std::uint64_t arena_size = 0U;
   std::uint64_t workspace_size = 0U;
   std::uint64_t max_context = 0U;
 };
@@ -383,7 +389,7 @@ AssistantModel::AssistantModel() : impl_(std::make_unique<Impl>()) {}
 AssistantModel::~AssistantModel() = default;
 
 Status AssistantModel::Load(const std::filesystem::path& directory) {
-  if (impl_->arena != nullptr || !impl_->tensors.empty()) {
+  if (impl_->shared != nullptr) {
     return Error(StatusCode::kInvalidArgument,
                  "assistant model is already loaded");
   }
@@ -395,10 +401,11 @@ Status AssistantModel::Load(const std::filesystem::path& directory) {
     return Error(StatusCode::kUnsupported,
                  "--assistant-model requires the pinned Gemma 4 unified assistant");
   }
-  impl_->manifest = std::move(inspected).value();
+  impl_->shared = std::make_shared<Impl::SharedWeights>();
+  impl_->shared->manifest = std::move(inspected).value();
 
   std::uint64_t cursor = 0U;
-  for (const TensorInfo& tensor : impl_->manifest.tensors) {
+  for (const TensorInfo& tensor : impl_->shared->manifest.tensors) {
     if (!tensor.loaded_in_text_only_mode || tensor.storage_dtype != "BF16") {
       return Error(StatusCode::kDataLoss,
                    "assistant arena accepts only resident BF16 tensors: " +
@@ -421,19 +428,21 @@ Status AssistantModel::Load(const std::filesystem::path& directory) {
                  "assistant arena size is invalid");
   }
   cudaError_t error =
-      cudaMalloc(&impl_->arena, static_cast<std::size_t>(arena_size.value()));
+      cudaMalloc(&impl_->shared->arena,
+                 static_cast<std::size_t>(arena_size.value()));
   if (error != cudaSuccess) {
     return CudaFailure("allocate BF16 assistant weight arena", error);
   }
-  impl_->arena_size = arena_size.value();
+  impl_->shared->arena_size = arena_size.value();
 
   cursor = 0U;
-  for (const TensorInfo& tensor : impl_->manifest.tensors) {
+  for (const TensorInfo& tensor : impl_->shared->manifest.tensors) {
     auto aligned = AlignUp(cursor);
     if (!aligned.ok()) return aligned.status();
     Impl::DeviceTensor view{&tensor,
-                            static_cast<std::byte*>(impl_->arena) + aligned.value()};
-    if (!impl_->tensors.emplace(tensor.name, view).second) {
+                            static_cast<std::byte*>(impl_->shared->arena) +
+                                aligned.value()};
+    if (!impl_->shared->tensors.emplace(tensor.name, view).second) {
       return Error(StatusCode::kDataLoss,
                    "duplicate assistant device tensor: " + tensor.name);
     }
@@ -441,21 +450,21 @@ Status AssistantModel::Load(const std::filesystem::path& directory) {
   }
 
   std::set<std::string> shards;
-  for (const TensorInfo& tensor : impl_->manifest.tensors) {
+  for (const TensorInfo& tensor : impl_->shared->manifest.tensors) {
     shards.insert(tensor.source_shard);
   }
   for (const std::string& shard : shards) {
     auto mapped = MappedFile::Open(directory / shard);
     if (!mapped.ok()) return mapped.status();
-    for (const TensorInfo& tensor : impl_->manifest.tensors) {
+    for (const TensorInfo& tensor : impl_->shared->manifest.tensors) {
       if (tensor.source_shard != shard) continue;
       if (tensor.byte_offset > mapped.value().size() ||
           tensor.byte_length > mapped.value().size() - tensor.byte_offset) {
         return Error(StatusCode::kDataLoss,
                      "assistant tensor upload range is invalid: " + tensor.name);
       }
-      const auto found = impl_->tensors.find(tensor.name);
-      if (found == impl_->tensors.end()) {
+      const auto found = impl_->shared->tensors.find(tensor.name);
+      if (found == impl_->shared->tensors.end()) {
         return Error(StatusCode::kInternal,
                      "assistant tensor has no device view: " + tensor.name);
       }
@@ -472,6 +481,15 @@ Status AssistantModel::Load(const std::filesystem::path& directory) {
     }
   }
   return impl_->Bind();
+}
+
+Status AssistantModel::ShareWeightsFrom(const AssistantModel& source) {
+  if (impl_->shared != nullptr || source.impl_->shared == nullptr) {
+    return Error(StatusCode::kInvalidArgument,
+                 "assistant weights cannot be shared from this state");
+  }
+  impl_->shared = source.impl_->shared;
+  return Status::Ok();
 }
 
 Status AssistantModel::Prepare(std::uint64_t max_context) {
@@ -676,13 +694,14 @@ Status AssistantModel::GenerateDraftsDevice(
     PreProjectionKernel<<<static_cast<unsigned>(kAssistantHidden), kThreads, 0,
                           stream>>>(
         context.target_embedding, selected, backbone_hidden,
-        impl_->bindings.pre_projection, hidden_a);
+        impl_->shared->bindings.pre_projection, hidden_a);
     error = cudaGetLastError();
     if (error != cudaSuccess) {
       return CudaFailure("launch assistant pre-projection", error);
     }
 
-    for (const AssistantLayerBinding& layer : impl_->bindings.layers) {
+    for (const AssistantLayerBinding& layer :
+         impl_->shared->bindings.layers) {
       const AssistantSharedKvView& kv =
           layer.global ? context.full_kv : context.sliding_kv;
       status = LaunchRmsNormBf16(hidden_a, layer.input_norm, normalized, 1U,
@@ -768,15 +787,16 @@ Status AssistantModel::GenerateDraftsDevice(
       if (!status.ok()) return status;
     }
 
-    status = LaunchRmsNormBf16(hidden_a, impl_->bindings.final_norm,
-                               normalized, 1U, kAssistantHidden, kEpsilon,
-                               stream);
+    status = LaunchRmsNormBf16(hidden_a,
+                               impl_->shared->bindings.final_norm, normalized,
+                               1U, kAssistantHidden, kEpsilon, stream);
     if (!status.ok()) return status;
-    status = launch_gemv(normalized, impl_->bindings.post_projection, feedback,
+    status = launch_gemv(normalized,
+                         impl_->shared->bindings.post_projection, feedback,
                          kBackboneHidden, kAssistantHidden);
     if (!status.ok()) return status;
     AssistantOutputCandidatesKernel<<<kOutputHeadBlocks, kThreads, 0, stream>>>(
-        impl_->bindings.embedding, normalized, candidates);
+        impl_->shared->bindings.embedding, normalized, candidates);
     error = cudaGetLastError();
     if (error != cudaSuccess) {
       return CudaFailure("launch assistant output candidates", error);
@@ -816,20 +836,25 @@ const std::uint32_t* AssistantModel::device_draft_tokens() const {
              : nullptr;
 }
 
-bool AssistantModel::loaded() const { return impl_->arena != nullptr; }
+bool AssistantModel::loaded() const { return impl_->shared != nullptr; }
 bool AssistantModel::prepared() const { return impl_->workspace != nullptr; }
-std::uint64_t AssistantModel::arena_bytes() const { return impl_->arena_size; }
+std::uint64_t AssistantModel::arena_bytes() const {
+  return impl_->shared == nullptr ? 0U : impl_->shared->arena_size;
+}
 std::uint64_t AssistantModel::workspace_bytes() const {
   return impl_->workspace_size;
 }
 std::uint64_t AssistantModel::source_bytes() const {
-  return impl_->manifest.total_tensor_bytes;
+  return impl_->shared == nullptr ? 0U
+                                  : impl_->shared->manifest.total_tensor_bytes;
 }
 std::uint64_t AssistantModel::tensor_count() const {
-  return static_cast<std::uint64_t>(impl_->manifest.tensors.size());
+  return impl_->shared == nullptr
+             ? 0U
+             : static_cast<std::uint64_t>(impl_->shared->manifest.tensors.size());
 }
 const AssistantBindings& AssistantModel::bindings() const {
-  return impl_->bindings;
+  return impl_->shared->bindings;
 }
 
 }  // namespace gem16::internal

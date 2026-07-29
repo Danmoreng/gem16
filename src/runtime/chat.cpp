@@ -241,6 +241,15 @@ Result<ChatSession> ChatSession::Create(const ChatSessionOptions& options) {
 }
 
 Result<ChatSession> ChatSession::Create(const ChatSessionOptions& options, GemmaChatProcessor processor) {
+  auto runtime = ModelRuntime::Load(
+      {options.model_directory, options.assistant_model_directory});
+  if (!runtime.ok()) return runtime.status();
+  return Create(std::move(runtime).value(), options, std::move(processor));
+}
+
+Result<ChatSession> ChatSession::Create(
+    std::shared_ptr<ModelRuntime> runtime, const ChatSessionOptions& options,
+    GemmaChatProcessor processor) {
   ConversationSessionOptions session_options;
   session_options.model_directory = options.model_directory;
   session_options.assistant_model_directory = options.assistant_model_directory;
@@ -251,7 +260,7 @@ Result<ChatSession> ChatSession::Create(const ChatSessionOptions& options, Gemma
   session_options.sampling = options.sampling;
   session_options.mtp_draft_tokens = options.mtp_draft_tokens;
   session_options.mtp_adaptive = options.mtp_adaptive;
-  auto session = ConversationSession::Create(session_options);
+  auto session = ConversationSession::Create(std::move(runtime), session_options);
   if (!session.ok()) return session.status();
 
   auto impl = std::make_unique<Impl>(std::move(processor), std::move(session).value());

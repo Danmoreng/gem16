@@ -2,8 +2,55 @@
 // It intentionally remains in the same CUDA translation unit so engine-private
 // orchestration and kernel generation are unchanged.
 
-struct ConversationSession::Impl {
-  InferenceEngine engine;
+struct ModelRuntime::Impl {
+  internal::LoadedTargetModel model;
+  internal::AssistantModel assistant;
+  double load_milliseconds = 0.0;
+  bool assistant_loaded = false;
+};
+
+ModelRuntime::ModelRuntime(std::unique_ptr<Impl> impl)
+    : impl_(std::move(impl)) {}
+ModelRuntime::~ModelRuntime() = default;
+
+Result<std::shared_ptr<ModelRuntime>> ModelRuntime::Load(
+    const ModelRuntimeOptions& options) {
+  if (options.model_directory.empty()) {
+    return Error(StatusCode::kInvalidArgument,
+                 "model runtime requires --model");
+  }
+  auto impl = std::make_unique<Impl>();
+  const auto load_start = std::chrono::steady_clock::now();
+  Status status = impl->model.Load(options.model_directory);
+  if (!status.ok()) return status;
+  if (!options.assistant_model_directory.empty()) {
+    status = impl->assistant.Load(options.assistant_model_directory);
+    if (!status.ok()) return status;
+    impl->assistant_loaded = true;
+  }
+  impl->load_milliseconds =
+      Milliseconds(std::chrono::steady_clock::now() - load_start);
+  return std::shared_ptr<ModelRuntime>(
+      new ModelRuntime(std::move(impl)));
+}
+
+std::uint64_t ModelRuntime::weight_bytes() const {
+  return impl_ == nullptr ? 0U : impl_->model.weight_bytes();
+}
+std::uint64_t ModelRuntime::assistant_weight_bytes() const {
+  return impl_ == nullptr ? 0U : impl_->assistant.arena_bytes();
+}
+bool ModelRuntime::assistant_loaded() const {
+  return impl_ != nullptr && impl_->assistant_loaded;
+}
+double ModelRuntime::load_milliseconds() const {
+  return impl_ == nullptr ? 0.0 : impl_->load_milliseconds;
+}
+
+// Host conversation state and device execution resources intentionally have
+// distinct owners. This keeps the immutable runtime shareable without making
+// RNG/history/KV or CUDA graph state process-global.
+struct SessionState {
   std::vector<std::uint32_t> cached_token_ids;
   std::vector<std::uint32_t> stop_token_ids;
   std::uint64_t max_context_tokens = 0U;
@@ -13,6 +60,14 @@ struct ConversationSession::Impl {
   std::uint32_t mtp_draft_tokens = 0U;
   bool mtp_adaptive = false;
   bool poisoned = false;
+};
+
+struct ExecutionSlot {
+  InferenceEngine engine;
+};
+
+struct ConversationSession::Impl : SessionState, ExecutionSlot {
+  std::shared_ptr<ModelRuntime> runtime;
 };
 
 ConversationSession::ConversationSession(std::unique_ptr<Impl> impl)
@@ -62,7 +117,53 @@ Result<ConversationSession> ConversationSession::Create(
                  "--mtp-adaptive requires active MTP");
   }
 
+  auto runtime = ModelRuntime::Load(
+      {options.model_directory, options.assistant_model_directory});
+  if (!runtime.ok()) return runtime.status();
+  return Create(std::move(runtime).value(), options);
+}
+
+Result<ConversationSession> ConversationSession::Create(
+    std::shared_ptr<ModelRuntime> runtime,
+    const ConversationSessionOptions& options) {
+  if (runtime == nullptr || runtime->impl_ == nullptr) {
+    return Error(StatusCode::kInvalidArgument,
+                 "conversation session requires a loaded model runtime");
+  }
+  if (options.max_context_tokens == 0U ||
+      options.max_context_tokens > kMaximumContext) {
+    return Error(StatusCode::kUnsupported,
+                 "the hybrid KV cache supports 1..262144 tokens");
+  }
+  for (const std::uint32_t token : options.stop_token_ids) {
+    if (token >= kVocabulary) {
+      return Error(StatusCode::kInvalidArgument,
+                   "stop token ID exceeds vocabulary");
+    }
+  }
+  for (const std::uint32_t token : options.suppressed_token_ids) {
+    if (token >= kVocabulary) {
+      return Error(StatusCode::kInvalidArgument,
+                   "suppressed token ID exceeds vocabulary");
+    }
+  }
+  const bool mtp_enabled = options.mtp_draft_tokens != 0U;
+  if (mtp_enabled && options.mtp_draft_tokens != 1U &&
+      options.mtp_draft_tokens != 2U && options.mtp_draft_tokens != 4U) {
+    return Error(StatusCode::kInvalidArgument,
+                 "active MTP requires draft length 1, 2, or 4");
+  }
+  if (mtp_enabled && !runtime->impl_->assistant_loaded) {
+    return Error(StatusCode::kInvalidArgument,
+                 "active MTP requires assistant weights in ModelRuntime");
+  }
+  if (options.mtp_adaptive && !mtp_enabled) {
+    return Error(StatusCode::kInvalidArgument,
+                 "--mtp-adaptive requires active MTP");
+  }
+
   auto impl = std::make_unique<Impl>();
+  impl->runtime = std::move(runtime);
   impl->stop_token_ids = options.stop_token_ids;
   impl->max_context_tokens = options.max_context_tokens;
   impl->kv_cache_mode = options.kv_cache_mode;
@@ -71,20 +172,19 @@ Result<ConversationSession> ConversationSession::Create(
   impl->mtp_adaptive = options.mtp_adaptive;
   impl->cached_token_ids.reserve(
       static_cast<std::size_t>(options.max_context_tokens));
-  const auto load_start = std::chrono::steady_clock::now();
-  Status status = impl->engine.Initialize(options.model_directory,
-                                         options.max_context_tokens,
-                                         options.kv_cache_mode,
-                                         options.sampling,
-                                         options.assistant_model_directory,
-                                         options.mtp_draft_tokens);
+  Status status = impl->engine.InitializeShared(
+      impl->runtime->impl_->model,
+      impl->runtime->impl_->assistant_loaded
+          ? &impl->runtime->impl_->assistant
+          : nullptr,
+      options.max_context_tokens, options.kv_cache_mode, options.sampling,
+      options.mtp_draft_tokens);
   if (!status.ok()) return status;
   status = impl->engine.SetSuppressedTokens(options.suppressed_token_ids);
   if (!status.ok()) return status;
   status = impl->engine.SetMtpStopTokens(options.stop_token_ids);
   if (!status.ok()) return status;
-  impl->model_load_milliseconds =
-      Milliseconds(std::chrono::steady_clock::now() - load_start);
+  impl->model_load_milliseconds = impl->runtime->load_milliseconds();
   return ConversationSession(std::move(impl));
 }
 

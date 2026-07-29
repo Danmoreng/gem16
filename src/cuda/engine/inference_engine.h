@@ -12,6 +12,11 @@
 
 namespace gem16 {
 
+namespace internal {
+class LoadedTargetModel;
+class AssistantModel;
+}  // namespace internal
+
 class InferenceEngine {
  public:
   InferenceEngine();
@@ -26,6 +31,12 @@ class InferenceEngine {
       std::uint64_t max_context, KvCacheMode kv_cache_mode,
       const SamplingOptions& sampling = {},
       const std::filesystem::path& assistant_model_directory = {},
+      std::uint32_t mtp_draft_tokens = 0U);
+  [[nodiscard]] Status InitializeShared(
+      const internal::LoadedTargetModel& model,
+      const internal::AssistantModel* assistant,
+      std::uint64_t max_context, KvCacheMode kv_cache_mode,
+      const SamplingOptions& sampling = {},
       std::uint32_t mtp_draft_tokens = 0U);
   [[nodiscard]] Result<std::uint32_t> Forward(
       std::uint32_t token, std::uint64_t position, bool select_token,

@@ -304,3 +304,20 @@ mode retains the scalar attention score workspace. Exact sizes are reported per 
 Its default hybrid cache stores physical E4M3FN bytes with checkpoint BF16 scales; an explicit float32
 BF16-semantics diagnostic allocation remains available. The general planner remains conservative until production
 prefill, graph, and sampling shapes are defined.
+
+## Server ownership boundary
+
+Server execution is split into three concrete lifetimes:
+
+- `ModelRuntime` owns the immutable target and optional MTP assistant device
+  arenas. It is loaded once and retained by shared ownership.
+- `SessionState` owns the exact token prefix, stop/suppression policy, sampling
+  state, MTP controls, and poison state for one conversation.
+- `ExecutionSlot` owns one CUDA stream, KV cache, activation/prefill/MTP
+  workspaces, mapped streaming ring, and captured graphs.
+
+`LoadedTargetModel` copies immutable tensor bindings but clears and rebinds the
+KV pointers for every slot. `AssistantModel` shares its immutable BF16 bindings
+while allocating an independent proposal workspace. Consequently a second
+session can never mutate the first session's KV/RNG/graph state and does not
+upload a second weight arena.

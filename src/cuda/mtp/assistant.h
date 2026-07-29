@@ -77,6 +77,9 @@ class AssistantModel {
   ~AssistantModel();
 
   [[nodiscard]] Status Load(const std::filesystem::path& directory);
+  // Shares immutable assistant weights. Prepare still creates an independent
+  // proposal workspace for the receiving execution slot.
+  [[nodiscard]] Status ShareWeightsFrom(const AssistantModel& source);
   [[nodiscard]] Status Prepare(std::uint64_t max_context);
   [[nodiscard]] Status GenerateDrafts(
       const AssistantProposalContext& context,

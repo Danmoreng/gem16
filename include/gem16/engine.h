@@ -147,7 +147,36 @@ struct ConversationSessionOptions {
   bool mtp_adaptive = false;
 };
 
-// A batch-one conversation owns one resident model, workspace, and KV cache.
+struct ModelRuntimeOptions {
+  std::filesystem::path model_directory;
+  std::filesystem::path assistant_model_directory;
+};
+
+// Process-wide immutable model residency. A runtime owns exactly one target
+// weight arena and, when configured, one assistant weight arena. Conversation
+// sessions share these arenas and allocate only mutable session/slot state.
+class ModelRuntime {
+ public:
+  ModelRuntime(const ModelRuntime&) = delete;
+  ModelRuntime& operator=(const ModelRuntime&) = delete;
+  ~ModelRuntime();
+
+  [[nodiscard]] static Result<std::shared_ptr<ModelRuntime>> Load(
+      const ModelRuntimeOptions& options);
+  [[nodiscard]] std::uint64_t weight_bytes() const;
+  [[nodiscard]] std::uint64_t assistant_weight_bytes() const;
+  [[nodiscard]] bool assistant_loaded() const;
+  [[nodiscard]] double load_milliseconds() const;
+
+ private:
+  struct Impl;
+  explicit ModelRuntime(std::unique_ptr<Impl> impl);
+  std::unique_ptr<Impl> impl_;
+  friend class ConversationSession;
+};
+
+// A batch-one conversation owns mutable token/KV state and one execution slot.
+// The overload taking ModelRuntime shares process-wide immutable weights.
 // Each turn supplies the fully rendered conversation so the session can prove
 // that its existing cache is an exact token prefix before processing only the
 // newly appended suffix.
@@ -160,6 +189,9 @@ class ConversationSession {
   ~ConversationSession();
 
   [[nodiscard]] static Result<ConversationSession> Create(
+      const ConversationSessionOptions& options);
+  [[nodiscard]] static Result<ConversationSession> Create(
+      std::shared_ptr<ModelRuntime> runtime,
       const ConversationSessionOptions& options);
   [[nodiscard]] Result<GreedyInferenceResult> Generate(
       std::span<const std::uint32_t> full_prompt_token_ids,

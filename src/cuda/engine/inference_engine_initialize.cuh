@@ -51,8 +51,56 @@
         if (!status.ok()) return status;
       }
     }
+    return InitializeSlot(mtp_draft_tokens);
+  }
+
+  [[nodiscard]] Status InitializeShared(
+      const internal::LoadedTargetModel& model,
+      const internal::AssistantModel* assistant,
+      std::uint64_t max_context, KvCacheMode kv_cache_mode,
+      const SamplingOptions& sampling,
+      std::uint32_t mtp_draft_tokens) {
+    const NvtxRange range("gem16.initialize_shared");
+    Status status = SetSampling(sampling);
+    if (!status.ok()) return status;
+    kv_cache_mode_ = kv_cache_mode;
+    max_context_ = max_context;
+    prefill_chunk_tokens_ =
+        PrefillChunkTokensForContext(max_context_, kv_cache_mode_);
+    cudaDeviceProp properties{};
+    cudaError_t error = cudaGetDeviceProperties(&properties, 0);
+    if (error != cudaSuccess) {
+      return CudaFailure("cudaGetDeviceProperties", error);
+    }
+    if (properties.major != 12 || properties.minor != 0) {
+      return Error(StatusCode::kUnsupported,
+                   "greedy characterization requires SM120");
+    }
+    error = cudaStreamCreateWithFlags(&stream_, cudaStreamNonBlocking);
+    if (error != cudaSuccess) {
+      return CudaFailure("create inference stream", error);
+    }
+    status = model_.ShareWeightsFrom(model);
+    if (!status.ok()) return status;
+    if (assistant != nullptr) {
+      status = assistant_.ShareWeightsFrom(*assistant);
+      if (!status.ok()) return status;
+      if (mtp_draft_tokens != 0U) {
+        status = assistant_.Prepare(max_context_);
+        if (!status.ok()) return status;
+      }
+    } else if (mtp_draft_tokens != 0U) {
+      return Error(StatusCode::kInvalidArgument,
+                   "active MTP requires shared assistant weights");
+    }
+    assistant_device_memory_delta_bytes_ = 0U;
+    return InitializeSlot(mtp_draft_tokens);
+  }
+
+  [[nodiscard]] Status InitializeSlot(std::uint32_t mtp_draft_tokens) {
     mtp_draft_tokens_ = mtp_draft_tokens;
-    status = AllocateCache();
+    cudaError_t error = cudaSuccess;
+    Status status = AllocateCache();
     if (!status.ok()) return status;
     status = AllocateWorkspace();
     if (!status.ok()) return status;

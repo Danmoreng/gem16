@@ -221,6 +221,9 @@ class ChatSession {
       const ChatSessionOptions& options);
   [[nodiscard]] static Result<ChatSession> Create(
       const ChatSessionOptions& options, GemmaChatProcessor processor);
+  [[nodiscard]] static Result<ChatSession> Create(
+      std::shared_ptr<ModelRuntime> runtime,
+      const ChatSessionOptions& options, GemmaChatProcessor processor);
 
   [[nodiscard]] Result<ChatGenerationResponse> Generate(
       const ChatGenerationRequest& request,

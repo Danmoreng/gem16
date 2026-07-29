@@ -106,3 +106,11 @@ audio/vision tensor bytes. Vision execution reserves 24,086,720 reusable bytes:
 two 280x6,912 float patch views, two 280x3,840 float hidden views, and 560
 `int32` position coordinates. These regions are allocated with the prefill arena
 and are never allocated or resized in the token loop.
+
+Server residency now accounts for immutable and mutable memory separately.
+`ModelRuntime::weight_bytes()` and `assistant_weight_bytes()` describe the one
+process-wide allocation. Every `ExecutionSlot` reports its own KV, reusable
+workspace, assistant workspace, and graph-private bytes. Creating a slot from a
+runtime copies only pointer bindings; it performs no checkpoint I/O, weight
+upload, or persistent repack. Multiple simultaneous slots therefore scale with
+their context plans, not with model-weight size.

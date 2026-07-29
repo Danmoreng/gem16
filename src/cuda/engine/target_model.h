@@ -79,6 +79,9 @@ class LoadedTargetModel {
   ~LoadedTargetModel();
 
   [[nodiscard]] Status Load(const std::filesystem::path& directory);
+  // Creates a lightweight model view which shares immutable device weights
+  // while retaining independent, session-owned KV-cache bindings.
+  [[nodiscard]] Status ShareWeightsFrom(const LoadedTargetModel& source);
   [[nodiscard]] const std::array<LayerBinding, kTargetLayerCount>& layers() const;
   [[nodiscard]] const std::uint16_t* embedding() const;
   [[nodiscard]] const std::uint16_t* final_norm() const;

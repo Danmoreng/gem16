@@ -16,6 +16,12 @@ selects deterministic generation. `--assistant-model`,
 path as resident chat. The server has no authentication or TLS layer; bind to
 loopback unless a trusted reverse proxy supplies those controls.
 
+Startup creates one `ModelRuntime` and logs its target/assistant weight bytes
+and load time. The current single conversation is then created as an isolated
+`SessionState` plus `ExecutionSlot` sharing that runtime. This ownership split
+is the prerequisite for the bounded multi-session scheduler; the current HTTP
+surface remains serialized until that scheduler lands.
+
 ## Endpoints
 
 - `GET /health` returns `{"status":"ok"}`.

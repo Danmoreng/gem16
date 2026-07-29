@@ -482,7 +482,19 @@ int ServerMain(int argc, char** argv) {
   if (options.value().greedy) session_options.sampling.enabled = false;
   session_options.mtp_draft_tokens = options.value().mtp_draft_tokens;
   session_options.mtp_adaptive = options.value().mtp_adaptive;
-  auto session = gem16::ChatSession::Create(session_options, processor.value());
+  auto runtime = gem16::ModelRuntime::Load(
+      {options.value().model_directory,
+       options.value().assistant_model_directory});
+  if (!runtime.ok()) {
+    std::cerr << "error: " << runtime.status().message() << '\n';
+    return 2;
+  }
+  std::cout << "model_runtime weights=" << runtime.value()->weight_bytes()
+            << " assistant_weights="
+            << runtime.value()->assistant_weight_bytes()
+            << " load_ms=" << runtime.value()->load_milliseconds() << '\n';
+  auto session = gem16::ChatSession::Create(
+      runtime.value(), session_options, processor.value());
   if (!session.ok()) {
     std::cerr << "error: " << session.status().message() << '\n';
     return 2;
