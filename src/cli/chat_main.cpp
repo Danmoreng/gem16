@@ -889,7 +889,7 @@ int ChatMain(int argc, char** argv) {
       std::cout << '\n';
       gem16::ChatMessage assistant;
       assistant.role = "assistant";
-      assistant.content = std::move(output.content);
+      assistant.content = std::move(output.display_text);
       for (const auto& call : output.tool_calls) {
         assistant.tool_calls.push_back(
             {call.id, call.name, call.arguments_json});

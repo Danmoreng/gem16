@@ -9,6 +9,43 @@
 namespace gem16::json {
 namespace {
 
+void AppendStringified(const Value& value, std::string& output) {
+  if (value.is_null()) {
+    output.append("null");
+  } else if (value.is_bool()) {
+    output.append(value.as_bool() ? "true" : "false");
+  } else if (value.is_integer()) {
+    output.append(std::to_string(value.as_integer()));
+  } else if (value.is_number()) {
+    std::ostringstream stream;
+    stream.precision(std::numeric_limits<double>::max_digits10);
+    stream << value.as_number();
+    output.append(stream.str());
+  } else if (value.is_string()) {
+    output.append(Quote(value.as_string()));
+  } else if (value.is_array()) {
+    output.push_back('[');
+    bool first = true;
+    for (const Value& item : value.as_array()) {
+      if (!first) output.push_back(',');
+      first = false;
+      AppendStringified(item, output);
+    }
+    output.push_back(']');
+  } else {
+    output.push_back('{');
+    bool first = true;
+    for (const auto& [key, item] : value.as_object()) {
+      if (!first) output.push_back(',');
+      first = false;
+      output.append(Quote(key));
+      output.push_back(':');
+      AppendStringified(item, output);
+    }
+    output.push_back('}');
+  }
+}
+
 class Parser {
  public:
   Parser(std::string_view input, ParseLimits limits) : input_(input), limits_(limits) {}
@@ -427,6 +464,16 @@ std::string Escape(std::string_view input) {
     }
   }
   return output.str();
+}
+
+std::string Stringify(const Value& value) {
+  std::string output;
+  AppendStringified(value, output);
+  return output;
+}
+
+std::string Quote(std::string_view input) {
+  return '"' + Escape(input) + '"';
 }
 
 }  // namespace gem16::json

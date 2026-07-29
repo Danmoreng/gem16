@@ -128,6 +128,16 @@ S0 deliberately establishes the API boundary before moving qualified CUDA owners
 can sit above this boundary. Shared-weight concurrent sessions and continuous batching remain later runtime work,
 not properties implied by the request API.
 
+`gem16-server` is the first serialized consumer of that boundary. A thin
+OpenAI adapter parses bounded JSON, decodes inline Base64 media, and maps Chat
+Completions messages/tools to owning generation types. The pinned cpp-httplib
+transport owns HTTP/1.1 and chunked transfer only. Non-streaming responses and
+SSE chunks are produced above `ChatSession`; CUDA, tokenizer, tool-template,
+and exact-prefix code contain no HTTP types. The server mutex admits one
+generation at a time and the single `ChatSession` accepts only exact
+conversation extensions until `ModelRuntime`, `SessionState`, and
+`ExecutionSlot` are physically separated.
+
 The greedy plan copies checkpoint `suppress_tokens` into fixed workspace before prompt processing and stops on any
 checkpoint EOS token. Optional full-logit capture preallocates host storage before the token loop and writes raw
 little-endian float32 only after generation; it is a correctness diagnostic and invalidates timing comparisons.

@@ -28,7 +28,7 @@ weights. The first optimized backend targets Blackwell SM120/SM120a and batch-on
 | Prefill | Native variable-length prefill with CUTLASS FP8/NVFP4 Tensor Core projections |
 | Decode | Native T=1 projection plans, FP8 KV cache, and whole-model CUDA Graph replay |
 | MTP | Optional official BF16 assistant with exact batched D1/D2/D4 verification, GPU acceptance/commit, and adaptive fallback |
-| Memory | Direct source layout, text-only tensor loading, deterministic arenas, no CPU weight offload |
+| Memory | Direct source layout, unified tensor loading, deterministic arenas, no CPU weight offload |
 | Tooling | Checkpoint inspection, memory planning, correctness probes, profiling, and prefill/decode benchmarks |
 | Validation | Host and CUDA tests plus operator, layer, logit, greedy-generation, and long-context checks |
 
@@ -197,11 +197,33 @@ by the complete encoder-free vision embedder on the GPU:
 See [docs/VISION.md](docs/VISION.md) for preprocessing, attention semantics,
 current format limits, and the verification record.
 
+## OpenAI-compatible server
+
+`gem16-server` exposes `/health`, `/v1/models`, and
+`/v1/chat/completions`, including HTTP chunked SSE, usage records, structured
+function calls/results, reasoning deltas, and ordered multimodal content:
+
+```powershell
+.\build\Windows\blackwell-release\bin\gem16-server.exe `
+  --model .\models\checkpoints\unsloth-gemma-4-12b-it-NVFP4-b1f6497 `
+  --model-name gem16 `
+  --host 127.0.0.1 --port 8080 --max-context 8192
+```
+
+Text strings and `text`/`input_text` parts are accepted. Images use OpenAI
+`image_url` parts with inline `data:image/png|jpeg|bmp;base64,...` URLs; audio
+uses `input_audio` with Base64 `wav`, `mp3`, or `flac`. Repeated parts preserve
+their JSON order and share the automatic image-token budget. Function tools,
+assistant `tool_calls`, and `tool` result messages map directly onto the native
+Gemma tool protocol. See [docs/SERVER.md](docs/SERVER.md) for requests, SSE
+events, current single-conversation semantics, and visible unsupported fields.
+
 ## Command-line tools
 
 | Tool | Purpose |
 |---|---|
 | `gem16-chat` | Interactive or single-message chat with native tokenization and streaming output |
+| `gem16-server` | Serialized OpenAI-compatible Chat Completions and SSE server |
 | `gem16-run` | Greedy or sampled inference, MTP, teacher forcing, state dumps, and kernel capability reporting |
 | `gem16-inspect` | Validate and inventory checkpoint tensors and quantization metadata |
 | `gem16-bench` | Model-load, memory, kernel, prefill, decode, and end-to-end characterization |
@@ -233,6 +255,9 @@ and the direct mixed checkpoint and available GGUF baseline differ in some tenso
 
 - Only the pinned Gemma 4 12B Unified checkpoint family is supported.
 - Inference is currently batch one. Text, image, and audio input are supported; video input is not yet implemented.
+- The first HTTP milestone owns one resident conversation and one execution slot. Every later Chat Completions
+  request must reproduce the prior messages and append the next user/tool turn; unrelated sessions wait for the
+  runtime/session split in the following milestones.
 - Generation supports unchanged fused greedy selection and explicit seeded GPU sampling with temperature, exact
   top-k/top-p/min-p filtering, and full-history repetition penalty. The initial sampled path uses a preallocated
   full-vocabulary radix sort and probability scan inside the whole-model decode CUDA Graph.
@@ -251,7 +276,7 @@ and the direct mixed checkpoint and available GGUF baseline differ in some tenso
   tok/s versus 31.450 ordinary (1.470x). This qualifies sampled correctness and benchmark reproducibility, but does
   not meet the existing 50 tok/s performance target. Greedy and sampled MTP are available in resident multi-turn
   chat.
-- Continuous batching, a server API, and persistent prompt-cache files are out of scope for the current runtime.
+- Continuous batching, multiple server sessions, and persistent prompt-cache files are not yet implemented.
 - Full benchmark qualification, wider quality evaluation, and additional long-context validation remain ongoing.
 
 ## Documentation
@@ -263,6 +288,7 @@ and the direct mixed checkpoint and available GGUF baseline differ in some tenso
 - [`docs/MTP.md`](docs/MTP.md) — pinned assistant, feasibility evidence, and implementation plan
 - [`docs/BENCHMARKING.md`](docs/BENCHMARKING.md) — benchmark methodology and comparison contract
 - [`docs/PERFORMANCE_LEDGER.md`](docs/PERFORMANCE_LEDGER.md) — detailed measurements and profiling evidence
+- [`docs/SERVER.md`](docs/SERVER.md) — OpenAI Chat Completions, SSE, tools, and media transport
 - [`docs/ROADMAP.md`](docs/ROADMAP.md) — remaining milestones
 
 ## License

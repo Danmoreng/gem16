@@ -89,6 +89,14 @@ void RunImageTests() {
     GEM16_CHECK(value.patches[2] == 1.0F);
     GEM16_CHECK(value.patches.back() == 1.0F);
   }
+  std::ifstream encoded_input(path, std::ios::binary);
+  const std::vector<std::uint8_t> encoded(
+      std::istreambuf_iterator<char>(encoded_input), {});
+  auto memory_image = gem16::LoadVisionImageBytes(encoded, "unit BMP");
+  GEM16_CHECK(memory_image.ok());
+  if (memory_image.ok()) {
+    GEM16_CHECK(memory_image.value().patch_count == 256U);
+  }
   auto compact = gem16::LoadVisionImage(
       path, gem16::VisionImageOptions{70U, false});
   GEM16_CHECK(compact.ok());

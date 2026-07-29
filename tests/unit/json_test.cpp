@@ -22,6 +22,12 @@ void RunJsonTests() {
   GEM16_CHECK(!gem16::json::Parse("{} trailing").ok());
   GEM16_CHECK(!gem16::json::Parse(std::string{"\"\xC0\x80\"", 4}).ok());
   GEM16_CHECK(gem16::json::Escape("a\n\"b") == "a\\n\\\"b");
+  if (parsed.ok()) {
+    const std::string serialized = gem16::json::Stringify(parsed.value());
+    auto round_trip = gem16::json::Parse(serialized);
+    GEM16_CHECK(round_trip.ok());
+    GEM16_CHECK(serialized.find("\"enabled\":true") != std::string::npos);
+  }
 
   auto large_number = gem16::json::Parse("1000000000000000019884624838656");
   GEM16_CHECK(large_number.ok());

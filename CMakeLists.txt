@@ -68,6 +68,37 @@ target_compile_features(gem16_core PUBLIC cxx_std_20)
 gem16_set_project_warnings(gem16_core)
 gem16_enable_sanitizers(gem16_core)
 
+add_library(gem16_server_support STATIC
+  src/server/openai_chat.cpp
+)
+target_include_directories(gem16_server_support
+  PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src"
+)
+target_link_libraries(gem16_server_support PUBLIC gem16_core)
+gem16_set_project_warnings(gem16_server_support)
+gem16_enable_sanitizers(gem16_server_support)
+
+find_package(Threads REQUIRED)
+add_library(gem16_httplib STATIC
+  third_party/cpp-httplib/httplib.cpp
+)
+target_include_directories(gem16_httplib SYSTEM PUBLIC
+  "${CMAKE_CURRENT_SOURCE_DIR}/third_party/cpp-httplib"
+)
+target_compile_definitions(gem16_httplib PRIVATE
+  CPPHTTPLIB_FORM_URL_ENCODED_PAYLOAD_MAX_LENGTH=16777216
+  CPPHTTPLIB_TCP_NODELAY=1
+)
+target_link_libraries(gem16_httplib PRIVATE Threads::Threads)
+if(WIN32)
+  target_link_libraries(gem16_httplib PUBLIC ws2_32)
+endif()
+if(MSVC)
+  target_compile_options(gem16_httplib PRIVATE /w)
+else()
+  target_compile_options(gem16_httplib PRIVATE -w)
+endif()
+
 if(GEM16_ENABLE_CUDA)
   include(CheckLanguage)
   check_language(CUDA)
@@ -221,6 +252,12 @@ foreach(tool IN ITEMS inspect run bench chat)
 endforeach()
 target_include_directories(gem16-bench PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
+add_executable(gem16-server src/cli/server_main.cpp)
+target_include_directories(gem16-server PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+target_link_libraries(gem16-server PRIVATE gem16_server_support gem16_httplib)
+gem16_set_project_warnings(gem16-server)
+gem16_enable_sanitizers(gem16-server)
+
 include(CTest)
 if(BUILD_TESTING AND GEM16_BUILD_TESTS)
   add_executable(gem16-unit-tests
@@ -234,6 +271,7 @@ if(BUILD_TESTING AND GEM16_BUILD_TESTS)
     tests/unit/memory_plan_test.cpp
     tests/unit/mtp_scheduler_test.cpp
     tests/unit/nvfp4_test.cpp
+    tests/unit/openai_chat_test.cpp
     tests/unit/safetensors_test.cpp
     tests/unit/sampling_test.cpp
     tests/unit/sm120_layout_test.cpp
@@ -244,7 +282,7 @@ if(BUILD_TESTING AND GEM16_BUILD_TESTS)
     target_sources(gem16-unit-tests PRIVATE tests/unit/windows_utf8_test.cpp)
   endif()
   target_include_directories(gem16-unit-tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src" "${CMAKE_CURRENT_SOURCE_DIR}/tests/unit")
-  target_link_libraries(gem16-unit-tests PRIVATE gem16_core)
+  target_link_libraries(gem16-unit-tests PRIVATE gem16_core gem16_server_support)
   gem16_set_project_warnings(gem16-unit-tests)
   gem16_enable_sanitizers(gem16-unit-tests)
   add_test(NAME gem16-unit COMMAND gem16-unit-tests)

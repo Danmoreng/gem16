@@ -73,7 +73,7 @@ of the correctness and native-kernel gates below.
   Every performance promotion still requires correctness, generation, logit, 3-warm-up/10-run benchmark, Nsight,
   spill, allocation, and peak-VRAM evidence and becomes the sole production path.
 
-- The arena-backed 48-layer engine loads all text-only tensors once, uses fixed workspace/KV arenas, executes the
+- The arena-backed 48-layer engine loads all unified tensors once, uses fixed workspace/KV arenas, executes the
   tied output head and GPU argmax, and supports explicit checkpoint-FP8 and BF16 K/V semantics. Physical
   byte-per-value E4M3FN storage is implemented. Cross-runtime generation is not expected to be bit-identical:
   gem16, direct FP8-vLLM, and the closest llama.cpp candidate use different kernels and, for llama.cpp, different
@@ -192,7 +192,7 @@ The llama.cpp benchmark is deliberately before engine kernel optimization, but a
    render/JSON/state diagnostics retain their narrow path. Cancellation/final usage events and physical
    shared-weight multi-session ownership remain later S0 work. Next execute the binding
    [multimodal expansion plan](MULTIMODAL.md). Audio and the complete
-   encoder-free vision path are now implemented for one-shot chat,
+   encoder-free vision path are now implemented for one-shot, resident, and server chat,
    including GPU projection and sliding-layer bidirectional vision attention.
    Portable PNG/JPEG/BMP and WAV/FLAC/MP3 decoding is integrated. Multiple and
    resident image/audio requests are qualified on Windows; Linux GPU media
@@ -210,7 +210,10 @@ The llama.cpp benchmark is deliberately before engine kernel optimization, but a
    budgeted soft tokens. **A6 complete:** resident `/image` and `/audio` queues,
    inspection/clear commands, remaining-context image budgets, and message-aligned
    media history preserve exact multimodal prefixes across later text and tool
-   turns. Next implement the minimal OpenAI-compatible server surface.
+   turns. **A7 complete:** `/v1/chat/completions` supports bounded OpenAI JSON,
+   non-stream and SSE output, usage, reasoning/text/tool deltas, exact tool-result
+   continuation, and ordered inline image/audio content above a serialized
+   resident `ChatSession`. Next run the official OpenAI SDK agent/tool loop.
 14. After the Blackwell backend is correct and competitive, add architecture-specific backends for additional 16 GB
    CUDA GPUs without weakening benchmark or memory contracts.
 

@@ -26,6 +26,20 @@ download the named header and license from an exact upstream commit, update the
 commit and SHA-256 here, then rerun Windows and Linux host builds, malformed
 input tests, the real audio fixture, and real-checkpoint image qualification.
 
+The OpenAI-compatible HTTP adapter vendors unmodified `cpp-httplib` v0.40.0
+from `https://github.com/yhirose/cpp-httplib` at commit
+`b7e02de4a70024ed0389e0e7b971f674e4bc7d91`.
+The split `httplib.h` and `httplib.cpp` files have SHA-256
+`8ed9236947e195950dfdd3448972405ae1dab6d17006002dde73cea2cb520592` and
+`2d1935237f72a233930416bc22ecb41939a425ba18da380825550260304aece1`.
+It is MIT licensed; the unmodified license is stored beside the sources. The
+library is vendored to provide a small cross-platform HTTP/1.1 and chunked SSE
+transport without a framework or dynamic runtime dependency. gem16 compiles
+it as a warning-isolated static library and does not enable TLS. To update it,
+fetch an exact upstream tag/commit, replace both sources and the license,
+update hashes here, then rerun Linux/Windows host and CUDA builds, request-limit
+tests, disconnect tests, and real non-stream/SSE tool loops.
+
 Build-script structure was adapted from the neighboring `qwen35x` repository (MIT License, copyright 2026 qwen35x
 contributors), inspected locally on 2026-07-21. No qwen35x runtime or loader source was copied.
 

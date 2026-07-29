@@ -154,6 +154,17 @@ conversation. A separate `/audio` run loaded `freeman.wav` and transcribed its s
 is retained across assistant and tool-result turns, preventing both dropped media and accidental reattachment to a
 later message.
 
+The OpenAI adapter host suite round-trips bounded JSON serialization, string
+and array content, tool schemas, assistant calls, tool results, Base64 BMP/WAV
+media, finish reasons, usage, and SSE envelopes; unsupported remote media and
+per-request sampling fail visibly. Windows SM120 qualification covered
+`/health`, `/v1/models`, a non-stream `SERVER_OK` result, tokenwise
+`STREAM_OK` SSE with usage and `[DONE]`, a streamed `get_weather` call, and a
+complete non-stream HTTP tool-result continuation grounded in `Sunny, 25 C`.
+A real mixed inline PNG plus WAV request produced a 715-token multimodal prompt
+and correctly described the supplied software-pipeline diagram. Both complete
+host and CUDA suites remained green.
+
 The terminal stream applies the same checkpoint-qualified `ResponseChannelTracker` to generated IDs before
 decoding them. A real Windows fixed-D2 smoke test covers a forced reasoning close and observes separate
 `--- thinking ---` and `--- answer ---` sections without leaking the multi-token channel opener. A second run with

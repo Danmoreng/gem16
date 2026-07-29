@@ -47,6 +47,8 @@ struct ParseLimits {
 
 [[nodiscard]] Result<Value> Parse(std::string_view input, ParseLimits limits = {});
 [[nodiscard]] std::string Escape(std::string_view input);
+[[nodiscard]] std::string Quote(std::string_view input);
+[[nodiscard]] std::string Stringify(const Value& value);
 
 }  // namespace gem16::json
 

@@ -2,6 +2,8 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <span>
+#include <string_view>
 #include <vector>
 
 #include "gem16/status.h"
@@ -19,6 +21,8 @@ struct AudioWaveform {
 // the model's fixed 16-kHz sample rate.
 [[nodiscard]] Result<AudioWaveform> LoadAudioFile(
     const std::filesystem::path& path);
+[[nodiscard]] Result<AudioWaveform> LoadAudioBytes(
+    std::span<const std::uint8_t> encoded, std::string_view source_name);
 
 // Backward-compatible name retained for callers built against the WAV-only
 // milestone. The decoder now accepts every format supported by LoadAudioFile.

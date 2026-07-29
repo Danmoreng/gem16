@@ -440,7 +440,12 @@ Result<ChatGenerationResponse> ChatSession::Generate(const ChatGenerationRequest
   response.inference = std::move(inference).value();
 
   impl_->committed_messages = request.messages;
-  GenerationMessage assistant = GenerationMessage::Text("assistant", response.assistant_content);
+  GenerationMessage assistant;
+  assistant.role = "assistant";
+  if (!response.assistant_text.empty() || response.tool_calls.empty()) {
+    assistant.content.push_back(
+        GenerationContentPart::Text(response.assistant_text));
+  }
   for (const GenerationToolCall& call : response.tool_calls) {
     assistant.content.push_back(GenerationContentPart::ToolCall(call));
   }

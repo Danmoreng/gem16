@@ -5,6 +5,7 @@
 #include <fstream>
 #include <limits>
 #include <memory>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
@@ -36,29 +37,13 @@ Status Error(StatusCode code, std::string message) {
   return Status(code, std::move(message));
 }
 
-Result<RgbImage> DecodeImage(const std::filesystem::path& path) {
-  std::error_code file_error;
-  const std::uint64_t file_size = std::filesystem::file_size(path, file_error);
-  if (file_error) {
-    return Error(StatusCode::kIoError,
-                 "cannot stat image " + path.string() + ": " +
-                     file_error.message());
-  }
-  if (file_size == 0U || file_size > kMaximumEncodedBytes ||
-      file_size > static_cast<std::uint64_t>(std::numeric_limits<int>::max()) ||
-      file_size > std::numeric_limits<std::size_t>::max()) {
+Result<RgbImage> DecodeImage(std::span<const std::uint8_t> encoded,
+                             std::string_view source_name) {
+  if (encoded.empty() || encoded.size() > kMaximumEncodedBytes ||
+      encoded.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
     return Error(StatusCode::kUnsupported,
                  "encoded image size is empty or exceeds the safety limit");
   }
-  std::vector<stbi_uc> encoded(static_cast<std::size_t>(file_size));
-  std::ifstream input(path, std::ios::binary);
-  if (!input ||
-      !input.read(reinterpret_cast<char*>(encoded.data()),
-                  static_cast<std::streamsize>(encoded.size()))) {
-    return Error(StatusCode::kIoError,
-                 "cannot read image " + path.string());
-  }
-
   int width = 0;
   int height = 0;
   int channels = 0;
@@ -71,7 +56,7 @@ Result<RgbImage> DecodeImage(const std::filesystem::path& path) {
           kMaximumPixels) {
     return Error(StatusCode::kUnsupported,
                  "image is malformed, unsupported, or exceeds the pixel limit: " +
-                     path.string());
+                     std::string(source_name));
   }
 
   std::unique_ptr<stbi_uc, decltype(&stbi_image_free)> decoded(
@@ -81,7 +66,7 @@ Result<RgbImage> DecodeImage(const std::filesystem::path& path) {
   if (decoded == nullptr) {
     const char* reason = stbi_failure_reason();
     return Error(StatusCode::kDataLoss,
-                 "cannot decode image " + path.string() +
+                 "cannot decode image " + std::string(source_name) +
                      (reason == nullptr ? std::string() :
                                           ": " + std::string(reason)));
   }
@@ -230,14 +215,15 @@ std::uint32_t AutomaticVisionSoftTokenBudget(
       available / image_count, 1U, kMaximumSoftTokens));
 }
 
-Result<VisionImage> LoadVisionImage(const std::filesystem::path& path,
-                                    const VisionImageOptions& options) {
+Result<VisionImage> LoadVisionImageBytes(
+    std::span<const std::uint8_t> encoded, std::string_view source_name,
+    const VisionImageOptions& options) {
   if (options.maximum_soft_tokens == 0U ||
       options.maximum_soft_tokens > kMaximumSoftTokens) {
     return Error(StatusCode::kInvalidArgument,
                  "image soft-token budget must be between 1 and 280");
   }
-  auto decoded = DecodeImage(path);
+  auto decoded = DecodeImage(encoded, source_name);
   if (!decoded.ok()) return decoded.status();
   const auto [target_height, target_width] =
       TargetSize(decoded.value().height, decoded.value().width,
@@ -287,6 +273,31 @@ Result<VisionImage> LoadVisionImage(const std::filesystem::path& path,
     }
   }
   return result;
+}
+
+Result<VisionImage> LoadVisionImage(const std::filesystem::path& path,
+                                    const VisionImageOptions& options) {
+  std::error_code file_error;
+  const std::uint64_t file_size = std::filesystem::file_size(path, file_error);
+  if (file_error) {
+    return Error(StatusCode::kIoError,
+                 "cannot stat image " + path.string() + ": " +
+                     file_error.message());
+  }
+  if (file_size == 0U || file_size > kMaximumEncodedBytes ||
+      file_size > std::numeric_limits<std::size_t>::max()) {
+    return Error(StatusCode::kUnsupported,
+                 "encoded image size is empty or exceeds the safety limit");
+  }
+  std::vector<std::uint8_t> encoded(static_cast<std::size_t>(file_size));
+  std::ifstream input(path, std::ios::binary);
+  if (!input ||
+      !input.read(reinterpret_cast<char*>(encoded.data()),
+                  static_cast<std::streamsize>(encoded.size()))) {
+    return Error(StatusCode::kIoError,
+                 "cannot read image " + path.string());
+  }
+  return LoadVisionImageBytes(encoded, path.string(), options);
 }
 
 }  // namespace gem16

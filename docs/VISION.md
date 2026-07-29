@@ -1,6 +1,6 @@
 # Vision input
 
-Status: implemented for cross-platform one-shot chat; Windows GPU path qualified
+Status: implemented for cross-platform one-shot/resident/server chat; Windows GPU path qualified
 
 Gemma 4 Unified does not contain a separate transformer-style vision tower.
 Its complete encoder-free vision embedder is:

@@ -71,6 +71,14 @@ void RunAudioTests() {
     GEM16_CHECK(valid.value().samples[2] == 0.5F);
     GEM16_CHECK(valid.value().samples[3] > 0.999F);
   }
+  std::ifstream encoded_input(valid_path, std::ios::binary);
+  const std::vector<std::uint8_t> encoded(
+      std::istreambuf_iterator<char>(encoded_input), {});
+  auto memory_audio = gem16::LoadAudioBytes(encoded, "unit WAV");
+  GEM16_CHECK(memory_audio.ok());
+  if (memory_audio.ok()) {
+    GEM16_CHECK(memory_audio.value().samples.size() == 4U);
+  }
   std::error_code ignored;
   std::filesystem::remove(valid_path, ignored);
 

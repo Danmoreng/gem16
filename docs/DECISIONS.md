@@ -183,6 +183,34 @@ Evidence: Resident chat already proves exact full-message extension, token/KV pr
 continuity, asynchronous mapped-ring streaming, and callback cancellation. S0 moves that orchestration behind a
 public boundary without changing kernel order, graph addresses, arenas, or generated IDs.
 
+## 2026-07-29: Start serving with a serialized OpenAI adapter
+
+Date: 2026-07-29
+
+Decision: Implement the first `/v1/chat/completions` server as a thin adapter
+over one resident `ChatSession`, guarded by one execution mutex. Vendor
+cpp-httplib 0.40.0 under MIT for HTTP/1.1 and chunked SSE only; retain the
+in-repo bounded JSON parser/serializer and all OpenAI mapping. Accept inline
+Base64 image/audio content but reject remote media URLs, TLS claims,
+per-request sampling changes, and unrelated conversation roots visibly.
+
+Context: This gives the runtime a real agent/server consumer before performing
+the risky ownership split. Reusing llama.cpp's transport choice avoids writing
+cross-platform socket/chunking machinery while keeping model and protocol code
+independent. A single `ConversationSession` still owns weights, cache, graphs,
+and workspace, so claiming multiple sessions would either duplicate weights or
+weaken the 16 GB contract.
+
+Consequences: OpenAI clients can stream text, receive tool calls, append tool
+results, and send ordered image/audio data today. Only one exact growing
+conversation is accepted until the planned `ModelRuntime`/`SessionState`/
+`ExecutionSlot` split and multi-session scheduler. Network image fetching is
+deferred to a policy-aware fetch layer rather than introducing SSRF behavior.
+
+Evidence: Host adapter/media tests, Windows SM120 suites, real text and tool
+SSE, a complete HTTP weather-tool loop, and a mixed inline PNG/WAV request all
+pass on the pinned checkpoint.
+
 ## 2026-07-29: Qualify sampled MTP chat before multimodal work
 
 Date: 2026-07-29

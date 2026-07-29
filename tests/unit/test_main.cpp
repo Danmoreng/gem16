@@ -12,6 +12,7 @@ void RunImageTests();
 void RunMemoryPlanTests();
 void RunMtpSchedulerTests();
 void RunNvfp4Tests();
+void RunOpenAiChatTests();
 void RunSafetensorsTests();
 void RunSamplingTests();
 void RunSm120LayoutTests();
@@ -30,6 +31,7 @@ int main() {
   RunMemoryPlanTests();
   RunMtpSchedulerTests();
   RunNvfp4Tests();
+  RunOpenAiChatTests();
   RunSafetensorsTests();
   RunSamplingTests();
   RunSm120LayoutTests();

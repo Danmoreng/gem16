@@ -3,6 +3,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <span>
+#include <string_view>
 #include <vector>
 
 #include "gem16/status.h"
@@ -38,6 +40,9 @@ struct VisionImageOptions {
 // 16x16 teacher patches, and 3x3 merge into 48x48 model patches.
 [[nodiscard]] Result<VisionImage> LoadVisionImage(
     const std::filesystem::path& path,
+    const VisionImageOptions& options = {});
+[[nodiscard]] Result<VisionImage> LoadVisionImageBytes(
+    std::span<const std::uint8_t> encoded, std::string_view source_name,
     const VisionImageOptions& options = {});
 
 }  // namespace gem16

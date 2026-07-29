@@ -4,6 +4,7 @@
 #include <cmath>
 #include <fstream>
 #include <limits>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
@@ -26,36 +27,20 @@ namespace {
 constexpr std::uint64_t kMaximumEncodedBytes = 64ULL * 1024ULL * 1024ULL;
 constexpr std::size_t kMaximumSamples = 16000U * 30U;
 
-Status Invalid(const std::filesystem::path& path, std::string message) {
+Status Invalid(std::string_view source_name, std::string message) {
   return Status(StatusCode::kDataLoss,
-                "invalid audio file " + path.string() + ": " +
+                "invalid audio " + std::string(source_name) + ": " +
                     std::move(message));
 }
 
 }  // namespace
 
-Result<AudioWaveform> LoadAudioFile(const std::filesystem::path& path) {
-  std::error_code file_error;
-  const std::uint64_t file_size = std::filesystem::file_size(path, file_error);
-  if (file_error) {
-    return Status(StatusCode::kIoError,
-                  "cannot stat audio file " + path.string() + ": " +
-                      file_error.message());
+Result<AudioWaveform> LoadAudioBytes(std::span<const std::uint8_t> encoded,
+                                     std::string_view source_name) {
+  if (encoded.empty() || encoded.size() > kMaximumEncodedBytes) {
+    return Invalid(source_name,
+                   "encoded size is empty or exceeds the safety limit");
   }
-  if (file_size == 0U || file_size > kMaximumEncodedBytes ||
-      file_size > std::numeric_limits<std::size_t>::max()) {
-    return Invalid(path, "encoded size is empty or exceeds the safety limit");
-  }
-
-  std::vector<unsigned char> encoded(static_cast<std::size_t>(file_size));
-  std::ifstream input(path, std::ios::binary);
-  if (!input ||
-      !input.read(reinterpret_cast<char*>(encoded.data()),
-                  static_cast<std::streamsize>(encoded.size()))) {
-    return Status(StatusCode::kIoError,
-                  "cannot read audio file " + path.string());
-  }
-
   ma_decoder_config config =
       ma_decoder_config_init(ma_format_f32, 1U, 16000U);
   ma_decoder decoder{};
@@ -64,7 +49,7 @@ Result<AudioWaveform> LoadAudioFile(const std::filesystem::path& path) {
   if (init != MA_SUCCESS) {
     return Status(StatusCode::kUnsupported,
                   "cannot decode WAV, FLAC, or MP3 audio file " +
-                      path.string() + ": miniaudio error " +
+                      std::string(source_name) + ": miniaudio error " +
                       std::to_string(init));
   }
   struct DecoderScope {
@@ -82,7 +67,7 @@ Result<AudioWaveform> LoadAudioFile(const std::filesystem::path& path) {
       &decoder, waveform.samples.data(),
       static_cast<ma_uint64>(waveform.samples.size()), &frames_read);
   if ((read != MA_SUCCESS && read != MA_AT_END) || frames_read == 0U) {
-    return Invalid(path, "decoder produced no complete samples");
+    return Invalid(source_name, "decoder produced no complete samples");
   }
   if (frames_read > kMaximumSamples) {
     return Status(StatusCode::kUnsupported,
@@ -91,9 +76,33 @@ Result<AudioWaveform> LoadAudioFile(const std::filesystem::path& path) {
   waveform.samples.resize(static_cast<std::size_t>(frames_read));
   if (!std::all_of(waveform.samples.begin(), waveform.samples.end(),
                    [](float sample) { return std::isfinite(sample); })) {
-    return Invalid(path, "decoded sample is not finite");
+    return Invalid(source_name, "decoded sample is not finite");
   }
   return waveform;
+}
+
+Result<AudioWaveform> LoadAudioFile(const std::filesystem::path& path) {
+  std::error_code file_error;
+  const std::uint64_t file_size = std::filesystem::file_size(path, file_error);
+  if (file_error) {
+    return Status(StatusCode::kIoError,
+                  "cannot stat audio file " + path.string() + ": " +
+                      file_error.message());
+  }
+  if (file_size == 0U || file_size > kMaximumEncodedBytes ||
+      file_size > std::numeric_limits<std::size_t>::max()) {
+    return Invalid(path.string(),
+                   "encoded size is empty or exceeds the safety limit");
+  }
+  std::vector<std::uint8_t> encoded(static_cast<std::size_t>(file_size));
+  std::ifstream input(path, std::ios::binary);
+  if (!input ||
+      !input.read(reinterpret_cast<char*>(encoded.data()),
+                  static_cast<std::streamsize>(encoded.size()))) {
+    return Status(StatusCode::kIoError,
+                  "cannot read audio file " + path.string());
+  }
+  return LoadAudioBytes(encoded, path.string());
 }
 
 Result<AudioWaveform> LoadAudioWav(const std::filesystem::path& path) {
