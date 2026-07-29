@@ -132,6 +132,12 @@ tokens, JSON-to-Gemma argument conversion, marker splits inside `<|tool_call>`, 
 Gemma-to-JSON argument conversion, visible text surrounding a call, and rejection of an unterminated call. The
 checkpoint-backed no-thinking render-only fixture remains byte- and token-identical after enabling the tool branch.
 
+The Windows resident tool gate loads the example weather schema, generates a native `get_weather` call for Berlin,
+parses `{"location":"Berlin, Germany"}`, accepts `Sunny, 25 C` as the external result, and continues the same GPU
+session to a grounded final answer. Tool-result continuation appends the checkpoint-native response block directly to
+the cached prefix; it does not re-render the earlier no-thinking generation prompt and therefore preserves exact KV
+identity.
+
 The terminal stream applies the same checkpoint-qualified `ResponseChannelTracker` to generated IDs before
 decoding them. A real Windows fixed-D2 smoke test covers a forced reasoning close and observes separate
 `--- thinking ---` and `--- answer ---` sections without leaking the multi-token channel opener. A second run with

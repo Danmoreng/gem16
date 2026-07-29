@@ -854,6 +854,7 @@ Result<std::string> GemmaChatProcessor::Render(std::span<const ChatMessage> mess
     result.append(rendered_role);
     result.push_back('\n');
     if (message.role == "assistant") {
+      bool assistant_has_content = false;
       if (!message.tool_calls.empty()) {
         for (const ChatMessage::ToolCall& call : message.tool_calls) {
           auto formatted = FormatToolCall(call);
@@ -866,6 +867,7 @@ Result<std::string> GemmaChatProcessor::Render(std::span<const ChatMessage> mess
                                                         content_close_tokens_, tool_call_start_token_);
         if (!content.ok()) return content.status();
         result.append(content.value());
+        assistant_has_content = !content.value().empty();
       }
       bool rendered_tool_result = false;
       while (message_index + 1U < messages.size() && messages[message_index + 1U].role == "tool") {
@@ -890,7 +892,8 @@ Result<std::string> GemmaChatProcessor::Render(std::span<const ChatMessage> mess
         previous_role = "assistant";
         continue;
       }
-      if (rendered_tool_result && message.content.empty() && message_index + 1U == messages.size()) {
+      if (rendered_tool_result && !assistant_has_content &&
+          message_index + 1U == messages.size()) {
         previous_role = "tool";
         continue;
       }
@@ -930,6 +933,24 @@ Result<std::vector<std::uint32_t>> GemmaChatProcessor::EncodeContinuation(std::s
   if (!enable_thinking) {
     rendered.append("<|channel>thought\n<channel|>");
   }
+  return tokenizer_.Encode(rendered);
+}
+
+Result<std::vector<std::uint32_t>> GemmaChatProcessor::EncodeToolResultsContinuation(
+    std::span<const ChatToolResult> results, bool enable_thinking) const {
+  if (results.empty()) {
+    return Error(StatusCode::kInvalidArgument,
+                 "tool continuation requires at least one result");
+  }
+  std::string rendered;
+  for (const ChatToolResult& result : results) {
+    if (result.name.empty()) {
+      return Error(StatusCode::kInvalidArgument,
+                   "tool continuation requires resolved tool names");
+    }
+    rendered.append(FormatToolResponse(result.name, result.output));
+  }
+  if (enable_thinking) rendered.append("<|channel>thought\n");
   return tokenizer_.Encode(rendered);
 }
 

@@ -34,6 +34,11 @@ struct ChatToolDefinition {
   std::string parameters_json;
 };
 
+struct ChatToolResult {
+  std::string name;
+  std::string output;
+};
+
 struct GenerationTokenControls {
   std::vector<std::uint32_t> stop_token_ids;
   std::vector<std::uint32_t> suppressed_token_ids;
@@ -99,6 +104,8 @@ class GemmaChatProcessor {
                                                           std::span<const ChatToolDefinition> tools = {}) const;
   [[nodiscard]] Result<std::vector<std::uint32_t>> EncodeContinuation(std::string_view user_content,
                                                                       bool enable_thinking) const;
+  [[nodiscard]] Result<std::vector<std::uint32_t>> EncodeToolResultsContinuation(
+      std::span<const ChatToolResult> results, bool enable_thinking) const;
   [[nodiscard]] Result<std::string> Decode(std::span<const std::uint32_t> token_ids, bool skip_special_tokens) const;
   [[nodiscard]] Result<std::string> DecodeResponseText(std::span<const std::uint32_t> token_ids) const;
   [[nodiscard]] Status WriteDecodedToken(std::uint32_t token_id, bool skip_special_tokens, std::ostream& output) const;

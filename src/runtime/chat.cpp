@@ -293,10 +293,28 @@ Result<ChatGenerationResponse> ChatSession::Generate(const ChatGenerationRequest
     }
   }
   if (!impl_->committed_messages.empty()) {
-    if (request.messages.size() != impl_->committed_messages.size() + 1U ||
-        !std::equal(impl_->committed_messages.begin(), impl_->committed_messages.end(), request.messages.begin())) {
+    const bool extends_prefix =
+        request.messages.size() > impl_->committed_messages.size() &&
+        std::equal(impl_->committed_messages.begin(),
+                   impl_->committed_messages.end(), request.messages.begin());
+    const auto added_begin = extends_prefix
+                                 ? request.messages.begin() +
+                                       static_cast<std::ptrdiff_t>(
+                                           impl_->committed_messages.size())
+                                 : request.messages.end();
+    const bool one_user =
+        extends_prefix && request.messages.size() ==
+                              impl_->committed_messages.size() + 1U &&
+        added_begin->role == "user";
+    const bool tool_results =
+        extends_prefix &&
+        std::all_of(added_begin, request.messages.end(),
+                    [](const GenerationMessage& message) {
+                      return message.role == "tool";
+                    });
+    if (!one_user && !tool_results) {
       return Status(StatusCode::kInvalidArgument,
-                    "generation request does not exactly extend the resident conversation");
+                    "generation request must append one user turn or consecutive tool results");
     }
     if (request.tools != impl_->committed_tools) {
       return Status(StatusCode::kInvalidArgument, "resident conversation tool definitions must not change");
@@ -313,8 +331,39 @@ Result<ChatGenerationResponse> ChatSession::Generate(const ChatGenerationRequest
                                      tools);
     }
     if (messages.value().messages.back().role == "tool") {
-      return impl_->processor.Encode(messages.value().messages, request.thinking.effort != ThinkingEffort::kOff, true,
-                                     tools);
+      std::vector<ChatToolResult> results;
+      for (std::size_t index = impl_->committed_messages.size();
+           index < request.messages.size(); ++index) {
+        const GenerationContentPart& result_part =
+            request.messages[index].content.front();
+        std::string tool_name;
+        for (const GenerationContentPart& assistant_part :
+             impl_->committed_messages.back().content) {
+          if (assistant_part.kind == GenerationContentKind::kToolCall &&
+              assistant_part.tool_call.id == result_part.tool_result.call_id) {
+            tool_name = assistant_part.tool_call.name;
+            break;
+          }
+        }
+        if (tool_name.empty()) {
+          return Result<std::vector<std::uint32_t>>(Status(
+              StatusCode::kInvalidArgument,
+              "tool result does not match the resident assistant calls"));
+        }
+        results.push_back({tool_name, result_part.tool_result.output});
+      }
+      auto continuation = impl_->processor.EncodeToolResultsContinuation(
+          results, request.thinking.effort != ThinkingEffort::kOff);
+      if (!continuation.ok()) {
+        return Result<std::vector<std::uint32_t>>(continuation.status());
+      }
+      std::vector<std::uint32_t> token_ids = impl_->cached_prefix_token_ids;
+      if (impl_->pending_assistant_token_id.has_value()) {
+        token_ids.push_back(*impl_->pending_assistant_token_id);
+      }
+      token_ids.insert(token_ids.end(), continuation.value().begin(),
+                       continuation.value().end());
+      return Result<std::vector<std::uint32_t>>(std::move(token_ids));
     }
     auto continuation = impl_->processor.EncodeContinuation(messages.value().messages.back().content,
                                                             request.thinking.effort != ThinkingEffort::kOff);

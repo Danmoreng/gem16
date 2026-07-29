@@ -147,6 +147,19 @@ visible response as separate `--- thinking ---` and `--- answer ---` sections. `
 reasoning body while retaining the answer header; `--show-thinking` is the default. Enter `/quit` to leave the
 session.
 
+Resident chat can expose local function tools. Repeat `--tool` with a name, description, and JSON Schema file. When
+Gemma requests a function, the CLI prints its validated JSON arguments, prompts for the external result, appends that
+result to the resident KV prefix, and continues generation automatically:
+
+```powershell
+.\build\Windows\blackwell-release\bin\gem16-chat.exe `
+  --model .\models\checkpoints\unsloth-gemma-4-12b-it-NVFP4-b1f6497 `
+  --tool get_weather "Get current weather" .\examples\tools\get_weather.schema.json `
+  --no-thinking --greedy --max-context 1024
+```
+
+The CLI deliberately asks the user to execute the tool; gem16 does not run arbitrary functions itself.
+
 Audio input is available in one-shot chat. The unified checkpoint's audio and
 vision tensors are always loaded with the text weights; there is no modality
 residency switch. WAV, FLAC, and MP3 input is decoded by the pinned miniaudio

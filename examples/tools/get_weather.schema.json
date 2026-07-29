@@ -1,0 +1,11 @@
+{
+  "type": "object",
+  "properties": {
+    "location": {
+      "type": "string",
+      "description": "City and country, for example Berlin, Germany"
+    }
+  },
+  "required": ["location"],
+  "additionalProperties": false
+}

@@ -202,7 +202,9 @@ The llama.cpp benchmark is deliberately before engine kernel optimization, but a
    results, incremental text/reasoning/tool output, and multiple calls without binding the runtime to OpenAI JSON.
    **A2 complete:** bounded JSON schemas, assistant calls, and tool results render through the checkpoint-native
    Gemma tool DSL; an arbitrary-chunk incremental parser returns validated JSON arguments and repeated structured
-   calls. Next expose tool definition, call, and result interaction in resident chat.
+   calls. **A3 complete:** resident chat loads repeated schema-backed function definitions, displays validated calls,
+   collects external results, and continues the exact resident KV prefix through the final answer. Next support
+   multiple ordered media parts per message.
 14. After the Blackwell backend is correct and competitive, add architecture-specific backends for additional 16 GB
    CUDA GPUs without weakening benchmark or memory contracts.
 

@@ -2,6 +2,7 @@
 #include <charconv>
 #include <cstdint>
 #include <filesystem>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <limits>
@@ -79,6 +80,7 @@ void PrintUsage() {
       << "                [--stats]\n"
       << "                [--thinking-budget off|small|medium|high] [--thinking|--no-thinking]\n"
       << "                [--show-thinking|--hide-thinking] [--system <text>]\n"
+      << "                [--tool <name> <description> <parameters-schema.json>]...\n"
       << "                [--kv-cache fp8|bf16]\n"
       << "                [--greedy|--sample] [--temperature F] [--top-k N] [--top-p F]\n"
       << "                [--min-p F] [--repetition-penalty F] [--seed N]\n"
@@ -121,7 +123,25 @@ struct Options {
   bool seed_set = false;
   std::uint32_t mtp_draft_tokens = 0U;
   bool mtp_adaptive = false;
+  std::vector<gem16::GenerationToolDefinition> tools;
 };
+
+gem16::Result<std::string> ReadToolSchema(const std::filesystem::path& path) {
+  std::error_code error;
+  const std::uintmax_t size = std::filesystem::file_size(path, error);
+  if (error || size > 1024U * 1024U) {
+    return gem16::Status(gem16::StatusCode::kIoError,
+                         "cannot read tool schema or it exceeds 1 MiB: " + path.string());
+  }
+  std::string text(static_cast<std::size_t>(size), '\0');
+  std::ifstream input(path, std::ios::binary);
+  input.read(text.data(), static_cast<std::streamsize>(text.size()));
+  if (!input || input.gcount() != static_cast<std::streamsize>(text.size())) {
+    return gem16::Status(gem16::StatusCode::kIoError,
+                         "cannot read tool schema: " + path.string());
+  }
+  return text;
+}
 
 gem16::Result<Options> ParseOptions(int argc, char** argv) {
   Options options;
@@ -144,6 +164,14 @@ gem16::Result<Options> ParseOptions(int argc, char** argv) {
     } else if (argument == "--system" && index + 1 < argc) {
       options.system_message = argv[++index];
       options.has_system_message = true;
+    } else if (argument == "--tool" && index + 3 < argc) {
+      gem16::GenerationToolDefinition tool;
+      tool.name = argv[++index];
+      tool.description = argv[++index];
+      auto schema = ReadToolSchema(argv[++index]);
+      if (!schema.ok()) return schema.status();
+      tool.parameters_json = std::move(schema).value();
+      options.tools.push_back(std::move(tool));
     } else if (argument == "--message" && index + 1 < argc) {
       options.one_shot_message = argv[++index];
       options.has_one_shot_message = true;
@@ -346,7 +374,17 @@ gem16::ChatSessionOptions MakeChatSessionOptions(const Options& options) {
 struct TurnOutput {
   std::string content;
   std::string display_text;
+  std::vector<gem16::GenerationToolCall> tool_calls;
 };
+
+std::vector<gem16::ChatToolDefinition> MakeChatTools(const Options& options) {
+  std::vector<gem16::ChatToolDefinition> tools;
+  tools.reserve(options.tools.size());
+  for (const auto& tool : options.tools) {
+    tools.push_back({tool.name, tool.description, tool.parameters_json});
+  }
+  return tools;
+}
 
 struct TokenStreamContext {
   TokenStreamContext(const gem16::GemmaChatProcessor& chat_processor,
@@ -454,9 +492,11 @@ gem16::Result<TurnOutput> RunTurn(
     std::vector<gem16::ChatMessage>& messages, bool write_json,
     bool stream_tokens, gem16::ChatSession* session) {
   std::optional<std::string> rendered;
+  const std::vector<gem16::ChatToolDefinition> chat_tools = MakeChatTools(cli);
   if (cli.render_only) {
     auto render_result = processor.Render(
-        messages, cli.thinking_effort != gem16::ThinkingEffort::kOff);
+        messages, cli.thinking_effort != gem16::ThinkingEffort::kOff, true,
+        chat_tools);
     if (!render_result.ok()) return render_result.status();
     rendered = std::move(render_result).value();
   }
@@ -464,10 +504,25 @@ gem16::Result<TurnOutput> RunTurn(
     gem16::ChatGenerationRequest request;
     request.max_generated_tokens = cli.max_tokens;
     request.thinking.effort = cli.thinking_effort;
+    request.tools = cli.tools;
     request.messages.reserve(messages.size());
     for (const gem16::ChatMessage& message : messages) {
-      request.messages.push_back(
-          gem16::GenerationMessage::Text(message.role, message.content));
+      gem16::GenerationMessage converted;
+      converted.role = message.role;
+      if (message.role == "tool") {
+        converted.content.push_back(gem16::GenerationContentPart::ToolResult(
+            {message.tool_call_id, message.content}));
+      } else {
+        if (!message.content.empty()) {
+          converted.content.push_back(
+              gem16::GenerationContentPart::Text(message.content));
+        }
+        for (const auto& call : message.tool_calls) {
+          converted.content.push_back(gem16::GenerationContentPart::ToolCall(
+              {call.id, call.name, call.arguments_json}));
+        }
+      }
+      request.messages.push_back(std::move(converted));
     }
     if (cli.audio.has_value()) {
       request.messages.back().content.push_back(
@@ -485,11 +540,13 @@ gem16::Result<TurnOutput> RunTurn(
     if (!generated.ok()) return generated.status();
     if (cli.stats && !write_json) PrintTurnStats(generated.value().inference);
     return TurnOutput{std::move(generated.value().assistant_content),
-                      std::move(generated.value().assistant_text)};
+                      std::move(generated.value().assistant_text),
+                      std::move(generated.value().tool_calls)};
   }
 
   auto prompt_ids = processor.Encode(
-      messages, cli.thinking_effort != gem16::ThinkingEffort::kOff);
+      messages, cli.thinking_effort != gem16::ThinkingEffort::kOff, true,
+      chat_tools);
   if (!prompt_ids.ok()) return prompt_ids.status();
 
   if (cli.render_only) {
@@ -725,17 +782,50 @@ int ChatMain(int argc, char** argv) {
     if (input == "/quit" || input == "/exit") break;
     if (input.empty()) continue;
     messages.push_back({"user", input});
-    std::cout << "model> " << std::flush;
-    auto response = RunTurn(options, processor.value(), messages, false, true,
-                            &session.value());
-    if (!response.ok()) {
-      messages.pop_back();
-      std::cerr << "\nerror: " << response.status().message() << '\n';
-      break;
+    bool turn_failed = false;
+    while (true) {
+      std::cout << "model> " << std::flush;
+      const bool stream_tokens = options.tools.empty();
+      auto response = RunTurn(options, processor.value(), messages, false,
+                              stream_tokens, &session.value());
+      if (!response.ok()) {
+        std::cerr << "\nerror: " << response.status().message() << '\n';
+        turn_failed = true;
+        break;
+      }
+      TurnOutput output = std::move(response).value();
+      if (!stream_tokens && !output.display_text.empty()) {
+        std::cout << output.display_text;
+      }
+      std::cout << '\n';
+      gem16::ChatMessage assistant;
+      assistant.role = "assistant";
+      assistant.content = std::move(output.content);
+      for (const auto& call : output.tool_calls) {
+        assistant.tool_calls.push_back(
+            {call.id, call.name, call.arguments_json});
+      }
+      messages.push_back(std::move(assistant));
+      if (output.tool_calls.empty()) break;
+      for (const auto& call : output.tool_calls) {
+        std::cout << "tool call " << call.id << ": " << call.name << ' '
+                  << call.arguments_json << "\n";
+        std::cout << "tool result> " << std::flush;
+        std::string tool_output;
+        if (!std::getline(std::cin, tool_output)) {
+          turn_failed = true;
+          break;
+        }
+        gem16::ChatMessage result;
+        result.role = "tool";
+        result.content = std::move(tool_output);
+        result.tool_call_id = call.id;
+        result.tool_name = call.name;
+        messages.push_back(std::move(result));
+      }
+      if (turn_failed) break;
     }
-    std::cout << '\n';
-    messages.push_back(
-        {"assistant", std::move(response).value().content});
+    if (turn_failed) break;
   }
   return 0;
 }
