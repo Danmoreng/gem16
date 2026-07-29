@@ -267,6 +267,8 @@ struct MtpWorkspaceOffsets {
   std::uint64_t attention_workspace = 0;
   std::uint64_t output_candidates = 0;
   std::uint64_t selected = 0;
+  std::uint64_t sampling_logits = 0;
+  std::uint64_t sampling_repetition_masks = 0;
   std::uint64_t stop_tokens = 0;
   std::uint64_t transaction = 0;
   std::uint64_t row_controls = 0;

@@ -179,10 +179,10 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
                  "--mtp-adaptive requires active MTP");
   }
   if (mtp_enabled &&
-      (teacher_forcing || options.sampling.enabled ||
-       !options.logits_dump_path.empty() || !options.state_dump_path.empty())) {
+      (teacher_forcing || !options.logits_dump_path.empty() ||
+       !options.state_dump_path.empty())) {
     return Error(StatusCode::kUnsupported,
-                 "the MTP correctness path currently requires greedy generation without diagnostic dumps");
+                 "the MTP path currently requires generation without diagnostic dumps");
   }
   if (teacher_forcing && options.sampling.enabled) {
     return Error(StatusCode::kInvalidArgument,

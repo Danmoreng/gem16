@@ -1,5 +1,34 @@
 # Performance ledger
 
+## 2026-07-29 sampled MTP resident-chat and Linux qualification
+
+Hypothesis: Reuse exact batched Target verification for sampling by assigning each verifier row the ordinary
+Target RNG step and repetition history, then carry that state through the existing fixed-D2 conditional graph and
+mapped-pinned streaming ring. For Google's top-k-64 profile, avoid probability preparation and scans beyond the
+64 sorted candidates.
+
+Implementation: Fixed-shape MTP now materializes softcapped Target logits for every row, constructs independent
+repetition masks from the committed history and proposal prefix, applies the existing seeded sampler, accepts only
+Target-sample-equal proposals, and commits the emitted row's repetition mask. `MtpDeviceControl` carries the
+sampling step. Fixed D2 captures sampled selection and a sampled ordinary tail; D1/D4 remain direct. Chat parses
+and defaults to the pinned generation profile (`temperature=1.0`, `top_k=64`, `top_p=0.95`) while `--greedy`
+remains explicit. Sampling probability preparation/scan uses only the top-k prefix; radix sorting is unchanged.
+
+Correctness: Ordinary and MTP outputs match for D1/D2/D4 over multiple seeds, repetition penalty 1.1, checkpoint
+FP8 and BF16 K/V, and a local-ring-wrap fixture. A real resident two-turn chat produces `Blau` then `Blau` in both
+modes and reports GPU chaining on both MTP turns. The 3-warm-up/10-measured Linux Wikipedia run preserves one
+1,114-token stop-terminated output in all 26 ordinary/MTP executions, SHA-256
+`3bf1d6f1750345a3d9732950885275a660fcf0ace0f6ded051aeead6a916bd3a`. Every MTP run proposes 1,002 drafts,
+accepts 612, rejects 390, and executes 501 groups. CTest and Python tests pass.
+
+Performance: Sampled ordinary reaches 31.450 median tok/s with 95% mean CI `[31.427,31.546]`; sampled fixed D2
+reaches 46.234 (`[46.093,46.268]`), a 1.470x improvement (+47.0%). Workspace is 719,728,128 bytes. An adjacent
+Linux greedy 3/10 regression preserves the 1,135-token golden hash and reaches 47.117 versus 31.634 ordinary. The
+sampled path is retained as a correct material end-to-end win, but neither Linux result meets the existing 50 tok/s
+performance target and neither run captured continuous power/clock/thermal telemetry. Further performance claims
+require profiling rather than weakening sampled identity. Local raw evidence is under
+`benchmarks/results/2026-07-29/c482926-worktree/blackwell16gb-linux-sampled-mtp/`.
+
 ## 2026-07-28 qualified GPU-chained fixed-D2 path
 
 The final Wikipedia 16K qualification alternates ordinary and fixed-D2 order within three warm-up pairs and ten

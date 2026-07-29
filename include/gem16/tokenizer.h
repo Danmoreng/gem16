@@ -9,6 +9,7 @@
 #include <string_view>
 #include <vector>
 
+#include "gem16/sampling.h"
 #include "gem16/status.h"
 
 namespace gem16 {
@@ -21,6 +22,7 @@ struct ChatMessage {
 struct GenerationTokenControls {
   std::vector<std::uint32_t> stop_token_ids;
   std::vector<std::uint32_t> suppressed_token_ids;
+  SamplingOptions recommended_sampling;
 };
 
 class Tokenizer {

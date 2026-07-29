@@ -37,8 +37,9 @@ than a generic graph abstraction.
 Sampling is an explicit, separate output plan; disabled sampling preserves the fused greedy graph and workspace.
 The exact plan lives in `src/cuda/sampling/`, materializes softcapped logits, applies full-history repetition
 penalty and suppression, divides by temperature, and performs a descending CUB radix sort in preallocated
-workspace. Filtered probabilities are accumulated by a preallocated in-place CUB double-precision inclusive scan;
-a constant-work final kernel uses binary searches to apply top-k, min-p relative to the maximum probability, and
+workspace. Filtered probabilities are accumulated by a preallocated in-place CUB double-precision inclusive scan. When
+`top_k` is bounded, probability preparation and scan stop exactly at that sorted prefix instead of scanning zeroed
+vocabulary entries; unfiltered sampling retains the full scan. A constant-work final kernel uses binary searches to apply top-k, min-p relative to the maximum probability, and
 top-p in that order before drawing from a SplitMix64 stream keyed by seed and output step. The sampled whole-model decode graph reads
 the changing step from its copied device control record, updates repetition history, and returns only the selected
 token. An atomic bitset tracks repetition history without duplicate-token write races. Sampling adds about 7.1 MiB
@@ -80,12 +81,16 @@ generated tokens continue through a whole-model decode graph for both greedy and
 state or full-logit capture retains the direct layer-segment path so observability does not complicate the ordinary
 graph.
 
-Greedy conversation sessions may also own the official MTP assistant and its fixed workspace. After each new
-conversation suffix is prefetched at the resident absolute position, fixed D2 stages the new target hidden row and
-reuses the complete conditional graph, device stop/tail state, and mapped-pinned streaming ring. When generation
-finishes, the session records every emitted token except the final not-yet-forwarded token as materialized target
-KV, preserving the same prefix invariant as ordinary chat. D1, D4, and adaptive scheduling use the exact direct
-MTP path. Sampling plus MTP is rejected explicitly.
+Conversation sessions may also own the official MTP assistant and its fixed workspace. After each new conversation
+suffix is prefetched at the resident absolute position, fixed D2 stages the new target hidden row and reuses the
+complete conditional graph, device stop/tail state, and mapped-pinned streaming ring. Greedy verification compares
+Target Argmax IDs. Sampled verification materializes one exact Target logit row per verifier position, derives a
+row-local repetition mask from committed history plus the proposal prefix, and samples with the ordinary seed and
+output step. Acceptance commits only the longest proposal prefix matching those Target samples; the first mismatch
+emits the Target sample, and all later speculative RNG/repetition/KV state is discarded. `MtpDeviceControl` carries
+the sampling step through chained groups and the sampled ordinary tail. When generation finishes, the session
+records every emitted token except the final not-yet-forwarded token as materialized target KV, preserving the same
+prefix invariant as ordinary chat. D1, D4, and adaptive scheduling use the exact direct MTP path.
 
 The reusable `ChatMessage`, `Tokenizer`, and `GemmaChatProcessor` interfaces are deliberately independent of
 terminal I/O. A future OpenAI-compatible Chat Completions server can reuse this request-to-token boundary; HTTP,

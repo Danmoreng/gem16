@@ -85,6 +85,7 @@ __global__ void BuildControlledMtpD2InputsKernel(
   inputs[row] = row == 0U ? control->current.input_token : drafts[row - 1U];
   row_controls[row] = {};
   row_controls[row].position = control->current.processed_position + 1U + row;
+  row_controls[row].sampling_step = control->current.sampling_step + row;
   row_controls[row].token = inputs[row];
 }
 
@@ -139,6 +140,8 @@ __global__ void InitializeMtpOrdinaryTailKernel(
   decode_control->token = transaction->control.current.input_token;
   decode_control->position =
       transaction->control.current.processed_position + 1U;
+  decode_control->sampling_step =
+      transaction->control.current.sampling_step;
   decode_control->suppressed_token_count = suppressed_token_count;
 }
 
@@ -160,6 +163,7 @@ __global__ void FinalizeMtpOrdinaryTailKernel(
   ++control.current.processed_position;
   --control.current.remaining_output_capacity;
   ++control.current.output_write_position;
+  if (control.sampling_enabled != 0U) ++control.current.sampling_step;
   for (std::uint32_t index = 0U; index < stop_count; ++index) {
     if (token == stop_tokens[index]) {
       control.current.stopped = 1U;
@@ -229,6 +233,9 @@ __global__ void AcceptMtpGroupKernel(
     control->next.processed_position += result->output_count;
     control->next.remaining_output_capacity -= result->output_count;
     control->next.output_write_position += result->output_count;
+    if (control->sampling_enabled != 0U) {
+      control->next.sampling_step += result->output_count;
+    }
     control->next.stopped = result->stopped;
     control->next.stop_token = result->stop_token;
   }

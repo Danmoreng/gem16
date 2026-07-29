@@ -117,6 +117,16 @@ zero hazards. The formerly reported `RmsNormQuantizeTokenKernel` hazard was subs
 the decode-fusion racecheck gate. End-to-end sampled
 decode uses one whole-model graph replay per post-prefill token. Synthetic and end-to-end tests cover both bounded
 top-k and unfiltered full-vocabulary selection; the probability scan and final binary searches are GPU-resident.
+For bounded top-k, probability preparation and scan cover only that sorted prefix without changing selected IDs.
+
+Sampled MTP uses ordinary same-seed Target sampling as its executable reference. Each fixed verifier row receives
+its ordinary output step and a repetition mask containing committed history plus only the proposal inputs preceding
+that row. Acceptance compares Assistant IDs with those Target-selected IDs, commits the repetition mask for the
+last emitted row, and advances RNG state by exactly the emitted count. `tools/validate_sampled_mtp.py` covers
+D1/D2/D4, seeds, cache modes, and repetition penalties; `tools/validate_sampled_mtp_chat.py` covers a resident
+two-turn GPU-chained chat. The Linux Wikipedia 3/10 gate preserves one ordinary/MTP output hash in all 26 runs.
+This exact-seed contract is not probability-ratio speculative sampling and makes no use of unavailable Assistant
+proposal probabilities.
 
 `--dump-logits` captures every selected position as full-vocabulary raw little-endian float32 after preallocating
 host storage, and `tools/compare_logits.py` compares it with the committed vLLM top-20 distributions. When no

@@ -23,6 +23,18 @@ struct DecodeControl;
 [[nodiscard]] Status LaunchMarkControlledRepetitionToken(
     const DecodeControl* control, std::uint32_t* mask, cudaStream_t stream);
 
+// Build one speculative repetition-history row per verification input. Row r
+// contains the committed base history plus inputs [0, r]. The caller commits
+// only the row selected by the target-verified output count.
+[[nodiscard]] Status LaunchBuildSpeculativeRepetitionMasks(
+    const std::uint32_t* base_mask, const std::uint32_t* verification_inputs,
+    std::uint32_t rows, std::uint32_t mask_words, std::uint32_t* row_masks,
+    cudaStream_t stream);
+[[nodiscard]] Status LaunchCommitSpeculativeRepetitionMask(
+    const std::uint32_t* row_masks, std::uint32_t mask_words,
+    const std::uint32_t* committed_row_count, std::uint32_t* base_mask,
+    cudaStream_t stream);
+
 // logits is both the unmodified input and the sorted-key output. The repetition
 // mask is a ceil(vocabulary/32)-word atomic bitset. Callers that capture
 // diagnostics must enqueue that copy before this launch. Every buffer,

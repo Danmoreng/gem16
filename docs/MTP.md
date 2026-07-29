@@ -163,12 +163,14 @@ synchronization remain per group for the non-chained D1/D4/adaptive paths. `--mt
 context/acceptance-based D4→D2→D1 selection and bounded ordinary decode fallback. Resident chat loads the official
 assistant once, preserves the exact target KV prefix between turns, and reinitializes the fixed-D2 device control
 from each newly prefetched suffix. The GPU-chained D2 callback ring streams verified text without a per-group host
-roundtrip. Sampling remains rejected in the current binary while the sampled-MTP gate below is implemented;
-diagnostic dumps remain outside active MTP rather than silently changing semantics.
+roundtrip. Greedy and sampled MTP are active. Fixed D2 uses the GPU-chained graph and mapped-pinned streaming ring in both
+modes; D1/D4/adaptive paths retain one synchronization per direct verification group. Diagnostic dumps remain
+outside active MTP rather than silently changing semantics.
 
 ## Sampled-MTP qualification gate
 
-Sampled MTP is the next required feature before multimodal work. The first production contract is deterministic
+Sampled MTP is implemented and has completed its first Linux correctness/performance qualification. The production
+contract is deterministic
 seed identity with ordinary target sampling, not greedy acceptance and not an unimplemented probability-ratio
 rejection sampler. For every verifier row, the target applies the same suppression, temperature, top-k, top-p,
 optional min-p, repetition penalty, and SplitMix64 output step that ordinary sampled decode would use along the
@@ -178,16 +180,18 @@ If all proposals match, the final target row supplies the bonus token.
 
 The implementation order is:
 
-1. Parse and validate the pinned target `generation_config.json` sampling defaults. The recommended chat profile is
+1. **Complete:** parse and validate the pinned target `generation_config.json` sampling defaults. The recommended chat profile is
    `temperature=1.0`, `top_k=64`, and `top_p=0.95`; explicit CLI overrides remain observable.
-2. Add a direct fixed-shape sampled verifier with full target logits, one row-specific repetition mask per verifier
+2. **Complete:** add a direct fixed-shape sampled verifier with full target logits, one row-specific repetition mask per verifier
    row, and transactional commit of only the emitted prefix. Keep assistant proposals deterministic initially.
-3. Prove same-seed ordinary/MTP token identity for D1/D2/D4 across multiple seeds, stop positions, final-length
+3. **Complete for the initial matrix:** prove same-seed ordinary/MTP token identity for D1/D2/D4 across multiple seeds, stop positions, final-length
    tails, repetition penalties, FP8/BF16 K/V, and local-ring wrap. Report acceptance separately from greedy.
-4. Extend fixed-D2 device control with the sampling step and capture the sampled verifier, commit, stop/tail, and
+4. **Complete:** extend fixed-D2 device control with the sampling step and capture the sampled verifier, commit, stop/tail, and
    streaming path in the GPU-chained graph. No per-group host dependency or token-loop allocation is allowed.
-5. Add a real resident multi-turn chat gate, including unchanged RNG/repetition history across turns and exact
-   callback order, then run Linux 3-warm-up/10-run qualification with memory, clocks, power, and thermal evidence.
+5. **Correctness and repeated timing complete; resource telemetry remains open:** add a real resident multi-turn
+   chat gate, including unchanged RNG/repetition history across turns and exact callback order, then run the Linux
+   3-warm-up/10-run comparison. The current run records workspace and allocation state but not continuous clocks,
+   power, or thermal telemetry, so it is not publication-grade resource qualification.
 
 Assistant probability materialization and standard `min(1,p/q)` speculative rejection are a separate possible
 future algorithm. They require proposal distributions and independent statistical qualification and must not be
@@ -375,6 +379,20 @@ for the next no-roundtrip phase and their memory cost is documented.
    reports 1,004 proposed, 632 accepted, and 372 rejected drafts over 502 groups with zero ordinary fallback. This
    passes the 50 tok/s competitive gate and misses the 55 tok/s stretch target by 0.097 tok/s. Raw results are under
    `benchmarks/results/2026-07-28/b07b178/blackwell16gb-windows-mtp-streaming/qualification.json`.
-19. **Next: sampled MTP chat qualification.** Implement the sampled-MTP gate above, then qualify a real resident
-   multi-turn session and reproduce the sampled and greedy GPU-chain evidence on Linux. Multimodal and N-Gram work
-   remain queued until this gate is complete.
+19. **Complete sampled MTP chat qualification:** the target verifier materializes exact full logits for each row,
+   derives row-local repetition histories, samples with the ordinary target seed/step, and commits only the emitted
+   row's repetition state. `MtpDeviceControl` advances sampling steps transactionally. Fixed D2 captures all three
+   sampling passes and the sampled ordinary tail in the conditional graph, retaining the mapped-pinned streaming
+   ring and zero per-group host synchronization. D1/D2/D4, multiple seeds, repetition penalty 1.1, BF16 K/V, and
+   local-ring wrap all preserve ordinary sampled IDs. A resident two-turn chat returns `Blau` then `Blau` in both
+   ordinary and MTP modes while keeping target/assistant state resident and reporting GPU chaining.
+20. **Linux exactness/repeated timing complete; resource and 50 tok/s gates remain open:** under Google `temperature=1.0`,
+   `top_k=64`, `top_p=0.95`, seed 42, three alternating warm-up pairs plus ten measured pairs produce one identical
+   1,114-token stop-terminated output in all 26 runs (SHA-256
+   `3bf1d6f1750345a3d9732950885275a660fcf0ace0f6ded051aeead6a916bd3a`). Ordinary reaches 31.450 median tok/s
+   with 95% mean CI `[31.427,31.546]`; sampled fixed D2 reaches 46.234 (`[46.093,46.268]`), a 1.470x improvement.
+   Every MTP run proposes 1,002 drafts, accepts 612, rejects 390, and executes 501 groups. Workspace is 719,728,128
+   bytes. Exactness, graph chaining, streaming, and repeated measurement pass, but the existing 50 tok/s performance
+   target is not met. The adjacent Linux greedy regression also preserves all 1,135 IDs and reaches 47.117 versus
+   31.634 ordinary; this does not replace the qualified 54.903 tok/s Windows result. Raw local artifacts are under
+   `benchmarks/results/2026-07-29/c482926-worktree/blackwell16gb-linux-sampled-mtp/`.

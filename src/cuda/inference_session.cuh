@@ -61,10 +61,6 @@ Result<ConversationSession> ConversationSession::Create(
     return Error(StatusCode::kInvalidArgument,
                  "--mtp-adaptive requires active MTP");
   }
-  if (mtp_enabled && options.sampling.enabled) {
-    return Error(StatusCode::kUnsupported,
-                 "MTP chat currently requires greedy generation");
-  }
 
   auto impl = std::make_unique<Impl>();
   impl->stop_token_ids = options.stop_token_ids;

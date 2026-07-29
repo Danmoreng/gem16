@@ -55,6 +55,32 @@ __global__ void MarkControlledRepetitionTokenKernel(
   }
 }
 
+__global__ void BuildSpeculativeRepetitionMasksKernel(
+    const std::uint32_t* base_mask, const std::uint32_t* inputs,
+    std::uint32_t rows, std::uint32_t mask_words,
+    std::uint32_t* row_masks) {
+  const std::uint32_t word = blockIdx.x * blockDim.x + threadIdx.x;
+  const std::uint32_t row = blockIdx.y;
+  if (row >= rows || word >= mask_words) return;
+  std::uint32_t value = base_mask[word];
+  for (std::uint32_t input = 0U; input <= row; ++input) {
+    const std::uint32_t token = inputs[input];
+    if (token / 32U == word) value |= 1U << (token % 32U);
+  }
+  row_masks[static_cast<std::uint64_t>(row) * mask_words + word] = value;
+}
+
+__global__ void CommitSpeculativeRepetitionMaskKernel(
+    const std::uint32_t* row_masks, std::uint32_t mask_words,
+    const std::uint32_t* committed_row_count, std::uint32_t* base_mask) {
+  const std::uint32_t word = blockIdx.x * blockDim.x + threadIdx.x;
+  if (word >= mask_words) return;
+  const std::uint32_t count = committed_row_count[0];
+  if (count == 0U) return;
+  base_mask[word] =
+      row_masks[static_cast<std::uint64_t>(count - 1U) * mask_words + word];
+}
+
 __global__ void PrepareSamplingLogitsKernel(
     const float* logits, float* adjusted, std::uint32_t* token_ids,
     const std::uint32_t* repetition_mask, float repetition_penalty,
@@ -212,6 +238,43 @@ Status LaunchMarkControlledRepetitionToken(const DecodeControl* control,
              : CudaFailure("mark controlled repetition token", error);
 }
 
+Status LaunchBuildSpeculativeRepetitionMasks(
+    const std::uint32_t* base_mask, const std::uint32_t* verification_inputs,
+    std::uint32_t rows, std::uint32_t mask_words, std::uint32_t* row_masks,
+    cudaStream_t stream) {
+  if (base_mask == nullptr || verification_inputs == nullptr || rows == 0U ||
+      mask_words == 0U || row_masks == nullptr) {
+    return Status(StatusCode::kInvalidArgument,
+                  "speculative repetition-mask arguments are invalid");
+  }
+  const unsigned blocks = (mask_words + kThreads - 1U) / kThreads;
+  const dim3 grid(blocks, rows);
+  BuildSpeculativeRepetitionMasksKernel<<<grid, kThreads, 0, stream>>>(
+      base_mask, verification_inputs, rows, mask_words, row_masks);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("build speculative repetition masks", error);
+}
+
+Status LaunchCommitSpeculativeRepetitionMask(
+    const std::uint32_t* row_masks, std::uint32_t mask_words,
+    const std::uint32_t* committed_row_count, std::uint32_t* base_mask,
+    cudaStream_t stream) {
+  if (row_masks == nullptr || mask_words == 0U ||
+      committed_row_count == nullptr || base_mask == nullptr) {
+    return Status(StatusCode::kInvalidArgument,
+                  "speculative repetition-mask commit arguments are invalid");
+  }
+  const unsigned blocks = (mask_words + kThreads - 1U) / kThreads;
+  CommitSpeculativeRepetitionMaskKernel<<<blocks, kThreads, 0, stream>>>(
+      row_masks, mask_words, committed_row_count, base_mask);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("commit speculative repetition mask", error);
+}
+
 Status LaunchSampleToken(
     float* logits, float* adjusted_logits, double* cumulative_probabilities,
     std::uint32_t* token_ids, std::uint32_t* sorted_token_ids,
@@ -243,8 +306,13 @@ Status LaunchSampleToken(
       token_ids, sorted_token_ids, static_cast<int>(vocabulary), 0,
       sizeof(float) * 8, stream);
   if (error != cudaSuccess) return CudaFailure("sort sampling logits", error);
-  PrepareSamplingProbabilitiesKernel<<<blocks, kThreads, 0, stream>>>(
-      logits, cumulative_probabilities, vocabulary, options.top_k,
+  const std::uint32_t probability_count =
+      options.top_k == 0U ? vocabulary : std::min(options.top_k, vocabulary);
+  const unsigned probability_blocks =
+      (probability_count + kThreads - 1U) / kThreads;
+  PrepareSamplingProbabilitiesKernel<<<probability_blocks, kThreads, 0,
+                                        stream>>>(
+      logits, cumulative_probabilities, probability_count, options.top_k,
       options.min_p);
   error = cudaGetLastError();
   if (error != cudaSuccess) {
@@ -252,7 +320,7 @@ Status LaunchSampleToken(
   }
   error = cub::DeviceScan::InclusiveSum(
       algorithm_workspace, algorithm_workspace_bytes, cumulative_probabilities,
-      cumulative_probabilities, static_cast<int>(vocabulary), stream);
+      cumulative_probabilities, static_cast<int>(probability_count), stream);
   if (error != cudaSuccess) {
     return CudaFailure("scan sampling probabilities", error);
   }

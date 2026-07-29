@@ -134,9 +134,10 @@ Windows PowerShell:
 ```
 
 The model and exact conversation prefix remain resident between turns. Generated text is decoded and written to
-the terminal incrementally. The optional official assistant also remains resident. Fixed D2 uses the qualified
-GPU-chained conditional graph; `--stats` prints per-turn throughput, proposal/acceptance counts, verifier groups,
-and whether GPU chaining was active. MTP chat is greedy-only; combining MTP with sampling fails explicitly. Enter
+the terminal incrementally. The optional official assistant also remains resident. Chat defaults to the pinned
+Google generation profile (`temperature=1.0`, `top_k=64`, `top_p=0.95`); use `--greedy` for explicit greedy
+decoding. Fixed D2 uses the GPU-chained conditional graph for greedy and sampled generation. `--stats` prints
+per-turn throughput, proposal/acceptance counts, verifier groups, and whether GPU chaining was active. Enter
 `/quit` to leave the session.
 
 ## Command-line tools
@@ -144,7 +145,7 @@ and whether GPU chaining was active. MTP chat is greedy-only; combining MTP with
 | Tool | Purpose |
 |---|---|
 | `gem16-chat` | Interactive or single-message chat with native tokenization and streaming output |
-| `gem16-run` | Greedy inference, teacher forcing, state dumps, and kernel capability reporting |
+| `gem16-run` | Greedy or sampled inference, MTP, teacher forcing, state dumps, and kernel capability reporting |
 | `gem16-inspect` | Validate and inventory checkpoint tensors and quantization metadata |
 | `gem16-bench` | Model-load, memory, kernel, prefill, decode, and end-to-end characterization |
 
@@ -180,13 +181,19 @@ and the direct mixed checkpoint and available GGUF baseline differ in some tenso
   full-vocabulary radix sort and probability scan inside the whole-model decode CUDA Graph.
 - The optimized CUDA backend requires Blackwell SM120/SM120a. Other NVIDIA architectures are not performance
   targets yet.
-- Optional greedy MTP supports exact batched target verification at D1/D2/D4, device-resident drafts,
-  GPU-side acceptance/commit, and explicit `--mtp-adaptive` selection with ordinary fallback. On the exact
+- Optional MTP supports exact batched target verification at D1/D2/D4, device-resident drafts,
+  GPU-side acceptance/commit, greedy generation, and same-seed target-exact sampling. Sampled verification commits
+  only the emitted RNG/repetition prefix; fixed D2 keeps stop/tail handling and mapped-pinned streaming inside the
+  GPU conditional graph. `--mtp-adaptive` remains available through the direct D1/D2/D4 paths. On the exact
   Wikipedia 16K workload, a GPU-chained fixed-D2 conditional graph preserves all 1,135 ordinary IDs and measures
   54.903 tok/s median versus 36.788 ordinary (1.492x, +49.2%) in the final three-warm-up/ten-run qualification at
   batch one with checkpoint-FP8 KV. GPU stop, final ordinary tails, and a mapped-pinned asynchronous callback ring
-  are included. The 50 tok/s gate is passed; the 55 tok/s stretch target is missed by 0.097 tok/s. Exact greedy MTP
-  is available in resident multi-turn chat; MTP sampling remains pending.
+  are included. The Windows greedy 50 tok/s gate is passed; the 55 tok/s stretch target is missed by 0.097 tok/s.
+  A separate Linux 3/10 run reaches 47.117 greedy MTP versus 31.634 ordinary. Under Google's recommended sampling
+  profile at seed 42, all 26 Linux warm-up/measured outputs are ordinary/MTP-identical; sampled D2 reaches 46.234
+  tok/s versus 31.450 ordinary (1.470x). This qualifies sampled correctness and benchmark reproducibility, but does
+  not meet the existing 50 tok/s performance target. Greedy and sampled MTP are available in resident multi-turn
+  chat.
 - Continuous batching, a server API, and persistent prompt-cache files are out of scope for the current runtime.
 - Full benchmark qualification, wider quality evaluation, and additional long-context validation remain ongoing.
 

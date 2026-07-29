@@ -78,7 +78,7 @@ void PrintUsage() {
       << "                [--stats]\n"
       << "                [--thinking] [--system <text>]\n"
       << "                [--kv-cache fp8|bf16]\n"
-      << "                [--sample] [--temperature F] [--top-k N] [--top-p F]\n"
+      << "                [--greedy|--sample] [--temperature F] [--top-k N] [--top-p F]\n"
       << "                [--min-p F] [--repetition-penalty F] [--seed N]\n"
       << "                [--dump-state <path> --dump-state-position N]\n"
       << "  gem16-chat --model <checkpoint> --message <text> [--json]\n"
@@ -103,6 +103,13 @@ struct Options {
   gem16::KvCacheMode kv_cache_mode =
       gem16::KvCacheMode::kCheckpointFp8;
   gem16::SamplingOptions sampling;
+  bool greedy_explicit = false;
+  bool temperature_set = false;
+  bool top_p_set = false;
+  bool min_p_set = false;
+  bool repetition_penalty_set = false;
+  bool top_k_set = false;
+  bool seed_set = false;
   std::uint32_t mtp_draft_tokens = 0U;
   bool mtp_adaptive = false;
 };
@@ -159,27 +166,34 @@ gem16::Result<Options> ParseOptions(int argc, char** argv) {
             "--dump-state-position must be an unsigned integer");
       }
       options.state_dump_position = position;
+    } else if (argument == "--greedy") {
+      options.greedy_explicit = true;
+      options.sampling = {};
     } else if (argument == "--sample") {
       options.sampling.enabled = true;
     } else if (argument == "--temperature" && index + 1 < argc) {
+      options.temperature_set = true;
       options.sampling.enabled = true;
       if (!ParseFloat(argv[++index], options.sampling.temperature)) {
         return gem16::Status(gem16::StatusCode::kInvalidArgument,
                              "--temperature must be a number");
       }
     } else if (argument == "--top-p" && index + 1 < argc) {
+      options.top_p_set = true;
       options.sampling.enabled = true;
       if (!ParseFloat(argv[++index], options.sampling.top_p)) {
         return gem16::Status(gem16::StatusCode::kInvalidArgument,
                              "--top-p must be a number");
       }
     } else if (argument == "--min-p" && index + 1 < argc) {
+      options.min_p_set = true;
       options.sampling.enabled = true;
       if (!ParseFloat(argv[++index], options.sampling.min_p)) {
         return gem16::Status(gem16::StatusCode::kInvalidArgument,
                              "--min-p must be a number");
       }
     } else if (argument == "--repetition-penalty" && index + 1 < argc) {
+      options.repetition_penalty_set = true;
       options.sampling.enabled = true;
       if (!ParseFloat(argv[++index], options.sampling.repetition_penalty)) {
         return gem16::Status(gem16::StatusCode::kInvalidArgument,
@@ -187,6 +201,7 @@ gem16::Result<Options> ParseOptions(int argc, char** argv) {
       }
     } else if (argument == "--top-k" && index + 1 < argc) {
       std::uint64_t value = 0U;
+      options.top_k_set = true;
       options.sampling.enabled = true;
       if (!ParseUnsigned(argv[++index], value) ||
           value > std::numeric_limits<std::uint32_t>::max()) {
@@ -195,6 +210,7 @@ gem16::Result<Options> ParseOptions(int argc, char** argv) {
       }
       options.sampling.top_k = static_cast<std::uint32_t>(value);
     } else if (argument == "--seed" && index + 1 < argc) {
+      options.seed_set = true;
       options.sampling.enabled = true;
       if (!ParseUnsigned(argv[++index], options.sampling.seed)) {
         return gem16::Status(gem16::StatusCode::kInvalidArgument,
@@ -233,6 +249,11 @@ gem16::Result<Options> ParseOptions(int argc, char** argv) {
         gem16::StatusCode::kInvalidArgument,
         "state capture requires a one-shot --message");
   }
+  if (options.greedy_explicit && options.sampling.enabled) {
+    return gem16::Status(
+        gem16::StatusCode::kInvalidArgument,
+        "--greedy cannot be combined with sampling options");
+  }
   if (options.max_tokens == 0U || options.max_context == 0U) {
     return gem16::Status(gem16::StatusCode::kInvalidArgument,
                           "token and context limits must be positive");
@@ -245,11 +266,6 @@ gem16::Result<Options> ParseOptions(int argc, char** argv) {
   if (options.mtp_adaptive && options.mtp_draft_tokens == 0U) {
     return gem16::Status(gem16::StatusCode::kInvalidArgument,
                          "--mtp-adaptive requires active MTP");
-  }
-  if (options.mtp_draft_tokens != 0U && options.sampling.enabled) {
-    return gem16::Status(
-        gem16::StatusCode::kUnsupported,
-        "MTP chat currently requires greedy generation");
   }
   return options;
 }
@@ -491,12 +507,27 @@ int ChatMain(int argc, char** argv) {
     PrintUsage();
     return 64;
   }
-  const Options options = std::move(parsed).value();
+  Options options = std::move(parsed).value();
   auto processor =
       gem16::GemmaChatProcessor::Load(options.model_directory);
   if (!processor.ok()) {
     std::cerr << "error: " << processor.status().message() << '\n';
     return 2;
+  }
+  if (!options.greedy_explicit) {
+    const gem16::SamplingOptions overrides = options.sampling;
+    options.sampling =
+        processor.value().generation_controls().recommended_sampling;
+    if (options.temperature_set) {
+      options.sampling.temperature = overrides.temperature;
+    }
+    if (options.top_p_set) options.sampling.top_p = overrides.top_p;
+    if (options.min_p_set) options.sampling.min_p = overrides.min_p;
+    if (options.repetition_penalty_set) {
+      options.sampling.repetition_penalty = overrides.repetition_penalty;
+    }
+    if (options.top_k_set) options.sampling.top_k = overrides.top_k;
+    if (options.seed_set) options.sampling.seed = overrides.seed;
   }
 
   std::vector<gem16::ChatMessage> messages;
@@ -540,7 +571,9 @@ int ChatMain(int argc, char** argv) {
   if (options.mtp_draft_tokens != 0U) {
     std::cout << "MTP enabled: D" << options.mtp_draft_tokens
               << (options.mtp_adaptive ? " adaptive" : " fixed")
-              << ", exact target verification, greedy decoding.\n";
+              << ", exact target verification, "
+              << (options.sampling.enabled ? "sampled" : "greedy")
+              << " decoding.\n";
   }
   ConversationPromptState prompt_state;
   prompt_state.cached_prefix_token_ids.reserve(

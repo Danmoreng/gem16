@@ -89,10 +89,13 @@
         remaining_output_capacity;
     pinned_transaction->control.current.output_write_position =
         output_write_position;
+    pinned_transaction->control.current.sampling_step = sampling_step_;
     pinned_transaction->control.current.stopped = stopped ? 1U : 0U;
     pinned_transaction->control.current.stop_token = stop_token;
     pinned_transaction->control.next = pinned_transaction->control.current;
     pinned_transaction->control.fixed_draft_tokens = mtp_draft_tokens_;
+    pinned_transaction->control.sampling_enabled =
+        sampling_.enabled ? 1U : 0U;
     auto* device_transaction = Pointer<internal::MtpGroupTransaction>(
         mtp_workspace_, mtp_offsets_.transaction);
     const cudaError_t error = cudaMemcpyAsync(
@@ -130,6 +133,9 @@
             control.current.remaining_output_capacity - result.output_count ||
         control.next.output_write_position !=
             control.current.output_write_position + result.output_count ||
+        control.next.sampling_step !=
+            control.current.sampling_step +
+                (control.sampling_enabled != 0U ? result.output_count : 0U) ||
         control.next.stopped != result.stopped ||
         control.next.stop_token != result.stop_token) {
       return Error(StatusCode::kInternal,
@@ -189,14 +195,35 @@
         mtp_workspace_, mtp_offsets_.output_candidates);
     auto* selected =
         Pointer<std::uint32_t>(mtp_workspace_, mtp_offsets_.selected);
+    float* sampling_logits =
+        sampling_.enabled
+            ? Pointer<float>(mtp_workspace_, mtp_offsets_.sampling_logits)
+            : nullptr;
     status = internal::LaunchFusedOutputHeadBatchCandidates(
         model_.embedding(), normalized,
         Pointer<std::uint32_t>(workspace_, offsets_.suppressed),
-        suppressed_token_count_, tokens, candidates, stream_);
+        suppressed_token_count_, tokens, candidates, sampling_logits, stream_);
     if (!status.ok()) return status;
-    status = internal::LaunchOutputHeadBatchArgmax(candidates, tokens,
-                                                   selected, stream_);
-    if (!status.ok()) return status;
+    if (sampling_.enabled) {
+      auto* row_masks = Pointer<std::uint32_t>(
+          mtp_workspace_, mtp_offsets_.sampling_repetition_masks);
+      status = internal::LaunchBuildSpeculativeRepetitionMasks(
+          Pointer<std::uint32_t>(workspace_, offsets_.repetition_mask),
+          device_tokens, static_cast<std::uint32_t>(tokens),
+          static_cast<std::uint32_t>(kRepetitionMaskWords), row_masks,
+          stream_);
+      if (!status.ok()) return status;
+      for (std::uint64_t row = 0U; row < tokens; ++row) {
+        status = SelectSampledTokenWithState(
+            sampling_logits + row * kVocabulary, selected + row,
+            row_masks + row * kRepetitionMaskWords, sampling_step_ + row);
+        if (!status.ok()) return status;
+      }
+    } else {
+      status = internal::LaunchOutputHeadBatchArgmax(candidates, tokens,
+                                                     selected, stream_);
+      if (!status.ok()) return status;
+    }
     auto* device_transaction = Pointer<internal::MtpGroupTransaction>(
         mtp_workspace_, mtp_offsets_.transaction);
     auto* device_result = &device_transaction->result;
@@ -206,6 +233,16 @@
         Pointer<std::uint32_t>(mtp_workspace_, mtp_offsets_.stop_tokens),
         mtp_stop_token_count_, device_result, device_control, stream_);
     if (!status.ok()) return status;
+    if (sampling_.enabled) {
+      status = internal::LaunchCommitSpeculativeRepetitionMask(
+          Pointer<std::uint32_t>(
+              mtp_workspace_, mtp_offsets_.sampling_repetition_masks),
+          static_cast<std::uint32_t>(kRepetitionMaskWords),
+          &device_result->output_count,
+          Pointer<std::uint32_t>(workspace_, offsets_.repetition_mask),
+          stream_);
+      if (!status.ok()) return status;
+    }
     for (std::size_t index = 0; index < model_.layers().size(); ++index) {
       const LayerBinding& layer = model_.layers()[index];
       const std::uint64_t capacity =
@@ -244,8 +281,12 @@
     if (error != cudaSuccess) {
       return CudaFailure("synchronize GPU MTP group", error);
     }
-    return ValidateCompletedMtpGroup(input_token, start_position,
-                                     proposal_count, host_result);
+    status = ValidateCompletedMtpGroup(input_token, start_position,
+                                        proposal_count, host_result);
+    if (status.ok() && sampling_.enabled) {
+      sampling_step_ += host_result->output_count;
+    }
+    return status;
   }
 
   [[nodiscard]] Status LaunchControlledMtpD2GroupBody(
@@ -316,20 +357,53 @@
         mtp_workspace_, mtp_offsets_.output_candidates);
     auto* selected =
         Pointer<std::uint32_t>(mtp_workspace_, mtp_offsets_.selected);
+    float* sampling_logits =
+        sampling_.enabled
+            ? Pointer<float>(mtp_workspace_, mtp_offsets_.sampling_logits)
+            : nullptr;
     status = internal::LaunchFusedOutputHeadBatchCandidates(
         model_.embedding(), normalized,
         Pointer<std::uint32_t>(workspace_, offsets_.suppressed),
-        suppressed_token_count_, kTokens, candidates, stream_);
+        suppressed_token_count_, kTokens, candidates, sampling_logits,
+        stream_);
     if (!status.ok()) return status;
-    status = internal::LaunchOutputHeadBatchArgmax(
-        candidates, kTokens, selected, stream_);
-    if (!status.ok()) return status;
+    if (sampling_.enabled) {
+      auto* row_masks = Pointer<std::uint32_t>(
+          mtp_workspace_, mtp_offsets_.sampling_repetition_masks);
+      status = internal::LaunchBuildSpeculativeRepetitionMasks(
+          Pointer<std::uint32_t>(workspace_, offsets_.repetition_mask),
+          device_tokens, static_cast<std::uint32_t>(kTokens),
+          static_cast<std::uint32_t>(kRepetitionMaskWords), row_masks,
+          stream_);
+      if (!status.ok()) return status;
+      for (std::uint64_t row = 0U; row < kTokens; ++row) {
+        status = SelectSampledTokenWithState(
+            sampling_logits + row * kVocabulary, selected + row,
+            row_masks + row * kRepetitionMaskWords, 0U,
+            row_controls + row);
+        if (!status.ok()) return status;
+      }
+    } else {
+      status = internal::LaunchOutputHeadBatchArgmax(
+          candidates, kTokens, selected, stream_);
+      if (!status.ok()) return status;
+    }
     auto* device_result = &device_transaction->result;
     status = internal::LaunchAcceptMtpGroup(
         device_drafts, selected, kProposalCount,
         Pointer<std::uint32_t>(mtp_workspace_, mtp_offsets_.stop_tokens),
         mtp_stop_token_count_, device_result, device_control, stream_);
     if (!status.ok()) return status;
+    if (sampling_.enabled) {
+      status = internal::LaunchCommitSpeculativeRepetitionMask(
+          Pointer<std::uint32_t>(
+              mtp_workspace_, mtp_offsets_.sampling_repetition_masks),
+          static_cast<std::uint32_t>(kRepetitionMaskWords),
+          &device_result->output_count,
+          Pointer<std::uint32_t>(workspace_, offsets_.repetition_mask),
+          stream_);
+      if (!status.ok()) return status;
+    }
     for (std::size_t index = 0; index < model_.layers().size(); ++index) {
       const LayerBinding& layer = model_.layers()[index];
       const std::uint64_t capacity =
@@ -574,6 +648,13 @@
     Status status = internal::LaunchInitializeMtpOrdinaryTail(
         transaction, decode_control, suppressed_token_count_, stream_);
     if (!status.ok()) return status;
+    if (sampling_.enabled && sampling_.repetition_penalty != 1.0F) {
+      status = internal::LaunchMarkControlledRepetitionToken(
+          decode_control,
+          Pointer<std::uint32_t>(workspace_, offsets_.repetition_mask),
+          stream_);
+      if (!status.ok()) return status;
+    }
     float* hidden = Pointer<float>(workspace_, offsets_.hidden_a);
     ControlledEmbeddingKernel<<<
         static_cast<unsigned>((kHidden + kThreads - 1U) / kThreads),
@@ -593,16 +674,23 @@
         stream_);
     if (!status.ok()) return status;
     auto* selected = Pointer<std::uint32_t>(workspace_, offsets_.selected);
+    float* sampling_logits =
+        sampling_.enabled ? Pointer<float>(workspace_, offsets_.logits)
+                          : nullptr;
     status = internal::LaunchFusedOutputHeadCandidates(
         model_.embedding(), normalized,
         Pointer<std::uint32_t>(workspace_, offsets_.suppressed), 0U,
         decode_control,
-        Pointer<ArgmaxValue>(workspace_, offsets_.output_candidates), nullptr,
-        stream_);
+        Pointer<ArgmaxValue>(workspace_, offsets_.output_candidates),
+        sampling_logits, stream_);
     if (!status.ok()) return status;
-    status = internal::LaunchOutputHeadCandidateArgmax(
-        Pointer<ArgmaxValue>(workspace_, offsets_.output_candidates), selected,
-        stream_);
+    if (sampling_.enabled) {
+      status = SelectSampledToken(sampling_logits, selected, decode_control);
+    } else {
+      status = internal::LaunchOutputHeadCandidateArgmax(
+          Pointer<ArgmaxValue>(workspace_, offsets_.output_candidates),
+          selected, stream_);
+    }
     if (!status.ok()) return status;
     return internal::LaunchFinalizeMtpOrdinaryTail(
         selected,
@@ -737,11 +825,15 @@
         pinned_transaction->control.current;
     if (final_state.output_write_position !=
             output_begin + pinned_result->output_count ||
+        final_state.sampling_step !=
+            sampling_step_ +
+                (sampling_.enabled ? pinned_result->output_count : 0U) ||
         final_state.stopped != pinned_result->stopped ||
         final_state.stop_token != pinned_result->stop_token) {
       return Error(StatusCode::kInternal,
                    "fixed-D2 chain final state is inconsistent");
     }
+    sampling_step_ = final_state.sampling_step;
     *host_result = *pinned_result;
     return callback_status;
   }
@@ -771,6 +863,7 @@
         next.processed_position != processed_position ||
         next.remaining_output_capacity != remaining_output_capacity ||
         next.output_write_position != output_write_position ||
+        next.sampling_step != sampling_step_ ||
         next.stopped != (stopped ? 1U : 0U) ||
         next.stop_token != stop_token) {
       return Error(StatusCode::kInternal,

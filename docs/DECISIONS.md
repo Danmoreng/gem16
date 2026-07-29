@@ -1,8 +1,8 @@
 # Decisions
 
-## 2026-07-30: Qualify sampled MTP chat before multimodal work
+## 2026-07-29: Qualify sampled MTP chat before multimodal work
 
-Date: 2026-07-30
+Date: 2026-07-29
 Decision: Make sampled MTP in resident `gem16-chat` the next product gate, ahead of multimodal expansion and any
 N-Gram proposer. The first qualified mode uses the target checkpoint's recommended `temperature=1.0`, `top_k=64`,
 and `top_p=0.95` settings, seeded GPU sampling, fixed D2 target verification, asynchronous token streaming, and

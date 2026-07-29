@@ -58,12 +58,13 @@ of the correctness and native-kernel gates below.
   run. This remains a characterization below the 50 tok/s gate, not the required 3/10 qualification. Numerically
   different MTP output remains forbidden, and llama.cpp investigation is out of scope. The completed architectural
   milestone includes device-control parity, one complete fixed-D2 group graph, GPU-chained groups, device stop/tail
-  handling, and a nonblocking GPU-producer/host-consumer streaming ring. Sampled MTP in resident chat is now the
-  active gate: parse the pinned Google generation defaults, preserve same-seed ordinary target-sampling decisions
-  through transactional fixed-D2 verification, retain asynchronous streaming, add a real multi-turn model gate,
-  and qualify the graph on Linux. Adaptive D1/D2/ordinary sampled branches remain a possible follow-up. Multimodal
-  expansion is queued until sampled fixed-D2 chat qualifies. A device-resident `ngram-mod` proposer is deferred
-  much further and requires independent representative evidence.
+  handling, and a nonblocking GPU-producer/host-consumer streaming ring. Sampled MTP in resident chat is now
+  implemented: pinned Google generation defaults, same-seed ordinary Target decisions, transactional repetition/RNG
+  state, fixed-D2 GPU chaining, asynchronous streaming, and a real two-turn model gate all pass. The Linux 3/10
+  sampled run is exact and 1.470x faster than ordinary, but its 46.234 tok/s median remains below the existing
+  50 tok/s performance target and lacks continuous resource telemetry. Adaptive D1/D2/ordinary sampled branches
+  remain a possible follow-up. N-Gram is deferred much further. Multimodal remains queued until the sampled-MTP
+  performance/telemetry disposition is explicitly closed.
   Every performance promotion still requires correctness, generation, logit, 3-warm-up/10-run benchmark, Nsight,
   spill, allocation, and peak-VRAM evidence and becomes the sole production path.
 
@@ -173,12 +174,12 @@ The llama.cpp benchmark is deliberately before engine kernel optimization, but a
 10. The first fixed-address execution workspace and full-model BF16-semantics cache are implemented for contexts up
    to 1,024. Complete production workspace planning and add circular/FP8 cache, decode fusion, and CUDA Graph replay
    only after the unfused model passes layer, logit, and generation gates.
-11. Long-context and exact greedy MTP correctness are established. The fixed-D2 graph, GPU chaining, stop/tail
-   semantics, asynchronous streaming, and Windows 3/10 qualification are complete. Before multimodal work, execute
-   the binding [sampled-MTP qualification gate](MTP.md#sampled-mtp-qualification-gate): use the pinned Google
-   sampling defaults, preserve ordinary same-seed target decisions, qualify resident multi-turn streaming, and
-   reproduce the graph evidence on Linux. Adaptive sampled branches may follow. N-Gram is intentionally deferred
-   and is not a multimodal prerequisite. After sampled fixed-D2 chat passes, execute the binding
+11. Long-context, exact greedy MTP, and same-seed sampled MTP correctness are established. The fixed-D2 graph,
+   GPU chaining, sampled/greedy stop and tail semantics, asynchronous streaming, resident two-turn gate, Windows
+   greedy 3/10 qualification, and Linux sampled/greedy 3/10 comparisons are complete. The sampled Linux result is
+   a reproducible 1.470x win but remains below 50 tok/s and lacks continuous telemetry; close that performance
+   disposition explicitly before promotion. Adaptive sampled branches may follow. N-Gram is intentionally deferred
+   and is not a multimodal prerequisite. After the sampled-MTP gate is closed, execute the binding
    [multimodal expansion plan](MULTIMODAL.md): first lock processor/embedding fixtures and residency-aware memory
    planning, then qualify audio, then vision projection plus its blockwise local-attention semantics, and finally
    resident multimodal chat and video-frame reuse.

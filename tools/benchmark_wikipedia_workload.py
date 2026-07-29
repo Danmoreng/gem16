@@ -309,6 +309,7 @@ def run_gem16(
     assistant_model: Path | None,
     mtp_draft_tokens: int,
     mtp_adaptive: bool,
+    sampling: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any], list[int]]:
     command = [
         str(executable),
@@ -324,8 +325,20 @@ def run_gem16(
         str(generation["max_new_tokens"]),
         "--max-context",
         str(prompt_tokens + generation["max_new_tokens"]),
-        "--greedy",
     ]
+    if sampling is None:
+        command.append("--greedy")
+    else:
+        command.extend(
+            [
+                "--sample",
+                "--temperature", str(sampling["temperature"]),
+                "--top-k", str(sampling["top_k"]),
+                "--top-p", str(sampling["top_p"]),
+                "--repetition-penalty", str(sampling["repetition_penalty"]),
+                "--seed", str(sampling["seed"]),
+            ]
+        )
     if generation["stop_token_ids"]:
         command.extend(
             [

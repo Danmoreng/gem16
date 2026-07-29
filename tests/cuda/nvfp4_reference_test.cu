@@ -2888,6 +2888,56 @@ void TestGpuSampling() {
   // not affect the retained top-p set, and pinned step 8 selects token 0.
   CUDA_TEST_CHECK(host_selected == 0U);
 
+  constexpr std::uint32_t kSpeculativeRows = 3U;
+  constexpr std::uint32_t kMaskWords = 2U;
+  const std::array<std::uint32_t, kMaskWords> base_mask = {1U << 1U, 0U};
+  const std::array<std::uint32_t, kSpeculativeRows> speculative_inputs =
+      {2U, 35U, 4U};
+  DeviceBuffer<std::uint32_t> speculative_base(kMaskWords);
+  DeviceBuffer<std::uint32_t> speculative_device_inputs(kSpeculativeRows);
+  DeviceBuffer<std::uint32_t> speculative_masks(kSpeculativeRows * kMaskWords);
+  DeviceBuffer<std::uint32_t> committed_rows(1U);
+  const std::uint32_t committed_row_count = 2U;
+  if (!CudaOk(cudaMemcpy(speculative_base.get(), base_mask.data(),
+                         sizeof(base_mask), cudaMemcpyHostToDevice),
+              "copy speculative base repetition mask") ||
+      !CudaOk(cudaMemcpy(speculative_device_inputs.get(),
+                         speculative_inputs.data(), sizeof(speculative_inputs),
+                         cudaMemcpyHostToDevice),
+              "copy speculative repetition inputs") ||
+      !CudaOk(cudaMemcpy(committed_rows.get(), &committed_row_count,
+                         sizeof(committed_row_count), cudaMemcpyHostToDevice),
+              "copy speculative committed row count")) {
+    return;
+  }
+  status = gem16::internal::LaunchBuildSpeculativeRepetitionMasks(
+      speculative_base.get(), speculative_device_inputs.get(),
+      kSpeculativeRows, kMaskWords, speculative_masks.get(), nullptr);
+  CUDA_TEST_CHECK(status.ok());
+  status = gem16::internal::LaunchCommitSpeculativeRepetitionMask(
+      speculative_masks.get(), kMaskWords, committed_rows.get(),
+      speculative_base.get(), nullptr);
+  CUDA_TEST_CHECK(status.ok());
+  std::array<std::uint32_t, kSpeculativeRows * kMaskWords> host_masks{};
+  std::array<std::uint32_t, kMaskWords> committed_mask{};
+  if (!CudaOk(cudaMemcpy(host_masks.data(), speculative_masks.get(),
+                         sizeof(host_masks), cudaMemcpyDeviceToHost),
+              "copy speculative repetition masks") ||
+      !CudaOk(cudaMemcpy(committed_mask.data(), speculative_base.get(),
+                         sizeof(committed_mask), cudaMemcpyDeviceToHost),
+              "copy committed speculative repetition mask")) {
+    return;
+  }
+  CUDA_TEST_CHECK(host_masks[0] == ((1U << 1U) | (1U << 2U)));
+  CUDA_TEST_CHECK(host_masks[1] == 0U);
+  CUDA_TEST_CHECK(host_masks[2] == ((1U << 1U) | (1U << 2U)));
+  CUDA_TEST_CHECK(host_masks[3] == (1U << 3U));
+  CUDA_TEST_CHECK(host_masks[4] ==
+                  ((1U << 1U) | (1U << 2U) | (1U << 4U)));
+  CUDA_TEST_CHECK(host_masks[5] == (1U << 3U));
+  CUDA_TEST_CHECK(committed_mask[0] == host_masks[2]);
+  CUDA_TEST_CHECK(committed_mask[1] == host_masks[3]);
+
   cudaStream_t stream = nullptr;
   cudaGraph_t graph = nullptr;
   cudaGraphExec_t executable = nullptr;
@@ -2972,8 +3022,10 @@ void TestMtpDeviceControlTransitions() {
     host_transaction.control.current.processed_position = 99U;
     host_transaction.control.current.remaining_output_capacity = 10U;
     host_transaction.control.current.output_write_position = 4U;
+    host_transaction.control.current.sampling_step = 17U;
     host_transaction.control.next = host_transaction.control.current;
     host_transaction.control.fixed_draft_tokens = 2U;
+    host_transaction.control.sampling_enabled = 1U;
     if (!CudaOk(cudaMemcpy(verified.get(), host_verified.data(),
                            verified.bytes(), cudaMemcpyHostToDevice),
                 "copy MTP transition verified tokens") ||
@@ -3007,6 +3059,7 @@ void TestMtpDeviceControlTransitions() {
                     10U - expected_output);
     CUDA_TEST_CHECK(control.next.output_write_position ==
                     4U + expected_output);
+    CUDA_TEST_CHECK(control.next.sampling_step == 17U + expected_output);
     CUDA_TEST_CHECK(control.next.stopped ==
                     (expected_stopped ? 1U : 0U));
     CUDA_TEST_CHECK(control.next.stop_token ==

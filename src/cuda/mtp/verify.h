@@ -43,6 +43,7 @@ struct MtpDeviceState {
   std::uint64_t processed_position = 0U;
   std::uint64_t remaining_output_capacity = 0U;
   std::uint64_t output_write_position = 0U;
+  std::uint64_t sampling_step = 0U;
 };
 
 struct alignas(16) MtpDeviceControl {
@@ -51,7 +52,7 @@ struct alignas(16) MtpDeviceControl {
   std::uint32_t fixed_draft_tokens = 0U;
   std::uint32_t proposal_count = 0U;
   std::uint32_t transition_valid = 0U;
-  std::uint32_t reserved = 0U;
+  std::uint32_t sampling_enabled = 0U;
 };
 
 struct alignas(16) MtpGroupTransaction {

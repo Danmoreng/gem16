@@ -4,6 +4,7 @@
 #include <array>
 #include <charconv>
 #include <cctype>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -481,6 +482,33 @@ Result<GemmaChatProcessor> GemmaChatProcessor::Load(
   auto stop = IntegerList(Member(generation.value(), "eos_token_id"),
                           "eos_token_id", true);
   if (!stop.ok()) return stop.status();
+  const json::Value* do_sample = Member(generation.value(), "do_sample");
+  const json::Value* temperature = Member(generation.value(), "temperature");
+  const json::Value* top_k = Member(generation.value(), "top_k");
+  const json::Value* top_p = Member(generation.value(), "top_p");
+  if (do_sample == nullptr || !do_sample->is_bool() ||
+      !do_sample->as_bool() || temperature == nullptr ||
+      !temperature->is_number() ||
+      !std::isfinite(temperature->as_number()) ||
+      temperature->as_number() <= 0.0 || top_k == nullptr ||
+      !top_k->is_integer() || top_k->as_integer() < 0 ||
+      static_cast<std::uint64_t>(top_k->as_integer()) >
+          std::numeric_limits<std::uint32_t>::max() || top_p == nullptr ||
+      !top_p->is_number() || !std::isfinite(top_p->as_number()) ||
+      top_p->as_number() <= 0.0 || top_p->as_number() > 1.0) {
+    return Error(StatusCode::kDataLoss,
+                 "generation_config.json has invalid sampling defaults");
+  }
+  SamplingOptions recommended_sampling;
+  recommended_sampling.enabled = true;
+  recommended_sampling.temperature =
+      static_cast<float>(temperature->as_number());
+  recommended_sampling.top_k =
+      static_cast<std::uint32_t>(top_k->as_integer());
+  recommended_sampling.top_p = static_cast<float>(top_p->as_number());
+  auto sampling_status = ValidateSamplingOptions(recommended_sampling, 262144U);
+  if (!sampling_status.ok()) return sampling_status;
+
   const json::Value* suppressed_value =
       Member(generation.value(), "suppress_tokens");
   std::vector<std::uint32_t> suppressed;
@@ -508,7 +536,8 @@ Result<GemmaChatProcessor> GemmaChatProcessor::Load(
   }
   return GemmaChatProcessor(
       std::move(tokenizer).value(),
-      GenerationTokenControls{std::move(stop).value(), std::move(suppressed)},
+      GenerationTokenControls{std::move(stop).value(), std::move(suppressed),
+                              recommended_sampling},
       tokenizer_config.value().thinking_open,
       tokenizer_config.value().thinking_close,
       tokenizer_config.value().content_close_tokens,

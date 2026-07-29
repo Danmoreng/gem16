@@ -25,7 +25,8 @@ struct OutputHeadCandidate {
 [[nodiscard]] Status LaunchFusedOutputHeadBatchCandidates(
     const std::uint16_t* weights, const float* hidden,
     const std::uint32_t* suppressed, std::uint32_t suppressed_count,
-    std::uint64_t rows, OutputHeadCandidate* candidates, cudaStream_t stream);
+    std::uint64_t rows, OutputHeadCandidate* candidates,
+    float* diagnostic_logits, cudaStream_t stream);
 
 [[nodiscard]] Status LaunchOutputHeadCandidateArgmax(
     const OutputHeadCandidate* candidates, std::uint32_t* selected,

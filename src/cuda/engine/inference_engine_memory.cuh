@@ -71,21 +71,30 @@
         stream_);
   }
 
-  [[nodiscard]] Status SelectSampledToken(
+  [[nodiscard]] Status SelectSampledTokenWithState(
       float* logits, std::uint32_t* selected,
+      std::uint32_t* repetition_mask, std::uint64_t step,
       const internal::DecodeControl* control = nullptr) {
     return internal::LaunchSampleToken(
         logits, Pointer<float>(workspace_, offsets_.sampling_logits),
         Pointer<double>(workspace_, offsets_.sampling_cumulative),
         Pointer<std::uint32_t>(workspace_, offsets_.sampling_token_ids),
         Pointer<std::uint32_t>(workspace_, offsets_.sorted_token_ids),
-        Pointer<std::uint32_t>(workspace_, offsets_.repetition_mask),
+        repetition_mask,
         Pointer<std::uint32_t>(workspace_, offsets_.suppressed),
         suppressed_token_count_, static_cast<std::uint32_t>(kVocabulary),
-        sampling_, control == nullptr ? sampling_step_++ : 0U, control,
-        selected,
+        sampling_, step, control, selected,
         Pointer<std::uint8_t>(workspace_, offsets_.sampling_sort_workspace),
         sampling_sort_workspace_bytes_, stream_);
+  }
+
+  [[nodiscard]] Status SelectSampledToken(
+      float* logits, std::uint32_t* selected,
+      const internal::DecodeControl* control = nullptr) {
+    return SelectSampledTokenWithState(
+        logits, selected,
+        Pointer<std::uint32_t>(workspace_, offsets_.repetition_mask),
+        control == nullptr ? sampling_step_++ : 0U, control);
   }
 
   [[nodiscard]] Status AllocateCache() {
@@ -184,7 +193,20 @@
     auto size = AlignUp(layout.size(), kAlignment);
     if (!size.ok()) return size.status();
     offsets_.total = size.value();
-    return workspace_.Allocate(size.value(), "allocate inference workspace arena");
+    Status status = workspace_.Allocate(
+        size.value(), "allocate inference workspace arena");
+    if (!status.ok()) return status;
+    if (sampling_.enabled) {
+      const cudaError_t error = cudaMemsetAsync(
+          Pointer<std::uint32_t>(workspace_, offsets_.repetition_mask), 0,
+          static_cast<std::size_t>(kRepetitionMaskWords *
+                                   sizeof(std::uint32_t)),
+          stream_);
+      if (error != cudaSuccess) {
+        return CudaFailure("initialize repetition mask", error);
+      }
+    }
+    return Status::Ok();
   }
 
   [[nodiscard]] Status AllocateMtpWorkspace() {
@@ -223,6 +245,12 @@
     auto candidates = layout.Add<ArgmaxValue>(
         kMaximumMtpVerifyTokens * kFusedOutputHeadBlocks);
     auto selected = layout.Add<std::uint32_t>(kMaximumMtpVerifyTokens);
+    auto sampling_logits = layout.Add<float>(
+        sampling_.enabled ? kMaximumMtpVerifyTokens * kVocabulary : 0U);
+    auto sampling_repetition_masks = layout.Add<std::uint32_t>(
+        sampling_.enabled
+            ? kMaximumMtpVerifyTokens * kRepetitionMaskWords
+            : 0U);
     auto stop_tokens = layout.Add<std::uint32_t>(kMaximumSuppressedTokens);
     auto transaction = layout.Add<internal::MtpGroupTransaction>(1U);
     auto row_controls = layout.Add<internal::DecodeControl>(3U);
@@ -233,6 +261,10 @@
     if (!attention_workspace.ok()) return attention_workspace.status();
     if (!candidates.ok()) return candidates.status();
     if (!selected.ok()) return selected.status();
+    if (!sampling_logits.ok()) return sampling_logits.status();
+    if (!sampling_repetition_masks.ok()) {
+      return sampling_repetition_masks.status();
+    }
     if (!stop_tokens.ok()) return stop_tokens.status();
     if (!transaction.ok()) return transaction.status();
     if (!row_controls.ok()) return row_controls.status();
@@ -243,6 +275,9 @@
     mtp_offsets_.attention_workspace = attention_workspace.value();
     mtp_offsets_.output_candidates = candidates.value();
     mtp_offsets_.selected = selected.value();
+    mtp_offsets_.sampling_logits = sampling_logits.value();
+    mtp_offsets_.sampling_repetition_masks =
+        sampling_repetition_masks.value();
     mtp_offsets_.stop_tokens = stop_tokens.value();
     mtp_offsets_.transaction = transaction.value();
     mtp_offsets_.row_controls = row_controls.value();

@@ -27,6 +27,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--executable", required=True, type=Path)
     parser.add_argument("--warmup-pairs", type=positive_int, default=3)
     parser.add_argument("--measured-pairs", type=positive_int, default=10)
+    parser.add_argument(
+        "--sampled", action="store_true",
+        help="qualify same-seed Google-recommended target sampling",
+    )
+    parser.add_argument("--seed", type=int, default=0)
     return parser.parse_args()
 
 
@@ -47,6 +52,18 @@ def qualification(args: argparse.Namespace) -> dict[str, Any]:
     pair_order: list[dict[str, Any]] = []
     reference_tokens: list[int] | None = None
 
+    sampling = (
+        {
+            "temperature": 1.0,
+            "top_k": 64,
+            "top_p": 0.95,
+            "repetition_penalty": 1.0,
+            "seed": getattr(args, "seed", 0),
+        }
+        if getattr(args, "sampled", False)
+        else None
+    )
+
     def run_mode(mode: str) -> tuple[dict[str, Any], list[int]]:
         return run_gem16(
             executable,
@@ -57,6 +74,7 @@ def qualification(args: argparse.Namespace) -> dict[str, Any]:
             assistant if mode == "mtp_d2" else None,
             2 if mode == "mtp_d2" else 0,
             False,
+            sampling,
         )
 
     def run_pair(phase: str, index: int, measured: bool) -> None:
@@ -132,6 +150,9 @@ def qualification(args: argparse.Namespace) -> dict[str, Any]:
             "measured_pairs": args.measured_pairs,
             "alternating_first_mode": True,
             "primary_statistic": "median",
+            "decoding_mode":
+                "sampled" if getattr(args, "sampled", False) else "greedy",
+            "sampling": sampling,
         },
         "qualification": {
             "ordinary_equals_mtp": True,

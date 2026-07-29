@@ -111,7 +111,8 @@ __global__ void FusedOutputHeadCandidatesKernel(
 __global__ void FusedOutputHeadBatchCandidatesKernel(
     const std::uint16_t* weights, const float* hidden,
     const std::uint32_t* suppressed, std::uint32_t suppressed_count,
-    std::uint64_t rows, OutputHeadCandidate* candidates) {
+    std::uint64_t rows, OutputHeadCandidate* candidates,
+    float* diagnostic_logits) {
   constexpr unsigned kWarpSize = 32U;
   constexpr unsigned kWarpsPerBlock = kThreads / kWarpSize;
   __shared__ OutputHeadCandidate
@@ -145,10 +146,14 @@ __global__ void FusedOutputHeadBatchCandidatesKernel(
       for (unsigned offset = kWarpSize / 2U; offset != 0U; offset >>= 1U) {
         sums[row] += __shfl_down_sync(0xFFFFFFFFU, sums[row], offset);
       }
-      if (lane == 0U && !IsSuppressed(token, suppressed, suppressed_count)) {
+      if (lane == 0U) {
         const float value = tanhf(sums[row] / 30.0F) * 30.0F;
-        if (value > best[row].value ||
-            (value == best[row].value && token < best[row].token)) {
+        if (diagnostic_logits != nullptr) {
+          diagnostic_logits[row * kVocabulary + token] = value;
+        }
+        if (!IsSuppressed(token, suppressed, suppressed_count) &&
+            (value > best[row].value ||
+             (value == best[row].value && token < best[row].token))) {
           best[row] = {value, static_cast<std::uint32_t>(token)};
         }
       }
@@ -189,7 +194,7 @@ template <unsigned kRows>
 __global__ void FusedOutputHeadFixedBatchCandidatesKernel(
     const std::uint16_t* weights, const float* hidden,
     const std::uint32_t* suppressed, std::uint32_t suppressed_count,
-    OutputHeadCandidate* candidates) {
+    OutputHeadCandidate* candidates, float* diagnostic_logits) {
   constexpr unsigned kWarpSize = 32U;
   constexpr unsigned kWarpsPerBlock = kThreads / kWarpSize;
   __shared__ OutputHeadCandidate warp_candidates[kRows][kWarpsPerBlock];
@@ -220,10 +225,14 @@ __global__ void FusedOutputHeadFixedBatchCandidatesKernel(
       for (unsigned offset = kWarpSize / 2U; offset != 0U; offset >>= 1U) {
         sums[row] += __shfl_down_sync(0xFFFFFFFFU, sums[row], offset);
       }
-      if (lane == 0U && !IsSuppressed(token, suppressed, suppressed_count)) {
+      if (lane == 0U) {
         const float value = tanhf(sums[row] / 30.0F) * 30.0F;
-        if (value > best[row].value ||
-            (value == best[row].value && token < best[row].token)) {
+        if (diagnostic_logits != nullptr) {
+          diagnostic_logits[row * kVocabulary + token] = value;
+        }
+        if (!IsSuppressed(token, suppressed, suppressed_count) &&
+            (value > best[row].value ||
+             (value == best[row].value && token < best[row].token))) {
           best[row] = {value, static_cast<std::uint32_t>(token)};
         }
       }
@@ -343,7 +352,8 @@ Status LaunchFusedOutputHeadCandidates(
 Status LaunchFusedOutputHeadBatchCandidates(
     const std::uint16_t* weights, const float* hidden,
     const std::uint32_t* suppressed, std::uint32_t suppressed_count,
-    std::uint64_t rows, OutputHeadCandidate* candidates, cudaStream_t stream) {
+    std::uint64_t rows, OutputHeadCandidate* candidates,
+    float* diagnostic_logits, cudaStream_t stream) {
   if (rows == 0U || rows > kMaximumMtpVerifyTokens) {
     return Status(StatusCode::kInvalidArgument,
                   "batched output-head row count is invalid");
@@ -351,11 +361,13 @@ Status LaunchFusedOutputHeadBatchCandidates(
   if (rows == 3U) {
     FusedOutputHeadFixedBatchCandidatesKernel<3U>
         <<<kOutputHeadCandidateBlocks, kThreads, 0, stream>>>(
-            weights, hidden, suppressed, suppressed_count, candidates);
+            weights, hidden, suppressed, suppressed_count, candidates,
+            diagnostic_logits);
   } else {
     FusedOutputHeadBatchCandidatesKernel<<<kOutputHeadCandidateBlocks,
                                            kThreads, 0, stream>>>(
-        weights, hidden, suppressed, suppressed_count, rows, candidates);
+        weights, hidden, suppressed, suppressed_count, rows, candidates,
+        diagnostic_logits);
   }
   const cudaError_t error = cudaGetLastError();
   return error == cudaSuccess
