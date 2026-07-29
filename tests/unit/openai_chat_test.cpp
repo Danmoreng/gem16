@@ -1,10 +1,13 @@
 #include "test.h"
 
+#include <charconv>
+#include <span>
 #include <string>
 #include <vector>
 
 #include "server/openai_chat.h"
 #include "runtime/chat_internal.h"
+#include "server/sse_chunk.h"
 #include "util/json.h"
 
 namespace {
@@ -67,6 +70,36 @@ std::vector<std::uint8_t> TinyWav() {
 }  // namespace
 
 void RunOpenAiChatTests() {
+  gem16::server::SseChunkBuilder fixed_chunk(128U);
+  fixed_chunk.Reset();
+  GEM16_CHECK(fixed_chunk.Append("{\"text\":"));
+  GEM16_CHECK(fixed_chunk.AppendJsonString("line\n\"quoted\""));
+  GEM16_CHECK(fixed_chunk.Append(",\"n\":"));
+  GEM16_CHECK(fixed_chunk.AppendUnsigned(42U));
+  GEM16_CHECK(fixed_chunk.Append("}"));
+  const std::span<const char> framed = fixed_chunk.Finish();
+  GEM16_CHECK(!framed.empty());
+  if (!framed.empty()) {
+    const std::string frame(framed.data(), framed.size());
+    const std::size_t header_end = frame.find("\r\n");
+    GEM16_CHECK(header_end != std::string::npos);
+    if (header_end != std::string::npos) {
+      std::size_t payload_size = 0U;
+      const auto parsed = std::from_chars(
+          frame.data(), frame.data() + header_end, payload_size, 16);
+      GEM16_CHECK(parsed.ec == std::errc{});
+      GEM16_CHECK(payload_size ==
+                  frame.size() - header_end - 2U - 2U);
+      GEM16_CHECK(frame.substr(header_end + 2U, payload_size) ==
+                  "data: {\"text\":\"line\\n\\\"quoted\\\"\",\"n\":42}\n\n");
+      GEM16_CHECK(frame.ends_with("\r\n"));
+    }
+  }
+  gem16::server::SseChunkBuilder undersized(4U);
+  undersized.Reset();
+  GEM16_CHECK(!undersized.Append("payload"));
+  GEM16_CHECK(undersized.Finish().empty());
+
   const std::string request_json = R"({
     "model":"gem16",
     "messages":[{"role":"user","content":"Weather in Berlin?"}],

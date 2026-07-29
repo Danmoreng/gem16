@@ -84,6 +84,11 @@ class Tokenizer {
   [[nodiscard]] static Result<Tokenizer> Load(const std::filesystem::path& tokenizer_json);
   [[nodiscard]] Result<std::vector<std::uint32_t>> Encode(std::string_view text) const;
   [[nodiscard]] Result<std::string> Decode(std::span<const std::uint32_t> token_ids, bool skip_special_tokens) const;
+  [[nodiscard]] Status DecodeTokenInto(std::uint32_t token_id,
+                                       bool skip_special_tokens,
+                                       std::span<char> output,
+                                       std::size_t& written) const;
+  [[nodiscard]] std::size_t maximum_decoded_token_bytes() const;
   [[nodiscard]] Status WriteDecodedToken(std::uint32_t token_id, bool skip_special_tokens, std::ostream& output) const;
 
  private:
@@ -108,6 +113,13 @@ class GemmaChatProcessor {
       std::span<const ChatToolResult> results, bool enable_thinking) const;
   [[nodiscard]] Result<std::string> Decode(std::span<const std::uint32_t> token_ids, bool skip_special_tokens) const;
   [[nodiscard]] Result<std::string> DecodeResponseText(std::span<const std::uint32_t> token_ids) const;
+  [[nodiscard]] Status DecodeTokenInto(std::uint32_t token_id,
+                                       bool skip_special_tokens,
+                                       std::span<char> output,
+                                       std::size_t& written) const;
+  [[nodiscard]] std::size_t maximum_decoded_token_bytes() const {
+    return tokenizer_.maximum_decoded_token_bytes();
+  }
   [[nodiscard]] Status WriteDecodedToken(std::uint32_t token_id, bool skip_special_tokens, std::ostream& output) const;
 
   [[nodiscard]] const GenerationTokenControls& generation_controls() const { return generation_controls_; }

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import time
 
 import openai
 from openai import OpenAI
@@ -17,6 +18,48 @@ def main() -> int:
     args = parser.parse_args()
 
     client = OpenAI(base_url=args.base_url, api_key="gem16-local")
+    live_event_types: list[str] = []
+    live_reasoning_deltas = 0
+    live_text_deltas = 0
+    first_delta_at: float | None = None
+    completed_at: float | None = None
+    with client.responses.stream(
+        model=args.model,
+        input=(
+            "Think step by step about why a triangle's interior angles sum to "
+            "180 degrees, then give a concise final answer."
+        ),
+        max_output_tokens=128,
+        reasoning={"effort": "low"},
+    ) as stream:
+        for event in stream:
+            live_event_types.append(event.type)
+            if event.type == "response.reasoning_text.delta":
+                live_reasoning_deltas += 1
+                if first_delta_at is None:
+                    first_delta_at = time.monotonic()
+            elif event.type == "response.output_text.delta":
+                live_text_deltas += 1
+                if first_delta_at is None:
+                    first_delta_at = time.monotonic()
+            elif event.type == "response.completed":
+                completed_at = time.monotonic()
+        live_response = stream.get_final_response()
+    if live_reasoning_deltas < 2:
+        raise RuntimeError(
+            f"reasoning was not streamed tokenwise: {live_reasoning_deltas} deltas"
+        )
+    if live_text_deltas < 1:
+        raise RuntimeError("visible response text was not streamed")
+    if first_delta_at is None or completed_at is None:
+        raise RuntimeError("live stream is missing a delta or completion event")
+    live_stream_seconds = completed_at - first_delta_at
+    if live_stream_seconds < 0.05:
+        raise RuntimeError(
+            "all Responses deltas arrived only after decode completion "
+            f"({live_stream_seconds:.6f} s span)"
+        )
+
     tools = [
         {
             "type": "function",
@@ -94,6 +137,11 @@ def main() -> int:
             {
                 "status": "ok",
                 "openai_sdk": openai.__version__,
+                "live_response_id": live_response.id,
+                "live_events": live_event_types,
+                "live_reasoning_deltas": live_reasoning_deltas,
+                "live_text_deltas": live_text_deltas,
+                "live_stream_seconds": live_stream_seconds,
                 "first_response_id": first.id,
                 "call_id": call.call_id,
                 "events": event_types,

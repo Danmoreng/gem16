@@ -183,6 +183,16 @@ the unsafe partial slot. Metrics reported six slots created, four inactive LRU
 evictions, and one requested/observed cancellation. Both CTest presets and the
 existing Responses and streamed Chat tool-loop SDK gates remained green.
 
+The Responses live-stream regression gate requires multiple incremental
+reasoning deltas, visible-text deltas, ordered sequence numbers, and measurable
+decode time after the first delta. On the Windows target-plus-D2 server, a
+128-token reasoning request emitted `response.created` at 118.2 ms, its first
+delta at 349.4 ms, 64 reasoning plus 61 text deltas, and `response.completed` at
+2960.7 ms with contiguous sequence numbers. The matching Chat Completions smoke
+test emitted 50 content deltas over a 697.4 ms live interval. Unit coverage also
+checks the fixed-capacity token decoder and exact manual HTTP/SSE chunk framing;
+the host debug and SM120a release host/CUDA suites remain the required gates.
+
 The terminal stream applies the same checkpoint-qualified `ResponseChannelTracker` to generated IDs before
 decoding them. A real Windows fixed-D2 smoke test covers a forced reasoning close and observes separate
 `--- thinking ---` and `--- answer ---` sections without leaking the multi-token channel opener. A second run with

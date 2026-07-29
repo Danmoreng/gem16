@@ -69,7 +69,11 @@ emits ordered `response.created`, output-item/content/function events, and a
 final `response.completed` object consumable by the official OpenAI SDK.
 Private reasoning is materialized as a completed `reasoning` output item and,
 for streaming requests, as matching `response.reasoning_text.*` events before
-the visible assistant message.
+the visible assistant message. Reasoning and visible-text deltas are written as
+soon as complete UTF-8 code points become available during decode; they are not
+buffered until generation completes. Function-call events remain intentionally
+post-generation because strict schemas and the complete native tool call must be
+validated before the server exposes a successful call.
 
 Each Responses session deliberately remains one exact linear chain:
 
@@ -122,6 +126,14 @@ assistant-role delta, emits UTF-8 text or `reasoning_content` deltas, emits
 indexed function tool-call/name/argument deltas, then a finish-reason chunk.
 When `stream_options.include_usage` is true, an empty-choices usage chunk
 follows. Every successful stream ends with `data: [DONE]`.
+
+Both streaming endpoints preallocate their decoded-token, partial UTF-8, JSON,
+and HTTP/SSE framing buffers before generation. The token callback writes fixed
+buffers directly through cpp-httplib's raw content provider, including HTTP/1.1
+chunk framing, so the library does not construct a fresh host string per token.
+Completion objects, full reasoning items, and validated tool events may allocate
+after decode has ended; no pageable host allocation or growing container is
+introduced in the successful token loop.
 
 ## Session identity and admission
 

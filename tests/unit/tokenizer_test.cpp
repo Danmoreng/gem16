@@ -1,10 +1,12 @@
 #include "gem16/tokenizer.h"
 
+#include <array>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "model/tokenizer_config.h"
@@ -74,6 +76,28 @@ void TestBpeEncodeDecodeAndSpecialTokens() {
       status = tokenizer.value().WriteDecodedToken(7U, true, streamed);
       GEM16_CHECK(status.ok());
       GEM16_CHECK(streamed.str() == "ab ab\xC3\xA9");
+
+      std::vector<char> decoded_token(
+          tokenizer.value().maximum_decoded_token_bytes());
+      std::size_t decoded_size = 0U;
+      status = tokenizer.value().DecodeTokenInto(
+          0U, true, decoded_token, decoded_size);
+      GEM16_CHECK(status.ok());
+      GEM16_CHECK(decoded_size == 0U);
+      status = tokenizer.value().DecodeTokenInto(
+          5U, true, decoded_token, decoded_size);
+      GEM16_CHECK(status.ok());
+      GEM16_CHECK(std::string_view(decoded_token.data(), decoded_size) ==
+                  " ab");
+      status = tokenizer.value().DecodeTokenInto(
+          7U, true, decoded_token, decoded_size);
+      GEM16_CHECK(status.ok());
+      GEM16_CHECK(std::string_view(decoded_token.data(), decoded_size) ==
+                  "\xA9");
+      std::array<char, 1U> too_small{};
+      status = tokenizer.value().DecodeTokenInto(
+          3U, true, too_small, decoded_size);
+      GEM16_CHECK(!status.ok());
     }
   }
   std::filesystem::remove(path, error);

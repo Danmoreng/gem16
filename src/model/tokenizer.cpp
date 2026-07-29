@@ -444,6 +444,7 @@ struct Tokenizer::Impl {
   std::unordered_map<std::uint64_t, Merge> merges;
   std::vector<AddedToken> added_tokens;
   std::unordered_set<std::uint32_t> special_ids;
+  std::size_t maximum_decoded_token_bytes = 0U;
 
   [[nodiscard]] Result<std::vector<std::uint32_t>> EncodeOrdinary(std::string_view ordinary) const {
     std::string normalized;
@@ -546,6 +547,8 @@ Result<Tokenizer> Tokenizer::Load(const std::filesystem::path& tokenizer_json) {
     }
     implementation->tokens[id] = token;
     implementation->vocabulary.emplace(token, id);
+    implementation->maximum_decoded_token_bytes =
+        std::max(implementation->maximum_decoded_token_bytes, token.size());
   }
 
   std::uint32_t rank = 0;
@@ -661,6 +664,70 @@ Result<std::string> Tokenizer::Decode(std::span<const std::uint32_t> token_ids, 
     }
   }
   return result;
+}
+
+Status Tokenizer::DecodeTokenInto(std::uint32_t token_id,
+                                  bool skip_special_tokens,
+                                  std::span<char> output,
+                                  std::size_t& written) const {
+  written = 0U;
+  if (implementation_ == nullptr) {
+    return Error(StatusCode::kInternal, "tokenizer is not initialized");
+  }
+  if (token_id >= implementation_->tokens.size() ||
+      implementation_->tokens[token_id].empty()) {
+    return Error(StatusCode::kInvalidArgument,
+                 "token ID is absent from tokenizer vocabulary");
+  }
+  const bool special = implementation_->special_ids.contains(token_id);
+  if (skip_special_tokens && special) return Status::Ok();
+
+  const auto append = [&](std::string_view bytes) {
+    if (bytes.size() > output.size() - written) return false;
+    for (const char byte : bytes) output[written++] = byte;
+    return true;
+  };
+  const std::string& token = implementation_->tokens[token_id];
+  if (special) {
+    if (!append(token)) {
+      return Error(StatusCode::kResourceExhausted,
+                   "decoded-token buffer is too small");
+    }
+    return Status::Ok();
+  }
+  unsigned char fallback = 0U;
+  if (ParseByteFallback(token, fallback)) {
+    if (output.empty()) {
+      return Error(StatusCode::kResourceExhausted,
+                   "decoded-token buffer is too small");
+    }
+    output[written++] = static_cast<char>(fallback);
+    return Status::Ok();
+  }
+  std::size_t begin = 0U;
+  while (begin < token.size()) {
+    const std::size_t marker = token.find(kSpaceMarker, begin);
+    if (marker == std::string::npos) {
+      if (!append(std::string_view(token).substr(begin))) {
+        return Error(StatusCode::kResourceExhausted,
+                     "decoded-token buffer is too small");
+      }
+      break;
+    }
+    if (!append(std::string_view(token).substr(begin, marker - begin)) ||
+        !append(" ")) {
+      return Error(StatusCode::kResourceExhausted,
+                   "decoded-token buffer is too small");
+    }
+    begin = marker + kSpaceMarker.size();
+  }
+  return Status::Ok();
+}
+
+std::size_t Tokenizer::maximum_decoded_token_bytes() const {
+  return implementation_ == nullptr
+             ? 0U
+             : implementation_->maximum_decoded_token_bytes;
 }
 
 Status Tokenizer::WriteDecodedToken(std::uint32_t token_id, bool skip_special_tokens, std::ostream& output) const {
@@ -985,6 +1052,13 @@ Result<std::string> GemmaChatProcessor::DecodeResponseText(std::span<const std::
   if (!decoded.ok()) return decoded.status();
   return internal::ExtractResponseContent(decoded.value(), thinking_open_, thinking_close_, content_close_tokens_,
                                           tool_call_start_token_);
+}
+
+Status GemmaChatProcessor::DecodeTokenInto(
+    std::uint32_t token_id, bool skip_special_tokens, std::span<char> output,
+    std::size_t& written) const {
+  return tokenizer_.DecodeTokenInto(token_id, skip_special_tokens, output,
+                                    written);
 }
 
 Status GemmaChatProcessor::WriteDecodedToken(std::uint32_t token_id, bool skip_special_tokens,
