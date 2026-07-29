@@ -1,5 +1,36 @@
 # Decisions
 
+## 2026-07-29: Use stb_image and miniaudio as the portable codec boundary
+
+Date: 2026-07-29
+
+Decision: Vendor exact single-header revisions of stb_image for PNG/JPEG/BMP
+decoding and miniaudio for WAV/FLAC/MP3 decoding, channel conversion, and
+16-kHz resampling. Select their MIT-compatible license alternatives. Keep all
+Gemma-specific resizing, patching, normalization, waveform framing, and GPU
+projection in gem16.
+
+Context: Windows WIC made image input platform-specific, while the first audio
+milestone duplicated a narrow WAV parser and linear resampler. Linking FFmpeg's
+component libraries would cover many more containers and codecs than the
+current product path requires and would add dynamic-library deployment and
+license-configuration work.
+
+Alternatives: Retain WIC plus custom WAV parsing; integrate libavformat,
+libavcodec, libswscale, and libswresample; implement all file codecs in-tree.
+
+Consequences: Windows and Linux share one small source-level decoder boundary
+with no runtime media DLLs. Audio accepts WAV, FLAC, and MP3. Image processing
+remains numerically controlled by gem16 rather than stb resize behavior. The
+vendored revisions, checksums, licenses, compile-time feature reductions, and
+update procedure are recorded in `third_party/README.md`.
+
+Evidence: The warnings-as-errors Windows host and SM120a release builds pass,
+as do the complete host and CUDA suites. The formerly Windows-only
+BMP-to-Gemma-patch fixture now runs unconditionally. Real chat accepts the
+supplied 22.05-kHz `freeman.wav`, derived MP3 and FLAC inputs, and a real PNG;
+the PNG response correctly recognizes the technical diagram.
+
 ## 2026-07-29: Keep unified modality weights resident and expose audio first
 
 Date: 2026-07-29

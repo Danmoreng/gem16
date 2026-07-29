@@ -61,7 +61,6 @@ std::filesystem::path WriteSolidBmp() {
 }  // namespace
 
 void RunImageTests() {
-#if defined(_WIN32)
   const auto path = WriteSolidBmp();
   auto image = gem16::LoadVisionImage(path);
   GEM16_CHECK(image.ok());
@@ -83,5 +82,4 @@ void RunImageTests() {
   }
   std::error_code ignored;
   std::filesystem::remove(path, ignored);
-#endif
 }

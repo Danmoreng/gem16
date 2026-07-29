@@ -67,7 +67,7 @@ of the correctness and native-kernel gates below.
   groups use MTP, exact marker/budget/tail rows use the ordinary child, and D2 resumes without a host control
   roundtrip. N-Gram is deferred much further. The first audio milestone is now
   implemented: all unified audio/vision tensors stay resident, native chat
-  expands bounded WAV input into exact audio placeholder rows, and a GPU BF16
+  expands bounded WAV/FLAC/MP3 input into exact audio placeholder rows, and a GPU BF16
   RMSNorm/projection replaces those embeddings before Layer 0. Image
   preprocessing and execution remain queued.
   Every performance promotion still requires correctness, generation, logit, 3-warm-up/10-run benchmark, Nsight,
@@ -192,10 +192,11 @@ The llama.cpp benchmark is deliberately before engine kernel optimization, but a
    render/JSON/state diagnostics retain their narrow path. Cancellation/final usage events and physical
    shared-weight multi-session ownership remain later S0 work. Next execute the binding
    [multimodal expansion plan](MULTIMODAL.md). Audio and the complete
-   encoder-free vision path are now implemented for one-shot Windows chat,
+   encoder-free vision path are now implemented for one-shot chat,
    including GPU projection and sliding-layer bidirectional vision attention.
-   Next qualify portable image decoding and multiple/resident image requests,
-   then reuse the vision path for sampled video frames.
+   Portable PNG/JPEG/BMP and WAV/FLAC/MP3 decoding is integrated. Next qualify
+   Linux GPU media inference and multiple/resident image requests, then reuse
+   the vision path for sampled video frames.
 13. After the Blackwell backend is correct and competitive, add architecture-specific backends for additional 16 GB
    CUDA GPUs without weakening benchmark or memory contracts.
 

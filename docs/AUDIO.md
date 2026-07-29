@@ -2,12 +2,12 @@
 
 ## Supported test path
 
-`gem16-chat --message <text> --audio <file.wav>` accepts one audio part after
-the text of a one-shot user message. WAV decoding is bounded to 30 seconds and
-supports PCM16 or IEEE float32, one or two channels, and sample rates from 8 to
-48 kHz. Stereo is averaged and non-16-kHz input is deterministically linearly
-resampled to mono 16 kHz. Unsupported formats fail visibly; there is no codec
-or precision fallback.
+`gem16-chat --message <text> --audio <file>` accepts one audio part after the
+text of a one-shot user message. The pinned miniaudio decoder accepts WAV,
+FLAC, and MP3, converts channel layouts and sample rates to mono float32 at
+16 kHz, and stops after the 30-second model limit. The complete encoded input,
+decoder output, and resampling work are bounded. Unsupported or malformed
+formats fail visibly; there is no codec or precision fallback.
 
 The chat processor pads the final waveform frame with zeros, splits the signal
 into 640-sample (40 ms) rows, and permits at most 750 rows. It expands the
@@ -40,5 +40,4 @@ loop.
 This milestone qualifies audio in one-shot native chat. Multiple in-memory
 audio parts are supported by the public `ChatSession` request boundary, but the
 CLI exposes one `--audio` file. Interactive `/audio`, additional codecs,
-band-limited production resampling, image preprocessing, video, and server
-multipart/base64 adapters remain follow-up work.
+video, and server multipart/base64 adapters remain follow-up work.

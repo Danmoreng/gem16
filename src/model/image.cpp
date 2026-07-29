@@ -2,16 +2,19 @@
 
 #include <algorithm>
 #include <cmath>
+#include <fstream>
 #include <limits>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
-#if defined(_WIN32)
-#define NOMINMAX
-#include <objbase.h>
-#include <wincodec.h>
-#endif
+#define STBI_ONLY_JPEG
+#define STBI_ONLY_PNG
+#define STBI_ONLY_BMP
+#define STBI_MAX_DIMENSIONS 32768
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
 
 namespace gem16 {
 namespace {
@@ -21,6 +24,7 @@ constexpr std::uint32_t kPool = 3U;
 constexpr std::uint32_t kModelPatch = kTeacherPatch * kPool;
 constexpr std::uint32_t kMaximumSoftTokens = 280U;
 constexpr std::uint64_t kMaximumPixels = 100'000'000ULL;
+constexpr std::uint64_t kMaximumEncodedBytes = 256ULL * 1024ULL * 1024ULL;
 
 struct RgbImage {
   std::uint32_t width = 0U;
@@ -32,103 +36,63 @@ Status Error(StatusCode code, std::string message) {
   return Status(code, std::move(message));
 }
 
-#if defined(_WIN32)
-
-template <typename T>
-class ComPtr {
- public:
-  ~ComPtr() { if (value_ != nullptr) value_->Release(); }
-  T** put() { return &value_; }
-  T* get() const { return value_; }
- private:
-  T* value_ = nullptr;
-};
-
 Result<RgbImage> DecodeImage(const std::filesystem::path& path) {
-  const HRESULT initialized =
-      CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-  const bool uninitialize = initialized == S_OK || initialized == S_FALSE;
-  if (FAILED(initialized) && initialized != RPC_E_CHANGED_MODE) {
-    return Error(StatusCode::kInternal,
-                 "cannot initialize Windows image decoding");
+  std::error_code file_error;
+  const std::uint64_t file_size = std::filesystem::file_size(path, file_error);
+  if (file_error) {
+    return Error(StatusCode::kIoError,
+                 "cannot stat image " + path.string() + ": " +
+                     file_error.message());
   }
-  struct CoScope {
-    bool active;
-    ~CoScope() { if (active) CoUninitialize(); }
-  } scope{uninitialize};
+  if (file_size == 0U || file_size > kMaximumEncodedBytes ||
+      file_size > static_cast<std::uint64_t>(std::numeric_limits<int>::max()) ||
+      file_size > std::numeric_limits<std::size_t>::max()) {
+    return Error(StatusCode::kUnsupported,
+                 "encoded image size is empty or exceeds the safety limit");
+  }
+  std::vector<stbi_uc> encoded(static_cast<std::size_t>(file_size));
+  std::ifstream input(path, std::ios::binary);
+  if (!input ||
+      !input.read(reinterpret_cast<char*>(encoded.data()),
+                  static_cast<std::streamsize>(encoded.size()))) {
+    return Error(StatusCode::kIoError,
+                 "cannot read image " + path.string());
+  }
 
-  ComPtr<IWICImagingFactory> factory;
-  HRESULT result = CoCreateInstance(
-      CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER,
-      IID_PPV_ARGS(factory.put()));
-  if (FAILED(result)) {
-    return Error(StatusCode::kInternal,
-                 "cannot create Windows Imaging Component factory");
-  }
-  ComPtr<IWICBitmapDecoder> decoder;
-  result = factory.get()->CreateDecoderFromFilename(
-      path.c_str(), nullptr, GENERIC_READ, WICDecodeMetadataCacheOnDemand,
-      decoder.put());
-  if (FAILED(result)) {
+  int width = 0;
+  int height = 0;
+  int channels = 0;
+  const int encoded_size = static_cast<int>(encoded.size());
+  if (stbi_info_from_memory(encoded.data(), encoded_size, &width, &height,
+                            &channels) == 0 ||
+      width <= 0 || height <= 0 ||
+      static_cast<std::uint64_t>(width) *
+              static_cast<std::uint64_t>(height) >
+          kMaximumPixels) {
     return Error(StatusCode::kUnsupported,
-                 "cannot decode image file: " + path.string());
+                 "image is malformed, unsupported, or exceeds the pixel limit: " +
+                     path.string());
   }
-  ComPtr<IWICBitmapFrameDecode> frame;
-  result = decoder.get()->GetFrame(0U, frame.put());
-  if (FAILED(result)) {
+
+  std::unique_ptr<stbi_uc, decltype(&stbi_image_free)> decoded(
+      stbi_load_from_memory(encoded.data(), encoded_size, &width, &height,
+                            &channels, 3),
+      &stbi_image_free);
+  if (decoded == nullptr) {
+    const char* reason = stbi_failure_reason();
     return Error(StatusCode::kDataLoss,
-                 "cannot decode the first image frame: " + path.string());
+                 "cannot decode image " + path.string() +
+                     (reason == nullptr ? std::string() :
+                                          ": " + std::string(reason)));
   }
-  UINT width = 0U;
-  UINT height = 0U;
-  result = frame.get()->GetSize(&width, &height);
-  if (FAILED(result) || width == 0U || height == 0U ||
-      static_cast<std::uint64_t>(width) * height > kMaximumPixels) {
-    return Error(StatusCode::kUnsupported,
-                 "image dimensions are empty or exceed the safety limit");
-  }
-  ComPtr<IWICFormatConverter> converter;
-  result = factory.get()->CreateFormatConverter(converter.put());
-  if (SUCCEEDED(result)) {
-    result = converter.get()->Initialize(
-        frame.get(), GUID_WICPixelFormat24bppRGB,
-        WICBitmapDitherTypeNone, nullptr, 0.0,
-        WICBitmapPaletteTypeCustom);
-  }
-  if (FAILED(result)) {
-    return Error(StatusCode::kUnsupported,
-                 "image cannot be converted to 24-bit RGB");
-  }
-  const std::uint64_t stride64 = static_cast<std::uint64_t>(width) * 3U;
-  const std::uint64_t bytes64 = stride64 * height;
-  if (stride64 > std::numeric_limits<UINT>::max() ||
-      bytes64 > std::numeric_limits<UINT>::max()) {
-    return Error(StatusCode::kUnsupported,
-                 "decoded image buffer exceeds the WIC limit");
-  }
+  const std::size_t decoded_bytes = static_cast<std::size_t>(width) *
+                                    static_cast<std::size_t>(height) * 3U;
   RgbImage image;
-  image.width = width;
-  image.height = height;
-  image.pixels.resize(static_cast<std::size_t>(bytes64));
-  result = converter.get()->CopyPixels(
-      nullptr, static_cast<UINT>(stride64), static_cast<UINT>(bytes64),
-      image.pixels.data());
-  if (FAILED(result)) {
-    return Error(StatusCode::kDataLoss,
-                 "cannot read converted RGB image pixels");
-  }
+  image.width = static_cast<std::uint32_t>(width);
+  image.height = static_cast<std::uint32_t>(height);
+  image.pixels.assign(decoded.get(), decoded.get() + decoded_bytes);
   return image;
 }
-
-#else
-
-Result<RgbImage> DecodeImage(const std::filesystem::path& path) {
-  return Error(StatusCode::kUnsupported,
-               "this build currently requires Windows WIC for PNG/JPEG/BMP image decoding: " +
-                   path.string());
-}
-
-#endif
 
 std::pair<std::uint32_t, std::uint32_t> TargetSize(
     std::uint32_t height, std::uint32_t width) {

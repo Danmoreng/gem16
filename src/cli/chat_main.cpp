@@ -84,7 +84,7 @@ void PrintUsage() {
       << "                [--min-p F] [--repetition-penalty F] [--seed N]\n"
       << "                [--dump-state <path> --dump-state-position N]\n"
       << "  gem16-chat --model <checkpoint> --message <text> [--json]\n"
-      << "  gem16-chat --model <checkpoint> --message <text> --audio <wav>\n"
+      << "  gem16-chat --model <checkpoint> --message <text> --audio <file>\n"
       << "  gem16-chat --model <checkpoint> --message <text> --image <png|jpeg|bmp>\n"
       << "  gem16-chat --model <checkpoint> --message <text> --render-only --json\n";
 }
@@ -627,7 +627,7 @@ int ChatMain(int argc, char** argv) {
   }
   Options options = std::move(parsed).value();
   if (!options.audio_path.empty()) {
-    auto audio = gem16::LoadAudioWav(options.audio_path);
+    auto audio = gem16::LoadAudioFile(options.audio_path);
     if (!audio.ok()) {
       std::cerr << "error: " << audio.status().message() << '\n';
       return 2;

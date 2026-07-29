@@ -1,6 +1,6 @@
 # Vision input
 
-Status: implemented and qualified for one-shot Windows chat
+Status: implemented for cross-platform one-shot chat; Windows GPU path qualified
 
 Gemma 4 Unified does not contain a separate transformer-style vision tower.
 Its complete encoder-free vision embedder is:
@@ -33,8 +33,9 @@ are always resident with the text and audio tensors.
   --no-thinking --max-context 1024 --max-tokens 128
 ```
 
-PNG, JPEG, and BMP are decoded through Windows Imaging Component into 24-bit
-RGB. The processor applies the pinned 280-soft-token budget, 16-pixel teacher
+PNG, JPEG, and BMP are decoded by the pinned stb_image single-header library
+into 24-bit RGB on Windows and Linux. The processor applies the pinned
+280-soft-token budget, 16-pixel teacher
 patch, 3x3 merge, bicubic antialias resize, `1/255` rescale, no mean/std
 normalization, row-major patch order, and `(x,y)` position IDs. Empty, oversized,
 malformed, and unsupported images fail before GPU execution.
@@ -56,11 +57,11 @@ input visibly instead of falling back to a causal approximation.
 
 ## Verification
 
-The Windows qualification includes:
+The qualification includes:
 
 - full SM120a release build;
-- host image fixture checking 256 patches, RGB scaling, `(x,y)` order, and
-  boundary positions;
+- cross-platform host image fixture checking 256 patches, RGB scaling, `(x,y)`
+  order, and boundary positions;
 - CUDA mask fixture proving pre-image and post-image text remain causal while an
   early image query changes when future same-image keys become visible;
 - complete host and CUDA regression suites;
@@ -76,7 +77,7 @@ the next vision performance step.
 ## Current limits
 
 - one image per one-shot conversation request;
-- Windows WIC image codecs; the public processed-patch API itself is portable;
+- PNG, JPEG, and BMP input through the portable stb_image decoder;
 - maximum 280 valid image soft tokens;
 - input-only vision and text output;
 - no video-frame adapter yet.

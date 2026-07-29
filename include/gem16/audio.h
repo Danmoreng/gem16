@@ -15,8 +15,13 @@ struct AudioWaveform {
   bool operator==(const AudioWaveform&) const = default;
 };
 
-// Loads a bounded RIFF/WAVE file. PCM16 and IEEE float32, mono/stereo, and
-// 8..48 kHz are accepted and deterministically converted to mono 16 kHz.
+// Decodes a bounded WAV, FLAC, or MP3 file and converts it to mono float32 at
+// the model's fixed 16-kHz sample rate.
+[[nodiscard]] Result<AudioWaveform> LoadAudioFile(
+    const std::filesystem::path& path);
+
+// Backward-compatible name retained for callers built against the WAV-only
+// milestone. The decoder now accepts every format supported by LoadAudioFile.
 [[nodiscard]] Result<AudioWaveform> LoadAudioWav(
     const std::filesystem::path& path);
 

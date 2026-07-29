@@ -149,8 +149,8 @@ session.
 
 Audio input is available in one-shot chat. The unified checkpoint's audio and
 vision tensors are always loaded with the text weights; there is no modality
-residency switch. WAV input accepts PCM16 or float32, mono or stereo, at
-8–48 kHz and converts it deterministically to the model's mono 16-kHz frame
+residency switch. WAV, FLAC, and MP3 input is decoded by the pinned miniaudio
+single-header library and converted to the model's mono float32 16-kHz frame
 contract:
 
 ```powershell

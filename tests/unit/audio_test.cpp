@@ -50,11 +50,19 @@ std::filesystem::path WritePcm16Wav(std::uint32_t sample_rate,
   return path;
 }
 
+std::filesystem::path WriteInvalidAudio() {
+  const auto path = std::filesystem::temp_directory_path() /
+                    "gem16_audio_malformed.bin";
+  std::ofstream output(path, std::ios::binary | std::ios::trunc);
+  output.write("not audio", 9);
+  return path;
+}
+
 }  // namespace
 
 void RunAudioTests() {
   const auto valid_path = WritePcm16Wav(16000U, 1U);
-  auto valid = gem16::LoadAudioWav(valid_path);
+  auto valid = gem16::LoadAudioFile(valid_path);
   GEM16_CHECK(valid.ok());
   if (valid.ok()) {
     GEM16_CHECK(valid.value().sample_rate == 16000U);
@@ -67,7 +75,7 @@ void RunAudioTests() {
   std::filesystem::remove(valid_path, ignored);
 
   const auto resampled_path = WritePcm16Wav(22050U, 1U);
-  auto resampled = gem16::LoadAudioWav(resampled_path);
+  auto resampled = gem16::LoadAudioFile(resampled_path);
   GEM16_CHECK(resampled.ok());
   if (resampled.ok()) {
     GEM16_CHECK(resampled.value().sample_rate == 16000U);
@@ -75,8 +83,8 @@ void RunAudioTests() {
   }
   std::filesystem::remove(resampled_path, ignored);
 
-  const auto invalid_path = WritePcm16Wav(96000U, 3U);
-  auto invalid = gem16::LoadAudioWav(invalid_path);
+  const auto invalid_path = WriteInvalidAudio();
+  auto invalid = gem16::LoadAudioFile(invalid_path);
   GEM16_CHECK(!invalid.ok());
   if (!invalid.ok()) {
     GEM16_CHECK(invalid.status().code() == gem16::StatusCode::kUnsupported);

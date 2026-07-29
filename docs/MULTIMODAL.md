@@ -65,14 +65,14 @@ when reference packages change.
 ## Current implementation boundary
 
 The runtime now always uploads the text, audio, and vision tensor sets. It
-accepts ordered text/audio/image content parts, implements deterministic WAV
-and Windows image preprocessing, substitutes projected soft-token rows before
+accepts ordered text/audio/image content parts, uses pinned miniaudio and
+stb_image decoders before deterministic Gemma preprocessing, substitutes projected soft-token rows before
 layer 0, and retains the ordinary/MTP decode paths after multimodal prefill.
 Vision blocks are kept inside one prefill chunk and receive the checkpoint's
 bidirectional overlay only in sliding-attention layers; global layers remain
 causal. The current CLI supports one local image per one-shot request. Multiple
-images, interactive media attachment, portable Linux image codecs, and video
-frame input remain follow-up work.
+images, interactive media attachment, and video frame input remain follow-up
+work.
 
 ## Pinned multimodal model contract
 
@@ -283,9 +283,10 @@ For each clip:
 8. Produce a valid-row mask; padding used to batch multiple clips is not inserted into the language sequence.
 9. Insert exactly one audio placeholder ID per valid row between the begin/end audio tokens.
 
-The engine should accept already-normalized 16 kHz mono float32 buffers so tests and embedders do not depend on a
-codec library. File-format support is a separate dependency decision. WAV/PCM is the narrowest useful first CLI
-format; MP3, FLAC, and container audio require an explicitly pinned decoder.
+The engine accepts already-normalized 16-kHz mono float32 buffers so tests and
+embedders do not depend on a codec library. The CLI decoder boundary is the
+pinned miniaudio single header and accepts WAV, FLAC, and MP3 before producing
+that same canonical buffer.
 
 ### Video follow-up
 

@@ -47,7 +47,6 @@ add_library(gem16_core STATIC
 )
 if(WIN32)
   target_sources(gem16_core PRIVATE src/platform/mapped_file_windows.cpp)
-  target_link_libraries(gem16_core PRIVATE windowscodecs ole32)
 else()
   target_sources(gem16_core PRIVATE src/platform/mapped_file_posix.cpp)
 endif()
@@ -59,6 +58,10 @@ endif()
 target_include_directories(gem16_core
   PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
   PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src"
+)
+target_include_directories(gem16_core SYSTEM PRIVATE
+  "${CMAKE_CURRENT_SOURCE_DIR}/third_party/stb"
+  "${CMAKE_CURRENT_SOURCE_DIR}/third_party/miniaudio"
 )
 target_compile_features(gem16_core PUBLIC cxx_std_20)
 gem16_set_project_warnings(gem16_core)
