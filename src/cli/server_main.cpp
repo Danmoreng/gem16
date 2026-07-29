@@ -396,6 +396,17 @@ struct ServerMetrics {
 };
 
 struct ServerState {
+  ServerState(std::string served_model_name, std::uint64_t context_limit,
+              gem16::GemmaChatProcessor chat_processor,
+              std::shared_ptr<gem16::ModelRuntime> model_runtime,
+              gem16::ChatSessionOptions chat_session_options,
+              std::uint32_t session_limit)
+      : model_name(std::move(served_model_name)),
+        max_context(context_limit),
+        processor(std::move(chat_processor)),
+        runtime(std::move(model_runtime)),
+        session_options(std::move(chat_session_options)),
+        max_sessions(session_limit) {}
 
   std::string model_name;
   std::uint64_t max_context = 0U;
@@ -1296,12 +1307,9 @@ int ServerMain(int argc, char** argv) {
             << " assistant_weights="
             << runtime.value()->assistant_weight_bytes()
             << " load_ms=" << runtime.value()->load_milliseconds() << '\n';
-  ServerState state{.model_name = options.value().model_name,
-                    .max_context = options.value().max_context,
-                    .processor = std::move(processor).value(),
-                    .runtime = runtime.value(),
-                    .session_options = session_options,
-                    .max_sessions = options.value().max_sessions};
+  ServerState state(options.value().model_name, options.value().max_context,
+                    std::move(processor).value(), runtime.value(),
+                    session_options, options.value().max_sessions);
   httplib::Server server;
   server.Get("/health",
              [&state](const httplib::Request&, httplib::Response& response) {

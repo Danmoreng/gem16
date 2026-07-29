@@ -414,6 +414,13 @@ struct TurnOutput {
   std::vector<gem16::GenerationToolCall> tool_calls;
 };
 
+gem16::ChatMessage TextMessage(std::string role, std::string content) {
+  gem16::ChatMessage message;
+  message.role = std::move(role);
+  message.content = std::move(content);
+  return message;
+}
+
 std::vector<gem16::ChatToolDefinition> MakeChatTools(const Options& options) {
   std::vector<gem16::ChatToolDefinition> tools;
   tools.reserve(options.tools.size());
@@ -705,8 +712,10 @@ gem16::Result<TurnOutput> RunTurn(
                          : "bf16_correctness")
               << ",\"benchmark_qualified\":false}\n";
   }
-  return TurnOutput{std::move(assistant_content).value(),
-                    std::move(assistant_text).value()};
+  TurnOutput output;
+  output.content = std::move(assistant_content).value();
+  output.display_text = std::move(assistant_text).value();
+  return output;
 }
 
 }  // namespace
@@ -758,11 +767,11 @@ int ChatMain(int argc, char** argv) {
   std::vector<gem16::ChatMessage> messages;
   std::vector<std::vector<gem16::GenerationContentPart>> message_media;
   if (options.has_system_message) {
-    messages.push_back({"system", options.system_message});
+    messages.push_back(TextMessage("system", options.system_message));
     message_media.emplace_back();
   }
   if (options.has_one_shot_message) {
-    messages.push_back({"user", options.one_shot_message});
+    messages.push_back(TextMessage("user", options.one_shot_message));
     message_media.push_back(options.media_parts);
     const bool stream_tokens = !options.json && !options.render_only;
     const bool diagnostic_path = options.json ||
@@ -868,7 +877,7 @@ int ChatMain(int argc, char** argv) {
       std::cerr << "error: " << turn_media.status().message() << '\n';
       continue;
     }
-    messages.push_back({"user", input});
+    messages.push_back(TextMessage("user", input));
     message_media.push_back(std::move(turn_media).value());
     pending_media.clear();
     bool turn_failed = false;
