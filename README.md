@@ -175,7 +175,8 @@ contract:
 ```
 
 `--audio` and `--image` may be repeated in one one-shot message; media remain in command-line order after the text
-part. See [docs/AUDIO.md](docs/AUDIO.md) for the qualified audio contract. Image input is also available in one-shot
+part. Image resolution is selected automatically from source dimensions, media count, audio length, output reserve,
+and `--max-context`, capped at 280 tokens. See [docs/AUDIO.md](docs/AUDIO.md) for the qualified audio contract. Image input is also available in one-shot
 chat; PNG, JPEG, and BMP files are decoded
 to RGB, processed into the checkpoint's native merged patches, and projected
 by the complete encoder-free vision embedder on the GPU:

@@ -34,11 +34,19 @@ are always resident with the text and audio tensors.
 ```
 
 PNG, JPEG, and BMP are decoded by the pinned stb_image single-header library
-into 24-bit RGB on Windows and Linux. The processor applies the pinned
-280-soft-token budget, 16-pixel teacher
+into 24-bit RGB on Windows and Linux. The checkpoint permits at most 280 soft
+tokens per image; 1120 is the position-table extent, not a larger qualified
+per-image tier. The automatic policy reserves output, text/boundary, and audio
+capacity, divides the remaining context across all images, caps each at 280,
+and never upscales a small source merely to fill the budget. The processor applies the selected
+soft-token budget, 16-pixel teacher
 patch, 3x3 merge, bicubic antialias resize, `1/255` rescale, no mean/std
 normalization, row-major patch order, and `(x,y)` position IDs. Empty, oversized,
 malformed, and unsupported images fail before GPU execution.
+
+`--stats` reports source size, processed size, actual soft-token count, and the
+automatic per-image budget. In the context-512 qualification, two large diagrams
+were processed as 192/206 and 190/206 tokens and completed without truncation.
 
 The prompt renderer emits `<|image>`, one `<|image|>` placeholder per valid
 patch, and `<image|>`. Projected rows replace only those validated placeholders.
@@ -80,5 +88,6 @@ the next vision performance step.
 - repeated images and audio are supported in one one-shot message;
 - PNG, JPEG, and BMP input through the portable stb_image decoder;
 - maximum 280 valid image soft tokens;
+- automatic context-aware budgets from 1 through 280, with no default upscaling;
 - input-only vision and text output;
 - no video-frame adapter yet.

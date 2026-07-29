@@ -143,6 +143,11 @@ two-image Windows GPU request, and a mixed image-then-audio request using `freem
 the image and transcribed the spoken audio, proving ordered placeholder discovery and independent projection of both
 modalities. Each image is isolated in one prefill chunk while audio may overlap ordinary chunks as before.
 
+Automatic-resolution host tests cover the 1/280 bounds, equal context sharing, a 70-token cap producing a 64-patch
+384x384 square, retained source dimensions, and rejection above the checkpoint maximum. A real context-512 Windows
+GPU run assigned 206 tokens to each of two large diagrams, produced 192- and 190-token aspect-preserving grids, and
+completed the comparison without truncation.
+
 The terminal stream applies the same checkpoint-qualified `ResponseChannelTracker` to generated IDs before
 decoding them. A real Windows fixed-D2 smoke test covers a forced reasoning close and observes separate
 `--- thinking ---` and `--- answer ---` sections without leaking the multi-token channel opener. A second run with

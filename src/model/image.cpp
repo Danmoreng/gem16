@@ -95,18 +95,20 @@ Result<RgbImage> DecodeImage(const std::filesystem::path& path) {
 }
 
 std::pair<std::uint32_t, std::uint32_t> TargetSize(
-    std::uint32_t height, std::uint32_t width) {
+    std::uint32_t height, std::uint32_t width,
+    std::uint32_t maximum_soft_tokens, bool allow_upscale) {
   const double target_pixels = static_cast<double>(
-      kMaximumSoftTokens * kPool * kPool * kTeacherPatch * kTeacherPatch);
-  const double factor = std::sqrt(
+      maximum_soft_tokens * kPool * kPool * kTeacherPatch * kTeacherPatch);
+  double factor = std::sqrt(
       target_pixels / static_cast<double>(height * static_cast<std::uint64_t>(width)));
+  if (!allow_upscale) factor = std::min(1.0, factor);
   const double ideal_height = factor * height;
   const double ideal_width = factor * width;
   std::uint32_t target_height = static_cast<std::uint32_t>(
       std::floor(ideal_height / kModelPatch)) * kModelPatch;
   std::uint32_t target_width = static_cast<std::uint32_t>(
       std::floor(ideal_width / kModelPatch)) * kModelPatch;
-  const std::uint32_t max_side = kMaximumSoftTokens * kModelPatch;
+  const std::uint32_t max_side = maximum_soft_tokens * kModelPatch;
   if (target_height == 0U) {
     target_height = kModelPatch;
     target_width = std::min(
@@ -217,11 +219,29 @@ std::vector<std::uint8_t> Resize(const RgbImage& source,
 
 }  // namespace
 
-Result<VisionImage> LoadVisionImage(const std::filesystem::path& path) {
+std::uint32_t AutomaticVisionSoftTokenBudget(
+    std::uint64_t context_tokens, std::uint64_t reserved_non_image_tokens,
+    std::size_t image_count) {
+  if (image_count == 0U) return kMaximumSoftTokens;
+  const std::uint64_t available = context_tokens > reserved_non_image_tokens
+                                      ? context_tokens - reserved_non_image_tokens
+                                      : image_count;
+  return static_cast<std::uint32_t>(std::clamp<std::uint64_t>(
+      available / image_count, 1U, kMaximumSoftTokens));
+}
+
+Result<VisionImage> LoadVisionImage(const std::filesystem::path& path,
+                                    const VisionImageOptions& options) {
+  if (options.maximum_soft_tokens == 0U ||
+      options.maximum_soft_tokens > kMaximumSoftTokens) {
+    return Error(StatusCode::kInvalidArgument,
+                 "image soft-token budget must be between 1 and 280");
+  }
   auto decoded = DecodeImage(path);
   if (!decoded.ok()) return decoded.status();
   const auto [target_height, target_width] =
-      TargetSize(decoded.value().height, decoded.value().width);
+      TargetSize(decoded.value().height, decoded.value().width,
+                 options.maximum_soft_tokens, options.allow_upscale);
   if (target_height == 0U || target_width == 0U ||
       target_height % kModelPatch != 0U ||
       target_width % kModelPatch != 0U) {
@@ -240,6 +260,9 @@ Result<VisionImage> LoadVisionImage(const std::filesystem::path& path) {
   result.patch_count = patch_count;
   result.source_width = decoded.value().width;
   result.source_height = decoded.value().height;
+  result.processed_width = target_width;
+  result.processed_height = target_height;
+  result.soft_token_budget = options.maximum_soft_tokens;
   result.patches.resize(static_cast<std::size_t>(patch_count) * 48U * 48U * 3U);
   result.positions.resize(static_cast<std::size_t>(patch_count) * 2U);
   std::size_t destination = 0U;

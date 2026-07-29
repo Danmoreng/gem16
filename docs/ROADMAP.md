@@ -205,7 +205,9 @@ The llama.cpp benchmark is deliberately before engine kernel optimization, but a
    calls. **A3 complete:** resident chat loads repeated schema-backed function definitions, displays validated calls,
    collects external results, and continues the exact resident KV prefix through the final answer. **A4 complete:**
    one-shot requests preserve repeated image/audio order, locate every placeholder span, and isolate each image in a
-   qualified prefill chunk. Next add automatic image resolution and image-token budgeting.
+   qualified prefill chunk. **A5 complete:** the checkpoint-bounded automatic policy reserves non-image context,
+   shares the remainder across images, preserves aspect ratio, avoids needless upscaling, and reports actual versus
+   budgeted soft tokens. Next add interactive resident media management.
 14. After the Blackwell backend is correct and competitive, add architecture-specific backends for additional 16 GB
    CUDA GPUs without weakening benchmark or memory contracts.
 

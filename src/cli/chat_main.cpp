@@ -672,24 +672,50 @@ int ChatMain(int argc, char** argv) {
     return 64;
   }
   Options options = std::move(parsed).value();
-  options.media_parts.reserve(options.media_files.size());
-  for (const MediaFile& media : options.media_files) {
+  options.media_parts.resize(options.media_files.size());
+  std::uint64_t audio_tokens = 0U;
+  std::size_t image_count = 0U;
+  for (std::size_t index = 0U; index < options.media_files.size(); ++index) {
+    const MediaFile& media = options.media_files[index];
     if (media.kind == MediaFileKind::kAudio) {
       auto audio = gem16::LoadAudioFile(media.path);
       if (!audio.ok()) {
         std::cerr << "error: " << audio.status().message() << '\n';
         return 2;
       }
-      options.media_parts.push_back(
-          gem16::GenerationContentPart::Audio(std::move(audio).value()));
+      audio_tokens += (audio.value().samples.size() + 639U) / 640U;
+      options.media_parts[index] =
+          gem16::GenerationContentPart::Audio(std::move(audio).value());
     } else {
-      auto image = gem16::LoadVisionImage(media.path);
+      ++image_count;
+    }
+  }
+  const std::uint64_t output_reserve = options.max_tokens.value_or(
+      std::min<std::uint64_t>(128U, options.max_context / 4U));
+  const std::uint64_t fixed_reserve =
+      output_reserve + audio_tokens + 64U + options.media_files.size() * 2U;
+  const std::uint32_t per_image_budget =
+      gem16::AutomaticVisionSoftTokenBudget(
+          options.max_context, fixed_reserve, image_count);
+  for (std::size_t index = 0U; index < options.media_files.size(); ++index) {
+    const MediaFile& media = options.media_files[index];
+    if (media.kind == MediaFileKind::kImage) {
+      auto image = gem16::LoadVisionImage(
+          media.path, gem16::VisionImageOptions{per_image_budget, false});
       if (!image.ok()) {
         std::cerr << "error: " << image.status().message() << '\n';
         return 2;
       }
-      options.media_parts.push_back(
-          gem16::GenerationContentPart::Image(std::move(image).value()));
+      if (options.stats) {
+        std::cerr << "[media] image " << image.value().source_width << 'x'
+                  << image.value().source_height << " -> "
+                  << image.value().processed_width << 'x'
+                  << image.value().processed_height << ", "
+                  << image.value().patch_count << '/' << per_image_budget
+                  << " soft tokens\n";
+      }
+      options.media_parts[index] =
+          gem16::GenerationContentPart::Image(std::move(image).value());
     }
   }
   auto processor =

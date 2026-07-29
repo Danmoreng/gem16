@@ -61,6 +61,12 @@ std::filesystem::path WriteSolidBmp() {
 }  // namespace
 
 void RunImageTests() {
+  GEM16_CHECK(gem16::AutomaticVisionSoftTokenBudget(1024U, 200U, 2U) ==
+              280U);
+  GEM16_CHECK(gem16::AutomaticVisionSoftTokenBudget(512U, 200U, 2U) ==
+              156U);
+  GEM16_CHECK(gem16::AutomaticVisionSoftTokenBudget(128U, 200U, 2U) ==
+              1U);
   const auto path = WriteSolidBmp();
   auto image = gem16::LoadVisionImage(path);
   GEM16_CHECK(image.ok());
@@ -68,6 +74,9 @@ void RunImageTests() {
     const auto& value = image.value();
     GEM16_CHECK(value.source_width == 768U);
     GEM16_CHECK(value.source_height == 768U);
+    GEM16_CHECK(value.processed_width == 768U);
+    GEM16_CHECK(value.processed_height == 768U);
+    GEM16_CHECK(value.soft_token_budget == 280U);
     GEM16_CHECK(value.patch_count == 256U);
     GEM16_CHECK(value.positions.size() == 512U);
     GEM16_CHECK(value.positions[0] == 0);
@@ -80,6 +89,18 @@ void RunImageTests() {
     GEM16_CHECK(value.patches[2] == 1.0F);
     GEM16_CHECK(value.patches.back() == 1.0F);
   }
+  auto compact = gem16::LoadVisionImage(
+      path, gem16::VisionImageOptions{70U, false});
+  GEM16_CHECK(compact.ok());
+  if (compact.ok()) {
+    GEM16_CHECK(compact.value().patch_count == 64U);
+    GEM16_CHECK(compact.value().processed_width == 384U);
+    GEM16_CHECK(compact.value().processed_height == 384U);
+    GEM16_CHECK(compact.value().soft_token_budget == 70U);
+  }
+  GEM16_CHECK(!gem16::LoadVisionImage(
+                   path, gem16::VisionImageOptions{281U, false})
+                   .ok());
   std::error_code ignored;
   std::filesystem::remove(path, ignored);
 }
