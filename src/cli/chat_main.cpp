@@ -78,7 +78,7 @@ void PrintUsage() {
       << "                [--mtp-draft-tokens 1|2|4] [--mtp-adaptive]\n"
       << "                [--stats]\n"
       << "                [--thinking-budget off|small|medium|high] [--thinking|--no-thinking]\n"
-      << "                [--show-thinking] [--system <text>]\n"
+      << "                [--show-thinking|--hide-thinking] [--system <text>]\n"
       << "                [--kv-cache fp8|bf16]\n"
       << "                [--greedy|--sample] [--temperature F] [--top-k N] [--top-p F]\n"
       << "                [--min-p F] [--repetition-penalty F] [--seed N]\n"
@@ -159,6 +159,8 @@ gem16::Result<Options> ParseOptions(int argc, char** argv) {
       options.thinking_effort = gem16::ThinkingEffort::kOff;
     } else if (argument == "--show-thinking") {
       options.show_thinking = true;
+    } else if (argument == "--hide-thinking") {
+      options.show_thinking = false;
     } else if (argument == "--thinking-budget" && index + 1 < argc) {
       const std::string_view effort = argv[++index];
       if (effort == "off") {
@@ -313,9 +315,27 @@ struct TurnOutput {
 };
 
 struct TokenStreamContext {
-  const gem16::GemmaChatProcessor* processor = nullptr;
-  std::ostream* output = nullptr;
+  TokenStreamContext(const gem16::GemmaChatProcessor& chat_processor,
+                     std::ostream& token_output, bool show_reasoning)
+      : processor(&chat_processor),
+        output(&token_output),
+        channel_tracker(chat_processor.generation_controls()),
+        show_thinking(show_reasoning) {}
+
+  const gem16::GemmaChatProcessor* processor;
+  std::ostream* output;
+  gem16::ResponseChannelTracker channel_tracker;
+  bool show_thinking = true;
+  bool section_started = false;
+  bool thinking_header_written = false;
+  bool answer_header_written = false;
 };
+
+void BeginStreamSection(TokenStreamContext& context, std::string_view name) {
+  *context.output << (context.section_started ? "\n\n" : "\n")
+                  << "--- " << name << " ---\n";
+  context.section_started = true;
+}
 
 gem16::Status StreamGeneratedToken(void* opaque_context,
                                     std::uint32_t token_id) {
@@ -325,8 +345,34 @@ gem16::Status StreamGeneratedToken(void* opaque_context,
     return gem16::Status(gem16::StatusCode::kInternal,
                            "chat token stream is not initialized");
   }
-  auto status =
-      context->processor->WriteDecodedToken(token_id, true, *context->output);
+  const bool was_reasoning = context->channel_tracker.in_reasoning();
+  const gem16::ResponseTokenChannel channel =
+      context->channel_tracker.Observe(token_id);
+  const bool is_reasoning = context->channel_tracker.in_reasoning();
+
+  if (!was_reasoning && is_reasoning && context->show_thinking &&
+      !context->thinking_header_written) {
+    BeginStreamSection(*context, "thinking");
+    context->thinking_header_written = true;
+  }
+  if (was_reasoning && !is_reasoning && !context->answer_header_written) {
+    BeginStreamSection(*context, "answer");
+    context->answer_header_written = true;
+  }
+
+  if (channel == gem16::ResponseTokenChannel::kText &&
+      !context->answer_header_written) {
+    BeginStreamSection(*context, "answer");
+    context->answer_header_written = true;
+  }
+
+  gem16::Status status = gem16::Status::Ok();
+  if (channel == gem16::ResponseTokenChannel::kText ||
+      (channel == gem16::ResponseTokenChannel::kReasoning &&
+       context->show_thinking)) {
+    status = context->processor->WriteDecodedToken(token_id, true,
+                                                   *context->output);
+  }
   if (!status.ok()) return status;
   context->output->flush();
   if (!*context->output) {
@@ -389,7 +435,8 @@ gem16::Result<TurnOutput> RunTurn(
       request.messages.push_back(
           gem16::GenerationMessage::Text(message.role, message.content));
     }
-    TokenStreamContext stream_context{&processor, &std::cout};
+    TokenStreamContext stream_context(processor, std::cout,
+                                      cli.show_thinking);
     auto generated = session->Generate(
         request, stream_tokens ? StreamGenerationEvent : nullptr,
         stream_tokens ? &stream_context : nullptr);
@@ -436,7 +483,7 @@ gem16::Result<TurnOutput> RunTurn(
   inference_options.mtp_adaptive = cli.mtp_adaptive;
   inference_options.state_dump_path = cli.state_dump_path;
   inference_options.state_dump_position = cli.state_dump_position;
-  TokenStreamContext stream_context{&processor, &std::cout};
+  TokenStreamContext stream_context(processor, std::cout, cli.show_thinking);
   if (stream_tokens) {
     inference_options.generated_token_callback = StreamGeneratedToken;
     inference_options.generated_token_callback_context = &stream_context;

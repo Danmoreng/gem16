@@ -124,6 +124,12 @@ chat validator. Ordinary and sampled fixed-D2 sessions still produce `Blau` then
 both sampled MTP turns report GPU chaining, and no CUDA engine, graph, workspace, KV, sampling, or kernel code is
 changed by the orchestration boundary.
 
+The terminal stream applies the same checkpoint-qualified `ResponseChannelTracker` to generated IDs before
+decoding them. A real Windows fixed-D2 smoke test covers a forced reasoning close and observes separate
+`--- thinking ---` and `--- answer ---` sections without leaking the multi-token channel opener. A second run with
+`--hide-thinking` suppresses the reasoning body while retaining the answer boundary. Both runs complete with GPU
+chaining; this is presentation-only and does not alter stored response content or generated IDs.
+
 Sampled MTP uses ordinary same-seed Target sampling as its executable reference. Each fixed verifier row receives
 its ordinary output step and a repetition mask containing committed history plus only the proposal inputs preceding
 that row. Acceptance compares Assistant IDs with those Target-selected IDs, commits the repetition mask for the

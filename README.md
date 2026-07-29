@@ -142,7 +142,10 @@ reasoning, the same graph routes safe full groups through MTP and only exact mar
 ordinary Target decode; transitions and MTP resumption remain GPU-controlled without a blocking host roundtrip. With no
 `--max-tokens`, a turn runs until a checkpoint stop token or the remaining `--max-context` capacity; pass
 `--max-tokens N` for a stricter per-turn limit. `--stats` prints per-turn throughput, proposal/acceptance counts,
-verifier groups, and whether GPU chaining was active. Enter `/quit` to leave the session.
+verifier groups, and whether GPU chaining was active. Streaming output labels the model's private reasoning and
+visible response as separate `--- thinking ---` and `--- answer ---` sections. `--hide-thinking` suppresses the
+reasoning body while retaining the answer header; `--show-thinking` is the default. Enter `/quit` to leave the
+session.
 
 ## Command-line tools
 

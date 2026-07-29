@@ -1,5 +1,23 @@
 # Decisions
 
+## 2026-07-29: Render chat reasoning and answer as explicit terminal sections
+
+Date: 2026-07-29
+
+Decision: The interactive and streamed one-shot CLI observes checkpoint-qualified response-channel token IDs
+before decoding them. It suppresses the complete channel markers and emits explicit `--- thinking ---` and
+`--- answer ---` section headers at their transitions. Thinking remains visible by default; `--hide-thinking`
+suppresses its body while still marking the answer start.
+
+Context: Decoding each token independently with special-token suppression leaked the ordinary `thought` token from
+the multi-token channel opener, hid the special close token, and concatenated the first answer token directly onto
+the reasoning text. The runtime already exposes exact generated token IDs and the allocation-free
+`ResponseChannelTracker`, so presentation does not require buffering, re-tokenization, or a generation change.
+
+Consequences: Terminal output clearly distinguishes internal reasoning from the user-visible answer in real time.
+JSON fields, stored assistant content, conversation-prefix identity, MTP scheduling, sampling, and model output IDs
+are unchanged. The renderer performs no token-loop allocation after its tracker is constructed.
+
 ## 2026-07-29: Keep bounded reasoning inside the fixed-D2 GPU chain
 
 Date: 2026-07-29
