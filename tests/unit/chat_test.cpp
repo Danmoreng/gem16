@@ -47,11 +47,11 @@ void TestProtocolNeutralGenerationTypes() {
   GEM16_CHECK(request.thinking.effort == gem16::ThinkingEffort::kMedium);
   GEM16_CHECK(gem16::ThinkingBudgetTokens(gem16::ThinkingEffort::kOff) == 0U);
   GEM16_CHECK(gem16::ThinkingBudgetTokens(
-                  gem16::ThinkingEffort::kSmall) == 256U);
+                  gem16::ThinkingEffort::kSmall) == 1024U);
   GEM16_CHECK(gem16::ThinkingBudgetTokens(
-                  gem16::ThinkingEffort::kMedium) == 1024U);
+                  gem16::ThinkingEffort::kMedium) == 4096U);
   GEM16_CHECK(gem16::ThinkingBudgetTokens(
-                  gem16::ThinkingEffort::kHigh) == 4096U);
+                  gem16::ThinkingEffort::kHigh) == 8192U);
   GEM16_CHECK(std::string(gem16::GenerationFinishReasonName(
                   gem16::GenerationFinishReason::kStop)) == "stop");
   GEM16_CHECK(std::string(gem16::GenerationFinishReasonName(

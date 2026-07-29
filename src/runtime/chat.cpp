@@ -11,9 +11,9 @@ namespace gem16 {
 std::uint64_t ThinkingBudgetTokens(ThinkingEffort effort) {
   switch (effort) {
     case ThinkingEffort::kOff: return 0U;
-    case ThinkingEffort::kSmall: return 256U;
-    case ThinkingEffort::kMedium: return 1024U;
-    case ThinkingEffort::kHigh: return 4096U;
+    case ThinkingEffort::kSmall: return 1024U;
+    case ThinkingEffort::kMedium: return 4096U;
+    case ThinkingEffort::kHigh: return 8192U;
   }
   return 0U;
 }

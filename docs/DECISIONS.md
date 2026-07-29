@@ -1,5 +1,22 @@
 # Decisions
 
+## 2026-07-29: Increase chat thinking budgets
+
+Date: 2026-07-29
+
+Decision: Increase the nominal `small`, `medium`, and `high` reasoning caps to 1,024, 4,096, and 8,192 tokens.
+`off` remains zero and medium remains the chat default. The existing total-output reservation still reduces the
+effective cap when the request cannot accommodate both the nominal reasoning budget and visible answer tokens.
+
+Context: The initial 256/1,024/4,096-token presets constrain useful reasoning too aggressively for interactive
+quality work. The larger progression gives the default mode enough room for substantial reasoning while retaining
+an explicit 8K upper bound.
+
+Consequences: Default chat may spend more time in ordinary Target reasoning forwards before sampled or greedy MTP
+resumes for the visible answer. Callers that need the previous latency profile must select a stricter total
+`--max-tokens` limit or disable thinking. The enforced channel-close, RNG-step, and answer-reservation semantics do
+not change.
+
 ## 2026-07-29: Default chat to bounded thinking
 
 Date: 2026-07-29
