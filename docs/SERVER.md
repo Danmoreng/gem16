@@ -70,3 +70,25 @@ are serialized. This preserves the qualified resident KV prefix without a
 second weight copy. The next runtime milestones separate shared immutable
 weights, per-conversation state, and execution workspaces before adding
 multiple resident sessions, cancellation, LRU eviction, and metrics.
+
+## Official OpenAI SDK qualification
+
+The reproducible agent gate uses the official Python SDK pinned in
+`tools/requirements-openai-sdk.txt`. Install it in an isolated environment,
+start a fresh gem16 server, then run:
+
+```powershell
+python -m venv .venv-openai
+.\.venv-openai\Scripts\python.exe -m pip install `
+  -r .\tools\requirements-openai-sdk.txt
+.\.venv-openai\Scripts\python.exe .\tools\validate_openai_agent.py `
+  --base-url http://127.0.0.1:8080/v1 --model gem16
+```
+
+The default gate uses `client.chat.completions.create(stream=True)`, requests
+an indexed `get_weather` function call, accumulates the SDK's typed tool
+deltas, validates its JSON arguments, executes the deterministic local fixture,
+appends the assistant call and tool result, and checks the streamed grounded
+answer plus usage chunks. `--no-stream` exercises the same loop with ordinary
+Chat Completion objects. Use a fresh server because A8 intentionally tests the
+current single resident conversation from its first request.

@@ -1,0 +1,2 @@
+# Exact client version used by the OpenAI-compatible agent qualification.
+openai==2.50.0

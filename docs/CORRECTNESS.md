@@ -165,6 +165,14 @@ A real mixed inline PNG plus WAV request produced a 715-token multimodal prompt
 and correctly described the supplied software-pipeline diagram. Both complete
 host and CUDA suites remained green.
 
+The official `openai==2.50.0` Python SDK gate uses its normal `OpenAI` client,
+custom `base_url`, typed streaming Chat Completion chunks, function-tool
+objects, and usage parsing. The real Windows run assembled one `get_weather`
+call with `{"location":"Berlin, Germany"}`, submitted `Sunny, 25 C` through
+the SDK as a tool message, and received a final answer containing both sunny
+conditions and 25 degrees. No hand-written HTTP request participates in this
+agent-loop gate.
+
 The terminal stream applies the same checkpoint-qualified `ResponseChannelTracker` to generated IDs before
 decoding them. A real Windows fixed-D2 smoke test covers a forced reasoning close and observes separate
 `--- thinking ---` and `--- answer ---` sections without leaking the multi-token channel opener. A second run with

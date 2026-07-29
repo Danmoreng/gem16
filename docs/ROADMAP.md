@@ -213,7 +213,10 @@ The llama.cpp benchmark is deliberately before engine kernel optimization, but a
    turns. **A7 complete:** `/v1/chat/completions` supports bounded OpenAI JSON,
    non-stream and SSE output, usage, reasoning/text/tool deltas, exact tool-result
    continuation, and ordered inline image/audio content above a serialized
-   resident `ChatSession`. Next run the official OpenAI SDK agent/tool loop.
+   resident `ChatSession`. **A8 complete:** the pinned official OpenAI Python
+   SDK executes a real streamed weather-tool loop, parses typed call deltas and
+   usage, appends the tool result, and verifies the grounded final answer. Next
+   split `ModelRuntime`, `SessionState`, and `ExecutionSlot` ownership.
 14. After the Blackwell backend is correct and competitive, add architecture-specific backends for additional 16 GB
    CUDA GPUs without weakening benchmark or memory contracts.
 

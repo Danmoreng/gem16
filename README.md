@@ -217,6 +217,9 @@ their JSON order and share the automatic image-token budget. Function tools,
 assistant `tool_calls`, and `tool` result messages map directly onto the native
 Gemma tool protocol. See [docs/SERVER.md](docs/SERVER.md) for requests, SSE
 events, current single-conversation semantics, and visible unsupported fields.
+The official OpenAI Python SDK agent gate is
+`tools/validate_openai_agent.py`, pinned by
+`tools/requirements-openai-sdk.txt`.
 
 ## Command-line tools
 
