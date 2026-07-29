@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "description": "Long-form factual and correction-followup quality fixtures. These are quality diagnostics, not exact-token goldens.",
+  "prompts": [
+    {
+      "id": "de_harry_potter_books_1_2",
+      "messages": [
+        {
+          "role": "user",
+          "content": "hi bitte schreib eine zusammenfassung über harry potter band 1 und 2"
+        }
+      ],
+      "enable_thinking": false,
+      "quality_expectations": {
+        "required_anywhere": [
+          "Stein der Weisen",
+          "Kammer des Schreckens",
+          "Basilisk",
+          "Tom Riddle"
+        ],
+        "forbidden_anywhere": [
+          "Gefangenenesel",
+          "Gefangene von Azkaban",
+          "Geheimsächliche Stein",
+          "Geheimnis des Steins"
+        ]
+      }
+    },
+    {
+      "id": "de_harry_potter_books_1_2_correction",
+      "messages": [
+        {
+          "role": "user",
+          "content": "hi bitte schreib eine zusammenfassung über harry potter band 1 und 2"
+        },
+        {
+          "role": "assistant",
+          "content": "Band 2 handelt vom Gefangenen von Askaban."
+        },
+        {
+          "role": "user",
+          "content": "War der Gefangene von Askaban nicht Band 3? In Band 2 ging es doch um die Kammer des Schreckens?"
+        }
+      ],
+      "enable_thinking": false,
+      "quality_expectations": {
+        "required_anywhere": [
+          "Kammer des Schreckens",
+          "Basilisk",
+          "Tom Riddle",
+          "Ginny"
+        ],
+        "forbidden_anywhere": [
+          "Gefangenenesel",
+          "Heilsanker",
+          "versteinerte Lehrerin"
+        ]
+      }
+    }
+  ]
+}
