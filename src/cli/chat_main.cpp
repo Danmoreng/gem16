@@ -354,7 +354,8 @@ gem16::Result<TurnOutput> RunTurn(
   if (session != nullptr) {
     gem16::ChatGenerationRequest request;
     request.max_generated_tokens = cli.max_tokens;
-    request.enable_thinking = cli.thinking;
+    request.thinking.effort = cli.thinking ? gem16::ThinkingEffort::kMedium
+                                           : gem16::ThinkingEffort::kOff;
     request.messages.reserve(messages.size());
     for (const gem16::ChatMessage& message : messages) {
       request.messages.push_back(

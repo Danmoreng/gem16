@@ -139,11 +139,12 @@ Result<ChatGenerationResponse> ChatSession::Generate(
 
   Result<std::vector<std::uint32_t>> prompt_ids = [&]() {
     if (impl_->cached_prefix_token_ids.empty()) {
-      return impl_->processor.Encode(messages.value(),
-                                     request.enable_thinking);
+      return impl_->processor.Encode(
+          messages.value(), request.thinking.effort != ThinkingEffort::kOff);
     }
     auto continuation = impl_->processor.EncodeContinuation(
-        messages.value().back().content, request.enable_thinking);
+        messages.value().back().content,
+        request.thinking.effort != ThinkingEffort::kOff);
     if (!continuation.ok()) {
       return Result<std::vector<std::uint32_t>>(continuation.status());
     }
