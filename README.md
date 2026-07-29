@@ -137,7 +137,9 @@ the terminal incrementally. The CLI now consumes the protocol-neutral `ChatSessi
 official assistant also remains resident. Chat defaults to medium thinking (4,096 reasoning tokens maximum) and
 the pinned Google generation profile (`temperature=1.0`, `top_k=64`, `top_p=0.95`). Use
 `--thinking-budget off|small|medium|high` for 0/1,024/4,096/8,192-token reasoning caps and `--greedy` for explicit greedy
-decoding. Fixed D2 uses the GPU-chained conditional graph for greedy and sampled generation. With no
+decoding. Fixed D2 uses the GPU-chained conditional graph for greedy and sampled generation. During bounded
+reasoning, the same graph routes safe full groups through MTP and only exact marker/budget/tail boundaries through
+ordinary Target decode; transitions and MTP resumption remain GPU-controlled without a blocking host roundtrip. With no
 `--max-tokens`, a turn runs until a checkpoint stop token or the remaining `--max-context` capacity; pass
 `--max-tokens N` for a stricter per-turn limit. `--stats` prints per-turn throughput, proposal/acceptance counts,
 verifier groups, and whether GPU chaining was active. Enter `/quit` to leave the session.

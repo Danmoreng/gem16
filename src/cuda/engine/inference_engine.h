@@ -43,7 +43,8 @@ class InferenceEngine {
       std::uint32_t input_token, std::uint64_t processed_position,
       std::uint64_t remaining_output_capacity,
       std::uint64_t output_write_position, bool stopped,
-      std::uint32_t stop_token);
+      std::uint32_t stop_token,
+      const internal::MtpReasoningState& reasoning = {});
   [[nodiscard]] Status VerifyAcceptCommitAssistantBatch(
       std::uint32_t input_token, std::uint64_t start_position,
       std::uint32_t proposal_count, internal::MtpGroupResult* host_result);

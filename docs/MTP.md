@@ -163,8 +163,11 @@ synchronization remain per group for the non-chained D1/D4/adaptive paths. `--mt
 context/acceptance-based D4→D2→D1 selection and bounded ordinary decode fallback. Resident chat loads the official
 assistant once, preserves the exact target KV prefix between turns, and reinitializes the fixed-D2 device control
 from each newly prefetched suffix. The GPU-chained D2 callback ring streams verified text without a per-group host
-roundtrip. Greedy and sampled MTP are active. Fixed D2 uses the GPU-chained graph and mapped-pinned streaming ring in both
-modes; D1/D4/adaptive paths retain one synchronization per direct verification group. Diagnostic dumps remain
+roundtrip. Greedy and sampled MTP are active. Fixed D2 uses one outer device-routed conditional graph in both
+modes. Its D2 branch handles complete safe groups during reasoning and answer generation; its ordinary branch
+handles partial channel markers, exact reasoning-budget closure, and short output tails before returning control
+to the device router. Natural close plus following answer tokens within an accepted group remain valid and are
+committed in order. D1/D4/adaptive paths retain one synchronization per direct verification group. Diagnostic dumps remain
 outside active MTP rather than silently changing semantics.
 
 ## Sampled-MTP qualification gate
@@ -232,6 +235,8 @@ Delivery is deliberately incremental:
 6. **Sampled fixed-D2 graph and resident chat.** Apply the sampled-MTP contract above with row-specific target
    sampling state, transactional RNG/repetition commit, device stop/tail handling, and the existing asynchronous
    streaming boundary. Qualify ordinary/MTP identity per seed and resident multi-turn continuation on Linux.
+   **Complete.** Bounded reasoning is also routed inside this graph: D2 runs while a full group is safe, exact
+   boundary rows use the captured ordinary child, and continuation/resumption remains device-controlled.
 7. **Adaptive graph branches.** After fixed D2 sampled streaming is stable, add conditional D1/D2/ordinary paths
    for the existing adaptive policy. D4 may follow as a separately captured fixed shape.
 8. **Optional N-Gram proposer branch.** Much later, and only after the graph above is stable, measure a

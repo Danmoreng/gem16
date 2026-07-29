@@ -83,7 +83,10 @@ graph.
 
 Conversation sessions may also own the official MTP assistant and its fixed workspace. After each new conversation
 suffix is prefetched at the resident absolute position, fixed D2 stages the new target hidden row and reuses the
-complete conditional graph, device stop/tail state, and mapped-pinned streaming ring. Greedy verification compares
+complete conditional graph, device stop/tail/reasoning state, and mapped-pinned streaming ring. A device router
+chooses a three-row D2 group whenever channel state and remaining reasoning/output capacity make the whole group
+safe; partial markers, exact budget closure, and final one- or two-token tails use an ordinary Target branch in the
+same graph. The continuation decision remains on device and D2 resumes after the boundary. Greedy verification compares
 Target Argmax IDs. Sampled verification materializes one exact Target logit row per verifier position, derives a
 row-local repetition mask from committed history plus the proposal prefix, and samples with the ordinary seed and
 output step. Acceptance commits only the longest proposal prefix matching those Target samples; the first mismatch
@@ -150,12 +153,11 @@ surface while callers migrate to operator-specific headers. `--mtp-adaptive` opt
 selects D4/D2/D1 and ordinary fallback from context and 16-group acceptance windows. This scheduler emits only
 target-verified tokens and therefore retains ordinary greedy output.
 
-The next execution boundary before multimodal is a fully GPU-controlled greedy MTP decode graph. It does not alter
-the target or assistant math. An arena-backed `MtpDeviceControl` will own the current input token, processed
-position, remaining length, stop state, output index, and graph mode. Development first mirrors the existing host
-transition and asserts parity after each compact result. A complete fixed-D2 graph then captures both assistant
-steps, all 48 target layers, acceptance, and transactional commit before conditional graph execution chains groups
-without a host dependency. Stop and final-tail handling move to device control only after fixed-D2 chaining passes.
+The fixed-D2 execution boundary is a fully GPU-controlled MTP decode graph and does not alter target or assistant
+math. Arena-backed device control owns the current input token, processed position, remaining length, stop state,
+output index, sampling state, response-channel parser, reasoning budget, and graph route. One outer conditional
+loop selects captured D2 or ordinary Target child graphs, then makes the continuation decision on device. Stop,
+tail, partial-marker, natural-close, and exact forced-close handling therefore remain inside one graph launch.
 
 Streaming is a separate boundary from graph scheduling. A preallocated GPU-producer/host-consumer ring contains
 only target-verified token IDs and monotonically published indices. A host poller may decode text and invoke the

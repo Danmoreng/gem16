@@ -16,6 +16,7 @@ constexpr std::uint64_t kMaximumMtpDraftTokens = 4U;
 constexpr std::uint64_t kMaximumMtpVerifyTokens =
     kMaximumMtpDraftTokens + 1U;
 constexpr std::uint64_t kMtpStreamingRingCapacity = 256U;
+constexpr std::uint32_t kMaximumThinkingOpenTokens = 8U;
 
 struct alignas(64) MtpStreamingRing {
   unsigned long long producer = 0U;
@@ -46,9 +47,25 @@ struct MtpDeviceState {
   std::uint64_t sampling_step = 0U;
 };
 
+struct MtpReasoningState {
+  std::array<std::uint32_t, kMaximumThinkingOpenTokens> open_token_ids{};
+  std::uint32_t close_token_id = 0U;
+  std::uint32_t open_token_count = 0U;
+  std::uint32_t open_match_length = 0U;
+  std::uint32_t enabled = 0U;
+  std::uint32_t started = 0U;
+  std::uint32_t complete = 0U;
+  std::uint32_t in_reasoning = 0U;
+  std::uint32_t budget_forced = 0U;
+  std::uint32_t reserved = 0U;
+  std::uint64_t reasoning_token_count = 0U;
+  std::uint64_t max_reasoning_tokens = 0U;
+};
+
 struct alignas(16) MtpDeviceControl {
   MtpDeviceState current{};
   MtpDeviceState next{};
+  MtpReasoningState reasoning{};
   std::uint32_t fixed_draft_tokens = 0U;
   std::uint32_t proposal_count = 0U;
   std::uint32_t transition_valid = 0U;
@@ -68,8 +85,12 @@ struct alignas(16) MtpChainResult {
   std::uint64_t rejected_count = 0U;
   std::uint64_t group_count = 0U;
   std::uint64_t ordinary_tail_count = 0U;
+  std::uint64_t reasoning_ordinary_count = 0U;
+  std::uint64_t reasoning_token_count = 0U;
   std::uint32_t stopped = 0U;
   std::uint32_t stop_token = 0U;
+  std::uint32_t reasoning_complete = 0U;
+  std::uint32_t reasoning_budget_forced = 0U;
 };
 
 static_assert(std::is_trivially_copyable_v<MtpGroupTransaction>);
@@ -140,9 +161,17 @@ static_assert(offsetof(MtpGroupTransaction, control) % 16U == 0U);
 [[nodiscard]] Status LaunchAdvanceMtpD2Chain(
     MtpGroupTransaction* transaction, MtpChainResult* chain_result,
     std::uint32_t* output_tokens, std::uint32_t* proposed_tokens,
-    MtpStreamingRing* streaming_ring,
+    MtpStreamingRing* streaming_ring, cudaStream_t stream);
+
+[[nodiscard]] Status LaunchSelectMtpChainBranch(
+    const MtpGroupTransaction* transaction,
     cudaGraphConditionalHandle d2_condition,
-    cudaGraphConditionalHandle tail_condition, cudaStream_t stream);
+    cudaGraphConditionalHandle ordinary_condition, cudaStream_t stream);
+
+[[nodiscard]] Status LaunchContinueMtpChain(
+    const MtpGroupTransaction* transaction,
+    const MtpStreamingRing* streaming_ring,
+    cudaGraphConditionalHandle loop_condition, cudaStream_t stream);
 
 [[nodiscard]] Status LaunchInitializeMtpOrdinaryTail(
     const MtpGroupTransaction* transaction, DecodeControl* decode_control,
@@ -152,7 +181,6 @@ static_assert(offsetof(MtpGroupTransaction, control) % 16U == 0U);
     const std::uint32_t* selected, const std::uint32_t* stop_tokens,
     std::uint32_t stop_count, MtpGroupTransaction* transaction,
     MtpChainResult* chain_result, std::uint32_t* output_tokens,
-    MtpStreamingRing* streaming_ring,
-    cudaGraphConditionalHandle tail_condition, cudaStream_t stream);
+    MtpStreamingRing* streaming_ring, cudaStream_t stream);
 
 }  // namespace gem16::internal

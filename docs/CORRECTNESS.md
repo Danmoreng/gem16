@@ -133,6 +133,13 @@ two-turn GPU-chained chat. The Linux Wikipedia 3/10 gate preserves one ordinary/
 This exact-seed contract is not probability-ratio speculative sampling and makes no use of unavailable Assistant
 proposal probabilities.
 
+Bounded reasoning adds a device-resident response-channel tracker to fixed D2. A complete D2 group is permitted
+only when it cannot cross an unresolved marker or the exact reasoning cap. An ordinary child graph handles those
+boundary rows and feeds its normalized hidden state back into the shared MTP workspace, allowing the next device
+iteration to resume D2. Natural close markers and subsequent answer tokens are observed sequentially and retained;
+forced close occurs exactly at the configured body-token count. CUDA fixtures cover natural and forced transitions,
+and the isolated transition suite passes Compute Sanitizer memcheck with zero errors.
+
 `--dump-logits` captures every selected position as full-vocabulary raw little-endian float32 after preallocating
 host storage, and `tools/compare_logits.py` compares it with the committed vLLM top-20 distributions. When no
 layer-state dump is requested, the first captured position now comes directly from the batch-prefill output head;
@@ -301,8 +308,10 @@ python tools/verify_sm120_sass.py build/<OS>/blackwell-release/bin/gem16-cuda-te
 The optional MTP path is exact-by-verification: assistant drafts never directly determine emitted output. For each
 proposal group, one causal target batch evaluates the input token plus all drafts; the first mismatch emits its
 target token, while a fully accepted group emits the target's extra prediction. Tentative K/V rows remain separate
-until a GPU acceptance kernel selects and commits that exact prefix plus the corresponding hidden row. One compact
-result returns to the host for callbacks and scheduling. Consequently active MTP must reproduce ordinary greedy
+until a GPU acceptance kernel selects and commits that exact prefix plus the corresponding hidden row. The direct
+D1/D4/adaptive paths return one compact result to the host for callbacks and scheduling. Fixed D2 instead chains
+verification groups, ordinary boundary rows, channel transitions, and tails in one device-routed graph while the
+host asynchronously consumes verified tokens. Consequently active MTP must reproduce ordinary greedy
 token IDs exactly even when assistant arithmetic or cache precision changes acceptance. The scheduler supports
 draft lengths 1, 2, and 4 and reports all proposal IDs and acceptance counters under
 `verification_mode=batched_exact_target`.

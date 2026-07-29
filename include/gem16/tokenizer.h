@@ -50,6 +50,9 @@ class ResponseChannelTracker {
   [[nodiscard]] ResponseTokenChannel Observe(std::uint32_t token_id);
   [[nodiscard]] bool in_reasoning() const { return in_reasoning_; }
   [[nodiscard]] bool matching_open() const { return open_match_length_ != 0U; }
+  [[nodiscard]] std::size_t open_match_length() const {
+    return open_match_length_;
+  }
   [[nodiscard]] std::uint64_t reasoning_token_count() const {
     return reasoning_token_count_;
   }

@@ -3072,6 +3072,127 @@ void TestMtpDeviceControlTransitions() {
   run_case({10U, 99U, 30U, 0U, 0U}, 1U, 1U, 2U, true);
 }
 
+void TestMtpReasoningTransitions() {
+  DeviceBuffer<gem16::internal::MtpGroupTransaction> transaction(1U);
+  DeviceBuffer<gem16::internal::MtpChainResult> chain_result(1U);
+  DeviceBuffer<std::uint32_t> outputs(8U);
+  DeviceBuffer<std::uint32_t> proposals(8U);
+  DeviceBuffer<std::uint32_t> selected(1U);
+  if (transaction.get() == nullptr || chain_result.get() == nullptr ||
+      outputs.get() == nullptr || proposals.get() == nullptr ||
+      selected.get() == nullptr) {
+    return;
+  }
+
+  gem16::internal::MtpGroupTransaction host_transaction{};
+  host_transaction.result.proposal_count = 2U;
+  host_transaction.result.accepted_count = 2U;
+  host_transaction.result.output_count = 3U;
+  host_transaction.result.proposed = {7U, 99U, 0U, 0U};
+  host_transaction.result.verified = {7U, 99U, 42U, 0U, 0U};
+  host_transaction.control.current.input_token = 6U;
+  host_transaction.control.current.processed_position = 5U;
+  host_transaction.control.current.remaining_output_capacity = 10U;
+  host_transaction.control.current.sampling_step = 11U;
+  host_transaction.control.next = host_transaction.control.current;
+  host_transaction.control.next.input_token = 42U;
+  host_transaction.control.next.processed_position = 8U;
+  host_transaction.control.next.remaining_output_capacity = 7U;
+  host_transaction.control.next.output_write_position = 3U;
+  host_transaction.control.next.sampling_step = 14U;
+  host_transaction.control.reasoning.enabled = 1U;
+  host_transaction.control.reasoning.started = 1U;
+  host_transaction.control.reasoning.in_reasoning = 1U;
+  host_transaction.control.reasoning.close_token_id = 99U;
+  host_transaction.control.reasoning.reasoning_token_count = 4U;
+  host_transaction.control.reasoning.max_reasoning_tokens = 8U;
+  if (!CudaOk(cudaMemcpy(transaction.get(), &host_transaction,
+                         sizeof(host_transaction), cudaMemcpyHostToDevice),
+              "copy natural-close MTP reasoning transaction") ||
+      !CudaOk(cudaMemset(chain_result.get(), 0, chain_result.bytes()),
+              "clear natural-close MTP reasoning result")) {
+    return;
+  }
+  auto status = gem16::internal::LaunchAdvanceMtpD2Chain(
+      transaction.get(), chain_result.get(), outputs.get(), proposals.get(),
+      nullptr, nullptr);
+  CUDA_TEST_CHECK(status.ok());
+  gem16::internal::MtpChainResult host_chain{};
+  std::array<std::uint32_t, 3U> host_outputs{};
+  if (!status.ok() ||
+      !CudaOk(cudaMemcpy(&host_transaction, transaction.get(),
+                         sizeof(host_transaction), cudaMemcpyDeviceToHost),
+              "copy natural-close MTP reasoning transaction result") ||
+      !CudaOk(cudaMemcpy(&host_chain, chain_result.get(), sizeof(host_chain),
+                         cudaMemcpyDeviceToHost),
+              "copy natural-close MTP reasoning chain result") ||
+      !CudaOk(cudaMemcpy(host_outputs.data(), outputs.get(),
+                         sizeof(host_outputs), cudaMemcpyDeviceToHost),
+              "copy natural-close MTP reasoning outputs")) {
+    return;
+  }
+  CUDA_TEST_CHECK((host_outputs ==
+                   std::array<std::uint32_t, 3U>{7U, 99U, 42U}));
+  CUDA_TEST_CHECK(host_transaction.control.reasoning.complete == 1U);
+  CUDA_TEST_CHECK(host_transaction.control.reasoning.in_reasoning == 0U);
+  CUDA_TEST_CHECK(
+      host_transaction.control.reasoning.reasoning_token_count == 5U);
+  CUDA_TEST_CHECK(host_chain.reasoning_complete == 1U);
+  CUDA_TEST_CHECK(host_chain.reasoning_token_count == 5U);
+  CUDA_TEST_CHECK(host_chain.reasoning_budget_forced == 0U);
+
+  host_transaction = {};
+  host_transaction.control.current.input_token = 7U;
+  host_transaction.control.current.processed_position = 10U;
+  host_transaction.control.current.remaining_output_capacity = 3U;
+  host_transaction.control.current.sampling_step = 20U;
+  host_transaction.control.next = host_transaction.control.current;
+  host_transaction.control.sampling_enabled = 1U;
+  host_transaction.control.reasoning.enabled = 1U;
+  host_transaction.control.reasoning.started = 1U;
+  host_transaction.control.reasoning.in_reasoning = 1U;
+  host_transaction.control.reasoning.close_token_id = 99U;
+  host_transaction.control.reasoning.reasoning_token_count = 2U;
+  host_transaction.control.reasoning.max_reasoning_tokens = 2U;
+  const std::uint32_t sampled = 55U;
+  if (!CudaOk(cudaMemcpy(transaction.get(), &host_transaction,
+                         sizeof(host_transaction), cudaMemcpyHostToDevice),
+              "copy forced-close MTP reasoning transaction") ||
+      !CudaOk(cudaMemset(chain_result.get(), 0, chain_result.bytes()),
+              "clear forced-close MTP reasoning result") ||
+      !CudaOk(cudaMemcpy(selected.get(), &sampled, sizeof(sampled),
+                         cudaMemcpyHostToDevice),
+              "copy forced-close sampled token")) {
+    return;
+  }
+  status = gem16::internal::LaunchFinalizeMtpOrdinaryTail(
+      selected.get(), nullptr, 0U, transaction.get(), chain_result.get(),
+      outputs.get(), nullptr, nullptr);
+  CUDA_TEST_CHECK(status.ok());
+  std::uint32_t forced_output = 0U;
+  if (!status.ok() ||
+      !CudaOk(cudaMemcpy(&host_transaction, transaction.get(),
+                         sizeof(host_transaction), cudaMemcpyDeviceToHost),
+              "copy forced-close MTP reasoning transaction result") ||
+      !CudaOk(cudaMemcpy(&host_chain, chain_result.get(), sizeof(host_chain),
+                         cudaMemcpyDeviceToHost),
+              "copy forced-close MTP reasoning chain result") ||
+      !CudaOk(cudaMemcpy(&forced_output, outputs.get(), sizeof(forced_output),
+                         cudaMemcpyDeviceToHost),
+              "copy forced-close MTP reasoning output")) {
+    return;
+  }
+  CUDA_TEST_CHECK(forced_output == 99U);
+  CUDA_TEST_CHECK(host_transaction.control.current.input_token == 99U);
+  CUDA_TEST_CHECK(host_transaction.control.current.sampling_step == 21U);
+  CUDA_TEST_CHECK(host_transaction.control.reasoning.complete == 1U);
+  CUDA_TEST_CHECK(host_transaction.control.reasoning.budget_forced == 1U);
+  CUDA_TEST_CHECK(
+      host_transaction.control.reasoning.reasoning_token_count == 2U);
+  CUDA_TEST_CHECK(host_chain.reasoning_ordinary_count == 1U);
+  CUDA_TEST_CHECK(host_chain.reasoning_budget_forced == 1U);
+}
+
 void TestMtpConditionalD2Chain() {
   DeviceBuffer<std::uint32_t> drafts(2U);
   DeviceBuffer<std::uint32_t> verified(3U);
@@ -3089,7 +3210,7 @@ void TestMtpConditionalD2Chain() {
   gem16::internal::MtpGroupTransaction host_transaction{};
   host_transaction.control.current.input_token = 7U;
   host_transaction.control.current.processed_position = 20U;
-  host_transaction.control.current.remaining_output_capacity = 5U;
+  host_transaction.control.current.remaining_output_capacity = 4U;
   host_transaction.control.current.output_write_position = 4U;
   host_transaction.control.next = host_transaction.control.current;
   host_transaction.control.fixed_draft_tokens = 2U;
@@ -3168,7 +3289,11 @@ void TestMtpConditionalD2Chain() {
   if (graph_ok) {
     auto status = gem16::internal::LaunchAdvanceMtpD2Chain(
         transaction.get(), chain_result.get(), outputs.get(), proposals.get(),
-        device_streaming_ring, condition, tail_condition, stream);
+        device_streaming_ring, stream);
+    if (status.ok()) {
+      status = gem16::internal::LaunchContinueMtpChain(
+          transaction.get(), device_streaming_ring, condition, stream);
+    }
     CUDA_TEST_CHECK(status.ok());
     graph_ok = status.ok();
   }
@@ -3242,7 +3367,7 @@ void TestMtpConditionalD2Chain() {
     host_transaction = {};
     host_transaction.control.current.input_token = 7U;
     host_transaction.control.current.processed_position = 30U;
-    host_transaction.control.current.remaining_output_capacity = 3U;
+    host_transaction.control.current.remaining_output_capacity = 4U;
     host_transaction.control.next = host_transaction.control.current;
     host_transaction.control.fixed_draft_tokens = 2U;
     *host_streaming_ring = {};
@@ -3266,12 +3391,12 @@ void TestMtpConditionalD2Chain() {
                       "copy replayed MTP chain transaction");
   }
   if (graph_ok) {
-    CUDA_TEST_CHECK(host_result.group_count == 1U);
-    CUDA_TEST_CHECK(host_result.output_count == 2U);
+    CUDA_TEST_CHECK(host_result.group_count == 2U);
+    CUDA_TEST_CHECK(host_result.output_count == 4U);
     CUDA_TEST_CHECK(
-        host_transaction.control.current.remaining_output_capacity == 1U);
+        host_transaction.control.current.remaining_output_capacity == 0U);
     CUDA_TEST_CHECK(host_transaction.control.current.processed_position ==
-                    32U);
+                    34U);
   }
   if (graph_ok) {
     host_transaction = {};
@@ -3318,9 +3443,9 @@ void TestMtpConditionalD2Chain() {
     }
   }
   if (graph_ok) {
-    CUDA_TEST_CHECK(host_result.group_count == 129U);
-    CUDA_TEST_CHECK(host_result.output_count == 258U);
-    CUDA_TEST_CHECK(host_streaming_ring->producer == 258U);
+    CUDA_TEST_CHECK(host_result.group_count == 130U);
+    CUDA_TEST_CHECK(host_result.output_count == 260U);
+    CUDA_TEST_CHECK(host_streaming_ring->producer == 260U);
     CUDA_TEST_CHECK(host_streaming_ring->backpressure_events == 1U);
   }
   if (executable != nullptr) (void)cudaGraphExecDestroy(executable);
@@ -3366,6 +3491,27 @@ int main(int argc, char** argv) {
     std::cout << "decode fusion CUDA tests passed\n";
     return 0;
   }
+  if (argc == 2 && std::string_view(argv[1]) == "mtp-control") {
+    TestMtpDeviceControlTransitions();
+    TestMtpReasoningTransitions();
+    TestMtpConditionalD2Chain();
+    if (failures != 0) {
+      std::cerr << failures << " CUDA test assertion(s) failed\n";
+      return 1;
+    }
+    std::cout << "MTP control CUDA tests passed\n";
+    return 0;
+  }
+  if (argc == 2 && std::string_view(argv[1]) == "mtp-reasoning") {
+    TestMtpDeviceControlTransitions();
+    TestMtpReasoningTransitions();
+    if (failures != 0) {
+      std::cerr << failures << " CUDA test assertion(s) failed\n";
+      return 1;
+    }
+    std::cout << "MTP reasoning CUDA tests passed\n";
+    return 0;
+  }
   TestCudaIntrinsicConformanceAndProjection();
   TestVllmNvfp4QuantizationBoundary();
   TestDirectSourceSm120Projection();
@@ -3383,6 +3529,7 @@ int main(int argc, char** argv) {
   TestOnlineLocalFp8CausalPrefill();
   TestOnlineGlobalFp8CausalPrefill();
   TestMtpDeviceControlTransitions();
+  TestMtpReasoningTransitions();
   TestMtpConditionalD2Chain();
   TestGpuSampling();
   if (failures != 0) {

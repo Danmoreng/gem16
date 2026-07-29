@@ -1,5 +1,36 @@
 # Decisions
 
+## 2026-07-29: Keep bounded reasoning inside the fixed-D2 GPU chain
+
+Date: 2026-07-29
+
+Decision: Fixed-D2 generation tracks the response-channel parser and reasoning budget in device memory. One
+conditional CUDA Graph routes each iteration to either an exact three-row MTP group or one ordinary Target row.
+MTP remains active while reasoning has at least three budget slots available. The ordinary branch handles a
+partial channel marker, the final one or two reasoning slots, forced closure at the exact budget, and a one- or
+two-token output tail. Both branches update the same device control record, so the graph can move from reasoning
+to visible answer generation and resume D2 without a blocking host control roundtrip. If a natural close marker
+occurs inside an accepted MTP group, later valid answer tokens in that group are retained in order.
+
+Context: The initial bounded-thinking implementation deliberately used ordinary Target forwards throughout the
+reasoning channel. This preserved correctness but discarded most of the MTP speedup for the default chat mode.
+Speculative groups cannot be truncated merely because they approach a reasoning cap: the cap is exact, while a
+natural close followed by answer tokens is a valid transition. A device-side route around only the ambiguous
+boundary rows preserves those semantics without returning scheduling decisions to the host.
+
+Consequences: The reasoning count never exceeds its configured cap. At the cap, the next ordinary Target row
+advances the model/KV state for the preceding reasoning token but publishes the configured close-channel token.
+The asynchronous mapped-pinned ring remains a streaming output boundary only; it does not supply tokens,
+positions, channel state, or continuation decisions to GPU compute. D1, D4, and adaptive scheduling retain their
+existing direct paths.
+
+Evidence: CUDA fixtures cover natural closure with a following answer token, exact forced closure, and D2 routing
+eligibility. Compute Sanitizer reports zero errors for the isolated transition suite. Real-checkpoint greedy and
+sampled validations preserve exact ordinary/MTP responses for seeds 0, 1, and 42 and for a resident two-turn chat.
+Forced 8-token turns close at 8/8; a longer chat covers both forced 128/128 and natural 92/128 closure. Nsight
+Systems records one `cudaGraphLaunch` and one enclosing `gem16.mtp.fixed_d2_chain` range for the complete profiled
+request, rather than a launch or synchronization per verification group.
+
 ## 2026-07-29: Increase chat thinking budgets
 
 Date: 2026-07-29
@@ -12,10 +43,10 @@ Context: The initial 256/1,024/4,096-token presets constrain useful reasoning to
 quality work. The larger progression gives the default mode enough room for substantial reasoning while retaining
 an explicit 8K upper bound.
 
-Consequences: Default chat may spend more time in ordinary Target reasoning forwards before sampled or greedy MTP
-resumes for the visible answer. Callers that need the previous latency profile must select a stricter total
-`--max-tokens` limit or disable thinking. The enforced channel-close, RNG-step, and answer-reservation semantics do
-not change.
+Consequences: Default chat may spend more time in the reasoning channel. Fixed D2 now executes safe reasoning
+groups inside its GPU chain and uses exact ordinary boundary rows only where required. Callers that need a stricter
+latency profile must select a smaller total `--max-tokens` limit or disable thinking. The enforced channel-close,
+RNG-step, and answer-reservation semantics do not change.
 
 ## 2026-07-29: Default chat to bounded thinking
 
@@ -25,9 +56,9 @@ Decision: Chat requests use explicit `off`, `small`, `medium`, and `high` thinki
 caps of 0, 256, 1,024, and 4,096 tokens. Medium is the chat default. If a stricter total output limit leaves less
 space, the effective reasoning cap is reduced while reserving half of a short output or 128 tokens of a longer
 output for visible content. The engine recognizes the checkpoint-qualified channel markers, counts only reasoning
-body tokens, and forcibly emits the close-channel token at the cap. While reasoning is open, MTP deliberately uses
-ordinary Target forwards; exact MTP may resume after closure. Sampling steps continue to advance by output
-position, including the explicitly forced close position.
+body tokens, and forcibly emits the close-channel token at the cap. Sampling steps continue to advance by output
+position, including the explicitly forced close position. The later device-routing decision above supersedes the
+initial ordinary-only reasoning implementation without changing these externally visible semantics.
 
 Context: The pinned template supports only a boolean thinking switch. The German Harry Potter diagnostic is badly
 wrong without thinking in both gem16 and direct vLLM, while thinking restores the correct second-book identity and

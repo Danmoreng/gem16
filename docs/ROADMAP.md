@@ -63,7 +63,9 @@ of the correctness and native-kernel gates below.
   state, fixed-D2 GPU chaining, asynchronous streaming, and a real two-turn model gate all pass. The Linux 3/10
   sampled run is exact and 1.470x faster than ordinary, but its 46.234 tok/s median remains below the existing
   50 tok/s performance target and lacks continuous resource telemetry. Adaptive D1/D2/ordinary sampled branches
-  remain a possible follow-up. N-Gram is deferred much further. Multimodal remains queued until the sampled-MTP
+  remain a possible follow-up. Bounded reasoning now stays within one device-routed fixed-D2 graph: safe reasoning
+  groups use MTP, exact marker/budget/tail rows use the ordinary child, and D2 resumes without a host control
+  roundtrip. N-Gram is deferred much further. Multimodal remains queued until the sampled-MTP
   performance/telemetry disposition is explicitly closed.
   Every performance promotion still requires correctness, generation, logit, 3-warm-up/10-run benchmark, Nsight,
   spill, allocation, and peak-VRAM evidence and becomes the sole production path.

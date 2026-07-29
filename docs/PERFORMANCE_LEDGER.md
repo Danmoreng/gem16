@@ -1,5 +1,26 @@
 # Performance ledger
 
+## 2026-07-29 device-routed bounded reasoning in fixed D2
+
+Hypothesis: Carry response-channel and reasoning-budget state in the existing fixed-D2 device control and route
+only ambiguous boundary rows through ordinary Target decode. This should retain exact bounded-thinking semantics
+while removing the prior ordinary-only reasoning phase and its host-mediated transition back to MTP.
+
+Implementation: A single outer CUDA conditional loop selects a complete D2 group or one ordinary Target row.
+Ordinary rows publish normalized hidden state into the MTP workspace, and a device continuation kernel selects the
+next route. D2 is allowed with at least three safe reasoning/output slots; partial markers, the last one or two
+reasoning slots, exact forced close, and short tails use the ordinary branch. The channel tracker consumes every
+committed token sequentially, including natural close and following answer tokens within one accepted group.
+
+Correctness/profile evidence: Host and CUDA CTest suites pass. The CUDA transition fixtures pass Compute Sanitizer
+memcheck with zero errors. The sampled D1/D2/D4 validator preserves ordinary same-seed output for seeds 0, 1, and
+42. Resident two-turn validation preserves complete ordinary/MTP responses for forced 8/8 closures and for a
+longer forced 128/128 plus natural 92/128 pair. Nsight Systems records exactly one `cudaGraphLaunch` and one
+`gem16.mtp.fixed_d2_chain` range for the profiled generation request, confirming that group and channel transitions
+do not require a blocking host control roundtrip. Short local throughput observations are functional
+characterization only; no new performance number is promoted without the required repeated benchmark and resource
+telemetry.
+
 ## 2026-07-29 sampled MTP resident-chat and Linux qualification
 
 Hypothesis: Reuse exact batched Target verification for sampling by assigning each verifier row the ordinary

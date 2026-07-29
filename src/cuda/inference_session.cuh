@@ -112,6 +112,8 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
   }
   if (reasoning.enabled &&
       (reasoning.channel_open_token_ids.empty() ||
+       reasoning.channel_open_token_ids.size() >
+           internal::kMaximumThinkingOpenTokens ||
        reasoning.channel_close_token_id >= kVocabulary ||
        reasoning.max_reasoning_tokens == 0U)) {
     return Error(StatusCode::kInvalidArgument,
@@ -258,7 +260,12 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
   const auto decode_start = std::chrono::steady_clock::now();
   if (result.mtp_enabled) {
     std::uint64_t processed_position = impl_->cached_token_ids.size() - 1U;
-    while (result.output_token_ids.size() < max_generated_tokens &&
+    const bool reasoning_gpu_chain =
+        impl_->mtp_draft_tokens == 2U && !impl_->mtp_adaptive &&
+        impl_->kv_cache_mode == KvCacheMode::kCheckpointFp8 &&
+        impl_->max_context_tokens > kSlidingWindow;
+    while (!reasoning_gpu_chain &&
+           result.output_token_ids.size() < max_generated_tokens &&
            !result.stopped && !reasoning_complete) {
       const bool force_close = reasoning_tracker.in_reasoning() &&
                                reasoning_tracker.reasoning_token_count() >=
@@ -329,10 +336,28 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
           impl_->kv_cache_mode == KvCacheMode::kCheckpointFp8 &&
           impl_->max_context_tokens > kSlidingWindow;
       if (fixed_d2_chain) {
+        internal::MtpReasoningState device_reasoning{};
+        device_reasoning.enabled = reasoning.enabled ? 1U : 0U;
+        device_reasoning.started = reasoning_started ? 1U : 0U;
+        device_reasoning.complete = reasoning_complete ? 1U : 0U;
+        device_reasoning.in_reasoning =
+            reasoning_tracker.in_reasoning() ? 1U : 0U;
+        device_reasoning.open_match_length = static_cast<std::uint32_t>(
+            reasoning_tracker.open_match_length());
+        device_reasoning.reasoning_token_count =
+            reasoning_tracker.reasoning_token_count();
+        device_reasoning.max_reasoning_tokens =
+            reasoning.max_reasoning_tokens;
+        device_reasoning.close_token_id = reasoning.channel_close_token_id;
+        device_reasoning.open_token_count = static_cast<std::uint32_t>(
+            reasoning.channel_open_token_ids.size());
+        std::copy(reasoning.channel_open_token_ids.begin(),
+                  reasoning.channel_open_token_ids.end(),
+                  device_reasoning.open_token_ids.begin());
         Status status = impl_->engine.PrepareMtpDeviceControl(
             next_token, processed_position, remaining,
             result.output_token_ids.size(), result.stopped,
-            result.stop_token_id);
+            result.stop_token_id, device_reasoning);
         if (!status.ok()) {
           impl_->poisoned = true;
           return status;
@@ -354,6 +379,8 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
         result.mtp_target_batches += chain.group_count;
         result.mtp_target_forwards += chain.ordinary_tail_count;
         result.mtp_target_batches += chain.ordinary_tail_count;
+        result.reasoning_ordinary_target_tokens +=
+            chain.reasoning_ordinary_count;
         result.mtp_accepted_tokens += chain.accepted_count;
         result.mtp_rejected_tokens += chain.rejected_count;
         result.mtp_proposed_token_ids.insert(
@@ -366,6 +393,15 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
         for (std::uint64_t index = 0U; index < chain.output_count; ++index) {
           next_token = chained_outputs[index];
           result.output_token_ids.push_back(next_token);
+          observe_reasoning_token(next_token);
+        }
+        result.reasoning_budget_forced = result.reasoning_budget_forced ||
+                                         chain.reasoning_budget_forced != 0U;
+        if (result.reasoning_tokens != chain.reasoning_token_count ||
+            reasoning_complete != (chain.reasoning_complete != 0U)) {
+          impl_->poisoned = true;
+          return Error(StatusCode::kInternal,
+                       "host reasoning state disagrees with GPU MTP chain");
         }
         result.stopped = chain.stopped != 0U;
         result.stop_token_id = chain.stop_token;
