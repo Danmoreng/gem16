@@ -321,3 +321,11 @@ KV pointers for every slot. `AssistantModel` shares its immutable BF16 bindings
 while allocating an independent proposal workspace. Consequently a second
 session can never mutate the first session's KV/RNG/graph state and does not
 upload a second weight arena.
+
+The first Responses state adapter is intentionally linear. It retains the exact
+public message/tool history associated with the latest `resp_gem16_*` ID while
+`ChatSession` retains its token/KV prefix. A `function_call_output` is expanded
+against that history and enters the existing native tool-result continuation;
+no prompt is reconstructed from lossy response text. Unknown or stale IDs fail
+before inference. A later scheduler may place many such state records above the
+same `ModelRuntime`, but may not share their `SessionState` or `ExecutionSlot`.

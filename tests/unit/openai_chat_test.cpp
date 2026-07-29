@@ -185,4 +185,61 @@ void RunOpenAiChatTests() {
   if (parsed_usage.ok()) {
     GEM16_CHECK(parsed_usage.value().find("choices")->as_array().empty());
   }
+
+  auto responses = gem16::server::ParseResponsesRequest(R"({
+    "model":"gem16","instructions":"Be concise","input":"Weather in Berlin?",
+    "tools":[{"type":"function","name":"get_weather",
+      "description":"Get weather","strict":true,
+      "parameters":{"type":"object","properties":{"location":{"type":"string"}}}}
+    ],"tool_choice":"auto","max_output_tokens":64,
+    "reasoning":{"effort":"low"},"store":true
+  })");
+  GEM16_CHECK(responses.ok());
+  if (responses.ok()) {
+    GEM16_CHECK(responses.value().generation.messages.size() == 2U);
+    GEM16_CHECK(responses.value().generation.messages[0].role == "system");
+    GEM16_CHECK(responses.value().generation.messages[1].role == "user");
+    GEM16_CHECK(responses.value().generation.tools.size() == 1U);
+    GEM16_CHECK(responses.value().generation.tools[0].name == "get_weather");
+    GEM16_CHECK(responses.value().generation.thinking.effort ==
+                gem16::ThinkingEffort::kSmall);
+  }
+
+  auto response_continuation = gem16::server::ParseResponsesRequest(R"({
+    "model":"gem16","previous_response_id":"resp_1",
+    "input":[{"type":"function_call_output","call_id":"call_1","output":"Sunny"}]
+  })");
+  GEM16_CHECK(response_continuation.ok());
+  if (response_continuation.ok()) {
+    GEM16_CHECK(response_continuation.value().previous_response_id ==
+                "resp_1");
+    GEM16_CHECK(response_continuation.value().generation.messages.size() == 1U);
+    GEM16_CHECK(response_continuation.value().generation.messages[0].role ==
+                "tool");
+  }
+  GEM16_CHECK(!gem16::server::ParseResponsesRequest(
+                   R"({"model":"gem16","input":"x","store":false})")
+                   .ok());
+
+  gem16::server::OpenAiResponsesRequest response_request;
+  response_request.model = "gem16";
+  response_request.generation.tools.push_back(
+      {"get_weather", "Get weather", R"({"type":"object"})", true});
+  response_request.generation.max_generated_tokens = 64U;
+  const gem16::server::OpenAiResponseIdentity response_identity{
+      "resp_test", "gem16", 123};
+  const std::string response_json = gem16::server::ResponseJson(
+      response_identity, response_request, generated);
+  auto parsed_responses = gem16::json::Parse(response_json);
+  GEM16_CHECK(parsed_responses.ok());
+  if (parsed_responses.ok()) {
+    GEM16_CHECK(parsed_responses.value().find("object")->as_string() ==
+                "response");
+    GEM16_CHECK(parsed_responses.value().find("output")->as_array().size() ==
+                2U);
+    GEM16_CHECK(parsed_responses.value()
+                    .find("usage")
+                    ->find("total_tokens")
+                    ->as_integer() == 5);
+  }
 }

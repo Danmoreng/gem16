@@ -328,18 +328,105 @@ gem16::Status StreamToken(void* opaque_context,
 }
 
 struct ServerState {
+  enum class ProtocolMode { kUnused, kChatCompletions, kResponses };
+
+  struct ResponsesChain {
+    std::string latest_response_id;
+    std::vector<gem16::GenerationMessage> messages;
+    std::vector<gem16::GenerationToolDefinition> tools;
+    gem16::GenerationToolChoice tool_choice;
+    bool initialized = false;
+  };
+
   std::string model_name;
   std::uint64_t max_context = 0U;
   gem16::GemmaChatProcessor processor;
   gem16::ChatSession session;
   std::mutex session_mutex;
   std::atomic<std::uint64_t> response_counter{1U};
+  ProtocolMode protocol_mode = ProtocolMode::kUnused;
+  ResponsesChain responses_chain;
 };
 
 gem16::server::OpenAiResponseIdentity MakeIdentity(ServerState& state) {
   return {"chatcmpl-gem16-" +
               std::to_string(state.response_counter.fetch_add(1U)),
           state.model_name, UnixSeconds()};
+}
+
+gem16::server::OpenAiResponseIdentity MakeResponsesIdentity(
+    ServerState& state) {
+  return {"resp_gem16_" +
+              std::to_string(state.response_counter.fetch_add(1U)),
+          state.model_name, UnixSeconds()};
+}
+
+gem16::Status PrepareResponsesRequest(
+    ServerState& state, gem16::server::OpenAiResponsesRequest& request) {
+  if (state.protocol_mode == ServerState::ProtocolMode::kChatCompletions) {
+    return gem16::Status(
+        gem16::StatusCode::kInvalidArgument,
+        "the single resident slot cannot mix Chat Completions and Responses chains");
+  }
+  ServerState::ResponsesChain& chain = state.responses_chain;
+  if (!request.previous_response_id.has_value()) {
+    if (chain.initialized) {
+      return gem16::Status(
+          gem16::StatusCode::kInvalidArgument,
+          "the single resident Responses slot already has a root response");
+    }
+    state.protocol_mode = ServerState::ProtocolMode::kResponses;
+    return gem16::Status::Ok();
+  }
+  if (!chain.initialized ||
+      *request.previous_response_id != chain.latest_response_id) {
+    return gem16::Status(
+        gem16::StatusCode::kNotFound,
+        "previous_response_id is not the latest resident response");
+  }
+  if (request.tools_present && request.generation.tools != chain.tools) {
+    return gem16::Status(
+        gem16::StatusCode::kInvalidArgument,
+        "tools must remain identical on a resident response chain");
+  }
+  if (!request.tools_present) request.generation.tools = chain.tools;
+  if (request.tool_choice_present &&
+      request.generation.tool_choice != chain.tool_choice) {
+    return gem16::Status(
+        gem16::StatusCode::kInvalidArgument,
+        "tool_choice must remain identical on a resident response chain");
+  }
+  if (!request.tool_choice_present) {
+    request.generation.tool_choice = chain.tool_choice;
+  }
+  std::vector<gem16::GenerationMessage> complete = chain.messages;
+  complete.insert(complete.end(), request.generation.messages.begin(),
+                  request.generation.messages.end());
+  request.generation.messages = std::move(complete);
+  return gem16::Status::Ok();
+}
+
+void CommitResponsesRequest(
+    ServerState& state, const gem16::server::OpenAiResponsesRequest& request,
+    const gem16::ChatGenerationResponse& response,
+    std::string response_id) {
+  ServerState::ResponsesChain& chain = state.responses_chain;
+  chain.messages = request.generation.messages;
+  gem16::GenerationMessage assistant;
+  assistant.role = "assistant";
+  if (!response.assistant_text.empty() || response.tool_calls.empty()) {
+    assistant.content.push_back(
+        gem16::GenerationContentPart::Text(response.assistant_text));
+  }
+  for (const gem16::GenerationToolCall& call : response.tool_calls) {
+    assistant.content.push_back(
+        gem16::GenerationContentPart::ToolCall(call));
+  }
+  chain.messages.push_back(std::move(assistant));
+  chain.tools = request.generation.tools;
+  chain.tool_choice = request.generation.tool_choice;
+  chain.latest_response_id = std::move(response_id);
+  chain.initialized = true;
 }
 
 void HandleCompletion(ServerState& state, const httplib::Request& request,
@@ -359,6 +446,14 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
   const gem16::server::OpenAiResponseIdentity identity = MakeIdentity(state);
   if (!parsed.value().stream) {
     std::lock_guard lock(state.session_mutex);
+    if (state.protocol_mode == ServerState::ProtocolMode::kResponses) {
+      SetError(gem16::Status(
+                   gem16::StatusCode::kInvalidArgument,
+                   "the single resident slot is owned by a Responses chain"),
+               response);
+      return;
+    }
+    state.protocol_mode = ServerState::ProtocolMode::kChatCompletions;
     auto generated = state.session.Generate(parsed.value().generation);
     if (!generated.ok()) {
       SetError(generated.status(), response);
@@ -395,6 +490,16 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
           return false;
         }
         std::lock_guard lock(provider->server->session_mutex);
+        if (provider->server->protocol_mode ==
+            ServerState::ProtocolMode::kResponses) {
+          WriteSse(sink, gem16::server::OpenAiErrorJson(
+                             "the single resident slot is owned by a Responses chain",
+                             "invalid_request_error"));
+          sink.done();
+          return true;
+        }
+        provider->server->protocol_mode =
+            ServerState::ProtocolMode::kChatCompletions;
         StreamingContext stream(provider->server->processor,
                                 provider->identity, sink);
         auto generated = provider->server->session.Generate(
@@ -450,6 +555,268 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
         WriteSse(sink, "[DONE]");
         sink.done();
         return true;
+      });
+}
+
+bool WriteResponsesFinalEvents(
+    httplib::DataSink& sink,
+    const gem16::server::OpenAiResponseIdentity& identity,
+    const gem16::server::OpenAiResponsesRequest& request,
+    const gem16::ChatGenerationResponse& generated,
+    std::uint64_t& sequence) {
+  std::size_t output_index = 0U;
+  if (!generated.reasoning_text.empty()) {
+    const std::string item_id = "rs_" + identity.id;
+    const std::string item =
+        "{\"id\":" + gem16::json::Quote(item_id) +
+        ",\"type\":\"reasoning\",\"summary\":[],\"content\":[],"
+        "\"status\":\"in_progress\"}";
+    if (!WriteSse(sink, "{\"type\":\"response.output_item.added\","
+                        "\"output_index\":" +
+                            std::to_string(output_index) + ",\"item\":" +
+                            item + ",\"sequence_number\":" +
+                            std::to_string(sequence++) + "}")) {
+      return false;
+    }
+    if (!WriteSse(sink, "{\"type\":\"response.reasoning_text.delta\","
+                        "\"item_id\":" +
+                            gem16::json::Quote(item_id) +
+                            ",\"output_index\":" +
+                            std::to_string(output_index) +
+                            ",\"content_index\":0,\"delta\":" +
+                            gem16::json::Quote(generated.reasoning_text) +
+                            ",\"sequence_number\":" +
+                            std::to_string(sequence++) + "}")) {
+      return false;
+    }
+    if (!WriteSse(sink, "{\"type\":\"response.reasoning_text.done\","
+                        "\"item_id\":" +
+                            gem16::json::Quote(item_id) +
+                            ",\"output_index\":" +
+                            std::to_string(output_index) +
+                            ",\"content_index\":0,\"text\":" +
+                            gem16::json::Quote(generated.reasoning_text) +
+                            ",\"sequence_number\":" +
+                            std::to_string(sequence++) + "}")) {
+      return false;
+    }
+    ++output_index;
+  }
+  if (!generated.assistant_text.empty() || generated.tool_calls.empty()) {
+    const std::string item_id = "msg_" + identity.id;
+    const std::string added_item =
+        "{\"id\":" + gem16::json::Quote(item_id) +
+        ",\"type\":\"message\",\"status\":\"in_progress\","
+        "\"role\":\"assistant\",\"content\":[]}";
+    if (!WriteSse(sink, "{\"type\":\"response.output_item.added\","
+                        "\"output_index\":" +
+                            std::to_string(output_index) + ",\"item\":" +
+                            added_item + ",\"sequence_number\":" +
+                            std::to_string(sequence++) + "}")) {
+      return false;
+    }
+    const std::string empty_part =
+        "{\"type\":\"output_text\",\"text\":\"\",\"annotations\":[]}";
+    if (!WriteSse(sink, "{\"type\":\"response.content_part.added\","
+                        "\"item_id\":" +
+                            gem16::json::Quote(item_id) +
+                            ",\"output_index\":" +
+                            std::to_string(output_index) +
+                            ",\"content_index\":0,\"part\":" + empty_part +
+                            ",\"sequence_number\":" +
+                            std::to_string(sequence++) + "}")) {
+      return false;
+    }
+    if (!generated.assistant_text.empty() &&
+        !WriteSse(sink, "{\"type\":\"response.output_text.delta\","
+                        "\"item_id\":" +
+                            gem16::json::Quote(item_id) +
+                            ",\"output_index\":" +
+                            std::to_string(output_index) +
+                            ",\"content_index\":0,\"delta\":" +
+                            gem16::json::Quote(generated.assistant_text) +
+                            ",\"logprobs\":[],\"sequence_number\":" +
+                            std::to_string(sequence++) + "}")) {
+      return false;
+    }
+    const std::string completed_part =
+        "{\"type\":\"output_text\",\"text\":" +
+        gem16::json::Quote(generated.assistant_text) +
+        ",\"annotations\":[]}";
+    if (!WriteSse(sink, "{\"type\":\"response.output_text.done\","
+                        "\"item_id\":" +
+                            gem16::json::Quote(item_id) +
+                            ",\"output_index\":" +
+                            std::to_string(output_index) +
+                            ",\"content_index\":0,\"text\":" +
+                            gem16::json::Quote(generated.assistant_text) +
+                            ",\"logprobs\":[],\"sequence_number\":" +
+                            std::to_string(sequence++) + "}")) {
+      return false;
+    }
+    if (!WriteSse(sink, "{\"type\":\"response.content_part.done\","
+                        "\"item_id\":" +
+                            gem16::json::Quote(item_id) +
+                            ",\"output_index\":" +
+                            std::to_string(output_index) +
+                            ",\"content_index\":0,\"part\":" +
+                            completed_part + ",\"sequence_number\":" +
+                            std::to_string(sequence++) + "}")) {
+      return false;
+    }
+    const std::string done_item =
+        "{\"id\":" + gem16::json::Quote(item_id) +
+        ",\"type\":\"message\",\"status\":\"completed\","
+        "\"role\":\"assistant\",\"content\":[" + completed_part + "]}";
+    if (!WriteSse(sink, "{\"type\":\"response.output_item.done\","
+                        "\"output_index\":" +
+                            std::to_string(output_index) + ",\"item\":" +
+                            done_item + ",\"sequence_number\":" +
+                            std::to_string(sequence++) + "}")) {
+      return false;
+    }
+    ++output_index;
+  }
+  for (std::size_t call_index = 0U;
+       call_index < generated.tool_calls.size(); ++call_index) {
+    const gem16::GenerationToolCall& call = generated.tool_calls[call_index];
+    const std::string item_id =
+        "fc_" + identity.id + "_" + std::to_string(call_index);
+    const auto item = [&](std::string_view status) {
+      return "{\"id\":" + gem16::json::Quote(item_id) +
+             ",\"type\":\"function_call\",\"status\":" +
+             gem16::json::Quote(status) + ",\"arguments\":" +
+             gem16::json::Quote(call.arguments_json) + ",\"call_id\":" +
+             gem16::json::Quote(call.id) + ",\"name\":" +
+             gem16::json::Quote(call.name) + "}";
+    };
+    if (!WriteSse(sink, "{\"type\":\"response.output_item.added\","
+                        "\"output_index\":" +
+                            std::to_string(output_index) + ",\"item\":" +
+                            item("in_progress") +
+                            ",\"sequence_number\":" +
+                            std::to_string(sequence++) + "}")) {
+      return false;
+    }
+    if (!WriteSse(sink, "{\"type\":\"response.function_call_arguments.done\","
+                        "\"item_id\":" +
+                            gem16::json::Quote(item_id) +
+                            ",\"output_index\":" +
+                            std::to_string(output_index) + ",\"arguments\":" +
+                            gem16::json::Quote(call.arguments_json) +
+                            ",\"name\":" + gem16::json::Quote(call.name) +
+                            ",\"sequence_number\":" +
+                            std::to_string(sequence++) + "}")) {
+      return false;
+    }
+    if (!WriteSse(sink, "{\"type\":\"response.output_item.done\","
+                        "\"output_index\":" +
+                            std::to_string(output_index) + ",\"item\":" +
+                            item("completed") + ",\"sequence_number\":" +
+                            std::to_string(sequence++) + "}")) {
+      return false;
+    }
+    ++output_index;
+  }
+  const std::string completed = gem16::server::ResponseJson(
+      identity, request, generated);
+  return WriteSse(sink, "{\"type\":\"response.completed\",\"response\":" +
+                            completed + ",\"sequence_number\":" +
+                            std::to_string(sequence++) + "}");
+}
+
+void HandleResponses(ServerState& state, const httplib::Request& request,
+                     httplib::Response& response) {
+  auto parsed = gem16::server::ParseResponsesRequest(
+      request.body, {state.max_context});
+  if (!parsed.ok()) {
+    SetError(parsed.status(), response);
+    return;
+  }
+  if (parsed.value().model != state.model_name) {
+    SetError(gem16::Status(gem16::StatusCode::kNotFound,
+                           "requested model is not served"),
+             response);
+    return;
+  }
+  const gem16::server::OpenAiResponseIdentity identity =
+      MakeResponsesIdentity(state);
+  if (!parsed.value().stream) {
+    std::lock_guard lock(state.session_mutex);
+    gem16::Status status = PrepareResponsesRequest(state, parsed.value());
+    if (!status.ok()) {
+      SetError(status, response);
+      return;
+    }
+    auto generated = state.session.Generate(parsed.value().generation);
+    if (!generated.ok()) {
+      SetError(generated.status(), response);
+      return;
+    }
+    CommitResponsesRequest(state, parsed.value(), generated.value(),
+                           identity.id);
+    response.set_content(
+        gem16::server::ResponseJson(identity, parsed.value(),
+                                    generated.value()),
+        "application/json; charset=utf-8");
+    return;
+  }
+
+  struct ProviderState {
+    ServerState* server = nullptr;
+    gem16::server::OpenAiResponsesRequest request;
+    gem16::server::OpenAiResponseIdentity identity;
+    bool ran = false;
+  };
+  auto provider = std::make_shared<ProviderState>();
+  provider->server = &state;
+  provider->request = std::move(parsed).value();
+  provider->identity = identity;
+  response.set_header("Cache-Control", "no-cache");
+  response.set_header("X-Accel-Buffering", "no");
+  response.set_chunked_content_provider(
+      "text/event-stream; charset=utf-8",
+      [provider](std::size_t, httplib::DataSink& sink) {
+        if (provider->ran) return false;
+        provider->ran = true;
+        std::uint64_t sequence = 0U;
+        std::lock_guard lock(provider->server->session_mutex);
+        gem16::Status status = PrepareResponsesRequest(
+            *provider->server, provider->request);
+        if (!status.ok()) {
+          WriteSse(sink, "{\"type\":\"error\",\"code\":null,\"message\":" +
+                             gem16::json::Quote(status.message()) +
+                             ",\"param\":null,\"sequence_number\":" +
+                             std::to_string(sequence++) + "}");
+          sink.done();
+          return true;
+        }
+        if (!WriteSse(
+                sink,
+                "{\"type\":\"response.created\",\"response\":" +
+                    gem16::server::ResponseShellJson(
+                        provider->identity, provider->request, "in_progress") +
+                    ",\"sequence_number\":" +
+                    std::to_string(sequence++) + "}")) {
+          return false;
+        }
+        auto generated = provider->server->session.Generate(
+            provider->request.generation);
+        if (!generated.ok()) {
+          WriteSse(sink, "{\"type\":\"error\",\"code\":null,\"message\":" +
+                             gem16::json::Quote(generated.status().message()) +
+                             ",\"param\":null,\"sequence_number\":" +
+                             std::to_string(sequence++) + "}");
+          sink.done();
+          return true;
+        }
+        CommitResponsesRequest(*provider->server, provider->request,
+                               generated.value(), provider->identity.id);
+        const bool written = WriteResponsesFinalEvents(
+            sink, provider->identity, provider->request, generated.value(),
+            sequence);
+        sink.done();
+        return written;
       });
 }
 
@@ -519,6 +886,11 @@ int ServerMain(int argc, char** argv) {
               [&state](const httplib::Request& request,
                        httplib::Response& response) {
                 HandleCompletion(state, request, response);
+              });
+  server.Post("/v1/responses",
+              [&state](const httplib::Request& request,
+                       httplib::Response& response) {
+                HandleResponses(state, request, response);
               });
   server.set_payload_max_length(16U * 1024U * 1024U);
   std::cout << "gem16 OpenAI-compatible server listening on http://"

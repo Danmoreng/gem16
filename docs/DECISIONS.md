@@ -1469,3 +1469,21 @@ concurrent slot still consumes its own context-sized KV/workspace allocation,
 so admission control remains mandatory.
 Evidence: Windows host and SM120a builds and both CTest suites pass. A real
 target-plus-assistant server generated `OK` through the shared-runtime path.
+
+## 2026-07-29: Start Responses state as an exact linear resident chain
+
+Date: 2026-07-29
+Decision: Implement `/v1/responses` with one stored latest-response chain and
+require `previous_response_id` to match its current tip. Preserve canonical
+messages and native tool calls rather than recovering context from serialized
+HTTP output.
+Context: A resident KV cache can extend an exact prefix cheaply, but cannot
+branch or switch to an unrelated root without another session/slot.
+Alternatives: Pretend arbitrary response IDs are supported; rebuild every turn;
+silently discard old KV; postpone the Responses API until multi-session work.
+Consequences: Official SDK text, streaming, tools, tool results, media, and
+linear multi-turn state work now. Branches, multiple roots, `store=false`, and
+changed continuation instructions are explicitly rejected until A11.
+Evidence: The official `openai==2.50.0` client completed a streamed weather
+function call, continued with `function_call_output`, produced a grounded final
+answer, and observed rejection of the stale first response ID.

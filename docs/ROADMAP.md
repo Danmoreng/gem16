@@ -220,7 +220,11 @@ The llama.cpp benchmark is deliberately before engine kernel optimization, but a
    complete:** the server loads immutable target/assistant weights exactly once;
    conversation history and sampling controls are session-owned, while KV,
    streams, workspaces, mapped rings, and CUDA graphs are isolated per execution
-   slot. Next implement `/v1/responses` with `previous_response_id`.
+   slot. **A10 complete:** `/v1/responses` supports official request/output
+   items, typed SSE, function tools/results, multimodal inputs, usage, and exact
+   linear continuation through `previous_response_id`; the pinned official SDK
+   passes a streamed two-response weather-tool gate. Next add multiple resident
+   sessions, cancellation, bounded LRU state, and metrics.
 14. After the Blackwell backend is correct and competitive, add architecture-specific backends for additional 16 GB
    CUDA GPUs without weakening benchmark or memory contracts.
 

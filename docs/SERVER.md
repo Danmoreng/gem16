@@ -27,6 +27,8 @@ surface remains serialized until that scheduler lands.
 - `GET /health` returns `{"status":"ok"}`.
 - `GET /v1/models` lists the configured `--model-name`.
 - `POST /v1/chat/completions` returns an OpenAI Chat Completion or chunked SSE.
+- `POST /v1/responses` returns an OpenAI Response or typed Responses SSE
+  events and supports a resident `previous_response_id` continuation.
 
 The 16 MiB request limit, JSON depth/value limits, codec limits, 30-second
 audio limit, 100-megapixel image limit, maximum 280 image soft tokens, output
@@ -48,6 +50,41 @@ Message content accepts strings and ordered arrays containing:
 - `{"type":"text","text":"..."}` (also `input_text`);
 - `{"type":"image_url","image_url":{"url":"data:image/png;base64,..."}}`;
 - `{"type":"input_audio","input_audio":{"format":"wav","data":"..."}}`.
+
+## Responses API
+
+`POST /v1/responses` accepts `model`, `input`, `instructions`,
+`max_output_tokens`, `stream`, `store`, `reasoning.effort`, `tools`,
+`tool_choice`, `parallel_tool_calls`, and `previous_response_id`. Function tools
+use the Responses top-level shape (`type`, `name`, `description`, `parameters`,
+`strict`). Input may be a string or ordered `message`, `function_call`, and
+`function_call_output` items. Message content supports `input_text`, inline
+data-URL `input_image`, and Base64 `input_audio`.
+
+The response contains typed `message` and `function_call` output items, exact
+input/output/reasoning usage, and `completed` or `incomplete` status. Streaming
+emits ordered `response.created`, output-item/content/function events, and a
+final `response.completed` object consumable by the official OpenAI SDK.
+
+The current scheduler deliberately exposes one linear resident chain:
+
+- a continuation must name the latest returned response ID;
+- stale, unknown, or branched IDs return 404;
+- omitted tools and tool choice inherit from the previous response; explicitly
+  supplied values must be identical;
+- `store=false`, changed continuation instructions, and mixing Chat
+  Completions with Responses on the same process are rejected visibly.
+
+This keeps the KV prefix exact. Multiple roots, branches, cancellation, and LRU
+retention arrive with the multi-session scheduler in A11.
+
+Official SDK gate:
+
+```powershell
+py -m pip install -r tools\requirements-openai-sdk.txt
+py tools\validate_openai_responses.py `
+  --base-url http://127.0.0.1:8080/v1 --model gem16
+```
 
 JPEG/BMP and MP3/FLAC use the analogous MIME/format values. Remote image URLs
 are deliberately unsupported in this milestone. Images and audio are decoded

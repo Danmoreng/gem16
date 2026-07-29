@@ -4,6 +4,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "gem16/chat.h"
 
@@ -26,7 +27,21 @@ struct OpenAiChatAdapterOptions {
   std::uint64_t context_tokens = 8192U;
 };
 
+struct OpenAiResponsesRequest {
+  std::string model;
+  ChatGenerationRequest generation;
+  std::optional<std::string> previous_response_id;
+  std::optional<std::string> instructions;
+  bool stream = false;
+  bool store = true;
+  bool tools_present = false;
+  bool tool_choice_present = false;
+};
+
 [[nodiscard]] Result<OpenAiChatRequest> ParseChatCompletionsRequest(
+    std::string_view body,
+    const OpenAiChatAdapterOptions& options = {});
+[[nodiscard]] Result<OpenAiResponsesRequest> ParseResponsesRequest(
     std::string_view body,
     const OpenAiChatAdapterOptions& options = {});
 [[nodiscard]] std::string ChatCompletionJson(
@@ -38,5 +53,13 @@ struct OpenAiChatAdapterOptions {
     const ChatGenerationResponse* usage = nullptr);
 [[nodiscard]] std::string OpenAiErrorJson(std::string_view message,
                                           std::string_view type);
+[[nodiscard]] std::string ResponseJson(
+    const OpenAiResponseIdentity& identity,
+    const OpenAiResponsesRequest& request,
+    const ChatGenerationResponse& response);
+[[nodiscard]] std::string ResponseShellJson(
+    const OpenAiResponseIdentity& identity,
+    const OpenAiResponsesRequest& request, std::string_view status,
+    const ChatGenerationResponse* response = nullptr);
 
 }  // namespace gem16::server
