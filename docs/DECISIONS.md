@@ -1487,3 +1487,27 @@ changed continuation instructions are explicitly rejected until A11.
 Evidence: The official `openai==2.50.0` client completed a streamed weather
 function call, continued with `function_call_output`, produced a grounded final
 answer, and observed rejection of the stale first response ID.
+
+## 2026-07-29: Bound concurrent serving by isolated execution slots
+
+Date: 2026-07-29
+Decision: Allocate one `SessionState` and `ExecutionSlot` per resident
+conversation above one shared `ModelRuntime`. Bound residency with
+`--max-sessions`, evict only inactive least-recently-used sessions, reject
+admission when all slots are active, and discard any slot interrupted during
+generation. Address Responses state by response ID and Chat Completions state
+by `X-Gem16-Session-Id`.
+Context: Agent workloads need independent concurrent conversations without
+duplicating roughly 10 GB of target/assistant weights. KV and CUDA graph state
+cannot safely be shared, branched, or resumed after partial cancellation.
+Alternatives: One global session lock; unbounded slot allocation; evict active
+requests; rebuild prefixes for every request; retain a cancelled KV cache.
+Consequences: The memory ceiling is explicit, active work is stable, inactive
+state has deterministic LRU retention, and partial failures cannot corrupt a
+later turn. Each session is single-flight; a client must retain its Chat session
+header or Responses ID.
+Continuous batching and response branching remain separate future features.
+Evidence: Windows host/SM120a builds and CTest pass. The official SDK gate ran
+two slots concurrently, verified LRU invalidation, cancelled a live stream,
+observed zero leaked active requests, and validated exported scheduler/memory
+metrics while the existing Responses and Chat tool gates remained green.

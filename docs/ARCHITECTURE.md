@@ -119,24 +119,21 @@ The native execution gate currently accepts `auto` and `none` tool choice and th
 Required/named forcing and disabling parallel calls fail as unsupported rather than being silently ignored; those
 policies require a later constrained-generation implementation.
 
-The intended serving ownership model has three levels. `ModelRuntime` will own immutable Target/Assistant weights,
-tokenizer/configuration, and kernel bindings once per process. `SessionState` will own KV, exact token/media prefix
-identity, sampling RNG/repetition state, and MTP controls per conversation. `ExecutionSlot` will own mutable graph
-addresses, activation/prefill workspace, stream, and mapped streaming ring per simultaneously active GPU request.
-The current lower-level `ConversationSession` remains the single-slot implementation and still owns its complete engine;
-S0 deliberately establishes the API boundary before moving qualified CUDA ownership. A serialized batch-one server
-can sit above this boundary. Shared-weight concurrent sessions and continuous batching remain later runtime work,
-not properties implied by the request API.
+The serving ownership model has three levels. `ModelRuntime` owns immutable Target/Assistant weights and kernel
+bindings once per process. `SessionState` owns KV, exact token/media prefix identity, sampling RNG/repetition state,
+and MTP controls per conversation. `ExecutionSlot` owns mutable graph addresses, activation/prefill workspace, stream,
+and mapped streaming ring per simultaneously active GPU request. A bounded server pool constructs one
+`ChatSession`/slot pair per resident conversation above the shared runtime. Continuous batching remains later work.
 
-`gem16-server` is the first serialized consumer of that boundary. A thin
+`gem16-server` is the first concurrent consumer of that boundary. A thin
 OpenAI adapter parses bounded JSON, decodes inline Base64 media, and maps Chat
 Completions messages/tools to owning generation types. The pinned cpp-httplib
 transport owns HTTP/1.1 and chunked transfer only. Non-streaming responses and
 SSE chunks are produced above `ChatSession`; CUDA, tokenizer, tool-template,
-and exact-prefix code contain no HTTP types. The server mutex admits one
-generation at a time and the single `ChatSession` accepts only exact
-conversation extensions until `ModelRuntime`, `SessionState`, and
-`ExecutionSlot` are physically separated.
+and exact-prefix code contain no HTTP types. Each session has its own inference
+mutex and exact-prefix state; different execution slots may run concurrently.
+The pool admits only a configured number of slots and evicts inactive entries
+by LRU order.
 
 The greedy plan copies checkpoint `suppress_tokens` into fixed workspace before prompt processing and stops on any
 checkpoint EOS token. Optional full-logit capture preallocates host storage before the token loop and writes raw
@@ -322,10 +319,13 @@ while allocating an independent proposal workspace. Consequently a second
 session can never mutate the first session's KV/RNG/graph state and does not
 upload a second weight arena.
 
-The first Responses state adapter is intentionally linear. It retains the exact
+Each Responses state adapter is intentionally linear. It retains the exact
 public message/tool history associated with the latest `resp_gem16_*` ID while
 `ChatSession` retains its token/KV prefix. A `function_call_output` is expanded
 against that history and enters the existing native tool-result continuation;
 no prompt is reconstructed from lossy response text. Unknown or stale IDs fail
-before inference. A later scheduler may place many such state records above the
-same `ModelRuntime`, but may not share their `SessionState` or `ExecutionSlot`.
+before inference. The scheduler places many such state records above the same
+`ModelRuntime`, but never shares their `SessionState` or `ExecutionSlot`.
+Cancellation is checked from the generation callback. Any cancelled,
+disconnected, or failed generation poisons and removes its slot; successful
+sessions remain eligible for LRU reuse.

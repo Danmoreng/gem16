@@ -223,8 +223,12 @@ The llama.cpp benchmark is deliberately before engine kernel optimization, but a
    slot. **A10 complete:** `/v1/responses` supports official request/output
    items, typed SSE, function tools/results, multimodal inputs, usage, and exact
    linear continuation through `previous_response_id`; the pinned official SDK
-   passes a streamed two-response weather-tool gate. Next add multiple resident
-   sessions, cancellation, bounded LRU state, and metrics.
+   passes a streamed two-response weather-tool gate. **A11 complete:** a bounded
+   shared-runtime pool isolates concurrent execution slots, retains multiple
+   linear response roots, evicts only inactive LRU sessions, supports SDK
+   cancellation and disconnect-safe slot discard, and exports admission,
+   generation, cancellation, token, and memory metrics. The complete A1-A11
+   path to an agent-capable OpenAI-compatible server is now implemented.
 14. After the Blackwell backend is correct and competitive, add architecture-specific backends for additional 16 GB
    CUDA GPUs without weakening benchmark or memory contracts.
 

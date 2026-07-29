@@ -114,3 +114,13 @@ workspace, assistant workspace, and graph-private bytes. Creating a slot from a
 runtime copies only pointer bindings; it performs no checkpoint I/O, weight
 upload, or persistent repack. Multiple simultaneous slots therefore scale with
 their context plans, not with model-weight size.
+
+The bounded server scheduler makes that scaling an explicit admission policy:
+`--max-sessions` is the maximum number of resident mutable slots. It never
+evicts an active slot and returns resource exhaustion if all slots are busy.
+In the Windows A11 gate with FP8 KV, context 1,024, target plus MTP assistant,
+the shared runtime reported 9,304,895,488 target bytes and 845,714,944 assistant
+bytes; each most-recent execution slot reported 877,867,520 bytes. Two slots
+generated concurrently without another checkpoint load. These counters are
+exported at `/metrics`; they are allocator accounting, not a sampled whole-
+process VRAM peak.

@@ -173,6 +173,16 @@ the SDK as a tool message, and received a final answer containing both sunny
 conditions and 25 degrees. No hand-written HTTP request participates in this
 agent-loop gate.
 
+The A11 `validate_server_scheduler.py` gate also uses `openai==2.50.0`. A real
+Windows target-plus-MTP run created two independent Responses chains, continued
+the most recently used chain, forced and verified eviction of the other, then
+completed two simultaneous generations with distinct IDs. It cancelled a
+512-token stream immediately after `response.created`; generation observed the
+flag, emitted a typed error event, returned active requests to zero, and removed
+the unsafe partial slot. Metrics reported six slots created, four inactive LRU
+evictions, and one requested/observed cancellation. Both CTest presets and the
+existing Responses and streamed Chat tool-loop SDK gates remained green.
+
 The terminal stream applies the same checkpoint-qualified `ResponseChannelTracker` to generated IDs before
 decoding them. A real Windows fixed-D2 smoke test covers a forced reasoning close and observes separate
 `--- thinking ---` and `--- answer ---` sections without leaking the multi-token channel opener. A second run with

@@ -13,6 +13,8 @@ enum class StatusCode {
   kIoError,
   kDataLoss,
   kUnsupported,
+  kResourceExhausted,
+  kCancelled,
   kInternal,
 };
 

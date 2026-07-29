@@ -7,7 +7,7 @@
   --model .\models\checkpoints\unsloth-gemma-4-12b-it-NVFP4-b1f6497 `
   --model-name gem16 `
   --host 127.0.0.1 --port 8080 `
-  --max-context 8192
+  --max-context 8192 --max-sessions 2
 ```
 
 The default uses the checkpoint-recommended sampling profile. `--greedy`
@@ -17,18 +17,20 @@ path as resident chat. The server has no authentication or TLS layer; bind to
 loopback unless a trusted reverse proxy supplies those controls.
 
 Startup creates one `ModelRuntime` and logs its target/assistant weight bytes
-and load time. The current single conversation is then created as an isolated
-`SessionState` plus `ExecutionSlot` sharing that runtime. This ownership split
-is the prerequisite for the bounded multi-session scheduler; the current HTTP
-surface remains serialized until that scheduler lands.
+and load time. Sessions are created on demand. Each receives an isolated
+`SessionState` plus `ExecutionSlot` while sharing the immutable runtime.
+`--max-sessions` bounds resident slots; inactive least-recently-used sessions
+are evicted when the limit is reached, while active sessions are never evicted.
 
 ## Endpoints
 
-- `GET /health` returns `{"status":"ok"}`.
+- `GET /health` reports status, resident session count, and the configured limit.
+- `GET /metrics` exports Prometheus text metrics.
 - `GET /v1/models` lists the configured `--model-name`.
 - `POST /v1/chat/completions` returns an OpenAI Chat Completion or chunked SSE.
 - `POST /v1/responses` returns an OpenAI Response or typed Responses SSE
   events and supports a resident `previous_response_id` continuation.
+- `POST /v1/responses/{response_id}/cancel` cancels an active response.
 
 The 16 MiB request limit, JSON depth/value limits, codec limits, 30-second
 audio limit, 100-megapixel image limit, maximum 280 image soft tokens, output
@@ -66,17 +68,20 @@ input/output/reasoning usage, and `completed` or `incomplete` status. Streaming
 emits ordered `response.created`, output-item/content/function events, and a
 final `response.completed` object consumable by the official OpenAI SDK.
 
-The current scheduler deliberately exposes one linear resident chain:
+Each Responses session deliberately remains one exact linear chain:
 
 - a continuation must name the latest returned response ID;
 - stale, unknown, or branched IDs return 404;
 - omitted tools and tool choice inherit from the previous response; explicitly
   supplied values must be identical;
-- `store=false`, changed continuation instructions, and mixing Chat
-  Completions with Responses on the same process are rejected visibly.
+- `store=false` and changed continuation instructions are rejected visibly.
 
-This keeps the KV prefix exact. Multiple roots, branches, cancellation, and LRU
-retention arrive with the multi-session scheduler in A11.
+Many independent roots may coexist up to `--max-sessions`. Creating another
+root evicts the inactive least-recently-used chain; its response IDs then return
+404. Branches remain unsupported because a single KV prefix cannot represent
+two continuations. `client.responses.cancel(id)` sets a generation-loop
+cancellation flag. Cancelled or disconnected generations discard their slot
+because a partially advanced KV cache is unsafe to reuse.
 
 Official SDK gate:
 
@@ -104,15 +109,20 @@ indexed function tool-call/name/argument deltas, then a finish-reason chunk.
 When `stream_options.include_usage` is true, an empty-choices usage chunk
 follows. Every successful stream ends with `data: [DONE]`.
 
-## Current ownership boundary
+## Session identity and admission
 
-This is intentionally a single-conversation, single-execution-slot server.
-After the first request, each request must contain the exact public messages
-returned so far and append one user turn or consecutive tool results. Requests
-are serialized. This preserves the qualified resident KV prefix without a
-second weight copy. The next runtime milestones separate shared immutable
-weights, per-conversation state, and execution workspaces before adding
-multiple resident sessions, cancellation, LRU eviction, and metrics.
+Responses sessions are addressed by `previous_response_id`. Chat Completions
+uses `X-Gem16-Session-Id`: omit it to create a session and read the generated ID
+from the response header; send it on later requests to reuse the same resident
+conversation. A session is single-flight and rejects a second concurrent
+request with HTTP 503, while distinct sessions can run concurrently. If every
+configured slot is active, admission also returns 503 instead of evicting live
+state or allocating beyond the configured bound.
+
+`/metrics` reports request/failure/active counts, resident/limit/created/evicted
+sessions, requested/observed cancellations, client disconnects, token and
+generation-time counters, immutable target/assistant bytes, and the latest
+execution-slot byte count.
 
 ## Official OpenAI SDK qualification
 
@@ -133,5 +143,13 @@ an indexed `get_weather` function call, accumulates the SDK's typed tool
 deltas, validates its JSON arguments, executes the deterministic local fixture,
 appends the assistant call and tool result, and checks the streamed grounded
 answer plus usage chunks. `--no-stream` exercises the same loop with ordinary
-Chat Completion objects. Use a fresh server because A8 intentionally tests the
-current single resident conversation from its first request.
+Chat Completion objects.
+
+The scheduler qualification additionally exercises two independent Responses
+chains, exact continuation, LRU eviction, two concurrent generations,
+cancellation, and metrics:
+
+```powershell
+.\.venv-openai\Scripts\python.exe .\tools\validate_server_scheduler.py `
+  --base-url http://127.0.0.1:8080/v1 --model gem16
+```

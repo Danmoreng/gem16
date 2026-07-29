@@ -11,6 +11,7 @@
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <vector>
 
 #if defined(_WIN32)
@@ -35,6 +36,7 @@ struct Options {
   std::uint64_t max_context = 8192U;
   gem16::KvCacheMode kv_cache_mode = gem16::KvCacheMode::kCheckpointFp8;
   std::uint32_t mtp_draft_tokens = 0U;
+  std::uint32_t max_sessions = 2U;
   bool mtp_adaptive = false;
   bool greedy = false;
 };
@@ -46,6 +48,7 @@ void PrintUsage() {
       << "  --host <address>        Listen address (default: 127.0.0.1)\n"
       << "  --port <port>           Listen port (default: 8080)\n"
       << "  --max-context <tokens>  Session context capacity (default: 8192)\n"
+      << "  --max-sessions <count>   Resident execution slots (default: 2)\n"
       << "  --kv-cache fp8|bf16\n"
       << "  --greedy                Disable checkpoint-recommended sampling\n"
       << "  --assistant-model <checkpoint> --mtp-draft-tokens 1|2|4 [--mtp-adaptive]\n";
@@ -82,6 +85,14 @@ gem16::Result<Options> ParseOptions(int argc, char** argv) {
         return gem16::Status(gem16::StatusCode::kInvalidArgument,
                              "--max-context must be positive");
       }
+    } else if (argument == "--max-sessions" && index + 1 < argc) {
+      std::uint64_t value = 0U;
+      if (!ParseUnsigned(argv[++index], value) || value == 0U ||
+          value > 64U) {
+        return gem16::Status(gem16::StatusCode::kInvalidArgument,
+                             "--max-sessions must be in [1, 64]");
+      }
+      options.max_sessions = static_cast<std::uint32_t>(value);
     } else if (argument == "--kv-cache" && index + 1 < argc) {
       const std::string_view mode(argv[++index]);
       if (mode == "fp8") {
@@ -136,6 +147,8 @@ int HttpStatus(const gem16::Status& status) {
     case gem16::StatusCode::kNotFound: return 404;
     case gem16::StatusCode::kDataLoss: return 400;
     case gem16::StatusCode::kUnsupported: return 400;
+    case gem16::StatusCode::kResourceExhausted: return 503;
+    case gem16::StatusCode::kCancelled: return 409;
     case gem16::StatusCode::kOk: return 200;
     default: return 500;
   }
@@ -207,6 +220,9 @@ struct StreamingContext {
   std::string utf8_pending;
   std::string reasoning_utf8_pending;
   bool inside_tool_call = false;
+  std::atomic<bool>* cancel_requested = nullptr;
+  std::atomic<std::uint64_t>* cancellations_observed = nullptr;
+  std::atomic<std::uint64_t>* client_disconnects = nullptr;
 };
 
 gem16::Status StreamDelta(StreamingContext& context,
@@ -300,6 +316,21 @@ gem16::Status StreamToken(void* opaque_context,
     return gem16::Status(gem16::StatusCode::kInternal,
                          "invalid OpenAI stream callback");
   }
+  if (context->cancel_requested != nullptr &&
+      context->cancel_requested->load()) {
+    if (context->cancellations_observed != nullptr) {
+      context->cancellations_observed->fetch_add(1U);
+    }
+    return gem16::Status(gem16::StatusCode::kCancelled,
+                         "generation was cancelled");
+  }
+  if (context->sink->is_writable && !context->sink->is_writable()) {
+    if (context->client_disconnects != nullptr) {
+      context->client_disconnects->fetch_add(1U);
+    }
+    return gem16::Status(gem16::StatusCode::kCancelled,
+                         "client disconnected during generation");
+  }
   const gem16::ResponseTokenChannel channel =
       context->channels.Observe(event.token_id);
   if (channel == gem16::ResponseTokenChannel::kControl) {
@@ -327,25 +358,58 @@ gem16::Status StreamToken(void* opaque_context,
   return FeedVisibleText(*context, visible.value(), false);
 }
 
-struct ServerState {
-  enum class ProtocolMode { kUnused, kChatCompletions, kResponses };
-
-  struct ResponsesChain {
+struct ResponsesChain {
     std::string latest_response_id;
     std::vector<gem16::GenerationMessage> messages;
     std::vector<gem16::GenerationToolDefinition> tools;
     gem16::GenerationToolChoice tool_choice;
     bool initialized = false;
-  };
+};
+
+struct SessionEntry {
+  SessionEntry(std::string session_id, gem16::ChatSession chat_session)
+      : id(std::move(session_id)), session(std::move(chat_session)) {}
+
+  std::string id;
+  gem16::ChatSession session;
+  std::mutex inference_mutex;
+  ResponsesChain responses_chain;
+  std::atomic<std::uint32_t> active_requests{0U};
+  std::atomic<bool> cancel_requested{false};
+  std::atomic<std::uint64_t> last_used{0U};
+  std::string active_response_id;
+};
+
+struct ServerMetrics {
+  std::atomic<std::uint64_t> requests_total{0U};
+  std::atomic<std::uint64_t> requests_failed{0U};
+  std::atomic<std::uint64_t> active_requests{0U};
+  std::atomic<std::uint64_t> sessions_created{0U};
+  std::atomic<std::uint64_t> sessions_evicted{0U};
+  std::atomic<std::uint64_t> cancellations_requested{0U};
+  std::atomic<std::uint64_t> cancellations_observed{0U};
+  std::atomic<std::uint64_t> client_disconnects{0U};
+  std::atomic<std::uint64_t> input_tokens{0U};
+  std::atomic<std::uint64_t> output_tokens{0U};
+  std::atomic<std::uint64_t> generation_microseconds{0U};
+  std::atomic<std::uint64_t> last_slot_bytes{0U};
+};
+
+struct ServerState {
 
   std::string model_name;
   std::uint64_t max_context = 0U;
   gem16::GemmaChatProcessor processor;
-  gem16::ChatSession session;
-  std::mutex session_mutex;
+  std::shared_ptr<gem16::ModelRuntime> runtime;
+  gem16::ChatSessionOptions session_options;
+  std::uint32_t max_sessions = 2U;
+  std::mutex pool_mutex;
+  std::unordered_map<std::string, std::shared_ptr<SessionEntry>> sessions;
+  std::unordered_map<std::string, std::weak_ptr<SessionEntry>> response_index;
   std::atomic<std::uint64_t> response_counter{1U};
-  ProtocolMode protocol_mode = ProtocolMode::kUnused;
-  ResponsesChain responses_chain;
+  std::atomic<std::uint64_t> session_counter{1U};
+  std::atomic<std::uint64_t> lru_clock{1U};
+  ServerMetrics metrics;
 };
 
 gem16::server::OpenAiResponseIdentity MakeIdentity(ServerState& state) {
@@ -361,21 +425,147 @@ gem16::server::OpenAiResponseIdentity MakeResponsesIdentity(
           state.model_name, UnixSeconds()};
 }
 
-gem16::Status PrepareResponsesRequest(
-    ServerState& state, gem16::server::OpenAiResponsesRequest& request) {
-  if (state.protocol_mode == ServerState::ProtocolMode::kChatCompletions) {
-    return gem16::Status(
-        gem16::StatusCode::kInvalidArgument,
-        "the single resident slot cannot mix Chat Completions and Responses chains");
+void EraseSessionLocked(ServerState& state, const std::string& id) {
+  const auto found = state.sessions.find(id);
+  if (found == state.sessions.end()) return;
+  const std::shared_ptr<SessionEntry> entry = found->second;
+  for (auto iterator = state.response_index.begin();
+       iterator != state.response_index.end();) {
+    const std::shared_ptr<SessionEntry> indexed = iterator->second.lock();
+    if (indexed == nullptr || indexed == entry) {
+      iterator = state.response_index.erase(iterator);
+    } else {
+      ++iterator;
+    }
   }
-  ServerState::ResponsesChain& chain = state.responses_chain;
+  state.sessions.erase(found);
+}
+
+gem16::Result<std::shared_ptr<SessionEntry>> CreateSession(
+    ServerState& state, std::string id) {
+  std::lock_guard pool_lock(state.pool_mutex);
+  if (state.sessions.contains(id)) {
+    return gem16::Status(gem16::StatusCode::kInvalidArgument,
+                         "session ID is already resident");
+  }
+  if (state.sessions.size() >= state.max_sessions) {
+    auto victim = state.sessions.end();
+    for (auto iterator = state.sessions.begin();
+         iterator != state.sessions.end(); ++iterator) {
+      if (iterator->second->active_requests.load() != 0U) continue;
+      if (victim == state.sessions.end() ||
+          iterator->second->last_used.load() <
+              victim->second->last_used.load()) {
+        victim = iterator;
+      }
+    }
+    if (victim == state.sessions.end()) {
+      return gem16::Status(
+          gem16::StatusCode::kResourceExhausted,
+          "all resident execution slots are active");
+    }
+    const std::string victim_id = victim->first;
+    EraseSessionLocked(state, victim_id);
+    state.metrics.sessions_evicted.fetch_add(1U);
+  }
+  auto session = gem16::ChatSession::Create(
+      state.runtime, state.session_options, state.processor);
+  if (!session.ok()) return session.status();
+  auto entry = std::make_shared<SessionEntry>(
+      std::move(id), std::move(session).value());
+  entry->active_requests.store(1U);
+  entry->last_used.store(state.lru_clock.fetch_add(1U));
+  state.sessions.emplace(entry->id, entry);
+  state.metrics.sessions_created.fetch_add(1U);
+  state.metrics.active_requests.fetch_add(1U);
+  return entry;
+}
+
+gem16::Result<std::shared_ptr<SessionEntry>> AcquireNamedSession(
+    ServerState& state, const std::string& id) {
+  {
+    std::lock_guard pool_lock(state.pool_mutex);
+    const auto found = state.sessions.find(id);
+    if (found != state.sessions.end()) {
+      if (found->second->active_requests.load() != 0U) {
+        return gem16::Status(
+            gem16::StatusCode::kResourceExhausted,
+            "session already has an active request");
+      }
+      found->second->active_requests.fetch_add(1U);
+      found->second->last_used.store(state.lru_clock.fetch_add(1U));
+      state.metrics.active_requests.fetch_add(1U);
+      return found->second;
+    }
+  }
+  return CreateSession(state, id);
+}
+
+gem16::Result<std::shared_ptr<SessionEntry>> AcquireResponseSession(
+    ServerState& state, const std::string& response_id) {
+  std::lock_guard pool_lock(state.pool_mutex);
+  const auto found = state.response_index.find(response_id);
+  if (found == state.response_index.end()) {
+    return gem16::Status(gem16::StatusCode::kNotFound,
+                         "previous_response_id is not resident");
+  }
+  std::shared_ptr<SessionEntry> entry = found->second.lock();
+  if (entry == nullptr) {
+    state.response_index.erase(found);
+    return gem16::Status(gem16::StatusCode::kNotFound,
+                         "previous_response_id was evicted");
+  }
+  if (entry->active_requests.load() != 0U) {
+    return gem16::Status(gem16::StatusCode::kResourceExhausted,
+                         "response session already has an active request");
+  }
+  entry->active_requests.fetch_add(1U);
+  entry->last_used.store(state.lru_clock.fetch_add(1U));
+  state.metrics.active_requests.fetch_add(1U);
+  return entry;
+}
+
+void ReleaseSession(ServerState& state,
+                    const std::shared_ptr<SessionEntry>& entry) {
+  entry->last_used.store(state.lru_clock.fetch_add(1U));
+  entry->active_requests.fetch_sub(1U);
+  state.metrics.active_requests.fetch_sub(1U);
+}
+
+void DiscardSession(ServerState& state,
+                    const std::shared_ptr<SessionEntry>& entry) {
+  std::lock_guard pool_lock(state.pool_mutex);
+  EraseSessionLocked(state, entry->id);
+}
+
+class SessionLease {
+ public:
+  SessionLease(ServerState& state, std::shared_ptr<SessionEntry> entry)
+      : state_(&state), entry_(std::move(entry)) {}
+  SessionLease(const SessionLease&) = delete;
+  SessionLease& operator=(const SessionLease&) = delete;
+  ~SessionLease() {
+    if (state_ == nullptr) return;
+    if (discard_) DiscardSession(*state_, entry_);
+    ReleaseSession(*state_, entry_);
+  }
+  void Discard() { discard_ = true; }
+  void Keep() { discard_ = false; }
+
+ private:
+  ServerState* state_ = nullptr;
+  std::shared_ptr<SessionEntry> entry_;
+  bool discard_ = false;
+};
+
+gem16::Status PrepareResponsesRequest(
+    SessionEntry& entry, gem16::server::OpenAiResponsesRequest& request) {
+  ResponsesChain& chain = entry.responses_chain;
   if (!request.previous_response_id.has_value()) {
     if (chain.initialized) {
-      return gem16::Status(
-          gem16::StatusCode::kInvalidArgument,
-          "the single resident Responses slot already has a root response");
+      return gem16::Status(gem16::StatusCode::kInvalidArgument,
+                           "response session already has a root");
     }
-    state.protocol_mode = ServerState::ProtocolMode::kResponses;
     return gem16::Status::Ok();
   }
   if (!chain.initialized ||
@@ -407,10 +597,10 @@ gem16::Status PrepareResponsesRequest(
 }
 
 void CommitResponsesRequest(
-    ServerState& state, const gem16::server::OpenAiResponsesRequest& request,
+    SessionEntry& entry, const gem16::server::OpenAiResponsesRequest& request,
     const gem16::ChatGenerationResponse& response,
     std::string response_id) {
-  ServerState::ResponsesChain& chain = state.responses_chain;
+  ResponsesChain& chain = entry.responses_chain;
   chain.messages = request.generation.messages;
   gem16::GenerationMessage assistant;
   assistant.role = "assistant";
@@ -429,39 +619,150 @@ void CommitResponsesRequest(
   chain.initialized = true;
 }
 
+void IndexResponse(ServerState& state,
+                   const std::shared_ptr<SessionEntry>& entry,
+                   const std::string& response_id) {
+  std::lock_guard pool_lock(state.pool_mutex);
+  state.response_index[response_id] = entry;
+}
+
+void UnindexResponse(ServerState& state, std::string_view response_id) {
+  std::lock_guard pool_lock(state.pool_mutex);
+  state.response_index.erase(std::string(response_id));
+}
+
+void SetActiveResponse(ServerState& state,
+                       const std::shared_ptr<SessionEntry>& entry,
+                       std::string_view response_id) {
+  std::lock_guard pool_lock(state.pool_mutex);
+  entry->active_response_id = response_id;
+}
+
+void ClearActiveResponse(ServerState& state,
+                         const std::shared_ptr<SessionEntry>& entry,
+                         std::string_view response_id) {
+  std::lock_guard pool_lock(state.pool_mutex);
+  if (entry->active_response_id == response_id) {
+    entry->active_response_id.clear();
+  }
+}
+
+void RecordGeneration(ServerState& state,
+                      const gem16::ChatGenerationResponse& response,
+                      std::chrono::steady_clock::duration elapsed) {
+  state.metrics.input_tokens.fetch_add(response.prompt_token_ids.size());
+  state.metrics.output_tokens.fetch_add(
+      response.inference.output_token_ids.size());
+  state.metrics.generation_microseconds.fetch_add(
+      static_cast<std::uint64_t>(
+          std::chrono::duration_cast<std::chrono::microseconds>(elapsed)
+              .count()));
+  state.metrics.last_slot_bytes.store(
+      response.inference.kv_cache_bytes + response.inference.workspace_bytes +
+      response.inference.assistant_workspace_bytes +
+      response.inference.decode_graph_device_bytes);
+}
+
+struct CancellationContext {
+  std::atomic<bool>* cancel_requested = nullptr;
+  std::atomic<std::uint64_t>* cancellations_observed = nullptr;
+  std::atomic<std::uint64_t>* client_disconnects = nullptr;
+  httplib::DataSink* sink = nullptr;
+};
+
+gem16::Status CheckCancellation(void* opaque_context,
+                                const gem16::GenerationEvent& event) {
+  auto* context = static_cast<CancellationContext*>(opaque_context);
+  if (context == nullptr ||
+      event.kind != gem16::GenerationEventKind::kToken) {
+    return gem16::Status(gem16::StatusCode::kInternal,
+                         "invalid cancellation callback");
+  }
+  if (context->cancel_requested != nullptr &&
+      context->cancel_requested->load()) {
+    if (context->cancellations_observed != nullptr) {
+      context->cancellations_observed->fetch_add(1U);
+    }
+    return gem16::Status(gem16::StatusCode::kCancelled,
+                         "generation was cancelled");
+  }
+  if (context->sink != nullptr && context->sink->is_writable &&
+      !context->sink->is_writable()) {
+    if (context->client_disconnects != nullptr) {
+      context->client_disconnects->fetch_add(1U);
+    }
+    return gem16::Status(gem16::StatusCode::kCancelled,
+                         "client disconnected during generation");
+  }
+  return gem16::Status::Ok();
+}
+
 void HandleCompletion(ServerState& state, const httplib::Request& request,
                       httplib::Response& response) {
+  state.metrics.requests_total.fetch_add(1U);
   auto parsed = gem16::server::ParseChatCompletionsRequest(
       request.body, {state.max_context});
   if (!parsed.ok()) {
+    state.metrics.requests_failed.fetch_add(1U);
     SetError(parsed.status(), response);
     return;
   }
   if (parsed.value().model != state.model_name) {
+    state.metrics.requests_failed.fetch_add(1U);
     SetError(gem16::Status(gem16::StatusCode::kNotFound,
                            "requested model is not served"),
              response);
     return;
   }
   const gem16::server::OpenAiResponseIdentity identity = MakeIdentity(state);
+  std::string session_id = request.get_header_value("X-Gem16-Session-Id");
+  if (session_id.empty()) {
+    session_id = "session_" +
+                 std::to_string(state.session_counter.fetch_add(1U));
+  }
+  if (session_id.size() > 128U ||
+      !std::all_of(session_id.begin(), session_id.end(), [](char value) {
+        return (value >= 'a' && value <= 'z') ||
+               (value >= 'A' && value <= 'Z') ||
+               (value >= '0' && value <= '9') || value == '-' ||
+               value == '_' || value == '.';
+      })) {
+    state.metrics.requests_failed.fetch_add(1U);
+    SetError(gem16::Status(gem16::StatusCode::kInvalidArgument,
+                           "X-Gem16-Session-Id is invalid"),
+             response);
+    return;
+  }
+  auto acquired = AcquireNamedSession(state, "chat:" + session_id);
+  if (!acquired.ok()) {
+    state.metrics.requests_failed.fetch_add(1U);
+    SetError(acquired.status(), response);
+    return;
+  }
+  std::shared_ptr<SessionEntry> entry = std::move(acquired).value();
+  response.set_header("X-Gem16-Session-Id", session_id);
   if (!parsed.value().stream) {
-    std::lock_guard lock(state.session_mutex);
-    if (state.protocol_mode == ServerState::ProtocolMode::kResponses) {
-      SetError(gem16::Status(
-                   gem16::StatusCode::kInvalidArgument,
-                   "the single resident slot is owned by a Responses chain"),
-               response);
-      return;
-    }
-    state.protocol_mode = ServerState::ProtocolMode::kChatCompletions;
-    auto generated = state.session.Generate(parsed.value().generation);
+    std::lock_guard inference_lock(entry->inference_mutex);
+    entry->cancel_requested.store(false);
+    CancellationContext cancellation{
+        &entry->cancel_requested, &state.metrics.cancellations_observed,
+        &state.metrics.client_disconnects, nullptr};
+    const auto generation_start = std::chrono::steady_clock::now();
+    auto generated = entry->session.Generate(
+        parsed.value().generation, CheckCancellation, &cancellation);
     if (!generated.ok()) {
+      state.metrics.requests_failed.fetch_add(1U);
       SetError(generated.status(), response);
+      DiscardSession(state, entry);
+      ReleaseSession(state, entry);
       return;
     }
+    RecordGeneration(state, generated.value(),
+                     std::chrono::steady_clock::now() - generation_start);
     response.set_content(
         gem16::server::ChatCompletionJson(identity, generated.value()),
         "application/json; charset=utf-8");
+    ReleaseSession(state, entry);
     return;
   }
 
@@ -469,6 +770,7 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
     ServerState* server = nullptr;
     gem16::ChatGenerationRequest generation;
     gem16::server::OpenAiResponseIdentity identity;
+    std::shared_ptr<SessionEntry> entry;
     bool include_usage = false;
     bool ran = false;
   };
@@ -476,6 +778,7 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
   provider->server = &state;
   provider->generation = std::move(parsed.value().generation);
   provider->identity = identity;
+  provider->entry = entry;
   provider->include_usage = parsed.value().include_usage;
   response.set_header("Cache-Control", "no-cache");
   response.set_header("X-Accel-Buffering", "no");
@@ -484,25 +787,25 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
       [provider](std::size_t, httplib::DataSink& sink) {
         if (provider->ran) return false;
         provider->ran = true;
+        SessionLease lease(*provider->server, provider->entry);
+        std::lock_guard inference_lock(provider->entry->inference_mutex);
+        provider->entry->cancel_requested.store(false);
         if (!WriteSse(sink, gem16::server::ChatCompletionChunkJson(
                                 provider->identity,
                                 "{\"role\":\"assistant\"}"))) {
+          lease.Discard();
           return false;
         }
-        std::lock_guard lock(provider->server->session_mutex);
-        if (provider->server->protocol_mode ==
-            ServerState::ProtocolMode::kResponses) {
-          WriteSse(sink, gem16::server::OpenAiErrorJson(
-                             "the single resident slot is owned by a Responses chain",
-                             "invalid_request_error"));
-          sink.done();
-          return true;
-        }
-        provider->server->protocol_mode =
-            ServerState::ProtocolMode::kChatCompletions;
         StreamingContext stream(provider->server->processor,
                                 provider->identity, sink);
-        auto generated = provider->server->session.Generate(
+        stream.cancel_requested = &provider->entry->cancel_requested;
+        stream.cancellations_observed =
+            &provider->server->metrics.cancellations_observed;
+        stream.client_disconnects =
+            &provider->server->metrics.client_disconnects;
+        const auto generation_start = std::chrono::steady_clock::now();
+        lease.Discard();
+        auto generated = provider->entry->session.Generate(
             provider->generation, StreamToken, &stream);
         if (generated.ok()) {
           const gem16::Status final_status = FeedVisibleText(stream, {}, true);
@@ -519,11 +822,15 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
               "model response ends inside a streamed tool call");
         }
         if (!generated.ok()) {
+          provider->server->metrics.requests_failed.fetch_add(1U);
           WriteSse(sink, gem16::server::OpenAiErrorJson(
                              generated.status().message(), "server_error"));
           sink.done();
+          lease.Discard();
           return true;
         }
+        RecordGeneration(*provider->server, generated.value(),
+                         std::chrono::steady_clock::now() - generation_start);
         for (const gem16::GenerationToolCall& call :
              generated.value().tool_calls) {
           gem16::GenerationEvent start;
@@ -554,6 +861,7 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
         }
         WriteSse(sink, "[DONE]");
         sink.done();
+        lease.Keep();
         return true;
       });
 }
@@ -727,13 +1035,16 @@ bool WriteResponsesFinalEvents(
 
 void HandleResponses(ServerState& state, const httplib::Request& request,
                      httplib::Response& response) {
+  state.metrics.requests_total.fetch_add(1U);
   auto parsed = gem16::server::ParseResponsesRequest(
       request.body, {state.max_context});
   if (!parsed.ok()) {
+    state.metrics.requests_failed.fetch_add(1U);
     SetError(parsed.status(), response);
     return;
   }
   if (parsed.value().model != state.model_name) {
+    state.metrics.requests_failed.fetch_add(1U);
     SetError(gem16::Status(gem16::StatusCode::kNotFound,
                            "requested model is not served"),
              response);
@@ -741,24 +1052,51 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
   }
   const gem16::server::OpenAiResponseIdentity identity =
       MakeResponsesIdentity(state);
+  gem16::Result<std::shared_ptr<SessionEntry>> acquired =
+      parsed.value().previous_response_id.has_value()
+          ? AcquireResponseSession(state,
+                                   *parsed.value().previous_response_id)
+          : CreateSession(state, "responses:" + identity.id);
+  if (!acquired.ok()) {
+    state.metrics.requests_failed.fetch_add(1U);
+    SetError(acquired.status(), response);
+    return;
+  }
+  std::shared_ptr<SessionEntry> entry = std::move(acquired).value();
+  IndexResponse(state, entry, identity.id);
   if (!parsed.value().stream) {
-    std::lock_guard lock(state.session_mutex);
-    gem16::Status status = PrepareResponsesRequest(state, parsed.value());
+    std::lock_guard inference_lock(entry->inference_mutex);
+    gem16::Status status = PrepareResponsesRequest(*entry, parsed.value());
     if (!status.ok()) {
+      state.metrics.requests_failed.fetch_add(1U);
       SetError(status, response);
+      UnindexResponse(state, identity.id);
+      ReleaseSession(state, entry);
       return;
     }
-    auto generated = state.session.Generate(parsed.value().generation);
+    entry->cancel_requested.store(false);
+    CancellationContext cancellation{
+        &entry->cancel_requested, &state.metrics.cancellations_observed,
+        &state.metrics.client_disconnects, nullptr};
+    const auto generation_start = std::chrono::steady_clock::now();
+    auto generated = entry->session.Generate(
+        parsed.value().generation, CheckCancellation, &cancellation);
     if (!generated.ok()) {
+      state.metrics.requests_failed.fetch_add(1U);
       SetError(generated.status(), response);
+      DiscardSession(state, entry);
+      ReleaseSession(state, entry);
       return;
     }
-    CommitResponsesRequest(state, parsed.value(), generated.value(),
+    RecordGeneration(state, generated.value(),
+                     std::chrono::steady_clock::now() - generation_start);
+    CommitResponsesRequest(*entry, parsed.value(), generated.value(),
                            identity.id);
     response.set_content(
         gem16::server::ResponseJson(identity, parsed.value(),
                                     generated.value()),
         "application/json; charset=utf-8");
+    ReleaseSession(state, entry);
     return;
   }
 
@@ -766,12 +1104,14 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
     ServerState* server = nullptr;
     gem16::server::OpenAiResponsesRequest request;
     gem16::server::OpenAiResponseIdentity identity;
+    std::shared_ptr<SessionEntry> entry;
     bool ran = false;
   };
   auto provider = std::make_shared<ProviderState>();
   provider->server = &state;
   provider->request = std::move(parsed).value();
   provider->identity = identity;
+  provider->entry = entry;
   response.set_header("Cache-Control", "no-cache");
   response.set_header("X-Accel-Buffering", "no");
   response.set_chunked_content_provider(
@@ -780,17 +1120,23 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
         if (provider->ran) return false;
         provider->ran = true;
         std::uint64_t sequence = 0U;
-        std::lock_guard lock(provider->server->session_mutex);
+        SessionLease lease(*provider->server, provider->entry);
+        std::lock_guard inference_lock(provider->entry->inference_mutex);
         gem16::Status status = PrepareResponsesRequest(
-            *provider->server, provider->request);
+            *provider->entry, provider->request);
         if (!status.ok()) {
+          provider->server->metrics.requests_failed.fetch_add(1U);
           WriteSse(sink, "{\"type\":\"error\",\"code\":null,\"message\":" +
                              gem16::json::Quote(status.message()) +
                              ",\"param\":null,\"sequence_number\":" +
                              std::to_string(sequence++) + "}");
           sink.done();
+          UnindexResponse(*provider->server, provider->identity.id);
           return true;
         }
+        provider->entry->cancel_requested.store(false);
+        SetActiveResponse(*provider->server, provider->entry,
+                          provider->identity.id);
         if (!WriteSse(
                 sink,
                 "{\"type\":\"response.created\",\"response\":" +
@@ -798,11 +1144,23 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
                         provider->identity, provider->request, "in_progress") +
                     ",\"sequence_number\":" +
                     std::to_string(sequence++) + "}")) {
+          ClearActiveResponse(*provider->server, provider->entry,
+                              provider->identity.id);
+          UnindexResponse(*provider->server, provider->identity.id);
           return false;
         }
-        auto generated = provider->server->session.Generate(
-            provider->request.generation);
+        CancellationContext cancellation{
+            &provider->entry->cancel_requested,
+            &provider->server->metrics.cancellations_observed,
+            &provider->server->metrics.client_disconnects, &sink};
+        const auto generation_start = std::chrono::steady_clock::now();
+        lease.Discard();
+        auto generated = provider->entry->session.Generate(
+            provider->request.generation, CheckCancellation, &cancellation);
+        ClearActiveResponse(*provider->server, provider->entry,
+                            provider->identity.id);
         if (!generated.ok()) {
+          provider->server->metrics.requests_failed.fetch_add(1U);
           WriteSse(sink, "{\"type\":\"error\",\"code\":null,\"message\":" +
                              gem16::json::Quote(generated.status().message()) +
                              ",\"param\":null,\"sequence_number\":" +
@@ -810,14 +1168,92 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
           sink.done();
           return true;
         }
-        CommitResponsesRequest(*provider->server, provider->request,
+        RecordGeneration(*provider->server, generated.value(),
+                         std::chrono::steady_clock::now() - generation_start);
+        CommitResponsesRequest(*provider->entry, provider->request,
                                generated.value(), provider->identity.id);
         const bool written = WriteResponsesFinalEvents(
             sink, provider->identity, provider->request, generated.value(),
             sequence);
         sink.done();
+        if (written) lease.Keep();
         return written;
       });
+}
+
+void HandleCancelResponse(ServerState& state, std::string_view response_id,
+                          httplib::Response& response) {
+  bool cancellation_requested = false;
+  {
+    std::lock_guard pool_lock(state.pool_mutex);
+    const auto found = state.response_index.find(std::string(response_id));
+    if (found != state.response_index.end()) {
+      const std::shared_ptr<SessionEntry> entry = found->second.lock();
+      if (entry != nullptr && entry->active_response_id == response_id &&
+          entry->active_requests.load() != 0U) {
+        entry->cancel_requested.store(true);
+        state.metrics.cancellations_requested.fetch_add(1U);
+        cancellation_requested = true;
+      }
+    }
+  }
+  if (!cancellation_requested) {
+    SetError(gem16::Status(gem16::StatusCode::kNotFound,
+                           "response is not actively generating"),
+             response);
+    return;
+  }
+  response.set_content(
+      "{\"id\":" + gem16::json::Quote(response_id) +
+          ",\"object\":\"response\",\"status\":\"cancelling\"}",
+      "application/json; charset=utf-8");
+}
+
+std::string MetricsText(ServerState& state) {
+  std::size_t resident_sessions = 0U;
+  {
+    std::lock_guard pool_lock(state.pool_mutex);
+    resident_sessions = state.sessions.size();
+  }
+  const auto metric = [](std::string_view name, std::uint64_t value) {
+    return std::string(name) + " " + std::to_string(value) + "\n";
+  };
+  std::string output;
+  output.append("# TYPE gem16_requests_total counter\n");
+  output.append(metric("gem16_requests_total",
+                       state.metrics.requests_total.load()));
+  output.append("# TYPE gem16_requests_failed_total counter\n");
+  output.append(metric("gem16_requests_failed_total",
+                       state.metrics.requests_failed.load()));
+  output.append("# TYPE gem16_active_requests gauge\n");
+  output.append(metric("gem16_active_requests",
+                       state.metrics.active_requests.load()));
+  output.append("# TYPE gem16_resident_sessions gauge\n");
+  output.append(metric("gem16_resident_sessions", resident_sessions));
+  output.append(metric("gem16_session_limit", state.max_sessions));
+  output.append(metric("gem16_sessions_created_total",
+                       state.metrics.sessions_created.load()));
+  output.append(metric("gem16_sessions_evicted_total",
+                       state.metrics.sessions_evicted.load()));
+  output.append(metric("gem16_cancellations_requested_total",
+                       state.metrics.cancellations_requested.load()));
+  output.append(metric("gem16_cancellations_observed_total",
+                       state.metrics.cancellations_observed.load()));
+  output.append(metric("gem16_client_disconnects_total",
+                       state.metrics.client_disconnects.load()));
+  output.append(metric("gem16_input_tokens_total",
+                       state.metrics.input_tokens.load()));
+  output.append(metric("gem16_output_tokens_total",
+                       state.metrics.output_tokens.load()));
+  output.append(metric("gem16_generation_microseconds_total",
+                       state.metrics.generation_microseconds.load()));
+  output.append(metric("gem16_model_weight_bytes",
+                       state.runtime->weight_bytes()));
+  output.append(metric("gem16_assistant_weight_bytes",
+                       state.runtime->assistant_weight_bytes()));
+  output.append(metric("gem16_last_execution_slot_bytes",
+                       state.metrics.last_slot_bytes.load()));
+  return output;
 }
 
 int ServerMain(int argc, char** argv) {
@@ -860,20 +1296,32 @@ int ServerMain(int argc, char** argv) {
             << " assistant_weights="
             << runtime.value()->assistant_weight_bytes()
             << " load_ms=" << runtime.value()->load_milliseconds() << '\n';
-  auto session = gem16::ChatSession::Create(
-      runtime.value(), session_options, processor.value());
-  if (!session.ok()) {
-    std::cerr << "error: " << session.status().message() << '\n';
-    return 2;
-  }
-  ServerState state{options.value().model_name, options.value().max_context,
-                    std::move(processor).value(),
-                    std::move(session).value()};
+  ServerState state{.model_name = options.value().model_name,
+                    .max_context = options.value().max_context,
+                    .processor = std::move(processor).value(),
+                    .runtime = runtime.value(),
+                    .session_options = session_options,
+                    .max_sessions = options.value().max_sessions};
   httplib::Server server;
-  server.Get("/health", [](const httplib::Request&, httplib::Response& response) {
-    response.set_content("{\"status\":\"ok\"}",
-                         "application/json; charset=utf-8");
-  });
+  server.Get("/health",
+             [&state](const httplib::Request&, httplib::Response& response) {
+               std::size_t resident = 0U;
+               {
+                 std::lock_guard pool_lock(state.pool_mutex);
+                 resident = state.sessions.size();
+               }
+               response.set_content(
+                   "{\"status\":\"ok\",\"resident_sessions\":" +
+                       std::to_string(resident) +
+                       ",\"session_limit\":" +
+                       std::to_string(state.max_sessions) + "}",
+                   "application/json; charset=utf-8");
+             });
+  server.Get("/metrics",
+             [&state](const httplib::Request&, httplib::Response& response) {
+               response.set_content(MetricsText(state),
+                                    "text/plain; version=0.0.4; charset=utf-8");
+             });
   server.Get("/v1/models",
              [&state](const httplib::Request&, httplib::Response& response) {
                response.set_content(
@@ -891,6 +1339,11 @@ int ServerMain(int argc, char** argv) {
               [&state](const httplib::Request& request,
                        httplib::Response& response) {
                 HandleResponses(state, request, response);
+              });
+  server.Post(R"(/v1/responses/([^/]+)/cancel)",
+              [&state](const httplib::Request& request,
+                       httplib::Response& response) {
+                HandleCancelResponse(state, request.matches[1].str(), response);
               });
   server.set_payload_max_length(16U * 1024U * 1024U);
   std::cout << "gem16 OpenAI-compatible server listening on http://"
