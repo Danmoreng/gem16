@@ -1,8 +1,10 @@
 #include "gem16/chat.h"
 
 #include <string>
+#include <vector>
 
 #include "runtime/tool_call_parser.h"
+#include "runtime/chat_internal.h"
 #include "cuda/engine/media_chunk_plan.h"
 #include "test.h"
 
@@ -131,6 +133,93 @@ void TestMultipleImageChunkPlanning() {
                   20U, 12U, segments) == 2U);
 }
 
+void TestReasoningMaterialization() {
+  gem16::GenerationTokenControls controls;
+  controls.thinking_open_token_ids = {100U, 45518U, 108U};
+  controls.thinking_close_token_id = 101U;
+  const std::vector<std::uint32_t> generated = {
+      100U, 45518U, 108U, 7U, 8U, 101U, 9U};
+  const auto reasoning = gem16::internal::ExtractReasoningTokenIds(
+      generated, controls);
+  GEM16_CHECK(reasoning == std::vector<std::uint32_t>({7U, 8U}));
+}
+
+void TestResidentImageIdentity() {
+  gem16::VisionImage cached_image;
+  cached_image.patch_count = 4U;
+  cached_image.soft_token_budget = 280U;
+  cached_image.source_fingerprint = 1234U;
+  cached_image.patches.resize(4U * 6912U, 0.25F);
+  cached_image.positions.resize(8U);
+  gem16::VisionImage reprocessed_image = cached_image;
+  reprocessed_image.patch_count = 2U;
+  reprocessed_image.soft_token_budget = 128U;
+  reprocessed_image.patches.resize(2U * 6912U);
+  reprocessed_image.positions.resize(4U);
+
+  gem16::GenerationMessage cached;
+  cached.role = "user";
+  cached.content.push_back(
+      gem16::GenerationContentPart::Image(std::move(cached_image)));
+  gem16::GenerationMessage supplied;
+  supplied.role = "user";
+  supplied.content.push_back(
+      gem16::GenerationContentPart::Image(std::move(reprocessed_image)));
+  GEM16_CHECK(gem16::internal::ResidentMessageEquivalent(cached, supplied));
+
+  supplied.content.front().image.source_fingerprint = 5678U;
+  GEM16_CHECK(!gem16::internal::ResidentMessageEquivalent(cached, supplied));
+}
+
+void TestStrictToolContract() {
+  const std::vector<gem16::GenerationToolDefinition> tools = {{
+      "get_weather", "Get weather",
+      R"({"type":"object","properties":{"location":{"type":"string"},"days":{"type":"integer","minimum":1,"maximum":7}},"required":["location"],"additionalProperties":false})",
+      true}};
+  GEM16_CHECK(gem16::internal::ValidateToolDefinitions(tools).ok());
+
+  const gem16::GenerationToolChoice automatic;
+  const std::vector<gem16::GenerationToolCall> valid = {
+      {"call_1", "get_weather", R"({"location":"Berlin","days":3})"}};
+  GEM16_CHECK(gem16::internal::ValidateGeneratedToolCalls(
+                  tools, automatic, valid)
+                  .ok());
+  const std::vector<gem16::GenerationToolCall> extra = {
+      {"call_1", "get_weather",
+       R"({"location":"Berlin","unexpected":true})"}};
+  GEM16_CHECK(!gem16::internal::ValidateGeneratedToolCalls(
+                   tools, automatic, extra)
+                   .ok());
+  const std::vector<gem16::GenerationToolCall> out_of_range = {
+      {"call_1", "get_weather", R"({"location":"Berlin","days":8})"}};
+  GEM16_CHECK(!gem16::internal::ValidateGeneratedToolCalls(
+                   tools, automatic, out_of_range)
+                   .ok());
+  const std::vector<gem16::GenerationToolDefinition> unicode_tools = {{
+      "get_weather", "Get weather",
+      R"({"type":"object","properties":{"location":{"type":"string","minLength":2}},"required":["location"]})",
+      true}};
+  const std::vector<gem16::GenerationToolCall> unicode_too_short = {
+      {"call_1", "get_weather", R"({"location":"ä"})"}};
+  GEM16_CHECK(!gem16::internal::ValidateGeneratedToolCalls(
+                   unicode_tools, automatic, unicode_too_short)
+                   .ok());
+  const std::vector<gem16::GenerationToolCall> unknown = {
+      {"call_1", "delete_files", R"({})"}};
+  GEM16_CHECK(!gem16::internal::ValidateGeneratedToolCalls(
+                   tools, automatic, unknown)
+                   .ok());
+
+  const std::vector<gem16::GenerationToolDefinition> incompatible = {{
+      "get-weather", "Get weather", R"({"type":"object"})", false}};
+  GEM16_CHECK(!gem16::internal::ValidateToolDefinitions(incompatible).ok());
+  const std::vector<gem16::GenerationToolDefinition> unsupported_strict = {{
+      "search", "Search", R"({"type":"object","patternProperties":{}})",
+      true}};
+  GEM16_CHECK(
+      !gem16::internal::ValidateToolDefinitions(unsupported_strict).ok());
+}
+
 }  // namespace
 
 void RunChatTests() {
@@ -138,4 +227,7 @@ void RunChatTests() {
   TestProtocolNeutralGenerationTypes();
   TestIncrementalGemmaToolCallParser();
   TestMultipleImageChunkPlanning();
+  TestReasoningMaterialization();
+  TestResidentImageIdentity();
+  TestStrictToolContract();
 }

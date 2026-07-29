@@ -22,6 +22,10 @@ struct VisionImage {
   std::uint32_t processed_width = 0U;
   std::uint32_t processed_height = 0U;
   std::uint32_t soft_token_budget = 280U;
+  // Stable identity of the original encoded payload. Resident adapters use
+  // this to retain the already-prefilled representation when a later request
+  // recomputes a different aggregate image budget.
+  std::uint64_t source_fingerprint = 0U;
 
   bool operator==(const VisionImage&) const = default;
 };

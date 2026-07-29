@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "runtime/tool_call_parser.h"
+#include "runtime/chat_internal.h"
 
 namespace gem16 {
 
@@ -123,13 +124,18 @@ Result<std::string> MaterializeContent(const GenerationMessage& message, ChatMes
   return text;
 }
 
-Result<MaterializedMessages> MaterializeMessages(std::span<const GenerationMessage> messages) {
+Result<MaterializedMessages> MaterializeMessages(
+    std::span<const GenerationMessage> messages,
+    std::span<const GenerationMessage> canonical_prefix = {}) {
   if (messages.empty()) {
     return Status(StatusCode::kInvalidArgument, "generation request requires at least one message");
   }
   MaterializedMessages materialized;
   materialized.messages.reserve(messages.size());
-  for (const GenerationMessage& message : messages) {
+  for (std::size_t index = 0U; index < messages.size(); ++index) {
+    const GenerationMessage& message =
+        index < canonical_prefix.size() ? canonical_prefix[index]
+                                        : messages[index];
     ChatMessage chat_message;
     chat_message.role = message.role;
     auto content = MaterializeContent(message, chat_message, materialized.audio_frames, materialized.images);
@@ -215,6 +221,47 @@ Status ForwardTokenEvent(void* opaque_context, std::uint32_t token_id) {
 
 }  // namespace
 
+namespace internal {
+
+bool ResidentMessageEquivalent(const GenerationMessage& cached,
+                               const GenerationMessage& supplied) {
+  if (cached.role != supplied.role ||
+      cached.content.size() != supplied.content.size()) {
+    return false;
+  }
+  for (std::size_t index = 0U; index < cached.content.size(); ++index) {
+    const GenerationContentPart& left = cached.content[index];
+    const GenerationContentPart& right = supplied.content[index];
+    if (left.kind != right.kind) return false;
+    if (left.kind == GenerationContentKind::kImage &&
+        left.image.source_fingerprint != 0U &&
+        right.image.source_fingerprint != 0U) {
+      if (left.image.source_fingerprint != right.image.source_fingerprint) {
+        return false;
+      }
+      continue;
+    }
+    if (!(left == right)) return false;
+  }
+  return true;
+}
+
+std::vector<std::uint32_t> ExtractReasoningTokenIds(
+    std::span<const std::uint32_t> token_ids,
+    const GenerationTokenControls& controls) {
+  std::vector<std::uint32_t> reasoning_ids;
+  ResponseChannelTracker response_channels(controls);
+  for (const std::uint32_t token_id : token_ids) {
+    if (response_channels.Observe(token_id) ==
+        ResponseTokenChannel::kReasoning) {
+      reasoning_ids.push_back(token_id);
+    }
+  }
+  return reasoning_ids;
+}
+
+}  // namespace internal
+
 struct ChatSession::Impl {
   Impl(GemmaChatProcessor chat_processor, ConversationSession conversation_session)
       : processor(std::move(chat_processor)), session(std::move(conversation_session)) {}
@@ -286,9 +333,15 @@ Result<ChatGenerationResponse> ChatSession::Generate(const ChatGenerationRequest
     return Status(StatusCode::kUnsupported,
                   "native Gemma generation cannot yet constrain output to one tool call");
   }
-  auto messages = MaterializeMessages(request.messages);
-  if (!messages.ok()) return messages.status();
-  if (messages.value().messages.back().role != "user" && messages.value().messages.back().role != "tool") {
+  const Status tool_definition_status =
+      internal::ValidateToolDefinitions(request.tools);
+  if (!tool_definition_status.ok()) return tool_definition_status;
+  if (request.messages.empty()) {
+    return Status(StatusCode::kInvalidArgument,
+                  "generation request requires at least one message");
+  }
+  if (request.messages.back().role != "user" &&
+      request.messages.back().role != "tool") {
     return Status(StatusCode::kInvalidArgument, "generation request must end with a user or tool message");
   }
   std::vector<ChatToolDefinition> tools;
@@ -301,8 +354,13 @@ Result<ChatGenerationResponse> ChatSession::Generate(const ChatGenerationRequest
   if (!impl_->committed_messages.empty()) {
     const bool extends_prefix =
         request.messages.size() > impl_->committed_messages.size() &&
-        std::equal(impl_->committed_messages.begin(),
-                   impl_->committed_messages.end(), request.messages.begin());
+        std::equal(
+            impl_->committed_messages.begin(), impl_->committed_messages.end(),
+            request.messages.begin(),
+            [](const GenerationMessage& cached,
+               const GenerationMessage& supplied) {
+              return internal::ResidentMessageEquivalent(cached, supplied);
+            });
     const auto added_begin = extends_prefix
                                  ? request.messages.begin() +
                                        static_cast<std::ptrdiff_t>(
@@ -330,6 +388,9 @@ Result<ChatGenerationResponse> ChatSession::Generate(const ChatGenerationRequest
                     "resident conversation tool choice must not change");
     }
   }
+  auto messages = MaterializeMessages(request.messages,
+                                      impl_->committed_messages);
+  if (!messages.ok()) return messages.status();
 
   Result<std::vector<std::uint32_t>> prompt_ids = [&]() {
     if (impl_->cached_prefix_token_ids.empty()) {
@@ -434,13 +495,26 @@ Result<ChatGenerationResponse> ChatSession::Generate(const ChatGenerationRequest
   if (!assistant_content.ok()) return assistant_content.status();
   auto assistant_text = impl_->processor.DecodeResponseText(content_ids);
   if (!assistant_text.ok()) return assistant_text.status();
+  std::vector<std::uint32_t> reasoning_ids =
+      internal::ExtractReasoningTokenIds(
+          content_ids, impl_->processor.generation_controls());
+  if (reasoning_ids.size() != inference.value().reasoning_tokens) {
+    return Status(StatusCode::kInternal,
+                  "decoded reasoning channel disagrees with inference accounting");
+  }
+  auto reasoning_text = impl_->processor.Decode(reasoning_ids, true);
+  if (!reasoning_text.ok()) return reasoning_text.status();
   internal::GemmaToolCallParser tool_parser;
   auto parsed_tool_events = tool_parser.Push(assistant_content.value(), true);
   if (!parsed_tool_events.ok()) return parsed_tool_events.status();
+  const Status tool_call_status = internal::ValidateGeneratedToolCalls(
+      request.tools, request.tool_choice, tool_parser.tool_calls());
+  if (!tool_call_status.ok()) return tool_call_status;
 
   ChatGenerationResponse response;
   response.assistant_content = std::move(assistant_content).value();
   response.assistant_text = std::move(assistant_text).value();
+  response.reasoning_text = std::move(reasoning_text).value();
   response.tool_calls = tool_parser.tool_calls();
   response.prompt_token_ids = std::move(prompt_ids).value();
   response.finish_reason = !response.tool_calls.empty() ? GenerationFinishReason::kToolCalls
@@ -448,7 +522,15 @@ Result<ChatGenerationResponse> ChatSession::Generate(const ChatGenerationRequest
                                                         : GenerationFinishReason::kLength;
   response.inference = std::move(inference).value();
 
-  impl_->committed_messages = request.messages;
+  if (impl_->committed_messages.empty()) {
+    impl_->committed_messages = request.messages;
+  } else {
+    impl_->committed_messages.insert(
+        impl_->committed_messages.end(),
+        request.messages.begin() + static_cast<std::ptrdiff_t>(
+                                       impl_->committed_messages.size()),
+        request.messages.end());
+  }
   GenerationMessage assistant;
   assistant.role = "assistant";
   if (!response.assistant_text.empty() || response.tool_calls.empty()) {

@@ -96,6 +96,7 @@ void RunImageTests() {
   GEM16_CHECK(memory_image.ok());
   if (memory_image.ok()) {
     GEM16_CHECK(memory_image.value().patch_count == 256U);
+    GEM16_CHECK(memory_image.value().source_fingerprint != 0U);
   }
   auto compact = gem16::LoadVisionImage(
       path, gem16::VisionImageOptions{70U, false});
@@ -105,6 +106,10 @@ void RunImageTests() {
     GEM16_CHECK(compact.value().processed_width == 384U);
     GEM16_CHECK(compact.value().processed_height == 384U);
     GEM16_CHECK(compact.value().soft_token_budget == 70U);
+    if (memory_image.ok()) {
+      GEM16_CHECK(compact.value().source_fingerprint ==
+                  memory_image.value().source_fingerprint);
+    }
   }
   GEM16_CHECK(!gem16::LoadVisionImage(
                    path, gem16::VisionImageOptions{281U, false})

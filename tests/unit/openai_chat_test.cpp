@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "server/openai_chat.h"
+#include "runtime/chat_internal.h"
 #include "util/json.h"
 
 namespace {
@@ -114,6 +115,36 @@ void RunOpenAiChatTests() {
   GEM16_CHECK(!gem16::server::ParseChatCompletionsRequest(
                    R"({"model":"gem16","messages":[{"role":"user","content":[{"type":"image_url","image_url":{"url":"x"}}]}]})")
                    .ok());
+
+  const std::string encoded_image = Base64(TinyBmp());
+  const std::string one_image_request =
+      "{\"model\":\"gem16\",\"messages\":[{\"role\":\"user\",\"content\":["
+      "{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/bmp;base64," +
+      encoded_image + "\"}}]}]}";
+  const std::string two_turn_image_request =
+      "{\"model\":\"gem16\",\"messages\":[{\"role\":\"user\",\"content\":["
+      "{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/bmp;base64," +
+      encoded_image +
+      "\"}}]},{\"role\":\"assistant\",\"content\":\"first\"},"
+      "{\"role\":\"user\",\"content\":[{\"type\":\"image_url\","
+      "\"image_url\":{\"url\":\"data:image/bmp;base64," +
+      encoded_image + "\"}}]}]}";
+  auto one_image = gem16::server::ParseChatCompletionsRequest(
+      one_image_request, {512U});
+  auto two_images = gem16::server::ParseChatCompletionsRequest(
+      two_turn_image_request, {512U});
+  GEM16_CHECK(one_image.ok());
+  GEM16_CHECK(two_images.ok());
+  if (one_image.ok() && two_images.ok()) {
+    const auto& original = one_image.value().generation.messages.front();
+    const auto& reprocessed = two_images.value().generation.messages.front();
+    GEM16_CHECK(original.content.front().image.soft_token_budget !=
+                reprocessed.content.front().image.soft_token_budget);
+    GEM16_CHECK(original.content.front().image.source_fingerprint ==
+                reprocessed.content.front().image.source_fingerprint);
+    GEM16_CHECK(gem16::internal::ResidentMessageEquivalent(original,
+                                                           reprocessed));
+  }
 
   const std::string media_request =
       "{\"model\":\"gem16\",\"messages\":[{\"role\":\"user\",\"content\":["
@@ -228,6 +259,8 @@ void RunOpenAiChatTests() {
   response_request.generation.max_generated_tokens = 64U;
   const gem16::server::OpenAiResponseIdentity response_identity{
       "resp_test", "gem16", 123};
+  generated.reasoning_text = "Inspect the requested location.";
+  generated.inference.reasoning_tokens = 4U;
   const std::string response_json = gem16::server::ResponseJson(
       response_identity, response_request, generated);
   auto parsed_responses = gem16::json::Parse(response_json);
@@ -236,7 +269,19 @@ void RunOpenAiChatTests() {
     GEM16_CHECK(parsed_responses.value().find("object")->as_string() ==
                 "response");
     GEM16_CHECK(parsed_responses.value().find("output")->as_array().size() ==
-                2U);
+                3U);
+    GEM16_CHECK(parsed_responses.value()
+                    .find("output")
+                    ->as_array()[0]
+                    .find("type")
+                    ->as_string() == "reasoning");
+    GEM16_CHECK(parsed_responses.value()
+                    .find("output")
+                    ->as_array()[0]
+                    .find("content")
+                    ->as_array()[0]
+                    .find("text")
+                    ->as_string() == "Inspect the requested location.");
     GEM16_CHECK(parsed_responses.value()
                     .find("usage")
                     ->find("total_tokens")

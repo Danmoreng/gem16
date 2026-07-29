@@ -37,6 +37,17 @@ Status Error(StatusCode code, std::string message) {
   return Status(code, std::move(message));
 }
 
+std::uint64_t SourceFingerprint(std::span<const std::uint8_t> encoded) {
+  std::uint64_t hash = 14695981039346656037ULL;
+  for (const std::uint8_t byte : encoded) {
+    hash ^= byte;
+    hash *= 1099511628211ULL;
+  }
+  // Zero denotes an image constructed by an older/in-process caller without
+  // source identity, so keep it unavailable as a real fingerprint.
+  return hash == 0U ? 1U : hash;
+}
+
 Result<RgbImage> DecodeImage(std::span<const std::uint8_t> encoded,
                              std::string_view source_name) {
   if (encoded.empty() || encoded.size() > kMaximumEncodedBytes ||
@@ -249,6 +260,7 @@ Result<VisionImage> LoadVisionImageBytes(
   result.processed_width = target_width;
   result.processed_height = target_height;
   result.soft_token_budget = options.maximum_soft_tokens;
+  result.source_fingerprint = SourceFingerprint(encoded);
   result.patches.resize(static_cast<std::size_t>(patch_count) * 48U * 48U * 3U);
   result.positions.resize(static_cast<std::size_t>(patch_count) * 2U);
   std::size_t destination = 0U;

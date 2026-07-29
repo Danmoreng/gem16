@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "util/json.h"
+#include "runtime/tool_call_parser.h"
 
 namespace gem16::server {
 namespace {
@@ -230,7 +231,7 @@ Result<GenerationToolDefinition> ParseTool(const json::Value& value) {
     if (!parameters->is_object()) return Invalid("tool parameters must be an object");
     tool.parameters_json = json::Stringify(*parameters);
   } else {
-    tool.parameters_json = "{}";
+    tool.parameters_json = R"({"type":"object","properties":{}})";
   }
   if (const json::Value* strict = function->find("strict"); strict != nullptr) {
     if (!strict->is_bool()) return Invalid("tool strict must be a boolean");
@@ -292,7 +293,7 @@ Result<GenerationToolDefinition> ParseResponsesTool(
     }
     tool.parameters_json = json::Stringify(*parameters);
   } else {
-    tool.parameters_json = "{}";
+    tool.parameters_json = R"({"type":"object","properties":{}})";
   }
   if (const json::Value* strict = value.find("strict"); strict != nullptr) {
     if (!strict->is_bool()) return Invalid("tool strict must be a boolean");
@@ -583,6 +584,9 @@ Result<OpenAiChatRequest> ParseChatCompletionsRequest(
                         "' is not supported by the single-slot server");
     }
   }
+  const Status tool_status =
+      internal::ValidateToolDefinitions(request.generation.tools);
+  if (!tool_status.ok()) return tool_status;
   std::uint64_t audio_tokens = 0U;
   for (const GenerationMessage& message : request.generation.messages) {
     for (const GenerationContentPart& part : message.content) {
@@ -807,6 +811,9 @@ Result<OpenAiResponsesRequest> ParseResponsesRequest(
                         "' is not supported by the resident server");
     }
   }
+  const Status tool_status =
+      internal::ValidateToolDefinitions(request.generation.tools);
+  if (!tool_status.ok()) return tool_status;
 
   std::uint64_t audio_tokens = 0U;
   for (const GenerationMessage& message : request.generation.messages) {

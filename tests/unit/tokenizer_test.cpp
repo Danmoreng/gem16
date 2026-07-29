@@ -144,13 +144,15 @@ void TestGoogleTokenizerConfigAndResponseTemplate() {
 
     auto definition = gem16::internal::RenderGemmaToolDefinition(
         "weather", "Get weather",
-        R"({"type":"object","properties":{"location":{"type":"string","description":"City"}},"required":["location"]})");
+        R"({"type":"object","properties":{"location":{"type":"string","description":"City","minLength":1},"days":{"type":"integer","enum":[1,3,5]}},"required":["location"],"additionalProperties":false})");
     GEM16_CHECK(definition.ok());
     if (definition.ok()) {
       GEM16_CHECK(definition.value() ==
                   "<|tool>declaration:weather{description:<|\"|>Get "
-                  "weather<|\"|>,parameters:{properties:{location:{description:<|\"|>City<|\"|>,type:<|\"|>STRING<|\"|>"
-                  "}},required:[<|\"|>location<|\"|>],type:<|\"|>OBJECT<|\"|>}}<tool|>");
+                  "weather<|\"|>,parameters:{properties:{days:{enum:[1,3,5],type:<|\"|>INTEGER<|\"|>},"
+                  "location:{description:<|\"|>City<|\"|>,minLength:1,"
+                  "type:<|\"|>STRING<|\"|>}},required:[<|\"|>location<|\"|>],additionalProperties:false,"
+                  "type:<|\"|>OBJECT<|\"|>}}<tool|>");
     }
     auto rendered_call = gem16::internal::RenderGemmaToolCall("weather", R"({"location":"Berlin","days":[1,2]})");
     GEM16_CHECK(rendered_call.ok());

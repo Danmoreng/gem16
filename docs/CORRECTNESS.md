@@ -368,6 +368,29 @@ Reproduce the instruction check with:
 python tools/verify_sm120_sass.py build/<OS>/blackwell-release/bin/gem16-cuda-tests
 ```
 
+## Server boundary correctness
+
+The OpenAI adapters and protocol-neutral `ChatSession` enforce the state that
+must remain exact around generation:
+
+- an admitted SSE request carries an RAII session lease even if cpp-httplib
+  never invokes its content provider, so active-slot accounting is released;
+- reasoning text is reconstructed from the same checkpoint-qualified token
+  channel tracker used by inference accounting, and a count mismatch is an
+  internal error rather than a silently incomplete Responses object;
+- tool definitions are validated before inference, supported schema constraints
+  are retained in the native declaration, and every generated strict call is
+  checked against its declared name and argument schema;
+- resident image prefixes use a stable encoded-source identity, retaining the
+  canonical already-prefilled patch rows if a later aggregate image budget
+  reprocesses the unchanged historical payload.
+
+Host regression fixtures cover reasoning-channel materialization, strict valid
+and invalid calls, Unicode length bounds, constraint rendering, source identity
+across image budgets, and full-history multi-image parsing. Both the Windows
+host-debug suite and the SM120a release host/CUDA suites are required after
+changes to these boundaries.
+
 ## MTP correctness
 
 The optional MTP path is exact-by-verification: assistant drafts never directly determine emitted output. For each

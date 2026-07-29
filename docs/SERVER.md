@@ -67,6 +67,9 @@ The response contains typed `message` and `function_call` output items, exact
 input/output/reasoning usage, and `completed` or `incomplete` status. Streaming
 emits ordered `response.created`, output-item/content/function events, and a
 final `response.completed` object consumable by the official OpenAI SDK.
+Private reasoning is materialized as a completed `reasoning` output item and,
+for streaming requests, as matching `response.reasoning_text.*` events before
+the visible assistant message.
 
 Each Responses session deliberately remains one exact linear chain:
 
@@ -101,6 +104,17 @@ Native Gemma tool DSL never leaks through the API: the resident identity is
 canonical visible assistant text plus structured calls, which an OpenAI client
 can reproduce exactly in the following request.
 
+Tool names and parameter names must fit the checkpoint-native protocol grammar:
+1 through 64 ASCII letters, digits, or underscores. Incompatible names such as
+hyphenated identifiers are rejected before generation instead of being
+silently changed. Parameter schemas require an object root. Schema constraints
+that the native declaration renderer supports are retained in the model prompt.
+For `strict:true`, generated argument JSON is additionally checked for declared
+tool identity, object shape, required/additional properties, type, enum/const,
+array and string bounds, numeric bounds, local references, and composition
+constraints before a successful response is exposed. Unsupported strict-schema
+keywords return a visible request error instead of weakening the contract.
+
 ## Streaming
 
 With `"stream":true`, the response is `text/event-stream`. It begins with an
@@ -118,6 +132,18 @@ conversation. A session is single-flight and rejects a second concurrent
 request with HTTP 503, while distinct sessions can run concurrently. If every
 configured slot is active, admission also returns 503 instead of evicting live
 state or allocating beyond the configured bound.
+
+The HTTP stream owns its session lease from admission until the provider is
+released. Consequently a peer that disconnects after admission but before the
+SSE provider starts cannot leave `active_requests` pinned. A generation-time
+disconnect still discards the affected mutable KV slot.
+
+When a later full-history Chat Completions request adds another image, the
+adapter may recompute a smaller aggregate image budget for all supplied media.
+Resident prefix validation identifies the unchanged encoded source and retains
+the already-prefilled canonical patch representation for old turns; only new
+media use the new request's budget. Changed source payloads remain a prefix
+mismatch.
 
 `/metrics` reports request/failure/active counts, resident/limit/created/evicted
 sessions, requested/observed cancellations, client disconnects, token and

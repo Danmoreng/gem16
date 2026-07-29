@@ -782,6 +782,7 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
     gem16::ChatGenerationRequest generation;
     gem16::server::OpenAiResponseIdentity identity;
     std::shared_ptr<SessionEntry> entry;
+    std::unique_ptr<SessionLease> lease;
     bool include_usage = false;
     bool ran = false;
   };
@@ -790,6 +791,7 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
   provider->generation = std::move(parsed.value().generation);
   provider->identity = identity;
   provider->entry = entry;
+  provider->lease = std::make_unique<SessionLease>(state, entry);
   provider->include_usage = parsed.value().include_usage;
   response.set_header("Cache-Control", "no-cache");
   response.set_header("X-Accel-Buffering", "no");
@@ -798,13 +800,12 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
       [provider](std::size_t, httplib::DataSink& sink) {
         if (provider->ran) return false;
         provider->ran = true;
-        SessionLease lease(*provider->server, provider->entry);
         std::lock_guard inference_lock(provider->entry->inference_mutex);
         provider->entry->cancel_requested.store(false);
         if (!WriteSse(sink, gem16::server::ChatCompletionChunkJson(
                                 provider->identity,
                                 "{\"role\":\"assistant\"}"))) {
-          lease.Discard();
+          provider->lease->Discard();
           return false;
         }
         StreamingContext stream(provider->server->processor,
@@ -815,7 +816,7 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
         stream.client_disconnects =
             &provider->server->metrics.client_disconnects;
         const auto generation_start = std::chrono::steady_clock::now();
-        lease.Discard();
+        provider->lease->Discard();
         auto generated = provider->entry->session.Generate(
             provider->generation, StreamToken, &stream);
         if (generated.ok()) {
@@ -837,7 +838,7 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
           WriteSse(sink, gem16::server::OpenAiErrorJson(
                              generated.status().message(), "server_error"));
           sink.done();
-          lease.Discard();
+          provider->lease->Discard();
           return true;
         }
         RecordGeneration(*provider->server, generated.value(),
@@ -872,7 +873,7 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
         }
         WriteSse(sink, "[DONE]");
         sink.done();
-        lease.Keep();
+        provider->lease->Keep();
         return true;
       });
 }
@@ -1116,13 +1117,22 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
     gem16::server::OpenAiResponsesRequest request;
     gem16::server::OpenAiResponseIdentity identity;
     std::shared_ptr<SessionEntry> entry;
+    std::unique_ptr<SessionLease> lease;
+    bool keep_response_index = false;
     bool ran = false;
+
+    ~ProviderState() {
+      if (server != nullptr && !keep_response_index) {
+        UnindexResponse(*server, identity.id);
+      }
+    }
   };
   auto provider = std::make_shared<ProviderState>();
   provider->server = &state;
   provider->request = std::move(parsed).value();
   provider->identity = identity;
   provider->entry = entry;
+  provider->lease = std::make_unique<SessionLease>(state, entry);
   response.set_header("Cache-Control", "no-cache");
   response.set_header("X-Accel-Buffering", "no");
   response.set_chunked_content_provider(
@@ -1131,7 +1141,6 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
         if (provider->ran) return false;
         provider->ran = true;
         std::uint64_t sequence = 0U;
-        SessionLease lease(*provider->server, provider->entry);
         std::lock_guard inference_lock(provider->entry->inference_mutex);
         gem16::Status status = PrepareResponsesRequest(
             *provider->entry, provider->request);
@@ -1142,7 +1151,6 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
                              ",\"param\":null,\"sequence_number\":" +
                              std::to_string(sequence++) + "}");
           sink.done();
-          UnindexResponse(*provider->server, provider->identity.id);
           return true;
         }
         provider->entry->cancel_requested.store(false);
@@ -1157,7 +1165,6 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
                     std::to_string(sequence++) + "}")) {
           ClearActiveResponse(*provider->server, provider->entry,
                               provider->identity.id);
-          UnindexResponse(*provider->server, provider->identity.id);
           return false;
         }
         CancellationContext cancellation{
@@ -1165,7 +1172,7 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
             &provider->server->metrics.cancellations_observed,
             &provider->server->metrics.client_disconnects, &sink};
         const auto generation_start = std::chrono::steady_clock::now();
-        lease.Discard();
+        provider->lease->Discard();
         auto generated = provider->entry->session.Generate(
             provider->request.generation, CheckCancellation, &cancellation);
         ClearActiveResponse(*provider->server, provider->entry,
@@ -1183,11 +1190,12 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
                          std::chrono::steady_clock::now() - generation_start);
         CommitResponsesRequest(*provider->entry, provider->request,
                                generated.value(), provider->identity.id);
+        provider->keep_response_index = true;
         const bool written = WriteResponsesFinalEvents(
             sink, provider->identity, provider->request, generated.value(),
             sequence);
         sink.done();
-        if (written) lease.Keep();
+        if (written) provider->lease->Keep();
         return written;
       });
 }

@@ -190,7 +190,7 @@ Result<std::string> FormatSchemaProperties(const json::Value::Object& properties
     }
     const std::string upper_type = Upper(type->as_string());
     const json::Value* enumeration = property.find("enum");
-    if (upper_type == "STRING" && enumeration != nullptr) {
+    if (enumeration != nullptr) {
       auto formatted = FormatToolArgument(*enumeration);
       if (!formatted.ok()) return formatted.status();
       append_field("enum:", formatted.value());
@@ -250,6 +250,16 @@ Result<std::string> FormatSchemaProperties(const json::Value::Object& properties
         append_field("", required.value());
       }
     }
+    for (const auto& [key, value] : property.as_object()) {
+      if (key == "description" || key == "enum" || key == "items" ||
+          key == "nullable" || key == "properties" || key == "required" ||
+          key == "type") {
+        continue;
+      }
+      auto formatted = FormatToolArgument(value);
+      if (!formatted.ok()) return formatted.status();
+      append_field(key + ":", formatted.value());
+    }
     append_field("type:", "<|\"|>" + upper_type + "<|\"|>");
     result.push_back('}');
   }
@@ -277,6 +287,17 @@ Result<std::string> FormatToolParameters(const json::Value& parameters) {
   if (required != nullptr && required->is_array() && !required->as_array().empty()) {
     auto formatted = FormatRequired(*required);
     if (!formatted.ok()) return formatted.status();
+    result.append(formatted.value());
+    result.push_back(',');
+  }
+  for (const auto& [key, value] : parameters.as_object()) {
+    if (key == "properties" || key == "required" || key == "type") {
+      continue;
+    }
+    auto formatted = FormatToolArgument(value);
+    if (!formatted.ok()) return formatted.status();
+    result.append(key);
+    result.push_back(':');
     result.append(formatted.value());
     result.push_back(',');
   }

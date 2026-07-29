@@ -1,5 +1,6 @@
 #pragma once
 
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -7,6 +8,13 @@
 #include "gem16/chat.h"
 
 namespace gem16::internal {
+
+[[nodiscard]] Status ValidateToolDefinitions(
+    std::span<const GenerationToolDefinition> tools);
+[[nodiscard]] Status ValidateGeneratedToolCalls(
+    std::span<const GenerationToolDefinition> tools,
+    const GenerationToolChoice& tool_choice,
+    std::span<const GenerationToolCall> calls);
 
 // Incremental parser for the checkpoint-native repeatable form
 // <|tool_call>call:name{...}<tool_call|>. Input chunks may split any marker,
