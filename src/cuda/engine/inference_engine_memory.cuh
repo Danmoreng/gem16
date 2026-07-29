@@ -304,6 +304,8 @@
     constexpr std::uint64_t max_q = kQueryHeads * 512U;
     constexpr std::uint64_t max_kv = 8U * 256U;
     GEM16_PREFILL_ADD(token_ids, std::uint32_t, tokens);
+    GEM16_PREFILL_ADD(audio_frames, float, tokens * 640U);
+    GEM16_PREFILL_ADD(audio_normalized, float, tokens * 640U);
     GEM16_PREFILL_ADD(hidden_a, float, tokens * kHidden);
     GEM16_PREFILL_ADD(hidden_b, float, tokens * kHidden);
     GEM16_PREFILL_ADD(normalized, float, tokens * kHidden);

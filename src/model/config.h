@@ -46,10 +46,15 @@ struct ModelConfig {
   std::uint64_t shared_kv_layer_count = 0;
   std::uint64_t centroid_count = 0;
   std::uint64_t centroid_intermediate_top_k = 0;
+  std::uint64_t audio_embedding_dimension = 0;
+  std::uint64_t audio_token_id = 0;
+  std::uint64_t begin_audio_token_id = 0;
+  std::uint64_t end_audio_token_id = 0;
   bool attention_k_eq_v = false;
   bool tied_embeddings = false;
   bool ordered_embeddings = false;
   double final_logit_softcap = 0.0;
+  double audio_rms_norm_epsilon = 0.0;
   std::vector<std::string> layer_types;
 };
 
@@ -61,4 +66,3 @@ struct ModelConfig {
 [[nodiscard]] bool IsAssistantModel(const ModelConfig& config);
 
 }  // namespace gem16::internal
-

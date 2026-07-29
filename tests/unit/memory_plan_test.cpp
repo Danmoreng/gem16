@@ -50,6 +50,7 @@ gem16::ModelManifest PrimaryMemoryManifest() {
   };
   manifest.text_only_tensor_bytes = 9'200'026'528;
   manifest.skipped_tensor_bytes = 104'759'808;
+  manifest.total_tensor_bytes = 9'304'786'336;
   return manifest;
 }
 
@@ -92,9 +93,9 @@ void RunMemoryPlanTests() {
     GEM16_CHECK(separate.value().arena_alignment == 256);
     GEM16_CHECK(separate.value().local_layer_count == 40);
     GEM16_CHECK(separate.value().global_layer_count == 8);
-    GEM16_CHECK(separate.value().model_weight_bytes == 8'668'020'512);
+    GEM16_CHECK(separate.value().model_weight_bytes == 8'772'780'320);
     GEM16_CHECK(separate.value().scale_bytes == 532'006'016);
-    GEM16_CHECK(separate.value().text_only_source_bytes == 9'200'026'528);
+    GEM16_CHECK(separate.value().resident_source_bytes == 9'304'786'336);
     GEM16_CHECK(separate.value().local_shared_kv_bytes == 83'886'080);
     GEM16_CHECK(separate.value().global_shared_kv_bytes == 268'435'456);
     GEM16_CHECK(separate.value().shared_kv_bytes == 352'321'536);
@@ -108,7 +109,7 @@ void RunMemoryPlanTests() {
     }
     GEM16_CHECK(separate.value().total_arena_bytes % 256U == 0);
     GEM16_CHECK(separate.value().total_arena_bytes ==
-                  separate.value().text_only_source_bytes + separate.value().selected_kv_bytes +
+                  separate.value().resident_source_bytes + separate.value().selected_kv_bytes +
                       separate.value().padding_bytes);
     GEM16_CHECK(!separate.value().execution_workspaces_planned);
 
@@ -123,7 +124,7 @@ void RunMemoryPlanTests() {
       GEM16_CHECK(total_arena != nullptr);
       GEM16_CHECK(workspaces_planned != nullptr);
       GEM16_CHECK(fallbacks != nullptr);
-      if (total_arena != nullptr) GEM16_CHECK(total_arena->as_integer() == 9'904'669'952);
+      if (total_arena != nullptr) GEM16_CHECK(total_arena->as_integer() == 10'009'429'760);
       if (workspaces_planned != nullptr) GEM16_CHECK(!workspaces_planned->as_bool());
       if (fallbacks != nullptr) GEM16_CHECK(fallbacks->as_integer() == 0);
     }
@@ -154,7 +155,7 @@ void RunMemoryPlanTests() {
   GEM16_CHECK(!BuildMemoryPlan(short_config, manifest, separate_options).ok());
 
   auto inconsistent_manifest = manifest;
-  ++inconsistent_manifest.text_only_tensor_bytes;
+  ++inconsistent_manifest.total_tensor_bytes;
   GEM16_CHECK(!BuildMemoryPlan(config, inconsistent_manifest, separate_options).ok());
 
   auto overflow_options = separate_options;

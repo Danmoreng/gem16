@@ -18,7 +18,8 @@
 
   [[nodiscard]] Result<std::uint32_t> PrefillAt(
       std::span<const std::uint32_t> token_ids, std::uint64_t start_position,
-      std::span<float> host_logits = {}) {
+      std::span<float> host_logits = {},
+      std::span<const AudioEmbeddingSegment> audio_segments = {}) {
     const NvtxRange range("gem16.prefill");
     if (token_ids.empty() || start_position > max_context_ ||
         token_ids.size() > max_context_ - start_position) {
@@ -54,6 +55,45 @@
           model_.embedding(), device_tokens, hidden, hidden_elements);
       error = cudaGetLastError();
       if (error != cudaSuccess) return CudaFailure("launch prefill embedding", error);
+      const std::uint64_t chunk_begin = start_position + begin;
+      const std::uint64_t chunk_end = chunk_begin + tokens;
+      for (const AudioEmbeddingSegment& segment : audio_segments) {
+        if (segment.frames.empty() || segment.frames.size() % 640U != 0U) {
+          return Error(StatusCode::kInvalidArgument,
+                       "audio embedding segment has invalid frame geometry");
+        }
+        const std::uint64_t frame_count = segment.frames.size() / 640U;
+        if (frame_count > 750U ||
+            segment.prompt_offset > max_context_ ||
+            frame_count > max_context_ - segment.prompt_offset) {
+          return Error(StatusCode::kInvalidArgument,
+                       "audio embedding segment exceeds its supported prompt extent");
+        }
+        const std::uint64_t segment_end = segment.prompt_offset + frame_count;
+        const std::uint64_t overlap_begin =
+            std::max(chunk_begin, segment.prompt_offset);
+        const std::uint64_t overlap_end = std::min(chunk_end, segment_end);
+        if (overlap_begin >= overlap_end) continue;
+        const std::uint64_t overlap_frames = overlap_end - overlap_begin;
+        const std::uint64_t source_frame = overlap_begin - segment.prompt_offset;
+        float* device_audio = Pointer<float>(
+            prefill_workspace_, prefill_offsets_.audio_frames);
+        error = cudaMemcpyAsync(
+            device_audio, segment.frames.data() + source_frame * 640U,
+            static_cast<std::size_t>(overlap_frames * 640U * sizeof(float)),
+            cudaMemcpyHostToDevice, stream_);
+        if (error != cudaSuccess) {
+          return CudaFailure("copy audio waveform frames", error);
+        }
+        status = internal::LaunchAudioProjection(
+            device_audio,
+            Pointer<float>(prefill_workspace_,
+                           prefill_offsets_.audio_normalized),
+            model_.audio_projection(),
+            hidden + (overlap_begin - chunk_begin) * kHidden,
+            overlap_frames, stream_);
+        if (!status.ok()) return status;
+      }
       for (const auto& layer : model_.layers()) {
         status = RunLayerBatch(layer, start_position + begin, tokens);
         if (!status.ok()) return status;

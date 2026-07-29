@@ -93,7 +93,8 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
     std::uint64_t max_generated_tokens,
     const ReasoningTokenOptions& reasoning,
     GeneratedTokenCallback generated_token_callback,
-    void* generated_token_callback_context) {
+    void* generated_token_callback_context,
+    std::span<const AudioEmbeddingSegment> audio_segments) {
   if (impl_ == nullptr) {
     return Error(StatusCode::kInternal,
                  "conversation session was moved from");
@@ -129,6 +130,24 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
     if (token >= kVocabulary) {
       return Error(StatusCode::kInvalidArgument,
                    "input token ID exceeds vocabulary");
+    }
+  }
+  for (const AudioEmbeddingSegment& segment : audio_segments) {
+    if (segment.frames.empty() || segment.frames.size() % 640U != 0U) {
+      return Error(StatusCode::kInvalidArgument,
+                   "audio segment requires complete 640-sample frames");
+    }
+    const std::uint64_t frame_count = segment.frames.size() / 640U;
+    if (frame_count > 750U || segment.prompt_offset >= full_prompt_token_ids.size() ||
+        frame_count > full_prompt_token_ids.size() - segment.prompt_offset) {
+      return Error(StatusCode::kInvalidArgument,
+                   "audio segment does not fit in the rendered prompt");
+    }
+    for (std::uint64_t frame = 0U; frame < frame_count; ++frame) {
+      if (full_prompt_token_ids[segment.prompt_offset + frame] != 258881U) {
+        return Error(StatusCode::kInvalidArgument,
+                     "audio segment is not aligned with <|audio|> prompt tokens");
+      }
     }
   }
   const std::size_t comparable_tokens = std::min(
@@ -199,7 +218,8 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
   result.benchmark_qualified = false;
 
   const auto prompt_start = std::chrono::steady_clock::now();
-  auto prefilled = impl_->engine.PrefillAt(suffix, prefix_tokens);
+  auto prefilled = impl_->engine.PrefillAt(suffix, prefix_tokens, {},
+                                           audio_segments);
   if (!prefilled.ok()) {
     impl_->poisoned = true;
     return prefilled.status();

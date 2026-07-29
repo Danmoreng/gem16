@@ -29,6 +29,7 @@ add_library(gem16_core STATIC
   src/numeric/nvfp4.cpp
   src/cuda/nvfp4/sm120_layout.cpp
   src/model/checkpoint_loader.cpp
+  src/model/audio.cpp
   src/model/config.cpp
   src/model/manifest.cpp
   src/model/safetensors.cpp
@@ -75,6 +76,7 @@ if(GEM16_ENABLE_CUDA)
     src/cuda/attention/prefill_local_sm120.cu
     src/cuda/attention/prefill_global_sm120.cu
     src/cuda/attention/reference.cu
+    src/cuda/audio/projection.cu
     src/cuda/dispatch.cu
     src/cuda/engine/target_model.cu
     src/cuda/engine/inference_engine.cu
@@ -215,6 +217,7 @@ target_include_directories(gem16-bench PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src"
 include(CTest)
 if(BUILD_TESTING AND GEM16_BUILD_TESTS)
   add_executable(gem16-unit-tests
+    tests/unit/audio_test.cpp
     tests/unit/chat_test.cpp
     tests/unit/config_test.cpp
     tests/unit/fp8_test.cpp

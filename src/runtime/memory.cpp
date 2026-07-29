@@ -39,7 +39,7 @@ Status WriteMemoryPlanJson(const MemoryPlan& plan, std::ostream& output) {
          << "  \"arena_alignment\": " << plan.arena_alignment << ",\n"
          << "  \"local_layer_count\": " << plan.local_layer_count << ",\n"
          << "  \"global_layer_count\": " << plan.global_layer_count << ",\n"
-         << "  \"text_only_source_bytes\": " << plan.text_only_source_bytes << ",\n"
+         << "  \"resident_source_bytes\": " << plan.resident_source_bytes << ",\n"
          << "  \"model_weight_bytes\": " << plan.model_weight_bytes << ",\n"
          << "  \"scale_bytes\": " << plan.scale_bytes << ",\n"
          << "  \"local_shared_kv_bytes\": " << plan.local_shared_kv_bytes << ",\n"

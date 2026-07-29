@@ -159,7 +159,6 @@ class LoadedTargetModel::Impl {
 
     std::uint64_t arena_bytes = 0;
     for (const auto& tensor : manifest_.tensors) {
-      if (!tensor.loaded_in_text_only_mode) continue;
       auto aligned = AlignUp(arena_bytes, kAlignment);
       if (!aligned.ok()) return aligned.status();
       if (tensor.byte_length > std::numeric_limits<std::uint64_t>::max() - aligned.value()) {
@@ -169,12 +168,11 @@ class LoadedTargetModel::Impl {
     }
     auto final_size = AlignUp(arena_bytes, kAlignment);
     if (!final_size.ok()) return final_size.status();
-    Status status = weights_.Allocate(final_size.value(), "allocate text-only weight arena");
+    Status status = weights_.Allocate(final_size.value(), "allocate unified model weight arena");
     if (!status.ok()) return status;
 
     std::uint64_t offset = 0;
     for (const auto& tensor : manifest_.tensors) {
-      if (!tensor.loaded_in_text_only_mode) continue;
       auto aligned = AlignUp(offset, kAlignment);
       if (!aligned.ok()) return aligned.status();
       DeviceTensor view;
@@ -189,7 +187,7 @@ class LoadedTargetModel::Impl {
 
     std::unordered_set<std::string> shards;
     for (const auto& tensor : manifest_.tensors) {
-      if (tensor.loaded_in_text_only_mode) shards.insert(tensor.source_shard);
+      shards.insert(tensor.source_shard);
     }
     for (const auto& shard : shards) {
       auto mapped = internal::MappedFile::Open(directory / shard);
@@ -263,6 +261,9 @@ class LoadedTargetModel::Impl {
   [[nodiscard]] const std::array<LayerBinding, kTargetLayerCount>& layers() const { return layers_; }
   [[nodiscard]] const std::uint16_t* embedding() const { return embedding_; }
   [[nodiscard]] const std::uint16_t* final_norm() const { return final_norm_; }
+  [[nodiscard]] const std::uint16_t* audio_projection() const {
+    return audio_projection_;
+  }
   [[nodiscard]] std::uint64_t weight_bytes() const { return weights_.bytes(); }
 
   void SetLayerBf16Cache(std::size_t layer, float* key, float* value) {
@@ -343,10 +344,14 @@ class LoadedTargetModel::Impl {
   [[nodiscard]] Status Bind() {
     auto embedding = Bf16("model.language_model.embed_tokens.weight", kVocabulary * kHidden);
     auto final_norm = Bf16("model.language_model.norm.weight", kHidden);
+    auto audio_projection = Bf16(
+        "model.embed_audio.embedding_projection.weight", kHidden * 640U);
     if (!embedding.ok()) return embedding.status();
     if (!final_norm.ok()) return final_norm.status();
+    if (!audio_projection.ok()) return audio_projection.status();
     embedding_ = embedding.value();
     final_norm_ = final_norm.value();
+    audio_projection_ = audio_projection.value();
 
     for (std::size_t index = 0; index < layers_.size(); ++index) {
       LayerBinding& layer = layers_[index];
@@ -424,6 +429,7 @@ class LoadedTargetModel::Impl {
   std::array<LayerBinding, kTargetLayerCount> layers_{};
   const std::uint16_t* embedding_ = nullptr;
   const std::uint16_t* final_norm_ = nullptr;
+  const std::uint16_t* audio_projection_ = nullptr;
 };
 
 
@@ -440,6 +446,9 @@ const std::array<LayerBinding, kTargetLayerCount>& LoadedTargetModel::layers() c
 }
 const std::uint16_t* LoadedTargetModel::embedding() const { return impl_->embedding(); }
 const std::uint16_t* LoadedTargetModel::final_norm() const { return impl_->final_norm(); }
+const std::uint16_t* LoadedTargetModel::audio_projection() const {
+  return impl_->audio_projection();
+}
 std::uint64_t LoadedTargetModel::weight_bytes() const { return impl_->weight_bytes(); }
 void LoadedTargetModel::SetLayerBf16Cache(std::size_t layer, float* key, float* value) {
   impl_->SetLayerBf16Cache(layer, key, value);

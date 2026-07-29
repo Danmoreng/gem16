@@ -58,6 +58,12 @@ const json::Value* Member(const json::Value& value, std::string_view name) {
   return value.is_object() ? value.find(name) : nullptr;
 }
 
+const json::Value* Nested(const json::Value& value, std::string_view parent,
+                          std::string_view child) {
+  const json::Value* object = Member(value, parent);
+  return object == nullptr ? nullptr : Member(*object, child);
+}
+
 std::uint64_t PairKey(std::uint32_t left, std::uint32_t right) {
   return (static_cast<std::uint64_t>(left) << 32U) | right;
 }
@@ -455,6 +461,36 @@ Status Tokenizer::WriteDecodedToken(std::uint32_t token_id,
 
 Result<GemmaChatProcessor> GemmaChatProcessor::Load(
     const std::filesystem::path& model_directory) {
+  auto processor_text =
+      ReadFile(model_directory / "processor_config.json", 1024U * 1024U);
+  if (!processor_text.ok()) return processor_text.status();
+  auto processor = json::Parse(processor_text.value());
+  if (!processor.ok() || !processor.value().is_object()) {
+    return Error(StatusCode::kDataLoss, "processor_config.json is malformed");
+  }
+  const json::Value* sampling_rate =
+      Nested(processor.value(), "feature_extractor", "sampling_rate");
+  const json::Value* samples_per_token = Nested(
+      processor.value(), "feature_extractor", "audio_samples_per_token");
+  const json::Value* feature_size =
+      Nested(processor.value(), "feature_extractor", "feature_size");
+  const json::Value* sequence_length =
+      Member(processor.value(), "audio_seq_length");
+  const json::Value* milliseconds_per_token =
+      Member(processor.value(), "audio_ms_per_token");
+  if (sampling_rate == nullptr || !sampling_rate->is_integer() ||
+      sampling_rate->as_integer() != 16000 || samples_per_token == nullptr ||
+      !samples_per_token->is_integer() ||
+      samples_per_token->as_integer() != 640 || feature_size == nullptr ||
+      !feature_size->is_integer() || feature_size->as_integer() != 640 ||
+      sequence_length == nullptr || !sequence_length->is_integer() ||
+      sequence_length->as_integer() != 750 ||
+      milliseconds_per_token == nullptr ||
+      !milliseconds_per_token->is_integer() ||
+      milliseconds_per_token->as_integer() != 40) {
+    return Error(StatusCode::kUnsupported,
+                 "processor_config.json audio contract differs from the qualified 16-kHz/640-sample/750-row schema");
+  }
   auto tokenizer = Tokenizer::Load(model_directory / "tokenizer.json");
   if (!tokenizer.ok()) return tokenizer.status();
   auto tokenizer_config = internal::LoadTokenizerConfig(

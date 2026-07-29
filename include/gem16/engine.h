@@ -23,6 +23,13 @@ enum class KvCacheMode {
 using GeneratedTokenCallback = Status (*)(void* context,
                                           std::uint32_t token_id);
 
+struct AudioEmbeddingSegment {
+  // Absolute prompt position of the first repeated <|audio|> token.
+  std::uint64_t prompt_offset = 0U;
+  // Row-major, one 640-sample float waveform frame per audio token.
+  std::span<const float> frames;
+};
+
 struct ReasoningTokenOptions {
   std::vector<std::uint32_t> channel_open_token_ids;
   std::uint32_t channel_close_token_id = 0U;
@@ -152,7 +159,8 @@ class ConversationSession {
       std::uint64_t max_generated_tokens,
       const ReasoningTokenOptions& reasoning = {},
       GeneratedTokenCallback generated_token_callback = nullptr,
-      void* generated_token_callback_context = nullptr);
+      void* generated_token_callback_context = nullptr,
+      std::span<const AudioEmbeddingSegment> audio_segments = {});
   [[nodiscard]] std::uint64_t cached_token_count() const;
 
  private:

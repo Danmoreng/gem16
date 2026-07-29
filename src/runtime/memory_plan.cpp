@@ -145,18 +145,18 @@ Result<MemoryPlan> BuildMemoryPlan(const ModelConfig& config, const ModelManifes
   }
 
   for (const auto& tensor : manifest.tensors) {
-    if (!tensor.loaded_in_text_only_mode) continue;
     auto& destination = IsScaleTensor(tensor) ? plan.scale_bytes : plan.model_weight_bytes;
-    auto sum = CheckedAdd(destination, tensor.byte_length, "text-only tensor");
+    auto sum = CheckedAdd(destination, tensor.byte_length, "runtime-resident tensor");
     if (!sum.ok()) return sum.status();
     destination = sum.value();
   }
-  auto text_only_bytes = CheckedAdd(plan.model_weight_bytes, plan.scale_bytes, "text-only tensor");
-  if (!text_only_bytes.ok()) return text_only_bytes.status();
-  plan.text_only_source_bytes = text_only_bytes.value();
-  if (plan.text_only_source_bytes != manifest.text_only_tensor_bytes) {
+  auto resident_bytes = CheckedAdd(plan.model_weight_bytes, plan.scale_bytes,
+                                   "runtime-resident tensor");
+  if (!resident_bytes.ok()) return resident_bytes.status();
+  plan.resident_source_bytes = resident_bytes.value();
+  if (plan.resident_source_bytes != manifest.total_tensor_bytes) {
     return Status(StatusCode::kDataLoss,
-                  "manifest text-only byte total disagrees with the tensor inventory");
+                  "manifest total byte count disagrees with the runtime-resident tensor inventory");
   }
 
   const std::uint64_t local_tokens = std::min(plan.context_tokens, config.sliding_window);

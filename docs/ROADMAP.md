@@ -65,8 +65,11 @@ of the correctness and native-kernel gates below.
   50 tok/s performance target and lacks continuous resource telemetry. Adaptive D1/D2/ordinary sampled branches
   remain a possible follow-up. Bounded reasoning now stays within one device-routed fixed-D2 graph: safe reasoning
   groups use MTP, exact marker/budget/tail rows use the ordinary child, and D2 resumes without a host control
-  roundtrip. N-Gram is deferred much further. Multimodal remains queued until the sampled-MTP
-  performance/telemetry disposition is explicitly closed.
+  roundtrip. N-Gram is deferred much further. The first audio milestone is now
+  implemented: all unified audio/vision tensors stay resident, native chat
+  expands bounded WAV input into exact audio placeholder rows, and a GPU BF16
+  RMSNorm/projection replaces those embeddings before Layer 0. Image
+  preprocessing and execution remain queued.
   Every performance promotion still requires correctness, generation, logit, 3-warm-up/10-run benchmark, Nsight,
   spill, allocation, and peak-VRAM evidence and becomes the sole production path.
 

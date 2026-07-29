@@ -3,6 +3,7 @@
 #include "test.h"
 
 void RunChatTests();
+void RunAudioTests();
 void RunConfigTests();
 void RunJsonTests();
 void RunLayerTests();
@@ -18,6 +19,7 @@ void RunWindowsUtf8Tests();
 #endif
 
 int main() {
+  RunAudioTests();
   RunChatTests();
   RunConfigTests();
   RunJsonTests();
@@ -39,4 +41,3 @@ int main() {
   std::cout << "all host unit tests passed\n";
   return 0;
 }
-

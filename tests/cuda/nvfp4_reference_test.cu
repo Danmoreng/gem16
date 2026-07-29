@@ -1,4 +1,5 @@
 #include "cuda/attention/sm120.h"
+#include "cuda/audio/projection.h"
 #include "cuda/fp8/cutlass_sm120.h"
 #include "cuda/fp8/reference.h"
 #include "cuda/fp8/sm120.h"
@@ -3457,6 +3458,73 @@ void TestMtpConditionalD2Chain() {
 
 }  // namespace
 
+void TestAudioProjection() {
+  constexpr std::size_t kWidth = 640U;
+  constexpr std::size_t kHidden = 3840U;
+  std::vector<float> frames(kWidth);
+  std::vector<std::uint16_t> weights(kHidden * kWidth);
+  for (std::size_t column = 0U; column < kWidth; ++column) {
+    frames[column] = static_cast<float>(static_cast<int>(column % 17U) - 8) /
+                     9.0F;
+  }
+  for (std::size_t row = 0U; row < kHidden; ++row) {
+    for (std::size_t column = 0U; column < kWidth; ++column) {
+      const float value =
+          static_cast<float>(static_cast<int>((row + column) % 11U) - 5) /
+          64.0F;
+      weights[row * kWidth + column] =
+          __bfloat16_as_ushort(__float2bfloat16_rn(value));
+    }
+  }
+  DeviceBuffer<float> device_frames(kWidth);
+  DeviceBuffer<float> device_normalized(kWidth);
+  DeviceBuffer<std::uint16_t> device_weights(weights.size());
+  DeviceBuffer<float> device_output(kHidden);
+  if (device_frames.get() == nullptr || device_normalized.get() == nullptr ||
+      device_weights.get() == nullptr || device_output.get() == nullptr) {
+    return;
+  }
+  CUDA_TEST_CHECK(CudaOk(cudaMemcpy(device_frames.get(), frames.data(),
+                                    device_frames.bytes(),
+                                    cudaMemcpyHostToDevice),
+                             "copy audio frames"));
+  CUDA_TEST_CHECK(CudaOk(cudaMemcpy(device_weights.get(), weights.data(),
+                                    device_weights.bytes(),
+                                    cudaMemcpyHostToDevice),
+                             "copy audio weights"));
+  const auto status = gem16::internal::LaunchAudioProjection(
+      device_frames.get(), device_normalized.get(), device_weights.get(),
+      device_output.get(), 1U, nullptr);
+  CUDA_TEST_CHECK(status.ok());
+  std::vector<float> output(kHidden);
+  CUDA_TEST_CHECK(CudaOk(cudaMemcpy(output.data(), device_output.get(),
+                                    device_output.bytes(),
+                                    cudaMemcpyDeviceToHost),
+                             "copy audio projection"));
+
+  float squared_sum = 0.0F;
+  for (float& value : frames) {
+    value = static_cast<float>(__float2bfloat16_rn(value));
+    squared_sum = std::fma(value, value, squared_sum);
+  }
+  const float inverse_rms =
+      1.0F / std::sqrt(squared_sum / static_cast<float>(kWidth) + 1.0e-6F);
+  const std::array<std::size_t, 3U> checked_rows = {0U, 101U,
+                                                   kHidden - 1U};
+  for (const std::size_t row : checked_rows) {
+    float expected = 0.0F;
+    for (std::size_t column = 0U; column < kWidth; ++column) {
+      const float normalized = static_cast<float>(__float2bfloat16_rn(
+          frames[column] * inverse_rms));
+      const float coefficient = static_cast<float>(__ushort_as_bfloat16(
+          weights[row * kWidth + column]));
+      expected = std::fma(normalized, coefficient, expected);
+    }
+    expected = static_cast<float>(__float2bfloat16_rn(expected));
+    CUDA_TEST_CHECK(std::abs(output[row] - expected) < 0.04F);
+  }
+}
+
 int main(int argc, char** argv) {
   int device_count = 0;
   if (!CudaOk(cudaGetDeviceCount(&device_count), "cudaGetDeviceCount") || device_count == 0) {
@@ -3513,6 +3581,7 @@ int main(int argc, char** argv) {
     return 0;
   }
   TestCudaIntrinsicConformanceAndProjection();
+  TestAudioProjection();
   TestVllmNvfp4QuantizationBoundary();
   TestDirectSourceSm120Projection();
   TestCutlassSm120Projection();

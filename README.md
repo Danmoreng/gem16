@@ -147,6 +147,24 @@ visible response as separate `--- thinking ---` and `--- answer ---` sections. `
 reasoning body while retaining the answer header; `--show-thinking` is the default. Enter `/quit` to leave the
 session.
 
+Audio input is available in one-shot chat. The unified checkpoint's audio and
+vision tensors are always loaded with the text weights; there is no modality
+residency switch. WAV input accepts PCM16 or float32, mono or stereo, at
+8–48 kHz and converts it deterministically to the model's mono 16-kHz frame
+contract:
+
+```powershell
+.\build\Windows\blackwell-release\bin\gem16-chat.exe `
+  --model .\models\checkpoints\unsloth-gemma-4-12b-it-NVFP4-b1f6497 `
+  --message "Transkribiere das Audio wortgetreu." `
+  --audio C:\path\sample.wav `
+  --no-thinking --max-context 1024 --max-tokens 128
+```
+
+See [docs/AUDIO.md](docs/AUDIO.md) for the qualified preprocessing and GPU
+embedding contract. Image preprocessing/execution is not implemented yet,
+even though its small checkpoint tensors are already resident.
+
 ## Command-line tools
 
 | Tool | Purpose |

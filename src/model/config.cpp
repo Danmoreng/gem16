@@ -128,11 +128,18 @@ Result<ModelConfig> LoadModelConfig(const std::filesystem::path& path) {
   config.shared_kv_layer_count = UnsignedOrZero(Nested(root, "text_config", "num_kv_shared_layers"));
   config.centroid_count = UnsignedOrZero(Member(root, "num_centroids"));
   config.centroid_intermediate_top_k = UnsignedOrZero(Member(root, "centroid_intermediate_top_k"));
+  config.audio_embedding_dimension =
+      UnsignedOrZero(Nested(root, "audio_config", "audio_embed_dim"));
+  config.audio_token_id = UnsignedOrZero(Member(root, "audio_token_id"));
+  config.begin_audio_token_id = UnsignedOrZero(Member(root, "boa_token_id"));
+  config.end_audio_token_id = UnsignedOrZero(Member(root, "eoa_token_index"));
   config.attention_k_eq_v = BoolOrFalse(Nested(root, "text_config", "attention_k_eq_v"));
   config.tied_embeddings = BoolOrFalse(Member(root, "tie_word_embeddings")) ||
                            BoolOrFalse(Nested(root, "text_config", "tie_word_embeddings"));
   config.ordered_embeddings = BoolOrFalse(Member(root, "use_ordered_embeddings"));
   config.final_logit_softcap = NumberOrZero(Nested(root, "text_config", "final_logit_softcapping"));
+  config.audio_rms_norm_epsilon =
+      NumberOrZero(Nested(root, "audio_config", "rms_norm_eps"));
   config.layer_types = StringArray(Nested(root, "text_config", "layer_types"));
 
   const auto* quantization = Member(root, "quantization_config");
@@ -195,6 +202,15 @@ Status ValidatePrimaryModelContract(const ModelConfig& config) {
   if (config.local_head_dimension != 256 || config.global_head_dimension != 512) return PrimaryContractError("head dimensions", "256 local / 512 global");
   if (config.sliding_window != 1024 || config.max_positions != 262144) return PrimaryContractError("context dimensions", "1024 sliding / 262144 maximum");
   if (config.vocabulary_size != 262144) return PrimaryContractError("vocab_size", "262144");
+  if (config.audio_embedding_dimension != 640 ||
+      config.audio_token_id != 258881 ||
+      config.begin_audio_token_id != 256000 ||
+      config.end_audio_token_id != 258883 ||
+      std::abs(config.audio_rms_norm_epsilon - 1.0e-6) > 1.0e-12) {
+    return PrimaryContractError(
+        "audio embedding/token contract",
+        "640 dimensions, token IDs 258881/256000/258883, epsilon 1e-6");
+  }
   if (!config.tied_embeddings || !config.attention_k_eq_v) return PrimaryContractError("tied embeddings and attention_k_eq_v", "true");
   if (std::abs(config.final_logit_softcap - 30.0) > 1e-12) return PrimaryContractError("final_logit_softcapping", "30.0");
   if (config.quant_method != "compressed-tensors" || config.quant_format != "mixed-precision") return PrimaryContractError("quantization schema", "compressed-tensors mixed-precision");

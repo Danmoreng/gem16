@@ -1,5 +1,30 @@
 # Decisions
 
+## 2026-07-29: Keep unified modality weights resident and expose audio first
+
+Date: 2026-07-29
+
+Decision: Load every primary-checkpoint tensor into the fixed GPU weight arena.
+Do not expose text/audio/vision residency controls. Implement audio as the first
+usable modality through bounded WAV preprocessing and checkpoint-native BF16
+embedding projection before Layer 0.
+
+Context: The audio and vision tensor families add only 104,759,808 source bytes,
+and a user who does not provide media pays no per-token modality execution cost.
+
+Alternatives: Retain text-only loading with modality flags; lazy-upload modality
+weights; require externally prepared 16-kHz float tensors.
+
+Consequences: Startup and steady VRAM include the modality tensors for every
+session. The runtime remains simple and deterministic. WAV conversion happens
+before inference, while the token loop remains allocation-free. Vision weights
+are resident ahead of their preprocessing/execution implementation.
+
+Evidence: Windows host and CUDA suites pass, the real checkpoint still answers
+the text-only smoke prompt, synthetic German audio is transcribed as “Die
+Geheimzahl ist 42.”, and the supplied 22.05-kHz `freeman.wav` is accepted after
+deterministic conversion and produces a coherent English transcription.
+
 ## 2026-07-29: Render chat reasoning and answer as explicit terminal sections
 
 Date: 2026-07-29

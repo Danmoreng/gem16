@@ -9,27 +9,39 @@
 #include <vector>
 
 #include "gem16/engine.h"
+#include "gem16/audio.h"
 #include "gem16/status.h"
 #include "gem16/tokenizer.h"
 
 namespace gem16 {
 
 // Server-neutral content boundary. Network locations, MIME decoding, base64,
-// and OpenAI JSON belong to adapters above this interface. Text is the only
-// active kind until the multimodal processor contracts are qualified.
+// and OpenAI JSON belong to adapters above this interface. Text and raw audio
+// are qualified here; codecs and transport remain adapter concerns.
 enum class GenerationContentKind {
   kText,
+  kAudio,
 };
 
 struct GenerationContentPart {
   GenerationContentKind kind = GenerationContentKind::kText;
   std::string text;
+  AudioWaveform audio;
 
   bool operator==(const GenerationContentPart&) const = default;
 
   [[nodiscard]] static GenerationContentPart Text(std::string value) {
-    return GenerationContentPart{GenerationContentKind::kText,
-                                 std::move(value)};
+    GenerationContentPart part;
+    part.kind = GenerationContentKind::kText;
+    part.text = std::move(value);
+    return part;
+  }
+
+  [[nodiscard]] static GenerationContentPart Audio(AudioWaveform value) {
+    GenerationContentPart part;
+    part.kind = GenerationContentKind::kAudio;
+    part.audio = std::move(value);
+    return part;
   }
 };
 

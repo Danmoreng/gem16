@@ -1,6 +1,7 @@
 #include "gem16/chat.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <optional>
 #include <span>
@@ -30,36 +31,115 @@ const char* ThinkingEffortName(ThinkingEffort effort) {
 
 namespace {
 
-Result<std::string> TextContent(const GenerationMessage& message) {
+constexpr std::size_t kAudioSamplesPerToken = 640U;
+constexpr std::size_t kMaximumAudioTokens = 750U;
+
+struct MaterializedMessages {
+  std::vector<ChatMessage> messages;
+  std::vector<std::vector<float>> audio_frames;
+};
+
+Result<std::string> MaterializeContent(
+    const GenerationMessage& message,
+    std::vector<std::vector<float>>& audio_frames) {
   if (message.content.empty()) {
     return Status(StatusCode::kInvalidArgument,
                   "generation message content must not be empty");
   }
   std::string text;
   for (const GenerationContentPart& part : message.content) {
-    if (part.kind != GenerationContentKind::kText) {
-      return Status(StatusCode::kUnsupported,
-                    "only text generation content is currently supported");
+    if (part.kind == GenerationContentKind::kText) {
+      text.append(part.text);
+      continue;
     }
-    text.append(part.text);
+    if (part.kind != GenerationContentKind::kAudio) {
+      return Status(StatusCode::kUnsupported,
+                    "generation content kind is unsupported");
+    }
+    if (message.role != "user") {
+      return Status(StatusCode::kInvalidArgument,
+                    "audio content is supported only in user messages");
+    }
+    if (part.audio.sample_rate != 16000U || part.audio.samples.empty()) {
+      return Status(StatusCode::kInvalidArgument,
+                    "audio content must contain mono 16 kHz samples");
+    }
+    if (!std::all_of(part.audio.samples.begin(), part.audio.samples.end(),
+                     [](float sample) { return std::isfinite(sample); })) {
+      return Status(StatusCode::kInvalidArgument,
+                    "audio content contains a non-finite sample");
+    }
+    const std::size_t frame_count =
+        (part.audio.samples.size() + kAudioSamplesPerToken - 1U) /
+        kAudioSamplesPerToken;
+    if (frame_count == 0U || frame_count > kMaximumAudioTokens) {
+      return Status(StatusCode::kUnsupported,
+                    "audio content must be at most 30 seconds");
+    }
+    std::vector<float> padded(frame_count * kAudioSamplesPerToken, 0.0F);
+    std::copy(part.audio.samples.begin(), part.audio.samples.end(),
+              padded.begin());
+    audio_frames.push_back(std::move(padded));
+    text.append("<|audio>");
+    for (std::size_t frame = 0U; frame < frame_count; ++frame) {
+      text.append("<|audio|>");
+    }
+    text.append("<audio|>");
   }
   return text;
 }
 
-Result<std::vector<ChatMessage>> MaterializeTextMessages(
+Result<MaterializedMessages> MaterializeMessages(
     std::span<const GenerationMessage> messages) {
   if (messages.empty()) {
     return Status(StatusCode::kInvalidArgument,
                   "generation request requires at least one message");
   }
-  std::vector<ChatMessage> materialized;
-  materialized.reserve(messages.size());
+  MaterializedMessages materialized;
+  materialized.messages.reserve(messages.size());
   for (const GenerationMessage& message : messages) {
-    auto content = TextContent(message);
+    auto content = MaterializeContent(message, materialized.audio_frames);
     if (!content.ok()) return content.status();
-    materialized.push_back({message.role, std::move(content).value()});
+    materialized.messages.push_back({message.role, std::move(content).value()});
   }
   return materialized;
+}
+
+Result<std::vector<AudioEmbeddingSegment>> LocateAudioSegments(
+    std::span<const std::uint32_t> prompt_ids,
+    const std::vector<std::vector<float>>& audio_frames) {
+  std::vector<AudioEmbeddingSegment> segments;
+  segments.reserve(audio_frames.size());
+  std::size_t search = 0U;
+  for (const auto& frames : audio_frames) {
+    const std::size_t frame_count = frames.size() / kAudioSamplesPerToken;
+    const auto boa = std::find(prompt_ids.begin() + search, prompt_ids.end(),
+                               256000U);
+    if (boa == prompt_ids.end()) {
+      return Status(StatusCode::kDataLoss,
+                    "rendered prompt is missing the audio boundary token");
+    }
+    const std::size_t first =
+        static_cast<std::size_t>(boa - prompt_ids.begin()) + 1U;
+    if (frame_count > prompt_ids.size() - first) {
+      return Status(StatusCode::kDataLoss,
+                    "rendered audio placeholder extent is truncated");
+    }
+    for (std::size_t frame = 0U; frame < frame_count; ++frame) {
+      if (prompt_ids[first + frame] != 258881U) {
+        return Status(StatusCode::kDataLoss,
+                      "rendered audio placeholder count is inconsistent");
+      }
+    }
+    if (first + frame_count >= prompt_ids.size() ||
+        prompt_ids[first + frame_count] != 258883U) {
+      return Status(StatusCode::kDataLoss,
+                    "rendered prompt is missing the audio end token");
+    }
+    segments.push_back(AudioEmbeddingSegment{first, frames});
+    search = first + frame_count + 1U;
+  }
+  return segments;
 }
 
 struct EventBridge {
@@ -141,9 +221,9 @@ Result<ChatGenerationResponse> ChatSession::Generate(
     return Status(StatusCode::kInvalidArgument,
                   "generation token limit must be positive when specified");
   }
-  auto messages = MaterializeTextMessages(request.messages);
+  auto messages = MaterializeMessages(request.messages);
   if (!messages.ok()) return messages.status();
-  if (messages.value().back().role != "user") {
+  if (messages.value().messages.back().role != "user") {
     return Status(StatusCode::kInvalidArgument,
                   "generation request must end with a user message");
   }
@@ -161,10 +241,11 @@ Result<ChatGenerationResponse> ChatSession::Generate(
   Result<std::vector<std::uint32_t>> prompt_ids = [&]() {
     if (impl_->cached_prefix_token_ids.empty()) {
       return impl_->processor.Encode(
-          messages.value(), request.thinking.effort != ThinkingEffort::kOff);
+          messages.value().messages,
+          request.thinking.effort != ThinkingEffort::kOff);
     }
     auto continuation = impl_->processor.EncodeContinuation(
-        messages.value().back().content,
+        messages.value().messages.back().content,
         request.thinking.effort != ThinkingEffort::kOff);
     if (!continuation.ok()) {
       return Result<std::vector<std::uint32_t>>(continuation.status());
@@ -179,6 +260,9 @@ Result<ChatGenerationResponse> ChatSession::Generate(
     return Result<std::vector<std::uint32_t>>(std::move(token_ids));
   }();
   if (!prompt_ids.ok()) return prompt_ids.status();
+  auto audio_segments = LocateAudioSegments(
+      prompt_ids.value(), messages.value().audio_frames);
+  if (!audio_segments.ok()) return audio_segments.status();
   if (prompt_ids.value().size() > impl_->max_context_tokens) {
     return Status(StatusCode::kInvalidArgument,
                   "conversation prompt exceeds the session context capacity");
@@ -210,7 +294,8 @@ Result<ChatGenerationResponse> ChatSession::Generate(
   auto inference = impl_->session.Generate(
       prompt_ids.value(), max_generated_tokens, reasoning,
       callback == nullptr ? nullptr : ForwardTokenEvent,
-      callback == nullptr ? nullptr : &bridge);
+      callback == nullptr ? nullptr : &bridge,
+      audio_segments.value());
   if (!inference.ok()) return inference.status();
 
   impl_->cached_prefix_token_ids = prompt_ids.value();

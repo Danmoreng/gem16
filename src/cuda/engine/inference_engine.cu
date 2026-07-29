@@ -2,6 +2,7 @@
 #include "cuda/engine/inference_engine.h"
 
 #include "cuda/attention/sm120.h"
+#include "cuda/audio/projection.h"
 #include "cuda/engine/target_model.h"
 #include "cuda/engine/state_capture.h"
 #include "cuda/fp8/cutlass_sm120.h"
@@ -290,6 +291,7 @@ struct HostDecodeState {
 
 struct PrefillOffsets {
   std::uint64_t token_ids = 0;
+  std::uint64_t audio_frames = 0, audio_normalized = 0;
   std::uint64_t hidden_a = 0, hidden_b = 0, normalized = 0;
   std::uint64_t fp8_activation = 0, fp8_scales = 0;
   std::uint64_t q = 0, k = 0, v = 0, q_norm = 0, k_norm = 0, v_norm = 0;
@@ -482,7 +484,7 @@ InferenceEngine::~InferenceEngine() = default;
 Status InferenceEngine::Initialize(const std::filesystem::path& model_directory, std::uint64_t max_context, KvCacheMode kv_cache_mode, const SamplingOptions& sampling, const std::filesystem::path& assistant_model_directory, std::uint32_t mtp_draft_tokens) { return impl_->Initialize(model_directory, max_context, kv_cache_mode, sampling, assistant_model_directory, mtp_draft_tokens); }
 Result<std::uint32_t> InferenceEngine::Forward(std::uint32_t token, std::uint64_t position, bool select_token, std::span<float> host_logits, std::span<float> host_state) { return impl_->Forward(token, position, select_token, host_logits, host_state); }
 Result<std::uint32_t> InferenceEngine::Prefill(std::span<const std::uint32_t> token_ids, std::span<float> host_logits) { return impl_->Prefill(token_ids, host_logits); }
-Result<std::uint32_t> InferenceEngine::PrefillAt(std::span<const std::uint32_t> token_ids, std::uint64_t start_position, std::span<float> host_logits) { return impl_->PrefillAt(token_ids, start_position, host_logits); }
+Result<std::uint32_t> InferenceEngine::PrefillAt(std::span<const std::uint32_t> token_ids, std::uint64_t start_position, std::span<float> host_logits, std::span<const AudioEmbeddingSegment> audio_segments) { return impl_->PrefillAt(token_ids, start_position, host_logits, audio_segments); }
 Status InferenceEngine::GenerateAssistantDraftsDevice(std::uint32_t input_token, std::uint64_t processed_position, std::uint32_t draft_count) { return impl_->GenerateAssistantDraftsDevice(input_token, processed_position, draft_count); }
 Status InferenceEngine::PrepareMtpDeviceControl(std::uint32_t input_token, std::uint64_t processed_position, std::uint64_t remaining_output_capacity, std::uint64_t output_write_position, bool stopped, std::uint32_t stop_token, const internal::MtpReasoningState& reasoning) { return impl_->PrepareMtpDeviceControl(input_token, processed_position, remaining_output_capacity, output_write_position, stopped, stop_token, reasoning); }
 Status InferenceEngine::VerifyAcceptCommitAssistantBatch(std::uint32_t input_token, std::uint64_t start_position, std::uint32_t proposal_count, internal::MtpGroupResult* host_result) { return impl_->VerifyAcceptCommitAssistantBatch(input_token, start_position, proposal_count, host_result); }

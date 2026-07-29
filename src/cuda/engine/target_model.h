@@ -69,6 +69,7 @@ class LoadedTargetModel {
   [[nodiscard]] const std::array<LayerBinding, kTargetLayerCount>& layers() const;
   [[nodiscard]] const std::uint16_t* embedding() const;
   [[nodiscard]] const std::uint16_t* final_norm() const;
+  [[nodiscard]] const std::uint16_t* audio_projection() const;
   [[nodiscard]] std::uint64_t weight_bytes() const;
   void SetLayerBf16Cache(std::size_t layer, float* key, float* value);
   void SetLayerFp8Cache(std::size_t layer, std::uint8_t* key,

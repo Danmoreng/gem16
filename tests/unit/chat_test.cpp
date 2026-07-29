@@ -40,6 +40,11 @@ void TestProtocolNeutralGenerationTypes() {
   GEM16_CHECK(first.content.front().kind ==
               gem16::GenerationContentKind::kText);
   GEM16_CHECK(first.content.front().text == "hello");
+  gem16::AudioWaveform waveform;
+  waveform.samples = {0.0F, 0.5F};
+  auto audio = gem16::GenerationContentPart::Audio(waveform);
+  GEM16_CHECK(audio.kind == gem16::GenerationContentKind::kAudio);
+  GEM16_CHECK(audio.audio == waveform);
 
   gem16::ChatGenerationRequest request;
   request.messages.push_back(first);

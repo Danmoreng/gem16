@@ -36,7 +36,7 @@ struct MemoryPlan {
   std::uint64_t arena_alignment = 0;
   std::uint64_t local_layer_count = 0;
   std::uint64_t global_layer_count = 0;
-  std::uint64_t text_only_source_bytes = 0;
+  std::uint64_t resident_source_bytes = 0;
   std::uint64_t model_weight_bytes = 0;
   std::uint64_t scale_bytes = 0;
   // One final attention state per token. Retained as a diagnostic lower bound;

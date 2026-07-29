@@ -1,9 +1,12 @@
 # Memory
 
-The deterministic base-arena planner is implemented. The verified checkpoint contains 9,304,786,336 tensor payload bytes. The explicit
-text-only selection retains 9,200,026,528 bytes and skips 104,759,808 bytes of audio/vision projection and
-embedding tensors. The planner separates 8,668,020,512 bytes of weights/model state from 532,006,016 bytes of
-scales and aligns every named region to 256 bytes. These remain planned payload bytes, not measured CUDA allocations.
+The deterministic base-arena planner is implemented. The verified checkpoint
+contains 9,304,786,336 tensor payload bytes. The original text-only inventory
+classified 9,200,026,528 bytes and 104,759,808 bytes of audio/vision projection
+and embedding tensors. The runtime now keeps both classes resident. The planner
+separates 8,772,780,320 bytes of weights/model state from 532,006,016 bytes of
+scales and aligns every named region to 256 bytes. These remain planned payload
+bytes, not measured CUDA allocations.
 
 For the parsed 48-layer architecture and one-byte FP8 cache, the formula after the local window is full is:
 
