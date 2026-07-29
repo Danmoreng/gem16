@@ -147,6 +147,49 @@ gem16::Result<std::string> ReadToolSchema(const std::filesystem::path& path) {
   return text;
 }
 
+gem16::Result<std::vector<gem16::GenerationContentPart>> LoadMediaParts(
+    std::span<const MediaFile> files, std::uint64_t context_tokens,
+    std::optional<std::uint64_t> max_tokens, bool stats) {
+  std::vector<gem16::GenerationContentPart> parts(files.size());
+  std::uint64_t audio_tokens = 0U;
+  std::size_t image_count = 0U;
+  for (std::size_t index = 0U; index < files.size(); ++index) {
+    if (files[index].kind == MediaFileKind::kAudio) {
+      auto audio = gem16::LoadAudioFile(files[index].path);
+      if (!audio.ok()) return audio.status();
+      audio_tokens += (audio.value().samples.size() + 639U) / 640U;
+      parts[index] = gem16::GenerationContentPart::Audio(
+          std::move(audio).value());
+    } else {
+      ++image_count;
+    }
+  }
+  const std::uint64_t output_reserve = max_tokens.value_or(
+      std::min<std::uint64_t>(128U, context_tokens / 4U));
+  const std::uint64_t fixed_reserve =
+      output_reserve + audio_tokens + 64U + files.size() * 2U;
+  const std::uint32_t image_budget =
+      gem16::AutomaticVisionSoftTokenBudget(
+          context_tokens, fixed_reserve, image_count);
+  for (std::size_t index = 0U; index < files.size(); ++index) {
+    if (files[index].kind != MediaFileKind::kImage) continue;
+    auto image = gem16::LoadVisionImage(
+        files[index].path, gem16::VisionImageOptions{image_budget, false});
+    if (!image.ok()) return image.status();
+    if (stats) {
+      std::cerr << "[media] image " << image.value().source_width << 'x'
+                << image.value().source_height << " -> "
+                << image.value().processed_width << 'x'
+                << image.value().processed_height << ", "
+                << image.value().patch_count << '/' << image_budget
+                << " soft tokens\n";
+    }
+    parts[index] = gem16::GenerationContentPart::Image(
+        std::move(image).value());
+  }
+  return parts;
+}
+
 gem16::Result<Options> ParseOptions(int argc, char** argv) {
   Options options;
   for (int index = 1; index < argc; ++index) {
@@ -484,7 +527,8 @@ void PrintTurnStats(const gem16::GreedyInferenceResult& inference) {
 gem16::Result<TurnOutput> RunTurn(
     const Options& cli, const gem16::GemmaChatProcessor& processor,
     std::vector<gem16::ChatMessage>& messages, bool write_json,
-    bool stream_tokens, gem16::ChatSession* session) {
+    bool stream_tokens, gem16::ChatSession* session,
+    std::span<const std::vector<gem16::GenerationContentPart>> message_media = {}) {
   std::optional<std::string> rendered;
   const std::vector<gem16::ChatToolDefinition> chat_tools = MakeChatTools(cli);
   if (cli.render_only) {
@@ -495,12 +539,19 @@ gem16::Result<TurnOutput> RunTurn(
     rendered = std::move(render_result).value();
   }
   if (session != nullptr) {
+    if (!message_media.empty() && message_media.size() != messages.size()) {
+      return gem16::Status(
+          gem16::StatusCode::kInvalidArgument,
+          "resident message/media history size mismatch");
+    }
     gem16::ChatGenerationRequest request;
     request.max_generated_tokens = cli.max_tokens;
     request.thinking.effort = cli.thinking_effort;
     request.tools = cli.tools;
     request.messages.reserve(messages.size());
-    for (const gem16::ChatMessage& message : messages) {
+    for (std::size_t message_index = 0U;
+         message_index < messages.size(); ++message_index) {
+      const gem16::ChatMessage& message = messages[message_index];
       gem16::GenerationMessage converted;
       converted.role = message.role;
       if (message.role == "tool") {
@@ -515,11 +566,13 @@ gem16::Result<TurnOutput> RunTurn(
           converted.content.push_back(gem16::GenerationContentPart::ToolCall(
               {call.id, call.name, call.arguments_json}));
         }
+        if (!message_media.empty()) {
+          for (const auto& media : message_media[message_index]) {
+            converted.content.push_back(media);
+          }
+        }
       }
       request.messages.push_back(std::move(converted));
-    }
-    for (const gem16::GenerationContentPart& media : cli.media_parts) {
-      request.messages.back().content.push_back(media);
     }
     TokenStreamContext stream_context(processor, std::cout,
                                       cli.show_thinking);
@@ -672,52 +725,14 @@ int ChatMain(int argc, char** argv) {
     return 64;
   }
   Options options = std::move(parsed).value();
-  options.media_parts.resize(options.media_files.size());
-  std::uint64_t audio_tokens = 0U;
-  std::size_t image_count = 0U;
-  for (std::size_t index = 0U; index < options.media_files.size(); ++index) {
-    const MediaFile& media = options.media_files[index];
-    if (media.kind == MediaFileKind::kAudio) {
-      auto audio = gem16::LoadAudioFile(media.path);
-      if (!audio.ok()) {
-        std::cerr << "error: " << audio.status().message() << '\n';
-        return 2;
-      }
-      audio_tokens += (audio.value().samples.size() + 639U) / 640U;
-      options.media_parts[index] =
-          gem16::GenerationContentPart::Audio(std::move(audio).value());
-    } else {
-      ++image_count;
-    }
+  auto initial_media = LoadMediaParts(
+      options.media_files, options.max_context, options.max_tokens,
+      options.stats);
+  if (!initial_media.ok()) {
+    std::cerr << "error: " << initial_media.status().message() << '\n';
+    return 2;
   }
-  const std::uint64_t output_reserve = options.max_tokens.value_or(
-      std::min<std::uint64_t>(128U, options.max_context / 4U));
-  const std::uint64_t fixed_reserve =
-      output_reserve + audio_tokens + 64U + options.media_files.size() * 2U;
-  const std::uint32_t per_image_budget =
-      gem16::AutomaticVisionSoftTokenBudget(
-          options.max_context, fixed_reserve, image_count);
-  for (std::size_t index = 0U; index < options.media_files.size(); ++index) {
-    const MediaFile& media = options.media_files[index];
-    if (media.kind == MediaFileKind::kImage) {
-      auto image = gem16::LoadVisionImage(
-          media.path, gem16::VisionImageOptions{per_image_budget, false});
-      if (!image.ok()) {
-        std::cerr << "error: " << image.status().message() << '\n';
-        return 2;
-      }
-      if (options.stats) {
-        std::cerr << "[media] image " << image.value().source_width << 'x'
-                  << image.value().source_height << " -> "
-                  << image.value().processed_width << 'x'
-                  << image.value().processed_height << ", "
-                  << image.value().patch_count << '/' << per_image_budget
-                  << " soft tokens\n";
-      }
-      options.media_parts[index] =
-          gem16::GenerationContentPart::Image(std::move(image).value());
-    }
-  }
+  options.media_parts = std::move(initial_media).value();
   auto processor =
       gem16::GemmaChatProcessor::Load(options.model_directory);
   if (!processor.ok()) {
@@ -741,18 +756,22 @@ int ChatMain(int argc, char** argv) {
   }
 
   std::vector<gem16::ChatMessage> messages;
+  std::vector<std::vector<gem16::GenerationContentPart>> message_media;
   if (options.has_system_message) {
     messages.push_back({"system", options.system_message});
+    message_media.emplace_back();
   }
   if (options.has_one_shot_message) {
     messages.push_back({"user", options.one_shot_message});
+    message_media.push_back(options.media_parts);
     const bool stream_tokens = !options.json && !options.render_only;
     const bool diagnostic_path = options.json ||
                                  !options.state_dump_path.empty() ||
                                  options.state_dump_position.has_value();
     if (options.render_only || diagnostic_path) {
       auto response = RunTurn(options, processor.value(), messages,
-                              options.json, stream_tokens, nullptr);
+                              options.json, stream_tokens, nullptr,
+                              message_media);
       if (!response.ok()) {
         std::cerr << "error: " << response.status().message() << '\n';
         return 2;
@@ -765,7 +784,8 @@ int ChatMain(int argc, char** argv) {
         return 2;
       }
       auto response = RunTurn(options, processor.value(), messages,
-                              options.json, stream_tokens, &session.value());
+                              options.json, stream_tokens, &session.value(),
+                              message_media);
       if (!response.ok()) {
         std::cerr << "error: " << response.status().message() << '\n';
         return 2;
@@ -783,6 +803,8 @@ int ChatMain(int argc, char** argv) {
   }
 
   std::cout << "gem16 resident chat session (/quit to exit)\n"
+            << "Media commands: /image <path>, /audio <path>, /media, "
+               "/clear-media.\n"
             << "Model weights and the exact conversation KV prefix stay resident.\n";
   if (options.mtp_draft_tokens != 0U) {
     std::cout << "MTP enabled: D" << options.mtp_draft_tokens
@@ -791,6 +813,7 @@ int ChatMain(int argc, char** argv) {
               << (options.sampling.enabled ? "sampled" : "greedy")
               << " decoding.\n";
   }
+  std::vector<MediaFile> pending_media;
   while (true) {
     std::cout << "you> " << std::flush;
     std::string input;
@@ -799,14 +822,61 @@ int ChatMain(int argc, char** argv) {
       break;
     }
     if (input == "/quit" || input == "/exit") break;
+    if (input.starts_with("/image ") || input.starts_with("/audio ")) {
+      const bool image = input.starts_with("/image ");
+      const std::string_view path =
+          std::string_view(input).substr(7U);
+      if (path.empty()) {
+        std::cerr << "error: media path cannot be empty\n";
+        continue;
+      }
+      pending_media.push_back(
+          {image ? MediaFileKind::kImage : MediaFileKind::kAudio,
+           std::filesystem::path(path)});
+      std::cout << "queued " << (image ? "image" : "audio") << ": "
+                << path << '\n';
+      continue;
+    }
+    if (input == "/media") {
+      if (pending_media.empty()) {
+        std::cout << "no pending media\n";
+      } else {
+        for (std::size_t index = 0U; index < pending_media.size(); ++index) {
+          std::cout << index + 1U << ". "
+                    << (pending_media[index].kind == MediaFileKind::kImage
+                            ? "image "
+                            : "audio ")
+                    << pending_media[index].path.string() << '\n';
+        }
+      }
+      continue;
+    }
+    if (input == "/clear-media") {
+      pending_media.clear();
+      std::cout << "pending media cleared\n";
+      continue;
+    }
     if (input.empty()) continue;
+    const std::uint64_t cached_tokens = session.value().cached_token_count();
+    const std::uint64_t remaining_context =
+        cached_tokens < options.max_context
+            ? options.max_context - cached_tokens
+            : 0U;
+    auto turn_media = LoadMediaParts(
+        pending_media, remaining_context, options.max_tokens, options.stats);
+    if (!turn_media.ok()) {
+      std::cerr << "error: " << turn_media.status().message() << '\n';
+      continue;
+    }
     messages.push_back({"user", input});
+    message_media.push_back(std::move(turn_media).value());
+    pending_media.clear();
     bool turn_failed = false;
     while (true) {
       std::cout << "model> " << std::flush;
       const bool stream_tokens = options.tools.empty();
       auto response = RunTurn(options, processor.value(), messages, false,
-                              stream_tokens, &session.value());
+                              stream_tokens, &session.value(), message_media);
       if (!response.ok()) {
         std::cerr << "\nerror: " << response.status().message() << '\n';
         turn_failed = true;
@@ -825,6 +895,7 @@ int ChatMain(int argc, char** argv) {
             {call.id, call.name, call.arguments_json});
       }
       messages.push_back(std::move(assistant));
+      message_media.emplace_back();
       if (output.tool_calls.empty()) break;
       for (const auto& call : output.tool_calls) {
         std::cout << "tool call " << call.id << ": " << call.name << ' '
@@ -841,6 +912,7 @@ int ChatMain(int argc, char** argv) {
         result.tool_call_id = call.id;
         result.tool_name = call.name;
         messages.push_back(std::move(result));
+        message_media.emplace_back();
       }
       if (turn_failed) break;
     }

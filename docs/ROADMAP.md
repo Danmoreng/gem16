@@ -194,9 +194,9 @@ The llama.cpp benchmark is deliberately before engine kernel optimization, but a
    [multimodal expansion plan](MULTIMODAL.md). Audio and the complete
    encoder-free vision path are now implemented for one-shot chat,
    including GPU projection and sliding-layer bidirectional vision attention.
-   Portable PNG/JPEG/BMP and WAV/FLAC/MP3 decoding is integrated. Next qualify
-   Linux GPU media inference and multiple/resident image requests, then reuse
-   the vision path for sampled video frames.
+   Portable PNG/JPEG/BMP and WAV/FLAC/MP3 decoding is integrated. Multiple and
+   resident image/audio requests are qualified on Windows; Linux GPU media
+   qualification and sampled video frames remain follow-up work.
 13. Execute the OpenAI-compatible agent-server sequence. **A1 complete:** the server-neutral request, content,
    event, response, and finish-reason types represent function definitions, tool choice, ordered tool calls and
    results, incremental text/reasoning/tool output, and multiple calls without binding the runtime to OpenAI JSON.
@@ -207,7 +207,10 @@ The llama.cpp benchmark is deliberately before engine kernel optimization, but a
    one-shot requests preserve repeated image/audio order, locate every placeholder span, and isolate each image in a
    qualified prefill chunk. **A5 complete:** the checkpoint-bounded automatic policy reserves non-image context,
    shares the remainder across images, preserves aspect ratio, avoids needless upscaling, and reports actual versus
-   budgeted soft tokens. Next add interactive resident media management.
+   budgeted soft tokens. **A6 complete:** resident `/image` and `/audio` queues,
+   inspection/clear commands, remaining-context image budgets, and message-aligned
+   media history preserve exact multimodal prefixes across later text and tool
+   turns. Next implement the minimal OpenAI-compatible server surface.
 14. After the Blackwell backend is correct and competitive, add architecture-specific backends for additional 16 GB
    CUDA GPUs without weakening benchmark or memory contracts.
 

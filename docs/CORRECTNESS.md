@@ -148,6 +148,12 @@ Automatic-resolution host tests cover the 1/280 bounds, equal context sharing, a
 GPU run assigned 206 tokens to each of two large diagrams, produced 192- and 190-token aspect-preserving grids, and
 completed the comparison without truncation.
 
+Resident-media qualification queued a 3640x1265 diagram with `/image`, automatically reduced it to 1344x432 and
+252/280 soft tokens, described it, then correctly answered a follow-up question from the unchanged resident
+conversation. A separate `/audio` run loaded `freeman.wav` and transcribed its speech. Message-aligned media history
+is retained across assistant and tool-result turns, preventing both dropped media and accidental reattachment to a
+later message.
+
 The terminal stream applies the same checkpoint-qualified `ResponseChannelTracker` to generated IDs before
 decoding them. A real Windows fixed-D2 smoke test covers a forced reasoning close and observes separate
 `--- thinking ---` and `--- answer ---` sections without leaking the multi-token channel opener. A second run with

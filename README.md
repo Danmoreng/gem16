@@ -147,6 +147,11 @@ visible response as separate `--- thinking ---` and `--- answer ---` sections. `
 reasoning body while retaining the answer header; `--show-thinking` is the default. Enter `/quit` to leave the
 session.
 
+Resident chat also accepts media without restarting the process. `/image <path>` and `/audio <path>` add files to
+the next user message, `/media` lists the pending queue, and `/clear-media` discards it. Files are decoded only when
+the next ordinary text message is submitted. Once sent, their projected prompt remains part of the exact resident
+conversation prefix, so later text turns and tool continuations can refer back to the media.
+
 Resident chat can expose local function tools. Repeat `--tool` with a name, description, and JSON Schema file. When
 Gemma requests a function, the CLI prints its validated JSON arguments, prompts for the external result, appends that
 result to the resident KV prefix, and continues generation automatically:
@@ -160,7 +165,7 @@ result to the resident KV prefix, and continues generation automatically:
 
 The CLI deliberately asks the user to execute the tool; gem16 does not run arbitrary functions itself.
 
-Audio input is available in one-shot chat. The unified checkpoint's audio and
+Audio input is available in one-shot and resident chat. The unified checkpoint's audio and
 vision tensors are always loaded with the text weights; there is no modality
 residency switch. WAV, FLAC, and MP3 input is decoded by the pinned miniaudio
 single-header library and converted to the model's mono float32 16-kHz frame
@@ -176,8 +181,8 @@ contract:
 
 `--audio` and `--image` may be repeated in one one-shot message; media remain in command-line order after the text
 part. Image resolution is selected automatically from source dimensions, media count, audio length, output reserve,
-and `--max-context`, capped at 280 tokens. See [docs/AUDIO.md](docs/AUDIO.md) for the qualified audio contract. Image input is also available in one-shot
-chat; PNG, JPEG, and BMP files are decoded
+and `--max-context`, capped at 280 tokens. The equivalent resident commands may also be repeated before submitting
+the message. See [docs/AUDIO.md](docs/AUDIO.md) for the qualified audio contract. PNG, JPEG, and BMP files are decoded
 to RGB, processed into the checkpoint's native merged patches, and projected
 by the complete encoder-free vision embedder on the GPU:
 
@@ -227,7 +232,7 @@ and the direct mixed checkpoint and available GGUF baseline differ in some tenso
 ## Known limitations
 
 - Only the pinned Gemma 4 12B Unified checkpoint family is supported.
-- Inference is currently text-only and batch one; image, audio, and video tensors are not loaded onto the GPU.
+- Inference is currently batch one. Text, image, and audio input are supported; video input is not yet implemented.
 - Generation supports unchanged fused greedy selection and explicit seeded GPU sampling with temperature, exact
   top-k/top-p/min-p filtering, and full-history repetition penalty. The initial sampled path uses a preallocated
   full-vocabulary radix sort and probability scan inside the whole-model decode CUDA Graph.

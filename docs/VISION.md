@@ -85,7 +85,9 @@ the next vision performance step.
 
 ## Current limits
 
-- repeated images and audio are supported in one one-shot message;
+- repeated images and audio are supported in one-shot and resident messages;
+- resident `/image`, `/audio`, `/media`, and `/clear-media` commands manage the
+  next message's ordered media queue without reloading model weights;
 - PNG, JPEG, and BMP input through the portable stb_image decoder;
 - maximum 280 valid image soft tokens;
 - automatic context-aware budgets from 1 through 280, with no default upscaling;
