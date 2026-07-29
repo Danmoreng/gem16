@@ -96,9 +96,13 @@ records every emitted token except the final not-yet-forwarded token as material
 prefix invariant as ordinary chat. D1, D4, and adaptive scheduling use the exact direct MTP path.
 
 `ChatSession` is the public server-neutral generation boundary. It accepts owning `GenerationMessage` content
-parts in a `ChatGenerationRequest`, materializes the exact Gemma prompt internally, owns continuation/pending-token
-bookkeeping, resolves an omitted output limit to the remaining fixed context capacity, and emits protocol-neutral
-token events. `gem16-chat` is now an adapter over this API for ordinary
+parts in a `ChatGenerationRequest`, including ordered text, decoded media, tool calls, and tool results. Tool
+definitions retain their parameter schemas as JSON strings, and tool calls retain argument JSON as strings so this
+boundary neither normalizes protocol payloads nor depends on a JSON library. Requests carry protocol-neutral tool
+choice and parallel-call policy. Responses and streaming callbacks can represent text, reasoning, and incremental
+tool-call output in addition to the existing raw token event. `ChatSession` materializes the exact Gemma prompt
+internally, owns continuation/pending-token bookkeeping, and resolves an omitted output limit to the remaining fixed
+context capacity. `gem16-chat` is now an adapter over this API for ordinary
 one-shot and resident interactive generation; render-only, JSON diagnostics, and state capture retain their narrow
 specialized paths. The reusable `Tokenizer` and `GemmaChatProcessor` remain independent of terminal I/O. HTTP,
 SSE, OpenAI JSON, URLs, MIME/base64 processing, and terminal rendering belong above `ChatSession`, never in model

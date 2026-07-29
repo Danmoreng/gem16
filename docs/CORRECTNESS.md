@@ -120,7 +120,9 @@ top-k and unfiltered full-vocabulary selection; the probability scan and final b
 For bounded top-k, probability preparation and scan cover only that sorted prefix without changing selected IDs.
 
 The server-neutral `ChatSession` migration is covered by host API tests and the real checkpoint-backed resident
-chat validator. Ordinary and sampled fixed-D2 sessions still produce `Blau` then `Blau` for the two-turn fixture;
+chat validator. Host tests cover owning tool definitions, explicit tool choice, ordered tool-call/tool-result content,
+incremental structured event payloads, and the `tool_calls` finish reason without introducing a JSON dependency.
+Ordinary and sampled fixed-D2 sessions still produce `Blau` then `Blau` for the two-turn fixture;
 both sampled MTP turns report GPU chaining, and no CUDA engine, graph, workspace, KV, sampling, or kernel code is
 changed by the orchestration boundary.
 

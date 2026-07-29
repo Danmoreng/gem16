@@ -218,7 +218,9 @@ Status ForwardTokenEvent(void* opaque_context, std::uint32_t token_id) {
     return Status(StatusCode::kInternal,
                   "generation event bridge is not initialized");
   }
-  const GenerationEvent event{GenerationEventKind::kToken, token_id};
+  GenerationEvent event;
+  event.kind = GenerationEventKind::kToken;
+  event.token_id = token_id;
   return bridge->callback(bridge->context, event);
 }
 
@@ -417,6 +419,7 @@ const char* GenerationFinishReasonName(GenerationFinishReason reason) {
   switch (reason) {
     case GenerationFinishReason::kStop: return "stop";
     case GenerationFinishReason::kLength: return "length";
+    case GenerationFinishReason::kToolCalls: return "tool_calls";
   }
   return "unknown";
 }

@@ -197,7 +197,11 @@ The llama.cpp benchmark is deliberately before engine kernel optimization, but a
    Portable PNG/JPEG/BMP and WAV/FLAC/MP3 decoding is integrated. Next qualify
    Linux GPU media inference and multiple/resident image requests, then reuse
    the vision path for sampled video frames.
-13. After the Blackwell backend is correct and competitive, add architecture-specific backends for additional 16 GB
+13. Execute the OpenAI-compatible agent-server sequence. **A1 complete:** the server-neutral request, content,
+   event, response, and finish-reason types represent function definitions, tool choice, ordered tool calls and
+   results, incremental text/reasoning/tool output, and multiple calls without binding the runtime to OpenAI JSON.
+   Next implement the checkpoint-native Gemma tool template and incremental parser, then expose it in resident chat.
+14. After the Blackwell backend is correct and competitive, add architecture-specific backends for additional 16 GB
    CUDA GPUs without weakening benchmark or memory contracts.
 
 The detailed gates and ordering in `AGENTS.md` are authoritative.

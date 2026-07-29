@@ -24,6 +24,26 @@ enum class GenerationContentKind {
   kText,
   kAudio,
   kImage,
+  kToolCall,
+  kToolResult,
+};
+
+// JSON payloads remain strings at this boundary so protocol adapters can
+// preserve schemas and arguments byte-for-byte without coupling the runtime to
+// a particular JSON library.
+struct GenerationToolCall {
+  std::string id;
+  std::string name;
+  std::string arguments_json;
+
+  bool operator==(const GenerationToolCall&) const = default;
+};
+
+struct GenerationToolResult {
+  std::string call_id;
+  std::string output;
+
+  bool operator==(const GenerationToolResult&) const = default;
 };
 
 struct GenerationContentPart {
@@ -31,6 +51,8 @@ struct GenerationContentPart {
   std::string text;
   AudioWaveform audio;
   VisionImage image;
+  GenerationToolCall tool_call;
+  GenerationToolResult tool_result;
 
   bool operator==(const GenerationContentPart&) const = default;
 
@@ -52,6 +74,22 @@ struct GenerationContentPart {
     GenerationContentPart part;
     part.kind = GenerationContentKind::kImage;
     part.image = std::move(value);
+    return part;
+  }
+
+  [[nodiscard]] static GenerationContentPart ToolCall(
+      GenerationToolCall value) {
+    GenerationContentPart part;
+    part.kind = GenerationContentKind::kToolCall;
+    part.tool_call = std::move(value);
+    return part;
+  }
+
+  [[nodiscard]] static GenerationContentPart ToolResult(
+      GenerationToolResult value) {
+    GenerationContentPart part;
+    part.kind = GenerationContentKind::kToolResult;
+    part.tool_result = std::move(value);
     return part;
   }
 };
@@ -82,6 +120,30 @@ struct ThinkingOptions {
   ThinkingEffort effort = ThinkingEffort::kMedium;
 };
 
+struct GenerationToolDefinition {
+  std::string name;
+  std::string description;
+  std::string parameters_json;
+  bool strict = false;
+
+  bool operator==(const GenerationToolDefinition&) const = default;
+};
+
+enum class GenerationToolChoiceMode {
+  kAuto,
+  kNone,
+  kRequired,
+  kFunction,
+};
+
+struct GenerationToolChoice {
+  GenerationToolChoiceMode mode = GenerationToolChoiceMode::kAuto;
+  // Required only for kFunction.
+  std::string function_name;
+
+  bool operator==(const GenerationToolChoice&) const = default;
+};
+
 [[nodiscard]] std::uint64_t ThinkingBudgetTokens(ThinkingEffort effort);
 [[nodiscard]] const char* ThinkingEffortName(ThinkingEffort effort);
 
@@ -93,15 +155,26 @@ struct ChatGenerationRequest {
   // context capacity. A value sets a stricter per-turn output limit.
   std::optional<std::uint64_t> max_generated_tokens;
   ThinkingOptions thinking;
+  std::vector<GenerationToolDefinition> tools;
+  GenerationToolChoice tool_choice;
+  bool parallel_tool_calls = true;
 };
 
 enum class GenerationEventKind {
   kToken,
+  kTextDelta,
+  kReasoningDelta,
+  kToolCallStart,
+  kToolCallArgumentsDelta,
+  kToolCallEnd,
 };
 
 struct GenerationEvent {
   GenerationEventKind kind = GenerationEventKind::kToken;
   std::uint32_t token_id = 0U;
+  std::string text_delta;
+  std::string tool_call_id;
+  std::string tool_name;
 };
 
 using GenerationEventCallback = Status (*)(void* context,
@@ -110,11 +183,14 @@ using GenerationEventCallback = Status (*)(void* context,
 enum class GenerationFinishReason {
   kStop,
   kLength,
+  kToolCalls,
 };
 
 struct ChatGenerationResponse {
   std::string assistant_content;
   std::string assistant_text;
+  std::string reasoning_text;
+  std::vector<GenerationToolCall> tool_calls;
   std::vector<std::uint32_t> prompt_token_ids;
   GenerationFinishReason finish_reason = GenerationFinishReason::kLength;
   GreedyInferenceResult inference;

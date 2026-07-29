@@ -52,11 +52,45 @@ void TestProtocolNeutralGenerationTypes() {
   auto image = gem16::GenerationContentPart::Image(vision_image);
   GEM16_CHECK(image.kind == gem16::GenerationContentKind::kImage);
   GEM16_CHECK(image.image == vision_image);
+  const gem16::GenerationToolCall tool_call{
+      "call_1", "weather", R"({"location":"Berlin"})"};
+  const auto tool_call_part =
+      gem16::GenerationContentPart::ToolCall(tool_call);
+  GEM16_CHECK(tool_call_part.kind ==
+              gem16::GenerationContentKind::kToolCall);
+  GEM16_CHECK(tool_call_part.tool_call == tool_call);
+  const gem16::GenerationToolResult tool_result{
+      "call_1", R"({"temperature":25})"};
+  const auto tool_result_part =
+      gem16::GenerationContentPart::ToolResult(tool_result);
+  GEM16_CHECK(tool_result_part.kind ==
+              gem16::GenerationContentKind::kToolResult);
+  GEM16_CHECK(tool_result_part.tool_result == tool_result);
 
   gem16::ChatGenerationRequest request;
   request.messages.push_back(first);
+  request.tools.push_back(gem16::GenerationToolDefinition{
+      "weather", "Get current weather",
+      R"({"type":"object","properties":{"location":{"type":"string"}}})",
+      true});
+  request.tool_choice = {
+      gem16::GenerationToolChoiceMode::kFunction, "weather"};
   GEM16_CHECK(!request.max_generated_tokens.has_value());
   GEM16_CHECK(request.thinking.effort == gem16::ThinkingEffort::kMedium);
+  GEM16_CHECK(request.tools.size() == 1U);
+  GEM16_CHECK(request.tools.front().strict);
+  GEM16_CHECK(request.tool_choice.mode ==
+              gem16::GenerationToolChoiceMode::kFunction);
+  GEM16_CHECK(request.tool_choice.function_name == "weather");
+  GEM16_CHECK(request.parallel_tool_calls);
+  gem16::GenerationEvent event;
+  event.kind = gem16::GenerationEventKind::kToolCallArgumentsDelta;
+  event.text_delta = R"({"location":)";
+  event.tool_call_id = "call_1";
+  event.tool_name = "weather";
+  GEM16_CHECK(event.text_delta == R"({"location":)");
+  GEM16_CHECK(event.tool_call_id == "call_1");
+  GEM16_CHECK(event.tool_name == "weather");
   GEM16_CHECK(gem16::ThinkingBudgetTokens(gem16::ThinkingEffort::kOff) == 0U);
   GEM16_CHECK(gem16::ThinkingBudgetTokens(
                   gem16::ThinkingEffort::kSmall) == 1024U);
@@ -68,6 +102,9 @@ void TestProtocolNeutralGenerationTypes() {
                   gem16::GenerationFinishReason::kStop)) == "stop");
   GEM16_CHECK(std::string(gem16::GenerationFinishReasonName(
                   gem16::GenerationFinishReason::kLength)) == "length");
+  GEM16_CHECK(std::string(gem16::GenerationFinishReasonName(
+                  gem16::GenerationFinishReason::kToolCalls)) ==
+              "tool_calls");
 }
 
 }  // namespace
