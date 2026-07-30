@@ -1,5 +1,42 @@
 # Decisions
 
+## 2026-07-30: Gate engine quality with paired task benchmarks
+
+Date: 2026-07-30
+
+Decision: Compare gem16 with a reference runtime serving the exact pinned
+Unsloth NVFP4 checkpoint by paired task accuracy rather than requiring
+cross-engine token identity. Pin `sgl-eval`, dataset revisions, prompts,
+graders, raw responses, and generation controls. The primary product-quality
+matrix uses the checkpoint-recommended temperature 1.0, top-p 0.95, and top-k
+64. GSM8K initially runs without thinking to retain a link to the available
+public 12B NVFP4 result; GPQA Diamond and AIME 2026 use high reasoning to
+exercise the mode used by Google's published model results. A separately
+labeled greedy run may isolate engine arithmetic without sampling variance.
+Treat Google and other checkpoints' scores as external plausibility anchors,
+not exact protocol thresholds.
+
+Context: Different valid FP8/NVFP4 reduction orders can change an autoregressive
+token without changing answer quality. Conversely, close logits do not prove
+that a model still solves representative tasks. Google's exact internal
+protocol is not fully published, and the public 12B NVFP4 evaluations use
+quantization recipes different from the selected mixed FP8/NVFP4 checkpoint.
+
+Alternatives: Require exact vLLM tokens; compare only with Google's aggregate
+scores; use sampled repeated runs as the first engine gate; or maintain only
+handwritten prompt checks.
+
+Consequences: The primary engine delta is gem16 minus vLLM on identical scored
+examples from the same checkpoint and recommended sampling profile. One sampled
+pass is retained per task because the current gem16 server fixes its seed at
+session creation; repeated runs are not called independent samples. Greedy
+results remain an optional deterministic engine-isolation view. Full runs
+retain paired regressions/improvements and an exact McNemar test.
+
+Evidence: Public Google 12B scores, AxionML GSM8K BF16/NVFP4 results of
+96.36/96.12%, RedHatAI's separate 12B NVFP4 evaluation, NVIDIA's 31B NVFP4
+quality deltas, and the first end-to-end pinned GSM8K gem16 smoke request.
+
 ## 2026-07-30: Check reproducible multimodal benchmark media into the repository
 
 Date: 2026-07-30

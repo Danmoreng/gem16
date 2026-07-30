@@ -241,6 +241,12 @@ gem16-bench prefill --model /path/to/checkpoint --context 8192
 gem16-bench decode --model /path/to/checkpoint --context 8192 --tokens 256
 ```
 
+Task-level model quality is measured independently of token-for-token runtime
+agreement with the pinned `sgl-eval` harness described in
+[`benchmarks/quality/README.md`](benchmarks/quality/README.md). Initial gates
+cover GSM8K, GPQA Diamond, and AIME 2026 against gem16 or an OpenAI-compatible
+reference endpoint and retain every scored response for paired comparison.
+
 Reproducible multimodal server benchmarks use the checked-in
 `benchmarks/media/suite.json`: three original generated PNG scenes and three
 14-second public-domain LibriVox WAV excerpts. Their checksums, expected facts,
