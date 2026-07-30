@@ -77,6 +77,14 @@ target_include_directories(gem16_server_support
 target_link_libraries(gem16_server_support PUBLIC gem16_core)
 gem16_set_project_warnings(gem16_server_support)
 gem16_enable_sanitizers(gem16_server_support)
+if(GEM16_ENABLE_CUDA)
+  # This C++-only archive forwards gem16_core to final executables. Deferring
+  # CUDA symbol resolution avoids consuming core registration objects in an
+  # intermediate device link before gem16-server is linked.
+  set_target_properties(gem16_server_support PROPERTIES
+    CUDA_RESOLVE_DEVICE_SYMBOLS OFF
+  )
+endif()
 
 find_package(Threads REQUIRED)
 add_library(gem16_httplib STATIC
@@ -254,7 +262,9 @@ target_include_directories(gem16-bench PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src"
 
 add_executable(gem16-server src/cli/server_main.cpp)
 target_include_directories(gem16-server PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
-target_link_libraries(gem16-server PRIVATE gem16_server_support gem16_httplib)
+# Keep the CUDA-bearing core as a direct dependency so CMake includes its
+# separable-compilation objects in the server executable's device-link step.
+target_link_libraries(gem16-server PRIVATE gem16_server_support gem16_httplib gem16_core)
 gem16_set_project_warnings(gem16-server)
 gem16_enable_sanitizers(gem16-server)
 
