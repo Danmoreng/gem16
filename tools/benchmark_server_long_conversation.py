@@ -9,6 +9,7 @@ import hashlib
 import json
 import mimetypes
 import pathlib
+import re
 import subprocess
 import time
 import urllib.error
@@ -24,7 +25,9 @@ from benchmark_server import (
 )
 
 
-DEFAULT_TARGETS = "2048,8192,32768,65536,131072"
+REPOSITORY_ROOT = pathlib.Path(__file__).resolve().parents[1]
+DEFAULT_MEDIA_SUITE = REPOSITORY_ROOT / "benchmarks/media/suite.json"
+DEFAULT_TARGETS = "4096,8192,32768,65536,131072"
 FILLER_PARAGRAPH = (
     "Artificial intelligence research studies perception, reasoning, learning, "
     "planning, language, and reliable interaction with people. Practical systems "
@@ -38,14 +41,14 @@ PROBE_PREFIX = (
     "continuation, and responsive generation when old and new modalities are mixed. "
 )
 PROBE_QUESTIONS = (
-    "In one sentence, which number appeared on the sign in the initial image?",
-    "Name one cultural subject discussed in the initial audio recording.",
-    "Briefly confirm both the sign number and one audio theme.",
-    "What detail from the original image remains relevant to this conversation?",
-    "What did the original recording say about creation stories or the afterlife?",
-    "Answer with the remembered number followed by one remembered audio topic.",
-    "Why do the initial visual and spoken details show successful long-context retrieval?",
-    "Give a concise factual recap of the two original media inputs.",
+    "What exact large code appeared in image_a?",
+    "Quote two distinctive words remembered from audio_a.",
+    "Give the code and planter count from image_b.",
+    "Which unusual objects or reference books were mentioned in audio_b?",
+    "Give the code and sailboat count from image_c.",
+    "Complete the remembered claim from audio_c about a wife and neighborhood.",
+    "Briefly pair one remembered image code with one remembered audio phrase.",
+    "Give a concise factual recap of all six original media inputs.",
 )
 
 
@@ -75,8 +78,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--server-executable", required=True, type=pathlib.Path)
     parser.add_argument("--model", required=True, type=pathlib.Path)
     parser.add_argument("--assistant-model", required=True, type=pathlib.Path)
-    parser.add_argument("--image", required=True, type=pathlib.Path)
-    parser.add_argument("--audio", required=True, type=pathlib.Path)
+    parser.add_argument(
+        "--media-suite", type=pathlib.Path, default=DEFAULT_MEDIA_SUITE
+    )
+    parser.add_argument(
+        "--image", action="append", type=pathlib.Path, default=[],
+        help="append an image after the repository media suite",
+    )
+    parser.add_argument(
+        "--audio", action="append", type=pathlib.Path, default=[],
+        help="append an audio recording after the repository media suite",
+    )
     parser.add_argument("--output", required=True, type=pathlib.Path)
     parser.add_argument("--model-name", default="gem16")
     parser.add_argument("--host", default="127.0.0.1")
@@ -85,6 +97,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--warmup-turns", type=int, default=1)
     parser.add_argument("--repetitions", type=positive_int, default=3)
     parser.add_argument("--max-output-tokens", type=positive_int, default=128)
+    parser.add_argument("--media-output-tokens", type=positive_int, default=384)
+    parser.add_argument(
+        "--media-thinking-effort",
+        choices=("none", "low", "medium", "high"),
+        default="none",
+    )
     parser.add_argument(
         "--thinking-effort",
         choices=("none", "low", "medium", "high"),
@@ -103,6 +121,114 @@ def parse_args() -> argparse.Namespace:
     return args
 
 
+def sha256(path: pathlib.Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for block in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def load_media_suite(
+    manifest_path: pathlib.Path,
+    extra_images: list[pathlib.Path],
+    extra_audio: list[pathlib.Path],
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    if not manifest_path.is_file():
+        raise BenchmarkError(f"media suite does not exist: {manifest_path}")
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise BenchmarkError(f"cannot read media suite {manifest_path}: {error}") from error
+    if manifest.get("schema_version") != 1 or not isinstance(manifest.get("assets"), list):
+        raise BenchmarkError("media suite must use schema_version 1 and contain assets")
+    suite_root = manifest_path.resolve().parent
+    assets: list[dict[str, Any]] = []
+    identifiers: set[str] = set()
+    for entry in manifest["assets"]:
+        if not isinstance(entry, dict):
+            raise BenchmarkError("media suite assets must be objects")
+        identifier = entry.get("id")
+        media_type = entry.get("type")
+        relative_path = entry.get("path")
+        expected_terms = entry.get("expected_terms")
+        if (
+            not isinstance(identifier, str)
+            or not identifier
+            or identifier in identifiers
+            or media_type not in {"image", "audio"}
+            or not isinstance(relative_path, str)
+            or not isinstance(expected_terms, list)
+            or not expected_terms
+            or any(not isinstance(term, str) or not term for term in expected_terms)
+        ):
+            raise BenchmarkError(f"invalid media suite asset: {entry!r}")
+        path = (suite_root / relative_path).resolve()
+        try:
+            path.relative_to(suite_root)
+        except ValueError as error:
+            raise BenchmarkError(
+                f"media suite path escapes its directory: {relative_path}"
+            ) from error
+        if not path.is_file():
+            raise BenchmarkError(f"media suite asset does not exist: {path}")
+        observed_hash = sha256(path)
+        if observed_hash != entry.get("sha256"):
+            raise BenchmarkError(
+                f"media suite checksum mismatch for {path}: {observed_hash}"
+            )
+        identifiers.add(identifier)
+        assets.append({**entry, "resolved_path": path})
+    for media_type, paths in (("image", extra_images), ("audio", extra_audio)):
+        for index, path in enumerate(paths):
+            resolved = path.resolve()
+            if not resolved.is_file():
+                raise BenchmarkError(f"extra media asset does not exist: {resolved}")
+            assets.append(
+                {
+                    "id": f"extra_{media_type}_{index + 1}",
+                    "type": media_type,
+                    "path": str(resolved),
+                    "resolved_path": resolved,
+                    "sha256": sha256(resolved),
+                    "expected_terms": [],
+                    "provenance": "caller-supplied benchmark media",
+                }
+            )
+    if not any(asset["type"] == "image" for asset in assets) or not any(
+        asset["type"] == "audio" for asset in assets
+    ):
+        raise BenchmarkError("media suite must contain at least one image and one audio asset")
+    return manifest, assets
+
+
+def media_content(assets: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    content: list[dict[str, Any]] = [
+        {
+            "type": "input_text",
+            "text": (
+                "We are beginning a long conversation with several labeled media "
+                "items. For every image, read the large code and count the explicitly "
+                "named repeated objects. For every audio recording, quote distinctive "
+                "spoken words. Report all labels concisely and remember every detail."
+            ),
+        }
+    ]
+    for asset in assets:
+        content.append(
+            {
+                "type": "input_text",
+                "text": f"{asset['id']}: inspect the following {asset['type']}.",
+            }
+        )
+        path = asset["resolved_path"]
+        if asset["type"] == "image":
+            content.append({"type": "input_image", "image_url": data_url(path)})
+        else:
+            content.append({"type": "input_audio", "input_audio": audio_payload(path)})
+    return content
+
+
 def data_url(path: pathlib.Path) -> str:
     encoded = base64.b64encode(path.read_bytes()).decode("ascii")
     mime = mimetypes.guess_type(path.name)[0]
@@ -119,6 +245,12 @@ def audio_payload(path: pathlib.Path) -> dict[str, str]:
         "format": suffix,
         "data": base64.b64encode(path.read_bytes()).decode("ascii"),
     }
+
+
+def contains_expected(output: str, expected: str) -> bool:
+    return re.search(
+        rf"(?<![\w]){re.escape(expected)}(?![\w])", output, re.IGNORECASE
+    ) is not None
 
 
 def metric_delta(before: dict[str, float], after: dict[str, float], name: str) -> float:
@@ -297,7 +429,9 @@ def fill_to_context(
     return previous_response_id, current_tokens, fills, sequence
 
 
-def wait_for_server(base_url: str, process: subprocess.Popen[str], timeout: float) -> dict[str, Any]:
+def wait_for_server(
+    base_url: str, process: subprocess.Popen[str], timeout: float
+) -> dict[str, Any]:
     deadline = time.monotonic() + timeout
     last_error: Exception | None = None
     while time.monotonic() < deadline:
@@ -343,15 +477,12 @@ def validate_health(health: dict[str, Any]) -> None:
 
 def main() -> int:
     args = parse_args()
-    for path in (
-        args.server_executable,
-        args.model,
-        args.assistant_model,
-        args.image,
-        args.audio,
-    ):
+    for path in (args.server_executable, args.model, args.assistant_model):
         if not path.exists():
             raise BenchmarkError(f"required path does not exist: {path}")
+    media_manifest, media_assets = load_media_suite(
+        args.media_suite, args.image, args.audio
+    )
     if args.output.exists():
         raise BenchmarkError(f"refusing to overwrite {args.output}")
     args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -391,22 +522,11 @@ def main() -> int:
                 "input": [
                     {
                         "role": "user",
-                        "content": [
-                            {
-                                "type": "input_text",
-                                "text": (
-                                    "We are beginning a long conversation. Inspect the image and "
-                                    "audio, remember their important details, and briefly identify "
-                                    "the sign number plus the main themes in the recording."
-                                ),
-                            },
-                            {"type": "input_image", "image_url": data_url(args.image)},
-                            {"type": "input_audio", "input_audio": audio_payload(args.audio)},
-                        ],
+                        "content": media_content(media_assets),
                     }
                 ],
-                "max_output_tokens": args.max_output_tokens,
-                "reasoning": {"effort": args.thinking_effort},
+                "max_output_tokens": args.media_output_tokens,
+                "reasoning": {"effort": args.media_thinking_effort},
             }
             root = measured_stream(base_url, responses_url, root_payload, args.timeout)
             previous_response_id = str(root["response_id"])
@@ -482,35 +602,69 @@ def main() -> int:
                     flush=True,
                 )
 
-            final_retrieval = measured_stream(
-                base_url,
-                responses_url,
-                {
-                    "model": args.model_name,
-                    "previous_response_id": previous_response_id,
-                    "input": (
-                        "Final retrieval check: state the number on the original "
-                        "image sign and explicitly say whether the original audio "
-                        "discussed the afterlife. Answer in one sentence."
-                    ),
-                    "max_output_tokens": args.max_output_tokens,
-                    "reasoning": {"effort": args.thinking_effort},
-                },
-                args.timeout,
-            )
-            if final_retrieval["mtp"]["d2_groups"] == 0:
-                raise BenchmarkError("MTP D2 did not execute for final retrieval")
+            final_retrieval_runs: list[dict[str, Any]] = []
+            for asset in media_assets:
+                requested_fact = (
+                    "give its exact large code and repeated-object count"
+                    if asset["type"] == "image"
+                    else "quote its distinctive spoken words"
+                )
+                run = measured_stream(
+                    base_url,
+                    responses_url,
+                    {
+                        "model": args.model_name,
+                        "previous_response_id": previous_response_id,
+                        "input": (
+                            f"Final retrieval check for {asset['id']}: {requested_fact}. "
+                            "Answer concisely only from the original media."
+                        ),
+                        "max_output_tokens": args.max_output_tokens,
+                        "reasoning": {"effort": args.thinking_effort},
+                    },
+                    args.timeout,
+                )
+                run["media_asset_id"] = asset["id"]
+                final_retrieval_runs.append(run)
+                previous_response_id = str(run["response_id"])
+            if not any(run["mtp"]["d2_groups"] > 0 for run in final_retrieval_runs):
+                raise BenchmarkError("MTP D2 did not execute during final retrieval")
             metrics_after = prometheus_metrics(f"{base_url}/metrics", args.timeout)
             gpu_telemetry = telemetry.stop()
-            expected_checks = {
-                expected: {
-                    "root_multimodal": expected.lower()
-                    in root["output_text"].lower(),
-                    "final_long_context": expected.lower()
-                    in final_retrieval["output_text"].lower(),
-                }
-                for expected in args.expected_text
+            final_outputs = {
+                run["media_asset_id"]: run["output_text"]
+                for run in final_retrieval_runs
             }
+            expected_by_asset = {
+                asset["id"]: asset["expected_terms"]
+                for asset in media_assets
+                if asset["expected_terms"]
+            }
+            expected_checks = {
+                identifier: {
+                    "root_multimodal": {
+                        term: contains_expected(root["output_text"], term)
+                        for term in terms
+                    },
+                    "final_long_context": {
+                        term: contains_expected(final_outputs[identifier], term)
+                        for term in terms
+                    },
+                }
+                for identifier, terms in expected_by_asset.items()
+            }
+            if args.expected_text:
+                combined_final = "\n".join(final_outputs.values())
+                expected_checks["caller_expected"] = {
+                    "root_multimodal": {
+                        term: contains_expected(root["output_text"], term)
+                        for term in args.expected_text
+                    },
+                    "final_long_context": {
+                        term: contains_expected(combined_final, term)
+                        for term in args.expected_text
+                    },
+                }
             try:
                 git_sha = subprocess.check_output(
                     ["git", "rev-parse", "HEAD"],
@@ -536,17 +690,27 @@ def main() -> int:
                     "warmup_turns": args.warmup_turns,
                     "repetitions": args.repetitions,
                     "max_output_tokens": args.max_output_tokens,
+                    "media_output_tokens": args.media_output_tokens,
+                    "media_thinking_effort": args.media_thinking_effort,
                     "thinking_effort": args.thinking_effort,
                 },
                 "media": {
-                    "image": str(args.image.resolve()),
-                    "image_sha256": hashlib.sha256(args.image.read_bytes()).hexdigest(),
-                    "audio": str(args.audio.resolve()),
-                    "audio_sha256": hashlib.sha256(args.audio.read_bytes()).hexdigest(),
+                    "suite_path": str(args.media_suite.resolve()),
+                    "suite_name": media_manifest.get("name"),
+                    "assets": [
+                        {
+                            key: asset[key]
+                            for key in (
+                                "id", "type", "path", "sha256",
+                                "expected_terms", "provenance"
+                            )
+                        }
+                        for asset in media_assets
+                    ],
                 },
                 "health": health,
                 "root_multimodal_run": root,
-                "final_retrieval_run": final_retrieval,
+                "final_retrieval_runs": final_retrieval_runs,
                 "context_fill_requests": all_fills,
                 "checkpoints": checkpoints,
                 "expected_text_checks": expected_checks,
@@ -564,7 +728,8 @@ def main() -> int:
                 json.dump(document, output_file, indent=2, sort_keys=True)
                 output_file.write("\n")
             if expected_checks and not all(
-                all(stages.values()) for stages in expected_checks.values()
+                all(all(terms.values()) for terms in stages.values())
+                for stages in expected_checks.values()
             ):
                 raise BenchmarkError(f"expected retrieval checks failed: {expected_checks}")
             print(f"wrote {args.output}", flush=True)

@@ -1,5 +1,39 @@
 # Performance ledger
 
+## 2026-07-30 repository-local six-item media conversation through 128K
+
+Hypothesis: Three generated images and three independently sourced
+public-domain speech excerpts can replace machine-local benchmark dependencies,
+increase media diversity, and remain retrievable in one sampled-D2 session
+through 128K.
+
+Implementation: The default long-server root alternates image/audio items from
+`benchmarks/media/suite.json`, verifies every SHA-256 before server startup, and
+asks for image codes/counts plus distinctive speech. The root uses no reasoning
+and a 384-token visible budget. Six final per-asset turns and ordinary checkpoint
+probes retain sampled fixed-D2 and bounded reasoning. The remaining one-slot,
+FP8-KV, Gemma-sampling, telemetry, warm-up, and three-run boundaries are unchanged.
+
+Correctness: The 1,878-token root returns `ORBIT 47`, `CEDAR 82`, `3` purple
+planters, `HARBOR 19`, `4` red sailboats, and the locked Alice/Moby Dick/Pride
+phrases (`sister`/`bank`, `lexicons`/`flags`, `wife`/`neighborhood`). Six
+separate final turns beginning at 131,329 input positions retrieve every locked
+term again; all manifest checks pass.
+
+| Target | Actual input | New tokens | Engine prefill | New-token prefill | First delta | Decode | MTP acceptance |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 4K | 3,755 | 69 | 63.27 ms | 1,122.14 tok/s | 142.03 ms | 60.28 tok/s | 82.1% |
+| 8K | 7,972 | 71 | 70.46 ms | 1,007.64 tok/s | 147.59 ms | 61.99 tok/s | 86.5% |
+| 32K | 32,549 | 71 | 118.55 ms | 587.40 tok/s | 205.67 ms | 53.13 tok/s | 95.7% |
+| 64K | 65,440 | 72 | 180.42 ms | 410.15 tok/s | 287.55 ms | 39.41 tok/s | 90.3% |
+| 128K | 130,963 | 72 | 296.18 ms | 242.22 tok/s | 461.14 ms | 26.89 tok/s | 87.5% |
+
+The 740 telemetry samples observe at most 13,284 MiB, 81.94 W, 2,640 MHz,
+and 69 C. Raw evidence is retained under
+`benchmarks/results/2026-07-30/f21eeec-worktree/blackwell16gb-linux/server-long-multimedia-v1.json`.
+The directory labels the uncommitted media-suite worktree explicitly; this is a
+full 1/3 characterization, not the publication-grade 3/10 repetition contract.
+
 ## 2026-07-30 sampled-D2 multimodal server conversation through 128K
 
 Hypothesis: A single 262,144-position server slot should preserve an initial

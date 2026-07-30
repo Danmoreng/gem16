@@ -73,10 +73,13 @@ and the concurrent result measures contention between isolated execution slots.
 `tools/benchmark_server_long_conversation.py` owns a fresh server process and
 refuses to run unless `/health` confirms exactly one slot, a 262,144-position
 plan, checkpoint-recommended sampling (`temperature=1`, `top_k=64`,
-`top_p=0.95`), FP8 KV, and fixed D2 rather than adaptive MTP. The root turn sends
-one real image and audio recording. Later text-only turns extend that same
-Responses chain toward 2K, 8K, 32K, 64K, and 128K actual input positions; no
-prompt-cache reset or reconstructed root is used.
+`top_p=0.95`), FP8 KV, and fixed D2 rather than adaptive MTP. By default the root
+turn loads the checksum-locked repository suite in `benchmarks/media/suite.json`:
+three project-generated images and three public-domain LibriVox excerpts in
+alternating order. That approximately 2K-token multimodal root is the empty-cache
+measurement. Later text-only turns extend the same Responses chain toward 4K,
+8K, 32K, 64K, and 128K actual input positions; no prompt-cache reset or
+reconstructed root is used.
 
 At each depth, one default warm-up and three streamed measured turns add a small
 new prompt probe. The report separates:
@@ -89,7 +92,15 @@ new prompt probe. The report separates:
 - MTP proposal, acceptance, rejection, group, and fallback counters;
 - actual rather than nominal context depth and cache hit/write counts;
 - complete-run power, clocks, thermals, and VRAM;
-- initial multimodal recognition and final 128K media-retrieval output.
+- initial multimodal recognition and final 128K retrieval of every image code,
+  object count, and audio phrase.
+
+Every repository media byte is verified against the suite manifest before the
+server starts. `--image` and `--audio` may append caller-supplied stress inputs,
+but are no longer required for a reproducible default run. The root disables reasoning by default so its visible 384-token budget can cover
+all six labeled assets. Final quality is split into six concise resident turns,
+one per asset, using the same bounded-reasoning mode as checkpoint probes; this
+avoids a summary-length cap masking retrieval of the last media item.
 
 Filler turns are part of the same conversation and now also retain their exact
 bulk-prefill time and throughput. They are not mixed into the small-suffix
