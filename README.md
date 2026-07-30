@@ -124,8 +124,10 @@ first, then launch the UI:
 ```
 
 On Windows use `.\scripts\build.ps1 -Cuda -Test` followed by
-`.\scripts\run-studio.ps1`. Model, MTP assistant, context, sampling, and
-server settings are configured in the application. See
+`.\scripts\run-studio.ps1`. The pinned target, MTP assistant, and official
+tokenizer configuration can be downloaded and verified directly from the
+application into the shared Hugging Face cache. Context, sampling, and server
+settings are configured in Studio. See
 [`docs/STUDIO.md`](docs/STUDIO.md) for build, packaging, protocol, and security
 details.
 

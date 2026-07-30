@@ -129,19 +129,16 @@ private fun ServerConfiguration(state: StudioState, phase: ServerPhase) {
                 directory = false,
                 onChange = { value -> state.updateServer { it.copy(executable = value) } },
             )
-            PathField(
-                label = "Model directory",
-                value = config.modelDirectory,
-                directory = true,
-                onChange = { value -> state.updateServer { it.copy(modelDirectory = value) } },
-            )
-            PathField(
-                label = "MTP assistant directory",
-                value = config.assistantModelDirectory,
-                directory = true,
-                enabled = config.mtpDraftTokens != 0,
-                onChange = { value -> state.updateServer { it.copy(assistantModelDirectory = value) } },
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(StudioCompactGap)) {
+                Text("Models", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Managed through the shared Hugging Face cache on the Models screen.")
+                Text(
+                    config.modelDirectory,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                )
+            }
             StudioTextField(
                 value = config.modelName,
                 onValueChange = { value -> state.updateServer { it.copy(modelName = value) } },

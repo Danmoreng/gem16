@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.CircularProgressIndicator
@@ -44,6 +45,7 @@ import com.gem16.studio.model.ServerPhase
 import com.gem16.studio.state.StudioState
 import com.gem16.studio.theme.Gem16Theme
 import com.gem16.studio.ui.ChatScreen
+import com.gem16.studio.ui.ModelsScreen
 import com.gem16.studio.ui.ServerScreen
 import com.gem16.studio.ui.SettingsScreen
 import com.gem16.studio.ui.StudioCompactGap
@@ -52,13 +54,16 @@ import org.jetbrains.jewel.ui.component.Text
 
 enum class StudioScreen(val label: String, val icon: ImageVector) {
     Chat("Chat", Icons.AutoMirrored.Filled.Chat),
+    Models("Models", Icons.Default.CloudDownload),
     Server("Server", Icons.Default.Storage),
     Settings("Settings", Icons.Default.Settings),
 }
 
 @Composable
 fun StudioApp(state: StudioState) {
-    var screen by remember { mutableStateOf(StudioScreen.Chat) }
+    var screen by remember {
+        mutableStateOf(if (state.modelManager.state.value.allReady) StudioScreen.Chat else StudioScreen.Models)
+    }
     Gem16Theme(dark = state.settings.darkTheme) {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Row(Modifier.fillMaxSize()) {
@@ -70,6 +75,7 @@ fun StudioApp(state: StudioState) {
                 Box(Modifier.fillMaxSize()) {
                     when (screen) {
                         StudioScreen.Chat -> ChatScreen(state)
+                        StudioScreen.Models -> ModelsScreen(state)
                         StudioScreen.Server -> ServerScreen(state)
                         StudioScreen.Settings -> SettingsScreen(state)
                     }

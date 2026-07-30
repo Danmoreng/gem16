@@ -197,9 +197,11 @@ class ServerManager : AutoCloseable {
 
     private fun validate(config: ServerConfig): String? {
         if (!Files.isRegularFile(Path.of(config.executable))) return "Server executable does not exist"
-        if (!Files.isDirectory(Path.of(config.modelDirectory))) return "Model directory does not exist"
+        if (!Files.isDirectory(Path.of(config.modelDirectory))) {
+            return "Model cache is not ready. Download the pinned model set on the Models screen."
+        }
         if (config.mtpDraftTokens != 0 && !Files.isDirectory(Path.of(config.assistantModelDirectory))) {
-            return "MTP is enabled, but the assistant model directory does not exist"
+            return "MTP is enabled, but its assistant is not cached. Complete the download on the Models screen."
         }
         if (config.port !in 1..65535) return "Port must be in [1, 65535]"
         if (config.maxContextTokens !in 1..262144) return "Context must be in [1, 262144]"

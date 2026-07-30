@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import org.jetbrains.jewel.ui.component.Text
@@ -71,6 +72,7 @@ internal fun StudioTextField(
     maxHeight: Dp = Dp.Unspecified,
     supportingText: String = "",
     isError: Boolean = false,
+    visualTransformation: VisualTransformation = VisualTransformation.None,
 ) {
     val shape = RoundedCornerShape(StudioControlRadius)
     val borderColor = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outlineVariant
@@ -106,6 +108,7 @@ internal fun StudioTextField(
                 singleLine = singleLine,
                 minLines = minLines,
                 maxLines = maxLines,
+                visualTransformation = visualTransformation,
                 textStyle = MaterialTheme.typography.bodyMedium.copy(color = textColor),
                 cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                 decorationBox = { innerTextField ->

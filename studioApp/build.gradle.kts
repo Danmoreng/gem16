@@ -1,3 +1,4 @@
+import org.gradle.api.tasks.Sync
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -6,6 +7,22 @@ plugins {
     alias(libs.plugins.jetbrainsCompose)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.kotlinSerialization)
+}
+
+val studioPlatform = if (System.getProperty("os.name").contains("Windows", ignoreCase = true)) "Windows" else "Linux"
+val studioServerName = if (studioPlatform == "Windows") "gem16-server.exe" else "gem16-server"
+val studioServer = rootProject.layout.projectDirectory.file(
+    "build/$studioPlatform/blackwell-release/bin/$studioServerName",
+)
+val generatedAppResources = layout.buildDirectory.dir("generated/studio-app-resources")
+val prepareStudioAppResources by tasks.registering(Sync::class) {
+    from(studioServer) { into("bin") }
+    into(generatedAppResources)
+    doFirst {
+        check(studioServer.asFile.isFile) {
+            "Build the release gem16-server before packaging Studio: ${studioServer.asFile}"
+        }
+    }
 }
 
 kotlin {
@@ -42,6 +59,7 @@ compose.desktop {
     application {
         mainClass = "com.gem16.studio.MainKt"
         nativeDistributions {
+            appResourcesRootDir.set(generatedAppResources)
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "gem16-studio"
             packageVersion = providers.environmentVariable("APP_VERSION").orElse("0.1.0").get()
@@ -68,4 +86,14 @@ compose.desktop {
             )
         }
     }
+}
+
+tasks.matching {
+    it.name == "createDistributable" ||
+        it.name == "packageDistributionForCurrentOS" ||
+        it.name.startsWith("packageMsi") ||
+        it.name.startsWith("packageDeb") ||
+        it.name.startsWith("packageDmg")
+}.configureEach {
+    dependsOn(prepareStudioAppResources)
 }

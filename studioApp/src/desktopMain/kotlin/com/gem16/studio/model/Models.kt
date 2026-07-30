@@ -134,6 +134,12 @@ internal fun repositoryRoot(): Path {
 
 internal fun defaultServerExecutable(): String {
     val windows = System.getProperty("os.name").contains("Windows", ignoreCase = true)
+    val fileName = if (windows) "gem16-server.exe" else "gem16-server"
+    System.getProperty("compose.application.resources.dir")
+        ?.takeIf(String::isNotBlank)
+        ?.let { Path.of(it).resolve("bin").resolve(fileName).normalize() }
+        ?.takeIf { Files.isRegularFile(it) }
+        ?.let { return it.toString() }
     val relative = if (windows) {
         "build/Windows/blackwell-release/bin/gem16-server.exe"
     } else {
@@ -143,11 +149,12 @@ internal fun defaultServerExecutable(): String {
 }
 
 internal fun defaultModelDirectory(): String =
-    repositoryRoot().resolve("models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497")
-        .normalize().toString()
+    HuggingFaceCachePaths.targetView().toAbsolutePath().normalize().toString()
 
 internal fun defaultAssistantDirectory(): String =
-    repositoryRoot().resolve("models/checkpoints/google-gemma-4-12B-it-assistant-364bd03")
-        .normalize().toString()
+    HuggingFaceCachePaths.snapshot(
+        Gem16ModelCatalog.assistantRepository,
+        Gem16ModelCatalog.assistantRevision,
+    ).toAbsolutePath().normalize().toString()
 
 fun String.asAbsolutePath(): String = Path.of(this).toAbsolutePath().normalize().toString()

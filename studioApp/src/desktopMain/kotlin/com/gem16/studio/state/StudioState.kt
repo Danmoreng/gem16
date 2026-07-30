@@ -17,6 +17,7 @@ import com.gem16.studio.service.AudioRecorder
 import com.gem16.studio.service.ChatDelta
 import com.gem16.studio.service.Gem16ApiClient
 import com.gem16.studio.service.MaxEncodedMediaBytes
+import com.gem16.studio.service.ModelManager
 import com.gem16.studio.service.ServerManager
 import com.gem16.studio.service.SettingsStore
 import com.gem16.studio.service.encodedMediaBytes
@@ -30,11 +31,13 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.nio.file.Files
 import java.nio.file.Path
 
 class StudioState(
     private val settingsStore: SettingsStore = SettingsStore(),
     val serverManager: ServerManager = ServerManager(),
+    val modelManager: ModelManager = ModelManager(),
     private val api: Gem16ApiClient = Gem16ApiClient(),
     private val audioRecorder: AudioRecorder = AudioRecorder(),
 ) : AutoCloseable {
@@ -70,11 +73,12 @@ class StudioState(
 
     private var generationJob: Job? = null
     private var recordingJob: Job? = null
+    private var modelDownloadJob: Job? = null
     private var discardRecording = false
 
     init {
         serverManager.configure(settings.server)
-        startServer()
+        if (serverConfigurationExists()) startServer()
     }
 
     fun updateServer(transform: (ServerConfig) -> ServerConfig) {
@@ -102,6 +106,41 @@ class StudioState(
         cancelGeneration()
         sessionId = null
         serverManager.stop()
+    }
+
+    fun downloadModels(token: String?) {
+        if (modelDownloadJob?.isActive == true) return
+        modelDownloadJob = scope.launch {
+            try {
+                val installed = modelManager.downloadAll(token)
+                updateServer {
+                    it.copy(
+                        modelDirectory = installed.targetDirectory.toString(),
+                        assistantModelDirectory = installed.assistantDirectory.toString(),
+                    )
+                }
+            } catch (_: Exception) {
+                // ModelManager exposes a user-facing error in its StateFlow.
+            } finally {
+                modelDownloadJob = null
+            }
+        }
+    }
+
+    fun cancelModelDownload() {
+        modelManager.cancel()
+    }
+
+    fun useCachedModels() {
+        modelManager.refresh()
+        val installed = modelManager.state.value
+        if (!installed.allReady) return
+        updateServer {
+            it.copy(
+                modelDirectory = installed.targetDirectory.toString(),
+                assistantModelDirectory = installed.assistantDirectory.toString(),
+            )
+        }
     }
 
     fun startRecording() {
@@ -306,12 +345,23 @@ class StudioState(
             .onFailure { chatError = "Could not save settings: ${it.message}" }
     }
 
+    private fun serverConfigurationExists(): Boolean {
+        return runCatching {
+            val server = settings.server
+            Files.isRegularFile(Path.of(server.executable)) &&
+                Files.isDirectory(Path.of(server.modelDirectory)) &&
+                (server.mtpDraftTokens == 0 || Files.isDirectory(Path.of(server.assistantModelDirectory)))
+        }.getOrDefault(false)
+    }
+
     override fun close() {
         api.cancelActive()
         generationJob?.cancel()
         discardRecording = true
         audioRecorder.close()
         recordingJob?.cancel()
+        modelManager.cancel()
+        modelDownloadJob?.cancel()
         serverManager.close()
         scope.cancel()
     }
