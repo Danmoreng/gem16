@@ -217,6 +217,15 @@ void RunOpenAiChatTests() {
   GEM16_CHECK(!gem16::server::ParseChatCompletionsRequest(
                    R"({"model":"gem16","messages":[{"role":"user","content":"x"}],"temperature":0.5})")
                    .ok());
+  GEM16_CHECK(!gem16::server::ParseChatCompletionsRequest(
+                   R"({"model":"gem16","messages":[{"role":"user","content":"x"}],"stop":"END"})")
+                   .ok());
+  GEM16_CHECK(!gem16::server::ParseChatCompletionsRequest(
+                   R"({"model":"gem16","messages":[{"role":"user","content":"x","name":"ignored"}]})")
+                   .ok());
+  GEM16_CHECK(!gem16::server::ParseChatCompletionsRequest(
+                   R"({"model":"gem16","messages":[{"role":"user","content":"x"}],"stream_options":{"include_usage":true,"ignored":1}})")
+                   .ok());
 
   gem16::ChatGenerationResponse generated;
   generated.assistant_text = "Calling weather";
@@ -283,6 +292,15 @@ void RunOpenAiChatTests() {
   }
   GEM16_CHECK(!gem16::server::ParseResponsesRequest(
                    R"({"model":"gem16","input":"x","store":false})")
+                   .ok());
+  GEM16_CHECK(!gem16::server::ParseResponsesRequest(
+                   R"({"model":"gem16","input":"x","metadata":{"ignored":true}})")
+                   .ok());
+  GEM16_CHECK(!gem16::server::ParseResponsesRequest(
+                   R"({"model":"gem16","input":"x","reasoning":{"effort":"none","summary":"auto"}})")
+                   .ok());
+  GEM16_CHECK(!gem16::server::ParseResponsesRequest(
+                   R"({"model":"gem16","input":[{"type":"message","role":"user","content":"x","status":"completed"}]})")
                    .ok());
 
   gem16::server::OpenAiResponsesRequest response_request;

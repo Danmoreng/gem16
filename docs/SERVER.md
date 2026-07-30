@@ -43,9 +43,9 @@ headers; generation-time stream failures are emitted as an SSE error record.
 Supported request fields are `model`, `messages`, `max_completion_tokens`
 (`max_tokens` alias), `stream`, `stream_options.include_usage`,
 `reasoning_effort` (`none`, `low`, `medium`, `high`), `tools`, `tool_choice`,
-`parallel_tool_calls`, and `n=1`. `temperature`, `top_p`, penalties, and `seed`
-are rejected rather than silently ignored because sampling state currently
-belongs to the resident session.
+`parallel_tool_calls`, and `n=1`. Every other top-level or nested protocol field
+is rejected rather than silently ignored; this includes per-request sampling,
+stop, response-format, logprob, metadata, and unsupported media/tool options.
 
 Message content accepts strings and ordered arrays containing:
 
@@ -57,7 +57,8 @@ Message content accepts strings and ordered arrays containing:
 
 `POST /v1/responses` accepts `model`, `input`, `instructions`,
 `max_output_tokens`, `stream`, `store`, `reasoning.effort`, `tools`,
-`tool_choice`, `parallel_tool_calls`, and `previous_response_id`. Function tools
+`tool_choice`, `parallel_tool_calls`, and `previous_response_id`; unknown fields
+are rejected at every parsed protocol level. Function tools
 use the Responses top-level shape (`type`, `name`, `description`, `parameters`,
 `strict`). Input may be a string or ordered `message`, `function_call`, and
 `function_call_output` items. Message content supports `input_text`, inline

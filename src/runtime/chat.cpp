@@ -392,7 +392,6 @@ Result<ChatGenerationResponse> ChatSession::Generate(const ChatGenerationRequest
                                       impl_->committed_messages);
   if (!messages.ok()) return messages.status();
   const bool tool_result_continuation =
-      !impl_->cached_prefix_token_ids.empty() &&
       messages.value().messages.back().role == "tool";
 
   Result<std::vector<std::uint32_t>> prompt_ids = [&]() {

@@ -1,6 +1,7 @@
 #include "server/openai_chat.h"
 
 #include <algorithm>
+#include <initializer_list>
 #include <limits>
 #include <string>
 #include <vector>
@@ -13,6 +14,21 @@ namespace {
 
 Status Invalid(std::string message) {
   return Status(StatusCode::kInvalidArgument, std::move(message));
+}
+
+Status RejectUnknownFields(
+    const json::Value::Object& object,
+    std::initializer_list<std::string_view> allowed,
+    std::string_view context) {
+  for (const auto& [name, value] : object) {
+    (void)value;
+    if (std::find(allowed.begin(), allowed.end(), name) == allowed.end()) {
+      return Status(StatusCode::kUnsupported,
+                    std::string(context) + " field '" + name +
+                        "' is not supported");
+    }
+  }
+  return Status::Ok();
 }
 
 Result<std::string> RequiredString(const json::Value::Object& object,
@@ -89,6 +105,16 @@ Result<ParsedMessage> ParseMessage(const json::Value& value) {
       message.role != "assistant" && message.role != "tool") {
     return Invalid("message role is unsupported");
   }
+  const Status message_fields =
+      message.role == "tool"
+          ? RejectUnknownFields(object, {"role", "content", "tool_call_id"},
+                                "tool message")
+          : message.role == "assistant"
+                ? RejectUnknownFields(object, {"role", "content", "tool_calls"},
+                                      "assistant message")
+                : RejectUnknownFields(object, {"role", "content"},
+                                      "message");
+  if (!message_fields.ok()) return message_fields;
 
   const json::Value* content = nullptr;
   if (const auto iterator = object.find("content"); iterator != object.end()) {
@@ -113,6 +139,9 @@ Result<ParsedMessage> ParseMessage(const json::Value& value) {
       auto type = RequiredString(part.as_object(), "type");
       if (!type.ok()) return type.status();
       if (type.value() == "text" || type.value() == "input_text") {
+        const Status fields = RejectUnknownFields(
+            part.as_object(), {"type", "text"}, "text content part");
+        if (!fields.ok()) return fields;
         auto text = RequiredString(part.as_object(), "text");
         if (!text.ok()) return text.status();
         message.content.push_back(
@@ -120,10 +149,16 @@ Result<ParsedMessage> ParseMessage(const json::Value& value) {
         continue;
       }
       if (type.value() == "image_url") {
+        const Status fields = RejectUnknownFields(
+            part.as_object(), {"type", "image_url"}, "image content part");
+        if (!fields.ok()) return fields;
         const json::Value* image_url = part.find("image_url");
         if (image_url == nullptr || !image_url->is_object()) {
           return Invalid("image_url content requires an image_url object");
         }
+        const Status image_fields = RejectUnknownFields(
+            image_url->as_object(), {"url"}, "image_url");
+        if (!image_fields.ok()) return image_fields;
         auto url = RequiredString(image_url->as_object(), "url");
         if (!url.ok()) return url.status();
         constexpr std::string_view kDataPrefix = "data:image/";
@@ -153,10 +188,16 @@ Result<ParsedMessage> ParseMessage(const json::Value& value) {
         continue;
       }
       if (type.value() == "input_audio") {
+        const Status fields = RejectUnknownFields(
+            part.as_object(), {"type", "input_audio"}, "audio content part");
+        if (!fields.ok()) return fields;
         const json::Value* input_audio = part.find("input_audio");
         if (input_audio == nullptr || !input_audio->is_object()) {
           return Invalid("input_audio content requires an input_audio object");
         }
+        const Status audio_fields = RejectUnknownFields(
+            input_audio->as_object(), {"data", "format"}, "input_audio");
+        if (!audio_fields.ok()) return audio_fields;
         auto data = RequiredString(input_audio->as_object(), "data");
         if (!data.ok()) return data.status();
         auto format = RequiredString(input_audio->as_object(), "format");
@@ -187,12 +228,25 @@ Result<ParsedMessage> ParseMessage(const json::Value& value) {
     }
     for (const json::Value& call : calls->second.as_array()) {
       if (!call.is_object()) return Invalid("tool call must be an object");
+      const Status call_fields = RejectUnknownFields(
+          call.as_object(), {"id", "type", "function"}, "tool call");
+      if (!call_fields.ok()) return call_fields;
+      auto call_type = RequiredString(call.as_object(), "type");
+      if (!call_type.ok()) return call_type.status();
+      if (call_type.value() != "function") {
+        return Status(StatusCode::kUnsupported,
+                      "only function tool calls are supported");
+      }
       auto id = RequiredString(call.as_object(), "id");
       if (!id.ok()) return id.status();
       const json::Value* function = call.find("function");
       if (function == nullptr || !function->is_object()) {
         return Invalid("tool call function must be an object");
       }
+      const Status function_fields = RejectUnknownFields(
+          function->as_object(), {"name", "arguments"},
+          "tool call function");
+      if (!function_fields.ok()) return function_fields;
       auto name = RequiredString(function->as_object(), "name");
       if (!name.ok()) return name.status();
       auto arguments = RequiredString(function->as_object(), "arguments");
@@ -210,6 +264,9 @@ Result<ParsedMessage> ParseMessage(const json::Value& value) {
 
 Result<GenerationToolDefinition> ParseTool(const json::Value& value) {
   if (!value.is_object()) return Invalid("each tool must be an object");
+  const Status fields = RejectUnknownFields(
+      value.as_object(), {"type", "function"}, "tool");
+  if (!fields.ok()) return fields;
   auto type = RequiredString(value.as_object(), "type");
   if (!type.ok()) return type.status();
   if (type.value() != "function") return Invalid("only function tools are supported");
@@ -217,6 +274,10 @@ Result<GenerationToolDefinition> ParseTool(const json::Value& value) {
   if (function == nullptr || !function->is_object()) {
     return Invalid("tool function must be an object");
   }
+  const Status function_fields = RejectUnknownFields(
+      function->as_object(), {"name", "description", "parameters", "strict"},
+      "tool function");
+  if (!function_fields.ok()) return function_fields;
   GenerationToolDefinition tool;
   auto name = RequiredString(function->as_object(), "name");
   if (!name.ok()) return name.status();
@@ -255,10 +316,22 @@ Result<GenerationToolChoice> ParseToolChoice(const json::Value& value) {
     return Invalid("tool_choice string must be auto, none, or required");
   }
   if (!value.is_object()) return Invalid("tool_choice must be a string or object");
+  const Status fields = RejectUnknownFields(
+      value.as_object(), {"type", "function"}, "tool_choice");
+  if (!fields.ok()) return fields;
+  if (const json::Value* type = value.find("type"); type != nullptr) {
+    if (!type->is_string() || type->as_string() != "function") {
+      return Status(StatusCode::kUnsupported,
+                    "only function tool_choice is supported");
+    }
+  }
   const json::Value* function = value.find("function");
   if (function == nullptr || !function->is_object()) {
     return Invalid("named tool_choice requires a function object");
   }
+  const Status function_fields = RejectUnknownFields(
+      function->as_object(), {"name"}, "tool_choice function");
+  if (!function_fields.ok()) return function_fields;
   auto name = RequiredString(function->as_object(), "name");
   if (!name.ok()) return name.status();
   choice.mode = GenerationToolChoiceMode::kFunction;
@@ -269,6 +342,11 @@ Result<GenerationToolChoice> ParseToolChoice(const json::Value& value) {
 Result<GenerationToolDefinition> ParseResponsesTool(
     const json::Value& value) {
   if (!value.is_object()) return Invalid("each tool must be an object");
+  const Status fields = RejectUnknownFields(
+      value.as_object(),
+      {"type", "name", "description", "parameters", "strict"},
+      "Responses tool");
+  if (!fields.ok()) return fields;
   auto type = RequiredString(value.as_object(), "type");
   if (!type.ok()) return type.status();
   if (type.value() != "function") {
@@ -308,6 +386,9 @@ Result<GenerationToolChoice> ParseResponsesToolChoice(
   if (!value.is_object()) {
     return Invalid("tool_choice must be a string or object");
   }
+  const Status fields = RejectUnknownFields(
+      value.as_object(), {"type", "name"}, "Responses tool_choice");
+  if (!fields.ok()) return fields;
   auto type = RequiredString(value.as_object(), "type");
   if (!type.ok()) return type.status();
   if (type.value() != "function") {
@@ -324,6 +405,9 @@ Result<GenerationToolChoice> ParseResponsesToolChoice(
 
 Result<PendingImage> ParseResponsesImage(const json::Value& part,
                                          std::size_t part_index) {
+  const Status fields = RejectUnknownFields(
+      part.as_object(), {"type", "image_url"}, "Responses input_image");
+  if (!fields.ok()) return fields;
   auto url = RequiredString(part.as_object(), "image_url");
   if (!url.ok()) return url.status();
   constexpr std::string_view kDataPrefix = "data:image/";
@@ -361,6 +445,9 @@ Result<ParsedMessage> ParseResponsesMessage(const json::Value& value) {
       parsed.message.role != "assistant") {
     return Invalid("Responses message role is unsupported");
   }
+  const Status message_fields = RejectUnknownFields(
+      object, {"type", "role", "content"}, "Responses message");
+  if (!message_fields.ok()) return message_fields;
   const json::Value* content = value.find("content");
   if (content == nullptr) return Invalid("message content is required");
   if (content->is_string()) {
@@ -376,6 +463,9 @@ Result<ParsedMessage> ParseResponsesMessage(const json::Value& value) {
     auto type = RequiredString(part.as_object(), "type");
     if (!type.ok()) return type.status();
     if (type.value() == "input_text" || type.value() == "output_text") {
+      const Status fields = RejectUnknownFields(
+          part.as_object(), {"type", "text"}, "Responses text content");
+      if (!fields.ok()) return fields;
       auto text = RequiredString(part.as_object(), "text");
       if (!text.ok()) return text.status();
       parsed.message.content.push_back(
@@ -388,10 +478,18 @@ Result<ParsedMessage> ParseResponsesMessage(const json::Value& value) {
           GenerationContentPart::Image(VisionImage{}));
       parsed.images.push_back(std::move(image).value());
     } else if (type.value() == "input_audio") {
+      const Status fields = RejectUnknownFields(
+          part.as_object(), {"type", "input_audio"},
+          "Responses audio content");
+      if (!fields.ok()) return fields;
       const json::Value* input_audio = part.find("input_audio");
       if (input_audio == nullptr || !input_audio->is_object()) {
         return Invalid("input_audio content requires an input_audio object");
       }
+      const Status audio_fields = RejectUnknownFields(
+          input_audio->as_object(), {"data", "format"},
+          "Responses input_audio");
+      if (!audio_fields.ok()) return audio_fields;
       auto data = RequiredString(input_audio->as_object(), "data");
       if (!data.ok()) return data.status();
       auto format = RequiredString(input_audio->as_object(), "format");
@@ -489,6 +587,13 @@ Result<OpenAiChatRequest> ParseChatCompletionsRequest(
   if (!root.ok()) return root.status();
   if (!root.value().is_object()) return Invalid("request body must be an object");
   const auto& object = root.value().as_object();
+  const Status request_fields = RejectUnknownFields(
+      object,
+      {"model", "messages", "max_completion_tokens", "max_tokens", "stream",
+       "stream_options", "reasoning_effort", "tools", "tool_choice",
+       "parallel_tool_calls", "n"},
+      "Chat Completions request");
+  if (!request_fields.ok()) return request_fields;
   OpenAiChatRequest request;
   auto model = RequiredString(object, "model");
   if (!model.ok()) return model.status();
@@ -531,6 +636,9 @@ Result<OpenAiChatRequest> ParseChatCompletionsRequest(
   if (const json::Value* stream_options = root.value().find("stream_options");
       stream_options != nullptr) {
     if (!stream_options->is_object()) return Invalid("stream_options must be an object");
+    const Status fields = RejectUnknownFields(
+        stream_options->as_object(), {"include_usage"}, "stream_options");
+    if (!fields.ok()) return fields;
     if (const json::Value* include = stream_options->find("include_usage");
         include != nullptr) {
       if (!include->is_bool()) return Invalid("include_usage must be a boolean");
@@ -575,15 +683,6 @@ Result<OpenAiChatRequest> ParseChatCompletionsRequest(
       (!count->is_integer() || count->as_integer() != 1)) {
     return Status(StatusCode::kUnsupported, "only n=1 is supported");
   }
-  for (const std::string_view unsupported : {"temperature", "top_p",
-                                              "frequency_penalty",
-                                              "presence_penalty", "seed"}) {
-    if (root.value().find(unsupported) != nullptr) {
-      return Status(StatusCode::kUnsupported,
-                    "per-request sampling field '" + std::string(unsupported) +
-                        "' is not supported by the single-slot server");
-    }
-  }
   const Status tool_status =
       internal::ValidateToolDefinitions(request.generation.tools);
   if (!tool_status.ok()) return tool_status;
@@ -626,6 +725,13 @@ Result<OpenAiResponsesRequest> ParseResponsesRequest(
   if (!root.ok()) return root.status();
   if (!root.value().is_object()) return Invalid("request body must be an object");
   const auto& object = root.value().as_object();
+  const Status request_fields = RejectUnknownFields(
+      object,
+      {"model", "input", "instructions", "max_output_tokens", "stream",
+       "store", "reasoning", "tools", "tool_choice", "parallel_tool_calls",
+       "previous_response_id"},
+      "Responses request");
+  if (!request_fields.ok()) return request_fields;
   OpenAiResponsesRequest request;
   auto model = RequiredString(object, "model");
   if (!model.ok()) return model.status();
@@ -687,6 +793,10 @@ Result<OpenAiResponsesRequest> ParseResponsesRequest(
         request.generation.messages.push_back(
             std::move(parsed).value().message);
       } else if (type == "function_call") {
+        const Status fields = RejectUnknownFields(
+            item.as_object(), {"type", "call_id", "name", "arguments"},
+            "Responses function_call");
+        if (!fields.ok()) return fields;
         auto call_id = RequiredString(item.as_object(), "call_id");
         if (!call_id.ok()) return call_id.status();
         auto name = RequiredString(item.as_object(), "name");
@@ -700,6 +810,10 @@ Result<OpenAiResponsesRequest> ParseResponsesRequest(
              std::move(arguments).value()}));
         request.generation.messages.push_back(std::move(message));
       } else if (type == "function_call_output") {
+        const Status fields = RejectUnknownFields(
+            item.as_object(), {"type", "call_id", "output"},
+            "Responses function_call_output");
+        if (!fields.ok()) return fields;
         auto call_id = RequiredString(item.as_object(), "call_id");
         if (!call_id.ok()) return call_id.status();
         const json::Value* output = item.find("output");
@@ -718,6 +832,10 @@ Result<OpenAiResponsesRequest> ParseResponsesRequest(
               return Status(StatusCode::kUnsupported,
                             "only text function outputs are supported");
             }
+            const Status output_part_fields = RejectUnknownFields(
+                part.as_object(), {"type", "text"},
+                "function output content");
+            if (!output_part_fields.ok()) return output_part_fields;
             auto text = RequiredString(part.as_object(), "text");
             if (!text.ok()) return text.status();
             output_text.append(text.value());
@@ -763,6 +881,9 @@ Result<OpenAiResponsesRequest> ParseResponsesRequest(
   if (const json::Value* reasoning = root.value().find("reasoning");
       reasoning != nullptr) {
     if (!reasoning->is_object()) return Invalid("reasoning must be an object");
+    const Status fields = RejectUnknownFields(
+        reasoning->as_object(), {"effort"}, "reasoning");
+    if (!fields.ok()) return fields;
     if (const json::Value* effort = reasoning->find("effort");
         effort != nullptr && !effort->is_null()) {
       if (!effort->is_string()) return Invalid("reasoning.effort must be a string");
@@ -801,15 +922,6 @@ Result<OpenAiResponsesRequest> ParseResponsesRequest(
       return Invalid("parallel_tool_calls must be a boolean");
     }
     request.generation.parallel_tool_calls = parallel->as_bool();
-  }
-  for (const std::string_view unsupported : {
-           "background", "conversation", "prompt", "temperature", "top_p",
-           "truncation", "text", "include", "max_tool_calls"}) {
-    if (root.value().find(unsupported) != nullptr) {
-      return Status(StatusCode::kUnsupported,
-                    "Responses field '" + std::string(unsupported) +
-                        "' is not supported by the resident server");
-    }
   }
   const Status tool_status =
       internal::ValidateToolDefinitions(request.generation.tools);
