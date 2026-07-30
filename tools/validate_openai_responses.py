@@ -97,7 +97,8 @@ def main() -> int:
     ):
         raise RuntimeError(f"unexpected function call: {call}")
 
-    final = client.responses.create(
+    continuation_event_types: list[str] = []
+    with client.responses.stream(
         model=args.model,
         previous_response_id=first.id,
         input=[
@@ -110,7 +111,12 @@ def main() -> int:
         tools=tools,
         max_output_tokens=96,
         reasoning={"effort": "none"},
-    )
+    ) as stream:
+        for event in stream:
+            continuation_event_types.append(event.type)
+        final = stream.get_final_response()
+    if "response.completed" not in continuation_event_types:
+        raise RuntimeError("streamed tool continuation did not complete")
     if "25" not in final.output_text and "sun" not in final.output_text.lower():
         raise RuntimeError(f"final answer is not grounded: {final.output_text!r}")
     required_events = {
@@ -147,6 +153,7 @@ def main() -> int:
                 "events": event_types,
                 "final_response_id": final.id,
                 "final_answer": final.output_text,
+                "continuation_events": continuation_event_types,
                 "stale_previous_response_rejected": stale_rejected,
             },
             ensure_ascii=False,

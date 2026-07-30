@@ -391,6 +391,9 @@ Result<ChatGenerationResponse> ChatSession::Generate(const ChatGenerationRequest
   auto messages = MaterializeMessages(request.messages,
                                       impl_->committed_messages);
   if (!messages.ok()) return messages.status();
+  const bool tool_result_continuation =
+      !impl_->cached_prefix_token_ids.empty() &&
+      messages.value().messages.back().role == "tool";
 
   Result<std::vector<std::uint32_t>> prompt_ids = [&]() {
     if (impl_->cached_prefix_token_ids.empty()) {
@@ -459,13 +462,19 @@ Result<ChatGenerationResponse> ChatSession::Generate(const ChatGenerationRequest
   }
 
   ReasoningTokenOptions reasoning;
-  reasoning.enabled = request.thinking.effort != ThinkingEffort::kOff;
+  reasoning.enabled = request.thinking.effort != ThinkingEffort::kOff ||
+                      tool_result_continuation;
   if (reasoning.enabled) {
     reasoning.channel_open_token_ids = impl_->processor.generation_controls().thinking_open_token_ids;
     reasoning.channel_close_token_id = impl_->processor.generation_controls().thinking_close_token_id;
     const std::uint64_t answer_reserve = max_generated_tokens > 128U ? 128U : max_generated_tokens / 2U;
-    reasoning.max_reasoning_tokens = std::min(ThinkingBudgetTokens(request.thinking.effort),
-                                              std::max<std::uint64_t>(1U, max_generated_tokens - answer_reserve));
+    const std::uint64_t requested_budget =
+        request.thinking.effort == ThinkingEffort::kOff
+            ? 1U
+            : ThinkingBudgetTokens(request.thinking.effort);
+    reasoning.max_reasoning_tokens = std::min(
+        requested_budget,
+        std::max<std::uint64_t>(1U, max_generated_tokens - answer_reserve));
   }
 
   EventBridge bridge{callback, callback_context};

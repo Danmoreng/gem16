@@ -71,9 +71,13 @@ Private reasoning is materialized as a completed `reasoning` output item and,
 for streaming requests, as matching `response.reasoning_text.*` events before
 the visible assistant message. Reasoning and visible-text deltas are written as
 soon as complete UTF-8 code points become available during decode; they are not
-buffered until generation completes. Function-call events remain intentionally
-post-generation because strict schemas and the complete native tool call must be
-validated before the server exposes a successful call.
+buffered until generation completes. After a tool result, the checkpoint template
+leaves generation directly at the model boundary. With reasoning disabled, Gemma
+emits an empty thought envelope containing one newline before the visible answer;
+the runtime tracks and bounds that token so resident accounting and streamed
+continuation remain exact. Function-call events remain intentionally post-generation
+because strict schemas and the complete native tool call must be validated before
+the server exposes a successful call.
 
 Each Responses session deliberately remains one exact linear chain:
 

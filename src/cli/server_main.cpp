@@ -1543,11 +1543,12 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
     gem16::server::OpenAiResponseIdentity identity;
     std::shared_ptr<SessionEntry> entry;
     std::unique_ptr<SessionLease> lease;
-    bool keep_response_index = false;
+    std::atomic<bool> keep_response_index{false};
     bool ran = false;
 
     ~ProviderState() {
-      if (server != nullptr && !keep_response_index) {
+      if (server != nullptr &&
+          !keep_response_index.load(std::memory_order_acquire)) {
         UnindexResponse(*server, identity.id);
       }
     }
@@ -1592,6 +1593,14 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
         }
         std::uint64_t reasoning_capacity = gem16::ThinkingBudgetTokens(
             provider->request.generation.thinking.effort);
+        // The checkpoint template leaves a tool-result continuation at the
+        // model boundary. Even with thinking disabled, Gemma emits an empty
+        // thought channel containing one newline before the visible answer.
+        if (reasoning_capacity == 0U &&
+            !provider->request.generation.messages.empty() &&
+            provider->request.generation.messages.back().role == "tool") {
+          reasoning_capacity = 1U;
+        }
         if (provider->request.generation.max_generated_tokens.has_value()) {
           reasoning_capacity = std::min(
               reasoning_capacity,
@@ -1644,13 +1653,15 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
                          std::chrono::steady_clock::now() - generation_start);
         CommitResponsesRequest(*provider->entry, provider->request,
                                generated.value(), provider->identity.id);
-        provider->keep_response_index = true;
+        // Generation and KV commit are complete at this point. The OpenAI SDK
+        // may stop reading immediately after response.completed, so a later
+        // final-chunk write failure must not discard an otherwise safe chain.
+        provider->keep_response_index.store(true, std::memory_order_release);
+        provider->lease->Keep();
         const bool written = WriteResponsesFinalEvents(
             sink, provider->identity, provider->request, generated.value(),
             stream);
-        const bool finished = written && FinishSse(sink);
-        if (finished) provider->lease->Keep();
-        return finished;
+        return written && FinishSse(sink);
       });
 }
 
