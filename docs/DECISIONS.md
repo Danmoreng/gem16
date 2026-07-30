@@ -1,5 +1,40 @@
 # Decisions
 
+## 2026-07-30: Keep the local OpenAI subset strict, observable, and cache-safe
+
+Date: 2026-07-30
+
+Decision: Serve only the OpenAI Chat Completions and Responses fields that map
+exactly onto Gemma 4 12B capabilities, and reject every other parsed protocol
+field at its owning object boundary. Report the exact resident prompt prefix as
+cached tokens and the newly prefetched suffix as cache-write tokens. Preserve a
+session after validation or unsupported-option errors, but discard it after any
+failure that may have advanced mutable model state. Split protocol JSON,
+fixed-buffer HTTP streaming, session-pool ownership, and CLI route wiring into
+separate server components without changing inference order.
+
+Context: The local server is intended to expose all useful capabilities of the
+pinned model on one 16 GB GPU, not to emulate unrelated OpenAI products. Silent
+acceptance of unsupported controls misrepresents generation semantics, zeroed
+cache details hide the principal resident-session benefit, unconditional cache
+discard makes corrected retries unnecessarily expensive, and the original
+1,868-line CLI mixed four independently testable responsibilities.
+
+Alternatives: Ignore unknown OpenAI fields for broad client tolerance; report no
+cache details; rebuild every failed session; introduce a generic serving
+framework or attempt complete OpenAI API coverage.
+
+Consequences: Clients receive an actionable 400 response for unsupported
+semantics. Usage and Prometheus metrics distinguish cached and newly written
+prompt tokens. Only explicitly poisoned sessions lose their KV state. The
+server remains model-specific and dependency-light; adding a supported field now
+requires parser, runtime, serialization, and test evidence rather than accidental
+acceptance.
+
+Evidence: Host sanitizer and CUDA suites, official `openai==2.50.0` Chat and
+Responses tool loops, safe-error retry, cancellation/eviction scheduler,
+multimodal continuation, and cache-usage integration gates.
+
 ## 2026-07-29: Use stb_image and miniaudio as the portable codec boundary
 
 Date: 2026-07-29

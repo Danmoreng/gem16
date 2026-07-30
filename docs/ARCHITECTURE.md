@@ -133,7 +133,12 @@ SSE chunks are produced above `ChatSession`; CUDA, tokenizer, tool-template,
 and exact-prefix code contain no HTTP types. Each session has its own inference
 mutex and exact-prefix state; different execution slots may run concurrently.
 The pool admits only a configured number of slots and evicts inactive entries
-by LRU order.
+by LRU order. Server responsibilities remain narrow and explicit:
+`server/openai_chat.*` owns strict protocol parsing and final JSON,
+`server/http_streaming.*` owns fixed-buffer UTF-8/SSE state machines,
+`server/session_pool.*` owns admission, leases, response indexing, cache usage,
+and LRU state, while `cli/server_main.cpp` only wires options, handlers, and
+routes. None of these layers changes model arithmetic or CUDA scheduling.
 
 The greedy plan copies checkpoint `suppress_tokens` into fixed workspace before prompt processing and stops on any
 checkpoint EOS token. Optional full-logit capture preallocates host storage before the token loop and writes raw
