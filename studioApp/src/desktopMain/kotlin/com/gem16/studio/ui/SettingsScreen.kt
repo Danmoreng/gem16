@@ -7,14 +7,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -25,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.gem16.studio.state.StudioState
+import org.jetbrains.jewel.ui.component.Text
 
 @Composable
 fun SettingsScreen(state: StudioState) {
@@ -32,7 +29,7 @@ fun SettingsScreen(state: StudioState) {
         Modifier.fillMaxSize().padding(StudioScreenPadding),
         horizontalArrangement = Arrangement.spacedBy(StudioGap),
     ) {
-        Card(Modifier.weight(1f)) {
+        StudioSurface(Modifier.weight(1f)) {
             Column(
                 Modifier.fillMaxWidth().padding(StudioPanelPadding),
                 verticalArrangement = Arrangement.spacedBy(StudioGap),
@@ -46,7 +43,7 @@ fun SettingsScreen(state: StudioState) {
                 var outputText by remember(state.settings.generation.maxOutputTokens) {
                     mutableStateOf(state.settings.generation.maxOutputTokens.toString())
                 }
-                OutlinedTextField(
+                StudioTextField(
                     value = outputText,
                     onValueChange = { candidate ->
                         if (candidate.all(Char::isDigit)) {
@@ -56,10 +53,8 @@ fun SettingsScreen(state: StudioState) {
                             }
                         }
                     },
-                    label = { Text("Maximum output tokens") },
-                    supportingText = {
-                        Text("Includes private reasoning and the visible answer; it cannot exceed remaining context.")
-                    },
+                    label = "Maximum output tokens",
+                    supportingText = "Includes private reasoning and the visible answer; it cannot exceed remaining context.",
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -69,7 +64,6 @@ fun SettingsScreen(state: StudioState) {
                         onCheckedChange = { checked ->
                             state.updateGeneration { it.copy(showReasoning = checked) }
                         },
-                        modifier = Modifier.size(32.dp),
                     )
                     Text("Show streamed reasoning in chat")
                 }
@@ -94,7 +88,7 @@ fun SettingsScreen(state: StudioState) {
                 }
             }
         }
-        Card(Modifier.weight(1f)) {
+        StudioSurface(Modifier.weight(1f)) {
             Column(
                 Modifier.fillMaxWidth().padding(StudioPanelPadding),
                 verticalArrangement = Arrangement.spacedBy(StudioGap),

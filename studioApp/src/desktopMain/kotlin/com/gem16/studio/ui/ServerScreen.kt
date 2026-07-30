@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -23,17 +22,11 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -51,6 +44,8 @@ import com.gem16.studio.model.ServerPhase
 import com.gem16.studio.state.StudioState
 import java.io.File
 import javax.swing.JFileChooser
+import org.jetbrains.jewel.ui.component.IconButton
+import org.jetbrains.jewel.ui.component.Text
 
 @Composable
 fun ServerScreen(state: StudioState) {
@@ -85,7 +80,7 @@ private fun ServerStatusCard(
     error: String?,
 ) {
     val online = phase == ServerPhase.Running || phase == ServerPhase.External
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+    StudioSurface(color = MaterialTheme.colorScheme.surfaceVariant) {
         Column(Modifier.fillMaxWidth().padding(StudioPanelPadding), verticalArrangement = Arrangement.spacedBy(StudioGap)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
@@ -125,7 +120,7 @@ private fun ServerStatusCard(
 private fun ServerConfiguration(state: StudioState, phase: ServerPhase) {
     val config = state.settings.server
     val busy = phase == ServerPhase.Starting || phase == ServerPhase.Stopping
-    Card {
+    StudioSurface {
         Column(Modifier.fillMaxWidth().padding(StudioPanelPadding), verticalArrangement = Arrangement.spacedBy(StudioGap)) {
             Text("Managed server", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             PathField(
@@ -147,18 +142,18 @@ private fun ServerConfiguration(state: StudioState, phase: ServerPhase) {
                 enabled = config.mtpDraftTokens != 0,
                 onChange = { value -> state.updateServer { it.copy(assistantModelDirectory = value) } },
             )
-            OutlinedTextField(
+            StudioTextField(
                 value = config.modelName,
                 onValueChange = { value -> state.updateServer { it.copy(modelName = value) } },
-                label = { Text("Served model name") },
+                label = "Served model name",
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
             Row(horizontalArrangement = Arrangement.spacedBy(StudioGap)) {
-                OutlinedTextField(
+                StudioTextField(
                     value = config.host,
                     onValueChange = { value -> state.updateServer { it.copy(host = value) } },
-                    label = { Text("Host") },
+                    label = "Host",
                     singleLine = true,
                     modifier = Modifier.weight(1f),
                 )
@@ -189,12 +184,14 @@ private fun ServerConfiguration(state: StudioState, phase: ServerPhase) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 var mtpMenu by remember { mutableStateOf(false) }
                 Box {
-                    Button(
+                    StudioPrimaryButton(
                         onClick = { mtpMenu = true },
                         modifier = Modifier.height(StudioControlHeight),
-                        contentPadding = PaddingValues(horizontal = 10.dp),
                     ) {
-                        Text(if (config.mtpDraftTokens == 0) "MTP off" else "MTP D${config.mtpDraftTokens}")
+                        Text(
+                            if (config.mtpDraftTokens == 0) "MTP off" else "MTP D${config.mtpDraftTokens}",
+                            color = MaterialTheme.colorScheme.onPrimary,
+                        )
                     }
                     DropdownMenu(expanded = mtpMenu, onDismissRequest = { mtpMenu = false }) {
                         listOf(0, 1, 2, 4).forEach { drafts ->
@@ -233,29 +230,27 @@ private fun ServerConfiguration(state: StudioState, phase: ServerPhase) {
             )
             Row(horizontalArrangement = Arrangement.spacedBy(StudioGap)) {
                 when (phase) {
-                    ServerPhase.Running, ServerPhase.Starting, ServerPhase.Stopping -> Button(
+                    ServerPhase.Running, ServerPhase.Starting, ServerPhase.Stopping -> StudioPrimaryButton(
                         onClick = state::stopServer,
                         enabled = !busy,
                         modifier = Modifier.height(StudioControlHeight),
-                        contentPadding = PaddingValues(horizontal = 10.dp),
                     ) {
                         Icon(Icons.Default.Stop, contentDescription = null, modifier = Modifier.size(StudioIconSize))
                         Spacer(Modifier.width(StudioGap))
-                        Text("Stop server")
+                        Text("Stop server", color = MaterialTheme.colorScheme.onPrimary)
                     }
                     ServerPhase.External -> Text(
                         "This process was not started by Studio and will not be stopped by it.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    else -> Button(
+                    else -> StudioPrimaryButton(
                         onClick = state::startServer,
                         enabled = !busy,
                         modifier = Modifier.height(StudioControlHeight),
-                        contentPadding = PaddingValues(horizontal = 10.dp),
                     ) {
                         Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(StudioIconSize))
                         Spacer(Modifier.width(StudioGap))
-                        Text("Start server")
+                        Text("Start server", color = MaterialTheme.colorScheme.onPrimary)
                     }
                 }
             }
@@ -272,10 +267,10 @@ private fun PathField(
     onChange: (String) -> Unit,
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        OutlinedTextField(
+        StudioTextField(
             value = value,
             onValueChange = onChange,
-            label = { Text(label) },
+            label = label,
             singleLine = true,
             enabled = enabled,
             modifier = Modifier.weight(1f),
@@ -301,7 +296,7 @@ private fun NumericField(
 ) {
     var text by remember(value) { mutableStateOf(value.toString()) }
     val parsed = text.toLongOrNull()
-    OutlinedTextField(
+    StudioTextField(
         value = text,
         onValueChange = { candidate ->
             if (candidate.all(Char::isDigit)) {
@@ -309,7 +304,7 @@ private fun NumericField(
                 candidate.toLongOrNull()?.takeIf { it in range }?.let(onValid)
             }
         },
-        label = { Text(label) },
+        label = label,
         singleLine = true,
         isError = parsed == null || parsed !in range,
         modifier = modifier,
@@ -328,7 +323,6 @@ private fun LabeledCheckbox(
             checked = checked,
             onCheckedChange = onChange,
             enabled = enabled,
-            modifier = Modifier.size(32.dp),
         )
         Text(label, color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline)
     }
@@ -340,7 +334,7 @@ private fun LogPanel(logs: List<String>, onClear: () -> Unit, modifier: Modifier
     LaunchedEffect(logs.size) {
         if (logs.isNotEmpty()) listState.scrollToItem(logs.lastIndex)
     }
-    Card(modifier) {
+    StudioSurface(modifier) {
         Column(Modifier.fillMaxSize()) {
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = StudioGap),
@@ -360,7 +354,7 @@ private fun LogPanel(logs: List<String>, onClear: () -> Unit, modifier: Modifier
                     SelectionContainer {
                         Text(
                             line,
-                            color = Color(0xFFB8C7D9),
+                            color = Color(0xFFC2C2C2),
                             style = MaterialTheme.typography.bodySmall,
                             fontFamily = FontFamily.Monospace,
                         )

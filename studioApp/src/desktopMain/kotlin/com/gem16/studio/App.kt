@@ -3,6 +3,9 @@ package com.gem16.studio
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -23,7 +26,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -32,6 +34,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
@@ -45,6 +48,7 @@ import com.gem16.studio.ui.ServerScreen
 import com.gem16.studio.ui.SettingsScreen
 import com.gem16.studio.ui.StudioCompactGap
 import com.gem16.studio.ui.StudioPanelRadius
+import org.jetbrains.jewel.ui.component.Text
 
 enum class StudioScreen(val label: String, val icon: ImageVector) {
     Chat("Chat", Icons.AutoMirrored.Filled.Chat),
@@ -118,13 +122,26 @@ private fun StudioNavigationItem(
     onClick: () -> Unit,
     phase: ServerPhase?,
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val hovered by interactionSource.collectIsHoveredAsState()
     val foreground = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-    val background = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.16f) else Color.Transparent
+    val background = when {
+        selected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
+        hovered -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+        else -> Color.Transparent
+    }
+    val shape = RoundedCornerShape(StudioPanelRadius)
     Column(
         modifier = Modifier
             .width(58.dp)
-            .background(background, RoundedCornerShape(StudioPanelRadius))
-            .clickable(onClick = onClick)
+            .clip(shape)
+            .background(background)
+            .hoverable(interactionSource)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick,
+            )
             .padding(vertical = 7.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {

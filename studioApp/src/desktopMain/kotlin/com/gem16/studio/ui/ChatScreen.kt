@@ -5,7 +5,6 @@ import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -36,22 +34,13 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Stop
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -85,6 +74,10 @@ import com.gem16.studio.state.StudioState
 import java.nio.file.Path
 import javax.swing.JFileChooser
 import javax.swing.filechooser.FileNameExtensionFilter
+import org.jetbrains.jewel.ui.component.IconButton
+import org.jetbrains.jewel.ui.component.OutlinedButton
+import org.jetbrains.jewel.ui.component.OutlinedSlimButton as TextButton
+import org.jetbrains.jewel.ui.component.Text
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
@@ -153,14 +146,13 @@ fun ChatScreen(state: StudioState) {
                     },
             )
             if (!autoFollow && state.messages.isNotEmpty()) {
-                Button(
+                StudioPrimaryButton(
                     onClick = { autoFollow = true },
                     modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = StudioGap).height(StudioControlHeight),
-                    contentPadding = PaddingValues(horizontal = 10.dp),
                 ) {
                     Icon(Icons.Default.ArrowDownward, contentDescription = null, modifier = Modifier.size(StudioIconSize))
                     Spacer(Modifier.width(StudioGap))
-                    Text("Jump to latest")
+                    Text("Jump to latest", color = MaterialTheme.colorScheme.onPrimary)
                 }
             }
         }
@@ -178,9 +170,9 @@ fun ChatScreen(state: StudioState) {
 
 @Composable
 private fun WelcomeCard() {
-    Card(
+    StudioSurface(
         modifier = Modifier.fillMaxWidth().padding(top = 18.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        color = MaterialTheme.colorScheme.surfaceVariant,
     ) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(StudioGap)) {
             Text("Chat locally with Gemma 4", style = MaterialTheme.typography.headlineSmall)
@@ -200,15 +192,10 @@ private fun MessageCard(message: ChatMessage, showReasoning: Boolean) {
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = if (user) Arrangement.End else Arrangement.Start,
     ) {
-        Card(
+        StudioSurface(
             modifier = Modifier.fillMaxWidth(if (user) 0.78f else 0.92f),
-            colors = CardDefaults.cardColors(
-                containerColor = if (user) {
-                    MaterialTheme.colorScheme.primaryContainer
-                } else {
-                    MaterialTheme.colorScheme.surfaceVariant
-                },
-            ),
+            color = if (user) MaterialTheme.colorScheme.primaryContainer
+            else MaterialTheme.colorScheme.surfaceVariant,
         ) {
             Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(StudioGap)) {
                 Text(
@@ -216,7 +203,7 @@ private fun MessageCard(message: ChatMessage, showReasoning: Boolean) {
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.SemiBold,
                 )
-                if (!user && showReasoning && message.reasoning.isNotBlank()) {
+                if (!user && showReasoning && (message.reasoning.isNotBlank() || message.streaming)) {
                     ReasoningBlock(message.reasoning, message.streaming)
                 }
                 if (message.attachments.isNotEmpty()) {
@@ -224,12 +211,8 @@ private fun MessageCard(message: ChatMessage, showReasoning: Boolean) {
                 }
                 if (message.content.isNotBlank()) {
                     MarkdownText(message.content, Modifier.fillMaxWidth())
-                } else if (message.streaming) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                        Spacer(Modifier.width(10.dp))
-                        Text("Thinking…", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
+                } else if (message.streaming && !showReasoning) {
+                    Text("Generating…", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 message.error?.let {
                     Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
@@ -241,7 +224,7 @@ private fun MessageCard(message: ChatMessage, showReasoning: Boolean) {
 
 @Composable
 private fun ReasoningBlock(reasoning: String, streaming: Boolean) {
-    var expanded by remember { mutableStateOf(streaming) }
+    var expanded by remember { mutableStateOf(false) }
     Surface(
         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.55f),
         shape = MaterialTheme.shapes.medium,
@@ -249,6 +232,14 @@ private fun ReasoningBlock(reasoning: String, streaming: Boolean) {
         Column(Modifier.fillMaxWidth().padding(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Reasoning", style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
+                if (streaming) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(12.dp),
+                        strokeWidth = 1.5.dp,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Spacer(Modifier.width(StudioGap))
+                }
                 IconButton(onClick = { expanded = !expanded }, modifier = Modifier.size(24.dp)) {
                     Icon(
                         if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
@@ -257,7 +248,7 @@ private fun ReasoningBlock(reasoning: String, streaming: Boolean) {
                     )
                 }
             }
-            if (expanded) {
+            if (expanded && reasoning.isNotBlank()) {
                 SelectionContainer {
                     Text(
                         reasoning,
@@ -378,22 +369,19 @@ private fun RecordingBar(state: StudioState) {
             TextButton(
                 onClick = state::cancelRecording,
                 modifier = Modifier.height(StudioControlHeight),
-                contentPadding = PaddingValues(horizontal = 8.dp),
             ) { Text("Cancel") }
-            Button(
+            StudioPrimaryButton(
                 onClick = state::stopRecording,
                 modifier = Modifier.height(StudioControlHeight),
-                contentPadding = PaddingValues(horizontal = 10.dp),
             ) {
                 Icon(Icons.Default.Stop, contentDescription = null, modifier = Modifier.size(StudioIconSize))
                 Spacer(Modifier.width(6.dp))
-                Text("Stop & attach")
+                Text("Stop & attach", color = MaterialTheme.colorScheme.onPrimary)
             }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun Composer(state: StudioState) {
     var thinkingMenu by remember { mutableStateOf(false) }
@@ -408,11 +396,10 @@ private fun Composer(state: StudioState) {
             AttachmentGallery(state.pendingAttachments, state::removeAttachment)
         }
         PerformanceBar(state)
-        OutlinedTextField(
+        StudioTextField(
             value = state.draft,
             onValueChange = { state.draft = it },
             modifier = Modifier.fillMaxWidth()
-                .heightIn(min = 68.dp, max = 144.dp)
                 .onPreviewKeyEvent { event ->
                     if (event.type == KeyEventType.KeyDown && event.key == Key.Enter && !event.isShiftPressed) {
                         state.sendMessage()
@@ -421,11 +408,14 @@ private fun Composer(state: StudioState) {
                         false
                     }
                 },
-            placeholder = { Text("Message Gemma 4…") },
+            placeholder = "Message Gemma 4…",
             enabled = !state.isGenerating && !state.isRecording,
+            singleLine = false,
             minLines = 2,
             maxLines = 6,
-            supportingText = { Text("Enter to send · Shift+Enter for a new line") },
+            minHeight = 68.dp,
+            maxHeight = 144.dp,
+            supportingText = "Enter to send · Shift+Enter for a new line",
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(
@@ -434,7 +424,11 @@ private fun Composer(state: StudioState) {
                 modifier = Modifier.size(StudioControlHeight),
             ) {
                 if (state.isLoadingAttachments) {
-                    CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
                 } else {
                     Icon(Icons.Default.AttachFile, contentDescription = "Attach images or audio", modifier = Modifier.size(18.dp))
                 }
@@ -467,7 +461,6 @@ private fun Composer(state: StudioState) {
                     onClick = { thinkingMenu = true },
                     enabled = !state.isGenerating && !state.isRecording,
                     modifier = Modifier.height(StudioControlHeight),
-                    contentPadding = PaddingValues(horizontal = 10.dp),
                 ) {
                     Text("Thinking · ${state.settings.generation.thinking.label}")
                 }
@@ -485,26 +478,24 @@ private fun Composer(state: StudioState) {
             }
             Spacer(Modifier.width(8.dp))
             if (state.isGenerating) {
-                Button(
+                StudioPrimaryButton(
                     onClick = state::cancelGeneration,
                     modifier = Modifier.height(StudioControlHeight),
-                    contentPadding = PaddingValues(horizontal = 10.dp),
                 ) {
                     Icon(Icons.Default.Stop, contentDescription = null, modifier = Modifier.size(StudioIconSize))
                     Spacer(Modifier.width(8.dp))
-                    Text("Stop")
+                    Text("Stop", color = MaterialTheme.colorScheme.onPrimary)
                 }
             } else {
-                Button(
+                StudioPrimaryButton(
                     onClick = state::sendMessage,
                     enabled = !state.isLoadingAttachments && !state.isRecording &&
                         (state.draft.isNotBlank() || state.pendingAttachments.isNotEmpty()),
                     modifier = Modifier.height(StudioControlHeight),
-                    contentPadding = PaddingValues(horizontal = 10.dp),
                 ) {
                     Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, modifier = Modifier.size(StudioIconSize))
                     Spacer(Modifier.width(8.dp))
-                    Text("Send")
+                    Text("Send", color = MaterialTheme.colorScheme.onPrimary)
                 }
             }
         }
