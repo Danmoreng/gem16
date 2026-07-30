@@ -27,8 +27,12 @@ jobs:
       - name: Test
         run: ctest --preset host-debug
         working-directory: source
-      - name: Test Compose Desktop application
-        run: ./gradlew :studioApp:desktopTest --no-daemon
+      - name: Test Compose Desktop application with JDK 21
+        run: |
+          export JAVA_HOME="${JAVA_HOME_21_X64:?GitHub runner does not provide JDK 21}"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          java -version
+          ./gradlew :studioApp:desktopTest --no-daemon
         working-directory: source
       - name: Check Python tools
         run: |
@@ -68,9 +72,16 @@ jobs:
         shell: pwsh
         run: .\scripts\build.ps1 -Test
         working-directory: source
-      - name: Test Compose Desktop application
+      - name: Test Compose Desktop application with JDK 21
         shell: pwsh
-        run: .\gradlew.bat :studioApp:desktopTest --no-daemon
+        run: |
+          if (-not $env:JAVA_HOME_21_X64) {
+            throw "GitHub runner does not provide JDK 21"
+          }
+          $env:JAVA_HOME = $env:JAVA_HOME_21_X64
+          $env:Path = "$env:JAVA_HOME\bin;$env:Path"
+          java -version
+          .\gradlew.bat :studioApp:desktopTest --no-daemon
         working-directory: source
       - name: Check Python tools
         shell: pwsh
