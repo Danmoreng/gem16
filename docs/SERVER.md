@@ -65,7 +65,8 @@ use the Responses top-level shape (`type`, `name`, `description`, `parameters`,
 data-URL `input_image`, and Base64 `input_audio`.
 
 The response contains typed `message` and `function_call` output items, exact
-input/output/reasoning usage, and `completed` or `incomplete` status. Streaming
+input/output/reasoning usage, resident-prefix `cached_tokens`, newly prefetched
+`cache_write_tokens`, and `completed` or `incomplete` status. Streaming
 emits ordered `response.created`, output-item/content/function events, and a
 final `response.completed` object consumable by the official OpenAI SDK.
 Private reasoning is materialized as a completed `reasoning` output item and,
@@ -163,9 +164,9 @@ media use the new request's budget. Changed source payloads remain a prefix
 mismatch.
 
 `/metrics` reports request/failure/active counts, resident/limit/created/evicted
-sessions, requested/observed cancellations, client disconnects, token and
-generation-time counters, immutable target/assistant bytes, and the latest
-execution-slot byte count.
+sessions, requested/observed cancellations, client disconnects, total/cached/cache-write
+input tokens, output tokens, generation time, immutable target/assistant bytes,
+and the latest execution-slot byte count.
 
 ## Official OpenAI SDK qualification
 

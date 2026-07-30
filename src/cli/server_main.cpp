@@ -869,6 +869,8 @@ struct ServerMetrics {
   std::atomic<std::uint64_t> cancellations_observed{0U};
   std::atomic<std::uint64_t> client_disconnects{0U};
   std::atomic<std::uint64_t> input_tokens{0U};
+  std::atomic<std::uint64_t> cached_input_tokens{0U};
+  std::atomic<std::uint64_t> cache_write_tokens{0U};
   std::atomic<std::uint64_t> output_tokens{0U};
   std::atomic<std::uint64_t> generation_microseconds{0U};
   std::atomic<std::uint64_t> last_slot_bytes{0U};
@@ -1141,6 +1143,10 @@ void RecordGeneration(ServerState& state,
                       const gem16::ChatGenerationResponse& response,
                       std::chrono::steady_clock::duration elapsed) {
   state.metrics.input_tokens.fetch_add(response.prompt_token_ids.size());
+  state.metrics.cached_input_tokens.fetch_add(
+      response.inference.prompt_cached_tokens);
+  state.metrics.cache_write_tokens.fetch_add(
+      response.inference.prompt_cache_write_tokens);
   state.metrics.output_tokens.fetch_add(
       response.inference.output_token_ids.size());
   state.metrics.generation_microseconds.fetch_add(
@@ -1727,6 +1733,10 @@ std::string MetricsText(ServerState& state) {
                        state.metrics.client_disconnects.load()));
   output.append(metric("gem16_input_tokens_total",
                        state.metrics.input_tokens.load()));
+  output.append(metric("gem16_cached_input_tokens_total",
+                       state.metrics.cached_input_tokens.load()));
+  output.append(metric("gem16_cache_write_tokens_total",
+                       state.metrics.cache_write_tokens.load()));
   output.append(metric("gem16_output_tokens_total",
                        state.metrics.output_tokens.load()));
   output.append(metric("gem16_generation_microseconds_total",

@@ -106,6 +106,8 @@ struct GreedyInferenceResult {
   std::uint64_t reasoning_tokens = 0;
   std::uint64_t reasoning_budget_tokens = 0;
   std::uint64_t reasoning_ordinary_target_tokens = 0;
+  std::uint64_t prompt_cached_tokens = 0;
+  std::uint64_t prompt_cache_write_tokens = 0;
   std::uint32_t mtp_draft_tokens = 0;
   std::uint64_t kv_cache_bytes = 0;
   std::uint64_t workspace_bytes = 0;

@@ -234,6 +234,8 @@ void RunOpenAiChatTests() {
   generated.finish_reason = gem16::GenerationFinishReason::kToolCalls;
   generated.prompt_token_ids = {1U, 2U, 3U};
   generated.inference.output_token_ids = {4U, 5U};
+  generated.inference.prompt_cached_tokens = 2U;
+  generated.inference.prompt_cache_write_tokens = 1U;
   const gem16::server::OpenAiResponseIdentity identity{
       "chatcmpl-test", "gem16", 123};
   const std::string response =
@@ -246,6 +248,11 @@ void RunOpenAiChatTests() {
     GEM16_CHECK(parsed_response.value().find("usage")
                     ->find("total_tokens")
                     ->as_integer() == 5);
+    GEM16_CHECK(parsed_response.value()
+                    .find("usage")
+                    ->find("prompt_tokens_details")
+                    ->find("cached_tokens")
+                    ->as_integer() == 2);
   }
 
   const std::string chunk = gem16::server::ChatCompletionChunkJson(
@@ -337,5 +344,15 @@ void RunOpenAiChatTests() {
                     .find("usage")
                     ->find("total_tokens")
                     ->as_integer() == 5);
+    GEM16_CHECK(parsed_responses.value()
+                    .find("usage")
+                    ->find("input_tokens_details")
+                    ->find("cached_tokens")
+                    ->as_integer() == 2);
+    GEM16_CHECK(parsed_responses.value()
+                    .find("usage")
+                    ->find("input_tokens_details")
+                    ->find("cache_write_tokens")
+                    ->as_integer() == 1);
   }
 }

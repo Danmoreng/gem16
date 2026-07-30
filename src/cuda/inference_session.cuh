@@ -332,6 +332,8 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
   result.mtp_draft_tokens = impl_->mtp_draft_tokens;
   result.reasoning_enabled = reasoning.enabled;
   result.reasoning_budget_tokens = reasoning.max_reasoning_tokens;
+  result.prompt_cached_tokens = prefix_tokens;
+  result.prompt_cache_write_tokens = suffix.size();
   result.kv_cache_bytes = impl_->engine.cache_bytes();
   result.workspace_bytes = impl_->engine.workspace_bytes();
   result.decode_graph_device_bytes =

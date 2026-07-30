@@ -522,7 +522,9 @@ void AppendUsage(const ChatGenerationResponse& response, std::string& output) {
   const std::size_t completion = response.inference.output_token_ids.size();
   output.append("{\"prompt_tokens\":");
   output.append(std::to_string(prompt));
-  output.append(",\"completion_tokens\":");
+  output.append(",\"prompt_tokens_details\":{\"cached_tokens\":");
+  output.append(std::to_string(response.inference.prompt_cached_tokens));
+  output.append("},\"completion_tokens\":");
   output.append(std::to_string(completion));
   output.append(",\"total_tokens\":");
   output.append(std::to_string(prompt + completion));
@@ -535,8 +537,12 @@ void AppendResponsesUsage(const ChatGenerationResponse& response,
   const std::size_t generated = response.inference.output_token_ids.size();
   output.append("{\"input_tokens\":");
   output.append(std::to_string(input));
-  output.append(",\"input_tokens_details\":{\"cached_tokens\":0,"
-                "\"cache_write_tokens\":0},\"output_tokens\":");
+  output.append(",\"input_tokens_details\":{\"cached_tokens\":");
+  output.append(std::to_string(response.inference.prompt_cached_tokens));
+  output.append(",\"cache_write_tokens\":");
+  output.append(std::to_string(
+      response.inference.prompt_cache_write_tokens));
+  output.append("},\"output_tokens\":");
   output.append(std::to_string(generated));
   output.append(",\"output_tokens_details\":{\"reasoning_tokens\":");
   output.append(std::to_string(response.inference.reasoning_tokens));
