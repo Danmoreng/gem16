@@ -25,6 +25,7 @@ weights. The first optimized backend targets Blackwell SM120/SM120a and batch-on
 | Platforms | Linux x86-64 and Windows x64 builds; native CUDA path targets Blackwell SM120/SM120a |
 | Inference | Text-only, batch one, greedy or seeded GPU sampling with resident model and conversation KV state |
 | CLI | Native tokenizer and chat template, UTF-8 output, token streaming, multi-turn chat |
+| Desktop UI | Kotlin Compose Desktop chat with reasoning stream and managed server lifecycle |
 | Prefill | Native variable-length prefill with CUTLASS FP8/NVFP4 Tensor Core projections |
 | Decode | Native T=1 projection plans, FP8 KV cache, and whole-model CUDA Graph replay |
 | MTP | Optional official BF16 assistant with exact batched D1/D2/D4 verification, GPU acceptance/commit, and adaptive fallback |
@@ -109,6 +110,23 @@ For a host-only build:
 ```
 
 Warnings are reported normally and are not promoted to errors by default.
+
+## Desktop application
+
+`gem16 Studio` provides a cross-platform Kotlin Compose Desktop chat window and
+starts, stops, configures, and monitors `gem16-server`. Build the CUDA engine
+first, then launch the UI:
+
+```bash
+./scripts/build.sh --cuda --test
+./scripts/run-studio.sh
+```
+
+On Windows use `.\scripts\build.ps1 -Cuda -Test` followed by
+`.\scripts\run-studio.ps1`. Model, MTP assistant, context, sampling, and
+server settings are configured in the application. See
+[`docs/STUDIO.md`](docs/STUDIO.md) for build, packaging, protocol, and security
+details.
 
 ## Chat
 
@@ -307,6 +325,7 @@ and the direct mixed checkpoint and available GGUF baseline differ in some tenso
 - [`docs/BENCHMARKING.md`](docs/BENCHMARKING.md) — benchmark methodology and comparison contract
 - [`docs/PERFORMANCE_LEDGER.md`](docs/PERFORMANCE_LEDGER.md) — detailed measurements and profiling evidence
 - [`docs/SERVER.md`](docs/SERVER.md) — OpenAI Chat Completions, SSE, tools, and media transport
+- [`docs/STUDIO.md`](docs/STUDIO.md) — Compose Desktop chat and managed server UI
 - [`docs/ROADMAP.md`](docs/ROADMAP.md) — remaining milestones
 
 ## License

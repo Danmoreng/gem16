@@ -1,5 +1,35 @@
 # Decisions
 
+## 2026-07-30: Build the desktop product as an HTTP Compose client
+
+Date: 2026-07-30
+
+Decision: Add `gem16 Studio` as a Kotlin Compose Desktop application in this
+repository. Keep the JVM process outside the inference runtime: it starts or
+attaches to `gem16-server`, consumes the strict OpenAI-compatible SSE boundary,
+and never loads CUDA or checkpoint weights itself. Persist local configuration,
+retain opaque resident session IDs, render reasoning separately, and stop only
+server processes launched by the application.
+
+Context: The engine already has a tested server-neutral chat API and a bounded
+OpenAI server. A direct JNI UI would duplicate session, streaming, cancellation,
+and server-management behavior and would couple JVM packaging to CUDA symbols.
+The neighboring Qwen-TTS Studio demonstrates a working cross-platform Compose
+Desktop build and navigation structure.
+
+Alternatives: JNI-bind `ChatSession`; use Electron; build separate native GUIs;
+or launch only the terminal chat from a graphical wrapper.
+
+Consequences: Linux and Windows share one UI and exercise the same HTTP contract
+as external clients. UI and server may be upgraded or run independently. The
+first milestone supports text chat and lifecycle management; multimodal pickers,
+tool interaction, and remote authentication remain explicit follow-ups. The UI
+package does not contain model weights, CUDA runtime files, or the engine binary.
+
+Evidence: Existing Chat Completions SSE, session-ID, cancellation, health,
+metrics, MTP, and process admission gates, plus the Qwen-TTS Studio Compose
+layout and packaging setup.
+
 ## 2026-07-30: Gate engine quality with paired task benchmarks
 
 Date: 2026-07-30

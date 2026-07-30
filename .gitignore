@@ -1,6 +1,9 @@
 /build*/
 /out/
 /.cache/
+/.gradle/
+/.kotlin/
+/studioApp/build/
 /models/checkpoints/
 /third_party/cache/
 /benchmarks/results/*

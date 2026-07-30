@@ -27,6 +27,9 @@ jobs:
       - name: Test
         run: ctest --preset host-debug
         working-directory: source
+      - name: Test Compose Desktop application
+        run: ./gradlew :studioApp:desktopTest --no-daemon
+        working-directory: source
       - name: Check Python tools
         run: |
           python3 -m py_compile \
@@ -64,6 +67,10 @@ jobs:
       - name: Configure, build, and test
         shell: pwsh
         run: .\scripts\build.ps1 -Test
+        working-directory: source
+      - name: Test Compose Desktop application
+        shell: pwsh
+        run: .\gradlew.bat :studioApp:desktopTest --no-daemon
         working-directory: source
       - name: Check Python tools
         shell: pwsh
