@@ -120,9 +120,6 @@ __device__ void ObserveReasoningToken(MtpReasoningState& reasoning,
   }
   reasoning.open_match_length =
       token == reasoning.open_token_ids[0] ? 1U : 0U;
-  if (reasoning.open_match_length == 0U && reasoning.started == 0U) {
-    reasoning.complete = 1U;
-  }
 }
 
 __device__ bool CanRunMtpD2(const MtpDeviceControl& control) {

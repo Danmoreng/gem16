@@ -880,10 +880,17 @@ ResponseTokenChannel ResponseChannelTracker::Observe(std::uint32_t token_id) {
   if (in_reasoning_) {
     if (token_id == thinking_close_token_id_) {
       in_reasoning_ = false;
+      reasoning_complete_ = true;
       return ResponseTokenChannel::kControl;
     }
     ++reasoning_token_count_;
     return ResponseTokenChannel::kReasoning;
+  }
+  if (suppressing_additional_reasoning_) {
+    if (token_id == thinking_close_token_id_) {
+      suppressing_additional_reasoning_ = false;
+    }
+    return ResponseTokenChannel::kControl;
   }
   if (token_id == thinking_close_token_id_) {
     open_match_length_ = 0U;
@@ -894,12 +901,17 @@ ResponseTokenChannel ResponseChannelTracker::Observe(std::uint32_t token_id) {
     ++open_match_length_;
     if (open_match_length_ == thinking_open_token_ids_.size()) {
       open_match_length_ = 0U;
-      in_reasoning_ = true;
+      if (reasoning_complete_) {
+        suppressing_additional_reasoning_ = true;
+      } else {
+        in_reasoning_ = true;
+      }
     }
     return ResponseTokenChannel::kControl;
   }
   open_match_length_ = token_id == thinking_open_token_ids_.front() ? 1U : 0U;
-  return open_match_length_ == 0U ? ResponseTokenChannel::kText : ResponseTokenChannel::kControl;
+  return open_match_length_ == 0U ? ResponseTokenChannel::kText
+                                  : ResponseTokenChannel::kControl;
 }
 
 Result<std::string> GemmaChatProcessor::Render(std::span<const ChatMessage> messages, bool enable_thinking,

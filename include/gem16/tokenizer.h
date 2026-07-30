@@ -75,6 +75,8 @@ class ResponseChannelTracker {
   std::size_t open_match_length_ = 0U;
   std::uint64_t reasoning_token_count_ = 0U;
   bool in_reasoning_ = false;
+  bool reasoning_complete_ = false;
+  bool suppressing_additional_reasoning_ = false;
 };
 
 class Tokenizer {

@@ -521,7 +521,10 @@ Result<ChatGenerationResponse> ChatSession::Generate(const ChatGenerationRequest
   if (reasoning_ids.size() != inference.value().reasoning_tokens) {
     return poison(Status(
         StatusCode::kInternal,
-        "decoded reasoning channel disagrees with inference accounting"));
+        "decoded reasoning channel has " +
+            std::to_string(reasoning_ids.size()) +
+            " tokens but inference accounted " +
+            std::to_string(inference.value().reasoning_tokens)));
   }
   auto reasoning_text = impl_->processor.Decode(reasoning_ids, true);
   if (!reasoning_text.ok()) return poison(reasoning_text.status());

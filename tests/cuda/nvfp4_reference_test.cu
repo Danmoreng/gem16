@@ -3194,6 +3194,47 @@ void TestMtpReasoningTransitions() {
   CUDA_TEST_CHECK(host_chain.reasoning_token_count == 5U);
   CUDA_TEST_CHECK(host_chain.reasoning_budget_forced == 0U);
 
+  // A sampled model may emit harmless leading text (commonly a newline)
+  // before the multi-token thought opener. Do not permanently disable bounded
+  // reasoning before the complete opener has had a chance to arrive.
+  host_transaction = {};
+  host_transaction.result.proposal_count = 2U;
+  host_transaction.result.accepted_count = 2U;
+  host_transaction.result.output_count = 3U;
+  host_transaction.result.proposed = {10U, 20U, 0U, 0U};
+  host_transaction.result.verified = {7U, 10U, 20U, 0U, 0U};
+  host_transaction.control.current.remaining_output_capacity = 8U;
+  host_transaction.control.next = host_transaction.control.current;
+  host_transaction.control.next.remaining_output_capacity = 5U;
+  host_transaction.control.next.output_write_position = 3U;
+  host_transaction.control.reasoning.enabled = 1U;
+  host_transaction.control.reasoning.max_reasoning_tokens = 8U;
+  host_transaction.control.reasoning.close_token_id = 99U;
+  host_transaction.control.reasoning.open_token_count = 2U;
+  host_transaction.control.reasoning.open_token_ids = {10U, 20U, 0U, 0U};
+  if (!CudaOk(cudaMemcpy(transaction.get(), &host_transaction,
+                         sizeof(host_transaction), cudaMemcpyHostToDevice),
+              "copy delayed-open MTP reasoning transaction") ||
+      !CudaOk(cudaMemset(chain_result.get(), 0, chain_result.bytes()),
+              "clear delayed-open MTP reasoning result")) {
+    return;
+  }
+  status = gem16::internal::LaunchAdvanceMtpD2Chain(
+      transaction.get(), chain_result.get(), outputs.get(), proposals.get(),
+      nullptr, nullptr);
+  CUDA_TEST_CHECK(status.ok());
+  if (!status.ok() ||
+      !CudaOk(cudaMemcpy(&host_transaction, transaction.get(),
+                         sizeof(host_transaction), cudaMemcpyDeviceToHost),
+              "copy delayed-open MTP reasoning transaction result")) {
+    return;
+  }
+  CUDA_TEST_CHECK(host_transaction.control.reasoning.started == 1U);
+  CUDA_TEST_CHECK(host_transaction.control.reasoning.in_reasoning == 1U);
+  CUDA_TEST_CHECK(host_transaction.control.reasoning.complete == 0U);
+  CUDA_TEST_CHECK(
+      host_transaction.control.reasoning.reasoning_token_count == 0U);
+
   host_transaction = {};
   host_transaction.control.current.input_token = 7U;
   host_transaction.control.current.processed_position = 10U;

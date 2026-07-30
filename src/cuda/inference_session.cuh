@@ -372,16 +372,12 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
   const auto observe_reasoning_token = [&](std::uint32_t token) {
     if (!reasoning.enabled || reasoning_complete) return;
     const bool was_reasoning = reasoning_tracker.in_reasoning();
-    const ResponseTokenChannel channel = reasoning_tracker.Observe(token);
+    (void)reasoning_tracker.Observe(token);
     if (!was_reasoning && reasoning_tracker.in_reasoning()) {
       reasoning_started = true;
     }
     result.reasoning_tokens = reasoning_tracker.reasoning_token_count();
     if (was_reasoning && !reasoning_tracker.in_reasoning()) {
-      reasoning_complete = true;
-    } else if (!reasoning_started &&
-               channel == ResponseTokenChannel::kText &&
-               !reasoning_tracker.matching_open()) {
       reasoning_complete = true;
     }
   };

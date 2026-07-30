@@ -1,5 +1,37 @@
 # Decisions
 
+## 2026-07-30: Account only the first completed reasoning channel
+
+Date: 2026-07-30
+
+Decision: Do not permanently conclude that reasoning is absent merely because a
+sampled response emits text before its multi-token thought opener. Continue
+matching until the first opener arrives, then apply the existing exact budget
+and close semantics. After that first channel closes, suppress any additional
+complete thought channels from visible output but do not count them again as
+bounded reasoning.
+
+Context: The realistic resident sampled-D2 server workload first exposed both
+behaviors at long context: a harmless leading token before the thought opener,
+and later repeated thought envelopes after an already completed answer. The GPU
+scheduler stopped accounting at the first close while the protocol-neutral
+extractor counted every later envelope, poisoning an otherwise complete KV
+chain with `decoded reasoning channel disagrees with inference accounting`.
+
+Alternatives: Mark reasoning complete on the first non-opener token; count and
+budget an arbitrary number of later thought channels; leak later private thought
+text; or weaken the final accounting check.
+
+Consequences: Host and device state remain equal through a delayed opener. The
+first reasoning body retains exact budget, usage, and streaming behavior.
+Additional envelopes remain hidden consistently in terminal/SSE/final text and
+cannot inflate reasoning usage. An unterminated later envelope still fails
+visibly during final response decoding.
+
+Evidence: Host delayed/repeated-channel fixtures, CUDA delayed-open D2 state
+transition, full CTest, and the sampled multimodal 2K-to-128K resident server
+conversation with no poisoned session.
+
 ## 2026-07-30: Admit server slots from measured VRAM and use opaque IDs
 
 Date: 2026-07-30

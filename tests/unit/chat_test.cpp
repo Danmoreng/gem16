@@ -142,6 +142,18 @@ void TestReasoningMaterialization() {
   const auto reasoning = gem16::internal::ExtractReasoningTokenIds(
       generated, controls);
   GEM16_CHECK(reasoning == std::vector<std::uint32_t>({7U, 8U}));
+  const std::vector<std::uint32_t> leading_text = {
+      42U, 100U, 45518U, 108U, 7U, 8U, 101U, 9U};
+  const auto delayed_reasoning = gem16::internal::ExtractReasoningTokenIds(
+      leading_text, controls);
+  GEM16_CHECK(delayed_reasoning ==
+              std::vector<std::uint32_t>({7U, 8U}));
+  const std::vector<std::uint32_t> repeated_reasoning = {
+      100U, 45518U, 108U, 7U, 101U, 9U,
+      100U, 45518U, 108U, 8U, 101U, 10U};
+  const auto first_reasoning_only =
+      gem16::internal::ExtractReasoningTokenIds(repeated_reasoning, controls);
+  GEM16_CHECK(first_reasoning_only == std::vector<std::uint32_t>({7U}));
 }
 
 void TestResidentImageIdentity() {
