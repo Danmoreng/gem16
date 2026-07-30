@@ -14,6 +14,7 @@ studio_jdk_target=21
 studio_gradle=9.6.1
 studio_kotlin=2.4.0
 studio_compose=1.11.1
+studio_commonmark=0.24.0
 gpu=NVIDIA GeForce RTX 5080 Laptop GPU
 gpu_uuid=GPU-93070293-2184-eb69-555b-1d856a4fdbb8
 gpu_compute_capability=12.0

@@ -1,5 +1,6 @@
 package com.gem16.studio.ui
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,17 +13,23 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.automirrored.filled.Undo
+import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.Audiotrack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -49,13 +56,27 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toComposeImageBitmap
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isShiftPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.gem16.studio.model.ChatMessage
+import com.gem16.studio.model.MediaAttachment
+import com.gem16.studio.model.MediaKind
 import com.gem16.studio.model.ServerPhase
 import com.gem16.studio.model.ThinkingEffort
+import com.gem16.studio.service.formatBytes
 import com.gem16.studio.state.StudioState
+import java.nio.file.Path
+import javax.swing.JFileChooser
+import javax.swing.filechooser.FileNameExtensionFilter
 
 @Composable
 fun ChatScreen(state: StudioState, onOpenServer: () -> Unit) {
@@ -110,11 +131,17 @@ private fun ServerBanner(phase: ServerPhase, onOpenServer: () -> Unit) {
             )
             Spacer(Modifier.width(10.dp))
             Text(
-                if (online) "gem16 server ready" else "gem16 server is not reachable",
+                when (phase) {
+                    ServerPhase.Running, ServerPhase.External -> "gem16 server ready"
+                    ServerPhase.Starting -> "gem16 server is starting…"
+                    ServerPhase.Stopping -> "gem16 server is stopping…"
+                    ServerPhase.Error -> "gem16 server failed to start"
+                    ServerPhase.Stopped -> "gem16 server is not reachable"
+                },
                 style = MaterialTheme.typography.labelLarge,
                 modifier = Modifier.weight(1f),
             )
-            TextButton(onClick = onOpenServer) { Text(if (online) "Manage" else "Open server") }
+            TextButton(onClick = onOpenServer) { Text(if (online) "Manage" else "Server details") }
         }
     }
 }
@@ -128,8 +155,8 @@ private fun WelcomeCard() {
         Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Chat locally with Gemma 4", style = MaterialTheme.typography.headlineSmall)
             Text(
-                "Start the managed gem16 server, then send a message. The model, KV cache, " +
-                    "sampling, and optional MTP assistant remain resident on your GPU.",
+                "The managed gem16 server starts automatically. Send text, images, or audio; " +
+                    "the model, KV cache, and optional MTP assistant remain resident on your GPU.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
@@ -162,10 +189,11 @@ private fun MessageCard(message: ChatMessage, showReasoning: Boolean) {
                 if (!user && showReasoning && message.reasoning.isNotBlank()) {
                     ReasoningBlock(message.reasoning, message.streaming)
                 }
+                if (message.attachments.isNotEmpty()) {
+                    AttachmentGallery(message.attachments)
+                }
                 if (message.content.isNotBlank()) {
-                    SelectionContainer {
-                        Text(message.content, style = MaterialTheme.typography.bodyLarge)
-                    }
+                    MarkdownText(message.content, Modifier.fillMaxWidth())
                 } else if (message.streaming) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
@@ -212,23 +240,156 @@ private fun ReasoningBlock(reasoning: String, streaming: Boolean) {
     }
 }
 
+@Composable
+private fun AttachmentGallery(
+    attachments: List<MediaAttachment>,
+    onRemove: ((String) -> Unit)? = null,
+) {
+    LazyRow(
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        items(attachments, key = MediaAttachment::id) { attachment ->
+            Box {
+                Surface(
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.65f),
+                    shape = MaterialTheme.shapes.medium,
+                ) {
+                    Column(
+                        Modifier.widthIn(min = 132.dp, max = 190.dp).padding(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        if (attachment.kind == MediaKind.Image) {
+                            val bitmap = remember(attachment.id) {
+                                runCatching {
+                                    org.jetbrains.skia.Image.makeFromEncoded(attachment.bytes)
+                                        .toComposeImageBitmap()
+                                }.getOrNull()
+                            }
+                            if (bitmap != null) {
+                                Image(
+                                    bitmap = bitmap,
+                                    contentDescription = attachment.fileName,
+                                    modifier = Modifier.fillMaxWidth().height(96.dp),
+                                    contentScale = ContentScale.Crop,
+                                )
+                            }
+                        } else {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Default.Audiotrack,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text("Audio", style = MaterialTheme.typography.labelLarge)
+                            }
+                        }
+                        Text(
+                            attachment.fileName,
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1,
+                        )
+                        Text(
+                            listOfNotNull(
+                                attachment.durationMillis?.let(::formatDuration),
+                                formatBytes(attachment.byteSize.toLong()),
+                            ).joinToString(" · "),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                if (onRemove != null) {
+                    IconButton(
+                        onClick = { onRemove(attachment.id) },
+                        modifier = Modifier.align(Alignment.TopEnd).size(30.dp),
+                    ) {
+                        Icon(Icons.Default.Close, contentDescription = "Remove ${attachment.fileName}")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecordingBar(state: StudioState) {
+    Surface(
+        color = MaterialTheme.colorScheme.errorContainer,
+        shape = MaterialTheme.shapes.medium,
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Box(
+                Modifier.size(10.dp).background(
+                    MaterialTheme.colorScheme.error,
+                    MaterialTheme.shapes.small,
+                ),
+            )
+            Text(
+                "Recording ${formatDuration(state.recordingMillis)} / 00:30",
+                style = MaterialTheme.typography.labelLarge,
+            )
+            Box(
+                Modifier.width(90.dp).height(7.dp)
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.45f), MaterialTheme.shapes.small),
+            ) {
+                Box(
+                    Modifier.fillMaxWidth(state.recordingLevel.coerceIn(0.02f, 1f)).height(7.dp)
+                        .background(MaterialTheme.colorScheme.error, MaterialTheme.shapes.small),
+                )
+            }
+            Spacer(Modifier.weight(1f))
+            TextButton(onClick = state::cancelRecording) { Text("Cancel") }
+            Button(onClick = state::stopRecording) {
+                Icon(Icons.Default.Stop, contentDescription = null)
+                Spacer(Modifier.width(6.dp))
+                Text("Stop & attach")
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun Composer(state: StudioState) {
     var thinkingMenu by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        if (state.isRecording) {
+            RecordingBar(state)
+        }
+        if (state.pendingAttachments.isNotEmpty()) {
+            AttachmentGallery(state.pendingAttachments, state::removeAttachment)
+        }
         OutlinedTextField(
             value = state.draft,
             onValueChange = { state.draft = it },
-            modifier = Modifier.fillMaxWidth().heightIn(min = 92.dp, max = 180.dp),
+            modifier = Modifier.fillMaxWidth()
+                .heightIn(min = 92.dp, max = 180.dp)
+                .onPreviewKeyEvent { event ->
+                    if (event.type == KeyEventType.KeyDown && event.key == Key.Enter && !event.isShiftPressed) {
+                        state.sendMessage()
+                        true
+                    } else {
+                        false
+                    }
+                },
             placeholder = { Text("Message Gemma 4…") },
-            enabled = !state.isGenerating,
+            enabled = !state.isGenerating && !state.isRecording,
             minLines = 3,
             maxLines = 8,
+            supportingText = { Text("Enter to send · Shift+Enter for a new line") },
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box {
-                Button(onClick = { thinkingMenu = true }, enabled = !state.isGenerating) {
+                Button(
+                    onClick = { thinkingMenu = true },
+                    enabled = !state.isGenerating && !state.isRecording,
+                ) {
                     Text("Thinking: ${state.settings.generation.thinking.label}")
                 }
                 DropdownMenu(expanded = thinkingMenu, onDismissRequest = { thinkingMenu = false }) {
@@ -243,6 +404,22 @@ private fun Composer(state: StudioState) {
                     }
                 }
             }
+            IconButton(
+                onClick = { state.addAttachments(chooseMediaPaths()) },
+                enabled = !state.isGenerating && !state.isLoadingAttachments && !state.isRecording,
+            ) {
+                if (state.isLoadingAttachments) {
+                    CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                } else {
+                    Icon(Icons.Default.AttachFile, contentDescription = "Attach images or audio")
+                }
+            }
+            IconButton(
+                onClick = state::startRecording,
+                enabled = !state.isGenerating && !state.isLoadingAttachments && !state.isRecording,
+            ) {
+                Icon(Icons.Default.Mic, contentDescription = "Record audio")
+            }
             state.usage?.let { usage ->
                 Spacer(Modifier.width(14.dp))
                 Text(
@@ -252,10 +429,16 @@ private fun Composer(state: StudioState) {
                 )
             }
             Spacer(Modifier.weight(1f))
-            IconButton(onClick = state::removeLastExchange, enabled = !state.isGenerating && state.messages.isNotEmpty()) {
+            IconButton(
+                onClick = state::removeLastExchange,
+                enabled = !state.isGenerating && !state.isRecording && state.messages.isNotEmpty(),
+            ) {
                 Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "Remove last exchange")
             }
-            IconButton(onClick = state::clearChat, enabled = !state.isGenerating && state.messages.isNotEmpty()) {
+            IconButton(
+                onClick = state::clearChat,
+                enabled = !state.isGenerating && !state.isRecording && state.messages.isNotEmpty(),
+            ) {
                 Icon(Icons.Default.DeleteSweep, contentDescription = "New chat")
             }
             Spacer(Modifier.width(8.dp))
@@ -266,7 +449,11 @@ private fun Composer(state: StudioState) {
                     Text("Stop")
                 }
             } else {
-                Button(onClick = state::sendMessage, enabled = state.draft.isNotBlank()) {
+                Button(
+                    onClick = state::sendMessage,
+                    enabled = !state.isLoadingAttachments && !state.isRecording &&
+                        (state.draft.isNotBlank() || state.pendingAttachments.isNotEmpty()),
+                ) {
                     Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
                     Text("Send")
@@ -274,4 +461,31 @@ private fun Composer(state: StudioState) {
             }
         }
     }
+}
+
+private fun formatDuration(milliseconds: Long): String {
+    val seconds = (milliseconds / 1000L).coerceAtLeast(0L)
+    return "%02d:%02d".format(seconds / 60L, seconds % 60L)
+}
+
+private fun chooseMediaPaths(): List<Path> {
+    val chooser = JFileChooser().apply {
+        dialogTitle = "Attach images or audio"
+        fileSelectionMode = JFileChooser.FILES_ONLY
+        isMultiSelectionEnabled = true
+        isAcceptAllFileFilterUsed = false
+        fileFilter = FileNameExtensionFilter(
+            "Images and audio (PNG, JPEG, BMP, WAV, FLAC, MP3)",
+            "png",
+            "jpg",
+            "jpeg",
+            "bmp",
+            "wav",
+            "flac",
+            "mp3",
+        )
+    }
+    if (chooser.showOpenDialog(null) != JFileChooser.APPROVE_OPTION) return emptyList()
+    val selected = chooser.selectedFiles.toList().ifEmpty { listOfNotNull(chooser.selectedFile) }
+    return selected.map { it.toPath().toAbsolutePath().normalize() }
 }

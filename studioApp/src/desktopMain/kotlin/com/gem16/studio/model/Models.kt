@@ -14,6 +14,24 @@ enum class ServerPhase {
     Error,
 }
 
+enum class MediaKind {
+    Image,
+    Audio,
+}
+
+data class MediaAttachment(
+    val id: String = UUID.randomUUID().toString(),
+    val fileName: String,
+    val kind: MediaKind,
+    val mimeType: String,
+    val format: String,
+    val bytes: ByteArray,
+    val durationMillis: Long? = null,
+) {
+    val byteSize: Int get() = bytes.size
+    val encodedSize: Long get() = 4L * ((bytes.size.toLong() + 2L) / 3L)
+}
+
 enum class ThinkingEffort(val wireValue: String, val label: String) {
     Off("none", "Off"),
     Low("low", "Low · 1K"),
@@ -33,7 +51,6 @@ data class ServerConfig(
     val mtpDraftTokens: Int = 2,
     val mtpAdaptive: Boolean = false,
     val greedy: Boolean = false,
-    val autoStart: Boolean = false,
 ) {
     val clientHost: String
         get() = when (host) {
@@ -72,6 +89,7 @@ data class ChatMessage(
     val id: String = UUID.randomUUID().toString(),
     val role: String,
     val content: String,
+    val attachments: List<MediaAttachment> = emptyList(),
     val reasoning: String = "",
     val streaming: Boolean = false,
     val error: String? = null,

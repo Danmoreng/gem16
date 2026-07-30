@@ -43,6 +43,13 @@ tests, disconnect tests, and real non-stream/SSE tool loops.
 Build-script structure was adapted from the neighboring `qwen35x` repository (MIT License, copyright 2026 qwen35x
 contributors), inspected locally on 2026-07-21. No qwen35x runtime or loader source was copied.
 
+Studio's PipeWire capture preference, input-mixer ranking, and bounded
+silence/clipping validation policy are adapted from
+`qwen-tts-studio/VoicesViewModel.kt` at commit
+`ef2344a702ea056e549dac2fbb6c961b57b5feb2` (MIT License, copyright 2026
+Danmoreng). gem16 replaces its file-backed voice-cloning flow with bounded
+in-memory PCM/WAV attachment generation and model-request limits.
+
 The llama.cpp baseline fetches `ggml-org/llama.cpp` into the ignored `third_party/cache/llama.cpp` directory and
 requires the exact commit recorded in `benchmarks/baselines/llama_cpp/commit.txt`. llama.cpp is MIT licensed. It is
 used because it is the project's primary local-inference competitor and provides the comparison CUDA runtime and

@@ -1,5 +1,41 @@
 # Decisions
 
+## 2026-07-30: Keep Studio media inline and render CommonMark natively
+
+Date: 2026-07-30
+
+Decision: Start or attach to `gem16-server` whenever Studio opens. Represent
+selected images, audio files, and bounded microphone recordings as ordered
+in-memory message attachments, serialize them through the existing strict Chat
+Completions content-array contract, and retain the bytes for exact resident
+continuation. Parse assistant and user text
+with pinned CommonMark and render supported nodes with Compose rather than
+executing generated HTML.
+
+Context: The server already accepts bounded inline PNG/JPEG/BMP and WAV/FLAC/MP3
+content. PipeWire and Java Sound provide PCM16 capture without JNI. Raw default
+hardware capture can be silent or severely clipped, so successful attachment
+requires signal validation and bounded normalization. File-path references
+would break remote endpoints and later resident turns if files changed. Plain
+Compose text made model-produced code, lists, and links difficult to read.
+
+Alternatives: Upload files through a new endpoint; reread paths on every turn;
+render generated HTML in a web view; or add separate native modality runtimes to
+the JVM application.
+
+Consequences: Studio imposes 10 MiB per-file and 14 MiB aggregate Base64 limits
+below the server's 16 MiB request boundary. Attachments consume host memory for
+the visible conversation. Raw HTML is shown as text. Tool calls, Responses
+history, and video remain separate UI work.
+
+Evidence: Multimodal request-shape, loader, WAV, silence/clipping/normalization,
+expected-stream-close, real-device, and Markdown parser tests; a real server
+transcribes the checked-in WAV and an existing microphone WAV through the exact
+payload; the screenshot's 134 input
+tokens prove the original recording reached prompt admission despite unusable
+capture quality; and the server retains codec, ordering, resident-equivalence,
+and request-boundary gates.
+
 ## 2026-07-30: Build the desktop product as an HTTP Compose client
 
 Date: 2026-07-30

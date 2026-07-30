@@ -2,6 +2,7 @@ package com.gem16.studio.service
 
 import com.gem16.studio.model.ChatMessage
 import com.gem16.studio.model.GenerationConfig
+import com.gem16.studio.model.MediaKind
 import com.gem16.studio.model.ServerConfig
 import com.gem16.studio.model.Usage
 import kotlinx.coroutines.Dispatchers
@@ -26,6 +27,7 @@ import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.time.Duration
+import java.util.Base64
 import java.util.concurrent.atomic.AtomicReference
 
 sealed interface ChatDelta {
@@ -121,7 +123,41 @@ class Gem16ApiClient {
             messages.filter { it.role == "user" || it.role == "assistant" }.forEach { message ->
                 add(buildJsonObject {
                     put("role", message.role)
-                    put("content", message.content)
+                    if (message.attachments.isEmpty()) {
+                        put("content", message.content)
+                    } else {
+                        put("content", buildJsonArray {
+                            if (message.content.isNotBlank()) {
+                                add(buildJsonObject {
+                                    put("type", "text")
+                                    put("text", message.content)
+                                })
+                            }
+                            message.attachments.forEach { attachment ->
+                                val encoded = Base64.getEncoder().encodeToString(attachment.bytes)
+                                add(
+                                    when (attachment.kind) {
+                                        MediaKind.Image -> buildJsonObject {
+                                            put("type", "image_url")
+                                            put("image_url", buildJsonObject {
+                                                put(
+                                                    "url",
+                                                    "data:${attachment.mimeType};base64,$encoded",
+                                                )
+                                            })
+                                        }
+                                        MediaKind.Audio -> buildJsonObject {
+                                            put("type", "input_audio")
+                                            put("input_audio", buildJsonObject {
+                                                put("format", attachment.format)
+                                                put("data", encoded)
+                                            })
+                                        }
+                                    },
+                                )
+                            }
+                        })
+                    }
                 })
             }
         })

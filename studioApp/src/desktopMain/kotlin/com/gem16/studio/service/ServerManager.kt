@@ -75,17 +75,27 @@ class ServerManager : AutoCloseable {
     fun start(value: ServerConfig) {
         if (process?.isAlive == true || _phase.value == ServerPhase.Starting) return
         config = value
-        _error.value = validate(value)
-        if (_error.value != null) {
-            _phase.value = ServerPhase.Error
-            return
-        }
+        _error.value = null
         _logs.value = emptyList()
         _health.value = null
         _phase.value = ServerPhase.Starting
-        appendLog("Starting ${value.executable}")
+        appendLog("Checking ${value.host}:${value.port} for an existing server")
         scope.launch {
             try {
+                val existing = runCatching { fetchHealth(value) }.getOrNull()
+                if (existing != null) {
+                    _health.value = existing
+                    _phase.value = ServerPhase.External
+                    appendLog("Attached to existing server at ${value.host}:${value.port}")
+                    return@launch
+                }
+                validate(value)?.let { validationError ->
+                    _error.value = validationError
+                    _phase.value = ServerPhase.Error
+                    appendLog("Start failed: $validationError")
+                    return@launch
+                }
+                appendLog("Starting ${value.executable}")
                 val command = buildServerCommand(value)
                 val started = ProcessBuilder(command)
                     .directory(repositoryRoot().toFile())

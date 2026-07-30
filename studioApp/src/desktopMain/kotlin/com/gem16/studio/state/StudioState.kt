@@ -6,36 +6,52 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.gem16.studio.model.ChatMessage
 import com.gem16.studio.model.GenerationConfig
+import com.gem16.studio.model.MediaAttachment
+import com.gem16.studio.model.MediaKind
 import com.gem16.studio.model.ServerConfig
-import com.gem16.studio.model.ServerPhase
 import com.gem16.studio.model.StudioSettings
 import com.gem16.studio.model.Usage
+import com.gem16.studio.service.AudioRecorder
 import com.gem16.studio.service.ChatDelta
 import com.gem16.studio.service.Gem16ApiClient
+import com.gem16.studio.service.MaxEncodedMediaBytes
 import com.gem16.studio.service.ServerManager
 import com.gem16.studio.service.SettingsStore
+import com.gem16.studio.service.encodedMediaBytes
+import com.gem16.studio.service.formatBytes
+import com.gem16.studio.service.loadMediaAttachment
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.nio.file.Path
 
 class StudioState(
     private val settingsStore: SettingsStore = SettingsStore(),
     val serverManager: ServerManager = ServerManager(),
     private val api: Gem16ApiClient = Gem16ApiClient(),
+    private val audioRecorder: AudioRecorder = AudioRecorder(),
 ) : AutoCloseable {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     var settings by mutableStateOf(settingsStore.load())
         private set
     val messages = mutableStateListOf<ChatMessage>()
+    val pendingAttachments = mutableStateListOf<MediaAttachment>()
     var draft by mutableStateOf("")
     var isGenerating by mutableStateOf(false)
+        private set
+    var isLoadingAttachments by mutableStateOf(false)
+        private set
+    var isRecording by mutableStateOf(false)
+        private set
+    var recordingMillis by mutableStateOf(0L)
+        private set
+    var recordingLevel by mutableStateOf(0f)
         private set
     var chatError by mutableStateOf<String?>(null)
         private set
@@ -47,15 +63,12 @@ class StudioState(
         private set
 
     private var generationJob: Job? = null
+    private var recordingJob: Job? = null
+    private var discardRecording = false
 
     init {
         serverManager.configure(settings.server)
-        if (settings.server.autoStart) {
-            scope.launch {
-                delay(2_000)
-                if (serverManager.phase.value == ServerPhase.Stopped) startServer()
-            }
-        }
+        startServer()
     }
 
     fun updateServer(transform: (ServerConfig) -> ServerConfig) {
@@ -85,9 +98,96 @@ class StudioState(
         serverManager.stop()
     }
 
+    fun startRecording() {
+        if (isGenerating || isLoadingAttachments || isRecording) return
+        chatError = null
+        recordingMillis = 0L
+        recordingLevel = 0f
+        discardRecording = false
+        isRecording = true
+        recordingJob = scope.launch {
+            try {
+                val recording = withContext(Dispatchers.IO) {
+                    audioRecorder.record { durationMillis, level ->
+                        scope.launch {
+                            recordingMillis = durationMillis
+                            recordingLevel = level
+                        }
+                    }
+                }
+                if (!discardRecording) {
+                    val attachment = MediaAttachment(
+                        fileName = recording.fileName,
+                        kind = MediaKind.Audio,
+                        mimeType = "audio/wav",
+                        format = "wav",
+                        bytes = recording.wavBytes,
+                        durationMillis = recording.durationMillis,
+                    )
+                    val encoded = encodedMediaBytes(messages) +
+                        pendingAttachments.sumOf(MediaAttachment::encodedSize) + attachment.encodedSize
+                    if (encoded <= MaxEncodedMediaBytes) {
+                        pendingAttachments += attachment
+                    } else {
+                        chatError = "The recording would exceed Studio's ${formatBytes(MaxEncodedMediaBytes)} " +
+                            "encoded-media request limit. Start a new chat first."
+                    }
+                }
+            } catch (error: Exception) {
+                if (!discardRecording) chatError = error.message ?: "Microphone recording failed"
+            } finally {
+                isRecording = false
+                recordingMillis = 0L
+                recordingLevel = 0f
+                recordingJob = null
+            }
+        }
+    }
+
+    fun stopRecording() {
+        if (isRecording) audioRecorder.stop()
+    }
+
+    fun cancelRecording() {
+        if (!isRecording) return
+        discardRecording = true
+        audioRecorder.stop()
+    }
+
+    fun addAttachments(paths: List<Path>) {
+        if (paths.isEmpty() || isGenerating || isLoadingAttachments || isRecording) return
+        isLoadingAttachments = true
+        scope.launch {
+            try {
+                val loaded = withContext(Dispatchers.IO) { paths.map(::loadMediaAttachment) }
+                val failures = loaded.mapNotNull { it.exceptionOrNull() }
+                var encoded = encodedMediaBytes(messages) + pendingAttachments.sumOf(MediaAttachment::encodedSize)
+                loaded.mapNotNull { it.getOrNull() }.forEach { attachment ->
+                    if (encoded + attachment.encodedSize <= MaxEncodedMediaBytes) {
+                        pendingAttachments += attachment
+                        encoded += attachment.encodedSize
+                    } else {
+                        chatError = "Attachments would exceed Studio's ${formatBytes(MaxEncodedMediaBytes)} " +
+                            "encoded-media request limit. Start a new chat or remove an attachment."
+                    }
+                }
+                if (failures.isNotEmpty()) {
+                    chatError = failures.joinToString("\n") { it.message ?: "Could not load media file" }
+                }
+            } finally {
+                isLoadingAttachments = false
+            }
+        }
+    }
+
+    fun removeAttachment(id: String) {
+        if (!isGenerating && !isRecording) pendingAttachments.removeAll { it.id == id }
+    }
+
     fun sendMessage() {
         val text = draft.trim()
-        if (text.isEmpty() || isGenerating) return
+        val attachments = pendingAttachments.toList()
+        if ((text.isEmpty() && attachments.isEmpty()) || isGenerating || isLoadingAttachments || isRecording) return
         if (serverManager.health.value == null) {
             chatError = "The gem16 server is not reachable. Start it on the Server screen first."
             return
@@ -95,9 +195,17 @@ class StudioState(
         chatError = null
         usage = null
         lastFinishReason = null
-        val user = ChatMessage(role = "user", content = text)
+        val proposedHistory = messages + ChatMessage(role = "user", content = text, attachments = attachments)
+        val encodedMedia = encodedMediaBytes(proposedHistory)
+        if (encodedMedia > MaxEncodedMediaBytes) {
+            chatError = "This conversation contains ${formatBytes(encodedMedia)} of encoded media; " +
+                "the Studio limit is ${formatBytes(MaxEncodedMediaBytes)}. Start a new chat."
+            return
+        }
+        val user = proposedHistory.last()
         messages += user
         draft = ""
+        pendingAttachments.clear()
         val requestHistory = messages.toList()
         val assistant = ChatMessage(role = "assistant", content = "", streaming = true)
         messages += assistant
@@ -145,6 +253,7 @@ class StudioState(
     fun clearChat() {
         if (isGenerating) return
         messages.clear()
+        pendingAttachments.clear()
         sessionId = null
         usage = null
         lastFinishReason = null
@@ -184,6 +293,9 @@ class StudioState(
     override fun close() {
         api.cancelActive()
         generationJob?.cancel()
+        discardRecording = true
+        audioRecorder.close()
+        recordingJob?.cancel()
         serverManager.close()
         scope.cancel()
     }

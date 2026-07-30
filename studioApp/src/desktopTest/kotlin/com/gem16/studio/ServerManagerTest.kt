@@ -5,15 +5,56 @@ import com.gem16.studio.model.ServerConfig
 import com.gem16.studio.model.StudioSettings
 import com.gem16.studio.model.ThinkingEffort
 import com.gem16.studio.model.repositoryRoot
+import com.gem16.studio.model.ServerPhase
+import com.gem16.studio.service.ServerManager
 import com.gem16.studio.service.SettingsStore
 import com.gem16.studio.service.buildServerCommand
+import com.sun.net.httpserver.HttpServer
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
+import java.net.InetSocketAddress
 import java.nio.file.Files
+import java.util.concurrent.Executors
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class ServerManagerTest {
+    @Test
+    fun startAttachesBeforeValidatingLocalPaths() {
+        runBlocking {
+            val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
+            server.executor = Executors.newSingleThreadExecutor()
+            server.createContext("/health") { exchange ->
+                val body = """{"status":"ok","resident_sessions":0,"session_limit":1,"max_context_tokens":32768,"mtp_draft_tokens":2,"sampling":{"enabled":true}}"""
+                    .toByteArray()
+                exchange.sendResponseHeaders(200, body.size.toLong())
+                exchange.responseBody.use { it.write(body) }
+            }
+            server.start()
+            val manager = ServerManager()
+            try {
+                manager.start(
+                    ServerConfig(
+                        executable = "/missing/gem16-server",
+                        modelDirectory = "/missing/model",
+                        assistantModelDirectory = "/missing/assistant",
+                        port = server.address.port,
+                    ),
+                )
+                withTimeout(5_000) { manager.phase.first { it == ServerPhase.External } }
+                assertEquals("ok", manager.health.value?.status)
+                assertEquals(null, manager.error.value)
+            } finally {
+                manager.close()
+                server.stop(0)
+                (server.executor as java.util.concurrent.ExecutorService).shutdownNow()
+            }
+        }
+    }
+
     @Test
     fun defaultsResolveAgainstRepositoryInsteadOfStudioModule() {
         val config = ServerConfig()
@@ -84,7 +125,6 @@ class ServerManagerTest {
                 mtpDraftTokens = 4,
                 mtpAdaptive = true,
                 greedy = true,
-                autoStart = true,
             ),
             generation = GenerationConfig(
                 thinking = ThinkingEffort.High,

@@ -212,9 +212,6 @@ private fun ServerConfiguration(state: StudioState, phase: ServerPhase) {
                 LabeledCheckbox("Greedy", config.greedy) { checked ->
                     state.updateServer { it.copy(greedy = checked) }
                 }
-                LabeledCheckbox("Auto-start", config.autoStart) { checked ->
-                    state.updateServer { it.copy(autoStart = checked) }
-                }
             }
             Text(
                 if (config.host == "127.0.0.1" || config.host == "localhost") {

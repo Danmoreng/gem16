@@ -26,6 +26,7 @@ kotlin {
                 implementation(libs.kotlinx.coroutines.core)
                 implementation(libs.kotlinx.coroutines.swing)
                 implementation(libs.kotlinx.serialization.json)
+                implementation(libs.commonmark)
             }
         }
         val desktopTest by getting {
@@ -45,6 +46,14 @@ compose.desktop {
             packageVersion = providers.environmentVariable("APP_VERSION").orElse("0.1.0").get()
             description = "Desktop chat and server manager for gem16"
             vendor = "gem16"
+            macOS {
+                infoPlist {
+                    extraKeysRawXml = """
+                        <key>NSMicrophoneUsageDescription</key>
+                        <string>gem16 Studio records audio only when you press the microphone button.</string>
+                    """.trimIndent()
+                }
+            }
             modules(
                 "java.base",
                 "java.desktop",

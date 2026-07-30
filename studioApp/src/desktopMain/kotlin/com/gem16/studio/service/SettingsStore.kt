@@ -45,7 +45,6 @@ class SettingsStore(
                         ?: defaults.server.mtpDraftTokens,
                     mtpAdaptive = properties.bool("server.mtpAdaptive", defaults.server.mtpAdaptive),
                     greedy = properties.bool("server.greedy", defaults.server.greedy),
-                    autoStart = properties.bool("server.autoStart", defaults.server.autoStart),
                 ),
                 generation = GenerationConfig(
                     thinking = properties.getProperty("generation.thinking")
@@ -80,7 +79,6 @@ class SettingsStore(
             setProperty("server.mtpDraftTokens", settings.server.mtpDraftTokens.toString())
             setProperty("server.mtpAdaptive", settings.server.mtpAdaptive.toString())
             setProperty("server.greedy", settings.server.greedy.toString())
-            setProperty("server.autoStart", settings.server.autoStart.toString())
             setProperty("generation.thinking", settings.generation.thinking.wireValue)
             setProperty("generation.maxOutput", settings.generation.maxOutputTokens.toString())
             setProperty("generation.showReasoning", settings.generation.showReasoning.toString())

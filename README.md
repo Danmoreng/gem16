@@ -113,8 +113,9 @@ Warnings are reported normally and are not promoted to errors by default.
 
 ## Desktop application
 
-`gem16 Studio` provides a cross-platform Kotlin Compose Desktop chat window and
-starts, stops, configures, and monitors `gem16-server`. Build the CUDA engine
+`gem16 Studio` provides a cross-platform Kotlin Compose Desktop chat window with
+Markdown, image/audio attachments, microphone recording, and automatic `gem16-server` lifecycle
+management. Build the CUDA engine
 first, then launch the UI:
 
 ```bash
