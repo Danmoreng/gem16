@@ -1,5 +1,52 @@
 # Performance ledger
 
+## 2026-07-30 sampled-D2 multimodal server conversation through 128K
+
+Hypothesis: A single 262,144-position server slot should preserve an initial
+image/audio turn while incremental text grows through 128K, keep the exact
+resident cache, execute checkpoint-recommended sampling through fixed D2, and
+make prompt/decode/stream latency degradation observable at realistic depths.
+
+Implementation: The managed harness starts a fresh one-slot server with FP8 KV,
+Google's pinned assistant, fixed D2, temperature 1.0, top-k 64, and top-p 0.95.
+It sends the real `natural_scene.png` and 17.26-second `freeman.wav`, extends one
+linear Responses chain with prose, measures one warm-up plus three streamed
+turns near each context tier, and performs a final media retrieval. Per-request
+Prometheus deltas separate engine prompt and decode time; SSE timestamps expose
+first delta and MTP burst intervals. Seventeen filler requests retain their own
+large-suffix prefill evidence.
+
+Correctness: The 644-token multimodal root identifies sign `24`, creation
+stories, cultures, and the afterlife. At 131,335 input tokens the final turn
+still states `24` and explicitly confirms the afterlife. Every measured tier
+executes only D2 groups, with zero D1/D4 groups and zero ordinary fallback. The
+workload exposed and fixed delayed/multiple reasoning-channel accounting that
+previously poisoned the chain at 32K.
+
+Measured medians:
+
+| Target | Actual input | New tokens | Engine prefill | New-token prefill | First delta | Decode | MTP acceptance |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 2K | 1,788 | 69 | 58.00 ms | 1,200.98 tok/s | 129.57 ms | 54.58 tok/s | 63.7% |
+| 8K | 7,985 | 71 | 76.03 ms | 949.49 tok/s | 148.17 ms | 52.31 tok/s | 66.7% |
+| 32K | 32,508 | 70 | 121.77 ms | 579.43 tok/s | 204.67 ms | 44.58 tok/s | 71.0% |
+| 64K | 65,362 | 72 | 180.07 ms | 399.85 tok/s | 289.92 ms | 38.97 tok/s | 89.9% |
+| 128K | 130,969 | 72 | 303.48 ms | 237.24 tok/s | 465.77 ms | 27.72 tok/s | 95.0% |
+
+Accepted D2 groups publish token bursts, so pooled median SSE delta intervals
+are near zero; p95 grows from 44.90 ms at 2K to 113.27 ms at 128K and is the
+more useful interactive tail measure. Large filler chunks separately fall from
+3,832 tok/s for 2,401 new tokens around 4K total context to 733 tok/s for 34,216
+new tokens ending around 128K. These are exact incremental prefill boundaries,
+not the small-suffix row above.
+
+Resource evidence: 645 continuous samples report 13,284 MiB maximum GPU memory,
+81.52 W maximum power, 2,467 MHz maximum SM clock, and 67 C maximum temperature.
+Raw evidence is retained at
+`benchmarks/results/2026-07-30/c3b4907-worktree/blackwell16gb-linux/server-long-conversation.json`.
+This is one evolving conversation rather than ten independently reconstructed
+128K prompts; tier distributions intentionally span nearby actual contexts.
+
 ## 2026-07-30 HTTP server benchmark foundation
 
 Hypothesis: Separate complete HTTP root, resident continuation, live SSE, and

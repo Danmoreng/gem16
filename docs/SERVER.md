@@ -177,8 +177,10 @@ mismatch.
 
 `/metrics` reports request/failure/active counts, resident/limit/created/evicted
 sessions, requested/observed cancellations, client disconnects, total/cached/cache-write
-input tokens, output tokens, generation time, immutable target/assistant bytes,
-pending session creations, planned/configured/resident execution-slot bytes,
+input tokens, output tokens, generation/prompt/decode time, decode-timed tokens,
+MTP proposed/accepted/rejected tokens, verifier and D1/D2/D4 group counts,
+ordinary fallback tokens, immutable target/assistant bytes, pending session
+creations, planned/configured/resident execution-slot bytes,
 device capacity and safety margin, and the latest measured execution-slot byte
 count. Responses `completed_at` is sampled only after successful generation and
 KV-chain commit rather than copied from `created_at`.
@@ -227,3 +229,24 @@ python .\tools\benchmark_server.py `
 The harness refuses to overwrite evidence and distinguishes complete HTTP wall
 time, first streamed delta, resident cache usage, and concurrent aggregate
 throughput from core-GPU benchmark boundaries.
+
+A separate managed-server harness exercises the production-style long-session
+case: one 262,144-position FP8 slot, recommended checkpoint sampling, fixed MTP
+D2, a real image/audio root, incremental text turns, and measurements near
+2K/8K/32K/64K/128K resident context. It records engine prefill/decode time from
+per-request Prometheus deltas, streamed first-delta and burst-aware delta
+intervals, exact cache writes, MTP acceptance, continuous GPU telemetry, and a
+final retrieval check against the original media:
+
+```powershell
+python .\tools\benchmark_server_long_conversation.py `
+  --server-executable .\build\Windows\blackwell-release\bin\gem16-server.exe `
+  --model .\models\checkpoints\unsloth-gemma-4-12b-it-NVFP4-b1f6497 `
+  --assistant-model .\models\checkpoints\google-gemma-4-12B-it-assistant-364bd03 `
+  --image C:\media\scene.png --audio C:\media\speech.wav `
+  --expected-text 24 --expected-text afterlife `
+  --output benchmarks\results\<date>\<git-sha>\<machine-id>\server-long.json
+```
+
+The tool starts and stops the server itself and verifies the advertised slot,
+context, sampling, and MTP configuration before sending benchmark traffic.

@@ -195,8 +195,10 @@ The llama.cpp benchmark is deliberately before engine kernel optimization, but a
    encoder-free vision path are now implemented for one-shot, resident, and server chat,
    including GPU projection and sliding-layer bidirectional vision attention.
    Portable PNG/JPEG/BMP and WAV/FLAC/MP3 decoding is integrated. Multiple and
-   resident image/audio requests are qualified on Windows; Linux GPU media
-   qualification and sampled video frames remain follow-up work.
+   resident image/audio requests are qualified on Windows. Linux now also
+   retains a real combined PNG/WAV root through a sampled-D2 Responses chain to
+   131K input positions and retrieves both media facts at the end; sampled
+   video frames remain follow-up work.
 13. Execute the OpenAI-compatible agent-server sequence. **A1 complete:** the server-neutral request, content,
    event, response, and finish-reason types represent function definitions, tool choice, ordered tool calls and
    results, incremental text/reasoning/tool output, and multiple calls without binding the runtime to OpenAI JSON.

@@ -205,7 +205,9 @@ def stream_run(url: str, payload: dict[str, Any], timeout: float) -> dict[str, A
     )
     started = time.perf_counter()
     first_delta: float | None = None
+    delta_times: list[float] = []
     completed: dict[str, Any] | None = None
+    stream_error: dict[str, Any] | None = None
     event_counts: dict[str, int] = {}
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
@@ -222,22 +224,35 @@ def stream_run(url: str, payload: dict[str, Any], timeout: float) -> dict[str, A
                 if event_type in {
                     "response.output_text.delta",
                     "response.reasoning_text.delta",
-                } and first_delta is None:
-                    first_delta = time.perf_counter()
+                }:
+                    observed_at = time.perf_counter()
+                    delta_times.append(observed_at)
+                    if first_delta is None:
+                        first_delta = observed_at
                 if event_type == "response.completed":
                     completed = event.get("response")
+                elif event_type == "error":
+                    stream_error = event
     except urllib.error.HTTPError as error:
         detail = error.read().decode("utf-8", errors="replace")
         raise BenchmarkError(f"HTTP {error.code} from {url}: {detail}") from error
     finished = time.perf_counter()
     if completed is None:
-        raise BenchmarkError("stream ended without response.completed")
+        detail = f": {stream_error}" if stream_error is not None else ""
+        raise BenchmarkError(f"stream ended without response.completed{detail}")
     if first_delta is None:
         raise BenchmarkError("stream ended without a text or reasoning delta")
     input_tokens, output_tokens, cached_tokens, cache_write_tokens = (
         response_usage(completed)
     )
     elapsed = finished - started
+    output_text = "".join(
+        content.get("text", "")
+        for item in completed.get("output", [])
+        if item.get("type") == "message"
+        for content in item.get("content", [])
+        if content.get("type") == "output_text"
+    )
     return {
         "response_id": completed.get("id"),
         "elapsed_seconds": elapsed,
@@ -247,6 +262,10 @@ def stream_run(url: str, payload: dict[str, Any], timeout: float) -> dict[str, A
         "cached_tokens": cached_tokens,
         "cache_write_tokens": cache_write_tokens,
         "output_tokens_per_second": output_tokens / elapsed if elapsed else 0.0,
+        "delta_interval_seconds": [
+            right - left for left, right in zip(delta_times, delta_times[1:])
+        ],
+        "output_text": output_text,
         "event_counts": event_counts,
     }
 
@@ -284,6 +303,14 @@ def summarize(runs: list[dict[str, Any]]) -> dict[str, Any]:
         summary["time_to_first_delta_seconds"] = distribution(
             [float(run["time_to_first_delta_seconds"]) for run in runs]
         )
+    if "delta_interval_seconds" in runs[0]:
+        intervals = [
+            float(interval)
+            for run in runs
+            for interval in run["delta_interval_seconds"]
+        ]
+        if intervals:
+            summary["delta_interval_seconds"] = distribution(intervals)
     if "aggregate_output_tokens_per_second" in runs[0]:
         summary["aggregate_output_tokens_per_second"] = distribution(
             [float(run["aggregate_output_tokens_per_second"]) for run in runs]

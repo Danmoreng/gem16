@@ -68,6 +68,34 @@ with `gem16-bench` core-GPU throughput: root timing includes admission and slot
 construction, streaming TTFT includes HTTP scheduling and prompt processing,
 and the concurrent result measures contention between isolated execution slots.
 
+### Long multimodal resident conversation
+
+`tools/benchmark_server_long_conversation.py` owns a fresh server process and
+refuses to run unless `/health` confirms exactly one slot, a 262,144-position
+plan, checkpoint-recommended sampling (`temperature=1`, `top_k=64`,
+`top_p=0.95`), FP8 KV, and fixed D2 rather than adaptive MTP. The root turn sends
+one real image and audio recording. Later text-only turns extend that same
+Responses chain toward 2K, 8K, 32K, 64K, and 128K actual input positions; no
+prompt-cache reset or reconstructed root is used.
+
+At each depth, one default warm-up and three streamed measured turns add a small
+new prompt probe. The report separates:
+
+- engine prompt milliseconds and new cache-write tokens/s;
+- HTTP time to the first reasoning/text delta;
+- engine decode milliseconds and target-verified output tokens/s;
+- streamed delta-interval p50/p95/p99, where near-zero intervals expose tokens
+  published together by an accepted MTP group;
+- MTP proposal, acceptance, rejection, group, and fallback counters;
+- actual rather than nominal context depth and cache hit/write counts;
+- complete-run power, clocks, thermals, and VRAM;
+- initial multimodal recognition and final 128K media-retrieval output.
+
+Filler turns are part of the same conversation and now also retain their exact
+bulk-prefill time and throughput. They are not mixed into the small-suffix
+checkpoint distribution. This distinction avoids presenting a 70-token cached
+continuation as large-batch prompt throughput.
+
 Future results must use the matrices, timing boundaries, repetition policy, quality gates, and three llama.cpp
 baseline labels defined in `AGENTS.md`. Raw runs will be written below
 `benchmarks/results/<date>/<git-sha>/<machine-id>/` and never overwritten. Throughput speedup and latency reduction
