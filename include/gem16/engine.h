@@ -20,6 +20,13 @@ enum class KvCacheMode {
   kBf16Correctness,
 };
 
+struct DeviceMemoryInfo {
+  std::uint64_t free_bytes = 0U;
+  std::uint64_t total_bytes = 0U;
+};
+
+[[nodiscard]] Result<DeviceMemoryInfo> QueryDeviceMemoryInfo();
+
 using GeneratedTokenCallback = Status (*)(void* context,
                                           std::uint32_t token_id);
 
@@ -204,6 +211,7 @@ class ConversationSession {
       std::span<const AudioEmbeddingSegment> audio_segments = {},
       std::span<const VisionEmbeddingSegment> vision_segments = {});
   [[nodiscard]] std::uint64_t cached_token_count() const;
+  [[nodiscard]] std::uint64_t reserved_device_bytes() const;
   [[nodiscard]] bool is_poisoned() const;
 
  private:

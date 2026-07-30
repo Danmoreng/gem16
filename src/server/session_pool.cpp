@@ -4,16 +4,15 @@
 #include <chrono>
 #include <utility>
 
-namespace gem16::server {
-namespace {
+#include "server/secure_id.h"
 
-std::int64_t UnixSeconds() {
+namespace gem16::server {
+
+std::int64_t UnixSecondsNow() {
   return std::chrono::duration_cast<std::chrono::seconds>(
              std::chrono::system_clock::now().time_since_epoch())
       .count();
 }
-
-}  // namespace
 
 ServerState::ServerState(std::string served_model_name,
                          std::uint64_t context_limit,
@@ -28,17 +27,19 @@ ServerState::ServerState(std::string served_model_name,
       session_options(std::move(chat_session_options)),
       max_sessions(session_limit) {}
 
-gem16::server::OpenAiResponseIdentity MakeChatIdentity(ServerState& state) {
-  return {"chatcmpl-gem16-" +
-              std::to_string(state.response_counter.fetch_add(1U)),
-          state.model_name, UnixSeconds()};
+Result<OpenAiResponseIdentity> MakeChatIdentity(const ServerState& state) {
+  auto id = MakeSecureId("chatcmpl-gem16-");
+  if (!id.ok()) return id.status();
+  return OpenAiResponseIdentity{std::move(id).value(), state.model_name,
+                                UnixSecondsNow(), std::nullopt};
 }
 
-gem16::server::OpenAiResponseIdentity MakeResponsesIdentity(
-    ServerState& state) {
-  return {"resp_gem16_" +
-              std::to_string(state.response_counter.fetch_add(1U)),
-          state.model_name, UnixSeconds()};
+Result<OpenAiResponseIdentity> MakeResponsesIdentity(
+    const ServerState& state) {
+  auto id = MakeSecureId("resp_gem16_");
+  if (!id.ok()) return id.status();
+  return OpenAiResponseIdentity{std::move(id).value(), state.model_name,
+                                UnixSecondsNow(), std::nullopt};
 }
 
 void EraseSessionLocked(ServerState& state, const std::string& id) {
@@ -346,6 +347,16 @@ std::string MetricsText(ServerState& state) {
                        state.runtime->weight_bytes()));
   output.append(metric("gem16_assistant_weight_bytes",
                        state.runtime->assistant_weight_bytes()));
+  output.append(metric("gem16_execution_slot_planned_bytes",
+                       state.planned_slot_device_bytes));
+  output.append(metric("gem16_configured_execution_slot_bytes",
+                       state.configured_slot_device_bytes));
+  output.append(metric("gem16_resident_execution_slot_bytes",
+                       static_cast<std::uint64_t>(resident_sessions) *
+                           state.planned_slot_device_bytes));
+  output.append(metric("gem16_device_total_bytes", state.device_total_bytes));
+  output.append(metric("gem16_device_safety_margin_bytes",
+                       state.device_safety_margin_bytes));
   output.append(metric("gem16_last_execution_slot_bytes",
                        state.metrics.last_slot_bytes.load()));
   return output;

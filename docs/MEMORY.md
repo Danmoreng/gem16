@@ -116,8 +116,14 @@ upload, or persistent repack. Multiple simultaneous slots therefore scale with
 their context plans, not with model-weight size.
 
 The bounded server scheduler makes that scaling an explicit admission policy:
-`--max-sessions` is the maximum number of resident mutable slots. It never
-evicts an active slot and returns resource exhaustion if all slots are busy.
+`--max-sessions` is the maximum number of resident mutable slots. Before
+listening, the server creates one temporary slot and selects the larger of its
+named allocator accounting and observed `cudaMemGetInfo` delta. The full
+configured slot count must fit in currently free VRAM with one probe resident
+and leave at least 700 MiB unused; otherwise startup fails. The probe is then
+released. Runtime metrics export planned, configured, and resident slot bytes,
+device capacity, and the enforced margin. Admission never evicts an active slot
+and returns resource exhaustion if all slots are busy.
 In the Windows A11 gate with FP8 KV, context 1,024, target plus MTP assistant,
 the shared runtime reported 9,304,895,488 target bytes and 845,714,944 assistant
 bytes; each most-recent execution slot reported 877,867,520 bytes. Two slots

@@ -1028,8 +1028,9 @@ std::string ResponseShellJson(const OpenAiResponseIdentity& identity,
                        ",\"object\":\"response\",\"created_at\":" +
                        std::to_string(identity.created) + ",\"status\":" +
                        json::Quote(status) + ",\"completed_at\":";
-  output.append(status == "in_progress" ? "null"
-                                          : std::to_string(identity.created));
+  output.append(status == "in_progress" || !identity.completed.has_value()
+                    ? "null"
+                    : std::to_string(*identity.completed));
   output.append(",\"error\":null,\"incomplete_details\":");
   output.append(incomplete ? "{\"reason\":\"max_output_tokens\"}" : "null");
   output.append(",\"instructions\":");

@@ -17,8 +17,12 @@ path as resident chat. The server has no authentication or TLS layer; bind to
 loopback unless a trusted reverse proxy supplies those controls.
 
 Startup creates one `ModelRuntime` and logs its target/assistant weight bytes
-and load time. Sessions are created on demand. Each receives an isolated
-`SessionState` plus `ExecutionSlot` while sharing the immutable runtime.
+and load time. It constructs one temporary execution-slot probe, measures the
+larger of allocator accounting and observed VRAM delta, and rejects a
+`--max-sessions`/`--max-context` combination that cannot retain every configured
+slot plus a 700 MiB safety margin. The probe is released before listening.
+Sessions are then created on demand. Each receives an isolated `SessionState`
+plus `ExecutionSlot` while sharing the immutable runtime.
 `--max-sessions` bounds resident slots; inactive least-recently-used sessions
 are evicted when the limit is reached, while active sessions are never evicted.
 Admission reserves capacity under the pool mutex, constructs the CUDA execution
@@ -150,7 +154,9 @@ introduced in the successful token loop.
 Responses sessions are addressed by `previous_response_id`. Chat Completions
 uses `X-Gem16-Session-Id`: omit it to create a session and read the generated ID
 from the response header; send it on later requests to reuse the same resident
-conversation. A session is single-flight and rejects a second concurrent
+conversation. Server-generated chat-completion, response, and session handles
+contain 128 bits from the operating system cryptographic random generator; they
+are opaque and must not be inferred from creation order. A session is single-flight and rejects a second concurrent
 request with HTTP 503, while distinct sessions can run concurrently. Request-validation
 or unsupported-option errors leave an unchanged resident cache available for a
 corrected retry; only state-mutating inference, cancellation, or streaming failures
@@ -172,7 +178,10 @@ mismatch.
 `/metrics` reports request/failure/active counts, resident/limit/created/evicted
 sessions, requested/observed cancellations, client disconnects, total/cached/cache-write
 input tokens, output tokens, generation time, immutable target/assistant bytes,
-and the latest execution-slot byte count.
+pending session creations, planned/configured/resident execution-slot bytes,
+device capacity and safety margin, and the latest measured execution-slot byte
+count. Responses `completed_at` is sampled only after successful generation and
+KV-chain commit rather than copied from `created_at`.
 
 ## Official OpenAI SDK qualification
 

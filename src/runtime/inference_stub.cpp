@@ -2,6 +2,11 @@
 
 namespace gem16 {
 
+Result<DeviceMemoryInfo> QueryDeviceMemoryInfo() {
+  return Status(StatusCode::kUnsupported,
+                "device memory queries require a CUDA build compiled for SM120a");
+}
+
 struct ModelRuntime::Impl {};
 ModelRuntime::ModelRuntime(std::unique_ptr<Impl> impl)
     : impl_(std::move(impl)) {}
@@ -48,6 +53,8 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
 }
 
 std::uint64_t ConversationSession::cached_token_count() const { return 0U; }
+
+std::uint64_t ConversationSession::reserved_device_bytes() const { return 0U; }
 
 bool ConversationSession::is_poisoned() const { return true; }
 

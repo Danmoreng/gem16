@@ -68,6 +68,10 @@ struct ServerState {
   std::shared_ptr<ModelRuntime> runtime;
   ChatSessionOptions session_options;
   std::uint32_t max_sessions = 2U;
+  std::uint64_t planned_slot_device_bytes = 0U;
+  std::uint64_t configured_slot_device_bytes = 0U;
+  std::uint64_t device_total_bytes = 0U;
+  std::uint64_t device_safety_margin_bytes = 0U;
   std::mutex pool_mutex;
   std::unordered_map<std::string, std::shared_ptr<SessionEntry>> sessions;
   std::unordered_map<std::string, std::weak_ptr<SessionEntry>> response_index;
@@ -75,8 +79,6 @@ struct ServerState {
   // pool_mutex. Pending IDs reserve capacity and prevent duplicate creation
   // while that work is in progress.
   std::unordered_set<std::string> pending_sessions;
-  std::atomic<std::uint64_t> response_counter{1U};
-  std::atomic<std::uint64_t> session_counter{1U};
   std::atomic<std::uint64_t> lru_clock{1U};
   ServerMetrics metrics;
 };
@@ -97,8 +99,11 @@ class SessionLease {
   bool discard_ = false;
 };
 
-[[nodiscard]] OpenAiResponseIdentity MakeChatIdentity(ServerState& state);
-[[nodiscard]] OpenAiResponseIdentity MakeResponsesIdentity(ServerState& state);
+[[nodiscard]] std::int64_t UnixSecondsNow();
+[[nodiscard]] Result<OpenAiResponseIdentity> MakeChatIdentity(
+    const ServerState& state);
+[[nodiscard]] Result<OpenAiResponseIdentity> MakeResponsesIdentity(
+    const ServerState& state);
 [[nodiscard]] Result<std::shared_ptr<SessionEntry>> CreateSession(
     ServerState& state, std::string id);
 [[nodiscard]] Result<std::shared_ptr<SessionEntry>> AcquireNamedSession(

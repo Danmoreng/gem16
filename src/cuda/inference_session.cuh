@@ -2,6 +2,15 @@
 // It intentionally remains in the same CUDA translation unit so engine-private
 // orchestration and kernel generation are unchanged.
 
+Result<DeviceMemoryInfo> QueryDeviceMemoryInfo() {
+  std::size_t free_bytes = 0U;
+  std::size_t total_bytes = 0U;
+  const cudaError_t error = cudaMemGetInfo(&free_bytes, &total_bytes);
+  if (error != cudaSuccess) return CudaFailure("cudaMemGetInfo", error);
+  return DeviceMemoryInfo{static_cast<std::uint64_t>(free_bytes),
+                          static_cast<std::uint64_t>(total_bytes)};
+}
+
 struct ModelRuntime::Impl {
   internal::LoadedTargetModel model;
   internal::AssistantModel assistant;
@@ -712,6 +721,13 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
 
 std::uint64_t ConversationSession::cached_token_count() const {
   return impl_ == nullptr ? 0U : impl_->cached_token_ids.size();
+}
+
+std::uint64_t ConversationSession::reserved_device_bytes() const {
+  if (impl_ == nullptr) return 0U;
+  return impl_->engine.cache_bytes() + impl_->engine.workspace_bytes() +
+         impl_->engine.assistant_workspace_bytes() +
+         impl_->engine.decode_graph_device_bytes();
 }
 
 bool ConversationSession::is_poisoned() const {

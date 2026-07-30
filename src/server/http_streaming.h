@@ -57,7 +57,7 @@ class ResponsesStream {
       ChatSession& session, const ChatGenerationRequest& request);
   [[nodiscard]] bool WriteFinalEvents(
       const OpenAiResponsesRequest& request,
-      const ChatGenerationResponse& response);
+      const ChatGenerationResponse& response, std::int64_t completed_at);
   [[nodiscard]] std::uint64_t sequence() const;
 
  private:

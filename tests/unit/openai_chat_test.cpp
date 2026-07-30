@@ -1,11 +1,13 @@
 #include "test.h"
 
+#include <algorithm>
 #include <charconv>
 #include <span>
 #include <string>
 #include <vector>
 
 #include "server/openai_chat.h"
+#include "server/secure_id.h"
 #include "runtime/chat_internal.h"
 #include "server/sse_chunk.h"
 #include "util/json.h"
@@ -70,6 +72,22 @@ std::vector<std::uint8_t> TinyWav() {
 }  // namespace
 
 void RunOpenAiChatTests() {
+  auto secure_id_a = gem16::server::MakeSecureId("resp_test_");
+  auto secure_id_b = gem16::server::MakeSecureId("resp_test_");
+  GEM16_CHECK(secure_id_a.ok());
+  GEM16_CHECK(secure_id_b.ok());
+  if (secure_id_a.ok() && secure_id_b.ok()) {
+    GEM16_CHECK(secure_id_a.value().size() == 42U);
+    GEM16_CHECK(secure_id_a.value().starts_with("resp_test_"));
+    GEM16_CHECK(secure_id_a.value() != secure_id_b.value());
+    GEM16_CHECK(std::all_of(
+        secure_id_a.value().begin() + 10, secure_id_a.value().end(),
+        [](char value) {
+          return (value >= '0' && value <= '9') ||
+                 (value >= 'a' && value <= 'f');
+        }));
+  }
+
   gem16::server::SseChunkBuilder fixed_chunk(128U);
   fixed_chunk.Reset();
   GEM16_CHECK(fixed_chunk.Append("{\"text\":"));
@@ -237,7 +255,7 @@ void RunOpenAiChatTests() {
   generated.inference.prompt_cached_tokens = 2U;
   generated.inference.prompt_cache_write_tokens = 1U;
   const gem16::server::OpenAiResponseIdentity identity{
-      "chatcmpl-test", "gem16", 123};
+      "chatcmpl-test", "gem16", 123, std::nullopt};
   const std::string response =
       gem16::server::ChatCompletionJson(identity, generated);
   auto parsed_response = gem16::json::Parse(response);
@@ -316,7 +334,7 @@ void RunOpenAiChatTests() {
       {"get_weather", "Get weather", R"({"type":"object"})", true});
   response_request.generation.max_generated_tokens = 64U;
   const gem16::server::OpenAiResponseIdentity response_identity{
-      "resp_test", "gem16", 123};
+      "resp_test", "gem16", 123, 456};
   generated.reasoning_text = "Inspect the requested location.";
   generated.inference.reasoning_tokens = 4U;
   const std::string response_json = gem16::server::ResponseJson(
@@ -326,6 +344,10 @@ void RunOpenAiChatTests() {
   if (parsed_responses.ok()) {
     GEM16_CHECK(parsed_responses.value().find("object")->as_string() ==
                 "response");
+    GEM16_CHECK(parsed_responses.value().find("created_at")->as_integer() ==
+                123);
+    GEM16_CHECK(parsed_responses.value().find("completed_at")->as_integer() ==
+                456);
     GEM16_CHECK(parsed_responses.value().find("output")->as_array().size() ==
                 3U);
     GEM16_CHECK(parsed_responses.value()

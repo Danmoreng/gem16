@@ -907,7 +907,8 @@ Result<ChatGenerationResponse> ResponsesStream::Generate(
 
 bool ResponsesStream::WriteFinalEvents(
     const OpenAiResponsesRequest& request,
-    const ChatGenerationResponse& response) {
+    const ChatGenerationResponse& response, std::int64_t completed_at) {
+  impl_->context.identity.completed = completed_at;
   return WriteResponsesFinalEvents(*impl_->context.sink,
                                    impl_->context.identity, request, response,
                                    impl_->context);

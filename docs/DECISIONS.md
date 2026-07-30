@@ -1,5 +1,35 @@
 # Decisions
 
+## 2026-07-30: Admit server slots from measured VRAM and use opaque IDs
+
+Date: 2026-07-30
+
+Decision: Before listening, construct one temporary execution slot for the
+configured context and precision, take the larger of named slot accounting and
+the observed device-memory delta, and admit `--max-sessions` only when all slots
+fit with a 700 MiB device safety margin. Generate chat-completion, Responses,
+and implicit session IDs from 128 bits of operating-system cryptographic
+randomness. Record Responses completion time after successful generation and KV
+commit.
+
+Context: A count-only pool limit can accept a context/session combination that
+cannot fit the 16 GB product budget. Counter IDs expose resident conversation
+handles through creation order. Copying `created_at` into `completed_at` hides
+actual response lifetime.
+
+Alternatives: Rely on the first runtime OOM; maintain a static per-context byte
+table; retain process counters; or leave completion timestamps approximate.
+
+Consequences: Startup performs and releases one full slot initialization before
+opening the port. This adds visible startup latency but verifies the exact graph,
+workspace, cache, and allocator behavior of the current binary. Unsafe
+configurations fail before serving traffic. IDs are no longer reproducible, so
+tests validate shape and linkage rather than literal values.
+
+Evidence: Host ID/serialization tests, CUDA startup admission at two 2K slots,
+explicit rejection of 64 slots, complete host/CUDA suites, and official SDK
+Responses/scheduler gates.
+
 ## 2026-07-30: Keep the local OpenAI subset strict, observable, and cache-safe
 
 Date: 2026-07-30

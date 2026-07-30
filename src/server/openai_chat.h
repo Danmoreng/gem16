@@ -21,6 +21,7 @@ struct OpenAiResponseIdentity {
   std::string id;
   std::string model;
   std::int64_t created = 0;
+  std::optional<std::int64_t> completed;
 };
 
 struct OpenAiChatAdapterOptions {

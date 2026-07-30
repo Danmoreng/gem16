@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import time
 
 import openai
@@ -87,6 +88,12 @@ def main() -> int:
             event_types.append(event.type)
         first = stream.get_final_response()
 
+    for response in (live_response, first):
+        if not re.fullmatch(r"resp_gem16_[0-9a-f]{32}", response.id):
+            raise RuntimeError(f"response ID is not an opaque 128-bit handle: {response.id}")
+        if response.completed_at is None or response.completed_at < response.created_at:
+            raise RuntimeError("response completion timestamp is missing or precedes creation")
+
     calls = [item for item in first.output if item.type == "function_call"]
     if len(calls) != 1:
         raise RuntimeError(f"expected one function call, got {len(calls)}")
@@ -115,6 +122,10 @@ def main() -> int:
         for event in stream:
             continuation_event_types.append(event.type)
         final = stream.get_final_response()
+    if not re.fullmatch(r"resp_gem16_[0-9a-f]{32}", final.id):
+        raise RuntimeError(f"continuation ID is not an opaque 128-bit handle: {final.id}")
+    if final.completed_at is None or final.completed_at < final.created_at:
+        raise RuntimeError("continuation completion timestamp is invalid")
     if "response.completed" not in continuation_event_types:
         raise RuntimeError("streamed tool continuation did not complete")
     if "25" not in final.output_text and "sun" not in final.output_text.lower():

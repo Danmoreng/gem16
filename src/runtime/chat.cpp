@@ -571,6 +571,10 @@ std::uint64_t ChatSession::cached_token_count() const {
   return impl_ == nullptr ? 0U : impl_->session.cached_token_count();
 }
 
+std::uint64_t ChatSession::reserved_device_bytes() const {
+  return impl_ == nullptr ? 0U : impl_->session.reserved_device_bytes();
+}
+
 bool ChatSession::is_poisoned() const {
   return impl_ == nullptr || impl_->poisoned || impl_->session.is_poisoned();
 }

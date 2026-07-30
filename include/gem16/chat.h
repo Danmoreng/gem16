@@ -230,6 +230,7 @@ class ChatSession {
       GenerationEventCallback callback = nullptr,
       void* callback_context = nullptr);
   [[nodiscard]] std::uint64_t cached_token_count() const;
+  [[nodiscard]] std::uint64_t reserved_device_bytes() const;
   [[nodiscard]] bool is_poisoned() const;
 
  private:

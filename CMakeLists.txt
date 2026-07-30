@@ -71,6 +71,7 @@ gem16_enable_sanitizers(gem16_core)
 add_library(gem16_server_support STATIC
   src/server/http_streaming.cpp
   src/server/openai_chat.cpp
+  src/server/secure_id.cpp
   src/server/session_pool.cpp
 )
 target_include_directories(gem16_server_support
@@ -80,6 +81,9 @@ target_include_directories(gem16_server_support SYSTEM PUBLIC
   "${CMAKE_CURRENT_SOURCE_DIR}/third_party/cpp-httplib"
 )
 target_link_libraries(gem16_server_support PUBLIC gem16_core)
+if(WIN32)
+  target_link_libraries(gem16_server_support PRIVATE bcrypt)
+endif()
 gem16_set_project_warnings(gem16_server_support)
 gem16_enable_sanitizers(gem16_server_support)
 if(GEM16_ENABLE_CUDA)

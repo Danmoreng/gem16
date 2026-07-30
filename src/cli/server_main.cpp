@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -20,6 +21,7 @@
 #include "gem16/tokenizer.h"
 #include "server/http_streaming.h"
 #include "server/openai_chat.h"
+#include "server/secure_id.h"
 #include "server/session_pool.h"
 #include "util/json.h"
 
@@ -45,6 +47,15 @@ using gem16::server::SessionLease;
 using gem16::server::SetActiveResponse;
 using gem16::server::UnindexResponse;
 using gem16::server::WriteSse;
+
+constexpr std::uint64_t kServerVramSafetyBytes =
+    700U * 1024U * 1024U;
+
+struct SlotMemoryPlan {
+  std::uint64_t slot_bytes = 0U;
+  std::uint64_t configured_slot_bytes = 0U;
+  gem16::DeviceMemoryInfo device;
+};
 
 struct Options {
   std::filesystem::path model_directory;
@@ -233,12 +244,23 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
              response);
     return;
   }
-  const gem16::server::OpenAiResponseIdentity identity =
-      MakeChatIdentity(state);
+  auto identity_result = MakeChatIdentity(state);
+  if (!identity_result.ok()) {
+    state.metrics.requests_failed.fetch_add(1U);
+    SetError(identity_result.status(), response);
+    return;
+  }
+  gem16::server::OpenAiResponseIdentity identity =
+      std::move(identity_result).value();
   std::string session_id = request.get_header_value("X-Gem16-Session-Id");
   if (session_id.empty()) {
-    session_id = "session_" +
-                 std::to_string(state.session_counter.fetch_add(1U));
+    auto generated_id = gem16::server::MakeSecureId("session_");
+    if (!generated_id.ok()) {
+      state.metrics.requests_failed.fetch_add(1U);
+      SetError(generated_id.status(), response);
+      return;
+    }
+    session_id = std::move(generated_id).value();
   }
   if (session_id.size() > 128U ||
       !std::all_of(session_id.begin(), session_id.end(), [](char value) {
@@ -379,8 +401,14 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
              response);
     return;
   }
-  const gem16::server::OpenAiResponseIdentity identity =
-      MakeResponsesIdentity(state);
+  auto identity_result = MakeResponsesIdentity(state);
+  if (!identity_result.ok()) {
+    state.metrics.requests_failed.fetch_add(1U);
+    SetError(identity_result.status(), response);
+    return;
+  }
+  gem16::server::OpenAiResponseIdentity identity =
+      std::move(identity_result).value();
   gem16::Result<std::shared_ptr<SessionEntry>> acquired =
       parsed.value().previous_response_id.has_value()
           ? AcquireResponseSession(state,
@@ -421,6 +449,7 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
                      std::chrono::steady_clock::now() - generation_start);
     CommitResponsesRequest(*entry, parsed.value(), generated.value(),
                            identity.id);
+    identity.completed = gem16::server::UnixSecondsNow();
     response.set_content(
         gem16::server::ResponseJson(identity, parsed.value(),
                                     generated.value()),
@@ -535,10 +564,56 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
         // final-chunk write failure must not discard an otherwise safe chain.
         provider->keep_response_index.store(true, std::memory_order_release);
         provider->lease->Keep();
-        const bool written =
-            stream.WriteFinalEvents(provider->request, generated.value());
+        const bool written = stream.WriteFinalEvents(
+            provider->request, generated.value(),
+            gem16::server::UnixSecondsNow());
         return written && FinishSse(sink);
       });
+}
+
+gem16::Result<SlotMemoryPlan> PlanServerSlots(
+    const std::shared_ptr<gem16::ModelRuntime>& runtime,
+    const gem16::ChatSessionOptions& options,
+    const gem16::GemmaChatProcessor& processor,
+    std::uint32_t max_sessions) {
+  auto before = gem16::QueryDeviceMemoryInfo();
+  if (!before.ok()) return before.status();
+
+  std::uint64_t reported_slot_bytes = 0U;
+  gem16::DeviceMemoryInfo after;
+  {
+    auto probe = gem16::ChatSession::Create(runtime, options, processor);
+    if (!probe.ok()) return probe.status();
+    reported_slot_bytes = probe.value().reserved_device_bytes();
+    auto measured = gem16::QueryDeviceMemoryInfo();
+    if (!measured.ok()) return measured.status();
+    after = measured.value();
+  }
+  const std::uint64_t measured_delta =
+      before.value().free_bytes > after.free_bytes
+          ? before.value().free_bytes - after.free_bytes
+          : 0U;
+  const std::uint64_t slot_bytes =
+      std::max(reported_slot_bytes, measured_delta);
+  if (slot_bytes == 0U) {
+    return gem16::Status(gem16::StatusCode::kInternal,
+                         "execution-slot memory probe reported zero bytes");
+  }
+  if (slot_bytes >
+      std::numeric_limits<std::uint64_t>::max() / max_sessions) {
+    return gem16::Status(gem16::StatusCode::kResourceExhausted,
+                         "configured execution-slot memory overflows accounting");
+  }
+  const std::uint64_t additional_slots = max_sessions - 1U;
+  if (after.free_bytes < kServerVramSafetyBytes ||
+      additional_slots >
+          (after.free_bytes - kServerVramSafetyBytes) / slot_bytes) {
+    return gem16::Status(
+        gem16::StatusCode::kResourceExhausted,
+        "--max-sessions and --max-context exceed VRAM after the required "
+        "700 MiB safety margin");
+  }
+  return SlotMemoryPlan{slot_bytes, slot_bytes * max_sessions, after};
 }
 
 void HandleCancelResponse(ServerState& state, std::string_view response_id,
@@ -609,9 +684,28 @@ int ServerMain(int argc, char** argv) {
             << " assistant_weights="
             << runtime.value()->assistant_weight_bytes()
             << " load_ms=" << runtime.value()->load_milliseconds() << '\n';
+  auto slot_plan = PlanServerSlots(
+      runtime.value(), session_options, processor.value(),
+      options.value().max_sessions);
+  if (!slot_plan.ok()) {
+    std::cerr << "error: server memory admission failed: "
+              << slot_plan.status().message() << '\n';
+    return 2;
+  }
+  std::cout << "execution_slot planned_bytes=" << slot_plan.value().slot_bytes
+            << " configured_bytes="
+            << slot_plan.value().configured_slot_bytes
+            << " device_total_bytes=" << slot_plan.value().device.total_bytes
+            << " free_with_probe_bytes=" << slot_plan.value().device.free_bytes
+            << " safety_margin_bytes=" << kServerVramSafetyBytes << '\n';
   ServerState state(options.value().model_name, options.value().max_context,
                     std::move(processor).value(), runtime.value(),
                     session_options, options.value().max_sessions);
+  state.planned_slot_device_bytes = slot_plan.value().slot_bytes;
+  state.configured_slot_device_bytes =
+      slot_plan.value().configured_slot_bytes;
+  state.device_total_bytes = slot_plan.value().device.total_bytes;
+  state.device_safety_margin_bytes = kServerVramSafetyBytes;
   httplib::Server server;
   server.Get("/health",
              [&state](const httplib::Request&, httplib::Response& response) {
