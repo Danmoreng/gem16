@@ -3,7 +3,9 @@ package com.gem16.studio.service
 import com.gem16.studio.model.ChatMessage
 import com.gem16.studio.model.GenerationConfig
 import com.gem16.studio.model.MediaKind
+import com.gem16.studio.model.PerformanceStats
 import com.gem16.studio.model.ServerConfig
+import com.gem16.studio.model.StreamPerformanceStats
 import com.gem16.studio.model.Usage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -40,6 +42,15 @@ data class ChatStreamResult(
     val sessionId: String?,
     val usage: Usage?,
     val finishReason: String?,
+    val performance: PerformanceStats?,
+)
+
+private data class ServerMetrics(
+    val inputTokens: Double,
+    val cacheWriteTokens: Double,
+    val promptMicroseconds: Double,
+    val decodeMicroseconds: Double,
+    val decodeMeasuredTokens: Double,
 )
 
 class Gem16ApiClient {
@@ -55,8 +66,31 @@ class Gem16ApiClient {
         generation: GenerationConfig,
         messages: List<ChatMessage>,
         sessionId: String?,
+        onProgress: suspend (StreamPerformanceStats) -> Unit = {},
         onDelta: suspend (ChatDelta) -> Unit,
     ): ChatStreamResult = withContext(Dispatchers.IO) {
+        val metricsBefore = fetchMetrics(server)
+        val requestStartedNanos = System.nanoTime()
+        var firstTokenNanos: Long? = null
+        var emittedTokens = 0L
+        suspend fun reportProgress() {
+            val now = System.nanoTime()
+            val first = firstTokenNanos ?: now.also { firstTokenNanos = it }
+            emittedTokens += 1L
+            val decodeNanos = now - first
+            onProgress(
+                StreamPerformanceStats(
+                    emittedTokens = emittedTokens,
+                    tokensPerSecond = if (emittedTokens > 1L && decodeNanos > 0L) {
+                        (emittedTokens - 1L) * 1_000_000_000.0 / decodeNanos
+                    } else {
+                        null
+                    },
+                    firstTokenMilliseconds = (first - requestStartedNanos) / 1_000_000.0,
+                    elapsedMilliseconds = (now - requestStartedNanos) / 1_000_000.0,
+                ),
+            )
+        }
         val payload = requestPayload(server, generation, messages)
         val builder = HttpRequest.newBuilder(URI.create("${server.baseUrl}/chat/completions"))
             .header("Content-Type", "application/json")
@@ -87,10 +121,16 @@ class Gem16ApiClient {
                     val delta = choice["delta"]?.jsonObject ?: continue
                     delta["reasoning_content"]?.jsonPrimitive?.contentOrNull
                         ?.takeIf(String::isNotEmpty)
-                        ?.let { onDelta(ChatDelta.Reasoning(it)) }
+                        ?.let {
+                            reportProgress()
+                            onDelta(ChatDelta.Reasoning(it))
+                        }
                     delta["content"]?.jsonPrimitive?.contentOrNull
                         ?.takeIf(String::isNotEmpty)
-                        ?.let { onDelta(ChatDelta.Text(it)) }
+                        ?.let {
+                            reportProgress()
+                            onDelta(ChatDelta.Text(it))
+                        }
                 }
             }
         } finally {
@@ -98,10 +138,14 @@ class Gem16ApiClient {
             runCatching { stream.close() }
         }
         onDelta(ChatDelta.Finished(finishReason, usage))
+        val performance = metricsBefore?.let { before ->
+            fetchMetrics(server)?.let { after -> performanceDifference(before, after) }
+        }
         ChatStreamResult(
             sessionId = response.headers().firstValue("X-Gem16-Session-Id").orElse(sessionId),
             usage = usage,
             finishReason = finishReason,
+            performance = performance,
         )
     }
 
@@ -171,8 +215,57 @@ class Gem16ApiClient {
         return Usage(prompt, completion, total)
     }
 
+    private fun fetchMetrics(server: ServerConfig): ServerMetrics? = runCatching {
+        val request = HttpRequest.newBuilder(URI.create("http://${server.clientHost}:${server.port}/metrics"))
+            .timeout(Duration.ofSeconds(3))
+            .GET()
+            .build()
+        val response = http.send(request, HttpResponse.BodyHandlers.ofString())
+        if (response.statusCode() !in 200..299) return@runCatching null
+        parseServerMetrics(response.body())
+    }.getOrNull()
+
     private fun errorMessage(body: String): String = runCatching {
         json.parseToJsonElement(body).jsonObject["error"]?.jsonObject
             ?.get("message")?.jsonPrimitive?.contentOrNull
     }.getOrNull() ?: body.take(500)
+}
+
+private fun parseServerMetrics(body: String): ServerMetrics? {
+    val values = body.lineSequence().mapNotNull { line ->
+        val clean = line.trim()
+        if (clean.isEmpty() || clean.startsWith('#')) return@mapNotNull null
+        val separator = clean.indexOfAny(charArrayOf(' ', '\t'))
+        if (separator <= 0) return@mapNotNull null
+        val name = clean.substring(0, separator)
+        val value = clean.substring(separator).trim().toDoubleOrNull() ?: return@mapNotNull null
+        name to value
+    }.toMap()
+    fun metric(name: String): Double? = values[name]
+    return ServerMetrics(
+        inputTokens = metric("gem16_input_tokens_total") ?: return null,
+        cacheWriteTokens = metric("gem16_cache_write_tokens_total") ?: return null,
+        promptMicroseconds = metric("gem16_prompt_microseconds_total") ?: return null,
+        decodeMicroseconds = metric("gem16_decode_microseconds_total") ?: return null,
+        decodeMeasuredTokens = metric("gem16_decode_measured_tokens_total") ?: return null,
+    )
+}
+
+private fun performanceDifference(before: ServerMetrics, after: ServerMetrics): PerformanceStats? {
+    val promptMicros = after.promptMicroseconds - before.promptMicroseconds
+    val decodeMicros = after.decodeMicroseconds - before.decodeMicroseconds
+    val inputTokens = after.inputTokens - before.inputTokens
+    val cacheWriteTokens = after.cacheWriteTokens - before.cacheWriteTokens
+    val decodeTokens = after.decodeMeasuredTokens - before.decodeMeasuredTokens
+    if (promptMicros < 0.0 || decodeMicros <= 0.0 || inputTokens < 0.0 || decodeTokens < 0.0) return null
+    return PerformanceStats(
+        decodeTokensPerSecond = decodeTokens * 1_000_000.0 / decodeMicros,
+        prefillTokensPerSecond = if (promptMicros > 0.0) {
+            cacheWriteTokens * 1_000_000.0 / promptMicros
+        } else {
+            0.0
+        },
+        prefillMilliseconds = promptMicros / 1_000.0,
+        decodeMilliseconds = decodeMicros / 1_000.0,
+    )
 }

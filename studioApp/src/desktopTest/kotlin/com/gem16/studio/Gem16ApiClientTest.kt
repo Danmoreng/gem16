@@ -5,6 +5,7 @@ import com.gem16.studio.model.GenerationConfig
 import com.gem16.studio.model.MediaAttachment
 import com.gem16.studio.model.MediaKind
 import com.gem16.studio.model.ServerConfig
+import com.gem16.studio.model.StreamPerformanceStats
 import com.gem16.studio.model.ThinkingEffort
 import com.gem16.studio.service.ChatDelta
 import com.gem16.studio.service.Gem16ApiClient
@@ -16,6 +17,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import java.net.InetSocketAddress
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -27,6 +29,29 @@ class Gem16ApiClientTest {
         runBlocking {
             val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
             server.executor = Executors.newSingleThreadExecutor()
+            val metricsRequests = AtomicInteger()
+            server.createContext("/metrics") { exchange ->
+                val completed = metricsRequests.getAndIncrement() > 0
+                val body = if (completed) {
+                    """
+                        gem16_input_tokens_total 112
+                        gem16_cache_write_tokens_total 112
+                        gem16_prompt_microseconds_total 6000
+                        gem16_decode_microseconds_total 140000
+                        gem16_decode_measured_tokens_total 7
+                    """.trimIndent()
+                } else {
+                    """
+                        gem16_input_tokens_total 100
+                        gem16_cache_write_tokens_total 100
+                        gem16_prompt_microseconds_total 0
+                        gem16_decode_microseconds_total 0
+                        gem16_decode_measured_tokens_total 0
+                    """.trimIndent()
+                }.toByteArray()
+                exchange.sendResponseHeaders(200, body.size.toLong())
+                exchange.responseBody.use { it.write(body) }
+            }
             server.createContext("/v1/chat/completions") { exchange ->
                 val request = Json.parseToJsonElement(
                     exchange.requestBody.bufferedReader().use { it.readText() },
@@ -72,6 +97,7 @@ class Gem16ApiClientTest {
             server.start()
             try {
                 val deltas = mutableListOf<ChatDelta>()
+                val progress = mutableListOf<StreamPerformanceStats>()
                 val result = Gem16ApiClient().streamChat(
                     server = ServerConfig(port = server.address.port),
                     generation = GenerationConfig(
@@ -101,10 +127,18 @@ class Gem16ApiClientTest {
                         ),
                     ),
                     sessionId = null,
-                ) { deltas += it }
+                    onProgress = { progress += it },
+                    onDelta = { deltas += it },
+                )
                 assertEquals("session_test", result.sessionId)
                 assertEquals("stop", result.finishReason)
                 assertEquals(12, result.usage?.promptTokens)
+                assertEquals(50.0, result.performance?.decodeTokensPerSecond)
+                assertEquals(2000.0, result.performance?.prefillTokensPerSecond)
+                assertEquals(6.0, result.performance?.prefillMilliseconds)
+                assertEquals(listOf(1L, 2L), progress.map(StreamPerformanceStats::emittedTokens))
+                assertTrue(progress.all { it.firstTokenMilliseconds >= 0.0 })
+                assertTrue(progress.last().tokensPerSecond != null)
                 assertEquals("think ", assertIs<ChatDelta.Reasoning>(deltas[0]).value)
                 assertEquals("answer", assertIs<ChatDelta.Text>(deltas[1]).value)
                 assertIs<ChatDelta.Finished>(deltas[2])

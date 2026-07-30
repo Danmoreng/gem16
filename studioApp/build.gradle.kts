@@ -46,6 +46,9 @@ compose.desktop {
             packageVersion = providers.environmentVariable("APP_VERSION").orElse("0.1.0").get()
             description = "Desktop chat and server manager for gem16"
             vendor = "gem16"
+            windows {
+                iconFile.set(project.file("src/desktopMain/resources/icons/gem16-studio.ico"))
+            }
             macOS {
                 infoPlist {
                     extraKeysRawXml = """

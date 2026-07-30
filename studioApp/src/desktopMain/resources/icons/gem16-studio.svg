@@ -1,12 +1,78 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="128 128 768 768" width="1024" height="1024" role="img" aria-labelledby="title desc" shape-rendering="geometricPrecision">
+  <title id="title">Gem16 emerald gemstone logo</title>
+  <desc id="desc">A dark emerald-cut gemstone whose internal facets form the number 16.</desc>
+
   <defs>
-    <linearGradient id="g" x1="24" y1="20" x2="232" y2="236" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#8AB4F8"/>
-      <stop offset="1" stop-color="#2459A9"/>
-    </linearGradient>
+    <style>
+      .edge { stroke:#03190b; stroke-width:4; stroke-linejoin:round; }
+      .seam { stroke:#06351a; stroke-width:3; stroke-linejoin:round; }
+    </style>
   </defs>
-  <rect x="12" y="12" width="232" height="232" rx="58" fill="#0B0F14"/>
-  <path d="M64 65h128v94c0 27-22 49-49 49H93l-31 25 10-39c-17-8-28-25-28-45V85c0-11 9-20 20-20z" fill="url(#g)"/>
-  <path d="M87 106c12-20 48-26 70-10 14 10 18 28 10 43-8 15-24 23-43 21-13-1-24-7-31-16" fill="none" stroke="#fff" stroke-width="14" stroke-linecap="round"/>
-  <circle cx="171" cy="154" r="11" fill="#7DD3C7"/>
+
+  <!-- Transparent canvas: there is intentionally no background rectangle. -->
+
+  <!-- Outer octagonal rim -->
+  <path class="edge" fill="#02170a" d="M320 196H704L796 288V704L704 796H320L228 704V288Z"/>
+  <path class="seam" fill="#073319" d="M340 218H684L774 308V684L684 774H340L250 684V308Z"/>
+
+  <!-- Emerald-cut border facets -->
+  <path class="seam" fill="#16914a" d="M340 218H684L636 304H388Z"/>
+  <path class="seam" fill="#26b861" d="M340 218L388 304L338 354L250 308Z"/>
+  <path class="seam" fill="#0b6d36" d="M684 218L774 308L724 354L636 304Z"/>
+
+  <path class="seam" fill="#05331a" d="M250 308L338 354V534L250 622Z"/>
+  <path class="seam" fill="#074522" d="M250 622L338 534L386 682L340 774L250 684Z"/>
+
+  <path class="seam" fill="#07552a" d="M724 354L774 308V622L724 534Z"/>
+  <path class="seam" fill="#043019" d="M724 534L774 622V684L684 774L638 682Z"/>
+
+  <path class="seam" fill="#0b6f38" d="M250 684L340 774L386 682L338 642Z"/>
+  <path class="seam" fill="#0d743a" d="M638 682L684 774L774 684L724 642Z"/>
+  <path class="seam" fill="#043019" d="M340 774H684L638 682H386Z"/>
+
+  <!-- Dark internal field -->
+  <path fill="#042613" d="M388 304H636L724 354V642L638 682H386L338 642V354Z"/>
+
+  <!-- Facets behind the numerals -->
+  <path fill="#0b4e28" d="M452 304H636L556 382L452 454Z"/>
+  <path fill="#052e18" d="M452 454L556 382L636 304L724 354L618 454L520 562Z"/>
+  <path fill="#07391d" d="M338 354L388 304V642L338 642Z"/>
+
+  <!-- Integrated numeral 1 -->
+  <path class="seam" fill="#0a5229" d="M356 338L408 286H466V682H406L356 642Z"/>
+  <!-- Left-side highlight removed so the silhouette and notch of the 1 stay readable. -->
+  <!-- Main front face of the 1. Its left edge steps inward to form the small notch. -->
+  <path class="seam" fill="#1cac58" d="M390 332L430 300V668H406L398 660V408L390 400Z"/>
+  <path fill="#bff8d0" d="M390 332L430 300V442L398 474V408L390 400Z"/>
+  <path fill="#0a6a35" d="M430 442V668H406L398 660V474Z"/>
+  <path fill="#032211" d="M430 300H446V668H430Z"/>
+
+  <!-- Upper bow / stem of the 6 -->
+  <path class="seam" fill="#169b4f" d="M562 338H684L628 438H520Z"/>
+  <path fill="#3bc96f" d="M562 338H650L610 410H536Z"/>
+  <path class="seam" fill="#0a5b2d" d="M684 338L724 372V532L680 494L628 438Z"/>
+
+  <!-- Main angular loop of the 6 -->
+  <path class="seam" fill="#0d743a" fill-rule="evenodd" d="M520 448H628L690 506V636L630 696H522L472 650V588L520 448Z            M536 542V620H614V542Z"/>
+
+  <!-- Faceted planes defining the 6 -->
+  <path class="seam" fill="#c9f9d8" d="M520 448H594L536 522L472 588Z"/>
+  <path class="seam" fill="#39bd68" d="M594 448H628L690 506L624 526L536 522Z"/>
+  <path class="seam" fill="#0a5d2f" d="M472 588L536 522V620L472 650Z"/>
+  <path class="seam" fill="#0e6a35" d="M472 650L536 620H614L630 696H522Z"/>
+  <path class="seam" fill="#35c66e" d="M614 542L690 506V636L614 620Z"/>
+  <path class="seam" fill="#0a542a" d="M624 526L690 506L614 542L536 522Z"/>
+
+  <!-- The opening in the 6 -->
+  <path fill="#01180a" d="M536 542H614V620H536Z"/>
+
+  <!-- Specular highlight facets -->
+  <path fill="#f0fff5" d="M614 620L650 636L622 658L590 642Z"/>
+  <path fill="#8eeeb0" d="M338 642L386 682L340 696L286 684Z"/>
+
+  <!-- Sparkle at upper-left -->
+  <path fill="#f4fff7" d="M334 258C338 276 348 286 366 290C348 294 338 304 334 322C330 304 320 294 302 290C320 286 330 276 334 258Z"/>
+
+  <!-- Sparkle on the upper loop of the 6 -->
+  <path fill="#f4fff7" d="M620 456C624 474 634 484 652 488C634 492 624 502 620 520C616 502 606 492 588 488C606 484 616 474 620 456Z"/>
 </svg>

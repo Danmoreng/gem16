@@ -47,12 +47,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -62,7 +62,6 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -79,7 +78,6 @@ import androidx.compose.ui.unit.dp
 import com.gem16.studio.model.ChatMessage
 import com.gem16.studio.model.MediaAttachment
 import com.gem16.studio.model.MediaKind
-import com.gem16.studio.model.ServerPhase
 import com.gem16.studio.model.ThinkingEffort
 import com.gem16.studio.service.formatBytes
 import com.gem16.studio.state.StudioState
@@ -89,8 +87,7 @@ import javax.swing.filechooser.FileNameExtensionFilter
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-fun ChatScreen(state: StudioState, onOpenServer: () -> Unit) {
-    val phase by state.serverManager.phase.collectAsState()
+fun ChatScreen(state: StudioState) {
     val listState = rememberLazyListState()
     var autoFollow by remember { mutableStateOf(true) }
     var programmaticScroll by remember { mutableStateOf(false) }
@@ -126,7 +123,6 @@ fun ChatScreen(state: StudioState, onOpenServer: () -> Unit) {
     }
 
     Column(Modifier.fillMaxSize()) {
-        ServerBanner(phase, onOpenServer)
         Box(Modifier.weight(1f).fillMaxWidth()) {
             LazyColumn(
                 state = listState,
@@ -137,7 +133,7 @@ fun ChatScreen(state: StudioState, onOpenServer: () -> Unit) {
                     .padding(horizontal = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                item { Spacer(Modifier.height(8.dp)) }
+                item { Spacer(Modifier.height(18.dp)) }
                 if (state.messages.isEmpty()) {
                     item { WelcomeCard() }
                 }
@@ -175,37 +171,6 @@ fun ChatScreen(state: StudioState, onOpenServer: () -> Unit) {
         }
         HorizontalDivider()
         Composer(state)
-    }
-}
-
-@Composable
-private fun ServerBanner(phase: ServerPhase, onOpenServer: () -> Unit) {
-    val online = phase == ServerPhase.Running || phase == ServerPhase.External
-    Surface(color = if (online) Color(0xFF153C35) else MaterialTheme.colorScheme.surfaceVariant) {
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(
-                Modifier.size(9.dp).background(
-                    if (online) Color(0xFF4ADE80) else Color(0xFFF59E0B),
-                    MaterialTheme.shapes.small,
-                ),
-            )
-            Spacer(Modifier.width(10.dp))
-            Text(
-                when (phase) {
-                    ServerPhase.Running, ServerPhase.External -> "gem16 server ready"
-                    ServerPhase.Starting -> "gem16 server is starting…"
-                    ServerPhase.Stopping -> "gem16 server is stopping…"
-                    ServerPhase.Error -> "gem16 server failed to start"
-                    ServerPhase.Stopped -> "gem16 server is not reachable"
-                },
-                style = MaterialTheme.typography.labelLarge,
-                modifier = Modifier.weight(1f),
-            )
-            TextButton(onClick = onOpenServer) { Text(if (online) "Manage" else "Server details") }
-        }
     }
 }
 
@@ -421,13 +386,17 @@ private fun RecordingBar(state: StudioState) {
 @Composable
 private fun Composer(state: StudioState) {
     var thinkingMenu by remember { mutableStateOf(false) }
-    Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(
+        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
         if (state.isRecording) {
             RecordingBar(state)
         }
         if (state.pendingAttachments.isNotEmpty()) {
             AttachmentGallery(state.pendingAttachments, state::removeAttachment)
         }
+        PerformanceBar(state)
         OutlinedTextField(
             value = state.draft,
             onValueChange = { state.draft = it },
@@ -448,25 +417,6 @@ private fun Composer(state: StudioState) {
             supportingText = { Text("Enter to send · Shift+Enter for a new line") },
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box {
-                Button(
-                    onClick = { thinkingMenu = true },
-                    enabled = !state.isGenerating && !state.isRecording,
-                ) {
-                    Text("Thinking: ${state.settings.generation.thinking.label}")
-                }
-                DropdownMenu(expanded = thinkingMenu, onDismissRequest = { thinkingMenu = false }) {
-                    ThinkingEffort.entries.forEach { effort ->
-                        DropdownMenuItem(
-                            text = { Text(effort.label) },
-                            onClick = {
-                                state.updateGeneration { it.copy(thinking = effort) }
-                                thinkingMenu = false
-                            },
-                        )
-                    }
-                }
-            }
             IconButton(
                 onClick = { state.addAttachments(chooseMediaPaths()) },
                 enabled = !state.isGenerating && !state.isLoadingAttachments && !state.isRecording,
@@ -483,14 +433,6 @@ private fun Composer(state: StudioState) {
             ) {
                 Icon(Icons.Default.Mic, contentDescription = "Record audio")
             }
-            state.usage?.let { usage ->
-                Spacer(Modifier.width(14.dp))
-                Text(
-                    "${usage.promptTokens} in · ${usage.completionTokens} out",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
             Spacer(Modifier.weight(1f))
             IconButton(
                 onClick = state::removeLastExchange,
@@ -503,6 +445,26 @@ private fun Composer(state: StudioState) {
                 enabled = !state.isGenerating && !state.isRecording && state.messages.isNotEmpty(),
             ) {
                 Icon(Icons.Default.DeleteSweep, contentDescription = "New chat")
+            }
+            Spacer(Modifier.width(8.dp))
+            Box {
+                OutlinedButton(
+                    onClick = { thinkingMenu = true },
+                    enabled = !state.isGenerating && !state.isRecording,
+                ) {
+                    Text("Thinking · ${state.settings.generation.thinking.label}")
+                }
+                DropdownMenu(expanded = thinkingMenu, onDismissRequest = { thinkingMenu = false }) {
+                    ThinkingEffort.entries.forEach { effort ->
+                        DropdownMenuItem(
+                            text = { Text(effort.label) },
+                            onClick = {
+                                state.updateGeneration { it.copy(thinking = effort) }
+                                thinkingMenu = false
+                            },
+                        )
+                    }
+                }
             }
             Spacer(Modifier.width(8.dp))
             if (state.isGenerating) {
@@ -524,6 +486,56 @@ private fun Composer(state: StudioState) {
             }
         }
     }
+}
+
+@Composable
+private fun PerformanceBar(state: StudioState) {
+    val performance = state.performance
+    val live = state.livePerformance
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Text(
+            if (state.isGenerating) "Live response" else "Last response",
+            style = MaterialTheme.typography.labelSmall,
+            color = if (state.isGenerating) MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.onSurfaceVariant,
+            fontWeight = FontWeight.SemiBold,
+        )
+        if (state.isGenerating) {
+            StatText("Stream", live?.tokensPerSecond?.let { "%.1f tok/s".format(it) } ?: "warming up")
+            StatText("TTFT", live?.let { "%.0f ms".format(it.firstTokenMilliseconds) } ?: "waiting")
+            StatText("Tokens", live?.emittedTokens?.toString() ?: "0")
+            StatText("Elapsed", live?.let { "%.1f s".format(it.elapsedMilliseconds / 1_000.0) } ?: "—")
+        } else {
+            StatText("Decode", performance?.let { "%.1f tok/s".format(it.decodeTokensPerSecond) } ?: "—")
+            StatText("Prefill", performance?.let { "%.0f tok/s".format(it.prefillTokensPerSecond) } ?: "—")
+            StatText("Prefill time", performance?.let { "%.0f ms".format(it.prefillMilliseconds) } ?: "—")
+            StatText("Decode time", performance?.let { "%.0f ms".format(it.decodeMilliseconds) } ?: "—")
+            state.usage?.let { usage ->
+                StatText("Tokens", "${usage.promptTokens} in · ${usage.completionTokens} out")
+            }
+        }
+        Spacer(Modifier.weight(1f))
+        state.lastFinishReason?.let { reason ->
+            Text(
+                reason,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun StatText(label: String, value: String) {
+    Text(
+        "$label  $value",
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 }
 
 internal fun nextAutoFollowState(

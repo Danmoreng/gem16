@@ -24,6 +24,11 @@ not load CUDA or model weights directly.
 - live `/health` state and bounded process logs;
 - persistent settings under `~/.gem16-studio/settings.properties`;
 - dark and light themes.
+- a logo-driven light palette and a neutral charcoal dark palette with gem16
+  green accents, plus compact sidebar navigation with inline server state;
+- live client-observed stream throughput and time to first token while a reply
+  is generated, followed by exact decode/prefill metrics from `/metrics` when
+  the request completes.
 
 Tool-call interaction, Responses history, sampled video frames, and remote
 authenticated deployments remain follow-ups. Markdown parsing uses the pinned

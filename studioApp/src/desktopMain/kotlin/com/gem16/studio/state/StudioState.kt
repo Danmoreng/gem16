@@ -8,8 +8,10 @@ import com.gem16.studio.model.ChatMessage
 import com.gem16.studio.model.GenerationConfig
 import com.gem16.studio.model.MediaAttachment
 import com.gem16.studio.model.MediaKind
+import com.gem16.studio.model.PerformanceStats
 import com.gem16.studio.model.ServerConfig
 import com.gem16.studio.model.StudioSettings
+import com.gem16.studio.model.StreamPerformanceStats
 import com.gem16.studio.model.Usage
 import com.gem16.studio.service.AudioRecorder
 import com.gem16.studio.service.ChatDelta
@@ -56,6 +58,10 @@ class StudioState(
     var chatError by mutableStateOf<String?>(null)
         private set
     var usage by mutableStateOf<Usage?>(null)
+        private set
+    var performance by mutableStateOf<PerformanceStats?>(null)
+        private set
+    var livePerformance by mutableStateOf<StreamPerformanceStats?>(null)
         private set
     var sessionId by mutableStateOf<String?>(null)
         private set
@@ -194,6 +200,8 @@ class StudioState(
         }
         chatError = null
         usage = null
+        performance = null
+        livePerformance = null
         lastFinishReason = null
         val proposedHistory = messages + ChatMessage(role = "user", content = text, attachments = attachments)
         val encodedMedia = encodedMediaBytes(proposedHistory)
@@ -218,13 +226,18 @@ class StudioState(
                     generation = settings.generation,
                     messages = requestHistory,
                     sessionId = sessionId,
-                ) { delta ->
-                    withContext(Dispatchers.Main.immediate) {
-                        updateAssistant(assistant.id, delta)
-                    }
-                }
+                    onProgress = { progress ->
+                        withContext(Dispatchers.Main.immediate) { livePerformance = progress }
+                    },
+                    onDelta = { delta ->
+                        withContext(Dispatchers.Main.immediate) {
+                            updateAssistant(assistant.id, delta)
+                        }
+                    },
+                )
                 sessionId = result.sessionId
                 usage = result.usage
+                performance = result.performance
                 lastFinishReason = result.finishReason
                 replaceMessage(assistant.id) { it.copy(streaming = false) }
             } catch (_: CancellationException) {
@@ -240,6 +253,7 @@ class StudioState(
                 }
             } finally {
                 isGenerating = false
+                livePerformance = null
                 generationJob = null
             }
         }
@@ -256,6 +270,8 @@ class StudioState(
         pendingAttachments.clear()
         sessionId = null
         usage = null
+        performance = null
+        livePerformance = null
         lastFinishReason = null
         chatError = null
     }

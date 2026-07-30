@@ -101,6 +101,20 @@ data class Usage(
     val totalTokens: Long = 0,
 )
 
+data class PerformanceStats(
+    val decodeTokensPerSecond: Double,
+    val prefillTokensPerSecond: Double,
+    val prefillMilliseconds: Double,
+    val decodeMilliseconds: Double,
+)
+
+data class StreamPerformanceStats(
+    val emittedTokens: Long,
+    val tokensPerSecond: Double?,
+    val firstTokenMilliseconds: Double,
+    val elapsedMilliseconds: Double,
+)
+
 internal fun repositoryRoot(): Path {
     System.getenv("GEM16_REPO_ROOT")
         ?.takeIf(String::isNotBlank)
