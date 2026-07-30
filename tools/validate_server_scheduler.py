@@ -61,6 +61,27 @@ def main() -> int:
         max_output_tokens=24,
         reasoning={"effort": "none"},
     )
+    safe_error_rejected = False
+    try:
+        client.responses.create(
+            model=args.model,
+            previous_response_id=second_a.id,
+            input="This unsupported option must not poison the session.",
+            parallel_tool_calls=False,
+            max_output_tokens=8,
+            reasoning={"effort": "none"},
+        )
+    except openai.BadRequestError:
+        safe_error_rejected = True
+    if not safe_error_rejected:
+        raise RuntimeError("unsupported generation option was not rejected")
+    third_a = client.responses.create(
+        model=args.model,
+        previous_response_id=second_a.id,
+        input="Reply with exactly: alpha cache survived",
+        max_output_tokens=24,
+        reasoning={"effort": "none"},
+    )
     first_c = create(client, args.model, "Reply with exactly: session gamma")
 
     stale_evicted = False
@@ -162,7 +183,8 @@ def main() -> int:
                 "status": "ok",
                 "openai_sdk": installed,
                 "response_chains": [first_a.id, first_b.id, first_c.id],
-                "continued_response": second_a.id,
+                "continued_response": third_a.id,
+                "safe_error_retained_cache": safe_error_rejected,
                 "stale_evicted": stale_evicted,
                 "concurrent_response_ids": concurrent_ids,
                 "cancelled_response_id": cancellation_id,

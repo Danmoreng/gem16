@@ -274,6 +274,7 @@ struct ChatSession::Impl {
   std::vector<std::uint32_t> cached_prefix_token_ids;
   std::optional<std::uint32_t> pending_assistant_token_id;
   std::uint64_t max_context_tokens = 0U;
+  bool poisoned = false;
 };
 
 ChatSession::ChatSession(std::unique_ptr<Impl> impl) : impl_(std::move(impl)) {}
@@ -320,6 +321,10 @@ Result<ChatGenerationResponse> ChatSession::Generate(const ChatGenerationRequest
                                                      GenerationEventCallback callback, void* callback_context) {
   if (impl_ == nullptr) {
     return Status(StatusCode::kInternal, "chat session was moved from");
+  }
+  if (impl_->poisoned || impl_->session.is_poisoned()) {
+    return Status(StatusCode::kInternal,
+                  "chat session cannot continue after a state-mutating failure");
   }
   if (request.max_generated_tokens.has_value() && *request.max_generated_tokens == 0U) {
     return Status(StatusCode::kInvalidArgument, "generation token limit must be positive when specified");
@@ -480,7 +485,14 @@ Result<ChatGenerationResponse> ChatSession::Generate(const ChatGenerationRequest
   auto inference = impl_->session.Generate(
       prompt_ids.value(), max_generated_tokens, reasoning, callback == nullptr ? nullptr : ForwardTokenEvent,
       callback == nullptr ? nullptr : &bridge, audio_segments.value(), vision_segments.value());
-  if (!inference.ok()) return inference.status();
+  if (!inference.ok()) {
+    impl_->poisoned = impl_->session.is_poisoned();
+    return inference.status();
+  }
+  const auto poison = [this](Status status) {
+    impl_->poisoned = true;
+    return status;
+  };
 
   impl_->cached_prefix_token_ids = prompt_ids.value();
   if (inference.value().output_token_ids.size() > 1U) {
@@ -500,24 +512,25 @@ Result<ChatGenerationResponse> ChatSession::Generate(const ChatGenerationRequest
     content_ids.pop_back();
   }
   auto assistant_content = impl_->processor.Decode(content_ids, false);
-  if (!assistant_content.ok()) return assistant_content.status();
+  if (!assistant_content.ok()) return poison(assistant_content.status());
   auto assistant_text = impl_->processor.DecodeResponseText(content_ids);
-  if (!assistant_text.ok()) return assistant_text.status();
+  if (!assistant_text.ok()) return poison(assistant_text.status());
   std::vector<std::uint32_t> reasoning_ids =
       internal::ExtractReasoningTokenIds(
           content_ids, impl_->processor.generation_controls());
   if (reasoning_ids.size() != inference.value().reasoning_tokens) {
-    return Status(StatusCode::kInternal,
-                  "decoded reasoning channel disagrees with inference accounting");
+    return poison(Status(
+        StatusCode::kInternal,
+        "decoded reasoning channel disagrees with inference accounting"));
   }
   auto reasoning_text = impl_->processor.Decode(reasoning_ids, true);
-  if (!reasoning_text.ok()) return reasoning_text.status();
+  if (!reasoning_text.ok()) return poison(reasoning_text.status());
   internal::GemmaToolCallParser tool_parser;
   auto parsed_tool_events = tool_parser.Push(assistant_content.value(), true);
-  if (!parsed_tool_events.ok()) return parsed_tool_events.status();
+  if (!parsed_tool_events.ok()) return poison(parsed_tool_events.status());
   const Status tool_call_status = internal::ValidateGeneratedToolCalls(
       request.tools, request.tool_choice, tool_parser.tool_calls());
-  if (!tool_call_status.ok()) return tool_call_status;
+  if (!tool_call_status.ok()) return poison(tool_call_status);
 
   ChatGenerationResponse response;
   response.assistant_content = std::move(assistant_content).value();
@@ -556,6 +569,10 @@ Result<ChatGenerationResponse> ChatSession::Generate(const ChatGenerationRequest
 
 std::uint64_t ChatSession::cached_token_count() const {
   return impl_ == nullptr ? 0U : impl_->session.cached_token_count();
+}
+
+bool ChatSession::is_poisoned() const {
+  return impl_ == nullptr || impl_->poisoned || impl_->session.is_poisoned();
 }
 
 const char* GenerationFinishReasonName(GenerationFinishReason reason) {

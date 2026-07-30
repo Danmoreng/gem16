@@ -147,9 +147,11 @@ Responses sessions are addressed by `previous_response_id`. Chat Completions
 uses `X-Gem16-Session-Id`: omit it to create a session and read the generated ID
 from the response header; send it on later requests to reuse the same resident
 conversation. A session is single-flight and rejects a second concurrent
-request with HTTP 503, while distinct sessions can run concurrently. If every
-configured slot is active, admission also returns 503 instead of evicting live
-state or allocating beyond the configured bound.
+request with HTTP 503, while distinct sessions can run concurrently. Request-validation
+or unsupported-option errors leave an unchanged resident cache available for a
+corrected retry; only state-mutating inference, cancellation, or streaming failures
+poison and discard the slot. If every configured slot is active, admission also
+returns 503 instead of evicting live state or allocating beyond the configured bound.
 
 The HTTP stream owns its session lease from admission until the provider is
 released. Consequently a peer that disconnects after admission but before the

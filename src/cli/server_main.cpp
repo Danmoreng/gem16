@@ -1249,7 +1249,7 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
     if (!generated.ok()) {
       state.metrics.requests_failed.fetch_add(1U);
       SetError(generated.status(), response);
-      DiscardSession(state, entry);
+      if (entry->session.is_poisoned()) DiscardSession(state, entry);
       ReleaseSession(state, entry);
       return;
     }
@@ -1291,7 +1291,6 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
         if (!WriteSse(sink, gem16::server::ChatCompletionChunkJson(
                                 provider->identity,
                                 "{\"role\":\"assistant\"}"))) {
-          provider->lease->Discard();
           return false;
         }
         StreamingContext stream(provider->server->processor,
@@ -1305,6 +1304,7 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
         provider->lease->Discard();
         auto generated = provider->entry->session.Generate(
             provider->generation, StreamToken, &stream);
+        const bool generation_completed = generated.ok();
         if (generated.ok()) {
           const gem16::Status final_status = FeedVisibleText(stream, {}, true);
           if (!final_status.ok()) generated = final_status;
@@ -1324,9 +1324,13 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
           WriteSse(sink, gem16::server::OpenAiErrorJson(
                              generated.status().message(), "server_error"));
           (void)FinishSse(sink);
-          provider->lease->Discard();
+          if (!generation_completed &&
+              !provider->entry->session.is_poisoned()) {
+            provider->lease->Keep();
+          }
           return true;
         }
+        provider->lease->Keep();
         RecordGeneration(*provider->server, generated.value(),
                          std::chrono::steady_clock::now() - generation_start);
         for (const gem16::GenerationToolCall& call :
@@ -1527,7 +1531,7 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
     if (!generated.ok()) {
       state.metrics.requests_failed.fetch_add(1U);
       SetError(generated.status(), response);
-      DiscardSession(state, entry);
+      if (entry->session.is_poisoned()) DiscardSession(state, entry);
       ReleaseSession(state, entry);
       return;
     }
@@ -1624,6 +1628,7 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
         provider->lease->Discard();
         auto generated = provider->entry->session.Generate(
             provider->request.generation, StreamResponseToken, &stream);
+        const bool generation_completed = generated.ok();
         if (generated.ok() &&
             (stream.text_pending.size != 0U ||
              stream.reasoning_pending.size != 0U ||
@@ -1653,6 +1658,10 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
                              ",\"param\":null,\"sequence_number\":" +
                              std::to_string(stream.sequence++) + "}");
           (void)FinishSse(sink);
+          if (!generation_completed &&
+              !provider->entry->session.is_poisoned()) {
+            provider->lease->Keep();
+          }
           return true;
         }
         RecordGeneration(*provider->server, generated.value(),

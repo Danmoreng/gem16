@@ -714,3 +714,7 @@ std::uint64_t ConversationSession::cached_token_count() const {
   return impl_ == nullptr ? 0U : impl_->cached_token_ids.size();
 }
 
+bool ConversationSession::is_poisoned() const {
+  return impl_ == nullptr || impl_->poisoned;
+}
+

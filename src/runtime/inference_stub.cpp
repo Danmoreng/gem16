@@ -49,6 +49,8 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
 
 std::uint64_t ConversationSession::cached_token_count() const { return 0U; }
 
+bool ConversationSession::is_poisoned() const { return true; }
+
 Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions&) {
   return Status(StatusCode::kUnsupported,
                 "greedy inference requires a CUDA build compiled for SM120a");

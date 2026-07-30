@@ -204,6 +204,7 @@ class ConversationSession {
       std::span<const AudioEmbeddingSegment> audio_segments = {},
       std::span<const VisionEmbeddingSegment> vision_segments = {});
   [[nodiscard]] std::uint64_t cached_token_count() const;
+  [[nodiscard]] bool is_poisoned() const;
 
  private:
   struct Impl;
