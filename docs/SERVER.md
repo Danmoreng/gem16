@@ -21,6 +21,10 @@ and load time. Sessions are created on demand. Each receives an isolated
 `SessionState` plus `ExecutionSlot` while sharing the immutable runtime.
 `--max-sessions` bounds resident slots; inactive least-recently-used sessions
 are evicted when the limit is reached, while active sessions are never evicted.
+Admission reserves capacity under the pool mutex, constructs the CUDA execution
+slot without holding that mutex, then publishes the completed session. Health,
+metrics, cancellation, and unrelated resident-session acquisition therefore
+remain responsive while a new slot is being prepared.
 
 ## Endpoints
 

@@ -59,41 +59,61 @@ void EraseSessionLocked(ServerState& state, const std::string& id) {
 
 gem16::Result<std::shared_ptr<SessionEntry>> CreateSession(
     ServerState& state, std::string id) {
-  std::lock_guard pool_lock(state.pool_mutex);
-  if (state.sessions.contains(id)) {
-    return gem16::Status(gem16::StatusCode::kInvalidArgument,
-                         "session ID is already resident");
-  }
-  if (state.sessions.size() >= state.max_sessions) {
-    auto victim = state.sessions.end();
-    for (auto iterator = state.sessions.begin();
-         iterator != state.sessions.end(); ++iterator) {
-      if (iterator->second->active_requests.load() != 0U) continue;
-      if (victim == state.sessions.end() ||
-          iterator->second->last_used.load() <
-              victim->second->last_used.load()) {
-        victim = iterator;
+  {
+    std::lock_guard pool_lock(state.pool_mutex);
+    if (state.sessions.contains(id) || state.pending_sessions.contains(id)) {
+      return gem16::Status(gem16::StatusCode::kInvalidArgument,
+                           "session ID is already resident or being created");
+    }
+    if (state.sessions.size() + state.pending_sessions.size() >=
+        state.max_sessions) {
+      auto victim = state.sessions.end();
+      for (auto iterator = state.sessions.begin();
+           iterator != state.sessions.end(); ++iterator) {
+        if (iterator->second->active_requests.load() != 0U) continue;
+        if (victim == state.sessions.end() ||
+            iterator->second->last_used.load() <
+                victim->second->last_used.load()) {
+          victim = iterator;
+        }
       }
+      if (victim == state.sessions.end()) {
+        return gem16::Status(
+            gem16::StatusCode::kResourceExhausted,
+            "all resident execution slots are active or being created");
+      }
+      const std::string victim_id = victim->first;
+      EraseSessionLocked(state, victim_id);
+      state.metrics.sessions_evicted.fetch_add(1U);
     }
-    if (victim == state.sessions.end()) {
-      return gem16::Status(
-          gem16::StatusCode::kResourceExhausted,
-          "all resident execution slots are active");
-    }
-    const std::string victim_id = victim->first;
-    EraseSessionLocked(state, victim_id);
-    state.metrics.sessions_evicted.fetch_add(1U);
+    state.pending_sessions.insert(id);
   }
+
+  // CUDA arenas and graphs may take a material amount of time to construct.
+  // The reservation above keeps the pool bounded while allowing unrelated
+  // acquire, cancellation, health, and metrics operations to proceed.
   auto session = gem16::ChatSession::Create(
       state.runtime, state.session_options, state.processor);
-  if (!session.ok()) return session.status();
+  if (!session.ok()) {
+    std::lock_guard pool_lock(state.pool_mutex);
+    state.pending_sessions.erase(id);
+    return session.status();
+  }
   auto entry = std::make_shared<SessionEntry>(
       std::move(id), std::move(session).value());
   entry->active_requests.store(1U);
   entry->last_used.store(state.lru_clock.fetch_add(1U));
-  state.sessions.emplace(entry->id, entry);
-  state.metrics.sessions_created.fetch_add(1U);
-  state.metrics.active_requests.fetch_add(1U);
+  {
+    std::lock_guard pool_lock(state.pool_mutex);
+    if (state.pending_sessions.erase(entry->id) != 1U ||
+        state.sessions.contains(entry->id)) {
+      return gem16::Status(gem16::StatusCode::kInternal,
+                           "session reservation was lost before publication");
+    }
+    state.metrics.sessions_created.fetch_add(1U);
+    state.metrics.active_requests.fetch_add(1U);
+    state.sessions.emplace(entry->id, entry);
+  }
   return entry;
 }
 
@@ -278,9 +298,11 @@ void RecordGeneration(ServerState& state,
 
 std::string MetricsText(ServerState& state) {
   std::size_t resident_sessions = 0U;
+  std::size_t pending_sessions = 0U;
   {
     std::lock_guard pool_lock(state.pool_mutex);
     resident_sessions = state.sessions.size();
+    pending_sessions = state.pending_sessions.size();
   }
   const auto metric = [](std::string_view name, std::uint64_t value) {
     return std::string(name) + " " + std::to_string(value) + "\n";
@@ -297,6 +319,8 @@ std::string MetricsText(ServerState& state) {
                        state.metrics.active_requests.load()));
   output.append("# TYPE gem16_resident_sessions gauge\n");
   output.append(metric("gem16_resident_sessions", resident_sessions));
+  output.append("# TYPE gem16_pending_session_creations gauge\n");
+  output.append(metric("gem16_pending_session_creations", pending_sessions));
   output.append(metric("gem16_session_limit", state.max_sessions));
   output.append(metric("gem16_sessions_created_total",
                        state.metrics.sessions_created.load()));

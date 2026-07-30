@@ -616,13 +616,17 @@ int ServerMain(int argc, char** argv) {
   server.Get("/health",
              [&state](const httplib::Request&, httplib::Response& response) {
                std::size_t resident = 0U;
+               std::size_t pending = 0U;
                {
                  std::lock_guard pool_lock(state.pool_mutex);
                  resident = state.sessions.size();
+                 pending = state.pending_sessions.size();
                }
                response.set_content(
                    "{\"status\":\"ok\",\"resident_sessions\":" +
                        std::to_string(resident) +
+                       ",\"pending_session_creations\":" +
+                       std::to_string(pending) +
                        ",\"session_limit\":" +
                        std::to_string(state.max_sessions) + "}",
                    "application/json; charset=utf-8");

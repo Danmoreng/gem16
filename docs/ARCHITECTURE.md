@@ -138,7 +138,9 @@ by LRU order. Server responsibilities remain narrow and explicit:
 `server/http_streaming.*` owns fixed-buffer UTF-8/SSE state machines,
 `server/session_pool.*` owns admission, leases, response indexing, cache usage,
 and LRU state, while `cli/server_main.cpp` only wires options, handlers, and
-routes. None of these layers changes model arithmetic or CUDA scheduling.
+routes. Slot construction uses an explicit pending reservation so the bounded
+pool remains race-free without holding its mutex across CUDA initialization.
+None of these layers changes model arithmetic or CUDA scheduling.
 
 The greedy plan copies checkpoint `suppress_tokens` into fixed workspace before prompt processing and stops on any
 checkpoint EOS token. Optional full-logit capture preallocates host storage before the token loop and writes raw

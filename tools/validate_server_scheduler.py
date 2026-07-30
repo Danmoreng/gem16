@@ -162,6 +162,7 @@ def main() -> int:
         # A cancelled generation is deliberately discarded because its KV
         # cache can be partially advanced and therefore unsafe to reuse.
         "gem16_resident_sessions": 1,
+        "gem16_pending_session_creations": 0,
     }
     for name, expected in required.items():
         if observed.get(name) != expected:

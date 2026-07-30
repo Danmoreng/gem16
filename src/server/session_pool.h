@@ -8,6 +8,7 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "gem16/chat.h"
@@ -70,6 +71,10 @@ struct ServerState {
   std::mutex pool_mutex;
   std::unordered_map<std::string, std::shared_ptr<SessionEntry>> sessions;
   std::unordered_map<std::string, std::weak_ptr<SessionEntry>> response_index;
+  // Session construction allocates CUDA slot state and must run without
+  // pool_mutex. Pending IDs reserve capacity and prevent duplicate creation
+  // while that work is in progress.
+  std::unordered_set<std::string> pending_sessions;
   std::atomic<std::uint64_t> response_counter{1U};
   std::atomic<std::uint64_t> session_counter{1U};
   std::atomic<std::uint64_t> lru_clock{1U};
