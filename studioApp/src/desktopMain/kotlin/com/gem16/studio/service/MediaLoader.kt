@@ -2,8 +2,14 @@ package com.gem16.studio.service
 
 import com.gem16.studio.model.MediaAttachment
 import com.gem16.studio.model.MediaKind
+import java.awt.Image
+import java.awt.Toolkit
+import java.awt.datatransfer.DataFlavor
+import java.awt.image.BufferedImage
+import java.io.ByteArrayOutputStream
 import java.nio.file.Files
 import java.nio.file.Path
+import javax.imageio.ImageIO
 import kotlin.io.path.extension
 import kotlin.io.path.name
 
@@ -32,7 +38,7 @@ fun loadMediaAttachment(path: Path): Result<MediaAttachment> = runCatching {
     val size = Files.size(normalized)
     require(size > 0L) { "Media file is empty: ${normalized.name}" }
     require(size <= MaxSingleMediaBytes) {
-        "${normalized.name} is ${formatBytes(size)}; the Studio limit is ${formatBytes(MaxSingleMediaBytes)}."
+        "${normalized.name} is ${formatBytes(size)}; the gem16 limit is ${formatBytes(MaxSingleMediaBytes)}."
     }
     val bytes = Files.readAllBytes(normalized)
     MediaAttachment(
@@ -40,6 +46,54 @@ fun loadMediaAttachment(path: Path): Result<MediaAttachment> = runCatching {
         kind = type.kind,
         mimeType = type.mimeType,
         format = type.format,
+        bytes = bytes,
+    )
+}
+
+fun clipboardContainsImage(): Boolean = runCatching {
+    Toolkit.getDefaultToolkit().systemClipboard.isDataFlavorAvailable(DataFlavor.imageFlavor)
+}.getOrDefault(false)
+
+fun loadClipboardImageAttachment(): Result<MediaAttachment> = runCatching {
+    val clipboard = Toolkit.getDefaultToolkit().systemClipboard
+    require(clipboard.isDataFlavorAvailable(DataFlavor.imageFlavor)) {
+        "The clipboard does not contain an image."
+    }
+    val image = clipboard.getData(DataFlavor.imageFlavor) as? Image
+        ?: error("The clipboard image could not be decoded.")
+    encodeClipboardImage(image)
+}
+
+internal fun encodeClipboardImage(image: Image): MediaAttachment {
+    val width = image.getWidth(null)
+    val height = image.getHeight(null)
+    require(width > 0 && height > 0) { "The clipboard image has invalid dimensions." }
+    val buffered = if (image is BufferedImage && image.type != BufferedImage.TYPE_CUSTOM) {
+        image
+    } else {
+        BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB).also { destination ->
+            val graphics = destination.createGraphics()
+            try {
+                graphics.drawImage(image, 0, 0, null)
+            } finally {
+                graphics.dispose()
+            }
+        }
+    }
+    val bytes = ByteArrayOutputStream().use { output ->
+        check(ImageIO.write(buffered, "png", output)) { "PNG encoding is unavailable." }
+        output.toByteArray()
+    }
+    require(bytes.isNotEmpty()) { "The clipboard image is empty." }
+    require(bytes.size.toLong() <= MaxSingleMediaBytes) {
+        "The clipboard image is ${formatBytes(bytes.size.toLong())}; " +
+            "the gem16 limit is ${formatBytes(MaxSingleMediaBytes)}."
+    }
+    return MediaAttachment(
+        fileName = "clipboard-image.png",
+        kind = MediaKind.Image,
+        mimeType = "image/png",
+        format = "png",
         bytes = bytes,
     )
 }

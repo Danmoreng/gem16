@@ -68,12 +68,16 @@ The repository pins the model and tokenizer sources in
 [`models/gemma4-12b-nvfp4.lock.json`](models/gemma4-12b-nvfp4.lock.json). Download the locked files with:
 
 ```bash
-python tools/fetch_model.py \
-  --destination models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497
+python tools/fetch_model.py
+python tools/fetch_model.py --lock models/gemma4-12b-mtp-assistant.lock.json
 ```
 
-The downloader verifies file sizes and SHA-256 checksums. It requires a Hugging Face token with access to the
-gated Google Gemma model.
+The downloader writes the standard content-addressed Hugging Face Hub cache,
+honors `HF_HUB_CACHE`/`HF_HOME`/`XDG_CACHE_HOME`, and verifies file sizes and
+SHA-256 checksums. It requires a Hugging Face token with access to the gated
+Google Gemma model. Benchmark and qualification tools resolve these locked
+cache snapshots automatically; `--model` remains available as an explicit
+override.
 
 ## Build and test
 
@@ -113,7 +117,7 @@ Warnings are reported normally and are not promoted to errors by default.
 
 ## Desktop application
 
-`gem16 Studio` provides a cross-platform Kotlin Compose Desktop chat window with
+`gem16` provides a cross-platform Kotlin Compose Desktop chat window with
 Markdown, image/audio attachments, microphone recording, and automatic `gem16-server` lifecycle
 management. Build the CUDA engine
 first, then launch the UI:
@@ -127,7 +131,7 @@ On Windows use `.\scripts\build.ps1 -Cuda -Test` followed by
 `.\scripts\run-studio.ps1`. The pinned target, MTP assistant, and official
 tokenizer configuration can be downloaded and verified directly from the
 application into the shared Hugging Face cache. Context, sampling, and server
-settings are configured in Studio. See
+settings are configured in gem16. See
 [`docs/STUDIO.md`](docs/STUDIO.md) for build, packaging, protocol, and security
 details.
 
@@ -136,17 +140,20 @@ details.
 Linux:
 
 ```bash
+model="$(python3 -c 'from tools.hf_cache import default_target_model; print(default_target_model())')"
 build/Linux/blackwell-release/bin/gem16-chat \
-  --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 \
+  --model "$model" \
   --max-context 8192
 ```
 
 Windows PowerShell:
 
 ```powershell
+$model = python -c "from tools.hf_cache import default_target_model; print(default_target_model())"
+$assistant = python -c "from tools.hf_cache import default_assistant_model; print(default_assistant_model())"
 .\build\Windows\blackwell-release\bin\gem16-chat.exe `
-  --model .\models\checkpoints\unsloth-gemma-4-12b-it-NVFP4-b1f6497 `
-  --assistant-model .\models\checkpoints\google-gemma-4-12B-it-assistant-364bd03 `
+  --model $model `
+  --assistant-model $assistant `
   --mtp-draft-tokens 2 `
   --max-context 8192 `
   --stats

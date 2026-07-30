@@ -7,6 +7,11 @@ dependency. Run it with the pinned vLLM environment from docs/CORRECTNESS.md.
 
 from __future__ import annotations
 
+try:
+    from tools.hf_cache import default_target_model
+except ModuleNotFoundError:
+    from hf_cache import default_target_model
+
 import argparse
 from array import array
 import os
@@ -48,7 +53,7 @@ def token_ids(value: str) -> list[int]:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", type=Path, required=True)
+    parser.add_argument("--model", type=Path, default=default_target_model())
     parser.add_argument("--input-token-ids", type=token_ids, required=True)
     parser.add_argument("--max-tokens", type=int, required=True)
     parser.add_argument("--position", type=int, required=True)

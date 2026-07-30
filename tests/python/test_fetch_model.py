@@ -69,9 +69,11 @@ class FetchModelTest(unittest.TestCase):
             self.assertEqual(destination.read_bytes(), payload)
             request = urlopen.call_args.args[0]
             self.assertNotIn("Range", request.headers)
-            self.assertFalse(destination.with_name(destination.name + ".part").exists())
             self.assertFalse(
-                destination.with_name(destination.name + ".part.json").exists()
+                destination.with_name(destination.name + ".incomplete").exists()
+            )
+            self.assertFalse(
+                destination.with_name(destination.name + ".incomplete.json").exists()
             )
 
     def test_partial_resume_requires_matching_download_identity(self) -> None:
@@ -81,8 +83,8 @@ class FetchModelTest(unittest.TestCase):
         url = "https://huggingface.co/repository/resolve/" + "a" * 40 + "/file"
         with tempfile.TemporaryDirectory() as temporary:
             destination = Path(temporary) / "file"
-            partial = destination.with_name(destination.name + ".part")
-            metadata = destination.with_name(destination.name + ".part.json")
+            partial = destination.with_name(destination.name + ".incomplete")
+            metadata = destination.with_name(destination.name + ".incomplete.json")
             partial.write_bytes(payload[:split])
             metadata.write_text(
                 json.dumps(

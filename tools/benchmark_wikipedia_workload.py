@@ -3,6 +3,11 @@
 
 from __future__ import annotations
 
+try:
+    from tools.hf_cache import default_assistant_model, default_target_model
+except ModuleNotFoundError:
+    from hf_cache import default_assistant_model, default_target_model
+
 import argparse
 import hashlib
 import importlib.metadata
@@ -79,7 +84,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--workload", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
-    parser.add_argument("--model", type=Path)
+    parser.add_argument("--model", type=Path, default=default_target_model())
     parser.add_argument("--assistant-model", type=Path)
     parser.add_argument(
         "--mtp-draft-tokens", type=int, choices=(0, 1, 2, 4), default=0
@@ -113,7 +118,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--llama-ngram-mod-n-min", type=positive_int, default=48)
     parser.add_argument("--llama-ngram-mod-n-max", type=positive_int, default=64)
     parser.add_argument("--enforce-eager", action="store_true")
-    return parser.parse_args()
+    args = parser.parse_args()
+    if (
+        args.engine in ("gem16", "vllm")
+        and args.mtp_draft_tokens != 0
+        and args.assistant_model is None
+    ):
+        args.assistant_model = default_assistant_model()
+    return args
 
 
 def repository_state() -> dict[str, Any]:

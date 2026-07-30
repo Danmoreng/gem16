@@ -17,7 +17,7 @@ fun main() = application {
             studio.close()
             exitApplication()
         },
-        title = "gem16 Studio",
+        title = "gem16",
         icon = painterResource("icons/gem16-studio.svg"),
         state = windowState,
     ) {

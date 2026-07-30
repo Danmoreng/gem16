@@ -8,6 +8,11 @@ in docs/CORRECTNESS.md; it is not a runtime dependency of gem16.
 
 from __future__ import annotations
 
+try:
+    from tools.hf_cache import default_target_model
+except ModuleNotFoundError:
+    from hf_cache import default_target_model
+
 import argparse
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass
@@ -55,7 +60,7 @@ class LogprobEntry:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", type=Path, required=True)
+    parser.add_argument("--model", type=Path, default=default_target_model())
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument(
         "--lock", type=Path, default=Path("models/gemma4-12b-nvfp4.lock.json")

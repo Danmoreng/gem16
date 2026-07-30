@@ -2,9 +2,11 @@ package com.gem16.studio
 
 import com.gem16.studio.model.MediaKind
 import com.gem16.studio.service.capturePcmStream
+import com.gem16.studio.service.encodeClipboardImage
 import com.gem16.studio.service.encodePcm16Wav
 import com.gem16.studio.service.loadMediaAttachment
 import com.gem16.studio.service.prepareRecordedPcm16
+import java.awt.image.BufferedImage
 import java.io.IOException
 import java.io.InputStream
 import java.nio.file.Files
@@ -111,6 +113,24 @@ class MediaLoaderTest {
         } finally {
             directory.toFile().deleteRecursively()
         }
+    }
+
+    @Test
+    fun encodesClipboardImagesAsPngAttachments() {
+        val image = BufferedImage(2, 2, BufferedImage.TYPE_INT_ARGB).apply {
+            setRGB(0, 0, 0xFF55AA77.toInt())
+        }
+
+        val attachment = encodeClipboardImage(image)
+
+        assertEquals(MediaKind.Image, attachment.kind)
+        assertEquals("image/png", attachment.mimeType)
+        assertEquals("png", attachment.format)
+        assertEquals("clipboard-image.png", attachment.fileName)
+        assertContentEquals(
+            byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A),
+            attachment.bytes.copyOfRange(0, 8),
+        )
     }
 
     @Test

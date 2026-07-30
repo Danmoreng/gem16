@@ -11,11 +11,20 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Button
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -24,6 +33,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import java.awt.Toolkit
+import java.awt.datatransfer.StringSelection
+import kotlinx.coroutines.delay
+import org.jetbrains.jewel.ui.component.IconButton
 import org.jetbrains.jewel.ui.component.Text
 
 @Composable
@@ -55,6 +68,39 @@ internal fun StudioPrimaryButton(
         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
         content = content,
     )
+}
+
+@Composable
+internal fun StudioCopyButton(
+    text: String,
+    contentDescription: String,
+    modifier: Modifier = Modifier,
+) {
+    var copied by remember(text) { mutableStateOf(false) }
+    LaunchedEffect(copied) {
+        if (copied) {
+            delay(1_500)
+            copied = false
+        }
+    }
+    IconButton(
+        onClick = {
+            copied = runCatching {
+                Toolkit.getDefaultToolkit().systemClipboard
+                    .setContents(StringSelection(text), null)
+                true
+            }.getOrDefault(false)
+        },
+        enabled = text.isNotEmpty(),
+        modifier = modifier,
+    ) {
+        androidx.compose.material3.Icon(
+            if (copied) Icons.Default.Check else Icons.Default.ContentCopy,
+            contentDescription = if (copied) "Copied" else contentDescription,
+            tint = if (copied) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(StudioIconSize),
+        )
+    }
 }
 
 @Composable

@@ -8,6 +8,11 @@ timestamps to separate time-to-first-token from decode intervals.
 
 from __future__ import annotations
 
+try:
+    from tools.hf_cache import default_target_model
+except ModuleNotFoundError:
+    from hf_cache import default_target_model
+
 import argparse
 import importlib.metadata
 import json
@@ -78,7 +83,7 @@ def lengths(value: str) -> list[int]:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--model", required=True, type=Path)
+    parser.add_argument("--model", type=Path, default=default_target_model())
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--summary-output", type=Path)
     parser.add_argument(

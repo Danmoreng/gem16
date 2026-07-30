@@ -20,8 +20,10 @@ import com.gem16.studio.service.MaxEncodedMediaBytes
 import com.gem16.studio.service.ModelManager
 import com.gem16.studio.service.ServerManager
 import com.gem16.studio.service.SettingsStore
+import com.gem16.studio.service.clipboardContainsImage
 import com.gem16.studio.service.encodedMediaBytes
 import com.gem16.studio.service.formatBytes
+import com.gem16.studio.service.loadClipboardImageAttachment
 import com.gem16.studio.service.loadMediaAttachment
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -174,7 +176,7 @@ class StudioState(
                     if (encoded <= MaxEncodedMediaBytes) {
                         pendingAttachments += attachment
                     } else {
-                        chatError = "The recording would exceed Studio's ${formatBytes(MaxEncodedMediaBytes)} " +
+                        chatError = "The recording would exceed gem16's ${formatBytes(MaxEncodedMediaBytes)} " +
                             "encoded-media request limit. Start a new chat first."
                     }
                 }
@@ -212,7 +214,7 @@ class StudioState(
                         pendingAttachments += attachment
                         encoded += attachment.encodedSize
                     } else {
-                        chatError = "Attachments would exceed Studio's ${formatBytes(MaxEncodedMediaBytes)} " +
+                        chatError = "Attachments would exceed gem16's ${formatBytes(MaxEncodedMediaBytes)} " +
                             "encoded-media request limit. Start a new chat or remove an attachment."
                     }
                 }
@@ -223,6 +225,32 @@ class StudioState(
                 isLoadingAttachments = false
             }
         }
+    }
+
+    fun addClipboardImage(): Boolean {
+        if (isGenerating || isLoadingAttachments || isRecording || !clipboardContainsImage()) return false
+        isLoadingAttachments = true
+        chatError = null
+        scope.launch {
+            try {
+                val result = withContext(Dispatchers.IO) { loadClipboardImageAttachment() }
+                result.onSuccess { attachment ->
+                    val encoded = encodedMediaBytes(messages) +
+                        pendingAttachments.sumOf(MediaAttachment::encodedSize)
+                    if (encoded + attachment.encodedSize <= MaxEncodedMediaBytes) {
+                        pendingAttachments += attachment
+                    } else {
+                        chatError = "Attachments would exceed gem16's ${formatBytes(MaxEncodedMediaBytes)} " +
+                            "encoded-media request limit. Start a new chat or remove an attachment."
+                    }
+                }.onFailure { error ->
+                    chatError = error.message ?: "Could not read the clipboard image"
+                }
+            } finally {
+                isLoadingAttachments = false
+            }
+        }
+        return true
     }
 
     fun removeAttachment(id: String) {
@@ -246,7 +274,7 @@ class StudioState(
         val encodedMedia = encodedMediaBytes(proposedHistory)
         if (encodedMedia > MaxEncodedMediaBytes) {
             chatError = "This conversation contains ${formatBytes(encodedMedia)} of encoded media; " +
-                "the Studio limit is ${formatBytes(MaxEncodedMediaBytes)}. Start a new chat."
+                "the gem16 limit is ${formatBytes(MaxEncodedMediaBytes)}. Start a new chat."
             return
         }
         val user = proposedHistory.last()

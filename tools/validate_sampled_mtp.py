@@ -3,6 +3,11 @@
 
 from __future__ import annotations
 
+try:
+    from tools.hf_cache import default_assistant_model, default_target_model
+except ModuleNotFoundError:
+    from hf_cache import default_assistant_model, default_target_model
+
 import argparse
 import hashlib
 import json
@@ -34,8 +39,8 @@ def token_hash(tokens: list[int]) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--binary", type=Path, required=True)
-    parser.add_argument("--target", type=Path, required=True)
-    parser.add_argument("--assistant", type=Path, required=True)
+    parser.add_argument("--target", type=Path, default=default_target_model())
+    parser.add_argument("--assistant", type=Path, default=default_assistant_model())
     parser.add_argument("--input-token-ids", default="2,9259,107")
     parser.add_argument("--seeds", type=csv_ints, default=[0, 1, 42])
     parser.add_argument("--draft-lengths", type=csv_ints, default=[1, 2, 4])

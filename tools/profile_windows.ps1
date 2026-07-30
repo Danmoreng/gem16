@@ -1,6 +1,5 @@
 [CmdletBinding()]
 param(
-  [Parameter(Mandatory = $true)]
   [string]$Model,
   [string]$BuildDirectory = "build\Windows\blackwell-release",
   [ValidateRange(1, 262144)]
@@ -17,6 +16,18 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $repository = Split-Path -Parent $PSScriptRoot
+$hubCache = if ($env:HF_HUB_CACHE) {
+  $env:HF_HUB_CACHE
+} elseif ($env:HF_HOME) {
+  Join-Path $env:HF_HOME "hub"
+} elseif ($env:XDG_CACHE_HOME) {
+  Join-Path $env:XDG_CACHE_HOME "huggingface\hub"
+} else {
+  Join-Path $env:USERPROFILE ".cache\huggingface\hub"
+}
+if (-not $Model) {
+  $Model = Join-Path $hubCache ".gem16\snapshots\unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4"
+}
 $modelPath = (Resolve-Path -LiteralPath $Model).Path
 $buildPath = (Resolve-Path -LiteralPath (Join-Path $repository $BuildDirectory)).Path
 $benchmark = Join-Path $buildPath "bin\gem16-bench.exe"

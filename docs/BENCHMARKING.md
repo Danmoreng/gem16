@@ -12,8 +12,9 @@ first token selected after prompt ingestion is excluded from decode, after which
 greedy-selection, and device-to-host intervals are timed:
 
 ```powershell
+$model = python -c "from tools.hf_cache import default_target_model; print(default_target_model())"
 .\build\Windows\blackwell-release\bin\gem16-bench.exe decode `
-  --model .\models\checkpoints\unsloth-gemma-4-12b-it-NVFP4-b1f6497 `
+  --model $model `
   --context 128 `
   --tokens 256 `
   --warmups 3 `
@@ -33,8 +34,9 @@ to 1,479.0 ms. This is implementation evidence, not a repeated or accepted perfo
 confidence-interval policy. For example:
 
 ```powershell
+$model = python -c "from tools.hf_cache import default_target_model; print(default_target_model())"
 .\build\Windows\blackwell-release\bin\gem16-bench.exe prefill `
-  --model .\models\checkpoints\unsloth-gemma-4-12b-it-NVFP4-b1f6497 `
+  --model $model `
   --context 128 --warmups 3 --repetitions 10
 ```
 
@@ -244,8 +246,6 @@ Run the final paired qualification with the checked-in alternating orchestrator:
 python tools/qualify_mtp.py \
   --workload benchmarks/results/<workload>/workload.json \
   --output benchmarks/results/<date>/<git-sha>/<machine>/mtp-qualification.json \
-  --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 \
-  --assistant-model models/checkpoints/google-gemma-4-12B-it-assistant-364bd03 \
   --executable build/Windows/blackwell-release/bin/gem16-run.exe \
   --warmup-pairs 3 --measured-pairs 10
 ```

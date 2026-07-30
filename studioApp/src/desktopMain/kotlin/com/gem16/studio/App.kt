@@ -102,7 +102,7 @@ private fun StudioSidebar(
         ) {
             Image(
                 painter = painterResource("icons/gem16-studio.svg"),
-                contentDescription = "gem16 Studio",
+                contentDescription = "gem16",
                 modifier = Modifier.size(40.dp).padding(2.dp),
             )
             Spacer(Modifier.height(8.dp))

@@ -3,6 +3,11 @@
 
 from __future__ import annotations
 
+try:
+    from tools.hf_cache import default_target_model
+except ModuleNotFoundError:
+    from hf_cache import default_target_model
+
 import argparse
 import json
 import math
@@ -19,7 +24,7 @@ class ValidationError(RuntimeError):
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--run", type=Path, required=True)
-    parser.add_argument("--model", type=Path, required=True)
+    parser.add_argument("--model", type=Path, default=default_target_model())
     parser.add_argument(
         "--golden",
         type=Path,

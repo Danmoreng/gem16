@@ -1,10 +1,10 @@
 # Decisions
 
-## 2026-07-30: Keep Studio media inline and render CommonMark natively
+## 2026-07-30: Keep gem16 media inline and render CommonMark natively
 
 Date: 2026-07-30
 
-Decision: Start or attach to `gem16-server` whenever Studio opens. Represent
+Decision: Start or attach to `gem16-server` whenever gem16 opens. Represent
 selected images, audio files, and bounded microphone recordings as ordered
 in-memory message attachments, serialize them through the existing strict Chat
 Completions content-array contract, and retain the bytes for exact resident
@@ -23,7 +23,7 @@ Alternatives: Upload files through a new endpoint; reread paths on every turn;
 render generated HTML in a web view; or add separate native modality runtimes to
 the JVM application.
 
-Consequences: Studio imposes 10 MiB per-file and 14 MiB aggregate Base64 limits
+Consequences: gem16 imposes 10 MiB per-file and 14 MiB aggregate Base64 limits
 below the server's 16 MiB request boundary. Attachments consume host memory for
 the visible conversation. Raw HTML is shown as text. Tool calls, Responses
 history, and video remain separate UI work.
@@ -40,7 +40,7 @@ and request-boundary gates.
 
 Date: 2026-07-30
 
-Decision: Add `gem16 Studio` as a Kotlin Compose Desktop application in this
+Decision: Add `gem16` as a Kotlin Compose Desktop application in this
 repository. Keep the JVM process outside the inference runtime: it starts or
 attaches to `gem16-server`, consumes the strict OpenAI-compatible SSE boundary,
 and never loads CUDA or checkpoint weights itself. Persist local configuration,

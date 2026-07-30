@@ -61,6 +61,8 @@ import androidx.compose.ui.draganddrop.dragData
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isMetaPressed
 import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
@@ -274,11 +276,21 @@ private fun MessageCard(message: ChatMessage, showReasoning: Boolean) {
             else MaterialTheme.colorScheme.surfaceVariant,
         ) {
             Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(StudioGap)) {
-                Text(
-                    if (user) "You" else "Gemma 4",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        if (user) "You" else "Gemma 4",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.weight(1f),
+                    )
+                    if (!user && message.content.isNotEmpty()) {
+                        StudioCopyButton(
+                            text = message.content,
+                            contentDescription = "Copy complete answer",
+                            modifier = Modifier.size(24.dp),
+                        )
+                    }
+                }
                 if (!user && showReasoning && (message.reasoning.isNotBlank() || message.streaming)) {
                     ReasoningBlock(message.reasoning, message.streaming)
                 }
@@ -477,7 +489,18 @@ private fun Composer(state: StudioState) {
             onValueChange = { state.draft = it },
             modifier = Modifier.fillMaxWidth()
                 .onPreviewKeyEvent { event ->
-                    if (event.type == KeyEventType.KeyDown && event.key == Key.Enter && !event.isShiftPressed) {
+                    if (
+                        event.type == KeyEventType.KeyDown &&
+                        event.key == Key.V &&
+                        (event.isCtrlPressed || event.isMetaPressed) &&
+                        state.addClipboardImage()
+                    ) {
+                        true
+                    } else if (
+                        event.type == KeyEventType.KeyDown &&
+                        event.key == Key.Enter &&
+                        !event.isShiftPressed
+                    ) {
                         state.sendMessage()
                         true
                     } else {
@@ -491,7 +514,7 @@ private fun Composer(state: StudioState) {
             maxLines = 6,
             minHeight = 68.dp,
             maxHeight = 144.dp,
-            supportingText = "Enter to send · Shift+Enter for a new line · Drop files anywhere",
+            supportingText = "Enter to send · Shift+Enter for a new line · Drop files or paste images with Ctrl+V",
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(

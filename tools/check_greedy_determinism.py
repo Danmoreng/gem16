@@ -3,6 +3,11 @@
 
 from __future__ import annotations
 
+try:
+    from tools.hf_cache import default_target_model
+except ModuleNotFoundError:
+    from hf_cache import default_target_model
+
 import argparse
 import hashlib
 import json
@@ -26,7 +31,7 @@ def positive_int(value: str) -> int:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--model", required=True, type=Path)
+    parser.add_argument("--model", type=Path, default=default_target_model())
     parser.add_argument("--executable", required=True, type=Path)
     parser.add_argument("--workload", type=Path)
     parser.add_argument("--output", type=Path)

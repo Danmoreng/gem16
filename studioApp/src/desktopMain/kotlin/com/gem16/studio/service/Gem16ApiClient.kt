@@ -95,7 +95,7 @@ class Gem16ApiClient {
         val builder = HttpRequest.newBuilder(URI.create("${server.baseUrl}/chat/completions"))
             .header("Content-Type", "application/json")
             .header("Accept", "text/event-stream")
-            .header("Authorization", "Bearer gem16-studio")
+            .header("Authorization", "Bearer gem16")
             .POST(HttpRequest.BodyPublishers.ofString(json.encodeToString(JsonObject.serializer(), payload)))
         if (!sessionId.isNullOrBlank()) builder.header("X-Gem16-Session-Id", sessionId)
         val response = http.send(builder.build(), HttpResponse.BodyHandlers.ofInputStream())

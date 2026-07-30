@@ -9,6 +9,11 @@ silently changing seeded output.
 
 from __future__ import annotations
 
+try:
+    from tools.hf_cache import default_target_model
+except ModuleNotFoundError:
+    from hf_cache import default_target_model
+
 import argparse
 import json
 import math
@@ -81,7 +86,7 @@ def run_once(args: argparse.Namespace, logits_path: pathlib.Path) -> dict:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--run", type=pathlib.Path, required=True)
-    parser.add_argument("--model", type=pathlib.Path, required=True)
+    parser.add_argument("--model", type=pathlib.Path, default=default_target_model())
     parser.add_argument("--input-token-ids", default="2,105,2364,107")
     parser.add_argument("--max-context", type=int, default=128)
     parser.add_argument("--steps", type=int, default=4)

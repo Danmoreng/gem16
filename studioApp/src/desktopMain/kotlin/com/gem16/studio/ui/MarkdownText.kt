@@ -7,9 +7,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -67,8 +69,10 @@ internal fun parseMarkdown(markdown: String): Node = markdownParser.parse(markdo
 @Composable
 fun MarkdownText(markdown: String, modifier: Modifier = Modifier) {
     val document = remember(markdown) { parseMarkdown(markdown) }
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(StudioGap)) {
-        MarkdownChildren(document)
+    SelectionContainer {
+        Column(modifier, verticalArrangement = Arrangement.spacedBy(StudioGap)) {
+            MarkdownChildren(document)
+        }
     }
 }
 
@@ -114,7 +118,7 @@ private fun MarkdownBlock(node: Node) {
             }
         }
         is ThematicBreak -> HorizontalDivider()
-        is HtmlBlock -> SelectionContainer { Text(node.literal, fontFamily = FontFamily.Monospace) }
+        is HtmlBlock -> CodeBlock(node.literal, "html")
         else -> MarkdownChildren(node)
     }
 }
@@ -143,27 +147,31 @@ private fun MarkdownList(node: Node, ordered: Boolean, start: Int) {
 
 @Composable
 private fun CodeBlock(code: String, language: String?) {
+    val copiedText = code.trimEnd()
     Surface(
         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f),
         shape = MaterialTheme.shapes.medium,
     ) {
         Column(Modifier.fillMaxWidth().padding(8.dp)) {
-            language?.takeIf(String::isNotBlank)?.let {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                 Text(
-                    it.trim(),
+                    language?.trim()?.takeIf(String::isNotBlank) ?: "Code",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(bottom = StudioCompactGap),
+                )
+                Spacer(Modifier.weight(1f))
+                StudioCopyButton(
+                    text = copiedText,
+                    contentDescription = "Copy code block",
+                    modifier = Modifier.size(24.dp),
                 )
             }
-            SelectionContainer {
-                Text(
-                    code.trimEnd(),
-                    modifier = Modifier.horizontalScroll(rememberScrollState()),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontFamily = FontFamily.Monospace,
-                )
-            }
+            Text(
+                copiedText,
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                style = MaterialTheme.typography.bodyMedium,
+                fontFamily = FontFamily.Monospace,
+            )
         }
     }
 }
@@ -177,23 +185,21 @@ private fun InlineMarkdown(node: Node, style: TextStyle) {
     }
     val uriHandler = LocalUriHandler.current
     var layoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
-    SelectionContainer {
-        Text(
-            value,
-            style = style,
-            onTextLayout = { layoutResult = it },
-            modifier = Modifier.pointerInput(value) {
-                detectTapGestures { position ->
-                    val offset = layoutResult?.getOffsetForPosition(position) ?: return@detectTapGestures
-                    value.getStringAnnotations(LinkTag, offset, offset)
-                        .firstOrNull()
-                        ?.item
-                        ?.takeIf(::isSafeExternalUri)
-                        ?.let { uri -> runCatching { uriHandler.openUri(uri) } }
-                }
-            },
-        )
-    }
+    Text(
+        value,
+        style = style,
+        onTextLayout = { layoutResult = it },
+        modifier = Modifier.pointerInput(value) {
+            detectTapGestures { position ->
+                val offset = layoutResult?.getOffsetForPosition(position) ?: return@detectTapGestures
+                value.getStringAnnotations(LinkTag, offset, offset)
+                    .firstOrNull()
+                    ?.item
+                    ?.takeIf(::isSafeExternalUri)
+                    ?.let { uri -> runCatching { uriHandler.openUri(uri) } }
+            }
+        },
+    )
 }
 
 private fun isSafeExternalUri(value: String): Boolean =

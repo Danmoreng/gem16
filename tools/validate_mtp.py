@@ -8,6 +8,11 @@ shared cache consumed by the assistant reference. Performance is out of scope.
 
 from __future__ import annotations
 
+try:
+    from tools.hf_cache import default_assistant_model, default_target_model
+except ModuleNotFoundError:
+    from hf_cache import default_assistant_model, default_target_model
+
 import argparse
 import json
 import math
@@ -47,8 +52,8 @@ def target_embedding_row(model_file: Path, token: int) -> torch.Tensor:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--binary", type=Path, required=True)
-    parser.add_argument("--target", type=Path, required=True)
-    parser.add_argument("--assistant", type=Path, required=True)
+    parser.add_argument("--target", type=Path, default=default_target_model())
+    parser.add_argument("--assistant", type=Path, default=default_assistant_model())
     parser.add_argument("--input-token", type=int, default=2)
     parser.add_argument("--draft-tokens", type=int, choices=(1, 2, 4), default=4)
     parser.add_argument("--output", type=Path)

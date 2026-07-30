@@ -1,6 +1,6 @@
-# gem16 Studio
+# gem16
 
-gem16 Studio is a Kotlin Compose Desktop application for local Gemma 4 chat and
+gem16 is a Kotlin Compose Desktop application for local Gemma 4 chat and
 `gem16-server` lifecycle management. It follows the desktop structure proven by
 the neighboring Qwen-TTS Studio while remaining an HTTP client: the JVM does
 not load CUDA or model weights directly.
@@ -9,9 +9,13 @@ not load CUDA or model weights directly.
 
 - streamed Chat Completions with separate reasoning and answer presentation;
 - CommonMark headings, emphasis, lists, quotes, links, and fenced code rendering;
+- selection across complete multi-paragraph Markdown answers, one-click copying
+  of full model responses, and per-block copy actions for fenced code and HTML;
 - ordered PNG/JPEG/BMP image and WAV/FLAC/MP3 audio attachments;
 - drag-and-drop attachment handling across the complete chat area, with a
   visible drop target and the same size/type validation as the file picker;
+- direct image paste from the system clipboard with Ctrl+V or Cmd+V, encoded
+  in memory as PNG without creating a temporary file;
 - in-memory microphone recording with live level, timer, cancel, and automatic
   stop after the server's 30-second audio limit;
 - Enter-to-send with Shift+Enter for multiline input;
@@ -83,11 +87,11 @@ GEM16_TEST_MIC=1 ./gradlew :studioApp:desktopTest \
 
 Compose packaging can produce DMG, MSI, and DEB images. Packaging first stages
 the current platform's release `gem16-server` into the application resources;
-the installed Studio discovers that binary automatically. Checkpoints are never
+the installed application discovers that binary automatically. Checkpoints are never
 embedded in the application. On first launch, the **Models** screen downloads
 the exact locked snapshots and configures the managed server automatically.
 
-Studio honors `HF_HUB_CACHE`, then `HF_HOME`, then `XDG_CACHE_HOME`, and otherwise
+gem16 honors `HF_HUB_CACHE`, then `HF_HOME`, then `XDG_CACHE_HOME`, and otherwise
 uses `~/.cache/huggingface/hub`, matching Hugging Face Hub conventions. The
 target model view is composed inside that cache from content-addressed hardlinks:
 the 9.3 GB payload is not duplicated. An access token can come from `HF_TOKEN`,
@@ -97,7 +101,7 @@ account before gated files can be downloaded.
 
 ## Managed server behavior
 
-Studio probes the configured endpoint at application startup only after the
+gem16 probes the configured endpoint at application startup only after the
 configured model set exists. It attaches when
 a compatible server is already healthy; otherwise it immediately executes the
 configured binary with an argument vector and without invoking a shell. A
@@ -114,10 +118,10 @@ gem16-server \
 ```
 
 Output is captured into a 1,000-line in-memory ring. On application shutdown,
-Studio stops only the process it created. A server discovered through `/health`
+gem16 stops only the process it created. A server discovered through `/health`
 is labeled external and is never terminated by the UI.
 
-The server has no built-in authentication or TLS. Studio defaults to loopback
+The server has no built-in authentication or TLS. gem16 defaults to loopback
 and visibly warns for any other bind address.
 
 ## Chat protocol
@@ -127,7 +131,7 @@ The client sends the complete visible conversation to
 returned by gem16. Text and `reasoning_content` deltas are rendered separately.
 User content is either plain text or an ordered OpenAI content array containing
 text, inline data-URL images, and Base64 audio. Media is held in memory so a
-resident continuation can reproduce the exact prior request; Studio limits one
+resident continuation can reproduce the exact prior request; gem16 limits one
 file to 10 MiB and the conversation to 14 MiB of Base64 payload below the
 server's 16 MiB request limit. On Linux the microphone path prefers the default
 PipeWire source through `pw-record`, temporarily lowers an overdriven source
@@ -148,6 +152,6 @@ Sampling remains a server-level choice, matching gem16's current strict API:
 
 All model requests target the configured endpoint. The default is
 `http://127.0.0.1:8080/v1`. Model downloads contact only pinned immutable files
-on `huggingface.co`; Studio never executes repository code or transmits
+on `huggingface.co`; gem16 never executes repository code or transmits
 telemetry. A token entered in the UI remains in memory and is not written to
-Studio settings. Settings contain cache-backed paths and server configuration.
+gem16 settings. Settings contain cache-backed paths and server configuration.

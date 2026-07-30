@@ -179,7 +179,7 @@ class ModelManager {
         }
         val requestBuilder = HttpRequest.newBuilder(downloadUri(source))
             .timeout(Duration.ofHours(6))
-            .header("User-Agent", "gem16-studio/1")
+            .header("User-Agent", "gem16/1")
             .header("Accept-Encoding", "identity")
             .GET()
         if (!token.isNullOrBlank()) requestBuilder.header("Authorization", "Bearer $token")
@@ -189,7 +189,7 @@ class ModelManager {
             response.body().close()
             error(
                 "Hugging Face denied access to ${source.repository}. Accept the repository license and " +
-                    "sign in with HF_TOKEN or the token field in Studio.",
+                    "sign in with HF_TOKEN or the token field in gem16.",
             )
         }
         check(response.statusCode() == 200 || response.statusCode() == 206) {

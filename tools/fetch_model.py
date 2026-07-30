@@ -13,11 +13,30 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+try:
+    from tools.hf_cache import hub_cache_root, locked_snapshot_path, repository_root
+except ModuleNotFoundError:  # Direct execution from outside the repository root.
+    from hf_cache import hub_cache_root, locked_snapshot_path, repository_root
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--lock", type=Path, default=Path("models/gemma4-12b-nvfp4.lock.json"))
-    parser.add_argument("--destination", type=Path, required=True)
+    parser.add_argument(
+        "--destination",
+        type=Path,
+        help="optional extra linked view; defaults to the shared Hugging Face cache",
+    )
+    parser.add_argument(
+        "--cache-dir",
+        type=Path,
+        help="override HF_HUB_CACHE for this invocation",
+    )
+    parser.add_argument(
+        "--import-from",
+        type=Path,
+        help="import an existing verified checkpoint directory instead of downloading",
+    )
     parser.add_argument("--verify-only", action="store_true")
     return parser.parse_args()
 
@@ -84,31 +103,91 @@ def verify(path: Path, entry: dict[str, object]) -> bool:
     return True
 
 
+def blob_id(entry: dict[str, object]) -> str:
+    value = entry.get("lfs_oid") or entry.get("git_oid")
+    if not value:
+        raise ValueError(f"lock entry has no blob identity: {entry.get('path')!r}")
+    return str(value)
+
+
+def link_file(source: Path, destination: Path) -> None:
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    if destination.is_file() and source.samefile(destination):
+        return
+    destination.unlink(missing_ok=True)
+    try:
+        destination.hardlink_to(source)
+    except OSError:
+        destination.symlink_to(os.path.relpath(source, destination.parent))
+
+
+def verification_marker(repository: str, identity: str, cache_root: Path) -> Path:
+    return repository_root(repository, cache_root) / ".gem16-verified" / f"{identity}.sha256"
+
+
+def install_entry(
+    lock: dict[str, object],
+    entry: dict[str, object],
+    cache_root: Path,
+    import_root: Path | None,
+    verify_only: bool,
+) -> bool:
+    repository, revision, relative = resolve_source(lock, entry)
+    identity = blob_id(entry)
+    blob = repository_root(repository, cache_root) / "blobs" / identity
+    blob.parent.mkdir(parents=True, exist_ok=True)
+    if not verify(blob, entry):
+        if verify_only:
+            print(f"missing or wrong size: {blob}", file=sys.stderr)
+            return False
+        if import_root is not None:
+            imported = safe_target(import_root, str(entry["path"]))
+            if not verify(imported, entry):
+                raise RuntimeError(f"missing or invalid import source: {imported}")
+            blob.with_name(blob.name + ".incomplete").unlink(missing_ok=True)
+            link_file(imported, blob)
+        else:
+            quoted_path = urllib.parse.quote(relative, safe="/")
+            url = f"https://huggingface.co/{repository}/resolve/{revision}/{quoted_path}"
+            download(url, blob, int(entry["size"]), str(entry["sha256"]))
+        if not verify(blob, entry):
+            raise RuntimeError(f"verification unexpectedly failed: {blob}")
+
+    marker = verification_marker(repository, identity, cache_root)
+    marker.parent.mkdir(parents=True, exist_ok=True)
+    marker.write_text(f"{entry['sha256']}\n", encoding="utf-8")
+    source_snapshot = repository_root(repository, cache_root) / "snapshots" / revision
+    link_file(blob, source_snapshot / relative)
+    return True
+
+
 def download(
     url: str, destination: Path, expected_size: int, expected_hash: str
 ) -> None:
-    partial = destination.with_name(destination.name + ".part")
-    partial_metadata = destination.with_name(destination.name + ".part.json")
+    partial = destination.with_name(destination.name + ".incomplete")
+    partial_metadata = destination.with_name(destination.name + ".incomplete.json")
     identity = {
         "url": url,
         "size": expected_size,
         "sha256": expected_hash,
     }
     identity_text = json.dumps(identity, sort_keys=True) + "\n"
-    metadata_matches = False
+    # Compose writes the same `<blob>.incomplete` file without sidecar metadata.
+    # A sidecar is therefore optional; when present it must match this exact lock.
+    metadata_matches = not partial_metadata.exists()
     if partial_metadata.is_file():
         metadata_matches = partial_metadata.read_text(encoding="utf-8") == identity_text
     if partial.exists() and not metadata_matches:
         partial.unlink()
     if partial_metadata.exists() and not metadata_matches:
         partial_metadata.unlink()
-    if not partial.exists():
+    if not partial_metadata.exists():
         partial_metadata.write_text(identity_text, encoding="utf-8")
     offset = partial.stat().st_size if partial.exists() else 0
     if offset > expected_size:
         raise RuntimeError(f"partial file is larger than lock size: {partial}")
     headers = {"User-Agent": "gem16-fetch-model/1"}
-    token = os.environ.get("HF_TOKEN")
+    token = hugging_face_token()
     if token:
         headers["Authorization"] = f"Bearer {token}"
     if offset:
@@ -143,6 +222,20 @@ def download(
     partial_metadata.unlink(missing_ok=True)
 
 
+def hugging_face_token() -> str | None:
+    for name in ("HF_TOKEN", "HUGGING_FACE_HUB_TOKEN"):
+        value = os.environ.get(name, "").strip()
+        if value:
+            return value
+    hf_home = Path(os.environ.get("HF_HOME", Path.home() / ".cache/huggingface"))
+    token_file = hf_home.expanduser() / "token"
+    if token_file.is_file():
+        value = token_file.read_text(encoding="utf-8").strip()
+        if value:
+            return value
+    return None
+
+
 def main() -> int:
     args = parse_args()
     lock = json.loads(args.lock.read_text(encoding="utf-8"))
@@ -150,26 +243,32 @@ def main() -> int:
     if schema_version not in (1, 2):
         raise ValueError(f"unsupported model lock schema_version: {schema_version}")
     immutable_revision(lock["revision"], "model lock revision")
-    args.destination.mkdir(parents=True, exist_ok=True)
+    cache_root = (args.cache_dir or hub_cache_root()).expanduser().resolve()
+    cache_root.mkdir(parents=True, exist_ok=True)
+    locked_view = locked_snapshot_path(args.lock, cache_root)
+    import_root = args.import_from.resolve(strict=True) if args.import_from else None
     failures = 0
     for entry in lock["files"]:
-        target = safe_target(args.destination, str(entry["path"]))
         try:
-            if verify(target, entry):
-                continue
-            if args.verify_only:
-                print(f"missing or wrong size: {target}", file=sys.stderr)
+            if not install_entry(
+                lock,
+                entry,
+                cache_root,
+                import_root,
+                args.verify_only,
+            ):
                 failures += 1
                 continue
-            repository, revision, relative = resolve_source(lock, entry)
-            quoted_path = urllib.parse.quote(relative, safe="/")
-            url = f"https://huggingface.co/{repository}/resolve/{revision}/{quoted_path}"
-            download(url, target, int(entry["size"]), str(entry["sha256"]))
-            if not verify(target, entry):
-                raise RuntimeError(f"verification unexpectedly failed: {target}")
+            repository, _, _ = resolve_source(lock, entry)
+            blob = repository_root(repository, cache_root) / "blobs" / blob_id(entry)
+            link_file(blob, safe_target(locked_view, str(entry["path"])))
+            if args.destination is not None:
+                link_file(blob, safe_target(args.destination, str(entry["path"])))
         except RuntimeError as error:
             print(f"error: {error}", file=sys.stderr)
             failures += 1
+    if failures == 0:
+        print(f"locked snapshot: {locked_view}")
     return 1 if failures else 0
 
 

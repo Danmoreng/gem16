@@ -93,7 +93,7 @@ fun SettingsScreen(state: StudioState) {
                 Modifier.fillMaxWidth().padding(StudioPanelPadding),
                 verticalArrangement = Arrangement.spacedBy(StudioGap),
             ) {
-                Text("About gem16 Studio", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text("About gem16", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 Text(
                     "A local, cross-platform Compose Desktop client for the specialized gem16 Gemma 4 12B " +
                         "FP8/NVFP4 inference engine.",

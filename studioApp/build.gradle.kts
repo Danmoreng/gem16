@@ -20,7 +20,7 @@ val prepareStudioAppResources by tasks.registering(Sync::class) {
     into(generatedAppResources)
     doFirst {
         check(studioServer.asFile.isFile) {
-            "Build the release gem16-server before packaging Studio: ${studioServer.asFile}"
+            "Build the release gem16-server before packaging gem16: ${studioServer.asFile}"
         }
     }
 }
@@ -61,7 +61,7 @@ compose.desktop {
         nativeDistributions {
             appResourcesRootDir.set(generatedAppResources)
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-            packageName = "gem16-studio"
+            packageName = "gem16"
             packageVersion = providers.environmentVariable("APP_VERSION").orElse("0.1.0").get()
             description = "Desktop chat and server manager for gem16"
             vendor = "gem16"
@@ -72,7 +72,7 @@ compose.desktop {
                 infoPlist {
                     extraKeysRawXml = """
                         <key>NSMicrophoneUsageDescription</key>
-                        <string>gem16 Studio records audio only when you press the microphone button.</string>
+                        <string>gem16 records audio only when you press the microphone button.</string>
                     """.trimIndent()
                 }
             }

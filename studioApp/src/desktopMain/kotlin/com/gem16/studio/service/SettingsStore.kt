@@ -85,7 +85,7 @@ class SettingsStore(
             setProperty("ui.darkTheme", settings.darkTheme.toString())
         }
         val temporary = settingsFile.resolveSibling("${settingsFile.fileName}.tmp")
-        Files.newOutputStream(temporary).use { properties.store(it, "gem16 Studio settings") }
+        Files.newOutputStream(temporary).use { properties.store(it, "gem16 settings") }
         runCatching {
             Files.move(
                 temporary,

@@ -1,6 +1,8 @@
 package com.gem16.studio
 
 import com.gem16.studio.model.GenerationConfig
+import com.gem16.studio.model.Gem16ModelCatalog
+import com.gem16.studio.model.HuggingFaceCachePaths
 import com.gem16.studio.model.ServerConfig
 import com.gem16.studio.model.StudioSettings
 import com.gem16.studio.model.ThinkingEffort
@@ -56,7 +58,7 @@ class ServerManagerTest {
     }
 
     @Test
-    fun defaultsResolveAgainstRepositoryInsteadOfStudioModule() {
+    fun defaultsResolveRepositoryExecutableAndHuggingFaceModels() {
         val config = ServerConfig()
         val root = repositoryRoot()
         val executable = if (System.getProperty("os.name").contains("Windows", ignoreCase = true)) {
@@ -66,9 +68,15 @@ class ServerManagerTest {
         }
         assertEquals(root.resolve(executable).normalize().toString(), config.executable)
         assertEquals(
-            root.resolve("models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497")
-                .normalize().toString(),
+            HuggingFaceCachePaths.targetView().toAbsolutePath().normalize().toString(),
             config.modelDirectory,
+        )
+        assertEquals(
+            HuggingFaceCachePaths.snapshot(
+                Gem16ModelCatalog.assistantRepository,
+                Gem16ModelCatalog.assistantRevision,
+            ).toAbsolutePath().normalize().toString(),
+            config.assistantModelDirectory,
         )
     }
 

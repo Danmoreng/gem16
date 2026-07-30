@@ -3,6 +3,11 @@
 
 from __future__ import annotations
 
+try:
+    from tools.hf_cache import default_assistant_model, default_target_model
+except ModuleNotFoundError:
+    from hf_cache import default_assistant_model, default_target_model
+
 import argparse
 import json
 import subprocess
@@ -24,8 +29,8 @@ def run(command: list[str], conversation: str) -> tuple[list[str], str]:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--binary", type=Path, required=True)
-    parser.add_argument("--target", type=Path, required=True)
-    parser.add_argument("--assistant", type=Path, required=True)
+    parser.add_argument("--target", type=Path, default=default_target_model())
+    parser.add_argument("--assistant", type=Path, default=default_assistant_model())
     parser.add_argument("--seed", type=int, default=123)
     parser.add_argument("--max-context", type=int, default=2048)
     parser.add_argument("--max-tokens", type=int, default=16)

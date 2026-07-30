@@ -1,4 +1,4 @@
-rootProject.name = "gem16-studio"
+rootProject.name = "gem16"
 include(":studioApp")
 
 pluginManagement {

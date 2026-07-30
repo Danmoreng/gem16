@@ -237,7 +237,7 @@ private fun ServerConfiguration(state: StudioState, phase: ServerPhase) {
                         Text("Stop server", color = MaterialTheme.colorScheme.onPrimary)
                     }
                     ServerPhase.External -> Text(
-                        "This process was not started by Studio and will not be stopped by it.",
+                        "This process was not started by gem16 and will not be stopped by it.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     else -> StudioPrimaryButton(
