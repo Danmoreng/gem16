@@ -1,5 +1,41 @@
 # Decisions
 
+## 2026-07-30: Check reproducible multimodal benchmark media into the repository
+
+Date: 2026-07-30
+
+Decision: Make a versioned six-item media suite the default input to the long
+server benchmark. Check in three project-authored synthetic PNG scenes and three
+14-second mono 16-kHz WAV excerpts from public-domain LibriVox recordings. Lock
+all retained bytes and source downloads by SHA-256, retain expected recognition
+facts in a machine-readable manifest, and keep deterministic image generation
+and explicit audio-fetch/extraction tools. Caller media may only be appended by
+an explicit option.
+
+Context: The first Linux 128K server characterization depended on one PNG and one
+WAV in unrelated development repositories. Those absolute paths prevented a
+fresh checkout from reproducing multimodal admission, preprocessing, retrieval,
+or benchmark quality. One pair also under-sampled repeated-media ordering and
+cross-modal retention.
+
+Alternatives: Download mutable media during every benchmark; commit opaque files
+without provenance; synthesize speech with a model-specific TTS stack; or keep
+requiring machine-local paths.
+
+Consequences: A default run needs no media network access and validates all six
+files before starting CUDA. The empty-cache multimodal root is now roughly 2K
+positions, so subsequent default checkpoints begin at 4K. The repository grows
+by about 1.4 MiB. LibriVox public-domain status is documented separately from
+project-authored image licensing; downstream users remain responsible for local
+public-domain rules. Updating any media byte requires manifest, provenance,
+expected-fact, and benchmark evidence changes.
+
+Evidence: Each image is independently recognized with its intended code and
+count. Each audio clip is independently transcribed with its locked distinctive
+terms. A fixed-D2 repository-suite conversation recognizes all six at the root,
+completes the 4K/8K/32K/64K/128K characterization, and retrieves all six in
+separate final turns beginning beyond 131K.
+
 ## 2026-07-30: Account only the first completed reasoning channel
 
 Date: 2026-07-30

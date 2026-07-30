@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "name": "gem16-multimodal-retrieval-v1",
+  "assets": [
+    {
+      "id": "image_a",
+      "type": "image",
+      "path": "images/orbit_station_47.png",
+      "sha256": "90a1fde43fc550a22396a23f1292d361cd01413b434b966115b2965332c4b42f",
+      "expected_terms": ["orbit 47"],
+      "provenance": "Original deterministic gem16 synthetic fixture"
+    },
+    {
+      "id": "audio_a",
+      "type": "audio",
+      "path": "audio/alice_sister_bank.wav",
+      "sha256": "9484f6d7aac50308d56b5251f15978860f934a851d52edde212892a6ad0517de",
+      "expected_terms": ["sister", "bank"],
+      "provenance": "14-second public-domain LibriVox excerpt from Alice's Adventures in Wonderland"
+    },
+    {
+      "id": "image_b",
+      "type": "image",
+      "path": "images/cedar_greenhouse_82.png",
+      "sha256": "c0bdca9e6784d123b98980f2f90dbd7140559a853b5f0d1da9a9774b0a472653",
+      "expected_terms": ["cedar 82", "3"],
+      "provenance": "Original deterministic gem16 synthetic fixture"
+    },
+    {
+      "id": "audio_b",
+      "type": "audio",
+      "path": "audio/moby_lexicons_flags.wav",
+      "sha256": "474c9ef51272503b763a54b914fe210e4cf18419e82c84f5f547b0372d50eaef",
+      "expected_terms": ["lexicons", "flags"],
+      "provenance": "14-second public-domain LibriVox excerpt from Moby Dick; or, The Whale"
+    },
+    {
+      "id": "image_c",
+      "type": "image",
+      "path": "images/harbor_lighthouse_19.png",
+      "sha256": "9a0014c56f14bec87d2d45737ce8e626b47e48054568a09006c3b3df19fdff2d",
+      "expected_terms": ["harbor 19", "4"],
+      "provenance": "Original deterministic gem16 synthetic fixture"
+    },
+    {
+      "id": "audio_c",
+      "type": "audio",
+      "path": "audio/pride_wife_neighborhood.wav",
+      "sha256": "515ddd5e049d6b85db7955b74d0bec22c5e9d7fe281fa6affb202ff0386fce38",
+      "expected_terms": ["wife", "neighborhood"],
+      "provenance": "14-second public-domain LibriVox excerpt from Pride and Prejudice"
+    }
+  ]
+}

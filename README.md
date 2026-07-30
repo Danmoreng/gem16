@@ -241,6 +241,13 @@ gem16-bench prefill --model /path/to/checkpoint --context 8192
 gem16-bench decode --model /path/to/checkpoint --context 8192 --tokens 256
 ```
 
+Reproducible multimodal server benchmarks use the checked-in
+`benchmarks/media/suite.json`: three original generated PNG scenes and three
+14-second public-domain LibriVox WAV excerpts. Their checksums, expected facts,
+source links, rights declarations, and reproduction tools are documented in
+[`benchmarks/media/README.md`](benchmarks/media/README.md). No external media
+paths are required for the default long-conversation benchmark.
+
 ## Correctness and performance status
 
 The engine passes its host and CUDA test suites and has real-checkpoint coverage from low-level codecs through
