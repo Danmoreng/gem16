@@ -3,6 +3,8 @@ package com.gem16.studio.ui
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.draganddrop.dragAndDropTarget
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -52,6 +54,10 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draganddrop.DragAndDropEvent
+import androidx.compose.ui.draganddrop.DragAndDropTarget
+import androidx.compose.ui.draganddrop.DragData
+import androidx.compose.ui.draganddrop.dragData
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -71,6 +77,8 @@ import com.gem16.studio.model.MediaKind
 import com.gem16.studio.model.ThinkingEffort
 import com.gem16.studio.service.formatBytes
 import com.gem16.studio.state.StudioState
+import java.net.URI
+import java.nio.file.Files
 import java.nio.file.Path
 import javax.swing.JFileChooser
 import javax.swing.filechooser.FileNameExtensionFilter
@@ -85,6 +93,31 @@ fun ChatScreen(state: StudioState) {
     val listState = rememberLazyListState()
     var autoFollow by remember { mutableStateOf(true) }
     var programmaticScroll by remember { mutableStateOf(false) }
+    var dragActive by remember { mutableStateOf(false) }
+    val dropTarget = remember(state) {
+        object : DragAndDropTarget {
+            override fun onEntered(event: DragAndDropEvent) {
+                dragActive = true
+            }
+
+            override fun onExited(event: DragAndDropEvent) {
+                dragActive = false
+            }
+
+            override fun onEnded(event: DragAndDropEvent) {
+                dragActive = false
+            }
+
+            override fun onDrop(event: DragAndDropEvent): Boolean {
+                dragActive = false
+                if (state.isGenerating || state.isLoadingAttachments || state.isRecording) return false
+                val paths = droppedFilePaths(event)
+                if (paths.isEmpty()) return false
+                state.addAttachments(paths)
+                return true
+            }
+        }
+    }
     val contentFingerprint = state.messages.sumOf { it.content.length + it.reasoning.length }
 
     LaunchedEffect(listState) {
@@ -116,55 +149,98 @@ fun ChatScreen(state: StudioState) {
         }
     }
 
-    Column(Modifier.fillMaxSize()) {
-        Box(Modifier.weight(1f).fillMaxWidth()) {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier.fillMaxSize()
-                    .onPointerEvent(PointerEventType.Scroll) {
-                        if (listState.canScrollForward) autoFollow = false
-                    }
-                    .padding(horizontal = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(StudioGap),
-            ) {
-                item { Spacer(Modifier.height(StudioGap)) }
-                if (state.messages.isEmpty()) {
-                    item { WelcomeCard() }
-                }
-                items(state.messages, key = ChatMessage::id) { message ->
-                    MessageCard(message, state.settings.generation.showReasoning)
-                }
-                item { Spacer(Modifier.height(8.dp)) }
-            }
-            VerticalScrollbar(
-                adapter = rememberScrollbarAdapter(listState),
-                modifier = Modifier.align(Alignment.CenterEnd)
-                    .fillMaxHeight()
-                    .onPointerEvent(PointerEventType.Press) { autoFollow = false }
-                    .onPointerEvent(PointerEventType.Release) {
-                        if (!listState.canScrollForward) autoFollow = true
-                    },
-            )
-            if (!autoFollow && state.messages.isNotEmpty()) {
-                StudioPrimaryButton(
-                    onClick = { autoFollow = true },
-                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = StudioGap).height(StudioControlHeight),
+    val canAcceptDrop = !state.isGenerating && !state.isLoadingAttachments && !state.isRecording
+    Box(
+        Modifier.fillMaxSize().dragAndDropTarget(
+            shouldStartDragAndDrop = { event ->
+                canAcceptDrop && event.dragData() is DragData.FilesList
+            },
+            target = dropTarget,
+        ),
+    ) {
+        Column(Modifier.fillMaxSize()) {
+            Box(Modifier.weight(1f).fillMaxWidth()) {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize()
+                        .onPointerEvent(PointerEventType.Scroll) {
+                            if (listState.canScrollForward) autoFollow = false
+                        }
+                        .padding(horizontal = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(StudioGap),
                 ) {
-                    Icon(Icons.Default.ArrowDownward, contentDescription = null, modifier = Modifier.size(StudioIconSize))
-                    Spacer(Modifier.width(StudioGap))
-                    Text("Jump to latest", color = MaterialTheme.colorScheme.onPrimary)
+                    item { Spacer(Modifier.height(StudioGap)) }
+                    if (state.messages.isEmpty()) {
+                        item { WelcomeCard() }
+                    }
+                    items(state.messages, key = ChatMessage::id) { message ->
+                        MessageCard(message, state.settings.generation.showReasoning)
+                    }
+                    item { Spacer(Modifier.height(8.dp)) }
+                }
+                VerticalScrollbar(
+                    adapter = rememberScrollbarAdapter(listState),
+                    modifier = Modifier.align(Alignment.CenterEnd)
+                        .fillMaxHeight()
+                        .onPointerEvent(PointerEventType.Press) { autoFollow = false }
+                        .onPointerEvent(PointerEventType.Release) {
+                            if (!listState.canScrollForward) autoFollow = true
+                        },
+                )
+                if (!autoFollow && state.messages.isNotEmpty()) {
+                    StudioPrimaryButton(
+                        onClick = { autoFollow = true },
+                        modifier = Modifier.align(Alignment.BottomCenter)
+                            .padding(bottom = StudioGap)
+                            .height(StudioControlHeight),
+                    ) {
+                        Icon(
+                            Icons.Default.ArrowDownward,
+                            contentDescription = null,
+                            modifier = Modifier.size(StudioIconSize),
+                        )
+                        Spacer(Modifier.width(StudioGap))
+                        Text("Jump to latest", color = MaterialTheme.colorScheme.onPrimary)
+                    }
                 }
             }
+            state.chatError?.let { error ->
+                Text(
+                    error,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = StudioCompactGap),
+                )
+            }
+            HorizontalDivider()
+            Composer(state)
         }
-        state.chatError?.let { error ->
+        if (dragActive) DropFilesOverlay()
+    }
+}
+
+@Composable
+private fun DropFilesOverlay() {
+    Box(
+        modifier = Modifier.fillMaxSize().padding(12.dp)
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.96f), MaterialTheme.shapes.large)
+            .border(2.dp, MaterialTheme.colorScheme.primary, MaterialTheme.shapes.large),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                Icons.Default.AttachFile,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(32.dp),
+            )
+            Spacer(Modifier.height(StudioGap))
+            Text("Drop files to attach", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             Text(
-                error,
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = StudioCompactGap),
+                "PNG, JPEG, BMP, WAV, FLAC, or MP3",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall,
             )
         }
-        HorizontalDivider()
-        Composer(state)
     }
 }
 
@@ -415,7 +491,7 @@ private fun Composer(state: StudioState) {
             maxLines = 6,
             minHeight = 68.dp,
             maxHeight = 144.dp,
-            supportingText = "Enter to send · Shift+Enter for a new line",
+            supportingText = "Enter to send · Shift+Enter for a new line · Drop files anywhere",
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(
@@ -589,3 +665,16 @@ private fun chooseMediaPaths(): List<Path> {
     val selected = chooser.selectedFiles.toList().ifEmpty { listOfNotNull(chooser.selectedFile) }
     return selected.map { it.toPath().toAbsolutePath().normalize() }
 }
+
+private fun fileUriToPath(value: String): Path? = runCatching {
+    Path.of(URI.create(value)).toAbsolutePath().normalize()
+}.getOrNull()
+
+@OptIn(ExperimentalComposeUiApi::class)
+private fun droppedFilePaths(event: DragAndDropEvent): List<Path> = runCatching {
+    (event.dragData() as? DragData.FilesList)
+        ?.readFiles()
+        ?.mapNotNull(::fileUriToPath)
+        ?.filter { Files.isRegularFile(it) }
+        .orEmpty()
+}.getOrDefault(emptyList())

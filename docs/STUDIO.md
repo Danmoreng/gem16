@@ -10,6 +10,8 @@ not load CUDA or model weights directly.
 - streamed Chat Completions with separate reasoning and answer presentation;
 - CommonMark headings, emphasis, lists, quotes, links, and fenced code rendering;
 - ordered PNG/JPEG/BMP image and WAV/FLAC/MP3 audio attachments;
+- drag-and-drop attachment handling across the complete chat area, with a
+  visible drop target and the same size/type validation as the file picker;
 - in-memory microphone recording with live level, timer, cancel, and automatic
   stop after the server's 30-second audio limit;
 - Enter-to-send with Shift+Enter for multiline input;
