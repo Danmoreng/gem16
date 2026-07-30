@@ -13,6 +13,8 @@ not load CUDA or model weights directly.
 - in-memory microphone recording with live level, timer, cancel, and automatic
   stop after the server's 30-second audio limit;
 - Enter-to-send with Shift+Enter for multiline input;
+- streaming auto-follow that pauses for explicit user scrolling and resumes at
+  the bottom, with a desktop scrollbar and **Jump to latest** action;
 - resident multi-turn sessions through `X-Gem16-Session-Id`;
 - selectable off/low/medium/high thinking budgets;
 - cancellation, new-chat, usage, and finish-reason state;

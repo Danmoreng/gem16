@@ -1,12 +1,14 @@
 package com.gem16.studio.ui
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -19,10 +21,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.automirrored.filled.Undo
+import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.Close
@@ -53,7 +57,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toComposeImageBitmap
@@ -63,6 +70,8 @@ import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.onPointerEvent
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -78,30 +87,84 @@ import java.nio.file.Path
 import javax.swing.JFileChooser
 import javax.swing.filechooser.FileNameExtensionFilter
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun ChatScreen(state: StudioState, onOpenServer: () -> Unit) {
     val phase by state.serverManager.phase.collectAsState()
     val listState = rememberLazyListState()
+    var autoFollow by remember { mutableStateOf(true) }
+    var programmaticScroll by remember { mutableStateOf(false) }
     val contentFingerprint = state.messages.sumOf { it.content.length + it.reasoning.length }
-    LaunchedEffect(state.messages.size, contentFingerprint) {
-        if (state.messages.isNotEmpty()) listState.animateScrollToItem(state.messages.lastIndex)
+
+    LaunchedEffect(listState) {
+        snapshotFlow {
+            Triple(listState.isScrollInProgress, listState.canScrollForward, programmaticScroll)
+        }.collect { (scrolling, canScrollForward, programmatic) ->
+            autoFollow = nextAutoFollowState(
+                current = autoFollow,
+                scrollInProgress = scrolling,
+                canScrollForward = canScrollForward,
+                programmaticScroll = programmatic,
+            )
+        }
+    }
+    LaunchedEffect(state.messages.isEmpty()) {
+        if (state.messages.isEmpty()) autoFollow = true
+    }
+    LaunchedEffect(state.messages.size, contentFingerprint, autoFollow) {
+        if (!autoFollow || state.messages.isEmpty()) return@LaunchedEffect
+        withFrameNanos { }
+        val lastItem = listState.layoutInfo.totalItemsCount - 1
+        if (lastItem >= 0) {
+            programmaticScroll = true
+            try {
+                listState.scrollToItem(lastItem)
+            } finally {
+                programmaticScroll = false
+            }
+        }
     }
 
     Column(Modifier.fillMaxSize()) {
         ServerBanner(phase, onOpenServer)
-        LazyColumn(
-            state = listState,
-            modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            item { Spacer(Modifier.height(8.dp)) }
-            if (state.messages.isEmpty()) {
-                item { WelcomeCard() }
+        Box(Modifier.weight(1f).fillMaxWidth()) {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize()
+                    .onPointerEvent(PointerEventType.Scroll) {
+                        if (listState.canScrollForward) autoFollow = false
+                    }
+                    .padding(horizontal = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                item { Spacer(Modifier.height(8.dp)) }
+                if (state.messages.isEmpty()) {
+                    item { WelcomeCard() }
+                }
+                items(state.messages, key = ChatMessage::id) { message ->
+                    MessageCard(message, state.settings.generation.showReasoning)
+                }
+                item { Spacer(Modifier.height(8.dp)) }
             }
-            items(state.messages, key = ChatMessage::id) { message ->
-                MessageCard(message, state.settings.generation.showReasoning)
+            VerticalScrollbar(
+                adapter = rememberScrollbarAdapter(listState),
+                modifier = Modifier.align(Alignment.CenterEnd)
+                    .fillMaxHeight()
+                    .onPointerEvent(PointerEventType.Press) { autoFollow = false }
+                    .onPointerEvent(PointerEventType.Release) {
+                        if (!listState.canScrollForward) autoFollow = true
+                    },
+            )
+            if (!autoFollow && state.messages.isNotEmpty()) {
+                Button(
+                    onClick = { autoFollow = true },
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp),
+                ) {
+                    Icon(Icons.Default.ArrowDownward, contentDescription = null)
+                    Spacer(Modifier.width(6.dp))
+                    Text("Jump to latest")
+                }
             }
-            item { Spacer(Modifier.height(8.dp)) }
         }
         state.chatError?.let { error ->
             Text(
@@ -461,6 +524,17 @@ private fun Composer(state: StudioState) {
             }
         }
     }
+}
+
+internal fun nextAutoFollowState(
+    current: Boolean,
+    scrollInProgress: Boolean,
+    canScrollForward: Boolean,
+    programmaticScroll: Boolean,
+): Boolean = when {
+    !canScrollForward -> true
+    scrollInProgress && !programmaticScroll -> false
+    else -> current
 }
 
 private fun formatDuration(milliseconds: Long): String {
