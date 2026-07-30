@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
@@ -27,13 +28,21 @@ import com.gem16.studio.state.StudioState
 
 @Composable
 fun SettingsScreen(state: StudioState) {
-    Column(
-        Modifier.fillMaxSize().padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+    Row(
+        Modifier.fillMaxSize().padding(StudioScreenPadding),
+        horizontalArrangement = Arrangement.spacedBy(StudioGap),
     ) {
-        Card {
-            Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Card(Modifier.weight(1f)) {
+            Column(
+                Modifier.fillMaxWidth().padding(StudioPanelPadding),
+                verticalArrangement = Arrangement.spacedBy(StudioGap),
+            ) {
                 Text("Generation", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text(
+                    "Defaults used for new chat responses.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 var outputText by remember(state.settings.generation.maxOutputTokens) {
                     mutableStateOf(state.settings.generation.maxOutputTokens.toString())
                 }
@@ -60,13 +69,11 @@ fun SettingsScreen(state: StudioState) {
                         onCheckedChange = { checked ->
                             state.updateGeneration { it.copy(showReasoning = checked) }
                         },
+                        modifier = Modifier.size(32.dp),
                     )
                     Text("Show streamed reasoning in chat")
                 }
-            }
-        }
-        Card {
-            Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                androidx.compose.material3.HorizontalDivider(Modifier.padding(vertical = StudioCompactGap))
                 Text("Appearance", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -87,8 +94,11 @@ fun SettingsScreen(state: StudioState) {
                 }
             }
         }
-        Card {
-            Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Card(Modifier.weight(1f)) {
+            Column(
+                Modifier.fillMaxWidth().padding(StudioPanelPadding),
+                verticalArrangement = Arrangement.spacedBy(StudioGap),
+            ) {
                 Text("About gem16 Studio", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 Text(
                     "A local, cross-platform Compose Desktop client for the specialized gem16 Gemma 4 12B " +

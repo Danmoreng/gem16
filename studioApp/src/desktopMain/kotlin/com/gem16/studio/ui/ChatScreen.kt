@@ -5,6 +5,7 @@ import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -130,10 +131,10 @@ fun ChatScreen(state: StudioState) {
                     .onPointerEvent(PointerEventType.Scroll) {
                         if (listState.canScrollForward) autoFollow = false
                     }
-                    .padding(horizontal = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
+                    .padding(horizontal = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(StudioGap),
             ) {
-                item { Spacer(Modifier.height(18.dp)) }
+                item { Spacer(Modifier.height(StudioGap)) }
                 if (state.messages.isEmpty()) {
                     item { WelcomeCard() }
                 }
@@ -154,10 +155,11 @@ fun ChatScreen(state: StudioState) {
             if (!autoFollow && state.messages.isNotEmpty()) {
                 Button(
                     onClick = { autoFollow = true },
-                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp),
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = StudioGap).height(StudioControlHeight),
+                    contentPadding = PaddingValues(horizontal = 10.dp),
                 ) {
-                    Icon(Icons.Default.ArrowDownward, contentDescription = null)
-                    Spacer(Modifier.width(6.dp))
+                    Icon(Icons.Default.ArrowDownward, contentDescription = null, modifier = Modifier.size(StudioIconSize))
+                    Spacer(Modifier.width(StudioGap))
                     Text("Jump to latest")
                 }
             }
@@ -166,7 +168,7 @@ fun ChatScreen(state: StudioState) {
             Text(
                 error,
                 color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 6.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = StudioCompactGap),
             )
         }
         HorizontalDivider()
@@ -177,10 +179,10 @@ fun ChatScreen(state: StudioState) {
 @Composable
 private fun WelcomeCard() {
     Card(
-        modifier = Modifier.fillMaxWidth().padding(top = 32.dp),
+        modifier = Modifier.fillMaxWidth().padding(top = 18.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
-        Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(StudioGap)) {
             Text("Chat locally with Gemma 4", style = MaterialTheme.typography.headlineSmall)
             Text(
                 "The managed gem16 server starts automatically. Send text, images, or audio; " +
@@ -208,7 +210,7 @@ private fun MessageCard(message: ChatMessage, showReasoning: Boolean) {
                 },
             ),
         ) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(StudioGap)) {
                 Text(
                     if (user) "You" else "Gemma 4",
                     style = MaterialTheme.typography.labelLarge,
@@ -244,13 +246,14 @@ private fun ReasoningBlock(reasoning: String, streaming: Boolean) {
         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.55f),
         shape = MaterialTheme.shapes.medium,
     ) {
-        Column(Modifier.fillMaxWidth().padding(10.dp)) {
+        Column(Modifier.fillMaxWidth().padding(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Reasoning", style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
-                IconButton(onClick = { expanded = !expanded }, modifier = Modifier.size(28.dp)) {
+                IconButton(onClick = { expanded = !expanded }, modifier = Modifier.size(24.dp)) {
                     Icon(
                         if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                         contentDescription = if (expanded) "Hide reasoning" else "Show reasoning",
+                        modifier = Modifier.size(StudioIconSize),
                     )
                 }
             }
@@ -274,7 +277,7 @@ private fun AttachmentGallery(
     onRemove: ((String) -> Unit)? = null,
 ) {
     LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(StudioGap),
         modifier = Modifier.fillMaxWidth(),
     ) {
         items(attachments, key = MediaAttachment::id) { attachment ->
@@ -284,8 +287,8 @@ private fun AttachmentGallery(
                     shape = MaterialTheme.shapes.medium,
                 ) {
                     Column(
-                        Modifier.widthIn(min = 132.dp, max = 190.dp).padding(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                        Modifier.widthIn(min = 116.dp, max = 168.dp).padding(StudioGap),
+                        verticalArrangement = Arrangement.spacedBy(StudioCompactGap),
                     ) {
                         if (attachment.kind == MediaKind.Image) {
                             val bitmap = remember(attachment.id) {
@@ -298,7 +301,7 @@ private fun AttachmentGallery(
                                 Image(
                                     bitmap = bitmap,
                                     contentDescription = attachment.fileName,
-                                    modifier = Modifier.fillMaxWidth().height(96.dp),
+                                    modifier = Modifier.fillMaxWidth().height(76.dp),
                                     contentScale = ContentScale.Crop,
                                 )
                             }
@@ -309,7 +312,7 @@ private fun AttachmentGallery(
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary,
                                 )
-                                Spacer(Modifier.width(8.dp))
+                                Spacer(Modifier.width(StudioGap))
                                 Text("Audio", style = MaterialTheme.typography.labelLarge)
                             }
                         }
@@ -331,7 +334,7 @@ private fun AttachmentGallery(
                 if (onRemove != null) {
                     IconButton(
                         onClick = { onRemove(attachment.id) },
-                        modifier = Modifier.align(Alignment.TopEnd).size(30.dp),
+                        modifier = Modifier.align(Alignment.TopEnd).size(24.dp),
                     ) {
                         Icon(Icons.Default.Close, contentDescription = "Remove ${attachment.fileName}")
                     }
@@ -348,9 +351,9 @@ private fun RecordingBar(state: StudioState) {
         shape = MaterialTheme.shapes.medium,
     ) {
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = StudioGap),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(StudioGap),
         ) {
             Box(
                 Modifier.size(10.dp).background(
@@ -372,9 +375,17 @@ private fun RecordingBar(state: StudioState) {
                 )
             }
             Spacer(Modifier.weight(1f))
-            TextButton(onClick = state::cancelRecording) { Text("Cancel") }
-            Button(onClick = state::stopRecording) {
-                Icon(Icons.Default.Stop, contentDescription = null)
+            TextButton(
+                onClick = state::cancelRecording,
+                modifier = Modifier.height(StudioControlHeight),
+                contentPadding = PaddingValues(horizontal = 8.dp),
+            ) { Text("Cancel") }
+            Button(
+                onClick = state::stopRecording,
+                modifier = Modifier.height(StudioControlHeight),
+                contentPadding = PaddingValues(horizontal = 10.dp),
+            ) {
+                Icon(Icons.Default.Stop, contentDescription = null, modifier = Modifier.size(StudioIconSize))
                 Spacer(Modifier.width(6.dp))
                 Text("Stop & attach")
             }
@@ -387,8 +398,8 @@ private fun RecordingBar(state: StudioState) {
 private fun Composer(state: StudioState) {
     var thinkingMenu by remember { mutableStateOf(false) }
     Column(
-        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(StudioGap),
     ) {
         if (state.isRecording) {
             RecordingBar(state)
@@ -401,7 +412,7 @@ private fun Composer(state: StudioState) {
             value = state.draft,
             onValueChange = { state.draft = it },
             modifier = Modifier.fillMaxWidth()
-                .heightIn(min = 92.dp, max = 180.dp)
+                .heightIn(min = 68.dp, max = 144.dp)
                 .onPreviewKeyEvent { event ->
                     if (event.type == KeyEventType.KeyDown && event.key == Key.Enter && !event.isShiftPressed) {
                         state.sendMessage()
@@ -412,45 +423,51 @@ private fun Composer(state: StudioState) {
                 },
             placeholder = { Text("Message Gemma 4…") },
             enabled = !state.isGenerating && !state.isRecording,
-            minLines = 3,
-            maxLines = 8,
+            minLines = 2,
+            maxLines = 6,
             supportingText = { Text("Enter to send · Shift+Enter for a new line") },
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(
                 onClick = { state.addAttachments(chooseMediaPaths()) },
                 enabled = !state.isGenerating && !state.isLoadingAttachments && !state.isRecording,
+                modifier = Modifier.size(StudioControlHeight),
             ) {
                 if (state.isLoadingAttachments) {
                     CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                 } else {
-                    Icon(Icons.Default.AttachFile, contentDescription = "Attach images or audio")
+                    Icon(Icons.Default.AttachFile, contentDescription = "Attach images or audio", modifier = Modifier.size(18.dp))
                 }
             }
             IconButton(
                 onClick = state::startRecording,
                 enabled = !state.isGenerating && !state.isLoadingAttachments && !state.isRecording,
+                modifier = Modifier.size(StudioControlHeight),
             ) {
-                Icon(Icons.Default.Mic, contentDescription = "Record audio")
+                Icon(Icons.Default.Mic, contentDescription = "Record audio", modifier = Modifier.size(18.dp))
             }
             Spacer(Modifier.weight(1f))
             IconButton(
                 onClick = state::removeLastExchange,
                 enabled = !state.isGenerating && !state.isRecording && state.messages.isNotEmpty(),
+                modifier = Modifier.size(StudioControlHeight),
             ) {
-                Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "Remove last exchange")
+                Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "Remove last exchange", modifier = Modifier.size(18.dp))
             }
             IconButton(
                 onClick = state::clearChat,
                 enabled = !state.isGenerating && !state.isRecording && state.messages.isNotEmpty(),
+                modifier = Modifier.size(StudioControlHeight),
             ) {
-                Icon(Icons.Default.DeleteSweep, contentDescription = "New chat")
+                Icon(Icons.Default.DeleteSweep, contentDescription = "New chat", modifier = Modifier.size(18.dp))
             }
             Spacer(Modifier.width(8.dp))
             Box {
                 OutlinedButton(
                     onClick = { thinkingMenu = true },
                     enabled = !state.isGenerating && !state.isRecording,
+                    modifier = Modifier.height(StudioControlHeight),
+                    contentPadding = PaddingValues(horizontal = 10.dp),
                 ) {
                     Text("Thinking · ${state.settings.generation.thinking.label}")
                 }
@@ -468,8 +485,12 @@ private fun Composer(state: StudioState) {
             }
             Spacer(Modifier.width(8.dp))
             if (state.isGenerating) {
-                Button(onClick = state::cancelGeneration) {
-                    Icon(Icons.Default.Stop, contentDescription = null)
+                Button(
+                    onClick = state::cancelGeneration,
+                    modifier = Modifier.height(StudioControlHeight),
+                    contentPadding = PaddingValues(horizontal = 10.dp),
+                ) {
+                    Icon(Icons.Default.Stop, contentDescription = null, modifier = Modifier.size(StudioIconSize))
                     Spacer(Modifier.width(8.dp))
                     Text("Stop")
                 }
@@ -478,8 +499,10 @@ private fun Composer(state: StudioState) {
                     onClick = state::sendMessage,
                     enabled = !state.isLoadingAttachments && !state.isRecording &&
                         (state.draft.isNotBlank() || state.pendingAttachments.isNotEmpty()),
+                    modifier = Modifier.height(StudioControlHeight),
+                    contentPadding = PaddingValues(horizontal = 10.dp),
                 ) {
-                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null)
+                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, modifier = Modifier.size(StudioIconSize))
                     Spacer(Modifier.width(8.dp))
                     Text("Send")
                 }
@@ -495,7 +518,7 @@ private fun PerformanceBar(state: StudioState) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Text(
             if (state.isGenerating) "Live response" else "Last response",

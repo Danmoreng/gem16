@@ -67,7 +67,7 @@ internal fun parseMarkdown(markdown: String): Node = markdownParser.parse(markdo
 @Composable
 fun MarkdownText(markdown: String, modifier: Modifier = Modifier) {
     val document = remember(markdown) { parseMarkdown(markdown) }
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(StudioGap)) {
         MarkdownChildren(document)
     }
 }
@@ -104,11 +104,11 @@ private fun MarkdownBlock(node: Node) {
         ) {
             Row(Modifier.fillMaxWidth()) {
                 Box(
-                    Modifier.width(4.dp)
-                        .height(40.dp)
+                    Modifier.width(3.dp)
+                        .height(32.dp)
                         .background(MaterialTheme.colorScheme.primary),
                 )
-                Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                Column(Modifier.padding(horizontal = 8.dp, vertical = StudioGap)) {
                     MarkdownChildren(node)
                 }
             }
@@ -121,7 +121,7 @@ private fun MarkdownBlock(node: Node) {
 
 @Composable
 private fun MarkdownList(node: Node, ordered: Boolean, start: Int) {
-    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(StudioCompactGap)) {
         var item = node.firstChild
         var index = start
         while (item != null) {
@@ -129,7 +129,7 @@ private fun MarkdownList(node: Node, ordered: Boolean, start: Int) {
                 Row(Modifier.fillMaxWidth()) {
                     Text(
                         if (ordered) "${index++}." else "•",
-                        modifier = Modifier.width(28.dp),
+                        modifier = Modifier.width(22.dp),
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -147,13 +147,13 @@ private fun CodeBlock(code: String, language: String?) {
         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f),
         shape = MaterialTheme.shapes.medium,
     ) {
-        Column(Modifier.fillMaxWidth().padding(12.dp)) {
+        Column(Modifier.fillMaxWidth().padding(8.dp)) {
             language?.takeIf(String::isNotBlank)?.let {
                 Text(
                     it.trim(),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(bottom = 6.dp),
+                    modifier = Modifier.padding(bottom = StudioCompactGap),
                 )
             }
             SelectionContainer {

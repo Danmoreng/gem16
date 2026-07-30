@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -59,12 +60,12 @@ fun ServerScreen(state: StudioState) {
     val error by state.serverManager.error.collectAsState()
 
     Row(
-        Modifier.fillMaxSize().padding(20.dp),
-        horizontalArrangement = Arrangement.spacedBy(18.dp),
+        Modifier.fillMaxSize().padding(StudioScreenPadding),
+        horizontalArrangement = Arrangement.spacedBy(StudioGap),
     ) {
         LazyColumn(
             modifier = Modifier.weight(0.95f).fillMaxHeight(),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            verticalArrangement = Arrangement.spacedBy(StudioGap),
         ) {
             item { ServerStatusCard(phase, health, error) }
             item { ServerConfiguration(state, phase) }
@@ -85,10 +86,10 @@ private fun ServerStatusCard(
 ) {
     val online = phase == ServerPhase.Running || phase == ServerPhase.External
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
-        Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.fillMaxWidth().padding(StudioPanelPadding), verticalArrangement = Arrangement.spacedBy(StudioGap)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
-                    Modifier.size(12.dp).background(
+                    Modifier.size(9.dp).background(
                         when {
                             online -> Color(0xFF4ADE80)
                             phase == ServerPhase.Error -> MaterialTheme.colorScheme.error
@@ -97,7 +98,7 @@ private fun ServerStatusCard(
                         MaterialTheme.shapes.small,
                     ),
                 )
-                Spacer(Modifier.width(10.dp))
+                Spacer(Modifier.width(8.dp))
                 Text(
                     when (phase) {
                         ServerPhase.External -> "Connected to external server"
@@ -125,7 +126,7 @@ private fun ServerConfiguration(state: StudioState, phase: ServerPhase) {
     val config = state.settings.server
     val busy = phase == ServerPhase.Starting || phase == ServerPhase.Stopping
     Card {
-        Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.fillMaxWidth().padding(StudioPanelPadding), verticalArrangement = Arrangement.spacedBy(StudioGap)) {
             Text("Managed server", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             PathField(
                 label = "gem16-server executable",
@@ -153,7 +154,7 @@ private fun ServerConfiguration(state: StudioState, phase: ServerPhase) {
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(StudioGap)) {
                 OutlinedTextField(
                     value = config.host,
                     onValueChange = { value -> state.updateServer { it.copy(host = value) } },
@@ -169,7 +170,7 @@ private fun ServerConfiguration(state: StudioState, phase: ServerPhase) {
                     onValid = { value -> state.updateServer { it.copy(port = value.toInt()) } },
                 )
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(StudioGap)) {
                 NumericField(
                     label = "Context tokens",
                     value = config.maxContextTokens,
@@ -188,7 +189,11 @@ private fun ServerConfiguration(state: StudioState, phase: ServerPhase) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 var mtpMenu by remember { mutableStateOf(false) }
                 Box {
-                    Button(onClick = { mtpMenu = true }) {
+                    Button(
+                        onClick = { mtpMenu = true },
+                        modifier = Modifier.height(StudioControlHeight),
+                        contentPadding = PaddingValues(horizontal = 10.dp),
+                    ) {
                         Text(if (config.mtpDraftTokens == 0) "MTP off" else "MTP D${config.mtpDraftTokens}")
                     }
                     DropdownMenu(expanded = mtpMenu, onDismissRequest = { mtpMenu = false }) {
@@ -203,7 +208,7 @@ private fun ServerConfiguration(state: StudioState, phase: ServerPhase) {
                         }
                     }
                 }
-                Spacer(Modifier.width(18.dp))
+                Spacer(Modifier.width(10.dp))
                 LabeledCheckbox(
                     "Adaptive",
                     config.mtpAdaptive,
@@ -226,23 +231,30 @@ private fun ServerConfiguration(state: StudioState, phase: ServerPhase) {
                     MaterialTheme.colorScheme.error
                 },
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(StudioGap)) {
                 when (phase) {
                     ServerPhase.Running, ServerPhase.Starting, ServerPhase.Stopping -> Button(
                         onClick = state::stopServer,
                         enabled = !busy,
+                        modifier = Modifier.height(StudioControlHeight),
+                        contentPadding = PaddingValues(horizontal = 10.dp),
                     ) {
-                        Icon(Icons.Default.Stop, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
+                        Icon(Icons.Default.Stop, contentDescription = null, modifier = Modifier.size(StudioIconSize))
+                        Spacer(Modifier.width(StudioGap))
                         Text("Stop server")
                     }
                     ServerPhase.External -> Text(
                         "This process was not started by Studio and will not be stopped by it.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    else -> Button(onClick = state::startServer, enabled = !busy) {
-                        Icon(Icons.Default.PlayArrow, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
+                    else -> Button(
+                        onClick = state::startServer,
+                        enabled = !busy,
+                        modifier = Modifier.height(StudioControlHeight),
+                        contentPadding = PaddingValues(horizontal = 10.dp),
+                    ) {
+                        Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(StudioIconSize))
+                        Spacer(Modifier.width(StudioGap))
                         Text("Start server")
                     }
                 }
@@ -268,12 +280,13 @@ private fun PathField(
             enabled = enabled,
             modifier = Modifier.weight(1f),
         )
-        Spacer(Modifier.width(8.dp))
+        Spacer(Modifier.width(StudioCompactGap))
         IconButton(
             onClick = { choosePath(value, directory)?.let(onChange) },
             enabled = enabled,
+            modifier = Modifier.size(StudioControlHeight),
         ) {
-            Icon(Icons.Default.FolderOpen, contentDescription = "Browse")
+            Icon(Icons.Default.FolderOpen, contentDescription = "Browse", modifier = Modifier.size(18.dp))
         }
     }
 }
@@ -311,7 +324,12 @@ private fun LabeledCheckbox(
     onChange: (Boolean) -> Unit,
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Checkbox(checked = checked, onCheckedChange = onChange, enabled = enabled)
+        Checkbox(
+            checked = checked,
+            onCheckedChange = onChange,
+            enabled = enabled,
+            modifier = Modifier.size(32.dp),
+        )
         Text(label, color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline)
     }
 }
@@ -325,15 +343,17 @@ private fun LogPanel(logs: List<String>, onClear: () -> Unit, modifier: Modifier
     Card(modifier) {
         Column(Modifier.fillMaxSize()) {
             Row(
-                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+                Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = StudioGap),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text("Server log", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                IconButton(onClick = onClear) { Icon(Icons.Default.Delete, contentDescription = "Clear logs") }
+                IconButton(onClick = onClear, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Default.Delete, contentDescription = "Clear logs", modifier = Modifier.size(StudioIconSize))
+                }
             }
             LazyColumn(
                 state = listState,
-                modifier = Modifier.fillMaxSize().background(Color(0xFF090D12)).padding(12.dp),
+                modifier = Modifier.fillMaxSize().background(Color(0xFF090D12)).padding(8.dp),
                 verticalArrangement = Arrangement.spacedBy(3.dp),
             ) {
                 items(logs) { line ->
