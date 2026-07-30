@@ -722,7 +722,29 @@ int ServerMain(int argc, char** argv) {
                        ",\"pending_session_creations\":" +
                        std::to_string(pending) +
                        ",\"session_limit\":" +
-                       std::to_string(state.max_sessions) + "}",
+                       std::to_string(state.max_sessions) +
+                       ",\"max_context_tokens\":" +
+                       std::to_string(state.max_context) +
+                       ",\"mtp_draft_tokens\":" +
+                       std::to_string(state.session_options.mtp_draft_tokens) +
+                       ",\"mtp_adaptive\":" +
+                       (state.session_options.mtp_adaptive ? "true" : "false") +
+                       ",\"sampling\":{\"enabled\":" +
+                       (state.session_options.sampling.enabled ? "true" : "false") +
+                       ",\"temperature\":" +
+                       std::to_string(state.session_options.sampling.temperature) +
+                       ",\"top_k\":" +
+                       std::to_string(state.session_options.sampling.top_k) +
+                       ",\"top_p\":" +
+                       std::to_string(state.session_options.sampling.top_p) +
+                       ",\"min_p\":" +
+                       std::to_string(state.session_options.sampling.min_p) +
+                       ",\"repetition_penalty\":" +
+                       std::to_string(
+                           state.session_options.sampling.repetition_penalty) +
+                       ",\"seed\":" +
+                       std::to_string(state.session_options.sampling.seed) +
+                       "}}",
                    "application/json; charset=utf-8");
              });
   server.Get("/metrics",

@@ -291,6 +291,28 @@ void RecordGeneration(ServerState& state,
       static_cast<std::uint64_t>(
           std::chrono::duration_cast<std::chrono::microseconds>(elapsed)
               .count()));
+  state.metrics.prompt_microseconds.fetch_add(static_cast<std::uint64_t>(
+      std::max(0.0, response.inference.prompt_milliseconds) * 1000.0));
+  state.metrics.decode_microseconds.fetch_add(static_cast<std::uint64_t>(
+      std::max(0.0, response.inference.decode_milliseconds) * 1000.0));
+  state.metrics.decode_measured_tokens.fetch_add(
+      response.inference.output_token_ids.empty()
+          ? 0U
+          : static_cast<std::uint64_t>(
+                response.inference.output_token_ids.size() - 1U));
+  state.metrics.mtp_proposed_tokens.fetch_add(
+      response.inference.mtp_proposed_tokens);
+  state.metrics.mtp_accepted_tokens.fetch_add(
+      response.inference.mtp_accepted_tokens);
+  state.metrics.mtp_rejected_tokens.fetch_add(
+      response.inference.mtp_rejected_tokens);
+  state.metrics.mtp_verification_groups.fetch_add(
+      response.inference.mtp_verification_groups);
+  state.metrics.mtp_d1_groups.fetch_add(response.inference.mtp_d1_groups);
+  state.metrics.mtp_d2_groups.fetch_add(response.inference.mtp_d2_groups);
+  state.metrics.mtp_d4_groups.fetch_add(response.inference.mtp_d4_groups);
+  state.metrics.mtp_ordinary_fallback_tokens.fetch_add(
+      response.inference.mtp_ordinary_fallback_tokens);
   state.metrics.last_slot_bytes.store(
       response.inference.kv_cache_bytes + response.inference.workspace_bytes +
       response.inference.assistant_workspace_bytes +
@@ -343,6 +365,28 @@ std::string MetricsText(ServerState& state) {
                        state.metrics.output_tokens.load()));
   output.append(metric("gem16_generation_microseconds_total",
                        state.metrics.generation_microseconds.load()));
+  output.append(metric("gem16_prompt_microseconds_total",
+                       state.metrics.prompt_microseconds.load()));
+  output.append(metric("gem16_decode_microseconds_total",
+                       state.metrics.decode_microseconds.load()));
+  output.append(metric("gem16_decode_measured_tokens_total",
+                       state.metrics.decode_measured_tokens.load()));
+  output.append(metric("gem16_mtp_proposed_tokens_total",
+                       state.metrics.mtp_proposed_tokens.load()));
+  output.append(metric("gem16_mtp_accepted_tokens_total",
+                       state.metrics.mtp_accepted_tokens.load()));
+  output.append(metric("gem16_mtp_rejected_tokens_total",
+                       state.metrics.mtp_rejected_tokens.load()));
+  output.append(metric("gem16_mtp_verification_groups_total",
+                       state.metrics.mtp_verification_groups.load()));
+  output.append(metric("gem16_mtp_d1_groups_total",
+                       state.metrics.mtp_d1_groups.load()));
+  output.append(metric("gem16_mtp_d2_groups_total",
+                       state.metrics.mtp_d2_groups.load()));
+  output.append(metric("gem16_mtp_d4_groups_total",
+                       state.metrics.mtp_d4_groups.load()));
+  output.append(metric("gem16_mtp_ordinary_fallback_tokens_total",
+                       state.metrics.mtp_ordinary_fallback_tokens.load()));
   output.append(metric("gem16_model_weight_bytes",
                        state.runtime->weight_bytes()));
   output.append(metric("gem16_assistant_weight_bytes",

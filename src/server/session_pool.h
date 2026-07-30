@@ -52,6 +52,17 @@ struct ServerMetrics {
   std::atomic<std::uint64_t> cache_write_tokens{0U};
   std::atomic<std::uint64_t> output_tokens{0U};
   std::atomic<std::uint64_t> generation_microseconds{0U};
+  std::atomic<std::uint64_t> prompt_microseconds{0U};
+  std::atomic<std::uint64_t> decode_microseconds{0U};
+  std::atomic<std::uint64_t> decode_measured_tokens{0U};
+  std::atomic<std::uint64_t> mtp_proposed_tokens{0U};
+  std::atomic<std::uint64_t> mtp_accepted_tokens{0U};
+  std::atomic<std::uint64_t> mtp_rejected_tokens{0U};
+  std::atomic<std::uint64_t> mtp_verification_groups{0U};
+  std::atomic<std::uint64_t> mtp_d1_groups{0U};
+  std::atomic<std::uint64_t> mtp_d2_groups{0U};
+  std::atomic<std::uint64_t> mtp_d4_groups{0U};
+  std::atomic<std::uint64_t> mtp_ordinary_fallback_tokens{0U};
   std::atomic<std::uint64_t> last_slot_bytes{0U};
 };
 
