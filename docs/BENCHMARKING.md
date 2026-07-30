@@ -38,6 +38,36 @@ confidence-interval policy. For example:
   --context 128 --warmups 3 --repetitions 10
 ```
 
+## HTTP server characterization
+
+`tools/benchmark_server.py` measures the protocol-facing batch-one paths rather
+than relabeling core CUDA timings. Its four scenarios are:
+
+- a new non-streaming Responses root, including slot creation and prompt work;
+- a non-streaming resident continuation whose setup root is outside timing;
+- a streamed root with wall time and time to the first reasoning/text delta;
+- simultaneous resident continuations on independent pre-created slots, with
+  per-lane latency and aggregate accepted output tokens/s.
+
+The default is three warm-ups and ten retained measurements per scenario. JSON
+contains every raw run, median/mean/standard deviation, two-sided Student-t 95%
+mean intervals, p95/p99, cache-hit/write usage, server health, and Prometheus
+counter snapshots/deltas. Setup roots are intentionally excluded from resident
+and concurrency timing but remain visible in metric deltas. Concurrency requires
+`--max-sessions` at least as large as `--concurrency`.
+
+```bash
+python tools/benchmark_server.py \
+  --base-url http://127.0.0.1:8080/v1 --model gem16 \
+  --scenario all --warmup 3 --repetitions 10 \
+  --output benchmarks/results/2026-07-30/<git-sha>/<machine-id>/server.json
+```
+
+The output path is never overwritten. HTTP wall throughput is not interchangeable
+with `gem16-bench` core-GPU throughput: root timing includes admission and slot
+construction, streaming TTFT includes HTTP scheduling and prompt processing,
+and the concurrent result measures contention between isolated execution slots.
+
 Future results must use the matrices, timing boundaries, repetition policy, quality gates, and three llama.cpp
 baseline labels defined in `AGENTS.md`. Raw runs will be written below
 `benchmarks/results/<date>/<git-sha>/<machine-id>/` and never overwritten. Throughput speedup and latency reduction

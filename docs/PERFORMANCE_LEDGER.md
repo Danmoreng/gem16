@@ -1,5 +1,32 @@
 # Performance ledger
 
+## 2026-07-30 HTTP server benchmark foundation
+
+Hypothesis: Separate complete HTTP root, resident continuation, live SSE, and
+multi-slot contention boundaries so protocol-facing work is measurable without
+calling it core GPU throughput.
+
+Implementation: `tools/benchmark_server.py` runs each path with independent
+warm-ups and retained raw measurements, reports Student-t 95% mean intervals,
+p95/p99, exact cache usage, first streamed delta, per-lane concurrency data,
+Prometheus counter deltas, and continuous NVML-backed `nvidia-smi` telemetry. It
+refuses to overwrite an existing artifact.
+
+Characterization: On the Linux 16 GB Blackwell machine, a greedy 2K-context,
+64-output, two-slot 3-warm-up/10-run screen measures median HTTP wall times of
+1,723.93 ms for new roots, 770.27 ms for resident continuations, 1,750.73 ms for
+streamed roots, and 1,573.94 ms for two concurrent resident continuations. The
+streaming median first delta is 61.82 ms. Median resident cached-token usage is
+21 tokens; the two-lane sum is 52. The complete harness generated 2,821 output
+tokens over 104 successful requests with no failures or disconnects.
+
+Resource evidence: 348 continuous samples report 10,808 MiB maximum GPU memory,
+82.03 W maximum board power, 2,190 MHz maximum SM clock, and 67 C maximum
+temperature. Clocks range from 345 to 2,190 MHz because they were not locked.
+These values are server-boundary characterization only, not a kernel promotion
+or cross-engine speed claim. Raw JSON is retained under
+`benchmarks/results/2026-07-30/8ccb5a0-worktree/blackwell16gb-linux/server.json`.
+
 ## 2026-07-29 device-routed bounded reasoning in fixed D2
 
 Hypothesis: Carry response-channel and reasoning-budget state in the existing fixed-D2 device control and route

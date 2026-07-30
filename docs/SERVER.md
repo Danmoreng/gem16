@@ -212,3 +212,18 @@ cancellation, and metrics:
 .\.venv-openai\Scripts\python.exe .\tools\validate_server_scheduler.py `
   --base-url http://127.0.0.1:8080/v1 --model gem16
 ```
+
+For measured HTTP root, resident-cache, token-streaming, and two-slot contention
+characterization, run the standard 3/10 harness and retain its JSON at a new
+result path:
+
+```powershell
+python .\tools\benchmark_server.py `
+  --base-url http://127.0.0.1:8080/v1 --model gem16 `
+  --scenario all --warmup 3 --repetitions 10 `
+  --output benchmarks\results\2026-07-30\<git-sha>\<machine-id>\server.json
+```
+
+The harness refuses to overwrite evidence and distinguishes complete HTTP wall
+time, first streamed delta, resident cache usage, and concurrent aggregate
+throughput from core-GPU benchmark boundaries.
