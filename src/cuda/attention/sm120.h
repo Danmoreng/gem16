@@ -41,9 +41,10 @@ struct DecodeControl;
 // E4M3 K/V cache. Token ranges are split across CTAs; each CTA computes a
 // normalized partial output and FP32 log-sum-exp state without materializing
 // the full-context score matrix. A second kernel merges the partials.
-// Global-cache capacities of at least 64K assign two query heads per warp and
-// stage each 16-token E4M3x4 K/V tile once for all 16 global GQA heads;
-// shorter tiers keep the lower-register scalar path. `workspace` requires
+// Global-cache capacities of at least 16K assign two query heads per warp and
+// stage each 16-token K/V tile once for all 16 global GQA heads. The 16K/32K
+// tiers preserve scalar dimension order; 64K and above use E4M3x4 loads.
+// Shorter tiers keep the four-query-head grouped path. `workspace` requires
 // DecodeAttentionWorkspaceElements(max_context) floats.
 [[nodiscard]] Status LaunchOnlineAttentionDecodeFp8Sm120(
     const float* query, const std::uint8_t* key_cache,
@@ -55,8 +56,8 @@ struct DecodeControl;
     std::uint64_t cache_capacity, bool sliding, cudaStream_t stream);
 
 // Exact three-row global-attention verifier. Historical K/V values are loaded
-// once for all rows on shorter tiers. At 64K and above, each row uses the
-// ordinary all-head GQA staging kernel independently, retaining identical
+// once for all rows below the GQA threshold. At 16K and above, each row uses
+// the ordinary all-head GQA staging kernel independently, retaining identical
 // accumulation, online-softmax, and split-merge order.
 [[nodiscard]] Status LaunchOnlineAttentionDecodeFp8GlobalD2Sm120(
     const float* query, const std::uint8_t* key_cache,

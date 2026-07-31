@@ -4,9 +4,10 @@ Status: active execution goal
 
 Target machine: NVIDIA GeForce RTX 5080 Laptop GPU, compute capability 12.0, approximately 16 GB VRAM
 
-Execution environment: Linux on the reference Arch installation recorded in `toolchains/blackwell16gb.lock`.
-Windows results in this document are orientation screens only. All new baselines, profiling evidence, performance
-promotions, and final claims are collected under Linux on the same physical laptop GPU.
+Execution environment: optimization moved from the reference Arch installation back to Windows on 2026-08-02 at
+the user's request. The qualified Linux promotions remain evidence for their commits, but Windows must establish
+an OS-local parent before further performance changes; cross-OS A/B claims remain invalid. Continue from
+`WINDOWS_DECODE_HANDOFF_2026-08-02.md` and retain the machine facts in `toolchains/blackwell16gb.lock`.
 
 Target workload: direct `unsloth/gemma-4-12b-it-NVFP4` loading, text-only, batch one, checkpoint FP8 KV cache;
 the comparison llama.cpp run uses Q8_0 KV cache as requested
@@ -47,12 +48,12 @@ tokens. The primary ordinary metrics are median output tokens/s and median/p95 i
 tokens. No shorter-context point may regress by more than 1% to buy a long-context win unless a separate context-
 tier dispatch makes both paths winners.
 
-## Current screening baseline
+## Historical screening baseline
 
 These are Windows one-warm-up/one-measured-run screening values from 2026-07-31 at gem16 commit `5501b52`. They
-determine the investigation order but are not publishable qualification results and are not the parent numbers for
-Linux optimization. The first Linux task is to repeat the same short screen before collecting a qualified 3/10
-baseline. See `LINUX_DECODE_HANDOFF_2026-07-31.md`.
+are retained as history, not as the parent for the resumed Windows work. Linux subsequently established qualified
+baselines and promoted vector/global-GQA attention through the 2026-08-02 handoff. Build and qualify the pulled
+handoff commit on Windows before collecting any new A/B result.
 
 The llama.cpp candidate is upstream commit `000547513f1530346ecd163db8b3e13962949961`, built for SM120a with
 `GGML_CUDA_FA_ALL_QUANTS=ON`. Its same-source closest-parity GGUF is 9,366,658,112 bytes and contains 144 NVFP4,

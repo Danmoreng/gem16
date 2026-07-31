@@ -38,6 +38,44 @@ artifacts, commands, model inventories, verbose residency log, and engine/system
 The baseline is not accepted as a quality or native-dispatch headline yet: current output quality remains to be
 requalified, and SASS proves NVFP4 instruction availability but not profiler-level invocation attribution.
 
+## 2026-08-02 scalar-order all-head GQA staging at 16K and 32K
+
+Hypothesis: after the 64K all-head GQA winner, the same shared K/V staging can benefit smaller context tiers if it
+retains their scalar dimension assignment rather than paying FP8x4 register/conversion costs or changing their
+established FP32 reduction order.
+
+Implementation: capacities from 16,384 through 65,535 now use the same 16-head/two-heads-per-warp GQA CTA and
+512-token split as the 64K path, but each lane consumes dimensions `lane + 32*i` and performs scalar E4M3
+conversion exactly as the parent grouped kernel. Capacities of at least 65,536 retain the committed FP8x4
+specialization. Ordinary and fixed-D2 use the same specialization; D2 launches one all-head CTA grid per verifier
+row so each row remains bit-identical to Ordinary Target evaluation. Capacities below 16K retain the four-head
+grouped kernel.
+
+| Existing context | Parent median tok/s | Candidate median tok/s | Delta | Parent/Candidate 95% CI |
+|---:|---:|---:|---:|---:|
+| 16,384 | 31.780 | 32.861 | **+3.40%** | `[31.753,31.866]` / `[32.841,32.920]` |
+| 32,768 | 29.245 | 31.461 | **+7.58%** | `[29.215,29.399]` / `[31.439,31.532]` |
+| 65,536 screen | 30.370 | 30.353 | -0.06% | existing FP8x4 path; identical checksum |
+
+The qualified 16K/32K rows use three warm-ups and ten measured 256-token runs. Median/p95 ITL improves from
+31.393/32.476 to 30.361/31.405 ms at 16K and from 34.062/35.374 to 31.737/32.720 ms at 32K. All parent/candidate
+checksums match and workspace remains 721,880,832/748,097,280 bytes for the two qualified tiers.
+
+On the exact Wikipedia 16K/1,135-token workload, three warm-ups and ten measured runs raise Ordinary from the
+retained 31.472 to 32.919 tok/s (+4.60%) and fixed-D2 from 46.248 to 50.806 tok/s (+9.86%). Ordinary and D2 retain
+all 1,135 IDs and SHA-256 `43bc3380fc1cce5182a679fa3a340c04bcc79c52e73d5102ec1f737f57d0a1e1`; every D2 run
+retains 1,004 proposed, 632 accepted, and 372 rejected tokens over 502 groups. The candidate remains below the
+same-machine llama.cpp 33.386/54.703 Ordinary/D2 references and the 64.82 tok/s fixed-D2 target, so projection,
+assistant, and verifier-output work remain open.
+
+Correctness: host/CUDA CTest passes. The dedicated 64K three-row fixture requires bitwise equality between D2 and
+three independent Ordinary GQA evaluations. `cuobjdump` reports 68 registers/thread for ordinary scalar GQA and
+70 for scalar D2, 42,080 bytes compiler-accounted shared memory, and zero stack/local memory for both. No
+precision, KV, persistent-weight, workspace, or token-loop allocation change is introduced.
+
+Decision: promote scalar-order all-head GQA for 16K/32K and retain FP8x4 all-head GQA at 64K. Raw evidence is under
+`benchmarks/results/2026-08-02/d5dcbea/blackwell-linux-global-gqa-scalar-tier16k/`.
+
 ## 2026-08-02 all-head GQA staging for 64K global decode
 
 Hypothesis: the eight global layers have one D512 K/V head shared by all 16 query heads, so loading every physical

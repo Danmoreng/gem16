@@ -100,8 +100,11 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
                      result.max_context_tokens >= 65536U
                  ? "fp8_online_split_global_gqa_shared_fp8x4"
                  : result.kv_cache_mode == KvCacheMode::kCheckpointFp8 &&
-                           result.max_context_tokens > 512U
-                       ? "fp8_online_split_gqa"
+                           result.max_context_tokens >= 16384U
+                       ? "fp8_online_split_global_gqa_shared_scalar"
+                       : result.kv_cache_mode == KvCacheMode::kCheckpointFp8 &&
+                                 result.max_context_tokens > 512U
+                             ? "fp8_online_split_gqa"
                        : "score_softmax_value_reference")
          << "\",\n"
          << "  \"kv_cache_mode\": \""
@@ -221,7 +224,9 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
                  : result.mtp_draft_tokens == 2U
                        ? (result.max_context_tokens >= 65536U
                               ? "global_t3_row_gqa_shared_fp8x4_local_serial_exact"
-                              : "global_t3_shared_kv_local_serial_exact")
+                              : result.max_context_tokens >= 16384U
+                                    ? "global_t3_row_gqa_shared_scalar_local_serial_exact"
+                                    : "global_t3_shared_kv_local_serial_exact")
                        : "inactive")
          << "\",\"d2_output_head_path\":\""
          << (!result.mtp_enabled
@@ -318,9 +323,16 @@ Status WriteDecodeBenchmarkJson(const DecodeBenchmarkResult& result,
                                KvCacheMode::kCheckpointFp8 &&
                            static_cast<std::uint64_t>(
                                result.options.context_tokens) +
-                                   result.options.generated_tokens >
-                               512U
-                       ? "fp8_online_split_gqa"
+                                   result.options.generated_tokens >=
+                               16384U
+                       ? "fp8_online_split_global_gqa_shared_scalar"
+                       : result.options.kv_cache_mode ==
+                                     KvCacheMode::kCheckpointFp8 &&
+                                 static_cast<std::uint64_t>(
+                                     result.options.context_tokens) +
+                                         result.options.generated_tokens >
+                                     512U
+                             ? "fp8_online_split_gqa"
                        : "score_softmax_value_reference")
          << "\",\"kv_cache_mode\":\""
          << (result.options.kv_cache_mode == KvCacheMode::kCheckpointFp8
