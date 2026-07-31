@@ -98,7 +98,7 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
          << "  \"decode_attention_path\": \""
          << (result.kv_cache_mode == KvCacheMode::kCheckpointFp8 &&
                      result.max_context_tokens >= 65536U
-                 ? "fp8_online_split_gqa_global_fp8x4"
+                 ? "fp8_online_split_global_gqa_shared_fp8x4"
                  : result.kv_cache_mode == KvCacheMode::kCheckpointFp8 &&
                            result.max_context_tokens > 512U
                        ? "fp8_online_split_gqa"
@@ -219,7 +219,9 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
          << (!result.mtp_enabled
                  ? "disabled"
                  : result.mtp_draft_tokens == 2U
-                       ? "global_t3_shared_kv_local_serial_exact"
+                       ? (result.max_context_tokens >= 65536U
+                              ? "global_t3_row_gqa_shared_fp8x4_local_serial_exact"
+                              : "global_t3_shared_kv_local_serial_exact")
                        : "inactive")
          << "\",\"d2_output_head_path\":\""
          << (!result.mtp_enabled
@@ -311,7 +313,7 @@ Status WriteDecodeBenchmarkJson(const DecodeBenchmarkResult& result,
                      static_cast<std::uint64_t>(result.options.context_tokens) +
                              result.options.generated_tokens >=
                          65536U
-                 ? "fp8_online_split_gqa_global_fp8x4"
+                 ? "fp8_online_split_global_gqa_shared_fp8x4"
                  : result.options.kv_cache_mode ==
                                KvCacheMode::kCheckpointFp8 &&
                            static_cast<std::uint64_t>(

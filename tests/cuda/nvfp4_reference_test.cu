@@ -2359,6 +2359,115 @@ void TestOnlineFp8DecodeAttentionShape(
   }
 }
 
+void TestOnlineFp8DecodeGlobalD2Gqa() {
+  constexpr std::uint64_t rows = 3;
+  constexpr std::uint64_t query_heads = 16;
+  constexpr std::uint64_t head_dimension = 512;
+  constexpr std::uint64_t capacity = 65536;
+  constexpr std::uint64_t start_position = 1024;
+  constexpr std::array<std::uint16_t, 1> key_scale = {0x3F00U};
+  constexpr std::array<std::uint16_t, 1> value_scale = {0x3F40U};
+  const std::size_t query_elements = query_heads * head_dimension;
+  std::vector<float> query(rows * query_elements);
+  for (std::size_t index = 0; index < query.size(); ++index) {
+    query[index] =
+        static_cast<float>(static_cast<int>((index * 13U) % 37U) - 18) *
+        0.0078125F;
+  }
+  const auto key_byte = gem16::fp8::EncodeE4M3Fn(0.5F);
+  const auto value_byte = gem16::fp8::EncodeE4M3Fn(-0.25F);
+  CUDA_TEST_CHECK(key_byte.ok());
+  CUDA_TEST_CHECK(value_byte.ok());
+  if (!key_byte.ok() || !value_byte.ok()) return;
+
+  const std::size_t cache_elements = capacity * head_dimension;
+  const std::size_t workspace_elements = static_cast<std::size_t>(
+      gem16::internal::DecodeAttentionWorkspaceElements(capacity));
+  DeviceBuffer<float> device_query(query.size());
+  DeviceBuffer<std::uint8_t> device_keys(cache_elements);
+  DeviceBuffer<std::uint8_t> device_values(cache_elements);
+  DeviceBuffer<std::uint16_t> device_key_scale(key_scale.size());
+  DeviceBuffer<std::uint16_t> device_value_scale(value_scale.size());
+  DeviceBuffer<float> device_d2_workspace(rows * workspace_elements);
+  DeviceBuffer<float> device_ordinary_workspace(workspace_elements);
+  DeviceBuffer<float> device_d2_output(query.size());
+  DeviceBuffer<float> device_ordinary_output(query.size());
+  DeviceBuffer<gem16::internal::DecodeControl> device_control(1);
+  if (device_query.get() == nullptr || device_keys.get() == nullptr ||
+      device_values.get() == nullptr || device_key_scale.get() == nullptr ||
+      device_value_scale.get() == nullptr ||
+      device_d2_workspace.get() == nullptr ||
+      device_ordinary_workspace.get() == nullptr ||
+      device_d2_output.get() == nullptr ||
+      device_ordinary_output.get() == nullptr ||
+      device_control.get() == nullptr) {
+    return;
+  }
+  if (!CudaOk(cudaMemcpy(device_query.get(), query.data(), device_query.bytes(),
+                         cudaMemcpyHostToDevice),
+              "copy global D2 GQA query") ||
+      !CudaOk(cudaMemset(device_keys.get(), key_byte.value(),
+                         device_keys.bytes()),
+              "initialize global D2 GQA keys") ||
+      !CudaOk(cudaMemset(device_values.get(), value_byte.value(),
+                         device_values.bytes()),
+              "initialize global D2 GQA values") ||
+      !CudaOk(cudaMemcpy(device_key_scale.get(), key_scale.data(),
+                         device_key_scale.bytes(), cudaMemcpyHostToDevice),
+              "copy global D2 GQA key scale") ||
+      !CudaOk(cudaMemcpy(device_value_scale.get(), value_scale.data(),
+                         device_value_scale.bytes(), cudaMemcpyHostToDevice),
+              "copy global D2 GQA value scale")) {
+    return;
+  }
+
+  const auto d2 = gem16::internal::LaunchOnlineAttentionDecodeFp8GlobalD2Sm120(
+      device_query.get(), device_keys.get(), device_values.get(),
+      device_key_scale.get(), device_value_scale.get(),
+      device_d2_workspace.get(), device_d2_output.get(), start_position,
+      capacity, nullptr);
+  CUDA_TEST_CHECK(d2.ok());
+  if (!d2.ok()) return;
+  for (std::uint64_t row = 0; row < rows; ++row) {
+    const gem16::internal::DecodeControl control = {
+        .token = 0,
+        .suppressed_token_count = 0,
+        .position = start_position + row};
+    if (!CudaOk(cudaMemcpy(device_control.get(), &control, sizeof(control),
+                           cudaMemcpyHostToDevice),
+                "copy global D2 GQA ordinary control")) {
+      return;
+    }
+    const auto ordinary = gem16::internal::LaunchOnlineAttentionDecodeFp8Sm120(
+        device_query.get() + row * query_elements, device_keys.get(),
+        device_values.get(), device_key_scale.get(), device_value_scale.get(),
+        device_ordinary_workspace.get(),
+        device_ordinary_output.get() + row * query_elements,
+        device_control.get(), query_heads, 1U, head_dimension, capacity, false,
+        nullptr);
+    CUDA_TEST_CHECK(ordinary.ok());
+    if (!ordinary.ok()) return;
+  }
+  if (!CudaOk(cudaDeviceSynchronize(), "global D2 GQA synchronize")) return;
+  std::vector<float> d2_output(query.size());
+  std::vector<float> ordinary_output(query.size());
+  if (!CudaOk(cudaMemcpy(d2_output.data(), device_d2_output.get(),
+                         device_d2_output.bytes(), cudaMemcpyDeviceToHost),
+              "copy global D2 GQA output") ||
+      !CudaOk(cudaMemcpy(ordinary_output.data(), device_ordinary_output.get(),
+                         device_ordinary_output.bytes(),
+                         cudaMemcpyDeviceToHost),
+              "copy global D2 GQA ordinary output")) {
+    return;
+  }
+  CUDA_TEST_CHECK(std::equal(
+      d2_output.begin(), d2_output.end(), ordinary_output.begin(),
+      [](float left, float right) {
+        return std::bit_cast<std::uint32_t>(left) ==
+               std::bit_cast<std::uint32_t>(right);
+      }));
+}
+
 void TestOnlineFp8DecodeAttention() {
   TestOnlineFp8DecodeAttentionShape(8, 256, 1024, 1100, true,
                                     "online local FP8 decode");
@@ -2368,6 +2477,7 @@ void TestOnlineFp8DecodeAttention() {
                                     "long online global FP8 decode");
   TestOnlineFp8DecodeAttentionShape(1, 512, 65536, 65535, false,
                                     "vectorized 64K global FP8 decode");
+  TestOnlineFp8DecodeGlobalD2Gqa();
 }
 
 void TestVectorizedFp8CausalPrefill() {

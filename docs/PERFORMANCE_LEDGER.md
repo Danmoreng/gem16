@@ -38,6 +38,50 @@ artifacts, commands, model inventories, verbose residency log, and engine/system
 The baseline is not accepted as a quality or native-dispatch headline yet: current output quality remains to be
 requalified, and SASS proves NVFP4 instruction availability but not profiler-level invocation attribution.
 
+## 2026-08-02 all-head GQA staging for 64K global decode
+
+Hypothesis: the eight global layers have one D512 K/V head shared by all 16 query heads, so loading every physical
+K/V row independently for four query groups wastes long-context bandwidth. Assigning two query heads to each of
+eight warps and staging 16 contiguous E4M3 rows once per CTA can remove this four-way cache traffic while retaining
+the selected 512-token split, online-softmax, merge, and per-output accumulation orders.
+
+A corrected llama.cpp comparison motivated this implementation. The older Nsight `llama-bench -p N -n 4` files
+ran prompt processing and generation as separate tests (`n_prompt: 0` for the latter); their large
+`mul_mat_q<...,128>` totals were prefill, not context-preserving M=1 decode. A new combined `-pg 16384,4` trace
+shows actual decode uses `mul_mat_vec_q`: approximately 11.15 ms/token for NVFP4 and 6.62 ms/token for Q8_0,
+versus gem16's 8.59/5.17 ms FP4/FP8 projection families. That evidence rejects copying llama.cpp's prefill MMQ
+schedule into gem16 T=1 and instead confirms attention as the remaining cross-engine structural gap.
+
+Implementation: for capacities of at least 65,536, one CTA now covers all 16 global query heads for each retained
+512-token split. Each warp owns two heads; 16-token K/V tiles are loaded once with aligned `cp.async`, decoded as
+E4M3x4, and reused by all warps. The ordinary 512-token split boundaries and FP32 LSE merge topology are unchanged.
+The fixed-D2 verifier launches the same primitive independently for each of its three rows, preserving exact
+ordinary Target arithmetic while reducing each row from four query-group K/V reads to one. Shorter tiers and local
+attention are unchanged.
+
+| Existing context | Parent median tok/s | Candidate median tok/s | Delta | Parent/Candidate 95% CI |
+|---:|---:|---:|---:|---:|
+| 16,384 | 31.767 | 31.673 | -0.30% | unchanged path; identical checksum |
+| 32,768 | 29.266 | 29.278 | +0.04% | unchanged path; identical checksum |
+| 65,536 | 27.261 | 30.263 | **+11.01%** | `[27.244,27.291]` / `[30.245,30.287]` |
+
+The 64K result uses three warm-ups and ten measured 256-token runs. Median/p95/p99 inter-token latency improves
+from 36.642/38.041/39.484 ms to 32.978/34.440/36.184 ms. All parent and candidate runs retain checksum
+`8043681594391854731`; workspace remains 800,530,176 bytes. Child-node profiling reduces the eight global split
+kernels from 8.112 to 3.749 ms/token (-53.8%). The GQA kernel uses 64 registers/thread, 41,056 bytes static shared
+memory, and zero local memory/thread.
+
+Correctness: complete host/CUDA CTest passes, including the 64K global FP8 reference fixture. A 16K Wikipedia
+prompt with a 64K cache tier produces 256/256 identical Ordinary and Fixed-D2 Target tokens with SHA-256
+`9b410a948744fed42084241a32f6fa1538ead22fff1d25194ae70e658f866ae8`; the D2 screen reaches 55.408 tok/s with
+145 accepted and 75 rejected proposals over 110 groups. No precision, persistent weight, KV-cache, workspace, or
+token-loop allocation change is introduced.
+
+Decision: promote the all-head GQA staging path for capacities of at least 64K and retain the existing scalar/grouped
+path below it. Raw evidence is under
+`benchmarks/results/2026-08-02/da65217/blackwell-linux-global-gqa-tile16-chunk512/`; the corrected llama.cpp trace
+is under `benchmarks/results/2026-08-02/da65217/blackwell-linux-kernel-comparison/`.
+
 ## 2026-08-01 vectorized FP8 global decode tier at 64K
 
 Hypothesis: once the contiguous global FP8 cache reaches 64K, grouping four adjacent D512 K/V dimensions into one
