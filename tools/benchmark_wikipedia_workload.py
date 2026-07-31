@@ -107,6 +107,9 @@ def parse_args() -> argparse.Namespace:
         default="q8_0",
     )
     parser.add_argument("--llama-port", type=positive_int, default=8097)
+    parser.add_argument("--llama-threads", type=positive_int, default=8)
+    parser.add_argument("--llama-poll", type=nonnegative_int, default=100)
+    parser.add_argument("--llama-prio", type=int, choices=(-1, 0, 1, 2, 3), default=0)
     parser.add_argument(
         "--llama-spec-types",
         help=(
@@ -728,6 +731,7 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
             "prompt_token_file": str(prompt_file),
         }
         configuration = {
+            "batch_size": 1,
             "kv_cache": "checkpoint_fp8",
             "mtp_draft_tokens": args.mtp_draft_tokens,
             "mtp_adaptive": args.mtp_adaptive,
@@ -818,6 +822,7 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
             "device_name": device.name,
         }
         configuration = {
+            "batch_size": 1,
             "kv_cache": args.vllm_kv_cache_dtype,
             "gpu_memory_utilization": args.gpu_memory_utilization,
             "cpu_offload_gb": 0,
@@ -901,6 +906,12 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
             args.llama_kv_cache_type,
             "--parallel",
             "1",
+            "--threads",
+            str(args.llama_threads),
+            "--poll",
+            str(args.llama_poll),
+            "--prio",
+            str(args.llama_prio),
             "--batch-size",
             "2048",
             "--ubatch-size",
@@ -973,10 +984,14 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
                 str(assistant_gguf) if assistant_gguf is not None else None
             ),
             "server_log": str(log_path),
+            "command": command,
         }
         configuration = {
             "kv_cache": args.llama_kv_cache_type,
             "gpu_layers": "all",
+            "threads": args.llama_threads,
+            "poll": args.llama_poll,
+            "priority": args.llama_prio,
             "flash_attention": True,
             "batch_size": 2048,
             "ubatch_size": 512,
@@ -1032,7 +1047,6 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
         "runtime": runtime,
         "configuration": {
             **configuration,
-            "batch_size": 1,
             "warmups": args.warmups,
             "measured_repetitions": args.repetitions,
             "primary_statistic": "median",

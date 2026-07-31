@@ -1,13 +1,13 @@
 {
-  "status": "converted_quality_characterized_not_benchmark_accepted",
+  "status": "linux_current_converted_quality_characterized_not_benchmark_accepted",
   "label": "same-source-closest-parity-patched",
   "source": {
     "repository": "unsloth/gemma-4-12b-it-NVFP4",
     "revision": "b1f649734b34aa5575b03d186abd1b9be3d0d5c4"
   },
   "llama_cpp": {
-    "commit": "846e991ec3c7ccec49112ff2c5b00b710e5f551d",
-    "version": 10083,
+    "commit": "000547513f1530346ecd163db8b3e13962949961",
+    "version": 10210,
     "patch": "patches/0001-support-mixed-fp8-nvfp4-compressed-tensors.patch",
     "patch_sha256": "a811880b1a7828451b7f4efea284be0ae2a48024f96f92fe0a8a45dccfe851f3"
   },
@@ -17,31 +17,31 @@
     "torch": "2.11.0+cu130"
   },
   "gguf": {
-    "path": "build/llama_cpp/gemma4-12b-nvfp4-patched.gguf",
-    "size_bytes": 11622734912,
-    "sha256": "e4910e01c4275e58acbf2c38c4d4fb81acf61bb8aa04eed121eb5ac942705e8a",
+    "path": "build/Linux/llama_cpp/gemma4-12b-mixed-q8-nvfp4.gguf",
+    "size_bytes": 9366658112,
+    "sha256": "0fc3dce6d631d1ee5ab5398f621b4bfe50591d01d08339659d554eb91e23091d",
     "tensor_count": 955,
     "nvfp4_tensor_count": 144,
-    "bf16_tensor_count": 185,
+    "q8_0_tensor_count": 184,
+    "bf16_tensor_count": 1,
     "f32_tensor_count": 626
   },
   "mapping": {
     "nvfp4_mlp_weights": "packed values and E4M3 block scales repacked losslessly into GGUF NVFP4; reciprocal global/input scales stored as F32 auxiliaries",
-    "fp8_attention_weights": "dequantized using per-channel scales and stored as BF16",
+    "fp8_attention_weights": "dequantized using per-channel scales and stored as Q8_0 via --fp8-as-q8",
     "classification": "closest parity only; not exact format parity"
   },
   "runtime_probe": {
     "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
-    "context_tokens": 8192,
-    "kv_type": "BF16",
-    "layers_offloaded": "49/49",
-    "cuda_model_mib": 11069.25,
-    "cuda_context_mib": 608,
-    "cuda_compute_mib": 115.52,
-    "cuda_free_mib_after_init": 3837,
-    "first_greedy_token_id": 9503,
-    "first_greedy_text": "blue",
-    "direct_reference_first_token_id": 9503
+    "context_tokens": 17664,
+    "kv_type": "Q8_0",
+    "layers_offloaded": "49/49 target and 5/5 assistant on CUDA0",
+    "cuda_model_mib": 8917,
+    "cuda_context_mib": 401,
+    "cuda_compute_mib": 141,
+    "cuda_free_mib_after_init": 1161,
+    "first_wikipedia_token_id": 61684,
+    "first_wikipedia_text": "recorded in the Linux workload JSON"
   },
   "limitations": [
     "The upstream unpatched converter still rejects the mixed compressed-tensors schema.",

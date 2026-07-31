@@ -43,6 +43,7 @@ $configureArguments = @(
     "-DCMAKE_BUILD_TYPE=Release",
     "-DCMAKE_CUDA_ARCHITECTURES=120a-real",
     "-DGGML_CUDA=ON",
+    "-DGGML_CUDA_FA_ALL_QUANTS=ON",
     "-DGGML_NATIVE=OFF",
     "-DLLAMA_BUILD_TESTS=OFF",
     "-DLLAMA_BUILD_EXAMPLES=ON",
@@ -52,6 +53,6 @@ Invoke-Gem16Checked "cmake.exe" $configureArguments
 
 $buildArguments = @("--build", $buildDir, "--parallel")
 if ($Jobs -gt 0) { $buildArguments += $Jobs.ToString() }
-$buildArguments += @("--target", "llama-cli", "llama-bench", "llama-quantize")
+$buildArguments += @("--target", "llama-cli", "llama-bench", "llama-quantize", "llama-gguf", "llama-server")
 Invoke-Gem16Checked "cmake.exe" $buildArguments
 Invoke-Gem16Checked (Join-Path $buildDir "bin\llama-cli.exe") @("--version")

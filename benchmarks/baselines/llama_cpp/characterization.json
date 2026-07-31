@@ -1,5 +1,6 @@
 {
-  "status": "development_characterization_not_accepted_baseline",
+  "status": "historical_846e991_development_characterization_not_current_baseline",
+  "current_linux_refresh": "benchmarks/results/2026-07-31/6e16dd1/blackwell16gb-linux-llama-current/summary.json",
   "label": "same-source-closest-parity-patched",
   "hardware_class": "Blackwell CUDA GPU, approximately 16 GB",
   "source_files": [

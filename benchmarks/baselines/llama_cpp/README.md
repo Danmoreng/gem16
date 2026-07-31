@@ -1,23 +1,21 @@
 # llama.cpp baseline
 
-Upstream is pinned to commit `846e991ec3c7ccec49112ff2c5b00b710e5f551d`, the `master` tip resolved on
-2026-07-21. A development characterization has been captured; no accepted or headline baseline exists yet.
+Upstream is pinned to commit `000547513f1530346ecd163db8b3e13962949961`, the `master` tip resolved on
+2026-07-31 (version 10210). A Linux characterization has been captured; no accepted or headline baseline exists yet.
 
 ## Gemma 4 MTP capability
 
-Both the pinned runtime and current upstream `da5b448622ce8f8265bed15a7f80c5cf17894511` implement the dedicated
-`gemma4-assistant` architecture and `draft-mtp` scheduler. The pinned converter accepts Google's official BF16
-assistant and emits a 861,520,160-byte GGUF with SHA-256
-`7b82a9f31fa365fb8ce533424cfad6c5106086f40b3eade4d91d8c5bb63d8224`. Runtime logs prove all 49 target and all
-5 assistant layer groups are on GPU and that assistant layers 0/1/2 share target Layer-46 K/V while layer 3 shares
+The current runtime implements the dedicated `gemma4-assistant` architecture and `draft-mtp` scheduler. The
+regenerated official BF16 assistant is an 861,520,160-byte GGUF with SHA-256
+`7b82a9f31fa365fb8ce533424cfad6c5106086f40b3eade4d91d8c5bb63d8224`. Linux verbose logs prove all 49 target and all
+5 assistant layer groups are on CUDA0; assistant layers 0/1/2 share target Layer-46 K/V and layer 3 shares
 Layer-47 K/V.
 
-On the 16K Wikipedia workload, current-upstream fixed-1,135-token screens reach 28.56 ordinary and 48.38 D2 tok/s.
-Stop-terminated D2/D4 screens reach 50.21/49.75 tok/s. The older pinned runtime reaches 43.52/47.65/47.52 tok/s for
-D1/D2/D4. This is not exact format parity: target FP8 attention weights are BF16 in the patched GGUF and K/V is
-Q8_0. It is also not internally token-exact: current-upstream ordinary and D2 first differ at fixed output index
-133. These results establish working official-assistant/shared-KV support, not an accepted performance baseline.
-See `mtp-characterization.json`.
+The new fixed-1,135-token Linux screen reaches 33.386 tok/s ordinary and 54.703 tok/s D2 after three warm-ups and
+ten measured runs. D2 proposes 1,035, accepts 616, rejects 419, and completes 519 verification groups in every run.
+These are not exact format parity results: source FP8 attention weights are Q8_0 in the patched GGUF and K/V is Q8_0.
+Ordinary and D2 output hashes are retained separately because speculative output is not token-exact against ordinary.
+This remains a characterization, not an accepted performance baseline.
 
 A later fixed-1,135-token Wikipedia screen at the same current-upstream build evaluated llama.cpp's ordered
 `ngram-mod,draft-mtp` cascade. `ngram-mod` is a higher-priority proposer, not a token-level merge: MTP runs only
@@ -49,10 +47,11 @@ This is expected from the source: its mixed-precision shortcut only accepts mult
 `conversion-probe.json` for the exact command and result. Upstream tier A therefore remains blocked.
 
 An auditable local patch now enables a separately labeled **same-source closest-parity patched** candidate. It
-preserves and repacks the 144 NVFP4 MLP tensors, then explicitly dequantizes the 184 FP8 attention weights to BF16.
-This is not exact format parity. The generated GGUF has 955 tensors and SHA-256
-`e4910e01c4275e58acbf2c38c4d4fb81acf61bb8aa04eed121eb5ac942705e8a`; see `patched-conversion.json` and
-`tensor-inventory.json`.
+preserves and repacks the 144 NVFP4 MLP tensors and stores the 184 source FP8 attention weights as Q8_0 using the
+current converter's `--fp8-as-q8` path. This is not exact format parity. The regenerated GGUF has 955 tensors,
+size 9,366,658,112 bytes, and SHA-256
+`0fc3dce6d631d1ee5ab5398f621b4bfe50591d01d08339659d554eb91e23091d`; see the generated Linux inventory under
+`benchmarks/results/`.
 
 Reproduce the converter gate after preparing its documented Python requirements:
 
@@ -88,17 +87,17 @@ legacy converter requirements fails while reading `extra_special_tokens`. The de
 uses the already pinned offline reference environment with Transformers 5.14.1. This is converter tooling only,
 not a runtime dependency.
 
-`build.sh` and `build.ps1` check out the same exact clean commit and build CUDA tools specifically for SM120a. The
-PowerShell helper imports MSVC automatically and keeps its cache under `build/Windows/llama_cpp`. The build alone does
-not establish native NVFP4 execution. The selected GGUF has passed structural inspection, full GPU-residency
-probing, and an initial direct-runtime quality comparison; profiler-level native-instruction dispatch evidence is
-still required.
+`build.sh` and `build.ps1` check out the same exact clean commit and build CUDA tools specifically for SM120a, with
+all Flash-Attention KV quantizations enabled. The PowerShell helper imports MSVC automatically and keeps its cache
+under `build/Windows/llama_cpp`. The selected GGUF has passed structural inspection, full GPU-residency probing,
+and the Linux 1/1 plus 3/10 runtime characterization; profiler-level native-instruction invocation attribution and
+quality acceptance remain open.
 
-The current build's dedicated `mmq-instance-nvfp4.cu.o` is an `sm_120a` cubin. `cuobjdump` confirms that it contains
-`OMMA.SF.16864.F32.E2M1.E2M1.UE4M3.4X`, matching the block-scaled E2M1/UE4M3 native path. This proves instruction
-availability in the binary. The candidate loads 49/49 layers on the GPU and uses 11,069.25 MiB for model tensors,
-608 MiB for the 8K BF16 KV/context allocation, and 115.52 MiB of compute space, leaving 3,837 MiB free. A
-profiler-level trace of the native kernel invocation remains an explicit gate.
+The current build's dedicated `mmq-instance-nvfp4.cu.o` is an `sm_120a` cubin. `cuobjdump` confirms 1,792
+occurrences of `OMMA.SF.16864.F32.E2M1.E2M1.UE4M3.4X`, matching the block-scaled E2M1/UE4M3 native path. This
+proves instruction availability in the binary. The candidate loads 49/49 layers on CUDA0; the verbose memory
+breakdown reports 8,917 MiB model, 401 MiB context, 141 MiB compute, and 1,161 MiB free/unaccounted CUDA memory
+at the 17,664-token D2 setup. A profiler-level trace of the native kernel invocation remains an explicit gate.
 
 The direct-runtime comparison in `quality.json` uses identical chat rendering, greedy sampling, and the same three
 prompts. It records 50/65 token agreement and one exact generation. The short sky answer diverges after 18 matching

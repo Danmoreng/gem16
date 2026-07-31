@@ -29,10 +29,11 @@ cmake -S "${source_dir}" -B "${build_dir}" \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_CUDA_ARCHITECTURES=120a-real \
   -DGGML_CUDA=ON \
+  -DGGML_CUDA_FA_ALL_QUANTS=ON \
   -DGGML_NATIVE=OFF \
   -DLLAMA_BUILD_TESTS=OFF \
   -DLLAMA_BUILD_EXAMPLES=ON \
   -DLLAMA_BUILD_TOOLS=ON
-cmake --build "${build_dir}" --parallel --target llama-cli llama-bench llama-quantize
+cmake --build "${build_dir}" --parallel --target llama-cli llama-bench llama-quantize llama-gguf llama-server
 
 "${build_dir}/bin/llama-cli" --version

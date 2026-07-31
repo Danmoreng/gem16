@@ -1,16 +1,16 @@
 {
   "status": "generated_unvalidated_quality",
-  "label": "same-source-closest-parity-patched",
+  "label": "linux-current-mixed-q8-nvfp4",
   "source_revision": "b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
-  "converter_commit": "846e991ec3c7ccec49112ff2c5b00b710e5f551d",
+  "converter_commit": "000547513f1530346ecd163db8b3e13962949961",
   "converter_patch": {
     "path": "benchmarks/baselines/llama_cpp/patches/0001-support-mixed-fp8-nvfp4-compressed-tensors.patch",
     "sha256": "a811880b1a7828451b7f4efea284be0ae2a48024f96f92fe0a8a45dccfe851f3"
   },
   "gguf": {
-    "path": "build/llama_cpp/gemma4-12b-nvfp4-patched.gguf",
-    "size_bytes": 11622734912,
-    "sha256": "e4910e01c4275e58acbf2c38c4d4fb81acf61bb8aa04eed121eb5ac942705e8a",
+    "path": "build/Linux/llama_cpp/gemma4-12b-mixed-q8-nvfp4.gguf",
+    "size_bytes": 9366658112,
+    "sha256": "0fc3dce6d631d1ee5ab5398f621b4bfe50591d01d08339659d554eb91e23091d",
     "version": 3,
     "alignment": 32,
     "tensor_count": 955,
@@ -80,9 +80,9 @@
   },
   "totals_by_type": {
     "BF16": {
-      "tensor_count": 185,
-      "byte_count": 6826229760,
-      "element_count": 3413114880
+      "tensor_count": 1,
+      "byte_count": 2013265920,
+      "element_count": 1006632960
     },
     "F32": {
       "tensor_count": 626,
@@ -93,6 +93,11 @@
       "tensor_count": 144,
       "byte_count": 4777574400,
       "element_count": 8493465600
+    },
+    "Q8_0": {
+      "tensor_count": 184,
+      "byte_count": 2556887040,
+      "element_count": 2406481920
     }
   },
   "tensors": [
@@ -5524,27 +5529,27 @@
     {
       "index": 440,
       "name": "blk.0.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
+      "byte_count": 8355840,
       "data_offset": 6806752864,
       "metadata_offset": 15809207
     },
     {
       "index": 441,
       "name": "blk.0.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         4096,
         3840
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 6822481504,
+      "byte_count": 16711680,
+      "data_offset": 6815108704,
       "metadata_offset": 15809266
     },
     {
@@ -5556,33 +5561,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 6853938784,
+      "data_offset": 6831820384,
       "metadata_offset": 15809330
     },
     {
       "index": 443,
       "name": "blk.0.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         4096
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 6853939808,
+      "byte_count": 16711680,
+      "data_offset": 6831821408,
       "metadata_offset": 15809386
     },
     {
       "index": 444,
       "name": "blk.0.attn_v.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 6885397088,
+      "byte_count": 8355840,
+      "data_offset": 6848533088,
       "metadata_offset": 15809445
     },
     {
@@ -5594,7 +5599,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 6901125728,
+      "data_offset": 6856888928,
       "metadata_offset": 15809504
     },
     {
@@ -5606,7 +5611,7 @@
       ],
       "element_count": 1,
       "byte_count": 4,
-      "data_offset": 6901141088,
+      "data_offset": 6856904288,
       "metadata_offset": 15809558
     },
     {
@@ -5618,7 +5623,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 6901141120,
+      "data_offset": 6856904320,
       "metadata_offset": 15809621
     },
     {
@@ -5630,7 +5635,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 6901156480,
+      "data_offset": 6856919680,
       "metadata_offset": 15809685
     },
     {
@@ -5642,7 +5647,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 6901171840,
+      "data_offset": 6856935040,
       "metadata_offset": 15809743
     },
     {
@@ -5654,33 +5659,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 6901187200,
+      "data_offset": 6856950400,
       "metadata_offset": 15809796
     },
     {
       "index": 451,
       "name": "blk.1.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 6901188224,
+      "byte_count": 8355840,
+      "data_offset": 6856951424,
       "metadata_offset": 15809852
     },
     {
       "index": 452,
       "name": "blk.1.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         4096,
         3840
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 6916916864,
+      "byte_count": 16711680,
+      "data_offset": 6865307264,
       "metadata_offset": 15809911
     },
     {
@@ -5692,33 +5697,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 6948374144,
+      "data_offset": 6882018944,
       "metadata_offset": 15809975
     },
     {
       "index": 454,
       "name": "blk.1.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         4096
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 6948375168,
+      "byte_count": 16711680,
+      "data_offset": 6882019968,
       "metadata_offset": 15810031
     },
     {
       "index": 455,
       "name": "blk.1.attn_v.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 6979832448,
+      "byte_count": 8355840,
+      "data_offset": 6898731648,
       "metadata_offset": 15810090
     },
     {
@@ -5730,7 +5735,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 6995561088,
+      "data_offset": 6907087488,
       "metadata_offset": 15810149
     },
     {
@@ -5742,7 +5747,7 @@
       ],
       "element_count": 1,
       "byte_count": 4,
-      "data_offset": 6995576448,
+      "data_offset": 6907102848,
       "metadata_offset": 15810204
     },
     {
@@ -5754,7 +5759,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 6995576480,
+      "data_offset": 6907102880,
       "metadata_offset": 15810268
     },
     {
@@ -5766,7 +5771,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 6995591840,
+      "data_offset": 6907118240,
       "metadata_offset": 15810333
     },
     {
@@ -5778,7 +5783,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 6995607200,
+      "data_offset": 6907133600,
       "metadata_offset": 15810392
     },
     {
@@ -5790,33 +5795,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 6995622560,
+      "data_offset": 6907148960,
       "metadata_offset": 15810446
     },
     {
       "index": 462,
       "name": "blk.10.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 6995623584,
+      "byte_count": 8355840,
+      "data_offset": 6907149984,
       "metadata_offset": 15810503
     },
     {
       "index": 463,
       "name": "blk.10.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         4096,
         3840
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 7011352224,
+      "byte_count": 16711680,
+      "data_offset": 6915505824,
       "metadata_offset": 15810563
     },
     {
@@ -5828,33 +5833,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 7042809504,
+      "data_offset": 6932217504,
       "metadata_offset": 15810628
     },
     {
       "index": 465,
       "name": "blk.10.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         4096
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 7042810528,
+      "byte_count": 16711680,
+      "data_offset": 6932218528,
       "metadata_offset": 15810685
     },
     {
       "index": 466,
       "name": "blk.10.attn_v.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 7074267808,
+      "byte_count": 8355840,
+      "data_offset": 6948930208,
       "metadata_offset": 15810745
     },
     {
@@ -5866,7 +5871,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 7089996448,
+      "data_offset": 6957286048,
       "metadata_offset": 15810805
     },
     {
@@ -5878,7 +5883,7 @@
       ],
       "element_count": 1,
       "byte_count": 4,
-      "data_offset": 7090011808,
+      "data_offset": 6957301408,
       "metadata_offset": 15810860
     },
     {
@@ -5890,7 +5895,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 7090011840,
+      "data_offset": 6957301440,
       "metadata_offset": 15810924
     },
     {
@@ -5902,7 +5907,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 7090027200,
+      "data_offset": 6957316800,
       "metadata_offset": 15810989
     },
     {
@@ -5914,7 +5919,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 7090042560,
+      "data_offset": 6957332160,
       "metadata_offset": 15811048
     },
     {
@@ -5926,33 +5931,33 @@
       ],
       "element_count": 512,
       "byte_count": 2048,
-      "data_offset": 7090057920,
+      "data_offset": 6957347520,
       "metadata_offset": 15811102
     },
     {
       "index": 473,
       "name": "blk.11.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         512
       ],
       "element_count": 1966080,
-      "byte_count": 3932160,
-      "data_offset": 7090059968,
+      "byte_count": 2088960,
+      "data_offset": 6957349568,
       "metadata_offset": 15811159
     },
     {
       "index": 474,
       "name": "blk.11.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         8192,
         3840
       ],
       "element_count": 31457280,
-      "byte_count": 62914560,
-      "data_offset": 7093992128,
+      "byte_count": 33423360,
+      "data_offset": 6959438528,
       "metadata_offset": 15811219
     },
     {
@@ -5964,20 +5969,20 @@
       ],
       "element_count": 512,
       "byte_count": 2048,
-      "data_offset": 7156906688,
+      "data_offset": 6992861888,
       "metadata_offset": 15811284
     },
     {
       "index": 476,
       "name": "blk.11.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         8192
       ],
       "element_count": 31457280,
-      "byte_count": 62914560,
-      "data_offset": 7156908736,
+      "byte_count": 33423360,
+      "data_offset": 6992863936,
       "metadata_offset": 15811341
     },
     {
@@ -5989,7 +5994,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 7219823296,
+      "data_offset": 7026287296,
       "metadata_offset": 15811401
     },
     {
@@ -6001,7 +6006,7 @@
       ],
       "element_count": 1,
       "byte_count": 4,
-      "data_offset": 7219838656,
+      "data_offset": 7026302656,
       "metadata_offset": 15811456
     },
     {
@@ -6013,7 +6018,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 7219838688,
+      "data_offset": 7026302688,
       "metadata_offset": 15811520
     },
     {
@@ -6025,7 +6030,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 7219854048,
+      "data_offset": 7026318048,
       "metadata_offset": 15811585
     },
     {
@@ -6037,7 +6042,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 7219869408,
+      "data_offset": 7026333408,
       "metadata_offset": 15811644
     },
     {
@@ -6049,33 +6054,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 7219884768,
+      "data_offset": 7026348768,
       "metadata_offset": 15811698
     },
     {
       "index": 483,
       "name": "blk.12.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 7219885792,
+      "byte_count": 8355840,
+      "data_offset": 7026349792,
       "metadata_offset": 15811755
     },
     {
       "index": 484,
       "name": "blk.12.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         4096,
         3840
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 7235614432,
+      "byte_count": 16711680,
+      "data_offset": 7034705632,
       "metadata_offset": 15811815
     },
     {
@@ -6087,33 +6092,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 7267071712,
+      "data_offset": 7051417312,
       "metadata_offset": 15811880
     },
     {
       "index": 486,
       "name": "blk.12.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         4096
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 7267072736,
+      "byte_count": 16711680,
+      "data_offset": 7051418336,
       "metadata_offset": 15811937
     },
     {
       "index": 487,
       "name": "blk.12.attn_v.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 7298530016,
+      "byte_count": 8355840,
+      "data_offset": 7068130016,
       "metadata_offset": 15811997
     },
     {
@@ -6125,7 +6130,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 7314258656,
+      "data_offset": 7076485856,
       "metadata_offset": 15812057
     },
     {
@@ -6137,7 +6142,7 @@
       ],
       "element_count": 1,
       "byte_count": 4,
-      "data_offset": 7314274016,
+      "data_offset": 7076501216,
       "metadata_offset": 15812112
     },
     {
@@ -6149,7 +6154,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 7314274048,
+      "data_offset": 7076501248,
       "metadata_offset": 15812176
     },
     {
@@ -6161,7 +6166,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 7314289408,
+      "data_offset": 7076516608,
       "metadata_offset": 15812241
     },
     {
@@ -6173,7 +6178,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 7314304768,
+      "data_offset": 7076531968,
       "metadata_offset": 15812300
     },
     {
@@ -6185,33 +6190,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 7314320128,
+      "data_offset": 7076547328,
       "metadata_offset": 15812354
     },
     {
       "index": 494,
       "name": "blk.13.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 7314321152,
+      "byte_count": 8355840,
+      "data_offset": 7076548352,
       "metadata_offset": 15812411
     },
     {
       "index": 495,
       "name": "blk.13.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         4096,
         3840
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 7330049792,
+      "byte_count": 16711680,
+      "data_offset": 7084904192,
       "metadata_offset": 15812471
     },
     {
@@ -6223,33 +6228,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 7361507072,
+      "data_offset": 7101615872,
       "metadata_offset": 15812536
     },
     {
       "index": 497,
       "name": "blk.13.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         4096
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 7361508096,
+      "byte_count": 16711680,
+      "data_offset": 7101616896,
       "metadata_offset": 15812593
     },
     {
       "index": 498,
       "name": "blk.13.attn_v.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 7392965376,
+      "byte_count": 8355840,
+      "data_offset": 7118328576,
       "metadata_offset": 15812653
     },
     {
@@ -6261,7 +6266,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 7408694016,
+      "data_offset": 7126684416,
       "metadata_offset": 15812713
     },
     {
@@ -6273,7 +6278,7 @@
       ],
       "element_count": 1,
       "byte_count": 4,
-      "data_offset": 7408709376,
+      "data_offset": 7126699776,
       "metadata_offset": 15812768
     },
     {
@@ -6285,7 +6290,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 7408709408,
+      "data_offset": 7126699808,
       "metadata_offset": 15812832
     },
     {
@@ -6297,7 +6302,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 7408724768,
+      "data_offset": 7126715168,
       "metadata_offset": 15812897
     },
     {
@@ -6309,7 +6314,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 7408740128,
+      "data_offset": 7126730528,
       "metadata_offset": 15812956
     },
     {
@@ -6321,33 +6326,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 7408755488,
+      "data_offset": 7126745888,
       "metadata_offset": 15813010
     },
     {
       "index": 505,
       "name": "blk.14.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 7408756512,
+      "byte_count": 8355840,
+      "data_offset": 7126746912,
       "metadata_offset": 15813067
     },
     {
       "index": 506,
       "name": "blk.14.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         4096,
         3840
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 7424485152,
+      "byte_count": 16711680,
+      "data_offset": 7135102752,
       "metadata_offset": 15813127
     },
     {
@@ -6359,33 +6364,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 7455942432,
+      "data_offset": 7151814432,
       "metadata_offset": 15813192
     },
     {
       "index": 508,
       "name": "blk.14.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         4096
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 7455943456,
+      "byte_count": 16711680,
+      "data_offset": 7151815456,
       "metadata_offset": 15813249
     },
     {
       "index": 509,
       "name": "blk.14.attn_v.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 7487400736,
+      "byte_count": 8355840,
+      "data_offset": 7168527136,
       "metadata_offset": 15813309
     },
     {
@@ -6397,7 +6402,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 7503129376,
+      "data_offset": 7176882976,
       "metadata_offset": 15813369
     },
     {
@@ -6409,7 +6414,7 @@
       ],
       "element_count": 1,
       "byte_count": 4,
-      "data_offset": 7503144736,
+      "data_offset": 7176898336,
       "metadata_offset": 15813424
     },
     {
@@ -6421,7 +6426,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 7503144768,
+      "data_offset": 7176898368,
       "metadata_offset": 15813488
     },
     {
@@ -6433,7 +6438,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 7503160128,
+      "data_offset": 7176913728,
       "metadata_offset": 15813553
     },
     {
@@ -6445,7 +6450,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 7503175488,
+      "data_offset": 7176929088,
       "metadata_offset": 15813612
     },
     {
@@ -6457,33 +6462,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 7503190848,
+      "data_offset": 7176944448,
       "metadata_offset": 15813666
     },
     {
       "index": 516,
       "name": "blk.15.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 7503191872,
+      "byte_count": 8355840,
+      "data_offset": 7176945472,
       "metadata_offset": 15813723
     },
     {
       "index": 517,
       "name": "blk.15.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         4096,
         3840
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 7518920512,
+      "byte_count": 16711680,
+      "data_offset": 7185301312,
       "metadata_offset": 15813783
     },
     {
@@ -6495,33 +6500,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 7550377792,
+      "data_offset": 7202012992,
       "metadata_offset": 15813848
     },
     {
       "index": 519,
       "name": "blk.15.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         4096
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 7550378816,
+      "byte_count": 16711680,
+      "data_offset": 7202014016,
       "metadata_offset": 15813905
     },
     {
       "index": 520,
       "name": "blk.15.attn_v.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 7581836096,
+      "byte_count": 8355840,
+      "data_offset": 7218725696,
       "metadata_offset": 15813965
     },
     {
@@ -6533,7 +6538,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 7597564736,
+      "data_offset": 7227081536,
       "metadata_offset": 15814025
     },
     {
@@ -6545,7 +6550,7 @@
       ],
       "element_count": 1,
       "byte_count": 4,
-      "data_offset": 7597580096,
+      "data_offset": 7227096896,
       "metadata_offset": 15814080
     },
     {
@@ -6557,7 +6562,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 7597580128,
+      "data_offset": 7227096928,
       "metadata_offset": 15814144
     },
     {
@@ -6569,7 +6574,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 7597595488,
+      "data_offset": 7227112288,
       "metadata_offset": 15814209
     },
     {
@@ -6581,7 +6586,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 7597610848,
+      "data_offset": 7227127648,
       "metadata_offset": 15814268
     },
     {
@@ -6593,33 +6598,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 7597626208,
+      "data_offset": 7227143008,
       "metadata_offset": 15814322
     },
     {
       "index": 527,
       "name": "blk.16.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 7597627232,
+      "byte_count": 8355840,
+      "data_offset": 7227144032,
       "metadata_offset": 15814379
     },
     {
       "index": 528,
       "name": "blk.16.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         4096,
         3840
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 7613355872,
+      "byte_count": 16711680,
+      "data_offset": 7235499872,
       "metadata_offset": 15814439
     },
     {
@@ -6631,33 +6636,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 7644813152,
+      "data_offset": 7252211552,
       "metadata_offset": 15814504
     },
     {
       "index": 530,
       "name": "blk.16.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         4096
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 7644814176,
+      "byte_count": 16711680,
+      "data_offset": 7252212576,
       "metadata_offset": 15814561
     },
     {
       "index": 531,
       "name": "blk.16.attn_v.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 7676271456,
+      "byte_count": 8355840,
+      "data_offset": 7268924256,
       "metadata_offset": 15814621
     },
     {
@@ -6669,7 +6674,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 7692000096,
+      "data_offset": 7277280096,
       "metadata_offset": 15814681
     },
     {
@@ -6681,7 +6686,7 @@
       ],
       "element_count": 1,
       "byte_count": 4,
-      "data_offset": 7692015456,
+      "data_offset": 7277295456,
       "metadata_offset": 15814736
     },
     {
@@ -6693,7 +6698,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 7692015488,
+      "data_offset": 7277295488,
       "metadata_offset": 15814800
     },
     {
@@ -6705,7 +6710,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 7692030848,
+      "data_offset": 7277310848,
       "metadata_offset": 15814865
     },
     {
@@ -6717,7 +6722,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 7692046208,
+      "data_offset": 7277326208,
       "metadata_offset": 15814924
     },
     {
@@ -6729,33 +6734,33 @@
       ],
       "element_count": 512,
       "byte_count": 2048,
-      "data_offset": 7692061568,
+      "data_offset": 7277341568,
       "metadata_offset": 15814978
     },
     {
       "index": 538,
       "name": "blk.17.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         512
       ],
       "element_count": 1966080,
-      "byte_count": 3932160,
-      "data_offset": 7692063616,
+      "byte_count": 2088960,
+      "data_offset": 7277343616,
       "metadata_offset": 15815035
     },
     {
       "index": 539,
       "name": "blk.17.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         8192,
         3840
       ],
       "element_count": 31457280,
-      "byte_count": 62914560,
-      "data_offset": 7695995776,
+      "byte_count": 33423360,
+      "data_offset": 7279432576,
       "metadata_offset": 15815095
     },
     {
@@ -6767,20 +6772,20 @@
       ],
       "element_count": 512,
       "byte_count": 2048,
-      "data_offset": 7758910336,
+      "data_offset": 7312855936,
       "metadata_offset": 15815160
     },
     {
       "index": 541,
       "name": "blk.17.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         8192
       ],
       "element_count": 31457280,
-      "byte_count": 62914560,
-      "data_offset": 7758912384,
+      "byte_count": 33423360,
+      "data_offset": 7312857984,
       "metadata_offset": 15815217
     },
     {
@@ -6792,7 +6797,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 7821826944,
+      "data_offset": 7346281344,
       "metadata_offset": 15815277
     },
     {
@@ -6804,7 +6809,7 @@
       ],
       "element_count": 1,
       "byte_count": 4,
-      "data_offset": 7821842304,
+      "data_offset": 7346296704,
       "metadata_offset": 15815332
     },
     {
@@ -6816,7 +6821,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 7821842336,
+      "data_offset": 7346296736,
       "metadata_offset": 15815396
     },
     {
@@ -6828,7 +6833,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 7821857696,
+      "data_offset": 7346312096,
       "metadata_offset": 15815461
     },
     {
@@ -6840,7 +6845,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 7821873056,
+      "data_offset": 7346327456,
       "metadata_offset": 15815520
     },
     {
@@ -6852,33 +6857,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 7821888416,
+      "data_offset": 7346342816,
       "metadata_offset": 15815574
     },
     {
       "index": 548,
       "name": "blk.18.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 7821889440,
+      "byte_count": 8355840,
+      "data_offset": 7346343840,
       "metadata_offset": 15815631
     },
     {
       "index": 549,
       "name": "blk.18.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         4096,
         3840
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 7837618080,
+      "byte_count": 16711680,
+      "data_offset": 7354699680,
       "metadata_offset": 15815691
     },
     {
@@ -6890,33 +6895,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 7869075360,
+      "data_offset": 7371411360,
       "metadata_offset": 15815756
     },
     {
       "index": 551,
       "name": "blk.18.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         4096
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 7869076384,
+      "byte_count": 16711680,
+      "data_offset": 7371412384,
       "metadata_offset": 15815813
     },
     {
       "index": 552,
       "name": "blk.18.attn_v.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 7900533664,
+      "byte_count": 8355840,
+      "data_offset": 7388124064,
       "metadata_offset": 15815873
     },
     {
@@ -6928,7 +6933,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 7916262304,
+      "data_offset": 7396479904,
       "metadata_offset": 15815933
     },
     {
@@ -6940,7 +6945,7 @@
       ],
       "element_count": 1,
       "byte_count": 4,
-      "data_offset": 7916277664,
+      "data_offset": 7396495264,
       "metadata_offset": 15815988
     },
     {
@@ -6952,7 +6957,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 7916277696,
+      "data_offset": 7396495296,
       "metadata_offset": 15816052
     },
     {
@@ -6964,7 +6969,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 7916293056,
+      "data_offset": 7396510656,
       "metadata_offset": 15816117
     },
     {
@@ -6976,7 +6981,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 7916308416,
+      "data_offset": 7396526016,
       "metadata_offset": 15816176
     },
     {
@@ -6988,33 +6993,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 7916323776,
+      "data_offset": 7396541376,
       "metadata_offset": 15816230
     },
     {
       "index": 559,
       "name": "blk.19.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 7916324800,
+      "byte_count": 8355840,
+      "data_offset": 7396542400,
       "metadata_offset": 15816287
     },
     {
       "index": 560,
       "name": "blk.19.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         4096,
         3840
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 7932053440,
+      "byte_count": 16711680,
+      "data_offset": 7404898240,
       "metadata_offset": 15816347
     },
     {
@@ -7026,33 +7031,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 7963510720,
+      "data_offset": 7421609920,
       "metadata_offset": 15816412
     },
     {
       "index": 562,
       "name": "blk.19.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         4096
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 7963511744,
+      "byte_count": 16711680,
+      "data_offset": 7421610944,
       "metadata_offset": 15816469
     },
     {
       "index": 563,
       "name": "blk.19.attn_v.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 7994969024,
+      "byte_count": 8355840,
+      "data_offset": 7438322624,
       "metadata_offset": 15816529
     },
     {
@@ -7064,7 +7069,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 8010697664,
+      "data_offset": 7446678464,
       "metadata_offset": 15816589
     },
     {
@@ -7076,7 +7081,7 @@
       ],
       "element_count": 1,
       "byte_count": 4,
-      "data_offset": 8010713024,
+      "data_offset": 7446693824,
       "metadata_offset": 15816643
     },
     {
@@ -7088,7 +7093,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 8010713056,
+      "data_offset": 7446693856,
       "metadata_offset": 15816706
     },
     {
@@ -7100,7 +7105,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 8010728416,
+      "data_offset": 7446709216,
       "metadata_offset": 15816770
     },
     {
@@ -7112,7 +7117,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 8010743776,
+      "data_offset": 7446724576,
       "metadata_offset": 15816828
     },
     {
@@ -7124,33 +7129,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 8010759136,
+      "data_offset": 7446739936,
       "metadata_offset": 15816881
     },
     {
       "index": 570,
       "name": "blk.2.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 8010760160,
+      "byte_count": 8355840,
+      "data_offset": 7446740960,
       "metadata_offset": 15816937
     },
     {
       "index": 571,
       "name": "blk.2.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         4096,
         3840
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 8026488800,
+      "byte_count": 16711680,
+      "data_offset": 7455096800,
       "metadata_offset": 15816996
     },
     {
@@ -7162,33 +7167,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 8057946080,
+      "data_offset": 7471808480,
       "metadata_offset": 15817060
     },
     {
       "index": 573,
       "name": "blk.2.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         4096
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 8057947104,
+      "byte_count": 16711680,
+      "data_offset": 7471809504,
       "metadata_offset": 15817116
     },
     {
       "index": 574,
       "name": "blk.2.attn_v.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 8089404384,
+      "byte_count": 8355840,
+      "data_offset": 7488521184,
       "metadata_offset": 15817175
     },
     {
@@ -7200,7 +7205,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 8105133024,
+      "data_offset": 7496877024,
       "metadata_offset": 15817234
     },
     {
@@ -7212,7 +7217,7 @@
       ],
       "element_count": 1,
       "byte_count": 4,
-      "data_offset": 8105148384,
+      "data_offset": 7496892384,
       "metadata_offset": 15817289
     },
     {
@@ -7224,7 +7229,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 8105148416,
+      "data_offset": 7496892416,
       "metadata_offset": 15817353
     },
     {
@@ -7236,7 +7241,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 8105163776,
+      "data_offset": 7496907776,
       "metadata_offset": 15817418
     },
     {
@@ -7248,7 +7253,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 8105179136,
+      "data_offset": 7496923136,
       "metadata_offset": 15817477
     },
     {
@@ -7260,33 +7265,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 8105194496,
+      "data_offset": 7496938496,
       "metadata_offset": 15817531
     },
     {
       "index": 581,
       "name": "blk.20.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 8105195520,
+      "byte_count": 8355840,
+      "data_offset": 7496939520,
       "metadata_offset": 15817588
     },
     {
       "index": 582,
       "name": "blk.20.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         4096,
         3840
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 8120924160,
+      "byte_count": 16711680,
+      "data_offset": 7505295360,
       "metadata_offset": 15817648
     },
     {
@@ -7298,33 +7303,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 8152381440,
+      "data_offset": 7522007040,
       "metadata_offset": 15817713
     },
     {
       "index": 584,
       "name": "blk.20.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         4096
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 8152382464,
+      "byte_count": 16711680,
+      "data_offset": 7522008064,
       "metadata_offset": 15817770
     },
     {
       "index": 585,
       "name": "blk.20.attn_v.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 8183839744,
+      "byte_count": 8355840,
+      "data_offset": 7538719744,
       "metadata_offset": 15817830
     },
     {
@@ -7336,7 +7341,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 8199568384,
+      "data_offset": 7547075584,
       "metadata_offset": 15817890
     },
     {
@@ -7348,7 +7353,7 @@
       ],
       "element_count": 1,
       "byte_count": 4,
-      "data_offset": 8199583744,
+      "data_offset": 7547090944,
       "metadata_offset": 15817945
     },
     {
@@ -7360,7 +7365,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 8199583776,
+      "data_offset": 7547090976,
       "metadata_offset": 15818009
     },
     {
@@ -7372,7 +7377,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 8199599136,
+      "data_offset": 7547106336,
       "metadata_offset": 15818074
     },
     {
@@ -7384,7 +7389,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 8199614496,
+      "data_offset": 7547121696,
       "metadata_offset": 15818133
     },
     {
@@ -7396,33 +7401,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 8199629856,
+      "data_offset": 7547137056,
       "metadata_offset": 15818187
     },
     {
       "index": 592,
       "name": "blk.21.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 8199630880,
+      "byte_count": 8355840,
+      "data_offset": 7547138080,
       "metadata_offset": 15818244
     },
     {
       "index": 593,
       "name": "blk.21.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         4096,
         3840
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 8215359520,
+      "byte_count": 16711680,
+      "data_offset": 7555493920,
       "metadata_offset": 15818304
     },
     {
@@ -7434,33 +7439,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 8246816800,
+      "data_offset": 7572205600,
       "metadata_offset": 15818369
     },
     {
       "index": 595,
       "name": "blk.21.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         4096
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 8246817824,
+      "byte_count": 16711680,
+      "data_offset": 7572206624,
       "metadata_offset": 15818426
     },
     {
       "index": 596,
       "name": "blk.21.attn_v.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 8278275104,
+      "byte_count": 8355840,
+      "data_offset": 7588918304,
       "metadata_offset": 15818486
     },
     {
@@ -7472,7 +7477,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 8294003744,
+      "data_offset": 7597274144,
       "metadata_offset": 15818546
     },
     {
@@ -7484,7 +7489,7 @@
       ],
       "element_count": 1,
       "byte_count": 4,
-      "data_offset": 8294019104,
+      "data_offset": 7597289504,
       "metadata_offset": 15818601
     },
     {
@@ -7496,7 +7501,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 8294019136,
+      "data_offset": 7597289536,
       "metadata_offset": 15818665
     },
     {
@@ -7508,7 +7513,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 8294034496,
+      "data_offset": 7597304896,
       "metadata_offset": 15818730
     },
     {
@@ -7520,7 +7525,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 8294049856,
+      "data_offset": 7597320256,
       "metadata_offset": 15818789
     },
     {
@@ -7532,33 +7537,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 8294065216,
+      "data_offset": 7597335616,
       "metadata_offset": 15818843
     },
     {
       "index": 603,
       "name": "blk.22.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 8294066240,
+      "byte_count": 8355840,
+      "data_offset": 7597336640,
       "metadata_offset": 15818900
     },
     {
       "index": 604,
       "name": "blk.22.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         4096,
         3840
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 8309794880,
+      "byte_count": 16711680,
+      "data_offset": 7605692480,
       "metadata_offset": 15818960
     },
     {
@@ -7570,33 +7575,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 8341252160,
+      "data_offset": 7622404160,
       "metadata_offset": 15819025
     },
     {
       "index": 606,
       "name": "blk.22.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         4096
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 8341253184,
+      "byte_count": 16711680,
+      "data_offset": 7622405184,
       "metadata_offset": 15819082
     },
     {
       "index": 607,
       "name": "blk.22.attn_v.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 8372710464,
+      "byte_count": 8355840,
+      "data_offset": 7639116864,
       "metadata_offset": 15819142
     },
     {
@@ -7608,7 +7613,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 8388439104,
+      "data_offset": 7647472704,
       "metadata_offset": 15819202
     },
     {
@@ -7620,7 +7625,7 @@
       ],
       "element_count": 1,
       "byte_count": 4,
-      "data_offset": 8388454464,
+      "data_offset": 7647488064,
       "metadata_offset": 15819257
     },
     {
@@ -7632,7 +7637,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 8388454496,
+      "data_offset": 7647488096,
       "metadata_offset": 15819321
     },
     {
@@ -7644,7 +7649,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 8388469856,
+      "data_offset": 7647503456,
       "metadata_offset": 15819386
     },
     {
@@ -7656,7 +7661,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 8388485216,
+      "data_offset": 7647518816,
       "metadata_offset": 15819445
     },
     {
@@ -7668,33 +7673,33 @@
       ],
       "element_count": 512,
       "byte_count": 2048,
-      "data_offset": 8388500576,
+      "data_offset": 7647534176,
       "metadata_offset": 15819499
     },
     {
       "index": 614,
       "name": "blk.23.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         512
       ],
       "element_count": 1966080,
-      "byte_count": 3932160,
-      "data_offset": 8388502624,
+      "byte_count": 2088960,
+      "data_offset": 7647536224,
       "metadata_offset": 15819556
     },
     {
       "index": 615,
       "name": "blk.23.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         8192,
         3840
       ],
       "element_count": 31457280,
-      "byte_count": 62914560,
-      "data_offset": 8392434784,
+      "byte_count": 33423360,
+      "data_offset": 7649625184,
       "metadata_offset": 15819616
     },
     {
@@ -7706,20 +7711,20 @@
       ],
       "element_count": 512,
       "byte_count": 2048,
-      "data_offset": 8455349344,
+      "data_offset": 7683048544,
       "metadata_offset": 15819681
     },
     {
       "index": 617,
       "name": "blk.23.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         8192
       ],
       "element_count": 31457280,
-      "byte_count": 62914560,
-      "data_offset": 8455351392,
+      "byte_count": 33423360,
+      "data_offset": 7683050592,
       "metadata_offset": 15819738
     },
     {
@@ -7731,7 +7736,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 8518265952,
+      "data_offset": 7716473952,
       "metadata_offset": 15819798
     },
     {
@@ -7743,7 +7748,7 @@
       ],
       "element_count": 1,
       "byte_count": 4,
-      "data_offset": 8518281312,
+      "data_offset": 7716489312,
       "metadata_offset": 15819853
     },
     {
@@ -7755,7 +7760,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 8518281344,
+      "data_offset": 7716489344,
       "metadata_offset": 15819917
     },
     {
@@ -7767,7 +7772,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 8518296704,
+      "data_offset": 7716504704,
       "metadata_offset": 15819982
     },
     {
@@ -7779,7 +7784,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 8518312064,
+      "data_offset": 7716520064,
       "metadata_offset": 15820041
     },
     {
@@ -7791,33 +7796,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 8518327424,
+      "data_offset": 7716535424,
       "metadata_offset": 15820095
     },
     {
       "index": 624,
       "name": "blk.24.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 8518328448,
+      "byte_count": 8355840,
+      "data_offset": 7716536448,
       "metadata_offset": 15820152
     },
     {
       "index": 625,
       "name": "blk.24.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         4096,
         3840
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 8534057088,
+      "byte_count": 16711680,
+      "data_offset": 7724892288,
       "metadata_offset": 15820212
     },
     {
@@ -7829,33 +7834,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 8565514368,
+      "data_offset": 7741603968,
       "metadata_offset": 15820277
     },
     {
       "index": 627,
       "name": "blk.24.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         4096
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 8565515392,
+      "byte_count": 16711680,
+      "data_offset": 7741604992,
       "metadata_offset": 15820334
     },
     {
       "index": 628,
       "name": "blk.24.attn_v.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 8596972672,
+      "byte_count": 8355840,
+      "data_offset": 7758316672,
       "metadata_offset": 15820394
     },
     {
@@ -7867,7 +7872,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 8612701312,
+      "data_offset": 7766672512,
       "metadata_offset": 15820454
     },
     {
@@ -7879,7 +7884,7 @@
       ],
       "element_count": 1,
       "byte_count": 4,
-      "data_offset": 8612716672,
+      "data_offset": 7766687872,
       "metadata_offset": 15820509
     },
     {
@@ -7891,7 +7896,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 8612716704,
+      "data_offset": 7766687904,
       "metadata_offset": 15820573
     },
     {
@@ -7903,7 +7908,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 8612732064,
+      "data_offset": 7766703264,
       "metadata_offset": 15820638
     },
     {
@@ -7915,7 +7920,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 8612747424,
+      "data_offset": 7766718624,
       "metadata_offset": 15820697
     },
     {
@@ -7927,33 +7932,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 8612762784,
+      "data_offset": 7766733984,
       "metadata_offset": 15820751
     },
     {
       "index": 635,
       "name": "blk.25.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 8612763808,
+      "byte_count": 8355840,
+      "data_offset": 7766735008,
       "metadata_offset": 15820808
     },
     {
       "index": 636,
       "name": "blk.25.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         4096,
         3840
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 8628492448,
+      "byte_count": 16711680,
+      "data_offset": 7775090848,
       "metadata_offset": 15820868
     },
     {
@@ -7965,33 +7970,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 8659949728,
+      "data_offset": 7791802528,
       "metadata_offset": 15820933
     },
     {
       "index": 638,
       "name": "blk.25.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         4096
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 8659950752,
+      "byte_count": 16711680,
+      "data_offset": 7791803552,
       "metadata_offset": 15820990
     },
     {
       "index": 639,
       "name": "blk.25.attn_v.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 8691408032,
+      "byte_count": 8355840,
+      "data_offset": 7808515232,
       "metadata_offset": 15821050
     },
     {
@@ -8003,7 +8008,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 8707136672,
+      "data_offset": 7816871072,
       "metadata_offset": 15821110
     },
     {
@@ -8015,7 +8020,7 @@
       ],
       "element_count": 1,
       "byte_count": 4,
-      "data_offset": 8707152032,
+      "data_offset": 7816886432,
       "metadata_offset": 15821165
     },
     {
@@ -8027,7 +8032,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 8707152064,
+      "data_offset": 7816886464,
       "metadata_offset": 15821229
     },
     {
@@ -8039,7 +8044,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 8707167424,
+      "data_offset": 7816901824,
       "metadata_offset": 15821294
     },
     {
@@ -8051,7 +8056,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 8707182784,
+      "data_offset": 7816917184,
       "metadata_offset": 15821353
     },
     {
@@ -8063,33 +8068,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 8707198144,
+      "data_offset": 7816932544,
       "metadata_offset": 15821407
     },
     {
       "index": 646,
       "name": "blk.26.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 8707199168,
+      "byte_count": 8355840,
+      "data_offset": 7816933568,
       "metadata_offset": 15821464
     },
     {
       "index": 647,
       "name": "blk.26.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         4096,
         3840
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 8722927808,
+      "byte_count": 16711680,
+      "data_offset": 7825289408,
       "metadata_offset": 15821524
     },
     {
@@ -8101,33 +8106,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 8754385088,
+      "data_offset": 7842001088,
       "metadata_offset": 15821589
     },
     {
       "index": 649,
       "name": "blk.26.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         4096
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 8754386112,
+      "byte_count": 16711680,
+      "data_offset": 7842002112,
       "metadata_offset": 15821646
     },
     {
       "index": 650,
       "name": "blk.26.attn_v.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 8785843392,
+      "byte_count": 8355840,
+      "data_offset": 7858713792,
       "metadata_offset": 15821706
     },
     {
@@ -8139,7 +8144,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 8801572032,
+      "data_offset": 7867069632,
       "metadata_offset": 15821766
     },
     {
@@ -8151,7 +8156,7 @@
       ],
       "element_count": 1,
       "byte_count": 4,
-      "data_offset": 8801587392,
+      "data_offset": 7867084992,
       "metadata_offset": 15821821
     },
     {
@@ -8163,7 +8168,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 8801587424,
+      "data_offset": 7867085024,
       "metadata_offset": 15821885
     },
     {
@@ -8175,7 +8180,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 8801602784,
+      "data_offset": 7867100384,
       "metadata_offset": 15821950
     },
     {
@@ -8187,7 +8192,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 8801618144,
+      "data_offset": 7867115744,
       "metadata_offset": 15822009
     },
     {
@@ -8199,33 +8204,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 8801633504,
+      "data_offset": 7867131104,
       "metadata_offset": 15822063
     },
     {
       "index": 657,
       "name": "blk.27.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 8801634528,
+      "byte_count": 8355840,
+      "data_offset": 7867132128,
       "metadata_offset": 15822120
     },
     {
       "index": 658,
       "name": "blk.27.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         4096,
         3840
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 8817363168,
+      "byte_count": 16711680,
+      "data_offset": 7875487968,
       "metadata_offset": 15822180
     },
     {
@@ -8237,33 +8242,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 8848820448,
+      "data_offset": 7892199648,
       "metadata_offset": 15822245
     },
     {
       "index": 660,
       "name": "blk.27.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         4096
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 8848821472,
+      "byte_count": 16711680,
+      "data_offset": 7892200672,
       "metadata_offset": 15822302
     },
     {
       "index": 661,
       "name": "blk.27.attn_v.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 8880278752,
+      "byte_count": 8355840,
+      "data_offset": 7908912352,
       "metadata_offset": 15822362
     },
     {
@@ -8275,7 +8280,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 8896007392,
+      "data_offset": 7917268192,
       "metadata_offset": 15822422
     },
     {
@@ -8287,7 +8292,7 @@
       ],
       "element_count": 1,
       "byte_count": 4,
-      "data_offset": 8896022752,
+      "data_offset": 7917283552,
       "metadata_offset": 15822477
     },
     {
@@ -8299,7 +8304,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 8896022784,
+      "data_offset": 7917283584,
       "metadata_offset": 15822541
     },
     {
@@ -8311,7 +8316,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 8896038144,
+      "data_offset": 7917298944,
       "metadata_offset": 15822606
     },
     {
@@ -8323,7 +8328,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 8896053504,
+      "data_offset": 7917314304,
       "metadata_offset": 15822665
     },
     {
@@ -8335,33 +8340,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 8896068864,
+      "data_offset": 7917329664,
       "metadata_offset": 15822719
     },
     {
       "index": 668,
       "name": "blk.28.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 8896069888,
+      "byte_count": 8355840,
+      "data_offset": 7917330688,
       "metadata_offset": 15822776
     },
     {
       "index": 669,
       "name": "blk.28.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         4096,
         3840
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 8911798528,
+      "byte_count": 16711680,
+      "data_offset": 7925686528,
       "metadata_offset": 15822836
     },
     {
@@ -8373,33 +8378,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 8943255808,
+      "data_offset": 7942398208,
       "metadata_offset": 15822901
     },
     {
       "index": 671,
       "name": "blk.28.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         4096
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 8943256832,
+      "byte_count": 16711680,
+      "data_offset": 7942399232,
       "metadata_offset": 15822958
     },
     {
       "index": 672,
       "name": "blk.28.attn_v.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 8974714112,
+      "byte_count": 8355840,
+      "data_offset": 7959110912,
       "metadata_offset": 15823018
     },
     {
@@ -8411,7 +8416,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 8990442752,
+      "data_offset": 7967466752,
       "metadata_offset": 15823078
     },
     {
@@ -8423,7 +8428,7 @@
       ],
       "element_count": 1,
       "byte_count": 4,
-      "data_offset": 8990458112,
+      "data_offset": 7967482112,
       "metadata_offset": 15823133
     },
     {
@@ -8435,7 +8440,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 8990458144,
+      "data_offset": 7967482144,
       "metadata_offset": 15823197
     },
     {
@@ -8447,7 +8452,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 8990473504,
+      "data_offset": 7967497504,
       "metadata_offset": 15823262
     },
     {
@@ -8459,7 +8464,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 8990488864,
+      "data_offset": 7967512864,
       "metadata_offset": 15823321
     },
     {
@@ -8471,33 +8476,33 @@
       ],
       "element_count": 512,
       "byte_count": 2048,
-      "data_offset": 8990504224,
+      "data_offset": 7967528224,
       "metadata_offset": 15823375
     },
     {
       "index": 679,
       "name": "blk.29.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         512
       ],
       "element_count": 1966080,
-      "byte_count": 3932160,
-      "data_offset": 8990506272,
+      "byte_count": 2088960,
+      "data_offset": 7967530272,
       "metadata_offset": 15823432
     },
     {
       "index": 680,
       "name": "blk.29.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         8192,
         3840
       ],
       "element_count": 31457280,
-      "byte_count": 62914560,
-      "data_offset": 8994438432,
+      "byte_count": 33423360,
+      "data_offset": 7969619232,
       "metadata_offset": 15823492
     },
     {
@@ -8509,20 +8514,20 @@
       ],
       "element_count": 512,
       "byte_count": 2048,
-      "data_offset": 9057352992,
+      "data_offset": 8003042592,
       "metadata_offset": 15823557
     },
     {
       "index": 682,
       "name": "blk.29.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         8192
       ],
       "element_count": 31457280,
-      "byte_count": 62914560,
-      "data_offset": 9057355040,
+      "byte_count": 33423360,
+      "data_offset": 8003044640,
       "metadata_offset": 15823614
     },
     {
@@ -8534,7 +8539,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 9120269600,
+      "data_offset": 8036468000,
       "metadata_offset": 15823674
     },
     {
@@ -8546,7 +8551,7 @@
       ],
       "element_count": 1,
       "byte_count": 4,
-      "data_offset": 9120284960,
+      "data_offset": 8036483360,
       "metadata_offset": 15823728
     },
     {
@@ -8558,7 +8563,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 9120284992,
+      "data_offset": 8036483392,
       "metadata_offset": 15823791
     },
     {
@@ -8570,7 +8575,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 9120300352,
+      "data_offset": 8036498752,
       "metadata_offset": 15823855
     },
     {
@@ -8582,7 +8587,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 9120315712,
+      "data_offset": 8036514112,
       "metadata_offset": 15823913
     },
     {
@@ -8594,33 +8599,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 9120331072,
+      "data_offset": 8036529472,
       "metadata_offset": 15823966
     },
     {
       "index": 689,
       "name": "blk.3.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 9120332096,
+      "byte_count": 8355840,
+      "data_offset": 8036530496,
       "metadata_offset": 15824022
     },
     {
       "index": 690,
       "name": "blk.3.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         4096,
         3840
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 9136060736,
+      "byte_count": 16711680,
+      "data_offset": 8044886336,
       "metadata_offset": 15824081
     },
     {
@@ -8632,33 +8637,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 9167518016,
+      "data_offset": 8061598016,
       "metadata_offset": 15824145
     },
     {
       "index": 692,
       "name": "blk.3.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         4096
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 9167519040,
+      "byte_count": 16711680,
+      "data_offset": 8061599040,
       "metadata_offset": 15824201
     },
     {
       "index": 693,
       "name": "blk.3.attn_v.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 9198976320,
+      "byte_count": 8355840,
+      "data_offset": 8078310720,
       "metadata_offset": 15824260
     },
     {
@@ -8670,7 +8675,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 9214704960,
+      "data_offset": 8086666560,
       "metadata_offset": 15824319
     },
     {
@@ -8682,7 +8687,7 @@
       ],
       "element_count": 1,
       "byte_count": 4,
-      "data_offset": 9214720320,
+      "data_offset": 8086681920,
       "metadata_offset": 15824374
     },
     {
@@ -8694,7 +8699,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 9214720352,
+      "data_offset": 8086681952,
       "metadata_offset": 15824438
     },
     {
@@ -8706,7 +8711,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 9214735712,
+      "data_offset": 8086697312,
       "metadata_offset": 15824503
     },
     {
@@ -8718,7 +8723,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 9214751072,
+      "data_offset": 8086712672,
       "metadata_offset": 15824562
     },
     {
@@ -8730,33 +8735,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 9214766432,
+      "data_offset": 8086728032,
       "metadata_offset": 15824616
     },
     {
       "index": 700,
       "name": "blk.30.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 9214767456,
+      "byte_count": 8355840,
+      "data_offset": 8086729056,
       "metadata_offset": 15824673
     },
     {
       "index": 701,
       "name": "blk.30.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         4096,
         3840
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 9230496096,
+      "byte_count": 16711680,
+      "data_offset": 8095084896,
       "metadata_offset": 15824733
     },
     {
@@ -8768,33 +8773,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 9261953376,
+      "data_offset": 8111796576,
       "metadata_offset": 15824798
     },
     {
       "index": 703,
       "name": "blk.30.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         4096
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 9261954400,
+      "byte_count": 16711680,
+      "data_offset": 8111797600,
       "metadata_offset": 15824855
     },
     {
       "index": 704,
       "name": "blk.30.attn_v.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 9293411680,
+      "byte_count": 8355840,
+      "data_offset": 8128509280,
       "metadata_offset": 15824915
     },
     {
@@ -8806,7 +8811,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 9309140320,
+      "data_offset": 8136865120,
       "metadata_offset": 15824975
     },
     {
@@ -8818,7 +8823,7 @@
       ],
       "element_count": 1,
       "byte_count": 4,
-      "data_offset": 9309155680,
+      "data_offset": 8136880480,
       "metadata_offset": 15825030
     },
     {
@@ -8830,7 +8835,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 9309155712,
+      "data_offset": 8136880512,
       "metadata_offset": 15825094
     },
     {
@@ -8842,7 +8847,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 9309171072,
+      "data_offset": 8136895872,
       "metadata_offset": 15825159
     },
     {
@@ -8854,7 +8859,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 9309186432,
+      "data_offset": 8136911232,
       "metadata_offset": 15825218
     },
     {
@@ -8866,33 +8871,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 9309201792,
+      "data_offset": 8136926592,
       "metadata_offset": 15825272
     },
     {
       "index": 711,
       "name": "blk.31.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 9309202816,
+      "byte_count": 8355840,
+      "data_offset": 8136927616,
       "metadata_offset": 15825329
     },
     {
       "index": 712,
       "name": "blk.31.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         4096,
         3840
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 9324931456,
+      "byte_count": 16711680,
+      "data_offset": 8145283456,
       "metadata_offset": 15825389
     },
     {
@@ -8904,33 +8909,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 9356388736,
+      "data_offset": 8161995136,
       "metadata_offset": 15825454
     },
     {
       "index": 714,
       "name": "blk.31.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         4096
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 9356389760,
+      "byte_count": 16711680,
+      "data_offset": 8161996160,
       "metadata_offset": 15825511
     },
     {
       "index": 715,
       "name": "blk.31.attn_v.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 9387847040,
+      "byte_count": 8355840,
+      "data_offset": 8178707840,
       "metadata_offset": 15825571
     },
     {
@@ -8942,7 +8947,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 9403575680,
+      "data_offset": 8187063680,
       "metadata_offset": 15825631
     },
     {
@@ -8954,7 +8959,7 @@
       ],
       "element_count": 1,
       "byte_count": 4,
-      "data_offset": 9403591040,
+      "data_offset": 8187079040,
       "metadata_offset": 15825686
     },
     {
@@ -8966,7 +8971,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 9403591072,
+      "data_offset": 8187079072,
       "metadata_offset": 15825750
     },
     {
@@ -8978,7 +8983,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 9403606432,
+      "data_offset": 8187094432,
       "metadata_offset": 15825815
     },
     {
@@ -8990,7 +8995,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 9403621792,
+      "data_offset": 8187109792,
       "metadata_offset": 15825874
     },
     {
@@ -9002,33 +9007,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 9403637152,
+      "data_offset": 8187125152,
       "metadata_offset": 15825928
     },
     {
       "index": 722,
       "name": "blk.32.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 9403638176,
+      "byte_count": 8355840,
+      "data_offset": 8187126176,
       "metadata_offset": 15825985
     },
     {
       "index": 723,
       "name": "blk.32.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         4096,
         3840
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 9419366816,
+      "byte_count": 16711680,
+      "data_offset": 8195482016,
       "metadata_offset": 15826045
     },
     {
@@ -9040,33 +9045,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 9450824096,
+      "data_offset": 8212193696,
       "metadata_offset": 15826110
     },
     {
       "index": 725,
       "name": "blk.32.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         4096
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 9450825120,
+      "byte_count": 16711680,
+      "data_offset": 8212194720,
       "metadata_offset": 15826167
     },
     {
       "index": 726,
       "name": "blk.32.attn_v.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 9482282400,
+      "byte_count": 8355840,
+      "data_offset": 8228906400,
       "metadata_offset": 15826227
     },
     {
@@ -9078,7 +9083,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 9498011040,
+      "data_offset": 8237262240,
       "metadata_offset": 15826287
     },
     {
@@ -9090,7 +9095,7 @@
       ],
       "element_count": 1,
       "byte_count": 4,
-      "data_offset": 9498026400,
+      "data_offset": 8237277600,
       "metadata_offset": 15826342
     },
     {
@@ -9102,7 +9107,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 9498026432,
+      "data_offset": 8237277632,
       "metadata_offset": 15826406
     },
     {
@@ -9114,7 +9119,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 9498041792,
+      "data_offset": 8237292992,
       "metadata_offset": 15826471
     },
     {
@@ -9126,7 +9131,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 9498057152,
+      "data_offset": 8237308352,
       "metadata_offset": 15826530
     },
     {
@@ -9138,33 +9143,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 9498072512,
+      "data_offset": 8237323712,
       "metadata_offset": 15826584
     },
     {
       "index": 733,
       "name": "blk.33.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 9498073536,
+      "byte_count": 8355840,
+      "data_offset": 8237324736,
       "metadata_offset": 15826641
     },
     {
       "index": 734,
       "name": "blk.33.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         4096,
         3840
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 9513802176,
+      "byte_count": 16711680,
+      "data_offset": 8245680576,
       "metadata_offset": 15826701
     },
     {
@@ -9176,33 +9181,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 9545259456,
+      "data_offset": 8262392256,
       "metadata_offset": 15826766
     },
     {
       "index": 736,
       "name": "blk.33.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         4096
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 9545260480,
+      "byte_count": 16711680,
+      "data_offset": 8262393280,
       "metadata_offset": 15826823
     },
     {
       "index": 737,
       "name": "blk.33.attn_v.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 9576717760,
+      "byte_count": 8355840,
+      "data_offset": 8279104960,
       "metadata_offset": 15826883
     },
     {
@@ -9214,7 +9219,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 9592446400,
+      "data_offset": 8287460800,
       "metadata_offset": 15826943
     },
     {
@@ -9226,7 +9231,7 @@
       ],
       "element_count": 1,
       "byte_count": 4,
-      "data_offset": 9592461760,
+      "data_offset": 8287476160,
       "metadata_offset": 15826998
     },
     {
@@ -9238,7 +9243,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 9592461792,
+      "data_offset": 8287476192,
       "metadata_offset": 15827062
     },
     {
@@ -9250,7 +9255,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 9592477152,
+      "data_offset": 8287491552,
       "metadata_offset": 15827127
     },
     {
@@ -9262,7 +9267,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 9592492512,
+      "data_offset": 8287506912,
       "metadata_offset": 15827186
     },
     {
@@ -9274,33 +9279,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 9592507872,
+      "data_offset": 8287522272,
       "metadata_offset": 15827240
     },
     {
       "index": 744,
       "name": "blk.34.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 9592508896,
+      "byte_count": 8355840,
+      "data_offset": 8287523296,
       "metadata_offset": 15827297
     },
     {
       "index": 745,
       "name": "blk.34.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         4096,
         3840
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 9608237536,
+      "byte_count": 16711680,
+      "data_offset": 8295879136,
       "metadata_offset": 15827357
     },
     {
@@ -9312,33 +9317,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 9639694816,
+      "data_offset": 8312590816,
       "metadata_offset": 15827422
     },
     {
       "index": 747,
       "name": "blk.34.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         4096
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 9639695840,
+      "byte_count": 16711680,
+      "data_offset": 8312591840,
       "metadata_offset": 15827479
     },
     {
       "index": 748,
       "name": "blk.34.attn_v.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 9671153120,
+      "byte_count": 8355840,
+      "data_offset": 8329303520,
       "metadata_offset": 15827539
     },
     {
@@ -9350,7 +9355,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 9686881760,
+      "data_offset": 8337659360,
       "metadata_offset": 15827599
     },
     {
@@ -9362,7 +9367,7 @@
       ],
       "element_count": 1,
       "byte_count": 4,
-      "data_offset": 9686897120,
+      "data_offset": 8337674720,
       "metadata_offset": 15827654
     },
     {
@@ -9374,7 +9379,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 9686897152,
+      "data_offset": 8337674752,
       "metadata_offset": 15827718
     },
     {
@@ -9386,7 +9391,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 9686912512,
+      "data_offset": 8337690112,
       "metadata_offset": 15827783
     },
     {
@@ -9398,7 +9403,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 9686927872,
+      "data_offset": 8337705472,
       "metadata_offset": 15827842
     },
     {
@@ -9410,33 +9415,33 @@
       ],
       "element_count": 512,
       "byte_count": 2048,
-      "data_offset": 9686943232,
+      "data_offset": 8337720832,
       "metadata_offset": 15827896
     },
     {
       "index": 755,
       "name": "blk.35.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         512
       ],
       "element_count": 1966080,
-      "byte_count": 3932160,
-      "data_offset": 9686945280,
+      "byte_count": 2088960,
+      "data_offset": 8337722880,
       "metadata_offset": 15827953
     },
     {
       "index": 756,
       "name": "blk.35.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         8192,
         3840
       ],
       "element_count": 31457280,
-      "byte_count": 62914560,
-      "data_offset": 9690877440,
+      "byte_count": 33423360,
+      "data_offset": 8339811840,
       "metadata_offset": 15828013
     },
     {
@@ -9448,20 +9453,20 @@
       ],
       "element_count": 512,
       "byte_count": 2048,
-      "data_offset": 9753792000,
+      "data_offset": 8373235200,
       "metadata_offset": 15828078
     },
     {
       "index": 758,
       "name": "blk.35.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         8192
       ],
       "element_count": 31457280,
-      "byte_count": 62914560,
-      "data_offset": 9753794048,
+      "byte_count": 33423360,
+      "data_offset": 8373237248,
       "metadata_offset": 15828135
     },
     {
@@ -9473,7 +9478,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 9816708608,
+      "data_offset": 8406660608,
       "metadata_offset": 15828195
     },
     {
@@ -9485,7 +9490,7 @@
       ],
       "element_count": 1,
       "byte_count": 4,
-      "data_offset": 9816723968,
+      "data_offset": 8406675968,
       "metadata_offset": 15828250
     },
     {
@@ -9497,7 +9502,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 9816724000,
+      "data_offset": 8406676000,
       "metadata_offset": 15828314
     },
     {
@@ -9509,7 +9514,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 9816739360,
+      "data_offset": 8406691360,
       "metadata_offset": 15828379
     },
     {
@@ -9521,7 +9526,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 9816754720,
+      "data_offset": 8406706720,
       "metadata_offset": 15828438
     },
     {
@@ -9533,33 +9538,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 9816770080,
+      "data_offset": 8406722080,
       "metadata_offset": 15828492
     },
     {
       "index": 765,
       "name": "blk.36.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 9816771104,
+      "byte_count": 8355840,
+      "data_offset": 8406723104,
       "metadata_offset": 15828549
     },
     {
       "index": 766,
       "name": "blk.36.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         4096,
         3840
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 9832499744,
+      "byte_count": 16711680,
+      "data_offset": 8415078944,
       "metadata_offset": 15828609
     },
     {
@@ -9571,33 +9576,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 9863957024,
+      "data_offset": 8431790624,
       "metadata_offset": 15828674
     },
     {
       "index": 768,
       "name": "blk.36.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         4096
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 9863958048,
+      "byte_count": 16711680,
+      "data_offset": 8431791648,
       "metadata_offset": 15828731
     },
     {
       "index": 769,
       "name": "blk.36.attn_v.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 9895415328,
+      "byte_count": 8355840,
+      "data_offset": 8448503328,
       "metadata_offset": 15828791
     },
     {
@@ -9609,7 +9614,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 9911143968,
+      "data_offset": 8456859168,
       "metadata_offset": 15828851
     },
     {
@@ -9621,7 +9626,7 @@
       ],
       "element_count": 1,
       "byte_count": 4,
-      "data_offset": 9911159328,
+      "data_offset": 8456874528,
       "metadata_offset": 15828906
     },
     {
@@ -9633,7 +9638,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 9911159360,
+      "data_offset": 8456874560,
       "metadata_offset": 15828970
     },
     {
@@ -9645,7 +9650,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 9911174720,
+      "data_offset": 8456889920,
       "metadata_offset": 15829035
     },
     {
@@ -9657,7 +9662,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 9911190080,
+      "data_offset": 8456905280,
       "metadata_offset": 15829094
     },
     {
@@ -9669,33 +9674,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 9911205440,
+      "data_offset": 8456920640,
       "metadata_offset": 15829148
     },
     {
       "index": 776,
       "name": "blk.37.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 9911206464,
+      "byte_count": 8355840,
+      "data_offset": 8456921664,
       "metadata_offset": 15829205
     },
     {
       "index": 777,
       "name": "blk.37.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         4096,
         3840
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 9926935104,
+      "byte_count": 16711680,
+      "data_offset": 8465277504,
       "metadata_offset": 15829265
     },
     {
@@ -9707,33 +9712,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 9958392384,
+      "data_offset": 8481989184,
       "metadata_offset": 15829330
     },
     {
       "index": 779,
       "name": "blk.37.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         4096
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 9958393408,
+      "byte_count": 16711680,
+      "data_offset": 8481990208,
       "metadata_offset": 15829387
     },
     {
       "index": 780,
       "name": "blk.37.attn_v.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 9989850688,
+      "byte_count": 8355840,
+      "data_offset": 8498701888,
       "metadata_offset": 15829447
     },
     {
@@ -9745,7 +9750,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 10005579328,
+      "data_offset": 8507057728,
       "metadata_offset": 15829507
     },
     {
@@ -9757,7 +9762,7 @@
       ],
       "element_count": 1,
       "byte_count": 4,
-      "data_offset": 10005594688,
+      "data_offset": 8507073088,
       "metadata_offset": 15829562
     },
     {
@@ -9769,7 +9774,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 10005594720,
+      "data_offset": 8507073120,
       "metadata_offset": 15829626
     },
     {
@@ -9781,7 +9786,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 10005610080,
+      "data_offset": 8507088480,
       "metadata_offset": 15829691
     },
     {
@@ -9793,7 +9798,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 10005625440,
+      "data_offset": 8507103840,
       "metadata_offset": 15829750
     },
     {
@@ -9805,33 +9810,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 10005640800,
+      "data_offset": 8507119200,
       "metadata_offset": 15829804
     },
     {
       "index": 787,
       "name": "blk.38.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 10005641824,
+      "byte_count": 8355840,
+      "data_offset": 8507120224,
       "metadata_offset": 15829861
     },
     {
       "index": 788,
       "name": "blk.38.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         4096,
         3840
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 10021370464,
+      "byte_count": 16711680,
+      "data_offset": 8515476064,
       "metadata_offset": 15829921
     },
     {
@@ -9843,33 +9848,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 10052827744,
+      "data_offset": 8532187744,
       "metadata_offset": 15829986
     },
     {
       "index": 790,
       "name": "blk.38.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         4096
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 10052828768,
+      "byte_count": 16711680,
+      "data_offset": 8532188768,
       "metadata_offset": 15830043
     },
     {
       "index": 791,
       "name": "blk.38.attn_v.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 10084286048,
+      "byte_count": 8355840,
+      "data_offset": 8548900448,
       "metadata_offset": 15830103
     },
     {
@@ -9881,7 +9886,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 10100014688,
+      "data_offset": 8557256288,
       "metadata_offset": 15830163
     },
     {
@@ -9893,7 +9898,7 @@
       ],
       "element_count": 1,
       "byte_count": 4,
-      "data_offset": 10100030048,
+      "data_offset": 8557271648,
       "metadata_offset": 15830218
     },
     {
@@ -9905,7 +9910,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 10100030080,
+      "data_offset": 8557271680,
       "metadata_offset": 15830282
     },
     {
@@ -9917,7 +9922,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 10100045440,
+      "data_offset": 8557287040,
       "metadata_offset": 15830347
     },
     {
@@ -9929,7 +9934,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 10100060800,
+      "data_offset": 8557302400,
       "metadata_offset": 15830406
     },
     {
@@ -9941,33 +9946,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 10100076160,
+      "data_offset": 8557317760,
       "metadata_offset": 15830460
     },
     {
       "index": 798,
       "name": "blk.39.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 10100077184,
+      "byte_count": 8355840,
+      "data_offset": 8557318784,
       "metadata_offset": 15830517
     },
     {
       "index": 799,
       "name": "blk.39.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         4096,
         3840
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 10115805824,
+      "byte_count": 16711680,
+      "data_offset": 8565674624,
       "metadata_offset": 15830577
     },
     {
@@ -9979,33 +9984,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 10147263104,
+      "data_offset": 8582386304,
       "metadata_offset": 15830642
     },
     {
       "index": 801,
       "name": "blk.39.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         4096
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 10147264128,
+      "byte_count": 16711680,
+      "data_offset": 8582387328,
       "metadata_offset": 15830699
     },
     {
       "index": 802,
       "name": "blk.39.attn_v.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 10178721408,
+      "byte_count": 8355840,
+      "data_offset": 8599099008,
       "metadata_offset": 15830759
     },
     {
@@ -10017,7 +10022,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 10194450048,
+      "data_offset": 8607454848,
       "metadata_offset": 15830819
     },
     {
@@ -10029,7 +10034,7 @@
       ],
       "element_count": 1,
       "byte_count": 4,
-      "data_offset": 10194465408,
+      "data_offset": 8607470208,
       "metadata_offset": 15830873
     },
     {
@@ -10041,7 +10046,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 10194465440,
+      "data_offset": 8607470240,
       "metadata_offset": 15830936
     },
     {
@@ -10053,7 +10058,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 10194480800,
+      "data_offset": 8607485600,
       "metadata_offset": 15831000
     },
     {
@@ -10065,7 +10070,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 10194496160,
+      "data_offset": 8607500960,
       "metadata_offset": 15831058
     },
     {
@@ -10077,33 +10082,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 10194511520,
+      "data_offset": 8607516320,
       "metadata_offset": 15831111
     },
     {
       "index": 809,
       "name": "blk.4.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 10194512544,
+      "byte_count": 8355840,
+      "data_offset": 8607517344,
       "metadata_offset": 15831167
     },
     {
       "index": 810,
       "name": "blk.4.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         4096,
         3840
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 10210241184,
+      "byte_count": 16711680,
+      "data_offset": 8615873184,
       "metadata_offset": 15831226
     },
     {
@@ -10115,33 +10120,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 10241698464,
+      "data_offset": 8632584864,
       "metadata_offset": 15831290
     },
     {
       "index": 812,
       "name": "blk.4.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         4096
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 10241699488,
+      "byte_count": 16711680,
+      "data_offset": 8632585888,
       "metadata_offset": 15831346
     },
     {
       "index": 813,
       "name": "blk.4.attn_v.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 10273156768,
+      "byte_count": 8355840,
+      "data_offset": 8649297568,
       "metadata_offset": 15831405
     },
     {
@@ -10153,7 +10158,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 10288885408,
+      "data_offset": 8657653408,
       "metadata_offset": 15831464
     },
     {
@@ -10165,7 +10170,7 @@
       ],
       "element_count": 1,
       "byte_count": 4,
-      "data_offset": 10288900768,
+      "data_offset": 8657668768,
       "metadata_offset": 15831519
     },
     {
@@ -10177,7 +10182,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 10288900800,
+      "data_offset": 8657668800,
       "metadata_offset": 15831583
     },
     {
@@ -10189,7 +10194,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 10288916160,
+      "data_offset": 8657684160,
       "metadata_offset": 15831648
     },
     {
@@ -10201,7 +10206,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 10288931520,
+      "data_offset": 8657699520,
       "metadata_offset": 15831707
     },
     {
@@ -10213,33 +10218,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 10288946880,
+      "data_offset": 8657714880,
       "metadata_offset": 15831761
     },
     {
       "index": 820,
       "name": "blk.40.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 10288947904,
+      "byte_count": 8355840,
+      "data_offset": 8657715904,
       "metadata_offset": 15831818
     },
     {
       "index": 821,
       "name": "blk.40.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         4096,
         3840
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 10304676544,
+      "byte_count": 16711680,
+      "data_offset": 8666071744,
       "metadata_offset": 15831878
     },
     {
@@ -10251,33 +10256,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 10336133824,
+      "data_offset": 8682783424,
       "metadata_offset": 15831943
     },
     {
       "index": 823,
       "name": "blk.40.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         4096
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 10336134848,
+      "byte_count": 16711680,
+      "data_offset": 8682784448,
       "metadata_offset": 15832000
     },
     {
       "index": 824,
       "name": "blk.40.attn_v.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 10367592128,
+      "byte_count": 8355840,
+      "data_offset": 8699496128,
       "metadata_offset": 15832060
     },
     {
@@ -10289,7 +10294,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 10383320768,
+      "data_offset": 8707851968,
       "metadata_offset": 15832120
     },
     {
@@ -10301,7 +10306,7 @@
       ],
       "element_count": 1,
       "byte_count": 4,
-      "data_offset": 10383336128,
+      "data_offset": 8707867328,
       "metadata_offset": 15832175
     },
     {
@@ -10313,7 +10318,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 10383336160,
+      "data_offset": 8707867360,
       "metadata_offset": 15832239
     },
     {
@@ -10325,7 +10330,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 10383351520,
+      "data_offset": 8707882720,
       "metadata_offset": 15832304
     },
     {
@@ -10337,7 +10342,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 10383366880,
+      "data_offset": 8707898080,
       "metadata_offset": 15832363
     },
     {
@@ -10349,33 +10354,33 @@
       ],
       "element_count": 512,
       "byte_count": 2048,
-      "data_offset": 10383382240,
+      "data_offset": 8707913440,
       "metadata_offset": 15832417
     },
     {
       "index": 831,
       "name": "blk.41.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         512
       ],
       "element_count": 1966080,
-      "byte_count": 3932160,
-      "data_offset": 10383384288,
+      "byte_count": 2088960,
+      "data_offset": 8707915488,
       "metadata_offset": 15832474
     },
     {
       "index": 832,
       "name": "blk.41.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         8192,
         3840
       ],
       "element_count": 31457280,
-      "byte_count": 62914560,
-      "data_offset": 10387316448,
+      "byte_count": 33423360,
+      "data_offset": 8710004448,
       "metadata_offset": 15832534
     },
     {
@@ -10387,20 +10392,20 @@
       ],
       "element_count": 512,
       "byte_count": 2048,
-      "data_offset": 10450231008,
+      "data_offset": 8743427808,
       "metadata_offset": 15832599
     },
     {
       "index": 834,
       "name": "blk.41.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         8192
       ],
       "element_count": 31457280,
-      "byte_count": 62914560,
-      "data_offset": 10450233056,
+      "byte_count": 33423360,
+      "data_offset": 8743429856,
       "metadata_offset": 15832656
     },
     {
@@ -10412,7 +10417,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 10513147616,
+      "data_offset": 8776853216,
       "metadata_offset": 15832716
     },
     {
@@ -10424,7 +10429,7 @@
       ],
       "element_count": 1,
       "byte_count": 4,
-      "data_offset": 10513162976,
+      "data_offset": 8776868576,
       "metadata_offset": 15832771
     },
     {
@@ -10436,7 +10441,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 10513163008,
+      "data_offset": 8776868608,
       "metadata_offset": 15832835
     },
     {
@@ -10448,7 +10453,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 10513178368,
+      "data_offset": 8776883968,
       "metadata_offset": 15832900
     },
     {
@@ -10460,7 +10465,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 10513193728,
+      "data_offset": 8776899328,
       "metadata_offset": 15832959
     },
     {
@@ -10472,33 +10477,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 10513209088,
+      "data_offset": 8776914688,
       "metadata_offset": 15833013
     },
     {
       "index": 841,
       "name": "blk.42.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 10513210112,
+      "byte_count": 8355840,
+      "data_offset": 8776915712,
       "metadata_offset": 15833070
     },
     {
       "index": 842,
       "name": "blk.42.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         4096,
         3840
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 10528938752,
+      "byte_count": 16711680,
+      "data_offset": 8785271552,
       "metadata_offset": 15833130
     },
     {
@@ -10510,33 +10515,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 10560396032,
+      "data_offset": 8801983232,
       "metadata_offset": 15833195
     },
     {
       "index": 844,
       "name": "blk.42.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         4096
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 10560397056,
+      "byte_count": 16711680,
+      "data_offset": 8801984256,
       "metadata_offset": 15833252
     },
     {
       "index": 845,
       "name": "blk.42.attn_v.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 10591854336,
+      "byte_count": 8355840,
+      "data_offset": 8818695936,
       "metadata_offset": 15833312
     },
     {
@@ -10548,7 +10553,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 10607582976,
+      "data_offset": 8827051776,
       "metadata_offset": 15833372
     },
     {
@@ -10560,7 +10565,7 @@
       ],
       "element_count": 1,
       "byte_count": 4,
-      "data_offset": 10607598336,
+      "data_offset": 8827067136,
       "metadata_offset": 15833427
     },
     {
@@ -10572,7 +10577,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 10607598368,
+      "data_offset": 8827067168,
       "metadata_offset": 15833491
     },
     {
@@ -10584,7 +10589,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 10607613728,
+      "data_offset": 8827082528,
       "metadata_offset": 15833556
     },
     {
@@ -10596,7 +10601,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 10607629088,
+      "data_offset": 8827097888,
       "metadata_offset": 15833615
     },
     {
@@ -10608,33 +10613,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 10607644448,
+      "data_offset": 8827113248,
       "metadata_offset": 15833669
     },
     {
       "index": 852,
       "name": "blk.43.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 10607645472,
+      "byte_count": 8355840,
+      "data_offset": 8827114272,
       "metadata_offset": 15833726
     },
     {
       "index": 853,
       "name": "blk.43.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         4096,
         3840
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 10623374112,
+      "byte_count": 16711680,
+      "data_offset": 8835470112,
       "metadata_offset": 15833786
     },
     {
@@ -10646,33 +10651,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 10654831392,
+      "data_offset": 8852181792,
       "metadata_offset": 15833851
     },
     {
       "index": 855,
       "name": "blk.43.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         4096
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 10654832416,
+      "byte_count": 16711680,
+      "data_offset": 8852182816,
       "metadata_offset": 15833908
     },
     {
       "index": 856,
       "name": "blk.43.attn_v.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 10686289696,
+      "byte_count": 8355840,
+      "data_offset": 8868894496,
       "metadata_offset": 15833968
     },
     {
@@ -10684,7 +10689,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 10702018336,
+      "data_offset": 8877250336,
       "metadata_offset": 15834028
     },
     {
@@ -10696,7 +10701,7 @@
       ],
       "element_count": 1,
       "byte_count": 4,
-      "data_offset": 10702033696,
+      "data_offset": 8877265696,
       "metadata_offset": 15834083
     },
     {
@@ -10708,7 +10713,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 10702033728,
+      "data_offset": 8877265728,
       "metadata_offset": 15834147
     },
     {
@@ -10720,7 +10725,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 10702049088,
+      "data_offset": 8877281088,
       "metadata_offset": 15834212
     },
     {
@@ -10732,7 +10737,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 10702064448,
+      "data_offset": 8877296448,
       "metadata_offset": 15834271
     },
     {
@@ -10744,33 +10749,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 10702079808,
+      "data_offset": 8877311808,
       "metadata_offset": 15834325
     },
     {
       "index": 863,
       "name": "blk.44.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 10702080832,
+      "byte_count": 8355840,
+      "data_offset": 8877312832,
       "metadata_offset": 15834382
     },
     {
       "index": 864,
       "name": "blk.44.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         4096,
         3840
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 10717809472,
+      "byte_count": 16711680,
+      "data_offset": 8885668672,
       "metadata_offset": 15834442
     },
     {
@@ -10782,33 +10787,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 10749266752,
+      "data_offset": 8902380352,
       "metadata_offset": 15834507
     },
     {
       "index": 866,
       "name": "blk.44.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         4096
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 10749267776,
+      "byte_count": 16711680,
+      "data_offset": 8902381376,
       "metadata_offset": 15834564
     },
     {
       "index": 867,
       "name": "blk.44.attn_v.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 10780725056,
+      "byte_count": 8355840,
+      "data_offset": 8919093056,
       "metadata_offset": 15834624
     },
     {
@@ -10820,7 +10825,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 10796453696,
+      "data_offset": 8927448896,
       "metadata_offset": 15834684
     },
     {
@@ -10832,7 +10837,7 @@
       ],
       "element_count": 1,
       "byte_count": 4,
-      "data_offset": 10796469056,
+      "data_offset": 8927464256,
       "metadata_offset": 15834739
     },
     {
@@ -10844,7 +10849,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 10796469088,
+      "data_offset": 8927464288,
       "metadata_offset": 15834803
     },
     {
@@ -10856,7 +10861,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 10796484448,
+      "data_offset": 8927479648,
       "metadata_offset": 15834868
     },
     {
@@ -10868,7 +10873,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 10796499808,
+      "data_offset": 8927495008,
       "metadata_offset": 15834927
     },
     {
@@ -10880,33 +10885,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 10796515168,
+      "data_offset": 8927510368,
       "metadata_offset": 15834981
     },
     {
       "index": 874,
       "name": "blk.45.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 10796516192,
+      "byte_count": 8355840,
+      "data_offset": 8927511392,
       "metadata_offset": 15835038
     },
     {
       "index": 875,
       "name": "blk.45.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         4096,
         3840
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 10812244832,
+      "byte_count": 16711680,
+      "data_offset": 8935867232,
       "metadata_offset": 15835098
     },
     {
@@ -10918,33 +10923,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 10843702112,
+      "data_offset": 8952578912,
       "metadata_offset": 15835163
     },
     {
       "index": 877,
       "name": "blk.45.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         4096
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 10843703136,
+      "byte_count": 16711680,
+      "data_offset": 8952579936,
       "metadata_offset": 15835220
     },
     {
       "index": 878,
       "name": "blk.45.attn_v.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 10875160416,
+      "byte_count": 8355840,
+      "data_offset": 8969291616,
       "metadata_offset": 15835280
     },
     {
@@ -10956,7 +10961,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 10890889056,
+      "data_offset": 8977647456,
       "metadata_offset": 15835340
     },
     {
@@ -10968,7 +10973,7 @@
       ],
       "element_count": 1,
       "byte_count": 4,
-      "data_offset": 10890904416,
+      "data_offset": 8977662816,
       "metadata_offset": 15835395
     },
     {
@@ -10980,7 +10985,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 10890904448,
+      "data_offset": 8977662848,
       "metadata_offset": 15835459
     },
     {
@@ -10992,7 +10997,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 10890919808,
+      "data_offset": 8977678208,
       "metadata_offset": 15835524
     },
     {
@@ -11004,7 +11009,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 10890935168,
+      "data_offset": 8977693568,
       "metadata_offset": 15835583
     },
     {
@@ -11016,33 +11021,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 10890950528,
+      "data_offset": 8977708928,
       "metadata_offset": 15835637
     },
     {
       "index": 885,
       "name": "blk.46.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 10890951552,
+      "byte_count": 8355840,
+      "data_offset": 8977709952,
       "metadata_offset": 15835694
     },
     {
       "index": 886,
       "name": "blk.46.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         4096,
         3840
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 10906680192,
+      "byte_count": 16711680,
+      "data_offset": 8986065792,
       "metadata_offset": 15835754
     },
     {
@@ -11054,33 +11059,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 10938137472,
+      "data_offset": 9002777472,
       "metadata_offset": 15835819
     },
     {
       "index": 888,
       "name": "blk.46.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         4096
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 10938138496,
+      "byte_count": 16711680,
+      "data_offset": 9002778496,
       "metadata_offset": 15835876
     },
     {
       "index": 889,
       "name": "blk.46.attn_v.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 10969595776,
+      "byte_count": 8355840,
+      "data_offset": 9019490176,
       "metadata_offset": 15835936
     },
     {
@@ -11092,7 +11097,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 10985324416,
+      "data_offset": 9027846016,
       "metadata_offset": 15835996
     },
     {
@@ -11104,7 +11109,7 @@
       ],
       "element_count": 1,
       "byte_count": 4,
-      "data_offset": 10985339776,
+      "data_offset": 9027861376,
       "metadata_offset": 15836051
     },
     {
@@ -11116,7 +11121,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 10985339808,
+      "data_offset": 9027861408,
       "metadata_offset": 15836115
     },
     {
@@ -11128,7 +11133,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 10985355168,
+      "data_offset": 9027876768,
       "metadata_offset": 15836180
     },
     {
@@ -11140,7 +11145,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 10985370528,
+      "data_offset": 9027892128,
       "metadata_offset": 15836239
     },
     {
@@ -11152,33 +11157,33 @@
       ],
       "element_count": 512,
       "byte_count": 2048,
-      "data_offset": 10985385888,
+      "data_offset": 9027907488,
       "metadata_offset": 15836293
     },
     {
       "index": 896,
       "name": "blk.47.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         512
       ],
       "element_count": 1966080,
-      "byte_count": 3932160,
-      "data_offset": 10985387936,
+      "byte_count": 2088960,
+      "data_offset": 9027909536,
       "metadata_offset": 15836350
     },
     {
       "index": 897,
       "name": "blk.47.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         8192,
         3840
       ],
       "element_count": 31457280,
-      "byte_count": 62914560,
-      "data_offset": 10989320096,
+      "byte_count": 33423360,
+      "data_offset": 9029998496,
       "metadata_offset": 15836410
     },
     {
@@ -11190,20 +11195,20 @@
       ],
       "element_count": 512,
       "byte_count": 2048,
-      "data_offset": 11052234656,
+      "data_offset": 9063421856,
       "metadata_offset": 15836475
     },
     {
       "index": 899,
       "name": "blk.47.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         8192
       ],
       "element_count": 31457280,
-      "byte_count": 62914560,
-      "data_offset": 11052236704,
+      "byte_count": 33423360,
+      "data_offset": 9063423904,
       "metadata_offset": 15836532
     },
     {
@@ -11215,7 +11220,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 11115151264,
+      "data_offset": 9096847264,
       "metadata_offset": 15836592
     },
     {
@@ -11227,7 +11232,7 @@
       ],
       "element_count": 1,
       "byte_count": 4,
-      "data_offset": 11115166624,
+      "data_offset": 9096862624,
       "metadata_offset": 15836646
     },
     {
@@ -11239,7 +11244,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 11115166656,
+      "data_offset": 9096862656,
       "metadata_offset": 15836709
     },
     {
@@ -11251,7 +11256,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 11115182016,
+      "data_offset": 9096878016,
       "metadata_offset": 15836773
     },
     {
@@ -11263,7 +11268,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 11115197376,
+      "data_offset": 9096893376,
       "metadata_offset": 15836831
     },
     {
@@ -11275,33 +11280,33 @@
       ],
       "element_count": 512,
       "byte_count": 2048,
-      "data_offset": 11115212736,
+      "data_offset": 9096908736,
       "metadata_offset": 15836884
     },
     {
       "index": 906,
       "name": "blk.5.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         512
       ],
       "element_count": 1966080,
-      "byte_count": 3932160,
-      "data_offset": 11115214784,
+      "byte_count": 2088960,
+      "data_offset": 9096910784,
       "metadata_offset": 15836940
     },
     {
       "index": 907,
       "name": "blk.5.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         8192,
         3840
       ],
       "element_count": 31457280,
-      "byte_count": 62914560,
-      "data_offset": 11119146944,
+      "byte_count": 33423360,
+      "data_offset": 9098999744,
       "metadata_offset": 15836999
     },
     {
@@ -11313,20 +11318,20 @@
       ],
       "element_count": 512,
       "byte_count": 2048,
-      "data_offset": 11182061504,
+      "data_offset": 9132423104,
       "metadata_offset": 15837063
     },
     {
       "index": 909,
       "name": "blk.5.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         8192
       ],
       "element_count": 31457280,
-      "byte_count": 62914560,
-      "data_offset": 11182063552,
+      "byte_count": 33423360,
+      "data_offset": 9132425152,
       "metadata_offset": 15837119
     },
     {
@@ -11338,7 +11343,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 11244978112,
+      "data_offset": 9165848512,
       "metadata_offset": 15837178
     },
     {
@@ -11350,7 +11355,7 @@
       ],
       "element_count": 1,
       "byte_count": 4,
-      "data_offset": 11244993472,
+      "data_offset": 9165863872,
       "metadata_offset": 15837232
     },
     {
@@ -11362,7 +11367,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 11244993504,
+      "data_offset": 9165863904,
       "metadata_offset": 15837295
     },
     {
@@ -11374,7 +11379,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 11245008864,
+      "data_offset": 9165879264,
       "metadata_offset": 15837359
     },
     {
@@ -11386,7 +11391,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 11245024224,
+      "data_offset": 9165894624,
       "metadata_offset": 15837417
     },
     {
@@ -11398,33 +11403,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 11245039584,
+      "data_offset": 9165909984,
       "metadata_offset": 15837470
     },
     {
       "index": 916,
       "name": "blk.6.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 11245040608,
+      "byte_count": 8355840,
+      "data_offset": 9165911008,
       "metadata_offset": 15837526
     },
     {
       "index": 917,
       "name": "blk.6.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         4096,
         3840
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 11260769248,
+      "byte_count": 16711680,
+      "data_offset": 9174266848,
       "metadata_offset": 15837585
     },
     {
@@ -11436,33 +11441,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 11292226528,
+      "data_offset": 9190978528,
       "metadata_offset": 15837649
     },
     {
       "index": 919,
       "name": "blk.6.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         4096
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 11292227552,
+      "byte_count": 16711680,
+      "data_offset": 9190979552,
       "metadata_offset": 15837705
     },
     {
       "index": 920,
       "name": "blk.6.attn_v.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 11323684832,
+      "byte_count": 8355840,
+      "data_offset": 9207691232,
       "metadata_offset": 15837764
     },
     {
@@ -11474,7 +11479,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 11339413472,
+      "data_offset": 9216047072,
       "metadata_offset": 15837823
     },
     {
@@ -11486,7 +11491,7 @@
       ],
       "element_count": 1,
       "byte_count": 4,
-      "data_offset": 11339428832,
+      "data_offset": 9216062432,
       "metadata_offset": 15837877
     },
     {
@@ -11498,7 +11503,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 11339428864,
+      "data_offset": 9216062464,
       "metadata_offset": 15837940
     },
     {
@@ -11510,7 +11515,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 11339444224,
+      "data_offset": 9216077824,
       "metadata_offset": 15838004
     },
     {
@@ -11522,7 +11527,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 11339459584,
+      "data_offset": 9216093184,
       "metadata_offset": 15838062
     },
     {
@@ -11534,33 +11539,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 11339474944,
+      "data_offset": 9216108544,
       "metadata_offset": 15838115
     },
     {
       "index": 927,
       "name": "blk.7.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 11339475968,
+      "byte_count": 8355840,
+      "data_offset": 9216109568,
       "metadata_offset": 15838171
     },
     {
       "index": 928,
       "name": "blk.7.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         4096,
         3840
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 11355204608,
+      "byte_count": 16711680,
+      "data_offset": 9224465408,
       "metadata_offset": 15838230
     },
     {
@@ -11572,33 +11577,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 11386661888,
+      "data_offset": 9241177088,
       "metadata_offset": 15838294
     },
     {
       "index": 930,
       "name": "blk.7.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         4096
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 11386662912,
+      "byte_count": 16711680,
+      "data_offset": 9241178112,
       "metadata_offset": 15838350
     },
     {
       "index": 931,
       "name": "blk.7.attn_v.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 11418120192,
+      "byte_count": 8355840,
+      "data_offset": 9257889792,
       "metadata_offset": 15838409
     },
     {
@@ -11610,7 +11615,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 11433848832,
+      "data_offset": 9266245632,
       "metadata_offset": 15838468
     },
     {
@@ -11622,7 +11627,7 @@
       ],
       "element_count": 1,
       "byte_count": 4,
-      "data_offset": 11433864192,
+      "data_offset": 9266260992,
       "metadata_offset": 15838522
     },
     {
@@ -11634,7 +11639,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 11433864224,
+      "data_offset": 9266261024,
       "metadata_offset": 15838585
     },
     {
@@ -11646,7 +11651,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 11433879584,
+      "data_offset": 9266276384,
       "metadata_offset": 15838649
     },
     {
@@ -11658,7 +11663,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 11433894944,
+      "data_offset": 9266291744,
       "metadata_offset": 15838707
     },
     {
@@ -11670,33 +11675,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 11433910304,
+      "data_offset": 9266307104,
       "metadata_offset": 15838760
     },
     {
       "index": 938,
       "name": "blk.8.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 11433911328,
+      "byte_count": 8355840,
+      "data_offset": 9266308128,
       "metadata_offset": 15838816
     },
     {
       "index": 939,
       "name": "blk.8.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         4096,
         3840
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 11449639968,
+      "byte_count": 16711680,
+      "data_offset": 9274663968,
       "metadata_offset": 15838875
     },
     {
@@ -11708,33 +11713,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 11481097248,
+      "data_offset": 9291375648,
       "metadata_offset": 15838939
     },
     {
       "index": 941,
       "name": "blk.8.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         4096
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 11481098272,
+      "byte_count": 16711680,
+      "data_offset": 9291376672,
       "metadata_offset": 15838995
     },
     {
       "index": 942,
       "name": "blk.8.attn_v.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 11512555552,
+      "byte_count": 8355840,
+      "data_offset": 9308088352,
       "metadata_offset": 15839054
     },
     {
@@ -11746,7 +11751,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 11528284192,
+      "data_offset": 9316444192,
       "metadata_offset": 15839113
     },
     {
@@ -11758,7 +11763,7 @@
       ],
       "element_count": 1,
       "byte_count": 4,
-      "data_offset": 11528299552,
+      "data_offset": 9316459552,
       "metadata_offset": 15839167
     },
     {
@@ -11770,7 +11775,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 11528299584,
+      "data_offset": 9316459584,
       "metadata_offset": 15839230
     },
     {
@@ -11782,7 +11787,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 11528314944,
+      "data_offset": 9316474944,
       "metadata_offset": 15839294
     },
     {
@@ -11794,7 +11799,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 11528330304,
+      "data_offset": 9316490304,
       "metadata_offset": 15839352
     },
     {
@@ -11806,33 +11811,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 11528345664,
+      "data_offset": 9316505664,
       "metadata_offset": 15839405
     },
     {
       "index": 949,
       "name": "blk.9.attn_k.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 11528346688,
+      "byte_count": 8355840,
+      "data_offset": 9316506688,
       "metadata_offset": 15839461
     },
     {
       "index": 950,
       "name": "blk.9.attn_output.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         4096,
         3840
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 11544075328,
+      "byte_count": 16711680,
+      "data_offset": 9324862528,
       "metadata_offset": 15839520
     },
     {
@@ -11844,33 +11849,33 @@
       ],
       "element_count": 256,
       "byte_count": 1024,
-      "data_offset": 11575532608,
+      "data_offset": 9341574208,
       "metadata_offset": 15839584
     },
     {
       "index": 952,
       "name": "blk.9.attn_q.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         4096
       ],
       "element_count": 15728640,
-      "byte_count": 31457280,
-      "data_offset": 11575533632,
+      "byte_count": 16711680,
+      "data_offset": 9341575232,
       "metadata_offset": 15839640
     },
     {
       "index": 953,
       "name": "blk.9.attn_v.weight",
-      "type": "BF16",
+      "type": "Q8_0",
       "shape": [
         3840,
         2048
       ],
       "element_count": 7864320,
-      "byte_count": 15728640,
-      "data_offset": 11606990912,
+      "byte_count": 8355840,
+      "data_offset": 9358286912,
       "metadata_offset": 15839699
     },
     {
@@ -11882,7 +11887,7 @@
       ],
       "element_count": 3840,
       "byte_count": 15360,
-      "data_offset": 11622719552,
+      "data_offset": 9366642752,
       "metadata_offset": 15839758
     }
   ]
