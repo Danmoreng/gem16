@@ -2366,6 +2366,8 @@ void TestOnlineFp8DecodeAttention() {
                                     "online global FP8 decode");
   TestOnlineFp8DecodeAttentionShape(1, 512, 16384, 16383, false,
                                     "long online global FP8 decode");
+  TestOnlineFp8DecodeAttentionShape(1, 512, 65536, 65535, false,
+                                    "vectorized 64K global FP8 decode");
 }
 
 void TestVectorizedFp8CausalPrefill() {

@@ -33,7 +33,10 @@ constexpr int kDecodeGlobalKvHeads = 1;
 constexpr int kDecodeGlobalHeadDimension = 512;
 constexpr int kDecodeGlobalGroup = 4;
 constexpr int kDecodeGlobalChunk = 512;
-
+// Four-wide physical E4M3 loads pay off only once global-cache traffic
+// dominates the additional registers. Shorter capacity tiers retain the
+// scalar reduction order and lower register footprint.
+constexpr std::uint64_t kDecodeVectorizedGlobalContext = 65536U;
 
 Status Invalid(std::string message) {
   return Status(StatusCode::kInvalidArgument, std::move(message));
@@ -150,6 +153,20 @@ __device__ __forceinline__ float DecodeFp8(std::uint8_t bits,
   return static_cast<float>(quantized) * scale;
 }
 
+// Decode one aligned physical cache word without a scalar byte-load and
+// conversion instruction for every element.
+__device__ __forceinline__ float4 DecodeFp8x4(std::uint32_t bits,
+                                              float scale) {
+  __nv_fp8x4_e4m3 quantized;
+  quantized.__x = bits;
+  float4 values = static_cast<float4>(quantized);
+  values.x *= scale;
+  values.y *= scale;
+  values.z *= scale;
+  values.w *= scale;
+  return values;
+}
+
 __device__ __forceinline__ float DecodeBlockMaximum(float value,
                                                      float* warp_values) {
   for (int offset = 16; offset > 0; offset >>= 1) {
@@ -195,7 +212,8 @@ __device__ __forceinline__ float DecodeBlockSum(float value,
 }
 
 template <int kHeadDimensionValue, int kKvHeadsValue,
-          int kQueriesPerKv, int kQueryGroup, int kChunk, bool kDirect>
+          int kQueriesPerKv, int kQueryGroup, int kChunk, bool kDirect,
+          bool kVectorizedGlobal>
 __launch_bounds__(kDecodeThreads, 1) __global__
 void SplitOnlineDecodeAttentionFp8Kernel(
     const float* __restrict__ query,
@@ -207,6 +225,9 @@ void SplitOnlineDecodeAttentionFp8Kernel(
     float* __restrict__ output, const DecodeControl* __restrict__ control,
     std::uint64_t cache_capacity, bool sliding, int max_splits) {
   static_assert(kQueriesPerKv % kQueryGroup == 0);
+  static_assert(!kVectorizedGlobal ||
+                (kHeadDimensionValue == kDecodeGlobalHeadDimension &&
+                 kKvHeadsValue == kDecodeGlobalKvHeads));
   constexpr int kGroupsPerKv = kQueriesPerKv / kQueryGroup;
   constexpr int kQueryGroups = kKvHeadsValue * kGroupsPerKv;
   constexpr int kQueryHeadsValue = kKvHeadsValue * kQueriesPerKv;
@@ -253,15 +274,36 @@ void SplitOnlineDecodeAttentionFp8Kernel(
         (cache_slot * kKvHeadsValue + static_cast<std::uint64_t>(kv_head)) *
             kHeadDimensionValue;
     float score[kQueryGroup] = {};
-    for (int dimension = lane; dimension < kHeadDimensionValue;
-         dimension += 32) {
-      const float key_value = DecodeFp8(key[dimension], key_scale);
+    if constexpr (kVectorizedGlobal) {
+      // The long-context tier assigns four adjacent dimensions to each lane,
+      // reducing physical K loads and E4M3 conversions fourfold.
+      for (int dimension = lane * 4; dimension < kHeadDimensionValue;
+           dimension += 32 * 4) {
+        const std::uint32_t packed =
+            *reinterpret_cast<const std::uint32_t*>(key + dimension);
+        const float4 key_values = DecodeFp8x4(packed, key_scale);
 #pragma unroll
-      for (int group = 0; group < kQueryGroup; ++group) {
-        score[group] = fmaf(
-            query[(query_head_base + group) * kHeadDimensionValue +
-                  dimension],
-            key_value, score[group]);
+        for (int group = 0; group < kQueryGroup; ++group) {
+          const float* query_values =
+              query + (query_head_base + group) * kHeadDimensionValue +
+              dimension;
+          score[group] = fmaf(query_values[0], key_values.x, score[group]);
+          score[group] = fmaf(query_values[1], key_values.y, score[group]);
+          score[group] = fmaf(query_values[2], key_values.z, score[group]);
+          score[group] = fmaf(query_values[3], key_values.w, score[group]);
+        }
+      }
+    } else {
+      for (int dimension = lane; dimension < kHeadDimensionValue;
+           dimension += 32) {
+        const float key_value = DecodeFp8(key[dimension], key_scale);
+#pragma unroll
+        for (int group = 0; group < kQueryGroup; ++group) {
+          score[group] = fmaf(
+              query[(query_head_base + group) * kHeadDimensionValue +
+                    dimension],
+              key_value, score[group]);
+        }
       }
     }
 #pragma unroll
@@ -303,48 +345,105 @@ void SplitOnlineDecodeAttentionFp8Kernel(
     }
   }
 
-  for (int dimension = static_cast<int>(threadIdx.x);
-       dimension < kHeadDimensionValue; dimension += kDecodeThreads) {
-    float accumulator[kQueryGroup] = {};
-    for (int token = 0; token < split_tokens; ++token) {
-      const std::uint64_t unwrapped_slot =
-          first_slot + split_start + static_cast<std::uint64_t>(token);
-      const std::uint64_t cache_slot =
-          unwrapped_slot < cache_capacity ? unwrapped_slot
-                                          : unwrapped_slot - cache_capacity;
-      const std::uint64_t value_offset =
-          (cache_slot * kKvHeadsValue +
-           static_cast<std::uint64_t>(kv_head)) *
-              kHeadDimensionValue +
-          dimension;
-      const float value = DecodeFp8(value_cache[value_offset], value_scale);
+  if constexpr (kVectorizedGlobal) {
+    // Keep each output dimension's token accumulation order while processing
+    // four contiguous V dimensions from one aligned cache word.
+    for (int dimension = static_cast<int>(threadIdx.x) * 4;
+         dimension < kHeadDimensionValue; dimension += kDecodeThreads * 4) {
+      float accumulator[kQueryGroup][4] = {};
+      for (int token = 0; token < split_tokens; ++token) {
+        const std::uint64_t unwrapped_slot =
+            first_slot + split_start + static_cast<std::uint64_t>(token);
+        const std::uint64_t cache_slot =
+            unwrapped_slot < cache_capacity ? unwrapped_slot
+                                            : unwrapped_slot - cache_capacity;
+        const std::uint64_t value_offset =
+            (cache_slot * kKvHeadsValue +
+             static_cast<std::uint64_t>(kv_head)) *
+                kHeadDimensionValue +
+            dimension;
+        const std::uint32_t packed =
+            *reinterpret_cast<const std::uint32_t*>(value_cache + value_offset);
+        const float4 values = DecodeFp8x4(packed, value_scale);
+#pragma unroll
+        for (int group = 0; group < kQueryGroup; ++group) {
+          const float probability = scores[group * kChunk + token];
+          accumulator[group][0] =
+              fmaf(probability, values.x, accumulator[group][0]);
+          accumulator[group][1] =
+              fmaf(probability, values.y, accumulator[group][1]);
+          accumulator[group][2] =
+              fmaf(probability, values.z, accumulator[group][2]);
+          accumulator[group][3] =
+              fmaf(probability, values.w, accumulator[group][3]);
+        }
+      }
 #pragma unroll
       for (int group = 0; group < kQueryGroup; ++group) {
-        accumulator[group] =
-            fmaf(scores[group * kChunk + token], value, accumulator[group]);
+        const int query_head = query_head_base + group;
+        const std::uint64_t output_base =
+            static_cast<std::uint64_t>(query_head) * kHeadDimensionValue +
+            dimension;
+#pragma unroll
+        for (int element = 0; element < 4; ++element) {
+          const float normalized =
+              accumulator[group][element] * inverse_sum[group];
+          if constexpr (kDirect) {
+            output[output_base + element] = normalized;
+          } else {
+            partial_output
+                [(static_cast<std::uint64_t>(split) * kQueryHeadsValue +
+                  query_head) *
+                     kHeadDimensionValue +
+                 dimension + element] = normalized;
+          }
+        }
       }
     }
+  } else {
+    for (int dimension = static_cast<int>(threadIdx.x);
+         dimension < kHeadDimensionValue; dimension += kDecodeThreads) {
+      float accumulator[kQueryGroup] = {};
+      for (int token = 0; token < split_tokens; ++token) {
+        const std::uint64_t unwrapped_slot =
+            first_slot + split_start + static_cast<std::uint64_t>(token);
+        const std::uint64_t cache_slot =
+            unwrapped_slot < cache_capacity ? unwrapped_slot
+                                            : unwrapped_slot - cache_capacity;
+        const std::uint64_t value_offset =
+            (cache_slot * kKvHeadsValue +
+             static_cast<std::uint64_t>(kv_head)) *
+                kHeadDimensionValue +
+            dimension;
+        const float value = DecodeFp8(value_cache[value_offset], value_scale);
 #pragma unroll
-    for (int group = 0; group < kQueryGroup; ++group) {
-      const int query_head = query_head_base + group;
-      const std::uint64_t output_index =
-          static_cast<std::uint64_t>(query_head) * kHeadDimensionValue +
-          dimension;
-      const float normalized = accumulator[group] * inverse_sum[group];
-      if constexpr (kDirect) {
-        output[output_index] = normalized;
-      } else {
-        partial_output
-            [(static_cast<std::uint64_t>(split) * kQueryHeadsValue +
-              query_head) *
-                 kHeadDimensionValue +
-             dimension] = normalized;
+        for (int group = 0; group < kQueryGroup; ++group) {
+          accumulator[group] =
+              fmaf(scores[group * kChunk + token], value, accumulator[group]);
+        }
+      }
+#pragma unroll
+      for (int group = 0; group < kQueryGroup; ++group) {
+        const int query_head = query_head_base + group;
+        const std::uint64_t output_index =
+            static_cast<std::uint64_t>(query_head) * kHeadDimensionValue +
+            dimension;
+        const float normalized = accumulator[group] * inverse_sum[group];
+        if constexpr (kDirect) {
+          output[output_index] = normalized;
+        } else {
+          partial_output
+              [(static_cast<std::uint64_t>(split) * kQueryHeadsValue +
+                query_head) *
+                   kHeadDimensionValue +
+               dimension] = normalized;
+        }
       }
     }
   }
 }
 
-template <int kRows>
+template <int kRows, bool kVectorized>
 __launch_bounds__(kDecodeThreads, 1) __global__
 void SplitOnlineDecodeAttentionFp8GlobalBatchKernel(
     const float* __restrict__ query,
@@ -395,20 +494,51 @@ void SplitOnlineDecodeAttentionFp8GlobalBatchKernel(
         split_start + static_cast<std::uint64_t>(token);
     const std::uint8_t* key = key_cache + cache_slot * kDecodeGlobalHeadDimension;
     float score[kRows][kDecodeGlobalGroup] = {};
-    for (int dimension = lane; dimension < kDecodeGlobalHeadDimension;
-         dimension += 32) {
-      const float key_value = DecodeFp8(key[dimension], key_scale);
+    if constexpr (kVectorized) {
+      for (int dimension = lane * 4; dimension < kDecodeGlobalHeadDimension;
+           dimension += 32 * 4) {
+        const std::uint32_t packed =
+            *reinterpret_cast<const std::uint32_t*>(key + dimension);
+        const float4 key_values = DecodeFp8x4(packed, key_scale);
 #pragma unroll
-      for (int row = 0; row < kRows; ++row) {
-        if (token < split_tokens[row]) {
+        for (int row = 0; row < kRows; ++row) {
+          if (token < split_tokens[row]) {
 #pragma unroll
-          for (int group = 0; group < kDecodeGlobalGroup; ++group) {
-            score[row][group] = fmaf(
-                query[(static_cast<std::uint64_t>(row) * kDecodeQueryHeads +
-                       query_head_base + group) *
-                          kDecodeGlobalHeadDimension +
-                      dimension],
-                key_value, score[row][group]);
+            for (int group = 0; group < kDecodeGlobalGroup; ++group) {
+              const float* query_values =
+                  query +
+                  (static_cast<std::uint64_t>(row) * kDecodeQueryHeads +
+                   query_head_base + group) *
+                      kDecodeGlobalHeadDimension +
+                  dimension;
+              score[row][group] =
+                  fmaf(query_values[0], key_values.x, score[row][group]);
+              score[row][group] =
+                  fmaf(query_values[1], key_values.y, score[row][group]);
+              score[row][group] =
+                  fmaf(query_values[2], key_values.z, score[row][group]);
+              score[row][group] =
+                  fmaf(query_values[3], key_values.w, score[row][group]);
+            }
+          }
+        }
+      }
+    } else {
+      for (int dimension = lane; dimension < kDecodeGlobalHeadDimension;
+           dimension += 32) {
+        const float key_value = DecodeFp8(key[dimension], key_scale);
+#pragma unroll
+        for (int row = 0; row < kRows; ++row) {
+          if (token < split_tokens[row]) {
+#pragma unroll
+            for (int group = 0; group < kDecodeGlobalGroup; ++group) {
+              score[row][group] = fmaf(
+                  query[(static_cast<std::uint64_t>(row) * kDecodeQueryHeads +
+                         query_head_base + group) *
+                            kDecodeGlobalHeadDimension +
+                        dimension],
+                  key_value, score[row][group]);
+            }
           }
         }
       }
@@ -468,40 +598,96 @@ void SplitOnlineDecodeAttentionFp8GlobalBatchKernel(
     }
   }
 
-  for (int dimension = static_cast<int>(threadIdx.x);
-       dimension < kDecodeGlobalHeadDimension; dimension += kDecodeThreads) {
-    float accumulator[kRows][kDecodeGlobalGroup] = {};
-    for (int token = 0; token < maximum_split_tokens; ++token) {
-      const std::uint64_t value_offset =
-          (split_start + static_cast<std::uint64_t>(token)) *
-              kDecodeGlobalHeadDimension +
-          dimension;
-      const float value = DecodeFp8(value_cache[value_offset], value_scale);
+  if constexpr (kVectorized) {
+    for (int dimension = static_cast<int>(threadIdx.x) * 4;
+         dimension < kDecodeGlobalHeadDimension;
+         dimension += kDecodeThreads * 4) {
+      float accumulator[kRows][kDecodeGlobalGroup][4] = {};
+      for (int token = 0; token < maximum_split_tokens; ++token) {
+        const std::uint64_t value_offset =
+            (split_start + static_cast<std::uint64_t>(token)) *
+                kDecodeGlobalHeadDimension +
+            dimension;
+        const std::uint32_t packed =
+            *reinterpret_cast<const std::uint32_t*>(value_cache + value_offset);
+        const float4 values = DecodeFp8x4(packed, value_scale);
+#pragma unroll
+        for (int row = 0; row < kRows; ++row) {
+          if (token < split_tokens[row]) {
+#pragma unroll
+            for (int group = 0; group < kDecodeGlobalGroup; ++group) {
+              const float probability =
+                  scores[(row * kDecodeGlobalGroup + group) *
+                             kDecodeGlobalChunk +
+                         token];
+              accumulator[row][group][0] =
+                  fmaf(probability, values.x, accumulator[row][group][0]);
+              accumulator[row][group][1] =
+                  fmaf(probability, values.y, accumulator[row][group][1]);
+              accumulator[row][group][2] =
+                  fmaf(probability, values.z, accumulator[row][group][2]);
+              accumulator[row][group][3] =
+                  fmaf(probability, values.w, accumulator[row][group][3]);
+            }
+          }
+        }
+      }
 #pragma unroll
       for (int row = 0; row < kRows; ++row) {
-        if (token < split_tokens[row]) {
 #pragma unroll
-          for (int group = 0; group < kDecodeGlobalGroup; ++group) {
-            accumulator[row][group] = fmaf(
-                scores[(row * kDecodeGlobalGroup + group) *
-                           kDecodeGlobalChunk +
-                       token],
-                value, accumulator[row][group]);
+        for (int group = 0; group < kDecodeGlobalGroup; ++group) {
+          const int query_head = query_head_base + group;
+          const std::uint64_t output_base =
+              ((static_cast<std::uint64_t>(row) * max_splits + split) *
+                   kDecodeQueryHeads +
+               query_head) *
+                  kDecodeGlobalHeadDimension +
+              dimension;
+#pragma unroll
+          for (int element = 0; element < 4; ++element) {
+            partial_output[output_base + element] =
+                accumulator[row][group][element] * inverse_sum[row][group];
           }
         }
       }
     }
+  } else {
+    for (int dimension = static_cast<int>(threadIdx.x);
+         dimension < kDecodeGlobalHeadDimension;
+         dimension += kDecodeThreads) {
+      float accumulator[kRows][kDecodeGlobalGroup] = {};
+      for (int token = 0; token < maximum_split_tokens; ++token) {
+        const std::uint64_t value_offset =
+            (split_start + static_cast<std::uint64_t>(token)) *
+                kDecodeGlobalHeadDimension +
+            dimension;
+        const float value = DecodeFp8(value_cache[value_offset], value_scale);
 #pragma unroll
-    for (int row = 0; row < kRows; ++row) {
+        for (int row = 0; row < kRows; ++row) {
+          if (token < split_tokens[row]) {
 #pragma unroll
-      for (int group = 0; group < kDecodeGlobalGroup; ++group) {
-        const int query_head = query_head_base + group;
-        partial_output
-            [((static_cast<std::uint64_t>(row) * max_splits + split) *
-                  kDecodeQueryHeads +
-              query_head) *
-                 kDecodeGlobalHeadDimension +
-             dimension] = accumulator[row][group] * inverse_sum[row][group];
+            for (int group = 0; group < kDecodeGlobalGroup; ++group) {
+              accumulator[row][group] = fmaf(
+                  scores[(row * kDecodeGlobalGroup + group) *
+                             kDecodeGlobalChunk +
+                         token],
+                  value, accumulator[row][group]);
+            }
+          }
+        }
+      }
+#pragma unroll
+      for (int row = 0; row < kRows; ++row) {
+#pragma unroll
+        for (int group = 0; group < kDecodeGlobalGroup; ++group) {
+          const int query_head = query_head_base + group;
+          partial_output
+              [((static_cast<std::uint64_t>(row) * max_splits + split) *
+                    kDecodeQueryHeads +
+                query_head) *
+                   kDecodeGlobalHeadDimension +
+               dimension] = accumulator[row][group] * inverse_sum[row][group];
+        }
       }
     }
   }
@@ -681,7 +867,7 @@ Status LaunchOnlineAttentionDecodeFp8Sm120(
     if (max_splits == 1) {
       SplitOnlineDecodeAttentionFp8Kernel<
           kDecodeLocalHeadDimension, kDecodeLocalKvHeads, 2,
-          kDecodeLocalGroup, kDecodeLocalChunk, true>
+          kDecodeLocalGroup, kDecodeLocalChunk, true, false>
           <<<blocks, kDecodeThreads, 0, stream>>>(
               query, key_cache, value_cache, key_scale_bf16,
               value_scale_bf16, workspace, nullptr, output, control,
@@ -689,17 +875,37 @@ Status LaunchOnlineAttentionDecodeFp8Sm120(
     } else {
       SplitOnlineDecodeAttentionFp8Kernel<
           kDecodeLocalHeadDimension, kDecodeLocalKvHeads, 2,
-          kDecodeLocalGroup, kDecodeLocalChunk, false>
+          kDecodeLocalGroup, kDecodeLocalChunk, false, false>
           <<<blocks, kDecodeThreads, 0, stream>>>(
               query, key_cache, value_cache, key_scale_bf16,
               value_scale_bf16, workspace, partial_lse, output, control,
               cache_capacity, sliding, max_splits);
     }
   } else {
-    if (max_splits == 1) {
+    const bool vectorized_global =
+        cache_capacity >= kDecodeVectorizedGlobalContext;
+    if (vectorized_global) {
+      if (max_splits == 1) {
+        SplitOnlineDecodeAttentionFp8Kernel<
+            kDecodeGlobalHeadDimension, kDecodeGlobalKvHeads, 16,
+            kDecodeGlobalGroup, kDecodeGlobalChunk, true, true>
+            <<<blocks, kDecodeThreads, 0, stream>>>(
+                query, key_cache, value_cache, key_scale_bf16,
+                value_scale_bf16, workspace, nullptr, output, control,
+                cache_capacity, sliding, max_splits);
+      } else {
+        SplitOnlineDecodeAttentionFp8Kernel<
+            kDecodeGlobalHeadDimension, kDecodeGlobalKvHeads, 16,
+            kDecodeGlobalGroup, kDecodeGlobalChunk, false, true>
+            <<<blocks, kDecodeThreads, 0, stream>>>(
+                query, key_cache, value_cache, key_scale_bf16,
+                value_scale_bf16, workspace, partial_lse, output, control,
+                cache_capacity, sliding, max_splits);
+      }
+    } else if (max_splits == 1) {
       SplitOnlineDecodeAttentionFp8Kernel<
           kDecodeGlobalHeadDimension, kDecodeGlobalKvHeads, 16,
-          kDecodeGlobalGroup, kDecodeGlobalChunk, true>
+          kDecodeGlobalGroup, kDecodeGlobalChunk, true, false>
           <<<blocks, kDecodeThreads, 0, stream>>>(
               query, key_cache, value_cache, key_scale_bf16,
               value_scale_bf16, workspace, nullptr, output, control,
@@ -707,7 +913,7 @@ Status LaunchOnlineAttentionDecodeFp8Sm120(
     } else {
       SplitOnlineDecodeAttentionFp8Kernel<
           kDecodeGlobalHeadDimension, kDecodeGlobalKvHeads, 16,
-          kDecodeGlobalGroup, kDecodeGlobalChunk, false>
+          kDecodeGlobalGroup, kDecodeGlobalChunk, false, false>
           <<<blocks, kDecodeThreads, 0, stream>>>(
               query, key_cache, value_cache, key_scale_bf16,
               value_scale_bf16, workspace, partial_lse, output, control,
@@ -764,11 +970,19 @@ Status LaunchOnlineAttentionDecodeFp8GlobalD2Sm120(
       static_cast<std::uint64_t>(max_splits) * kDecodeQueryHeads *
       kDecodeGlobalHeadDimension;
   float* partial_lse = workspace + kRows * partial_elements_per_row;
-  SplitOnlineDecodeAttentionFp8GlobalBatchKernel<kRows>
-      <<<blocks, kDecodeThreads, 0, stream>>>(
-          query, key_cache, value_cache, key_scale_bf16, value_scale_bf16,
-          workspace, partial_lse, start_position, nullptr, cache_capacity,
-          max_splits);
+  if (cache_capacity >= kDecodeVectorizedGlobalContext) {
+    SplitOnlineDecodeAttentionFp8GlobalBatchKernel<kRows, true>
+        <<<blocks, kDecodeThreads, 0, stream>>>(
+            query, key_cache, value_cache, key_scale_bf16, value_scale_bf16,
+            workspace, partial_lse, start_position, nullptr, cache_capacity,
+            max_splits);
+  } else {
+    SplitOnlineDecodeAttentionFp8GlobalBatchKernel<kRows, false>
+        <<<blocks, kDecodeThreads, 0, stream>>>(
+            query, key_cache, value_cache, key_scale_bf16, value_scale_bf16,
+            workspace, partial_lse, start_position, nullptr, cache_capacity,
+            max_splits);
+  }
   cudaError_t error = cudaGetLastError();
   if (error != cudaSuccess) {
     return CudaFailure("launch global D2 split FP8 attention", error);
@@ -807,11 +1021,19 @@ Status LaunchOnlineAttentionDecodeFp8GlobalD2ControlledSm120(
       static_cast<std::uint64_t>(max_splits) * kDecodeQueryHeads *
       kDecodeGlobalHeadDimension;
   float* partial_lse = workspace + kRows * partial_elements_per_row;
-  SplitOnlineDecodeAttentionFp8GlobalBatchKernel<kRows>
-      <<<blocks, kDecodeThreads, 0, stream>>>(
-          query, key_cache, value_cache, key_scale_bf16, value_scale_bf16,
-          workspace, partial_lse, 0U, row_controls, cache_capacity,
-          max_splits);
+  if (cache_capacity >= kDecodeVectorizedGlobalContext) {
+    SplitOnlineDecodeAttentionFp8GlobalBatchKernel<kRows, true>
+        <<<blocks, kDecodeThreads, 0, stream>>>(
+            query, key_cache, value_cache, key_scale_bf16, value_scale_bf16,
+            workspace, partial_lse, 0U, row_controls, cache_capacity,
+            max_splits);
+  } else {
+    SplitOnlineDecodeAttentionFp8GlobalBatchKernel<kRows, false>
+        <<<blocks, kDecodeThreads, 0, stream>>>(
+            query, key_cache, value_cache, key_scale_bf16, value_scale_bf16,
+            workspace, partial_lse, 0U, row_controls, cache_capacity,
+            max_splits);
+  }
   cudaError_t error = cudaGetLastError();
   if (error != cudaSuccess) {
     return CudaFailure("launch controlled global D2 split FP8 attention",

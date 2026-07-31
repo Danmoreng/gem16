@@ -97,9 +97,12 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
          << "  \"projection_path\": \"native_sm120\",\n"
          << "  \"decode_attention_path\": \""
          << (result.kv_cache_mode == KvCacheMode::kCheckpointFp8 &&
-                     result.max_context_tokens > 512U
-                 ? "fp8_online_split_gqa"
-                 : "score_softmax_value_reference")
+                     result.max_context_tokens >= 65536U
+                 ? "fp8_online_split_gqa_global_fp8x4"
+                 : result.kv_cache_mode == KvCacheMode::kCheckpointFp8 &&
+                           result.max_context_tokens > 512U
+                       ? "fp8_online_split_gqa"
+                       : "score_softmax_value_reference")
          << "\",\n"
          << "  \"kv_cache_mode\": \""
          << (result.kv_cache_mode == KvCacheMode::kCheckpointFp8
@@ -306,10 +309,17 @@ Status WriteDecodeBenchmarkJson(const DecodeBenchmarkResult& result,
          << "\"decode_attention_path\":\""
          << (result.options.kv_cache_mode == KvCacheMode::kCheckpointFp8 &&
                      static_cast<std::uint64_t>(result.options.context_tokens) +
-                             result.options.generated_tokens >
-                         512U
-                 ? "fp8_online_split_gqa"
-                 : "score_softmax_value_reference")
+                             result.options.generated_tokens >=
+                         65536U
+                 ? "fp8_online_split_gqa_global_fp8x4"
+                 : result.options.kv_cache_mode ==
+                               KvCacheMode::kCheckpointFp8 &&
+                           static_cast<std::uint64_t>(
+                               result.options.context_tokens) +
+                                   result.options.generated_tokens >
+                               512U
+                       ? "fp8_online_split_gqa"
+                       : "score_softmax_value_reference")
          << "\",\"kv_cache_mode\":\""
          << (result.options.kv_cache_mode == KvCacheMode::kCheckpointFp8
                  ? "checkpoint_fp8" : "bf16_correctness")

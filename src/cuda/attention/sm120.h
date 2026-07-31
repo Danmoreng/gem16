@@ -40,7 +40,9 @@ struct DecodeControl;
 // Product-shape batch-one decode attention over the checkpoint's physical
 // E4M3 K/V cache. Token ranges are split across CTAs; each CTA computes a
 // normalized partial output and FP32 log-sum-exp state without materializing
-// the score matrix. A second kernel merges the partials. `workspace` requires
+// the score matrix. A second kernel merges the partials. Global-cache
+// capacities of at least 64K use aligned E4M3x4 K/V loads; shorter tiers keep
+// the lower-register scalar path. `workspace` requires
 // DecodeAttentionWorkspaceElements(max_context) floats.
 [[nodiscard]] Status LaunchOnlineAttentionDecodeFp8Sm120(
     const float* query, const std::uint8_t* key_cache,
@@ -52,8 +54,9 @@ struct DecodeControl;
     std::uint64_t cache_capacity, bool sliding, cudaStream_t stream);
 
 // Exact three-row global-attention verifier. Historical K/V values are loaded
-// once for all rows while each row retains the decode kernel's independent
-// accumulation, online-softmax, and split-merge order.
+// once for all rows while each row retains the selected ordinary decode tier's
+// independent accumulation, online-softmax, and split-merge order, including
+// the aligned E4M3x4 path at 64K and above.
 [[nodiscard]] Status LaunchOnlineAttentionDecodeFp8GlobalD2Sm120(
     const float* query, const std::uint8_t* key_cache,
     const std::uint8_t* value_cache,

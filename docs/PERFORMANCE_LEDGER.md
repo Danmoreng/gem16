@@ -1,5 +1,113 @@
 # Performance ledger
 
+## 2026-07-31 current Linux llama.cpp baseline
+
+Hypothesis: The current upstream llama.cpp commit used by the Windows handoff can be rebuilt on Linux with the
+same SM120a/CUDA/Flash-Attention/Q8-KV configuration and provide a reproducible external reference.
+
+Configuration: llama.cpp `000547513f1530346ecd163db8b3e13962949961` (version 10210), `120a-real`,
+`GGML_CUDA_FA_ALL_QUANTS=ON`, `GGML_NATIVE=OFF`, full GPU residency, split mode none, Flash Attention, Q8_0 K/V,
+batch/ubatch 2048/512, 8 threads, poll 100, one server slot. Linux denied priority 2 without elevated rights, so
+server runs explicitly used normal priority 0. The patched same-source converter preserved 144 NVFP4 MLP tensors
+and stored 184 source FP8 attention tensors as Q8_0 with `--fp8-as-q8`. Target GGUF SHA-256 is
+`0fc3dce6d631d1ee5ab5398f621b4bfe50591d01d08339659d554eb91e23091d`; assistant SHA-256 is
+`7b82a9f31fa365fb8ce533424cfad6c5106086f40b3eade4d91d8c5bb63d8224`.
+
+| Existing context | Prefill median tok/s | Decode median tok/s |
+|---:|---:|---:|
+| 128 | 2,627.35 | 35.84 |
+| 512 | 3,208.42 | 36.86 |
+| 2,048 | 2,812.06 | 36.19 |
+| 8,192 | 2,618.83 | 35.61 |
+| 16,384 | 2,517.67 | 34.68 |
+| 32,768 | 2,140.81 | 32.01 |
+| 65,536 | 1,610.62 | 28.45 |
+
+Fixed Wikipedia 16K/1,135-token, three-warm-up/ten-run characterization: ordinary decode 33.386 tok/s median
+(95% CI `[33.355, 34.114]`), D2 54.703 tok/s median (95% CI `[54.694, 54.727]`). D2 proposed/accepted/rejected
+was 1,035/616/419 over 519 groups in every run. Ordinary and D2 are deterministic within llama.cpp but are not
+required to share output IDs; the output hashes are retained separately. The exact shared prompt hash is
+`d07ad4d805944f0b87869da0c5bb44d99e8c43c0eb57d05a108ad80a6abb51a8`.
+
+Linux overview references on the same prompt and 0.90 GPU memory policy: gem16 ordinary/D2 were 31.472/46.248
+tok/s in the matching 3/10 runs; direct vLLM FP8 ordinary/D2 were 35.100/56.355 tok/s in one-warm-up/one-run
+characterizations. These are format- and runtime-disclosed references, not cross-engine parity claims. Full raw
+artifacts, commands, model inventories, verbose residency log, and engine/system metadata are under
+`benchmarks/results/2026-07-31/6e16dd1/blackwell16gb-linux-llama-current/`.
+
+The baseline is not accepted as a quality or native-dispatch headline yet: current output quality remains to be
+requalified, and SASS proves NVFP4 instruction availability but not profiler-level invocation attribution.
+
+## 2026-08-01 vectorized FP8 global decode tier at 64K
+
+Hypothesis: once the contiguous global FP8 cache reaches 64K, grouping four adjacent D512 K/V dimensions into one
+aligned 32-bit load and one E4M3x4 conversion can reduce cache-load and conversion instruction pressure enough to
+offset a higher register count. Shorter capacities retain the scalar kernel. The fixed-D2 verifier uses the same
+selected arithmetic so speculation remains exact against ordinary Target output.
+
+Implementation: ordinary global decode uses four-wide QK and value accumulation only when cache capacity is at
+least 65,536. The three-row global verifier dispatches the corresponding four-wide kernel at the same threshold.
+Local D256 attention, global split size, online-softmax and merge topology, FP8 cache bytes/scales, workspace,
+checkpoint precision, and all shorter context tiers are unchanged.
+
+| Existing context | Parent median tok/s | Candidate median tok/s | Delta | Parent/Candidate 95% CI |
+|---:|---:|---:|---:|---:|
+| 16,384 | 31.691 | 31.838 | +0.47% | `[31.681,31.702]` / `[31.793,31.922]` |
+| 32,768 | 29.290 | 29.508 | +0.74% | `[29.257,29.417]` / `[29.306,29.530]` |
+| 65,536 | 25.701 | 27.164 | **+5.69%** | `[25.447,25.727]` / `[27.149,27.229]` |
+
+The 64K result uses three warm-ups and ten measured 256-token runs. Median/p95 inter-token latency improve from
+38.955/40.425 ms to 36.726/38.065 ms. Workspace remains 800,530,176 bytes and recurring allocation remains false.
+The shorter 16K/32K 3/10 checks retain the parent checksums because they dispatch the scalar tier.
+
+Correctness: the 64K operator comparison against the score/softmax/value reference reports maximum absolute error
+`3.98606e-7`, RMS `6.24295e-8`, and cosine `1`; four repeated executions are bit-deterministic. Parent and candidate
+first-token full-vocabulary logits are byte-identical. Autoregressive parent/candidate output may later diverge
+because QK dimension assignment changes the valid FP32 reduction order; this is recorded rather than mislabeled as
+a quality failure. Candidate ordinary and fixed-D2 at 64K match all 256 generated IDs. The fixed Wikipedia 16K D2
+workload retains all 1,135 IDs and SHA-256 `43bc3380fc1cce5182a679fa3a340c04bcc79c52e73d5102ec1f737f57d0a1e1`.
+Host/CUDA CTest pass, including a new 64K synthetic reference case.
+
+Adjacent child-node profiles reduce the eight ordinary global split kernels from 9.430 to 8.112 ms (-14.0%). The
+ordinary vector kernel uses 66 registers/thread versus 56, 9,248 bytes static shared memory, and zero stack/local
+memory. The vector D2 kernel uses 93 registers/thread, 25,632 bytes shared, and zero stack/local memory. Grid,
+workspace, persistent weights, and KV bytes are unchanged. Three exact structural probes were removed before this
+winner: flattening grouped FP8 bindings regressed 16K/64K by 8.05%/5.41%, dual-N-tile FP8 O regressed by
+3.83%/1.86%, and two vocabulary rows per output-head warp moved them by -1.16%/+0.13%.
+Decision: promote the vector path solely for capacities
+of at least 64K and retain scalar dispatch below it. Raw evidence is under
+`benchmarks/results/2026-08-01/6e16dd1/blackwell-linux-decode-phase2-global-fp8x4-tier64k/`.
+
+## 2026-08-01 global decode-attention phase-1 candidates rejected
+
+Hypothesis: the widening long-context gap can be reduced by changing the D512 global decode primitive without
+changing the checkpoint, KV format, or ordinary sampling semantics.
+
+The first split-tier experiment used a 1,024-token global split at capacities of at least 65,536. Its Nsight
+microprofile improved the split kernel from 11.00 ms to 9.16 ms and the merge from 0.234 ms to 0.091 ms at 65K,
+but the qualified 3-warm-up/10-run end-to-end result regressed from 25.567 to 25.229 tok/s (-1.32%). The median
+inter-token latency also regressed from 38.950 to 39.640 ms. The candidate was removed; D2 remained unchanged.
+
+A second candidate vectorized the global K/V FP8 loads and grouped four value dimensions per thread. Short
+screening was promising (33.169 versus 32.381 tok/s at 16K and 27.344 versus 25.517 tok/s at 64K, each with one
+warm-up and three measured runs), but a 256-token deterministic comparison matched only 20/256 tokens. Keeping
+scalar Q/K accumulation and vectorizing only values improved that to 67/256, but still changed the sequence. A
+separate vectorized global merge showed only +1.0% at 16K and +0.4% at 64K in the short screen and likewise failed
+the 256-token exact comparison. A warp-shuffle variant reduced each global K row to four 32-bit loads per lane
+while reconstructing the original scalar dimension order; it still matched only 67/256 tokens and was reverted.
+A GQA shared-K prototype then fused the four query groups into one CTA and
+staged each 512-byte key row in shared memory. It preserved the scalar arithmetic but serialized the query-group
+work: 27.905 versus 32.100 tok/s at 16K and 20.627 versus 25.525 tok/s at 64K. A 768-token split tier was also
+screened; it was slightly faster at 16K but slower at 64K (25.400 versus 25.746 tok/s). It was removed immediately.
+A read-only `__ldg` load experiment preserved scalar arithmetic but was not a winner either: it moved the short
+screen from 32.150 to 32.443 tok/s at 16K and from 25.412 to 25.266 tok/s at 64K. These variants were all
+reverted rather than trading numerical reproducibility for a screening win.
+
+At the end of phase 1 the production source and `blackwell-release` binary returned to the scalar 512-token global
+path. The separately qualified phase-2 entry above later promoted vectorized physical FP8 handling only for the
+64K-and-above capacity tier; all other candidates in this section remain removed. Raw rejected-candidate runs and
+direct output comparisons remain under `benchmarks/results/2026-08-01/6e16dd1/`.
+
 ## 2026-07-30 repository-local six-item media conversation through 128K
 
 Hypothesis: Three generated images and three independently sourced
