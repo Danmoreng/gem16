@@ -1,5 +1,69 @@
 # Decisions
 
+## 2026-07-31: Execute the decode program under Linux
+
+Date: 2026-07-31
+
+Decision: Continue the ordinary-decode and fixed-D2 optimization program under Linux on the same physical RTX 5080
+Laptop GPU. Treat the 2026-07-31 Windows results as orientation screens only. Begin the Linux session by rebuilding
+gem16 and the exact current llama.cpp candidate, regenerating and validating the Q8-attention/NVFP4 GGUF, repeating
+the one-warm-up/one-measured screen, and adding a direct-checkpoint FP8-KV vLLM row. Establish the 3/10 Linux parent
+before changing kernels. Collect all promotion and final profiling evidence under Linux.
+
+Context: Linux is the phase-one platform and locked reference toolchain. It provides the existing direct vLLM
+environment and a cleaner Nsight Systems/Nsight Compute workflow, including access to graph child-kernel evidence
+that the current Windows trace did not expose. Keeping the same laptop controls GPU silicon, VRAM, cooling, and
+power class, but an operating-system change can still alter clocks, scheduling, and timing; Windows/Linux numbers
+therefore cannot be used as an optimization A/B.
+
+Alternatives: Continue under Windows; compare Linux candidates against the Windows parent; or use vLLM instead of
+llama.cpp as the competitive gate. Windows remains suitable for functional development, but it weakens the planned
+profiling and omits the direct vLLM row. Cross-OS A/B attribution is invalid. vLLM remains a direct-checkpoint
+headroom reference, while current llama.cpp remains the primary competitor.
+
+Consequences: `docs/LINUX_DECODE_HANDOFF_2026-07-31.md` is the new-session entry point. Linux results use fresh
+machine metadata and separate result directories. The current llama.cpp converter port and Q8 GGUF must be
+reproduced rather than silently falling back to the older tracked BF16-attention baseline. No engine source is
+changed as part of this handoff.
+
+Evidence: `docs/DECODE_OPTIMIZATION_PLAN.md`, `toolchains/blackwell16gb.lock`, and the Windows screen disclosed in
+`docs/LINUX_DECODE_HANDOFF_2026-07-31.md`.
+
+## 2026-07-31: Prioritize ordinary decode, then require 64.82 token/s fixed-D2 MTP
+
+Date: 2026-07-31
+
+Decision: Pause discretionary prefill optimization and execute the binding
+`docs/DECODE_OPTIMIZATION_PLAN.md`. First bring ordinary batch-one decode to parity with or beyond a freshly pinned
+llama.cpp candidate across 128 through 65,536 existing tokens, with explicit attention to the worsening
+long-context slope. Then require the fixed Wikipedia 16K D2 workload to reach at least 64.82 effective verified
+output tokens/s as a 3-warm-up/10-measured-run median while remaining exactly identical to gem16 ordinary Target
+output. Final promotion also requires an adjacent same-machine llama.cpp result no faster than gem16. Prefill work
+resumes only after these decode gates pass.
+
+Context: A 2026-07-31 one-run screen on the RTX 5080 Laptop measures gem16/llama.cpp ordinary ratios falling from
+0.956x at context 128 to 0.802x at 65,536. At 16K, gem16 reaches 36.504 versus llama.cpp 44.32 token/s. On the fixed
+1,135-token D2 workload, gem16 reaches 53.643 token/s with 502 Target batches and mean accepted length 1.259,
+whereas llama.cpp reaches 64.822 token/s with 519 batches and mean accepted length 1.187. Gem16 therefore loses
+despite better acceptance, identifying Target-group latency rather than draft acceptance as the primary problem.
+The current global decode-attention implementation grows from 32 split groups at 16K to 128 at 64K per global
+layer and materializes FP32 partial outputs plus a merge.
+
+Alternatives: Tune only MTP acceptance; continue prefill first; lower KV precision; compare against the Reddit
+user's unrelated model/configuration; accept different gem16 ordinary/MTP output; or publish the one-run screen as
+a final result. These do not address the measured Target cost or violate benchmark, precision, hardware, and
+correctness requirements.
+
+Consequences: Current-head graph-child profiling and matched llama.cpp kernel attribution become Phase 0. Global
+attention scaling is the first implementation target, followed by local attention, T=1 projections, proven graph
+overhead, and only then MTP-specific T=3/assistant work. Q8_0 KV remains the requested llama.cpp setting and gem16
+retains checkpoint FP8 KV; every comparison discloses that difference. Existing rejected T=1 Tensor-Core
+attention, ordinary Gate/Up fusion, rounded projection epilogues, and verifier-suffix graph experiments may not be
+repeated without a materially new hypothesis.
+
+Evidence: `docs/DECODE_OPTIMIZATION_PLAN.md` and raw MTP screening artifacts under
+`benchmarks/results/2026-07-31/5501b52/blackwell16gb-windows-llama-q8-screen/`.
+
 ## 2026-07-30: Keep gem16 media inline and render CommonMark natively
 
 Date: 2026-07-30

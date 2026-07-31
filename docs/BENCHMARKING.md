@@ -235,10 +235,12 @@ bounds only and cannot be called exact speculative speedups or compared as quali
 direct mixed checkpoint and FP8 KV; llama.cpp uses BF16-mapped attention and Q8_0 KV. See the corresponding
 `mtp-characterization.json` files for complete disclosure.
 
-The active competitive gate is measured only on the fixed 16,384-prompt/1,135-output workload: 50.0 exact
-effective tok/s is the minimum and 55.0 tok/s is the stretch target. At the retained D2 acceptance these correspond
-to at most 45.18 and 41.07 ms per verifier group. The GPU-chained path passes the minimum at 54.903 tok/s and misses
-the stretch target by 0.097 tok/s. The same 3-warm-up/10-run and exact-ID policy applies.
+The former competitive gate was 50.0 exact effective tok/s with a 55.0 stretch target. The retained GPU-chained
+path passed that historical minimum at 54.903 tok/s. The active gate now follows
+[`DECODE_OPTIMIZATION_PLAN.md`](DECODE_OPTIMIZATION_PLAN.md): after ordinary decode parity work, fixed 16K D2 must
+reach at least 64.82 effective verified tok/s and meet or beat the adjacent current llama.cpp result. At the
+current acceptance and 502 Target batches, 64.82 tok/s requires at most approximately 34.85 ms per group. The same
+3-warm-up/10-run and exact-ID policy applies, with Linux as the qualification environment.
 
 Run the final paired qualification with the checked-in alternating orchestrator:
 
@@ -246,7 +248,7 @@ Run the final paired qualification with the checked-in alternating orchestrator:
 python tools/qualify_mtp.py \
   --workload benchmarks/results/<workload>/workload.json \
   --output benchmarks/results/<date>/<git-sha>/<machine>/mtp-qualification.json \
-  --executable build/Windows/blackwell-release/bin/gem16-run.exe \
+  --executable build/Linux/blackwell-release/bin/gem16-run \
   --warmup-pairs 3 --measured-pairs 10
 ```
 

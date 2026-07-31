@@ -204,6 +204,8 @@ raw evidence, caveats, and comparison rules live in
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — runtime and kernel architecture
 - [`docs/CORRECTNESS.md`](docs/CORRECTNESS.md) — numerical validation and current gates
 - [`docs/MTP.md`](docs/MTP.md) — assistant model and speculative decode design
+- [`docs/DECODE_OPTIMIZATION_PLAN.md`](docs/DECODE_OPTIMIZATION_PLAN.md) — active ordinary-decode and MTP performance plan
+- [`docs/LINUX_DECODE_HANDOFF_2026-07-31.md`](docs/LINUX_DECODE_HANDOFF_2026-07-31.md) — reproducible Linux continuation state
 - [`docs/BENCHMARKING.md`](docs/BENCHMARKING.md) — benchmark methodology
 - [`docs/PERFORMANCE_LEDGER.md`](docs/PERFORMANCE_LEDGER.md) — retained measurements and profiling evidence
 - [`docs/ROADMAP.md`](docs/ROADMAP.md) — remaining milestones

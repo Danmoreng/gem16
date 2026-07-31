@@ -8,7 +8,19 @@ of the correctness and native-kernel gates below.
 
 ## Active gate
 
-- Continue the binding [prefill optimization plan](PREFILL_OPTIMIZATION_PLAN.md) from the refreshed Linux profile.
+- Execute the binding [decode optimization plan](DECODE_OPTIMIZATION_PLAN.md) under Linux on the reference laptop.
+  Start from the [Linux decode handoff](LINUX_DECODE_HANDOFF_2026-07-31.md), repeat the short current-head
+  gem16/llama.cpp screen, add the direct-checkpoint vLLM reference, and only then qualify/profile the parent.
+  Ordinary decode is now the first
+  performance priority, followed by fixed-D2 MTP. The hard MTP gate is at least 64.82 effective verified tokens/s
+  at 16K with exact ordinary-Target identity; ordinary decode must first meet or beat the freshly qualified
+  llama.cpp candidate through 64K. Prefill optimization is paused except for correctness and regression prevention
+  until both decode gates pass. The prior [prefill optimization plan](PREFILL_OPTIMIZATION_PLAN.md) remains the
+  authoritative record of completed and deferred prompt-processing work.
+
+- Historical implementation record: statements below that close or pause earlier optimization sprints describe
+  their status at the time and are superseded by the active decode gate above. The refreshed prefill record begins
+  from the retained Linux profile.
   Online Tensor-Core attention, the deterministic 2,048-token prompt plan, CUTLASS NVFP4/FP8 projections, and
   profile-proven fusions are promoted. The 2026-07-27 bounded staging sprint vectorizes local FP8 conversion and
   removes redundant modulo from contiguous global-cache reads. Attention and FP8 projection GEMMs are now tied as

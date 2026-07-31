@@ -1,5 +1,10 @@
 # Gemma 4 12B MTP
 
+Current performance priority and gate: follow the binding
+[`DECODE_OPTIMIZATION_PLAN.md`](DECODE_OPTIMIZATION_PLAN.md). The new fixed Wikipedia 16K D2 minimum is 64.82
+effective verified output tokens/s after ordinary decode parity work. Historical 50/55 token/s milestones below
+remain evidence of earlier bounded sprints; they no longer define completion.
+
 ## Feasibility conclusion
 
 The MTP weights are **not embedded** in the pinned
