@@ -16,7 +16,7 @@ val studioServer = rootProject.layout.projectDirectory.file(
 )
 val generatedAppResources = layout.buildDirectory.dir("generated/studio-app-resources")
 val prepareStudioAppResources by tasks.registering(Sync::class) {
-    from(studioServer) { into("bin") }
+    from(studioServer) { into("common/bin") }
     into(generatedAppResources)
     doFirst {
         check(studioServer.asFile.isFile) {
@@ -89,7 +89,8 @@ compose.desktop {
 }
 
 tasks.matching {
-    it.name == "createDistributable" ||
+    it.name == "prepareAppResources" ||
+        it.name == "createDistributable" ||
         it.name == "packageDistributionForCurrentOS" ||
         it.name.startsWith("packageMsi") ||
         it.name.startsWith("packageDeb") ||
