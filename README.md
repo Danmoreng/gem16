@@ -108,6 +108,15 @@ To build a native installer for the current platform after the release server ex
 .\scripts\package-studio.ps1
 ```
 
+The Windows script always rebuilds the MSI and writes it to
+`studioApp/build/compose/binaries/main/msi/`. The installer deploys gem16 per machine under
+`C:\Program Files\gem16`; the CUDA-enabled server is embedded at
+`app\resources\bin\gem16-server.exe`. Checkpoints remain outside the installation in the shared Hugging Face cache.
+
+Pushing a `v*` tag, or manually dispatching the **Windows Release** workflow, builds the pinned CUDA 13.3 SM120a
+server on GitHub Actions, verifies native NVFP4/FP8 instructions, packages the MSI, publishes its SHA-256 checksum,
+and attaches both files to the GitHub Release.
+
 ```bash
 # Linux
 ./scripts/package-studio.sh

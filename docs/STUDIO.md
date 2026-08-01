@@ -91,6 +91,21 @@ the installed application discovers that binary automatically. Checkpoints are n
 embedded in the application. On first launch, the **Models** screen downloads
 the exact locked snapshots and configures the managed server automatically.
 
+On Windows, `scripts/package-studio.ps1` removes only previous gem16 MSI outputs,
+forces the Compose packaging tasks to rerun, and fails unless exactly one fresh MSI
+is produced. The result is written below
+`studioApp/build/compose/binaries/main/msi/` and installs per machine to
+`C:\Program Files\gem16`. The packaged CUDA server lives at
+`app\resources\bin\gem16-server.exe` inside that installation.
+
+`.github/workflows/windows-release.yml` provides the corresponding reproducible
+GitHub path. A `v*` tag or manual dispatch builds with pinned CUDA 13.3 and WiX
+toolchains, verifies the server contains the expected native SM120a NVFP4 and FP8
+instructions, packages the MSI, and uploads both the installer and a SHA-256 file
+to the workflow run and GitHub Release. The server executable has no dynamic CUDA
+Toolkit DLL dependency, so only a compatible NVIDIA driver is required on the
+target machine. The model payload is still downloaded separately on first use.
+
 gem16 honors `HF_HUB_CACHE`, then `HF_HOME`, then `XDG_CACHE_HOME`, and otherwise
 uses `~/.cache/huggingface/hub`, matching Hugging Face Hub conventions. The
 target model view is composed inside that cache from content-addressed hardlinks:

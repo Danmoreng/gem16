@@ -1,0 +1,180 @@
+name: Windows Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version, for example 0.1.0. Defaults to the tag name without v."
+        required: false
+        type: string
+      prerelease:
+        description: "Mark the GitHub release as a prerelease."
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+env:
+  # CUDA 13.3.0 contains nvcc 13.3.33, matching the validated Windows lock.
+  CUDA_CHOCO_VERSION: "13.3.0"
+  WIX_CHOCO_VERSION: "3.14.1.20250415"
+
+jobs:
+  package-windows:
+    name: Package Windows SM120a installer
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Verify build submodules
+        shell: pwsh
+        run: |
+          git submodule sync --recursive
+          git submodule update --init --recursive --depth=1
+          git submodule status --recursive
+
+      - name: Resolve release version
+        shell: pwsh
+        run: |
+          $version = "${{ inputs.version }}"
+          if ([string]::IsNullOrWhiteSpace($version)) {
+            if ("${{ github.ref_type }}" -eq "tag") {
+              $version = "${{ github.ref_name }}"
+            } else {
+              $version = "0.1.${{ github.run_number }}"
+            }
+          }
+
+          $releaseVersion = $version -replace '^v', ''
+          $packageVersion = ($releaseVersion -replace '[^0-9.].*$', '')
+          if ($packageVersion -notmatch '^\d+(\.\d+){1,3}$') {
+            throw "MSI package version must be numeric, for example 0.1.0. Got '$releaseVersion'."
+          }
+
+          "RELEASE_VERSION=$releaseVersion" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "APP_VERSION=$packageVersion" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Install pinned CUDA and WiX toolchains
+        shell: pwsh
+        run: |
+          choco install cuda --version=$env:CUDA_CHOCO_VERSION -y --no-progress
+          if ($LASTEXITCODE -notin @(0, 1641, 3010)) {
+            throw "CUDA Chocolatey installation failed with exit code $LASTEXITCODE"
+          }
+          choco install wixtoolset --version=$env:WIX_CHOCO_VERSION -y --no-progress
+          if ($LASTEXITCODE -notin @(0, 1641, 3010)) {
+            throw "WiX Chocolatey installation failed with exit code $LASTEXITCODE"
+          }
+
+      - name: Configure CUDA and WiX environment
+        shell: pwsh
+        run: |
+          $cudaBase = Join-Path $env:ProgramFiles "NVIDIA GPU Computing Toolkit\CUDA"
+          $candidates = @()
+          if ($env:CUDA_PATH) {
+            $candidates += $env:CUDA_PATH
+          }
+          if (Test-Path -LiteralPath $cudaBase) {
+            $candidates += Get-ChildItem -LiteralPath $cudaBase -Directory |
+              Sort-Object { [version]($_.Name -replace '^v', '') } -Descending |
+              ForEach-Object { $_.FullName }
+          }
+
+          $cudaRoot = $candidates |
+            Where-Object { $_ -and (Test-Path -LiteralPath (Join-Path $_ "bin\nvcc.exe")) } |
+            Select-Object -First 1
+          if (-not $cudaRoot) {
+            throw "CUDA Toolkit was installed, but nvcc.exe was not found under $cudaBase."
+          }
+
+          $cudaBin = Join-Path $cudaRoot "bin"
+          "CUDA_PATH=$cudaRoot" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "CUDAToolkit_ROOT=$cudaRoot" | Out-File -FilePath $env:GITHUB_ENV -Append
+          $cudaBin | Out-File -FilePath $env:GITHUB_PATH -Append
+
+          $wixBin = Get-ChildItem "${env:ProgramFiles(x86)}\WiX Toolset*" -Directory -ErrorAction SilentlyContinue |
+            Sort-Object FullName -Descending |
+            ForEach-Object { Join-Path $_.FullName "bin" } |
+            Where-Object { Test-Path -LiteralPath (Join-Path $_ "candle.exe") } |
+            Select-Object -First 1
+          if (-not $wixBin -or -not (Test-Path -LiteralPath (Join-Path $wixBin "candle.exe"))) {
+            throw "WiX was installed, but candle.exe was not found."
+          }
+          $wixBin | Out-File -FilePath $env:GITHUB_PATH -Append
+
+          $nvccVersion = & (Join-Path $cudaBin "nvcc.exe") --version | Out-String
+          $nvccVersion
+          if ($nvccVersion -notmatch 'release 13\.3') {
+            throw "Expected the pinned CUDA 13.3 toolchain."
+          }
+          & (Join-Path $wixBin "candle.exe") -?
+
+      - name: Build CUDA release server
+        shell: pwsh
+        run: .\scripts\build.ps1 -Cuda -Jobs 2
+
+      - name: Verify native Blackwell instructions
+        shell: pwsh
+        run: python .\tools\verify_sm120_sass.py .\build\Windows\blackwell-release\bin\gem16-server.exe
+
+      - name: Package MSI
+        shell: pwsh
+        run: .\scripts\package-studio.ps1
+
+      - name: Collect release artifacts
+        shell: pwsh
+        run: |
+          $packages = @(Get-ChildItem .\studioApp\build\compose\binaries\main\msi\gem16-*.msi -File)
+          if ($packages.Count -ne 1) {
+            throw "Expected exactly one gem16 MSI, found $($packages.Count)."
+          }
+
+          New-Item -ItemType Directory -Path artifacts -Force | Out-Null
+          $artifactName = "gem16-$env:RELEASE_VERSION-windows-x64-sm120a.msi"
+          $artifactPath = Join-Path (Resolve-Path artifacts) $artifactName
+          Copy-Item -LiteralPath $packages[0].FullName -Destination $artifactPath
+          $hash = Get-FileHash -LiteralPath $artifactPath -Algorithm SHA256
+          "$($hash.Hash.ToLowerInvariant())  $artifactName" |
+            Set-Content -LiteralPath "$artifactPath.sha256" -Encoding ascii
+          Get-ChildItem artifacts | Format-Table Name, Length
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: gem16-windows-${{ env.RELEASE_VERSION }}
+          path: artifacts/*
+          if-no-files-found: error
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.RELEASE_VERSION }}
+          target_commitish: ${{ github.sha }}
+          name: gem16 ${{ env.RELEASE_VERSION }}
+          body: |
+            Windows download:
+
+            - `windows-x64-sm120a.msi`: gem16 Studio with the CUDA-enabled gem16 server for NVIDIA Blackwell SM120/SM120a.
+
+            The CUDA runtime is linked into the server executable, so the target machine does not need a CUDA Toolkit installation. A compatible NVIDIA driver and Blackwell GPU are required. Model checkpoints are not embedded; Studio downloads the pinned snapshots into the shared Hugging Face cache on first use.
+          prerelease: ${{ inputs.prerelease || false }}
+          files: artifacts/*
+          fail_on_unmatched_files: true
