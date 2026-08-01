@@ -1,5 +1,38 @@
 # Performance ledger
 
+## 2026-08-01 Phase 5: vectorized assistant BF16 GEMV
+
+Hypothesis: the four-layer MTP assistant issues 42 row-parallel BF16 GEMVs for each two-draft proposal. Its scalar
+kernel loads one BF16 coefficient and one FP32 activation per thread iteration. All assistant contracting widths
+are even and all checkpoint/workspace regions are 256-byte aligned, so paired `__nv_bfloat162` and `float2` loads
+can halve load/conversion instructions without changing storage precision or FMA count.
+
+The retained kernel processes two adjacent columns per thread iteration and keeps FP32 accumulation plus the final
+BF16 output boundary. In a child-node Nsight Systems 16K/32-token trace, the same 504 BF16 GEMV calls fell from
+22.139 ms total / 43.927 us mean to 16.760 ms / 33.255 us (24.3% lower). Assistant output-head time remained
+approximately 22.8 ms and is now the larger assistant primitive. The paired mapping changes the FP32 reduction
+partition but not the represented inputs or outputs.
+
+The initial fixed 16K Wikipedia/64-token screen reached 66.257 tok/s versus the fresh 64.506 tok/s parent (+2.72%)
+with identical output IDs and identical 35/54 accepted/proposed counts. A one-warm-up/three-run confirmation with
+Ordinary control measured 65.742 tok/s MTP and 38.178 tok/s Ordinary with exact cross-mode output identity. The
+complete host/CUDA CTest suite passes.
+
+The exact 1,135-token Wikipedia qualification used one alternating warm-up pair and three measured pairs. MTP
+reached 64.031 tok/s median versus the retained 63.091 tok/s (+1.49%); samples were
+64.168/64.031/63.908 tok/s with a 95% CI of `[63.713,64.359]`. Ordinary measured 38.037 tok/s. Every run retained
+all 1,135 Target output IDs and SHA-256
+`43bc3380fc1cce5182a679fa3a340c04bcc79c52e73d5102ec1f737f57d0a1e1`, with no fallback or token-loop
+allocation. The assistant's reordered reduction changed one draft decision over the workload: 501 groups,
+1,002 proposed, 633 accepted, and 369 rejected, versus the prior 502/1,004/632/372. This reduces Target work by
+one group and is disclosed; the profiled 0.448 ms/group GEMV saving independently accounts for most of the gain.
+Workspace and KV allocations remain 741,486,080 and 369,098,752 bytes.
+
+Decision: promote BF16x2 assistant GEMV as an exact-Target intermediate improvement. The result remains 0.789 tok/s
+below the 64.82 tok/s 3/10 gate, so target completion is not claimed. Raw ignored screens, qualification JSON, and
+Nsight reports are under
+`benchmarks/results/2026-08-01/ebb6b6c/blackwell16gb-windows-six-phase/`.
+
 ## 2026-08-01 Phase 4: fixed-T=3 Q/K/V grouping and activation reuse
 
 Hypothesis: the existing grouped T=3 Q/K/V launch dimensions its z-axis from the largest Q projection. Local

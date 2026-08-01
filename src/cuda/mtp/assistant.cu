@@ -102,11 +102,19 @@ __global__ void Bf16GemvKernel(
   const std::uint64_t row = blockIdx.x;
   if (row >= rows) return;
   float sum = 0.0F;
-  for (std::uint64_t column = threadIdx.x; column < contracting;
+  // Assistant matrix widths are even, and checkpoint tensors plus workspace
+  // regions are 256-byte aligned. Each BF16 row therefore remains aligned for
+  // packed loads while the FP32 input uses naturally aligned float2 loads.
+  const auto* input_pairs = reinterpret_cast<const float2*>(input);
+  const auto* weight_pairs = reinterpret_cast<const __nv_bfloat162*>(
+      weight + row * contracting);
+  const std::uint64_t contracting_pairs = contracting / 2U;
+  for (std::uint64_t column = threadIdx.x; column < contracting_pairs;
        column += blockDim.x) {
-    const float coefficient = static_cast<float>(__ushort_as_bfloat16(
-        weight[row * contracting + column]));
-    sum = fmaf(input[column], coefficient, sum);
+    const float2 inputs = input_pairs[column];
+    const float2 coefficients = __bfloat1622float2(weight_pairs[column]);
+    sum = fmaf(inputs.x, coefficients.x, sum);
+    sum = fmaf(inputs.y, coefficients.y, sum);
   }
   const float reduced = BlockSum(sum);
   if (threadIdx.x == 0U) {
@@ -654,6 +662,10 @@ Status AssistantModel::GenerateDraftsDevice(
                                 const std::uint16_t* weight, float* output,
                                 std::uint64_t rows,
                                 std::uint64_t contracting) -> Status {
+    if ((contracting & 1U) != 0U) {
+      return Error(StatusCode::kInvalidArgument,
+                   "assistant BF16x2 GEMV requires an even contracting dimension");
+    }
     Bf16GemvKernel<<<static_cast<unsigned>(rows), kThreads, 0, stream>>>(
         input, weight, output, rows, contracting);
     const cudaError_t launch_error = cudaGetLastError();
