@@ -1,5 +1,27 @@
 # Performance ledger
 
+## 2026-08-01 Phase 4: fixed-T=3 Q/K/V grouping and activation reuse
+
+Hypothesis: the existing grouped T=3 Q/K/V launch dimensions its z-axis from the largest Q projection. Local
+layers therefore launch 192 CTAs although only 128 64-row matrix tiles are active, and every CTA separately stages
+the same three 3,840-element FP8 activations. A compact linear tile list can remove inactive K/V CTAs; assigning
+two tiles per CTA also halves activation staging traffic while preserving each output's FP8 MMA and FP32
+accumulation order.
+
+The prototype generalized the fixed-three-row SM120 projection kernel to execute a linear Q/K/V tile list. Its
+two-tile form used 64 local CTAs instead of the parent's 192. The CUDA operator suite passed. A first fixed 16K
+Wikipedia/64-token screen reached 65.073 tok/s (65.085/65.062) versus the fresh 64.506 tok/s parent (+0.88%) with
+the exact parent output hash. The required one-warm-up/three-run confirmation with Ordinary control, however,
+measured 64.542 tok/s MTP and 38.009 tok/s Ordinary: exact across modes but only +0.06% from the parent and therefore
+neutral. A one-tile-per-CTA control retained 128 active CTAs while removing inactive grid entries, but regressed to
+60.802 tok/s (-5.74%).
+
+Decision: reject and fully remove both tile-list variants. The existing z-grid's apparent overlaunch is not a
+material end-to-end cost, and serial activation reuse reduces useful projection parallelism enough to erase its
+traffic saving. The current production kernel already shares the quantized input buffer across Q/K/V and stages it
+once per active CTA; further grouping at this granularity is exhausted. Proceed to the four-layer BF16 assistant,
+which is independent of the 48-layer Target projection schedule.
+
 ## 2026-08-01 Phase 3: Ordinary local attention without split/merge
 
 Hypothesis: Ordinary local attention pays for four 256-token split outputs and a separate LSE merge in each of 40
