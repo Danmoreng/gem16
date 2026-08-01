@@ -1,5 +1,30 @@
 # Performance ledger
 
+## 2026-08-01 Phase 6: D512 decode layout and MMA decision
+
+Profile gate: the current child-node Nsight Systems 16K/32-token trace assigns 40.990 ms to 96 fixed-D2 scalar
+global-GQA split kernels, or approximately 3.416 ms per D2 group across the eight global layers. Merge adds only
+0.629 ms total. Nsight Compute 2026.2 could not collect SM/DRAM counters from this Windows CUDA Graph: both basic
+kernel replay and a minimal three-metric application replay terminated the instrumented process with Windows status
+`0xC00000FD`, while normal execution and Nsight Systems child-node tracing remained stable. No incomplete NCU result
+is treated as evidence.
+
+MMA decision: do not repeat the existing BF16/TF32 D512 Tensor-Core prototypes unchanged. They were previously up
+to 13.65% slower than retained scalar split-GQA, and the current kernel already stages one physical K/V tile for
+all 16 query heads. Without compute-saturation counters, a new precision/layout MMA rewrite is not justified by
+the correctness-first plan.
+
+The bounded layout prototype instead split the 16 query heads into two eight-head CTAs per row/split. Per-head FMA,
+softmax, and V accumulation order remained unchanged; score shared memory and per-thread query/accumulator state
+were halved, while CTA count and K/V staging doubled. The CUDA operator suite passed. The fixed 16K Wikipedia/
+64-token screen produced the exact parent output hash but reached only 62.860 tok/s (62.901/62.820), versus the
+confirmed 65.742 tok/s Phase-5 parent (-4.38%).
+
+Decision: reject and fully remove the eight-head layout. The repeated K/V staging dominates any occupancy benefit.
+Retain one 16-head CTA per D2 row/split and defer cluster/DSM sharing or a new native FP8 D512 MMA design until Linux
+Nsight Compute can prove the limiting resource. Phase 6 makes no production source change. Raw ignored Systems,
+failed-NCU orchestration, and screen artifacts are under the corresponding 2026-08-01 six-phase result trees.
+
 ## 2026-08-01 Phase 5: vectorized assistant BF16 GEMV
 
 Hypothesis: the four-layer MTP assistant issues 42 row-parallel BF16 GEMVs for each two-draft proposal. Its scalar
