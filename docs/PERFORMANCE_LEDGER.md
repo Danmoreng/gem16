@@ -23,14 +23,17 @@ is retained as `profile-current-16k-32.nsys-rep` under the ignored Windows optim
 | Reuse T=3 local prefill attention | 43.862 tok/s | -8.66% | Reject |
 | T=3 NVFP4 Gate/Up with eight warps | 47.125 tok/s | -1.86% | Reject |
 | Concurrent three-row local decode attention | 47.986 tok/s | -0.07% | Reject as neutral |
-| Four-way output-head loop unroll | 53.843 tok/s initial; 49.831 confirmation | +12.12% / +3.77% | Reject after full 16K regression |
+| Four-way output-head loop unroll | 53.843 tok/s initial; 49.831 confirmation | +12.12% / +3.77% | Reject after clean 16K result is neutral |
 
-The output-head unroll demonstrates why the short screen cannot promote code. In the sole final 16K/1,135-token
-run (one alternating warm-up pair, three measured pairs), it produced 54.809 tok/s median versus the retained
-59.277 tok/s parent (-7.54%); Ordinary was 36.791 versus 37.876 tok/s. All runs retained the exact 1,135-token
-hash `43bc3380fc1cce5182a679fa3a340c04bcc79c52e73d5102ec1f737f57d0a1e1` and the same 1,004/632/372
-proposed/accepted/rejected counts over 502 Target batches. The kernel change and every other candidate were
-removed. Only the screening workflow and the corrected 64.82 tok/s qualification gate are promoted.
+The output-head unroll demonstrates why the short screen cannot promote code. An initial 16K/1,135-token run at
+54.809 tok/s was invalidated after an unrelated GPU-heavy game was disclosed. The exact rerun began at 0% GPU
+utilization and 0 MiB allocated VRAM and used one alternating warm-up pair plus three measured pairs. It produced
+59.109 tok/s MTP median versus the retained 59.277 tok/s parent (-0.28%) and 38.003 tok/s Ordinary versus 37.876
+tok/s (+0.34%); MTP samples were 59.148/59.109/58.971 tok/s. All runs retained the exact 1,135-token hash
+`43bc3380fc1cce5182a679fa3a340c04bcc79c52e73d5102ec1f737f57d0a1e1` and the same 1,004/632/372
+proposed/accepted/rejected counts over 502 Target batches. The clean result is neutral rather than a regression,
+so the kernel change and every other candidate were removed. Only the screening workflow and the corrected 64.82
+tok/s qualification gate are promoted.
 
 ## 2026-07-31 current Linux llama.cpp baseline
 
