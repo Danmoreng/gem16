@@ -1,5 +1,24 @@
 # Performance ledger
 
+## 2026-08-01 Phase 2: Ordinary-only FP8x4 global attention at 16K
+
+Hypothesis: four-wide physical E4M3 K/V loads already improve Ordinary global attention at the 16K capacity tier,
+but were neutral for fixed D2 when a previous experiment lowered the shared dispatch threshold. Giving only the
+Ordinary path a 16K FP8x4 threshold could recover that gain while leaving the MTP kernel schedule unchanged.
+
+The candidate changed only Ordinary dispatch; D2 retained the production 64K FP8x4 threshold. The fixed 16K
+Wikipedia/64-token screen completed one warm-up and two measured runs per mode, but failed its final exact
+Ordinary/MTP output gate and intentionally did not publish a passing result document. A diagnostic run measured
+39.289 tok/s Ordinary and 65.610 tok/s MTP. MTP retained the scalar-parent output SHA-256
+`8f9675f0f0f46162407c90c6cebb0684f4b00ec22c1545045826fd4f54a4da90`, while Ordinary produced the FP8x4
+SHA-256 `8091eb94a963477896854e7071b344aafc9f21b3afff92649d2c64f2d5796a8b`. This reproduces the output of the
+earlier shared-threshold experiment, where both Ordinary and D2 used FP8x4 and agreed exactly, but proves that
+mixing the two reduction orders breaks the current exact cross-mode contract.
+
+Decision: reject the Ordinary-only threshold. Its source was fully removed. Keep the common scalar schedule at
+16K and the common FP8x4 schedule at 64K; do not trade cross-mode reproducibility for the small Ordinary gain.
+Proceed to a direct Ordinary local-attention design, where the reduction order can be retained explicitly.
+
 ## 2026-08-01 Phase 1: fixed-D2 global split-size sweep
 
 Hypothesis: global D512 attention in fixed D2 might benefit from a D2-specific split size. The retained 512-token
