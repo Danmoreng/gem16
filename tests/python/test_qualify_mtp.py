@@ -18,7 +18,7 @@ class QualifyMtpTest(unittest.TestCase):
             run = {
                 "prompt_tokens_per_second": 100.0,
                 "prompt_ms": 10.0,
-                "decode_tokens_per_second": 55.0 if is_mtp else 40.0,
+                "decode_tokens_per_second": 65.0 if is_mtp else 40.0,
                 "average_inter_token_latency_ms": 20.0,
                 "generated_tokens": 3,
                 "measured_decode_intervals": 2,
@@ -85,7 +85,15 @@ class QualifyMtpTest(unittest.TestCase):
             ],
         )
         self.assertTrue(result["qualification"]["ordinary_equals_mtp"])
-        self.assertAlmostEqual(result["qualification"]["median_speedup"], 1.375)
+        self.assertEqual(result["schema_version"], 2)
+        self.assertEqual(
+            result["qualification"]["minimum_mtp_decode_tokens_per_second"],
+            64.82,
+        )
+        self.assertTrue(
+            result["qualification"]["minimum_mtp_decode_tokens_per_second_met"]
+        )
+        self.assertAlmostEqual(result["qualification"]["median_speedup"], 1.625)
 
     def test_changed_output_fails_qualification(self):
         call_count = 0

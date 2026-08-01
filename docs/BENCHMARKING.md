@@ -242,6 +242,20 @@ reach at least 64.82 effective verified tok/s and meet or beat the adjacent curr
 current acceptance and 502 Target batches, 64.82 tok/s requires at most approximately 34.85 ms per group. The same
 3-warm-up/10-run and exact-ID policy applies, with Linux as the qualification environment.
 
+For development-only rejection screens, trim the pinned workload and avoid repeatedly running the full matrix:
+
+```bash
+python tools/screen_mtp.py \
+  --workload benchmarks/results/<workload>/workload.json \
+  --output benchmarks/results/<date>/<git-sha>/<machine>/mtp-short-screen.json \
+  --executable build/Linux/blackwell-release/bin/gem16-run
+```
+
+The default is a 2,048-token prompt, 256 fixed output tokens, one warm-up, and two measured D2 runs. Add
+`--include-ordinary` when validating exact output after a promising change. This screen is not qualification
+evidence: it does not use the 16K workload or the required repetition policy, and a short-context winner must
+still pass one full paired qualification before promotion.
+
 Run the final paired qualification with the checked-in alternating orchestrator:
 
 ```bash
@@ -253,4 +267,5 @@ python tools/qualify_mtp.py \
 ```
 
 The tool alternates which mode runs first in each pair, retains raw per-mode runs and pair order, and fails if any
-warm-up or measured output differs from the shared ordinary/MTP token sequence.
+warm-up or measured output differs from the shared ordinary/MTP token sequence. Schema version 2 reports the
+64.82 tok/s minimum explicitly and marks llama.cpp parity as a required separate comparison.

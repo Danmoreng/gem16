@@ -1,5 +1,37 @@
 # Performance ledger
 
+## 2026-08-01 Windows fixed-D2 optimization screen
+
+The Windows RTX 5080 Laptop iteration loop now uses `tools/screen_mtp.py` with the first 2,048 tokens of the
+pinned Wikipedia workload, 256 fixed output tokens, checkpoint-FP8 KV, D2, one warm-up, and two measured runs.
+This approximately 30-second screen is a rejection filter only. It requires deterministic output, zero runtime
+fallbacks/loop allocations, and can optionally require exact Ordinary/MTP token equality. The retained parent
+screen median was 48.021 tok/s with output SHA-256
+`b520280a6baeb969dc7c07525a289714419587bf871ebefa744a62910178d17f`.
+
+Nsight Systems child-node tracing at 16K attributed approximately 6.8 ms per D2 Target group to fixed-T=3 FP8
+projections, 6.1 ms to local attention, 3.2 ms to global attention, and 3.6 ms to the shared three-row Target
+output head. The control, speculative-KV copy, commit, and branch kernels are individually negligible. The trace
+is retained as `profile-current-16k-32.nsys-rep` under the ignored Windows optimization result directory.
+
+| Candidate | Short-screen median | Delta from short parent | Decision |
+|---|---:|---:|---|
+| Fuse Gate/Up product quantization | 46.867 tok/s | -2.40% | Reject |
+| Assistant block-sum warp reduction | 47.734 tok/s | -0.60% | Reject |
+| Fused assistant BF16 Gate/Up/product | 47.662 tok/s | -0.75% | Reject |
+| Assistant output-head blocks 2,048 / 8,192 | 46.894 / 47.596 tok/s | -2.35% / -0.88% | Retain 4,096 |
+| Reuse T=3 local prefill attention | 43.862 tok/s | -8.66% | Reject |
+| T=3 NVFP4 Gate/Up with eight warps | 47.125 tok/s | -1.86% | Reject |
+| Concurrent three-row local decode attention | 47.986 tok/s | -0.07% | Reject as neutral |
+| Four-way output-head loop unroll | 53.843 tok/s initial; 49.831 confirmation | +12.12% / +3.77% | Reject after full 16K regression |
+
+The output-head unroll demonstrates why the short screen cannot promote code. In the sole final 16K/1,135-token
+run (one alternating warm-up pair, three measured pairs), it produced 54.809 tok/s median versus the retained
+59.277 tok/s parent (-7.54%); Ordinary was 36.791 versus 37.876 tok/s. All runs retained the exact 1,135-token
+hash `43bc3380fc1cce5182a679fa3a340c04bcc79c52e73d5102ec1f737f57d0a1e1` and the same 1,004/632/372
+proposed/accepted/rejected counts over 502 Target batches. The kernel change and every other candidate were
+removed. Only the screening workflow and the corrected 64.82 tok/s qualification gate are promoted.
+
 ## 2026-07-31 current Linux llama.cpp baseline
 
 Hypothesis: The current upstream llama.cpp commit used by the Windows handoff can be rebuilt on Linux with the

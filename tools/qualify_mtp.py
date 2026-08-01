@@ -23,6 +23,9 @@ from benchmark_wikipedia_workload import (
 )
 
 
+MINIMUM_MTP_DECODE_TOKENS_PER_SECOND = 64.82
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--workload", required=True, type=Path)
@@ -127,10 +130,9 @@ def qualification(args: argparse.Namespace) -> dict[str, Any]:
     mtp_summary = summarize_runs(mtp_runs)
     ordinary_median = ordinary_summary["decode_tokens_per_second"]["median"]
     mtp_median = mtp_summary["decode_tokens_per_second"]["median"]
-    minimum_met = mtp_median >= 50.0
-    stretch_met = mtp_median >= 55.0
+    minimum_met = mtp_median >= MINIMUM_MTP_DECODE_TOKENS_PER_SECOND
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "status": "qualified" if minimum_met else "target_not_met",
         "benchmark_source": repository_state(),
         "workload": {
@@ -163,8 +165,10 @@ def qualification(args: argparse.Namespace) -> dict[str, Any]:
         },
         "qualification": {
             "ordinary_equals_mtp": True,
-            "minimum_50_tokens_per_second_met": minimum_met,
-            "stretch_55_tokens_per_second_met": stretch_met,
+            "minimum_mtp_decode_tokens_per_second":
+                MINIMUM_MTP_DECODE_TOKENS_PER_SECOND,
+            "minimum_mtp_decode_tokens_per_second_met": minimum_met,
+            "llama_cpp_parity_requires_separate_comparison": True,
             "median_speedup": mtp_median / ordinary_median,
             "median_throughput_increase": mtp_median / ordinary_median - 1.0,
         },
