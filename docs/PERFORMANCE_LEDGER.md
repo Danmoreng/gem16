@@ -1,5 +1,31 @@
 # Performance ledger
 
+## 2026-08-01 Six-phase Windows final qualification
+
+The ordered six-phase program completed with one promoted production change: Phase 5's assistant BF16x2 GEMV.
+Phases 1, 2, 3, 4, and 6 were fully reverted after their correctness or performance gates failed, and each negative
+result is retained below. The final committed source was rebuilt before measurement; the complete host/CUDA CTest
+suite passed. Immediately before the run, the RTX 5080 Laptop reported 0% GPU utilization, 0 MiB allocated VRAM,
+44 C, and 14.28 W.
+
+The final exact Wikipedia 16K/1,135-token qualification used three alternating warm-up pairs and ten alternating
+measured Ordinary/MTP pairs. MTP reached 63.892 tok/s median and 63.889 tok/s mean with 0.140 tok/s standard
+deviation and a 95% CI of `[63.789,63.989]`. Samples were
+64.168/64.030/63.894/63.890/63.909/63.950/63.723/63.703/63.812/63.811 tok/s. Ordinary reached 37.995 tok/s
+median, so fixed D2 delivered a 1.682x effective-output speedup. Relative to the retained pre-program 63.091 tok/s
+median, the final result is +1.27%.
+
+Every one of the ten measured MTP runs produced all 1,135 output tokens and exactly matched Ordinary SHA-256
+`43bc3380fc1cce5182a679fa3a340c04bcc79c52e73d5102ec1f737f57d0a1e1`. Each retained the same 501 groups,
+1,002 proposed, 633 accepted, and 369 rejected tokens, with no fallback or token-loop allocation. Workspace and KV
+allocations were constant at 741,486,080 and 369,098,752 bytes.
+
+Decision: the six-phase program improves the retained engine but does not meet the hard 64.82 tok/s gate. The final
+gap is 0.928 tok/s, or 1.43% of the target, and `target_not_met` is retained rather than selecting the favorable
+64.168 tok/s sample. The next measured assistant target is its approximately 22.8 ms output-head candidate kernel;
+new D512 work should wait for Linux Nsight Compute evidence. Raw ignored final evidence is
+`benchmarks/results/2026-08-01/318ed53/blackwell16gb-windows-six-phase/final-wikipedia-16k-3x10.json`.
+
 ## 2026-08-01 Phase 6: D512 decode layout and MMA decision
 
 Profile gate: the current child-node Nsight Systems 16K/32-token trace assigns 40.990 ms to 96 fixed-D2 scalar
