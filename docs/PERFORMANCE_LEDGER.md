@@ -1,5 +1,29 @@
 # Performance ledger
 
+## 2026-08-01 Phase 1: fixed-D2 global split-size sweep
+
+Hypothesis: global D512 attention in fixed D2 might benefit from a D2-specific split size. The retained 512-token
+split launches 96 split CTAs at 16K context; reducing the chunk to 384 or 256 raises parallelism while preserving
+the existing all-head GQA kernel and split/LSE-merge structure. A larger 1024-token split was ruled out before
+measurement because its all-head score buffer would exceed the practical static shared-memory budget.
+
+The fixed 16K Wikipedia/64-token development screen used one warm-up and two measured D2 runs. The fresh 512-token
+parent reached 64.506 tok/s median (64.240/64.772). A 256-token candidate reached 62.613 tok/s
+(61.742/63.484), a 2.93% regression. A 384-token candidate reached 65.316 tok/s (64.987/65.646), a 1.26%
+throughput improvement, but changed the greedy output SHA-256 from
+`8f9675f0f0f46162407c90c6cebb0684f4b00ec22c1545045826fd4f54a4da90` to
+`6756d29240c8ea399b66cd620e753e8ec04c0200938dfdc95a58b7a5a356a7c8`. The 256-token output also differed.
+Each candidate was internally deterministic, so the difference is attributable to the changed floating-point
+reduction partition rather than run-to-run instability.
+
+Correctness: the complete host/CUDA CTest suite passed for the split-size implementation, but model-level greedy
+token identity did not. The candidate source was therefore fully removed. Raw ignored evidence is under
+`benchmarks/results/2026-08-01/224bccb/blackwell16gb-windows-six-phase/`.
+
+Decision: reject both D2-specific split sizes. The 384-token result is not promotable under the project's
+correctness-first contract even though it is faster. Retain the 512-token geometry and proceed to the
+Ordinary-only FP8x4 experiment without changing D2 numerical behavior.
+
 ## 2026-08-01 Windows fixed-D2 local shared-K/V attention
 
 Hypothesis: the three consecutive Target rows in fixed D2 traverse almost the same 1024-token local-attention
