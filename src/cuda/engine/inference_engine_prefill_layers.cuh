@@ -169,7 +169,20 @@
         float* decode_scores = Pointer<float>(workspace_, offsets_.scores);
         auto* direct_control = Pointer<internal::DecodeControl>(
             workspace_, offsets_.decode_control);
-        if (layer.global && capacity > 512U && tokens == 3U) {
+        if (!layer.global && controlled_mtp_d2 &&
+            capacity == kSlidingWindow &&
+            tokens == 3U) {
+          status = internal::LaunchOnlineAttentionDecodeFp8LocalD2ControlledSm120(
+              q_norm, layer.key_cache_fp8, layer.value_cache_fp8, k_fp8,
+              v_fp8, layer.k_cache_scale, layer.v_cache_scale,
+              Pointer<float>(mtp_workspace_, mtp_offsets_.attention_workspace),
+              attention, mtp_row_controls, capacity, stream_);
+          if (!status.ok()) return status;
+          status = internal::LaunchAppendKvFp8BatchControlled(
+              k_fp8, v_fp8, layer.key_cache_fp8, layer.value_cache_fp8,
+              mtp_row_controls, tokens, layer.kv_elements, capacity, stream_);
+          if (!status.ok()) return status;
+        } else if (layer.global && capacity > 512U && tokens == 3U) {
           status = controlled_mtp_d2
                        ? internal::LaunchOnlineAttentionDecodeFp8GlobalD2ControlledSm120(
                              q_norm, layer.key_cache_fp8,

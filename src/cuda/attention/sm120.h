@@ -55,6 +55,15 @@ struct DecodeControl;
     std::uint64_t kv_heads, std::uint64_t head_dimension,
     std::uint64_t cache_capacity, bool sliding, cudaStream_t stream);
 
+[[nodiscard]] Status LaunchOnlineAttentionDecodeFp8LocalD2ControlledSm120(
+    const float* query, const std::uint8_t* key_cache,
+    const std::uint8_t* value_cache, const std::uint8_t* speculative_key,
+    const std::uint8_t* speculative_value,
+    const std::uint16_t* key_scale_bf16,
+    const std::uint16_t* value_scale_bf16, float* workspace, float* output,
+    const DecodeControl* row_controls, std::uint64_t cache_capacity,
+    cudaStream_t stream);
+
 // Exact three-row global-attention verifier. Historical K/V values are loaded
 // once for all rows below the GQA threshold. At 16K and above, each row uses
 // the ordinary all-head GQA staging kernel independently, retaining identical

@@ -1,5 +1,38 @@
 # Performance ledger
 
+## 2026-08-01 Windows fixed-D2 local shared-K/V attention
+
+Hypothesis: the three consecutive Target rows in fixed D2 traverse almost the same 1024-token local-attention
+window. The retained row-at-a-time path loads physical K/V three times in every one of the 40 local layers.
+Staging the union once per KV head and split should remove redundant cache traffic without changing the FP8 cache,
+softmax split boundaries, or verifier semantics.
+
+Implementation: a fixed-three-row SM120 kernel stages 258 contiguous D256 FP8 entries for each of four 256-token
+splits and eight KV heads. It evaluates all six row/query-head chains over the shared K/V tile, retains the existing
+FP32 dot, softmax, value-accumulation, and four-split LSE merge order, and consumes speculative K/V directly before
+the normal transactional cache append. The growing-prefix path explicitly masks inactive tokens; once full, the
+three rows use the expected one-slot sliding-window shifts. Ordinary decode and the eight global layers are
+unchanged. A separate global shared-K/V prototype was exact but rejected at 58.185 tok/s in the 16K/64 screen
+(-3.15% from its 60.078 tok/s parent).
+
+The final 16K/64 development screen used one warm-up and three measured MTP runs and reached 65.227 tok/s median,
+versus the clean 60.078 tok/s parent (+8.57%). Exact Ordinary/MTP generation checks also passed at prompt lengths
+128, 1022, and 1023, covering the growing window and its full-window boundary.
+
+The exact Wikipedia 16K/1,135-token qualification used one alternating warm-up pair and three measured pairs. MTP
+improved from the retained 59.277 to 63.091 tok/s (+6.43%); Ordinary measured 38.108 tok/s, for a 1.656x MTP
+speedup. MTP samples were 63.261/63.085/63.091 tok/s with a 95% CI of `[62.897,63.395]`. Every run retained all
+1,135 output IDs and SHA-256 `43bc3380fc1cce5182a679fa3a340c04bcc79c52e73d5102ec1f737f57d0a1e1`, plus the exact
+1,004/632/372 proposed/accepted/rejected counts over 502 groups. The result remains 1.729 tok/s below the 64.82
+tok/s gate, so it is a promoted intermediate improvement rather than target completion.
+
+Correctness: the complete host/CUDA CTest suite passes. The kernel introduces no precision, persistent-weight,
+KV-cache, recurring-allocation, or workspace-size change. Raw Windows evidence is under the ignored
+`benchmarks/results/2026-08-01/becbf9e/blackwell16gb-windows-mtp-shared-kv/` directory.
+
+Decision: promote local D2 shared-K/V staging. Continue with additive projection/K=V handoff and global-layer work
+to close the remaining 2.67% gap to 64.82 tok/s.
+
 ## 2026-08-01 Windows fixed-D2 optimization screen
 
 The Windows RTX 5080 Laptop iteration loop now uses `tools/screen_mtp.py` with the first 2,048 tokens of the
