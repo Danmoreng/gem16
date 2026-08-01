@@ -33,6 +33,23 @@ KV-cache, recurring-allocation, or workspace-size change. Raw Windows evidence i
 Decision: promote local D2 shared-K/V staging. Continue with additive projection/K=V handoff and global-layer work
 to close the remaining 2.67% gap to 64.82 tok/s.
 
+Post-promotion profiling attributes approximately 2.01 ms per D2 group to the new local split/merge kernels,
+down from the pre-change estimate of 6.1 ms. Fixed-T=3 FP8 projections remain about 6.9 ms/group, while the Target
+output head and global attention are each about 3.6 ms/group. Follow-up 16K/64 screens used the 65.227 tok/s
+three-run winner as their retained reference:
+
+| Follow-up candidate | MTP median | Delta | Decision |
+|---|---:|---:|---|
+| Eight-warps-per-CTA fixed-T=3 FP8 projection | 64.712 tok/s | -0.79% | Reject |
+| Fuse global K=V BF16 boundary/RMSNorm handoff | 65.167 tok/s | -0.09% | Reject as neutral |
+| One query head per local shared-K/V CTA | 64.685 tok/s | -0.83% | Reject |
+| Enable FP8x4 global GQA at 16K | 65.183 tok/s | -0.07% | Reject for MTP; Ordinary screen improved to 38.999 tok/s |
+| Parallelize six local softmax reductions | 65.106 tok/s | -0.18% | Reject as neutral |
+
+All five candidates retained deterministic output in their screens and were removed from production source. The
+Nsight Systems report and ignored raw screens are under
+`benchmarks/results/2026-08-01/699889f/blackwell16gb-windows-mtp-local-shared-kv/`.
+
 ## 2026-08-01 Windows fixed-D2 optimization screen
 
 The Windows RTX 5080 Laptop iteration loop now uses `tools/screen_mtp.py` with the first 2,048 tokens of the
