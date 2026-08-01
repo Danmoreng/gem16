@@ -1,5 +1,26 @@
 # Performance ledger
 
+## 2026-08-01 Phase 3: Ordinary local attention without split/merge
+
+Hypothesis: Ordinary local attention pays for four 256-token split outputs and a separate LSE merge in each of 40
+local layers. A single 1024-token CTA per KV head can cover the complete sliding window, write the normalized
+result directly, and eliminate both the partial workspace traffic and merge launch.
+
+The prototype reused the production FP8 decode-attention implementation with a separate Ordinary-only 1024-token
+chunk. It reduced local-layer parallelism from 32 to eight split/query-group CTAs and performed one full-window
+FP32 maximum, exponential sum, and V accumulation. The fixed 16K Wikipedia/64-token screen completed one warm-up
+and two measured runs per mode, then failed exact Ordinary/MTP output equality. A diagnostic run reached only
+31.382 tok/s Ordinary, substantially below the roughly 38--39 tok/s retained path, while unchanged D2 measured
+62.904 tok/s in the same thermal sequence. Ordinary output SHA-256 changed to
+`82af8a3534cdb38bb2c9f583b0f4f5c8135ce53fd55813a27579722dd2a447bf`; D2 retained
+`8f9675f0f0f46162407c90c6cebb0684f4b00ec22c1545045826fd4f54a4da90`.
+
+Decision: reject and remove the direct 1024-token kernel. Avoiding the merge does not compensate for the fourfold
+loss of CTA parallelism, and the changed full-window reduction also violates the exact cross-mode output gate.
+An exact in-CTA emulation of the four split reductions would preserve more ordering but cannot recover the lost
+parallelism indicated here, so no more complex version is justified. Proceed to projection grouping and activation
+reuse, which targets the larger fixed-T=3 projection cost without altering attention reductions.
+
 ## 2026-08-01 Phase 2: Ordinary-only FP8x4 global attention at 16K
 
 Hypothesis: four-wide physical E4M3 K/V loads already improve Ordinary global attention at the 16K capacity tier,
