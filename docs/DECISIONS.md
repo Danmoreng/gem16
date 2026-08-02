@@ -1,5 +1,30 @@
 # Decisions
 
+## 2026-08-02: Do not retain prefill CUDA Graphs after the 8K kernel plan
+
+Date: 2026-08-02
+
+Decision: Keep direct stream submission as the sole production prefill scheduler. Remove the tested layer-suffix,
+layer-prefix/suffix, and fixed-start full-chunk CUDA Graph candidates.
+
+Context: The best graph candidate captures the positions-independent O/MLP/residual suffix once per layer and
+replays 96 graphs for the exact two-chunk 16K workload. Against an adjacent `74972ac` rerun, median throughput moves
+from 5,385.37 to 5,390.25 tok/s (+0.09%) and TTFT from 3,042.315 to 3,039.56 ms (-0.09%). Mean confidence intervals
+overlap. A second candidate run does not reproduce the larger initial screen advantage. Nsight shows unchanged
+dominant kernel time, confirming that the current path is GPU-kernel-bound rather than host-launch-bound.
+
+Alternatives: Promote the small suffix result; capture prefix and suffix separately; specialize complete graphs for
+absolute starts 0 and 8,192; or retain graph code behind a switch. The first lacks statistical support, the larger
+boundaries are slower, fixed starts narrow generality, and an inactive selector violates the sole-production-path
+policy.
+
+Consequences: No prefill graph executable or fallback selector remains. This avoids 8,388,608 bytes of additional
+graph-private device memory for the suffix design and preserves arbitrary `PrefillAt` positions without graph-node
+updates. Decode and MTP CUDA Graphs are unaffected.
+
+Evidence: `docs/PERFORMANCE_LEDGER.md`, CTest, and phase-6 benchmark/Nsight artifacts under
+`benchmarks/results/2026-08-02/74972ac*`.
+
 ## 2026-08-02: Pipeline local-prefill FP8 staging without changing softmax order
 
 Date: 2026-08-02

@@ -1,5 +1,30 @@
 # Performance ledger
 
+## 2026-08-02 Prefill phase 6: reject prefill CUDA Graphs
+
+Hypothesis: after fixing the 8K projection and attention geometry, CUDA Graph replay can remove enough recurring
+host launch work to improve the exact 16K end-to-end boundary. Three exact, fixed-address candidates were tested:
+48 layer-specific suffix graphs covering O/MLP/residual work; paired prefix/suffix graphs; and two complete 48-layer
+chunk graphs specialized for absolute starts 0 and 8,192. Arbitrary shapes and positions retained the direct path.
+No candidate changed kernel arguments, arithmetic, cache semantics, output IDs, or arena addresses.
+
+The short screens reached 5,437.39/5,428.69/5,424.82 tok/s for suffix, prefix-plus-suffix, and full-chunk capture.
+Only the suffix candidate warranted repetition. In the reproducible adjacent rerun, detached `74972ac` reaches a
+5,385.37 tok/s median (mean 5,386.48; 95% CI `[5,382.20,5,390.76]`) and 3,042.315 ms TTFT. The suffix candidate
+reaches 5,390.25 tok/s (mean 5,390.16; CI `[5,384.45,5,395.87]`) and 3,039.56 ms. This is only +0.09% throughput
+and -0.09% TTFT with overlapping intervals. An earlier low parent run at 5,075.59 tok/s did not reproduce and is
+not used as evidence. All measured outputs retain one hash.
+
+The suffix design instantiates 48 additional executables, raises graph-private device memory by 8,388,608 bytes,
+and issues 96 graph replays for the two 8K chunks. Nsight still reports effectively unchanged dominant work:
+1,119.67 ms CUTLASS, 1,023.42 ms global attention, and 331.12 ms local attention. The engine is GPU-kernel-bound;
+removing host submissions does not produce a statistically supported end-to-end win. Prefix and complete-chunk
+capture are slower even in the screen and add broader shape/position specialization.
+
+Decision: reject all three candidates and remove their capture, replay, metadata, and graph-storage changes. Keep
+the direct 8K prefill plan as the sole production path. Raw evidence is under
+`benchmarks/results/2026-08-02/74972ac*/blackwell16gb-linux-prefill-phase6-*`.
+
 ## 2026-08-02 Prefill phase 5: pipeline local-attention FP8 staging
 
 Hypothesis: the 40 sliding layers can use the global kernel's successful raw-FP8 ping-pong pattern without changing

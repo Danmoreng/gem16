@@ -227,6 +227,18 @@ context the reusable workspace falls by 125,829,120 bytes to 312,593,408 bytes, 
 peak. Exact-blue, both vLLM boundaries, all teacher-forced aggregates, and CTest are unchanged. Direct BF16
 Gate/Up output is therefore the sole production path; no FP32 or user-selectable variant remains.
 
+### 6. Evaluate prefill CUDA Graph replay
+
+Status: closed without promotion. Layer-suffix, paired prefix/suffix, and two fixed-start full-chunk graph boundaries
+were exact and capture-compatible. The best repeated suffix candidate moves the adjacent 16K median only from
+5,385.37 to 5,390.25 tok/s (+0.09%) and TTFT from 3,042.315 to 3,039.56 ms (-0.09%); mean 95% intervals overlap.
+It also adds 8 MiB of graph-private device memory. Larger capture boundaries are slower in the short screen. Nsight
+confirms unchanged dominant CUTLASS and attention time, so launch submission is not the limiting resource after the
+retained kernel work. Every prefill graph code path was removed; decode and MTP graphs remain unchanged.
+
+Any future graph revisit requires a materially different execution geometry or a profile showing recurring host
+bubbles. It must not restore fixed-start special cases merely to optimize the current 16K benchmark.
+
 ## Mandatory correctness gates
 
 Every promoted milestone must pass:

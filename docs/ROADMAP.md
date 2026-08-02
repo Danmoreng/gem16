@@ -14,7 +14,10 @@ of the correctness and native-kernel gates below.
   is at most 2,597.6 ms TTFT for the exact 16,384-token workload without regressing decode, correctness, or the
   15.3 GB peak-memory limit. Work proceeds through current-head profiling, larger prompt geometry and shape-tuned
   NVFP4, recurring-layout elimination, packed/scaled FP8 projections, attention specialization, and only then
-  prefill CUDA Graphs. Each retained stage requires an adjacent repeated benchmark and its own commit.
+  prefill CUDA Graphs. The ordered graph experiment is now complete: suffix, prefix/suffix, and fixed-start
+  full-chunk capture failed the adjacent repeated promotion gate and were removed. Further prefill work requires a
+  fresh profile-derived kernel plan rather than more launch-boundary capture. Each retained stage requires an
+  adjacent repeated benchmark and its own commit.
 
 - Historical implementation record: statements below that close or pause earlier optimization sprints describe
   their status at the time and are superseded by the active decode gate above. The refreshed prefill record begins
