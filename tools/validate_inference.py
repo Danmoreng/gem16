@@ -83,7 +83,7 @@ def validate_result(document: dict[str, Any], expected: list[int]) -> None:
         raise ValidationError(
             "inference did not use pipelined global FP8 staging"
         )
-    if document.get("prefill_chunk_tokens") != 2048:
+    if document.get("prefill_chunk_tokens") != 8192:
         raise ValidationError("inference did not use the required checkpoint-FP8 prefill chunk")
     if document.get("grouped_qkv_prefill") is not False:
         raise ValidationError("inference did not report separate CUTLASS Q/K/V projections")

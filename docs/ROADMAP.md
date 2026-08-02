@@ -8,15 +8,13 @@ of the correctness and native-kernel gates below.
 
 ## Active gate
 
-- Execute the binding [decode optimization plan](DECODE_OPTIMIZATION_PLAN.md) under Linux on the reference laptop.
-  Start from the [Linux decode handoff](LINUX_DECODE_HANDOFF_2026-07-31.md), repeat the short current-head
-  gem16/llama.cpp screen, add the direct-checkpoint vLLM reference, and only then qualify/profile the parent.
-  Ordinary decode is now the first
-  performance priority, followed by fixed-D2 MTP. The hard MTP gate is at least 64.82 effective verified tokens/s
-  at 16K with exact ordinary-Target identity; ordinary decode must first meet or beat the freshly qualified
-  llama.cpp candidate through 64K. Prefill optimization is paused except for correctness and regression prevention
-  until both decode gates pass. The prior [prefill optimization plan](PREFILL_OPTIMIZATION_PLAN.md) remains the
-  authoritative record of completed and deferred prompt-processing work.
+- Resume the binding [prefill optimization plan](PREFILL_OPTIMIZATION_PLAN.md) under Linux on the reference laptop.
+  The max-power cross-engine qualification places exact fixed-D2 gem16 decode at 85.459 tok/s, ahead of the
+  adjacent vLLM and llama.cpp characterizations, while 16K prefill remains at 78.7% of vLLM. The immediate target
+  is at most 2,597.6 ms TTFT for the exact 16,384-token workload without regressing decode, correctness, or the
+  15.3 GB peak-memory limit. Work proceeds through current-head profiling, larger prompt geometry and shape-tuned
+  NVFP4, recurring-layout elimination, packed/scaled FP8 projections, attention specialization, and only then
+  prefill CUDA Graphs. Each retained stage requires an adjacent repeated benchmark and its own commit.
 
 - Historical implementation record: statements below that close or pause earlier optimization sprints describe
   their status at the time and are superseded by the active decode gate above. The refreshed prefill record begins

@@ -1,5 +1,25 @@
 # Performance ledger
 
+## 2026-08-02 Prefill phase 2: promote an 8,192-token checkpoint-FP8 chunk
+
+Hypothesis: the current 2,048-token prompt plan repeats all 48 layers eight times for the 16K workload, while vLLM
+uses an 8,192-token scheduling budget. The measured max-power parent at `0c0ec10` reaches 5,034.80 tok/s median and
+3,254.15 ms TTFT over three warm-ups and ten measured runs. A 4,096-token screen reaches 5,139.29 tok/s. The final
+8,192-token candidate reaches 5,172.75 tok/s (+2.74%) and 3,167.37 ms (-2.67%) with 95% throughput CI
+`[5,165.02,5,183.88]` and TTFT CI `[3,160.59,3,172.11]`; neither interval overlaps the parent. All measured runs
+retain the same one-token SHA-256 `584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182`.
+
+The wider plan increases total MTP-resident workspace from 726,836,224 to 2,611,102,720 bytes. External 200 ms
+telemetry measures a 12,704 MiB process peak with target and assistant resident, below the 15.3 GB limit. Host and
+CUDA CTest pass, and the 129/257 direct-vLLM prefill boundary cases retain Top-1 rank one after updating the runtime
+plan invariant. An independently tested M256xN128xK128 CUTLASS NVFP4 plan falls to 2,823.61 tok/s and is removed. A
+single N=30,720 Gate/Up CUTLASS GEMM is performance-neutral at 5,239.68 versus 5,239.19 tok/s in adjacent short
+screens and is also removed rather than increasing scratch memory.
+
+Decision: make 8,192 the sole checkpoint-FP8 prefill chunk. Keep BF16 correctness mode unchanged. Next remove
+recurring prompt-time NVFP4 weight preparation without retaining a second persistent model layout. Raw evidence is
+under `benchmarks/results/2026-08-02/0c0ec10/blackwell16gb-linux-prefill-phase2-*`.
+
 ## 2026-08-02 Linux max-power cross-engine D2 MTP characterization
 
 Hypothesis: the large retained Windows/Linux performance discrepancy is primarily a laptop power-policy problem,

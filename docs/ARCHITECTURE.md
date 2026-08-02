@@ -55,7 +55,7 @@ uses one full graph replay for ordinary greedy decode but is not yet benchmark-q
 
 The first full-model path intentionally accepts token IDs and uses a hybrid cache through the checkpoint's 262,144
 position contract. Its 40 local-attention layers use fixed 1,024-token rings; its eight full-attention layers use
-absolute, growing storage. Checkpoint-FP8 prefill uses one fixed 2,048-token chunk. Attention projections run as
+absolute, growing storage. Checkpoint-FP8 prefill uses one fixed 8,192-token chunk. Attention projections run as
 CUTLASS SM120 128x128x64 warp-specialized FP8 GEMMs directly over checkpoint-order activation and weight bytes,
 followed by explicit per-token/per-channel scaling in FP32. Q/K/V are separate prompt GEMMs. Decode uses the
 binding-dimension grouping around the

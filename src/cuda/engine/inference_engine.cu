@@ -73,7 +73,7 @@ using ArgmaxValue = internal::OutputHeadCandidate;
 constexpr std::uint64_t kMaximumMtpDraftTokens = 4U;
 constexpr std::uint64_t kMaximumMtpVerifyTokens =
     kMaximumMtpDraftTokens + 1U;
-constexpr std::uint64_t kDefaultPrefillChunkTokens = 2048;
+constexpr std::uint64_t kDefaultPrefillChunkTokens = 8192;
 constexpr std::uint64_t kMinimumPrefillChunkTokens = 32;
 constexpr std::uint64_t kPrefillChunkQuantum = 32;
 constexpr std::uint64_t kPrefillScoreBudgetBytes = 512ULL * 1024ULL * 1024ULL;

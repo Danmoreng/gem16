@@ -1,5 +1,30 @@
 # Decisions
 
+## 2026-08-02: Resume prefill work and use 8,192-token checkpoint-FP8 chunks
+
+Date: 2026-08-02
+
+Decision: Resume the ordered prefill optimization program now that the max-power fixed-D2 result exceeds the
+adjacent vLLM and llama.cpp decode characterizations. Use one fixed 8,192-token chunk for production
+checkpoint-FP8 prefill; retain the existing 1,024-token BF16 correctness cap. Treat 2,597.6 ms as the current exact
+16K vLLM TTFT target and preserve decode performance, deterministic output, and the 15.3 GB total peak limit.
+
+Context: The 2,048-token max-power parent reaches 5,034.80 tok/s and 3,254.15 ms TTFT. The adjacent 8,192-token
+3-warm-up/10-run candidate reaches 5,172.75 tok/s (+2.74%) and 3,167.37 ms (-2.67%) with non-overlapping 95%
+intervals. It halves the number of prompt chunks again relative to a 4,096-token screen and matches vLLM's
+configured maximum batched-token extent. All outputs retain one hash. MTP-resident peak VRAM is 12,704 MiB.
+
+Alternatives: Keep 2,048 for the prior sub-1-GiB workspace target; select 4,096; use M256 for all NVFP4 prompt
+GEMMs; or merge Gate/Up without other changes. The first leaves measured speed unused, 4,096 reaches only
+5,139.29 tok/s, M256 regresses to 2,823.61 tok/s, and merged Gate/Up is neutral while increasing scratch.
+
+Consequences: Total MTP-resident workspace is 2,611,102,720 bytes. Local attention continues to read the complete
+current chunk before committing only its newest 1,024-token suffix, so ring aliases remain impossible. Runtime
+validators require the new fixed shape. Further workspace growth requires a fresh total-memory gate.
+
+Evidence: `docs/PERFORMANCE_LEDGER.md`, CTest, direct 129/257 boundary validation, and raw artifacts under
+`benchmarks/results/2026-08-02/0c0ec10/blackwell16gb-linux-prefill-phase2-*`.
+
 ## 2026-08-02: Make Linux Dynamic Boost part of the reference laptop benchmark state
 
 Date: 2026-08-02

@@ -135,7 +135,7 @@ def run_case(
             == "fp8x16_fp8x4_bf16x2",
             inference.get("global_prefill_fp8_staging")
             == "async_contiguous_fp8x16_fp8x4_bf16x2",
-            inference.get("prefill_chunk_tokens") == 2048,
+            inference.get("prefill_chunk_tokens") == 8192,
             inference.get("grouped_qkv_prefill") is False,
             inference.get("fused_rmsnorm_boundaries") is True,
             inference.get("fused_prefill_rmsnorm_fp8_quantization") is True,

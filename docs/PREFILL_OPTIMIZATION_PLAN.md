@@ -24,8 +24,12 @@ The 2026-07-27 Linux refresh at `304a113` measures 2,575.72/4,277.03/4,318.31/3,
 `128`/`512`/`2,048`/`8,192`; short-prompt samples are clock-bimodal, while the 8K 95% interval is stable. The first
 post-refresh promotion vectorizes local-attention FP8 staging and raises the same 8K median to 3,815.49 tok/s.
 The bounded global-attention follow-up removes redundant modulo from contiguous-cache staging and reaches a
-combined adjacent median of 3,827.47 tok/s versus its 3,801.98 tok/s parent (+0.67%). Cross-engine claims must
-reconcile timing boundaries and cache precision under `docs/BENCHMARKING.md` and `AGENTS.md`.
+combined adjacent median of 3,827.47 tok/s versus its 3,801.98 tok/s parent (+0.67%). The max-power 16K refresh at
+`0c0ec10` establishes 5,034.80 tok/s and 3,254.15 ms TTFT for the 2,048-token parent. Promoting an 8,192-token
+checkpoint-FP8 chunk raises the adjacent 3/10 median to 5,172.75 tok/s (+2.74%) and lowers TTFT to 3,167.37 ms
+(-2.67%) while retaining the output hash; peak sampled VRAM with the MTP assistant resident is 12,704 MiB.
+Cross-engine claims must reconcile timing boundaries and cache precision under `docs/BENCHMARKING.md` and
+`AGENTS.md`.
 
 ## Profile-derived diagnosis
 
@@ -80,11 +84,14 @@ both attention geometries are qualified and the online implementation is the sol
 
 ### 2. Promote the largest deterministic winning prompt chunk
 
-Status: 2,048 selected as the sole checkpoint-FP8 standard after GQA head grouping made launch repetition worth
-revisiting. At 8K it reaches 2,138.50 tok/s versus 2,107.04 tok/s for 1,024-token chunks under 3/10 measurement
-(+1.49%). The reusable 8K workspace rises from 322,457,600 to 630,276,096 bytes and remains below its 1 GiB target.
-Local attention reads the complete current chunk directly, then commits only its newest 1,024-token suffix to the
-ring so positions one ring apart never race on a modulo address. BF16 correctness prefill remains capped at 1,024.
+Status: 8,192 selected as the sole checkpoint-FP8 standard after the current max-power 16K comparison. Against the
+2,048-token parent's 5,034.80 tok/s and 3,254.15 ms TTFT, the adjacent 3/10 candidate reaches 5,172.75 tok/s
+(+2.74%) and 3,167.37 ms (-2.67%). Total MTP-resident workspace rises from 726,836,224 to 2,611,102,720 bytes; the complete
+MTP-resident process peaks at 12,704 MiB and remains within the 15.3 GB limit. A 4,096-token screen reached
+5,139.29 tok/s, while an M256 CUTLASS NVFP4 tile and a single N=30,720 Gate/Up GEMM were independently exact but
+slower or neutral and were removed. Local attention reads the complete current chunk directly, then commits only
+its newest 1,024-token suffix to the ring so positions one ring apart never race on a modulo address. BF16
+correctness prefill remains capped at 1,024.
 
 After the score arena is removed, measure complete-prompt chunks of `512` and `1,024` tokens against the current
 context-budgeted plan. Select the fastest size that is deterministic, fits the measured arena budget across context
