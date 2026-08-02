@@ -1,5 +1,28 @@
 # Decisions
 
+## 2026-08-02: Keep one M128xN128xK64 FP8 prefill projection plan
+
+Date: 2026-08-02
+
+Decision: Keep the existing CUTLASS M128xN128xK64 FP8 prefill plan for Q, K, V, and O. Do not retain a second
+M128xN64xK64 instantiation for Gemma's N=512 and N=2,048 K/V projections.
+
+Context: A temporary shape selector sent only N<=2,048 projections to N64. Full Host/CUDA CTest passed and the
+16K fixed-D2 output remained exact, but the 1/3 screen reached 5,722.85 prompt tok/s with a wide, thermally
+declining `[5,662.50,5,782.37]` 95% interval. This sits inside the 5,675--5,752 tok/s range already observed for
+the sole N128 parent and therefore demonstrates no significant end-to-end improvement.
+
+Alternatives: Retain both plans based on the library's example geometry; route every FP8 projection through N64;
+or keep the measured single plan. The first increases template/binary cost without evidence, while the second
+risks regressing the wide Q/O families and was not justified by the narrow-shape screen.
+
+Consequences: The temporary selector is removed, so runtime source, workspace, persistent memory, decode graphs,
+and reported plan metadata remain unchanged. Reopening shape-specific FP8 planning requires isolated per-shape
+kernel timing plus a non-overlapping end-to-end qualification, not geometry alone.
+
+Evidence: `docs/PERFORMANCE_LEDGER.md`, full Host/CUDA CTest, and the ignored 16K screen under
+`benchmarks/results/2026-08-02/e16f84a-worktree/blackwell16gb-windows-cutlass-plan-narrow-n64-screen.json`.
+
 ## 2026-08-02: Do not substitute CUTLASS FMHA or MLA directly for Gemma D512 attention
 
 Date: 2026-08-02

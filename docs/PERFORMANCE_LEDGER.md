@@ -1,5 +1,25 @@
 # Performance ledger
 
+## 2026-08-02 Projection-plan phase: reject a separate FP8 N64 plan for narrow K/V
+
+Hypothesis: Gemma's narrow FP8 K/V output shapes (N=512 or 2,048) could benefit from CUTLASS's shipped
+M128xN64xK64 SM120 geometry while the wider Q/O shapes retained the promoted M128xN128xK64 plan. A temporary
+static selector instantiated N64 only for N<=2,048; all other projection shapes and all decode kernels were
+unchanged.
+
+The complete Host/CUDA CTest suite passes, including exact physical-BF16 FP8 epilogue bits. The 16K Windows Max
+Power fixed-D2 screen (one warm-up, three measured runs) reaches 5,722.85 prompt tok/s with samples
+5,746.35/5,722.85/5,698.11 and a 95% interval of `[5,662.50,5,782.37]`. Median TTFT is 2,862.91 ms and decode is
+86.384 tok/s. The result retains 1,135 generated IDs and SHA-256
+`374a7e9a564421be4f7d19cb125a651f73505077983b77b1149bfa82e3c81e8a`.
+
+This does not establish a speedup: the candidate lies inside the same-session N128 observation range of roughly
+5,675 to 5,752 prompt tok/s, its interval overlaps the retained parent qualifications, and its three samples show
+the same downward thermal drift. Adding another large CUTLASS instantiation without measurable end-to-end value
+would increase binary/build complexity. The selector and N64 instantiation are therefore removed; M128xN128xK64
+remains the sole FP8 prefill plan. The ignored raw screen is
+`benchmarks/results/2026-08-02/e16f84a-worktree/blackwell16gb-windows-cutlass-plan-narrow-n64-screen.json`.
+
 ## 2026-08-02 Global-attention phase 1: reject direct CUTLASS D512 FMHA substitution
 
 Hypothesis: CUTLASS's Blackwell warp-specialized FMHA examples could replace the manual Gemma global-attention
