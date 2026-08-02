@@ -430,7 +430,7 @@ Status LaunchFp8ProjectionBatch(const std::uint8_t* activation, const float* sca
   return internal::LaunchFp8CutlassProjectionBatch(
       activation, scales, binding.weight, binding.scales, output, tokens,
       binding.rows, binding.contracting, cutlass_workspace,
-      cutlass_workspace_bytes, stream, true);
+      cutlass_workspace_bytes, stream);
 }
 
 Status LaunchFp8QkvProjectionBatch(
@@ -449,17 +449,17 @@ Status LaunchFp8QkvProjectionBatch(
   Status status = internal::LaunchFp8CutlassProjectionBatch(
       activation, scales, q_binding.weight, q_binding.scales, q_output, tokens,
       q_binding.rows, q_binding.contracting, cutlass_workspace,
-      cutlass_workspace_bytes, stream, true);
+      cutlass_workspace_bytes, stream);
   if (!status.ok()) return status;
   status = internal::LaunchFp8CutlassProjectionBatch(
       activation, scales, k_binding.weight, k_binding.scales, k_output, tokens,
       k_binding.rows, k_binding.contracting, cutlass_workspace,
-      cutlass_workspace_bytes, stream, true);
+      cutlass_workspace_bytes, stream);
   if (!status.ok() || v_binding == nullptr) return status;
   return internal::LaunchFp8CutlassProjectionBatch(
       activation, scales, v_binding->weight, v_binding->scales, v_output,
       tokens, v_binding->rows, v_binding->contracting, cutlass_workspace,
-      cutlass_workspace_bytes, stream, true);
+      cutlass_workspace_bytes, stream);
 }
 
 }  // namespace

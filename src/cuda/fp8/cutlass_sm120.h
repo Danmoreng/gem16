@@ -11,8 +11,9 @@ namespace gem16::internal {
 
 // Prompt-only FP8 GEMM. The checkpoint stores each [N,K] weight tensor in the
 // column-major B memory order expected by CUTLASS, so no weight repack is
-// required. The GEMM accumulates into FP32; a second device kernel applies the
-// dynamic per-token activation scale and checkpoint per-channel BF16 scale.
+// required. The GEMM accumulates into FP32; its epilogue applies the dynamic
+// per-token activation scale and checkpoint per-channel BF16 scale, rounds at
+// the model's BF16 projection boundary, and stores that value in FP32 storage.
 [[nodiscard]] Status LaunchFp8CutlassProjectionBatch(
     const std::uint8_t* activation_e4m3fn,
     const float* activation_scales,
@@ -24,7 +25,6 @@ namespace gem16::internal {
     std::uint64_t contracting_elements,
     void* workspace,
     std::size_t workspace_bytes,
-    cudaStream_t stream,
-    bool round_output_bf16 = false);
+    cudaStream_t stream);
 
 }  // namespace gem16::internal

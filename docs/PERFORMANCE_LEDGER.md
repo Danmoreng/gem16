@@ -1,5 +1,35 @@
 # Performance ledger
 
+## 2026-08-02 Prefill phase 7: fuse FP8 scaling and BF16 rounding into CUTLASS
+
+Hypothesis: every production FP8 Q/K/V/O prompt projection already ends at the exact scaled-BF16 boundary, so a
+CUTLASS EVT can broadcast the per-token FP32 activation scale and per-channel BF16 weight scale, preserve the
+left-to-right FP32 multiplication order, round the final fragment to BF16, and eliminate the separate scale/cast
+kernel. The BF16 value remains in the existing FP32 workspace in this phase; physical BF16 storage is evaluated
+separately so its consumer rewrites cannot obscure the epilogue result.
+
+On the Windows RTX 5080 Laptop in the firmware Max Power state, the same-commit 16K fixed-output D2 parent reaches
+5,417.10 prompt tok/s (mean 5,419.28; 95% CI `[5,405.15,5,433.42]`) and 3,024.495 ms median TTFT. The adjacent
+3-warm-up/10-run EVT candidate reaches 5,665.28 tok/s (+4.58%; mean 5,665.84; CI `[5,659.30,5,672.38]`) and
+2,892.00 ms TTFT (-4.38%; CI `[2,888.39,2,895.06]`). Decode is unchanged within noise at 86.311 versus
+86.325 tok/s. All ten candidate runs retain 1,135 IDs, SHA-256
+`374a7e9a564421be4f7d19cb125a651f73505077983b77b1149bfa82e3c81e8a`, 629 accepted of 1,006 proposed drafts,
+and 505 Target batches.
+
+Nsight Systems over one warm-up plus one measured 16K prefill records 736 fused FP8 GEMMs and no standalone FP8
+scale kernel. Only the 192 attention-boundary `RoundBf16Kernel` calls remain. The fused FP8 family consumes
+1,077.50 ms of the two prompts; the profile remains dominated by global attention (1,969.67 ms), NVFP4 CUTLASS
+(1,113.43 ms), and local attention (642.27 ms). Host/CUDA CTest passes, including exact fused-BF16 comparisons
+for the small and real 128x4,096x3,840 FP8 geometries. Direct 129/257 vLLM boundary validation keeps both
+reference Top-1 tokens at engine rank one (selected-logprob absolute deltas 0.5643/0.4235). Workspace and KV
+allocations remain exactly
+2,613,121,024 and 311,287,808 bytes, and the token loop is unchanged.
+
+Decision: promote the fused scaled-BF16 CUTLASS epilogue as the sole production FP8 prompt projection. Remove the
+separate production scale kernel and its unrounded selector. Raw Windows evidence is under
+`benchmarks/results/2026-08-02/e331687-worktree/blackwell16gb-windows-fp8-fused-epilogue-*`. These Windows timings
+are a development characterization; Linux remains the publication/reference qualification environment.
+
 ## 2026-08-02 Prefill phase 6: reject prefill CUDA Graphs
 
 Hypothesis: after fixing the 8K projection and attention geometry, CUDA Graph replay can remove enough recurring

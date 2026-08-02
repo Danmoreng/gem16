@@ -960,7 +960,8 @@ void TestFp8ReferenceAndDirectProjection() {
         CUDA_TEST_CHECK(batch_native_output[token * rows + row] ==
                         batch_reference_output[token * rows + row]);
         CUDA_TEST_CHECK(batch_cutlass_output[token * rows + row] ==
-                        batch_reference_output[token * rows + row]);
+                        RoundBf16Reference(
+                            batch_reference_output[token * rows + row]));
         CUDA_TEST_CHECK(grouped_q_output[token * rows + row] ==
                         batch_reference_output[token * rows + row]);
         CUDA_TEST_CHECK(grouped_k_output[token * rows + row] ==
@@ -1063,6 +1064,7 @@ void TestFp8CutlassPrefillGeometry() {
   }
   std::size_t exact_mismatches = 0U;
   for (std::size_t index = 0; index < native.size(); ++index) {
+    native[index] = RoundBf16Reference(native[index]);
     exact_mismatches += native[index] != cutlass[index] ? 1U : 0U;
   }
   std::cout << "CUTLASS FP8 128x4096x3840 exact mismatches: "

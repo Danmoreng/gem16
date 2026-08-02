@@ -27,19 +27,12 @@ namespace {
 
 using namespace cute;
 
-constexpr unsigned kThreads = 256U;
-
 Status Invalid(std::string message) {
   return Status(StatusCode::kInvalidArgument, std::move(message));
 }
 
 Status Internal(std::string message) {
   return Status(StatusCode::kInternal, std::move(message));
-}
-
-Status CudaFailure(const char* operation, cudaError_t error) {
-  return Internal(std::string(operation) + ": " + cudaGetErrorName(error) +
-                  ": " + cudaGetErrorString(error));
 }
 
 using ElementA = cutlass::float_e4m3_t;
@@ -51,6 +44,31 @@ using OperatorClass = cutlass::arch::OpClassTensorOp;
 using ThreadBlockShape = Shape<_128, _128, _64>;
 using ClusterShape = Shape<_1, _1, _1>;
 
+constexpr auto kRoundStyle = cutlass::FloatRoundStyle::round_to_nearest;
+
+// Preserve the checkpoint's exact left-to-right scaling and BF16 projection
+// boundary inside the CUTLASS epilogue:
+//
+//   float(BF16((acc * activation_scale[token]) * weight_scale[row]))
+//
+// The outer identity converts the BF16 fragment back to the existing FP32
+// storage contract. This removes the recurring output-scale kernel without
+// changing any downstream consumer or numerical boundary.
+using ScaledBf16Epilogue = cutlass::epilogue::fusion::Sm90EVT<
+    cutlass::epilogue::fusion::Sm90Compute<
+        cutlass::epilogue::thread::Identity, ElementD, float, kRoundStyle>,
+    cutlass::epilogue::fusion::Sm90EVT<
+        cutlass::epilogue::fusion::Sm90Compute<
+            cutlass::multiplies, cutlass::bfloat16_t, float, kRoundStyle>,
+        cutlass::epilogue::fusion::Sm90RowBroadcast<
+            0, ThreadBlockShape, cutlass::bfloat16_t, float>,
+        cutlass::epilogue::fusion::Sm90EVT<
+            cutlass::epilogue::fusion::Sm90Compute<
+                cutlass::multiplies, float, float, kRoundStyle>,
+            cutlass::epilogue::fusion::Sm90ColBroadcast<
+                0, ThreadBlockShape, float, float>,
+            cutlass::epilogue::fusion::Sm90AccFetch>>>;
+
 using CollectiveEpilogue =
     typename cutlass::epilogue::collective::CollectiveBuilder<
         ArchTag, OperatorClass, ThreadBlockShape, ClusterShape,
@@ -58,7 +76,8 @@ using CollectiveEpilogue =
         ElementAccumulator, ElementAccumulator, void,
         cutlass::layout::RowMajor, 1, ElementD,
         cutlass::layout::RowMajor, 4,
-        cutlass::epilogue::collective::EpilogueScheduleAuto>::CollectiveOp;
+        cutlass::epilogue::collective::EpilogueScheduleAuto,
+        ScaledBf16Epilogue>::CollectiveOp;
 
 using CollectiveMainloop =
     typename cutlass::gemm::collective::CollectiveBuilder<
@@ -74,28 +93,11 @@ using GemmKernel = cutlass::gemm::kernel::GemmUniversal<
     cutlass::gemm::StaticPersistentScheduler>;
 using Gemm = cutlass::gemm::device::GemmUniversalAdapter<GemmKernel>;
 
-__global__ void ApplyScalesKernel(
-    float* output, const float* activation_scales,
-    const std::uint16_t* weight_scales, std::uint64_t rows,
-    std::uint64_t elements, bool round_output_bf16) {
-  const std::uint64_t index =
-      static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
-  if (index >= elements) return;
-  const std::uint64_t token = index / rows;
-  const std::uint64_t row = index - token * rows;
-  const __nv_bfloat16 weight_scale =
-      __ushort_as_bfloat16(weight_scales[row]);
-  const float scaled = output[index] * activation_scales[token] *
-                       static_cast<float>(weight_scale);
-  output[index] = round_output_bf16
-                      ? static_cast<float>(__float2bfloat16_rn(scaled))
-                      : scaled;
-}
-
 Status LaunchGemm(
-    const std::uint8_t* activation, const std::uint8_t* weight, float* output,
-    int m, int n, int k, void* workspace, std::size_t workspace_bytes,
-    cudaStream_t stream) {
+    const std::uint8_t* activation, const float* activation_scales,
+    const std::uint8_t* weight, const std::uint16_t* weight_scales,
+    float* output, int m, int n, int k, void* workspace,
+    std::size_t workspace_bytes, cudaStream_t stream) {
   const auto problem_shape = cute::make_shape(m, n, k, 1);
   const auto stride_a = cutlass::make_cute_packed_stride(
       typename Gemm::GemmKernel::StrideA{}, {m, k, 1});
@@ -108,7 +110,11 @@ Status LaunchGemm(
       problem_shape,
       {reinterpret_cast<const ElementA*>(activation), stride_a,
        reinterpret_cast<const ElementB*>(weight), stride_b},
-      {{1.0F, 0.0F}, nullptr, stride_d, output, stride_d}};
+      {{{{{reinterpret_cast<const cutlass::bfloat16_t*>(weight_scales)}},
+          {{{activation_scales}}, {}, {}},
+          {}},
+         {}},
+       nullptr, stride_d, output, stride_d}};
 
   if constexpr (!std::is_const_v<
                     decltype(arguments.scheduler.max_swizzle_size)>) {
@@ -168,8 +174,7 @@ Status LaunchFp8CutlassProjectionBatch(
     std::uint64_t contracting_elements,
     void* workspace,
     std::size_t workspace_bytes,
-    cudaStream_t stream,
-    bool round_output_bf16) {
+    cudaStream_t stream) {
   if (activation_e4m3fn == nullptr || activation_scales == nullptr ||
       weight_e4m3fn == nullptr || weight_scales_bf16 == nullptr ||
       output == nullptr || workspace == nullptr || tokens == 0U ||
@@ -180,29 +185,11 @@ Status LaunchFp8CutlassProjectionBatch(
           static_cast<std::uint64_t>(std::numeric_limits<int>::max())) {
     return Invalid("invalid CUTLASS FP8 projection arguments");
   }
-  Status status = LaunchGemm(
-      activation_e4m3fn, weight_e4m3fn, output, static_cast<int>(tokens),
+  return LaunchGemm(
+      activation_e4m3fn, activation_scales, weight_e4m3fn,
+      weight_scales_bf16, output, static_cast<int>(tokens),
       static_cast<int>(rows), static_cast<int>(contracting_elements), workspace,
       workspace_bytes, stream);
-  if (!status.ok()) return status;
-  if (tokens > std::numeric_limits<std::uint64_t>::max() / rows) {
-    return Invalid("CUTLASS FP8 output size overflow");
-  }
-  const std::uint64_t elements = tokens * rows;
-  if (elements >
-      static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max()) *
-          kThreads) {
-    return Invalid("CUTLASS FP8 scaling grid exceeds CUDA limits");
-  }
-  const unsigned blocks =
-      static_cast<unsigned>((elements + kThreads - 1U) / kThreads);
-  ApplyScalesKernel<<<blocks, kThreads, 0, stream>>>(
-      output, activation_scales, weight_scales_bf16, rows, elements,
-      round_output_bf16);
-  const cudaError_t error = cudaGetLastError();
-  return error == cudaSuccess
-             ? Status::Ok()
-             : CudaFailure("launch CUTLASS FP8 output scaling/BF16 cast", error);
 }
 
 }  // namespace gem16::internal

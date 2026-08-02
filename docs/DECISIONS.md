@@ -1,5 +1,34 @@
 # Decisions
 
+## 2026-08-02: Fuse scaled-BF16 FP8 prompt outputs into the CUTLASS epilogue
+
+Date: 2026-08-02
+
+Decision: Use one CUTLASS EVT to multiply each FP32 accumulator first by its per-token activation scale and then
+by its per-channel BF16 weight scale, round the result to BF16, and store that BF16 value in the existing FP32
+workspace. Make this the sole CUTLASS FP8 prompt-output contract and remove the standalone production scale/cast
+kernel and unrounded selector.
+
+Context: Phase 4 closed the required BF16 boundary in a second scale kernel. The fused EVT removes that kernel from
+all Q/K/V/O prompt projections. On the exact 16K fixed-output D2 workload, the adjacent Windows Max Power 3/10
+median rises from 5,417.10 to 5,665.28 prompt tok/s (+4.58%) and TTFT falls from 3,024.495 to 2,892.00 ms
+(-4.38%), with non-overlapping 95% intervals. Decode, output IDs, acceptance, Target batches, workspace, and KV
+bytes are unchanged.
+
+Alternatives: Keep the two-kernel implementation; change the arithmetic order; omit the BF16 rounding; or combine
+this change with physical BF16 buffers. The first leaves a measured full-output pass and launch in every projection,
+the next two change the model contract, and the last would mix an independently valuable epilogue change with a
+broader attention/norm consumer rewrite.
+
+Consequences: The FP8 CUTLASS operator always returns the production scaled-BF16 boundary. CUDA fixtures compare
+the fused output exactly to the BF16-rounded reference at both small and real prefill geometry. Nsight shows no
+standalone FP8 scale kernel; only attention-output BF16 closures remain. Physical BF16 workspace is a separate
+candidate and the current memory plan is unchanged.
+
+Evidence: `docs/PERFORMANCE_LEDGER.md`, full Host/CUDA CTest, direct 129/257 vLLM boundary validation, the 3/10
+fixed-output qualification, and the Nsight artifact under
+`benchmarks/results/2026-08-02/e331687-worktree/blackwell16gb-windows-fp8-fused-epilogue-*`.
+
 ## 2026-08-02: Do not retain prefill CUDA Graphs after the 8K kernel plan
 
 Date: 2026-08-02
