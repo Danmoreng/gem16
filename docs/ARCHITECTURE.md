@@ -69,7 +69,10 @@ divisor, or FP32 K accumulation. It evaluates local D256 and global D512
 causal attention with shape-specific online Tensor-Core kernels. Those
 kernels stage current-chunk K/V directly, read older positions from the circular or growing cache, retain row max,
 normalization sum, and output accumulators in FP32, and never materialize a global score matrix. K/V is committed
-only after the layer's attention finishes. The serial path remains a test/probe oracle and is not a runtime option. The pure C++
+only after the layer's attention finishes. Local K/V staging overlays its BF16 operand tile and two raw-FP8
+ping-pong tiles in the existing 64 KiB allocation; aligned asynchronous copies overlap current-V transfer with QK
+and next-K transfer with PV without changing the 32-key online-softmax order. The serial path remains a test/probe
+oracle and is not a runtime option. The pure C++
 `GemmaChatProcessor` loads the checkpoint vocabulary, merge ranks, byte fallback, generation controls, and exact
 pinned Jinja artifact. It implements the supported text-only behavior of that template natively and rejects a
 different template revision rather than silently approximating it. This makes real chat flows testable now while
@@ -254,8 +257,9 @@ CTA. K/V staging is shared within each group while softmax and output state rema
 physical E4M3 K/V bytes and checkpoint BF16 scales without a persistent conversion or fallback. A 2,048-token
 current chunk may exceed the local 1,024-token ring because current K/V is read directly; only the newest
 1,024-token suffix is committed after attention, avoiding concurrent modulo-aliasing writes. Local K/V staging
-loads aligned 16-byte E4M3 vectors, converts four values per instruction, and writes paired BF16 values without
-changing the attention arithmetic or 64 KiB operand allocation. Global K/V staging uses two raw-FP8 ping-pong
+loads aligned 16-byte E4M3 vectors through two raw-FP8 `cp.async` stages, converts four values per instruction, and
+writes paired BF16 values into an overlaid operand tile without changing the attention arithmetic or 64 KiB
+allocation. Global K/V staging uses two raw-FP8 ping-pong
 tiles and one overlaid BF16 operand tile within the existing 96 KiB shared allocation.
 Aligned 16-byte asynchronous copies overlap current-V traffic with QK/online softmax and next-K traffic with PV;
 vector E4M3x4 conversion and paired BF16 stores complete before each operand is consumed. Older global K/V uses

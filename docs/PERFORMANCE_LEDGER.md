@@ -1,5 +1,28 @@
 # Performance ledger
 
+## 2026-08-02 Prefill phase 5: pipeline local-attention FP8 staging
+
+Hypothesis: the 40 sliding layers can use the global kernel's successful raw-FP8 ping-pong pattern without changing
+the qualified 32-key online-softmax order. The promoted kernel overlays one BF16 K/V operand tile and two raw-FP8
+tiles in the existing 64 KiB shared allocation. It overlaps current-V transfer with QK and next-K transfer with PV,
+then performs the same E4M3x4 conversion, paired BF16 stores, MMA sequence, masking, and FP32 accumulation.
+
+Against the scaled-BF16 parent's 5,271.29 tok/s and 3,108.15 ms, the 3-warm-up/10-run candidate reaches
+5,379.58 tok/s (+2.05%) and 3,045.59 ms (-2.01%). Its throughput 95% CI is `[5,374.21,5,389.56]`, TTFT CI is
+`[3,039.96,3,048.64]`, and all runs retain SHA-256
+`584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182`. Nsight reduces the 80 local-attention
+kernels from 416.12 to 331.47 ms (-20.34%); the selected kernel uses 254 registers, 65,536 static shared bytes, and
+zero local memory. Host/CUDA CTest, exact-blue, and direct 129/257 vLLM boundary gates pass.
+
+Two global-attention candidates were rejected and removed. A synchronous 32-key tile was performance-neutral and
+exceeded the CUDA operator error budget (max absolute 0.0337). Replacing accurate `expf` with `__expf` reached a
+5,399.31 tok/s short screen but changed both direct boundary Top-1 predictions and was rejected without relaxing
+tolerances. Global attention remains the largest profile family at approximately 1,026 ms.
+
+Decision: promote asynchronous local FP8 staging as the sole production local-prefill path. Preserve the accurate
+global softmax and 16-key order. Raw evidence is under
+`benchmarks/results/2026-08-02/31c8519-worktree/blackwell16gb-linux-prefill-phase5-*`.
+
 ## 2026-08-02 Prefill phases 3/4: reject layer-major prep reuse; close FP8 BF16 outputs
 
 Phase 3 hypothesis: a layer-major text plan can transform Gate/Up/Down into transient CUTLASS scratch once per

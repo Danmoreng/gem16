@@ -1,5 +1,27 @@
 # Decisions
 
+## 2026-08-02: Pipeline local-prefill FP8 staging without changing softmax order
+
+Date: 2026-08-02
+
+Decision: Overlay the local attention BF16 K/V operand tile and two raw-FP8 ping-pong tiles in the existing 64 KiB
+shared allocation. Use aligned `cp.async` transfers to overlap current V with QK and the next K tile with PV. Keep
+the 32-key mask, online-softmax update, BF16 conversion, MMA, and FP32 accumulation order unchanged.
+
+Context: After the 8K chunk and scaled-BF16 promotions, local attention consumes 416.12 ms of a profiled 16K
+prompt. The asynchronous candidate reduces this to 331.47 ms (-20.34%) and raises the repeated end-to-end median
+from 5,271.29 to 5,379.58 tok/s (+2.05%). It retains the output hash and all correctness gates.
+
+Alternatives: Change global and local tiles together; use fast approximate exponentials; or retain synchronous
+local loads. A 32-key global tile exceeded operator error limits, fast exponentials changed boundary Top-1, and the
+synchronous route leaves measured overlap unused.
+
+Consequences: Runtime JSON reports `local_prefill_fp8_staging=async_fp8x16_fp8x4_bf16x2`. Shared memory remains
+65,536 bytes; the kernel uses 254 registers and no local memory. Persistent and workspace allocations are unchanged.
+
+Evidence: `docs/PERFORMANCE_LEDGER.md`, the phase-5 Nsight trace, CTest, exact-blue, direct 129/257 boundary checks,
+and the adjacent 3/10 benchmark.
+
 ## 2026-08-02: Close CUTLASS FP8 prompt outputs at their BF16 boundary
 
 Date: 2026-08-02

@@ -29,7 +29,8 @@ combined adjacent median of 3,827.47 tok/s versus its 3,801.98 tok/s parent (+0.
 checkpoint-FP8 chunk raises the adjacent 3/10 median to 5,172.75 tok/s (+2.74%) and lowers TTFT to 3,167.37 ms
 (-2.67%) while retaining the output hash; peak sampled VRAM with the MTP assistant resident is 12,704 MiB. The
 next promotion closes CUTLASS FP8 scaling at the already-required BF16 boundary, reaching 5,271.29 tok/s and
-3,108.15 ms without changing the hash or memory plan. Cross-engine claims must reconcile timing boundaries and
+3,108.15 ms without changing the hash or memory plan. Asynchronous local FP8 staging then reaches 5,379.58 tok/s
+and 3,045.59 ms while reducing the profiled local family by 20.34%. Cross-engine claims must reconcile timing boundaries and
 cache precision under `docs/BENCHMARKING.md` and `AGENTS.md`.
 
 ## Profile-derived diagnosis
@@ -65,7 +66,10 @@ local/global Gemma attention geometry, circular local cache addressing, and its 
 
 ### 1. Online Tensor-Core prefill attention
 
-Status: implemented and model-qualified at `c0f42de`; final artifact bookkeeping remains part of the milestone.
+Status: implemented and model-qualified at `c0f42de`; the local path now pipelines raw-FP8 K/V staging in its
+existing 64 KiB shared allocation, reducing its current 16K profile from 416.12 to 331.47 ms without changing the
+softmax order. Global 32-key and approximate-exponential candidates failed correctness or end-to-end gates and are
+absent.
 
 Implement Gemma-specific attention without a global score matrix:
 

@@ -32,9 +32,13 @@ constexpr int kScoreTiles = kKeyColumns / 8;
 constexpr int kQkSteps = kHeadDimension / 16;
 constexpr int kOutputTiles = kHeadDimension / 8;
 constexpr int kPvSteps = kKeyColumns / 16;
-constexpr int kSharedElements =
-    (kQueryHeadsPerBlock * kQueryRows + 2 * kKeyColumns) *
-    kHeadDimension;
+constexpr int kOperandElements = kKeyColumns * kHeadDimension;
+constexpr int kRawBytes = kKeyColumns * kHeadDimension;
+constexpr int kSharedBytes =
+    (kQueryHeadsPerBlock * kQueryRows * kHeadDimension +
+     kOperandElements) * sizeof(__nv_bfloat16) + 2 * kRawBytes;
+
+static_assert(kSharedBytes == 64 * 1024);
 constexpr unsigned kFullWarpMask = 0xffffffffU;
 
 Status Invalid(std::string message) {
@@ -199,11 +203,10 @@ __device__ __forceinline__ void StageQuery(
   }
 }
 
-__device__ __forceinline__ void StageFp8Kv(
-    __nv_bfloat16* destination, const std::uint8_t* chunk,
-    const std::uint8_t* cache, float scale, int kv_head, int key_start,
-    int max_query_position, int chunk_start, int kv_heads, int cache_capacity,
-    int thread) {
+__device__ __forceinline__ void StageLocalFp8RawAsync(
+    std::uint8_t* destination, const std::uint8_t* chunk,
+    const std::uint8_t* cache, int kv_head, int key_start,
+    int max_query_position, int chunk_start, int cache_capacity, int thread) {
   constexpr int kElementsPerVector = 16;
   constexpr int kVectorsPerRow = kHeadDimension / kElementsPerVector;
   for (int chunk_index = thread;
@@ -213,17 +216,33 @@ __device__ __forceinline__ void StageFp8Kv(
     const int dimension =
         (chunk_index % kVectorsPerRow) * kElementsPerVector;
     const int absolute_key = key_start + row;
-    uint4 packed = {};
-    if (absolute_key <= max_query_position) {
-      const bool in_chunk = absolute_key >= chunk_start;
-      const int source_token =
-          in_chunk ? absolute_key - chunk_start
-                   : absolute_key % cache_capacity;
-      const std::uint8_t* source = in_chunk ? chunk : cache;
-      packed = *reinterpret_cast<const uint4*>(
-          source + ((source_token * kv_heads + kv_head) * kHeadDimension) +
-          dimension);
-    }
+    const bool valid = absolute_key <= max_query_position;
+    const bool in_chunk = valid && absolute_key >= chunk_start;
+    const int source_token =
+        in_chunk ? absolute_key - chunk_start
+                 : (valid ? absolute_key % cache_capacity : 0);
+    const std::uint8_t* source = in_chunk ? chunk : cache;
+    CopyAsync16(
+        destination + row * kHeadDimension + dimension,
+        source + ((source_token * kKvHeads + kv_head) * kHeadDimension) +
+            dimension,
+        valid ? kElementsPerVector : 0);
+  }
+}
+
+__device__ __forceinline__ void ConvertLocalFp8(
+    __nv_bfloat16* destination, const std::uint8_t* source, float scale,
+    int thread) {
+  constexpr int kElementsPerVector = 16;
+  constexpr int kVectorsPerRow = kHeadDimension / kElementsPerVector;
+  for (int chunk_index = thread;
+       chunk_index < kKeyColumns * kVectorsPerRow;
+       chunk_index += kThreads) {
+    const int row = chunk_index / kVectorsPerRow;
+    const int dimension =
+        (chunk_index % kVectorsPerRow) * kElementsPerVector;
+    const uint4 packed = *reinterpret_cast<const uint4*>(
+        source + row * kHeadDimension + dimension);
     const std::uint32_t words[4] = {
         packed.x, packed.y, packed.z, packed.w};
 #pragma unroll
@@ -255,12 +274,15 @@ __launch_bounds__(kThreads, 1) __global__ void OnlineLocalAttentionFp8Kernel(
     const std::uint16_t* __restrict__ value_scale_bf16,
     float* __restrict__ output, int start_position, int tokens,
     int cache_capacity, int vision_begin, int vision_end) {
-  __shared__ __align__(16) __nv_bfloat16 shared[kSharedElements];
-  __nv_bfloat16* query_shared = shared;
-  __nv_bfloat16* key_shared =
+  __shared__ __align__(16) std::uint8_t shared[kSharedBytes];
+  __nv_bfloat16* query_shared =
+      reinterpret_cast<__nv_bfloat16*>(shared);
+  __nv_bfloat16* operand_shared =
       query_shared + kQueryHeadsPerBlock * kQueryRows * kHeadDimension;
-  __nv_bfloat16* value_shared =
-      key_shared + kKeyColumns * kHeadDimension;
+  __nv_bfloat16* key_shared = operand_shared;
+  __nv_bfloat16* value_shared = operand_shared;
+  std::uint8_t* raw_shared = reinterpret_cast<std::uint8_t*>(
+      operand_shared + kOperandElements);
 
   const int query_block = static_cast<int>(blockIdx.x);
   const int query_head_base =
@@ -346,12 +368,24 @@ __launch_bounds__(kThreads, 1) __global__ void OnlineLocalAttentionFp8Kernel(
   const float value_scale =
       static_cast<float>(__ushort_as_bfloat16(value_scale_bf16[0]));
 
+  StageLocalFp8RawAsync(raw_shared, chunk_key, key_cache, kv_head,
+                        first_key_start, max_query_position, start_position,
+                        cache_capacity, thread);
+  CommitAsyncCopies();
+  WaitForAsyncCopies();
+  __syncthreads();
+  ConvertLocalFp8(key_shared, raw_shared, key_scale, thread);
+  __syncthreads();
+
   for (int key_block = 0; key_block < key_block_count; ++key_block) {
     const int key_start = first_key_start + key_block * kKeyColumns;
-    StageFp8Kv(key_shared, chunk_key, key_cache, key_scale, kv_head,
-               key_start, max_query_position, start_position, kKvHeads,
-               cache_capacity, thread);
-    __syncthreads();
+    const int current_raw = key_block & 1;
+    const int next_raw = current_raw ^ 1;
+    StageLocalFp8RawAsync(raw_shared + current_raw * kRawBytes,
+                          chunk_value, value_cache, kv_head, key_start,
+                          max_query_position, start_position, cache_capacity,
+                          thread);
+    CommitAsyncCopies();
 
     float scores[kScoreTiles][4];
 #pragma unroll
@@ -543,10 +577,21 @@ __launch_bounds__(kThreads, 1) __global__ void OnlineLocalAttentionFp8Kernel(
       accumulator[output_tile][3] *= alpha1;
     }
 
-    StageFp8Kv(value_shared, chunk_value, value_cache, value_scale, kv_head,
-               key_start, max_query_position, start_position, kKvHeads,
-               cache_capacity, thread);
+    WaitForAsyncCopies();
     __syncthreads();
+    ConvertLocalFp8(value_shared,
+                    raw_shared + current_raw * kRawBytes,
+                    value_scale, thread);
+    __syncthreads();
+
+    const bool has_next_key = key_block + 1 < key_block_count;
+    if (has_next_key) {
+      StageLocalFp8RawAsync(
+          raw_shared + next_raw * kRawBytes, chunk_key, key_cache, kv_head,
+          key_start + kKeyColumns, max_query_position, start_position,
+          cache_capacity, thread);
+      CommitAsyncCopies();
+    }
 
     constexpr int kOutputTilePairs = kOutputTiles / 2;
     constexpr int kValueLoads = kPvSteps * kOutputTilePairs;
@@ -594,6 +639,13 @@ __launch_bounds__(kThreads, 1) __global__ void OnlineLocalAttentionFp8Kernel(
           probability_fragments[probability_step][2],
           probability_fragments[probability_step][3],
           value_fragments[current][2], value_fragments[current][3]);
+    }
+    if (has_next_key) {
+      WaitForAsyncCopies();
+      __syncthreads();
+      ConvertLocalFp8(key_shared, raw_shared + next_raw * kRawBytes,
+                      key_scale, thread);
+      __syncthreads();
     }
   }
 

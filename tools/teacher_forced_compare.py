@@ -133,7 +133,7 @@ def validate_inference(
         "fp8_prefill_schedule": "cutlass_auto",
         "local_prefill_query_heads_per_cta": 2,
         "global_prefill_query_heads_per_cta": 4,
-        "local_prefill_fp8_staging": "fp8x16_fp8x4_bf16x2",
+        "local_prefill_fp8_staging": "async_fp8x16_fp8x4_bf16x2",
         "global_prefill_fp8_staging": "async_contiguous_fp8x16_fp8x4_bf16x2",
         "prefill_chunk_tokens": 8192 if cache_mode == "fp8" else 1024,
         "grouped_qkv_prefill": False,
