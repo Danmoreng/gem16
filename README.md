@@ -38,6 +38,8 @@ for Gemma 4 12B within 16 GB of VRAM.
 
 ### Current 16K MTP characterization
 
+#### Linux
+
 On an RTX 5080 Laptop GPU at its firmware-managed 175 W ceiling, commit `4b237b1` produces the following result:
 
 | Engine | Checkpoint / KV | Prefill tok/s | TTFT | Effective D2 MTP tok/s | ITL |
@@ -46,10 +48,26 @@ On an RTX 5080 Laptop GPU at its firmware-managed 175 W ceiling, commit `4b237b1
 | **gem16** | direct FP8/NVFP4 / FP8 | 5,315.11 | 3,082.53 ms | **85.26** | **11.729 ms** |
 | llama.cpp 10210 | patched NVFP4+Q8_0 GGUF / Q8_0 | 3,947.45 | 4,150.53 ms | 84.18 | 11.879 ms |
 
-The benchmark uses batch one, an exact 16,384-token prompt, 1,135 fixed greedy output positions, fixed D2 MTP,
-three warm-ups, and ten measured runs per engine. Only target-verified output tokens are counted. In this workload,
+#### Windows
+
+On Windows 11 x64, the same RTX 5080 Laptop GPU running commit `1b910550` with CUDA 13.3 and driver 596.49 produces:
+
+| Engine | Checkpoint / KV | Prefill tok/s | TTFT | Effective D2 MTP tok/s | ITL |
+|---|---|---:|---:|---:|---:|
+| **gem16** | direct FP8/NVFP4 / FP8 | **5,460.95** | **3,000.21 ms** | **86.47** | **11.565 ms** |
+| llama.cpp 10210 | patched NVFP4+Q8_0 GGUF / Q8_0 | 3,937.64 | 4,160.87 ms | 86.00 | 11.628 ms |
+
+Both runs use batch one, the exact same 16,384-token prompt, 1,135 fixed greedy output positions, fixed D2 MTP,
+three warm-ups, and ten measured runs per engine. Only target-verified output tokens are counted. In the Linux run,
 gem16 decode is 4.02% faster than vLLM and 1.29% faster than llama.cpp; gem16 prefill is 15.75% below vLLM and
-34.65% above llama.cpp.
+34.65% above llama.cpp. In the Windows run, gem16 decode is 0.55% faster than llama.cpp and gem16 prefill is 38.69%
+faster. vLLM is omitted because the pinned native runtime is not supported on Windows.
+
+Windows used the Balanced OS power scheme rather than Linux's controlled `max-power` platform profile, although
+both engines dynamically reached approximately 176 W. Both Windows outputs are deterministic within each engine,
+but their token hashes differ. The full Windows distributions, MTP counters, configurations, and filtered telemetry
+summary are retained in the
+[machine-readable Windows characterization](benchmarks/baselines/cross_engine_mtp/windows-characterization.json).
 
 Reproduce the complete three-engine run after preparing the pinned competitor environments:
 
