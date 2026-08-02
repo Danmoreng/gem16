@@ -1,0 +1,475 @@
+{
+  "engines": {
+    "gem16": {
+      "average_inter_token_latency_ms": {
+        "confidence_interval_95": [
+          11.691282319480344,
+          11.702615387750697
+        ],
+        "maximum": 11.704232804232804,
+        "mean": 11.69694885361552,
+        "median": 11.701499118165785,
+        "minimum": 11.684656084656085,
+        "sample_count": 10,
+        "samples": [
+          11.684656084656085,
+          11.687301587301587,
+          11.688007054673722,
+          11.692239858906525,
+          11.700793650793651,
+          11.702204585537919,
+          11.703350970017636,
+          11.704232804232804,
+          11.703174603174602,
+          11.70352733686067
+        ],
+        "standard_deviation": 0.00792181887986434
+      },
+      "decode_tokens_per_second": {
+        "confidence_interval_95": [
+          85.450985421034,
+          85.53384583016552
+        ],
+        "maximum": 85.58232204310814,
+        "mean": 85.49241562559976,
+        "median": 85.45913592236116,
+        "minimum": 85.43917544414809,
+        "sample_count": 10,
+        "samples": [
+          85.58232204310814,
+          85.56294988455792,
+          85.55778545668542,
+          85.52681197677049,
+          85.46428813674285,
+          85.45398370797948,
+          85.44561318906537,
+          85.43917544414809,
+          85.446900854469,
+          85.44432556247081
+        ],
+        "standard_deviation": 0.05791945639013356
+      },
+      "deterministic_outputs": true,
+      "external_telemetry": {
+        "active_sample_count": 983,
+        "power_w": {
+          "maximum": 173.48,
+          "mean": 165.45909460834181
+        },
+        "sample_count": 1092,
+        "sampling_scope": "whole command; active means sampled GPU utilization >=80%",
+        "sm_mhz": {
+          "maximum": 2647.0,
+          "mean": 2587.735503560529
+        },
+        "temperature_c": {
+          "maximum": 75.0,
+          "mean": 68.93489318413022
+        },
+        "vram_mib": {
+          "maximum": 10922.0,
+          "mean": 10759.133265513734
+        }
+      },
+      "format": {
+        "batch_size": 1,
+        "kv_cache": "checkpoint_fp8",
+        "measured_repetitions": 10,
+        "mtp_adaptive": false,
+        "mtp_draft_tokens": 2,
+        "mtp_verification_mode": "batched_exact_target",
+        "primary_statistic": "median",
+        "warmups": 3
+      },
+      "median_decode_ms_per_target_batch": 26.486027944111775,
+      "mtp": {
+        "accepted_tokens": 633.0,
+        "mean_accepted_length": 1.26347,
+        "proposed_tokens": 1002.0,
+        "rejected_tokens": 369.0,
+        "target_batches": 501.0
+      },
+      "output_token_sha256_values": [
+        "43bc3380fc1cce5182a679fa3a340c04bcc79c52e73d5102ec1f737f57d0a1e1"
+      ],
+      "prompt_tokens_per_second": {
+        "confidence_interval_95": [
+          4962.149426958562,
+          4970.935440051586
+        ],
+        "maximum": 4975.644124828415,
+        "mean": 4966.542433505074,
+        "median": 4964.570369616475,
+        "minimum": 4958.522612061582,
+        "sample_count": 10,
+        "samples": [
+          4975.644124828415,
+          4975.341933289605,
+          4972.699322263331,
+          4968.025009930592,
+          4960.849739301048,
+          4958.522612061582,
+          4963.569989548147,
+          4965.570749684803,
+          4961.736123098541,
+          4963.464731044678
+        ],
+        "standard_deviation": 6.141426376219957
+      },
+      "time_to_first_token_ms": {
+        "confidence_interval_95": [
+          3295.96246318557,
+          3301.79553681443
+        ],
+        "maximum": 3304.21,
+        "mean": 3298.879,
+        "median": 3300.185,
+        "minimum": 3292.84,
+        "sample_count": 10,
+        "samples": [
+          3292.84,
+          3293.04,
+          3294.79,
+          3297.89,
+          3302.66,
+          3304.21,
+          3300.85,
+          3299.52,
+          3302.07,
+          3300.92
+        ],
+        "standard_deviation": 4.077320607130775
+      }
+    },
+    "llama-cpp": {
+      "average_inter_token_latency_ms": {
+        "confidence_interval_95": [
+          11.927688418142191,
+          11.936819518365747
+        ],
+        "maximum": 11.941583774250441,
+        "mean": 11.932253968253969,
+        "median": 11.930214285714285,
+        "minimum": 11.925066137566137,
+        "sample_count": 10,
+        "samples": [
+          11.931017636684302,
+          11.925066137566137,
+          11.94084656084656,
+          11.926601410934744,
+          11.941583774250441,
+          11.92820811287478,
+          11.930207231040564,
+          11.940980599647267,
+          11.930221340388007,
+          11.927806878306878
+        ],
+        "standard_deviation": 0.006382642407096773
+      },
+      "decode_tokens_per_second": {
+        "confidence_interval_95": [
+          83.77442841263188,
+          83.83854061932045
+        ],
+        "maximum": 83.85697726655094,
+        "mean": 83.80648451597617,
+        "median": 83.82079114855377,
+        "minimum": 83.74098602869525,
+        "sample_count": 10,
+        "samples": [
+          83.81514724488378,
+          83.85697726655094,
+          83.74615609574533,
+          83.84618262526686,
+          83.74098602869525,
+          83.83488873912623,
+          83.82084071416243,
+          83.7452160360716,
+          83.8207415829451,
+          83.83770882631421
+        ],
+        "standard_deviation": 0.04481445600250959
+      },
+      "deterministic_outputs": true,
+      "external_telemetry": {
+        "active_sample_count": 991,
+        "power_w": {
+          "maximum": 176.1,
+          "mean": 145.58202825428862
+        },
+        "sample_count": 1057,
+        "sampling_scope": "whole command; active means sampled GPU utilization >=80%",
+        "sm_mhz": {
+          "maximum": 2467.0,
+          "mean": 2148.842583249243
+        },
+        "temperature_c": {
+          "maximum": 74.0,
+          "mean": 67.30978809283552
+        },
+        "vram_mib": {
+          "maximum": 10630.0,
+          "mean": 10619.521695257316
+        }
+      },
+      "format": {
+        "batch_size": 2048,
+        "cache_prompt": false,
+        "flash_attention": true,
+        "gpu_layers": "all",
+        "kv_cache": "q8_0",
+        "maximum_draft_tokens": 2,
+        "measured_repetitions": 10,
+        "mtp_backend": "draft-mtp",
+        "mtp_draft_tokens": 2,
+        "ngram_mod": null,
+        "parallel": 1,
+        "poll": 100,
+        "primary_statistic": "median",
+        "priority": 0,
+        "speculative_types": [
+          "draft-mtp"
+        ],
+        "threads": 8,
+        "ubatch_size": 512,
+        "warmups": 3
+      },
+      "median_decode_ms_per_target_batch": 26.06717341040462,
+      "mtp": {
+        "accepted_tokens": 616.0,
+        "mean_accepted_length": 1.186897880539499,
+        "proposed_tokens": 1035.0,
+        "rejected_tokens": 419.0,
+        "target_batches": 519.0
+      },
+      "output_token_sha256_values": [
+        "4187f90c9f1c46bd338c46cf12b3f0899ce914f6646f675f9d25a30284fa4f5a"
+      ],
+      "prompt_tokens_per_second": {
+        "confidence_interval_95": [
+          3940.688049427574,
+          3946.98551093437
+        ],
+        "maximum": 3950.9002260240954,
+        "mean": 3943.836780180972,
+        "median": 3944.705297982473,
+        "minimum": 3934.794423562463,
+        "sample_count": 10,
+        "samples": [
+          3950.9002260240954,
+          3945.7982570958256,
+          3947.2336960384314,
+          3944.3572147021678,
+          3944.165408436816,
+          3945.053381262778,
+          3941.1853143699072,
+          3939.7419545967823,
+          3945.13792572045,
+          3934.794423562463
+        ],
+        "standard_deviation": 4.401927904224557
+      },
+      "time_to_first_token_ms": {
+        "confidence_interval_95": [
+          4151.015956239387,
+          4157.653643760614
+        ],
+        "maximum": 4163.877,
+        "mean": 4154.3348000000005,
+        "median": 4153.4155,
+        "minimum": 4146.903,
+        "sample_count": 10,
+        "samples": [
+          4146.903,
+          4152.265,
+          4150.755,
+          4153.782,
+          4153.984,
+          4153.049,
+          4157.125,
+          4158.648,
+          4152.96,
+          4163.877
+        ],
+        "standard_deviation": 4.63974601316354
+      }
+    },
+    "vllm": {
+      "average_inter_token_latency_ms": {
+        "confidence_interval_95": [
+          12.206501708919358,
+          12.212342564802118
+        ],
+        "maximum": 12.216100839506227,
+        "mean": 12.209422136860738,
+        "median": 12.210138369047694,
+        "minimum": 12.200210811287365,
+        "sample_count": 10,
+        "samples": [
+          12.200210811287365,
+          12.216100839506227,
+          12.211477768077534,
+          12.21041433333334,
+          12.210578353615523,
+          12.208220536155359,
+          12.20986240476205,
+          12.207068619047623,
+          12.208440703703975,
+          12.211846999118386
+        ],
+        "standard_deviation": 0.0040827604054637446
+      },
+      "decode_tokens_per_second": {
+        "confidence_interval_95": [
+          81.88437035295091,
+          81.92356248026486
+        ],
+        "maximum": 81.96579677744766,
+        "mean": 81.90396641660789,
+        "median": 81.89915382497087,
+        "minimum": 81.85918020306877,
+        "sample_count": 10,
+        "samples": [
+          81.96579677744766,
+          81.85918020306877,
+          81.89017078785797,
+          81.89730280241919,
+          81.89620270557474,
+          81.91201961321403,
+          81.90100484752254,
+          81.91974922133423,
+          81.91054240830326,
+          81.88769479933653
+        ],
+        "standard_deviation": 0.027395311374745004
+      },
+      "deterministic_outputs": true,
+      "external_telemetry": {
+        "active_sample_count": 1101,
+        "power_w": {
+          "maximum": 176.74,
+          "mean": 145.2104995458674
+        },
+        "sample_count": 1411,
+        "sampling_scope": "whole command; active means sampled GPU utilization >=80%",
+        "sm_mhz": {
+          "maximum": 2805.0,
+          "mean": 2598.5840145322436
+        },
+        "temperature_c": {
+          "maximum": 76.0,
+          "mean": 65.70481380563125
+        },
+        "vram_mib": {
+          "maximum": 15572.0,
+          "mean": 14206.228882833788
+        }
+      },
+      "format": {
+        "batch_size": 1,
+        "chunked_prefill": true,
+        "cpu_offload_gb": 0,
+        "cuda_graphs_requested": true,
+        "enforce_eager": false,
+        "gpu_memory_utilization": 0.9,
+        "kv_cache": "fp8",
+        "measured_repetitions": 10,
+        "mtp_backend": "Gemma4MTPModel",
+        "mtp_draft_tokens": 2,
+        "prefix_caching": false,
+        "primary_statistic": "median",
+        "warmups": 3
+      },
+      "median_decode_ms_per_target_batch": 25.546673266605325,
+      "mtp": {
+        "accepted_tokens": 590.0,
+        "mean_accepted_length": 1.088560885608856,
+        "proposed_tokens": 1083.0,
+        "rejected_tokens": 493.0,
+        "target_batches": 542.0
+      },
+      "output_token_sha256_values": [
+        "7332b2c495250a961852ed8c3e4bf7d2acf0ab577f6dc21d16174543f38634bf"
+      ],
+      "prompt_tokens_per_second": {
+        "confidence_interval_95": [
+          6302.727167016208,
+          6317.933752583887
+        ],
+        "maximum": 6328.598274430813,
+        "mean": 6310.330459800048,
+        "median": 6307.443622062488,
+        "minimum": 6298.945224424548,
+        "sample_count": 10,
+        "samples": [
+          6328.598274430813,
+          6324.2830977553685,
+          6321.002171251344,
+          6309.354518921367,
+          6306.455965560908,
+          6299.140959660166,
+          6308.431278564069,
+          6305.564238149542,
+          6298.945224424548,
+          6301.528869282353
+        ],
+        "standard_deviation": 10.629408892155805
+      },
+      "time_to_first_token_ms": {
+        "confidence_interval_95": [
+          2593.2588059693935,
+          2599.509434005582
+        ],
+        "maximum": 2601.0704040527344,
+        "mean": 2596.384119987488,
+        "median": 2597.5658893585205,
+        "minimum": 2588.8829231262207,
+        "sample_count": 10,
+        "samples": [
+          2588.8829231262207,
+          2590.649366378784,
+          2591.994047164917,
+          2596.7791080474854,
+          2597.972631454468,
+          2600.989580154419,
+          2597.1591472625732,
+          2598.3400344848633,
+          2601.0704040527344,
+          2600.003957748413
+        ],
+        "standard_deviation": 4.369191291083624
+      }
+    }
+  },
+  "environment": {
+    "dynamic_power_limit_w": 175,
+    "nvidia_powerd": "active",
+    "platform_profile": "max-power"
+  },
+  "gem16_ratios": {
+    "decode_vs_llama_cpp": 1.0195458042253955,
+    "decode_vs_vllm": 1.043467873978264,
+    "prefill_vs_llama_cpp": 1.2585402443512355,
+    "prefill_vs_vllm": 0.7870970661158436
+  },
+  "git_commit": "3ed8a998368ba7b5fb88f25a8520354840f1ccd1",
+  "limitations": [
+    "Prefill timing boundaries differ: llama.cpp prompt timing is narrower than request-level vLLM and gem16 TTFT.",
+    "gem16 and vLLM use the direct mixed FP8/NVFP4 checkpoint with FP8 KV; llama.cpp uses a patched GGUF with Q8_0 attention and Q8_0 KV.",
+    "The three MTP outputs have different token hashes. Prior gates show external vLLM and llama.cpp MTP differ from their own ordinary target outputs; only gem16 enforces exact ordinary-target identity.",
+    "vLLM FlashInfer startup autotuning reported an OOM and selected a documented default tactic.",
+    "External telemetry spans model startup, warmups, and measurements rather than only measured timing boundaries."
+  ],
+  "schema_version": 1,
+  "scope": "same-machine fixed-length 16K greedy D2 MTP comparison at max-power with nvidia-powerd active",
+  "status": "development_characterization",
+  "workload": {
+    "batch_size": 1,
+    "fixed_output_tokens": 1135,
+    "measured_repetitions": 10,
+    "mtp_draft_tokens": 2,
+    "prompt_token_ids_sha256": "d07ad4d805944f0b87869da0c5bb44d99e8c43c0eb57d05a108ad80a6abb51a8",
+    "prompt_tokens": 16384,
+    "warmups": 3
+  }
+}

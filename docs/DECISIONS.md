@@ -1,5 +1,32 @@
 # Decisions
 
+## 2026-08-02: Make Linux Dynamic Boost part of the reference laptop benchmark state
+
+Date: 2026-08-02
+
+Decision: Require the NVIDIA `nvidia-powerd` Dynamic Boost service and a recorded ACPI platform profile for
+performance comparisons on the reference Lenovo Legion laptop. Use `max-power` for the current 175 W headline
+characterization. Treat earlier Linux results collected at the firmware's fixed 80 W default as valid historical
+measurements of that power state, not as evidence of an operating-system performance deficit. A benchmark on other
+hardware or power policy remains valid only when labeled separately.
+
+Context: Linux exposed `balanced`, `performance`, and `max-power` profiles, but both `performance` and `max-power`
+continued to report and consume approximately 80 W while `nvidia-powerd.service` was installed but disabled. The
+GPU reported `Notebook Dynamic Boost: Supported`. Enabling the service raised the loaded ceiling to 175 W and the
+same current-head 16K/64 D2 screen from 57.425 to 85.769 effective tok/s, while active sampled SM clock rose from
+about 1,572 to 2,550 MHz. This accounts for the apparent Windows/Linux gap without an engine source change.
+
+Alternatives: Attribute the difference to Windows CUDA scheduling; force a static 175 W limit with `nvidia-smi`;
+or leave power policy implicit. The first is contradicted by the controlled result, the second bypasses the
+notebook's system-wide CPU/GPU thermal-budget controller, and the third makes cross-machine results misleading.
+
+Consequences: `scripts/benchmark-cross-engine-mtp.sh` checks `max-power`, active `nvidia-powerd`, and an idle GPU by
+default, and records telemetry. `--allow-uncontrolled-power` permits clearly separate hardware characterizations.
+Normal users may retain Dynamic Boost while selecting a quieter firmware profile outside benchmark runs.
+
+Evidence: The 80 W and 175 W telemetry screens plus the complete 3-warm-up/10-run cross-engine result recorded in
+`docs/PERFORMANCE_LEDGER.md` and `benchmarks/baselines/cross_engine_mtp/characterization.json`.
+
 ## 2026-07-31: Execute the decode program under Linux
 
 Date: 2026-07-31

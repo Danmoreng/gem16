@@ -4,6 +4,27 @@ There are no accepted comparative benchmark results yet. `gem16-bench decode` no
 machine-readable batch-one decode characterization; the other end-to-end benchmark modes still return
 `not_implemented` and a non-zero exit code.
 
+## Reproducible 16K cross-engine MTP characterization
+
+The public three-engine reproduction entry point is:
+
+```bash
+./scripts/benchmark-cross-engine-mtp.sh
+```
+
+It runs gem16, pinned patched vLLM 0.25.1, and pinned patched llama.cpp 10210 over the checked-in exact
+`benchmarks/prompts/wikipedia-summary-16k.json` token workload. Every engine receives 16,384 prompt tokens, emits
+1,135 fixed greedy target tokens with D2 MTP, and uses batch one, three warm-ups, and ten measurements. The script
+validates checkpoint locks, competitor versions/patches, GGUF checksums, an idle GPU, and—unless explicitly
+overridden—the reference laptop's `max-power` profile plus active `nvidia-powerd` Dynamic Boost. It never overwrites
+an existing result and retains per-run JSON, logs, and 200 ms GPU telemetry.
+
+The 2026-08-02 reference medians and limitations are recorded in
+[`benchmarks/baselines/cross_engine_mtp/`](../benchmarks/baselines/cross_engine_mtp/). This is a development
+characterization rather than accepted parity: gem16/vLLM use direct mixed FP8/NVFP4 plus FP8 KV, llama.cpp uses
+patched Q8_0 attention plus Q8_0 KV, prefill timing boundaries differ, and the three MTP output hashes differ.
+Only target-verified output tokens are counted.
+
 The decode command keeps one model instance resident across all runs, clears the preallocated KV cache outside
 the timing boundary, performs the configured warm-ups, and retains every measured inter-token latency in JSON.
 It reports median/mean throughput, standard deviation, a Student-t 95% confidence interval across runs, and pooled

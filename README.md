@@ -30,6 +30,43 @@ TensorRT engine generation, offline requantization, or a second persistent copy 
 > gem16 is a development preview, not a release-qualified general-purpose runtime. The optimized CUDA backend
 > currently targets Blackwell SM120/SM120a, and the supported model revisions are pinned deliberately.
 
+## Experimental AI-developed engine
+
+gem16 is programmed primarily with AI coding agents and is intended as an experimental engineering project. It
+examines how direct checkpoint loading, model-specific execution plans, and Blackwell-specific CUDA kernels perform
+for Gemma 4 12B within 16 GB of VRAM.
+
+### Current 16K MTP characterization
+
+On an RTX 5080 Laptop GPU at its firmware-managed 175 W ceiling, commit `3ed8a99` produces the following result:
+
+| Engine | Checkpoint / KV | Prefill tok/s | TTFT | Effective D2 MTP tok/s | ITL |
+|---|---|---:|---:|---:|---:|
+| vLLM 0.25.1 | direct FP8/NVFP4 / FP8 | **6,307.44** | **2,597.6 ms** | 81.90 | 12.210 ms |
+| **gem16** | direct FP8/NVFP4 / FP8 | 4,964.57 | 3,300.2 ms | **85.46** | **11.701 ms** |
+| llama.cpp 10210 | patched NVFP4+Q8_0 GGUF / Q8_0 | 3,944.71 | 4,153.4 ms | 83.82 | 11.930 ms |
+
+The benchmark uses batch one, an exact 16,384-token prompt, 1,135 fixed greedy output positions, fixed D2 MTP,
+three warm-ups, and ten measured runs per engine. Only target-verified output tokens are counted. In this workload,
+gem16 decode is 4.35% faster than vLLM and 1.95% faster than llama.cpp; vLLM prefill is 27.0% faster than gem16.
+
+Reproduce the complete three-engine run after preparing the pinned competitor environments:
+
+```bash
+sudo systemctl enable --now nvidia-powerd.service
+echo max-power | sudo tee /sys/firmware/acpi/platform_profile
+./scripts/benchmark-cross-engine-mtp.sh
+```
+
+The script validates models, competitor versions, patches, GGUF checksums, power state, and an idle GPU. It stores
+raw JSON, logs, and power/clock/thermal telemetry in a new result directory. See the
+[full result and setup instructions](benchmarks/baselines/cross_engine_mtp/README.md) and the
+[machine-readable characterization](benchmarks/baselines/cross_engine_mtp/characterization.json).
+
+Comparison scope: gem16 and vLLM use the direct mixed FP8/NVFP4 checkpoint with FP8 KV. llama.cpp uses the patched
+NVFP4+Q8_0 GGUF and Q8_0 KV. The engines produce different token hashes, and their prefill timing boundaries are
+not identical. gem16 fixed-D2 is additionally checked for exact identity with its ordinary Target output.
+
 ## What works today
 
 ### Desktop app
@@ -187,15 +224,16 @@ Architecture and memory details are documented in [`docs/ARCHITECTURE.md`](docs/
 
 ## Performance and correctness
 
-gem16 reports prefill, decode, MTP, memory, and end-to-end measurements separately. The current retained Wikipedia
-16K greedy qualification on the Windows reference setup measures 54.903 output tok/s with fixed D2 MTP versus
-36.788 tok/s ordinary decode (1.492x). A separate Linux sampled qualification reaches 46.234 tok/s versus
-31.450 tok/s (1.470x), with ordinary/MTP-identical outputs for all retained runs at the qualified seed and profile.
+gem16 reports prefill, ordinary decode, MTP, memory, and end-to-end measurements separately. The current prominent
+comparison above is a fixed-output greedy D2 MTP characterization under a controlled Linux max-power profile; it
+does not replace ordinary-decode, task-quality, or long-context gates. Cross-runtime token identity is not expected,
+but every engine must remain deterministic and all format, cache, timing-boundary, and fallback differences stay
+visible.
 
-These numbers are characterization results, not a universal speed claim. Hardware, checkpoint, context, timing
-boundaries, sampling, quality, VRAM use, and baseline tensor formats must all be disclosed. Reproduction commands,
-raw evidence, caveats, and comparison rules live in
-[`docs/PERFORMANCE_LEDGER.md`](docs/PERFORMANCE_LEDGER.md) and
+Hardware, checkpoint, context, output count, sampling, quality, VRAM, clocks, power, and baseline tensor formats
+must accompany any performance claim. Reproduction commands, raw-evidence policy, caveats, and historical results
+live in [`benchmarks/baselines/cross_engine_mtp/`](benchmarks/baselines/cross_engine_mtp/),
+[`docs/PERFORMANCE_LEDGER.md`](docs/PERFORMANCE_LEDGER.md), and
 [`docs/BENCHMARKING.md`](docs/BENCHMARKING.md).
 
 ## Current limitations

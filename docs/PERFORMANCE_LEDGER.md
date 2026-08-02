@@ -1,5 +1,43 @@
 # Performance ledger
 
+## 2026-08-02 Linux max-power cross-engine D2 MTP characterization
+
+Hypothesis: the large retained Windows/Linux performance discrepancy is primarily a laptop power-policy problem,
+not an operating-system kernel advantage. On the reference Lenovo Legion, Linux exposed `max-power` but kept the
+GPU at its 80 W default because the installed `nvidia-powerd` Dynamic Boost service was disabled. Enabling that
+service raised the firmware-managed loaded ceiling to 175 W; the same current-head 16K/64 development screen rose
+from 57.425 to 85.769 effective tok/s (+49.4%). Active sampled SM clock rose from about 1,572 to 2,550 MHz while
+maximum temperature remained 64 C in the bounded confirmation.
+
+A complete same-machine comparison then used commit `3ed8a998368ba7b5fb88f25a8520354840f1ccd1`, the exact
+16,384-token Wikipedia prompt with little-endian-uint32 SHA-256
+`d07ad4d805944f0b87869da0c5bb44d99e8c43c0eb57d05a108ad80a6abb51a8`, 1,135 fixed greedy output positions,
+batch one, fixed D2 MTP, three warm-ups, and ten measured runs per engine. Proposed tokens were not counted.
+
+| Engine | Prefill median | TTFT median | Effective D2 median | ITL median | Accepted/proposed | Target batches |
+|---|---:|---:|---:|---:|---:|---:|
+| gem16 | 4,964.57 tok/s | 3,300.2 ms | **85.459 tok/s** | **11.701 ms** | 633/1,002 | 501 |
+| vLLM 0.25.1 | **6,307.44 tok/s** | **2,597.6 ms** | 81.899 tok/s | 12.210 ms | 590/1,083 | 542 |
+| llama.cpp 10210 | 3,944.71 tok/s | 4,153.4 ms | 83.821 tok/s | 11.930 ms | 616/1,035 | 519 |
+
+Gem16 decode is 4.35% above vLLM and 1.95% above llama.cpp in this workload; gem16 prefill is 21.29% below vLLM
+and 25.85% above llama.cpp. All ten outputs are deterministic within each runtime. Gem16 retains the fixed
+1,135-token ordinary-Target SHA-256 `43bc3380fc1cce5182a679fa3a340c04bcc79c52e73d5102ec1f737f57d0a1e1`.
+The external hashes differ, and prior gates show their MTP paths differ from their own ordinary Target output.
+
+Format and timing disclosure: gem16 and vLLM consume the direct mixed FP8/NVFP4 checkpoint with FP8 KV. llama.cpp
+uses the patched GGUF with 144 native NVFP4 MLP tensors, 184 Q8_0 attention tensors, and Q8_0 KV. llama.cpp's
+prefill boundary is narrower. vLLM's FlashInfer startup autotuner encountered one OOM and selected its documented
+default tactic. Whole-command 200 ms telemetry sampled maximum VRAM at 10,922/15,572/10,630 MiB and maximum power
+at 173.48/176.74/176.10 W for gem16/vLLM/llama.cpp respectively; startup/autotuning is included in those maxima.
+
+Decision: retain this as a prominent reproducible development characterization, not a format- or quality-parity
+headline. Require `nvidia-powerd` plus the disclosed platform profile for direct reproduction on this laptop.
+`README.md`, `scripts/benchmark-cross-engine-mtp.sh`, the checked-in exact-token workload, and
+`benchmarks/baselines/cross_engine_mtp/characterization.json` form the public reproduction boundary. Raw JSON,
+console logs, and telemetry remain under
+`benchmarks/results/2026-08-02/3ed8a99/blackwell16gb-linux-maxpower-cross-engine-mtp/`.
+
 ## 2026-08-01 Six-phase Windows final qualification
 
 The ordered six-phase program completed with one promoted production change: Phase 5's assistant BF16x2 GEMV.
