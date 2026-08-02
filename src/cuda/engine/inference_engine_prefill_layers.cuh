@@ -58,13 +58,10 @@
           cudaMemcpyDeviceToDevice, stream_);
       if (error != cudaSuccess) return CudaFailure("reuse batched global K for V", error);
     }
-    for (const Status next : {
-             LaunchRoundBf16(v, tokens * layer.kv_elements, stream_),
-             internal::LaunchRmsNormBf16(v, nullptr, v_norm,
-                                     tokens * layer.kv_heads, layer.head_dimension,
-                                     kEpsilon, stream_)}) {
-      if (!next.ok()) return next;
-    }
+    status = internal::LaunchRmsNormBf16(
+        v, nullptr, v_norm, tokens * layer.kv_heads, layer.head_dimension,
+        kEpsilon, stream_);
+    if (!status.ok()) return status;
     if (controlled_mtp_d2) {
       status = internal::LaunchProjectionRmsNormRotaryBf16BatchControlled(
           q, layer.q_norm, q_norm, k, layer.k_norm, k_norm,
@@ -424,8 +421,6 @@
                  : LaunchFp8ProjectionBatch(
                        o_activation, o_scales, layer.o, projection, tokens,
                        cutlass_workspace, kCutlassWorkspaceBytes, stream_);
-    if (!status.ok()) return status;
-    status = LaunchRoundBf16(projection, hidden_elements, stream_);
     if (!status.ok()) return status;
     status = internal::LaunchRmsNormResidualBf16(
         projection, layer.post_attention_norm, hidden_a, nullptr, hidden_b,

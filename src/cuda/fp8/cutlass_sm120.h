@@ -24,6 +24,7 @@ namespace gem16::internal {
     std::uint64_t contracting_elements,
     void* workspace,
     std::size_t workspace_bytes,
-    cudaStream_t stream);
+    cudaStream_t stream,
+    bool round_output_bf16 = false);
 
 }  // namespace gem16::internal

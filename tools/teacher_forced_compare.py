@@ -128,6 +128,7 @@ def validate_inference(
         "load_time_scale_swizzle": True,
         "persistent_repack_bytes": 0,
         "fp8_prefill_tile": "cutlass_m128n128k64",
+        "fp8_prefill_output": "scaled_bf16",
         "fp8_prefill_pipeline_stages": 0,
         "fp8_prefill_schedule": "cutlass_auto",
         "local_prefill_query_heads_per_cta": 2,

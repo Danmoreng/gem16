@@ -57,7 +57,8 @@ The first full-model path intentionally accepts token IDs and uses a hybrid cach
 position contract. Its 40 local-attention layers use fixed 1,024-token rings; its eight full-attention layers use
 absolute, growing storage. Checkpoint-FP8 prefill uses one fixed 8,192-token chunk. Attention projections run as
 CUTLASS SM120 128x128x64 warp-specialized FP8 GEMMs directly over checkpoint-order activation and weight bytes,
-followed by explicit per-token/per-channel scaling in FP32. Q/K/V are separate prompt GEMMs. Decode uses the
+followed by exact per-token/per-channel scaling and the required BF16 cast in one output kernel. Q/K/V are separate
+prompt GEMMs. Decode uses the
 binding-dimension grouping around the
 latency-oriented T=1 direct-source kernel, reducing three independent graph nodes to one while retaining each
 projection's original CTAs and MMA ordering. Gate, Up, and Down prefill use CUTLASS SM120 block-scaled GEMM over a
@@ -239,9 +240,10 @@ The attention projections remain a separate dynamic-FP8/per-channel-FP8 path.
 The production FP8 prefill projection is a CUTLASS 4.5.2 SM120 128x128x64 Tensor-Core GEMM with an automatic
 warp-specialized schedule and FP32 output. Checkpoint `[N,K]` weights are already the column-major B memory order
 expected by the GEMM, so no repack or second weight copy is needed. A 256-thread scale kernel then applies the
-dynamic per-token activation scale followed by the per-output-channel BF16 checkpoint scale, matching the former
-FP32 multiplication order exactly. Q, K, optional V, and O are separate prompt GEMMs and reuse the existing 8 MiB
-CUTLASS workspace sequentially. The T=1 decode plan retains its grouped native direct-source projection.
+dynamic per-token activation scale followed by the per-output-channel BF16 checkpoint scale and immediately writes
+the required BF16-rounded value, matching the former FP32 multiplication and cast order exactly. Q, K, optional V,
+and O are separate prompt GEMMs and reuse the existing 8 MiB CUTLASS workspace sequentially. V normalization and
+the O residual boundary consume that closed value directly rather than launching redundant BF16 round passes. The T=1 decode plan retains its grouped native direct-source projection.
 
 Checkpoint-FP8 prefill attention uses BF16 Tensor-Core QK and probability-times-V operations with FP32 online
 softmax state. This deliberately changes the scalar FP32 reference's reduction tree and rounds MMA operands, so it

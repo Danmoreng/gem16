@@ -1,5 +1,33 @@
 # Performance ledger
 
+## 2026-08-02 Prefill phases 3/4: reject layer-major prep reuse; close FP8 BF16 outputs
+
+Phase 3 hypothesis: a layer-major text plan can transform Gate/Up/Down into transient CUTLASS scratch once per
+layer and reuse those bytes across both 8,192-token chunks, avoiding half of the prompt-time weight preparation
+without a second persistent model layout. The candidate retained one full prompt hidden-state arena and three
+prepared current-layer matrices, preserved the output hash, and reduced preparation calls as designed, but its
+1-warm-up/3-run median was 4,951.66 tok/s versus the promoted parent's approximately 5,173 tok/s. The changed
+whole-model traversal and larger working set outweighed preparation reuse. The complete candidate was removed and
+Phase 3 produces no commit.
+
+Phase 4 hypothesis: every CUTLASS FP8 Q/K/V/O scale output reaches an existing BF16 boundary, so the scale kernel
+can perform that exact cast and eliminate standalone V and O round passes. The operator keeps an explicit FP32
+mode for its independent exact test; production selects `scaled_bf16`. Against the 8K-chunk parent's 5,172.75 tok/s
+and 3,167.37 ms, the adjacent 3-warm-up/10-run candidate reaches 5,271.29 tok/s (+1.90%) and 3,108.15 ms (-1.87%).
+Its throughput 95% CI is `[5,263.42,5,279.11]`, TTFT CI is `[3,103.56,3,112.81]`, and all outputs retain SHA-256
+`584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182`.
+
+Nsight confirms only 96 standalone `RoundBf16Kernel` calls remain at 16K instead of the 288 implied by the
+8K-chunk parent; the remaining calls close the attention output. The scaled/BF16 output kernels take 109.25 ms,
+while total profiled prompt execution remains dominated by global attention (1,019.82 ms), all CUTLASS GEMMs
+(1,113.01 ms), and local attention (416.12 ms). Host/CUDA CTest, exact-blue, and direct 129/257 vLLM boundary gates
+pass. Workspace, persistent weights, cache, and decode kernels are unchanged.
+
+Decision: promote the exact FP8 scaled-BF16 output boundary and remove the redundant V/O casts. Keep the rejected
+layer-major candidate absent. Next rebuild the profile-dominant global prefill attention rather than adding another
+layout-preparation mechanism. Raw evidence is under
+`benchmarks/results/2026-08-02/22b3727-worktree/blackwell16gb-linux-prefill-phase{3,4}-*`.
+
 ## 2026-08-02 Prefill phase 2: promote an 8,192-token checkpoint-FP8 chunk
 
 Hypothesis: the current 2,048-token prompt plan repeats all 48 layers eight times for the 16K workload, while vLLM

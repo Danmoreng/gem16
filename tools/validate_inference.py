@@ -66,6 +66,8 @@ def validate_result(document: dict[str, Any], expected: list[int]) -> None:
         raise ValidationError("inference retained a persistent repack allocation")
     if document.get("fp8_prefill_tile") != "cutlass_m128n128k64":
         raise ValidationError("inference did not use the required CUTLASS FP8 prefill tile")
+    if document.get("fp8_prefill_output") != "scaled_bf16":
+        raise ValidationError("inference did not close the CUTLASS FP8 BF16 output boundary")
     if document.get("fp8_prefill_pipeline_stages") != 0:
         raise ValidationError("inference reported a manual FP8 prefill pipeline")
     if document.get("fp8_prefill_schedule") != "cutlass_auto":

@@ -27,9 +27,10 @@ The bounded global-attention follow-up removes redundant modulo from contiguous-
 combined adjacent median of 3,827.47 tok/s versus its 3,801.98 tok/s parent (+0.67%). The max-power 16K refresh at
 `0c0ec10` establishes 5,034.80 tok/s and 3,254.15 ms TTFT for the 2,048-token parent. Promoting an 8,192-token
 checkpoint-FP8 chunk raises the adjacent 3/10 median to 5,172.75 tok/s (+2.74%) and lowers TTFT to 3,167.37 ms
-(-2.67%) while retaining the output hash; peak sampled VRAM with the MTP assistant resident is 12,704 MiB.
-Cross-engine claims must reconcile timing boundaries and cache precision under `docs/BENCHMARKING.md` and
-`AGENTS.md`.
+(-2.67%) while retaining the output hash; peak sampled VRAM with the MTP assistant resident is 12,704 MiB. The
+next promotion closes CUTLASS FP8 scaling at the already-required BF16 boundary, reaching 5,271.29 tok/s and
+3,108.15 ms without changing the hash or memory plan. Cross-engine claims must reconcile timing boundaries and
+cache precision under `docs/BENCHMARKING.md` and `AGENTS.md`.
 
 ## Profile-derived diagnosis
 
@@ -144,7 +145,8 @@ second device copy exists. Phase 3 is closed. Proceed to the ordered large/group
 ### 4. Rebuild and group the FP8 attention projections
 
 Status: implemented and model-qualified; the original M64 winner from `6005921` was superseded on 2026-07-26 by
-the spill-free M128 extension.
+the spill-free M128 extension. Production scaling now closes each FP8 projection at its required BF16 boundary,
+removing redundant V/O round passes and raising the current 16K median from 5,172.75 to 5,271.29 tok/s.
 
 Apply the same large-token-tile and pipeline discipline to Q, K/V, and O while preserving per-token dynamic FP8
 activation quantization and per-channel weight scaling. Evaluate shape-specific combined Q/K/V scheduling and the

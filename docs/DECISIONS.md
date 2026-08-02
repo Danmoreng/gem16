@@ -1,5 +1,29 @@
 # Decisions
 
+## 2026-08-02: Close CUTLASS FP8 prompt outputs at their BF16 boundary
+
+Date: 2026-08-02
+
+Decision: Make the production CUTLASS FP8 scale kernel apply activation scale, per-channel weight scale, and the
+required BF16 cast in that order. Consume the resulting Q/K/V/O values directly at their existing normalized or
+residual boundaries and remove separate V/O round kernels. Retain FP32 output only as an explicit operator-test
+mode.
+
+Context: Production already rounded all scaled Q/K/V/O projections to BF16 before their next semantic consumer.
+Closing the boundary in the scale pass removes 192 standalone round launches from the 16K 8K-chunk plan. The
+3-warm-up/10-run median improves from 5,172.75 to 5,271.29 tok/s (+1.90%) and TTFT from 3,167.37 to 3,108.15 ms
+(-1.87%) with non-overlapping intervals and an unchanged output hash.
+
+Alternatives: Build a custom CUTLASS EVT epilogue immediately; retain redundant casts; or omit the BF16 boundary.
+The first is a larger numerical and template change before measuring this simpler closed boundary, the second
+leaves measured time unused, and the third changes model arithmetic.
+
+Consequences: Runtime JSON reports `fp8_prefill_output=scaled_bf16`. Operator FP32 and production BF16 fixtures
+remain distinct. Persistent memory, workspace, KV format, and decode are unchanged.
+
+Evidence: `docs/PERFORMANCE_LEDGER.md`, CTest, exact-blue, direct 129/257 boundary checks, and the phase-4 Nsight
+and 3/10 artifacts.
+
 ## 2026-08-02: Resume prefill work and use 8,192-token checkpoint-FP8 chunks
 
 Date: 2026-08-02

@@ -77,7 +77,7 @@ using Gemm = cutlass::gemm::device::GemmUniversalAdapter<GemmKernel>;
 __global__ void ApplyScalesKernel(
     float* output, const float* activation_scales,
     const std::uint16_t* weight_scales, std::uint64_t rows,
-    std::uint64_t elements) {
+    std::uint64_t elements, bool round_output_bf16) {
   const std::uint64_t index =
       static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
   if (index >= elements) return;
@@ -85,9 +85,11 @@ __global__ void ApplyScalesKernel(
   const std::uint64_t row = index - token * rows;
   const __nv_bfloat16 weight_scale =
       __ushort_as_bfloat16(weight_scales[row]);
-  output[index] =
-      output[index] * activation_scales[token] *
-      static_cast<float>(weight_scale);
+  const float scaled = output[index] * activation_scales[token] *
+                       static_cast<float>(weight_scale);
+  output[index] = round_output_bf16
+                      ? static_cast<float>(__float2bfloat16_rn(scaled))
+                      : scaled;
 }
 
 Status LaunchGemm(
@@ -166,7 +168,8 @@ Status LaunchFp8CutlassProjectionBatch(
     std::uint64_t contracting_elements,
     void* workspace,
     std::size_t workspace_bytes,
-    cudaStream_t stream) {
+    cudaStream_t stream,
+    bool round_output_bf16) {
   if (activation_e4m3fn == nullptr || activation_scales == nullptr ||
       weight_e4m3fn == nullptr || weight_scales_bf16 == nullptr ||
       output == nullptr || workspace == nullptr || tokens == 0U ||
@@ -194,11 +197,12 @@ Status LaunchFp8CutlassProjectionBatch(
   const unsigned blocks =
       static_cast<unsigned>((elements + kThreads - 1U) / kThreads);
   ApplyScalesKernel<<<blocks, kThreads, 0, stream>>>(
-      output, activation_scales, weight_scales_bf16, rows, elements);
+      output, activation_scales, weight_scales_bf16, rows, elements,
+      round_output_bf16);
   const cudaError_t error = cudaGetLastError();
   return error == cudaSuccess
              ? Status::Ok()
-             : CudaFailure("launch CUTLASS FP8 output scaling", error);
+             : CudaFailure("launch CUTLASS FP8 output scaling/BF16 cast", error);
 }
 
 }  // namespace gem16::internal
