@@ -25,9 +25,10 @@ private const val SilencePeakThreshold = 128
 private const val SilenceRmsThreshold = 8.0
 private const val ClippingSampleThreshold = 0.01
 private const val PipeWireRecordingVolume = 0.05f
-private const val PipeWireStartupAttempts = 2
 private const val PipeWireStartupProbeMillis = 150L
-private const val PipeWireStartupRetryMillis = 500L
+private const val PipeWireReadinessTimeoutMillis = 2_000L
+private const val PipeWireReadinessPollMillis = 100L
+private const val PipeWireControlAttemptMillis = 250L
 private const val NormalizedPeak = 27_852
 
 internal data class RecordedAudio(
@@ -49,10 +50,7 @@ private data class PcmStats(
         if (sampleCount == 0L) 0.0 else clippedSamples.toDouble() / sampleCount.toDouble()
 }
 
-class AudioRecorder internal constructor(
-    private val pipeWireProcessFactory: (List<String>) -> Process = ::launchPipeWireProcess,
-    private val sleep: (Long) -> Unit = Thread::sleep,
-) : AutoCloseable {
+class AudioRecorder : AutoCloseable {
     @Volatile
     private var stopRequested = false
     @Volatile
@@ -63,7 +61,9 @@ class AudioRecorder internal constructor(
     internal fun record(onProgress: (durationMillis: Long, level: Float) -> Unit): RecordedAudio {
         check(activeLine == null && activeProcess == null) { "An audio recording is already active" }
         stopRequested = false
-        return if (isLinux() && executableOnPath("pw-record")) {
+        return if (
+            isLinux() && executableOnPath("pw-record") && executableOnPath("wpctl")
+        ) {
             recordPipeWire(onProgress)
         } else {
             recordJavaSound(onProgress)
@@ -84,76 +84,44 @@ class AudioRecorder internal constructor(
     private fun recordPipeWire(onProgress: (Long, Float) -> Unit): RecordedAudio {
         val sampleRate = 48_000
         val channels = 1
-        var previousVolume = lowerDefaultPipeWireSourceVolume()
+        val previousVolume = lowerDefaultPipeWireSourceVolume()
+        val process = try {
+            startPipeWireProcess(sampleRate, channels)
+        } catch (error: Exception) {
+            restoreDefaultPipeWireSourceVolume(previousVolume)
+            throw error
+        }
         try {
-            val process = startPipeWireProcess(sampleRate, channels) {
-                if (previousVolume == null) {
-                    previousVolume = lowerDefaultPipeWireSourceVolume()
-                }
-            }
-            try {
-                val pcm = capturePcm(process.inputStream, sampleRate, channels, onProgress)
-                return finishRecording(pcm, sampleRate, channels)
-            } finally {
-                stopProcess(process)
-                if (activeProcess === process) activeProcess = null
-            }
+            val pcm = capturePcm(process.inputStream, sampleRate, channels, onProgress)
+            return finishRecording(pcm, sampleRate, channels)
         } finally {
+            stopProcess(process)
+            if (activeProcess === process) activeProcess = null
             restoreDefaultPipeWireSourceVolume(previousVolume)
         }
     }
 
-    internal fun startPipeWireProcess(
-        sampleRate: Int,
-        channels: Int,
-        beforeRetry: () -> Unit = {},
-    ): Process {
-        val command = listOf(
-            "pw-record",
-            "--rate", sampleRate.toString(),
-            "--channels", channels.toString(),
-            "--format", "s16",
-            "--raw",
-            "-",
+    private fun startPipeWireProcess(sampleRate: Int, channels: Int): Process {
+        val process = launchPipeWireProcess(
+            listOf(
+                "pw-record",
+                "--rate", sampleRate.toString(),
+                "--channels", channels.toString(),
+                "--format", "s16",
+                "--raw",
+                "-",
+            ),
         )
-        var lastFailure: Throwable? = null
-        repeat(PipeWireStartupAttempts) { attempt ->
-            if (stopRequested) {
-                throw IllegalStateException(
-                    "PipeWire microphone recording was stopped before startup",
-                    lastFailure,
-                )
-            }
-            val process = try {
-                pipeWireProcessFactory(command)
-            } catch (error: Exception) {
-                lastFailure = error
-                null
-            }
-            if (process != null) {
-                activeProcess = process
-                try {
-                    sleep(PipeWireStartupProbeMillis)
-                } catch (error: Throwable) {
-                    stopProcess(process)
-                    if (activeProcess === process) activeProcess = null
-                    throw error
-                }
-                if (process.isAlive) return process
-                if (activeProcess === process) activeProcess = null
-                lastFailure = IllegalStateException(
-                    "pw-record exited before the microphone stream became ready",
-                )
-            }
-            if (attempt + 1 < PipeWireStartupAttempts && !stopRequested) {
-                sleep(PipeWireStartupRetryMillis)
-                if (!stopRequested) beforeRetry()
-            }
+        activeProcess = process
+        try {
+            Thread.sleep(PipeWireStartupProbeMillis)
+            check(process.isAlive) { "PipeWire microphone recording could not be started" }
+            return process
+        } catch (error: Throwable) {
+            stopProcess(process)
+            if (activeProcess === process) activeProcess = null
+            throw error
         }
-        throw IllegalStateException(
-            "PipeWire microphone recording could not be started",
-            lastFailure,
-        )
     }
 
     private fun recordJavaSound(onProgress: (Long, Float) -> Unit): RecordedAudio {
@@ -256,18 +224,40 @@ class AudioRecorder internal constructor(
 
     private fun lowerDefaultPipeWireSourceVolume(): Float? {
         if (!executableOnPath("wpctl")) return null
-        val previous = runCatching {
-            val process = ProcessBuilder("wpctl", "get-volume", "@DEFAULT_AUDIO_SOURCE@")
-                .redirectError(ProcessBuilder.Redirect.DISCARD)
-                .start()
-            val output = process.inputStream.bufferedReader().use { it.readText() }
-            if (!process.waitFor(1, TimeUnit.SECONDS) || process.exitValue() != 0) return@runCatching null
-            Regex("""Volume:\s*([0-9]+(?:\.[0-9]+)?)""")
-                .find(output)?.groupValues?.getOrNull(1)?.toFloatOrNull()
-        }.getOrNull() ?: return null
+        val previous = awaitPipeWireSourceVolume(
+            timeoutMillis = PipeWireReadinessTimeoutMillis,
+            pollMillis = PipeWireReadinessPollMillis,
+            stopRequested = { stopRequested },
+            query = { remainingMillis ->
+                queryDefaultPipeWireSourceVolume(
+                    min(PipeWireControlAttemptMillis, remainingMillis),
+                )
+            },
+        ) ?: throw IllegalStateException(
+            if (stopRequested) {
+                "PipeWire microphone startup was cancelled"
+            } else {
+                "PipeWire microphone source did not become ready within 2 seconds"
+            },
+        )
         if (previous > PipeWireRecordingVolume) setPipeWireSourceVolume(PipeWireRecordingVolume)
         return previous
     }
+
+    private fun queryDefaultPipeWireSourceVolume(waitMillis: Long): Float? = runCatching {
+        val process = ProcessBuilder("wpctl", "get-volume", "@DEFAULT_AUDIO_SOURCE@")
+            .redirectError(ProcessBuilder.Redirect.DISCARD)
+            .start()
+        if (!process.waitFor(waitMillis, TimeUnit.MILLISECONDS)) {
+            process.destroy()
+            if (process.isAlive) process.destroyForcibly()
+            return@runCatching null
+        }
+        if (process.exitValue() != 0) return@runCatching null
+        val output = process.inputStream.bufferedReader().use { it.readText() }
+        Regex("""Volume:\s*([0-9]+(?:\.[0-9]+)?)""")
+            .find(output)?.groupValues?.getOrNull(1)?.toFloatOrNull()
+    }.getOrNull()
 
     private fun restoreDefaultPipeWireSourceVolume(previous: Float?) {
         if (previous != null) setPipeWireSourceVolume(previous)
@@ -284,6 +274,32 @@ class AudioRecorder internal constructor(
                 .waitFor(1, TimeUnit.SECONDS)
         }
     }
+}
+
+internal fun awaitPipeWireSourceVolume(
+    timeoutMillis: Long,
+    pollMillis: Long,
+    stopRequested: () -> Boolean,
+    query: (remainingMillis: Long) -> Float?,
+    nanoTime: () -> Long = System::nanoTime,
+    sleep: (Long) -> Unit = Thread::sleep,
+): Float? {
+    require(timeoutMillis > 0L && pollMillis > 0L)
+    val timeoutNanos = timeoutMillis * 1_000_000L
+    val deadline = nanoTime() + timeoutNanos
+    while (!stopRequested()) {
+        val queryRemainingNanos = deadline - nanoTime()
+        if (queryRemainingNanos <= 0L) break
+        val queryRemainingMillis =
+            (queryRemainingNanos + 999_999L) / 1_000_000L
+        query(queryRemainingMillis)?.let { return it }
+        val sleepRemainingNanos = deadline - nanoTime()
+        if (sleepRemainingNanos <= 0L) break
+        val sleepRemainingMillis =
+            (sleepRemainingNanos + 999_999L) / 1_000_000L
+        sleep(min(pollMillis, sleepRemainingMillis))
+    }
+    return null
 }
 
 internal fun capturePcmStream(
