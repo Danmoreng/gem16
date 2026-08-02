@@ -105,34 +105,36 @@ service raised the firmware-managed loaded ceiling to 175 W; the same current-he
 from 57.425 to 85.769 effective tok/s (+49.4%). Active sampled SM clock rose from about 1,572 to 2,550 MHz while
 maximum temperature remained 64 C in the bounded confirmation.
 
-A complete same-machine comparison then used commit `3ed8a998368ba7b5fb88f25a8520354840f1ccd1`, the exact
+The post-prefill-optimization refresh uses commit `4b237b16366b1a9ee2cd339f0549e06a7cfc69aa`, the exact
 16,384-token Wikipedia prompt with little-endian-uint32 SHA-256
 `d07ad4d805944f0b87869da0c5bb44d99e8c43c0eb57d05a108ad80a6abb51a8`, 1,135 fixed greedy output positions,
-batch one, fixed D2 MTP, three warm-ups, and ten measured runs per engine. Proposed tokens were not counted.
+batch one, fixed D2 MTP, three warm-ups, and ten measured runs per engine. Proposed tokens are not counted.
 
 | Engine | Prefill median | TTFT median | Effective D2 median | ITL median | Accepted/proposed | Target batches |
 |---|---:|---:|---:|---:|---:|---:|
-| gem16 | 4,964.57 tok/s | 3,300.2 ms | **85.459 tok/s** | **11.701 ms** | 633/1,002 | 501 |
-| vLLM 0.25.1 | **6,307.44 tok/s** | **2,597.6 ms** | 81.899 tok/s | 12.210 ms | 590/1,083 | 542 |
-| llama.cpp 10210 | 3,944.71 tok/s | 4,153.4 ms | 83.821 tok/s | 11.930 ms | 616/1,035 | 519 |
+| gem16 | 5,315.11 tok/s | 3,082.53 ms | **85.261 tok/s** | **11.729 ms** | 629/1,006 | 505 |
+| vLLM 0.25.1 | **6,308.53 tok/s** | **2,597.12 ms** | 81.964 tok/s | 12.201 ms | 590/1,083 | 542 |
+| llama.cpp 10210 | 3,947.45 tok/s | 4,150.53 ms | 84.179 tok/s | 11.879 ms | 616/1,035 | 519 |
 
-Gem16 decode is 4.35% above vLLM and 1.95% above llama.cpp in this workload; gem16 prefill is 21.29% below vLLM
-and 25.85% above llama.cpp. All ten outputs are deterministic within each runtime. Gem16 retains the fixed
-1,135-token ordinary-Target SHA-256 `43bc3380fc1cce5182a679fa3a340c04bcc79c52e73d5102ec1f737f57d0a1e1`.
-The external hashes differ, and prior gates show their MTP paths differ from their own ordinary Target output.
+Gem16 decode is 4.02% above vLLM and 1.29% above llama.cpp in this workload; gem16 prefill is 15.75% below vLLM
+and 34.65% above llama.cpp. Relative to the prior public gem16 row, prefill rises 7.06% and TTFT falls 6.60%; the
+external rows remain effectively stable. All ten outputs are deterministic within each runtime. Current gem16
+retains one fixed 1,135-token ordinary-Target SHA-256
+`374a7e9a564421be4f7d19cb125a651f73505077983b77b1149bfa82e3c81e8a`; external hashes differ, and prior gates
+show their MTP paths differ from their own ordinary Target output.
 
 Format and timing disclosure: gem16 and vLLM consume the direct mixed FP8/NVFP4 checkpoint with FP8 KV. llama.cpp
 uses the patched GGUF with 144 native NVFP4 MLP tensors, 184 Q8_0 attention tensors, and Q8_0 KV. llama.cpp's
-prefill boundary is narrower. vLLM's FlashInfer startup autotuner encountered one OOM and selected its documented
-default tactic. Whole-command 200 ms telemetry sampled maximum VRAM at 10,922/15,572/10,630 MiB and maximum power
-at 173.48/176.74/176.10 W for gem16/vLLM/llama.cpp respectively; startup/autotuning is included in those maxima.
+prefill boundary is narrower. Whole-command 200 ms telemetry samples maximum VRAM at 12,720/15,142/10,630 MiB
+and maximum power at 177.67/179.60/176.23 W for gem16/vLLM/llama.cpp respectively; startup/autotuning is included
+in those maxima.
 
 Decision: retain this as a prominent reproducible development characterization, not a format- or quality-parity
 headline. Require `nvidia-powerd` plus the disclosed platform profile for direct reproduction on this laptop.
 `README.md`, `scripts/benchmark-cross-engine-mtp.sh`, the checked-in exact-token workload, and
 `benchmarks/baselines/cross_engine_mtp/characterization.json` form the public reproduction boundary. Raw JSON,
 console logs, and telemetry remain under
-`benchmarks/results/2026-08-02/3ed8a99/blackwell16gb-linux-maxpower-cross-engine-mtp/`.
+`benchmarks/results/2026-08-02/4b237b1/blackwell16gb-linux-maxpower-cross-engine-mtp-prefill-refresh/`.
 
 ## 2026-08-01 Six-phase Windows final qualification
 

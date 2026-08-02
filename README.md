@@ -38,17 +38,18 @@ for Gemma 4 12B within 16 GB of VRAM.
 
 ### Current 16K MTP characterization
 
-On an RTX 5080 Laptop GPU at its firmware-managed 175 W ceiling, commit `3ed8a99` produces the following result:
+On an RTX 5080 Laptop GPU at its firmware-managed 175 W ceiling, commit `4b237b1` produces the following result:
 
 | Engine | Checkpoint / KV | Prefill tok/s | TTFT | Effective D2 MTP tok/s | ITL |
 |---|---|---:|---:|---:|---:|
-| vLLM 0.25.1 | direct FP8/NVFP4 / FP8 | **6,307.44** | **2,597.6 ms** | 81.90 | 12.210 ms |
-| **gem16** | direct FP8/NVFP4 / FP8 | 4,964.57 | 3,300.2 ms | **85.46** | **11.701 ms** |
-| llama.cpp 10210 | patched NVFP4+Q8_0 GGUF / Q8_0 | 3,944.71 | 4,153.4 ms | 83.82 | 11.930 ms |
+| vLLM 0.25.1 | direct FP8/NVFP4 / FP8 | **6,308.53** | **2,597.12 ms** | 81.96 | 12.201 ms |
+| **gem16** | direct FP8/NVFP4 / FP8 | 5,315.11 | 3,082.53 ms | **85.26** | **11.729 ms** |
+| llama.cpp 10210 | patched NVFP4+Q8_0 GGUF / Q8_0 | 3,947.45 | 4,150.53 ms | 84.18 | 11.879 ms |
 
 The benchmark uses batch one, an exact 16,384-token prompt, 1,135 fixed greedy output positions, fixed D2 MTP,
 three warm-ups, and ten measured runs per engine. Only target-verified output tokens are counted. In this workload,
-gem16 decode is 4.35% faster than vLLM and 1.95% faster than llama.cpp; vLLM prefill is 27.0% faster than gem16.
+gem16 decode is 4.02% faster than vLLM and 1.29% faster than llama.cpp; gem16 prefill is 15.75% below vLLM and
+34.65% above llama.cpp.
 
 Reproduce the complete three-engine run after preparing the pinned competitor environments:
 

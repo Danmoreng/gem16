@@ -9,9 +9,9 @@ of the correctness and native-kernel gates below.
 ## Active gate
 
 - Resume the binding [prefill optimization plan](PREFILL_OPTIMIZATION_PLAN.md) under Linux on the reference laptop.
-  The max-power cross-engine qualification places exact fixed-D2 gem16 decode at 85.459 tok/s, ahead of the
-  adjacent vLLM and llama.cpp characterizations, while 16K prefill remains at 78.7% of vLLM. The immediate target
-  is at most 2,597.6 ms TTFT for the exact 16,384-token workload without regressing decode, correctness, or the
+  The refreshed max-power cross-engine qualification places exact fixed-D2 gem16 decode at 85.261 tok/s, ahead of
+  the adjacent vLLM and llama.cpp characterizations, while 16K prefill reaches 84.25% of vLLM. The immediate target
+  is at most 2,597.12 ms TTFT for the exact 16,384-token workload without regressing decode, correctness, or the
   15.3 GB peak-memory limit. Work proceeds through current-head profiling, larger prompt geometry and shape-tuned
   NVFP4, recurring-layout elimination, packed/scaled FP8 projections, attention specialization, and only then
   prefill CUDA Graphs. The ordered graph experiment is now complete: suffix, prefix/suffix, and fixed-start

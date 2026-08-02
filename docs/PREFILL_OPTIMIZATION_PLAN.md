@@ -30,8 +30,10 @@ checkpoint-FP8 chunk raises the adjacent 3/10 median to 5,172.75 tok/s (+2.74%) 
 (-2.67%) while retaining the output hash; peak sampled VRAM with the MTP assistant resident is 12,704 MiB. The
 next promotion closes CUTLASS FP8 scaling at the already-required BF16 boundary, reaching 5,271.29 tok/s and
 3,108.15 ms without changing the hash or memory plan. Asynchronous local FP8 staging then reaches 5,379.58 tok/s
-and 3,045.59 ms while reducing the profiled local family by 20.34%. Cross-engine claims must reconcile timing boundaries and
-cache precision under `docs/BENCHMARKING.md` and `AGENTS.md`.
+and 3,045.59 ms while reducing the profiled local family by 20.34%. The subsequent complete 16K/1,135-output
+cross-engine refresh measures gem16 at 5,315.11 tok/s and 3,082.53 ms under the public fixed-D2 boundary.
+Cross-engine claims must reconcile timing boundaries and cache precision under `docs/BENCHMARKING.md` and
+`AGENTS.md`.
 
 ## Profile-derived diagnosis
 

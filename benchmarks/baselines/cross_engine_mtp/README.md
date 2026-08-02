@@ -5,19 +5,21 @@ development characterization, not a claim of exact tensor-format or output-quali
 
 ## Result
 
-On commit `3ed8a998368ba7b5fb88f25a8520354840f1ccd1`, one RTX 5080 Laptop GPU ran the same exact 16,384-token
+On commit `4b237b16366b1a9ee2cd339f0549e06a7cfc69aa`, one RTX 5080 Laptop GPU ran the same exact 16,384-token
 Wikipedia prompt followed by 1,135 fixed greedy output positions. Every engine used batch one, fixed D2 MTP, three
 warm-ups, and ten measured repetitions. Linux used the firmware `max-power` profile with `nvidia-powerd` active;
 the GPU dynamically reached its 175 W ceiling.
 
 | Engine | Prefill tok/s | TTFT | Effective D2 MTP tok/s | ITL |
 |---|---:|---:|---:|---:|
-| vLLM 0.25.1 | **6,307.44** | **2,597.6 ms** | 81.90 | 12.210 ms |
-| gem16 | 4,964.57 | 3,300.2 ms | **85.46** | **11.701 ms** |
-| llama.cpp 10210 | 3,944.71 | 4,153.4 ms | 83.82 | 11.930 ms |
+| vLLM 0.25.1 | **6,308.53** | **2,597.12 ms** | 81.96 | 12.201 ms |
+| gem16 | 5,315.11 | 3,082.53 ms | **85.26** | **11.729 ms** |
+| llama.cpp 10210 | 3,947.45 | 4,150.53 ms | 84.18 | 11.879 ms |
 
 The full medians, means, distributions, MTP counters, telemetry summary, configuration, and limitations are in
-[`characterization.json`](characterization.json).
+[`characterization.json`](characterization.json). Raw JSON, console logs, commands, system state, and 200 ms
+telemetry are retained under
+`benchmarks/results/2026-08-02/4b237b1/blackwell16gb-linux-maxpower-cross-engine-mtp-prefill-refresh/`.
 
 ## Reproduce
 
@@ -83,5 +85,4 @@ that output directly with this 175 W reference result without disclosing the pow
 - All outputs are deterministic within each engine, but their token hashes differ. Prior ordinary-target gates show
   that external vLLM and llama.cpp MTP do not retain their own ordinary greedy sequence; only gem16 enforces exact
   ordinary-Target identity in this comparison path.
-- vLLM's startup autotuner reported one OOM and selected its documented default tactic.
 - Proposed assistant tokens are never counted as output throughput. The table reports only target-verified output.
