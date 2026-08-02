@@ -150,7 +150,9 @@ resident continuation can reproduce the exact prior request; gem16 limits one
 file to 10 MiB and the conversation to 14 MiB of Base64 payload below the
 server's 16 MiB request limit. On Linux the microphone path prefers the default
 PipeWire source through `pw-record`, temporarily lowers an overdriven source
-volume and restores it afterward. Other systems use a ranked Java Sound input.
+volume and restores it afterward. If the first `pw-record` process exits during PipeWire/WirePlumber activation,
+the same click performs one bounded restart before reporting failure; recording is never opened proactively at app
+startup. Other systems use a ranked Java Sound input.
 Both paths reject silent or clipped recordings, normalize valid PCM16 audio,
 and wrap it as WAV without writing a temporary file. Changing or removing
 history starts a new resident root because an existing KV cache cannot be

@@ -25,6 +25,9 @@ private const val SilencePeakThreshold = 128
 private const val SilenceRmsThreshold = 8.0
 private const val ClippingSampleThreshold = 0.01
 private const val PipeWireRecordingVolume = 0.05f
+private const val PipeWireStartupAttempts = 2
+private const val PipeWireStartupProbeMillis = 150L
+private const val PipeWireStartupRetryMillis = 500L
 private const val NormalizedPeak = 27_852
 
 internal data class RecordedAudio(
@@ -46,7 +49,10 @@ private data class PcmStats(
         if (sampleCount == 0L) 0.0 else clippedSamples.toDouble() / sampleCount.toDouble()
 }
 
-class AudioRecorder : AutoCloseable {
+class AudioRecorder internal constructor(
+    private val pipeWireProcessFactory: (List<String>) -> Process = ::launchPipeWireProcess,
+    private val sleep: (Long) -> Unit = Thread::sleep,
+) : AutoCloseable {
     @Volatile
     private var stopRequested = false
     @Volatile
@@ -78,33 +84,76 @@ class AudioRecorder : AutoCloseable {
     private fun recordPipeWire(onProgress: (Long, Float) -> Unit): RecordedAudio {
         val sampleRate = 48_000
         val channels = 1
-        val previousVolume = lowerDefaultPipeWireSourceVolume()
-        val process = try {
-            ProcessBuilder(
-                "pw-record",
-                "--rate", sampleRate.toString(),
-                "--channels", channels.toString(),
-                "--format", "s16",
-                "--raw",
-                "-",
-            )
-                .redirectError(ProcessBuilder.Redirect.DISCARD)
-                .start()
-        } catch (error: Exception) {
-            restoreDefaultPipeWireSourceVolume(previousVolume)
-            throw error
-        }
-        activeProcess = process
+        var previousVolume = lowerDefaultPipeWireSourceVolume()
         try {
-            Thread.sleep(150)
-            check(process.isAlive) { "PipeWire microphone recording could not be started" }
-            val pcm = capturePcm(process.inputStream, sampleRate, channels, onProgress)
-            return finishRecording(pcm, sampleRate, channels)
+            val process = startPipeWireProcess(sampleRate, channels) {
+                if (previousVolume == null) {
+                    previousVolume = lowerDefaultPipeWireSourceVolume()
+                }
+            }
+            try {
+                val pcm = capturePcm(process.inputStream, sampleRate, channels, onProgress)
+                return finishRecording(pcm, sampleRate, channels)
+            } finally {
+                stopProcess(process)
+                if (activeProcess === process) activeProcess = null
+            }
         } finally {
-            stopProcess(process)
-            activeProcess = null
             restoreDefaultPipeWireSourceVolume(previousVolume)
         }
+    }
+
+    internal fun startPipeWireProcess(
+        sampleRate: Int,
+        channels: Int,
+        beforeRetry: () -> Unit = {},
+    ): Process {
+        val command = listOf(
+            "pw-record",
+            "--rate", sampleRate.toString(),
+            "--channels", channels.toString(),
+            "--format", "s16",
+            "--raw",
+            "-",
+        )
+        var lastFailure: Throwable? = null
+        repeat(PipeWireStartupAttempts) { attempt ->
+            if (stopRequested) {
+                throw IllegalStateException(
+                    "PipeWire microphone recording was stopped before startup",
+                    lastFailure,
+                )
+            }
+            val process = try {
+                pipeWireProcessFactory(command)
+            } catch (error: Exception) {
+                lastFailure = error
+                null
+            }
+            if (process != null) {
+                activeProcess = process
+                try {
+                    sleep(PipeWireStartupProbeMillis)
+                } catch (error: Throwable) {
+                    stopProcess(process)
+                    if (activeProcess === process) activeProcess = null
+                    throw error
+                }
+                if (process.isAlive) return process
+                if (activeProcess === process) activeProcess = null
+                lastFailure = IllegalStateException(
+                    "pw-record exited before the microphone stream became ready",
+                )
+            }
+            if (attempt + 1 < PipeWireStartupAttempts && !stopRequested) {
+                sleep(PipeWireStartupRetryMillis)
+                if (!stopRequested) beforeRetry()
+            }
+        }
+        throw IllegalStateException(
+            "PipeWire microphone recording could not be started",
+            lastFailure,
+        )
     }
 
     private fun recordJavaSound(onProgress: (Long, Float) -> Unit): RecordedAudio {
@@ -359,6 +408,11 @@ private fun stopProcess(process: Process) {
         runCatching { process.waitFor(1, TimeUnit.SECONDS) }
     }
 }
+
+private fun launchPipeWireProcess(command: List<String>): Process =
+    ProcessBuilder(command)
+        .redirectError(ProcessBuilder.Redirect.DISCARD)
+        .start()
 
 private fun isLinux(): Boolean = System.getProperty("os.name").contains("linux", ignoreCase = true)
 
