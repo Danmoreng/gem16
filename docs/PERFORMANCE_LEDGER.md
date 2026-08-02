@@ -1,5 +1,32 @@
 # Performance ledger
 
+## 2026-08-02 Global-attention phase 1: reject direct CUTLASS D512 FMHA substitution
+
+Hypothesis: CUTLASS's Blackwell warp-specialized FMHA examples could replace the manual Gemma global-attention
+kernel and provide a bounded path to 2SM scheduling. The production kernel is worth attacking: the retained 16K
+prefill profile attributes approximately 1,969.67 ms across two prompt executions to global attention, while the
+retained 16K decode trace attributes approximately 3.017 s across 128 global-attention instances, about 33% of
+that trace. The current D512 kernel uses four query heads per CTA, 256 threads, 96 KiB static shared memory, and
+254 registers without local-memory spills.
+
+A standalone SM120a compile probe instantiated regular CUTLASS FMHA with a `256x128x512` QK tile. Compilation
+stops at the library's UMMA shape gate: the corresponding PV operation is `M128,N512,K128`, but its N dimension
+must be at most 256. The regular example is a 1SM design and its shipped head-dimension instantiations stop at
+128, so it cannot express Gemma's D512 output by changing a dispatcher constant. The temporary probe was removed
+after recording the failure.
+
+CUTLASS's available 2SM D512 implementation is the MLA inference path, not standard FMHA. It assumes one query,
+128 heads, a paged latent-cache contract, separate latent and RoPE dimensions, and (for the FP8 route) FP8 Q.
+Gemma instead supplies 16 BF16 query heads and scaled FP8 K/V under the engine's contiguous-cache contract. The
+prefill MLA example only covers a 128-wide latent dimension. Adapting that path would therefore add quantization
+or cache expansion and large head-count waste before any attention work; it is not a correctness-preserving
+kernel substitution.
+
+No executable candidate passed the compile and semantic gates, so no runtime speedup is claimed and no favorable
+timing was manufactured. The production kernel remains unchanged. A viable future D512 implementation requires a
+purpose-built 2SM design with two N256 PV output passes (or an equivalent tiled reduction) that preserves BF16 Q,
+checkpoint-scaled FP8 K/V, online-softmax order, and the existing cache semantics.
+
 ## 2026-08-02 Prefill phase 8: store FP8 projection boundaries as physical BF16
 
 Hypothesis: the fused Q/K/V/O CUTLASS epilogue already produces the exact model-required BF16 value, so retaining

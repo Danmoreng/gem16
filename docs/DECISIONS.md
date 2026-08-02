@@ -1,5 +1,31 @@
 # Decisions
 
+## 2026-08-02: Do not substitute CUTLASS FMHA or MLA directly for Gemma D512 attention
+
+Date: 2026-08-02
+
+Decision: Retain the current D512 global-attention kernels. Do not instantiate regular CUTLASS Blackwell FMHA or
+route Gemma through CUTLASS's 2SM MLA inference kernel as a nominal optimization.
+
+Context: Global attention is a leading prefill and decode cost, and the current manual kernel is resource-heavy.
+However, an isolated SM120a compile probe shows that regular FMHA turns D512 into a PV `M128,N512,K128`
+operation, which violates the library's UMMA N-at-most-256 constraint. The shipped regular path is 1SM and covers
+head dimensions only through 128. The available 2SM D512 MLA path has materially different semantics: Q=1,
+128 heads, separate latent/RoPE inputs, a paged cache, and FP8 Q for its FP8 variant. Its prefill example does not
+provide a D512 latent path.
+
+Alternatives: Force Gemma into the MLA contract by padding/duplicating heads and quantizing Q; expand FP8 K/V to
+FP16; or retain the existing kernel until a native design exists. The first two change arithmetic, add traffic,
+and waste work before establishing a faster attention primitive. The third preserves the validated path.
+
+Consequences: This phase has compile/profile evidence but no executable benchmark candidate, so it makes no
+performance claim and changes no runtime source. Any renewed implementation must explicitly support BF16 D512 Q,
+scaled FP8 K/V, 16 GQA query heads, prefill and decode cache layouts, and at least two N256 PV output tiles or an
+equivalent legal UMMA decomposition. It must then pass the normal correctness, memory, and end-to-end gates.
+
+Evidence: `docs/PERFORMANCE_LEDGER.md`, the retained 16K prefill/decode Nsight traces, the inspected CUTLASS
+Blackwell FMHA/MLA examples, and the removed standalone SM120a compile probe.
+
 ## 2026-08-02: Store FP8 prompt-projection boundaries as physical BF16
 
 Date: 2026-08-02
