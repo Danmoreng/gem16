@@ -33,6 +33,12 @@ struct DecodeControl {
                                        float epsilon,
                                        cudaStream_t stream);
 
+[[nodiscard]] Status LaunchRmsNormBf16Input(
+    const std::uint16_t* input_bf16,
+    const std::uint16_t* weight_bf16, float* output,
+    std::uint64_t vectors, std::uint64_t width, float epsilon,
+    cudaStream_t stream);
+
 // Gemma applies a BF16 RMSNorm boundary, residual addition, another BF16
 // boundary, and optionally a BF16 layer scalar plus a final BF16 boundary.
 // Preserve that exact ordering in one reduction kernel.
@@ -187,6 +193,16 @@ struct DecodeControl {
 [[nodiscard]] Status LaunchProjectionRmsNormRotaryBf16Batch(
     const float* query, const std::uint16_t* query_norm_bf16,
     float* normalized_query, const float* key,
+    const std::uint16_t* key_norm_bf16, float* normalized_key,
+    const float* rotary_cosine, const float* rotary_sine,
+    std::uint64_t tokens, std::uint64_t query_heads,
+    std::uint64_t kv_heads, std::uint64_t head_dimension,
+    double rotary_factor, float epsilon, cudaStream_t stream);
+
+[[nodiscard]] Status LaunchProjectionRmsNormRotaryBf16BatchInput(
+    const std::uint16_t* query_bf16,
+    const std::uint16_t* query_norm_bf16, float* normalized_query,
+    const std::uint16_t* key_bf16,
     const std::uint16_t* key_norm_bf16, float* normalized_key,
     const float* rotary_cosine, const float* rotary_sine,
     std::uint64_t tokens, std::uint64_t query_heads,

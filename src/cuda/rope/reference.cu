@@ -130,9 +130,20 @@ __global__ void RotaryTableBatchKernel(
   sine[pair] = static_cast<float>(sin(angle));
 }
 
+template <typename Input>
+__device__ float LoadProjectionBoundary(const Input* input,
+                                        std::uint64_t index) {
+  if constexpr (std::is_same_v<Input, std::uint16_t>) {
+    return static_cast<float>(__ushort_as_bfloat16(input[index]));
+  } else {
+    return static_cast<float>(__float2bfloat16_rn(input[index]));
+  }
+}
+
+template <typename Input>
 __global__ void ProjectionRmsNormRotaryBf16BatchKernel(
-    const float* query, const std::uint16_t* query_norm,
-    float* normalized_query, const float* key,
+    const Input* query, const std::uint16_t* query_norm,
+    float* normalized_query, const Input* key,
     const std::uint16_t* key_norm, float* normalized_key,
     const float* rotary_cosine, const float* rotary_sine,
     std::uint64_t query_heads, std::uint64_t kv_heads,
@@ -145,7 +156,7 @@ __global__ void ProjectionRmsNormRotaryBf16BatchKernel(
   const std::uint64_t heads = is_query ? query_heads : kv_heads;
   const std::uint64_t head =
       is_query ? combined_head : combined_head - query_heads;
-  const float* input = is_query ? query : key;
+  const Input* input = is_query ? query : key;
   const std::uint16_t* weight = is_query ? query_norm : key_norm;
   float* output = is_query ? normalized_query : normalized_key;
   const std::uint64_t base =
@@ -154,8 +165,7 @@ __global__ void ProjectionRmsNormRotaryBf16BatchKernel(
   float squared_sum = 0.0F;
   for (std::uint64_t index = threadIdx.x; index < head_dimension;
        index += blockDim.x) {
-    const float value = static_cast<float>(
-        __float2bfloat16_rn(input[base + index]));
+    const float value = LoadProjectionBoundary(input, base + index);
     squared_sum = fmaf(value, value, squared_sum);
   }
   const float inverse_rms =
@@ -168,8 +178,7 @@ __global__ void ProjectionRmsNormRotaryBf16BatchKernel(
     const bool rotated = index < rotating_pairs ||
                          (index >= half && index < half + rotating_pairs);
     if (rotated) continue;
-    const float rounded_input = static_cast<float>(
-        __float2bfloat16_rn(input[base + index]));
+    const float rounded_input = LoadProjectionBoundary(input, base + index);
     const float scale =
         static_cast<float>(__ushort_as_bfloat16(weight[index]));
     output[base + index] = static_cast<float>(__float2bfloat16_rn(
@@ -180,10 +189,8 @@ __global__ void ProjectionRmsNormRotaryBf16BatchKernel(
   const std::uint64_t index = threadIdx.x;
   const std::uint64_t first = base + index;
   const std::uint64_t second = first + half;
-  const float first_input = static_cast<float>(
-      __float2bfloat16_rn(input[first]));
-  const float second_input = static_cast<float>(
-      __float2bfloat16_rn(input[second]));
+  const float first_input = LoadProjectionBoundary(input, first);
+  const float second_input = LoadProjectionBoundary(input, second);
   const float first_scale =
       static_cast<float>(__ushort_as_bfloat16(weight[index]));
   const float second_scale =
@@ -528,7 +535,7 @@ Status LaunchProjectionRmsNormRotaryBf16Batch(
       !ValidGrid(blocks)) {
     return Invalid("fused projection RMSNorm/RoPE extent is invalid");
   }
-  ProjectionRmsNormRotaryBf16BatchKernel
+  ProjectionRmsNormRotaryBf16BatchKernel<float>
       <<<static_cast<unsigned>(blocks), kThreads, 0, stream>>>(
           query, query_norm_bf16, normalized_query, key, key_norm_bf16,
           normalized_key, rotary_cosine, rotary_sine, query_heads, kv_heads,
@@ -537,6 +544,44 @@ Status LaunchProjectionRmsNormRotaryBf16Batch(
   return error == cudaSuccess
              ? Status::Ok()
              : CudaFailure("launch fused projection RMSNorm/RoPE", error);
+}
+
+Status LaunchProjectionRmsNormRotaryBf16BatchInput(
+    const std::uint16_t* query_bf16,
+    const std::uint16_t* query_norm_bf16, float* normalized_query,
+    const std::uint16_t* key_bf16, const std::uint16_t* key_norm_bf16,
+    float* normalized_key, const float* rotary_cosine,
+    const float* rotary_sine, std::uint64_t tokens,
+    std::uint64_t query_heads, std::uint64_t kv_heads,
+    std::uint64_t head_dimension, double rotary_factor, float epsilon,
+    cudaStream_t stream) {
+  if (query_bf16 == nullptr || query_norm_bf16 == nullptr ||
+      normalized_query == nullptr || key_bf16 == nullptr ||
+      key_norm_bf16 == nullptr || normalized_key == nullptr || tokens == 0U ||
+      rotary_cosine == nullptr || rotary_sine == nullptr ||
+      query_heads == 0U || kv_heads == 0U || head_dimension == 0U ||
+      head_dimension > kThreads * 2U || head_dimension % 2U != 0U ||
+      !std::isfinite(rotary_factor) || rotary_factor <= 0.0 ||
+      rotary_factor > 1.0 || !std::isfinite(epsilon) || epsilon <= 0.0F) {
+    return Invalid("physical-BF16 projection RMSNorm/RoPE geometry is invalid");
+  }
+  const std::uint64_t rotating_pairs = static_cast<std::uint64_t>(
+      rotary_factor * static_cast<double>(head_dimension / 2U));
+  const std::uint64_t blocks = tokens * (query_heads + kv_heads);
+  if (rotating_pairs == 0U || rotating_pairs > kThreads ||
+      !ValidGrid(blocks)) {
+    return Invalid("physical-BF16 projection RMSNorm/RoPE extent is invalid");
+  }
+  ProjectionRmsNormRotaryBf16BatchKernel<std::uint16_t>
+      <<<static_cast<unsigned>(blocks), kThreads, 0, stream>>>(
+          query_bf16, query_norm_bf16, normalized_query, key_bf16,
+          key_norm_bf16, normalized_key, rotary_cosine, rotary_sine,
+          query_heads, kv_heads, head_dimension, rotating_pairs, epsilon);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure(
+                   "launch physical-BF16 projection RMSNorm/RoPE", error);
 }
 
 Status LaunchProjectionRmsNormRotaryBf16BatchControlled(

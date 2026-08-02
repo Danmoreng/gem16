@@ -316,9 +316,9 @@
     GEM16_PREFILL_ADD(normalized, float, tokens * kHidden);
     GEM16_PREFILL_ADD(fp8_activation, std::uint8_t, tokens * max_q);
     GEM16_PREFILL_ADD(fp8_scales, float, tokens);
-    GEM16_PREFILL_ADD(q, float, tokens * max_q);
-    GEM16_PREFILL_ADD(k, float, tokens * max_kv);
-    GEM16_PREFILL_ADD(v, float, tokens * max_kv);
+    GEM16_PREFILL_ADD(q, std::uint16_t, tokens * max_q);
+    GEM16_PREFILL_ADD(k, std::uint16_t, tokens * max_kv);
+    GEM16_PREFILL_ADD(v, std::uint16_t, tokens * max_kv);
     GEM16_PREFILL_ADD(q_norm, float, tokens * max_q);
     GEM16_PREFILL_ADD(k_norm, float, tokens * max_kv);
     GEM16_PREFILL_ADD(v_norm, float, tokens * max_kv);
@@ -331,7 +331,7 @@
     GEM16_PREFILL_ADD(attention, float, tokens * max_q);
     GEM16_PREFILL_ADD(o_activation, std::uint8_t, tokens * max_q);
     GEM16_PREFILL_ADD(o_scales, float, tokens);
-    GEM16_PREFILL_ADD(projection, float, tokens * kHidden);
+    GEM16_PREFILL_ADD(projection, std::uint16_t, tokens * kHidden);
     GEM16_PREFILL_ADD(post_norm, float, tokens * kHidden);
     GEM16_PREFILL_ADD(mlp_packed, std::uint8_t, tokens * kHidden / 2U);
     GEM16_PREFILL_ADD(mlp_scales, std::uint8_t, tokens * kHidden / 16U);

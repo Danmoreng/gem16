@@ -533,6 +533,15 @@ float RoundBf16Reference(float value) {
   return std::bit_cast<float>(bits & 0xFFFF0000U);
 }
 
+std::uint16_t Bf16BitsReference(float value) {
+  return static_cast<std::uint16_t>(
+      std::bit_cast<std::uint32_t>(RoundBf16Reference(value)) >> 16U);
+}
+
+float Bf16FromBits(std::uint16_t bits) {
+  return std::bit_cast<float>(static_cast<std::uint32_t>(bits) << 16U);
+}
+
 void TestCutlassSm120Projection() {
   const auto run_case = [](std::size_t tokens, std::size_t rows,
                            std::size_t k_size, const char* label) {
@@ -775,7 +784,7 @@ void TestFp8ReferenceAndDirectProjection() {
   DeviceBuffer<float> device_batch_scales(tokens);
   DeviceBuffer<float> device_batch_reference(tokens * rows);
   DeviceBuffer<float> device_batch_native(tokens * rows);
-  DeviceBuffer<float> device_batch_cutlass(tokens * rows);
+  DeviceBuffer<std::uint16_t> device_batch_cutlass(tokens * rows);
   DeviceBuffer<std::uint8_t> device_cutlass_workspace(8U * 1024U * 1024U);
   DeviceBuffer<float> device_grouped_q(tokens * rows);
   DeviceBuffer<float> device_grouped_k(tokens * rows);
@@ -902,7 +911,7 @@ void TestFp8ReferenceAndDirectProjection() {
   std::array<float, rows> direct_grouped_v_output{};
   std::array<float, tokens * rows> batch_reference_output{};
   std::array<float, tokens * rows> batch_native_output{};
-  std::array<float, tokens * rows> batch_cutlass_output{};
+  std::array<std::uint16_t, tokens * rows> batch_cutlass_output{};
   std::array<float, tokens * rows> grouped_q_output{};
   std::array<float, tokens * rows> grouped_k_output{};
   std::array<float, tokens * rows> grouped_v_output{};
@@ -959,9 +968,9 @@ void TestFp8ReferenceAndDirectProjection() {
       for (std::size_t token = 0; token < tokens; ++token) {
         CUDA_TEST_CHECK(batch_native_output[token * rows + row] ==
                         batch_reference_output[token * rows + row]);
-        CUDA_TEST_CHECK(batch_cutlass_output[token * rows + row] ==
-                        RoundBf16Reference(
-                            batch_reference_output[token * rows + row]));
+        CUDA_TEST_CHECK(
+            batch_cutlass_output[token * rows + row] ==
+            Bf16BitsReference(batch_reference_output[token * rows + row]));
         CUDA_TEST_CHECK(grouped_q_output[token * rows + row] ==
                         batch_reference_output[token * rows + row]);
         CUDA_TEST_CHECK(grouped_k_output[token * rows + row] ==
@@ -1007,7 +1016,7 @@ void TestFp8CutlassPrefillGeometry() {
   DeviceBuffer<std::uint8_t> device_weight(weight.size());
   DeviceBuffer<std::uint16_t> device_weight_scales(weight_scales.size());
   DeviceBuffer<float> device_native(tokens * rows);
-  DeviceBuffer<float> device_cutlass(tokens * rows);
+  DeviceBuffer<std::uint16_t> device_cutlass(tokens * rows);
   DeviceBuffer<std::uint8_t> device_workspace(workspace_bytes);
   if (device_activation.get() == nullptr ||
       device_activation_scales.get() == nullptr ||
@@ -1053,11 +1062,12 @@ void TestFp8CutlassPrefillGeometry() {
     return;
   }
   std::vector<float> native(tokens * rows);
+  std::vector<std::uint16_t> cutlass_bits(tokens * rows);
   std::vector<float> cutlass(tokens * rows);
   if (!CudaOk(cudaMemcpy(native.data(), device_native.get(),
                          device_native.bytes(), cudaMemcpyDeviceToHost),
               "copy real native FP8 output") ||
-      !CudaOk(cudaMemcpy(cutlass.data(), device_cutlass.get(),
+      !CudaOk(cudaMemcpy(cutlass_bits.data(), device_cutlass.get(),
                          device_cutlass.bytes(), cudaMemcpyDeviceToHost),
               "copy real CUTLASS FP8 output")) {
     return;
@@ -1065,7 +1075,9 @@ void TestFp8CutlassPrefillGeometry() {
   std::size_t exact_mismatches = 0U;
   for (std::size_t index = 0; index < native.size(); ++index) {
     native[index] = RoundBf16Reference(native[index]);
-    exact_mismatches += native[index] != cutlass[index] ? 1U : 0U;
+    cutlass[index] = Bf16FromBits(cutlass_bits[index]);
+    exact_mismatches +=
+        Bf16BitsReference(native[index]) != cutlass_bits[index] ? 1U : 0U;
   }
   std::cout << "CUTLASS FP8 128x4096x3840 exact mismatches: "
             << exact_mismatches << '/' << native.size() << '\n';
@@ -1175,6 +1187,36 @@ void TestLocalLayerReferenceOperators() {
     CUDA_TEST_CHECK(std::fabs(gpu_norm[index] - host_norm.value()[index]) < 2.0e-6F);
   }
   CUDA_TEST_CHECK(gpu_norm_rounded == gpu_norm_fused);
+
+  std::array<std::uint16_t, norm_input.size()> physical_norm_input{};
+  for (std::size_t index = 0; index < norm_input.size(); ++index) {
+    physical_norm_input[index] = Bf16BitsReference(norm_input[index]);
+  }
+  DeviceBuffer<std::uint16_t> device_physical_norm_input(
+      physical_norm_input.size());
+  DeviceBuffer<float> device_physical_norm_output(norm_input.size());
+  if (device_physical_norm_input.get() == nullptr ||
+      device_physical_norm_output.get() == nullptr ||
+      !CudaOk(cudaMemcpy(device_physical_norm_input.get(),
+                         physical_norm_input.data(),
+                         device_physical_norm_input.bytes(),
+                         cudaMemcpyHostToDevice),
+              "copy physical-BF16 RMSNorm input")) {
+    return;
+  }
+  const auto physical_norm_status = gem16::internal::LaunchRmsNormBf16Input(
+      device_physical_norm_input.get(), device_norm_weight.get(),
+      device_physical_norm_output.get(), 2, 4, 1.0e-6F, nullptr);
+  CUDA_TEST_CHECK(physical_norm_status.ok());
+  if (!physical_norm_status.ok() ||
+      !CudaOk(cudaDeviceSynchronize(), "physical-BF16 RMSNorm synchronize") ||
+      !CudaOk(cudaMemcpy(gpu_norm.data(), device_physical_norm_output.get(),
+                         device_physical_norm_output.bytes(),
+                         cudaMemcpyDeviceToHost),
+              "copy physical-BF16 RMSNorm output")) {
+    return;
+  }
+  CUDA_TEST_CHECK(gpu_norm == gpu_norm_fused);
 
   DeviceBuffer<std::uint8_t> device_norm_fp8_reference(norm_input.size());
   DeviceBuffer<std::uint8_t> device_norm_fp8_fused(norm_input.size());
@@ -1672,10 +1714,14 @@ void TestFusedProjectionRmsNormRotaryBf16Batch() {
     DeviceBuffer<float> reference_key(key_elements);
     DeviceBuffer<float> candidate_query(query_elements);
     DeviceBuffer<float> candidate_key(key_elements);
+    DeviceBuffer<std::uint16_t> physical_query(query_elements);
+    DeviceBuffer<std::uint16_t> physical_key(key_elements);
     DeviceBuffer<float> reference_query_output(query_elements);
     DeviceBuffer<float> reference_key_output(key_elements);
     DeviceBuffer<float> candidate_query_output(query_elements);
     DeviceBuffer<float> candidate_key_output(key_elements);
+    DeviceBuffer<float> physical_query_output(query_elements);
+    DeviceBuffer<float> physical_key_output(key_elements);
     const std::uint64_t rotating_pairs = static_cast<std::uint64_t>(
         rotary_factor * static_cast<double>(head_dimension / 2U));
     DeviceBuffer<float> rotary_cosine(tokens * rotating_pairs);
@@ -1684,10 +1730,13 @@ void TestFusedProjectionRmsNormRotaryBf16Batch() {
     DeviceBuffer<std::uint16_t> device_key_norm(head_dimension);
     if (reference_query.get() == nullptr || reference_key.get() == nullptr ||
         candidate_query.get() == nullptr || candidate_key.get() == nullptr ||
+        physical_query.get() == nullptr || physical_key.get() == nullptr ||
         reference_query_output.get() == nullptr ||
         reference_key_output.get() == nullptr ||
         candidate_query_output.get() == nullptr ||
         candidate_key_output.get() == nullptr ||
+        physical_query_output.get() == nullptr ||
+        physical_key_output.get() == nullptr ||
         rotary_cosine.get() == nullptr || rotary_sine.get() == nullptr ||
         device_query_norm.get() == nullptr || device_key_norm.get() == nullptr ||
         !CudaOk(cudaMemcpy(reference_query.get(), query.data(),
@@ -1708,6 +1757,23 @@ void TestFusedProjectionRmsNormRotaryBf16Batch() {
         !CudaOk(cudaMemcpy(device_key_norm.get(), key_norm.data(),
                            device_key_norm.bytes(), cudaMemcpyHostToDevice),
                 "copy fused K norm")) {
+      return;
+    }
+
+    std::vector<std::uint16_t> query_bits(query_elements);
+    std::vector<std::uint16_t> key_bits(key_elements);
+    for (std::size_t index = 0; index < query_elements; ++index) {
+      query_bits[index] = Bf16BitsReference(query[index]);
+    }
+    for (std::size_t index = 0; index < key_elements; ++index) {
+      key_bits[index] = Bf16BitsReference(key[index]);
+    }
+    if (!CudaOk(cudaMemcpy(physical_query.get(), query_bits.data(),
+                           physical_query.bytes(), cudaMemcpyHostToDevice),
+                "copy physical-BF16 Q input") ||
+        !CudaOk(cudaMemcpy(physical_key.get(), key_bits.data(),
+                           physical_key.bytes(), cudaMemcpyHostToDevice),
+                "copy physical-BF16 K input")) {
       return;
     }
 
@@ -1762,9 +1828,18 @@ void TestFusedProjectionRmsNormRotaryBf16Batch() {
             device_key_norm.get(), candidate_key_output.get(),
             rotary_cosine.get(), rotary_sine.get(), tokens, query_heads,
             kv_heads, head_dimension, rotary_factor, 1.0e-6F, nullptr);
+    const auto physical_status =
+        gem16::internal::LaunchProjectionRmsNormRotaryBf16BatchInput(
+            physical_query.get(), device_query_norm.get(),
+            physical_query_output.get(), physical_key.get(),
+            device_key_norm.get(), physical_key_output.get(),
+            rotary_cosine.get(), rotary_sine.get(), tokens, query_heads,
+            kv_heads, head_dimension, rotary_factor, 1.0e-6F, nullptr);
     CUDA_TEST_CHECK(table_status.ok());
     CUDA_TEST_CHECK(fused_status.ok());
+    CUDA_TEST_CHECK(physical_status.ok());
     if (!status.ok() || !table_status.ok() || !fused_status.ok() ||
+        !physical_status.ok() ||
         !CudaOk(cudaGetLastError(), "launch fused Q/K comparison kernels") ||
         !CudaOk(cudaDeviceSynchronize(), label)) {
       return;
@@ -1774,6 +1849,8 @@ void TestFusedProjectionRmsNormRotaryBf16Batch() {
     std::vector<float> reference_key_host(key_elements);
     std::vector<float> candidate_query_host(query_elements);
     std::vector<float> candidate_key_host(key_elements);
+    std::vector<float> physical_query_host(query_elements);
+    std::vector<float> physical_key_host(key_elements);
     if (!CudaOk(cudaMemcpy(reference_query_host.data(),
                            reference_query_output.get(),
                            reference_query_output.bytes(),
@@ -1791,11 +1868,22 @@ void TestFusedProjectionRmsNormRotaryBf16Batch() {
         !CudaOk(cudaMemcpy(candidate_key_host.data(),
                            candidate_key_output.get(),
                            candidate_key_output.bytes(), cudaMemcpyDeviceToHost),
-                "copy candidate fused K output")) {
+                "copy candidate fused K output") ||
+        !CudaOk(cudaMemcpy(physical_query_host.data(),
+                           physical_query_output.get(),
+                           physical_query_output.bytes(),
+                           cudaMemcpyDeviceToHost),
+                "copy physical-BF16 fused Q output") ||
+        !CudaOk(cudaMemcpy(physical_key_host.data(),
+                           physical_key_output.get(),
+                           physical_key_output.bytes(), cudaMemcpyDeviceToHost),
+                "copy physical-BF16 fused K output")) {
       return;
     }
     CUDA_TEST_CHECK(reference_query_host == candidate_query_host);
     CUDA_TEST_CHECK(reference_key_host == candidate_key_host);
+    CUDA_TEST_CHECK(reference_query_host == physical_query_host);
+    CUDA_TEST_CHECK(reference_key_host == physical_key_host);
 
     DeviceBuffer<float> controlled_query_output(query_heads * head_dimension);
     DeviceBuffer<float> controlled_key_output(kv_heads * head_dimension);

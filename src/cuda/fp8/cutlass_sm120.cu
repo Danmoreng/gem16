@@ -37,7 +37,7 @@ Status Internal(std::string message) {
 
 using ElementA = cutlass::float_e4m3_t;
 using ElementB = cutlass::float_e4m3_t;
-using ElementD = float;
+using ElementD = cutlass::bfloat16_t;
 using ElementAccumulator = float;
 using ArchTag = cutlass::arch::Sm120;
 using OperatorClass = cutlass::arch::OpClassTensorOp;
@@ -49,25 +49,18 @@ constexpr auto kRoundStyle = cutlass::FloatRoundStyle::round_to_nearest;
 // Preserve the checkpoint's exact left-to-right scaling and BF16 projection
 // boundary inside the CUTLASS epilogue:
 //
-//   float(BF16((acc * activation_scale[token]) * weight_scale[row]))
-//
-// The outer identity converts the BF16 fragment back to the existing FP32
-// storage contract. This removes the recurring output-scale kernel without
-// changing any downstream consumer or numerical boundary.
+//   BF16((acc * activation_scale[token]) * weight_scale[row])
 using ScaledBf16Epilogue = cutlass::epilogue::fusion::Sm90EVT<
     cutlass::epilogue::fusion::Sm90Compute<
-        cutlass::epilogue::thread::Identity, ElementD, float, kRoundStyle>,
+        cutlass::multiplies, ElementD, float, kRoundStyle>,
+    cutlass::epilogue::fusion::Sm90RowBroadcast<
+        0, ThreadBlockShape, cutlass::bfloat16_t, float>,
     cutlass::epilogue::fusion::Sm90EVT<
         cutlass::epilogue::fusion::Sm90Compute<
-            cutlass::multiplies, cutlass::bfloat16_t, float, kRoundStyle>,
-        cutlass::epilogue::fusion::Sm90RowBroadcast<
-            0, ThreadBlockShape, cutlass::bfloat16_t, float>,
-        cutlass::epilogue::fusion::Sm90EVT<
-            cutlass::epilogue::fusion::Sm90Compute<
-                cutlass::multiplies, float, float, kRoundStyle>,
-            cutlass::epilogue::fusion::Sm90ColBroadcast<
-                0, ThreadBlockShape, float, float>,
-            cutlass::epilogue::fusion::Sm90AccFetch>>>;
+            cutlass::multiplies, float, float, kRoundStyle>,
+        cutlass::epilogue::fusion::Sm90ColBroadcast<
+            0, ThreadBlockShape, float, float>,
+        cutlass::epilogue::fusion::Sm90AccFetch>>;
 
 using CollectiveEpilogue =
     typename cutlass::epilogue::collective::CollectiveBuilder<
@@ -75,7 +68,7 @@ using CollectiveEpilogue =
         cutlass::epilogue::collective::EpilogueTileAuto,
         ElementAccumulator, ElementAccumulator, void,
         cutlass::layout::RowMajor, 1, ElementD,
-        cutlass::layout::RowMajor, 4,
+        cutlass::layout::RowMajor, 8,
         cutlass::epilogue::collective::EpilogueScheduleAuto,
         ScaledBf16Epilogue>::CollectiveOp;
 
@@ -96,7 +89,7 @@ using Gemm = cutlass::gemm::device::GemmUniversalAdapter<GemmKernel>;
 Status LaunchGemm(
     const std::uint8_t* activation, const float* activation_scales,
     const std::uint8_t* weight, const std::uint16_t* weight_scales,
-    float* output, int m, int n, int k, void* workspace,
+    std::uint16_t* output, int m, int n, int k, void* workspace,
     std::size_t workspace_bytes, cudaStream_t stream) {
   const auto problem_shape = cute::make_shape(m, n, k, 1);
   const auto stride_a = cutlass::make_cute_packed_stride(
@@ -110,11 +103,11 @@ Status LaunchGemm(
       problem_shape,
       {reinterpret_cast<const ElementA*>(activation), stride_a,
        reinterpret_cast<const ElementB*>(weight), stride_b},
-      {{{{{reinterpret_cast<const cutlass::bfloat16_t*>(weight_scales)}},
-          {{{activation_scales}}, {}, {}},
-          {}},
-         {}},
-       nullptr, stride_d, output, stride_d}};
+      {{}, nullptr, stride_d, reinterpret_cast<ElementD*>(output), stride_d}};
+  arguments.epilogue.thread = {
+      {{reinterpret_cast<const cutlass::bfloat16_t*>(weight_scales)}},
+      {{{activation_scales}}, {}, {}},
+      {}};
 
   if constexpr (!std::is_const_v<
                     decltype(arguments.scheduler.max_swizzle_size)>) {
@@ -168,7 +161,7 @@ Status LaunchFp8CutlassProjectionBatch(
     const float* activation_scales,
     const std::uint8_t* weight_e4m3fn,
     const std::uint16_t* weight_scales_bf16,
-    float* output,
+    std::uint16_t* output_bf16,
     std::uint64_t tokens,
     std::uint64_t rows,
     std::uint64_t contracting_elements,
@@ -177,7 +170,7 @@ Status LaunchFp8CutlassProjectionBatch(
     cudaStream_t stream) {
   if (activation_e4m3fn == nullptr || activation_scales == nullptr ||
       weight_e4m3fn == nullptr || weight_scales_bf16 == nullptr ||
-      output == nullptr || workspace == nullptr || tokens == 0U ||
+      output_bf16 == nullptr || workspace == nullptr || tokens == 0U ||
       rows == 0U || contracting_elements == 0U ||
       tokens > static_cast<std::uint64_t>(std::numeric_limits<int>::max()) ||
       rows > static_cast<std::uint64_t>(std::numeric_limits<int>::max()) ||
@@ -187,7 +180,7 @@ Status LaunchFp8CutlassProjectionBatch(
   }
   return LaunchGemm(
       activation_e4m3fn, activation_scales, weight_e4m3fn,
-      weight_scales_bf16, output, static_cast<int>(tokens),
+      weight_scales_bf16, output_bf16, static_cast<int>(tokens),
       static_cast<int>(rows), static_cast<int>(contracting_elements), workspace,
       workspace_bytes, stream);
 }

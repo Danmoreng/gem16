@@ -19,17 +19,23 @@
     const NvtxRange range(mtp_verification ? "gem16.mtp.verify.layer"
                                            : "gem16.prefill.layer");
     float* hidden_a = Pointer<float>(prefill_workspace_, prefill_offsets_.hidden_a);
-    float* hidden_b = Pointer<float>(prefill_workspace_, prefill_offsets_.hidden_b);
     auto* fp8 = Pointer<std::uint8_t>(prefill_workspace_, prefill_offsets_.fp8_activation);
     float* fp8_scales = Pointer<float>(prefill_workspace_, prefill_offsets_.fp8_scales);
-    float* q = Pointer<float>(prefill_workspace_, prefill_offsets_.q);
-    float* k = Pointer<float>(prefill_workspace_, prefill_offsets_.k);
-    float* v = Pointer<float>(prefill_workspace_, prefill_offsets_.v);
+    auto* q_bf16 =
+        Pointer<std::uint16_t>(prefill_workspace_, prefill_offsets_.q);
+    auto* k_bf16 =
+        Pointer<std::uint16_t>(prefill_workspace_, prefill_offsets_.k);
+    auto* v_bf16 =
+        Pointer<std::uint16_t>(prefill_workspace_, prefill_offsets_.v);
+    // The fixed-T3 verifier retains the native FP32 projection contract. Its
+    // three rows fit inside the larger physical-BF16 prompt regions.
+    float* q = reinterpret_cast<float*>(q_bf16);
+    float* k = reinterpret_cast<float*>(k_bf16);
+    float* v = reinterpret_cast<float*>(v_bf16);
     float* q_norm = Pointer<float>(prefill_workspace_, prefill_offsets_.q_norm);
     float* k_norm = Pointer<float>(prefill_workspace_, prefill_offsets_.k_norm);
     float* v_norm = Pointer<float>(prefill_workspace_, prefill_offsets_.v_norm);
     float* attention = Pointer<float>(prefill_workspace_, prefill_offsets_.attention);
-    float* projection = Pointer<float>(prefill_workspace_, prefill_offsets_.projection);
     auto* cutlass_workspace = Pointer<std::uint8_t>(
         prefill_workspace_, prefill_offsets_.cutlass_workspace);
     constexpr std::size_t kCutlassWorkspaceBytes = 8U * 1024U * 1024U;
@@ -48,19 +54,29 @@
                        layer.global ? 0U : layer.v.rows, tokens,
                        layer.q.contracting, stream_)
                  : LaunchFp8QkvProjectionBatch(
-                       fp8, fp8_scales, layer.q, q, layer.k, k,
-                       layer.global ? nullptr : &layer.v, v, tokens,
+                       fp8, fp8_scales, layer.q, q_bf16, layer.k, k_bf16,
+                       layer.global ? nullptr : &layer.v, v_bf16, tokens,
                        cutlass_workspace, kCutlassWorkspaceBytes, stream_);
     if (!status.ok()) return status;
     if (layer.global) {
+      const std::size_t element_bytes =
+          mtp_verification ? sizeof(float) : sizeof(std::uint16_t);
       const cudaError_t error = cudaMemcpyAsync(
-          v, k, static_cast<std::size_t>(tokens * layer.kv_elements * sizeof(float)),
+          mtp_verification ? static_cast<void*>(v)
+                           : static_cast<void*>(v_bf16),
+          mtp_verification ? static_cast<const void*>(k)
+                           : static_cast<const void*>(k_bf16),
+          static_cast<std::size_t>(tokens * layer.kv_elements * element_bytes),
           cudaMemcpyDeviceToDevice, stream_);
       if (error != cudaSuccess) return CudaFailure("reuse batched global K for V", error);
     }
-    status = internal::LaunchRmsNormBf16(
-        v, nullptr, v_norm, tokens * layer.kv_heads, layer.head_dimension,
-        kEpsilon, stream_);
+    status = mtp_verification
+                 ? internal::LaunchRmsNormBf16(
+                       v, nullptr, v_norm, tokens * layer.kv_heads,
+                       layer.head_dimension, kEpsilon, stream_)
+                 : internal::LaunchRmsNormBf16Input(
+                       v_bf16, nullptr, v_norm, tokens * layer.kv_heads,
+                       layer.head_dimension, kEpsilon, stream_);
     if (!status.ok()) return status;
     if (controlled_mtp_d2) {
       status = internal::LaunchProjectionRmsNormRotaryBf16BatchControlled(
@@ -78,9 +94,28 @@
           mtp_row_controls, tokens, kQueryHeads, layer.kv_heads,
           layer.head_dimension, layer.global ? 0.25 : 1.0, kEpsilon,
           stream_);
-    } else {
+    } else if (mtp_verification) {
       status = internal::LaunchProjectionRmsNormRotaryBf16Batch(
           q, layer.q_norm, q_norm, k, layer.k_norm, k_norm,
+          layer.global
+              ? Pointer<float>(prefill_workspace_,
+                               prefill_offsets_.global_rope_cosine) +
+                    start_position * layer.head_dimension / 8U
+              : Pointer<float>(prefill_workspace_,
+                               prefill_offsets_.local_rope_cosine) +
+                    start_position * layer.head_dimension / 2U,
+          layer.global
+              ? Pointer<float>(prefill_workspace_,
+                               prefill_offsets_.global_rope_sine) +
+                    start_position * layer.head_dimension / 8U
+              : Pointer<float>(prefill_workspace_,
+                               prefill_offsets_.local_rope_sine) +
+                    start_position * layer.head_dimension / 2U,
+          tokens, kQueryHeads, layer.kv_heads, layer.head_dimension,
+          layer.global ? 0.25 : 1.0, kEpsilon, stream_);
+    } else {
+      status = internal::LaunchProjectionRmsNormRotaryBf16BatchInput(
+          q_bf16, layer.q_norm, q_norm, k_bf16, layer.k_norm, k_norm,
           layer.global
               ? Pointer<float>(prefill_workspace_,
                                prefill_offsets_.global_rope_cosine) +
@@ -399,12 +434,12 @@
         Pointer<float>(prefill_workspace_, prefill_offsets_.hidden_b);
     float* attention =
         Pointer<float>(prefill_workspace_, prefill_offsets_.attention);
-    float* projection =
-        Pointer<float>(prefill_workspace_, prefill_offsets_.projection);
+    auto* projection_bf16 = Pointer<std::uint16_t>(
+        prefill_workspace_, prefill_offsets_.projection);
+    float* projection = reinterpret_cast<float*>(projection_bf16);
     auto* cutlass_workspace = Pointer<std::uint8_t>(
         prefill_workspace_, prefill_offsets_.cutlass_workspace);
     constexpr std::size_t kCutlassWorkspaceBytes = 8U * 1024U * 1024U;
-    const std::uint64_t hidden_elements = tokens * kHidden;
     Status status =
         LaunchRoundBf16(attention, tokens * layer.query_elements, stream_);
     if (!status.ok()) return status;
@@ -419,12 +454,18 @@
                        projection, tokens, layer.o.rows, layer.o.contracting,
                        stream_)
                  : LaunchFp8ProjectionBatch(
-                       o_activation, o_scales, layer.o, projection, tokens,
+                       o_activation, o_scales, layer.o, projection_bf16, tokens,
                        cutlass_workspace, kCutlassWorkspaceBytes, stream_);
     if (!status.ok()) return status;
-    status = internal::LaunchRmsNormResidualBf16(
-        projection, layer.post_attention_norm, hidden_a, nullptr, hidden_b,
-        tokens, kHidden, kEpsilon, nullptr, stream_);
+    status = mtp_verification
+                 ? internal::LaunchRmsNormResidualBf16(
+                       projection, layer.post_attention_norm, hidden_a,
+                       nullptr, hidden_b, tokens, kHidden, kEpsilon, nullptr,
+                       stream_)
+                 : internal::LaunchRmsNormResidualBf16Input(
+                       projection_bf16, layer.post_attention_norm, hidden_a,
+                       nullptr, hidden_b, tokens, kHidden, kEpsilon, nullptr,
+                       stream_);
     if (!status.ok()) return status;
 
     auto* mlp_packed = Pointer<std::uint8_t>(prefill_workspace_, prefill_offsets_.mlp_packed);
@@ -485,7 +526,7 @@
                        tokens * kIntermediate, layer.down.input_divisor,
                        stream_);
     if (!status.ok()) return status;
-    auto* down_bf16 = reinterpret_cast<std::uint16_t*>(projection);
+    auto* down_bf16 = projection_bf16;
     if (mtp_verification) {
       status = internal::LaunchNvfp4Sm120DirectProjectionBf16Batch(
           down_packed, down_scales, layer.down.packed_weight,

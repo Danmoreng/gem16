@@ -128,6 +128,7 @@ def run_case(
             inference.get("kv_cache_mode") == "checkpoint_fp8",
             inference.get("fp8_prefill_tile") == "cutlass_m128n128k64",
             inference.get("fp8_prefill_output") == "scaled_bf16",
+            inference.get("fp8_prefill_storage") == "physical_bf16",
             inference.get("fp8_prefill_pipeline_stages") == 0,
             inference.get("fp8_prefill_schedule") == "cutlass_auto",
             inference.get("local_prefill_query_heads_per_cta") == 2,

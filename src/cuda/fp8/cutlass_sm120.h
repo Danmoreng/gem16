@@ -13,13 +13,13 @@ namespace gem16::internal {
 // column-major B memory order expected by CUTLASS, so no weight repack is
 // required. The GEMM accumulates into FP32; its epilogue applies the dynamic
 // per-token activation scale and checkpoint per-channel BF16 scale, rounds at
-// the model's BF16 projection boundary, and stores that value in FP32 storage.
+// the model's BF16 projection boundary, and stores physical BF16 values.
 [[nodiscard]] Status LaunchFp8CutlassProjectionBatch(
     const std::uint8_t* activation_e4m3fn,
     const float* activation_scales,
     const std::uint8_t* weight_e4m3fn,
     const std::uint16_t* weight_scales_bf16,
-    float* output,
+    std::uint16_t* output_bf16,
     std::uint64_t tokens,
     std::uint64_t rows,
     std::uint64_t contracting_elements,

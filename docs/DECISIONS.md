@@ -1,5 +1,35 @@
 # Decisions
 
+## 2026-08-02: Store FP8 prompt-projection boundaries as physical BF16
+
+Date: 2026-08-02
+
+Decision: Store the fused CUTLASS Q/K/V/O prompt-projection result as physical BF16. Consume those buffers directly
+in V RMSNorm, fused Q/K RMSNorm/RoPE, and O residual/RMSNorm. Retain the fixed-T3 verifier's existing native FP32
+projection contract in the same preallocated regions because its three rows fit safely within every prompt arena.
+
+Context: The prior epilogue already rounded every FP8 projection to BF16 but converted the fragment back to a
+BF16-valued FP32 buffer. On the exact 16K fixed-output D2 workload, the adjacent 3/10 median rises from 5,665.28 to
+5,703.40 prompt tok/s (+0.67%) and TTFT falls from 2,892.00 to 2,872.67 ms (-0.67%), with non-overlapping 95%
+intervals. A later thermally drifting exact-source repeat reaches +0.18% with overlapping intervals; therefore the
+speed effect is classified as small positive rather than fixed at +0.67%. Decode, output IDs, MTP acceptance,
+Target batches, and KV bytes are unchanged. The deterministic 252 MiB workspace reduction is the material basis
+for promotion.
+
+Alternatives: Keep BF16-valued FP32 storage; convert physical BF16 back to FP32 in a standalone kernel; or change
+the T3 verifier simultaneously. The first retains unnecessary traffic and 252 MiB at the 16K plan, the second
+repays neither benefit, and the third couples an independent decode-path change to a prefill storage optimization.
+
+Consequences: The 16K workspace falls by 264,241,152 bytes to 2,348,879,872 bytes. Runtime output reports
+`fp8_prefill_storage=physical_bf16`. CUDA fixtures require exact physical CUTLASS bits and exact agreement between
+the FP32-boundary and physical-BF16 RMSNorm/RoPE consumers. A bounded Nsight trace identifies only direct uint16
+consumers and no expansion pass. The sole normal prefill path uses physical BF16; decode and controlled T3 retain
+their previous kernels and numerical ordering.
+
+Evidence: `docs/PERFORMANCE_LEDGER.md`, full Host/CUDA CTest, direct 129/257 vLLM boundary validation, the 3/10
+fixed-output qualification, and the Nsight artifacts under
+`benchmarks/results/2026-08-02/8ed71e6-worktree/blackwell16gb-windows-physical-bf16-*`.
+
 ## 2026-08-02: Fuse scaled-BF16 FP8 prompt outputs into the CUTLASS epilogue
 
 Date: 2026-08-02

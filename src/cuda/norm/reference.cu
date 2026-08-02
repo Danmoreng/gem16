@@ -38,35 +38,36 @@ __device__ float BlockSum(float value) {
   return scratch[0];
 }
 
-template <bool kRoundBf16>
-__global__ void RmsNormKernel(const float* input, const std::uint16_t* weight,
-                              float* output, std::uint64_t width, float epsilon) {
-  const std::uint64_t vector = blockIdx.x;
-  const std::uint64_t base = vector * width;
-  float squared_sum = 0.0F;
-  for (std::uint64_t index = threadIdx.x; index < width; index += blockDim.x) {
-    const float value = input[base + index];
-    squared_sum = fmaf(value, value, squared_sum);
-  }
-  const float inverse_rms = rsqrtf(BlockSum(squared_sum) / static_cast<float>(width) + epsilon);
-  for (std::uint64_t index = threadIdx.x; index < width; index += blockDim.x) {
-    const float scale = weight == nullptr ? 1.0F :
-        static_cast<float>(__ushort_as_bfloat16(weight[index]));
-    const float value = input[base + index] * inverse_rms * scale;
-    if constexpr (kRoundBf16) {
-      output[base + index] = static_cast<float>(__float2bfloat16_rn(value));
-    } else {
-      output[base + index] = value;
-    }
-  }
-}
-
 template <typename Input>
 __device__ float LoadBoundaryValue(const Input* input, std::uint64_t index) {
   if constexpr (std::is_same_v<Input, std::uint16_t>) {
     return static_cast<float>(__ushort_as_bfloat16(input[index]));
   } else {
     return input[index];
+  }
+}
+
+template <typename Input, bool kRoundBf16>
+__global__ void RmsNormKernel(const Input* input, const std::uint16_t* weight,
+                              float* output, std::uint64_t width, float epsilon) {
+  const std::uint64_t vector = blockIdx.x;
+  const std::uint64_t base = vector * width;
+  float squared_sum = 0.0F;
+  for (std::uint64_t index = threadIdx.x; index < width; index += blockDim.x) {
+    const float value = LoadBoundaryValue(input, base + index);
+    squared_sum = fmaf(value, value, squared_sum);
+  }
+  const float inverse_rms = rsqrtf(BlockSum(squared_sum) / static_cast<float>(width) + epsilon);
+  for (std::uint64_t index = threadIdx.x; index < width; index += blockDim.x) {
+    const float scale = weight == nullptr ? 1.0F :
+        static_cast<float>(__ushort_as_bfloat16(weight[index]));
+    const float value =
+        LoadBoundaryValue(input, base + index) * inverse_rms * scale;
+    if constexpr (kRoundBf16) {
+      output[base + index] = static_cast<float>(__float2bfloat16_rn(value));
+    } else {
+      output[base + index] = value;
+    }
   }
 }
 
@@ -135,7 +136,8 @@ Status LaunchRmsNorm(const float* input, const std::uint16_t* weight_bf16, float
   if (input == nullptr || output == nullptr) return Invalid("RMSNorm requires non-null input and output");
   if (vectors == 0U || width == 0U || !std::isfinite(epsilon) || epsilon <= 0.0F ||
       !ValidGrid(vectors)) return Invalid("RMSNorm geometry or epsilon is invalid");
-  RmsNormKernel<false><<<static_cast<unsigned>(vectors), kThreads, 0, stream>>>(
+  RmsNormKernel<float, false>
+      <<<static_cast<unsigned>(vectors), kThreads, 0, stream>>>(
       input, weight_bf16, output, width, epsilon);
   const cudaError_t error = cudaGetLastError();
   return error == cudaSuccess ? Status::Ok() : CudaFailure("launch RMSNorm", error);
@@ -152,12 +154,34 @@ Status LaunchRmsNormBf16(const float* input,
       epsilon <= 0.0F || !ValidGrid(vectors)) {
     return Invalid("BF16 RMSNorm geometry or epsilon is invalid");
   }
-  RmsNormKernel<true><<<static_cast<unsigned>(vectors), kThreads, 0, stream>>>(
+  RmsNormKernel<float, true>
+      <<<static_cast<unsigned>(vectors), kThreads, 0, stream>>>(
       input, weight_bf16, output, width, epsilon);
   const cudaError_t error = cudaGetLastError();
   return error == cudaSuccess
              ? Status::Ok()
              : CudaFailure("launch BF16-boundary RMSNorm", error);
+}
+
+Status LaunchRmsNormBf16Input(
+    const std::uint16_t* input_bf16,
+    const std::uint16_t* weight_bf16, float* output,
+    std::uint64_t vectors, std::uint64_t width, float epsilon,
+    cudaStream_t stream) {
+  if (input_bf16 == nullptr || output == nullptr) {
+    return Invalid("physical-BF16 RMSNorm requires non-null input and output");
+  }
+  if (vectors == 0U || width == 0U || !std::isfinite(epsilon) ||
+      epsilon <= 0.0F || !ValidGrid(vectors)) {
+    return Invalid("physical-BF16 RMSNorm geometry or epsilon is invalid");
+  }
+  RmsNormKernel<std::uint16_t, true>
+      <<<static_cast<unsigned>(vectors), kThreads, 0, stream>>>(
+          input_bf16, weight_bf16, output, width, epsilon);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("launch physical-BF16 RMSNorm", error);
 }
 
 Status LaunchRmsNormResidualBf16(

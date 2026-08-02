@@ -1,5 +1,41 @@
 # Performance ledger
 
+## 2026-08-02 Prefill phase 8: store FP8 projection boundaries as physical BF16
+
+Hypothesis: the fused Q/K/V/O CUTLASS epilogue already produces the exact model-required BF16 value, so retaining
+that value in an FP32 arena wastes half the projection traffic and storage. The promoted path stores physical BF16
+directly, teaches V RMSNorm, fused Q/K RMSNorm/RoPE, and O residual/RMSNorm to consume the 16-bit boundary, and
+leaves the fixed-T3 MTP verifier on its existing FP32 projection contract. Decode kernels and arithmetic are
+unchanged.
+
+Against the immediately preceding fused-epilogue parent, the exact Windows Max Power 16K fixed-output D2
+qualification moves from 5,665.28 to 5,703.40 prompt tok/s (+0.67%) and from 2,892.00 to 2,872.67 ms median TTFT
+(-0.67%). The parent throughput 95% CI is `[5,659.30,5,672.38]`; the physical-BF16 candidate interval is
+`[5,699.43,5,710.69]`. Decode is effectively unchanged at 86.325 versus 86.377 tok/s. All ten candidate runs retain
+1,135 IDs, SHA-256 `374a7e9a564421be4f7d19cb125a651f73505077983b77b1149bfa82e3c81e8a`, 629 accepted of 1,006 proposed
+drafts, and 505 Target batches.
+
+A final exact-source repeat after the test/metadata additions reaches 5,675.51 tok/s (+0.18%) and 2,886.79 ms
+(-0.18%), with throughput CI `[5,665.76,5,690.84]` overlapping the parent. Its samples decline monotonically from
+5,708.21 to 5,658.22 tok/s after the extended qualification session, so the timing claim is conservatively a small
+positive effect rather than an unconditional +0.67%. It retains the same IDs, hash, MTP counters, and memory plan.
+The promotion is justified by the material deterministic memory reduction plus non-regressing repeated throughput,
+not by selecting only the faster run.
+
+The 16K workspace falls from 2,613,121,024 to 2,348,879,872 bytes: 264,241,152 bytes (252 MiB, 10.11%) removed,
+with the same 311,287,808-byte KV allocation. Runtime JSON now distinguishes the numerical
+`fp8_prefill_output=scaled_bf16` boundary from `fp8_prefill_storage=physical_bf16`. A bounded Nsight Systems trace
+over one warm-up and one measured 128-token prompt observes the physical consumers directly: 96
+`ProjectionRmsNormRotaryBf16BatchKernel<uint16_t>`, 96 `RmsNormKernel<uint16_t,true>`, and 192
+`RmsNormResidualBf16Kernel<uint16_t>` instances across the two prompt executions. No BF16-to-FP32 expansion kernel
+exists; the 96 remaining round kernels close attention outputs. The attempted 16K Windows trace completed GPU
+work but hung during Nsight report finalization and produced no artifact, so it is not cited as evidence.
+
+Host/CUDA CTest passes with exact physical-BF16 CUTLASS output bits and direct physical-input RMSNorm and Q/K
+RMSNorm/RoPE comparisons. Direct 129/257 vLLM boundary validation remains Top-1 at engine rank one with selected
+logprob deltas 0.5643/0.4235. Decision: promote physical BF16 Q/K/V/O prefill storage. Raw timing and trace evidence
+is under `benchmarks/results/2026-08-02/8ed71e6-worktree/blackwell16gb-windows-physical-bf16-*`.
+
 ## 2026-08-02 Prefill phase 7: fuse FP8 scaling and BF16 rounding into CUTLASS
 
 Hypothesis: every production FP8 Q/K/V/O prompt projection already ends at the exact scaled-BF16 boundary, so a
