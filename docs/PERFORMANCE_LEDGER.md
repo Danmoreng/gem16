@@ -1,5 +1,29 @@
 # Performance ledger
 
+## 2026-08-03 Windows: adjacent gem16 versus llama.cpp b10240 refresh
+
+Gem16 commit `1ffabc4` and llama.cpp b10240 (`0b14b87d7`) were rebuilt on Windows with CUDA 13.3 for SM120a and
+run serially on the RTX 5080 Laptop GPU in Lenovo Max Power mode. Both received the exact 16,384-token Wikipedia
+prompt, generated 1,135 fixed greedy target positions with D2 MTP, and used three warm-ups plus ten measured runs.
+The GPU cooled to 50 C before each engine; 200 ms telemetry confirms both reached approximately 175 W.
+
+Gem16 reaches median 6,047.04 prompt tok/s, 2,709.43 ms TTFT, 90.949 effective D2 tok/s, and 10.995 ms ITL.
+Llama.cpp reaches 3,940.28 prompt tok/s, 4,158.08 ms TTFT, 86.775 effective D2 tok/s, and 11.524 ms ITL. Gem16 is
+therefore 53.47% faster in prefill and 4.81% faster in decode, with 34.84% lower TTFT and 4.59% lower ITL. Mean
+95% intervals are `[6,042.78, 6,055.66]` versus `[3,935.87, 3,946.22]` prompt tok/s and
+`[90.941, 90.961]` versus `[86.730, 86.818]` D2 tok/s.
+
+All ten outputs are deterministic within each engine. Gem16 records 1,016 proposed / 625 accepted / 391 rejected
+drafts and 509 Target batches; llama.cpp records 1,035 / 616 / 419 and 519 batches. Their respective output hashes
+match the current Linux characterization. Active telemetry measures 154.91/145.91 W mean power,
+2,534/2,111 MHz mean SM clock, and 11,820/10,586 MiB sampled peak VRAM for gem16/llama.cpp.
+
+This is a controlled performance comparison, not exact tensor-format parity: gem16 uses the direct FP8/NVFP4
+checkpoint and FP8 KV, while llama.cpp maps attention weights and KV to Q8_0. The new deterministic Windows GGUFs
+are recorded separately from their platform-specific Linux whole-file hashes. Full distributions and telemetry
+summaries are in `benchmarks/baselines/cross_engine_mtp/windows-characterization.json`; raw ignored evidence is
+under `benchmarks/results/2026-08-03/1ffabc4/blackwell16gb-windows-maxpower-cross-engine-mtp-b10240-3x10/`.
+
 ## 2026-08-03 Linux max-power vLLM 0.26.0 / llama.cpp b10240 refresh
 
 Hypothesis: Rebuilding the two external runtimes at their latest stable pins and rerunning the exact public 16K

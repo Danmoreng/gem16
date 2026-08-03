@@ -1,9 +1,9 @@
-# Linux max-power cross-engine D2 MTP performance comparison
+# Cross-engine D2 MTP performance comparisons
 
 This directory retains the machine-readable summary behind the prominent README result. It is a reproducible,
 controlled same-machine performance comparison, not a claim of exact tensor-format or output/semantic parity.
 
-## Result
+## Linux result
 
 The gem16 engine at commit `8e86cb38ea04c240e460e54dc912dd823dccfab5`, vLLM 0.26.0, and llama.cpp b10240
 (`0b14b87d7c20cb753b94b96854dd7b45306fc696`) ran on one RTX 5080 Laptop GPU. Every engine received the same
@@ -19,6 +19,23 @@ active; the GPU dynamically reached its 175 W ceiling.
 
 Gem16 decode is 9.31% faster than vLLM and 8.08% faster than llama.cpp. Its median ITL is 8.51% lower than vLLM
 and 7.48% lower than llama.cpp. Gem16 prefill is 6.15% below vLLM and 49.48% above llama.cpp.
+
+## Windows result
+
+A fresh adjacent Windows 11 run at gem16 commit `1ffabc4` and the same llama.cpp b10240 pin uses Lenovo Max Power,
+CUDA 13.3, driver 596.49, and the same 16K/1,135-token fixed-D2 3/10 workload. The engines ran serially after the
+GPU cooled to 50 C:
+
+| Engine | Prefill tok/s | TTFT | Effective D2 MTP tok/s | ITL | Sampled peak VRAM |
+|---|---:|---:|---:|---:|---:|
+| **gem16** | **6,047.04** | **2,709.43 ms** | **90.95** | **10.995 ms** | 11,820 MiB |
+| llama.cpp b10240 | 3,940.28 | 4,158.08 ms | 86.77 | 11.524 ms | **10,586 MiB** |
+
+Gem16 is 53.47% faster in prefill and 4.81% faster in decode; TTFT is 34.84% lower and median ITL is 4.59% lower.
+Both engines reached approximately 175 W. All measured outputs are deterministic within each engine, and both
+output hashes match the corresponding current Linux results. Full distributions, Windows-specific GGUF hashes,
+MTP counters, and 200 ms telemetry summaries are in
+[`windows-characterization.json`](windows-characterization.json).
 
 The full medians, means, distributions, MTP counters, telemetry summary, configuration, runtime pins, and
 limitations are in [`characterization.json`](characterization.json). Raw JSON, console/server logs, commands,

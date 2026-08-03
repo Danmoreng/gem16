@@ -23,22 +23,20 @@ gem16 is a local inference stack built specifically for Gemma 4 12B on Blackwell
 The desktop app is the primary entry point: it downloads the pinned model set into the shared Hugging Face cache,
 starts or attaches to `gem16-server`, and provides a compact multimodal chat UI.
 
-The engine loads the original mixed FP8/NVFP4 Safetensors checkpoint directly. It does not require GGUF conversion,
-TensorRT engine generation, offline requantization, or a second persistent copy of the weights.
+The engine loads the original mixed FP8/NVFP4 Safetensors checkpoint directly.
 
 > [!IMPORTANT]
 > gem16 is a development preview, not a release-qualified general-purpose runtime. The optimized CUDA backend
 > currently targets Blackwell SM120/SM120a, and the supported model revisions are pinned deliberately.
 
-## Experimental AI-developed engine
+## Experimental project
 
-gem16 is programmed primarily with AI coding agents and is intended as an experimental engineering project. It
-examines how direct checkpoint loading, model-specific execution plans, and Blackwell-specific CUDA kernels perform
-for Gemma 4 12B within 16 GB of VRAM.
+gem16 is developed primarily with AI coding agents. It explores model-specific execution plans and
+Blackwell-optimized CUDA kernels for Gemma 4 12B within 16 GB of VRAM.
 
-### Current 16K controlled performance comparison
+## Current 16K performance
 
-#### Linux
+### Linux
 
 On an RTX 5080 Laptop GPU at its firmware-managed 175 W ceiling, gem16 commit `8e86cb38`, vLLM 0.26.0, and
 llama.cpp b10240 produce the following same-machine result:
@@ -49,40 +47,26 @@ llama.cpp b10240 produce the following same-machine result:
 | **gem16** | direct FP8/NVFP4 / FP8 | 5,863.59 | 2,794.19 ms | **89.58** | **11.163 ms** | 11,867 MiB |
 | llama.cpp b10240 | patched NVFP4+Q8_0 GGUF / Q8_0 | 3,922.61 | 4,176.81 ms | 82.88 | 12.065 ms | 10,631 MiB |
 
-#### Windows (retained)
+### Windows
 
-On Windows 11 x64, the same RTX 5080 Laptop GPU running gem16 commit `b9a73c2` in Lenovo Max Power mode with
-CUDA 13.3 and driver 596.49 produced the following latest qualified Windows component results. The llama.cpp row is
-the retained same-machine reference from the prior Windows characterization:
+On Windows 11 x64, the same RTX 5080 Laptop GPU running gem16 commit `1ffabc4` and llama.cpp b10240 in Lenovo Max
+Power mode with CUDA 13.3 and driver 596.49 produces the following adjacent same-machine result:
 
-| Engine | Checkpoint / KV | Prefill tok/s | TTFT | Effective D2 MTP tok/s | ITL |
-|---|---|---:|---:|---:|---:|
-| **gem16** | direct FP8/NVFP4 / FP8 | **6,045.67** | **2,710.04 ms** | **91.46** | **10.933 ms** |
-| llama.cpp 10210 | patched NVFP4+Q8_0 GGUF / Q8_0 | 3,937.64 | 4,160.87 ms | 86.00 | 11.628 ms |
+| Engine | Checkpoint / KV | Prefill tok/s | TTFT | Effective D2 MTP tok/s | ITL | Sampled peak VRAM |
+|---|---|---:|---:|---:|---:|---:|
+| **gem16** | direct FP8/NVFP4 / FP8 | **6,047.04** | **2,709.43 ms** | **90.95** | **10.995 ms** | 11,820 MiB |
+| llama.cpp b10240 | patched NVFP4+Q8_0 GGUF / Q8_0 | 3,940.28 | 4,158.08 ms | 86.77 | 11.524 ms | **10,586 MiB** |
 
-The retained Windows gem16 entry combines two qualified screens. Prefill and TTFT come from that commit's serial
-16,384-token synthetic one-output benchmark; the MTP throughput and ITL are retained from the exact
-16,384-token Wikipedia / 1,135-output qualification at commit `2be75d7`. Both use batch one, three warm-ups, and
-ten measured runs. The intervening changes affect only prefill; a same-head decode screen retains the prior
-output checksum. The Linux comparison and retained Windows llama.cpp qualification use the exact Wikipedia prompt,
-1,135 fixed greedy output positions, fixed D2 MTP, and count only target-verified output tokens.
+All rows use batch one, the same 16,384-token Wikipedia prompt, 1,135 fixed output positions, fixed D2 MTP, three
+warm-ups, and ten measurements. The Windows engines ran serially from 50 C and both reached approximately 175 W;
+all measured outputs were deterministic. vLLM is omitted on Windows because its pinned runtime is unsupported there.
 
-In the Linux run, gem16 decode is **9.31% faster than vLLM** and **8.08% faster than llama.cpp**; its median ITL
-is 8.51% and 7.48% lower, respectively. Gem16 prefill is 6.15% below vLLM and 49.48% above llama.cpp. This is a
-controlled performance comparison, not exact output/semantic parity: all engines use the same prompt IDs, output
-budget, batch, D2 policy, warm-ups, and repetitions, but their output hashes and prefill timing boundaries differ.
-Against the retained Windows llama.cpp row, retained Windows gem16 decode is 6.35% faster and prefill is 53.54%
-faster. vLLM is omitted from the Windows table because the pinned native runtime is not supported on Windows.
+On Windows, gem16 leads llama.cpp by **53.47% in prefill** and **4.81% in decode**, with 34.84% lower TTFT and
+4.59% lower ITL. On Linux, gem16 decode leads vLLM by **9.31%** and llama.cpp by **8.08%**, while prefill remains
+6.15% behind vLLM. These are controlled performance comparisons, not exact format or semantic parity; checkpoint
+formats, KV precision, output hashes, and prefill timing boundaries differ.
 
-The retained Windows gem16 row uses Lenovo Max Power; the retained llama.cpp row used the Balanced OS power scheme,
-although that earlier run dynamically reached approximately 176 W. The Windows ratio is therefore a same-machine orientation,
-not a new adjacent cross-engine run. Both outputs are deterministic within each engine, but their token hashes
-differ. The earlier Windows distributions, MTP counters, configurations, and filtered telemetry summary are retained
-in the [machine-readable Windows characterization](benchmarks/baselines/cross_engine_mtp/windows-characterization.json);
-the current gem16 prefill qualification and its 240 MiB workspace reduction are recorded in
-[`docs/PERFORMANCE_LEDGER.md`](docs/PERFORMANCE_LEDGER.md).
-
-Reproduce the complete three-engine run after preparing the pinned competitor environments:
+Reproduce the Linux comparison after preparing the pinned competitor environments:
 
 ```bash
 sudo systemctl enable --now nvidia-powerd.service
@@ -91,22 +75,16 @@ systemd-run --user --scope -p MemoryMax=48G -p MemorySwapMax=0 \
   ./scripts/benchmark-cross-engine-mtp.sh
 ```
 
-The script validates models, competitor versions, patches, GGUF checksums, power state, and an idle GPU. It stores
-raw JSON, logs, and power/clock/thermal telemetry in a new result directory. See the
-[full result and setup instructions](benchmarks/baselines/cross_engine_mtp/README.md) and the
-[machine-readable characterization](benchmarks/baselines/cross_engine_mtp/characterization.json).
-
-Comparison scope: gem16 and vLLM use the direct mixed FP8/NVFP4 checkpoint with FP8 KV. llama.cpp uses the patched
-NVFP4+Q8_0 GGUF and Q8_0 KV. The engines produce different token hashes, and their prefill timing boundaries are
-not identical. gem16 fixed-D2 is additionally checked for exact identity with its ordinary Target output.
+See the [full methodology](benchmarks/baselines/cross_engine_mtp/README.md),
+[Linux data](benchmarks/baselines/cross_engine_mtp/characterization.json), and
+[Windows data](benchmarks/baselines/cross_engine_mtp/windows-characterization.json).
 
 ## Architecture
 
 [![gem16 runtime architecture](docs/gem16-architecture.svg)](https://raw.githubusercontent.com/Danmoreng/gem16/main/docs/gem16-architecture.svg)
 
-The diagram covers checkpoint loading, runtime ownership, prefill, ordinary decode, transactional MTP verification,
-fixed GPU memory, and the correctness/performance qualification gates. The SVG is exported from the
-[editable tldraw source](docs/gem16-overview.tldraw).
+The diagram covers checkpoint loading, runtime ownership, GPU execution, memory, decode, and transactional MTP.
+It is exported from the [editable tldraw source](docs/gem16-overview.tldraw).
 
 ## What works today
 
@@ -186,14 +164,8 @@ To build a native installer for the current platform after the release server ex
 .\scripts\package-studio.ps1
 ```
 
-The Windows script always rebuilds the MSI and writes it to
-`studioApp/build/compose/binaries/main/msi/`. The installer deploys gem16 per machine under
-`C:\Program Files\gem16`; the CUDA-enabled server is embedded at
-`app\resources\bin\gem16-server.exe`. Checkpoints remain outside the installation in the shared Hugging Face cache.
-
-Pushing a `v*` tag, or manually dispatching the **Windows Release** workflow, builds the pinned CUDA 13.3 SM120a
-server on GitHub Actions, verifies native NVFP4/FP8 instructions, packages the MSI, publishes its SHA-256 checksum,
-and attaches both files to the GitHub Release.
+The Windows script writes the MSI to `studioApp/build/compose/binaries/main/msi/`. The installer includes the
+CUDA-enabled server; checkpoints remain in the shared Hugging Face cache.
 
 ```bash
 # Linux
@@ -265,11 +237,9 @@ Architecture and memory details are documented in [`docs/ARCHITECTURE.md`](docs/
 
 ## Performance and correctness
 
-gem16 reports prefill, ordinary decode, MTP, memory, and end-to-end measurements separately. The current prominent
-comparison above is a fixed-output greedy D2 MTP characterization under a controlled Linux max-power profile; it
-does not replace ordinary-decode, task-quality, or long-context gates. Cross-runtime token identity is not expected,
-but every engine must remain deterministic and all format, cache, timing-boundary, and fallback differences stay
-visible.
+gem16 reports prefill, ordinary decode, MTP, memory, and end-to-end measurements separately. The comparison above
+uses controlled same-machine Linux and Windows profiles; it does not replace ordinary-decode, task-quality, or
+long-context gates. Cross-runtime format, cache, output, timing-boundary, and fallback differences remain visible.
 
 Hardware, checkpoint, context, output count, sampling, quality, VRAM, clocks, power, and baseline tensor formats
 must accompany any performance claim. Reproduction commands, raw-evidence policy, caveats, and historical results
@@ -293,7 +263,6 @@ live in [`benchmarks/baselines/cross_engine_mtp/`](benchmarks/baselines/cross_en
 - [`docs/CORRECTNESS.md`](docs/CORRECTNESS.md) — numerical validation and current gates
 - [`docs/MTP.md`](docs/MTP.md) — assistant model and speculative decode design
 - [`docs/DECODE_OPTIMIZATION_PLAN.md`](docs/DECODE_OPTIMIZATION_PLAN.md) — active ordinary-decode and MTP performance plan
-- [`docs/LINUX_DECODE_HANDOFF_2026-07-31.md`](docs/LINUX_DECODE_HANDOFF_2026-07-31.md) — reproducible Linux continuation state
 - [`docs/BENCHMARKING.md`](docs/BENCHMARKING.md) — benchmark methodology
 - [`docs/PERFORMANCE_LEDGER.md`](docs/PERFORMANCE_LEDGER.md) — retained measurements and profiling evidence
 - [`docs/ROADMAP.md`](docs/ROADMAP.md) — remaining milestones
