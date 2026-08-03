@@ -301,7 +301,7 @@ struct PrefillOffsets {
   std::uint64_t fp8_activation = 0, fp8_scales = 0;
   std::uint64_t q = 0, k = 0, v = 0, q_norm = 0, k_norm = 0, v_norm = 0;
   std::uint64_t k_fp8 = 0, v_fp8 = 0, scores = 0, attention = 0;
-  std::uint64_t o_activation = 0, o_scales = 0, projection = 0, post_norm = 0;
+  std::uint64_t o_activation = 0, o_scales = 0, projection = 0;
   std::uint64_t mlp_packed = 0, mlp_scales = 0, gate = 0;
   std::uint64_t down_packed = 0, down_scales = 0;
   std::uint64_t cutlass_activation_scales = 0, cutlass_product_scales = 0;
@@ -362,8 +362,20 @@ __global__ void ControlledEmbeddingKernel(
   output[index] = static_cast<float>(__float2bfloat16_rn(weight * scale));
 }
 
+__device__ __forceinline__ void StoreEmbeddingBoundary(float* output,
+                                                       std::uint64_t index,
+                                                       float value) {
+  output[index] = value;
+}
+
+__device__ __forceinline__ void StoreEmbeddingBoundary(
+    std::uint16_t* output, std::uint64_t index, float value) {
+  output[index] = __bfloat16_as_ushort(__float2bfloat16_rn(value));
+}
+
+template <typename Output>
 __global__ void EmbeddingBatchKernel(const std::uint16_t* weights,
-                                     const std::uint32_t* tokens, float* output,
+                                     const std::uint32_t* tokens, Output* output,
                                      std::uint64_t total_elements) {
   const std::uint64_t index =
       static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
@@ -374,7 +386,40 @@ __global__ void EmbeddingBatchKernel(const std::uint16_t* weights,
       weights[static_cast<std::uint64_t>(tokens[token_index]) * kHidden + hidden_index]));
   const float scale = static_cast<float>(
       __float2bfloat16_rn(sqrtf(static_cast<float>(kHidden))));
-  output[index] = static_cast<float>(__float2bfloat16_rn(weight * scale));
+  const float value =
+      static_cast<float>(__float2bfloat16_rn(weight * scale));
+  StoreEmbeddingBoundary(output, index, value);
+}
+
+__global__ void StorePhysicalBf16Kernel(const float* input,
+                                        std::uint16_t* output,
+                                        std::uint64_t elements) {
+  const std::uint64_t index =
+      static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+  if (index < elements) {
+    output[index] = __bfloat16_as_ushort(__float2bfloat16_rn(input[index]));
+  }
+}
+
+Status LaunchStorePhysicalBf16(const float* input, std::uint16_t* output,
+                               std::uint64_t elements,
+                               cudaStream_t stream) {
+  if (input == nullptr || output == nullptr || elements == 0U) {
+    return Status(StatusCode::kInvalidArgument,
+                  "physical-BF16 store requires non-null pointers and a nonzero extent");
+  }
+  const std::uint64_t blocks = (elements + kThreads - 1U) / kThreads;
+  if (blocks >
+      static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
+    return Status(StatusCode::kInvalidArgument,
+                  "physical-BF16 store grid exceeds CUDA limits");
+  }
+  StorePhysicalBf16Kernel<<<static_cast<unsigned>(blocks), kThreads, 0,
+                            stream>>>(input, output, elements);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("launch physical-BF16 store", error);
 }
 
 Status LaunchRoundBf16(float* values, std::uint64_t elements, cudaStream_t stream) {

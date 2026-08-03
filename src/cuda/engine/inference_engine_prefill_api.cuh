@@ -55,12 +55,25 @@
             stream_);
         if (!status.ok()) return status;
       }
-      float* hidden = Pointer<float>(prefill_workspace_, prefill_offsets_.hidden_a);
+      const bool physical_hidden =
+          kv_cache_mode_ == KvCacheMode::kCheckpointFp8;
+      auto* hidden_bf16 = Pointer<std::uint16_t>(
+          prefill_workspace_, prefill_offsets_.hidden_a);
+      float* hidden = reinterpret_cast<float*>(hidden_bf16);
       const std::uint64_t hidden_elements = tokens * kHidden;
-      EmbeddingBatchKernel<<<static_cast<unsigned>((hidden_elements + kThreads - 1U) /
-                                                   kThreads),
-                             kThreads, 0, stream_>>>(
-          model_.embedding(), device_tokens, hidden, hidden_elements);
+      if (physical_hidden) {
+        EmbeddingBatchKernel<<<
+            static_cast<unsigned>((hidden_elements + kThreads - 1U) /
+                                  kThreads),
+            kThreads, 0, stream_>>>(model_.embedding(), device_tokens,
+                                    hidden_bf16, hidden_elements);
+      } else {
+        EmbeddingBatchKernel<<<
+            static_cast<unsigned>((hidden_elements + kThreads - 1U) /
+                                  kThreads),
+            kThreads, 0, stream_>>>(model_.embedding(), device_tokens, hidden,
+                                    hidden_elements);
+      }
       error = cudaGetLastError();
       if (error != cudaSuccess) return CudaFailure("launch prefill embedding", error);
       const std::uint64_t chunk_begin = start_position + begin;
@@ -95,14 +108,24 @@
         if (error != cudaSuccess) {
           return CudaFailure("copy audio waveform frames", error);
         }
+        float* media_hidden =
+            physical_hidden
+                ? reinterpret_cast<float*>(Pointer<std::uint16_t>(
+                      prefill_workspace_, prefill_offsets_.hidden_b))
+                : hidden + (overlap_begin - chunk_begin) * kHidden;
         status = internal::LaunchAudioProjection(
             device_audio,
             Pointer<float>(prefill_workspace_,
                            prefill_offsets_.audio_normalized),
-            model_.audio_projection(),
-            hidden + (overlap_begin - chunk_begin) * kHidden,
-            overlap_frames, stream_);
+            model_.audio_projection(), media_hidden, overlap_frames, stream_);
         if (!status.ok()) return status;
+        if (physical_hidden) {
+          status = LaunchStorePhysicalBf16(
+              media_hidden,
+              hidden_bf16 + (overlap_begin - chunk_begin) * kHidden,
+              overlap_frames * kHidden, stream_);
+          if (!status.ok()) return status;
+        }
       }
       for (const VisionEmbeddingSegment& segment : vision_segments) {
         if (segment.patches.empty() || segment.patches.size() % 6912U != 0U) {
@@ -138,16 +161,26 @@
         if (error != cudaSuccess) {
           return CudaFailure("copy vision patches and positions", error);
         }
+        float* media_hidden =
+            physical_hidden
+                ? reinterpret_cast<float*>(Pointer<std::uint16_t>(
+                      prefill_workspace_, prefill_offsets_.hidden_b))
+                : hidden + (segment.prompt_offset - chunk_begin) * kHidden;
         status = internal::LaunchVisionProjection(
             device_patches, device_positions,
             Pointer<float>(prefill_workspace_,
                            prefill_offsets_.vision_patch_normalized),
             Pointer<float>(prefill_workspace_, prefill_offsets_.vision_hidden_a),
             Pointer<float>(prefill_workspace_, prefill_offsets_.vision_hidden_b),
-            model_.vision(),
-            hidden + (segment.prompt_offset - chunk_begin) * kHidden,
-            patch_count, stream_);
+            model_.vision(), media_hidden, patch_count, stream_);
         if (!status.ok()) return status;
+        if (physical_hidden) {
+          status = LaunchStorePhysicalBf16(
+              media_hidden,
+              hidden_bf16 + (segment.prompt_offset - chunk_begin) * kHidden,
+              patch_count * kHidden, stream_);
+          if (!status.ok()) return status;
+        }
         vision_begin = segment.prompt_offset;
         vision_end = segment_end;
       }
@@ -157,8 +190,13 @@
         if (!status.ok()) return status;
       }
       float* normalized = Pointer<float>(prefill_workspace_, prefill_offsets_.normalized);
-      status = internal::LaunchRmsNormBf16(
-          hidden, model_.final_norm(), normalized, tokens, kHidden, kEpsilon, stream_);
+      status = physical_hidden
+                   ? internal::LaunchRmsNormBf16Input(
+                         hidden_bf16, model_.final_norm(), normalized, tokens,
+                         kHidden, kEpsilon, stream_)
+                   : internal::LaunchRmsNormBf16(
+                         hidden, model_.final_norm(), normalized, tokens,
+                         kHidden, kEpsilon, stream_);
       if (!status.ok()) return status;
       if (begin + tokens == token_ids.size()) {
         float* last = normalized + (tokens - 1U) * kHidden;

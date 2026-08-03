@@ -311,8 +311,22 @@
     GEM16_PREFILL_ADD(vision_hidden_a, float, 280U * kHidden);
     GEM16_PREFILL_ADD(vision_hidden_b, float, 280U * kHidden);
     GEM16_PREFILL_ADD(vision_positions, std::int32_t, 280U * 2U);
-    GEM16_PREFILL_ADD(hidden_a, float, tokens * kHidden);
-    GEM16_PREFILL_ADD(hidden_b, float, tokens * kHidden);
+    if (kv_cache_mode_ == KvCacheMode::kCheckpointFp8) {
+      const std::uint64_t recurrent_bytes =
+          tokens * kHidden * sizeof(std::uint16_t);
+      const std::uint64_t verifier_bytes =
+          kMaximumMtpVerifyTokens * kHidden * sizeof(float);
+      const std::uint64_t media_scratch_bytes =
+          750U * kHidden * sizeof(float);
+      GEM16_PREFILL_ADD(hidden_a, std::uint8_t,
+                        std::max(recurrent_bytes, verifier_bytes));
+      GEM16_PREFILL_ADD(
+          hidden_b, std::uint8_t,
+          std::max({recurrent_bytes, verifier_bytes, media_scratch_bytes}));
+    } else {
+      GEM16_PREFILL_ADD(hidden_a, float, tokens * kHidden);
+      GEM16_PREFILL_ADD(hidden_b, float, tokens * kHidden);
+    }
     GEM16_PREFILL_ADD(normalized, float, tokens * kHidden);
     GEM16_PREFILL_ADD(fp8_activation, std::uint8_t, tokens * max_q);
     GEM16_PREFILL_ADD(fp8_scales, float, tokens);
@@ -339,7 +353,6 @@
     GEM16_PREFILL_ADD(o_activation, std::uint8_t, tokens * max_q);
     GEM16_PREFILL_ADD(o_scales, float, tokens);
     GEM16_PREFILL_ADD(projection, std::uint16_t, tokens * kHidden);
-    GEM16_PREFILL_ADD(post_norm, float, tokens * kHidden);
     GEM16_PREFILL_ADD(mlp_packed, std::uint8_t, tokens * kHidden / 2U);
     GEM16_PREFILL_ADD(mlp_scales, std::uint8_t, tokens * kHidden / 16U);
     GEM16_PREFILL_ADD(gate, std::uint16_t, tokens * kIntermediate);

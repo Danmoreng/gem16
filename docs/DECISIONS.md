@@ -1,5 +1,33 @@
 # Decisions
 
+## 2026-08-03: Store checkpoint-FP8 prefill hidden and residual streams as physical BF16
+
+Date: 2026-08-03
+
+Decision: Store the two recurrent checkpoint-FP8 prompt hidden streams as physical BF16. Read and write that
+representation directly in the fused residual/RMSNorm boundaries and consume it directly in the fused FP8 and
+NVFP4 RMSNorm quantizers. Keep MTP verification and BF16 correctness in their existing FP32 workspaces.
+
+Context: The former recurrent streams contained only BF16-rounded values but occupied FP32 slots. The selected
+candidate improves the serial Windows Max Power 16K 3/10 median from 5,980.87 to 6,045.67 prompt tok/s (+1.08%)
+with non-overlapping 95% intervals, reduces TTFT by 1.07%, and removes exactly 240 MiB of workspace. The exact
+Wikipedia first token, short/long generated checksums, FP8/NVFP4 activation bytes, scales, and residual values are
+unchanged.
+
+Alternatives: Keep BF16 values expanded in FP32; physicalize only one recurrent stream; or convert to BF16 with
+standalone kernels. Keeping FP32 preserves unnecessary bandwidth and memory, while standalone conversions add
+launches and rereads. The selected kernels preserve the existing BF16 rounding order and store the final bits
+directly.
+
+Consequences: Runtime metadata reports `prefill_hidden_storage=physical_bf16` and
+`prefill_residual_storage=physical_bf16` for checkpoint-FP8. Text embeddings write BF16 directly; audio and vision
+retain their FP32 projection implementations and close into the same BF16 stream before the first language layer.
+The new residual kernel uses 24 registers, 2 KiB shared memory, and no stack/local memory. Full Host/CUDA CTest,
+the exact Wikipedia gate, and a decode checksum gate are required to retain this representation.
+
+Evidence: `docs/PERFORMANCE_LEDGER.md`, adjacent/full 16K measurements, exact CUDA operator fixtures, and ignored
+profiles under `build/step7-*`.
+
 ## 2026-08-03: Vectorize fixed-T3 FP8 activation staging, scales, and stores
 
 Date: 2026-08-03

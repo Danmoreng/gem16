@@ -56,6 +56,20 @@ struct DecodeControl {
     std::uint64_t vectors, std::uint64_t width, float epsilon,
     const std::uint16_t* scalar_bf16, cudaStream_t stream);
 
+// Production prefill boundary with both the recurrent residual stream and the
+// result stored as physical BF16. The arithmetic and BF16 rounding order are
+// identical to LaunchRmsNormResidualBf16Input.
+[[nodiscard]] Status LaunchRmsNormResidualPhysicalBf16(
+    const std::uint16_t* input_bf16,
+    const std::uint16_t* weight_bf16,
+    const std::uint16_t* residual_bf16,
+    std::uint16_t* output_bf16,
+    std::uint64_t vectors,
+    std::uint64_t width,
+    float epsilon,
+    const std::uint16_t* scalar_bf16,
+    cudaStream_t stream);
+
 [[nodiscard]] Status LaunchRotaryEmbedding(float* states,
                                            std::uint64_t heads,
                                            std::uint64_t head_dimension,

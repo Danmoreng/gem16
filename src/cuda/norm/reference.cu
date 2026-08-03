@@ -110,6 +110,42 @@ __global__ void RmsNormResidualBf16Kernel(
   }
 }
 
+__global__ void RmsNormResidualPhysicalBf16Kernel(
+    const std::uint16_t* input, const std::uint16_t* weight,
+    const std::uint16_t* residual, std::uint16_t* output,
+    std::uint64_t width, float epsilon, const std::uint16_t* scalar) {
+  const std::uint64_t vector = blockIdx.x;
+  const std::uint64_t base = vector * width;
+  float squared_sum = 0.0F;
+  for (std::uint64_t index = threadIdx.x; index < width;
+       index += blockDim.x) {
+    const float value = LoadBoundaryValue(input, base + index);
+    squared_sum = fmaf(value, value, squared_sum);
+  }
+  const float inverse_rms =
+      rsqrtf(BlockSum(squared_sum) / static_cast<float>(width) + epsilon);
+  const float layer_scale =
+      scalar == nullptr
+          ? 1.0F
+          : static_cast<float>(__ushort_as_bfloat16(scalar[0]));
+  for (std::uint64_t index = threadIdx.x; index < width;
+       index += blockDim.x) {
+    const float norm_scale =
+        weight == nullptr
+            ? 1.0F
+            : static_cast<float>(__ushort_as_bfloat16(weight[index]));
+    const float normalized = static_cast<float>(__float2bfloat16_rn(
+        LoadBoundaryValue(input, base + index) * inverse_rms * norm_scale));
+    float value = static_cast<float>(__float2bfloat16_rn(
+        normalized + LoadBoundaryValue(residual, base + index)));
+    if (scalar != nullptr) {
+      value = static_cast<float>(__float2bfloat16_rn(value * layer_scale));
+    }
+    output[base + index] =
+        __bfloat16_as_ushort(__float2bfloat16_rn(value));
+  }
+}
+
 __global__ void ScaleKernel(float* values, const std::uint16_t* scalar,
                             std::uint64_t elements) {
   const std::uint64_t index = static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
@@ -229,6 +265,30 @@ Status LaunchRmsNormResidualBf16Input(
   return error == cudaSuccess
              ? Status::Ok()
              : CudaFailure("launch fused BF16-input RMSNorm residual", error);
+}
+
+Status LaunchRmsNormResidualPhysicalBf16(
+    const std::uint16_t* input_bf16, const std::uint16_t* weight_bf16,
+    const std::uint16_t* residual_bf16, std::uint16_t* output_bf16,
+    std::uint64_t vectors, std::uint64_t width, float epsilon,
+    const std::uint16_t* scalar_bf16, cudaStream_t stream) {
+  if (input_bf16 == nullptr || residual_bf16 == nullptr ||
+      output_bf16 == nullptr) {
+    return Invalid(
+        "physical-BF16 RMSNorm residual requires non-null input, residual, and output");
+  }
+  if (vectors == 0U || width == 0U || !std::isfinite(epsilon) ||
+      epsilon <= 0.0F || !ValidGrid(vectors)) {
+    return Invalid("physical-BF16 RMSNorm residual geometry is invalid");
+  }
+  RmsNormResidualPhysicalBf16Kernel<<<static_cast<unsigned>(vectors), kThreads,
+                                      0, stream>>>(
+      input_bf16, weight_bf16, residual_bf16, output_bf16, width, epsilon,
+      scalar_bf16);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("launch physical-BF16 RMSNorm residual", error);
 }
 
 Status LaunchScale(float* values, const std::uint16_t* scalar_bf16,

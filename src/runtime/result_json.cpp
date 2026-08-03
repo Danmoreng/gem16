@@ -148,6 +148,16 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
          << "  \"fp8_prefill_tile\": \"cutlass_m128n128k64\",\n"
          << "  \"fp8_prefill_output\": \"scaled_bf16\",\n"
          << "  \"fp8_prefill_storage\": \"physical_bf16\",\n"
+         << "  \"prefill_hidden_storage\": \""
+         << (result.kv_cache_mode == KvCacheMode::kCheckpointFp8
+                 ? "physical_bf16"
+                 : "bf16_values_in_fp32")
+         << "\",\n"
+         << "  \"prefill_residual_storage\": \""
+         << (result.kv_cache_mode == KvCacheMode::kCheckpointFp8
+                 ? "physical_bf16"
+                 : "bf16_values_in_fp32")
+         << "\",\n"
          << "  \"nvfp4_gate_up_prefill_tile\": \"cutlass_m128n128k128\",\n"
          << "  \"nvfp4_gate_up_prefill_weight_scratch\": true,\n"
          << "  \"nvfp4_down_prefill_tile\": \"cutlass_m128n128k128\",\n"
@@ -347,6 +357,16 @@ Status WriteDecodeBenchmarkJson(const DecodeBenchmarkResult& result,
          << ",\"fp8_prefill_tile\":\"cutlass_m128n128k64\""
          << ",\"fp8_prefill_output\":\"scaled_bf16\""
          << ",\"fp8_prefill_storage\":\"physical_bf16\""
+         << ",\"prefill_hidden_storage\":\""
+         << (result.options.kv_cache_mode == KvCacheMode::kCheckpointFp8
+                 ? "physical_bf16"
+                 : "bf16_values_in_fp32")
+         << "\""
+         << ",\"prefill_residual_storage\":\""
+         << (result.options.kv_cache_mode == KvCacheMode::kCheckpointFp8
+                 ? "physical_bf16"
+                 : "bf16_values_in_fp32")
+         << "\""
          << ",\"nvfp4_gate_up_prefill_tile\":\"cutlass_m128n128k128\""
          << ",\"nvfp4_gate_up_prefill_weight_scratch\":true"
          << ",\"nvfp4_down_prefill_tile\":\"cutlass_m128n128k128\""
@@ -456,6 +476,16 @@ Status WritePrefillBenchmarkJson(const DecodeBenchmarkResult& result,
          << ",\"fp8_prefill_tile\":\"cutlass_m128n128k64\""
          << ",\"fp8_prefill_output\":\"scaled_bf16\""
          << ",\"fp8_prefill_storage\":\"physical_bf16\""
+         << ",\"prefill_hidden_storage\":\""
+         << (result.options.kv_cache_mode == KvCacheMode::kCheckpointFp8
+                 ? "physical_bf16"
+                 : "bf16_values_in_fp32")
+         << "\""
+         << ",\"prefill_residual_storage\":\""
+         << (result.options.kv_cache_mode == KvCacheMode::kCheckpointFp8
+                 ? "physical_bf16"
+                 : "bf16_values_in_fp32")
+         << "\""
          << ",\"nvfp4_gate_up_prefill_tile\":\"cutlass_m128n128k128\""
          << ",\"nvfp4_gate_up_prefill_weight_scratch\":true"
          << ",\"nvfp4_down_prefill_tile\":\"cutlass_m128n128k128\""

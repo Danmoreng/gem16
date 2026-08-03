@@ -68,8 +68,9 @@ __global__ void QuantizeTokenReferenceKernel(const Input* input,
   }
 }
 
+template <typename Input>
 __global__ void RmsNormQuantizeTokenKernel(
-    const float* input, const std::uint16_t* weight, std::uint8_t* output,
+    const Input* input, const std::uint16_t* weight, std::uint8_t* output,
     float* output_scale, std::uint64_t elements, float epsilon) {
   const std::uint64_t token = blockIdx.x;
   input += token * elements;
@@ -79,7 +80,7 @@ __global__ void RmsNormQuantizeTokenKernel(
   float squared_sum = 0.0F;
   for (std::uint64_t index = threadIdx.x; index < elements;
        index += blockDim.x) {
-    const float value = input[index];
+    const float value = LoadQuantizationInput(input, index);
     squared_sum = fmaf(value, value, squared_sum);
   }
   reduction[threadIdx.x] = squared_sum;
@@ -103,7 +104,7 @@ __global__ void RmsNormQuantizeTokenKernel(
             ? 1.0F
             : static_cast<float>(__ushort_as_bfloat16(weight[index]));
     const float normalized = static_cast<float>(__float2bfloat16_rn(
-        input[index] * inverse_rms * norm_scale));
+        LoadQuantizationInput(input, index) * inverse_rms * norm_scale));
     local_maximum = fmaxf(local_maximum, fabsf(normalized));
   }
   reduction[threadIdx.x] = local_maximum;
@@ -128,7 +129,7 @@ __global__ void RmsNormQuantizeTokenKernel(
             ? 1.0F
             : static_cast<float>(__ushort_as_bfloat16(weight[index]));
     const float normalized = static_cast<float>(__float2bfloat16_rn(
-        input[index] * inverse_rms * norm_scale));
+        LoadQuantizationInput(input, index) * inverse_rms * norm_scale));
     const __nv_fp8_e4m3 encoded(normalized / quantization_scale);
     output[index] = encoded.__x;
   }
@@ -241,6 +242,34 @@ Status LaunchRmsNormFp8TokenQuantizationBatch(
   return error == cudaSuccess
              ? Status::Ok()
              : CudaFailure("launch fused RMSNorm FP8 quantization", error);
+}
+
+Status LaunchRmsNormFp8TokenQuantizationBf16Batch(
+    const std::uint16_t* input_bf16, const std::uint16_t* weight_bf16,
+    std::uint8_t* output_e4m3fn, float* output_scales,
+    std::uint64_t tokens, std::uint64_t elements_per_token, float epsilon,
+    cudaStream_t stream) {
+  if (input_bf16 == nullptr || output_e4m3fn == nullptr ||
+      output_scales == nullptr) {
+    return Invalid(
+        "fused physical-BF16 RMSNorm FP8 quantization requires non-null pointers");
+  }
+  if (tokens == 0U || elements_per_token == 0U ||
+      !std::isfinite(epsilon) || epsilon <= 0.0F ||
+      tokens > static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
+    return Invalid(
+        "fused physical-BF16 RMSNorm FP8 quantization extent is invalid");
+  }
+  RmsNormQuantizeTokenKernel<<<static_cast<unsigned>(tokens), kThreads, 0,
+                               stream>>>(
+      input_bf16, weight_bf16, output_e4m3fn, output_scales,
+      elements_per_token, epsilon);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure(
+                   "launch fused physical-BF16 RMSNorm FP8 quantization",
+                   error);
 }
 
 Status LaunchFp8ReferenceProjection(const std::uint8_t* activation_e4m3fn,

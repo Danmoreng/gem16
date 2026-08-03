@@ -1367,12 +1367,16 @@ void TestLocalLayerReferenceOperators() {
 
   DeviceBuffer<std::uint8_t> device_norm_fp8_reference(norm_input.size());
   DeviceBuffer<std::uint8_t> device_norm_fp8_fused(norm_input.size());
+  DeviceBuffer<std::uint8_t> device_norm_fp8_physical(norm_input.size());
   DeviceBuffer<float> device_norm_fp8_reference_scales(2);
   DeviceBuffer<float> device_norm_fp8_fused_scales(2);
+  DeviceBuffer<float> device_norm_fp8_physical_scales(2);
   if (device_norm_fp8_reference.get() == nullptr ||
       device_norm_fp8_fused.get() == nullptr ||
+      device_norm_fp8_physical.get() == nullptr ||
       device_norm_fp8_reference_scales.get() == nullptr ||
-      device_norm_fp8_fused_scales.get() == nullptr) return;
+      device_norm_fp8_fused_scales.get() == nullptr ||
+      device_norm_fp8_physical_scales.get() == nullptr) return;
   const auto norm_fp8_reference_status =
       gem16::internal::LaunchFp8ReferenceTokenQuantizationBatch(
           device_norm_rounded_output.get(), device_norm_fp8_reference.get(),
@@ -1381,15 +1385,24 @@ void TestLocalLayerReferenceOperators() {
       gem16::internal::LaunchRmsNormFp8TokenQuantizationBatch(
           device_norm_input.get(), device_norm_weight.get(),
           device_norm_fp8_fused.get(), device_norm_fp8_fused_scales.get(), 2,
-          4, 1.0e-6F, nullptr);
+           4, 1.0e-6F, nullptr);
+  const auto norm_fp8_physical_status =
+      gem16::internal::LaunchRmsNormFp8TokenQuantizationBf16Batch(
+          device_physical_norm_input.get(), device_norm_weight.get(),
+          device_norm_fp8_physical.get(),
+          device_norm_fp8_physical_scales.get(), 2, 4, 1.0e-6F, nullptr);
   CUDA_TEST_CHECK(norm_fp8_reference_status.ok());
   CUDA_TEST_CHECK(norm_fp8_fused_status.ok());
+  CUDA_TEST_CHECK(norm_fp8_physical_status.ok());
   if (!norm_fp8_reference_status.ok() || !norm_fp8_fused_status.ok() ||
+      !norm_fp8_physical_status.ok() ||
       !CudaOk(cudaDeviceSynchronize(), "fused RMSNorm FP8 synchronize")) return;
   std::array<std::uint8_t, norm_input.size()> gpu_norm_fp8_reference{};
   std::array<std::uint8_t, norm_input.size()> gpu_norm_fp8_fused{};
+  std::array<std::uint8_t, norm_input.size()> gpu_norm_fp8_physical{};
   std::array<float, 2> gpu_norm_fp8_reference_scales{};
   std::array<float, 2> gpu_norm_fp8_fused_scales{};
+  std::array<float, 2> gpu_norm_fp8_physical_scales{};
   if (!CudaOk(cudaMemcpy(gpu_norm_fp8_reference.data(),
                          device_norm_fp8_reference.get(),
                          device_norm_fp8_reference.bytes(),
@@ -1404,13 +1417,25 @@ void TestLocalLayerReferenceOperators() {
                          device_norm_fp8_reference_scales.bytes(),
                          cudaMemcpyDeviceToHost),
               "copy reference RMSNorm FP8 scales") ||
-      !CudaOk(cudaMemcpy(gpu_norm_fp8_fused_scales.data(),
+       !CudaOk(cudaMemcpy(gpu_norm_fp8_fused_scales.data(),
                          device_norm_fp8_fused_scales.get(),
                          device_norm_fp8_fused_scales.bytes(),
+                          cudaMemcpyDeviceToHost),
+               "copy fused RMSNorm FP8 scales") ||
+      !CudaOk(cudaMemcpy(gpu_norm_fp8_physical.data(),
+                         device_norm_fp8_physical.get(),
+                         device_norm_fp8_physical.bytes(),
                          cudaMemcpyDeviceToHost),
-              "copy fused RMSNorm FP8 scales")) return;
+              "copy physical RMSNorm FP8 output") ||
+      !CudaOk(cudaMemcpy(gpu_norm_fp8_physical_scales.data(),
+                         device_norm_fp8_physical_scales.get(),
+                         device_norm_fp8_physical_scales.bytes(),
+                         cudaMemcpyDeviceToHost),
+              "copy physical RMSNorm FP8 scales")) return;
   CUDA_TEST_CHECK(gpu_norm_fp8_reference == gpu_norm_fp8_fused);
   CUDA_TEST_CHECK(gpu_norm_fp8_reference_scales == gpu_norm_fp8_fused_scales);
+  CUDA_TEST_CHECK(gpu_norm_fp8_fused == gpu_norm_fp8_physical);
+  CUDA_TEST_CHECK(gpu_norm_fp8_fused_scales == gpu_norm_fp8_physical_scales);
 
   constexpr std::size_t norm_nvfp4_tokens = 2;
   constexpr std::size_t norm_nvfp4_width = 32;
@@ -1426,28 +1451,46 @@ void TestLocalLayerReferenceOperators() {
     norm_nvfp4_weight[index] = (index & 1U) == 0U ? 0x3F80U : 0x3F00U;
   }
   DeviceBuffer<float> device_norm_nvfp4_input(norm_nvfp4_elements);
+  std::array<std::uint16_t, norm_nvfp4_elements> norm_nvfp4_input_bf16{};
+  for (std::size_t index = 0; index < norm_nvfp4_input.size(); ++index) {
+    norm_nvfp4_input_bf16[index] = Bf16BitsReference(norm_nvfp4_input[index]);
+  }
+  DeviceBuffer<std::uint16_t> device_norm_nvfp4_input_bf16(
+      norm_nvfp4_elements);
   DeviceBuffer<std::uint16_t> device_norm_nvfp4_weight(norm_nvfp4_width);
   DeviceBuffer<float> device_norm_nvfp4_reference(norm_nvfp4_elements);
   DeviceBuffer<std::uint8_t> device_norm_nvfp4_reference_packed(
       norm_nvfp4_elements / 2U);
   DeviceBuffer<std::uint8_t> device_norm_nvfp4_fused_packed(
       norm_nvfp4_elements / 2U);
+  DeviceBuffer<std::uint8_t> device_norm_nvfp4_physical_packed(
+      norm_nvfp4_elements / 2U);
   DeviceBuffer<std::uint8_t> device_norm_nvfp4_reference_scales(
       norm_nvfp4_elements / 16U);
   DeviceBuffer<std::uint8_t> device_norm_nvfp4_fused_scales(
       norm_nvfp4_elements / 16U);
+  DeviceBuffer<std::uint8_t> device_norm_nvfp4_physical_scales(
+      norm_nvfp4_elements / 16U);
   if (device_norm_nvfp4_input.get() == nullptr ||
+      device_norm_nvfp4_input_bf16.get() == nullptr ||
       device_norm_nvfp4_weight.get() == nullptr ||
       device_norm_nvfp4_reference.get() == nullptr ||
       device_norm_nvfp4_reference_packed.get() == nullptr ||
       device_norm_nvfp4_fused_packed.get() == nullptr ||
+      device_norm_nvfp4_physical_packed.get() == nullptr ||
       device_norm_nvfp4_reference_scales.get() == nullptr ||
       device_norm_nvfp4_fused_scales.get() == nullptr ||
+      device_norm_nvfp4_physical_scales.get() == nullptr ||
       !CudaOk(cudaMemcpy(device_norm_nvfp4_input.get(),
                          norm_nvfp4_input.data(),
                          device_norm_nvfp4_input.bytes(),
                          cudaMemcpyHostToDevice),
               "copy RMSNorm NVFP4 input") ||
+      !CudaOk(cudaMemcpy(device_norm_nvfp4_input_bf16.get(),
+                         norm_nvfp4_input_bf16.data(),
+                         device_norm_nvfp4_input_bf16.bytes(),
+                         cudaMemcpyHostToDevice),
+              "copy physical RMSNorm NVFP4 input") ||
       !CudaOk(cudaMemcpy(device_norm_nvfp4_weight.get(),
                          norm_nvfp4_weight.data(),
                          device_norm_nvfp4_weight.bytes(),
@@ -1468,21 +1511,33 @@ void TestLocalLayerReferenceOperators() {
           device_norm_nvfp4_input.get(), device_norm_nvfp4_weight.get(),
           device_norm_nvfp4_fused_packed.get(),
           device_norm_nvfp4_fused_scales.get(), norm_nvfp4_tokens,
+           norm_nvfp4_width, 1.0e-6F, 1.25F, nullptr);
+  const auto norm_nvfp4_physical_status =
+      gem16::internal::LaunchRmsNormNvfp4ActivationQuantizationBf16Batch(
+          device_norm_nvfp4_input_bf16.get(),
+          device_norm_nvfp4_weight.get(),
+          device_norm_nvfp4_physical_packed.get(),
+          device_norm_nvfp4_physical_scales.get(), norm_nvfp4_tokens,
           norm_nvfp4_width, 1.0e-6F, 1.25F, nullptr);
   CUDA_TEST_CHECK(norm_nvfp4_status.ok());
   CUDA_TEST_CHECK(norm_nvfp4_reference_status.ok());
   CUDA_TEST_CHECK(norm_nvfp4_fused_status.ok());
+  CUDA_TEST_CHECK(norm_nvfp4_physical_status.ok());
   if (!norm_nvfp4_status.ok() || !norm_nvfp4_reference_status.ok() ||
-      !norm_nvfp4_fused_status.ok() ||
+      !norm_nvfp4_fused_status.ok() || !norm_nvfp4_physical_status.ok() ||
       !CudaOk(cudaDeviceSynchronize(), "fused RMSNorm NVFP4 synchronize")) return;
   std::array<std::uint8_t, norm_nvfp4_elements / 2U>
       gpu_norm_nvfp4_reference_packed{};
   std::array<std::uint8_t, norm_nvfp4_elements / 2U>
       gpu_norm_nvfp4_fused_packed{};
+  std::array<std::uint8_t, norm_nvfp4_elements / 2U>
+      gpu_norm_nvfp4_physical_packed{};
   std::array<std::uint8_t, norm_nvfp4_elements / 16U>
       gpu_norm_nvfp4_reference_scales{};
   std::array<std::uint8_t, norm_nvfp4_elements / 16U>
       gpu_norm_nvfp4_fused_scales{};
+  std::array<std::uint8_t, norm_nvfp4_elements / 16U>
+      gpu_norm_nvfp4_physical_scales{};
   if (!CudaOk(cudaMemcpy(gpu_norm_nvfp4_reference_packed.data(),
                          device_norm_nvfp4_reference_packed.get(),
                          device_norm_nvfp4_reference_packed.bytes(),
@@ -1502,11 +1557,25 @@ void TestLocalLayerReferenceOperators() {
                          device_norm_nvfp4_fused_scales.get(),
                          device_norm_nvfp4_fused_scales.bytes(),
                          cudaMemcpyDeviceToHost),
-              "copy fused RMSNorm NVFP4 scales")) return;
+              "copy fused RMSNorm NVFP4 scales") ||
+      !CudaOk(cudaMemcpy(gpu_norm_nvfp4_physical_packed.data(),
+                         device_norm_nvfp4_physical_packed.get(),
+                         device_norm_nvfp4_physical_packed.bytes(),
+                         cudaMemcpyDeviceToHost),
+              "copy physical RMSNorm NVFP4 packed output") ||
+      !CudaOk(cudaMemcpy(gpu_norm_nvfp4_physical_scales.data(),
+                         device_norm_nvfp4_physical_scales.get(),
+                         device_norm_nvfp4_physical_scales.bytes(),
+                         cudaMemcpyDeviceToHost),
+              "copy physical RMSNorm NVFP4 scales")) return;
   CUDA_TEST_CHECK(gpu_norm_nvfp4_reference_packed ==
                   gpu_norm_nvfp4_fused_packed);
   CUDA_TEST_CHECK(gpu_norm_nvfp4_reference_scales ==
                   gpu_norm_nvfp4_fused_scales);
+  CUDA_TEST_CHECK(gpu_norm_nvfp4_fused_packed ==
+                  gpu_norm_nvfp4_physical_packed);
+  CUDA_TEST_CHECK(gpu_norm_nvfp4_fused_scales ==
+                  gpu_norm_nvfp4_physical_scales);
 
   constexpr std::size_t fused_gelu_elements = 32;
   std::array<float, fused_gelu_elements> fused_gelu_gate{};
@@ -1674,9 +1743,11 @@ void TestLocalLayerReferenceOperators() {
   constexpr std::array<float, norm_input.size()> norm_residual = {
       0.25F, -0.5F, 0.75F, -1.0F, 1.25F, -1.5F, 1.75F, -2.0F};
   std::array<std::uint16_t, norm_input.size()> norm_input_bf16{};
+  std::array<std::uint16_t, norm_residual.size()> norm_residual_bf16{};
   for (std::size_t index = 0; index < norm_input.size(); ++index) {
     norm_input_bf16[index] = static_cast<std::uint16_t>(
         std::bit_cast<std::uint32_t>(norm_input[index]) >> 16U);
+    norm_residual_bf16[index] = Bf16BitsReference(norm_residual[index]);
   }
   constexpr std::uint16_t norm_layer_scalar_bf16 = 0x3FC0U;
   DeviceBuffer<std::uint16_t> device_norm_input_bf16(norm_input_bf16.size());
@@ -1685,6 +1756,9 @@ void TestLocalLayerReferenceOperators() {
   DeviceBuffer<float> device_norm_fused_final(norm_residual.size());
   DeviceBuffer<float> device_norm_bf16_input_normalized(norm_residual.size());
   DeviceBuffer<float> device_norm_bf16_input_final(norm_residual.size());
+  DeviceBuffer<std::uint16_t> device_norm_residual_bf16(
+      norm_residual_bf16.size());
+  DeviceBuffer<std::uint16_t> device_norm_physical_final(norm_residual.size());
   DeviceBuffer<std::uint16_t> device_norm_layer_scalar(1);
   if (device_norm_input_bf16.get() == nullptr ||
       device_norm_residual.get() == nullptr ||
@@ -1692,6 +1766,8 @@ void TestLocalLayerReferenceOperators() {
       device_norm_fused_final.get() == nullptr ||
       device_norm_bf16_input_normalized.get() == nullptr ||
       device_norm_bf16_input_final.get() == nullptr ||
+      device_norm_residual_bf16.get() == nullptr ||
+      device_norm_physical_final.get() == nullptr ||
       device_norm_layer_scalar.get() == nullptr ||
       !CudaOk(cudaMemcpy(device_norm_input_bf16.get(), norm_input_bf16.data(),
                          device_norm_input_bf16.bytes(),
@@ -1699,7 +1775,12 @@ void TestLocalLayerReferenceOperators() {
               "copy BF16 RMSNorm input") ||
       !CudaOk(cudaMemcpy(device_norm_residual.get(), norm_residual.data(),
                          device_norm_residual.bytes(), cudaMemcpyHostToDevice),
-              "copy RMSNorm residual") ||
+               "copy RMSNorm residual") ||
+      !CudaOk(cudaMemcpy(device_norm_residual_bf16.get(),
+                         norm_residual_bf16.data(),
+                         device_norm_residual_bf16.bytes(),
+                         cudaMemcpyHostToDevice),
+              "copy physical RMSNorm residual") ||
       !CudaOk(cudaMemcpy(device_norm_layer_scalar.get(),
                          &norm_layer_scalar_bf16,
                          sizeof(norm_layer_scalar_bf16),
@@ -1719,19 +1800,26 @@ void TestLocalLayerReferenceOperators() {
       gem16::internal::LaunchRmsNormResidualBf16Input(
           device_norm_input_bf16.get(), device_norm_weight.get(),
           device_norm_residual.get(), device_norm_bf16_input_normalized.get(),
-          device_norm_bf16_input_final.get(), 2, 4, 1.0e-6F, nullptr,
-          nullptr);
+           device_norm_bf16_input_final.get(), 2, 4, 1.0e-6F, nullptr,
+           nullptr);
+  auto physical_residual_status =
+      gem16::internal::LaunchRmsNormResidualPhysicalBf16(
+          device_norm_input_bf16.get(), device_norm_weight.get(),
+          device_norm_residual_bf16.get(), device_norm_physical_final.get(), 2,
+          4, 1.0e-6F, nullptr, nullptr);
   CUDA_TEST_CHECK(residual_status.ok());
   CUDA_TEST_CHECK(fused_residual_status.ok());
   CUDA_TEST_CHECK(bf16_input_residual_status.ok());
+  CUDA_TEST_CHECK(physical_residual_status.ok());
   if (!residual_status.ok() || !fused_residual_status.ok() ||
-      !bf16_input_residual_status.ok() ||
+      !bf16_input_residual_status.ok() || !physical_residual_status.ok() ||
       !CudaOk(cudaGetLastError(), "launch comparison residual BF16 rounding") ||
       !CudaOk(cudaDeviceSynchronize(), "fused RMSNorm residual synchronize")) return;
   std::array<float, norm_input.size()> gpu_norm_reference_final{};
   std::array<float, norm_input.size()> gpu_norm_fused_final{};
   std::array<float, norm_input.size()> gpu_norm_bf16_input_normalized{};
   std::array<float, norm_input.size()> gpu_norm_bf16_input_final{};
+  std::array<std::uint16_t, norm_input.size()> gpu_norm_physical_final{};
   if (!CudaOk(cudaMemcpy(gpu_norm_fused.data(), device_norm_fused_output.get(),
                          device_norm_fused_output.bytes(), cudaMemcpyDeviceToHost),
               "copy fused RMSNorm residual norm") ||
@@ -1753,11 +1841,20 @@ void TestLocalLayerReferenceOperators() {
                          device_norm_bf16_input_final.get(),
                          device_norm_bf16_input_final.bytes(),
                          cudaMemcpyDeviceToHost),
-              "copy BF16-input RMSNorm residual output")) return;
+              "copy BF16-input RMSNorm residual output") ||
+      !CudaOk(cudaMemcpy(gpu_norm_physical_final.data(),
+                         device_norm_physical_final.get(),
+                         device_norm_physical_final.bytes(),
+                         cudaMemcpyDeviceToHost),
+              "copy physical RMSNorm residual output")) return;
   CUDA_TEST_CHECK(gpu_norm_rounded == gpu_norm_fused);
   CUDA_TEST_CHECK(gpu_norm_reference_final == gpu_norm_fused_final);
   CUDA_TEST_CHECK(gpu_norm_fused == gpu_norm_bf16_input_normalized);
   CUDA_TEST_CHECK(gpu_norm_fused_final == gpu_norm_bf16_input_final);
+  for (std::size_t index = 0; index < gpu_norm_physical_final.size(); ++index) {
+    CUDA_TEST_CHECK(gpu_norm_physical_final[index] ==
+                    Bf16BitsReference(gpu_norm_fused_final[index]));
+  }
 
   const auto scalar_status = gem16::internal::LaunchScale(
       device_norm_reference_final.get(), device_norm_layer_scalar.get(),
@@ -1769,9 +1866,16 @@ void TestLocalLayerReferenceOperators() {
       device_norm_residual.get(), device_norm_fused_output.get(),
       device_norm_fused_final.get(), 2, 4, 1.0e-6F,
       device_norm_layer_scalar.get(), nullptr);
+  physical_residual_status =
+      gem16::internal::LaunchRmsNormResidualPhysicalBf16(
+          device_norm_input_bf16.get(), device_norm_weight.get(),
+          device_norm_residual_bf16.get(), device_norm_physical_final.get(), 2,
+          4, 1.0e-6F, device_norm_layer_scalar.get(), nullptr);
   CUDA_TEST_CHECK(scalar_status.ok());
   CUDA_TEST_CHECK(fused_residual_status.ok());
+  CUDA_TEST_CHECK(physical_residual_status.ok());
   if (!scalar_status.ok() || !fused_residual_status.ok() ||
+      !physical_residual_status.ok() ||
       !CudaOk(cudaGetLastError(), "launch comparison scalar BF16 rounding") ||
       !CudaOk(cudaDeviceSynchronize(), "fused scaled RMSNorm residual synchronize")) return;
   if (!CudaOk(cudaMemcpy(gpu_norm_reference_final.data(),
@@ -1782,8 +1886,17 @@ void TestLocalLayerReferenceOperators() {
       !CudaOk(cudaMemcpy(gpu_norm_fused_final.data(),
                          device_norm_fused_final.get(),
                          device_norm_fused_final.bytes(), cudaMemcpyDeviceToHost),
-              "copy fused scaled RMSNorm residual output")) return;
+               "copy fused scaled RMSNorm residual output") ||
+      !CudaOk(cudaMemcpy(gpu_norm_physical_final.data(),
+                         device_norm_physical_final.get(),
+                         device_norm_physical_final.bytes(),
+                         cudaMemcpyDeviceToHost),
+              "copy physical scaled RMSNorm residual output")) return;
   CUDA_TEST_CHECK(gpu_norm_reference_final == gpu_norm_fused_final);
+  for (std::size_t index = 0; index < gpu_norm_physical_final.size(); ++index) {
+    CUDA_TEST_CHECK(gpu_norm_physical_final[index] ==
+                    Bf16BitsReference(gpu_norm_fused_final[index]));
+  }
 
   std::array<float, 8> host_rope = {1.0F, 2.0F, 3.0F, 4.0F, 5.0F, 6.0F, 7.0F, 8.0F};
   DeviceBuffer<float> device_rope(host_rope.size());

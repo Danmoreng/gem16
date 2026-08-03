@@ -45,6 +45,18 @@ namespace gem16::internal {
     float epsilon,
     cudaStream_t stream);
 
+// Same exact production boundary when the recurrent hidden state is stored as
+// physical BF16 rather than BF16 values expanded into FP32 slots.
+[[nodiscard]] Status LaunchRmsNormFp8TokenQuantizationBf16Batch(
+    const std::uint16_t* input_bf16,
+    const std::uint16_t* weight_bf16,
+    std::uint8_t* output_e4m3fn,
+    float* output_scales,
+    std::uint64_t tokens,
+    std::uint64_t elements_per_token,
+    float epsilon,
+    cudaStream_t stream);
+
 [[nodiscard]] Status LaunchFp8ReferenceProjection(
     const std::uint8_t* activation_e4m3fn,
     const float* activation_scale,

@@ -31,6 +31,19 @@ namespace gem16::internal {
     float global_divisor,
     cudaStream_t stream);
 
+// Same exact production boundary for a recurrent hidden state held in
+// physical BF16 storage.
+[[nodiscard]] Status LaunchRmsNormNvfp4ActivationQuantizationBf16Batch(
+    const std::uint16_t* input_bf16,
+    const std::uint16_t* weight_bf16,
+    std::uint8_t* packed_e2m1,
+    std::uint8_t* block_scales_e4m3fn,
+    std::uint64_t tokens,
+    std::uint64_t elements_per_token,
+    float epsilon,
+    float global_divisor,
+    cudaStream_t stream);
+
 // Production prefill MLP boundary. Round Gate and Up to BF16, apply Gemma's
 // tanh GELU product with its BF16 GELU boundary, round the product to BF16,
 // and quantize directly into NVFP4 blocks.

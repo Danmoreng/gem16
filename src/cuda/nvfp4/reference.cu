@@ -79,8 +79,19 @@ __global__ void QuantizeActivationReferenceKernel(const float* input,
   }
 }
 
+__device__ __forceinline__ float LoadRmsNormInput(const float* input,
+                                                  std::uint64_t index) {
+  return input[index];
+}
+
+__device__ __forceinline__ float LoadRmsNormInput(
+    const std::uint16_t* input, std::uint64_t index) {
+  return static_cast<float>(__ushort_as_bfloat16(input[index]));
+}
+
+template <typename Input>
 __global__ void RmsNormQuantizeActivationKernel(
-    const float* input, const std::uint16_t* weight,
+    const Input* input, const std::uint16_t* weight,
     std::uint8_t* packed_e2m1, std::uint8_t* block_scales_e4m3fn,
     std::uint64_t elements, float epsilon, float global_divisor) {
   constexpr unsigned kThreads = 256;
@@ -92,7 +103,7 @@ __global__ void RmsNormQuantizeActivationKernel(
   float squared_sum = 0.0F;
   for (std::uint64_t index = threadIdx.x; index < elements;
        index += blockDim.x) {
-    const float value = input[index];
+    const float value = LoadRmsNormInput(input, index);
     squared_sum = fmaf(value, value, squared_sum);
   }
   reduction[threadIdx.x] = squared_sum;
@@ -119,7 +130,7 @@ __global__ void RmsNormQuantizeActivationKernel(
               ? 1.0F
               : static_cast<float>(__ushort_as_bfloat16(weight[index]));
       normalized[local] = static_cast<float>(__float2bfloat16_rn(
-          input[index] * inverse_rms * norm_scale));
+          LoadRmsNormInput(input, index) * inverse_rms * norm_scale));
       amax = fmaxf(amax, fabsf(normalized[local]));
     }
     const __nv_fp8_e4m3 scale(
@@ -305,6 +316,40 @@ Status LaunchRmsNormNvfp4ActivationQuantizationBatch(
   return error == cudaSuccess
              ? Status::Ok()
              : CudaFailure("launch fused RMSNorm NVFP4 quantization", error);
+}
+
+Status LaunchRmsNormNvfp4ActivationQuantizationBf16Batch(
+    const std::uint16_t* input_bf16, const std::uint16_t* weight_bf16,
+    std::uint8_t* packed_e2m1, std::uint8_t* block_scales_e4m3fn,
+    std::uint64_t tokens, std::uint64_t elements_per_token, float epsilon,
+    float global_divisor, cudaStream_t stream) {
+  if (input_bf16 == nullptr || packed_e2m1 == nullptr ||
+      block_scales_e4m3fn == nullptr) {
+    return Invalid(
+        "fused physical-BF16 RMSNorm NVFP4 quantization requires non-null pointers");
+  }
+  if (tokens == 0U || elements_per_token == 0U ||
+      elements_per_token % kBlockElements != 0U ||
+      !std::isfinite(epsilon) || epsilon <= 0.0F ||
+      tokens > static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
+    return Invalid(
+        "fused physical-BF16 RMSNorm NVFP4 quantization extent is invalid");
+  }
+  if (!PositiveFinite(global_divisor)) {
+    return Invalid(
+        "fused physical-BF16 RMSNorm NVFP4 divisor must be positive and finite");
+  }
+  constexpr unsigned threads = 256;
+  RmsNormQuantizeActivationKernel<<<static_cast<unsigned>(tokens), threads, 0,
+                                    stream>>>(
+      input_bf16, weight_bf16, packed_e2m1, block_scales_e4m3fn,
+      elements_per_token, epsilon, global_divisor);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure(
+                   "launch fused physical-BF16 RMSNorm NVFP4 quantization",
+                   error);
 }
 
 Status LaunchGatedGeluNvfp4ActivationQuantization(

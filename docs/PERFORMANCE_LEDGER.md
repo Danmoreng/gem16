@@ -1,5 +1,33 @@
 # Performance ledger
 
+## 2026-08-03 Prefill: store recurrent hidden and residual streams as physical BF16
+
+Hypothesis: checkpoint-FP8 prefill stores the recurrent `hidden_a`/`hidden_b` streams as BF16-valued FP32 even
+though both residual boundaries round every value to BF16. Keeping those streams as physical BF16 should halve
+their recurring traffic, let the fused FP8/NVFP4 RMSNorm quantizers consume the final representation directly,
+and remove the unused full-chunk `post_norm` allocation without changing arithmetic or decode.
+
+On the Windows RTX 5080 Laptop in Max Power mode, the serial 16K synthetic qualification with three warm-ups and
+ten measured runs improves from 5,980.87 to 6,045.67 prompt tok/s (+1.08%) and reduces median TTFT from 2,739.40
+to 2,710.04 ms (-1.07%). Mean throughput and 95% intervals are 5,984.21 `[5,975.65,5,992.76]` for the parent and
+6,046.11 `[6,036.98,6,055.24]` for the candidate. An earlier adjacent one-warm-up/three-run screen independently
+measures 6,069.32 versus 6,102.76 tok/s (+0.55%) with non-overlapping intervals. Every measured run emits token
+`1896`.
+
+The exact 16,384-token Wikipedia prompt still emits token `61684`; its one-output characterization completes in
+2,658.84 ms. The complete CUDA suite proves bit identity between BF16-valued FP32 and physical-BF16 inputs at the
+fused FP8 RMSNorm quantizer, fused NVFP4 RMSNorm quantizer, and residual/RMSNorm boundary with and without the
+layer scalar. A 16K/64 decode screen retains checksum `7409890874386593231` and reaches 47.799 tok/s, confirming
+that decode and fixed-address graph semantics are unchanged.
+
+The 16K workspace falls from 1,963,502,848 to 1,711,844,608 bytes: exactly 240 MiB removed. Two recurrent 8K
+buffers each fall from FP32 to BF16, and the unused 120 MiB prefill `post_norm` region is removed. In adjacent
+128-token Nsight traces, the 192 residual calls fall from 1.975 to 1.851 ms (-6.28%), the 96 NVFP4 RMSNorm
+quantizers fall from 0.685 to 0.579 ms (-15.56%), and the BF16 embedding pair falls from 11.46 to 10.72 us; the
+FP8 RMSNorm quantizer is neutral at 1.094 versus 1.102 ms. The new residual kernel uses 24 registers, 2 KiB shared
+memory, and zero stack/local memory. Decision: promote physical-BF16 recurrent prefill storage for checkpoint-FP8;
+MTP verification and BF16 correctness retain FP32 storage. Raw ignored evidence is under `build/step7-*`.
+
 ## 2026-08-03 Prefill: fuse the Up epilogue into gated GELU and NVFP4 quantization
 
 Hypothesis: the prefill MLP materializes the complete 240 MiB BF16 Up projection, then launches a separate

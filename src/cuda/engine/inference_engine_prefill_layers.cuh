@@ -18,7 +18,12 @@
     }
     const NvtxRange range(mtp_verification ? "gem16.mtp.verify.layer"
                                            : "gem16.prefill.layer");
-    float* hidden_a = Pointer<float>(prefill_workspace_, prefill_offsets_.hidden_a);
+    const bool physical_hidden =
+        !mtp_verification &&
+        kv_cache_mode_ == KvCacheMode::kCheckpointFp8;
+    auto* hidden_a_bf16 = Pointer<std::uint16_t>(
+        prefill_workspace_, prefill_offsets_.hidden_a);
+    float* hidden_a = reinterpret_cast<float*>(hidden_a_bf16);
     auto* fp8 = Pointer<std::uint8_t>(prefill_workspace_, prefill_offsets_.fp8_activation);
     float* fp8_scales = Pointer<float>(prefill_workspace_, prefill_offsets_.fp8_scales);
     auto* q_bf16 =
@@ -43,9 +48,14 @@
     auto* cutlass_workspace = Pointer<std::uint8_t>(
         prefill_workspace_, prefill_offsets_.cutlass_workspace);
     constexpr std::size_t kCutlassWorkspaceBytes = 8U * 1024U * 1024U;
-    Status status = internal::LaunchRmsNormFp8TokenQuantizationBatch(
-        hidden_a, layer.input_norm, fp8, fp8_scales, tokens, kHidden,
-        kEpsilon, stream_);
+    Status status =
+        physical_hidden
+            ? internal::LaunchRmsNormFp8TokenQuantizationBf16Batch(
+                  hidden_a_bf16, layer.input_norm, fp8, fp8_scales, tokens,
+                  kHidden, kEpsilon, stream_)
+            : internal::LaunchRmsNormFp8TokenQuantizationBatch(
+                  hidden_a, layer.input_norm, fp8, fp8_scales, tokens,
+                  kHidden, kEpsilon, stream_);
     if (!status.ok()) return status;
     status = mtp_verification
                  ? internal::LaunchFp8Sm120GroupedQkvProjectionBatch(
@@ -432,10 +442,15 @@
   [[nodiscard]] Status LaunchLayerBatchSuffix(
       const LayerBinding& layer, std::uint64_t tokens,
       bool mtp_verification) {
-    float* hidden_a =
-        Pointer<float>(prefill_workspace_, prefill_offsets_.hidden_a);
-    float* hidden_b =
-        Pointer<float>(prefill_workspace_, prefill_offsets_.hidden_b);
+    const bool physical_hidden =
+        !mtp_verification &&
+        kv_cache_mode_ == KvCacheMode::kCheckpointFp8;
+    auto* hidden_a_bf16 = Pointer<std::uint16_t>(
+        prefill_workspace_, prefill_offsets_.hidden_a);
+    auto* hidden_b_bf16 = Pointer<std::uint16_t>(
+        prefill_workspace_, prefill_offsets_.hidden_b);
+    float* hidden_a = reinterpret_cast<float*>(hidden_a_bf16);
+    float* hidden_b = reinterpret_cast<float*>(hidden_b_bf16);
     auto* attention_bf16 = Pointer<std::uint16_t>(
         prefill_workspace_, prefill_offsets_.attention);
     float* attention = reinterpret_cast<float*>(attention_bf16);
@@ -476,6 +491,11 @@
                        projection, layer.post_attention_norm, hidden_a,
                        nullptr, hidden_b, tokens, kHidden, kEpsilon, nullptr,
                        stream_)
+             : physical_hidden
+                 ? internal::LaunchRmsNormResidualPhysicalBf16(
+                       projection_bf16, layer.post_attention_norm,
+                       hidden_a_bf16, hidden_b_bf16, tokens, kHidden,
+                       kEpsilon, nullptr, stream_)
                  : internal::LaunchRmsNormResidualBf16Input(
                        projection_bf16, layer.post_attention_norm, hidden_a,
                        nullptr, hidden_b, tokens, kHidden, kEpsilon, nullptr,
@@ -489,9 +509,16 @@
         prefill_workspace_, prefill_offsets_.down_packed);
     auto* down_scales = Pointer<std::uint8_t>(
         prefill_workspace_, prefill_offsets_.down_scales);
-    status = internal::LaunchRmsNormNvfp4ActivationQuantizationBatch(
-        hidden_b, layer.pre_mlp_norm, mlp_packed, mlp_scales, tokens, kHidden,
-        kEpsilon, layer.gate.input_divisor, stream_);
+    status =
+        physical_hidden
+            ? internal::LaunchRmsNormNvfp4ActivationQuantizationBf16Batch(
+                  hidden_b_bf16, layer.pre_mlp_norm, mlp_packed, mlp_scales,
+                  tokens, kHidden, kEpsilon, layer.gate.input_divisor,
+                  stream_)
+            : internal::LaunchRmsNormNvfp4ActivationQuantizationBatch(
+                  hidden_b, layer.pre_mlp_norm, mlp_packed, mlp_scales,
+                  tokens, kHidden, kEpsilon, layer.gate.input_divisor,
+                  stream_);
     if (!status.ok()) return status;
     auto* cutlass_activation_scales = Pointer<std::uint8_t>(
         prefill_workspace_, prefill_offsets_.cutlass_activation_scales);
@@ -558,7 +585,13 @@
           layer.down.weight_divisor, stream_);
     }
     if (!status.ok()) return status;
-    return internal::LaunchRmsNormResidualBf16Input(
-        down_bf16, layer.post_mlp_norm, hidden_b, nullptr, hidden_a, tokens,
-        kHidden, kEpsilon, layer.layer_scalar, stream_);
+    return physical_hidden
+               ? internal::LaunchRmsNormResidualPhysicalBf16(
+                     down_bf16, layer.post_mlp_norm, hidden_b_bf16,
+                     hidden_a_bf16, tokens, kHidden, kEpsilon,
+                     layer.layer_scalar, stream_)
+               : internal::LaunchRmsNormResidualBf16Input(
+                     down_bf16, layer.post_mlp_norm, hidden_b, nullptr,
+                     hidden_a, tokens, kHidden, kEpsilon, layer.layer_scalar,
+                     stream_);
   }
