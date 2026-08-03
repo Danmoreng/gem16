@@ -1,5 +1,31 @@
 # Decisions
 
+## 2026-08-03: Vectorize fixed-T3 FP8 activation staging, scales, and stores
+
+Date: 2026-08-03
+
+Decision: In the fixed-three-row SM120 FP8 projection kernel, copy the aligned activation extent as `uint4`, load
+each adjacent BF16 channel-scale pair once as `__nv_bfloat162`, and store the two adjacent scaled FP32 outputs as
+one aligned `float2`. Use this for grouped Q/K/V and O in the fixed-D2 Target verifier.
+
+Context: The prior shared-activation kernel performs exact weight reuse but retained scalar staging and epilogue
+traffic. The combined candidate reduces adjacent profiled T3 time from 62.652 to 40.567 ms across twelve groups
+(-35.25%) and raises the exact 16K/1,135-token 3/10 median from 86.393 to 91.462 tok/s (+5.87%) with non-overlapping
+confidence intervals. The complete Target hash and every proposed/accepted/rejected/batch counter are unchanged.
+
+Alternatives: Keep four-byte copies and scalar scale/store operations; promote only 16-byte staging; change CTA
+geometry; or change projection arithmetic. `uint4` staging alone improves the profiled family by only 0.93% and is
+not material end to end. Prior geometry variants regressed. The selected epilogue changes memory instruction width
+without changing represented values or multiplication order.
+
+Consequences: Kernel registers increase from 42 to 44 with zero local memory. Dynamic shared memory, workspace,
+KV cache, graph topology, persistent weights, precision, and token-loop allocation behavior are unchanged. Runtime
+metadata names the path `decode_order_fp8_t3_vector_stage_scale_store_qkv_o_nvfp4_down8`. Full Host/CUDA CTest
+and exact short/long generation gates are required to retain the path.
+
+Evidence: `docs/PERFORMANCE_LEDGER.md`, full Host/CUDA CTest, adjacent Nsight traces, the short exact screen, and
+the 3/10 qualification under `benchmarks/results/2026-08-03/aedb033-worktree/`.
+
 ## 2026-08-03: Retain scalar loads in the assistant output head
 
 Date: 2026-08-03

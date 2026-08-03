@@ -218,7 +218,7 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
          << (!result.mtp_enabled
                  ? "disabled"
                  : result.mtp_draft_tokens == 2U
-                       ? "decode_order_fp8_t3_shared_qkv_o_nvfp4_down8"
+                       ? "decode_order_fp8_t3_vector_stage_scale_store_qkv_o_nvfp4_down8"
                        : "decode_order_fp8_qkv_nvfp4_down_t_le_5")
          << "\",\"d2_attention_path\":\""
          << (!result.mtp_enabled

@@ -1,5 +1,43 @@
 # Performance ledger
 
+## 2026-08-03 Decode phase: vectorize the fixed-T3 FP8 staging and output epilogue
+
+Hypothesis: the exact fixed-three-row Target verifier already reuses each FP8 weight fragment across all rows, but
+its CTA-local activation copy moves only four bytes per loop iteration and its output epilogue reloads two BF16
+channel scales and writes two scalar FP32 values for every token. All production activation, scale, and output
+regions are 256-byte aligned; all supported projection widths and output rows are compatible with 16-byte staging,
+paired BF16 scales, and aligned `float2` output stores.
+
+The promoted kernel copies the three E4M3 activation rows to the existing dynamic shared-memory region as `uint4`,
+loads the two invariant channel scales once as `__nv_bfloat162`, and writes each adjacent output pair as `float2`.
+It retains every E4M3 input byte, FP32 MMA accumulator, per-token activation scale, left-to-right two-multiply
+scaling order, output value, grid shape, MMA chain, and synchronization boundary. Shared-memory and workspace
+sizes are unchanged.
+
+The 16K/64-token one-warm-up/three-run screen improves from 94.524 to 100.075 effective tok/s (+5.87%). Parent
+and candidate both produce SHA-256 `6c60019e7631df51734518bda3b56fcb694e69f217a04ebdf896b10f16914aac`,
+48 proposed, 37 accepted, 11 rejected, and 26 Target batches. An intermediate `uint4`-only screen reaches 94.826
+tok/s and reduces the profiled T3 family by just 0.93%, showing that the scale/store epilogue supplies the material
+gain.
+
+In adjacent same-day 16K/32-token Nsight traces, 1,152 fixed-T3 calls fall from 62.652 ms total / 54.385 us mean to
+40.567 ms / 35.214 us (-35.25%, approximately 1.84 ms per D2 group). Unchanged assistant GEMV, assistant head,
+and Target head timings remain within approximately 1%, excluding a clock-state explanation. Registers rise from
+42 to 44, dynamic shared memory remains shape-dependent at 11,520/12,288/24,576 bytes, and local memory remains
+zero.
+
+The final Windows Max Power 16K/1,135-token qualification uses three warm-ups and ten measured runs. Median decode
+rises from the physical-BF16 parent's 86.393 to 91.462 tok/s (+5.87%); the non-overlapping 95% intervals are
+`[86.349,86.414]` and `[91.433,91.498]`. Median ITL falls from 11.575 to 10.933 ms (-5.54%). Prefill is unchanged
+within noise at 5,677.61 tok/s. All ten runs produce the same 1,135 Target IDs and SHA-256
+`374a7e9a564421be4f7d19cb125a651f73505077983b77b1149bfa82e3c81e8a`, with exactly 1,006 proposed, 629
+accepted, 377 rejected, and 505 Target batches. The benchmark runner rejects any fallback or token-loop allocation.
+Workspace remains 2,348,879,872 bytes and KV remains 311,287,808 bytes. Full Host/CUDA CTest passes.
+
+Decision: promote vector staging plus paired-scale/paired-store epilogue as the sole fixed-T3 FP8 path. Runtime JSON
+reports `decode_order_fp8_t3_vector_stage_scale_store_qkv_o_nvfp4_down8`. Raw ignored screens, qualification, and
+profiles are under `benchmarks/results/2026-08-03/aedb033-worktree/blackwell16gb-windows-fixed-t3-fp8-*`.
+
 ## 2026-08-03 Decode phase: reject paired loads in the assistant output head
 
 Hypothesis: the official assistant's 1,024-wide tied-BF16 output head can consume adjacent coefficients as

@@ -273,14 +273,14 @@ __global__ void Sm120DirectProjectionFixedBatchKernel(
   const std::uint64_t row_tiles =
       (rows + kRowsPerWarp - 1U) / kRowsPerWarp;
   extern __shared__ __align__(16) std::uint8_t staged_activation[];
-  const std::uint64_t activation_words =
-      kTokens * contracting_elements / sizeof(std::uint32_t);
-  auto* staged_words = reinterpret_cast<std::uint32_t*>(staged_activation);
-  const auto* activation_words_source =
-      reinterpret_cast<const std::uint32_t*>(activation);
-  for (std::uint64_t word = threadIdx.x; word < activation_words;
-       word += blockDim.x) {
-    staged_words[word] = activation_words_source[word];
+  const std::uint64_t activation_vectors =
+      kTokens * contracting_elements / sizeof(uint4);
+  auto* staged_vectors = reinterpret_cast<uint4*>(staged_activation);
+  const auto* activation_vectors_source =
+      reinterpret_cast<const uint4*>(activation);
+  for (std::uint64_t vector = threadIdx.x; vector < activation_vectors;
+       vector += blockDim.x) {
+    staged_vectors[vector] = activation_vectors_source[vector];
   }
   __syncthreads();
   if (global_warp >= row_tiles) return;
@@ -321,18 +321,27 @@ __global__ void Sm120DirectProjectionFixedBatchKernel(
   if (lane < 4U) {
     const std::uint64_t output_row =
         global_warp * kRowsPerWarp + lane * 2U;
+    float2 output_scales{};
+    if (output_row + 1U < rows) {
+      output_scales = __bfloat1622float2(
+          *reinterpret_cast<const __nv_bfloat162*>(weight_scales +
+                                                    output_row));
+    } else if (output_row < rows) {
+      output_scales.x = DecodeBf16(weight_scales + output_row);
+    }
 #pragma unroll
     for (unsigned token = 0U; token < kTokens; ++token) {
       const float input_scale = activation_scale[token];
-      if (output_row < rows) {
-        output[static_cast<std::uint64_t>(token) * rows + output_row] =
-            accumulators[token].x0 * input_scale *
-            DecodeBf16(weight_scales + output_row);
-      }
+      const std::uint64_t output_offset =
+          static_cast<std::uint64_t>(token) * rows + output_row;
       if (output_row + 1U < rows) {
-        output[static_cast<std::uint64_t>(token) * rows + output_row + 1U] =
-            accumulators[token].x1 * input_scale *
-            DecodeBf16(weight_scales + output_row + 1U);
+        const float2 values{
+            accumulators[token].x0 * input_scale * output_scales.x,
+            accumulators[token].x1 * input_scale * output_scales.y};
+        *reinterpret_cast<float2*>(output + output_offset) = values;
+      } else if (output_row < rows) {
+        output[output_offset] =
+            accumulators[token].x0 * input_scale * output_scales.x;
       }
     }
   }
