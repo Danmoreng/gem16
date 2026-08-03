@@ -7,7 +7,9 @@ import com.gem16.studio.model.MediaKind
 import com.gem16.studio.model.ServerConfig
 import com.gem16.studio.model.StreamPerformanceStats
 import com.gem16.studio.model.ThinkingEffort
+import com.gem16.studio.model.ToolCall
 import com.gem16.studio.service.ChatDelta
+import com.gem16.studio.service.ChatRequestPhase
 import com.gem16.studio.service.Gem16ApiClient
 import com.sun.net.httpserver.HttpServer
 import kotlinx.coroutines.runBlocking
@@ -20,6 +22,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
@@ -59,8 +62,15 @@ class Gem16ApiClientTest {
                 assertEquals("gem16", request["model"]?.jsonPrimitive?.content)
                 assertEquals("high", request["reasoning_effort"]?.jsonPrimitive?.content)
                 assertTrue(request["stream"]?.jsonPrimitive?.content.toBoolean())
-                val content = request["messages"]?.jsonArray?.first()?.jsonObject
-                    ?.get("content")?.jsonArray
+                val messages = request["messages"]?.jsonArray ?: error("messages are missing")
+                assertEquals("system", messages.first().jsonObject["role"]?.jsonPrimitive?.content)
+                assertEquals(
+                    "You are a helpful assistant.",
+                    messages.first().jsonObject["content"]?.jsonPrimitive?.content,
+                )
+                assertEquals(2, request["tools"]?.jsonArray?.size)
+                val content = messages.first { it.jsonObject["role"]?.jsonPrimitive?.content == "user" }.jsonObject
+                    .get("content")?.jsonArray
                     ?: error("multimodal content array is missing")
                 assertEquals("text", content[0].jsonObject["type"]?.jsonPrimitive?.content)
                 assertEquals("image_url", content[1].jsonObject["type"]?.jsonPrimitive?.content)
@@ -82,6 +92,10 @@ class Gem16ApiClientTest {
                     "",
                     "data: {\"choices\":[{\"delta\":{\"content\":\"answer\"},\"finish_reason\":null}]}",
                     "",
+                    "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"call_1\",\"type\":\"function\",\"function\":{\"name\":\"get_current_time\",\"arguments\":\"\"}}]},\"finish_reason\":null}]}",
+                    "",
+                    "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"{}\"}}]},\"finish_reason\":null}]}",
+                    "",
                     "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}",
                     "",
                     "data: {\"choices\":[],\"usage\":{\"prompt_tokens\":12,\"completion_tokens\":7,\"total_tokens\":19}}",
@@ -97,6 +111,7 @@ class Gem16ApiClientTest {
             server.start()
             try {
                 val deltas = mutableListOf<ChatDelta>()
+                val phases = mutableListOf<ChatRequestPhase>()
                 val progress = mutableListOf<StreamPerformanceStats>()
                 val result = Gem16ApiClient().streamChat(
                     server = ServerConfig(port = server.address.port),
@@ -127,21 +142,167 @@ class Gem16ApiClientTest {
                         ),
                     ),
                     sessionId = null,
+                    onPhase = { phases += it },
                     onProgress = { progress += it },
                     onDelta = { deltas += it },
                 )
                 assertEquals("session_test", result.sessionId)
                 assertEquals("stop", result.finishReason)
                 assertEquals(12, result.usage?.promptTokens)
+                assertEquals("get_current_time", result.toolCalls.single().name)
+                assertEquals("{}", result.toolCalls.single().argumentsJson)
                 assertEquals(50.0, result.performance?.decodeTokensPerSecond)
                 assertEquals(2000.0, result.performance?.prefillTokensPerSecond)
                 assertEquals(6.0, result.performance?.prefillMilliseconds)
                 assertEquals(listOf(1L, 2L), progress.map(StreamPerformanceStats::emittedTokens))
+                assertEquals(
+                    listOf(
+                        ChatRequestPhase.PreparingRequest,
+                        ChatRequestPhase.WaitingForFirstToken,
+                        ChatRequestPhase.Decoding,
+                    ),
+                    phases,
+                )
                 assertTrue(progress.all { it.firstTokenMilliseconds >= 0.0 })
                 assertTrue(progress.last().tokensPerSecond != null)
                 assertEquals("think ", assertIs<ChatDelta.Reasoning>(deltas[0]).value)
                 assertEquals("answer", assertIs<ChatDelta.Text>(deltas[1]).value)
                 assertIs<ChatDelta.Finished>(deltas[2])
+            } finally {
+                server.stop(0)
+                (server.executor as java.util.concurrent.ExecutorService).shutdownNow()
+            }
+        }
+    }
+
+    @Test
+    fun serializesDocumentsAndToolRoundHistoryAsOpenAiMessages() {
+        runBlocking {
+            val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
+            server.executor = Executors.newSingleThreadExecutor()
+            server.createContext("/v1/chat/completions") { exchange ->
+                val request = Json.parseToJsonElement(
+                    exchange.requestBody.bufferedReader().use { it.readText() },
+                ).jsonObject
+                val messages = request["messages"]?.jsonArray ?: error("messages are missing")
+                assertEquals(listOf("system", "user", "assistant", "tool", "assistant", "user"), messages.map {
+                    it.jsonObject["role"]?.jsonPrimitive?.content
+                })
+                val userText = messages[1].jsonObject["content"]?.jsonPrimitive?.content.orEmpty()
+                assertTrue(userText.contains("Begin attached document: notes.txt"))
+                assertTrue(userText.contains("Document body"))
+                assertEquals(
+                    "get_current_date",
+                    messages[2].jsonObject["tool_calls"]?.jsonArray?.single()?.jsonObject
+                        ?.get("function")?.jsonObject?.get("name")?.jsonPrimitive?.content,
+                )
+                assertEquals("call_date", messages[3].jsonObject["tool_call_id"]?.jsonPrimitive?.content)
+                assertEquals(
+                    "It is Monday.",
+                    messages[4].jsonObject["content"]?.jsonPrimitive?.content,
+                )
+                assertTrue(
+                    messages[5].jsonObject["content"]?.jsonPrimitive?.content.orEmpty()
+                        .contains("Begin attached document: thesis.pdf"),
+                )
+                val body = listOf(
+                    "data: {\"choices\":[{\"delta\":{\"content\":\"It is Monday.\"},\"finish_reason\":null}]}",
+                    "",
+                    "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}",
+                    "",
+                    "data: [DONE]",
+                    "",
+                ).joinToString("\n").toByteArray()
+                exchange.responseHeaders.add("Content-Type", "text/event-stream")
+                exchange.sendResponseHeaders(200, body.size.toLong())
+                exchange.responseBody.use { it.write(body) }
+            }
+            server.start()
+            try {
+                val result = Gem16ApiClient().streamChat(
+                    server = ServerConfig(port = server.address.port),
+                    generation = GenerationConfig(),
+                    messages = listOf(
+                        ChatMessage(
+                            role = "user",
+                            content = "Summarize this.",
+                            attachments = listOf(
+                                MediaAttachment(
+                                    fileName = "notes.txt",
+                                    kind = MediaKind.Document,
+                                    mimeType = "text/plain",
+                                    format = "txt",
+                                    bytes = ByteArray(0),
+                                    documentText = "Document body",
+                                    sourceByteSize = 13,
+                                ),
+                            ),
+                        ),
+                        ChatMessage(
+                            role = "assistant",
+                            content = "",
+                            toolCalls = listOf(ToolCall("call_date", "get_current_date", "{}")),
+                        ),
+                        ChatMessage(role = "tool", content = "{\"date\":\"2026-08-03\"}", toolCallId = "call_date"),
+                        ChatMessage(role = "assistant", content = " \nIt is Monday.\r\n"),
+                        ChatMessage(
+                            role = "user",
+                            content = "Analyze this.",
+                            attachments = listOf(
+                                MediaAttachment(
+                                    fileName = "thesis.pdf",
+                                    kind = MediaKind.Document,
+                                    mimeType = "application/pdf",
+                                    format = "pdf",
+                                    bytes = ByteArray(0),
+                                    documentText = "Thesis body",
+                                    sourceByteSize = 1024,
+                                ),
+                            ),
+                        ),
+                    ),
+                    sessionId = "session_tools",
+                    onDelta = {},
+                )
+                assertEquals("stop", result.finishReason)
+                assertTrue(result.toolCalls.isEmpty())
+            } finally {
+                server.stop(0)
+                (server.executor as java.util.concurrent.ExecutorService).shutdownNow()
+            }
+        }
+    }
+
+    @Test
+    fun surfacesStreamingErrorsAndAbruptlyEndedStreams() {
+        runBlocking {
+            val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
+            server.executor = Executors.newSingleThreadExecutor()
+            val requestCount = AtomicInteger()
+            server.createContext("/v1/chat/completions") { exchange ->
+                exchange.requestBody.close()
+                val body = if (requestCount.getAndIncrement() == 0) {
+                    "data: {\"error\":{\"message\":\"prompt exceeds the context capacity\",\"type\":\"server_error\"}}\n\n"
+                } else {
+                    "data: {\"choices\":[{\"delta\":{\"content\":\"partial\"},\"finish_reason\":\"stop\"}]}\n\n"
+                }.toByteArray()
+                exchange.responseHeaders.add("Content-Type", "text/event-stream")
+                exchange.sendResponseHeaders(200, body.size.toLong())
+                exchange.responseBody.use { it.write(body) }
+            }
+            server.start()
+            try {
+                val client = Gem16ApiClient()
+                val config = ServerConfig(port = server.address.port)
+                val messages = listOf(ChatMessage(role = "user", content = "hello"))
+                val streamError = assertFailsWith<IllegalStateException> {
+                    client.streamChat(config, GenerationConfig(), messages, null, onDelta = {})
+                }
+                assertTrue(streamError.message?.contains("prompt exceeds the context capacity") == true)
+                val abruptEnd = assertFailsWith<IllegalStateException> {
+                    client.streamChat(config, GenerationConfig(), messages, null, onDelta = {})
+                }
+                assertTrue(abruptEnd.message?.contains("without a [DONE] marker") == true)
             } finally {
                 server.stop(0)
                 (server.executor as java.util.concurrent.ExecutorService).shutdownNow()

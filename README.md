@@ -95,10 +95,11 @@ It is exported from the [editable tldraw source](docs/gem16-overview.tldraw).
 - Start, stop, restart, inspect, or attach to a local `gem16-server` process.
 - Stream Markdown answers with separate, collapsed-by-default reasoning.
 - Copy complete answers or individual fenced code and HTML blocks with one click.
-- Send text, PNG/JPEG/BMP images, and WAV/FLAC/MP3 audio.
-- Attach media with the file picker, drag and drop, microphone recording, or image paste with `Ctrl+V`/`Cmd+V`.
+- Send text, text-based PDFs, UTF-8/UTF-16 text documents, PNG/JPEG/BMP images, and WAV/FLAC/MP3 audio.
+- Attach files with the file picker or drag and drop; use microphone recording or image paste with `Ctrl+V`/`Cmd+V`.
 - See live prefill, decode, token, and throughput statistics while a response is streaming.
-- Configure context, sampling, MTP draft budget, reasoning budget, and light/dark appearance.
+- See exact used/available context tokens after each response.
+- Configure the system prompt, local date/time tools, context, sampling, MTP draft budget, reasoning budget, and appearance.
 
 ### Runtime
 
@@ -146,12 +147,19 @@ From PowerShell:
 .\scripts\run-studio.ps1
 ```
 
+The development launcher incrementally rebuilds and uses the workspace CUDA
+server. Pass `-SkipServerBuild` only when that native binary is already current;
+persisted settings pointing at an installed server do not override development
+launches.
+
 ### Linux
 
 ```bash
 ./scripts/build.sh --cuda --test
 ./scripts/run-studio.sh
 ```
+
+The Linux launcher provides the equivalent `--skip-server-build` opt-out.
 
 On first launch, open **Models**, provide a Hugging Face token if necessary, and download the pinned model set.
 Files are stored in the shared content-addressed Hugging Face cache and are not copied into the application.

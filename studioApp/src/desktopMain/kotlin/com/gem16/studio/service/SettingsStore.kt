@@ -16,16 +16,35 @@ class SettingsStore(
         ".gem16-studio",
         "settings.properties",
     ),
+    private val serverExecutableOverride: String? = System.getenv("GEM16_STUDIO_SERVER_EXECUTABLE")
+        ?.trim()
+        ?.takeIf(String::isNotEmpty),
 ) {
+    private var persistedServerExecutable: String? = null
+
     fun load(): StudioSettings {
-        if (!Files.isRegularFile(settingsFile)) return StudioSettings()
+        if (!Files.isRegularFile(settingsFile)) {
+            val defaults = StudioSettings()
+            return if (serverExecutableOverride == null) {
+                defaults
+            } else {
+                defaults.copy(
+                    server = defaults.server.copy(executable = serverExecutableOverride),
+                )
+            }
+        }
         return runCatching {
             val properties = Properties()
             Files.newInputStream(settingsFile).use(properties::load)
             val defaults = StudioSettings()
+            val configuredServerExecutable = properties.path(
+                "server.executable",
+                defaults.server.executable,
+            )
+            persistedServerExecutable = configuredServerExecutable
             StudioSettings(
                 server = ServerConfig(
-                    executable = properties.path("server.executable", defaults.server.executable),
+                    executable = serverExecutableOverride ?: configuredServerExecutable,
                     modelDirectory = properties.path("server.model", defaults.server.modelDirectory),
                     assistantModelDirectory = properties.path(
                         "server.assistant",
@@ -59,6 +78,12 @@ class SettingsStore(
                         "generation.showReasoning",
                         defaults.generation.showReasoning,
                     ),
+                    systemPrompt = properties.getProperty("generation.systemPrompt")
+                        ?: defaults.generation.systemPrompt,
+                    localDateTimeTools = properties.bool(
+                        "generation.localDateTimeTools",
+                        defaults.generation.localDateTimeTools,
+                    ),
                 ),
                 darkTheme = properties.bool("ui.darkTheme", defaults.darkTheme),
             )
@@ -68,7 +93,14 @@ class SettingsStore(
     fun save(settings: StudioSettings) {
         Files.createDirectories(settingsFile.parent)
         val properties = Properties().apply {
-            setProperty("server.executable", settings.server.executable)
+            setProperty(
+                "server.executable",
+                if (serverExecutableOverride != null) {
+                    persistedServerExecutable ?: settings.server.executable
+                } else {
+                    settings.server.executable
+                },
+            )
             setProperty("server.model", settings.server.modelDirectory)
             setProperty("server.assistant", settings.server.assistantModelDirectory)
             setProperty("server.modelName", settings.server.modelName)
@@ -82,6 +114,8 @@ class SettingsStore(
             setProperty("generation.thinking", settings.generation.thinking.wireValue)
             setProperty("generation.maxOutput", settings.generation.maxOutputTokens.toString())
             setProperty("generation.showReasoning", settings.generation.showReasoning.toString())
+            setProperty("generation.systemPrompt", settings.generation.systemPrompt)
+            setProperty("generation.localDateTimeTools", settings.generation.localDateTimeTools.toString())
             setProperty("ui.darkTheme", settings.darkTheme.toString())
         }
         val temporary = settingsFile.resolveSibling("${settingsFile.fileName}.tmp")

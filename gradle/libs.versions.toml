@@ -4,6 +4,7 @@ kotlin = "2.4.0"
 kotlinx-coroutines = "1.11.0"
 kotlinx-serialization = "1.10.0"
 commonmark = "0.24.0"
+pdfbox = "3.0.8"
 # Keep Jewel on a Java 21-compatible IntelliJ build. The 262.x artifacts are
 # compiled for Java 25 and fail at runtime on the JDK 21 used by CI and packaging.
 jewel = "0.37.0-261.26222.65"
@@ -14,6 +15,7 @@ kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-c
 kotlinx-coroutines-swing = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-swing", version.ref = "kotlinx-coroutines" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 commonmark = { module = "org.commonmark:commonmark", version.ref = "commonmark" }
+pdfbox = { module = "org.apache.pdfbox:pdfbox", version.ref = "pdfbox" }
 jewel-int-ui-standalone = { module = "org.jetbrains.jewel:jewel-int-ui-standalone", version.ref = "jewel" }
 
 [plugins]

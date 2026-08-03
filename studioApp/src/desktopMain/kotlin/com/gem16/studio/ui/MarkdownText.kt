@@ -63,8 +63,53 @@ import org.jetbrains.jewel.ui.component.Text
 
 private const val LinkTag = "markdown-link"
 private val markdownParser: Parser = Parser.builder().build()
+private val inlineLatexCommand = Regex(
+    "\\${'$'}\\s*\\\\([A-Za-z]+)\\s*\\${'$'}",
+)
+private val inlineLatexSymbols = mapOf(
+    "rightarrow" to "→",
+    "to" to "→",
+    "longrightarrow" to "⟶",
+    "leftarrow" to "←",
+    "longleftarrow" to "⟵",
+    "leftrightarrow" to "↔",
+    "longleftrightarrow" to "⟷",
+    "Rightarrow" to "⇒",
+    "implies" to "⇒",
+    "Longrightarrow" to "⟹",
+    "Leftarrow" to "⇐",
+    "Longleftarrow" to "⟸",
+    "Leftrightarrow" to "⇔",
+    "iff" to "⇔",
+    "Longleftrightarrow" to "⟺",
+    "uparrow" to "↑",
+    "downarrow" to "↓",
+    "updownarrow" to "↕",
+    "Uparrow" to "⇑",
+    "Downarrow" to "⇓",
+    "Updownarrow" to "⇕",
+    "mapsto" to "↦",
+    "nearrow" to "↗",
+    "searrow" to "↘",
+    "swarrow" to "↙",
+    "nwarrow" to "↖",
+)
 
-internal fun parseMarkdown(markdown: String): Node = markdownParser.parse(markdown)
+internal fun parseMarkdown(markdown: String): Node = markdownParser.parse(markdown).also(::normalizeInlineLatexSymbols)
+
+private fun normalizeInlineLatexSymbols(parent: Node) {
+    var child = parent.firstChild
+    while (child != null) {
+        if (child is MarkdownTextNode) {
+            child.literal = inlineLatexCommand.replace(child.literal) { match ->
+                inlineLatexSymbols[match.groupValues[1]] ?: match.value
+            }
+        } else {
+            normalizeInlineLatexSymbols(child)
+        }
+        child = child.next
+    }
+}
 
 @Composable
 fun MarkdownText(markdown: String, modifier: Modifier = Modifier) {

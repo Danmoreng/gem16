@@ -45,6 +45,7 @@ kotlin {
                 implementation(libs.kotlinx.coroutines.swing)
                 implementation(libs.kotlinx.serialization.json)
                 implementation(libs.commonmark)
+                implementation(libs.pdfbox)
             }
         }
         val desktopTest by getting {

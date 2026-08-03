@@ -10,6 +10,11 @@ import java.awt.image.BufferedImage
 import java.io.IOException
 import java.io.InputStream
 import java.nio.file.Files
+import org.apache.pdfbox.pdmodel.PDDocument
+import org.apache.pdfbox.pdmodel.PDPage
+import org.apache.pdfbox.pdmodel.PDPageContentStream
+import org.apache.pdfbox.pdmodel.font.PDType1Font
+import org.apache.pdfbox.pdmodel.font.Standard14Fonts
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -134,13 +139,54 @@ class MediaLoaderTest {
     }
 
     @Test
+    fun loadsUtf8TextAsDocumentContent() {
+        val file = Files.createTempFile("gem16-document-test", ".md")
+        try {
+            Files.writeString(file, "# Notes\n\nGrüße from a text attachment.")
+            val attachment = loadMediaAttachment(file).getOrThrow()
+            assertEquals(MediaKind.Document, attachment.kind)
+            assertTrue(attachment.documentText?.contains("Grüße") == true)
+            assertEquals(0L, attachment.encodedSize)
+            assertTrue(attachment.byteSize > 0L)
+        } finally {
+            Files.deleteIfExists(file)
+        }
+    }
+
+    @Test
+    fun extractsPdfTextWithoutSendingPdfBytes() {
+        val file = Files.createTempFile("gem16-document-test", ".pdf")
+        try {
+            PDDocument().use { document ->
+                val page = PDPage()
+                document.addPage(page)
+                PDPageContentStream(document, page).use { content ->
+                    content.beginText()
+                    content.setFont(PDType1Font(Standard14Fonts.FontName.HELVETICA), 12f)
+                    content.newLineAtOffset(72f, 720f)
+                    content.showText("PDF attachment text")
+                    content.endText()
+                }
+                document.save(file.toFile())
+            }
+            val attachment = loadMediaAttachment(file).getOrThrow()
+            assertEquals(MediaKind.Document, attachment.kind)
+            assertEquals(1, attachment.pageCount)
+            assertTrue(attachment.documentText?.contains("PDF attachment text") == true)
+            assertTrue(attachment.bytes.isEmpty())
+        } finally {
+            Files.deleteIfExists(file)
+        }
+    }
+
+    @Test
     fun rejectsUnsupportedMedia() {
-        val file = Files.createTempFile("gem16-media-test", ".txt")
+        val file = Files.createTempFile("gem16-media-test", ".xyz")
         try {
             Files.writeString(file, "not media")
             val result = loadMediaAttachment(file)
             assertTrue(result.isFailure)
-            assertTrue(result.exceptionOrNull()?.message?.contains("Unsupported media type") == true)
+            assertTrue(result.exceptionOrNull()?.message?.contains("Unsupported attachment type") == true)
         } finally {
             Files.deleteIfExists(file)
         }

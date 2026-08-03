@@ -5,6 +5,8 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.gem16.studio.model.ChatMessage
+import com.gem16.studio.model.ChatActivity
+import com.gem16.studio.model.ChatActivityPhase
 import com.gem16.studio.model.GenerationConfig
 import com.gem16.studio.model.MediaAttachment
 import com.gem16.studio.model.MediaKind
@@ -15,8 +17,11 @@ import com.gem16.studio.model.StreamPerformanceStats
 import com.gem16.studio.model.Usage
 import com.gem16.studio.service.AudioRecorder
 import com.gem16.studio.service.ChatDelta
+import com.gem16.studio.service.ChatRequestPhase
 import com.gem16.studio.service.Gem16ApiClient
+import com.gem16.studio.service.LocalToolExecutor
 import com.gem16.studio.service.MaxEncodedMediaBytes
+import com.gem16.studio.service.MaxLocalToolRounds
 import com.gem16.studio.service.ModelManager
 import com.gem16.studio.service.ServerManager
 import com.gem16.studio.service.SettingsStore
@@ -42,6 +47,7 @@ class StudioState(
     val modelManager: ModelManager = ModelManager(),
     private val api: Gem16ApiClient = Gem16ApiClient(),
     private val audioRecorder: AudioRecorder = AudioRecorder(),
+    private val localTools: LocalToolExecutor = LocalToolExecutor(),
 ) : AutoCloseable {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
@@ -62,7 +68,11 @@ class StudioState(
         private set
     var chatError by mutableStateOf<String?>(null)
         private set
+    var chatActivity by mutableStateOf<ChatActivity?>(null)
+        private set
     var usage by mutableStateOf<Usage?>(null)
+        private set
+    var contextTokensUsed by mutableStateOf(0L)
         private set
     var performance by mutableStateOf<PerformanceStats?>(null)
         private set
@@ -90,7 +100,16 @@ class StudioState(
     }
 
     fun updateGeneration(transform: (GenerationConfig) -> GenerationConfig) {
-        settings = settings.copy(generation = transform(settings.generation))
+        val previous = settings.generation
+        val updated = transform(previous)
+        settings = settings.copy(generation = updated)
+        if (
+            previous.systemPrompt != updated.systemPrompt ||
+            previous.localDateTimeTools != updated.localDateTimeTools
+        ) {
+            sessionId = null
+            contextTokensUsed = 0L
+        }
         persist()
     }
 
@@ -204,6 +223,15 @@ class StudioState(
     fun addAttachments(paths: List<Path>) {
         if (paths.isEmpty() || isGenerating || isLoadingAttachments || isRecording) return
         isLoadingAttachments = true
+        val pdfCount = paths.count { it.fileName.toString().endsWith(".pdf", ignoreCase = true) }
+        chatActivity = ChatActivity(
+            phase = ChatActivityPhase.ProcessingAttachment,
+            detail = if (pdfCount > 0) {
+                "Extracting text locally from ${if (pdfCount == 1) "PDF" else "$pdfCount PDFs"}"
+            } else {
+                "Reading ${if (paths.size == 1) "attachment" else "${paths.size} attachments"} locally"
+            },
+        )
         scope.launch {
             try {
                 val loaded = withContext(Dispatchers.IO) { paths.map(::loadMediaAttachment) }
@@ -223,6 +251,7 @@ class StudioState(
                 }
             } finally {
                 isLoadingAttachments = false
+                if (chatActivity?.phase == ChatActivityPhase.ProcessingAttachment) chatActivity = null
             }
         }
     }
@@ -231,6 +260,7 @@ class StudioState(
         if (isGenerating || isLoadingAttachments || isRecording || !clipboardContainsImage()) return false
         isLoadingAttachments = true
         chatError = null
+        chatActivity = ChatActivity(ChatActivityPhase.ProcessingAttachment, "Reading clipboard image locally")
         scope.launch {
             try {
                 val result = withContext(Dispatchers.IO) { loadClipboardImageAttachment() }
@@ -248,6 +278,7 @@ class StudioState(
                 }
             } finally {
                 isLoadingAttachments = false
+                if (chatActivity?.phase == ChatActivityPhase.ProcessingAttachment) chatActivity = null
             }
         }
         return true
@@ -281,45 +312,99 @@ class StudioState(
         messages += user
         draft = ""
         pendingAttachments.clear()
-        val requestHistory = messages.toList()
+        var requestHistory = messages.toList()
         val assistant = ChatMessage(role = "assistant", content = "", streaming = true)
         messages += assistant
+        var currentAssistantId = assistant.id
         isGenerating = true
+        chatActivity = ChatActivity(ChatActivityPhase.PreparingRequest, "Preparing request")
 
         generationJob = scope.launch {
             try {
-                val result = api.streamChat(
-                    server = settings.server,
-                    generation = settings.generation,
-                    messages = requestHistory,
-                    sessionId = sessionId,
-                    onProgress = { progress ->
-                        withContext(Dispatchers.Main.immediate) { livePerformance = progress }
-                    },
-                    onDelta = { delta ->
-                        withContext(Dispatchers.Main.immediate) {
-                            updateAssistant(assistant.id, delta)
+                var toolRounds = 0
+                var totalPerformance: PerformanceStats? = null
+                while (true) {
+                    val response = api.streamChat(
+                        server = settings.server,
+                        generation = settings.generation,
+                        messages = requestHistory,
+                        sessionId = sessionId,
+                        onPhase = { phase ->
+                            withContext(Dispatchers.Main.immediate) {
+                                updateRequestActivity(phase)
+                            }
+                        },
+                        onProgress = { progress ->
+                            withContext(Dispatchers.Main.immediate) { livePerformance = progress }
+                        },
+                        onDelta = { delta ->
+                            withContext(Dispatchers.Main.immediate) {
+                                updateAssistant(currentAssistantId, delta)
+                            }
+                        },
+                    )
+                    sessionId = response.sessionId
+                    response.usage?.let { measured ->
+                        usage = measured
+                        contextTokensUsed = measured.totalTokens
+                    }
+                    totalPerformance = combinePerformance(totalPerformance, response.performance)
+                    if (response.toolCalls.isEmpty()) {
+                        val completed = messages.firstOrNull { it.id == currentAssistantId }
+                        check(completed != null && completed.content.isNotBlank()) {
+                            if (completed?.reasoning?.isNotBlank() == true) {
+                                "Generation ended after reasoning without a visible answer " +
+                                    "(finish reason: ${response.finishReason ?: "missing"})."
+                            } else {
+                                "The server completed the response without returning text, reasoning, or a tool call."
+                            }
                         }
-                    },
-                )
-                sessionId = result.sessionId
-                usage = result.usage
-                performance = result.performance
-                lastFinishReason = result.finishReason
-                replaceMessage(assistant.id) { it.copy(streaming = false) }
+                        performance = totalPerformance
+                        lastFinishReason = response.finishReason
+                        replaceMessage(currentAssistantId) { it.copy(streaming = false) }
+                        break
+                    }
+                    toolRounds += 1
+                    check(toolRounds <= MaxLocalToolRounds) {
+                        "Gemma exceeded the limit of $MaxLocalToolRounds consecutive local tool rounds."
+                    }
+                    updateActivity(
+                        ChatActivityPhase.RunningTool,
+                        "Running ${response.toolCalls.joinToString { localToolLabel(it.name) }} locally",
+                    )
+                    val completedCalls = response.toolCalls.map { call ->
+                        call.copy(resultJson = localTools.execute(call))
+                    }
+                    replaceMessage(currentAssistantId) {
+                        it.copy(streaming = false, toolCalls = completedCalls)
+                    }
+                    completedCalls.forEach { call ->
+                        messages += ChatMessage(
+                            role = "tool",
+                            content = requireNotNull(call.resultJson),
+                            toolCallId = call.id,
+                        )
+                    }
+                    val nextAssistant = ChatMessage(role = "assistant", content = "", streaming = true)
+                    messages += nextAssistant
+                    currentAssistantId = nextAssistant.id
+                    requestHistory = messages.filterNot { it.id == currentAssistantId }
+                    livePerformance = null
+                }
             } catch (_: CancellationException) {
-                replaceMessage(assistant.id) {
+                replaceMessage(currentAssistantId) {
                     it.copy(streaming = false, error = "Generation cancelled")
                 }
             } catch (error: Exception) {
                 val message = error.message ?: "Generation failed"
                 chatError = message
-                replaceMessage(assistant.id) { it.copy(streaming = false, error = message) }
+                replaceMessage(currentAssistantId) { it.copy(streaming = false, error = message) }
                 if (message.contains("404") || message.contains("unknown", ignoreCase = true)) {
                     sessionId = null
                 }
             } finally {
                 isGenerating = false
+                chatActivity = null
                 livePerformance = null
                 generationJob = null
             }
@@ -337,6 +422,7 @@ class StudioState(
         pendingAttachments.clear()
         sessionId = null
         usage = null
+        contextTokensUsed = 0L
         performance = null
         livePerformance = null
         lastFinishReason = null
@@ -345,11 +431,13 @@ class StudioState(
 
     fun removeLastExchange() {
         if (isGenerating || messages.isEmpty()) return
-        if (messages.lastOrNull()?.role == "assistant") messages.removeLastOrNull()
-        if (messages.lastOrNull()?.role == "user") messages.removeLastOrNull()
+        val userIndex = messages.indexOfLast { it.role == "user" }
+        if (userIndex < 0) return
+        while (messages.size > userIndex) messages.removeAt(messages.lastIndex)
         // A resident server cannot roll back K/V. Start a new root from the
         // remaining visible history on the next request.
         sessionId = null
+        contextTokensUsed = 0L
     }
 
     private fun updateAssistant(id: String, delta: ChatDelta) {
@@ -357,7 +445,10 @@ class StudioState(
             is ChatDelta.Text -> replaceMessage(id) { it.copy(content = it.content + delta.value) }
             is ChatDelta.Reasoning -> replaceMessage(id) { it.copy(reasoning = it.reasoning + delta.value) }
             is ChatDelta.Finished -> {
-                usage = delta.usage ?: usage
+                delta.usage?.let { measured ->
+                    usage = measured
+                    contextTokensUsed = measured.totalTokens
+                }
                 lastFinishReason = delta.reason ?: lastFinishReason
             }
         }
@@ -371,6 +462,31 @@ class StudioState(
     private fun persist() {
         runCatching { settingsStore.save(settings) }
             .onFailure { chatError = "Could not save settings: ${it.message}" }
+    }
+
+    private fun updateRequestActivity(phase: ChatRequestPhase) {
+        when (phase) {
+            ChatRequestPhase.PreparingRequest -> updateActivity(
+                ChatActivityPhase.PreparingRequest,
+                "Preparing and sending request",
+            )
+            ChatRequestPhase.WaitingForFirstToken -> updateActivity(
+                ChatActivityPhase.WaitingForFirstToken,
+                "Waiting for first token · the server may be prefilling",
+            )
+            ChatRequestPhase.Decoding -> updateActivity(
+                ChatActivityPhase.Decoding,
+                "Decoding response",
+            )
+        }
+    }
+
+    private fun updateActivity(phase: ChatActivityPhase, detail: String) {
+        chatActivity = ChatActivity(
+            phase = phase,
+            detail = detail,
+            startedNanos = chatActivity?.startedNanos ?: System.nanoTime(),
+        )
     }
 
     private fun serverConfigurationExists(): Boolean {
@@ -393,4 +509,34 @@ class StudioState(
         serverManager.close()
         scope.cancel()
     }
+}
+
+private fun combinePerformance(
+    first: PerformanceStats?,
+    second: PerformanceStats?,
+): PerformanceStats? {
+    if (first == null) return second
+    if (second == null) return first
+    val prefillMilliseconds = first.prefillMilliseconds + second.prefillMilliseconds
+    val decodeMilliseconds = first.decodeMilliseconds + second.decodeMilliseconds
+    val prefillTokens = first.prefillTokensPerSecond * first.prefillMilliseconds / 1_000.0 +
+        second.prefillTokensPerSecond * second.prefillMilliseconds / 1_000.0
+    val decodeTokens = first.decodeTokensPerSecond * first.decodeMilliseconds / 1_000.0 +
+        second.decodeTokensPerSecond * second.decodeMilliseconds / 1_000.0
+    return PerformanceStats(
+        decodeTokensPerSecond = if (decodeMilliseconds > 0.0) decodeTokens * 1_000.0 / decodeMilliseconds else 0.0,
+        prefillTokensPerSecond = if (prefillMilliseconds > 0.0) {
+            prefillTokens * 1_000.0 / prefillMilliseconds
+        } else {
+            0.0
+        },
+        prefillMilliseconds = prefillMilliseconds,
+        decodeMilliseconds = decodeMilliseconds,
+    )
+}
+
+private fun localToolLabel(name: String): String = when (name) {
+    "get_current_date" -> "current-date tool"
+    "get_current_time" -> "current-time tool"
+    else -> name
 }

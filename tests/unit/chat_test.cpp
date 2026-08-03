@@ -26,6 +26,18 @@ void TestResponseChannelRecognition() {
   GEM16_CHECK(!tracker.in_reasoning());
   GEM16_CHECK(tracker.Observe(9U) == gem16::ResponseTokenChannel::kText);
   GEM16_CHECK(tracker.reasoning_token_count() == 2U);
+
+  gem16::ResponseChannelTracker prompted_tracker(controls);
+  prompted_tracker.StartReasoningFromPrompt();
+  GEM16_CHECK(prompted_tracker.Observe(7U) ==
+              gem16::ResponseTokenChannel::kReasoning);
+  GEM16_CHECK(prompted_tracker.Observe(8U) ==
+              gem16::ResponseTokenChannel::kReasoning);
+  GEM16_CHECK(prompted_tracker.Observe(101U) ==
+              gem16::ResponseTokenChannel::kControl);
+  GEM16_CHECK(prompted_tracker.Observe(9U) ==
+              gem16::ResponseTokenChannel::kText);
+  GEM16_CHECK(prompted_tracker.reasoning_token_count() == 2U);
 }
 
 void TestProtocolNeutralGenerationTypes() {
@@ -154,6 +166,14 @@ void TestReasoningMaterialization() {
   const auto first_reasoning_only =
       gem16::internal::ExtractReasoningTokenIds(repeated_reasoning, controls);
   GEM16_CHECK(first_reasoning_only == std::vector<std::uint32_t>({7U}));
+
+  const std::vector<std::uint32_t> prompted_reasoning = {7U, 8U, 101U, 9U};
+  GEM16_CHECK(gem16::internal::ExtractReasoningTokenIds(
+                  prompted_reasoning, controls, true) ==
+              std::vector<std::uint32_t>({7U, 8U}));
+  GEM16_CHECK(gem16::internal::ExtractVisibleTokenIds(
+                  prompted_reasoning, controls, true) ==
+              std::vector<std::uint32_t>({9U}));
 }
 
 void TestResidentImageIdentity() {
@@ -181,6 +201,27 @@ void TestResidentImageIdentity() {
 
   supplied.content.front().image.source_fingerprint = 5678U;
   GEM16_CHECK(!gem16::internal::ResidentMessageEquivalent(cached, supplied));
+}
+
+void TestResidentStreamedAssistantWhitespace() {
+  const auto cached =
+      gem16::GenerationMessage::Text("assistant", "It is Monday.");
+  const auto streamed =
+      gem16::GenerationMessage::Text("assistant", " \nIt is Monday.\r\n");
+  GEM16_CHECK(
+      gem16::internal::ResidentMessageEquivalent(cached, streamed));
+
+  const auto changed =
+      gem16::GenerationMessage::Text("assistant", "It is Tuesday.\n");
+  GEM16_CHECK(
+      !gem16::internal::ResidentMessageEquivalent(cached, changed));
+
+  const auto user_with_whitespace =
+      gem16::GenerationMessage::Text("user", " question \n");
+  const auto trimmed_user =
+      gem16::GenerationMessage::Text("user", "question");
+  GEM16_CHECK(!gem16::internal::ResidentMessageEquivalent(
+      user_with_whitespace, trimmed_user));
 }
 
 void TestStrictToolContract() {
@@ -241,5 +282,6 @@ void RunChatTests() {
   TestMultipleImageChunkPlanning();
   TestReasoningMaterialization();
   TestResidentImageIdentity();
+  TestResidentStreamedAssistantWhitespace();
   TestStrictToolContract();
 }

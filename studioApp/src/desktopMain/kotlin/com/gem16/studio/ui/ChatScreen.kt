@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Mic
@@ -74,9 +75,12 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.gem16.studio.model.ChatMessage
+import com.gem16.studio.model.ChatActivity
+import com.gem16.studio.model.ChatActivityPhase
 import com.gem16.studio.model.MediaAttachment
 import com.gem16.studio.model.MediaKind
 import com.gem16.studio.model.ThinkingEffort
+import com.gem16.studio.model.ToolCall
 import com.gem16.studio.service.formatBytes
 import com.gem16.studio.state.StudioState
 import java.net.URI
@@ -84,6 +88,9 @@ import java.nio.file.Files
 import java.nio.file.Path
 import javax.swing.JFileChooser
 import javax.swing.filechooser.FileNameExtensionFilter
+import kotlinx.coroutines.delay
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
 import org.jetbrains.jewel.ui.component.IconButton
 import org.jetbrains.jewel.ui.component.OutlinedButton
 import org.jetbrains.jewel.ui.component.OutlinedSlimButton as TextButton
@@ -120,7 +127,10 @@ fun ChatScreen(state: StudioState) {
             }
         }
     }
-    val contentFingerprint = state.messages.sumOf { it.content.length + it.reasoning.length }
+    val visibleMessages = state.messages.filter { it.role != "tool" }
+    val contentFingerprint = visibleMessages.sumOf {
+        it.content.length + it.reasoning.length + it.toolCalls.size
+    }
 
     LaunchedEffect(listState) {
         snapshotFlow {
@@ -175,7 +185,7 @@ fun ChatScreen(state: StudioState) {
                     if (state.messages.isEmpty()) {
                         item { WelcomeCard() }
                     }
-                    items(state.messages, key = ChatMessage::id) { message ->
+                    items(visibleMessages, key = ChatMessage::id) { message ->
                         MessageCard(message, state.settings.generation.showReasoning)
                     }
                     item { Spacer(Modifier.height(8.dp)) }
@@ -238,7 +248,7 @@ private fun DropFilesOverlay() {
             Spacer(Modifier.height(StudioGap))
             Text("Drop files to attach", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             Text(
-                "PNG, JPEG, BMP, WAV, FLAC, or MP3",
+                "Text, PDF, PNG, JPEG, BMP, WAV, FLAC, or MP3",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall,
             )
@@ -255,7 +265,7 @@ private fun WelcomeCard() {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(StudioGap)) {
             Text("Chat locally with Gemma 4", style = MaterialTheme.typography.headlineSmall)
             Text(
-                "The managed gem16 server starts automatically. Send text, images, or audio; " +
+                "The managed gem16 server starts automatically. Send text, documents, images, or audio; " +
                     "the model, KV cache, and optional MTP assistant remain resident on your GPU.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -277,8 +287,9 @@ private fun MessageCard(message: ChatMessage, showReasoning: Boolean) {
         ) {
             Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(StudioGap)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    val toolRequest = !user && message.toolCalls.isNotEmpty() && message.content.isBlank()
                     Text(
-                        if (user) "You" else "Gemma 4",
+                        if (user) "You" else if (toolRequest) "Gemma 4 · tool request" else "Gemma 4",
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.weight(1f),
@@ -296,6 +307,9 @@ private fun MessageCard(message: ChatMessage, showReasoning: Boolean) {
                 }
                 if (message.attachments.isNotEmpty()) {
                     AttachmentGallery(message.attachments)
+                }
+                if (message.toolCalls.isNotEmpty()) {
+                    ToolCallsBlock(message.toolCalls)
                 }
                 if (message.content.isNotBlank()) {
                     MarkdownText(message.content, Modifier.fillMaxWidth())
@@ -384,7 +398,7 @@ private fun AttachmentGallery(
                                     contentScale = ContentScale.Crop,
                                 )
                             }
-                        } else {
+                        } else if (attachment.kind == MediaKind.Audio) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
                                     Icons.Default.Audiotrack,
@@ -393,6 +407,19 @@ private fun AttachmentGallery(
                                 )
                                 Spacer(Modifier.width(StudioGap))
                                 Text("Audio", style = MaterialTheme.typography.labelLarge)
+                            }
+                        } else {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Default.Description,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                                Spacer(Modifier.width(StudioGap))
+                                Text(
+                                    if (attachment.format == "pdf") "PDF" else "Text",
+                                    style = MaterialTheme.typography.labelLarge,
+                                )
                             }
                         }
                         Text(
@@ -403,7 +430,8 @@ private fun AttachmentGallery(
                         Text(
                             listOfNotNull(
                                 attachment.durationMillis?.let(::formatDuration),
-                                formatBytes(attachment.byteSize.toLong()),
+                                attachment.pageCount?.let { "$it ${if (it == 1) "page" else "pages"}" },
+                                formatBytes(attachment.byteSize),
                             ).joinToString(" · "),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -483,6 +511,8 @@ private fun Composer(state: StudioState) {
         if (state.pendingAttachments.isNotEmpty()) {
             AttachmentGallery(state.pendingAttachments, state::removeAttachment)
         }
+        state.chatActivity?.let { ActivityBar(it) }
+        ContextUsageBar(state)
         PerformanceBar(state)
         StudioTextField(
             value = state.draft,
@@ -514,7 +544,7 @@ private fun Composer(state: StudioState) {
             maxLines = 6,
             minHeight = 68.dp,
             maxHeight = 144.dp,
-            supportingText = "Enter to send · Shift+Enter for a new line · Drop files or paste images with Ctrl+V",
+            supportingText = "Enter to send · Shift+Enter for a new line · Drop files (including text/PDF) or paste images",
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(
@@ -529,7 +559,7 @@ private fun Composer(state: StudioState) {
                         color = MaterialTheme.colorScheme.primary,
                     )
                 } else {
-                    Icon(Icons.Default.AttachFile, contentDescription = "Attach images or audio", modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.AttachFile, contentDescription = "Attach files", modifier = Modifier.size(18.dp))
                 }
             }
             IconButton(
@@ -602,6 +632,165 @@ private fun Composer(state: StudioState) {
 }
 
 @Composable
+private fun ActivityBar(activity: ChatActivity) {
+    var nowNanos by remember(activity) { mutableStateOf(System.nanoTime()) }
+    LaunchedEffect(activity) {
+        while (true) {
+            nowNanos = System.nanoTime()
+            delay(250)
+        }
+    }
+    val elapsedMillis = ((nowNanos - activity.startedNanos) / 1_000_000L).coerceAtLeast(0L)
+    val waitingLong = activity.phase == ChatActivityPhase.WaitingForFirstToken && elapsedMillis >= 30_000L
+    Surface(
+        color = if (waitingLong) MaterialTheme.colorScheme.errorContainer
+        else MaterialTheme.colorScheme.primaryContainer,
+        shape = MaterialTheme.shapes.medium,
+    ) {
+        Column(
+            Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(StudioCompactGap),
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(StudioGap),
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(16.dp),
+                    strokeWidth = 2.dp,
+                    color = if (waitingLong) MaterialTheme.colorScheme.error
+                    else MaterialTheme.colorScheme.primary,
+                )
+                Text(activity.detail, style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
+                Text(
+                    formatActivityDuration(elapsedMillis),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontFamily = FontFamily.Monospace,
+                )
+            }
+            if (waitingLong) {
+                Text(
+                    "No first token for 30 seconds. The stream is still open; check GPU activity and the Server logs.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ToolCallsBlock(toolCalls: List<ToolCall>) {
+    var expanded by remember(toolCalls.map { it.id }) { mutableStateOf(false) }
+    Surface(
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.55f),
+        shape = MaterialTheme.shapes.medium,
+    ) {
+        Column(Modifier.fillMaxWidth().padding(8.dp), verticalArrangement = Arrangement.spacedBy(StudioGap)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Description, contentDescription = null, modifier = Modifier.size(StudioIconSize))
+                Spacer(Modifier.width(StudioGap))
+                Text(
+                    if (toolCalls.size == 1) {
+                        "Tool call · ${toolDisplayName(toolCalls.single().name)}"
+                    } else {
+                        "Tool calls · ${toolCalls.size}"
+                    },
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                IconButton(onClick = { expanded = !expanded }, modifier = Modifier.size(24.dp)) {
+                    Icon(
+                        if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = if (expanded) "Hide tool call" else "Show tool call",
+                        modifier = Modifier.size(StudioIconSize),
+                    )
+                }
+            }
+            if (expanded) {
+                toolCalls.forEachIndexed { index, call ->
+                    if (index > 0) HorizontalDivider()
+                    Text(call.name, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                    ToolPayload("Arguments sent by Gemma", call.argumentsJson.ifBlank { "{}" })
+                    ToolPayload("Result returned by the app", call.resultJson ?: "Waiting for result…")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ToolPayload(label: String, payload: String) {
+    Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    SelectionContainer {
+        Text(
+            prettyJson(payload),
+            modifier = Modifier.fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.65f), MaterialTheme.shapes.small)
+                .padding(8.dp),
+            style = MaterialTheme.typography.bodySmall,
+            fontFamily = FontFamily.Monospace,
+        )
+    }
+}
+
+private fun toolDisplayName(name: String): String = when (name) {
+    "get_current_date" -> "current date"
+    "get_current_time" -> "current time"
+    else -> name
+}
+
+private val prettyJsonEncoder = Json { prettyPrint = true }
+
+private fun prettyJson(value: String): String = runCatching {
+    val element = prettyJsonEncoder.parseToJsonElement(value)
+    prettyJsonEncoder.encodeToString(JsonElement.serializer(), element)
+}.getOrDefault(value)
+
+@Composable
+private fun ContextUsageBar(state: StudioState) {
+    val used = state.contextTokensUsed
+    val limit = state.serverManager.health.value?.maxContextTokens
+        ?.takeIf { it > 0L }
+        ?: state.settings.server.maxContextTokens
+    val fraction = if (limit > 0L) {
+        (used.toDouble() / limit.toDouble()).coerceIn(0.0, 1.0)
+    } else {
+        0.0
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(
+            "Context",
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Box(
+            Modifier.weight(1f).height(6.dp)
+                .background(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.shapes.small),
+        ) {
+            Box(
+                Modifier.fillMaxWidth(fraction.toFloat()).height(6.dp)
+                    .background(MaterialTheme.colorScheme.primary, MaterialTheme.shapes.small),
+            )
+        }
+        Text(
+            if (used > 0L) {
+                "%,d / %,d tokens · %.1f%%".format(used, limit, fraction * 100.0)
+            } else {
+                "Not measured / %,d tokens".format(limit)
+            },
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
 private fun PerformanceBar(state: StudioState) {
     val performance = state.performance
     val live = state.livePerformance
@@ -669,12 +858,24 @@ private fun formatDuration(milliseconds: Long): String {
 
 private fun chooseMediaPaths(): List<Path> {
     val chooser = JFileChooser().apply {
-        dialogTitle = "Attach images or audio"
+        dialogTitle = "Attach files"
         fileSelectionMode = JFileChooser.FILES_ONLY
         isMultiSelectionEnabled = true
         isAcceptAllFileFilterUsed = false
         fileFilter = FileNameExtensionFilter(
-            "Images and audio (PNG, JPEG, BMP, WAV, FLAC, MP3)",
+            "Documents, images, and audio",
+            "txt",
+            "md",
+            "markdown",
+            "csv",
+            "tsv",
+            "json",
+            "jsonl",
+            "xml",
+            "yaml",
+            "yml",
+            "log",
+            "pdf",
             "png",
             "jpg",
             "jpeg",
@@ -687,6 +888,11 @@ private fun chooseMediaPaths(): List<Path> {
     if (chooser.showOpenDialog(null) != JFileChooser.APPROVE_OPTION) return emptyList()
     val selected = chooser.selectedFiles.toList().ifEmpty { listOfNotNull(chooser.selectedFile) }
     return selected.map { it.toPath().toAbsolutePath().normalize() }
+}
+
+private fun formatActivityDuration(milliseconds: Long): String {
+    val totalSeconds = (milliseconds / 1_000L).coerceAtLeast(0L)
+    return "%02d:%02d".format(totalSeconds / 60L, totalSeconds % 60L)
 }
 
 private fun fileUriToPath(value: String): Path? = runCatching {

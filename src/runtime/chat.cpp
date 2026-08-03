@@ -1,6 +1,7 @@
 #include "gem16/chat.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstddef>
 #include <optional>
@@ -44,6 +45,20 @@ namespace {
 
 constexpr std::size_t kAudioSamplesPerToken = 640U;
 constexpr std::size_t kMaximumAudioTokens = 750U;
+
+std::string_view TrimAsciiWhitespace(std::string_view value) {
+  std::size_t begin = 0U;
+  std::size_t end = value.size();
+  while (begin < end &&
+         std::isspace(static_cast<unsigned char>(value[begin])) != 0) {
+    ++begin;
+  }
+  while (end > begin &&
+         std::isspace(static_cast<unsigned char>(value[end - 1U])) != 0) {
+    --end;
+  }
+  return value.substr(begin, end - begin);
+}
 
 struct MaterializedMessages {
   std::vector<ChatMessage> messages;
@@ -241,6 +256,18 @@ bool ResidentMessageEquivalent(const GenerationMessage& cached,
       }
       continue;
     }
+    // DecodeResponseText stores the authoritative generated assistant text
+    // without surrounding whitespace, while the streaming API necessarily
+    // emits token bytes before it knows which trailing bytes will be trimmed.
+    // Treat the API-visible round trip as equivalent to the resident value.
+    if (cached.role == "assistant" &&
+        left.kind == GenerationContentKind::kText) {
+      if (TrimAsciiWhitespace(left.text) !=
+          TrimAsciiWhitespace(right.text)) {
+        return false;
+      }
+      continue;
+    }
     if (!(left == right)) return false;
   }
   return true;
@@ -248,9 +275,10 @@ bool ResidentMessageEquivalent(const GenerationMessage& cached,
 
 std::vector<std::uint32_t> ExtractReasoningTokenIds(
     std::span<const std::uint32_t> token_ids,
-    const GenerationTokenControls& controls) {
+    const GenerationTokenControls& controls,
+    bool starts_in_reasoning) {
   std::vector<std::uint32_t> reasoning_ids;
-  ResponseChannelTracker response_channels(controls);
+  ResponseChannelTracker response_channels(controls, starts_in_reasoning);
   for (const std::uint32_t token_id : token_ids) {
     if (response_channels.Observe(token_id) ==
         ResponseTokenChannel::kReasoning) {
@@ -258,6 +286,20 @@ std::vector<std::uint32_t> ExtractReasoningTokenIds(
     }
   }
   return reasoning_ids;
+}
+
+std::vector<std::uint32_t> ExtractVisibleTokenIds(
+    std::span<const std::uint32_t> token_ids,
+    const GenerationTokenControls& controls,
+    bool starts_in_reasoning) {
+  std::vector<std::uint32_t> visible_ids;
+  ResponseChannelTracker response_channels(controls, starts_in_reasoning);
+  for (const std::uint32_t token_id : token_ids) {
+    if (response_channels.Observe(token_id) == ResponseTokenChannel::kText) {
+      visible_ids.push_back(token_id);
+    }
+  }
+  return visible_ids;
 }
 
 }  // namespace internal
@@ -468,6 +510,7 @@ Result<ChatGenerationResponse> ChatSession::Generate(const ChatGenerationRequest
   ReasoningTokenOptions reasoning;
   reasoning.enabled = request.thinking.effort != ThinkingEffort::kOff ||
                       tool_result_continuation;
+  reasoning.starts_in_reasoning = tool_result_continuation;
   if (reasoning.enabled) {
     reasoning.channel_open_token_ids = impl_->processor.generation_controls().thinking_open_token_ids;
     reasoning.channel_close_token_id = impl_->processor.generation_controls().thinking_close_token_id;
@@ -513,11 +556,16 @@ Result<ChatGenerationResponse> ChatSession::Generate(const ChatGenerationRequest
   }
   auto assistant_content = impl_->processor.Decode(content_ids, false);
   if (!assistant_content.ok()) return poison(assistant_content.status());
-  auto assistant_text = impl_->processor.DecodeResponseText(content_ids);
+  std::vector<std::uint32_t> visible_ids =
+      internal::ExtractVisibleTokenIds(
+          content_ids, impl_->processor.generation_controls(),
+          tool_result_continuation);
+  auto assistant_text = impl_->processor.DecodeResponseText(visible_ids);
   if (!assistant_text.ok()) return poison(assistant_text.status());
   std::vector<std::uint32_t> reasoning_ids =
       internal::ExtractReasoningTokenIds(
-          content_ids, impl_->processor.generation_controls());
+          content_ids, impl_->processor.generation_controls(),
+          tool_result_continuation);
   if (reasoning_ids.size() != inference.value().reasoning_tokens) {
     return poison(Status(
         StatusCode::kInternal,

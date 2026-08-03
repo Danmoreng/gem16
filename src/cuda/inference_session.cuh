@@ -366,8 +366,9 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
   result.prompt_milliseconds = Milliseconds(
       std::chrono::steady_clock::now() - prompt_start);
   ResponseChannelTracker reasoning_tracker(
-      reasoning.channel_open_token_ids, reasoning.channel_close_token_id);
-  bool reasoning_started = false;
+      reasoning.channel_open_token_ids, reasoning.channel_close_token_id,
+      reasoning.starts_in_reasoning);
+  bool reasoning_started = reasoning.starts_in_reasoning;
   bool reasoning_complete = !reasoning.enabled;
   const auto observe_reasoning_token = [&](std::uint32_t token) {
     if (!reasoning.enabled || reasoning_complete) return;

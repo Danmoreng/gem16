@@ -57,11 +57,23 @@ enum class ResponseTokenChannel {
 // channel. Construct it before generation from GenerationTokenControls.
 class ResponseChannelTracker {
  public:
-  explicit ResponseChannelTracker(const GenerationTokenControls& controls)
-      : ResponseChannelTracker(controls.thinking_open_token_ids, controls.thinking_close_token_id) {}
-  ResponseChannelTracker(std::span<const std::uint32_t> thinking_open_token_ids, std::uint32_t thinking_close_token_id)
+  explicit ResponseChannelTracker(
+      const GenerationTokenControls& controls,
+      bool starts_in_reasoning = false)
+      : ResponseChannelTracker(controls.thinking_open_token_ids,
+                               controls.thinking_close_token_id,
+                               starts_in_reasoning) {}
+  ResponseChannelTracker(
+      std::span<const std::uint32_t> thinking_open_token_ids,
+      std::uint32_t thinking_close_token_id,
+      bool starts_in_reasoning = false)
       : thinking_open_token_ids_(thinking_open_token_ids.begin(), thinking_open_token_ids.end()),
-        thinking_close_token_id_(thinking_close_token_id) {}
+        thinking_close_token_id_(thinking_close_token_id),
+        in_reasoning_(starts_in_reasoning) {}
+
+  // Must be called before observing output when the channel opener was the
+  // final part of the prompt rather than the first generated tokens.
+  void StartReasoningFromPrompt() { in_reasoning_ = true; }
 
   [[nodiscard]] ResponseTokenChannel Observe(std::uint32_t token_id);
   [[nodiscard]] bool in_reasoning() const { return in_reasoning_; }

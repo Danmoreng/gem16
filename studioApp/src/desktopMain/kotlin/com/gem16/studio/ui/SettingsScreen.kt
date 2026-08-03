@@ -40,6 +40,18 @@ fun SettingsScreen(state: StudioState) {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                StudioTextField(
+                    value = state.settings.generation.systemPrompt,
+                    onValueChange = { prompt ->
+                        state.updateGeneration { it.copy(systemPrompt = prompt) }
+                    },
+                    label = "System prompt",
+                    supportingText = "Sent before the conversation. Changes start a fresh resident GPU session.",
+                    singleLine = false,
+                    minLines = 3,
+                    maxLines = 7,
+                    modifier = Modifier.fillMaxWidth(),
+                )
                 var outputText by remember(state.settings.generation.maxOutputTokens) {
                     mutableStateOf(state.settings.generation.maxOutputTokens.toString())
                 }
@@ -66,6 +78,22 @@ fun SettingsScreen(state: StudioState) {
                         },
                     )
                     Text("Show streamed reasoning in chat")
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(
+                        checked = state.settings.generation.localDateTimeTools,
+                        onCheckedChange = { checked ->
+                            state.updateGeneration { it.copy(localDateTimeTools = checked) }
+                        },
+                    )
+                    Column {
+                        Text("Allow local date and time tools")
+                        Text(
+                            "Gemma may read the computer's current date, time, UTC offset, and timezone.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
                 androidx.compose.material3.HorizontalDivider(Modifier.padding(vertical = StudioCompactGap))
                 Text("Appearance", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)

@@ -15,6 +15,11 @@ namespace gem16::internal {
                                               const GenerationMessage& supplied);
 [[nodiscard]] std::vector<std::uint32_t> ExtractReasoningTokenIds(
     std::span<const std::uint32_t> token_ids,
-    const GenerationTokenControls& controls);
+    const GenerationTokenControls& controls,
+    bool starts_in_reasoning = false);
+[[nodiscard]] std::vector<std::uint32_t> ExtractVisibleTokenIds(
+    std::span<const std::uint32_t> token_ids,
+    const GenerationTokenControls& controls,
+    bool starts_in_reasoning = false);
 
 }  // namespace gem16::internal

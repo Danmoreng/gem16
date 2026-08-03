@@ -49,6 +49,9 @@ struct ReasoningTokenOptions {
   std::uint32_t channel_close_token_id = 0U;
   std::uint64_t max_reasoning_tokens = 0U;
   bool enabled = false;
+  // Tool-result continuations render the thinking-channel opener into the
+  // prompt, so the first generated token is already inside reasoning.
+  bool starts_in_reasoning = false;
 };
 
 struct GreedyInferenceOptions {

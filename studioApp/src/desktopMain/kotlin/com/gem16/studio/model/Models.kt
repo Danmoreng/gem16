@@ -17,6 +17,7 @@ enum class ServerPhase {
 enum class MediaKind {
     Image,
     Audio,
+    Document,
 }
 
 data class MediaAttachment(
@@ -27,10 +28,21 @@ data class MediaAttachment(
     val format: String,
     val bytes: ByteArray,
     val durationMillis: Long? = null,
+    val documentText: String? = null,
+    val pageCount: Int? = null,
+    val sourceByteSize: Long = bytes.size.toLong(),
 ) {
-    val byteSize: Int get() = bytes.size
-    val encodedSize: Long get() = 4L * ((bytes.size.toLong() + 2L) / 3L)
+    val byteSize: Long get() = sourceByteSize
+    val encodedSize: Long
+        get() = if (kind == MediaKind.Document) 0L else 4L * ((bytes.size.toLong() + 2L) / 3L)
 }
+
+data class ToolCall(
+    val id: String,
+    val name: String,
+    val argumentsJson: String,
+    val resultJson: String? = null,
+)
 
 enum class ThinkingEffort(val wireValue: String, val label: String) {
     Off("none", "Off"),
@@ -65,6 +77,8 @@ data class GenerationConfig(
     val thinking: ThinkingEffort = ThinkingEffort.Medium,
     val maxOutputTokens: Long = 16384,
     val showReasoning: Boolean = true,
+    val systemPrompt: String = "You are a helpful assistant.",
+    val localDateTimeTools: Boolean = true,
 )
 
 data class StudioSettings(
@@ -85,6 +99,20 @@ data class HealthSnapshot(
     val topP: Double?,
 )
 
+enum class ChatActivityPhase {
+    ProcessingAttachment,
+    PreparingRequest,
+    WaitingForFirstToken,
+    Decoding,
+    RunningTool,
+}
+
+data class ChatActivity(
+    val phase: ChatActivityPhase,
+    val detail: String,
+    val startedNanos: Long = System.nanoTime(),
+)
+
 data class ChatMessage(
     val id: String = UUID.randomUUID().toString(),
     val role: String,
@@ -93,6 +121,8 @@ data class ChatMessage(
     val reasoning: String = "",
     val streaming: Boolean = false,
     val error: String? = null,
+    val toolCalls: List<ToolCall> = emptyList(),
+    val toolCallId: String? = null,
 )
 
 data class Usage(

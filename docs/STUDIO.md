@@ -22,6 +22,12 @@ not load CUDA or model weights directly.
 - streaming auto-follow that pauses for explicit user scrolling and resumes at
   the bottom, with a desktop scrollbar and **Jump to latest** action;
 - resident multi-turn sessions through `X-Gem16-Session-Id`;
+- an editable persistent system prompt, defaulting to `You are a helpful assistant.`;
+- exact used/available context-token display from server-reported usage;
+- an elapsed-time activity banner that distinguishes local attachment/PDF processing, request preparation,
+  waiting for the first token (including possible prefill), decoding, and local tool execution;
+- bounded app-executed current-date and current-time function-tool loops;
+- local extraction of UTF-8/UTF-16 text files and text-based PDFs before they are added to the user prompt;
 - selectable off/low/medium/high thinking budgets;
 - cancellation, new-chat, usage, and finish-reason state;
 - automatic managed-server startup plus explicit start/stop on Linux and Windows;
@@ -40,10 +46,11 @@ not load CUDA or model weights directly.
   is generated, followed by exact decode/prefill metrics from `/metrics` when
   the request completes.
 
-Tool-call interaction, Responses history, sampled video frames, and remote
+Web search, OCR for scanned PDFs, Responses history, sampled video frames, and remote
 authenticated deployments remain follow-ups. Markdown parsing uses the pinned
 BSD-2-Clause `org.commonmark:commonmark` dependency; raw HTML is displayed as
-text rather than executed.
+text rather than executed. PDF text extraction uses the pinned Apache-2.0
+`org.apache.pdfbox:pdfbox` dependency.
 
 ## Build and run
 
@@ -68,6 +75,13 @@ Windows PowerShell:
 .\scripts\build.ps1 -Cuda -Test
 .\scripts\run-studio.ps1
 ```
+
+The development launchers incrementally rebuild `gem16-server` and force that
+workspace binary for the current Studio process, even when persisted settings
+refer to an installed package under `Program Files`. Use
+`-SkipServerBuild` on Windows or `--skip-server-build` on Linux only when the
+workspace server is already current. The override is not written back over the
+persisted installer path.
 
 Direct Gradle commands:
 
@@ -141,11 +155,11 @@ and visibly warns for any other bind address.
 
 ## Chat protocol
 
-The client sends the complete visible conversation to
+The client sends the complete conversation, including hidden tool-result messages, to
 `POST /v1/chat/completions`, requests SSE, and retains the opaque session ID
 returned by gem16. Text and `reasoning_content` deltas are rendered separately.
 User content is either plain text or an ordered OpenAI content array containing
-text, inline data-URL images, and Base64 audio. Media is held in memory so a
+text, inline data-URL images, and Base64 audio. Image and audio media are held in memory so a
 resident continuation can reproduce the exact prior request; gem16 limits one
 file to 10 MiB and the conversation to 14 MiB of Base64 payload below the
 server's 16 MiB request limit. On Linux the microphone path prefers the default
@@ -158,6 +172,36 @@ Both paths reject silent or clipped recordings, normalize valid PCM16 audio,
 and wrap it as WAV without writing a temporary file. Changing or removing
 history starts a new resident root because an existing KV cache cannot be
 rolled back safely.
+
+The configured system prompt is prepended as a real OpenAI `system` message.
+Changing it or the local-tool setting starts a fresh resident session while
+preserving visible history. When enabled, Gemma receives strict no-argument
+schemas for `get_current_date` and `get_current_time`; the app executes only
+those allow-listed functions and feeds their JSON results back through ordinary
+assistant/tool messages. A maximum of eight consecutive tool rounds prevents a
+runaway loop. No shell, arbitrary file, or network tool is exposed, and web
+search is not implemented.
+
+Tool requests remain distinct assistant protocol messages, but the chat labels
+them as tool requests rather than final answers. Each request is collapsed by
+default and can be expanded to inspect the exact function name and argument JSON
+emitted by Gemma alongside the result JSON returned by the app. Result JSON is
+never serialized as assistant-authored text; it remains a `tool` message in the
+continuation history.
+
+The client treats an SSE `error` event, a stream without the terminal `[DONE]`
+marker, a missing finish reason, and a completed response without model output
+as visible failures. While a request remains open, the activity timer continues
+to tick. Waiting longer than 30 seconds for the first token changes the banner
+to a warning and points to GPU activity and the Server logs; this does not claim
+that prefill is definitely active because the HTTP protocol cannot distinguish
+prefill from server-side queueing before the first token.
+
+Text documents are decoded locally and PDFs are parsed locally into Unicode
+text. Only that extracted text, wrapped with the attachment name, is included in
+the prompt; the original PDF bytes are not sent to the server. Files are limited
+to 10 MiB and extracted document text to 500,000 characters. Image-only/scanned
+PDFs fail visibly because OCR is intentionally not part of this path.
 
 Sampling remains a server-level choice, matching gem16's current strict API:
 

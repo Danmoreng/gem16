@@ -821,6 +821,9 @@ ChatCompletionStream::~ChatCompletionStream() = default;
 
 Result<ChatGenerationResponse> ChatCompletionStream::Generate(
     ChatSession& session, const ChatGenerationRequest& request) {
+  if (!request.messages.empty() && request.messages.back().role == "tool") {
+    impl_->context.channels.StartReasoningFromPrompt();
+  }
   auto generated = session.Generate(request, StreamToken, &impl_->context);
   if (generated.ok()) {
     const Status status = FeedVisibleText(impl_->context, {}, true);
@@ -882,6 +885,9 @@ ResponsesStream::~ResponsesStream() = default;
 
 Result<ChatGenerationResponse> ResponsesStream::Generate(
     ChatSession& session, const ChatGenerationRequest& request) {
+  if (!request.messages.empty() && request.messages.back().role == "tool") {
+    impl_->context.channels.StartReasoningFromPrompt();
+  }
   auto generated = session.Generate(request, StreamResponseToken,
                                     &impl_->context);
   if (generated.ok() &&
