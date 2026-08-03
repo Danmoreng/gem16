@@ -1,5 +1,36 @@
 # Performance ledger
 
+## 2026-08-03 Five-phase performance sprint closure
+
+The sprint closes at commit `2be75d7` with a Windows Max Power 16K/1,135-token qualification using three warm-ups
+and ten measured runs. Current gem16 reaches 5,677.61 prefill tok/s, 2,885.72 ms TTFT, 91.462 effective fixed-D2
+tok/s, and 10.933 ms median ITL. All ten runs retain the ordinary-Target hash
+`374a7e9a564421be4f7d19cb125a651f73505077983b77b1149bfa82e3c81e8a`, exact 1,006/629/377
+proposed/accepted/rejected counters, 505 Target batches, no fallback, and no token-loop allocation. Workspace and
+KV remain 2,348,879,872 and 311,287,808 bytes.
+
+For orientation against the latest pinned same-laptop Max Power competitor characterizations:
+
+| Engine / retained environment | Prefill tok/s | TTFT | Effective D2 tok/s | ITL |
+|---|---:|---:|---:|---:|
+| **gem16 `2be75d7`, Windows** | 5,677.61 | 2,885.72 ms | **91.462** | **10.933 ms** |
+| vLLM 0.25.1, Linux | **6,308.53** | **2,597.12 ms** | 81.964 | 12.201 ms |
+| llama.cpp 10210, Linux | 3,947.45 | 4,150.53 ms | 84.179 | 11.879 ms |
+
+Gem16 decode is 11.59% above vLLM and 8.65% above llama.cpp; its median ITL is 10.39% and 7.96% lower. Gem16
+prefill is 43.83% above llama.cpp but remains 10.00% below vLLM, with TTFT 11.11% higher than vLLM. The ideal goal
+is therefore achieved for decode and against llama.cpp in both disciplines, but not yet for prefill against vLLM.
+These ratios are a pinned cross-day, cross-OS orientation rather than a new simultaneous parity run; checkpoint,
+KV precision, output semantics, and timing-boundary disclosures remain those of the public cross-engine
+characterization below.
+
+Relative to that earlier public gem16 row at 5,315.11/85.261 tok/s, this sprint improves prefill by 6.82%, decode
+by 7.27%, TTFT by 6.38%, and ITL by 6.78%. Promoted work comprises the CUTLASS FP8 scaling epilogue, physical BF16
+prefill output, and vector fixed-T3 FP8 staging/scale/store path. The D512 CUTLASS FMHA/2SM route is unsupported by
+the pinned backend, the narrow shape-specific CUTLASS plan regresses, and paired assistant-output loads are neutral;
+all three were fully removed and retained only as negative evidence. The next performance campaign should target
+the remaining approximately 631 prefill tok/s / 289 ms TTFT gap to vLLM from a fresh current-head profile.
+
 ## 2026-08-03 Decode phase: vectorize the fixed-T3 FP8 staging and output epilogue
 
 Hypothesis: the exact fixed-three-row Target verifier already reuses each FP8 weight fragment across all rows, but

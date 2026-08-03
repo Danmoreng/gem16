@@ -8,19 +8,17 @@ of the correctness and native-kernel gates below.
 
 ## Active gate
 
-- Resume the binding [prefill optimization plan](PREFILL_OPTIMIZATION_PLAN.md) under Linux on the reference laptop.
-  The refreshed max-power cross-engine qualification places exact fixed-D2 gem16 decode at 85.261 tok/s, ahead of
-  the adjacent vLLM and llama.cpp characterizations, while 16K prefill reaches 84.25% of vLLM. The immediate target
-  is at most 2,597.12 ms TTFT for the exact 16,384-token workload without regressing decode, correctness, or the
-  15.3 GB peak-memory limit. Work proceeds through current-head profiling, larger prompt geometry and shape-tuned
-  NVFP4, recurring-layout elimination, packed/scaled FP8 projections, attention specialization, and only then
-  prefill CUDA Graphs. The ordered graph experiment is now complete: suffix, prefix/suffix, and fixed-start
-  full-chunk capture failed the adjacent repeated promotion gate and were removed. Further prefill work requires a
-  fresh profile-derived kernel plan rather than more launch-boundary capture. Each retained stage requires an
-  adjacent repeated benchmark and its own commit.
+- The five-phase 2026-08-02/03 performance sprint is complete at `2be75d7`. The exact Windows Max Power 16K gate
+  reaches 5,677.61 prefill tok/s, 2,885.72 ms TTFT, 91.462 effective fixed-D2 tok/s, and 10.933 ms ITL. Relative to
+  the pinned same-laptop competitor characterizations, decode is now 11.59% above vLLM and 8.65% above llama.cpp;
+  prefill is 43.83% above llama.cpp but remains 10.00% below vLLM. The next active performance target is therefore
+  the remaining approximately 631 tok/s / 289 ms vLLM prefill gap without regressing exact output, decode, or the
+  15.3 GB peak-memory limit. Start that campaign with a fresh current-head prefill profile; do not reopen the
+  rejected D512 CUTLASS FMHA/2SM, narrow CUTLASS-plan, or assistant-output vector-load routes without new backend or
+  hardware evidence. Each retained stage still requires an adjacent repeated benchmark and its own commit.
 
 - Historical implementation record: statements below that close or pause earlier optimization sprints describe
-  their status at the time and are superseded by the active decode gate above. The refreshed prefill record begins
+  their status at the time and are superseded by the active performance gate above. The refreshed prefill record begins
   from the retained Linux profile.
   Online Tensor-Core attention, the deterministic 2,048-token prompt plan, CUTLASS NVFP4/FP8 projections, and
   profile-proven fusions are promoted. The 2026-07-27 bounded staging sprint vectorizes local FP8 conversion and

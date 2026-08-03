@@ -50,24 +50,28 @@ On an RTX 5080 Laptop GPU at its firmware-managed 175 W ceiling, commit `4b237b1
 
 #### Windows
 
-On Windows 11 x64, the same RTX 5080 Laptop GPU running commit `1b910550` with CUDA 13.3 and driver 596.49 produces:
+On Windows 11 x64, the same RTX 5080 Laptop GPU running current gem16 commit `2be75d7` in Lenovo Max Power mode
+with CUDA 13.3 and driver 596.49 produces the following qualified gem16 result. The llama.cpp row is the retained
+same-machine reference from the prior Windows characterization:
 
 | Engine | Checkpoint / KV | Prefill tok/s | TTFT | Effective D2 MTP tok/s | ITL |
 |---|---|---:|---:|---:|---:|
-| **gem16** | direct FP8/NVFP4 / FP8 | **5,460.95** | **3,000.21 ms** | **86.47** | **11.565 ms** |
+| **gem16** | direct FP8/NVFP4 / FP8 | **5,677.61** | **2,885.72 ms** | **91.46** | **10.933 ms** |
 | llama.cpp 10210 | patched NVFP4+Q8_0 GGUF / Q8_0 | 3,937.64 | 4,160.87 ms | 86.00 | 11.628 ms |
 
 Both runs use batch one, the exact same 16,384-token prompt, 1,135 fixed greedy output positions, fixed D2 MTP,
 three warm-ups, and ten measured runs per engine. Only target-verified output tokens are counted. In the Linux run,
 gem16 decode is 4.02% faster than vLLM and 1.29% faster than llama.cpp; gem16 prefill is 15.75% below vLLM and
-34.65% above llama.cpp. In the Windows run, gem16 decode is 0.55% faster than llama.cpp and gem16 prefill is 38.69%
-faster. vLLM is omitted because the pinned native runtime is not supported on Windows.
+34.65% above llama.cpp. Against the retained Windows llama.cpp row, current gem16 decode is 6.35% faster and gem16
+prefill is 44.19% faster. vLLM is omitted from the Windows table because the pinned native runtime is not supported
+on Windows.
 
-Windows used the Balanced OS power scheme rather than Linux's controlled `max-power` platform profile, although
-both engines dynamically reached approximately 176 W. Both Windows outputs are deterministic within each engine,
-but their token hashes differ. The full Windows distributions, MTP counters, configurations, and filtered telemetry
-summary are retained in the
-[machine-readable Windows characterization](benchmarks/baselines/cross_engine_mtp/windows-characterization.json).
+The current gem16 row uses Lenovo Max Power; the retained llama.cpp row used the Balanced OS power scheme, although
+that earlier run dynamically reached approximately 176 W. The Windows ratio is therefore a same-machine orientation,
+not a new adjacent cross-engine run. Both outputs are deterministic within each engine, but their token hashes
+differ. The earlier Windows distributions, MTP counters, configurations, and filtered telemetry summary are retained
+in the [machine-readable Windows characterization](benchmarks/baselines/cross_engine_mtp/windows-characterization.json);
+the current gem16 qualification is recorded in `docs/PERFORMANCE_LEDGER.md`.
 
 Reproduce the complete three-engine run after preparing the pinned competitor environments:
 
