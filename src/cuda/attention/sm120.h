@@ -12,13 +12,14 @@ struct DecodeControl;
 
 // Product-shape local Gemma prefill attention. Q is BF16-valued float storage;
 // K/V use the checkpoint's physical E4M3 cache representation and BF16 scale.
+// Output is stored directly at the model's physical BF16 boundary.
 // The kernel consumes current-chunk K/V directly, so callers append the chunk
 // to the circular cache only after attention completes.
 [[nodiscard]] Status LaunchOnlineCausalAttentionPrefillFp8LocalSm120(
     const float* query, const std::uint8_t* chunk_key,
     const std::uint8_t* chunk_value, const std::uint8_t* key_cache,
     const std::uint8_t* value_cache, const std::uint16_t* key_scale_bf16,
-    const std::uint16_t* value_scale_bf16, float* output,
+    const std::uint16_t* value_scale_bf16, std::uint16_t* output_bf16,
     std::uint64_t start_position, std::uint64_t tokens,
     std::uint64_t query_heads, std::uint64_t kv_heads,
     std::uint64_t head_dimension, std::uint64_t cache_capacity,
@@ -31,7 +32,7 @@ struct DecodeControl;
     const float* query, const std::uint8_t* chunk_key,
     const std::uint8_t* chunk_value, const std::uint8_t* key_cache,
     const std::uint8_t* value_cache, const std::uint16_t* key_scale_bf16,
-    const std::uint16_t* value_scale_bf16, float* output,
+    const std::uint16_t* value_scale_bf16, std::uint16_t* output_bf16,
     std::uint64_t start_position, std::uint64_t tokens,
     std::uint64_t query_heads, std::uint64_t kv_heads,
     std::uint64_t head_dimension, std::uint64_t cache_capacity,

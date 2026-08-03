@@ -1,5 +1,30 @@
 # Performance ledger
 
+## 2026-08-03 Prefill: store attention output directly as physical BF16
+
+Hypothesis: online local/global attention already closes at Gemma's required BF16 boundary before the O projection,
+so writing FP32, launching a separate BF16-rounding kernel, and rereading FP32 wastes traffic and arena space. The
+promoted kernels write paired physical BF16 values directly and the existing per-token O-input quantizer now has a
+physical-BF16 input specialization. MTP verification and BF16 correctness mode retain their FP32 contracts.
+
+On the Windows RTX 5080 Laptop in Max Power mode, the current-head 16K parent reaches 5,741.36 prompt tok/s and
+2,853.68 ms median TTFT over three warm-ups and ten measured runs. The candidate reaches 5,825.66 tok/s (+1.47%)
+and 2,812.39 ms (-1.45%); throughput 95% intervals are `[5,728.00,5,762.80]` and
+`[5,810.80,5,841.73]`. Two alternating one-warm-up/three-run screens independently put the candidate at
+5,882.20 and 5,866.99 tok/s versus adjacent parent results of 5,813.87 and 5,750.49 tok/s, excluding the observed
+downward thermal drift as the explanation.
+
+The exact 16,384-token Wikipedia one-output qualification reaches 5,868.77 tok/s and 2,791.73 ms median TTFT over
+three warm-ups and ten measured runs. Every run emits token `61684` and the retained one-token SHA-256
+`584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182`. A dedicated CUDA fixture proves the
+physical-BF16 and former BF16-valued-FP32 quantizers produce bit-identical E4M3 bytes and FP32 scales.
+
+Workspace falls from 2,341,514,496 to 2,207,296,768 bytes: exactly 128 MiB removed. A 128-token Nsight trace
+observes 80 local and 16 global prefill-attention kernels writing `unsigned short`, followed by 96
+`QuantizeTokenReferenceKernel<unsigned short>` calls and no `RoundBf16Kernel`. Complete Host/CUDA CTest passes.
+Decision: promote the physical-BF16 attention boundary as the sole checkpoint-FP8 prefill path; no legacy switch
+remains. Raw ignored evidence is under `build/point1-*`.
+
 ## 2026-08-03 Five-phase performance sprint closure
 
 The sprint closes at commit `2be75d7` with a Windows Max Power 16K/1,135-token qualification using three warm-ups

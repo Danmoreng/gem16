@@ -35,7 +35,11 @@
     float* q_norm = Pointer<float>(prefill_workspace_, prefill_offsets_.q_norm);
     float* k_norm = Pointer<float>(prefill_workspace_, prefill_offsets_.k_norm);
     float* v_norm = Pointer<float>(prefill_workspace_, prefill_offsets_.v_norm);
-    float* attention = Pointer<float>(prefill_workspace_, prefill_offsets_.attention);
+    auto* attention_bf16 = Pointer<std::uint16_t>(
+        prefill_workspace_, prefill_offsets_.attention);
+    // The fixed-T3 verifier and BF16 correctness mode retain FP32 attention.
+    // Their active rows fit in the physical-BF16 production allocation.
+    float* attention = reinterpret_cast<float*>(attention_bf16);
     auto* cutlass_workspace = Pointer<std::uint8_t>(
         prefill_workspace_, prefill_offsets_.cutlass_workspace);
     constexpr std::size_t kCutlassWorkspaceBytes = 8U * 1024U * 1024U;
@@ -320,13 +324,13 @@
                      ? internal::LaunchOnlineCausalAttentionPrefillFp8GlobalSm120(
                            q_norm, k_fp8, v_fp8, layer.key_cache_fp8,
                            layer.value_cache_fp8, layer.k_cache_scale,
-                           layer.v_cache_scale, attention, start_position,
+                           layer.v_cache_scale, attention_bf16, start_position,
                            tokens, kQueryHeads, layer.kv_heads,
                            layer.head_dimension, capacity, stream_)
                      : internal::LaunchOnlineCausalAttentionPrefillFp8LocalSm120(
                            q_norm, k_fp8, v_fp8, layer.key_cache_fp8,
                            layer.value_cache_fp8, layer.k_cache_scale,
-                           layer.v_cache_scale, attention, start_position,
+                           layer.v_cache_scale, attention_bf16, start_position,
                            tokens, kQueryHeads, layer.kv_heads,
                            layer.head_dimension, capacity, stream_,
                            vision_begin, vision_end);
@@ -432,21 +436,31 @@
         Pointer<float>(prefill_workspace_, prefill_offsets_.hidden_a);
     float* hidden_b =
         Pointer<float>(prefill_workspace_, prefill_offsets_.hidden_b);
-    float* attention =
-        Pointer<float>(prefill_workspace_, prefill_offsets_.attention);
+    auto* attention_bf16 = Pointer<std::uint16_t>(
+        prefill_workspace_, prefill_offsets_.attention);
+    float* attention = reinterpret_cast<float*>(attention_bf16);
     auto* projection_bf16 = Pointer<std::uint16_t>(
         prefill_workspace_, prefill_offsets_.projection);
     float* projection = reinterpret_cast<float*>(projection_bf16);
     auto* cutlass_workspace = Pointer<std::uint8_t>(
         prefill_workspace_, prefill_offsets_.cutlass_workspace);
     constexpr std::size_t kCutlassWorkspaceBytes = 8U * 1024U * 1024U;
-    Status status =
-        LaunchRoundBf16(attention, tokens * layer.query_elements, stream_);
-    if (!status.ok()) return status;
     auto* o_activation = Pointer<std::uint8_t>(prefill_workspace_, prefill_offsets_.o_activation);
     float* o_scales = Pointer<float>(prefill_workspace_, prefill_offsets_.o_scales);
-    status = internal::LaunchFp8ReferenceTokenQuantizationBatch(
-        attention, o_activation, o_scales, tokens, layer.query_elements, stream_);
+    Status status;
+    if (!mtp_verification &&
+        kv_cache_mode_ == KvCacheMode::kCheckpointFp8) {
+      status = internal::LaunchFp8ReferenceTokenQuantizationBf16Batch(
+          attention_bf16, o_activation, o_scales, tokens,
+          layer.query_elements, stream_);
+    } else {
+      status =
+          LaunchRoundBf16(attention, tokens * layer.query_elements, stream_);
+      if (!status.ok()) return status;
+      status = internal::LaunchFp8ReferenceTokenQuantizationBatch(
+          attention, o_activation, o_scales, tokens, layer.query_elements,
+          stream_);
+    }
     if (!status.ok()) return status;
     status = mtp_verification
                  ? internal::LaunchFp8Sm120DirectProjectionBatch(

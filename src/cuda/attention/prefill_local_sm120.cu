@@ -272,7 +272,7 @@ __launch_bounds__(kThreads, 1) __global__ void OnlineLocalAttentionFp8Kernel(
     const std::uint8_t* __restrict__ value_cache,
     const std::uint16_t* __restrict__ key_scale_bf16,
     const std::uint16_t* __restrict__ value_scale_bf16,
-    float* __restrict__ output, int start_position, int tokens,
+    std::uint16_t* __restrict__ output, int start_position, int tokens,
     int cache_capacity, int vision_begin, int vision_end) {
   __shared__ __align__(16) std::uint8_t shared[kSharedBytes];
   __nv_bfloat16* query_shared =
@@ -659,20 +659,18 @@ __launch_bounds__(kThreads, 1) __global__ void OnlineLocalAttentionFp8Kernel(
     const int query_row0 = query_start + warp_row_start + group_lane;
     const int query_row1 = query_row0 + 8;
     if (query_row0 < tokens) {
-      float* output_row =
+      std::uint16_t* output_row =
           output + (query_row0 * kQueryHeads + query_head) * kHeadDimension;
-      output_row[dimension] =
-          accumulator[output_tile][0] * inverse_sum0;
-      output_row[dimension + 1] =
-          accumulator[output_tile][1] * inverse_sum0;
+      *reinterpret_cast<__nv_bfloat162*>(output_row + dimension) =
+          __floats2bfloat162_rn(accumulator[output_tile][0] * inverse_sum0,
+                               accumulator[output_tile][1] * inverse_sum0);
     }
     if (query_row1 < tokens) {
-      float* output_row =
+      std::uint16_t* output_row =
           output + (query_row1 * kQueryHeads + query_head) * kHeadDimension;
-      output_row[dimension] =
-          accumulator[output_tile][2] * inverse_sum1;
-      output_row[dimension + 1] =
-          accumulator[output_tile][3] * inverse_sum1;
+      *reinterpret_cast<__nv_bfloat162*>(output_row + dimension) =
+          __floats2bfloat162_rn(accumulator[output_tile][2] * inverse_sum1,
+                               accumulator[output_tile][3] * inverse_sum1);
     }
   }
 }
@@ -684,7 +682,7 @@ Status LaunchOnlineCausalAttentionPrefillFp8LocalSm120(
     const float* query, const std::uint8_t* chunk_key,
     const std::uint8_t* chunk_value, const std::uint8_t* key_cache,
     const std::uint8_t* value_cache, const std::uint16_t* key_scale_bf16,
-    const std::uint16_t* value_scale_bf16, float* output,
+    const std::uint16_t* value_scale_bf16, std::uint16_t* output_bf16,
     std::uint64_t start_position, std::uint64_t tokens,
     std::uint64_t query_heads, std::uint64_t kv_heads,
     std::uint64_t head_dimension, std::uint64_t cache_capacity,
@@ -693,7 +691,7 @@ Status LaunchOnlineCausalAttentionPrefillFp8LocalSm120(
   if (query == nullptr || chunk_key == nullptr || chunk_value == nullptr ||
       key_cache == nullptr || value_cache == nullptr ||
       key_scale_bf16 == nullptr || value_scale_bf16 == nullptr ||
-      output == nullptr || tokens == 0U || query_heads != kQueryHeads ||
+      output_bf16 == nullptr || tokens == 0U || query_heads != kQueryHeads ||
       kv_heads != kKvHeads || head_dimension != kHeadDimension ||
       cache_capacity == 0U ||
       start_position >
@@ -718,7 +716,7 @@ Status LaunchOnlineCausalAttentionPrefillFp8LocalSm120(
                   kQueryHeads / kQueryHeadsPerBlock);
   OnlineLocalAttentionFp8Kernel<<<grid, kThreads, 0, stream>>>(
       query, chunk_key, chunk_value, key_cache, value_cache, key_scale_bf16,
-      value_scale_bf16, output, static_cast<int>(start_position),
+      value_scale_bf16, output_bf16, static_cast<int>(start_position),
       static_cast<int>(tokens), static_cast<int>(cache_capacity),
       static_cast<int>(vision_begin), static_cast<int>(vision_end));
   const cudaError_t error = cudaGetLastError();

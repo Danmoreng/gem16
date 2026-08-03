@@ -26,8 +26,21 @@ Status CudaFailure(const char* operation, cudaError_t error) {
                     cudaGetErrorString(error));
 }
 
-__global__ void QuantizeTokenReferenceKernel(const float* input, std::uint8_t* output,
-                                             float* output_scale, std::uint64_t elements) {
+__device__ __forceinline__ float LoadQuantizationInput(const float* input,
+                                                       std::uint64_t index) {
+  return input[index];
+}
+
+__device__ __forceinline__ float LoadQuantizationInput(
+    const std::uint16_t* input, std::uint64_t index) {
+  return static_cast<float>(__ushort_as_bfloat16(input[index]));
+}
+
+template <typename Input>
+__global__ void QuantizeTokenReferenceKernel(const Input* input,
+                                             std::uint8_t* output,
+                                             float* output_scale,
+                                             std::uint64_t elements) {
   const std::uint64_t token = blockIdx.x;
   input += token * elements;
   output += token * elements;
@@ -35,7 +48,8 @@ __global__ void QuantizeTokenReferenceKernel(const float* input, std::uint8_t* o
   __shared__ float maxima[kThreads];
   float local_maximum = 0.0F;
   for (std::uint64_t index = threadIdx.x; index < elements; index += blockDim.x) {
-    local_maximum = fmaxf(local_maximum, fabsf(input[index]));
+    local_maximum =
+        fmaxf(local_maximum, fabsf(LoadQuantizationInput(input, index)));
   }
   maxima[threadIdx.x] = local_maximum;
   __syncthreads();
@@ -49,7 +63,7 @@ __global__ void QuantizeTokenReferenceKernel(const float* input, std::uint8_t* o
   __syncthreads();
   const float scale = output_scale[0];
   for (std::uint64_t index = threadIdx.x; index < elements; index += blockDim.x) {
-    const __nv_fp8_e4m3 encoded(input[index] / scale);
+    const __nv_fp8_e4m3 encoded(LoadQuantizationInput(input, index) / scale);
     output[index] = encoded.__x;
   }
 }
@@ -181,6 +195,28 @@ Status LaunchFp8ReferenceTokenQuantizationBatch(
   return error == cudaSuccess
              ? Status::Ok()
              : CudaFailure("launch batched FP8 token quantization", error);
+}
+
+Status LaunchFp8ReferenceTokenQuantizationBf16Batch(
+    const std::uint16_t* input_bf16, std::uint8_t* output_e4m3fn,
+    float* output_scales, std::uint64_t tokens,
+    std::uint64_t elements_per_token, cudaStream_t stream) {
+  if (input_bf16 == nullptr || output_e4m3fn == nullptr ||
+      output_scales == nullptr) {
+    return Invalid(
+        "FP8 batched BF16 token quantization requires non-null device pointers");
+  }
+  if (tokens == 0U || elements_per_token == 0U ||
+      tokens > static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
+    return Invalid("FP8 batched BF16 token quantization extent is invalid");
+  }
+  QuantizeTokenReferenceKernel<<<static_cast<unsigned>(tokens), kThreads, 0,
+                                 stream>>>(
+      input_bf16, output_e4m3fn, output_scales, elements_per_token);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("launch batched BF16 FP8 token quantization", error);
 }
 
 Status LaunchRmsNormFp8TokenQuantizationBatch(

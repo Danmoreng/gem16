@@ -328,7 +328,14 @@
       GEM16_PREFILL_ADD(scores, float,
                           tokens * kQueryHeads * max_context_);
     }
-    GEM16_PREFILL_ADD(attention, float, tokens * max_q);
+    if (kv_cache_mode_ == KvCacheMode::kCheckpointFp8) {
+      const std::uint64_t attention_bytes = std::max(
+          tokens * max_q * sizeof(std::uint16_t),
+          kMaximumMtpVerifyTokens * max_q * sizeof(float));
+      GEM16_PREFILL_ADD(attention, std::uint8_t, attention_bytes);
+    } else {
+      GEM16_PREFILL_ADD(attention, float, tokens * max_q);
+    }
     GEM16_PREFILL_ADD(o_activation, std::uint8_t, tokens * max_q);
     GEM16_PREFILL_ADD(o_scales, float, tokens);
     GEM16_PREFILL_ADD(projection, std::uint16_t, tokens * kHidden);

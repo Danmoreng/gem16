@@ -542,6 +542,74 @@ float Bf16FromBits(std::uint16_t bits) {
   return std::bit_cast<float>(static_cast<std::uint32_t>(bits) << 16U);
 }
 
+void TestPhysicalBf16Fp8TokenQuantization() {
+  constexpr std::size_t tokens = 3U;
+  constexpr std::size_t elements = 257U;
+  std::vector<float> input(tokens * elements);
+  std::vector<std::uint16_t> input_bf16(input.size());
+  for (std::size_t index = 0; index < input.size(); ++index) {
+    const float value =
+        static_cast<float>(static_cast<int>((index * 37U) % 509U) - 254) /
+        static_cast<float>(17U + index % 5U);
+    input[index] = RoundBf16Reference(value);
+    input_bf16[index] = Bf16BitsReference(value);
+  }
+
+  DeviceBuffer<float> device_input(input.size());
+  DeviceBuffer<std::uint16_t> device_input_bf16(input_bf16.size());
+  DeviceBuffer<std::uint8_t> device_output(input.size());
+  DeviceBuffer<std::uint8_t> device_output_bf16(input.size());
+  DeviceBuffer<float> device_scales(tokens);
+  DeviceBuffer<float> device_scales_bf16(tokens);
+  if (device_input.get() == nullptr || device_input_bf16.get() == nullptr ||
+      device_output.get() == nullptr || device_output_bf16.get() == nullptr ||
+      device_scales.get() == nullptr || device_scales_bf16.get() == nullptr) {
+    return;
+  }
+  if (!CudaOk(cudaMemcpy(device_input.get(), input.data(), device_input.bytes(),
+                         cudaMemcpyHostToDevice),
+              "copy FP8 physical-BF16 float input") ||
+      !CudaOk(cudaMemcpy(device_input_bf16.get(), input_bf16.data(),
+                         device_input_bf16.bytes(), cudaMemcpyHostToDevice),
+              "copy FP8 physical-BF16 input")) {
+    return;
+  }
+  const auto float_status =
+      gem16::internal::LaunchFp8ReferenceTokenQuantizationBatch(
+          device_input.get(), device_output.get(), device_scales.get(), tokens,
+          elements, nullptr);
+  const auto bf16_status =
+      gem16::internal::LaunchFp8ReferenceTokenQuantizationBf16Batch(
+          device_input_bf16.get(), device_output_bf16.get(),
+          device_scales_bf16.get(), tokens, elements, nullptr);
+  CUDA_TEST_CHECK(float_status.ok());
+  CUDA_TEST_CHECK(bf16_status.ok());
+  if (!float_status.ok() || !bf16_status.ok() ||
+      !CudaOk(cudaDeviceSynchronize(), "physical-BF16 FP8 quantize")) {
+    return;
+  }
+  std::vector<std::uint8_t> output(input.size());
+  std::vector<std::uint8_t> output_bf16(input.size());
+  std::array<float, tokens> scales{};
+  std::array<float, tokens> scales_bf16{};
+  if (!CudaOk(cudaMemcpy(output.data(), device_output.get(),
+                         device_output.bytes(), cudaMemcpyDeviceToHost),
+              "copy float FP8 quantized output") ||
+      !CudaOk(cudaMemcpy(output_bf16.data(), device_output_bf16.get(),
+                         device_output_bf16.bytes(), cudaMemcpyDeviceToHost),
+              "copy BF16 FP8 quantized output") ||
+      !CudaOk(cudaMemcpy(scales.data(), device_scales.get(),
+                         device_scales.bytes(), cudaMemcpyDeviceToHost),
+              "copy float FP8 quantized scales") ||
+      !CudaOk(cudaMemcpy(scales_bf16.data(), device_scales_bf16.get(),
+                         device_scales_bf16.bytes(), cudaMemcpyDeviceToHost),
+              "copy BF16 FP8 quantized scales")) {
+    return;
+  }
+  CUDA_TEST_CHECK(output == output_bf16);
+  CUDA_TEST_CHECK(scales == scales_bf16);
+}
+
 void TestCutlassSm120Projection() {
   const auto run_case = [](std::size_t tokens, std::size_t rows,
                            std::size_t k_size, const char* label) {
@@ -2738,7 +2806,7 @@ void TestOnlineLocalFp8CausalPrefill() {
   DeviceBuffer<std::uint16_t> device_value_scale(value_scale.size());
   DeviceBuffer<float> device_scores(tokens * query_heads * capacity);
   DeviceBuffer<float> device_reference_output(queries.size());
-  DeviceBuffer<float> device_online_output(queries.size());
+  DeviceBuffer<std::uint16_t> device_online_output(queries.size());
   if (device_queries.get() == nullptr ||
       device_chunk_keys.get() == nullptr ||
       device_chunk_values.get() == nullptr ||
@@ -2800,23 +2868,28 @@ void TestOnlineLocalFp8CausalPrefill() {
     }
 
     std::vector<float> reference_output(queries.size());
+    std::vector<std::uint16_t> online_bits(queries.size());
     std::vector<float> online_output(queries.size());
     if (!CudaOk(cudaMemcpy(reference_output.data(),
                            device_reference_output.get(),
                            device_reference_output.bytes(),
                            cudaMemcpyDeviceToHost),
                 "copy online-prefill reference output") ||
-        !CudaOk(cudaMemcpy(online_output.data(), device_online_output.get(),
+        !CudaOk(cudaMemcpy(online_bits.data(), device_online_output.get(),
                            device_online_output.bytes(),
                            cudaMemcpyDeviceToHost),
                 "copy online-prefill tensor-core output")) {
       return;
     }
+    std::transform(online_bits.begin(), online_bits.end(),
+                   online_output.begin(), Bf16FromBits);
 
     const std::string metric_label =
         std::string("online local FP8 prefill ") + label;
+    // The production kernel now exposes the model's physical BF16 boundary;
+    // include its half-ULP storage error in the online-attention budget.
     CheckAttentionMetrics(reference_output, online_output,
-                          metric_label.c_str(), 1.5e-3F, 3.0e-4, 0.99998);
+                          metric_label.c_str(), 3.0e-3F, 3.5e-4, 0.99998);
   };
 
   run_case(0U, "initial causal window");
@@ -2830,14 +2903,17 @@ void TestOnlineLocalFp8CausalPrefill() {
           device_value_scale.get(), device_online_output.get(), 0U, tokens,
           query_heads, kv_heads, head_dimension, capacity, nullptr);
   CUDA_TEST_CHECK(causal.ok());
+  std::vector<std::uint16_t> causal_bits(queries.size());
   std::vector<float> causal_output(queries.size());
   if (!causal.ok() ||
       !CudaOk(cudaDeviceSynchronize(), "causal vision-mask control") ||
-      !CudaOk(cudaMemcpy(causal_output.data(), device_online_output.get(),
+      !CudaOk(cudaMemcpy(causal_bits.data(), device_online_output.get(),
                          device_online_output.bytes(), cudaMemcpyDeviceToHost),
               "copy causal vision-mask control")) {
     return;
   }
+  std::transform(causal_bits.begin(), causal_bits.end(), causal_output.begin(),
+                 Bf16FromBits);
   constexpr std::uint64_t vision_begin = 8U;
   constexpr std::uint64_t vision_end = 24U;
   const auto bidirectional =
@@ -2849,14 +2925,17 @@ void TestOnlineLocalFp8CausalPrefill() {
           query_heads, kv_heads, head_dimension, capacity, nullptr,
           vision_begin, vision_end);
   CUDA_TEST_CHECK(bidirectional.ok());
+  std::vector<std::uint16_t> vision_bits(queries.size());
   std::vector<float> vision_output(queries.size());
   if (!bidirectional.ok() ||
       !CudaOk(cudaDeviceSynchronize(), "bidirectional vision-mask run") ||
-      !CudaOk(cudaMemcpy(vision_output.data(), device_online_output.get(),
+      !CudaOk(cudaMemcpy(vision_bits.data(), device_online_output.get(),
                          device_online_output.bytes(), cudaMemcpyDeviceToHost),
               "copy bidirectional vision-mask output")) {
     return;
   }
+  std::transform(vision_bits.begin(), vision_bits.end(), vision_output.begin(),
+                 Bf16FromBits);
   const std::size_t row_elements = query_heads * head_dimension;
   const auto row_difference = [&](std::uint64_t row) {
     float maximum = 0.0F;
@@ -2926,7 +3005,7 @@ void TestOnlineGlobalFp8CausalPrefill() {
   DeviceBuffer<std::uint16_t> device_value_scale(value_scale.size());
   DeviceBuffer<float> device_scores(tokens * query_heads * score_stride);
   DeviceBuffer<float> device_reference_output(queries.size());
-  DeviceBuffer<float> device_online_output(queries.size());
+  DeviceBuffer<std::uint16_t> device_online_output(queries.size());
   if (device_queries.get() == nullptr ||
       device_chunk_keys.get() == nullptr ||
       device_chunk_values.get() == nullptr ||
@@ -2986,20 +3065,23 @@ void TestOnlineGlobalFp8CausalPrefill() {
   }
 
   std::vector<float> reference_output(queries.size());
+  std::vector<std::uint16_t> online_bits(queries.size());
   std::vector<float> online_output(queries.size());
   if (!CudaOk(cudaMemcpy(reference_output.data(),
                          device_reference_output.get(),
                          device_reference_output.bytes(),
                          cudaMemcpyDeviceToHost),
               "copy global online-prefill reference output") ||
-      !CudaOk(cudaMemcpy(online_output.data(), device_online_output.get(),
+      !CudaOk(cudaMemcpy(online_bits.data(), device_online_output.get(),
                          device_online_output.bytes(),
                          cudaMemcpyDeviceToHost),
               "copy global online-prefill tensor-core output")) {
     return;
   }
+  std::transform(online_bits.begin(), online_bits.end(), online_output.begin(),
+                 Bf16FromBits);
   CheckAttentionMetrics(reference_output, online_output,
-                        "online global FP8 prefill", 8.0e-4F, 2.0e-4,
+                        "online global FP8 prefill", 1.0e-3F, 2.0e-4,
                         0.99999);
 }
 
@@ -3882,6 +3964,7 @@ int main(int argc, char** argv) {
   TestCutlassSm120Projection();
   TestMlpElementwiseBridge();
   TestFp8ReferenceAndDirectProjection();
+  TestPhysicalBf16Fp8TokenQuantization();
   TestFp8CutlassPrefillGeometry();
   TestLocalLayerReferenceOperators();
   TestFusedProjectionRmsNormRotaryBf16Batch();
