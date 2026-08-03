@@ -245,7 +245,10 @@ The llama.cpp benchmark is deliberately before engine kernel optimization, but a
    linear response roots, evicts only inactive LRU sessions, supports SDK
    cancellation and disconnect-safe slot discard, and exports admission,
    generation, cancellation, token, and memory metrics. The complete A1-A11
-   path to an agent-capable OpenAI-compatible server is now implemented.
+   path to an agent-capable OpenAI-compatible server is now implemented. A future, explicitly deferred extension
+   may add Gemma-native required/named function choice and schema-constrained tool arguments according to
+   [`CONSTRAINED_TOOL_DECODING_PLAN.md`](CONSTRAINED_TOOL_DECODING_PLAN.md); generic structured output and unrelated
+   OpenAI tool types remain out of scope.
 14. After the Blackwell backend is correct and competitive, add architecture-specific backends for additional 16 GB
    CUDA GPUs without weakening benchmark or memory contracts.
 
