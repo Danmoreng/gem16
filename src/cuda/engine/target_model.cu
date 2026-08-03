@@ -382,6 +382,7 @@ class LoadedTargetModel::Impl {
     }
     return Nvfp4Binding{reinterpret_cast<const std::uint8_t*>(packed.value()->data),
                         reinterpret_cast<const std::uint8_t*>(scales.value()->data),
+                        reinterpret_cast<const float*>(input.value()->data),
                         input.value()->scalar_f32, weight.value()->scalar_f32, rows,
                         contracting};
   }

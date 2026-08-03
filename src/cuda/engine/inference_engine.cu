@@ -302,9 +302,9 @@ struct PrefillOffsets {
   std::uint64_t q = 0, k = 0, v = 0, q_norm = 0, k_norm = 0, v_norm = 0;
   std::uint64_t k_fp8 = 0, v_fp8 = 0, scores = 0, attention = 0;
   std::uint64_t o_activation = 0, o_scales = 0, projection = 0, post_norm = 0;
-  std::uint64_t mlp_packed = 0, mlp_scales = 0, gate = 0, up = 0;
+  std::uint64_t mlp_packed = 0, mlp_scales = 0, gate = 0;
   std::uint64_t down_packed = 0, down_scales = 0;
-  std::uint64_t cutlass_activation_scales = 0;
+  std::uint64_t cutlass_activation_scales = 0, cutlass_product_scales = 0;
   std::uint64_t cutlass_weight = 0, cutlass_weight_scales = 0;
   std::uint64_t cutlass_workspace = 0;
   std::uint64_t local_rope_cosine = 0, local_rope_sine = 0;

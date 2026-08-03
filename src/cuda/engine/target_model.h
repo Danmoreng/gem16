@@ -22,6 +22,7 @@ struct Fp8Binding {
 struct Nvfp4Binding {
   const std::uint8_t* packed_weight = nullptr;
   const std::uint8_t* scales = nullptr;
+  const float* input_divisor_device = nullptr;
   float input_divisor = 0.0F;
   float weight_divisor = 0.0F;
   std::uint64_t rows = 0;

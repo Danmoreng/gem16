@@ -1,5 +1,6 @@
 #include "cuda/nvfp4/cutlass_sm120.h"
 
+#include <cuda_bf16.h>
 #include <cuda_runtime.h>
 
 #include <cmath>
@@ -13,6 +14,7 @@
 #include "cutlass/cutlass.h"
 #include "cutlass/detail/sm100_blockscaled_layout.hpp"
 #include "cutlass/epilogue/collective/collective_builder.hpp"
+#include "cutlass/epilogue/fusion/sm120_callbacks_tma_warpspecialized.hpp"
 #include "cutlass/gemm/collective/collective_builder.hpp"
 #include "cutlass/gemm/device/gemm_universal_adapter.h"
 #include "cutlass/gemm/kernel/gemm_universal.hpp"
@@ -21,6 +23,109 @@
 #if defined(_WIN32)
 #include "cuda/cutlass_windows_launch.cuh"
 #endif
+
+namespace gem16::internal {
+
+struct GatedGeluScaledProductArguments {
+  float up_scale = 1.0F;
+};
+
+template <class T>
+struct GatedGeluScaledProduct {
+  using Arguments = GatedGeluScaledProductArguments;
+
+  CUTLASS_DEVICE T operator()(T gate, T up_accumulator,
+                              const Arguments& arguments) const {
+    if constexpr (std::is_same_v<T, float>) {
+      return Evaluate(gate, up_accumulator, arguments);
+    } else {
+      T output;
+#pragma unroll
+      for (int index = 0; index < T::kElements; ++index) {
+        output[index] =
+            Evaluate(gate[index], up_accumulator[index], arguments);
+      }
+      return output;
+    }
+  }
+
+ private:
+  CUTLASS_DEVICE static float Evaluate(float gate, float up_accumulator,
+                                       const Arguments& arguments) {
+    constexpr float kSqrtTwoOverPi = 0.7978845608028654F;
+    constexpr float kGeluCubic = 0.044715F;
+    const float rounded_up = static_cast<float>(
+        __float2bfloat16_rn(up_accumulator * arguments.up_scale));
+    const float inner = kSqrtTwoOverPi *
+                        (gate + kGeluCubic * gate * gate * gate);
+    const float gelu = static_cast<float>(__float2bfloat16_rn(
+        0.5F * gate * (1.0F + tanhf(inner))));
+    const float product =
+        static_cast<float>(__float2bfloat16_rn(gelu * rounded_up));
+    return product;
+  }
+};
+
+struct GatedGeluNvfp4Fusion
+    : cutlass::epilogue::fusion::FusionOperation {
+  using ElementOutput = cutlass::float_e2m1_t;
+  using ElementCompute = float;
+  using ElementSource = cutlass::bfloat16_t;
+  static constexpr bool IsSourceSupported = true;
+  using ElementBlockScaleFactor = cutlass::float_ue4m3_t;
+  static constexpr int SFVecSize = 16;
+  static constexpr bool IsBlockScaleSupported = true;
+  using GmemLayoutTagScalefactor = cutlass::layout::RowMajor;
+};
+
+}  // namespace gem16::internal
+
+namespace cutlass::epilogue::fusion {
+
+template <int StagesC, int StagesD, int FragmentSize, bool ReuseSmemC,
+          bool DelayTmaStore, class CtaTileShapeMNK, class EpilogueTile>
+struct FusionCallbacks<
+    epilogue::Sm120TmaWarpSpecialized<StagesC, StagesD, FragmentSize,
+                                     ReuseSmemC, DelayTmaStore>,
+    gem16::internal::GatedGeluNvfp4Fusion, CtaTileShapeMNK, EpilogueTile>
+    : Sm90EVT<
+          Sm120BlockScaleFactorRowStore<
+              16, EpilogueTile, CtaTileShapeMNK, FragmentSize,
+              cutlass::float_e2m1_t, float, cutlass::float_ue4m3_t,
+              cutlass::FloatRoundStyle::round_to_nearest>,
+          Sm90EVT<
+              Sm90Compute<gem16::internal::GatedGeluScaledProduct, float,
+                          float,
+                          cutlass::FloatRoundStyle::round_to_nearest>,
+              Sm90SrcFetch<cutlass::bfloat16_t>, Sm90AccFetch>> {
+  using Impl = Sm90EVT<
+      Sm120BlockScaleFactorRowStore<
+          16, EpilogueTile, CtaTileShapeMNK, FragmentSize,
+          cutlass::float_e2m1_t, float, cutlass::float_ue4m3_t,
+          cutlass::FloatRoundStyle::round_to_nearest>,
+      Sm90EVT<
+          Sm90Compute<gem16::internal::GatedGeluScaledProduct, float, float,
+                      cutlass::FloatRoundStyle::round_to_nearest>,
+          Sm90SrcFetch<cutlass::bfloat16_t>, Sm90AccFetch>>;
+  using Operation = gem16::internal::GatedGeluNvfp4Fusion;
+
+  struct Arguments {
+    float up_scale = 1.0F;
+    cutlass::float_ue4m3_t* block_scale_factor_ptr = nullptr;
+    const float* norm_constant_ptr = nullptr;
+
+    operator typename Impl::Arguments() const {
+      return {
+          {{}, {}, {up_scale}},
+          {block_scale_factor_ptr, norm_constant_ptr,
+           {cute::_0{}, cute::_0{}, 0}}};
+    }
+  };
+
+  using Impl::Impl;
+};
+
+}  // namespace cutlass::epilogue::fusion
 
 namespace gem16::internal {
 namespace {
@@ -178,6 +283,33 @@ using GemmKernel = cutlass::gemm::kernel::GemmUniversal<
     cutlass::gemm::StaticPersistentScheduler>;
 using Gemm = cutlass::gemm::device::GemmUniversalAdapter<GemmKernel>;
 
+using GatedElementD = cutlass::float_e2m1_t;
+using GatedCollectiveEpilogue =
+    typename cutlass::epilogue::collective::CollectiveBuilder<
+        ArchTag, OperatorClass, ThreadBlockShape, ClusterShape,
+        cutlass::epilogue::collective::EpilogueTileAuto,
+        ElementAccumulator, ElementAccumulator, cutlass::bfloat16_t,
+        cutlass::layout::RowMajor, 8, GatedElementD,
+        cutlass::layout::RowMajor, 32,
+        cutlass::epilogue::collective::EpilogueScheduleAuto,
+        GatedGeluNvfp4Fusion>::CollectiveOp;
+
+using GatedCollectiveMainloop =
+    typename cutlass::gemm::collective::CollectiveBuilder<
+        ArchTag, OperatorClass, ElementA, cutlass::layout::RowMajor, 32,
+        ElementB, cutlass::layout::ColumnMajor, 32, ElementAccumulator,
+        ThreadBlockShape, ClusterShape,
+        cutlass::gemm::collective::StageCountAutoCarveout<
+            static_cast<int>(
+                sizeof(typename GatedCollectiveEpilogue::SharedStorage))>,
+        cutlass::gemm::collective::KernelScheduleAuto>::CollectiveOp;
+
+using GatedGemmKernel = cutlass::gemm::kernel::GemmUniversal<
+    Shape<int, int, int, int>, GatedCollectiveMainloop,
+    GatedCollectiveEpilogue, cutlass::gemm::StaticPersistentScheduler>;
+using GatedGemm =
+    cutlass::gemm::device::GemmUniversalAdapter<GatedGemmKernel>;
+
 Status LaunchGemm(
     const std::uint8_t* activation,
     const std::uint8_t* activation_scales,
@@ -249,6 +381,79 @@ Status LaunchGemm(
                     cutlass::cutlassGetStatusString(status));
   }
 #endif
+  return Status::Ok();
+}
+
+Status LaunchGatedGemm(
+    const std::uint8_t* activation,
+    const std::uint8_t* activation_scales,
+    const std::uint8_t* weight,
+    const std::uint8_t* weight_scales,
+    const std::uint16_t* gate,
+    std::uint8_t* product,
+    std::uint8_t* product_scales,
+    int m, int n, int k, float up_scale,
+    const float* product_global_divisor,
+    void* workspace, std::size_t workspace_bytes, cudaStream_t stream) {
+  using ScaleConfig = typename GatedGemm::GemmKernel::CollectiveMainloop::
+      Sm1xxBlkScaledConfig;
+  const auto problem_shape = cute::make_shape(m, n, k, 1);
+  const auto stride_a = cutlass::make_cute_packed_stride(
+      typename GatedGemm::GemmKernel::StrideA{}, {m, k, 1});
+  const auto stride_b = cutlass::make_cute_packed_stride(
+      typename GatedGemm::GemmKernel::StrideB{}, {n, k, 1});
+  const auto stride_c = cutlass::make_cute_packed_stride(
+      typename GatedGemm::GemmKernel::StrideC{}, {m, n, 1});
+  const auto stride_d = cutlass::make_cute_packed_stride(
+      typename GatedGemm::GemmKernel::StrideD{}, {m, n, 1});
+  typename GatedGemm::Arguments arguments{
+      cutlass::gemm::GemmUniversalMode::kGemm,
+      problem_shape,
+      {reinterpret_cast<const cutlass::float_e2m1_t*>(activation), stride_a,
+       reinterpret_cast<const cutlass::float_e2m1_t*>(weight), stride_b,
+       reinterpret_cast<const cutlass::float_ue4m3_t*>(activation_scales),
+       ScaleConfig::tile_atom_to_shape_SFA(problem_shape),
+       reinterpret_cast<const cutlass::float_ue4m3_t*>(weight_scales),
+       ScaleConfig::tile_atom_to_shape_SFB(problem_shape)},
+      {{up_scale,
+        reinterpret_cast<cutlass::float_ue4m3_t*>(product_scales),
+        product_global_divisor},
+       reinterpret_cast<const cutlass::bfloat16_t*>(gate), stride_c,
+       reinterpret_cast<GatedElementD*>(product), stride_d}};
+
+  if constexpr (!std::is_const_v<
+                    decltype(arguments.scheduler.max_swizzle_size)>) {
+    arguments.scheduler.max_swizzle_size = 1;
+  }
+  const std::size_t required = GatedGemm::get_workspace_size(arguments);
+#if defined(_WIN32)
+  constexpr std::size_t kWindowsParamsPadding =
+      alignof(typename GatedGemm::Params) - 1U;
+  if (required > workspace_bytes ||
+      kWindowsParamsPadding > workspace_bytes - required ||
+      sizeof(typename GatedGemm::Params) >
+          workspace_bytes - required - kWindowsParamsPadding) {
+#else
+  if (required > workspace_bytes) {
+#endif
+    return Invalid("CUTLASS gated NVFP4 workspace is too small");
+  }
+#if defined(_WIN32)
+  const cutlass::Status status =
+      cutlass_windows::InitializeAndRun<GatedGemm>(
+          arguments, workspace, workspace_bytes, stream);
+#else
+  GatedGemm gemm;
+  cutlass::Status status = gemm.can_implement(arguments);
+  if (status == cutlass::Status::kSuccess) {
+    status = gemm.initialize(arguments, workspace, stream);
+  }
+  if (status == cutlass::Status::kSuccess) status = gemm.run(stream);
+#endif
+  if (status != cutlass::Status::kSuccess) {
+    return Internal(std::string("CUTLASS gated NVFP4 launch failed: ") +
+                    cutlass::cutlassGetStatusString(status));
+  }
   return Status::Ok();
 }
 
@@ -352,6 +557,83 @@ Status LaunchNvfp4CutlassProjectionBf16Batch(
       static_cast<int>(tokens), static_cast<int>(rows),
       static_cast<int>(contracting_elements), alpha, cutlass_workspace,
       cutlass_workspace_bytes, stream);
+}
+
+Status LaunchNvfp4CutlassUpGatedGeluQuantizedBatch(
+    const std::uint8_t* packed_activation_e2m1,
+    const std::uint8_t* interleaved_activation_scales_e4m3fn,
+    const std::uint8_t* tiled_up_weight_e2m1,
+    const std::uint8_t* tiled_up_weight_scales_e4m3fn,
+    std::uint8_t* row_major_weight_scratch_e2m1,
+    std::uint8_t* interleaved_weight_scale_scratch_e4m3fn,
+    void* cutlass_workspace,
+    std::size_t cutlass_workspace_bytes,
+    const std::uint16_t* gate_bf16,
+    std::uint8_t* product_packed_e2m1,
+    std::uint8_t* product_interleaved_scales_e4m3fn,
+    std::uint64_t tokens,
+    std::uint64_t rows,
+    std::uint64_t contracting_elements,
+    float up_activation_global_divisor,
+    float up_weight_global_divisor,
+    float product_global_divisor,
+    const float* product_global_divisor_device,
+    cudaStream_t stream) {
+  if (packed_activation_e2m1 == nullptr ||
+      interleaved_activation_scales_e4m3fn == nullptr ||
+      tiled_up_weight_e2m1 == nullptr ||
+      tiled_up_weight_scales_e4m3fn == nullptr ||
+      row_major_weight_scratch_e2m1 == nullptr ||
+      interleaved_weight_scale_scratch_e4m3fn == nullptr ||
+      cutlass_workspace == nullptr || gate_bf16 == nullptr ||
+      product_packed_e2m1 == nullptr ||
+      product_interleaved_scales_e4m3fn == nullptr || tokens == 0U ||
+      product_global_divisor_device == nullptr ||
+      rows == 0U || contracting_elements == 0U ||
+      contracting_elements % kElementsPerKBlock != 0U ||
+      !PositiveFinite(up_activation_global_divisor) ||
+      !PositiveFinite(up_weight_global_divisor) ||
+      !PositiveFinite(product_global_divisor) ||
+      tokens > static_cast<std::uint64_t>(std::numeric_limits<int>::max()) ||
+      rows > static_cast<std::uint64_t>(std::numeric_limits<int>::max()) ||
+      contracting_elements >
+          static_cast<std::uint64_t>(std::numeric_limits<int>::max())) {
+    return Invalid("invalid CUTLASS gated NVFP4 projection arguments");
+  }
+  const std::uint64_t packed_copies =
+      rows * contracting_elements / 2U / sizeof(uint4);
+  const std::uint64_t scale_groups =
+      rows * contracting_elements / kElementsPerKBlock;
+  const std::uint64_t work = max(packed_copies, scale_groups);
+  if (work > static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max()) *
+                 kThreads) {
+    return Invalid("CUTLASS gated NVFP4 weight preparation grid is too large");
+  }
+  const unsigned blocks =
+      static_cast<unsigned>((work + kThreads - 1U) / kThreads);
+  PrepareWeightKernel<<<blocks, kThreads, 0, stream>>>(
+      tiled_up_weight_e2m1, tiled_up_weight_scales_e4m3fn,
+      row_major_weight_scratch_e2m1,
+      interleaved_weight_scale_scratch_e4m3fn, rows,
+      contracting_elements);
+  const cudaError_t error = cudaGetLastError();
+  if (error != cudaSuccess) {
+    return CudaFailure("launch gated CUTLASS NVFP4 weight preparation",
+                       error);
+  }
+  const float up_scale =
+      1.0F /
+      (up_activation_global_divisor * up_weight_global_divisor);
+  return LaunchGatedGemm(
+      packed_activation_e2m1, interleaved_activation_scales_e4m3fn,
+      row_major_weight_scratch_e2m1,
+      interleaved_weight_scale_scratch_e4m3fn, gate_bf16,
+      product_packed_e2m1, product_interleaved_scales_e4m3fn,
+      static_cast<int>(tokens), static_cast<int>(rows),
+      static_cast<int>(contracting_elements), up_scale,
+      product_global_divisor_device, cutlass_workspace,
+      cutlass_workspace_bytes,
+      stream);
 }
 
 }  // namespace gem16::internal

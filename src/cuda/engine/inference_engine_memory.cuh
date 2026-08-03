@@ -343,7 +343,6 @@
     GEM16_PREFILL_ADD(mlp_packed, std::uint8_t, tokens * kHidden / 2U);
     GEM16_PREFILL_ADD(mlp_scales, std::uint8_t, tokens * kHidden / 16U);
     GEM16_PREFILL_ADD(gate, std::uint16_t, tokens * kIntermediate);
-    GEM16_PREFILL_ADD(up, std::uint16_t, tokens * kIntermediate);
     GEM16_PREFILL_ADD(down_packed, std::uint8_t, tokens * kIntermediate / 2U);
     GEM16_PREFILL_ADD(down_scales, std::uint8_t, tokens * kIntermediate / 16U);
     constexpr std::uint64_t kCutlassScaleRows = 128U;
@@ -352,6 +351,8 @@
         ((tokens + kCutlassScaleRows - 1U) / kCutlassScaleRows) *
         kCutlassScaleRows;
     GEM16_PREFILL_ADD(cutlass_activation_scales, std::uint8_t,
+                        cutlass_tokens * kIntermediate / 16U);
+    GEM16_PREFILL_ADD(cutlass_product_scales, std::uint8_t,
                         cutlass_tokens * kIntermediate / 16U);
     GEM16_PREFILL_ADD(cutlass_weight, std::uint8_t,
                         kIntermediate * kHidden / 2U);

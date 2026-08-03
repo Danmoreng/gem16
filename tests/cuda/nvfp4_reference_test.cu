@@ -670,6 +670,14 @@ void TestCutlassSm120Projection() {
   DeviceBuffer<std::uint8_t> device_workspace(workspace_bytes);
   DeviceBuffer<std::uint16_t> device_reference(tokens * rows);
   DeviceBuffer<std::uint16_t> device_cutlass(tokens * rows);
+  DeviceBuffer<std::uint8_t> device_product_reference(tokens * rows / 2U);
+  DeviceBuffer<std::uint8_t> device_product_fused(tokens * rows / 2U);
+  DeviceBuffer<std::uint8_t> device_product_scales(tokens * rows / 16U);
+  DeviceBuffer<std::uint8_t> device_product_scales_interleaved(
+      tokens * rows / 16U);
+  DeviceBuffer<std::uint8_t> device_product_scales_fused(
+      tokens * rows / 16U);
+  DeviceBuffer<float> device_product_divisor(1U);
   if (device_activation.get() == nullptr ||
       device_activation_scales.get() == nullptr ||
       device_interleaved_activation_scales.get() == nullptr ||
@@ -678,7 +686,13 @@ void TestCutlassSm120Projection() {
       device_weight_scratch.get() == nullptr ||
       device_weight_scale_scratch.get() == nullptr ||
       device_workspace.get() == nullptr || device_reference.get() == nullptr ||
-      device_cutlass.get() == nullptr) {
+      device_cutlass.get() == nullptr ||
+      device_product_reference.get() == nullptr ||
+      device_product_fused.get() == nullptr ||
+      device_product_scales.get() == nullptr ||
+      device_product_scales_interleaved.get() == nullptr ||
+      device_product_scales_fused.get() == nullptr ||
+      device_product_divisor.get() == nullptr) {
     return;
   }
   if (!CudaOk(cudaMemcpy(device_activation.get(), activation.data(),
@@ -752,6 +766,71 @@ void TestCutlassSm120Projection() {
   std::cout << label << " exact BF16 mismatches: " << exact_mismatches << '/'
             << reference.size() << '\n';
   CheckAttentionMetrics(reference, cutlass, label, 0.125F, 0.02, 0.9999);
+
+  constexpr float product_divisor = 1.125F;
+  if (!CudaOk(cudaMemcpy(device_product_divisor.get(), &product_divisor,
+                         sizeof(product_divisor), cudaMemcpyHostToDevice),
+              "copy CUTLASS gated product divisor")) {
+    return;
+  }
+  const auto product_reference_status =
+      gem16::internal::LaunchGatedGeluNvfp4ActivationQuantizationBf16(
+          device_reference.get(), device_cutlass.get(),
+          device_product_reference.get(), device_product_scales.get(),
+          tokens * rows, product_divisor, nullptr);
+  const auto product_interleave_status =
+      gem16::internal::LaunchNvfp4CutlassInterleaveActivationScales(
+          device_product_scales.get(),
+          device_product_scales_interleaved.get(), tokens, rows, nullptr);
+  const auto product_fused_status =
+      gem16::internal::LaunchNvfp4CutlassUpGatedGeluQuantizedBatch(
+          device_activation.get(),
+          device_interleaved_activation_scales.get(), device_weight.get(),
+          device_weight_scales.get(), device_weight_scratch.get(),
+          device_weight_scale_scratch.get(), device_workspace.get(),
+          workspace_bytes, device_reference.get(), device_product_fused.get(),
+          device_product_scales_fused.get(), tokens, rows, k_size,
+          activation_divisor, weight_divisor, product_divisor,
+          device_product_divisor.get(), nullptr);
+  CUDA_TEST_CHECK(product_reference_status.ok());
+  CUDA_TEST_CHECK(product_interleave_status.ok());
+  CUDA_TEST_CHECK(product_fused_status.ok());
+  if (!product_reference_status.ok() || !product_interleave_status.ok() ||
+      !product_fused_status.ok() ||
+      !CudaOk(cudaDeviceSynchronize(),
+              "CUTLASS gated product synchronize")) {
+    return;
+  }
+  std::vector<std::uint8_t> product_reference(
+      device_product_reference.bytes());
+  std::vector<std::uint8_t> product_fused(device_product_fused.bytes());
+  std::vector<std::uint8_t> product_scales_reference(
+      device_product_scales_interleaved.bytes());
+  std::vector<std::uint8_t> product_scales_fused(
+      device_product_scales_fused.bytes());
+  if (!CudaOk(cudaMemcpy(product_reference.data(),
+                         device_product_reference.get(),
+                         device_product_reference.bytes(),
+                         cudaMemcpyDeviceToHost),
+              "copy CUTLASS gated reference payload") ||
+      !CudaOk(cudaMemcpy(product_fused.data(), device_product_fused.get(),
+                         device_product_fused.bytes(),
+                         cudaMemcpyDeviceToHost),
+              "copy CUTLASS gated fused payload") ||
+      !CudaOk(cudaMemcpy(product_scales_reference.data(),
+                         device_product_scales_interleaved.get(),
+                         device_product_scales_interleaved.bytes(),
+                         cudaMemcpyDeviceToHost),
+              "copy CUTLASS gated reference scales") ||
+      !CudaOk(cudaMemcpy(product_scales_fused.data(),
+                         device_product_scales_fused.get(),
+                         device_product_scales_fused.bytes(),
+                         cudaMemcpyDeviceToHost),
+              "copy CUTLASS gated fused scales")) {
+    return;
+  }
+  CUDA_TEST_CHECK(product_reference == product_fused);
+  CUDA_TEST_CHECK(product_scales_reference == product_scales_fused);
   };
   run_case(2048U, 128U, 3840U, "CUTLASS NVFP4 Gate/Up projection");
   run_case(128U, 3840U, 15360U, "CUTLASS NVFP4 Down projection");

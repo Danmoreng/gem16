@@ -1,5 +1,34 @@
 # Performance ledger
 
+## 2026-08-03 Prefill: fuse the Up epilogue into gated GELU and NVFP4 quantization
+
+Hypothesis: the prefill MLP materializes the complete 240 MiB BF16 Up projection, then launches a separate
+GELU-times-Gate plus NVFP4 quantizer and a scale-interleave kernel before the Down projection. A custom SM120
+CUTLASS epilogue can instead read the stored BF16 Gate projection as C, round the Up accumulator at the existing
+BF16 boundary, apply the required BF16 GELU-tanh and product boundaries, and emit the Down projection's packed
+E2M1 activations plus E4M3 scales directly in CUTLASS interleaved order. The device-resident Down input divisor is
+passed to CUTLASS's block-scale store, avoiding any host scalar transfer.
+
+On the Windows RTX 5080 Laptop in Max Power mode, the 16K synthetic qualification with three warm-ups and ten
+measured runs improves from 5,821.19 to 5,962.64 prompt tok/s (+2.43%) and reduces median TTFT from 2,814.54 to
+2,747.78 ms (-2.37%). Mean throughput and 95% intervals are 5,822.28 `[5,807.14,5,837.43]` for the parent and
+5,962.81 `[5,952.73,5,972.89]` for the candidate. Two alternating one-warm-up/three-run screens independently
+measure 6,035.32 versus 5,898.13 tok/s (+2.33%) and 5,990.55 versus 5,842.77 tok/s (+2.53%). Every run emits the
+same first token, `1896`.
+
+The exact 16,384-token Wikipedia one-output qualification reaches 6,041.33 tok/s and 2,711.99 ms median TTFT over
+three warm-ups and ten measured runs. Every run emits token `61684` and SHA-256
+`584cbf379f6308a52a4e7790140edace9072e661dcd02af44cd5b9369afa4182`. A dedicated CUDA fixture proves that the
+new epilogue's packed E2M1 payload and interleaved E4M3 scales are bit-identical to the former separate BF16
+Gate/Up projections, gated-GELU quantizer, and scale interleave.
+
+The prefill workspace falls from 2,207,296,768 to 1,963,502,848 bytes, removing 232.5 MiB net. A 128-token Nsight
+trace observes 96 custom fused CUTLASS calls over warm-up plus measurement and no separate gated-GELU quantizer or
+Down-input scale-interleave launch. The fused kernel averages 43.97 us; resource inspection reports 160 registers,
+zero stack, and zero local memory. The remaining 96 scale-interleave calls belong only to MLP-input activations and
+are the next isolated target. Complete CUDA tests pass. Decision: promote the fused epilogue and remove the full
+BF16 Up arena; no legacy production switch remains. Raw ignored evidence is under `build/step4-*`.
+
 ## 2026-08-03 Prefill: store attention output directly as physical BF16
 
 Hypothesis: online local/global attention already closes at Gemma's required BF16 boundary before the O projection,

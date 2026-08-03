@@ -485,13 +485,18 @@
     auto* mlp_packed = Pointer<std::uint8_t>(prefill_workspace_, prefill_offsets_.mlp_packed);
     auto* mlp_scales = Pointer<std::uint8_t>(prefill_workspace_, prefill_offsets_.mlp_scales);
     auto* gate = Pointer<std::uint16_t>(prefill_workspace_, prefill_offsets_.gate);
-    auto* up = Pointer<std::uint16_t>(prefill_workspace_, prefill_offsets_.up);
+    auto* down_packed = Pointer<std::uint8_t>(
+        prefill_workspace_, prefill_offsets_.down_packed);
+    auto* down_scales = Pointer<std::uint8_t>(
+        prefill_workspace_, prefill_offsets_.down_scales);
     status = internal::LaunchRmsNormNvfp4ActivationQuantizationBatch(
         hidden_b, layer.pre_mlp_norm, mlp_packed, mlp_scales, tokens, kHidden,
         kEpsilon, layer.gate.input_divisor, stream_);
     if (!status.ok()) return status;
     auto* cutlass_activation_scales = Pointer<std::uint8_t>(
         prefill_workspace_, prefill_offsets_.cutlass_activation_scales);
+    auto* cutlass_product_scales = Pointer<std::uint8_t>(
+        prefill_workspace_, prefill_offsets_.cutlass_product_scales);
     auto* cutlass_weight = Pointer<std::uint8_t>(
         prefill_workspace_, prefill_offsets_.cutlass_weight);
     auto* cutlass_weight_scales = Pointer<std::uint8_t>(
@@ -520,25 +525,22 @@
           layer.gate.rows, layer.gate.contracting, layer.gate.input_divisor,
           layer.gate.weight_divisor, stream_);
       if (!status.ok()) return status;
-      status = internal::LaunchNvfp4CutlassProjectionBf16Batch(
+      status = internal::LaunchNvfp4CutlassUpGatedGeluQuantizedBatch(
           mlp_packed, cutlass_activation_scales, layer.up.packed_weight,
           layer.up.scales, cutlass_weight, cutlass_weight_scales,
-          cutlass_workspace, kCutlassWorkspaceBytes, up, tokens,
+          cutlass_workspace, kCutlassWorkspaceBytes, gate, down_packed,
+          cutlass_product_scales, tokens,
           layer.up.rows, layer.up.contracting, layer.up.input_divisor,
-          layer.up.weight_divisor, stream_);
+          layer.up.weight_divisor, layer.down.input_divisor,
+          layer.down.input_divisor_device, stream_);
     }
     if (!status.ok()) return status;
-    auto* down_packed = Pointer<std::uint8_t>(prefill_workspace_, prefill_offsets_.down_packed);
-    auto* down_scales = Pointer<std::uint8_t>(prefill_workspace_, prefill_offsets_.down_scales);
     status = mtp_verification
                  ? internal::LaunchNvfp4ReferenceActivationQuantization(
                        mtp_product, down_packed, down_scales,
                        tokens * kIntermediate, layer.down.input_divisor,
                        stream_)
-                 : internal::LaunchGatedGeluNvfp4ActivationQuantizationBf16(
-                       gate, up, down_packed, down_scales,
-                       tokens * kIntermediate, layer.down.input_divisor,
-                       stream_);
+                 : Status::Ok();
     if (!status.ok()) return status;
     auto* down_bf16 = projection_bf16;
     if (mtp_verification) {
@@ -548,12 +550,8 @@
           layer.down.contracting, layer.down.input_divisor,
           layer.down.weight_divisor, stream_);
     } else {
-      status = internal::LaunchNvfp4CutlassInterleaveActivationScales(
-          down_scales, cutlass_activation_scales, tokens, kIntermediate,
-          stream_);
-      if (!status.ok()) return status;
       status = internal::LaunchNvfp4CutlassProjectionBf16Batch(
-          down_packed, cutlass_activation_scales, layer.down.packed_weight,
+          down_packed, cutlass_product_scales, layer.down.packed_weight,
           layer.down.scales, cutlass_weight, cutlass_weight_scales,
           cutlass_workspace, kCutlassWorkspaceBytes, down_bf16, tokens,
           layer.down.rows, layer.down.contracting, layer.down.input_divisor,
