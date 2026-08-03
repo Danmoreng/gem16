@@ -8,11 +8,12 @@ of the correctness and native-kernel gates below.
 
 ## Active gate
 
-- The five-phase 2026-08-02/03 performance sprint is complete at `2be75d7`. The exact Windows Max Power 16K gate
-  reaches 5,677.61 prefill tok/s, 2,885.72 ms TTFT, 91.462 effective fixed-D2 tok/s, and 10.933 ms ITL. Relative to
-  the pinned same-laptop competitor characterizations, decode is now 11.59% above vLLM and 8.65% above llama.cpp;
-  prefill is 43.83% above llama.cpp but remains 10.00% below vLLM. The next active performance target is therefore
-  the remaining approximately 631 tok/s / 289 ms vLLM prefill gap without regressing exact output, decode, or the
+- The current Linux Max Power 16K controlled comparison at `8e86cb38` reaches 5,863.59 prefill tok/s,
+  2,794.19 ms TTFT, 89.58 effective fixed-D2 tok/s, and 11.163 ms ITL. Against the freshly pinned same-machine
+  vLLM 0.26.0 and llama.cpp b10240 configurations, gem16 decode is 9.31% and 8.08% faster, while prefill is 6.15%
+  below vLLM and 49.48% above llama.cpp. This is a controlled performance claim, not exact external-output parity;
+  gem16 alone retains identity with its ordinary Target sequence. The next active performance target is the
+  remaining approximately 384 tok/s / 172 ms vLLM prefill gap without regressing exact output, decode, or the
   15.3 GB peak-memory limit. Start that campaign with a fresh current-head prefill profile; do not reopen the
   rejected D512 CUTLASS FMHA/2SM, narrow CUTLASS-plan, or assistant-output vector-load routes without new backend or
   hardware evidence. Each retained stage still requires an adjacent repeated benchmark and its own commit.

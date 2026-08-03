@@ -1,29 +1,42 @@
 # Benchmarking
 
-There are no accepted comparative benchmark results yet. `gem16-bench decode` now provides a real,
-machine-readable batch-one decode characterization; the other end-to-end benchmark modes still return
-`not_implemented` and a non-zero exit code.
+A controlled same-machine 16K D2 performance comparison is now published below. It is not an exact
+output/semantic-parity result. `gem16-bench decode` also provides a machine-readable batch-one decode
+characterization; the other standalone end-to-end benchmark modes still return `not_implemented` and a non-zero
+exit code.
 
-## Reproducible 16K cross-engine MTP characterization
+## Reproducible 16K cross-engine MTP performance comparison
 
 The public three-engine reproduction entry point is:
 
 ```bash
-./scripts/benchmark-cross-engine-mtp.sh
+systemd-run --user --scope -p MemoryMax=48G -p MemorySwapMax=0 \
+  ./scripts/benchmark-cross-engine-mtp.sh
 ```
 
-It runs gem16, pinned patched vLLM 0.25.1, and pinned patched llama.cpp 10210 over the checked-in exact
+It runs gem16, pinned patched vLLM 0.26.0, and pinned patched llama.cpp b10240 over the checked-in exact
 `benchmarks/prompts/wikipedia-summary-16k.json` token workload. Every engine receives 16,384 prompt tokens, emits
 1,135 fixed greedy target tokens with D2 MTP, and uses batch one, three warm-ups, and ten measurements. The script
 validates checkpoint locks, competitor versions/patches, GGUF checksums, an idle GPU, and—unless explicitly
 overridden—the reference laptop's `max-power` profile plus active `nvidia-powerd` Dynamic Boost. It never overwrites
-an existing result and retains per-run JSON, logs, and 200 ms GPU telemetry.
+an existing result and retains per-run JSON, logs, and 200 ms GPU telemetry. The optional 48 GiB systemd scope
+contains third-party JIT failure on the no-swap reference host; vLLM startup compilation is limited to four jobs
+with one internal NVCC thread each and remains outside inference timing.
 
-The 2026-08-02 reference medians and limitations are recorded in
-[`benchmarks/baselines/cross_engine_mtp/`](../benchmarks/baselines/cross_engine_mtp/). This is a development
-characterization rather than accepted parity: gem16/vLLM use direct mixed FP8/NVFP4 plus FP8 KV, llama.cpp uses
-patched Q8_0 attention plus Q8_0 KV, prefill timing boundaries differ, and the three MTP output hashes differ.
-Only target-verified output tokens are counted.
+The 2026-08-03 controlled performance comparison and limitations are recorded in
+[`benchmarks/baselines/cross_engine_mtp/`](../benchmarks/baselines/cross_engine_mtp/):
+
+| Engine | Prefill tok/s | TTFT | Effective D2 tok/s | ITL | Sampled peak VRAM |
+|---|---:|---:|---:|---:|---:|
+| vLLM 0.26.0 | **6,247.55** | **2,622.47 ms** | 81.95 | 12.202 ms | 15,465 MiB |
+| **gem16 `8e86cb38`** | 5,863.59 | 2,794.19 ms | **89.58** | **11.163 ms** | 11,867 MiB |
+| llama.cpp b10240 | 3,922.61 | 4,176.81 ms | 82.88 | 12.065 ms | 10,631 MiB |
+
+Gem16 D2 is 9.31% faster than vLLM and 8.08% faster than llama.cpp; its ITL is 8.51% and 7.48% lower. Prefill is
+6.15% below vLLM and 49.48% above llama.cpp. This is a controlled performance claim for the recorded configurations,
+not accepted exact parity: gem16/vLLM use direct mixed FP8/NVFP4 plus FP8 KV, llama.cpp uses patched Q8_0 attention
+plus Q8_0 KV, prefill timing boundaries differ, and the three MTP output hashes differ. vLLM also records tuning
+OOM fallbacks and an untuned 8K FP4 shape. Only target-verified output tokens are counted.
 
 The decode command keeps one model instance resident across all runs, clears the preallocated KV cache outside
 the timing boundary, performs the configured warm-ups, and retains every measured inter-token latency in JSON.
@@ -138,21 +151,20 @@ the project scope remains the 16 GB CUDA target class.
 
 Current upstream llama.cpp is pinned, but its unpatched converter rejects the locked checkpoint's mixed FP8/NVFP4
 compressed-tensors groups. A tracked converter patch produces a closest-parity candidate that preserves NVFP4 MLP
-tensors and maps FP8 attention weights to BF16. Its inventory, direct-runtime quality comparison, and full-residency
-probe are recorded; native-path profiling and quality acceptance remain open gates. This candidate cannot be labeled
-exact format parity.
+tensors and maps FP8 attention weights to Q8_0. Its current inventory, full-residency probe, fixed-D2 distributions,
+and continuous telemetry are recorded; native-path invocation profiling and quality acceptance remain open gates.
+This candidate cannot be labeled exact format parity.
 
-The patched llama.cpp candidate has a retained development characterization covering prefill through 65,536
-tokens and decode at context depths through 8,192. Its tracked summary is
-`benchmarks/baselines/llama_cpp/characterization.json`; raw samples are retained under `benchmarks/results/`. It is
-not an accepted baseline because native dispatch profiling, a quality threshold, inter-token latency capture, and
-power/clock/thermal telemetry remain open.
+The local `benchmarks/baselines/llama_cpp/characterization.json` preserves the earlier b10210 ordinary prefill/decode
+matrix through 65,536/8,192 positions. The current b10240 fixed-D2 result is instead in the cross-engine summary.
+Neither is an accepted exact-parity baseline because native dispatch profiling and a current quality threshold remain
+open.
 
 The pinned SM120a competitor build is complete. Its NVFP4 object contains native block-scaled
 `OMMA.SF.16864.F32.E2M1.E2M1.UE4M3.4X` instructions. This is a binary capability check only; runtime dispatch must
 still be captured with the selected model before a tier-B result is valid.
 
-## 2026-07-27 current-commit cross-engine characterization
+## Historical 2026-07-27 cross-engine characterization
 
 A fresh same-machine run at gem16 commit `c93a40d` uses batch one, identical deterministic prompt-token formulas,
 three warm-ups, ten measurements, checkpoint-FP8 KV for gem16 and direct vLLM, and no CPU offload or prefix-cache
@@ -178,7 +190,7 @@ the closest practical llama.cpp candidate across the matrix, while direct vLLM r
 14–15% ahead in decode. Raw data and commands are under
 `benchmarks/results/2026-07-27/c93a40d/blackwell16gb-linux-cross-engine/`.
 
-## Direct vLLM development comparison
+## Historical direct vLLM 0.25.1 development comparison
 
 A batch-one vLLM 0.25.1 characterization now loads the pinned Hugging Face checkpoint directly with native FP8
 attention weights, NVFP4 MLP weights, BF16 KV, CUDA Graphs, and no prefix caching or CPU offload. Across the common

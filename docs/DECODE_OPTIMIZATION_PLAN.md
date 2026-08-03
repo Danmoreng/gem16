@@ -42,11 +42,31 @@ gem16_mtp_effective_tps / llama_cpp_mtp_effective_tps >= 1.00
 The stretch target is at least 70.0 effective tokens/s and at least 1.05x the fresh llama.cpp result, whichever is
 stricter.
 
+The current Linux max-power adjacent D2 comparison at `8e86cb38` exceeds both fixed-workload thresholds: gem16
+reaches 89.58 tok/s versus llama.cpp b10240 at 82.88 tok/s (1.081x) and vLLM 0.26.0 at 81.95 tok/s (1.093x), with
+its fixed ordinary-Target hash preserved. This is a controlled performance result, not external output parity.
+The ordinary multi-context gate below remains open.
+
 MTP optimization must not conceal a slow Target model. Before final MTP promotion, ordinary gem16 decode must equal
 or exceed the freshly qualified llama.cpp candidate at 128, 2,048, 8,192, 16,384, 32,768, and 65,536 existing
 tokens. The primary ordinary metrics are median output tokens/s and median/p95 inter-token latency over 256 output
 tokens. No shorter-context point may regress by more than 1% to buy a long-context win unless a separate context-
 tier dispatch makes both paths winners.
+
+## Current adjacent fixed-D2 comparison
+
+The 2026-08-03 Linux 3-warm-up/10-measurement run uses the exact 16,384-token prompt and 1,135-position output
+budget, batch one, max-power plus `nvidia-powerd`, and no CPU offload or prompt-cache reuse:
+
+| Engine | Effective tok/s | ITL | Target batches | Accepted/rejected drafts |
+|---|---:|---:|---:|---:|
+| **gem16 `8e86cb38`** | **89.58** | **11.163 ms** | 509 | 625/391 |
+| vLLM 0.26.0 | 81.95 | 12.202 ms | 542 | 590/493 |
+| llama.cpp b10240 | 82.88 | 12.065 ms | 519 | 616/419 |
+
+Gem16 is 9.31% faster than vLLM and 8.08% faster than llama.cpp on effective target-verified output. Complete
+configuration, distributions, telemetry, and format/semantic limitations are in
+`benchmarks/baselines/cross_engine_mtp/characterization.json`.
 
 ## Historical screening baseline
 

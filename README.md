@@ -36,22 +36,23 @@ gem16 is programmed primarily with AI coding agents and is intended as an experi
 examines how direct checkpoint loading, model-specific execution plans, and Blackwell-specific CUDA kernels perform
 for Gemma 4 12B within 16 GB of VRAM.
 
-### Current 16K performance characterization
+### Current 16K controlled performance comparison
 
 #### Linux
 
-On an RTX 5080 Laptop GPU at its firmware-managed 175 W ceiling, commit `4b237b1` produces the following result:
+On an RTX 5080 Laptop GPU at its firmware-managed 175 W ceiling, gem16 commit `8e86cb38`, vLLM 0.26.0, and
+llama.cpp b10240 produce the following same-machine result:
 
-| Engine | Checkpoint / KV | Prefill tok/s | TTFT | Effective D2 MTP tok/s | ITL |
-|---|---|---:|---:|---:|---:|
-| vLLM 0.25.1 | direct FP8/NVFP4 / FP8 | **6,308.53** | **2,597.12 ms** | 81.96 | 12.201 ms |
-| **gem16** | direct FP8/NVFP4 / FP8 | 5,315.11 | 3,082.53 ms | **85.26** | **11.729 ms** |
-| llama.cpp 10210 | patched NVFP4+Q8_0 GGUF / Q8_0 | 3,947.45 | 4,150.53 ms | 84.18 | 11.879 ms |
+| Engine | Checkpoint / KV | Prefill tok/s | TTFT | Effective D2 MTP tok/s | ITL | Sampled peak VRAM |
+|---|---|---:|---:|---:|---:|---:|
+| vLLM 0.26.0 | direct FP8/NVFP4 / FP8 | **6,247.55** | **2,622.47 ms** | 81.95 | 12.202 ms | 15,465 MiB |
+| **gem16** | direct FP8/NVFP4 / FP8 | 5,863.59 | 2,794.19 ms | **89.58** | **11.163 ms** | 11,867 MiB |
+| llama.cpp b10240 | patched NVFP4+Q8_0 GGUF / Q8_0 | 3,922.61 | 4,176.81 ms | 82.88 | 12.065 ms | 10,631 MiB |
 
-#### Windows
+#### Windows (retained)
 
-On Windows 11 x64, the same RTX 5080 Laptop GPU running current gem16 commit `b9a73c2` in Lenovo Max Power mode
-with CUDA 13.3 and driver 596.49 produces the following latest qualified component results. The llama.cpp row is
+On Windows 11 x64, the same RTX 5080 Laptop GPU running gem16 commit `b9a73c2` in Lenovo Max Power mode with
+CUDA 13.3 and driver 596.49 produced the following latest qualified Windows component results. The llama.cpp row is
 the retained same-machine reference from the prior Windows characterization:
 
 | Engine | Checkpoint / KV | Prefill tok/s | TTFT | Effective D2 MTP tok/s | ITL |
@@ -59,21 +60,22 @@ the retained same-machine reference from the prior Windows characterization:
 | **gem16** | direct FP8/NVFP4 / FP8 | **6,045.67** | **2,710.04 ms** | **91.46** | **10.933 ms** |
 | llama.cpp 10210 | patched NVFP4+Q8_0 GGUF / Q8_0 | 3,937.64 | 4,160.87 ms | 86.00 | 11.628 ms |
 
-The current Windows gem16 entry combines two qualified screens. Prefill and TTFT come from the current commit's
-serial 16,384-token synthetic one-output benchmark; the MTP throughput and ITL are retained from the exact
+The retained Windows gem16 entry combines two qualified screens. Prefill and TTFT come from that commit's serial
+16,384-token synthetic one-output benchmark; the MTP throughput and ITL are retained from the exact
 16,384-token Wikipedia / 1,135-output qualification at commit `2be75d7`. Both use batch one, three warm-ups, and
-ten measured runs. The intervening changes affect only prefill; a current-head decode screen retains the prior
+ten measured runs. The intervening changes affect only prefill; a same-head decode screen retains the prior
 output checksum. The Linux comparison and retained Windows llama.cpp qualification use the exact Wikipedia prompt,
 1,135 fixed greedy output positions, fixed D2 MTP, and count only target-verified output tokens.
 
-In the Linux run, gem16 decode is 4.02% faster than vLLM and 1.29% faster than llama.cpp; gem16 prefill is 15.75%
-below vLLM and 34.65% above llama.cpp. Against the retained Windows llama.cpp row, current gem16 decode is 6.35%
-faster and gem16 prefill is 53.54% faster. The current Windows prefill result is 4.17% below the retained Linux
-vLLM result, although that is a cross-OS orientation rather than an adjacent parity comparison. vLLM is omitted
-from the Windows table because the pinned native runtime is not supported on Windows.
+In the Linux run, gem16 decode is **9.31% faster than vLLM** and **8.08% faster than llama.cpp**; its median ITL
+is 8.51% and 7.48% lower, respectively. Gem16 prefill is 6.15% below vLLM and 49.48% above llama.cpp. This is a
+controlled performance comparison, not exact output/semantic parity: all engines use the same prompt IDs, output
+budget, batch, D2 policy, warm-ups, and repetitions, but their output hashes and prefill timing boundaries differ.
+Against the retained Windows llama.cpp row, retained Windows gem16 decode is 6.35% faster and prefill is 53.54%
+faster. vLLM is omitted from the Windows table because the pinned native runtime is not supported on Windows.
 
-The current gem16 row uses Lenovo Max Power; the retained llama.cpp row used the Balanced OS power scheme, although
-that earlier run dynamically reached approximately 176 W. The Windows ratio is therefore a same-machine orientation,
+The retained Windows gem16 row uses Lenovo Max Power; the retained llama.cpp row used the Balanced OS power scheme,
+although that earlier run dynamically reached approximately 176 W. The Windows ratio is therefore a same-machine orientation,
 not a new adjacent cross-engine run. Both outputs are deterministic within each engine, but their token hashes
 differ. The earlier Windows distributions, MTP counters, configurations, and filtered telemetry summary are retained
 in the [machine-readable Windows characterization](benchmarks/baselines/cross_engine_mtp/windows-characterization.json);
@@ -85,7 +87,8 @@ Reproduce the complete three-engine run after preparing the pinned competitor en
 ```bash
 sudo systemctl enable --now nvidia-powerd.service
 echo max-power | sudo tee /sys/firmware/acpi/platform_profile
-./scripts/benchmark-cross-engine-mtp.sh
+systemd-run --user --scope -p MemoryMax=48G -p MemorySwapMax=0 \
+  ./scripts/benchmark-cross-engine-mtp.sh
 ```
 
 The script validates models, competitor versions, patches, GGUF checksums, power state, and an idle GPU. It stores

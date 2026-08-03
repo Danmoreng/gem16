@@ -1,5 +1,40 @@
 # Performance ledger
 
+## 2026-08-03 Linux max-power vLLM 0.26.0 / llama.cpp b10240 refresh
+
+Hypothesis: Rebuilding the two external runtimes at their latest stable pins and rerunning the exact public 16K
+fixed-D2 workload will establish whether gem16's current decode lead survives an adjacent same-machine comparison.
+The refresh uses vLLM 0.26.0 with Torch 2.11.0, Transformers 5.14.1, compressed-tensors 0.17.0, and the audited
+Gemma 4 graph-suppression patch; llama.cpp is release b10240 at
+`0b14b87d7c20cb753b94b96854dd7b45306fc696` with regenerated target/assistant GGUFs.
+
+On the Linux RTX 5080 Laptop in firmware `max-power` mode with `nvidia-powerd` active, the exact 16,384-token
+Wikipedia prompt plus 1,135 fixed output positions completes three warm-ups and ten measurements per engine:
+
+| Engine | Prefill tok/s | TTFT | Effective D2 tok/s | ITL | Sampled peak VRAM |
+|---|---:|---:|---:|---:|---:|
+| vLLM 0.26.0 | **6,247.55** | **2,622.47 ms** | 81.95 | 12.202 ms | 15,465 MiB |
+| **gem16 `8e86cb38`** | 5,863.59 | 2,794.19 ms | **89.58** | **11.163 ms** | 11,867 MiB |
+| llama.cpp b10240 | 3,922.61 | 4,176.81 ms | 82.88 | 12.065 ms | 10,631 MiB |
+
+Gem16 decode is 9.31% faster than vLLM and 8.08% faster than llama.cpp; median ITL is 8.51% and 7.48% lower.
+Gem16 prefill is 6.15% below vLLM and 49.48% above llama.cpp. Every engine produces one stable internal output
+hash across all ten measurements. Gem16 reports 1,016 proposed, 625 accepted, and 391 rejected drafts over 509
+Target batches; vLLM reports 1,083/590/493 over 542 batches; llama.cpp reports 1,035/616/419 over 519 batches.
+Proposed drafts are not counted as output throughput.
+
+A vLLM cold start initially exhausted the 64 GiB no-swap host by launching many concurrent memory-heavy `cicc`
+processes. The retained harness caps startup to four compiler jobs and one internal NVCC thread per job; a 48 GiB
+systemd scope prevents a third-party JIT failure from evicting the desktop. `gpu_memory_utilization=0.98` lacked
+warm-up reserve, while 0.92 safely provisions 19,069 FP8-KV tokens for the 17,519-position workload. FlashInfer
+still reports autotuning OOM fallbacks and an untuned 8K NVFP4 shape; both remain disclosed in raw logs.
+
+Decision: publish this as a controlled same-machine performance comparison, not exact output/semantic parity.
+Gem16/vLLM use direct FP8/NVFP4 plus FP8 KV; llama.cpp maps attention to Q8_0 and uses Q8_0 KV. Prefill boundaries
+and output hashes differ, and external MTP does not preserve each external runtime's ordinary sequence. Raw data is
+under `benchmarks/results/2026-08-03/8e86cb38/blackwell16gb-linux-maxpower-cross-engine-mtp-v026-b10240-3x10/`.
+The engine binary is exact commit `8e86cb38`; the run records three dirty benchmark pin/script entries.
+
 ## 2026-08-03 Prefill: store recurrent hidden and residual streams as physical BF16
 
 Hypothesis: checkpoint-FP8 prefill stores the recurrent `hidden_a`/`hidden_b` streams as BF16-valued FP32 even

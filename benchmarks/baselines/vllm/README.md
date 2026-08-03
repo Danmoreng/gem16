@@ -1,86 +1,71 @@
 # vLLM direct-checkpoint characterization
 
-This is a development characterization of vLLM 0.25.1 loading the pinned
-`unsloth/gemma-4-12b-it-NVFP4` checkpoint directly. It is not an accepted baseline or a gem16 performance claim.
+The current cross-engine characterization uses vLLM 0.26.0 from its official wheel with Torch 2.11.0 / CUDA 13.0,
+Transformers 5.14.1, compressed-tensors 0.17.0, and Setuptools 80.10.2. It loads the pinned
+`unsloth/gemma-4-12b-it-NVFP4` checkpoint and Google's official BF16 assistant directly. This is a development
+configuration behind the controlled same-machine performance comparison; it is not an exact output/semantic-parity
+baseline.
 
-The run used batch one, BF16 KV cache, no CPU offload, token-ID input, no detokenization, no prefix cache, text-only
-loading, chunked prefill, greedy decoding, CUDA Graphs, three warmups, and ten measured repetitions. vLLM selected
-`CutlassFP8ScaledMMLinearKernel` for FP8 attention projections and `FlashInferCutlassNvFp4LinearKernel` for the
-NVFP4 MLP. The full configuration and every sample are retained in `direct-bf16-kv-characterization.json`.
-
-## Gemma 4 MTP characterization
-
-vLLM 0.25.1 directly loads the official BF16 assistant and shares its three sliding layers with target Layer 46
-and its full layer with target Layer 47. Its unmodified CUDA-Graph initialization fails because Python-list
-suppression indexing constructs a CPU index tensor during capture. The auditable patch in
-`patches/gemma4-mtp-suppress-graph.patch` replaces the two-ID list operation with graph-safe scalar indexing while
-applying the same two suppression assignments.
-
-On the 16,384-token Wikipedia workload with direct mixed FP8/NVFP4 target weights and FP8 KV, graph D1/D2/D4
-screens reach 49.59/58.69/56.06 effective tok/s. The retained D2 3-warmup/10-run characterization reaches 57.390
-median tok/s with mean 95% CI `[57.370,57.468]`, 556 accepted drafts over 513 groups, and a sampled 14,166 MiB
-peak; median group latency is 36.24 ms. A separate fixed-1,135-token screen reaches 57.363 tok/s and 35.75 ms per
-verifier group. Its ordinary
-and MTP processes reserve 0.85 and 0.90 GPU-memory-utilization respectively because MTP initialization rejected
-the lower KV reservation; this does not qualify as an identical-memory-policy comparison.
-
-Apply the patch only to the pinned reference environment after verifying the original file SHA-256 is
-`4eee061c81430be28f029ed66360887a57f8711a75c863067d30e3840a488918`:
+## Build the pinned environment
 
 ```bash
-patch -p1 -d third_party/cache/unsloth-nvfp4-env/lib/python3.13/site-packages \
-  < benchmarks/baselines/vllm/patches/gemma4-mtp-suppress-graph.patch
+./benchmarks/baselines/vllm/build.sh
 ```
 
-These are **not exact speculative-decoding baseline results**. vLLM ordinary and MTP are each deterministic, but
-they first differ at output index 33 under stop semantics and index 2 in the fixed-length screen. The ordinary
-and MTP runs also choose different target batch shapes and, in the stop-terminated characterization, emit 1,215
-and 1,068 tokens. The numbers establish hardware/performance headroom only. Machine-readable details are in
-`mtp-characterization.json`; raw runs and 200 ms telemetry remain ignored under `benchmarks/results/`.
+The helper requires the recorded CPython 3.13.14 (`VLLM_BASE_PYTHON` may point to it), creates
+`third_party/cache/vllm-0.26.0-env`, installs exact package versions, checks CUDA access, and
+applies the audited [`gemma4-mtp-suppress-graph.patch`](patches/gemma4-mtp-suppress-graph.patch). Both vLLM 0.25.1
+and 0.26.0 ship the original `gemma4_mtp.py` with SHA-256
+`4eee061c81430be28f029ed66360887a57f8711a75c863067d30e3840a488918`. Python-list suppression indexing constructs
+a CPU index tensor during CUDA Graph capture; the patch replaces it with two graph-safe scalar assignments without
+changing the suppressed IDs. The patched file SHA-256 is
+`2436a940cc7f525880588392a08f5f2b509b51f91394d6666dba181302cf92f7`.
 
-## Comparison with llama.cpp
+A cold 0.26.0 start JIT-builds several memory-heavy FlashInfer NVFP4 CUTLASS variants. Unbounded startup on the
+32-core/64-GiB reference host launched enough concurrent `cicc` processes to exhaust RAM. The cross-engine harness
+therefore uses `MAX_JOBS=4`, `TORCHINDUCTOR_COMPILE_THREADS=4`, and one internal NVCC thread per job. A controlled
+cold start reached at most four compilers; the one-job diagnosis retained at least 49.0 GiB available RAM. Startup
+compilation is outside measured inference timing.
 
-The llama.cpp candidate is the patched same-source closest-parity GGUF characterized in
-`../llama_cpp/characterization.json`. Its MLP remains NVFP4, but its FP8 attention weights were converted to BF16.
-Both runs used BF16 KV and batch one on the same machine. These format and timing-boundary differences prevent an
-exact parity or headline speedup claim.
+## Current 16K fixed-D2 result
 
-| Workload | vLLM median | llama.cpp median | vLLM / llama.cpp |
-|---|---:|---:|---:|
-| Prefill 128 | 4,679 tok/s | 2,215 tok/s | 2.11x |
-| Prefill 512 | 6,146 tok/s | 2,628 tok/s | 2.34x |
-| Prefill 2,048 | 4,913 tok/s | 2,539 tok/s | 1.93x |
-| Prefill 8,192 | 3,929 tok/s | 2,362 tok/s | 1.66x |
-| Decode at context 128 | 37.06 tok/s | 29.67 tok/s | 1.25x |
-| Decode at context 2,048 | 35.98 tok/s | 28.87 tok/s | 1.25x |
-| Decode at context 8,192 | 35.36 tok/s | 28.08 tok/s | 1.26x |
+At `gpu_memory_utilization=0.92`, vLLM provisions 19,069 FP8-KV tokens for the exact 17,519-position workload. On
+the 16,384-token Wikipedia prompt followed by 1,135 fixed output positions, three warm-ups and ten measurements
+produce:
 
-For vLLM, prefill throughput is prompt tokens divided by its request-level time to first token, so it includes
-scheduling and production of the first token. llama.cpp's `llama-bench` prompt-processing metric uses a narrower
-boundary. vLLM decode throughput uses 256 intervals after one untimed first token; llama.cpp reports aggregate
-generation throughput. The ratios are useful development indicators, not publication-grade speedups.
+| Metric | Median | Mean 95% CI |
+|---|---:|---:|
+| Prefill | 6,247.55 tok/s | [6,242.76, 6,262.95] tok/s |
+| TTFT | 2,622.47 ms | [2,616.03, 2,624.47] ms |
+| Effective D2 decode | 81.95 tok/s | [81.90, 81.98] tok/s |
+| ITL | 12.202 ms | [12.198, 12.211] ms |
 
-## Limitations observed
+Every run proposes 1,083 drafts, accepts 590, rejects 493, and executes 542 Target batches. The output is
+deterministic within vLLM. The complete data and telemetry are in
+[`../cross_engine_mtp/characterization.json`](../cross_engine_mtp/characterization.json).
 
-- The 512-token vLLM prefill point was noisy; all samples and its wide confidence interval are retained.
-- FlashInfer autotuning encountered VRAM exhaustion for some tactics and used documented default fallbacks.
-- The 8,192-token FP4 prefill shape was outside the tuned bucket range and used the default CUTLASS tactic.
-- At 95% GPU-memory utilization, vLLM reported 10,303 BF16 KV-cache tokens. This supports the common comparison
-  through 8K but not the required 32K/65K matrix. A later FP8-KV run must be labeled separately.
-- Neither characterization captured power, clocks, thermals, profiler-level dispatch, or p95/p99 per-token latency.
-- The llama.cpp candidate still lacks an adopted quality threshold and native-dispatch trace.
+FlashInfer autotuning reports GPU-OOM fallbacks for some tactics, and the 8,192-token NVFP4 prompt shape remains
+outside its tuned bucket range. Those fallbacks are retained in the raw console log and must accompany the result.
+vLLM MTP also differs from its own ordinary greedy output, so this remains a hardware/performance characterization,
+not exact speculative-decoding correctness evidence.
 
-Reproduce from the pinned external reference environment:
+## Historical characterizations
+
+`direct-bf16-kv-characterization.json` and `mtp-characterization.json` retain the earlier vLLM 0.25.1 BF16-KV and
+MTP investigations. They are historical evidence and are not the runtime behind the current README table. The
+older comparison used different memory policy and timing boundaries; do not combine its rows with the current
+0.26.0 result.
+
+## Reproduce
+
+Use the complete three-engine harness after preparing all artifacts:
 
 ```bash
-PATH="$PWD/third_party/cache/unsloth-nvfp4-env/bin:$PATH" \
-HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 VLLM_NO_USAGE_STATS=1 \
-third_party/cache/unsloth-nvfp4-env/bin/python tools/benchmark_vllm.py \
-  --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 \
-  --output benchmarks/results/<date>/<git-sha>/<machine-id>/vllm/direct-bf16-kv.json \
-  --prefill-lengths 128,512,2048,8192 \
-  --decode-contexts 128,2048,8192 \
-  --decode-tokens 256 --warmups 3 --repetitions 10 \
-  --max-model-len 8449 --gpu-memory-utilization 0.95 \
-  --kv-cache-dtype bfloat16
+systemd-run --user --scope \
+  -p MemoryMax=48G -p MemorySwapMax=0 \
+  ./scripts/benchmark-cross-engine-mtp.sh
 ```
+
+The harness fixes batch one, token-ID input, no detokenization, no prefix cache, no CPU offload, text-only loading,
+chunked prefill, greedy decoding, CUDA Graphs, FP8 KV, D2, three warm-ups, ten measurements, and
+`gpu_memory_utilization=0.92`.

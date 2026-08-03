@@ -9,6 +9,12 @@ repetitions=10
 output_dir=""
 allow_uncontrolled_power=false
 skip_model_verification=false
+# A cold vLLM 0.26 start can launch one memory-heavy NVFP4 CUTLASS compile
+# per CPU concurrently. Four jobs keep observed peak host memory safely below
+# 64 GiB; internal NVCC parallelism stays at one thread per job. This does not
+# alter measured inference once the kernels have been built.
+vllm_compile_jobs=4
+vllm_nvcc_threads=1
 
 usage() {
   cat <<'EOF'
@@ -100,7 +106,7 @@ output_dir="$(realpath "$output_dir")"
 
 workload="$repo_root/benchmarks/prompts/wikipedia-summary-16k.json"
 gem16_run="$repo_root/build/Linux/blackwell-release/bin/gem16-run"
-vllm_python="${VLLM_PYTHON:-$repo_root/third_party/cache/unsloth-nvfp4-env/bin/python}"
+vllm_python="${VLLM_PYTHON:-$repo_root/third_party/cache/vllm-0.26.0-env/bin/python}"
 llama_server="${GEM16_LLAMA_SERVER:-$repo_root/build/Linux/llama_cpp/release/bin/llama-server}"
 llama_gguf="${GEM16_LLAMA_GGUF:-$repo_root/build/Linux/llama_cpp/gemma4-12b-mixed-q8-nvfp4.gguf}"
 llama_assistant_gguf="${GEM16_LLAMA_ASSISTANT_GGUF:-$repo_root/build/Linux/llama_cpp/gemma4-12b-it-assistant-bf16.gguf}"
@@ -149,10 +155,11 @@ fi
 import importlib.metadata
 from pathlib import Path
 expected = {
-    "vllm": "0.25.1",
-    "torch": "2.11.0+cu130",
+    "vllm": "0.26.0",
+    "torch": "2.11.0",
     "transformers": "5.14.1",
     "compressed-tensors": "0.17.0",
+    "setuptools": "80.10.2",
 }
 actual = {name: importlib.metadata.version(name) for name in expected}
 if actual != expected:
@@ -171,8 +178,8 @@ expected_llama_commit="$(tr -d '[:space:]' < benchmarks/baselines/llama_cpp/comm
   exit 2
 }
 printf '%s  %s\n' \
-  '0fc3dce6d631d1ee5ab5398f621b4bfe50591d01d08339659d554eb91e23091d' "$llama_gguf" \
-  '7b82a9f31fa365fb8ce533424cfad6c5106086f40b3eade4d91d8c5bb63d8224' "$llama_assistant_gguf" \
+  '6f90177f6a2d42406d57cfa764eae890b262bfdf71d353bd4827e0488b099896' "$llama_gguf" \
+  'b3ab76db11dd1cfbef51925d7dfd6e234325aa86ab3edd7dea42994edb093b65' "$llama_assistant_gguf" \
   | sha256sum --check --status || {
     echo "error: llama.cpp GGUF checksum mismatch" >&2
     exit 2
@@ -186,6 +193,9 @@ printf '%s  %s\n' \
   echo "nvidia_powerd=$(systemctl is-active nvidia-powerd.service 2>/dev/null || true)"
   echo "kernel=$(uname -srmo)"
   echo "cuda=$(nvcc --version | tail -1)"
+  echo "vllm_max_jobs=$vllm_compile_jobs"
+  echo "vllm_torchinductor_compile_threads=$vllm_compile_jobs"
+  echo "vllm_flashinfer_nvcc_threads=$vllm_nvcc_threads"
   nvidia-smi --query-gpu=name,uuid,driver_version,memory.total,temperature.gpu,utilization.gpu,pstate --format=csv,noheader
   nvidia-smi -q -d POWER | grep -E 'Current Power Limit|Default Power Limit|Max Power Limit' | head -8
 } > "$output_dir/system.txt"
@@ -259,10 +269,13 @@ run_with_telemetry gem16 \
 run_with_telemetry vllm \
   env PATH="$(dirname "$vllm_python"):$PATH" \
   HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 VLLM_NO_USAGE_STATS=1 \
+  MAX_JOBS="$vllm_compile_jobs" NVCC_THREADS="$vllm_nvcc_threads" \
+  FLASHINFER_NVCC_THREADS="$vllm_nvcc_threads" \
+  TORCHINDUCTOR_COMPILE_THREADS="$vllm_compile_jobs" \
   "$vllm_python" tools/benchmark_wikipedia_workload.py \
   --engine vllm --output "$output_dir/vllm.json" \
   --model "$model" --assistant-model "$assistant_model" \
-  --gpu-memory-utilization 0.90 --vllm-kv-cache-dtype fp8 \
+  --gpu-memory-utilization 0.92 --vllm-kv-cache-dtype fp8 \
   "${common[@]}"
 
 run_with_telemetry llama-cpp \
@@ -303,7 +316,7 @@ for name in ("gem16", "vllm", "llama-cpp"):
 
 result = {
     "schema_version": 1,
-    "status": "development_characterization",
+    "status": "controlled_performance_comparison",
     "scope": "same-machine 16K fixed-output greedy D2 MTP comparison",
     "workload": {
         "prompt_tokens": 16384,

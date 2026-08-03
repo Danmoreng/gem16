@@ -3,7 +3,7 @@
   "model_label": "same-source-closest-parity-patched",
   "gguf_sha256": "e4910e01c4275e58acbf2c38c4d4fb81acf61bb8aa04eed121eb5ac942705e8a",
   "llama_cpp_commit": "846e991ec3c7ccec49112ff2c5b00b710e5f551d",
-  "current_linux_quality": "pending for 0fc3dce6d631d1ee5ab5398f621b4bfe50591d01d08339659d554eb91e23091d",
+  "current_linux_quality": "pending for 6f90177f6a2d42406d57cfa764eae890b262bfdf71d353bd4827e0488b099896",
   "reference": {
     "path": "tests/golden/vllm-gemma4-12b-nvfp4.json",
     "checkpoint_revision": "b1f649734b34aa5575b03d186abd1b9be3d0d5c4",

@@ -1,5 +1,36 @@
 # Decisions
 
+## 2026-08-03: Refresh external pins and publish a controlled 16K D2 performance comparison
+
+Date: 2026-08-03
+
+Decision: Pin vLLM 0.26.0 and llama.cpp release b10240 (`0b14b87d7c20cb753b94b96854dd7b45306fc696`), regenerate
+both llama.cpp GGUFs, and publish the adjacent max-power 3-warm-up/10-measurement result as a controlled same-machine
+performance comparison. Claim the measured throughput and latency ratios for the recorded configurations, but do
+not label the result exact output/semantic parity. Cap vLLM cold-start compilation at four jobs with one internal
+NVCC thread each; recommend a 48 GiB systemd memory scope on the 64 GiB no-swap reference host.
+
+Context: The prior public table used vLLM 0.25.1 and llama.cpp b10210. An unbounded vLLM 0.26.0 FlashInfer cold
+start launched enough memory-heavy `cicc` processes to trigger global host OOM and terminate parts of the desktop
+session. Serial diagnosis proved the JIT safe, and four outer jobs preserve substantial parallelism with measured
+headroom. vLLM requires `gpu_memory_utilization=0.92`: 0.90 cannot reserve the requested context, while 0.98 lacks
+warm-up workspace. The final run gives all engines the same 16,384 prompt IDs, 1,135 fixed output positions, batch
+one, D2 policy, warm-up count, repetition count, idle GPU, and max-power state.
+
+Alternatives: Retain the older competitor pins; call the result exact parity; serialize every compiler job; allow
+unbounded JIT parallelism; or reduce context/output to fit a lower vLLM reservation. Old pins weaken the competitor,
+parity wording hides output and format differences, full serialization needlessly lengthens setup, unbounded JIT
+can destroy the host session, and changing workload semantics invalidates the comparison.
+
+Consequences: The harness verifies exact package versions, patch checksum, llama.cpp commit, GGUF checksums, power
+state, and idle GPU. Startup JIT policy is recorded in `system.txt` and does not alter measured inference. Gem16
+D2 may be reported as 9.31% faster than vLLM and 8.08% faster than llama.cpp, with 8.51%/7.48% lower ITL; gem16
+prefill must simultaneously be disclosed as 6.15% below vLLM and 49.48% above llama.cpp. Format, prefill-boundary,
+external-MTP output, autotuning-fallback, telemetry, and dirty-worktree limitations remain attached.
+
+Evidence: `benchmarks/baselines/cross_engine_mtp/characterization.json`, the raw result directory documented there,
+`benchmarks/baselines/vllm/build.sh`, and `docs/PERFORMANCE_LEDGER.md`.
+
 ## 2026-08-03: Store checkpoint-FP8 prefill hidden and residual streams as physical BF16
 
 Date: 2026-08-03

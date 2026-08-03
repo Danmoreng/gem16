@@ -1,13 +1,14 @@
 {
-  "status": "linux_current_converted_quality_characterized_not_benchmark_accepted",
+  "status": "linux_current_controlled_performance_comparison_not_exact_parity",
   "label": "same-source-closest-parity-patched",
   "source": {
     "repository": "unsloth/gemma-4-12b-it-NVFP4",
     "revision": "b1f649734b34aa5575b03d186abd1b9be3d0d5c4"
   },
   "llama_cpp": {
-    "commit": "000547513f1530346ecd163db8b3e13962949961",
-    "version": 10210,
+    "commit": "0b14b87d7c20cb753b94b96854dd7b45306fc696",
+    "release": "b10240",
+    "version": 10240,
     "patch": "patches/0001-support-mixed-fp8-nvfp4-compressed-tensors.patch",
     "patch_sha256": "a811880b1a7828451b7f4efea284be0ae2a48024f96f92fe0a8a45dccfe851f3"
   },
@@ -18,8 +19,8 @@
   },
   "gguf": {
     "path": "build/Linux/llama_cpp/gemma4-12b-mixed-q8-nvfp4.gguf",
-    "size_bytes": 9366658112,
-    "sha256": "0fc3dce6d631d1ee5ab5398f621b4bfe50591d01d08339659d554eb91e23091d",
+    "size_bytes": 9366658208,
+    "sha256": "6f90177f6a2d42406d57cfa764eae890b262bfdf71d353bd4827e0488b099896",
     "tensor_count": 955,
     "nvfp4_tensor_count": 144,
     "q8_0_tensor_count": 184,
@@ -33,19 +34,22 @@
   },
   "runtime_probe": {
     "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
-    "context_tokens": 17664,
+    "context_tokens": 17519,
     "kv_type": "Q8_0",
     "layers_offloaded": "49/49 target and 5/5 assistant on CUDA0",
     "cuda_model_mib": 8917,
     "cuda_context_mib": 401,
     "cuda_compute_mib": 141,
     "cuda_free_mib_after_init": 1161,
-    "first_wikipedia_token_id": 61684,
-    "first_wikipedia_text": "recorded in the Linux workload JSON"
+    "fixed_output_tokens": 1135,
+    "effective_d2_tokens_per_second_median": 82.88139803911358,
+    "time_to_first_token_ms_median": 4176.8147669999995,
+    "sampled_peak_vram_mib": 10631,
+    "result": "benchmarks/results/2026-08-03/8e86cb38/blackwell16gb-linux-maxpower-cross-engine-mtp-v026-b10240-3x10"
   },
   "limitations": [
     "The upstream unpatched converter still rejects the mixed compressed-tensors schema.",
-    "The quality fixture has measured autoregressive drift; no acceptance threshold has been adopted.",
-    "A profiler-level native-kernel invocation trace remains required before accepting performance claims."
+    "The retained quality fixture predates this GGUF regeneration; no current acceptance threshold has been adopted.",
+    "A profiler-level native-kernel invocation trace remains required before a native-NVFP4 tier-B or exact-parity claim."
   ]
 }

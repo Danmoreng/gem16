@@ -98,6 +98,19 @@ removed.
 
 ## External runtime characterization
 
+### Current controlled comparison
+
+The 2026-08-03 Linux max-power comparison updates the external runtimes to vLLM 0.26.0 and llama.cpp b10240.
+With the exact 16,384-token prompt, 1,135 fixed output positions, batch one, fixed D2, three warm-ups, and ten
+measurements, gem16 reaches 89.58 effective target-verified tok/s and 11.163 ms ITL. vLLM reaches 81.95 tok/s and
+12.202 ms; llama.cpp reaches 82.88 tok/s and 12.065 ms. Gem16 is therefore 9.31% and 8.08% faster for the recorded
+configurations. All three engines are deterministic internally, but their output hashes differ, and only gem16
+preserves its own ordinary Target sequence. This is a controlled performance comparison rather than external
+output/semantic parity. Full counters, distributions, runtime pins, and telemetry are in
+`benchmarks/baselines/cross_engine_mtp/characterization.json`.
+
+### Historical feasibility evidence
+
 vLLM 0.25.1 recognizes the official assistant directly as `Gemma4MTPModel`, loads it beside the pinned Unsloth
 target, and maps its sliding/full layers to target Layers 46/47. It reports 10.07 GiB model loading for the pair.
 This confirms checkpoint-level compatibility without conversion. The unmodified graph path fails because
@@ -113,7 +126,7 @@ results are therefore performance-headroom evidence, not an exact MTP baseline.
 
 llama.cpp's dedicated Gemma 4 assistant path is also functional. The pinned converter produces an 861,520,160-byte
 BF16 GGUF from the official assistant; runtime logs prove target-Layer-46/47 K/V sharing and full target/assistant
-GPU residency. Current upstream `da5b4486` reaches 48.38 D2 tok/s in the fixed-1,135-token screen and 50.21/49.75
+GPU residency. The then-current upstream `da5b4486` reached 48.38 D2 tok/s in the fixed-1,135-token screen and 50.21/49.75
 D2/D4 tok/s under stop semantics. Its target uses the patched closest-parity GGUF with BF16-mapped attention and
 Q8_0 KV, and ordinary first differs from D2 at fixed output index 133, so it is likewise not an exact or
 format-parity baseline.
@@ -122,7 +135,7 @@ The hardware conclusion is bounded. Complete fixed-D2 group capture now reaches 
 milestone's required one-warm-up/three-run Windows screen at mean accepted drafts 1.259. This clears the active
 50.0 tok/s minimum and approaches the 55.0 tok/s stretch target, but the final alternating 3-warm-up/10-run
 qualification remains deliberately deferred until GPU chaining, stop/tail handling, and streaming are complete.
-Current llama.cpp reaches 48.38 tok/s
+That historical llama.cpp build reached 48.38 tok/s
 in the controlled fixed-1,135-token D2 screen and about 50 tok/s under different stop semantics. vLLM demonstrates
 35.75 ms/group with a numerically different target batch route. The GPU-controlled graph roadmap now precedes
 multimodal work, but non-exact causal/batched routes remain inadmissible and graph capture is not presumed to be a

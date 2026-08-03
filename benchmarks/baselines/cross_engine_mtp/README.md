@@ -1,25 +1,31 @@
-# Linux max-power cross-engine D2 MTP characterization
+# Linux max-power cross-engine D2 MTP performance comparison
 
-This directory retains the machine-readable summary behind the prominent README result. It is a reproducible
-development characterization, not a claim of exact tensor-format or output-quality parity.
+This directory retains the machine-readable summary behind the prominent README result. It is a reproducible,
+controlled same-machine performance comparison, not a claim of exact tensor-format or output/semantic parity.
 
 ## Result
 
-On commit `4b237b16366b1a9ee2cd339f0549e06a7cfc69aa`, one RTX 5080 Laptop GPU ran the same exact 16,384-token
-Wikipedia prompt followed by 1,135 fixed greedy output positions. Every engine used batch one, fixed D2 MTP, three
-warm-ups, and ten measured repetitions. Linux used the firmware `max-power` profile with `nvidia-powerd` active;
-the GPU dynamically reached its 175 W ceiling.
+The gem16 engine at commit `8e86cb38ea04c240e460e54dc912dd823dccfab5`, vLLM 0.26.0, and llama.cpp b10240
+(`0b14b87d7c20cb753b94b96854dd7b45306fc696`) ran on one RTX 5080 Laptop GPU. Every engine received the same
+exact 16,384-token Wikipedia prompt followed by 1,135 fixed greedy output positions, with batch one, fixed D2 MTP,
+three warm-ups, and ten measured repetitions. Linux used the firmware `max-power` profile with `nvidia-powerd`
+active; the GPU dynamically reached its 175 W ceiling.
 
-| Engine | Prefill tok/s | TTFT | Effective D2 MTP tok/s | ITL |
-|---|---:|---:|---:|---:|
-| vLLM 0.25.1 | **6,308.53** | **2,597.12 ms** | 81.96 | 12.201 ms |
-| gem16 | 5,315.11 | 3,082.53 ms | **85.26** | **11.729 ms** |
-| llama.cpp 10210 | 3,947.45 | 4,150.53 ms | 84.18 | 11.879 ms |
+| Engine | Prefill tok/s | TTFT | Effective D2 MTP tok/s | ITL | Sampled peak VRAM |
+|---|---:|---:|---:|---:|---:|
+| vLLM 0.26.0 | **6,247.55** | **2,622.47 ms** | 81.95 | 12.202 ms | 15,465 MiB |
+| **gem16** | 5,863.59 | 2,794.19 ms | **89.58** | **11.163 ms** | 11,867 MiB |
+| llama.cpp b10240 | 3,922.61 | 4,176.81 ms | 82.88 | 12.065 ms | 10,631 MiB |
 
-The full medians, means, distributions, MTP counters, telemetry summary, configuration, and limitations are in
-[`characterization.json`](characterization.json). Raw JSON, console logs, commands, system state, and 200 ms
-telemetry are retained under
-`benchmarks/results/2026-08-02/4b237b1/blackwell16gb-linux-maxpower-cross-engine-mtp-prefill-refresh/`.
+Gem16 decode is 9.31% faster than vLLM and 8.08% faster than llama.cpp. Its median ITL is 8.51% lower than vLLM
+and 7.48% lower than llama.cpp. Gem16 prefill is 6.15% below vLLM and 49.48% above llama.cpp.
+
+The full medians, means, distributions, MTP counters, telemetry summary, configuration, runtime pins, and
+limitations are in [`characterization.json`](characterization.json). Raw JSON, console/server logs, commands,
+system state, and 200 ms telemetry are retained under
+`benchmarks/results/2026-08-03/8e86cb38/blackwell16gb-linux-maxpower-cross-engine-mtp-v026-b10240-3x10/`.
+The engine binary is exact commit `8e86cb38`; `system.txt` also discloses the three dirty benchmark-pin/script
+entries used while moving the external runtimes to their new versions.
 
 ## Reproduce
 
@@ -31,10 +37,15 @@ python tools/fetch_model.py
 python tools/fetch_model.py --lock models/gemma4-12b-mtp-assistant.lock.json
 ```
 
-Prepare the pinned vLLM 0.25.1 environment described in
-[`../vllm/README.md`](../vllm/README.md), including its graph-safe Gemma 4 suppression patch. The benchmark script
-rejects an environment unless it has the recorded vLLM, Torch, Transformers, and compressed-tensors versions and
-the patch.
+Install the pinned vLLM wheel and apply the audited graph-safe Gemma 4 suppression patch:
+
+```bash
+./benchmarks/baselines/vllm/build.sh
+```
+
+A cold vLLM 0.26.0 start JIT-builds memory-heavy NVFP4 CUTLASS variants. The benchmark harness limits this to four
+compiler jobs with one internal NVCC thread each. On the 64 GiB reference host this replaced an unsafe 10+ process
+cold start with a measured maximum of four compilers. Inference timing begins after engine initialization.
 
 Build and convert the pinned llama.cpp candidate:
 
@@ -45,12 +56,13 @@ Build and convert the pinned llama.cpp candidate:
 TARGET=$(python -c 'from tools.hf_cache import default_target_model; print(default_target_model())')
 ASSISTANT=$(python -c 'from tools.hf_cache import default_assistant_model; print(default_assistant_model())')
 
+LLAMA_CPP_CONVERT_PYTHON=third_party/cache/vllm-0.26.0-env/bin/python \
 ./benchmarks/baselines/llama_cpp/convert-patched.sh \
   "$TARGET" build/Linux/llama_cpp/gemma4-12b-mixed-q8-nvfp4.gguf \
   --fp8-as-q8
 
 LLAMA_CPP_SOURCE=third_party/cache/llama.cpp \
-LLAMA_CPP_CONVERT_PYTHON=third_party/cache/unsloth-nvfp4-env/bin/python \
+LLAMA_CPP_CONVERT_PYTHON=third_party/cache/vllm-0.26.0-env/bin/python \
 ./benchmarks/baselines/llama_cpp/convert.sh \
   "$ASSISTANT" build/Linux/llama_cpp/gemma4-12b-it-assistant-bf16.gguf \
   --outtype bf16
@@ -63,26 +75,30 @@ sudo systemctl enable --now nvidia-powerd.service
 echo max-power | sudo tee /sys/firmware/acpi/platform_profile
 ```
 
-Then run the complete comparison:
+Then run the complete comparison. A systemd memory scope is recommended on machines without swap so a failed
+third-party JIT cannot evict the desktop session:
 
 ```bash
-./scripts/benchmark-cross-engine-mtp.sh
+systemd-run --user --scope \
+  -p MemoryMax=48G -p MemorySwapMax=0 \
+  ./scripts/benchmark-cross-engine-mtp.sh
 ```
 
-The script refuses to overwrite a prior result. It validates checkpoint locks, vLLM versions and patch, llama.cpp
-version and GGUF checksums, power state, and absence of unrelated CUDA work. It writes raw per-run JSON, console
-logs, external 200 ms GPU telemetry, system information, and a concise `summary.json` below
-`benchmarks/results/<date>/<git-sha>/`.
+Running `./scripts/benchmark-cross-engine-mtp.sh` directly is also supported. The script refuses to overwrite a
+prior result. It validates checkpoint locks, vLLM versions and patch, llama.cpp version and GGUF checksums, power
+state, and absence of unrelated CUDA work. It writes raw per-run JSON, console logs, external GPU telemetry,
+system information, and `summary.json` below `benchmarks/results/<date>/<git-sha>/`.
 
 Use `--allow-uncontrolled-power` on hardware without Linux `platform_profile`/`nvidia-powerd`, but do not compare
 that output directly with this 175 W reference result without disclosing the power difference.
 
 ## Comparison limitations
 
-- gem16 and vLLM load the direct mixed FP8/NVFP4 checkpoint and use FP8 KV. The patched llama.cpp GGUF preserves
+- Gem16 and vLLM load the direct mixed FP8/NVFP4 checkpoint and use FP8 KV. The patched llama.cpp GGUF preserves
   NVFP4 MLP tensors but maps source FP8 attention tensors to Q8_0 and uses Q8_0 KV.
 - Prefill timing boundaries differ. In particular, llama.cpp reports a narrower native prompt-processing boundary.
-- All outputs are deterministic within each engine, but their token hashes differ. Prior ordinary-target gates show
-  that external vLLM and llama.cpp MTP do not retain their own ordinary greedy sequence; only gem16 enforces exact
-  ordinary-Target identity in this comparison path.
+- All outputs are deterministic within each engine, but their token hashes differ. External vLLM and llama.cpp MTP
+  do not retain their own ordinary greedy sequence; only gem16 enforces exact ordinary-Target identity here.
+- vLLM FlashInfer autotuning reported GPU-OOM fallbacks, and its 8,192-token NVFP4 prefill shape remained outside
+  the tuned bucket range. These fallbacks are visible in the retained log.
 - Proposed assistant tokens are never counted as output throughput. The table reports only target-verified output.

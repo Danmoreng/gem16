@@ -5,7 +5,7 @@ script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd -- "${script_dir}/../../.." && pwd)"
 expected_commit="$(tr -d '[:space:]' < "${script_dir}/commit.txt")"
 patched_source="${LLAMA_CPP_PATCHED_SOURCE:-${repo_root}/third_party/cache/llama.cpp-mixed}"
-python_bin="${LLAMA_CPP_CONVERT_PYTHON:-${repo_root}/third_party/cache/unsloth-nvfp4-env/bin/python}"
+python_bin="${LLAMA_CPP_CONVERT_PYTHON:-${repo_root}/third_party/cache/vllm-0.26.0-env/bin/python}"
 patch_file="${script_dir}/patches/0001-support-mixed-fp8-nvfp4-compressed-tensors.patch"
 
 if [[ ! -d "${patched_source}/.git" ]]; then
