@@ -92,7 +92,7 @@ not identical. gem16 fixed-D2 is additionally checked for exact identity with it
 
 ## Architecture
 
-[![gem16 runtime architecture](docs/gem16-architecture.svg)](docs/gem16-overview.tldraw)
+[![gem16 runtime architecture](docs/gem16-architecture.svg)](https://raw.githubusercontent.com/Danmoreng/gem16/main/docs/gem16-architecture.svg)
 
 The diagram covers checkpoint loading, runtime ownership, prefill, ordinary decode, transactional MTP verification,
 fixed GPU memory, and the correctness/performance qualification gates. The SVG is exported from the
