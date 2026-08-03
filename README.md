@@ -36,7 +36,7 @@ gem16 is programmed primarily with AI coding agents and is intended as an experi
 examines how direct checkpoint loading, model-specific execution plans, and Blackwell-specific CUDA kernels perform
 for Gemma 4 12B within 16 GB of VRAM.
 
-### Current 16K MTP characterization
+### Current 16K performance characterization
 
 #### Linux
 
@@ -50,28 +50,35 @@ On an RTX 5080 Laptop GPU at its firmware-managed 175 W ceiling, commit `4b237b1
 
 #### Windows
 
-On Windows 11 x64, the same RTX 5080 Laptop GPU running current gem16 commit `2be75d7` in Lenovo Max Power mode
-with CUDA 13.3 and driver 596.49 produces the following qualified gem16 result. The llama.cpp row is the retained
-same-machine reference from the prior Windows characterization:
+On Windows 11 x64, the same RTX 5080 Laptop GPU running current gem16 commit `b9a73c2` in Lenovo Max Power mode
+with CUDA 13.3 and driver 596.49 produces the following latest qualified component results. The llama.cpp row is
+the retained same-machine reference from the prior Windows characterization:
 
 | Engine | Checkpoint / KV | Prefill tok/s | TTFT | Effective D2 MTP tok/s | ITL |
 |---|---|---:|---:|---:|---:|
-| **gem16** | direct FP8/NVFP4 / FP8 | **5,677.61** | **2,885.72 ms** | **91.46** | **10.933 ms** |
+| **gem16** | direct FP8/NVFP4 / FP8 | **6,045.67** | **2,710.04 ms** | **91.46** | **10.933 ms** |
 | llama.cpp 10210 | patched NVFP4+Q8_0 GGUF / Q8_0 | 3,937.64 | 4,160.87 ms | 86.00 | 11.628 ms |
 
-Both runs use batch one, the exact same 16,384-token prompt, 1,135 fixed greedy output positions, fixed D2 MTP,
-three warm-ups, and ten measured runs per engine. Only target-verified output tokens are counted. In the Linux run,
-gem16 decode is 4.02% faster than vLLM and 1.29% faster than llama.cpp; gem16 prefill is 15.75% below vLLM and
-34.65% above llama.cpp. Against the retained Windows llama.cpp row, current gem16 decode is 6.35% faster and gem16
-prefill is 44.19% faster. vLLM is omitted from the Windows table because the pinned native runtime is not supported
-on Windows.
+The current Windows gem16 entry combines two qualified screens. Prefill and TTFT come from the current commit's
+serial 16,384-token synthetic one-output benchmark; the MTP throughput and ITL are retained from the exact
+16,384-token Wikipedia / 1,135-output qualification at commit `2be75d7`. Both use batch one, three warm-ups, and
+ten measured runs. The intervening changes affect only prefill; a current-head decode screen retains the prior
+output checksum. The Linux comparison and retained Windows llama.cpp qualification use the exact Wikipedia prompt,
+1,135 fixed greedy output positions, fixed D2 MTP, and count only target-verified output tokens.
+
+In the Linux run, gem16 decode is 4.02% faster than vLLM and 1.29% faster than llama.cpp; gem16 prefill is 15.75%
+below vLLM and 34.65% above llama.cpp. Against the retained Windows llama.cpp row, current gem16 decode is 6.35%
+faster and gem16 prefill is 53.54% faster. The current Windows prefill result is 4.17% below the retained Linux
+vLLM result, although that is a cross-OS orientation rather than an adjacent parity comparison. vLLM is omitted
+from the Windows table because the pinned native runtime is not supported on Windows.
 
 The current gem16 row uses Lenovo Max Power; the retained llama.cpp row used the Balanced OS power scheme, although
 that earlier run dynamically reached approximately 176 W. The Windows ratio is therefore a same-machine orientation,
 not a new adjacent cross-engine run. Both outputs are deterministic within each engine, but their token hashes
 differ. The earlier Windows distributions, MTP counters, configurations, and filtered telemetry summary are retained
 in the [machine-readable Windows characterization](benchmarks/baselines/cross_engine_mtp/windows-characterization.json);
-the current gem16 qualification is recorded in `docs/PERFORMANCE_LEDGER.md`.
+the current gem16 prefill qualification and its 240 MiB workspace reduction are recorded in
+[`docs/PERFORMANCE_LEDGER.md`](docs/PERFORMANCE_LEDGER.md).
 
 Reproduce the complete three-engine run after preparing the pinned competitor environments:
 
