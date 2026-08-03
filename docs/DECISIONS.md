@@ -1,5 +1,28 @@
 # Decisions
 
+## 2026-08-03: Retain scalar loads in the assistant output head
+
+Date: 2026-08-03
+
+Decision: Keep the assistant output head's scalar BF16 coefficient and FP32 hidden loads. Do not retain the
+`__nv_bfloat162`/`float2` paired mapping.
+
+Context: The paired kernel preserves the Target output and all D2 counters, but its long 3/10 result is neutral:
+86.384 versus 86.393 tok/s for the parent with overlapping confidence intervals. A same-day adjacent Nsight pair
+also shows the candidate at 616.259 us per head call versus 611.669 us for the scalar parent (+0.75%). An earlier
+cross-day apparent kernel win was rejected after unchanged kernels showed the same clock/power shift.
+
+Alternatives: Promote based on fewer load/conversion instructions; accept a neutral second reduction mapping; or
+retain the simpler measured parent. Instruction count alone did not reduce kernel or end-to-end time, and the
+paired lane mapping changes assistant reduction order without buying performance.
+
+Consequences: The candidate source is removed. Assistant weights, workspace, graph topology, output suppression,
+argmax semantics, no-allocation behavior, and memory accounting remain unchanged. Future assistant-head work must
+change the memory/compute schedule materially and beat an adjacent profile plus end-to-end qualification.
+
+Evidence: `docs/PERFORMANCE_LEDGER.md`, full Host/CUDA CTest, short exact A/B, long 3/10 qualification, and the
+ignored adjacent profiles under `benchmarks/results/2026-08-03/82139e9-worktree/`.
+
 ## 2026-08-02: Keep one M128xN128xK64 FP8 prefill projection plan
 
 Date: 2026-08-02

@@ -1,5 +1,30 @@
 # Performance ledger
 
+## 2026-08-03 Decode phase: reject paired loads in the assistant output head
+
+Hypothesis: the official assistant's 1,024-wide tied-BF16 output head can consume adjacent coefficients as
+`__nv_bfloat162` and adjacent FP32 hidden values as `float2`. The candidate executes 16 paired loop iterations per
+lane instead of 32 scalar-load iterations while retaining 32 scalar FP32 FMAs, the warp candidate reduction,
+suppression, tie break, and GPU argmax.
+
+The 16K/64-token one-warm-up/three-run D2 screen is exact: parent and candidate both produce SHA-256
+`6c60019e7631df51734518bda3b56fcb694e69f217a04ebdf896b10f16914aac`, 48 proposed, 37 accepted, 11 rejected,
+and 26 Target batches. Median throughput moves only from 94.524 to 94.717 tok/s (+0.20%). Full Host/CUDA CTest
+passes for the candidate.
+
+The required 16K/1,135-token three-warm-up/ten-run qualification reaches 86.384 tok/s with 95% interval
+`[86.355,86.438]`. The unchanged physical-BF16 parent is 86.393 tok/s with interval `[86.349,86.414]`, so the
+candidate is -0.01% with fully overlapping intervals. All ten runs retain the complete Target hash
+`374a7e9a564421be4f7d19cb125a651f73505077983b77b1149bfa82e3c81e8a`, 1,006/629/377 proposed/accepted/rejected
+drafts, and 505 Target batches. Workspace, KV bytes, recurring allocations, and fallbacks are unchanged.
+
+An initial cross-day profile appeared to reduce the assistant head by 35%, but unchanged BF16 GEMV and Target-head
+kernels accelerated by a similar amount and exposed a power/clock confound. The final adjacent same-day Nsight
+pair measures 24 head calls at 14.680 ms total / 611.669 us mean for the scalar parent and 14.790 ms / 616.259 us
+for the paired candidate (+0.75%). Both use 39 registers, 64 bytes static shared memory, and zero local memory.
+Decision: remove the vector candidate and retain the scalar warp-row head. Raw ignored evidence is under
+`benchmarks/results/2026-08-03/82139e9-worktree/blackwell16gb-windows-assistant-output-bf16x2-*`.
+
 ## 2026-08-02 Projection-plan phase: reject a separate FP8 N64 plan for narrow K/V
 
 Hypothesis: Gemma's narrow FP8 K/V output shapes (N=512 or 2,048) could benefit from CUTLASS's shipped
