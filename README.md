@@ -90,6 +90,14 @@ Comparison scope: gem16 and vLLM use the direct mixed FP8/NVFP4 checkpoint with 
 NVFP4+Q8_0 GGUF and Q8_0 KV. The engines produce different token hashes, and their prefill timing boundaries are
 not identical. gem16 fixed-D2 is additionally checked for exact identity with its ordinary Target output.
 
+## Architecture
+
+[![gem16 runtime architecture](docs/gem16-architecture.svg)](docs/gem16-overview.tldraw)
+
+The diagram covers checkpoint loading, runtime ownership, prefill, ordinary decode, transactional MTP verification,
+fixed GPU memory, and the correctness/performance qualification gates. The SVG is exported from the
+[editable tldraw source](docs/gem16-overview.tldraw).
+
 ## What works today
 
 ### Desktop app
