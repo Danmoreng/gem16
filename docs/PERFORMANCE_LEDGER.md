@@ -1,5 +1,29 @@
 # Performance ledger
 
+## 2026-08-04 Reject cached attention-merge split weights
+
+Hypothesis: the ordinary, global-T3, and local-D2 attention merge kernels can compute each split exponential once
+for the denominator, retain it in a separate shared array, and reuse it across output dimensions without changing
+the reduction or accumulation order. The candidate did so for all three source families with a 512-FP32-entry
+array covering the 262,144-position contract.
+
+Focused tests covered one valid split, the local maximum, 16K, 64K, global T3, local D2, repeated bit identity, and
+the 512-split maximum. Full CUDA CTest passed; Compute Sanitizer reported zero memcheck errors and zero racecheck
+hazards. SASS reduced static `MUFU.EX2` instructions from 22 to 5 in every merge specialization. Shared memory rose
+from 1,056 to 3,104 bytes; D256/D512/global-T3/local-D2 registers changed from 43/40/56/54 to 45/47/54/54, with
+zero stack or local memory throughout.
+
+Short one-warm-up/three-measurement screens did not establish an end-to-end win. Ordinary 16K was neutral at
+47.88567 versus 47.88526 tok/s. Two 64K screens favored the candidate by 0.270% and 0.175%, but the reversed-order
+screen's confidence intervals overlap. Fixed-D2 screens changed sign: +0.176% over 128 outputs and -0.134% over
+64 outputs, both with overlapping intervals and identical parent/candidate output hashes. The project owner asked
+to avoid long benchmarks, so the optional 30-run escalation was not performed.
+
+Decision: reject and remove the implementation because no representative end-to-end metric improved with the
+required statistical support. Persistent, workspace, graph, and KV bytes were unchanged; the temporary 2 KiB
+per-CTA shared increase is absent from production. Raw ignored evidence is under
+`benchmarks/results/2026-08-04/ed0ed689/blackwell16gb-linux-maxpower-12b-sprint/S01-merge-weights/`.
+
 ## 2026-08-04 IMP versus llama.cpp on Gemma 4 26B A4B QAT Q4_0
 
 Hypothesis: IMP's consumer-Blackwell-specific Gemma-4 MoE implementation may improve prompt processing and ordinary
