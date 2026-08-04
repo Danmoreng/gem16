@@ -1,5 +1,22 @@
 # Performance ledger
 
+## 2026-08-04 Reprofile the promoted 12B stack and admit combined Q/K/V only
+
+A fresh exact 16K Nsight Systems profile at `c50dd4d` measured the `gem16.prefill` range at 2,769.309 ms. The
+2,005 contained kernel launches sum to 2,768.461 ms, leaving 0.848 ms (0.031%) of host/API gap. The ranked families
+are global D512 attention 1,005.440 ms (36.307%), NVFP4 GEMM 605.276 ms (21.857%), FP8 Q/K/V/O projection
+pipeline 591.191 ms (21.348%), local attention 321.451 ms (11.608%), Q/K/V normalization plus K/V quantization
+134.617 ms (4.861%), residual/norm boundaries 63.402 ms (2.289%), NVFP4 activation quantization/interleave
+23.356 ms (0.843%), and NVFP4 weight preparation 20.538 ms (0.742%). Final output work is 2.753 ms (0.099%).
+
+The profile executes 368 separate FP8 CUTLASS projection kernels. Together with the source-confirmed repeated use of
+the same quantized activation for separate Q/K/V launches, this admits S06A's bounded combined-Q/K/V prototype.
+No second candidate is admitted yet: S06B is ordered after S06A resolution; S06C/S06D require matching stall
+counters; and S07B requires attributed duplicate K/V traffic rather than timing plus source inspection alone.
+Nsight Compute is not installed, so per-family DRAM bytes, L2 hit rate, and dominant stalls remain explicitly
+unavailable and no traffic or latency-hiding claim is made. Raw ignored evidence and the complete phase table are
+under `benchmarks/results/2026-08-04/c50dd4d/blackwell16gb-linux-maxpower-12b-sprint/S05-reprofile/`.
+
 ## 2026-08-04 Retain the 8K prefill chunk after 8K/12K/16K sweep
 
 Hypothesis: S02's arena reduction may admit a larger checkpoint-FP8 prefill chunk that removes repeated per-chunk
