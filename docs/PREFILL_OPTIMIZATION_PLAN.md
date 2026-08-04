@@ -1,6 +1,7 @@
 # Prefill optimization plan
 
-Status: retained 12B performance plan; the 26B bootstrap is the primary roadmap track
+Status: historical record of the earlier prefill program; execution order is superseded by
+[PERFORMANCE_IMPROVEMENT_PLAN.md](PERFORMANCE_IMPROVEMENT_PLAN.md)
 
 Target machine: Linux, NVIDIA GeForce RTX 5080 Laptop GPU, compute capability 12.0
 

@@ -1,5 +1,34 @@
 # Decisions
 
+## 2026-08-04: Run one bounded final 12B performance sprint before 26B M00
+
+Date: 2026-08-04
+
+Decision: Execute `docs/PERFORMANCE_IMPROVEMENT_PLAN.md` before beginning Gemma 4 26B A4B M00. Refresh the exact
+12B parent and profiles, run the plan's mandatory source-confirmed candidates and chunk sweep, then admit at most
+two deeper candidates from measured bottlenecks. Close the sprint on parity, exhausted evidence, two consecutive
+admitted candidate failures, or a correctness/memory blocker; do not extend it by accumulating speculative work.
+
+Context: The retained Linux max-power result places gem16 6.15% below direct-load vLLM on the fixed 16K prefill
+workload while gem16 already leads the retained vLLM and llama.cpp fixed-D2 rows. A code review identified bounded
+redundant merge exponentials, full-chunk final RMSNorm, and production MLP scale interleave, plus deeper hypotheses
+that require fresh profiling. The mature 12B path is the regression baseline for 26B work, so one final measured
+sprint may improve performance and recover workspace without changing product scope.
+
+Alternatives: Begin 26B M00 immediately; reopen the unbounded historical prefill program; or implement every static
+optimization suggestion. Immediate 26B work leaves a measured 12B gap and known low-risk source work untouched.
+An unbounded program delays the new model indefinitely, while implementing unprofiled hypotheses violates the
+project's performance policy.
+
+Consequences: The 26B track remains next but paused until the sprint closure record. The new plan supersedes the
+execution order in `docs/PREFILL_OPTIMIZATION_PLAN.md`, which remains historical evidence. Every candidate still
+requires exact correctness, adjacent repeated benchmarks, memory accounting, no silent fallback, and removal when
+it loses. The final closure updates the roadmap and resumes 26B M00 regardless of whether parity is achieved.
+
+Evidence: Project-owner direction in the 2026-08-04 session, the retained comparison in
+`benchmarks/baselines/cross_engine_mtp/characterization.json`, `docs/PERFORMANCE_LEDGER.md`, current source
+inspection, and `docs/PERFORMANCE_IMPROVEMENT_PLAN.md`.
+
 ## 2026-08-04: Permit reproducible project-compiled model artifacts and keep AGENTS policy-only
 
 Date: 2026-08-04

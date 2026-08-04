@@ -23,6 +23,7 @@ Read only the documents relevant to the task, but always inspect the current cod
 - `docs/DECISIONS.md`: accepted project decisions and rejected alternatives.
 - `docs/DEVELOPMENT.md`: C++, CUDA, dependency, testing, and security rules.
 - `docs/BENCHMARKING.md`: benchmark boundaries, repetitions, baselines, and reporting.
+- `docs/PERFORMANCE_IMPROVEMENT_PLAN.md`: active bounded Gemma 4 12B performance sprint.
 - `docs/CORRECTNESS.md`: numerical references, fixtures, and quality evidence.
 - `docs/MEMORY.md`: current allocator, residency, KV, and slot accounting.
 - `docs/CHECKPOINT_FORMAT.md` and `docs/WEIGHT_LAYOUT.md`: checkpoint and device-layout contracts.

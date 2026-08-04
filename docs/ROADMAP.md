@@ -1,7 +1,7 @@
 # Roadmap
 
-Current stage: preserve the mature Gemma 4 12B product path while bringing up Gemma 4 26B A4B as the next
-model-specific track.
+Current stage: run one bounded final Gemma 4 12B performance sprint, then begin Gemma 4 26B A4B bring-up while
+preserving the mature 12B product path.
 
 ## Current product baseline
 
@@ -40,18 +40,29 @@ telemetry, caveats, and raw-result locations are in [BENCHMARKING.md](BENCHMARKI
 [PERFORMANCE_LEDGER.md](PERFORMANCE_LEDGER.md), and `benchmarks/baselines/cross_engine_mtp/`.
 
 The remaining measured 12B performance gap is prompt processing against direct-load vLLM: gem16 is 6.15% slower
-on the retained 16K workload. [PREFILL_OPTIMIZATION_PLAN.md](PREFILL_OPTIMIZATION_PLAN.md) remains the bounded plan
-for work on that gap. No 12B optimization may weaken the existing correctness, memory, or cross-platform gates.
+on the retained 16K workload.
 
-## Active track: Gemma 4 26B A4B
+## Active track: final 12B performance sprint
 
-The next implementation program is the experimental Gemma 4 26B A4B track. Its binding entry points are:
+[PERFORMANCE_IMPROVEMENT_PLAN.md](PERFORMANCE_IMPROVEMENT_PLAN.md) is the binding sprint plan. It starts with a
+fresh parent/profile, executes three mandatory source-confirmed candidates and a prompt-chunk sweep, then admits at
+most two deeper candidates from a new profile. It closes on parity, exhausted evidence, two consecutive candidate
+failures, or a correctness/memory blocker. No 12B optimization may weaken the existing correctness, memory,
+cross-platform, or benchmark gates.
+
+[PREFILL_OPTIMIZATION_PLAN.md](PREFILL_OPTIMIZATION_PLAN.md) is retained as historical evidence for the earlier
+prefill program; it no longer owns execution order.
+
+## Next track: Gemma 4 26B A4B
+
+After the 12B sprint closes, the next implementation program is the experimental Gemma 4 26B A4B track. Its
+binding entry points are:
 
 1. [plans/gemma4-26b/START_HERE_CODEX.md](plans/gemma4-26b/START_HERE_CODEX.md)
 2. [plans/gemma4-26b/00_MASTER_IMPLEMENTATION_PLAN.md](plans/gemma4-26b/00_MASTER_IMPLEMENTATION_PLAN.md)
 3. [plans/gemma4-26b/MILESTONE_STATUS_BOARD.md](plans/gemma4-26b/MILESTONE_STATUS_BOARD.md)
 
-Begin with M00 and follow the plan's dependency order. In particular:
+Begin M00 only after the 12B sprint closure record, then follow the plan's dependency order. In particular:
 
 - lock source, compiler, tokenizer, and quality references before kernel work;
 - run the early synthetic 32K residency gate against directly measured CUDA-visible memory;
@@ -64,8 +75,8 @@ The 26B milestone board, not this high-level roadmap, owns detailed task status.
 
 ## Open correctness and product work
 
-These items remain valid but do not precede the 26B bootstrap unless they block a regression or receive an explicit
-priority change:
+These items remain valid but do not enter the bounded 12B sprint or precede the subsequent 26B bootstrap unless
+they block a regression or receive an explicit priority change:
 
 - broaden task-quality and perplexity-style evaluation beyond the retained prompt/logit fixtures;
 - complete publication-grade resource telemetry for sampled MTP;
@@ -76,6 +87,7 @@ priority change:
 
 ## Documentation ownership
 
+- [PERFORMANCE_IMPROVEMENT_PLAN.md](PERFORMANCE_IMPROVEMENT_PLAN.md) owns the active bounded 12B sprint.
 - [ARCHITECTURE.md](ARCHITECTURE.md), [MEMORY.md](MEMORY.md), and feature documents describe current behavior.
 - [DECISIONS.md](DECISIONS.md) records accepted decisions and superseded alternatives.
 - [PERFORMANCE_LEDGER.md](PERFORMANCE_LEDGER.md) retains optimization history and negative results.

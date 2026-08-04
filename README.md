@@ -273,8 +273,9 @@ live in [`benchmarks/baselines/cross_engine_mtp/`](benchmarks/baselines/cross_en
 - [`docs/AUDIO.md`](docs/AUDIO.md) and [`docs/VISION.md`](docs/VISION.md) — implemented media-input contracts
 - [`docs/BENCHMARKING.md`](docs/BENCHMARKING.md) — benchmark methodology
 - [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) — C++, CUDA, testing, dependency, and security rules
-- [`docs/PREFILL_OPTIMIZATION_PLAN.md`](docs/PREFILL_OPTIMIZATION_PLAN.md) — bounded remaining 12B prefill work
-- [`docs/plans/gemma4-26b/START_HERE_CODEX.md`](docs/plans/gemma4-26b/START_HERE_CODEX.md) — active 26B implementation entry point
+- [`docs/PERFORMANCE_IMPROVEMENT_PLAN.md`](docs/PERFORMANCE_IMPROVEMENT_PLAN.md) — active bounded 12B performance sprint
+- [`docs/PREFILL_OPTIMIZATION_PLAN.md`](docs/PREFILL_OPTIMIZATION_PLAN.md) — historical earlier prefill program
+- [`docs/plans/gemma4-26b/START_HERE_CODEX.md`](docs/plans/gemma4-26b/START_HERE_CODEX.md) — next 26B implementation entry point
 - [`docs/PERFORMANCE_LEDGER.md`](docs/PERFORMANCE_LEDGER.md) — retained measurements and profiling evidence
 - [`docs/ROADMAP.md`](docs/ROADMAP.md) — active tracks and deferred work
 
