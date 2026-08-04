@@ -1,5 +1,28 @@
 # Performance ledger
 
+## 2026-08-04 Retain the 8K prefill chunk after 8K/12K/16K sweep
+
+Hypothesis: S02's arena reduction may admit a larger checkpoint-FP8 prefill chunk that removes repeated per-chunk
+MLP preparation and scale-interleave work from the fixed 16K prompt. Separate temporary builds screened 8,192,
+12,288, and 16,384 tokens; all selectors and memory diagnostics were removed after the experiment.
+
+Dry-run prefill arenas were 1,585,254,144, 2,331,561,728, and 3,077,869,312 bytes. With Target, assistant,
+sampling, media regions, ordinary graphs, fixed-D2 graph, and a 17,519-position plan resident, direct
+`cudaMemGetInfo` probes retained 4,323,082,240, 3,576,496,128, and 2,829,910,016 free bytes, all above the 700 MiB
+gate. Sampled exact-workload peak process use was 11,746, 12,458, and 13,170 MiB.
+
+Short synthetic screens were mixed, so all candidates ran the exact Wikipedia 16K workload with one warm-up and
+three measurements. The 8K/12K/16K medians were 5,917.30/5,845.77/5,916.23 prompt tok/s and
+2,768.83/2,802.71/2,769.33 ms TTFT. The 8K and 16K confidence intervals overlap, and 16K is 0.02% slower; 12K is
+materially slower. All runs retained hash `b21d3676985d06ad23525f9f4b52dd5134fee95d97d8aaca89e61736d74c3afb`.
+The 16K build halved NVFP4 preparations from 288 to 144 and interleaves from 96 to 48 but did not improve the final
+distribution.
+
+Both candidate builds produced byte-identical full logits against 8K at `chunk - 1`, `chunk`, and `chunk + 1`.
+Repeated image/audio prompts also emitted identical output bytes, with no fallback or token-loop allocation.
+Decision: retain 8,192 because neither larger chunk wins the required exact workload. Raw ignored evidence is under
+`benchmarks/results/2026-08-04/6a8892d/blackwell16gb-linux-maxpower-12b-sprint/S04-chunk-sweep/`.
+
 ## 2026-08-04 Reject direct CUTLASS MLP activation-scale generation
 
 Hypothesis: the fused RMSNorm/NVFP4 quantizer can write E4M3 scales directly in CUTLASS's 128-row tiled layout,
