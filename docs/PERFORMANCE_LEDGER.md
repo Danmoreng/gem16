@@ -1,5 +1,24 @@
 # Performance ledger
 
+## 2026-08-04 Reject two-CTA cluster sharing for global D512 prefill
+
+Nsight Compute admitted S07B after one representative second-chunk global prefill launch produced 823,607,909 L2
+sectors (about 26.36 GB), 312.531 MB DRAM reads, and a 98.675% L2 hit rate. The SM120 device supports clusters but
+provides 102,400 shared bytes/SM; the parent already allocates 99,328 bytes/block and 255 registers/thread, so it
+runs one CTA/SM at 16.67% occupancy. A bounded `(1,2,1)` cluster prototype kept four query heads per CTA. Rank 0
+loaded and converted raw FP8 K/V; rank 1 copied the exact converted BF16 tile through distributed shared memory
+into its local `ldmatrix` operand view. This avoided assuming remote `ldmatrix` support and retained all arithmetic
+and tile geometry.
+
+The CUDA operator suite passed. The candidate used 254 registers/thread, unchanged 99,328-byte shared allocation,
+and no reported spills. It reduced L2 sectors by 46.00% to 444,751,632, while DRAM reads fell only 2.34% to
+305.224 MB. Distributed-shared copies and two cluster synchronizations per shared operand raised representative
+kernel time from 162.219 to 312.865 ms (+92.87%). A short 8K prefill screen regressed from 7,272.01 to 6,246.32
+tok/s (-14.10%). Decision: reject before exact-16K escalation, remove the prototype completely, restore production,
+and pass Host/CUDA CTest. The experiment confirms that duplicate K/V traffic is almost entirely cheap L2 reuse;
+DSM sharing is worse. Raw ignored evidence is under
+`benchmarks/results/2026-08-04/3e8a1e3/blackwell16gb-linux-maxpower-12b-sprint/S07B-cluster-kv/`.
+
 ## 2026-08-04 Reject global GQA publication-barrier removal after counter admission
 
 After Nsight Compute 2026.2.1 became available, a representative ordinary 16K global GQA split launch measured
