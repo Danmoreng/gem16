@@ -327,7 +327,8 @@
       GEM16_PREFILL_ADD(hidden_a, float, tokens * kHidden);
       GEM16_PREFILL_ADD(hidden_b, float, tokens * kHidden);
     }
-    GEM16_PREFILL_ADD(normalized, float, tokens * kHidden);
+    GEM16_PREFILL_ADD(normalized, float,
+                      kMaximumMtpVerifyTokens * kHidden);
     GEM16_PREFILL_ADD(fp8_activation, std::uint8_t, tokens * max_q);
     GEM16_PREFILL_ADD(fp8_scales, float, tokens);
     GEM16_PREFILL_ADD(q, std::uint16_t, tokens * max_q);

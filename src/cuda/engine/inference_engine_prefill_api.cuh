@@ -189,18 +189,21 @@
                                nullptr, vision_begin, vision_end);
         if (!status.ok()) return status;
       }
-      float* normalized = Pointer<float>(prefill_workspace_, prefill_offsets_.normalized);
-      status = physical_hidden
-                   ? internal::LaunchRmsNormBf16Input(
-                         hidden_bf16, model_.final_norm(), normalized, tokens,
-                         kHidden, kEpsilon, stream_)
-                   : internal::LaunchRmsNormBf16(
-                         hidden, model_.final_norm(), normalized, tokens,
-                         kHidden, kEpsilon, stream_);
-      if (!status.ok()) return status;
       if (begin + tokens == token_ids.size()) {
-        float* last = normalized + (tokens - 1U) * kHidden;
-        latest_target_hidden_ = last;
+        float* normalized =
+            Pointer<float>(prefill_workspace_, prefill_offsets_.normalized);
+        status = physical_hidden
+                     ? internal::LaunchRmsNormBf16Input(
+                           hidden_bf16 + (tokens - 1U) * kHidden,
+                           model_.final_norm(), normalized, 1U, kHidden,
+                           kEpsilon, stream_)
+                     : internal::LaunchRmsNormBf16(
+                           hidden + (tokens - 1U) * kHidden,
+                           model_.final_norm(), normalized, 1U, kHidden,
+                           kEpsilon, stream_);
+        if (!status.ok()) return status;
+        latest_target_hidden_ = normalized;
+        float* last = normalized;
         float* logits = Pointer<float>(workspace_, offsets_.logits);
         auto* selected = Pointer<std::uint32_t>(workspace_, offsets_.selected);
         if (sampling_.enabled) {

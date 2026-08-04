@@ -1,5 +1,31 @@
 # Performance ledger
 
+## 2026-08-04 Promote final-row-only prompt RMSNorm
+
+Hypothesis: ordinary prompt processing only needs final RMSNorm for the last row of the final chunk, while the
+separate MTP verification path needs at most five rows. The promoted path skips final RMSNorm on non-final chunks,
+normalizes the final prompt row into workspace row zero, and retains five FP32 rows in the arena.
+
+The named allocation falls from 125,829,120 to 76,800 bytes at the 8,192-token chunk, an exact 125,752,320-byte
+reduction. Parent/candidate runtime reports show the same whole-workspace reduction at 1, 8,192, 8,193, and 16,384
+prompt tokens; weights, KV, graph-private bytes, and recurring allocation behavior are unchanged.
+
+Host and CUDA CTest and `validate_inference.py` pass. Parent and candidate produce byte-identical full-logit dumps
+and identical output IDs at 1, 8,192, 8,193, and 16,384 prompt tokens, with zero fallbacks and no token-loop
+allocation. D1/D2/D4 continuation screens also retain identical 16-token outputs. The regenerated pinned vLLM
+0.26.0 boundary fixture is numerically unchanged from 0.25.1: 129 tokens pass, while the inherited 257-token
+Top-1 mismatch remains identical in parent and candidate. The project owner explicitly directed the sprint to
+ignore that pre-existing external-reference mismatch rather than attribute it to this change.
+
+Short one-warm-up/three-measurement 16K prefill screens were order-dependent: the first ordering measured
+5,969.94 versus 5,917.29 tok/s parent/candidate, while the reversed ordering measured 5,927.10 versus 5,954.59
+tok/s. The D2 screen measured 88.403 versus 88.258 tok/s with overlapping confidence intervals and identical output
+hashes and acceptance counters. No long escalation was run at the owner's request.
+
+Decision: promote as the S02 memory foundation. It removes 119.93 MiB from the named arena with exact internal
+behavior and no established performance regression. Raw ignored evidence is under
+`benchmarks/results/2026-08-04/ed0ed689/blackwell16gb-linux-maxpower-12b-sprint/S02-final-rmsnorm/`.
+
 ## 2026-08-04 Reject cached attention-merge split weights
 
 Hypothesis: the ordinary, global-T3, and local-D2 attention merge kernels can compute each split exponential once

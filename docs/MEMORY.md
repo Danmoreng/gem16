@@ -82,7 +82,10 @@ activation-scale view by 1,474,560 bytes. The 8K execution plan measures 673,808
 versus 630,276,096 before CUTLASS prefill, an increase of 43,532,288 bytes. Persistent weights, KV storage, and
 `persistent_repack_bytes=0` are unchanged. The explicit BF16 correctness mode still uses the scalar attention
 oracle and therefore retains the context-budgeted score matrix and deterministic 512 MiB score-budget selector.
-The selected chunk size is reported in every inference result and never changes inside prompt processing.
+The selected chunk size is reported in every inference result and never changes inside prompt processing. Final
+prompt RMSNorm reserves five FP32 hidden rows (76,800 bytes) rather than one row per 8,192-token chunk
+(125,829,120 bytes). Normalizing only the last row of the final ordinary prompt chunk therefore removes exactly
+125,752,320 bytes from the named arena; the independent MTP verifier retains its five-row contract.
 
 Explicit sampling conditionally adds adjusted/sorted vocabulary logits, input/sorted token IDs, CUB radix-sort
 scratch, an in-place double-precision probability scan, and a 32-bit atomic repetition bitset to the deterministic
