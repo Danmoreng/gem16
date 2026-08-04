@@ -26,7 +26,7 @@ Read only the documents relevant to the task, but always inspect the current cod
 - `docs/CORRECTNESS.md`: numerical references, fixtures, and quality evidence.
 - `docs/MEMORY.md`: current allocator, residency, KV, and slot accounting.
 - `docs/CHECKPOINT_FORMAT.md` and `docs/WEIGHT_LAYOUT.md`: checkpoint and device-layout contracts.
-- `docs/MTP.md`, `docs/MULTIMODAL.md`, and `docs/SERVER.md`: feature-specific contracts.
+- `docs/MTP.md`, `docs/AUDIO.md`, `docs/VISION.md`, and `docs/SERVER.md`: feature-specific contracts.
 - `docs/plans/gemma4-26b/00_MASTER_IMPLEMENTATION_PLAN.md`: binding 26B implementation program.
 - `docs/PERFORMANCE_LEDGER.md`: measured optimization history; evidence, not current policy.
 

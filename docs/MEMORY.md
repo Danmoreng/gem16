@@ -5,8 +5,9 @@ contains 9,304,786,336 tensor payload bytes. The original text-only inventory
 classified 9,200,026,528 bytes and 104,759,808 bytes of audio/vision projection
 and embedding tensors. The runtime now keeps both classes resident. The planner
 separates 8,772,780,320 bytes of weights/model state from 532,006,016 bytes of
-scales and aligns every named region to 256 bytes. These remain planned payload
-bytes, not measured CUDA allocations.
+scales and aligns every named region to 256 bytes. This is manifest payload
+accounting; aligned arenas, CUDA-private allocations, and sampled process use
+are reported separately.
 
 For the parsed 48-layer architecture and one-byte FP8 cache, the formula after the local window is full is:
 
@@ -20,7 +21,8 @@ At 64K, the one-state lower bound is 336 MiB and the required separate K/V paylo
 `attention_k_eq_v=true` reuses the raw full-attention K projection for V, learned K normalization plus RoPE and
 scale-free V normalization produce distinct final cache states. Shared physical storage is therefore rejected.
 These are formulas, not allocator measurements. Metadata, scale storage, alignment, CUDA context, workspaces, and
-graph pools must be added to future measured reports.
+graph pools are additional named or measured costs and are not included in the
+cache formula.
 
 The one-byte FP8 payload plans are:
 
@@ -33,15 +35,15 @@ The one-byte FP8 payload plans are:
 | `max` | 262,144 | 1,104 MiB | 2,208 MiB | 9,877.83 MiB | 10,981.83 MiB |
 
 Every plan reports both byte formulas for auditability, requires an explicit layout, and accepts only `separate`.
-Checked multiplication, addition, and alignment reject integer overflow. Activation A/B, logits, sampling, CUDA
-Graph, kernel, and prefill workspaces remain explicitly unplanned until their execution shapes are defined;
-`total_arena_bytes` is therefore the known base arena, not a peak-VRAM claim.
+Checked multiplication, addition, and alignment reject integer overflow. The base-arena table intentionally
+excludes activation, logits, sampling, CUDA Graph, kernel, media, server-slot, and prefill workspaces. Production
+plan construction accounts those regions separately; `total_arena_bytes` in this table is not a peak-VRAM claim.
 
-The current full-model characterization separately measures a 9,200,135,680-byte aligned device weight arena and
-a roughly 1.47 MB reusable workspace. The optional official MTP assistant is held in a distinct fixed-address
-845,714,944-byte BF16 arena containing its exact 845,713,928-byte source payload and 1,016 bytes of 256-byte
-alignment padding. The loader keeps no second device layout and probes the uploaded prefix and suffix of every one
-of its 48 tensors. `cudaMemGetInfo` measured 847,249,408 additional bytes across assistant loading. At context 128,
+The current unified Target allocation is 9,304,895,488 bytes and includes all text, audio, and vision tensors in
+one fixed-address arena. The optional official MTP assistant is held in a distinct fixed-address 845,714,944-byte
+BF16 arena containing its exact 845,713,928-byte source payload and 1,016 bytes of 256-byte alignment padding. The
+loader keeps no second device layout and probes the uploaded prefix and suffix of every one of its 48 tensors.
+`cudaMemGetInfo` measured 847,249,408 additional bytes across assistant loading. At context 128,
 sequential 50 ms `nvidia-smi` polling observed 9,660 MiB total GPU use for target-only and 10,468 MiB for target
 plus assistant, an 808 MiB increment. The assistant proposal workspace is 289,024 bytes at context 128, including
 a 16-head FP32 score view, recurrent 3,840-wide feedback, layer intermediates, and output candidates. Active
@@ -61,7 +63,7 @@ The asynchronous SPSC ring adds one fixed 1,088-byte mapped pinned allocation: f
 cancellation, and backpressure counters plus 256 token IDs and alignment. It has no token-loop allocation. Adding
 the dependent ordinary-tail conditional raises 32K graph-associated device memory to 23,068,672 bytes.
 
-The runtime now applies the planned hybrid layout: 40 local layers allocate
+The runtime applies the qualified hybrid layout: 40 local layers allocate
 at most 1,024 physical slots and reuse them as chronological rings, while eight global layers allocate the requested
 context extent. Separate K/V storage is retained for both. Optional
 full-logit diagnostics use host memory (`steps * 262144 * 4` bytes) allocated before generation and do not change
@@ -88,18 +90,20 @@ workspace. At context 128 this is 7,408,128 bytes above greedy. Disabled samplin
 fixed addresses and allocate nothing in the token loop.
 
 The decode boundary and controlled Q/K fusion reuse the existing activation, quantization, RoPE-table, and graph
-regions; they add no arena bytes. At context 8,192 the final plan reports 9,200,135,680 weight bytes, 236,978,176
-KV bytes, and 674,200,064 reusable workspace bytes. A 20 ms `nvidia-smi` process probe across model load, prefill,
-and decode observed 9,852 MiB peak process VRAM. Nsight records four CUDA allocations, all completed during
-initialization and none in prefill or the token loop.
+regions; they add no arena bytes. Before unified media residency, the context-8,192 plan reported 9,200,135,680
+weight bytes, 236,978,176 KV bytes, and 674,200,064 reusable workspace bytes; a 20 ms `nvidia-smi` probe observed
+9,852 MiB peak process VRAM. These retained values are historical execution evidence, not current unified-loader
+accounting. Nsight records all CUDA allocations during initialization and none in prefill or the token loop.
 
 Fresh single-run Wikipedia QA characterizations now exercise both extended profiles with the current production
 path. At 131,072 prompt plus 256 output positions, the runtime reports 1,243,611,136 KV bytes and 870,823,424
 workspace bytes; sampled total GPU usage peaks at 11,022 MiB. At 261,888 prompt plus 256 output positions, exactly
 filling the 262,144-position model limit, it reports 2,315,255,808 KV bytes and 1,080,129,024 workspace bytes;
-sampled total GPU usage peaks at 12,244 MiB. Both runs complete with no fallback or token-loop allocation. On the
-16,303 MiB test GPU these sampled peaks leave approximately 5,281 MiB and 4,059 MiB respectively, although that
-headroom includes the measurement conditions and is not a promise for unrelated concurrent GPU use.
+sampled total GPU usage peaks at 12,244 MiB. Both runs complete with no fallback or token-loop allocation. Those
+historical `nvidia-smi` samples were taken on a device reporting 16,303 MiB nominal capacity and imply 5,281 MiB
+and 4,059 MiB sampled headroom. Runtime admission and the 26B product gate instead use directly measured
+CUDA-visible capacity (approximately 15,881 MiB on the reference machine) and require at least 700 MiB unused;
+nominal or sampled headroom is not an allocation promise.
 
 The always-resident multimodal loader adds the checkpoint's exact 104,759,808
 audio/vision tensor bytes. Vision execution reserves 24,086,720 reusable bytes:

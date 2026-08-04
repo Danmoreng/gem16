@@ -1,6 +1,6 @@
 # Audio input
 
-## Supported test path
+## Supported path
 
 `gem16-chat --message <text> --audio <file>` accepts repeatable audio and image
 parts after the text of a one-shot user message. Resident chat queues the same
@@ -40,8 +40,9 @@ loop.
 
 ## Current boundary
 
-This milestone qualifies multiple audio/image parts in one-shot and resident
-native chat through the public `ChatSession` request boundary. Sent media remain
-attached to their historical message so exact-prefix continuation and tool-result
-turns do not lose or duplicate modality rows. Additional codecs, video, and
-server URL/base64 adapters remain follow-up work.
+Multiple audio/image parts are qualified in one-shot, resident, and server chat
+through the public `ChatSession` request boundary. The OpenAI adapters decode
+bounded inline Base64 WAV/image payloads; remote media URLs remain unsupported.
+Sent media remain attached to their historical message so exact-prefix
+continuation and tool-result turns do not lose or duplicate modality rows.
+Additional codecs and video remain follow-up work.

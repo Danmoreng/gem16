@@ -6,8 +6,9 @@
 once, memory-maps Safetensors files, and builds a deterministic tensor manifest. No model payload is copied into
 host RAM by the inspector.
 
-The manifest is the only planned source for tensor names, shapes, offsets, dtype classes, scale relationships,
-text-only residency, and tied-weight aliasing. Execution code must consume it rather than infer tensor inventory.
+The manifest is the authoritative source for tensor names, shapes, offsets, dtype classes, scale relationships,
+runtime residency, modality provenance, and tied-weight aliasing. Execution code consumes it rather than inferring
+tensor inventory.
 
 ## Hardware backend boundary
 
@@ -16,7 +17,7 @@ behind explicit capability checks; the first implementation is Blackwell SM120/S
 allocator contracts, tensor manifests, and correctness fixtures must not encode a retail board name. A later CUDA
 architecture backend should reuse those contracts while supplying its own kernels and measured dispatch choices.
 
-## Planned execution split
+## Execution plans
 
 Prefill and decode use separate execution plans. Both draw from named preallocated device arenas. Decode uses fixed
 addresses and captures a complete greedy forward graph during initialization. A preallocated pinned-host control
@@ -47,14 +48,14 @@ to the context-128 workspace and performs no token-loop allocation. The same bou
 64 and the unfiltered full vocabulary at measured greedy-performance parity.
 
 The model-specific sequence is attention normalization and FP8 projections, specialized local/global attention,
-then NVFP4 MLP projections and residual updates. This sequence now exists both as an independent Layer-0 comparison
-probe and as a fused, batch-one 48-layer greedy characterization. The latter loads the complete text-only model
-into one aligned arena, keeps separate K/V state and reusable workspace allocations fixed for the run, applies the
-tied BF16 embedding/output matrix, exact logit softcap, and GPU candidate reduction, and performs no token-loop allocation. It
-uses one full graph replay for ordinary greedy decode but is not yet benchmark-qualified.
+then NVFP4 MLP projections and residual updates. It exists both as independent operator/layer probes and as the
+qualified batch-one 48-layer runtime. The runtime loads all Target tensor families into one aligned arena, keeps
+separate K/V state and reusable workspace addresses fixed, applies the tied BF16 embedding/output matrix, exact
+logit softcap, and GPU candidate reduction, and performs no token-loop allocation. Ordinary greedy and sampled
+decode each replay a complete captured graph.
 
-The first full-model path intentionally accepts token IDs and uses a hybrid cache through the checkpoint's 262,144
-position contract. Its 40 local-attention layers use fixed 1,024-token rings; its eight full-attention layers use
+The runtime accepts token IDs and uses a hybrid cache through the checkpoint's 262,144-position contract. Its 40
+local-attention layers use fixed 1,024-token rings; its eight full-attention layers use
 absolute, growing storage. Checkpoint-FP8 prefill uses one fixed 8,192-token chunk. Attention projections run as
 CUTLASS SM120 128x128x64 warp-specialized FP8 GEMMs directly over checkpoint-order activation and weight bytes,
 followed by exact per-token/per-channel scaling and the required BF16 cast in one output kernel. Q/K/V are separate
@@ -74,9 +75,9 @@ ping-pong tiles in the existing 64 KiB allocation; aligned asynchronous copies o
 and next-K transfer with PV without changing the 32-key online-softmax order. The serial path remains a test/probe
 oracle and is not a runtime option. The pure C++
 `GemmaChatProcessor` loads the checkpoint vocabulary, merge ranks, byte fallback, generation controls, and exact
-pinned Jinja artifact. It implements the supported text-only behavior of that template natively and rejects a
-different template revision rather than silently approximating it. This makes real chat flows testable now while
-preserving a narrow execution contract. Interactive chat owns one `ConversationSession` for its lifetime. The
+pinned Jinja artifact. It implements the qualified text, image, audio, tool declaration, tool call, and tool-result
+branches natively and rejects a different template revision rather than silently approximating it. Interactive
+chat owns one `ConversationSession` for its lifetime. The
 session keeps weights, arenas, CUDA Graphs, and hybrid KV storage resident, records exactly which token IDs have
 materialized cache entries, and requires every later prompt to extend that prefix exactly. The CLI preserves the
 original generated IDs instead of decode/re-encode round trips, then tokenizes only the continuation delimiter,
@@ -205,22 +206,19 @@ previously removed verifier-suffix graph remains evidence that graph capture alo
 every phase requires an Nsight timeline, memory accounting, and exact ordinary/MTP identity.
 The detailed order and gates are binding in [MTP.md](MTP.md).
 
-## Planned multimodal boundary
+## Media-input boundary
 
 The pinned Gemma 4 12B Unified checkpoint contains an encoder-free vision embedder and a direct audio-waveform
-projection in addition to the currently resident text tensor set. The multimodal expansion will compile ordered
-text/image/audio content into one immutable prompt plan, project media rows into the existing 3,840-wide input
-embedding sequence, and reuse the current 48-layer transformer and generated-token decode graph.
+projection. All text, image, and audio tensors are resident in the Target arena. Host preprocessing compiles
+ordered content parts into one bounded prompt plan, CUDA projection replaces validated placeholder rows in the
+3,840-wide input sequence, and the existing transformer and generated-token decode graph remain unchanged.
 
-Vision is not only an input-projection change. Image and video spans require same-block bidirectional visibility in
-sliding-attention layers while full-attention layers remain causal. Prefill chunk boundaries must therefore keep a
-complete vision block available to the online-attention kernel. Audio remains causal. Resident session identity
-must also include canonical media digests because token placeholders alone do not identify the media-derived K/V
-state.
-
-The complete tensor inventory, processor contracts, mask formula, arena additions, public-boundary changes,
-correctness/benchmark matrices, and ordered delivery gates are binding in
-[MULTIMODAL.md](MULTIMODAL.md). Until those gates pass, all production paths remain explicitly text-only.
+Image spans receive same-block bidirectional visibility only in sliding-attention layers; global-attention layers,
+text, audio, delimiters, and generated tokens remain causal. Every image block stays inside one prefill chunk.
+Resident prefix identity includes canonical media digests because placeholder token IDs alone do not identify the
+projected K/V state. Server and Studio adapters provide bounded inline image/audio transport above `ChatSession`.
+Video is not implemented. Detailed preprocessing and operator contracts are in [VISION.md](VISION.md) and
+[AUDIO.md](AUDIO.md).
 
 ## NVFP4 execution boundary
 
@@ -301,10 +299,11 @@ timing. The unfused sequence remains available for diagnostics and CUDA tests.
 
 ## Memory-plan boundary
 
-The first runtime component now converts parsed model metadata and the authoritative text-only manifest into a
-deterministic 256-byte-aligned base arena. It places immutable weights/model state, scales, and the selected KV
-payload in named regions with checked offsets. The required separate K/V size and a diagnostic one-state lower
-bound are retained in every result; shared physical cache selection is rejected.
+The runtime converts parsed model metadata and the authoritative manifest into deterministic 256-byte-aligned
+arenas. The immutable Target arena contains every checkpoint tensor family; named mutable regions hold K/V,
+activations, prefill, sampling, graph, media, and optional MTP state at fixed checked offsets. The required separate
+K/V size and a diagnostic one-state lower bound are retained in every result; shared physical cache selection is
+rejected.
 
 The greedy characterization uses an execution workspace containing hidden-state ping-pong, quantized activations
 and scales, projection intermediates, retained full logits, a 32 KiB fused-output candidate array, and GPU argmax
@@ -312,8 +311,8 @@ state. Sampling conditionally adds adjusted/sorted logits, token-index pairs, a 
 CUB radix-sort scratch; none of these regions is allocated for greedy generation. The checkpoint-FP8 prefill arena contains no attention-score region; only the explicit BF16 correctness
 mode retains the scalar attention score workspace. Exact sizes are reported per run.
 Its default hybrid cache stores physical E4M3FN bytes with checkpoint BF16 scales; an explicit float32
-BF16-semantics diagnostic allocation remains available. The general planner remains conservative until production
-prefill, graph, and sampling shapes are defined.
+BF16-semantics diagnostic allocation remains available. Plan construction accounts for production prefill, graph,
+sampling, media, and optional MTP regions before execution.
 
 ## Server ownership boundary
 

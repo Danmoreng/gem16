@@ -1,4 +1,4 @@
-# gem16
+# gem16 Studio
 
 gem16 is a Kotlin Compose Desktop application for local Gemma 4 chat and
 `gem16-server` lifecycle management. It follows the desktop structure proven by

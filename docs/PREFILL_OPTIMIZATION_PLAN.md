@@ -1,6 +1,6 @@
 # Prefill optimization plan
 
-Status: active execution goal
+Status: retained 12B performance plan; the 26B bootstrap is the primary roadmap track
 
 Target machine: Linux, NVIDIA GeForce RTX 5080 Laptop GPU, compute capability 12.0
 

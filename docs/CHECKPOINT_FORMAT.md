@@ -15,9 +15,11 @@ tokenizer vocabulary, generation controls, and chat template remain byte-identic
 only `tokenizer_config.json` is sourced from the official Google instruction-model repository. The lock's
 per-file `source` object records this exception. No weight payload is converted, repacked, or duplicated.
 
-The same snapshot contains 104,759,808 bytes of BF16 image/audio embedding and projection tensors that the current
-text-only residency policy skips. Video reuses the image tensors. Their exact inventory, processor metadata,
-placeholder semantics, and planned residency modes are specified in [MULTIMODAL.md](MULTIMODAL.md).
+The same snapshot contains 104,759,808 bytes of BF16 image/audio embedding and projection tensors. The runtime
+loads all 1,389 checkpoint tensors into one fixed-address Target arena; the legacy `loaded_in_text_only_mode`
+manifest field is provenance metadata and no longer controls residency. Video would reuse the resident image
+tensors, but no video-frame adapter is implemented. Runtime preprocessing and execution contracts are specified in
+[AUDIO.md](AUDIO.md) and [VISION.md](VISION.md).
 
 ## Pinned MTP assistant
 

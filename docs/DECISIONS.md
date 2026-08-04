@@ -391,21 +391,21 @@ llama.cpp as the competitive gate. Windows remains suitable for functional devel
 profiling and omits the direct vLLM row. Cross-OS A/B attribution is invalid. vLLM remains a direct-checkpoint
 headroom reference, while current llama.cpp remains the primary competitor.
 
-Consequences: `docs/LINUX_DECODE_HANDOFF_2026-07-31.md` is the new-session entry point. Linux results use fresh
-machine metadata and separate result directories. The current llama.cpp converter port and Q8 GGUF must be
-reproduced rather than silently falling back to the older tracked BF16-attention baseline. No engine source is
-changed as part of this handoff.
+Consequences: Linux became the qualification environment with fresh machine metadata and separate result
+folders. The llama.cpp converter port and Q8 GGUF were reproduced rather than silently falling back to the older
+BF16-attention baseline. The completed session hand-off was removed from the active documentation tree after its
+results were retained.
 
-Evidence: `docs/DECODE_OPTIMIZATION_PLAN.md`, `toolchains/blackwell16gb.lock`, and the Windows screen disclosed in
-`docs/LINUX_DECODE_HANDOFF_2026-07-31.md`.
+Evidence: `toolchains/blackwell16gb.lock`, `docs/PERFORMANCE_LEDGER.md`, and the retained Linux/Windows results under
+`benchmarks/baselines/cross_engine_mtp/`.
 
 ## 2026-07-31: Prioritize ordinary decode, then require 64.82 token/s fixed-D2 MTP
 
 Date: 2026-07-31
 
-Decision: Pause discretionary prefill optimization and execute the binding
-`docs/DECODE_OPTIMIZATION_PLAN.md`. First bring ordinary batch-one decode to parity with or beyond a freshly pinned
-llama.cpp candidate across 128 through 65,536 existing tokens, with explicit attention to the worsening
+Decision: Pause discretionary prefill optimization and execute the bounded ordinary-decode program. First bring
+ordinary batch-one decode to parity with or beyond a freshly pinned llama.cpp candidate across 128 through 65,536
+existing tokens, with explicit attention to the worsening
 long-context slope. Then require the fixed Wikipedia 16K D2 workload to reach at least 64.82 effective verified
 output tokens/s as a 3-warm-up/10-measured-run median while remaining exactly identical to gem16 ordinary Target
 output. Final promotion also requires an adjacent same-machine llama.cpp result no faster than gem16. Prefill work
@@ -431,8 +431,10 @@ retains checkpoint FP8 KV; every comparison discloses that difference. Existing 
 attention, ordinary Gate/Up fusion, rounded projection epilogues, and verifier-suffix graph experiments may not be
 repeated without a materially new hypothesis.
 
-Evidence: `docs/DECODE_OPTIMIZATION_PLAN.md` and raw MTP screening artifacts under
-`benchmarks/results/2026-07-31/5501b52/blackwell16gb-windows-llama-q8-screen/`.
+Evidence: `docs/PERFORMANCE_LEDGER.md`, the promoted comparison under
+`benchmarks/baselines/cross_engine_mtp/`, and raw MTP screening artifacts under
+`benchmarks/results/2026-07-31/5501b52/blackwell16gb-windows-llama-q8-screen/`. The completed optimization plan was
+removed from the active documentation tree after its gates were surpassed.
 
 ## 2026-07-30: Keep gem16 media inline and render CommonMark natively
 
@@ -1328,8 +1330,8 @@ Decision: Add image and audio input by consuming the pinned Gemma 4 12B Unified 
 modality projections directly, then add video as sampled frames over the qualified image path. Preserve explicit
 text-only residency, reuse the existing mixed FP8/NVFP4 transformer and generated-token decode graph, implement
 vision's blockwise bidirectional sliding-attention semantics during prefill, and bind resident cached prefixes to
-canonical media identity as well as token IDs. Treat [the multimodal expansion plan](MULTIMODAL.md) as the ordered
-implementation and qualification contract.
+canonical media identity as well as token IDs. The then-current multimodal expansion plan defined the ordered
+implementation and qualification contract; it was removed from the active tree after image/audio completion.
 Context: The current engine deliberately excludes 104,759,808 bytes of modality tensors, accepts text token IDs,
 and validates resident cache reuse by token prefix. The checkpoint already contains a 4,915,200-byte direct audio
 projection and 99,844,608 bytes of vision projection/embedding tensors, with no separate encoder. Placeholder token
@@ -1340,11 +1342,11 @@ runtime; requantize the BF16 modality tensors; make all runs load modality weigh
 ordinary causal text embeddings. These alternatives respectively weaken the 16 GB target or audio capability,
 duplicate model components, violate the native C++ runtime boundary, alter the checkpoint without evidence,
 regress text-only residency, or change model semantics.
-Consequences: Multimodal work remains after the text correctness/performance gates. It requires strict
+Consequences: Multimodal work follows the text correctness/performance gates. It requires strict
 `processor_config.json` parsing, ordered content parts, media preprocessing, BF16 modality operators,
 vision-aware local prefill attention, media-safe session identity, new memory regions, and independent quality and
-performance fixtures. Text-only execution must load no modality weights and retain its current transformer and
-decode behavior. Multimodal support cannot be advertised as implemented until the plan's gates pass.
+performance fixtures. This initial residency choice was superseded by the 2026-07-29 decision to keep all unified
+modality weights resident. Image and audio subsequently passed their implementation gates; video remains deferred.
 Evidence: The locked manifest contains 9,200,026,528 text-only bytes and 104,759,808 skipped modality bytes.
 `config.json` declares image/audio/video placeholders, a 1,120-entry two-axis vision position table, direct
 640-to-3,840 audio projection, and vision-only bidirectional attention. `processor_config.json` declares 16 kHz,

@@ -1,6 +1,6 @@
 # Vision input
 
-Status: implemented for cross-platform one-shot/resident/server chat; Windows GPU path qualified
+Status: implemented and qualified for cross-platform one-shot, resident, and server chat
 
 Gemma 4 Unified does not contain a separate transformer-style vision tower.
 Its complete encoder-free vision embedder is:
@@ -78,10 +78,10 @@ The qualification includes:
   house, mountains, sun, visible heading, and reading the blue sign as `24`;
 - the same sign-reading request under MTP D2, also returning `24`.
 
-The first projector is deliberately correctness-oriented. Its two BF16 dense
-operators use direct source weights and FP32 accumulation but are not yet
-Tensor-Core tiled; profiling and replacement with shape-specific BF16 MMA are
-the next vision performance step.
+The projector is deliberately correctness-oriented. Its two BF16 dense
+operators use direct source weights and FP32 accumulation rather than a
+shape-specific Tensor-Core tile. A replacement is optional future performance
+work and requires end-to-end media evidence; it is not an active product gate.
 
 ## Current limits
 

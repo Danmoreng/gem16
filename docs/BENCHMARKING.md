@@ -1,9 +1,9 @@
 # Benchmarking
 
-A controlled same-machine 16K D2 performance comparison is now published below. It is not an exact
-output/semantic-parity result. `gem16-bench decode` also provides a machine-readable batch-one decode
-characterization; the other standalone end-to-end benchmark modes still return `not_implemented` and a non-zero
-exit code.
+A controlled same-machine 16K D2 performance comparison is published below. It is not an exact
+output/semantic-parity result. `gem16-bench decode` and `gem16-bench prefill` provide machine-readable batch-one
+characterizations. The advertised `model-load`, `end-to-end`, `kernel`, `memory`, `quality`, and `mtp` subcommands
+still return `not_implemented` and a non-zero exit code.
 
 ## Permanent benchmark contract
 
@@ -274,36 +274,21 @@ statistically qualified performance results.
 
 ## MTP timing
 
-The active `batched_exact_target` scheduler executes the complete BF16 assistant, evaluates the input plus up to
-four drafts in one target batch, and accepts and commits only the verified prefix on GPU. Proposed tokens are never
-counted as output. Draft lengths 1, 2, and 4 report proposed, accepted, rejected, mean accepted length, target
-batches, incremental VRAM, draft-length group counts, and ordinary fallback tokens.
+The active exact-Target scheduler executes the BF16 assistant, evaluates the current input plus drafts in one
+causal Target batch, and commits only the verified prefix on GPU. Proposed tokens are never counted as output.
+Every run reports proposed, accepted, rejected, mean accepted length, Target batches, fallback tokens, draft-length
+group counts, effective verified tok/s, and incremental memory.
 
-The current qualified MTP result uses the exact 16,384-token Wikipedia workload, checkpoint-FP8 KV, three alternating
-warm-up pairs, and ten alternating measured ordinary/D2 pairs. All runs emit the same 1,135 IDs. Ordinary and D2
-medians are 36.788 and 54.903 effective target-verified tok/s, respectively (1.492x, +49.2%). Their 95% mean
-confidence intervals are `[36.715,36.837]` and `[54.557,55.132]`. Raw runs are retained under the ignored result
-path documented in the performance ledger; continuous telemetry was not captured. This result does not
-make MTP universally preferable: every new workload must retain identical output semantics and report ordinary,
-explicit draft, acceptance, and adaptive/fallback behavior under the same repetition policy.
+The current promoted comparison is the 2026-08-03 Linux max-power result described above: fixed 16K D2 reaches
+89.58 effective verified tok/s and 11.163 ms ITL over three warm-ups and ten measurements. Gem16 is internally
+identical to its ordinary Target sequence. External runtime hashes differ, so the vLLM and llama.cpp rows are
+controlled performance references rather than exact speculative-speedup or quality-parity claims.
 
-External MTP characterizations use the same prompt and also include a fixed-1,135-token, ignore-EOS screen to
-control output count when numerical differences change the stop point. Patched graph-vLLM reaches 57.390 tok/s in
-a 3/10 stop-terminated D2 run and 57.363 tok/s in the fixed-length screen. That fixed screen reserves 0.85/0.90
-GPU utilization for ordinary/MTP because MTP rejected the lower reservation. Current llama.cpp reaches 48.38 tok/s
-fixed-length D2. Neither runtime's MTP output equals its own ordinary greedy output, so these values are hardware
-bounds only and cannot be called exact speculative speedups or compared as quality-parity headlines. vLLM uses the
-direct mixed checkpoint and FP8 KV; llama.cpp uses BF16-mapped attention and Q8_0 KV. See the corresponding
-`mtp-characterization.json` files for complete disclosure.
+The historical 64.82 tok/s floor remains in `tools/qualify_mtp.py` and its schema for regression reporting and is
+surpassed by the retained result. It is not a pending roadmap gate. Any future promotion must still win against an
+adjacent current baseline, retain ordinary/MTP identity inside gem16, and satisfy the permanent benchmark contract.
 
-The former competitive gate was 50.0 exact effective tok/s with a 55.0 stretch target. The retained GPU-chained
-path passed that historical minimum at 54.903 tok/s. The active gate now follows
-[`DECODE_OPTIMIZATION_PLAN.md`](DECODE_OPTIMIZATION_PLAN.md): after ordinary decode parity work, fixed 16K D2 must
-reach at least 64.82 effective verified tok/s and meet or beat the adjacent current llama.cpp result. At the
-current acceptance and 502 Target batches, 64.82 tok/s requires at most approximately 34.85 ms per group. The same
-3-warm-up/10-run and exact-ID policy applies, with Linux as the qualification environment.
-
-For development-only rejection screens, trim the pinned workload and avoid repeatedly running the full matrix:
+For development-only rejection screens, use:
 
 ```bash
 python tools/screen_mtp.py \
@@ -312,12 +297,7 @@ python tools/screen_mtp.py \
   --executable build/Linux/blackwell-release/bin/gem16-run
 ```
 
-The default is a 2,048-token prompt, 256 fixed output tokens, one warm-up, and two measured D2 runs. Add
-`--include-ordinary` when validating exact output after a promising change. This screen is not qualification
-evidence: it does not use the 16K workload or the required repetition policy, and a short-context winner must
-still pass one full paired qualification before promotion.
-
-Run the final paired qualification with the checked-in alternating orchestrator:
+The default short screen is not qualification evidence. A promising candidate requires the full alternating run:
 
 ```bash
 python tools/qualify_mtp.py \
@@ -327,6 +307,6 @@ python tools/qualify_mtp.py \
   --warmup-pairs 3 --measured-pairs 10
 ```
 
-The tool alternates which mode runs first in each pair, retains raw per-mode runs and pair order, and fails if any
-warm-up or measured output differs from the shared ordinary/MTP token sequence. Schema version 2 reports the
-64.82 tok/s minimum explicitly and marks llama.cpp parity as a required separate comparison.
+The qualifier alternates mode order, retains every raw sample, and fails on any ordinary/MTP ID difference. New
+results must additionally capture clocks, power, thermals, allocator accounting, graph/kernel dispatch, and the
+adjacent competitor configuration. See [MTP.md](MTP.md) for execution and correctness semantics.

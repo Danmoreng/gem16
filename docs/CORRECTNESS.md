@@ -21,22 +21,22 @@ a binary64 W4A4 projection oracle. Tests exhaustively round-trip all finite E4M3
 exercise rounding, saturation, and error behavior, and pin the first 16 packed values and first local scale from
 layer 0 Gate row 0 of the locked checkpoint.
 
-The CUDA correctness route independently uses CUDA 13.3 FP4/FP8 conversion types, matches the host packed
-activation and scale bytes, and matches the host projection oracle. A separate experimental SM120a kernel consumes
-the compact source weight and scale layouts directly. Its synthetic eight-row/64-K output and all three real
-Layer-0 MLP projection shapes match the same oracle. The real Gate, Up, and Down maximum CUDA-reference/native
-absolute differences were `1.1920929e-7`, `5.9604645e-8`, and `0`, respectively.
+The CUDA bring-up route independently used CUDA 13.3 FP4/FP8 conversion types, matched the host packed activation
+and scale bytes, and matched the host projection oracle. Its direct-source SM120a prototype covered a synthetic
+eight-row/64-K output and all three real Layer-0 MLP projection shapes. The real Gate, Up, and Down maximum
+CUDA-reference/native absolute differences were `1.1920929e-7`, `5.9604645e-8`, and `0`, respectively. The later
+production qualification and fused boundaries build on this evidence.
 
-The first complete Layer-0 MLP characterization now executes input quantization, Gate and Up, Gemma GELU-tanh
+The first complete Layer-0 MLP characterization executes input quantization, Gate and Up, Gemma GELU-tanh
 product, Down-input quantization, Down, and residual addition without a host round trip. CPU/CUDA quantized input
 bytes match exactly at both quantization boundaries. For its deterministic fixture the native and CUDA-reference
 Down-input bytes and all 3,840 final float values also match exactly; eight final rows match the binary64 Down
 oracle plus residual within `6.7374888e-9`. This remains a deterministic characterization, not a substitute for
 the pinned hidden-state golden distribution.
 
-Disassembly of the CUDA test binary contains `OMMA.SF.16864.F32.E2M1.E2M1.UE4M3.4X`. This is native-instruction and
-real-shape evidence, but the kernel remains experimental until layer-golden, numerical-distribution, memory-arena,
-and end-to-end gates pass.
+Disassembly of the CUDA test binary contains `OMMA.SF.16864.F32.E2M1.E2M1.UE4M3.4X`. This established the initial
+native-instruction and real-shape evidence; the production path subsequently passed layer, distribution, arena,
+and end-to-end gates described below.
 
 Level 1 FP8 bring-up now includes host E4M3FN/BF16 decoding, dynamic per-token activation quantization, a binary64
 per-channel-scale projection oracle, an independent CUDA scalar reference, and a direct-source SM120 tensor-core
@@ -355,10 +355,11 @@ remaining drift. No tolerance is accepted from these measurements alone.
 
 The native C++ tokenizer/template path reproduces all three committed reference prompt-ID sequences exactly:
 20 tokens for exact-blue, 23 for the sky sentence, and 27 for the thinking arithmetic prompt. The application reads
-the actual template file and accepts only the pinned supported revision. Its renderer currently supports
-system/developer, user, and assistant text roles; tool calls and multimodal content fail visibly until their native
-template branches are implemented. A separate German/Unicode probe containing umlauts, `ß`, and an emoji also
-matches the Transformers tokenizer exactly across all 27 prompt IDs.
+the actual template file and accepts only the pinned supported revision. Its renderer supports system/developer,
+user, assistant, and tool-result roles; ordered text/image/audio parts; native function declarations; and assistant
+tool calls. Unsupported content types and unqualified template revisions fail visibly. A separate German/Unicode
+probe containing umlauts, `ß`, and an emoji also matches the Transformers tokenizer exactly across all 27 prompt
+IDs.
 
 The tokenizer metadata is independently pinned to Google's instruction-model revision
 `707f0a3b8a3c7ad586ed01e27eafbad8a27dd0f7`. Startup rejects the older Unsloth metadata where `eos_token` aliases

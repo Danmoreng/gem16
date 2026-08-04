@@ -1,421 +1,162 @@
 # Gemma 4 12B MTP
 
-Current performance priority and gate: follow the binding
-[`DECODE_OPTIMIZATION_PLAN.md`](DECODE_OPTIMIZATION_PLAN.md). The new fixed Wikipedia 16K D2 minimum is 64.82
-effective verified output tokens/s after ordinary decode parity work. Historical 50/55 token/s milestones below
-remain evidence of earlier bounded sprints; they no longer define completion.
+Status: implemented with exact Target verification. Greedy MTP is qualified; sampled MTP has completed correctness
+and repeated-timing gates, with publication-grade resource telemetry still open.
 
-## Feasibility conclusion
+## Checkpoints
 
-The MTP weights are **not embedded** in the pinned
-`unsloth/gemma-4-12b-it-NVFP4` target checkpoint. Google publishes the compatible drafter separately as
-`google/gemma-4-12B-it-assistant`. The first feasibility gate is positive: the official BF16 assistant is directly
-loadable from Safetensors, its architecture matches the target, and its 806.54 MiB tensor payload leaves useful
-headroom on the 16 GB reference GPU. Performance remains acceptance-dependent and must be proven in gem16 rather
-than inferred from Google's “up to 3x” model-card statement.
+The pinned target checkpoint does not contain draft weights. The compatible official assistant is loaded from a
+separate direct Safetensors snapshot:
 
-The assistant is pinned in `models/gemma4-12b-mtp-assistant.lock.json` at commit
-`364bd03c9952e5b7da73665ee30c9eccfc408345`.
+- target: `unsloth/gemma-4-12b-it-NVFP4` at `b1f649734b34aa5575b03d186abd1b9be3d0d5c4`;
+- assistant: `google/gemma-4-12B-it-assistant` at `364bd03c9952e5b7da73665ee30c9eccfc408345`;
+- assistant lock: `models/gemma4-12b-mtp-assistant.lock.json`.
 
-## Evidence that the target contains no MTP weights
-
-The target `config.json` declares only `Gemma4UnifiedForConditionalGeneration` and its 48-layer
-`Gemma4UnifiedTextConfig`. It contains no assistant sub-config, MTP layer count, draft projection, centroid, or
-speculative-decoding field. The authoritative target manifest contains 1,389 tensors:
-
-- 1 tied `[262144, 3840]` target embedding/output matrix;
-- exactly 48 normal decoder-layer families;
-- 1 final target norm;
-- 7 modality-only tensors.
-
-No tensor name contains an MTP/draft/assistant family. In particular, the target has no `pre_projection`,
-`post_projection`, assistant `[262144, 1024]` output matrix, or extra decoder layers. Tokenizer vocabulary strings
-such as “draft” and “assistant” are ordinary vocabulary entries and are not model components.
-
-## Official assistant contract
-
-The pinned assistant config declares:
+The assistant has 48 BF16 tensors and 845,713,928 payload bytes. Its contract is:
 
 | Property | Value |
 |---|---:|
 | Architecture | `Gemma4UnifiedAssistantForCausalLM` |
-| Model type | `gemma4_unified_assistant` |
-| Target/backbone hidden size | 3,840 |
-| Assistant hidden size | 1,024 |
-| Assistant intermediate size | 8,192 |
-| Assistant layers | 4 |
+| Target/assistant hidden size | 3,840 / 1,024 |
+| Intermediate size | 8,192 |
+| Layers | 4 Q-only layers |
 | Layer pattern | sliding, sliding, sliding, full |
 | Query heads | 16 |
 | Local/global head dimension | 256 / 512 |
-| Shared-KV layers | 4 |
 | Vocabulary | 262,144 |
 | Maximum positions | 262,144 |
-| Storage dtype | BF16 |
+| Storage | BF16 |
 
-The Safetensors file has 48 tensors and 845,713,928 payload bytes:
+The three sliding layers read the Target Layer-46 local cache; the full layer reads the Target Layer-47 global
+cache. The assistant has no K/V projections or independent long-context cache. Its tied 1,024-wide embedding/head,
+pre-projection, post-projection, final norm, and Q/O layer tensors remain separate from the Target weights. Runtime
+tokenization and generation controls always come from the pinned Target metadata.
 
-| Tensor family | Bytes |
-|---|---:|
-| Assistant embedding/tied LM head `[262144,1024]` | 536,870,912 |
-| Four Q-only decoder layers | 285,248,008 |
-| Pre-projection `[1024,7680]` | 15,728,640 |
-| Post-projection `[3840,1024]` | 7,864,320 |
-| Final norm | 2,048 |
+## Execution contract
 
-Each assistant attention layer has Q, Q norm, and O weights but no K/V weights. The three sliding layers read the
-target cache produced by target Layer 46; the full layer reads target Layer 47. The assistant therefore needs no
-independent long-context KV payload. Its pre-projection combines the current target token embedding and target
-hidden state; the post-projection feeds a 3,840-dimensional state into the next proposal step. The assistant must
-retain its own 1,024-dimensional tied LM head because it cannot share the target's 3,840-dimensional output matrix.
+MTP is exact by Target verification. Assistant proposals never directly determine emitted output:
 
-The target and assistant tokenizer JSON files are not byte-identical, but their complete 262,144-entry
-`token -> id` vocabularies are equal. Runtime tokenization remains owned by the pinned target. The assistant's older
-post-processor and missing added `<|video|>` marker are irrelevant to text-only drafting and must not replace target
-metadata.
+1. the assistant proposes one to four token IDs;
+2. one causal Target batch evaluates the current input and proposals;
+3. each proposal is compared with the Target-selected token at that position;
+4. only the matching prefix is committed;
+5. the first mismatch emits the Target token and discards later tentative state;
+6. a fully accepted group emits the Target batch's bonus prediction.
 
-## 16 GB memory estimate
+Tentative Target K/V and hidden rows live in fixed workspace until a GPU transaction kernel commits the verified
+prefix. Proposed tokens are never counted as output tokens. Every result reports proposal, acceptance, rejection,
+Target-batch, fallback, and effective verified-token counters.
 
-The assistant adds 845,713,928 persistent payload bytes (806.54 MiB), plus alignment, graph, and small activation
-workspaces. It does not add a separate KV cache. Adding only the exact payload to measured target peaks gives:
+`--mtp-draft-tokens 1|2|4` selects a direct fixed draft length. `--mtp-adaptive` selects D4/D2/D1 or ordinary
+fallback from context and recent acceptance. All modes must preserve the corresponding ordinary Target sequence.
 
-| Target profile | Target peak | Target + assistant payload | Remaining from 16,303 MiB |
-|---|---:|---:|---:|
-| 8K decode characterization | 9,852 MiB | about 10,659 MiB | about 5,644 MiB |
-| 128K QA | 11,022 MiB | about 11,829 MiB | about 4,474 MiB |
-| 262,144-position QA | 12,244 MiB | about 13,051 MiB | about 3,252 MiB |
+Fixed D2 uses one device-routed conditional CUDA Graph. The device owns current token, position, remaining length,
+stop state, sampling step, response-channel state, reasoning budget, and branch selection. D2 handles complete
+safe groups; an ordinary Target child handles partial response markers, exact reasoning-budget boundaries, stops,
+and short tails. A fixed mapped SPSC ring streams only verified IDs to the host without making generation depend on
+a per-group host decision. D1, D4, and the current adaptive route retain the direct transaction boundary and one
+host synchronization per verification group.
 
-The first allocator proof now loads all 48 tensors into one independent 256-byte-aligned device arena. The exact
-845,713,928-byte source payload occupies 845,714,944 arena bytes (806.54 MiB, including 1,016 alignment bytes).
-`cudaMemGetInfo` measures an 847,249,408-byte device-memory delta (808 MiB) around that load. A sequential 50 ms
-`nvidia-smi` probe at context 128 measures 9,660 MiB total GPU usage for the target-only process and 10,468 MiB
-for target plus assistant, also an 808 MiB difference. The original assistant proposal workspace is 289,024 bytes
-at context 128. Active batched MTP adds fixed tentative per-layer K/V and five-row output-selection storage: total
-assistant-plus-verifier workspace measures 2,213,376 bytes with FP8 KV and 7,374,336 bytes with BF16 KV at context
-128. The FP8 assistant workspace reserves the larger of its reference-score and split-online requirements. The
-GPU acceptance result, stop-token table, and committed-hidden row are fixed workspace regions. No MTP graph pool
-is retained: an exact 48-layer suffix-graph candidate added 6–8 MiB without improving 16K D2 throughput and was
-removed.
+## Sampled MTP
 
-## External runtime characterization
+Sampled MTP reproduces ordinary same-seed Target sampling. For every verifier row, the Target applies the normal
+suppression, repetition penalty, temperature, top-k, min-p, top-p, and SplitMix64 output-step mapping to the exact
+committed history plus proposal prefix. A proposal is accepted only when it equals that Target sample. RNG,
+repetition history, K/V, and hidden state advance by exactly the emitted count.
 
-### Current controlled comparison
+This is deterministic same-seed verification, not probability-ratio speculative sampling. The assistant does not
+materialize proposal probabilities, and no `min(1,p/q)` acceptance claim is made.
 
-The 2026-08-03 Linux max-power comparison updates the external runtimes to vLLM 0.26.0 and llama.cpp b10240.
-With the exact 16,384-token prompt, 1,135 fixed output positions, batch one, fixed D2, three warm-ups, and ten
-measurements, gem16 reaches 89.58 effective target-verified tok/s and 11.163 ms ITL. vLLM reaches 81.95 tok/s and
-12.202 ms; llama.cpp reaches 82.88 tok/s and 12.065 ms. Gem16 is therefore 9.31% and 8.08% faster for the recorded
-configurations. All three engines are deterministic internally, but their output hashes differ, and only gem16
-preserves its own ordinary Target sequence. This is a controlled performance comparison rather than external
-output/semantic parity. Full counters, distributions, runtime pins, and telemetry are in
-`benchmarks/baselines/cross_engine_mtp/characterization.json`.
+## Memory
 
-### Historical feasibility evidence
+The assistant source payload occupies a 845,714,944-byte aligned device arena, including 1,016 alignment bytes.
+Direct `cudaMemGetInfo` measurement observed an approximately 808 MiB load delta. It adds no assistant K/V cache.
+At context 128, assistant-plus-verifier workspace is 2,213,376 bytes with FP8 Target K/V and 7,374,336 bytes with
+BF16 Target K/V. Fixed-D2 graph control, tentative rows, transaction records, and streaming storage are all
+preallocated. No MTP path may allocate in the token loop or retain a second weight layout.
 
-vLLM 0.25.1 recognizes the official assistant directly as `Gemma4MTPModel`, loads it beside the pinned Unsloth
-target, and maps its sliding/full layers to target Layers 46/47. It reports 10.07 GiB model loading for the pair.
-This confirms checkpoint-level compatibility without conversion. The unmodified graph path fails because
-suppression-token list indexing creates a CPU index tensor during CUDA capture. The bounded patch in
-`benchmarks/baselines/vllm/patches/gemma4-mtp-suppress-graph.patch` uses two scalar indices and enables capture.
+Current allocator formulas and slot accounting are in [MEMORY.md](MEMORY.md). Admission decisions use directly
+measured CUDA-visible memory and the configured safety margin, not nominal board capacity.
 
-On the exact 16K Wikipedia prompt with FP8 KV, graph D1/D2/D4 screens reach 49.59/58.69/56.06 effective tok/s. D2
-then reaches 57.390 median tok/s over 3 warm-ups and 10 measured runs. Its 513 verifier groups accept 556 drafts
-(mean accepted drafts 1.084), have 36.24 ms median group latency, and peak at a sampled 14,166 MiB. A fixed-1,135-token
-screen reaches 57.363 tok/s and 35.75 ms/group. vLLM ordinary and MTP remain separately deterministic but are not
-internally token-identical: they first differ at index 33 with stop semantics and index 2 at fixed length. These
-results are therefore performance-headroom evidence, not an exact MTP baseline.
+## Correctness gates
 
-llama.cpp's dedicated Gemma 4 assistant path is also functional. The pinned converter produces an 861,520,160-byte
-BF16 GGUF from the official assistant; runtime logs prove target-Layer-46/47 K/V sharing and full target/assistant
-GPU residency. The then-current upstream `da5b4486` reached 48.38 D2 tok/s in the fixed-1,135-token screen and 50.21/49.75
-D2/D4 tok/s under stop semantics. Its target uses the patched closest-parity GGUF with BF16-mapped attention and
-Q8_0 KV, and ordinary first differs from D2 at fixed output index 133, so it is likewise not an exact or
-format-parity baseline.
+Required properties include:
 
-The hardware conclusion is bounded. Complete fixed-D2 group capture now reaches 54.783 exact D2 tok/s in the
-milestone's required one-warm-up/three-run Windows screen at mean accepted drafts 1.259. This clears the active
-50.0 tok/s minimum and approaches the 55.0 tok/s stretch target, but the final alternating 3-warm-up/10-run
-qualification remains deliberately deferred until GPU chaining, stop/tail handling, and streaming are complete.
-That historical llama.cpp build reached 48.38 tok/s
-in the controlled fixed-1,135-token D2 screen and about 50 tok/s under different stop semantics. vLLM demonstrates
-35.75 ms/group with a numerically different target batch route. The GPU-controlled graph roadmap now precedes
-multimodal work, but non-exact causal/batched routes remain inadmissible and graph capture is not presumed to be a
-speedup. A qualified 50 tok/s result meets the minimum, after which only material exact candidates may continue
-toward 55.
+- ordinary and MTP token-ID identity within gem16 for the selected greedy or sampled controls;
+- exact transactional K/V and hidden-row commit;
+- local-ring wrap and global-cache growth;
+- D1, D2, D4, adaptive fallback, stop, tail, and reasoning-boundary coverage;
+- resident multi-turn continuation without Target-prefix reconstruction;
+- zero token-loop allocation and zero silent fallback;
+- Compute Sanitizer coverage for active proposal, verification, and transaction kernels.
 
-A current-head Windows Nsight Systems trace at commit `b5ca0ef` contains 111 exact 16K fixed-D2 groups. Proposal
-and verify/accept/commit CPU ranges total approximately 47.015 ms/group, while the verify range projects to a
-41.407 ms GPU critical span. A representative group issues 1,407 kernel-launch API calls before its final stream
-synchronization. The bounded 5--6 ms scheduling/control gap supports implementing device control and complete-group
-capture next; synchronization time includes GPU execution, so the trace does not assume that the whole wait is
-recoverable. Detailed kernel and API accounting is retained in `docs/PERFORMANCE_LEDGER.md`.
+The independent assistant fixture reconstructs four drafts from captured Target Layer-46/47 state and matches the
+official implementation at `[1884, 5745, 993, 236771]`. The fixed 16K gate preserves all 1,135 ordinary Target IDs
+under D2. Sampled validators cover multiple seeds, repetition penalties, FP8/BF16 K/V, local-ring wrap, and resident
+chat. Detailed numerical evidence is retained in [CORRECTNESS.md](CORRECTNESS.md).
 
-Earlier eager probes remain useful acceptance evidence: a random-token prompt reached mean acceptance 1.22 and
-about 37.1 tok/s, while a natural CUDA essay reached 2.29 and about 65 tok/s. Together with the Wikipedia matrix,
-this confirms that ordinary fallback remains mandatory.
-
-## Correctness command
+Run the bounded reference gate with:
 
 ```bash
-gem16-run \
-  --model models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 \
-  --assistant-model models/checkpoints/google-gemma-4-12B-it-assistant-364bd03 \
-  --mtp-draft-tokens 4 \
-  --input-token-ids 2,9259,107 \
-  --max-context 128 --max-tokens 16 --kv-cache fp8 --greedy
-```
-
-The independent bounded reference gate is:
-
-```bash
-third_party/cache/unsloth-nvfp4-env/bin/python tools/validate_mtp.py \
+python tools/validate_mtp.py \
   --binary build/Linux/blackwell-release/bin/gem16-run \
   --target models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 \
   --assistant models/checkpoints/google-gemma-4-12B-it-assistant-364bd03 \
   --draft-tokens 4 --output /tmp/mtp-reference.json
 ```
 
-Active MTP supports greedy `gem16-run` and resident `gem16-chat` generation. It performs fixed-shape batched exact target
-verification for draft lengths 1, 2, and 4, retains tentative K/V rows in a fixed workspace, and accepts and commits
-the exact prefix on GPU. Drafts remain device-resident through verification; one small pinned result and one host
-synchronization remain per group for the non-chained D1/D4/adaptive paths. `--mtp-adaptive` explicitly enables
-context/acceptance-based D4→D2→D1 selection and bounded ordinary decode fallback. Resident chat loads the official
-assistant once, preserves the exact target KV prefix between turns, and reinitializes the fixed-D2 device control
-from each newly prefetched suffix. The GPU-chained D2 callback ring streams verified text without a per-group host
-roundtrip. Greedy and sampled MTP are active. Fixed D2 uses one outer device-routed conditional graph in both
-modes. Its D2 branch handles complete safe groups during reasoning and answer generation; its ordinary branch
-handles partial channel markers, exact reasoning-budget closure, and short output tails before returning control
-to the device router. Natural close plus following answer tokens within an accepted group remain valid and are
-committed in order. D1/D4/adaptive paths retain one synchronization per direct verification group. Diagnostic dumps remain
-outside active MTP rather than silently changing semantics.
+Sampled identity is checked by `tools/validate_sampled_mtp.py` and resident sampled chat by
+`tools/validate_sampled_mtp_chat.py`.
 
-## Sampled-MTP qualification gate
+## Current performance evidence
 
-Sampled MTP is implemented and has completed its first Linux correctness/performance qualification. The production
-contract is deterministic
-seed identity with ordinary target sampling, not greedy acceptance and not an unimplemented probability-ratio
-rejection sampler. For every verifier row, the target applies the same suppression, temperature, top-k, top-p,
-optional min-p, repetition penalty, and SplitMix64 output step that ordinary sampled decode would use along the
-draft prefix. A proposal is accepted only when it equals that target-selected token. On the first mismatch the
-target sample is emitted; later speculative rows and their K/V, hidden, repetition, and RNG state are discarded.
-If all proposals match, the final target row supplies the bonus token.
+The retained 2026-08-03 Linux max-power comparison uses the exact 16,384-token Wikipedia prompt, 1,135 fixed
+output positions, batch one, fixed D2, three warm-ups, and ten measurements:
 
-The implementation order is:
+| Engine | Effective D2 tok/s | ITL | Sampled peak VRAM |
+|---|---:|---:|---:|
+| **gem16 `8e86cb38`** | **89.58** | **11.163 ms** | 11,867 MiB |
+| vLLM 0.26.0 | 81.95 | 12.202 ms | 15,465 MiB |
+| llama.cpp b10240 | 82.88 | 12.065 ms | 10,631 MiB |
 
-1. **Complete:** parse and validate the pinned target `generation_config.json` sampling defaults. The recommended chat profile is
-   `temperature=1.0`, `top_k=64`, and `top_p=0.95`; explicit CLI overrides remain observable.
-2. **Complete:** add a direct fixed-shape sampled verifier with full target logits, one row-specific repetition mask per verifier
-   row, and transactional commit of only the emitted prefix. Keep assistant proposals deterministic initially.
-3. **Complete for the initial matrix:** prove same-seed ordinary/MTP token identity for D1/D2/D4 across multiple seeds, stop positions, final-length
-   tails, repetition penalties, FP8/BF16 K/V, and local-ring wrap. Report acceptance separately from greedy.
-4. **Complete:** extend fixed-D2 device control with the sampling step and capture the sampled verifier, commit, stop/tail, and
-   streaming path in the GPU-chained graph. No per-group host dependency or token-loop allocation is allowed.
-5. **Correctness and repeated timing complete; resource telemetry remains open:** add a real resident multi-turn
-   chat gate, including unchanged RNG/repetition history across turns and exact callback order, then run the Linux
-   3-warm-up/10-run comparison. The current run records workspace and allocation state but not continuous clocks,
-   power, or thermal telemetry, so it is not publication-grade resource qualification.
+Gem16 is 9.31% faster than vLLM and 8.08% faster than llama.cpp for these recorded configurations. This is not
+external semantic parity: all three outputs are internally deterministic but have different hashes, and checkpoint
+formats and K/V precision differ. Only gem16 proves identity with its own ordinary Target output. Full commands,
+raw-result locations, acceptance counters, telemetry, and caveats are in [BENCHMARKING.md](BENCHMARKING.md),
+[PERFORMANCE_LEDGER.md](PERFORMANCE_LEDGER.md), and `benchmarks/baselines/cross_engine_mtp/`.
 
-Assistant probability materialization and standard `min(1,p/q)` speculative rejection are a separate possible
-future algorithm. They require proposal distributions and independent statistical qualification and must not be
-inferred from the current argmax assistant head.
+The older 64.82 tok/s floor remains encoded in `tools/qualify_mtp.py` for historical regression reporting and is
+surpassed by the retained result; it is no longer a pending roadmap gate.
 
-## GPU-controlled decode graph roadmap
+## Qualification commands
 
-The long-term production boundary is one fixed-address CUDA execution plan that continues greedy MTP generation
-without a blocking host control roundtrip after every verification group. The host remains responsible for request
-setup and may consume streamed verified tokens, but it must not supply the next token, accepted length, position,
-or stop decision before GPU compute can continue. This is an architectural and latency objective; it does not
-assume CUDA Graph replay alone will meet the 50 tok/s performance gate.
+Use the short screen only to reject candidates:
 
-Delivery is deliberately incremental:
+```bash
+python tools/screen_mtp.py \
+  --workload benchmarks/results/<workload>/workload.json \
+  --output benchmarks/results/<date>/<git-sha>/<machine>/mtp-short-screen.json \
+  --executable build/Linux/blackwell-release/bin/gem16-run
+```
 
-1. **Complete: device control with host parity.** An arena-backed `MtpDeviceControl` contains the current input token,
-   processed position, remaining output capacity, stop state, output write position, and fixed-D2 mode. GPU
-   acceptance updates a shadow next state. The existing host loop and compact result synchronization remain, and
-   every group asserts that host and GPU transitions agree. The host supplies the current record with one small
-   asynchronous H2D copy, while the existing D2H transaction returns both the group result and GPU-computed next
-   state. This phase does not change production kernel ordering, synchronization count, or output.
-2. **Complete fixed-D2 group graph.** Capture both recurrent assistant proposal steps, verification-input build,
-   embedding, all 48 target layers, final norm/output selection, acceptance, KV/hidden commit, and control update.
-   The host initially replays one group at a time and still reads the result. This isolates graph-capture and
-   controlled-position correctness from loop and streaming changes.
-3. **Complete: GPU-chained fixed-D2 loop.** CUDA 13.3 conditional `while` nodes repeat complete groups while the
-   device control has capacity for another three-row verification batch. Verified target tokens, proposals, and
-   aggregate counters are stored in preallocated device buffers. There is no D2H/H2D dependency between groups;
-   the result is copied only after the conditional graph finishes in this non-streaming form.
-4. **Complete: stop and tail semantics.** EOS/stop checks and remaining-length accounting stay in device control.
-   When fixed D2 leaves one or two slots, a second conditional `while` node runs exact ordinary target forwards and
-   publishes their tokens without returning to the host scheduler. Position and ring-wrap gates match ordinary.
-5. **Complete: asynchronous streaming.** A bounded, preallocated 256-token single-producer/single-consumer ring in
-   mapped pinned memory carries only target-verified tokens. Device system-scope atomics publish in order; the host
-   invokes the existing callback while polling graph completion without synchronizing the compute stream. A slow
-   consumer applies explicit device backpressure, and callback failure publishes cancellation at the next group
-   boundary. Streaming and callback time remain inside end-to-end timing.
-6. **Sampled fixed-D2 graph and resident chat.** Apply the sampled-MTP contract above with row-specific target
-   sampling state, transactional RNG/repetition commit, device stop/tail handling, and the existing asynchronous
-   streaming boundary. Qualify ordinary/MTP identity per seed and resident multi-turn continuation on Linux.
-   **Complete.** Bounded reasoning is also routed inside this graph: D2 runs while a full group is safe, exact
-   boundary rows use the captured ordinary child, and continuation/resumption remains device-controlled.
-7. **Adaptive graph branches.** After fixed D2 sampled streaming is stable, add conditional D1/D2/ordinary paths
-   for the existing adaptive policy. D4 may follow as a separately captured fixed shape.
-8. **Optional N-Gram proposer branch.** Much later, and only after the graph above is stable, measure a
-   device-resident `ngram-mod`
-   lookup ahead of MTP. On a qualified hit it supplies fixed D2 or D4 proposal tokens and skips the assistant; on a
-   miss it falls through to MTP. Both sources reuse the same exact target verification, acceptance, transactional
-   commit, stop/tail, and streaming nodes. Do not concatenate an unverified N-Gram prefix with MTP hidden-state
-   recurrence, and do not add long variable target batches until an ordinary-identical verifier exists for each
-   captured shape.
+Promising changes require the full alternating qualification:
 
-The optional N-Gram design uses a fixed-capacity arena hash table populated from the device token history after
-prefill and updated only with emitted target-verified tokens. Lookup, collision policy, occupancy/reset behavior,
-and draft-length selection must be deterministic. Initial evaluation is D2, then D4; 48–64-token llama.cpp-style
-drafts are out of scope until exact long-batch target verification is independently proven. The graph control may
-later expose `proposal_source`, `proposal_count`, and a shared proposal-token region, but the first
-`MtpDeviceControl` change remains model-specific and must not introduce unused abstraction.
+```bash
+python tools/qualify_mtp.py \
+  --workload benchmarks/results/<workload>/workload.json \
+  --output benchmarks/results/<date>/<git-sha>/<machine>/mtp-qualification.json \
+  --executable build/Linux/blackwell-release/bin/gem16-run \
+  --warmup-pairs 3 --measured-pairs 10
+```
 
-Current llama.cpp fixed-1,135-token screens justify evaluation but not promotion. Match lengths 8–24 produced no
-N-Gram proposals on the Wikipedia summary. Match length 2 generated drafts, but N-Gram-only mean accepted drafts
-were only about 0.12–0.13 and active N-Gram/MTP cascades reached about 45.86–48.96 tok/s versus a 50.01 tok/s
-single-run MTP-D2 screen. llama.cpp gives draftless proposers priority over MTP rather than merging their token
-streams. Therefore gem16 must report per-source hit, proposed, accepted, rejected, and fallback counts, and retain
-N-Gram only if representative end-to-end suites improve without changing ordinary output.
+A promoted MTP change must retain exact ordinary/MTP identity, report effective verified output rather than
+proposals, include memory and resource telemetry, and win a representative end-to-end workload. Microbenchmark or
+graph-capture improvement alone is insufficient.
 
-Every phase retains the ordinary non-MTP route as the semantic reference and must prove the fixed Wikipedia
-1,135-ID SHA-256 `43bc3380fc1cce5182a679fa3a340c04bcc79c52e73d5102ec1f737f57d0a1e1`, 632 accepted and 372 rejected drafts
-over 502 groups, zero fallback, zero token-loop allocation, deterministic cache positions, and unchanged stop
-behavior. Add focused tests for control overflow, zero acceptance, one/two accepted drafts, final-length tails,
-stop in each emitted slot, ring wrap, slow consumers, and graph replay/reset. Each phase requires an Nsight timeline
-and direct-launch comparison; neutral graph steps may be retained only when they are necessary, bounded foundations
-for the next no-roundtrip phase and their memory cost is documented.
+## Deferred work
 
-## Implementation status and order
-
-1. **Complete:** extend the inspector/config parser for `gemma4_unified_assistant` and its exact 48-tensor BF16
-   manifest. Primary inference rejects an assistant passed as the target instead of entering target-only code.
-2. **Complete:** verify the pinned assistant with `tools/fetch_model.py --lock
-   models/gemma4-12b-mtp-assistant.lock.json`.
-3. **Complete:** add a separate fixed-address BF16 assistant arena without quantization or conversion. Every
-   tensor is bound at its exact shape, and device prefix/suffix probes cover all 48 uploads. `gem16-run
-   --assistant-model` reports source, arena, and measured device-delta bytes. A 16-step paired residency run retains
-   identical ordinary target IDs, memcheck reports zero errors, and Nsight places all five `cudaMalloc` calls before
-   the prefill range with none in prefill or decode.
-4. **Complete:** bind the three sliding assistant layers to the target Layer-46 cache and the full assistant layer
-   to target Layer 47, for both checkpoint-FP8 and BF16 cache modes. Draft iterations keep the target position and
-   shared cache constant, matching the official proposer contract.
-5. **Complete:** implement BF16 target-embedding/pre-projection, four Q-only attention/MLP layers, final norm,
-   post-projection feedback, the tied 1,024-dimensional LM head, and the assistant's two suppressed token IDs.
-6. **Complete for correctness:** implement draft lengths 1, 2, and 4 with fixed-shape batched exact target
-   verification. The target evaluates `[input token, draft_1, ...]` in one causal batch; target predictions, not
-   assistant agreement, choose every emitted token. Tentative per-layer K/V rows are retained in a fixed workspace,
-   local-ring writes are restored before host acceptance, and only the accepted prefix plus first mismatch is
-   committed to the target cache.
-7. **Complete for correctness:** report proposed/accepted/rejected token counts, proposed IDs, verification groups,
-   evaluated target positions and batches, mean accepted length, effective output tok/s, and incremental memory.
-   FP8 and BF16 runs retain exact ordinary greedy output, including a local-ring wrap test. `tools/validate_mtp.py`
-   proves the first four recurrent BF16 drafts exactly equal Transformers (`1884,5745,993,236771`) on a complete
-   one-token shared cache. Active full-process memcheck passes. Full-process initcheck is not accepted as MTP
-   evidence because it reports pre-existing uninitialized padded target-prefill reads in CUTLASS
-   `ApplyScalesKernel` before proposal execution; full-process racecheck exits before application output with no
-   displayed hazards. Targeted assistant sanitizer coverage remains required before performance promotion.
-8. **Complete first verifier optimization:** recursive assistant token selection remains device-resident through a
-   draft group, and exact fused native Gate/Up/GELU reuse replaces separate MTP Gate and Up launches. The initial
-   FP8 CUTLASS batch promotion passed the bounded context-512 gate but was later narrowed to O only after Q/K/V
-   failed the full 16K exactness gate. On the natural 53-token/256-output context-512 workload, 3 warm-ups plus 10
-   alternating runs measure 42.90 tok/s MTP versus 35.27 ordinary (+21.6%), with mean accepted length 1.89. This is a workload-specific effective-throughput win, not a general 60 tok/s claim.
-9. **Complete bounded scheduler work:** drafts now remain device-resident, GPU acceptance applies stop IDs and
-   commits tentative K/V plus the selected hidden row before one compact D2H result, and `--mtp-adaptive` exposes
-   deterministic context/acceptance thresholds with ordinary fallback. An exact fixed-shape graph over each
-   layer's position-independent verifier suffix added 6–8 MiB but measured 35.291 versus 35.340 tok/s and was
-   removed. Full position-controlled graph capture is deferred because the refreshed profile is GPU-kernel-bound.
-   The exact direct decode-attention verifier remains mandatory: a faster causal-prefill attention candidate
-   reached 55.06 tok/s but changed output at step 15 and was removed. NVFP4 CUTLASS verifier projections also
-   changed the natural sequence and were removed.
-10. **16K correctness and short-batch kernels complete:** target verification keeps decode-order direct grouped
-   Q/K/V and exact CUTLASS O. For T≤5, FP8 Q/K/V now uses the latency-oriented decode MMA over 2/3/5 rows instead
-   of staging a 128-token tile. NVFP4 Down uses one unstaged 16-token tile and four warps instead of the prefill
-   128-token/8-warp plan. Both preserve MMA K accumulation and all 1,135 ordinary IDs. D2 screening moves from
-   35.340 to 39.150 after FP8 Q/K/V and to 43.200 tok/s after NVFP4 Down. T1 Gate/Up, 8/16-head global attention,
-   and suffix graphs were exact but did not win and were removed. Active FP8 ring-wrap memcheck reports zero errors.
-11. **Qualified 16K D2 win:** three alternating warm-up pairs and ten alternating measured pairs produce 31.798
-   ordinary versus 42.639 MTP D2 median tok/s, a 1.341x throughput speedup (+34.1%). All 20 measured outputs contain
-   the same 1,135 IDs; mean accepted length is exactly 1.259 in every MTP run. The 95% mean CIs are
-   `[31.783,31.806]` and `[42.623,42.658]`. Peak sampled GPU memory is 10,838 MiB. D2 remains workload-dependent;
-   explicit ordinary decode and adaptive fallback are retained. The revised 50 tok/s minimum is not yet reached.
-12. **External feasibility matrix complete:** patched graph-vLLM reaches 57.390 D2 tok/s over 3/10 runs and current
-   llama.cpp reaches 48.38 tok/s in a fixed-length D2 screen. Both execute the official assistant with shared target
-   KV, but neither preserves its own ordinary greedy sequence, and llama.cpp also changes target/KV formats.
-   vLLM's 35.75 ms verifier-group latency proves sufficient hardware headroom, not an admissible numerical
-   implementation. The final bounded exact-verifier sprint targets 45.18 ms/group and 50 tok/s first, then 41.07
-   ms/group and 55 tok/s only through material exact candidates. If it cannot reach 50, retain the best exact
-   characterization and mark the performance target unmet rather than weakening semantics.
-13. **Next, before multimodal:** continue the GPU-controlled decode-graph roadmap above with GPU-chained fixed-D2
-   execution now that device-control parity and complete fixed-D2 group capture are complete. Stop/tail handling,
-   asynchronous streaming, and adaptive graph branches follow as separate
-   correctness-gated changes. A device-resident N-Gram proposer is an
-   optional later branch only after those foundations and its own hit-rate/performance gates. Multimodal
-   implementation remains queued until fixed-D2 GPU chaining and nonblocking streaming are complete or a new
-   decision documents a blocker; optional N-Gram qualification is not itself a multimodal blocker.
-14. **Device-control parity phase complete:** `MtpGroupTransaction` now places the result and 16-byte-aligned
-   `MtpDeviceControl` in the fixed MTP arena. GPU acceptance derives the next token, processed position, remaining
-   output capacity, output offset, and stop state. The host validates the copied transition before using the result
-   and validates the complete post-update host state before scheduling another group. CUDA fixtures cover zero,
-   one, and two accepted D2 drafts plus stop-token truncation. Short BF16 D1/D2/D4 and FP8 D2 runs are exactly equal
-   to ordinary greedy output, report `device_control=host_gpu_transition_parity`, and use neither fallbacks nor
-   token-loop allocations. The Windows 16K Wikipedia gate (one warm-up, three measured runs) retains all 1,135 IDs
-   and SHA-256 `43bc3380fc1cce5182a679fa3a340c04bcc79c52e73d5102ec1f737f57d0a1e1`, with 632 accepted and 372 rejected
-   drafts over 502 groups. Median throughput is 45.217 tok/s; the 706,618,112-byte reported workspace is unchanged.
-   Nsight records the same 185,830 kernel launches and 117 stream synchronizations as the pre-change trace, plus
-   exactly 111 `cudaMemcpyAsync` calls for 111 control records. The full Transformers draft-reference script could
-   not rerun on this Windows Python because its installed PyTorch lacks CUDA; its engine-side exact comparison
-   completed before that failure, and the previously retained independent Transformers draft fixture remains the
-   reference evidence. This phase supplied the correctness foundation used by the complete fixed-D2 group graph.
-15. **Complete fixed-D2 group graph:** checkpoint-FP8 fixed D2 with a context budget above 1,024 captures both
-   assistant proposal steps, controlled verification inputs, all 48 target layers, output selection, GPU
-   acceptance, KV/hidden commit, control transition, and the compact D2H transaction in one reusable graph.
-   Short-context and BF16 modes retain the exact direct implementation. The Wikipedia 16K one-warm-up/three-run
-   gate measures 54.783 tok/s median versus the preceding device-control milestone's 45.217 tok/s (+21.2%), with
-   the unchanged 1,135-ID SHA-256, 632 accepted and 372 rejected drafts over 502 groups. A 1,022-token prompt plus
-   16 outputs crosses the local-cache ring boundary exactly, replays 13 D2 groups plus a direct D1 tail, reports
-   14,680,064 graph-associated device bytes, and retains zero token-loop allocations. The 256-output Nsight trace
-   records 111 `cudaGraphLaunch` calls, reduces whole-process `cudaLaunchKernel` calls from 185,830 to 14,770, and
-   retains 116 stream synchronizations. One synchronization per group remains; GPU chaining is the next phase.
-16. **Complete GPU-chained fixed D2:** one CUDA conditional `while` node now repeats the complete group graph until
-   stop or fewer than three output slots remain. A fixed device buffer retains target-verified outputs and proposal
-   IDs, while a compact aggregate stores group/acceptance counters; all are copied only after graph completion.
-   The exact Wikipedia 16K one-warm-up/three-run gate reaches 55.063 tok/s median, retains the 1,135-ID SHA-256 and
-   632/372 acceptance counts over 502 groups, and stops on the same token. The 256-output Nsight trace contains one
-   `cudaGraphLaunch` and six whole-process stream synchronizations, versus 111 graph launches and 116
-   synchronizations for host replay. Ring wrap at local-cache position 1,024 and a focused two-iteration
-   conditional-node fixture are exact. Final D1/ordinary tails remain host-scheduled, and callbacks are delivered
-   only after the bulk chain completes; stop/tail consolidation plus asynchronous streaming is the next phase.
-17. **Complete GPU tail and asynchronous streaming:** a dependent ordinary-tail conditional node consumes the last
-   one or two output slots entirely on device, including stop checks and cache updates. A 256-token mapped-pinned
-   SPSC ring publishes verified D2 and tail tokens with system-scope release/acquire ordering while the host polls
-   callbacks without a compute-stream synchronization. The slow-consumer fixture fills the ring, observes exactly
-   one backpressure event, releases the consumer, and completes 258 ordered outputs; mapped publication, graph
-   reset, and local-KV ring wrap also pass. Wikipedia 16K with one warm-up/three runs measures 55.009 tok/s median,
-   retaining the exact 1,135-ID SHA-256 and 632/372 counts over 502 groups. Nsight records one graph launch and five
-   whole-process stream synchronizations; none is in the chained decode boundary. The 32K graph allocation is
-   23,068,672 bytes, and the mapped ring is fixed at 1,088 bytes.
-18. **Complete alternating qualification:** three alternating warm-up pairs and ten alternating measured pairs
-   preserve the same 1,135 IDs in all 26 runs. Ordinary reaches 36.788 tok/s median (95% mean CI
-   `[36.715,36.837]`); fixed D2 reaches 54.903 tok/s (`[54.557,55.132]`), a 1.492x speedup (+49.2%). Every D2 run
-   reports 1,004 proposed, 632 accepted, and 372 rejected drafts over 502 groups with zero ordinary fallback. This
-   passes the 50 tok/s competitive gate and misses the 55 tok/s stretch target by 0.097 tok/s. Raw results are under
-   `benchmarks/results/2026-07-28/b07b178/blackwell16gb-windows-mtp-streaming/qualification.json`.
-19. **Complete sampled MTP chat qualification:** the target verifier materializes exact full logits for each row,
-   derives row-local repetition histories, samples with the ordinary target seed/step, and commits only the emitted
-   row's repetition state. `MtpDeviceControl` advances sampling steps transactionally. Fixed D2 captures all three
-   sampling passes and the sampled ordinary tail in the conditional graph, retaining the mapped-pinned streaming
-   ring and zero per-group host synchronization. D1/D2/D4, multiple seeds, repetition penalty 1.1, BF16 K/V, and
-   local-ring wrap all preserve ordinary sampled IDs. A resident two-turn chat returns `Blau` then `Blau` in both
-   ordinary and MTP modes while keeping target/assistant state resident and reporting GPU chaining.
-20. **Linux exactness/repeated timing complete; resource and 50 tok/s gates remain open:** under Google `temperature=1.0`,
-   `top_k=64`, `top_p=0.95`, seed 42, three alternating warm-up pairs plus ten measured pairs produce one identical
-   1,114-token stop-terminated output in all 26 runs (SHA-256
-   `3bf1d6f1750345a3d9732950885275a660fcf0ace0f6ded051aeead6a916bd3a`). Ordinary reaches 31.450 median tok/s
-   with 95% mean CI `[31.427,31.546]`; sampled fixed D2 reaches 46.234 (`[46.093,46.268]`), a 1.470x improvement.
-   Every MTP run proposes 1,002 drafts, accepts 612, rejects 390, and executes 501 groups. Workspace is 719,728,128
-   bytes. Exactness, graph chaining, streaming, and repeated measurement pass, but the existing 50 tok/s performance
-   target is not met. The adjacent Linux greedy regression also preserves all 1,135 IDs and reaches 47.117 versus
-   31.634 ordinary; this does not replace the qualified 54.903 tok/s Windows result. Raw local artifacts are under
-   `benchmarks/results/2026-07-29/c482926-worktree/blackwell16gb-linux-sampled-mtp/`.
+- publication-grade continuous power/clock/thermal telemetry for sampled MTP;
+- adaptive D1/D2/ordinary routing inside the chained graph if it wins end to end;
+- probability-ratio speculative sampling only if assistant distributions become available and are independently
+  qualified;
+- an optional bounded N-gram proposal source only after measured hit-rate, acceptance, memory, and latency gates.
