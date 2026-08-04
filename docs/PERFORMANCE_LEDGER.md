@@ -1,5 +1,30 @@
 # Performance ledger
 
+## 2026-08-04 Reject direct CUTLASS MLP activation-scale generation
+
+Hypothesis: the fused RMSNorm/NVFP4 quantizer can write E4M3 scales directly in CUTLASS's 128-row tiled layout,
+remove 96 interleave launches from a two-chunk 16K prompt, and shrink compact scale storage to the five-row MTP
+verifier extent. Two implementations were screened: direct byte stores from each token CTA and a coalesced variant
+that sequentially preserved the exact 256-thread reduction for four rows separated by 32 and emitted one 16-byte
+store per scale tile.
+
+Both variants produced exact E2M1 payload and interleaved E4M3 identity for FP32 and physical-BF16 inputs at 1, 5,
+127, 128, 129, 257, and 8,192 rows. Full CUDA CTest passed, and parent/candidate full-logit dumps were byte-identical
+at 1, 129, 257, 8,192, and 8,193 prompt tokens. The candidate removed 1,964,800 workspace bytes, all interleave
+launches, and no recurring allocation or fallback was added.
+
+The short 16K rejection screens were decisive. Direct stores reached 5,432.25 and 5,402.87 tok/s versus adjacent
+parent results of 6,013.21 and 5,899.37 tok/s. Coalesced stores reached 5,465.17 tok/s versus 5,956.87 tok/s
+(-8.25%). At 8K, Nsight measured parent quantization plus 96 interleaves at 22.483 + 1.073 ms and the direct kernel
+at 22.619 ms, but the following regular Gate/Down CUTLASS kernels rose from 371.417 to 598.712 ms and fused Up from
+236.388 to 280.868 ms. The removed interleave is a cheap immediately preceding layout/cache warm-up for the much
+larger GEMMs. The direct kernel retained 40 registers and zero stack/local memory, adding 960 dynamic bytes to the
+parent's 1,024 static shared bytes.
+
+Decision: reject and remove S03. The 1.87 MiB arena reduction does not justify a repeatable 8-10% prefill loss; keep
+compact generation plus the separate interleave. Raw ignored evidence is under
+`benchmarks/results/2026-08-04/6a8892d/blackwell16gb-linux-maxpower-12b-sprint/S03-direct-scales/`.
+
 ## 2026-08-04 Promote final-row-only prompt RMSNorm
 
 Hypothesis: ordinary prompt processing only needs final RMSNorm for the last row of the final chunk, while the
