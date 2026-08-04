@@ -1,5 +1,23 @@
 # Performance ledger
 
+## 2026-08-04 Reject combined prompt Q/K/V CUTLASS projection
+
+S06A reordered Q/K/V weights and scales contiguously inside the sole Target arena and replaced separate prompt
+Q/K/V GEMMs with one local `N=8192` or global Q/K `N=8704` CUTLASS GEMM. Combined row-major outputs were consumed
+through exact strided normalization views; decode/MTP retained direct interior weight bindings. There was no second
+persistent layout, byte increase, fallback, or token-loop allocation. A 128-token full-model comparison retained
+byte-identical logits, and all exact Wikipedia runs retained hash
+`b21d3676985d06ad23525f9f4b52dd5134fee95d97d8aaca89e61736d74c3afb`.
+
+The first one-warm-up/two-run screen measured candidate/parent at 5,944.02/5,888.09 prefill tok/s, but reversed
+one-warm-up/three-run ordering measured parent/candidate at 5,895.26/5,888.89 tok/s with substantially overlapping
+confidence intervals. The candidate was 0.11% slower in the reversed order. Profiling explains the neutral result:
+FP8 CUTLASS launches fell from 368 to 192, but their total time fell only from 543.812 to 542.321 ms (1.491 ms,
+0.27% of the family and 0.054% end to end). Output tiles still load A independently, while strided Q/K and V
+normalization consumed most of the small reduction. Decision: reject S06A for no stable end-to-end win and remove
+the implementation completely. Raw ignored evidence is under
+`benchmarks/results/2026-08-04/75efb08/blackwell16gb-linux-maxpower-12b-sprint/S06A-combined-qkv/`.
+
 ## 2026-08-04 Reprofile the promoted 12B stack and admit combined Q/K/V only
 
 A fresh exact 16K Nsight Systems profile at `c50dd4d` measured the `gem16.prefill` range at 2,769.309 ms. The
