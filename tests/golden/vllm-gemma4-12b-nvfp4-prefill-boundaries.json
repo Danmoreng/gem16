@@ -2376,7 +2376,7 @@
     }
   ],
   "checkpoint": {
-    "local_directory_name": "unsloth-gemma-4-12b-it-NVFP4-b1f6497",
+    "local_directory_name": "unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
     "repository": "unsloth/gemma-4-12b-it-NVFP4",
     "revision": "b1f649734b34aa5575b03d186abd1b9be3d0d5c4"
   },
@@ -2398,9 +2398,9 @@
     ],
     "device_name": "NVIDIA GeForce RTX 5080 Laptop GPU",
     "python": "3.13.14",
-    "torch": "2.11.0+cu130",
+    "torch": "2.11.0",
     "torch_cuda": "13.0",
-    "vllm": "0.25.1"
+    "vllm": "0.26.0"
   },
   "schema_version": 1
 }

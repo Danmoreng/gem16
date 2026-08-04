@@ -277,7 +277,7 @@ usable retrieval at both context tiers without treating one qualitative response
 
 ### Direct prefill-boundary reference
 
-`tools/generate_prefill_boundary_golden.py` runs vLLM 0.25.1 offline on two deterministic direct-token prompts of
+`tools/generate_prefill_boundary_golden.py` runs vLLM 0.26.0 offline on two deterministic direct-token prompts of
 129 and 257 tokens and records complete greedy IDs plus Top-20 log probabilities. The fixture is pinned to the
 checkpoint revision and records the reference runtime, GPU, cache mode, and execution controls. It replaces an
 older boundary check whose expected eight-token sequences came from gem16 itself and therefore could not serve
