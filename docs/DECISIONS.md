@@ -1,5 +1,36 @@
 # Decisions
 
+## 2026-08-04: Permit reproducible project-compiled model artifacts and keep AGENTS policy-only
+
+Date: 2026-08-04
+
+Decision: Model profiles may use immutable upstream checkpoints or offline project-compiled artifacts. A compiled
+artifact must lock its source, compiler/toolchain, transformations and output hashes, remain auditable, and be
+identified as project-built in quality and performance claims. The inference runtime may not silently quantize,
+requantize or create an undisclosed persistent converted copy. Direct loading remains an implemented 12B profile
+property, not a repository-wide restriction on future models. Keep `AGENTS.md` limited to stable project-wide
+rules and document model arithmetic, execution state, benchmarks and milestone ordering in their owning documents.
+
+Context: The original 2,438-line `AGENTS.md` was a repository-initialization specification. It still described
+text-only scope, deferred MTP/server/multimodal work, initial kernel milestones and a direct-load-only checkpoint
+policy after those product and implementation states had materially changed. The Gemma 4 26B A4B production
+hypothesis requires a reproducible QAT-BF16-to-FP8/NVFP4/Q4_0 compiler because no published checkpoint implements
+the selected complete recipe.
+
+Alternatives: Preserve direct-load-only policy and block the proposed 26B recipe; perform conversion during runtime
+startup; or retain architecture and roadmap details in `AGENTS.md`. The first prevents the selected experiment,
+the second obscures startup/memory/provenance boundaries, and the third duplicates faster-changing authoritative
+documents and gives agents stale instructions.
+
+Consequences: `AGENTS.md` points to authoritative feature documents and retains correctness, no-fallback,
+no-token-loop-allocation, residency, benchmark-integrity and security rules. Shared implementation guidance lives
+in `docs/DEVELOPMENT.md`. The repository-integrated 26B plan under `docs/plans/gemma4-26b/` defines stricter source,
+compiler, quality, memory and artifact gates; M00 records its concrete artifact contract rather than requesting a
+policy exception.
+
+Evidence: Project-owner approval in the 2026-08-04 planning session, `AGENTS.md`, `docs/DEVELOPMENT.md`, and
+`docs/plans/gemma4-26b/OWNER_DECISION_POINTS_DE.md`.
+
 ## 2026-08-03: Refresh external pins and publish a controlled 16K D2 performance comparison
 
 Date: 2026-08-03

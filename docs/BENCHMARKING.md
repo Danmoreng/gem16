@@ -5,6 +5,35 @@ output/semantic-parity result. `gem16-bench decode` also provides a machine-read
 characterization; the other standalone end-to-end benchmark modes still return `not_implemented` and a non-zero
 exit code.
 
+## Permanent benchmark contract
+
+A promoted comparison uses the same GPU, power policy, prompt token IDs, output-token count, context, batch size,
+sampling controls, template, cache state, and timing boundary. Any necessary difference in checkpoint, tensor
+format, K/V precision, runtime feature support, or output semantics is stated beside the result. CPU weight offload,
+prompt-cache asymmetry, reduced output, and hidden fallback invalidate a primary performance claim.
+
+Unless a stricter feature plan applies, use three warm-ups and ten retained runs, retain every raw sample, and
+report the median as primary plus mean, standard deviation, and a 95% confidence interval. Noisy results require
+more repetitions, not selection of the best run. Record peak and steady VRAM, power, clocks, thermals, exact
+commands, code/model/toolchain revisions, and actual kernel/graph dispatch. Results are stored below
+`benchmarks/results/<date>/<git-sha>/<machine-id>/` and never overwritten.
+
+Keep prompt processing, ordinary decode, speculative decode, and end-to-end timing distinct. Report TTFT and
+prompt tok/s for prefill; output tok/s and median/p95/p99 ITL for decode. Speculative proposed tokens are not output
+tokens. Throughput speedup is `candidate / baseline`; latency reduction is `1 - candidate / baseline`.
+
+External llama.cpp comparisons use one of these labels:
+
+1. **same-source closest parity**: the same immutable source with every format mapping and quality difference
+   recorded;
+2. **native-format/kernel baseline**: proves the relevant native Blackwell path but may differ in other tensor
+   formats;
+3. **fastest practical baseline**: the strongest quality-acceptable configuration an expert user would select,
+   with model size and quality differences disclosed.
+
+Do not call a converted model exact parity unless its tensor inventory and execution semantics prove that claim.
+Quality and correctness evidence accompanies every promoted performance result.
+
 ## Reproducible 16K cross-engine MTP performance comparison
 
 The public three-engine reproduction entry point is:
@@ -143,11 +172,10 @@ bulk-prefill time and throughput. They are not mixed into the small-suffix
 checkpoint distribution. This distinction avoids presenting a 70-token cached
 continuation as large-batch prompt throughput.
 
-Future results must use the matrices, timing boundaries, repetition policy, quality gates, and three llama.cpp
-baseline labels defined in `AGENTS.md`. Raw runs will be written below
-`benchmarks/results/<date>/<git-sha>/<machine-id>/` and never overwritten. Throughput speedup and latency reduction
-must be reported separately. Exact board identity, power envelope, clocks, and thermals are recorded for every run;
-the project scope remains the 16 GB CUDA target class.
+Future results must use the timing boundaries, repetition policy, quality gates, and three llama.cpp baseline
+labels defined above and any stricter active feature-plan matrix. Throughput speedup and latency reduction must be
+reported separately. Exact board identity, power envelope, clocks, and thermals are recorded for every run; the
+project scope remains the 16 GB CUDA target class.
 
 Current upstream llama.cpp is pinned, but its unpatched converter rejects the locked checkpoint's mixed FP8/NVFP4
 compressed-tensors groups. A tracked converter patch produces a closest-parity candidate that preserves NVFP4 MLP

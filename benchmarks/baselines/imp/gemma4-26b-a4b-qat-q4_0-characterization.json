@@ -1,0 +1,189 @@
+{
+  "schema_version": 1,
+  "status": "exploratory_not_valid_baseline_cpu_expert_offload",
+  "date": "2026-08-04",
+  "model": {
+    "repo": "google/gemma-4-26B-A4B-it-qat-q4_0-gguf",
+    "revision": "d1c082be9cf3c8a514acf63b8761f4b41935842e",
+    "filename": "gemma-4-26B_q4_0-it.gguf",
+    "bytes": 14439363584,
+    "sha256": "3eca3b8f6d7baf218a7dd6bba5fb59a56ee25fe2d567b6f5f589b4f697eca51d",
+    "parameters": 25233142046,
+    "layers": 30,
+    "experts_total": 128,
+    "experts_active": 8
+  },
+  "system": {
+    "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "gpu_uuid": "GPU-93070293-2184-eb69-555b-1d856a4fdbb8",
+    "gpu_compute_capability": "12.0",
+    "gpu_vram_nvidia_smi_mib": 16303,
+    "gpu_vram_cuda_report_mib": 15881,
+    "platform_profile": "max-power",
+    "nvidia_powerd": "active",
+    "cuda_toolkit": "13.3.73",
+    "gem16_commit": "1ffabc4442f9d819558821fe13566ca8c236cc76"
+  },
+  "imp": {
+    "repo": "https://github.com/kekzl/imp",
+    "commit": "a392904d4216388828d0d56317de046f4ca49627",
+    "license": "MIT",
+    "build": {
+      "type": "clean_host_release",
+      "docker_unavailable": true,
+      "c_compiler": "GCC 15.3.0",
+      "cxx_compiler": "G++ 15.3.0",
+      "cuda_compiler": "NVCC 13.3.73 with GCC 15.3.0",
+      "cutlass": "4.6.1",
+      "tests": false,
+      "initial_gcc16_result": "failed: upstream weight_cache_file.h uses uint64_t/int64_t without directly including cstdint",
+      "source_patch_retained": false
+    },
+    "configuration": {
+      "batch": 1,
+      "prompt_tokens": 512,
+      "generated_tokens": 256,
+      "repetitions": 10,
+      "warmup": "one built-in full prefill/decode cycle, discarded",
+      "sampling": "greedy",
+      "kv_cache": "FP8_E4M3",
+      "kv_tokens": 1024,
+      "library_reserve_override_mib": 256,
+      "cuda_graphs": false,
+      "cuda_graph_disable_reason": "experts_on_host",
+      "moe_prefill": "legacy_fallback",
+      "attention_prefill": "cublas_materialized",
+      "attention_decode": "paged_fp8"
+    },
+    "residency": {
+      "expert_weight_total_gib": 11.96,
+      "expert_layers_gpu": 21,
+      "expert_layers_host": 9,
+      "expert_weights_gpu_gib": 8.37,
+      "expert_weights_host_gib": 3.59,
+      "expert_cache_hit_rate_pct": 64.2,
+      "expert_cache_hits": 75875,
+      "expert_cache_misses": 42226,
+      "host_register_warnings": true
+    },
+    "results": {
+      "prefill": {
+        "tokens_per_second_mean": 1533.75,
+        "elapsed_ms_mean": 333.82
+      },
+      "decode": {
+        "tokens_per_second_mean": 51.64,
+        "elapsed_ms_mean": 4957.82,
+        "aggregate_ms_per_token": 19.3648
+      }
+    },
+    "telemetry": {
+      "peak_vram_mib": 14804,
+      "minimum_free_vram_mib": 1077,
+      "maximum_power_w": 175.03,
+      "maximum_sm_clock_mhz": 2737,
+      "maximum_memory_clock_mhz": 14001,
+      "maximum_temperature_c": 75,
+      "active_average_power_w": 166.89,
+      "active_average_sm_clock_mhz": 2631.3,
+      "active_average_temperature_c": 69.6
+    }
+  },
+  "llama_cpp": {
+    "release": "b10240",
+    "commit": "0b14b87d7c20cb753b94b96854dd7b45306fc696",
+    "configuration": {
+      "batch": 1,
+      "prompt_tokens": 512,
+      "generated_tokens": 256,
+      "existing_decode_context_tokens": 512,
+      "repetitions": 10,
+      "warmup": "llama-bench built-in per-test warmup",
+      "kv_cache_k": "Q8_0",
+      "kv_cache_v": "Q8_0",
+      "flash_attention": true,
+      "gpu_layers": "31/31",
+      "embedding_override": "token_embd.weight=CUDA0",
+      "cpu_weight_offload": false
+    },
+    "results": {
+      "prefill": {
+        "tokens_per_second_mean": 5087.766907,
+        "tokens_per_second_median": 5281.7,
+        "elapsed_ms_mean": 101.183939,
+        "standard_deviation_tokens_per_second": 378.496225
+      },
+      "decode": {
+        "tokens_per_second_mean": 169.762495,
+        "tokens_per_second_median": 169.805,
+        "elapsed_ms_mean": 1507.990072,
+        "aggregate_ms_per_token_mean": 5.89059,
+        "standard_deviation_tokens_per_second": 0.14046
+      }
+    },
+    "telemetry": {
+      "peak_vram_mib": 15316,
+      "minimum_free_vram_mib": 565,
+      "maximum_power_w": 172.99,
+      "maximum_sm_clock_mhz": 2625,
+      "maximum_memory_clock_mhz": 14001,
+      "maximum_temperature_c": 69,
+      "active_average_power_w": 156.96,
+      "active_average_sm_clock_mhz": 2463.7,
+      "active_average_temperature_c": 64.8
+    }
+  },
+  "comparison": {
+    "throughput_definition": "engine tokens per second; higher is better",
+    "prefill_imp_over_llama": 0.30146,
+    "decode_imp_over_llama": 0.30419,
+    "prefill_llama_over_imp": 3.31721,
+    "decode_llama_over_imp": 3.28742,
+    "decode_latency_reduction_llama_vs_imp": 0.69581,
+    "verdict": "llama.cpp is materially faster for this exact GGUF on this 16 GB GPU"
+  },
+  "invalid_or_rejected_probes": [
+    {
+      "configuration": "IMP INT8 KV",
+      "result": "invalid",
+      "reason": "paged_attention_splitk_int8 rejects Gemma-4 global head_dim 512"
+    },
+    {
+      "configuration": "IMP default vram.library_reserve_mb=-1",
+      "result": "cannot run pp512",
+      "reason": "charges 3900 MiB, falls back to a 256-token KV pool, and scheduler rejects a 512-token prompt"
+    },
+    {
+      "configuration": "IMP moe.allow_graphs_under_offload=true",
+      "result": "capture failed and fell back",
+      "reason": "MoE host-args path reads routing on the host and is not graph-capturable; one-run decode was 52.03 tok/s"
+    }
+  ],
+  "commands": {
+    "imp": [
+      "env", "CUBLAS_WORKSPACE_CONFIG=:4096:8",
+      "third_party/cache/imp/build-gem16-gcc15-release/imp-cli",
+      "--model", "models/checkpoints/google-gemma-4-26b-a4b-it-qat-q4_0-gguf-d1c082b/gemma-4-26B_q4_0-it.gguf",
+      "--bench", "--bench-pp", "512", "--bench-reps", "10", "--max-tokens", "256",
+      "--temperature", "0", "--kv-fp8", "--min-kv-tokens", "1024",
+      "--set", "vram.library_reserve_mb=256", "--mem-report"
+    ],
+    "llama_cpp": [
+      "build/Linux/llama_cpp/release/bin/llama-bench",
+      "-m", "models/checkpoints/google-gemma-4-26b-a4b-it-qat-q4_0-gguf-d1c082b/gemma-4-26B_q4_0-it.gguf",
+      "-ngl", "99", "-ot", "token_embd.weight=CUDA0", "-p", "512", "-n", "256",
+      "-d", "0,512", "-r", "10", "-fa", "on", "-ctk", "q8_0", "-ctv", "q8_0",
+      "-o", "jsonl", "--progress"
+    ]
+  },
+  "limitations": [
+    "IMP and llama.cpp use different one-byte KV formats (FP8 E4M3 versus Q8_0).",
+    "IMP reports only the aggregate mean across its internal repetitions, not per-repetition samples or confidence intervals.",
+    "The two synthetic benchmark implementations do not guarantee identical decode token IDs or MoE router traffic.",
+    "IMP was built on the host rather than with its canonical Docker build because Docker was unavailable.",
+    "No cross-engine quality or logit comparison was run; only a coherent IMP text-generation smoke test passed.",
+    "IMP's result includes 3.59 GiB CPU expert offload and is invalid under gem16's primary performance-result contract.",
+    "The result does not contradict IMP's published 32 GB RTX 5090 Q4_K_M/NVFP4 measurements, where all experts fit."
+  ],
+  "raw_results": "benchmarks/results/2026-08-04/1ffabc4/gemma4-26b-a4b-qat-q4_0-imp-vs-llama-adjacent/"
+}

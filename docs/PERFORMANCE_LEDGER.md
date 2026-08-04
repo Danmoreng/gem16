@@ -1,5 +1,70 @@
 # Performance ledger
 
+## 2026-08-04 IMP versus llama.cpp on Gemma 4 26B A4B QAT Q4_0
+
+Hypothesis: IMP's consumer-Blackwell-specific Gemma-4 MoE implementation may improve prompt processing and ordinary
+decode over llama.cpp for the exact official QAT Q4_0 GGUF on the 16 GB reference GPU. IMP is pinned to upstream
+commit `a392904d4216388828d0d56317de046f4ca49627`. Docker is unavailable on this host, so a clean host Release build
+uses GCC 15.3, CUDA 13.3.73, and CUTLASS 4.6.1; an initial GCC 16 build exposed an upstream missing direct
+`<cstdint>` include, and no source patch is retained.
+
+The model loads and emits coherent text, but IMP cannot retain all experts on this card. It uploads 21 of 30 MoE
+expert layers and leaves 3.59 GiB on the host, disabling CUDA Graphs. The measured ten-repetition run records
+75,875 expert-cache hits and 42,226 misses (64.2% hit rate). Its default 3,900 MiB library-reserve estimate leaves
+only 256 K/V tokens and rejects pp512, so the characterized run uses the documented
+`vram.library_reserve_mb=256` override, a 1,024-token minimum pool, and FP8 E4M3 K/V. The directly adjacent
+llama.cpp b10240 run uses the same GGUF with all model tensors on CUDA0, Q8_0 K/V, and Flash Attention.
+
+| Engine | Prefill pp512 | Prefill time | Decode tg256 @ ctx512 | Aggregate ITL | Peak VRAM |
+|---|---:|---:|---:|---:|---:|
+| IMP `a392904d` | 1,533.75 tok/s | 333.82 ms | 51.64 tok/s | 19.365 ms | 14,804 MiB |
+| llama.cpp b10240 | 5,087.77 tok/s mean | 101.18 ms | 169.762 tok/s mean | 5.891 ms | 15,316 MiB |
+
+llama.cpp is 3.32x faster in prefill and 3.29x faster in decode. IMP's lower VRAM is not an efficiency win: it is
+the consequence of forbidden CPU expert offload. An explicit INT8-K/V probe is invalid because IMP rejects
+Gemma-4's global head dimension 512. The experimental graph-under-offload option also fails capture and falls back
+at 52.03 tok/s.
+
+Decision: do not use this IMP/Q4_0/16 GB path as a baseline or as evidence for gem16 speed targets. The result is
+specific to a checkpoint and memory class outside IMP's published hero configuration: IMP documents Q4_K_M/NVFP4
+on a 32 GB RTX 5090, where all experts fit. No quality comparison or profiler-level kernel audit was performed.
+Full provenance and caveats are in
+`benchmarks/baselines/imp/gemma4-26b-a4b-qat-q4_0-characterization.json`; raw local evidence is under
+`benchmarks/results/2026-08-04/1ffabc4/gemma4-26b-a4b-qat-q4_0-imp-vs-llama-adjacent/`.
+
+## 2026-08-04 llama.cpp Gemma 4 26B A4B QAT Q4_0 exploration
+
+Hypothesis: Google's official QAT Q4_0 GGUF for the 26B A4B MoE will establish whether the model can execute
+usefully on the 16 GB reference Blackwell GPU and provide an initial performance target for a future native gem16
+backend. The exact revision is `d1c082be9cf3c8a514acf63b8761f4b41935842e`; its 14,439,363,584-byte GGUF has
+SHA-256 `3eca3b8f6d7baf218a7dd6bba5fb59a56ee25fe2d567b6f5f589b4f697eca51d`.
+
+llama.cpp b10240 identifies 25.23B total parameters, 128 experts with 8 active, and offloads all 31 layer groups.
+The measured configuration forces the tied `token_embd.weight` to CUDA0 because the default otherwise leaves a
+577.50 MiB CPU-mapped model buffer. It uses Flash Attention, Q8_0 K/V, batch one, firmware `max-power`, and active
+Dynamic Boost. After discarding three conditioning repetitions, ten measured runs give:
+
+| Mode | Tokens/context | Median tok/s | Median elapsed/ITL |
+|---|---:|---:|---:|
+| Prefill | 128 | 2,334.86 | 54.824 ms elapsed |
+| Prefill | 512 | 5,167.55 | 99.091 ms elapsed |
+| Prefill | 2,048 | 5,025.43 | 407.527 ms elapsed |
+| Prefill | 8,192 | 4,746.58 | 1,725.877 ms elapsed |
+| Decode, 256 tokens | 128 | 174.564 | 5.729 ms/token |
+| Decode, 256 tokens | 2,048 | 167.057 | 5.986 ms/token |
+| Decode, 256 tokens | 8,192 | 158.267 | 6.318 ms/token |
+
+Peak sampled VRAM is 15,442 MiB, leaving about 438 MiB against llama.cpp's 15,880 MiB CUDA report and missing the
+700 MiB project safety margin. Context creation plus one token succeeds at 16K, 32K, and 64K, but 64K reaches
+15,800 MiB; these probes do not prove full-context prefill workspace or stability. Maximum observed power is
+174.15 W and temperature is 74 C.
+
+Decision: retain this as an exploratory performance/fit characterization, not a quality-accepted baseline. Native
+Q4_0 dispatch is not profiled, quality is unevaluated, and llama-bench provides aggregate rather than per-token
+latency distributions. Full statistics and provenance are in
+`benchmarks/baselines/llama_cpp/gemma4-26b-a4b-qat-q4_0-characterization.json`; raw local evidence is under
+`benchmarks/results/2026-08-04/1ffabc4/gemma4-26b-a4b-qat-q4_0-llama-max-power/`.
+
 ## 2026-08-03 Windows: adjacent gem16 versus llama.cpp b10240 refresh
 
 Gem16 commit `1ffabc4` and llama.cpp b10240 (`0b14b87d7`) were rebuilt on Windows with CUDA 13.3 for SM120a and

@@ -34,7 +34,7 @@ and 3,045.59 ms while reducing the profiled local family by 20.34%. The 2026-08-
 After the physical-BF16 recurrent-stream promotion, the current Linux max-power 3/10 comparison at `8e86cb38`
 measures 5,863.59 tok/s and 2,794.19 ms, versus vLLM 0.26.0 at 6,247.55 tok/s and 2,622.47 ms. The remaining
 controlled prefill gap is 6.15%. Cross-engine claims must reconcile timing boundaries and cache precision under
-`docs/BENCHMARKING.md` and `AGENTS.md`.
+`docs/BENCHMARKING.md`.
 
 ## Profile-derived diagnosis
 

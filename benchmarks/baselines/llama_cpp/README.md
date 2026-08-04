@@ -4,6 +4,28 @@ Upstream is pinned to release b10240, commit `0b14b87d7c20cb753b94b96854dd7b4530
 2026-08-03 (version 10240). A Linux cross-engine characterization has been captured; no exact-format or
 quality-accepted baseline exists yet.
 
+## Gemma 4 26B A4B QAT exploration
+
+The official `google/gemma-4-26B-A4B-it-qat-q4_0-gguf` at revision
+`d1c082be9cf3c8a514acf63b8761f4b41935842e` has been checksum-verified and characterized on the reference GPU.
+The 14,439,363,584-byte GGUF has SHA-256
+`3eca3b8f6d7baf218a7dd6bba5fb59a56ee25fe2d567b6f5f589b4f697eca51d`. llama.cpp identifies 25.23B total
+parameters, 128 experts with 8 active, and offloads all 31 layer groups. The benchmark additionally forces the
+tied `token_embd.weight` to CUDA0; without that override llama.cpp retains a 577.50 MiB CPU-mapped copy.
+
+With Q8_0 K/V, Flash Attention, batch one, Max Power, three discarded conditioning repetitions, and ten measured
+runs, median prompt throughput is 2,334.86/5,167.55/5,025.43/4,746.58 tok/s at 128/512/2,048/8,192 tokens. Median
+256-token decode throughput is 174.564/167.057/158.267 tok/s at existing contexts 128/2,048/8,192. Peak sampled
+VRAM is 15,442 MiB, leaving only about 438 MiB against llama.cpp's 15,880 MiB CUDA report and therefore missing
+gem16's 700 MiB safety margin. Context creation plus one token succeeds through 64K, but the 64K process reaches
+15,800 MiB and is not evidence that full prefill has safe workspace.
+
+This is an exploratory performance and fit characterization, not a quality-accepted baseline. Q4_0 kernel
+dispatch has not been profiled, no quality comparison has been run, and `llama-bench` does not expose per-token
+latency percentiles. Reproducible commands, ten-sample statistics, telemetry summaries, residency details, and
+limitations are retained in
+[`gemma4-26b-a4b-qat-q4_0-characterization.json`](gemma4-26b-a4b-qat-q4_0-characterization.json).
+
 ## Gemma 4 MTP capability
 
 The current runtime implements the dedicated `gemma4-assistant` architecture and `draft-mtp` scheduler. The

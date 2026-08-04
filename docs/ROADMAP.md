@@ -1,10 +1,12 @@
 # Roadmap
 
-Current stage: Milestone 3, first full-model greedy characterization.
+Current stage: mature Gemma 4 12B product path, bounded prefill optimization, and bootstrap of the experimental
+Gemma 4 26B A4B track. The detailed 26B program lives in
+[`plans/gemma4-26b/00_MASTER_IMPLEMENTATION_PLAN.md`](plans/gemma4-26b/00_MASTER_IMPLEMENTATION_PLAN.md).
 
-Linux and Windows host/CUDA build scaffolding is now available. This makes loader development and validation on the
-same Blackwell machine possible from either operating system; it does not move Windows production inference ahead
-of the correctness and native-kernel gates below.
+Linux and Windows host/CUDA builds and product surfaces are available and qualified separately. Historical
+milestone text remains below until the planned roadmap cleanup moves completed work to an archive; the active gate
+and newest accepted decisions take precedence over superseded checklist prose.
 
 ## Active gate
 
@@ -252,4 +254,5 @@ The llama.cpp benchmark is deliberately before engine kernel optimization, but a
 14. After the Blackwell backend is correct and competitive, add architecture-specific backends for additional 16 GB
    CUDA GPUs without weakening benchmark or memory contracts.
 
-The detailed gates and ordering in `AGENTS.md` are authoritative.
+Current priorities are defined by this roadmap, accepted entries in `DECISIONS.md`, and the relevant active
+feature plan. `AGENTS.md` contains only permanent repository-wide operating rules.

@@ -1,0 +1,347 @@
+{
+  "schema_version": 1,
+  "classification": "exploratory llama.cpp characterization, not a gem16 parity baseline",
+  "model": {
+    "repo": "google/gemma-4-26B-A4B-it-qat-q4_0-gguf",
+    "revision": "d1c082be9cf3c8a514acf63b8761f4b41935842e",
+    "filename": "gemma-4-26B_q4_0-it.gguf",
+    "bytes": 14439363584,
+    "sha256": "3eca3b8f6d7baf218a7dd6bba5fb59a56ee25fe2d567b6f5f589b4f697eca51d",
+    "parameters": 25233142046,
+    "architecture": "Gemma 4 26B A4B MoE",
+    "layers": 30,
+    "experts_total": 128,
+    "experts_active": 8
+  },
+  "engine": {
+    "name": "llama.cpp",
+    "release": "b10240",
+    "commit": "0b14b87d7c20cb753b94b96854dd7b45306fc696",
+    "gpu_layers_requested": 99,
+    "layers_offloaded": "31/31",
+    "embedding_override": "token_embd.weight=CUDA0",
+    "flash_attention": true,
+    "kv_cache_k": "Q8_0",
+    "kv_cache_v": "Q8_0",
+    "batch": 2048,
+    "ubatch": 512,
+    "threads": 16
+  },
+  "system": {
+    "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "gpu_uuid": "GPU-93070293-2184-eb69-555b-1d856a4fdbb8",
+    "vram_reported_mib": 16303,
+    "llama_cuda_vram_mib": 15880,
+    "platform_profile": "max-power",
+    "dynamic_boost_service": "active",
+    "gem16_commit": "1ffabc4442f9d819558821fe13566ca8c236cc76"
+  },
+  "method": {
+    "llama_bench_repetitions": 13,
+    "discarded_repetitions": [
+      1,
+      2,
+      3
+    ],
+    "reported_repetitions": [
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13
+    ],
+    "note": "llama-bench also performs its built-in warm-up; metrics below use the last ten samples. Synthetic benchmark token IDs, batch one."
+  },
+  "prefill": [
+    {
+      "prompt_tokens": 128,
+      "tokens_per_second": {
+        "n": 10,
+        "median": 2334.8599999999997,
+        "mean": 2345.186,
+        "stdev": 49.9862345940249,
+        "min": 2263.54,
+        "max": 2416.92,
+        "ci95_mean": [
+          2309.4280044530515,
+          2380.943995546949
+        ]
+      },
+      "elapsed_ms": {
+        "n": 10,
+        "median": 54.824428,
+        "mean": 54.6021654,
+        "stdev": 1.1617562944956503,
+        "min": 52.96005,
+        "max": 56.548624,
+        "ci95_mean": [
+          53.771095071486386,
+          55.43323572851361
+        ]
+      }
+    },
+    {
+      "prompt_tokens": 512,
+      "tokens_per_second": {
+        "n": 10,
+        "median": 5167.545,
+        "mean": 5106.794,
+        "stdev": 187.07519980537842,
+        "min": 4791.44,
+        "max": 5288.13,
+        "ci95_mean": [
+          4972.968473514257,
+          5240.619526485742
+        ]
+      },
+      "elapsed_ms": {
+        "n": 10,
+        "median": 99.09116499999999,
+        "mean": 100.3828935,
+        "stdev": 3.770927979760427,
+        "min": 96.820677,
+        "max": 106.857184,
+        "ci95_mean": [
+          97.68533432189268,
+          103.0804526781073
+        ]
+      }
+    },
+    {
+      "prompt_tokens": 2048,
+      "tokens_per_second": {
+        "n": 10,
+        "median": 5025.43,
+        "mean": 5035.12,
+        "stdev": 40.211760303009264,
+        "min": 4969.65,
+        "max": 5092.96,
+        "ci95_mean": [
+          5006.35424163616,
+          5063.88575836384
+        ]
+      },
+      "elapsed_ms": {
+        "n": 10,
+        "median": 407.52720250000004,
+        "mean": 406.7663192,
+        "stdev": 3.245170510866833,
+        "min": 402.123713,
+        "max": 412.101421,
+        "ci95_mean": [
+          404.4448642310647,
+          409.0877741689353
+        ]
+      }
+    },
+    {
+      "prompt_tokens": 8192,
+      "tokens_per_second": {
+        "n": 10,
+        "median": 4746.575000000001,
+        "mean": 4750.47,
+        "stdev": 17.01204018073975,
+        "min": 4724.32,
+        "max": 4781.23,
+        "ci95_mean": [
+          4738.30032044786,
+          4762.6396795521405
+        ]
+      },
+      "elapsed_ms": {
+        "n": 10,
+        "median": 1725.8773339999998,
+        "mean": 1724.4816399000001,
+        "stdev": 6.165901714340783,
+        "min": 1713.367365,
+        "max": 1734.00771,
+        "ci95_mean": [
+          1720.0708198445388,
+          1728.8924599554614
+        ]
+      }
+    }
+  ],
+  "decode": [
+    {
+      "existing_context_tokens": 128,
+      "generated_tokens": 256,
+      "tokens_per_second": {
+        "n": 10,
+        "median": 174.5635,
+        "mean": 174.6676,
+        "stdev": 0.19618313439799678,
+        "min": 174.474,
+        "max": 175.024,
+        "ci95_mean": [
+          174.52725905007318,
+          174.8079409499268
+        ]
+      },
+      "mean_inter_token_ms_per_run": {
+        "n": 10,
+        "median": 5.7285764140625,
+        "mean": 5.72516826796875,
+        "stdev": 0.006424935280574195,
+        "min": 5.71351108203125,
+        "max": 5.7315255234375,
+        "ci95_mean": [
+          5.720572146476141,
+          5.7297643894613595
+        ]
+      }
+    },
+    {
+      "existing_context_tokens": 2048,
+      "generated_tokens": 256,
+      "tokens_per_second": {
+        "n": 10,
+        "median": 167.05700000000002,
+        "mean": 167.0341,
+        "stdev": 0.18236072311036172,
+        "min": 166.653,
+        "max": 167.344,
+        "ci95_mean": [
+          166.90364700673337,
+          167.16455299326662
+        ]
+      },
+      "mean_inter_token_ms_per_run": {
+        "n": 10,
+        "median": 5.9859652734375,
+        "mean": 5.9868026410156245,
+        "stdev": 0.006533813069470264,
+        "min": 5.9757282109375,
+        "max": 6.00048053515625,
+        "ci95_mean": [
+          5.982128633050427,
+          5.991476648980822
+        ]
+      }
+    },
+    {
+      "existing_context_tokens": 8192,
+      "generated_tokens": 256,
+      "tokens_per_second": {
+        "n": 10,
+        "median": 158.2665,
+        "mean": 158.17000000000002,
+        "stdev": 0.25878734298433204,
+        "min": 157.643,
+        "max": 158.437,
+        "ci95_mean": [
+          157.9848747003411,
+          158.35512529965894
+        ]
+      },
+      "mean_inter_token_ms_per_run": {
+        "n": 10,
+        "median": 6.318460779296875,
+        "mean": 6.32233300859375,
+        "stdev": 0.01036230904645228,
+        "min": 6.31166975390625,
+        "max": 6.34344345703125,
+        "ci95_mean": [
+          6.314920259789034,
+          6.329745757398467
+        ]
+      }
+    }
+  ],
+  "telemetry": {
+    "prefill": {
+      "samples": 286,
+      "max_memory_mib": 15438.0,
+      "max_power_w": 174.15,
+      "max_clock_mhz": 2437.0,
+      "max_temp_c": 73.0,
+      "active_average_power_w": 167.82,
+      "active_average_clock_mhz": 2287.9021739130435,
+      "active_average_temp_c": 66.07971014492753
+    },
+    "decode": {
+      "samples": 541,
+      "max_memory_mib": 15442.0,
+      "max_power_w": 173.53,
+      "max_clock_mhz": 2610.0,
+      "max_temp_c": 74.0,
+      "active_average_power_w": 158.9986033519553,
+      "active_average_clock_mhz": 2424.093109869646,
+      "active_average_temp_c": 70.21973929236499
+    }
+  },
+  "memory_observations": {
+    "all_gpu_benchmark_peak_mib": 15442.0,
+    "all_gpu_context_init": {
+      "16384_peak_mib": 15048,
+      "32768_peak_mib": 15298,
+      "65536_peak_mib": 15800
+    },
+    "default_embedding_on_cpu_benchmark_peak_mib": 14858,
+    "residency_note": "Without the tensor override llama.cpp leaves a 577.50 MiB CPU-mapped model buffer. Reported primary rows force token_embd.weight to CUDA0, yielding a 14332.92 MiB CUDA model buffer and no CPU model buffer."
+  },
+  "limitations": [
+    "Kernel dispatch was not profiled; this does not prove a specific Q4_0 native Tensor Core instruction path.",
+    "No quality comparison was run.",
+    "llama-bench reports aggregate run latency, not per-token p95/p99 ITL or end-to-end chat latency.",
+    "The all-GPU 8K benchmark peak leaves only about 438 MiB relative to llama.cpp CUDA free-memory reporting, below gem16's 700 MiB safety target.",
+    "16K, 32K, and 64K observations only validate context creation plus one token, not full-context prefill stability; 64K leaves essentially no device headroom."
+  ],
+  "commands": {
+    "prefill": [
+      "build/Linux/llama_cpp/release/bin/llama-bench",
+      "-m",
+      "models/checkpoints/google-gemma-4-26b-a4b-it-qat-q4_0-gguf-d1c082b/gemma-4-26B_q4_0-it.gguf",
+      "-ngl",
+      "99",
+      "-ot",
+      "token_embd.weight=CUDA0",
+      "-fa",
+      "on",
+      "-ctk",
+      "q8_0",
+      "-ctv",
+      "q8_0",
+      "-r",
+      "13",
+      "-o",
+      "jsonl",
+      "--progress",
+      "-p",
+      "128,512,2048,8192",
+      "-n",
+      "0"
+    ],
+    "decode": [
+      "build/Linux/llama_cpp/release/bin/llama-bench",
+      "-m",
+      "models/checkpoints/google-gemma-4-26b-a4b-it-qat-q4_0-gguf-d1c082b/gemma-4-26B_q4_0-it.gguf",
+      "-ngl",
+      "99",
+      "-ot",
+      "token_embd.weight=CUDA0",
+      "-fa",
+      "on",
+      "-ctk",
+      "q8_0",
+      "-ctv",
+      "q8_0",
+      "-r",
+      "13",
+      "-o",
+      "jsonl",
+      "--progress",
+      "-p",
+      "0",
+      "-n",
+      "256",
+      "-d",
+      "128,2048,8192"
+    ]
+  }
+}
