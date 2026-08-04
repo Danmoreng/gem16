@@ -41,7 +41,9 @@ namespace gem16::internal {
 // Runs the Up projection while consuming the already materialized BF16 Gate
 // projection in the epilogue. The exact BF16 GELU/product boundary is
 // quantized directly to row-major E2M1 payload and CUTLASS-interleaved E4M3
-// scales for the following Down projection.
+// scales for the following Down projection. Activation, Gate, product, and
+// product-scale buffers must reserve `tokens` rounded up to 128 rows; padded
+// activation scales must be zero.
 [[nodiscard]] Status LaunchNvfp4CutlassUpGatedGeluQuantizedBatch(
     const std::uint8_t* packed_activation_e2m1,
     const std::uint8_t* interleaved_activation_scales_e4m3fn,

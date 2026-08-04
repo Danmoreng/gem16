@@ -615,8 +615,10 @@ void TestCutlassSm120Projection() {
                            std::size_t k_size, const char* label) {
   constexpr float activation_divisor = 2.0F;
   constexpr float weight_divisor = 4.0F;
-  const std::size_t packed_elements = tokens * k_size / 2U;
-  const std::size_t activation_scale_elements = tokens * k_size / 16U;
+  const std::size_t padded_tokens = ((tokens + 127U) / 128U) * 128U;
+  const std::size_t packed_elements = padded_tokens * k_size / 2U;
+  const std::size_t activation_scale_elements =
+      padded_tokens * k_size / 16U;
   const std::size_t packed_weight_elements = rows * k_size / 2U;
   const std::size_t weight_scale_elements = rows * k_size / 16U;
   constexpr std::size_t workspace_bytes = 8U * 1024U * 1024U;
@@ -668,15 +670,17 @@ void TestCutlassSm120Projection() {
   DeviceBuffer<std::uint8_t> device_weight_scale_scratch(
       weight_scales.size());
   DeviceBuffer<std::uint8_t> device_workspace(workspace_bytes);
-  DeviceBuffer<std::uint16_t> device_reference(tokens * rows);
-  DeviceBuffer<std::uint16_t> device_cutlass(tokens * rows);
-  DeviceBuffer<std::uint8_t> device_product_reference(tokens * rows / 2U);
-  DeviceBuffer<std::uint8_t> device_product_fused(tokens * rows / 2U);
+  DeviceBuffer<std::uint16_t> device_reference(padded_tokens * rows);
+  DeviceBuffer<std::uint16_t> device_cutlass(padded_tokens * rows);
+  DeviceBuffer<std::uint8_t> device_product_reference(
+      padded_tokens * rows / 2U);
+  DeviceBuffer<std::uint8_t> device_product_fused(
+      padded_tokens * rows / 2U);
   DeviceBuffer<std::uint8_t> device_product_scales(tokens * rows / 16U);
   DeviceBuffer<std::uint8_t> device_product_scales_interleaved(
-      tokens * rows / 16U);
+      padded_tokens * rows / 16U);
   DeviceBuffer<std::uint8_t> device_product_scales_fused(
-      tokens * rows / 16U);
+      padded_tokens * rows / 16U);
   DeviceBuffer<float> device_product_divisor(1U);
   if (device_activation.get() == nullptr ||
       device_activation_scales.get() == nullptr ||
@@ -710,7 +714,17 @@ void TestCutlassSm120Projection() {
                          tiled_scales.value().data(),
                          device_weight_scales.bytes(),
                          cudaMemcpyHostToDevice),
-              "copy CUTLASS test weight scales")) {
+              "copy CUTLASS test weight scales") ||
+      !CudaOk(cudaMemset(device_reference.get(), 0, device_reference.bytes()),
+              "clear CUTLASS reference output") ||
+      !CudaOk(cudaMemset(device_cutlass.get(), 0, device_cutlass.bytes()),
+              "clear CUTLASS output") ||
+      !CudaOk(cudaMemset(device_product_reference.get(), 0,
+                         device_product_reference.bytes()),
+              "clear CUTLASS gated reference payload") ||
+      !CudaOk(cudaMemset(device_product_fused.get(), 0,
+                         device_product_fused.bytes()),
+              "clear CUTLASS gated fused payload")) {
     return;
   }
 
@@ -741,8 +755,8 @@ void TestCutlassSm120Projection() {
     return;
   }
 
-  std::vector<std::uint16_t> reference_bits(tokens * rows);
-  std::vector<std::uint16_t> cutlass_bits(tokens * rows);
+  std::vector<std::uint16_t> reference_bits(padded_tokens * rows);
+  std::vector<std::uint16_t> cutlass_bits(padded_tokens * rows);
   if (!CudaOk(cudaMemcpy(reference_bits.data(), device_reference.get(),
                          device_reference.bytes(), cudaMemcpyDeviceToHost),
               "copy CUTLASS reference output") ||
@@ -833,6 +847,8 @@ void TestCutlassSm120Projection() {
   CUDA_TEST_CHECK(product_scales_reference == product_scales_fused);
   };
   run_case(2048U, 128U, 3840U, "CUTLASS NVFP4 Gate/Up projection");
+  run_case(129U, 15360U, 3840U,
+           "CUTLASS NVFP4 real Up gated tail projection");
   run_case(128U, 3840U, 15360U, "CUTLASS NVFP4 Down projection");
 }
 

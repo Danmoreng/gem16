@@ -594,7 +594,8 @@ Status LaunchNvfp4CutlassUpGatedGeluQuantizedBatch(
       !PositiveFinite(up_activation_global_divisor) ||
       !PositiveFinite(up_weight_global_divisor) ||
       !PositiveFinite(product_global_divisor) ||
-      tokens > static_cast<std::uint64_t>(std::numeric_limits<int>::max()) ||
+      tokens > static_cast<std::uint64_t>(std::numeric_limits<int>::max()) -
+                   (kScaleRowsPerTile - 1U) ||
       rows > static_cast<std::uint64_t>(std::numeric_limits<int>::max()) ||
       contracting_elements >
           static_cast<std::uint64_t>(std::numeric_limits<int>::max())) {
@@ -624,12 +625,20 @@ Status LaunchNvfp4CutlassUpGatedGeluQuantizedBatch(
   const float up_scale =
       1.0F /
       (up_activation_global_divisor * up_weight_global_divisor);
+  // CUTLASS's block-scaled FP4 epilogue can write invalid packed payload
+  // bytes in a partial final M tile. All production prefill arenas already
+  // reserve the 128-row scale-tile extent, whose padded scale rows are zero.
+  // Make that physical extent the GEMM problem so every observable row is in
+  // a complete tile; the following Down GEMM still consumes only `tokens`.
+  const std::uint64_t padded_tokens =
+      ((tokens + kScaleRowsPerTile - 1U) / kScaleRowsPerTile) *
+      kScaleRowsPerTile;
   return LaunchGatedGemm(
       packed_activation_e2m1, interleaved_activation_scales_e4m3fn,
       row_major_weight_scratch_e2m1,
       interleaved_weight_scale_scratch_e4m3fn, gate_bf16,
       product_packed_e2m1, product_interleaved_scales_e4m3fn,
-      static_cast<int>(tokens), static_cast<int>(rows),
+      static_cast<int>(padded_tokens), static_cast<int>(rows),
       static_cast<int>(contracting_elements), up_scale,
       product_global_divisor_device, cutlass_workspace,
       cutlass_workspace_bytes,
