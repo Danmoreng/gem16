@@ -1,5 +1,29 @@
 # Performance ledger
 
+## 2026-08-04 Reject global GQA publication-barrier removal after counter admission
+
+After Nsight Compute 2026.2.1 became available, a representative ordinary 16K global GQA split launch measured
+385.984 us, 68 registers/thread, 42,112 allocated shared bytes/block, and a 33-block grid covering only 0.28 waves
+on 60 SMs. Its 4.60 warp cycles per issued instruction were dominated by short scoreboard (19.0%), wait (16.7%),
+MIO throttle (14.8%), long scoreboard (9.0%), and barrier (3.88%). This admitted bounded S06C Step 1 as the second
+S05 candidate.
+
+The candidate removed only the explicit `inverse_sum_shared` publication barrier for heads 0-14; the first barrier
+inside the next head's `DecodeBlockMaximum` safely published the prior write and protected reduction reuse. The
+final head retained its output-publication barrier. Racecheck reported zero hazards, exact checksums/hashes were
+unchanged, and resources remained 68 registers/thread and 42,112 shared bytes. The profiled kernel fell to
+374.432 us (-2.99%). Ordinary 16K/64-token decode improved in both adjacent orders: 47.8754 to 48.0027 tok/s and
+47.9021 to 48.0006 tok/s (+0.21-0.27%). Exact fixed-D2 did not: the first order improved 89.7415 to 90.0450 tok/s,
+but reversed ordering regressed 89.8866 to 89.7869 tok/s. Decision: reject S06C because its required D2 win was not
+stable, remove it completely, restore production, and pass Host/CUDA CTest again.
+
+The new prefill counters separately measured about 26.32 GB of L2 sector traffic, 440 MB of DRAM traffic, and a
+98.675% L2 hit rate in one second-chunk global D512 launch. This validates S07B's repeated cache-resident K/V traffic
+premise, while the decode kernel's 9.0% long-scoreboard share supports a future S06D discussion. Neither starts now:
+S06A and S06C consumed S05's bounded two-candidate set. Raw ignored evidence is under
+`benchmarks/results/2026-08-04/c8be1d6/blackwell16gb-linux-maxpower-12b-sprint/S06-ncu-admission/` and
+`S06C-global-gqa-barrier/`.
+
 ## 2026-08-04 Reject combined prompt Q/K/V CUTLASS projection
 
 S06A reordered Q/K/V weights and scales contiguously inside the sole Target arena and replaced separate prompt
