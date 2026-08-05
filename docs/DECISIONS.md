@@ -1,5 +1,37 @@
 # Decisions
 
+## 2026-08-05: Run a bounded Linux short-context ordinary-decode investigation before 26B M00
+
+Date: 2026-08-05
+
+Decision: Execute `docs/SHORT_CONTEXT_DECODE_OPTIMIZATION_PLAN.md` on Linux before beginning Gemma 4 26B A4B M00.
+Establish a new same-OS parent, audit the timing-boundary difference behind the standard `llama-bench tg128` row,
+profile CUDA Graph child kernels with Nsight Systems and targeted counters with Nsight Compute, then admit at most
+two implementation candidates from measured short-context bottlenecks. Do not reopen the completed 16K D2 sprint;
+retain its current result as a regression gate.
+
+Context: The current Windows standard-shape characterization measures gem16 at 52.43 tok/s for its closest
+one-token-context/128-output ordinary decode counterpart and llama.cpp b10240 at 62.08 tok/s for `tg128`. The 18.39%
+external lead is material but not exact parity because token feeds, start position, attention format, K/V precision,
+and timing boundaries differ. Linux on the same physical GPU provides the established max-power/Dynamic Boost
+contract and cleaner Nsight CUDA Graph child-kernel and counter collection needed to separate real kernel headroom
+from boundary effects.
+
+Alternatives: Optimize immediately from the Windows ratio; continue profiling under Windows; declare the entire
+18.39% gap recoverable; or begin 26B M00 without investigating. Immediate implementation lacks a Linux parent and
+profile, Windows has already limited graph/counter evidence, the full ratio includes disclosed semantic differences,
+and moving directly to 26B leaves a potentially material batch-one product latency gap unexplained.
+
+Consequences: The new plan owns the next 12B performance work and stops at parity-within-5%, a supported 10% product
+improvement with exhausted evidence, two admitted candidates, two consecutive failures, a disclosed non-recoverable
+boundary, or a correctness/memory/cross-platform blocker. Every candidate must preserve exact gem16 Target output,
+checkpoint-FP8 production semantics, at least 700 MiB CUDA-visible reserve, the 16K ordinary/fixed-D2/prefill
+regressions, and Windows build/test coverage. After closure, work resumes at 26B M00.
+
+Evidence: The current Windows short-context raw and tracked results under
+`benchmarks/baselines/llama_cpp/windows-short-context-cc01a05.json`, the existing Linux profiling decision, and the
+project-owner direction in the 2026-08-05 session.
+
 ## 2026-08-04: Run one bounded final 12B performance sprint before 26B M00
 
 Date: 2026-08-04

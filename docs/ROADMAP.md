@@ -1,8 +1,9 @@
 # Roadmap
 
-Current stage: close the final Gemma 4 12B performance sprint after its completed Linux qualification, then begin
-Gemma 4 26B A4B bring-up while preserving the mature 12B product path. The external Windows regression and final
-direct all-regions memory-reserve record remain the two closure gates.
+Current stage: run the bounded Linux short-context ordinary-decode investigation, close the direct all-regions
+memory-reserve record, then begin Gemma 4 26B A4B bring-up while preserving the mature 12B product path. The 16K D2
+performance sprint and its Windows regression are complete and remain regression evidence rather than active
+optimization scope.
 
 ## Current product baseline
 
@@ -44,21 +45,27 @@ The remaining measured 12B performance gap is prompt processing against direct-l
 on the retained 16K workload. Corrected D2 remains 6.57% faster than vLLM and 4.49% faster than llama.cpp. The
 prior 89.58 tok/s row is historical because it omitted two required verifier BF16 boundaries.
 
-## Active track: final 12B performance sprint
+## Active track: Linux short-context ordinary decode
 
-[PERFORMANCE_IMPROVEMENT_PLAN.md](PERFORMANCE_IMPROVEMENT_PLAN.md) is the binding sprint plan. It starts with a
-fresh parent/profile, executes three mandatory source-confirmed candidates and a prompt-chunk sweep, then admits at
-most two deeper candidates from a new profile. It closes on parity, exhausted evidence, two consecutive candidate
-failures, or a correctness/memory blocker. No 12B optimization may weaken the existing correctness, memory,
-cross-platform, or benchmark gates.
+[SHORT_CONTEXT_DECODE_OPTIMIZATION_PLAN.md](SHORT_CONTEXT_DECODE_OPTIMIZATION_PLAN.md) is the binding next plan. It
+starts with a fresh Linux parent and ordinary-decode matrix, audits the `llama-bench tg128` timing-boundary
+difference, captures Nsight Systems/Compute evidence, and admits at most two measured candidates. The current 16K
+ordinary, fixed-D2, prefill, correctness, memory, and Windows paths are mandatory regression gates.
+
+The standard-shape Windows trigger is 52.43 tok/s for gem16's context-1/128-token ordinary decode and 62.08 tok/s
+for llama.cpp b10240 `tg128`. This is directional rather than exact parity because token feeds, starting position,
+formats, K/V precision, and timing boundaries differ. Linux establishes its own parent before any implementation.
+
+[PERFORMANCE_IMPROVEMENT_PLAN.md](PERFORMANCE_IMPROVEMENT_PLAN.md) owns the completed 16K-centered final sprint and
+remains regression and closure evidence rather than the execution order for new candidates.
 
 [PREFILL_OPTIMIZATION_PLAN.md](PREFILL_OPTIMIZATION_PLAN.md) is retained as historical evidence for the earlier
 prefill program; it no longer owns execution order.
 
 ## Next track: Gemma 4 26B A4B
 
-After the 12B sprint closes, the next implementation program is the experimental Gemma 4 26B A4B track. Its
-binding entry points are:
+After the bounded short-context plan and direct memory-reserve record close, the next implementation program is the
+experimental Gemma 4 26B A4B track. Its binding entry points are:
 
 1. [plans/gemma4-26b/START_HERE_CODEX.md](plans/gemma4-26b/START_HERE_CODEX.md)
 2. [plans/gemma4-26b/00_MASTER_IMPLEMENTATION_PLAN.md](plans/gemma4-26b/00_MASTER_IMPLEMENTATION_PLAN.md)
@@ -89,7 +96,9 @@ they block a regression or receive an explicit priority change:
 
 ## Documentation ownership
 
-- [PERFORMANCE_IMPROVEMENT_PLAN.md](PERFORMANCE_IMPROVEMENT_PLAN.md) owns the active bounded 12B sprint.
+- [SHORT_CONTEXT_DECODE_OPTIMIZATION_PLAN.md](SHORT_CONTEXT_DECODE_OPTIMIZATION_PLAN.md) owns the active bounded
+  short-context ordinary-decode investigation.
+- [PERFORMANCE_IMPROVEMENT_PLAN.md](PERFORMANCE_IMPROVEMENT_PLAN.md) owns the completed 16K-centered 12B sprint.
 - [ARCHITECTURE.md](ARCHITECTURE.md), [MEMORY.md](MEMORY.md), and feature documents describe current behavior.
 - [DECISIONS.md](DECISIONS.md) records accepted decisions and superseded alternatives.
 - [PERFORMANCE_LEDGER.md](PERFORMANCE_LEDGER.md) retains optimization history and negative results.

@@ -1,7 +1,7 @@
 # Gemma 4 12B final performance sprint
 
-Status: S00-S07 complete; corrected Linux S08 qualification complete at `a819d14c`; Windows regression and direct
-all-regions memory-reserve record remain before closure
+Status: S00-S08 and the Windows regression are complete; the optimization sequence is closed; the direct
+all-regions memory-reserve record remains a repository closure gate
 
 Primary platform: Linux x86-64, NVIDIA GeForce RTX 5080 Laptop GPU, Blackwell SM120, firmware profile
 `max-power`
@@ -652,8 +652,9 @@ no stale validator expectation, and no unexplained numerical or memory delta. Th
 - **Bounded improvement:** gem16 improves but a measured residual gap remains after the stop rule;
 - **No promotion:** mandatory candidates did not survive end-to-end gates and the original production path remains.
 
-In all cases, raw evidence is retained and the next repository task is Gemma 4 26B A4B M00 unless the owner makes a
-new explicit decision.
+In all cases, raw evidence is retained. The owner selected the bounded
+[Linux short-context ordinary-decode plan](SHORT_CONTEXT_DECODE_OPTIMIZATION_PLAN.md) as the next measured 12B task
+before Gemma 4 26B A4B M00.
 
 ## References
 
