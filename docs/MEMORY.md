@@ -51,7 +51,11 @@ batched verification additionally reserves fixed tentative/backup target K/V row
 assistant-plus-verifier workspace measures 2,213,376 bytes with FP8 KV and 7,374,336 bytes with BF16 KV at context
 128. FP8 mode reserves the larger of the reference-score and split-online attention requirements. The additional
 fixed regions hold GPU acceptance, stop IDs, and one committed hidden row. The qualified 24,576-context D2 run
-peaks at 10,838 MiB under 200 ms telemetry. No assistant KV cache or second weight layout is allocated.
+peaks at 10,838 MiB under 200 ms telemetry. The final corrected 16K/1,135-token cross-engine command at `a819d14c`
+peaks at 11,746 MiB for gem16, leaving approximately 4,557 MiB relative to the reported 16,303 MiB device total.
+That command includes resident Target and assistant weights, fixed-D2 graphs, unified model tensors, and the final
+chunk plan, but uses greedy selection; it does not replace S08's pending direct all-regions sampling/media reserve
+record. No assistant KV cache or second weight layout is allocated.
 
 GPU-chained fixed D2 additionally reserves three `uint32_t` entries per context position: one verified-output slot
 and two proposal slots, plus a small aggregate record. The same payload is allocated once in pinned host memory for

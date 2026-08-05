@@ -3,22 +3,30 @@
 This directory retains the machine-readable summary behind the prominent README result. It is a reproducible,
 controlled same-machine performance comparison, not a claim of exact tensor-format or output/semantic parity.
 
-## Linux result
+## Final-sprint Linux result
 
-The gem16 engine at commit `8e86cb38ea04c240e460e54dc912dd823dccfab5`, vLLM 0.26.0, and llama.cpp b10240
-(`0b14b87d7c20cb753b94b96854dd7b45306fc696`) ran on one RTX 5080 Laptop GPU. Every engine received the same
+The corrected gem16 engine at commit `a819d14c57c54b85b8159be465bea1da0adc5388`, vLLM 0.26.0, and llama.cpp
+b10240 (`0b14b87d7c20cb753b94b96854dd7b45306fc696`) ran on one RTX 5080 Laptop GPU. Every engine received the same
 exact 16,384-token Wikipedia prompt followed by 1,135 fixed greedy output positions, with batch one, fixed D2 MTP,
 three warm-ups, and ten measured repetitions. Linux used the firmware `max-power` profile with `nvidia-powerd`
 active; the GPU dynamically reached its 175 W ceiling.
 
 | Engine | Prefill tok/s | TTFT | Effective D2 MTP tok/s | ITL | Sampled peak VRAM |
 |---|---:|---:|---:|---:|---:|
-| vLLM 0.26.0 | **6,247.55** | **2,622.47 ms** | 81.95 | 12.202 ms | 15,465 MiB |
-| **gem16** | 5,863.59 | 2,794.19 ms | **89.58** | **11.163 ms** | 11,867 MiB |
-| llama.cpp b10240 | 3,922.61 | 4,176.81 ms | 82.88 | 12.065 ms | 10,631 MiB |
+| vLLM 0.26.0 | **6,257.37** | **2,618.35 ms** | 82.25 | 12.158 ms | 15,764 MiB |
+| **gem16** | 5,866.86 | 2,792.64 ms | **87.66** | **11.408 ms** | 11,746 MiB |
+| llama.cpp b10240 | 3,941.23 | 4,157.08 ms | 83.89 | 11.921 ms | 10,630 MiB |
 
-Gem16 decode is 9.31% faster than vLLM and 8.08% faster than llama.cpp. Its median ITL is 8.51% lower than vLLM
-and 7.48% lower than llama.cpp. Gem16 prefill is 6.15% below vLLM and 49.48% above llama.cpp.
+Gem16 decode is 6.57% faster than vLLM and 4.49% faster than llama.cpp. Its median ITL is 6.17% lower than vLLM
+and 4.30% lower than llama.cpp. Gem16 prefill is 6.24% below vLLM and 48.86% above llama.cpp. The exact alternating
+gem16-only qualification separately produced 47.760 ordinary and 87.423 fixed-D2 tok/s; all 26 warm-up/measured
+runs retained one Target hash. Machine-readable data are in
+[`characterization-a819d14c.json`](characterization-a819d14c.json) and
+[`gem16-qualification-a819d14c.json`](gem16-qualification-a819d14c.json).
+
+The prior `8e86cb38` Linux row reached 89.58 D2 tok/s but lacked two required short-batch verifier BF16 boundaries.
+It remains in [`characterization.json`](characterization.json) as historical evidence and is not the corrected
+final performance result.
 
 ## Windows result
 
@@ -33,16 +41,16 @@ GPU cooled to 50 C:
 
 Gem16 is 53.47% faster in prefill and 4.81% faster in decode; TTFT is 34.84% lower and median ITL is 4.59% lower.
 Both engines reached approximately 175 W. All measured outputs are deterministic within each engine, and both
-output hashes match the corresponding current Linux results. Full distributions, Windows-specific GGUF hashes,
+output hashes match the corresponding historical `8e86cb38` Linux results. Full distributions, Windows-specific GGUF hashes,
 MTP counters, and 200 ms telemetry summaries are in
 [`windows-characterization.json`](windows-characterization.json).
 
-The full medians, means, distributions, MTP counters, telemetry summary, configuration, runtime pins, and
-limitations are in [`characterization.json`](characterization.json). Raw JSON, console/server logs, commands,
+The corrected final distributions, MTP counters, telemetry summary, configuration, runtime pins, and limitations
+are in [`characterization-a819d14c.json`](characterization-a819d14c.json). Raw JSON, console/server logs, commands,
 system state, and 200 ms telemetry are retained under
-`benchmarks/results/2026-08-03/8e86cb38/blackwell16gb-linux-maxpower-cross-engine-mtp-v026-b10240-3x10/`.
-The engine binary is exact commit `8e86cb38`; `system.txt` also discloses the three dirty benchmark-pin/script
-entries used while moving the external runtimes to their new versions.
+`benchmarks/results/2026-08-05/a819d14c/blackwell16gb-linux-maxpower-12b-sprint/S08-final/cross-engine/`.
+The historical `8e86cb38` data and its disclosed dirty benchmark-pin/script entries remain unchanged in
+[`characterization.json`](characterization.json) and the 2026-08-03 raw directory.
 
 ## Reproduce
 

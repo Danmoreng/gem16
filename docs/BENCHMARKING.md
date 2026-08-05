@@ -52,20 +52,21 @@ an existing result and retains per-run JSON, logs, and 200 ms GPU telemetry. The
 contains third-party JIT failure on the no-swap reference host; vLLM startup compilation is limited to four jobs
 with one internal NVCC thread each and remains outside inference timing.
 
-The 2026-08-03 controlled performance comparison and limitations are recorded in
+The corrected 2026-08-05 final-sprint comparison and limitations are recorded in
 [`benchmarks/baselines/cross_engine_mtp/`](../benchmarks/baselines/cross_engine_mtp/):
 
 | Engine | Prefill tok/s | TTFT | Effective D2 tok/s | ITL | Sampled peak VRAM |
 |---|---:|---:|---:|---:|---:|
-| vLLM 0.26.0 | **6,247.55** | **2,622.47 ms** | 81.95 | 12.202 ms | 15,465 MiB |
-| **gem16 `8e86cb38`** | 5,863.59 | 2,794.19 ms | **89.58** | **11.163 ms** | 11,867 MiB |
-| llama.cpp b10240 | 3,922.61 | 4,176.81 ms | 82.88 | 12.065 ms | 10,631 MiB |
+| vLLM 0.26.0 | **6,257.37** | **2,618.35 ms** | 82.25 | 12.158 ms | 15,764 MiB |
+| **gem16 `a819d14c`** | 5,866.86 | 2,792.64 ms | **87.66** | **11.408 ms** | 11,746 MiB |
+| llama.cpp b10240 | 3,941.23 | 4,157.08 ms | 83.89 | 11.921 ms | 10,630 MiB |
 
-Gem16 D2 is 9.31% faster than vLLM and 8.08% faster than llama.cpp; its ITL is 8.51% and 7.48% lower. Prefill is
-6.15% below vLLM and 49.48% above llama.cpp. This is a controlled performance claim for the recorded configurations,
+Gem16 D2 is 6.57% faster than vLLM and 4.49% faster than llama.cpp; its ITL is 6.17% and 4.30% lower. Prefill is
+6.24% below vLLM and 48.86% above llama.cpp. This is a controlled performance claim for the recorded configurations,
 not accepted exact parity: gem16/vLLM use direct mixed FP8/NVFP4 plus FP8 KV, llama.cpp uses patched Q8_0 attention
 plus Q8_0 KV, prefill timing boundaries differ, and the three MTP output hashes differ. vLLM also records tuning
-OOM fallbacks and an untuned 8K FP4 shape. Only target-verified output tokens are counted.
+OOM fallbacks and an untuned 8K FP4 shape. Only target-verified output tokens are counted. The earlier 89.58 tok/s
+gem16 row remains historical because its short-batch verifier omitted two required BF16 boundaries.
 
 The decode command keeps one model instance resident across all runs, clears the preallocated KV cache outside
 the timing boundary, performs the configured warm-ups, and retains every measured inter-token latency in JSON.

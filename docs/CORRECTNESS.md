@@ -204,7 +204,8 @@ its ordinary output step and a repetition mask containing committed history plus
 that row. Acceptance compares Assistant IDs with those Target-selected IDs, commits the repetition mask for the
 last emitted row, and advances RNG state by exactly the emitted count. `tools/validate_sampled_mtp.py` covers
 D1/D2/D4, seeds, cache modes, and repetition penalties; `tools/validate_sampled_mtp_chat.py` covers a resident
-two-turn GPU-chained chat. The Linux Wikipedia 3/10 gate preserves one ordinary/MTP output hash in all 26 runs.
+two-turn GPU-chained chat. The corrected Linux Wikipedia 3/10 gate at `a819d14c` preserves ordinary/MTP hash
+`08ddc8178b2c9ac3caefa046da1c521318b913f32f275f18892ad98d21c25ea1` in all 26 runs.
 This exact-seed contract is not probability-ratio speculative sampling and makes no use of unavailable Assistant
 proposal probabilities. The final-sprint gate caught an inherited verifier regression from `31c8519`: that prefill
 change removed standalone V- and O-projection BF16 rounds after moving production CUTLASS outputs to physical

@@ -1,7 +1,8 @@
 # Roadmap
 
-Current stage: run one bounded final Gemma 4 12B performance sprint, then begin Gemma 4 26B A4B bring-up while
-preserving the mature 12B product path.
+Current stage: close the final Gemma 4 12B performance sprint after its completed Linux qualification, then begin
+Gemma 4 26B A4B bring-up while preserving the mature 12B product path. The external Windows regression and final
+direct all-regions memory-reserve record remain the two closure gates.
 
 ## Current product baseline
 
@@ -30,17 +31,18 @@ prompt, 1,135 output positions, fixed D2, three warm-ups, and ten measurements:
 
 | Engine | Prefill tok/s | Effective D2 tok/s | ITL |
 |---|---:|---:|---:|
-| vLLM 0.26.0 | **6,247.55** | 81.95 | 12.202 ms |
-| **gem16 `8e86cb38`** | 5,863.59 | **89.58** | **11.163 ms** |
-| llama.cpp b10240 | 3,922.61 | 82.88 | 12.065 ms |
+| vLLM 0.26.0 | **6,257.37** | 82.25 | 12.158 ms |
+| **gem16 `a819d14c`** | 5,866.86 | **87.66** | **11.408 ms** |
+| llama.cpp b10240 | 3,941.23 | 83.89 | 11.921 ms |
 
 Gem16 preserves its own ordinary Target sequence under MTP. The three engines do not share output hashes or exact
 formats, so this is a controlled performance comparison rather than semantic or format parity. Full commands,
 telemetry, caveats, and raw-result locations are in [BENCHMARKING.md](BENCHMARKING.md),
 [PERFORMANCE_LEDGER.md](PERFORMANCE_LEDGER.md), and `benchmarks/baselines/cross_engine_mtp/`.
 
-The remaining measured 12B performance gap is prompt processing against direct-load vLLM: gem16 is 6.15% slower
-on the retained 16K workload.
+The remaining measured 12B performance gap is prompt processing against direct-load vLLM: gem16 is 6.24% slower
+on the retained 16K workload. Corrected D2 remains 6.57% faster than vLLM and 4.49% faster than llama.cpp. The
+prior 89.58 tok/s row is historical because it omitted two required verifier BF16 boundaries.
 
 ## Active track: final 12B performance sprint
 

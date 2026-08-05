@@ -1,6 +1,7 @@
 # Gemma 4 12B final performance sprint
 
-Status: active plan; implementation has not started
+Status: S00-S07 complete; corrected Linux S08 qualification complete at `a819d14c`; Windows regression and direct
+all-regions memory-reserve record remain before closure
 
 Primary platform: Linux x86-64, NVIDIA GeForce RTX 5080 Laptop GPU, Blackwell SM120, firmware profile
 `max-power`

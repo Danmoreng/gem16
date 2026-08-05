@@ -42,8 +42,9 @@ workspace. Filtered probabilities are accumulated by a preallocated in-place CUB
 `top_k` is bounded, probability preparation and scan stop exactly at that sorted prefix instead of scanning zeroed
 vocabulary entries; unfiltered sampling retains the full scan. A constant-work final kernel uses binary searches to apply top-k, min-p relative to the maximum probability, and
 top-p in that order before drawing from a SplitMix64 stream keyed by seed and output step. The sampled whole-model decode graph reads
-the changing step from its copied device control record, updates repetition history, and returns only the selected
-token. An atomic bitset tracks repetition history without duplicate-token write races. Sampling adds about 7.1 MiB
+the changing step and runtime suppression count from its copied device control record, updates repetition history,
+and returns only the selected token. Fixed-D2 verifier row controls receive the same suppression count instead of
+capturing the initialization-time value. An atomic bitset tracks repetition history without duplicate-token write races. Sampling adds about 7.1 MiB
 to the context-128 workspace and performs no token-loop allocation. The same bounded parallel plan handles top-k
 64 and the unfiltered full vocabulary at measured greedy-performance parity.
 

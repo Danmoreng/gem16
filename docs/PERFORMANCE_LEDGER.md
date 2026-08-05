@@ -1,5 +1,26 @@
 # Performance ledger
 
+## 2026-08-05 Final corrected Linux 16K qualification
+
+At exact commit `a819d14c`, the alternating Wikipedia 16K qualification ran three warm-up and ten measured
+ordinary/fixed-D2 pairs. All 26 executions retained Target hash
+`08ddc8178b2c9ac3caefa046da1c521318b913f32f275f18892ad98d21c25ea1`. Ordinary decode reaches 47.760 tok/s
+median with 95% CI `[47.758,47.767]`; corrected fixed D2 reaches 87.423 tok/s with CI `[87.412,87.546]`, a 1.830x
+speedup. Restoring required verifier BF16 boundaries costs approximately 2.7% against the invalid S00-era 89.86
+characterization. Correctness takes priority and that old number is not retained.
+
+The controlled same-machine cross-engine 3/10 run gives gem16 5,866.86 prefill tok/s, 2,792.64 ms TTFT, 87.66 D2
+tok/s, and 11.408 ms ITL. vLLM 0.26.0 reaches 6,257.37/2,618.35/82.25/12.158; llama.cpp b10240 reaches
+3,941.23/4,157.08/83.89/11.921. Gem16 remains 6.24% behind vLLM prefill and 48.86% ahead of llama.cpp, while D2
+remains 6.57% ahead of vLLM and 4.49% ahead of llama.cpp. Gem16 peaks at 11,746 MiB in command-wide 200 ms
+telemetry. vLLM retains disclosed autotuning OOM fallbacks and an untuned 8K FP4-shape warning. Machine-readable
+summaries are under `benchmarks/baselines/cross_engine_mtp/`; raw ignored evidence is under
+`benchmarks/results/2026-08-05/a819d14c/blackwell16gb-linux-maxpower-12b-sprint/S08-final/`.
+
+The Linux performance qualification is complete. Sprint closure still requires the externally blocked Windows gate
+and the direct all-regions sampling/media memory-reserve record; no final stop category is asserted before those
+facts are recorded.
+
 ## 2026-08-05 Restore exact sampled-MTP verifier and graph suppression semantics
 
 The S08 same-seed sampled-MTP gate failed at the sprint parent. Bisect and direct boundary comparison localized the
