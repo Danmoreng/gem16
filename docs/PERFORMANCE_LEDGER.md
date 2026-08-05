@@ -1,5 +1,21 @@
 # Performance ledger
 
+## 2026-08-05 Restore exact sampled-MTP verifier and graph suppression semantics
+
+The S08 same-seed sampled-MTP gate failed at the sprint parent. Bisect and direct boundary comparison localized the
+numerical regression to `31c8519`, which removed standalone BF16 rounds after V and O projections when production
+prefill projections began writing BF16 directly. The direct short-batch verifier continued writing FP32 and
+therefore lost two ordinary-decode boundaries. Restoring those rounds only for MTP verification made its target
+logits bit-identical to ordinary decode at the investigated divergence.
+
+That exact comparison exposed a second issue: ordinary CUDA-Graph sampling captured suppression count zero during
+initialization, while direct MTP observed the later configured count. Sampling now reads the runtime count from
+`DecodeControl`, and fixed-D2 row controls carry it as well. Host and CUDA CTest pass. D1/D2/D4 same-seed matrices
+pass for seeds 0/1/42 in checkpoint-FP8 and BF16 cache modes and at repetition penalties 1.0 and 1.1; resident
+sampled D2 chat remains identical and GPU-chained. Sampling memcheck reports zero errors and racecheck zero
+hazards. This is a correctness repair, not a speed claim. It adds back the required verifier round launches, so
+S08 must remeasure fixed-D2 performance before retaining prior final numbers.
+
 ## 2026-08-04 Reject two-CTA cluster sharing for global D512 prefill
 
 Nsight Compute admitted S07B after one representative second-chunk global prefill launch produced 823,607,909 L2

@@ -79,13 +79,15 @@ __global__ void BuildMtpVerificationInputsKernel(
 
 __global__ void BuildControlledMtpD2InputsKernel(
     const MtpDeviceControl* control, const std::uint32_t* drafts,
-    std::uint32_t* inputs, DecodeControl* row_controls) {
+    std::uint32_t* inputs, DecodeControl* row_controls,
+    std::uint32_t suppressed_token_count) {
   const std::uint32_t row = threadIdx.x;
   if (blockIdx.x != 0U || row >= 3U) return;
   inputs[row] = row == 0U ? control->current.input_token : drafts[row - 1U];
   row_controls[row] = {};
   row_controls[row].position = control->current.processed_position + 1U + row;
   row_controls[row].sampling_step = control->current.sampling_step + row;
+  row_controls[row].suppressed_token_count = suppressed_token_count;
   row_controls[row].token = inputs[row];
 }
 
@@ -458,14 +460,15 @@ Status LaunchBuildMtpVerificationInputs(
 
 Status LaunchBuildControlledMtpD2Inputs(
     const MtpDeviceControl* control, const std::uint32_t* drafts,
-    std::uint32_t* inputs, DecodeControl* row_controls, cudaStream_t stream) {
+    std::uint32_t* inputs, DecodeControl* row_controls,
+    std::uint32_t suppressed_token_count, cudaStream_t stream) {
   if (control == nullptr || drafts == nullptr || inputs == nullptr ||
       row_controls == nullptr) {
     return Status(StatusCode::kInvalidArgument,
                   "controlled MTP D2 input arguments are invalid");
   }
   BuildControlledMtpD2InputsKernel<<<1U, 3U, 0, stream>>>(
-      control, drafts, inputs, row_controls);
+      control, drafts, inputs, row_controls, suppressed_token_count);
   const cudaError_t error = cudaGetLastError();
   return error == cudaSuccess
              ? Status::Ok()

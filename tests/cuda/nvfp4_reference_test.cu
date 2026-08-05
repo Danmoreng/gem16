@@ -3405,6 +3405,8 @@ void TestGpuSampling() {
   gem16::internal::DecodeControl host_control{};
   host_control.token = 4U;
   host_control.sampling_step = 8U;
+  host_control.suppressed_token_count =
+      static_cast<std::uint32_t>(suppressed.size());
   if (!CudaOk(cudaMemcpy(control.get(), &host_control, sizeof(host_control),
                          cudaMemcpyHostToDevice),
               "copy controlled sampling state")) {
@@ -3421,16 +3423,16 @@ void TestGpuSampling() {
   status = gem16::internal::LaunchSampleToken(
       device_logits.get(), adjusted.get(), cumulative.get(), token_ids.get(),
       sorted_token_ids.get(), repetition_mask.get(), device_suppressed.get(),
-      suppressed.size(), kVocabulary, options, 7U, control.get(),
-      selected.get(), workspace.get(), workspace.bytes(), nullptr);
+      0U, kVocabulary, options, 7U, control.get(), selected.get(),
+      workspace.get(), workspace.bytes(), nullptr);
   CUDA_TEST_CHECK(status.ok());
   if (!CudaOk(cudaMemcpy(&host_selected, selected.get(), sizeof(host_selected),
                          cudaMemcpyDeviceToHost),
               "copy controlled sampled token")) {
     return;
   }
-  // Device control overrides the captured scalar step. Marking token 4 does
-  // not affect the retained top-p set, and pinned step 8 selects token 0.
+  // Device control overrides both captured scalar fields. Marking token 4
+  // does not affect the retained top-p set, and pinned step 8 selects token 0.
   CUDA_TEST_CHECK(host_selected == 0U);
 
   constexpr std::uint32_t kSpeculativeRows = 3U;
@@ -3504,9 +3506,8 @@ void TestGpuSampling() {
     status = gem16::internal::LaunchSampleToken(
         device_logits.get(), adjusted.get(), cumulative.get(), token_ids.get(),
         sorted_token_ids.get(), repetition_mask.get(),
-        device_suppressed.get(), suppressed.size(), kVocabulary, options, 0U,
-        control.get(), selected.get(), workspace.get(), workspace.bytes(),
-        stream);
+        device_suppressed.get(), 0U, kVocabulary, options, 0U, control.get(),
+        selected.get(), workspace.get(), workspace.bytes(), stream);
     CUDA_TEST_CHECK(status.ok());
     graph_ok = status.ok() &&
                CudaOk(cudaStreamEndCapture(stream, &graph),

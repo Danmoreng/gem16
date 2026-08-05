@@ -337,7 +337,8 @@
     auto* device_tokens =
         Pointer<std::uint32_t>(prefill_workspace_, prefill_offsets_.token_ids);
     status = internal::LaunchBuildControlledMtpD2Inputs(
-        device_control, device_drafts, device_tokens, row_controls, stream_);
+        device_control, device_drafts, device_tokens, row_controls,
+        suppressed_token_count_, stream_);
     if (!status.ok()) return status;
     float* hidden =
         Pointer<float>(prefill_workspace_, prefill_offsets_.hidden_a);

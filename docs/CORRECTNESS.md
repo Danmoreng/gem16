@@ -206,7 +206,15 @@ last emitted row, and advances RNG state by exactly the emitted count. `tools/va
 D1/D2/D4, seeds, cache modes, and repetition penalties; `tools/validate_sampled_mtp_chat.py` covers a resident
 two-turn GPU-chained chat. The Linux Wikipedia 3/10 gate preserves one ordinary/MTP output hash in all 26 runs.
 This exact-seed contract is not probability-ratio speculative sampling and makes no use of unavailable Assistant
-proposal probabilities.
+proposal probabilities. The final-sprint gate caught an inherited verifier regression from `31c8519`: that prefill
+change removed standalone V- and O-projection BF16 rounds after moving production CUTLASS outputs to physical
+BF16, but the short-batch MTP verifier still produces FP32 at those two projections. The verifier now restores both
+ordinary-decode boundaries explicitly. The same investigation found that the ordinary sampling graph had captured
+a zero suppression count before runtime token suppression was configured, while direct and D2 MTP used the current
+count. Sampling preparation now reads the count from device decode control, and fixed-D2 row controls receive that
+same configured value. The D1/D2/D4 exact-seed matrix passes for seeds 0/1/42 with checkpoint-FP8 and BF16 caches,
+with repetition penalty 1.0 and 1.1; the resident two-turn sampled D2 chat also remains identical and GPU-chained.
+The targeted sampling suite passes Compute Sanitizer memcheck with zero errors and racecheck with zero hazards.
 
 Bounded reasoning adds a device-resident response-channel tracker to fixed D2. A complete D2 group is permitted
 only when it cannot cross an unresolved marker or the exact reasoning cap. An ordinary child graph handles those

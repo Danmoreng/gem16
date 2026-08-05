@@ -102,7 +102,8 @@ static_assert(offsetof(MtpGroupTransaction, control) % 16U == 0U);
 
 [[nodiscard]] Status LaunchBuildControlledMtpD2Inputs(
     const MtpDeviceControl* control, const std::uint32_t* drafts,
-    std::uint32_t* inputs, DecodeControl* row_controls, cudaStream_t stream);
+    std::uint32_t* inputs, DecodeControl* row_controls,
+    std::uint32_t suppressed_token_count, cudaStream_t stream);
 
 [[nodiscard]] Status LaunchAcceptMtpGroup(
     const std::uint32_t* drafts, const std::uint32_t* verified,

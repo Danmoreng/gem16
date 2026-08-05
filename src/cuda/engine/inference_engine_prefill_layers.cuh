@@ -84,13 +84,19 @@
           cudaMemcpyDeviceToDevice, stream_);
       if (error != cudaSuccess) return CudaFailure("reuse batched global K for V", error);
     }
-    status = mtp_verification
-                 ? internal::LaunchRmsNormBf16(
-                       v, nullptr, v_norm, tokens * layer.kv_heads,
-                       layer.head_dimension, kEpsilon, stream_)
-                 : internal::LaunchRmsNormBf16Input(
-                       v_bf16, nullptr, v_norm, tokens * layer.kv_heads,
-                       layer.head_dimension, kEpsilon, stream_);
+    if (mtp_verification) {
+      // The direct verifier projection writes FP32. Restore the ordinary
+      // decode projection boundary before scale-free V normalization.
+      status = LaunchRoundBf16(v, tokens * layer.kv_elements, stream_);
+      if (!status.ok()) return status;
+      status = internal::LaunchRmsNormBf16(
+          v, nullptr, v_norm, tokens * layer.kv_heads,
+          layer.head_dimension, kEpsilon, stream_);
+    } else {
+      status = internal::LaunchRmsNormBf16Input(
+          v_bf16, nullptr, v_norm, tokens * layer.kv_heads,
+          layer.head_dimension, kEpsilon, stream_);
+    }
     if (!status.ok()) return status;
     if (controlled_mtp_d2) {
       status = internal::LaunchProjectionRmsNormRotaryBf16BatchControlled(
@@ -486,6 +492,12 @@
                        o_activation, o_scales, layer.o, projection_bf16, tokens,
                        cutlass_workspace, kCutlassWorkspaceBytes, stream_);
     if (!status.ok()) return status;
+    if (mtp_verification) {
+      // The direct verifier O projection also writes FP32; ordinary decode
+      // closes this projection at BF16 before the residual boundary.
+      status = LaunchRoundBf16(projection, tokens * kHidden, stream_);
+      if (!status.ok()) return status;
+    }
     status = mtp_verification
                  ? internal::LaunchRmsNormResidualBf16(
                        projection, layer.post_attention_norm, hidden_a,

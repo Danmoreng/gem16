@@ -85,7 +85,8 @@ __global__ void PrepareSamplingLogitsKernel(
     const float* logits, float* adjusted, std::uint32_t* token_ids,
     const std::uint32_t* repetition_mask, float repetition_penalty,
     float inverse_temperature, const std::uint32_t* suppressed,
-    std::uint32_t suppressed_count, std::uint32_t vocabulary) {
+    std::uint32_t suppressed_count, const DecodeControl* control,
+    std::uint32_t vocabulary) {
   const std::uint32_t token = blockIdx.x * blockDim.x + threadIdx.x;
   if (token >= vocabulary) return;
   float value = logits[token];
@@ -95,7 +96,11 @@ __global__ void PrepareSamplingLogitsKernel(
     value = value < 0.0F ? value * repetition_penalty
                          : value / repetition_penalty;
   }
-  if (IsSuppressed(token, suppressed, suppressed_count)) value = -FLT_MAX;
+  const std::uint32_t dynamic_suppressed_count =
+      control == nullptr ? suppressed_count : control->suppressed_token_count;
+  if (IsSuppressed(token, suppressed, dynamic_suppressed_count)) {
+    value = -FLT_MAX;
+  }
   adjusted[token] = value * inverse_temperature;
   token_ids[token] = token;
 }
@@ -298,7 +303,7 @@ Status LaunchSampleToken(
   PrepareSamplingLogitsKernel<<<blocks, kThreads, 0, stream>>>(
       logits, adjusted_logits, token_ids, repetition_mask,
       options.repetition_penalty, 1.0F / options.temperature, suppressed,
-      suppressed_count, vocabulary);
+      suppressed_count, control, vocabulary);
   cudaError_t error = cudaGetLastError();
   if (error != cudaSuccess) return CudaFailure("prepare sampling logits", error);
   error = cub::DeviceRadixSort::SortPairsDescending(
