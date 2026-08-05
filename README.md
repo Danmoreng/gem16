@@ -38,33 +38,34 @@ Blackwell-optimized CUDA kernels for Gemma 4 12B within 16 GB of VRAM.
 
 ### Linux
 
-On an RTX 5080 Laptop GPU at its firmware-managed 175 W ceiling, gem16 commit `8e86cb38`, vLLM 0.26.0, and
+On an RTX 5080 Laptop GPU at its firmware-managed 175 W ceiling, gem16 commit `a819d14c`, vLLM 0.26.0, and
 llama.cpp b10240 produce the following same-machine result:
 
 | Engine | Checkpoint / KV | Prefill tok/s | TTFT | Effective D2 MTP tok/s | ITL | Sampled peak VRAM |
 |---|---|---:|---:|---:|---:|---:|
-| vLLM 0.26.0 | direct FP8/NVFP4 / FP8 | **6,247.55** | **2,622.47 ms** | 81.95 | 12.202 ms | 15,465 MiB |
-| **gem16** | direct FP8/NVFP4 / FP8 | 5,863.59 | 2,794.19 ms | **89.58** | **11.163 ms** | 11,867 MiB |
-| llama.cpp b10240 | patched NVFP4+Q8_0 GGUF / Q8_0 | 3,922.61 | 4,176.81 ms | 82.88 | 12.065 ms | 10,631 MiB |
+| vLLM 0.26.0 | direct FP8/NVFP4 / FP8 | **6,257.37** | **2,618.35 ms** | 82.25 | 12.158 ms | 15,764 MiB |
+| **gem16** | direct FP8/NVFP4 / FP8 | 5,866.86 | 2,792.64 ms | **87.66** | **11.408 ms** | 11,746 MiB |
+| llama.cpp b10240 | patched NVFP4+Q8_0 GGUF / Q8_0 | 3,941.23 | 4,157.08 ms | 83.89 | 11.921 ms | **10,630 MiB** |
 
 ### Windows
 
-On Windows 11 x64, the same RTX 5080 Laptop GPU running gem16 commit `1ffabc4` and llama.cpp b10240 in Lenovo Max
-Power mode with CUDA 13.3 and driver 596.49 produces the following adjacent same-machine result:
+On Windows 11 x64, the same RTX 5080 Laptop GPU running the freshly rebuilt gem16 commit `35a57bb` and llama.cpp
+b10240 in Lenovo Max Power mode with CUDA 13.3 and driver 596.49 produces the following adjacent same-machine result:
 
 | Engine | Checkpoint / KV | Prefill tok/s | TTFT | Effective D2 MTP tok/s | ITL | Sampled peak VRAM |
 |---|---|---:|---:|---:|---:|---:|
-| **gem16** | direct FP8/NVFP4 / FP8 | **6,047.04** | **2,709.43 ms** | **90.95** | **10.995 ms** | 11,820 MiB |
-| llama.cpp b10240 | patched NVFP4+Q8_0 GGUF / Q8_0 | 3,940.28 | 4,158.08 ms | 86.77 | 11.524 ms | **10,586 MiB** |
+| **gem16** | direct FP8/NVFP4 / FP8 | **6,042.99** | **2,711.24 ms** | **89.00** | **11.237 ms** | 11,713 MiB |
+| llama.cpp b10240 | patched NVFP4+Q8_0 GGUF / Q8_0 | 3,942.08 | 4,156.18 ms | 86.80 | 11.521 ms | **10,599 MiB** |
 
 All rows use batch one, the same 16,384-token Wikipedia prompt, 1,135 fixed output positions, fixed D2 MTP, three
-warm-ups, and ten measurements. The Windows engines ran serially from 50 C and both reached approximately 175 W;
-all measured outputs were deterministic. vLLM is omitted on Windows because its pinned runtime is unsupported there.
+warm-ups, and ten measurements. The Windows engines ran serially after cooling to at most 50 C and reached
+175.86/176.75 W; all measured outputs were deterministic. Both output hashes match the Linux run. vLLM
+is omitted on Windows because its pinned runtime is unsupported there.
 
-On Windows, gem16 leads llama.cpp by **53.47% in prefill** and **4.81% in decode**, with 34.84% lower TTFT and
-4.59% lower ITL. On Linux, gem16 decode leads vLLM by **9.31%** and llama.cpp by **8.08%**, while prefill remains
-6.15% behind vLLM. These are controlled performance comparisons, not exact format or semantic parity; checkpoint
-formats, KV precision, output hashes, and prefill timing boundaries differ.
+On Windows, gem16 leads llama.cpp by **53.29% in prefill** and **2.53% in decode**, with 34.77% lower TTFT and
+2.47% lower ITL. On Linux, gem16 decode leads vLLM by **6.57%** and llama.cpp by **4.49%**, while prefill is 6.24%
+behind vLLM and 48.86% ahead of llama.cpp. These are controlled performance comparisons, not exact format or
+semantic parity; checkpoint formats, KV precision, output hashes, and prefill timing boundaries differ.
 
 Reproduce the Linux comparison after preparing the pinned competitor environments:
 
@@ -76,8 +77,8 @@ systemd-run --user --scope -p MemoryMax=48G -p MemorySwapMax=0 \
 ```
 
 See the [full methodology](benchmarks/baselines/cross_engine_mtp/README.md),
-[Linux data](benchmarks/baselines/cross_engine_mtp/characterization.json), and
-[Windows data](benchmarks/baselines/cross_engine_mtp/windows-characterization.json).
+[Linux data](benchmarks/baselines/cross_engine_mtp/characterization-a819d14c.json), and
+[Windows data](benchmarks/baselines/cross_engine_mtp/windows-characterization-35a57bb.json).
 
 ## Architecture
 
@@ -250,7 +251,7 @@ uses controlled same-machine Linux and Windows profiles; it does not replace ord
 long-context gates. Cross-runtime format, cache, output, timing-boundary, and fallback differences remain visible.
 
 Hardware, checkpoint, context, output count, sampling, quality, VRAM, clocks, power, and baseline tensor formats
-must accompany any performance claim. Reproduction commands, raw-evidence policy, caveats, and historical results
+must accompany any performance claim. Reproduction commands, raw-evidence policy, caveats, and current results
 live in [`benchmarks/baselines/cross_engine_mtp/`](benchmarks/baselines/cross_engine_mtp/),
 [`docs/PERFORMANCE_LEDGER.md`](docs/PERFORMANCE_LEDGER.md), and
 [`docs/BENCHMARKING.md`](docs/BENCHMARKING.md).
@@ -274,7 +275,6 @@ live in [`benchmarks/baselines/cross_engine_mtp/`](benchmarks/baselines/cross_en
 - [`docs/BENCHMARKING.md`](docs/BENCHMARKING.md) — benchmark methodology
 - [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) — C++, CUDA, testing, dependency, and security rules
 - [`docs/PERFORMANCE_IMPROVEMENT_PLAN.md`](docs/PERFORMANCE_IMPROVEMENT_PLAN.md) — active bounded 12B performance sprint
-- [`docs/PREFILL_OPTIMIZATION_PLAN.md`](docs/PREFILL_OPTIMIZATION_PLAN.md) — historical earlier prefill program
 - [`docs/plans/gemma4-26b/START_HERE_CODEX.md`](docs/plans/gemma4-26b/START_HERE_CODEX.md) — next 26B implementation entry point
 - [`docs/PERFORMANCE_LEDGER.md`](docs/PERFORMANCE_LEDGER.md) — retained measurements and profiling evidence
 - [`docs/ROADMAP.md`](docs/ROADMAP.md) — active tracks and deferred work

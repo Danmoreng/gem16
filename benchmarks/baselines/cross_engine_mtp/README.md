@@ -3,9 +3,9 @@
 This directory retains the machine-readable summary behind the prominent README result. It is a reproducible,
 controlled same-machine performance comparison, not a claim of exact tensor-format or output/semantic parity.
 
-## Final-sprint Linux result
+## Linux result
 
-The corrected gem16 engine at commit `a819d14c57c54b85b8159be465bea1da0adc5388`, vLLM 0.26.0, and llama.cpp
+The gem16 engine at commit `a819d14c57c54b85b8159be465bea1da0adc5388`, vLLM 0.26.0, and llama.cpp
 b10240 (`0b14b87d7c20cb753b94b96854dd7b45306fc696`) ran on one RTX 5080 Laptop GPU. Every engine received the same
 exact 16,384-token Wikipedia prompt followed by 1,135 fixed greedy output positions, with batch one, fixed D2 MTP,
 three warm-ups, and ten measured repetitions. Linux used the firmware `max-power` profile with `nvidia-powerd`
@@ -24,33 +24,27 @@ runs retained one Target hash. Machine-readable data are in
 [`characterization-a819d14c.json`](characterization-a819d14c.json) and
 [`gem16-qualification-a819d14c.json`](gem16-qualification-a819d14c.json).
 
-The prior `8e86cb38` Linux row reached 89.58 D2 tok/s but lacked two required short-batch verifier BF16 boundaries.
-It remains in [`characterization.json`](characterization.json) as historical evidence and is not the corrected
-final performance result.
-
 ## Windows result
 
-A fresh adjacent Windows 11 run at gem16 commit `1ffabc4` and the same llama.cpp b10240 pin uses Lenovo Max Power,
-CUDA 13.3, driver 596.49, and the same 16K/1,135-token fixed-D2 3/10 workload. The engines ran serially after the
-GPU cooled to 50 C:
+A fresh adjacent Windows 11 run at pulled and rebuilt gem16 commit `35a57bbd47a78253581bf1cf912a9ef2ef5e7413`
+and the same llama.cpp b10240 pin uses Lenovo Max Power, CUDA 13.3, driver 596.49, and the same
+16K/1,135-token fixed-D2 3/10 workload. The engines ran serially after the GPU cooled to at most 50 C:
 
 | Engine | Prefill tok/s | TTFT | Effective D2 MTP tok/s | ITL | Sampled peak VRAM |
 |---|---:|---:|---:|---:|---:|
-| **gem16** | **6,047.04** | **2,709.43 ms** | **90.95** | **10.995 ms** | 11,820 MiB |
-| llama.cpp b10240 | 3,940.28 | 4,158.08 ms | 86.77 | 11.524 ms | **10,586 MiB** |
+| **gem16** | **6,042.99** | **2,711.24 ms** | **89.00** | **11.237 ms** | 11,713 MiB |
+| llama.cpp b10240 | 3,942.08 | 4,156.18 ms | 86.80 | 11.521 ms | **10,599 MiB** |
 
-Gem16 is 53.47% faster in prefill and 4.81% faster in decode; TTFT is 34.84% lower and median ITL is 4.59% lower.
-Both engines reached approximately 175 W. All measured outputs are deterministic within each engine, and both
-output hashes match the corresponding historical `8e86cb38` Linux results. Full distributions, Windows-specific GGUF hashes,
-MTP counters, and 200 ms telemetry summaries are in
-[`windows-characterization.json`](windows-characterization.json).
+Gem16 is 53.29% faster in prefill and 2.53% faster in decode; TTFT is 34.77% lower and median ITL is 2.47% lower.
+The engines reached 175.86 W and 176.75 W. All measured outputs are deterministic within each engine, and both
+output hashes match the `a819d14c` Linux result. Full distributions, Windows-specific GGUF hashes, MTP
+counters, build/test gates, and 200 ms telemetry summaries are in
+[`windows-characterization-35a57bb.json`](windows-characterization-35a57bb.json).
 
-The corrected final distributions, MTP counters, telemetry summary, configuration, runtime pins, and limitations
+The full Linux distributions, MTP counters, telemetry summary, configuration, runtime pins, and limitations
 are in [`characterization-a819d14c.json`](characterization-a819d14c.json). Raw JSON, console/server logs, commands,
 system state, and 200 ms telemetry are retained under
 `benchmarks/results/2026-08-05/a819d14c/blackwell16gb-linux-maxpower-12b-sprint/S08-final/cross-engine/`.
-The historical `8e86cb38` data and its disclosed dirty benchmark-pin/script entries remain unchanged in
-[`characterization.json`](characterization.json) and the 2026-08-03 raw directory.
 
 ## Reproduce
 
@@ -109,8 +103,8 @@ systemd-run --user --scope \
   ./scripts/benchmark-cross-engine-mtp.sh
 ```
 
-Running `./scripts/benchmark-cross-engine-mtp.sh` directly is also supported. The script refuses to overwrite a
-prior result. It validates checkpoint locks, vLLM versions and patch, llama.cpp version and GGUF checksums, power
+Running `./scripts/benchmark-cross-engine-mtp.sh` directly is also supported. The script refuses to overwrite an
+existing result. It validates checkpoint locks, vLLM versions and patch, llama.cpp version and GGUF checksums, power
 state, and absence of unrelated CUDA work. It writes raw per-run JSON, console logs, external GPU telemetry,
 system information, and `summary.json` below `benchmarks/results/<date>/<git-sha>/`.
 

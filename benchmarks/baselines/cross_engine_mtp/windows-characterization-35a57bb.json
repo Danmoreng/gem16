@@ -1,0 +1,234 @@
+{
+  "schema_version": 3,
+  "status": "controlled_performance_comparison",
+  "scope": "same-machine Windows 16K fixed-output greedy D2 MTP regression comparison",
+  "captured_at": "2026-08-05",
+  "git_commit": "35a57bbd47a78253581bf1cf912a9ef2ef5e7413",
+  "environment": {
+    "operating_system": "Windows 11 Pro x64 build 26200",
+    "machine": "Lenovo 83RU",
+    "cpu": "AMD Ryzen 9 9955HX3D 16-Core Processor",
+    "system_memory_bytes": 67940311040,
+    "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "gpu_uuid": "GPU-93070293-2184-eb69-555b-1d856a4fdbb8",
+    "gpu_vram_mib": 16303,
+    "gpu_vbios": "98.03.5C.00.F2",
+    "driver": "596.49",
+    "cuda_toolkit": "13.3.33",
+    "host_compiler": "MSVC 19.44.35219.0",
+    "cmake": "4.1.2",
+    "ninja": "1.13.1",
+    "firmware_profile": "Lenovo Max Power",
+    "windows_power_scheme": "Balanced",
+    "thermal_policy": "engines run serially after cooling the GPU to at most 50 C"
+  },
+  "workload": {
+    "prompt_tokens": 16384,
+    "fixed_output_tokens": 1135,
+    "batch_size": 1,
+    "mtp_draft_tokens": 2,
+    "warmups": 3,
+    "measured_repetitions": 10,
+    "prompt_token_ids_sha256": "d07ad4d805944f0b87869da0c5bb44d99e8c43c0eb57d05a108ad80a6abb51a8"
+  },
+  "validation": {
+    "gem16_build": ".\\scripts\\build.ps1 -Cuda -Test -Jobs 8",
+    "gem16_ctest": "2/2 passed: gem16-unit and gem16-cuda",
+    "llama_cpp_build": ".\\benchmarks\\baselines\\llama_cpp\\build.ps1 -Jobs 8",
+    "llama_cpp_release": "b10240",
+    "llama_cpp_commit": "0b14b87d7c20cb753b94b96854dd7b45306fc696",
+    "worktree_dirty_at_benchmark_start": false,
+    "gem16_harness_rejected_fallbacks": true,
+    "gem16_harness_rejected_token_loop_allocations": true,
+    "output_hashes_match_linux_a819d14c": true
+  },
+  "engines": {
+    "gem16": {
+      "version": "35a57bbd47a78253581bf1cf912a9ef2ef5e7413",
+      "build": "Release, CUDA SM120a",
+      "checkpoint": "direct FP8/NVFP4",
+      "kv_cache": "checkpoint FP8",
+      "configuration": {
+        "batch_size": 1,
+        "kv_cache": "checkpoint_fp8",
+        "measured_repetitions": 10,
+        "mtp_adaptive": false,
+        "mtp_draft_tokens": 2,
+        "mtp_verification_mode": "batched_exact_target",
+        "primary_statistic": "median",
+        "warmups": 3
+      },
+      "prompt_tokens_per_second": {
+        "median": 6042.991493802447,
+        "mean": 6042.819609311655,
+        "standard_deviation": 8.585325349008489,
+        "confidence_interval_95": [6036.678464217386, 6048.960754405924],
+        "minimum": 6031.578908617015,
+        "maximum": 6057.737813535258,
+        "samples": [6057.737813535258, 6044.730414763546, 6047.318495552357, 6054.022096589439, 6043.749308347781, 6042.233679257112, 6034.622467771639, 6031.578908617015, 6034.311306230987, 6037.891602451419]
+      },
+      "time_to_first_token_ms": {
+        "median": 2711.24,
+        "mean": 2711.322,
+        "standard_deviation": 3.8500816730153455,
+        "confidence_interval_95": [2708.5680088327927, 2714.0759911672076],
+        "minimum": 2704.64,
+        "maximum": 2716.37,
+        "samples": [2704.64, 2710.46, 2709.3, 2706.3, 2710.9, 2711.58, 2715.0, 2716.37, 2715.14, 2713.53]
+      },
+      "effective_d2_tokens_per_second": {
+        "median": 88.99527163707043,
+        "mean": 88.99143247922173,
+        "standard_deviation": 0.014147721000970809,
+        "confidence_interval_95": [88.98131251243093, 89.00155244601252],
+        "minimum": 88.97048439485948,
+        "maximum": 89.00679716810825,
+        "samples": [89.00539997488384, 89.0040028255239, 89.00679716810825, 89.00330426729246, 88.99562085040259, 88.99492242373826, 88.9802579956687, 88.98165439964846, 88.97048439485948, 88.97188049209139]
+      },
+      "average_inter_token_latency_ms": {
+        "median": 11.236552028218696,
+        "mean": 11.237037037037037,
+        "standard_deviation": 0.0017865457259286567,
+        "confidence_interval_95": [11.235759108004128, 11.238314966069947],
+        "minimum": 11.235097001763668,
+        "maximum": 11.239682539682539,
+        "samples": [11.235273368606702, 11.235449735449736, 11.235097001763668, 11.235537918871252, 11.236507936507937, 11.236596119929454, 11.238447971781305, 11.238271604938273, 11.239682539682539, 11.239506172839507]
+      },
+      "mtp_medians": {
+        "proposed_tokens": 1034,
+        "accepted_tokens": 615,
+        "rejected_tokens": 419,
+        "mean_accepted_length": 1.18956,
+        "target_batches": 519,
+        "ordinary_fallback_tokens": 0
+      },
+      "deterministic_outputs": true,
+      "output_token_sha256": "0d601e1e609f9897d67af98dcec1629e27a4b5e824c31c2642ba77475fe8fe1c",
+      "telemetry": {
+        "sample_interval_ms": 200,
+        "sample_count": 1300,
+        "active_threshold_percent": 80,
+        "active_sample_count": 972,
+        "active_board_power_w_mean": 155.20132716049434,
+        "active_board_power_w_max": 175.86,
+        "active_sm_clock_mhz_mean": 2544.053497942387,
+        "active_sm_clock_mhz_min": 937,
+        "active_sm_clock_mhz_max": 2677,
+        "maximum_temperature_c": 76,
+        "peak_vram_mib": 11713
+      }
+    },
+    "llama-cpp": {
+      "release": "b10240",
+      "commit": "0b14b87d7c20cb753b94b96854dd7b45306fc696",
+      "build": "Release, MSVC 19.44.35219.0, CUDA SM120a, GGML_CUDA_FA_ALL_QUANTS=ON",
+      "checkpoint": "patched NVFP4 plus Q8_0 attention GGUF",
+      "kv_cache": "Q8_0",
+      "target_gguf": {
+        "bytes": 9366658112,
+        "sha256": "0fc3dce6d631d1ee5ab5398f621b4bfe50591d01d08339659d554eb91e23091d"
+      },
+      "assistant_gguf": {
+        "bytes": 861520160,
+        "sha256": "7b82a9f31fa365fb8ce533424cfad6c5106086f40b3eade4d91d8c5bb63d8224"
+      },
+      "configuration": {
+        "batch_size": 2048,
+        "cache_prompt": false,
+        "flash_attention": true,
+        "gpu_layers": "all",
+        "kv_cache": "q8_0",
+        "maximum_draft_tokens": 2,
+        "measured_repetitions": 10,
+        "mtp_backend": "draft-mtp",
+        "mtp_draft_tokens": 2,
+        "parallel": 1,
+        "poll": 100,
+        "priority": 0,
+        "speculative_types": ["draft-mtp"],
+        "threads": 8,
+        "ubatch_size": 512,
+        "warmups": 3
+      },
+      "prompt_tokens_per_second": {
+        "median": 3942.081453332649,
+        "mean": 3944.3763357151793,
+        "standard_deviation": 9.365526060579427,
+        "confidence_interval_95": [3937.6771074292283, 3951.0755640011303],
+        "minimum": 3934.11131921433,
+        "maximum": 3963.4071851753474,
+        "samples": [3963.4071851753474, 3955.5894308697734, 3947.9851034888243, 3947.092006945956, 3942.381175129889, 3941.7817315354087, 3939.240864238286, 3935.300054619582, 3936.8744859343965, 3934.11131921433]
+      },
+      "time_to_first_token_ms": {
+        "median": 4156.18,
+        "mean": 4153.7829,
+        "standard_deviation": 9.843982419619417,
+        "confidence_interval_95": [4146.741428432322, 4160.824371567678],
+        "minimum": 4133.817,
+        "maximum": 4164.6,
+        "samples": [4133.817, 4141.987, 4149.965, 4150.904, 4155.864, 4156.496, 4159.177, 4163.342, 4161.677, 4164.6]
+      },
+      "effective_d2_tokens_per_second": {
+        "median": 86.79818764426689,
+        "mean": 86.81225539261969,
+        "standard_deviation": 0.06936549477507524,
+        "confidence_interval_95": [86.76263775430868, 86.8618730309307],
+        "minimum": 86.70274948639707,
+        "maximum": 86.93335017826702,
+        "samples": [86.76664111871122, 86.77986107263581, 86.86314435850304, 86.93335017826702, 86.86766905624252, 86.86673080812105, 86.76072631122312, 86.81651421589797, 86.70274948639707, 86.76516732019813]
+      },
+      "average_inter_token_latency_ms": {
+        "median": 11.520978395061729,
+        "mean": 11.519117548500882,
+        "standard_deviation": 0.00920275434541753,
+        "confidence_interval_95": [11.512534751995839, 11.525700345005925],
+        "minimum": 11.503065255731922,
+        "maximum": 11.533659611992945,
+        "samples": [11.525166666666667, 11.523410934744268, 11.512362433862434, 11.503065255731922, 11.51176278659612, 11.511887125220458, 11.525952380952381, 11.51854585537919, 11.533659611992945, 11.525362433862433]
+      },
+      "speculative_medians": {
+        "proposed_tokens": 1035,
+        "accepted_tokens": 616,
+        "rejected_tokens": 419,
+        "mean_accepted_length": 1.186897880539499,
+        "target_batches": 519,
+        "ordinary_fallback_tokens": 0
+      },
+      "deterministic_outputs": true,
+      "output_token_sha256": "4187f90c9f1c46bd338c46cf12b3f0899ce914f6646f675f9d25a30284fa4f5a",
+      "telemetry": {
+        "sample_interval_ms": 200,
+        "sample_count": 1107,
+        "active_threshold_percent": 80,
+        "active_sample_count": 1044,
+        "active_board_power_w_mean": 145.03657088122617,
+        "active_board_power_w_max": 176.75,
+        "active_sm_clock_mhz_mean": 2103.7318007662834,
+        "active_sm_clock_mhz_min": 1477,
+        "active_sm_clock_mhz_max": 2542,
+        "maximum_temperature_c": 78,
+        "peak_vram_mib": 10599
+      }
+    }
+  },
+  "comparison": {
+    "gem16_prefill_speedup": 1.532944350678924,
+    "gem16_prefill_advantage_percent": 53.2944350678924,
+    "gem16_ttft_reduction_percent": 34.76605921783948,
+    "gem16_decode_speedup": 1.0253125560847889,
+    "gem16_decode_advantage_percent": 2.5312556084788884,
+    "gem16_itl_reduction_percent": 2.46876920596385
+  },
+  "evidence": {
+    "local_raw_result_directory": "benchmarks/results/2026-08-05/35a57bb/blackwell16gb-windows-current-cross-engine-mtp-b10240-3x10",
+    "raw_files": ["gem16.json", "gem16-telemetry.csv", "llama-cpp.json", "llama-cpp.server.log", "llama-cpp-telemetry.csv", "commands.txt", "system.json"]
+  },
+  "limitations": [
+    "This is a controlled performance comparison, not exact tensor-format or output/semantic parity.",
+    "gem16 uses the direct mixed FP8/NVFP4 checkpoint and FP8 KV; llama.cpp maps source FP8 attention weights to Q8_0 and uses Q8_0 KV.",
+    "The engines produce different token hashes and their prefill timing boundaries differ.",
+    "vLLM 0.26.0 is omitted because its pinned native runtime is not supported on Windows.",
+    "The llama.cpp server emitted its documented normal draft-model memory-fitting warning during startup; inference completed with all target and assistant layers requested on GPU.",
+    "This regression run did not capture a new profiler-level native-kernel invocation trace; the pinned llama.cpp binary's existing SM120a SASS gate remains the dispatch evidence."
+  ]
+}
