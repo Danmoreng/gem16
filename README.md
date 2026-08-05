@@ -80,6 +80,27 @@ See the [full methodology](benchmarks/baselines/cross_engine_mtp/README.md),
 [Linux data](benchmarks/baselines/cross_engine_mtp/characterization-a819d14c.json), and
 [Windows data](benchmarks/baselines/cross_engine_mtp/windows-characterization-35a57bb.json).
 
+## Current short-context performance
+
+The standard `llama-bench` `pp512`/`tg128` matrix on Windows 11 x64 and the RTX 5080 Laptop GPU gives the following
+batch-one characterization at gem16 commit `cc01a05` and llama.cpp b10240:
+
+| Engine | Checkpoint / KV | pp512 tok/s | Prompt time | tg128 tok/s | Aggregate time/token | Sampled peak VRAM |
+|---|---|---:|---:|---:|---:|---:|
+| **gem16** | direct FP8/NVFP4 / FP8 | **6,877.29** | **74.448 ms** | 52.43 | 19.072 ms | 10,634 MiB |
+| llama.cpp b10240 | patched NVFP4+Q8_0 GGUF / F16 | 5,400.91 | 94.799 ms | **62.08** | **16.109 ms** | **9,824 MiB** |
+
+Gem16 is **27.34% faster for pp512** with 21.47% lower reported prompt time. Llama.cpp is **18.39% faster for
+tg128** with 15.54% lower aggregate time per token. Both rows use three discarded conditioning samples and ten
+reported samples; `llama-bench` also performs its built-in warm-up. The reported runs started from an idle GPU at
+50–51 C and reached 66 C.
+
+This is a standardized shape and timing-boundary characterization, not exact token or format parity. `llama-bench`
+uses synthetic random token IDs, begins `tg128` at position zero, and reports aggregate generation time. Gem16 uses
+its deterministic benchmark tokens, begins after the smallest supported one-token context, and additionally records
+per-token latency. Checkpoint attention format and KV precision also differ. See the
+[complete samples, commands, and telemetry](benchmarks/baselines/llama_cpp/windows-short-context-cc01a05.json).
+
 ## Architecture
 
 [![gem16 runtime architecture](docs/gem16-architecture.svg)](https://raw.githubusercontent.com/Danmoreng/gem16/main/docs/gem16-architecture.svg)

@@ -1,5 +1,26 @@
 # Performance ledger
 
+## 2026-08-05 Windows short-context llama-bench characterization
+
+The standard llama.cpp b10240 `llama-bench` `pp512`/`tg128` matrix and the corresponding gem16
+`prefill --context 512` / `decode --context 1 --tokens 128` paths were rebuilt and measured on the Windows RTX 5080
+Laptop GPU. The final engine runs started idle at 50/51 C and both reached 66 C. Llama.cpp executed its built-in
+warm-up plus 13 repetitions; repetitions 1–3 were discarded and 4–13 were reported. Gem16 executed three warm-ups
+and ten measured repetitions.
+
+| Engine | pp512 median tok/s | Prompt time | tg128 median tok/s | Aggregate ms/token | Peak VRAM |
+|---|---:|---:|---:|---:|---:|
+| gem16 `cc01a05` | **6,877.29** | **74.448 ms** | 52.43 | 19.072 ms | 10,634 MiB |
+| llama.cpp b10240 | 5,400.91 | 94.799 ms | **62.08** | **16.109 ms** | **9,824 MiB** |
+
+Gem16 leads pp512 by 27.34%, while llama.cpp leads tg128 by 18.39%. The result is retained as a standardized-shape
+development characterization, not exact token/format parity: llama-bench uses random synthetic tokens, a zero-depth
+generation start, F16 K/V, and aggregate timing; gem16 uses deterministic benchmark/generated tokens, the smallest
+legal one-token initial context, checkpoint-FP8 K/V, and records every inter-token interval. The attention formats
+also differ between the direct checkpoint and patched GGUF. Full distributions and telemetry are in
+`benchmarks/baselines/llama_cpp/windows-short-context-cc01a05.json`; raw evidence is under
+`benchmarks/results/2026-08-05/cc01a05/blackwell16gb-windows-short-context-llama-bench-b10240-3x10/`.
+
 ## 2026-08-05 Final corrected Linux 16K qualification
 
 At exact commit `a819d14c`, the alternating Wikipedia 16K qualification ran three warm-up and ten measured

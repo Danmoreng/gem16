@@ -68,6 +68,28 @@ plus Q8_0 KV, prefill timing boundaries differ, and the three MTP output hashes 
 OOM fallbacks and an untuned 8K FP4 shape. Only target-verified output tokens are counted. The earlier 89.58 tok/s
 gem16 row remains historical because its short-batch verifier omitted two required BF16 boundaries.
 
+## Windows short-context llama-bench characterization
+
+The current Windows short-context characterization maps the standard `llama-bench` `pp512` and `tg128` tests to
+`gem16-bench prefill --context 512` and `gem16-bench decode --context 1 --tokens 128`. Llama.cpp runs 13 measured
+repetitions plus its built-in warm-up; the first three repetitions are discarded and the final ten are reported.
+Gem16 runs three warm-ups and ten measured repetitions. The final runs start at 50/51 C for llama.cpp/gem16 with
+zero GPU utilization and zero application VRAM, and both reach a maximum sampled temperature of 66 C.
+
+| Engine | pp512 median tok/s | Prompt time | tg128 median tok/s | Aggregate ms/token | Peak VRAM |
+|---|---:|---:|---:|---:|---:|
+| gem16 `cc01a05` | **6,877.29** | **74.448 ms** | 52.43 | 19.072 ms | 10,634 MiB |
+| llama.cpp b10240 | 5,400.91 | 94.799 ms | **62.08** | **16.109 ms** | **9,824 MiB** |
+
+This is a development characterization rather than a promoted parity comparison. `llama-bench` uses random
+synthetic token IDs and feeds a new random token for each generation step; gem16 uses its deterministic prompt
+formula and generated Target sequence. Llama.cpp `tg128` starts at position zero, while gem16 starts after the
+smallest legal one-token prompt. Llama.cpp uses the patched NVFP4/Q8_0 GGUF with F16 K/V; gem16 directly loads the
+mixed FP8/NVFP4 checkpoint with checkpoint-FP8 K/V. Llama.cpp exposes aggregate generation latency, while gem16
+also retains the complete per-token distribution. All raw samples, commands, hashes, telemetry, and confidence
+intervals are retained in
+[`windows-short-context-cc01a05.json`](../benchmarks/baselines/llama_cpp/windows-short-context-cc01a05.json).
+
 The decode command keeps one model instance resident across all runs, clears the preallocated KV cache outside
 the timing boundary, performs the configured warm-ups, and retains every measured inter-token latency in JSON.
 It reports median/mean throughput, standard deviation, a Student-t 95% confidence interval across runs, and pooled
