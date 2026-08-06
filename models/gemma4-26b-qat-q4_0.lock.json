@@ -1,0 +1,38 @@
+{
+  "schema_version": 2,
+  "repository": "google/gemma-4-26B-A4B-it-qat-q4_0-gguf",
+  "revision": "d1c082be9cf3c8a514acf63b8761f4b41935842e",
+  "resolved_at_utc": "2026-08-06T10:25:50Z",
+  "source_url": "https://huggingface.co/google/gemma-4-26B-A4B-it-qat-q4_0-gguf/tree/d1c082be9cf3c8a514acf63b8761f4b41935842e",
+  "terms_url": "https://ai.google.dev/gemma/terms",
+  "files": [
+    {
+      "path": ".gitattributes",
+      "size": 1767,
+      "sha256": "e33a964fc605748fe74d1c47c08def72764bd8fe0300648a3d1e8fc305944eaa",
+      "git_oid": "2dd764862154469d2c8e74a9e6ebcd17c7475395"
+    },
+    {
+      "path": "README.md",
+      "size": 29288,
+      "sha256": "f9e8c5e65c069adf1ea0e212f5c20303e68e78469bf549d10e631fe9c3612873",
+      "git_oid": "860c89347b9aa34a0461bc9542febb5f6ae23fa4"
+    },
+    {
+      "path": "gemma-4-26B-it-mmproj.gguf",
+      "size": 1194828160,
+      "sha256": "a359953a076b877db30c31dbbb4c6d93b4a6e017ee5db5784247e4d4c0dd4f3b",
+      "git_oid": "29193ce4193b6a24c5f0fa7555905464a6cb46cc",
+      "lfs_oid": "a359953a076b877db30c31dbbb4c6d93b4a6e017ee5db5784247e4d4c0dd4f3b",
+      "xet_hash": "d60a8209155b1d3c749896ca9437341920606e64f0de3bde80eaab6ac3ba1554"
+    },
+    {
+      "path": "gemma-4-26B_q4_0-it.gguf",
+      "size": 14439363584,
+      "sha256": "3eca3b8f6d7baf218a7dd6bba5fb59a56ee25fe2d567b6f5f589b4f697eca51d",
+      "git_oid": "dd8728aa225128f4cfc9c21c0d41550ee5171bea",
+      "lfs_oid": "3eca3b8f6d7baf218a7dd6bba5fb59a56ee25fe2d567b6f5f589b4f697eca51d",
+      "xet_hash": "331179083d47424a7db368920b6857a7aceef74cef8cc36411405596c8bbdb2e"
+    }
+  ]
+}

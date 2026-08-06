@@ -1,5 +1,40 @@
 # Decisions
 
+## 2026-08-06: Isolate memory-heavy vLLM reference JIT and bound the Unsloth diagnostic
+
+Date: 2026-08-06
+
+Decision: Any further memory-heavy vLLM reference cold start on the 62 GiB/no-swap host must run through
+`tools/run_isolated_vllm_reference.sh`. The complete process tree receives `MemoryHigh=40G`, `MemoryMax=45G`, no
+swap, whole-cgroup OOM kill, control-group cleanup, `TasksMax=128` and a three-hour limit. FlashInfer/Ninja receives
+four outer jobs and one internal NVCC thread. A cgroup OOM is an acceptable failed diagnostic; a global host OOM or
+orphaned compiler process is not. Do not claim that eager/Inductor-disabled execution disables custom FlashInfer
+JIT.
+
+Context: The first M01 Unsloth NVFP4 diagnostic loaded 9.16 GiB of model data on the GPU and offloaded 6.05 GiB to
+the CPU, then FlashInfer generated a fused-MoE build with unbounded Ninja parallelism. At the first global OOM,
+Python held 8.6 GiB RSS and 28 concurrent `cicc` processes held 44.0 GiB; later individual compilers reached
+7.2 GiB. The 60.8 GiB session exhausted host RAM, killed unrelated desktop processes, left compiler descendants
+after Python died and required REISUB. No Unsloth output was produced. VRAM polling did not protect host memory.
+
+Alternatives: Serialize every compiler job; allow unbounded compilation because the GPU allocation is below
+14,300 MiB; add swap as the primary guard; or infer an Unsloth result from QAT/Q4 evidence. Full serialization is
+unnecessarily slow, VRAM is not host-memory accounting, swap does not isolate the desktop, and inferred output
+would be fabricated. Four observed worst-case 7.2 GiB compiler processes plus the 8.6 GiB Python process fit the
+45 GiB cgroup with bounded headroom; five do not have defensible headroom.
+
+Consequences: Commit `f901044` provides the wrapper and tests. Local systemd verification proves `OOMPolicy=kill`
+sets cgroup-v2 `memory.oom.group=1`; a real harmless transient-service smoke passes. The incomplete FlashInfer cache
+was removed. After explicit owner authorization, a controlled cold run completed compilation with four jobs and no
+host OOM but was stopped at 14,560 MiB VRAM. A 0.70 warm-cache diagnostic then completed at 11,874 MiB. Under the
+supported chunked-prefill configuration, one warmup and both retained runs emitted `[7676, 236761]`; retained text
+and token IDs are exact while Top-20/logprobs vary. This evidence is token-level, CPU-offloaded and ineligible for
+performance or exact-logit claims. The policy does not alter the gem16 runtime or CUDA hot path.
+
+Evidence: [M01 Unsloth vLLM OOM incident](evidence/gemma4_26b/m01-unsloth-vllm-oom-2026-08-06.md),
+[M01 source-lock/golden handoff](evidence/gemma4_26b/m01-source-locks-and-goldens-2026-08-06.md), and
+`tools/run_isolated_vllm_reference.sh`.
+
 ## 2026-08-06: Define the deterministic derived-checkpoint contract for experimental Gemma 4 26B A4B
 
 Date: 2026-08-06

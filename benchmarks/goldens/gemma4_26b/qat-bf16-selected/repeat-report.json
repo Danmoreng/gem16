@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "status": "pass",
+  "compared_fields": [
+    "checkpoint",
+    "software",
+    "execution",
+    "prompt",
+    "captures",
+    "final_logits",
+    "generated_token_ids"
+  ],
+  "mismatched_fields": [],
+  "capture_count": 88,
+  "final_logits_sha256": "289893e5cfef1cd44b4f6cd536d80c33183406ec4e274d483c65a97fc69c1522",
+  "generated_token_ids": [
+    7676,
+    106
+  ],
+  "execution_metadata_excluded": [
+    "max_rss_kib"
+  ]
+}

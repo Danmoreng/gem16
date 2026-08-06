@@ -8,6 +8,7 @@ import hashlib
 import json
 import os
 from pathlib import Path, PurePosixPath
+import shutil
 import sys
 import urllib.error
 import urllib.parse
@@ -37,8 +38,32 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         help="import an existing verified checkpoint directory instead of downloading",
     )
-    parser.add_argument("--verify-only", action="store_true")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--verify-only", action="store_true")
+    mode.add_argument(
+        "--preflight-only",
+        action="store_true",
+        help="validate lock and capacity without downloading or linking files",
+    )
+    parser.add_argument(
+        "--max-new-bytes",
+        type=nonnegative_int,
+        help="reject before download when missing cache blobs exceed this budget",
+    )
+    parser.add_argument(
+        "--min-free-bytes",
+        type=nonnegative_int,
+        default=0,
+        help="required free filesystem bytes after all missing blobs are downloaded",
+    )
     return parser.parse_args()
+
+
+def nonnegative_int(value: str) -> int:
+    parsed = int(value)
+    if parsed < 0:
+        raise argparse.ArgumentTypeError("value must be nonnegative")
+    return parsed
 
 
 def digest(path: Path) -> str:
@@ -49,27 +74,103 @@ def digest(path: Path) -> str:
     return hasher.hexdigest()
 
 
-def safe_target(root: Path, relative: str) -> Path:
+def safe_relative_path(relative: str, description: str) -> PurePosixPath:
+    if not relative or "\\" in relative or "\x00" in relative:
+        raise ValueError(f"unsafe {description}: {relative!r}")
     parsed = PurePosixPath(relative)
-    if parsed.is_absolute() or ".." in parsed.parts or len(parsed.parts) != 1:
-        raise ValueError(f"unsafe checkpoint path in lock: {relative!r}")
-    return root / parsed.name
+    if parsed.is_absolute() or not parsed.parts or any(
+        part in ("", ".", "..") for part in parsed.parts
+    ):
+        raise ValueError(f"unsafe {description}: {relative!r}")
+    return parsed
+
+
+def safe_target(root: Path, relative: str) -> Path:
+    parsed = safe_relative_path(relative, "checkpoint path in lock")
+    resolved_root = root.expanduser().resolve()
+    target = resolved_root.joinpath(*parsed.parts)
+    current = resolved_root
+    for part in parsed.parts[:-1]:
+        current = current / part
+        if current.exists() or current.is_symlink():
+            try:
+                current.resolve(strict=True).relative_to(resolved_root)
+            except (OSError, ValueError) as error:
+                raise ValueError(
+                    f"checkpoint path escapes through a symlink: {relative!r}"
+                ) from error
+    return target
 
 
 def source_path(relative: str) -> str:
-    parsed = PurePosixPath(relative)
-    if parsed.is_absolute() or ".." in parsed.parts or not parsed.parts:
-        raise ValueError(f"unsafe source path in lock: {relative!r}")
-    return parsed.as_posix()
+    return safe_relative_path(relative, "source path in lock").as_posix()
+
+
+def hugging_face_repository(value: object, description: str) -> str:
+    repository = str(value)
+    parts = repository.split("/")
+    allowed = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-")
+    if (
+        len(parts) != 2
+        or any(not part or part in (".", "..") for part in parts)
+        or any(character not in allowed for part in parts for character in part)
+    ):
+        raise ValueError(f"invalid Hugging Face {description}: {repository!r}")
+    return repository
+
+
+def exact_hex(value: object, length: int, description: str) -> str:
+    text = str(value)
+    if len(text) != length or any(
+        character not in "0123456789abcdefABCDEF" for character in text
+    ):
+        raise ValueError(f"{description} must be exactly {length} hexadecimal characters")
+    return text.lower()
 
 
 def immutable_revision(value: object, description: str) -> str:
-    revision = str(value)
-    if len(revision) != 40 or revision == "main" or any(
-        character not in "0123456789abcdefABCDEF" for character in revision
-    ):
-        raise ValueError(f"{description} must be a full immutable commit SHA")
-    return revision
+    try:
+        return exact_hex(value, 40, description)
+    except ValueError as error:
+        raise ValueError(f"{description} must be a full immutable commit SHA") from error
+
+
+def validate_lock(lock: object) -> list[dict[str, object]]:
+    if not isinstance(lock, dict):
+        raise ValueError("model lock must be an object")
+    schema_version = int(lock.get("schema_version", 0))
+    if schema_version not in (1, 2):
+        raise ValueError(f"unsupported model lock schema_version: {schema_version}")
+    hugging_face_repository(lock.get("repository", ""), "repository")
+    immutable_revision(lock.get("revision"), "model lock revision")
+    files = lock.get("files")
+    if not isinstance(files, list) or not files:
+        raise ValueError("model lock files must be a non-empty array")
+    validated: list[dict[str, object]] = []
+    paths: set[str] = set()
+    for index, candidate in enumerate(files):
+        if not isinstance(candidate, dict):
+            raise ValueError(f"model lock file {index} must be an object")
+        relative = source_path(str(candidate.get("path", "")))
+        if relative in paths:
+            raise ValueError(f"duplicate model lock path: {relative!r}")
+        paths.add(relative)
+        size = candidate.get("size")
+        if isinstance(size, bool) or not isinstance(size, int) or size < 0:
+            raise ValueError(f"invalid size for model lock path {relative!r}")
+        exact_hex(candidate.get("sha256"), 64, f"SHA-256 for {relative!r}")
+        if candidate.get("git_oid") is not None:
+            exact_hex(candidate["git_oid"], 40, f"Git OID for {relative!r}")
+        if candidate.get("lfs_oid") is not None:
+            lfs_oid = exact_hex(candidate["lfs_oid"], 64, f"LFS OID for {relative!r}")
+            if lfs_oid != str(candidate["sha256"]).lower():
+                raise ValueError(f"LFS OID differs from SHA-256 for {relative!r}")
+        if candidate.get("xet_hash") is not None:
+            exact_hex(candidate["xet_hash"], 64, f"Xet hash for {relative!r}")
+        resolve_source(lock, candidate)
+        blob_id(candidate)
+        validated.append(candidate)
+    return validated
 
 
 def resolve_source(
@@ -80,9 +181,10 @@ def resolve_source(
         source = {}
     if not isinstance(source, dict):
         raise ValueError(f"source for {entry.get('path')!r} must be an object")
-    repository = str(source.get("repository", lock["repository"]))
-    if not repository or repository.startswith("/") or repository.endswith("/"):
-        raise ValueError(f"invalid Hugging Face repository: {repository!r}")
+    repository = hugging_face_repository(
+        source.get("repository", lock["repository"]),
+        f"source repository for {entry.get('path')!r}",
+    )
     revision = immutable_revision(
         source.get("revision", lock["revision"]),
         f"source revision for {entry.get('path')!r}",
@@ -125,6 +227,51 @@ def verification_marker(repository: str, identity: str, cache_root: Path) -> Pat
     return repository_root(repository, cache_root) / ".gem16-verified" / f"{identity}.sha256"
 
 
+def missing_blob_bytes(
+    lock: dict[str, object], entries: list[dict[str, object]], cache_root: Path
+) -> int:
+    missing = 0
+    seen: set[tuple[str, str]] = set()
+    for entry in entries:
+        repository, _, _ = resolve_source(lock, entry)
+        identity = blob_id(entry)
+        key = (repository, identity)
+        if key in seen:
+            continue
+        seen.add(key)
+        blob = repository_root(repository, cache_root) / "blobs" / identity
+        if not blob.is_file() or blob.stat().st_size != int(entry["size"]):
+            missing += int(entry["size"])
+    return missing
+
+
+def capacity_preflight(
+    lock: dict[str, object],
+    entries: list[dict[str, object]],
+    cache_root: Path,
+    max_new_bytes: int | None,
+    min_free_bytes: int,
+    available_bytes: int | None = None,
+) -> int:
+    required = missing_blob_bytes(lock, entries, cache_root)
+    if max_new_bytes is not None and required > max_new_bytes:
+        raise RuntimeError(
+            f"capacity preflight rejected {required} missing bytes; "
+            f"configured maximum is {max_new_bytes}"
+        )
+    available = shutil.disk_usage(cache_root).free if available_bytes is None else available_bytes
+    if required + min_free_bytes > available:
+        raise RuntimeError(
+            f"capacity preflight rejected {required} missing bytes with "
+            f"{min_free_bytes} bytes reserved; only {available} bytes are free"
+        )
+    print(
+        f"capacity preflight: missing={required} free={available} "
+        f"required_reserve={min_free_bytes}"
+    )
+    return required
+
+
 def install_entry(
     lock: dict[str, object],
     entry: dict[str, object],
@@ -157,7 +304,7 @@ def install_entry(
     marker.parent.mkdir(parents=True, exist_ok=True)
     marker.write_text(f"{entry['sha256']}\n", encoding="utf-8")
     source_snapshot = repository_root(repository, cache_root) / "snapshots" / revision
-    link_file(blob, source_snapshot / relative)
+    link_file(blob, safe_target(source_snapshot, relative))
     return True
 
 
@@ -239,16 +386,23 @@ def hugging_face_token() -> str | None:
 def main() -> int:
     args = parse_args()
     lock = json.loads(args.lock.read_text(encoding="utf-8"))
-    schema_version = int(lock.get("schema_version", 0))
-    if schema_version not in (1, 2):
-        raise ValueError(f"unsupported model lock schema_version: {schema_version}")
-    immutable_revision(lock["revision"], "model lock revision")
+    entries = validate_lock(lock)
     cache_root = (args.cache_dir or hub_cache_root()).expanduser().resolve()
     cache_root.mkdir(parents=True, exist_ok=True)
+    if not args.verify_only:
+        capacity_preflight(
+            lock,
+            entries,
+            cache_root,
+            args.max_new_bytes,
+            args.min_free_bytes,
+        )
+    if args.preflight_only:
+        return 0
     locked_view = locked_snapshot_path(args.lock, cache_root)
     import_root = args.import_from.resolve(strict=True) if args.import_from else None
     failures = 0
-    for entry in lock["files"]:
+    for entry in entries:
         try:
             if not install_entry(
                 lock,

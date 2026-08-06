@@ -1,6 +1,6 @@
 # Gemma 4 26B A4B experimental track
 
-Status: M00 policy/bootstrap accepted; M01 source-lock work is ready; no 26B compiler or runtime implementation exists
+Status: M00 accepted; M01 source-lock/golden handoff awaits owner acceptance; no 26B compiler or runtime implementation exists
 
 Production hypothesis: `gem16-gemma4-26b-a4b-qat-hybrid-text`
 
@@ -116,11 +116,16 @@ batching, broad dispatch, general executors and host expert offload are rejected
 
 ## Milestone state
 
-- M00: policy/bootstrap in progress; owner acceptance pending.
-- M01 and every downstream milestone: blocked.
-- No source locks, model payloads, compiler code, runtime code or CUDA work are part of M00.
+- M00: accepted at `3bf7b6e4427433ae766fe9238ed6d8c991398b6b`.
+- M01: handoff candidate; all explicit exit criteria pass. Direct Unsloth token output is retained with disclosed
+  non-exact logprobs and diagnostic CPU offload; derived-artifact distribution approval remains separate.
+- M02 and every later implementation milestone remain blocked.
+- M01 adds source locks, offline tooling and compact reference evidence only; no 26B compiler, runtime or CUDA path
+  exists.
 
-Current M00 evidence:
+Current evidence:
 
-- [baseline drift report](evidence/gemma4_26b/baseline-drift-2026-08-06.md)
-- [policy review checklist](evidence/gemma4_26b/m00-policy-review.md)
+- [M00 baseline drift report](evidence/gemma4_26b/baseline-drift-2026-08-06.md)
+- [M00 policy review checklist](evidence/gemma4_26b/m00-policy-review.md)
+- [M01 source-lock and golden handoff](evidence/gemma4_26b/m01-source-locks-and-goldens-2026-08-06.md)
+- [M01 Unsloth vLLM OOM incident](evidence/gemma4_26b/m01-unsloth-vllm-oom-2026-08-06.md)

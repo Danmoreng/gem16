@@ -1,0 +1,187 @@
+{
+  "schema_version": 1,
+  "status": "pass",
+  "input_sha256": {
+    "models/gemma4-26b-qat-bf16.lock.json": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230",
+    "models/gemma4-26b-base-bf16.lock.json": "1932b06d568ce8c72f3d2013d39ffd15dd61d37732638c2013f2220eb177a620",
+    "models/gemma4-26b-unsloth-nvfp4.lock.json": "6635b15f4f974dec22821c7a9efd4d2404ba4ce9afb1424ca2f3529d20db7941",
+    "models/gemma4-26b-qat-q4_0.lock.json": "0893ac0a4db32f0c5549bc17b92f3951ab4da1a6180b188094190a4bbfc88784",
+    "models/gemma4-26b-reference-sources.lock.json": "577528f96ac1e64d5e258a9a50eaa60f4cb48bf0294b8c6db96bace1f921ab6e",
+    "benchmarks/goldens/gemma4_26b/source-inventories/qat-bf16.json": "f033775e2bdb34ee74b735e9c26364fc1c56e6faa8fcc53436cc7a9db44ede36",
+    "benchmarks/goldens/gemma4_26b/source-inventories/ordinary-bf16.json": "eb5d62e55f2df1a7543674bb81dd6861489696dc19d94eb2351942fb51c50bcd",
+    "benchmarks/goldens/gemma4_26b/source-inventories/unsloth-nvfp4.json": "740aeec34ddceddcfae83764f293b5a4d2635115a6eae4797935117901283bd5",
+    "benchmarks/goldens/gemma4_26b/source-inventories/google-q4_0.json": "de99cfb438902c057db45539dd8611e76f8c0ffa35f812cb393b5ba6e7c91bdf",
+    "benchmarks/corpora/gemma4_26b/source-prompts.json": "b90ae82ca948126add8e1b0368101ad8b6ddb5dfa4f2b64aeaa8b846e7ff4310",
+    "benchmarks/corpora/gemma4_26b/splits.lock.json": "c1e063468f5bb33326b9f673b2c3d030d8391e12544bae8f3922eb3846423181"
+  },
+  "source_revisions": {
+    "qat_bf16": "f1e06dc520982d9b9edd76859fdb7ab209449949",
+    "ordinary_bf16": "4d7ae4984b7db7de8f8457170b3f1a419ee76d52",
+    "unsloth_nvfp4": "20df0542b1a86ce19f495ac2eca2c7c12bce82f9",
+    "official_q4_0": "d1c082be9cf3c8a514acf63b8761f4b41935842e"
+  },
+  "inventory_lock_identity": {
+    "qat_bf16": true,
+    "ordinary_bf16": true,
+    "unsloth_nvfp4": true,
+    "official_q4_0": true
+  },
+  "architecture": {
+    "safetensors_text_config_exact": true,
+    "qat_vs_ordinary_config_difference_paths": [
+      "transformers_version"
+    ],
+    "qat_vs_unsloth_config_difference_paths": [
+      "eos_token_id",
+      "head_dim",
+      "num_attention_heads",
+      "num_key_value_heads",
+      "pad_token_id",
+      "quantization_config",
+      "transformers_version",
+      "unsloth_fixed"
+    ],
+    "official_q4_0_metadata_exact": true,
+    "official_q4_0_metadata_mismatch_paths": []
+  },
+  "inventories": {
+    "qat_bf16": {
+      "tensor_count": 1013,
+      "tensor_payload_bytes": 51611872412,
+      "tensor_count_by_dtype": {
+        "BF16": 1013
+      }
+    },
+    "ordinary_bf16": {
+      "tensor_count": 1013,
+      "tensor_payload_bytes": 51611872412,
+      "tensor_count_by_dtype": {
+        "BF16": 1013
+      }
+    },
+    "unsloth_nvfp4": {
+      "tensor_count": 47478,
+      "tensor_payload_bytes": 16903408612,
+      "tensor_count_by_dtype": {
+        "BF16": 923,
+        "F32": 23220,
+        "F8_E4M3": 11725,
+        "U8": 11610
+      }
+    },
+    "official_q4_0": {
+      "tensor_count": 658,
+      "file_bytes": 14439363584,
+      "tensor_count_and_bytes_by_type": {
+        "F32": {
+          "tensor_count": 392,
+          "byte_count": 46056568,
+          "element_count": 11514142
+        },
+        "Q4_0": {
+          "tensor_count": 265,
+          "byte_count": 13771929600,
+          "element_count": 24483430400
+        },
+        "Q6_K": {
+          "tensor_count": 1,
+          "byte_count": 605552640,
+          "element_count": 738197504
+        }
+      }
+    }
+  },
+  "qat_vs_ordinary_bf16_tensor_contract": {
+    "exact": true,
+    "common_tensor_count": 1013,
+    "first_only_count": 0,
+    "second_only_count": 0,
+    "structural_mismatch_count": 0,
+    "first_only_examples": [],
+    "second_only_examples": [],
+    "structural_mismatch_examples": []
+  },
+  "qat_vs_unsloth_raw_name_contract": {
+    "exact": false,
+    "common_tensor_count": 863,
+    "first_only_count": 150,
+    "second_only_count": 46615,
+    "structural_mismatch_count": 115,
+    "first_only_examples": [
+      "model.language_model.layers.0.experts.down_proj",
+      "model.language_model.layers.0.experts.gate_up_proj",
+      "model.language_model.layers.0.mlp.down_proj.weight",
+      "model.language_model.layers.0.mlp.gate_proj.weight",
+      "model.language_model.layers.0.mlp.up_proj.weight",
+      "model.language_model.layers.1.experts.down_proj",
+      "model.language_model.layers.1.experts.gate_up_proj",
+      "model.language_model.layers.1.mlp.down_proj.weight",
+      "model.language_model.layers.1.mlp.gate_proj.weight",
+      "model.language_model.layers.1.mlp.up_proj.weight"
+    ],
+    "second_only_examples": [
+      "model.language_model.layers.0.experts.0.down_proj.input_global_scale",
+      "model.language_model.layers.0.experts.0.down_proj.weight_global_scale",
+      "model.language_model.layers.0.experts.0.down_proj.weight_packed",
+      "model.language_model.layers.0.experts.0.down_proj.weight_scale",
+      "model.language_model.layers.0.experts.0.gate_proj.input_global_scale",
+      "model.language_model.layers.0.experts.0.gate_proj.weight_global_scale",
+      "model.language_model.layers.0.experts.0.gate_proj.weight_packed",
+      "model.language_model.layers.0.experts.0.gate_proj.weight_scale",
+      "model.language_model.layers.0.experts.0.up_proj.input_global_scale",
+      "model.language_model.layers.0.experts.0.up_proj.weight_global_scale"
+    ],
+    "structural_mismatch_examples": [
+      "model.language_model.layers.0.self_attn.k_proj.weight",
+      "model.language_model.layers.0.self_attn.o_proj.weight",
+      "model.language_model.layers.0.self_attn.q_proj.weight",
+      "model.language_model.layers.0.self_attn.v_proj.weight",
+      "model.language_model.layers.1.self_attn.k_proj.weight",
+      "model.language_model.layers.1.self_attn.o_proj.weight",
+      "model.language_model.layers.1.self_attn.q_proj.weight",
+      "model.language_model.layers.1.self_attn.v_proj.weight",
+      "model.language_model.layers.10.self_attn.k_proj.weight",
+      "model.language_model.layers.10.self_attn.o_proj.weight"
+    ]
+  },
+  "unsloth_quantization": {
+    "quant_method": "compressed-tensors",
+    "format": "mixed-precision",
+    "status": "compressed",
+    "producer_version": "0.17.2.a20260707",
+    "config_group_names": [
+      "group_0",
+      "group_1"
+    ],
+    "kv_cache_num_bits": 8,
+    "tensor_count_by_role_and_dtype": {
+      "input_global_scale:F32": 11610,
+      "other:BF16": 153,
+      "weight:BF16": 655,
+      "weight:F8_E4M3": 115,
+      "weight_global_scale:F32": 11610,
+      "weight_packed:U8": 11610,
+      "weight_scale:BF16": 115,
+      "weight_scale:F8_E4M3": 11610
+    }
+  },
+  "tokenizer": {
+    "record_count": 12,
+    "transformers_version": "5.14.1",
+    "trust_remote_code": false,
+    "qat_ordinary_unsloth_exact": true,
+    "mismatch_count": 0,
+    "mismatches": [],
+    "official_q4_0": {
+      "status": "pass",
+      "record_count": 12,
+      "split_lock_sha256": "c1e063468f5bb33326b9f673b2c3d030d8391e12544bae8f3922eb3846423181",
+      "method": "pinned llama-tokenize exact token-ID comparison retained by frozen corpus"
+    }
+  },
+  "interpretation": {
+    "qat_vs_ordinary": "identical tensor names, dtypes, shapes and byte lengths; source shard hashes differ",
+    "unsloth": "same text architecture; producer-specific FP8 attention and NVFP4 MLP/expert layout",
+    "official_q4_0": "same architecture metadata; GGUF names and quantized storage are not a Safetensors layout contract"
+  }
+}

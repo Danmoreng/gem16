@@ -433,6 +433,32 @@ reports zero errors for active proposal and verification. The full 16K gate exte
 in every one of ten alternating measured D2 runs. The qualified throughput result is documented separately in
 `docs/PERFORMANCE_LEDGER.md`; exact ordinary/MTP identity remains mandatory regardless of speed.
 
+## Gemma 4 26B M01 reference evidence
+
+M01 adds offline source and numerical evidence only; no 26B gem16 runtime exists. Four immutable source locks cover
+QAT BF16, ordinary BF16, official Q4_0 and Unsloth NVFP4. The generated source audit proves exact 1,013-tensor
+name/dtype/shape/byte structural parity between QAT and ordinary BF16, exact text-configuration identity across the
+three Safetensors sources, exact official-GGUF architecture metadata and exact tokenizer/chat-template output for
+all 12 frozen prompts across all four formats.
+
+The retained QAT-BF16 diagnostic fixture captures two positions at the embedding, layers 0, 5, 6 and 29 and final
+norm/logits. Its 88 boundaries include full 128-way router probabilities, top-8 IDs/weights and each selected routed
+expert contribution. Two CPU/GPU-dispatched reference runs match exactly in source/software identity, placement,
+prompt, captures, full 262,144-element F32 final logits and greedy output after excluding only the process RSS
+peak. The final-logit SHA-256 is
+`289893e5cfef1cd44b4f6cd536d80c33183406ec4e274d483c65a97fc69c1522`; greedy IDs are `[7676, 106]`.
+
+Pinned llama.cpp b10240 produces `[7676, 106]` twice from the official Q4_0 source and selects the same IDs at both
+teacher-forced positions. This is agreement on one tiny diagnostic prompt, not model-wide parity. The initial
+direct Unsloth vLLM attempt exhausted host RAM during unbounded FlashInfer JIT. A later cgroup-bounded diagnostic
+with supported chunked prefill, 6 GiB CPU offload and one warmup produces `[7676, 236761]` in both retained runs;
+text and token IDs repeat exactly, but Top-20/logprobs do not. It is therefore a token-level comparison rather than
+an exact-logit oracle. The source locks, compact fixtures, limitation and reproducible checks are recorded in
+[`evidence/gemma4_26b/m01-source-locks-and-goldens-2026-08-06.md`](evidence/gemma4_26b/m01-source-locks-and-goldens-2026-08-06.md).
+
+These fixtures establish later compiler/operator comparison anchors. They do not establish a production format,
+accepted model-wide tolerance, quality threshold, resident 16 GB execution or performance claim.
+
 ## Not yet established
 
 Accepted model-wide layer tolerances, broad task quality, and a statistically justified generation threshold have

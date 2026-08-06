@@ -1,0 +1,88 @@
+{
+  "schema_version": 2,
+  "repository": "google/gemma-4-26B-A4B-it",
+  "revision": "4d7ae4984b7db7de8f8457170b3f1a419ee76d52",
+  "resolved_at_utc": "2026-08-06T10:25:52Z",
+  "source_url": "https://huggingface.co/google/gemma-4-26B-A4B-it/tree/4d7ae4984b7db7de8f8457170b3f1a419ee76d52",
+  "terms_url": "https://ai.google.dev/gemma/terms",
+  "files": [
+    {
+      "path": ".eval_results/mmmu_pro.yaml",
+      "size": 186,
+      "sha256": "c310e41b2dfd7a74a89841576cf20bfde94412fda68491d3ceea9ed97f8dcd46",
+      "git_oid": "085cf881e7568146770ed30f5b5a9c47664a2b84"
+    },
+    {
+      "path": ".gitattributes",
+      "size": 1708,
+      "sha256": "aa4fc74fe06acc698271341dee76eca26c6672a1f4b2840dedbf37f1b4fe27a4",
+      "git_oid": "ddcb389f1c4efd0f6ec18e8925435134b04580da"
+    },
+    {
+      "path": "README.md",
+      "size": 27979,
+      "sha256": "4f463225c4fe49ec120115b0f9bb6713ff1556293a909903ffdae3df7bf974da",
+      "git_oid": "742346e1fe57997c831b9065f4c54a9416021526"
+    },
+    {
+      "path": "chat_template.jinja",
+      "size": 18683,
+      "sha256": "ae53464bf3be25802b3a5b37def7fd89667067d7577049b3b2d74c4d8de4c6d4",
+      "git_oid": "4741bf6e4132ba23a5537f9d6e74e9a6d613d7cd"
+    },
+    {
+      "path": "config.json",
+      "size": 3815,
+      "sha256": "ed0c1eb3633de771906e9ba004a44cc5635bcc06ee2062077c3d2e88a50707d3",
+      "git_oid": "f42adcca257bb0865c506947671e7d0af52ac9c4"
+    },
+    {
+      "path": "generation_config.json",
+      "size": 208,
+      "sha256": "d4226bbe3117d2d253ba4609720ba82c6c4ce4627a9a6ae05387c78983ac03de",
+      "git_oid": "e605bb4523b1462ea9d9a3810b9e3ecf7ab7b1f6"
+    },
+    {
+      "path": "model-00001-of-00002.safetensors",
+      "size": 49907246508,
+      "sha256": "1127684971bbca40465435a5cad69d67ad603bf5e61c6dfd5561fae4a3bcfdb3",
+      "git_oid": "2b813216506c6b8266f174ac81c93629b499362e",
+      "lfs_oid": "1127684971bbca40465435a5cad69d67ad603bf5e61c6dfd5561fae4a3bcfdb3",
+      "xet_hash": "060a1348782427903c74f008d4a544cf7176de0ae0fa87bc06999fbf0e1715ef"
+    },
+    {
+      "path": "model-00002-of-00002.safetensors",
+      "size": 1704763408,
+      "sha256": "aab47033e1e8a492ef8e581efae1cf36478d0433567e7729b3c1728bc8970db7",
+      "git_oid": "43fd225b228774659bcb8948b8ad1b07b10cb53f",
+      "lfs_oid": "aab47033e1e8a492ef8e581efae1cf36478d0433567e7729b3c1728bc8970db7",
+      "xet_hash": "407c22ff8f9884674a186f8568d150a0c63a9f21ec6eea92e4aedd647e43e062"
+    },
+    {
+      "path": "model.safetensors.index.json",
+      "size": 103196,
+      "sha256": "907826a6e46ff454272bd6db1fee629d5531a2303be22986d825a0871d7dc7a7",
+      "git_oid": "889ab10e12aca96c43c9804a041fb1780de1e5ca"
+    },
+    {
+      "path": "processor_config.json",
+      "size": 1689,
+      "sha256": "32bdf45d2ad4cc29a0822ddd157a182de76644f0419a6228d151495256e9813c",
+      "git_oid": "5465974d23e1eca2c46c2809b26c997946ce0d90"
+    },
+    {
+      "path": "tokenizer.json",
+      "size": 32169626,
+      "sha256": "cc8d3a0ce36466ccc1278bf987df5f71db1719b9ca6b4118264f45cb627bfe0f",
+      "git_oid": "1ff9f3e3439a939b971f9919e821bf87e835a503",
+      "lfs_oid": "cc8d3a0ce36466ccc1278bf987df5f71db1719b9ca6b4118264f45cb627bfe0f",
+      "xet_hash": "c62336ad134cad6f154d84eb0e5a5fa9ca17cd665ef3ba5ac4fd02b1486760b4"
+    },
+    {
+      "path": "tokenizer_config.json",
+      "size": 3082,
+      "sha256": "9f4fec4b1dc6ecddf8f4a92e9caea5971c0e67d81309f3f9066a2bee8c362633",
+      "git_oid": "6068e357379d36f823c377e30efb101fa2c67fe4"
+    }
+  ]
+}
