@@ -1,5 +1,35 @@
 # Performance ledger
 
+## 2026-08-06 Linux short-context investigation closure
+
+The bounded Linux max-power investigation closes at clean parent `065b68f` with no promoted production change.
+The standard shape measures gem16 at 7,026.84 pp512 tok/s and 52.52 tg128 tok/s versus llama.cpp b10240 at
+5,381.87 and 62.76 tok/s. Gem16 leads prefill by 30.57%; llama.cpp leads the disclosed decode counterpart by
+19.48%. The decode row is controlled characterization rather than exact parity because token feeds, initial
+position, source/runtime formats, K/V precision and timing boundaries differ.
+
+The context-1 trace reconciles 18.135 ms/token of child kernels, an 18.507 ms CUDA Graph span and an 18.516 ms
+forward NVTX range. Final argmax plus host publication accounts for only about 0.013 ms/token. Direct NVFP4 and FP8
+projections account for 37.45% and 27.51% of child-kernel time; the output head accounts for 13.55% and short
+attention for 6.46%. Representative FP8 QKV, NVFP4 Gate and output-head kernels are DRAM-dominant at
+64.60%/67.52%/73.62% DRAM SOL with 1.55%/1.33%/0.89% L2 hit rates and no spills. Short attention score/value each
+launch only 16 CTAs and reach 2.74%/16.55% achieved occupancy.
+
+Both admitted candidates fail the 1/3 rejection screen with exact output retained. Eight-warp direct projection
+changes candidate/restored-parent throughput by -0.16%/-0.12%/-0.12% at contexts 1/128/512. Exact fused short
+attention changes it by -1.06%/-4.50%/+0.04%; context 512 uses the unaffected split-online path. Both implementations
+are removed. A supplemental parallel Gate/Up graph probe overlaps 768 pairs in the trace but improves only
+0.14--0.29%, stretches the competing DRAM-dominant projection, adds 4 MiB graph-private memory and is also removed.
+The retained production memory delta is zero.
+
+The direct context-17,519 all-regions server probe holds Target, assistant, fixed D2, checkpoint-recommended
+sampling, decode graphs, media workspace, FP8 KV and the final prompt plan. It reports 1,942,537,472 planned slot
+bytes and 4,335,665,152 bytes (4.04 GiB) CUDA-visible free, passing the 700 MiB requirement. Initial and closure
+Host CTest pass 1/1; Blackwell CTest passes 2/2. The stop category is exhausted two-candidate budget plus two
+consecutive admitted failures. Full tracked summary:
+`benchmarks/baselines/llama_cpp/linux-short-context-065b68f.json`; raw ignored evidence:
+`benchmarks/results/2026-08-05/065b68f9/blackwell16gb-linux-maxpower-short-decode/`.
+
 ## 2026-08-05 Windows short-context llama-bench characterization
 
 The standard llama.cpp b10240 `llama-bench` `pp512`/`tg128` matrix and the corresponding gem16

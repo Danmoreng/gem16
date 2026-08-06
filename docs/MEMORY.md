@@ -54,8 +54,11 @@ fixed regions hold GPU acceptance, stop IDs, and one committed hidden row. The q
 peaks at 10,838 MiB under 200 ms telemetry. The final corrected 16K/1,135-token cross-engine command at `a819d14c`
 peaks at 11,746 MiB for gem16, leaving approximately 4,557 MiB relative to the reported 16,303 MiB device total.
 That command includes resident Target and assistant weights, fixed-D2 graphs, unified model tensors, and the final
-chunk plan, but uses greedy selection; it does not replace S08's pending direct all-regions sampling/media reserve
-record. No assistant KV cache or second weight layout is allocated.
+chunk plan, but uses greedy selection. The subsequent direct context-17,519 all-regions server probe at `065b68f`
+adds checkpoint-recommended sampling and the media workspace to Target, assistant, fixed D2, decode graphs, FP8 KV
+and the final prompt plan. It reports 1,942,537,472 planned slot bytes and directly measures 4,335,665,152 bytes
+(4.04 GiB) CUDA-visible free with the probe resident, passing the 734,003,200-byte safety margin. No assistant KV
+cache or second weight layout is allocated.
 
 GPU-chained fixed D2 additionally reserves three `uint32_t` entries per context position: one verified-output slot
 and two proposal slots, plus a small aggregate record. The same payload is allocated once in pinned host memory for

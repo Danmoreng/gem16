@@ -82,6 +82,24 @@ See the [full methodology](benchmarks/baselines/cross_engine_mtp/README.md),
 
 ## Current short-context performance
 
+### Linux
+
+The completed Linux max-power investigation at gem16 commit `065b68f` and llama.cpp b10240 gives this standard
+`llama-bench`-shape characterization:
+
+| Engine | Checkpoint / KV | pp512 tok/s | tg128 tok/s | Aggregate time/token |
+|---|---|---:|---:|---:|
+| **gem16** | direct FP8/NVFP4 / FP8 | **7,026.84** | 52.52 | 19.039 ms |
+| llama.cpp b10240 | patched NVFP4+Q8_0 GGUF / F16 | 5,381.87 | **62.76** | **15.935 ms** |
+
+Gem16 leads pp512 by 30.57%; llama.cpp leads the disclosed tg128 counterpart by 19.48%. Nsight attributes only
+about 0.013 ms/token to gem16's extra final argmax/publication boundary. Both admitted optimization candidates
+failed their rejection screens and were removed, so the production runtime is unchanged. The direct all-regions
+probe leaves 4.04 GiB CUDA-visible free, passing the 700 MiB reserve gate. See the
+[tracked Linux summary](benchmarks/baselines/llama_cpp/linux-short-context-065b68f.json).
+
+### Windows
+
 The standard `llama-bench` `pp512`/`tg128` matrix on Windows 11 x64 and the RTX 5080 Laptop GPU gives the following
 batch-one characterization at gem16 commit `cc01a05` and llama.cpp b10240:
 
@@ -295,8 +313,8 @@ live in [`benchmarks/baselines/cross_engine_mtp/`](benchmarks/baselines/cross_en
 - [`docs/AUDIO.md`](docs/AUDIO.md) and [`docs/VISION.md`](docs/VISION.md) — implemented media-input contracts
 - [`docs/BENCHMARKING.md`](docs/BENCHMARKING.md) — benchmark methodology
 - [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) — C++, CUDA, testing, dependency, and security rules
-- [`docs/PERFORMANCE_IMPROVEMENT_PLAN.md`](docs/PERFORMANCE_IMPROVEMENT_PLAN.md) — active bounded 12B performance sprint
-- [`docs/plans/gemma4-26b/START_HERE_CODEX.md`](docs/plans/gemma4-26b/START_HERE_CODEX.md) — next 26B implementation entry point
+- [`docs/PERFORMANCE_IMPROVEMENT_PLAN.md`](docs/PERFORMANCE_IMPROVEMENT_PLAN.md) — completed bounded 12B performance sprint
+- [`docs/plans/gemma4-26b/START_HERE_CODEX.md`](docs/plans/gemma4-26b/START_HERE_CODEX.md) — active 26B M00 entry point
 - [`docs/PERFORMANCE_LEDGER.md`](docs/PERFORMANCE_LEDGER.md) — retained measurements and profiling evidence
 - [`docs/ROADMAP.md`](docs/ROADMAP.md) — active tracks and deferred work
 

@@ -1,9 +1,8 @@
 # Roadmap
 
-Current stage: run the bounded Linux short-context ordinary-decode investigation, close the direct all-regions
-memory-reserve record, then begin Gemma 4 26B A4B bring-up while preserving the mature 12B product path. The 16K D2
-performance sprint and its Windows regression are complete and remain regression evidence rather than active
-optimization scope.
+Current stage: begin Gemma 4 26B A4B M00 while preserving the mature 12B product path. The bounded Linux
+short-context ordinary-decode investigation, direct all-regions memory-reserve record, 16K D2 performance sprint
+and Windows regression are complete and remain regression evidence rather than active optimization scope.
 
 ## Current product baseline
 
@@ -45,16 +44,21 @@ The remaining measured 12B performance gap is prompt processing against direct-l
 on the retained 16K workload. Corrected D2 remains 6.57% faster than vLLM and 4.49% faster than llama.cpp. The
 prior 89.58 tok/s row is historical because it omitted two required verifier BF16 boundaries.
 
-## Active track: Linux short-context ordinary decode
+## Completed track: Linux short-context ordinary decode
 
-[SHORT_CONTEXT_DECODE_OPTIMIZATION_PLAN.md](SHORT_CONTEXT_DECODE_OPTIMIZATION_PLAN.md) is the binding next plan. It
-starts with a fresh Linux parent and ordinary-decode matrix, audits the `llama-bench tg128` timing-boundary
-difference, captures Nsight Systems/Compute evidence, and admits at most two measured candidates. The current 16K
-ordinary, fixed-D2, prefill, correctness, memory, and Windows paths are mandatory regression gates.
+The bounded investigation closes at clean parent `065b68f` with no promoted production change. On the Linux
+max-power standard shape, gem16 reaches 7,026.84 pp512 tok/s and 52.52 tg128 tok/s; llama.cpp b10240 reaches
+5,381.87 and 62.76 tok/s. The external decode lead is 19.48%, but remains a controlled characterization because
+token feeds, initial position, formats, K/V precision and timing boundaries differ.
 
-The standard-shape Windows trigger is 52.43 tok/s for gem16's context-1/128-token ordinary decode and 62.08 tok/s
-for llama.cpp b10240 `tg128`. This is directional rather than exact parity because token feeds, starting position,
-formats, K/V precision, and timing boundaries differ. Linux establishes its own parent before any implementation.
+The timing audit finds only about 0.013 ms/token of final argmax/publication overhead outside the work both engines
+must perform. The admitted eight-warp direct-projection and exact fused-short-attention candidates both fail their
+rejection screens and are removed. A supplemental Gate/Up graph-overlap probe is also sub-threshold and removed.
+The restored runtime has zero memory delta. The direct all-regions probe leaves 4.04 GiB CUDA-visible free with
+Target, assistant, fixed D2, sampling, graphs, media workspace and the final prompt plan resident, passing the
+700 MiB gate. Tracked results are in
+`benchmarks/baselines/llama_cpp/linux-short-context-065b68f.json`; detailed evidence and decisions are in
+[PERFORMANCE_LEDGER.md](PERFORMANCE_LEDGER.md) and [DECISIONS.md](DECISIONS.md).
 
 [PERFORMANCE_IMPROVEMENT_PLAN.md](PERFORMANCE_IMPROVEMENT_PLAN.md) owns the completed 16K-centered final sprint and
 remains regression and closure evidence rather than the execution order for new candidates.
@@ -62,16 +66,15 @@ remains regression and closure evidence rather than the execution order for new 
 [PREFILL_OPTIMIZATION_PLAN.md](PREFILL_OPTIMIZATION_PLAN.md) is retained as historical evidence for the earlier
 prefill program; it no longer owns execution order.
 
-## Next track: Gemma 4 26B A4B
+## Active track: Gemma 4 26B A4B
 
-After the bounded short-context plan and direct memory-reserve record close, the next implementation program is the
-experimental Gemma 4 26B A4B track. Its binding entry points are:
+The active implementation program is the experimental Gemma 4 26B A4B track. Its binding entry points are:
 
 1. [plans/gemma4-26b/START_HERE_CODEX.md](plans/gemma4-26b/START_HERE_CODEX.md)
 2. [plans/gemma4-26b/00_MASTER_IMPLEMENTATION_PLAN.md](plans/gemma4-26b/00_MASTER_IMPLEMENTATION_PLAN.md)
 3. [plans/gemma4-26b/MILESTONE_STATUS_BOARD.md](plans/gemma4-26b/MILESTONE_STATUS_BOARD.md)
 
-Begin M00 only after the 12B sprint closure record, then follow the plan's dependency order. In particular:
+Begin with M00 only, then follow the plan's dependency order. In particular:
 
 - lock source, compiler, tokenizer, and quality references before kernel work;
 - run the early synthetic 32K residency gate against directly measured CUDA-visible memory;
@@ -96,8 +99,8 @@ they block a regression or receive an explicit priority change:
 
 ## Documentation ownership
 
-- [SHORT_CONTEXT_DECODE_OPTIMIZATION_PLAN.md](SHORT_CONTEXT_DECODE_OPTIMIZATION_PLAN.md) owns the active bounded
-  short-context ordinary-decode investigation.
+- [PERFORMANCE_LEDGER.md](PERFORMANCE_LEDGER.md), [DECISIONS.md](DECISIONS.md), and
+  `benchmarks/baselines/llama_cpp/linux-short-context-065b68f.json` own the completed short-context record.
 - [PERFORMANCE_IMPROVEMENT_PLAN.md](PERFORMANCE_IMPROVEMENT_PLAN.md) owns the completed 16K-centered 12B sprint.
 - [ARCHITECTURE.md](ARCHITECTURE.md), [MEMORY.md](MEMORY.md), and feature documents describe current behavior.
 - [DECISIONS.md](DECISIONS.md) records accepted decisions and superseded alternatives.

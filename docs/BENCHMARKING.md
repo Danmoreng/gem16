@@ -68,6 +68,33 @@ plus Q8_0 KV, prefill timing boundaries differ, and the three MTP output hashes 
 OOM fallbacks and an untuned 8K FP4 shape. Only target-verified output tokens are counted. The earlier 89.58 tok/s
 gem16 row remains historical because its short-batch verifier omitted two required BF16 boundaries.
 
+## Closed Linux short-context ordinary-decode investigation
+
+The Linux max-power investigation at clean gem16 parent `065b68f` maps the standard `llama-bench` `pp512` and
+`tg128` shapes to gem16's disclosed context-512 prefill and context-1/128-token ordinary decode counterparts.
+Gem16 runs three warm-ups and ten measurements. Llama.cpp b10240 retains all 13 repetitions after its built-in
+warm-up and reports repetitions 4--13.
+
+| Engine | pp512 median tok/s | tg128 median tok/s | Aggregate ms/token |
+|---|---:|---:|---:|
+| **gem16** | **7,026.84** | 52.52 | 19.039 |
+| llama.cpp b10240, F16 KV | 5,381.87 | **62.76** | **15.935** |
+
+The intervals for tg128 do not overlap; llama.cpp leads by 19.48%. This is not exact parity: llama.cpp starts at
+depth zero, feeds random tokens and maps source FP8 attention to Q8_0 with F16 KV, while gem16 starts after one
+legal prompt token, follows its greedy Target sequence and uses direct checkpoint FP8 attention plus FP8 KV.
+
+Nsight Systems reconciles gem16's context-1 forward to 18.135 ms/token of child kernels, an 18.507 ms graph span
+and an 18.516 ms NVTX range. Final argmax plus publication accounts for only about 0.013 ms/token. The admitted
+eight-warp direct-projection and exact fused-short-attention candidates both lose in their affected rejection
+screens and are removed; no production change or speed claim results. The direct all-regions probe retains 4.04 GiB
+CUDA-visible free with Target, assistant, fixed D2, checkpoint-recommended sampling, graphs, media workspace and
+the final prompt plan resident.
+
+The complete distributions, context matrix, profile counters, candidate outcomes, memory record, limitations and
+raw-evidence path are in
+[`linux-short-context-065b68f.json`](../benchmarks/baselines/llama_cpp/linux-short-context-065b68f.json).
+
 ## Windows short-context llama-bench characterization
 
 The current Windows short-context characterization maps the standard `llama-bench` `pp512` and `tg128` tests to

@@ -1,0 +1,175 @@
+{
+  "schema_version": 1,
+  "status": "closed_characterization_no_production_change_not_exact_token_format_or_timing_parity",
+  "captured_at": "2026-08-05T13:56:49+02:00",
+  "closed_at": "2026-08-06",
+  "scope": "Linux max-power short-context ordinary-decode investigation",
+  "identity": {
+    "gem16_commit": "065b68f98dcf6cf0843580bb2ac5f03a2b560232",
+    "gem16_worktree": "clean",
+    "llama_cpp_release": "b10240",
+    "llama_cpp_commit": "0b14b87d7c20cb753b94b96854dd7b45306fc696",
+    "gguf_sha256": "6f90177f6a2d42406d57cfa764eae890b262bfdf71d353bd4827e0488b099896",
+    "target_revision": "b1f649734b34aa5575b03d186abd1b9be3d0d5c4",
+    "cutlass_commit": "db1c288993354c88e551c40c19a8fb93a774a241"
+  },
+  "environment": {
+    "os": "Arch Linux",
+    "kernel": "7.1.5-arch1-2",
+    "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "gpu_uuid": "GPU-93070293-2184-eb69-555b-1d856a4fdbb8",
+    "gpu_reported_vram_mib": 16303,
+    "cuda_visible_device_bytes": 16652042240,
+    "driver": "610.43.03",
+    "cuda_toolkit": "13.3.73",
+    "cuda_architecture": "SM120a",
+    "nsight_systems": "2026.1.3.425",
+    "nsight_compute": "2026.2.1.0",
+    "firmware_profile": "max-power",
+    "nvidia_powerd": "active",
+    "dynamic_power_ceiling_w": 175,
+    "display_active": false
+  },
+  "methodology": {
+    "batch_size": 1,
+    "gem16_warmups": 3,
+    "gem16_measurements": 10,
+    "llama_cpp_builtin_warmup": true,
+    "llama_cpp_measurements": 13,
+    "llama_cpp_discarded_measurements": [1, 2, 3],
+    "primary_statistic": "median",
+    "confidence_interval": "two-sided 95% Student t interval around the mean",
+    "telemetry_interval_ms": 200,
+    "gem16_kv": "checkpoint FP8",
+    "llama_cpp_primary_kv": "F16",
+    "llama_cpp_sensitivity_kv": "Q8_0"
+  },
+  "canonical": {
+    "gem16_pp512_tokens_per_second": {
+      "median": 7026.838586657161,
+      "mean": 7037.712106002067,
+      "standard_deviation": 24.36848811224993,
+      "confidence_interval_95": [7020.281150838258, 7055.143061165876]
+    },
+    "llama_cpp_pp512_tokens_per_second": {
+      "median": 5381.87,
+      "mean": 5139.18,
+      "standard_deviation": 433.77961770158515,
+      "confidence_interval_95": [4828.894313325434, 5449.465686674566]
+    },
+    "gem16_tg128_tokens_per_second": {
+      "median": 52.522892445151925,
+      "mean": 52.52673061638052,
+      "standard_deviation": 0.018757815895461025,
+      "confidence_interval_95": [52.51331301548798, 52.54014821727306],
+      "median_ms_per_token": 19.039
+    },
+    "llama_cpp_tg128_tokens_per_second": {
+      "median": 62.75585,
+      "mean": 62.858290000000004,
+      "standard_deviation": 0.17245015028504082,
+      "confidence_interval_95": [62.73493516469943, 62.98164483530058],
+      "median_ms_per_token": 15.935
+    },
+    "llama_cpp_decode_lead_percent": 19.482852292519958,
+    "gem16_prefill_lead_percent": 30.565000393119135
+  },
+  "ordinary_decode_matrix_tokens_per_second": [
+    {"existing_context": 128, "gem16_fp8": 46.19577352896275, "llama_cpp_f16": 62.1527, "llama_cpp_q8_0": 60.90585},
+    {"existing_context": 512, "gem16_fp8": 48.152338665822384, "llama_cpp_f16": 61.6404, "llama_cpp_q8_0": 60.7595},
+    {"existing_context": 2048, "gem16_fp8": 48.108714934798144, "llama_cpp_f16": 60.21215, "llama_cpp_q8_0": 59.66315},
+    {"existing_context": 8192, "gem16_fp8": 47.83497991029899, "llama_cpp_f16": 59.04085, "llama_cpp_q8_0": 57.9476},
+    {"existing_context": 16384, "gem16_fp8": 47.84625641576075, "llama_cpp_f16": 58.6066, "llama_cpp_q8_0": 56.78735}
+  ],
+  "boundary_audit_context_1_ms_per_token": {
+    "gem16_child_kernel_sum": 18.1349925,
+    "gem16_graph_span": 18.5068358,
+    "gem16_forward_nvtx_wall": 18.515690046875,
+    "host_api_outside_graph_span": 0.008854246875,
+    "final_argmax": 0.0039,
+    "observable_extra_selection_and_publication": 0.013
+  },
+  "gem16_context_1_profile": {
+    "nvfp4_projection_share_percent": 37.44515428873213,
+    "fp8_projection_share_percent": 27.514592127622883,
+    "norm_residual_quantization_share_percent": 15.02475462837936,
+    "output_head_share_percent": 13.545557538829971,
+    "attention_kv_share_percent": 6.462053523733191,
+    "classified_child_kernel_coverage_percent": 100.0,
+    "representative_ncu": {
+      "fp8_qkv": {"dram_sol_percent": 64.60, "l2_hit_percent": 1.55, "registers": 40, "achieved_occupancy_percent": 34.14, "spills": 0},
+      "nvfp4_gate": {"dram_sol_percent": 67.52, "l2_hit_percent": 1.33, "registers": 54, "achieved_occupancy_percent": 63.75, "spills": 0},
+      "output_head": {"dram_sol_percent": 73.62, "l2_hit_percent": 0.89, "registers": 40, "achieved_occupancy_percent": 98.28, "spills": 0},
+      "attention_score": {"grid_ctas": 16, "achieved_occupancy_percent": 2.74, "registers": 40, "spills": 0},
+      "attention_value": {"grid_ctas": 16, "achieved_occupancy_percent": 16.55, "registers": 38, "spills": 0}
+    }
+  },
+  "memory_reserve": {
+    "configuration": "Target + assistant + fixed D2 + checkpoint-recommended sampling + decode graphs + media workspace + FP8 KV + final prompt plan at context 17519",
+    "target_weight_bytes": 9304895488,
+    "assistant_weight_bytes": 845714944,
+    "execution_slot_planned_bytes": 1942537472,
+    "free_with_probe_bytes": 4335665152,
+    "free_with_probe_gib": 4.03790283203125,
+    "required_margin_bytes": 734003200,
+    "passes": true
+  },
+  "candidate_results": [
+    {
+      "name": "eight-warp M=1 direct projection CTA",
+      "status": "rejected_and_removed",
+      "exact_output": true,
+      "candidate_vs_restored_parent_tokens_per_second": {
+        "context_1": [52.743, 52.830],
+        "context_128": [48.667, 48.724],
+        "context_512": [47.896, 47.953]
+      },
+      "reason": "Uniform 0.12-0.16% loss; below the 2% promotion threshold."
+    },
+    {
+      "name": "exact fused short FP8 score-softmax-value attention",
+      "status": "rejected_and_removed",
+      "exact_output": true,
+      "candidate_vs_restored_parent_tokens_per_second": {
+        "context_1": [52.273, 52.830],
+        "context_128": [46.532, 48.724],
+        "context_512": [47.974, 47.953]
+      },
+      "reason": "Affected contexts lose 1.06% and 4.50%; reduced D512 value-phase parallelism outweighs launch fusion."
+    },
+    {
+      "name": "supplemental parallel CUDA Graph Gate/Up branches",
+      "status": "rejected_and_removed",
+      "exact_output": true,
+      "candidate_vs_parent_tokens_per_second": {
+        "context_1": [53.0275, 52.9521],
+        "context_128": [48.7951, 48.7035],
+        "context_512": [48.1646, 48.0249]
+      },
+      "graph_private_memory_delta_bytes": 4194304,
+      "reason": "Only 0.14-0.29% improvement; overlapping DRAM-dominant projections stretch under contention and do not meet the 2% threshold."
+    }
+  ],
+  "closure": {
+    "stop_conditions": ["two_candidate_budget_exhausted", "two_consecutive_admitted_candidates_failed"],
+    "production_source_change": false,
+    "persistent_memory_delta_bytes": 0,
+    "workspace_delta_bytes": 0,
+    "graph_private_delta_bytes": 0,
+    "next_track": "Gemma 4 26B A4B M00"
+  },
+  "tests": {
+    "initial_host_ctest": "1/1 passed",
+    "initial_blackwell_ctest": "2/2 passed",
+    "closure_host_ctest_2026_08_06": "1/1 passed",
+    "closure_blackwell_ctest_2026_08_06": "2/2 passed"
+  },
+  "raw_evidence": "benchmarks/results/2026-08-05/065b68f9/blackwell16gb-linux-maxpower-short-decode/",
+  "closure_test_evidence": "benchmarks/results/2026-08-06/065b68f9/blackwell16gb-linux-maxpower-short-decode/L07-final/",
+  "limitations": [
+    "The engines do not use identical token streams, tensor formats, KV precision, or timing boundaries.",
+    "llama-bench tg128 starts at depth zero and feeds random tokens; gem16 starts after one legal prompt token and performs greedy selection.",
+    "Nsight profiles are diagnostic and are not substituted for uninstrumented throughput.",
+    "No candidate met the production promotion threshold; the retained runtime is unchanged."
+  ]
+}

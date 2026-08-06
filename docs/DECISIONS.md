@@ -1,5 +1,39 @@
 # Decisions
 
+## 2026-08-06: Close the Linux short-context investigation without a production change and begin 26B M00
+
+Date: 2026-08-06
+
+Decision: Close the bounded Linux short-context ordinary-decode investigation at parent
+`065b68f98dcf6cf0843580bb2ac5f03a2b560232` under its exhausted two-candidate and two-consecutive-failure stop
+conditions. Retain the current production runtime unchanged and make Gemma 4 26B A4B M00 the active next milestone.
+Do not continue with speculative M=1 projection, attention, graph-concurrency or output-head work without a new
+post-26B profile-backed decision.
+
+Context: The Linux max-power standard shape reproduces the external gap: gem16 reaches 52.52 tok/s and llama.cpp
+b10240 reaches 62.76 tok/s for their disclosed `tg128` counterparts, a 19.48% llama.cpp lead. The timing audit
+attributes only about 0.013 ms/token to gem16's extra final argmax/publication boundary; 99.95% of the scoped forward
+range is covered by the CUDA Graph span. Nsight assigns 64.96% of context-1 child-kernel time to direct FP8/NVFP4
+projections and 6.46% to short attention. The admitted eight-warp direct-projection candidate loses 0.12--0.16%,
+and exact fused short attention loses 1.06% and 4.50% at the affected context-1 and context-128 screens. Both are
+removed. A supplemental Gate/Up graph-overlap probe proves concurrent execution but gains only 0.14--0.29%, adds
+4 MiB of graph-private memory and is also removed.
+
+Alternatives: Continue into a K-parallel/GEMV redesign; retain graph overlap despite a sub-threshold screen; weaken
+the 2% admission threshold; or present the external gap as exact parity. The first exceeds the bounded candidate
+program without new evidence, the next two retain unsupported complexity, and the last hides token-feed, initial
+position, attention-format, K/V-precision and timing-boundary differences.
+
+Consequences: No kernel, graph, precision, tensor layout, workspace or persistent-memory change is promoted. The
+direct all-regions context-17,519 server probe includes Target, assistant, fixed D2, checkpoint-recommended sampling,
+decode graphs, media workspace, FP8 KV and the final prompt plan; it leaves 4,335,665,152 CUDA-visible bytes
+(4.04 GiB), passing the 700 MiB gate. Host CTest passes 1/1 and Blackwell CTest passes 2/2 on the restored parent.
+The remaining short-context gap is recorded as controlled characterization and no longer blocks 26B M00.
+
+Evidence: `benchmarks/baselines/llama_cpp/linux-short-context-065b68f.json`, raw retained evidence under
+`benchmarks/results/2026-08-05/065b68f9/blackwell16gb-linux-maxpower-short-decode/`, and closure test evidence under
+`benchmarks/results/2026-08-06/065b68f9/blackwell16gb-linux-maxpower-short-decode/L07-final/`.
+
 ## 2026-08-05: Run a bounded Linux short-context ordinary-decode investigation before 26B M00
 
 Date: 2026-08-05
