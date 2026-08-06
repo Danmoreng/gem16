@@ -90,6 +90,11 @@ Status AssistantContractError(std::string field, std::string expected) {
   return ContractError("assistant", std::move(field), std::move(expected));
 }
 
+Status Moe26BContractError(std::string field, std::string expected) {
+  return ContractError("Gemma 4 26B A4B", std::move(field),
+                       std::move(expected));
+}
+
 }  // namespace
 
 Result<ModelConfig> LoadModelConfig(const std::filesystem::path& path) {
@@ -113,9 +118,38 @@ Result<ModelConfig> LoadModelConfig(const std::filesystem::path& path) {
   }
   config.model_type = StringOrEmpty(Member(root, "model_type"));
   config.text_model_type = StringOrEmpty(Nested(root, "text_config", "model_type"));
+  config.hidden_activation =
+      StringOrEmpty(Nested(root, "text_config", "hidden_activation"));
+  config.bidirectional_attention_mode =
+      StringOrEmpty(Nested(root, "text_config", "use_bidirectional_attention"));
+  const auto* rope_parameters = Nested(root, "text_config", "rope_parameters");
+  const auto* local_rope =
+      rope_parameters == nullptr ? nullptr : Member(*rope_parameters, "sliding_attention");
+  const auto* global_rope =
+      rope_parameters == nullptr ? nullptr : Member(*rope_parameters, "full_attention");
+  config.local_rope_type =
+      StringOrEmpty(local_rope == nullptr ? nullptr : Member(*local_rope, "rope_type"));
+  config.global_rope_type =
+      StringOrEmpty(global_rope == nullptr ? nullptr : Member(*global_rope, "rope_type"));
+  config.local_rope_theta =
+      NumberOrZero(local_rope == nullptr ? nullptr : Member(*local_rope, "rope_theta"));
+  config.global_rope_theta =
+      NumberOrZero(global_rope == nullptr ? nullptr : Member(*global_rope, "rope_theta"));
+  config.global_partial_rotary_factor = NumberOrZero(
+      global_rope == nullptr ? nullptr : Member(*global_rope, "partial_rotary_factor"));
   config.hidden_size = UnsignedOrZero(Nested(root, "text_config", "hidden_size"));
   config.backbone_hidden_size = UnsignedOrZero(Member(root, "backbone_hidden_size"));
   config.intermediate_size = UnsignedOrZero(Nested(root, "text_config", "intermediate_size"));
+  config.moe_intermediate_size =
+      UnsignedOrZero(Nested(root, "text_config", "moe_intermediate_size"));
+  config.expert_count = UnsignedOrZero(Nested(root, "text_config", "num_experts"));
+  config.top_k_experts = UnsignedOrZero(Nested(root, "text_config", "top_k_experts"));
+  config.hidden_size_per_layer_input =
+      UnsignedOrZero(Nested(root, "text_config", "hidden_size_per_layer_input"));
+  config.hidden_size_per_layer_input_present =
+      Nested(root, "text_config", "hidden_size_per_layer_input") != nullptr;
+  config.vocabulary_size_per_layer_input =
+      UnsignedOrZero(Nested(root, "text_config", "vocab_size_per_layer_input"));
   config.layer_count = UnsignedOrZero(Nested(root, "text_config", "num_hidden_layers"));
   config.vocabulary_size = UnsignedOrZero(Nested(root, "text_config", "vocab_size"));
   config.max_positions = UnsignedOrZero(Nested(root, "text_config", "max_position_embeddings"));
@@ -126,6 +160,8 @@ Result<ModelConfig> LoadModelConfig(const std::filesystem::path& path) {
   config.local_head_dimension = UnsignedOrZero(Nested(root, "text_config", "head_dim"));
   config.global_head_dimension = UnsignedOrZero(Nested(root, "text_config", "global_head_dim"));
   config.shared_kv_layer_count = UnsignedOrZero(Nested(root, "text_config", "num_kv_shared_layers"));
+  config.shared_kv_layer_count_present =
+      Nested(root, "text_config", "num_kv_shared_layers") != nullptr;
   config.centroid_count = UnsignedOrZero(Member(root, "num_centroids"));
   config.centroid_intermediate_top_k = UnsignedOrZero(Member(root, "centroid_intermediate_top_k"));
   config.audio_embedding_dimension =
@@ -146,11 +182,50 @@ Result<ModelConfig> LoadModelConfig(const std::filesystem::path& path) {
   config.image_token_id = UnsignedOrZero(Member(root, "image_token_id"));
   config.begin_image_token_id = UnsignedOrZero(Member(root, "boi_token_id"));
   config.end_image_token_id = UnsignedOrZero(Member(root, "eoi_token_id"));
+  config.video_token_id = UnsignedOrZero(Member(root, "video_token_id"));
+  const auto* audio_config = Member(root, "audio_config");
+  const auto* vision_config = Member(root, "vision_config");
+  config.audio_config_present = audio_config != nullptr;
+  config.audio_config_is_null = audio_config != nullptr && audio_config->is_null();
+  config.has_audio_config = audio_config != nullptr && audio_config->is_object();
+  config.has_vision_config = vision_config != nullptr && vision_config->is_object();
+  config.vision_model_type = StringOrEmpty(Nested(root, "vision_config", "model_type"));
+  config.vision_hidden_size = UnsignedOrZero(Nested(root, "vision_config", "hidden_size"));
+  config.vision_intermediate_size =
+      UnsignedOrZero(Nested(root, "vision_config", "intermediate_size"));
+  config.vision_layer_count =
+      UnsignedOrZero(Nested(root, "vision_config", "num_hidden_layers"));
+  config.vision_attention_heads =
+      UnsignedOrZero(Nested(root, "vision_config", "num_attention_heads"));
+  config.vision_kv_heads =
+      UnsignedOrZero(Nested(root, "vision_config", "num_key_value_heads"));
+  config.vision_head_dimension = UnsignedOrZero(Nested(root, "vision_config", "head_dim"));
+  config.vision_max_positions =
+      UnsignedOrZero(Nested(root, "vision_config", "max_position_embeddings"));
+  config.vision_position_embedding_size =
+      UnsignedOrZero(Nested(root, "vision_config", "position_embedding_size"));
+  config.vision_default_output_length =
+      UnsignedOrZero(Nested(root, "vision_config", "default_output_length"));
+  config.vision_standardize = BoolOrFalse(Nested(root, "vision_config", "standardize"));
+  config.enable_moe_block = BoolOrFalse(Nested(root, "text_config", "enable_moe_block"));
   config.attention_k_eq_v = BoolOrFalse(Nested(root, "text_config", "attention_k_eq_v"));
+  config.attention_bias = BoolOrFalse(Nested(root, "text_config", "attention_bias"));
+  config.attention_bias_present =
+      Nested(root, "text_config", "attention_bias") != nullptr;
   config.tied_embeddings = BoolOrFalse(Member(root, "tie_word_embeddings")) ||
                            BoolOrFalse(Nested(root, "text_config", "tie_word_embeddings"));
   config.ordered_embeddings = BoolOrFalse(Member(root, "use_ordered_embeddings"));
+  config.use_cache = BoolOrFalse(Nested(root, "text_config", "use_cache"));
+  config.use_double_wide_mlp =
+      BoolOrFalse(Nested(root, "text_config", "use_double_wide_mlp"));
+  config.use_double_wide_mlp_present =
+      Nested(root, "text_config", "use_double_wide_mlp") != nullptr;
   config.final_logit_softcap = NumberOrZero(Nested(root, "text_config", "final_logit_softcapping"));
+  config.rms_norm_epsilon = NumberOrZero(Nested(root, "text_config", "rms_norm_eps"));
+  config.attention_dropout =
+      NumberOrZero(Nested(root, "text_config", "attention_dropout"));
+  config.attention_dropout_present =
+      Nested(root, "text_config", "attention_dropout") != nullptr;
   config.audio_rms_norm_epsilon =
       NumberOrZero(Nested(root, "audio_config", "rms_norm_eps"));
   config.vision_rms_norm_epsilon =
@@ -193,20 +268,23 @@ Result<ModelConfig> LoadModelConfig(const std::filesystem::path& path) {
       }
     }
   }
+  config.variant = ClassifyModelVariant(config);
   return config;
 }
 
 bool IsPrimaryModel(const ModelConfig& config) {
-  return config.architecture == "Gemma4UnifiedForConditionalGeneration" &&
-         config.model_type == "gemma4_unified";
+  return ClassifyModelVariant(config) == ModelVariant::kGemma4Unified12B;
+}
+
+bool IsGemma4Moe26BModel(const ModelConfig& config) {
+  return ClassifyModelVariant(config) == ModelVariant::kGemma4Moe26BA4B;
 }
 
 bool IsAssistantModel(const ModelConfig& config) {
-  return config.architecture == "Gemma4UnifiedAssistantForCausalLM" &&
-         config.model_type == "gemma4_unified_assistant";
+  return ClassifyModelVariant(config) == ModelVariant::kGemma4UnifiedAssistant;
 }
 
-Status ValidatePrimaryModelContract(const ModelConfig& config) {
+Status ValidateGemma4Unified12BContract(const ModelConfig& config) {
   if (config.architecture != "Gemma4UnifiedForConditionalGeneration") return PrimaryContractError("architecture", "Gemma4UnifiedForConditionalGeneration");
   if (config.model_type != "gemma4_unified") return PrimaryContractError("model_type", "gemma4_unified");
   if (config.text_model_type != "gemma4_unified_text") return PrimaryContractError("text_config.model_type", "gemma4_unified_text");
@@ -251,6 +329,127 @@ Status ValidatePrimaryModelContract(const ModelConfig& config) {
   return Status::Ok();
 }
 
+Status ValidatePrimaryModelContract(const ModelConfig& config) {
+  return ValidateGemma4Unified12BContract(config);
+}
+
+Status ValidateGemma4Moe26BContract(const ModelConfig& config) {
+  if (config.architecture != "Gemma4ForConditionalGeneration") {
+    return Moe26BContractError("architecture", "Gemma4ForConditionalGeneration");
+  }
+  if (config.model_type != "gemma4") {
+    return Moe26BContractError("model_type", "gemma4");
+  }
+  if (config.text_model_type != "gemma4_text") {
+    return Moe26BContractError("text_config.model_type", "gemma4_text");
+  }
+  if (!config.enable_moe_block) {
+    return Moe26BContractError("enable_moe_block", "true");
+  }
+  if (config.layer_count != 30 || config.hidden_size != 2816) {
+    return Moe26BContractError("decoder dimensions", "30 layers / hidden size 2816");
+  }
+  if (config.intermediate_size != 2112 || config.moe_intermediate_size != 704) {
+    return Moe26BContractError("MLP dimensions", "2112 shared / 704 routed expert");
+  }
+  if (config.expert_count != 128 || config.top_k_experts != 8) {
+    return Moe26BContractError("expert routing", "128 experts / top-k 8");
+  }
+  if (config.query_heads != 16 || config.local_kv_heads != 8 ||
+      config.global_kv_heads != 2) {
+    return Moe26BContractError("attention head counts",
+                               "16 query / 8 local KV / 2 global KV");
+  }
+  if (config.local_head_dimension != 256 || config.global_head_dimension != 512) {
+    return Moe26BContractError("head dimensions", "256 local / 512 global");
+  }
+  if (!config.shared_kv_layer_count_present || config.shared_kv_layer_count != 0) {
+    return Moe26BContractError("num_kv_shared_layers", "present and 0");
+  }
+  if (config.sliding_window != 1024 || config.max_positions != 262144) {
+    return Moe26BContractError("context dimensions", "1024 sliding / 262144 maximum");
+  }
+  if (config.vocabulary_size != 262144 ||
+      config.vocabulary_size_per_layer_input != 262144 ||
+      !config.hidden_size_per_layer_input_present ||
+      config.hidden_size_per_layer_input != 0) {
+    return Moe26BContractError(
+        "input dimensions", "vocabulary 262144 / per-layer vocabulary 262144 / hidden 0");
+  }
+  if (!config.tied_embeddings || !config.attention_k_eq_v) {
+    return Moe26BContractError("tied embeddings and attention_k_eq_v", "true");
+  }
+  if (!config.use_cache || !config.use_double_wide_mlp_present ||
+      config.use_double_wide_mlp || !config.attention_bias_present ||
+      config.attention_bias || !config.attention_dropout_present ||
+      std::abs(config.attention_dropout) > 1.0e-12) {
+    return Moe26BContractError(
+        "attention/MLP controls",
+        "use_cache true, double-wide false, bias false, dropout 0");
+  }
+  if (config.hidden_activation != "gelu_pytorch_tanh" ||
+      std::abs(config.rms_norm_epsilon - 1.0e-6) > 1.0e-12 ||
+      std::abs(config.final_logit_softcap - 30.0) > 1.0e-12) {
+    return Moe26BContractError(
+        "numeric controls", "gelu_pytorch_tanh / RMS epsilon 1e-6 / softcap 30");
+  }
+  if (config.local_rope_type != "default" ||
+      std::abs(config.local_rope_theta - 10000.0) > 1.0e-9 ||
+      config.global_rope_type != "proportional" ||
+      std::abs(config.global_rope_theta - 1000000.0) > 1.0e-7 ||
+      std::abs(config.global_partial_rotary_factor - 0.25) > 1.0e-12) {
+    return Moe26BContractError(
+        "RoPE contract",
+        "local default/10000 and global proportional/1000000/0.25");
+  }
+  constexpr std::array<std::string_view, 30> expected_layers = {
+      "sliding_attention", "sliding_attention", "sliding_attention",
+      "sliding_attention", "sliding_attention", "full_attention",
+      "sliding_attention", "sliding_attention", "sliding_attention",
+      "sliding_attention", "sliding_attention", "full_attention",
+      "sliding_attention", "sliding_attention", "sliding_attention",
+      "sliding_attention", "sliding_attention", "full_attention",
+      "sliding_attention", "sliding_attention", "sliding_attention",
+      "sliding_attention", "sliding_attention", "full_attention",
+      "sliding_attention", "sliding_attention", "sliding_attention",
+      "sliding_attention", "sliding_attention", "full_attention"};
+  if (config.layer_types.size() != expected_layers.size()) {
+    return Moe26BContractError("layer_types length", "30");
+  }
+  for (std::size_t index = 0; index < expected_layers.size(); ++index) {
+    if (config.layer_types[index] != expected_layers[index]) {
+      return Moe26BContractError(
+          "layer_types pattern",
+          "five sliding layers followed by one full layer, repeated five times");
+    }
+  }
+  if (config.bidirectional_attention_mode != "vision" ||
+      !config.audio_config_present || !config.audio_config_is_null ||
+      config.has_audio_config || !config.has_vision_config ||
+      config.audio_token_id != 258881 ||
+      config.begin_audio_token_id != 256000 || config.end_audio_token_id != 258883 ||
+      config.image_token_id != 258880 || config.begin_image_token_id != 255999 ||
+      config.end_image_token_id != 258882 || config.video_token_id != 258884) {
+    return Moe26BContractError(
+        "root modality metadata",
+        "vision bidirectional mode, no audio config and token IDs 258881/256000/258883/258880/255999/258882/258884");
+  }
+  if (config.vision_model_type != "gemma4_vision" ||
+      config.vision_hidden_size != 1152 ||
+      config.vision_intermediate_size != 4304 || config.vision_layer_count != 27 ||
+      config.vision_attention_heads != 16 || config.vision_kv_heads != 16 ||
+      config.vision_head_dimension != 72 || config.vision_max_positions != 131072 ||
+      config.vision_position_embedding_size != 10240 ||
+      config.vision_default_output_length != 280 || config.vision_patch_size != 16 ||
+      config.vision_pooling_kernel_size != 3 || !config.vision_standardize ||
+      std::abs(config.vision_rms_norm_epsilon - 1.0e-6) > 1.0e-12) {
+    return Moe26BContractError(
+        "vision source metadata",
+        "gemma4_vision 1152/4304/27/16/16/72/131072/10240/280/16/3/standardized/1e-6");
+  }
+  return Status::Ok();
+}
+
 Status ValidateAssistantModelContract(const ModelConfig& config) {
   if (config.architecture != "Gemma4UnifiedAssistantForCausalLM") return AssistantContractError("architecture", "Gemma4UnifiedAssistantForCausalLM");
   if (config.model_type != "gemma4_unified_assistant") return AssistantContractError("model_type", "gemma4_unified_assistant");
@@ -277,11 +476,24 @@ Status ValidateAssistantModelContract(const ModelConfig& config) {
 }
 
 Status ValidateInspectableModelContract(const ModelConfig& config) {
-  if (IsPrimaryModel(config)) return ValidatePrimaryModelContract(config);
-  if (IsAssistantModel(config)) return ValidateAssistantModelContract(config);
-  return Status(StatusCode::kUnsupported,
-                "unsupported checkpoint architecture/model_type: " +
-                    config.architecture + " / " + config.model_type);
+  switch (ClassifyModelVariant(config)) {
+    case ModelVariant::kGemma4Unified12B:
+      return ValidateGemma4Unified12BContract(config);
+    case ModelVariant::kGemma4Moe26BA4B:
+      return ValidateGemma4Moe26BContract(config);
+    case ModelVariant::kGemma4UnifiedAssistant:
+      return ValidateAssistantModelContract(config);
+    case ModelVariant::kUnsupported:
+      break;
+  }
+  const bool gemma4_family = config.architecture.starts_with("Gemma4") ||
+                             config.model_type.starts_with("gemma4");
+  return Status(
+      StatusCode::kUnsupported,
+      std::string(gemma4_family ? "inspectable but not executable Gemma 4 variant: "
+                                : "unsupported checkpoint architecture/model_type: ") +
+          config.architecture + " / " + config.model_type + " / " +
+          config.text_model_type);
 }
 
 }  // namespace gem16::internal

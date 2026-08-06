@@ -3,8 +3,58 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <limits>
+#include <sstream>
+#include <string>
 
+#include "gem16/model.h"
 #include "model/config.h"
+
+namespace {
+
+gem16::internal::ModelConfig Unified12BConfig() {
+  gem16::internal::ModelConfig config;
+  config.architecture = "Gemma4UnifiedForConditionalGeneration";
+  config.model_type = "gemma4_unified";
+  config.text_model_type = "gemma4_unified_text";
+  config.hidden_size = 3840;
+  config.intermediate_size = 15360;
+  config.layer_count = 48;
+  config.vocabulary_size = 262144;
+  config.max_positions = 262144;
+  config.sliding_window = 1024;
+  config.query_heads = 16;
+  config.local_kv_heads = 8;
+  config.global_kv_heads = 1;
+  config.local_head_dimension = 256;
+  config.global_head_dimension = 512;
+  config.audio_embedding_dimension = 640;
+  config.audio_token_id = 258881;
+  config.begin_audio_token_id = 256000;
+  config.end_audio_token_id = 258883;
+  config.audio_rms_norm_epsilon = 1.0e-6;
+  config.vision_embedding_dimension = 3840;
+  config.vision_position_count = 1120;
+  config.vision_soft_token_count = 280;
+  config.vision_patch_size = 16;
+  config.vision_pooling_kernel_size = 3;
+  config.image_token_id = 258880;
+  config.begin_image_token_id = 255999;
+  config.end_image_token_id = 258882;
+  config.vision_rms_norm_epsilon = 1.0e-6;
+  config.attention_k_eq_v = true;
+  config.tied_embeddings = true;
+  config.final_logit_softcap = 30.0;
+  config.quant_method = "compressed-tensors";
+  config.quant_format = "mixed-precision";
+  for (std::size_t layer = 0; layer < 48; ++layer) {
+    config.layer_types.push_back(layer % 6U == 5U ? "full_attention"
+                                                  : "sliding_attention");
+  }
+  return config;
+}
+
+}  // namespace
 
 void RunConfigTests() {
   gem16::internal::ModelConfig assistant;
@@ -44,6 +94,150 @@ void RunConfigTests() {
   invalid = assistant;
   invalid.hidden_size = 2048;
   GEM16_CHECK(!gem16::internal::ValidateAssistantModelContract(invalid).ok());
+
+  const auto primary = Unified12BConfig();
+  GEM16_CHECK(gem16::internal::IsPrimaryModel(primary));
+  GEM16_CHECK(!gem16::internal::IsGemma4Moe26BModel(primary));
+  GEM16_CHECK(gem16::internal::ValidatePrimaryModelContract(primary).ok());
+  GEM16_CHECK(gem16::internal::ValidateGemma4Unified12BContract(primary).ok());
+  const auto& primary_traits = gem16::internal::TraitsForModelVariant(
+      gem16::internal::ClassifyModelVariant(primary));
+  GEM16_CHECK(primary_traits.executable);
+  GEM16_CHECK(primary_traits.layer_count == 48);
+  GEM16_CHECK(primary_traits.supports_text && primary_traits.supports_vision &&
+              primary_traits.supports_audio && primary_traits.supports_mtp);
+
+  const auto fixture = std::filesystem::path(__FILE__).parent_path().parent_path() /
+                       "fixtures" / "gemma4_26b_config.json";
+  auto parsed_26b = gem16::internal::LoadModelConfig(fixture);
+  GEM16_CHECK(parsed_26b.ok());
+  if (parsed_26b.ok()) {
+    const auto& moe = parsed_26b.value();
+    GEM16_CHECK(moe.variant ==
+                gem16::internal::ModelVariant::kGemma4Moe26BA4B);
+    GEM16_CHECK(gem16::internal::IsGemma4Moe26BModel(moe));
+    GEM16_CHECK(!gem16::internal::IsPrimaryModel(moe));
+    GEM16_CHECK(gem16::internal::ValidateGemma4Moe26BContract(moe).ok());
+    GEM16_CHECK(gem16::internal::ValidateInspectableModelContract(moe).ok());
+    const auto& traits = gem16::internal::TraitsForModelVariant(moe.variant);
+    GEM16_CHECK(traits.inspectable && !traits.executable);
+    GEM16_CHECK(traits.layer_count == 30 && traits.supports_text);
+    GEM16_CHECK(!traits.supports_vision && !traits.supports_audio &&
+                !traits.supports_video && !traits.supports_mtp);
+    GEM16_CHECK(gem16::internal::ModelVariantName(moe.variant) ==
+                "gemma4_moe_26b_a4b");
+
+    auto bad = moe;
+    bad.layer_count = 29;
+    GEM16_CHECK(!gem16::internal::ValidateGemma4Moe26BContract(bad).ok());
+    bad = moe;
+    bad.layer_count = 31;
+    GEM16_CHECK(!gem16::internal::ValidateGemma4Moe26BContract(bad).ok());
+    bad = moe;
+    bad.hidden_size = 0;
+    GEM16_CHECK(!gem16::internal::ValidateGemma4Moe26BContract(bad).ok());
+    bad = moe;
+    bad.hidden_size = std::numeric_limits<std::uint64_t>::max();
+    GEM16_CHECK(!gem16::internal::ValidateGemma4Moe26BContract(bad).ok());
+    bad = moe;
+    bad.intermediate_size = 0;
+    GEM16_CHECK(!gem16::internal::ValidateGemma4Moe26BContract(bad).ok());
+    bad = moe;
+    bad.intermediate_size = std::numeric_limits<std::uint64_t>::max();
+    GEM16_CHECK(!gem16::internal::ValidateGemma4Moe26BContract(bad).ok());
+    bad = moe;
+    bad.moe_intermediate_size = 0;
+    GEM16_CHECK(!gem16::internal::ValidateGemma4Moe26BContract(bad).ok());
+    bad = moe;
+    bad.moe_intermediate_size = std::numeric_limits<std::uint64_t>::max();
+    GEM16_CHECK(!gem16::internal::ValidateGemma4Moe26BContract(bad).ok());
+    bad = moe;
+    bad.expert_count = 0;
+    GEM16_CHECK(!gem16::internal::ValidateGemma4Moe26BContract(bad).ok());
+    bad = moe;
+    bad.expert_count = std::numeric_limits<std::uint64_t>::max();
+    GEM16_CHECK(!gem16::internal::ValidateGemma4Moe26BContract(bad).ok());
+    bad = moe;
+    bad.top_k_experts = 0;
+    GEM16_CHECK(!gem16::internal::ValidateGemma4Moe26BContract(bad).ok());
+    bad = moe;
+    bad.top_k_experts = std::numeric_limits<std::uint64_t>::max();
+    GEM16_CHECK(!gem16::internal::ValidateGemma4Moe26BContract(bad).ok());
+    bad = moe;
+    bad.hidden_size_per_layer_input = std::numeric_limits<std::uint64_t>::max();
+    GEM16_CHECK(!gem16::internal::ValidateGemma4Moe26BContract(bad).ok());
+    bad = moe;
+    bad.hidden_size_per_layer_input_present = false;
+    GEM16_CHECK(!gem16::internal::ValidateGemma4Moe26BContract(bad).ok());
+    bad = moe;
+    bad.vocabulary_size_per_layer_input = 0;
+    GEM16_CHECK(!gem16::internal::ValidateGemma4Moe26BContract(bad).ok());
+    bad = moe;
+    bad.vocabulary_size_per_layer_input =
+        std::numeric_limits<std::uint64_t>::max();
+    GEM16_CHECK(!gem16::internal::ValidateGemma4Moe26BContract(bad).ok());
+    bad = moe;
+    bad.global_kv_heads = 1;
+    GEM16_CHECK(!gem16::internal::ValidateGemma4Moe26BContract(bad).ok());
+    bad = moe;
+    bad.shared_kv_layer_count = 1;
+    GEM16_CHECK(!gem16::internal::ValidateGemma4Moe26BContract(bad).ok());
+    bad = moe;
+    bad.shared_kv_layer_count_present = false;
+    GEM16_CHECK(!gem16::internal::ValidateGemma4Moe26BContract(bad).ok());
+    bad = moe;
+    bad.attention_bias_present = false;
+    GEM16_CHECK(!gem16::internal::ValidateGemma4Moe26BContract(bad).ok());
+    bad = moe;
+    bad.audio_config_present = false;
+    GEM16_CHECK(!gem16::internal::ValidateGemma4Moe26BContract(bad).ok());
+    bad = moe;
+    bad.layer_types[5] = "sliding_attention";
+    GEM16_CHECK(!gem16::internal::ValidateGemma4Moe26BContract(bad).ok());
+    bad = moe;
+    bad.local_rope_theta = 1000000.0;
+    GEM16_CHECK(!gem16::internal::ValidateGemma4Moe26BContract(bad).ok());
+    bad = moe;
+    bad.vision_hidden_size = 0;
+    GEM16_CHECK(!gem16::internal::ValidateGemma4Moe26BContract(bad).ok());
+    bad = moe;
+    bad.has_audio_config = true;
+    GEM16_CHECK(!gem16::internal::ValidateGemma4Moe26BContract(bad).ok());
+
+    auto unknown = moe;
+    unknown.enable_moe_block = false;
+    unknown.variant = gem16::internal::ClassifyModelVariant(unknown);
+    GEM16_CHECK(unknown.variant == gem16::internal::ModelVariant::kUnsupported);
+    const auto unknown_status =
+        gem16::internal::ValidateInspectableModelContract(unknown);
+    GEM16_CHECK(!unknown_status.ok());
+    GEM16_CHECK(unknown_status.message().find(
+                    "inspectable but not executable Gemma 4 variant") !=
+                std::string::npos);
+
+    gem16::ModelManifest manifest;
+    manifest.architecture = moe.architecture;
+    manifest.model_type = moe.model_type;
+    manifest.model_variant = std::string(gem16::internal::ModelVariantName(moe.variant));
+    manifest.layer_count = moe.layer_count;
+    manifest.hidden_size = moe.hidden_size;
+    manifest.intermediate_size = moe.intermediate_size;
+    manifest.moe_intermediate_size = moe.moe_intermediate_size;
+    manifest.expert_count = moe.expert_count;
+    manifest.top_k_experts = moe.top_k_experts;
+    manifest.supports_text = true;
+    std::ostringstream json;
+    GEM16_CHECK(gem16::WriteManifestJson(manifest, json).ok());
+    GEM16_CHECK(json.str().find("\"schema_version\": 2") != std::string::npos);
+    GEM16_CHECK(json.str().find("\"model_variant\": \"gemma4_moe_26b_a4b\"") !=
+                std::string::npos);
+    GEM16_CHECK(json.str().find("\"moe_intermediate_size\": 704") !=
+                std::string::npos);
+    GEM16_CHECK(json.str().find("\"runtime_supported\": false") !=
+                std::string::npos);
+    GEM16_CHECK(json.str().find("\"capabilities\": {\"text\":true,\"vision\":false") !=
+                std::string::npos);
+  }
 
   const auto unique =
       std::chrono::steady_clock::now().time_since_epoch().count();

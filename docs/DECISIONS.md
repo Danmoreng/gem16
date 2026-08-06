@@ -1,5 +1,35 @@
 # Decisions
 
+## 2026-08-06: Keep Gemma 4 26B inspectable but non-executable behind an explicit static variant
+
+Date: 2026-08-06
+
+Decision: Classify the locked Gemma 4 26B A4B MoE configuration as explicit variant `gemma4_moe_26b_a4b`, separate
+from `gemma4_unified_12b` and the assistant. Validate the complete locked 26B architecture and expose immutable
+text-only capabilities, but report `runtime_supported=false` and `tensor_contract_validated=false` throughout M02.
+Manifest JSON schema 2 records these states and all MoE dimensions. M03 owns the exact canonical tensor inventory;
+M02 uploads no 26B tensor and selects no 26B CUDA kernel.
+
+Context: The upstream 26B source uses `Gemma4ForConditionalGeneration` / `gemma4` / `gemma4_text`, 30 decoder
+layers, hidden width 2,816, shared width 2,112, routed width 704, 128 experts and top-8 routing. Reusing the existing
+primary-model predicate or globally replacing the 12B 48-layer constants would either misclassify the checkpoint
+or break the qualified product path. Source vision metadata exists, but the initial product contract remains
+text-only.
+
+Alternatives: Treat every Gemma 4 config as one dynamic runtime; infer the model from filenames; mark 26B runtime
+supported before loader/kernel milestones; or require M03 tensor validation before config inspection. These weaken
+static specialization, trust untrusted paths, advertise nonexistent execution or prevent the bounded M02 contract.
+
+Consequences: The 12B and assistant validators remain exact and executable. Unknown Gemma 4 variants parse for
+inspection but fail validation with an explicit unsupported-variant reason. The 26B QAT-BF16 checkpoint can produce
+a generic safe manifest and capability record, while exact tensor-schema claims remain visibly deferred to M03.
+The owner accepted the completed M02 handoff on 2026-08-06; M03 is unblocked but must start separately from the
+accepted M02 closure, and M04 and later milestones remain blocked.
+
+Evidence: [M02 kickoff/drift record](evidence/gemma4_26b/m02-kickoff-2026-08-06.md),
+[M02 capability evidence](evidence/gemma4_26b/m02-model-variant-capability.json), and
+[`tests/fixtures/gemma4_26b_config.json`](../tests/fixtures/gemma4_26b_config.json).
+
 ## 2026-08-06: Accept Gemma 4 26B M01 and authorize M02 from the accepted M01 base
 
 Date: 2026-08-06

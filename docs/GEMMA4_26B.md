@@ -1,6 +1,6 @@
 # Gemma 4 26B A4B experimental track
 
-Status: M00 and M01 accepted; M02 model configuration/static traits is authorized but not yet started
+Status: M00, M01 and M02 accepted; M03 exact tensor inventory is unblocked but not started
 
 Production hypothesis: `gem16-gemma4-26b-a4b-qat-hybrid-text`
 
@@ -80,6 +80,18 @@ The primary candidate cannot be judged alone. The retained matrix includes:
 
 No comparison is called parity unless tensor inventory and execution semantics establish it.
 
+## M02 model-variant boundary
+
+M02 introduces explicit immutable classifications for `gemma4_unified_12b`, `gemma4_moe_26b_a4b` and the existing
+assistant. The 26B classifier requires the locked Gemma 4 architecture/model identifiers and MoE declaration; its
+validator then checks every exact dimension, layer type, attention/KV field, local/global RoPE control and source
+modality field independently. Classification is never based on a filename or directory name.
+
+The 26B traits are inspectable and text-capable but not executable. Vision, audio, video and MTP capabilities are
+false for the initial product even though source vision metadata is validated for checkpoint identity. Manifest
+schema 2 reports the variant, MoE dimensions, capabilities and separate runtime/tensor-contract validation states.
+M03, not M02, owns the canonical 26B tensor-name and shape contract.
+
 ## Runtime and product boundary
 
 The 12B direct-load profile remains the default and is unchanged. The 26B path must use a separate model variant,
@@ -120,9 +132,10 @@ batching, broad dispatch, general executors and host expert offload are rejected
 - M00: accepted at `3bf7b6e4427433ae766fe9238ed6d8c991398b6b`.
 - M01: accepted on 2026-08-06 at handoff commits `f901044`, `9023f5a` and `e2c44d5`; all explicit exit criteria
   pass. Direct Unsloth token output is retained with disclosed non-exact logprobs and diagnostic CPU offload.
-- M02: authorized as the only active implementation milestone; it starts from the final accepted M01 closure on
-  separate branch `feat/26b-m02-model-traits`.
-- M03 and every later milestone remain blocked. Derived-artifact distribution approval remains separate.
+- M02: accepted on 2026-08-06 on `feat/26b-m02-model-traits` from accepted M01 closure `59996f5`; all explicit
+  exit criteria pass.
+- M03: unblocked but not started; it must use a separate milestone branch from the accepted M02 closure.
+- M04 and every later milestone remain blocked. Derived-artifact distribution approval remains separate.
 - M01 adds source locks, offline tooling and compact reference evidence only; no 26B compiler, runtime or CUDA path
   exists at the accepted M01 boundary.
 
@@ -132,3 +145,5 @@ Current evidence:
 - [M00 policy review checklist](evidence/gemma4_26b/m00-policy-review.md)
 - [M01 source-lock and golden handoff](evidence/gemma4_26b/m01-source-locks-and-goldens-2026-08-06.md)
 - [M01 Unsloth vLLM OOM incident](evidence/gemma4_26b/m01-unsloth-vllm-oom-2026-08-06.md)
+- [M02 kickoff and drift record](evidence/gemma4_26b/m02-kickoff-2026-08-06.md)
+- [M02 model-variant handoff](evidence/gemma4_26b/m02-model-variants-2026-08-06.md)
