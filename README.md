@@ -314,6 +314,7 @@ live in [`benchmarks/baselines/cross_engine_mtp/`](benchmarks/baselines/cross_en
 - [`docs/BENCHMARKING.md`](docs/BENCHMARKING.md) — benchmark methodology
 - [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) — C++, CUDA, testing, dependency, and security rules
 - [`docs/PERFORMANCE_IMPROVEMENT_PLAN.md`](docs/PERFORMANCE_IMPROVEMENT_PLAN.md) — completed bounded 12B performance sprint
+- [`docs/GEMMA4_26B.md`](docs/GEMMA4_26B.md) — experimental 26B artifact and product contract
 - [`docs/plans/gemma4-26b/START_HERE_CODEX.md`](docs/plans/gemma4-26b/START_HERE_CODEX.md) — active 26B M00 entry point
 - [`docs/PERFORMANCE_LEDGER.md`](docs/PERFORMANCE_LEDGER.md) — retained measurements and profiling evidence
 - [`docs/ROADMAP.md`](docs/ROADMAP.md) — active tracks and deferred work

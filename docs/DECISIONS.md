@@ -1,5 +1,52 @@
 # Decisions
 
+## 2026-08-06: Define the deterministic derived-checkpoint contract for experimental Gemma 4 26B A4B
+
+Date: 2026-08-06
+
+Decision: The first 26B production hypothesis is a text-only, project-built hybrid Safetensors checkpoint compiled
+offline from one exact Google Gemma 4 26B A4B QAT BF16 revision. Source, compiler, dependencies, invocation and
+every output are immutable and hash-locked; `gem16_compilation.json` records per-tensor source identity,
+transformation, logical/physical shape, dtype, quantizer contract, dequantization equation, bytes, hash, role and
+residency. A second clean reference-platform run must reproduce output bytes exactly. The inference process verifies
+and directly loads the compiled artifact but never quantizes, requantizes or writes it. The model is identified as a
+project-built gem16 derivative, never official Google NVFP4.
+
+The primary artifact derives all mathematical tensors from that one QAT source, omits vision/audio/video/MTP, keeps
+router/norm/scalar semantics in source precision, uses qualified FP8 attention and NVFP4 routed/shared MLP contracts,
+and defers tied embedding/head format selection to measured M07/M16 gates. Runtime layout transformation may stream
+verified bytes into the sole final device allocation; a second persistent device representation is forbidden.
+Missing native support fails visibly, and explicit diagnostic fallback/offload cannot support production claims.
+Distribution remains blocked until M01 records applicable terms and owner approval.
+
+Context: No published checkpoint implements the selected complete QAT-BF16-to-FP8/NVFP4/head recipe. Root policy
+permits reproducible profile-specific compilation but requires a concrete contract before compiler work. The 16 GB
+product also cannot absorb hidden source/runtime copies or CPU expert streaming. QAT provenance alone says nothing
+about quality, so direct Unsloth NVFP4, an ordinary-BF16 same-compiler control, official Google Q4_0 and QAT BF16
+reference evidence remain mandatory.
+
+Alternatives: Require direct-load-only and abandon the hypothesis; convert during server startup; use an opaque
+engine binary; splice tensors from separately quantized checkpoints; call QAT provenance a quality result; or use
+CPU expert offload to fit. These respectively block the selected experiment, destroy reproducibility/runtime
+boundaries, weaken auditability, confound model identity, bypass quality measurement or invalidate the resident
+16 GB performance objective.
+
+Consequences: M00 adds governance/evidence only and no dead feature flag; the 12B direct-load profile remains the
+unchanged default. Before M02 exposes any 26B runtime behavior it must add an experimental default-off model-variant
+boundary. The initial immutable-weight target is at most 14,100 MiB, above 14,300 MiB is a hard review stop, and
+32K must leave at least 700 MiB directly measured CUDA-visible reserve. Vision, audio, video, MTP, continuous
+batching, multiple 26B slots, multi-GPU, CPU offload and expert streaming are non-goals for the first profile.
+
+Pinned `kekzl/imp@a392904d4216388828d0d56317de046f4ca49627` is reference evidence, not an architecture or dependency.
+Through M13, use is reference or clean-room only. This decision accepts the documented provenance structure but
+does not approve copying source; any later isolated MIT port requires a separate owner decision, exact hashes and
+notices, independent tests, 5080 evidence and no second weight layout.
+
+Evidence: [Gemma 4 26B track contract](GEMMA4_26B.md),
+[M00 drift report](evidence/gemma4_26b/baseline-drift-2026-08-06.md),
+[M00 policy review](evidence/gemma4_26b/m00-policy-review.md), and
+`docs/plans/gemma4-26b/specs/CHECKPOINT_PROVENANCE_SPEC.md`.
+
 ## 2026-08-06: Close the Linux short-context investigation without a production change and begin 26B M00
 
 Date: 2026-08-06

@@ -68,13 +68,16 @@ prefill program; it no longer owns execution order.
 
 ## Active track: Gemma 4 26B A4B
 
-The active implementation program is the experimental Gemma 4 26B A4B track. Its binding entry points are:
+The active implementation program is the experimental Gemma 4 26B A4B track. M00 defines governance and the
+artifact contract only; no compiler or runtime support is implemented. Its binding entry points are:
 
-1. [plans/gemma4-26b/START_HERE_CODEX.md](plans/gemma4-26b/START_HERE_CODEX.md)
-2. [plans/gemma4-26b/00_MASTER_IMPLEMENTATION_PLAN.md](plans/gemma4-26b/00_MASTER_IMPLEMENTATION_PLAN.md)
-3. [plans/gemma4-26b/MILESTONE_STATUS_BOARD.md](plans/gemma4-26b/MILESTONE_STATUS_BOARD.md)
+1. [GEMMA4_26B.md](GEMMA4_26B.md)
+2. [plans/gemma4-26b/START_HERE_CODEX.md](plans/gemma4-26b/START_HERE_CODEX.md)
+3. [plans/gemma4-26b/00_MASTER_IMPLEMENTATION_PLAN.md](plans/gemma4-26b/00_MASTER_IMPLEMENTATION_PLAN.md)
+4. [plans/gemma4-26b/MILESTONE_STATUS_BOARD.md](plans/gemma4-26b/MILESTONE_STATUS_BOARD.md)
 
-Begin with M00 only, then follow the plan's dependency order. In particular:
+Complete and obtain owner acceptance for M00 before beginning M01, then follow the plan's dependency order. In
+particular:
 
 - lock source, compiler, tokenizer, and quality references before kernel work;
 - run the early synthetic 32K residency gate against directly measured CUDA-visible memory;
