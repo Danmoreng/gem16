@@ -1,14 +1,15 @@
 # Gemma 4 26B A4B experimental track
 
-Status: M00 accepted; M01 source-lock/golden handoff awaits owner acceptance; no 26B compiler or runtime implementation exists
+Status: M00 and M01 accepted; M02 model configuration/static traits is authorized but not yet started
 
 Production hypothesis: `gem16-gemma4-26b-a4b-qat-hybrid-text`
 
 The 26B track targets text-only Gemma 4 26B A4B inference on one approximately 16 GB NVIDIA Blackwell GPU while
 preserving the statically specialized Gemma 4 12B Unified product path. The binding implementation order and gates
-are in the [master plan](plans/gemma4-26b/00_MASTER_IMPLEMENTATION_PLAN.md) and
-[milestone board](plans/gemma4-26b/MILESTONE_STATUS_BOARD.md). The immutable imported plan package remains unchanged;
-live acceptance evidence is recorded under [`docs/evidence/gemma4_26b/`](evidence/gemma4_26b/).
+are in the [master plan](plans/gemma4-26b/00_MASTER_IMPLEMENTATION_PLAN.md). The immutable imported plan package,
+including its initial status-board template, remains byte-identical; current milestone state and acceptance
+evidence are recorded in this document, [ROADMAP.md](ROADMAP.md) and
+[`docs/evidence/gemma4_26b/`](evidence/gemma4_26b/).
 
 ## Terminology
 
@@ -117,11 +118,13 @@ batching, broad dispatch, general executors and host expert offload are rejected
 ## Milestone state
 
 - M00: accepted at `3bf7b6e4427433ae766fe9238ed6d8c991398b6b`.
-- M01: handoff candidate; all explicit exit criteria pass. Direct Unsloth token output is retained with disclosed
-  non-exact logprobs and diagnostic CPU offload; derived-artifact distribution approval remains separate.
-- M02 and every later implementation milestone remain blocked.
+- M01: accepted on 2026-08-06 at handoff commits `f901044`, `9023f5a` and `e2c44d5`; all explicit exit criteria
+  pass. Direct Unsloth token output is retained with disclosed non-exact logprobs and diagnostic CPU offload.
+- M02: authorized as the only active implementation milestone; it starts from the final accepted M01 closure on
+  separate branch `feat/26b-m02-model-traits`.
+- M03 and every later milestone remain blocked. Derived-artifact distribution approval remains separate.
 - M01 adds source locks, offline tooling and compact reference evidence only; no 26B compiler, runtime or CUDA path
-  exists.
+  exists at the accepted M01 boundary.
 
 Current evidence:
 

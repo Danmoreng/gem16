@@ -1,7 +1,8 @@
 # Roadmap
 
-Current stage: finish Gemma 4 26B A4B M01 owner handoff while preserving the mature 12B product path. M00 is
-accepted; M02 and later implementation remain blocked. The bounded Linux short-context ordinary-decode
+Current stage: begin Gemma 4 26B A4B M02 model configuration/static traits from the accepted M01 boundary while
+preserving the mature 12B product path. M00 and M01 are accepted; M03 and later implementation remain blocked. The
+bounded Linux short-context ordinary-decode
 investigation, direct all-regions memory-reserve record, 16K D2 performance sprint and Windows regression are
 complete and remain regression evidence rather than active optimization scope.
 
@@ -70,17 +71,18 @@ prefill program; it no longer owns execution order.
 ## Active track: Gemma 4 26B A4B
 
 The active implementation program is the experimental Gemma 4 26B A4B track. M00 defines accepted governance and
-the artifact contract; M01 now has a source-lock/golden handoff candidate, but no compiler or runtime support is
-implemented. Its binding entry points are:
+the artifact contract; M01 source locks and goldens are accepted. M02 model configuration/static traits is the only
+authorized implementation milestone, and no compiler or 26B runtime support exists at its starting boundary. Its
+binding entry points are:
 
 1. [GEMMA4_26B.md](GEMMA4_26B.md)
 2. [plans/gemma4-26b/START_HERE_CODEX.md](plans/gemma4-26b/START_HERE_CODEX.md)
 3. [plans/gemma4-26b/00_MASTER_IMPLEMENTATION_PLAN.md](plans/gemma4-26b/00_MASTER_IMPLEMENTATION_PLAN.md)
 4. [plans/gemma4-26b/MILESTONE_STATUS_BOARD.md](plans/gemma4-26b/MILESTONE_STATUS_BOARD.md)
 
-Obtain owner acceptance for the M01 handoff before beginning M02, then follow the plan's dependency order. The
-direct Unsloth evidence is token-deterministic after warmup but explicitly not an exact-logit or performance oracle.
-In particular:
+Start M02 on `feat/26b-m02-model-traits` from the final accepted M01 closure commit and follow the plan's dependency
+order. The direct Unsloth evidence is token-deterministic after warmup but explicitly not an exact-logit or
+performance oracle. In particular:
 
 - lock source, compiler, tokenizer, and quality references before kernel work;
 - run the early synthetic 32K residency gate against directly measured CUDA-visible memory;

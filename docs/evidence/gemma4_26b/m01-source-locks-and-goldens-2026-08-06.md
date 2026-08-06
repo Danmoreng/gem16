@@ -6,8 +6,8 @@ Branch: `feat/26b-m01-source-locks`
 
 M01 parent: `3bf7b6e4427433ae766fe9238ed6d8c991398b6b`
 
-Status: handoff candidate; every explicit M01 exit criterion and the direct Unsloth token-reference objective pass
-with disclosed diagnostic limitations; owner acceptance and any artifact-distribution approval remain pending
+Status: accepted by the owner on 2026-08-06; every explicit M01 exit criterion and the direct Unsloth
+token-reference objective pass with disclosed diagnostic limitations
 
 No compiler, production runtime, CUDA kernel, CMake target or 12B model behavior changed in M01.
 
@@ -173,5 +173,6 @@ remarks; M01 changes no C++ or CUDA source.
 | Final test was not used for quantizer tuning | PASS | no compiler/quantizer implementation exists in M01 |
 | Direct Unsloth runtime evidence is captured | PASS with limitation | repeated token/text identity; non-exact Top-20/logprobs; diagnostic offload only |
 
-M01 implementation and evidence are ready for owner acceptance. M02 and later milestones remain blocked until that
-acceptance. Distribution of a future derived checkpoint remains separately blocked pending explicit owner review.
+The owner accepted this M01 handoff on 2026-08-06. M02 model configuration/static traits is unblocked and must
+start from the final M01 closure commit on separate branch `feat/26b-m02-model-traits`; M03 and later work remains
+blocked. Distribution of a future derived checkpoint remains separately blocked pending explicit owner review.

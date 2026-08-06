@@ -1,5 +1,31 @@
 # Decisions
 
+## 2026-08-06: Accept Gemma 4 26B M01 and authorize M02 from the accepted M01 base
+
+Date: 2026-08-06
+
+Decision: Accept the M01 immutable-source and golden-evidence handoff represented by commits `f901044`, `9023f5a`
+and `e2c44d5`. Every explicit M01 exit criterion passes. M02 is now the only authorized implementation milestone
+and must start on a separate `feat/26b-m02-model-traits` branch based on the final M01 closure commit. Do not place
+M02 implementation on the M01 branch or begin M03 work.
+
+Context: Four complete model sources and all required reference software are immutable and verified; source
+inventories, disjoint corpora, exact tokenizer identity, repeated QAT-BF16 goldens, official Q4_0 evidence and a
+direct Unsloth token-level diagnostic are tracked. The Unsloth runs repeat token IDs and text after warmup but not
+Top-20/logprobs, use diagnostic CPU offload and cannot support exact-logit or performance claims. All M01 tests,
+12B regression gates, package-integrity checks and documentation checks pass.
+
+Consequences: M02 may add only model-configuration parsing, explicit static variant traits, validation, capability
+metadata and tests. It must preserve the 12B and assistant contracts and may not add tensor upload, compiler,
+loader or CUDA product implementation. Distribution or hosting of a future compiled checkpoint remains separately
+blocked pending owner review. The checksum-protected imported plan package under `docs/plans/gemma4-26b/` remains
+byte-identical; live milestone status is recorded in `docs/GEMMA4_26B.md`, `docs/ROADMAP.md` and dated evidence
+rather than rewriting the package's initial status template.
+
+Evidence: [M01 source-lock/golden handoff](evidence/gemma4_26b/m01-source-locks-and-goldens-2026-08-06.md),
+[M01 Unsloth vLLM incident and bounded follow-up](evidence/gemma4_26b/m01-unsloth-vllm-oom-2026-08-06.md), and
+[`benchmarks/goldens/gemma4_26b/`](../benchmarks/goldens/gemma4_26b/).
+
 ## 2026-08-06: Isolate memory-heavy vLLM reference JIT and bound the Unsloth diagnostic
 
 Date: 2026-08-06
