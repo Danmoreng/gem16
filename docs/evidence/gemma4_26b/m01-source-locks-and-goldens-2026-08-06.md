@@ -121,7 +121,10 @@ thread, whole-cgroup OOM kill and descendant cleanup. The complete cause and con
 The bounded cold run compiled `fused_moe_120` and all 66 autotune configurations with at most four `cicc` processes
 and 35,722,186,752 cgroup bytes, but its 0.78 GPU reservation reached 14,560 MiB and was stopped. The accepted
 warm-cache diagnostic reduced GPU utilization to 0.70, retained supported chunked prefill, used one explicit
-warmup and completed with 11,874 MiB sampled peak VRAM and 11,222,122,496 cgroup peak bytes.
+warmup and completed with 11,874 MiB sampled peak VRAM and 11,222,122,496 cgroup peak bytes. The capture process
+wrote its result and exited successfully; systemd subsequently timed out implicit EngineCore teardown after 30
+seconds, killed the remaining control group and left no process or allocation. The checked tool now performs an
+explicit pinned EngineCore shutdown.
 
 Dispatch logs prove CUTLASS FP8 attention projections, FlashInfer CUTLASS NVFP4 GEMM/MoE and Triton attention. The
 warmup and both retained runs generated `[7676, 236761]` (`"OK."`); the retained token IDs and text are exact, while

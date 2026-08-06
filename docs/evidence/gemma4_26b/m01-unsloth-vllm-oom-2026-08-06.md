@@ -73,6 +73,12 @@ runs. It stayed within all boundaries:
 - minimum globally available host memory: 50,131,788 KiB;
 - no OOM, hard stop, compiler residue, worker residue or retained GPU allocation.
 
+The final capture process wrote the complete JSON and returned status 0. Its vLLM EngineCore child did not finish
+implicit interpreter-shutdown cleanup within systemd's 30-second stop deadline, so the transient service itself
+reported a post-output cleanup timeout and removed the remaining control group. No process or GPU allocation
+survived. The checked capture tool now calls the pinned V1 `EngineCore.shutdown()` explicitly for future runs; the
+model was not rerun merely to re-demonstrate teardown.
+
 Runtime logs prove `CutlassFP8ScaledMMLinearKernel` for FP8 attention projections,
 `FlashInferCutlassNvFp4LinearKernel` for NVFP4 GEMM, `FLASHINFER_CUTLASS` for NVFP4 MoE and Triton attention. All
 three FlashInfer autotune families were cache hits. The first request in each new engine still JIT-compiled three
