@@ -36,7 +36,9 @@ class Gemma426BLocksTest(unittest.TestCase):
     def test_model_locks_pin_complete_expected_snapshots(self) -> None:
         for filename, (repository, revision, total_bytes) in MODEL_LOCKS.items():
             with self.subTest(filename=filename):
-                document = json.loads((ROOT / "models" / filename).read_text())
+                document = json.loads(
+                    (ROOT / "models" / filename).read_text(encoding="utf-8")
+                )
                 entries = validate_lock(document)
                 self.assertEqual(document["repository"], repository)
                 self.assertEqual(document["revision"], revision)
@@ -53,7 +55,9 @@ class Gemma426BLocksTest(unittest.TestCase):
 
     def test_reference_sources_have_full_commits_and_required_oracles(self) -> None:
         document = json.loads(
-            (ROOT / "models/gemma4-26b-reference-sources.lock.json").read_text()
+            (ROOT / "models/gemma4-26b-reference-sources.lock.json").read_text(
+                encoding="utf-8"
+            )
         )
         references = {entry["name"]: entry for entry in document["references"]}
         required = {

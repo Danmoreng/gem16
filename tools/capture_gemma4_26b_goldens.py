@@ -293,7 +293,9 @@ def main() -> int:
         "status": "deterministic_reference_candidate",
         "checkpoint": {
             "repository": "google/gemma-4-26B-A4B-it-qat-q4_0-unquantized",
-            "revision": json.loads(args.model_lock.read_text())["revision"],
+            "revision": json.loads(args.model_lock.read_text(encoding="utf-8"))[
+                "revision"
+            ],
             "lock_sha256": file_sha256(args.model_lock),
             "inventory_sha256": file_sha256(args.inventory),
             "source_dtype": "BF16",

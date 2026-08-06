@@ -11,11 +11,13 @@ class Gemma426BM02EvidenceTest(unittest.TestCase):
     def test_locked_fixture_and_capability_evidence_match(self) -> None:
         fixture = ROOT / "tests/fixtures/gemma4_26b_config.json"
         evidence = json.loads(
-            (ROOT / "docs/evidence/gemma4_26b/m02-model-variant-capability.json").read_text()
+            (ROOT / "docs/evidence/gemma4_26b/m02-model-variant-capability.json").read_text(
+                encoding="utf-8"
+            )
         )
-        config = json.loads(fixture.read_text())
+        config = json.loads(fixture.read_text(encoding="utf-8"))
         lock_path = ROOT / "models/gemma4-26b-qat-bf16.lock.json"
-        lock = json.loads(lock_path.read_text())
+        lock = json.loads(lock_path.read_text(encoding="utf-8"))
 
         self.assertEqual(
             hashlib.sha256(lock_path.read_bytes()).hexdigest(),

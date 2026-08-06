@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 import subprocess
 import unittest
@@ -10,9 +11,23 @@ SCRIPT = ROOT / "tools/run_isolated_vllm_reference.sh"
 
 
 class RunIsolatedVllmReferenceTest(unittest.TestCase):
+    def test_script_records_fixed_linux_policy(self) -> None:
+        source = SCRIPT.read_text(encoding="utf-8")
+        for required in (
+            "MemoryHigh=40G",
+            "MemoryMax=45G",
+            "OOMPolicy=kill",
+            "KillMode=control-group",
+            "MAX_JOBS=4",
+            "FLASHINFER_NVCC_THREADS=1",
+        ):
+            self.assertIn(required, source)
+
+    @unittest.skipUnless(os.name == "posix", "Linux systemd wrapper")
     def test_shell_syntax_is_valid(self) -> None:
         subprocess.run(["bash", "-n", str(SCRIPT)], check=True)
 
+    @unittest.skipUnless(os.name == "posix", "Linux systemd wrapper")
     def test_dry_run_records_fixed_limits_and_preserves_command(self) -> None:
         result = subprocess.run(
             [
@@ -35,6 +50,7 @@ class RunIsolatedVllmReferenceTest(unittest.TestCase):
         self.assertIn("/usr/bin/printf", result.stdout)
         self.assertIn("argument\\ with\\ spaces", result.stdout)
 
+    @unittest.skipUnless(os.name == "posix", "Linux systemd wrapper")
     def test_command_separator_is_required(self) -> None:
         result = subprocess.run(
             ["bash", str(SCRIPT), "/usr/bin/true"],

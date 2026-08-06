@@ -8,8 +8,12 @@ import hashlib
 import importlib.metadata
 import json
 from pathlib import Path
-import resource
 from typing import Any
+
+try:
+    import resource as _resource
+except ModuleNotFoundError:  # Windows imports this module for host-only tests.
+    _resource = None
 
 
 def parse_args() -> argparse.Namespace:
@@ -117,6 +121,12 @@ def serialize_logprobs(value: Any) -> list[list[dict[str, Any]]]:
         )
         positions.append(entries)
     return positions
+
+
+def process_max_rss_kib() -> int | None:
+    if _resource is None:
+        return None
+    return int(_resource.getrusage(_resource.RUSAGE_SELF).ru_maxrss)
 
 
 def repeat_summary(runs: list[dict[str, Any]]) -> dict[str, bool]:
@@ -230,9 +240,7 @@ def main() -> int:
             "max_new_tokens": args.max_new_tokens,
             "warmup_runs": 1,
             "retained_runs": 2,
-            "client_process_max_rss_kib": resource.getrusage(
-                resource.RUSAGE_SELF
-            ).ru_maxrss,
+            "client_process_max_rss_kib": process_max_rss_kib(),
             "performance_eligible": False,
         },
         "prompt": {
@@ -248,7 +256,9 @@ def main() -> int:
         "runs": runs,
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(result, indent=2, ensure_ascii=False) + "\n")
+    args.output.write_text(
+        json.dumps(result, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
     print(
         f"wrote {args.output}: token_ids={runs[0]['token_ids']} "
         f"positions={len(runs[0]['logprobs'])} repeat={result['repeat']}"

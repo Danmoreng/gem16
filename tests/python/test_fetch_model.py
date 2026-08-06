@@ -4,6 +4,7 @@ import hashlib
 import importlib.util
 import io
 import json
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -118,7 +119,7 @@ class FetchModelTest(unittest.TestCase):
             root.mkdir()
             self.assertEqual(
                 fetch_model.safe_target(root, ".eval_results/result.json"),
-                root / ".eval_results" / "result.json",
+                root.resolve() / ".eval_results" / "result.json",
             )
             for unsafe in ("../escape", "/absolute", "a\\escape", "a/../../escape"):
                 with self.subTest(unsafe=unsafe):
@@ -127,7 +128,12 @@ class FetchModelTest(unittest.TestCase):
 
             outside = Path(temporary) / "outside"
             outside.mkdir()
-            (root / "linked").symlink_to(outside, target_is_directory=True)
+            try:
+                (root / "linked").symlink_to(outside, target_is_directory=True)
+            except OSError as error:
+                if os.name == "nt" and getattr(error, "winerror", None) == 1314:
+                    self.skipTest("Windows runner lacks symbolic-link privilege")
+                raise
             with self.assertRaisesRegex(ValueError, "escapes through a symlink"):
                 fetch_model.safe_target(root, "linked/file")
 

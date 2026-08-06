@@ -22,7 +22,7 @@ def sha256(path: Path) -> str:
 
 class Gemma426BEvidenceTest(unittest.TestCase):
     def test_frozen_corpus_files_match_lock_and_are_disjoint(self) -> None:
-        lock = json.loads((CORPUS / "splits.lock.json").read_text())
+        lock = json.loads((CORPUS / "splits.lock.json").read_text(encoding="utf-8"))
         self.assertEqual(lock["status"], "frozen")
         self.assertEqual(lock["split_audit"]["status"], "pass")
         self.assertEqual(lock["split_audit"]["overlaps"], [])
@@ -32,7 +32,7 @@ class Gemma426BEvidenceTest(unittest.TestCase):
             path = CORPUS / entry["path"]
             self.assertEqual(path.stat().st_size, entry["bytes"])
             self.assertEqual(sha256(path), entry["sha256"])
-            split = json.loads(path.read_text())
+            split = json.loads(path.read_text(encoding="utf-8"))
             for record in split["records"]:
                 self.assertNotIn(record["expanded_user_sha256"], documents)
                 self.assertNotIn(record["input_token_ids_sha256_u32le"], token_spans)
@@ -40,7 +40,9 @@ class Gemma426BEvidenceTest(unittest.TestCase):
                 token_spans.add(record["input_token_ids_sha256_u32le"])
 
     def test_source_audit_is_linked_and_passes(self) -> None:
-        audit = json.loads((GOLDENS / "source-audit.json").read_text())
+        audit = json.loads(
+            (GOLDENS / "source-audit.json").read_text(encoding="utf-8")
+        )
         self.assertEqual(audit["status"], "pass")
         self.assertTrue(all(audit["inventory_lock_identity"].values()))
         self.assertTrue(audit["architecture"]["safetensors_text_config_exact"])
@@ -53,8 +55,12 @@ class Gemma426BEvidenceTest(unittest.TestCase):
 
     def test_qat_bf16_golden_has_required_boundaries_and_hashes(self) -> None:
         directory = GOLDENS / "qat-bf16-selected"
-        golden = json.loads((directory / "qat-bf16-selected.json").read_text())
-        repeat = json.loads((directory / "repeat-report.json").read_text())
+        golden = json.loads(
+            (directory / "qat-bf16-selected.json").read_text(encoding="utf-8")
+        )
+        repeat = json.loads(
+            (directory / "repeat-report.json").read_text(encoding="utf-8")
+        )
         self.assertEqual(
             golden["checkpoint"]["lock_sha256"],
             sha256(MODELS / "gemma4-26b-qat-bf16.lock.json"),
@@ -85,7 +91,7 @@ class Gemma426BEvidenceTest(unittest.TestCase):
 
     def test_unsloth_reference_retains_token_repeat_and_logprob_limitation(self) -> None:
         reference = json.loads(
-            (GOLDENS / "unsloth-nvfp4-reference.json").read_text()
+            (GOLDENS / "unsloth-nvfp4-reference.json").read_text(encoding="utf-8")
         )
         self.assertEqual(
             reference["model"]["source_lock_sha256"],
@@ -120,7 +126,9 @@ class Gemma426BEvidenceTest(unittest.TestCase):
         )
 
     def test_q4_reference_has_source_software_device_and_repeat_identity(self) -> None:
-        reference = json.loads((GOLDENS / "q4_0-reference.json").read_text())
+        reference = json.loads(
+            (GOLDENS / "q4_0-reference.json").read_text(encoding="utf-8")
+        )
         model = reference["model"]
         runtime = reference["runtime"]
         execution = reference["execution"]

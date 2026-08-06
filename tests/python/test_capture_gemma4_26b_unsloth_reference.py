@@ -4,6 +4,7 @@ import unittest
 
 from tools.capture_gemma4_26b_unsloth_reference import (
     find_prompt,
+    process_max_rss_kib,
     reference_version,
     repeat_summary,
     serialize_logprobs,
@@ -18,6 +19,10 @@ class Candidate:
 
 
 class CaptureGemma426BUnslothReferenceTest(unittest.TestCase):
+    def test_process_rss_is_optional_on_unsupported_hosts(self) -> None:
+        value = process_max_rss_kib()
+        self.assertTrue(value is None or value >= 0)
+
     def test_find_prompt_requires_one_valid_token_sequence(self) -> None:
         corpus = {
             "records": [
