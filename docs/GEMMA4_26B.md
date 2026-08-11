@@ -1,6 +1,6 @@
 # Gemma 4 26B A4B experimental track
 
-Status: M00-M02 accepted; M03 implementation and all exit evidence pass, awaiting owner acceptance
+Status: M00-M03 accepted; M04 deterministic checkpoint compiler scaffold is the current milestone
 
 Production hypothesis: `gem16-gemma4-26b-a4b-qat-hybrid-text`
 
@@ -163,10 +163,10 @@ batching, broad dispatch, general executors and host expert offload are rejected
   pass. Direct Unsloth token output is retained with disclosed non-exact logprobs and diagnostic CPU offload.
 - M02: accepted on 2026-08-06 on `feat/26b-m02-model-traits` from accepted M01 closure `59996f5`; all explicit
   exit criteria pass.
-- M03: implemented on `feat/gemma4-26b`; strict source/external/compiled contracts, canonical inventories,
-  mutation tests and the direct 32K CUDA admission all pass. Owner acceptance is pending.
-- M04 and every later milestone remain blocked until that acceptance. Derived-artifact distribution approval remains
-  separate.
+- M03: accepted on 2026-08-11 at `06b72e4897a32afa15303ca461847049ac8bb98c`; strict
+  source/external/compiled contracts, canonical inventories, mutation tests and direct 32K CUDA admission pass.
+- M04: unblocked and current. M05 and every later milestone remain dependency-gated. Derived-artifact distribution
+  approval remains separate.
 - M01 adds source locks, offline tooling and compact reference evidence only; no 26B compiler, runtime or CUDA path
   exists at the accepted M01 boundary.
 

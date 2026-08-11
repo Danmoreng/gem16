@@ -2,9 +2,9 @@
 
 Date: 2026-08-11
 Branch: `feat/gemma4-26b`
-Implementation base: `4928f3fa6a6f81584cbc6bc78fb262b20ca617d5` plus this M03 working tree
+Implementation commit: `06b72e4897a32afa15303ca461847049ac8bb98c`
 Milestone: M03 — Manifest and exact tensor inventory
-Status: implementation and exit evidence pass; owner acceptance pending
+Status: accepted by the project owner on 2026-08-11
 
 ## Scope and drift
 
@@ -149,7 +149,7 @@ python3 tools/fetch_model.py --lock <each of the four M01 source locks> --verify
 
 build/Linux/blackwell-release/bin/gem16-26b-memory-probe \
   --output docs/evidence/gemma4_26b/m03-synthetic-32k-admission.json \
-  --code-revision 4928f3fa6a6f81584cbc6bc78fb262b20ca617d5+m03-worktree
+  --code-revision 06b72e4897a32afa15303ca461847049ac8bb98c
   pass: 818,741,248 >= 734,003,200 direct free bytes
 
 python3 tools/validate_inference.py \
@@ -175,6 +175,6 @@ failure.
 - [x] Synthetic 32K direct-CUDA admission retains at least 700 MiB.
 - [x] Locked-source regeneration, host, sanitizer, CUDA and 12B regression gates pass.
 - [x] Architecture, checkpoint, correctness, memory, roadmap and decision documentation agree.
-- [ ] Project-owner acceptance and milestone commit hash are pending.
+- [x] Project-owner acceptance and milestone commit hash are recorded.
 
-M04 and all later milestones remain blocked until owner acceptance is recorded.
+The project owner accepted M03 on 2026-08-11. M04 is unblocked; M05 and later milestones remain dependency-gated.

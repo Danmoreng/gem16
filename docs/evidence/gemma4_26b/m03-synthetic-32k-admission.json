@@ -2,7 +2,7 @@
   "schema_version": 1,
   "milestone": "M03",
   "status": "pass",
-  "code_revision": "4928f3fa6a6f81584cbc6bc78fb262b20ca617d5+m03-worktree",
+  "code_revision": "06b72e4897a32afa15303ca461847049ac8bb98c",
   "probe_kind": "synthetic_device_admission",
   "not_model_execution": true,
   "device": {

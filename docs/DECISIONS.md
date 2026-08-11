@@ -4,6 +4,9 @@
 
 Date: 2026-08-11
 
+Owner acceptance: accepted on 2026-08-11 at implementation commit
+`06b72e4897a32afa15303ca461847049ac8bb98c`.
+
 Decision: Make `gemma4_26b_m03_exact_inventory_v1` the strict tensor contract for the locked QAT/ordinary BF16
 sources, the external Unsloth NVFP4 reference and the future project-compiled hybrid. Assign every tensor exactly
 one semantic role and residency class; record logical axes, producer, scale dtype/vector and multiplier/divisor
