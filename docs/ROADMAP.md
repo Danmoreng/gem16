@@ -1,8 +1,9 @@
 # Roadmap
 
-Current stage: implement the Gemma 4 26B A4B M04 deterministic checkpoint compiler scaffold on the long-lived
-`feat/gemma4-26b` branch while preserving the mature 12B product path. M00-M03 are accepted; M04 is unblocked and
-current, while M05 and later implementation remain dependency-gated. The bounded Linux short-context ordinary-decode
+Current stage: review the completed Gemma 4 26B A4B M04 deterministic checkpoint compiler scaffold on the
+long-lived `feat/gemma4-26b` branch while preserving the mature 12B product path. M00-M03 are accepted; M04 has
+passed its implementation gates and awaits owner acceptance. M05 and later implementation remain dependency-gated.
+The bounded Linux short-context ordinary-decode
 investigation, direct all-regions memory-reserve record, 16K D2 performance sprint and Windows regression are
 complete and remain regression evidence rather than active optimization scope.
 
@@ -72,8 +73,8 @@ prefill program; it no longer owns execution order.
 
 The active implementation program is the experimental Gemma 4 26B A4B track. M00 defines accepted governance and
 the artifact contract; M01 source locks/goldens, M02 model configuration/static traits and M03 exact tensor
-inventory are accepted. M04 deterministic checkpoint compiler scaffold is current; no compiler quantizer or 26B
-runtime execution exists yet. Its binding entry points are:
+inventory are accepted. M04's deterministic checkpoint compiler scaffold is implemented and ready for owner
+review; no production compiler quantizer or 26B runtime execution exists yet. Its binding entry points are:
 
 1. [GEMMA4_26B.md](GEMMA4_26B.md)
 2. [plans/gemma4-26b/START_HERE_CODEX.md](plans/gemma4-26b/START_HERE_CODEX.md)
@@ -84,7 +85,9 @@ Keep M03 and all later work on the long-lived `feat/gemma4-26b` branch created f
 foundation on `main`. All M03-M25 implementation stays on that branch. Milestone scope, evidence, commits and exit
 gates remain isolated; do not create per-milestone development branches. M03 freezes exact QAT/ordinary BF16 and
 external Unsloth tensor contracts, a separate future compiled
-contract and a conservative aligned 14,696,668,160-byte weight estimate. The direct synthetic 32K CUDA admission
+contract and a conservative aligned 14,696,668,160-byte weight estimate. M04 adds a clean-commit, bounded-window,
+atomic offline compiler with byte-identical synthetic output only; its two canonical fixture runs match all nine
+artifact files and remain explicitly non-runtime-loadable. The direct synthetic 32K CUDA admission
 leaves 818,741,248 bytes free after every named region, passing the 700 MiB gate. The direct Unsloth evidence remains
 token-deterministic after warmup but explicitly not an exact-logit or performance oracle. In particular:
 

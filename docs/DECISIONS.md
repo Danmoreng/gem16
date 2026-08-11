@@ -33,6 +33,7 @@ loader. On-disk schema 1 remains logical/auditable; backend-specific Row8/K64 tr
 load concern.
 
 Evidence: [M04 kickoff](evidence/gemma4_26b/m04-kickoff-2026-08-11.md),
+[M04 handoff](evidence/gemma4_26b/m04-checkpoint-compiler-scaffold-2026-08-11.md),
 [compiler contract](GEMMA4_26B_CHECKPOINT_COMPILER.md), and
 [M04 synthetic hashes](../benchmarks/goldens/gemma4_26b/compiler/m04-synthetic-copy-hashes.json).
 

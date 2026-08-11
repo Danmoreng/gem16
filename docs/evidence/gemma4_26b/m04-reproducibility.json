@@ -1,0 +1,48 @@
+{
+  "action": "compare-reproducibility",
+  "duration_seconds": 0.000666,
+  "file_count": 9,
+  "files": {
+    "chat_template.jinja": {
+      "sha256": "c716ab540e94154e63631b6d0bd4f6975ed660e2343a68be49d9692aa05465f8",
+      "size": 24
+    },
+    "config.json": {
+      "sha256": "8a22161fd99aad23827438ce3ecd1f710899a4bbe3e7c44f1ec40b4fb97ea034",
+      "size": 130
+    },
+    "gem16_compilation.json": {
+      "sha256": "640266a228a9c298b1ff2d3feb10e214baba202afd06cfb9d0f0a7798853e8d6",
+      "size": 9782
+    },
+    "generation_config.json": {
+      "sha256": "55ef4ff32aef443352374b1a2a8500c3e484d33b6e1dccf6dd2ae7debda45ace",
+      "size": 34
+    },
+    "model-00001-of-00002.safetensors": {
+      "sha256": "2c616501be79146b5ca2233c240c7797a199e41c2ba73c1eacda89d7e987e2d7",
+      "size": 320
+    },
+    "model-00002-of-00002.safetensors": {
+      "sha256": "cb8c1a8801293f71cb2aff6e141fe565cbc636500fb87a0fbaff3cc0d7b68176",
+      "size": 352
+    },
+    "model.safetensors.index.json": {
+      "sha256": "a5ff807714bd9b0af8566a667ad59a6af2a92214ef039c98e7aecd6c65676743",
+      "size": 341
+    },
+    "tokenizer.json": {
+      "sha256": "bbc9a1a0ef426afb685ae587d3fa726bb067c85b5854000960c2b2866c475126",
+      "size": 76
+    },
+    "tokenizer_config.json": {
+      "sha256": "3b593f5305c104273dfa35b56c6c70313462038b7a85ba13aa2fa1164479fc92",
+      "size": 48
+    }
+  },
+  "milestone": "M04",
+  "mismatch_count": 0,
+  "mismatches": [],
+  "schema_version": 1,
+  "status": "pass"
+}

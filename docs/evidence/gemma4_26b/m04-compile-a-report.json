@@ -1,0 +1,27 @@
+{
+  "action": "compile",
+  "artifact_profile": "synthetic-copy-v1",
+  "compilation_manifest_sha256": "640266a228a9c298b1ff2d3feb10e214baba202afd06cfb9d0f0a7798853e8d6",
+  "compiler_commit": "edd80cb6adae6d441924098870ceca9b4b1248d5",
+  "compiler_dirty": false,
+  "compiler_manifest_sha256": "6294abda5ccd428f7fe672fd4e95d0fa52f57f7f263c9b99ce22aa52a5c991fc",
+  "duration_seconds": 0.01357,
+  "memory": {
+    "baseline_rss_bytes": 27889664,
+    "host_memory_cap_bytes": 134217728,
+    "maximum_header_bytes": 436,
+    "maximum_mapped_window_bytes": 408,
+    "maximum_tensor_bytes": 128,
+    "peak_rss_bytes": 28250112,
+    "staging_buffer_bytes": 4096
+  },
+  "milestone": "M04",
+  "output": "/tmp/gem16-m04-final/run-a",
+  "output_file_count": 9,
+  "output_tensor_bytes": 176,
+  "output_tensor_count": 3,
+  "resolved_plan_sha256": "6294abda5ccd428f7fe672fd4e95d0fa52f57f7f263c9b99ce22aa52a5c991fc",
+  "schema_version": 1,
+  "source_lock_sha256": "dd252602387b8dcd6939a6aca9336b1d11e8608a873540cef95e698f208bf2d1",
+  "status": "pass"
+}

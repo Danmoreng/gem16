@@ -1,6 +1,6 @@
 # Gemma 4 26B A4B experimental track
 
-Status: M00-M03 accepted; M04 deterministic checkpoint compiler scaffold is the current milestone
+Status: M00-M03 accepted; M04 compiler scaffold passes implementation gates and awaits owner acceptance
 
 Production hypothesis: `gem16-gemma4-26b-a4b-qat-hybrid-text`
 
@@ -121,6 +121,23 @@ and 14,696,668,160 bytes (NVFP4). A direct CUDA reservation of the larger value,
 named fixed regions leaves 818,741,248 bytes free, passing the 700 MiB preliminary gate. This is synthetic M03
 admission only; M07 selects the head and M09 repeats with the real artifact/final arenas.
 
+## M04 offline compiler boundary
+
+M04 adds `tools/compile_gemma4_26b.py` and a standard-library-only `tools/gem16_compile/` package. The compiler
+verifies every source-lock file before tensor access and again before publication, resolves a source-lock-bound plan,
+requires every source tensor to map to one operation or exact exclusion, reads payloads through bounded read-only
+mmap windows, and emits deterministic standard Safetensors plus schema-1 provenance. Output is written under a
+sibling `.incomplete` directory, fsynced, strictly verified and atomically renamed without overwrite. Resume is
+restart-only until a cryptographically bound partial-state contract is accepted.
+
+The canonical M04 byte lane is Linux x86-64, little-endian, `C.UTF-8`, CPython 3.14.6 and one compiler thread. Two
+clean synthetic runs at implementation commit `edd80cb6adae6d441924098870ceca9b4b1248d5` match all nine artifact
+files; their compilation-manifest SHA-256 is
+`640266a228a9c298b1ff2d3feb10e214baba202afd06cfb9d0f0a7798853e8d6`. A separate 2 MiB tensor stays below a
+70,230,016-byte process cap with a maximum 4,376-byte mmap window. The only encoder is byte-identical `copy-v1`, and
+all artifacts state `m04_scaffold_not_runtime_loadable`. M05-M07 still own FP8, NVFP4 and tied-head encoding; M08
+owns the first direct-load artifact and derived lock.
+
 ## Runtime and product boundary
 
 The 12B direct-load profile remains the default and is unchanged. The 26B path must use a separate model variant,
@@ -165,8 +182,9 @@ batching, broad dispatch, general executors and host expert offload are rejected
   exit criteria pass.
 - M03: accepted on 2026-08-11 at `06b72e4897a32afa15303ca461847049ac8bb98c`; strict
   source/external/compiled contracts, canonical inventories, mutation tests and direct 32K CUDA admission pass.
-- M04: unblocked and current. M05 and every later milestone remain dependency-gated. Derived-artifact distribution
-  approval remains separate.
+- M04: implementation complete at `edd80cb6adae6d441924098870ceca9b4b1248d5`; 12 compiler tests, 95 Python
+  tests, host/sanitizer/CUDA gates, clean reproducibility and 12B regression pass. Owner acceptance is pending. M05
+  and every later milestone remain dependency-gated. Derived-artifact distribution approval remains separate.
 - M01 adds source locks, offline tooling and compact reference evidence only; no 26B compiler, runtime or CUDA path
   exists at the accepted M01 boundary.
 
@@ -181,3 +199,7 @@ Current evidence:
 - [M03 kickoff and drift record](evidence/gemma4_26b/m03-kickoff-2026-08-11.md)
 - [M03 implementation handoff](evidence/gemma4_26b/m03-manifest-and-inventory-2026-08-11.md)
 - [M03 synthetic 32K admission](evidence/gemma4_26b/m03-synthetic-32k-admission.json)
+- [M04 kickoff and drift record](evidence/gemma4_26b/m04-kickoff-2026-08-11.md)
+- [M04 compiler-scaffold handoff](evidence/gemma4_26b/m04-checkpoint-compiler-scaffold-2026-08-11.md)
+- [M04 clean reproducibility report](evidence/gemma4_26b/m04-reproducibility.json)
+- [M04 bounded-memory report](evidence/gemma4_26b/m04-bounded-memory-report.json)

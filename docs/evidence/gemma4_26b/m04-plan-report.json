@@ -1,0 +1,112 @@
+{
+  "action": "plan",
+  "artifact_profile": "synthetic-copy-v1",
+  "compiler_manifest_sha256": "6294abda5ccd428f7fe672fd4e95d0fa52f57f7f263c9b99ce22aa52a5c991fc",
+  "dependencies_lock_sha256": "a6df4681ee1d2cb34a914e0a4aabe492daf8f12d50b80c70f98bdd7b7389de37",
+  "duration_seconds": 0.014539,
+  "encoder_names": [
+    "copy-v1"
+  ],
+  "excluded_by_family": {
+    "vision": {
+      "tensor_count": 1
+    }
+  },
+  "excluded_tensor_bytes": 16,
+  "excluded_tensor_count": 1,
+  "excluded_tensors": [
+    {
+      "family": "vision",
+      "residency_class": "compile_excluded_vision",
+      "role": "vision_projection",
+      "source_bytes": 16,
+      "source_name": "model.vision_tower.patch_embedder.input_proj.weight"
+    }
+  ],
+  "head_format": "source",
+  "memory": {
+    "baseline_rss_bytes": 27877376,
+    "host_memory_cap_bytes": 134217728,
+    "maximum_header_bytes": 436,
+    "maximum_mapped_window_bytes": 0,
+    "maximum_tensor_bytes": 0,
+    "peak_rss_bytes": 28090368,
+    "staging_buffer_bytes": 4096
+  },
+  "milestone": "M04",
+  "output_tensor_bytes": 176,
+  "output_tensor_count": 3,
+  "predicted_incremental_host_bytes": 4532,
+  "projected_shards": [
+    {
+      "name": "model-00001-of-00002.safetensors",
+      "payload_bytes": 128,
+      "tensor_count": 1
+    },
+    {
+      "name": "model-00002-of-00002.safetensors",
+      "payload_bytes": 48,
+      "tensor_count": 2
+    }
+  ],
+  "resolved_plan_sha256": "6294abda5ccd428f7fe672fd4e95d0fa52f57f7f263c9b99ce22aa52a5c991fc",
+  "schema_version": 1,
+  "source": {
+    "lock_sha256": "dd252602387b8dcd6939a6aca9336b1d11e8608a873540cef95e698f208bf2d1",
+    "repository": "gem16/synthetic-gemma4-26b-m04",
+    "revision": "1111111111111111111111111111111111111111",
+    "tensor_count": 4
+  },
+  "status": "pass",
+  "target_shard_bytes": 96,
+  "tensor_mapping": [
+    {
+      "encoder": "copy-v1",
+      "operation_id": "copy:model.language_model.embed_tokens.weight",
+      "output_bytes": 128,
+      "output_dtype": "BF16",
+      "output_name": "model.language_model.embed_tokens.weight",
+      "physical_shape": [
+        16,
+        4
+      ],
+      "residency_class": "compiler_scaffold_text",
+      "role": "tied_embedding_and_output",
+      "source_names": [
+        "model.language_model.embed_tokens.weight"
+      ]
+    },
+    {
+      "encoder": "copy-v1",
+      "operation_id": "copy:model.language_model.layers.0.router.proj.weight",
+      "output_bytes": 16,
+      "output_dtype": "BF16",
+      "output_name": "model.language_model.layers.0.router.proj.weight",
+      "physical_shape": [
+        2,
+        4
+      ],
+      "residency_class": "compiler_scaffold_text",
+      "role": "router_projection",
+      "source_names": [
+        "model.language_model.layers.0.router.proj.weight"
+      ]
+    },
+    {
+      "encoder": "copy-v1",
+      "operation_id": "copy:model.language_model.layers.0.self_attn.q_proj.weight",
+      "output_bytes": 32,
+      "output_dtype": "BF16",
+      "output_name": "model.language_model.layers.0.self_attn.q_proj.weight",
+      "physical_shape": [
+        4,
+        4
+      ],
+      "residency_class": "compiler_scaffold_text",
+      "role": "attention_q_projection",
+      "source_names": [
+        "model.language_model.layers.0.self_attn.q_proj.weight"
+      ]
+    }
+  ]
+}

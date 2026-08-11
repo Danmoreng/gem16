@@ -35,6 +35,19 @@ not a process peak, model execution or promise that the final M15/M17 workspace 
 weight mapping or fixed-region assumptions requires a new direct probe. The machine-readable result is
 [`evidence/gemma4_26b/m03-synthetic-32k-admission.json`](evidence/gemma4_26b/m03-synthetic-32k-admission.json).
 
+## Gemma 4 26B M04 offline compiler memory
+
+M04 adds no runtime or device allocation. The offline compiler uses one fixed staging buffer and read-only mmap
+windows bounded by the staging size plus OS allocation granularity, while enforcing an absolute process-RSS cap.
+Every report records baseline/peak RSS, cap, staging bytes, maximum header, maximum mapped window and maximum
+logical tensor.
+
+A generated 2,097,152-byte tensor compiled through a 4,096-byte staging buffer with a maximum 4,376-byte mapped
+window. Process RSS rose from 31,068,160 to 36,675,584 bytes under a 70,230,016-byte cap. This validates M04 copy
+orchestration only. FP8/NVFP4 encoders must declare and independently measure tile/output workspace in M05/M06;
+M09 remains responsible for actual compiled-artifact and device-residency accounting. Raw evidence is
+[`evidence/gemma4_26b/m04-bounded-memory-report.json`](evidence/gemma4_26b/m04-bounded-memory-report.json).
+
 ## Gemma 4 12B production accounting
 
 The deterministic base-arena planner is implemented. The verified checkpoint

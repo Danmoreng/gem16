@@ -1,0 +1,29 @@
+{
+  "branch": "feat/gemma4-26b",
+  "byteorder": "little",
+  "commit": "edd80cb6adae6d441924098870ceca9b4b1248d5",
+  "evidence_date": "2026-08-11",
+  "git_status": "",
+  "gpu": {
+    "returncode": 0,
+    "stderr": "",
+    "stdout": "NVIDIA GeForce RTX 5080 Laptop GPU, 12.0, 610.43.03, 16303 MiB"
+  },
+  "locale": "LC_CTYPE=C.UTF-8;LC_NUMERIC=C;LC_TIME=C;LC_COLLATE=C;LC_MONETARY=C;LC_MESSAGES=C;LC_PAPER=C;LC_NAME=C;LC_ADDRESS=C;LC_TELEPHONE=C;LC_MEASUREMENT=C;LC_IDENTIFICATION=C",
+  "machine": "x86_64",
+  "milestone": "M04",
+  "nvcc": {
+    "returncode": 0,
+    "stderr": "",
+    "stdout": "nvcc: NVIDIA (R) Cuda compiler driver\nCopyright (c) 2005-2026 NVIDIA Corporation\nBuilt on Tue_Jun_09_02:43:40_PM_PDT_2026\nCuda compilation tools, release 13.3, V13.3.73\nBuild cuda_13.3.r13.3/compiler.38244171_0"
+  },
+  "python": "3.14.6",
+  "python_implementation": "CPython",
+  "schema_version": 1,
+  "system": "Linux",
+  "uname": {
+    "returncode": 0,
+    "stderr": "",
+    "stdout": "Linux arch-legion 7.1.5-arch1-2 #1 SMP PREEMPT_DYNAMIC Tue, 28 Jul 2026 13:49:51 +0000 x86_64 GNU/Linux"
+  }
+}
