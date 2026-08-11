@@ -38,6 +38,22 @@ LM head, extra tensor, wrong dtype, or wrong shape is rejected. `gem16-run --ass
 exact inventory into a separate BF16 arena beside the target. Adding `--mtp-draft-tokens 1|2|4` enables the
 correctness scheduler; residency-only use continues to report `execution_enabled=false`. See [MTP.md](MTP.md).
 
+## Gemma 4 26B inspection boundary
+
+M02 recognizes the locked Gemma 4 26B A4B source configuration as explicit variant `gemma4_moe_26b_a4b`. The
+canonical fixture is byte-identical to the QAT-BF16 `config.json` at revision
+`f1e06dc520982d9b9edd76859fdb7ab209449949`: 3,810 bytes and SHA-256
+`ece3392c07744553f4e8bb2b5905bc68b0a7d7ab2927133bb621875b8e4a3289`. Validation fixes the full 30-layer
+local/global schedule, 2,816 hidden width, 2,112 shared MLP width, 704 routed-expert width, 128 experts, top-8
+routing, attention/KV dimensions, no KV sharing, context, local/global RoPE and source modality metadata.
+
+Manifest JSON schema 2 reports `model_variant`, the MoE dimensions, static capabilities, `runtime_supported` and
+`tensor_contract_validated`. For the 26B source, inspection and generic Safetensors safety validation succeed while
+`runtime_supported=false` and `tensor_contract_validated=false`. The first product capability is text-only; vision,
+audio, video and MTP report false even though the source vision metadata is validated for identity. M03 owns exact
+canonical 26B tensor-name/shape validation. M02 does not upload a 26B tensor, allocate a 26B arena or select a CUDA
+kernel. The 12B direct-load variant remains executable and retains exact tensor validation.
+
 The engine parses and validates the Google tokenizer metadata at startup. The tokenizer-level
 `model_max_length` value is Google's intentionally unbounded sentinel and never drives arena sizing; the model
 contract remains `config.json:text_config.max_position_embeddings = 262144`. Response close markers declared by

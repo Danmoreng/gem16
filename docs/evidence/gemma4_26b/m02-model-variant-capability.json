@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "status": "configuration_valid_runtime_unsupported",
+  "source": {
+    "repository": "google/gemma-4-26b-a4b-it-qat",
+    "revision": "f1e06dc520982d9b9edd76859fdb7ab209449949",
+    "model_lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230",
+    "config_bytes": 3810,
+    "config_sha256": "ece3392c07744553f4e8bb2b5905bc68b0a7d7ab2927133bb621875b8e4a3289"
+  },
+  "classification": {
+    "architecture": "Gemma4ForConditionalGeneration",
+    "model_type": "gemma4",
+    "text_model_type": "gemma4_text",
+    "model_variant": "gemma4_moe_26b_a4b",
+    "inspectable": true,
+    "runtime_supported": false,
+    "tensor_contract_validated": false,
+    "tensor_contract_note": "M03 owns exact canonical tensor-name and shape validation"
+  },
+  "capabilities": {
+    "text": true,
+    "vision": false,
+    "audio": false,
+    "video": false,
+    "mtp": false
+  },
+  "dimensions": {
+    "layer_count": 30,
+    "hidden_size": 2816,
+    "shared_intermediate_size": 2112,
+    "moe_intermediate_size": 704,
+    "expert_count": 128,
+    "top_k_experts": 8,
+    "query_heads": 16,
+    "local_kv_heads": 8,
+    "global_kv_heads": 2,
+    "shared_kv_layer_count": 0,
+    "local_head_dimension": 256,
+    "global_head_dimension": 512,
+    "sliding_window": 1024,
+    "max_positions": 262144,
+    "vocabulary_size": 262144
+  },
+  "inspection": {
+    "command": "build/Linux/host-debug/bin/gem16-inspect --model models/checkpoints/google-gemma-4-26b-a4b-it-qat-bf16-f1e06dc --validate --json build/m02/gemma4-26b-manifest.json",
+    "tensor_count": 1013,
+    "fallbacks": 0
+  }
+}

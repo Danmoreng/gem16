@@ -33,6 +33,7 @@ add_library(gem16_core STATIC
   src/model/image.cpp
   src/model/config.cpp
   src/model/manifest.cpp
+  src/model/model_variant.cpp
   src/model/safetensors.cpp
   src/model/tokenizer.cpp
   src/model/tokenizer_config.cpp

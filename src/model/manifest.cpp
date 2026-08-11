@@ -269,6 +269,21 @@ Result<ModelManifest> BuildManifest(const std::filesystem::path& model_directory
   manifest.model_directory = model_directory.string();
   manifest.architecture = config.architecture;
   manifest.model_type = config.model_type;
+  const auto variant = ClassifyModelVariant(config);
+  const auto& traits = TraitsForModelVariant(variant);
+  manifest.model_variant = std::string(traits.name);
+  manifest.layer_count = config.layer_count;
+  manifest.hidden_size = config.hidden_size;
+  manifest.intermediate_size = config.intermediate_size;
+  manifest.moe_intermediate_size = config.moe_intermediate_size;
+  manifest.expert_count = config.expert_count;
+  manifest.top_k_experts = config.top_k_experts;
+  manifest.runtime_supported = traits.executable;
+  manifest.supports_text = traits.supports_text;
+  manifest.supports_vision = traits.supports_vision;
+  manifest.supports_audio = traits.supports_audio;
+  manifest.supports_video = traits.supports_video;
+  manifest.supports_mtp = traits.supports_mtp;
   std::map<std::string, TensorClassTotal, std::less<>> totals;
 
   for (const auto& stored_tensor : stored.value()) {
@@ -385,12 +400,13 @@ Result<ModelManifest> BuildManifest(const std::filesystem::path& model_directory
                     "tied checkpoint unexpectedly stores a duplicate LM head");
     }
   }
-  if (validate) {
+  if (validate && variant != ModelVariant::kGemma4Moe26BA4B) {
     const auto inventory_status = IsAssistantModel(config)
                                       ? ValidateAssistantTensorInventory(
                                             config, names, stored_by_name)
                                       : ValidatePrimaryLayerTensorInventory(config, names);
     if (!inventory_status.ok()) return inventory_status;
+    manifest.tensor_contract_validated = true;
   }
   return manifest;
 }
@@ -400,13 +416,31 @@ Result<ModelManifest> BuildManifest(const std::filesystem::path& model_directory
 namespace gem16 {
 
 Status WriteManifestJson(const ModelManifest& manifest, std::ostream& output) {
-  output << "{\n  \"schema_version\": 1,\n  \"model_directory\": ";
+  output << "{\n  \"schema_version\": 2,\n  \"model_directory\": ";
   internal::WriteString(output, manifest.model_directory);
   output << ",\n  \"architecture\": ";
   internal::WriteString(output, manifest.architecture);
   output << ",\n  \"model_type\": ";
   internal::WriteString(output, manifest.model_type);
-  output << ",\n  \"tensors\": [\n";
+  output << ",\n  \"model_variant\": ";
+  internal::WriteString(output, manifest.model_variant);
+  output << ",\n  \"layer_count\": " << manifest.layer_count
+         << ",\n  \"hidden_size\": " << manifest.hidden_size
+         << ",\n  \"intermediate_size\": " << manifest.intermediate_size
+         << ",\n  \"moe_intermediate_size\": " << manifest.moe_intermediate_size
+         << ",\n  \"expert_count\": " << manifest.expert_count
+         << ",\n  \"top_k_experts\": " << manifest.top_k_experts
+         << ",\n  \"runtime_supported\": "
+         << (manifest.runtime_supported ? "true" : "false")
+         << ",\n  \"tensor_contract_validated\": "
+         << (manifest.tensor_contract_validated ? "true" : "false")
+         << ",\n  \"capabilities\": {\"text\":"
+         << (manifest.supports_text ? "true" : "false")
+         << ",\"vision\":" << (manifest.supports_vision ? "true" : "false")
+         << ",\"audio\":" << (manifest.supports_audio ? "true" : "false")
+         << ",\"video\":" << (manifest.supports_video ? "true" : "false")
+         << ",\"mtp\":" << (manifest.supports_mtp ? "true" : "false")
+         << "},\n  \"tensors\": [\n";
   for (std::size_t index = 0; index < manifest.tensors.size(); ++index) {
     const auto& tensor = manifest.tensors[index];
     output << "    {\"name\":"; internal::WriteString(output, tensor.name);
@@ -442,6 +476,14 @@ Status WriteManifestJson(const ModelManifest& manifest, std::ostream& output) {
 void PrintManifestSummary(const ModelManifest& manifest, std::ostream& output) {
   output << "Checkpoint: " << manifest.model_directory << '\n'
          << "Architecture: " << manifest.architecture << " (" << manifest.model_type << ")\n"
+         << "Variant: " << manifest.model_variant
+         << " runtime=" << (manifest.runtime_supported ? "supported" : "unsupported")
+         << " tensor_contract="
+         << (manifest.tensor_contract_validated ? "validated" : "not-yet-validated") << '\n'
+         << "MoE: layers=" << manifest.layer_count << " hidden=" << manifest.hidden_size
+         << " shared_intermediate=" << manifest.intermediate_size
+         << " expert_intermediate=" << manifest.moe_intermediate_size
+         << " experts=" << manifest.expert_count << " top_k=" << manifest.top_k_experts << '\n'
          << "Tensors: " << manifest.tensors.size() << "\n\n";
   for (const auto& tensor : manifest.tensors) {
     output << tensor.name << " shape=" << internal::ShapeText(tensor.shape)

@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "records": [
+    {
+      "id": "cal-tiny-ok",
+      "split": "calibration",
+      "category": "tiny_synthetic",
+      "user": "Reply with exactly OK."
+    },
+    {
+      "id": "cal-multilingual",
+      "split": "calibration",
+      "category": "multilingual",
+      "user": "Antworte kurz auf Deutsch: Warum ist der Himmel blau? 日本語で一語を追加してください。"
+    },
+    {
+      "id": "cal-code",
+      "split": "calibration",
+      "category": "code",
+      "user": "Explain whether this C++20 expression is well-defined: int i = 1; int x = i++ + ++i;"
+    },
+    {
+      "id": "cal-repeated",
+      "split": "calibration",
+      "category": "repeated_tokens",
+      "user_repeat": {
+        "text": "calibration repetition alpha beta gamma. ",
+        "count": 192
+      }
+    },
+    {
+      "id": "dev-reasoning",
+      "split": "development",
+      "category": "reasoning",
+      "user": "A box contains 7 red and 5 blue balls. Two are drawn without replacement. Derive the probability that both have the same color."
+    },
+    {
+      "id": "dev-tool-syntax",
+      "split": "development",
+      "category": "tool_syntax",
+      "user": "Return one tool call in the native syntax for get_weather with JSON arguments {\"city\":\"Berlin\",\"unit\":\"C\"}."
+    },
+    {
+      "id": "dev-window-1024",
+      "split": "development",
+      "category": "sliding_window_1024_boundary",
+      "user_repeat": {
+        "text": "development window marker delta epsilon zeta 271828. ",
+        "count": 220
+      }
+    },
+    {
+      "id": "dev-long-context",
+      "split": "development",
+      "category": "long_context",
+      "user_repeat": {
+        "text": "development long context marker ORANGE-314159 remains ordered. ",
+        "count": 900
+      }
+    },
+    {
+      "id": "test-multilingual",
+      "split": "test",
+      "category": "multilingual",
+      "user": "Résumez en français puis en arabe: deterministic model artifacts must retain provenance."
+    },
+    {
+      "id": "test-code",
+      "split": "test",
+      "category": "code",
+      "user": "Write a Rust function that returns the first duplicate integer without sorting and state its complexity."
+    },
+    {
+      "id": "test-tool-syntax",
+      "split": "test",
+      "category": "tool_syntax",
+      "user": "Produce a native tool call for lookup_train using {\"from\":\"Hamburg\",\"to\":\"Köln\",\"date\":\"2030-01-02\"}."
+    },
+    {
+      "id": "test-long-context",
+      "split": "test",
+      "category": "long_context",
+      "user_repeat": {
+        "text": "held-out long context marker VIOLET-161803 is not calibration data. ",
+        "count": 930
+      }
+    }
+  ]
+}

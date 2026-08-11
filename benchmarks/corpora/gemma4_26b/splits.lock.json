@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "status": "frozen",
+  "split_audit": {
+    "status": "pass",
+    "document_or_token_span_overlap_count": 0,
+    "overlaps": []
+  },
+  "files": [
+    {
+      "path": "calibration.json",
+      "bytes": 22565,
+      "sha256": "686c18b5f2df35a051d7ab3610ae621920c578877bd57b3f3dbce9f99baaac29"
+    },
+    {
+      "path": "development.json",
+      "bytes": 271460,
+      "sha256": "bbb0910849a650a5105a2f512af2b6f201a23e4318d84c7c4c1e0e7c5e38a7b5"
+    },
+    {
+      "path": "test.json",
+      "bytes": 294655,
+      "sha256": "2b1a96f1ce82eb171d2d42d60f08274acbbdc3305518fca1f70849faadad33ea"
+    }
+  ]
+}

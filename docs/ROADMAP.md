@@ -1,8 +1,10 @@
 # Roadmap
 
-Current stage: begin Gemma 4 26B A4B M00 while preserving the mature 12B product path. The bounded Linux
-short-context ordinary-decode investigation, direct all-regions memory-reserve record, 16K D2 performance sprint
-and Windows regression are complete and remain regression evidence rather than active optimization scope.
+Current stage: close accepted Gemma 4 26B A4B M02 and prepare the separate M03 exact-tensor-inventory milestone
+while preserving the mature 12B product path. M00, M01 and M02 are accepted; M03 is unblocked but not started, and
+M04 and later implementation remain blocked. The bounded Linux short-context ordinary-decode
+investigation, direct all-regions memory-reserve record, 16K D2 performance sprint and Windows regression are
+complete and remain regression evidence rather than active optimization scope.
 
 ## Current product baseline
 
@@ -68,13 +70,19 @@ prefill program; it no longer owns execution order.
 
 ## Active track: Gemma 4 26B A4B
 
-The active implementation program is the experimental Gemma 4 26B A4B track. Its binding entry points are:
+The active implementation program is the experimental Gemma 4 26B A4B track. M00 defines accepted governance and
+the artifact contract; M01 source locks/goldens and M02 model configuration/static traits are accepted. M03 exact
+tensor inventory is the next unblocked milestone, but no M03, compiler or 26B runtime implementation exists. Its
+binding entry points are:
 
-1. [plans/gemma4-26b/START_HERE_CODEX.md](plans/gemma4-26b/START_HERE_CODEX.md)
-2. [plans/gemma4-26b/00_MASTER_IMPLEMENTATION_PLAN.md](plans/gemma4-26b/00_MASTER_IMPLEMENTATION_PLAN.md)
-3. [plans/gemma4-26b/MILESTONE_STATUS_BOARD.md](plans/gemma4-26b/MILESTONE_STATUS_BOARD.md)
+1. [GEMMA4_26B.md](GEMMA4_26B.md)
+2. [plans/gemma4-26b/START_HERE_CODEX.md](plans/gemma4-26b/START_HERE_CODEX.md)
+3. [plans/gemma4-26b/00_MASTER_IMPLEMENTATION_PLAN.md](plans/gemma4-26b/00_MASTER_IMPLEMENTATION_PLAN.md)
+4. [plans/gemma4-26b/MILESTONE_STATUS_BOARD.md](plans/gemma4-26b/MILESTONE_STATUS_BOARD.md)
 
-Begin with M00 only, then follow the plan's dependency order. In particular:
+Start M03 only on a separate milestone branch from the final accepted M02 closure commit and follow the plan's
+dependency order. The direct Unsloth evidence is token-deterministic after warmup but explicitly not an exact-logit
+or performance oracle. In particular:
 
 - lock source, compiler, tokenizer, and quality references before kernel work;
 - run the early synthetic 32K residency gate against directly measured CUDA-visible memory;

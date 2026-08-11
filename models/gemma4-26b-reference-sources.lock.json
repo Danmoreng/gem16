@@ -1,0 +1,103 @@
+{
+  "schema_version": 1,
+  "resolved_at_utc": "2026-08-06T10:50:00Z",
+  "references": [
+    {
+      "name": "transformers",
+      "repository": "https://github.com/huggingface/transformers.git",
+      "revision": "a08ace4bbd97e721c98751deec37d87b026acadc",
+      "tag": "v5.14.1",
+      "version": "5.14.1",
+      "license": "Apache-2.0",
+      "intended_use": "Gemma 4 BF16 tokenizer, model semantics and golden capture"
+    },
+    {
+      "name": "vllm",
+      "repository": "https://github.com/vllm-project/vllm.git",
+      "revision": "568afb3a13806beb53bb2e6bd518269357b237c0",
+      "tag": "v0.26.0",
+      "version": "0.26.0",
+      "license": "Apache-2.0",
+      "intended_use": "trusted diagnostic runtime and selected-state capture"
+    },
+    {
+      "name": "flashinfer",
+      "repository": "https://github.com/flashinfer-ai/flashinfer.git",
+      "revision": "19f1a41e6b21f0c422d775e377b6fdf9a1fc9d23",
+      "tag": "v0.6.14",
+      "version": "0.6.14",
+      "license": "Apache-2.0",
+      "intended_use": "vLLM NVFP4 fused-MoE JIT producer and diagnostic runtime backend"
+    },
+    {
+      "name": "compressed-tensors",
+      "repository": "https://github.com/vllm-project/compressed-tensors.git",
+      "revision": "f3b707b7d37515fa7d61c7f65d76fa6867c0b3e0",
+      "tag": "0.17.0",
+      "version": "0.17.0",
+      "license": "Apache-2.0",
+      "intended_use": "NVFP4/FP8 producer-format interpretation"
+    },
+    {
+      "name": "cutlass",
+      "repository": "https://github.com/NVIDIA/cutlass.git",
+      "revision": "db1c288993354c88e551c40c19a8fb93a774a241",
+      "tag": "v4.5.2",
+      "version": "4.5.2",
+      "license": "BSD-3-Clause",
+      "intended_use": "Blackwell FP8/NVFP4 format and kernel reference"
+    },
+    {
+      "name": "llama.cpp",
+      "repository": "https://github.com/ggml-org/llama.cpp.git",
+      "revision": "0b14b87d7c20cb753b94b96854dd7b45306fc696",
+      "release": "b10240",
+      "license": "MIT",
+      "intended_use": "official Q4_0 GGUF inventory, tokenization and decode reference"
+    },
+    {
+      "name": "imp",
+      "repository": "https://github.com/kekzl/imp.git",
+      "revision": "a392904d4216388828d0d56317de046f4ca49627",
+      "license": "MIT",
+      "intended_use": "reference and clean-room evidence only through M13"
+    },
+    {
+      "name": "accelerate",
+      "repository": "https://github.com/huggingface/accelerate.git",
+      "revision": "beb0672aa8444ea7647aee056f624effe5996346",
+      "tag": "v1.14.0",
+      "version": "1.14.0",
+      "license": "Apache-2.0",
+      "wheel_sha256": "e94390c2863b873be18f623f9df48a0d8fe5eff13ea7f1a00092b0a7904888c6",
+      "intended_use": "bounded diagnostic CPU/GPU placement for BF16 golden capture"
+    },
+    {
+      "name": "safetensors",
+      "repository": "https://github.com/huggingface/safetensors.git",
+      "revision": "a406ca3e7a90598be0cd05a50069cb9bf5ef6ba6",
+      "tag": "v0.8.0",
+      "version": "0.8.0",
+      "license": "Apache-2.0",
+      "intended_use": "reference checkpoint parsing"
+    },
+    {
+      "name": "pytorch",
+      "repository": "https://github.com/pytorch/pytorch.git",
+      "revision": "70d99e998b4955e0049d13a98d77ae1b14db1f45",
+      "tag": "v2.11.0",
+      "version": "2.11.0",
+      "license": "BSD-3-Clause",
+      "intended_use": "BF16 reference execution"
+    },
+    {
+      "name": "huggingface_hub",
+      "repository": "https://github.com/huggingface/huggingface_hub.git",
+      "revision": "c998254dea1266086dae7d723a4b77308a314e77",
+      "tag": "v1.26.0",
+      "version": "1.26.0",
+      "license": "Apache-2.0",
+      "intended_use": "authenticated immutable snapshot transfer"
+    }
+  ]
+}

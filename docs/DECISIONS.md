@@ -35,6 +35,144 @@ llama.cpp server logs and 200 ms telemetry under the ignored
 `benchmarks/results/2026-08-11/llama-cpp-26b-baseline/`, plus the current
 `common/speculative.cpp` and server acceptance path at the pinned external revision.
 
+## 2026-08-06: Keep Gemma 4 26B inspectable but non-executable behind an explicit static variant
+
+Date: 2026-08-06
+
+Decision: Classify the locked Gemma 4 26B A4B MoE configuration as explicit variant `gemma4_moe_26b_a4b`, separate
+from `gemma4_unified_12b` and the assistant. Validate the complete locked 26B architecture and expose immutable
+text-only capabilities, but report `runtime_supported=false` and `tensor_contract_validated=false` throughout M02.
+Manifest JSON schema 2 records these states and all MoE dimensions. M03 owns the exact canonical tensor inventory;
+M02 uploads no 26B tensor and selects no 26B CUDA kernel.
+
+Context: The upstream 26B source uses `Gemma4ForConditionalGeneration` / `gemma4` / `gemma4_text`, 30 decoder
+layers, hidden width 2,816, shared width 2,112, routed width 704, 128 experts and top-8 routing. Reusing the existing
+primary-model predicate or globally replacing the 12B 48-layer constants would either misclassify the checkpoint
+or break the qualified product path. Source vision metadata exists, but the initial product contract remains
+text-only.
+
+Alternatives: Treat every Gemma 4 config as one dynamic runtime; infer the model from filenames; mark 26B runtime
+supported before loader/kernel milestones; or require M03 tensor validation before config inspection. These weaken
+static specialization, trust untrusted paths, advertise nonexistent execution or prevent the bounded M02 contract.
+
+Consequences: The 12B and assistant validators remain exact and executable. Unknown Gemma 4 variants parse for
+inspection but fail validation with an explicit unsupported-variant reason. The 26B QAT-BF16 checkpoint can produce
+a generic safe manifest and capability record, while exact tensor-schema claims remain visibly deferred to M03.
+The owner accepted the completed M02 handoff on 2026-08-06; M03 is unblocked but must start separately from the
+accepted M02 closure, and M04 and later milestones remain blocked.
+
+Evidence: [M02 kickoff/drift record](evidence/gemma4_26b/m02-kickoff-2026-08-06.md),
+[M02 capability evidence](evidence/gemma4_26b/m02-model-variant-capability.json), and
+[`tests/fixtures/gemma4_26b_config.json`](../tests/fixtures/gemma4_26b_config.json).
+
+## 2026-08-06: Accept Gemma 4 26B M01 and authorize M02 from the accepted M01 base
+
+Date: 2026-08-06
+
+Decision: Accept the M01 immutable-source and golden-evidence handoff represented by commits `f901044`, `9023f5a`
+and `e2c44d5`. Every explicit M01 exit criterion passes. M02 is now the only authorized implementation milestone
+and must start on a separate `feat/26b-m02-model-traits` branch based on the final M01 closure commit. Do not place
+M02 implementation on the M01 branch or begin M03 work.
+
+Context: Four complete model sources and all required reference software are immutable and verified; source
+inventories, disjoint corpora, exact tokenizer identity, repeated QAT-BF16 goldens, official Q4_0 evidence and a
+direct Unsloth token-level diagnostic are tracked. The Unsloth runs repeat token IDs and text after warmup but not
+Top-20/logprobs, use diagnostic CPU offload and cannot support exact-logit or performance claims. All M01 tests,
+12B regression gates, package-integrity checks and documentation checks pass.
+
+Consequences: M02 may add only model-configuration parsing, explicit static variant traits, validation, capability
+metadata and tests. It must preserve the 12B and assistant contracts and may not add tensor upload, compiler,
+loader or CUDA product implementation. Distribution or hosting of a future compiled checkpoint remains separately
+blocked pending owner review. The checksum-protected imported plan package under `docs/plans/gemma4-26b/` remains
+byte-identical; live milestone status is recorded in `docs/GEMMA4_26B.md`, `docs/ROADMAP.md` and dated evidence
+rather than rewriting the package's initial status template.
+
+Evidence: [M01 source-lock/golden handoff](evidence/gemma4_26b/m01-source-locks-and-goldens-2026-08-06.md),
+[M01 Unsloth vLLM incident and bounded follow-up](evidence/gemma4_26b/m01-unsloth-vllm-oom-2026-08-06.md), and
+[`benchmarks/goldens/gemma4_26b/`](../benchmarks/goldens/gemma4_26b/).
+
+## 2026-08-06: Isolate memory-heavy vLLM reference JIT and bound the Unsloth diagnostic
+
+Date: 2026-08-06
+
+Decision: Any further memory-heavy vLLM reference cold start on the 62 GiB/no-swap host must run through
+`tools/run_isolated_vllm_reference.sh`. The complete process tree receives `MemoryHigh=40G`, `MemoryMax=45G`, no
+swap, whole-cgroup OOM kill, control-group cleanup, `TasksMax=128` and a three-hour limit. FlashInfer/Ninja receives
+four outer jobs and one internal NVCC thread. A cgroup OOM is an acceptable failed diagnostic; a global host OOM or
+orphaned compiler process is not. Do not claim that eager/Inductor-disabled execution disables custom FlashInfer
+JIT.
+
+Context: The first M01 Unsloth NVFP4 diagnostic loaded 9.16 GiB of model data on the GPU and offloaded 6.05 GiB to
+the CPU, then FlashInfer generated a fused-MoE build with unbounded Ninja parallelism. At the first global OOM,
+Python held 8.6 GiB RSS and 28 concurrent `cicc` processes held 44.0 GiB; later individual compilers reached
+7.2 GiB. The 60.8 GiB session exhausted host RAM, killed unrelated desktop processes, left compiler descendants
+after Python died and required REISUB. No Unsloth output was produced. VRAM polling did not protect host memory.
+
+Alternatives: Serialize every compiler job; allow unbounded compilation because the GPU allocation is below
+14,300 MiB; add swap as the primary guard; or infer an Unsloth result from QAT/Q4 evidence. Full serialization is
+unnecessarily slow, VRAM is not host-memory accounting, swap does not isolate the desktop, and inferred output
+would be fabricated. Four observed worst-case 7.2 GiB compiler processes plus the 8.6 GiB Python process fit the
+45 GiB cgroup with bounded headroom; five do not have defensible headroom.
+
+Consequences: Commit `f901044` provides the wrapper and tests. Local systemd verification proves `OOMPolicy=kill`
+sets cgroup-v2 `memory.oom.group=1`; a real harmless transient-service smoke passes. The incomplete FlashInfer cache
+was removed. After explicit owner authorization, a controlled cold run completed compilation with four jobs and no
+host OOM but was stopped at 14,560 MiB VRAM. A 0.70 warm-cache diagnostic then completed at 11,874 MiB. Under the
+supported chunked-prefill configuration, one warmup and both retained runs emitted `[7676, 236761]`; retained text
+and token IDs are exact while Top-20/logprobs vary. This evidence is token-level, CPU-offloaded and ineligible for
+performance or exact-logit claims. The policy does not alter the gem16 runtime or CUDA hot path.
+
+Evidence: [M01 Unsloth vLLM OOM incident](evidence/gemma4_26b/m01-unsloth-vllm-oom-2026-08-06.md),
+[M01 source-lock/golden handoff](evidence/gemma4_26b/m01-source-locks-and-goldens-2026-08-06.md), and
+`tools/run_isolated_vllm_reference.sh`.
+
+## 2026-08-06: Define the deterministic derived-checkpoint contract for experimental Gemma 4 26B A4B
+
+Date: 2026-08-06
+
+Decision: The first 26B production hypothesis is a text-only, project-built hybrid Safetensors checkpoint compiled
+offline from one exact Google Gemma 4 26B A4B QAT BF16 revision. Source, compiler, dependencies, invocation and
+every output are immutable and hash-locked; `gem16_compilation.json` records per-tensor source identity,
+transformation, logical/physical shape, dtype, quantizer contract, dequantization equation, bytes, hash, role and
+residency. A second clean reference-platform run must reproduce output bytes exactly. The inference process verifies
+and directly loads the compiled artifact but never quantizes, requantizes or writes it. The model is identified as a
+project-built gem16 derivative, never official Google NVFP4.
+
+The primary artifact derives all mathematical tensors from that one QAT source, omits vision/audio/video/MTP, keeps
+router/norm/scalar semantics in source precision, uses qualified FP8 attention and NVFP4 routed/shared MLP contracts,
+and defers tied embedding/head format selection to measured M07/M16 gates. Runtime layout transformation may stream
+verified bytes into the sole final device allocation; a second persistent device representation is forbidden.
+Missing native support fails visibly, and explicit diagnostic fallback/offload cannot support production claims.
+Distribution remains blocked until M01 records applicable terms and owner approval.
+
+Context: No published checkpoint implements the selected complete QAT-BF16-to-FP8/NVFP4/head recipe. Root policy
+permits reproducible profile-specific compilation but requires a concrete contract before compiler work. The 16 GB
+product also cannot absorb hidden source/runtime copies or CPU expert streaming. QAT provenance alone says nothing
+about quality, so direct Unsloth NVFP4, an ordinary-BF16 same-compiler control, official Google Q4_0 and QAT BF16
+reference evidence remain mandatory.
+
+Alternatives: Require direct-load-only and abandon the hypothesis; convert during server startup; use an opaque
+engine binary; splice tensors from separately quantized checkpoints; call QAT provenance a quality result; or use
+CPU expert offload to fit. These respectively block the selected experiment, destroy reproducibility/runtime
+boundaries, weaken auditability, confound model identity, bypass quality measurement or invalidate the resident
+16 GB performance objective.
+
+Consequences: M00 adds governance/evidence only and no dead feature flag; the 12B direct-load profile remains the
+unchanged default. Before M02 exposes any 26B runtime behavior it must add an experimental default-off model-variant
+boundary. The initial immutable-weight target is at most 14,100 MiB, above 14,300 MiB is a hard review stop, and
+32K must leave at least 700 MiB directly measured CUDA-visible reserve. Vision, audio, video, MTP, continuous
+batching, multiple 26B slots, multi-GPU, CPU offload and expert streaming are non-goals for the first profile.
+
+Pinned `kekzl/imp@a392904d4216388828d0d56317de046f4ca49627` is reference evidence, not an architecture or dependency.
+Through M13, use is reference or clean-room only. This decision accepts the documented provenance structure but
+does not approve copying source; any later isolated MIT port requires a separate owner decision, exact hashes and
+notices, independent tests, 5080 evidence and no second weight layout.
+
+Evidence: [Gemma 4 26B track contract](GEMMA4_26B.md),
+[M00 drift report](evidence/gemma4_26b/baseline-drift-2026-08-06.md),
+[M00 policy review](evidence/gemma4_26b/m00-policy-review.md), and
+`docs/plans/gemma4-26b/specs/CHECKPOINT_PROVENANCE_SPEC.md`.
+
 ## 2026-08-06: Close the Linux short-context investigation without a production change and begin 26B M00
 
 Date: 2026-08-06
