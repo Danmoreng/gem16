@@ -1,9 +1,9 @@
 # Roadmap
 
-Current stage: execute the owner-authorized M05 native-converter slice for the Gemma 4 26B A4B program on the
-long-lived `feat/gemma4-26b` branch while preserving the mature 12B product path. M00-M04 are accepted. M05 is
-current/in progress; M06+ remain dependency-gated. The compiler architecture is the accepted hybrid control-plane /
-native-data-plane design: M04 Python `copy-v1` is byte movement only, while promoted large tensor arithmetic belongs
+Current stage: M05 native FP8 attention compilation is accepted for the Gemma 4 26B A4B program on the long-lived
+`feat/gemma4-26b` branch while the mature 12B product path remains preserved. M00-M05 are accepted. M06 is
+dependency-unblocked but not started; later milestones remain gated. The compiler architecture is the accepted hybrid
+control-plane/native-data-plane design: M04 Python `copy-v1` is byte movement only, while promoted large tensor arithmetic belongs
 to one shared versioned C++20 converter family. See [NATIVE_CONVERTER_ARCHITECTURE.md](plans/gemma4-26b/specs/NATIVE_CONVERTER_ARCHITECTURE.md)
 and the version-scoped [llama.cpp research](evidence/gemma4_26b/m05-llama-cpp-converter-research-2026-08-11.md).
 The bounded Linux short-context ordinary-decode
@@ -76,14 +76,13 @@ prefill program; it no longer owns execution order.
 
 The active implementation program is the experimental Gemma 4 26B A4B track. M00 defines accepted governance and
 the artifact contract; M01 source locks/goldens, M02 model configuration/static traits, M03 exact tensor inventory
-and M04 deterministic checkpoint compiler scaffold are accepted. M05 FP8 compiler is current/in progress under the
-owner's 2026-08-11 authorization after the prior pause. The native C++20 implementation, exact Ordinary/QAT plans,
-short throughput probe, one diagnostic full Ordinary run, one diagnostic full QAT run, structural verification and
-weight-only comparison are retained in [M05 diagnostic evidence](evidence/gemma4_26b/m05-native-fp8-implementation-and-diagnostic-runs-2026-08-11.md).
-All currently retained M05 compiler artifacts record `compiler_dirty=true`; they are diagnostic evidence, not an
-accepted M05 gate. The owner has authorized the implementation commit and clean-revision evidence runs. The remaining
-gates are that clean native build, one clean Ordinary plus one clean QAT run, final verification/review and final
-hashes/status. No production 26B runtime execution exists. The initial kickoff and drift record remains in the
+and M04 deterministic checkpoint compiler scaffold are accepted. M05 FP8 compiler is accepted at implementation
+commit `d913881`. The versioned native C++20 encoder/comparator, exact Ordinary/QAT plans, one clean full conversion
+per source, structural verification, complete output hashes, weight-only comparison, bounded regression gates and
+exact 12B result are retained in [M05 acceptance](evidence/gemma4_26b/m05-fp8-attention-compiler-acceptance-2026-08-11.md).
+The partial artifact remains explicitly non-runtime-loadable, and the comparison makes no model-quality claim. M06
+is dependency-unblocked but not started. No production 26B runtime execution exists. The initial kickoff and drift
+record remains in the
 [M05 kickoff](evidence/gemma4_26b/m05-kickoff-2026-08-11.md). Its binding architecture is the shared native converter
 design in [NATIVE_CONVERTER_ARCHITECTURE.md](plans/gemma4-26b/specs/NATIVE_CONVERTER_ARCHITECTURE.md), with the
 version-scoped [llama.cpp research](evidence/gemma4_26b/m05-llama-cpp-converter-research-2026-08-11.md). Its

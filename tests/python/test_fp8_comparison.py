@@ -362,18 +362,18 @@ class FP8ComparisonTest(unittest.TestCase):
         self.assertEqual(schema["$defs"]["contract"]["properties"]["native_comparator_build"]["$ref"],
                          "#/$defs/nativeBuild")
 
-    def test_retained_diagnostic_report_corresponds_to_schema(self):
+    def test_retained_clean_report_corresponds_to_schema(self):
         schema = json.loads(Path("benchmarks/goldens/gemma4_26b/fp8/comparison-schema-v1.json").read_text())
         report_path = Path("artifacts/m05/ordinary-vs-unsloth-fp8.json")
         self.assertTrue(report_path.is_file(), report_path)
         report = json.loads(report_path.read_text())
         assert_json_schema(report, schema, schema)
-        self.assertIs(report["compiled"]["compiler_dirty"], True)
+        self.assertIs(report["compiled"]["compiler_dirty"], False)
         self.assertEqual(
             report["contract"]["dequantization_equation"],
             M05_DEQUANTIZATION_EQUATION,
         )
-        self.assertIn("dirty worktree", " ".join(report["limitations"]))
+        self.assertNotIn("dirty worktree", " ".join(report["limitations"]))
 
 
 if __name__ == "__main__":

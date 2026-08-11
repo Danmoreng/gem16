@@ -11,7 +11,7 @@ Development branch for M03-M25: `feat/gemma4-26b`
 | M02 Model variants | ✓ | `f79eeb6` | [M02 handoff](../../evidence/gemma4_26b/m02-model-variants-2026-08-06.md) | accepted 2026-08-06 |
 | M03 Tensor inventory | ✓ | `06b72e4` | [M03 handoff](../../evidence/gemma4_26b/m03-manifest-and-inventory-2026-08-11.md) | accepted 2026-08-11 |
 | M04 Compiler scaffold | ✓ | `edd80cb` | [M04 handoff](../../evidence/gemma4_26b/m04-checkpoint-compiler-scaffold-2026-08-11.md) | accepted 2026-08-11 |
-| M05 FP8 compiler | ◐ | | [M05 diagnostic runs](../../evidence/gemma4_26b/m05-native-fp8-implementation-and-diagnostic-runs-2026-08-11.md) | diagnostic full runs passed; clean acceptance pending |
+| M05 FP8 compiler | ✓ | `d913881` | [M05 acceptance](../../evidence/gemma4_26b/m05-fp8-attention-compiler-acceptance-2026-08-11.md) | accepted 2026-08-11 |
 | M06 NVFP4 compiler | ☐ | | | |
 | M07 Head experiment | ☐ | | | |
 | M08 Artifact/loader | ☐ | | | |
@@ -46,17 +46,15 @@ Status values:
 ## Current milestone state
 
 ```text
-M05 — current/in progress; M06+ remain dependency-gated
+M05 — accepted; M06 is dependency-unblocked but not started
 ```
 
-The project owner explicitly authorized starting M05 on 2026-08-11 after first pausing it; that instruction
-supersedes the pause. M00-M04 remain accepted. The exact Ordinary/QAT plans and plan gates pass. The Python codec is reference/oracle support; the promoted/native
-C++20 batch backend exists in the dirty worktree. A short native throughput probe, one diagnostic full Ordinary run,
-one diagnostic full QAT run, structural verification, the weight-only comparison and the CUDA/12B regression gates
-are retained in [M05 diagnostic evidence](../../evidence/gemma4_26b/m05-native-fp8-implementation-and-diagnostic-runs-2026-08-11.md).
-All currently retained M05 compiler artifacts record `compiler_dirty=true`, so these are not an accepted M05 gate.
-The owner has authorized the implementation commit and clean-revision evidence runs. Remaining gates are one clean
-native Ordinary plus one clean native QAT run, final verification/review and final hashes/status. M05
-remains non-runtime-loadable and M06+ remain dependency-gated. The cross-milestone converter
-architecture is documented in [NATIVE_CONVERTER_ARCHITECTURE.md](specs/NATIVE_CONVERTER_ARCHITECTURE.md), with the
-version-scoped llama.cpp research retained in [M05 evidence](../../evidence/gemma4_26b/m05-llama-cpp-converter-research-2026-08-11.md).
+The project owner accepted M05 on 2026-08-11 at implementation commit `d913881`. The exact Ordinary/QAT plans,
+versioned native C++20 encoder/comparator, clean full conversion per source, structural verification, complete
+hashes, semantic reports, native comparison, bounded host/sanitizer/CUDA gates and exact 12B regression pass. Python
+is control-plane/oracle support only and cannot replace the production native data plane. Clean evidence is retained
+in [M05 acceptance](../../evidence/gemma4_26b/m05-fp8-attention-compiler-acceptance-2026-08-11.md); earlier dirty runs
+remain labeled diagnostic history. The M05 partial artifact is non-runtime-loadable. M06 is dependency-unblocked but
+has not started. The cross-milestone architecture remains
+[NATIVE_CONVERTER_ARCHITECTURE.md](specs/NATIVE_CONVERTER_ARCHITECTURE.md), with version-scoped llama.cpp research
+retained in [M05 evidence](../../evidence/gemma4_26b/m05-llama-cpp-converter-research-2026-08-11.md).

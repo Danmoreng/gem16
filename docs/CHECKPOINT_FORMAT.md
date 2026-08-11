@@ -96,8 +96,9 @@ E4M3 weights with BF16 per-output-channel scales. Its profile is `external_unslo
 The future compiled validator is deliberately separate from the BF16 and external-reference validators. Its frozen
 text-only role mapping has 1,282 tensors with a Q4_0 head or 1,285 with an NVFP4 head. All NVFP4 records identify
 producer semantics, E4M3 group-16 scales, divisor direction and `sm120_row8_k64` or
-`expert_major_sm120_row8_k64` final layout. M04 may consume this mapping, but M05-M08 still own actual encoding,
-provenance and artifact loading. Compact canonical metadata and the complete source cross-map are under
+`expert_major_sm120_row8_k64` final layout. M05 now owns accepted attention FP8 encoding/provenance; M06-M07 own
+expert and tied-head encoding, and M08 owns complete artifact assembly/loading. Compact canonical metadata and the
+complete source cross-map are under
 `benchmarks/goldens/gemma4_26b/manifests/`; the large immutable raw header inventories remain under
 `benchmarks/goldens/gemma4_26b/source-inventories/`.
 
@@ -121,6 +122,16 @@ mmap windows; output is staged under `<output>.incomplete`, fsynced, strictly ve
 output is overwritten. Resume is deliberately restart-only until a cryptographically bound partial-state schema is
 accepted. The complete CLI, schema, memory and canonical-platform contract is in
 [GEMMA4_26B_CHECKPOINT_COMPILER.md](GEMMA4_26B_CHECKPOINT_COMPILER.md).
+
+## Gemma 4 26B M05 attention partial
+
+The accepted `fp8-attention-partial-v1` profile is intentionally non-runtime-loadable. It emits exactly 115
+F8_E4M3 `[N,K]` attention matrices and 115 BF16 `[N,1]` row-scale tensors from one locked Ordinary or QAT BF16
+source. Q/K/O exist in all 30 layers; V exists only in the 25 local layers. Every other source tensor is explicitly
+deferred or excluded, with source vision required for identity and exactly omitted from output. The compilation
+manifest records the source lock, exact plan, native protocol/executable/toolchain/thread identity, complete source
+and output hashes, quantizer parameters and the dequantization equation. M08 remains responsible for combining this
+family with accepted expert/head families and supplying the external immutable artifact lock.
 
 The engine parses and validates the Google tokenizer metadata at startup. The tokenizer-level
 `model_max_length` value is Google's intentionally unbounded sentinel and never drives arena sizing; the model

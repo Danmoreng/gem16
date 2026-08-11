@@ -3,7 +3,7 @@
 Date: 2026-08-11
 Branch: `feat/gemma4-26b`
 Milestone: M05 — deterministic FP8 attention compiler
-Status: diagnostic implementation evidence retained; M05 remains current/in progress and unaccepted
+Status: retained diagnostic precursor evidence; M05 is accepted by the separate clean-revision record
 
 ## Evidence classification
 
@@ -142,11 +142,9 @@ The report path is retained above, but its JSON does not contain complete execut
 provenance; this record supplies that invocation. The run was characterization evidence (`benchmark_qualified=false`),
 not a promoted performance claim.
 
-## Remaining M05 acceptance blockers
+## Resolution
 
-M05 is not yet accepted. The owner authorized committing the implementation and running clean-revision evidence.
-The remaining gates are a clean native build from that implementation commit, one clean Ordinary and one clean QAT
-partial conversion, retained structural verification and hashes, final review, and final status documentation.
-
-The current diagnostic evidence does not make the partial artifact runtime-loadable, does not waive the
-clean-revision policy, and does not authorize M06 or any other downstream production milestone.
+The owner-authorized clean-revision runs and final gates subsequently passed at implementation commit
+`d91388113d68974f9ab7cec1a90ef768285c0645`. M05 acceptance, clean hashes and final boundaries are recorded in
+[M05 acceptance](m05-fp8-attention-compiler-acceptance-2026-08-11.md). This document remains diagnostic history and
+must not be substituted for that clean evidence.

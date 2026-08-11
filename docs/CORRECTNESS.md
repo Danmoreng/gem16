@@ -504,8 +504,23 @@ Strict verification recomputes the complete source lock, all source/output tenso
 hashes, byte totals, omission groups and manifest semantics without importing or executing model code.
 
 A separate 2 MiB source-tensor test uses a 4 KiB staging buffer and mmap windows bounded by that buffer plus OS
-allocation granularity. Observed process peak must remain under the caller's absolute cap. This proves bounded
-orchestration, not production encoder memory; M05/M06 must repeat with real row/expert transformations.
+allocation granularity. Observed process peak must remain under the caller's absolute cap. This proves bounded M04
+orchestration; M05 separately measures real row transformations and M06 must repeat for expert transformations.
+
+## Gemma 4 26B M05 FP8 compiler correctness
+
+M05 is accepted at clean implementation commit `d91388113d68974f9ab7cec1a90ef768285c0645`. One clean Ordinary and
+one clean QAT conversion each cover exactly 115 attention matrices, emit 230 tensors and 1,110,850,560 tensor bytes,
+and omit V exactly in global layers 5, 11, 17, 23 and 29. Complete source, plan, native executable, tensor, shard and
+manifest hashes are retained in [M05 acceptance](evidence/gemma4_26b/m05-fp8-attention-compiler-acceptance-2026-08-11.md).
+Standalone verification passes without reconversion and records `transformation_recomputed=false`.
+
+The native C++20 codec tests cover E4M3FN finite values, midpoint ties, saturation, subnormals, signed zero, zero
+rows and NaN/Inf rejection. A differential golden detects matrix-wide versus required row-partial binary64 telemetry
+association, and explicit one-versus-multiple-thread fixtures retain identical payload and normalized telemetry. The
+native Ordinary-versus-Unsloth pass covers 1,110,179,840 weight elements with zero BF16 row-scale mismatches,
+relative L2 `0.015792460337879278` and cosine `0.9998753477506377`. These are stored-weight measurements only, not
+activation/operator evidence, model-quality qualification or QAT attribution.
 
 ## Not yet established
 

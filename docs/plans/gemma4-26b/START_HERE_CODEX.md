@@ -3,10 +3,10 @@
 Do not ask Codex to implement all milestones at once. All remaining work stays on `feat/gemma4-26b`, and each
 task must stop at its milestone gate.
 
-## Current task: M05 deterministic FP8 attention compiler
+## Current state: M05 accepted; stop before M06
 
-The project owner explicitly authorized starting M05 on 2026-08-11 after first pausing it; that authorization
-supersedes the pause. M00-M04 remain accepted. M05 is current/in progress, while M06+ remain dependency-gated.
+The project owner accepted M05 on 2026-08-11 at implementation commit `d913881`. M00-M05 are accepted. M06 is
+dependency-unblocked but not started; do not begin it without separate owner direction.
 The kickoff record is [M05 evidence](../../evidence/gemma4_26b/m05-kickoff-2026-08-11.md). The cross-milestone
 compiler boundary is [NATIVE_CONVERTER_ARCHITECTURE.md](specs/NATIVE_CONVERTER_ARCHITECTURE.md); read the
 version-scoped [llama.cpp conversion research](../../evidence/gemma4_26b/m05-llama-cpp-converter-research-2026-08-11.md)
@@ -19,9 +19,10 @@ representation `F8_E4M3 [N,K] + BF16 [N,1]`, rowwise max-abs scale v1, round-to-
 saturation, NaN/Inf rejection, and all-zero scale `1.0`. Exact Ordinary/QAT plan gates pass. The short native probe,
 one diagnostic full run per source, structural verification, weight-only comparison and CUDA/12B regression gates are
 retained in [M05 diagnostic evidence](../../evidence/gemma4_26b/m05-native-fp8-implementation-and-diagnostic-runs-2026-08-11.md).
-All currently retained M05 compiler artifacts record `compiler_dirty=true`; this is diagnostic evidence, not an
-accepted M05 gate. The owner has authorized the implementation commit and clean-revision evidence. Remaining gates
-are one clean Ordinary plus one clean QAT run, final structural verification/review and final hashes/status.
+The clean Ordinary and QAT conversions bind `compiler_dirty=false` to commit `d913881`; final structural verification,
+complete hashes, semantic reports, native comparison and regression gates pass. The authoritative record is
+[M05 acceptance](../../evidence/gemma4_26b/m05-fp8-attention-compiler-acceptance-2026-08-11.md). Earlier dirty
+artifacts remain explicitly diagnostic history.
 
 ## Shared converter boundary
 
@@ -51,16 +52,14 @@ Run one native full pass for the 115-matrix Ordinary-BF16 attention family and o
 Python/native duplicate or a second complete M05 artifact solely for reproducibility. Prove determinism with native
 exhaustive codec tests, byte-golden rows, bounded threads-1-versus-N fixtures and complete output hashes. Standalone
 M05 verification is structural/hash/source-lock-only, does not reconvert, and reports
-`transformation_recomputed=false` until M08's external artifact lock. The short probe and diagnostic full runs are
-retained in the M05 evidence link above; they do not waive the clean-revision release-evidence requirement.
+`transformation_recomputed=false` until M08's external artifact lock. The accepted clean runs and earlier diagnostic
+history are retained in the evidence links above.
 
-## Verified kickoff state
+## Verified acceptance state
 
-Branch `feat/gemma4-26b` remains `feat/gemma4-26b`; the worktree is intentionally dirty while the native M05 slice
-and its documentation are integrated. No milestone branch is used. The ordinary BF16, QAT BF16 and Unsloth NVFP4 prerequisites and the M04 fixture/integrity checks are recorded in the
-kickoff evidence. Diagnostic implementation and full-run evidence is retained separately in
-[M05 native diagnostic evidence](../../evidence/gemma4_26b/m05-native-fp8-implementation-and-diagnostic-runs-2026-08-11.md);
-M05 remains in progress and unaccepted.
+Branch `feat/gemma4-26b` remains the single M03-M25 integration branch; no milestone branch is used. The ordinary
+BF16, QAT BF16 and Unsloth NVFP4 prerequisites, clean M05 evidence and M04 fixture/integrity checks pass. M05 is
+accepted and non-runtime-loadable. M06 is the next dependency-unblocked milestone but remains not started.
 
 ## Daily agent loop
 

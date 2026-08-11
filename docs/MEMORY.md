@@ -44,9 +44,19 @@ logical tensor.
 
 A generated 2,097,152-byte tensor compiled through a 4,096-byte staging buffer with a maximum 4,376-byte mapped
 window. Process RSS rose from 31,068,160 to 36,675,584 bytes under a 70,230,016-byte cap. This validates M04 copy
-orchestration only. FP8/NVFP4 encoders must declare and independently measure tile/output workspace in M05/M06;
+orchestration only. M05 measures its FP8 row encoder separately; M06 must repeat for NVFP4 expert transformations.
 M09 remains responsible for actual compiled-artifact and device-residency accounting. Raw evidence is
 [`evidence/gemma4_26b/m04-bounded-memory-report.json`](evidence/gemma4_26b/m04-bounded-memory-report.json).
+
+## Gemma 4 26B M05 native FP8 compiler memory
+
+The accepted clean Ordinary and QAT conversions use one bounded source row per native worker and emit coupled FP8
+weight/BF16-scale payloads from one matrix traversal. With eight threads and a 7,516,192,768-byte absolute cap,
+Ordinary records 6,279,168 bytes native child peak RSS and 38,727,680 bytes control-plane peak RSS; QAT records
+6,201,344 and 35,471,360 bytes respectively. The maximum transformed source row is 16,384 bytes, the maximum mapped
+window is 1,052,636 bytes and the staging buffer is 1,048,576 bytes. These are offline host measurements, not device
+residency or runtime workspace evidence. Full records are in
+[M05 acceptance](evidence/gemma4_26b/m05-fp8-attention-compiler-acceptance-2026-08-11.md).
 
 ## Gemma 4 12B production accounting
 

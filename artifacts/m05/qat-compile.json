@@ -1,11 +1,11 @@
 {
   "action": "compile",
   "artifact_profile": "fp8-attention-partial-v1",
-  "compilation_manifest_sha256": "dbe330c8bd69a057f774cc8e0cb9e8b9f81c7e6c1ade2b16c4141bf2812c0260",
-  "compiler_commit": "a061c045c5b77b8612ac029cf18dfc6b4a660001",
-  "compiler_dirty": true,
+  "compilation_manifest_sha256": "f11bce2907d133a561573ff41c52173033c748c548ad7e777a7fdd8a2c00df94",
+  "compiler_commit": "d91388113d68974f9ab7cec1a90ef768285c0645",
+  "compiler_dirty": false,
   "compiler_manifest_sha256": "4854475c6412254cde87010630e301aaf38af9eee2ee639586c74eb645ecdd7b",
-  "duration_seconds": 184.782988,
+  "duration_seconds": 155.516982,
   "fp8_tensor_statistics": [
     {
       "logical_dtype": "BF16",
@@ -389,7 +389,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996516090801595,
+        "cosine_similarity": 0.9996516090801537,
         "elements": 11534336,
         "histogram": [
           1313882,
@@ -738,7 +738,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996512603687409,
+        "cosine_similarity": 0.9996512603687406,
         "elements": 11534336,
         "histogram": [
           1315755,
@@ -1785,7 +1785,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996512099019313,
+        "cosine_similarity": 0.9996512099019255,
         "elements": 11534336,
         "histogram": [
           1315137,
@@ -2134,7 +2134,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996534480105127,
+        "cosine_similarity": 0.9996534480105119,
         "elements": 11534336,
         "histogram": [
           1422823,
@@ -2832,7 +2832,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996534183989493,
+        "cosine_similarity": 0.9996534183989488,
         "elements": 5767168,
         "histogram": [
           699640,
@@ -3181,7 +3181,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996506677619703,
+        "cosine_similarity": 0.999650667761957,
         "elements": 11534336,
         "histogram": [
           1341265,
@@ -3530,7 +3530,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996523820964989,
+        "cosine_similarity": 0.9996523820964873,
         "elements": 11534336,
         "histogram": [
           1417982,
@@ -4228,7 +4228,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996522920278791,
+        "cosine_similarity": 0.9996522920278632,
         "elements": 2883584,
         "histogram": [
           390011,
@@ -4498,7 +4498,7 @@
         "scale_min": 7.241964340209961e-06,
         "source_max": 0.1708984375,
         "source_min": -0.1767578125,
-        "source_rms": 0.018829364203073344,
+        "source_rms": 0.018829364203073348,
         "sqnr_db": 31.578269376023034,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
@@ -4577,7 +4577,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.999650355024167,
+        "cosine_similarity": 0.9996503550231249,
         "elements": 23068672,
         "histogram": [
           2891682,
@@ -4926,7 +4926,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996515845904476,
+        "cosine_similarity": 0.9996515845902271,
         "elements": 23068672,
         "histogram": [
           2950074,
@@ -5275,7 +5275,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996519947500916,
+        "cosine_similarity": 0.9996519947500864,
         "elements": 5767168,
         "histogram": [
           702635,
@@ -5624,7 +5624,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996505878642953,
+        "cosine_similarity": 0.9996505878642852,
         "elements": 11534336,
         "histogram": [
           1335916,
@@ -5973,7 +5973,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996505693775894,
+        "cosine_similarity": 0.9996505693774967,
         "elements": 11534336,
         "histogram": [
           1400426,
@@ -6671,7 +6671,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996521079814108,
+        "cosine_similarity": 0.9996521079813806,
         "elements": 5767168,
         "histogram": [
           717292,
@@ -7020,7 +7020,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996509157266309,
+        "cosine_similarity": 0.999650915726604,
         "elements": 11534336,
         "histogram": [
           1341434,
@@ -7369,7 +7369,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996510291244783,
+        "cosine_similarity": 0.9996510291242756,
         "elements": 11534336,
         "histogram": [
           1394051,
@@ -8067,7 +8067,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996535331746813,
+        "cosine_similarity": 0.9996535331746694,
         "elements": 5767168,
         "histogram": [
           716119,
@@ -8416,7 +8416,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996513687144858,
+        "cosine_similarity": 0.9996513687144659,
         "elements": 11534336,
         "histogram": [
           1338339,
@@ -8765,7 +8765,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996518931659584,
+        "cosine_similarity": 0.9996518931655602,
         "elements": 11534336,
         "histogram": [
           1402819,
@@ -9463,7 +9463,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996526661665818,
+        "cosine_similarity": 0.9996526661665689,
         "elements": 5767168,
         "histogram": [
           712073,
@@ -9812,7 +9812,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996510688385604,
+        "cosine_similarity": 0.9996510688385548,
         "elements": 11534336,
         "histogram": [
           1340400,
@@ -10161,7 +10161,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996512963285801,
+        "cosine_similarity": 0.9996512963285034,
         "elements": 11534336,
         "histogram": [
           1427926,
@@ -10859,7 +10859,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996514099800212,
+        "cosine_similarity": 0.9996514099800188,
         "elements": 5767168,
         "histogram": [
           690793,
@@ -11208,7 +11208,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996509667162777,
+        "cosine_similarity": 0.999650966716241,
         "elements": 11534336,
         "histogram": [
           1352120,
@@ -11557,7 +11557,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996504440006091,
+        "cosine_similarity": 0.999650444000597,
         "elements": 11534336,
         "histogram": [
           1383610,
@@ -12255,7 +12255,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996534748563566,
+        "cosine_similarity": 0.9996534748563372,
         "elements": 2883584,
         "histogram": [
           394015,
@@ -12517,7 +12517,7 @@
         ],
         "max_absolute_error": 0.005859375,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.02632357071412428,
+        "relative_l2_error": 0.026323570714124257,
         "rows": 1024,
         "saturation_count": 456,
         "saturation_rate": 0.0001581365411931818,
@@ -12525,8 +12525,8 @@
         "scale_min": 2.473592758178711e-06,
         "source_max": 0.181640625,
         "source_min": -0.1826171875,
-        "source_rms": 0.01892797086098929,
-        "sqnr_db": 31.593104006131902,
+        "source_rms": 0.01892797086098931,
+        "sqnr_db": 31.59310400613191,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -12604,7 +12604,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996513745173737,
+        "cosine_similarity": 0.9996513745171138,
         "elements": 23068672,
         "histogram": [
           2888975,
@@ -12953,7 +12953,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996516131702636,
+        "cosine_similarity": 0.9996516131696903,
         "elements": 23068672,
         "histogram": [
           2912566,
@@ -13302,7 +13302,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996510684344836,
+        "cosine_similarity": 0.9996510684344561,
         "elements": 5767168,
         "histogram": [
           705558,
@@ -13651,7 +13651,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996503538592085,
+        "cosine_similarity": 0.9996503538592012,
         "elements": 11534336,
         "histogram": [
           1328498,
@@ -14000,7 +14000,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996492275218593,
+        "cosine_similarity": 0.999649227521831,
         "elements": 11534336,
         "histogram": [
           1474622,
@@ -14698,7 +14698,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996529231371097,
+        "cosine_similarity": 0.9996529231371077,
         "elements": 5767168,
         "histogram": [
           711507,
@@ -15047,7 +15047,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996509371527434,
+        "cosine_similarity": 0.9996509371521755,
         "elements": 11534336,
         "histogram": [
           1339219,
@@ -15396,7 +15396,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996511539094513,
+        "cosine_similarity": 0.9996511539093494,
         "elements": 11534336,
         "histogram": [
           1436309,
@@ -16443,7 +16443,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996511327636158,
+        "cosine_similarity": 0.9996511327636121,
         "elements": 11534336,
         "histogram": [
           1329205,
@@ -16792,7 +16792,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996516989599414,
+        "cosine_similarity": 0.9996516989599413,
         "elements": 11534336,
         "histogram": [
           1383778,
@@ -17839,7 +17839,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996514303747741,
+        "cosine_similarity": 0.9996514303747622,
         "elements": 11534336,
         "histogram": [
           1328514,
@@ -18188,7 +18188,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996504260996729,
+        "cosine_similarity": 0.9996504260996375,
         "elements": 11534336,
         "histogram": [
           1409035,
@@ -18886,7 +18886,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.999652968327675,
+        "cosine_similarity": 0.9996529683276727,
         "elements": 5767168,
         "histogram": [
           692468,
@@ -19235,7 +19235,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996511041605575,
+        "cosine_similarity": 0.9996511041605143,
         "elements": 11534336,
         "histogram": [
           1341215,
@@ -19584,7 +19584,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.999649872597869,
+        "cosine_similarity": 0.999649872597814,
         "elements": 11534336,
         "histogram": [
           1397144,
@@ -20282,7 +20282,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996518652683051,
+        "cosine_similarity": 0.999651865268296,
         "elements": 5767168,
         "histogram": [
           706671,
@@ -20631,7 +20631,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.999650359711345,
+        "cosine_similarity": 0.9996503597113352,
         "elements": 11534336,
         "histogram": [
           1332625,
@@ -20980,7 +20980,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996497772072107,
+        "cosine_similarity": 0.9996497772070835,
         "elements": 11534336,
         "histogram": [
           1457503,
@@ -22027,7 +22027,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996501791142361,
+        "cosine_similarity": 0.9996501791136795,
         "elements": 23068672,
         "histogram": [
           3130771,
@@ -22376,7 +22376,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996511169519555,
+        "cosine_similarity": 0.999651116950172,
         "elements": 23068672,
         "histogram": [
           2936183,
@@ -22725,7 +22725,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996521277414121,
+        "cosine_similarity": 0.9996521277413861,
         "elements": 5767168,
         "histogram": [
           733146,
@@ -23074,7 +23074,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996502854089728,
+        "cosine_similarity": 0.9996502854089587,
         "elements": 11534336,
         "histogram": [
           1317130,
@@ -23423,7 +23423,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996508648612229,
+        "cosine_similarity": 0.9996508648611336,
         "elements": 11534336,
         "histogram": [
           1387811,
@@ -24121,7 +24121,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996522051643383,
+        "cosine_similarity": 0.9996522051643374,
         "elements": 5767168,
         "histogram": [
           691432,
@@ -24470,7 +24470,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996502853720474,
+        "cosine_similarity": 0.9996502853720035,
         "elements": 11534336,
         "histogram": [
           1310383,
@@ -24819,7 +24819,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996503294168811,
+        "cosine_similarity": 0.9996503294167749,
         "elements": 11534336,
         "histogram": [
           1391980,
@@ -25517,7 +25517,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.99965173463377,
+        "cosine_similarity": 0.9996517346337459,
         "elements": 5767168,
         "histogram": [
           743111,
@@ -25866,7 +25866,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996511349356721,
+        "cosine_similarity": 0.9996511349356701,
         "elements": 11534336,
         "histogram": [
           1324187,
@@ -26215,7 +26215,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996509405417658,
+        "cosine_similarity": 0.9996509405416987,
         "elements": 11534336,
         "histogram": [
           1403670,
@@ -26913,7 +26913,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996532355940577,
+        "cosine_similarity": 0.999653235594047,
         "elements": 5767168,
         "histogram": [
           695078,
@@ -27262,7 +27262,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996499647714592,
+        "cosine_similarity": 0.9996499647714329,
         "elements": 11534336,
         "histogram": [
           1320686,
@@ -27611,7 +27611,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996540955629271,
+        "cosine_similarity": 0.999654095562927,
         "elements": 11534336,
         "histogram": [
           1636650,
@@ -28309,7 +28309,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996544847093904,
+        "cosine_similarity": 0.9996544847093902,
         "elements": 5767168,
         "histogram": [
           761151,
@@ -28658,7 +28658,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996493529365882,
+        "cosine_similarity": 0.99964935293654,
         "elements": 11534336,
         "histogram": [
           1325726,
@@ -29007,7 +29007,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.999652070570605,
+        "cosine_similarity": 0.9996520705704576,
         "elements": 11534336,
         "histogram": [
           1362768,
@@ -29356,7 +29356,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996534435660989,
+        "cosine_similarity": 0.9996534435660982,
         "elements": 5767168,
         "histogram": [
           1089939,
@@ -30054,7 +30054,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996494502211234,
+        "cosine_similarity": 0.9996494502207328,
         "elements": 23068672,
         "histogram": [
           3266926,
@@ -30403,7 +30403,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996512987379556,
+        "cosine_similarity": 0.9996512987367523,
         "elements": 23068672,
         "histogram": [
           2792809,
@@ -31101,7 +31101,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996512998868797,
+        "cosine_similarity": 0.9996512998868765,
         "elements": 11534336,
         "histogram": [
           1323927,
@@ -31450,7 +31450,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996525364698571,
+        "cosine_similarity": 0.9996525364698569,
         "elements": 11534336,
         "histogram": [
           1384153,
@@ -32148,7 +32148,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996523183264955,
+        "cosine_similarity": 0.9996523183264951,
         "elements": 5767168,
         "histogram": [
           678305,
@@ -32497,7 +32497,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996512721767685,
+        "cosine_similarity": 0.9996512721767226,
         "elements": 11534336,
         "histogram": [
           1340939,
@@ -32846,7 +32846,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996529739747702,
+        "cosine_similarity": 0.9996529739747699,
         "elements": 11534336,
         "histogram": [
           1397427,
@@ -33544,7 +33544,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996522970605007,
+        "cosine_similarity": 0.9996522970604989,
         "elements": 2883584,
         "histogram": [
           392922,
@@ -33893,7 +33893,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996509852638624,
+        "cosine_similarity": 0.9996509852633928,
         "elements": 23068672,
         "histogram": [
           2946008,
@@ -34242,7 +34242,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996518938587841,
+        "cosine_similarity": 0.9996518938586669,
         "elements": 23068672,
         "histogram": [
           2847896,
@@ -34940,7 +34940,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996510969719032,
+        "cosine_similarity": 0.9996510969718745,
         "elements": 11534336,
         "histogram": [
           1328902,
@@ -36336,7 +36336,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996512409839137,
+        "cosine_similarity": 0.9996512409839072,
         "elements": 11534336,
         "histogram": [
           1329408,
@@ -37383,7 +37383,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996508509877029,
+        "cosine_similarity": 0.9996508509876993,
         "elements": 5767168,
         "histogram": [
           677194,
@@ -37732,7 +37732,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996507348330272,
+        "cosine_similarity": 0.9996507348329943,
         "elements": 11534336,
         "histogram": [
           1340144,
@@ -38081,7 +38081,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996509765392076,
+        "cosine_similarity": 0.9996509765392053,
         "elements": 11534336,
         "histogram": [
           1391880,
@@ -38779,7 +38779,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996513567235736,
+        "cosine_similarity": 0.999651356723573,
         "elements": 5767168,
         "histogram": [
           682946,
@@ -39128,7 +39128,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996500311338309,
+        "cosine_similarity": 0.9996500311338002,
         "elements": 11534336,
         "histogram": [
           1331640,
@@ -39477,7 +39477,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.99965134775716,
+        "cosine_similarity": 0.9996513477571369,
         "elements": 11534336,
         "histogram": [
           1413404,
@@ -40144,13 +40144,13 @@
     }
   ],
   "memory": {
-    "baseline_rss_bytes": 28368896,
+    "baseline_rss_bytes": 28307456,
     "host_memory_cap_bytes": 7516192768,
     "maximum_header_bytes": 129800,
     "maximum_mapped_window_bytes": 1052636,
     "maximum_tensor_bytes": 1476395008,
     "maximum_transform_row_bytes": 16384,
-    "peak_rss_bytes": 37908480,
+    "peak_rss_bytes": 35471360,
     "staging_buffer_bytes": 1048576
   },
   "milestone": "M05",
@@ -40172,13 +40172,13 @@
       "system": "Linux"
     },
     "protocol": "gem16-fp8-batch-v1",
-    "sha256": "ca0d48d92a76d5e931c19d46a9b0570ea48b37bed77550d3e194f7f740c36c9f",
+    "sha256": "b0f5f85fb4ea75abc7f3bfa78d85508efda0936845f1e6477c647f0a1f1a973f",
     "threads": 8
   },
   "native_runtime": {
-    "child_peak_rss_bytes": 6352896
+    "child_peak_rss_bytes": 6201344
   },
-  "output": "/home/sebastian/Development/gem16gb/build/models/qat-fp8-attention-partial",
+  "output": "/home/sebastian/Development/gem16gb/build/models/qat-fp8-attention-partial-clean-d913881",
   "output_file_count": 4,
   "output_tensor_bytes": 1110850560,
   "output_tensor_count": 230,

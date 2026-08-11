@@ -19,8 +19,8 @@
     "decode_attention_path": "score_softmax_value_reference",
     "decode_graph_device_bytes": 14680064,
     "decode_graphs": true,
-    "decode_ms": 19.2425,
-    "decode_tokens_per_second": 51.9684,
+    "decode_ms": 18.5935,
+    "decode_tokens_per_second": 53.7822,
     "decoding_mode": "greedy",
     "fallbacks": 0,
     "finish_reason": "stop",
@@ -55,7 +55,7 @@
     "logits_dump_steps": 0,
     "logits_dump_vocabulary": 262144,
     "logits_dumped": false,
-    "model_load_ms": 3180.05,
+    "model_load_ms": 5631.11,
     "mtp": {
       "acceptance_path": "disabled",
       "accepted_tokens": 0,
@@ -99,7 +99,7 @@
     "prefill_residual_storage": "physical_bf16",
     "prefill_rope_table": "precomputed_exact_max_context",
     "projection_path": "native_sm120",
-    "prompt_ms": 32.1822,
+    "prompt_ms": 32.1324,
     "sampling": {
       "enabled": false,
       "min_p": 0,

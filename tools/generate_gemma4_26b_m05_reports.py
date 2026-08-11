@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate deterministic retained semantic reports for the M05 diagnostic runs."""
+"""Generate deterministic retained semantic reports for the M05 compiler runs."""
 
 from __future__ import annotations
 
@@ -29,6 +29,8 @@ except ModuleNotFoundError:  # Direct execution from the tools directory.
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_ORDINARY = ROOT / "artifacts/m05/ordinary-compile.json"
 DEFAULT_QAT = ROOT / "artifacts/m05/qat-compile.json"
+DEFAULT_ORDINARY_MANIFEST = ROOT / "artifacts/m05/ordinary-gem16-compilation-clean.json"
+DEFAULT_QAT_MANIFEST = ROOT / "artifacts/m05/qat-gem16-compilation-clean.json"
 DEFAULT_CONFIG = ROOT / "artifacts/m05/fp8-compiler-config.json"
 DEFAULT_ORDINARY_PLAN = ROOT / "benchmarks/goldens/gemma4_26b/fp8/ordinary-compiler-plan.json"
 DEFAULT_QAT_PLAN = ROOT / "benchmarks/goldens/gemma4_26b/fp8/qat-compiler-plan.json"
@@ -218,13 +220,14 @@ def _expected_entries() -> dict[str, tuple[str, tuple[int, int]]]:
 
 def _validate_lane(report: dict[str, Any], report_path: Path, lane: str,
                    expected_lock: str, expected_plan: Path,
+                   retained_manifest_path: Path,
                    config: dict[str, Any]) -> dict[str, Any]:
     _require(report.get("action") == "compile" and report.get("status") == "pass",
              f"{lane} report is not a successful compile")
     _require(report.get("artifact_profile") == M05_PROFILE.name,
              f"{lane} report has the wrong profile")
-    _require(report.get("compiler_dirty") is True,
-             f"{lane} report is not explicitly dirty diagnostic evidence")
+    _require(isinstance(report.get("compiler_dirty"), bool),
+             f"{lane} compiler dirty provenance is not boolean")
     _require(report.get("source_lock_sha256") == expected_lock,
              f"{lane} source lock is not approved")
     compile_report_sha256 = _sha256(report_path)
@@ -233,7 +236,6 @@ def _validate_lane(report: dict[str, Any], report_path: Path, lane: str,
     _hex64(report.get("resolved_plan_sha256"), f"{lane} resolved plan")
     compiler_commit = _hex40(report.get("compiler_commit"), f"{lane} compiler commit")
     compiler_dirty = report.get("compiler_dirty")
-    _require(compiler_dirty is True, f"{lane} compiler dirty provenance is not true")
     _require(report.get("output_tensor_count") == EXPECTED_TENSOR_COUNT and
              report.get("output_tensor_bytes") == EXPECTED_OUTPUT_BYTES,
              f"{lane} output totals are not the exact M05 totals")
@@ -261,7 +263,7 @@ def _validate_lane(report: dict[str, Any], report_path: Path, lane: str,
              f"{lane} plan hash/path mismatch")
     output = report.get("output")
     _require(isinstance(output, str) and output, f"{lane} output path is missing")
-    compilation_manifest = Path(output) / "gem16_compilation.json"
+    compilation_manifest = retained_manifest_path
     compilation_manifest_sha256 = _sha256(compilation_manifest)
     _hex64(report.get("compilation_manifest_sha256"), f"{lane} compilation manifest")
     _hex64(compile_report_sha256, f"{lane} compile report")
@@ -376,6 +378,23 @@ def _provenance_record(lane: dict[str, Any]) -> dict[str, Any]:
     )}
 
 
+def _evidence_class(lanes: dict[str, dict[str, Any]]) -> tuple[str, str]:
+    dirty = lanes["ordinary"]["compiler_dirty"]
+    _require(lanes["qat"]["compiler_dirty"] is dirty,
+             "Ordinary and QAT compiler dirty states differ")
+    if dirty:
+        return (
+            "diagnostic_dirty_worktree",
+            "Compiler provenance records a dirty worktree; this is diagnostic evidence, not release evidence.",
+        )
+    _require(lanes["ordinary"]["compiler_commit"] == lanes["qat"]["compiler_commit"],
+             "clean Ordinary and QAT compiler commits differ")
+    return (
+        "clean_revision_evidence",
+        "Compiler provenance binds both lanes to one clean implementation commit.",
+    )
+
+
 def build_tensor_report(lanes: dict[str, dict[str, Any]], config: dict[str, Any],
                         plan_paths: dict[str, Path], spec_path: Path) -> dict[str, Any]:
     records = _matrix_records(lanes)
@@ -384,9 +403,10 @@ def build_tensor_report(lanes: dict[str, dict[str, Any]], config: dict[str, Any]
                         "weight_elements": 1_110_179_840, "weight_bytes": 1_110_179_840,
                         "scale_elements": 335_360, "scale_bytes": 670_720,
                         "output_tensor_bytes": 1_110_850_560}, "semantic totals do not reconcile")
+    evidence_class, provenance_limitation = _evidence_class(lanes)
     return {
         "schema_version": 1, "report_kind": "m05_fp8_semantic_tensor_report",
-        "status": "pass", "evidence_class": "diagnostic_dirty_worktree",
+        "status": "pass", "evidence_class": evidence_class,
         "artifact_profile": M05_PROFILE.name, "source_contract": M05_SOURCE_CONTRACT,
         "quantizer": {"contract_id": "gem16.fp8_attention_rowwise", "contract_version": 1,
                       "native_protocol": "gem16-fp8-batch-v1", "spec_sha256": _sha256(spec_path)},
@@ -402,7 +422,7 @@ def build_tensor_report(lanes: dict[str, dict[str, Any]], config: dict[str, Any]
         "limitations": [
             "Telemetry summarizes stored weights and row scales only.",
             "No model-quality or QAT attribution claim is made.",
-            "Compiler provenance records a dirty worktree; this is diagnostic evidence, not release evidence.",
+            provenance_limitation,
         ],
         "matrices": records,
     }
@@ -450,9 +470,10 @@ def build_qat_summary(lanes: dict[str, dict[str, Any]], config: dict[str, Any],
     source_min = min(x["source_min"] for x in weights)
     source_max = max(x["source_max"] for x in weights)
     max_error = max(x["max_absolute_error"] for x in weights)
+    evidence_class, provenance_limitation = _evidence_class(lanes)
     return {
         "schema_version": 1, "report_kind": "m05_qat_fp8_summary",
-        "status": "pass", "evidence_class": "diagnostic_dirty_worktree",
+        "status": "pass", "evidence_class": evidence_class,
         "artifact_profile": M05_PROFILE.name, "source_contract": M05_SOURCE_CONTRACT,
         "quantizer": {"contract_id": "gem16.fp8_attention_rowwise", "contract_version": 1,
                       "native_protocol": "gem16-fp8-batch-v1", "spec_sha256": _sha256(spec_path)},
@@ -478,28 +499,37 @@ def build_qat_summary(lanes: dict[str, dict[str, Any]], config: dict[str, Any],
         "limitations": [
             "Telemetry summarizes stored weights and row scales only.",
             "No model-quality or QAT attribution claim is made.",
-            "Compiler provenance records a dirty worktree; this is diagnostic evidence, not release evidence.",
+            provenance_limitation,
         ],
     }
 
 
 def generate(ordinary_path: Path = DEFAULT_ORDINARY, qat_path: Path = DEFAULT_QAT,
              config_path: Path = DEFAULT_CONFIG, ordinary_plan: Path = DEFAULT_ORDINARY_PLAN,
-             qat_plan: Path = DEFAULT_QAT_PLAN, spec_path: Path = DEFAULT_SPEC) -> tuple[dict[str, Any], dict[str, Any]]:
+             qat_plan: Path = DEFAULT_QAT_PLAN, spec_path: Path = DEFAULT_SPEC,
+             ordinary_manifest: Path = DEFAULT_ORDINARY_MANIFEST,
+             qat_manifest: Path = DEFAULT_QAT_MANIFEST) -> tuple[dict[str, Any], dict[str, Any]]:
     config = _load(config_path)
     ordinary = _load(ordinary_path)
     qat = _load(qat_path)
     plan_paths = {"ordinary_bf16": ordinary_plan, "qat_bf16": qat_plan}
     _validate_config(config, spec_path, plan_paths)
     lanes = {
-        "ordinary": _validate_lane(ordinary, ordinary_path, "ordinary",
-                                    M05_SOURCE_LOCK_SHA256["ordinary_bf16"], ordinary_plan, config),
-        "qat": _validate_lane(qat, qat_path, "qat",
-                               M05_SOURCE_LOCK_SHA256["qat_bf16"], qat_plan, config),
+        "ordinary": _validate_lane(
+            ordinary, ordinary_path, "ordinary",
+            M05_SOURCE_LOCK_SHA256["ordinary_bf16"], ordinary_plan,
+            ordinary_manifest, config,
+        ),
+        "qat": _validate_lane(
+            qat, qat_path, "qat",
+            M05_SOURCE_LOCK_SHA256["qat_bf16"], qat_plan,
+            qat_manifest, config,
+        ),
     }
     _require(lanes["ordinary"]["native_hash"] == lanes["qat"]["native_hash"] and
              lanes["ordinary"]["build"] == lanes["qat"]["build"],
              "Ordinary and QAT native identities differ")
+    _evidence_class(lanes)
     return (build_tensor_report(lanes, config, plan_paths, spec_path),
             build_qat_summary(lanes, config, plan_paths, spec_path))
 
@@ -521,6 +551,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--ordinary", type=Path, default=DEFAULT_ORDINARY)
     parser.add_argument("--qat", type=Path, default=DEFAULT_QAT)
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
+    parser.add_argument("--ordinary-manifest", type=Path, default=DEFAULT_ORDINARY_MANIFEST)
+    parser.add_argument("--qat-manifest", type=Path, default=DEFAULT_QAT_MANIFEST)
     parser.add_argument("--ordinary-plan", type=Path, default=DEFAULT_ORDINARY_PLAN)
     parser.add_argument("--qat-plan", type=Path, default=DEFAULT_QAT_PLAN)
     parser.add_argument("--spec", type=Path, default=DEFAULT_SPEC)
@@ -533,8 +565,10 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
-        tensor, summary = generate(args.ordinary, args.qat, args.config, args.ordinary_plan,
-                                   args.qat_plan, args.spec)
+        tensor, summary = generate(
+            args.ordinary, args.qat, args.config, args.ordinary_plan,
+            args.qat_plan, args.spec, args.ordinary_manifest, args.qat_manifest,
+        )
         _write_or_check(args.tensor_report, tensor, args.check)
         _write_or_check(args.qat_summary, summary, args.check)
     except (ReportError, OutputError) as error:

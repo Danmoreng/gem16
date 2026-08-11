@@ -1,0 +1,146 @@
+{
+  "accepted_date": "2026-08-11",
+  "artifact_profile": "fp8-attention-partial-v1",
+  "artifact_status": "m05_fp8_attention_partial_not_runtime_loadable",
+  "boundaries": {
+    "large_tensor_arithmetic": "native_cpp20",
+    "m06_started": false,
+    "python_production_conversion_fallback": false,
+    "real_activation_comparison": "downstream_M12",
+    "runtime_loadable": false
+  },
+  "clean_conversions": {
+    "ordinary_bf16": {
+      "compilation_manifest": {
+        "path": "artifacts/m05/ordinary-gem16-compilation-clean.json",
+        "sha256": "ba368221b50938de08e8f2e3fa3585f383cd4dae772d1dbac611830e63d34d1e"
+      },
+      "compile_report": {
+        "path": "artifacts/m05/ordinary-compile.json",
+        "sha256": "90cd98eeb5eb0ce72c8cca58330816d86eb56eb4bbcaa4148d61674a52a51eb1"
+      },
+      "compiler_plan_sha256": "dcbb2f35220f0f359d186aa31b1a3f2c6e9e8c94c4ba038248848d2f785cff2e",
+      "control_plane_peak_rss_bytes": 38727680,
+      "duration_seconds": 137.780519,
+      "native_child_peak_rss_bytes": 6279168,
+      "output_tensor_bytes": 1110850560,
+      "output_tensor_count": 230,
+      "source_lock_sha256": "1932b06d568ce8c72f3d2013d39ffd15dd61d37732638c2013f2220eb177a620"
+    },
+    "qat_bf16": {
+      "compilation_manifest": {
+        "path": "artifacts/m05/qat-gem16-compilation-clean.json",
+        "sha256": "f11bce2907d133a561573ff41c52173033c748c548ad7e777a7fdd8a2c00df94"
+      },
+      "compile_report": {
+        "path": "artifacts/m05/qat-compile.json",
+        "sha256": "b3c4006e26dfcdc0e1d86b4982b2087edf447880ed65df5b5e901e43ec4ea182"
+      },
+      "compiler_plan_sha256": "4854475c6412254cde87010630e301aaf38af9eee2ee639586c74eb645ecdd7b",
+      "control_plane_peak_rss_bytes": 35471360,
+      "duration_seconds": 155.516982,
+      "native_child_peak_rss_bytes": 6201344,
+      "output_tensor_bytes": 1110850560,
+      "output_tensor_count": 230,
+      "source_lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230"
+    }
+  },
+  "determinism": {
+    "full_conversion_repeated_solely_for_reproducibility": false,
+    "native_threads_1_vs_4_fixture_identity": true,
+    "ordinary_clean_payload_matches_post_review_diagnostic": true,
+    "qat_clean_payload_matches_diagnostic": true
+  },
+  "evidence_class": "clean_revision_evidence",
+  "gates": {
+    "blackwell_release_ctest": {
+      "passed": 2,
+      "total": 2
+    },
+    "diff_check": true,
+    "host_debug_ctest": {
+      "passed": 1,
+      "total": 1
+    },
+    "host_sanitize_ctest": {
+      "passed": 1,
+      "total": 1
+    },
+    "plan_integrity": true,
+    "python": {
+      "passed": 147,
+      "total": 147
+    },
+    "report_integrity": true
+  },
+  "implementation": {
+    "branch": "feat/gemma4-26b",
+    "commit": "d91388113d68974f9ab7cec1a90ef768285c0645",
+    "compiler_dirty": false,
+    "native_encoder": {
+      "build": {
+        "build_type": "Release",
+        "compiler_id": "GNU",
+        "compiler_version": "16.1.1",
+        "cxx_standard": "20",
+        "processor": "x86_64",
+        "system": "Linux"
+      },
+      "protocol": "gem16-fp8-batch-v1",
+      "sha256": "b0f5f85fb4ea75abc7f3bfa78d85508efda0936845f1e6477c647f0a1f1a973f",
+      "threads": 8
+    }
+  },
+  "milestone": "M05",
+  "ordinary_vs_unsloth": {
+    "cosine_similarity": 0.9998753477506377,
+    "elements": 1110179840,
+    "matrix_count": 115,
+    "max_absolute_error": 0.055419921875,
+    "path": "artifacts/m05/ordinary-vs-unsloth-fp8.json",
+    "quality_claim": "none; stored weights and row scales only",
+    "raw_mismatch_rate": 0.02980192560513439,
+    "relative_l2": 0.015792460337879278,
+    "scale_mismatch_count": 0,
+    "sha256": "cc3cc415f114c9a6f578d0e195543becd1c4661de7ae1176d85f496922f8672d",
+    "sqnr_db": 36.03100410290244
+  },
+  "schema_version": 1,
+  "semantic_reports": {
+    "fp8_tensor_report": {
+      "path": "artifacts/m05/fp8-tensor-report.json",
+      "sha256": "57aa4cef9d3c0ad705f80b0fe101c93a440ae04585c172dc685ac287dd94879e"
+    },
+    "qat_summary": {
+      "path": "artifacts/m05/qat-fp8-summary.json",
+      "sha256": "fd8679212b44fe75248e082a7c1fff9d850655047695b7e91d04b27abab51d8a"
+    }
+  },
+  "status": "accepted",
+  "twelve_b_regression": {
+    "fallbacks": 0,
+    "output_token_ids": [
+      9503,
+      106
+    ],
+    "path": "artifacts/m05/12b-validation.json",
+    "projection_path": "native_sm120",
+    "sha256": "a588b865e981b40c57841495e8c50f886796693923ccb1953aec89df4375e7f8",
+    "status": "ok",
+    "weight_arena_bytes": 9304895488
+  },
+  "verification": {
+    "ordinary": {
+      "path": "artifacts/m05/ordinary-verify.json",
+      "sha256": "4c58b9bff1b4e4db1d9006dafd75b46c99f55c4cac9924cda483d49288d6637e",
+      "status": "pass",
+      "transformation_recomputed": false
+    },
+    "qat": {
+      "path": "artifacts/m05/qat-verify.json",
+      "sha256": "ba85efcae90933c6cc38970bdd9a9325adcae327ca757598047f5e97a0d50d36",
+      "status": "pass",
+      "transformation_recomputed": false
+    }
+  }
+}

@@ -1,12 +1,10 @@
 # Gemma 4 26B A4B experimental track
 
-Status: M00-M04 accepted; M05 current/in progress under owner authorization. The native C++20 implementation, exact
-Ordinary/QAT plans, short throughput probe, one diagnostic full run per source, structural verification and
-weight-only comparison are retained in the [M05 diagnostic evidence](evidence/gemma4_26b/m05-native-fp8-implementation-and-diagnostic-runs-2026-08-11.md).
-All currently retained M05 compiler artifacts record `compiler_dirty=true`, so they are diagnostic evidence and not
-an accepted M05 gate. The owner has authorized the implementation commit and clean-revision evidence runs. Remaining
-gates are that clean build, one clean Ordinary plus one clean QAT run, final verification/review and final
-hashes/status. No production 26B runtime execution exists. The initial state remains in the [M05 kickoff](evidence/gemma4_26b/m05-kickoff-2026-08-11.md) and the version-scoped
+Status: M00-M05 accepted. M05's native C++20 encoder/comparator, exact Ordinary/QAT plans, clean full conversion per
+source, structural verification, complete hashes, weight-only comparison and exact 12B regression are retained in
+[M05 acceptance](evidence/gemma4_26b/m05-fp8-attention-compiler-acceptance-2026-08-11.md). The partial artifact is
+non-runtime-loadable and makes no model-quality claim. M06 is dependency-unblocked but not started. No production 26B
+runtime execution exists. The initial state remains in the [M05 kickoff](evidence/gemma4_26b/m05-kickoff-2026-08-11.md) and the version-scoped
 [llama.cpp research](evidence/gemma4_26b/m05-llama-cpp-converter-research-2026-08-11.md).
 
 Production hypothesis: `gem16-gemma4-26b-a4b-qat-hybrid-text`
@@ -211,23 +209,23 @@ batching, broad dispatch, general executors and host expert offload are rejected
   source/external/compiled contracts, canonical inventories, mutation tests and direct 32K CUDA admission pass.
 - M04: accepted by the project owner on 2026-08-11 at implementation commit
   `edd80cb6adae6d441924098870ceca9b4b1248d5`; 12 compiler tests, 95 Python tests, host/sanitizer/CUDA gates,
-  clean reproducibility and 12B regression pass. M05 is now current/in progress after the owner explicitly
-  superseded the prior pause on 2026-08-11. The native C++20 batch implementation, exact 115-matrix plans, short
-  probe, one diagnostic full run per source, structural verification and weight-only comparison are retained in
-  [M05 diagnostic evidence](evidence/gemma4_26b/m05-native-fp8-implementation-and-diagnostic-runs-2026-08-11.md).
-  All current M05 compiler artifacts are dirty-worktree diagnostics; independent final review, final hashes/status and clean-revision
-  release runs remain outstanding. The M05 partial artifact is non-runtime-loadable. Standalone M05 verification is
-  structural/hash/source-lock-only,
-  does not reconvert and records `transformation_recomputed=false` until M08's external lock. M06+ remain
-  dependency-gated; derived-artifact distribution approval remains separate.
-- M05 kickoff: deterministic bounded host BF16-to-E4M3FN attention Q/K/V/O encoding with BF16 `[N,1]` row scales,
+  clean reproducibility and 12B regression pass.
+- M05: accepted by the project owner on 2026-08-11 at implementation commit
+  `d91388113d68974f9ab7cec1a90ef768285c0645`. The versioned native C++20 batch encoder/comparator, exact
+  115-matrix plans, clean full Ordinary and QAT runs, structural verification, complete hashes, weight-only
+  comparison and regression gates pass. [M05 acceptance](evidence/gemma4_26b/m05-fp8-attention-compiler-acceptance-2026-08-11.md)
+  is authoritative; earlier dirty runs remain diagnostic history. The M05 partial artifact is non-runtime-loadable.
+  Standalone verification does not reconvert and records `transformation_recomputed=false` until M08's external lock.
+  M06 is dependency-unblocked but not started; derived-artifact distribution approval remains separate.
+- M05 contract: deterministic bounded host BF16-to-E4M3FN attention Q/K/V/O encoding with BF16 `[N,1]` row scales,
   reports, tests and comparisons only. The canonical representation is F8_E4M3 `[N,K]` plus BF16 `[N,1]`, using
   deterministic rowwise max-abs v1, round-to-nearest ties-even, finite saturation, NaN/Inf rejection and an all-zero
-  scale of `1.0`. M06+ remain dependency-gated; runtime activation/accumulation changes, 26B execution and the
+  scale of `1.0`. Runtime activation/accumulation changes, 26B execution and the
   first complete direct-load artifact remain downstream work.
 
-Current kickoff and diagnostic evidence:
+Current acceptance and historical evidence:
 
+- [M05 clean acceptance](evidence/gemma4_26b/m05-fp8-attention-compiler-acceptance-2026-08-11.md)
 - [M05 kickoff and drift record](evidence/gemma4_26b/m05-kickoff-2026-08-11.md)
 - [M05 native implementation and diagnostic runs](evidence/gemma4_26b/m05-native-fp8-implementation-and-diagnostic-runs-2026-08-11.md)
 - M01 adds source locks, offline tooling and compact reference evidence only; no 26B compiler, runtime or CUDA path

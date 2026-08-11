@@ -1,5 +1,33 @@
 # Decisions
 
+## 2026-08-11: Accept the native M05 FP8 attention compiler
+
+Date: 2026-08-11
+
+Owner acceptance: accepted after authorizing implementation commit `d91388113d68974f9ab7cec1a90ef768285c0645`,
+clean-revision full conversions, documentation and publication.
+
+Decision: Accept M05's deterministic attention-only checkpoint-compiler stage. Python remains the strict control
+plane and small oracle; `gem16-fp8-compiler` is the promoted C++20 data plane for all BF16-to-E4M3FN arithmetic, and
+the native comparator owns the billion-element Ordinary-versus-Unsloth pass. The accepted logical representation is
+F8_E4M3 `[N,K]` plus BF16 row scales `[N,1]`, with exact source/plan/native/toolchain/output provenance, bounded
+memory, descriptor-bound I/O, deterministic explicit threads and no Python production fallback.
+
+Clean Ordinary and QAT conversions at the implementation commit each emit exactly 115 matrices, 230 tensors and
+1,110,850,560 tensor bytes. Their compilation-manifest SHA-256 values are
+`ba368221b50938de08e8f2e3fa3585f383cd4dae772d1dbac611830e63d34d1e` and
+`f11bce2907d133a561573ff41c52173033c748c548ad7e777a7fdd8a2c00df94`. Structural verification records
+`transformation_recomputed=false`; complete payload hashes, semantic reports, native comparison, host/sanitizer/CUDA
+gates and exact 12B output `[9503,106]` pass.
+
+Consequences: M00-M05 are accepted. M05 artifacts remain partial and explicitly non-runtime-loadable; M08 still owns
+the complete immutable artifact and external lock. Stored-weight comparison is not activation evidence, quality
+qualification or QAT attribution; real-activation comparison remains downstream M12. M06 is dependency-unblocked
+but not started. No 26B runtime path, model-quality claim, precision fallback, CPU offload or 12B behavior change is
+accepted by this decision.
+
+Evidence: [M05 acceptance](evidence/gemma4_26b/m05-fp8-attention-compiler-acceptance-2026-08-11.md).
+
 ## 2026-08-11: Use one hybrid control-plane/native-data-plane checkpoint compiler family
 
 Date: 2026-08-11

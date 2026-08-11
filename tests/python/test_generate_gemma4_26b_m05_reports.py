@@ -21,7 +21,7 @@ from tools.gem16_compile.common import canonical_json_bytes
 class M05RetainedReportsTest(unittest.TestCase):
     def test_checked_inputs_generate_current_reports_and_reconcile(self) -> None:
         tensor, summary = generate()
-        self.assertEqual(tensor["evidence_class"], "diagnostic_dirty_worktree")
+        self.assertEqual(tensor["evidence_class"], "clean_revision_evidence")
         self.assertEqual(tensor["totals"]["matrix_count"], 115)
         self.assertEqual(tensor["totals"]["output_tensor_count"], 230)
         self.assertEqual(summary["aggregate_qat"]["histogram_sum"], 1_110_179_840)
@@ -33,7 +33,7 @@ class M05RetainedReportsTest(unittest.TestCase):
         for record in (tensor["sources"]["ordinary_bf16"],
                        tensor["sources"]["qat_bf16"], summary["source"]):
             self.assertEqual(set(record), expected_provenance)
-            self.assertTrue(record["compiler_dirty"])
+            self.assertFalse(record["compiler_dirty"])
             self.assertRegex(record["compiler_commit"], r"^[0-9a-f]{40}$")
             for key, value in record.items():
                 if key.endswith("sha256"):
@@ -42,7 +42,7 @@ class M05RetainedReportsTest(unittest.TestCase):
             summary["limitations"], [
                 "Telemetry summarizes stored weights and row scales only.",
                 "No model-quality or QAT attribution claim is made.",
-                "Compiler provenance records a dirty worktree; this is diagnostic evidence, not release evidence.",
+                "Compiler provenance binds both lanes to one clean implementation commit.",
             ]
         )
         self.assertEqual(sum(summary["aggregate_qat"]["histogram"]),

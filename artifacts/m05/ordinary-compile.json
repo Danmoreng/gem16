@@ -1,11 +1,11 @@
 {
   "action": "compile",
   "artifact_profile": "fp8-attention-partial-v1",
-  "compilation_manifest_sha256": "a283dbd41b4342226a19e4917acacde58fec0c8bd5286b4bc0453c27172ab56c",
-  "compiler_commit": "a061c045c5b77b8612ac029cf18dfc6b4a660001",
-  "compiler_dirty": true,
+  "compilation_manifest_sha256": "ba368221b50938de08e8f2e3fa3585f383cd4dae772d1dbac611830e63d34d1e",
+  "compiler_commit": "d91388113d68974f9ab7cec1a90ef768285c0645",
+  "compiler_dirty": false,
   "compiler_manifest_sha256": "dcbb2f35220f0f359d186aa31b1a3f2c6e9e8c94c4ba038248848d2f785cff2e",
-  "duration_seconds": 186.068324,
+  "duration_seconds": 137.780519,
   "fp8_tensor_statistics": [
     {
       "logical_dtype": "BF16",
@@ -40,7 +40,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996496188517084,
+        "cosine_similarity": 0.9996496188512773,
         "elements": 5767168,
         "histogram": [
           21,
@@ -302,7 +302,7 @@
         ],
         "max_absolute_error": 0.01220703125,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026469601309108026,
+        "relative_l2_error": 0.026469601309107166,
         "rows": 2048,
         "saturation_count": 865,
         "saturation_rate": 0.00014998696067116478,
@@ -310,8 +310,8 @@
         "scale_min": 0.0001316070556640625,
         "source_max": 0.33984375,
         "source_min": -0.353515625,
-        "source_rms": 0.03241478832389407,
-        "sqnr_db": 31.545052001746644,
+        "source_rms": 0.03241478832389556,
+        "sqnr_db": 31.545052001746924,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -389,7 +389,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996506603333146,
+        "cosine_similarity": 0.9996506603321363,
         "elements": 11534336,
         "histogram": [
           43,
@@ -651,7 +651,7 @@
         ],
         "max_absolute_error": 0.01708984375,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026430244711948457,
+        "relative_l2_error": 0.02643024471194616,
         "rows": 2816,
         "saturation_count": 1161,
         "saturation_rate": 0.0001006559892134233,
@@ -659,8 +659,8 @@
         "scale_min": 0.00017833709716796875,
         "source_max": 0.47265625,
         "source_min": -0.482421875,
-        "source_rms": 0.02710256455997939,
-        "sqnr_db": 31.557976316210386,
+        "source_rms": 0.027102564559982598,
+        "sqnr_db": 31.55797631621114,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -738,7 +738,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996506359588675,
+        "cosine_similarity": 0.9996506359569307,
         "elements": 11534336,
         "histogram": [
           52,
@@ -1000,7 +1000,7 @@
         ],
         "max_absolute_error": 0.017822265625,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.0264311626491657,
+        "relative_l2_error": 0.02643116264916078,
         "rows": 4096,
         "saturation_count": 1764,
         "saturation_rate": 0.00015293468128551137,
@@ -1008,8 +1008,8 @@
         "scale_min": 7.772445678710938e-05,
         "source_max": 0.49609375,
         "source_min": -0.50390625,
-        "source_rms": 0.029881231883313115,
-        "sqnr_db": 31.557674655631807,
+        "source_rms": 0.029881231883319426,
+        "sqnr_db": 31.557674655633427,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -1087,7 +1087,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996506478190176,
+        "cosine_similarity": 0.9996506478186337,
         "elements": 5767168,
         "histogram": [
           13,
@@ -1349,7 +1349,7 @@
         ],
         "max_absolute_error": 0.019287109375,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.02643071060247835,
+        "relative_l2_error": 0.026430710602477463,
         "rows": 2048,
         "saturation_count": 902,
         "saturation_rate": 0.000156402587890625,
@@ -1357,8 +1357,8 @@
         "scale_min": 0.00017070770263671875,
         "source_max": 0.58984375,
         "source_min": -0.515625,
-        "source_rms": 0.0325577747811667,
-        "sqnr_db": 31.55782320986934,
+        "source_rms": 0.032557774781168274,
+        "sqnr_db": 31.557823209869632,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -1436,7 +1436,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996510450456244,
+        "cosine_similarity": 0.9996510450451562,
         "elements": 5767168,
         "histogram": [
           22,
@@ -1698,7 +1698,7 @@
         ],
         "max_absolute_error": 0.01513671875,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026415725143170376,
+        "relative_l2_error": 0.02641572514316945,
         "rows": 2048,
         "saturation_count": 906,
         "saturation_rate": 0.00015709616921164772,
@@ -1706,8 +1706,8 @@
         "scale_min": 0.00010967254638671875,
         "source_max": 0.435546875,
         "source_min": -0.396484375,
-        "source_rms": 0.03190513402337279,
-        "sqnr_db": 31.562749258234835,
+        "source_rms": 0.031905134023374374,
+        "sqnr_db": 31.56274925823514,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -1785,7 +1785,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996501349322338,
+        "cosine_similarity": 0.999650134930683,
         "elements": 11534336,
         "histogram": [
           56,
@@ -2047,7 +2047,7 @@
         ],
         "max_absolute_error": 0.0135498046875,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.02645010558491846,
+        "relative_l2_error": 0.02645010558491491,
         "rows": 2816,
         "saturation_count": 1240,
         "saturation_rate": 0.00010750510475852273,
@@ -2055,8 +2055,8 @@
         "scale_min": 0.00011539459228515625,
         "source_max": 0.404296875,
         "source_min": -0.3828125,
-        "source_rms": 0.028223592696017027,
-        "sqnr_db": 31.551451799716975,
+        "source_rms": 0.028223592696021593,
+        "sqnr_db": 31.551451799718144,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -2134,7 +2134,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.999651639901389,
+        "cosine_similarity": 0.999651639899251,
         "elements": 11534336,
         "histogram": [
           46,
@@ -2396,7 +2396,7 @@
         ],
         "max_absolute_error": 0.01708984375,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026393163229445876,
+        "relative_l2_error": 0.026393163229440395,
         "rows": 4096,
         "saturation_count": 1777,
         "saturation_rate": 0.00015406175093217328,
@@ -2404,8 +2404,8 @@
         "scale_min": 0.00013637542724609375,
         "source_max": 0.494140625,
         "source_min": -0.51953125,
-        "source_rms": 0.03022904064510077,
-        "sqnr_db": 31.570171126431546,
+        "source_rms": 0.03022904064510769,
+        "sqnr_db": 31.570171126433348,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -2483,7 +2483,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996502930623562,
+        "cosine_similarity": 0.9996502930619992,
         "elements": 5767168,
         "histogram": [
           27,
@@ -2745,7 +2745,7 @@
         ],
         "max_absolute_error": 0.02197265625,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.02644412422986547,
+        "relative_l2_error": 0.026444124229864658,
         "rows": 2048,
         "saturation_count": 872,
         "saturation_rate": 0.00015120072798295453,
@@ -2753,8 +2753,8 @@
         "scale_min": 0.00015926361083984375,
         "source_max": 0.6484375,
         "source_min": -0.4921875,
-        "source_rms": 0.03339169263694923,
-        "sqnr_db": 31.553416225336925,
+        "source_rms": 0.03339169263695067,
+        "sqnr_db": 31.55341622533719,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -2832,7 +2832,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996520411883065,
+        "cosine_similarity": 0.9996520411877398,
         "elements": 5767168,
         "histogram": [
           23,
@@ -3094,7 +3094,7 @@
         ],
         "max_absolute_error": 0.013916015625,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.02637798325569279,
+        "relative_l2_error": 0.02637798325569183,
         "rows": 2048,
         "saturation_count": 900,
         "saturation_rate": 0.00015605579723011363,
@@ -3102,8 +3102,8 @@
         "scale_min": 6.151199340820312e-05,
         "source_max": 0.390625,
         "source_min": -0.380859375,
-        "source_rms": 0.030225915845435766,
-        "sqnr_db": 31.57516823523614,
+        "source_rms": 0.03022591584543753,
+        "sqnr_db": 31.57516823523646,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -3181,7 +3181,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996497507366143,
+        "cosine_similarity": 0.9996497507346801,
         "elements": 11534336,
         "histogram": [
           53,
@@ -3443,7 +3443,7 @@
         ],
         "max_absolute_error": 0.0205078125,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.02646461519473228,
+        "relative_l2_error": 0.026464615194727308,
         "rows": 2816,
         "saturation_count": 1233,
         "saturation_rate": 0.00010689822110262784,
@@ -3451,8 +3451,8 @@
         "scale_min": 0.00014591217041015625,
         "source_max": 0.58203125,
         "source_min": -0.52734375,
-        "source_rms": 0.033181027268004586,
-        "sqnr_db": 31.546688328575637,
+        "source_rms": 0.03318102726801196,
+        "sqnr_db": 31.54668832857727,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -3530,7 +3530,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996511001597103,
+        "cosine_similarity": 0.9996511001578872,
         "elements": 11534336,
         "histogram": [
           52,
@@ -3792,7 +3792,7 @@
         ],
         "max_absolute_error": 0.016845703125,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026413594121112514,
+        "relative_l2_error": 0.026413594121107806,
         "rows": 4096,
         "saturation_count": 1783,
         "saturation_rate": 0.00015458193692294034,
@@ -3800,8 +3800,8 @@
         "scale_min": 6.4849853515625e-05,
         "source_max": 0.439453125,
         "source_min": -0.4765625,
-        "source_rms": 0.030915287515760146,
-        "sqnr_db": 31.56344999875842,
+        "source_rms": 0.030915287515766308,
+        "sqnr_db": 31.56344999875997,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -3879,7 +3879,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996513697282087,
+        "cosine_similarity": 0.9996513697277186,
         "elements": 5767168,
         "histogram": [
           31,
@@ -4141,7 +4141,7 @@
         ],
         "max_absolute_error": 0.018798828125,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.02640339089044089,
+        "relative_l2_error": 0.02640339089043998,
         "rows": 2048,
         "saturation_count": 950,
         "saturation_rate": 0.00016472556374289772,
@@ -4149,8 +4149,8 @@
         "scale_min": 0.0001926422119140625,
         "source_max": 0.4609375,
         "source_min": -0.53515625,
-        "source_rms": 0.03268592329370095,
-        "sqnr_db": 31.566805894088247,
+        "source_rms": 0.03268592329370265,
+        "sqnr_db": 31.566805894088542,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -4228,7 +4228,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996512390037156,
+        "cosine_similarity": 0.999651239003505,
         "elements": 2883584,
         "histogram": [
           12,
@@ -4490,7 +4490,7 @@
         ],
         "max_absolute_error": 0.0106201171875,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026408356792528304,
+        "relative_l2_error": 0.026408356792527694,
         "rows": 1024,
         "saturation_count": 456,
         "saturation_rate": 0.0001581365411931818,
@@ -4498,8 +4498,8 @@
         "scale_min": 1.3053417205810547e-05,
         "source_max": 0.294921875,
         "source_min": -0.298828125,
-        "source_rms": 0.03115061504183892,
-        "sqnr_db": 31.565172421252967,
+        "source_rms": 0.03115061504183973,
+        "sqnr_db": 31.565172421253166,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -4577,7 +4577,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996498507438121,
+        "cosine_similarity": 0.9996498507390441,
         "elements": 23068672,
         "histogram": [
           145,
@@ -4839,7 +4839,7 @@
         ],
         "max_absolute_error": 0.025634765625,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.02646083912610194,
+        "relative_l2_error": 0.026460839126092265,
         "rows": 2816,
         "saturation_count": 1247,
         "saturation_rate": 5.4055994207208805e-05,
@@ -4847,8 +4847,8 @@
         "scale_min": 0.00017833709716796875,
         "source_max": 0.76171875,
         "source_min": -0.75,
-        "source_rms": 0.029627833493827267,
-        "sqnr_db": 31.547927751679907,
+        "source_rms": 0.029627833493842737,
+        "sqnr_db": 31.547927751683083,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -4926,7 +4926,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996511144894231,
+        "cosine_similarity": 0.9996511144854807,
         "elements": 23068672,
         "histogram": [
           97,
@@ -5188,7 +5188,7 @@
         ],
         "max_absolute_error": 0.01806640625,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.02641305277170597,
+        "relative_l2_error": 0.026413052771698104,
         "rows": 8192,
         "saturation_count": 3552,
         "saturation_rate": 0.00015397505326704547,
@@ -5196,8 +5196,8 @@
         "scale_min": 2.7894973754882812e-05,
         "source_max": 0.5,
         "source_min": -0.52734375,
-        "source_rms": 0.03272851595623756,
-        "sqnr_db": 31.56362801880995,
+        "source_rms": 0.032728515956251675,
+        "sqnr_db": 31.563628018812537,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -5275,7 +5275,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996510156058817,
+        "cosine_similarity": 0.9996510156053103,
         "elements": 5767168,
         "histogram": [
           23,
@@ -5537,7 +5537,7 @@
         ],
         "max_absolute_error": 0.011474609375,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026416794074409333,
+        "relative_l2_error": 0.02641679407440825,
         "rows": 2048,
         "saturation_count": 873,
         "saturation_rate": 0.00015137412331321022,
@@ -5545,8 +5545,8 @@
         "scale_min": 1.9311904907226562e-05,
         "source_max": 0.32421875,
         "source_min": -0.3515625,
-        "source_rms": 0.030504060646635286,
-        "sqnr_db": 31.562397784600375,
+        "source_rms": 0.030504060646637157,
+        "sqnr_db": 31.56239778460073,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -5624,7 +5624,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996504900786578,
+        "cosine_similarity": 0.9996504900768721,
         "elements": 11534336,
         "histogram": [
           52,
@@ -5886,7 +5886,7 @@
         ],
         "max_absolute_error": 0.015380859375,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.02643671119915454,
+        "relative_l2_error": 0.026436711199149726,
         "rows": 2816,
         "saturation_count": 1222,
         "saturation_rate": 0.0001059445467862216,
@@ -5894,8 +5894,8 @@
         "scale_min": 0.00015163421630859375,
         "source_max": 0.43359375,
         "source_min": -0.423828125,
-        "source_rms": 0.030397311545349883,
-        "sqnr_db": 31.555851465496737,
+        "source_rms": 0.03039731154535606,
+        "sqnr_db": 31.555851465498318,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -5973,7 +5973,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996508187069177,
+        "cosine_similarity": 0.9996508187048884,
         "elements": 11534336,
         "histogram": [
           48,
@@ -6235,7 +6235,7 @@
         ],
         "max_absolute_error": 0.016357421875,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.02642424896688983,
+        "relative_l2_error": 0.026424248966884625,
         "rows": 4096,
         "saturation_count": 1785,
         "saturation_rate": 0.00015475533225319603,
@@ -6243,8 +6243,8 @@
         "scale_min": 4.0531158447265625e-05,
         "source_max": 0.4765625,
         "source_min": -0.4453125,
-        "source_rms": 0.030680170064171234,
-        "sqnr_db": 31.559946948278757,
+        "source_rms": 0.030680170064177944,
+        "sqnr_db": 31.55994694828047,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -6322,7 +6322,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996507922047709,
+        "cosine_similarity": 0.9996507922043326,
         "elements": 5767168,
         "histogram": [
           21,
@@ -6584,7 +6584,7 @@
         ],
         "max_absolute_error": 0.0146484375,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026425246680504038,
+        "relative_l2_error": 0.02642524668050304,
         "rows": 2048,
         "saturation_count": 902,
         "saturation_rate": 0.000156402587890625,
@@ -6592,8 +6592,8 @@
         "scale_min": 0.00018215179443359375,
         "source_max": 0.421875,
         "source_min": -0.37890625,
-        "source_rms": 0.03135869029183579,
-        "sqnr_db": 31.5596189969809,
+        "source_rms": 0.03135869029183751,
+        "sqnr_db": 31.55961899698123,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -6671,7 +6671,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996514149656394,
+        "cosine_similarity": 0.9996514149649619,
         "elements": 5767168,
         "histogram": [
           16,
@@ -6933,7 +6933,7 @@
         ],
         "max_absolute_error": 0.013916015625,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026401678917525394,
+        "relative_l2_error": 0.026401678917524117,
         "rows": 2048,
         "saturation_count": 894,
         "saturation_rate": 0.00015501542524857953,
@@ -6941,8 +6941,8 @@
         "scale_min": 1.5854835510253906e-05,
         "source_max": 0.38671875,
         "source_min": -0.400390625,
-        "source_rms": 0.02956109939335087,
-        "sqnr_db": 31.567369097881617,
+        "source_rms": 0.029561099393352996,
+        "sqnr_db": 31.56736909788204,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -7020,7 +7020,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.999650732915193,
+        "cosine_similarity": 0.9996507329132607,
         "elements": 11534336,
         "histogram": [
           42,
@@ -7282,7 +7282,7 @@
         ],
         "max_absolute_error": 0.0166015625,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026427504181805495,
+        "relative_l2_error": 0.02642750418180025,
         "rows": 2816,
         "saturation_count": 1205,
         "saturation_rate": 0.0001044706864790483,
@@ -7290,8 +7290,8 @@
         "scale_min": 0.00016307830810546875,
         "source_max": 0.55078125,
         "source_min": -0.53125,
-        "source_rms": 0.031423948045640554,
-        "sqnr_db": 31.55887699559576,
+        "source_rms": 0.031423948045647423,
+        "sqnr_db": 31.558876995597483,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -7369,7 +7369,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996501194044315,
+        "cosine_similarity": 0.9996501194022827,
         "elements": 11534336,
         "histogram": [
           49,
@@ -7631,7 +7631,7 @@
         ],
         "max_absolute_error": 0.0146484375,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026450693016742636,
+        "relative_l2_error": 0.02645069301673745,
         "rows": 4096,
         "saturation_count": 1789,
         "saturation_rate": 0.00015510212291370738,
@@ -7639,8 +7639,8 @@
         "scale_min": 4.410743713378906e-05,
         "source_max": 0.4453125,
         "source_min": -0.365234375,
-        "source_rms": 0.030373028169889776,
-        "sqnr_db": 31.551258896466756,
+        "source_rms": 0.03037302816989653,
+        "sqnr_db": 31.551258896468454,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -7718,7 +7718,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996502856412722,
+        "cosine_similarity": 0.9996502856408174,
         "elements": 5767168,
         "histogram": [
           25,
@@ -7980,7 +7980,7 @@
         ],
         "max_absolute_error": 0.017578125,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026444532249990122,
+        "relative_l2_error": 0.02644453224998913,
         "rows": 2048,
         "saturation_count": 891,
         "saturation_rate": 0.0001544952392578125,
@@ -7988,8 +7988,8 @@
         "scale_min": 0.00019741058349609375,
         "source_max": 0.50390625,
         "source_min": -0.408203125,
-        "source_rms": 0.031054108075434458,
-        "sqnr_db": 31.553282207269206,
+        "source_rms": 0.031054108075436133,
+        "sqnr_db": 31.553282207269532,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -8067,7 +8067,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996516439071564,
+        "cosine_similarity": 0.9996516439065486,
         "elements": 5767168,
         "histogram": [
           23,
@@ -8329,7 +8329,7 @@
         ],
         "max_absolute_error": 0.0137939453125,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026393007886100352,
+        "relative_l2_error": 0.026393007886099072,
         "rows": 2048,
         "saturation_count": 930,
         "saturation_rate": 0.0001612576571377841,
@@ -8337,8 +8337,8 @@
         "scale_min": 1.0669231414794922e-05,
         "source_max": 0.39453125,
         "source_min": -0.396484375,
-        "source_rms": 0.029701162975097742,
-        "sqnr_db": 31.57022224948619,
+        "source_rms": 0.029701162975099792,
+        "sqnr_db": 31.570222249486612,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -8416,7 +8416,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996500270891244,
+        "cosine_similarity": 0.999650027087154,
         "elements": 11534336,
         "histogram": [
           56,
@@ -8678,7 +8678,7 @@
         ],
         "max_absolute_error": 0.015625,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.02645417445603015,
+        "relative_l2_error": 0.026454174456024746,
         "rows": 2816,
         "saturation_count": 1240,
         "saturation_rate": 0.00010750510475852273,
@@ -8686,8 +8686,8 @@
         "scale_min": 0.00016880035400390625,
         "source_max": 0.55859375,
         "source_min": -0.412109375,
-        "source_rms": 0.031535140391427456,
-        "sqnr_db": 31.550115735206887,
+        "source_rms": 0.031535140391434555,
+        "sqnr_db": 31.55011573520866,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -8765,7 +8765,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996503942495503,
+        "cosine_similarity": 0.9996503942472589,
         "elements": 11534336,
         "histogram": [
           35,
@@ -9027,7 +9027,7 @@
         ],
         "max_absolute_error": 0.015380859375,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026440300367210696,
+        "relative_l2_error": 0.026440300367204714,
         "rows": 4096,
         "saturation_count": 1774,
         "saturation_rate": 0.00015380165793678978,
@@ -9035,8 +9035,8 @@
         "scale_min": 4.7206878662109375e-05,
         "source_max": 0.4296875,
         "source_min": -0.43359375,
-        "source_rms": 0.030575167095274546,
-        "sqnr_db": 31.554672309687714,
+        "source_rms": 0.030575167095282407,
+        "sqnr_db": 31.55467230968968,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -9114,7 +9114,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996507826723011,
+        "cosine_similarity": 0.9996507826718434,
         "elements": 5767168,
         "histogram": [
           21,
@@ -9376,7 +9376,7 @@
         ],
         "max_absolute_error": 0.014892578125,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026425616219719707,
+        "relative_l2_error": 0.026425616219718714,
         "rows": 2048,
         "saturation_count": 887,
         "saturation_rate": 0.00015380165793678978,
@@ -9384,8 +9384,8 @@
         "scale_min": 0.00020313262939453125,
         "source_max": 0.42578125,
         "source_min": -0.376953125,
-        "source_rms": 0.032077550107087016,
-        "sqnr_db": 31.55949753153386,
+        "source_rms": 0.03207755010708869,
+        "sqnr_db": 31.559497531534184,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -9463,7 +9463,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996506777531579,
+        "cosine_similarity": 0.9996506777524248,
         "elements": 5767168,
         "histogram": [
           25,
@@ -9725,7 +9725,7 @@
         ],
         "max_absolute_error": 0.0111083984375,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026429576145138054,
+        "relative_l2_error": 0.0264295761451367,
         "rows": 2048,
         "saturation_count": 863,
         "saturation_rate": 0.0001496401700106534,
@@ -9733,8 +9733,8 @@
         "scale_min": 9.834766387939453e-06,
         "source_max": 0.32421875,
         "source_min": -0.31640625,
-        "source_rms": 0.028178757937621188,
-        "sqnr_db": 31.55819603309315,
+        "source_rms": 0.028178757937623256,
+        "sqnr_db": 31.558196033093594,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -9812,7 +9812,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996504117052263,
+        "cosine_similarity": 0.9996504117037787,
         "elements": 11534336,
         "histogram": [
           40,
@@ -10074,7 +10074,7 @@
         ],
         "max_absolute_error": 0.0142822265625,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026439639157486417,
+        "relative_l2_error": 0.026439639157482937,
         "rows": 2816,
         "saturation_count": 1231,
         "saturation_rate": 0.00010672482577237216,
@@ -10082,8 +10082,8 @@
         "scale_min": 0.0001583099365234375,
         "source_max": 0.416015625,
         "source_min": -0.384765625,
-        "source_rms": 0.028185059078812198,
-        "sqnr_db": 31.55488952607429,
+        "source_rms": 0.02818505907881671,
+        "sqnr_db": 31.55488952607543,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -10161,7 +10161,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996509714899882,
+        "cosine_similarity": 0.9996509714882227,
         "elements": 11534336,
         "histogram": [
           48,
@@ -10423,7 +10423,7 @@
         ],
         "max_absolute_error": 0.0146484375,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.02641847153006306,
+        "relative_l2_error": 0.026418471530058673,
         "rows": 4096,
         "saturation_count": 1753,
         "saturation_rate": 0.00015198100696910512,
@@ -10431,8 +10431,8 @@
         "scale_min": 4.1961669921875e-05,
         "source_max": 0.39453125,
         "source_min": -0.412109375,
-        "source_rms": 0.029436548171493573,
-        "sqnr_db": 31.561846251660427,
+        "source_rms": 0.029436548171499276,
+        "sqnr_db": 31.56184625166187,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -10510,7 +10510,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996504880615474,
+        "cosine_similarity": 0.9996504880609187,
         "elements": 5767168,
         "histogram": [
           14,
@@ -10772,7 +10772,7 @@
         ],
         "max_absolute_error": 0.0126953125,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026436792999474296,
+        "relative_l2_error": 0.026436792999473137,
         "rows": 2048,
         "saturation_count": 938,
         "saturation_rate": 0.00016264481977982953,
@@ -10780,8 +10780,8 @@
         "scale_min": 0.00018978118896484375,
         "source_max": 0.421875,
         "source_min": -0.41015625,
-        "source_rms": 0.0294144446668292,
-        "sqnr_db": 31.55582458970855,
+        "source_rms": 0.029414444666831116,
+        "sqnr_db": 31.555824589708934,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -10859,7 +10859,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996511468523746,
+        "cosine_similarity": 0.9996511468517444,
         "elements": 5767168,
         "histogram": [
           22,
@@ -11121,7 +11121,7 @@
         ],
         "max_absolute_error": 0.0111083984375,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.02641183548090744,
+        "relative_l2_error": 0.026411835480906108,
         "rows": 2048,
         "saturation_count": 869,
         "saturation_rate": 0.0001506805419921875,
@@ -11129,8 +11129,8 @@
         "scale_min": 2.086162567138672e-05,
         "source_max": 0.330078125,
         "source_min": -0.384765625,
-        "source_rms": 0.027687227955554092,
-        "sqnr_db": 31.56402833214274,
+        "source_rms": 0.027687227955555945,
+        "sqnr_db": 31.56402833214318,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -11208,7 +11208,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996503538092314,
+        "cosine_similarity": 0.9996503538078951,
         "elements": 11534336,
         "histogram": [
           51,
@@ -11470,7 +11470,7 @@
         ],
         "max_absolute_error": 0.01611328125,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.02644184398902738,
+        "relative_l2_error": 0.026441843989024418,
         "rows": 2816,
         "saturation_count": 1213,
         "saturation_rate": 0.00010516426780007102,
@@ -11478,8 +11478,8 @@
         "scale_min": 0.00011396408081054688,
         "source_max": 0.458984375,
         "source_min": -0.427734375,
-        "source_rms": 0.027646259691831838,
-        "sqnr_db": 31.554165230070964,
+        "source_rms": 0.027646259691835737,
+        "sqnr_db": 31.554165230071938,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -11557,7 +11557,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996509958494425,
+        "cosine_similarity": 0.9996509958476404,
         "elements": 11534336,
         "histogram": [
           43,
@@ -11819,7 +11819,7 @@
         ],
         "max_absolute_error": 0.0146484375,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.02641754154081357,
+        "relative_l2_error": 0.026417541540809265,
         "rows": 4096,
         "saturation_count": 1779,
         "saturation_rate": 0.00015423514626242897,
@@ -11827,8 +11827,8 @@
         "scale_min": 2.5987625122070312e-05,
         "source_max": 0.423828125,
         "source_min": -0.4140625,
-        "source_rms": 0.029155442364105805,
-        "sqnr_db": 31.56215201977263,
+        "source_rms": 0.029155442364111373,
+        "sqnr_db": 31.562152019774047,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -11906,7 +11906,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996510506755464,
+        "cosine_similarity": 0.9996510506749993,
         "elements": 5767168,
         "histogram": [
           29,
@@ -12168,7 +12168,7 @@
         ],
         "max_absolute_error": 0.013671875,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026415472883855973,
+        "relative_l2_error": 0.0264154728838548,
         "rows": 2048,
         "saturation_count": 854,
         "saturation_rate": 0.00014807961203835228,
@@ -12176,8 +12176,8 @@
         "scale_min": 0.0001888275146484375,
         "source_max": 0.380859375,
         "source_min": -0.396484375,
-        "source_rms": 0.029639093689870822,
-        "sqnr_db": 31.562832205305767,
+        "source_rms": 0.029639093689872706,
+        "sqnr_db": 31.56283220530615,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -12255,7 +12255,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996520417267261,
+        "cosine_similarity": 0.9996520417264891,
         "elements": 2883584,
         "histogram": [
           12,
@@ -12517,7 +12517,7 @@
         ],
         "max_absolute_error": 0.010009765625,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.02637800349519071,
+        "relative_l2_error": 0.026378003495190018,
         "rows": 1024,
         "saturation_count": 433,
         "saturation_rate": 0.00015016035600142047,
@@ -12525,8 +12525,8 @@
         "scale_min": 3.11434268951416e-06,
         "source_max": 0.294921875,
         "source_min": -0.30078125,
-        "source_rms": 0.03013070889668674,
-        "sqnr_db": 31.57516157066379,
+        "source_rms": 0.03013070889668763,
+        "sqnr_db": 31.57516157066402,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -12604,7 +12604,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996500393446095,
+        "cosine_similarity": 0.9996500393400006,
         "elements": 23068672,
         "histogram": [
           131,
@@ -12866,7 +12866,7 @@
         ],
         "max_absolute_error": 0.025634765625,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.02645371994454353,
+        "relative_l2_error": 0.02645371994453366,
         "rows": 2816,
         "saturation_count": 1229,
         "saturation_rate": 5.327571522105824e-05,
@@ -12874,8 +12874,8 @@
         "scale_min": 0.00017833709716796875,
         "source_max": 0.55078125,
         "source_min": -0.81640625,
-        "source_rms": 0.029114882410643625,
-        "sqnr_db": 31.55026496951896,
+        "source_rms": 0.029114882410658526,
+        "sqnr_db": 31.550264969522203,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -12953,7 +12953,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996506266917137,
+        "cosine_similarity": 0.999650626686894,
         "elements": 23068672,
         "histogram": [
           104,
@@ -13215,7 +13215,7 @@
         ],
         "max_absolute_error": 0.017333984375,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026431512341783734,
+        "relative_l2_error": 0.026431512341773808,
         "rows": 8192,
         "saturation_count": 3502,
         "saturation_rate": 0.00015180761163884944,
@@ -13223,8 +13223,8 @@
         "scale_min": 4.363059997558594e-05,
         "source_max": 0.482421875,
         "source_min": -0.48828125,
-        "source_rms": 0.03162592108992414,
-        "sqnr_db": 31.55755973933262,
+        "source_rms": 0.03162592108994107,
+        "sqnr_db": 31.557559739335886,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -13302,7 +13302,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996507754640579,
+        "cosine_similarity": 0.9996507754634388,
         "elements": 5767168,
         "histogram": [
           23,
@@ -13564,7 +13564,7 @@
         ],
         "max_absolute_error": 0.0107421875,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026425879663162715,
+        "relative_l2_error": 0.026425879663161324,
         "rows": 2048,
         "saturation_count": 882,
         "saturation_rate": 0.00015293468128551137,
@@ -13572,8 +13572,8 @@
         "scale_min": 3.993511199951172e-06,
         "source_max": 0.365234375,
         "source_min": -0.32421875,
-        "source_rms": 0.030109598883901762,
-        "sqnr_db": 31.559410940203428,
+        "source_rms": 0.030109598883903996,
+        "sqnr_db": 31.559410940203886,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -13651,7 +13651,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996504407152169,
+        "cosine_similarity": 0.9996504407135208,
         "elements": 11534336,
         "histogram": [
           52,
@@ -13913,7 +13913,7 @@
         ],
         "max_absolute_error": 0.015869140625,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026438663848576998,
+        "relative_l2_error": 0.026438663848572602,
         "rows": 2816,
         "saturation_count": 1198,
         "saturation_rate": 0.0001038638028231534,
@@ -13921,8 +13921,8 @@
         "scale_min": 0.00014781951904296875,
         "source_max": 0.4296875,
         "source_min": -0.51171875,
-        "source_rms": 0.029417419609294056,
-        "sqnr_db": 31.55520993823087,
+        "source_rms": 0.029417419609299698,
+        "sqnr_db": 31.555209938232313,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -14000,7 +14000,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996503031153268,
+        "cosine_similarity": 0.999650303113035,
         "elements": 11534336,
         "histogram": [
           38,
@@ -14262,7 +14262,7 @@
         ],
         "max_absolute_error": 0.017578125,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026443773118414858,
+        "relative_l2_error": 0.02644377311840902,
         "rows": 4096,
         "saturation_count": 1800,
         "saturation_rate": 0.00015605579723011363,
@@ -14270,8 +14270,8 @@
         "scale_min": 5.984306335449219e-05,
         "source_max": 0.49609375,
         "source_min": -0.50390625,
-        "source_rms": 0.03213501724805728,
-        "sqnr_db": 31.553531552867934,
+        "source_rms": 0.03213501724806537,
+        "sqnr_db": 31.553531552869853,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -14349,7 +14349,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996521154904344,
+        "cosine_similarity": 0.9996521154899219,
         "elements": 5767168,
         "histogram": [
           25,
@@ -14611,7 +14611,7 @@
         ],
         "max_absolute_error": 0.018310546875,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.02637514793876404,
+        "relative_l2_error": 0.026375147938763083,
         "rows": 2048,
         "saturation_count": 841,
         "saturation_rate": 0.0001458254727450284,
@@ -14619,8 +14619,8 @@
         "scale_min": 0.0001583099365234375,
         "source_max": 0.515625,
         "source_min": -0.46875,
-        "source_rms": 0.03186537043317696,
-        "sqnr_db": 31.576101914409232,
+        "source_rms": 0.03186537043317878,
+        "sqnr_db": 31.57610191440955,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -14698,7 +14698,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996513688894941,
+        "cosine_similarity": 0.9996513688888641,
         "elements": 5767168,
         "histogram": [
           20,
@@ -14960,7 +14960,7 @@
         ],
         "max_absolute_error": 0.0166015625,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026403421990931267,
+        "relative_l2_error": 0.02640342199093,
         "rows": 2048,
         "saturation_count": 931,
         "saturation_rate": 0.00016143105246803978,
@@ -14968,8 +14968,8 @@
         "scale_min": 2.205371856689453e-05,
         "source_max": 0.427734375,
         "source_min": -0.48046875,
-        "source_rms": 0.02949660998991564,
-        "sqnr_db": 31.566795663005838,
+        "source_rms": 0.02949660998991771,
+        "sqnr_db": 31.566795663006253,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -15047,7 +15047,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996504290969521,
+        "cosine_similarity": 0.9996504290953097,
         "elements": 11534336,
         "histogram": [
           81,
@@ -15309,7 +15309,7 @@
         ],
         "max_absolute_error": 0.01806640625,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.02643901172034916,
+        "relative_l2_error": 0.02643901172034498,
         "rows": 2816,
         "saturation_count": 1280,
         "saturation_rate": 0.00011097301136363636,
@@ -15317,8 +15317,8 @@
         "scale_min": 0.00017070770263671875,
         "source_max": 0.3984375,
         "source_min": -0.51171875,
-        "source_rms": 0.027886596190480454,
-        "sqnr_db": 31.5550956527299,
+        "source_rms": 0.027886596190485873,
+        "sqnr_db": 31.555095652731275,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -15396,7 +15396,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996509815883449,
+        "cosine_similarity": 0.9996509815864856,
         "elements": 11534336,
         "histogram": [
           50,
@@ -15658,7 +15658,7 @@
         ],
         "max_absolute_error": 0.015625,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026418081286044833,
+        "relative_l2_error": 0.026418081286040368,
         "rows": 4096,
         "saturation_count": 1742,
         "saturation_rate": 0.00015102733265269887,
@@ -15666,8 +15666,8 @@
         "scale_min": 3.886222839355469e-05,
         "source_max": 0.4375,
         "source_min": -0.453125,
-        "source_rms": 0.03041082721596171,
-        "sqnr_db": 31.5619745573993,
+        "source_rms": 0.03041082721596771,
+        "sqnr_db": 31.56197455740077,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -15745,7 +15745,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996522664625306,
+        "cosine_similarity": 0.9996522664619392,
         "elements": 5767168,
         "histogram": [
           32,
@@ -16007,7 +16007,7 @@
         ],
         "max_absolute_error": 0.01513671875,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026369449075848518,
+        "relative_l2_error": 0.02636944907584715,
         "rows": 2048,
         "saturation_count": 880,
         "saturation_rate": 0.000152587890625,
@@ -16015,8 +16015,8 @@
         "scale_min": 0.00015354156494140625,
         "source_max": 0.431640625,
         "source_min": -0.435546875,
-        "source_rms": 0.02982468923510668,
-        "sqnr_db": 31.57797887232875,
+        "source_rms": 0.029824689235108774,
+        "sqnr_db": 31.577978872329204,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -16094,7 +16094,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996523454616763,
+        "cosine_similarity": 0.9996523454612166,
         "elements": 5767168,
         "histogram": [
           29,
@@ -16356,7 +16356,7 @@
         ],
         "max_absolute_error": 0.01904296875,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.02636642790120324,
+        "relative_l2_error": 0.026366427901202402,
         "rows": 2048,
         "saturation_count": 923,
         "saturation_rate": 0.0001600438898259943,
@@ -16364,8 +16364,8 @@
         "scale_min": 0.00011539459228515625,
         "source_max": 0.490234375,
         "source_min": -0.5390625,
-        "source_rms": 0.03298241220249797,
-        "sqnr_db": 31.578974080565697,
+        "source_rms": 0.032982412202499596,
+        "sqnr_db": 31.57897408056597,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -16443,7 +16443,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996508573746689,
+        "cosine_similarity": 0.9996508573728016,
         "elements": 11534336,
         "histogram": [
           39,
@@ -16705,7 +16705,7 @@
         ],
         "max_absolute_error": 0.0150146484375,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026422784271700594,
+        "relative_l2_error": 0.02642278427169555,
         "rows": 2816,
         "saturation_count": 1218,
         "saturation_rate": 0.00010559775612571023,
@@ -16713,8 +16713,8 @@
         "scale_min": 0.00019168853759765625,
         "source_max": 0.57421875,
         "source_min": -0.5546875,
-        "source_rms": 0.03220899470913134,
-        "sqnr_db": 31.560428420179477,
+        "source_rms": 0.03220899470913825,
+        "sqnr_db": 31.560428420181136,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -16792,7 +16792,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996509109931264,
+        "cosine_similarity": 0.9996509109909416,
         "elements": 11534336,
         "histogram": [
           39,
@@ -17054,7 +17054,7 @@
         ],
         "max_absolute_error": 0.01904296875,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026420754362912555,
+        "relative_l2_error": 0.026420754362907077,
         "rows": 4096,
         "saturation_count": 1678,
         "saturation_rate": 0.00014547868208451703,
@@ -17062,8 +17062,8 @@
         "scale_min": 0.00013065338134765625,
         "source_max": 0.5390625,
         "source_min": -0.49609375,
-        "source_rms": 0.03212017495123031,
-        "sqnr_db": 31.56109573217911,
+        "source_rms": 0.03212017495123782,
+        "sqnr_db": 31.56109573218091,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -17141,7 +17141,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996498242063434,
+        "cosine_similarity": 0.999649824205976,
         "elements": 5767168,
         "histogram": [
           26,
@@ -17403,7 +17403,7 @@
         ],
         "max_absolute_error": 0.0205078125,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026461839790603986,
+        "relative_l2_error": 0.026461839790603254,
         "rows": 2048,
         "saturation_count": 957,
         "saturation_rate": 0.0001659393310546875,
@@ -17411,8 +17411,8 @@
         "scale_min": 0.0002231597900390625,
         "source_max": 0.58203125,
         "source_min": -0.5546875,
-        "source_rms": 0.03583519126397471,
-        "sqnr_db": 31.547599285260276,
+        "source_rms": 0.035835191263976225,
+        "sqnr_db": 31.547599285260514,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -17490,7 +17490,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996510188155152,
+        "cosine_similarity": 0.999651018814959,
         "elements": 5767168,
         "histogram": [
           24,
@@ -17752,7 +17752,7 @@
         ],
         "max_absolute_error": 0.01171875,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026416690902262088,
+        "relative_l2_error": 0.026416690902260894,
         "rows": 2048,
         "saturation_count": 889,
         "saturation_rate": 0.00015414844859730113,
@@ -17760,8 +17760,8 @@
         "scale_min": 2.574920654296875e-05,
         "source_max": 0.341796875,
         "source_min": -0.33984375,
-        "source_rms": 0.029915756037596695,
-        "sqnr_db": 31.56243170785511,
+        "source_rms": 0.029915756037598544,
+        "sqnr_db": 31.562431707855502,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -17839,7 +17839,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996503953144508,
+        "cosine_similarity": 0.9996503953130341,
         "elements": 11534336,
         "histogram": [
           53,
@@ -18101,7 +18101,7 @@
         ],
         "max_absolute_error": 0.017578125,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026440295369200298,
+        "relative_l2_error": 0.026440295369196606,
         "rows": 2816,
         "saturation_count": 1234,
         "saturation_rate": 0.00010698491876775569,
@@ -18109,8 +18109,8 @@
         "scale_min": 8.821487426757812e-05,
         "source_max": 0.51953125,
         "source_min": -0.458984375,
-        "source_rms": 0.028091377077070646,
-        "sqnr_db": 31.554673951581723,
+        "source_rms": 0.028091377077075243,
+        "sqnr_db": 31.554673951582938,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -18188,7 +18188,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996504370084162,
+        "cosine_similarity": 0.9996504370060348,
         "elements": 11534336,
         "histogram": [
           60,
@@ -18450,7 +18450,7 @@
         ],
         "max_absolute_error": 0.021484375,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.02643868146030531,
+        "relative_l2_error": 0.026438681460299065,
         "rows": 4096,
         "saturation_count": 1762,
         "saturation_rate": 0.0001527612859552557,
@@ -18458,8 +18458,8 @@
         "scale_min": 4.744529724121094e-05,
         "source_max": 0.51953125,
         "source_min": -0.61328125,
-        "source_rms": 0.03129697663603408,
-        "sqnr_db": 31.555204152254753,
+        "source_rms": 0.03129697663604221,
+        "sqnr_db": 31.555204152256806,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -18537,7 +18537,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996512571774795,
+        "cosine_similarity": 0.9996512571769812,
         "elements": 5767168,
         "histogram": [
           17,
@@ -18799,7 +18799,7 @@
         ],
         "max_absolute_error": 0.013916015625,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026407651382384108,
+        "relative_l2_error": 0.026407651382383136,
         "rows": 2048,
         "saturation_count": 883,
         "saturation_rate": 0.00015310807661576703,
@@ -18807,8 +18807,8 @@
         "scale_min": 0.0001735687255859375,
         "source_max": 0.404296875,
         "source_min": -0.392578125,
-        "source_rms": 0.03175879097824175,
-        "sqnr_db": 31.565404438585368,
+        "source_rms": 0.03175879097824347,
+        "sqnr_db": 31.565404438585688,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -18886,7 +18886,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996513207805522,
+        "cosine_similarity": 0.9996513207800141,
         "elements": 5767168,
         "histogram": [
           26,
@@ -19148,7 +19148,7 @@
         ],
         "max_absolute_error": 0.015625,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.02640527995150009,
+        "relative_l2_error": 0.026405279951498987,
         "rows": 2048,
         "saturation_count": 914,
         "saturation_rate": 0.0001584833318536932,
@@ -19156,8 +19156,8 @@
         "scale_min": 1.3768672943115234e-05,
         "source_max": 0.484375,
         "source_min": -0.486328125,
-        "source_rms": 0.030474912036901204,
-        "sqnr_db": 31.566184474324213,
+        "source_rms": 0.030474912036903005,
+        "sqnr_db": 31.566184474324572,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -19235,7 +19235,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.999650409230051,
+        "cosine_similarity": 0.999650409228453,
         "elements": 11534336,
         "histogram": [
           50,
@@ -19497,7 +19497,7 @@
         ],
         "max_absolute_error": 0.017578125,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026439744588245044,
+        "relative_l2_error": 0.02643974458824053,
         "rows": 2816,
         "saturation_count": 1177,
         "saturation_rate": 0.00010204315185546875,
@@ -19505,8 +19505,8 @@
         "scale_min": 0.00012302398681640625,
         "source_max": 0.4921875,
         "source_min": -0.51953125,
-        "source_rms": 0.02948596266467712,
-        "sqnr_db": 31.554854890272246,
+        "source_rms": 0.029485962664682792,
+        "sqnr_db": 31.554854890273724,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -19584,7 +19584,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996508663880174,
+        "cosine_similarity": 0.9996508663860652,
         "elements": 11534336,
         "histogram": [
           50,
@@ -19846,7 +19846,7 @@
         ],
         "max_absolute_error": 0.015869140625,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026422440602987634,
+        "relative_l2_error": 0.02642244060298244,
         "rows": 4096,
         "saturation_count": 1749,
         "saturation_rate": 0.00015163421630859375,
@@ -19854,8 +19854,8 @@
         "scale_min": 4.744529724121094e-05,
         "source_max": 0.486328125,
         "source_min": -0.48828125,
-        "source_rms": 0.03181962721234469,
-        "sqnr_db": 31.560541394190658,
+        "source_rms": 0.031819627212351646,
+        "sqnr_db": 31.560541394192363,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -19933,7 +19933,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996518746191453,
+        "cosine_similarity": 0.9996518746186861,
         "elements": 5767168,
         "histogram": [
           36,
@@ -20195,7 +20195,7 @@
         ],
         "max_absolute_error": 0.015625,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.02638426861782099,
+        "relative_l2_error": 0.02638426861782009,
         "rows": 2048,
         "saturation_count": 923,
         "saturation_rate": 0.0001600438898259943,
@@ -20203,8 +20203,8 @@
         "scale_min": 0.0001811981201171875,
         "source_max": 0.478515625,
         "source_min": -0.4609375,
-        "source_rms": 0.03281870657139174,
-        "sqnr_db": 31.57309880263611,
+        "source_rms": 0.032818706571393394,
+        "sqnr_db": 31.5730988026364,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -20282,7 +20282,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996520946778283,
+        "cosine_similarity": 0.9996520946771315,
         "elements": 5767168,
         "histogram": [
           25,
@@ -20544,7 +20544,7 @@
         ],
         "max_absolute_error": 0.0111083984375,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026375936181341826,
+        "relative_l2_error": 0.026375936181340372,
         "rows": 2048,
         "saturation_count": 912,
         "saturation_rate": 0.0001581365411931818,
@@ -20552,8 +20552,8 @@
         "scale_min": 1.609325408935547e-05,
         "source_max": 0.333984375,
         "source_min": -0.314453125,
-        "source_rms": 0.02767231418556283,
-        "sqnr_db": 31.575842333467783,
+        "source_rms": 0.027672314185564963,
+        "sqnr_db": 31.575842333468263,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -20631,7 +20631,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996506523362102,
+        "cosine_similarity": 0.9996506523344397,
         "elements": 11534336,
         "histogram": [
           50,
@@ -20893,7 +20893,7 @@
         ],
         "max_absolute_error": 0.02001953125,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.02643055899299531,
+        "relative_l2_error": 0.026430558992990398,
         "rows": 2816,
         "saturation_count": 1235,
         "saturation_rate": 0.00010707161643288352,
@@ -20901,8 +20901,8 @@
         "scale_min": 0.00017452239990234375,
         "source_max": 0.53125,
         "source_min": -0.7734375,
-        "source_rms": 0.030352319932234587,
-        "sqnr_db": 31.5578730332371,
+        "source_rms": 0.030352319932240922,
+        "sqnr_db": 31.55787303323872,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -20980,7 +20980,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996508958734898,
+        "cosine_similarity": 0.9996508958714845,
         "elements": 11534336,
         "histogram": [
           49,
@@ -21242,7 +21242,7 @@
         ],
         "max_absolute_error": 0.01611328125,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026421328449323378,
+        "relative_l2_error": 0.026421328449318174,
         "rows": 4096,
         "saturation_count": 1781,
         "saturation_rate": 0.00015440854159268466,
@@ -21250,8 +21250,8 @@
         "scale_min": 1.9311904907226562e-05,
         "source_max": 0.51171875,
         "source_min": -0.49609375,
-        "source_rms": 0.028734418082657833,
-        "sqnr_db": 31.560907001873947,
+        "source_rms": 0.028734418082664304,
+        "sqnr_db": 31.560907001875655,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -21329,7 +21329,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996529984365494,
+        "cosine_similarity": 0.9996529984359169,
         "elements": 5767168,
         "histogram": [
           34,
@@ -21591,7 +21591,7 @@
         ],
         "max_absolute_error": 0.017578125,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026341656498664733,
+        "relative_l2_error": 0.026341656498663484,
         "rows": 2048,
         "saturation_count": 894,
         "saturation_rate": 0.00015501542524857953,
@@ -21599,8 +21599,8 @@
         "scale_min": 0.00015354156494140625,
         "source_max": 0.46484375,
         "source_min": -0.515625,
-        "source_rms": 0.02951234713299165,
-        "sqnr_db": 31.587138356954057,
+        "source_rms": 0.029512347132993753,
+        "sqnr_db": 31.58713835695447,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -21678,7 +21678,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996534581271268,
+        "cosine_similarity": 0.9996534581268922,
         "elements": 2883584,
         "histogram": [
           28,
@@ -21940,7 +21940,7 @@
         ],
         "max_absolute_error": 0.0130615234375,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.02632420566963312,
+        "relative_l2_error": 0.026324205669632488,
         "rows": 1024,
         "saturation_count": 428,
         "saturation_rate": 0.00014842640269886363,
@@ -21948,8 +21948,8 @@
         "scale_min": 0.00011587142944335938,
         "source_max": 0.3828125,
         "source_min": -0.376953125,
-        "source_rms": 0.029648441927203863,
-        "sqnr_db": 31.592894494777237,
+        "source_rms": 0.029648441927204696,
+        "sqnr_db": 31.592894494777447,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -22027,7 +22027,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996507468496918,
+        "cosine_similarity": 0.9996507468446735,
         "elements": 23068672,
         "histogram": [
           188,
@@ -22289,7 +22289,7 @@
         ],
         "max_absolute_error": 0.02734375,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026426978754990234,
+        "relative_l2_error": 0.026426978754980807,
         "rows": 2816,
         "saturation_count": 1217,
         "saturation_rate": 5.2755529230291195e-05,
@@ -22297,8 +22297,8 @@
         "scale_min": 0.00019741058349609375,
         "source_max": 0.63671875,
         "source_min": -0.77734375,
-        "source_rms": 0.030605776918352017,
-        "sqnr_db": 31.559049688585144,
+        "source_rms": 0.030605776918368008,
+        "sqnr_db": 31.559049688588242,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -22376,7 +22376,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996504788150322,
+        "cosine_similarity": 0.9996504788084885,
         "elements": 23068672,
         "histogram": [
           90,
@@ -22638,7 +22638,7 @@
         ],
         "max_absolute_error": 0.0137939453125,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026437106549021205,
+        "relative_l2_error": 0.026437106549007685,
         "rows": 8192,
         "saturation_count": 3618,
         "saturation_rate": 0.00015683607621626422,
@@ -22646,8 +22646,8 @@
         "scale_min": 3.409385681152344e-05,
         "source_max": 0.396484375,
         "source_min": -0.392578125,
-        "source_rms": 0.030369333081806272,
-        "sqnr_db": 31.5557215726516,
+        "source_rms": 0.03036933308182896,
+        "sqnr_db": 31.55572157265604,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -22725,7 +22725,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996515067026311,
+        "cosine_similarity": 0.9996515067019863,
         "elements": 5767168,
         "histogram": [
           28,
@@ -22987,7 +22987,7 @@
         ],
         "max_absolute_error": 0.0166015625,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026398205736396983,
+        "relative_l2_error": 0.026398205736395654,
         "rows": 2048,
         "saturation_count": 864,
         "saturation_rate": 0.0001498135653409091,
@@ -22995,8 +22995,8 @@
         "scale_min": 2.2649765014648438e-05,
         "source_max": 0.46484375,
         "source_min": -0.51171875,
-        "source_rms": 0.03058113817669144,
-        "sqnr_db": 31.568511815075627,
+        "source_rms": 0.030581138176693615,
+        "sqnr_db": 31.568511815076068,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -23074,7 +23074,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.99965055233432,
+        "cosine_similarity": 0.9996505523326904,
         "elements": 11534336,
         "histogram": [
           45,
@@ -23336,7 +23336,7 @@
         ],
         "max_absolute_error": 0.017578125,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.02643432551523889,
+        "relative_l2_error": 0.0264343255152345,
         "rows": 2816,
         "saturation_count": 1199,
         "saturation_rate": 0.00010395050048828125,
@@ -23344,8 +23344,8 @@
         "scale_min": 0.0001659393310546875,
         "source_max": 0.4921875,
         "source_min": -0.49609375,
-        "source_rms": 0.029782112731002636,
-        "sqnr_db": 31.55663532707784,
+        "source_rms": 0.02978211273100824,
+        "sqnr_db": 31.55663532707928,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -23423,7 +23423,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996511377892235,
+        "cosine_similarity": 0.9996511377868864,
         "elements": 11534336,
         "histogram": [
           49,
@@ -23685,7 +23685,7 @@
         ],
         "max_absolute_error": 0.015869140625,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026412170754689983,
+        "relative_l2_error": 0.026412170754684054,
         "rows": 4096,
         "saturation_count": 1719,
         "saturation_rate": 0.00014903328635475853,
@@ -23693,8 +23693,8 @@
         "scale_min": 2.8848648071289062e-05,
         "source_max": 0.466796875,
         "source_min": -0.41015625,
-        "source_rms": 0.03027750744001298,
-        "sqnr_db": 31.563918073520526,
+        "source_rms": 0.03027750744002063,
+        "sqnr_db": 31.563918073522473,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -23772,7 +23772,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996516884367354,
+        "cosine_similarity": 0.9996516884362273,
         "elements": 5767168,
         "histogram": [
           29,
@@ -24034,7 +24034,7 @@
         ],
         "max_absolute_error": 0.021484375,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026391321541262627,
+        "relative_l2_error": 0.026391321541261677,
         "rows": 2048,
         "saturation_count": 902,
         "saturation_rate": 0.000156402587890625,
@@ -24042,8 +24042,8 @@
         "scale_min": 0.0001697540283203125,
         "source_max": 0.62109375,
         "source_min": -0.486328125,
-        "source_rms": 0.03216156246529272,
-        "sqnr_db": 31.570777240155433,
+        "source_rms": 0.03216156246529453,
+        "sqnr_db": 31.570777240155742,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -24121,7 +24121,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996511597443113,
+        "cosine_similarity": 0.9996511597436856,
         "elements": 5767168,
         "histogram": [
           29,
@@ -24383,7 +24383,7 @@
         ],
         "max_absolute_error": 0.0130615234375,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.0264113391148345,
+        "relative_l2_error": 0.026411339114833173,
         "rows": 2048,
         "saturation_count": 910,
         "saturation_rate": 0.00015778975053267047,
@@ -24391,8 +24391,8 @@
         "scale_min": 3.504753112792969e-05,
         "source_max": 0.384765625,
         "source_min": -0.373046875,
-        "source_rms": 0.028643055810306593,
-        "sqnr_db": 31.564191570379094,
+        "source_rms": 0.028643055810308495,
+        "sqnr_db": 31.564191570379528,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -24470,7 +24470,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996499385286288,
+        "cosine_similarity": 0.9996499385269941,
         "elements": 11534336,
         "histogram": [
           52,
@@ -24732,7 +24732,7 @@
         ],
         "max_absolute_error": 0.010986328125,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.02645752183382945,
+        "relative_l2_error": 0.02645752183382484,
         "rows": 2816,
         "saturation_count": 1165,
         "saturation_rate": 0.00010100277987393466,
@@ -24740,8 +24740,8 @@
         "scale_min": 4.76837158203125e-05,
         "source_max": 0.30859375,
         "source_min": -0.28515625,
-        "source_rms": 0.02972032773893841,
-        "sqnr_db": 31.549016736073646,
+        "source_rms": 0.029720327738944296,
+        "sqnr_db": 31.549016736075156,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -24819,7 +24819,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.999650585270296,
+        "cosine_similarity": 0.9996505852687709,
         "elements": 11534336,
         "histogram": [
           50,
@@ -25081,7 +25081,7 @@
         ],
         "max_absolute_error": 0.01708984375,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026433073927352464,
+        "relative_l2_error": 0.026433073927348897,
         "rows": 4096,
         "saturation_count": 1761,
         "saturation_rate": 0.00015267458829012784,
@@ -25089,8 +25089,8 @@
         "scale_min": 1.6570091247558594e-05,
         "source_max": 0.478515625,
         "source_min": -0.52734375,
-        "source_rms": 0.028127723486730323,
-        "sqnr_db": 31.557046588247122,
+        "source_rms": 0.028127723486735017,
+        "sqnr_db": 31.557046588248294,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -25168,7 +25168,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996521891444718,
+        "cosine_similarity": 0.9996521891438572,
         "elements": 5767168,
         "histogram": [
           40,
@@ -25430,7 +25430,7 @@
         ],
         "max_absolute_error": 0.02099609375,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.02637234983454342,
+        "relative_l2_error": 0.026372349834542324,
         "rows": 2048,
         "saturation_count": 880,
         "saturation_rate": 0.000152587890625,
@@ -25438,8 +25438,8 @@
         "scale_min": 0.00016021728515625,
         "source_max": 0.6328125,
         "source_min": -0.7421875,
-        "source_rms": 0.03077159849971175,
-        "sqnr_db": 31.577023437723316,
+        "source_rms": 0.030771598499713785,
+        "sqnr_db": 31.57702343772368,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -25517,7 +25517,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996509905404775,
+        "cosine_similarity": 0.9996509905398239,
         "elements": 5767168,
         "histogram": [
           27,
@@ -25779,7 +25779,7 @@
         ],
         "max_absolute_error": 0.016845703125,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026417748190951287,
+        "relative_l2_error": 0.026417748190949962,
         "rows": 2048,
         "saturation_count": 907,
         "saturation_rate": 0.0001572695645419034,
@@ -25787,8 +25787,8 @@
         "scale_min": 1.33514404296875e-05,
         "source_max": 0.51171875,
         "source_min": -0.447265625,
-        "source_rms": 0.030064616477634087,
-        "sqnr_db": 31.5620840750221,
+        "source_rms": 0.030064616477636315,
+        "sqnr_db": 31.56208407502254,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -25866,7 +25866,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996506289293693,
+        "cosine_similarity": 0.999650628928221,
         "elements": 11534336,
         "histogram": [
           58,
@@ -26128,7 +26128,7 @@
         ],
         "max_absolute_error": 0.0126953125,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026431422953904743,
+        "relative_l2_error": 0.02643142295390197,
         "rows": 2816,
         "saturation_count": 1245,
         "saturation_rate": 0.00010793859308416194,
@@ -26136,8 +26136,8 @@
         "scale_min": 0.00011730194091796875,
         "source_max": 0.37890625,
         "source_min": -0.35546875,
-        "source_rms": 0.027423738236845126,
-        "sqnr_db": 31.55758911391228,
+        "source_rms": 0.027423738236848804,
+        "sqnr_db": 31.557589113913195,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -26215,7 +26215,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996509172441269,
+        "cosine_similarity": 0.9996509172421741,
         "elements": 11534336,
         "histogram": [
           38,
@@ -26477,7 +26477,7 @@
         ],
         "max_absolute_error": 0.01416015625,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.0264205211397178,
+        "relative_l2_error": 0.02642052113971303,
         "rows": 4096,
         "saturation_count": 1798,
         "saturation_rate": 0.00015588240189985797,
@@ -26485,8 +26485,8 @@
         "scale_min": 2.4080276489257812e-05,
         "source_max": 0.447265625,
         "source_min": -0.376953125,
-        "source_rms": 0.02985675405879667,
-        "sqnr_db": 31.561172405231055,
+        "source_rms": 0.02985675405880284,
+        "sqnr_db": 31.561172405232618,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -26564,7 +26564,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996526762370989,
+        "cosine_similarity": 0.9996526762365316,
         "elements": 5767168,
         "histogram": [
           30,
@@ -26826,7 +26826,7 @@
         ],
         "max_absolute_error": 0.025146484375,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026353892981398515,
+        "relative_l2_error": 0.026353892981397536,
         "rows": 2048,
         "saturation_count": 884,
         "saturation_rate": 0.00015328147194602272,
@@ -26834,8 +26834,8 @@
         "scale_min": 0.00018405914306640625,
         "source_max": 0.71875,
         "source_min": -0.7265625,
-        "source_rms": 0.030539341737852693,
-        "sqnr_db": 31.583104439800035,
+        "source_rms": 0.030539341737854556,
+        "sqnr_db": 31.58310443980036,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -26913,7 +26913,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996518411549309,
+        "cosine_similarity": 0.9996518411543371,
         "elements": 5767168,
         "histogram": [
           15,
@@ -27175,7 +27175,7 @@
         ],
         "max_absolute_error": 0.016845703125,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026385542170778355,
+        "relative_l2_error": 0.026385542170777185,
         "rows": 2048,
         "saturation_count": 914,
         "saturation_rate": 0.0001584833318536932,
@@ -27183,8 +27183,8 @@
         "scale_min": 1.150369644165039e-05,
         "source_max": 0.42578125,
         "source_min": -0.474609375,
-        "source_rms": 0.028566847560782774,
-        "sqnr_db": 31.572679550026606,
+        "source_rms": 0.028566847560784543,
+        "sqnr_db": 31.57267955002699,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -27262,7 +27262,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996503543003552,
+        "cosine_similarity": 0.9996503542989953,
         "elements": 11534336,
         "histogram": [
           51,
@@ -27524,7 +27524,7 @@
         ],
         "max_absolute_error": 0.01806640625,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026441806868266533,
+        "relative_l2_error": 0.026441806868263015,
         "rows": 2816,
         "saturation_count": 1239,
         "saturation_rate": 0.00010741840709339489,
@@ -27532,8 +27532,8 @@
         "scale_min": 8.869171142578125e-05,
         "source_max": 0.4921875,
         "source_min": -0.51171875,
-        "source_rms": 0.027935992566116393,
-        "sqnr_db": 31.554177423889914,
+        "source_rms": 0.02793599256612092,
+        "sqnr_db": 31.554177423891076,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -27611,7 +27611,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996530185643155,
+        "cosine_similarity": 0.999653018562866,
         "elements": 11534336,
         "histogram": [
           66,
@@ -27873,7 +27873,7 @@
         ],
         "max_absolute_error": 0.016845703125,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026340890820922235,
+        "relative_l2_error": 0.026340890820918613,
         "rows": 4096,
         "saturation_count": 1719,
         "saturation_rate": 0.00014903328635475853,
@@ -27881,8 +27881,8 @@
         "scale_min": 6.246566772460938e-05,
         "source_max": 0.453125,
         "source_min": -0.486328125,
-        "source_rms": 0.028883854084747005,
-        "sqnr_db": 31.58739083496465,
+        "source_rms": 0.028883854084751758,
+        "sqnr_db": 31.587390834965845,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -27960,7 +27960,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996503896438431,
+        "cosine_similarity": 0.9996503896433108,
         "elements": 5767168,
         "histogram": [
           20,
@@ -28222,7 +28222,7 @@
         ],
         "max_absolute_error": 0.013916015625,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.02644047915586299,
+        "relative_l2_error": 0.026440479155861885,
         "rows": 2048,
         "saturation_count": 926,
         "saturation_rate": 0.00016056407581676137,
@@ -28230,8 +28230,8 @@
         "scale_min": 0.00015926361083984375,
         "source_max": 0.55078125,
         "source_min": -0.404296875,
-        "source_rms": 0.02874432283289371,
-        "sqnr_db": 31.554613576116974,
+        "source_rms": 0.02874432283289534,
+        "sqnr_db": 31.55461357611734,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -28309,7 +28309,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996529531406335,
+        "cosine_similarity": 0.9996529531398651,
         "elements": 5767168,
         "histogram": [
           25,
@@ -28571,7 +28571,7 @@
         ],
         "max_absolute_error": 0.01953125,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.02634350423730214,
+        "relative_l2_error": 0.026343504237300672,
         "rows": 2048,
         "saturation_count": 889,
         "saturation_rate": 0.00015414844859730113,
@@ -28579,8 +28579,8 @@
         "scale_min": 6.198883056640625e-05,
         "source_max": 0.58203125,
         "source_min": -0.5625,
-        "source_rms": 0.028997693222510834,
-        "sqnr_db": 31.586529105557005,
+        "source_rms": 0.028997693222513193,
+        "sqnr_db": 31.58652910555749,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -28658,7 +28658,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996507623741567,
+        "cosine_similarity": 0.9996507623721909,
         "elements": 11534336,
         "histogram": [
           43,
@@ -28920,7 +28920,7 @@
         ],
         "max_absolute_error": 0.0126953125,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.02642637668640703,
+        "relative_l2_error": 0.02642637668640177,
         "rows": 2816,
         "saturation_count": 1198,
         "saturation_rate": 0.0001038638028231534,
@@ -28928,8 +28928,8 @@
         "scale_min": 0.000110626220703125,
         "source_max": 0.333984375,
         "source_min": -0.36328125,
-        "source_rms": 0.03209267020035265,
-        "sqnr_db": 31.559247575785484,
+        "source_rms": 0.032092670200359864,
+        "sqnr_db": 31.55924757578721,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -29007,7 +29007,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996503651780877,
+        "cosine_similarity": 0.9996503651762074,
         "elements": 11534336,
         "histogram": [
           56,
@@ -29269,7 +29269,7 @@
         ],
         "max_absolute_error": 0.013916015625,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026441406888062922,
+        "relative_l2_error": 0.02644140688805821,
         "rows": 4096,
         "saturation_count": 1790,
         "saturation_rate": 0.00015518882057883522,
@@ -29277,8 +29277,8 @@
         "scale_min": 1.5079975128173828e-05,
         "source_max": 0.4921875,
         "source_min": -0.52734375,
-        "source_rms": 0.02802574776894456,
-        "sqnr_db": 31.554308814690867,
+        "source_rms": 0.02802574776895045,
+        "sqnr_db": 31.554308814692412,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -29356,7 +29356,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996527922256266,
+        "cosine_similarity": 0.9996527922250468,
         "elements": 5767168,
         "histogram": [
           41,
@@ -29618,7 +29618,7 @@
         ],
         "max_absolute_error": 0.02197265625,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026349577928281322,
+        "relative_l2_error": 0.026349577928280136,
         "rows": 2048,
         "saturation_count": 902,
         "saturation_rate": 0.000156402587890625,
@@ -29626,8 +29626,8 @@
         "scale_min": 0.00015354156494140625,
         "source_max": 0.62109375,
         "source_min": -0.67578125,
-        "source_rms": 0.033632272587636,
-        "sqnr_db": 31.584526739872313,
+        "source_rms": 0.03363227258763842,
+        "sqnr_db": 31.584526739872704,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -29705,7 +29705,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996542244327408,
+        "cosine_similarity": 0.9996542244325246,
         "elements": 2883584,
         "histogram": [
           19,
@@ -29967,7 +29967,7 @@
         ],
         "max_absolute_error": 0.0146484375,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.02629510008861195,
+        "relative_l2_error": 0.02629510008861139,
         "rows": 1024,
         "saturation_count": 453,
         "saturation_rate": 0.00015709616921164772,
@@ -29975,8 +29975,8 @@
         "scale_min": 9.012222290039062e-05,
         "source_max": 0.39453125,
         "source_min": -0.423828125,
-        "source_rms": 0.02995526569476839,
-        "sqnr_db": 31.602503435326398,
+        "source_rms": 0.029955265694769154,
+        "sqnr_db": 31.60250343532658,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -30054,7 +30054,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996502209281509,
+        "cosine_similarity": 0.9996502209222281,
         "elements": 23068672,
         "histogram": [
           162,
@@ -30316,7 +30316,7 @@
         ],
         "max_absolute_error": 0.017578125,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026446855641735628,
+        "relative_l2_error": 0.02644685564172433,
         "rows": 2816,
         "saturation_count": 1289,
         "saturation_rate": 5.587664517489347e-05,
@@ -30324,8 +30324,8 @@
         "scale_min": 0.0001697540283203125,
         "source_max": 0.48046875,
         "source_min": -0.498046875,
-        "source_rms": 0.028833627089703575,
-        "sqnr_db": 31.552519106692536,
+        "source_rms": 0.028833627089721068,
+        "sqnr_db": 31.55251910669625,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -30403,7 +30403,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996510041038098,
+        "cosine_similarity": 0.9996510040982163,
         "elements": 23068672,
         "histogram": [
           95,
@@ -30665,7 +30665,7 @@
         ],
         "max_absolute_error": 0.013671875,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026417232826341317,
+        "relative_l2_error": 0.026417232826329597,
         "rows": 8192,
         "saturation_count": 3580,
         "saturation_rate": 0.00015518882057883522,
@@ -30673,8 +30673,8 @@
         "scale_min": 3.790855407714844e-05,
         "source_max": 0.4140625,
         "source_min": -0.439453125,
-        "source_rms": 0.029129876977784668,
-        "sqnr_db": 31.56225352337013,
+        "source_rms": 0.029129876977802924,
+        "sqnr_db": 31.562253523373982,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -30752,7 +30752,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996511481840216,
+        "cosine_similarity": 0.9996511481835768,
         "elements": 5767168,
         "histogram": [
           25,
@@ -31014,7 +31014,7 @@
         ],
         "max_absolute_error": 0.014892578125,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.02641177678017495,
+        "relative_l2_error": 0.026411776780174052,
         "rows": 2048,
         "saturation_count": 914,
         "saturation_rate": 0.0001584833318536932,
@@ -31022,8 +31022,8 @@
         "scale_min": 8.106231689453125e-05,
         "source_max": 0.40625,
         "source_min": -0.44921875,
-        "source_rms": 0.032585986217402586,
-        "sqnr_db": 31.56404763669471,
+        "source_rms": 0.03258598621740419,
+        "sqnr_db": 31.56404763669501,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -31101,7 +31101,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996502282138797,
+        "cosine_similarity": 0.9996502282120887,
         "elements": 11534336,
         "histogram": [
           63,
@@ -31363,7 +31363,7 @@
         ],
         "max_absolute_error": 0.015380859375,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.02644659952257057,
+        "relative_l2_error": 0.026446599522565804,
         "rows": 2816,
         "saturation_count": 1263,
         "saturation_rate": 0.00010949915105646306,
@@ -31371,8 +31371,8 @@
         "scale_min": 0.0001430511474609375,
         "source_max": 0.4375,
         "source_min": -0.431640625,
-        "source_rms": 0.03187922388433516,
-        "sqnr_db": 31.552603223821777,
+        "source_rms": 0.03187922388434168,
+        "sqnr_db": 31.55260322382334,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -31450,7 +31450,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996510668624802,
+        "cosine_similarity": 0.9996510668605774,
         "elements": 11534336,
         "histogram": [
           40,
@@ -31712,7 +31712,7 @@
         ],
         "max_absolute_error": 0.021484375,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026414855058904042,
+        "relative_l2_error": 0.02641485505889928,
         "rows": 4096,
         "saturation_count": 1791,
         "saturation_rate": 0.00015527551824396306,
@@ -31720,8 +31720,8 @@
         "scale_min": 0.0001430511474609375,
         "source_max": 0.609375,
         "source_min": -0.56640625,
-        "source_rms": 0.03104078405676119,
-        "sqnr_db": 31.563035359802715,
+        "source_rms": 0.031040784056767377,
+        "sqnr_db": 31.563035359804278,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -31799,7 +31799,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996500879315732,
+        "cosine_similarity": 0.9996500879312363,
         "elements": 5767168,
         "histogram": [
           19,
@@ -32061,7 +32061,7 @@
         ],
         "max_absolute_error": 0.01953125,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026451886323810136,
+        "relative_l2_error": 0.026451886323809327,
         "rows": 2048,
         "saturation_count": 874,
         "saturation_rate": 0.0001515475186434659,
@@ -32069,8 +32069,8 @@
         "scale_min": 0.0001983642578125,
         "source_max": 0.87109375,
         "source_min": -0.70703125,
-        "source_rms": 0.03469082485249769,
-        "sqnr_db": 31.550867046631694,
+        "source_rms": 0.03469082485249913,
+        "sqnr_db": 31.55086704663196,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -32148,7 +32148,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.999650795737769,
+        "cosine_similarity": 0.9996507957373175,
         "elements": 5767168,
         "histogram": [
           19,
@@ -32410,7 +32410,7 @@
         ],
         "max_absolute_error": 0.01611328125,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026425113037713485,
+        "relative_l2_error": 0.026425113037712597,
         "rows": 2048,
         "saturation_count": 889,
         "saturation_rate": 0.00015414844859730113,
@@ -32418,8 +32418,8 @@
         "scale_min": 8.296966552734375e-05,
         "source_max": 0.369140625,
         "source_min": -0.48828125,
-        "source_rms": 0.03189138512135664,
-        "sqnr_db": 31.5596629250274,
+        "source_rms": 0.03189138512135821,
+        "sqnr_db": 31.559662925027695,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -32497,7 +32497,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996511174947873,
+        "cosine_similarity": 0.9996511174926843,
         "elements": 11534336,
         "histogram": [
           56,
@@ -32759,7 +32759,7 @@
         ],
         "max_absolute_error": 0.017822265625,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026412938619538837,
+        "relative_l2_error": 0.02641293861953358,
         "rows": 2816,
         "saturation_count": 1273,
         "saturation_rate": 0.00011036612770774148,
@@ -32767,8 +32767,8 @@
         "scale_min": 0.00022983551025390625,
         "source_max": 0.5,
         "source_min": -0.50390625,
-        "source_rms": 0.032717783192347714,
-        "sqnr_db": 31.563665557646402,
+        "source_rms": 0.03271778319235543,
+        "sqnr_db": 31.56366555764813,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -32846,7 +32846,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996506953042487,
+        "cosine_similarity": 0.9996506953022167,
         "elements": 11534336,
         "histogram": [
           53,
@@ -33108,7 +33108,7 @@
         ],
         "max_absolute_error": 0.01904296875,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.0264289237899768,
+        "relative_l2_error": 0.026428923789971567,
         "rows": 4096,
         "saturation_count": 1817,
         "saturation_rate": 0.00015752965753728694,
@@ -33116,8 +33116,8 @@
         "scale_min": 9.107589721679688e-05,
         "source_max": 0.5234375,
         "source_min": -0.5390625,
-        "source_rms": 0.031241276325758023,
-        "sqnr_db": 31.558410427559235,
+        "source_rms": 0.031241276325764837,
+        "sqnr_db": 31.55841042756095,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -33195,7 +33195,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996511600226242,
+        "cosine_similarity": 0.9996511600222159,
         "elements": 5767168,
         "histogram": [
           30,
@@ -33457,7 +33457,7 @@
         ],
         "max_absolute_error": 0.016845703125,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.02641133751342082,
+        "relative_l2_error": 0.026411337513420053,
         "rows": 2048,
         "saturation_count": 842,
         "saturation_rate": 0.0001459988680752841,
@@ -33465,8 +33465,8 @@
         "scale_min": 0.00020503997802734375,
         "source_max": 0.859375,
         "source_min": -0.87890625,
-        "source_rms": 0.03492615148553319,
-        "sqnr_db": 31.564192097035573,
+        "source_rms": 0.03492615148553474,
+        "sqnr_db": 31.564192097035825,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -33544,7 +33544,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996520123768102,
+        "cosine_similarity": 0.9996520123765547,
         "elements": 2883584,
         "histogram": [
           6,
@@ -33806,7 +33806,7 @@
         ],
         "max_absolute_error": 0.0126953125,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.02637907326449774,
+        "relative_l2_error": 0.02637907326449727,
         "rows": 1024,
         "saturation_count": 497,
         "saturation_rate": 0.00017235495827414772,
@@ -33814,8 +33814,8 @@
         "scale_min": 1.9788742065429688e-05,
         "source_max": 0.431640625,
         "source_min": -0.47265625,
-        "source_rms": 0.03561740555797446,
-        "sqnr_db": 31.574809318465185,
+        "source_rms": 0.03561740555797532,
+        "sqnr_db": 31.574809318465338,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -33893,7 +33893,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996500601494422,
+        "cosine_similarity": 0.9996500601450602,
         "elements": 23068672,
         "histogram": [
           136,
@@ -34155,7 +34155,7 @@
         ],
         "max_absolute_error": 0.017578125,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.02645292539100927,
+        "relative_l2_error": 0.026452925391000005,
         "rows": 2816,
         "saturation_count": 1247,
         "saturation_rate": 5.4055994207208805e-05,
@@ -34163,8 +34163,8 @@
         "scale_min": 0.00023174285888671875,
         "source_max": 0.494140625,
         "source_min": -0.4921875,
-        "source_rms": 0.03043340702492976,
-        "sqnr_db": 31.550525859404036,
+        "source_rms": 0.030433407024944643,
+        "sqnr_db": 31.55052585940708,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -34242,7 +34242,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996507344455724,
+        "cosine_similarity": 0.9996507344425282,
         "elements": 23068672,
         "histogram": [
           98,
@@ -34504,7 +34504,7 @@
         ],
         "max_absolute_error": 0.01953125,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026427433773641897,
+        "relative_l2_error": 0.026427433773636006,
         "rows": 8192,
         "saturation_count": 3626,
         "saturation_rate": 0.00015718286687677556,
@@ -34512,8 +34512,8 @@
         "scale_min": 0.0001220703125,
         "source_max": 0.5390625,
         "source_min": -0.55078125,
-        "source_rms": 0.034515966390376546,
-        "sqnr_db": 31.558900136576042,
+        "source_rms": 0.034515966390388036,
+        "sqnr_db": 31.55890013657798,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -34591,7 +34591,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996511262747033,
+        "cosine_similarity": 0.9996511262743168,
         "elements": 5767168,
         "histogram": [
           21,
@@ -34853,7 +34853,7 @@
         ],
         "max_absolute_error": 0.013671875,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026412639723644958,
+        "relative_l2_error": 0.026412639723644174,
         "rows": 2048,
         "saturation_count": 877,
         "saturation_rate": 0.00015206770463423297,
@@ -34861,8 +34861,8 @@
         "scale_min": 7.62939453125e-05,
         "source_max": 0.43359375,
         "source_min": -0.39453125,
-        "source_rms": 0.03422130353972805,
-        "sqnr_db": 31.563763850058105,
+        "source_rms": 0.034221303539729575,
+        "sqnr_db": 31.563763850058365,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -34940,7 +34940,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996505843946734,
+        "cosine_similarity": 0.999650584392713,
         "elements": 11534336,
         "histogram": [
           68,
@@ -35202,7 +35202,7 @@
         ],
         "max_absolute_error": 0.019287109375,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.02643310846475811,
+        "relative_l2_error": 0.026433108464753108,
         "rows": 2816,
         "saturation_count": 1229,
         "saturation_rate": 0.00010655143044211648,
@@ -35210,8 +35210,8 @@
         "scale_min": 0.0001888275146484375,
         "source_max": 0.55859375,
         "source_min": -0.45703125,
-        "source_rms": 0.031238239915839017,
-        "sqnr_db": 31.55703523928715,
+        "source_rms": 0.031238239915845636,
+        "sqnr_db": 31.557035239288798,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -35289,7 +35289,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996509925551695,
+        "cosine_similarity": 0.9996509925532843,
         "elements": 11534336,
         "histogram": [
           30,
@@ -35551,7 +35551,7 @@
         ],
         "max_absolute_error": 0.0166015625,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026417695713028433,
+        "relative_l2_error": 0.026417695713024006,
         "rows": 4096,
         "saturation_count": 1787,
         "saturation_rate": 0.00015492872758345172,
@@ -35559,8 +35559,8 @@
         "scale_min": 0.0001354217529296875,
         "source_max": 0.478515625,
         "source_min": -0.46875,
-        "source_rms": 0.03369849076823091,
-        "sqnr_db": 31.56210132925194,
+        "source_rms": 0.03369849076823793,
+        "sqnr_db": 31.562101329253395,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -35638,7 +35638,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996505910424734,
+        "cosine_similarity": 0.9996505910421073,
         "elements": 5767168,
         "histogram": [
           30,
@@ -35900,7 +35900,7 @@
         ],
         "max_absolute_error": 0.024658203125,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.02643286740653311,
+        "relative_l2_error": 0.026432867406532366,
         "rows": 2048,
         "saturation_count": 875,
         "saturation_rate": 0.0001517209139737216,
@@ -35908,8 +35908,8 @@
         "scale_min": 0.00021457672119140625,
         "source_max": 0.82421875,
         "source_min": -0.83203125,
-        "source_rms": 0.03567165136895189,
-        "sqnr_db": 31.557114451109282,
+        "source_rms": 0.035671651368953346,
+        "sqnr_db": 31.557114451109527,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -35987,7 +35987,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996506335410809,
+        "cosine_similarity": 0.9996506335406667,
         "elements": 5767168,
         "histogram": [
           21,
@@ -36249,7 +36249,7 @@
         ],
         "max_absolute_error": 0.0146484375,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026431269924695605,
+        "relative_l2_error": 0.02643126992469499,
         "rows": 2048,
         "saturation_count": 864,
         "saturation_rate": 0.0001498135653409091,
@@ -36257,8 +36257,8 @@
         "scale_min": 5.53131103515625e-05,
         "source_max": 0.431640625,
         "source_min": -0.44140625,
-        "source_rms": 0.034265887842540727,
-        "sqnr_db": 31.55763940249009,
+        "source_rms": 0.03426588784254212,
+        "sqnr_db": 31.55763940249029,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -36336,7 +36336,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996503873808886,
+        "cosine_similarity": 0.9996503873791015,
         "elements": 11534336,
         "histogram": [
           43,
@@ -36598,7 +36598,7 @@
         ],
         "max_absolute_error": 0.0166015625,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.02644055731617712,
+        "relative_l2_error": 0.026440557316172127,
         "rows": 2816,
         "saturation_count": 1242,
         "saturation_rate": 0.0001076785000887784,
@@ -36606,8 +36606,8 @@
         "scale_min": 0.00017547607421875,
         "source_max": 0.453125,
         "source_min": -0.474609375,
-        "source_rms": 0.0322778739529965,
-        "sqnr_db": 31.55458789992347,
+        "source_rms": 0.032277873953003425,
+        "sqnr_db": 31.554587899925114,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -36685,7 +36685,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996506940903571,
+        "cosine_similarity": 0.9996506940882284,
         "elements": 11534336,
         "histogram": [
           40,
@@ -36947,7 +36947,7 @@
         ],
         "max_absolute_error": 0.02001953125,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026428972196375012,
+        "relative_l2_error": 0.026428972196370054,
         "rows": 4096,
         "saturation_count": 1805,
         "saturation_rate": 0.00015648928555575284,
@@ -36955,8 +36955,8 @@
         "scale_min": 6.437301635742188e-05,
         "source_max": 0.515625,
         "source_min": -0.56640625,
-        "source_rms": 0.03312815418595283,
-        "sqnr_db": 31.558394518767376,
+        "source_rms": 0.033128154185960317,
+        "sqnr_db": 31.558394518769006,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -37034,7 +37034,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996502540819573,
+        "cosine_similarity": 0.9996502540816261,
         "elements": 5767168,
         "histogram": [
           21,
@@ -37296,7 +37296,7 @@
         ],
         "max_absolute_error": 0.029296875,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026445609921847284,
+        "relative_l2_error": 0.026445609921846507,
         "rows": 2048,
         "saturation_count": 930,
         "saturation_rate": 0.0001612576571377841,
@@ -37304,8 +37304,8 @@
         "scale_min": 0.0002079010009765625,
         "source_max": 0.58984375,
         "source_min": -0.953125,
-        "source_rms": 0.03576853595931485,
-        "sqnr_db": 31.552928245701537,
+        "source_rms": 0.03576853595931627,
+        "sqnr_db": 31.55292824570179,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -37383,7 +37383,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996511901075997,
+        "cosine_similarity": 0.9996511901071486,
         "elements": 5767168,
         "histogram": [
           18,
@@ -37645,7 +37645,7 @@
         ],
         "max_absolute_error": 0.015380859375,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026410203535841822,
+        "relative_l2_error": 0.026410203535840882,
         "rows": 2048,
         "saturation_count": 852,
         "saturation_rate": 0.0001477328213778409,
@@ -37653,8 +37653,8 @@
         "scale_min": 3.647804260253906e-05,
         "source_max": 0.43359375,
         "source_min": -0.36328125,
-        "source_rms": 0.03192292340777709,
-        "sqnr_db": 31.564565035950608,
+        "source_rms": 0.031922923407778775,
+        "sqnr_db": 31.564565035950917,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -37732,7 +37732,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996508025410394,
+        "cosine_similarity": 0.9996508025391918,
         "elements": 11534336,
         "histogram": [
           49,
@@ -37994,7 +37994,7 @@
         ],
         "max_absolute_error": 0.0185546875,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.02642485654362427,
+        "relative_l2_error": 0.026424856543618976,
         "rows": 2816,
         "saturation_count": 1241,
         "saturation_rate": 0.00010759180242365056,
@@ -38002,8 +38002,8 @@
         "scale_min": 0.0001277923583984375,
         "source_max": 0.546875,
         "source_min": -0.5234375,
-        "source_rms": 0.03136216526467745,
-        "sqnr_db": 31.55974723460674,
+        "source_rms": 0.031362165264684376,
+        "sqnr_db": 31.55974723460848,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -38081,7 +38081,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996509977946594,
+        "cosine_similarity": 0.9996509977928894,
         "elements": 11534336,
         "histogram": [
           41,
@@ -38343,7 +38343,7 @@
         ],
         "max_absolute_error": 0.01953125,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.02641749433944997,
+        "relative_l2_error": 0.026417494339445475,
         "rows": 4096,
         "saturation_count": 1843,
         "saturation_rate": 0.00015978379683061078,
@@ -38351,8 +38351,8 @@
         "scale_min": 6.818771362304688e-05,
         "source_max": 0.58984375,
         "source_min": -0.5078125,
-        "source_rms": 0.03152001997857488,
-        "sqnr_db": 31.56216753924103,
+        "source_rms": 0.0315200199785809,
+        "sqnr_db": 31.562167539242513,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -38430,7 +38430,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996507810978233,
+        "cosine_similarity": 0.9996507810973952,
         "elements": 5767168,
         "histogram": [
           26,
@@ -38692,7 +38692,7 @@
         ],
         "max_absolute_error": 0.017578125,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026425669270331454,
+        "relative_l2_error": 0.02642566927033046,
         "rows": 2048,
         "saturation_count": 905,
         "saturation_rate": 0.00015692277388139203,
@@ -38700,8 +38700,8 @@
         "scale_min": 0.0002040863037109375,
         "source_max": 0.984375,
         "source_min": -0.921875,
-        "source_rms": 0.03305542016268404,
-        "sqnr_db": 31.5594800942377,
+        "source_rms": 0.03305542016268574,
+        "sqnr_db": 31.559480094238022,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -38779,7 +38779,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996508370557509,
+        "cosine_similarity": 0.9996508370552946,
         "elements": 5767168,
         "histogram": [
           23,
@@ -39041,7 +39041,7 @@
         ],
         "max_absolute_error": 0.0133056640625,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.02642356229066159,
+        "relative_l2_error": 0.026423562290660643,
         "rows": 2048,
         "saturation_count": 899,
         "saturation_rate": 0.00015588240189985797,
@@ -39049,8 +39049,8 @@
         "scale_min": 4.220008850097656e-05,
         "source_max": 0.4375,
         "source_min": -0.375,
-        "source_rms": 0.03248424374392162,
-        "sqnr_db": 31.5601726678987,
+        "source_rms": 0.03248424374392325,
+        "sqnr_db": 31.56017266789901,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -39128,7 +39128,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996505791015828,
+        "cosine_similarity": 0.9996505790997073,
         "elements": 11534336,
         "histogram": [
           51,
@@ -39390,7 +39390,7 @@
         ],
         "max_absolute_error": 0.016357421875,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.026433315187188427,
+        "relative_l2_error": 0.02643331518718344,
         "rows": 2816,
         "saturation_count": 1281,
         "saturation_rate": 0.0001110597090287642,
@@ -39398,8 +39398,8 @@
         "scale_min": 0.0002155303955078125,
         "source_max": 0.486328125,
         "source_min": -0.490234375,
-        "source_rms": 0.03211982307845077,
-        "sqnr_db": 31.55696731079525,
+        "source_rms": 0.03211982307845774,
+        "sqnr_db": 31.556967310796885,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -39477,7 +39477,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996506123103174,
+        "cosine_similarity": 0.9996506123085,
         "elements": 11534336,
         "histogram": [
           54,
@@ -39739,7 +39739,7 @@
         ],
         "max_absolute_error": 0.01806640625,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.02643206095822771,
+        "relative_l2_error": 0.02643206095822314,
         "rows": 4096,
         "saturation_count": 1761,
         "saturation_rate": 0.00015267458829012784,
@@ -39747,8 +39747,8 @@
         "scale_min": 5.078315734863281e-05,
         "source_max": 0.52734375,
         "source_min": -0.51171875,
-        "source_rms": 0.03247669486710228,
-        "sqnr_db": 31.55737945557242,
+        "source_rms": 0.03247669486710882,
+        "sqnr_db": 31.557379455573923,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -39826,7 +39826,7 @@
         "component": "weight",
         "contract_id": "gem16.fp8_attention_rowwise",
         "contract_version": 1,
-        "cosine_similarity": 0.9996509138899882,
+        "cosine_similarity": 0.9996509138895909,
         "elements": 5767168,
         "histogram": [
           32,
@@ -40088,7 +40088,7 @@
         ],
         "max_absolute_error": 0.020263671875,
         "perfect_reconstruction": false,
-        "relative_l2_error": 0.02642065124323181,
+        "relative_l2_error": 0.026420651243230835,
         "rows": 2048,
         "saturation_count": 882,
         "saturation_rate": 0.00015293468128551137,
@@ -40096,8 +40096,8 @@
         "scale_min": 0.00021076202392578125,
         "source_max": 0.5078125,
         "source_min": -0.5859375,
-        "source_rms": 0.03341565953467819,
-        "sqnr_db": 31.561129633100414,
+        "source_rms": 0.03341565953467988,
+        "sqnr_db": 31.561129633100734,
         "underflow_clamped_rows": 0,
         "zero_rows": 0
       }
@@ -40144,13 +40144,13 @@
     }
   ],
   "memory": {
-    "baseline_rss_bytes": 28299264,
+    "baseline_rss_bytes": 28323840,
     "host_memory_cap_bytes": 7516192768,
     "maximum_header_bytes": 129800,
     "maximum_mapped_window_bytes": 1052636,
     "maximum_tensor_bytes": 1476395008,
     "maximum_transform_row_bytes": 16384,
-    "peak_rss_bytes": 38072320,
+    "peak_rss_bytes": 38727680,
     "staging_buffer_bytes": 1048576
   },
   "milestone": "M05",
@@ -40172,13 +40172,13 @@
       "system": "Linux"
     },
     "protocol": "gem16-fp8-batch-v1",
-    "sha256": "ca0d48d92a76d5e931c19d46a9b0570ea48b37bed77550d3e194f7f740c36c9f",
+    "sha256": "b0f5f85fb4ea75abc7f3bfa78d85508efda0936845f1e6477c647f0a1f1a973f",
     "threads": 8
   },
   "native_runtime": {
-    "child_peak_rss_bytes": 6205440
+    "child_peak_rss_bytes": 6279168
   },
-  "output": "/home/sebastian/Development/gem16gb/build/models/ordinary-fp8-attention-partial",
+  "output": "/home/sebastian/Development/gem16gb/build/models/ordinary-fp8-attention-partial-clean-d913881",
   "output_file_count": 4,
   "output_tensor_bytes": 1110850560,
   "output_tensor_count": 230,

@@ -14,9 +14,9 @@ runtime inference design.
 | M08 | Assemble the complete immutable text-only artifact and load it | Assembly may initially use the existing Python control plane; it performs no quantization |
 | M18 | Converter/source/head attribution and large comparisons | Planned native data-plane comparison and telemetry, with small Python orchestration permitted |
 
-M00-M04 are accepted. M05's native implementation and diagnostic full Ordinary-BF16/QAT-BF16 runs are complete;
-owner-authorized clean-revision evidence and final M05 acceptance remain pending. The current executable is
-`gem16-fp8-compiler`; before M06 the reusable implementation should evolve toward the planned
+M00-M05 are accepted. M05's native implementation, clean full Ordinary-BF16/QAT-BF16 runs and final evidence pass
+at implementation commit `d913881`. The current executable is `gem16-fp8-compiler`; before M06 the reusable
+implementation should evolve toward the planned
 `gem16-checkpoint-compiler` family name. This naming evolution must not rewrite accepted M04 evidence.
 
 ## Control plane and data plane

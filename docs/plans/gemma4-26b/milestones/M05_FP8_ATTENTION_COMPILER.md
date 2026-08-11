@@ -16,10 +16,11 @@ The production design keeps attention in FP8 so the existing SM120 projection an
 
 ## Current status and binding architecture
 
-M05 is implementation-complete but not yet accepted. The native C++20 batch encoder, native comparator, bounded
-host/sanitizer/CUDA tests, exact Ordinary/QAT plan gates, short throughput probe, diagnostic full runs, structural
-verification, Ordinary-versus-Unsloth comparison and 12B regression evidence pass. The owner authorized the
-implementation commit and clean-revision evidence runs; those clean runs and final acceptance record remain pending.
+M05 is accepted at implementation commit `d91388113d68974f9ab7cec1a90ef768285c0645`. The native C++20 batch
+encoder/comparator, bounded host/sanitizer/CUDA tests, exact Ordinary/QAT plans, short throughput probe, one clean
+full run per source, structural verification, Ordinary-versus-Unsloth comparison, complete hashes and exact 12B
+regression pass. The clean evidence and owner sign-off are retained in
+[M05 acceptance](../../../evidence/gemma4_26b/m05-fp8-attention-compiler-acceptance-2026-08-11.md).
 The accepted M04 Python scaffold remains the control plane for locks, exact plans, coverage, publication and
 provenance. M05's promoted conversion is the native data plane; `quantize_fp8.py` is an oracle/fixture aid and cannot
 be a production fallback.
@@ -129,12 +130,12 @@ the owner authorized both the diagnostic and clean-revision full conversions rec
 
 ## Exit criteria
 
-- [ ] Versioned native C++20 FP8 encoder output is byte-deterministic and fully specified; Python is oracle-only.
-- [ ] One native full Ordinary-BF16 and one native full QAT-BF16 attention family compile successfully.
-- [ ] Runtime schema/binding validation and bounded native tests pass; runtime loading remains M08 work.
-- [ ] Ordinary compiler-versus-Unsloth differences are quantified for every attention tensor.
-- [ ] M05 verify is structural/hash/source-lock-only and reports `transformation_recomputed=false`.
-- [ ] No 12B loader, operator, generation, or benchmark regression is introduced.
+- [x] Versioned native C++20 FP8 encoder output is byte-deterministic and fully specified; Python is oracle-only.
+- [x] One clean native full Ordinary-BF16 and one clean native full QAT-BF16 attention family compile successfully.
+- [x] Runtime schema/binding validation and bounded native tests pass; runtime loading remains M08 work.
+- [x] Ordinary compiler-versus-Unsloth differences are quantified for every attention tensor.
+- [x] M05 verify is structural/hash/source-lock-only and reports `transformation_recomputed=false`.
+- [x] No 12B loader, operator, generation, or benchmark regression is introduced.
 
 ## Downstream milestones unblocked
 

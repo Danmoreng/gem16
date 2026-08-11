@@ -36,9 +36,9 @@
   "artifact_profile": "fp8-attention-partial-v1",
   "artifact_status": "m05_fp8_attention_partial_not_runtime_loadable",
   "compiled": {
-    "compilation_manifest_sha256": "a283dbd41b4342226a19e4917acacde58fec0c8bd5286b4bc0453c27172ab56c",
-    "compiler_commit": "a061c045c5b77b8612ac029cf18dfc6b4a660001",
-    "compiler_dirty": true,
+    "compilation_manifest_sha256": "ba368221b50938de08e8f2e3fa3585f383cd4dae772d1dbac611830e63d34d1e",
+    "compiler_commit": "d91388113d68974f9ab7cec1a90ef768285c0645",
+    "compiler_dirty": false,
     "compiler_implementation": "gem16_compile_m05_native_v1",
     "compiler_manifest_sha256": "dcbb2f35220f0f359d186aa31b1a3f2c6e9e8c94c4ba038248848d2f785cff2e",
     "resolved_plan_sha256": "dcbb2f35220f0f359d186aa31b1a3f2c6e9e8c94c4ba038248848d2f785cff2e",
@@ -60,7 +60,7 @@
       "system": "Linux"
     },
     "native_comparator_protocol": "gem16-fp8-attention-compare-v1",
-    "native_comparator_sha256": "ca0d48d92a76d5e931c19d46a9b0570ea48b37bed77550d3e194f7f740c36c9f",
+    "native_comparator_sha256": "b0f5f85fb4ea75abc7f3bfa78d85508efda0936845f1e6477c647f0a1f1a973f",
     "native_comparator_threads": 8,
     "operator_output_comparison": "not_performed_in_M05_weight_comparison",
     "reference_environment": {
@@ -76,8 +76,7 @@
   "limitations": [
     "This report compares stored weights and row scales only.",
     "No activation or CUDA operator-output comparison is performed.",
-    "Differences are not model-quality or QAT attribution evidence.",
-    "The compiled input was produced from a dirty worktree and is diagnostic evidence only."
+    "Differences are not model-quality or QAT attribution evidence."
   ],
   "matrices": [
     {

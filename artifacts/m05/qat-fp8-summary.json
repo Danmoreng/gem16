@@ -320,7 +320,7 @@
       "weight_elements": 144179200
     }
   },
-  "evidence_class": "diagnostic_dirty_worktree",
+  "evidence_class": "clean_revision_evidence",
   "global_layers_without_v": [
     5,
     11,
@@ -331,7 +331,7 @@
   "limitations": [
     "Telemetry summarizes stored weights and row scales only.",
     "No model-quality or QAT attribution claim is made.",
-    "Compiler provenance records a dirty worktree; this is diagnostic evidence, not release evidence."
+    "Compiler provenance binds both lanes to one clean implementation commit."
   ],
   "native_encoder": {
     "build": {
@@ -343,7 +343,7 @@
       "system": "Linux"
     },
     "protocol": "gem16-fp8-batch-v1",
-    "sha256": "ca0d48d92a76d5e931c19d46a9b0570ea48b37bed77550d3e194f7f740c36c9f",
+    "sha256": "b0f5f85fb4ea75abc7f3bfa78d85508efda0936845f1e6477c647f0a1f1a973f",
     "threads": 8
   },
   "plans": {
@@ -365,10 +365,10 @@
   "report_kind": "m05_qat_fp8_summary",
   "schema_version": 1,
   "source": {
-    "compilation_manifest_sha256": "dbe330c8bd69a057f774cc8e0cb9e8b9f81c7e6c1ade2b16c4141bf2812c0260",
-    "compile_report_sha256": "7a7dae7c7d8759d8724926df43d75133e06558dcca57ca482dbab208425aa71b",
-    "compiler_commit": "a061c045c5b77b8612ac029cf18dfc6b4a660001",
-    "compiler_dirty": true,
+    "compilation_manifest_sha256": "f11bce2907d133a561573ff41c52173033c748c548ad7e777a7fdd8a2c00df94",
+    "compile_report_sha256": "b3c4006e26dfcdc0e1d86b4982b2087edf447880ed65df5b5e901e43ec4ea182",
+    "compiler_commit": "d91388113d68974f9ab7cec1a90ef768285c0645",
+    "compiler_dirty": false,
     "compiler_plan_sha256": "4854475c6412254cde87010630e301aaf38af9eee2ee639586c74eb645ecdd7b",
     "resolved_plan_sha256": "4854475c6412254cde87010630e301aaf38af9eee2ee639586c74eb645ecdd7b",
     "source_lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230"

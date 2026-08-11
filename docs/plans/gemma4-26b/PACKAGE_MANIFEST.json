@@ -78,9 +78,9 @@
       "sha256": "22054ee20ba2a293c1db4484ceb97026ca56bad379a47e84e477def2fa5ae863"
     },
     {
-      "bytes": 3494,
+      "bytes": 3111,
       "path": "MILESTONE_STATUS_BOARD.md",
-      "sha256": "0ea96d011adbd721b875cc12db2c3507313dbf3b1726f5fe627c9de596cc3028"
+      "sha256": "7d049660e71820293a9f397b9fb2788e57074ea29e090292c0bf0bd5d557ee63"
     },
     {
       "bytes": 2502,
@@ -98,9 +98,9 @@
       "sha256": "b288e813e7245f0bf20924a2126ed3542eac1f6fb93173db140dab5fa3b0ea59"
     },
     {
-      "bytes": 5335,
+      "bytes": 5077,
       "path": "START_HERE_CODEX.md",
-      "sha256": "7de47c76fb4b60eeeca9ab5dcddd0ec3521209e12588839ed92b3148a05cdd16"
+      "sha256": "b281188ca27eecbf1e8a32efc5685873eb08f9ba8c71c9c6ed90c53faddd9f7e"
     },
     {
       "bytes": 2954,
@@ -263,9 +263,9 @@
       "sha256": "44c0f37f3c0684c5fc278c840aa295aacde01616e239095cb55d4ddab02af019"
     },
     {
-      "bytes": 10482,
+      "bytes": 10548,
       "path": "milestones/M05_FP8_ATTENTION_COMPILER.md",
-      "sha256": "1d08574b15ac1383387a2373ce424055303281e24db2faf0b724669506a516ba"
+      "sha256": "9d8b09f6afc4ab70eca69c648267f5d08328b40a796fefe375ff46d6f6a78785"
     },
     {
       "bytes": 10705,
@@ -513,9 +513,9 @@
       "sha256": "ffa8afa82abd42c2efa2b54c930fc21e0e310ad225cffb4179631054f634178f"
     },
     {
-      "bytes": 10257,
+      "bytes": 10213,
       "path": "specs/NATIVE_CONVERTER_ARCHITECTURE.md",
-      "sha256": "56cc2e5024fc6d5adae00e9b0a91434131f63e653aafe50539755d4c57a33eef"
+      "sha256": "f2593c6036079007587ccbbdda835c4b8cc410f34760967b28d5f8dfd6cd779d"
     },
     {
       "bytes": 5957,
