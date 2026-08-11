@@ -1,0 +1,241 @@
+{
+  "schema_version": 1,
+  "classification": "controlled external llama.cpp performance characterization; not an exact ordinary/MTP parity or quality baseline",
+  "model": {
+    "repo": "unsloth/gemma-4-26B-A4B-it-qat-GGUF",
+    "revision": "7b92b5b28818151e8669af2e45e88d6086f490dd",
+    "target": {
+      "filename": "gemma-4-26B-A4B-it-qat-UD-Q4_K_XL.gguf",
+      "bytes": 14249047104,
+      "sha256": "a7c5bc715f5ff8e99a3e8901ce7d2b42b402c669bf24f7c5250747633d0f5891",
+      "parameters": "25.23 B",
+      "layers": 30,
+      "experts_total": 128,
+      "experts_active": 8
+    },
+    "assistant": {
+      "filename": "mtp-gemma-4-26B-A4B-it.gguf",
+      "bytes": 251939328,
+      "sha256": "7272d97595f0d4c74bd7b623492b7dbdaafd8b7c72f329a8270ba4eca68f768a",
+      "parameters": "419.71 M",
+      "layers": 4,
+      "shared_kv_layers": 4
+    }
+  },
+  "engine": {
+    "name": "llama.cpp",
+    "build": 10364,
+    "commit": "153d324bcf86d220b235ca010eeb11213f32b5d1",
+    "nearest_release_tag": "b10362",
+    "compiler": "MSVC 19.44.35219.0",
+    "cuda_toolkit": "13.3.33",
+    "cuda_architecture": "120a-real",
+    "ggml_cuda": true,
+    "flash_attention_all_quantizations": true
+  },
+  "system": {
+    "os": "Microsoft Windows 11 Pro 10.0.26200 build 26200",
+    "cpu": "AMD Ryzen 9 9955HX3D 16-Core Processor",
+    "host_logical_processors": 32,
+    "host_memory_kib": 66347960,
+    "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "gpu_uuid": "GPU-93070293-2184-eb69-555b-1d856a4fdbb8",
+    "gpu_memory_mib": 16303,
+    "driver": "596.49",
+    "runtime_cuda": "13.2",
+    "current_power_limit_w": 175.0,
+    "windows_power_scheme": "Balanced"
+  },
+  "workload": {
+    "id": "wikipedia-artificial-intelligence-summary-16k",
+    "prompt_tokens": 16384,
+    "prompt_token_ids_sha256": "d07ad4d805944f0b87869da0c5bb44d99e8c43c0eb57d05a108ad80a6abb51a8",
+    "fixed_output_tokens": 1135,
+    "seed": 0,
+    "temperature": 0.0,
+    "ignore_eos": true,
+    "suppress_token_ids": [258883, 258882]
+  },
+  "method": {
+    "batch_size": 1,
+    "warmups": 3,
+    "measured_repetitions": 10,
+    "primary_statistic": "median",
+    "kv_cache_k": "Q8_0",
+    "kv_cache_v": "Q8_0",
+    "flash_attention": true,
+    "gpu_layers": "all",
+    "split_mode": "none",
+    "parallel": 1,
+    "threads": 8,
+    "batch": 2048,
+    "ubatch": 512,
+    "target_tensor_override": "token_embd.weight=CUDA0",
+    "draft_tensor_override": "token_embd.weight=CUDA0",
+    "mtp_mode": "draft-mtp fixed D2",
+    "telemetry_interval_ms": 200,
+    "thermal_start_limit_c": 50
+  },
+  "results": {
+    "ordinary": {
+      "prompt_tokens_per_second": {
+        "median": 4333.852462506455,
+        "mean": 4334.525399182828,
+        "standard_deviation": 5.53151383864579,
+        "minimum": 4327.320143775634,
+        "maximum": 4342.961415131074,
+        "confidence_interval_95": [4330.568667469917, 4338.482130895738],
+        "samples": [4341.589614315586, 4338.723370899941, 4337.210721360419, 4342.961415131074, 4335.112906353994, 4330.924503294453, 4331.430577615725, 4332.5920186589165, 4327.320143775634, 4327.388720422533]
+      },
+      "time_to_first_token_ms": {
+        "median": 3780.4705000000004,
+        "mean": 3779.8888,
+        "standard_deviation": 4.822810748008959,
+        "minimum": 3772.541,
+        "maximum": 3786.177,
+        "confidence_interval_95": [3776.439008715254, 3783.338591284746],
+        "samples": [3773.733, 3776.226, 3777.543, 3772.541, 3779.371, 3783.026, 3782.584, 3781.57, 3786.177, 3786.117]
+      },
+      "decode_tokens_per_second": {
+        "median": 132.6827380918981,
+        "mean": 132.68852980567152,
+        "standard_deviation": 0.11444559030193702,
+        "minimum": 132.52529521061297,
+        "maximum": 132.902420089783,
+        "confidence_interval_95": [132.60666605015007, 132.77039356119298],
+        "samples": [132.70123545552332, 132.902420089783, 132.6580019388657, 132.7474651555463, 132.66424072827286, 132.52529521061297, 132.7234608379766, 132.6121136605095, 132.8038511711508, 132.5472138084742]
+      },
+      "average_inter_token_latency_ms": {
+        "median": 7.536775573192241,
+        "mean": 7.536451499118166,
+        "standard_deviation": 0.006498673245052538,
+        "minimum": 7.52431746031746,
+        "maximum": 7.545729276895943,
+        "confidence_interval_95": [7.5318029513117954, 7.541100046924536],
+        "samples": [7.535724867724868, 7.52431746031746, 7.5381807760141095, 7.533100529100529, 7.537826278659613, 7.545729276895943, 7.534462962962963, 7.540789241622575, 7.529902116402116, 7.544481481481481]
+      },
+      "output_token_sha256": "03e715482b0876650a41a3d605b9dec7a844dc7e64d9d732cda8faf871712de7",
+      "deterministic_outputs": true,
+      "residency": {
+        "target_layers_offloaded": "31/31",
+        "target_cuda_model_buffer_mib": 13969.92,
+        "target_cuda_kv_buffers_mib": [183.28, 159.38],
+        "target_cuda_compute_buffer_mib": 144.18,
+        "sampled_peak_vram_mib": 14742,
+        "sampled_vram_margin_mib": 1561
+      },
+      "telemetry": {
+        "start_temperature_c": 48,
+        "maximum_temperature_c": 74,
+        "maximum_active_power_w": 175.38,
+        "samples_total": 799
+      }
+    },
+    "mtp_d2_resident": {
+      "prompt_tokens_per_second": {
+        "median": 4275.566084517637,
+        "mean": 4273.788097217907,
+        "standard_deviation": 9.11089183414853,
+        "minimum": 4254.353415661027,
+        "maximum": 4286.785533564034,
+        "confidence_interval_95": [4267.2710106292025, 4280.305183806612],
+        "samples": [4286.785533564034, 4279.837196915612, 4277.189220459813, 4280.027262185369, 4274.360515594737, 4276.771653440538, 4273.330391245515, 4254.353415661027, 4271.3306482834, 4263.8951348290275]
+      },
+      "time_to_first_token_ms": {
+        "median": 3832.0075,
+        "mean": 3833.6171,
+        "standard_deviation": 8.186963247206576,
+        "minimum": 3821.978,
+        "maximum": 3851.114,
+        "confidence_interval_95": [3827.760906188039, 3839.473293811961],
+        "samples": [3821.978, 3828.183, 3830.553, 3828.013, 3833.088, 3830.927, 3834.012, 3851.114, 3835.807, 3842.496]
+      },
+      "decode_tokens_per_second": {
+        "median": 164.30321919672423,
+        "mean": 164.47591252516673,
+        "standard_deviation": 2.773879999193122,
+        "minimum": 160.40064516703947,
+        "maximum": 169.12809693456072,
+        "confidence_interval_95": [162.49173617113945, 166.46008887919402],
+        "samples": [164.25051360874892, 164.52785294053638, 164.35592478469954, 161.0611972897406, 163.21316344387836, 163.44080070426554, 168.15672206496455, 160.40064516703947, 166.22420831323325, 169.12809693456072]
+      },
+      "average_inter_token_latency_ms": {
+        "median": 6.086308641975308,
+        "mean": 6.081468694885362,
+        "standard_deviation": 0.1022041475832029,
+        "minimum": 5.9126781305114635,
+        "maximum": 6.234388888888889,
+        "confidence_interval_95": [6.0083613315613915, 6.154576058209332],
+        "samples": [6.088261022927689, 6.077998236331569, 6.084356261022927, 6.208820105820106, 6.126956790123457, 6.118423280423281, 5.946833333333333, 6.234388888888889, 6.0159708994709, 5.9126781305114635]
+      },
+      "mtp": {
+        "proposed_tokens": 997,
+        "accepted_tokens": 635,
+        "rejected_tokens": 362,
+        "verification_groups": 500,
+        "accepted_drafts_per_group": 1.27,
+        "conventional_mean_accepted_length": 2.27,
+        "backend_sampling": true
+      },
+      "output_token_sha256": "9406d908aee96fee7b2513820610973745e2bac1ef0019fd50ac1a298e51ad9e",
+      "deterministic_outputs": true,
+      "first_ordinary_divergence": {
+        "zero_based_output_index": 55,
+        "ordinary_token_id": 97258,
+        "mtp_token_id": 170299
+      },
+      "residency": {
+        "target_layers_offloaded": "31/31",
+        "assistant_layers_offloaded": "5/5",
+        "target_cuda_model_buffer_mib": 13969.92,
+        "assistant_cuda_model_buffer_mib": 225.21,
+        "target_cuda_compute_buffer_mib": 144.18,
+        "assistant_cuda_compute_buffer_mib": 126.54,
+        "cpu_mapped_model_buffer_mib": 0,
+        "sampled_peak_vram_mib": 15108,
+        "sampled_vram_margin_mib": 1195
+      },
+      "telemetry": {
+        "start_temperature_c": 46,
+        "maximum_temperature_c": 73,
+        "maximum_active_power_w": 175.95,
+        "samples_total": 713
+      }
+    },
+    "mtp_delta_percent": {
+      "prompt_tokens_per_second": -1.3449091424563187,
+      "time_to_first_token_ms": 1.363243014328508,
+      "decode_tokens_per_second": 23.831646497169288,
+      "average_inter_token_latency_ms": -19.245192020525824,
+      "peak_vram_mib": 366
+    }
+  },
+  "dispatch_evidence": {
+    "target_forward": "CUDA-offloaded through llama_decode with 31/31 target layer groups on CUDA0",
+    "assistant_forward": "CUDA-offloaded through llama_decode(ctx_dft) with 5/5 assistant layer groups and a CUDA0 compute buffer",
+    "draft_sampling": "backend_sampling=1 with no CPU-sampler fallback in the runtime log",
+    "control_path": "host-controlled: common/speculative.cpp keeps pending_h and verify_h in std::vector<float>, copies hidden rows with std::memcpy, constructs draft batches on the host, and the server performs verification/acceptance in host loops",
+    "classification": "host-controlled MTP with CUDA-offloaded target and assistant forwards; not a fully GPU-resident MTP control path"
+  },
+  "telemetry_notes": {
+    "active_sample_definition": "memory.used > 0 MiB",
+    "excluded_idle_nvml_anomalies": "raw CSV contains impossible power/clock values only on zero-memory, zero-utilization teardown samples; retained in raw data and excluded from active maxima"
+  },
+  "limitations": [
+    "MTP output is deterministic but not token-identical to llama.cpp ordinary decode, diverging at output index 55.",
+    "The MTP scheduler, hidden-state staging, batch construction and acceptance loop remain host-controlled even though target and assistant forwards run on CUDA.",
+    "No Nsight Systems or Nsight Compute trace attributes individual assistant kernels; placement, source routing, CUDA buffers and sampled GPU activity are the dispatch evidence retained here.",
+    "This run does not establish model quality or exact parity with a direct QAT runtime.",
+    "Average ITL is derived from aggregate decode time; per-token latency percentiles are not exposed by this harness."
+  ],
+  "raw_results": {
+    "root": "benchmarks/results/2026-08-11/llama-cpp-26b-baseline/",
+    "ordinary": "ordinary.json",
+    "ordinary_server_log": "ordinary.server.log",
+    "ordinary_telemetry": "ordinary.telemetry.csv",
+    "mtp": "mtp-d2-resident.json",
+    "mtp_server_log": "mtp-d2-resident.server.log",
+    "mtp_telemetry": "mtp-d2-resident.telemetry.csv",
+    "diagnostic_nonresident_mtp": "mtp-d2.json"
+  }
+}

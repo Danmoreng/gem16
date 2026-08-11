@@ -1,8 +1,87 @@
 # llama.cpp baseline
 
-Upstream is pinned to release b10240, commit `0b14b87d7c20cb753b94b96854dd7b45306fc696`, published on
-2026-08-03 (version 10240). A Linux cross-engine characterization has been captured; no exact-format or
-quality-accepted baseline exists yet.
+The current build pin is upstream build 10364, commit
+`153d324bcf86d220b235ca010eeb11213f32b5d1`, fetched from `master` on 2026-08-11. The nearest preceding release
+tag is b10362. Historical rows below retain the exact older llama.cpp revision that produced them, including the
+b10240 Linux/Windows cross-engine characterizations; updating the active build pin does not relabel those results.
+
+## Current-build Gemma 4 12B batch/ubatch audit
+
+The current build 10364 was screened on Windows with the same 16,384-token Wikipedia prompt and 12B patched
+NVFP4/Q8_0 GGUF used by the retained Windows b10240 comparison. Every new execution in this audit used build 10364;
+b10240 appears only as previously recorded historical evidence. Short 1-warm-up/3-measurement screens forced one
+output token and tested `batch/ubatch` pairs `1024/512`, `1024/1024`, `2048/256`, `2048/512`, `2048/1024`, and
+`4096/512`. The existing `2048/512` pair remained fastest at 4,047.92 prompt tok/s in that shortlist. In particular,
+`1024/512` reached 4,004.78, `1024/1024` 3,948.29, and `2048/256` 3,748.06 tok/s.
+
+A follow-up deliberately spent more workspace VRAM with `4096/2048`, `8192/2048`, `8192/4096`, and `8192/8192`.
+Their short-screen medians and sampled peaks were 3,812.09/11,496 MiB, 3,824.13/11,496 MiB,
+3,465.92/12,774 MiB, and 2,940.31 tok/s/15,430 MiB respectively. Raising only `n_batch` from 4,096 to 8,192 at
+`n_ubatch=2048` did not change sampled peak VRAM materially. Raising `n_ubatch` allocated substantially larger
+compute/KV buffers and made prefill progressively slower.
+
+The selected fully resident configuration then ran the complete fixed 1,135-token D2 workload with three warm-ups
+and ten measured repetitions. Target and assistant `token_embd.weight` were forced to CUDA0; verbose logs show 49/49
+target and 5/5 assistant layer groups, 10,837.74/806.57 MiB CUDA model buffers, and no CPU-mapped model-weight
+buffer. Q8_0 target K/V, Flash Attention, prompt-cache-off, one slot, eight threads, and all workload semantics were
+retained.
+
+| llama.cpp configuration | Prefill tok/s | TTFT | D2 tok/s | ITL | Peak VRAM |
+|---|---:|---:|---:|---:|---:|
+| b10240 historical Windows, `2048/512` | 3,942.08 | 4,156.18 ms | 86.798 | 11.521 ms | 10,599 MiB |
+| b10364 default embedding placement, `2048/512` | 3,989.25 | 4,107.03 ms | 87.920 | 11.374 ms | 10,586 MiB |
+| b10364 VRAM-matched diagnostic, `8192/2048` | 3,804.74 | 4,306.21 ms | 82.679 | 12.095 ms | 11,512 MiB |
+| **b10364 resident, `2048/512`** | **3,996.31** | **4,099.78 ms** | **88.134** | **11.346 ms** | 12,500 MiB |
+
+The current resident result is 1.38% faster in prefill and lowers TTFT by 1.36% against the existing same-machine
+b10240 row. Full residency changes current-build prefill by only +0.18% versus default placement. Batch tuning and
+the upstream refresh therefore do not explain the large retained prefill gap; `2048/512` was already the right
+published pair for this workload. This Windows audit does not replace the Linux cross-engine table because gem16
+and vLLM were not rerun here. Full samples, hashes, telemetry, residency, raw paths, and limitations are in
+[`windows-12b-batch-sweep-b10364.json`](windows-12b-batch-sweep-b10364.json).
+
+The full `8192/2048` control was selected because its 11,512 MiB sampled peak is only 201 MiB (1.72%) below the
+existing same-machine gem16 peak of 11,713 MiB. Despite using 926 MiB more than llama.cpp's default `2048/512`
+control, it is 4.63% slower in prefill and raises TTFT by 4.85%. This is a diagnostic VRAM match: default llama.cpp
+placement still retains 1,920 MiB of target and 512 MiB of assistant weights CPU-mapped. Conversely, the valid
+fully resident `2048/512` result already uses 12,500 MiB, 787 MiB more than the historical gem16 peak, while still
+remaining the best llama.cpp result. The large-batch output is internally deterministic but diverges from the
+`2048/512` output at zero-based index 76, so the decode/ITL figures in that row are descriptive rather than an
+exact sequence-matched comparison. Prefill remains directly comparable because all runs use the identical fixed
+16,384-token prompt.
+
+## Gemma 4 26B A4B Unsloth QAT UD-Q4_K_XL baseline
+
+The practical 26B baseline uses
+[`unsloth/gemma-4-26B-A4B-it-qat-GGUF`](https://huggingface.co/unsloth/gemma-4-26B-A4B-it-qat-GGUF/tree/7b92b5b28818151e8669af2e45e88d6086f490dd)
+at immutable revision `7b92b5b28818151e8669af2e45e88d6086f490dd`. The target GGUF is
+`gemma-4-26B-A4B-it-qat-UD-Q4_K_XL.gguf`, 14,249,047,104 bytes, SHA-256
+`a7c5bc715f5ff8e99a3e8901ce7d2b42b402c669bf24f7c5250747633d0f5891`. The separate assistant is
+`mtp-gemma-4-26B-A4B-it.gguf`, 251,939,328 bytes, SHA-256
+`7272d97595f0d4c74bd7b623492b7dbdaafd8b7c72f329a8270ba4eca68f768a`.
+
+Both modes ran batch one on Windows with the same exact 16,384-token Wikipedia prompt, 1,135 forced greedy output
+positions, Q8_0 K/V, Flash Attention, three warm-ups and ten measured repetitions. `token_embd.weight` was forced
+to CUDA0 for both target and draft models. Verbose runtime evidence confirms 31/31 target and 5/5 assistant layer
+groups on CUDA0, no retained CPU-mapped model buffer in the promoted MTP run, and 200 ms external telemetry.
+
+| Mode | Prefill tok/s | TTFT | Decode tok/s | ITL | Peak VRAM | Free margin |
+|---|---:|---:|---:|---:|---:|---:|
+| Ordinary | **4,333.85** | **3,780.47 ms** | 132.683 | 7.537 ms | **14,742 MiB** | **1,561 MiB** |
+| MTP D2 | 4,275.57 | 3,832.01 ms | **164.303** | **6.086 ms** | 15,108 MiB | 1,195 MiB |
+
+MTP improves median effective decode throughput by 23.83% and lowers aggregate ITL by 19.25%, while adding 366 MiB
+of sampled peak VRAM. It proposes 997 tokens, accepts 635 and rejects 362 across 500 target groups in every run.
+Both modes are internally deterministic, but MTP first differs from ordinary at zero-based output index 55. This
+is therefore a controlled performance characterization, not ordinary/MTP exactness or quality acceptance.
+
+The current llama.cpp path is also not fully GPU-resident MTP. Target and assistant forwards execute through CUDA,
+and draft Top-K reports backend sampling with no CPU-sampler fallback. However, the scheduler retains hidden rows in
+host `std::vector<float>` storage, copies them with `std::memcpy`, constructs draft batches on the host, and performs
+verification/acceptance in host loops. Describe it as **host-controlled MTP with CUDA-offloaded forwards**, not as
+a CUDA-resident MTP control path. Full samples, residency facts, telemetry summaries, output hashes and limitations
+are retained in
+[`gemma4-26b-a4b-qat-ud-q4_k_xl-mtp-characterization.json`](gemma4-26b-a4b-qat-ud-q4_k_xl-mtp-characterization.json).
 
 ## Gemma 4 26B A4B QAT exploration
 

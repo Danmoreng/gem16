@@ -1,0 +1,388 @@
+{
+  "schema_version": 1,
+  "status": "controlled_current-llama.cpp_parameter_characterization",
+  "scope": "Windows Wikipedia 16K D2 batch/ubatch audit on current llama.cpp only",
+  "captured_at": "2026-08-11",
+  "engine": {
+    "name": "llama.cpp",
+    "build": 10364,
+    "commit": "153d324bcf86d220b235ca010eeb11213f32b5d1",
+    "compiler": "MSVC 19.44.35219.0",
+    "cuda_architecture": "1200",
+    "cuda_graphs": true,
+    "flash_attention_all_quantizations": true,
+    "blackwell_native_fp4": true
+  },
+  "system": {
+    "operating_system": "Windows 11 Pro build 26200",
+    "cpu": "AMD Ryzen 9 9955HX3D 16-Core Processor",
+    "logical_processors": 32,
+    "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "gpu_uuid": "GPU-93070293-2184-eb69-555b-1d856a4fdbb8",
+    "gpu_memory_mib": 16303,
+    "driver": "596.49",
+    "cuda_toolkit": "13.3.33",
+    "windows_power_scheme": "Balanced"
+  },
+  "model": {
+    "target": {
+      "path": "build/Windows/llama_cpp/gemma4-12b-mixed-q8-nvfp4.gguf",
+      "bytes": 9366658112,
+      "sha256": "0fc3dce6d631d1ee5ab5398f621b4bfe50591d01d08339659d554eb91e23091d",
+      "mapping": "patched closest-parity GGUF with NVFP4 MLP and source FP8 attention mapped to Q8_0"
+    },
+    "assistant": {
+      "path": "build/Windows/llama_cpp/gemma4-12b-it-assistant-bf16.gguf",
+      "bytes": 861520160,
+      "sha256": "7b82a9f31fa365fb8ce533424cfad6c5106086f40b3eade4d91d8c5bb63d8224"
+    }
+  },
+  "workload": {
+    "prompt_tokens": 16384,
+    "prompt_token_ids_sha256": "d07ad4d805944f0b87869da0c5bb44d99e8c43c0eb57d05a108ad80a6abb51a8",
+    "fixed_output_tokens": 1135,
+    "mtp_draft_tokens": 2,
+    "sampling": "greedy with the retained suppression list",
+    "kv_cache_target": "Q8_0",
+    "flash_attention": true,
+    "parallel_slots": 1,
+    "threads": 8,
+    "prompt_cache": false
+  },
+  "screening": {
+    "purpose": "shortlist batch/ubatch only; not a promoted result",
+    "warmups": 1,
+    "measured_repetitions": 3,
+    "fixed_output_tokens": 1,
+    "llama_context_after_rounding": 16640,
+    "telemetry": "not captured",
+    "configurations": [
+      {
+        "batch_size": 2048,
+        "ubatch_size": 512,
+        "resident_embedding_overrides": false,
+        "prompt_tokens_per_second_median": 4047.9218205567918,
+        "samples": [4061.8318703069776, 4047.9218205567918, 4038.10667413953]
+      },
+      {
+        "batch_size": 1024,
+        "ubatch_size": 512,
+        "resident_embedding_overrides": false,
+        "prompt_tokens_per_second_median": 4004.7791407323975,
+        "samples": [4019.7651538571, 4004.7791407323975, 4000.5811391059]
+      },
+      {
+        "batch_size": 1024,
+        "ubatch_size": 1024,
+        "resident_embedding_overrides": false,
+        "prompt_tokens_per_second_median": 3948.294309867844,
+        "samples": [3957.3799072634006, 3948.294309867844, 3938.873415849975]
+      },
+      {
+        "batch_size": 2048,
+        "ubatch_size": 1024,
+        "resident_embedding_overrides": false,
+        "prompt_tokens_per_second_median": 3991.1699263007476,
+        "samples": [3986.60749046173, 3991.1699263007476, 3996.379256976894]
+      },
+      {
+        "batch_size": 2048,
+        "ubatch_size": 256,
+        "resident_embedding_overrides": false,
+        "prompt_tokens_per_second_median": 3748.0618009272243,
+        "samples": [3748.0618009272243, 3748.8396421487278, 3744.4957580741266]
+      },
+      {
+        "batch_size": 4096,
+        "ubatch_size": 512,
+        "resident_embedding_overrides": false,
+        "prompt_tokens_per_second_median": 4021.2717026320624,
+        "samples": [4027.3379158722933, 4021.2717026320624, 4019.388446515197]
+      },
+      {
+        "batch_size": 2048,
+        "ubatch_size": 512,
+        "resident_embedding_overrides": true,
+        "prompt_tokens_per_second_median": 4026.1740632215487,
+        "samples": [4035.576324586054, 4026.1740632215487, 4023.034228203081]
+      }
+    ],
+    "selected_batch_size": 2048,
+    "selected_ubatch_size": 512
+  },
+  "full_results": {
+    "method": {
+      "warmups": 3,
+      "measured_repetitions": 10,
+      "primary_statistic": "median",
+      "llama_context_after_rounding": 17664,
+      "telemetry_interval_ms": 200,
+      "telemetry_active_threshold_percent": 80
+    },
+    "default_embedding_placement_control": {
+      "classification": "diagnostic control; model weights remain CPU-mapped",
+      "batch_size": 2048,
+      "ubatch_size": 512,
+      "prompt_tokens_per_second": {
+        "median": 3989.253073070712,
+        "mean": 3988.2697453183587,
+        "standard_deviation": 5.282923893470458,
+        "confidence_interval_95": [3984.4908317847526, 3992.048658851965],
+        "samples": [3995.7457404360252, 3983.7382559474017, 3983.1319806308543, 3994.8825320689048, 3989.3264091509072, 3989.2351036132236, 3988.7116344563924, 3989.2710425282007, 3990.25621516989, 3978.3985391817864]
+      },
+      "time_to_first_token_ms": {
+        "median": 4107.0345,
+        "samples": [4100.361, 4112.72, 4113.346, 4101.247, 4106.959, 4107.053, 4107.592, 4107.016, 4106.002, 4118.24]
+      },
+      "decode_tokens_per_second": {
+        "median": 87.9195277366519,
+        "samples": [88.10994380543585, 88.03640390698418, 88.04368333156056, 88.04222051486221, 86.94445445421654, 88.0044911780542, 87.0356219762029, 86.95738857913621, 87.7941510514627, 87.8345642952496]
+      },
+      "average_inter_token_latency_ms": {
+        "median": 11.374048059964727,
+        "samples": [11.349456790123456, 11.358937389770723, 11.35799823633157, 11.358186948853614, 11.501596119929452, 11.363056437389771, 11.489548500881833, 11.499885361552028, 11.390280423280423, 11.385039682539682]
+      },
+      "residency": {
+        "target_layers": "49/49 CUDA0",
+        "assistant_layers": "5/5 CUDA0",
+        "target_cpu_mapped_model_mib": 1920.0,
+        "assistant_cpu_mapped_model_mib": 512.0,
+        "target_cuda_model_mib": 8917.74,
+        "assistant_cuda_model_mib": 806.57,
+        "sampled_peak_vram_mib": 10586
+      }
+    },
+    "resident_selected": {
+      "classification": "selected current-version characterization",
+      "batch_size": 2048,
+      "ubatch_size": 512,
+      "target_tensor_override": "token_embd.weight=CUDA0",
+      "assistant_tensor_override": "token_embd.weight=CUDA0",
+      "prompt_tokens_per_second": {
+        "median": 3996.31396295162,
+        "mean": 3995.8639814920516,
+        "standard_deviation": 2.575425534671971,
+        "confidence_interval_95": [3994.021761046704, 3997.7062019373993],
+        "samples": [3996.0595496774545, 3996.943743211978, 3999.975586086511, 3996.010818301749, 3993.407368012086, 3998.035145325308, 3996.568376225785, 3997.319180715472, 3991.5423349791786, 3992.7777123849955]
+      },
+      "time_to_first_token_ms": {
+        "median": 4099.778,
+        "mean": 4100.2411999999995,
+        "standard_deviation": 2.6431494177296417,
+        "confidence_interval_95": [4098.350536173033, 4102.131863826966],
+        "samples": [4100.039, 4099.132, 4096.025, 4100.089, 4102.762, 4098.013, 4099.517, 4098.747, 4104.679, 4103.409]
+      },
+      "decode_tokens_per_second": {
+        "median": 88.13434140331135,
+        "mean": 87.97436746024125,
+        "standard_deviation": 0.3784539941163174,
+        "confidence_interval_95": [87.70365659083407, 88.24507832964844],
+        "samples": [88.2905340946666, 88.15093616838352, 88.05609188583303, 87.19324260058845, 88.14753752391701, 88.20904142674624, 87.34827281499912, 88.15700093303379, 88.06987187153915, 88.1211452827057]
+      },
+      "average_inter_token_latency_ms": {
+        "median": 11.346315255731923,
+        "mean": 11.36713774250441,
+        "standard_deviation": 0.04918480077041024,
+        "confidence_interval_95": [11.331955500051752, 11.402319984957067],
+        "samples": [11.326242504409171, 11.34417901234568, 11.356397707231041, 11.468778659611992, 11.344616402116403, 11.33670634920635, 11.448423280423281, 11.343398589065256, 11.354620811287477, 11.348014109347442]
+      },
+      "mtp_per_run": {
+        "proposed_tokens": 1016,
+        "accepted_tokens": 625,
+        "rejected_tokens": 391,
+        "target_batches": 510,
+        "mean_accepted_length": 1.2254901960784315,
+        "ordinary_fallback_tokens": 0
+      },
+      "output_token_sha256": "4a3bef1b6b681ae3a446d81d7d81a9f428ae15b4c5afc7abfa644cd60db69ce1",
+      "deterministic_outputs": true,
+      "residency": {
+        "target_layers": "49/49 CUDA0",
+        "assistant_layers": "5/5 CUDA0",
+        "cpu_mapped_model_buffer_mib": 0,
+        "target_cuda_model_mib": 10837.74,
+        "assistant_cuda_model_mib": 806.57,
+        "target_cuda_kv_mib": [146.62, 255.0],
+        "target_cuda_compute_mib": 141.05,
+        "assistant_cuda_compute_mib": 94.04,
+        "sampled_peak_vram_mib": 12500,
+        "sampled_vram_margin_mib": 3803
+      },
+      "telemetry": {
+        "samples": 1108,
+        "active_samples": 1032,
+        "maximum_temperature_c": 73,
+        "active_power_mean_w": 143.6633,
+        "active_power_max_w": 174.76,
+        "active_sm_clock_mean_mhz": 2099.6453,
+        "active_sm_clock_max_mhz": 2550
+      }
+    }
+  },
+  "high_batch_follow_up": {
+    "purpose": "test whether spending approximately the existing gem16 VRAM budget on larger llama.cpp batch and ubatch values improves 16K prefill",
+    "classification": "diagnostic VRAM-matched control; default embedding placement retains CPU-mapped model weights",
+    "method": {
+      "screen_warmups": 1,
+      "screen_measured_repetitions": 3,
+      "screen_fixed_output_tokens": 1,
+      "screen_telemetry_interval_ms": 100,
+      "full_warmups": 3,
+      "full_measured_repetitions": 10,
+      "full_fixed_output_tokens": 1135,
+      "full_telemetry_interval_ms": 200,
+      "reference_gem16_peak_vram_mib": 11713,
+      "reference_source": "benchmarks/baselines/cross_engine_mtp/windows-characterization-35a57bb.json"
+    },
+    "screening": [
+      {
+        "batch_size": 4096,
+        "ubatch_size": 2048,
+        "prompt_tokens_per_second_median": 3812.087182880601,
+        "samples": [3814.31564998532, 3812.087182880601, 3807.89557292629],
+        "sampled_peak_vram_mib": 11496
+      },
+      {
+        "batch_size": 8192,
+        "ubatch_size": 2048,
+        "prompt_tokens_per_second_median": 3824.1274808746944,
+        "samples": [3829.40720150128, 3824.1274808746944, 3814.49414648365],
+        "sampled_peak_vram_mib": 11496
+      },
+      {
+        "batch_size": 8192,
+        "ubatch_size": 4096,
+        "prompt_tokens_per_second_median": 3465.92293736969,
+        "samples": [3473.83744968088, 3465.92293736969, 3448.60393002769],
+        "sampled_peak_vram_mib": 12774
+      },
+      {
+        "batch_size": 8192,
+        "ubatch_size": 8192,
+        "prompt_tokens_per_second_median": 2940.310828757044,
+        "samples": [2941.8482218912, 2938.90471986232, 2940.310828757044],
+        "sampled_peak_vram_mib": 15430
+      }
+    ],
+    "vram_nearest_full_result": {
+      "batch_size": 8192,
+      "ubatch_size": 2048,
+      "prompt_tokens_per_second": {
+        "median": 3804.73536713603,
+        "mean": 3803.708905300163,
+        "standard_deviation": 5.275905228626772,
+        "confidence_interval_95": [3799.9350122681017, 3807.482798332225],
+        "samples": [3791.538509780036, 3803.737013746061, 3806.7887422773347, 3806.272264625132, 3810.44966515534, 3807.5513336190234, 3801.9840211782393, 3799.296768348407, 3805.626864603861, 3803.843869668199]
+      },
+      "time_to_first_token_ms": {
+        "median": 4306.213,
+        "mean": 4307.3823,
+        "standard_deviation": 5.983824233344034,
+        "confidence_interval_95": [4303.102027402083, 4311.6625725979175],
+        "samples": [4321.201, 4307.343, 4303.89, 4304.474, 4299.755, 4303.028, 4309.329, 4312.377, 4305.204, 4307.222]
+      },
+      "decode_tokens_per_second": {
+        "median": 82.6789571083533,
+        "mean": 82.69262107274965,
+        "standard_deviation": 0.4298755483164505,
+        "confidence_interval_95": [82.38512799504184, 83.00011415045745],
+        "samples": [83.12337473278107, 82.2900194905435, 82.22042716484609, 83.21460209330955, 83.01770378155891, 82.34021043514768, 82.27308788528781, 82.31981596947809, 83.05555984830568, 83.07140932623813]
+      },
+      "average_inter_token_latency_ms": {
+        "median": 12.095179012345678,
+        "mean": 12.09327151675485,
+        "standard_deviation": 0.06285821582250203,
+        "confidence_interval_95": [12.048308581974819, 12.138234451534881],
+        "samples": [12.030310405643739, 12.152141975308643, 12.162427689594356, 12.017121693121693, 12.045623456790123, 12.144734567901235, 12.154642857142857, 12.147743386243386, 12.04013315696649, 12.037835978835979]
+      },
+      "mtp_per_run": {
+        "proposed_tokens": 1014,
+        "accepted_tokens": 627,
+        "rejected_tokens": 387,
+        "target_batches": 508,
+        "mean_accepted_length": 1.234251968503937,
+        "ordinary_fallback_tokens": 0
+      },
+      "output": {
+        "deterministic": true,
+        "token_sha256": "a47a1de8fecd049aa04163feff7913e6eb12d388948943b1dfc2531518d3af25",
+        "comparison_output_token_sha256": "4a3bef1b6b681ae3a446d81d7d81a9f428ae15b4c5afc7abfa644cd60db69ce1",
+        "first_difference_zero_based_index": 76,
+        "comparison_token_id": 107,
+        "high_batch_token_id": 5915,
+        "decode_comparison_valid": false
+      },
+      "residency": {
+        "target_layers": "49/49 CUDA0",
+        "assistant_layers": "5/5 CUDA0",
+        "target_cpu_mapped_model_mib": 1920.0,
+        "assistant_cpu_mapped_model_mib": 512.0,
+        "target_cuda_model_mib": 8917.74,
+        "assistant_cuda_model_mib": 806.57,
+        "target_cuda_kv_mib": [146.62, 510.0],
+        "target_cuda_compute_mib": 566.35,
+        "assistant_cuda_compute_mib": 334.29,
+        "sampled_peak_vram_mib": 11512
+      },
+      "telemetry": {
+        "samples": 1170,
+        "active_samples": 1091,
+        "maximum_temperature_c": 73,
+        "active_power_mean_w": 141.48,
+        "active_power_max_w": 176.18,
+        "active_sm_clock_mean_mhz": 2072.1,
+        "active_sm_clock_max_mhz": 2595
+      }
+    },
+    "comparison": {
+      "versus_default_2048_512_prefill_percent": -4.62537,
+      "versus_default_2048_512_ttft_percent": 4.849691,
+      "versus_default_2048_512_peak_vram_mib": 926,
+      "versus_default_2048_512_peak_vram_percent": 8.747402,
+      "versus_existing_gem16_peak_vram_mib": -201,
+      "versus_existing_gem16_peak_vram_percent": -1.716042,
+      "existing_gem16_prefill_tokens_per_second": 6042.991493802447,
+      "existing_gem16_prefill_advantage_percent": 58.828,
+      "resident_2048_512_peak_minus_existing_gem16_mib": 787,
+      "conclusion": "larger ubatch values consume more workspace and VRAM but reduce prefill throughput; n_batch 4096 to 8192 at ubatch 2048 has the same sampled peak and no material benefit"
+    }
+  },
+  "historical_reference": {
+    "note": "existing evidence only; b10240 was not built or executed during this audit",
+    "platform": "same Windows machine",
+    "llama_cpp_build": 10240,
+    "batch_size": 2048,
+    "ubatch_size": 512,
+    "prompt_tokens_per_second_median": 3942.081453332649,
+    "time_to_first_token_ms_median": 4156.18,
+    "decode_tokens_per_second_median": 86.79818764426689,
+    "average_inter_token_latency_ms_median": 11.520978395061729,
+    "source": "benchmarks/baselines/cross_engine_mtp/windows-characterization-35a57bb.json"
+  },
+  "comparison": {
+    "resident_current_vs_historical_prefill_percent": 1.375733,
+    "resident_current_vs_historical_ttft_reduction_percent": 1.357063,
+    "resident_current_vs_default_current_prefill_percent": 0.176998,
+    "conclusion": "2048/512 remains the best screened pair; extending the sweep through 8192/8192 spends up to 4,844 MiB more sampled VRAM than the default control and only reduces prefill throughput"
+  },
+  "raw_results": {
+    "root": "benchmarks/results/2026-08-11/llama-cpp-12b-batch-sweep-b10364/",
+    "selected": "full-b2048-ub512-resident.json",
+    "selected_server_log": "full-b2048-ub512-resident.server.log",
+    "selected_telemetry": "full-b2048-ub512-resident.telemetry.csv",
+    "default_placement_control": "full-b2048-ub512-current.json",
+    "vram_nearest_high_batch_control": "full-b8192-ub2048-vram-matched.json",
+    "vram_nearest_high_batch_server_log": "full-b8192-ub2048-vram-matched.server.log",
+    "vram_nearest_high_batch_telemetry": "full-b8192-ub2048-vram-matched.telemetry.csv",
+    "screens": "screen-*.json"
+  },
+  "limitations": [
+    "The three-sample screens force one output token and use a 16,640-token rounded context; they rank prefill candidates but are not promoted measurements.",
+    "The selected result is a Windows characterization. Existing Linux gem16 and vLLM rows were not rerun, so this file does not replace the controlled Linux cross-engine table.",
+    "The patched closest-parity GGUF maps source FP8 attention weights to Q8_0 and is not exact checkpoint-format parity.",
+    "Current llama.cpp MTP remains host-controlled even though target and assistant forwards are CUDA-offloaded.",
+    "The high-batch VRAM-matched run retains 2,432 MiB of CPU-mapped model buffers and is a diagnostic control, not a promoted fully resident result.",
+    "The 8192/2048 full run first differs from the 2048/512 output at zero-based token index 76, so its decode and ITL measurements are not exact sequence-matched comparisons; prefill uses the same fixed prompt.",
+    "The main repository worktree was dirty from the active 26B baseline and benchmark-harness work; raw JSON records commit 065b68f98dcf6cf0843580bb2ac5f03a2b560232 and dirty state."
+  ]
+}

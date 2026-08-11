@@ -108,8 +108,33 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--llama-port", type=positive_int, default=8097)
     parser.add_argument("--llama-threads", type=positive_int, default=8)
+    parser.add_argument("--llama-batch-size", type=positive_int, default=2048)
+    parser.add_argument("--llama-ubatch-size", type=positive_int, default=512)
     parser.add_argument("--llama-poll", type=nonnegative_int, default=100)
     parser.add_argument("--llama-prio", type=int, choices=(-1, 0, 1, 2, 3), default=0)
+    parser.add_argument(
+        "--llama-log-verbosity", type=int, choices=range(0, 6), default=3
+    )
+    parser.add_argument(
+        "--llama-override-tensor",
+        action="append",
+        default=[],
+        metavar="PATTERN=BUFFER",
+        help=(
+            "repeatable llama.cpp tensor-placement override; values are "
+            "joined into one --override-tensor argument"
+        ),
+    )
+    parser.add_argument(
+        "--llama-draft-override-tensor",
+        action="append",
+        default=[],
+        metavar="PATTERN=BUFFER",
+        help=(
+            "repeatable llama.cpp draft-model tensor-placement override; "
+            "values are joined into one --spec-draft-override-tensor argument"
+        ),
+    )
     parser.add_argument(
         "--llama-spec-types",
         help=(
@@ -122,6 +147,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--llama-ngram-mod-n-max", type=positive_int, default=64)
     parser.add_argument("--enforce-eager", action="store_true")
     args = parser.parse_args()
+    if args.llama_ubatch_size > args.llama_batch_size:
+        parser.error("--llama-ubatch-size must not exceed --llama-batch-size")
     if (
         args.engine in ("gem16", "vllm")
         and args.mtp_draft_tokens != 0
@@ -912,10 +939,12 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
             str(args.llama_poll),
             "--prio",
             str(args.llama_prio),
+            "--verbosity",
+            str(args.llama_log_verbosity),
             "--batch-size",
-            "2048",
+            str(args.llama_batch_size),
             "--ubatch-size",
-            "512",
+            str(args.llama_ubatch_size),
             "--host",
             "127.0.0.1",
             "--port",
@@ -923,6 +952,10 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
             "--no-webui",
             "--offline",
         ]
+        if args.llama_override_tensor:
+            command.extend(
+                ["--override-tensor", ",".join(args.llama_override_tensor)]
+            )
         if speculative_types:
             command.extend(["--spec-type", ",".join(speculative_types)])
         if assistant_gguf is not None:
@@ -938,6 +971,13 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
                     "all",
                 ]
             )
+            if args.llama_draft_override_tensor:
+                command.extend(
+                    [
+                        "--spec-draft-override-tensor",
+                        ",".join(args.llama_draft_override_tensor),
+                    ]
+                )
         if has_ngram_mod:
             command.extend(
                 [
@@ -992,9 +1032,12 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
             "threads": args.llama_threads,
             "poll": args.llama_poll,
             "priority": args.llama_prio,
+            "log_verbosity": args.llama_log_verbosity,
+            "tensor_overrides": list(args.llama_override_tensor),
+            "draft_tensor_overrides": list(args.llama_draft_override_tensor),
             "flash_attention": True,
-            "batch_size": 2048,
-            "ubatch_size": 512,
+            "batch_size": args.llama_batch_size,
+            "ubatch_size": args.llama_ubatch_size,
             "parallel": 1,
             "cache_prompt": False,
             "speculative_types": list(speculative_types),

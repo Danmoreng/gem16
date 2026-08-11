@@ -12,6 +12,60 @@ SPEC.loader.exec_module(MODULE)
 
 
 class BenchmarkWikipediaWorkloadTest(unittest.TestCase):
+    def test_llama_tensor_overrides_are_repeatable(self) -> None:
+        argv = [
+            "benchmark_wikipedia_workload.py",
+            "--engine",
+            "llama-cpp",
+            "--workload",
+            "workload.json",
+            "--output",
+            "output.json",
+            "--llama-override-tensor",
+            "token_embd.weight=CUDA0",
+            "--llama-override-tensor",
+            "output.weight=CUDA0",
+            "--llama-log-verbosity",
+            "4",
+            "--llama-batch-size",
+            "1024",
+            "--llama-ubatch-size",
+            "512",
+            "--llama-draft-override-tensor",
+            "token_embd.weight=CUDA0",
+        ]
+        with mock.patch.object(MODULE.sys, "argv", argv):
+            args = MODULE.parse_args()
+        self.assertEqual(
+            args.llama_override_tensor,
+            ["token_embd.weight=CUDA0", "output.weight=CUDA0"],
+        )
+        self.assertEqual(args.llama_log_verbosity, 4)
+        self.assertEqual(args.llama_batch_size, 1024)
+        self.assertEqual(args.llama_ubatch_size, 512)
+        self.assertEqual(
+            args.llama_draft_override_tensor,
+            ["token_embd.weight=CUDA0"],
+        )
+
+    def test_llama_ubatch_must_not_exceed_batch(self) -> None:
+        argv = [
+            "benchmark_wikipedia_workload.py",
+            "--engine",
+            "llama-cpp",
+            "--workload",
+            "workload.json",
+            "--output",
+            "output.json",
+            "--llama-batch-size",
+            "256",
+            "--llama-ubatch-size",
+            "512",
+        ]
+        with mock.patch.object(MODULE.sys, "argv", argv):
+            with self.assertRaises(SystemExit):
+                MODULE.parse_args()
+
     def test_zero_warmups_are_accepted(self) -> None:
         self.assertEqual(MODULE.nonnegative_int("0"), 0)
         with self.assertRaises(MODULE.argparse.ArgumentTypeError):

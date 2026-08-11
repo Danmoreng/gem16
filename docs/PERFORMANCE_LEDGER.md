@@ -1,5 +1,43 @@
 # Performance ledger
 
+## 2026-08-11 Current llama.cpp 12B batch/ubatch audit
+
+Upstream llama.cpp build 10364 (`153d324bc`) reran the retained Windows Wikipedia 16K D2 workload with the same
+patched 12B GGUF and Q8_0 target K/V. All new executions used the current build; b10240 was neither built nor run.
+One-warm-up/three-measurement, one-output-token screens tested `1024/512`, `1024/1024`, `2048/256`, `2048/512`,
+`2048/1024`, and `4096/512`. Median prompt throughput was 4,004.78, 3,948.29, 3,748.06, 4,047.92, 3,991.17, and
+4,021.27 tok/s respectively. The existing `2048/512` pair remained the winner; making batch and ubatch numerically
+closer did not improve the 16K prompt path.
+
+The selected full-residency `2048/512` run forced target and assistant `token_embd.weight` to CUDA0, retained 49/49
+and 5/5 CUDA layer groups, and ran three warm-ups plus ten fixed-1,135-token measurements. It reaches 3,996.31
+prompt tok/s (95% CI `[3994.02,3997.71]`), 4,099.78 ms TTFT, 88.134 effective D2 tok/s, and 11.346 ms aggregate
+ITL. The output is deterministic; every run proposes 1,016 drafts and accepts 625 across 510 Target batches. Peak
+sampled VRAM is 12,500 MiB, leaving 3,803 MiB against the physical 16,303 MiB device. The adjacent default-placement
+control reaches 3,989.25 prompt tok/s, so full residency has no material prefill cost.
+
+Against the already-recorded same-machine b10240 Windows row, current resident prefill improves only 1.38% and TTFT
+falls 1.36%. The large retained gap to gem16 is therefore not a hidden batch/ubatch configuration error. This is a
+Windows current-version characterization, not a replacement for the Linux cross-engine comparison; vLLM and gem16
+were not rerun. Machine-readable evidence is in
+`benchmarks/baselines/llama_cpp/windows-12b-batch-sweep-b10364.json`, with raw JSON, verbose server logs, and 200 ms
+telemetry under `benchmarks/results/2026-08-11/llama-cpp-12b-batch-sweep-b10364/`.
+
+The requested high-batch follow-up screened `4096/2048`, `8192/2048`, `8192/4096`, and `8192/8192`. Their median
+prefill/peak-VRAM pairs were 3,812.09 tok/s/11,496 MiB, 3,824.13/11,496 MiB, 3,465.92/12,774 MiB, and
+2,940.31/15,430 MiB. Thus `n_ubatch`, rather than the configured `n_batch` ceiling, drives the extra workspace in
+this range, and every larger-ubatch candidate regresses prefill.
+
+The VRAM-nearest `8192/2048` control then completed three warm-ups and ten fixed-1,135-token measurements. It reaches
+3,804.74 prompt tok/s (95% CI `[3799.94,3807.48]`) and 4,306.21 ms TTFT at an 11,512 MiB sampled peak: only 201 MiB
+below the existing same-machine gem16 peak of 11,713 MiB, but 926 MiB above llama.cpp's default `2048/512` control.
+Prefill is 4.63% slower and TTFT 4.85% higher than that control. This is diagnostic rather than promotable because
+default placement retains 1,920 MiB target plus 512 MiB assistant weights CPU-mapped. The fully resident
+`2048/512` result already peaks at 12,500 MiB, 787 MiB more than the historical gem16 peak, without closing the
+prefill gap. The high-batch output first diverges from the comparison output at zero-based index 76; its 82.679 D2
+tok/s and 12.095 ms ITL are therefore not exact sequence-matched comparisons. All prefill rows retain the same
+fixed 16,384-token prompt.
+
 ## 2026-08-06 Linux short-context investigation closure
 
 The bounded Linux max-power investigation closes at clean parent `065b68f` with no promoted production change.

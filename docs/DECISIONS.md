@@ -1,5 +1,40 @@
 # Decisions
 
+## 2026-08-11: Use the Unsloth 26B UD-Q4_K_XL artifact for the first practical llama.cpp baseline
+
+Date: 2026-08-11
+
+Decision: Refresh the repository-managed `third_party/cache/llama.cpp` source in place to upstream build 10364,
+commit `153d324bcf86d220b235ca010eeb11213f32b5d1`, and make the Unsloth Gemma 4 26B A4B QAT
+`UD-Q4_K_XL` GGUF at revision `7b92b5b28818151e8669af2e45e88d6086f490dd` the first practical external
+llama.cpp baseline. Characterize the exact same fixed 16K/1,135-token workload both without speculation and with
+the matching 26B assistant at fixed D2. Keep the official Google Q4_0 characterization as a separate format
+reference; do not relabel it or any historical b10240 result.
+
+Context: The project owner requested an immediately usable performance baseline for the selected 26B QAT model,
+including MTP, before native 26B implementation work. The repository already owns one ignored llama.cpp source
+cache and build tree; creating a versioned sibling would duplicate source and make future comparisons ambiguous.
+The Unsloth repository publishes one 14.25 GB `UD-Q4_K_XL` target and a separate 251.94 MB compatible assistant.
+
+Alternatives: Reuse the developer's separate `C:\Development\llama.cpp` fork; clone another upstream source tree;
+retain b10240; or use only Google's Q4_0 artifact. The fork contains independent local work, a second clone violates
+the requested single-current-source workflow, b10240 is stale, and Q4_0 does not measure the selected practical
+Unsloth artifact or its assistant.
+
+Consequences: `benchmarks/baselines/llama_cpp/commit.txt` now owns the current upstream pin and the existing build
+helper refreshes that same cache in place. Target and draft `token_embd.weight` are explicitly forced to CUDA0 so
+the promoted measurements retain no CPU-mapped model-weight buffer. Ordinary and D2 fit within the 16 GB device
+with sampled margins of 1,561 and 1,195 MiB. The D2 result is not an exactness reference: it diverges from ordinary
+at generated index 55. It is also not a fully GPU-resident MTP implementation. Target and assistant forwards and
+draft Top-K execute through CUDA/backend sampling, while hidden-state staging, batch construction, scheduling and
+acceptance remain host-controlled. This external result does not enable MTP in gem16's first 26B product profile or
+change the M25 dependency order.
+
+Evidence: `benchmarks/baselines/llama_cpp/gemma4-26b-a4b-qat-ud-q4_k_xl-mtp-characterization.json`, verbose
+llama.cpp server logs and 200 ms telemetry under the ignored
+`benchmarks/results/2026-08-11/llama-cpp-26b-baseline/`, plus the current
+`common/speculative.cpp` and server acceptance path at the pinned external revision.
+
 ## 2026-08-06: Close the Linux short-context investigation without a production change and begin 26B M00
 
 Date: 2026-08-06
