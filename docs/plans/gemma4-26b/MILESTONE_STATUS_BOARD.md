@@ -9,7 +9,7 @@ Development branch for M03-M25: `feat/gemma4-26b`
 | M00 Policy/bootstrap | ✓ | `3bf7b6e` | [M00 policy review](../../evidence/gemma4_26b/m00-policy-review.md) | accepted 2026-08-06 |
 | M01 Source locks/goldens | ✓ | `59996f5` | [M01 handoff](../../evidence/gemma4_26b/m01-source-locks-and-goldens-2026-08-06.md) | accepted 2026-08-06 |
 | M02 Model variants | ✓ | `f79eeb6` | [M02 handoff](../../evidence/gemma4_26b/m02-model-variants-2026-08-06.md) | accepted 2026-08-06 |
-| M03 Tensor inventory | ☐ | | | |
+| M03 Tensor inventory | ◐ | pending | [M03 handoff](../../evidence/gemma4_26b/m03-manifest-and-inventory-2026-08-11.md) | awaiting review |
 | M04 Compiler scaffold | ☐ | | | |
 | M05 FP8 compiler | ☐ | | | |
 | M06 NVFP4 compiler | ☐ | | | |

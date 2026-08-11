@@ -1,0 +1,150 @@
+{
+  "errors": [],
+  "external_experts_complete": true,
+  "profile": "external_unsloth_nvfp4",
+  "schema_version": 1,
+  "status": "pass",
+  "tensor_count": 47478,
+  "tensor_payload_bytes": 16903408612,
+  "totals_by_residency": {
+    "compile_excluded_vision": {
+      "bytes": 1145588832,
+      "tensor_count": 356
+    },
+    "external_reference_text": {
+      "bytes": 15757819780,
+      "tensor_count": 47122
+    }
+  },
+  "totals_by_role": {
+    "attention_k_cache_scale": {
+      "bytes": 60,
+      "tensor_count": 30
+    },
+    "attention_k_norm": {
+      "bytes": 17920,
+      "tensor_count": 30
+    },
+    "attention_k_projection": {
+      "bytes": 158709760,
+      "tensor_count": 60
+    },
+    "attention_o_projection": {
+      "bytes": 403870720,
+      "tensor_count": 60
+    },
+    "attention_q_norm": {
+      "bytes": 17920,
+      "tensor_count": 30
+    },
+    "attention_q_projection": {
+      "bytes": 403988480,
+      "tensor_count": 60
+    },
+    "attention_v_cache_scale": {
+      "bytes": 60,
+      "tensor_count": 30
+    },
+    "attention_v_projection": {
+      "bytes": 144281600,
+      "tensor_count": 50
+    },
+    "final_norm": {
+      "bytes": 5632,
+      "tensor_count": 1
+    },
+    "input_layer_norm": {
+      "bytes": 168960,
+      "tensor_count": 30
+    },
+    "layer_scalar": {
+      "bytes": 60,
+      "tensor_count": 30
+    },
+    "post_attention_layer_norm": {
+      "bytes": 168960,
+      "tensor_count": 30
+    },
+    "post_feed_forward_layer_norm": {
+      "bytes": 168960,
+      "tensor_count": 30
+    },
+    "post_feed_forward_layer_norm_1": {
+      "bytes": 168960,
+      "tensor_count": 30
+    },
+    "post_feed_forward_layer_norm_2": {
+      "bytes": 168960,
+      "tensor_count": 30
+    },
+    "pre_feed_forward_layer_norm": {
+      "bytes": 168960,
+      "tensor_count": 30
+    },
+    "pre_feed_forward_layer_norm_2": {
+      "bytes": 168960,
+      "tensor_count": 30
+    },
+    "routed_expert_down": {
+      "bytes": 4282152960,
+      "tensor_count": 15360
+    },
+    "routed_expert_gate": {
+      "bytes": 4282152960,
+      "tensor_count": 15360
+    },
+    "routed_expert_up": {
+      "bytes": 4282152960,
+      "tensor_count": 15360
+    },
+    "router_norm_scale": {
+      "bytes": 168960,
+      "tensor_count": 30
+    },
+    "router_per_expert_scale": {
+      "bytes": 7680,
+      "tensor_count": 30
+    },
+    "router_projection": {
+      "bytes": 21626880,
+      "tensor_count": 30
+    },
+    "shared_mlp_down": {
+      "bytes": 100362480,
+      "tensor_count": 120
+    },
+    "shared_mlp_gate": {
+      "bytes": 100362480,
+      "tensor_count": 120
+    },
+    "shared_mlp_up": {
+      "bytes": 100362480,
+      "tensor_count": 120
+    },
+    "tied_embedding_and_output": {
+      "bytes": 1476395008,
+      "tensor_count": 1
+    },
+    "vision_attention": {
+      "bytes": 286654464,
+      "tensor_count": 108
+    },
+    "vision_embedding": {
+      "bytes": 47185920,
+      "tensor_count": 1
+    },
+    "vision_mlp": {
+      "bytes": 803229696,
+      "tensor_count": 81
+    },
+    "vision_norm": {
+      "bytes": 261216,
+      "tensor_count": 164
+    },
+    "vision_projection": {
+      "bytes": 8257536,
+      "tensor_count": 2
+    }
+  },
+  "unknown_semantic_tensor_count": 0
+}

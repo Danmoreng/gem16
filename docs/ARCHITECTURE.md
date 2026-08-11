@@ -8,7 +8,11 @@ host RAM by the inspector.
 
 The manifest is the authoritative source for tensor names, shapes, offsets, dtype classes, scale relationships,
 runtime residency, modality provenance, and tied-weight aliasing. Execution code consumes it rather than inferring
-tensor inventory.
+tensor inventory. Schema 3 additionally records an exact role and residency class, logical dtype/shape,
+layer/expert axes, quantization producer and component, scale semantics and final-layout contract. The explicit
+Gemma 4 26B validator is selected from parsed model/config metadata, never paths: QAT/ordinary BF16 source and
+external Unsloth inventories have separate exact contracts, while the future project-compiled hybrid has a third
+strict contract. Passing source inspection does not make the 26B runtime executable.
 
 ## Hardware backend boundary
 

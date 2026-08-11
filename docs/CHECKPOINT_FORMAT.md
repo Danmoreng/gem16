@@ -54,6 +54,53 @@ audio, video and MTP report false even though the source vision metadata is vali
 canonical 26B tensor-name/shape validation. M02 does not upload a 26B tensor, allocate a 26B arena or select a CUDA
 kernel. The 12B direct-load variant remains executable and retains exact tensor validation.
 
+M03 closes the tensor-inspection boundary without making 26B executable. Manifest JSON schema 3 adds
+`checkpoint_profile`, `validation_contract`, an exact `tensor_role` and `residency_class` for every byte, logical
+dtype/shape, layer/expert axes, quantization component/producer, scale direction and planned final GPU layout.
+`tensor_contract_validated=true` now means one of the exact M03 source contracts passed; it does not imply
+`runtime_supported=true`.
+
+The QAT and ordinary BF16 checkpoints share one exact source contract: 1,013 BF16 tensors and
+51,611,872,412 payload bytes. Of these, 657 text tensors occupy 50,466,283,580 bytes. The remaining 356 vision
+tensors occupy exactly 1,145,588,832 bytes and are classified `compile_excluded_vision`; they remain required for
+source completeness and are forbidden in the first compiled artifact. No source MTP, audio or video tensor exists.
+The tied `[262144,2816]` embedding is the sole embedding/output payload; any `lm_head` duplicate is rejected.
+
+Every source layer contains fused routed weights:
+
+```text
+experts.gate_up_proj  BF16 [128, 1408, 2816]  axis expert,gate_then_up,input
+experts.down_proj     BF16 [128, 2816, 704]   axis expert,output,input
+```
+
+Expert axis 0 and Gate-before-Up ordering are frozen in the canonical contract. All 30 layers contain exact BF16
+router scale `[2816]`, projection `[128,2816]` and per-expert scale `[128]`. The five full-attention layers
+`5,11,17,23,29` omit V projection exactly; each reuses raw K as V input before distinct K/V post-processing. The
+other 25 layers require separate V.
+
+The external Unsloth reference has 47,478 tensors and 16,903,408,612 payload bytes. It retains the same exact
+vision exclusion, but serializes every layer's 128 experts as separate Gate, Up and Down llm-compressor families.
+Each family has U8 packed values, E4M3 group-16 local scales and F32 weight/input global divisors. Attention uses
+E4M3 weights with BF16 per-output-channel scales. Its profile is `external_unsloth_nvfp4`, never
+`gem16_compiled_hybrid`; parsing it does not authorize direct production execution.
+
+| Role | BF16 source | External Unsloth | Official Q4_0 | Frozen compiled-hybrid role |
+|---|---|---|---|---|
+| Tied head | one BF16 tensor | one BF16 tensor | one Q6_K tensor | one physical Q4_0 or NVFP4 family; M07 selects |
+| Attention | BF16 Q/K/O and local V | FP8 weight + channel scale | Q4_0 | FP8 weight + BF16 channel scale |
+| Shared MLP | three BF16 matrices | three separate NVFP4 families | Q4_0 | three gem16 NVFP4 families |
+| Router | BF16 scale/projection/per-expert scale | same BF16 tensors | F32 | source BF16 |
+| Routed experts | fused Gate/Up plus fused Down | 128 separate Gate/Up/Down families | fused Q4_0 | fused expert-major gem16 NVFP4 families |
+| Vision | required source family | present but excluded | separate mmproj | absent |
+
+The future compiled validator is deliberately separate from the BF16 and external-reference validators. Its frozen
+text-only role mapping has 1,282 tensors with a Q4_0 head or 1,285 with an NVFP4 head. All NVFP4 records identify
+producer semantics, E4M3 group-16 scales, divisor direction and `sm120_row8_k64` or
+`expert_major_sm120_row8_k64` final layout. M04 may consume this mapping, but M05-M08 still own actual encoding,
+provenance and artifact loading. Compact canonical metadata and the complete source cross-map are under
+`benchmarks/goldens/gemma4_26b/manifests/`; the large immutable raw header inventories remain under
+`benchmarks/goldens/gemma4_26b/source-inventories/`.
+
 The engine parses and validates the Google tokenizer metadata at startup. The tokenizer-level
 `model_max_length` value is Google's intentionally unbounded sentinel and never drives arena sizing; the model
 contract remains `config.json:text_config.max_position_embeddings = 262144`. Response close markers declared by

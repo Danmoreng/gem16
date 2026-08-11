@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "milestone": "M03",
+  "status": "pass",
+  "code_revision": "4928f3fa6a6f81584cbc6bc78fb262b20ca617d5+m03-worktree",
+  "probe_kind": "synthetic_device_admission",
+  "not_model_execution": true,
+  "device": {
+    "index": 0,
+    "name": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "uuid": "93070293-2184-eb69-555b-1d856a4fdbb8",
+    "compute_capability": "12.0",
+    "runtime_version": 13030,
+    "driver_version": 13030
+  },
+  "contract": {
+    "profile": "gemma4_26b_compiled_hybrid_v1",
+    "head_assumption": "max_of_q4_0_and_nvfp4",
+    "q4_0_aligned_weight_arena_bytes": 14696667648,
+    "nvfp4_aligned_weight_arena_bytes": 14696668160,
+    "selected_conservative_weight_arena_bytes": 14696668160,
+    "fp8_kv_32k_bytes": 440401920,
+    "arena_alignment_bytes": 256,
+    "primary_weight_limit_bytes": 14784921600,
+    "hard_weight_stop_bytes": 14994636800
+  },
+  "measurement": {
+    "cuda_visible_total_bytes": 16652042240,
+    "free_after_context_bytes": 16425746432,
+    "context_and_baseline_bytes": 226295808,
+    "required_free_margin_bytes": 734003200,
+    "final_direct_free_bytes": 818741248,
+    "free_after_release_bytes": 16425746432
+  },
+  "regions": [
+    {"name":"immutable_weights","requested_bytes":14696668160,"free_after_bytes":1728905216},
+    {"name":"fp8_kv_32k","requested_bytes":440401920,"free_after_bytes":1288503296},
+    {"name":"moe_prefill_workspace","requested_bytes":268435456,"free_after_bytes":1020067840},
+    {"name":"activation_output_workspace","requested_bytes":134217728,"free_after_bytes":885850112},
+    {"name":"graph_private_reserve","requested_bytes":33554432,"free_after_bytes":852295680},
+    {"name":"allocator_metadata_guard","requested_bytes":33554432,"free_after_bytes":818741248}
+  ],
+  "gates": {
+    "idle_baseline_at_most_512_mib": true,
+    "immutable_weights_at_most_14100_mib": true,
+    "immutable_weights_below_14300_mib_hard_stop": true,
+    "direct_free_at_least_700_mib": true,
+    "free_after_release_at_least_context_baseline": true
+  },
+  "error": ""
+}

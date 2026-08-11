@@ -1,8 +1,9 @@
 # Roadmap
 
-Current stage: continue Gemma 4 26B A4B with M03 exact tensor inventory on the long-lived
-`feat/gemma4-26b` branch while preserving the mature 12B product path. M00, M01 and M02 are accepted; M03 is
-unblocked but not started, and M04 and later implementation remain blocked. The bounded Linux short-context ordinary-decode
+Current stage: review the completed Gemma 4 26B A4B M03 exact tensor inventory on the long-lived
+`feat/gemma4-26b` branch while preserving the mature 12B product path. M00-M02 are accepted; M03 implementation and
+exit evidence pass but await owner acceptance, and M04 and later implementation remain blocked until that review.
+The bounded Linux short-context ordinary-decode
 investigation, direct all-regions memory-reserve record, 16K D2 performance sprint and Windows regression are
 complete and remain regression evidence rather than active optimization scope.
 
@@ -72,19 +73,21 @@ prefill program; it no longer owns execution order.
 
 The active implementation program is the experimental Gemma 4 26B A4B track. M00 defines accepted governance and
 the artifact contract; M01 source locks/goldens and M02 model configuration/static traits are accepted. M03 exact
-tensor inventory is the next unblocked milestone, but no M03, compiler or 26B runtime implementation exists. Its
-binding entry points are:
+tensor inventory is implemented with all exit gates passing and awaits owner acceptance; no compiler or 26B
+runtime execution exists. Its binding entry points are:
 
 1. [GEMMA4_26B.md](GEMMA4_26B.md)
 2. [plans/gemma4-26b/START_HERE_CODEX.md](plans/gemma4-26b/START_HERE_CODEX.md)
 3. [plans/gemma4-26b/00_MASTER_IMPLEMENTATION_PLAN.md](plans/gemma4-26b/00_MASTER_IMPLEMENTATION_PLAN.md)
 4. [plans/gemma4-26b/MILESTONE_STATUS_BOARD.md](plans/gemma4-26b/MILESTONE_STATUS_BOARD.md)
 
-Continue M03 on the long-lived `feat/gemma4-26b` branch created from the integrated M00-M02 foundation on `main`.
-All M03-M25 implementation stays on that branch. Milestone scope, evidence, commits and exit gates remain isolated,
-and one milestone must close before dependent work begins; do not create per-milestone development branches. The
-direct Unsloth evidence is token-deterministic after warmup but explicitly not an exact-logit or performance oracle.
-In particular:
+Keep M03 and all later work on the long-lived `feat/gemma4-26b` branch created from the integrated M00-M02
+foundation on `main`. All M03-M25 implementation stays on that branch. Milestone scope, evidence, commits and exit
+gates remain isolated, and M04 must not start until M03 owner acceptance; do not create per-milestone development
+branches. M03 freezes exact QAT/ordinary BF16 and external Unsloth tensor contracts, a separate future compiled
+contract and a conservative aligned 14,696,668,160-byte weight estimate. The direct synthetic 32K CUDA admission
+leaves 818,741,248 bytes free after every named region, passing the 700 MiB gate. The direct Unsloth evidence remains
+token-deterministic after warmup but explicitly not an exact-logit or performance oracle. In particular:
 
 - lock source, compiler, tokenizer, and quality references before kernel work;
 - run the early synthetic 32K residency gate against directly measured CUDA-visible memory;

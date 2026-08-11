@@ -1,5 +1,42 @@
 # Memory
 
+## Gemma 4 26B M03 preliminary admission
+
+M03 freezes a conservative compiled-hybrid tensor estimate; it does not add a 26B runtime allocator. The exact
+payload/aligned immutable bytes are:
+
+| Head candidate | Tensor count | Payload bytes | Alignment padding | 256-byte-aligned arena |
+|---|---:|---:|---:|---:|
+| Q4_0 | 1,282 | 14,696,569,188 | 98,460 | 14,696,667,648 bytes (14,015.83 MiB) |
+| NVFP4 | 1,285 | 14,696,569,196 | 98,964 | 14,696,668,160 bytes (14,015.83 MiB) |
+
+Both are below the 14,100 MiB primary limit and 14,300 MiB hard stop. The estimate includes one tied physical head,
+FP8 attention weights/channel scales, NVFP4 shared and fused routed MLP families, BF16 router/norm/scalar tensors,
+compiler-derived BF16 K/V scales and per-tensor alignment. It contains no vision, MTP or duplicate source/runtime
+layout. M07 still selects the head format, and M09 must replace this estimate with actual artifact/allocator
+accounting.
+
+The exact separate 32K FP8 K/V payload is 440,401,920 bytes (420 MiB): 100 MiB for 25 filled local rings and
+320 MiB for five global layers. The standalone M03 CUDA probe reserves and touches the larger immutable estimate,
+that K/V payload, 256 MiB MoE-prefill workspace, 128 MiB activation/output workspace, 32 MiB graph-private reserve
+and 32 MiB allocator/metadata guard. On the reference RTX 5080 Laptop with CUDA 13.3/driver 610.43.03 it reports:
+
+```text
+CUDA-visible total                 16,652,042,240 bytes
+free after context                 16,425,746,432 bytes
+context/baseline delta                226,295,808 bytes
+final direct free                     818,741,248 bytes (780.81 MiB)
+required direct free                  734,003,200 bytes (700 MiB)
+free after release                 16,425,746,432 bytes
+```
+
+The direct 700 MiB gate passes with 84,738,048 bytes (80.81 MiB) excess. This is a synthetic feasibility result,
+not a process peak, model execution or promise that the final M15/M17 workspace fits. Any growth from the frozen
+weight mapping or fixed-region assumptions requires a new direct probe. The machine-readable result is
+[`evidence/gemma4_26b/m03-synthetic-32k-admission.json`](evidence/gemma4_26b/m03-synthetic-32k-admission.json).
+
+## Gemma 4 12B production accounting
+
 The deterministic base-arena planner is implemented. The verified checkpoint
 contains 9,304,786,336 tensor payload bytes. The original text-only inventory
 classified 9,200,026,528 bytes and 104,759,808 bytes of audio/vision projection

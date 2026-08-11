@@ -228,7 +228,7 @@ void RunConfigTests() {
     manifest.supports_text = true;
     std::ostringstream json;
     GEM16_CHECK(gem16::WriteManifestJson(manifest, json).ok());
-    GEM16_CHECK(json.str().find("\"schema_version\": 2") != std::string::npos);
+    GEM16_CHECK(json.str().find("\"schema_version\": 3") != std::string::npos);
     GEM16_CHECK(json.str().find("\"model_variant\": \"gemma4_moe_26b_a4b\"") !=
                 std::string::npos);
     GEM16_CHECK(json.str().find("\"moe_intermediate_size\": 704") !=

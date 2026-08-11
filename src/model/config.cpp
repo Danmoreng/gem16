@@ -236,6 +236,10 @@ Result<ModelConfig> LoadModelConfig(const std::filesystem::path& path) {
   if (quantization != nullptr && quantization->is_object()) {
     config.quant_method = StringOrEmpty(Member(*quantization, "quant_method"));
     config.quant_format = StringOrEmpty(Member(*quantization, "format"));
+    config.quantization_status =
+        StringOrEmpty(Member(*quantization, "quantization_status"));
+    config.quantization_version =
+        StringOrEmpty(Member(*quantization, "version"));
     config.ignored_modules = StringArray(Member(*quantization, "ignore"));
     const auto* groups = Member(*quantization, "config_groups");
     if (groups != nullptr && groups->is_object()) {

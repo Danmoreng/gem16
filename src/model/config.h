@@ -36,6 +36,8 @@ struct ModelConfig {
   std::string vision_model_type;
   std::string quant_method;
   std::string quant_format;
+  std::string quantization_status;
+  std::string quantization_version;
   std::vector<std::string> ignored_modules;
   std::vector<QuantizationRule> quantization_rules;
   std::uint64_t hidden_size = 0;

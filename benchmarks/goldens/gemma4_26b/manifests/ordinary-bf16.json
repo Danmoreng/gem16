@@ -1,0 +1,155 @@
+{
+  "compile_excluded_vision_bytes": 1145588832,
+  "compile_excluded_vision_tensor_count": 356,
+  "fused_expert_contract": {
+    "down_axis_order": "expert,output,input",
+    "down_name_template": "model.language_model.layers.{layer}.experts.down_proj",
+    "down_shape": [
+      128,
+      2816,
+      704
+    ],
+    "expert_axis": 0,
+    "gate_up_axis_order": "expert,gate_then_up,input",
+    "gate_up_name_template": "model.language_model.layers.{layer}.experts.gate_up_proj",
+    "gate_up_shape": [
+      128,
+      1408,
+      2816
+    ]
+  },
+  "layer_count": 30,
+  "mtp_tensor_count": 0,
+  "raw_inventory": {
+    "path": "benchmarks/goldens/gemma4_26b/source-inventories/ordinary-bf16.json",
+    "sha256": "eb5d62e55f2df1a7543674bb81dd6861489696dc19d94eb2351942fb51c50bcd"
+  },
+  "roles": {
+    "attention_k_norm": {
+      "bytes": 17920,
+      "tensor_count": 30
+    },
+    "attention_k_projection": {
+      "bytes": 317194240,
+      "tensor_count": 30
+    },
+    "attention_o_projection": {
+      "bytes": 807403520,
+      "tensor_count": 30
+    },
+    "attention_q_norm": {
+      "bytes": 17920,
+      "tensor_count": 30
+    },
+    "attention_q_projection": {
+      "bytes": 807403520,
+      "tensor_count": 30
+    },
+    "attention_v_projection": {
+      "bytes": 288358400,
+      "tensor_count": 25
+    },
+    "final_norm": {
+      "bytes": 5632,
+      "tensor_count": 1
+    },
+    "input_layer_norm": {
+      "bytes": 168960,
+      "tensor_count": 30
+    },
+    "layer_scalar": {
+      "bytes": 60,
+      "tensor_count": 30
+    },
+    "post_attention_layer_norm": {
+      "bytes": 168960,
+      "tensor_count": 30
+    },
+    "post_feed_forward_layer_norm": {
+      "bytes": 168960,
+      "tensor_count": 30
+    },
+    "post_feed_forward_layer_norm_1": {
+      "bytes": 168960,
+      "tensor_count": 30
+    },
+    "post_feed_forward_layer_norm_2": {
+      "bytes": 168960,
+      "tensor_count": 30
+    },
+    "pre_feed_forward_layer_norm": {
+      "bytes": 168960,
+      "tensor_count": 30
+    },
+    "pre_feed_forward_layer_norm_2": {
+      "bytes": 168960,
+      "tensor_count": 30
+    },
+    "routed_expert_down": {
+      "bytes": 15225323520,
+      "tensor_count": 30
+    },
+    "routed_expert_gate_up": {
+      "bytes": 30450647040,
+      "tensor_count": 30
+    },
+    "router_norm_scale": {
+      "bytes": 168960,
+      "tensor_count": 30
+    },
+    "router_per_expert_scale": {
+      "bytes": 7680,
+      "tensor_count": 30
+    },
+    "router_projection": {
+      "bytes": 21626880,
+      "tensor_count": 30
+    },
+    "shared_mlp_down": {
+      "bytes": 356843520,
+      "tensor_count": 30
+    },
+    "shared_mlp_gate": {
+      "bytes": 356843520,
+      "tensor_count": 30
+    },
+    "shared_mlp_up": {
+      "bytes": 356843520,
+      "tensor_count": 30
+    },
+    "tied_embedding_and_output": {
+      "bytes": 1476395008,
+      "tensor_count": 1
+    },
+    "vision_attention": {
+      "bytes": 286654464,
+      "tensor_count": 108
+    },
+    "vision_embedding": {
+      "bytes": 47185920,
+      "tensor_count": 1
+    },
+    "vision_mlp": {
+      "bytes": 803229696,
+      "tensor_count": 81
+    },
+    "vision_norm": {
+      "bytes": 261216,
+      "tensor_count": 164
+    },
+    "vision_projection": {
+      "bytes": 8257536,
+      "tensor_count": 2
+    }
+  },
+  "schema_version": 1,
+  "source_family": "ordinary_bf16",
+  "source_lock_sha256": "1932b06d568ce8c72f3d2013d39ffd15dd61d37732638c2013f2220eb177a620",
+  "source_revision": "4d7ae4984b7db7de8f8457170b3f1a419ee76d52",
+  "status": "m03_exact_inventory",
+  "tensor_count": 1013,
+  "tensor_payload_bytes": 51611872412,
+  "text_tensor_bytes": 50466283580,
+  "text_tensor_count": 657,
+  "unknown_tensor_count": 0
+}

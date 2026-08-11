@@ -1,6 +1,6 @@
 # Gemma 4 26B A4B experimental track
 
-Status: M00, M01 and M02 accepted; M03 exact tensor inventory is unblocked but not started
+Status: M00-M02 accepted; M03 implementation and all exit evidence pass, awaiting owner acceptance
 
 Production hypothesis: `gem16-gemma4-26b-a4b-qat-hybrid-text`
 
@@ -103,6 +103,24 @@ false for the initial product even though source vision metadata is validated fo
 schema 2 reports the variant, MoE dimensions, capabilities and separate runtime/tensor-contract validation states.
 M03, not M02, owns the canonical 26B tensor-name and shape contract.
 
+## M03 tensor and residency boundary
+
+M03 advances manifest output to schema 3 and freezes `gemma4_26b_m03_exact_inventory_v1`. The two Google BF16
+sources share an exact 1,013-tensor contract; the external Unsloth reference has its own exact 47,478-tensor
+producer-specific contract. The future gem16 compiled hybrid has a third, separate validator. A validated 26B
+source remains non-executable.
+
+All 30 source layers bind expert axis 0, fused Gate-before-Up and fused Down shapes, exact router tensors and the
+five-local/one-global V-ownership schedule. Unsloth must expose expert IDs 0 through 127 in every layer and exact
+FP8/NVFP4 companions. Every tensor reports one role and residency plus producer/scale/layout semantics. Unknown,
+duplicate, MTP and compiled-profile vision tensors fail rather than being ignored. Source vision remains complete
+but exactly 356 tensors/1,145,588,832 bytes are `compile_excluded_vision`.
+
+The two explicit tied-head candidates produce conservative aligned compiled arenas of 14,696,667,648 bytes (Q4_0)
+and 14,696,668,160 bytes (NVFP4). A direct CUDA reservation of the larger value, exact 32K FP8 K/V and 448 MiB of
+named fixed regions leaves 818,741,248 bytes free, passing the 700 MiB preliminary gate. This is synthetic M03
+admission only; M07 selects the head and M09 repeats with the real artifact/final arenas.
+
 ## Runtime and product boundary
 
 The 12B direct-load profile remains the default and is unchanged. The 26B path must use a separate model variant,
@@ -145,8 +163,10 @@ batching, broad dispatch, general executors and host expert offload are rejected
   pass. Direct Unsloth token output is retained with disclosed non-exact logprobs and diagnostic CPU offload.
 - M02: accepted on 2026-08-06 on `feat/26b-m02-model-traits` from accepted M01 closure `59996f5`; all explicit
   exit criteria pass.
-- M03: unblocked but not started; it is the first milestone to continue on `feat/gemma4-26b`.
-- M04 and every later milestone remain blocked. Derived-artifact distribution approval remains separate.
+- M03: implemented on `feat/gemma4-26b`; strict source/external/compiled contracts, canonical inventories,
+  mutation tests and the direct 32K CUDA admission all pass. Owner acceptance is pending.
+- M04 and every later milestone remain blocked until that acceptance. Derived-artifact distribution approval remains
+  separate.
 - M01 adds source locks, offline tooling and compact reference evidence only; no 26B compiler, runtime or CUDA path
   exists at the accepted M01 boundary.
 
@@ -158,3 +178,6 @@ Current evidence:
 - [M01 Unsloth vLLM OOM incident](evidence/gemma4_26b/m01-unsloth-vllm-oom-2026-08-06.md)
 - [M02 kickoff and drift record](evidence/gemma4_26b/m02-kickoff-2026-08-06.md)
 - [M02 model-variant handoff](evidence/gemma4_26b/m02-model-variants-2026-08-06.md)
+- [M03 kickoff and drift record](evidence/gemma4_26b/m03-kickoff-2026-08-11.md)
+- [M03 implementation handoff](evidence/gemma4_26b/m03-manifest-and-inventory-2026-08-11.md)
+- [M03 synthetic 32K admission](evidence/gemma4_26b/m03-synthetic-32k-admission.json)

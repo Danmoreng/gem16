@@ -9,6 +9,7 @@
 #include <set>
 #include <sstream>
 
+#include "model/gemma4_26b_manifest.h"
 #include "model/safetensors.h"
 #include "util/json.h"
 
@@ -250,6 +251,87 @@ void WriteShape(std::ostream& output, const std::vector<std::uint64_t>& shape) {
   output << ']';
 }
 
+Status AddBytes(std::uint64_t bytes, std::uint64_t* total,
+                std::string_view description) {
+  if (*total > std::numeric_limits<std::uint64_t>::max() - bytes) {
+    return Status(StatusCode::kDataLoss,
+                  "manifest byte total overflows uint64: " +
+                      std::string(description));
+  }
+  *total += bytes;
+  return Status::Ok();
+}
+
+Status BuildManifestTotals(ModelManifest* manifest) {
+  std::map<std::string, TensorClassTotal, std::less<>> by_class;
+  std::map<std::string, TensorGroupTotal, std::less<>> by_role;
+  std::map<std::string, TensorGroupTotal, std::less<>> by_residency;
+  manifest->total_tensor_bytes = 0;
+  manifest->text_only_tensor_bytes = 0;
+  manifest->skipped_tensor_bytes = 0;
+  for (auto& tensor : manifest->tensors) {
+    if (tensor.logical_dtype.empty()) tensor.logical_dtype = tensor.storage_dtype;
+    if (tensor.tensor_role.empty()) tensor.tensor_role = tensor.expected_role;
+    if (tensor.residency_class.empty()) tensor.residency_class = "runtime_resident";
+    if (tensor.source_family.empty()) tensor.source_family = manifest->model_variant;
+    if (tensor.quantization_component.empty()) tensor.quantization_component = "value";
+    if (tensor.quantization_producer.empty()) {
+      tensor.quantization_producer = "checkpoint_declared";
+    }
+    if (tensor.local_scale_dtype.empty()) tensor.local_scale_dtype = "none";
+    if (tensor.global_scale_role.empty()) tensor.global_scale_role = "none";
+    if (tensor.activation_scale_role.empty()) tensor.activation_scale_role = "none";
+    if (tensor.final_gpu_layout.empty()) tensor.final_gpu_layout = tensor.layout;
+
+    auto& class_total = by_class[tensor.quantization_class];
+    class_total.quantization_class = tensor.quantization_class;
+    ++class_total.tensor_count;
+    auto status = AddBytes(tensor.byte_length, &class_total.bytes,
+                           tensor.quantization_class);
+    if (!status.ok()) return status;
+
+    auto& role_total = by_role[tensor.tensor_role];
+    role_total.name = tensor.tensor_role;
+    ++role_total.tensor_count;
+    status = AddBytes(tensor.byte_length, &role_total.bytes, tensor.tensor_role);
+    if (!status.ok()) return status;
+
+    auto& residency_total = by_residency[tensor.residency_class];
+    residency_total.name = tensor.residency_class;
+    ++residency_total.tensor_count;
+    status = AddBytes(tensor.byte_length, &residency_total.bytes,
+                      tensor.residency_class);
+    if (!status.ok()) return status;
+
+    status = AddBytes(tensor.byte_length, &manifest->total_tensor_bytes,
+                      "all tensors");
+    if (!status.ok()) return status;
+    auto* text_total = tensor.loaded_in_text_only_mode
+                           ? &manifest->text_only_tensor_bytes
+                           : &manifest->skipped_tensor_bytes;
+    status = AddBytes(tensor.byte_length, text_total,
+                      tensor.loaded_in_text_only_mode ? "text tensors"
+                                                      : "skipped tensors");
+    if (!status.ok()) return status;
+  }
+  manifest->totals.clear();
+  manifest->totals_by_role.clear();
+  manifest->totals_by_residency.clear();
+  for (auto& [unused, total] : by_class) {
+    (void)unused;
+    manifest->totals.push_back(std::move(total));
+  }
+  for (auto& [unused, total] : by_role) {
+    (void)unused;
+    manifest->totals_by_role.push_back(std::move(total));
+  }
+  for (auto& [unused, total] : by_residency) {
+    (void)unused;
+    manifest->totals_by_residency.push_back(std::move(total));
+  }
+  return Status::Ok();
+}
+
 }  // namespace
 
 Result<ModelManifest> BuildManifest(const std::filesystem::path& model_directory, const ModelConfig& config, bool validate) {
@@ -272,6 +354,9 @@ Result<ModelManifest> BuildManifest(const std::filesystem::path& model_directory
   const auto variant = ClassifyModelVariant(config);
   const auto& traits = TraitsForModelVariant(variant);
   manifest.model_variant = std::string(traits.name);
+  manifest.checkpoint_profile = manifest.model_variant;
+  manifest.validation_contract = validate ? "generic_safetensors"
+                                          : "unvalidated";
   manifest.layer_count = config.layer_count;
   manifest.hidden_size = config.hidden_size;
   manifest.intermediate_size = config.intermediate_size;
@@ -284,7 +369,6 @@ Result<ModelManifest> BuildManifest(const std::filesystem::path& model_directory
   manifest.supports_audio = traits.supports_audio;
   manifest.supports_video = traits.supports_video;
   manifest.supports_mtp = traits.supports_mtp;
-  std::map<std::string, TensorClassTotal, std::less<>> totals;
 
   for (const auto& stored_tensor : stored.value()) {
     TensorInfo tensor;
@@ -372,18 +456,7 @@ Result<ModelManifest> BuildManifest(const std::filesystem::path& model_directory
       }
     }
 
-    auto& total = totals[tensor.quantization_class];
-    total.quantization_class = tensor.quantization_class;
-    ++total.tensor_count;
-    total.bytes += tensor.byte_length;
-    manifest.total_tensor_bytes += tensor.byte_length;
-    if (tensor.loaded_in_text_only_mode) manifest.text_only_tensor_bytes += tensor.byte_length;
-    else manifest.skipped_tensor_bytes += tensor.byte_length;
     manifest.tensors.push_back(std::move(tensor));
-  }
-  for (auto& [unused, total] : totals) {
-    (void)unused;
-    manifest.totals.push_back(std::move(total));
   }
   if (validate && config.tied_embeddings) {
     const std::string expected_embedding =
@@ -400,14 +473,27 @@ Result<ModelManifest> BuildManifest(const std::filesystem::path& model_directory
                     "tied checkpoint unexpectedly stores a duplicate LM head");
     }
   }
-  if (validate && variant != ModelVariant::kGemma4Moe26BA4B) {
+  if (validate && variant == ModelVariant::kGemma4Moe26BA4B) {
+    auto profile =
+        ValidateAndAnnotateGemma4Moe26BInventory(config, &manifest.tensors);
+    if (!profile.ok()) return profile.status();
+    manifest.checkpoint_profile =
+        std::string(Gemma4Moe26BInventoryProfileName(profile.value()));
+    manifest.validation_contract = "gemma4_26b_m03_exact_inventory_v1";
+    manifest.tensor_contract_validated = true;
+  } else if (validate) {
     const auto inventory_status = IsAssistantModel(config)
                                       ? ValidateAssistantTensorInventory(
                                             config, names, stored_by_name)
                                       : ValidatePrimaryLayerTensorInventory(config, names);
     if (!inventory_status.ok()) return inventory_status;
+    manifest.validation_contract = IsAssistantModel(config)
+                                       ? "gemma4_assistant_exact_inventory"
+                                       : "gemma4_unified_12b_exact_inventory";
     manifest.tensor_contract_validated = true;
   }
+  auto totals_status = BuildManifestTotals(&manifest);
+  if (!totals_status.ok()) return totals_status;
   return manifest;
 }
 
@@ -416,7 +502,7 @@ Result<ModelManifest> BuildManifest(const std::filesystem::path& model_directory
 namespace gem16 {
 
 Status WriteManifestJson(const ModelManifest& manifest, std::ostream& output) {
-  output << "{\n  \"schema_version\": 2,\n  \"model_directory\": ";
+  output << "{\n  \"schema_version\": 3,\n  \"model_directory\": ";
   internal::WriteString(output, manifest.model_directory);
   output << ",\n  \"architecture\": ";
   internal::WriteString(output, manifest.architecture);
@@ -424,6 +510,10 @@ Status WriteManifestJson(const ModelManifest& manifest, std::ostream& output) {
   internal::WriteString(output, manifest.model_type);
   output << ",\n  \"model_variant\": ";
   internal::WriteString(output, manifest.model_variant);
+  output << ",\n  \"checkpoint_profile\": ";
+  internal::WriteString(output, manifest.checkpoint_profile);
+  output << ",\n  \"validation_contract\": ";
+  internal::WriteString(output, manifest.validation_contract);
   output << ",\n  \"layer_count\": " << manifest.layer_count
          << ",\n  \"hidden_size\": " << manifest.hidden_size
          << ",\n  \"intermediate_size\": " << manifest.intermediate_size
@@ -447,10 +537,25 @@ Status WriteManifestJson(const ModelManifest& manifest, std::ostream& output) {
     output << ",\"shape\":"; internal::WriteShape(output, tensor.shape);
     output << ",\"logical_shape\":"; internal::WriteShape(output, tensor.logical_shape);
     output << ",\"storage_dtype\":"; internal::WriteString(output, tensor.storage_dtype);
+    output << ",\"logical_dtype\":"; internal::WriteString(output, tensor.logical_dtype);
     output << ",\"quantization_class\":"; internal::WriteString(output, tensor.quantization_class);
     output << ",\"byte_offset\":" << tensor.byte_offset << ",\"byte_length\":" << tensor.byte_length << ",\"alignment\":" << tensor.alignment;
     output << ",\"source_shard\":"; internal::WriteString(output, tensor.source_shard);
     output << ",\"expected_role\":"; internal::WriteString(output, tensor.expected_role);
+    output << ",\"tensor_role\":"; internal::WriteString(output, tensor.tensor_role);
+    output << ",\"residency_class\":"; internal::WriteString(output, tensor.residency_class);
+    output << ",\"source_family\":"; internal::WriteString(output, tensor.source_family);
+    output << ",\"quantization_component\":"; internal::WriteString(output, tensor.quantization_component);
+    output << ",\"quantization_producer\":"; internal::WriteString(output, tensor.quantization_producer);
+    output << ",\"local_scale_dtype\":"; internal::WriteString(output, tensor.local_scale_dtype);
+    output << ",\"local_scale_vector_size\":" << tensor.local_scale_vector_size;
+    output << ",\"global_scale_role\":"; internal::WriteString(output, tensor.global_scale_role);
+    output << ",\"activation_scale_role\":"; internal::WriteString(output, tensor.activation_scale_role);
+    output << ",\"final_gpu_layout\":"; internal::WriteString(output, tensor.final_gpu_layout);
+    output << ",\"logical_axis_order\":"; internal::WriteString(output, tensor.logical_axis_order);
+    output << ",\"layer_index\":" << tensor.layer_index
+           << ",\"expert_index\":" << tensor.expert_index
+           << ",\"expert_axis\":" << tensor.expert_axis;
     output << ",\"local_scale_tensor\":"; internal::WriteString(output, tensor.local_scale_tensor);
     output << ",\"global_scale_tensor\":"; internal::WriteString(output, tensor.global_scale_tensor);
     output << ",\"input_scale_tensor\":"; internal::WriteString(output, tensor.input_scale_tensor);
@@ -466,6 +571,26 @@ Status WriteManifestJson(const ModelManifest& manifest, std::ostream& output) {
     output << ",\"tensor_count\":" << total.tensor_count << ",\"bytes\":" << total.bytes << '}';
     output << (index + 1U == manifest.totals.size() ? "\n" : ",\n");
   }
+  output << "  ],\n  \"totals_by_role\": [\n";
+  for (std::size_t index = 0; index < manifest.totals_by_role.size(); ++index) {
+    const auto& total = manifest.totals_by_role[index];
+    output << "    {\"role\":";
+    internal::WriteString(output, total.name);
+    output << ",\"tensor_count\":" << total.tensor_count
+           << ",\"bytes\":" << total.bytes << '}';
+    output << (index + 1U == manifest.totals_by_role.size() ? "\n" : ",\n");
+  }
+  output << "  ],\n  \"totals_by_residency\": [\n";
+  for (std::size_t index = 0; index < manifest.totals_by_residency.size();
+       ++index) {
+    const auto& total = manifest.totals_by_residency[index];
+    output << "    {\"residency_class\":";
+    internal::WriteString(output, total.name);
+    output << ",\"tensor_count\":" << total.tensor_count
+           << ",\"bytes\":" << total.bytes << '}';
+    output << (index + 1U == manifest.totals_by_residency.size() ? "\n"
+                                                                 : ",\n");
+  }
   output << "  ],\n  \"total_tensor_bytes\": " << manifest.total_tensor_bytes
          << ",\n  \"text_only_tensor_bytes\": " << manifest.text_only_tensor_bytes
          << ",\n  \"skipped_tensor_bytes\": " << manifest.skipped_tensor_bytes << "\n}\n";
@@ -477,9 +602,11 @@ void PrintManifestSummary(const ModelManifest& manifest, std::ostream& output) {
   output << "Checkpoint: " << manifest.model_directory << '\n'
          << "Architecture: " << manifest.architecture << " (" << manifest.model_type << ")\n"
          << "Variant: " << manifest.model_variant
+         << " profile=" << manifest.checkpoint_profile
          << " runtime=" << (manifest.runtime_supported ? "supported" : "unsupported")
          << " tensor_contract="
-         << (manifest.tensor_contract_validated ? "validated" : "not-yet-validated") << '\n'
+         << (manifest.tensor_contract_validated ? "validated" : "not-yet-validated")
+         << " contract=" << manifest.validation_contract << '\n'
          << "MoE: layers=" << manifest.layer_count << " hidden=" << manifest.hidden_size
          << " shared_intermediate=" << manifest.intermediate_size
          << " expert_intermediate=" << manifest.moe_intermediate_size
@@ -491,7 +618,9 @@ void PrintManifestSummary(const ModelManifest& manifest, std::ostream& output) {
            << " dtype=" << tensor.storage_dtype << " class=" << tensor.quantization_class
            << " offset=" << tensor.byte_offset << " bytes=" << tensor.byte_length
            << " align=" << tensor.alignment << " shard=" << tensor.source_shard
-           << " role=" << tensor.expected_role
+           << " role=" << tensor.tensor_role
+           << " residency=" << tensor.residency_class
+           << " producer=" << tensor.quantization_producer
            << " text=" << (tensor.loaded_in_text_only_mode ? "load" : "skip")
            << " alias=" << (tensor.aliased ? "yes" : "no")
            << " layout=\"" << tensor.layout << "\"";
@@ -504,6 +633,18 @@ void PrintManifestSummary(const ModelManifest& manifest, std::ostream& output) {
   for (const auto& total : manifest.totals) {
     output << "  " << std::setw(26) << std::left << total.quantization_class
            << " tensors=" << total.tensor_count << " bytes=" << total.bytes << '\n';
+  }
+  output << "\nTotals by role:\n";
+  for (const auto& total : manifest.totals_by_role) {
+    output << "  " << std::setw(36) << std::left << total.name
+           << " tensors=" << total.tensor_count << " bytes=" << total.bytes
+           << '\n';
+  }
+  output << "\nTotals by residency:\n";
+  for (const auto& total : manifest.totals_by_residency) {
+    output << "  " << std::setw(36) << std::left << total.name
+           << " tensors=" << total.tensor_count << " bytes=" << total.bytes
+           << '\n';
   }
   output << "Total tensor bytes: " << manifest.total_tensor_bytes << '\n'
          << "Text-only resident bytes: " << manifest.text_only_tensor_bytes << '\n'

@@ -1,0 +1,697 @@
+{
+  "layer_count": 30,
+  "layers": [
+    {
+      "attention_type": "sliding_attention",
+      "external_unsloth_nvfp4": {
+        "bytes": 473643806,
+        "expert_indices_complete": true,
+        "serialized_expert_count": 128,
+        "tensor_count": 1571
+      },
+      "kv_producer": "separate k_proj/v_proj",
+      "layer": 0,
+      "official_q4_0": {
+        "bytes": 459247108,
+        "owns_v": true,
+        "tensor_count": 22
+      },
+      "owns_v_projection": true,
+      "source_bf16": {
+        "bytes": 1628189954,
+        "expert_indices_complete": null,
+        "serialized_expert_count": 0,
+        "tensor_count": 22
+      }
+    },
+    {
+      "attention_type": "sliding_attention",
+      "external_unsloth_nvfp4": {
+        "bytes": 473643806,
+        "expert_indices_complete": true,
+        "serialized_expert_count": 128,
+        "tensor_count": 1571
+      },
+      "kv_producer": "separate k_proj/v_proj",
+      "layer": 1,
+      "official_q4_0": {
+        "bytes": 459247108,
+        "owns_v": true,
+        "tensor_count": 22
+      },
+      "owns_v_projection": true,
+      "source_bf16": {
+        "bytes": 1628189954,
+        "expert_indices_complete": null,
+        "serialized_expert_count": 0,
+        "tensor_count": 22
+      }
+    },
+    {
+      "attention_type": "sliding_attention",
+      "external_unsloth_nvfp4": {
+        "bytes": 473643806,
+        "expert_indices_complete": true,
+        "serialized_expert_count": 128,
+        "tensor_count": 1571
+      },
+      "kv_producer": "separate k_proj/v_proj",
+      "layer": 2,
+      "official_q4_0": {
+        "bytes": 459247108,
+        "owns_v": true,
+        "tensor_count": 22
+      },
+      "owns_v_projection": true,
+      "source_bf16": {
+        "bytes": 1628189954,
+        "expert_indices_complete": null,
+        "serialized_expert_count": 0,
+        "tensor_count": 22
+      }
+    },
+    {
+      "attention_type": "sliding_attention",
+      "external_unsloth_nvfp4": {
+        "bytes": 473643806,
+        "expert_indices_complete": true,
+        "serialized_expert_count": 128,
+        "tensor_count": 1571
+      },
+      "kv_producer": "separate k_proj/v_proj",
+      "layer": 3,
+      "official_q4_0": {
+        "bytes": 459247108,
+        "owns_v": true,
+        "tensor_count": 22
+      },
+      "owns_v_projection": true,
+      "source_bf16": {
+        "bytes": 1628189954,
+        "expert_indices_complete": null,
+        "serialized_expert_count": 0,
+        "tensor_count": 22
+      }
+    },
+    {
+      "attention_type": "sliding_attention",
+      "external_unsloth_nvfp4": {
+        "bytes": 473643806,
+        "expert_indices_complete": true,
+        "serialized_expert_count": 128,
+        "tensor_count": 1571
+      },
+      "kv_producer": "separate k_proj/v_proj",
+      "layer": 4,
+      "official_q4_0": {
+        "bytes": 459247108,
+        "owns_v": true,
+        "tensor_count": 22
+      },
+      "owns_v_projection": true,
+      "source_bf16": {
+        "bytes": 1628189954,
+        "expert_indices_complete": null,
+        "serialized_expert_count": 0,
+        "tensor_count": 22
+      }
+    },
+    {
+      "attention_type": "full_attention",
+      "external_unsloth_nvfp4": {
+        "bytes": 488064798,
+        "expert_indices_complete": true,
+        "serialized_expert_count": 128,
+        "tensor_count": 1569
+      },
+      "kv_producer": "k projection reused as raw V input",
+      "layer": 5,
+      "official_q4_0": {
+        "bytes": 467359236,
+        "owns_v": false,
+        "tensor_count": 21
+      },
+      "owns_v_projection": false,
+      "source_bf16": {
+        "bytes": 1657026818,
+        "expert_indices_complete": null,
+        "serialized_expert_count": 0,
+        "tensor_count": 21
+      }
+    },
+    {
+      "attention_type": "sliding_attention",
+      "external_unsloth_nvfp4": {
+        "bytes": 473643806,
+        "expert_indices_complete": true,
+        "serialized_expert_count": 128,
+        "tensor_count": 1571
+      },
+      "kv_producer": "separate k_proj/v_proj",
+      "layer": 6,
+      "official_q4_0": {
+        "bytes": 459247108,
+        "owns_v": true,
+        "tensor_count": 22
+      },
+      "owns_v_projection": true,
+      "source_bf16": {
+        "bytes": 1628189954,
+        "expert_indices_complete": null,
+        "serialized_expert_count": 0,
+        "tensor_count": 22
+      }
+    },
+    {
+      "attention_type": "sliding_attention",
+      "external_unsloth_nvfp4": {
+        "bytes": 473643806,
+        "expert_indices_complete": true,
+        "serialized_expert_count": 128,
+        "tensor_count": 1571
+      },
+      "kv_producer": "separate k_proj/v_proj",
+      "layer": 7,
+      "official_q4_0": {
+        "bytes": 459247108,
+        "owns_v": true,
+        "tensor_count": 22
+      },
+      "owns_v_projection": true,
+      "source_bf16": {
+        "bytes": 1628189954,
+        "expert_indices_complete": null,
+        "serialized_expert_count": 0,
+        "tensor_count": 22
+      }
+    },
+    {
+      "attention_type": "sliding_attention",
+      "external_unsloth_nvfp4": {
+        "bytes": 473643806,
+        "expert_indices_complete": true,
+        "serialized_expert_count": 128,
+        "tensor_count": 1571
+      },
+      "kv_producer": "separate k_proj/v_proj",
+      "layer": 8,
+      "official_q4_0": {
+        "bytes": 459247108,
+        "owns_v": true,
+        "tensor_count": 22
+      },
+      "owns_v_projection": true,
+      "source_bf16": {
+        "bytes": 1628189954,
+        "expert_indices_complete": null,
+        "serialized_expert_count": 0,
+        "tensor_count": 22
+      }
+    },
+    {
+      "attention_type": "sliding_attention",
+      "external_unsloth_nvfp4": {
+        "bytes": 473643806,
+        "expert_indices_complete": true,
+        "serialized_expert_count": 128,
+        "tensor_count": 1571
+      },
+      "kv_producer": "separate k_proj/v_proj",
+      "layer": 9,
+      "official_q4_0": {
+        "bytes": 459247108,
+        "owns_v": true,
+        "tensor_count": 22
+      },
+      "owns_v_projection": true,
+      "source_bf16": {
+        "bytes": 1628189954,
+        "expert_indices_complete": null,
+        "serialized_expert_count": 0,
+        "tensor_count": 22
+      }
+    },
+    {
+      "attention_type": "sliding_attention",
+      "external_unsloth_nvfp4": {
+        "bytes": 473643806,
+        "expert_indices_complete": true,
+        "serialized_expert_count": 128,
+        "tensor_count": 1571
+      },
+      "kv_producer": "separate k_proj/v_proj",
+      "layer": 10,
+      "official_q4_0": {
+        "bytes": 459247108,
+        "owns_v": true,
+        "tensor_count": 22
+      },
+      "owns_v_projection": true,
+      "source_bf16": {
+        "bytes": 1628189954,
+        "expert_indices_complete": null,
+        "serialized_expert_count": 0,
+        "tensor_count": 22
+      }
+    },
+    {
+      "attention_type": "full_attention",
+      "external_unsloth_nvfp4": {
+        "bytes": 488064798,
+        "expert_indices_complete": true,
+        "serialized_expert_count": 128,
+        "tensor_count": 1569
+      },
+      "kv_producer": "k projection reused as raw V input",
+      "layer": 11,
+      "official_q4_0": {
+        "bytes": 467359236,
+        "owns_v": false,
+        "tensor_count": 21
+      },
+      "owns_v_projection": false,
+      "source_bf16": {
+        "bytes": 1657026818,
+        "expert_indices_complete": null,
+        "serialized_expert_count": 0,
+        "tensor_count": 21
+      }
+    },
+    {
+      "attention_type": "sliding_attention",
+      "external_unsloth_nvfp4": {
+        "bytes": 473643806,
+        "expert_indices_complete": true,
+        "serialized_expert_count": 128,
+        "tensor_count": 1571
+      },
+      "kv_producer": "separate k_proj/v_proj",
+      "layer": 12,
+      "official_q4_0": {
+        "bytes": 459247108,
+        "owns_v": true,
+        "tensor_count": 22
+      },
+      "owns_v_projection": true,
+      "source_bf16": {
+        "bytes": 1628189954,
+        "expert_indices_complete": null,
+        "serialized_expert_count": 0,
+        "tensor_count": 22
+      }
+    },
+    {
+      "attention_type": "sliding_attention",
+      "external_unsloth_nvfp4": {
+        "bytes": 473643806,
+        "expert_indices_complete": true,
+        "serialized_expert_count": 128,
+        "tensor_count": 1571
+      },
+      "kv_producer": "separate k_proj/v_proj",
+      "layer": 13,
+      "official_q4_0": {
+        "bytes": 459247108,
+        "owns_v": true,
+        "tensor_count": 22
+      },
+      "owns_v_projection": true,
+      "source_bf16": {
+        "bytes": 1628189954,
+        "expert_indices_complete": null,
+        "serialized_expert_count": 0,
+        "tensor_count": 22
+      }
+    },
+    {
+      "attention_type": "sliding_attention",
+      "external_unsloth_nvfp4": {
+        "bytes": 473643806,
+        "expert_indices_complete": true,
+        "serialized_expert_count": 128,
+        "tensor_count": 1571
+      },
+      "kv_producer": "separate k_proj/v_proj",
+      "layer": 14,
+      "official_q4_0": {
+        "bytes": 459247108,
+        "owns_v": true,
+        "tensor_count": 22
+      },
+      "owns_v_projection": true,
+      "source_bf16": {
+        "bytes": 1628189954,
+        "expert_indices_complete": null,
+        "serialized_expert_count": 0,
+        "tensor_count": 22
+      }
+    },
+    {
+      "attention_type": "sliding_attention",
+      "external_unsloth_nvfp4": {
+        "bytes": 473643806,
+        "expert_indices_complete": true,
+        "serialized_expert_count": 128,
+        "tensor_count": 1571
+      },
+      "kv_producer": "separate k_proj/v_proj",
+      "layer": 15,
+      "official_q4_0": {
+        "bytes": 459247108,
+        "owns_v": true,
+        "tensor_count": 22
+      },
+      "owns_v_projection": true,
+      "source_bf16": {
+        "bytes": 1628189954,
+        "expert_indices_complete": null,
+        "serialized_expert_count": 0,
+        "tensor_count": 22
+      }
+    },
+    {
+      "attention_type": "sliding_attention",
+      "external_unsloth_nvfp4": {
+        "bytes": 473643806,
+        "expert_indices_complete": true,
+        "serialized_expert_count": 128,
+        "tensor_count": 1571
+      },
+      "kv_producer": "separate k_proj/v_proj",
+      "layer": 16,
+      "official_q4_0": {
+        "bytes": 459247108,
+        "owns_v": true,
+        "tensor_count": 22
+      },
+      "owns_v_projection": true,
+      "source_bf16": {
+        "bytes": 1628189954,
+        "expert_indices_complete": null,
+        "serialized_expert_count": 0,
+        "tensor_count": 22
+      }
+    },
+    {
+      "attention_type": "full_attention",
+      "external_unsloth_nvfp4": {
+        "bytes": 488064798,
+        "expert_indices_complete": true,
+        "serialized_expert_count": 128,
+        "tensor_count": 1569
+      },
+      "kv_producer": "k projection reused as raw V input",
+      "layer": 17,
+      "official_q4_0": {
+        "bytes": 467359236,
+        "owns_v": false,
+        "tensor_count": 21
+      },
+      "owns_v_projection": false,
+      "source_bf16": {
+        "bytes": 1657026818,
+        "expert_indices_complete": null,
+        "serialized_expert_count": 0,
+        "tensor_count": 21
+      }
+    },
+    {
+      "attention_type": "sliding_attention",
+      "external_unsloth_nvfp4": {
+        "bytes": 473643806,
+        "expert_indices_complete": true,
+        "serialized_expert_count": 128,
+        "tensor_count": 1571
+      },
+      "kv_producer": "separate k_proj/v_proj",
+      "layer": 18,
+      "official_q4_0": {
+        "bytes": 459247108,
+        "owns_v": true,
+        "tensor_count": 22
+      },
+      "owns_v_projection": true,
+      "source_bf16": {
+        "bytes": 1628189954,
+        "expert_indices_complete": null,
+        "serialized_expert_count": 0,
+        "tensor_count": 22
+      }
+    },
+    {
+      "attention_type": "sliding_attention",
+      "external_unsloth_nvfp4": {
+        "bytes": 473643806,
+        "expert_indices_complete": true,
+        "serialized_expert_count": 128,
+        "tensor_count": 1571
+      },
+      "kv_producer": "separate k_proj/v_proj",
+      "layer": 19,
+      "official_q4_0": {
+        "bytes": 459247108,
+        "owns_v": true,
+        "tensor_count": 22
+      },
+      "owns_v_projection": true,
+      "source_bf16": {
+        "bytes": 1628189954,
+        "expert_indices_complete": null,
+        "serialized_expert_count": 0,
+        "tensor_count": 22
+      }
+    },
+    {
+      "attention_type": "sliding_attention",
+      "external_unsloth_nvfp4": {
+        "bytes": 473643806,
+        "expert_indices_complete": true,
+        "serialized_expert_count": 128,
+        "tensor_count": 1571
+      },
+      "kv_producer": "separate k_proj/v_proj",
+      "layer": 20,
+      "official_q4_0": {
+        "bytes": 459247108,
+        "owns_v": true,
+        "tensor_count": 22
+      },
+      "owns_v_projection": true,
+      "source_bf16": {
+        "bytes": 1628189954,
+        "expert_indices_complete": null,
+        "serialized_expert_count": 0,
+        "tensor_count": 22
+      }
+    },
+    {
+      "attention_type": "sliding_attention",
+      "external_unsloth_nvfp4": {
+        "bytes": 473643806,
+        "expert_indices_complete": true,
+        "serialized_expert_count": 128,
+        "tensor_count": 1571
+      },
+      "kv_producer": "separate k_proj/v_proj",
+      "layer": 21,
+      "official_q4_0": {
+        "bytes": 459247108,
+        "owns_v": true,
+        "tensor_count": 22
+      },
+      "owns_v_projection": true,
+      "source_bf16": {
+        "bytes": 1628189954,
+        "expert_indices_complete": null,
+        "serialized_expert_count": 0,
+        "tensor_count": 22
+      }
+    },
+    {
+      "attention_type": "sliding_attention",
+      "external_unsloth_nvfp4": {
+        "bytes": 473643806,
+        "expert_indices_complete": true,
+        "serialized_expert_count": 128,
+        "tensor_count": 1571
+      },
+      "kv_producer": "separate k_proj/v_proj",
+      "layer": 22,
+      "official_q4_0": {
+        "bytes": 459247108,
+        "owns_v": true,
+        "tensor_count": 22
+      },
+      "owns_v_projection": true,
+      "source_bf16": {
+        "bytes": 1628189954,
+        "expert_indices_complete": null,
+        "serialized_expert_count": 0,
+        "tensor_count": 22
+      }
+    },
+    {
+      "attention_type": "full_attention",
+      "external_unsloth_nvfp4": {
+        "bytes": 488064798,
+        "expert_indices_complete": true,
+        "serialized_expert_count": 128,
+        "tensor_count": 1569
+      },
+      "kv_producer": "k projection reused as raw V input",
+      "layer": 23,
+      "official_q4_0": {
+        "bytes": 467359236,
+        "owns_v": false,
+        "tensor_count": 21
+      },
+      "owns_v_projection": false,
+      "source_bf16": {
+        "bytes": 1657026818,
+        "expert_indices_complete": null,
+        "serialized_expert_count": 0,
+        "tensor_count": 21
+      }
+    },
+    {
+      "attention_type": "sliding_attention",
+      "external_unsloth_nvfp4": {
+        "bytes": 473643806,
+        "expert_indices_complete": true,
+        "serialized_expert_count": 128,
+        "tensor_count": 1571
+      },
+      "kv_producer": "separate k_proj/v_proj",
+      "layer": 24,
+      "official_q4_0": {
+        "bytes": 459247108,
+        "owns_v": true,
+        "tensor_count": 22
+      },
+      "owns_v_projection": true,
+      "source_bf16": {
+        "bytes": 1628189954,
+        "expert_indices_complete": null,
+        "serialized_expert_count": 0,
+        "tensor_count": 22
+      }
+    },
+    {
+      "attention_type": "sliding_attention",
+      "external_unsloth_nvfp4": {
+        "bytes": 473643806,
+        "expert_indices_complete": true,
+        "serialized_expert_count": 128,
+        "tensor_count": 1571
+      },
+      "kv_producer": "separate k_proj/v_proj",
+      "layer": 25,
+      "official_q4_0": {
+        "bytes": 459247108,
+        "owns_v": true,
+        "tensor_count": 22
+      },
+      "owns_v_projection": true,
+      "source_bf16": {
+        "bytes": 1628189954,
+        "expert_indices_complete": null,
+        "serialized_expert_count": 0,
+        "tensor_count": 22
+      }
+    },
+    {
+      "attention_type": "sliding_attention",
+      "external_unsloth_nvfp4": {
+        "bytes": 473643806,
+        "expert_indices_complete": true,
+        "serialized_expert_count": 128,
+        "tensor_count": 1571
+      },
+      "kv_producer": "separate k_proj/v_proj",
+      "layer": 26,
+      "official_q4_0": {
+        "bytes": 459247108,
+        "owns_v": true,
+        "tensor_count": 22
+      },
+      "owns_v_projection": true,
+      "source_bf16": {
+        "bytes": 1628189954,
+        "expert_indices_complete": null,
+        "serialized_expert_count": 0,
+        "tensor_count": 22
+      }
+    },
+    {
+      "attention_type": "sliding_attention",
+      "external_unsloth_nvfp4": {
+        "bytes": 473643806,
+        "expert_indices_complete": true,
+        "serialized_expert_count": 128,
+        "tensor_count": 1571
+      },
+      "kv_producer": "separate k_proj/v_proj",
+      "layer": 27,
+      "official_q4_0": {
+        "bytes": 459247108,
+        "owns_v": true,
+        "tensor_count": 22
+      },
+      "owns_v_projection": true,
+      "source_bf16": {
+        "bytes": 1628189954,
+        "expert_indices_complete": null,
+        "serialized_expert_count": 0,
+        "tensor_count": 22
+      }
+    },
+    {
+      "attention_type": "sliding_attention",
+      "external_unsloth_nvfp4": {
+        "bytes": 473643806,
+        "expert_indices_complete": true,
+        "serialized_expert_count": 128,
+        "tensor_count": 1571
+      },
+      "kv_producer": "separate k_proj/v_proj",
+      "layer": 28,
+      "official_q4_0": {
+        "bytes": 459247108,
+        "owns_v": true,
+        "tensor_count": 22
+      },
+      "owns_v_projection": true,
+      "source_bf16": {
+        "bytes": 1628189954,
+        "expert_indices_complete": null,
+        "serialized_expert_count": 0,
+        "tensor_count": 22
+      }
+    },
+    {
+      "attention_type": "full_attention",
+      "external_unsloth_nvfp4": {
+        "bytes": 488064798,
+        "expert_indices_complete": true,
+        "serialized_expert_count": 128,
+        "tensor_count": 1569
+      },
+      "kv_producer": "k projection reused as raw V input",
+      "layer": 29,
+      "official_q4_0": {
+        "bytes": 467359236,
+        "owns_v": false,
+        "tensor_count": 21
+      },
+      "owns_v_projection": false,
+      "source_bf16": {
+        "bytes": 1657026818,
+        "expert_indices_complete": null,
+        "serialized_expert_count": 0,
+        "tensor_count": 21
+      }
+    }
+  ],
+  "schema_version": 1,
+  "status": "m03_exact_layer_table"
+}

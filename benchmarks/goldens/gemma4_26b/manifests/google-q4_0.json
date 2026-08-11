@@ -1,0 +1,118 @@
+{
+  "file_bytes": 14439363584,
+  "raw_inventory": {
+    "path": "benchmarks/goldens/gemma4_26b/source-inventories/google-q4_0.json",
+    "sha256": "de99cfb438902c057db45539dd8611e76f8c0ffa35f812cb393b5ba6e7c91bdf"
+  },
+  "roles": {
+    "attention_k_norm": {
+      "bytes": 35840,
+      "tensor_count": 30
+    },
+    "attention_k_projection": {
+      "bytes": 89210880,
+      "tensor_count": 30
+    },
+    "attention_o_projection": {
+      "bytes": 227082240,
+      "tensor_count": 30
+    },
+    "attention_q_norm": {
+      "bytes": 35840,
+      "tensor_count": 30
+    },
+    "attention_q_projection": {
+      "bytes": 227082240,
+      "tensor_count": 30
+    },
+    "attention_v_projection": {
+      "bytes": 81100800,
+      "tensor_count": 25
+    },
+    "final_norm": {
+      "bytes": 11264,
+      "tensor_count": 1
+    },
+    "input_layer_norm": {
+      "bytes": 337920,
+      "tensor_count": 30
+    },
+    "layer_scalar": {
+      "bytes": 120,
+      "tensor_count": 30
+    },
+    "post_attention_layer_norm": {
+      "bytes": 337920,
+      "tensor_count": 30
+    },
+    "post_feed_forward_layer_norm": {
+      "bytes": 337920,
+      "tensor_count": 30
+    },
+    "post_feed_forward_layer_norm_1": {
+      "bytes": 337920,
+      "tensor_count": 30
+    },
+    "post_feed_forward_layer_norm_2": {
+      "bytes": 337920,
+      "tensor_count": 30
+    },
+    "pre_feed_forward_layer_norm": {
+      "bytes": 337920,
+      "tensor_count": 30
+    },
+    "pre_feed_forward_layer_norm_2": {
+      "bytes": 337920,
+      "tensor_count": 30
+    },
+    "rope_control": {
+      "bytes": 1024,
+      "tensor_count": 1
+    },
+    "routed_expert_down": {
+      "bytes": 4282122240,
+      "tensor_count": 30
+    },
+    "routed_expert_gate_up": {
+      "bytes": 8564244480,
+      "tensor_count": 30
+    },
+    "router_norm_scale": {
+      "bytes": 337920,
+      "tensor_count": 30
+    },
+    "router_per_expert_scale": {
+      "bytes": 15360,
+      "tensor_count": 30
+    },
+    "router_projection": {
+      "bytes": 43253760,
+      "tensor_count": 30
+    },
+    "shared_mlp_down": {
+      "bytes": 100362240,
+      "tensor_count": 30
+    },
+    "shared_mlp_gate": {
+      "bytes": 100362240,
+      "tensor_count": 30
+    },
+    "shared_mlp_up": {
+      "bytes": 100362240,
+      "tensor_count": 30
+    },
+    "tied_embedding_and_output": {
+      "bytes": 605552640,
+      "tensor_count": 1
+    }
+  },
+  "schema_version": 1,
+  "separate_mmproj_in_source_lock": true,
+  "source_family": "official_q4_0",
+  "source_lock_sha256": "0893ac0a4db32f0c5549bc17b92f3951ab4da1a6180b188094190a4bbfc88784",
+  "source_revision": "d1c082be9cf3c8a514acf63b8761f4b41935842e",
+  "status": "m03_exact_inventory",
+  "tensor_count": 658,
+  "text_only": true,
+  "unknown_tensor_count": 0
+}

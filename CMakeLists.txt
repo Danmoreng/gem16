@@ -32,6 +32,7 @@ add_library(gem16_core STATIC
   src/model/audio.cpp
   src/model/image.cpp
   src/model/config.cpp
+  src/model/gemma4_26b_manifest.cpp
   src/model/manifest.cpp
   src/model/model_variant.cpp
   src/model/safetensors.cpp
@@ -255,6 +256,15 @@ if(GEM16_ENABLE_CUDA)
     CUDA_ARCHITECTURES "${GEM16_CUDA_ARCHITECTURE}"
     CUDA_SEPARABLE_COMPILATION ON
   )
+  add_executable(gem16-26b-memory-probe
+    src/cli/gemma4_26b_memory_probe.cpp
+  )
+  target_include_directories(gem16-26b-memory-probe PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/src"
+  )
+  target_link_libraries(gem16-26b-memory-probe PRIVATE gem16_core CUDA::cudart)
+  gem16_set_project_warnings(gem16-26b-memory-probe)
+  gem16_enable_sanitizers(gem16-26b-memory-probe)
   message(STATUS "gem16 CUDA capability scaffold: enabled for ${CMAKE_CUDA_ARCHITECTURES}")
 else()
   target_sources(gem16_core PRIVATE src/runtime/inference_stub.cpp)
@@ -285,6 +295,7 @@ if(BUILD_TESTING AND GEM16_BUILD_TESTS)
     tests/unit/chat_test.cpp
     tests/unit/config_test.cpp
     tests/unit/fp8_test.cpp
+    tests/unit/gemma4_26b_manifest_test.cpp
     tests/unit/image_test.cpp
     tests/unit/json_test.cpp
     tests/unit/layer_test.cpp

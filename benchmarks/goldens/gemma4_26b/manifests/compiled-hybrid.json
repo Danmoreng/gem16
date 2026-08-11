@@ -1,0 +1,416 @@
+{
+  "fp8_kv_32k_bytes": 440401920,
+  "hard_stop_bytes": 14994636800,
+  "omitted_families": {
+    "audio_tensor_count": 0,
+    "mtp_tensor_count": 0,
+    "video_tensor_count": 0,
+    "vision_source_bytes": 1145588832,
+    "vision_tensor_count": 356
+  },
+  "profiles": {
+    "nvfp4_head": {
+      "aligned_weight_arena_bytes": 14696668160,
+      "alignment_bytes": 256,
+      "alignment_padding_bytes": 98964,
+      "head_format": "nvfp4",
+      "payload_bytes": 14696569196,
+      "producer_contracts": {
+        "attention": {
+          "activation_scale_role": "dynamic_per_token_dequant_multiplier",
+          "final_gpu_layout": "source_nk_fp8",
+          "format": "FP8 E4M3 per-output-channel weight / dynamic per-token activation",
+          "global_scale_role": "none",
+          "local_scale_dtype": "BF16",
+          "producer": "gem16"
+        },
+        "head": {
+          "duplicate_lm_head_allowed": false,
+          "format": "nvfp4",
+          "producer": "gem16",
+          "tied_physical_allocation": true
+        },
+        "nvfp4": {
+          "activation_scale_role": "divisor",
+          "expert_final_gpu_layout": "expert_major_sm120_row8_k64",
+          "format": "NVFP4 E2M1 packed / E4M3 group-16 scales",
+          "global_scale_role": "divisor",
+          "local_scale_dtype": "F8_E4M3",
+          "local_scale_vector_size": 16,
+          "producer": "gem16",
+          "shared_final_gpu_layout": "sm120_row8_k64"
+        }
+      },
+      "roles": {
+        "attention_k_cache_scale": {
+          "aligned_bytes": 7680,
+          "alignment_padding_bytes": 7620,
+          "payload_bytes": 60,
+          "tensor_count": 30
+        },
+        "attention_k_norm": {
+          "aligned_bytes": 17920,
+          "alignment_padding_bytes": 0,
+          "payload_bytes": 17920,
+          "tensor_count": 30
+        },
+        "attention_k_projection": {
+          "aligned_bytes": 158709760,
+          "alignment_padding_bytes": 0,
+          "payload_bytes": 158709760,
+          "tensor_count": 60
+        },
+        "attention_o_projection": {
+          "aligned_bytes": 403870720,
+          "alignment_padding_bytes": 0,
+          "payload_bytes": 403870720,
+          "tensor_count": 60
+        },
+        "attention_q_norm": {
+          "aligned_bytes": 17920,
+          "alignment_padding_bytes": 0,
+          "payload_bytes": 17920,
+          "tensor_count": 30
+        },
+        "attention_q_projection": {
+          "aligned_bytes": 403988480,
+          "alignment_padding_bytes": 0,
+          "payload_bytes": 403988480,
+          "tensor_count": 60
+        },
+        "attention_v_cache_scale": {
+          "aligned_bytes": 7680,
+          "alignment_padding_bytes": 7620,
+          "payload_bytes": 60,
+          "tensor_count": 30
+        },
+        "attention_v_projection": {
+          "aligned_bytes": 144281600,
+          "alignment_padding_bytes": 0,
+          "payload_bytes": 144281600,
+          "tensor_count": 50
+        },
+        "final_norm": {
+          "aligned_bytes": 5632,
+          "alignment_padding_bytes": 0,
+          "payload_bytes": 5632,
+          "tensor_count": 1
+        },
+        "input_layer_norm": {
+          "aligned_bytes": 168960,
+          "alignment_padding_bytes": 0,
+          "payload_bytes": 168960,
+          "tensor_count": 30
+        },
+        "layer_scalar": {
+          "aligned_bytes": 7680,
+          "alignment_padding_bytes": 7620,
+          "payload_bytes": 60,
+          "tensor_count": 30
+        },
+        "post_attention_layer_norm": {
+          "aligned_bytes": 168960,
+          "alignment_padding_bytes": 0,
+          "payload_bytes": 168960,
+          "tensor_count": 30
+        },
+        "post_feed_forward_layer_norm": {
+          "aligned_bytes": 168960,
+          "alignment_padding_bytes": 0,
+          "payload_bytes": 168960,
+          "tensor_count": 30
+        },
+        "post_feed_forward_layer_norm_1": {
+          "aligned_bytes": 168960,
+          "alignment_padding_bytes": 0,
+          "payload_bytes": 168960,
+          "tensor_count": 30
+        },
+        "post_feed_forward_layer_norm_2": {
+          "aligned_bytes": 168960,
+          "alignment_padding_bytes": 0,
+          "payload_bytes": 168960,
+          "tensor_count": 30
+        },
+        "pre_feed_forward_layer_norm": {
+          "aligned_bytes": 168960,
+          "alignment_padding_bytes": 0,
+          "payload_bytes": 168960,
+          "tensor_count": 30
+        },
+        "pre_feed_forward_layer_norm_2": {
+          "aligned_bytes": 168960,
+          "alignment_padding_bytes": 0,
+          "payload_bytes": 168960,
+          "tensor_count": 30
+        },
+        "routed_expert_down": {
+          "aligned_bytes": 4282137600,
+          "alignment_padding_bytes": 15120,
+          "payload_bytes": 4282122480,
+          "tensor_count": 120
+        },
+        "routed_expert_gate_up": {
+          "aligned_bytes": 8564259840,
+          "alignment_padding_bytes": 15120,
+          "payload_bytes": 8564244720,
+          "tensor_count": 120
+        },
+        "router_norm_scale": {
+          "aligned_bytes": 168960,
+          "alignment_padding_bytes": 0,
+          "payload_bytes": 168960,
+          "tensor_count": 30
+        },
+        "router_per_expert_scale": {
+          "aligned_bytes": 7680,
+          "alignment_padding_bytes": 0,
+          "payload_bytes": 7680,
+          "tensor_count": 30
+        },
+        "router_projection": {
+          "aligned_bytes": 21626880,
+          "alignment_padding_bytes": 0,
+          "payload_bytes": 21626880,
+          "tensor_count": 30
+        },
+        "shared_mlp_down": {
+          "aligned_bytes": 100377600,
+          "alignment_padding_bytes": 15120,
+          "payload_bytes": 100362480,
+          "tensor_count": 120
+        },
+        "shared_mlp_gate": {
+          "aligned_bytes": 100377600,
+          "alignment_padding_bytes": 15120,
+          "payload_bytes": 100362480,
+          "tensor_count": 120
+        },
+        "shared_mlp_up": {
+          "aligned_bytes": 100377600,
+          "alignment_padding_bytes": 15120,
+          "payload_bytes": 100362480,
+          "tensor_count": 120
+        },
+        "tied_embedding_and_output": {
+          "aligned_bytes": 415236608,
+          "alignment_padding_bytes": 504,
+          "payload_bytes": 415236104,
+          "tensor_count": 4
+        }
+      },
+      "tensor_count": 1285
+    },
+    "q4_0_head": {
+      "aligned_weight_arena_bytes": 14696667648,
+      "alignment_bytes": 256,
+      "alignment_padding_bytes": 98460,
+      "head_format": "q4_0",
+      "payload_bytes": 14696569188,
+      "producer_contracts": {
+        "attention": {
+          "activation_scale_role": "dynamic_per_token_dequant_multiplier",
+          "final_gpu_layout": "source_nk_fp8",
+          "format": "FP8 E4M3 per-output-channel weight / dynamic per-token activation",
+          "global_scale_role": "none",
+          "local_scale_dtype": "BF16",
+          "producer": "gem16"
+        },
+        "head": {
+          "duplicate_lm_head_allowed": false,
+          "format": "q4_0",
+          "producer": "gem16",
+          "tied_physical_allocation": true
+        },
+        "nvfp4": {
+          "activation_scale_role": "divisor",
+          "expert_final_gpu_layout": "expert_major_sm120_row8_k64",
+          "format": "NVFP4 E2M1 packed / E4M3 group-16 scales",
+          "global_scale_role": "divisor",
+          "local_scale_dtype": "F8_E4M3",
+          "local_scale_vector_size": 16,
+          "producer": "gem16",
+          "shared_final_gpu_layout": "sm120_row8_k64"
+        }
+      },
+      "roles": {
+        "attention_k_cache_scale": {
+          "aligned_bytes": 7680,
+          "alignment_padding_bytes": 7620,
+          "payload_bytes": 60,
+          "tensor_count": 30
+        },
+        "attention_k_norm": {
+          "aligned_bytes": 17920,
+          "alignment_padding_bytes": 0,
+          "payload_bytes": 17920,
+          "tensor_count": 30
+        },
+        "attention_k_projection": {
+          "aligned_bytes": 158709760,
+          "alignment_padding_bytes": 0,
+          "payload_bytes": 158709760,
+          "tensor_count": 60
+        },
+        "attention_o_projection": {
+          "aligned_bytes": 403870720,
+          "alignment_padding_bytes": 0,
+          "payload_bytes": 403870720,
+          "tensor_count": 60
+        },
+        "attention_q_norm": {
+          "aligned_bytes": 17920,
+          "alignment_padding_bytes": 0,
+          "payload_bytes": 17920,
+          "tensor_count": 30
+        },
+        "attention_q_projection": {
+          "aligned_bytes": 403988480,
+          "alignment_padding_bytes": 0,
+          "payload_bytes": 403988480,
+          "tensor_count": 60
+        },
+        "attention_v_cache_scale": {
+          "aligned_bytes": 7680,
+          "alignment_padding_bytes": 7620,
+          "payload_bytes": 60,
+          "tensor_count": 30
+        },
+        "attention_v_projection": {
+          "aligned_bytes": 144281600,
+          "alignment_padding_bytes": 0,
+          "payload_bytes": 144281600,
+          "tensor_count": 50
+        },
+        "final_norm": {
+          "aligned_bytes": 5632,
+          "alignment_padding_bytes": 0,
+          "payload_bytes": 5632,
+          "tensor_count": 1
+        },
+        "input_layer_norm": {
+          "aligned_bytes": 168960,
+          "alignment_padding_bytes": 0,
+          "payload_bytes": 168960,
+          "tensor_count": 30
+        },
+        "layer_scalar": {
+          "aligned_bytes": 7680,
+          "alignment_padding_bytes": 7620,
+          "payload_bytes": 60,
+          "tensor_count": 30
+        },
+        "post_attention_layer_norm": {
+          "aligned_bytes": 168960,
+          "alignment_padding_bytes": 0,
+          "payload_bytes": 168960,
+          "tensor_count": 30
+        },
+        "post_feed_forward_layer_norm": {
+          "aligned_bytes": 168960,
+          "alignment_padding_bytes": 0,
+          "payload_bytes": 168960,
+          "tensor_count": 30
+        },
+        "post_feed_forward_layer_norm_1": {
+          "aligned_bytes": 168960,
+          "alignment_padding_bytes": 0,
+          "payload_bytes": 168960,
+          "tensor_count": 30
+        },
+        "post_feed_forward_layer_norm_2": {
+          "aligned_bytes": 168960,
+          "alignment_padding_bytes": 0,
+          "payload_bytes": 168960,
+          "tensor_count": 30
+        },
+        "pre_feed_forward_layer_norm": {
+          "aligned_bytes": 168960,
+          "alignment_padding_bytes": 0,
+          "payload_bytes": 168960,
+          "tensor_count": 30
+        },
+        "pre_feed_forward_layer_norm_2": {
+          "aligned_bytes": 168960,
+          "alignment_padding_bytes": 0,
+          "payload_bytes": 168960,
+          "tensor_count": 30
+        },
+        "routed_expert_down": {
+          "aligned_bytes": 4282137600,
+          "alignment_padding_bytes": 15120,
+          "payload_bytes": 4282122480,
+          "tensor_count": 120
+        },
+        "routed_expert_gate_up": {
+          "aligned_bytes": 8564259840,
+          "alignment_padding_bytes": 15120,
+          "payload_bytes": 8564244720,
+          "tensor_count": 120
+        },
+        "router_norm_scale": {
+          "aligned_bytes": 168960,
+          "alignment_padding_bytes": 0,
+          "payload_bytes": 168960,
+          "tensor_count": 30
+        },
+        "router_per_expert_scale": {
+          "aligned_bytes": 7680,
+          "alignment_padding_bytes": 0,
+          "payload_bytes": 7680,
+          "tensor_count": 30
+        },
+        "router_projection": {
+          "aligned_bytes": 21626880,
+          "alignment_padding_bytes": 0,
+          "payload_bytes": 21626880,
+          "tensor_count": 30
+        },
+        "shared_mlp_down": {
+          "aligned_bytes": 100377600,
+          "alignment_padding_bytes": 15120,
+          "payload_bytes": 100362480,
+          "tensor_count": 120
+        },
+        "shared_mlp_gate": {
+          "aligned_bytes": 100377600,
+          "alignment_padding_bytes": 15120,
+          "payload_bytes": 100362480,
+          "tensor_count": 120
+        },
+        "shared_mlp_up": {
+          "aligned_bytes": 100377600,
+          "alignment_padding_bytes": 15120,
+          "payload_bytes": 100362480,
+          "tensor_count": 120
+        },
+        "tied_embedding_and_output": {
+          "aligned_bytes": 415236096,
+          "alignment_padding_bytes": 0,
+          "payload_bytes": 415236096,
+          "tensor_count": 1
+        }
+      },
+      "tensor_count": 1282
+    }
+  },
+  "required_direct_free_margin_bytes": 734003200,
+  "schema_version": 1,
+  "selected_conservative_weight_arena_bytes": 14696668160,
+  "source_family": "qat_bf16",
+  "source_lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230",
+  "status": "m03_frozen_compiled_hybrid_role_contract",
+  "strictness": {
+    "duplicate_lm_head_allowed": false,
+    "external_unsloth_is_project_compiled": false,
+    "source_and_compiled_validators_are_separate": true,
+    "unknown_tensor_allowed": false
+  },
+  "synthetic_fixed_regions": {
+    "activation_output_workspace": 134217728,
+    "allocator_metadata_guard": 33554432,
+    "graph_private_reserve": 33554432,
+    "moe_prefill_workspace": 268435456
+  },
+  "weight_target_bytes": 14784921600
+}

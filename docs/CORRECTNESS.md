@@ -459,6 +459,31 @@ an exact-logit oracle. The source locks, compact fixtures, limitation and reprod
 These fixtures establish later compiler/operator comparison anchors. They do not establish a production format,
 accepted model-wide tolerance, quality threshold, resident 16 GB execution or performance claim.
 
+## Gemma 4 26B M03 tensor-contract evidence
+
+M03 validates exact headers and roles without executing 26B arithmetic. Fresh locked-source regeneration is
+byte-identical for QAT BF16, ordinary BF16, Unsloth NVFP4 and official Q4_0 inventories. The strict C++ source
+validator accepts both 1,013-tensor BF16 sources, and the separate external validator accepts all 47,478 Unsloth
+tensors while retaining `runtime_supported=false`. Compact verification reports assign every payload byte to
+exactly one role and residency class with zero unknown tensors.
+
+Mutation tests reject a missing expert family, swapped source expert dimension, wrong Gate/Up axis-order metadata,
+duplicate tensor/head, wrong router shape or dtype, missing local V, unexpected global V, missing vision tensor,
+unknown MTP tensor, wrong NVFP4 scale dtype/direction/producer and any vision tensor in the compiled profile. The
+source Gate/Up contract is `[128,1408,2816]` with expert axis 0 and Gate-before-Up rows; Down is
+`[128,2816,704]`. Unsloth coverage proves the complete expert-ID set `0..127` independently in all 30 layers.
+
+The compiled-hybrid validator is a separate strict semantic contract rather than an alias for Unsloth. It requires
+all producer, local-scale dtype/vector, global/activation scale-role, logical-axis and final-layout metadata and
+rejects external or unknown extras. The canonical fixture
+[`tests/fixtures/gemma4_26b_inventory.json`](../tests/fixtures/gemma4_26b_inventory.json) is regenerated from the
+locked raw inventories and consumed by both Python and C++ tests. Compact per-source summaries and the exact
+layer/cross-format tables are under `benchmarks/goldens/gemma4_26b/manifests/`.
+
+These checks establish tensor identity, byte reconciliation, role mapping and preliminary memory feasibility only.
+They do not establish compiler encoding correctness, MoE arithmetic, full-model logits, quality, runtime residency
+or performance; those remain owned by M04 and later gates.
+
 ## Not yet established
 
 Accepted model-wide layer tolerances, broad task quality, and a statistically justified generation threshold have

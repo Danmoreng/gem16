@@ -1,0 +1,174 @@
+{
+  "compile_excluded_vision_bytes": 1145588832,
+  "compile_excluded_vision_tensor_count": 356,
+  "expert_serialization": {
+    "components_per_projection": [
+      "weight_packed",
+      "weight_scale",
+      "weight_global_scale",
+      "input_global_scale"
+    ],
+    "experts_per_layer": 128,
+    "kind": "individual_expert_projection_families",
+    "projections_per_expert": [
+      "gate",
+      "up",
+      "down"
+    ]
+  },
+  "layer_count": 30,
+  "mtp_tensor_count": 0,
+  "project_compiled_artifact": false,
+  "quantization_semantics": {
+    "activation_global_scale_role": "divisor",
+    "final_gpu_layout": "external source order; not a gem16 compiled artifact",
+    "local_scale_dtype": "F8_E4M3",
+    "local_scale_vector_size": 16,
+    "producer": "llm-compressor/compressed-tensors@0.17.2.a20260707",
+    "weight_global_scale_role": "divisor"
+  },
+  "raw_inventory": {
+    "path": "benchmarks/goldens/gemma4_26b/source-inventories/unsloth-nvfp4.json",
+    "sha256": "740aeec34ddceddcfae83764f293b5a4d2635115a6eae4797935117901283bd5"
+  },
+  "roles": {
+    "attention_k_cache_scale": {
+      "bytes": 60,
+      "tensor_count": 30
+    },
+    "attention_k_norm": {
+      "bytes": 17920,
+      "tensor_count": 30
+    },
+    "attention_k_projection": {
+      "bytes": 158709760,
+      "tensor_count": 60
+    },
+    "attention_o_projection": {
+      "bytes": 403870720,
+      "tensor_count": 60
+    },
+    "attention_q_norm": {
+      "bytes": 17920,
+      "tensor_count": 30
+    },
+    "attention_q_projection": {
+      "bytes": 403988480,
+      "tensor_count": 60
+    },
+    "attention_v_cache_scale": {
+      "bytes": 60,
+      "tensor_count": 30
+    },
+    "attention_v_projection": {
+      "bytes": 144281600,
+      "tensor_count": 50
+    },
+    "final_norm": {
+      "bytes": 5632,
+      "tensor_count": 1
+    },
+    "input_layer_norm": {
+      "bytes": 168960,
+      "tensor_count": 30
+    },
+    "layer_scalar": {
+      "bytes": 60,
+      "tensor_count": 30
+    },
+    "post_attention_layer_norm": {
+      "bytes": 168960,
+      "tensor_count": 30
+    },
+    "post_feed_forward_layer_norm": {
+      "bytes": 168960,
+      "tensor_count": 30
+    },
+    "post_feed_forward_layer_norm_1": {
+      "bytes": 168960,
+      "tensor_count": 30
+    },
+    "post_feed_forward_layer_norm_2": {
+      "bytes": 168960,
+      "tensor_count": 30
+    },
+    "pre_feed_forward_layer_norm": {
+      "bytes": 168960,
+      "tensor_count": 30
+    },
+    "pre_feed_forward_layer_norm_2": {
+      "bytes": 168960,
+      "tensor_count": 30
+    },
+    "routed_expert_down": {
+      "bytes": 4282152960,
+      "tensor_count": 15360
+    },
+    "routed_expert_gate": {
+      "bytes": 4282152960,
+      "tensor_count": 15360
+    },
+    "routed_expert_up": {
+      "bytes": 4282152960,
+      "tensor_count": 15360
+    },
+    "router_norm_scale": {
+      "bytes": 168960,
+      "tensor_count": 30
+    },
+    "router_per_expert_scale": {
+      "bytes": 7680,
+      "tensor_count": 30
+    },
+    "router_projection": {
+      "bytes": 21626880,
+      "tensor_count": 30
+    },
+    "shared_mlp_down": {
+      "bytes": 100362480,
+      "tensor_count": 120
+    },
+    "shared_mlp_gate": {
+      "bytes": 100362480,
+      "tensor_count": 120
+    },
+    "shared_mlp_up": {
+      "bytes": 100362480,
+      "tensor_count": 120
+    },
+    "tied_embedding_and_output": {
+      "bytes": 1476395008,
+      "tensor_count": 1
+    },
+    "vision_attention": {
+      "bytes": 286654464,
+      "tensor_count": 108
+    },
+    "vision_embedding": {
+      "bytes": 47185920,
+      "tensor_count": 1
+    },
+    "vision_mlp": {
+      "bytes": 803229696,
+      "tensor_count": 81
+    },
+    "vision_norm": {
+      "bytes": 261216,
+      "tensor_count": 164
+    },
+    "vision_projection": {
+      "bytes": 8257536,
+      "tensor_count": 2
+    }
+  },
+  "schema_version": 1,
+  "source_family": "unsloth_nvfp4",
+  "source_lock_sha256": "6635b15f4f974dec22821c7a9efd4d2404ba4ce9afb1424ca2f3529d20db7941",
+  "source_revision": "20df0542b1a86ce19f495ac2eca2c7c12bce82f9",
+  "status": "m03_exact_inventory",
+  "tensor_count": 47478,
+  "tensor_payload_bytes": 16903408612,
+  "text_tensor_bytes": 15757819780,
+  "text_tensor_count": 47122,
+  "unknown_tensor_count": 0
+}

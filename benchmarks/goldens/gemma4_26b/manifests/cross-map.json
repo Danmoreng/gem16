@@ -1,0 +1,85 @@
+{
+  "quantization_semantics": {
+    "compiled_hybrid": {
+      "attention": {
+        "activation_scale_role": "dynamic_per_token_dequant_multiplier",
+        "final_gpu_layout": "source_nk_fp8",
+        "format": "FP8 E4M3 per-output-channel weight / dynamic per-token activation",
+        "global_scale_role": "none",
+        "local_scale_dtype": "BF16",
+        "producer": "gem16"
+      },
+      "head": {
+        "duplicate_lm_head_allowed": false,
+        "format": "q4_0",
+        "producer": "gem16",
+        "tied_physical_allocation": true
+      },
+      "nvfp4": {
+        "activation_scale_role": "divisor",
+        "expert_final_gpu_layout": "expert_major_sm120_row8_k64",
+        "format": "NVFP4 E2M1 packed / E4M3 group-16 scales",
+        "global_scale_role": "divisor",
+        "local_scale_dtype": "F8_E4M3",
+        "local_scale_vector_size": 16,
+        "producer": "gem16",
+        "shared_final_gpu_layout": "sm120_row8_k64"
+      }
+    },
+    "external_unsloth_nvfp4": {
+      "activation_global_scale_role": "divisor",
+      "final_gpu_layout": "external source order; not a gem16 compiled artifact",
+      "local_scale_dtype": "F8_E4M3",
+      "local_scale_vector_size": 16,
+      "producer": "llm-compressor/compressed-tensors@0.17.2.a20260707",
+      "weight_global_scale_role": "divisor"
+    }
+  },
+  "raw_names_are_not_interchangeable": true,
+  "roles": [
+    {
+      "compiled_hybrid": "model.language_model.embed_tokens.weight_q4_0 or explicit NVFP4 family",
+      "external_unsloth": "model.language_model.embed_tokens.weight",
+      "official_q4_0": "token_embd.weight",
+      "role": "tied_embedding_and_output",
+      "source_bf16": "model.language_model.embed_tokens.weight"
+    },
+    {
+      "compiled_hybrid": "...self_attn.q_proj.{weight,weight_scale}",
+      "external_unsloth": "...self_attn.q_proj.{weight,weight_scale}",
+      "official_q4_0": "blk.N.attn_q.weight",
+      "role": "attention_q_projection",
+      "source_bf16": "...self_attn.q_proj.weight"
+    },
+    {
+      "compiled_hybrid": "...mlp.gate_proj.{weight_packed,weight_scale,weight_global_scale,input_global_scale}",
+      "external_unsloth": "...mlp.gate_proj.{weight_packed,weight_scale,weight_global_scale,input_global_scale}",
+      "official_q4_0": "blk.N.ffn_gate.weight",
+      "role": "shared_mlp_gate",
+      "source_bf16": "...mlp.gate_proj.weight"
+    },
+    {
+      "compiled_hybrid": "...router.proj.weight",
+      "external_unsloth": "...router.proj.weight",
+      "official_q4_0": "blk.N.ffn_gate_inp.weight",
+      "role": "router_projection",
+      "source_bf16": "...router.proj.weight"
+    },
+    {
+      "compiled_hybrid": "...experts.gate_up_proj quantized fused family",
+      "external_unsloth": "128 separate ...experts.E.{gate,up}_proj quantized families",
+      "official_q4_0": "blk.N.ffn_gate_up_exps.weight",
+      "role": "routed_expert_gate_up",
+      "source_bf16": "...experts.gate_up_proj [128,1408,2816]"
+    },
+    {
+      "compiled_hybrid": "...experts.down_proj quantized fused family",
+      "external_unsloth": "128 separate ...experts.E.down_proj quantized families",
+      "official_q4_0": "blk.N.ffn_down_exps.weight",
+      "role": "routed_expert_down",
+      "source_bf16": "...experts.down_proj [128,2816,704]"
+    }
+  ],
+  "schema_version": 1,
+  "status": "m03_exact_cross_map"
+}

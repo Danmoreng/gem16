@@ -1,5 +1,44 @@
 # Decisions
 
+## 2026-08-11: Freeze exact 26B tensor roles and admit the conservative 32K hybrid plan
+
+Date: 2026-08-11
+
+Decision: Make `gemma4_26b_m03_exact_inventory_v1` the strict tensor contract for the locked QAT/ordinary BF16
+sources, the external Unsloth NVFP4 reference and the future project-compiled hybrid. Assign every tensor exactly
+one semantic role and residency class; record logical axes, producer, scale dtype/vector and multiplier/divisor
+semantics, and reject every unknown or duplicate. Preserve source fused expert axis 0 with Gate-before-Up order,
+require all 128 separately serialized Unsloth experts per layer, and require exact local/global V ownership. Source
+vision remains mandatory for completeness but all 356 tensors/1,145,588,832 bytes are compile-excluded. The first
+compiled artifact contains no vision or MTP and one physically tied Q4_0 or NVFP4 head.
+
+Use the larger 256-byte-aligned compiled estimate, 14,696,668,160 bytes (14,015.83 MiB), for preliminary admission.
+Reserve and touch it together with exact 420 MiB 32K FP8 K/V and 448 MiB of named conservative fixed regions. The
+reference CUDA runtime directly reports 818,741,248 bytes (780.81 MiB) free afterward, passing the 700 MiB gate.
+This admits M04 only after M03 owner acceptance; M09 must repeat with the real artifact and final arenas.
+
+Context: The BF16 sources contain 1,013 tensors and use fused 3D expert storage; Unsloth contains 47,478 tensors and
+expands every expert into producer-specific quantized families. Reusing the 12B regex classifier, treating
+Unsloth as the compiled artifact or counting nominal board memory would hide materially different names, scale
+semantics and residency. The aligned hybrid estimate is below the 14,100 MiB target but leaves only 80.81 MiB above
+the required direct-free margin under the conservative M03 reservation.
+
+Alternatives: Accept role prefixes without an exact inventory; preserve Unsloth names as the compiler schema; omit
+source vision silently; defer memory admission until runtime implementation; use a BF16 or duplicated head; or
+claim nominal `nvidia-smi` headroom. These weaken source integrity, producer attribution, text-only omission,
+dependency gating, tied-weight residency or direct-memory evidence.
+
+Consequences: Manifest JSON advances to schema 3 and can report a validated 26B tensor contract while continuing to
+report `runtime_supported=false`. Source, external and compiled validators remain separate. M04 consumes the frozen
+role mapping but cannot change formats or begin runtime execution. M07 still selects the tied-head candidate, and
+any immutable/fixed-region growth must repeat the direct probe. No 12B arithmetic, tensor layout, allocator or hot
+path changes.
+
+Evidence: [M03 kickoff](evidence/gemma4_26b/m03-kickoff-2026-08-11.md),
+[M03 synthetic admission](evidence/gemma4_26b/m03-synthetic-32k-admission.json),
+[canonical manifests](../benchmarks/goldens/gemma4_26b/manifests/), and
+[`tests/fixtures/gemma4_26b_inventory.json`](../tests/fixtures/gemma4_26b_inventory.json).
+
 ## 2026-08-11: Keep all remaining Gemma 4 26B development on one long-lived feature branch
 
 Date: 2026-08-11
