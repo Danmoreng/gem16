@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Danmoreng/gem16/schemas/gemma4-26b-compiler-plan-v1.json",
+  "title": "gem16 Gemma 4 26B compiler plan v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "artifact_profile",
+    "head_format",
+    "source_contract",
+    "source_lock_sha256",
+    "target_shard_bytes",
+    "approved_metadata_files",
+    "omitted_families",
+    "tensors",
+    "excluded_tensors",
+    "reference_environment"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "artifact_profile": {"type": "string", "minLength": 1},
+    "head_format": {"enum": ["source", "q4_0", "nvfp4"]},
+    "source_contract": {"type": "string", "minLength": 1},
+    "source_lock_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "target_shard_bytes": {"type": "integer", "minimum": 1},
+    "approved_metadata_files": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "omitted_families": {
+      "const": ["audio", "mtp", "video", "vision"]
+    },
+    "tensors": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/tensor"}
+    },
+    "excluded_tensors": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/excluded"}
+    },
+    "reference_environment": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {"type": "string", "minLength": 1}
+    }
+  },
+  "$defs": {
+    "shape": {
+      "type": "array",
+      "items": {"type": "integer", "minimum": 0}
+    },
+    "tensor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "output_name",
+        "operation_id",
+        "source_names",
+        "encoder",
+        "transformation",
+        "transformation_version",
+        "output_dtype",
+        "physical_shape",
+        "logical_dtype",
+        "logical_shape",
+        "axis_transformation",
+        "quantizer_parameters",
+        "dequantization_equation",
+        "role",
+        "residency_class",
+        "disk_layout",
+        "runtime_layout",
+        "aliased"
+      ],
+      "properties": {
+        "output_name": {"type": "string", "minLength": 1},
+        "operation_id": {"type": "string", "minLength": 1},
+        "source_names": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "encoder": {"type": "string", "minLength": 1},
+        "transformation": {"type": "string", "minLength": 1},
+        "transformation_version": {"type": "integer", "minimum": 1},
+        "output_dtype": {"type": "string", "minLength": 1},
+        "physical_shape": {"$ref": "#/$defs/shape"},
+        "logical_dtype": {"type": "string", "minLength": 1},
+        "logical_shape": {"$ref": "#/$defs/shape"},
+        "axis_transformation": {"type": "string", "minLength": 1},
+        "quantizer_parameters": {"type": "object"},
+        "dequantization_equation": {"type": "string", "minLength": 1},
+        "role": {"type": "string", "minLength": 1},
+        "residency_class": {"type": "string", "minLength": 1},
+        "disk_layout": {"type": "string", "minLength": 1},
+        "runtime_layout": {"type": "string", "minLength": 1},
+        "aliased": {"type": "boolean"}
+      }
+    },
+    "excluded": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_name", "family", "role", "residency_class", "reason"],
+      "properties": {
+        "source_name": {"type": "string", "minLength": 1},
+        "family": {"type": "string", "minLength": 1},
+        "role": {"type": "string", "minLength": 1},
+        "residency_class": {"type": "string", "minLength": 1},
+        "reason": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

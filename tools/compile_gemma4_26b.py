@@ -1,0 +1,221 @@
+#!/usr/bin/env python3
+"""Compile or verify deterministic Gemma 4 26B derived checkpoint artifacts."""
+
+from __future__ import annotations
+
+import argparse
+import json
+from pathlib import Path
+import sys
+from typing import Sequence
+
+try:
+    from tools.gem16_compile.common import (
+        CompilerError,
+        InvalidPlanError,
+        canonical_json_bytes,
+    )
+    from tools.gem16_compile.compiler import (
+        DEPENDENCIES_LOCK,
+        CompilerRequest,
+        compare_reproducibility,
+        compile_artifact,
+        plan_artifact,
+        verify_artifact,
+    )
+    from tools.hf_cache import hub_cache_root, locked_snapshot_path
+except ModuleNotFoundError:  # Direct execution from outside the repository root.
+    from gem16_compile.common import (  # type: ignore[no-redef]
+        CompilerError,
+        InvalidPlanError,
+        canonical_json_bytes,
+    )
+    from gem16_compile.compiler import (  # type: ignore[no-redef]
+        DEPENDENCIES_LOCK,
+        CompilerRequest,
+        compare_reproducibility,
+        compile_artifact,
+        plan_artifact,
+        verify_artifact,
+    )
+    from hf_cache import hub_cache_root, locked_snapshot_path
+
+
+def positive_integer(value: str) -> int:
+    try:
+        parsed = int(value)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("value must be an integer") from error
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("value must be positive")
+    return parsed
+
+
+def add_source_options(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--source-lock", type=Path, required=True)
+    source = parser.add_mutually_exclusive_group()
+    source.add_argument(
+        "--source-directory",
+        type=Path,
+        help="explicit locked snapshot directory; every file is still verified",
+    )
+    source.add_argument(
+        "--source-cache",
+        type=Path,
+        help="Hugging Face hub cache root containing the locked snapshot",
+    )
+    parser.add_argument("--compiler-manifest", type=Path, required=True)
+    parser.add_argument("--profile", required=True)
+    parser.add_argument(
+        "--head-format", choices=("source", "q4_0", "nvfp4"), required=True
+    )
+    parser.add_argument("--max-host-memory", type=positive_integer, required=True)
+    parser.add_argument("--staging-bytes", type=positive_integer, default=1024 * 1024)
+    parser.add_argument("--shard-size", type=positive_integer)
+    parser.add_argument("--threads", type=positive_integer, default=1)
+    parser.add_argument("--dependencies-lock", type=Path, default=DEPENDENCIES_LOCK)
+    parser.add_argument("--reference-platform-strict", action="store_true")
+    parser.add_argument(
+        "--verify-source",
+        action="store_true",
+        help="retained for CLI compatibility; source verification is always mandatory",
+    )
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__)
+    subparsers = parser.add_subparsers(dest="action", required=True)
+
+    plan = subparsers.add_parser("plan", help="verify source and emit a dry-run plan")
+    add_source_options(plan)
+    plan.add_argument("--report", type=Path, required=True)
+    plan.add_argument("--dry-run", action="store_true")
+
+    compile_parser = subparsers.add_parser(
+        "compile", help="build, verify, and atomically publish an artifact"
+    )
+    add_source_options(compile_parser)
+    compile_parser.add_argument("--output", type=Path, required=True)
+    compile_parser.add_argument("--report", type=Path, required=True)
+    compile_parser.add_argument("--resume", action="store_true")
+    compile_parser.add_argument(
+        "--allow-dirty",
+        action="store_true",
+        help="diagnostic only; release artifacts require a clean compiler tree",
+    )
+
+    verify = subparsers.add_parser(
+        "verify", help="recompute source, plan, file, and tensor hashes"
+    )
+    add_source_options(verify)
+    verify.add_argument("--model", type=Path, required=True)
+    verify.add_argument("--report", type=Path, required=True)
+
+    compare = subparsers.add_parser(
+        "compare-reproducibility", help="compare every file in two artifacts"
+    )
+    compare.add_argument("--left", type=Path, required=True)
+    compare.add_argument("--right", type=Path, required=True)
+    compare.add_argument("--report", type=Path, required=True)
+    return parser
+
+
+def resolve_source(args: argparse.Namespace) -> Path:
+    if args.source_directory is not None:
+        return args.source_directory
+    cache = args.source_cache or hub_cache_root()
+    return locked_snapshot_path(args.source_lock, cache)
+
+
+def request_from_args(args: argparse.Namespace) -> CompilerRequest:
+    return CompilerRequest(
+        source_lock=args.source_lock,
+        source_directory=resolve_source(args),
+        compiler_manifest=args.compiler_manifest,
+        profile=args.profile,
+        head_format=args.head_format,
+        host_memory_cap_bytes=args.max_host_memory,
+        staging_bytes=args.staging_bytes,
+        shard_size=args.shard_size,
+        threads=args.threads,
+        reference_platform_strict=args.reference_platform_strict,
+        dependencies_lock=args.dependencies_lock,
+    )
+
+
+def write_failure_report(args: argparse.Namespace, error: CompilerError) -> None:
+    report = getattr(args, "report", None)
+    if report is None or report.exists() or report.is_symlink():
+        return
+    try:
+        report.parent.mkdir(parents=True, exist_ok=True)
+        report.write_bytes(
+            canonical_json_bytes(
+                {
+                    "schema_version": 1,
+                    "milestone": "M04",
+                    "action": args.action,
+                    "status": "fail",
+                    "exit_code": error.exit_code,
+                    "error": str(error),
+                }
+            )
+        )
+    except OSError:
+        pass
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    try:
+        if args.action == "compare-reproducibility":
+            print("[compare] hashing both artifacts", file=sys.stderr)
+            report = compare_reproducibility(
+                args.left, args.right, report_path=args.report
+            )
+        else:
+            request = request_from_args(args)
+            if args.action == "plan":
+                print("[verify] source lock and files", file=sys.stderr)
+                report = plan_artifact(request)
+                if args.report.exists() or args.report.is_symlink():
+                    raise InvalidPlanError(f"compiler report already exists: {args.report}")
+                args.report.parent.mkdir(parents=True, exist_ok=True)
+                args.report.write_bytes(canonical_json_bytes(report))
+            elif args.action == "compile":
+                if args.resume:
+                    raise InvalidPlanError(
+                        "M04 resume is intentionally unsupported; remove only a reviewed "
+                        ".incomplete directory and restart"
+                    )
+                print("[verify] source lock and files", file=sys.stderr)
+                print("[compile] deterministic copy scaffold", file=sys.stderr)
+                report = compile_artifact(
+                    request,
+                    args.output,
+                    report_path=args.report,
+                    allow_dirty=args.allow_dirty,
+                )
+            elif args.action == "verify":
+                print("[verify] source, artifact, provenance, and hashes", file=sys.stderr)
+                report = verify_artifact(
+                    request, args.model, report_path=args.report
+                )
+            else:  # pragma: no cover - argparse owns the action set.
+                raise InvalidPlanError(f"unknown compiler action: {args.action}")
+    except CompilerError as error:
+        write_failure_report(args, error)
+        print(f"error: {error}", file=sys.stderr)
+        return error.exit_code
+    except (OSError, ValueError) as error:
+        wrapped = InvalidPlanError(str(error))
+        write_failure_report(args, wrapped)
+        print(f"error: {wrapped}", file=sys.stderr)
+        return wrapped.exit_code
+    print(json.dumps(report, indent=2, sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

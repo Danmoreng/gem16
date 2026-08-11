@@ -1,0 +1,10 @@
+{
+  "metadata": {
+    "total_size": 176
+  },
+  "weight_map": {
+    "model.language_model.embed_tokens.weight": "model-00001-of-00002.safetensors",
+    "model.language_model.layers.0.router.proj.weight": "model-00002-of-00002.safetensors",
+    "model.language_model.layers.0.self_attn.q_proj.weight": "model-00002-of-00002.safetensors"
+  }
+}

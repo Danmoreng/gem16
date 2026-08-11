@@ -1,5 +1,41 @@
 # Decisions
 
+## 2026-08-11: Use a canonical Linux, bounded-window, restart-only 26B compiler scaffold
+
+Date: 2026-08-11
+
+Decision: Make the derived-checkpoint compiler a repository-owned, standard-library-only offline tool with a
+source-lock-bound plan and versioned encoder registry. The canonical byte lane is Linux x86-64, little-endian,
+`C.UTF-8`, CPython 3.14.6 and one compiler thread. Verify every locked source file before interpreting Safetensors;
+map tensor payload through bounded read-only windows; require every source tensor to belong to one explicit
+operation or exclusion; write canonical Safetensors/JSON under `<output>.incomplete`; fsync, verify, then publish by
+one same-filesystem directory rename. M04 supports restart only and rejects `--resume` until a cryptographically
+bound partial-state schema exists.
+
+Context: The 51.6 GB BF16 sources cannot be materialized in host memory, and output hashes must not depend on
+Python dictionary order, output path, wall-clock time or an unrecorded package. Full-shard mappings are unnecessary
+and complicate host-limit accounting; bounded mmap windows expose zero-copy tensor slices while limiting the
+resident/compiler-visible window. Cross-platform directory-rename and floating-point behavior can differ, so one
+canonical environment is required before numerical encoders arrive. The accepted M03 plan already supplies exact
+source roles and exclusions.
+
+Alternatives: Compile in the inference process; use PyTorch/Transformers/NumPy for orchestration; map or copy full
+shards; write directly to the final directory; silently replace existing output; allow unverified tensor-level
+resume; place current timestamps/absolute paths in hashed provenance; or call every platform-specific byte stream
+equally canonical. These weaken runtime isolation, dependencies, memory bounds, atomicity, reproducibility or audit
+identity.
+
+Consequences: M04's only encoder is `copy-v1`, and its artifacts are explicitly non-production and non-runtime
+loadable. The plan API records operation IDs, declared source sets, transformations, roles, layouts and exact
+exclusions so M05-M07 can register numerical encoders without changing publication/provenance orchestration. A dirty
+compiler fails by default. M08 still owns a complete hybrid artifact, config extension, derived lock and direct
+loader. On-disk schema 1 remains logical/auditable; backend-specific Row8/K64 transformation stays a later runtime
+load concern.
+
+Evidence: [M04 kickoff](evidence/gemma4_26b/m04-kickoff-2026-08-11.md),
+[compiler contract](GEMMA4_26B_CHECKPOINT_COMPILER.md), and
+[M04 synthetic hashes](../benchmarks/goldens/gemma4_26b/compiler/m04-synthetic-copy-hashes.json).
+
 ## 2026-08-11: Freeze exact 26B tensor roles and admit the conservative 32K hybrid plan
 
 Date: 2026-08-11

@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "runtime": "python-standard-library-only",
+  "canonical_python": "CPython 3.14.6",
+  "canonical_platform": "Linux x86_64 little-endian",
+  "external_packages": [],
+  "notes": "M04 copy scaffold uses no NumPy, PyTorch, Transformers, pickle, model code, JIT, or network dependency."
+}

@@ -1,0 +1,7 @@
+{
+  "model": {
+    "type": "BPE",
+    "vocab": {}
+  },
+  "version": "1.0"
+}

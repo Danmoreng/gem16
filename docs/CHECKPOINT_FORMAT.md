@@ -101,6 +101,27 @@ provenance and artifact loading. Compact canonical metadata and the complete sou
 `benchmarks/goldens/gemma4_26b/manifests/`; the large immutable raw header inventories remain under
 `benchmarks/goldens/gemma4_26b/source-inventories/`.
 
+## Gemma 4 26B M04 compiler scaffold
+
+M04 adds a deterministic offline compiler container without adding production quantization or runtime loading. Its
+only profile is `synthetic-copy-v1`, its only encoder is byte-identical `copy-v1`, and every output records
+`artifact_status=m04_scaffold_not_runtime_loadable`. The compiler plan is bound to one source-lock hash and covers
+every source tensor exactly through an output operation or explicit exclusion. Vision, audio, video and MTP are
+always named omissions; there is no unknown-tensor warning path.
+
+Output is ordinary deterministically sharded Safetensors, a canonical index, approved byte-identical locked
+metadata and `gem16_compilation.json` schema 1. Every output record carries operation/source names, source
+shard/range and payload hashes, transformation/version, physical/logical dtype/shape, axis mapping, quantizer
+parameters, dequantization equation, role, residency, disk/runtime layout, output shard/range and output hash.
+Excluded tensors retain the same source identity and exact family/reason. File hashes cover every shard, index and
+metadata copy; M08's external artifact lock will provide the compilation manifest's non-circular self-hash.
+
+Source files are completely size/hash verified before Safetensors interpretation. Tensor bytes use bounded read-only
+mmap windows; output is staged under `<output>.incomplete`, fsynced, strictly verified and atomically renamed. No
+output is overwritten. Resume is deliberately restart-only until a cryptographically bound partial-state schema is
+accepted. The complete CLI, schema, memory and canonical-platform contract is in
+[GEMMA4_26B_CHECKPOINT_COMPILER.md](GEMMA4_26B_CHECKPOINT_COMPILER.md).
+
 The engine parses and validates the Google tokenizer metadata at startup. The tokenizer-level
 `model_max_length` value is Google's intentionally unbounded sentinel and never drives arena sizing; the model
 contract remains `config.json:text_config.max_position_embeddings = 262144`. Response close markers declared by

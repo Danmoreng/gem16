@@ -1,0 +1,125 @@
+{
+  "approved_metadata_files": [
+    "chat_template.jinja",
+    "config.json",
+    "generation_config.json",
+    "tokenizer.json",
+    "tokenizer_config.json"
+  ],
+  "artifact_profile": "synthetic-copy-v1",
+  "excluded_tensors": [
+    {
+      "family": "vision",
+      "reason": "text-only M04 synthetic fixture",
+      "residency_class": "compile_excluded_vision",
+      "role": "vision_projection",
+      "source_name": "model.vision_tower.patch_embedder.input_proj.weight"
+    }
+  ],
+  "head_format": "source",
+  "omitted_families": [
+    "audio",
+    "mtp",
+    "video",
+    "vision"
+  ],
+  "reference_environment": {
+    "byteorder": "little",
+    "locale": "C.UTF-8",
+    "machine": "x86_64",
+    "python_implementation": "CPython",
+    "python_major_minor": "3.14",
+    "python_version": "3.14.6",
+    "system": "Linux"
+  },
+  "schema_version": 1,
+  "source_contract": "gemma4_26b_m04_synthetic_source_v1",
+  "source_lock_sha256": "dd252602387b8dcd6939a6aca9336b1d11e8608a873540cef95e698f208bf2d1",
+  "target_shard_bytes": 96,
+  "tensors": [
+    {
+      "aliased": true,
+      "axis_transformation": "identity",
+      "dequantization_equation": "output = source",
+      "disk_layout": "source_bf16",
+      "encoder": "copy-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        16,
+        4
+      ],
+      "operation_id": "copy:model.language_model.embed_tokens.weight",
+      "output_dtype": "BF16",
+      "output_name": "model.language_model.embed_tokens.weight",
+      "physical_shape": [
+        16,
+        4
+      ],
+      "quantizer_parameters": {},
+      "residency_class": "compiler_scaffold_text",
+      "role": "tied_embedding_and_output",
+      "runtime_layout": "not_runtime_loadable",
+      "source_names": [
+        "model.language_model.embed_tokens.weight"
+      ],
+      "transformation": "identity-copy",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "identity",
+      "dequantization_equation": "output = source",
+      "disk_layout": "source_bf16",
+      "encoder": "copy-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        2,
+        4
+      ],
+      "operation_id": "copy:model.language_model.layers.0.router.proj.weight",
+      "output_dtype": "BF16",
+      "output_name": "model.language_model.layers.0.router.proj.weight",
+      "physical_shape": [
+        2,
+        4
+      ],
+      "quantizer_parameters": {},
+      "residency_class": "compiler_scaffold_text",
+      "role": "router_projection",
+      "runtime_layout": "not_runtime_loadable",
+      "source_names": [
+        "model.language_model.layers.0.router.proj.weight"
+      ],
+      "transformation": "identity-copy",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "identity",
+      "dequantization_equation": "output = source",
+      "disk_layout": "source_bf16",
+      "encoder": "copy-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        4,
+        4
+      ],
+      "operation_id": "copy:model.language_model.layers.0.self_attn.q_proj.weight",
+      "output_dtype": "BF16",
+      "output_name": "model.language_model.layers.0.self_attn.q_proj.weight",
+      "physical_shape": [
+        4,
+        4
+      ],
+      "quantizer_parameters": {},
+      "residency_class": "compiler_scaffold_text",
+      "role": "attention_q_projection",
+      "runtime_layout": "not_runtime_loadable",
+      "source_names": [
+        "model.language_model.layers.0.self_attn.q_proj.weight"
+      ],
+      "transformation": "identity-copy",
+      "transformation_version": 1
+    }
+  ]
+}

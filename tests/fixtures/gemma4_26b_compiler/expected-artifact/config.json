@@ -1,0 +1,7 @@
+{
+  "architectures": [
+    "Gemma4ForConditionalGeneration"
+  ],
+  "fixture": "m04-synthetic-copy-v1",
+  "model_type": "gemma4"
+}

@@ -1,0 +1,58 @@
+{
+  "files": [
+    {
+      "git_oid": "db8e1c58b820537dfcb0b546a8dda6b881911d7e",
+      "path": "chat_template.jinja",
+      "sha256": "c716ab540e94154e63631b6d0bd4f6975ed660e2343a68be49d9692aa05465f8",
+      "size": 24
+    },
+    {
+      "git_oid": "b4f073f887b481500669654c1de372e19a387bec",
+      "path": "config.json",
+      "sha256": "8a22161fd99aad23827438ce3ecd1f710899a4bbe3e7c44f1ec40b4fb97ea034",
+      "size": 130
+    },
+    {
+      "git_oid": "5f41472d53fb0e25160450f2b101e4cfc482c8a0",
+      "path": "generation_config.json",
+      "sha256": "55ef4ff32aef443352374b1a2a8500c3e484d33b6e1dccf6dd2ae7debda45ace",
+      "size": 34
+    },
+    {
+      "git_oid": "87f52552ccc8cd8920fd795351e872a4bf489370",
+      "path": "model-00001-of-00002.safetensors",
+      "sha256": "574547c04aed92d0e27cc5ebe483e270031c1b0ebb4a4117187b83492d8cd346",
+      "size": 408
+    },
+    {
+      "git_oid": "a588d841581307eaa374d1b78924a966fd27530c",
+      "path": "model-00002-of-00002.safetensors",
+      "sha256": "c01fba16e43271a79699dd5a154722b8316c5d8ea216e593d4d2d4197c944f20",
+      "size": 320
+    },
+    {
+      "git_oid": "33df2cfd255beef508c44698a3d5807c29d0a3aa",
+      "path": "model.safetensors.index.json",
+      "sha256": "23b3a3ddae23916835626ee95dbeefb7bb8ce47ad31d5b66068232228174907c",
+      "size": 436
+    },
+    {
+      "git_oid": "bf41d8031871874ba346efa2ac284f3c550d4bc7",
+      "path": "tokenizer.json",
+      "sha256": "bbc9a1a0ef426afb685ae587d3fa726bb067c85b5854000960c2b2866c475126",
+      "size": 76
+    },
+    {
+      "git_oid": "207504488df30510b3590076639f028cc347254f",
+      "path": "tokenizer_config.json",
+      "sha256": "3b593f5305c104273dfa35b56c6c70313462038b7a85ba13aa2fa1164479fc92",
+      "size": 48
+    }
+  ],
+  "repository": "gem16/synthetic-gemma4-26b-m04",
+  "resolved_at_utc": "2026-08-11T00:00:00Z",
+  "revision": "1111111111111111111111111111111111111111",
+  "schema_version": 2,
+  "source_url": "https://example.invalid/gem16/m04-fixture",
+  "terms_url": "project-generated-synthetic-fixture"
+}

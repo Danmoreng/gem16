@@ -484,6 +484,29 @@ These checks establish tensor identity, byte reconciliation, role mapping and pr
 They do not establish compiler encoding correctness, MoE arithmetic, full-model logits, quality, runtime residency
 or performance; those remain owned by M04 and later gates.
 
+## Gemma 4 26B M04 compiler-scaffold evidence
+
+M04 adds file/provenance correctness only; it changes no model arithmetic. The checked project-generated fixture has
+a two-shard BF16 source with four tensors. The compiler maps three text tensors into two deterministic output
+shards (176 payload bytes) and excludes one 16-byte vision tensor exactly. An independent Safetensors parser accepts
+the output and reconciles all names, shapes, offsets and bytes. Two independent compiler runs match every artifact
+file, including `gem16_compilation.json`, byte-for-byte.
+
+Mutation tests reject source SHA mismatch, a different source lock, malformed but correctly re-locked Safetensors
+header, incomplete source coverage, changed plan provenance, corrupt output bytes, unknown/duplicate paths,
+artifact symlinks, an existing output, dirty release identity and a deliberately interrupted encoder. Caught
+failures publish no artifact or valid-looking partial directory. CLI tests pin all four actions, restart-only resume
+failure and exit code 6 for the first reproducibility mismatch.
+
+Every output tensor records its operation, source range and payload SHA-256, output range/hash, transformation,
+physical/logical schema, role, residency and layouts. Every excluded tensor retains equivalent source identity.
+Strict verification recomputes the complete source lock, all source/output tensor hashes, all shard/index/metadata
+hashes, byte totals, omission groups and manifest semantics without importing or executing model code.
+
+A separate 2 MiB source-tensor test uses a 4 KiB staging buffer and mmap windows bounded by that buffer plus OS
+allocation granularity. Observed process peak must remain under the caller's absolute cap. This proves bounded
+orchestration, not production encoder memory; M05/M06 must repeat with real row/expert transformations.
+
 ## Not yet established
 
 Accepted model-wide layer tolerances, broad task quality, and a statistically justified generation threshold have

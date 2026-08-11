@@ -14,6 +14,19 @@ Gemma 4 26B validator is selected from parsed model/config metadata, never paths
 external Unsloth inventories have separate exact contracts, while the future project-compiled hybrid has a third
 strict contract. Passing source inspection does not make the 26B runtime executable.
 
+## Offline 26B compiler boundary
+
+`tools/compile_gemma4_26b.py` and `tools/gem16_compile/` own derived-checkpoint planning, bounded source access,
+encoder dispatch, deterministic Safetensors writing, atomic publication, provenance and offline verification. This
+Python standard-library tool is not linked, imported or invoked by the C++ runtime. The inference process never
+quantizes or writes weights.
+
+The compiler verifies the entire immutable source lock before interpreting a tensor payload. A versioned compiler
+plan covers each source tensor through one explicit operation or exclusion. Encoders receive only their declared
+source descriptors and bounded read-only mmap windows. Files are staged in a sibling `.incomplete` directory and
+published by one verified same-filesystem rename. M04 contains only a non-runtime `copy-v1` scaffold; M05-M07 own
+numeric encoders and M08 owns the first loadable artifact and external derived lock.
+
 ## Hardware backend boundary
 
 `gem16` targets the approximately 16 GB NVIDIA CUDA GPU class. Architecture-specific kernels and dispatch live

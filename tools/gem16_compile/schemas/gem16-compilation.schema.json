@@ -1,0 +1,292 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Danmoreng/gem16/schemas/gem16-compilation-v1.json",
+  "title": "gem16 compilation provenance v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "artifact_profile",
+    "artifact_status",
+    "source",
+    "compiler",
+    "plan",
+    "quantization",
+    "head_format",
+    "text_only",
+    "omitted_families",
+    "omitted_tensor_groups",
+    "excluded_tensors",
+    "tensors",
+    "files",
+    "file_hash_scope",
+    "byte_totals",
+    "compiler_settings"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "artifact_profile": {"type": "string", "minLength": 1},
+    "artifact_status": {"type": "string", "minLength": 1},
+    "source": {"$ref": "#/$defs/source"},
+    "compiler": {"$ref": "#/$defs/compiler"},
+    "plan": {"$ref": "#/$defs/plan"},
+    "quantization": {"type": "object"},
+    "head_format": {"type": "string", "minLength": 1},
+    "text_only": {"const": true},
+    "omitted_families": {
+      "const": ["audio", "mtp", "video", "vision"]
+    },
+    "omitted_tensor_groups": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/omittedGroup"}
+    },
+    "excluded_tensors": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/excludedTensor"}
+    },
+    "tensors": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/outputTensor"}
+    },
+    "files": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/file"}
+    },
+    "file_hash_scope": {"type": "string", "minLength": 1},
+    "byte_totals": {"$ref": "#/$defs/byteTotals"},
+    "compiler_settings": {"$ref": "#/$defs/settings"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "shape": {
+      "type": "array",
+      "items": {"type": "integer", "minimum": 0}
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lock_sha256", "repository", "revision", "resolved_at_utc"],
+      "properties": {
+        "lock_sha256": {"$ref": "#/$defs/sha256"},
+        "repository": {"type": "string", "minLength": 1},
+        "revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "resolved_at_utc": {"type": "string"}
+      }
+    },
+    "compiler": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository",
+        "commit",
+        "dirty",
+        "python",
+        "platform",
+        "dependencies_lock_sha256",
+        "implementation"
+      ],
+      "properties": {
+        "repository": {"const": "Danmoreng/gem16"},
+        "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "dirty": {"type": "boolean"},
+        "python": {"type": "string", "minLength": 1},
+        "platform": {"type": "object"},
+        "dependencies_lock_sha256": {"$ref": "#/$defs/sha256"},
+        "implementation": {"type": "string", "minLength": 1}
+      }
+    },
+    "plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "compiler_manifest_sha256",
+        "resolved_plan_sha256",
+        "source_contract",
+        "target_shard_bytes"
+      ],
+      "properties": {
+        "schema_version": {"const": 1},
+        "compiler_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "resolved_plan_sha256": {"$ref": "#/$defs/sha256"},
+        "source_contract": {"type": "string", "minLength": 1},
+        "target_shard_bytes": {"type": "integer", "minimum": 1}
+      }
+    },
+    "range": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "shard",
+        "shard_sha256",
+        "absolute_offset",
+        "byte_length",
+        "range_identity_sha256"
+      ],
+      "properties": {
+        "shard": {"type": "string", "minLength": 1},
+        "shard_sha256": {"$ref": "#/$defs/sha256"},
+        "absolute_offset": {"type": "integer", "minimum": 0},
+        "byte_length": {"type": "integer", "minimum": 0},
+        "range_identity_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "tensorSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "sha256", "range"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "range": {"$ref": "#/$defs/range"}
+      }
+    },
+    "outputTensor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "output_name",
+        "operation_id",
+        "output_dtype",
+        "physical_shape",
+        "logical_dtype",
+        "logical_shape",
+        "byte_length",
+        "sha256",
+        "output_shard",
+        "output_data_offsets",
+        "sources",
+        "transformation",
+        "transformation_version",
+        "axis_transformation",
+        "quantizer_parameters",
+        "dequantization_equation",
+        "role",
+        "residency_class",
+        "disk_layout",
+        "runtime_layout",
+        "aliased"
+      ],
+      "properties": {
+        "output_name": {"type": "string", "minLength": 1},
+        "operation_id": {"type": "string", "minLength": 1},
+        "output_dtype": {"type": "string", "minLength": 1},
+        "physical_shape": {"$ref": "#/$defs/shape"},
+        "logical_dtype": {"type": "string", "minLength": 1},
+        "logical_shape": {"$ref": "#/$defs/shape"},
+        "byte_length": {"type": "integer", "minimum": 0},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "output_shard": {"type": "string", "minLength": 1},
+        "output_data_offsets": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {"type": "integer", "minimum": 0}
+        },
+        "sources": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/tensorSource"}
+        },
+        "transformation": {"type": "string", "minLength": 1},
+        "transformation_version": {"type": "integer", "minimum": 1},
+        "axis_transformation": {"type": "string", "minLength": 1},
+        "quantizer_parameters": {"type": "object"},
+        "dequantization_equation": {"type": "string", "minLength": 1},
+        "role": {"type": "string", "minLength": 1},
+        "residency_class": {"type": "string", "minLength": 1},
+        "disk_layout": {"type": "string", "minLength": 1},
+        "runtime_layout": {"type": "string", "minLength": 1},
+        "aliased": {"type": "boolean"}
+      }
+    },
+    "excludedTensor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_name",
+        "source_dtype",
+        "source_shape",
+        "source_bytes",
+        "source_tensor_sha256",
+        "source_range",
+        "family",
+        "role",
+        "residency_class",
+        "reason"
+      ],
+      "properties": {
+        "source_name": {"type": "string", "minLength": 1},
+        "source_dtype": {"type": "string", "minLength": 1},
+        "source_shape": {"$ref": "#/$defs/shape"},
+        "source_bytes": {"type": "integer", "minimum": 0},
+        "source_tensor_sha256": {"$ref": "#/$defs/sha256"},
+        "source_range": {"$ref": "#/$defs/range"},
+        "family": {"type": "string", "minLength": 1},
+        "role": {"type": "string", "minLength": 1},
+        "residency_class": {"type": "string", "minLength": 1},
+        "reason": {"type": "string", "minLength": 1}
+      }
+    },
+    "omittedGroup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["group", "reason", "source_tensor_count", "source_bytes"],
+      "properties": {
+        "group": {"type": "string", "minLength": 1},
+        "reason": {"type": "string", "minLength": 1},
+        "source_tensor_count": {"type": "integer", "minimum": 0},
+        "source_bytes": {"type": "integer", "minimum": 0}
+      }
+    },
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "kind", "size", "sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "kind": {"type": "string", "minLength": 1},
+        "size": {"type": "integer", "minimum": 0},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "byteTotals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_tensor_count",
+        "output_tensor_count",
+        "output_tensor_bytes",
+        "excluded_tensor_count",
+        "excluded_tensor_bytes"
+      ],
+      "properties": {
+        "source_tensor_count": {"type": "integer", "minimum": 0},
+        "output_tensor_count": {"type": "integer", "minimum": 0},
+        "output_tensor_bytes": {"type": "integer", "minimum": 0},
+        "excluded_tensor_count": {"type": "integer", "minimum": 0},
+        "excluded_tensor_bytes": {"type": "integer", "minimum": 0}
+      }
+    },
+    "settings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "threads",
+        "host_memory_cap_bytes",
+        "staging_buffer_bytes",
+        "reference_platform_strict",
+        "resume_policy"
+      ],
+      "properties": {
+        "threads": {"const": 1},
+        "host_memory_cap_bytes": {"type": "integer", "minimum": 1},
+        "staging_buffer_bytes": {"type": "integer", "minimum": 4096},
+        "reference_platform_strict": {"type": "boolean"},
+        "resume_policy": {"const": "restart-only"}
+      }
+    }
+  }
+}
