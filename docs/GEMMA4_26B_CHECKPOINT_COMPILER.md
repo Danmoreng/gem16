@@ -1,7 +1,7 @@
 # Gemma 4 26B deterministic checkpoint compiler
 
-M04 implementation commit: `edd80cb6adae6d441924098870ceca9b4b1248d5`; implementation gates pass and owner
-acceptance is pending. Retained results are in
+M04 implementation commit: `edd80cb6adae6d441924098870ceca9b4b1248d5`; accepted by the project owner on
+2026-08-11. Retained results are in
 [`evidence/gemma4_26b/m04-checkpoint-compiler-scaffold-2026-08-11.md`](evidence/gemma4_26b/m04-checkpoint-compiler-scaffold-2026-08-11.md).
 
 ## Qualification boundary

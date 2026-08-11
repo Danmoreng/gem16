@@ -1,6 +1,6 @@
 # Gemma 4 26B A4B experimental track
 
-Status: M00-M03 accepted; M04 compiler scaffold passes implementation gates and awaits owner acceptance
+Status: M00-M04 accepted; M05 is next but explicitly paused and not started
 
 Production hypothesis: `gem16-gemma4-26b-a4b-qat-hybrid-text`
 
@@ -182,9 +182,10 @@ batching, broad dispatch, general executors and host expert offload are rejected
   exit criteria pass.
 - M03: accepted on 2026-08-11 at `06b72e4897a32afa15303ca461847049ac8bb98c`; strict
   source/external/compiled contracts, canonical inventories, mutation tests and direct 32K CUDA admission pass.
-- M04: implementation complete at `edd80cb6adae6d441924098870ceca9b4b1248d5`; 12 compiler tests, 95 Python
-  tests, host/sanitizer/CUDA gates, clean reproducibility and 12B regression pass. Owner acceptance is pending. M05
-  and every later milestone remain dependency-gated. Derived-artifact distribution approval remains separate.
+- M04: accepted by the project owner on 2026-08-11 at implementation commit
+  `edd80cb6adae6d441924098870ceca9b4b1248d5`; 12 compiler tests, 95 Python tests, host/sanitizer/CUDA gates,
+  clean reproducibility and 12B regression pass. M05 is dependency-unblocked but explicitly paused and not started.
+  Derived-artifact distribution approval remains separate.
 - M01 adds source locks, offline tooling and compact reference evidence only; no 26B compiler, runtime or CUDA path
   exists at the accepted M01 boundary.
 

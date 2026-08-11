@@ -3,22 +3,19 @@
 Do not ask Codex to implement all milestones at once. All remaining work stays on `feat/gemma4-26b`, but each task
 must stop at its milestone gate.
 
-## Current task: M04 owner review gate
+## Current task: paused after M04 acceptance
 
-M04 implementation is complete at `edd80cb6adae6d441924098870ceca9b4b1248d5` and has stopped at its owner gate.
-Review:
+The project owner accepted M04 on 2026-08-11 at implementation commit
+`edd80cb6adae6d441924098870ceca9b4b1248d5`. Its retained handoff and raw evidence are:
 
 - [M04 handoff](../../evidence/gemma4_26b/m04-checkpoint-compiler-scaffold-2026-08-11.md)
 - [compiler contract](../../GEMMA4_26B_CHECKPOINT_COMPILER.md)
 - [M04 reproducibility report](../../evidence/gemma4_26b/m04-reproducibility.json)
 - [M04 bounded-memory report](../../evidence/gemma4_26b/m04-bounded-memory-report.json)
 
-Confirm that the deterministic copy scaffold, strict source/plan coverage, bounded mmap/RSS policy, atomic
-publication, restart-only recovery, provenance schemas, mutation tests and explicit non-runtime status satisfy M04.
-Do not begin FP8 work or rewrite this page for M05 until owner acceptance is recorded on the milestone board.
-
-M00-M03 are accepted. M04 passes implementation gates but remains the current approved milestone pending owner
-review; M05 and later remain dependency-gated.
+M00-M04 are accepted. M05 FP8 compiler is the next dependency-unblocked milestone, but the owner explicitly requested
+that no M05 implementation begin yet. Await a new owner instruction before performing its kickoff, drift review,
+fixture work or code changes.
 
 ## Platform boundary for this handoff
 

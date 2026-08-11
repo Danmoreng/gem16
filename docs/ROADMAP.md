@@ -1,9 +1,9 @@
 # Roadmap
 
-Current stage: review the completed Gemma 4 26B A4B M04 deterministic checkpoint compiler scaffold on the
-long-lived `feat/gemma4-26b` branch while preserving the mature 12B product path. M00-M03 are accepted; M04 has
-passed its implementation gates and awaits owner acceptance. M05 and later implementation remain dependency-gated.
-The bounded Linux short-context ordinary-decode
+Current stage: pause the Gemma 4 26B A4B program after owner acceptance of M04 on the long-lived
+`feat/gemma4-26b` branch while preserving the mature 12B product path. M00-M04 are accepted. M05 is dependency-
+unblocked but has not started and remains paused by explicit owner instruction. The bounded Linux short-context
+ordinary-decode
 investigation, direct all-regions memory-reserve record, 16K D2 performance sprint and Windows regression are
 complete and remain regression evidence rather than active optimization scope.
 
@@ -73,8 +73,8 @@ prefill program; it no longer owns execution order.
 
 The active implementation program is the experimental Gemma 4 26B A4B track. M00 defines accepted governance and
 the artifact contract; M01 source locks/goldens, M02 model configuration/static traits and M03 exact tensor
-inventory are accepted. M04's deterministic checkpoint compiler scaffold is implemented and ready for owner
-review; no production compiler quantizer or 26B runtime execution exists yet. Its binding entry points are:
+inventory and M04 deterministic checkpoint compiler scaffold are accepted. M05 FP8 compiler is next but has not
+started; no production compiler quantizer or 26B runtime execution exists yet. Its binding entry points are:
 
 1. [GEMMA4_26B.md](GEMMA4_26B.md)
 2. [plans/gemma4-26b/START_HERE_CODEX.md](plans/gemma4-26b/START_HERE_CODEX.md)

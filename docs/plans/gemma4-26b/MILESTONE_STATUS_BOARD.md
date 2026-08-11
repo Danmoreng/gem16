@@ -10,7 +10,7 @@ Development branch for M03-M25: `feat/gemma4-26b`
 | M01 Source locks/goldens | ✓ | `59996f5` | [M01 handoff](../../evidence/gemma4_26b/m01-source-locks-and-goldens-2026-08-06.md) | accepted 2026-08-06 |
 | M02 Model variants | ✓ | `f79eeb6` | [M02 handoff](../../evidence/gemma4_26b/m02-model-variants-2026-08-06.md) | accepted 2026-08-06 |
 | M03 Tensor inventory | ✓ | `06b72e4` | [M03 handoff](../../evidence/gemma4_26b/m03-manifest-and-inventory-2026-08-11.md) | accepted 2026-08-11 |
-| M04 Compiler scaffold | ◐ | `edd80cb` | [M04 handoff](../../evidence/gemma4_26b/m04-checkpoint-compiler-scaffold-2026-08-11.md) | owner review pending |
+| M04 Compiler scaffold | ✓ | `edd80cb` | [M04 handoff](../../evidence/gemma4_26b/m04-checkpoint-compiler-scaffold-2026-08-11.md) | accepted 2026-08-11 |
 | M05 FP8 compiler | ☐ | | | |
 | M06 NVFP4 compiler | ☐ | | | |
 | M07 Head experiment | ☐ | | | |
@@ -43,10 +43,11 @@ Status values:
 ✗ rejected/stopped
 ```
 
-## Current approved milestone
+## Next milestone state
 
 ```text
-M04
+M05 — dependency-unblocked, explicitly paused and not approved to start
 ```
 
-Change only after owner review of the prior handoff.
+The project owner accepted M04 on 2026-08-11 and explicitly requested that M05 not begin yet. Start M05 only after
+a new owner instruction.

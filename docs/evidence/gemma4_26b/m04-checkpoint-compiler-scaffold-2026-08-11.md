@@ -4,7 +4,7 @@ Date: 2026-08-11
 Branch: `feat/gemma4-26b`
 Implementation commit: `edd80cb6adae6d441924098870ceca9b4b1248d5`
 Milestone: M04 — deterministic checkpoint compiler scaffold
-Status: implementation complete; ready for project-owner review; M05 remains blocked
+Status: accepted by the project owner on 2026-08-11; M05 is paused and not started
 
 ## Scope delivered
 
@@ -182,10 +182,11 @@ implementation. Their immutable revisions remain
 - [x] Host memory remains below an explicit cap for a tensor much larger than the mmap window.
 - [x] Runtime/build coupling is absent and the 12B production path is unchanged.
 - [x] Production quantization and runtime loading remain disabled.
-- [ ] Project-owner acceptance is recorded.
+- [x] Project-owner acceptance is recorded.
 
-## Review request and next dependency
+## Acceptance and next dependency
 
-Please review and accept M04 as the deterministic compiler scaffold. No M05 code has started. After owner
-acceptance, M05 may add the deterministic BF16-to-FP8 attention encoder and numerical reference vectors through the
-frozen encoder/plan/provenance interfaces; publication and runtime boundaries remain unchanged.
+The project owner accepted M04 on 2026-08-11. M05 is now dependency-unblocked, but the owner explicitly requested a
+pause before M05. No M05 kickoff, fixture, FP8 encoder or other implementation work has started. A later explicit
+instruction may begin M05 through the frozen encoder/plan/provenance interfaces; publication and runtime boundaries
+remain unchanged.
