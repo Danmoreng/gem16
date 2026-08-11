@@ -25,11 +25,15 @@ gem16/
 │     ├─ plan.py
 │     ├─ reader.py
 │     ├─ writer.py
-│     ├─ provenance.py
-│     ├─ quantize_fp8.py
-│     ├─ quantize_nvfp4.py
-│     ├─ quantize_q4_0.py
+│     ├─ native_fp8.py          # M05 control-plane adapter; native backend is authoritative
+│     ├─ quantize_fp8.py        # independent oracle/fixtures only, never promoted conversion
 │     └─ report.py
+├─ src/compiler/
+│  ├─ fp8_batch_encoder.*       # current M05 native seed
+│  ├─ nvfp4_batch_encoder.*     # planned M06 extension of the shared data plane
+│  ├─ q4_0_batch_encoder.*      # planned M07 extension
+│  ├─ checkpoint_compiler.*     # planned unified native family
+│  └─ provenance.*
 ├─ src/
 │  ├─ model/
 │  │  ├─ model_variant.*

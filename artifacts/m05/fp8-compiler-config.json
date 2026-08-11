@@ -1,0 +1,68 @@
+{
+  "artifact_profile": "fp8-attention-partial-v1",
+  "attention": {
+    "bf16_scale_payload_bytes": 670720,
+    "fp8_weight_payload_bytes": 1110179840,
+    "global_layers_without_v": [
+      5,
+      11,
+      17,
+      23,
+      29
+    ],
+    "matrices_by_role": {
+      "attention_k_projection": 30,
+      "attention_o_projection": 30,
+      "attention_q_projection": 30,
+      "attention_v_projection": 25
+    },
+    "matrix_count": 115,
+    "output_tensor_bytes": 1110850560,
+    "output_tensor_count": 230,
+    "source_attention_bf16_bytes": 2220359680
+  },
+  "deterministic_environment": {
+    "byteorder": "little",
+    "locale": "C.UTF-8",
+    "machine": "x86_64",
+    "python_implementation": "CPython",
+    "python_major_minor": "3.14",
+    "python_version": "3.14.6",
+    "system": "Linux"
+  },
+  "exclusions": {
+    "deferred_non_attention_count": 542,
+    "deferred_reason": "deferred to M06-M08; absent from M05 attention-only partial artifact",
+    "total_count": 898,
+    "vision_count": 356,
+    "vision_reason": "text-only Gemma 4 26B profile excludes vision tensors"
+  },
+  "head_format": "deferred",
+  "milestone": "M05",
+  "plans": {
+    "ordinary_bf16": {
+      "inventory": "benchmarks/goldens/gemma4_26b/source-inventories/ordinary-bf16.json",
+      "path": "benchmarks/goldens/gemma4_26b/fp8/ordinary-compiler-plan.json",
+      "sha256": "dcbb2f35220f0f359d186aa31b1a3f2c6e9e8c94c4ba038248848d2f785cff2e",
+      "source_lock": "models/gemma4-26b-base-bf16.lock.json",
+      "source_lock_sha256": "1932b06d568ce8c72f3d2013d39ffd15dd61d37732638c2013f2220eb177a620",
+      "source_revision": "4d7ae4984b7db7de8f8457170b3f1a419ee76d52"
+    },
+    "qat_bf16": {
+      "inventory": "benchmarks/goldens/gemma4_26b/source-inventories/qat-bf16.json",
+      "path": "benchmarks/goldens/gemma4_26b/fp8/qat-compiler-plan.json",
+      "sha256": "4854475c6412254cde87010630e301aaf38af9eee2ee639586c74eb645ecdd7b",
+      "source_lock": "models/gemma4-26b-qat-bf16.lock.json",
+      "source_lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230",
+      "source_revision": "f1e06dc520982d9b9edd76859fdb7ab209449949"
+    }
+  },
+  "quantizer": {
+    "contract_id": "gem16.fp8_attention_rowwise",
+    "contract_version": 1,
+    "path": "tools/gem16_compile/specs/fp8-attention-rowwise-v1.json",
+    "sha256": "8fcda8ec3817eed7a3f9ec65609dcf6aa1413361731a1cfa62a061ba7bf3983a"
+  },
+  "schema_version": 1,
+  "source_contract": "gemma4-26b-source-bf16-attention-v1"
+}

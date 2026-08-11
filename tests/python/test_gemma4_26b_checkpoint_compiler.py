@@ -6,7 +6,9 @@ import json
 import mmap
 from pathlib import Path
 import shutil
+import struct
 import subprocess
+from types import SimpleNamespace
 import sys
 import tempfile
 import unittest
@@ -15,6 +17,7 @@ from tools.compare_manifests import build_reference_manifest
 from tools.gem16_compile.common import (
     DataError,
     InvalidPlanError,
+    OutputError,
     ReproducibilityError,
     SourceVerificationError,
     canonical_json_bytes,
@@ -24,11 +27,19 @@ from tools.gem16_compile.compiler import (
     CompilerIdentity,
     CompilerRequest,
     compare_reproducibility,
+    _complete_statistics_record,
     compile_artifact,
     plan_artifact,
     verify_artifact,
 )
 from tools.gem16_compile.encoders import CopyEncoder
+from tools.gem16_compile.profiles import (
+    M05_DEQUANTIZATION_EQUATION,
+    M05_QUANTIZER_PARAMETERS,
+    M05_PROFILE,
+    M05_SOURCE_CONTRACT,
+    M05_VISION_EXCLUSION_REASON,
+)
 from tools.generate_gemma4_26b_compiler_fixture import (
     git_blob_oid,
     safetensors_bytes,
@@ -54,6 +65,26 @@ GENERATOR = ROOT / "tools/generate_gemma4_26b_compiler_fixture.py"
 class FailingEncoder(CopyEncoder):
     def compile_tensor(self, plan, sources, output, workspace):
         raise DataError("injected encoder interruption")
+
+
+def rewrite_mutable_hashes_after_payload_tamper(artifact: Path) -> None:
+    manifest_path = artifact / "gem16_compilation.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    tensor = manifest["tensors"][0]
+    shard = artifact / tensor["output_shard"]
+    raw = bytearray(shard.read_bytes())
+    header_size = struct.unpack_from("<Q", raw)[0]
+    begin, _ = tensor["output_data_offsets"]
+    raw[8 + header_size + begin] ^= 0x01
+    shard.write_bytes(raw)
+    tensor_begin = 8 + header_size + begin
+    tensor_end = 8 + header_size + tensor["output_data_offsets"][1]
+    tensor["sha256"] = hashlib.sha256(raw[tensor_begin:tensor_end]).hexdigest()
+    for record in manifest["files"]:
+        if record["path"] == shard.name:
+            record["size"] = len(raw)
+            record["sha256"] = hashlib.sha256(raw).hexdigest()
+    manifest_path.write_bytes(canonical_json_bytes(manifest))
 
 
 def fixed_identity() -> CompilerIdentity:
@@ -227,6 +258,101 @@ class Gemma426BCheckpointCompilerTest(unittest.TestCase):
             [128, 48],
         )
 
+    def test_tiny_m05_fixture_is_rejected_by_production_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source_dir = root / "source"
+            source_dir.mkdir()
+            q_name = "model.language_model.layers.0.self_attn.q_proj.weight"
+            k_name = "model.language_model.layers.0.self_attn.k_proj.weight"
+            router_name = "model.language_model.layers.0.router.proj.weight"
+            vision_name = "model.vision_tower.patch_embedder.input_proj.weight"
+            q_payload = struct.pack("<8H", 0x3F80, 0xC000, 0x3F00, 0x8000,
+                                    0x3F82, 0xBF82, 0x0000, 0x8000)
+            k_payload = struct.pack("<8H", 0x4000, 0xC000, 0x3E80, 0x0000,
+                                    0x3F80, 0xBF80, 0x0001, 0x8001)
+            router_payload = bytes(16)
+            vision_payload = bytes(8)
+            source_files = {
+                "model.safetensors": safetensors_bytes({
+                    q_name: ("BF16", [2, 4], q_payload),
+                    k_name: ("BF16", [2, 4], k_payload),
+                    router_name: ("BF16", [2, 4], router_payload),
+                    vision_name: ("BF16", [1, 4], vision_payload),
+                })
+            }
+            (source_dir / "model.safetensors").write_bytes(source_files["model.safetensors"])
+            lock_path = root / "source.lock.json"
+            lock_bytes = source_lock(source_files)
+            lock_path.write_bytes(lock_bytes)
+            tensors = []
+            for source_name, role_suffix in ((q_name, "q"), (k_name, "k")):
+                stem = source_name.removesuffix(".weight")
+                role = f"attention_{role_suffix}_projection"
+                operation = f"fp8-attention:{stem}"
+                for encoder, name, dtype, shape, transformation, disk in (
+                    ("fp8-rowwise-weight-v1", source_name, "F8_E4M3", [2, 4],
+                     "bf16-to-fp8-e4m3fn-rowwise-weight", "source_nk_fp8"),
+                    ("fp8-rowwise-scale-v1", f"{stem}.weight_scale", "BF16", [2, 1],
+                     "bf16-to-bf16-rowwise-scale", "row_bf16"),
+                ):
+                    tensors.append({
+                        "output_name": name,
+                        "operation_id": operation,
+                        "source_names": [source_name],
+                        "encoder": encoder,
+                        "transformation": transformation,
+                        "transformation_version": 1,
+                        "output_dtype": dtype,
+                        "physical_shape": shape,
+                        "logical_dtype": "BF16",
+                        "logical_shape": shape,
+                        "axis_transformation": "identity",
+                        "quantizer_parameters": dict(M05_QUANTIZER_PARAMETERS),
+                        "dequantization_equation": M05_DEQUANTIZATION_EQUATION,
+                        "role": role,
+                        "residency_class": "immutable_device_text",
+                        "disk_layout": disk,
+                        "runtime_layout": disk,
+                        "aliased": False,
+                    })
+            tensors.sort(key=lambda value: value["output_name"])
+            plan_document = {
+                "schema_version": 1,
+                "artifact_profile": M05_PROFILE.name,
+                "head_format": M05_PROFILE.head_format,
+                "source_contract": M05_SOURCE_CONTRACT,
+                "source_lock_sha256": hashlib.sha256(lock_bytes).hexdigest(),
+                "target_shard_bytes": 12,
+                "approved_metadata_files": [],
+                "omitted_families": ["audio", "mtp", "video", "vision"],
+                "tensors": tensors,
+                "excluded_tensors": [
+                    {"source_name": router_name, "family": "deferred_non_attention",
+                     "role": "router_projection", "residency_class": "m05_deferred_non_attention",
+                     "reason": M05_PROFILE.deferred_reason},
+                    {"source_name": vision_name, "family": "vision",
+                     "role": "vision_projection", "residency_class": "compile_excluded_vision",
+                     "reason": M05_VISION_EXCLUSION_REASON},
+                ],
+                "reference_environment": fixed_identity().environment,
+            }
+            plan_path = root / "compiler-plan.json"
+            plan_path.write_bytes(canonical_json_bytes(plan_document))
+            request_m05 = CompilerRequest(
+                source_lock=lock_path,
+                source_directory=source_dir,
+                compiler_manifest=plan_path,
+                profile=M05_PROFILE.name,
+                head_format=M05_PROFILE.head_format,
+                host_memory_cap_bytes=128 * 1024 * 1024,
+                staging_bytes=4096,
+                dependencies_lock=DEPENDENCIES,
+            )
+            with self.assertRaises(InvalidPlanError):
+                plan_artifact(request_m05, identity=fixed_identity())
+            return
+
     def test_two_runs_are_byte_identical_and_match_checked_fixture(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -244,6 +370,33 @@ class Gemma426BCheckpointCompilerTest(unittest.TestCase):
             )
             self.assertEqual(verification["status"], "pass")
 
+    def test_statistics_report_record_retains_complete_provenance(self) -> None:
+        written = SimpleNamespace(
+            plan=SimpleNamespace(
+                output_name="model.language_model.layers.0.self_attn.q_proj.weight",
+                operation_id="fp8-attention:model.language_model.layers.0.self_attn.q_proj",
+                source_names=("source.weight",),
+                logical_dtype="BF16",
+                logical_shape=(2, 4),
+                quantizer_parameters={"contract_id": "gem16.fp8_attention_rowwise", "contract_version": 1},
+            ),
+            source_result=SimpleNamespace(
+                source_sha256=("a" * 64,),
+                statistics={"component": "weight", "elements": 8},
+            ),
+        )
+        record = _complete_statistics_record(written)
+        self.assertEqual(
+            set(record),
+            {
+                "output_name", "operation_id", "source_names", "source_sha256",
+                "logical_dtype", "logical_shape", "quantizer_parameters", "statistics",
+            },
+        )
+        self.assertEqual(record["source_sha256"], ["a" * 64])
+        self.assertEqual(record["logical_shape"], [2, 4])
+        self.assertEqual(record["statistics"]["elements"], 8)
+
     def test_manifest_traces_every_output_and_exact_vision_exclusion(self) -> None:
         plan_schema = json.loads(PLAN_SCHEMA.read_text(encoding="utf-8"))
         compilation_schema = json.loads(
@@ -257,6 +410,22 @@ class Gemma426BCheckpointCompilerTest(unittest.TestCase):
         self.assertEqual(set(document), set(compilation_schema["required"]))
         self.assertFalse(plan_schema["additionalProperties"])
         self.assertFalse(compilation_schema["additionalProperties"])
+        self.assertEqual(
+            compilation_schema["$defs"]["settingsM04"]["allOf"][1]["properties"]["threads"]["const"],
+            1,
+        )
+        self.assertEqual(
+            compilation_schema["$defs"]["settingsM05"]["allOf"][1]["properties"]["threads"]["minimum"],
+            1,
+        )
+        self.assertEqual(
+            compilation_schema["$defs"]["compilerM05"]["allOf"][1]["required"],
+            ["native_encoder"],
+        )
+        self.assertEqual(
+            compilation_schema["$defs"]["compilerM04"]["allOf"][2]["not"]["required"],
+            ["native_encoder"],
+        )
 
         independent = build_reference_manifest(EXPECTED)
         self.assertEqual(len(independent), 3)
@@ -336,8 +505,113 @@ class Gemma426BCheckpointCompilerTest(unittest.TestCase):
             payload = bytearray(shard.read_bytes())
             payload[-1] ^= 0x80
             shard.write_bytes(payload)
-            with self.assertRaisesRegex(DataError, "file hash/size mismatch"):
+            with self.assertRaisesRegex(DataError, "canonical layout|trusted encoder"):
                 verify_artifact(request(), artifact, identity=fixed_identity())
+
+    def test_mutable_manifest_hash_rewrite_is_reserved_for_m08_external_lock(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            artifact = root / "artifact"
+            compile_artifact(request(), artifact, identity=fixed_identity())
+            rewrite_mutable_hashes_after_payload_tamper(artifact)
+            report = verify_artifact(request(), artifact, identity=fixed_identity())
+            self.assertNotIn("transformation_recomputed", report)
+
+    def test_canonical_header_index_and_shard_names_are_bound(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            artifact = root / "artifact"
+            compile_artifact(request(), artifact, identity=fixed_identity())
+            shard = artifact / "model-00001-of-00002.safetensors"
+            raw = bytearray(shard.read_bytes())
+            header_size = struct.unpack_from("<Q", raw)[0]
+            raw[8 + header_size - 1] = ord(" ") if raw[8 + header_size - 1] != ord(" ") else ord("{")
+            shard.write_bytes(raw)
+            with self.assertRaisesRegex(DataError, "canonical .*header|file records"):
+                verify_artifact(request(), artifact, identity=fixed_identity())
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            artifact = root / "artifact"
+            compile_artifact(request(), artifact, identity=fixed_identity())
+            index = artifact / "model.safetensors.index.json"
+            document = json.loads(index.read_text(encoding="utf-8"))
+            document["metadata"]["total_size"] += 1
+            index.write_bytes(canonical_json_bytes(document))
+            with self.assertRaisesRegex(DataError, "canonical Safetensors index|file records"):
+                verify_artifact(request(), artifact, identity=fixed_identity())
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            artifact = root / "artifact"
+            compile_artifact(request(), artifact, identity=fixed_identity())
+            old = artifact / "model-00001-of-00002.safetensors"
+            renamed = artifact / "model-00001-of-00002-renamed.safetensors"
+            old.rename(renamed)
+            with self.assertRaisesRegex(DataError, "file set differs from canonical plan"):
+                verify_artifact(request(), artifact, identity=fixed_identity())
+
+    def test_report_path_is_preflighted_and_collision_is_safe(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            output = root / "artifact"
+            with self.assertRaisesRegex(OutputError, "must not be inside output"):
+                compile_artifact(
+                    request(), output, report_path=output / "report.json",
+                    identity=fixed_identity(),
+                )
+            self.assertFalse(output.exists())
+            self.assertFalse(output.with_name(output.name + ".incomplete").exists())
+
+            collision = root / "collision.json"
+            collision.write_text("keep", encoding="utf-8")
+            with self.assertRaisesRegex(OutputError, "already exists"):
+                compile_artifact(
+                    request(), root / "collision-artifact", report_path=collision,
+                    identity=fixed_identity(),
+                )
+            self.assertEqual(collision.read_text(encoding="utf-8"), "keep")
+
+    @unittest.skipUnless(hasattr(Path, "symlink_to"), "symbolic links unavailable")
+    def test_verify_rejects_artifact_symlink_and_report_parent_alias(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            real_parent = root / "real"
+            real_parent.mkdir()
+            artifact = real_parent / "artifact"
+            compile_artifact(request(), artifact, identity=fixed_identity())
+
+            artifact_link = root / "artifact-link"
+            try:
+                artifact_link.symlink_to(artifact, target_is_directory=True)
+            except OSError as error:
+                self.skipTest(f"symbolic links unavailable: {error}")
+            with self.assertRaisesRegex(
+                SourceVerificationError, "root must not be a symlink"
+            ):
+                verify_artifact(
+                    request(), artifact_link, identity=fixed_identity()
+                )
+
+            report_parent_alias = root / "report-parent-alias"
+            report_parent_alias.symlink_to(artifact, target_is_directory=True)
+            aliased_report = report_parent_alias / "reports" / "verify.json"
+            with self.assertRaisesRegex(OutputError, "must not be inside output"):
+                verify_artifact(
+                    request(), artifact, report_path=aliased_report,
+                    identity=fixed_identity(),
+                )
+            self.assertFalse((artifact / "reports").exists())
+
+            parent_alias = root / "parent-alias"
+            parent_alias.symlink_to(real_parent, target_is_directory=True)
+            report = root / "canonical-report.json"
+            verification = verify_artifact(
+                request(), parent_alias / "artifact", report_path=report,
+                identity=fixed_identity(),
+            )
+            self.assertEqual(verification["artifact"], str(artifact.resolve()))
+            self.assertTrue(report.is_file())
 
     def test_malformed_verified_header_and_incomplete_coverage_are_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

@@ -2,6 +2,10 @@
 
 ## Intended use
 
+Q4_0 is a planned native extension of the shared converter data plane. The pinned llama.cpp implementation is an
+external reference/golden source for exact block semantics, not a runtime GGUF dependency and not a reason to create a
+large BF16 intermediate artifact. See [`NATIVE_CONVERTER_ARCHITECTURE.md`](NATIVE_CONVERTER_ARCHITECTURE.md).
+
 Q4_0 is:
 
 1. the official Google QAT-target format used as an external quality reference;
@@ -35,7 +39,7 @@ id   = d != 0 ? 1 / d : 0
 q    = clamp(int(x * id + 8.5), 0, 15)
 ```
 
-The pinned llama.cpp implementation is the normative external reference for exact block encoding. Tie/float-cast behavior must be captured in fixtures rather than paraphrased loosely.
+The pinned llama.cpp implementation is the normative external reference for exact block encoding. Tie/float-cast behavior must be captured in fixtures rather than paraphrased loosely. The inspected local research checkout is version-scoped to commit `0b14b87d7c20cb753b94b96854dd7b45306fc696`; the desired benchmark pin is separately recorded and must not be conflated with this fixture source. Any copied code requires the llama.cpp MIT notice and explicit code provenance.
 
 Dequantization maps nibble codes back with the block scale according to the reference implementation.
 
@@ -116,6 +120,10 @@ Q4_0 has similar storage to NVFP4, so T=1 can be bandwidth competitive. However:
 Only controlled end-to-end measurements decide.
 
 ## Tests
+
+The production candidate encoder must run in the shared native C++ compiler. Python/NumPy may be used only for
+small independent diagnostics. No silent F16 fallback, GGUF intermediate or second persistent head representation is
+permitted.
 
 - exact reference blocks;
 - zero and signed-extreme blocks;

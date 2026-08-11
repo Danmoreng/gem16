@@ -23,6 +23,25 @@ include(CompilerWarnings)
 include(Sanitizers)
 include(CudaArchitectures)
 
+# JSON parsing is shared by the runtime and the host-only offline compiler.
+# Keep it in a CUDA-free archive so the compiler target never pulls the
+# CUDA-bearing core archive into its link.
+add_library(gem16_json STATIC
+  src/util/json.cpp
+)
+target_include_directories(gem16_json
+  PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
+  PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src"
+)
+target_compile_features(gem16_json PUBLIC cxx_std_20)
+gem16_set_project_warnings(gem16_json)
+gem16_enable_sanitizers(gem16_json)
+# GCC 16 emits a false positive from std::variant's move constructor at -O3.
+# Keep the suppression local to the JSON translation unit.
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  set_property(SOURCE src/util/json.cpp APPEND PROPERTY COMPILE_OPTIONS -Wno-maybe-uninitialized)
+endif()
+
 add_library(gem16_core STATIC
   src/numeric/fp8.cpp
   src/numeric/layer.cpp
@@ -46,17 +65,11 @@ add_library(gem16_core STATIC
   src/runtime/sampling.cpp
   src/runtime/result_json.cpp
   src/cuda/engine/state_capture.cpp
-  src/util/json.cpp
 )
 if(WIN32)
   target_sources(gem16_core PRIVATE src/platform/mapped_file_windows.cpp)
 else()
   target_sources(gem16_core PRIVATE src/platform/mapped_file_posix.cpp)
-endif()
-# GCC 16 emits a false positive from std::variant's move constructor at -O3.
-# Keep the suppression local to the JSON translation unit.
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-  set_property(SOURCE src/util/json.cpp APPEND PROPERTY COMPILE_OPTIONS -Wno-maybe-uninitialized)
 endif()
 target_include_directories(gem16_core
   PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
@@ -67,8 +80,54 @@ target_include_directories(gem16_core SYSTEM PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/third_party/miniaudio"
 )
 target_compile_features(gem16_core PUBLIC cxx_std_20)
+target_link_libraries(gem16_core PRIVATE gem16_json)
 gem16_set_project_warnings(gem16_core)
 gem16_enable_sanitizers(gem16_core)
+
+find_package(Threads REQUIRED)
+
+# Bind the native conversion data plane to the exact configured toolchain and
+# target.  The support library serializes this identity in every encode and
+# compare result next to the executable SHA-256 recorded by Python.
+set(GEM16_FP8_NATIVE_BUILD_TYPE "${CMAKE_BUILD_TYPE}")
+if(GEM16_FP8_NATIVE_BUILD_TYPE STREQUAL "")
+  set(GEM16_FP8_NATIVE_BUILD_TYPE "multi-config")
+endif()
+set(GEM16_FP8_NATIVE_PROCESSOR "${CMAKE_SYSTEM_PROCESSOR}")
+if(GEM16_FP8_NATIVE_PROCESSOR STREQUAL "")
+  set(GEM16_FP8_NATIVE_PROCESSOR "unknown")
+endif()
+
+add_library(gem16_fp8_compiler_support STATIC
+  src/compiler/fp8_batch_encoder.cpp
+  src/compiler/sha256.cpp
+)
+target_include_directories(gem16_fp8_compiler_support
+  PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
+  PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src"
+)
+target_link_libraries(gem16_fp8_compiler_support PRIVATE gem16_json Threads::Threads)
+target_compile_definitions(gem16_fp8_compiler_support PRIVATE
+  GEM16_FP8_NATIVE_COMPILER_ID="${CMAKE_CXX_COMPILER_ID}"
+  GEM16_FP8_NATIVE_COMPILER_VERSION="${CMAKE_CXX_COMPILER_VERSION}"
+  GEM16_FP8_NATIVE_BUILD_TYPE="${GEM16_FP8_NATIVE_BUILD_TYPE}"
+  GEM16_FP8_NATIVE_CXX_STANDARD="20"
+  GEM16_FP8_NATIVE_SYSTEM="${CMAKE_SYSTEM_NAME}"
+  GEM16_FP8_NATIVE_PROCESSOR="${GEM16_FP8_NATIVE_PROCESSOR}"
+)
+if(MSVC)
+  target_compile_options(gem16_fp8_compiler_support PRIVATE /fp:strict)
+else()
+  target_compile_options(gem16_fp8_compiler_support PRIVATE -fno-fast-math -ffp-contract=off)
+endif()
+gem16_set_project_warnings(gem16_fp8_compiler_support)
+gem16_enable_sanitizers(gem16_fp8_compiler_support)
+
+add_executable(gem16-fp8-compiler src/cli/fp8_compiler_main.cpp)
+target_include_directories(gem16-fp8-compiler PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+target_link_libraries(gem16-fp8-compiler PRIVATE gem16_fp8_compiler_support)
+gem16_set_project_warnings(gem16-fp8-compiler)
+gem16_enable_sanitizers(gem16-fp8-compiler)
 
 add_library(gem16_server_support STATIC
   src/server/http_streaming.cpp
@@ -97,7 +156,6 @@ if(GEM16_ENABLE_CUDA)
   )
 endif()
 
-find_package(Threads REQUIRED)
 add_library(gem16_httplib STATIC
   third_party/cpp-httplib/httplib.cpp
 )
@@ -295,6 +353,7 @@ if(BUILD_TESTING AND GEM16_BUILD_TESTS)
     tests/unit/chat_test.cpp
     tests/unit/config_test.cpp
     tests/unit/fp8_test.cpp
+    tests/unit/fp8_batch_encoder_test.cpp
     tests/unit/gemma4_26b_manifest_test.cpp
     tests/unit/image_test.cpp
     tests/unit/json_test.cpp
@@ -313,7 +372,7 @@ if(BUILD_TESTING AND GEM16_BUILD_TESTS)
     target_sources(gem16-unit-tests PRIVATE tests/unit/windows_utf8_test.cpp)
   endif()
   target_include_directories(gem16-unit-tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src" "${CMAKE_CURRENT_SOURCE_DIR}/tests/unit")
-  target_link_libraries(gem16-unit-tests PRIVATE gem16_core gem16_server_support)
+  target_link_libraries(gem16-unit-tests PRIVATE gem16_core gem16_server_support gem16_fp8_compiler_support)
   gem16_set_project_warnings(gem16-unit-tests)
   gem16_enable_sanitizers(gem16-unit-tests)
   add_test(NAME gem16-unit COMMAND gem16-unit-tests)

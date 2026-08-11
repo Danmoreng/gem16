@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Danmoreng/gem16/schemas/fp8-attention-compare-raw-v1.json",
+  "title": "gem16 native FP8 attention comparison raw metrics v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "contract_id", "contract_version", "threads", "maximum_chunk_bytes", "native_build", "matrices"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "contract_id": {"const": "gem16.fp8_attention_compare"},
+    "contract_version": {"const": 1},
+    "threads": {"type": "integer", "minimum": 1, "maximum": 64},
+    "maximum_chunk_bytes": {"type": "integer", "minimum": 1, "maximum": 1048576},
+    "native_build": {"$ref": "#/$defs/nativeBuild"},
+    "matrices": {"type": "array", "minItems": 1, "maxItems": 115, "items": {"$ref": "#/$defs/matrix"}}
+  },
+  "$defs": {
+    "nativeBuild": {
+      "type": "object", "additionalProperties": false,
+      "required": ["compiler_id", "compiler_version", "build_type", "cxx_standard", "system", "processor"],
+      "properties": {
+        "compiler_id": {"type": "string", "minLength": 1}, "compiler_version": {"type": "string", "minLength": 1},
+        "build_type": {"type": "string", "minLength": 1}, "cxx_standard": {"type": "string", "minLength": 1},
+        "system": {"type": "string", "minLength": 1}, "processor": {"type": "string", "minLength": 1}
+      }
+    },
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "numberOrNull": {"type": ["number", "null"]},
+    "matrix": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "layer", "role", "rows", "columns", "elements", "left_weight_sha256", "right_weight_sha256", "left_scale_sha256", "right_scale_sha256", "raw_mismatch_count", "left_endpoint_7e", "left_endpoint_fe", "right_endpoint_7e", "right_endpoint_fe", "left_nan_count", "right_nan_count", "scale_mismatch_count", "left_scale_min", "left_scale_max", "right_scale_min", "right_scale_max", "left_scale_sum", "right_scale_sum", "left_scale_sum_squares", "right_scale_sum_squares", "scale_difference_sum_squares", "scale_dot", "scale_relative_l2", "scale_pearson_correlation", "left_min", "left_max", "left_sum_squares", "right_min", "right_max", "right_sum_squares", "difference_sum_squares", "reconstruction_dot", "reconstruction_relative_l2", "cosine_similarity", "max_absolute_error", "sqnr_db", "perfect_reconstruction", "zero_reference"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1}, "layer": {"type": "integer", "minimum": 0, "maximum": 29}, "role": {"enum": ["q", "k", "v", "o"]},
+        "rows": {"type": "integer", "minimum": 1, "maximum": 8192}, "columns": {"type": "integer", "minimum": 1, "maximum": 8192}, "elements": {"type": "integer", "minimum": 1},
+        "left_weight_sha256": {"$ref": "#/$defs/sha256"}, "right_weight_sha256": {"$ref": "#/$defs/sha256"}, "left_scale_sha256": {"$ref": "#/$defs/sha256"}, "right_scale_sha256": {"$ref": "#/$defs/sha256"},
+        "raw_mismatch_count": {"type": "integer", "minimum": 0}, "left_endpoint_7e": {"type": "integer", "minimum": 0}, "left_endpoint_fe": {"type": "integer", "minimum": 0}, "right_endpoint_7e": {"type": "integer", "minimum": 0}, "right_endpoint_fe": {"type": "integer", "minimum": 0}, "left_nan_count": {"type": "integer", "minimum": 0}, "right_nan_count": {"type": "integer", "minimum": 0}, "scale_mismatch_count": {"type": "integer", "minimum": 0},
+        "left_scale_min": {"type": "number", "exclusiveMinimum": 0}, "left_scale_max": {"type": "number", "exclusiveMinimum": 0}, "right_scale_min": {"type": "number", "exclusiveMinimum": 0}, "right_scale_max": {"type": "number", "exclusiveMinimum": 0}, "left_scale_sum": {"type": "number"}, "right_scale_sum": {"type": "number"}, "left_scale_sum_squares": {"type": "number", "minimum": 0}, "right_scale_sum_squares": {"type": "number", "minimum": 0}, "scale_difference_sum_squares": {"type": "number", "minimum": 0}, "scale_dot": {"type": "number"}, "scale_relative_l2": {"$ref": "#/$defs/numberOrNull"}, "scale_pearson_correlation": {"type": "number", "minimum": -1, "maximum": 1},
+        "left_min": {"type": "number"}, "left_max": {"type": "number"}, "left_sum_squares": {"type": "number", "minimum": 0}, "right_min": {"type": "number"}, "right_max": {"type": "number"}, "right_sum_squares": {"type": "number", "minimum": 0}, "difference_sum_squares": {"type": "number", "minimum": 0}, "reconstruction_dot": {"type": "number"}, "reconstruction_relative_l2": {"$ref": "#/$defs/numberOrNull"}, "cosine_similarity": {"type": "number", "minimum": -1, "maximum": 1}, "max_absolute_error": {"type": "number", "minimum": 0}, "sqnr_db": {"$ref": "#/$defs/numberOrNull"}, "perfect_reconstruction": {"type": "boolean"}, "zero_reference": {"type": "boolean"}
+      }
+    }
+  }
+}

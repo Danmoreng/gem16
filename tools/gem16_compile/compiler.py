@@ -1,9 +1,10 @@
-"""Deterministic M04 compiler orchestration, provenance, and verification."""
+"""Deterministic checkpoint compiler orchestration, provenance, and verification."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import struct
 import time
 from typing import Any
 
@@ -23,7 +24,15 @@ from .common import (
     write_file_atomic,
 )
 from .encoders import TensorEncoder, default_encoder_registry
+from .native_fp8 import (
+    NativeBundleEncoder,
+    NativeRequest,
+    PROTOCOL,
+    _native_build,
+    prepare_native_bundle,
+)
 from .plan import QuantizationPlan, load_quantization_plan, plan_summary
+from .profiles import profile_for
 from .reader import (
     TensorDescriptor,
     VerifiedSource,
@@ -39,6 +48,7 @@ from .writer import (
     create_staging_directory,
     discard_staging,
     publish_staging,
+    safetensors_header,
     write_shards,
 )
 
@@ -79,6 +89,8 @@ class CompilerRequest:
     threads: int = 1
     reference_platform_strict: bool = False
     dependencies_lock: Path = DEPENDENCIES_LOCK
+    native_encoder: Path | None = None
+    native_timeout_seconds: int = 600
 
 
 def _validate_dependencies_lock(path: Path) -> tuple[dict[str, Any], str]:
@@ -86,7 +98,7 @@ def _validate_dependencies_lock(path: Path) -> tuple[dict[str, Any], str]:
     if document.get("schema_version") != 1:
         raise InvalidPlanError("unsupported compiler dependency-lock schema")
     if document.get("runtime") != "python-standard-library-only":
-        raise InvalidPlanError("M04 compiler dependencies must be standard-library-only")
+        raise InvalidPlanError("compiler dependencies must be standard-library-only")
     if document.get("external_packages") != []:
         raise InvalidPlanError("M04 compiler dependency lock contains external packages")
     payload = path.read_bytes()
@@ -94,11 +106,15 @@ def _validate_dependencies_lock(path: Path) -> tuple[dict[str, Any], str]:
 
 
 def _validate_request(request: CompilerRequest) -> None:
-    if request.threads != 1:
-        raise InvalidPlanError(
-            "M04 supports exactly one deterministic compiler thread; "
-            "parallel encoders begin in later milestones"
-        )
+    if request.threads < 1 or request.threads > 64:
+        raise InvalidPlanError("--threads must be in the range 1..64")
+    if request.profile == "synthetic-copy-v1":
+        if request.threads != 1:
+            raise InvalidPlanError("M04 supports exactly one deterministic thread")
+        if request.native_encoder is not None:
+            raise InvalidPlanError("M04 does not accept a native encoder")
+    if request.native_timeout_seconds <= 0:
+        raise InvalidPlanError("--native-timeout-seconds must be positive")
     if request.shard_size is not None and request.shard_size <= 0:
         raise InvalidPlanError("--shard-size must be positive")
 
@@ -180,6 +196,16 @@ def _excluded_records(
         }
         for family in plan.omitted_families
     }
+    for item in plan.excluded_tensors:
+        family_totals.setdefault(
+            item.family,
+            {
+                "group": item.family,
+                "reason": item.reason,
+                "source_tensor_count": 0,
+                "source_bytes": 0,
+            },
+        )
     for item in sorted(plan.excluded_tensors, key=lambda value: value.source_name):
         tensor = source_tensors[item.source_name]
         payload_hash = workspace.hash_tensor_range(
@@ -284,33 +310,40 @@ def _build_compilation_manifest(
     source_tensors: dict[str, TensorDescriptor],
     staging: Path,
     workspace: BoundedWorkspace,
+    native_identity: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     excluded, omitted_groups = _excluded_records(plan, source_tensors, workspace)
+    profile = profile_for(plan.artifact_profile, plan.head_format)
     files: list[dict[str, Any]] = []
     for name in payload.shard_names:
         files.append(_file_record(staging, name, "safetensors_shard", workspace))
     files.append(_file_record(staging, payload.index_name, "safetensors_index", workspace))
     for name in sorted(payload.metadata_names):
         files.append(_file_record(staging, name, "source_metadata_copy", workspace))
+    compiler_record: dict[str, Any] = {
+        "repository": identity.repository,
+        "commit": identity.commit,
+        "dirty": identity.dirty,
+        "python": identity.environment["python_version"],
+        "platform": identity.environment,
+        "dependencies_lock_sha256": dependency_hash,
+        "implementation": profile.compiler_implementation,
+    }
+    if plan.artifact_profile == "fp8-attention-partial-v1":
+        if native_identity is None:
+            raise InvalidPlanError("M05 compilation is missing native execution identity")
+        compiler_record["native_encoder"] = dict(native_identity)
     return {
         "schema_version": 1,
         "artifact_profile": plan.artifact_profile,
-        "artifact_status": "m04_scaffold_not_runtime_loadable",
+        "artifact_status": profile.artifact_status,
         "source": {
             "lock_sha256": source.lock_sha256,
             "repository": source.repository,
             "revision": source.revision,
             "resolved_at_utc": source.resolved_at_utc,
         },
-        "compiler": {
-            "repository": identity.repository,
-            "commit": identity.commit,
-            "dirty": identity.dirty,
-            "python": identity.environment["python_version"],
-            "platform": identity.environment,
-            "dependencies_lock_sha256": dependency_hash,
-            "implementation": "gem16_compile_m04_v1",
-        },
+        "compiler": compiler_record,
         "plan": {
             "schema_version": plan.schema_version,
             "compiler_manifest_sha256": plan.compiler_manifest_sha256,
@@ -318,13 +351,7 @@ def _build_compilation_manifest(
             "source_contract": plan.source_contract,
             "target_shard_bytes": plan.target_shard_bytes,
         },
-        "quantization": {
-            "profile": plan.artifact_profile,
-            "attention": "copy-v1-scaffold",
-            "experts": "copy-v1-scaffold",
-            "embedding_head": "source-copy-v1",
-            "production_quantization_implemented": False,
-        },
+        "quantization": profile.quantization,
         "head_format": plan.head_format,
         "text_only": True,
         "omitted_families": list(plan.omitted_families),
@@ -353,13 +380,90 @@ def _build_compilation_manifest(
     }
 
 
+def _canonical_path_allow_missing(path: Path, description: str) -> Path:
+    """Resolve every existing path component without creating the missing tail."""
+    candidate = path.expanduser().absolute()
+    missing: list[str] = []
+    while not candidate.exists() and not candidate.is_symlink():
+        parent = candidate.parent
+        if parent == candidate:
+            raise OutputError(f"cannot resolve {description}: {path}")
+        missing.append(candidate.name)
+        candidate = parent
+    try:
+        resolved = candidate.resolve(strict=True)
+    except OSError as error:
+        raise OutputError(f"cannot resolve {description} {path}: {error}") from error
+    for name in reversed(missing):
+        resolved = resolved / name
+    return resolved
+
+
+def _path_is_within(path: Path, root: Path) -> bool:
+    try:
+        path.relative_to(root)
+    except ValueError:
+        return False
+    return True
+
+
+def _preflight_report_path(
+    report_path: Path | None, output: Path
+) -> Path | None:
+    if report_path is None:
+        return None
+    requested_report = report_path.expanduser().absolute()
+    if requested_report.exists() or requested_report.is_symlink():
+        raise OutputError(f"compiler report already exists: {requested_report}")
+
+    canonical_report = _canonical_path_allow_missing(
+        requested_report, "compiler report path"
+    )
+    canonical_output = _canonical_path_allow_missing(output, "compiler output path")
+    staging = output.with_name(output.name + ".incomplete")
+    canonical_staging = _canonical_path_allow_missing(
+        staging, "compiler staging output path"
+    )
+    for candidate, label in (
+        (canonical_output, "output"),
+        (canonical_staging, "staging output"),
+    ):
+        if _path_is_within(canonical_report, candidate):
+            raise OutputError(
+                f"compiler report must not be inside {label}: {requested_report}"
+            )
+
+    if canonical_report.exists() or canonical_report.is_symlink():
+        raise OutputError(f"compiler report already exists: {requested_report}")
+    try:
+        canonical_report.parent.mkdir(parents=True, exist_ok=True)
+    except OSError as error:
+        raise OutputError(
+            f"cannot create compiler report directory {canonical_report.parent}: {error}"
+        ) from error
+    return canonical_report
+
+
 def _write_report(path: Path | None, report: dict[str, Any]) -> None:
     if path is None:
         return
     if path.exists() or path.is_symlink():
         raise OutputError(f"compiler report already exists: {path}")
-    path.parent.mkdir(parents=True, exist_ok=True)
     write_file_atomic(path, canonical_json_bytes(report))
+
+
+def _complete_statistics_record(written: Any) -> dict[str, Any]:
+    result = written.source_result
+    return {
+        "output_name": written.plan.output_name,
+        "operation_id": written.plan.operation_id,
+        "source_names": list(written.plan.source_names),
+        "source_sha256": list(result.source_sha256),
+        "logical_dtype": written.plan.logical_dtype,
+        "logical_shape": list(written.plan.logical_shape),
+        "quantizer_parameters": written.plan.quantizer_parameters,
+        "statistics": result.statistics,
+    }
 
 
 def _base_report(
@@ -368,15 +472,19 @@ def _base_report(
     workspace: BoundedWorkspace,
     started: float,
 ) -> dict[str, Any]:
-    return {
+    profile = profile_for(request.profile, request.head_format)
+    report = {
         "schema_version": 1,
-        "milestone": "M04",
+        "milestone": profile.milestone,
         "action": action,
         "status": "pass",
         "artifact_profile": request.profile,
         "duration_seconds": round(time.monotonic() - started, 6),
         "memory": workspace.telemetry(),
     }
+    if request.profile == "fp8-attention-partial-v1" and action == "verify":
+        report["transformation_recomputed"] = False
+    return report
 
 
 def plan_artifact(
@@ -470,16 +578,50 @@ def compile_artifact(
     if request.reference_platform_strict:
         _validate_reference_environment(plan, compiler_identity)
     output = output.expanduser().absolute()
-    output.parent.mkdir(parents=True, exist_ok=True)
-    staging = create_staging_directory(output)
+    report_path = _preflight_report_path(report_path, output)
     try:
+        output.parent.mkdir(parents=True, exist_ok=True)
+    except OSError as error:
+        raise OutputError(f"cannot create compiler output parent {output.parent}: {error}") from error
+    staging = create_staging_directory(output)
+    report_written = False
+    native_bundle = None
+    native_identity: dict[str, Any] | None = None
+    native_runtime: dict[str, int] | None = None
+    published = False
+    try:
+        if plan.artifact_profile == "fp8-attention-partial-v1":
+            if request.native_encoder is None:
+                raise InvalidPlanError("M05 compilation requires --native-encoder")
+            native_bundle = prepare_native_bundle(
+                NativeRequest(
+                    request.native_encoder,
+                    request.native_timeout_seconds,
+                    request.threads,
+                ),
+                plan,
+                source_tensors,
+                workspace,
+                staging,
+            )
+            native_identity = {
+                "protocol": PROTOCOL,
+                "sha256": native_bundle.binary_sha256,
+                "threads": request.threads,
+                "build": dict(native_bundle.native_build),
+            }
+            native_runtime = {"child_peak_rss_bytes": native_bundle.child_peak_rss_bytes}
         payload = write_shards(
             staging,
             plan,
             source_tensors,
             workspace,
             encoders or default_encoder_registry(),
+            native_bundle=native_bundle,
         )
+        if native_bundle is not None:
+            native_bundle.cleanup()
+            native_bundle = None
         metadata_names = copy_approved_metadata(
             staging, plan, source.files, workspace
         )
@@ -499,6 +641,7 @@ def compile_artifact(
             source_tensors,
             staging,
             workspace,
+            native_identity=native_identity,
         )
         write_file_atomic(
             staging / COMPILATION_MANIFEST, canonical_json_bytes(compilation)
@@ -510,35 +653,58 @@ def compile_artifact(
             plan,
             dependency_hash,
             workspace,
+            expected_threads=request.threads if plan.artifact_profile == "fp8-attention-partial-v1" else 1,
         )
         _reverify_source_files(request, source, workspace)
-        publish_staging(staging, output)
-    except Exception:
-        discard_staging(staging)
-        raise
 
-    report = _base_report("compile", request, workspace, started)
-    report.update(
-        {
-            "output": str(output),
-            "compiler_commit": compiler_identity.commit,
-            "compiler_dirty": compiler_identity.dirty,
-            "source_lock_sha256": source.lock_sha256,
-            "compiler_manifest_sha256": plan.compiler_manifest_sha256,
-            "resolved_plan_sha256": plan.resolved_plan_sha256,
-            "compilation_manifest_sha256": workspace.hash_range(
-                output / COMPILATION_MANIFEST,
-                0,
-                (output / COMPILATION_MANIFEST).stat().st_size,
-            ),
-            "output_tensor_count": len(plan.tensors),
-            "output_tensor_bytes": plan.output_tensor_bytes,
-            "output_file_count": len(compilation["files"]) + 1,
-            "memory": workspace.telemetry(),
-        }
-    )
-    _write_report(report_path, report)
-    return report
+        report = _base_report("compile", request, workspace, started)
+        statistics = [
+            _complete_statistics_record(written)
+            for written in payload.tensors
+            if written.source_result.statistics is not None
+        ]
+        report.update(
+            {
+                "output": str(output),
+                "compiler_commit": compiler_identity.commit,
+                "compiler_dirty": compiler_identity.dirty,
+                "source_lock_sha256": source.lock_sha256,
+                "compiler_manifest_sha256": plan.compiler_manifest_sha256,
+                "resolved_plan_sha256": plan.resolved_plan_sha256,
+                "compilation_manifest_sha256": workspace.hash_range(
+                    staging / COMPILATION_MANIFEST,
+                    0,
+                    (staging / COMPILATION_MANIFEST).stat().st_size,
+                ),
+                "output_tensor_count": len(plan.tensors),
+                "output_tensor_bytes": plan.output_tensor_bytes,
+                "output_file_count": len(compilation["files"]) + 1,
+                "memory": workspace.telemetry(),
+            }
+        )
+        if native_identity is not None:
+            report["native_encoder"] = native_identity
+            report["native_build"] = dict(native_identity["build"])
+        if native_runtime is not None:
+            report["native_runtime"] = native_runtime
+        if statistics:
+            report["fp8_tensor_statistics"] = statistics
+        publish_staging(staging, output)
+        published = True
+        _write_report(report_path, report)
+        report_written = report_path is not None
+        return report
+    except Exception:
+        if native_bundle is not None:
+            native_bundle.cleanup()
+        if not published:
+            discard_staging(staging)
+        if report_written and report_path is not None:
+            try:
+                report_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+        raise
 
 
 def _manifest_file_map(compilation: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -592,6 +758,115 @@ def _actual_artifact_files(root: Path) -> set[str]:
     return result
 
 
+def _read_exact_path(path: Path, length: int, description: str) -> bytes:
+    if length < 0:
+        raise DataError(f"invalid byte length for {description}: {length}")
+    try:
+        with path.open("rb", buffering=0) as stream:
+            chunks: list[bytes] = []
+            remaining = length
+            while remaining:
+                chunk = stream.read(remaining)
+                if not chunk:
+                    raise DataError(f"short read for {description}")
+                chunks.append(chunk)
+                remaining -= len(chunk)
+            return b"".join(chunks)
+    except DataError:
+        raise
+    except OSError as error:
+        raise DataError(f"cannot read {description}: {error}") from error
+
+
+def _canonical_index_bytes(plan: QuantizationPlan) -> bytes:
+    assignments = assign_shards(plan)
+    weight_map = {
+        tensor.output_name: assignment.name
+        for assignment in assignments
+        for tensor in assignment.tensors
+    }
+    return canonical_json_bytes({
+        "metadata": {"total_size": plan.output_tensor_bytes},
+        "weight_map": dict(sorted(weight_map.items())),
+    })
+
+
+def _validate_canonical_layout(
+    artifact: Path,
+    plan: QuantizationPlan,
+    source: VerifiedSource,
+    workspace: BoundedWorkspace,
+) -> tuple[dict[str, dict[str, Any]], dict[str, TensorDescriptor], tuple[str, ...], str]:
+    assignments = assign_shards(plan)
+    profile = profile_for(plan.artifact_profile, plan.head_format)
+    expected_paths = {
+        assignment.name for assignment in assignments
+    } | {"model.safetensors.index.json"} | set(plan.approved_metadata_files)
+    actual_paths = _actual_artifact_files(artifact) - {COMPILATION_MANIFEST}
+    if actual_paths != expected_paths:
+        raise DataError(
+            "compiled artifact file set differs from canonical plan: "
+            f"missing={sorted(expected_paths - actual_paths)} "
+            f"extra={sorted(actual_paths - expected_paths)}"
+        )
+
+    expected_records: dict[str, dict[str, Any]] = {}
+    for assignment in assignments:
+        header, _ = safetensors_header(
+            assignment.tensors, artifact_label=profile.header_label
+        )
+        path = artifact / assignment.name
+        header_size = struct.unpack("<Q", _read_exact_path(
+            path, 8, f"{assignment.name} header length"
+        ))[0]
+        if header_size != len(header) - 8:
+            raise DataError(f"canonical header length mismatch: {assignment.name}")
+        if _read_exact_path(path, len(header), f"{assignment.name} header") != header:
+            raise DataError(f"canonical Safetensors header mismatch: {assignment.name}")
+        size = path.stat().st_size
+        expected_records[assignment.name] = {
+            "path": assignment.name,
+            "kind": "safetensors_shard",
+            "size": size,
+            "sha256": workspace.hash_range(path, 0, size),
+        }
+
+    index_path = artifact / "model.safetensors.index.json"
+    expected_index = _canonical_index_bytes(plan)
+    if _read_exact_path(index_path, len(expected_index), "Safetensors index") != expected_index:
+        raise DataError("canonical Safetensors index mismatch")
+    if index_path.stat().st_size != len(expected_index):
+        raise DataError("Safetensors index has trailing bytes")
+    expected_records[index_path.name] = {
+        "path": index_path.name,
+        "kind": "safetensors_index",
+        "size": len(expected_index),
+        "sha256": workspace.hash_range(index_path, 0, len(expected_index)),
+    }
+    for relative in plan.approved_metadata_files:
+        path = artifact.joinpath(*safe_relative_path(relative, "approved metadata").parts)
+        source_file = source.files[relative]
+        if path.stat().st_size != source_file.size:
+            raise DataError(f"compiled metadata size differs from source: {relative}")
+        digest = workspace.hash_range(path, 0, path.stat().st_size)
+        if digest != source_file.sha256:
+            raise DataError(f"compiled metadata differs from locked source: {relative}")
+        expected_records[relative] = {
+            "path": relative,
+            "kind": "source_metadata_copy",
+            "size": source_file.size,
+            "sha256": source_file.sha256,
+        }
+    shard_names = tuple(assignment.name for assignment in assignments)
+    try:
+        output_tensors = read_artifact_tensors(
+            artifact, shard_names, "model.safetensors.index.json", workspace
+        )
+    except SourceVerificationError as error:
+        raise DataError(f"invalid compiled Safetensors artifact: {error}") from error
+    return expected_records, output_tensors, shard_names, profile.header_label
+
+
 def _verify_loaded_artifact(
     artifact: Path,
     source: VerifiedSource,
@@ -599,6 +874,8 @@ def _verify_loaded_artifact(
     plan: QuantizationPlan,
     dependency_hash: str,
     workspace: BoundedWorkspace,
+    *,
+    expected_threads: int,
 ) -> dict[str, Any]:
     try:
         compilation = load_json(artifact / COMPILATION_MANIFEST, 64 * 1024 * 1024)
@@ -629,21 +906,15 @@ def _verify_loaded_artifact(
         raise DataError("unsupported gem16_compilation schema_version")
     if compilation.get("artifact_profile") != plan.artifact_profile:
         raise DataError("compiled artifact profile differs from compiler plan")
-    if compilation.get("artifact_status") != "m04_scaffold_not_runtime_loadable":
-        raise DataError("M04 artifact status is missing or incorrect")
-    expected_quantization = {
-        "profile": plan.artifact_profile,
-        "attention": "copy-v1-scaffold",
-        "experts": "copy-v1-scaffold",
-        "embedding_head": "source-copy-v1",
-        "production_quantization_implemented": False,
-    }
+    profile = profile_for(plan.artifact_profile, plan.head_format)
+    if compilation.get("artifact_status") != profile.artifact_status:
+        raise DataError("compiled artifact status is missing or incorrect")
     if (
-        compilation.get("quantization") != expected_quantization
+        compilation.get("quantization") != profile.quantization
         or compilation.get("head_format") != plan.head_format
         or compilation.get("text_only") is not True
     ):
-        raise DataError("M04 scaffold precision/text-only contract mismatch")
+        raise DataError("compiled precision/text-only contract mismatch")
     source_record = compilation.get("source")
     if not isinstance(source_record, dict) or source_record != {
         "lock_sha256": source.lock_sha256,
@@ -668,15 +939,13 @@ def _verify_loaded_artifact(
     ):
         raise DataError("compiled artifact plan provenance mismatch")
     compiler_record = compilation.get("compiler")
-    if not isinstance(compiler_record, dict) or set(compiler_record) != {
-        "repository",
-        "commit",
-        "dirty",
-        "python",
-        "platform",
-        "dependencies_lock_sha256",
-        "implementation",
-    }:
+    expected_compiler_keys = {
+        "repository", "commit", "dirty", "python", "platform",
+        "dependencies_lock_sha256", "implementation",
+    }
+    if plan.artifact_profile == "fp8-attention-partial-v1":
+        expected_compiler_keys.add("native_encoder")
+    if not isinstance(compiler_record, dict) or set(compiler_record) != expected_compiler_keys:
         raise DataError("compiled artifact compiler provenance is missing")
     commit = compiler_record.get("commit")
     platform_record = compiler_record.get("platform")
@@ -696,55 +965,34 @@ def _verify_loaded_artifact(
         or any(character not in "0123456789abcdef" for character in commit)
         or not isinstance(compiler_record.get("dirty"), bool)
         or compiler_record.get("dependencies_lock_sha256") != dependency_hash
-        or compiler_record.get("implementation") != "gem16_compile_m04_v1"
+        or compiler_record.get("implementation") != profile.compiler_implementation
         or not isinstance(platform_record, dict)
         or set(platform_record) != required_platform_fields
         or not all(isinstance(value, str) and value for value in platform_record.values())
         or compiler_record.get("python") != platform_record.get("python_version")
     ):
         raise DataError("compiled artifact compiler provenance is invalid")
+    if plan.artifact_profile == "fp8-attention-partial-v1":
+        native_record = compiler_record.get("native_encoder")
+        if (not isinstance(native_record, dict) or set(native_record) != {"protocol", "sha256", "threads", "build"}
+            or native_record.get("protocol") != PROTOCOL
+            or native_record.get("threads") != expected_threads
+            or not isinstance(native_record.get("sha256"), str) or len(native_record["sha256"]) != 64
+            or any(c not in "0123456789abcdef" for c in native_record["sha256"])):
+            raise DataError("compiled native M05 encoder provenance is invalid")
+        _native_build(native_record.get("build"), "compiled native M05 build provenance")
 
     if compilation.get("file_hash_scope") != (
         "all artifact files except gem16_compilation.json; its self-hash "
         "is supplied by the external artifact lock in M08"
     ):
         raise DataError("compiled artifact file-hash scope is invalid")
-    files = _manifest_file_map(compilation)
-    expected_files = set(files) | {COMPILATION_MANIFEST}
-    actual_files = _actual_artifact_files(artifact)
-    if actual_files != expected_files:
-        raise DataError(
-            f"compiled artifact file set mismatch: "
-            f"missing={sorted(expected_files - actual_files)} "
-            f"extra={sorted(actual_files - expected_files)}"
-        )
-    for relative, record in files.items():
-        path = artifact.joinpath(*safe_relative_path(relative, "artifact file").parts)
-        size = path.stat().st_size
-        digest = workspace.hash_range(path, 0, size)
-        if record.get("size") != size or record.get("sha256") != digest:
-            raise DataError(f"compiled artifact file hash/size mismatch: {relative}")
-
-    shard_names = tuple(
-        sorted(
-            relative
-            for relative, record in files.items()
-            if record.get("kind") == "safetensors_shard"
-        )
+    expected_file_records, output_tensors, shard_names, _ = _validate_canonical_layout(
+        artifact, plan, source, workspace
     )
-    indexes = [
-        relative
-        for relative, record in files.items()
-        if record.get("kind") == "safetensors_index"
-    ]
-    if len(indexes) != 1:
-        raise DataError("compiled artifact must declare exactly one Safetensors index")
-    try:
-        output_tensors = read_artifact_tensors(
-            artifact, shard_names, indexes[0], workspace
-        )
-    except SourceVerificationError as error:
-        raise DataError(f"invalid compiled Safetensors artifact: {error}") from error
+    files = _manifest_file_map(compilation)
+    if files != expected_file_records:
+        raise DataError("compiled artifact file records differ from canonical layout")
     expected_outputs = {tensor.output_name: tensor for tensor in plan.tensors}
     if set(output_tensors) != set(expected_outputs):
         raise DataError("compiled output tensor names differ from compiler plan")
@@ -752,17 +1000,30 @@ def _verify_loaded_artifact(
     if set(manifest_tensors) != set(expected_outputs):
         raise DataError("compilation provenance tensor names differ from plan")
 
+    source_hashes: dict[str, str] = {}
     for name, expected in expected_outputs.items():
-        output = output_tensors[name]
+        output = output_tensors.get(name)
+        if output is None:
+            raise DataError(f"compiled output tensor is missing: {name}")
         record = manifest_tensors[name]
+        if output.dtype != expected.output_dtype or output.shape != expected.physical_shape:
+            raise DataError(f"compiled output dtype/shape mismatch: {name}")
+        output_hash = workspace.hash_tensor_range(
+            output.path, output.absolute_offset, output.byte_length
+        )
+        if output.byte_length != expected.output_bytes:
+            raise DataError(f"compiled output byte count mismatch: {name}")
         source_records = []
         for source_name in expected.source_names:
             source_tensor = source_tensors[source_name]
-            source_hash = workspace.hash_tensor_range(
-                source_tensor.path,
-                source_tensor.absolute_offset,
-                source_tensor.byte_length,
-            )
+            source_hash = source_hashes.get(source_name)
+            if source_hash is None:
+                source_hash = workspace.hash_tensor_range(
+                    source_tensor.path,
+                    source_tensor.absolute_offset,
+                    source_tensor.byte_length,
+                )
+                source_hashes[source_name] = source_hash
             source_records.append(
                 {
                     "name": source_tensor.name,
@@ -770,9 +1031,6 @@ def _verify_loaded_artifact(
                     "range": tensor_source_identity(source_tensor),
                 }
             )
-        output_hash = workspace.hash_tensor_range(
-            output.path, output.absolute_offset, output.byte_length
-        )
         expected_record = {
             "output_name": expected.output_name,
             "operation_id": expected.operation_id,
@@ -780,7 +1038,7 @@ def _verify_loaded_artifact(
             "physical_shape": list(expected.physical_shape),
             "logical_dtype": expected.logical_dtype,
             "logical_shape": list(expected.logical_shape),
-            "byte_length": expected.output_bytes,
+            "byte_length": output.byte_length,
             "sha256": output_hash,
             "output_shard": output.shard,
             "output_data_offsets": [output.data_offset, output.data_offset + output.byte_length],
@@ -796,8 +1054,6 @@ def _verify_loaded_artifact(
             "runtime_layout": expected.runtime_layout,
             "aliased": expected.aliased,
         }
-        if output.dtype != expected.output_dtype or output.shape != expected.physical_shape:
-            raise DataError(f"compiled output dtype/shape mismatch: {name}")
         if record != expected_record:
             raise DataError(f"compiled tensor provenance mismatch: {name}")
 
@@ -847,7 +1103,7 @@ def _verify_loaded_artifact(
         if record is None or record.get("kind") != "source_metadata_copy":
             raise DataError(f"compiled metadata file record is missing: {relative}")
 
-    index_document = load_json(artifact / indexes[0], 256 * 1024 * 1024)
+    index_document = load_json(artifact / "model.safetensors.index.json", 256 * 1024 * 1024)
     metadata = index_document.get("metadata")
     if not isinstance(metadata, dict) or metadata.get("total_size") != plan.output_tensor_bytes:
         raise DataError("compiled Safetensors index total_size mismatch")
@@ -876,6 +1132,15 @@ def _verify_loaded_artifact(
         for family in plan.omitted_families
     }
     for item in plan.excluded_tensors:
+        expected_groups.setdefault(
+            item.family,
+            {
+                "group": item.family,
+                "reason": item.reason,
+                "source_tensor_count": 0,
+                "source_bytes": 0,
+            },
+        )
         group = expected_groups[item.family]
         group["reason"] = item.reason
         group["source_tensor_count"] += 1
@@ -892,7 +1157,7 @@ def _verify_loaded_artifact(
         "reference_platform_strict",
         "resume_policy",
     } or (
-        settings.get("threads") != 1
+        (settings.get("threads") != expected_threads)
         or not isinstance(settings.get("host_memory_cap_bytes"), int)
         or settings.get("host_memory_cap_bytes", 0) <= 0
         or not isinstance(settings.get("staging_buffer_bytes"), int)
@@ -916,32 +1181,49 @@ def verify_artifact(
     workspace = BoundedWorkspace(
         request.host_memory_cap_bytes, request.staging_bytes
     )
+    requested_artifact = artifact.expanduser().absolute()
+    if requested_artifact.is_symlink():
+        raise SourceVerificationError(
+            f"compiled artifact root must not be a symlink: {artifact}"
+        )
+    try:
+        artifact_root = requested_artifact.resolve(strict=True)
+    except OSError as error:
+        raise SourceVerificationError(
+            f"cannot resolve compiled artifact {artifact}: {error}"
+        ) from error
+    if not artifact_root.is_dir():
+        raise SourceVerificationError(
+            f"compiled artifact is not a directory: {artifact}"
+        )
+    report_path = _preflight_report_path(report_path, artifact_root)
     source, source_tensors, plan, dependency_hash = _load_request(request, workspace)
     compiler_identity = identity or CompilerIdentity.from_repository()
     if request.reference_platform_strict:
         _validate_reference_environment(plan, compiler_identity)
     compilation = _verify_loaded_artifact(
-        artifact.resolve(strict=True),
+        artifact_root,
         source,
         source_tensors,
         plan,
         dependency_hash,
         workspace,
+        expected_threads=request.threads if plan.artifact_profile == "fp8-attention-partial-v1" else 1,
     )
     _reverify_source_files(request, source, workspace)
     report = _base_report("verify", request, workspace, started)
     report.update(
         {
-            "artifact": str(artifact),
+            "artifact": str(artifact_root),
             "source_lock_sha256": source.lock_sha256,
             "compiler_manifest_sha256": plan.compiler_manifest_sha256,
             "resolved_plan_sha256": plan.resolved_plan_sha256,
             "recorded_compiler_commit": compilation["compiler"]["commit"],
             "recorded_compiler_dirty": compilation["compiler"]["dirty"],
             "compilation_manifest_sha256": workspace.hash_range(
-                artifact / COMPILATION_MANIFEST,
+                artifact_root / COMPILATION_MANIFEST,
                 0,
-                (artifact / COMPILATION_MANIFEST).stat().st_size,
+                (artifact_root / COMPILATION_MANIFEST).stat().st_size,
             ),
             "output_tensor_count": len(plan.tensors),
             "output_tensor_bytes": plan.output_tensor_bytes,

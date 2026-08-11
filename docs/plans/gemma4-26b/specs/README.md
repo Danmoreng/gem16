@@ -18,6 +18,7 @@ Normative technical contracts. A milestone may narrow these, but may not silentl
 | [`FP8_QUANTIZATION_SPEC.md`](FP8_QUANTIZATION_SPEC.md) | Fp8 Quantization Spec |
 | [`MEMORY_ARENA_SPEC.md`](MEMORY_ARENA_SPEC.md) | Memory Arena Spec |
 | [`MODEL_VARIANT_TRAITS_SPEC.md`](MODEL_VARIANT_TRAITS_SPEC.md) | Model Variant Traits Spec |
+| [`NATIVE_CONVERTER_ARCHITECTURE.md`](NATIVE_CONVERTER_ARCHITECTURE.md) | Binding control-plane/native-data-plane converter architecture |
 | [`MOE_DECODE_KERNEL_SPEC.md`](MOE_DECODE_KERNEL_SPEC.md) | Moe Decode Kernel Spec |
 | [`MOE_PREFILL_KERNEL_SPEC.md`](MOE_PREFILL_KERNEL_SPEC.md) | Moe Prefill Kernel Spec |
 | [`MOE_ROUTER_SPEC.md`](MOE_ROUTER_SPEC.md) | Moe Router Spec |

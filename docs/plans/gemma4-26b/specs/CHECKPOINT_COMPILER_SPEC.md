@@ -14,42 +14,52 @@ BF16 source
   └─ modality/MTP tensors → omitted
 ```
 
-The compiler is an offline repository tool, not an inference startup stage.
+The compiler is an offline repository tool, not an inference startup stage. The binding architecture is
+[`NATIVE_CONVERTER_ARCHITECTURE.md`](NATIVE_CONVERTER_ARCHITECTURE.md). M04 retains its accepted Python
+standard-library scaffold for planning, source verification, publication, provenance and byte-only `copy-v1`.
+M05's promoted BF16-to-FP8 attention conversion is a versioned native C++20 batch backend; M06, M07 and M18 must
+extend the same native data plane. Python is control-plane/oracle/report support only and never a production
+fallback or a promoted elementwise converter.
 
 ## CLI
 
-Suggested command:
+The current M04/M05 user-facing command is the Python control-plane wrapper. M05 additionally requires the
+explicit native backend; future M06-M08 profiles must expose the same one-command interface while selecting the
+shared native data plane:
 
 ```text
-python tools/compile_gemma4_26b.py \
+python tools/compile_gemma4_26b.py compile \
   --source-lock models/gemma4-26b-qat-bf16.lock.json \
-  --profile sm120-text-hybrid-v1 \
-  --head-format q4_0 \
-  --output build/models/gemma4-26b-qat-hybrid \
-  --report artifacts/compiler/gemma4-26b-qat-hybrid.json
+  --source-directory models/checkpoints/google-gemma-4-26b-a4b-it-qat-bf16-f1e06dc \
+  --compiler-manifest benchmarks/goldens/gemma4_26b/fp8/qat-compiler-plan.json \
+  --profile fp8-attention-partial-v1 --head-format deferred \
+  --native-encoder build/Linux/host-debug/bin/gem16-fp8-compiler \
+  --threads 1 --max-host-memory 7516192768 \
+  --output build/models/qat-fp8-attention-partial \
+  --report artifacts/m05/qat-compile.json
 ```
 
-Required options:
+The planned future native-family name is `gem16-checkpoint-compiler`; it is not a current executable and must not
+be presented as a runnable command until implemented.
 
-- `--source-lock`
-- `--output`
-- `--profile`
-- `--head-format`
-- `--verify`
-- `--report`
-- `--resume` for verified shard-level resume
-- `--max-host-memory`
-- `--shard-size`
-- `--threads`
-- `--reference-platform-strict`
+Current action requirements:
 
-Optional diagnostic options:
+- `plan`, `compile`, and `verify`: `--source-lock`, `--compiler-manifest`, `--profile`, `--head-format`,
+  `--max-host-memory`, and `--report`;
+- `compile`: additionally `--output`; M05 additionally requires `--native-encoder`, with optional
+  `--native-timeout-seconds` and diagnostic-only `--allow-dirty`;
+- `verify`: additionally `--model`; it does not take a `--lock` alias or a `--verify` boolean because the action is
+  already verification;
+- `compare-reproducibility`: `--left`, `--right`, and `--report` only.
 
-- `--only-family`
-- `--only-layer`
-- `--emit-dequantized-sample`
-- `--compare-model`
-- `--dry-run-plan`
+Current common options include `--source-directory` or `--source-cache` (mutually exclusive), `--staging-bytes`,
+`--shard-size`, `--threads`, `--dependencies-lock`, `--reference-platform-strict`, and the retained compatibility
+flag `--verify-source`. The parser defaults `--threads` to 1; evidence commands should state the value explicitly.
+`--resume` is a compile option that current M04/M05 explicitly reject.
+
+The following are planned, not current options: `--only-family`, `--only-layer`, `--emit-dequantized-sample`,
+`--compare-model`, `--events`, and a meaningful generalized dry-run mode. Python remains control-plane/oracle support;
+these future diagnostics cannot become an implicit numerical fallback.
 
 ## Stages
 
@@ -99,8 +109,13 @@ Rules:
 - no output overwrite;
 - checked shape multiplication;
 - explicit little-endian representation;
-- deterministic thread partitioning and reduction;
-- exceptions leave incomplete files distinguishable.
+- deterministic thread partitioning and reduction; M05 must preserve byte identity across its bounded
+  threads-1-versus-N fixture gate;
+- exceptions leave incomplete files distinguishable;
+- M05 performs one native full pass over all 115 attention matrices per approved source; no duplicate
+  Python/native pass is used;
+- failures leave a distinguishable restart-only `.incomplete` state or clean it according to the failure path; no
+  resumable verified state is promised;
 
 ### 4. Finalization
 
@@ -111,24 +126,21 @@ Rules:
 - atomically rename temporary files;
 - write derived lock last.
 
-## Quantizer plugin boundary
+## M05 verification boundary
 
-Suggested interface:
+M05 standalone verification is structural, hash and source-lock-only and does not reconvert tensors. Until M08's
+external derived-artifact lock exists, it records `transformation_recomputed=false` and does not claim protection
+against a mutable manifest rewriting its own recorded hashes. A missing native backend fails visibly; no Python
+fallback is permitted.
 
-```python
-class TensorCompiler(Protocol):
-    name: str
-    version: int
-    def plan(self, source: TensorDescriptor) -> OutputDescriptor: ...
-    def compile_rows(
-        self,
-        source_rows: memoryview,
-        logical_row_start: int,
-        report: TensorReportBuilder,
-    ) -> Iterable[OutputChunk]: ...
-```
+## Native backend boundary
 
-The plugin may not access arbitrary model tensors unless declared in its plan.
+The promoted numerical interface is a versioned native job/backend protocol. It receives only the exact planned
+source ranges and output ranges, validates the contract, and returns output hashes plus deterministic telemetry.
+The M05 seed is `gem16-fp8-compiler`; M06/M07/M18 extend the shared implementation toward
+`gem16-checkpoint-compiler`. A Python encoder protocol may exist for small reference fixtures, but it is not a
+production plugin boundary and may not be selected as a fallback. A backend may not access arbitrary model tensors
+unless declared in its native job and plan.
 
 ## Memory control
 
@@ -141,14 +153,17 @@ Track:
 - hash buffer;
 - process RSS and peak RSS.
 
-Prefer NumPy/C++ extension or bounded PyTorch CPU operations. Avoid accidental copies from:
+Prefer the versioned native C++ data plane for all promoted numerical work. Python tensor libraries are allowed
+only for an explicitly labeled diagnostic/reference experiment and cannot support a production conversion claim.
+Avoid accidental copies from:
 
 - non-contiguous slices;
 - dtype conversions over whole tensors;
 - concatenating expert arrays;
 - Python lists of per-row arrays.
 
-Compiler `--dry-run-plan` must predict peak memory. A real telemetry report must verify it.
+The current `plan` action must report projected peak memory. A future `--dry-run-plan` mode, if accepted, must
+preserve that prediction contract; a real telemetry report must verify it.
 
 ## Determinism
 
@@ -195,14 +210,10 @@ For very large tensors, statistics may be accumulated streaming. Do not sample u
 
 ## Resume
 
-Resume is allowed only at immutable completed-shard or completed-tensor boundaries. Before reusing a partial result:
-
-- verify source lock;
-- verify compiler config hash;
-- verify completed output hash;
-- ensure next output offset matches plan.
-
-Never append to an unverified partial tensor.
+M04 and M05 are restart-only and visibly reject `--resume`. A future profile may allow resume only at immutable
+completed-shard or completed-tensor boundaries after accepting a cryptographically bound partial-state schema. Before
+reusing a partial result it must verify the source lock, compiler config hash, completed output hash and next output
+offset. Never append to an unverified partial tensor.
 
 ## Exit status
 
@@ -227,7 +238,7 @@ Never append to an unverified partial tensor.
 - small synthetic source builds;
 - every quantizer family;
 - malformed shapes/dtypes;
-- interrupted/resumed build;
+- interrupted build leaves a visible incomplete state; resumable-build tests begin only when a bound partial-state schema exists;
 - source corruption;
 - deterministic output;
 - bounded memory;

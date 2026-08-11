@@ -87,6 +87,28 @@ def sha256_bytes(value: bytes) -> str:
     return hashlib.sha256(value).hexdigest()
 
 
+def write_all(output: BinaryIO, payload: bytes | bytearray | memoryview,
+              description: str) -> None:
+    """Write all payload bytes, handling short writes without allocation growth."""
+    view = memoryview(payload)
+    position = 0
+    try:
+        while position < len(view):
+            try:
+                written = output.write(view[position:])
+            except (OSError, TypeError, ValueError) as error:
+                raise OutputError(f"cannot write {description}: {error}") from error
+            if (isinstance(written, bool) or not isinstance(written, int)
+                    or written <= 0 or written > len(view) - position):
+                raise OutputError(
+                    f"invalid write progress for {description}: "
+                    f"remaining={len(view) - position} written={written!r}"
+                )
+            position += written
+    finally:
+        view.release()
+
+
 def safe_relative_path(value: object, description: str) -> PurePosixPath:
     text = str(value)
     if not text or "\\" in text or "\x00" in text:
@@ -212,6 +234,7 @@ class BoundedWorkspace:
         self.max_header_bytes = 0
         self.max_tensor_bytes = 0
         self.max_mapped_window_bytes = 0
+        self.maximum_transform_row_bytes = 0
         self.check("staging-buffer allocation")
 
     def check(self, operation: str) -> None:
@@ -231,6 +254,17 @@ class BoundedWorkspace:
 
     def record_tensor(self, byte_count: int) -> None:
         self.max_tensor_bytes = max(self.max_tensor_bytes, byte_count)
+
+    def record_transform_row(self, byte_count: int, operation: str) -> None:
+        if byte_count <= 0 or byte_count > self.staging_bytes:
+            raise DataError(
+                f"transform row exceeds staging buffer during {operation}: "
+                f"row={byte_count} staging={self.staging_bytes}"
+            )
+        self.maximum_transform_row_bytes = max(
+            self.maximum_transform_row_bytes, byte_count
+        )
+        self.check(operation)
 
     def hash_range(self, path: Path, offset: int, length: int) -> str:
         digest = hashlib.sha256()
@@ -293,7 +327,10 @@ class BoundedWorkspace:
                             source_digest.update(view)
                             output_digest.update(view)
                             if output is not None:
-                                output.write(view)
+                                write_all(
+                                    output, view,
+                                    f"mapped tensor bytes from {path.name}",
+                                )
                             self.check(f"mapping tensor bytes from {path.name}")
                         finally:
                             view.release()
@@ -336,7 +373,7 @@ class BoundedWorkspace:
                             f"expected {requested}, got {read}"
                         )
                     chunk = view[:read]
-                    output.write(chunk)
+                    write_all(output, chunk, f"copying {source.name}")
                     source_digest.update(chunk)
                     output_digest.update(chunk)
                     remaining -= read
@@ -357,6 +394,7 @@ class BoundedWorkspace:
             "maximum_header_bytes": self.max_header_bytes,
             "maximum_tensor_bytes": self.max_tensor_bytes,
             "maximum_mapped_window_bytes": self.max_mapped_window_bytes,
+            "maximum_transform_row_bytes": self.maximum_transform_row_bytes,
         }
 
 
@@ -365,12 +403,16 @@ def write_file_atomic(path: Path, payload: bytes) -> None:
     try:
         with temporary.open("xb") as stream:
             os.chmod(temporary, 0o600)
-            stream.write(payload)
+            write_all(stream, payload, f"atomic file {path}")
             stream.flush()
             os.fsync(stream.fileno())
         os.replace(temporary, path)
+        fsync_directory(path.parent)
     except FileExistsError as error:
         raise OutputError(f"temporary output already exists: {temporary}") from error
+    except CompilerError:
+        temporary.unlink(missing_ok=True)
+        raise
     except OSError as error:
         temporary.unlink(missing_ok=True)
         raise OutputError(f"cannot write {path}: {error}") from error

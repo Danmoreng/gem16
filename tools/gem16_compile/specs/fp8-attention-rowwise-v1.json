@@ -1,0 +1,96 @@
+{
+  "contract_id": "gem16.fp8_attention_rowwise",
+  "version": 1,
+  "scope": "offline attention Q/K/V/O weight rows",
+  "source": {
+    "dtype": "BF16",
+    "endianness": "little",
+    "logical_shape": "[K]",
+    "non_empty": true,
+    "finite_only": true,
+    "nan_inf": "reject",
+    "row_storage": "exactly 2*K bytes"
+  },
+  "output": {
+    "weights_dtype": "F8_E4M3",
+    "codec_semantics": "E4M3FN (finite-only E4M3 with NaN encodings rejected)",
+    "weights_shape": "[K]",
+    "weights_endianness": "byte",
+    "scale_dtype": "BF16",
+    "scale_shape": "[1]",
+    "scale_endianness": "little",
+    "dequantization": "decode_e4m3fn(weight[k]) * decode_bf16(scale)"
+  },
+  "arithmetic": {
+    "intermediate": "binary32",
+    "binary32_rounding": "nearest_even",
+    "bf16_rounding": "nearest_even",
+    "e4m3fn_rounding": "nearest_even",
+    "tie_rule": "at an adjacent-code midpoint select the code with an even least-significant bit",
+    "e4m3fn_finite_max": 448.0,
+    "e4m3fn_nan_codes": ["0x7f", "0xff"],
+    "finite_saturation": "magnitudes >= 448 encode as +/-448 (0x7e/0xfe)",
+    "signed_zero": "preserve",
+    "zero_row": "BF16 max_abs == 0 stores scale 1.0 and preserves each signed zero"
+  },
+  "runtime_projection": {
+    "activation_scale": "dynamic per-token binary32_rne(max_abs / 448.0)",
+    "activation_all_zero_scale": "1.0",
+    "activation_bytes": "E4M3FN byte codes",
+    "accumulation": "FP32",
+    "scale_order": "(accumulator * input_scale) * weight_scale",
+    "output_boundary": "BF16 RNE closure"
+  },
+  "scale": {
+    "axis": "output_row",
+    "nonzero": "bf16_rne(binary32_rne(max_abs / 448.0))",
+    "all_zero": "BF16 1.0 (0x3f80)",
+    "positive_underflow": "clamp to minimum positive BF16 subnormal (0x0001)",
+    "stored_scale_must_be": "finite and positive"
+  },
+  "histogram": {
+    "bins": 256,
+    "index": "emitted FP8 byte code",
+    "saturation_count": "normalized finite magnitudes strictly greater than 448 before saturation"
+  },
+  "telemetry": {
+    "row_metrics": [
+      "element_count",
+      "source_min",
+      "source_max",
+      "source_sum_squares",
+      "reconstruction_sum_squares",
+      "source_reconstruction_dot",
+      "error_sum_squares",
+      "max_absolute_error"
+    ],
+    "element_order": "logical source row order k=0..K-1",
+    "source_value_precision": "decoded BF16 represented as binary32",
+    "reconstruction": "binary32_rne(decode_e4m3fn(code) * decode_bf16(stored_scale))",
+    "accumulation_precision": "binary64 Python float",
+    "partial_row_accumulation": "each row contribution is computed before matrix aggregation",
+    "accumulation_order": "left-to-right in logical source row order",
+    "sum_definitions": {
+      "source_sum_squares": "sum(source[k] * source[k])",
+      "reconstruction_sum_squares": "sum(reconstruction[k] * reconstruction[k])",
+      "source_reconstruction_dot": "sum(source[k] * reconstruction[k])",
+      "error_sum_squares": "sum((source[k] - reconstruction[k]) * (source[k] - reconstruction[k]))",
+      "max_absolute_error": "max(abs(source[k] - reconstruction[k]))"
+    },
+    "matrix_aggregate_definitions": {
+      "relative_l2_error": "sqrt(error_sum_squares) / sqrt(source_sum_squares), or 0.0 for a zero source",
+      "cosine_similarity": "source_reconstruction_dot / (sqrt(source_sum_squares) * sqrt(reconstruction_sum_squares))",
+      "cosine_clamp": "clamp cosine_similarity to [-1.0, 1.0] after division",
+      "zero_vector": "relative_l2_error=0.0 and cosine_similarity=1.0 when both norms are zero; otherwise cosine_similarity=0.0 when a norm is zero",
+      "sqnr_db": "10 * log10(source_sum_squares / error_sum_squares), or null when reconstruction is perfect or source energy is zero",
+      "perfect_reconstruction": "error_sum_squares == 0.0; sqnr_db is null",
+      "saturation_rate": "saturation_count / elements",
+      "finite_json": "every emitted floating-point statistic is finite; only the perfect/zero-energy SQNR sentinel may be null"
+    }
+  },
+  "memory": {
+    "source_materialization": "one row",
+    "conversion_cache": "row-local BF16-bit keyed",
+    "required_dependencies": "Python standard library only"
+  }
+}

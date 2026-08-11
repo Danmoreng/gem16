@@ -52,7 +52,13 @@ Do not use `main`, tags without resolved commits or approximate file sizes.
     "dirty": false,
     "python": "...",
     "platform": "...",
-    "dependencies_lock_sha256": "..."
+    "dependencies_lock_sha256": "...",
+    "implementation": "gem16_compile_m05_native_v1",
+    "native_backend": {
+      "protocol": "gem16-fp8-batch-v1",
+      "sha256": "...",
+      "toolchain": "..."
+    }
   },
   "quantization": {
     "attention": "fp8-per-channel-v1",
@@ -89,7 +95,22 @@ A release compiler run is valid only when:
 - shard and tensor ordering are deterministic;
 - no random calibration is used without a pinned seed and corpus;
 - output files are written atomically;
-- a second clean build produces identical hashes.
+- a second clean build produces identical hashes for complete-artifact milestones.
+
+M04 retains the accepted Python standard-library scaffold and its synthetic two-run reproducibility gate. For M05,
+the promoted attention conversion must use the explicitly selected versioned native C++20 batch backend. Python is
+oracle/fixture/report support only, never a production fallback. M05 performs one native full 115-matrix Ordinary-BF16
+run and one native full 115-matrix QAT-BF16 run; it does not perform duplicate Python/native conversion or a second
+full M05 artifact run solely for reproducibility. Native exhaustive codec tests, byte-golden rows, bounded
+threads-1-versus-N fixtures and complete output hashes establish M05 determinism. A short native throughput probe
+precedes any full run, and a projected long run requires explicit owner approval.
+
+M06 and M07 follow the same partial-stage policy: one native full Ordinary-BF16 conversion and one native full QAT-BF16
+conversion per selected profile or head candidate. Do not add a second full partial artifact solely for reproducibility;
+use exhaustive native codec tests, byte fixtures, bounded thread-identity fixtures, complete output hashes and small
+independent oracles. If M07 evaluates both Q4_0 and NVFP4 heads, each candidate is compiled once per required source
+and the retained outputs are compared. This policy does not waive M08's two-clean-build requirement for the final
+complete artifact.
 
 If deterministic bytes cannot be achieved across operating systems, designate one reference compiler platform and require semantic reproducibility elsewhere. Record the reason. Do not quietly accept varying output.
 
@@ -108,7 +129,11 @@ source lock
   → benchmark/quality result containing artifact lock hash
 ```
 
-Every report must carry the final artifact lock SHA-256. File paths alone are insufficient.
+Every report must carry the final artifact lock SHA-256. File paths alone are insufficient. Native conversion reports
+also carry the backend protocol, binary hash, native compiler/toolchain identity and explicit thread count. Until M08
+supplies the external derived-artifact lock, standalone M05 verification is structural, hash and source-lock-only, does
+not reconvert tensors, and must disclose `transformation_recomputed=false`; it must not claim mutable-manifest
+adversarial binding.
 
 ## Artifact hosting
 
@@ -183,4 +208,8 @@ This information belongs in machine-readable JSON as well as human-readable rele
 
 ## External implementation provenance
 
-When a donor runtime supplies parsing logic, fixtures or code, record its repository, commit, path, license, source hash, adoption mode and destination. Checkpoint provenance and code provenance are separate records and both are required.
+When a donor runtime supplies parsing logic, fixtures or code, record its repository, commit, path, license, source
+hash, adoption mode and destination. Checkpoint provenance and code provenance are separate records and both are
+required. For llama.cpp, the local research evidence is version-scoped to commit
+`0b14b87d7c20cb753b94b96854dd7b45306fc696`; the desired benchmark pin is separately recorded as
+`153d324bcf86d220b235ca010eeb11213f32b5d1`. An ignored cache checkout is never an implicit build dependency.

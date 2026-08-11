@@ -17,10 +17,29 @@
     "excluded_tensors",
     "reference_environment"
   ],
+  "allOf": [
+    {
+      "if": {"properties": {"artifact_profile": {"const": "synthetic-copy-v1"}}},
+      "then": {"properties": {"head_format": {"const": "source"}}}
+    },
+    {
+      "if": {"properties": {"artifact_profile": {"const": "fp8-attention-partial-v1"}}},
+      "then": {
+        "properties": {
+          "head_format": {"const": "deferred"},
+          "source_contract": {"const": "gemma4-26b-source-bf16-attention-v1"},
+          "source_lock_sha256": {"enum": [
+            "1932b06d568ce8c72f3d2013d39ffd15dd61d37732638c2013f2220eb177a620",
+            "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230"
+          ]}
+        }
+      }
+    }
+  ],
   "properties": {
     "schema_version": {"const": 1},
-    "artifact_profile": {"type": "string", "minLength": 1},
-    "head_format": {"enum": ["source", "q4_0", "nvfp4"]},
+    "artifact_profile": {"enum": ["synthetic-copy-v1", "fp8-attention-partial-v1"]},
+    "head_format": {"enum": ["source", "deferred"]},
     "source_contract": {"type": "string", "minLength": 1},
     "source_lock_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "target_shard_bytes": {"type": "integer", "minimum": 1},
@@ -83,7 +102,7 @@
           "minItems": 1,
           "items": {"type": "string", "minLength": 1}
         },
-        "encoder": {"type": "string", "minLength": 1},
+        "encoder": {"enum": ["copy-v1", "fp8-rowwise-weight-v1", "fp8-rowwise-scale-v1"]},
         "transformation": {"type": "string", "minLength": 1},
         "transformation_version": {"type": "integer", "minimum": 1},
         "output_dtype": {"type": "string", "minLength": 1},
@@ -98,7 +117,47 @@
         "disk_layout": {"type": "string", "minLength": 1},
         "runtime_layout": {"type": "string", "minLength": 1},
         "aliased": {"type": "boolean"}
-      }
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"encoder": {"const": "copy-v1"}}},
+          "then": {
+            "properties": {
+              "quantizer_parameters": {"const": {}},
+              "transformation": {"const": "identity-copy"},
+              "output_dtype": {"type": "string"}
+            }
+          }
+        },
+        {
+          "if": {"properties": {"encoder": {"enum": ["fp8-rowwise-weight-v1", "fp8-rowwise-scale-v1"]}}},
+          "then": {
+            "properties": {
+              "quantizer_parameters": {
+                "const": {
+                  "contract_id": "gem16.fp8_attention_rowwise",
+                  "contract_version": 1,
+                  "source_dtype": "BF16",
+                  "output_dtype": "F8_E4M3",
+                  "codec": "E4M3FN",
+                  "scale_dtype": "BF16",
+                  "scale_axis": "output_row",
+                  "finite_max": 448.0,
+                  "rounding": "nearest_even",
+                  "signed_zero": "preserve",
+                  "zero_row_scale": "1.0",
+                  "underflow": "minimum_positive_bf16_subnormal"
+                }
+              },
+              "transformation_version": {"const": 1},
+              "axis_transformation": {"const": "identity"},
+              "logical_dtype": {"const": "BF16"},
+              "residency_class": {"const": "immutable_device_text"},
+              "aliased": {"const": false}
+            }
+          }
+        }
+      ]
     },
     "excluded": {
       "type": "object",

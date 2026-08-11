@@ -1,9 +1,12 @@
 # Roadmap
 
-Current stage: pause the Gemma 4 26B A4B program after owner acceptance of M04 on the long-lived
-`feat/gemma4-26b` branch while preserving the mature 12B product path. M00-M04 are accepted. M05 is dependency-
-unblocked but has not started and remains paused by explicit owner instruction. The bounded Linux short-context
-ordinary-decode
+Current stage: execute the owner-authorized M05 native-converter slice for the Gemma 4 26B A4B program on the
+long-lived `feat/gemma4-26b` branch while preserving the mature 12B product path. M00-M04 are accepted. M05 is
+current/in progress; M06+ remain dependency-gated. The compiler architecture is the accepted hybrid control-plane /
+native-data-plane design: M04 Python `copy-v1` is byte movement only, while promoted large tensor arithmetic belongs
+to one shared versioned C++20 converter family. See [NATIVE_CONVERTER_ARCHITECTURE.md](plans/gemma4-26b/specs/NATIVE_CONVERTER_ARCHITECTURE.md)
+and the version-scoped [llama.cpp research](evidence/gemma4_26b/m05-llama-cpp-converter-research-2026-08-11.md).
+The bounded Linux short-context ordinary-decode
 investigation, direct all-regions memory-reserve record, 16K D2 performance sprint and Windows regression are
 complete and remain regression evidence rather than active optimization scope.
 
@@ -72,9 +75,19 @@ prefill program; it no longer owns execution order.
 ## Active track: Gemma 4 26B A4B
 
 The active implementation program is the experimental Gemma 4 26B A4B track. M00 defines accepted governance and
-the artifact contract; M01 source locks/goldens, M02 model configuration/static traits and M03 exact tensor
-inventory and M04 deterministic checkpoint compiler scaffold are accepted. M05 FP8 compiler is next but has not
-started; no production compiler quantizer or 26B runtime execution exists yet. Its binding entry points are:
+the artifact contract; M01 source locks/goldens, M02 model configuration/static traits, M03 exact tensor inventory
+and M04 deterministic checkpoint compiler scaffold are accepted. M05 FP8 compiler is current/in progress under the
+owner's 2026-08-11 authorization after the prior pause. The native C++20 implementation, exact Ordinary/QAT plans,
+short throughput probe, one diagnostic full Ordinary run, one diagnostic full QAT run, structural verification and
+weight-only comparison are retained in [M05 diagnostic evidence](evidence/gemma4_26b/m05-native-fp8-implementation-and-diagnostic-runs-2026-08-11.md).
+All currently retained M05 compiler artifacts record `compiler_dirty=true`; they are diagnostic evidence, not an
+accepted M05 gate. The owner has authorized the implementation commit and clean-revision evidence runs. The remaining
+gates are that clean native build, one clean Ordinary plus one clean QAT run, final verification/review and final
+hashes/status. No production 26B runtime execution exists. The initial kickoff and drift record remains in the
+[M05 kickoff](evidence/gemma4_26b/m05-kickoff-2026-08-11.md). Its binding architecture is the shared native converter
+design in [NATIVE_CONVERTER_ARCHITECTURE.md](plans/gemma4-26b/specs/NATIVE_CONVERTER_ARCHITECTURE.md), with the
+version-scoped [llama.cpp research](evidence/gemma4_26b/m05-llama-cpp-converter-research-2026-08-11.md). Its
+binding entry points are:
 
 1. [GEMMA4_26B.md](GEMMA4_26B.md)
 2. [plans/gemma4-26b/START_HERE_CODEX.md](plans/gemma4-26b/START_HERE_CODEX.md)
@@ -85,7 +98,12 @@ Keep M03 and all later work on the long-lived `feat/gemma4-26b` branch created f
 foundation on `main`. All M03-M25 implementation stays on that branch. Milestone scope, evidence, commits and exit
 gates remain isolated; do not create per-milestone development branches. M03 freezes exact QAT/ordinary BF16 and
 external Unsloth tensor contracts, a separate future compiled
-contract and a conservative aligned 14,696,668,160-byte weight estimate. M04 adds a clean-commit, bounded-window,
+contract and a conservative aligned 14,696,668,160-byte weight estimate. M05 is limited to deterministic bounded
+host BF16-to-E4M3FN attention Q/K/V/O encoding with BF16 per-output-row scales, reports and comparisons. The
+promoted conversion is a versioned native C++20 batch backend; Python is oracle/fixture/report support only and
+never a production fallback. One native full Ordinary run and one native full QAT run follow a short throughput
+probe; duplicate full conversions are not required. M05 does not change runtime activation or accumulation behavior.
+M04 adds a clean-commit, bounded-window,
 atomic offline compiler with byte-identical synthetic output only; its two canonical fixture runs match all nine
 artifact files and remain explicitly non-runtime-loadable. The direct synthetic 32K CUDA admission
 leaves 818,741,248 bytes free after every named region, passing the 700 MiB gate. The direct Unsloth evidence remains

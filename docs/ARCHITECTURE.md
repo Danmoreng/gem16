@@ -16,16 +16,32 @@ strict contract. Passing source inspection does not make the 26B runtime executa
 
 ## Offline 26B compiler boundary
 
-`tools/compile_gemma4_26b.py` and `tools/gem16_compile/` own derived-checkpoint planning, bounded source access,
-encoder dispatch, deterministic Safetensors writing, atomic publication, provenance and offline verification. This
-Python standard-library tool is not linked, imported or invoked by the C++ runtime. The inference process never
-quantizes or writes weights.
+`tools/compile_gemma4_26b.py` and `tools/gem16_compile/` currently own the control plane for derived-checkpoint
+planning, immutable source verification, exact tensor coverage, schema/evidence, deterministic Safetensors writing,
+atomic publication, provenance and offline verification. M04's accepted Python standard-library scaffold contains
+only byte-identical `copy-v1`: it moves bytes and is not tensor quantization. It is not a precedent for Python
+production tensor loops.
 
-The compiler verifies the entire immutable source lock before interpreting a tensor payload. A versioned compiler
-plan covers each source tensor through one explicit operation or exclusion. Encoders receive only their declared
-source descriptors and bounded read-only mmap windows. Files are staged in a sibling `.incomplete` directory and
-published by one verified same-filesystem rename. M04 contains only a non-runtime `copy-v1` scaffold; M05-M07 own
-numeric encoders and M08 owns the first loadable artifact and external derived lock.
+M05 introduces the native data plane through `gem16-fp8-compiler`. The promoted architecture is hybrid: Python may
+own locks, exact model-specific plans, schema/report orchestration and small independent oracles, while all promoted
+large tensor arithmetic and billion-element comparisons belong to one shared versioned native C++20 converter family.
+M06 NVFP4, M07 head encoders and M18 large comparisons extend that data plane; they must not create separate Python
+numerical converters. Native support is selected explicitly and unavailable support fails visibly; no silent precision,
+layout or Python fallback is allowed. The planned common family is `gem16-checkpoint-compiler`; the current M05
+executable is its seed, not yet the final generic user-facing name. See
+[the native converter architecture](plans/gemma4-26b/specs/NATIVE_CONVERTER_ARCHITECTURE.md).
+
+The compiler verifies the entire immutable source lock before interpreting a tensor payload. A versioned compiler plan
+covers each source tensor through one explicit operation or exclusion. Native jobs receive only their declared source
+ranges and bounded row buffers, emit final-format components directly, and report deterministic hashes/telemetry. Files
+are staged in a sibling `.incomplete` directory and published by one verified same-filesystem rename. The inference
+process never quantizes or writes weights.
+
+The local llama.cpp conversion research is a version-scoped engineering reference, not a runtime dependency or Gem16
+format contract. Its separation of model mapping from native codecs, multithreaded block conversion and reference
+versus optimized tests are useful patterns. Its intermediate GGUF flow, permissive fallback behavior, weaker
+provenance/memory/publication guarantees and ignored-cache dependency are not adopted. See
+[evidence/gemma4_26b/m05-llama-cpp-converter-research-2026-08-11.md](evidence/gemma4_26b/m05-llama-cpp-converter-research-2026-08-11.md).
 
 ## Hardware backend boundary
 

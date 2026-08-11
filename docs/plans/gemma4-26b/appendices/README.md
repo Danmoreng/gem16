@@ -1,6 +1,9 @@
 # Appendices
 
-Supporting calculations, mappings, commands, terminology and failure analysis.
+Supporting calculations, mappings, commands, terminology and failure analysis. Before M06, M07 or M18 work,
+agents must also read the binding native converter architecture and the version-scoped llama.cpp research evidence:
+[`../specs/NATIVE_CONVERTER_ARCHITECTURE.md`](../specs/NATIVE_CONVERTER_ARCHITECTURE.md) and
+[`../../../evidence/gemma4_26b/m05-llama-cpp-converter-research-2026-08-11.md`](../../../evidence/gemma4_26b/m05-llama-cpp-converter-research-2026-08-11.md).
 
 | File | Topic |
 |---|---|

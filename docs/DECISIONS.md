@@ -1,5 +1,82 @@
 # Decisions
 
+## 2026-08-11: Use one hybrid control-plane/native-data-plane checkpoint compiler family
+
+Date: 2026-08-11
+
+Owner acceptance: accepted on 2026-08-11 after the local llama.cpp conversion research recorded in
+[evidence/gemma4_26b/m05-llama-cpp-converter-research-2026-08-11.md](evidence/gemma4_26b/m05-llama-cpp-converter-research-2026-08-11.md).
+
+Decision: Keep the accepted M04 Python standard-library implementation as the canonical control-plane scaffold for
+source locks, exact model mapping and plans, complete coverage, schema/evidence, Safetensors publication, provenance,
+atomic publication and byte-identical `copy-v1` synthetic evidence. `copy-v1` moves bytes; it is not tensor
+quantization and does not establish Python as the production numerical backend. The enduring compiler design is a
+strict hybrid: Python may own immutable-source verification, exact model-specific plan generation, schema/evidence,
+canonical publication orchestration and small independent oracles, while all promoted large tensor arithmetic and
+billion-element comparisons run in one shared, versioned native C++20 converter library/tool. A vetted Python tensor
+library may be used only under an explicit diagnostic/reference decision. No Python elementwise production loop and
+no silent fallback is permitted.
+
+M05's native FP8 batch backend is the first implementation. Before M06, its reusable core should be generalized toward
+one `gem16-checkpoint-compiler` family rather than separate Python/NVFP4/Q4 converters. M06 NVFP4, M07 Q4_0/NVFP4
+head work and large M18 comparisons extend the same native data plane. M08 assembles the immutable artifact; Python
+orchestration may remain initially because it is not the numerical performance bottleneck, while the user-facing flow
+remains one command. A later C++ control-plane migration requires evidence and a separate decision.
+
+For M05-M07 partial numerical stages, use one complete native Ordinary-BF16 conversion and one complete native
+QAT-BF16 conversion for each selected profile or head candidate. Do not create a second full partial artifact solely
+for reproducibility, and do not repeat the same source through Python and native production paths. Determinism comes
+from exhaustive native codec tests, byte-golden fixtures, bounded thread-identity tests, complete output hashes and
+small independent oracles. If M07 evaluates two head candidates, each candidate is run once per required source;
+comparisons reuse those retained outputs. M08 is different: its final complete text-only artifact still requires two
+clean builds with identical hashes, as required by the complete-artifact provenance gate.
+
+Read locked Safetensors directly into final-format output; do not introduce llama.cpp's large BF16/F16 intermediate
+GGUF as a Gem16 conversion stage. llama.cpp is an engineering reference, not the Gem16 format contract. Concepts may
+be adopted only after exact-contract tests. Copied MIT code requires an exact source pin, retained license/provenance
+and an explicit decision; ignored cache source must never become an unpinned runtime/build dependency. Gem16 retains
+stronger source hashes, bounded-memory limits, visible unsupported-path failures, no precision/layout fallback and
+atomic publication rules.
+
+The research is version-scoped: it inspected the clean local llama.cpp checkout at commit
+`0b14b87d7c20cb753b94b96854dd7b45306fc696`, while the repository's desired benchmark pin currently names
+`153d324bcf86d220b235ca010eeb11213f32b5d1`. It must not be described as a current-upstream survey.
+
+Consequences: M00-M04 remain accepted. M05 is in progress; native C++ batch code exists in the dirty worktree with
+bounded host and sanitizer tests reported, but independent final review, a short native throughput probe and one full
+Ordinary/QAT run remain. No long run is approved or started by this decision. M06+ remain dependency-gated, and the
+mature 12B path is unchanged. The binding architecture is
+[`specs/NATIVE_CONVERTER_ARCHITECTURE.md`](plans/gemma4-26b/specs/NATIVE_CONVERTER_ARCHITECTURE.md).
+
+## 2026-08-11: Make native C++ the promoted M05 encoder and avoid duplicate full conversions
+
+Date: 2026-08-11
+
+Owner acceptance: accepted on 2026-08-11.
+
+Decision: Preserve the accepted M04 Python standard-library scaffold as the canonical implementation for compiler
+plans, source-lock verification, complete source coverage, Safetensors publication and provenance, atomic
+publication, and `copy-v1` synthetic evidence. For M05, the promoted BF16-to-FP8 attention conversion must use a
+versioned native C++20 batch backend. The existing Python FP8 implementation is retained as an oracle, fixture and
+comparison/report support path only; it is never a production conversion fallback. M05 full conversion means one
+native run over all 115 attention matrices for Ordinary BF16 and one native run over all 115 attention matrices for
+QAT BF16. Do not perform duplicate Python/native conversions or a second full M05 artifact run solely for
+reproducibility. Determinism is established by exhaustive native codec tests, byte-golden rows, bounded threads
+1-versus-N fixtures, complete output hashes and one full native run per source. M04 synthetic reproducibility and
+M08 complete-artifact reproducibility remain unchanged.
+
+Standalone M05 verification is structural, hash and source-lock verification and does not reconvert tensors. Until
+M08 supplies an external derived-artifact lock, M05 verification must disclose
+`transformation_recomputed=false` and must not claim protection against a mutable manifest rewriting its own
+recorded hashes. A real full conversion may start only after a short native throughput probe; if the measured run is
+projected to be long, it requires explicit owner approval first.
+
+Consequences: M05 is currently implementation-in-progress and remains non-runtime-loadable. The native backend must
+fail visibly when unavailable; no silent Python fallback, M06/M07/M08 work, runtime activation/accumulation change,
+or 12B change is authorized by this decision. The M05 plan, CLI, compiler provenance and evidence must identify the
+native protocol/version and explicit thread count. This decision narrows M05's reproducibility evidence only; it does
+not weaken the accepted M04 or future complete-artifact contracts.
+
 ## 2026-08-11: Use a canonical Linux, bounded-window, restart-only 26B compiler scaffold
 
 Date: 2026-08-11

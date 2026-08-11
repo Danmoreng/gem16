@@ -16,10 +16,13 @@ from .common import (
     compact_json_bytes,
     fsync_directory,
     safe_relative_path,
+    write_all,
     write_file_atomic,
 )
 from .encoders import EncoderResult, TensorEncoder
+from .native_fp8 import NativeBundle, NativeBundleEncoder
 from .plan import QuantizationPlan, TensorCompilePlan
+from .profiles import profile_for
 from .reader import TensorDescriptor
 
 
@@ -76,13 +79,14 @@ def assign_shards(plan: QuantizationPlan) -> tuple[ShardAssignment, ...]:
 
 
 def safetensors_header(
-    tensors: tuple[TensorCompilePlan, ...]
+    tensors: tuple[TensorCompilePlan, ...],
+    artifact_label: str = "m04-synthetic-copy-scaffold",
 ) -> tuple[bytes, dict[str, tuple[int, int]]]:
     offset = 0
     metadata: dict[str, Any] = {
         "__metadata__": {
             "format": "pt",
-            "gem16_artifact": "m04-synthetic-copy-scaffold",
+            "gem16_artifact": artifact_label,
         }
     }
     offsets: dict[str, tuple[int, int]] = {}
@@ -114,16 +118,24 @@ def write_shards(
     source_tensors: dict[str, TensorDescriptor],
     workspace: BoundedWorkspace,
     encoders: dict[str, TensorEncoder],
+    native_bundle: NativeBundle | None = None,
 ) -> WrittenArtifactPayload:
     assignments = assign_shards(plan)
+    profile = profile_for(plan.artifact_profile, plan.head_format)
+    if native_bundle is not None:
+        encoders = dict(encoders)
+        encoders["fp8-rowwise-weight-v1"] = NativeBundleEncoder(native_bundle, "weight")
+        encoders["fp8-rowwise-scale-v1"] = NativeBundleEncoder(native_bundle, "scale")
     written: list[WrittenTensor] = []
     weight_map: dict[str, str] = {}
     for assignment in assignments:
-        header, offsets = safetensors_header(assignment.tensors)
+        header, offsets = safetensors_header(
+            assignment.tensors, artifact_label=profile.header_label
+        )
         workspace.record_header(len(header) - 8, f"building {assignment.name} header")
         path = staging / assignment.name
         with _open_exclusive(path) as output:
-            output.write(header)
+            write_all(output, header, f"writing {assignment.name} header")
             for tensor in assignment.tensors:
                 encoder = encoders.get(tensor.encoder)
                 if encoder is None:

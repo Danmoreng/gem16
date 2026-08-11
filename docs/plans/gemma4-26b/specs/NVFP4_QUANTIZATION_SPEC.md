@@ -2,6 +2,10 @@
 
 ## Role
 
+NVFP4 is implemented as a future native extension of the shared converter architecture in
+[`NATIVE_CONVERTER_ARCHITECTURE.md`](NATIVE_CONVERTER_ARCHITECTURE.md). Python may provide small reference fixtures
+only; it is not a promoted NVFP4 conversion path.
+
 NVFP4 is the production format for:
 
 - routed expert gate/up/down weights;
@@ -141,6 +145,9 @@ Google's QAT master was trained for Q4_0 behavior, not necessarily NVFP4 W4A4. A
 
 ## Tests
 
+The native C++ backend must be the normative implementation and must emit coupled weight/scales/divisors from one
+bounded source traversal. Test the same backend with explicit thread counts and never silently fall back to Python.
+
 - exhaustive E2M1/E4M3 codecs;
 - divisor convention;
 - zero and outlier blocks;
@@ -150,6 +157,16 @@ Google's QAT master was trained for Q4_0 behavior, not necessarily NVFP4 W4A4. A
 - ordinary versus Unsloth;
 - QAT versus ordinary activation drift;
 - deterministic artifact bytes.
+
+## llama.cpp reference boundary
+
+The local llama.cpp research is useful for native E2M1 packing, 16-element grouping, UE4M3 codec tests and threaded
+block work, but it is not this contract. Its GGML NVFP4 layout combines four groups into a 64-element block, applies a
+UE4M3/2 convention with a doubled FP4 lookup, and its CPU reference uses producer-specific scale behavior including an
+`amax/6` policy. Its selective `--tensor-type nvfp4` path does not establish Gem16's complete mixed artifact or
+activation/global-scale semantics. Do not copy its bytes, scale direction or tie rules without a versioned differential
+test and provenance decision. See [`NATIVE_CONVERTER_ARCHITECTURE.md`](NATIVE_CONVERTER_ARCHITECTURE.md) and the
+version-scoped llama research evidence linked there.
 
 ## Producer-specific global-scale semantics
 

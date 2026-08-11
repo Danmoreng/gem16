@@ -23,15 +23,41 @@
     "byte_totals",
     "compiler_settings"
   ],
+  "allOf": [
+    {
+      "oneOf": [
+        {
+          "properties": {
+            "artifact_profile": {"const": "synthetic-copy-v1"},
+            "artifact_status": {"const": "m04_scaffold_not_runtime_loadable"},
+            "head_format": {"const": "source"},
+            "compiler": {"$ref": "#/$defs/compilerM04"},
+            "quantization": {"$ref": "#/$defs/quantizationM04"},
+            "compiler_settings": {"$ref": "#/$defs/settingsM04"}
+          }
+        },
+        {
+          "properties": {
+            "artifact_profile": {"const": "fp8-attention-partial-v1"},
+            "artifact_status": {"const": "m05_fp8_attention_partial_not_runtime_loadable"},
+            "head_format": {"const": "deferred"},
+            "compiler": {"$ref": "#/$defs/compilerM05"},
+            "quantization": {"$ref": "#/$defs/quantizationM05"},
+            "compiler_settings": {"$ref": "#/$defs/settingsM05"}
+          }
+        }
+      ]
+    }
+  ],
   "properties": {
     "schema_version": {"const": 1},
-    "artifact_profile": {"type": "string", "minLength": 1},
-    "artifact_status": {"type": "string", "minLength": 1},
+    "artifact_profile": {"enum": ["synthetic-copy-v1", "fp8-attention-partial-v1"]},
+    "artifact_status": {"enum": ["m04_scaffold_not_runtime_loadable", "m05_fp8_attention_partial_not_runtime_loadable"]},
     "source": {"$ref": "#/$defs/source"},
     "compiler": {"$ref": "#/$defs/compiler"},
     "plan": {"$ref": "#/$defs/plan"},
     "quantization": {"type": "object"},
-    "head_format": {"type": "string", "minLength": 1},
+    "head_format": {"enum": ["source", "deferred"]},
     "text_only": {"const": true},
     "omitted_families": {
       "const": ["audio", "mtp", "video", "vision"]
@@ -94,7 +120,52 @@
         "python": {"type": "string", "minLength": 1},
         "platform": {"type": "object"},
         "dependencies_lock_sha256": {"$ref": "#/$defs/sha256"},
-        "implementation": {"type": "string", "minLength": 1}
+        "implementation": {"enum": ["gem16_compile_m04_v1", "gem16_compile_m05_native_v1"]},
+        "native_encoder": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["protocol", "sha256", "threads", "build"],
+          "properties": {
+            "protocol": {"const": "gem16-fp8-batch-v1"},
+            "sha256": {"$ref": "#/$defs/sha256"},
+            "threads": {"type": "integer", "minimum": 1, "maximum": 64},
+            "build": {"$ref": "#/$defs/nativeBuild"}
+          }
+        }
+      }
+    },
+    "compilerM04": {
+      "allOf": [
+        {"$ref": "#/$defs/compiler"},
+        {"properties": {"implementation": {"const": "gem16_compile_m04_v1"}}},
+        {"not": {"required": ["native_encoder"]}}
+      ]
+    },
+    "compilerM05": {
+      "allOf": [
+        {"$ref": "#/$defs/compiler"},
+        {
+          "required": ["native_encoder"],
+          "properties": {"implementation": {"const": "gem16_compile_m05_native_v1"}}
+        }
+      ]
+    },
+    "quantizationM04": {
+      "const": {
+        "profile": "synthetic-copy-v1",
+        "attention": "copy-v1-scaffold",
+        "experts": "copy-v1-scaffold",
+        "embedding_head": "source-copy-v1",
+        "production_quantization_implemented": false
+      }
+    },
+    "quantizationM05": {
+      "const": {
+        "profile": "fp8-attention-partial-v1",
+        "attention": "fp8-per-output-row-v1",
+        "experts": "deferred-to-m06",
+        "embedding_head": "deferred-to-m07",
+        "production_quantization_implemented": false
       }
     },
     "plan": {
@@ -113,6 +184,19 @@
         "resolved_plan_sha256": {"$ref": "#/$defs/sha256"},
         "source_contract": {"type": "string", "minLength": 1},
         "target_shard_bytes": {"type": "integer", "minimum": 1}
+      }
+    },
+    "nativeBuild": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["compiler_id", "compiler_version", "build_type", "cxx_standard", "system", "processor"],
+      "properties": {
+        "compiler_id": {"type": "string", "minLength": 1},
+        "compiler_version": {"type": "string", "minLength": 1},
+        "build_type": {"type": "string", "minLength": 1},
+        "cxx_standard": {"type": "string", "minLength": 1},
+        "system": {"type": "string", "minLength": 1},
+        "processor": {"type": "string", "minLength": 1}
       }
     },
     "range": {
@@ -281,12 +365,24 @@
         "resume_policy"
       ],
       "properties": {
-        "threads": {"const": 1},
+        "threads": {"type": "integer", "minimum": 1, "maximum": 64},
         "host_memory_cap_bytes": {"type": "integer", "minimum": 1},
         "staging_buffer_bytes": {"type": "integer", "minimum": 4096},
         "reference_platform_strict": {"type": "boolean"},
         "resume_policy": {"const": "restart-only"}
       }
+    },
+    "settingsM04": {
+      "allOf": [
+        {"$ref": "#/$defs/settings"},
+        {"properties": {"threads": {"const": 1}}}
+      ]
+    },
+    "settingsM05": {
+      "allOf": [
+        {"$ref": "#/$defs/settings"},
+        {"properties": {"threads": {"type": "integer", "minimum": 1, "maximum": 64}}}
+      ]
     }
   }
 }

@@ -14,6 +14,7 @@ try:
         CompilerError,
         InvalidPlanError,
         canonical_json_bytes,
+        write_file_atomic,
     )
     from tools.gem16_compile.compiler import (
         DEPENDENCIES_LOCK,
@@ -29,6 +30,7 @@ except ModuleNotFoundError:  # Direct execution from outside the repository root
         CompilerError,
         InvalidPlanError,
         canonical_json_bytes,
+        write_file_atomic,
     )
     from gem16_compile.compiler import (  # type: ignore[no-redef]
         DEPENDENCIES_LOCK,
@@ -65,9 +67,19 @@ def add_source_options(parser: argparse.ArgumentParser) -> None:
         help="Hugging Face hub cache root containing the locked snapshot",
     )
     parser.add_argument("--compiler-manifest", type=Path, required=True)
-    parser.add_argument("--profile", required=True)
     parser.add_argument(
-        "--head-format", choices=("source", "q4_0", "nvfp4"), required=True
+        "--profile",
+        required=True,
+        help=(
+            "versioned compiler profile: synthetic-copy-v1 (M04) or "
+            "fp8-attention-partial-v1 (M05)"
+        ),
+    )
+    parser.add_argument(
+        "--head-format",
+        choices=("source", "q4_0", "nvfp4", "deferred"),
+        required=True,
+        help="profile-bound embedding/head format; M05 uses deferred",
     )
     parser.add_argument("--max-host-memory", type=positive_integer, required=True)
     parser.add_argument("--staging-bytes", type=positive_integer, default=1024 * 1024)
@@ -98,6 +110,14 @@ def build_parser() -> argparse.ArgumentParser:
     compile_parser.add_argument("--output", type=Path, required=True)
     compile_parser.add_argument("--report", type=Path, required=True)
     compile_parser.add_argument("--resume", action="store_true")
+    compile_parser.add_argument(
+        "--native-encoder", type=Path,
+        help="required for M05: path to gem16-fp8-compiler",
+    )
+    compile_parser.add_argument(
+        "--native-timeout-seconds", type=positive_integer, default=600,
+        help="M05 native encoder timeout (default: 600)",
+    )
     compile_parser.add_argument(
         "--allow-dirty",
         action="store_true",
@@ -140,6 +160,8 @@ def request_from_args(args: argparse.Namespace) -> CompilerRequest:
         threads=args.threads,
         reference_platform_strict=args.reference_platform_strict,
         dependencies_lock=args.dependencies_lock,
+        native_encoder=getattr(args, "native_encoder", None),
+        native_timeout_seconds=getattr(args, "native_timeout_seconds", 600),
     )
 
 
@@ -149,11 +171,17 @@ def write_failure_report(args: argparse.Namespace, error: CompilerError) -> None
         return
     try:
         report.parent.mkdir(parents=True, exist_ok=True)
-        report.write_bytes(
+        write_file_atomic(
+            report,
             canonical_json_bytes(
                 {
                     "schema_version": 1,
-                    "milestone": "M04",
+                    "milestone": (
+                        "M05"
+                        if getattr(args, "profile", None)
+                        == "fp8-attention-partial-v1"
+                        else "M04"
+                    ),
                     "action": args.action,
                     "status": "fail",
                     "exit_code": error.exit_code,
@@ -161,7 +189,7 @@ def write_failure_report(args: argparse.Namespace, error: CompilerError) -> None
                 }
             )
         )
-    except OSError:
+    except (OSError, CompilerError):
         pass
 
 
@@ -182,7 +210,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 if args.report.exists() or args.report.is_symlink():
                     raise InvalidPlanError(f"compiler report already exists: {args.report}")
                 args.report.parent.mkdir(parents=True, exist_ok=True)
-                args.report.write_bytes(canonical_json_bytes(report))
+                write_file_atomic(args.report, canonical_json_bytes(report))
             elif args.action == "compile":
                 if args.resume:
                     raise InvalidPlanError(
@@ -190,7 +218,13 @@ def main(argv: Sequence[str] | None = None) -> int:
                         ".incomplete directory and restart"
                     )
                 print("[verify] source lock and files", file=sys.stderr)
-                print("[compile] deterministic copy scaffold", file=sys.stderr)
+                if args.profile == "fp8-attention-partial-v1":
+                    print(
+                        "[compile] deterministic FP8 attention partial artifact",
+                        file=sys.stderr,
+                    )
+                else:
+                    print("[compile] deterministic copy scaffold", file=sys.stderr)
                 report = compile_artifact(
                     request,
                     args.output,

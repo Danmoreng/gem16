@@ -1,10 +1,12 @@
 #include "test.h"
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <string>
 #include <string_view>
 
 #include "model/config.h"
@@ -24,11 +26,127 @@ TensorInfo* Find(std::vector<TensorInfo>* tensors, std::string_view name) {
   return found == tensors->end() ? nullptr : &*found;
 }
 
+const TensorInfo* Find(const std::vector<TensorInfo>* tensors,
+                       std::string_view name) {
+  const auto found = std::find_if(
+      tensors->begin(), tensors->end(),
+      [name](const TensorInfo& tensor) { return tensor.name == name; });
+  return found == tensors->end() ? nullptr : &*found;
+}
+
 void Remove(std::vector<TensorInfo>* tensors, std::string_view name) {
   const auto found = std::find_if(
       tensors->begin(), tensors->end(),
       [name](const TensorInfo& tensor) { return tensor.name == name; });
   if (found != tensors->end()) tensors->erase(found);
+}
+
+void CheckCompiledFp8AttentionBinding(
+    const std::vector<TensorInfo>& tensors,
+    Gemma4Moe26BHeadFormat head_format) {
+  constexpr std::uint64_t kHidden = 2816;
+  constexpr std::uint64_t kLayerCount = 30;
+  std::size_t expected_projection_count = 0;
+  std::size_t weight_count = 0;
+  std::size_t scale_count = 0;
+  for (std::uint64_t layer = 0; layer < kLayerCount; ++layer) {
+    const bool global = layer % 6U == 5U;
+    const std::string prefix = "model.language_model.layers." +
+                               std::to_string(layer) + ".self_attn.";
+    const std::array<std::pair<std::string_view, std::string_view>, 4> projections = {{
+        {"q", "attention_q_projection"},
+        {"k", "attention_k_projection"},
+        {"o", "attention_o_projection"},
+        {"v", "attention_v_projection"},
+    }};
+    for (const auto& [projection, role] : projections) {
+      if (global && projection == "v") continue;
+      ++expected_projection_count;
+      const std::uint64_t output_rows =
+          projection == "q" ? (global ? 8192U : 4096U)
+                             : projection == "k" || projection == "v"
+                                   ? (global ? 1024U : 2048U)
+                                   : kHidden;
+      const std::uint64_t input_columns =
+          projection == "o" ? (global ? 8192U : 4096U) : kHidden;
+      const std::string module = prefix + std::string(projection) + "_proj";
+      const auto weight_name = module + ".weight";
+      const auto scale_name = module + ".weight_scale";
+      const auto* weight = Find(&tensors, weight_name);
+      const auto* scale = Find(&tensors, scale_name);
+      GEM16_CHECK(weight != nullptr);
+      GEM16_CHECK(scale != nullptr);
+      if (weight == nullptr || scale == nullptr) continue;
+
+      const std::vector<std::uint64_t> weight_shape = {output_rows,
+                                                        input_columns};
+      const std::vector<std::uint64_t> scale_shape = {output_rows, 1};
+      GEM16_CHECK(weight->storage_dtype == "F8_E4M3");
+      GEM16_CHECK(weight->shape == weight_shape);
+      GEM16_CHECK(weight->logical_shape == weight_shape);
+      GEM16_CHECK(weight->quantization_class == "FP8_WEIGHT_E4M3");
+      GEM16_CHECK(weight->quantization_component == "weight");
+      GEM16_CHECK(weight->quantization_producer == "gem16");
+      GEM16_CHECK(weight->tensor_role == role);
+      GEM16_CHECK(weight->expected_role == role);
+      GEM16_CHECK(weight->residency_class == "immutable_device_text");
+      GEM16_CHECK(weight->source_family == "gem16_compiled_hybrid");
+      GEM16_CHECK(weight->local_scale_dtype == "BF16");
+      GEM16_CHECK(weight->local_scale_vector_size == input_columns);
+      GEM16_CHECK(weight->activation_scale_role ==
+                  "dynamic_per_token_dequant_multiplier");
+      GEM16_CHECK(weight->final_gpu_layout == "source_nk_fp8");
+      GEM16_CHECK(weight->logical_axis_order == "output,input");
+      GEM16_CHECK(weight->layer_index == static_cast<std::int64_t>(layer));
+      GEM16_CHECK(weight->local_scale_tensor == scale_name);
+      GEM16_CHECK(!weight->aliased);
+
+      GEM16_CHECK(scale->storage_dtype == "BF16");
+      GEM16_CHECK(scale->logical_dtype == "BF16");
+      GEM16_CHECK(scale->shape == scale_shape);
+      GEM16_CHECK(scale->logical_shape == scale_shape);
+      GEM16_CHECK(scale->quantization_class == "FP8_WEIGHT_SCALE");
+      GEM16_CHECK(scale->quantization_component == "weight_channel_scale");
+      GEM16_CHECK(scale->quantization_producer == "gem16");
+      GEM16_CHECK(scale->tensor_role == role);
+      GEM16_CHECK(scale->expected_role == role);
+      GEM16_CHECK(scale->residency_class == "immutable_device_text");
+      GEM16_CHECK(scale->source_family == "gem16_compiled_hybrid");
+      GEM16_CHECK(scale->local_scale_dtype == "BF16");
+      GEM16_CHECK(scale->local_scale_vector_size == input_columns);
+      GEM16_CHECK(scale->final_gpu_layout == "row_bf16");
+      GEM16_CHECK(scale->logical_axis_order == "output,input");
+      GEM16_CHECK(scale->layer_index == static_cast<std::int64_t>(layer));
+      GEM16_CHECK(scale->local_scale_tensor.empty());
+      GEM16_CHECK(!scale->aliased);
+      ++weight_count;
+      ++scale_count;
+    }
+  }
+
+  // The public validator enforces uniqueness, while these counts pin the
+  // source-defined attention set and ensure no global V pair is synthesized.
+  GEM16_CHECK(expected_projection_count == 115);
+  GEM16_CHECK(weight_count == expected_projection_count);
+  GEM16_CHECK(scale_count == expected_projection_count);
+  std::size_t attention_weight_count = 0;
+  std::size_t attention_scale_count = 0;
+  for (const auto& tensor : tensors) {
+    if (tensor.name.find(".self_attn.") == std::string::npos) continue;
+    if (tensor.name.size() >= 13 &&
+        tensor.name.ends_with("_proj.weight")) {
+      ++attention_weight_count;
+    }
+    if (tensor.name.size() >= 19 &&
+        tensor.name.ends_with("_proj.weight_scale")) {
+      ++attention_scale_count;
+    }
+  }
+  GEM16_CHECK(attention_weight_count == expected_projection_count);
+  GEM16_CHECK(attention_scale_count == expected_projection_count);
+  GEM16_CHECK(gem16::internal::ValidateGemma4Moe26BCompiledHybridInventory(
+                  tensors, head_format)
+                  .ok());
 }
 
 gem16::internal::ModelConfig ExternalUnslothConfig(
@@ -271,6 +389,93 @@ void RunGemma426BManifestTests() {
   GEM16_CHECK(gem16::internal::ValidateGemma4Moe26BCompiledHybridInventory(
                   compiled_nvfp4.value(), Gemma4Moe26BHeadFormat::kNvfp4)
                   .ok());
+  CheckCompiledFp8AttentionBinding(compiled_q4.value(),
+                                   Gemma4Moe26BHeadFormat::kQ4_0);
+  CheckCompiledFp8AttentionBinding(compiled_nvfp4.value(),
+                                   Gemma4Moe26BHeadFormat::kNvfp4);
+
+  auto wrong_fp8_weight_dtype = compiled_q4.value();
+  auto* compiled_q = Find(
+      &wrong_fp8_weight_dtype,
+      "model.language_model.layers.0.self_attn.q_proj.weight");
+  GEM16_CHECK(compiled_q != nullptr);
+  if (compiled_q != nullptr) compiled_q->storage_dtype = "BF16";
+  GEM16_CHECK(!gem16::internal::ValidateGemma4Moe26BCompiledHybridInventory(
+                   wrong_fp8_weight_dtype, Gemma4Moe26BHeadFormat::kQ4_0)
+                   .ok());
+
+  auto wrong_fp8_scale_dtype = compiled_q4.value();
+  auto* compiled_q_scale = Find(
+      &wrong_fp8_scale_dtype,
+      "model.language_model.layers.0.self_attn.q_proj.weight_scale");
+  GEM16_CHECK(compiled_q_scale != nullptr);
+  if (compiled_q_scale != nullptr) compiled_q_scale->storage_dtype = "F32";
+  GEM16_CHECK(!gem16::internal::ValidateGemma4Moe26BCompiledHybridInventory(
+                   wrong_fp8_scale_dtype, Gemma4Moe26BHeadFormat::kQ4_0)
+                   .ok());
+
+  auto wrong_fp8_scale_shape = compiled_q4.value();
+  compiled_q_scale = Find(
+      &wrong_fp8_scale_shape,
+      "model.language_model.layers.0.self_attn.q_proj.weight_scale");
+  GEM16_CHECK(compiled_q_scale != nullptr);
+  if (compiled_q_scale != nullptr) {
+    compiled_q_scale->shape = {4096, 2};
+    compiled_q_scale->logical_shape = {4096, 2};
+  }
+  GEM16_CHECK(!gem16::internal::ValidateGemma4Moe26BCompiledHybridInventory(
+                   wrong_fp8_scale_shape, Gemma4Moe26BHeadFormat::kQ4_0)
+                   .ok());
+
+  auto missing_fp8_scale = compiled_q4.value();
+  Remove(&missing_fp8_scale,
+         "model.language_model.layers.0.self_attn.q_proj.weight_scale");
+  GEM16_CHECK(!gem16::internal::ValidateGemma4Moe26BCompiledHybridInventory(
+                   missing_fp8_scale, Gemma4Moe26BHeadFormat::kQ4_0)
+                   .ok());
+
+  auto mismatched_fp8_scale_link = compiled_q4.value();
+  compiled_q = Find(&mismatched_fp8_scale_link,
+                    "model.language_model.layers.0.self_attn.q_proj.weight");
+  GEM16_CHECK(compiled_q != nullptr);
+  if (compiled_q != nullptr) {
+    compiled_q->local_scale_tensor =
+        "model.language_model.layers.1.self_attn.q_proj.weight_scale";
+  }
+  GEM16_CHECK(!gem16::internal::ValidateGemma4Moe26BCompiledHybridInventory(
+                   mismatched_fp8_scale_link, Gemma4Moe26BHeadFormat::kQ4_0)
+                   .ok());
+
+  auto fabricated_global_v = compiled_q4.value();
+  auto* local_v = Find(
+      &fabricated_global_v,
+      "model.language_model.layers.0.self_attn.v_proj.weight");
+  auto* local_v_scale = Find(
+      &fabricated_global_v,
+      "model.language_model.layers.0.self_attn.v_proj.weight_scale");
+  GEM16_CHECK(local_v != nullptr && local_v_scale != nullptr);
+  if (local_v != nullptr && local_v_scale != nullptr) {
+    auto fabricated_v = *local_v;
+    auto fabricated_v_scale = *local_v_scale;
+    fabricated_v.name =
+        "model.language_model.layers.5.self_attn.v_proj.weight";
+    fabricated_v_scale.name =
+        "model.language_model.layers.5.self_attn.v_proj.weight_scale";
+    fabricated_v.local_scale_tensor = fabricated_v_scale.name;
+    fabricated_v.layer_index = 5;
+    fabricated_v_scale.layer_index = 5;
+    fabricated_v.shape = {1024, 2816};
+    fabricated_v.logical_shape = fabricated_v.shape;
+    fabricated_v.byte_length = 1024ULL * 2816ULL;
+    fabricated_v_scale.shape = {1024, 1};
+    fabricated_v_scale.logical_shape = fabricated_v_scale.shape;
+    fabricated_v_scale.byte_length = 1024ULL * 2ULL;
+    fabricated_global_v.push_back(std::move(fabricated_v));
+    fabricated_global_v.push_back(std::move(fabricated_v_scale));
+  }
+  GEM16_CHECK(!gem16::internal::ValidateGemma4Moe26BCompiledHybridInventory(
+                   fabricated_global_v, Gemma4Moe26BHeadFormat::kQ4_0)
+                   .ok());
 
   auto wrong_gate_up_order = compiled_q4.value();
   auto* compiled_gate_up = Find(

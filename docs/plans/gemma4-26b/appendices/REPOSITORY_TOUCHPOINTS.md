@@ -50,6 +50,20 @@ Anchored at `1c4287965d318ba32a68e597f9d7b6678b883376`.
 
 26B requires named workspaces and selected residency, plus session admission based on real slot cost.
 
+## Checkpoint compiler data plane
+
+M04's accepted control plane is under `tools/gem16_compile/` and remains responsible for source locks, exact plans,
+coverage, publication and provenance. M05 adds the first promoted native data-plane seed:
+
+- `src/compiler/fp8_batch_encoder.h` / `.cpp` — bounded native BF16-to-FP8 rowwise batch conversion;
+- `src/cli/fp8_compiler_main.cpp` — current native M05 batch executable;
+- `tools/gem16_compile/native_fp8.py` — Python job/telemetry adapter, not the numerical implementation.
+
+M06 NVFP4, M07 head encoders and M18 large comparisons must extend this native data plane. Do not add promoted
+`quantize_*.py` elementwise loops or a silent Python fallback. See
+[`../specs/NATIVE_CONVERTER_ARCHITECTURE.md`](../specs/NATIVE_CONVERTER_ARCHITECTURE.md) and the retained local
+llama.cpp study [`../../../evidence/gemma4_26b/m05-llama-cpp-converter-research-2026-08-11.md`](../../../evidence/gemma4_26b/m05-llama-cpp-converter-research-2026-08-11.md).
+
 ## Current FP8/NVFP4 kernels
 
 The repository already has:

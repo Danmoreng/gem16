@@ -571,6 +571,8 @@ Status AddCompiledFp8Projection(std::vector<TensorInfo>* tensors,
   ContractMetadata scale = weight;
   scale.quantization_component = "weight_channel_scale";
   scale.quantization_class = "FP8_WEIGHT_SCALE";
+  scale.logical_dtype = "BF16";
+  scale.final_gpu_layout = "row_bf16";
   const auto scale_name = std::string(module) + ".weight_scale";
   status = AddTensor(tensors, scale_name, "BF16", {shape[0], 1}, {shape[0], 1},
                      kCompiledFamily, scale);

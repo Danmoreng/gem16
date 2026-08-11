@@ -13,8 +13,15 @@ A direct Unsloth-versus-QAT comparison is scientifically ambiguous. The ordinary
 - M05–M08 compiler complete
 - M13 deterministic correctness runtime path
 - Pinned reference captures
+- M05–M08 native converter architecture and final artifact contracts accepted
 
-## Repository areas to inspect first
+## Current status and binding architecture
+
+M18 is planned and remains downstream of M05–M08 and M13. It is not a Python conversion milestone. Large tensor
+dequantization, reconstruction and metric accumulation must use the shared native C++ data plane; Python may select
+locked inputs, orchestrate jobs and serialize small summaries. Read the binding [native converter architecture](../specs/NATIVE_CONVERTER_ARCHITECTURE.md)
+and the version-scoped [llama.cpp converter research](../../../evidence/gemma4_26b/m05-llama-cpp-converter-research-2026-08-11.md)
+before implementing comparisons.
 
 - `tools/compare_quantized_checkpoints.py`
 - `tools/validate_gemma4_26b_full_model.py`
@@ -23,17 +30,19 @@ A direct Unsloth-versus-QAT comparison is scientifically ambiguous. The ordinary
 
 ## Suggested additions or boundaries
 
-- `tools/analyze_gemma4_26b_conversion.py`
+- `src/compiler/comparison_batch.{h,cpp}` shared native data-plane comparison routines
+- `tools/compare_quantized_checkpoints.py` as a bounded orchestration/serialization wrapper
 - `docs/GEMMA4_26B_CONVERSION_STUDY.md`
 - `benchmarks/results/gemma4_26b/conversion/`
+- `docs/plans/gemma4-26b/specs/NATIVE_CONVERTER_ARCHITECTURE.md`
 
 ## Implementation sequence
 
-1. Build four immutable artifacts: Unsloth A, own ordinary B, own QAT C, and official Q4_0 D reference.
+1. Assemble/select four immutable variants: external Unsloth A and official Q4_0 D references, plus own native-compiled ordinary B and QAT C. Do not rebuild an external reference merely for this study.
 2. Normalize tensor naming and logical axes without normalizing away real quantization differences.
-3. Compare A versus B per tensor and per operator to evaluate the project compiler against Unsloth.
-4. Compare B versus C under the same compiler to isolate the changed master weights.
-5. Compare C versus D against the same QAT BF16 source to evaluate NVFP4/FP8 versus the QAT-target Q4_0 format.
+3. Run native bounded comparison jobs for A versus B per tensor and per operator to evaluate the project compiler against Unsloth.
+4. Compare B versus C under the same native compiler to isolate the changed master weights.
+5. Compare C versus D against the same QAT BF16 source to evaluate NVFP4/FP8 versus the QAT-target Q4_0 format. Python may orchestrate these jobs, but billion-element dequantization and metrics must not be implemented as Python loops.
 6. Capture real activation distributions from a disjoint calibration set and run module-output comparisons.
 7. Measure router probability, top-8 set/order and selected-weight differences separately from expert-output drift.
 8. Run model-wide teacher forcing with layerwise captures and attribute first significant divergence.
@@ -62,8 +71,11 @@ A direct Unsloth-versus-QAT comparison is scientifically ambiguous. The ordinary
 ## Suggested commands
 
 ```text
-python tools/analyze_gemma4_26b_conversion.py --unsloth "$UNSLOTH_26B" --ordinary "$GEM16_26B_BASE" --qat "$GEM16_26B_QAT" --q4 "$GOOGLE_Q4" --output artifacts/m18
+python3 tools/compare_quantized_checkpoints.py --family conversion-ab --unsloth "$UNSLOTH_26B" --ordinary "$GEM16_26B_BASE" --qat "$GEM16_26B_QAT" --q4 "$GOOGLE_Q4" --native-encoder <gem16-checkpoint-compiler> --threads <N> --output artifacts/m18
 ```
+
+This is a planned action-first interface. The large comparison backend is not implemented by M18 planning work and
+must fail visibly if the native data plane is unavailable; no Python numerical fallback is permitted.
 
 ## Risks to watch in this milestone
 
@@ -71,6 +83,7 @@ python tools/analyze_gemma4_26b_conversion.py --unsloth "$UNSLOTH_26B" --ordinar
 - Weight-space metrics may disagree with activation- or task-space quality.
 - Router discontinuities can magnify tiny numeric differences.
 - Using the held-out M19 suite during quantizer tuning creates leakage.
+- Treating llama.cpp's GGUF NVFP4 layout or quantizer output as Gem16 byte parity; its pinned Q4_0 path is a reference/golden source only.
 
 ## Forbidden shortcuts
 
@@ -101,7 +114,7 @@ python tools/analyze_gemma4_26b_conversion.py --unsloth "$UNSLOTH_26B" --ordinar
 ```text
 You are implementing M18: Converter A/B and causal attribution study in Danmoreng/gem16.
 
-Read repository AGENTS.md, docs/DECISIONS.md, docs/CORRECTNESS.md, docs/BENCHMARKING.md, the package master plan, and this milestone. Work only on M18. Inspect the actual current tree before editing and write a drift note if it differs from the anchored commit.
+Read repository AGENTS.md, docs/DECISIONS.md, docs/CORRECTNESS.md, docs/BENCHMARKING.md, the package master plan, `../specs/NATIVE_CONVERTER_ARCHITECTURE.md`, the version-scoped llama.cpp research evidence, and this milestone. Work only on M18. Inspect the actual current tree before editing and write a drift note if it differs from the anchored commit.
 
 Implement the narrowest change that satisfies every exit criterion. Add tests before or with implementation. Do not add silent fallbacks, token-loop allocations, CPU weight offload, or unrelated refactors. Preserve all existing Gemma 4 12B exact gates.
 

@@ -18,9 +18,10 @@ This map is directional. The agent must inspect the current tree and write a dri
 | Area | Expected work | Milestones |
 |---|---|---|
 | `tools/fetch_model.py` | new locks/schema support | M01, M22 |
-| new `tools/compile_gemma4_26b.py` | compiler CLI | M04–M08 |
-| new `tools/gem16_compile/` | plan/read/write/quantizers/reports | M04–M08 |
-| new comparison/evaluation tools | A/B, quality, long context | M18–M21 |
+| new `tools/compile_gemma4_26b.py` | current control-plane CLI and native backend selection | M04–M08 |
+| new `tools/gem16_compile/` | plan/read/write/provenance and small oracles/reports | M04–M08 |
+| new `src/compiler/` and `src/cli/gem16-fp8-compiler` | native M05 data plane; future shared checkpoint compiler | M05–M08 |
+| new comparison/evaluation tools | native large A/B data plane with small orchestration | M18–M21 |
 | `models/` | four source locks and final derived lock | M01, M08, M19 |
 
 ## Runtime memory and ownership
@@ -44,8 +45,10 @@ This map is directional. The agent must inspect the current tree and write a dri
 
 | Area | Expected work | Milestones |
 |---|---|---|
-| `src/numeric/fp8.cpp` | compiler-compatible reference | M05 |
-| `src/numeric/nvfp4.cpp` | compiler-compatible reference | M06 |
+| `src/compiler/fp8_batch_encoder.*` | native bounded M05 FP8 batch backend | M05 |
+| `src/numeric/fp8.cpp` | runtime/reference codec; differential oracle for compiler | M05, M12 |
+| `src/compiler/nvfp4_*` | shared native NVFP4 compiler extension | M06 |
+| `src/numeric/nvfp4.cpp` | runtime/reference codec; differential oracle for compiler | M06 |
 | `src/cuda/fp8/*` | new dimensions/traits, existing arithmetic | M12 |
 | `src/cuda/nvfp4/*` | shared/expert shapes and reuse | M11, M14, M15 |
 | `src/cuda/nvfp4/sm120_layout.*` | expert-major layout validation | M06, M14 |
@@ -78,7 +81,7 @@ Milestones M10–M15.
 ## Embedding/head
 
 ```text
-src/numeric/q4_0.*
+src/compiler/q4_0_* / src/numeric/q4_0.*
 src/cuda/embedding/lookup.*
 src/cuda/output_head_q4_0.cu
 src/cuda/output_head_nvfp4.cu

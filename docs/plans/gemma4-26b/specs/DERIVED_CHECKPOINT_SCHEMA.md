@@ -45,6 +45,7 @@ Preserve model architecture facts and add a namespaced block:
   "tie_word_embeddings": true,
   "gem16": {
     "schema_version": 1,
+    "compiler_data_plane": "native-cpp20",
     "profile": "sm120-text-hybrid-v1",
     "variant": "gemma4-26b-a4b",
     "text_only": true,
@@ -168,6 +169,26 @@ persistent_repack_bytes = 0
 ```
 
 Do not write driver- or CUTLASS-internal layouts to disk in schema version 1.
+
+## Compiler backend provenance
+
+`gem16_compilation.json` records the exact native backend for every promoted numerical transformation:
+
+```json
+{
+  "implementation": "gem16_compile_m05_native_v1",
+  "native_backend": {
+    "protocol": "gem16-fp8-batch-v1",
+    "sha256": "...",
+    "toolchain": "...",
+    "threads": 4
+  }
+}
+```
+
+M06 and M07 use new versioned protocol/implementation identifiers when their contracts differ, while retaining the
+same native data-plane family. M04 `copy-v1` retains its accepted Python scaffold identity. The artifact is produced
+directly from locked Safetensors ranges; a BF16/F16 GGUF intermediate is not part of the Gem16 schema.
 
 ## Schema validation
 

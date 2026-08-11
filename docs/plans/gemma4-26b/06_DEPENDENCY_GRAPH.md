@@ -8,11 +8,11 @@ M00 Policy and track bootstrap
      ├─ M02 Model configuration and variant traits
      │   └─ M03 26B manifest and tensor inventory
      │       ├─ M04 Compiler scaffold
-     │       │   ├─ M05 FP8 attention compiler
-     │       │   ├─ M06 NVFP4 expert compiler
-     │       │   └─ M07 Embedding/head format experiment
-     │       │       └─ M08 Derived checkpoint and loader
-     │       │           └─ M09 Memory planner and text-only residency
+     │       │   └─ M05 FP8 attention compiler and native converter seed
+     │       │       └─ M06 NVFP4 expert compiler and shared native data-plane extension
+     │       │           └─ M07 Embedding/head format experiment
+     │       │               └─ M08 Derived checkpoint and loader
+     │       │                   └─ M09 Memory planner and text-only residency
      │       └─ M10 CPU MoE oracle
      │           └─ M11 CUDA MoE reference
      │               └─ M12 26B attention and KV
@@ -44,8 +44,8 @@ branches are used. After M03, the dependency graph still permits the project own
 next slices:
 
 - M04 compiler scaffolding and M10 CPU MoE oracle may be scheduled in either order.
-- M05 FP8 and M06 NVFP4 quantizer work may be scheduled in either order after their shared compiler schema is frozen.
-- M07 head experiments may start after Q4_0 and NVFP4 host oracles exist.
+- M05 FP8 must establish the accepted native converter seed/generalization boundary before M06 NVFP4 work; M05 and M06 may not be implemented in either order.
+- M07 head experiments may start only after the M06 native extension and both Q4_0/NVFP4 host oracles exist.
 - M12 attention/KV can be selected once its prerequisites are committed, without weakening the M11/M12 gates.
 - M14 decode, M15 prefill and M16 head kernels may be scheduled in any evidence-driven order after M13 provides
   stable full-model fixtures and M18 passes the preliminary quality kill gate.

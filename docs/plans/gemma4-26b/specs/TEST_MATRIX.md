@@ -14,15 +14,21 @@
 
 ## Compiler tests
 
+Promoted large-tensor conversion tests run against the native C++ data plane. Python tests may validate plans,
+protocols, schemas and small independent oracles, but must not substitute a Python elementwise production loop.
+
 - source lock validation;
 - path traversal/symlink rejection;
 - Safetensors index/header validation;
 - plan tensor coverage;
-- FP8 codec/quantizer;
-- NVFP4 codec/quantizer;
-- Q4_0 codec/quantizer;
+- native FP8 codec/quantizer and exhaustive byte fixtures;
+- native NVFP4 codec/quantizer and producer-scale differential fixtures;
+- native Q4_0 codec/quantizer and pinned llama.cpp reference blocks;
+- native job protocol, bounded buffers and one-pass coupled outputs;
+- native explicit-thread determinism and telemetry;
 - deterministic output;
-- resume and interruption;
+- one native full M05 run per approved source, without duplicate Python/native conversion;
+- interruption and visible restart-only cleanup (resume only after a bound partial-state schema is accepted);
 - bounded RSS;
 - output lock;
 - corrupt output rejection.

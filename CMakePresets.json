@@ -15,6 +15,18 @@
       }
     },
     {
+      "name": "host-release",
+      "displayName": "Host optimized compiler and tests",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${hostSystemName}/host-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "GEM16_ENABLE_CUDA": "OFF",
+        "GEM16_ENABLE_SANITIZERS": "OFF",
+        "GEM16_BUILD_TESTS": "ON"
+      }
+    },
+    {
       "name": "host-sanitize",
       "displayName": "Host ASan and UBSan",
       "inherits": "host-debug",
@@ -41,6 +53,7 @@
   ],
   "buildPresets": [
     { "name": "host-debug", "configurePreset": "host-debug" },
+    { "name": "host-release", "configurePreset": "host-release" },
     {
       "name": "host-sanitize",
       "configurePreset": "host-sanitize",
@@ -50,6 +63,7 @@
   ],
   "testPresets": [
     { "name": "host-debug", "configurePreset": "host-debug", "output": { "outputOnFailure": true } },
+    { "name": "host-release", "configurePreset": "host-release", "output": { "outputOnFailure": true } },
     {
       "name": "host-sanitize",
       "configurePreset": "host-sanitize",

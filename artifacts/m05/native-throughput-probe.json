@@ -1,0 +1,43 @@
+{
+  "binary": {
+    "path": "build/Linux/host-release/bin/gem16-fp8-compiler",
+    "sha256": "ca0d48d92a76d5e931c19d46a9b0570ea48b37bed77550d3e194f7f740c36c9f"
+  },
+  "evidence_class": "diagnostic_dirty_worktree",
+  "limitations": [
+    "This probe measures direct native FP8 arithmetic only; it is not a full conversion acceptance gate.",
+    "The compiler was built from a dirty worktree, so this is diagnostic evidence and not release evidence.",
+    "The projected full duration excludes source-lock verification and Python control-plane overhead."
+  ],
+  "matrices": [
+    "model.language_model.layers.0.self_attn.k_proj.weight",
+    "model.language_model.layers.0.self_attn.o_proj.weight",
+    "model.language_model.layers.0.self_attn.q_proj.weight",
+    "model.language_model.layers.0.self_attn.v_proj.weight",
+    "model.language_model.layers.5.self_attn.k_proj.weight",
+    "model.language_model.layers.5.self_attn.o_proj.weight",
+    "model.language_model.layers.5.self_attn.q_proj.weight"
+  ],
+  "matrix_count": 7,
+  "maximum_source_row_bytes": 16384,
+  "native_build": {
+    "build_type": "Release",
+    "compiler_id": "GNU",
+    "compiler_version": "16.1.1",
+    "cxx_standard": "20",
+    "processor": "x86_64",
+    "system": "Linux"
+  },
+  "native_rate_elements_per_second": 83681904.045,
+  "native_seconds": 0.999307,
+  "payload_bytes": 83670016,
+  "peak_child_rss_bytes": 5521408,
+  "projected_full_native_minutes": 0.221,
+  "projected_full_native_seconds": 13.267,
+  "report_kind": "m05_native_fp8_throughput_probe",
+  "schema_version": 1,
+  "source_hash_seconds": 0.095803,
+  "status": "pass",
+  "threads": 8,
+  "weight_elements": 83623936
+}

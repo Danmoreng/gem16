@@ -2,6 +2,24 @@
 
 This package intentionally uses stable repository/model identifiers rather than embedding temporary download URLs.
 
+## Converter research and native compiler architecture
+
+- Binding architecture: [`../specs/NATIVE_CONVERTER_ARCHITECTURE.md`](../specs/NATIVE_CONVERTER_ARCHITECTURE.md)
+- Retained local llama.cpp research: [`../../../evidence/gemma4_26b/m05-llama-cpp-converter-research-2026-08-11.md`](../../../evidence/gemma4_26b/m05-llama-cpp-converter-research-2026-08-11.md)
+- Inspected clean local checkout: `third_party/cache/llama.cpp`, commit
+  `0b14b87d7c20cb753b94b96854dd7b45306fc696`
+- Desired benchmark pin (separate from the inspected checkout):
+  `benchmarks/baselines/llama_cpp/commit.txt`, commit
+  `153d324bcf86d220b235ca010eeb11213f32b5d1`
+- HF/GGUF conversion entrypoint: `third_party/cache/llama.cpp/convert_hf_to_gguf.py`
+- Native post-GGUF quantizer: `third_party/cache/llama.cpp/tools/quantize/quantize.cpp`,
+  `third_party/cache/llama.cpp/src/llama-quant.cpp`, and
+  `third_party/cache/llama.cpp/ggml/src/ggml-quants.c`
+- Local mixed FP8/NVFP4 patch: `benchmarks/baselines/llama_cpp/patches/0001-support-mixed-fp8-nvfp4-compressed-tensors.patch`
+
+Agents must treat llama.cpp as a version-scoped engineering reference. Its concepts may be adopted only after exact
+Gem16 contract, numerical, provenance and license checks; its ignored cache is not a production dependency.
+
 ## gem16
 
 - Repository: `Danmoreng/gem16`

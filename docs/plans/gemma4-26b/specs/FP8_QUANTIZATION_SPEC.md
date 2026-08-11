@@ -2,7 +2,12 @@
 
 ## Role
 
-FP8 stores attention projection weights for Q, K, V and O. Runtime input activations are quantized dynamically per token. Accumulation is FP32, followed by model-required scaling and BF16 boundary behavior.
+FP8 stores attention projection weights for Q, K, V and O. Runtime input activations are quantized dynamically per token. Accumulation is FP32, followed by model-required scaling and BF16 boundary behavior. The binding backend/data-plane rules are in [`NATIVE_CONVERTER_ARCHITECTURE.md`](NATIVE_CONVERTER_ARCHITECTURE.md); this file freezes the FP8 arithmetic only.
+
+For M05, the promoted offline BF16-to-FP8 conversion is implemented by the versioned native C++20 batch
+backend. The Python implementation is an independent oracle/fixture/report aid only and must not be used as a
+production conversion fallback. M05 performs one native full pass for each approved Ordinary-BF16 and QAT-BF16
+source; it does not repeat the complete conversion merely to claim reproducibility.
 
 ## Weight representation
 
@@ -107,13 +112,23 @@ Operator report with real activations:
 
 ## Compiler/runtime separation
 
+M05's native C++ batch encoder is the only promoted production conversion path. The Python implementation remains
+an independent oracle for byte fixtures and small diagnostics. M06/M07 must reuse the same native job, bounded-buffer,
+hash and telemetry architecture rather than adding numerical Python converters.
+
 The compiler writes canonical row-major FP8 payload and row scales. Runtime may transform only storage order if needed; it may not requantize weights.
 
 Dynamic activation quantization remains runtime work because activation scale is token-dependent.
 
 ## Native path evidence
 
-The release path must prove:
+The M05 compiler backend must be explicitly selected and identified by its protocol/version and native toolchain.
+If it is unavailable, compilation fails visibly; Python fallback is not permitted. The M05 native evidence must
+include exhaustive codec tests, byte-golden rows, bounded threads-1-versus-N fixture identity, complete output
+hashes, and one full 115-matrix run per source. A short native throughput probe precedes any full run; a projected
+long run requires explicit owner approval.
+
+The release runtime path must separately prove:
 
 - selected CUDA objects contain the intended FP8 Tensor Core instruction family;
 - actual kernels dispatch for real 26B shapes;

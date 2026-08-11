@@ -56,14 +56,27 @@ No CUDA performance work is allowed before this stage closes.
 
 Outcomes:
 
-- a streaming compiler with bounded host memory;
-- exact and tested FP8 and NVFP4 encoders;
-- a reproducible Q4_0 embedding/head encoder or an explicit decision not to use it;
+- a strict hybrid compiler with a Python control plane and one shared native C++20 numerical data plane;
+- M04's accepted bounded Python scaffold for plans, locks, coverage, publication/provenance and byte-only `copy-v1`;
+- exact and tested native FP8 and NVFP4 encoders;
+- a reproducible native Q4_0 embedding/head encoder or an explicit decision not to use it;
 - a standard Safetensors-based derived checkpoint;
-- complete provenance, source hashes, compiler hash and per-tensor hashes;
+- complete provenance, source hashes, native compiler/toolchain identity and per-tensor hashes;
 - a loader that accepts the derived artifact without retaining duplicate device layouts.
 
-The compiler must also be able to quantize the ordinary non-QAT BF16 model. This control is essential for separating "our quantizer differs from Unsloth" from "QAT weights differ from ordinary weights."
+The promoted M05 data plane is the first native implementation. M06 NVFP4, M07 head encoding and large M18
+comparisons extend that same versioned converter family rather than adding Python numerical converters. Python may
+remain the initial orchestration layer because it is not the tensor-arithmetic bottleneck; a later control-plane
+migration requires evidence. The compiler reads locked Safetensors directly into final-format output and does not
+introduce a large BF16/F16 intermediate GGUF. Python tensor libraries are diagnostic/reference-only unless explicitly
+approved by decision. The compiler must also process the ordinary non-QAT BF16 model through the same native recipe as
+QAT; this control separates quantizer effects from QAT-weight effects.
+
+The version-scoped local llama.cpp research is retained in
+`docs/evidence/gemma4_26b/m05-llama-cpp-converter-research-2026-08-11.md`; its native codec separation,
+multithreading and reference/optimized test patterns may inform implementation, but its format, fallback,
+provenance, memory and publication behavior do not override Gem16 contracts. The binding architecture is
+`docs/plans/gemma4-26b/specs/NATIVE_CONVERTER_ARCHITECTURE.md`.
 
 ### Stage C — Runtime correctness path
 
@@ -169,7 +182,10 @@ Required:
 
 - full immutable commit SHAs;
 - file sizes and SHA-256 hashes;
-- deterministic compiler output on the reference toolchain;
+- deterministic native compiler output on the reference toolchain;
+- explicit native protocol/version, thread count and toolchain identity;
+- for M05-M07 partial numerical stages, one complete native Ordinary-BF16 and one complete native QAT-BF16
+  conversion per selected profile or head candidate, with no duplicate full partial artifact solely for reproducibility;
 - complete tensor count and byte accounting;
 - no vision tensor in the production artifact;
 - no unexplained tensor rename, transpose or alias.
@@ -178,7 +194,7 @@ Required:
 
 Required:
 
-- CPU dequantization oracles;
+- independent CPU/Python dequantization oracles that do not replace the promoted native path;
 - exact byte fixtures for packing and scale encodings;
 - real-shape FP8 and NVFP4 operator comparisons;
 - deterministic top-8 routing with explicit tie behavior;
@@ -240,15 +256,24 @@ Required:
 
 Each milestone must follow this sequence:
 
-1. read repository `AGENTS.md`, this master plan and the milestone file;
+1. read repository `AGENTS.md`, this master plan, the milestone file and
+   `specs/NATIVE_CONVERTER_ARCHITECTURE.md` before M04-M08/M18 converter work;
 2. inspect the actual current source before editing;
 3. write or update the decision/experiment record;
 4. add failing tests or goldens first where practical;
 5. implement the narrowest possible change;
-6. run host tests, then CUDA operator tests, then model tests;
-7. collect memory or performance evidence only after correctness passes;
-8. update documentation and ledger;
-9. stop at the milestone exit gate.
+6. keep promoted large tensor arithmetic and billion-element comparison in the shared native C++20 data plane;
+7. run host tests, then CUDA operator tests, then model tests;
+8. collect memory or performance evidence only after correctness passes;
+9. update documentation and ledger;
+10. stop at the milestone exit gate.
+
+For M05-M07 partial numerical stages, run one native full Ordinary-BF16 conversion and one native full QAT-BF16
+conversion per selected profile or head candidate only. Do not add duplicate Python/native conversions or repeated
+full partial artifacts merely to create evidence. If M07 evaluates two head candidates, run each candidate once per
+required source and compare retained outputs. Use small native fixtures, complete hashes and structural verification
+for determinism; obtain explicit owner approval before any projected long run. M08's final complete-artifact
+reproducibility gate remains two clean builds and is not waived.
 
 A milestone change set may not contain unrelated UI work, opportunistic refactors or multiple arithmetic changes that cannot be isolated in an A/B test. M03-M25 development remains on the single long-lived `feat/gemma4-26b` branch; milestone boundaries are enforced by commits, evidence and exit gates rather than new branches.
 

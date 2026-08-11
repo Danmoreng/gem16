@@ -1,0 +1,28 @@
+{
+  "action": "verify",
+  "artifact": "build/models/ordinary-fp8-attention-partial",
+  "artifact_profile": "fp8-attention-partial-v1",
+  "compilation_manifest_sha256": "a283dbd41b4342226a19e4917acacde58fec0c8bd5286b4bc0453c27172ab56c",
+  "compiler_manifest_sha256": "dcbb2f35220f0f359d186aa31b1a3f2c6e9e8c94c4ba038248848d2f785cff2e",
+  "duration_seconds": 123.775892,
+  "memory": {
+    "baseline_rss_bytes": 28377088,
+    "host_memory_cap_bytes": 7516192768,
+    "maximum_header_bytes": 129800,
+    "maximum_mapped_window_bytes": 1052636,
+    "maximum_tensor_bytes": 1476395008,
+    "maximum_transform_row_bytes": 0,
+    "peak_rss_bytes": 35504128,
+    "staging_buffer_bytes": 1048576
+  },
+  "milestone": "M05",
+  "output_tensor_bytes": 1110850560,
+  "output_tensor_count": 230,
+  "recorded_compiler_commit": "a061c045c5b77b8612ac029cf18dfc6b4a660001",
+  "recorded_compiler_dirty": true,
+  "resolved_plan_sha256": "dcbb2f35220f0f359d186aa31b1a3f2c6e9e8c94c4ba038248848d2f785cff2e",
+  "schema_version": 1,
+  "source_lock_sha256": "1932b06d568ce8c72f3d2013d39ffd15dd61d37732638c2013f2220eb177a620",
+  "status": "pass",
+  "transformation_recomputed": false
+}

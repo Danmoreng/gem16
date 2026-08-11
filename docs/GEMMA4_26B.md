@@ -1,6 +1,13 @@
 # Gemma 4 26B A4B experimental track
 
-Status: M00-M04 accepted; M05 is next but explicitly paused and not started
+Status: M00-M04 accepted; M05 current/in progress under owner authorization. The native C++20 implementation, exact
+Ordinary/QAT plans, short throughput probe, one diagnostic full run per source, structural verification and
+weight-only comparison are retained in the [M05 diagnostic evidence](evidence/gemma4_26b/m05-native-fp8-implementation-and-diagnostic-runs-2026-08-11.md).
+All currently retained M05 compiler artifacts record `compiler_dirty=true`, so they are diagnostic evidence and not
+an accepted M05 gate. The owner has authorized the implementation commit and clean-revision evidence runs. Remaining
+gates are that clean build, one clean Ordinary plus one clean QAT run, final verification/review and final
+hashes/status. No production 26B runtime execution exists. The initial state remains in the [M05 kickoff](evidence/gemma4_26b/m05-kickoff-2026-08-11.md) and the version-scoped
+[llama.cpp research](evidence/gemma4_26b/m05-llama-cpp-converter-research-2026-08-11.md).
 
 Production hypothesis: `gem16-gemma4-26b-a4b-qat-hybrid-text`
 
@@ -33,6 +40,10 @@ They do not define the workflow for M03 or later work.
   verified compiled tensor into its final allocation. It is not a second checkpoint or persistent device copy.
 - **Production profile:** a fully native, quality-qualified, all-weights-resident configuration eligible for product
   and performance claims.
+- **Hybrid converter:** the accepted compiler architecture: Python control-plane code may own locks, exact mapping,
+  plans, schemas, evidence and publication orchestration; promoted large tensor arithmetic belongs to one shared,
+  versioned native C++20 data plane. M04 `copy-v1` is byte movement, not quantization. Python numerical code is
+  oracle/fixture/diagnostic support only unless a separate decision explicitly approves a tensor library path.
 - **Diagnostic profile:** an explicitly requested reference, fallback or capture configuration. Every changed
   operator/tensor is reported, and its result is ineligible for primary performance claims.
 - **Baseline:** a pinned external or internal comparison configuration with checkpoint, format, K/V precision,
@@ -48,8 +59,17 @@ must resolve and lock that revision before any source download or golden capture
    forbidden.
 2. The compiler runs outside the inference process from a clean, exact gem16 commit with locked dependencies,
    locale, ordering, platform and invocation. It uses bounded host memory, deterministic tensor/shard ordering,
-   checked arithmetic and atomic output publication.
-3. A second clean reference-platform run must reproduce the compiled bytes exactly. If cross-platform byte identity
+   checked arithmetic and atomic output publication. M04 uses its accepted Python standard-library scaffold for
+   planning, locking, publication and byte-copy evidence; `copy-v1` is not tensor quantization. The promoted M05
+   attention conversion uses an explicitly selected versioned native C++20 batch backend, with Python retained only
+   as an oracle/fixture/report aid and never as a fallback. M06, M07 and large M18 conversion/comparison work extend
+   the same native data plane rather than introducing separate Python converters. See
+   [the native converter architecture](plans/gemma4-26b/specs/NATIVE_CONVERTER_ARCHITECTURE.md).
+3. A second clean reference-platform run must reproduce the compiled bytes exactly for complete artifacts. For M05,
+   one native full 115-matrix Ordinary run and one native full 115-matrix QAT run are required instead; no duplicate
+   Python/native conversion or second full M05 artifact run is performed solely for reproducibility. Native exhaustive
+   codec tests, byte-golden rows, bounded threads-1-versus-N fixtures and complete output hashes establish M05
+   determinism. If cross-platform byte identity
    is not achievable, one canonical compiler environment is designated; other platforms must still prove semantic
    agreement rather than silently accepting different hashes.
 4. The output remains standard Safetensors plus a versioned `gem16_compilation.json`. Every output tensor records
@@ -74,6 +94,13 @@ must resolve and lock that revision before any source download or golden capture
     hashes and toolchain lock. Claims call the model a project-built gem16 derivative of Google QAT BF16, never
     “official Google NVFP4.”
 12. Distribution or hosting is blocked until M01 records applicable source/derived terms and owner approval.
+
+The local llama.cpp conversion research is a version-scoped engineering reference: it inspected clean checkout
+`0b14b87d7c20cb753b94b96854dd7b45306fc696`, while the desired benchmark pin names `153d324bcf86d220b235ca010eeb11213f32b5d1`.
+Its separation of model mapping from native codecs, multithreaded conversion and reference-versus-optimized tests
+may inform Gem16 after exact-contract tests; its intermediate GGUF, permissive fallbacks and weaker provenance,
+security, memory and publication guarantees are not adopted. Findings are retained in
+[evidence/gemma4_26b/m05-llama-cpp-converter-research-2026-08-11.md](evidence/gemma4_26b/m05-llama-cpp-converter-research-2026-08-11.md).
 
 The detailed machine-readable fields and invalidation rules are binding in the
 [checkpoint provenance specification](plans/gemma4-26b/specs/CHECKPOINT_PROVENANCE_SPEC.md).
@@ -184,8 +211,25 @@ batching, broad dispatch, general executors and host expert offload are rejected
   source/external/compiled contracts, canonical inventories, mutation tests and direct 32K CUDA admission pass.
 - M04: accepted by the project owner on 2026-08-11 at implementation commit
   `edd80cb6adae6d441924098870ceca9b4b1248d5`; 12 compiler tests, 95 Python tests, host/sanitizer/CUDA gates,
-  clean reproducibility and 12B regression pass. M05 is dependency-unblocked but explicitly paused and not started.
-  Derived-artifact distribution approval remains separate.
+  clean reproducibility and 12B regression pass. M05 is now current/in progress after the owner explicitly
+  superseded the prior pause on 2026-08-11. The native C++20 batch implementation, exact 115-matrix plans, short
+  probe, one diagnostic full run per source, structural verification and weight-only comparison are retained in
+  [M05 diagnostic evidence](evidence/gemma4_26b/m05-native-fp8-implementation-and-diagnostic-runs-2026-08-11.md).
+  All current M05 compiler artifacts are dirty-worktree diagnostics; independent final review, final hashes/status and clean-revision
+  release runs remain outstanding. The M05 partial artifact is non-runtime-loadable. Standalone M05 verification is
+  structural/hash/source-lock-only,
+  does not reconvert and records `transformation_recomputed=false` until M08's external lock. M06+ remain
+  dependency-gated; derived-artifact distribution approval remains separate.
+- M05 kickoff: deterministic bounded host BF16-to-E4M3FN attention Q/K/V/O encoding with BF16 `[N,1]` row scales,
+  reports, tests and comparisons only. The canonical representation is F8_E4M3 `[N,K]` plus BF16 `[N,1]`, using
+  deterministic rowwise max-abs v1, round-to-nearest ties-even, finite saturation, NaN/Inf rejection and an all-zero
+  scale of `1.0`. M06+ remain dependency-gated; runtime activation/accumulation changes, 26B execution and the
+  first complete direct-load artifact remain downstream work.
+
+Current kickoff and diagnostic evidence:
+
+- [M05 kickoff and drift record](evidence/gemma4_26b/m05-kickoff-2026-08-11.md)
+- [M05 native implementation and diagnostic runs](evidence/gemma4_26b/m05-native-fp8-implementation-and-diagnostic-runs-2026-08-11.md)
 - M01 adds source locks, offline tooling and compact reference evidence only; no 26B compiler, runtime or CUDA path
   exists at the accepted M01 boundary.
 
