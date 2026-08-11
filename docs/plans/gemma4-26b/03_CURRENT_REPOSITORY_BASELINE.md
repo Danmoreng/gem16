@@ -112,7 +112,7 @@ Every 26B milestone must keep these invariants green unless a repository decisio
 - all existing host CTest targets pass;
 - all existing CUDA operator tests pass;
 - 12B short and long deterministic output hashes remain exact;
-- 12B allocator accounting remains unchanged unless the PR intentionally changes shared infrastructure;
+- 12B allocator accounting remains unchanged unless the milestone change set intentionally changes shared infrastructure;
 - no new token-loop allocation;
 - no silent precision fallback;
 - direct 12B source checkpoint loading remains supported;

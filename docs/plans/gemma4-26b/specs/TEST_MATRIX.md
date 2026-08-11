@@ -150,13 +150,14 @@ Nsight CUDA API or equivalent trace proves:
 
 ## Regression policy
 
-Every 26B PR runs:
+Every 26B milestone change set runs:
 
 - host unit tests;
 - 12B relevant tests;
 - new 26B unit tests.
 
-CUDA/operator PR runs targeted CUDA tests. Integration PR runs the full current host/CUDA matrix.
+A CUDA/operator milestone runs targeted CUDA tests. An integration milestone and the final main-integration review
+run the full current host/CUDA matrix.
 
 Do not disable or loosen 12B tests to merge 26B.
 

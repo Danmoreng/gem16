@@ -6,10 +6,21 @@ Production hypothesis: `gem16-gemma4-26b-a4b-qat-hybrid-text`
 
 The 26B track targets text-only Gemma 4 26B A4B inference on one approximately 16 GB NVIDIA Blackwell GPU while
 preserving the statically specialized Gemma 4 12B Unified product path. The binding implementation order and gates
-are in the [master plan](plans/gemma4-26b/00_MASTER_IMPLEMENTATION_PLAN.md). The immutable imported plan package,
-including its initial status-board template, remains byte-identical; current milestone state and acceptance
-evidence are recorded in this document, [ROADMAP.md](ROADMAP.md) and
+are in the [master plan](plans/gemma4-26b/00_MASTER_IMPLEMENTATION_PLAN.md). The plan package is repository-maintained;
+the 2026-08-11 branch-policy amendment updates it to the single-branch workflow and regenerates its checked
+manifest. Current milestone state and acceptance evidence are recorded in this document, [ROADMAP.md](ROADMAP.md),
+the [milestone board](plans/gemma4-26b/MILESTONE_STATUS_BOARD.md) and
 [`docs/evidence/gemma4_26b/`](evidence/gemma4_26b/).
+
+## Development branch policy
+
+All remaining M03-M25 development uses the long-lived `feat/gemma4-26b` branch created from `main` after the
+accepted M00-M02 foundation was integrated. Do not create milestone-specific development branches. Each milestone
+still owns a bounded change set, evidence, one or more descriptive commits and an explicit exit gate; dependent
+work does not start until that gate passes. Integration back to `main` remains an explicit project-owner decision.
+
+The older `feat/26b-m00-*`, `feat/26b-m01-*` and `feat/26b-m02-*` names remain in dated evidence as historical facts.
+They do not define the workflow for M03 or later work.
 
 ## Terminology
 
@@ -134,7 +145,7 @@ batching, broad dispatch, general executors and host expert offload are rejected
   pass. Direct Unsloth token output is retained with disclosed non-exact logprobs and diagnostic CPU offload.
 - M02: accepted on 2026-08-06 on `feat/26b-m02-model-traits` from accepted M01 closure `59996f5`; all explicit
   exit criteria pass.
-- M03: unblocked but not started; it must use a separate milestone branch from the accepted M02 closure.
+- M03: unblocked but not started; it is the first milestone to continue on `feat/gemma4-26b`.
 - M04 and every later milestone remain blocked. Derived-artifact distribution approval remains separate.
 - M01 adds source locks, offline tooling and compact reference evidence only; no 26B compiler, runtime or CUDA path
   exists at the accepted M01 boundary.

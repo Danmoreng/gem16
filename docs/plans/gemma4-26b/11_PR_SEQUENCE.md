@@ -1,23 +1,25 @@
-# Suggested pull-request sequence
+# Development and review sequence
 
-## Branch naming
+## Branch policy
 
-Use:
+Use one long-lived branch for the remaining program:
 
 ```text
-feat/26b-m00-policy
-feat/26b-m01-source-locks
-feat/26b-m02-model-traits
-...
-perf/26b-m14-moe-decode
-perf/26b-m15-moe-prefill
+feat/gemma4-26b
 ```
 
-Do not keep one long-lived mega-branch for the full program.
+The branch is created from `main` after the accepted M00-M02 foundation and the 2026-08-11 branch-policy amendment
+are integrated. All M03-M25 work remains on it. Do not create per-milestone or parallel development branches, and
+do not force-push reviewed evidence history. Integration back to `main` happens only when the project owner requests
+it.
 
-## PR boundaries
+This changes branch management, not milestone discipline. Each milestone remains a bounded change set with its own
+contracts, tests, evidence, descriptive commits and exit review. Finish the current milestone before beginning a
+dependent one.
 
-| PR | Core change | Must not include |
+## Milestone boundaries
+
+| Milestone | Core change | Must not include |
 |---|---|---|
 | M00 | Policy, decision, roadmap, feature flags | Compiler or CUDA code |
 | M01 | Locks, fetch support, golden-capture harness | Runtime arithmetic |
@@ -45,7 +47,7 @@ Do not keep one long-lived mega-branch for the full program.
 | M23 | Release docs, locks, evidence | New features |
 | M24/M25 | Optional later work | Backport into already qualified base without rerun |
 
-## Review order within each PR
+## Review order within each milestone
 
 1. contract and tests;
 2. host implementation;
@@ -54,7 +56,8 @@ Do not keep one long-lived mega-branch for the full program.
 5. documentation;
 6. evidence.
 
-A reviewer should be able to reject a performance candidate without losing unrelated correctness work. Keep experimental kernels isolated until promoted.
+A reviewer should be able to reject a performance candidate without losing unrelated correctness work. Keep
+experimental kernels isolated until promoted.
 
 ## Commit guidance
 
@@ -68,11 +71,11 @@ bench: add isolated expert benchmark
 docs: record decode experiment and decision
 ```
 
-Do not squash away raw evidence references in the final PR description.
+Do not squash away raw evidence references from reviewed milestone history or the final integration description.
 
-## Auxiliary reference PRs
+## Auxiliary reference slices
 
-| PR | Timing | Core change | Must not include |
+| Slice | Timing | Core change | Must not include |
 |---|---|---|---|
 | R-IMP-00 | after M00, before M01 exit | imp lock, source map, license/provenance decision, semantic/kernel audit | Production code copy or architecture refactor |
 | R-IMP-10 | within M10 | official-HF/imp/local-oracle semantic goldens and producer-scale fixtures | Optimized CUDA kernels |

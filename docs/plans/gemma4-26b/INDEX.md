@@ -36,7 +36,7 @@ Coding agent:
 | [`08_RISK_REGISTER.md`](08_RISK_REGISTER.md) | Risk register |
 | [`09_DEFINITION_OF_DONE.md`](09_DEFINITION_OF_DONE.md) | Program definition of done |
 | [`10_SOURCE_SNAPSHOT.md`](10_SOURCE_SNAPSHOT.md) | Source snapshot used by this plan |
-| [`11_PR_SEQUENCE.md`](11_PR_SEQUENCE.md) | Suggested pull-request sequence |
+| [`11_PR_SEQUENCE.md`](11_PR_SEQUENCE.md) | Single-branch milestone and review sequence |
 | [`12_AGENT_TASK_QUEUE.md`](12_AGENT_TASK_QUEUE.md) | Agent task queue |
 
 ## Milestones

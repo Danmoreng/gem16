@@ -247,7 +247,7 @@ For a 16 GB card, first release supports one 26B slot. Server startup must rejec
 
 ## Memory regression thresholds
 
-Any PR that changes:
+Any milestone change set that changes:
 
 - immutable bytes by more than 1 MiB;
 - reusable workspace by more than 8 MiB;

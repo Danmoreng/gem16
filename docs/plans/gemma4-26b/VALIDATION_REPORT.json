@@ -2,18 +2,18 @@
   "external_reference_anchor": "kekzl/imp@a392904d4216388828d0d56317de046f4ca49627",
   "final_markdown_file_count": 128,
   "final_package_file_count": 131,
-  "generated_date": "2026-08-04",
-  "package": "gem16-26b-codex-implementation-plan-v3-repository-integrated",
+  "generated_date": "2026-08-11",
+  "package": "gem16-26b-codex-implementation-plan-v4-repository-maintained",
   "repository_anchor": "Danmoreng/gem16@1c4287965d318ba32a68e597f9d7b6678b883376",
-  "schema_version": 3,
+  "schema_version": 4,
   "source_tree": {
     "broken_relative_links": [],
     "duplicate_milestones": [],
     "empty_markdown": [],
     "extra_milestones": [],
-    "file_count_before_checksum": 131,
+    "file_count_before_checksum": 130,
     "markdown_file_count": 128,
-    "markdown_link_count": 257,
+    "markdown_link_count": 259,
     "markdown_without_heading": [],
     "milestone_ids": [
       "M00",
@@ -49,7 +49,7 @@
     "utf8_errors": []
   },
   "zip_validation": {
-    "status": "not_applicable",
-    "note": "The original ZIP passed extraction validation. This report describes the modified repository-integrated revision; SHA256SUMS and source-tree validation are authoritative."
+    "note": "This repository-maintained revision is validated in place; SHA256SUMS and source-tree validation are authoritative.",
+    "status": "not_applicable"
   }
 }

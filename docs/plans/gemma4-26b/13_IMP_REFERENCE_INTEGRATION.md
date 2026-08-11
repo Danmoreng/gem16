@@ -92,9 +92,10 @@ The final `gem16` 26B design remains a small set of explicit, model-specific pla
 | M20 | Treat imp's 5090 numbers as external context, never as an RTX 5080 release baseline. Publish ordinary decode with MTP off. |
 | M23 | Freeze third-party notices, settled-evidence ledger, machine-readable perf baseline and lifecycle tests. |
 
-## Auxiliary PRs
+## Auxiliary review slices
 
-These do not add new milestones; they are narrow support PRs attached to existing gates:
+These do not add new milestones or branches; they are narrow support slices committed on `feat/gemma4-26b` and
+attached to existing gates:
 
 ### R-IMP-00 — reference audit
 

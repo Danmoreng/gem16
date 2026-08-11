@@ -250,7 +250,7 @@ Each milestone must follow this sequence:
 8. update documentation and ledger;
 9. stop at the milestone exit gate.
 
-A milestone PR may not contain unrelated UI work, opportunistic refactors or multiple arithmetic changes that cannot be isolated in an A/B test.
+A milestone change set may not contain unrelated UI work, opportunistic refactors or multiple arithmetic changes that cannot be isolated in an A/B test. M03-M25 development remains on the single long-lived `feat/gemma4-26b` branch; milestone boundaries are enforced by commits, evidence and exit gates rather than new branches.
 
 ## First usable checkpoints along the way
 

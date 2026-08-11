@@ -6,10 +6,10 @@ Only tasks marked `READY` may be implemented. The repository owner changes statu
 
 | Order | Milestone | Initial status | Primary output |
 |---:|---|---|---|
-| 1 | M00 | READY | accepted policy and track skeleton |
-| 2 | M01 | BLOCKED | immutable locks and golden suite |
-| 3 | M02 | BLOCKED | static model variant contract |
-| 4 | M03 | BLOCKED | exact 26B tensor inventory |
+| 1 | M00 | PASSED | accepted policy and track skeleton |
+| 2 | M01 | PASSED | immutable locks and golden suite |
+| 3 | M02 | PASSED | static model variant contract |
+| 4 | M03 | READY | exact 26B tensor inventory |
 | 5 | M04 | BLOCKED | deterministic compiler scaffold |
 | 6 | M05 | BLOCKED | FP8 compiler path |
 | 7 | M06 | BLOCKED | NVFP4 compiler path |
@@ -43,7 +43,7 @@ Every task handoff must include:
 - exact source/checkpoint paths available locally;
 - reference GPU and toolchain;
 - known failures;
-- expected output branch;
+- confirmation that work remains on `feat/gemma4-26b`;
 - whether the agent has permission to run long quality/benchmark suites.
 
 ## Agent stop response

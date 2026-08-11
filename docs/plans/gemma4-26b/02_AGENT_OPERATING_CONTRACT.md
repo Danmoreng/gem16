@@ -18,8 +18,9 @@ Do not rely on this plan's source snapshot when the working tree has moved. Prod
 
 ## 2. Scope discipline
 
+- Use the long-lived `feat/gemma4-26b` branch for all M03-M25 work; do not create milestone branches.
 - Work on one milestone only.
-- Do not start a dependent milestone in the same PR.
+- Do not start a dependent milestone in the same change set or before the current milestone exit gate passes.
 - Do not combine an arithmetic change with an unrelated scheduling or layout optimization.
 - Do not refactor the 12B hot path merely to make the 26B code look generic.
 - Preserve exact 12B tests and benchmark metadata.
@@ -95,7 +96,7 @@ Use checked arithmetic for every byte count and fail before partial initializati
 
 ## 8. Documentation requirements
 
-Every PR must update at least one of:
+Every milestone change set, and the final integration PR if one is opened, must update at least one of:
 
 - `docs/DECISIONS.md` for a promoted choice;
 - `docs/PERFORMANCE_LEDGER.md` for measured kernel/end-to-end evidence;
@@ -104,15 +105,16 @@ Every PR must update at least one of:
 
 Do not rewrite old benchmark results. Add a new dated result.
 
-## 9. Commit and PR rules
+## 9. Commit and review rules
 
 - One semantic change per commit where practical.
 - Use descriptive commit messages.
 - Include generated file hashes when a compiler fixture changes.
 - Do not commit gated model weight payloads.
 - Do commit tiny deterministic fixtures permitted by model licensing.
-- Do not force-push evidence branches after review begins unless required to remove secrets.
-- PR description must identify arithmetic, layout, memory and timing changes independently.
+- Do not force-push the long-lived feature branch after evidence review begins unless required to remove secrets.
+- Each milestone review record, and the final PR description if one is opened, must identify arithmetic, layout,
+  memory and timing changes independently.
 
 ## 10. Stop conditions
 

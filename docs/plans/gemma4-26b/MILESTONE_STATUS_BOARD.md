@@ -2,11 +2,13 @@
 
 Update this file in the working copy. Do not mark a milestone complete from prose alone; link its evidence.
 
+Development branch for M03-M25: `feat/gemma4-26b`
+
 | Milestone | Status | Code commit | Artifact/evidence | Owner sign-off |
 |---|---|---|---|---|
-| M00 Policy/bootstrap | ☐ | | | |
-| M01 Source locks/goldens | ☐ | | | |
-| M02 Model variants | ☐ | | | |
+| M00 Policy/bootstrap | ✓ | `3bf7b6e` | [M00 policy review](../../evidence/gemma4_26b/m00-policy-review.md) | accepted 2026-08-06 |
+| M01 Source locks/goldens | ✓ | `59996f5` | [M01 handoff](../../evidence/gemma4_26b/m01-source-locks-and-goldens-2026-08-06.md) | accepted 2026-08-06 |
+| M02 Model variants | ✓ | `f79eeb6` | [M02 handoff](../../evidence/gemma4_26b/m02-model-variants-2026-08-06.md) | accepted 2026-08-06 |
 | M03 Tensor inventory | ☐ | | | |
 | M04 Compiler scaffold | ☐ | | | |
 | M05 FP8 compiler | ☐ | | | |
@@ -44,7 +46,7 @@ Status values:
 ## Current approved milestone
 
 ```text
-M00
+M03
 ```
 
 Change only after owner review of the prior handoff.

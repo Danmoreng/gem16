@@ -9,6 +9,7 @@ Use this checklist before editing.
 - [ ] Read `02_AGENT_OPERATING_CONTRACT.md`.
 - [ ] Read the exact milestone file.
 - [ ] Record current branch, commit and dirty state.
+- [ ] For M03-M25, confirm the branch is `feat/gemma4-26b`; do not create a milestone branch.
 - [ ] Compare current tree with anchor `1c4287965d318ba32a68e597f9d7b6678b883376`.
 - [ ] Write a drift note for changed files/contracts relevant to the milestone.
 

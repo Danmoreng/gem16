@@ -102,7 +102,7 @@ Refactor current `src/cuda/output_head.*` only enough to share stable candidate/
 - add host tests under `tests/unit/`;
 - add CUDA tests under `tests/cuda/`;
 - add Python compiler/evaluator tests;
-- do not put unrelated refactors into the same PR.
+- do not put unrelated refactors into the same milestone change set.
 
 ## Documentation
 

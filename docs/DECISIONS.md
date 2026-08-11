@@ -1,5 +1,38 @@
 # Decisions
 
+## 2026-08-11: Keep all remaining Gemma 4 26B development on one long-lived feature branch
+
+Date: 2026-08-11
+
+Decision: Integrate the accepted M00-M02 foundation and its Windows host-test fix into `main`, then create
+`feat/gemma4-26b` from the documented integrated state. All M03-M25 implementation remains on that branch. Each
+milestone keeps its own bounded scope, commits, evidence and exit review, but agents must not create a new branch
+per milestone or use parallel milestone branches. Integration back to `main` requires an explicit project-owner
+decision.
+
+Context: The project owner rejected the branch-per-milestone workflow because it fragments one product track across
+many long-lived remote refs. The accepted M00-M02 chain already contains the policy bootstrap, immutable source
+locks, reference evidence and static 26B model classification. Its only post-M02 Windows change adjusts Python
+tests and offline reference/golden tools; the integrated chain contains no CUDA, inference-engine, allocator or
+hot-path implementation. The Windows machine currently has only about 40 GB free, so documentation, host tests and
+branch publication can complete here, while model-payload and real 26B validation resume on Linux.
+
+Alternatives: Continue the plan's original per-milestone branches; rebase or squash the accepted history; develop
+M03 onward directly on `main`; or permit multiple parallel feature branches. Per-milestone and parallel branches
+create the rejected management overhead, rewriting accepted commits weakens evidence traceability, and direct-main
+development removes the requested experimental boundary.
+
+Consequences: The original branch guidance is superseded prospectively, while historical branch names in dated
+M00-M02 evidence remain unchanged. Milestone dependency gates still serialize dependent implementation and prevent
+scope creep inside the long-lived branch. The plan package is now repository-maintained and its integrity metadata
+must be regenerated after normative edits. Merge commit `cf588a1` preserves the accepted M00-M02 commit identities;
+no claim of model execution, CUDA validation or 26B memory fit is made from the Windows preparation step.
+
+Evidence: [Gemma 4 26B track](GEMMA4_26B.md),
+[milestone status board](plans/gemma4-26b/MILESTONE_STATUS_BOARD.md),
+[M01 handoff](evidence/gemma4_26b/m01-source-locks-and-goldens-2026-08-06.md), and
+[M02 handoff](evidence/gemma4_26b/m02-model-variants-2026-08-06.md).
+
 ## 2026-08-11: Use the Unsloth 26B UD-Q4_K_XL artifact for the first practical llama.cpp baseline
 
 Date: 2026-08-11

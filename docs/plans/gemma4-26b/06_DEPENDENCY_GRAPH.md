@@ -37,17 +37,21 @@ M23 ──> M24 Optional full Q4_0 backend
 M23 ──> M25 Future QAT MTP and vision
 ```
 
-## What can run in parallel
+## Scheduling within the single feature branch
 
-After M03:
+All M03-M25 implementation is integrated sequentially on `feat/gemma4-26b`; no published parallel milestone
+branches are used. After M03, the dependency graph still permits the project owner to choose between independent
+next slices:
 
-- M04 compiler scaffolding and M10 CPU MoE oracle may proceed in separate PRs.
-- M05 FP8 and M06 NVFP4 quantizer work may proceed in separate branches only if they share a frozen compiler schema.
+- M04 compiler scaffolding and M10 CPU MoE oracle may be scheduled in either order.
+- M05 FP8 and M06 NVFP4 quantizer work may be scheduled in either order after their shared compiler schema is frozen.
 - M07 head experiments may start after Q4_0 and NVFP4 host oracles exist.
-- M12 attention/KV can proceed alongside M11 MoE reference if common model traits have merged.
-- M14 decode, M15 prefill and M16 head kernels may proceed in parallel after M13 provides stable full-model fixtures and M18 passes the preliminary quality kill gate.
+- M12 attention/KV can be selected once its prerequisites are committed, without weakening the M11/M12 gates.
+- M14 decode, M15 prefill and M16 head kernels may be scheduled in any evidence-driven order after M13 provides
+  stable full-model fixtures and M18 passes the preliminary quality kill gate.
 
-Parallel branches must rebase after shared contracts change. Do not merge incompatible tensor naming or arena schemas.
+Only one implementation slice is active at a time. Close and commit its contract and evidence before selecting the
+next eligible slice. Do not combine incompatible tensor naming or arena schemas in the long-lived branch.
 
 ## What must not run in parallel
 

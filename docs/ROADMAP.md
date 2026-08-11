@@ -1,8 +1,8 @@
 # Roadmap
 
-Current stage: close accepted Gemma 4 26B A4B M02 and prepare the separate M03 exact-tensor-inventory milestone
-while preserving the mature 12B product path. M00, M01 and M02 are accepted; M03 is unblocked but not started, and
-M04 and later implementation remain blocked. The bounded Linux short-context ordinary-decode
+Current stage: continue Gemma 4 26B A4B with M03 exact tensor inventory on the long-lived
+`feat/gemma4-26b` branch while preserving the mature 12B product path. M00, M01 and M02 are accepted; M03 is
+unblocked but not started, and M04 and later implementation remain blocked. The bounded Linux short-context ordinary-decode
 investigation, direct all-regions memory-reserve record, 16K D2 performance sprint and Windows regression are
 complete and remain regression evidence rather than active optimization scope.
 
@@ -80,9 +80,11 @@ binding entry points are:
 3. [plans/gemma4-26b/00_MASTER_IMPLEMENTATION_PLAN.md](plans/gemma4-26b/00_MASTER_IMPLEMENTATION_PLAN.md)
 4. [plans/gemma4-26b/MILESTONE_STATUS_BOARD.md](plans/gemma4-26b/MILESTONE_STATUS_BOARD.md)
 
-Start M03 only on a separate milestone branch from the final accepted M02 closure commit and follow the plan's
-dependency order. The direct Unsloth evidence is token-deterministic after warmup but explicitly not an exact-logit
-or performance oracle. In particular:
+Continue M03 on the long-lived `feat/gemma4-26b` branch created from the integrated M00-M02 foundation on `main`.
+All M03-M25 implementation stays on that branch. Milestone scope, evidence, commits and exit gates remain isolated,
+and one milestone must close before dependent work begins; do not create per-milestone development branches. The
+direct Unsloth evidence is token-deterministic after warmup but explicitly not an exact-logit or performance oracle.
+In particular:
 
 - lock source, compiler, tokenizer, and quality references before kernel work;
 - run the early synthetic 32K residency gate against directly measured CUDA-visible memory;

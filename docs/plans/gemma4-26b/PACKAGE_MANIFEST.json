@@ -3,9 +3,9 @@
   "external_reference_anchor": "kekzl/imp@a392904d4216388828d0d56317de046f4ca49627",
   "files": [
     {
-      "bytes": 12334,
+      "bytes": 12517,
       "path": "00_MASTER_IMPLEMENTATION_PLAN.md",
-      "sha256": "2a13f57ed61046c4477659cf571acdf65e9f5fd1e5bc6c8f09e179ed80642c36"
+      "sha256": "6a81f7fa777f3abd68ced26944cd081f36922a69f5d19b410ad99d06aefe7fa1"
     },
     {
       "bytes": 5897,
@@ -13,14 +13,14 @@
       "sha256": "c59def4596a177e8830875feea7cbc0d597d2e0b9057ee266869ef78fd56d86a"
     },
     {
-      "bytes": 5567,
+      "bytes": 5881,
       "path": "02_AGENT_OPERATING_CONTRACT.md",
-      "sha256": "6fcef0ab4c211a9df5d1caacb2a414e12cefdb35e248bd9dee370e27e429bb87"
+      "sha256": "b5891ee253b0dc59b30b9c9d234d61542b3a20357e606192692af039111199bc"
     },
     {
-      "bytes": 5572,
+      "bytes": 5590,
       "path": "03_CURRENT_REPOSITORY_BASELINE.md",
-      "sha256": "12d3da89fe472d31aee118f17a4c8f82b0b1985e75726700eccea17a5817ea60"
+      "sha256": "d8c1334142e4ee457b3918987c684cbece601b1976f5a8e49f305aae59e973a1"
     },
     {
       "bytes": 4101,
@@ -33,19 +33,19 @@
       "sha256": "5d7abd90cea5f59228a14d045674bdd2baae4e4104afd24b67f3bbf3ce887f68"
     },
     {
-      "bytes": 5721,
+      "bytes": 6110,
       "path": "06_DEPENDENCY_GRAPH.md",
-      "sha256": "3dfbda0e0c199bf85dba6229bfd042b61675caac00ba3907c93d359766efb1a5"
+      "sha256": "6c4598f61868cf716703928de67c09a685c7e42305b7d4e0a0bef932ba0b7f44"
     },
     {
-      "bytes": 7381,
+      "bytes": 7399,
       "path": "07_MEMORY_BUDGET_AND_RESIDENCY.md",
-      "sha256": "bc1df99d4524735db7bf68fa15553c4baea37266607f1e29dad1df6d2e28b5be"
+      "sha256": "f82b204e7cf8f97b16632659bfdd992e20c4cf1df54d0ffaaade5e40e33bc56d"
     },
     {
-      "bytes": 7881,
+      "bytes": 7896,
       "path": "08_RISK_REGISTER.md",
-      "sha256": "6ebc063aa1b70c95d1681ab410ebfd2c22c744b2b586f5c3d6fdf1ee66952c29"
+      "sha256": "bff06b63fe8abbbbde2470ebbde7f1d45352b931a3bc3c1cf5af1d18c31383f3"
     },
     {
       "bytes": 5128,
@@ -58,29 +58,29 @@
       "sha256": "09fe8f45d8ce9d39ed3144a44e1b8537068a55e927386e1392a1c893eb1ea0f0"
     },
     {
-      "bytes": 3275,
+      "bytes": 3815,
       "path": "11_PR_SEQUENCE.md",
-      "sha256": "72cd00a9d065a65dcb61b932592229e6cb9c8ad0b7d8a39d0b7d028557264313"
+      "sha256": "3391f3021acfd7ce59efc7d493a8a4cdfc72552677db0ad335fff9c129d17008"
     },
     {
-      "bytes": 2671,
+      "bytes": 2697,
       "path": "12_AGENT_TASK_QUEUE.md",
-      "sha256": "8200812108f6b45eefb27973e8a3e5e7f079e46b97553f3256b0351950e33719"
+      "sha256": "a6492c74ca5499f2b97163c05f33309b5bd463d3c7d2f250caf0dd956507c9ee"
     },
     {
-      "bytes": 7574,
+      "bytes": 7634,
       "path": "13_IMP_REFERENCE_INTEGRATION.md",
-      "sha256": "f2c261ca2c7d6adb95f26ff84e58bb8b58293836c080e93a92763701a1daf777"
+      "sha256": "d1cf165b5ebcc43bef65faf3df05fe7c5bb472b739eb76ead4b2c9a6f1592801"
     },
     {
-      "bytes": 15091,
+      "bytes": 15103,
       "path": "INDEX.md",
-      "sha256": "2f0f18667f669e9d3b74ce321ac4f87ca06886ec8f8b2db1694593703b339905"
+      "sha256": "22054ee20ba2a293c1db4484ceb97026ca56bad379a47e84e477def2fa5ae863"
     },
     {
-      "bytes": 1419,
+      "bytes": 1786,
       "path": "MILESTONE_STATUS_BOARD.md",
-      "sha256": "ce700dd7809e970834a94542ae93ef4e1c60a64c86921fc58175b40edfc54f0e"
+      "sha256": "7eb090609f91c27bb5f2ad2228d6997206458907a97842761567b482b96f3f88"
     },
     {
       "bytes": 2502,
@@ -93,14 +93,14 @@
       "sha256": "e3bcda2e5040b64cb4a10ee32be8360b19ef0abdc1a0943f91d1a8995c90ed05"
     },
     {
-      "bytes": 4715,
+      "bytes": 4733,
       "path": "README_DE.md",
-      "sha256": "c1bbbae09436e221b590d85ba60fd6268dd78a06ffd8099f969fc7a5cd542299"
+      "sha256": "b288e813e7245f0bf20924a2126ed3542eac1f6fb93173db140dab5fa3b0ea59"
     },
     {
-      "bytes": 2184,
+      "bytes": 2754,
       "path": "START_HERE_CODEX.md",
-      "sha256": "6e80a68e8010b8480d4cc8c4628cd316d0aaca1747f5e421187280b81c0d110f"
+      "sha256": "1e1d46a62e0dcb759cfdefe2286ada56b5969abc6ccd589c1505db360932fd7b"
     },
     {
       "bytes": 2954,
@@ -123,9 +123,9 @@
       "sha256": "d99ec11660aff1886900105f5f3a99ec668dda9d8ce02017575b86f335f49b6c"
     },
     {
-      "bytes": 4735,
+      "bytes": 4753,
       "path": "appendices/FAILURE_MODES.md",
-      "sha256": "97939bbcc99fe8373447efef222d76db38555a4714e6084950509f262b9568a7"
+      "sha256": "3a6f879e417ae38f50481b1e9f32440ca8bea6590306aec737e374363678712a"
     },
     {
       "bytes": 2413,
@@ -173,9 +173,9 @@
       "sha256": "d8d5100eaa928a8a90f8a44f6c54b09297ad62e6decb9fb8ef01db4c813a8b00"
     },
     {
-      "bytes": 1757,
+      "bytes": 1851,
       "path": "checklists/BEFORE_EACH_MILESTONE.md",
-      "sha256": "3b0a8068362c79660c4b35182f87da8b58bcfcafa3b894c8b269d5a29676a23a"
+      "sha256": "e4c450aad13f9b865516f4eaaae881628865d789828ec07e30efda486e5484b8"
     },
     {
       "bytes": 1348,
@@ -208,9 +208,9 @@
       "sha256": "b3a6d6ea36753e88d9596c855c77d17d4720696679137bbefa0377e376d45f4d"
     },
     {
-      "bytes": 2367,
+      "bytes": 2409,
       "path": "checklists/PR_REVIEW_CHECKLIST.md",
-      "sha256": "33a805d9dfc6e45a5c248956a6fe381e20ae51a81210aa58b757101c0d1bbac5"
+      "sha256": "6a9a395c8edc125ce5a8cc766ccb606cba18e4a8a4555c5d400bcd4fd86d3036"
     },
     {
       "bytes": 1388,
@@ -238,9 +238,9 @@
       "sha256": "6de397009fb37d9bd501b1764df07cf051350bb97f9e395248ad15d9de257a40"
     },
     {
-      "bytes": 5399,
+      "bytes": 5427,
       "path": "milestones/M00_POLICY_AND_TRACK_BOOTSTRAP.md",
-      "sha256": "cd3da796ac6bbef05f61123420470eef2d93b8ec2d3e3d4b2cabaaf9682f270d"
+      "sha256": "8f2d5bf98573e9cc37baf686078754be3a37cb4086e2ff2bcdf5999d44fc85d4"
     },
     {
       "bytes": 7583,
@@ -443,9 +443,9 @@
       "sha256": "e1778d4663ebbd20eaf348a5c41cf890864224a083b7f234736ea5cdfa47a8d0"
     },
     {
-      "bytes": 4136,
+      "bytes": 4343,
       "path": "specs/CODEX_WORKFLOW.md",
-      "sha256": "7859a6b58441d340800cb7e1cd330fed1e766e41a8024d328a4da23645fafbdc"
+      "sha256": "a74a059344d0261762cfd71e86c83b483d62839e1da40c8552b5a46aa6df7b05"
     },
     {
       "bytes": 2583,
@@ -473,9 +473,9 @@
       "sha256": "66490368b6e9b4053a7215ab2b80015e2654ada0fc7268ba84283add3bb52f28"
     },
     {
-      "bytes": 4005,
+      "bytes": 4023,
       "path": "specs/FILE_CHANGE_MAP.md",
-      "sha256": "ce8a23d312ddcec78a1b67bcb8be933724a1bf6317d956088e0793295a48378b"
+      "sha256": "4dab95832c0f90b79b72520b205bf65288b465faf76d73123576668e728a3346"
     },
     {
       "bytes": 3376,
@@ -558,9 +558,9 @@
       "sha256": "38cf72e88960b2056d2ac88efdb00e32642a8d2eac4a8857d08992b8e730417b"
     },
     {
-      "bytes": 3623,
+      "bytes": 3697,
       "path": "specs/TEST_MATRIX.md",
-      "sha256": "dac094762374735d11a2ee013c9011b36e6be97924eb1fd9d2ad1b6e12099e1f"
+      "sha256": "eecc7f24774ec8cb06bdd908ab3362ca8bdc41522c7a322180c1336ecf1c2755"
     },
     {
       "bytes": 941,
@@ -633,8 +633,8 @@
       "sha256": "cddc2bec7c0ce9667a055b523f8870c3e17a23ca80a5f7b459590a387cb10680"
     }
   ],
-  "generated_date": "2026-08-04",
-  "package": "gem16-26b-codex-implementation-plan-v3-repository-integrated",
+  "generated_date": "2026-08-11",
+  "package": "gem16-26b-codex-implementation-plan-v4-repository-maintained",
   "repository_anchor": "Danmoreng/gem16@1c4287965d318ba32a68e597f9d7b6678b883376",
-  "schema_version": 3
+  "schema_version": 4
 }

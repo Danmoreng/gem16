@@ -30,7 +30,16 @@ kekzl/imp@a392904d4216388828d0d56317de046f4ca49627
 ## Verify the integrated plan
 
 ```bash
-sha256sum -c SHA256SUMS.txt
+python tools/update_gemma4_26b_plan_integrity.py --check
 ```
 
-The checksums prove package byte integrity. They do not prove that future repository code satisfies the implementation plan. Each milestone retains separate correctness, quality, memory, provenance, lifecycle and performance gates.
+After an intentional normative edit, regenerate the metadata from the repository root:
+
+```bash
+python tools/update_gemma4_26b_plan_integrity.py
+python tools/update_gemma4_26b_plan_integrity.py --check
+```
+
+The generated checksums prove package byte integrity. They do not prove that future repository code satisfies the
+implementation plan. Each milestone retains separate correctness, quality, memory, provenance, lifecycle and
+performance gates.

@@ -1,8 +1,8 @@
-# Pull-request review checklist
+# Milestone change-set and final pull-request review checklist
 
 ## Scope and design
 
-- [ ] PR names the milestone and implementation slice.
+- [ ] Review record names the milestone and implementation slice.
 - [ ] No unrelated refactor/UI/format churn.
 - [ ] Drift from the anchored plan is documented.
 - [ ] Public/internal API changes are intentional.

@@ -148,7 +148,7 @@
 
 ### Milestones collapsed
 
-**Symptom:** compiler, kernels and benchmarks in one opaque PR.
+**Symptom:** compiler, kernels and benchmarks in one opaque milestone change set.
 **Response:** split, restore reference/evidence boundaries.
 **Never:** accept because demo works.
 

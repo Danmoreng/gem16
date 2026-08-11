@@ -53,7 +53,7 @@ Der Ordner enthält:
 - einen Masterplan und Architekturentscheidungen,
 - 26 eigenständige Milestone-Pläne,
 - Spezifikationen für Compiler, Checkpointformat, Quantisierung, MoE, Attention, Speicher, Qualität und Benchmarks,
-- Checklisten für PRs, CUDA-Kernels, Quantizer, Qualität und Release,
+- Checklisten für Milestone-Reviews, CUDA-Kernels, Quantizer, Qualität und Release,
 - wiederverwendbare Codex-Prompts und Dokumentvorlagen,
 - genaue Speicherrechnungen und eine Datei-zu-Milestone-Karte.
 
@@ -62,7 +62,7 @@ Beginne nicht mit CUDA-Optimierung. Beginne mit Governance, unveränderlichen Mo
 
 ## Umfang des Pakets
 
-Der finale Ordner enthält 26 Milestone-Pläne, 28 technische Spezifikationen, 12 Checklisten, 13 Vorlagen, 13 Anhänge und 8 vertiefende imp-Referenzdokumente sowie die übergeordneten Architektur-, Speicher-, Risiko-, PR- und Releasepläne. Ein generiertes Inhaltsverzeichnis, Dateihashes und ein ZIP-Integritätstest gehören ebenfalls zum Paket.
+Der finale Ordner enthält 26 Milestone-Pläne, 28 technische Spezifikationen, 12 Checklisten, 13 Vorlagen, 13 Anhänge und 8 vertiefende imp-Referenzdokumente sowie die übergeordneten Architektur-, Speicher-, Risiko-, Review- und Releasepläne. Ein generiertes Inhaltsverzeichnis, Dateihashes und ein ZIP-Integritätstest gehören ebenfalls zum Paket.
 
 ## imp-Referenz
 

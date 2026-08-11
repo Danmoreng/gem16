@@ -16,13 +16,15 @@ Do not begin coding from this package alone.
 
 ## Scope discipline
 
-One branch/PR addresses one milestone or a deliberately smaller slice. A task may stop before all exit criteria, but it must not silently start the next milestone.
+All M03-M25 work stays on the existing `feat/gemma4-26b` branch. One task/change set addresses one milestone or a
+deliberately smaller slice. A task may stop before all exit criteria, but it must not silently start the next
+milestone or create another development branch.
 
 Allowed small refactors:
 
 - directly necessary for the milestone;
 - tested;
-- named in PR;
+- named in the milestone review record;
 - no arithmetic change unless milestone covers it.
 
 ## Test-first behavior
@@ -97,7 +99,8 @@ requires a decision or experiment record and appropriate quality rerun.
 - do not commit large model payloads;
 - keep generated evidence according to repository policy;
 - use descriptive commits;
-- branch names suggested in `11_PR_SEQUENCE.md`;
+- use `feat/gemma4-26b` for M03-M25 and do not create milestone branches;
+- do not force-push reviewed milestone evidence;
 - do not push/open PR unless explicitly requested by the project owner.
 
 ## Completion report

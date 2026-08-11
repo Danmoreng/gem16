@@ -18,7 +18,7 @@
 | R08 | Global attention K=V is implemented as shared physical cache | Medium | Critical | Preserve separate normalized/rotated K and normalized V states | Cache alias detected |
 | R09 | Q4_0 output head is slower than NVFP4 or hurts graph shape | Medium | Medium | Separate profile benchmark; no commitment before M07/M16 | No win on quality/performance Pareto |
 | R10 | NVFP4 head harms logits more than experts | Medium | Critical | Official-Q4_0-style head candidate and teacher-forced logit tests | Head dominates KL/NLL regression |
-| R11 | 12B path regresses due to generic refactor | Medium | Critical | Static model traits, separate translation units, exact 12B gates in every shared PR | 12B output or benchmark changes unexpectedly |
+| R11 | 12B path regresses due to generic refactor | Medium | Critical | Static model traits, separate translation units, exact 12B gates in every shared change set | 12B output or benchmark changes unexpectedly |
 | R12 | Unsloth tensor schema changes at `main` | High | Medium | Full commit lock and local manifest snapshot | Only mutable revision available |
 | R13 | Google QAT source files change | Medium | Critical | Full revision/file hashes and compiler provenance | Source cannot be reproduced |
 | R14 | Cross-platform compiler produces different bytes | Medium | Medium | Canonical reference compiler container/toolchain | No canonical hash can be generated |
@@ -52,7 +52,7 @@
 |---|---|---|---|---|---|
 | R31 | ModelOpt and llm-compressor global-scale directions are confused | Medium | Critical | Producer-tagged manifest and deliberately non-unit scale fixtures | Any tensor lacks unambiguous producer/scale contract |
 | R32 | NVFP4 checkpoint/recipe causes large expert-quality loss despite correct kernels | High | Critical | Candidate G negative control; W4A16 diagnostic; prose-first PPL and per-layer drift | Loss cannot be isolated or exceeds frozen gate |
-| R33 | A broad imp architecture is copied into gem16 and erodes specialization/memory guarantees | Medium | Critical | Adoption matrix; reject Paged KV/general executor; PR scope gate | General dispatcher or second runtime ownership model enters critical path |
+| R33 | A broad imp architecture is copied into gem16 and erodes specialization/memory guarantees | Medium | Critical | Adoption matrix; reject Paged KV/general executor; milestone scope gate | General dispatcher or second runtime ownership model enters critical path |
 | R34 | Optional MIT code port loses attribution or imports transitive third-party code | Medium | Critical | License/provenance checklist and isolated destination | License/source chain unresolved |
 | R35 | Module-static CUDA state retains pointers into destroyed arenas | Medium | Critical | Lifecycle spec; repeated destroy/recreate and failure-retry tests | Sticky CUDA error, stale pointer or VRAM leak after teardown |
 | R36 | Technical-Markdown PPL is mistaken for a stable Gemma 4 quality signal | High | Medium | Plain-prose primary corpus; report domain strata separately | Promotion relies on one OOD aggregate |

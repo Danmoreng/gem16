@@ -56,7 +56,7 @@ behavior and benchmark wording cannot be left to implementation convention.
 - `docs/DECISIONS.md` entry with date, context, alternatives, consequences and evidence.
 - Repository drift report under a dated 26B planning/evidence path.
 - Updated roadmap showing milestones without claiming implementation.
-- A short policy review checklist signed off in the PR discussion.
+- A short policy review checklist signed off in the milestone review record.
 
 ## Suggested commands
 
@@ -77,7 +77,7 @@ git diff --stat 1c4287965d318ba32a68e597f9d7b6678b883376..HEAD
 
 ## Forbidden shortcuts
 
-- Do not sneak compiler code into this PR.
+- Do not sneak compiler code into this milestone change set.
 - Do not weaken source locking for the existing 12B model.
 - Do not state that QAT→NVFP4 quality is known.
 - Do not call the eventual artifact official Google NVFP4.
