@@ -1,6 +1,6 @@
 # Start here — current coding-agent task
 
-Status: M00–M06 accepted; M07 active.
+Status: M00–M07 accepted; paused before M08.
 Plan revision: Fast Track R4.
 
 ## Read now
@@ -15,7 +15,8 @@ Do not preload the full decision, correctness, benchmark or performance ledgers.
 
 ## Lead-agent orchestration
 
-The lead agent may immediately assign disjoint sub-agents for:
+The track is paused after M07 by owner request. Do not start M08 or assign further 26B implementation work without
+explicit owner instruction. When resumed, the lead agent may assign disjoint sub-agents for:
 
 - M10 phase A BF16 MoE oracle;
 - M12 phase A traits and attention/KV fixtures;
@@ -23,13 +24,12 @@ The lead agent may immediately assign disjoint sub-agents for:
 - M25 phase A assistant compatibility and memory modeling;
 - evaluation/benchmark harness scaffolding.
 
-Use [`PARALLEL_WORKSTREAMS.md`](PARALLEL_WORKSTREAMS.md). Lane A/M07 remains the priority and owns the tied-head compiler/reference slice.
+Use [`PARALLEL_WORKSTREAMS.md`](PARALLEL_WORKSTREAMS.md). M07 is accepted; M08 is next and ready but not started.
 
 ## M07 success
 
-M07 is complete when the QAT tied embedding/output matrix compiles once to the accepted provisional NVFP4 contract,
-lookup and T=1 head behavior match independent dequantized references, softcap/suppression/tie behavior is
-deterministic, and exactly one physical tied payload is planned.
+M07 is accepted at implementation commit `60f500b7be567fafd483ebd6f5f9b07988197ca1` after a clean Release QAT
+conversion, independent lookup/T=1 diagnostic, deterministic host tests, and exact one-payload validation.
 
 ## Full-run rule
 
@@ -37,4 +37,5 @@ For expensive conversions or publication claims, use reviewed, targeted-tested c
 
 ## After M07
 
-Proceed directly to M08 complete-artifact and loader integration. Do not start Q4_0 backend work or MTP verifier-head optimization in M07.
+M08 complete-artifact and loader integration is next, but is explicitly paused and has not started. Resume only after
+owner instruction. Do not start Q4_0 backend work or MTP verifier-head optimization in M07.

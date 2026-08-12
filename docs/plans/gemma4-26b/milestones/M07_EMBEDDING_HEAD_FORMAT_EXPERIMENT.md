@@ -1,6 +1,6 @@
 # M07 — Provisional NVFP4 tied embedding/head
 
-Status: active
+Status: accepted 2026-08-12 at implementation commit `60f500b7be567fafd483ebd6f5f9b07988197ca1`
 Class: critical-lite
 Unblocks: M08
 
@@ -31,12 +31,14 @@ Q4_0 remains an external reference and optional M24 work. Multi-row verification
 
 ## Exit gate
 
-- [ ] One QAT NVFP4 tied matrix compiles and validates.
-- [ ] Lookup and T=1 head match independent dequantized references within the accepted tolerance.
-- [ ] Softcap, suppression and tie behavior are deterministic.
-- [ ] Only one physical tied payload is planned/resident.
-- [ ] M08 has a stable provisional head contract.
+- [x] One QAT NVFP4 tied matrix compiles and validates.
+- [x] Lookup and T=1 head match independent dequantized references within the accepted tolerance.
+- [x] Softcap, suppression and tie behavior are deterministic.
+- [x] Only one physical tied payload is planned/resident.
+- [x] M08 has a stable provisional head contract.
 
 ## Evidence
 
-`artifacts/m07/` contains head bytes, fixture comparisons and T=1 reference timing only. It is not a final quality/performance selection report.
+`artifacts/m07/` contains the clean Release plan/compile/verify reports, manifest and hash summary, actual-artifact
+lookup/T=1 diagnostic, fixture evidence and acceptance record. The 415 MB payload remains external under `/tmp`.
+This is not a final quality/performance selection report.

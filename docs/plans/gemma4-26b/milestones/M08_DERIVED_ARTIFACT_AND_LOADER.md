@@ -1,6 +1,6 @@
 # M08 — Complete derived artifact and direct loader
 
-Status: blocked by M07
+Status: ready after M07; not started
 Class: critical
 Unblocks: final M09 reconciliation, M11, M12 runtime and M13
 
@@ -23,7 +23,8 @@ Build and load one complete text-only QAT-derived artifact with one final weight
 
 ## Parallelism
 
-M09 phase A, M10 and M12 fixture work may continue. Final schema and loader files are integration-owned; sub-agents do not modify them concurrently.
+M09 phase A, M10 and M12 fixture work are paused with the track. Final schema and loader files are integration-owned;
+sub-agents do not modify them concurrently. M08 requires explicit owner instruction to start.
 
 ## Exit gate
 

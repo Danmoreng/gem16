@@ -6,7 +6,7 @@ The active execution policy is [`ACTIVE_DECISIONS.md`](ACTIVE_DECISIONS.md). The
 [`plans/gemma4-26b/ACTIVE_CONTRACT.md`](plans/gemma4-26b/ACTIVE_CONTRACT.md). Historical decisions and benchmark
 ledgers remain evidence, not default task instructions.
 
-M00–M06 of the Gemma 4 26B track are accepted. M07 is active. The priority is a vertical experimental result:
+M00–M07 of the Gemma 4 26B track are accepted. Work is paused before M08 by owner request. The priority remains the vertical experimental result:
 
 ```text
 QAT-derived NVFP4/FP8 artifact → direct loader → real 32K one-slot fit
@@ -20,7 +20,8 @@ the partial artifacts as loadable or 26B execution as implemented.
 ## 26B checkpoints
 
 - **M06:** accepted native NVFP4 expert compiler and complete QAT expert conversion;
-- **M07/M08:** active provisional NVFP4 tied head, then complete artifact and direct loader;
+- **M07:** accepted provisional NVFP4 tied head compiler/reference stage;
+- **M08:** next complete artifact and direct loader stage, not started;
 - **M09:** one fully resident 26B slot at 32K with at least 700 MiB directly measured free CUDA memory;
 - **M13:** slow deterministic text execution and the early quality screen;
 - **M17:** optimized all-resident runtime;

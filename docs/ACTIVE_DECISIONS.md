@@ -1,6 +1,6 @@
 # Active decisions
 
-**Accepted:** 2026-08-12 · **Track:** Gemma 4 26B A4B Fast Track · **Status:** M00–M06 accepted, M07 active
+**Accepted:** 2026-08-12 · **Track:** Gemma 4 26B A4B Fast Track · **Status:** M00–M07 accepted, paused before M08
 
 This is the short operational policy for current work. It is not a replacement for historical evidence. Permanent
 rules in `AGENTS.md` remain binding. For facts about the implementation, current source, tests and accepted evidence
@@ -31,9 +31,10 @@ The integration branch remains `feat/gemma4-26b`; temporary worktrees are allowe
   Ordinary/Unsloth diagnostics sufficient to catch convention errors. A complete Ordinary conversion and exhaustive
   Ordinary-versus-Unsloth attribution are conditional work, not M06/M07 blockers. This explicitly supersedes the
   former future-stage requirement for a full Ordinary conversion at every M05–M07 partial stage.
-- **M07:** use one provisional NVFP4 tied embedding/output head for the first complete artifact. An internal Q4_0
-  encoder/backend and broad head A/B study are optional and do not block the first executable path. MTP verifier
-  head batches belong to M25, not M07.
+- **M07:** use one provisional NVFP4 tied embedding/output head for the first complete artifact. The accepted
+  implementation compiles one QAT tied source into four aliased components and validates CPU lookup/T=1 reference
+  semantics. An internal Q4_0 encoder/backend and broad head A/B study are optional and do not block the first
+  executable path. MTP verifier head batches belong to M25, not M07.
 - **M13:** is the only early quality go/no-go screen. It must still check deterministic generation, teacher-forced
   drift and catastrophic numerical behavior. **M18** is conditional diagnosis/attribution when M13 or later quality
   fails, a head decision needs attribution, or the owner requests it; it is not a normal prerequisite for native work.
@@ -45,7 +46,7 @@ The integration branch remains `feat/gemma4-26b`; temporary worktrees are allowe
 
 ## Scope boundary
 
-The accepted M00–M06 source locks, evidence and historical records remain valid. The active choices above simplify
+The accepted M00–M07 source locks, evidence and historical records remain valid. The active choices above simplify
 future execution; they do not authorize silent precision changes, CPU weight offload, duplicate device layouts,
 runtime quantization, unreported fallback, weakened 12B behavior or unsupported capability claims. Experimental
 results must say which gates have not yet been run.

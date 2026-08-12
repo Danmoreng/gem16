@@ -13,18 +13,20 @@ The integration agent alone owns:
 - cross-workstream changes to `inference_engine` orchestration;
 - final evidence acceptance.
 
-## Workstreams available at M07
+## Workstreams available after M07
+
+The track is paused after M07 by owner request. No lane may start until explicit restart.
 
 | Lane | Immediate task | May start now | Owned area | Merge gate |
 |---|---|---:|---|---|
-| A — Compiler/head | M07 provisional tied NVFP4 embedding/head | yes | tied-head compiler/reference tests and M07 artifacts | M07 exit |
-| B — MoE semantics | M10 phase A BF16 router/shared/expert oracle | yes | new numeric oracle files and isolated tests/goldens | semantic fixtures accepted |
-| C — Attention traits | M12 phase A layer table, RoPE and cache fixtures | yes | model-trait tests and isolated attention/KV tests | trait contract accepted |
-| D — Memory | M09 phase A formulas, one-slot tests and reporting schema | yes | memory-plan tests/tools; no final artifact constants | M08 artifact reconciliation |
-| E — Harness | M13/M19/M20/M21 runners using fixtures or 12B smoke | yes | new tools, prompt manifests and report schemas | no production claim |
-| F — MTP feasibility | M25 phase A assistant lock/inventory and compressed-memory model | yes | docs/tools/model locks only | base runtime remains untouched |
+| A — Compiler/head | M08 complete artifact/loader | no | final artifact and loader integration | M08 exit |
+| B — MoE semantics | M10 phase A BF16 router/shared/expert oracle | no | new numeric oracle files and isolated tests/goldens | semantic fixtures accepted |
+| C — Attention traits | M12 phase A layer table, RoPE and cache fixtures | no | model-trait tests and isolated attention/KV tests | trait contract accepted |
+| D — Memory | M09 phase A formulas, one-slot tests and reporting schema | no | memory-plan tests/tools; no final artifact constants | M08 artifact reconciliation |
+| E — Harness | M13/M19/M20/M21 runners using fixtures or 12B smoke | no | new tools, prompt manifests and report schemas | no production claim |
+| F — MTP feasibility | M25 phase A assistant lock/inventory and compressed-memory model | no | docs/tools/model locks only | base runtime remains untouched |
 
-Lane A is the current critical lane. B–F must not delay M07 integration.
+All lanes are paused after M07 until explicit owner restart.
 
 ## Later parallel window
 

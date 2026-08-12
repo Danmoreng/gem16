@@ -1,0 +1,120 @@
+{
+  "schema_version": 1,
+  "milestone": "M07",
+  "status": "accepted",
+  "accepted_date": "2026-08-12",
+  "artifact_profile": "nvfp4-tied-head-partial-v1",
+  "artifact_status": "m07_nvfp4_tied_head_partial_not_runtime_loadable",
+  "implementation": {
+    "commit": "60f500b7be567fafd483ebd6f5f9b07988197ca1",
+    "branch": "feat/gemma4-26b",
+    "compiler_dirty": false,
+    "native_protocol": "gem16-nvfp4-direct-v1",
+    "native_build": {
+      "build_type": "Release",
+      "compiler_id": "GNU",
+      "compiler_version": "16.1.1",
+      "cxx_standard": "20",
+      "processor": "x86_64",
+      "system": "Linux",
+      "threads": 16
+    },
+    "native_compiler_sha256": "37d67f709bbed664ebde1f502bde7bb487f886b0337f740095faf37365cbf5a5",
+    "head_diagnostic_sha256": "17634ce1f1f675006434c201c322d1b045e2cca24c16f6a432bbb23f7304d39f"
+  },
+  "source": {
+    "lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230",
+    "repository": "google/gemma-4-26B-A4B-it-qat-q4_0-unquantized",
+    "revision": "f1e06dc520982d9b9edd76859fdb7ab209449949"
+  },
+  "contract": {
+    "compiler_plan_sha256": "e549a43864e2e64b4b0783de2337631c5b5989fb3c25f0dc94b762442ded6c27",
+    "resolved_plan_sha256": "e549a43864e2e64b4b0783de2337631c5b5989fb3c25f0dc94b762442ded6c27",
+    "quantizer_spec_sha256": "fe3f5d6a3e26eaf54f7a0d98ecef12f6de376b52743f2a6e5603180d0a5b24fa",
+    "source_tensor_count": 1013,
+    "tied_source_count": 1,
+    "excluded_tensor_count": 1012,
+    "output_tensor_count": 4,
+    "output_payload_bytes": 415236104,
+    "shard_bytes_including_header": 415236648,
+    "component_bytes": {
+      "weight_packed": 369098752,
+      "weight_scale": 46137344,
+      "weight_global_scale": 4,
+      "input_global_scale": 4
+    },
+    "one_physical_tied_payload": true,
+    "all_outputs_aliased": true,
+    "lm_head_duplicate": false
+  },
+  "runs": {
+    "plan_wall_seconds": 60.549,
+    "compile_wall_seconds": 177.420,
+    "native_analysis_seconds": 3.938455459,
+    "native_conversion_seconds": 21.067485441,
+    "verify_wall_seconds": 102.288,
+    "native_source_passes": 2,
+    "native_maximum_source_row_bytes": 5632,
+    "native_child_peak_rss_bytes": 4771840,
+    "parent_peak_rss_bytes": 34873344,
+    "host_memory_cap_bytes": 8589934592,
+    "diagnostic_wall_seconds": 15.829
+  },
+  "diagnostic": {
+    "status": "pass",
+    "lookup_tokens": [0, 1, 131072, 262143],
+    "lookup_max_abs_error": 0.0,
+    "full_vocabulary_logits": true,
+    "winner_token": 159254,
+    "winner_value": 0.5457066893577576,
+    "sampled_manual_rows_max_abs_error": 0.0,
+    "suppressed_winner": 159254,
+    "suppressed_second_token": 14334,
+    "suppressed_second_value": 0.5314220190048218,
+    "pre_suppression_logits_unchanged": true,
+    "all_logits_finite": true,
+    "one_mapped_shard": true,
+    "payload_copy": false,
+    "row_cache": false,
+    "synthetic_hidden_fixture": true,
+    "quality_claim": false,
+    "performance_claim": false
+  },
+  "artifact_hashes": {
+    "compilation_manifest_sha256": "7bf46ce571ea593c3202819db2a8c2bc2a29ba8bb73a23a0d5571a38c88f089e",
+    "shard_sha256": "3c200aa69710344f0c2f0075aa1c2f408fda888d553e230672ac85da73669725",
+    "index_sha256": "f241a2f2160430a1054429bec73aec60d1c480214cec6c749673f2fbd36ce454"
+  },
+  "evidence_files": [
+    {"path": "artifacts/m07/nvfp4-head-compiler-config.json", "size": 2346, "sha256": "a5394253b7c11894c7e1ec5219a29380a31391f63107595afba1cf7ec7668efe"},
+    {"path": "artifacts/m07/preflight-release.txt", "size": 4499, "sha256": "ceed5d170206adc4d4b62e57a1007b3d442499fb6f2395467e89c710c3fb9a9e"},
+    {"path": "artifacts/m07/qat-head-plan-release.json", "size": 250540, "sha256": "f57d6295d204dbbc19a67919b3c7fc698676c4c89d2c6643fb4d7ab3b429e141"},
+    {"path": "artifacts/m07/qat-head-compile-release.json", "size": 26522, "sha256": "669139762238d52d432e6c798b9f39b6e16a403164372a24c4f6e5034bb4fdbc"},
+    {"path": "artifacts/m07/qat-head-verify-release.json", "size": 1150, "sha256": "076a986181535fdd30737d6a67e9560f80f8b16df732c2c25da81e0c41df2ef9"},
+    {"path": "artifacts/m07/qat-head-compilation-manifest-release.json", "size": 874894, "sha256": "7bf46ce571ea593c3202819db2a8c2bc2a29ba8bb73a23a0d5571a38c88f089e"},
+    {"path": "artifacts/m07/actual-head-diagnostic-release.json", "size": 2397, "sha256": "bb685c8b68704910836ac1b0b3e09be1e3556f89f0b3e80d227a418746c09c49"},
+    {"path": "artifacts/m07/qat-head-hash-summary.json", "size": 2413, "sha256": "d459dc0b78eb96d9aafe93d2ae76cb782fa70ef68a162c72194b4211e6e62a02"}
+  ],
+  "artifact_payload": {
+    "path": "/tmp/m07-release-60f500b7be567fafd483ebd6f5f9b07988197ca1/qat-head-artifact",
+    "copied_to_repository": false
+  },
+  "tests": {
+    "python_discovery": "176/176 passed",
+    "host_debug": "1/1 passed",
+    "host_release": "1/1 passed",
+    "host_sanitize": "1/1 passed",
+    "generators": "M05/M06/M07 checks passed",
+    "plan_integrity": true,
+    "diff_check": true,
+    "cuda_or_runtime_changes": false,
+    "twelve_b_regression_rerun": false,
+    "twelve_b_regression_reason": "M07 changes compiler/reference tooling only; no shared loader, runtime, or CUDA path changed"
+  },
+  "limitations": [
+    "The partial head artifact is not runtime-loadable; M08 owns complete artifact and loader integration.",
+    "The projection hidden input is a deterministic synthetic post-final-normalization fixture.",
+    "The diagnostic is reference correctness evidence only, not a model-quality or performance qualification.",
+    "The full artifact payload remains outside the repository under /tmp."
+  ]
+}

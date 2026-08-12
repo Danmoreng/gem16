@@ -1,0 +1,43 @@
+run_commit=60f500b7be567fafd483ebd6f5f9b07988197ca1
+branch=feat/gemma4-26b
+started_utc=2026-08-12T16:18:22Z
+status_clean=true
+native_build={"native_build":{"build_type":"Release","compiler_id":"GNU","compiler_version":"16.1.1","cxx_standard":"20","processor":"x86_64","system":"Linux"},"protocol":"gem16-nvfp4-direct-v1"}
+37d67f709bbed664ebde1f502bde7bb487f886b0337f740095faf37365cbf5a5  build/Linux/host-release/bin/gem16-checkpoint-compiler
+17634ce1f1f675006434c201c322d1b045e2cca24c16f6a432bbb23f7304d39f  build/Linux/host-release/bin/gem16-nvfp4-head-diagnostic
+e549a43864e2e64b4b0783de2337631c5b5989fb3c25f0dc94b762442ded6c27  benchmarks/goldens/gemma4_26b/nvfp4/qat-head-compiler-plan.json
+a5394253b7c11894c7e1ec5219a29380a31391f63107595afba1cf7ec7668efe  artifacts/m07/nvfp4-head-compiler-config.json
+fe3f5d6a3e26eaf54f7a0d98ecef12f6de376b52743f2a6e5603180d0a5b24fa  tools/gem16_compile/specs/nvfp4-experts-v1.json
+3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230  models/gemma4-26b-qat-bf16.lock.json
+Filesystem       1B-blocks        Used   Available Use% Mounted on
+tmpfs          33319374848 13644361728 19675013120  41% /tmp
+               total        used        free      shared  buff/cache   available
+Mem:     66638745600 19636727808  9848782848 13731766272 51622985728 47002017792
+Swap:              0           0           0
+chat_template.jinja 18683
+config.json 3810
+generation_config.json 203
+.gitattributes 1570
+model-00001-of-00002.safetensors 49907246508
+model-00002-of-00002.safetensors 1704763408
+model.safetensors.index.json 103196
+processor_config.json 1689
+README.md 29379
+tokenizer_config.json 3729
+tokenizer.json 32169626
+plan_command=LC_ALL=C.UTF-8 LANG=C.UTF-8 python3 tools/compile_gemma4_26b.py plan --source-lock models/gemma4-26b-qat-bf16.lock.json --source-directory models/checkpoints/google-gemma-4-26b-a4b-it-qat-bf16-f1e06dc --compiler-manifest benchmarks/goldens/gemma4_26b/nvfp4/qat-head-compiler-plan.json --profile nvfp4-tied-head-partial-v1 --head-format nvfp4 --max-host-memory 8589934592 --staging-bytes 1048576 --threads 16 --dependencies-lock tools/gem16_compile/dependencies.lock.json --reference-platform-strict --dry-run --report RUN/qat-head-plan.json
+plan_wall_seconds=60.549
+compile_command=LC_ALL=C.UTF-8 LANG=C.UTF-8 python3 tools/compile_gemma4_26b.py compile --source-lock models/gemma4-26b-qat-bf16.lock.json --source-directory models/checkpoints/google-gemma-4-26b-a4b-it-qat-bf16-f1e06dc --compiler-manifest benchmarks/goldens/gemma4_26b/nvfp4/qat-head-compiler-plan.json --profile nvfp4-tied-head-partial-v1 --head-format nvfp4 --native-encoder build/Linux/host-release/bin/gem16-checkpoint-compiler --native-timeout-seconds 14400 --max-host-memory 8589934592 --staging-bytes 1048576 --threads 16 --dependencies-lock tools/gem16_compile/dependencies.lock.json --reference-platform-strict --output RUN/qat-head-artifact --report RUN/qat-head-compile.json
+compile_wall_seconds=177.420
+verify_command=LC_ALL=C.UTF-8 LANG=C.UTF-8 python3 tools/compile_gemma4_26b.py verify --source-lock models/gemma4-26b-qat-bf16.lock.json --source-directory models/checkpoints/google-gemma-4-26b-a4b-it-qat-bf16-f1e06dc --compiler-manifest benchmarks/goldens/gemma4_26b/nvfp4/qat-head-compiler-plan.json --profile nvfp4-tied-head-partial-v1 --head-format nvfp4 --max-host-memory 8589934592 --staging-bytes 1048576 --threads 16 --dependencies-lock tools/gem16_compile/dependencies.lock.json --reference-platform-strict --model RUN/qat-head-artifact --report RUN/qat-head-verify.json
+verify_wall_seconds=102.288
+diagnostic_command=LC_ALL=C.UTF-8 LANG=C.UTF-8 build/Linux/host-release/bin/gem16-nvfp4-head-diagnostic --model RUN/qat-head-artifact --output RUN/actual-head-diagnostic.json
+diagnostic_wall_seconds=15.829
+precommit_gate=python3 -m unittest discover -s tests/python; result=176/176 passed
+precommit_gate=cmake --build --preset host-debug --parallel 4 && ctest --preset host-debug --output-on-failure; result=1/1 passed
+precommit_gate=cmake --build --preset host-release --parallel 4 && ctest --preset host-release --output-on-failure; result=1/1 passed
+precommit_gate=cmake --build --preset host-sanitize --parallel 4 && ctest --preset host-sanitize --output-on-failure; result=1/1 passed
+precommit_gate=M05/M06/M07 generator checks; result=passed
+precommit_gate=python3 tools/update_gemma4_26b_plan_integrity.py --check; result=passed
+precommit_gate=git diff --check; result=passed
+artifact_payload_copied_to_repository=false

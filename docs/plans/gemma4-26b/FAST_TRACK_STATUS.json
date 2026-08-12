@@ -2,8 +2,8 @@
   "schema_version": 1,
   "plan_revision": "fast-track-r4",
   "updated": "2026-08-12",
-  "accepted_through": "M06",
-  "current_milestone": "M07",
+  "accepted_through": "M07",
+  "current_milestone": "M08",
   "active_wave": "F1-artifact-and-residency",
   "integration_branch": "feat/gemma4-26b",
   "source_of_truth": "docs/plans/gemma4-26b/FAST_TRACK_STATUS.json",
@@ -22,7 +22,7 @@
       ]
     },
     "M07": {
-      "status": "ACTIVE",
+      "status": "ACCEPTED",
       "class": "critical-lite",
       "lane": "compiler-head",
       "depends_on": [
@@ -33,7 +33,7 @@
       ]
     },
     "M08": {
-      "status": "BLOCKED",
+      "status": "READY", "note": "next after accepted M07; not started; paused by owner request",
       "class": "critical",
       "lane": "artifact-loader",
       "depends_on": [
@@ -266,8 +266,9 @@
       ]
     }
   },
-  "parallel_tasks_now": [
-    "M07 provisional NVFP4 tied embedding/head",
+  "parallel_tasks_now": [],
+  "paused_tasks": [
+    "M08 complete artifact/loader",
     "M10 phase A BF16 MoE oracle",
     "M12 phase A attention/trait fixtures",
     "M09 phase A formula and one-slot tests",

@@ -1,9 +1,9 @@
 # Active contract — Gemma 4 26B Fast Track R4
 
-Status: active from M06 onward
+Status: accepted through M07; paused before M08 by owner request
 Plan revision: `fast-track-r4`
-Accepted baseline: M00–M06
-Current milestone: M07
+Accepted baseline: M00–M07
+Current milestone: M08 (ready, not started; execution paused)
 Integration branch: `feat/gemma4-26b`
 
 ## Purpose
@@ -25,13 +25,14 @@ Report a material conflict instead of guessing. A stale status page does not ove
 
 ## Accepted baseline
 
-M00–M06 are accepted and are not reopened by current work.
+M00–M07 are accepted and are not reopened by current work.
 
 - Sources, manifests and source locks are immutable.
 - The 12B path remains separately specialized and regression-protected.
 - The checkpoint compiler is a Python control plane plus one promoted native C++20 numerical data plane.
 - M05 FP8 attention conversion is accepted at implementation commit `d91388113d68974f9ab7cec1a90ef768285c0645`.
 - M06 expert/shared NVFP4 conversion is accepted at implementation commit `81055eb48e05321481a8b63dd0dc5e7e017a7c00`.
+- M07 provisional NVFP4 tied-head compiler/reference stage is accepted at implementation commit `60f500b7be567fafd483ebd6f5f9b07988197ca1`.
 - Runtime conversion, CPU expert offload, expert streaming and duplicate persistent GPU weight layouts remain forbidden.
 
 ## Product target
@@ -81,12 +82,13 @@ The final artifact is text-only Safetensors plus explicit versioned metadata and
 Only these owner-level gates block the critical path:
 
 1. **M06:** native NVFP4 contract and one complete QAT expert conversion are valid.
-2. **M08:** one complete reproducible artifact loads directly and validates.
-3. **M09:** the real artifact passes one-slot 32K admission with at least 700 MiB directly measured free-device margin.
-4. **M13:** the full slow model is deterministic and passes the single early quality go/no-go screen.
-5. **M19–M21:** a frozen optimized artifact passes quality, performance and long-context qualification.
-6. **M23:** base target hashes, evidence and rollback are frozen.
-7. **M25:** MTP compatibility, exactness, performance and the 32K MTP memory gate pass; 64K and the maximum safe MTP context are measured.
+2. **M07:** one QAT tied head compiles, matches independent CPU references, and uses one physical aliased payload.
+3. **M08:** one complete reproducible artifact loads directly and validates.
+4. **M09:** the real artifact passes one-slot 32K admission with at least 700 MiB directly measured free-device margin.
+5. **M13:** the full slow model is deterministic and passes the single early quality go/no-go screen.
+6. **M19–M21:** a frozen optimized artifact passes quality, performance and long-context qualification.
+7. **M23:** base target hashes, evidence and rollback are frozen.
+8. **M25:** MTP compatibility, exactness, performance and the 32K MTP memory gate pass; 64K and the maximum safe MTP context are measured.
 
 M18 is conditional diagnosis, not a normal prerequisite for M14–M17. M24 is optional and never blocks the production path.
 
@@ -128,8 +130,9 @@ Do not repeat an expensive run solely to produce a second prose record. M08 comp
 
 ## Current unblocked work
 
-After M06 acceptance:
+After M07 acceptance, implementation is paused by owner request.
 
-- M07 is the critical active milestone and is deliberately small.
-- M10 phase A, M12 phase A, M09 formula/test prework, evaluation-harness work and M25 feasibility work may proceed in parallel under disjoint ownership.
-- M08 and final M09 reconciliation remain the next vertical checkpoint.
+- M07 is accepted and its partial artifact is reference-only and not runtime-loadable.
+- M08 is the next ready milestone but has not started; no dependent implementation work is active.
+- M10 phase A, M12 phase A, M09 formula/test prework, evaluation-harness work and M25 feasibility work are paused with the track.
+- M08 and final M09 reconciliation remain the next vertical checkpoint after explicit owner restart.

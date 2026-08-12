@@ -1,0 +1,27 @@
+{
+  "action": "verify",
+  "artifact": "/tmp/m07-release-60f500b7be567fafd483ebd6f5f9b07988197ca1/qat-head-artifact",
+  "artifact_profile": "nvfp4-tied-head-partial-v1",
+  "compilation_manifest_sha256": "7bf46ce571ea593c3202819db2a8c2bc2a29ba8bb73a23a0d5571a38c88f089e",
+  "compiler_manifest_sha256": "e549a43864e2e64b4b0783de2337631c5b5989fb3c25f0dc94b762442ded6c27",
+  "duration_seconds": 102.205975,
+  "memory": {
+    "baseline_rss_bytes": 26599424,
+    "host_memory_cap_bytes": 8589934592,
+    "maximum_header_bytes": 129800,
+    "maximum_mapped_window_bytes": 1052636,
+    "maximum_tensor_bytes": 1476395008,
+    "maximum_transform_row_bytes": 0,
+    "peak_rss_bytes": 32202752,
+    "staging_buffer_bytes": 1048576
+  },
+  "milestone": "M07",
+  "output_tensor_bytes": 415236104,
+  "output_tensor_count": 4,
+  "recorded_compiler_commit": "60f500b7be567fafd483ebd6f5f9b07988197ca1",
+  "recorded_compiler_dirty": false,
+  "resolved_plan_sha256": "e549a43864e2e64b4b0783de2337631c5b5989fb3c25f0dc94b762442ded6c27",
+  "schema_version": 1,
+  "source_lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230",
+  "status": "pass"
+}

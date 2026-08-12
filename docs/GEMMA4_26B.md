@@ -1,6 +1,6 @@
 # Gemma 4 26B A4B in Gem16
 
-**Status:** M00–M06 accepted; M07 active. The active policy is [`ACTIVE_DECISIONS.md`](ACTIVE_DECISIONS.md), and
+**Status:** M00–M07 accepted; paused before M08. The active policy is [`ACTIVE_DECISIONS.md`](ACTIVE_DECISIONS.md), and
 the current task entry is [`plans/gemma4-26b/ACTIVE_CONTRACT.md`](plans/gemma4-26b/ACTIVE_CONTRACT.md).
 
 ## Goal

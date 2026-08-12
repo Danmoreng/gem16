@@ -1,0 +1,61 @@
+{
+  "artifact_payload_copied_to_repository": false,
+  "artifact_payload_location": "/tmp/m07-release-60f500b7be567fafd483ebd6f5f9b07988197ca1/qat-head-artifact",
+  "artifact_profile": "nvfp4-tied-head-partial-v1",
+  "compilation_manifest_sha256": "7bf46ce571ea593c3202819db2a8c2bc2a29ba8bb73a23a0d5571a38c88f089e",
+  "compiler_commit": "60f500b7be567fafd483ebd6f5f9b07988197ca1",
+  "compiler_dirty": false,
+  "compiler_manifest_sha256": "e549a43864e2e64b4b0783de2337631c5b5989fb3c25f0dc94b762442ded6c27",
+  "files": [
+    {
+      "kind": "safetensors_shard",
+      "path": "model-00001-of-00001.safetensors",
+      "sha256": "3c200aa69710344f0c2f0075aa1c2f408fda888d553e230672ac85da73669725",
+      "size": 415236648
+    },
+    {
+      "kind": "safetensors_index",
+      "path": "model.safetensors.index.json",
+      "sha256": "f241a2f2160430a1054429bec73aec60d1c480214cec6c749673f2fbd36ce454",
+      "size": 448
+    }
+  ],
+  "milestone": "M07",
+  "one_physical_tied_payload": true,
+  "output_tensor_bytes": 415236104,
+  "output_tensor_count": 4,
+  "resolved_plan_sha256": "e549a43864e2e64b4b0783de2337631c5b5989fb3c25f0dc94b762442ded6c27",
+  "schema_version": 1,
+  "source_lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230",
+  "status": "pass",
+  "tensors": [
+    {
+      "aliased": true,
+      "byte_length": 4,
+      "output_name": "model.language_model.embed_tokens.input_global_scale",
+      "output_shard": "model-00001-of-00001.safetensors",
+      "sha256": "e00e5eb9444182f352323374ef4e08ebcb784725fdd4fd612d7730540b3e0c8c"
+    },
+    {
+      "aliased": true,
+      "byte_length": 4,
+      "output_name": "model.language_model.embed_tokens.weight_global_scale",
+      "output_shard": "model-00001-of-00001.safetensors",
+      "sha256": "2f371bd5c1a0e4af32d938b63839f892f5a441ef901b53cfa94750f9d588c848"
+    },
+    {
+      "aliased": true,
+      "byte_length": 369098752,
+      "output_name": "model.language_model.embed_tokens.weight_packed",
+      "output_shard": "model-00001-of-00001.safetensors",
+      "sha256": "48a5e53609e22c91ff7e9c8596ae33a61e4343d9efd786da71a060100fe05031"
+    },
+    {
+      "aliased": true,
+      "byte_length": 46137344,
+      "output_name": "model.language_model.embed_tokens.weight_scale",
+      "output_shard": "model-00001-of-00001.safetensors",
+      "sha256": "4d5785686687fe1182bc75aa31dc1b5481718433db381169abbd5b1721a2afa3"
+    }
+  ]
+}

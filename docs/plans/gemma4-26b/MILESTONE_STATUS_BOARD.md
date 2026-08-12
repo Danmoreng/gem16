@@ -4,22 +4,22 @@ Derived from [`FAST_TRACK_STATUS.json`](FAST_TRACK_STATUS.json). Policy: [`../..
 
 ## Accepted
 
-`M00 M01 M02 M03 M04 M05 M06`
+`M00 M01 M02 M03 M04 M05 M06 M07`
 
-## Active and parallel-ready
+## Paused / next
 
 | Milestone/slice | State | Role |
 |---|---|---|
-| M07 | ACTIVE | provisional tied NVFP4 embedding/head |
-| M10 phase A | PARALLEL READY | BF16 MoE oracle |
-| M12 phase A | PARALLEL READY | attention/trait fixtures |
-| M09 phase A | PARALLEL PREWORK | formulas and one-slot tests |
-| M25 phase A | PARALLEL FEASIBILITY | assistant compatibility/memory only |
-| Harness lane | PARALLEL READY | future report/test infrastructure |
+| M08 | READY, NOT STARTED | complete artifact and direct loader |
+| M10 phase A | PAUSED | BF16 MoE oracle |
+| M12 phase A | PAUSED | attention/trait fixtures |
+| M09 phase A | PAUSED | formulas and one-slot tests |
+| M25 phase A | PAUSED | assistant compatibility/memory only |
+| Harness lane | PAUSED | future report/test infrastructure |
 
 ## Next vertical sequence
 
-`M07 → M08 → M09 final → M11/M12 runtime → M13`
+`M08 → M09 final → M11/M12 runtime → M13`
 
 ## Conditional/optional
 
@@ -27,4 +27,4 @@ Derived from [`FAST_TRACK_STATUS.json`](FAST_TRACK_STATUS.json). Policy: [`../..
 - M24: optional internal Q4_0 backend.
 - Vision: outside this program.
 
-Program completion is M25, not M23. The first practical target is the remaining vertical M07→M09→M13 path; later qualification remains explicit follow-up rather than a prerequisite for early experiments.
+Program completion is M25, not M23. M07 is accepted; the next practical path is M08→M09→M13 after explicit owner restart. Later qualification remains explicit follow-up rather than a prerequisite for early experiments.
