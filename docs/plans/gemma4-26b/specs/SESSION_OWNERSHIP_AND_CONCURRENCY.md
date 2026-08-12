@@ -1,86 +1,13 @@
-# Session ownership and concurrency specification
+# Session ownership and concurrency — 26B Fast Track
 
-## First release policy
+The 16 GB 26B profile supports one resident execution slot. Immutable weights are process-owned; mutable KV, workspace, graph and sampling state belong to that slot.
 
-The primary 26B profile targets batch-one interactive inference. Continuous batching is not required. Multiple resident sessions are allowed only when admission proves they fit.
+Required tests:
 
-On a 16 GB card, the expected default is one 32K slot.
+- one slot initializes and runs;
+- a second 26B slot request fails before partial allocation;
+- resident multi-turn continuation preserves exact prefix ownership;
+- cancellation invalidates partial mutable state safely;
+- 12B multi-slot behavior remains unchanged.
 
-## Ownership
-
-```text
-Process
-  ModelRuntime (one immutable target)
-    ExecutionSlot 0
-      SessionState A
-    ExecutionSlot 1
-      SessionState B
-```
-
-Weights are shared. KV and mutable workspaces are isolated.
-
-## Slot construction
-
-A slot receives:
-
-- model traits;
-- immutable tensor bindings;
-- selected context;
-- KV mode;
-- sampling capability;
-- no assistant/media capability.
-
-It allocates all mutable memory before admission.
-
-## Session identity
-
-A resident conversation retains:
-
-- exact token prefix;
-- pending not-yet-forwarded token state;
-- KV positions;
-- sampling RNG/repetition;
-- response-channel parser;
-- model/artifact identity.
-
-A continuation must extend the exact prefix. Model/profile changes invalidate the session.
-
-## Concurrency
-
-Two slots may execute concurrently only after:
-
-- memory admission;
-- independent streams/graphs;
-- no shared mutable scratch;
-- correct cancellation;
-- measured contention.
-
-Server defaults should not imply that multiple slots are efficient or supported merely because weight sharing exists.
-
-## LRU/admission
-
-- active sessions never evicted;
-- inactive session eviction releases mutable slot state according to existing policy;
-- resource exhaustion returns visibly;
-- no CPU offload;
-- no silent context reduction.
-
-## Graph addresses
-
-Each slot owns graph-bound addresses. Sharing a graph executable across slots is allowed only if node parameters/addresses can be updated safely and benchmarked. Simpler first design: one captured graph per slot.
-
-## Compiler/model lifetime
-
-The compiler never runs inside the server. ModelRuntime loads a verified final artifact.
-
-## Tests
-
-- two sessions with distinct prompts and deterministic outputs;
-- no KV/router state leakage;
-- cancellation one lane while another runs;
-- session eviction/recreation;
-- memory counters;
-- impossible second slot rejected;
-- shared weight pointer identity;
-- mutable pointer inequality;
-- 12B MTP/session behavior unchanged.
+MTP uses the same target slot plus a separately accounted assistant arena and verifier workspace. It does not create a second target slot. Continuous batching and positive 26B multi-slot scaling are outside the program.

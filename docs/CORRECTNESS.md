@@ -1,5 +1,10 @@
 # Correctness
 
+## Gemma 4 26B Fast-Track correctness policy
+
+M13 is the sole early quality go/no-go gate. It combines the CPU/CUDA MoE references, attention/KV fixtures and a bounded development-corpus screen. M18 is conditional diagnosis rather than a normal prerequisite for optimized kernels. Final held-out quality is M19. MTP exactness is qualified separately in M25.
+
+
 ## Implemented level
 
 Level 0 currently covers bounded JSON parsing, duplicate-key rejection, little-endian Safetensors header lengths,

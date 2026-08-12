@@ -1,67 +1,16 @@
-# Final release checklist
+# Final release checklist — Fast Track R4
 
-## Frozen identity
+## Base M23
 
-- [ ] Code commit.
-- [ ] Clean tree.
-- [ ] Toolchain lock.
-- [ ] Source locks.
-- [ ] Compiler lock/commit.
-- [ ] Final artifact lock.
-- [ ] Quality suite hash.
-- [ ] Benchmark prompt hash.
-- [ ] Machine IDs.
+- [ ] M19/M20/M21/M22 reference one frozen artifact/binary contract.
+- [ ] 32K passes 700 MiB margin; base maximum is measured.
+- [ ] Quality/performance/context claims are bounded by evidence.
+- [ ] Locks, provenance, rollback and 12B regressions are complete.
 
-## Builds
+## MTP M25
 
-- [ ] Clean host build.
-- [ ] Clean Linux CUDA build.
-- [ ] Clean Windows CUDA build where release-supported.
-- [ ] Studio/package builds.
-- [ ] Native SASS verification.
-
-## Correctness
-
-- [ ] Full host tests.
-- [ ] Full CUDA tests.
-- [ ] Sanitizers.
-- [ ] 12B regressions.
-- [ ] 26B operator/full-model tests.
-- [ ] Determinism.
-- [ ] No fallback/allocation/offload.
-
-## Quality
-
-- [ ] Held-out suite rerun on exact artifact.
-- [ ] Thresholds pass.
-- [ ] Worst regressions reviewed.
-- [ ] Head/source decision matches artifact.
-- [ ] Long-context quality.
-
-## Performance/memory
-
-- [ ] Controlled 3/10 suite.
-- [ ] Q4_0 baseline win in required prefill/decode.
-- [ ] Memory margins.
-- [ ] 32K qualification.
-- [ ] 64K wording matches qualification.
-- [ ] Telemetry/raw evidence/checksums.
-
-## Product
-
-- [ ] Download/resume/verify.
-- [ ] CLI.
-- [ ] Server/SDK/streaming/tools.
-- [ ] Studio.
-- [ ] Unsupported media/MTP errors.
-- [ ] Context admission.
-- [ ] User docs.
-
-## Release governance
-
-- [ ] Decision/roadmap/correctness/memory/benchmark docs updated.
-- [ ] Release notes.
-- [ ] License/attribution.
-- [ ] Rollback tested.
-- [ ] Evidence read-only/frozen.
-- [ ] Named owner sign-offs.
+- [ ] Compatible assistant lock and artifact are complete.
+- [ ] Exact ordinary/MTP identity and transactional state pass.
+- [ ] MTP memory/context and speed/acceptance are measured.
+- [ ] `mtp_max_context` is separate from `base_max_context`.
+- [ ] Vision remains outside the release.

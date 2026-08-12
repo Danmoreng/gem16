@@ -1,187 +1,40 @@
-# Test matrix
+# Test matrix — Fast Track R4
 
-## Test levels
+## Tiers
 
-| Level | Scope | Runs without model? |
+| Tier | Scope | Typical use |
 |---|---|---|
-| L0 | parsing, overflow, codecs, schemas | yes |
-| L1 | operator references and synthetic CUDA | mostly |
-| L2 | real tensor/operator checkpoint probes | model required |
-| L3 | full layer and teacher forcing | model required |
-| L4 | generation/chat/server | model required |
-| L5 | memory, sanitizer, long context | model + GPU |
-| L6 | quality/performance/release | full environment |
+| T0 | schema, overflow, codecs, fixtures | every local change |
+| T1 | synthetic CPU/CUDA operator parity | arithmetic changes |
+| T2 | real tensor/layer probes | compiler/runtime slices |
+| T3 | full model, generation, allocations | M13/M17 integration |
+| T4 | held-out quality, performance, long context | M19–M21 |
+| T5 | product/release/MTP | M22–M25 |
 
-## Compiler tests
+## Change-based policy
 
-Promoted large-tensor conversion tests run against the native C++ data plane. Python tests may validate plans,
-protocols, schemas and small independent oracles, but must not substitute a Python elementwise production loop.
+- Compiler-only: T0, relevant T1/T2, one 12B smoke. Full conversion only at the milestone gate.
+- Loader/memory: T0/T2 plus real allocation and full 12B load regressions.
+- CUDA arithmetic: T0–T2 plus targeted sanitizers.
+- Whole-model integration: T0–T3 and full relevant 12B matrix.
+- Frozen qualification/release: T4/T5 once per exact artifact/binary hash.
 
-- source lock validation;
-- path traversal/symlink rejection;
-- Safetensors index/header validation;
-- plan tensor coverage;
-- native FP8 codec/quantizer and exhaustive byte fixtures;
-- native NVFP4 codec/quantizer and producer-scale differential fixtures;
-- native Q4_0 codec/quantizer and pinned llama.cpp reference blocks;
-- native job protocol, bounded buffers and one-pass coupled outputs;
-- native explicit-thread determinism and telemetry;
-- deterministic output;
-- one native full M05 run per approved source, without duplicate Python/native conversion;
-- interruption and visible restart-only cleanup (resume only after a bound partial-state schema is accepted);
-- bounded RSS;
-- output lock;
-- corrupt output rejection.
+## Base head tests
 
-## Model-contract tests
+Lookup, tied pointer, T=1 projection, softcap, suppression, deterministic tie, diagnostic logits and sampling handoff. T=3/T=5 are not base-path tests.
 
-### 12B
+## Q4_0 tests
 
-Retain all current exact dimensions, tensor inventory and feature tests.
+Only external-reference checks are required on the base path. Native Q4_0 codec/backend tests run only if M24 is active.
 
-### 26B
+## 26B slot tests
 
-- architecture/model type;
-- 30 layers;
-- hidden 2816;
-- 128/top-8/704;
-- shared 2112;
-- layer pattern;
-- local/global heads/dimensions;
-- tied head;
-- modality omission;
-- quantizer schema;
-- per-layer KV ownership.
+One-slot success and second-slot rejection. Positive multi-slot scaling is not required.
 
-Mutate every field individually and expect clear failure.
+## MTP tests — M25 only
 
-## MoE tests
+Assistant compatibility, proposal modes, multi-row Target verification, exact ordinary/MTP identity, transactional KV/hidden/RNG/repetition commit, stop/tail/ring-wrap, no allocation, memory admission, acceptance and speed.
 
-- router synthetic/tie/overflow;
-- expert axis;
-- shared branch;
-- per-expert output;
-- weighted reduction;
-- deterministic order;
-- CPU versus CUDA reference;
-- reference versus native decode;
-- reference versus grouped prefill;
-- real layers.
+## Determinism and sanitizers
 
-## Attention tests
-
-- FP8 projection;
-- local/global;
-- missing V;
-- K/V distinct;
-- RoPE positions;
-- cache ring wrap;
-- global extent;
-- shared KV if present;
-- cache bytes.
-
-## Head tests
-
-- lookup;
-- Q4/NVFP4 decode;
-- tied pointer;
-- softcap;
-- suppression;
-- tie;
-- full logits;
-- sampling;
-- T=1/3/5;
-- graph replay.
-
-## Full-model tests
-
-- tokenizer/template;
-- exact prompt IDs;
-- teacher forcing;
-- layer captures;
-- deterministic greedy;
-- fixed-seed sampling;
-- resident suffix;
-- cache reset;
-- cancellation;
-- no allocation;
-- no fallback.
-
-## Product tests
-
-- model download/verify/resume;
-- CLI;
-- server `/health` and `/v1/models`;
-- Chat Completions;
-- Responses;
-- streaming;
-- tools;
-- sampling;
-- resident sessions;
-- cancellation;
-- unsupported media/MTP;
-- Studio selection/package.
-
-## Sanitizers
-
-Required targeted suites:
-
-```text
-compute-sanitizer memcheck
-compute-sanitizer racecheck
-compute-sanitizer initcheck
-```
-
-Run debug/line-info binaries. Retain logs.
-
-## Determinism
-
-For deterministic paths:
-
-- at least 10 repeated runs in one process;
-- fresh-process repetition;
-- output token checksum;
-- selected expert checksum;
-- optional intermediate checksum.
-
-Any nondeterminism blocks performance qualification.
-
-## Allocation tests
-
-Nsight CUDA API or equivalent trace proves:
-
-- all `cudaMalloc` before prompt/decode;
-- no hidden library allocation in graph replay;
-- no host container growth in token callback path.
-
-## Regression policy
-
-Every 26B milestone change set runs:
-
-- host unit tests;
-- 12B relevant tests;
-- new 26B unit tests.
-
-A CUDA/operator milestone runs targeted CUDA tests. An integration milestone and the final main-integration review
-run the full current host/CUDA matrix.
-
-Do not disable or loosen 12B tests to merge 26B.
-
-## Evidence naming
-
-Each milestone stores:
-
-```text
-artifacts/mXX/
-  tests.json
-  commands.txt
-  environment.json
-  logs/
-  SHA256SUMS
-```
-
-A passing CI badge is not sufficient for model/GPU gates.
-
-## imp-derived tests
-
-Add producer-scale mutation tests, late-layer/near-tie router tests, actual-dispatch recording tests, graph-demotion reason tests and the repeated engine lifecycle matrix from [`CUDA_STATE_LIFECYCLE_SPEC.md`](CUDA_STATE_LIFECYCLE_SPEC.md).
+Use repeated same-process and fresh-process checks on promoted deterministic paths. Run memcheck/racecheck/initcheck on affected CUDA suites. Retain exact commands and logs.

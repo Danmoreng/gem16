@@ -1,5 +1,10 @@
 # Memory
 
+## Gemma 4 26B Fast-Track policy
+
+The 26B base profile supports one slot. M09 must pass real 32K execution with at least 700 MiB directly measured free-device memory. M21 then attempts 64K and finds the largest base context that still leaves at least 500 MiB. M25 repeats the exercise with assistant weights and verifier workspace and publishes a separate MTP maximum. Positive 26B multi-slot tests are not required; slot two must be rejected.
+
+
 ## Gemma 4 26B M03 preliminary admission
 
 M03 freezes a conservative compiled-hybrid tensor estimate; it does not add a 26B runtime allocator. The exact

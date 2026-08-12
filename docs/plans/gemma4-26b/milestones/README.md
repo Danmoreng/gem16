@@ -1,32 +1,13 @@
-# Milestones
+# Milestone cards — Fast Track R4
 
-One executable plan per milestone. Required sequence M00–M23; M24–M25 are optional.
+M00–M05 are accepted historical milestone plans. M06 onward uses concise cards with explicit dependencies, parallelism, exit gates and evidence.
 
-| File | Topic |
-|---|---|
-| [`M00_POLICY_AND_TRACK_BOOTSTRAP.md`](M00_POLICY_AND_TRACK_BOOTSTRAP.md) | M00 Policy And Track Bootstrap |
-| [`M01_SOURCE_LOCKS_AND_GOLDENS.md`](M01_SOURCE_LOCKS_AND_GOLDENS.md) | M01 Source Locks And Goldens |
-| [`M02_MODEL_CONFIG_VARIANTS.md`](M02_MODEL_CONFIG_VARIANTS.md) | M02 Model Config Variants |
-| [`M03_MANIFEST_AND_TENSOR_INVENTORY.md`](M03_MANIFEST_AND_TENSOR_INVENTORY.md) | M03 Manifest And Tensor Inventory |
-| [`M04_CHECKPOINT_COMPILER_SCAFFOLD.md`](M04_CHECKPOINT_COMPILER_SCAFFOLD.md) | M04 Checkpoint Compiler Scaffold |
-| [`M05_FP8_ATTENTION_COMPILER.md`](M05_FP8_ATTENTION_COMPILER.md) | M05 Fp8 Attention Compiler |
-| [`M06_NVFP4_EXPERT_COMPILER.md`](M06_NVFP4_EXPERT_COMPILER.md) | M06 Nvfp4 Expert Compiler |
-| [`M07_EMBEDDING_HEAD_FORMAT_EXPERIMENT.md`](M07_EMBEDDING_HEAD_FORMAT_EXPERIMENT.md) | M07 Embedding Head Format Experiment |
-| [`M08_DERIVED_ARTIFACT_AND_LOADER.md`](M08_DERIVED_ARTIFACT_AND_LOADER.md) | M08 Derived Artifact And Loader |
-| [`M09_MEMORY_PLANNER_AND_RESIDENCY.md`](M09_MEMORY_PLANNER_AND_RESIDENCY.md) | M09 Memory Planner And Residency |
-| [`M10_CPU_MOE_ORACLE.md`](M10_CPU_MOE_ORACLE.md) | M10 Cpu Moe Oracle |
-| [`M11_CUDA_MOE_REFERENCE.md`](M11_CUDA_MOE_REFERENCE.md) | M11 Cuda Moe Reference |
-| [`M12_ATTENTION_AND_KV_INTEGRATION.md`](M12_ATTENTION_AND_KV_INTEGRATION.md) | M12 Attention And Kv Integration |
-| [`M13_FULL_MODEL_REFERENCE_PATH.md`](M13_FULL_MODEL_REFERENCE_PATH.md) | M13 Full Model Reference Path |
-| [`M14_NATIVE_MOE_DECODE.md`](M14_NATIVE_MOE_DECODE.md) | M14 Native Moe Decode |
-| [`M15_GROUPED_MOE_PREFILL.md`](M15_GROUPED_MOE_PREFILL.md) | M15 Grouped Moe Prefill |
-| [`M16_QUANTIZED_EMBEDDING_AND_HEAD.md`](M16_QUANTIZED_EMBEDDING_AND_HEAD.md) | M16 Quantized Embedding And Head |
-| [`M17_OPTIMIZED_RUNTIME_INTEGRATION.md`](M17_OPTIMIZED_RUNTIME_INTEGRATION.md) | M17 Optimized Runtime Integration |
-| [`M18_CONVERTER_AB_STUDY.md`](M18_CONVERTER_AB_STUDY.md) | M18 Converter Ab Study |
-| [`M19_QUALITY_QUALIFICATION.md`](M19_QUALITY_QUALIFICATION.md) | M19 Quality Qualification |
-| [`M20_PERFORMANCE_QUALIFICATION.md`](M20_PERFORMANCE_QUALIFICATION.md) | M20 Performance Qualification |
-| [`M21_LONG_CONTEXT_QUALIFICATION.md`](M21_LONG_CONTEXT_QUALIFICATION.md) | M21 Long Context Qualification |
-| [`M22_PRODUCT_INTEGRATION.md`](M22_PRODUCT_INTEGRATION.md) | M22 Product Integration |
-| [`M23_RELEASE_QUALIFICATION.md`](M23_RELEASE_QUALIFICATION.md) | M23 Release Qualification |
-| [`M24_OPTIONAL_Q4_0_BACKEND.md`](M24_OPTIONAL_Q4_0_BACKEND.md) | M24 Optional Q4 0 Backend |
-| [`M25_FUTURE_MTP_AND_VISION.md`](M25_FUTURE_MTP_AND_VISION.md) | M25 Future Mtp And Vision |
+Normal path:
+
+```text
+M06 → M07 → M08 → M09 → M11/M12 → M13
+→ M14/M15/M16 + rolling M17
+→ M19/M20/M21/M22 → M23 → M25
+```
+
+M10 begins in parallel with M06. M18 is conditional. M24 is optional. M25 is [`M25_MTP_INTEGRATION_AND_FINAL_QUALIFICATION.md`](M25_MTP_INTEGRATION_AND_FINAL_QUALIFICATION.md). The obsolete vision-named M25 file is removed by this revision.

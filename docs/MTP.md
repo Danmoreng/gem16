@@ -1,3 +1,13 @@
+# MTP in Gem16
+
+## Gemma 4 26B Fast Track
+
+The 26B program now treats MTP as the required final target in M25, after the base target is frozen at M23. Early feasibility work may begin during M06: lock a compatible assistant, inventory its tensors and model BF16/FP8/NVFP4 residency. The 12B assistant is not assumed compatible. Multi-row Target verification and T>1 head kernels belong to M25, not the base head milestones.
+
+The 26B MTP profile must preserve ordinary Target output exactly under matched deterministic controls, commit tentative state transactionally, allocate nothing in the token loop and pass 32K with the normal 700 MiB margin. It must then attempt 64K and publish a separate measured `mtp_max_context`. Vision is not part of M25.
+
+---
+
 # Gemma 4 12B MTP
 
 Status: implemented with exact Target verification. Greedy MTP is qualified; sampled MTP has completed correctness

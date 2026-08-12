@@ -53,17 +53,15 @@ Nibble order must be locked by fixtures. Runtime Row8/K64 order changes only pla
 
 ## Scale selection
 
-Version the scale algorithm. It must define:
+M06 must freeze one versioned algorithm before its full QAT conversion. The compiler configuration records:
 
-1. tensor-global divisor selection;
-2. local scale selection;
-3. E4M3FN rounding;
-4. E2M1 rounding/saturation;
-5. zero block behavior;
-6. tie behavior;
-7. whether scale search minimizes max error, L2 error or another objective.
+1. tensor-global divisor derivation;
+2. local scale derivation and search objective;
+3. E4M3FN and E2M1 rounding/saturation;
+4. zero-block and tie behavior;
+5. exact deterministic sampled Ordinary/Unsloth tensors and diagnostic acceptance conditions.
 
-The ordinary BF16 → own NVFP4 versus Unsloth comparison determines whether the project can reproduce the published recipe. Byte identity is desirable but not assumed.
+The sample must cover shared and routed Gate, Up and Down roles plus fused-axis handling across local/global layer classes. It is a convention check, not full causal attribution: scale direction, tensor relationships, shapes and finite operator reconstruction must pass the frozen conditions. A failed check blocks the QAT full run. Byte identity with Unsloth is desirable but not required. Complete Ordinary conversion remains conditional M18 work.
 
 ## Activation quantization
 
@@ -154,8 +152,8 @@ bounded source traversal. Test the same backend with explicit thread counts and 
 - fused gate/up axis mapping;
 - all experts/layers manifest;
 - CPU/CUDA/native projection;
-- ordinary versus Unsloth;
-- QAT versus ordinary activation drift;
+- sampled Ordinary-versus-Unsloth diagnostics for M06 convention checks;
+- complete Ordinary/QAT attribution only when conditional M18 is triggered;
 - deterministic artifact bytes.
 
 ## llama.cpp reference boundary

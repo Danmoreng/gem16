@@ -12,11 +12,11 @@ from pathlib import Path
 from urllib.parse import unquote
 
 
-REPOSITORY_ANCHOR = "Danmoreng/gem16@1c4287965d318ba32a68e597f9d7b6678b883376"
+REPOSITORY_ANCHOR = "Danmoreng/gem16@4a7c4e776def120f880ff765b6771a6f6ec0e8e0"
 EXTERNAL_REFERENCE_ANCHOR = "kekzl/imp@a392904d4216388828d0d56317de046f4ca49627"
-PACKAGE = "gem16-26b-codex-implementation-plan-v4-repository-maintained"
-GENERATED_DATE = "2026-08-11"
-SCHEMA_VERSION = 4
+PACKAGE = "gem16-26b-fast-track-r4-repository-maintained"
+GENERATED_DATE = "2026-08-12"
+SCHEMA_VERSION = 5
 METADATA_PATHS = {
     "PACKAGE_INTEGRITY.md",
     "PACKAGE_MANIFEST.json",
@@ -28,8 +28,12 @@ EXPECTED_MILESTONES = {f"M{index:02d}" for index in range(26)}
 REQUIRED_PATHS = {
     "00_MASTER_IMPLEMENTATION_PLAN.md",
     "02_AGENT_OPERATING_CONTRACT.md",
+    "ACTIVE_CONTRACT.md",
+    "FAST_TRACK_EXECUTION_PLAN.md",
+    "FAST_TRACK_STATUS.json",
     "INDEX.md",
     "MILESTONE_STATUS_BOARD.md",
+    "PARALLEL_WORKSTREAMS.md",
     "README_DE.md",
     "START_HERE_CODEX.md",
     "references/imp/README.md",

@@ -1,5 +1,36 @@
 # Decisions
 
+> **Operational note (2026-08-12):** Current execution policy is maintained in [`ACTIVE_DECISIONS.md`](ACTIVE_DECISIONS.md). Read this append-only ledger for historical decisions, evidence or disputed details; its old entries remain unchanged. The active Fast Track policy below is the accepted owner decision for future 26B work.
+
+## 2026-08-12: Accept the lean Gemma 4 26B Fast Track
+
+Date: 2026-08-12
+
+Owner acceptance: accepted in the project-owner planning direction for this revision.
+
+Decision: Keep M00–M05 and their evidence accepted, make M06 the active next milestone, and optimize for the first
+working experimental text-only QAT-derived FP8/NVFP4 26B path rather than a complete up-front qualification program.
+The short operational contract is [`ACTIVE_DECISIONS.md`](ACTIVE_DECISIONS.md); the long-lived integration branch
+remains `feat/gemma4-26b` and disjoint temporary worktrees are allowed with explicit ownership.
+
+The first vertical path is M06 → M07 → M08 → M09 → M13 → M17. M06 requires one clean full QAT expert conversion,
+exhaustive small codec/shape/determinism and representative operator-consumption tests, bounded-memory evidence and
+sampled Ordinary/Unsloth diagnostics. A complete Ordinary conversion and exhaustive Ordinary-versus-Unsloth
+attribution are conditional rather than M06/M07 blockers. The first artifact uses a provisional NVFP4 tied head;
+an internal Q4_0 backend and broad head A/B study do not block the first executable path. M13 is the only early
+quality screen; M18 is conditional diagnosis. One resident 26B slot must pass the direct 32K/700 MiB gate; 64K and
+maximum-context qualification follow later. MTP starts only after the base target is frozen, and vision is separate.
+
+Superseded for future execution by this decision: the former mandatory full Ordinary conversion for every M05–M07
+partial numerical stage; a blocking internal Q4_0 head implementation; mandatory M18 before native optimization;
+T=3/T=5 verifier-head work in M07/M16; positive multi-slot 26B admission; and combining vision with the MTP milestone.
+These are scope/order decisions, not permission to use silent fallbacks, CPU weight offload, duplicate device
+layouts, runtime quantization, unsupported capabilities or altered 12B semantics. Early 26B execution remains
+experimental until its later correctness, quality, memory, performance and product gates are explicitly passed.
+
+Evidence/plan: [`ACTIVE_DECISIONS.md`](ACTIVE_DECISIONS.md), [`GEMMA4_26B.md`](GEMMA4_26B.md) and the Fast Track
+plan under [`plans/gemma4-26b/`](plans/gemma4-26b/).
+
 ## 2026-08-11: Accept the native M05 FP8 attention compiler
 
 Date: 2026-08-11

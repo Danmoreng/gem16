@@ -1,0 +1,286 @@
+{
+  "schema_version": 1,
+  "plan_revision": "fast-track-r4",
+  "updated": "2026-08-12",
+  "accepted_through": "M05",
+  "current_milestone": "M06",
+  "active_wave": "F1-artifact-and-residency",
+  "integration_branch": "feat/gemma4-26b",
+  "source_of_truth": "docs/plans/gemma4-26b/FAST_TRACK_STATUS.json",
+  "policy_source": "docs/ACTIVE_DECISIONS.md",
+  "milestones": {
+    "M06": {
+      "status": "ACTIVE",
+      "class": "critical",
+      "lane": "compiler",
+      "depends_on": [
+        "M05"
+      ],
+      "unblocks": [
+        "M07",
+        "M10-quantized-adapter"
+      ]
+    },
+    "M07": {
+      "status": "BLOCKED",
+      "class": "critical-lite",
+      "lane": "compiler-head",
+      "depends_on": [
+        "M06"
+      ],
+      "unblocks": [
+        "M08"
+      ]
+    },
+    "M08": {
+      "status": "BLOCKED",
+      "class": "critical",
+      "lane": "artifact-loader",
+      "depends_on": [
+        "M06",
+        "M07"
+      ],
+      "unblocks": [
+        "M09-final",
+        "M11",
+        "M12-runtime",
+        "M13"
+      ]
+    },
+    "M09": {
+      "status": "PARALLEL_PREWORK",
+      "class": "critical",
+      "lane": "memory",
+      "depends_on": [
+        "M03"
+      ],
+      "final_depends_on": [
+        "M08"
+      ],
+      "unblocks": [
+        "M11",
+        "M13",
+        "M15",
+        "M21"
+      ]
+    },
+    "M10": {
+      "status": "PARALLEL_READY",
+      "class": "parallel-critical",
+      "lane": "moe-oracle",
+      "depends_on": [
+        "M03"
+      ],
+      "quantized_adapter_depends_on": [
+        "M06"
+      ],
+      "unblocks": [
+        "M11"
+      ]
+    },
+    "M11": {
+      "status": "BLOCKED",
+      "class": "critical",
+      "lane": "cuda-reference",
+      "depends_on": [
+        "M08",
+        "M09",
+        "M10"
+      ],
+      "unblocks": [
+        "M13",
+        "M14",
+        "M15"
+      ]
+    },
+    "M12": {
+      "status": "PARALLEL_PREWORK",
+      "class": "parallel-critical",
+      "lane": "attention-kv",
+      "depends_on": [
+        "M03"
+      ],
+      "runtime_depends_on": [
+        "M08",
+        "M09"
+      ],
+      "unblocks": [
+        "M13"
+      ]
+    },
+    "M13": {
+      "status": "BLOCKED",
+      "class": "critical-gate",
+      "lane": "full-reference",
+      "depends_on": [
+        "M07",
+        "M08",
+        "M09",
+        "M11",
+        "M12"
+      ],
+      "unblocks_on_pass": [
+        "M14",
+        "M15",
+        "M16",
+        "M17"
+      ],
+      "unblocks_on_fail": [
+        "M18"
+      ]
+    },
+    "M14": {
+      "status": "BLOCKED",
+      "class": "parallel",
+      "lane": "decode",
+      "depends_on": [
+        "M11",
+        "M13-pass"
+      ],
+      "unblocks": [
+        "M17"
+      ]
+    },
+    "M15": {
+      "status": "BLOCKED",
+      "class": "parallel",
+      "lane": "prefill",
+      "depends_on": [
+        "M09",
+        "M11",
+        "M13-pass"
+      ],
+      "unblocks": [
+        "M17"
+      ]
+    },
+    "M16": {
+      "status": "BLOCKED",
+      "class": "parallel-conditional",
+      "lane": "head",
+      "depends_on": [
+        "M07",
+        "M13-pass"
+      ],
+      "unblocks": [
+        "M17"
+      ]
+    },
+    "M17": {
+      "status": "BLOCKED",
+      "class": "rolling-integration",
+      "lane": "runtime",
+      "depends_on": [
+        "M13-pass"
+      ],
+      "completion_depends_on": [
+        "M14",
+        "M15",
+        "M16-or-recorded-skip"
+      ],
+      "unblocks": [
+        "M19",
+        "M20",
+        "M21",
+        "M22"
+      ]
+    },
+    "M18": {
+      "status": "CONDITIONAL",
+      "class": "diagnostic",
+      "lane": "attribution",
+      "triggers": [
+        "M13-fail",
+        "M19-fail",
+        "head-format-uncertainty",
+        "owner-attribution-request"
+      ],
+      "unblocks": [
+        "corrective-work"
+      ]
+    },
+    "M19": {
+      "status": "BLOCKED",
+      "class": "qualification",
+      "lane": "quality",
+      "depends_on": [
+        "M17-frozen"
+      ]
+    },
+    "M20": {
+      "status": "BLOCKED",
+      "class": "qualification",
+      "lane": "performance",
+      "depends_on": [
+        "M17-frozen"
+      ]
+    },
+    "M21": {
+      "status": "BLOCKED",
+      "class": "qualification",
+      "lane": "long-context",
+      "depends_on": [
+        "M17-frozen"
+      ]
+    },
+    "M22": {
+      "status": "BLOCKED",
+      "class": "product",
+      "lane": "cli-server",
+      "depends_on": [
+        "M17-profile-frozen"
+      ]
+    },
+    "M23": {
+      "status": "BLOCKED",
+      "class": "base-checkpoint",
+      "lane": "release",
+      "depends_on": [
+        "M19",
+        "M20",
+        "M21",
+        "M22"
+      ]
+    },
+    "M24": {
+      "status": "OPTIONAL",
+      "class": "diagnostic",
+      "lane": "q4_0",
+      "depends_on": [
+        "M13-or-M23"
+      ]
+    },
+    "M25": {
+      "status": "PARALLEL_FEASIBILITY_ONLY",
+      "class": "final-target",
+      "lane": "mtp",
+      "feasibility_depends_on": [
+        "M03",
+        "M09-prework"
+      ],
+      "integration_depends_on": [
+        "M23"
+      ],
+      "unblocks": [
+        "program-complete"
+      ]
+    }
+  },
+  "parallel_tasks_now": [
+    "M06 native NVFP4 compiler",
+    "M10 phase A BF16 MoE oracle",
+    "M12 phase A attention/trait fixtures",
+    "M09 phase A formula and one-slot tests",
+    "M13/M19/M20/M21 harness scaffolding",
+    "M25 phase A assistant compatibility and memory feasibility"
+  ],
+  "context_policy": {
+    "base_minimum_tokens": 32768,
+    "base_next_target_tokens": 65536,
+    "mtp_minimum_tokens": 32768,
+    "mtp_next_target_tokens": 65536,
+    "margin_mib_at_32k": 700,
+    "margin_mib_at_64k_or_above": 500,
+    "publish_only_after_real_execution": true
+  }
+}

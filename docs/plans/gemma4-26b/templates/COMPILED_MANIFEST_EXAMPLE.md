@@ -1,6 +1,6 @@
-# Example `gem16_compilation.json`
+# Example `gem16_compilation.json` — Fast Track R4
 
-This example is illustrative. M03/M08 must replace tensor names and exact dimensions with validated data.
+This example is illustrative. M03/M08 must replace names, dimensions, byte totals and protocol identifiers with validated data.
 
 ```json
 {
@@ -17,6 +17,9 @@ This example is illustrative. M03/M08 must replace tensor names and exact dimens
     "repository": "Danmoreng/gem16",
     "commit": "<commit>",
     "dirty": false,
+    "native_protocol": "<versioned-protocol>",
+    "native_executable_sha256": "<sha256>",
+    "threads": 1,
     "profile_sha256": "<sha256>",
     "toolchain_lock_sha256": "<sha256>"
   },
@@ -25,7 +28,7 @@ This example is illustrative. M03/M08 must replace tensor names and exact dimens
     "shared_mlp": "nvfp4-group16-divisor-v1",
     "routed_experts": "nvfp4-group16-divisor-v1",
     "router": "bf16-source",
-    "tied_embedding_head": "q4_0-v1"
+    "tied_embedding_head": "nvfp4-group16-divisor-v1"
   },
   "capabilities": {
     "text": true,
@@ -44,24 +47,51 @@ This example is illustrative. M03/M08 must replace tensor names and exact dimens
   ],
   "tensors": [
     {
-      "name": "model.language_model.embed_tokens.weight_q4_0",
+      "name": "model.language_model.embed_tokens.weight_packed",
       "role": "tied_embedding_and_output",
       "storage_dtype": "U8",
-      "physical_shape": [415236096],
+      "physical_shape": [262144, 1408],
       "logical_shape": [262144, 2816],
-      "byte_length": 415236096,
+      "byte_length": 369098752,
       "sha256": "<sha256>",
       "source_tensors": [
         "model.language_model.embed_tokens.weight"
       ],
       "transformation": {
-        "name": "q4_0-v1",
-        "block_size": 32,
-        "scale_dtype": "F16"
+        "name": "nvfp4-group16-divisor-v1",
+        "group_size": 16,
+        "local_scale_tensor": "model.language_model.embed_tokens.weight_scale",
+        "global_scale_tensor": "model.language_model.embed_tokens.weight_global_scale",
+        "input_scale_tensor": "model.language_model.embed_tokens.input_global_scale",
+        "global_scale_role": "divisor"
       },
       "aliased": true,
-      "disk_layout": "q4_0-reference-block-order",
-      "runtime_layout": "same"
+      "disk_layout": "canonical-row-major-packed",
+      "runtime_layout": "sm120-row8-k64"
+    },
+    {
+      "name": "model.language_model.embed_tokens.weight_scale",
+      "role": "tied_embedding_and_output_scale",
+      "storage_dtype": "F8_E4M3",
+      "physical_shape": [262144, 176],
+      "byte_length": 46137344,
+      "sha256": "<sha256>"
+    },
+    {
+      "name": "model.language_model.embed_tokens.weight_global_scale",
+      "role": "tied_embedding_and_output_global_scale",
+      "storage_dtype": "F32",
+      "physical_shape": [1],
+      "byte_length": 4,
+      "sha256": "<sha256>"
+    },
+    {
+      "name": "model.language_model.embed_tokens.input_global_scale",
+      "role": "tied_embedding_and_output_input_scale",
+      "storage_dtype": "F32",
+      "physical_shape": [1],
+      "byte_length": 4,
+      "sha256": "<sha256>"
     }
   ],
   "totals": {
@@ -79,7 +109,9 @@ This example is illustrative. M03/M08 must replace tensor names and exact dimens
 - source/compiler hashes present;
 - every listed tensor exists and matches;
 - no unlisted payload tensor;
-- tied alias is unique;
-- omitted modality not present;
+- tied alias is unique and no duplicate `lm_head` payload exists;
+- omitted modality tensors are absent;
 - totals reconcile;
-- quantizer parameters supported.
+- quantizer parameters and scale relationships are supported.
+
+Q4_0 examples belong only to an optional M24 profile and must not be copied into the base manifest.

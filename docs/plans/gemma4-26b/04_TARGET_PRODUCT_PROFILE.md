@@ -1,124 +1,62 @@
-# Target product profile
+# Target product profile — Fast Track R4
 
-## First release name
+## Profile
 
-Use a clear internal profile name until final branding is decided:
+Working ID:
 
 ```text
 gem16-gemma4-26b-a4b-qat-hybrid-text
 ```
 
-Do not call it "official Google NVFP4" or imply Google trained it for NVFP4. It is a project-built derivative of Google's QAT BF16 checkpoint.
+A later MTP-qualified profile may add `-mtp`; it must reference the same frozen target artifact plus a separately locked assistant artifact.
 
-## Supported hardware
+## Hardware and residency
 
-Required first backend:
+- one NVIDIA Blackwell SM120-class GPU with approximately 16 GB VRAM;
+- batch one and one resident 26B slot;
+- no CPU weight offload, expert streaming or multi-GPU requirement;
+- direct load of a checksum-locked compiled artifact.
 
-- one NVIDIA Blackwell GPU;
-- compute capability 12.0 / SM120 or the exact architecture target required by the pinned compiler for native NVFP4;
-- approximately 16 GB VRAM;
-- no CPU weight offload;
-- Windows x64 and Linux x86-64 only after each platform passes separate evidence gates.
+## Base behavior
 
-The first correctness bring-up may be Linux-only. A release matching existing gem16 product scope should support both platforms.
-
-## Supported model behavior
-
-Required:
-
-- text input and text output;
-- instruction-tuned chat template;
-- system/user/assistant roles;
-- thinking enabled and disabled;
-- batch one;
+- text input/output and the pinned instruction template;
 - resident multi-turn continuation;
-- greedy decoding;
-- temperature, top-k, top-p, min-p and repetition handling already supported by gem16;
-- 32K production context;
-- 64K target context;
-- 256K remains experimental and is not a first-release requirement;
-- exact stop/suppression behavior;
-- function-call text grammar only insofar as the existing tokenizer/template path already supports it.
+- deterministic greedy and existing sampling controls;
+- 32K default qualification gate;
+- 64K target;
+- an advertised maximum only after measured execution with at least 500 MiB free-device margin.
 
-## Explicitly unsupported in first release
+## Final behavior
 
-- images, video and vision tower;
-- audio;
-- MTP/speculative decoding;
-- continuous batching;
+- exact Target-verified MTP using a compatible assistant;
+- ordinary/MTP output identity under matched deterministic controls;
+- MTP at 32K as a hard minimum, 64K as the next target, and separate base/MTP maximum-context values;
+- no proposal counted as output until Target verification commits it.
+
+## Precision
+
+| Family | Format |
+|---|---|
+| Experts/shared MLP | NVFP4 |
+| Attention | FP8 |
+| Router/norm/scalars | source BF16/F32 |
+| Tied head | provisional NVFP4; one resident copy |
+| KV | separate FP8 K and V |
+
+An internal Q4_0 head/backend is not required for the first artifact.
+
+## Release checkpoints
+
+- M23 is a usable base text release checkpoint.
+- M25 is the program-complete MTP profile.
+
+## Unsupported on this program path
+
+- vision, audio and video for the 26B profile;
 - multiple 26B slots on a 16 GB card;
+- continuous batching;
 - CPU expert offload;
-- expert streaming from host;
-- multi-GPU;
-- arbitrary Gemma 4 MoE variants;
-- on-the-fly source BF16 quantization in the inference process;
-- loading a model with unverified source or compiled hashes.
+- on-the-fly inference-process quantization;
+- unverified model or compiler artifacts.
 
-Unsupported requests must fail before model execution with a precise capability error.
-
-## Precision profile
-
-### Fixed for first release
-
-- routed experts: NVFP4 values with E4M3 block scales, group 16;
-- shared dense MLP: same NVFP4 contract;
-- attention: per-output-channel FP8 weights and dynamic per-token FP8 inputs;
-- router and all router scales: BF16/F32 according to source;
-- layer norms and layer scalar: source precision;
-- KV: checkpoint-compatible FP8 with separate K and V;
-- accumulators: FP32 unless the existing validated path dictates an exact BF16 closure.
-
-### Decided by experiment
-
-Tied embedding/output head:
-
-- `q4_0`: quality-oriented candidate;
-- `nvfp4`: speed-oriented candidate;
-- `bf16`: diagnostic only and normally not resident on 16 GB.
-
-The release profile uses exactly one.
-
-## Checkpoint workflow
-
-Normal end-user flow:
-
-1. download a project-published, immutable, checksum-locked compiled checkpoint;
-2. verify source and compiler provenance in `gem16_compilation.json`;
-3. load it directly with gem16;
-4. never compile during server startup.
-
-Developer/reproducer flow:
-
-1. download exact QAT BF16 source lock;
-2. run the pinned compiler in a bounded-memory environment;
-3. verify every output hash against the compiled lock;
-4. run differential quality and operator tests;
-5. optionally publish the derived artifact under the applicable license.
-
-## Performance objectives
-
-Release-blocking:
-
-- fully resident weights;
-- no token-loop allocation;
-- 32K context with at least 700 MiB measured free-device margin;
-- faster median prefill and decode than the accepted official-Q4_0 baseline on the same machine;
-- deterministic output in deterministic mode.
-
-Targets, not release blockers:
-
-- 64K with at least 500 MiB margin;
-- decode at least competitive with direct Unsloth NVFP4 under a fair boundary;
-- prefill within 10% of the strongest practical direct NVFP4 runtime;
-- QAT-derived quality at least non-inferior to the Unsloth path and preferably closer to official Q4_0.
-
-## Quality objective
-
-The candidate must be evaluated against:
-
-- QAT BF16 teacher-forced reference;
-- official Google Q4_0;
-- Unsloth NVFP4;
-- ordinary BF16 compiled by the same gem16 quantizer.
-
-The production claim should be no stronger than the evidence. "Uses QAT source weights" is provenance, not a quality conclusion.
+Unsupported requests fail before execution with precise capability metadata.

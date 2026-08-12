@@ -59,6 +59,6 @@ A derived artifact lock also records:
   "compiler_commit": "...",
   "compiler_config_sha256": "...",
   "artifact_profile": "sm120-text-hybrid-v1",
-  "head_format": "q4_0"
+  "head_format": "nvfp4-group16-divisor-v1"
 }
 ```

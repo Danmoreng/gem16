@@ -1,5 +1,10 @@
 # Benchmarking
 
+## Gemma 4 26B Fast-Track benchmark policy
+
+M20 benchmarks one frozen M17 artifact. M19, M20 and M21 may collect evidence in parallel, but all reports must reference the same artifact/binary/configuration hashes. Official Q4_0 and Unsloth remain external references; no internal Q4 backend is required. M25 compares ordinary Target and MTP using only Target-verified output tokens and reports a separate MTP context profile.
+
+
 A controlled same-machine 16K D2 performance comparison is published below. It is not an exact
 output/semantic-parity result. `gem16-bench decode` and `gem16-bench prefill` provide machine-readable batch-one
 characterizations. The advertised `model-load`, `end-to-end`, `kernel`, `memory`, `quality`, and `mtp` subcommands

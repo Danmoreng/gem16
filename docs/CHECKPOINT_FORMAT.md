@@ -86,15 +86,14 @@ E4M3 weights with BF16 per-output-channel scales. Its profile is `external_unslo
 
 | Role | BF16 source | External Unsloth | Official Q4_0 | Frozen compiled-hybrid role |
 |---|---|---|---|---|
-| Tied head | one BF16 tensor | one BF16 tensor | one Q6_K tensor | one physical Q4_0 or NVFP4 family; M07 selects |
+| Tied head | one BF16 tensor | one BF16 tensor | one Q6_K tensor | one physical NVFP4 family for Fast Track R4; Q4_0 is optional M24 work |
 | Attention | BF16 Q/K/O and local V | FP8 weight + channel scale | Q4_0 | FP8 weight + BF16 channel scale |
 | Shared MLP | three BF16 matrices | three separate NVFP4 families | Q4_0 | three gem16 NVFP4 families |
 | Router | BF16 scale/projection/per-expert scale | same BF16 tensors | F32 | source BF16 |
 | Routed experts | fused Gate/Up plus fused Down | 128 separate Gate/Up/Down families | fused Q4_0 | fused expert-major gem16 NVFP4 families |
 | Vision | required source family | present but excluded | separate mmproj | absent |
 
-The future compiled validator is deliberately separate from the BF16 and external-reference validators. Its frozen
-text-only role mapping has 1,282 tensors with a Q4_0 head or 1,285 with an NVFP4 head. All NVFP4 records identify
+The compiled validator is deliberately separate from the BF16 and external-reference validators. The Fast Track R4 base role mapping uses the NVFP4-head form; the Q4_0-head form is schema-reserved for optional M24 diagnostics. All NVFP4 records identify
 producer semantics, E4M3 group-16 scales, divisor direction and `sm120_row8_k64` or
 `expert_major_sm120_row8_k64` final layout. M05 now owns accepted attention FP8 encoding/provenance; M06-M07 own
 expert and tied-head encoding, and M08 owns complete artifact assembly/loading. Compact canonical metadata and the

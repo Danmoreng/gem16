@@ -49,7 +49,7 @@ Preserve model architecture facts and add a namespaced block:
     "profile": "sm120-text-hybrid-v1",
     "variant": "gemma4-26b-a4b",
     "text_only": true,
-    "head_format": "q4_0",
+    "head_format": "nvfp4-group16-divisor-v1",
     "supports_mtp": false,
     "supports_vision": false,
     "supports_audio": false,
@@ -62,7 +62,7 @@ Do not rewrite architecture values merely to simplify the runtime.
 
 ## Tensor classes
 
-Normative classes:
+Base-profile normative classes:
 
 | Class | Required storage |
 |---|---|
@@ -72,11 +72,10 @@ Normative classes:
 | `NVFP4_LOCAL_SCALE_E4M3` | E4M3 `[rows, K/16]` |
 | `NVFP4_GLOBAL_SCALE` | F32 scalar |
 | `NVFP4_INPUT_SCALE` | F32 scalar |
-| `Q4_0_PACKED` | U8 block payload, 18 bytes per 32 logical weights |
 | `BF16` | source BF16 |
 | `FP32` | source F32 |
 
-If Q4_0 is represented as a single opaque byte tensor, its logical row/block metadata must be in `gem16_compilation.json`. Prefer separate scale/payload tensors only if it simplifies loader validation without changing bytes.
+Q4_0 tensor classes are not part of the base schema. If optional M24 activates Q4_0, it must add a versioned profile extension with explicit logical row/block metadata; base runtimes must reject that profile unless the backend is present.
 
 ## Canonical logical roles
 
@@ -186,7 +185,7 @@ Do not write driver- or CUTLASS-internal layouts to disk in schema version 1.
 }
 ```
 
-M06 and M07 use new versioned protocol/implementation identifiers when their contracts differ, while retaining the
+M06 and M07 use new versioned protocol/implementation identifiers for NVFP4 experts and the provisional NVFP4 head, while retaining the
 same native data-plane family. M04 `copy-v1` retains its accepted Python scaffold identity. The artifact is produced
 directly from locked Safetensors ranges; a BF16/F16 GGUF intermediate is not part of the Gem16 schema.
 

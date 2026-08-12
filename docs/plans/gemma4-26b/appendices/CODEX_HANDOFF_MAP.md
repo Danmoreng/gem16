@@ -1,121 +1,28 @@
-# Codex handoff map
+# Coding-agent handoff map — Fast Track R4
 
-## Program owner decisions
+## Current parallel handoffs
 
-Owner approval required at:
+- Compiler lane: M06 → M07 → M08 integration.
+- MoE semantics lane: M10 phase A/B → M11.
+- Attention lane: M12 phase A/B.
+- Memory lane: M09 phase A → final reconciliation after M08.
+- Harness lane: future validation/report tooling without claims.
+- MTP feasibility lane: M25 phase A assets/inventory/memory only.
 
-- M00 derived-artifact policy;
-- M01 source/license/distribution locks;
-- M07 provisional head choice;
-- M09 memory hard-stop exception;
-- M18 threshold freeze;
-- M19 final source/head choice;
-- M21 64K support wording;
-- M23 release.
+After M13 passes, M14/M15/M16 hand independent commits to the M17 integration owner. M19/M20/M21/M22 operate on one frozen M17 artifact. M23 freezes the base target; M25 completes MTP.
 
-## Agent-specialist handoffs
-
-### Repository/model agent
-
-M00–M04:
-
-- contracts;
-- locks;
-- manifests;
-- compiler framework.
-
-Hands off:
-
-- exact model traits;
-- tensor map;
-- goldens;
-- accepted artifact schema.
-
-### Quantization agent
-
-M05–M08:
-
-- codecs;
-- compiler stages;
-- reproducible artifact.
-
-Hands off:
-
-- final tensors;
-- quantizer reports;
-- runtime bindings.
-
-### Correctness/runtime agent
-
-M09–M13:
-
-- arenas;
-- CPU/CUDA reference;
-- attention/KV;
-- full model.
-
-Hands off:
-
-- accepted intermediate captures;
-- reference execution path.
-
-### Evaluation agent — preliminary gate
-
-M18 after M13:
-
-- causal converter/source/head A/B;
-- development-corpus quality kill gate;
-- frozen candidate profiles and held-out thresholds.
-
-Hands off only passing candidates to native optimization.
-
-### CUDA performance agent
-
-M14–M17 after M18 passes:
-
-- native MoE decode/prefill;
-- head;
-- graph integration.
-
-Hands off:
-
-- optimized deterministic runtime;
-- profiles/disassembly/memory.
-
-### Evaluation agent — final qualification
-
-M19–M21:
-
-- held-out quality;
-- benchmarks;
-- long context.
-
-Hands off:
-
-- final locked profile;
-- release evidence.
-
-### Product/release agent
-
-M22–M23:
-
-- CLI/server/Studio;
-- packaging;
-- release/rollback.
-
-## Required handoff packet
-
-Every handoff includes:
+## Handoff packet
 
 ```text
-code commit
-model/artifact locks
-completed exit criteria
-test commands/results
-evidence hashes/paths
+base and result commit
+writable paths and shared interfaces
+artifact/source hashes
+exit criteria
+exact test commands/results
+evidence paths
+memory/performance delta
 known risks
-assumptions not yet proven
-next milestone prerequisites
+merge dependency
 ```
 
-A conversation summary is not a sufficient handoff.
+Conversation summaries are not sufficient. Global status is updated by the integration owner after merge and acceptance.

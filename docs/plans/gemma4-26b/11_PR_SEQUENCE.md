@@ -1,83 +1,29 @@
-# Development and review sequence
+# Integration and review sequence — Fast Track R4
 
 ## Branch policy
 
-Use one long-lived branch for the remaining program:
+`feat/gemma4-26b` is the integration branch. Sub-agents may use short-lived local worktree branches. The integration agent merges reviewed, scoped commits.
 
-```text
-feat/gemma4-26b
-```
+## Recommended commit groups
 
-The branch is created from `main` after the accepted M00-M02 foundation and the 2026-08-11 branch-policy amendment
-are integrated. All M03-M25 work remains on it. Do not create per-milestone or parallel development branches, and
-do not force-push reviewed evidence history. Integration back to `main` happens only when the project owner requests
-it.
+1. shared interface commit, only when parallel lanes require one;
+2. lane-local implementation and tests;
+3. evidence/report update;
+4. integration commit;
+5. status update after acceptance.
 
-This changes branch management, not milestone discipline. Each milestone remains a bounded change set with its own
-contracts, tests, evidence, descriptive commits and exit review. Finish the current milestone before beginning a
-dependent one.
+Do not combine arithmetic, layout and scheduling changes when they can be reviewed separately.
 
-## Milestone boundaries
+## Current sequence
 
-| Milestone | Core change | Must not include |
-|---|---|---|
-| M00 | Policy, decision, roadmap, feature flags | Compiler or CUDA code |
-| M01 | Locks, fetch support, golden-capture harness | Runtime arithmetic |
-| M02 | Model config/traits and tests | Tensor upload |
-| M03 | Manifest/inventory and inspect JSON | Quantization |
-| M04 | Compiler CLI/schema/scaffolding | Production quantizer tuning |
-| M05 | FP8 encoder/oracle | NVFP4 kernels |
-| M06 | NVFP4 encoder/oracle | Model runtime |
-| M07 | Head-format experiment harness | Final product selection without evidence |
-| M08 | Derived artifact schema and loader | Native MoE optimization |
-| M09 | Residency and memory planner | Performance claims |
-| M10 | CPU MoE semantics | CUDA optimization |
-| M11 | CUDA reference MoE | Native Tensor Core promotion |
-| M12 | Attention/KV 26B | MoE performance |
-| M13 | Slow full-model integration and preliminary quality screen | Headline benchmarks |
-| M18 | Quantizer comparison and quality kill-gate reports | Kernel modifications |
-| M14 | Native decode expert path | Prefill changes |
-| M15 | Grouped prefill expert path | Decode arithmetic changes |
-| M16 | Embedding/head production path | Router/expert changes |
-| M17 | Whole-model optimized scheduling | New quantization recipe |
-| M19 | Quality qualification | Performance tuning |
-| M20 | Performance qualification | Arithmetic changes |
-| M21 | 32K/64K qualification | UI redesign |
-| M22 | CLI/server/Studio integration | Core model arithmetic |
-| M23 | Release docs, locks, evidence | New features |
-| M24/M25 | Optional later work | Backport into already qualified base without rerun |
+- Land M06 compiler commits while M10A/M12A/M09A/M25A proceed independently.
+- Land M07 as a small compiler/head slice.
+- Integrate M08 artifact/schema/loader centrally.
+- Complete M09 real allocation reconciliation.
+- Merge M10/M11 and M12 runtime adapters into M13.
+- After M13 pass, merge M14/M15/M16 independently and continuously test M17.
+- Freeze one M17 artifact before M19–M22 parallel qualification/product work.
+- M23 aggregates exact-hash evidence.
+- M25 integrates MTP after the base target is frozen.
 
-## Review order within each milestone
-
-1. contract and tests;
-2. host implementation;
-3. CUDA implementation if applicable;
-4. memory accounting;
-5. documentation;
-6. evidence.
-
-A reviewer should be able to reject a performance candidate without losing unrelated correctness work. Keep
-experimental kernels isolated until promoted.
-
-## Commit guidance
-
-Recommended commits for a kernel milestone:
-
-```text
-test: add 26b expert decode fixtures
-cuda: add reference expert decode path
-cuda: add native nvfp4 expert candidate
-bench: add isolated expert benchmark
-docs: record decode experiment and decision
-```
-
-Do not squash away raw evidence references from reviewed milestone history or the final integration description.
-
-## Auxiliary reference slices
-
-| Slice | Timing | Core change | Must not include |
-|---|---|---|---|
-| R-IMP-00 | after M00, before M01 exit | imp lock, source map, license/provenance decision, semantic/kernel audit | Production code copy or architecture refactor |
-| R-IMP-10 | within M10 | official-HF/imp/local-oracle semantic goldens and producer-scale fixtures | Optimized CUDA kernels |
-| R-IMP-15 | after M18 passes, before M15 promotion | optional small-M kernel study or isolated MIT port | Paged KV, general executor, second permanent weight layout |
-| R-IMP-23 | within M23 | third-party notice, settled ledger, lifecycle and perf-baseline release gates | New arithmetic |
+A pull request is opened only when the project owner requests publication. Milestone commits and evidence are sufficient for internal progression.

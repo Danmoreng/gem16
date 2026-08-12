@@ -18,7 +18,7 @@ The coding agent must verify file hashes before relying on this map.
 | `src/exec/executor_forward_moe.cu` | Router, per-expert scale, shared/expert branch and residual failure modes | Semantic reference only; do not port the general executor |
 | `src/exec/moe_ffn_context.h` | Inventory of mutable MoE state used by a broad executor | Reference only; gem16 uses a fixed plan |
 | `src/compute/moe_routing.*` | Top-k routing implementation details | Differential reference; local oracle remains normative |
-| `src/compute/gemm_grouped_nvfp4_smallM.{h,cu}` | Persistent grouped small-M schedule and native MMA implementation | Optional isolated MIT port or clean-room reimplementation after M18 passes |
+| `src/compute/gemm_grouped_nvfp4_smallM.{h,cu}` | Persistent grouped small-M schedule and native MMA implementation | Optional isolated MIT port or clean-room reimplementation after M13 passes and the local correctness fixtures are frozen |
 | `src/compute/quantize_fp16_nvfp4_moe_native.*` | Activation packing and scale layout ideas | Compare against gem16 quantizer contract |
 | `src/exec/executor_forward_moe_cutlass.cu` | Prefill tiering, device-args and grouped path | Algorithm/reference only |
 | `src/exec/moe_prefill_decision.h` | Pure dispatch decision model | Reimplement the principle, not the full ladder |

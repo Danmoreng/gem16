@@ -6,7 +6,7 @@
 - Experts/shared MLP remain NVFP4 candidates for native Blackwell speed.
 - Attention projections remain FP8.
 - Router/norms remain high precision.
-- Vision and MTP remain deferred.
+- Vision remains outside the 26B program. MTP is now the required final target in M25; only its runtime integration remains deferred until the M23 base target is frozen.
 - One final weight layout and batch-one fixed plans remain core architecture rules.
 
 ## Added

@@ -1,340 +1,57 @@
-# Master implementation plan
+# Master implementation plan — Fast Track R4
 
 ## Mission
 
-Extend `gem16` with a production-quality, text-only Gemma 4 26B A4B path for a single approximately 16 GB Blackwell GPU without weakening the existing Gemma 4 12B Unified path.
+Deliver Gemma 4 26B A4B on one approximately 16 GB Blackwell GPU with fully resident weights, a 32K first context gate, a measured 64K-or-higher single-user profile where feasible, and an exact Target-verified MTP path. Preserve the mature 12B implementation.
 
-The work is successful only when the resulting system is simultaneously:
+The active contract is [`ACTIVE_CONTRACT.md`](ACTIVE_CONTRACT.md). The detailed wave plan is [`FAST_TRACK_EXECUTION_PLAN.md`](FAST_TRACK_EXECUTION_PLAN.md).
 
-1. numerically understood;
-2. reproducibly compiled from immutable model sources;
-3. fully resident in GPU memory during generation;
-4. deterministic under deterministic settings;
-5. fast in batch-one prefill and decode;
-6. fairly compared against direct Unsloth NVFP4 and official Google Q4_0 references;
-7. usable through the existing CLI/server product surface;
-8. documented so another agent can reproduce every decision.
+## Accepted history
 
-## Production hypothesis
+M00–M05 are accepted. Their files and evidence are historical records and are not rewritten by R4.
 
-The primary candidate is a derived text-only checkpoint compiled from Google's unquantized QAT BF16 model:
+## Critical path
 
-| Tensor family | First production candidate | Reason |
-|---|---|---|
-| Routed expert gate/up/down | NVFP4 W4A4 | Dominant weight volume and native Blackwell block-scaled Tensor Core path |
-| Always-active dense/shared MLP | NVFP4 W4A4 | Same fast path and approximately 287 MiB resident |
-| Attention Q/K/V/O | FP8 W8A8 | Reuse current gem16 arithmetic and native Blackwell path |
-| Router projection, router scales | BF16 | Routing discontinuities make this a poor first quantization target |
-| Norms and scalar controls | BF16/F32 as source | Tiny memory footprint and quality sensitivity |
-| Tied embedding/output head | Q4_0 quality candidate versus NVFP4 speed candidate | Same approximate storage, different quality/performance behavior |
-| KV cache | checkpoint-compatible FP8 | Required for 32K/64K within the remaining budget |
-| Vision tower and projection | omitted from compiled artifact and runtime residency | Not compatible with the first 16 GB budget |
-| MTP assistant | disabled | Must not confound base arithmetic or memory qualification |
+```text
+M06 NVFP4 experts
+ → M07 provisional NVFP4 tied head
+ → M08 complete artifact and direct loader
+ → M09 real one-slot 32K residency
+ → M11 CUDA MoE reference + M12 runtime attention/KV
+ → M13 complete slow model and early quality gate
+ → M14/M15/M16 in parallel, integrated continuously by M17
+ → M19/M20/M21 in parallel on one frozen artifact
+ → M22 CLI/server
+ → M23 base target freeze
+ → M25 MTP final target
+```
 
-This is a hypothesis, not a pre-approved quality result. Milestones M18 and M19 decide whether the QAT-derived candidate is actually better than, equal to or worse than the Unsloth conversion.
+M10 semantic work begins in parallel with M06. M18 is conditional diagnosis. M24 is optional Q4_0 work.
 
-## Program stages
+## First useful checkpoints
 
-### Stage A — Governance and immutable evidence
-
-**Milestones:** M00–M03
-
-Outcomes:
-
-- a reviewed 26B contract for project-built derived checkpoints;
-- exact source locks for QAT BF16, ordinary BF16, Unsloth NVFP4 and Google Q4_0;
-- a repository-drift report;
-- a model-traits design that preserves 12B compile-time specialization;
-- complete tensor inventories and naming evidence;
-- reference activations, router outputs, expert outputs, logits and token streams.
-
-No CUDA performance work is allowed before this stage closes.
-
-### Stage B — Deterministic checkpoint compiler
-
-**Milestones:** M04–M08
-
-Outcomes:
-
-- a strict hybrid compiler with a Python control plane and one shared native C++20 numerical data plane;
-- M04's accepted bounded Python scaffold for plans, locks, coverage, publication/provenance and byte-only `copy-v1`;
-- exact and tested native FP8 and NVFP4 encoders;
-- a reproducible native Q4_0 embedding/head encoder or an explicit decision not to use it;
-- a standard Safetensors-based derived checkpoint;
-- complete provenance, source hashes, native compiler/toolchain identity and per-tensor hashes;
-- a loader that accepts the derived artifact without retaining duplicate device layouts.
-
-The promoted M05 data plane is the first native implementation. M06 NVFP4, M07 head encoding and large M18
-comparisons extend that same versioned converter family rather than adding Python numerical converters. Python may
-remain the initial orchestration layer because it is not the tensor-arithmetic bottleneck; a later control-plane
-migration requires evidence. The compiler reads locked Safetensors directly into final-format output and does not
-introduce a large BF16/F16 intermediate GGUF. Python tensor libraries are diagnostic/reference-only unless explicitly
-approved by decision. The compiler must also process the ordinary non-QAT BF16 model through the same native recipe as
-QAT; this control separates quantizer effects from QAT-weight effects.
-
-The version-scoped local llama.cpp research is retained in
-`docs/evidence/gemma4_26b/m05-llama-cpp-converter-research-2026-08-11.md`; its native codec separation,
-multithreading and reference/optimized test patterns may inform implementation, but its format, fallback,
-provenance, memory and publication behavior do not override Gem16 contracts. The binding architecture is
-`docs/plans/gemma4-26b/specs/NATIVE_CONVERTER_ARCHITECTURE.md`.
-
-### Stage C — Runtime correctness path
-
-**Milestones:** M09–M13
-
-Outcomes:
-
-- text-only residency and context-aware memory planning;
-- a CPU MoE oracle;
-- a slow CUDA MoE reference path;
-- correct 26B local/global attention and FP8 KV;
-- a complete end-to-end 26B forward path that is intentionally not yet performance-qualified.
-
-The purpose of this stage is to create trustworthy differential tests. It is acceptable for the first full model to be slow. It is not acceptable for it to be opaque.
-
-### Stage C2 — Early converter and quality attribution gate
-
-**Milestone:** M18, executed after M13
-
-Outcomes:
-
-- converter/source/head effects are separated on the correctness runtime;
-- a development-corpus quality screen rejects catastrophic or unexplained NVFP4 loss;
-- candidate profiles and held-out thresholds are frozen before native kernel optimization;
-- M14–M17 proceed only when the explicit quality kill gate passes.
-
-### Stage D — Native Blackwell performance path
-
-**Milestones:** M14–M17, after M18 passes
-
-Outcomes:
-
-- GPU-resident deterministic top-8 routing;
-- native NVFP4 expert decode;
-- grouped, bounded-workspace NVFP4 prefill;
-- quantized embedding and output-head kernels;
-- whole-model CUDA Graph decode;
-- no token-loop allocations;
-- one resident weight representation.
-
-Hot kernels remain model-shape-specialized. Generic model dispatch occurs once at initialization and may not add per-layer or per-token virtual dispatch.
-
-### Stage E — Final comparison and qualification
-
-**Milestones:** M19–M21, using the M18 attribution evidence
-
-Outcomes:
-
-- converter A/B evidence;
-- model-quality evaluation against QAT BF16, ordinary BF16, Unsloth NVFP4 and official Q4_0;
-- controlled batch-one prefill/decode benchmarks;
-- 32K required and 64K target context qualification;
-- power, clocks, thermals, VRAM and native instruction evidence;
-- promotion or rejection of each candidate format.
-
-A faster candidate with worse quality than the accepted threshold is rejected. A higher-quality candidate that does not fit the memory budget is not the production profile.
-
-### Stage F — Product and release
-
-**Milestones:** M22–M23
-
-Outcomes:
-
-- CLI/server/Studio model selection;
-- immutable model download and verification;
-- capability reporting;
-- clean failure for unsupported MTP/vision requests;
-- release notes, migration notes and rollback;
-- retained benchmark and quality artifacts.
-
-### Optional stage G — Later tracks
-
-**Milestones:** M24–M25
-
-- full-model Q4_0 reference/backend;
-- QAT-compatible MTP;
-- on-demand vision.
-
-These are explicitly outside the critical path.
-
-## Candidate matrix
-
-Every quality and performance report must distinguish these variants:
-
-| ID | Source | Conversion/runtime | Purpose |
-|---|---|---|---|
-| A | Unsloth published NVFP4 | Direct-load mixed FP8/NVFP4 | External practical NVFP4 baseline |
-| B | Ordinary Google IT BF16 | gem16 compiler to the same hybrid recipe | Quantizer control |
-| C | Google QAT BF16 | gem16 compiler to FP8/NVFP4 plus selected head | Primary hypothesis |
-| D | Official Google QAT Q4_0 GGUF | llama.cpp or exact Q4_0 reference | QAT-target-format quality reference |
-| E | Google QAT BF16 | gem16 production hybrid | Final candidate selected from head experiments |
-| F | Google QAT BF16 | gem16 slow BF16/reference operators where feasible | Numerical oracle, not a 16 GB deployment |
-| G | NVIDIA/ModelOpt Gemma 4 26B NVFP4 | pinned imp or another validated loader | Negative/control quantization-recipe arm; not a production default |
-| H | UD-Q4_K_M Gemma 4 26B | pinned imp/llama.cpp | External quality/speed context; not the official QAT reference |
-
-Do not compare only A against C. B is necessary to identify whether differences come from QAT or from a different quantizer.
+| Checkpoint | Meaning |
+|---|---|
+| M08 | a complete artifact can be validated and loaded |
+| M09 | the real artifact fits at 32K with the required margin |
+| M13 | a complete deterministic reference generation works |
+| M17 | the optimized all-resident path works |
+| M23 | the base target is qualified and frozen |
+| M25 | MTP and its maximum safe context are qualified |
 
 ## Promotion gates
 
-### Gate 1: source and compiler integrity
+- Artifact integrity: complete tensor coverage, source/compiler provenance, two clean M08 builds with identical hashes.
+- Runtime correctness: independent MoE oracle, CUDA reference, attention/KV tests and full-model captures.
+- Memory: one slot, 32K with at least 700 MiB free; 64K+ with at least 500 MiB free.
+- Early quality: M13 development-screen pass.
+- Final qualification: M19 quality, M20 performance and M21 context on one frozen hash.
+- MTP: compatible assistant, exact Target verification, transactional state and separately measured MTP context.
 
-Required:
+## Execution discipline
 
-- full immutable commit SHAs;
-- file sizes and SHA-256 hashes;
-- deterministic native compiler output on the reference toolchain;
-- explicit native protocol/version, thread count and toolchain identity;
-- for M05-M07 partial numerical stages, one complete native Ordinary-BF16 and one complete native QAT-BF16
-  conversion per selected profile or head candidate, with no duplicate full partial artifact solely for reproducibility;
-- complete tensor count and byte accounting;
-- no vision tensor in the production artifact;
-- no unexplained tensor rename, transpose or alias.
+Use small, reviewable commits and parallel workstreams with disjoint ownership. Full conversions and publication-grade runs require a clean committed worktree. Do not create evidence by repeating unchanged expensive runs.
 
-### Gate 2: operator correctness
+## Noncritical work
 
-Required:
-
-- independent CPU/Python dequantization oracles that do not replace the promoted native path;
-- exact byte fixtures for packing and scale encodings;
-- real-shape FP8 and NVFP4 operator comparisons;
-- deterministic top-8 routing with explicit tie behavior;
-- exact residual/norm ordering from the reference implementation;
-- separate local and global attention tests;
-- output-head softcap and lowest-token tie break.
-
-### Gate 3: full-model numerical evidence
-
-Required:
-
-- teacher-forced logits and state captures;
-- per-layer residual drift;
-- router probability and selected-expert drift;
-- greedy sequence determinism;
-- no NaN/Inf;
-- quality non-inferiority against the approved reference envelope.
-
-### Gate 4: memory feasibility
-
-Required:
-
-- a preliminary M03 synthetic 32K admission probe before compiler work, using runtime-visible rather than nominal VRAM;
-- immutable weight arena target at or below 14,100 MiB;
-- no duplicate embedding/head copy;
-- no persistent source-order plus runtime-order copy;
-- measured 32K process peak with at least 700 MiB directly reported free-device margin against the approximately 15,881 MiB CUDA-visible reference capacity;
-- bounded prefill workspace;
-- no token-loop allocation;
-- exact allocator accounting reconciled with `cudaMemGetInfo` and sampled process telemetry.
-
-If the immutable weight arena exceeds 14,300 MiB, stop and revisit format selection before kernel optimization.
-
-### Gate 5: performance
-
-Required for a performance release:
-
-- native SM120/SM120a NVFP4 instructions verified in the selected kernels;
-- median prefill and decode both faster than the accepted Q4_0 baseline on the same machine;
-- three warm-ups and ten retained runs;
-- non-overlapping confidence intervals for headline wins or appropriately cautious wording;
-- no CPU offload, prompt-cache asymmetry or semantic shortcut;
-- deterministic outputs for the deterministic benchmark.
-
-Matching or beating direct vLLM NVFP4 is a stretch target, not a reason to falsify timing boundaries.
-
-### Gate 6: product readiness
-
-Required:
-
-- source/compiled lock download path;
-- clear model profile naming;
-- 12B regressions green;
-- clean unsupported-feature errors;
-- server session admission respects actual 26B slot size;
-- raw evidence retained and release rollback documented.
-
-## Milestone execution discipline
-
-Each milestone must follow this sequence:
-
-1. read repository `AGENTS.md`, this master plan, the milestone file and
-   `specs/NATIVE_CONVERTER_ARCHITECTURE.md` before M04-M08/M18 converter work;
-2. inspect the actual current source before editing;
-3. write or update the decision/experiment record;
-4. add failing tests or goldens first where practical;
-5. implement the narrowest possible change;
-6. keep promoted large tensor arithmetic and billion-element comparison in the shared native C++20 data plane;
-7. run host tests, then CUDA operator tests, then model tests;
-8. collect memory or performance evidence only after correctness passes;
-9. update documentation and ledger;
-10. stop at the milestone exit gate.
-
-For M05-M07 partial numerical stages, run one native full Ordinary-BF16 conversion and one native full QAT-BF16
-conversion per selected profile or head candidate only. Do not add duplicate Python/native conversions or repeated
-full partial artifacts merely to create evidence. If M07 evaluates two head candidates, run each candidate once per
-required source and compare retained outputs. Use small native fixtures, complete hashes and structural verification
-for determinism; obtain explicit owner approval before any projected long run. M08's final complete-artifact
-reproducibility gate remains two clean builds and is not waived.
-
-A milestone change set may not contain unrelated UI work, opportunistic refactors or multiple arithmetic changes that cannot be isolated in an A/B test. M03-M25 development remains on the single long-lived `feat/gemma4-26b` branch; milestone boundaries are enforced by commits, evidence and exit gates rather than new branches.
-
-## First usable checkpoints along the way
-
-The plan intentionally creates several usable but differently qualified points:
-
-- **M08:** compiled artifact can be inspected and loaded;
-- **M13:** complete slow 26B text inference for correctness;
-- **M17:** optimized batch-one path;
-- **M19:** quality-qualified candidate;
-- **M21:** 32K/64K context-qualified candidate;
-- **M23:** product release candidate.
-
-The project owner can stop after any point without pretending later gates have passed.
-
-## Final expected artifact set in the repository
-
-At completion, expect additions broadly like:
-
-```text
-models/
-  gemma4-26b-qat-bf16.lock.json
-  gemma4-26b-base-bf16.lock.json
-  gemma4-26b-unsloth-nvfp4.lock.json
-  gemma4-26b-qat-q4_0.lock.json
-  gemma4-26b-gem16-hybrid.lock.json
-
-tools/
-  compile_gemma4_26b.py
-  compare_quantized_checkpoints.py
-  capture_gemma4_26b_goldens.py
-  evaluate_gemma4_26b_quality.py
-
-src/model/
-  model_variant.*
-  gemma4_26b_contract.*
-
-src/cuda/moe/
-  reference.*
-  router.*
-  decode_sm120.*
-  prefill_sm120.*
-  reduction.*
-
-src/cuda/embedding/
-  q4_0.*
-  nvfp4.*
-
-docs/
-  GEMMA4_26B.md
-  GEMMA4_26B_CHECKPOINT.md
-  GEMMA4_26B_MEMORY.md
-  GEMMA4_26B_QUALITY.md
-  GEMMA4_26B_BENCHMARKING.md
-```
-
-Exact names may change after repository inspection, but responsibilities may not disappear.
-
-## imp reference amendment
-
-A pinned imp reference lane is now part of Stage A and Stage E. It supplies independent MoE failure-mode evidence, producer-specific NVFP4 scale contracts, potential grouped-small-M kernel ideas and stronger engineering gates. See [`13_IMP_REFERENCE_INTEGRATION.md`](13_IMP_REFERENCE_INTEGRATION.md).
-
-The primary checkpoint strategy is unchanged. Imp's documented ModelOpt Gemma 4 quality deficit makes candidate G a required negative/control arm and raises the burden of proof for any NVFP4 promotion.
+An internal Q4_0 backend, full causal attribution, positive multi-slot admission, Studio polish and vision do not block the vertical path.
