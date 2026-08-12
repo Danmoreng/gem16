@@ -34,11 +34,21 @@
           ]}
         }
       }
+    },
+    {
+      "if": {"properties": {"artifact_profile": {"const": "nvfp4-experts-partial-v1"}}, "required": ["artifact_profile"]},
+      "then": {
+        "properties": {
+          "head_format": {"const": "deferred"},
+          "source_contract": {"const": "gemma4-26b-source-bf16-experts-v1"},
+          "source_lock_sha256": {"const": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230"}
+        }
+      }
     }
   ],
   "properties": {
     "schema_version": {"const": 1},
-    "artifact_profile": {"enum": ["synthetic-copy-v1", "fp8-attention-partial-v1"]},
+    "artifact_profile": {"enum": ["synthetic-copy-v1", "fp8-attention-partial-v1", "nvfp4-experts-partial-v1"]},
     "head_format": {"enum": ["source", "deferred"]},
     "source_contract": {"type": "string", "minLength": 1},
     "source_lock_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
@@ -102,7 +112,7 @@
           "minItems": 1,
           "items": {"type": "string", "minLength": 1}
         },
-        "encoder": {"enum": ["copy-v1", "fp8-rowwise-weight-v1", "fp8-rowwise-scale-v1"]},
+        "encoder": {"enum": ["copy-v1", "fp8-rowwise-weight-v1", "fp8-rowwise-scale-v1", "nvfp4-packed-v1", "nvfp4-local-scale-v1", "nvfp4-weight-divisor-v1", "nvfp4-input-divisor-v1"]},
         "transformation": {"type": "string", "minLength": 1},
         "transformation_version": {"type": "integer", "minimum": 1},
         "output_dtype": {"type": "string", "minLength": 1},
@@ -156,8 +166,52 @@
               "aliased": {"const": false}
             }
           }
-        }
+        },
+        {
+          "if": {"properties": {"encoder": {"enum": ["nvfp4-packed-v1", "nvfp4-local-scale-v1", "nvfp4-weight-divisor-v1", "nvfp4-input-divisor-v1"]}}, "required": ["encoder"]},
+          "then": {
+            "properties": {
+              "transformation_version": {"const": 1},
+              "logical_dtype": {"const": "BF16"},
+              "residency_class": {"const": "immutable_device_text"},
+              "aliased": {"const": false},
+              "quantizer_parameters": {"$ref": "#/$defs/m06QuantizerParameters"}
+            }
+          }
+        },
+        {"if": {"properties": {"encoder": {"const": "nvfp4-packed-v1"}}, "required": ["encoder"]}, "then": {"properties": {"quantizer_parameters": {"properties": {"component": {"const": "weight_packed"}}}}}},
+        {"if": {"properties": {"encoder": {"const": "nvfp4-local-scale-v1"}}, "required": ["encoder"]}, "then": {"properties": {"quantizer_parameters": {"properties": {"component": {"const": "weight_scale"}}}}}},
+        {"if": {"properties": {"encoder": {"const": "nvfp4-weight-divisor-v1"}}, "required": ["encoder"]}, "then": {"properties": {"quantizer_parameters": {"properties": {"component": {"const": "weight_global_scale"}}}}}},
+        {"if": {"properties": {"encoder": {"const": "nvfp4-input-divisor-v1"}}, "required": ["encoder"]}, "then": {"properties": {"quantizer_parameters": {"properties": {"component": {"const": "input_global_scale"}}}}}}
       ]
+    },
+    "m06QuantizerParameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contract_id", "contract_version", "source_dtype", "packed_dtype", "local_scale_dtype", "global_scale_dtype", "group_size", "value_codec", "scale_codec", "global_scale_role", "weight_divisor", "zero_tensor_divisor", "input_divisor", "local_scale", "rounding", "saturation", "signed_zero", "zero_behavior", "packing", "tensor_granularity", "component"],
+      "properties": {
+        "contract_id": {"const": "gem16.nvfp4_bf16_group16"},
+        "contract_version": {"const": 1},
+        "source_dtype": {"const": "BF16"},
+        "packed_dtype": {"const": "U8"},
+        "local_scale_dtype": {"const": "F8_E4M3"},
+        "global_scale_dtype": {"const": "F32"},
+        "group_size": {"const": 16},
+        "value_codec": {"const": "E2M1"},
+        "scale_codec": {"const": "E4M3FN"},
+        "global_scale_role": {"const": "divisor"},
+        "weight_divisor": {"const": "bf16_rne((448*6)/tensor_amax)"},
+        "zero_tensor_divisor": {"const": 1.0},
+        "input_divisor": {"const": 1.0},
+        "local_scale": {"const": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))"},
+        "rounding": {"const": "nearest_even"},
+        "saturation": {"const": "finite_saturation"},
+        "signed_zero": {"const": "preserve_in_nonzero_blocks_canonicalize_zero_blocks"},
+        "zero_behavior": {"const": "zero_or_underflow_block_emits_zero_scale_and_zero_payload"},
+        "packing": {"const": "low_nibble_first"},
+        "tensor_granularity": {"const": "one_weight_and_input_divisor_per_source_tensor"},
+        "component": {"enum": ["weight_packed", "weight_scale", "weight_global_scale", "input_global_scale"]}
+      }
     },
     "excluded": {
       "type": "object",

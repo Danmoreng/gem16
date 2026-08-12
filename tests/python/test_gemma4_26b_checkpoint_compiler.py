@@ -12,6 +12,7 @@ from types import SimpleNamespace
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 from tools.compare_manifests import build_reference_manifest
 from tools.gem16_compile.common import (
@@ -219,6 +220,36 @@ def make_large_fixture(directory: Path, payload_bytes: int) -> tuple[Path, Path,
 
 
 class Gemma426BCheckpointCompilerTest(unittest.TestCase):
+    def test_m06_debug_native_fails_before_source_load_or_output_staging(self) -> None:
+        debug_native = ROOT / "build/Linux/host-debug/bin/gem16-checkpoint-compiler"
+        if not debug_native.is_file():
+            self.skipTest("host-debug native compiler is not built")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            request_m06 = CompilerRequest(
+                source_lock=root / "missing.lock.json",
+                source_directory=root / "missing-source",
+                compiler_manifest=root / "missing-plan.json",
+                profile="nvfp4-experts-partial-v1",
+                head_format="deferred",
+                host_memory_cap_bytes=512 * 1024 * 1024,
+                staging_bytes=4096,
+                dependencies_lock=DEPENDENCIES,
+                native_encoder=debug_native,
+                threads=4,
+            )
+            output = root / "artifact"
+            with mock.patch(
+                "tools.gem16_compile.compiler._load_request",
+                side_effect=AssertionError("source loading must not run"),
+            ):
+                with self.assertRaisesRegex(InvalidPlanError, "Release build"):
+                    compile_artifact(
+                        request_m06, output, identity=fixed_identity(), allow_dirty=True
+                    )
+            self.assertFalse(output.exists())
+            self.assertFalse(output.with_name(output.name + ".incomplete").exists())
+
     def test_compiler_is_not_referenced_by_runtime_or_build_targets(self) -> None:
         search = subprocess.run(
             [
@@ -421,6 +452,15 @@ class Gemma426BCheckpointCompilerTest(unittest.TestCase):
         self.assertEqual(
             compilation_schema["$defs"]["compilerM05"]["allOf"][1]["required"],
             ["native_encoder"],
+        )
+        m05_protocol = compilation_schema["$defs"]["compilerM05"]["allOf"][1]["properties"]["native_encoder"]["properties"]["protocol"]
+        m06_protocol = compilation_schema["$defs"]["compilerM06"]["allOf"][1]["properties"]["native_encoder"]["properties"]["protocol"]
+        self.assertEqual(m05_protocol, {"const": "gem16-fp8-batch-v1"})
+        self.assertEqual(m06_protocol, {"const": "gem16-nvfp4-direct-v1"})
+        self.assertNotEqual(m05_protocol, m06_protocol)
+        self.assertEqual(
+            compilation_schema["$defs"]["compilerM06"]["allOf"][1]["properties"]["native_encoder"]["properties"]["build"]["properties"]["build_type"],
+            {"const": "Release"},
         )
         self.assertEqual(
             compilation_schema["$defs"]["compilerM04"]["allOf"][2]["not"]["required"],

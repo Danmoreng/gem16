@@ -23,8 +23,18 @@ from .profiles import (
     M05_DEQUANTIZATION_EQUATION,
     M05_QUANTIZER_PARAMETERS,
     M05_SOURCE_CONTRACT,
+    M05_SOURCE_LOCK_SHA256,
     M05_VISION_EXCLUSION_REASON,
+    M06_DEFERRED_REASON,
+    M06_DEQUANTIZATION_EQUATION,
+    M06_PROFILE,
+    M06_QUANTIZER_PARAMETERS,
+    M06_SOURCE_CONTRACT,
+    M06_VISION_EXCLUSION_REASON,
+    M06_COMPONENT_LAYOUTS,
     classify_m05_source,
+    m06_component_parameters,
+    m06_expected_source_specs,
     CompilerProfile,
     profile_for,
 )
@@ -366,6 +376,157 @@ def _validate_m05_source_inventory(
             raise InvalidPlanError(f"M05 source byte count mismatch: {name}")
 
 
+def _validate_m06_source(
+    source_name: str,
+    source: TensorDescriptor,
+    group: list[TensorCompilePlan],
+) -> None:
+    try:
+        role, expected_shape = m06_expected_source_specs()[source_name]
+    except (KeyError, ValueError) as error:
+        raise InvalidPlanError(
+            f"M06 source is not in the frozen source inventory: {source_name}"
+        ) from error
+    if role not in {
+        "shared_mlp_gate", "shared_mlp_up", "shared_mlp_down",
+        "routed_expert_gate_up", "routed_expert_down",
+    }:
+        raise InvalidPlanError(f"M06 source is not an expert/shared tensor: {source_name}")
+    if source.dtype != "BF16" or tuple(source.shape) != expected_shape:
+        raise InvalidPlanError(
+            f"M06 source dtype/shape mismatch: {source_name}; "
+            f"expected BF16 {expected_shape}, got {source.dtype} {source.shape}"
+        )
+    if source.byte_length != tensor_bytes("BF16", source.shape, source_name):
+        raise InvalidPlanError(f"M06 source byte count mismatch: {source_name}")
+    if len(group) != 4:
+        raise InvalidPlanError(f"M06 source must have exactly four outputs: {source_name}")
+    stem = source_name.removesuffix(".weight")
+    expected = {
+        f"{stem}.weight_packed": ("nvfp4-packed-v1", "nvfp4-packed", "U8", tuple(
+            list(expected_shape[:-1]) + [expected_shape[-1] // 2]
+        )),
+        f"{stem}.weight_scale": ("nvfp4-local-scale-v1", "nvfp4-local-scale", "F8_E4M3", tuple(
+            list(expected_shape[:-1]) + [expected_shape[-1] // 16]
+        )),
+        f"{stem}.weight_global_scale": ("nvfp4-weight-divisor-v1", "nvfp4-weight-divisor", "F32", (1,)),
+        f"{stem}.input_global_scale": ("nvfp4-input-divisor-v1", "nvfp4-input-divisor", "F32", (1,)),
+    }
+    if {item.output_name for item in group} != set(expected):
+        raise InvalidPlanError(f"M06 output component names mismatch: {source_name}")
+    routed = role.startswith("routed_")
+    expected_operation = f"nvfp4-experts:{stem}"
+    for item in group:
+        encoder, transformation, dtype, shape = expected[item.output_name]
+        component = item.output_name.rsplit(".", 1)[-1]
+        layout = M06_COMPONENT_LAYOUTS[component]
+        expected_runtime = layout["runtime_layout_routed" if routed else "runtime_layout_shared"]
+        if (
+            item.operation_id != expected_operation
+            or item.source_names != (source_name,)
+            or item.encoder != encoder
+            or item.transformation != transformation
+            or layout["encoder"] != encoder
+            or layout["transformation"] != transformation
+            or item.transformation_version != 1
+            or item.output_dtype != dtype
+            or item.physical_shape != shape
+            or item.logical_shape != tuple(expected_shape)
+            or item.logical_dtype != "BF16"
+            or item.axis_transformation != ("expert,gate_then_up,input" if role == "routed_expert_gate_up" else
+                                            "expert,output,input" if role == "routed_expert_down" else "output,input")
+            or item.quantizer_parameters != m06_component_parameters(component)
+            or item.dequantization_equation != M06_DEQUANTIZATION_EQUATION
+            or item.role != role
+            or item.residency_class != "immutable_device_text"
+            or item.disk_layout != layout["disk_layout"]
+            or item.runtime_layout != expected_runtime
+            or item.aliased
+        ):
+            raise InvalidPlanError(f"M06 semantic contract mismatch: {item.output_name}")
+    if sum(item.output_bytes for item in group) != (
+        tensor_bytes("U8", expected[stem + ".weight_packed"][3], source_name)
+        + tensor_bytes("F8_E4M3", expected[stem + ".weight_scale"][3], source_name)
+        + 8
+    ):
+        raise InvalidPlanError(f"M06 output byte count mismatch: {source_name}")
+
+
+def _validate_m06_exclusions(
+    excluded: tuple[ExcludedTensorPlan, ...],
+    source_tensors: dict[str, TensorDescriptor],
+) -> None:
+    for item in excluded:
+        if item.source_name not in source_tensors:
+            raise InvalidPlanError(f"excluded source tensor is absent: {item.source_name}")
+        try:
+            expected_role = classify_m05_source(item.source_name)
+        except ValueError as error:
+            raise InvalidPlanError(str(error)) from error
+        if item.role != expected_role:
+            raise InvalidPlanError(f"M06 exclusion role mismatch: {item.source_name}")
+        if expected_role.startswith("vision_"):
+            expected = ("vision", "compile_excluded_vision", M06_VISION_EXCLUSION_REASON)
+        else:
+            expected = ("deferred_non_expert", "m06_deferred_non_expert", M06_DEFERRED_REASON)
+        if (item.family, item.residency_class, item.reason) != expected:
+            raise InvalidPlanError(f"M06 exclusion contract mismatch: {item.source_name}")
+
+
+def _validate_m06_source_inventory(source_tensors: dict[str, TensorDescriptor]) -> None:
+    expected = m06_expected_source_specs()
+    actual_names = set(source_tensors)
+    if actual_names != set(expected):
+        missing = sorted(set(expected) - actual_names)
+        extra = sorted(actual_names - set(expected))
+        raise InvalidPlanError(
+            "M06 source inventory mismatch: "
+            f"missing={missing[:3]} extra={extra[:3]}"
+        )
+    for name, (role, shape) in expected.items():
+        source = source_tensors[name]
+        if source.dtype != "BF16" or tuple(source.shape) != shape:
+            raise InvalidPlanError(
+                f"M06 source descriptor mismatch: {name}; "
+                f"expected BF16 {shape}, got {source.dtype} {source.shape}"
+            )
+        if source.byte_length != tensor_bytes("BF16", shape, name):
+            raise InvalidPlanError(f"M06 source byte count mismatch: {name}")
+        try:
+            actual_role = classify_m05_source(name)
+        except ValueError as error:
+            raise InvalidPlanError(str(error)) from error
+        if actual_role != role:
+            raise InvalidPlanError(f"M06 source role mismatch: {name}")
+
+
+def _validate_m06_coverage(
+    tensors: tuple[TensorCompilePlan, ...],
+    excluded: tuple[ExcludedTensorPlan, ...],
+    source_tensors: dict[str, TensorDescriptor],
+) -> None:
+    _validate_m06_source_inventory(source_tensors)
+    groups: dict[str, list[TensorCompilePlan]] = {}
+    for tensor in tensors:
+        if len(tensor.source_names) != 1:
+            raise InvalidPlanError("M06 encoders require exactly one source tensor")
+        groups.setdefault(tensor.source_names[0], []).append(tensor)
+    expert_sources = {
+        name for name in source_tensors
+        if classify_m05_source(name) in {
+            "shared_mlp_gate", "shared_mlp_up", "shared_mlp_down",
+            "routed_expert_gate_up", "routed_expert_down",
+        }
+    }
+    if set(groups) != expert_sources:
+        raise InvalidPlanError("M06 expert/shared source coverage mismatch")
+    for name in sorted(groups):
+        _validate_m06_source(name, source_tensors[name], groups[name])
+    if len(tensors) != 600:
+        raise InvalidPlanError(f"M06 expected 600 output tensors, got {len(tensors)}")
+    _validate_m06_exclusions(excluded, source_tensors)
+
+
 def _validate_coverage(
     tensors: tuple[TensorCompilePlan, ...],
     excluded: tuple[ExcludedTensorPlan, ...],
@@ -406,7 +567,7 @@ def _validate_coverage(
                     raise InvalidPlanError(f"copy-v1 cannot duplicate a source payload: {source_name}")
                 copy_sources.add(source_name)
                 _validate_copy_plan(tensor, source_tensors[source_name])
-    else:
+    elif profile.name == M05_PROFILE.name:
         pairs: dict[str, list[TensorCompilePlan]] = {}
         for tensor in tensors:
             if len(tensor.source_names) != 1:
@@ -415,6 +576,8 @@ def _validate_coverage(
         for source_name, pair in pairs.items():
             _validate_m05_pair(source_name, source_tensors[source_name], pair)
         _validate_m05_exclusions(excluded, source_tensors)
+    elif profile.name == M06_PROFILE.name:
+        _validate_m06_coverage(tensors, excluded, source_tensors)
     for item in excluded:
         if item.source_name not in source_tensors:
             raise InvalidPlanError(f"excluded source tensor is absent: {item.source_name}")
@@ -477,6 +640,10 @@ def load_quantization_plan(
             raise InvalidPlanError(
                 "M05 compiler manifest does not name an approved source lock"
             )
+    elif contract.name == M06_PROFILE.name:
+        qat_lock = M05_SOURCE_LOCK_SHA256["qat_bf16"]
+        if source.lock_sha256 != qat_lock or expected_source_lock != qat_lock:
+            raise InvalidPlanError("M06 requires the approved QAT BF16 source lock")
     if expected_source_lock != source.lock_sha256:
         raise InvalidPlanError(
             "compiler manifest is bound to another source lock: "
@@ -545,6 +712,11 @@ def load_quantization_plan(
         raise InvalidPlanError(
             "M05 source_contract must be "
             f"{M05_SOURCE_CONTRACT!r}"
+        )
+    if contract.name == M06_PROFILE.name and source_contract != M06_SOURCE_CONTRACT:
+        raise InvalidPlanError(
+            "M06 source_contract must be "
+            f"{M06_SOURCE_CONTRACT!r}"
         )
     compiler_manifest_hash = sha256_bytes(raw_bytes)
     resolved_document = {

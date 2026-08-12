@@ -11,6 +11,7 @@ from typing import Any
 
 from .common import (
     BoundedWorkspace,
+    DataError,
     OutputError,
     canonical_json_bytes,
     compact_json_bytes,
@@ -46,6 +47,17 @@ class WrittenArtifactPayload:
     shard_names: tuple[str, ...]
     index_name: str
     metadata_names: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class DirectShardLayout:
+    """Preallocated canonical shard ranges for the native M06 data plane."""
+
+    assignments: tuple[ShardAssignment, ...]
+    shard_names: tuple[str, ...]
+    index_name: str
+    # output name -> (absolute shard path, absolute file offset)
+    outputs: dict[str, tuple[Path, int]]
 
 
 def assign_shards(plan: QuantizationPlan) -> tuple[ShardAssignment, ...]:
@@ -170,6 +182,116 @@ def write_shards(
         tensors=tuple(written),
         shard_names=tuple(assignment.name for assignment in assignments),
         index_name=index_name,
+        metadata_names=(),
+    )
+
+
+def prepare_direct_shards(
+    staging: Path,
+    plan: QuantizationPlan,
+    workspace: BoundedWorkspace,
+) -> DirectShardLayout:
+    """Write canonical headers and reserve exact final shard sizes for M06.
+
+    The native encoder may only write the ranges described by the resulting
+    layout.  It never creates, truncates, or resizes these files.
+    """
+    assignments = assign_shards(plan)
+    profile = profile_for(plan.artifact_profile, plan.head_format)
+    outputs: dict[str, tuple[Path, int]] = {}
+    for assignment in assignments:
+        header, offsets = safetensors_header(
+            assignment.tensors, artifact_label=profile.header_label
+        )
+        workspace.record_header(len(header) - 8, f"building {assignment.name} header")
+        path = staging / assignment.name
+        total_size = len(header) + sum(tensor.output_bytes for tensor in assignment.tensors)
+        descriptor = -1
+        try:
+            descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(descriptor, "wb", buffering=0) as output:
+                descriptor = -1
+                write_all(output, header, f"writing {assignment.name} header")
+                if not hasattr(os, "posix_fallocate"):
+                    raise OutputError("M06 requires POSIX disk preallocation")
+                try:
+                    os.posix_fallocate(output.fileno(), 0, total_size)
+                except OSError as error:
+                    raise OutputError(
+                        f"cannot reserve M06 shard space {path}: {error}"
+                    ) from error
+                os.ftruncate(output.fileno(), total_size)
+                os.fsync(output.fileno())
+        except OSError as error:
+            if descriptor >= 0:
+                try:
+                    os.close(descriptor)
+                except OSError:
+                    pass
+            raise OutputError(f"cannot preallocate M06 shard {path}: {error}") from error
+        for tensor in assignment.tensors:
+            begin, _ = offsets[tensor.output_name]
+            outputs[tensor.output_name] = (path, len(header) + begin)
+    return DirectShardLayout(
+        assignments=assignments,
+        shard_names=tuple(assignment.name for assignment in assignments),
+        index_name="model.safetensors.index.json",
+        outputs=outputs,
+    )
+
+
+def finalize_direct_shards(
+    staging: Path,
+    plan: QuantizationPlan,
+    layout: DirectShardLayout,
+    native_result: Any,
+    workspace: BoundedWorkspace,
+) -> WrittenArtifactPayload:
+    """Reconcile native direct-range hashes without copying converted payloads."""
+    written: list[WrittenTensor] = []
+    weight_map: dict[str, str] = {}
+    result_by_name = native_result.outputs
+    for assignment in layout.assignments:
+        path = staging / assignment.name
+        header, offsets = safetensors_header(
+            assignment.tensors,
+            artifact_label=profile_for(plan.artifact_profile, plan.head_format).header_label,
+        )
+        for tensor in assignment.tensors:
+            direct = result_by_name.get(tensor.output_name)
+            if direct is None:
+                raise DataError(f"native M06 result is missing: {tensor.output_name}")
+            shard_path, absolute_offset = layout.outputs[tensor.output_name]
+            if shard_path != path or direct.output_bytes != tensor.output_bytes:
+                raise DataError(f"native M06 result range mismatch: {tensor.output_name}")
+            # The native telemetry hash was computed after the final direct
+            # write and the native encoder fsynced every output range.  Reuse
+            # it here; canonical artifact verification below remains the
+            # mutation-safety boundary and avoids another full payload scan.
+            output_hash = direct.output_sha256
+            sources = tuple(tensor.source_names)
+            written.append(WrittenTensor(
+                plan=tensor,
+                shard=assignment.name,
+                data_offsets=offsets[tensor.output_name],
+                source_result=EncoderResult(
+                    source_sha256=(direct.source_sha256,),
+                    output_sha256=output_hash,
+                    output_bytes=tensor.output_bytes,
+                    statistics=direct.statistics,
+                ),
+            ))
+            weight_map[tensor.output_name] = assignment.name
+        workspace.check(f"reconciling {assignment.name}")
+    index = {
+        "metadata": {"total_size": plan.output_tensor_bytes},
+        "weight_map": dict(sorted(weight_map.items())),
+    }
+    write_file_atomic(staging / layout.index_name, canonical_json_bytes(index))
+    return WrittenArtifactPayload(
+        tensors=tuple(written),
+        shard_names=layout.shard_names,
+        index_name=layout.index_name,
         metadata_names=(),
     )
 

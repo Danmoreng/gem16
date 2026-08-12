@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 import sys
 from typing import Sequence
@@ -71,8 +72,8 @@ def add_source_options(parser: argparse.ArgumentParser) -> None:
         "--profile",
         required=True,
         help=(
-            "versioned compiler profile: synthetic-copy-v1 (M04) or "
-            "fp8-attention-partial-v1 (M05)"
+            "versioned compiler profile: synthetic-copy-v1 (M04), "
+            "fp8-attention-partial-v1 (M05), or nvfp4-experts-partial-v1 (M06)"
         ),
     )
     parser.add_argument(
@@ -84,7 +85,10 @@ def add_source_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--max-host-memory", type=positive_integer, required=True)
     parser.add_argument("--staging-bytes", type=positive_integer, default=1024 * 1024)
     parser.add_argument("--shard-size", type=positive_integer)
-    parser.add_argument("--threads", type=positive_integer, default=1)
+    parser.add_argument(
+        "--threads", type=positive_integer, default=None,
+        help="worker threads (M04/M05 default: 1; M06 default: min(16, CPU count))",
+    )
     parser.add_argument("--dependencies-lock", type=Path, default=DEPENDENCIES_LOCK)
     parser.add_argument("--reference-platform-strict", action="store_true")
     parser.add_argument(
@@ -112,11 +116,11 @@ def build_parser() -> argparse.ArgumentParser:
     compile_parser.add_argument("--resume", action="store_true")
     compile_parser.add_argument(
         "--native-encoder", type=Path,
-        help="required for M05: path to gem16-fp8-compiler",
+        help="required for native M05/M06 profiles: path to the matching native compiler",
     )
     compile_parser.add_argument(
-        "--native-timeout-seconds", type=positive_integer, default=600,
-        help="M05 native encoder timeout (default: 600)",
+        "--native-timeout-seconds", type=positive_integer, default=None,
+        help="native compiler timeout in seconds (M05 default: 600; M06 default: 14400)",
     )
     compile_parser.add_argument(
         "--allow-dirty",
@@ -157,11 +161,17 @@ def request_from_args(args: argparse.Namespace) -> CompilerRequest:
         host_memory_cap_bytes=args.max_host_memory,
         staging_bytes=args.staging_bytes,
         shard_size=args.shard_size,
-        threads=args.threads,
+        threads=(
+            args.threads if args.threads is not None else
+            (min(16, os.cpu_count() or 1) if args.profile == "nvfp4-experts-partial-v1" else 1)
+        ),
         reference_platform_strict=args.reference_platform_strict,
         dependencies_lock=args.dependencies_lock,
         native_encoder=getattr(args, "native_encoder", None),
-        native_timeout_seconds=getattr(args, "native_timeout_seconds", 600),
+        native_timeout_seconds=(
+            getattr(args, "native_timeout_seconds", None)
+            or (14_400 if args.profile == "nvfp4-experts-partial-v1" else 600)
+        ),
     )
 
 
@@ -180,6 +190,9 @@ def write_failure_report(args: argparse.Namespace, error: CompilerError) -> None
                         "M05"
                         if getattr(args, "profile", None)
                         == "fp8-attention-partial-v1"
+                        else "M06"
+                        if getattr(args, "profile", None)
+                        == "nvfp4-experts-partial-v1"
                         else "M04"
                     ),
                     "action": args.action,
@@ -214,13 +227,24 @@ def main(argv: Sequence[str] | None = None) -> int:
             elif args.action == "compile":
                 if args.resume:
                     raise InvalidPlanError(
-                        "M04 resume is intentionally unsupported; remove only a reviewed "
+                        "compiler resume is intentionally unsupported; remove only a reviewed "
                         ".incomplete directory and restart"
                     )
-                print("[verify] source lock and files", file=sys.stderr)
+                if args.profile == "nvfp4-experts-partial-v1":
+                    print(
+                        "[preflight] native Release compiler, then source lock and files",
+                        file=sys.stderr,
+                    )
+                else:
+                    print("[verify] source lock and files", file=sys.stderr)
                 if args.profile == "fp8-attention-partial-v1":
                     print(
                         "[compile] deterministic FP8 attention partial artifact",
+                        file=sys.stderr,
+                    )
+                elif args.profile == "nvfp4-experts-partial-v1":
+                    print(
+                        "[compile] deterministic NVFP4 expert partial artifact",
                         file=sys.stderr,
                     )
                 else:

@@ -14,6 +14,7 @@ void RunImageTests();
 void RunMemoryPlanTests();
 void RunMtpSchedulerTests();
 void RunNvfp4Tests();
+void RunNvfp4BatchEncoderTests();
 void RunOpenAiChatTests();
 void RunSafetensorsTests();
 void RunSamplingTests();
@@ -35,6 +36,7 @@ int main() {
   RunMemoryPlanTests();
   RunMtpSchedulerTests();
   RunNvfp4Tests();
+  RunNvfp4BatchEncoderTests();
   RunOpenAiChatTests();
   RunSafetensorsTests();
   RunSamplingTests();

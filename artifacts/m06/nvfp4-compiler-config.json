@@ -1,0 +1,1307 @@
+{
+  "artifact_profile": "nvfp4-experts-partial-v1",
+  "counts": {
+    "excluded_tensor_count": 863,
+    "expert_shared_output_tensor_bytes": 13147454640,
+    "expert_shared_source_count": 150,
+    "output_tensor_bytes": 13147454640,
+    "output_tensor_count": 600,
+    "source_tensor_count": 1013
+  },
+  "deterministic_environment": {
+    "byteorder": "little",
+    "locale": "C.UTF-8",
+    "machine": "x86_64",
+    "python_implementation": "CPython",
+    "python_major_minor": "3.14",
+    "python_version": "3.14.6",
+    "system": "Linux"
+  },
+  "diagnostic_references": {
+    "byte_identity_required": false,
+    "ordinary_bf16": {
+      "path": "models/gemma4-26b-base-bf16.lock.json",
+      "repository": "google/gemma-4-26B-A4B-it",
+      "revision": "4d7ae4984b7db7de8f8457170b3f1a419ee76d52",
+      "sha256": "1932b06d568ce8c72f3d2013d39ffd15dd61d37732638c2013f2220eb177a620"
+    },
+    "status": "not_run",
+    "unsloth_nvfp4": {
+      "path": "models/gemma4-26b-unsloth-nvfp4.lock.json",
+      "repository": "unsloth/gemma-4-26B-A4B-it-NVFP4",
+      "revision": "20df0542b1a86ce19f495ac2eca2c7c12bce82f9",
+      "sha256": "6635b15f4f974dec22821c7a9efd4d2404ba4ce9afb1424ca2f3529d20db7941"
+    }
+  },
+  "diagnostic_sample": {
+    "acceptance": {
+      "matrix_count": {
+        "exact": 48
+      },
+      "per_matrix": {
+        "all_finite": true,
+        "elements": {
+          "minimum": 1
+        },
+        "required_metrics": [
+          "relative_l2",
+          "cosine",
+          "max_absolute_error",
+          "sqnr",
+          "code_histogram",
+          "scale_histogram"
+        ]
+      },
+      "required_structure": [
+        "exact_shape_and_component_mapping",
+        "divisor_direction_and_relationships",
+        "fused_gate_up_split_order",
+        "matching_unsloth_component_and_range",
+        "full_parent_source_divisor_granularity"
+      ],
+      "status": "not_run",
+      "thresholds": {
+        "compiled_vs_unsloth": {
+          "cosine_min": 0.95,
+          "relative_l2_max": 0.25,
+          "sqnr_min": 10.0
+        },
+        "ordinary_compiled": {
+          "cosine_min": 0.95,
+          "relative_l2_max": 0.25,
+          "sqnr_min": 10.0
+        },
+        "unsloth_reference": {
+          "cosine_min": 0.95,
+          "relative_l2_max": 0.25,
+          "sqnr_min": 10.0
+        }
+      }
+    },
+    "experts": [
+      0,
+      63,
+      127
+    ],
+    "layers": [
+      0,
+      5,
+      24,
+      29
+    ],
+    "logical_matrix_count": 48,
+    "projections": [
+      "gate",
+      "up",
+      "down"
+    ],
+    "records": [
+      {
+        "kind": "shared",
+        "layer": 0,
+        "projection": "gate",
+        "source_slice": {
+          "axis": "none",
+          "start": [
+            0,
+            0
+          ],
+          "stop": [
+            2112,
+            2816
+          ]
+        },
+        "source_tensor": "model.language_model.layers.0.mlp.gate_proj.weight",
+        "unsloth_component": "model.language_model.layers.0.mlp.gate_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.0.mlp.gate_proj.weight_packed",
+          "range": "full_component"
+        }
+      },
+      {
+        "expert": 0,
+        "kind": "routed",
+        "layer": 0,
+        "projection": "gate",
+        "source_slice": {
+          "axis": "expert,projection",
+          "start": [
+            0,
+            0,
+            0
+          ],
+          "stop": [
+            1,
+            704,
+            2816
+          ]
+        },
+        "source_tensor": "model.language_model.layers.0.experts.gate_up_proj",
+        "unsloth_component": "model.language_model.layers.0.experts.0.gate_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.0.experts.0.gate_proj.weight_packed",
+          "range": "full_component"
+        }
+      },
+      {
+        "expert": 63,
+        "kind": "routed",
+        "layer": 0,
+        "projection": "gate",
+        "source_slice": {
+          "axis": "expert,projection",
+          "start": [
+            63,
+            0,
+            0
+          ],
+          "stop": [
+            64,
+            704,
+            2816
+          ]
+        },
+        "source_tensor": "model.language_model.layers.0.experts.gate_up_proj",
+        "unsloth_component": "model.language_model.layers.0.experts.63.gate_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.0.experts.63.gate_proj.weight_packed",
+          "range": "full_component"
+        }
+      },
+      {
+        "expert": 127,
+        "kind": "routed",
+        "layer": 0,
+        "projection": "gate",
+        "source_slice": {
+          "axis": "expert,projection",
+          "start": [
+            127,
+            0,
+            0
+          ],
+          "stop": [
+            128,
+            704,
+            2816
+          ]
+        },
+        "source_tensor": "model.language_model.layers.0.experts.gate_up_proj",
+        "unsloth_component": "model.language_model.layers.0.experts.127.gate_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.0.experts.127.gate_proj.weight_packed",
+          "range": "full_component"
+        }
+      },
+      {
+        "kind": "shared",
+        "layer": 0,
+        "projection": "up",
+        "source_slice": {
+          "axis": "none",
+          "start": [
+            0,
+            0
+          ],
+          "stop": [
+            2112,
+            2816
+          ]
+        },
+        "source_tensor": "model.language_model.layers.0.mlp.up_proj.weight",
+        "unsloth_component": "model.language_model.layers.0.mlp.up_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.0.mlp.up_proj.weight_packed",
+          "range": "full_component"
+        }
+      },
+      {
+        "expert": 0,
+        "kind": "routed",
+        "layer": 0,
+        "projection": "up",
+        "source_slice": {
+          "axis": "expert,projection",
+          "start": [
+            0,
+            704,
+            0
+          ],
+          "stop": [
+            1,
+            1408,
+            2816
+          ]
+        },
+        "source_tensor": "model.language_model.layers.0.experts.gate_up_proj",
+        "unsloth_component": "model.language_model.layers.0.experts.0.up_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.0.experts.0.up_proj.weight_packed",
+          "range": "full_component"
+        }
+      },
+      {
+        "expert": 63,
+        "kind": "routed",
+        "layer": 0,
+        "projection": "up",
+        "source_slice": {
+          "axis": "expert,projection",
+          "start": [
+            63,
+            704,
+            0
+          ],
+          "stop": [
+            64,
+            1408,
+            2816
+          ]
+        },
+        "source_tensor": "model.language_model.layers.0.experts.gate_up_proj",
+        "unsloth_component": "model.language_model.layers.0.experts.63.up_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.0.experts.63.up_proj.weight_packed",
+          "range": "full_component"
+        }
+      },
+      {
+        "expert": 127,
+        "kind": "routed",
+        "layer": 0,
+        "projection": "up",
+        "source_slice": {
+          "axis": "expert,projection",
+          "start": [
+            127,
+            704,
+            0
+          ],
+          "stop": [
+            128,
+            1408,
+            2816
+          ]
+        },
+        "source_tensor": "model.language_model.layers.0.experts.gate_up_proj",
+        "unsloth_component": "model.language_model.layers.0.experts.127.up_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.0.experts.127.up_proj.weight_packed",
+          "range": "full_component"
+        }
+      },
+      {
+        "kind": "shared",
+        "layer": 0,
+        "projection": "down",
+        "source_slice": {
+          "axis": "none",
+          "start": [
+            0,
+            0
+          ],
+          "stop": [
+            2816,
+            2112
+          ]
+        },
+        "source_tensor": "model.language_model.layers.0.mlp.down_proj.weight",
+        "unsloth_component": "model.language_model.layers.0.mlp.down_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.0.mlp.down_proj.weight_packed",
+          "range": "full_component"
+        }
+      },
+      {
+        "expert": 0,
+        "kind": "routed",
+        "layer": 0,
+        "projection": "down",
+        "source_slice": {
+          "axis": "expert",
+          "start": [
+            0,
+            0,
+            0
+          ],
+          "stop": [
+            1,
+            2816,
+            704
+          ]
+        },
+        "source_tensor": "model.language_model.layers.0.experts.down_proj",
+        "unsloth_component": "model.language_model.layers.0.experts.0.down_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.0.experts.0.down_proj.weight_packed",
+          "range": "full_component"
+        }
+      },
+      {
+        "expert": 63,
+        "kind": "routed",
+        "layer": 0,
+        "projection": "down",
+        "source_slice": {
+          "axis": "expert",
+          "start": [
+            63,
+            0,
+            0
+          ],
+          "stop": [
+            64,
+            2816,
+            704
+          ]
+        },
+        "source_tensor": "model.language_model.layers.0.experts.down_proj",
+        "unsloth_component": "model.language_model.layers.0.experts.63.down_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.0.experts.63.down_proj.weight_packed",
+          "range": "full_component"
+        }
+      },
+      {
+        "expert": 127,
+        "kind": "routed",
+        "layer": 0,
+        "projection": "down",
+        "source_slice": {
+          "axis": "expert",
+          "start": [
+            127,
+            0,
+            0
+          ],
+          "stop": [
+            128,
+            2816,
+            704
+          ]
+        },
+        "source_tensor": "model.language_model.layers.0.experts.down_proj",
+        "unsloth_component": "model.language_model.layers.0.experts.127.down_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.0.experts.127.down_proj.weight_packed",
+          "range": "full_component"
+        }
+      },
+      {
+        "kind": "shared",
+        "layer": 5,
+        "projection": "gate",
+        "source_slice": {
+          "axis": "none",
+          "start": [
+            0,
+            0
+          ],
+          "stop": [
+            2112,
+            2816
+          ]
+        },
+        "source_tensor": "model.language_model.layers.5.mlp.gate_proj.weight",
+        "unsloth_component": "model.language_model.layers.5.mlp.gate_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.5.mlp.gate_proj.weight_packed",
+          "range": "full_component"
+        }
+      },
+      {
+        "expert": 0,
+        "kind": "routed",
+        "layer": 5,
+        "projection": "gate",
+        "source_slice": {
+          "axis": "expert,projection",
+          "start": [
+            0,
+            0,
+            0
+          ],
+          "stop": [
+            1,
+            704,
+            2816
+          ]
+        },
+        "source_tensor": "model.language_model.layers.5.experts.gate_up_proj",
+        "unsloth_component": "model.language_model.layers.5.experts.0.gate_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.5.experts.0.gate_proj.weight_packed",
+          "range": "full_component"
+        }
+      },
+      {
+        "expert": 63,
+        "kind": "routed",
+        "layer": 5,
+        "projection": "gate",
+        "source_slice": {
+          "axis": "expert,projection",
+          "start": [
+            63,
+            0,
+            0
+          ],
+          "stop": [
+            64,
+            704,
+            2816
+          ]
+        },
+        "source_tensor": "model.language_model.layers.5.experts.gate_up_proj",
+        "unsloth_component": "model.language_model.layers.5.experts.63.gate_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.5.experts.63.gate_proj.weight_packed",
+          "range": "full_component"
+        }
+      },
+      {
+        "expert": 127,
+        "kind": "routed",
+        "layer": 5,
+        "projection": "gate",
+        "source_slice": {
+          "axis": "expert,projection",
+          "start": [
+            127,
+            0,
+            0
+          ],
+          "stop": [
+            128,
+            704,
+            2816
+          ]
+        },
+        "source_tensor": "model.language_model.layers.5.experts.gate_up_proj",
+        "unsloth_component": "model.language_model.layers.5.experts.127.gate_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.5.experts.127.gate_proj.weight_packed",
+          "range": "full_component"
+        }
+      },
+      {
+        "kind": "shared",
+        "layer": 5,
+        "projection": "up",
+        "source_slice": {
+          "axis": "none",
+          "start": [
+            0,
+            0
+          ],
+          "stop": [
+            2112,
+            2816
+          ]
+        },
+        "source_tensor": "model.language_model.layers.5.mlp.up_proj.weight",
+        "unsloth_component": "model.language_model.layers.5.mlp.up_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.5.mlp.up_proj.weight_packed",
+          "range": "full_component"
+        }
+      },
+      {
+        "expert": 0,
+        "kind": "routed",
+        "layer": 5,
+        "projection": "up",
+        "source_slice": {
+          "axis": "expert,projection",
+          "start": [
+            0,
+            704,
+            0
+          ],
+          "stop": [
+            1,
+            1408,
+            2816
+          ]
+        },
+        "source_tensor": "model.language_model.layers.5.experts.gate_up_proj",
+        "unsloth_component": "model.language_model.layers.5.experts.0.up_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.5.experts.0.up_proj.weight_packed",
+          "range": "full_component"
+        }
+      },
+      {
+        "expert": 63,
+        "kind": "routed",
+        "layer": 5,
+        "projection": "up",
+        "source_slice": {
+          "axis": "expert,projection",
+          "start": [
+            63,
+            704,
+            0
+          ],
+          "stop": [
+            64,
+            1408,
+            2816
+          ]
+        },
+        "source_tensor": "model.language_model.layers.5.experts.gate_up_proj",
+        "unsloth_component": "model.language_model.layers.5.experts.63.up_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.5.experts.63.up_proj.weight_packed",
+          "range": "full_component"
+        }
+      },
+      {
+        "expert": 127,
+        "kind": "routed",
+        "layer": 5,
+        "projection": "up",
+        "source_slice": {
+          "axis": "expert,projection",
+          "start": [
+            127,
+            704,
+            0
+          ],
+          "stop": [
+            128,
+            1408,
+            2816
+          ]
+        },
+        "source_tensor": "model.language_model.layers.5.experts.gate_up_proj",
+        "unsloth_component": "model.language_model.layers.5.experts.127.up_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.5.experts.127.up_proj.weight_packed",
+          "range": "full_component"
+        }
+      },
+      {
+        "kind": "shared",
+        "layer": 5,
+        "projection": "down",
+        "source_slice": {
+          "axis": "none",
+          "start": [
+            0,
+            0
+          ],
+          "stop": [
+            2816,
+            2112
+          ]
+        },
+        "source_tensor": "model.language_model.layers.5.mlp.down_proj.weight",
+        "unsloth_component": "model.language_model.layers.5.mlp.down_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.5.mlp.down_proj.weight_packed",
+          "range": "full_component"
+        }
+      },
+      {
+        "expert": 0,
+        "kind": "routed",
+        "layer": 5,
+        "projection": "down",
+        "source_slice": {
+          "axis": "expert",
+          "start": [
+            0,
+            0,
+            0
+          ],
+          "stop": [
+            1,
+            2816,
+            704
+          ]
+        },
+        "source_tensor": "model.language_model.layers.5.experts.down_proj",
+        "unsloth_component": "model.language_model.layers.5.experts.0.down_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.5.experts.0.down_proj.weight_packed",
+          "range": "full_component"
+        }
+      },
+      {
+        "expert": 63,
+        "kind": "routed",
+        "layer": 5,
+        "projection": "down",
+        "source_slice": {
+          "axis": "expert",
+          "start": [
+            63,
+            0,
+            0
+          ],
+          "stop": [
+            64,
+            2816,
+            704
+          ]
+        },
+        "source_tensor": "model.language_model.layers.5.experts.down_proj",
+        "unsloth_component": "model.language_model.layers.5.experts.63.down_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.5.experts.63.down_proj.weight_packed",
+          "range": "full_component"
+        }
+      },
+      {
+        "expert": 127,
+        "kind": "routed",
+        "layer": 5,
+        "projection": "down",
+        "source_slice": {
+          "axis": "expert",
+          "start": [
+            127,
+            0,
+            0
+          ],
+          "stop": [
+            128,
+            2816,
+            704
+          ]
+        },
+        "source_tensor": "model.language_model.layers.5.experts.down_proj",
+        "unsloth_component": "model.language_model.layers.5.experts.127.down_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.5.experts.127.down_proj.weight_packed",
+          "range": "full_component"
+        }
+      },
+      {
+        "kind": "shared",
+        "layer": 24,
+        "projection": "gate",
+        "source_slice": {
+          "axis": "none",
+          "start": [
+            0,
+            0
+          ],
+          "stop": [
+            2112,
+            2816
+          ]
+        },
+        "source_tensor": "model.language_model.layers.24.mlp.gate_proj.weight",
+        "unsloth_component": "model.language_model.layers.24.mlp.gate_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.24.mlp.gate_proj.weight_packed",
+          "range": "full_component"
+        }
+      },
+      {
+        "expert": 0,
+        "kind": "routed",
+        "layer": 24,
+        "projection": "gate",
+        "source_slice": {
+          "axis": "expert,projection",
+          "start": [
+            0,
+            0,
+            0
+          ],
+          "stop": [
+            1,
+            704,
+            2816
+          ]
+        },
+        "source_tensor": "model.language_model.layers.24.experts.gate_up_proj",
+        "unsloth_component": "model.language_model.layers.24.experts.0.gate_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.24.experts.0.gate_proj.weight_packed",
+          "range": "full_component"
+        }
+      },
+      {
+        "expert": 63,
+        "kind": "routed",
+        "layer": 24,
+        "projection": "gate",
+        "source_slice": {
+          "axis": "expert,projection",
+          "start": [
+            63,
+            0,
+            0
+          ],
+          "stop": [
+            64,
+            704,
+            2816
+          ]
+        },
+        "source_tensor": "model.language_model.layers.24.experts.gate_up_proj",
+        "unsloth_component": "model.language_model.layers.24.experts.63.gate_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.24.experts.63.gate_proj.weight_packed",
+          "range": "full_component"
+        }
+      },
+      {
+        "expert": 127,
+        "kind": "routed",
+        "layer": 24,
+        "projection": "gate",
+        "source_slice": {
+          "axis": "expert,projection",
+          "start": [
+            127,
+            0,
+            0
+          ],
+          "stop": [
+            128,
+            704,
+            2816
+          ]
+        },
+        "source_tensor": "model.language_model.layers.24.experts.gate_up_proj",
+        "unsloth_component": "model.language_model.layers.24.experts.127.gate_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.24.experts.127.gate_proj.weight_packed",
+          "range": "full_component"
+        }
+      },
+      {
+        "kind": "shared",
+        "layer": 24,
+        "projection": "up",
+        "source_slice": {
+          "axis": "none",
+          "start": [
+            0,
+            0
+          ],
+          "stop": [
+            2112,
+            2816
+          ]
+        },
+        "source_tensor": "model.language_model.layers.24.mlp.up_proj.weight",
+        "unsloth_component": "model.language_model.layers.24.mlp.up_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.24.mlp.up_proj.weight_packed",
+          "range": "full_component"
+        }
+      },
+      {
+        "expert": 0,
+        "kind": "routed",
+        "layer": 24,
+        "projection": "up",
+        "source_slice": {
+          "axis": "expert,projection",
+          "start": [
+            0,
+            704,
+            0
+          ],
+          "stop": [
+            1,
+            1408,
+            2816
+          ]
+        },
+        "source_tensor": "model.language_model.layers.24.experts.gate_up_proj",
+        "unsloth_component": "model.language_model.layers.24.experts.0.up_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.24.experts.0.up_proj.weight_packed",
+          "range": "full_component"
+        }
+      },
+      {
+        "expert": 63,
+        "kind": "routed",
+        "layer": 24,
+        "projection": "up",
+        "source_slice": {
+          "axis": "expert,projection",
+          "start": [
+            63,
+            704,
+            0
+          ],
+          "stop": [
+            64,
+            1408,
+            2816
+          ]
+        },
+        "source_tensor": "model.language_model.layers.24.experts.gate_up_proj",
+        "unsloth_component": "model.language_model.layers.24.experts.63.up_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.24.experts.63.up_proj.weight_packed",
+          "range": "full_component"
+        }
+      },
+      {
+        "expert": 127,
+        "kind": "routed",
+        "layer": 24,
+        "projection": "up",
+        "source_slice": {
+          "axis": "expert,projection",
+          "start": [
+            127,
+            704,
+            0
+          ],
+          "stop": [
+            128,
+            1408,
+            2816
+          ]
+        },
+        "source_tensor": "model.language_model.layers.24.experts.gate_up_proj",
+        "unsloth_component": "model.language_model.layers.24.experts.127.up_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.24.experts.127.up_proj.weight_packed",
+          "range": "full_component"
+        }
+      },
+      {
+        "kind": "shared",
+        "layer": 24,
+        "projection": "down",
+        "source_slice": {
+          "axis": "none",
+          "start": [
+            0,
+            0
+          ],
+          "stop": [
+            2816,
+            2112
+          ]
+        },
+        "source_tensor": "model.language_model.layers.24.mlp.down_proj.weight",
+        "unsloth_component": "model.language_model.layers.24.mlp.down_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.24.mlp.down_proj.weight_packed",
+          "range": "full_component"
+        }
+      },
+      {
+        "expert": 0,
+        "kind": "routed",
+        "layer": 24,
+        "projection": "down",
+        "source_slice": {
+          "axis": "expert",
+          "start": [
+            0,
+            0,
+            0
+          ],
+          "stop": [
+            1,
+            2816,
+            704
+          ]
+        },
+        "source_tensor": "model.language_model.layers.24.experts.down_proj",
+        "unsloth_component": "model.language_model.layers.24.experts.0.down_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.24.experts.0.down_proj.weight_packed",
+          "range": "full_component"
+        }
+      },
+      {
+        "expert": 63,
+        "kind": "routed",
+        "layer": 24,
+        "projection": "down",
+        "source_slice": {
+          "axis": "expert",
+          "start": [
+            63,
+            0,
+            0
+          ],
+          "stop": [
+            64,
+            2816,
+            704
+          ]
+        },
+        "source_tensor": "model.language_model.layers.24.experts.down_proj",
+        "unsloth_component": "model.language_model.layers.24.experts.63.down_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.24.experts.63.down_proj.weight_packed",
+          "range": "full_component"
+        }
+      },
+      {
+        "expert": 127,
+        "kind": "routed",
+        "layer": 24,
+        "projection": "down",
+        "source_slice": {
+          "axis": "expert",
+          "start": [
+            127,
+            0,
+            0
+          ],
+          "stop": [
+            128,
+            2816,
+            704
+          ]
+        },
+        "source_tensor": "model.language_model.layers.24.experts.down_proj",
+        "unsloth_component": "model.language_model.layers.24.experts.127.down_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.24.experts.127.down_proj.weight_packed",
+          "range": "full_component"
+        }
+      },
+      {
+        "kind": "shared",
+        "layer": 29,
+        "projection": "gate",
+        "source_slice": {
+          "axis": "none",
+          "start": [
+            0,
+            0
+          ],
+          "stop": [
+            2112,
+            2816
+          ]
+        },
+        "source_tensor": "model.language_model.layers.29.mlp.gate_proj.weight",
+        "unsloth_component": "model.language_model.layers.29.mlp.gate_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.29.mlp.gate_proj.weight_packed",
+          "range": "full_component"
+        }
+      },
+      {
+        "expert": 0,
+        "kind": "routed",
+        "layer": 29,
+        "projection": "gate",
+        "source_slice": {
+          "axis": "expert,projection",
+          "start": [
+            0,
+            0,
+            0
+          ],
+          "stop": [
+            1,
+            704,
+            2816
+          ]
+        },
+        "source_tensor": "model.language_model.layers.29.experts.gate_up_proj",
+        "unsloth_component": "model.language_model.layers.29.experts.0.gate_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.29.experts.0.gate_proj.weight_packed",
+          "range": "full_component"
+        }
+      },
+      {
+        "expert": 63,
+        "kind": "routed",
+        "layer": 29,
+        "projection": "gate",
+        "source_slice": {
+          "axis": "expert,projection",
+          "start": [
+            63,
+            0,
+            0
+          ],
+          "stop": [
+            64,
+            704,
+            2816
+          ]
+        },
+        "source_tensor": "model.language_model.layers.29.experts.gate_up_proj",
+        "unsloth_component": "model.language_model.layers.29.experts.63.gate_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.29.experts.63.gate_proj.weight_packed",
+          "range": "full_component"
+        }
+      },
+      {
+        "expert": 127,
+        "kind": "routed",
+        "layer": 29,
+        "projection": "gate",
+        "source_slice": {
+          "axis": "expert,projection",
+          "start": [
+            127,
+            0,
+            0
+          ],
+          "stop": [
+            128,
+            704,
+            2816
+          ]
+        },
+        "source_tensor": "model.language_model.layers.29.experts.gate_up_proj",
+        "unsloth_component": "model.language_model.layers.29.experts.127.gate_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.29.experts.127.gate_proj.weight_packed",
+          "range": "full_component"
+        }
+      },
+      {
+        "kind": "shared",
+        "layer": 29,
+        "projection": "up",
+        "source_slice": {
+          "axis": "none",
+          "start": [
+            0,
+            0
+          ],
+          "stop": [
+            2112,
+            2816
+          ]
+        },
+        "source_tensor": "model.language_model.layers.29.mlp.up_proj.weight",
+        "unsloth_component": "model.language_model.layers.29.mlp.up_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.29.mlp.up_proj.weight_packed",
+          "range": "full_component"
+        }
+      },
+      {
+        "expert": 0,
+        "kind": "routed",
+        "layer": 29,
+        "projection": "up",
+        "source_slice": {
+          "axis": "expert,projection",
+          "start": [
+            0,
+            704,
+            0
+          ],
+          "stop": [
+            1,
+            1408,
+            2816
+          ]
+        },
+        "source_tensor": "model.language_model.layers.29.experts.gate_up_proj",
+        "unsloth_component": "model.language_model.layers.29.experts.0.up_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.29.experts.0.up_proj.weight_packed",
+          "range": "full_component"
+        }
+      },
+      {
+        "expert": 63,
+        "kind": "routed",
+        "layer": 29,
+        "projection": "up",
+        "source_slice": {
+          "axis": "expert,projection",
+          "start": [
+            63,
+            704,
+            0
+          ],
+          "stop": [
+            64,
+            1408,
+            2816
+          ]
+        },
+        "source_tensor": "model.language_model.layers.29.experts.gate_up_proj",
+        "unsloth_component": "model.language_model.layers.29.experts.63.up_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.29.experts.63.up_proj.weight_packed",
+          "range": "full_component"
+        }
+      },
+      {
+        "expert": 127,
+        "kind": "routed",
+        "layer": 29,
+        "projection": "up",
+        "source_slice": {
+          "axis": "expert,projection",
+          "start": [
+            127,
+            704,
+            0
+          ],
+          "stop": [
+            128,
+            1408,
+            2816
+          ]
+        },
+        "source_tensor": "model.language_model.layers.29.experts.gate_up_proj",
+        "unsloth_component": "model.language_model.layers.29.experts.127.up_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.29.experts.127.up_proj.weight_packed",
+          "range": "full_component"
+        }
+      },
+      {
+        "kind": "shared",
+        "layer": 29,
+        "projection": "down",
+        "source_slice": {
+          "axis": "none",
+          "start": [
+            0,
+            0
+          ],
+          "stop": [
+            2816,
+            2112
+          ]
+        },
+        "source_tensor": "model.language_model.layers.29.mlp.down_proj.weight",
+        "unsloth_component": "model.language_model.layers.29.mlp.down_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.29.mlp.down_proj.weight_packed",
+          "range": "full_component"
+        }
+      },
+      {
+        "expert": 0,
+        "kind": "routed",
+        "layer": 29,
+        "projection": "down",
+        "source_slice": {
+          "axis": "expert",
+          "start": [
+            0,
+            0,
+            0
+          ],
+          "stop": [
+            1,
+            2816,
+            704
+          ]
+        },
+        "source_tensor": "model.language_model.layers.29.experts.down_proj",
+        "unsloth_component": "model.language_model.layers.29.experts.0.down_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.29.experts.0.down_proj.weight_packed",
+          "range": "full_component"
+        }
+      },
+      {
+        "expert": 63,
+        "kind": "routed",
+        "layer": 29,
+        "projection": "down",
+        "source_slice": {
+          "axis": "expert",
+          "start": [
+            63,
+            0,
+            0
+          ],
+          "stop": [
+            64,
+            2816,
+            704
+          ]
+        },
+        "source_tensor": "model.language_model.layers.29.experts.down_proj",
+        "unsloth_component": "model.language_model.layers.29.experts.63.down_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.29.experts.63.down_proj.weight_packed",
+          "range": "full_component"
+        }
+      },
+      {
+        "expert": 127,
+        "kind": "routed",
+        "layer": 29,
+        "projection": "down",
+        "source_slice": {
+          "axis": "expert",
+          "start": [
+            127,
+            0,
+            0
+          ],
+          "stop": [
+            128,
+            2816,
+            704
+          ]
+        },
+        "source_tensor": "model.language_model.layers.29.experts.down_proj",
+        "unsloth_component": "model.language_model.layers.29.experts.127.down_proj.weight_packed",
+        "unsloth_component_range": {
+          "name_template": "model.language_model.layers.29.experts.127.down_proj.weight_packed",
+          "range": "full_component"
+        }
+      }
+    ]
+  },
+  "diagnostics": {
+    "ordinary_vs_unsloth": "not_run",
+    "quality_claim": false,
+    "status": "not_run"
+  },
+  "milestone": "M06",
+  "quantizer": {
+    "contract": {
+      "contract_id": "gem16.nvfp4_bf16_group16",
+      "contract_version": 1,
+      "global_scale_dtype": "F32",
+      "global_scale_role": "divisor",
+      "group_size": 16,
+      "input_divisor": 1.0,
+      "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+      "local_scale_dtype": "F8_E4M3",
+      "packed_dtype": "U8",
+      "packing": "low_nibble_first",
+      "rounding": "nearest_even",
+      "saturation": "finite_saturation",
+      "scale_codec": "E4M3FN",
+      "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+      "source_dtype": "BF16",
+      "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+      "value_codec": "E2M1",
+      "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+      "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+      "zero_tensor_divisor": 1.0
+    },
+    "spec_path": "tools/gem16_compile/specs/nvfp4-experts-v1.json",
+    "spec_sha256": "fe3f5d6a3e26eaf54f7a0d98ecef12f6de376b52743f2a6e5603180d0a5b24fa"
+  },
+  "schema_version": 1,
+  "source": {
+    "qat_bf16": {
+      "path": "models/gemma4-26b-qat-bf16.lock.json",
+      "repository": "google/gemma-4-26B-A4B-it-qat-q4_0-unquantized",
+      "revision": "f1e06dc520982d9b9edd76859fdb7ab209449949",
+      "sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230"
+    }
+  },
+  "source_contract": "gemma4-26b-source-bf16-experts-v1"
+}

@@ -45,14 +45,24 @@
             "quantization": {"$ref": "#/$defs/quantizationM05"},
             "compiler_settings": {"$ref": "#/$defs/settingsM05"}
           }
+        },
+        {
+          "properties": {
+            "artifact_profile": {"const": "nvfp4-experts-partial-v1"},
+            "artifact_status": {"const": "m06_nvfp4_experts_partial_not_runtime_loadable"},
+            "head_format": {"const": "deferred"},
+            "compiler": {"$ref": "#/$defs/compilerM06"},
+            "quantization": {"$ref": "#/$defs/quantizationM06"},
+            "compiler_settings": {"$ref": "#/$defs/settingsM06"}
+          }
         }
       ]
     }
   ],
   "properties": {
     "schema_version": {"const": 1},
-    "artifact_profile": {"enum": ["synthetic-copy-v1", "fp8-attention-partial-v1"]},
-    "artifact_status": {"enum": ["m04_scaffold_not_runtime_loadable", "m05_fp8_attention_partial_not_runtime_loadable"]},
+    "artifact_profile": {"enum": ["synthetic-copy-v1", "fp8-attention-partial-v1", "nvfp4-experts-partial-v1"]},
+    "artifact_status": {"enum": ["m04_scaffold_not_runtime_loadable", "m05_fp8_attention_partial_not_runtime_loadable", "m06_nvfp4_experts_partial_not_runtime_loadable"]},
     "source": {"$ref": "#/$defs/source"},
     "compiler": {"$ref": "#/$defs/compiler"},
     "plan": {"$ref": "#/$defs/plan"},
@@ -120,13 +130,13 @@
         "python": {"type": "string", "minLength": 1},
         "platform": {"type": "object"},
         "dependencies_lock_sha256": {"$ref": "#/$defs/sha256"},
-        "implementation": {"enum": ["gem16_compile_m04_v1", "gem16_compile_m05_native_v1"]},
+        "implementation": {"enum": ["gem16_compile_m04_v1", "gem16_compile_m05_native_v1", "gem16_compile_m06_native_v1"]},
         "native_encoder": {
           "type": "object",
           "additionalProperties": false,
           "required": ["protocol", "sha256", "threads", "build"],
           "properties": {
-            "protocol": {"const": "gem16-fp8-batch-v1"},
+            "protocol": {"enum": ["gem16-fp8-batch-v1", "gem16-nvfp4-direct-v1"]},
             "sha256": {"$ref": "#/$defs/sha256"},
             "threads": {"type": "integer", "minimum": 1, "maximum": 64},
             "build": {"$ref": "#/$defs/nativeBuild"}
@@ -146,7 +156,29 @@
         {"$ref": "#/$defs/compiler"},
         {
           "required": ["native_encoder"],
-          "properties": {"implementation": {"const": "gem16_compile_m05_native_v1"}}
+          "properties": {
+            "implementation": {"const": "gem16_compile_m05_native_v1"},
+            "native_encoder": {
+              "properties": {"protocol": {"const": "gem16-fp8-batch-v1"}}
+            }
+          }
+        }
+      ]
+    },
+    "compilerM06": {
+      "allOf": [
+        {"$ref": "#/$defs/compiler"},
+        {
+          "required": ["native_encoder"],
+          "properties": {
+            "implementation": {"const": "gem16_compile_m06_native_v1"},
+            "native_encoder": {
+              "properties": {
+                "protocol": {"const": "gem16-nvfp4-direct-v1"},
+                "build": {"properties": {"build_type": {"const": "Release"}}}
+              }
+            }
+          }
         }
       ]
     },
@@ -166,6 +198,18 @@
         "experts": "deferred-to-m06",
         "embedding_head": "deferred-to-m07",
         "production_quantization_implemented": false
+      }
+    },
+    "quantizationM06": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profile", "attention", "experts", "embedding_head", "production_quantization_implemented"],
+      "properties": {
+        "profile": {"const": "nvfp4-experts-partial-v1"},
+        "attention": {"const": "deferred-to-m08"},
+        "experts": {"const": "nvfp4-group16-divisor-v1"},
+        "embedding_head": {"const": "deferred-to-m07"},
+        "production_quantization_implemented": {"const": false}
       }
     },
     "plan": {
@@ -379,6 +423,12 @@
       ]
     },
     "settingsM05": {
+      "allOf": [
+        {"$ref": "#/$defs/settings"},
+        {"properties": {"threads": {"type": "integer", "minimum": 1, "maximum": 64}}}
+      ]
+    },
+    "settingsM06": {
       "allOf": [
         {"$ref": "#/$defs/settings"},
         {"properties": {"threads": {"type": "integer", "minimum": 1, "maximum": 64}}}

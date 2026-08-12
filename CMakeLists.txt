@@ -86,16 +86,14 @@ gem16_enable_sanitizers(gem16_core)
 
 find_package(Threads REQUIRED)
 
-# Bind the native conversion data plane to the exact configured toolchain and
-# target.  The support library serializes this identity in every encode and
-# compare result next to the executable SHA-256 recorded by Python.
-set(GEM16_FP8_NATIVE_BUILD_TYPE "${CMAKE_BUILD_TYPE}")
-if(GEM16_FP8_NATIVE_BUILD_TYPE STREQUAL "")
-  set(GEM16_FP8_NATIVE_BUILD_TYPE "multi-config")
+# Bind native conversion data planes to the exact configured toolchain and target.
+set(GEM16_NATIVE_BUILD_TYPE "${CMAKE_BUILD_TYPE}")
+if(GEM16_NATIVE_BUILD_TYPE STREQUAL "")
+  set(GEM16_NATIVE_BUILD_TYPE "multi-config")
 endif()
-set(GEM16_FP8_NATIVE_PROCESSOR "${CMAKE_SYSTEM_PROCESSOR}")
-if(GEM16_FP8_NATIVE_PROCESSOR STREQUAL "")
-  set(GEM16_FP8_NATIVE_PROCESSOR "unknown")
+set(GEM16_NATIVE_PROCESSOR "${CMAKE_SYSTEM_PROCESSOR}")
+if(GEM16_NATIVE_PROCESSOR STREQUAL "")
+  set(GEM16_NATIVE_PROCESSOR "unknown")
 endif()
 
 add_library(gem16_fp8_compiler_support STATIC
@@ -110,10 +108,10 @@ target_link_libraries(gem16_fp8_compiler_support PRIVATE gem16_json Threads::Thr
 target_compile_definitions(gem16_fp8_compiler_support PRIVATE
   GEM16_FP8_NATIVE_COMPILER_ID="${CMAKE_CXX_COMPILER_ID}"
   GEM16_FP8_NATIVE_COMPILER_VERSION="${CMAKE_CXX_COMPILER_VERSION}"
-  GEM16_FP8_NATIVE_BUILD_TYPE="${GEM16_FP8_NATIVE_BUILD_TYPE}"
+  GEM16_FP8_NATIVE_BUILD_TYPE="${GEM16_NATIVE_BUILD_TYPE}"
   GEM16_FP8_NATIVE_CXX_STANDARD="20"
   GEM16_FP8_NATIVE_SYSTEM="${CMAKE_SYSTEM_NAME}"
-  GEM16_FP8_NATIVE_PROCESSOR="${GEM16_FP8_NATIVE_PROCESSOR}"
+  GEM16_FP8_NATIVE_PROCESSOR="${GEM16_NATIVE_PROCESSOR}"
 )
 if(MSVC)
   target_compile_options(gem16_fp8_compiler_support PRIVATE /fp:strict)
@@ -128,6 +126,37 @@ target_include_directories(gem16-fp8-compiler PRIVATE "${CMAKE_CURRENT_SOURCE_DI
 target_link_libraries(gem16-fp8-compiler PRIVATE gem16_fp8_compiler_support)
 gem16_set_project_warnings(gem16-fp8-compiler)
 gem16_enable_sanitizers(gem16-fp8-compiler)
+
+add_library(gem16_nvfp4_compiler_support STATIC
+  src/compiler/nvfp4_batch_encoder.cpp
+  src/compiler/sha256.cpp
+)
+target_include_directories(gem16_nvfp4_compiler_support
+  PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
+  PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src"
+)
+target_link_libraries(gem16_nvfp4_compiler_support PRIVATE gem16_json Threads::Threads)
+target_compile_definitions(gem16_nvfp4_compiler_support PRIVATE
+  GEM16_NATIVE_COMPILER_ID="${CMAKE_CXX_COMPILER_ID}"
+  GEM16_NATIVE_COMPILER_VERSION="${CMAKE_CXX_COMPILER_VERSION}"
+  GEM16_NATIVE_BUILD_TYPE="${GEM16_NATIVE_BUILD_TYPE}"
+  GEM16_NATIVE_CXX_STANDARD="20"
+  GEM16_NATIVE_SYSTEM="${CMAKE_SYSTEM_NAME}"
+  GEM16_NATIVE_PROCESSOR="${GEM16_NATIVE_PROCESSOR}"
+)
+if(MSVC)
+  target_compile_options(gem16_nvfp4_compiler_support PRIVATE /fp:strict)
+else()
+  target_compile_options(gem16_nvfp4_compiler_support PRIVATE -fno-fast-math -ffp-contract=off)
+endif()
+gem16_set_project_warnings(gem16_nvfp4_compiler_support)
+gem16_enable_sanitizers(gem16_nvfp4_compiler_support)
+
+add_executable(gem16-checkpoint-compiler src/cli/checkpoint_compiler_main.cpp)
+target_include_directories(gem16-checkpoint-compiler PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+target_link_libraries(gem16-checkpoint-compiler PRIVATE gem16_nvfp4_compiler_support)
+gem16_set_project_warnings(gem16-checkpoint-compiler)
+gem16_enable_sanitizers(gem16-checkpoint-compiler)
 
 add_library(gem16_server_support STATIC
   src/server/http_streaming.cpp
@@ -361,6 +390,7 @@ if(BUILD_TESTING AND GEM16_BUILD_TESTS)
     tests/unit/memory_plan_test.cpp
     tests/unit/mtp_scheduler_test.cpp
     tests/unit/nvfp4_test.cpp
+    tests/unit/nvfp4_batch_encoder_test.cpp
     tests/unit/openai_chat_test.cpp
     tests/unit/safetensors_test.cpp
     tests/unit/sampling_test.cpp
@@ -372,7 +402,7 @@ if(BUILD_TESTING AND GEM16_BUILD_TESTS)
     target_sources(gem16-unit-tests PRIVATE tests/unit/windows_utf8_test.cpp)
   endif()
   target_include_directories(gem16-unit-tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src" "${CMAKE_CURRENT_SOURCE_DIR}/tests/unit")
-  target_link_libraries(gem16-unit-tests PRIVATE gem16_core gem16_server_support gem16_fp8_compiler_support)
+  target_link_libraries(gem16-unit-tests PRIVATE gem16_core gem16_server_support gem16_fp8_compiler_support gem16_nvfp4_compiler_support)
   gem16_set_project_warnings(gem16-unit-tests)
   gem16_enable_sanitizers(gem16-unit-tests)
   add_test(NAME gem16-unit COMMAND gem16-unit-tests)
@@ -388,5 +418,25 @@ if(BUILD_TESTING AND GEM16_BUILD_TESTS)
     )
     gem16_set_project_warnings(gem16-cuda-tests)
     add_test(NAME gem16-cuda COMMAND gem16-cuda-tests)
+
+    add_executable(gem16-cuda-nvfp4-consumption-tests
+      tests/cuda/gemma4_26b_nvfp4_consumption_test.cu
+    )
+    target_include_directories(gem16-cuda-nvfp4-consumption-tests PRIVATE
+      "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    )
+    target_link_libraries(gem16-cuda-nvfp4-consumption-tests PRIVATE
+      gem16_core gem16_nvfp4_compiler_support CUDA::cudart
+    )
+    set_target_properties(gem16-cuda-nvfp4-consumption-tests PROPERTIES
+      CUDA_ARCHITECTURES "${GEM16_CUDA_ARCHITECTURE}"
+    )
+    gem16_set_project_warnings(gem16-cuda-nvfp4-consumption-tests)
+    add_test(NAME gem16-cuda-nvfp4-consumption
+      COMMAND gem16-cuda-nvfp4-consumption-tests
+    )
+    set_tests_properties(gem16-cuda-nvfp4-consumption PROPERTIES
+      SKIP_RETURN_CODE 77
+    )
   endif()
 endif()
