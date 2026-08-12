@@ -1,6 +1,6 @@
 # Start here — current coding-agent task
 
-Status: M00–M05 accepted; M06 active.
+Status: M00–M06 accepted; M07 active.
 Plan revision: Fast Track R4.
 
 ## Read now
@@ -23,16 +23,18 @@ The lead agent may immediately assign disjoint sub-agents for:
 - M25 phase A assistant compatibility and memory modeling;
 - evaluation/benchmark harness scaffolding.
 
-Use [`PARALLEL_WORKSTREAMS.md`](PARALLEL_WORKSTREAMS.md). Lane A/M06 remains the priority and owns the compiler core.
+Use [`PARALLEL_WORKSTREAMS.md`](PARALLEL_WORKSTREAMS.md). Lane A/M07 remains the priority and owns the tied-head compiler/reference slice.
 
-## M06 success
+## M07 success
 
-M06 is complete when one clean full QAT expert conversion, exhaustive codec/shape tests, real-shape operator consumption, bounded-memory evidence, the frozen sampled Ordinary/Unsloth convention diagnostic and relevant 12B regressions pass. A complete ordinary-BF16 conversion and an exhaustive Unsloth comparison are not M06 blockers; they move to conditional M18 or final attribution work.
+M07 is complete when the QAT tied embedding/output matrix compiles once to the accepted provisional NVFP4 contract,
+lookup and T=1 head behavior match independent dequantized references, softcap/suppression/tie behavior is
+deterministic, and exactly one physical tied payload is planned.
 
 ## Full-run rule
 
 For expensive conversions or publication claims, use reviewed, targeted-tested code, a clean worktree and source/output preflight. Small fixtures and bounded diagnostic probes do not need the full release workflow, but their diagnostic status must be recorded.
 
-## After M06
+## After M07
 
-Proceed to the small M07 provisional NVFP4 head slice, then M08. Do not start Q4_0 backend work or MTP verifier-head optimization in M07.
+Proceed directly to M08 complete-artifact and loader integration. Do not start Q4_0 backend work or MTP verifier-head optimization in M07.

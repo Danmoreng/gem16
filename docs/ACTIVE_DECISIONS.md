@@ -1,6 +1,6 @@
 # Active decisions
 
-**Accepted:** 2026-08-12 · **Track:** Gemma 4 26B A4B Fast Track · **Status:** M00–M05 accepted, M06 active
+**Accepted:** 2026-08-12 · **Track:** Gemma 4 26B A4B Fast Track · **Status:** M00–M06 accepted, M07 active
 
 This is the short operational policy for current work. It is not a replacement for historical evidence. Permanent
 rules in `AGENTS.md` remain binding. For facts about the implementation, current source, tests and accepted evidence
@@ -45,7 +45,7 @@ The integration branch remains `feat/gemma4-26b`; temporary worktrees are allowe
 
 ## Scope boundary
 
-The accepted M00–M05 source locks, evidence and historical records remain valid. The active choices above simplify
+The accepted M00–M06 source locks, evidence and historical records remain valid. The active choices above simplify
 future execution; they do not authorize silent precision changes, CPU weight offload, duplicate device layouts,
 runtime quantization, unreported fallback, weakened 12B behavior or unsupported capability claims. Experimental
 results must say which gates have not yet been run.

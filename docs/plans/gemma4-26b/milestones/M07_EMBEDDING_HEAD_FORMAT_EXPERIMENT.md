@@ -1,6 +1,6 @@
 # M07 — Provisional NVFP4 tied embedding/head
 
-Status: blocked by M06
+Status: active
 Class: critical-lite
 Unblocks: M08
 

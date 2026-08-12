@@ -1,6 +1,6 @@
 # Milestone cards — Fast Track R4
 
-M00–M05 are accepted historical milestone plans. M06 onward uses concise cards with explicit dependencies, parallelism, exit gates and evidence.
+M00–M06 are accepted milestone plans. M07 onward uses concise active cards with explicit dependencies, parallelism, exit gates and evidence.
 
 Normal path:
 

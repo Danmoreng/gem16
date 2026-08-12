@@ -1,6 +1,6 @@
 # Gemma 4 26B A4B in Gem16
 
-**Status:** M00–M05 accepted; M06 active. The active policy is [`ACTIVE_DECISIONS.md`](ACTIVE_DECISIONS.md), and
+**Status:** M00–M06 accepted; M07 active. The active policy is [`ACTIVE_DECISIONS.md`](ACTIVE_DECISIONS.md), and
 the current task entry is [`plans/gemma4-26b/ACTIVE_CONTRACT.md`](plans/gemma4-26b/ACTIVE_CONTRACT.md).
 
 ## Goal
@@ -10,9 +10,9 @@ quickly as possible. The first useful result is a directly loadable QAT-derived 
 slot and real 32K execution with at least 700 MiB directly measured free CUDA memory. Later work qualifies quality,
 performance, longer context and product behavior.
 
-The current source tree does **not** yet contain an executable 26B runtime. M05 is an accepted attention-only native
-FP8 compiler stage and remains non-runtime-loadable. The 12B Unified path is the production baseline and must remain
-unchanged.
+The current source tree does **not** yet contain an executable 26B runtime. M05 attention FP8 and M06 expert/shared
+NVFP4 are accepted native compiler stages and remain non-runtime-loadable. The 12B Unified path is the production
+baseline and must remain unchanged.
 
 ## Fast-track path
 

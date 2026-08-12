@@ -1,6 +1,6 @@
 # M06 — Native NVFP4 expert compiler
 
-Status: active
+Status: accepted 2026-08-12 at implementation commit `81055eb48e05321481a8b63dd0dc5e7e017a7c00`
 Class: critical
 Depends on: M05
 Unblocks: M07 and the quantized adapter of M10
@@ -43,17 +43,18 @@ Before the QAT full conversion, freeze the versioned scale/divisor algorithm, ex
 
 ## Exit gate
 
-- [ ] The scale/divisor algorithm and sampled diagnostic set are frozen and the sampled Ordinary/Unsloth convention check passes.
-- [ ] Native codec/quantizer is deterministic across supported thread counts.
-- [ ] Every QAT shared/routed expert tensor compiles with exact shape and byte accounting.
-- [ ] Peak host memory is bounded and the full expert family is never resident at once.
-- [ ] Representative real-shape operators consume the output correctly.
-- [ ] Invalid scales/NaNs/ambiguous axes fail visibly.
-- [ ] Relevant 12B tests remain green.
+- [x] The scale/divisor algorithm and sampled diagnostic set are frozen and the sampled Ordinary/Unsloth convention check passes.
+- [x] Native codec/quantizer is deterministic across supported thread counts.
+- [x] Every QAT shared/routed expert tensor compiles with exact shape and byte accounting.
+- [x] Peak host memory is bounded and the full expert family is never resident at once.
+- [x] Representative real-shape operators consume the output correctly.
+- [x] Invalid scales/NaNs/ambiguous axes fail visibly.
+- [x] Relevant 12B tests remain green.
 
 ## Evidence
 
-`artifacts/m06/` contains compiler config, QAT summary, memory telemetry, hashes, representative ordinary/Unsloth diagnostics and exact commands.
+`artifacts/m06/` contains compiler config, clean Release QAT reports, memory telemetry, hashes, representative
+Ordinary/Unsloth diagnostics and exact commands. The acceptance summary is `artifacts/m06/acceptance.json`.
 
 ## Agent task
 

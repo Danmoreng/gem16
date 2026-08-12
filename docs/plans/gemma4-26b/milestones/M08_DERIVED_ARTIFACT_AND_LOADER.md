@@ -1,6 +1,6 @@
 # M08 — Complete derived artifact and direct loader
 
-Status: blocked by M06/M07
+Status: blocked by M07
 Class: critical
 Unblocks: final M09 reconciliation, M11, M12 runtime and M13
 

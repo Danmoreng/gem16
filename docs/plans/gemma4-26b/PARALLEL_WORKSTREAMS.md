@@ -13,18 +13,18 @@ The integration agent alone owns:
 - cross-workstream changes to `inference_engine` orchestration;
 - final evidence acceptance.
 
-## Workstreams available at M06
+## Workstreams available at M07
 
 | Lane | Immediate task | May start now | Owned area | Merge gate |
 |---|---|---:|---|---|
-| A — Compiler | M06 NVFP4 encoder and QAT expert conversion | yes | `src/compiler/nvfp4*`, native compiler tests, M06 artifacts | M06 exit |
+| A — Compiler/head | M07 provisional tied NVFP4 embedding/head | yes | tied-head compiler/reference tests and M07 artifacts | M07 exit |
 | B — MoE semantics | M10 phase A BF16 router/shared/expert oracle | yes | new numeric oracle files and isolated tests/goldens | semantic fixtures accepted |
 | C — Attention traits | M12 phase A layer table, RoPE and cache fixtures | yes | model-trait tests and isolated attention/KV tests | trait contract accepted |
 | D — Memory | M09 phase A formulas, one-slot tests and reporting schema | yes | memory-plan tests/tools; no final artifact constants | M08 artifact reconciliation |
 | E — Harness | M13/M19/M20/M21 runners using fixtures or 12B smoke | yes | new tools, prompt manifests and report schemas | no production claim |
 | F — MTP feasibility | M25 phase A assistant lock/inventory and compressed-memory model | yes | docs/tools/model locks only | base runtime remains untouched |
 
-Lane A is the current critical lane. B–F must not delay M06 integration.
+Lane A is the current critical lane. B–F must not delay M07 integration.
 
 ## Later parallel window
 

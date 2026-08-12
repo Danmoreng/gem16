@@ -2,8 +2,8 @@
 
 Status: active from M06 onward
 Plan revision: `fast-track-r4`
-Accepted baseline: M00–M05
-Current milestone: M06
+Accepted baseline: M00–M06
+Current milestone: M07
 Integration branch: `feat/gemma4-26b`
 
 ## Purpose
@@ -25,12 +25,13 @@ Report a material conflict instead of guessing. A stale status page does not ove
 
 ## Accepted baseline
 
-M00–M05 are accepted and are not reopened by this revision.
+M00–M06 are accepted and are not reopened by current work.
 
 - Sources, manifests and source locks are immutable.
 - The 12B path remains separately specialized and regression-protected.
 - The checkpoint compiler is a Python control plane plus one promoted native C++20 numerical data plane.
 - M05 FP8 attention conversion is accepted at implementation commit `d91388113d68974f9ab7cec1a90ef768285c0645`.
+- M06 expert/shared NVFP4 conversion is accepted at implementation commit `81055eb48e05321481a8b63dd0dc5e7e017a7c00`.
 - Runtime conversion, CPU expert offload, expert streaming and duplicate persistent GPU weight layouts remain forbidden.
 
 ## Product target
@@ -127,9 +128,8 @@ Do not repeat an expensive run solely to produce a second prose record. M08 comp
 
 ## Current unblocked work
 
-At the start of R4:
+After M06 acceptance:
 
-- M06 is the critical active milestone.
+- M07 is the critical active milestone and is deliberately small.
 - M10 phase A, M12 phase A, M09 formula/test prework, evaluation-harness work and M25 feasibility work may proceed in parallel under disjoint ownership.
-- M07 follows M06 and is deliberately small.
 - M08 and final M09 reconciliation remain the next vertical checkpoint.

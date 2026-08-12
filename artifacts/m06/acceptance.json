@@ -1,0 +1,340 @@
+{
+  "accepted_date": "2026-08-12",
+  "artifact_profile": "nvfp4-experts-partial-v1",
+  "artifact_status": "m06_nvfp4_experts_partial_not_runtime_loadable",
+  "diagnostic": {
+    "all_matrices_pass": true,
+    "bounded_memory": {
+      "bounded_chunk_bytes": 1048576,
+      "host_memory_cap_bytes": 8589934592,
+      "maximum_python_read_bytes": 1048576,
+      "native_maximum_source_row_bytes": 5632,
+      "staging_buffer_bytes": 1048576,
+      "telemetry_is_bounded_not_peak_rss": true,
+      "whole_tensor_materialization": false
+    },
+    "logical_matrix_count": 48,
+    "metric_extrema": {
+      "compiled_vs_unsloth": {
+        "cosine": {
+          "max": 0.9998838658076545,
+          "min": 0.9947033470515517
+        },
+        "relative_l2": {
+          "max": 0.10292754029128728,
+          "min": 0.015241693015034252
+        },
+        "sqnr_db": {
+          "max": 36.33933579608363,
+          "min": 19.749368112866655
+        }
+      },
+      "ordinary_compiled": {
+        "cosine": {
+          "max": 0.9956668254774403,
+          "min": 0.995469917843145
+        },
+        "relative_l2": {
+          "max": 0.09519438598402462,
+          "min": 0.09314400412801015
+        },
+        "sqnr_db": {
+          "max": 20.616901926021264,
+          "min": 20.427773260892785
+        }
+      },
+      "unsloth_reference": {
+        "cosine": {
+          "max": 0.995664748303178,
+          "min": 0.9954558250890578
+        },
+        "relative_l2": {
+          "max": 0.09540103555573758,
+          "min": 0.09316611097982969
+        },
+        "sqnr_db": {
+          "max": 20.61484065655192,
+          "min": 20.408938222123204
+        }
+      }
+    },
+    "native": {
+      "native_build": {
+        "build_type": "Release",
+        "compiler_id": "GNU",
+        "compiler_version": "16.1.1",
+        "cxx_standard": "20",
+        "processor": "x86_64",
+        "system": "Linux"
+      },
+      "operation_count": 20,
+      "protocol": "gem16-nvfp4-direct-v1",
+      "scope": "fixture",
+      "source_passes": 2,
+      "threads": 16
+    },
+    "parent_operation_count": 20,
+    "pass": true,
+    "path": "artifacts/m06/ordinary-unsloth-release.json",
+    "quality_claim": false,
+    "sha256": "78dc0b5f82bb674fe174df4f78889097a6314997fc8f3599bdbe7fcdc4279815",
+    "status": "pass",
+    "thresholds": {
+      "compiled_vs_unsloth": {
+        "cosine_min": 0.95,
+        "relative_l2_max": 0.25,
+        "sqnr_min": 10.0
+      },
+      "ordinary_compiled": {
+        "cosine_min": 0.95,
+        "relative_l2_max": 0.25,
+        "sqnr_min": 10.0
+      },
+      "unsloth_reference": {
+        "cosine_min": 0.95,
+        "relative_l2_max": 0.25,
+        "sqnr_min": 10.0
+      }
+    }
+  },
+  "evidence_files": [
+    {
+      "path": "artifacts/m06/ordinary-unsloth-release.json",
+      "sha256": "78dc0b5f82bb674fe174df4f78889097a6314997fc8f3599bdbe7fcdc4279815",
+      "size": 795991
+    },
+    {
+      "path": "artifacts/m06/qat-plan-release.json",
+      "sha256": "4c0524727162276add407f44d8e9cffb16269765b64b2009a94fa4fd2a6aa796",
+      "size": 526765
+    },
+    {
+      "path": "artifacts/m06/qat-compile-release.json",
+      "sha256": "c2506062cc472bb8ff3363f9dcdb6740c5a9476063dc32f27121c1df8a96385a",
+      "size": 3670710
+    },
+    {
+      "path": "artifacts/m06/qat-verify-release.json",
+      "sha256": "dbb35b1cffd40fac89da3a2adb1baa59767fb210878a801355dc9c75adc34fa9",
+      "size": 1147
+    },
+    {
+      "path": "artifacts/m06/qat-compilation-manifest-release.json",
+      "sha256": "7d1f5b1966e879c285db53065625dd0140a746a6d5a6bf45e5278b275100829d",
+      "size": 2331029
+    },
+    {
+      "path": "artifacts/m06/12b-validation-release.json",
+      "sha256": "ad083f5b62705eae3c1d4db47bdf80a888c5fba3f21ed43009021e830b03cd01",
+      "size": 4284
+    },
+    {
+      "path": "artifacts/m06/preflight-release.txt",
+      "sha256": "bb6af778a66a4c0c166b01eca5dcaf3f4c9362773c45a2d6344213ab55b1dfc3",
+      "size": 6183
+    },
+    {
+      "path": "artifacts/m06/nvfp4-compiler-config.json",
+      "sha256": "7ae8b2a6b5eb8331d58f6b390042520124aa9dd12332227c42729f28e05a2663",
+      "size": 36978
+    },
+    {
+      "path": "artifacts/m06/qat-nvfp4-hash-summary.json",
+      "sha256": "5a80af32d89cd9bd5c38f9ede017943351304d9a276703cd9e353a59411bb170",
+      "size": 4009
+    }
+  ],
+  "full_qat_conversion": {
+    "compilation_manifest": {
+      "path": "artifacts/m06/qat-compilation-manifest-release.json",
+      "sha256": "7d1f5b1966e879c285db53065625dd0140a746a6d5a6bf45e5278b275100829d"
+    },
+    "compile_report": {
+      "duration_seconds": 280.69708,
+      "path": "artifacts/m06/qat-compile-release.json",
+      "sha256": "c2506062cc472bb8ff3363f9dcdb6740c5a9476063dc32f27121c1df8a96385a"
+    },
+    "compiler_commit": "81055eb48e05321481a8b63dd0dc5e7e017a7c00",
+    "compiler_dirty": false,
+    "hash_summary": {
+      "path": "artifacts/m06/qat-nvfp4-hash-summary.json",
+      "sha256": "5a80af32d89cd9bd5c38f9ede017943351304d9a276703cd9e353a59411bb170"
+    },
+    "host_memory_cap_bytes": 8589934592,
+    "native_analysis_seconds": 14.141593925,
+    "native_build": {
+      "build_type": "Release",
+      "compiler_id": "GNU",
+      "compiler_version": "16.1.1",
+      "cxx_standard": "20",
+      "processor": "x86_64",
+      "system": "Linux"
+    },
+    "native_child_peak_rss_bytes": 7798784,
+    "native_conversion_seconds": 62.464873781,
+    "native_source_passes": 2,
+    "output_tensor_bytes": 13147454640,
+    "output_tensor_count": 600,
+    "parent_peak_rss_bytes": 37122048,
+    "plan_report": {
+      "duration_seconds": 53.146608,
+      "path": "artifacts/m06/qat-plan-release.json",
+      "sha256": "4c0524727162276add407f44d8e9cffb16269765b64b2009a94fa4fd2a6aa796"
+    },
+    "shard_count": 15,
+    "source_count": 150,
+    "status": "pass",
+    "verify_report": {
+      "duration_seconds": 183.134406,
+      "path": "artifacts/m06/qat-verify-release.json",
+      "sha256": "dbb35b1cffd40fac89da3a2adb1baa59767fb210878a801355dc9c75adc34fa9"
+    }
+  },
+  "gates": {
+    "blackwell_ctest": {
+      "passed": 3,
+      "total": 3
+    },
+    "compute_sanitizer": {
+      "initcheck": "0 errors",
+      "memcheck": "0 errors",
+      "racecheck": "0 hazards"
+    },
+    "cuda_consumption": {
+      "cpu_reference": true,
+      "cuda_reference": true,
+      "native_compiler_output_consumed": true,
+      "sm120": true,
+      "sm120_direct_and_fused": true,
+      "status": "pass"
+    },
+    "diff_check": true,
+    "host_debug_ctest": {
+      "passed": 1,
+      "total": 1
+    },
+    "host_release_ctest": {
+      "passed": 1,
+      "total": 1
+    },
+    "host_sanitize_ctest": {
+      "passed": 1,
+      "total": 1
+    },
+    "plan_generator_check": true,
+    "plan_integrity_check": true,
+    "python_discovery": {
+      "note": "one test intentionally exercises an argparse error; suite passed",
+      "passed": 166,
+      "total": 166
+    },
+    "python_focused_tests": {
+      "passed": 43,
+      "total": 43
+    }
+  },
+  "implementation": {
+    "branch": "feat/gemma4-26b",
+    "commit": "81055eb48e05321481a8b63dd0dc5e7e017a7c00",
+    "compiler_dirty": false,
+    "native_encoder": {
+      "build": {
+        "build_type": "Release",
+        "compiler_id": "GNU",
+        "compiler_version": "16.1.1",
+        "cxx_standard": "20",
+        "processor": "x86_64",
+        "system": "Linux"
+      },
+      "protocol": "gem16-nvfp4-direct-v1",
+      "sha256": "9956c5ed66b6e1624b37256a963586656c5f0a88a672ed78603650c4b13aba76",
+      "threads": 16
+    },
+    "python_implementation": {
+      "byteorder": "little",
+      "locale": "C.UTF-8",
+      "machine": "x86_64",
+      "python_implementation": "CPython",
+      "python_major_minor": "3.14",
+      "python_version": "3.14.6",
+      "system": "Linux"
+    },
+    "repository": "Danmoreng/gem16"
+  },
+  "limitations": [
+    "Partial expert/shared artifact is not runtime-loadable until M07/M08.",
+    "No model quality claim or performance qualification.",
+    "Complete Ordinary conversion and exhaustive attribution are conditional M18 work.",
+    "The 13 GiB artifact remains outside the repository in the run directory; the hash summary binds its verified shard hashes from the compilation manifest."
+  ],
+  "milestone": "M06",
+  "plan": {
+    "compiler_manifest_sha256": "d303d72a7d4f5afdcc04f989d3dfdbc66f3712fa524e9cf0674083d42b4e3725",
+    "excluded_tensor_count": 863,
+    "output_tensor_bytes": 13147454640,
+    "output_tensor_count": 600,
+    "path": "benchmarks/goldens/gemma4_26b/nvfp4/qat-compiler-plan.json",
+    "resolved_plan_sha256": "d303d72a7d4f5afdcc04f989d3dfdbc66f3712fa524e9cf0674083d42b4e3725",
+    "sha256": "d303d72a7d4f5afdcc04f989d3dfdbc66f3712fa524e9cf0674083d42b4e3725",
+    "source_tensor_count": 1013,
+    "transformed_source_count": 150
+  },
+  "quality_claim": false,
+  "quantizer": {
+    "config_path": "artifacts/m06/nvfp4-compiler-config.json",
+    "config_sha256": "7ae8b2a6b5eb8331d58f6b390042520124aa9dd12332227c42729f28e05a2663",
+    "contract_id": "gem16.nvfp4_bf16_group16",
+    "contract_version": 1,
+    "global_scale_role": "divisor",
+    "group_size": 16,
+    "packing": "low_nibble_first",
+    "path": "tools/gem16_compile/specs/nvfp4-experts-v1.json",
+    "scale_codec": "E4M3FN",
+    "sha256": "fe3f5d6a3e26eaf54f7a0d98ecef12f6de376b52743f2a6e5603180d0a5b24fa",
+    "value_codec": "E2M1"
+  },
+  "runtime_loadable": false,
+  "schema_version": 1,
+  "sources": {
+    "ordinary_bf16": {
+      "lock_sha256": "1932b06d568ce8c72f3d2013d39ffd15dd61d37732638c2013f2220eb177a620",
+      "repository": "google/gemma-4-26B-A4B-it",
+      "revision": "4d7ae4984b7db7de8f8457170b3f1a419ee76d52"
+    },
+    "qat_bf16": {
+      "lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230",
+      "repository": "google/gemma-4-26B-A4B-it-qat-q4_0-unquantized",
+      "revision": "f1e06dc520982d9b9edd76859fdb7ab209449949",
+      "tensor_count": 1013
+    },
+    "unsloth_nvfp4": {
+      "lock_sha256": "6635b15f4f974dec22821c7a9efd4d2404ba4ce9afb1424ca2f3529d20db7941",
+      "repository": "unsloth/gemma-4-26B-A4B-it-NVFP4",
+      "revision": "20df0542b1a86ce19f495ac2eca2c7c12bce82f9"
+    }
+  },
+  "status": "accepted",
+  "transcript": {
+    "artifact_payloads_not_copied": true,
+    "path": "artifacts/m06/preflight-release.txt",
+    "run_directory": "/tmp/m06-release-81055eb48e05321481a8b63dd0dc5e7e017a7c00",
+    "sha256": "bb6af778a66a4c0c166b01eca5dcaf3f4c9362773c45a2d6344213ab55b1dfc3"
+  },
+  "twelve_b_regression": {
+    "benchmark_qualified": false,
+    "expected_output_token_ids": [
+      9503,
+      106
+    ],
+    "fallbacks": 0,
+    "output_token_ids": [
+      9503,
+      106
+    ],
+    "path": "artifacts/m06/12b-validation-release.json",
+    "projection_path": "native_sm120",
+    "sha256": "ad083f5b62705eae3c1d4db47bdf80a888c5fba3f21ed43009021e830b03cd01",
+    "status": "ok",
+    "weight_arena_bytes": 9304895488
+  }
+}

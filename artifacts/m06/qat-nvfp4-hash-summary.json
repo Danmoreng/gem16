@@ -1,0 +1,111 @@
+{
+  "artifact_files": [
+    {
+      "kind": "safetensors_shard",
+      "path": "model-00001-of-00015.safetensors",
+      "sha256": "7af863c9793cd672b6a305779f62a8b731e6aa67df52187d85aea0df0514bb21",
+      "size": 1019240664
+    },
+    {
+      "kind": "safetensors_shard",
+      "path": "model-00002-of-00015.safetensors",
+      "sha256": "11e18b7a0f4e0496efe3881fdfcabb45c4a833f6dcfa99221a9058237ffd8f16",
+      "size": 876502480
+    },
+    {
+      "kind": "safetensors_shard",
+      "path": "model-00003-of-00015.safetensors",
+      "sha256": "75e6fe610232e2f3efd03cbdfbbbd5660efc8e2fb8261d419d3d84be8ddaa5c9",
+      "size": 876502480
+    },
+    {
+      "kind": "safetensors_shard",
+      "path": "model-00004-of-00015.safetensors",
+      "sha256": "20c21d229c1857b552f3dd72ddc340718b84d5b4cabddfe48511755d26820386",
+      "size": 876502480
+    },
+    {
+      "kind": "safetensors_shard",
+      "path": "model-00005-of-00015.safetensors",
+      "sha256": "e679d9c9b8424ef3891feb8080f3c0b1b6c95eb43198ca835818942286c007d8",
+      "size": 876502480
+    },
+    {
+      "kind": "safetensors_shard",
+      "path": "model-00006-of-00015.safetensors",
+      "sha256": "95b8c06ab959c607a3d7633821c4365463e8e8d9ea29a8b7da125f9c0bb3fa61",
+      "size": 876502472
+    },
+    {
+      "kind": "safetensors_shard",
+      "path": "model-00007-of-00015.safetensors",
+      "sha256": "a1d1577b17aa746398cedf580cc39819669c1c389c151ad13ff8df8c661d1df6",
+      "size": 876502464
+    },
+    {
+      "kind": "safetensors_shard",
+      "path": "model-00008-of-00015.safetensors",
+      "sha256": "7698a7d6b453c152937b69ca6df2c48027283d6974c33f535d628ba6f8fb4910",
+      "size": 876502480
+    },
+    {
+      "kind": "safetensors_shard",
+      "path": "model-00009-of-00015.safetensors",
+      "sha256": "42e6cddb8a1ebd6ba9f86ee07e83f22f7445b0b179d9fb8247a0509360b6de7b",
+      "size": 876502480
+    },
+    {
+      "kind": "safetensors_shard",
+      "path": "model-00010-of-00015.safetensors",
+      "sha256": "0c058591a5be37fbf73495830b56c1f82985e629496390c2dd5b3bfd208a9a9e",
+      "size": 876502480
+    },
+    {
+      "kind": "safetensors_shard",
+      "path": "model-00011-of-00015.safetensors",
+      "sha256": "875be929043101aa1a613fe7ee503fb1c7cd784039a9b1141b8ce7393a7401fc",
+      "size": 876502480
+    },
+    {
+      "kind": "safetensors_shard",
+      "path": "model-00012-of-00015.safetensors",
+      "sha256": "36ddf4f1c6b4dfb15c90d15a37a85e7bfa8463c55cb5c20eaca2c2113d4e71aa",
+      "size": 876502448
+    },
+    {
+      "kind": "safetensors_shard",
+      "path": "model-00013-of-00015.safetensors",
+      "sha256": "fc7c6d0b1df7b5e58052d6f229b2694bbcb13d611429c55568375de140777640",
+      "size": 876502440
+    },
+    {
+      "kind": "safetensors_shard",
+      "path": "model-00014-of-00015.safetensors",
+      "sha256": "b1c1d6b4c6f4fd37a56c3d7187cca1d957267d31c3d14012490101c6eaa54f43",
+      "size": 876502440
+    },
+    {
+      "kind": "safetensors_shard",
+      "path": "model-00015-of-00015.safetensors",
+      "sha256": "556484d4376b0b28123cc2391cbac6084395750a2cf1bb9e5772a618035eaa91",
+      "size": 733764184
+    },
+    {
+      "kind": "safetensors_index",
+      "path": "model.safetensors.index.json",
+      "sha256": "60a13820e5962f442d2d881d9732fde96b853d09872bbf1c20aec188a4b93f9b",
+      "size": 63656
+    }
+  ],
+  "artifact_profile": "nvfp4-experts-partial-v1",
+  "compilation_manifest_sha256": "7d1f5b1966e879c285db53065625dd0140a746a6d5a6bf45e5278b275100829d",
+  "compiler_manifest_sha256": "d303d72a7d4f5afdcc04f989d3dfdbc66f3712fa524e9cf0674083d42b4e3725",
+  "large_artifact_hash_source": "qat-compilation-manifest-release.json; shard payloads were not reread during packaging",
+  "milestone": "M06",
+  "output_tensor_bytes": 13147454640,
+  "output_tensor_count": 600,
+  "resolved_plan_sha256": "d303d72a7d4f5afdcc04f989d3dfdbc66f3712fa524e9cf0674083d42b4e3725",
+  "schema_version": 1,
+  "shard_count": 15,
+  "source_lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230"
+}

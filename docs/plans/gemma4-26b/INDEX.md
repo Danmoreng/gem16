@@ -27,7 +27,7 @@ For multi-agent work also read [`PARALLEL_WORKSTREAMS.md`](PARALLEL_WORKSTREAMS.
 
 ## Milestones
 
-M00–M05 are accepted historical plans. M06–M25 are concise active milestone cards. M18 is conditional, M24 optional and M25 is the required MTP final target.
+M00–M06 are accepted plans. M07–M25 are concise active milestone cards. M18 is conditional, M24 optional and M25 is the required MTP final target.
 
 ## Specifications
 

@@ -2,15 +2,15 @@
   "schema_version": 1,
   "plan_revision": "fast-track-r4",
   "updated": "2026-08-12",
-  "accepted_through": "M05",
-  "current_milestone": "M06",
+  "accepted_through": "M06",
+  "current_milestone": "M07",
   "active_wave": "F1-artifact-and-residency",
   "integration_branch": "feat/gemma4-26b",
   "source_of_truth": "docs/plans/gemma4-26b/FAST_TRACK_STATUS.json",
   "policy_source": "docs/ACTIVE_DECISIONS.md",
   "milestones": {
     "M06": {
-      "status": "ACTIVE",
+      "status": "ACCEPTED",
       "class": "critical",
       "lane": "compiler",
       "depends_on": [
@@ -22,7 +22,7 @@
       ]
     },
     "M07": {
-      "status": "BLOCKED",
+      "status": "ACTIVE",
       "class": "critical-lite",
       "lane": "compiler-head",
       "depends_on": [
@@ -267,7 +267,7 @@
     }
   },
   "parallel_tasks_now": [
-    "M06 native NVFP4 compiler",
+    "M07 provisional NVFP4 tied embedding/head",
     "M10 phase A BF16 MoE oracle",
     "M12 phase A attention/trait fixtures",
     "M09 phase A formula and one-slot tests",

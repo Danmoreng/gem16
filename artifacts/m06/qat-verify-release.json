@@ -1,0 +1,27 @@
+{
+  "action": "verify",
+  "artifact": "/tmp/m06-release-81055eb48e05321481a8b63dd0dc5e7e017a7c00/qat-artifact",
+  "artifact_profile": "nvfp4-experts-partial-v1",
+  "compilation_manifest_sha256": "7d1f5b1966e879c285db53065625dd0140a746a6d5a6bf45e5278b275100829d",
+  "compiler_manifest_sha256": "d303d72a7d4f5afdcc04f989d3dfdbc66f3712fa524e9cf0674083d42b4e3725",
+  "duration_seconds": 183.134406,
+  "memory": {
+    "baseline_rss_bytes": 26079232,
+    "host_memory_cap_bytes": 8589934592,
+    "maximum_header_bytes": 129800,
+    "maximum_mapped_window_bytes": 1052636,
+    "maximum_tensor_bytes": 1476395008,
+    "maximum_transform_row_bytes": 0,
+    "peak_rss_bytes": 37720064,
+    "staging_buffer_bytes": 1048576
+  },
+  "milestone": "M06",
+  "output_tensor_bytes": 13147454640,
+  "output_tensor_count": 600,
+  "recorded_compiler_commit": "81055eb48e05321481a8b63dd0dc5e7e017a7c00",
+  "recorded_compiler_dirty": false,
+  "resolved_plan_sha256": "d303d72a7d4f5afdcc04f989d3dfdbc66f3712fa524e9cf0674083d42b4e3725",
+  "schema_version": 1,
+  "source_lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230",
+  "status": "pass"
+}
