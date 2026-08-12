@@ -73,7 +73,7 @@ def add_source_options(parser: argparse.ArgumentParser) -> None:
         required=True,
         help=(
             "versioned compiler profile: synthetic-copy-v1 (M04), "
-            "fp8-attention-partial-v1 (M05), or nvfp4-experts-partial-v1 (M06)"
+            "fp8-attention-partial-v1 (M05), or nvfp4-experts-partial-v1 (M06), or nvfp4-tied-head-partial-v1 (M07)"
         ),
     )
     parser.add_argument(
@@ -87,7 +87,7 @@ def add_source_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--shard-size", type=positive_integer)
     parser.add_argument(
         "--threads", type=positive_integer, default=None,
-        help="worker threads (M04/M05 default: 1; M06 default: min(16, CPU count))",
+        help="worker threads (M04/M05 default: 1; M06/M07 default: min(16, CPU count))",
     )
     parser.add_argument("--dependencies-lock", type=Path, default=DEPENDENCIES_LOCK)
     parser.add_argument("--reference-platform-strict", action="store_true")
@@ -116,11 +116,11 @@ def build_parser() -> argparse.ArgumentParser:
     compile_parser.add_argument("--resume", action="store_true")
     compile_parser.add_argument(
         "--native-encoder", type=Path,
-        help="required for native M05/M06 profiles: path to the matching native compiler",
+        help="required for native M05/M06/M07 profiles: path to the matching native compiler",
     )
     compile_parser.add_argument(
         "--native-timeout-seconds", type=positive_integer, default=None,
-        help="native compiler timeout in seconds (M05 default: 600; M06 default: 14400)",
+        help="native compiler timeout in seconds (M05 default: 600; M06/M07 default: 14400)",
     )
     compile_parser.add_argument(
         "--allow-dirty",
@@ -163,14 +163,14 @@ def request_from_args(args: argparse.Namespace) -> CompilerRequest:
         shard_size=args.shard_size,
         threads=(
             args.threads if args.threads is not None else
-            (min(16, os.cpu_count() or 1) if args.profile == "nvfp4-experts-partial-v1" else 1)
+            (min(16, os.cpu_count() or 1) if args.profile in {"nvfp4-experts-partial-v1", "nvfp4-tied-head-partial-v1"} else 1)
         ),
         reference_platform_strict=args.reference_platform_strict,
         dependencies_lock=args.dependencies_lock,
         native_encoder=getattr(args, "native_encoder", None),
         native_timeout_seconds=(
             getattr(args, "native_timeout_seconds", None)
-            or (14_400 if args.profile == "nvfp4-experts-partial-v1" else 600)
+            or (14_400 if args.profile in {"nvfp4-experts-partial-v1", "nvfp4-tied-head-partial-v1"} else 600)
         ),
     )
 
@@ -190,6 +190,9 @@ def write_failure_report(args: argparse.Namespace, error: CompilerError) -> None
                         "M05"
                         if getattr(args, "profile", None)
                         == "fp8-attention-partial-v1"
+                        else "M07"
+                        if getattr(args, "profile", None)
+                        == "nvfp4-tied-head-partial-v1"
                         else "M06"
                         if getattr(args, "profile", None)
                         == "nvfp4-experts-partial-v1"
@@ -230,7 +233,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                         "compiler resume is intentionally unsupported; remove only a reviewed "
                         ".incomplete directory and restart"
                     )
-                if args.profile == "nvfp4-experts-partial-v1":
+                if args.profile in {"nvfp4-experts-partial-v1", "nvfp4-tied-head-partial-v1"}:
                     print(
                         "[preflight] native Release compiler, then source lock and files",
                         file=sys.stderr,
@@ -242,9 +245,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                         "[compile] deterministic FP8 attention partial artifact",
                         file=sys.stderr,
                     )
-                elif args.profile == "nvfp4-experts-partial-v1":
+                elif args.profile in {"nvfp4-experts-partial-v1", "nvfp4-tied-head-partial-v1"}:
                     print(
-                        "[compile] deterministic NVFP4 expert partial artifact",
+                        "[compile] deterministic NVFP4 partial artifact",
                         file=sys.stderr,
                     )
                 else:

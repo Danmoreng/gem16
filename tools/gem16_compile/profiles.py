@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import copy
 import re
 from typing import NamedTuple
 
@@ -74,6 +75,26 @@ M05_PROFILE = CompilerProfile(
 M06_SOURCE_CONTRACT = "gemma4-26b-source-bf16-experts-v1"
 M06_DEFERRED_REASON = "deferred to M07-M08; absent from M06 expert-only partial artifact"
 M06_VISION_EXCLUSION_REASON = "text-only Gemma 4 26B profile excludes vision tensors"
+M07_SOURCE_CONTRACT = "gemma4-26b-source-bf16-tied-head-v1"
+M07_DEFERRED_REASON = "deferred to M08; absent from M07 tied-head partial artifact"
+M07_PROFILE = CompilerProfile(
+    name="nvfp4-tied-head-partial-v1",
+    head_format="nvfp4",
+    milestone="M07",
+    artifact_status="m07_nvfp4_tied_head_partial_not_runtime_loadable",
+    compiler_implementation="gem16_compile_m07_native_v1",
+    header_label="m07-nvfp4-tied-head-partial",
+    attention="deferred-to-m08",
+    experts="deferred-to-m08",
+    embedding_head="nvfp4-group16-divisor-v1",
+    production_quantization_implemented=False,
+    allowed_encoders=frozenset({
+        "nvfp4-packed-v1", "nvfp4-local-scale-v1",
+        "nvfp4-weight-divisor-v1", "nvfp4-input-divisor-v1",
+    }),
+    deferred_reason=M07_DEFERRED_REASON,
+)
+
 M06_PROFILE = CompilerProfile(
     name="nvfp4-experts-partial-v1",
     head_format="deferred",
@@ -164,6 +185,23 @@ def m06_component_parameters(component: str) -> dict[str, object]:
     if component not in M06_COMPONENT_LAYOUTS:
         raise ValueError(f"unsupported M06 component: {component}")
     parameters = dict(M06_QUANTIZER_PARAMETERS)
+    parameters["component"] = component
+    return parameters
+
+# Keep M07's versioned contract independent from the accepted M06 tables. A
+# future head-specific revision must not mutate the expert profile by aliasing
+# nested dictionaries.
+M07_QUANTIZER_PARAMETERS = copy.deepcopy(M06_QUANTIZER_PARAMETERS)
+M07_COMPONENT_LAYOUTS = {
+    component: copy.deepcopy(layout)
+    for component, layout in M06_COMPONENT_LAYOUTS.items()
+}
+M07_DEQUANTIZATION_EQUATION = M06_DEQUANTIZATION_EQUATION
+
+def m07_component_parameters(component: str) -> dict[str, object]:
+    if component not in M07_COMPONENT_LAYOUTS:
+        raise ValueError(f"unsupported M07 component: {component}")
+    parameters = copy.deepcopy(M07_QUANTIZER_PARAMETERS)
     parameters["component"] = component
     return parameters
 
@@ -357,7 +395,7 @@ def m06_expected_source_specs() -> dict[str, tuple[str, tuple[int, ...]]]:
     return dict(sorted(specs.items()))
 
 
-PROFILES = {profile.name: profile for profile in (M04_PROFILE, M05_PROFILE, M06_PROFILE)}
+PROFILES = {profile.name: profile for profile in (M04_PROFILE, M05_PROFILE, M06_PROFILE, M07_PROFILE)}
 
 M05_QUANTIZER_PARAMETERS = {
     "contract_id": "gem16.fp8_attention_rowwise",
@@ -397,10 +435,17 @@ __all__ = [
     "M05_PROFILE",
     "M06_DEFERRED_REASON",
     "M06_DEQUANTIZATION_EQUATION",
+    "M07_DEFERRED_REASON",
+    "M07_PROFILE",
+    "M07_SOURCE_CONTRACT",
     "M06_PROFILE",
     "M06_QUANTIZER_PARAMETERS",
     "M06_COMPONENT_LAYOUTS",
     "m06_component_parameters",
+    "M07_QUANTIZER_PARAMETERS",
+    "M07_COMPONENT_LAYOUTS",
+    "M07_DEQUANTIZATION_EQUATION",
+    "m07_component_parameters",
     "m06_expected_source_specs",
     "M06_SOURCE_CONTRACT",
     "M05_APPROVED_SOURCE_LOCKS",

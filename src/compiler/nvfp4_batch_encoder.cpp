@@ -39,7 +39,8 @@ constexpr std::uint64_t kMaxJobBytes = 64U * 1024U * 1024U;
 constexpr std::uint64_t kMaxOperations = 1000U;
 constexpr std::uint64_t kMaxDimension = 1U << 20U;
 constexpr std::uint64_t kMaxThreads = 64U;
-constexpr std::uint64_t kMaxSourceBytes = 1U << 30U;
+constexpr std::uint64_t kMaxSourceBytes = 1024U * 1024U * 1024U;
+constexpr std::uint64_t kM07TiedHeadSourceBytes = 1'476'395'008U;
 constexpr std::array<float, 8> kE2M1 = {0.F, .5F, 1.F, 1.5F, 2.F, 3.F, 4.F, 6.F};
 
 #ifndef GEM16_NATIVE_COMPILER_ID
@@ -380,7 +381,7 @@ Result<Output> ParseOutput(const Value* value, std::string_view expected_compone
 }
 
 Result<Operation> ParseOperation(const Value& value, std::set<std::string>& names,
-                                 std::string_view scope) {
+                                 std::string_view scope, std::string_view profile) {
   if (!value.is_object() ||
       !ExactKeys(value.as_object(), {"operation_id", "source_name", "source_path", "source_sha256",
                                      "source_offset", "source_bytes", "source_dtype", "logical_shape",
@@ -413,9 +414,15 @@ Result<Operation> ParseOperation(const Value& value, std::set<std::string>& name
       source_name.value().ends_with(".weight")
           ? source_name.value().substr(0, source_name.value().size() - 7U)
           : source_name.value();
+  const bool tied_head = profile == "nvfp4-tied-head-partial-v1";
   const std::string expected_operation_prefix = scope == "full" ? "nvfp4-experts:" : "fixture:";
-  if (operation_id.value() != expected_operation_prefix + source_stem &&
-      !(scope == "fixture" && operation_id.value() == "op:" + source_stem)) {
+  if (tied_head) {
+    if (scope != "tied_head" || operation_id.value() != "nvfp4-head:model.language_model.embed_tokens" ||
+        source_name.value() != "model.language_model.embed_tokens.weight") {
+      return Invalid("M07 tied-head operation identity is not canonical");
+    }
+  } else if (operation_id.value() != expected_operation_prefix + source_stem &&
+             !(scope == "fixture" && operation_id.value() == "op:" + source_stem)) {
     return Invalid("operation_id does not match canonical source stem");
   }
   const bool routed_down = role.value() == "routed_expert_down";
@@ -425,14 +432,16 @@ Result<Operation> ParseOperation(const Value& value, std::set<std::string>& name
   const bool legal_axis = (routed_down && axis.value() == "expert,output,input") ||
                           (routed_gate_up && axis.value() == "expert,gate_then_up,input") ||
                           (shared && axis.value() == "output,input") ||
+                          (tied_head && role.value() == "tied_embedding_and_output" && axis.value() == "vocabulary,hidden") ||
                           (scope == "fixture" && axis.value() == "identity");
   const bool legal_runtime = (routed_down || routed_gate_up) &&
                                  runtime.value() == "expert_major_sm120_row8_k64";
   const bool legal_shared_runtime = shared &&
                                     runtime.value() == "sm120_row8_k64";
+  const bool legal_tied_runtime = tied_head && runtime.value() == "sm120_row8_k64";
   if (source_dtype.value() != "BF16" || !legal_axis ||
       disk.value() != "canonical_row_major_low_nibble_first" ||
-      (!legal_runtime && !legal_shared_runtime && scope != "fixture")) {
+      (!legal_runtime && !legal_shared_runtime && !legal_tied_runtime && scope != "fixture")) {
     return Invalid("unsupported NVFP4 operation role/layout");
   }
   const auto* shape_value = Required(value.as_object(), "logical_shape");
@@ -459,9 +468,19 @@ Result<Operation> ParseOperation(const Value& value, std::set<std::string>& name
   auto element_count = Product(rows.value(), columns.value(), "source shape");
   if (!element_count.ok()) return element_count.status();
   auto source_size = Product(element_count.value(), 2, "source bytes");
+  const bool canonical_m07_source =
+      tied_head && scope == "tied_head" &&
+      source_name.value() == "model.language_model.embed_tokens.weight" &&
+      role.value() == "tied_embedding_and_output" &&
+      shape == std::vector<std::uint64_t>{262144, 2816} &&
+      rows.value() == 262144 && columns.value() == 2816 &&
+      source_size.ok() && source_size.value() == kM07TiedHeadSourceBytes;
+  const std::uint64_t source_limit = canonical_m07_source
+                                         ? kM07TiedHeadSourceBytes
+                                         : kMaxSourceBytes;
   if (!source_size.ok() || source_bytes.value() != source_size.value() ||
-      source_bytes.value() > kMaxSourceBytes) {
-    return Invalid("source byte count does not match shape");
+      source_bytes.value() > source_limit) {
+    return Invalid("source byte count does not match shape or profile limit");
   }
   auto packed = ParseOutput(Required(value.as_object(), "packed"), "packed", "packed");
   auto local_scale = ParseOutput(Required(value.as_object(), "local_scale"), "local_scale",
@@ -489,6 +508,13 @@ Result<Operation> ParseOperation(const Value& value, std::set<std::string>& name
   for (std::size_t index = 0; index < outputs.size(); ++index) {
     if (outputs[index]->name != source_stem + std::string(suffixes[index])) {
       return Invalid("output name does not match canonical source stem");
+    }
+  }
+  if (tied_head) {
+    if (shape != std::vector<std::uint64_t>{262144, 2816} || rows.value() != 262144 ||
+        columns.value() != 2816 || role.value() != "tied_embedding_and_output" ||
+        axis.value() != "vocabulary,hidden" || runtime.value() != "sm120_row8_k64") {
+      return Invalid("M07 tied-head name/role/shape/layout mismatch");
     }
   }
   if (scope == "full") {
@@ -538,8 +564,10 @@ Result<Job> ParseJob(const Value& root) {
   auto threads = Unsigned(Required(root.as_object(), "threads"), "threads");
   if (!schema.ok() || !protocol.ok() || !profile.ok() || !scope.ok() || !contract.ok() ||
       !version.ok() || !threads.ok() || schema.value() != 1 ||
-      protocol.value() != "gem16-nvfp4-direct-v1" || profile.value() != "nvfp4-experts-partial-v1" ||
-      (scope.value() != "fixture" && scope.value() != "full") ||
+      protocol.value() != "gem16-nvfp4-direct-v1" ||
+      (profile.value() != "nvfp4-experts-partial-v1" && profile.value() != "nvfp4-tied-head-partial-v1") ||
+      ((profile.value() == "nvfp4-experts-partial-v1" && scope.value() != "fixture" && scope.value() != "full") ||
+       (profile.value() == "nvfp4-tied-head-partial-v1" && scope.value() != "tied_head")) ||
       contract.value() != "gem16.nvfp4_bf16_group16" || version.value() != 1 ||
       threads.value() < 1 || threads.value() > kMaxThreads) {
     return Invalid("unsupported NVFP4 job identity");
@@ -552,13 +580,20 @@ Result<Job> ParseJob(const Value& root) {
   if (scope.value() == "full" && operations->as_array().size() != 150) {
     return Invalid("full scope requires exactly 150 expert operations");
   }
+  if (scope.value() == "tied_head" && operations->as_array().size() != 1) {
+    return Invalid("tied_head scope requires exactly one operation");
+  }
   Job job{schema.value(), protocol.value(), profile.value(), scope.value(), contract.value(),
           version.value(), threads.value(), {}};
   std::set<std::string> names;
   for (const auto& operation : operations->as_array()) {
-    auto parsed = ParseOperation(operation, names, scope.value());
+    auto parsed = ParseOperation(operation, names, scope.value(), profile.value());
     if (!parsed.ok()) return parsed.status();
     job.operations.push_back(std::move(parsed.value()));
+  }
+  if (scope.value() == "tied_head" &&
+      names != std::set<std::string>{"model.language_model.embed_tokens.weight"}) {
+    return Invalid("tied_head operation inventory is not canonical");
   }
   if (scope.value() == "full") {
     std::set<std::string> expected;
@@ -1094,8 +1129,10 @@ Status EncodeNvfp4JobFile(const std::filesystem::path& job_path,
   auto parsed_job = ParseJob(parsed.value());
   if (!parsed_job.ok()) return parsed_job.status();
   const Job& job = parsed_job.value();
-  if (job.scope == "full" && !Nvfp4BuildSupportsFullJob()) {
-    return Invalid("full NVFP4 conversion requires a native Release build");
+  if ((job.scope == "full" || job.scope == "tied_head") && !Nvfp4BuildSupportsFullJob()) {
+    return Invalid(job.scope == "tied_head"
+                       ? "M07 tied-head conversion requires a native Release build"
+                       : "full NVFP4 conversion requires a native Release build");
   }
   std::vector<Preflight> files;
   status = PreflightFiles(job, job_path, telemetry_path, &files);

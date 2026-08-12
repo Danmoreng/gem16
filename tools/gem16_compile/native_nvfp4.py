@@ -1,4 +1,4 @@
-"""Native M06 direct-range NVFP4 compiler adapter.
+"""Native direct-range NVFP4 compiler adapter for M06 experts and M07 tied head.
 
 The Python side only builds descriptor-bound jobs, validates native telemetry and
 records hashes.  Numerical conversion is exclusively performed by the native
@@ -52,6 +52,7 @@ class NativeNvfp4Request:
     executable: Path
     timeout_seconds: int = 14_400
     threads: int = 1
+    profile: str = "nvfp4-experts-partial-v1"
 
 
 @dataclass(frozen=True)
@@ -98,7 +99,7 @@ def _regular_executable(path: Path) -> Path:
 
 def _stage_executable(source: Path, staging: Path, workspace: BoundedWorkspace) -> tuple[Path, str]:
     source = _regular_executable(source)
-    staged = staging / ".m06_nvfp4_encoder"
+    staged = staging / ".nvfp4_encoder"
     descriptor = output_descriptor = -1
     try:
         before = source.stat()
@@ -197,10 +198,11 @@ def preflight_native_nvfp4(
         staged, binary_sha256 = _stage_executable(request.executable, staging, workspace)
         native_build = _query_build_info(staged)
         if native_build.get("build_type") != "Release":
-            raise InvalidPlanError(
-                "M06 full conversion requires a native Release build; "
-                f"got {native_build.get('build_type')!r}"
-            )
+            if request.profile == "nvfp4-tied-head-partial-v1":
+                message = "M07 tied-head conversion requires a native Release build"
+            else:
+                message = "M06 full conversion requires a native Release build"
+            raise InvalidPlanError(f"{message}; got {native_build.get('build_type')!r}")
         return NativeNvfp4Preflight(binary_sha256, native_build)
 
 
@@ -378,7 +380,8 @@ def _make_job(
         "schema_version": 1,
         "protocol": PROTOCOL,
         "artifact_profile": plan.artifact_profile,
-        "scope": "full" if len(operations) == 150 else "fixture",
+        "scope": ("tied_head" if plan.artifact_profile == "nvfp4-tied-head-partial-v1"
+                  else "full" if len(operations) == 150 else "fixture"),
         "contract_id": CONTRACT_ID,
         "contract_version": CONTRACT_VERSION,
         "threads": threads,
@@ -482,8 +485,8 @@ def prepare_native_direct(
 ) -> NativeNvfp4Result:
     if request.timeout_seconds <= 0:
         raise InvalidPlanError("--native-timeout-seconds must be positive")
-    job_path = staging / ".m06_nvfp4_job.json"
-    telemetry_path = staging / ".m06_nvfp4_telemetry.json"
+    job_path = staging / ".nvfp4_job.json"
+    telemetry_path = staging / ".nvfp4_telemetry.json"
     for path in (job_path, telemetry_path):
         if path.exists() or path.is_symlink():
             raise OutputError(f"native M06 temporary output already exists: {path}")
@@ -500,11 +503,15 @@ def prepare_native_direct(
                     "native M06 build identity changed between preflight and execution"
                 )
         operation_count = sum(1 for tensor in plan.tensors if tensor.encoder == "nvfp4-packed-v1")
-        if operation_count == 150 and native_build.get("build_type") != "Release":
-            raise InvalidPlanError(
-                "M06 full conversion requires a native Release build; "
-                f"got {native_build.get('build_type')!r}"
-            )
+        requires_release = plan.artifact_profile in {
+            "nvfp4-experts-partial-v1", "nvfp4-tied-head-partial-v1"
+        } and (operation_count == 150 or plan.artifact_profile == "nvfp4-tied-head-partial-v1")
+        if requires_release and native_build.get("build_type") != "Release":
+            if plan.artifact_profile == "nvfp4-tied-head-partial-v1":
+                message = "M07 tied-head conversion requires a native Release build"
+            else:
+                message = "M06 full conversion requires a native Release build"
+            raise InvalidPlanError(f"{message}; got {native_build.get('build_type')!r}")
         # This is deliberately after build preflight: a rejected Debug full run
         # must not hash or otherwise scan the multi-gigabyte source checkpoint.
         job, _groups, _source_hashes = _make_job(

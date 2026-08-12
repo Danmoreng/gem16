@@ -1,0 +1,63 @@
+{
+  "artifact_profile": "nvfp4-tied-head-partial-v1",
+  "counts": {
+    "excluded_tensor_count": 1012,
+    "one_physical_tied_payload": true,
+    "output_tensor_bytes": 415236104,
+    "output_tensor_count": 4,
+    "source_tensor_count": 1013,
+    "tied_source_tensor_count": 1
+  },
+  "diagnostics": {
+    "quality_claim": false,
+    "runtime_loadable": false,
+    "status": "not_run"
+  },
+  "milestone": "M07",
+  "quantizer": {
+    "contract": {
+      "contract_id": "gem16.nvfp4_bf16_group16",
+      "contract_version": 1,
+      "global_scale_dtype": "F32",
+      "global_scale_role": "divisor",
+      "group_size": 16,
+      "input_divisor": 1.0,
+      "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+      "local_scale_dtype": "F8_E4M3",
+      "packed_dtype": "U8",
+      "packing": "low_nibble_first",
+      "rounding": "nearest_even",
+      "saturation": "finite_saturation",
+      "scale_codec": "E4M3FN",
+      "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+      "source_dtype": "BF16",
+      "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+      "value_codec": "E2M1",
+      "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+      "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+      "zero_tensor_divisor": 1.0
+    },
+    "spec_path": "tools/gem16_compile/specs/nvfp4-experts-v1.json",
+    "spec_sha256": "fe3f5d6a3e26eaf54f7a0d98ecef12f6de376b52743f2a6e5603180d0a5b24fa"
+  },
+  "reference_semantics": {
+    "embedding_scale": "BF16-RNE(sqrt(hidden_size))",
+    "final_logit_softcap": 30.0,
+    "hidden_size": 2816,
+    "lookup": "decode canonical NVFP4 row then BF16-RNE boundary",
+    "projection": "post-final-normalization BF16-RNE hidden; quantize activation with stored input divisor then dequantized dot",
+    "suppression": "caller_supplied_strict_ids_max_16",
+    "tie_break": "lowest_token_id",
+    "vocabulary_size": 262144
+  },
+  "schema_version": 1,
+  "source": {
+    "qat_bf16": {
+      "path": "models/gemma4-26b-qat-bf16.lock.json",
+      "repository": "google/gemma-4-26B-A4B-it-qat-q4_0-unquantized",
+      "revision": "f1e06dc520982d9b9edd76859fdb7ab209449949",
+      "sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230"
+    }
+  },
+  "source_contract": "gemma4-26b-source-bf16-tied-head-v1"
+}

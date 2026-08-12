@@ -338,7 +338,7 @@ def _build_compilation_manifest(
         "dependencies_lock_sha256": dependency_hash,
         "implementation": profile.compiler_implementation,
     }
-    if plan.artifact_profile in {"fp8-attention-partial-v1", "nvfp4-experts-partial-v1"}:
+    if plan.artifact_profile in {"fp8-attention-partial-v1", "nvfp4-experts-partial-v1", "nvfp4-tied-head-partial-v1"}:
         if native_identity is None:
             raise InvalidPlanError("native compilation is missing execution identity")
         compiler_record["native_encoder"] = dict(native_identity)
@@ -584,14 +584,15 @@ def compile_artifact(
             "--allow-dirty is diagnostic only"
         )
     native_preflight: NativeNvfp4Preflight | None = None
-    if request.profile == "nvfp4-experts-partial-v1":
+    if request.profile in {"nvfp4-experts-partial-v1", "nvfp4-tied-head-partial-v1"}:
         if request.native_encoder is None:
-            raise InvalidPlanError("M06 compilation requires --native-encoder")
+            raise InvalidPlanError("M06/M07 compilation requires --native-encoder")
         native_preflight = preflight_native_nvfp4(
             NativeNvfp4Request(
                 request.native_encoder,
                 request.native_timeout_seconds,
                 request.threads,
+                request.profile,
             ),
             workspace,
         )
@@ -634,15 +635,16 @@ def compile_artifact(
                 "build": dict(native_bundle.native_build),
             }
             native_runtime = {"child_peak_rss_bytes": native_bundle.child_peak_rss_bytes}
-        if plan.artifact_profile == "nvfp4-experts-partial-v1":
+        if plan.artifact_profile in {"nvfp4-experts-partial-v1", "nvfp4-tied-head-partial-v1"}:
             if request.native_encoder is None:
-                raise InvalidPlanError("M06 compilation requires --native-encoder")
+                raise InvalidPlanError("M06/M07 compilation requires --native-encoder")
             direct_layout = prepare_direct_shards(staging, plan, workspace)
             native_direct = prepare_native_direct(
                 NativeNvfp4Request(
                     request.native_encoder,
                     request.native_timeout_seconds,
                     request.threads,
+                    request.profile,
                 ), plan, source_tensors, workspace, staging, direct_layout,
                 expected_preflight=native_preflight,
             )
@@ -701,7 +703,7 @@ def compile_artifact(
             plan,
             dependency_hash,
             workspace,
-            expected_threads=request.threads if plan.artifact_profile in {"fp8-attention-partial-v1", "nvfp4-experts-partial-v1"} else 1,
+            expected_threads=request.threads if plan.artifact_profile in {"fp8-attention-partial-v1", "nvfp4-experts-partial-v1", "nvfp4-tied-head-partial-v1"} else 1,
         )
         _reverify_source_files(request, source, workspace)
 
@@ -992,7 +994,7 @@ def _verify_loaded_artifact(
         "repository", "commit", "dirty", "python", "platform",
         "dependencies_lock_sha256", "implementation",
     }
-    if plan.artifact_profile in {"fp8-attention-partial-v1", "nvfp4-experts-partial-v1"}:
+    if plan.artifact_profile in {"fp8-attention-partial-v1", "nvfp4-experts-partial-v1", "nvfp4-tied-head-partial-v1"}:
         expected_compiler_keys.add("native_encoder")
     if not isinstance(compiler_record, dict) or set(compiler_record) != expected_compiler_keys:
         raise DataError("compiled artifact compiler provenance is missing")
@@ -1021,10 +1023,10 @@ def _verify_loaded_artifact(
         or compiler_record.get("python") != platform_record.get("python_version")
     ):
         raise DataError("compiled artifact compiler provenance is invalid")
-    if plan.artifact_profile in {"fp8-attention-partial-v1", "nvfp4-experts-partial-v1"}:
+    if plan.artifact_profile in {"fp8-attention-partial-v1", "nvfp4-experts-partial-v1", "nvfp4-tied-head-partial-v1"}:
         native_record = compiler_record.get("native_encoder")
         native_protocol = M05_PROTOCOL if plan.artifact_profile == "fp8-attention-partial-v1" else M06_PROTOCOL
-        milestone = "M05" if plan.artifact_profile == "fp8-attention-partial-v1" else "M06"
+        milestone = "M05" if plan.artifact_profile == "fp8-attention-partial-v1" else "M07" if plan.artifact_profile == "nvfp4-tied-head-partial-v1" else "M06"
         if (not isinstance(native_record, dict) or set(native_record) != {"protocol", "sha256", "threads", "build"}
             or native_record.get("protocol") != native_protocol
             or native_record.get("threads") != expected_threads
@@ -1034,8 +1036,8 @@ def _verify_loaded_artifact(
         native_build = _native_build(
             native_record.get("build"), f"compiled native {milestone} build provenance"
         )
-        if plan.artifact_profile == "nvfp4-experts-partial-v1" and native_build.get("build_type") != "Release":
-            raise DataError("compiled native M06 build must be Release")
+        if plan.artifact_profile in {"nvfp4-experts-partial-v1", "nvfp4-tied-head-partial-v1"} and native_build.get("build_type") != "Release":
+            raise DataError(f"compiled native {milestone} build must be Release")
 
     if compilation.get("file_hash_scope") != (
         "all artifact files except gem16_compilation.json; its self-hash "
@@ -1263,7 +1265,7 @@ def verify_artifact(
         plan,
         dependency_hash,
         workspace,
-        expected_threads=request.threads if plan.artifact_profile in {"fp8-attention-partial-v1", "nvfp4-experts-partial-v1"} else 1,
+        expected_threads=request.threads if plan.artifact_profile in {"fp8-attention-partial-v1", "nvfp4-experts-partial-v1", "nvfp4-tied-head-partial-v1"} else 1,
     )
     _reverify_source_files(request, source, workspace)
     report = _base_report("verify", request, workspace, started)

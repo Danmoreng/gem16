@@ -32,9 +32,16 @@ from .profiles import (
     M06_SOURCE_CONTRACT,
     M06_VISION_EXCLUSION_REASON,
     M06_COMPONENT_LAYOUTS,
+    M07_COMPONENT_LAYOUTS,
+    M07_DEQUANTIZATION_EQUATION,
+    M07_DEFERRED_REASON,
+    M07_PROFILE,
+    M07_QUANTIZER_PARAMETERS,
+    M07_SOURCE_CONTRACT,
     classify_m05_source,
     m06_component_parameters,
     m06_expected_source_specs,
+    m07_component_parameters,
     CompilerProfile,
     profile_for,
 )
@@ -43,6 +50,19 @@ from .reader import TensorDescriptor, VerifiedSource
 
 SUPPORTED_PLAN_SCHEMA = 1
 EXPECTED_OMITTED_FAMILIES = ("audio", "mtp", "video", "vision")
+_PLAN_KEYS = frozenset({
+    "schema_version", "artifact_profile", "head_format", "source_contract",
+    "source_lock_sha256", "target_shard_bytes", "approved_metadata_files",
+    "omitted_families", "tensors", "excluded_tensors", "reference_environment",
+})
+_TENSOR_KEYS = frozenset({
+    "output_name", "operation_id", "source_names", "encoder", "transformation",
+    "transformation_version", "output_dtype", "physical_shape", "logical_dtype",
+    "logical_shape", "axis_transformation", "quantizer_parameters",
+    "dequantization_equation", "role", "residency_class", "disk_layout",
+    "runtime_layout", "aliased",
+})
+_EXCLUDED_KEYS = frozenset({"source_name", "family", "role", "residency_class", "reason"})
 
 
 @dataclass(frozen=True)
@@ -127,6 +147,9 @@ def _tensor_plan(
     description = f"compiler tensor plan {index}"
     if not isinstance(value, dict):
         raise InvalidPlanError(f"{description} must be an object")
+    unknown = set(value) - _TENSOR_KEYS
+    if unknown:
+        raise InvalidPlanError(f"{description} contains unknown keys: {sorted(unknown)}")
     output_name = _required_string(value.get("output_name"), f"{description}.output_name")
     source_names = _string_array(value.get("source_names"), f"{description}.source_names")
     if not source_names:
@@ -195,6 +218,9 @@ def _excluded_plan(value: object, index: int) -> ExcludedTensorPlan:
     description = f"excluded tensor plan {index}"
     if not isinstance(value, dict):
         raise InvalidPlanError(f"{description} must be an object")
+    unknown = set(value) - _EXCLUDED_KEYS
+    if unknown:
+        raise InvalidPlanError(f"{description} contains unknown keys: {sorted(unknown)}")
     plan = ExcludedTensorPlan(
         source_name=_required_string(
             value.get("source_name"), f"{description}.source_name"
@@ -527,6 +553,70 @@ def _validate_m06_coverage(
     _validate_m06_exclusions(excluded, source_tensors)
 
 
+def _validate_m07_coverage(
+    tensors: tuple[TensorCompilePlan, ...],
+    excluded: tuple[ExcludedTensorPlan, ...],
+    source_tensors: dict[str, TensorDescriptor],
+) -> None:
+    expected_name = "model.language_model.embed_tokens.weight"
+    expected_shape = (262144, 2816)
+    if set(source_tensors) != set(m06_expected_source_specs()):
+        raise InvalidPlanError("M07 requires the complete 1,013-name QAT source inventory")
+    # Reuse the frozen M06 inventory descriptors: M07 excludes 1,012 tensors,
+    # but must not accept a mutated dtype, shape, or byte length for them.
+    _validate_m06_source_inventory(source_tensors)
+    source = source_tensors.get(expected_name)
+    if source is None or source.dtype != "BF16" or tuple(source.shape) != expected_shape:
+        raise InvalidPlanError("M07 tied head source must be BF16 [262144, 2816]")
+    if source.byte_length != tensor_bytes("BF16", expected_shape, expected_name):
+        raise InvalidPlanError("M07 tied head source byte count mismatch")
+    if len(tensors) != 4 or {item.source_names for item in tensors} != {(expected_name,)}:
+        raise InvalidPlanError("M07 must compile exactly one tied source into four outputs")
+    stem = expected_name.removesuffix(".weight")
+    expected = {
+        f"{stem}.weight_packed": ("nvfp4-packed-v1", "nvfp4-packed", "U8", (262144, 1408)),
+        f"{stem}.weight_scale": ("nvfp4-local-scale-v1", "nvfp4-local-scale", "F8_E4M3", (262144, 176)),
+        f"{stem}.weight_global_scale": ("nvfp4-weight-divisor-v1", "nvfp4-weight-divisor", "F32", (1,)),
+        f"{stem}.input_global_scale": ("nvfp4-input-divisor-v1", "nvfp4-input-divisor", "F32", (1,)),
+    }
+    if {item.output_name for item in tensors} != set(expected):
+        raise InvalidPlanError("M07 tied head output names mismatch (lm_head duplication is forbidden)")
+    for item in tensors:
+        encoder, transformation, dtype, shape = expected[item.output_name]
+        component = item.output_name.rsplit(".", 1)[-1]
+        layout = M07_COMPONENT_LAYOUTS[component]
+        if (item.operation_id != "nvfp4-head:model.language_model.embed_tokens"
+            or item.source_names != (expected_name,)
+            or item.encoder != encoder or item.transformation != transformation
+            or item.transformation_version != 1 or item.output_dtype != dtype
+            or item.physical_shape != shape or item.logical_shape != expected_shape
+            or item.logical_dtype != "BF16" or item.axis_transformation != "vocabulary,hidden"
+            or item.quantizer_parameters != m07_component_parameters(component)
+            or item.dequantization_equation != M07_DEQUANTIZATION_EQUATION
+            or item.role != "tied_embedding_and_output"
+            or item.residency_class != "immutable_device_text"
+            or item.disk_layout != layout["disk_layout"]
+            or item.runtime_layout != layout["runtime_layout_shared"]
+            or not item.aliased):
+            raise InvalidPlanError(f"M07 tied head semantic contract mismatch: {item.output_name}")
+    if sum(item.output_bytes for item in tensors) != 415236104:
+        raise InvalidPlanError("M07 tied head output byte count mismatch")
+    if len(excluded) != 1012:
+        raise InvalidPlanError("M07 requires exactly 1,012 explicit exclusions")
+    for item in excluded:
+        if item.source_name not in source_tensors or item.source_name == expected_name:
+            raise InvalidPlanError(f"M07 invalid excluded source: {item.source_name}")
+        role = classify_m05_source(item.source_name)
+        if item.role != role:
+            raise InvalidPlanError(f"M07 exclusion role mismatch: {item.source_name}")
+        if role.startswith("vision_"):
+            expected_exclusion = ("vision", "compile_excluded_vision", "text-only Gemma 4 26B profile excludes vision tensors")
+        else:
+            expected_exclusion = ("deferred_non_head", "m07_deferred_non_head", M07_DEFERRED_REASON)
+        if (item.family, item.residency_class, item.reason) != expected_exclusion:
+            raise InvalidPlanError(f"M07 exclusion contract mismatch: {item.source_name}")
+
+
 def _validate_coverage(
     tensors: tuple[TensorCompilePlan, ...],
     excluded: tuple[ExcludedTensorPlan, ...],
@@ -578,6 +668,8 @@ def _validate_coverage(
         _validate_m05_exclusions(excluded, source_tensors)
     elif profile.name == M06_PROFILE.name:
         _validate_m06_coverage(tensors, excluded, source_tensors)
+    elif profile.name == M07_PROFILE.name:
+        _validate_m07_coverage(tensors, excluded, source_tensors)
     for item in excluded:
         if item.source_name not in source_tensors:
             raise InvalidPlanError(f"excluded source tensor is absent: {item.source_name}")
@@ -604,6 +696,12 @@ def load_quantization_plan(
         raise InvalidPlanError(str(error)) from error
     document = load_json(compiler_manifest, 16 * 1024 * 1024)
     raw_bytes = compiler_manifest.read_bytes()
+    if set(document) != _PLAN_KEYS:
+        raise InvalidPlanError(
+            f"compiler manifest top-level keys mismatch: "
+            f"unknown={sorted(set(document) - _PLAN_KEYS)} "
+            f"missing={sorted(_PLAN_KEYS - set(document))}"
+        )
     schema_version = _required_integer(
         document.get("schema_version"), "compiler manifest schema_version", 1
     )
@@ -640,10 +738,10 @@ def load_quantization_plan(
             raise InvalidPlanError(
                 "M05 compiler manifest does not name an approved source lock"
             )
-    elif contract.name == M06_PROFILE.name:
+    elif contract.name in {M06_PROFILE.name, M07_PROFILE.name}:
         qat_lock = M05_SOURCE_LOCK_SHA256["qat_bf16"]
         if source.lock_sha256 != qat_lock or expected_source_lock != qat_lock:
-            raise InvalidPlanError("M06 requires the approved QAT BF16 source lock")
+            raise InvalidPlanError(f"{contract.milestone} requires the approved QAT BF16 source lock")
     if expected_source_lock != source.lock_sha256:
         raise InvalidPlanError(
             "compiler manifest is bound to another source lock: "
@@ -717,6 +815,11 @@ def load_quantization_plan(
         raise InvalidPlanError(
             "M06 source_contract must be "
             f"{M06_SOURCE_CONTRACT!r}"
+        )
+    if contract.name == M07_PROFILE.name and source_contract != M07_SOURCE_CONTRACT:
+        raise InvalidPlanError(
+            "M07 source_contract must be "
+            f"{M07_SOURCE_CONTRACT!r}"
         )
     compiler_manifest_hash = sha256_bytes(raw_bytes)
     resolved_document = {

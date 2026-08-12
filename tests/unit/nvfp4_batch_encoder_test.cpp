@@ -135,6 +135,39 @@ std::string Job(const std::filesystem::path& root, std::uint64_t threads,
          ",\"operations\":[" + operations + "]}";
 }
 
+std::string TiedHeadJob(const std::filesystem::path& root,
+                         std::string_view profile = "nvfp4-tied-head-partial-v1",
+                         std::string_view scope = "tied_head",
+                         std::string_view source_name = "model.language_model.embed_tokens.weight",
+                         std::string_view operation_id = "nvfp4-head:model.language_model.embed_tokens",
+                         std::uint64_t source_bytes = 1476395008U,
+                         std::string_view packed_name = "model.language_model.embed_tokens.weight_packed") {
+  const auto source = root / "tied-head.bf16";
+  const auto packed = root / "tied-head.packed";
+  const auto scale = root / "tied-head.scale";
+  const auto weight = root / "tied-head.weight";
+  const auto input = root / "tied-head.input";
+  const auto output = [&](std::string_view component, std::string_view name,
+                          const std::filesystem::path& path, std::uint64_t bytes) {
+    return "{\"component\":\"" + std::string(component) +
+           "\",\"name\":\"" + std::string(name) +
+           "\",\"path\":" + gem16::json::Quote(path.string()) +
+           ",\"offset\":0,\"bytes\":" + std::to_string(bytes) + "}";
+  };
+  return "{\"schema_version\":1,\"protocol\":\"gem16-nvfp4-direct-v1\",\"artifact_profile\":\"" +
+      std::string(profile) + "\",\"scope\":\"" + std::string(scope) +
+      "\",\"contract_id\":\"gem16.nvfp4_bf16_group16\",\"contract_version\":1,\"threads\":1,\"operations\":[{\"operation_id\":\"" +
+      std::string(operation_id) + "\",\"source_name\":\"" + std::string(source_name) +
+      "\",\"source_path\":" + gem16::json::Quote(source.string()) +
+      ",\"source_sha256\":\"" + std::string(64, '0') +
+      "\",\"source_offset\":0,\"source_bytes\":" + std::to_string(source_bytes) +
+      ",\"source_dtype\":\"BF16\",\"logical_shape\":[262144,2816],\"rows\":262144,\"columns\":2816,\"role\":\"tied_embedding_and_output\",\"axis_transformation\":\"vocabulary,hidden\",\"disk_layout\":\"canonical_row_major_low_nibble_first\",\"runtime_layout\":\"sm120_row8_k64\",\"packed\":" +
+      output("packed", packed_name, packed, 369098752U) + ",\"local_scale\":" +
+      output("local_scale", "model.language_model.embed_tokens.weight_scale", scale, 46137344U) +
+      ",\"weight_global\":" + output("weight_global", "model.language_model.embed_tokens.weight_global_scale", weight, 4U) +
+      ",\"input_global\":" + output("input_global", "model.language_model.embed_tokens.input_global_scale", input, 4U) + "}]}";
+}
+
 void PrepareFixture(const std::filesystem::path& root) {
   for (std::size_t index = 0; index < 4; ++index) {
     std::vector<Byte> bytes;
@@ -247,6 +280,76 @@ void TestHashAndFullScopeRejection() {
   GEM16_CHECK(status.ok());
   status = gem16::compiler::EncodeNvfp4JobFile(valid_job, telemetry);
   GEM16_CHECK(status.code() == gem16::StatusCode::kInvalidArgument);
+
+  // The shared 1 GiB source bound remains in force for M06 fixtures. Keep
+  // shape, rows, columns, source bytes, and output sizes mutually consistent
+  // so the profile limit, rather than a shape check, is the rejection reason.
+  const auto oversized_m06 = root / "oversized-m06.json";
+  std::string oversized_text = Job(root, 1);
+  const std::string old_shape =
+      "\"source_bytes\":32,\"source_dtype\":\"BF16\",\"logical_shape\":[1,16],\"rows\":1,\"columns\":16";
+  const std::string new_shape =
+      "\"source_bytes\":2147483648,\"source_dtype\":\"BF16\",\"logical_shape\":[1024,65536,16],\"rows\":67108864,\"columns\":16";
+  const auto source_bytes_position = oversized_text.find(old_shape);
+  GEM16_CHECK(source_bytes_position != std::string::npos);
+  if (source_bytes_position != std::string::npos) {
+    oversized_text.replace(source_bytes_position, old_shape.size(), new_shape);
+    const std::string old_outputs =
+        "\"bytes\":8},\"local_scale\":{\"component\":\"local_scale\",\"name\":\"fixture0.weight_scale\",\"path\":";
+    const std::string new_outputs =
+        "\"bytes\":536870912},\"local_scale\":{\"component\":\"local_scale\",\"name\":\"fixture0.weight_scale\",\"path\":";
+    const auto output_position = oversized_text.find(old_outputs);
+    GEM16_CHECK(output_position != std::string::npos);
+    if (output_position != std::string::npos) {
+      oversized_text.replace(output_position, old_outputs.size(), new_outputs);
+    }
+    const std::string old_local_bytes = "\"offset\":0,\"bytes\":1}";
+    const auto local_name_position =
+        oversized_text.find("\"name\":\"fixture0.weight_scale\"");
+    const auto local_position = local_name_position == std::string::npos
+                                    ? std::string::npos
+                                    : oversized_text.find(old_local_bytes, local_name_position);
+    GEM16_CHECK(local_position != std::string::npos);
+    if (local_position != std::string::npos) {
+      oversized_text.replace(local_position, old_local_bytes.size(),
+                             "\"offset\":0,\"bytes\":67108864}");
+    }
+  }
+  std::ofstream(oversized_m06) << oversized_text;
+  status = gem16::compiler::EncodeNvfp4JobFile(oversized_m06, root / "oversized-m06.telemetry");
+  GEM16_CHECK(status.code() == gem16::StatusCode::kInvalidArgument);
+
+  // M07's larger bound is reachable only through its canonical identity, and
+  // the Debug unit binary must reject it before source/output I/O.
+  const auto tied_job = root / "tied-head.json";
+  std::ofstream(tied_job) << TiedHeadJob(root);
+  status = gem16::compiler::EncodeNvfp4JobFile(tied_job, root / "tied-head.telemetry");
+  if (gem16::compiler::Nvfp4BuildSupportsFullJob()) {
+    GEM16_CHECK(status.code() == gem16::StatusCode::kIoError);
+  } else {
+    GEM16_CHECK(status.code() == gem16::StatusCode::kInvalidArgument);
+  }
+  for (const auto& malformed : {
+           TiedHeadJob(root, "nvfp4-experts-partial-v1", "tied_head"),
+           TiedHeadJob(root, "nvfp4-tied-head-partial-v1", "fixture"),
+           TiedHeadJob(root, "nvfp4-tied-head-partial-v1", "tied_head", "lm_head.weight"),
+           TiedHeadJob(root, "nvfp4-tied-head-partial-v1", "tied_head",
+                       "model.language_model.embed_tokens.weight", "wrong-operation"),
+           TiedHeadJob(root, "nvfp4-tied-head-partial-v1", "tied_head",
+                       "model.language_model.embed_tokens.weight",
+                       "nvfp4-head:model.language_model.embed_tokens", 1476395007U),
+           TiedHeadJob(root, "nvfp4-tied-head-partial-v1", "tied_head",
+                       "model.language_model.embed_tokens.weight",
+                       "nvfp4-head:model.language_model.embed_tokens", 1476395008U,
+                       "lm_head.weight_packed")}) {
+    {
+      std::ofstream malformed_job(root / "malformed-tied-head.json");
+      malformed_job << malformed;
+    }
+    status = gem16::compiler::EncodeNvfp4JobFile(root / "malformed-tied-head.json",
+                                                   root / "malformed-tied-head.telemetry");
+    GEM16_CHECK(status.code() == gem16::StatusCode::kInvalidArgument);
+  }
   std::filesystem::remove_all(root);
 }
 

@@ -46,6 +46,7 @@ add_library(gem16_core STATIC
   src/numeric/fp8.cpp
   src/numeric/layer.cpp
   src/numeric/nvfp4.cpp
+  src/numeric/nvfp4_head.cpp
   src/cuda/nvfp4/sm120_layout.cpp
   src/model/checkpoint_loader.cpp
   src/model/audio.cpp
@@ -157,6 +158,15 @@ target_include_directories(gem16-checkpoint-compiler PRIVATE "${CMAKE_CURRENT_SO
 target_link_libraries(gem16-checkpoint-compiler PRIVATE gem16_nvfp4_compiler_support)
 gem16_set_project_warnings(gem16-checkpoint-compiler)
 gem16_enable_sanitizers(gem16-checkpoint-compiler)
+
+add_executable(gem16-nvfp4-head-diagnostic
+  src/cli/nvfp4_head_diagnostic_main.cpp
+  src/compiler/sha256.cpp
+)
+target_include_directories(gem16-nvfp4-head-diagnostic PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+target_link_libraries(gem16-nvfp4-head-diagnostic PRIVATE gem16_core gem16_json)
+gem16_set_project_warnings(gem16-nvfp4-head-diagnostic)
+gem16_enable_sanitizers(gem16-nvfp4-head-diagnostic)
 
 add_library(gem16_server_support STATIC
   src/server/http_streaming.cpp
@@ -391,6 +401,7 @@ if(BUILD_TESTING AND GEM16_BUILD_TESTS)
     tests/unit/mtp_scheduler_test.cpp
     tests/unit/nvfp4_test.cpp
     tests/unit/nvfp4_batch_encoder_test.cpp
+    tests/unit/nvfp4_head_test.cpp
     tests/unit/openai_chat_test.cpp
     tests/unit/safetensors_test.cpp
     tests/unit/sampling_test.cpp

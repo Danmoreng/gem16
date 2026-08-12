@@ -53,7 +53,19 @@
             "head_format": {"const": "deferred"},
             "compiler": {"$ref": "#/$defs/compilerM06"},
             "quantization": {"$ref": "#/$defs/quantizationM06"},
-            "compiler_settings": {"$ref": "#/$defs/settingsM06"}
+            "compiler_settings": {"$ref": "#/$defs/settingsM06"},
+            "tensors": {"items": {"properties": {"aliased": {"const": false}}}}
+          }
+        },
+        {
+          "properties": {
+            "artifact_profile": {"const": "nvfp4-tied-head-partial-v1"},
+            "artifact_status": {"const": "m07_nvfp4_tied_head_partial_not_runtime_loadable"},
+            "head_format": {"const": "nvfp4"},
+            "compiler": {"$ref": "#/$defs/compilerM07"},
+            "quantization": {"$ref": "#/$defs/quantizationM07"},
+            "compiler_settings": {"$ref": "#/$defs/settingsM07"},
+            "tensors": {"items": {"properties": {"aliased": {"const": true}}}}
           }
         }
       ]
@@ -61,13 +73,13 @@
   ],
   "properties": {
     "schema_version": {"const": 1},
-    "artifact_profile": {"enum": ["synthetic-copy-v1", "fp8-attention-partial-v1", "nvfp4-experts-partial-v1"]},
-    "artifact_status": {"enum": ["m04_scaffold_not_runtime_loadable", "m05_fp8_attention_partial_not_runtime_loadable", "m06_nvfp4_experts_partial_not_runtime_loadable"]},
+    "artifact_profile": {"enum": ["synthetic-copy-v1", "fp8-attention-partial-v1", "nvfp4-experts-partial-v1", "nvfp4-tied-head-partial-v1"]},
+    "artifact_status": {"enum": ["m04_scaffold_not_runtime_loadable", "m05_fp8_attention_partial_not_runtime_loadable", "m06_nvfp4_experts_partial_not_runtime_loadable", "m07_nvfp4_tied_head_partial_not_runtime_loadable"]},
     "source": {"$ref": "#/$defs/source"},
     "compiler": {"$ref": "#/$defs/compiler"},
     "plan": {"$ref": "#/$defs/plan"},
     "quantization": {"type": "object"},
-    "head_format": {"enum": ["source", "deferred"]},
+    "head_format": {"enum": ["source", "deferred", "nvfp4"]},
     "text_only": {"const": true},
     "omitted_families": {
       "const": ["audio", "mtp", "video", "vision"]
@@ -130,7 +142,7 @@
         "python": {"type": "string", "minLength": 1},
         "platform": {"type": "object"},
         "dependencies_lock_sha256": {"$ref": "#/$defs/sha256"},
-        "implementation": {"enum": ["gem16_compile_m04_v1", "gem16_compile_m05_native_v1", "gem16_compile_m06_native_v1"]},
+        "implementation": {"enum": ["gem16_compile_m04_v1", "gem16_compile_m05_native_v1", "gem16_compile_m06_native_v1", "gem16_compile_m07_native_v1"]},
         "native_encoder": {
           "type": "object",
           "additionalProperties": false,
@@ -182,6 +194,23 @@
         }
       ]
     },
+    "compilerM07": {
+      "allOf": [
+        {"$ref": "#/$defs/compiler"},
+        {
+          "required": ["native_encoder"],
+          "properties": {
+            "implementation": {"const": "gem16_compile_m07_native_v1"},
+            "native_encoder": {
+              "properties": {
+                "protocol": {"const": "gem16-nvfp4-direct-v1"},
+                "build": {"properties": {"build_type": {"const": "Release"}}}
+              }
+            }
+          }
+        }
+      ]
+    },
     "quantizationM04": {
       "const": {
         "profile": "synthetic-copy-v1",
@@ -209,6 +238,18 @@
         "attention": {"const": "deferred-to-m08"},
         "experts": {"const": "nvfp4-group16-divisor-v1"},
         "embedding_head": {"const": "deferred-to-m07"},
+        "production_quantization_implemented": {"const": false}
+      }
+    },
+    "quantizationM07": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profile", "attention", "experts", "embedding_head", "production_quantization_implemented"],
+      "properties": {
+        "profile": {"const": "nvfp4-tied-head-partial-v1"},
+        "attention": {"const": "deferred-to-m08"},
+        "experts": {"const": "deferred-to-m08"},
+        "embedding_head": {"const": "nvfp4-group16-divisor-v1"},
         "production_quantization_implemented": {"const": false}
       }
     },
@@ -429,6 +470,12 @@
       ]
     },
     "settingsM06": {
+      "allOf": [
+        {"$ref": "#/$defs/settings"},
+        {"properties": {"threads": {"type": "integer", "minimum": 1, "maximum": 64}}}
+      ]
+    },
+    "settingsM07": {
       "allOf": [
         {"$ref": "#/$defs/settings"},
         {"properties": {"threads": {"type": "integer", "minimum": 1, "maximum": 64}}}
