@@ -259,7 +259,7 @@ void TestBatchAndDeterminism() {
   GEM16_CHECK(status.code() == gem16::StatusCode::kUnsupported);
   std::filesystem::remove_all(root);
   return;
-#endif
+#else
   const auto source = root / "source.bin";
   WriteBytes(source, {0x80, 0x3F, 0x00, 0xC0, 0x00, 0x3F, 0x00, 0x80});
   const auto job1 = root / "job1.json";
@@ -392,6 +392,7 @@ void TestBatchAndDeterminism() {
     }
   }
   std::filesystem::remove_all(root);
+#endif
 }
 
 void TestFailureCleanupAndLargestRow() {
@@ -506,7 +507,7 @@ void TestNativeComparison() {
   GEM16_CHECK(status.code() == gem16::StatusCode::kUnsupported);
   std::filesystem::remove_all(root);
   return;
-#endif
+#else
   const auto source = root / "compare.bin";
   WriteBytes(source, {0x00, 0x80, 0x3F, 0x38});
   const auto job1 = root / "compare-1.json";
@@ -607,6 +608,7 @@ void TestNativeComparison() {
   }
 #endif
   std::filesystem::remove_all(root);
+#endif
 }
 
 void RunFp8BatchEncoderTests() {
