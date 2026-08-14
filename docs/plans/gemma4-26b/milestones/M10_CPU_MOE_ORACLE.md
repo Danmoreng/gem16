@@ -1,6 +1,6 @@
 # M10 — CPU MoE semantic oracle
 
-Status: implemented; dirty-worktree diagnostic pass, clean commit-bound acceptance pending
+Status: accepted 2026-08-14 at implementation commit `eac6b443b239d5e04c5be5daef3dd659d57d5de9`
 Class: parallel-critical
 Depends on: M03; quantized adapter depends on M06
 Unblocks: M11
@@ -39,6 +39,7 @@ Safetensors/NVFP4 decoder. The real replay covers layers 0, 5, 6 and 29 at posit
 eight router boundaries, 24 post-norm boundaries and 64 individually hashed and compared selected-expert
 contributions. The compact result is
 `artifacts/m10/diagnostic-summary.json`; synthetic contract coverage is in `tests/python/test_m10_moe_oracle.py`.
+The clean commit-bound acceptance record is `artifacts/m10/acceptance.json`.
 
 The oracle freezes exact ties to lower expert ID and expert accumulation to top-k slot order in FP32. The pinned
 PyTorch capture orders one exact-probability tie differently and reduces by expert ID into BF16. Its top-8 set remains

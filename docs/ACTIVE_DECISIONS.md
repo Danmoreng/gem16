@@ -1,6 +1,6 @@
 # Active decisions
 
-**Accepted:** 2026-08-14 · **Track:** Gemma 4 26B A4B Fast Track · **Status:** M00–M09 accepted; M10 implemented, clean acceptance pending
+**Accepted:** 2026-08-14 · **Track:** Gemma 4 26B A4B Fast Track · **Status:** M00–M10 accepted; M11 next
 
 This is the short operational policy for current work. It is not a replacement for historical evidence. Permanent
 rules in `AGENTS.md` remain binding. For facts about the implementation, current source, tests and accepted evidence
@@ -33,7 +33,8 @@ and all 64 selected expert contributions at eight real capture points, plus a bo
 M08 NVFP4 rows. It deliberately
 uses lower expert ID for exact top-k ties and FP32 top-k-slot accumulation; the pinned PyTorch capture has one
 tie-equivalent ordering difference and uses expert-ID/BF16 accumulation. The measured drift passes the explicit M10
-boundary gates. Formal acceptance still requires a clean commit-bound report.
+boundary gates. M10 was accepted on 2026-08-14 at clean implementation commit
+`eac6b443b239d5e04c5be5daef3dd659d57d5de9`; see `artifacts/m10/acceptance.json`.
 
 The owner set the base-model 64K residency and later execution reserve to 400 MiB on 2026-08-14 so that 64K remains
 a required supported target. This supersedes the prior 500 MiB base-model rule for 64K and larger contexts. The 32K
@@ -70,7 +71,7 @@ The integration branch remains `feat/gemma4-26b`; temporary worktrees are allowe
 
 ## Scope boundary
 
-The accepted M00–M09 source locks, evidence and historical records remain valid. The active choices above simplify
+The accepted M00–M10 source locks, evidence and historical records remain valid. The active choices above simplify
 future execution; they do not authorize silent precision changes, CPU weight offload, duplicate device layouts,
 runtime quantization, unreported fallback, weakened 12B behavior or unsupported capability claims. Experimental
 results must say which gates have not yet been run.

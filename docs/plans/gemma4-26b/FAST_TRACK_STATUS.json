@@ -2,8 +2,8 @@
   "schema_version": 1,
   "plan_revision": "fast-track-r4",
   "updated": "2026-08-14",
-  "accepted_through": "M09",
-  "current_milestone": "M10",
+  "accepted_through": "M10",
+  "current_milestone": "M11",
   "active_wave": "F2-first-complete-correct-model",
   "integration_branch": "feat/gemma4-26b",
   "source_of_truth": "docs/plans/gemma4-26b/FAST_TRACK_STATUS.json",
@@ -66,8 +66,8 @@
       ]
     },
     "M10": {
-      "status": "ACCEPTANCE_PENDING",
-      "note": "implementation and dirty-worktree BF16/NVFP4 oracle diagnostic pass 2026-08-14; clean commit-bound report remains",
+      "status": "ACCEPTED",
+      "note": "accepted 2026-08-14 at implementation commit eac6b443b239d5e04c5be5daef3dd659d57d5de9; see artifacts/m10/acceptance.json",
       "class": "parallel-critical",
       "lane": "moe-oracle",
       "depends_on": [
@@ -81,7 +81,7 @@
       ]
     },
     "M11": {
-      "status": "BLOCKED",
+      "status": "READY_NEXT",
       "class": "critical",
       "lane": "cuda-reference",
       "depends_on": [
@@ -269,7 +269,7 @@
     }
   },
   "parallel_tasks_now": [
-    "M10 CPU MoE semantic oracle"
+    "M11 CUDA correctness-first MoE"
   ],
   "paused_tasks": [
     "M12 phase A attention/trait fixtures",

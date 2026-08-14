@@ -15,6 +15,8 @@ from tools.gemma4_26b_moe_oracle import (
 
 ROOT = Path(__file__).resolve().parents[2]
 SUMMARY = ROOT / "artifacts/m10/diagnostic-summary.json"
+ACCEPTANCE = ROOT / "artifacts/m10/acceptance.json"
+IMPLEMENTATION_COMMIT = "eac6b443b239d5e04c5be5daef3dd659d57d5de9"
 
 
 class M10MoeOracleTest(unittest.TestCase):
@@ -139,6 +141,21 @@ class M10MoeOracleTest(unittest.TestCase):
         })
         self.assertEqual(summary["real_nvfp4_adapter"]["sample_count"], 2)
         self.assertTrue(all(item["finite"] for item in summary["real_nvfp4_adapter"]["samples"]))
+
+    def test_clean_acceptance_binds_implementation_commit(self) -> None:
+        acceptance = json.loads(ACCEPTANCE.read_text(encoding="utf-8"))
+        self.assertEqual(acceptance["status"], "acceptance_pass")
+        self.assertTrue(acceptance["acceptance"])
+        self.assertEqual(acceptance["implementation_commit"], IMPLEMENTATION_COMMIT)
+        self.assertEqual(acceptance["code_revision"], IMPLEMENTATION_COMMIT)
+        self.assertEqual(acceptance["owner_decision"], {
+            "date": "2026-08-14",
+            "decision": "M10 accepted",
+            "expert_reduction": "top_k_slot_order_fp32",
+            "tie_policy": "lower_expert_id",
+        })
+        self.assertEqual(len(acceptance["real_bf16_replay"]["expert_boundaries"]), 64)
+        self.assertNotIn("dirty", " ".join(acceptance["limitations"]))
 
 
 if __name__ == "__main__":

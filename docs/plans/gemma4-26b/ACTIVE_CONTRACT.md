@@ -1,9 +1,9 @@
 # Active contract — Gemma 4 26B Fast Track R4
 
-Status: accepted through M09; M10 implemented, clean acceptance pending
+Status: accepted through M10; M11 CUDA correctness-first MoE is next
 Plan revision: `fast-track-r4`
-Accepted baseline: M00–M09
-Current milestone: M10 (acceptance pending)
+Accepted baseline: M00–M10
+Current milestone: M11 (ready)
 Integration branch: `feat/gemma4-26b`
 
 ## Purpose
@@ -25,7 +25,7 @@ Report a material conflict instead of guessing. A stale status page does not ove
 
 ## Accepted baseline
 
-M00–M09 are accepted and are not reopened by current work.
+M00–M10 are accepted and are not reopened by current work.
 
 - Sources, manifests and source locks are immutable.
 - The 12B path remains separately specialized and regression-protected.
@@ -36,6 +36,8 @@ M00–M09 are accepted and are not reopened by current work.
 - M08 complete hybrid artifact and direct-loader stage is accepted at implementation commit `f433358b8e2c1250b95801fc898faee4fcedcbe5`.
 - M09 real one-slot residency and 32K/64K admission are accepted at implementation commit
   `6c3b9e456bc7fed68e2e90a51ba20c1c895fd085`.
+- M10 independent BF16/NVFP4 CPU MoE semantics are accepted at implementation commit
+  `eac6b443b239d5e04c5be5daef3dd659d57d5de9`.
 - Runtime conversion, CPU expert offload, expert streaming and duplicate persistent GPU weight layouts remain forbidden.
 
 ## Product target
@@ -141,6 +143,5 @@ M09 was accepted on 2026-08-14.
 
 - M08's complete hybrid artifact, external lock and direct loader are accepted.
 - M09 real payload upload, named CUDA-region reconciliation and 32K/64K base residency are accepted.
-- M10's BF16 and quantized CPU MoE oracle implementation passes its dirty-worktree diagnostic; clean commit-bound
-  acceptance remains before M11 can start.
+- M10's BF16 and quantized CPU MoE oracle is accepted; M11 CUDA correctness-first MoE is the next vertical slice.
 - M12 phase A, evaluation-harness work and M25 feasibility work remain independent of the vertical path.

@@ -1,6 +1,6 @@
 # M11 — CUDA correctness-first MoE
 
-Status: blocked
+Status: ready next after accepted M10
 Class: critical
 Depends on: M08, M09 and M10
 Unblocks: M13, M14 and M15

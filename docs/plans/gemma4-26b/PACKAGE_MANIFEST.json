@@ -63,9 +63,9 @@
       "sha256": "08288ad667c14063b8a4ff777dbeb24ad1869e66347331fdf42c73918a02dd8d"
     },
     {
-      "bytes": 927,
+      "bytes": 931,
       "path": "12_AGENT_TASK_QUEUE.md",
-      "sha256": "a6e64814bd01cae1ff1a05d8fe36720253714582aa336528667246a8ba308a4a"
+      "sha256": "5a461cc5b97d7aaf52ec34c5e2b7d7cc939bd6b2ad3bd4da65040edc323dc631"
     },
     {
       "bytes": 1044,
@@ -73,9 +73,9 @@
       "sha256": "c576d0841233f275ddb6d24bf8fd62bf94f3f8bd123f30444a278e57ab9b682f"
     },
     {
-      "bytes": 8957,
+      "bytes": 9029,
       "path": "ACTIVE_CONTRACT.md",
-      "sha256": "9b04cf62b9a0a5d56bb9638220db1c097d3dd4e245e2c86fbe8d08b6ca457791"
+      "sha256": "57557d55f8767cbf52e778766619712bb265de4c018413cf301382c22f4897f7"
     },
     {
       "bytes": 5099,
@@ -88,19 +88,19 @@
       "sha256": "04bf5ba894b3af72e860ec1d8a30d7ebb5afc48a0333b846bfa33beadc2d87cf"
     },
     {
-      "bytes": 6072,
+      "bytes": 6075,
       "path": "FAST_TRACK_STATUS.json",
-      "sha256": "2d73d7b313b31ece1b0a85ab39852d7c26bf76108d02226a159881dbd6aaa15f"
+      "sha256": "3158bed17bc5103ae8d05537543cf6b49954d6f1e32a6216f6df863105247434"
     },
     {
-      "bytes": 2594,
+      "bytes": 2580,
       "path": "INDEX.md",
-      "sha256": "6c6fb8bbf7a87719437313ad2d7eea1538a5a33a933fe21e15b800494212b4d5"
+      "sha256": "db8fb55fbd94c491798d67e09dfe97720c82ecb83413f19c8abf1a867292d70c"
     },
     {
-      "bytes": 1090,
+      "bytes": 1026,
       "path": "MILESTONE_STATUS_BOARD.md",
-      "sha256": "193f2b49f1b48f7e8f10ee3b6b17174d9fe7240ef3065839b66940fbaca58808"
+      "sha256": "cbf5621056205f6b0f2a09b012286471b2c77b921c194b79667651ebee520d3e"
     },
     {
       "bytes": 867,
@@ -123,9 +123,9 @@
       "sha256": "fa72f0280f0d9c31891462016b56e1b212649341dbbba32d9faf466958b9f76a"
     },
     {
-      "bytes": 3249,
+      "bytes": 3342,
       "path": "START_HERE_CODEX.md",
-      "sha256": "47db11c28c85943b40080e69506660d72f51ca97bd9427501c9846601f32385a"
+      "sha256": "7dc8234e3c850e05dce277863de3a9c13a6aac5f3b7488b6d0d0612f6ed7d7a7"
     },
     {
       "bytes": 2990,
@@ -313,14 +313,14 @@
       "sha256": "5acfd5cbb37bc717b59fe7ca9aecfc8f1c47ed68e51583b1f9f46ef9ee3cd1b7"
     },
     {
-      "bytes": 2197,
+      "bytes": 2279,
       "path": "milestones/M10_CPU_MOE_ORACLE.md",
-      "sha256": "ef793ed6be0893b8058677868640ecea47c5107b0f1abf6668527ab00bf21dbc"
+      "sha256": "4710c48c58f8001355619d4159f5af6848b41d8bd780bfcf9415eb02d33edc3d"
     },
     {
-      "bytes": 1010,
+      "bytes": 1032,
       "path": "milestones/M11_CUDA_MOE_REFERENCE.md",
-      "sha256": "70b3c63d3f36310091c2f045654eb1e24e6e288e14b091300dfbf14c817d2a61"
+      "sha256": "a7c99b35a26ae568a0da511a02153b0845e1cbc84c4df0117e6ccd23b59c0afd"
     },
     {
       "bytes": 1097,
@@ -393,9 +393,9 @@
       "sha256": "41dfe9341afddb16e16a8c88fe9ac4fd49cdd8d867b3f570ee9db0d76774d8a2"
     },
     {
-      "bytes": 599,
+      "bytes": 569,
       "path": "milestones/README.md",
-      "sha256": "707f43fbc474cac3a50ffa980877ed16f7ea8d404c7b43990139452c3b8bcb3f"
+      "sha256": "f53a35cbbb4460577d9cc339f1afff2c1c0d443c678c163fc02b617d8eadc424"
     },
     {
       "bytes": 2302,
