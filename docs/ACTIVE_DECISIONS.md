@@ -1,6 +1,6 @@
 # Active decisions
 
-**Accepted:** 2026-08-14 · **Track:** Gemma 4 26B A4B Fast Track · **Status:** M00–M08 accepted, M09 next
+**Accepted:** 2026-08-14 · **Track:** Gemma 4 26B A4B Fast Track · **Status:** M00–M08 accepted; M09 implemented, clean acceptance pending
 
 This is the short operational policy for current work. It is not a replacement for historical evidence. Permanent
 rules in `AGENTS.md` remain binding. For facts about the implementation, current source, tests and accepted evidence
@@ -23,7 +23,18 @@ M06 NVFP4 experts → M07 provisional tied head → M08 artifact/loader
 
 M08 was accepted on 2026-08-14 at implementation commit `f433358b8e2c1250b95801fc898faee4fcedcbe5` after
 byte-identical clean complete-artifact builds, direct-loader validation, protected 12B inspection and exact-arena
-reference-GPU admission. M09 owns real artifact upload and the final 32K residency reconciliation.
+reference-GPU admission. M09 now has a passing real-artifact diagnostic upload and 32K residency reconciliation;
+formal acceptance still requires the same bounded probe on the clean implementation commit.
+
+The owner set the base-model 64K residency and later execution reserve to 400 MiB on 2026-08-14 so that 64K remains
+a required supported target. This supersedes the prior 500 MiB base-model rule for 64K and larger contexts. The 32K
+gate remains 700 MiB, and MTP keeps its separate 500 MiB 64K gate until M25 measures assistant overhead.
+
+The owner clarified on 2026-08-14 that M09 should load the real artifact and prove pre-execution residency so the
+critical path reaches inference quickly. This supersedes the old M09-card wording that required captured execution
+graphs, warm model execution and an executable bounded-prefill selector before M09 could pass. M09 must still reserve
+and touch every named graph/workspace region. M11/M12 own the first executable/captured paths, M15 owns measured
+prefill chunk selection, and the final 700 MiB post-warm 32K requirement remains binding and must be revalidated there.
 
 M10/M12 semantic and attention fixture work may proceed in disjoint slices when it does not delay the vertical path.
 The integration branch remains `feat/gemma4-26b`; temporary worktrees are allowed only with explicit file ownership.

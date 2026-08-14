@@ -24,7 +24,8 @@ A later MTP-qualified profile may add `-mtp`; it must reference the same frozen 
 - deterministic greedy and existing sampling controls;
 - 32K default qualification gate;
 - 64K target;
-- an advertised maximum only after measured execution with at least 500 MiB free-device margin.
+- an advertised base-model maximum only after measured execution with at least 400 MiB free-device margin; MTP keeps
+  a separate 500 MiB rule.
 
 ## Final behavior
 

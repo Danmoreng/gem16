@@ -40,7 +40,7 @@
 - [ ] Weight target ≤14,100 MiB or decision.
 - [ ] Hard stop >14,300 MiB.
 - [ ] 32K margin ≥700 MiB.
-- [ ] 64K margin ≥500 MiB if qualified.
+- [ ] Base-model 64K margin ≥400 MiB if qualified; MTP 64K margin remains ≥500 MiB.
 - [ ] No CPU offload.
 - [ ] No silent context reduction.
 - [ ] Admission fails before unsafe operation.

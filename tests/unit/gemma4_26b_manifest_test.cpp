@@ -11,6 +11,7 @@
 
 #include "model/config.h"
 #include "model/gemma4_26b_manifest.h"
+#include "model/gemma4_26b_residency.h"
 #include "util/json.h"
 
 namespace {
@@ -560,6 +561,69 @@ void RunGemma426BManifestTests() {
   GEM16_CHECK(kv_32k.ok() && kv_32k.value() == 440'401'920ULL);
   GEM16_CHECK(!gem16::internal::Gemma4Moe26BAlignedArenaBytes(
                    compiled_q4.value(), 192)
+                   .ok());
+
+  gem16::ModelManifest residency_manifest;
+  residency_manifest.model_variant = "gemma4_moe_26b_a4b";
+  residency_manifest.checkpoint_profile = "sm120-text-hybrid-v1";
+  residency_manifest.validation_contract =
+      "gemma4_26b_m08_compiled_hybrid_v1";
+  residency_manifest.tensor_contract_validated = true;
+  residency_manifest.supports_text = true;
+  residency_manifest.tensors = compiled_nvfp4.value();
+  std::uint64_t source_offset = 4096U;
+  for (auto& tensor : residency_manifest.tensors) {
+    tensor.source_shard = "model-00001-of-00016.safetensors";
+    tensor.byte_offset = source_offset;
+    source_offset += tensor.byte_length;
+    residency_manifest.total_tensor_bytes += tensor.byte_length;
+  }
+  auto residency =
+      gem16::internal::BuildGemma4Moe26BResidencyPlan(residency_manifest);
+  GEM16_CHECK(residency.ok());
+  if (residency.ok()) {
+    GEM16_CHECK(residency.value().upload_ranges.size() == 1285U);
+    GEM16_CHECK(residency.value().artifact_payload_bytes ==
+                14'696'569'196ULL);
+    GEM16_CHECK(residency.value().immutable_weight_arena_bytes ==
+                14'696'668'160ULL);
+    GEM16_CHECK(residency.value().fixed_region_bytes == 469'762'048ULL);
+    GEM16_CHECK(residency.value().fixed_regions.size() == 7U);
+    GEM16_CHECK(residency.value().context_profiles.size() == 4U);
+    constexpr std::array<std::uint64_t, 4> expected_contexts = {
+        8192U, 16384U, 32768U, 65536U};
+    constexpr std::array<std::uint64_t, 4> expected_kv = {
+        188'743'680ULL, 272'629'760ULL, 440'401'920ULL,
+        775'946'240ULL};
+    for (std::size_t index = 0; index < expected_contexts.size(); ++index) {
+      const auto& profile = residency.value().context_profiles[index];
+      GEM16_CHECK(profile.context_tokens == expected_contexts[index]);
+      GEM16_CHECK(profile.fp8_kv_bytes == expected_kv[index]);
+    }
+    const auto& standard = residency.value().context_profiles[2];
+    GEM16_CHECK(standard.required_free_margin_bytes == 734'003'200ULL);
+    GEM16_CHECK(residency.value().context_profiles[3]
+                    .required_free_margin_bytes == 419'430'400ULL);
+    GEM16_CHECK(gem16::internal::CheckGemma4Moe26BAdmission(
+                    residency.value(), 32768U, standard.admission_bytes, true)
+                    .ok());
+    auto insufficient = gem16::internal::CheckGemma4Moe26BAdmission(
+        residency.value(), 32768U, standard.admission_bytes - 1U, true);
+    GEM16_CHECK(!insufficient.ok() &&
+                insufficient.code() == gem16::StatusCode::kResourceExhausted);
+    GEM16_CHECK(!gem16::internal::CheckGemma4Moe26BAdmission(
+                     residency.value(), 12345U, standard.admission_bytes, true)
+                     .ok());
+  }
+  auto unsafe_residency_manifest = residency_manifest;
+  unsafe_residency_manifest.tensors.front().source_shard = "../unsafe.safetensors";
+  GEM16_CHECK(!gem16::internal::BuildGemma4Moe26BResidencyPlan(
+                   unsafe_residency_manifest)
+                   .ok());
+  auto modality_residency_manifest = residency_manifest;
+  modality_residency_manifest.supports_vision = true;
+  GEM16_CHECK(!gem16::internal::BuildGemma4Moe26BResidencyPlan(
+                   modality_residency_manifest)
                    .ok());
 
   const auto canonical_path =

@@ -11,7 +11,7 @@ No implementation slice is active. The track is paused after accepted M07 by own
 | 1 | M08 complete artifact/loader | ready, not started | next vertical checkpoint; requires owner restart |
 | 2 | M10 phase A BF16 MoE oracle | paused | disjoint numeric/tests area |
 | 3 | M12 phase A attention/trait fixtures | paused | no engine orchestration edits |
-| 4 | M09 phase A formulas and one-slot tests | paused | final reconciliation waits for M08 |
+| 4 | M09 clean acceptance review | active | implementation and real-residency diagnostic pass; clean commit-bound probe remains |
 | 5 | evaluation/benchmark harness scaffolding | paused | no production claims |
 | 6 | M25 phase A assistant feasibility | paused | docs/tools/locks only |
 

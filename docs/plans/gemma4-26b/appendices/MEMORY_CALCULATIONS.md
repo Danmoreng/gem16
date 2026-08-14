@@ -287,5 +287,5 @@ immutable weights target     ≤ 14,100 MiB
 review range                 14,101–14,300 MiB
 hard stop                    > 14,300 MiB
 32K measured peak margin     ≥ 700 MiB
-64K measured peak margin     ≥ 500 MiB if advertised
+base 64K measured peak margin ≥ 400 MiB if advertised; MTP remains ≥ 500 MiB
 ```

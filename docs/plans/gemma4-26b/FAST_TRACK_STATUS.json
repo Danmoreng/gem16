@@ -48,7 +48,8 @@
       ]
     },
     "M09": {
-      "status": "READY_FINAL",
+      "status": "ACCEPTANCE_PENDING",
+      "note": "implementation and dirty-worktree real-residency diagnostic pass 2026-08-14; clean commit-bound probe remains",
       "class": "critical",
       "lane": "memory",
       "depends_on": [
@@ -271,7 +272,6 @@
     "M08 complete artifact/loader",
     "M10 phase A BF16 MoE oracle",
     "M12 phase A attention/trait fixtures",
-    "M09 phase A formula and one-slot tests",
     "M13/M19/M20/M21 harness scaffolding",
     "M25 phase A assistant compatibility and memory feasibility"
   ],
@@ -281,7 +281,8 @@
     "mtp_minimum_tokens": 32768,
     "mtp_next_target_tokens": 65536,
     "margin_mib_at_32k": 700,
-    "margin_mib_at_64k_or_above": 500,
+    "base_margin_mib_at_64k_or_above": 400,
+    "mtp_margin_mib_at_64k_or_above": 500,
     "publish_only_after_real_execution": true
   }
 }

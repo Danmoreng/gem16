@@ -30,8 +30,9 @@ These are payloads, not process peaks.
 Use direct CUDA-visible memory accounting.
 
 - 32K: at least 700 MiB free after weights, slot, graphs and warm generation.
-- 64K and larger advertised profiles: at least 500 MiB free after the same process.
-- `max-single-user`: highest measured context satisfying the 500 MiB rule and correctness tests.
+- Base-model 64K and larger advertised profiles: at least 400 MiB free after the same process. MTP keeps a separate
+  500 MiB requirement.
+- `max-single-user`: highest measured base-model context satisfying the 400 MiB rule and correctness tests.
 - one positive 26B slot; a second slot is an expected rejection case.
 
 M09 does not implement `/health`, `/metrics` or multi-slot scaling. It exposes internal named counters and a CLI/report form sufficient for M22 to publish later.

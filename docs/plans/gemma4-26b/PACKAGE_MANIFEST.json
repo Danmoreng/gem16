@@ -3,9 +3,9 @@
   "external_reference_anchor": "kekzl/imp@a392904d4216388828d0d56317de046f4ca49627",
   "files": [
     {
-      "bytes": 2562,
+      "bytes": 2597,
       "path": "00_MASTER_IMPLEMENTATION_PLAN.md",
-      "sha256": "605743d2be6814202a7d2704aca23aea3dee229ac6e28af0afc03f9c023296f7"
+      "sha256": "2d72dbbcc2b996f352cb3aa1589e3970b6a95b092ba102f79e4b83cefe7a87ec"
     },
     {
       "bytes": 2073,
@@ -23,9 +23,9 @@
       "sha256": "836ff94fc89a1efc0afdd6eeb1d280ddba2d867cde7eb23117c78a14370e042c"
     },
     {
-      "bytes": 1890,
+      "bytes": 1938,
       "path": "04_TARGET_PRODUCT_PROFILE.md",
-      "sha256": "cf2c493e7c2b06d3c3b2ab79cabc6254f1d7e4f81919d7603d6f99582b961241"
+      "sha256": "30ea165c1f5980dc34fed0e131377b281228f1d97d7c8f0194417e9773130379"
     },
     {
       "bytes": 2348,
@@ -38,9 +38,9 @@
       "sha256": "e571aa44c05f53092e7ffead55576c6d234692c74c14e09528bc11da7ef8944c"
     },
     {
-      "bytes": 2624,
+      "bytes": 2690,
       "path": "07_MEMORY_BUDGET_AND_RESIDENCY.md",
-      "sha256": "e0871a3667c2873f241861dc0e54b20d07bdccf461e985d254e187dc7dc954a8"
+      "sha256": "e5656dff8d34254dc018d29a270f15b61a251bacdaf632abc6c117c7e9e2c316"
     },
     {
       "bytes": 2230,
@@ -48,9 +48,9 @@
       "sha256": "c97e748addbdeba0f02865237ad6993c042b8dc669d11163245b2aa275a3fba4"
     },
     {
-      "bytes": 1650,
+      "bytes": 1671,
       "path": "09_DEFINITION_OF_DONE.md",
-      "sha256": "e8766a0b066c93b17b126f6409e594cc4a1b2392078bd11c8a8b8ec02b498e6b"
+      "sha256": "b88281ca1cb293eb764cd472a37514a0f3beb74cd14cfb6d41a1c87d295baaa9"
     },
     {
       "bytes": 4347,
@@ -63,9 +63,9 @@
       "sha256": "08288ad667c14063b8a4ff777dbeb24ad1869e66347331fdf42c73918a02dd8d"
     },
     {
-      "bytes": 942,
+      "bytes": 979,
       "path": "12_AGENT_TASK_QUEUE.md",
-      "sha256": "6de8aed2a278a1d66da379353f3d191edbfda2dbe1b619f9e6e36917d834919b"
+      "sha256": "92717707a38d2def8f94287baa3951d039204e7ac4aca1c215412bcd4ecec5ce"
     },
     {
       "bytes": 1044,
@@ -73,9 +73,9 @@
       "sha256": "c576d0841233f275ddb6d24bf8fd62bf94f3f8bd123f30444a278e57ab9b682f"
     },
     {
-      "bytes": 8412,
+      "bytes": 8831,
       "path": "ACTIVE_CONTRACT.md",
-      "sha256": "9f97b01717746d4f0f33188cdf5ea8b7668d769ec8b3fec6647ced42d17f7141"
+      "sha256": "f2acddf5f0af1e3e8863f25e95780f7054c5995f69d80ebe1056b1198e0310ba"
     },
     {
       "bytes": 5099,
@@ -88,19 +88,19 @@
       "sha256": "04bf5ba894b3af72e860ec1d8a30d7ebb5afc48a0333b846bfa33beadc2d87cf"
     },
     {
-      "bytes": 5828,
+      "bytes": 5964,
       "path": "FAST_TRACK_STATUS.json",
-      "sha256": "94c1bb84119194e31f820b6b314c10ece676f3e1cb14000db135cdf2ac564296"
+      "sha256": "c75b65b74bd353bde5d8d37247873cbd161aa8da2861496705c364948ddeb504"
     },
     {
-      "bytes": 2580,
+      "bytes": 2591,
       "path": "INDEX.md",
-      "sha256": "ebb94fdd77a146ef28c2a025aeed5a770b250188e313663653ffc4b65b97c1f0"
+      "sha256": "15d69639613a03343e38f73c19292b60e6a02619926b58f895bb43d4307ea313"
     },
     {
-      "bytes": 1083,
+      "bytes": 1106,
       "path": "MILESTONE_STATUS_BOARD.md",
-      "sha256": "33b568d5ec0a3c95b01f322162c14a6ea8867dd3f6f8e0db8fccb227112ff5f7"
+      "sha256": "834a87b34ea482ca568b882030bba3f69f6f300a62f2512208f3e1f64fd900f2"
     },
     {
       "bytes": 867,
@@ -123,19 +123,19 @@
       "sha256": "fa72f0280f0d9c31891462016b56e1b212649341dbbba32d9faf466958b9f76a"
     },
     {
-      "bytes": 2004,
+      "bytes": 2489,
       "path": "START_HERE_CODEX.md",
-      "sha256": "1c55b95c08e158b13f596a0bf6e4731ddf11a5772163d9cbf527e9fa7b157bcd"
+      "sha256": "918e5416194b42e47acbe47ca01608f4ace2d555d0c4da7ecbc4238eaf073824"
     },
     {
-      "bytes": 2954,
+      "bytes": 2990,
       "path": "appendices/ACCEPTANCE_THRESHOLD_RATIONALE.md",
-      "sha256": "eb5f88f95469bfd5cbbda7a772ab071d42d61ddc953da6105067e372eda4669f"
+      "sha256": "4978083041559873f153d170f3040b242fda0d64c6a7891c08b6303edaf80eb2"
     },
     {
-      "bytes": 932,
+      "bytes": 962,
       "path": "appendices/CODEX_HANDOFF_MAP.md",
-      "sha256": "a088e10a7eef92c0b5bbc5fece261b47d38eaaa6fc22a8cca81bc0254f80d151"
+      "sha256": "7f16919577352a443ede99bc86f63201fd7fcf5712c624f53afc73267ce98398"
     },
     {
       "bytes": 1892,
@@ -163,9 +163,9 @@
       "sha256": "a8a97a0c437011651f6644a3be8930532f2873fc038de0ca5079239c066aee43"
     },
     {
-      "bytes": 5261,
+      "bytes": 5287,
       "path": "appendices/MEMORY_CALCULATIONS.md",
-      "sha256": "29b76b85bb77d07825af633ea54390bff380e5b882f0387a7d02fd0a142c9753"
+      "sha256": "8216729efc18bd96ab91d694dc44a984c8cfa7c824ea20a000c7eaa4e2f5929c"
     },
     {
       "bytes": 3461,
@@ -228,9 +228,9 @@
       "sha256": "9fdc832c8aafbbd1307238dc20874d2d9ca7c008bd41191006ed7da548e727ea"
     },
     {
-      "bytes": 1108,
+      "bytes": 1154,
       "path": "checklists/MEMORY_GATE_CHECKLIST.md",
-      "sha256": "b3a6d6ea36753e88d9596c855c77d17d4720696679137bbefa0377e376d45f4d"
+      "sha256": "24f460e45dcf2f1bd715b8f091afb522db9f02435f11d85e86d7be3eefa45c4a"
     },
     {
       "bytes": 503,
@@ -308,9 +308,9 @@
       "sha256": "e7c854dd4afd03da6383f0979ea3905da10f87248790788be7820bc346966b18"
     },
     {
-      "bytes": 1533,
+      "bytes": 3144,
       "path": "milestones/M09_MEMORY_PLANNER_AND_RESIDENCY.md",
-      "sha256": "151f168b47fcf777539960f90bc5632ee1efba69949fd6da7e93316eece71640"
+      "sha256": "76fc35c6c60836744bdb265c155139f7fcf80fee55f4e1ed6d3fcebe7958117f"
     },
     {
       "bytes": 1189,
@@ -368,9 +368,9 @@
       "sha256": "4b2aa3e7051ef64eb3bae04e9fef3619a63353ce7f25d3504eb1fc929716e6b6"
     },
     {
-      "bytes": 1036,
+      "bytes": 1058,
       "path": "milestones/M21_LONG_CONTEXT_QUALIFICATION.md",
-      "sha256": "f12e8760d775d8e19867ce3f226aacaf975084d21ac2d18afcc532de1c0e49f5"
+      "sha256": "6bd5cc8a6354b6febb07cc817615dd472907c7563ea7762a63d74df89052d5ef"
     },
     {
       "bytes": 1054,
@@ -508,9 +508,9 @@
       "sha256": "179aba192766c48bbbbcab6e4c48569bbbae6242ed3104cb830cb3d04b44a65a"
     },
     {
-      "bytes": 878,
+      "bytes": 938,
       "path": "specs/MEMORY_ARENA_SPEC.md",
-      "sha256": "5df39420f3b553df35548216a2fec44c1a553d6e45d601a2d70b5e5cd077e023"
+      "sha256": "b7c58114ce769c59cdb97feac6c72ae8b391b6eef15152ead11d278ee5d5722d"
     },
     {
       "bytes": 6438,

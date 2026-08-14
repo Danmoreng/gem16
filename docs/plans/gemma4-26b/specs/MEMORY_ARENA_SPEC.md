@@ -16,7 +16,8 @@ All byte arithmetic is checked and aligned. The execution plan allocates fixed a
 
 ## Base profiles
 
-8K, 16K, 32K, 64K and a measured max candidate. One slot is supported; slot two is rejected. 32K requires 700 MiB free after warm execution; 64K+ requires 500 MiB.
+8K, 16K, 32K, 64K and a measured max candidate. One slot is supported; slot two is rejected. 32K requires 700 MiB
+free after warm execution; base-model 64K+ requires 400 MiB. MTP retains a separate 500 MiB 64K+ requirement.
 
 ## MTP extension
 

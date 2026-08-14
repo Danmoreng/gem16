@@ -10,7 +10,7 @@ Derived from [`FAST_TRACK_STATUS.json`](FAST_TRACK_STATUS.json). Policy: [`../..
 
 | Milestone/slice | State | Role |
 |---|---|---|
-| M09 final | READY | real artifact upload, named CUDA regions and 32K residency |
+| M09 final | ACCEPTANCE_PENDING | implementation and diagnostic pass; clean commit-bound probe remains |
 | M10 phase A | PAUSED | BF16 MoE oracle |
 | M12 phase A | PAUSED | attention/trait fixtures |
 | M25 phase A | PAUSED | assistant compatibility/memory only |

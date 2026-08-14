@@ -1,9 +1,9 @@
 # Active contract — Gemma 4 26B Fast Track R4
 
-Status: accepted through M08; M09 final residency reconciliation is next
+Status: accepted through M08; M09 implemented with diagnostic pass, clean acceptance pending
 Plan revision: `fast-track-r4`
 Accepted baseline: M00–M08
-Current milestone: M09 (ready for final reconciliation)
+Current milestone: M09 (clean commit-bound acceptance pending)
 Integration branch: `feat/gemma4-26b`
 
 ## Purpose
@@ -98,8 +98,12 @@ M18 is conditional diagnosis, not a normal prerequisite for M14–M17. M24 is op
 - Use CUDA-visible capacity and direct `cudaMemGetInfo`, not nominal board memory.
 - Keep the preliminary immutable-weight target at or below 14,100 MiB; above 14,300 MiB is a format/review stop before kernel work.
 - 32K must leave at least 700 MiB after initialization, graph capture and warm execution.
-- 64K and larger advertised profiles must leave at least 500 MiB after the same process.
-- The experimental maximum is the largest measured context that still leaves at least 500 MiB; do not advertise a larger allocation-only result.
+- M09's earlier residency gate uses the real uploaded artifact plus touched named reserves before execution exists;
+  M11/M12/M15 must revalidate the same 32K margin after graph capture, warm execution and measured prefill planning.
+- Base-model 64K and larger advertised profiles must leave at least 400 MiB after the same process. MTP retains its
+  separate 500 MiB rule until M25 qualifies assistant overhead.
+- The experimental base-model maximum is the largest measured context that still leaves at least 400 MiB; do not
+  advertise a larger allocation-only result.
 - Base and MTP maxima are separate because assistant weights and verification workspace consume memory. M25 cannot pass with an MTP profile below 32K; a lower measured result remains diagnostic while M23 stays supported.
 - One 26B slot is the only positive admission case on a 16 GB device. A second slot must be rejected clearly.
 - No token-loop allocation, filesystem access, JIT, repack or host routing is permitted.
@@ -134,6 +138,7 @@ Do not repeat an expensive run solely to produce a second prose record. M08 comp
 M08 was accepted on 2026-08-14.
 
 - M08's complete hybrid artifact, external lock and direct loader are accepted.
-- M09 real payload upload, named CUDA-region reconciliation and final 32K residency are ready next.
+- M09 real payload upload, named CUDA-region reconciliation and 32K residency implementation are complete; the clean
+  commit-bound acceptance probe remains.
 - M10 phase A, M12 phase A, evaluation-harness work and M25 feasibility work remain independent of the vertical path.
-- Final M09 reconciliation is the next vertical checkpoint.
+- Formal M09 acceptance is the next vertical checkpoint.

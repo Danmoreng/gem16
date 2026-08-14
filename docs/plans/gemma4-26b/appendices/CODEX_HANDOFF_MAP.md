@@ -5,7 +5,7 @@
 - Compiler lane: M06 → M07 → M08 integration.
 - MoE semantics lane: M10 phase A/B → M11.
 - Attention lane: M12 phase A/B.
-- Memory lane: M09 phase A → final reconciliation after M08.
+- Memory lane: M09 implementation and diagnostic complete → clean commit-bound acceptance.
 - Harness lane: future validation/report tooling without claims.
 - MTP feasibility lane: M25 phase A assets/inventory/memory only.
 

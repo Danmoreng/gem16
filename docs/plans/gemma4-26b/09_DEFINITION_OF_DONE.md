@@ -5,7 +5,8 @@
 - [ ] One QAT-derived text-only artifact builds twice from clean inputs with identical hashes.
 - [ ] One final device weight layout is resident; no runtime conversion/offload/streaming exists.
 - [ ] One 26B slot passes 32K with at least 700 MiB free-device margin.
-- [ ] 64K or the highest lower safe profile is measured and documented; larger supported contexts leave at least 500 MiB.
+- [ ] Base-model 64K is measured and documented; larger supported base contexts leave at least 400 MiB. MTP keeps its
+  separate 500 MiB gate.
 - [ ] CPU and CUDA MoE references, attention/KV tests and the complete model are accepted.
 - [ ] The optimized path is deterministic and has no token-loop allocations.
 - [ ] Held-out quality, performance and long-context reports reference one frozen artifact hash.

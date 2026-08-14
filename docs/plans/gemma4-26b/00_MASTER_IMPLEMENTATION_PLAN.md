@@ -43,7 +43,7 @@ M10 semantic work begins in parallel with M06. M18 is conditional diagnosis. M24
 
 - Artifact integrity: complete tensor coverage, source/compiler provenance, two clean M08 builds with identical hashes.
 - Runtime correctness: independent MoE oracle, CUDA reference, attention/KV tests and full-model captures.
-- Memory: one slot, 32K with at least 700 MiB free; 64K+ with at least 500 MiB free.
+- Memory: one slot, 32K with at least 700 MiB free; base-model 64K+ with at least 400 MiB free; MTP 64K+ keeps 500 MiB.
 - Early quality: M13 development-screen pass.
 - Final qualification: M19 quality, M20 performance and M21 context on one frozen hash.
 - MTP: compatible assistant, exact Target verification, transactional state and separately measured MTP context.

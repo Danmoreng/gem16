@@ -1,6 +1,6 @@
 # Start here — current coding-agent task
 
-Status: M00–M08 accepted; M09 final residency reconciliation is next.
+Status: M00–M08 accepted; M09 implementation and dirty-worktree diagnostic pass, clean acceptance pending.
 Plan revision: Fast Track R4.
 
 ## Read now
@@ -19,11 +19,12 @@ M08 was accepted on 2026-08-14. The lead agent may assign disjoint sub-agents fo
 
 - M10 phase A BF16 MoE oracle;
 - M12 phase A traits and attention/KV fixtures;
-- M09 phase A formulas and one-slot admission tests;
+- M09 acceptance review after the clean commit-bound probe;
 - M25 phase A assistant compatibility and memory modeling;
 - evaluation/benchmark harness scaffolding.
 
-Use [`PARALLEL_WORKSTREAMS.md`](PARALLEL_WORKSTREAMS.md). M08 is accepted; M09 final reconciliation is ready next.
+Use [`PARALLEL_WORKSTREAMS.md`](PARALLEL_WORKSTREAMS.md). M08 is accepted; M09 is implemented and awaiting its clean
+acceptance run.
 
 ## M08 success
 
@@ -39,4 +40,8 @@ For expensive conversions or publication claims, use reviewed, targeted-tested c
 
 Reconcile the real artifact with named CUDA regions and prove one fully resident 32K slot with at least 700 MiB
 directly measured free-device margin after initialization. M08's admission probe is exact-arena synthetic evidence,
-not model execution. Q4_0 backend work and MTP verifier-head optimization remain outside M09.
+not model execution. The 2026-08-14 diagnostic uploaded all 1,285 tensors into one 14,696,668,160-byte device arena,
+left 818,741,248 bytes free at 32K, admitted 64K with 483,196,928 bytes free against the owner-approved 400 MiB base
+gate and rejected a second slot without a CUDA allocation delta. This is residency evidence, not model execution; graph
+capture and warm execution begin in M11/M12. See `artifacts/m09/diagnostic-summary.json`. Q4_0 backend work and MTP
+verifier-head optimization remain outside M09.

@@ -73,7 +73,7 @@ These are hard operational thresholds, not statistical:
 weights target ≤ 14,100 MiB
 hard stop > 14,300 MiB
 32K margin ≥ 700 MiB
-64K margin ≥ 500 MiB if supported
+Base-model 64K margin ≥ 400 MiB if supported; MTP remains ≥ 500 MiB
 token-loop allocation = false
 fallback/offload = false
 ```

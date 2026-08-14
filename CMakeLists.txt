@@ -51,6 +51,7 @@ add_library(gem16_core STATIC
   src/cuda/nvfp4/sm120_layout.cpp
   src/model/checkpoint_loader.cpp
   src/model/gemma4_26b_compiled_loader.cpp
+  src/model/gemma4_26b_residency.cpp
   src/model/audio.cpp
   src/model/image.cpp
   src/model/config.cpp

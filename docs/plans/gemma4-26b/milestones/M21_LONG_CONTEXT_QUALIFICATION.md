@@ -12,9 +12,9 @@ Qualify real execution at 32K, attempt 64K and determine the largest safely supp
 ## Sequence
 
 1. confirm 32K with at least 700 MiB direct free margin;
-2. run 64K with at least 500 MiB margin;
+2. run base-model 64K with at least 400 MiB margin;
 3. if 64K passes, probe upward; if it fails, search between 32K and 64K;
-4. choose the largest tested context satisfying correctness, allocation and 500 MiB margin;
+4. choose the largest tested base-model context satisfying correctness, allocation and 400 MiB margin;
 5. record the limiting region and selected prompt chunk.
 
 Use real prefill plus decode, ring wrap/global extent tests and continuous telemetry. Allocation-only success is not support.
