@@ -1,6 +1,6 @@
 # M09 — One-slot residency, 32K gate and context feasibility
 
-Status: implementation complete; dirty-worktree diagnostic passes; clean commit-bound acceptance pending
+Status: accepted 2026-08-14 at implementation commit `6c3b9e456bc7fed68e2e90a51ba20c1c895fd085`
 Class: critical
 Unblocks: M11, M13, M15 and M21
 
@@ -45,6 +45,8 @@ This run binds a dirty worktree and therefore is not formal acceptance. It reser
 regions but does not claim captured graphs or warm model execution; those begin in M11/M12, the prefill selector is
 measured in M15, and the 32K margin must be revalidated after the first warm executable path.
 
+The clean commit-bound probe repeats every gate above and is accepted in `artifacts/m09/acceptance.json`.
+
 ## Out of scope
 
 - `/health`, `/metrics` and Studio;
@@ -52,11 +54,11 @@ measured in M15, and the 32K margin must be revalidated after the first warm exe
 - MTP assistant residency beyond feasibility estimates;
 - long-context correctness qualification.
 
-## Acceptance gate — repeat on the clean implementation revision
+## Acceptance gate
 
-- [ ] Every region has checked named accounting.
-- [ ] One real 32K slot passes the direct 700 MiB margin.
-- [ ] A second 26B slot fails clearly before partial initialization.
-- [ ] 64K passes the direct 400 MiB base-model residency margin and its limiting regions are reported.
-- [ ] No modality/MTP bytes enter the base slot.
-- [ ] 12B memory/scheduler regressions remain green.
+- [x] Every region has checked named accounting.
+- [x] One real 32K slot passes the direct 700 MiB margin.
+- [x] A second 26B slot fails clearly before partial initialization.
+- [x] 64K passes the direct 400 MiB base-model residency margin and its limiting regions are reported.
+- [x] No modality/MTP bytes enter the base slot.
+- [x] 12B memory/scheduler regressions remain green.

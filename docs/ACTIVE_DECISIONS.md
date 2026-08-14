@@ -1,6 +1,6 @@
 # Active decisions
 
-**Accepted:** 2026-08-14 · **Track:** Gemma 4 26B A4B Fast Track · **Status:** M00–M08 accepted; M09 implemented, clean acceptance pending
+**Accepted:** 2026-08-14 · **Track:** Gemma 4 26B A4B Fast Track · **Status:** M00–M09 accepted; M10 next
 
 This is the short operational policy for current work. It is not a replacement for historical evidence. Permanent
 rules in `AGENTS.md` remain binding. For facts about the implementation, current source, tests and accepted evidence
@@ -23,8 +23,10 @@ M06 NVFP4 experts → M07 provisional tied head → M08 artifact/loader
 
 M08 was accepted on 2026-08-14 at implementation commit `f433358b8e2c1250b95801fc898faee4fcedcbe5` after
 byte-identical clean complete-artifact builds, direct-loader validation, protected 12B inspection and exact-arena
-reference-GPU admission. M09 now has a passing real-artifact diagnostic upload and 32K residency reconciliation;
-formal acceptance still requires the same bounded probe on the clean implementation commit.
+reference-GPU admission. M09 was accepted on 2026-08-14 at implementation commit
+`6c3b9e456bc7fed68e2e90a51ba20c1c895fd085`: the clean real-artifact probe passes 32K and owner-required 64K
+residency, exact single-arena upload, second-slot rejection and protected 12B regressions. See
+`artifacts/m09/acceptance.json`.
 
 The owner set the base-model 64K residency and later execution reserve to 400 MiB on 2026-08-14 so that 64K remains
 a required supported target. This supersedes the prior 500 MiB base-model rule for 64K and larger contexts. The 32K
@@ -61,7 +63,7 @@ The integration branch remains `feat/gemma4-26b`; temporary worktrees are allowe
 
 ## Scope boundary
 
-The accepted M00–M08 source locks, evidence and historical records remain valid. The active choices above simplify
+The accepted M00–M09 source locks, evidence and historical records remain valid. The active choices above simplify
 future execution; they do not authorize silent precision changes, CPU weight offload, duplicate device layouts,
 runtime quantization, unreported fallback, weakened 12B behavior or unsupported capability claims. Experimental
 results must say which gates have not yet been run.

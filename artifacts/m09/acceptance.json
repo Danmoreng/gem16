@@ -1,0 +1,99 @@
+{
+  "acceptance": true,
+  "artifact_residency": {
+    "artifact_content_sha256": "471805f7dad8abb84300be78b2822a63dcb1d35bff5aa98426a162cc8532ee17",
+    "artifact_lock_sha256": "d7d2d30743e7c42aa55537a83f563047c9cbd2d83e0d583a2d2c8bcacbfa51a4",
+    "host_staging_peak_bytes": 4194080,
+    "immutable_weight_arena_bytes": 14696668160,
+    "mapped_shards_one_at_a_time": true,
+    "one_device_weight_arena": true,
+    "payload_bytes": 14696569196,
+    "persistent_device_repack_bytes": 0,
+    "shard_count": 16,
+    "tensor_count": 1285,
+    "upload_duration_seconds": 2.83923,
+    "uploaded_tensors": {
+      "direct": 983,
+      "nvfp4_scale_transform": 151,
+      "nvfp4_weight_transform": 151
+    }
+  },
+  "code_revision": "6c3b9e456bc7fed68e2e90a51ba20c1c895fd085",
+  "context_feasibility": {
+    "64k": {
+      "allocations_complete": true,
+      "final_free_bytes": 483196928,
+      "fp8_kv_bytes": 775946240,
+      "margin_shortfall_bytes": 0,
+      "partial_allocation": false,
+      "projected_final_free_bytes": 483196928,
+      "required_margin_bytes": 419430400,
+      "status": "admitted"
+    },
+    "measured_candidate": {
+      "advertised": false,
+      "context_tokens": 65536,
+      "final_free_bytes": 483196928,
+      "fp8_kv_bytes": 775946240,
+      "pass": true,
+      "required_margin_bytes": 419430400
+    }
+  },
+  "device": {
+    "compute_capability": "12.0",
+    "driver_version": 13030,
+    "index": 0,
+    "name": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "runtime_version": 13030,
+    "uuid": "93070293-2184-eb69-555b-1d856a4fdbb8"
+  },
+  "gates": {
+    "64k_classified": true,
+    "base_profiles_measured": true,
+    "free_after_release_at_least_context_baseline": true,
+    "idle_baseline_at_most_512_mib": true,
+    "immutable_weights_at_most_14100_mib": true,
+    "immutable_weights_below_14300_mib_hard_stop": true,
+    "max_context_candidate_measured": true,
+    "real_32k_slot_at_least_700_mib": true,
+    "real_64k_slot_at_least_400_mib": true,
+    "second_slot_check_has_zero_allocation_delta": true,
+    "second_slot_rejected_before_allocation": true
+  },
+  "identity": {
+    "artifact_content_sha256": "471805f7dad8abb84300be78b2822a63dcb1d35bff5aa98426a162cc8532ee17",
+    "artifact_lock_sha256": "d7d2d30743e7c42aa55537a83f563047c9cbd2d83e0d583a2d2c8bcacbfa51a4",
+    "compilation_manifest_sha256": "7e5e78b9c6f61fbe8829866395634085261e1261a8c783f69affc5a16bd1847a",
+    "compiler_manifest_sha256": "5d7975756b331900e02a7de915cd1e473a88a36becd5582f91b4c57dd30b5f06",
+    "source_lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230"
+  },
+  "limitations": [
+    "this is real artifact upload and residency accounting, not model execution",
+    "fixed graph/workspace regions are touched reserves, not captured execution graphs",
+    "warm model execution and graph capture begin with M11/M12 and must revalidate the 32K margin",
+    "the 65536-token result is residency-only and cannot be advertised before warm execution and correctness qualification"
+  ],
+  "milestone": "M09",
+  "one_slot": {
+    "context_tokens": 32768,
+    "final_free_bytes": 818741248,
+    "fixed_region_bytes": 469762048,
+    "fp8_kv_bytes": 440401920,
+    "pass": true,
+    "required_margin_bytes": 734003200
+  },
+  "protected_12b": {
+    "inspect_tensor_count": 1389,
+    "inspect_total_tensor_bytes": 9304786336,
+    "long_64k_total_arena_bytes": 10009429760,
+    "standard_32k_total_arena_bytes": 9740994304,
+    "status": "pass"
+  },
+  "schema_version": 1,
+  "second_slot": {
+    "cuda_allocation_delta_bytes": 0,
+    "partial_allocation": false,
+    "status": "preflight_rejected"
+  },
+  "status": "acceptance_pass"
+}

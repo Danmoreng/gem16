@@ -63,9 +63,9 @@
       "sha256": "08288ad667c14063b8a4ff777dbeb24ad1869e66347331fdf42c73918a02dd8d"
     },
     {
-      "bytes": 979,
+      "bytes": 906,
       "path": "12_AGENT_TASK_QUEUE.md",
-      "sha256": "92717707a38d2def8f94287baa3951d039204e7ac4aca1c215412bcd4ecec5ce"
+      "sha256": "3b9c4ef330a15679405ad3b57bfaaca3c8deecba255dda1db077fb46b76f841e"
     },
     {
       "bytes": 1044,
@@ -73,9 +73,9 @@
       "sha256": "c576d0841233f275ddb6d24bf8fd62bf94f3f8bd123f30444a278e57ab9b682f"
     },
     {
-      "bytes": 8831,
+      "bytes": 8875,
       "path": "ACTIVE_CONTRACT.md",
-      "sha256": "f2acddf5f0af1e3e8863f25e95780f7054c5995f69d80ebe1056b1198e0310ba"
+      "sha256": "6612abe45d6f6cc6a032c331c347422e5b43956f027a7e283e02aaf4e606d1b9"
     },
     {
       "bytes": 5099,
@@ -88,19 +88,19 @@
       "sha256": "04bf5ba894b3af72e860ec1d8a30d7ebb5afc48a0333b846bfa33beadc2d87cf"
     },
     {
-      "bytes": 5964,
+      "bytes": 5933,
       "path": "FAST_TRACK_STATUS.json",
-      "sha256": "c75b65b74bd353bde5d8d37247873cbd161aa8da2861496705c364948ddeb504"
+      "sha256": "67d0b38cd90b91ffdc66217988adee344024eabbb2570804cd08144b40219e1e"
     },
     {
-      "bytes": 2591,
+      "bytes": 2580,
       "path": "INDEX.md",
-      "sha256": "15d69639613a03343e38f73c19292b60e6a02619926b58f895bb43d4307ea313"
+      "sha256": "086c784fc9c8cf100ed5cb442b09515d9aa93879e52b6d1ddbb4fad2beb6e20f"
     },
     {
-      "bytes": 1106,
+      "bytes": 1021,
       "path": "MILESTONE_STATUS_BOARD.md",
-      "sha256": "834a87b34ea482ca568b882030bba3f69f6f300a62f2512208f3e1f64fd900f2"
+      "sha256": "06132d1a26bee552402ea8f6ef2737300ccb622fe9059c68de324e4e0dff213a"
     },
     {
       "bytes": 867,
@@ -123,9 +123,9 @@
       "sha256": "fa72f0280f0d9c31891462016b56e1b212649341dbbba32d9faf466958b9f76a"
     },
     {
-      "bytes": 2489,
+      "bytes": 2760,
       "path": "START_HERE_CODEX.md",
-      "sha256": "918e5416194b42e47acbe47ca01608f4ace2d555d0c4da7ecbc4238eaf073824"
+      "sha256": "303847bb2adae8b2694e9d4dd553c6df978568c8f29e494521f4a621b11ea72d"
     },
     {
       "bytes": 2990,
@@ -308,14 +308,14 @@
       "sha256": "e7c854dd4afd03da6383f0979ea3905da10f87248790788be7820bc346966b18"
     },
     {
-      "bytes": 3144,
+      "bytes": 3194,
       "path": "milestones/M09_MEMORY_PLANNER_AND_RESIDENCY.md",
-      "sha256": "76fc35c6c60836744bdb265c155139f7fcf80fee55f4e1ed6d3fcebe7958117f"
+      "sha256": "5acfd5cbb37bc717b59fe7ca9aecfc8f1c47ed68e51583b1f9f46ef9ee3cd1b7"
     },
     {
-      "bytes": 1189,
+      "bytes": 1196,
       "path": "milestones/M10_CPU_MOE_ORACLE.md",
-      "sha256": "0489206f5e3da1049f65c7f9d9e901ea63b0fd97696a861dbe33e96d8705d69a"
+      "sha256": "666f21a5b947721c7ff6abfd0fccb9fb364eac474c799e1a798d674a30cc59aa"
     },
     {
       "bytes": 1010,

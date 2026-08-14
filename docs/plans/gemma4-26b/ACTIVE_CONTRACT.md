@@ -1,9 +1,9 @@
 # Active contract — Gemma 4 26B Fast Track R4
 
-Status: accepted through M08; M09 implemented with diagnostic pass, clean acceptance pending
+Status: accepted through M09; M10 CPU MoE semantic oracle is next
 Plan revision: `fast-track-r4`
-Accepted baseline: M00–M08
-Current milestone: M09 (clean commit-bound acceptance pending)
+Accepted baseline: M00–M09
+Current milestone: M10 (ready)
 Integration branch: `feat/gemma4-26b`
 
 ## Purpose
@@ -25,7 +25,7 @@ Report a material conflict instead of guessing. A stale status page does not ove
 
 ## Accepted baseline
 
-M00–M08 are accepted and are not reopened by current work.
+M00–M09 are accepted and are not reopened by current work.
 
 - Sources, manifests and source locks are immutable.
 - The 12B path remains separately specialized and regression-protected.
@@ -34,6 +34,8 @@ M00–M08 are accepted and are not reopened by current work.
 - M06 expert/shared NVFP4 conversion is accepted at implementation commit `81055eb48e05321481a8b63dd0dc5e7e017a7c00`.
 - M07 provisional NVFP4 tied-head compiler/reference stage is accepted at implementation commit `60f500b7be567fafd483ebd6f5f9b07988197ca1`.
 - M08 complete hybrid artifact and direct-loader stage is accepted at implementation commit `f433358b8e2c1250b95801fc898faee4fcedcbe5`.
+- M09 real one-slot residency and 32K/64K admission are accepted at implementation commit
+  `6c3b9e456bc7fed68e2e90a51ba20c1c895fd085`.
 - Runtime conversion, CPU expert offload, expert streaming and duplicate persistent GPU weight layouts remain forbidden.
 
 ## Product target
@@ -135,10 +137,9 @@ Do not repeat an expensive run solely to produce a second prose record. M08 comp
 
 ## Current unblocked work
 
-M08 was accepted on 2026-08-14.
+M09 was accepted on 2026-08-14.
 
 - M08's complete hybrid artifact, external lock and direct loader are accepted.
-- M09 real payload upload, named CUDA-region reconciliation and 32K residency implementation are complete; the clean
-  commit-bound acceptance probe remains.
+- M09 real payload upload, named CUDA-region reconciliation and 32K/64K base residency are accepted.
 - M10 phase A, M12 phase A, evaluation-harness work and M25 feasibility work remain independent of the vertical path.
-- Formal M09 acceptance is the next vertical checkpoint.
+- M10 CPU MoE semantic authority is the next vertical checkpoint toward M11/M13.

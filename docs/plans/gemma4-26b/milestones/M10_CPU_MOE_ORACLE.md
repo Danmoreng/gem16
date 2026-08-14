@@ -1,6 +1,6 @@
 # M10 — CPU MoE semantic oracle
 
-Status: phase A parallel-ready
+Status: ready next after accepted M09
 Class: parallel-critical
 Depends on: M03; quantized adapter depends on M06
 Unblocks: M11

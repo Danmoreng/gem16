@@ -2,9 +2,9 @@
   "schema_version": 1,
   "plan_revision": "fast-track-r4",
   "updated": "2026-08-14",
-  "accepted_through": "M08",
-  "current_milestone": "M09",
-  "active_wave": "F1-artifact-and-residency",
+  "accepted_through": "M09",
+  "current_milestone": "M10",
+  "active_wave": "F2-first-complete-correct-model",
   "integration_branch": "feat/gemma4-26b",
   "source_of_truth": "docs/plans/gemma4-26b/FAST_TRACK_STATUS.json",
   "policy_source": "docs/ACTIVE_DECISIONS.md",
@@ -48,8 +48,8 @@
       ]
     },
     "M09": {
-      "status": "ACCEPTANCE_PENDING",
-      "note": "implementation and dirty-worktree real-residency diagnostic pass 2026-08-14; clean commit-bound probe remains",
+      "status": "ACCEPTED",
+      "note": "accepted 2026-08-14 at implementation commit 6c3b9e456bc7fed68e2e90a51ba20c1c895fd085; see artifacts/m09/acceptance.json",
       "class": "critical",
       "lane": "memory",
       "depends_on": [
@@ -66,7 +66,7 @@
       ]
     },
     "M10": {
-      "status": "PARALLEL_READY",
+      "status": "READY_NEXT",
       "class": "parallel-critical",
       "lane": "moe-oracle",
       "depends_on": [
@@ -267,10 +267,10 @@
       ]
     }
   },
-  "parallel_tasks_now": [],
+  "parallel_tasks_now": [
+    "M10 CPU MoE semantic oracle"
+  ],
   "paused_tasks": [
-    "M08 complete artifact/loader",
-    "M10 phase A BF16 MoE oracle",
     "M12 phase A attention/trait fixtures",
     "M13/M19/M20/M21 harness scaffolding",
     "M25 phase A assistant compatibility and memory feasibility"

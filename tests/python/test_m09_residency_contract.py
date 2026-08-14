@@ -9,6 +9,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
 SUMMARY = ROOT / "artifacts/m09/diagnostic-summary.json"
+ACCEPTANCE = ROOT / "artifacts/m09/acceptance.json"
 
 
 class M09ResidencyContractTest(unittest.TestCase):
@@ -52,6 +53,21 @@ class M09ResidencyContractTest(unittest.TestCase):
         self.assertEqual(summary["second_slot"]["cuda_allocation_delta_bytes"], 0)
         self.assertFalse(summary["second_slot"]["partial_allocation"])
         self.assertEqual(summary["protected_12b"]["status"], "pass")
+        self.assertTrue(all(summary["gates"].values()))
+
+    def test_compact_acceptance_binds_clean_implementation_commit(self) -> None:
+        summary = json.loads(ACCEPTANCE.read_text(encoding="utf-8"))
+        self.assertEqual(summary["status"], "acceptance_pass")
+        self.assertTrue(summary["acceptance"])
+        self.assertEqual(
+            summary["code_revision"],
+            "6c3b9e456bc7fed68e2e90a51ba20c1c895fd085",
+        )
+        self.assertEqual(summary["context_feasibility"]["64k"]["status"], "admitted")
+        self.assertGreaterEqual(
+            summary["context_feasibility"]["64k"]["final_free_bytes"],
+            400 * 1024 * 1024,
+        )
         self.assertTrue(all(summary["gates"].values()))
 
 
