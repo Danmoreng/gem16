@@ -10,4 +10,4 @@ M06 → M07 → M08 → M09 → M11/M12 → M13
 → M19/M20/M21/M22 → M23 → M25
 ```
 
-M10 began as a parallel lane but is paused with the track after M07. M18 is conditional. M24 is optional. M25 is [`M25_MTP_INTEGRATION_AND_FINAL_QUALIFICATION.md`](M25_MTP_INTEGRATION_AND_FINAL_QUALIFICATION.md). The obsolete vision-named M25 file is removed by this revision.
+M10 is implemented and awaiting clean commit-bound acceptance. M18 is conditional. M24 is optional. M25 is [`M25_MTP_INTEGRATION_AND_FINAL_QUALIFICATION.md`](M25_MTP_INTEGRATION_AND_FINAL_QUALIFICATION.md). The obsolete vision-named M25 file is removed by this revision.

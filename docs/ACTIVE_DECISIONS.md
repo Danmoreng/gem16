@@ -1,6 +1,6 @@
 # Active decisions
 
-**Accepted:** 2026-08-14 · **Track:** Gemma 4 26B A4B Fast Track · **Status:** M00–M09 accepted; M10 next
+**Accepted:** 2026-08-14 · **Track:** Gemma 4 26B A4B Fast Track · **Status:** M00–M09 accepted; M10 implemented, clean acceptance pending
 
 This is the short operational policy for current work. It is not a replacement for historical evidence. Permanent
 rules in `AGENTS.md` remain binding. For facts about the implementation, current source, tests and accepted evidence
@@ -27,6 +27,13 @@ reference-GPU admission. M09 was accepted on 2026-08-14 at implementation commit
 `6c3b9e456bc7fed68e2e90a51ba20c1c895fd085`: the clean real-artifact probe passes 32K and owner-required 64K
 residency, exact single-arena upload, second-slot rejection and protected 12B regressions. See
 `artifacts/m09/acceptance.json`.
+
+M10 now has a passing independent CPU/NumPy replay for the locked BF16 router, shared MLP, 24 post-norm boundaries
+and all 64 selected expert contributions at eight real capture points, plus a bounded independent decoder for real
+M08 NVFP4 rows. It deliberately
+uses lower expert ID for exact top-k ties and FP32 top-k-slot accumulation; the pinned PyTorch capture has one
+tie-equivalent ordering difference and uses expert-ID/BF16 accumulation. The measured drift passes the explicit M10
+boundary gates. Formal acceptance still requires a clean commit-bound report.
 
 The owner set the base-model 64K residency and later execution reserve to 400 MiB on 2026-08-14 so that 64K remains
 a required supported target. This supersedes the prior 500 MiB base-model rule for 64K and larger contexts. The 32K

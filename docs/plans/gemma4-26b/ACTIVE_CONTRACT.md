@@ -1,9 +1,9 @@
 # Active contract — Gemma 4 26B Fast Track R4
 
-Status: accepted through M09; M10 CPU MoE semantic oracle is next
+Status: accepted through M09; M10 implemented, clean acceptance pending
 Plan revision: `fast-track-r4`
 Accepted baseline: M00–M09
-Current milestone: M10 (ready)
+Current milestone: M10 (acceptance pending)
 Integration branch: `feat/gemma4-26b`
 
 ## Purpose
@@ -141,5 +141,6 @@ M09 was accepted on 2026-08-14.
 
 - M08's complete hybrid artifact, external lock and direct loader are accepted.
 - M09 real payload upload, named CUDA-region reconciliation and 32K/64K base residency are accepted.
-- M10 phase A, M12 phase A, evaluation-harness work and M25 feasibility work remain independent of the vertical path.
-- M10 CPU MoE semantic authority is the next vertical checkpoint toward M11/M13.
+- M10's BF16 and quantized CPU MoE oracle implementation passes its dirty-worktree diagnostic; clean commit-bound
+  acceptance remains before M11 can start.
+- M12 phase A, evaluation-harness work and M25 feasibility work remain independent of the vertical path.

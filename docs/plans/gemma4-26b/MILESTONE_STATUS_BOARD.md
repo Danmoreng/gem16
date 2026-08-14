@@ -10,7 +10,7 @@ Derived from [`FAST_TRACK_STATUS.json`](FAST_TRACK_STATUS.json). Policy: [`../..
 
 | Milestone/slice | State | Role |
 |---|---|---|
-| M10 | READY_NEXT | BF16 and quantized CPU MoE semantic oracle |
+| M10 | ACCEPTANCE_PENDING | BF16 and quantized CPU MoE oracle diagnostic passes; clean commit binding remains |
 | M12 phase A | PAUSED | attention/trait fixtures |
 | M25 phase A | PAUSED | assistant compatibility/memory only |
 | Harness lane | PAUSED | future report/test infrastructure |
@@ -25,5 +25,5 @@ Derived from [`FAST_TRACK_STATUS.json`](FAST_TRACK_STATUS.json). Policy: [`../..
 - M24: optional internal Q4_0 backend.
 - Vision: outside this program.
 
-Program completion is M25, not M23. M09 is accepted; the next practical path is M10→M13. Later qualification
+Program completion is M25, not M23. M09 is accepted; M10 is implemented but must be cleanly accepted before M11. Later qualification
 remains explicit follow-up rather than a prerequisite for early experiments.

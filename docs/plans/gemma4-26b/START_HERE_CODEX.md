@@ -1,6 +1,6 @@
 # Start here — current coding-agent task
 
-Status: M00–M09 accepted; M10 CPU MoE semantic oracle is next.
+Status: M00–M09 accepted; M10 CPU MoE semantic oracle implemented, clean acceptance pending.
 Plan revision: Fast Track R4.
 
 ## Read now
@@ -23,7 +23,7 @@ M08 was accepted on 2026-08-14. The lead agent may assign disjoint sub-agents fo
 - M25 phase A assistant compatibility and memory modeling;
 - evaluation/benchmark harness scaffolding.
 
-Use [`PARALLEL_WORKSTREAMS.md`](PARALLEL_WORKSTREAMS.md). M09 is accepted; M10 is the next critical slice.
+Use [`PARALLEL_WORKSTREAMS.md`](PARALLEL_WORKSTREAMS.md). M09 is accepted; M10 is the current acceptance-pending slice.
 
 ## M08 success
 
@@ -48,3 +48,8 @@ verifier-head optimization remain outside M09.
 M09 is accepted at implementation commit `6c3b9e456bc7fed68e2e90a51ba20c1c895fd085`; the clean record is
 `artifacts/m09/acceptance.json`. M10 now owns the independent CPU MoE oracle for router, deterministic top-8, shared
 MLP, selected expert contributions, reduction, norms and residual order. It must not call production CUDA code.
+
+The M10 implementation now independently replays the locked BF16 shared branch, reconstructed FP32 router, 24 norm
+boundaries and all 64 selected expert contributions across layers 0/5/6/29 and positions 0/17. It also decodes bounded real NVFP4 rows from
+the accepted M08 artifact without importing production CUDA. `artifacts/m10/diagnostic-summary.json` passes; a clean
+commit-bound acceptance report remains required before M11 is unblocked.

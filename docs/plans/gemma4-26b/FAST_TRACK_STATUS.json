@@ -66,7 +66,8 @@
       ]
     },
     "M10": {
-      "status": "READY_NEXT",
+      "status": "ACCEPTANCE_PENDING",
+      "note": "implementation and dirty-worktree BF16/NVFP4 oracle diagnostic pass 2026-08-14; clean commit-bound report remains",
       "class": "parallel-critical",
       "lane": "moe-oracle",
       "depends_on": [
