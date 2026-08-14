@@ -42,7 +42,8 @@ publication. Staged output was structurally reopened and verified before atomic 
 | Ordinary BF16 | pass | 137.780519 s | 230 | 1,110,850,560 | 6,279,168 | 38,727,680 | `ba368221b50938de08e8f2e3fa3585f383cd4dae772d1dbac611830e63d34d1e` |
 | QAT BF16 | pass | 155.516982 s | 230 | 1,110,850,560 | 6,201,344 | 35,471,360 | `f11bce2907d133a561573ff41c52173033c748c548ad7e777a7fdd8a2c00df94` |
 
-Retained clean reports and complete manifest hash records:
+The raw clean reports and manifests are no longer retained in Git. Their original paths, byte sizes and complete
+SHA-256 records remain in `artifacts/raw-evidence-index.json` and `artifacts/m05/acceptance.json`:
 
 - `artifacts/m05/ordinary-compile.json`, SHA-256
   `90cd98eeb5eb0ce72c8cca58330816d86eb56eb4bbcaa4148d61674a52a51eb1`;
@@ -68,7 +69,7 @@ Standalone verification passed for both clean artifacts and did not reconvert te
 | QAT | `ba85efcae90933c6cc38970bdd9a9325adcae327ca757598047f5e97a0d50d36` | `false` |
 
 The native clean Ordinary-versus-Unsloth comparison covered all 115 matrices and 1,110,179,840 weight elements.
-Report: `artifacts/m05/ordinary-vs-unsloth-fp8.json`, SHA-256
+Historical raw report: `artifacts/m05/ordinary-vs-unsloth-fp8.json`, SHA-256
 `cc3cc415f114c9a6f578d0e195543becd1c4661de7ae1176d85f496922f8672d`.
 
 - raw FP8 mismatch rate: `0.02980192560513439`;

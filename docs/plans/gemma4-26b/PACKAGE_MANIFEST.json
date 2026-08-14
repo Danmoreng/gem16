@@ -288,19 +288,19 @@
       "sha256": "44c0f37f3c0684c5fc278c840aa295aacde01616e239095cb55d4ddab02af019"
     },
     {
-      "bytes": 10548,
+      "bytes": 10585,
       "path": "milestones/M05_FP8_ATTENTION_COMPILER.md",
-      "sha256": "9d8b09f6afc4ab70eca69c648267f5d08328b40a796fefe375ff46d6f6a78785"
+      "sha256": "ee9bb1adc041ab4dc25dcc03112907a75398df1d1b551a43e7315c25340517b8"
     },
     {
-      "bytes": 3107,
+      "bytes": 3219,
       "path": "milestones/M06_NVFP4_EXPERT_COMPILER.md",
-      "sha256": "d1b3d5f51d12140f7d4b921cebcad5d4a2eb4326ffed35c7f7d4ff1083f55e80"
+      "sha256": "39aa228ce7db70e8d5f2269ef3591fd420435d4574e8f9f0ecf9a1b72dbcddf3"
     },
     {
-      "bytes": 1777,
+      "bytes": 1897,
       "path": "milestones/M07_EMBEDDING_HEAD_FORMAT_EXPERIMENT.md",
-      "sha256": "a524d31ad988bfc90950c006f3a7681578bd934f4b11ab2d2be8a67217fbcc84"
+      "sha256": "e8e8525fc0384b82a0ae48810c9612f46d9e0ca4fabd446a3b7ca088ad64a52d"
     },
     {
       "bytes": 1705,

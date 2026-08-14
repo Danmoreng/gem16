@@ -81,7 +81,7 @@ python3 tools/compile_gemma4_26b.py plan \
   --compiler-manifest benchmarks/goldens/gemma4_26b/fp8/ordinary-compiler-plan.json \
   --profile fp8-attention-partial-v1 --head-format deferred \
   --max-host-memory 7516192768 --staging-bytes 1048576 \
-  --reference-platform-strict --report artifacts/m05/ordinary-plan.json
+  --reference-platform-strict --report artifacts/raw/m05/ordinary-plan.json
 
 python3 tools/compile_gemma4_26b.py compile \
   --source-lock models/gemma4-26b-base-bf16.lock.json \
@@ -91,7 +91,7 @@ python3 tools/compile_gemma4_26b.py compile \
   --native-encoder build/Linux/host-release/bin/gem16-fp8-compiler --threads 8 \
   --max-host-memory 7516192768 --staging-bytes 1048576 --reference-platform-strict \
   --output build/models/ordinary-fp8-attention-partial \
-  --report artifacts/m05/ordinary-compile.json
+  --report artifacts/raw/m05/ordinary-compile.json
 
 python3 tools/compile_gemma4_26b.py verify \
   --source-lock models/gemma4-26b-base-bf16.lock.json \
@@ -107,7 +107,7 @@ python3 tools/compile_gemma4_26b.py plan \
   --compiler-manifest benchmarks/goldens/gemma4_26b/fp8/qat-compiler-plan.json \
   --profile fp8-attention-partial-v1 --head-format deferred \
   --max-host-memory 7516192768 --staging-bytes 1048576 \
-  --reference-platform-strict --report artifacts/m05/qat-plan.json
+  --reference-platform-strict --report artifacts/raw/m05/qat-plan.json
 
 python3 tools/compile_gemma4_26b.py compile \
   --source-lock models/gemma4-26b-qat-bf16.lock.json \
@@ -116,7 +116,7 @@ python3 tools/compile_gemma4_26b.py compile \
   --profile fp8-attention-partial-v1 --head-format deferred \
   --native-encoder build/Linux/host-release/bin/gem16-fp8-compiler --threads 8 \
   --max-host-memory 7516192768 --staging-bytes 1048576 --reference-platform-strict \
-  --output build/models/qat-fp8-attention-partial --report artifacts/m05/qat-compile.json
+  --output build/models/qat-fp8-attention-partial --report artifacts/raw/m05/qat-compile.json
 
 python3 tools/compile_gemma4_26b.py verify \
   --source-lock models/gemma4-26b-qat-bf16.lock.json \

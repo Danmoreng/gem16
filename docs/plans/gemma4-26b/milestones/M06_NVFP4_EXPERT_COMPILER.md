@@ -53,8 +53,9 @@ Before the QAT full conversion, freeze the versioned scale/divisor algorithm, ex
 
 ## Evidence
 
-`artifacts/m06/` contains compiler config, clean Release QAT reports, memory telemetry, hashes, representative
-Ordinary/Unsloth diagnostics and exact commands. The acceptance summary is `artifacts/m06/acceptance.json`.
+`artifacts/m06/` contains the compact compiler config, verification, hash summary, 12B result, exact command
+transcript and acceptance record. Raw Release reports and diagnostics are not tracked; their original paths, byte
+sizes and SHA-256 values remain in `artifacts/raw-evidence-index.json` and `artifacts/m06/acceptance.json`.
 
 ## Agent task
 

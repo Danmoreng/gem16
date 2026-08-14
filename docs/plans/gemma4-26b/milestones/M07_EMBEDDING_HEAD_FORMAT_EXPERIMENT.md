@@ -39,6 +39,7 @@ Q4_0 remains an external reference and optional M24 work. Multi-row verification
 
 ## Evidence
 
-`artifacts/m07/` contains the clean Release plan/compile/verify reports, manifest and hash summary, actual-artifact
-lookup/T=1 diagnostic, fixture evidence and acceptance record. The 415 MB payload remains external under `/tmp`.
-This is not a final quality/performance selection report.
+`artifacts/m07/` contains compact verification, hash summary, actual-artifact lookup/T=1 diagnostic, command
+transcript, compiler config and acceptance record. Expanded plan/compile/manifest reports are pruned from Git;
+`artifacts/raw-evidence-index.json` retains their original paths, sizes and SHA-256 values. The 415 MB payload
+remains external. This is not a final quality/performance selection report.

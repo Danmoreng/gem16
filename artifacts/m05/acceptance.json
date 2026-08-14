@@ -2,6 +2,12 @@
   "accepted_date": "2026-08-11",
   "artifact_profile": "fp8-attention-partial-v1",
   "artifact_status": "m05_fp8_attention_partial_not_runtime_loadable",
+  "evidence_retention": {
+    "policy": "compact_acceptance_and_hashes",
+    "raw_reports": "hash_only_not_tracked",
+    "raw_evidence_index": "artifacts/raw-evidence-index.json",
+    "historical_path_fields": "original_paths_not_expected_in_a_fresh_checkout"
+  },
   "boundaries": {
     "large_tensor_arithmetic": "native_cpp20",
     "m06_started": false,

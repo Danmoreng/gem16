@@ -88,9 +88,9 @@ support fails visibly and cannot fall back to Python.
 ## Evidence and documentation outputs
 
 - `artifacts/m05/fp8-compiler-config.json`
-- `artifacts/m05/fp8-tensor-report.json`
-- `artifacts/m05/ordinary-vs-unsloth-fp8.json`
 - `artifacts/m05/qat-fp8-summary.json`
+- `artifacts/m05/acceptance.json`
+- `artifacts/raw-evidence-index.json` for byte sizes and SHA-256 of pruned raw reports
 - Disassembly evidence for the existing FP8 native path remains linked but is not reclassified as a 26B performance result.
 
 ## Suggested commands
@@ -105,7 +105,7 @@ python3 tools/compile_gemma4_26b.py compile --source-lock models/gemma4-26b-base
 python3 tools/compile_gemma4_26b.py verify --source-lock models/gemma4-26b-base-bf16.lock.json --profile fp8-attention-partial-v1 --head-format deferred ...
 ```
 ```text
-python3 tools/compare_quantized_checkpoints.py --family attention --compiled <ordinary-fp8-partial> --compiled-source-lock models/gemma4-26b-base-bf16.lock.json --compiled-source <ordinary-source> --compiled-plan benchmarks/goldens/gemma4_26b/fp8/ordinary-compiler-plan.json --unsloth-lock models/gemma4-26b-unsloth-nvfp4.lock.json --unsloth-source <unsloth-source> --native-encoder <gem16-fp8-compiler> --threads <N> --max-host-memory <bytes> --staging-bytes <bytes> --output artifacts/m05/ordinary-vs-unsloth-fp8.json
+python3 tools/compare_quantized_checkpoints.py --family attention --compiled <ordinary-fp8-partial> --compiled-source-lock models/gemma4-26b-base-bf16.lock.json --compiled-source <ordinary-source> --compiled-plan benchmarks/goldens/gemma4_26b/fp8/ordinary-compiler-plan.json --unsloth-lock models/gemma4-26b-unsloth-nvfp4.lock.json --unsloth-source <unsloth-source> --native-encoder <gem16-fp8-compiler> --threads <N> --max-host-memory <bytes> --staging-bytes <bytes> --output artifacts/raw/m05/ordinary-vs-unsloth-fp8.json
 ```
 ```text
 ctest --preset host-debug && ctest --preset blackwell-release

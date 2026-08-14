@@ -52,8 +52,9 @@ performed solely for reproducibility.
 | Ordinary BF16 | pass | 186.157 s | `a283db41…` | 6,205,440 | 38,072,320 |
 | QAT BF16 | pass | 184.857 s | `dbe330c8…` | 6,352,896 | 37,908,480 |
 
-The complete reports are `artifacts/m05/ordinary-compile.json` and `artifacts/m05/qat-compile.json`; both record
-`compiler_dirty=true` and are diagnostic only. Their artifacts are under
+The complete raw reports were originally written as `artifacts/m05/ordinary-compile.json` and
+`artifacts/m05/qat-compile.json`; their sizes and hashes remain in `artifacts/raw-evidence-index.json`, while the
+raw files are no longer tracked. Both record `compiler_dirty=true` and are diagnostic only. Their artifacts are under
 `build/models/ordinary-fp8-attention-partial/` and `build/models/qat-fp8-attention-partial/`.
 
 ## Owner-authorized post-review Ordinary conversion
@@ -76,7 +77,8 @@ path `build/models/ordinary-fp8-attention-partial-post-review/`.
 | Compilation manifest SHA-256 | `f1587fc40d0aae48a025dab5df818b0bb923c87732723753c0e97d2855477502` |
 | Compile report SHA-256 | `7cf46b5d0a3f1f6309a4b42748e94487c4f34e41ac9d7ab204e27272767f95c3` |
 
-The report is retained as `artifacts/m05/ordinary-compile-post-review.json`. Compile-time canonical structural/hash
+The report was originally `artifacts/m05/ordinary-compile-post-review.json`; its byte size and SHA-256 remain in
+`artifacts/raw-evidence-index.json`, while the raw file is no longer tracked. Compile-time canonical structural/hash
 verification and the post-conversion source reverification passed. A metadata comparison against the pre-fix
 Ordinary diagnostic artifact found zero mismatching tensor payload hashes and byte-identical Safetensors shard/index
 hashes. All 115 weight telemetry records changed only at the expected binary64 association boundary; the maximum

@@ -78,11 +78,11 @@ All 48 records passed the frozen finite/shape/divisor/split/threshold checks. Or
 
 ## Reproduction records
 
-The exact preflight and command transcript is retained in `artifacts/m06/preflight-release.txt`. Canonical
-machine-readable reports are retained in `artifacts/m06/qat-plan-release.json`,
-`qat-compile-release.json`, `qat-verify-release.json`, `qat-compilation-manifest-release.json`,
-`ordinary-unsloth-release.json`, and `12b-validation-release.json`. `acceptance.json` and
-`qat-nvfp4-hash-summary.json` bind their hashes and the 15-shard output inventory.
+The exact preflight and command transcript is retained in `artifacts/m06/preflight-release.txt`. Compact
+verification, 12B, acceptance and hash-summary records remain tracked. The expanded plan, compile manifest/report
+and Ordinary/Unsloth diagnostic are pruned from Git; `artifacts/raw-evidence-index.json` and
+`artifacts/m06/acceptance.json` retain their original paths, sizes and SHA-256 values. The hash summary still binds
+the 15-shard output inventory.
 
 The 13 GiB artifact itself remains in the external run directory under `/tmp`; it is not duplicated in the repository.
 The acceptance record therefore binds the verified shard hashes from the compilation manifest without adding those

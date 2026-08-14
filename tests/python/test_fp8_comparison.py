@@ -362,18 +362,23 @@ class FP8ComparisonTest(unittest.TestCase):
         self.assertEqual(schema["$defs"]["contract"]["properties"]["native_comparator_build"]["$ref"],
                          "#/$defs/nativeBuild")
 
-    def test_retained_clean_report_corresponds_to_schema(self):
+    def test_compact_acceptance_retains_clean_report_contract(self):
         schema = json.loads(Path("benchmarks/goldens/gemma4_26b/fp8/comparison-schema-v1.json").read_text())
-        report_path = Path("artifacts/m05/ordinary-vs-unsloth-fp8.json")
-        self.assertTrue(report_path.is_file(), report_path)
-        report = json.loads(report_path.read_text())
-        assert_json_schema(report, schema, schema)
-        self.assertIs(report["compiled"]["compiler_dirty"], False)
+        acceptance = json.loads(Path("artifacts/m05/acceptance.json").read_text())
+        raw_index = json.loads(Path("artifacts/raw-evidence-index.json").read_text())
+        report = acceptance["ordinary_vs_unsloth"]
+        indexed = {
+            item["original_path"]: item
+            for item in raw_index["raw_reports"]
+        }["artifacts/m05/ordinary-vs-unsloth-fp8.json"]
+        self.assertEqual(indexed["sha256"], report["sha256"])
+        self.assertEqual(indexed["size"], 366830)
+        self.assertEqual(acceptance["implementation"]["compiler_dirty"], False)
         self.assertEqual(
-            report["contract"]["dequantization_equation"],
+            schema["$defs"]["contract"]["properties"]["dequantization_equation"]["const"],
             M05_DEQUANTIZATION_EQUATION,
         )
-        self.assertNotIn("dirty worktree", " ".join(report["limitations"]))
+        self.assertEqual(report["quality_claim"], "none; stored weights and row scales only")
 
 
 if __name__ == "__main__":

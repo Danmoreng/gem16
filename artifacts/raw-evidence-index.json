@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "retention_policy": "hash_only_not_tracked",
+  "ignored_root": "artifacts/raw",
+  "raw_reports": [
+    {
+      "milestone": "M05",
+      "original_path": "artifacts/m05/fp8-tensor-report.json",
+      "ignored_path": "artifacts/raw/m05/fp8-tensor-report.json",
+      "size": 1378248,
+      "sha256": "57aa4cef9d3c0ad705f80b0fe101c93a440ae04585c172dc685ac287dd94879e"
+    },
+    {
+      "milestone": "M05",
+      "original_path": "artifacts/m05/ordinary-compile-post-review.json",
+      "ignored_path": "artifacts/raw/m05/ordinary-compile-post-review.json",
+      "size": 827593,
+      "sha256": "7cf46b5d0a3f1f6309a4b42748e94487c4f34e41ac9d7ab204e27272767f95c3"
+    },
+    {
+      "milestone": "M05",
+      "original_path": "artifacts/m05/ordinary-compile.json",
+      "ignored_path": "artifacts/raw/m05/ordinary-compile.json",
+      "size": 827596,
+      "sha256": "90cd98eeb5eb0ce72c8cca58330816d86eb56eb4bbcaa4148d61674a52a51eb1"
+    },
+    {
+      "milestone": "M05",
+      "original_path": "artifacts/m05/ordinary-gem16-compilation-clean.json",
+      "ignored_path": "artifacts/raw/m05/ordinary-gem16-compilation-clean.json",
+      "size": 1260555,
+      "sha256": "ba368221b50938de08e8f2e3fa3585f383cd4dae772d1dbac611830e63d34d1e"
+    },
+    {
+      "milestone": "M05",
+      "original_path": "artifacts/m05/ordinary-vs-unsloth-fp8.json",
+      "ignored_path": "artifacts/raw/m05/ordinary-vs-unsloth-fp8.json",
+      "size": 366830,
+      "sha256": "cc3cc415f114c9a6f578d0e195543becd1c4661de7ae1176d85f496922f8672d"
+    },
+    {
+      "milestone": "M05",
+      "original_path": "artifacts/m05/qat-compile.json",
+      "ignored_path": "artifacts/raw/m05/qat-compile.json",
+      "size": 783422,
+      "sha256": "b3c4006e26dfcdc0e1d86b4982b2087edf447880ed65df5b5e901e43ec4ea182"
+    },
+    {
+      "milestone": "M05",
+      "original_path": "artifacts/m05/qat-gem16-compilation-clean.json",
+      "ignored_path": "artifacts/raw/m05/qat-gem16-compilation-clean.json",
+      "size": 1260576,
+      "sha256": "f11bce2907d133a561573ff41c52173033c748c548ad7e777a7fdd8a2c00df94"
+    },
+    {
+      "milestone": "M06",
+      "original_path": "artifacts/m06/ordinary-unsloth-release.json",
+      "ignored_path": "artifacts/raw/m06/ordinary-unsloth-release.json",
+      "size": 795991,
+      "sha256": "78dc0b5f82bb674fe174df4f78889097a6314997fc8f3599bdbe7fcdc4279815"
+    },
+    {
+      "milestone": "M06",
+      "original_path": "artifacts/m06/qat-compilation-manifest-release.json",
+      "ignored_path": "artifacts/raw/m06/qat-compilation-manifest-release.json",
+      "size": 2331029,
+      "sha256": "7d1f5b1966e879c285db53065625dd0140a746a6d5a6bf45e5278b275100829d"
+    },
+    {
+      "milestone": "M06",
+      "original_path": "artifacts/m06/qat-compile-release.json",
+      "ignored_path": "artifacts/raw/m06/qat-compile-release.json",
+      "size": 3670710,
+      "sha256": "c2506062cc472bb8ff3363f9dcdb6740c5a9476063dc32f27121c1df8a96385a"
+    },
+    {
+      "milestone": "M06",
+      "original_path": "artifacts/m06/qat-plan-release.json",
+      "ignored_path": "artifacts/raw/m06/qat-plan-release.json",
+      "size": 526765,
+      "sha256": "4c0524727162276add407f44d8e9cffb16269765b64b2009a94fa4fd2a6aa796"
+    },
+    {
+      "milestone": "M07",
+      "original_path": "artifacts/m07/qat-head-compilation-manifest-release.json",
+      "ignored_path": "artifacts/raw/m07/qat-head-compilation-manifest-release.json",
+      "size": 874894,
+      "sha256": "7bf46ce571ea593c3202819db2a8c2bc2a29ba8bb73a23a0d5571a38c88f089e"
+    },
+    {
+      "milestone": "M07",
+      "original_path": "artifacts/m07/qat-head-compile-release.json",
+      "ignored_path": "artifacts/raw/m07/qat-head-compile-release.json",
+      "size": 26522,
+      "sha256": "669139762238d52d432e6c798b9f39b6e16a403164372a24c4f6e5034bb4fdbc"
+    },
+    {
+      "milestone": "M07",
+      "original_path": "artifacts/m07/qat-head-plan-release.json",
+      "ignored_path": "artifacts/raw/m07/qat-head-plan-release.json",
+      "size": 250540,
+      "sha256": "f57d6295d204dbbc19a67919b3c7fc698676c4c89d2c6643fb4d7ab3b429e141"
+    }
+  ]
+}

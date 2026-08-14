@@ -76,4 +76,5 @@ covered by the host reference tests. This is not a model-quality or performance 
 - the repository still has no executable Gemma 4 26B runtime path.
 
 M07 is accepted. M08 is next and ready to begin, but was not started by this change. See
-`artifacts/m07/acceptance.json` for the machine-readable acceptance record and the complete evidence-file hashes.
+`artifacts/m07/acceptance.json` for the machine-readable acceptance record and
+`artifacts/raw-evidence-index.json` for hashes and sizes of pruned raw reports.

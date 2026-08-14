@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate deterministic retained semantic reports for the M05 compiler runs."""
+"""Generate deterministic M05 reports from optional ignored raw evidence."""
 
 from __future__ import annotations
 
@@ -27,15 +27,16 @@ except ModuleNotFoundError:  # Direct execution from the tools directory.
     )
 
 ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_ORDINARY = ROOT / "artifacts/m05/ordinary-compile.json"
-DEFAULT_QAT = ROOT / "artifacts/m05/qat-compile.json"
-DEFAULT_ORDINARY_MANIFEST = ROOT / "artifacts/m05/ordinary-gem16-compilation-clean.json"
-DEFAULT_QAT_MANIFEST = ROOT / "artifacts/m05/qat-gem16-compilation-clean.json"
+DEFAULT_RAW_ROOT = ROOT / "artifacts/raw/m05"
+DEFAULT_ORDINARY = DEFAULT_RAW_ROOT / "ordinary-compile.json"
+DEFAULT_QAT = DEFAULT_RAW_ROOT / "qat-compile.json"
+DEFAULT_ORDINARY_MANIFEST = DEFAULT_RAW_ROOT / "ordinary-gem16-compilation-clean.json"
+DEFAULT_QAT_MANIFEST = DEFAULT_RAW_ROOT / "qat-gem16-compilation-clean.json"
 DEFAULT_CONFIG = ROOT / "artifacts/m05/fp8-compiler-config.json"
 DEFAULT_ORDINARY_PLAN = ROOT / "benchmarks/goldens/gemma4_26b/fp8/ordinary-compiler-plan.json"
 DEFAULT_QAT_PLAN = ROOT / "benchmarks/goldens/gemma4_26b/fp8/qat-compiler-plan.json"
 DEFAULT_SPEC = ROOT / "tools/gem16_compile/specs/fp8-attention-rowwise-v1.json"
-DEFAULT_TENSOR_REPORT = ROOT / "artifacts/m05/fp8-tensor-report.json"
+DEFAULT_TENSOR_REPORT = DEFAULT_RAW_ROOT / "fp8-tensor-report.json"
 DEFAULT_QAT_SUMMARY = ROOT / "artifacts/m05/qat-fp8-summary.json"
 
 EXPECTED_OUTPUT_BYTES = 1_110_850_560

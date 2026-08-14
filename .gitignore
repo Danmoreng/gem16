@@ -8,6 +8,7 @@
 /third_party/cache/
 /benchmarks/results/*
 !/benchmarks/results/.gitkeep
+/artifacts/raw/
 *.log
 *.prof
 *.nsys-rep
