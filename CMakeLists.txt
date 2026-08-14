@@ -40,6 +40,7 @@ gem16_enable_sanitizers(gem16_json)
 # Keep the suppression local to the JSON translation unit.
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   set_property(SOURCE src/util/json.cpp APPEND PROPERTY COMPILE_OPTIONS -Wno-maybe-uninitialized)
+  set_property(SOURCE src/model/gemma4_26b_compiled_loader.cpp APPEND PROPERTY COMPILE_OPTIONS -Wno-maybe-uninitialized)
 endif()
 
 add_library(gem16_core STATIC
@@ -49,6 +50,7 @@ add_library(gem16_core STATIC
   src/numeric/nvfp4_head.cpp
   src/cuda/nvfp4/sm120_layout.cpp
   src/model/checkpoint_loader.cpp
+  src/model/gemma4_26b_compiled_loader.cpp
   src/model/audio.cpp
   src/model/image.cpp
   src/model/config.cpp
@@ -66,6 +68,7 @@ add_library(gem16_core STATIC
   src/runtime/sampling.cpp
   src/runtime/result_json.cpp
   src/cuda/engine/state_capture.cpp
+  src/compiler/sha256.cpp
 )
 if(WIN32)
   target_sources(gem16_core PRIVATE src/platform/mapped_file_windows.cpp)
@@ -161,7 +164,6 @@ gem16_enable_sanitizers(gem16-checkpoint-compiler)
 
 add_executable(gem16-nvfp4-head-diagnostic
   src/cli/nvfp4_head_diagnostic_main.cpp
-  src/compiler/sha256.cpp
 )
 target_include_directories(gem16-nvfp4-head-diagnostic PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_link_libraries(gem16-nvfp4-head-diagnostic PRIVATE gem16_core gem16_json)

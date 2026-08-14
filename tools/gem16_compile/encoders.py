@@ -65,6 +65,31 @@ class CopyEncoder:
         )
 
 
+class ConstantBf16OneEncoder:
+    """Emit an explicit BF16 1.0 metadata scalar without a source payload."""
+
+    name = "constant-bf16-one-v1"
+    version = 1
+
+    def compile_tensor(
+        self,
+        plan: TensorCompilePlan,
+        sources: tuple[TensorDescriptor, ...],
+        output: BinaryIO,
+        workspace: BoundedWorkspace,
+    ) -> EncoderResult:
+        if sources:
+            raise DataError("constant-bf16-one-v1 does not accept source tensors")
+        if plan.output_dtype != "BF16" or plan.physical_shape != (1,):
+            raise DataError(
+                f"constant-bf16-one-v1 requires BF16 [1]: {plan.output_name}"
+            )
+        payload = b"\x80\x3f"
+        write_all(output, payload, f"writing {plan.output_name}")
+        digest = hashlib.sha256(payload).hexdigest()
+        return EncoderResult((), digest, len(payload))
+
+
 def _validate_fp8_plan(
     plan: TensorCompilePlan,
     sources: tuple[TensorDescriptor, ...],
@@ -345,5 +370,5 @@ def default_encoder_registry() -> dict[str, TensorEncoder]:
     # M05 production conversion is native-only.  Keep the Python encoders
     # importable as diagnostic/reference implementations, but never register
     # them as a silent compiler fallback.
-    encoder = CopyEncoder()
-    return {encoder.name: encoder}
+    encoders: tuple[TensorEncoder, ...] = (CopyEncoder(), ConstantBf16OneEncoder())
+    return {encoder.name: encoder for encoder in encoders}

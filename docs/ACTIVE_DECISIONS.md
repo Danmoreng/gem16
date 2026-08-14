@@ -1,6 +1,6 @@
 # Active decisions
 
-**Accepted:** 2026-08-12 · **Track:** Gemma 4 26B A4B Fast Track · **Status:** M00–M07 accepted, paused before M08
+**Accepted:** 2026-08-14 · **Track:** Gemma 4 26B A4B Fast Track · **Status:** M00–M07 accepted, M08 in progress
 
 This is the short operational policy for current work. It is not a replacement for historical evidence. Permanent
 rules in `AGENTS.md` remain binding. For facts about the implementation, current source, tests and accepted evidence
@@ -20,6 +20,9 @@ M06 NVFP4 experts → M07 provisional tied head → M08 artifact/loader
 → M09 real 32K residency → M13 slow correct model/early quality screen
 → M17 optimized runtime → base qualification → MTP feasibility/integration
 ```
+
+The owner explicitly restarted the track and authorized M08 implementation on 2026-08-14. M08 remains unaccepted
+until its complete-artifact, direct-loader, reproducibility and startup gates are evidenced.
 
 M10/M12 semantic and attention fixture work may proceed in disjoint slices when it does not delay the vertical path.
 The integration branch remains `feat/gemma4-26b`; temporary worktrees are allowed only with explicit file ownership.

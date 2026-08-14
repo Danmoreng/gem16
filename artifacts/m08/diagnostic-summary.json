@@ -1,0 +1,85 @@
+{
+  "acceptance": false,
+  "artifact": {
+    "excluded_vision_tensor_count": 356,
+    "file_count": 23,
+    "one_physical_tied_head": true,
+    "output_tensor_bytes": 14696569196,
+    "output_tensor_count": 1285,
+    "runtime_quantization_required": false
+  },
+  "compiler": {
+    "commit": "aeeae4bd2158a0f927812ceb82db3ceab9999e6c",
+    "dirty": true,
+    "native_builds": {
+      "fp8": {
+        "build_type": "Release",
+        "compiler_id": "GNU",
+        "compiler_version": "16.1.1",
+        "cxx_standard": "20",
+        "processor": "x86_64",
+        "system": "Linux"
+      },
+      "nvfp4": {
+        "build_type": "Release",
+        "compiler_id": "GNU",
+        "compiler_version": "16.1.1",
+        "cxx_standard": "20",
+        "processor": "x86_64",
+        "system": "Linux"
+      }
+    }
+  },
+  "diagnostic_reproducibility": {
+    "build_duration_seconds": [
+      262.098582,
+      260.846046
+    ],
+    "byte_identical": true,
+    "complete_build_count": 2,
+    "external_locks_byte_identical": true,
+    "mismatch_count": 0
+  },
+  "identity": {
+    "artifact_content_sha256": "6f7603d74accdb1768345bed6e8867dc6a119086e4f46ac9577da60a31a492bd",
+    "artifact_lock_sha256": "3824c9c59b8940a63554225785b83601ae432f2ea47fe757d05fb5aa16e877a4",
+    "compilation_manifest_sha256": "9f5b13b59ac7f99bcfa5dc27f4fe102cf944f8a9948cc39ee9637a345e3ba408",
+    "compiler_manifest_sha256": "5d7975756b331900e02a7de915cd1e473a88a36becd5582f91b4c57dd30b5f06",
+    "source_lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230"
+  },
+  "limitations": [
+    "both complete builds used a dirty compiler worktree",
+    "two clean complete builds remain required",
+    "reference-GPU startup/no-transient-OOM evidence remains required"
+  ],
+  "memory": {
+    "compiler_peak_rss_bytes": 181727232,
+    "fp8_child_peak_rss_bytes": 6782976,
+    "nvfp4_child_peak_rss_bytes": 7933952,
+    "verifier_peak_rss_bytes": 175947776
+  },
+  "milestone": "M08",
+  "schema_version": 1,
+  "status": "diagnostic_pass_not_acceptance",
+  "verification": {
+    "capabilities": {
+      "audio": false,
+      "mtp": false,
+      "text": true,
+      "video": false,
+      "vision": false
+    },
+    "checkpoint_profile": "sm120-text-hybrid-v1",
+    "cpp_direct_loader_status": "pass",
+    "protected_12b_inspect": {
+      "status": "pass",
+      "tensor_count": 1389,
+      "total_tensor_bytes": 9304786336,
+      "validation_contract": "gemma4_unified_12b_exact_inventory"
+    },
+    "python_duration_seconds": 132.182954,
+    "python_status": "pass",
+    "runtime_supported": false,
+    "validation_contract": "gemma4_26b_m08_compiled_hybrid_v1"
+  }
+}

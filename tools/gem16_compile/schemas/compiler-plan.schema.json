@@ -56,6 +56,16 @@
       }
     },
     {
+      "if": {"properties": {"artifact_profile": {"const": "sm120-text-hybrid-v1"}}, "required": ["artifact_profile"]},
+      "then": {
+        "properties": {
+          "head_format": {"const": "nvfp4"},
+          "source_contract": {"const": "gemma4-26b-source-bf16-complete-hybrid-v1"},
+          "source_lock_sha256": {"const": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230"}
+        }
+      }
+    },
+    {
       "if": {"properties": {"artifact_profile": {"const": "nvfp4-experts-partial-v1"}}, "required": ["artifact_profile"]},
       "then": {"properties": {"tensors": {"items": {"properties": {"aliased": {"const": false}}}}}}
     },
@@ -66,7 +76,7 @@
   ],
   "properties": {
     "schema_version": {"const": 1},
-    "artifact_profile": {"enum": ["synthetic-copy-v1", "fp8-attention-partial-v1", "nvfp4-experts-partial-v1", "nvfp4-tied-head-partial-v1"]},
+    "artifact_profile": {"enum": ["synthetic-copy-v1", "fp8-attention-partial-v1", "nvfp4-experts-partial-v1", "nvfp4-tied-head-partial-v1", "sm120-text-hybrid-v1"]},
     "head_format": {"enum": ["source", "deferred", "nvfp4"]},
     "source_contract": {"type": "string", "minLength": 1},
     "source_lock_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
@@ -127,10 +137,10 @@
         "operation_id": {"type": "string", "minLength": 1},
         "source_names": {
           "type": "array",
-          "minItems": 1,
+          "minItems": 0,
           "items": {"type": "string", "minLength": 1}
         },
-        "encoder": {"enum": ["copy-v1", "fp8-rowwise-weight-v1", "fp8-rowwise-scale-v1", "nvfp4-packed-v1", "nvfp4-local-scale-v1", "nvfp4-weight-divisor-v1", "nvfp4-input-divisor-v1"]},
+        "encoder": {"enum": ["copy-v1", "constant-bf16-one-v1", "fp8-rowwise-weight-v1", "fp8-rowwise-scale-v1", "nvfp4-packed-v1", "nvfp4-local-scale-v1", "nvfp4-weight-divisor-v1", "nvfp4-input-divisor-v1"]},
         "transformation": {"type": "string", "minLength": 1},
         "transformation_version": {"type": "integer", "minimum": 1},
         "output_dtype": {"type": "string", "minLength": 1},
@@ -147,6 +157,28 @@
         "aliased": {"type": "boolean"}
       },
       "allOf": [
+        {
+          "if": {"properties": {"encoder": {"const": "constant-bf16-one-v1"}}, "required": ["encoder"]},
+          "then": {
+            "properties": {
+              "source_names": {"maxItems": 0},
+              "transformation": {"const": "constant-bf16-one"},
+              "transformation_version": {"const": 1},
+              "output_dtype": {"const": "BF16"},
+              "physical_shape": {"const": [1]},
+              "logical_dtype": {"const": "BF16"},
+              "logical_shape": {"const": [1]},
+              "axis_transformation": {"const": "scalar"},
+              "quantizer_parameters": {"const": {"encoding": "BF16-RNE", "value": 1.0}},
+              "dequantization_equation": {"const": "output = BF16(1.0)"},
+              "residency_class": {"const": "immutable_device_text"},
+              "disk_layout": {"const": "scalar_bf16"},
+              "runtime_layout": {"const": "scalar_bf16"},
+              "aliased": {"const": false}
+            }
+          },
+          "else": {"properties": {"source_names": {"minItems": 1}}}
+        },
         {
           "if": {"properties": {"encoder": {"const": "copy-v1"}}},
           "then": {

@@ -623,18 +623,23 @@ Status AddCompiledNvfp4Projection(
   ContractMetadata local = base;
   local.quantization_component = "weight_local_scale";
   local.quantization_class = "NVFP4_LOCAL_SCALE_E4M3";
+  local.final_gpu_layout =
+      expert_axis == 0 ? "expert_major_sm120_row8_group16_e4m3"
+                       : "sm120_row8_group16_e4m3";
   status = AddTensor(tensors, local_name, "F8_E4M3", scale_shape, scale_shape,
                      kCompiledFamily, local);
   if (!status.ok()) return status;
   ContractMetadata global = base;
   global.quantization_component = "weight_global_scale";
   global.quantization_class = "NVFP4_GLOBAL_SCALE";
+  global.final_gpu_layout = "scalar_f32";
   status = AddTensor(tensors, global_name, "F32", {1}, {1}, kCompiledFamily,
                      global);
   if (!status.ok()) return status;
   ContractMetadata input = base;
   input.quantization_component = "activation_global_scale";
   input.quantization_class = "NVFP4_INPUT_SCALE";
+  input.final_gpu_layout = "scalar_f32";
   return AddTensor(tensors, input_name, "F32", {1}, {1}, kCompiledFamily,
                    input);
 }
@@ -690,13 +695,13 @@ Status AddCompiledAttention(std::vector<TensorInfo>* tensors,
       tensors, std::string(prefix) + "self_attn.k_scale", {1},
       TensorRole::kAttentionKScale, ResidencyClass::kImmutableDeviceText,
       kCompiledFamily, layer_index, -1, "scalar", -1, false,
-      "source_bf16");
+      "scalar_bf16");
   if (!status.ok()) return status;
   status = AddBf16(
       tensors, std::string(prefix) + "self_attn.v_scale", {1},
       TensorRole::kAttentionVScale, ResidencyClass::kImmutableDeviceText,
       kCompiledFamily, layer_index, -1, "scalar", -1, false,
-      "source_bf16");
+      "scalar_bf16");
   if (!status.ok()) return status;
   for (const auto projection : {"q", "k", "o", "v"}) {
     if (global && std::string_view(projection) == "v") continue;
@@ -1194,6 +1199,13 @@ Status ValidateGemma4Moe26BCompiledHybridInventory(
   if (!expected.ok()) return expected.status();
   std::vector<TensorInfo> actual(tensors.begin(), tensors.end());
   return ValidatePhysicalContract(&actual, expected.value(), true);
+}
+
+Status ValidateAndAnnotateGemma4Moe26BCompiledHybridInventory(
+    std::vector<TensorInfo>* tensors, Gemma4Moe26BHeadFormat head_format) {
+  auto expected = BuildGemma4Moe26BCompiledHybridContract(head_format);
+  if (!expected.ok()) return expected.status();
+  return ValidatePhysicalContract(tensors, expected.value(), false);
 }
 
 Result<std::uint64_t> Gemma4Moe26BAlignedArenaBytes(

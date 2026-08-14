@@ -1,6 +1,6 @@
 # M08 — Complete derived artifact and direct loader
 
-Status: ready after M07; not started
+Status: implementation in progress; owner restarted 2026-08-14
 Class: critical
 Unblocks: final M09 reconciliation, M11, M12 runtime and M13
 
@@ -23,18 +23,21 @@ Build and load one complete text-only QAT-derived artifact with one final weight
 
 ## Parallelism
 
-M09 phase A, M10 and M12 fixture work are paused with the track. Final schema and loader files are integration-owned;
-sub-agents do not modify them concurrently. M08 requires explicit owner instruction to start.
+Final schema and loader files are integration-owned; sub-agents do not modify them concurrently. The required owner
+instruction to start M08 was received on 2026-08-14.
 
 ## Exit gate
 
 - [ ] Two clean complete builds are byte-identical.
-- [ ] External lock and provenance are complete.
-- [ ] Inspect/validate binds every expected tensor and rejects corruption/extra modalities.
+- [x] External lock and provenance are complete.
+- [x] Inspect/validate binds every expected tensor and rejects corruption/extra modalities.
 - [ ] Loader retains one head and one expert layout.
 - [ ] Startup does not transiently OOM on the reference GPU.
-- [ ] Predicted immutable bytes are ready for M09 reconciliation.
+- [x] Predicted immutable bytes are ready for M09 reconciliation.
 
 ## Evidence
 
-`artifacts/m08/` contains compiled manifest, reproducibility hashes, load telemetry and validation output.
+`artifacts/m08/compiler-plan-summary.json` freezes the 1,285-output, 14,696,569,196-byte partition.
+`artifacts/m08/diagnostic-summary.json` records two byte-identical dirty-tree builds, identical external locks, Python
+verification and direct C++ loader validation. It is explicitly non-acceptance evidence: two clean builds and the
+reference-GPU startup/no-transient-OOM gate remain open.

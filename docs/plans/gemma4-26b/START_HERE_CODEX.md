@@ -1,6 +1,6 @@
 # Start here — current coding-agent task
 
-Status: M00–M07 accepted; paused before M08.
+Status: M00–M07 accepted; M08 implementation in progress.
 Plan revision: Fast Track R4.
 
 ## Read now
@@ -15,8 +15,7 @@ Do not preload the full decision, correctness, benchmark or performance ledgers.
 
 ## Lead-agent orchestration
 
-The track is paused after M07 by owner request. Do not start M08 or assign further 26B implementation work without
-explicit owner instruction. When resumed, the lead agent may assign disjoint sub-agents for:
+The owner explicitly restarted M08 implementation on 2026-08-14. The lead agent may assign disjoint sub-agents for:
 
 - M10 phase A BF16 MoE oracle;
 - M12 phase A traits and attention/KV fixtures;
@@ -24,7 +23,7 @@ explicit owner instruction. When resumed, the lead agent may assign disjoint sub
 - M25 phase A assistant compatibility and memory modeling;
 - evaluation/benchmark harness scaffolding.
 
-Use [`PARALLEL_WORKSTREAMS.md`](PARALLEL_WORKSTREAMS.md). M07 is accepted; M08 is next and ready but not started.
+Use [`PARALLEL_WORKSTREAMS.md`](PARALLEL_WORKSTREAMS.md). M07 is accepted; M08 is active and not yet accepted.
 
 ## M07 success
 
@@ -35,7 +34,8 @@ conversion, independent lookup/T=1 diagnostic, deterministic host tests, and exa
 
 For expensive conversions or publication claims, use reviewed, targeted-tested code, a clean worktree and source/output preflight. Small fixtures and bounded diagnostic probes do not need the full release workflow, but their diagnostic status must be recorded.
 
-## After M07
+## Current M08 boundary
 
-M08 complete-artifact and loader integration is next, but is explicitly paused and has not started. Resume only after
-owner instruction. Do not start Q4_0 backend work or MTP verifier-head optimization in M07.
+Implement the complete hybrid artifact, external lock and direct loader. Do not mark M08 accepted until two clean
+builds are byte-identical and the reference-GPU startup gate passes. Q4_0 backend work and MTP verifier-head
+optimization remain outside M08.

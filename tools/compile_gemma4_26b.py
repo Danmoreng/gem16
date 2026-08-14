@@ -73,7 +73,8 @@ def add_source_options(parser: argparse.ArgumentParser) -> None:
         required=True,
         help=(
             "versioned compiler profile: synthetic-copy-v1 (M04), "
-            "fp8-attention-partial-v1 (M05), or nvfp4-experts-partial-v1 (M06), or nvfp4-tied-head-partial-v1 (M07)"
+            "fp8-attention-partial-v1 (M05), nvfp4-experts-partial-v1 (M06), "
+            "nvfp4-tied-head-partial-v1 (M07), or sm120-text-hybrid-v1 (M08)"
         ),
     )
     parser.add_argument(
@@ -113,10 +114,22 @@ def build_parser() -> argparse.ArgumentParser:
     add_source_options(compile_parser)
     compile_parser.add_argument("--output", type=Path, required=True)
     compile_parser.add_argument("--report", type=Path, required=True)
+    compile_parser.add_argument(
+        "--artifact-lock", type=Path,
+        help="required for M08: external immutable derived-artifact lock",
+    )
     compile_parser.add_argument("--resume", action="store_true")
     compile_parser.add_argument(
         "--native-encoder", type=Path,
         help="required for native M05/M06/M07 profiles: path to the matching native compiler",
+    )
+    compile_parser.add_argument(
+        "--native-fp8-encoder", type=Path,
+        help="required for M08: native FP8 compiler",
+    )
+    compile_parser.add_argument(
+        "--native-nvfp4-encoder", type=Path,
+        help="required for M08: native NVFP4 compiler",
     )
     compile_parser.add_argument(
         "--native-timeout-seconds", type=positive_integer, default=None,
@@ -134,6 +147,10 @@ def build_parser() -> argparse.ArgumentParser:
     add_source_options(verify)
     verify.add_argument("--model", type=Path, required=True)
     verify.add_argument("--report", type=Path, required=True)
+    verify.add_argument(
+        "--artifact-lock", type=Path,
+        help="required for M08: external immutable derived-artifact lock",
+    )
 
     compare = subparsers.add_parser(
         "compare-reproducibility", help="compare every file in two artifacts"
@@ -163,14 +180,17 @@ def request_from_args(args: argparse.Namespace) -> CompilerRequest:
         shard_size=args.shard_size,
         threads=(
             args.threads if args.threads is not None else
-            (min(16, os.cpu_count() or 1) if args.profile in {"nvfp4-experts-partial-v1", "nvfp4-tied-head-partial-v1"} else 1)
+            (min(16, os.cpu_count() or 1) if args.profile in {"nvfp4-experts-partial-v1", "nvfp4-tied-head-partial-v1", "sm120-text-hybrid-v1"} else 1)
         ),
         reference_platform_strict=args.reference_platform_strict,
         dependencies_lock=args.dependencies_lock,
         native_encoder=getattr(args, "native_encoder", None),
+        native_fp8_encoder=getattr(args, "native_fp8_encoder", None),
+        native_nvfp4_encoder=getattr(args, "native_nvfp4_encoder", None),
+        artifact_lock=getattr(args, "artifact_lock", None),
         native_timeout_seconds=(
             getattr(args, "native_timeout_seconds", None)
-            or (14_400 if args.profile in {"nvfp4-experts-partial-v1", "nvfp4-tied-head-partial-v1"} else 600)
+            or (14_400 if args.profile in {"nvfp4-experts-partial-v1", "nvfp4-tied-head-partial-v1", "sm120-text-hybrid-v1"} else 600)
         ),
     )
 
@@ -187,7 +207,10 @@ def write_failure_report(args: argparse.Namespace, error: CompilerError) -> None
                 {
                     "schema_version": 1,
                     "milestone": (
-                        "M05"
+                        "M08"
+                        if getattr(args, "profile", None)
+                        == "sm120-text-hybrid-v1"
+                        else "M05"
                         if getattr(args, "profile", None)
                         == "fp8-attention-partial-v1"
                         else "M07"
@@ -233,7 +256,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                         "compiler resume is intentionally unsupported; remove only a reviewed "
                         ".incomplete directory and restart"
                     )
-                if args.profile in {"nvfp4-experts-partial-v1", "nvfp4-tied-head-partial-v1"}:
+                if args.profile in {"nvfp4-experts-partial-v1", "nvfp4-tied-head-partial-v1", "sm120-text-hybrid-v1"}:
                     print(
                         "[preflight] native Release compiler, then source lock and files",
                         file=sys.stderr,
@@ -248,6 +271,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                 elif args.profile in {"nvfp4-experts-partial-v1", "nvfp4-tied-head-partial-v1"}:
                     print(
                         "[compile] deterministic NVFP4 partial artifact",
+                        file=sys.stderr,
+                    )
+                elif args.profile == "sm120-text-hybrid-v1":
+                    print(
+                        "[compile] deterministic complete M08 hybrid artifact",
                         file=sys.stderr,
                     )
                 else:
@@ -274,7 +302,20 @@ def main(argv: Sequence[str] | None = None) -> int:
         write_failure_report(args, wrapped)
         print(f"error: {wrapped}", file=sys.stderr)
         return wrapped.exit_code
-    print(json.dumps(report, indent=2, sort_keys=True))
+    display_report = report
+    if report.get("artifact_profile") == "sm120-text-hybrid-v1":
+        display_report = {
+            key: report[key]
+            for key in (
+                "schema_version", "milestone", "action", "status", "output",
+                "artifact", "source_lock_sha256", "compiler_manifest_sha256",
+                "compilation_manifest_sha256", "artifact_lock_sha256",
+                "artifact_content_sha256", "output_tensor_count",
+                "output_tensor_bytes", "duration_seconds",
+            )
+            if key in report
+        }
+    print(json.dumps(display_report, indent=2, sort_keys=True))
     return 0
 
 

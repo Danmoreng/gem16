@@ -1,9 +1,9 @@
 # Active contract — Gemma 4 26B Fast Track R4
 
-Status: accepted through M07; paused before M08 by owner request
+Status: accepted through M07; M08 implementation in progress by owner instruction
 Plan revision: `fast-track-r4`
 Accepted baseline: M00–M07
-Current milestone: M08 (ready, not started; execution paused)
+Current milestone: M08 (active; not yet accepted)
 Integration branch: `feat/gemma4-26b`
 
 ## Purpose
@@ -130,9 +130,9 @@ Do not repeat an expensive run solely to produce a second prose record. M08 comp
 
 ## Current unblocked work
 
-After M07 acceptance, implementation is paused by owner request.
+The owner restarted M08 implementation on 2026-08-14.
 
 - M07 is accepted and its partial artifact is reference-only and not runtime-loadable.
-- M08 is the next ready milestone but has not started; no dependent implementation work is active.
+- M08 complete-artifact, external-lock and direct-loader integration is active.
 - M10 phase A, M12 phase A, M09 formula/test prework, evaluation-harness work and M25 feasibility work are paused with the track.
-- M08 and final M09 reconciliation remain the next vertical checkpoint after explicit owner restart.
+- M08 acceptance and final M09 reconciliation remain the next vertical checkpoints.

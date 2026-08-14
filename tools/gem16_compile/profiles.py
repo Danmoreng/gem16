@@ -95,6 +95,30 @@ M07_PROFILE = CompilerProfile(
     deferred_reason=M07_DEFERRED_REASON,
 )
 
+M08_SOURCE_CONTRACT = "gemma4-26b-source-bf16-complete-hybrid-v1"
+M08_PROFILE = CompilerProfile(
+    name="sm120-text-hybrid-v1",
+    head_format="nvfp4",
+    milestone="M08",
+    artifact_status="m08_complete_runtime_loadable_experimental",
+    compiler_implementation="gem16_compile_m08_hybrid_v1",
+    header_label="m08-sm120-text-hybrid-v1",
+    attention="fp8-per-output-row-v1",
+    experts="nvfp4-group16-divisor-v1",
+    embedding_head="nvfp4-group16-divisor-v1",
+    production_quantization_implemented=True,
+    allowed_encoders=frozenset({
+        "copy-v1",
+        "constant-bf16-one-v1",
+        "fp8-rowwise-weight-v1",
+        "fp8-rowwise-scale-v1",
+        "nvfp4-packed-v1",
+        "nvfp4-local-scale-v1",
+        "nvfp4-weight-divisor-v1",
+        "nvfp4-input-divisor-v1",
+    }),
+)
+
 M06_PROFILE = CompilerProfile(
     name="nvfp4-experts-partial-v1",
     head_format="deferred",
@@ -395,7 +419,10 @@ def m06_expected_source_specs() -> dict[str, tuple[str, tuple[int, ...]]]:
     return dict(sorted(specs.items()))
 
 
-PROFILES = {profile.name: profile for profile in (M04_PROFILE, M05_PROFILE, M06_PROFILE, M07_PROFILE)}
+PROFILES = {
+    profile.name: profile
+    for profile in (M04_PROFILE, M05_PROFILE, M06_PROFILE, M07_PROFILE, M08_PROFILE)
+}
 
 M05_QUANTIZER_PARAMETERS = {
     "contract_id": "gem16.fp8_attention_rowwise",
@@ -438,6 +465,8 @@ __all__ = [
     "M07_DEFERRED_REASON",
     "M07_PROFILE",
     "M07_SOURCE_CONTRACT",
+    "M08_PROFILE",
+    "M08_SOURCE_CONTRACT",
     "M06_PROFILE",
     "M06_QUANTIZER_PARAMETERS",
     "M06_COMPONENT_LAYOUTS",

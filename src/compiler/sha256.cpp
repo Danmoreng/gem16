@@ -123,11 +123,13 @@ std::array<std::uint8_t, 32> Sha256::Final() const noexcept {
   const std::uint64_t bit_length = copy.total_bytes_ * 8U;
   copy.block_[copy.block_size_++] = 0x80U;
   if (copy.block_size_ > 56U) {
-    std::fill(copy.block_.begin() + static_cast<std::ptrdiff_t>(copy.block_size_), copy.block_.end(), 0U);
+    std::fill(copy.block_.begin() + static_cast<std::ptrdiff_t>(copy.block_size_),
+              copy.block_.end(), std::uint8_t{0});
     copy.Transform(copy.block_.data());
     copy.block_size_ = 0;
   }
-  std::fill(copy.block_.begin() + static_cast<std::ptrdiff_t>(copy.block_size_), copy.block_.begin() + 56, 0U);
+  std::fill(copy.block_.begin() + static_cast<std::ptrdiff_t>(copy.block_size_),
+            copy.block_.begin() + 56, std::uint8_t{0});
   for (unsigned index = 0; index < 8U; ++index) {
     copy.block_[56U + index] = static_cast<std::uint8_t>(bit_length >> (56U - index * 8U));
   }

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "plan_revision": "fast-track-r4",
-  "updated": "2026-08-12",
+  "updated": "2026-08-14",
   "accepted_through": "M07",
   "current_milestone": "M08",
   "active_wave": "F1-artifact-and-residency",
@@ -33,7 +33,7 @@
       ]
     },
     "M08": {
-      "status": "READY", "note": "next after accepted M07; not started; paused by owner request",
+      "status": "IN_PROGRESS", "note": "owner restarted implementation on 2026-08-14; acceptance gates remain open",
       "class": "critical",
       "lane": "artifact-loader",
       "depends_on": [

@@ -393,6 +393,27 @@ void RunGemma426BManifestTests() {
                                    Gemma4Moe26BHeadFormat::kQ4_0);
   CheckCompiledFp8AttentionBinding(compiled_nvfp4.value(),
                                    Gemma4Moe26BHeadFormat::kNvfp4);
+  const auto* head_packed = Find(
+      &compiled_nvfp4.value(),
+      "model.language_model.embed_tokens.weight_packed");
+  const auto* head_scale = Find(
+      &compiled_nvfp4.value(),
+      "model.language_model.embed_tokens.weight_scale");
+  const auto* head_global = Find(
+      &compiled_nvfp4.value(),
+      "model.language_model.embed_tokens.weight_global_scale");
+  const auto* head_input = Find(
+      &compiled_nvfp4.value(),
+      "model.language_model.embed_tokens.input_global_scale");
+  GEM16_CHECK(head_packed != nullptr &&
+              head_packed->final_gpu_layout == "sm120_row8_k64");
+  GEM16_CHECK(head_scale != nullptr &&
+              head_scale->final_gpu_layout ==
+                  "sm120_row8_group16_e4m3");
+  GEM16_CHECK(head_global != nullptr &&
+              head_global->final_gpu_layout == "scalar_f32");
+  GEM16_CHECK(head_input != nullptr &&
+              head_input->final_gpu_layout == "scalar_f32");
 
   auto wrong_fp8_weight_dtype = compiled_q4.value();
   auto* compiled_q = Find(

@@ -83,6 +83,8 @@ ValidateAndAnnotateGemma4Moe26BInventory(
     const ModelConfig& config, std::vector<TensorInfo>* tensors);
 [[nodiscard]] Status ValidateGemma4Moe26BCompiledHybridInventory(
     std::span<const TensorInfo> tensors, Gemma4Moe26BHeadFormat head_format);
+[[nodiscard]] Status ValidateAndAnnotateGemma4Moe26BCompiledHybridInventory(
+    std::vector<TensorInfo>* tensors, Gemma4Moe26BHeadFormat head_format);
 
 [[nodiscard]] Result<std::uint64_t> Gemma4Moe26BAlignedArenaBytes(
     std::span<const TensorInfo> tensors, std::uint64_t alignment = 256);

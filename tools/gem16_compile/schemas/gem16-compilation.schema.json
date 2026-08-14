@@ -67,14 +67,24 @@
             "compiler_settings": {"$ref": "#/$defs/settingsM07"},
             "tensors": {"items": {"properties": {"aliased": {"const": true}}}}
           }
+        },
+        {
+          "properties": {
+            "artifact_profile": {"const": "sm120-text-hybrid-v1"},
+            "artifact_status": {"const": "m08_complete_runtime_loadable_experimental"},
+            "head_format": {"const": "nvfp4"},
+            "compiler": {"$ref": "#/$defs/compilerM08"},
+            "quantization": {"$ref": "#/$defs/quantizationM08"},
+            "compiler_settings": {"$ref": "#/$defs/settingsM08"}
+          }
         }
       ]
     }
   ],
   "properties": {
     "schema_version": {"const": 1},
-    "artifact_profile": {"enum": ["synthetic-copy-v1", "fp8-attention-partial-v1", "nvfp4-experts-partial-v1", "nvfp4-tied-head-partial-v1"]},
-    "artifact_status": {"enum": ["m04_scaffold_not_runtime_loadable", "m05_fp8_attention_partial_not_runtime_loadable", "m06_nvfp4_experts_partial_not_runtime_loadable", "m07_nvfp4_tied_head_partial_not_runtime_loadable"]},
+    "artifact_profile": {"enum": ["synthetic-copy-v1", "fp8-attention-partial-v1", "nvfp4-experts-partial-v1", "nvfp4-tied-head-partial-v1", "sm120-text-hybrid-v1"]},
+    "artifact_status": {"enum": ["m04_scaffold_not_runtime_loadable", "m05_fp8_attention_partial_not_runtime_loadable", "m06_nvfp4_experts_partial_not_runtime_loadable", "m07_nvfp4_tied_head_partial_not_runtime_loadable", "m08_complete_runtime_loadable_experimental"]},
     "source": {"$ref": "#/$defs/source"},
     "compiler": {"$ref": "#/$defs/compiler"},
     "plan": {"$ref": "#/$defs/plan"},
@@ -123,6 +133,17 @@
         "resolved_at_utc": {"type": "string"}
       }
     },
+    "nativeEncoder": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocol", "sha256", "threads", "build"],
+      "properties": {
+        "protocol": {"enum": ["gem16-fp8-batch-v1", "gem16-nvfp4-direct-v1"]},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "threads": {"type": "integer", "minimum": 1, "maximum": 64},
+        "build": {"$ref": "#/$defs/nativeBuild"}
+      }
+    },
     "compiler": {
       "type": "object",
       "additionalProperties": false,
@@ -142,7 +163,16 @@
         "python": {"type": "string", "minLength": 1},
         "platform": {"type": "object"},
         "dependencies_lock_sha256": {"$ref": "#/$defs/sha256"},
-        "implementation": {"enum": ["gem16_compile_m04_v1", "gem16_compile_m05_native_v1", "gem16_compile_m06_native_v1", "gem16_compile_m07_native_v1"]},
+        "implementation": {"enum": ["gem16_compile_m04_v1", "gem16_compile_m05_native_v1", "gem16_compile_m06_native_v1", "gem16_compile_m07_native_v1", "gem16_compile_m08_hybrid_v1"]},
+        "native_encoders": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["fp8", "nvfp4"],
+          "properties": {
+            "fp8": {"$ref": "#/$defs/nativeEncoder"},
+            "nvfp4": {"$ref": "#/$defs/nativeEncoder"}
+          }
+        },
         "native_encoder": {
           "type": "object",
           "additionalProperties": false,
@@ -211,6 +241,34 @@
         }
       ]
     },
+    "compilerM08": {
+      "allOf": [
+        {"$ref": "#/$defs/compiler"},
+        {
+          "required": ["native_encoders"],
+          "not": {"required": ["native_encoder"]},
+          "properties": {
+            "implementation": {"const": "gem16_compile_m08_hybrid_v1"},
+            "native_encoders": {
+              "properties": {
+                "fp8": {
+                  "properties": {
+                    "protocol": {"const": "gem16-fp8-batch-v1"},
+                    "build": {"properties": {"build_type": {"const": "Release"}}}
+                  }
+                },
+                "nvfp4": {
+                  "properties": {
+                    "protocol": {"const": "gem16-nvfp4-direct-v1"},
+                    "build": {"properties": {"build_type": {"const": "Release"}}}
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
     "quantizationM04": {
       "const": {
         "profile": "synthetic-copy-v1",
@@ -251,6 +309,15 @@
         "experts": {"const": "deferred-to-m08"},
         "embedding_head": {"const": "nvfp4-group16-divisor-v1"},
         "production_quantization_implemented": {"const": false}
+      }
+    },
+    "quantizationM08": {
+      "const": {
+        "profile": "sm120-text-hybrid-v1",
+        "attention": "fp8-per-output-row-v1",
+        "experts": "nvfp4-group16-divisor-v1",
+        "embedding_head": "nvfp4-group16-divisor-v1",
+        "production_quantization_implemented": true
       }
     },
     "plan": {
@@ -356,7 +423,7 @@
         },
         "sources": {
           "type": "array",
-          "minItems": 1,
+          "minItems": 0,
           "items": {"$ref": "#/$defs/tensorSource"}
         },
         "transformation": {"type": "string", "minLength": 1},
@@ -476,6 +543,12 @@
       ]
     },
     "settingsM07": {
+      "allOf": [
+        {"$ref": "#/$defs/settings"},
+        {"properties": {"threads": {"type": "integer", "minimum": 1, "maximum": 64}}}
+      ]
+    },
+    "settingsM08": {
       "allOf": [
         {"$ref": "#/$defs/settings"},
         {"properties": {"threads": {"type": "integer", "minimum": 1, "maximum": 64}}}

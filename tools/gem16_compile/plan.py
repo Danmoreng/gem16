@@ -19,6 +19,7 @@ from .profiles import (
     M04_PROFILE,
     M05_APPROVED_SOURCE_LOCKS,
     M05_ATTENTION_TABLE,
+    M05_LAYER_COUNT,
     M05_PROFILE,
     M05_DEQUANTIZATION_EQUATION,
     M05_QUANTIZER_PARAMETERS,
@@ -38,6 +39,7 @@ from .profiles import (
     M07_PROFILE,
     M07_QUANTIZER_PARAMETERS,
     M07_SOURCE_CONTRACT,
+    M08_PROFILE,
     classify_m05_source,
     m06_component_parameters,
     m06_expected_source_specs,
@@ -151,10 +153,10 @@ def _tensor_plan(
     if unknown:
         raise InvalidPlanError(f"{description} contains unknown keys: {sorted(unknown)}")
     output_name = _required_string(value.get("output_name"), f"{description}.output_name")
-    source_names = _string_array(value.get("source_names"), f"{description}.source_names")
-    if not source_names:
-        raise InvalidPlanError(f"{description}.source_names must not be empty")
     encoder = _required_string(value.get("encoder"), f"{description}.encoder")
+    source_names = _string_array(value.get("source_names"), f"{description}.source_names")
+    if not source_names and encoder != "constant-bf16-one-v1":
+        raise InvalidPlanError(f"{description}.source_names must not be empty")
     if encoder not in profile.allowed_encoders:
         raise InvalidPlanError(f"unsupported {profile.milestone} encoder: {encoder}")
     parameters = value.get("quantizer_parameters")
@@ -617,6 +619,122 @@ def _validate_m07_coverage(
             raise InvalidPlanError(f"M07 exclusion contract mismatch: {item.source_name}")
 
 
+def _validate_m08_coverage(
+    tensors: tuple[TensorCompilePlan, ...],
+    excluded: tuple[ExcludedTensorPlan, ...],
+    source_tensors: dict[str, TensorDescriptor],
+) -> None:
+    """Validate the exact complete M08 hybrid mapping."""
+    _validate_m06_source_inventory(source_tensors)
+    by_source: dict[str, list[TensorCompilePlan]] = {}
+    constants: list[TensorCompilePlan] = []
+    for tensor in tensors:
+        if tensor.encoder == "constant-bf16-one-v1":
+            constants.append(tensor)
+            continue
+        if len(tensor.source_names) != 1:
+            raise InvalidPlanError("M08 non-constant encoders require one source tensor")
+        by_source.setdefault(tensor.source_names[0], []).append(tensor)
+
+    head_name = "model.language_model.embed_tokens.weight"
+    head_group = by_source.get(head_name, [])
+    _validate_m07_coverage(
+        tuple(head_group),
+        tuple(
+            ExcludedTensorPlan(
+                source_name=name,
+                family=("vision" if role.startswith("vision_") else "deferred_non_head"),
+                role=role,
+                residency_class=("compile_excluded_vision" if role.startswith("vision_") else "m07_deferred_non_head"),
+                reason=(M05_VISION_EXCLUSION_REASON if role.startswith("vision_") else M07_DEFERRED_REASON),
+            )
+            for name, (role, _shape) in m06_expected_source_specs().items()
+            if name != head_name
+        ),
+        source_tensors,
+    )
+
+    expert_roles = {
+        "shared_mlp_gate", "shared_mlp_up", "shared_mlp_down",
+        "routed_expert_gate_up", "routed_expert_down",
+    }
+    attention_roles = {
+        "attention_q_projection", "attention_k_projection",
+        "attention_v_projection", "attention_o_projection",
+    }
+    copied_sources: set[str] = set()
+    for source_name, (role, _shape) in m06_expected_source_specs().items():
+        if role.startswith("vision_") or source_name == head_name:
+            continue
+        group = by_source.get(source_name, [])
+        if role in expert_roles:
+            _validate_m06_source(source_name, source_tensors[source_name], group)
+        elif role in attention_roles:
+            _validate_m05_pair(source_name, source_tensors[source_name], group)
+        else:
+            if len(group) != 1 or group[0].encoder != "copy-v1":
+                raise InvalidPlanError(
+                    f"M08 source tensor must be copied exactly once: {source_name}"
+                )
+            _validate_copy_plan(group[0], source_tensors[source_name])
+            if (
+                group[0].role != role
+                or group[0].residency_class != "immutable_device_text"
+                or group[0].runtime_layout != "source_bf16"
+                or group[0].aliased
+            ):
+                raise InvalidPlanError(f"M08 copy semantic mismatch: {source_name}")
+            copied_sources.add(source_name)
+
+    expected_constants = {
+        f"model.language_model.layers.{layer}.self_attn.{component}_scale":
+            f"attention_{component}_cache_scale"
+        for layer in range(M05_LAYER_COUNT)
+        for component in ("k", "v")
+    }
+    if {item.output_name for item in constants} != set(expected_constants):
+        raise InvalidPlanError("M08 cache-scale metadata inventory mismatch")
+    for item in constants:
+        if (
+            item.source_names
+            or item.operation_id != f"constant-bf16-one:{item.output_name}"
+            or item.transformation != "constant-bf16-one"
+            or item.transformation_version != 1
+            or item.output_dtype != "BF16"
+            or item.physical_shape != (1,)
+            or item.logical_dtype != "BF16"
+            or item.logical_shape != (1,)
+            or item.axis_transformation != "scalar"
+            or item.quantizer_parameters != {"value": 1.0, "encoding": "BF16-RNE"}
+            or item.dequantization_equation != "output = BF16(1.0)"
+            or item.role != expected_constants[item.output_name]
+            or item.residency_class != "immutable_device_text"
+            or item.disk_layout != "scalar_bf16"
+            or item.runtime_layout != "scalar_bf16"
+            or item.aliased
+        ):
+            raise InvalidPlanError(
+                f"M08 cache-scale metadata contract mismatch: {item.output_name}"
+            )
+
+    if len(tensors) != 1285:
+        raise InvalidPlanError(f"M08 expected 1,285 output tensors, got {len(tensors)}")
+    if len(copied_sources) != 391:
+        raise InvalidPlanError(f"M08 expected 391 copied text tensors, got {len(copied_sources)}")
+    if len(excluded) != 356:
+        raise InvalidPlanError("M08 must exclude exactly the 356 vision tensors")
+    for item in excluded:
+        role = classify_m05_source(item.source_name)
+        if (
+            not role.startswith("vision_")
+            or item.role != role
+            or item.family != "vision"
+            or item.residency_class != "compile_excluded_vision"
+            or item.reason != M05_VISION_EXCLUSION_REASON
+        ):
+            raise InvalidPlanError(f"M08 exclusion mismatch: {item.source_name}")
+
+
 def _validate_coverage(
     tensors: tuple[TensorCompilePlan, ...],
     excluded: tuple[ExcludedTensorPlan, ...],
@@ -670,6 +788,8 @@ def _validate_coverage(
         _validate_m06_coverage(tensors, excluded, source_tensors)
     elif profile.name == M07_PROFILE.name:
         _validate_m07_coverage(tensors, excluded, source_tensors)
+    elif profile.name == M08_PROFILE.name:
+        _validate_m08_coverage(tensors, excluded, source_tensors)
     for item in excluded:
         if item.source_name not in source_tensors:
             raise InvalidPlanError(f"excluded source tensor is absent: {item.source_name}")
@@ -738,7 +858,7 @@ def load_quantization_plan(
             raise InvalidPlanError(
                 "M05 compiler manifest does not name an approved source lock"
             )
-    elif contract.name in {M06_PROFILE.name, M07_PROFILE.name}:
+    elif contract.name in {M06_PROFILE.name, M07_PROFILE.name, M08_PROFILE.name}:
         qat_lock = M05_SOURCE_LOCK_SHA256["qat_bf16"]
         if source.lock_sha256 != qat_lock or expected_source_lock != qat_lock:
             raise InvalidPlanError(f"{contract.milestone} requires the approved QAT BF16 source lock")

@@ -359,7 +359,10 @@ class FP8EncoderTest(unittest.TestCase):
             self.assertEqual(scale_stats["columns"], 1)
             self.assertEqual(workspace.maximum_transform_row_bytes, 8)
             self.assertEqual(workspace.telemetry()["maximum_transform_row_bytes"], 8)
-            self.assertEqual(default_encoder_registry().keys(), {"copy-v1"})
+            self.assertEqual(
+                default_encoder_registry().keys(),
+                {"copy-v1", "constant-bf16-one-v1"},
+            )
         finally:
             temporary.cleanup()
 

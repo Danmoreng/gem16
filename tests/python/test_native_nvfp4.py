@@ -111,6 +111,38 @@ class NativeNvfp4AdapterTest(unittest.TestCase):
             self.assertEqual(result.threads, 2)
             self.assertEqual(result.source_passes, 2)
 
+    def test_verified_snapshot_leaf_symlink_resolves_before_native_job(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            plan, sources = self.make_fixture(root)
+            source = next(iter(sources.values()))
+            blob = root / "blob.bf16"
+            source.path.rename(blob)
+            source.path.symlink_to(blob)
+            sources = {
+                source.name: TensorDescriptor(
+                    name=source.name,
+                    dtype=source.dtype,
+                    shape=source.shape,
+                    shard=source.shard,
+                    path=source.path,
+                    absolute_offset=source.absolute_offset,
+                    data_offset=source.data_offset,
+                    byte_length=source.byte_length,
+                    shard_sha256=source.shard_sha256,
+                )
+            }
+            staging = root / "artifact.incomplete"
+            staging.mkdir()
+            workspace = BoundedWorkspace(512 * 1024 * 1024, 4096)
+            layout = prepare_direct_shards(staging, plan, workspace)
+            result = prepare_native_direct(
+                NativeNvfp4Request(NATIVE, timeout_seconds=20, threads=2),
+                plan, sources, workspace, staging, layout,
+            )
+            payload = finalize_direct_shards(staging, plan, layout, result, workspace)
+            self.assertEqual(len(payload.tensors), 4)
+
     def test_build_info_is_strict_and_reports_release_identity(self) -> None:
         result = subprocess.run(
             [str(NATIVE), "--build-info"], capture_output=True, text=True, check=False

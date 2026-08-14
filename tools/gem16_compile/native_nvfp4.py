@@ -200,6 +200,8 @@ def preflight_native_nvfp4(
         if native_build.get("build_type") != "Release":
             if request.profile == "nvfp4-tied-head-partial-v1":
                 message = "M07 tied-head conversion requires a native Release build"
+            elif request.profile == "sm120-text-hybrid-v1":
+                message = "M08 complete conversion requires a native Release build"
             else:
                 message = "M06 full conversion requires a native Release build"
             raise InvalidPlanError(f"{message}; got {native_build.get('build_type')!r}")
@@ -315,9 +317,11 @@ def _make_job(
             elements *= dimension
         if source.byte_length != elements * 2:
             raise DataError(f"M06 source byte count mismatch: {source_name}")
+        # Leaf symlinks are normal for immutable Hugging Face snapshots.  The
+        # source-lock verifier has already hashed the bytes reached through the
+        # locked snapshot name; pass the resolved regular file to the native
+        # child so it cannot perform a second pathname traversal.
         source_path = source.path.expanduser().absolute()
-        if source_path.is_symlink():
-            raise SourceVerificationError(f"M06 source shard is a symlink: {source_path}")
         try:
             source_path = source_path.resolve(strict=True)
             if not source_path.is_file() or source_path.is_symlink():
@@ -380,7 +384,8 @@ def _make_job(
         "schema_version": 1,
         "protocol": PROTOCOL,
         "artifact_profile": plan.artifact_profile,
-        "scope": ("tied_head" if plan.artifact_profile == "nvfp4-tied-head-partial-v1"
+        "scope": ("complete" if plan.artifact_profile == "sm120-text-hybrid-v1"
+                  else "tied_head" if plan.artifact_profile == "nvfp4-tied-head-partial-v1"
                   else "full" if len(operations) == 150 else "fixture"),
         "contract_id": CONTRACT_ID,
         "contract_version": CONTRACT_VERSION,
@@ -504,11 +509,17 @@ def prepare_native_direct(
                 )
         operation_count = sum(1 for tensor in plan.tensors if tensor.encoder == "nvfp4-packed-v1")
         requires_release = plan.artifact_profile in {
-            "nvfp4-experts-partial-v1", "nvfp4-tied-head-partial-v1"
-        } and (operation_count == 150 or plan.artifact_profile == "nvfp4-tied-head-partial-v1")
+            "nvfp4-experts-partial-v1", "nvfp4-tied-head-partial-v1",
+            "sm120-text-hybrid-v1",
+        } and (
+            operation_count in {150, 151}
+            or plan.artifact_profile == "nvfp4-tied-head-partial-v1"
+        )
         if requires_release and native_build.get("build_type") != "Release":
             if plan.artifact_profile == "nvfp4-tied-head-partial-v1":
                 message = "M07 tied-head conversion requires a native Release build"
+            elif plan.artifact_profile == "sm120-text-hybrid-v1":
+                message = "M08 complete conversion requires a native Release build"
             else:
                 message = "M06 full conversion requires a native Release build"
             raise InvalidPlanError(f"{message}; got {native_build.get('build_type')!r}")

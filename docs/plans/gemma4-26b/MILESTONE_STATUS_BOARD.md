@@ -1,16 +1,16 @@
 # Milestone status board — Fast Track R4
 
-Derived from [`FAST_TRACK_STATUS.json`](FAST_TRACK_STATUS.json). Policy: [`../../ACTIVE_DECISIONS.md`](../../ACTIVE_DECISIONS.md). Last synchronized: 2026-08-12.
+Derived from [`FAST_TRACK_STATUS.json`](FAST_TRACK_STATUS.json). Policy: [`../../ACTIVE_DECISIONS.md`](../../ACTIVE_DECISIONS.md). Last synchronized: 2026-08-14.
 
 ## Accepted
 
 `M00 M01 M02 M03 M04 M05 M06 M07`
 
-## Paused / next
+## Active / next
 
 | Milestone/slice | State | Role |
 |---|---|---|
-| M08 | READY, NOT STARTED | complete artifact and direct loader |
+| M08 | IN PROGRESS | complete artifact, external lock and direct loader |
 | M10 phase A | PAUSED | BF16 MoE oracle |
 | M12 phase A | PAUSED | attention/trait fixtures |
 | M09 phase A | PAUSED | formulas and one-slot tests |
@@ -27,4 +27,4 @@ Derived from [`FAST_TRACK_STATUS.json`](FAST_TRACK_STATUS.json). Policy: [`../..
 - M24: optional internal Q4_0 backend.
 - Vision: outside this program.
 
-Program completion is M25, not M23. M07 is accepted; the next practical path is M08→M09→M13 after explicit owner restart. Later qualification remains explicit follow-up rather than a prerequisite for early experiments.
+Program completion is M25, not M23. M07 is accepted and M08 is active; the next practical path is M08→M09→M13. Later qualification remains explicit follow-up rather than a prerequisite for early experiments.

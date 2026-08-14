@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import shutil
 import struct
+import json
 from typing import Any
 
 from .common import (
@@ -17,6 +18,7 @@ from .common import (
     compact_json_bytes,
     fsync_directory,
     safe_relative_path,
+    reject_duplicate_keys,
     write_all,
     write_file_atomic,
 )
@@ -58,6 +60,54 @@ class DirectShardLayout:
     index_name: str
     # output name -> (absolute shard path, absolute file offset)
     outputs: dict[str, tuple[Path, int]]
+
+
+def m08_config_bytes(source: bytes) -> bytes:
+    """Add the versioned Gem16 block without rewriting architecture facts."""
+    try:
+        document = json.loads(source.decode("utf-8"), object_pairs_hook=reject_duplicate_keys)
+    except (UnicodeError, json.JSONDecodeError, DataError, ValueError) as error:
+        raise OutputError(f"cannot parse locked M08 config.json: {error}") from error
+    if not isinstance(document, dict) or "gem16" in document:
+        raise OutputError("M08 source config must be an object without a gem16 block")
+    document["gem16"] = {
+        "schema_version": 1,
+        "compiler_data_plane": "native-cpp20",
+        "profile": "sm120-text-hybrid-v1",
+        "variant": "gemma4-26b-a4b",
+        "text_only": True,
+        "head_format": "nvfp4-group16-divisor-v1",
+        "supports_mtp": False,
+        "supports_vision": False,
+        "supports_audio": False,
+        "supports_video": False,
+    }
+    return canonical_json_bytes(document)
+
+
+class _BoundedRangeWriter:
+    """Write-only view over one preallocated tensor range."""
+
+    def __init__(self, stream: Any, offset: int, length: int, description: str):
+        self._stream = stream
+        self._remaining = length
+        self._description = description
+        stream.seek(offset)
+
+    def write(self, payload: bytes | bytearray | memoryview) -> int:
+        if len(payload) > self._remaining:
+            raise OutputError(f"encoder exceeded output range: {self._description}")
+        written = self._stream.write(payload)
+        if written is None:
+            written = len(payload)
+        self._remaining -= written
+        return written
+
+    def finish(self) -> None:
+        if self._remaining != 0:
+            raise OutputError(
+                f"encoder left {self._remaining} bytes unwritten: {self._description}"
+            )
 
 
 def assign_shards(plan: QuantizationPlan) -> tuple[ShardAssignment, ...]:
@@ -296,6 +346,94 @@ def finalize_direct_shards(
     )
 
 
+def finalize_mixed_shards(
+    staging: Path,
+    plan: QuantizationPlan,
+    source_tensors: dict[str, TensorDescriptor],
+    layout: DirectShardLayout,
+    native_nvfp4_result: Any,
+    fp8_bundle: NativeBundle,
+    workspace: BoundedWorkspace,
+    encoders: dict[str, TensorEncoder],
+) -> WrittenArtifactPayload:
+    """Fill non-NVFP4 ranges around direct native M08 NVFP4 outputs."""
+    registry = dict(encoders)
+    registry["fp8-rowwise-weight-v1"] = NativeBundleEncoder(fp8_bundle, "weight")
+    registry["fp8-rowwise-scale-v1"] = NativeBundleEncoder(fp8_bundle, "scale")
+    nvfp4_encoders = {
+        "nvfp4-packed-v1", "nvfp4-local-scale-v1",
+        "nvfp4-weight-divisor-v1", "nvfp4-input-divisor-v1",
+    }
+    written_by_name: dict[str, WrittenTensor] = {}
+    assignments_by_name = {
+        tensor.output_name: assignment
+        for assignment in layout.assignments
+        for tensor in assignment.tensors
+    }
+
+    for tensor in plan.tensors:
+        assignment = assignments_by_name[tensor.output_name]
+        _path, absolute_offset = layout.outputs[tensor.output_name]
+        header, offsets = safetensors_header(
+            assignment.tensors,
+            artifact_label=profile_for(plan.artifact_profile, plan.head_format).header_label,
+        )
+        if tensor.encoder in nvfp4_encoders:
+            direct = native_nvfp4_result.outputs.get(tensor.output_name)
+            if direct is None or direct.output_bytes != tensor.output_bytes:
+                raise DataError(f"native M08 NVFP4 result is missing: {tensor.output_name}")
+            result = EncoderResult(
+                source_sha256=(direct.source_sha256,),
+                output_sha256=direct.output_sha256,
+                output_bytes=direct.output_bytes,
+                statistics=direct.statistics,
+            )
+        else:
+            encoder = registry.get(tensor.encoder)
+            if encoder is None:
+                raise OutputError(f"M08 encoder is not registered: {tensor.encoder}")
+            sources = tuple(source_tensors[name] for name in tensor.source_names)
+            shard_path = staging / assignment.name
+            with shard_path.open("r+b", buffering=0) as stream:
+                target = _BoundedRangeWriter(
+                    stream, absolute_offset, tensor.output_bytes, tensor.output_name
+                )
+                result = encoder.compile_tensor(
+                    tensor, sources, target, workspace  # type: ignore[arg-type]
+                )
+                target.finish()
+                stream.flush()
+            if result.output_bytes != tensor.output_bytes:
+                raise OutputError(f"M08 encoder byte mismatch: {tensor.output_name}")
+        written_by_name[tensor.output_name] = WrittenTensor(
+            plan=tensor,
+            shard=assignment.name,
+            data_offsets=offsets[tensor.output_name],
+            source_result=result,
+        )
+
+    for name in layout.shard_names:
+        with (staging / name).open("rb") as stream:
+            os.fsync(stream.fileno())
+    weight_map = {
+        tensor.output_name: assignments_by_name[tensor.output_name].name
+        for tensor in plan.tensors
+    }
+    write_file_atomic(
+        staging / layout.index_name,
+        canonical_json_bytes({
+            "metadata": {"total_size": plan.output_tensor_bytes},
+            "weight_map": dict(sorted(weight_map.items())),
+        }),
+    )
+    return WrittenArtifactPayload(
+        tensors=tuple(written_by_name[tensor.output_name] for tensor in plan.tensors),
+        shard_names=layout.shard_names,
+        index_name=layout.index_name,
+        metadata_names=(),
+    )
+
+
 def copy_approved_metadata(
     staging: Path,
     plan: QuantizationPlan,
@@ -308,14 +446,24 @@ def copy_approved_metadata(
         source = source_files[relative]
         destination = staging.joinpath(*parsed.parts)
         destination.parent.mkdir(parents=True, exist_ok=True)
-        with _open_exclusive(destination) as output:
-            source_hash, output_hash = workspace.copy_range(
-                source.path, 0, source.size, output, track_tensor=False
-            )
-            output.flush()
-            os.fsync(output.fileno())
-        if source_hash != source.sha256 or output_hash != source.sha256:
-            raise OutputError(f"metadata hash changed while copying: {relative}")
+        if plan.artifact_profile == "sm120-text-hybrid-v1" and relative == "config.json":
+            source_payload = source.path.read_bytes()
+            if len(source_payload) != source.size:
+                raise OutputError("M08 source config size changed while reading")
+            payload = m08_config_bytes(source_payload)
+            with _open_exclusive(destination) as output:
+                write_all(output, payload, "writing M08 config.json")
+                output.flush()
+                os.fsync(output.fileno())
+        else:
+            with _open_exclusive(destination) as output:
+                source_hash, output_hash = workspace.copy_range(
+                    source.path, 0, source.size, output, track_tensor=False
+                )
+                output.flush()
+                os.fsync(output.fileno())
+            if source_hash != source.sha256 or output_hash != source.sha256:
+                raise OutputError(f"metadata hash changed while copying: {relative}")
         copied.append(relative)
     return tuple(copied)
 
