@@ -23,6 +23,7 @@ ROOT = Path(__file__).resolve().parents[2]
 PLAN = ROOT / "benchmarks/goldens/gemma4_26b/hybrid/qat-compiler-plan.json"
 INVENTORY = ROOT / "benchmarks/goldens/gemma4_26b/source-inventories/qat-bf16.json"
 DIAGNOSTIC_SUMMARY = ROOT / "artifacts/m08/diagnostic-summary.json"
+ACCEPTANCE_SUMMARY = ROOT / "artifacts/m08/acceptance.json"
 
 
 class M08PlanContractTest(unittest.TestCase):
@@ -163,6 +164,30 @@ class M08PlanContractTest(unittest.TestCase):
         self.assertTrue(summary["diagnostic_reproducibility"]["byte_identical"])
         self.assertEqual(summary["artifact"]["output_tensor_count"], 1285)
         self.assertEqual(summary["artifact"]["output_tensor_bytes"], 14_696_569_196)
+        self.assertEqual(
+            summary["verification"]["protected_12b_inspect"]["tensor_count"],
+            1389,
+        )
+
+    def test_compact_acceptance_binds_clean_reproducible_evidence(self) -> None:
+        summary = json.loads(ACCEPTANCE_SUMMARY.read_text())
+        self.assertEqual(summary["status"], "acceptance_pass")
+        self.assertTrue(summary["acceptance"])
+        self.assertFalse(summary["compiler"]["dirty"])
+        self.assertEqual(
+            summary["compiler"]["commit"],
+            "f433358b8e2c1250b95801fc898faee4fcedcbe5",
+        )
+        self.assertEqual(summary["reproducibility"]["complete_build_count"], 2)
+        self.assertTrue(summary["reproducibility"]["byte_identical"])
+        self.assertTrue(summary["reproducibility"]["external_locks_byte_identical"])
+        self.assertEqual(summary["reproducibility"]["mismatch_count"], 0)
+        self.assertEqual(
+            summary["memory"]["nvfp4_aligned_weight_arena_bytes"],
+            14_696_668_160,
+        )
+        self.assertTrue(all(summary["memory"]["gates"].values()))
+        self.assertTrue(summary["memory"]["not_model_execution"])
         self.assertEqual(
             summary["verification"]["protected_12b_inspect"]["tensor_count"],
             1389,

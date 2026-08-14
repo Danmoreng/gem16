@@ -1,0 +1,104 @@
+{
+  "acceptance": true,
+  "artifact": {
+    "excluded_vision_tensor_count": 356,
+    "file_count": 23,
+    "one_physical_tied_head": true,
+    "output_tensor_bytes": 14696569196,
+    "output_tensor_count": 1285,
+    "runtime_quantization_required": false
+  },
+  "compiler": {
+    "commit": "f433358b8e2c1250b95801fc898faee4fcedcbe5",
+    "dirty": false,
+    "native_builds": {
+      "fp8": {
+        "build_type": "Release",
+        "compiler_id": "GNU",
+        "compiler_version": "16.1.1",
+        "cxx_standard": "20",
+        "processor": "x86_64",
+        "system": "Linux"
+      },
+      "nvfp4": {
+        "build_type": "Release",
+        "compiler_id": "GNU",
+        "compiler_version": "16.1.1",
+        "cxx_standard": "20",
+        "processor": "x86_64",
+        "system": "Linux"
+      }
+    }
+  },
+  "identity": {
+    "artifact_content_sha256": "471805f7dad8abb84300be78b2822a63dcb1d35bff5aa98426a162cc8532ee17",
+    "artifact_lock_sha256": "d7d2d30743e7c42aa55537a83f563047c9cbd2d83e0d583a2d2c8bcacbfa51a4",
+    "compilation_manifest_sha256": "7e5e78b9c6f61fbe8829866395634085261e1261a8c783f69affc5a16bd1847a",
+    "compiler_manifest_sha256": "5d7975756b331900e02a7de915cd1e473a88a36becd5582f91b4c57dd30b5f06",
+    "source_lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230"
+  },
+  "limitations": [
+    "real payload upload and named CUDA-region reconciliation remain M09 phase B work",
+    "the M08 GPU gate is exact-arena synthetic admission, not model execution"
+  ],
+  "memory": {
+    "compiler_peak_rss_bytes": 181493760,
+    "device": {
+      "compute_capability": "12.0",
+      "driver_version": 13030,
+      "index": 0,
+      "name": "NVIDIA GeForce RTX 5080 Laptop GPU",
+      "runtime_version": 13030,
+      "uuid": "93070293-2184-eb69-555b-1d856a4fdbb8"
+    },
+    "final_direct_free_bytes": 818675712,
+    "fp8_child_peak_rss_bytes": 6725632,
+    "gates": {
+      "direct_free_at_least_700_mib": true,
+      "free_after_release_at_least_context_baseline": true,
+      "idle_baseline_at_most_512_mib": true,
+      "immutable_weights_at_most_14100_mib": true,
+      "immutable_weights_below_14300_mib_hard_stop": true
+    },
+    "gpu_probe_kind": "synthetic_device_admission",
+    "not_model_execution": true,
+    "nvfp4_aligned_weight_arena_bytes": 14696668160,
+    "nvfp4_child_peak_rss_bytes": 7917568,
+    "required_free_margin_bytes": 734003200,
+    "verifier_peak_rss_bytes": 175878144
+  },
+  "milestone": "M08",
+  "reproducibility": {
+    "build_duration_seconds": [
+      295.062315,
+      279.620632
+    ],
+    "byte_identical": true,
+    "complete_build_count": 2,
+    "external_locks_byte_identical": true,
+    "mismatch_count": 0
+  },
+  "schema_version": 1,
+  "status": "acceptance_pass",
+  "verification": {
+    "capabilities": {
+      "audio": false,
+      "mtp": false,
+      "text": true,
+      "video": false,
+      "vision": false
+    },
+    "checkpoint_profile": "sm120-text-hybrid-v1",
+    "cpp_direct_loader_status": "pass",
+    "protected_12b_inspect": {
+      "status": "pass",
+      "tensor_count": 1389,
+      "total_tensor_bytes": 9304786336,
+      "validation_contract": "gemma4_unified_12b_exact_inventory"
+    },
+    "python_duration_seconds": 142.371855,
+    "python_status": "pass",
+    "runtime_supported": false,
+    "validation_contract": "gemma4_26b_m08_compiled_hybrid_v1"
+  }
+}

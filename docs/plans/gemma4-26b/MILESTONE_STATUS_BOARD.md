@@ -4,22 +4,21 @@ Derived from [`FAST_TRACK_STATUS.json`](FAST_TRACK_STATUS.json). Policy: [`../..
 
 ## Accepted
 
-`M00 M01 M02 M03 M04 M05 M06 M07`
+`M00 M01 M02 M03 M04 M05 M06 M07 M08`
 
 ## Active / next
 
 | Milestone/slice | State | Role |
 |---|---|---|
-| M08 | IN PROGRESS | complete artifact, external lock and direct loader |
+| M09 final | READY | real artifact upload, named CUDA regions and 32K residency |
 | M10 phase A | PAUSED | BF16 MoE oracle |
 | M12 phase A | PAUSED | attention/trait fixtures |
-| M09 phase A | PAUSED | formulas and one-slot tests |
 | M25 phase A | PAUSED | assistant compatibility/memory only |
 | Harness lane | PAUSED | future report/test infrastructure |
 
 ## Next vertical sequence
 
-`M08 → M09 final → M11/M12 runtime → M13`
+`M09 final → M11/M12 runtime → M13`
 
 ## Conditional/optional
 
@@ -27,4 +26,5 @@ Derived from [`FAST_TRACK_STATUS.json`](FAST_TRACK_STATUS.json). Policy: [`../..
 - M24: optional internal Q4_0 backend.
 - Vision: outside this program.
 
-Program completion is M25, not M23. M07 is accepted and M08 is active; the next practical path is M08→M09→M13. Later qualification remains explicit follow-up rather than a prerequisite for early experiments.
+Program completion is M25, not M23. M08 is accepted; the next practical path is M09→M13. Later qualification
+remains explicit follow-up rather than a prerequisite for early experiments.

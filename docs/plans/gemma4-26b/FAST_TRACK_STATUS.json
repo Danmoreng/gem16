@@ -2,8 +2,8 @@
   "schema_version": 1,
   "plan_revision": "fast-track-r4",
   "updated": "2026-08-14",
-  "accepted_through": "M07",
-  "current_milestone": "M08",
+  "accepted_through": "M08",
+  "current_milestone": "M09",
   "active_wave": "F1-artifact-and-residency",
   "integration_branch": "feat/gemma4-26b",
   "source_of_truth": "docs/plans/gemma4-26b/FAST_TRACK_STATUS.json",
@@ -33,7 +33,7 @@
       ]
     },
     "M08": {
-      "status": "IN_PROGRESS", "note": "owner restarted implementation on 2026-08-14; acceptance gates remain open",
+      "status": "ACCEPTED", "note": "accepted 2026-08-14 at implementation commit f433358b8e2c1250b95801fc898faee4fcedcbe5; see artifacts/m08/acceptance.json",
       "class": "critical",
       "lane": "artifact-loader",
       "depends_on": [
@@ -48,7 +48,7 @@
       ]
     },
     "M09": {
-      "status": "PARALLEL_PREWORK",
+      "status": "READY_FINAL",
       "class": "critical",
       "lane": "memory",
       "depends_on": [

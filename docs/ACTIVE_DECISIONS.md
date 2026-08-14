@@ -1,6 +1,6 @@
 # Active decisions
 
-**Accepted:** 2026-08-14 · **Track:** Gemma 4 26B A4B Fast Track · **Status:** M00–M07 accepted, M08 in progress
+**Accepted:** 2026-08-14 · **Track:** Gemma 4 26B A4B Fast Track · **Status:** M00–M08 accepted, M09 next
 
 This is the short operational policy for current work. It is not a replacement for historical evidence. Permanent
 rules in `AGENTS.md` remain binding. For facts about the implementation, current source, tests and accepted evidence
@@ -21,8 +21,9 @@ M06 NVFP4 experts → M07 provisional tied head → M08 artifact/loader
 → M17 optimized runtime → base qualification → MTP feasibility/integration
 ```
 
-The owner explicitly restarted the track and authorized M08 implementation on 2026-08-14. M08 remains unaccepted
-until its complete-artifact, direct-loader, reproducibility and startup gates are evidenced.
+M08 was accepted on 2026-08-14 at implementation commit `f433358b8e2c1250b95801fc898faee4fcedcbe5` after
+byte-identical clean complete-artifact builds, direct-loader validation, protected 12B inspection and exact-arena
+reference-GPU admission. M09 owns real artifact upload and the final 32K residency reconciliation.
 
 M10/M12 semantic and attention fixture work may proceed in disjoint slices when it does not delay the vertical path.
 The integration branch remains `feat/gemma4-26b`; temporary worktrees are allowed only with explicit file ownership.
@@ -49,7 +50,7 @@ The integration branch remains `feat/gemma4-26b`; temporary worktrees are allowe
 
 ## Scope boundary
 
-The accepted M00–M07 source locks, evidence and historical records remain valid. The active choices above simplify
+The accepted M00–M08 source locks, evidence and historical records remain valid. The active choices above simplify
 future execution; they do not authorize silent precision changes, CPU weight offload, duplicate device layouts,
 runtime quantization, unreported fallback, weakened 12B behavior or unsupported capability claims. Experimental
 results must say which gates have not yet been run.

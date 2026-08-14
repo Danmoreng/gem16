@@ -1,9 +1,9 @@
 # Active contract — Gemma 4 26B Fast Track R4
 
-Status: accepted through M07; M08 implementation in progress by owner instruction
+Status: accepted through M08; M09 final residency reconciliation is next
 Plan revision: `fast-track-r4`
-Accepted baseline: M00–M07
-Current milestone: M08 (active; not yet accepted)
+Accepted baseline: M00–M08
+Current milestone: M09 (ready for final reconciliation)
 Integration branch: `feat/gemma4-26b`
 
 ## Purpose
@@ -25,7 +25,7 @@ Report a material conflict instead of guessing. A stale status page does not ove
 
 ## Accepted baseline
 
-M00–M07 are accepted and are not reopened by current work.
+M00–M08 are accepted and are not reopened by current work.
 
 - Sources, manifests and source locks are immutable.
 - The 12B path remains separately specialized and regression-protected.
@@ -33,6 +33,7 @@ M00–M07 are accepted and are not reopened by current work.
 - M05 FP8 attention conversion is accepted at implementation commit `d91388113d68974f9ab7cec1a90ef768285c0645`.
 - M06 expert/shared NVFP4 conversion is accepted at implementation commit `81055eb48e05321481a8b63dd0dc5e7e017a7c00`.
 - M07 provisional NVFP4 tied-head compiler/reference stage is accepted at implementation commit `60f500b7be567fafd483ebd6f5f9b07988197ca1`.
+- M08 complete hybrid artifact and direct-loader stage is accepted at implementation commit `f433358b8e2c1250b95801fc898faee4fcedcbe5`.
 - Runtime conversion, CPU expert offload, expert streaming and duplicate persistent GPU weight layouts remain forbidden.
 
 ## Product target
@@ -130,9 +131,9 @@ Do not repeat an expensive run solely to produce a second prose record. M08 comp
 
 ## Current unblocked work
 
-The owner restarted M08 implementation on 2026-08-14.
+M08 was accepted on 2026-08-14.
 
-- M07 is accepted and its partial artifact is reference-only and not runtime-loadable.
-- M08 complete-artifact, external-lock and direct-loader integration is active.
-- M10 phase A, M12 phase A, M09 formula/test prework, evaluation-harness work and M25 feasibility work are paused with the track.
-- M08 acceptance and final M09 reconciliation remain the next vertical checkpoints.
+- M08's complete hybrid artifact, external lock and direct loader are accepted.
+- M09 real payload upload, named CUDA-region reconciliation and final 32K residency are ready next.
+- M10 phase A, M12 phase A, evaluation-harness work and M25 feasibility work remain independent of the vertical path.
+- Final M09 reconciliation is the next vertical checkpoint.
