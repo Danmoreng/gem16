@@ -1,4 +1,5 @@
 #include "cuda/moe/reference.h"
+#include "cuda/moe/prefill.h"
 
 #include <cuda_bf16.h>
 #include <cuda_runtime.h>
@@ -193,7 +194,6 @@ void TestFixedAddressMoeReference() {
   run();  // Warm the CUDA runtime before the allocation observation.
   std::size_t free_before = 0U;
   std::size_t total = 0U;
-  CHECK(CudaOk(cudaMemGetInfo(&free_before, &total), "memory before repeats"));
 
   std::vector<float> first_output(kWidth), repeated_output(kWidth);
   std::vector<std::uint32_t> ids(kTopK);
@@ -212,6 +212,51 @@ void TestFixedAddressMoeReference() {
   CHECK(CudaOk(cudaMemcpy(selected_weights.data(), top_weights.get(),
                           top_weights.bytes(), cudaMemcpyDeviceToHost),
                "copy selected weights"));
+  const auto native_status = gem16::internal::LaunchGemma4MoeSm120Layer(
+      hidden.get(), output.get(), config, weights, workspace, nullptr);
+  CHECK(native_status.ok());
+  CHECK(CudaOk(cudaDeviceSynchronize(), "synchronize M14 native MoE"));
+  std::vector<float> native_output(kWidth);
+  std::vector<std::uint32_t> native_ids(kTopK);
+  CHECK(CudaOk(cudaMemcpy(native_output.data(), output.get(), output.bytes(),
+                          cudaMemcpyDeviceToHost),
+               "copy M14 native output"));
+  CHECK(CudaOk(cudaMemcpy(native_ids.data(), top_ids.get(), top_ids.bytes(),
+                          cudaMemcpyDeviceToHost),
+               "copy M14 native IDs"));
+  CHECK(native_output == first_output);
+  CHECK(native_ids == ids);
+  cudaStream_t capture_stream = nullptr;
+  cudaGraph_t graph = nullptr;
+  cudaGraphExec_t graph_exec = nullptr;
+  CHECK(CudaOk(cudaStreamCreateWithFlags(&capture_stream,
+                                         cudaStreamNonBlocking),
+               "create M14 capture stream"));
+  CHECK(CudaOk(cudaStreamBeginCapture(capture_stream,
+                                      cudaStreamCaptureModeThreadLocal),
+               "begin M14 graph capture"));
+  const auto capture_status = gem16::internal::LaunchGemma4MoeSm120Layer(
+      hidden.get(), output.get(), config, weights, workspace, capture_stream);
+  CHECK(capture_status.ok());
+  CHECK(CudaOk(cudaStreamEndCapture(capture_stream, &graph),
+               "end M14 graph capture"));
+  CHECK(CudaOk(cudaGraphInstantiate(&graph_exec, graph, 0),
+               "instantiate M14 graph"));
+  CHECK(CudaOk(cudaGraphLaunch(graph_exec, capture_stream),
+               "launch M14 graph first"));
+  CHECK(CudaOk(cudaGraphLaunch(graph_exec, capture_stream),
+               "launch M14 graph replay"));
+  CHECK(CudaOk(cudaStreamSynchronize(capture_stream),
+               "synchronize M14 graph replay"));
+  std::vector<float> graph_output(kWidth);
+  CHECK(CudaOk(cudaMemcpy(graph_output.data(), output.get(), output.bytes(),
+                          cudaMemcpyDeviceToHost),
+               "copy M14 graph output"));
+  CHECK(graph_output == first_output);
+  if (graph_exec != nullptr) (void)cudaGraphExecDestroy(graph_exec);
+  if (graph != nullptr) (void)cudaGraphDestroy(graph);
+  if (capture_stream != nullptr) (void)cudaStreamDestroy(capture_stream);
+  CHECK(CudaOk(cudaMemGetInfo(&free_before, &total), "memory before repeats"));
   for (int repeat = 0; repeat < 4; ++repeat) run();
   CHECK(CudaOk(cudaMemcpy(repeated_output.data(), output.get(), output.bytes(),
                           cudaMemcpyDeviceToHost),
@@ -231,6 +276,148 @@ void TestFixedAddressMoeReference() {
         Bf16(host_hidden[index] * 0.5F)));
     CHECK(first_output[index] == expected);
   }
+
+  constexpr std::uint64_t kTokens = 3U;
+  DeviceBuffer<float> batch_hidden(kTokens * kWidth), batch_output(kTokens * kWidth),
+      batch_router_logits(kTokens * kExperts),
+      batch_router_probabilities(kTokens * kExperts),
+      batch_token_hidden(kTokens * kWidth),
+      batch_expert_product(kTokens * kTopK * kExpert),
+      batch_expert_down(kTokens * kTopK * kWidth),
+      batch_shared_product(kTokens * kShared),
+      batch_shared_output(kTokens * kWidth),
+      batch_reduced_output(kTokens * kWidth);
+  DeviceBuffer<std::uint8_t> batch_token_packed(kTokens * kWidth / 2U),
+      batch_token_scales(kTokens * kWidth / 16U),
+      batch_expert_product_packed(kTokens * kTopK * kExpert / 2U),
+      batch_expert_product_scales(kTokens * kTopK * kExpert / 16U),
+      batch_shared_product_packed(kTokens * kShared / 2U),
+      batch_shared_product_scales(kTokens * kShared / 16U);
+  DeviceBuffer<gem16::internal::Gemma4MoePrefillAssignment> assignments(
+      kTokens * kTopK);
+  DeviceBuffer<std::uint32_t> histogram(kExperts), prefix(kExperts + 1U),
+      permutation(kTokens * kTopK), inverse(kTokens * kTopK);
+  std::vector<float> host_batch_hidden(kTokens * kWidth);
+  for (std::uint64_t token = 0; token < kTokens; ++token) {
+    std::copy(host_hidden.begin(), host_hidden.end(),
+              host_batch_hidden.begin() + token * kWidth);
+  }
+  CHECK(CudaOk(cudaMemcpy(batch_hidden.get(), host_batch_hidden.data(),
+                          batch_hidden.bytes(), cudaMemcpyHostToDevice),
+               "copy M15 batch hidden"));
+  const gem16::internal::Gemma4MoePrefillWorkspace prefill_workspace{
+      batch_router_logits.get(), batch_router_probabilities.get(),
+      batch_token_hidden.get(), batch_token_packed.get(),
+      batch_token_scales.get(), batch_expert_product.get(),
+      batch_expert_product_packed.get(), batch_expert_product_scales.get(),
+      batch_expert_down.get(), batch_shared_product.get(),
+      batch_shared_product_packed.get(), batch_shared_product_scales.get(),
+      batch_shared_output.get(), batch_reduced_output.get(), assignments.get(),
+      histogram.get(), prefix.get(), permutation.get(), inverse.get()};
+  const auto prefill_status = gem16::internal::LaunchGemma4MoeSm120PrefillLayer(
+      batch_hidden.get(), batch_output.get(), kTokens, config, weights,
+      prefill_workspace, nullptr);
+  CHECK(prefill_status.ok());
+  CHECK(CudaOk(cudaDeviceSynchronize(), "synchronize M15 grouped prefill"));
+  std::vector<float> batch_values(kTokens * kWidth);
+  std::vector<gem16::internal::Gemma4MoePrefillAssignment> assignment_values(
+      kTokens * kTopK);
+  std::vector<std::uint32_t> histogram_values(kExperts),
+      prefix_values(kExperts + 1U), permutation_values(kTokens * kTopK),
+      inverse_values(kTokens * kTopK);
+  CHECK(CudaOk(cudaMemcpy(batch_values.data(), batch_output.get(),
+                          batch_output.bytes(), cudaMemcpyDeviceToHost),
+               "copy M15 output"));
+  CHECK(CudaOk(cudaMemcpy(assignment_values.data(), assignments.get(),
+                          assignments.bytes(), cudaMemcpyDeviceToHost),
+               "copy M15 assignments"));
+  CHECK(CudaOk(cudaMemcpy(histogram_values.data(), histogram.get(),
+                          histogram.bytes(), cudaMemcpyDeviceToHost),
+               "copy M15 histogram"));
+  CHECK(CudaOk(cudaMemcpy(prefix_values.data(), prefix.get(), prefix.bytes(),
+                          cudaMemcpyDeviceToHost),
+               "copy M15 prefix"));
+  CHECK(CudaOk(cudaMemcpy(permutation_values.data(), permutation.get(),
+                          permutation.bytes(), cudaMemcpyDeviceToHost),
+               "copy M15 permutation"));
+  CHECK(CudaOk(cudaMemcpy(inverse_values.data(), inverse.get(), inverse.bytes(),
+                          cudaMemcpyDeviceToHost),
+               "copy M15 inverse"));
+  for (std::uint64_t token = 0; token < kTokens; ++token) {
+    for (std::uint64_t index = 0; index < kWidth; ++index) {
+      CHECK(batch_values[token * kWidth + index] == first_output[index]);
+    }
+    for (std::uint32_t slot = 0; slot < kTopK; ++slot) {
+      const auto& assignment = assignment_values[token * kTopK + slot];
+      CHECK(assignment.token_id == token);
+      CHECK(assignment.topk_slot == slot);
+      CHECK(assignment.expert_id == slot);
+      CHECK(std::abs(assignment.weight - 0.125F) < 1.0e-7F);
+    }
+  }
+  for (std::uint32_t expert = 0; expert < kExperts; ++expert) {
+    CHECK(histogram_values[expert] == kTokens);
+    CHECK(prefix_values[expert] == expert * kTokens);
+    for (std::uint32_t token = 0; token < kTokens; ++token) {
+      const std::uint32_t grouped = expert * kTokens + token;
+      const std::uint32_t original = token * kTopK + expert;
+      CHECK(permutation_values[grouped] == original);
+      CHECK(inverse_values[original] == grouped);
+    }
+  }
+  CHECK(prefix_values[kExperts] == kTokens * kTopK);
+
+  cudaStream_t prefill_capture_stream = nullptr;
+  cudaGraph_t prefill_graph = nullptr;
+  cudaGraphExec_t prefill_graph_exec = nullptr;
+  CHECK(CudaOk(cudaStreamCreateWithFlags(&prefill_capture_stream,
+                                         cudaStreamNonBlocking),
+               "create M15 capture stream"));
+  CHECK(CudaOk(cudaStreamBeginCapture(prefill_capture_stream,
+                                      cudaStreamCaptureModeThreadLocal),
+               "begin M15 graph capture"));
+  const auto prefill_capture_status =
+      gem16::internal::LaunchGemma4MoeSm120PrefillLayer(
+          batch_hidden.get(), batch_output.get(), kTokens, config, weights,
+          prefill_workspace, prefill_capture_stream);
+  CHECK(prefill_capture_status.ok());
+  CHECK(CudaOk(cudaStreamEndCapture(prefill_capture_stream, &prefill_graph),
+               "end M15 graph capture"));
+  CHECK(CudaOk(cudaGraphInstantiate(&prefill_graph_exec, prefill_graph, 0),
+               "instantiate M15 graph"));
+  CHECK(CudaOk(cudaGraphLaunch(prefill_graph_exec, prefill_capture_stream),
+               "launch M15 graph first"));
+  CHECK(CudaOk(cudaGraphLaunch(prefill_graph_exec, prefill_capture_stream),
+               "launch M15 graph replay"));
+  CHECK(CudaOk(cudaStreamSynchronize(prefill_capture_stream),
+               "synchronize M15 graph replay"));
+  std::vector<float> prefill_graph_values(kTokens * kWidth);
+  CHECK(CudaOk(cudaMemcpy(prefill_graph_values.data(), batch_output.get(),
+                          batch_output.bytes(), cudaMemcpyDeviceToHost),
+               "copy M15 graph output"));
+  CHECK(prefill_graph_values == batch_values);
+  if (prefill_graph_exec != nullptr) {
+    (void)cudaGraphExecDestroy(prefill_graph_exec);
+  }
+  if (prefill_graph != nullptr) (void)cudaGraphDestroy(prefill_graph);
+  if (prefill_capture_stream != nullptr) {
+    (void)cudaStreamDestroy(prefill_capture_stream);
+  }
+  std::size_t prefill_free_before = 0U;
+  CHECK(CudaOk(cudaMemGetInfo(&prefill_free_before, &total),
+               "memory before M15 repeats"));
+  for (int repeat = 0; repeat < 4; ++repeat) {
+    const auto repeat_status =
+        gem16::internal::LaunchGemma4MoeSm120PrefillLayer(
+            batch_hidden.get(), batch_output.get(), kTokens, config, weights,
+            prefill_workspace, nullptr);
+    CHECK(repeat_status.ok());
+  }
+  CHECK(CudaOk(cudaDeviceSynchronize(), "synchronize M15 repeats"));
+  std::size_t prefill_free_after = 0U;
+  CHECK(CudaOk(cudaMemGetInfo(&prefill_free_after, &total),
+               "memory after M15 repeats"));
+  CHECK(prefill_free_before == prefill_free_after);
 }
 
 }  // namespace
@@ -246,6 +433,6 @@ int main() {
     std::cerr << failures << " M11 CUDA assertion(s) failed\n";
     return 1;
   }
-  std::cout << "M11 correctness-only CUDA MoE tests passed\n";
+  std::cout << "M11/M14 decode and M15 grouped CUDA MoE tests passed\n";
   return 0;
 }

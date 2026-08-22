@@ -20,6 +20,7 @@
 #include "cuda/layer/reference.h"
 #include "cuda/moe/reference.h"
 #include "cuda/nvfp4/reference.h"
+#include "cuda/nvfp4/sm120.h"
 #include "gem16/model.h"
 #include "model/config.h"
 #include "model/gemma4_26b_attention.h"
@@ -187,6 +188,7 @@ struct Gemma4Moe26BReferenceEngine::Impl {
   int device = 0;
   std::uint64_t context = 0U;
   std::uint64_t position = 0U;
+  Gemma4Moe26BBackend backend = Gemma4Moe26BBackend::kReference;
   cudaStream_t stream = nullptr;
   Gemma4Moe26BDeviceArtifact artifact;
   Gemma4Moe26BAttentionTraits traits{};
@@ -235,7 +237,7 @@ Gemma4Moe26BReferenceEngine::Gemma4Moe26BReferenceEngine(
 
 Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
     const std::filesystem::path& model_directory,
-    std::uint64_t context_tokens, int device) {
+    std::uint64_t context_tokens, int device, Gemma4Moe26BBackend backend) {
   if (context_tokens == 0U || context_tokens > 32768U || device < 0) {
     return Invalid("M13 reference context must be in [1, 32768]");
   }
@@ -262,6 +264,7 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
   auto impl = std::make_unique<Impl>();
   impl->device = device;
   impl->context = context_tokens;
+  impl->backend = backend;
   impl->traits = traits.value();
   impl->artifact = std::move(artifact).value();
   error = cudaStreamCreateWithFlags(&impl->stream, cudaStreamNonBlocking);
@@ -502,9 +505,13 @@ Status Gemma4Moe26BReferenceEngine::ForwardToken(std::uint32_t token) {
         x.attention_weights[layer], x.caches[layer], x.attention_workspace,
         1.0e-6F, x.stream);
     if (!status.ok()) return status;
-    status = LaunchGemma4MoeReferenceLayer(
-        x.hidden_b, x.hidden_a, x.moe_config, x.moe_weights[layer],
-        x.moe_workspace, x.stream);
+    status = x.backend != Gemma4Moe26BBackend::kReference
+                 ? LaunchGemma4MoeSm120Layer(
+                       x.hidden_b, x.hidden_a, x.moe_config,
+                       x.moe_weights[layer], x.moe_workspace, x.stream)
+                 : LaunchGemma4MoeReferenceLayer(
+                       x.hidden_b, x.hidden_a, x.moe_config,
+                       x.moe_weights[layer], x.moe_workspace, x.stream);
     if (!status.ok()) return status;
     const int capture = CaptureIndex(layer);
     if (capture >= 0) {
@@ -533,8 +540,16 @@ Status Gemma4Moe26BReferenceEngine::ForwardToken(std::uint32_t token) {
       x.final_hidden, x.head_activation, x.head_activation_scales, kWidth,
       x.head.activation_global_divisor, x.stream);
   if (!status.ok()) return status;
-  status = LaunchGemma4MoeTiledNvfp4ReferenceProjection(
-      x.head, x.head_activation, x.head_activation_scales, x.logits, x.stream);
+  status = x.backend != Gemma4Moe26BBackend::kReference
+               ? LaunchNvfp4Sm120DirectProjectionBf16Float(
+                     x.head_activation, x.head_activation_scales,
+                     x.head.packed_e2m1, x.head.scales_e4m3fn, x.logits,
+                     x.head.rows, x.head.columns,
+                     x.head.activation_global_divisor,
+                     x.head.weight_global_divisor, x.stream)
+               : LaunchGemma4MoeTiledNvfp4ReferenceProjection(
+                     x.head, x.head_activation, x.head_activation_scales,
+                     x.logits, x.stream);
   if (!status.ok()) return status;
   error = cudaMemsetAsync(x.finite, 1, sizeof(int), x.stream);
   if (error != cudaSuccess) return CudaFailure("initialize M13 finite flag", error);

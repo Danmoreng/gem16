@@ -1,0 +1,359 @@
+#include "cuda/moe/prefill.h"
+
+#include <cuda_bf16.h>
+#include <cuda_runtime.h>
+
+#include <cmath>
+#include <cstdint>
+#include <limits>
+#include <string>
+#include <utility>
+
+#include "cuda/layer/reference.h"
+#include "cuda/nvfp4/reference.h"
+#include "cuda/nvfp4/sm120.h"
+
+namespace gem16::internal {
+namespace {
+
+constexpr unsigned kThreads = 128U;
+constexpr std::uint64_t kSm120KBlock = 64U;
+
+Status Invalid(std::string message) {
+  return Status(StatusCode::kInvalidArgument, std::move(message));
+}
+
+Status CudaFailure(const char* operation, cudaError_t error) {
+  return Status(StatusCode::kInternal,
+                std::string(operation) + ": " + cudaGetErrorName(error) +
+                    ": " + cudaGetErrorString(error));
+}
+
+bool PositiveFinite(float value) {
+  return std::isfinite(value) && value > 0.0F;
+}
+
+bool MatrixValid(const Gemma4MoeNvfp4Matrix& matrix, std::uint64_t rows,
+                 std::uint64_t columns) {
+  return matrix.packed_e2m1 != nullptr && matrix.scales_e4m3fn != nullptr &&
+         matrix.rows == rows && matrix.columns == columns && rows != 0U &&
+         rows % 8U == 0U && columns != 0U &&
+         columns % kSm120KBlock == 0U &&
+         PositiveFinite(matrix.activation_global_divisor) &&
+         PositiveFinite(matrix.weight_global_divisor) &&
+         PositiveFinite(matrix.activation_global_divisor *
+                        matrix.weight_global_divisor);
+}
+
+__device__ __forceinline__ float Bf16(std::uint16_t value) {
+  return static_cast<float>(__ushort_as_bfloat16(value));
+}
+
+__device__ __forceinline__ float RoundBf16(float value) {
+  return static_cast<float>(__float2bfloat16_rn(value));
+}
+
+__global__ void RouterTransformBatchKernel(
+    const float* normalized, const std::uint16_t* scale, float* transformed,
+    std::uint64_t tokens, std::uint64_t width) {
+  const std::uint64_t index =
+      static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+  const std::uint64_t total = tokens * width;
+  if (index >= total) return;
+  const std::uint64_t column = index % width;
+  transformed[index] = RoundBf16(normalized[index] * Bf16(scale[column]) *
+                                 rsqrtf(static_cast<float>(width)));
+}
+
+__global__ void RouterProjectionBatchKernel(
+    const float* input, const std::uint16_t* weights, float* logits,
+    std::uint32_t experts, std::uint64_t width, std::uint64_t tokens) {
+  const std::uint32_t expert = blockIdx.x * blockDim.x + threadIdx.x;
+  const std::uint64_t token = blockIdx.y;
+  if (expert >= experts || token >= tokens) return;
+  float accumulator = 0.0F;
+  const std::uint64_t weight_base =
+      static_cast<std::uint64_t>(expert) * width;
+  const std::uint64_t input_base = token * width;
+  for (std::uint64_t index = 0; index < width; ++index) {
+    accumulator = fmaf(Bf16(weights[weight_base + index]),
+                       input[input_base + index], accumulator);
+  }
+  logits[token * experts + expert] = RoundBf16(accumulator);
+}
+
+__global__ void RouterAssignmentsKernel(
+    const float* logits, const std::uint16_t* per_expert_scale,
+    float* probabilities, Gemma4MoePrefillAssignment* assignments,
+    std::uint32_t experts, std::uint32_t top_k, std::uint64_t tokens) {
+  const std::uint64_t token = blockIdx.x;
+  if (token >= tokens || threadIdx.x != 0U) return;
+  logits += token * experts;
+  probabilities += token * experts;
+  assignments += token * top_k;
+  float maximum = -3.402823466e+38F;
+  for (std::uint32_t expert = 0; expert < experts; ++expert) {
+    maximum = fmaxf(maximum, logits[expert]);
+  }
+  float total = 0.0F;
+  for (std::uint32_t expert = 0; expert < experts; ++expert) {
+    probabilities[expert] = expf(logits[expert] - maximum);
+    total += probabilities[expert];
+  }
+  for (std::uint32_t expert = 0; expert < experts; ++expert) {
+    probabilities[expert] /= total;
+  }
+  for (std::uint32_t slot = 0; slot < top_k; ++slot) {
+    std::uint32_t best_id = experts;
+    float best_probability = -1.0F;
+    for (std::uint32_t expert = 0; expert < experts; ++expert) {
+      bool used = false;
+      for (std::uint32_t previous = 0; previous < slot; ++previous) {
+        used = used || assignments[previous].expert_id == expert;
+      }
+      const float probability = probabilities[expert];
+      if (!used && (probability > best_probability ||
+                    (probability == best_probability && expert < best_id))) {
+        best_probability = probability;
+        best_id = expert;
+      }
+    }
+    assignments[slot] = {
+        static_cast<std::uint16_t>(best_id),
+        static_cast<std::uint16_t>(slot), static_cast<std::uint32_t>(token),
+        best_probability};
+  }
+  float selected_total = 0.0F;
+  for (std::uint32_t slot = 0; slot < top_k; ++slot) {
+    selected_total += assignments[slot].weight;
+  }
+  for (std::uint32_t slot = 0; slot < top_k; ++slot) {
+    auto& assignment = assignments[slot];
+    assignment.weight = (assignment.weight / selected_total) *
+                        Bf16(per_expert_scale[assignment.expert_id]);
+  }
+}
+
+__global__ void StableGroupAssignmentsKernel(
+    const Gemma4MoePrefillAssignment* assignments,
+    std::uint32_t* histogram, std::uint32_t* prefix,
+    std::uint32_t* permutation, std::uint32_t* inverse,
+    std::uint32_t experts, std::uint64_t assignment_count) {
+  if (blockIdx.x != 0U || threadIdx.x != 0U) return;
+  for (std::uint32_t expert = 0; expert < experts; ++expert) {
+    histogram[expert] = 0U;
+  }
+  for (std::uint64_t index = 0; index < assignment_count; ++index) {
+    const std::uint32_t expert = assignments[index].expert_id;
+    if (expert < experts) ++histogram[expert];
+  }
+  prefix[0] = 0U;
+  for (std::uint32_t expert = 0; expert < experts; ++expert) {
+    prefix[expert + 1U] = prefix[expert] + histogram[expert];
+    histogram[expert] = 0U;
+  }
+  // Original assignment order is token ascending, then slot ascending. The
+  // cursor therefore creates the required stable order inside each expert.
+  for (std::uint32_t original = 0U; original < assignment_count; ++original) {
+    const std::uint32_t expert = assignments[original].expert_id;
+    if (expert >= experts) continue;
+    const std::uint32_t grouped = prefix[expert] + histogram[expert]++;
+    permutation[grouped] = original;
+    inverse[original] = grouped;
+  }
+}
+
+__global__ void ReduceAssignmentsKernel(
+    const float* expert_down,
+    const Gemma4MoePrefillAssignment* assignments, float* routed_sum,
+    std::uint64_t width, std::uint32_t top_k, std::uint64_t tokens) {
+  const std::uint64_t column =
+      static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+  const std::uint64_t token = blockIdx.y;
+  if (column >= width || token >= tokens) return;
+  const std::uint64_t assignment_base = token * top_k;
+  float sum = 0.0F;
+  for (std::uint32_t slot = 0; slot < top_k; ++slot) {
+    const std::uint64_t assignment = assignment_base + slot;
+    const float weighted =
+        RoundBf16(expert_down[assignment * width + column] *
+                   assignments[assignment].weight);
+    sum += weighted;
+  }
+  routed_sum[token * width + column] = RoundBf16(sum);
+}
+
+__global__ void CombineBatchKernel(const float* left, const float* right,
+                                   float* output, std::uint64_t elements) {
+  const std::uint64_t index =
+      static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+  if (index < elements) output[index] = RoundBf16(left[index] + right[index]);
+}
+
+std::uint64_t Blocks(std::uint64_t elements) {
+  return (elements + kThreads - 1U) / kThreads;
+}
+
+Status CheckLaunch(const char* label) {
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess ? Status::Ok() : CudaFailure(label, error);
+}
+
+}  // namespace
+
+Status LaunchGemma4MoeSm120PrefillLayer(
+    const float* hidden, float* output, std::uint64_t tokens,
+    const Gemma4MoeReferenceConfig& c,
+    const Gemma4MoeReferenceWeights& w,
+    const Gemma4MoePrefillWorkspace& x, cudaStream_t stream) {
+  if (hidden == nullptr || output == nullptr || hidden == output ||
+      tokens == 0U || tokens > 1024U || c.width == 0U ||
+      c.width % kSm120KBlock != 0U || c.shared_intermediate == 0U ||
+      c.shared_intermediate % kSm120KBlock != 0U ||
+      c.expert_intermediate == 0U ||
+      c.expert_intermediate % kSm120KBlock != 0U || c.experts == 0U ||
+      c.experts > std::numeric_limits<std::uint16_t>::max() ||
+      c.top_k != 8U || c.top_k > c.experts || !PositiveFinite(c.epsilon)) {
+    return Invalid("M15 grouped MoE geometry is invalid");
+  }
+  if (w.pre_shared_norm_bf16 == nullptr ||
+      w.post_shared_norm_bf16 == nullptr ||
+      w.pre_expert_norm_bf16 == nullptr ||
+      w.post_expert_norm_bf16 == nullptr ||
+      w.post_combined_norm_bf16 == nullptr || w.router_scale_bf16 == nullptr ||
+      w.router_projection_bf16 == nullptr ||
+      w.per_expert_scale_bf16 == nullptr || w.layer_scalar_bf16 == nullptr ||
+      !MatrixValid(w.shared_gate, c.shared_intermediate, c.width) ||
+      !MatrixValid(w.shared_up, c.shared_intermediate, c.width) ||
+      !MatrixValid(w.shared_down, c.width, c.shared_intermediate) ||
+      !MatrixValid(w.expert_gate_up,
+                   static_cast<std::uint64_t>(c.experts) * 2U *
+                       c.expert_intermediate,
+                   c.width) ||
+      !MatrixValid(w.expert_down,
+                   static_cast<std::uint64_t>(c.experts) * c.width,
+                   c.expert_intermediate) ||
+      w.shared_gate.activation_global_divisor !=
+          w.shared_up.activation_global_divisor) {
+    return Invalid("M15 grouped MoE weight contract is invalid");
+  }
+  if (x.router_logits == nullptr || x.router_probabilities == nullptr ||
+      x.token_hidden == nullptr || x.token_packed == nullptr ||
+      x.token_scales == nullptr || x.expert_product == nullptr ||
+      x.expert_product_packed == nullptr ||
+      x.expert_product_scales == nullptr || x.expert_down == nullptr ||
+      x.shared_product == nullptr || x.shared_product_packed == nullptr ||
+      x.shared_product_scales == nullptr || x.shared_output == nullptr ||
+      x.reduced_output == nullptr || x.assignments == nullptr ||
+      x.histogram == nullptr || x.prefix == nullptr ||
+      x.permutation == nullptr || x.inverse_permutation == nullptr) {
+    return Invalid("M15 grouped MoE workspace is incomplete");
+  }
+  const std::uint64_t assignments = tokens * c.top_k;
+  if (assignments > 65535U) {
+    return Invalid("M15 assignment count exceeds CUDA grid limits");
+  }
+
+  Status status = LaunchRmsNormNvfp4ActivationQuantizationBatch(
+      hidden, w.pre_shared_norm_bf16, x.token_packed, x.token_scales, tokens,
+      c.width, c.epsilon, w.shared_gate.activation_global_divisor, stream);
+  if (!status.ok()) return status;
+  status = LaunchNvfp4Sm120FusedGateUpExactBatch(
+      x.token_packed, x.token_scales, w.shared_gate.packed_e2m1,
+      w.shared_gate.scales_e4m3fn, w.shared_up.packed_e2m1,
+      w.shared_up.scales_e4m3fn, x.shared_product, tokens,
+      c.shared_intermediate, c.width,
+      w.shared_gate.activation_global_divisor,
+      w.shared_gate.weight_global_divisor,
+      w.shared_up.activation_global_divisor,
+      w.shared_up.weight_global_divisor, stream);
+  if (!status.ok()) return status;
+  status = LaunchNvfp4ReferenceActivationQuantization(
+      x.shared_product, x.shared_product_packed, x.shared_product_scales,
+      tokens * c.shared_intermediate,
+      w.shared_down.activation_global_divisor, stream);
+  if (!status.ok()) return status;
+  status = LaunchNvfp4Sm120DirectProjectionBf16FloatExactBatch(
+      x.shared_product_packed, x.shared_product_scales,
+      w.shared_down.packed_e2m1, w.shared_down.scales_e4m3fn,
+      x.shared_output, tokens, c.width, c.shared_intermediate,
+      w.shared_down.activation_global_divisor,
+      w.shared_down.weight_global_divisor, stream);
+  if (!status.ok()) return status;
+  status = LaunchRmsNormBf16(x.shared_output, w.post_shared_norm_bf16,
+                             x.reduced_output, tokens, c.width, c.epsilon,
+                             stream);
+  if (!status.ok()) return status;
+
+  status = LaunchRmsNormBf16(hidden, nullptr, x.token_hidden, tokens, c.width,
+                             c.epsilon, stream);
+  if (!status.ok()) return status;
+  RouterTransformBatchKernel<<<
+      static_cast<unsigned>(Blocks(tokens * c.width)), kThreads, 0, stream>>>(
+      x.token_hidden, w.router_scale_bf16, x.shared_output, tokens, c.width);
+  status = CheckLaunch("launch M15 router transform");
+  if (!status.ok()) return status;
+  RouterProjectionBatchKernel<<<
+      dim3(static_cast<unsigned>(Blocks(c.experts)),
+           static_cast<unsigned>(tokens)),
+      kThreads, 0, stream>>>(x.shared_output, w.router_projection_bf16,
+                             x.router_logits, c.experts, c.width, tokens);
+  status = CheckLaunch("launch M15 router projection");
+  if (!status.ok()) return status;
+  RouterAssignmentsKernel<<<static_cast<unsigned>(tokens), 1U, 0, stream>>>(
+      x.router_logits, w.per_expert_scale_bf16, x.router_probabilities,
+      x.assignments, c.experts, c.top_k, tokens);
+  status = CheckLaunch("launch M15 router assignments");
+  if (!status.ok()) return status;
+  StableGroupAssignmentsKernel<<<1, 1, 0, stream>>>(
+      x.assignments, x.histogram, x.prefix, x.permutation,
+      x.inverse_permutation, c.experts, assignments);
+  status = CheckLaunch("launch M15 stable grouping");
+  if (!status.ok()) return status;
+
+  status = LaunchRmsNormNvfp4ActivationQuantizationBatch(
+      hidden, w.pre_expert_norm_bf16, x.token_packed, x.token_scales, tokens,
+      c.width, c.epsilon, w.expert_gate_up.activation_global_divisor, stream);
+  if (!status.ok()) return status;
+  status = LaunchNvfp4Sm120GroupedExpertFusedGateUp(
+      x.token_packed, x.token_scales, w.expert_gate_up.packed_e2m1,
+      w.expert_gate_up.scales_e4m3fn, x.assignments, x.permutation,
+      x.expert_product, assignments, c.expert_intermediate, c.width,
+      c.experts, w.expert_gate_up.activation_global_divisor,
+      w.expert_gate_up.weight_global_divisor, stream);
+  if (!status.ok()) return status;
+  status = LaunchNvfp4ReferenceActivationQuantization(
+      x.expert_product, x.expert_product_packed, x.expert_product_scales,
+      assignments * c.expert_intermediate,
+      w.expert_down.activation_global_divisor, stream);
+  if (!status.ok()) return status;
+  status = LaunchNvfp4Sm120GroupedExpertDown(
+      x.expert_product_packed, x.expert_product_scales,
+      w.expert_down.packed_e2m1, w.expert_down.scales_e4m3fn, x.assignments,
+      x.permutation, x.expert_down, assignments, c.width,
+      c.expert_intermediate, c.experts,
+      w.expert_down.activation_global_divisor,
+      w.expert_down.weight_global_divisor, stream);
+  if (!status.ok()) return status;
+  ReduceAssignmentsKernel<<<
+      dim3(static_cast<unsigned>(Blocks(c.width)),
+           static_cast<unsigned>(tokens)),
+      kThreads, 0, stream>>>(x.expert_down, x.assignments, x.token_hidden,
+                             c.width, c.top_k, tokens);
+  status = CheckLaunch("launch M15 deterministic inverse reduction");
+  if (!status.ok()) return status;
+  status = LaunchRmsNormBf16(x.token_hidden, w.post_expert_norm_bf16,
+                             x.shared_output, tokens, c.width, c.epsilon,
+                             stream);
+  if (!status.ok()) return status;
+  CombineBatchKernel<<<static_cast<unsigned>(Blocks(tokens * c.width)),
+                       kThreads, 0, stream>>>(
+      x.reduced_output, x.shared_output, x.token_hidden, tokens * c.width);
+  status = CheckLaunch("launch M15 shared/routed combination");
+  if (!status.ok()) return status;
+  return LaunchRmsNormResidualBf16(
+      x.token_hidden, w.post_combined_norm_bf16, hidden, nullptr, output,
+      tokens, c.width, c.epsilon, w.layer_scalar_bf16, stream);
+}
+
+}  // namespace gem16::internal

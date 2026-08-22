@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "milestone": "M14",
+  "status": "implementation_candidate_acceptance_pending_clean_commit",
+  "base_revision": "7146e80636e0b4bc3899e1d9f4150c0847147c53",
+  "device": "NVIDIA GeForce RTX 5080 Laptop GPU",
+  "path": "native_sm120_device_selected_moe_decode",
+  "real_layer_0": {
+    "reference_mean_ms": 1.09499,
+    "native_mean_ms": 0.542123,
+    "speedup": 2.01981838,
+    "router_top_ids_exact": true,
+    "shared_boundaries_bitwise_exact": true,
+    "expert_contributions_bitwise_exact": true,
+    "routed_sum_bitwise_exact": true,
+    "output_bitwise_exact": true
+  },
+  "lifecycle": {
+    "host_expert_routing": false,
+    "persistent_weight_repack": false,
+    "forward_allocation_free": true,
+    "selected_ids_device_resident": true,
+    "cuda_graph_capture_instantiate_replay": true
+  },
+  "instruction_evidence": {
+    "source_instruction": "mma.sync.aligned.m16n8k64.row.col.kind::mxf4nvf4.block_scale",
+    "selected_direct_kernel_present_in_sm120_cubin": true,
+    "selected_fused_gate_up_kernel_present_in_sm120_cubin": true
+  },
+  "raw_evidence": {
+    "reference_sha256": "84dbf2bdb62f2c216da79ef77355b4f6422513f5105932231b20a7e38b22eb3d",
+    "native_sha256": "70040f0ecda985a8b774a2ae63fd78912b593913b23b8fe73850728694119841"
+  },
+  "limitations": [
+    "whole-engine graph capture/replay remains M17 scope",
+    "acceptance evidence must be rebound to a clean implementation commit"
+  ]
+}

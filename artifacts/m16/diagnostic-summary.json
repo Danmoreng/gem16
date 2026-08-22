@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "milestone": "M16",
+  "status": "implementation_candidate_acceptance_pending_clean_commit",
+  "base_revision": "7146e80636e0b4bc3899e1d9f4150c0847147c53",
+  "path": "native_sm120_moe_and_t1_tied_head",
+  "full_model_two_run": {
+    "reference_elapsed_ms": 6150.06833,
+    "native_elapsed_ms": 4818.03496,
+    "speedup": 1.2764705,
+    "generated_tokens_bitwise_exact": true,
+    "captured_layer_outputs_bitwise_exact": true,
+    "router_ids_bitwise_exact": true,
+    "full_logits_bitwise_exact": true,
+    "all_logits_finite": true
+  },
+  "residency": {
+    "one_physical_tied_matrix": true,
+    "weight_arena_bytes": 14696668160,
+    "workspace_bytes": 3833888,
+    "persistent_head_repack_bytes": 0
+  },
+  "raw_evidence": {
+    "reference_sha256": "f1724ae68891e3c1e86d0d6377ff0024803a9f0ff4f066e98b36ae4f9f236e14",
+    "native_sha256": "bf8606608d28a3d3c457aa4c2f2c1e84736563c3c50393ca07556f5170a6a2df"
+  }
+}

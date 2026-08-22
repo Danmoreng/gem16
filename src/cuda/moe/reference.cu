@@ -13,6 +13,7 @@
 
 #include "cuda/layer/reference.h"
 #include "cuda/nvfp4/reference.h"
+#include "cuda/nvfp4/sm120.h"
 
 namespace gem16::internal {
 namespace {
@@ -321,11 +322,12 @@ Status LaunchSelectedTiled(const Gemma4MoeNvfp4Matrix& matrix,
 
 }  // namespace
 
-Status LaunchGemma4MoeReferenceLayer(
+Status LaunchGemma4MoeLayerImpl(
     const float* hidden, float* output,
     const Gemma4MoeReferenceConfig& config,
     const Gemma4MoeReferenceWeights& weights,
-    const Gemma4MoeReferenceWorkspace& workspace, cudaStream_t stream) {
+    const Gemma4MoeReferenceWorkspace& workspace, bool native_sm120,
+    cudaStream_t stream) {
   const auto& c = config;
   const auto& w = weights;
   const auto& x = workspace;
@@ -388,24 +390,45 @@ Status LaunchGemma4MoeReferenceLayer(
       x.shared_input, x.shared_input_packed, x.shared_input_scales, c.width,
       w.shared_gate.activation_global_divisor, stream);
   if (!status.ok()) return status;
-  status = LaunchTiled(w.shared_gate, x.shared_input_packed,
-                       x.shared_input_scales, x.shared_gate, stream);
-  if (!status.ok()) return status;
-  status = LaunchTiled(w.shared_up, x.shared_input_packed,
-                       x.shared_input_scales, x.shared_up, stream);
-  if (!status.ok()) return status;
-  GatedGeluSeparateProductKernel<<<
-      static_cast<unsigned>(Blocks(c.shared_intermediate)), kThreads, 0,
-      stream>>>(x.shared_gate, x.shared_up, x.shared_product,
-                c.shared_intermediate);
-  status = CheckLaunch("launch M11 shared gated GELU");
-  if (!status.ok()) return status;
+  if (native_sm120) {
+    status = LaunchNvfp4Sm120FusedGateUp(
+        x.shared_input_packed, x.shared_input_scales,
+        w.shared_gate.packed_e2m1, w.shared_gate.scales_e4m3fn,
+        w.shared_up.packed_e2m1, w.shared_up.scales_e4m3fn, x.shared_gate,
+        x.shared_up, x.shared_product, c.shared_intermediate, c.width,
+        w.shared_gate.activation_global_divisor,
+        w.shared_gate.weight_global_divisor,
+        w.shared_up.activation_global_divisor,
+        w.shared_up.weight_global_divisor, stream);
+    if (!status.ok()) return status;
+  } else {
+    status = LaunchTiled(w.shared_gate, x.shared_input_packed,
+                         x.shared_input_scales, x.shared_gate, stream);
+    if (!status.ok()) return status;
+    status = LaunchTiled(w.shared_up, x.shared_input_packed,
+                         x.shared_input_scales, x.shared_up, stream);
+    if (!status.ok()) return status;
+    GatedGeluSeparateProductKernel<<<
+        static_cast<unsigned>(Blocks(c.shared_intermediate)), kThreads, 0,
+        stream>>>(x.shared_gate, x.shared_up, x.shared_product,
+                  c.shared_intermediate);
+    status = CheckLaunch("launch M11 shared gated GELU");
+    if (!status.ok()) return status;
+  }
   status = LaunchNvfp4ReferenceActivationQuantization(
       x.shared_product, x.shared_product_packed, x.shared_product_scales,
       c.shared_intermediate, w.shared_down.activation_global_divisor, stream);
   if (!status.ok()) return status;
-  status = LaunchTiled(w.shared_down, x.shared_product_packed,
-                       x.shared_product_scales, x.shared_output, stream);
+  status = native_sm120
+               ? LaunchNvfp4Sm120DirectProjectionBf16Float(
+                     x.shared_product_packed, x.shared_product_scales,
+                     w.shared_down.packed_e2m1,
+                     w.shared_down.scales_e4m3fn, x.shared_output, c.width,
+                     c.shared_intermediate,
+                     w.shared_down.activation_global_divisor,
+                     w.shared_down.weight_global_divisor, stream)
+               : LaunchTiled(w.shared_down, x.shared_product_packed,
+                             x.shared_product_scales, x.shared_output, stream);
   if (!status.ok()) return status;
   status = LaunchRmsNormBf16(x.shared_output, w.post_shared_norm_bf16,
                              x.shared_post, 1U, c.width, c.epsilon, stream);
@@ -440,19 +463,32 @@ Status LaunchGemma4MoeReferenceLayer(
       w.expert_gate_up.activation_global_divisor, stream);
   if (!status.ok()) return status;
   for (std::uint32_t slot = 0; slot < c.top_k; ++slot) {
-    status = LaunchSelectedTiled(
-        w.expert_gate_up, x.expert_input_packed, x.expert_input_scales,
-        x.top_ids, slot, x.expert_gate_up, 2U * c.expert_intermediate,
-        c.experts, stream);
-    if (!status.ok()) return status;
-    GatedGeluProductKernel<<<
-        static_cast<unsigned>(Blocks(c.expert_intermediate)), kThreads, 0,
-        stream>>>(x.expert_gate_up, x.expert_product, slot,
-                  c.expert_intermediate);
-    status = CheckLaunch("launch M11 selected expert gated GELU");
-    if (!status.ok()) return status;
     const std::uint64_t product_offset =
         static_cast<std::uint64_t>(slot) * c.expert_intermediate;
+    const std::uint64_t gate_up_offset = 2U * product_offset;
+    if (native_sm120) {
+      status = LaunchNvfp4Sm120SelectedFusedGateUp(
+          x.expert_input_packed, x.expert_input_scales,
+          w.expert_gate_up.packed_e2m1, w.expert_gate_up.scales_e4m3fn,
+          x.top_ids, slot, x.expert_gate_up + gate_up_offset,
+          x.expert_gate_up + gate_up_offset + c.expert_intermediate,
+          x.expert_product + product_offset, c.expert_intermediate, c.width,
+          c.experts, w.expert_gate_up.activation_global_divisor,
+          w.expert_gate_up.weight_global_divisor, stream);
+      if (!status.ok()) return status;
+    } else {
+      status = LaunchSelectedTiled(
+          w.expert_gate_up, x.expert_input_packed, x.expert_input_scales,
+          x.top_ids, slot, x.expert_gate_up, 2U * c.expert_intermediate,
+          c.experts, stream);
+      if (!status.ok()) return status;
+      GatedGeluProductKernel<<<
+          static_cast<unsigned>(Blocks(c.expert_intermediate)), kThreads, 0,
+          stream>>>(x.expert_gate_up, x.expert_product, slot,
+                    c.expert_intermediate);
+      status = CheckLaunch("launch M11 selected expert gated GELU");
+      if (!status.ok()) return status;
+    }
     const std::uint64_t packed_offset = product_offset / 2U;
     const std::uint64_t scale_offset = product_offset / kNvfp4Block;
     status = LaunchNvfp4ReferenceActivationQuantization(
@@ -461,10 +497,22 @@ Status LaunchGemma4MoeReferenceLayer(
         x.expert_product_scales + scale_offset, c.expert_intermediate,
         w.expert_down.activation_global_divisor, stream);
     if (!status.ok()) return status;
-    status = LaunchSelectedTiled(
-        w.expert_down, x.expert_product_packed + packed_offset,
-        x.expert_product_scales + scale_offset, x.top_ids, slot,
-        x.expert_down, c.width, c.experts, stream);
+    status = native_sm120
+                 ? LaunchNvfp4Sm120SelectedDirectProjectionBf16Float(
+                       x.expert_product_packed + packed_offset,
+                       x.expert_product_scales + scale_offset,
+                       w.expert_down.packed_e2m1,
+                       w.expert_down.scales_e4m3fn, x.top_ids, slot,
+                       x.expert_down + static_cast<std::uint64_t>(slot) *
+                                           c.width,
+                       c.width, c.expert_intermediate, c.experts,
+                       w.expert_down.activation_global_divisor,
+                       w.expert_down.weight_global_divisor, stream)
+                 : LaunchSelectedTiled(
+                       w.expert_down,
+                       x.expert_product_packed + packed_offset,
+                       x.expert_product_scales + scale_offset, x.top_ids,
+                       slot, x.expert_down, c.width, c.experts, stream);
     if (!status.ok()) return status;
   }
   WeightedReductionKernel<<<static_cast<unsigned>(Blocks(c.width)), kThreads,
@@ -483,6 +531,24 @@ Status LaunchGemma4MoeReferenceLayer(
   return LaunchRmsNormResidualBf16(
       x.combined, w.post_combined_norm_bf16, hidden, x.feed_forward, output,
       1U, c.width, c.epsilon, w.layer_scalar_bf16, stream);
+}
+
+Status LaunchGemma4MoeReferenceLayer(
+    const float* hidden, float* output,
+    const Gemma4MoeReferenceConfig& config,
+    const Gemma4MoeReferenceWeights& weights,
+    const Gemma4MoeReferenceWorkspace& workspace, cudaStream_t stream) {
+  return LaunchGemma4MoeLayerImpl(hidden, output, config, weights, workspace,
+                                  false, stream);
+}
+
+Status LaunchGemma4MoeSm120Layer(
+    const float* hidden, float* output,
+    const Gemma4MoeReferenceConfig& config,
+    const Gemma4MoeReferenceWeights& weights,
+    const Gemma4MoeReferenceWorkspace& workspace, cudaStream_t stream) {
+  return LaunchGemma4MoeLayerImpl(hidden, output, config, weights, workspace,
+                                  true, stream);
 }
 
 Status LaunchGemma4MoeTiledNvfp4ReferenceProjection(

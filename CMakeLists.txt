@@ -49,6 +49,7 @@ add_library(gem16_core STATIC
   src/numeric/nvfp4.cpp
   src/numeric/nvfp4_head.cpp
   src/cuda/nvfp4/sm120_layout.cpp
+  src/cuda/moe/prefill_plan.cpp
   src/model/checkpoint_loader.cpp
   src/model/gemma4_26b_attention.cpp
   src/model/gemma4_26b_compiled_loader.cpp
@@ -252,6 +253,7 @@ if(GEM16_ENABLE_CUDA)
     src/cuda/mtp/assistant.cu
     src/cuda/mtp/verify.cu
     src/cuda/moe/gemma4_26b_bindings.cpp
+    src/cuda/moe/prefill.cu
     src/cuda/moe/reference.cu
     src/cuda/nvfp4/checkpoint_probe.cu
     src/cuda/nvfp4/gemv.cu
@@ -438,6 +440,7 @@ if(BUILD_TESTING AND GEM16_BUILD_TESTS)
     tests/unit/gemma4_26b_manifest_test.cpp
     tests/unit/image_test.cpp
     tests/unit/json_test.cpp
+    tests/unit/gemma4_26b_moe_prefill_plan_test.cpp
     tests/unit/layer_test.cpp
     tests/unit/memory_plan_test.cpp
     tests/unit/mtp_scheduler_test.cpp

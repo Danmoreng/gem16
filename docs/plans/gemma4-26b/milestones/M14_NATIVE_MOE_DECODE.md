@@ -1,6 +1,6 @@
 # M14 — Native batch-one MoE decode
 
-Status: ready; M11 and M13 accepted
+Status: implementation candidate; acceptance pending clean commit
 Class: parallel
 Unblocks: M17
 
@@ -20,8 +20,18 @@ Replace the correctness MoE decode path with an SM120-native all-GPU implementat
 
 ## Exit gate
 
-- [ ] Boundary outputs match M11 within frozen tolerances.
-- [ ] No fallback, host routing or token-loop allocation occurs.
-- [ ] Actual native dispatch/instructions are recorded.
-- [ ] Real-layer and end-to-end decode improve or a bounded retained rationale is recorded.
-- [ ] M17 can select the path once at initialization.
+- [x] Boundary outputs match M11 within frozen tolerances.
+- [x] No fallback, host routing or token-loop allocation occurs.
+- [x] Actual native dispatch/instructions are recorded.
+- [x] Real-layer and end-to-end decode improve or a bounded retained rationale is recorded.
+- [x] M17 can select the path once at initialization.
+
+## Implementation evidence (2026-08-22)
+
+The device-selected SM120 path consumes the accepted expert-major row8/K64
+payload directly. Real layer 0 is bitwise identical at every captured shared,
+routed and output boundary and improves from 1.09499 ms to 0.542123 ms. The
+focused CUDA test captures, instantiates and replays the complete native MoE
+layer and observes the same output. Compact evidence is in
+`artifacts/m14/diagnostic-summary.json`; clean-commit acceptance remains for
+owner review.

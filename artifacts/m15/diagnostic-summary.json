@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "milestone": "M15",
+  "status": "implementation_candidate_acceptance_pending_clean_commit",
+  "base_revision": "7146e80636e0b4bc3899e1d9f4150c0847147c53",
+  "candidate_chunks": [128, 256, 512, 1024],
+  "selected_candidate_for_1024_request": 1024,
+  "chunk_1024": {
+    "assignment_records": 8192,
+    "assignment_record_bytes": 12,
+    "permutation_workspace_bytes": 165120,
+    "moe_workspace_bytes": 165728256,
+    "permutation_cap_bytes": 67108864,
+    "moe_cap_bytes": 201326592,
+    "materializes_prompt_times_128_experts": false
+  },
+  "tests": {
+    "largest_fitting_candidate": "pass",
+    "fixed_cap_rejection": "pass",
+    "checked_arithmetic": "pass",
+    "host_unit_suite": "pass",
+    "cuda_grouped_synthetic": "pass",
+    "cuda_graph_capture_instantiate_replay": "pass",
+    "full_ctest_suite": "pass"
+  },
+  "real_layer_0_t128": {
+    "reference_repeated_decode_mean_ms": 77.5195084,
+    "grouped_prefill_mean_ms": 2.47318387,
+    "speedup": 31.3440132,
+    "output_bitwise_exact": true,
+    "repeated_bitwise_identical": true,
+    "permutation_valid_and_stable": true,
+    "forward_allocation_free": true,
+    "free_before_repeats_bytes": 1693646848,
+    "free_after_repeats_bytes": 1693646848
+  },
+  "memory_admission": {
+    "uses_existing_m09_fixed_reserves": true,
+    "accepted_32k_final_free_bytes": 818741248,
+    "accepted_32k_required_margin_bytes": 734003200,
+    "still_within_fixed_caps": true
+  },
+  "raw_evidence_sha256": "658dead9b3c090a19d02a036b56fb9c13cf47a7117370d730c820afe0f54cd0e",
+  "limitations": [
+    "whole-model batched prefill scheduling is M17 integration scope",
+    "acceptance evidence must be rebound to a clean implementation commit"
+  ]
+}

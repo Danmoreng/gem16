@@ -1,6 +1,6 @@
 # M16 — Production T=1 tied embedding/head
 
-Status: ready; M07 and M13 accepted
+Status: implementation candidate; acceptance pending clean commit
 Class: parallel/conditional
 Unblocks: M17
 
@@ -25,7 +25,17 @@ Turn the provisional NVFP4 tied matrix into the production T=1 lookup/output pat
 
 ## Exit gate
 
-- [ ] T=1 outputs match the reference path.
-- [ ] One physical matrix serves lookup and projection.
-- [ ] Head quality remains inside the M13 envelope.
-- [ ] The optimized path wins or a documented skip allows M17 to retain M07.
+- [x] T=1 outputs match the reference path.
+- [x] One physical matrix serves lookup and projection.
+- [x] Head quality remains inside the M13 envelope.
+- [x] The optimized path wins or a documented skip allows M17 to retain M07.
+
+## Implementation evidence (2026-08-22)
+
+The T=1 SM120 head consumes the same resident tied row8/K64 matrix as lookup
+and writes the required BF16 boundary into the existing FP32 logits workspace.
+Together with M14, the two-run full-model comparison improves from 6150.06833
+ms to 4818.03496 ms while generated tokens, eight captured layers, router IDs
+and the full 262144-logit payload remain bitwise identical. See
+`artifacts/m16/diagnostic-summary.json`; clean-commit acceptance remains for
+owner review.

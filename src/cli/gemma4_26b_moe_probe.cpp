@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "cuda/engine/gemma4_26b_artifact.h"
+#include "cuda/moe/prefill.h"
 #include "cuda/moe/reference.h"
 #include "gem16/model.h"
 #include "model/config.h"
@@ -24,10 +25,13 @@
 namespace {
 
 struct Options {
+  enum class Backend { kReference, kSm120, kSm120Prefill };
   std::filesystem::path model;
   std::filesystem::path fixture;
   std::filesystem::path output;
   int device = 0;
+  Backend backend = Backend::kReference;
+  std::uint32_t tokens = 1U;
 };
 
 bool Parse(int argc, char** argv, Options* options) {
@@ -38,6 +42,14 @@ bool Parse(int argc, char** argv, Options* options) {
     if (argument == "--model") options->model = value;
     else if (argument == "--fixture") options->fixture = value;
     else if (argument == "--output") options->output = value;
+    else if (argument == "--backend") {
+      if (value == "reference") options->backend = Options::Backend::kReference;
+      else if (value == "sm120") options->backend = Options::Backend::kSm120;
+      else if (value == "sm120-prefill") {
+        options->backend = Options::Backend::kSm120Prefill;
+      }
+      else return false;
+    }
     else if (argument == "--device") {
       try {
         std::size_t consumed = 0;
@@ -46,8 +58,21 @@ bool Parse(int argc, char** argv, Options* options) {
       } catch (...) {
         return false;
       }
+    } else if (argument == "--tokens") {
+      try {
+        std::size_t consumed = 0;
+        const unsigned long parsed = std::stoul(value, &consumed);
+        if (consumed != value.size() || parsed == 0U || parsed > 1024U) {
+          return false;
+        }
+        options->tokens = static_cast<std::uint32_t>(parsed);
+      } catch (...) {
+        return false;
+      }
     } else return false;
   }
+  if (options->backend != Options::Backend::kSm120Prefill &&
+      options->tokens != 1U) return false;
   return !options->model.empty() && !options->fixture.empty() &&
          !options->output.empty();
 }
@@ -183,7 +208,7 @@ gem16::Status Copy(std::vector<T>* host, const Buffer& buffer,
 int main(int argc, char** argv) {
   Options options;
   if (!Parse(argc, argv, &options)) {
-    std::cerr << "usage: gem16-26b-moe-probe --model DIR --fixture JSON --output JSON [--device N]\n";
+    std::cerr << "usage: gem16-26b-moe-probe --model DIR --fixture JSON --output JSON [--device N] [--backend reference|sm120|sm120-prefill] [--tokens 1..1024]\n";
     return 2;
   }
   if (cudaSetDevice(options.device) != cudaSuccess) {
@@ -301,8 +326,10 @@ int main(int argc, char** argv) {
   auto allocate = [&](Buffer* buffer, std::uint64_t bytes) {
     if (status.ok()) status = buffer->Allocate(bytes);
   };
-  allocate(&d_hidden, kWidth * sizeof(float));
-  allocate(&d_output, kWidth * sizeof(float));
+  const std::uint64_t execution_tokens =
+      options.backend == Options::Backend::kSm120Prefill ? options.tokens : 1U;
+  allocate(&d_hidden, execution_tokens * kWidth * sizeof(float));
+  allocate(&d_output, execution_tokens * kWidth * sizeof(float));
   allocate(&shared_input, kWidth * sizeof(float));
   allocate(&shared_input_packed, kWidth / 2U);
   allocate(&shared_input_scales, kWidth / 16U);
@@ -336,8 +363,14 @@ int main(int argc, char** argv) {
     std::cerr << "error: " << status.message() << '\n';
     return 6;
   }
-  if (cudaMemcpy(d_hidden.As<float>(), hidden.value().data(),
-                 hidden.value().size() * sizeof(float),
+  std::vector<float> hidden_batch(
+      static_cast<std::size_t>(execution_tokens * kWidth));
+  for (std::uint64_t token = 0; token < execution_tokens; ++token) {
+    std::copy(hidden.value().begin(), hidden.value().end(),
+              hidden_batch.begin() + static_cast<std::ptrdiff_t>(token * kWidth));
+  }
+  if (cudaMemcpy(d_hidden.As<float>(), hidden_batch.data(),
+                 hidden_batch.size() * sizeof(float),
                  cudaMemcpyHostToDevice) != cudaSuccess) {
     std::cerr << "error: copy M11 hidden state\n";
     return 6;
@@ -360,9 +393,222 @@ int main(int argc, char** argv) {
       routed_post.As<float>(), combined.As<float>(), feed_forward.As<float>()};
   const gem16::internal::Gemma4MoeReferenceConfig config{
       kWidth, kShared, kExpert, kExperts, kTopK, 1.0e-6F};
-  status = gem16::internal::LaunchGemma4MoeReferenceLayer(
-      d_hidden.As<float>(), d_output.As<float>(), config, weights, workspace,
-      nullptr);
+  if (options.backend == Options::Backend::kSm120Prefill) {
+    Buffer expected_output, prefill_router_logits, prefill_router_probabilities,
+        prefill_token_hidden, prefill_token_packed, prefill_token_scales,
+        prefill_expert_product, prefill_expert_product_packed,
+        prefill_expert_product_scales, prefill_expert_down,
+        prefill_shared_product, prefill_shared_product_packed,
+        prefill_shared_product_scales, prefill_shared_output,
+        prefill_reduced_output, prefill_assignments, prefill_histogram,
+        prefill_prefix, prefill_permutation, prefill_inverse;
+    allocate(&expected_output, execution_tokens * kWidth * sizeof(float));
+    allocate(&prefill_router_logits,
+             execution_tokens * kExperts * sizeof(float));
+    allocate(&prefill_router_probabilities,
+             execution_tokens * kExperts * sizeof(float));
+    allocate(&prefill_token_hidden,
+             execution_tokens * kWidth * sizeof(float));
+    allocate(&prefill_token_packed, execution_tokens * kWidth / 2U);
+    allocate(&prefill_token_scales, execution_tokens * kWidth / 16U);
+    allocate(&prefill_expert_product,
+             execution_tokens * kTopK * kExpert * sizeof(float));
+    allocate(&prefill_expert_product_packed,
+             execution_tokens * kTopK * kExpert / 2U);
+    allocate(&prefill_expert_product_scales,
+             execution_tokens * kTopK * kExpert / 16U);
+    allocate(&prefill_expert_down,
+             execution_tokens * kTopK * kWidth * sizeof(float));
+    allocate(&prefill_shared_product,
+             execution_tokens * kShared * sizeof(float));
+    allocate(&prefill_shared_product_packed,
+             execution_tokens * kShared / 2U);
+    allocate(&prefill_shared_product_scales,
+             execution_tokens * kShared / 16U);
+    allocate(&prefill_shared_output,
+             execution_tokens * kWidth * sizeof(float));
+    allocate(&prefill_reduced_output,
+             execution_tokens * kWidth * sizeof(float));
+    allocate(&prefill_assignments,
+             execution_tokens * kTopK *
+                 sizeof(gem16::internal::Gemma4MoePrefillAssignment));
+    allocate(&prefill_histogram, kExperts * sizeof(std::uint32_t));
+    allocate(&prefill_prefix, (kExperts + 1U) * sizeof(std::uint32_t));
+    allocate(&prefill_permutation,
+             execution_tokens * kTopK * sizeof(std::uint32_t));
+    allocate(&prefill_inverse,
+             execution_tokens * kTopK * sizeof(std::uint32_t));
+    if (!status.ok()) {
+      std::cerr << "error: " << status.message() << '\n';
+      return 6;
+    }
+    const gem16::internal::Gemma4MoePrefillWorkspace prefill_workspace{
+        prefill_router_logits.As<float>(),
+        prefill_router_probabilities.As<float>(),
+        prefill_token_hidden.As<float>(), prefill_token_packed.As<std::uint8_t>(),
+        prefill_token_scales.As<std::uint8_t>(),
+        prefill_expert_product.As<float>(),
+        prefill_expert_product_packed.As<std::uint8_t>(),
+        prefill_expert_product_scales.As<std::uint8_t>(),
+        prefill_expert_down.As<float>(), prefill_shared_product.As<float>(),
+        prefill_shared_product_packed.As<std::uint8_t>(),
+        prefill_shared_product_scales.As<std::uint8_t>(),
+        prefill_shared_output.As<float>(), prefill_reduced_output.As<float>(),
+        prefill_assignments.As<gem16::internal::Gemma4MoePrefillAssignment>(),
+        prefill_histogram.As<std::uint32_t>(),
+        prefill_prefix.As<std::uint32_t>(),
+        prefill_permutation.As<std::uint32_t>(),
+        prefill_inverse.As<std::uint32_t>()};
+    auto launch_reference_batch = [&]() -> gem16::Status {
+      for (std::uint64_t token = 0; token < execution_tokens; ++token) {
+        auto token_status = gem16::internal::LaunchGemma4MoeSm120Layer(
+            d_hidden.As<float>() + token * kWidth,
+            expected_output.As<float>() + token * kWidth, config, weights,
+            workspace, nullptr);
+        if (!token_status.ok()) return token_status;
+      }
+      return gem16::Status::Ok();
+    };
+    auto launch_prefill = [&]() {
+      return gem16::internal::LaunchGemma4MoeSm120PrefillLayer(
+          d_hidden.As<float>(), d_output.As<float>(), execution_tokens, config,
+          weights, prefill_workspace, nullptr);
+    };
+    status = launch_reference_batch();
+    if (status.ok()) status = launch_prefill();
+    if (!status.ok() || cudaDeviceSynchronize() != cudaSuccess) {
+      std::cerr << "error: M15 real-model execution failed: "
+                << status.message() << '\n';
+      return 7;
+    }
+    std::vector<float> expected_values, prefill_values, repeat_values;
+    std::vector<gem16::internal::Gemma4MoePrefillAssignment>
+        assignment_values;
+    std::vector<std::uint32_t> histogram_values, prefix_values,
+        permutation_values, inverse_values;
+    status = Copy(&expected_values, expected_output,
+                  execution_tokens * kWidth);
+    if (status.ok()) status = Copy(&prefill_values, d_output,
+                                   execution_tokens * kWidth);
+    if (status.ok()) status = Copy(&assignment_values, prefill_assignments,
+                                   execution_tokens * kTopK);
+    if (status.ok()) status = Copy(&histogram_values, prefill_histogram,
+                                   kExperts);
+    if (status.ok()) status = Copy(&prefix_values, prefill_prefix,
+                                   kExperts + 1U);
+    if (status.ok()) status = Copy(&permutation_values, prefill_permutation,
+                                   execution_tokens * kTopK);
+    if (status.ok()) status = Copy(&inverse_values, prefill_inverse,
+                                   execution_tokens * kTopK);
+    if (!status.ok()) {
+      std::cerr << "error: " << status.message() << '\n';
+      return 7;
+    }
+    std::size_t free_before = 0U, total = 0U, free_after = 0U;
+    cudaEvent_t reference_start = nullptr, reference_stop = nullptr,
+                prefill_start = nullptr, prefill_stop = nullptr;
+    if (cudaMemGetInfo(&free_before, &total) != cudaSuccess ||
+        cudaEventCreate(&reference_start) != cudaSuccess ||
+        cudaEventCreate(&reference_stop) != cudaSuccess ||
+        cudaEventCreate(&prefill_start) != cudaSuccess ||
+        cudaEventCreate(&prefill_stop) != cudaSuccess ||
+        cudaEventRecord(reference_start) != cudaSuccess) {
+      std::cerr << "error: cannot initialize M15 timing\n";
+      return 7;
+    }
+    constexpr int kRepeats = 3;
+    for (int repeat = 0; repeat < kRepeats && status.ok(); ++repeat) {
+      status = launch_reference_batch();
+    }
+    float reference_ms = 0.0F, prefill_ms = 0.0F;
+    cudaError_t timing_error = cudaEventRecord(reference_stop);
+    if (timing_error == cudaSuccess) timing_error = cudaEventSynchronize(reference_stop);
+    if (timing_error == cudaSuccess) {
+      timing_error = cudaEventElapsedTime(&reference_ms, reference_start,
+                                         reference_stop);
+    }
+    if (timing_error == cudaSuccess) timing_error = cudaEventRecord(prefill_start);
+    for (int repeat = 0; repeat < kRepeats && status.ok() &&
+                         timing_error == cudaSuccess; ++repeat) {
+      status = launch_prefill();
+    }
+    if (timing_error == cudaSuccess) timing_error = cudaEventRecord(prefill_stop);
+    if (timing_error == cudaSuccess) timing_error = cudaEventSynchronize(prefill_stop);
+    if (timing_error == cudaSuccess) {
+      timing_error = cudaEventElapsedTime(&prefill_ms, prefill_start,
+                                         prefill_stop);
+    }
+    (void)cudaEventDestroy(reference_start);
+    (void)cudaEventDestroy(reference_stop);
+    (void)cudaEventDestroy(prefill_start);
+    (void)cudaEventDestroy(prefill_stop);
+    if (status.ok()) status = Copy(&repeat_values, d_output,
+                                   execution_tokens * kWidth);
+    if (cudaMemGetInfo(&free_after, &total) != cudaSuccess || !status.ok() ||
+        timing_error != cudaSuccess) {
+      std::cerr << "error: repeated M15 execution failed\n";
+      return 7;
+    }
+    bool permutation_valid = prefix_values.front() == 0U &&
+                             prefix_values.back() == execution_tokens * kTopK;
+    std::vector<bool> seen(permutation_values.size(), false);
+    for (std::size_t grouped = 0; grouped < permutation_values.size(); ++grouped) {
+      const std::uint32_t original = permutation_values[grouped];
+      permutation_valid = permutation_valid && original < seen.size() &&
+                          !seen[original] && inverse_values[original] == grouped;
+      if (original < seen.size()) seen[original] = true;
+    }
+    for (std::uint32_t expert = 0; expert < kExperts; ++expert) {
+      permutation_valid = permutation_valid &&
+          prefix_values[expert + 1U] - prefix_values[expert] ==
+              histogram_values[expert];
+      std::uint32_t previous_token = 0U;
+      bool first = true;
+      for (std::uint32_t grouped = prefix_values[expert];
+           grouped < prefix_values[expert + 1U]; ++grouped) {
+        const auto& assignment = assignment_values[permutation_values[grouped]];
+        permutation_valid = permutation_valid && assignment.expert_id == expert &&
+                            (first || assignment.token_id >= previous_token);
+        previous_token = assignment.token_id;
+        first = false;
+      }
+    }
+    const bool output_exact = expected_values == prefill_values;
+    const bool deterministic = prefill_values == repeat_values;
+    std::ofstream report(options.output, std::ios::binary | std::ios::trunc);
+    if (!report) return 8;
+    report << std::setprecision(9)
+           << "{\"schema_version\":1,\"milestone\":\"M15\","
+           << "\"path\":\"native_sm120_grouped_prefill\",\"layer\":"
+           << layer << ",\"tokens\":" << execution_tokens
+           << ",\"artifact_arena_bytes\":" << artifact.value().arena_bytes()
+           << ",\"reference_repeated_decode_mean_ms\":"
+           << reference_ms / kRepeats
+           << ",\"grouped_prefill_mean_ms\":" << prefill_ms / kRepeats
+           << ",\"speedup\":" << reference_ms / prefill_ms
+           << ",\"output_bitwise_exact\":"
+           << (output_exact ? "true" : "false")
+           << ",\"repeated_bitwise_identical\":"
+           << (deterministic ? "true" : "false")
+           << ",\"permutation_valid_and_stable\":"
+           << (permutation_valid ? "true" : "false")
+           << ",\"forward_allocation_free\":"
+           << (free_before == free_after ? "true" : "false")
+           << ",\"free_before_repeats_bytes\":" << free_before
+           << ",\"free_after_repeats_bytes\":" << free_after << "}\n";
+    if (!output_exact || !deterministic || !permutation_valid) return 9;
+    return report ? 0 : 8;
+  }
+  auto launch_layer = [&]() {
+    return options.backend == Options::Backend::kSm120
+               ? gem16::internal::LaunchGemma4MoeSm120Layer(
+                     d_hidden.As<float>(), d_output.As<float>(), config,
+                     weights, workspace, nullptr)
+               : gem16::internal::LaunchGemma4MoeReferenceLayer(
+                     d_hidden.As<float>(), d_output.As<float>(), config,
+                     weights, workspace, nullptr);
+  };
+  status = launch_layer();
   if (!status.ok() || cudaDeviceSynchronize() != cudaSuccess) {
     std::cerr << "error: M11 layer execution failed: " << status.message() << '\n';
     return 7;
@@ -392,13 +638,30 @@ int main(int argc, char** argv) {
     std::cerr << "error: cannot measure M11 memory before repeats\n";
     return 7;
   }
+  cudaEvent_t start = nullptr;
+  cudaEvent_t stop = nullptr;
+  if (cudaEventCreate(&start) != cudaSuccess ||
+      cudaEventCreate(&stop) != cudaSuccess ||
+      cudaEventRecord(start) != cudaSuccess) {
+    if (start != nullptr) (void)cudaEventDestroy(start);
+    if (stop != nullptr) (void)cudaEventDestroy(stop);
+    std::cerr << "error: cannot initialize M11/M14 timing\n";
+    return 7;
+  }
   for (int repeat = 0; repeat < 3; ++repeat) {
-    status = gem16::internal::LaunchGemma4MoeReferenceLayer(
-        d_hidden.As<float>(), d_output.As<float>(), config, weights, workspace,
-        nullptr);
+    status = launch_layer();
     if (!status.ok()) break;
   }
-  if (!status.ok() || cudaDeviceSynchronize() != cudaSuccess) {
+  float elapsed_ms = 0.0F;
+  const cudaError_t timing_error = cudaEventRecord(stop) == cudaSuccess
+                                       ? cudaEventSynchronize(stop)
+                                       : cudaErrorUnknown;
+  if (timing_error == cudaSuccess) {
+    (void)cudaEventElapsedTime(&elapsed_ms, start, stop);
+  }
+  (void)cudaEventDestroy(start);
+  (void)cudaEventDestroy(stop);
+  if (!status.ok() || timing_error != cudaSuccess) {
     std::cerr << "error: repeated M11 execution failed\n";
     return 7;
   }
@@ -420,9 +683,14 @@ int main(int argc, char** argv) {
   const bool allocation_free = free_before_repeats == free_after_repeats;
   std::ofstream report(options.output, std::ios::binary | std::ios::trunc);
   if (!report) return 8;
-  report << "{\"schema_version\":1,\"milestone\":\"M11\","
-         << "\"path\":\"cuda_correctness_only\",\"layer\":" << layer
+  report << "{\"schema_version\":1,\"milestone\":\""
+         << (options.backend == Options::Backend::kSm120 ? "M14" : "M11") << "\","
+         << "\"path\":\""
+         << (options.backend == Options::Backend::kSm120 ? "native_sm120_decode"
+                                  : "cuda_correctness_only")
+         << "\",\"layer\":" << layer
          << ",\"artifact_arena_bytes\":" << artifact.value().arena_bytes()
+         << ",\"mean_layer_ms\":" << (elapsed_ms / 3.0F)
          << ",\"repeated_bitwise_identical\":"
          << (deterministic ? "true" : "false")
          << ",\"forward_allocation_free\":"

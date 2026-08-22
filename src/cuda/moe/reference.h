@@ -109,4 +109,13 @@ BindGemma4Moe26BReferenceWeights(
     const Gemma4MoeReferenceWeights& weights,
     const Gemma4MoeReferenceWorkspace& workspace, cudaStream_t stream);
 
+// M14 batch-one native SM120 path. Router, normalization and deterministic
+// reduction semantics are shared with M11; all NVFP4 projections dispatch the
+// project-built mma.sync SM120 kernels and selected experts remain on device.
+[[nodiscard]] Status LaunchGemma4MoeSm120Layer(
+    const float* hidden, float* output,
+    const Gemma4MoeReferenceConfig& config,
+    const Gemma4MoeReferenceWeights& weights,
+    const Gemma4MoeReferenceWorkspace& workspace, cudaStream_t stream);
+
 }  // namespace gem16::internal

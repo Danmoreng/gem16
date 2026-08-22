@@ -1,6 +1,7 @@
 #include <cuda_runtime_api.h>
 
 #include <array>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
@@ -27,6 +28,8 @@ struct Options {
   std::uint64_t context = 32768U;
   std::uint32_t max_new = 2U;
   int device = 0;
+  gem16::internal::Gemma4Moe26BBackend backend =
+      gem16::internal::Gemma4Moe26BBackend::kReference;
 };
 
 bool ParseUnsigned(std::string_view text, std::uint64_t* output) {
@@ -52,6 +55,16 @@ bool Parse(int argc, char** argv, Options* options) {
     else if (key == "--logits") options->logits = value;
     else if (key == "--prompt") options->prompt = value;
     else if (key == "--continuation") options->continuation = value;
+    else if (key == "--backend") {
+      if (value == "reference") {
+        options->backend = gem16::internal::Gemma4Moe26BBackend::kReference;
+      } else if (value == "sm120") {
+        options->backend =
+            gem16::internal::Gemma4Moe26BBackend::kSm120MoeHead;
+      } else {
+        return false;
+      }
+    }
     else if (key == "--context") {
       if (!ParseUnsigned(value, &options->context)) return false;
     } else if (key == "--max-new") {
@@ -105,7 +118,8 @@ int main(int argc, char** argv) {
   if (!Parse(argc, argv, &options)) {
     std::cerr << "usage: gem16-26b-reference --model DIR --output JSON "
                  "--logits F32LE [--tokenizer DIR] [--prompt TEXT] [--continuation TEXT] "
-                 "[--context N] [--max-new N] [--device N]\n";
+                 "[--context N] [--max-new N] [--device N] "
+                 "[--backend reference|sm120]\n";
     return 2;
   }
   if (options.tokenizer.empty()) options.tokenizer = options.model;
@@ -127,7 +141,7 @@ int main(int argc, char** argv) {
     return 3;
   }
   auto engine = gem16::internal::Gemma4Moe26BReferenceEngine::Create(
-      options.model, options.context, options.device);
+      options.model, options.context, options.device, options.backend);
   if (!engine.ok()) {
     std::cerr << engine.status().message() << '\n';
     return 4;
@@ -191,6 +205,7 @@ int main(int argc, char** argv) {
   };
 
   RunResult first, second;
+  const auto run_start = std::chrono::steady_clock::now();
   auto status = run(true, &first);
   std::size_t free_after_first = 0U;
   if (status.ok() &&
@@ -199,6 +214,7 @@ int main(int argc, char** argv) {
               "cannot measure M13 memory after first warm run"};
   }
   if (status.ok()) status = run(false, &second);
+  const auto run_end = std::chrono::steady_clock::now();
   if (!status.ok()) {
     std::cerr << status.message() << '\n';
     return 6;
@@ -212,8 +228,19 @@ int main(int argc, char** argv) {
   std::ofstream out(options.output, std::ios::binary | std::ios::trunc);
   if (!out) return 7;
   out << std::setprecision(9)
-      << "{\"schema_version\":1,\"milestone\":\"M13\","
-      << "\"path\":\"experimental_reference_only\","
+      << "{\"schema_version\":1,\"milestone\":\""
+      << (options.backend ==
+                  gem16::internal::Gemma4Moe26BBackend::kSm120MoeHead
+              ? "M16"
+              : "M13")
+      << "\",\"path\":\""
+      << (options.backend ==
+                  gem16::internal::Gemma4Moe26BBackend::kSm120MoeHead
+              ? "native_sm120_moe_and_head"
+              : "experimental_reference_only")
+      << "\",\"two_run_elapsed_ms\":"
+      << std::chrono::duration<double, std::milli>(run_end - run_start).count()
+      << ','
       << "\"prompt_token_ids\":";
   Array(out, std::span<const std::uint32_t>(prompt.value()));
   out << ",\"continuation_token_ids\":";

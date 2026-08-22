@@ -9,6 +9,11 @@
 
 namespace gem16::internal {
 
+enum class Gemma4Moe26BBackend {
+  kReference,
+  kSm120MoeHead,
+};
+
 struct Gemma4Moe26BReferencePrediction {
   std::uint32_t token = 0;
   float logit = 0.0F;
@@ -32,7 +37,8 @@ class Gemma4Moe26BReferenceEngine {
 
   [[nodiscard]] static Result<Gemma4Moe26BReferenceEngine> Create(
       const std::filesystem::path& model_directory,
-      std::uint64_t context_tokens = 32768U, int device = 0);
+      std::uint64_t context_tokens = 32768U, int device = 0,
+      Gemma4Moe26BBackend backend = Gemma4Moe26BBackend::kReference);
 
   [[nodiscard]] Status Reset();
   [[nodiscard]] Status ForwardToken(std::uint32_t token);
