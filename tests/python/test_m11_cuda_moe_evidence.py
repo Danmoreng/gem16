@@ -1,4 +1,6 @@
 import unittest
+import json
+from pathlib import Path
 
 from tools.summarize_gemma4_26b_m11 import THRESHOLDS, metrics
 
@@ -18,6 +20,20 @@ class M11CudaMoeEvidenceTest(unittest.TestCase):
     def test_shape_mismatch_is_rejected(self) -> None:
         with self.assertRaises(ValueError):
             metrics([1.0], [1.0, 2.0])
+
+    def test_clean_acceptance_binds_implementation(self) -> None:
+        root = Path(__file__).resolve().parents[2]
+        acceptance = json.loads((root / "artifacts/m11/acceptance.json").read_text())
+        implementation = "91ee47586cc426c051dee247ddfcf4a6b765ecfd"
+        self.assertTrue(acceptance["acceptance"])
+        self.assertEqual(acceptance["status"], "acceptance_pass")
+        self.assertEqual(acceptance["implementation_commit"], implementation)
+        self.assertEqual(acceptance["code_revision"], implementation)
+        self.assertTrue(acceptance["lifecycle"]["forward_allocation_free"])
+        self.assertTrue(acceptance["lifecycle"]["repeated_bitwise_identical"])
+        self.assertEqual(len(acceptance["expert_metrics"]), 8)
+        self.assertTrue(all(item["status"] == "pass"
+                            for item in acceptance["sanitizers"]))
 
 
 if __name__ == "__main__":

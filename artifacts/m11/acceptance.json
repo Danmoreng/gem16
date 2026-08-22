@@ -1,0 +1,172 @@
+{
+  "acceptance": true,
+  "artifact_arena_bytes": 14696668160,
+  "code_revision": "91ee47586cc426c051dee247ddfcf4a6b765ecfd",
+  "expert_metrics": [
+    {
+      "expert_id": 102,
+      "metrics": {
+        "cosine": 0.9916793370820491,
+        "max_abs": 0.1171875,
+        "relative_l2": 0.13302448196183927
+      }
+    },
+    {
+      "expert_id": 79,
+      "metrics": {
+        "cosine": 0.9954345403634803,
+        "max_abs": 0.96875,
+        "relative_l2": 0.10625407409670272
+      }
+    },
+    {
+      "expert_id": 114,
+      "metrics": {
+        "cosine": 0.976883709809183,
+        "max_abs": 0.0028991699168749996,
+        "relative_l2": 0.2138986095736539
+      }
+    },
+    {
+      "expert_id": 81,
+      "metrics": {
+        "cosine": 0.9686445252743534,
+        "max_abs": 0.00379180907953125,
+        "relative_l2": 0.24857310031122828
+      }
+    },
+    {
+      "expert_id": 83,
+      "metrics": {
+        "cosine": 0.9748174205447923,
+        "max_abs": 0.005004882775,
+        "relative_l2": 0.22982714247239183
+      }
+    },
+    {
+      "expert_id": 58,
+      "metrics": {
+        "cosine": 0.9753813489078803,
+        "max_abs": 0.003898143768275,
+        "relative_l2": 0.2205994843586077
+      }
+    },
+    {
+      "expert_id": 54,
+      "metrics": {
+        "cosine": 0.9774746792226819,
+        "max_abs": 0.00552368164,
+        "relative_l2": 0.212266669897738
+      }
+    },
+    {
+      "expert_id": 46,
+      "metrics": {
+        "cosine": 0.9903693520872344,
+        "max_abs": 0.01094055175375,
+        "relative_l2": 0.1468980636375229
+      }
+    }
+  ],
+  "implementation_commit": "91ee47586cc426c051dee247ddfcf4a6b765ecfd",
+  "lifecycle": {
+    "forward_allocation_free": true,
+    "free_after_repeats_bytes": 1723006976,
+    "free_before_repeats_bytes": 1723006976,
+    "host_routing": false,
+    "repeated_bitwise_identical": true
+  },
+  "limitations": [
+    "correctness-only CUDA reference; no native performance claim",
+    "the trusted BF16 tie may order expert 58/83 differently; the accepted lower-ID policy is applied to GPU probabilities",
+    "quantized-versus-BF16 boundary thresholds measure the locked M08 QAT artifact rather than byte identity"
+  ],
+  "milestone": "M11",
+  "owner_decision": {
+    "date": "2026-08-22",
+    "decision": "M11 accepted"
+  },
+  "path": "cuda_correctness_only_not_performance_qualified",
+  "raw_evidence": {
+    "fixture": {
+      "bytes": 495073,
+      "sha256": "315fec2149f420fd303ee23b0ca0faaedca24c1cd1e31333b2b8a729de04d702"
+    },
+    "gpu": {
+      "bytes": 471460,
+      "sha256": "1866c82b8047c9d2f140d99b16b5193395077309c6aa922f8740253212448b96"
+    }
+  },
+  "routed_sum_metrics": {
+    "cosine": 0.9955621577118228,
+    "max_abs": 1.09375,
+    "relative_l2": 0.10603469147743594
+  },
+  "routing": {
+    "gpu_ids": [
+      102,
+      79,
+      114,
+      81,
+      58,
+      83,
+      54,
+      46
+    ],
+    "probability_metrics": {
+      "cosine": 0.9999993735171628,
+      "max_abs": 0.00012126196459236183,
+      "relative_l2": 0.0011307291383465914
+    },
+    "tie_policy": "lower_expert_id",
+    "top8_set_match": true,
+    "trusted_ids": [
+      102,
+      79,
+      114,
+      81,
+      83,
+      58,
+      54,
+      46
+    ],
+    "weight_max_abs_by_expert_id": 0.00028568467237855
+  },
+  "sanitizers": [
+    {
+      "bytes": 62,
+      "sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+      "status": "pass",
+      "tool": "memcheck"
+    },
+    {
+      "bytes": 100,
+      "sha256": "91dbb142f8feb8786cd6fde6ac035e816b67db14e4b7b400a01386ec106b75c4",
+      "status": "pass",
+      "tool": "racecheck"
+    },
+    {
+      "bytes": 62,
+      "sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+      "status": "pass",
+      "tool": "initcheck"
+    }
+  ],
+  "schema_version": 1,
+  "shared_metrics": {
+    "cosine": 0.993188952210885,
+    "max_abs": 7.5,
+    "relative_l2": 0.13686494628786733
+  },
+  "status": "acceptance_pass",
+  "thresholds": {
+    "expert_cosine_min": 0.96,
+    "expert_relative_l2_max": 0.3,
+    "routed_cosine_min": 0.985,
+    "routed_relative_l2_max": 0.2,
+    "router_probability_max_abs": 0.003,
+    "router_weight_max_abs": 0.005,
+    "shared_cosine_min": 0.985,
+    "shared_relative_l2_max": 0.2
+  }
+}

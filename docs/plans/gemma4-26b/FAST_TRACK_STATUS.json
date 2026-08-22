@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "plan_revision": "fast-track-r4",
-  "updated": "2026-08-14",
-  "accepted_through": "M10",
-  "current_milestone": "M11",
+  "updated": "2026-08-22",
+  "accepted_through": "M11",
+  "current_milestone": "M12",
   "active_wave": "F2-first-complete-correct-model",
   "integration_branch": "feat/gemma4-26b",
   "source_of_truth": "docs/plans/gemma4-26b/FAST_TRACK_STATUS.json",
@@ -81,7 +81,8 @@
       ]
     },
     "M11": {
-      "status": "READY_NEXT",
+      "status": "ACCEPTED",
+      "note": "accepted 2026-08-22 at implementation commit 91ee47586cc426c051dee247ddfcf4a6b765ecfd; see artifacts/m11/acceptance.json",
       "class": "critical",
       "lane": "cuda-reference",
       "depends_on": [
@@ -96,7 +97,7 @@
       ]
     },
     "M12": {
-      "status": "PARALLEL_PREWORK",
+      "status": "READY_NEXT",
       "class": "parallel-critical",
       "lane": "attention-kv",
       "depends_on": [

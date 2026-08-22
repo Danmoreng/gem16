@@ -1,6 +1,6 @@
 # Start here — current coding-agent task
 
-Status: M00–M10 accepted; M11 CUDA correctness-first MoE is next.
+Status: M00–M11 accepted; M12 attention and FP8 K/V integration is next.
 Plan revision: Fast Track R4.
 
 ## Read now
@@ -23,7 +23,7 @@ M08 was accepted on 2026-08-14. The lead agent may assign disjoint sub-agents fo
 - M25 phase A assistant compatibility and memory modeling;
 - evaluation/benchmark harness scaffolding.
 
-Use [`PARALLEL_WORKSTREAMS.md`](PARALLEL_WORKSTREAMS.md). M10 is accepted; M11 is the next critical slice.
+Use [`PARALLEL_WORKSTREAMS.md`](PARALLEL_WORKSTREAMS.md). M11 is accepted; M12 is the next critical slice.
 
 ## M08 success
 
@@ -54,3 +54,9 @@ boundaries and all 64 selected expert contributions across layers 0/5/6/29 and p
 the accepted M08 artifact without importing production CUDA. M10 is accepted at implementation commit
 `eac6b443b239d5e04c5be5daef3dd659d57d5de9`; the clean record is `artifacts/m10/acceptance.json`. M11 now owns the
 fixed-address CUDA MoE reference path and must match these named boundaries before any performance fusion.
+
+M11 is accepted at implementation commit `91ee47586cc426c051dee247ddfcf4a6b765ecfd`. The CUDA path keeps router
+selection on device, runs all eight fixed expert slots without host routing, matches the locked quantized-versus-BF16
+boundary gates, repeats bitwise identically without an allocation delta, and passes memcheck/racecheck/initcheck. See
+`artifacts/m11/acceptance.json`. M12 now owns the 30-layer attention pattern, separate FP8 K/V cache semantics and
+local-ring/global-append integration needed by M13.
