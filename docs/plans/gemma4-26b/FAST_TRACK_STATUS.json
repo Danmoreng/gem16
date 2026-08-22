@@ -2,9 +2,9 @@
   "schema_version": 1,
   "plan_revision": "fast-track-r4",
   "updated": "2026-08-22",
-  "accepted_through": "M13",
-  "current_milestone": "M14",
-  "active_wave": "F3-native-runtime",
+  "accepted_through": "M17",
+  "current_milestone": "M19",
+  "active_wave": "F4-base-qualification-product",
   "integration_branch": "feat/gemma4-26b",
   "source_of_truth": "docs/plans/gemma4-26b/FAST_TRACK_STATUS.json",
   "policy_source": "docs/ACTIVE_DECISIONS.md",
@@ -135,7 +135,8 @@
       ]
     },
     "M14": {
-      "status": "READY_NEXT",
+      "status": "ACCEPTED",
+      "note": "accepted 2026-08-22 at implementation commit 9a374c3dda10b7ae870c712cd70a60aa0a9e2c52; see artifacts/m14/acceptance.json",
       "class": "parallel",
       "lane": "decode",
       "depends_on": [
@@ -147,7 +148,8 @@
       ]
     },
     "M15": {
-      "status": "READY_NEXT",
+      "status": "ACCEPTED",
+      "note": "accepted 2026-08-22 at implementation commit 9a374c3dda10b7ae870c712cd70a60aa0a9e2c52; see artifacts/m15/acceptance.json",
       "class": "parallel",
       "lane": "prefill",
       "depends_on": [
@@ -160,7 +162,8 @@
       ]
     },
     "M16": {
-      "status": "READY_NEXT",
+      "status": "ACCEPTED",
+      "note": "accepted 2026-08-22 at implementation commit 9a374c3dda10b7ae870c712cd70a60aa0a9e2c52; see artifacts/m16/acceptance.json",
       "class": "parallel-conditional",
       "lane": "head",
       "depends_on": [
@@ -172,7 +175,8 @@
       ]
     },
     "M17": {
-      "status": "READY_NEXT",
+      "status": "ACCEPTED",
+      "note": "accepted 2026-08-22 at implementation commit 57fdeb309aacfce2e4eba65745fba86f14ebd113 and closure-hardening commit 348683e167c6c4d3b0be7580e404c097b199a3d8; see artifacts/m17/acceptance.json and artifacts/m17/closure-hardening.json",
       "class": "rolling-integration",
       "lane": "runtime",
       "depends_on": [
@@ -205,7 +209,7 @@
       ]
     },
     "M19": {
-      "status": "BLOCKED",
+      "status": "READY_NEXT",
       "class": "qualification",
       "lane": "quality",
       "depends_on": [
@@ -213,7 +217,7 @@
       ]
     },
     "M20": {
-      "status": "BLOCKED",
+      "status": "READY_NEXT",
       "class": "qualification",
       "lane": "performance",
       "depends_on": [
@@ -221,7 +225,7 @@
       ]
     },
     "M21": {
-      "status": "BLOCKED",
+      "status": "READY_NEXT",
       "class": "qualification",
       "lane": "long-context",
       "depends_on": [
@@ -229,7 +233,7 @@
       ]
     },
     "M22": {
-      "status": "BLOCKED",
+      "status": "READY_NEXT",
       "class": "product",
       "lane": "cli-server",
       "depends_on": [
@@ -272,12 +276,16 @@
     }
   },
   "parallel_tasks_now": [
-    "M11 CUDA correctness-first MoE"
+    "M19 held-out quality qualification",
+    "M20 controlled performance qualification",
+    "M21 real 32K/64K long-context qualification",
+    "M22 CLI/server product integration",
+    "M25 phase A assistant compatibility and memory feasibility"
   ],
   "paused_tasks": [
-    "M12 phase A attention/trait fixtures",
-    "M13/M19/M20/M21 harness scaffolding",
-    "M25 phase A assistant compatibility and memory feasibility"
+    "M18 conditional diagnosis unless a trigger occurs",
+    "M23 base evidence freeze until M19-M22 pass",
+    "M24 optional internal Q4_0 backend"
   ],
   "context_policy": {
     "base_minimum_tokens": 32768,

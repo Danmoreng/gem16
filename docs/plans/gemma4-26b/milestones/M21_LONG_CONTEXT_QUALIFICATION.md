@@ -1,6 +1,6 @@
 # M21 — 32K, 64K and maximum safe base context
 
-Status: blocked by frozen M17 artifact
+Status: ready; frozen M17 profile available
 Class: qualification; may run alongside M19/M20
 
 Normative inputs: [Memory arena](../specs/MEMORY_ARENA_SPEC.md), [Benchmark matrix](../specs/BENCHMARK_MATRIX.md).

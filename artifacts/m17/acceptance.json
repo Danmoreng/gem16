@@ -3,6 +3,8 @@
   "milestone": "M17",
   "status": "accepted",
   "implementation_revision": "57fdeb309aacfce2e4eba65745fba86f14ebd113",
+  "closure_hardening_revision": "348683e167c6c4d3b0be7580e404c097b199a3d8",
+  "closure_hardening_evidence": "artifacts/m17/closure-hardening.json",
   "qualified_artifact_content_sha256": "471805f7dad8abb84300be78b2822a63dcb1d35bff5aa98426a162cc8532ee17",
   "profile": "native_sm120_integrated_prefill_decode_head",
   "correctness": {

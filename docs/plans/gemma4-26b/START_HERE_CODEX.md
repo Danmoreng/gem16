@@ -1,6 +1,6 @@
 # Start here — current coding-agent task
 
-Status: M00–M13 accepted; M13 decided `proceed`, so M14–M17 are unblocked.
+Status: M00–M17 accepted; M19–M22 are ready and may proceed in parallel. M18 remains conditional.
 Plan revision: Fast Track R4.
 
 ## Read now
@@ -15,15 +15,17 @@ Do not preload the full decision, correctness, benchmark or performance ledgers.
 
 ## Lead-agent orchestration
 
-M08 was accepted on 2026-08-14. The lead agent may assign disjoint sub-agents for:
+The M17 profile is frozen. The lead agent may assign disjoint sub-agents for:
 
-- M10 phase A BF16 MoE oracle;
-- M12 phase A traits and attention/KV fixtures;
-- M10 BF16 and quantized CPU MoE semantic oracle;
+- M19 held-out quality qualification;
+- M20 controlled benchmark execution and telemetry;
+- M21 real 32K/64K long-context qualification;
+- M22 CLI/server product integration;
 - M25 phase A assistant compatibility and memory modeling;
-- evaluation/benchmark harness scaffolding.
+- independent evidence reconciliation.
 
-Use [`PARALLEL_WORKSTREAMS.md`](PARALLEL_WORKSTREAMS.md). M13 is accepted; M14–M16 may proceed alongside rolling M17 integration.
+Use [`PARALLEL_WORKSTREAMS.md`](PARALLEL_WORKSTREAMS.md). M18 runs only after a recorded trigger and does not block
+the active M19–M22 wave.
 
 ## M08 success
 
@@ -71,4 +73,18 @@ M13 is accepted with decision `proceed` at implementation commit
 generates deterministic `OK.`, preserves a resident second-turn prefix, retains the expected first token at rank 1
 with BF16-to-M13 KL 0.0000121, passes selected layer/router drift gates and leaves 1,280,507,904 warm bytes free at
 32K without a repeat-run allocation delta. See `artifacts/m13/acceptance.json`. The path is experimental and
-reference-only; M14–M16 own native operator promotion and M17 owns rolling integration.
+reference-only; M14–M17 subsequently promoted and integrated the frozen native SM120 profile.
+
+## M14–M17 success and current qualification boundary
+
+M14–M16 are accepted at implementation commit `9a374c3dda10b7ae870c712cd70a60aa0a9e2c52`. M17 is accepted at original
+implementation commit `57fdeb309aacfce2e4eba65745fba86f14ebd113` and closure-hardening commit
+`348683e167c6c4d3b0be7580e404c097b199a3d8`. Router failures now fail safely, complete engine replay/relaunch is
+automated, native slot-batched expert execution remains bitwise exact and hardware capability reporting is
+profile-aware. The closure diagnostic estimates 76.3924 decode token/s with unchanged final-logit hash and fixed
+memory, but M20 still owns the formal 3-warm-up/10-retained-run performance claim. See
+`artifacts/m17/closure-hardening.json`.
+
+The current work wave is M19 quality, M20 performance, M21 long-context and M22 product integration. M18 is a
+conditional source/quantizer/head diagnosis only if M19 fails, head attribution becomes necessary or the owner
+explicitly requests causal analysis.

@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "milestone": "M17",
+  "status": "accepted_closure_hardening",
+  "original_implementation_revision": "57fdeb309aacfce2e4eba65745fba86f14ebd113",
+  "closure_hardening_revision": "348683e167c6c4d3b0be7580e404c097b199a3d8",
+  "qualified_artifact_content_sha256": "471805f7dad8abb84300be78b2822a63dcb1d35bff5aa98426a162cc8532ee17",
+  "profile": "native_sm120_integrated_prefill_decode_head",
+  "correctness": {
+    "non_finite_router_ids_are_safe": true,
+    "non_finite_router_state_fails_hard": true,
+    "non_finite_final_logits_fail_hard": true,
+    "slot_batched_expert_outputs_match_sequential_bitwise": true,
+    "generated_tokens_match_original_m17": true,
+    "full_logits_repeat_equal": true,
+    "full_logits_sha256": "fb1ea761cb36dc99b2f3382e8562168ae611c16625aea090688ba2d9a6e8f9d1",
+    "engine_relaunch_logits_equal": true
+  },
+  "lifecycle": {
+    "whole_model_decode_graph_replay": true,
+    "prefill_tokens_advances_position": true,
+    "two_internal_runs_copy_full_logits": true,
+    "fresh_process_relaunch": true,
+    "recurring_allocation_observed": false
+  },
+  "memory": {
+    "weight_arena_bytes": 14696668160,
+    "fp8_kv_32k_bytes": 440401920,
+    "fixed_workspace_bytes": 121149216,
+    "free_before_runs_bytes": 1158873088,
+    "free_after_first_run_bytes": 1158873088,
+    "free_after_runs_bytes": 1158873088
+  },
+  "diagnostic_performance_candidate": {
+    "promotion_status": "not_m20_qualified",
+    "original_m17_max_new_2_two_run_ms": 1079.67332,
+    "original_m17_max_new_16_two_run_ms": 2843.04808,
+    "closure_max_new_2_two_run_ms": 740.927204,
+    "closure_max_new_16_two_run_ms": 1107.45588,
+    "extra_decode_positions_across_two_runs": 28,
+    "original_decode_ms_per_token": 62.97767,
+    "original_decode_tokens_per_second": 15.8786,
+    "closure_decode_ms_per_token": 13.09031,
+    "closure_decode_tokens_per_second": 76.3924,
+    "speedup": 4.81101,
+    "remaining_m20_gate": "three warm-ups, ten retained runs, full clocks/power/thermal/VRAM telemetry and exact dispatch evidence"
+  },
+  "capability_reporting": {
+    "native_flags_require_actual_sm120_device": true,
+    "gemma4_12b_path_on_sm120": "qualified",
+    "gemma4_26b_path_on_sm120": "experimental_native_sm120"
+  },
+  "raw_evidence_sha256": {
+    "original_max_new_2_report": "03d30b7ce14abccfc3b8f87da3f55759a100c9dc533fdb6a879b7ccf7bc947bb",
+    "original_max_new_16_report": "65250a5882b8b990e8904a0b0a16e58cfa2a131b072aedf4cbf82fc5b4ea4b39",
+    "closure_max_new_2_report": "7ac0ed24a1545804cf20b8749ae8a9603dc2c66dfebe1735b9235f00694d6b8a",
+    "closure_max_new_16_report": "ed76df4a4ba7964f848054cea3ab50e246f5ba3e5fc2ab88af6ed55f1a386195",
+    "closure_logits": "fb1ea761cb36dc99b2f3382e8562168ae611c16625aea090688ba2d9a6e8f9d1",
+    "moe_memcheck_log": "c020862dcf2946976ce7a250930eecf40868b6e263592773f3b82c29ad6f7171",
+    "moe_racecheck_log": "a4a40e4c41964fb5cbe648e012522b7500399d091d218230c53c824bec9a5c44",
+    "moe_initcheck_log": "c020862dcf2946976ce7a250930eecf40868b6e263592773f3b82c29ad6f7171"
+  },
+  "commands": [
+    "cmake --build build/blackwell-release -j4",
+    "ctest --test-dir build/blackwell-release --output-on-failure",
+    "GEM16_26B_COMPILED_MODEL=artifacts/raw/m08/qat-hybrid-clean-1 ctest --test-dir build/blackwell-release -R gem16-26b-m17-engine-smoke --output-on-failure",
+    "compute-sanitizer --tool memcheck build/blackwell-release/bin/gem16-cuda-moe-reference-tests",
+    "compute-sanitizer --tool racecheck build/blackwell-release/bin/gem16-cuda-moe-reference-tests",
+    "compute-sanitizer --tool initcheck build/blackwell-release/bin/gem16-cuda-moe-reference-tests"
+  ],
+  "tests": {
+    "full_build": "pass",
+    "ctest": "5_pass_1_optional_skip",
+    "real_model_engine_smoke": "pass_151.05_seconds",
+    "real_shape_nvfp4_consumption": "pass",
+    "compute_sanitizer_memcheck": "pass_0_errors",
+    "compute_sanitizer_racecheck": "pass_0_hazards_0_warnings",
+    "compute_sanitizer_initcheck": "pass_0_errors",
+    "git_diff_check": "pass"
+  },
+  "limitations": [
+    "The integrated engine currently caps execution at 32768 context tokens; real 64K execution belongs to M21.",
+    "The integrated prefill engine currently reserves and selects a 128-token chunk even though the M15 planner supports larger candidates.",
+    "The router projection retains exact serial accumulation order and remains the largest measured decode optimization opportunity.",
+    "Raw reports and sanitizer logs remain under artifacts/raw and are intentionally ignored; this record preserves commands and content hashes.",
+    "The diagnostic performance pair is not a substitute for the controlled M20 promotion matrix."
+  ]
+}

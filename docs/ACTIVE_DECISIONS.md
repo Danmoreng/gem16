@@ -1,6 +1,6 @@
 # Active decisions
 
-**Accepted:** 2026-08-22 · **Track:** Gemma 4 26B A4B Fast Track · **Status:** M00–M13 accepted; M14–M17 unblocked
+**Accepted:** 2026-08-22 · **Track:** Gemma 4 26B A4B Fast Track · **Status:** M00–M17 accepted; M19–M22 ready
 
 This is the short operational policy for current work. It is not a replacement for historical evidence. Permanent
 rules in `AGENTS.md` remain binding. For facts about the implementation, current source, tests and accepted evidence
@@ -45,8 +45,21 @@ full-model integration and the only early quality go/no-go screen.
 M13 was accepted on 2026-08-22 with decision `proceed` at implementation commit
 `3cd697501585868d5ef41e60d212bb0e502c365c`. The complete experimental reference path passes deterministic
 generation, BF16 teacher-forced KL/rank, selected layer/router drift, resident continuation, finite-numerics and
-warm 32K memory gates. See `artifacts/m13/acceptance.json`. M14–M16 and rolling M17 integration are unblocked; M18
-remains conditional and was not triggered.
+warm 32K memory gates. See `artifacts/m13/acceptance.json`.
+
+M14–M16 were accepted on 2026-08-22 at implementation commit
+`9a374c3dda10b7ae870c712cd70a60aa0a9e2c52`; M17 was accepted at implementation commit
+`57fdeb309aacfce2e4eba65745fba86f14ebd113` and closed after safety, lifecycle and decode-performance hardening at
+`348683e167c6c4d3b0be7580e404c097b199a3d8`. The frozen text-only profile keeps the 14,696,668,160-byte target arena,
+separate FP8 K/V, fixed-address prefill/decode workspaces and whole-model decode graph. It rejects non-finite routing
+and logits, reports SM120 capabilities only on compatible hardware and passes the real two-process engine lifecycle
+smoke. The final short diagnostic remains logit-bitwise identical to the accepted profile and estimates 13.0903 ms
+per decode token (76.3924 token/s); this is an M20 candidate measurement, not the controlled M20 promotion result.
+See `artifacts/m17/closure-hardening.json`.
+
+The M17 artifact/profile freeze unblocks M19 held-out quality, M20 controlled performance, M21 real long-context and
+M22 CLI/server integration. M18 remains conditional and was not triggered; its number does not make it a sequential
+prerequisite.
 
 The owner set the base-model 64K residency and later execution reserve to 400 MiB on 2026-08-14 so that 64K remains
 a required supported target. This supersedes the prior 500 MiB base-model rule for 64K and larger contexts. The 32K
@@ -83,7 +96,7 @@ The integration branch remains `feat/gemma4-26b`; temporary worktrees are allowe
 
 ## Scope boundary
 
-The accepted M00–M13 source locks, evidence and historical records remain valid. The active choices above simplify
+The accepted M00–M17 source locks, evidence and historical records remain valid. The active choices above simplify
 future execution; they do not authorize silent precision changes, CPU weight offload, duplicate device layouts,
 runtime quantization, unreported fallback, weakened 12B behavior or unsupported capability claims. Experimental
 results must say which gates have not yet been run.

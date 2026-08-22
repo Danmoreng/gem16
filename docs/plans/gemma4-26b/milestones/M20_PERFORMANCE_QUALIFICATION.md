@@ -1,6 +1,6 @@
 # M20 — Controlled performance qualification
 
-Status: blocked by frozen M17 artifact
+Status: ready; frozen M17 profile and diagnostic candidate available
 Class: qualification; may run alongside M19/M21
 
 Normative inputs: [Benchmark matrix](../specs/BENCHMARK_MATRIX.md), [Telemetry artifact](../specs/TELEMETRY_ARTIFACT_SPEC.md).

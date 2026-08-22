@@ -1,6 +1,6 @@
 # M17 — Rolling optimized runtime integration
 
-Status: accepted at implementation revision `57fdeb309aacfce2e4eba65745fba86f14ebd113`
+Status: accepted at implementation revision `57fdeb309aacfce2e4eba65745fba86f14ebd113`; closure hardening at `348683e167c6c4d3b0be7580e404c097b199a3d8`
 Class: rolling integration
 Completion depends on: M14, M15 and M16 or a recorded M16 skip
 
@@ -44,3 +44,28 @@ and passes focused M12-envelope and compute-sanitizer tests; the frozen exact
 M17 profile deliberately does not select it. Compact evidence and the frozen
 artifact/profile hashes are in `artifacts/m17/diagnostic-summary.json`; the
 commit-bound acceptance record is in `artifacts/m17/acceptance.json`.
+
+## Closure hardening (2026-08-22)
+
+The closure revision makes non-finite decode and prefill routing fail safely
+without invalid expert IDs, stale permutations or stale workspace reduction.
+The CLI now fails hard on non-finite model output, captures both internal-run
+logit payloads, reports memory before engine creation and proves full-logit
+repeat identity. Capability reporting no longer advertises SM120-native paths
+on incompatible hardware.
+
+The optimized T=1 path selects native FP8 decode projections, parallelizes the
+deterministic router top-8 selection and executes all eight selected NVFP4 W13
+and W2 slots in one launch per stage. The accepted arithmetic order remains
+unchanged: real generated tokens and all 262144 final logits retain hash
+`fb1ea761cb36dc99b2f3382e8562168ae611c16625aea090688ba2d9a6e8f9d1`.
+The bounded two-length diagnostic estimates 13.0903 ms/decode token or 76.3924
+token/s, 4.811x the original accepted M17 diagnostic. This is candidate data;
+M20 still requires its controlled 3-warm-up/10-retained-run matrix and full
+telemetry before any promoted performance claim.
+
+Automated coverage now includes non-finite router injection, nonzero
+slot-batched expert differentials, the existing real-shape random-weight SM120
+operator test, full engine replay/relaunch and compute-sanitizer memcheck,
+racecheck and initcheck. Compact hashes, exact commands and limitations are in
+`artifacts/m17/closure-hardening.json`.

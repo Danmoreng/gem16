@@ -1,6 +1,6 @@
 # M19 — Held-out quality qualification
 
-Status: blocked by frozen M17 artifact
+Status: ready; frozen M17 profile available
 Class: qualification
 
 Normative inputs: [Quality evaluation](../specs/QUALITY_EVALUATION_SPEC.md), [Test matrix](../specs/TEST_MATRIX.md).

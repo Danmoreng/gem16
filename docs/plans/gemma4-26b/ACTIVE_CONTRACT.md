@@ -1,9 +1,9 @@
 # Active contract — Gemma 4 26B Fast Track R4
 
-Status: accepted through M13 with `proceed`; M14–M17 native-runtime work is unblocked
+Status: accepted through M17; M19–M22 base qualification/product work is ready
 Plan revision: `fast-track-r4`
-Accepted baseline: M00–M13
-Current milestone: M14 (ready; M15/M16/M17 also unblocked)
+Accepted baseline: M00–M17
+Current milestone: M19 (M20/M21/M22 also ready; M18 conditional)
 Integration branch: `feat/gemma4-26b`
 
 ## Purpose
@@ -25,7 +25,7 @@ Report a material conflict instead of guessing. A stale status page does not ove
 
 ## Accepted baseline
 
-M00–M13 are accepted and are not reopened by current work.
+M00–M17 are accepted and are not reopened by current work.
 
 - Sources, manifests and source locks are immutable.
 - The 12B path remains separately specialized and regression-protected.
@@ -44,6 +44,11 @@ M00–M13 are accepted and are not reopened by current work.
   `bbee9cd930133dd49cb3acc79b4867658a0968cc`; it is explicitly not performance-qualified.
 - M13 full-model reference execution and early quality screen are accepted with decision `proceed` at implementation
   commit `3cd697501585868d5ef41e60d212bb0e502c365c`; the path remains experimental and reference-only.
+- M14 native batch-one MoE decode, M15 bounded grouped MoE prefill and M16 native tied T=1 head are accepted at
+  implementation commit `9a374c3dda10b7ae870c712cd70a60aa0a9e2c52`.
+- M17 fixed-address whole-model integration is accepted at implementation commit
+  `57fdeb309aacfce2e4eba65745fba86f14ebd113` and closure-hardening commit
+  `348683e167c6c4d3b0be7580e404c097b199a3d8`; its artifact/profile hash is frozen for M19–M22.
 - Runtime conversion, CPU expert offload, expert streaming and duplicate persistent GPU weight layouts remain forbidden.
 
 ## Product target
@@ -97,11 +102,12 @@ Only these owner-level gates block the critical path:
 3. **M08:** one complete reproducible artifact loads directly and validates.
 4. **M09:** the real artifact passes one-slot 32K admission with at least 700 MiB directly measured free-device margin.
 5. **M13:** the full slow model is deterministic and passes the single early quality go/no-go screen.
-6. **M19–M21:** a frozen optimized artifact passes quality, performance and long-context qualification.
-7. **M23:** base target hashes, evidence and rollback are frozen.
-8. **M25:** MTP compatibility, exactness, performance and the 32K MTP memory gate pass; 64K and the maximum safe MTP context are measured.
+6. **M17:** one fixed-address optimized artifact/profile is frozen with deterministic engine replay and no recurring allocation.
+7. **M19–M22:** that frozen artifact passes quality, performance, long-context and CLI/server product qualification.
+8. **M23:** base target hashes, evidence and rollback are frozen.
+9. **M25:** MTP compatibility, exactness, performance and the 32K MTP memory gate pass; 64K and the maximum safe MTP context are measured.
 
-M18 is conditional diagnosis, not a normal prerequisite for M14–M17. M24 is optional and never blocks the production path.
+M18 is conditional diagnosis, not a sequential prerequisite after the accepted M17 path. M24 is optional and never blocks the production path.
 
 ## Memory contract
 
@@ -145,9 +151,7 @@ Do not repeat an expensive run solely to produce a second prose record. M08 comp
 
 ## Current unblocked work
 
-M09 was accepted on 2026-08-14.
-
-- M08's complete hybrid artifact, external lock and direct loader are accepted.
-- M09 real payload upload, named CUDA-region reconciliation and 32K/64K base residency are accepted.
-- M13 passed with `proceed`; M14 native decode, M15 grouped prefill, M16 T=1 head work and rolling M17 integration are unblocked.
-- Evaluation-harness work and M25 feasibility work remain independent of the vertical path.
+- M17 is frozen and accepted; its exact text-only profile is the shared input for M19–M22.
+- M19 held-out quality, M20 controlled performance, M21 real 32K/64K execution and M22 CLI/server integration are ready.
+- M18 remains inactive unless quality failure, head uncertainty or explicit causal-attribution work triggers it.
+- M25 feasibility remains independent; target integration waits for the M23 base freeze.

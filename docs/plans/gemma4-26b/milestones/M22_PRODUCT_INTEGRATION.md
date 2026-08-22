@@ -1,6 +1,6 @@
 # M22 — CLI/server product integration
 
-Status: blocked by a frozen M17 profile contract
+Status: ready; frozen M17 profile contract available
 Class: product; may overlap M19–M21
 
 Normative inputs: [API/CLI changes](../specs/API_CLI_CHANGES.md), [Capability reporting](../specs/ERROR_AND_CAPABILITY_REPORTING.md), [Session ownership](../specs/SESSION_OWNERSHIP_AND_CONCURRENCY.md).
