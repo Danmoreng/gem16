@@ -10,4 +10,4 @@ M06 → M07 → M08 → M09 → M11/M12 → M13
 → M19/M20/M21/M22 → M23 → M25
 ```
 
-M11 is accepted and M12 is next. M18 is conditional. M24 is optional. M25 is [`M25_MTP_INTEGRATION_AND_FINAL_QUALIFICATION.md`](M25_MTP_INTEGRATION_AND_FINAL_QUALIFICATION.md). The obsolete vision-named M25 file is removed by this revision.
+M12 is accepted and M13 is next. M18 is conditional. M24 is optional. M25 is [`M25_MTP_INTEGRATION_AND_FINAL_QUALIFICATION.md`](M25_MTP_INTEGRATION_AND_FINAL_QUALIFICATION.md). The obsolete vision-named M25 file is removed by this revision.

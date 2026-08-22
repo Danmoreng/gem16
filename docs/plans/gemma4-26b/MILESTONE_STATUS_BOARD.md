@@ -4,19 +4,19 @@ Derived from [`FAST_TRACK_STATUS.json`](FAST_TRACK_STATUS.json). Policy: [`../..
 
 ## Accepted
 
-`M00 M01 M02 M03 M04 M05 M06 M07 M08 M09 M10 M11`
+`M00 M01 M02 M03 M04 M05 M06 M07 M08 M09 M10 M11 M12`
 
 ## Active / next
 
 | Milestone/slice | State | Role |
 |---|---|---|
-| M12 | READY_NEXT | attention and FP8 K/V reference integration |
+| M13 | READY_NEXT | full slow model and early quality screen |
 | M25 phase A | PAUSED | assistant compatibility/memory only |
 | Harness lane | PAUSED | future report/test infrastructure |
 
 ## Next vertical sequence
 
-`M12 runtime → M13`
+`M13 slow correct model`
 
 ## Conditional/optional
 
@@ -24,5 +24,5 @@ Derived from [`FAST_TRACK_STATUS.json`](FAST_TRACK_STATUS.json). Policy: [`../..
 - M24: optional internal Q4_0 backend.
 - Vision: outside this program.
 
-Program completion is M25, not M23. M11 is accepted; M12 is the next practical vertical slice. Later qualification
+Program completion is M25, not M23. M12 is accepted; M13 is the next practical vertical slice. Later qualification
 remains explicit follow-up rather than a prerequisite for early experiments.

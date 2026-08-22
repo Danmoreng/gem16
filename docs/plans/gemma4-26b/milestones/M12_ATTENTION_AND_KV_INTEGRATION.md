@@ -1,6 +1,6 @@
 # M12 — 26B attention, RoPE and KV
 
-Status: implementation complete; clean commit-bound acceptance pending
+Status: accepted 2026-08-22 at implementation commit `bbee9cd930133dd49cb3acc79b4867658a0968cc`
 Class: parallel-critical
 Unblocks: M13
 
@@ -23,12 +23,12 @@ Normative inputs: [Attention/KV](../specs/ATTENTION_KV_SPEC.md), [Model variant 
 
 ## Exit gate
 
-- [ ] All layer traits and tensor bindings are validated.
-- [ ] Local/global reference comparisons pass.
-- [ ] Final K and V are physically distinct where required.
-- [ ] Ring wrap and global append/read pass.
-- [ ] Cache bytes match the memory planner at 8K, 32K and 64K.
-- [ ] 12B attention/long-context tests remain green.
+- [x] All layer traits and tensor bindings are validated.
+- [x] Local/global reference comparisons pass.
+- [x] Final K and V are physically distinct where required.
+- [x] Ring wrap and global append/read pass.
+- [x] Cache bytes match the memory planner at 8K, 32K and 64K.
+- [x] 12B attention/long-context tests remain green.
 
 ## Implementation evidence (2026-08-22)
 
@@ -59,4 +59,4 @@ covers the 1023-to-1024 local ring wrap, global append/read, missing-V binding,
 physically distinct K/V, exact cache addresses and invalid alias rejection.
 Compute Sanitizer memcheck, racecheck and initcheck pass. Compact hashes and
 metrics are in `artifacts/m12/diagnostic-summary.json`; no performance claim is
-made. Clean acceptance must bind these gates to the implementation commit.
+made. The clean commit-bound record is `artifacts/m12/acceptance.json`.

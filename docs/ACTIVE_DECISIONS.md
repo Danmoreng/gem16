@@ -1,6 +1,6 @@
 # Active decisions
 
-**Accepted:** 2026-08-14 · **Track:** Gemma 4 26B A4B Fast Track · **Status:** M00–M10 accepted; M11 next
+**Accepted:** 2026-08-22 · **Track:** Gemma 4 26B A4B Fast Track · **Status:** M00–M12 accepted; M13 next
 
 This is the short operational policy for current work. It is not a replacement for historical evidence. Permanent
 rules in `AGENTS.md` remain binding. For facts about the implementation, current source, tests and accepted evidence
@@ -35,6 +35,12 @@ uses lower expert ID for exact top-k ties and FP32 top-k-slot accumulation; the 
 tie-equivalent ordering difference and uses expert-ID/BF16 accumulation. The measured drift passes the explicit M10
 boundary gates. M10 was accepted on 2026-08-14 at clean implementation commit
 `eac6b443b239d5e04c5be5daef3dd659d57d5de9`; see `artifacts/m10/acceptance.json`.
+
+M11 was accepted on 2026-08-22 at implementation commit `91ee47586cc426c051dee247ddfcf4a6b765ecfd` and M12 at
+implementation commit `bbee9cd930133dd49cb3acc79b4867658a0968cc`. The isolated CUDA references keep routing on device,
+use fixed initialization-time bindings, preserve distinct FP8 K/V ownership and repeat without allocation deltas.
+Their clean records are `artifacts/m11/acceptance.json` and `artifacts/m12/acceptance.json`. M13 is now the first
+full-model integration and the only early quality go/no-go screen.
 
 The owner set the base-model 64K residency and later execution reserve to 400 MiB on 2026-08-14 so that 64K remains
 a required supported target. This supersedes the prior 500 MiB base-model rule for 64K and larger contexts. The 32K
@@ -71,7 +77,7 @@ The integration branch remains `feat/gemma4-26b`; temporary worktrees are allowe
 
 ## Scope boundary
 
-The accepted M00–M10 source locks, evidence and historical records remain valid. The active choices above simplify
+The accepted M00–M12 source locks, evidence and historical records remain valid. The active choices above simplify
 future execution; they do not authorize silent precision changes, CPU weight offload, duplicate device layouts,
 runtime quantization, unreported fallback, weakened 12B behavior or unsupported capability claims. Experimental
 results must say which gates have not yet been run.

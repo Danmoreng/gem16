@@ -1,6 +1,6 @@
 # Start here — current coding-agent task
 
-Status: M00–M11 accepted; M12 attention and FP8 K/V integration is next.
+Status: M00–M12 accepted; M13 full slow model and early quality screen is next.
 Plan revision: Fast Track R4.
 
 ## Read now
@@ -23,7 +23,7 @@ M08 was accepted on 2026-08-14. The lead agent may assign disjoint sub-agents fo
 - M25 phase A assistant compatibility and memory modeling;
 - evaluation/benchmark harness scaffolding.
 
-Use [`PARALLEL_WORKSTREAMS.md`](PARALLEL_WORKSTREAMS.md). M11 is accepted; M12 is the next critical slice.
+Use [`PARALLEL_WORKSTREAMS.md`](PARALLEL_WORKSTREAMS.md). M12 is accepted; M13 is the next critical slice.
 
 ## M08 success
 
@@ -58,5 +58,10 @@ fixed-address CUDA MoE reference path and must match these named boundaries befo
 M11 is accepted at implementation commit `91ee47586cc426c051dee247ddfcf4a6b765ecfd`. The CUDA path keeps router
 selection on device, runs all eight fixed expert slots without host routing, matches the locked quantized-versus-BF16
 boundary gates, repeats bitwise identically without an allocation delta, and passes memcheck/racecheck/initcheck. See
-`artifacts/m11/acceptance.json`. M12 now owns the 30-layer attention pattern, separate FP8 K/V cache semantics and
-local-ring/global-append integration needed by M13.
+`artifacts/m11/acceptance.json`.
+
+M12 is accepted at implementation commit `bbee9cd930133dd49cb3acc79b4867658a0968cc`. Its immutable 30-layer trait
+table drives both execution and exact cache sizing; real local/global layers pass the fixed quantized-versus-BF16
+boundary gates, keep K and V physically distinct, repeat bitwise identically without an allocation delta and pass
+memcheck/racecheck/initcheck. See `artifacts/m12/acceptance.json`. M13 now owns the first full slow-model integration
+and the single early quality go/no-go screen.

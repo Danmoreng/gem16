@@ -2,8 +2,8 @@
   "schema_version": 1,
   "plan_revision": "fast-track-r4",
   "updated": "2026-08-22",
-  "accepted_through": "M11",
-  "current_milestone": "M12",
+  "accepted_through": "M12",
+  "current_milestone": "M13",
   "active_wave": "F2-first-complete-correct-model",
   "integration_branch": "feat/gemma4-26b",
   "source_of_truth": "docs/plans/gemma4-26b/FAST_TRACK_STATUS.json",
@@ -97,7 +97,8 @@
       ]
     },
     "M12": {
-      "status": "READY_NEXT",
+      "status": "ACCEPTED",
+      "note": "accepted 2026-08-22 at implementation commit bbee9cd930133dd49cb3acc79b4867658a0968cc; see artifacts/m12/acceptance.json",
       "class": "parallel-critical",
       "lane": "attention-kv",
       "depends_on": [
@@ -112,7 +113,7 @@
       ]
     },
     "M13": {
-      "status": "BLOCKED",
+      "status": "READY_NEXT",
       "class": "critical-gate",
       "lane": "full-reference",
       "depends_on": [
