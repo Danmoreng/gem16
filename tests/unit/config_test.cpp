@@ -162,7 +162,7 @@ void RunConfigTests() {
         }
       }
       GEM16_CHECK(sliding == 25U && full == 5U);
-      for (const auto [context, expected] :
+      for (const auto& [context, expected] :
            {std::pair{8192ULL, 188743680ULL},
             std::pair{32768ULL, 440401920ULL},
             std::pair{65536ULL, 775946240ULL}}) {
