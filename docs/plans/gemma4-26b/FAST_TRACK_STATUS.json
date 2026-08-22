@@ -2,9 +2,9 @@
   "schema_version": 1,
   "plan_revision": "fast-track-r4",
   "updated": "2026-08-22",
-  "accepted_through": "M12",
-  "current_milestone": "M13",
-  "active_wave": "F2-first-complete-correct-model",
+  "accepted_through": "M13",
+  "current_milestone": "M14",
+  "active_wave": "F3-native-runtime",
   "integration_branch": "feat/gemma4-26b",
   "source_of_truth": "docs/plans/gemma4-26b/FAST_TRACK_STATUS.json",
   "policy_source": "docs/ACTIVE_DECISIONS.md",
@@ -113,7 +113,8 @@
       ]
     },
     "M13": {
-      "status": "READY_NEXT",
+      "status": "ACCEPTED",
+      "note": "accepted 2026-08-22 with decision proceed at implementation commit 3cd697501585868d5ef41e60d212bb0e502c365c; see artifacts/m13/acceptance.json",
       "class": "critical-gate",
       "lane": "full-reference",
       "depends_on": [
@@ -134,7 +135,7 @@
       ]
     },
     "M14": {
-      "status": "BLOCKED",
+      "status": "READY_NEXT",
       "class": "parallel",
       "lane": "decode",
       "depends_on": [
@@ -146,7 +147,7 @@
       ]
     },
     "M15": {
-      "status": "BLOCKED",
+      "status": "READY_NEXT",
       "class": "parallel",
       "lane": "prefill",
       "depends_on": [
@@ -159,7 +160,7 @@
       ]
     },
     "M16": {
-      "status": "BLOCKED",
+      "status": "READY_NEXT",
       "class": "parallel-conditional",
       "lane": "head",
       "depends_on": [
@@ -171,7 +172,7 @@
       ]
     },
     "M17": {
-      "status": "BLOCKED",
+      "status": "READY_NEXT",
       "class": "rolling-integration",
       "lane": "runtime",
       "depends_on": [

@@ -1,6 +1,6 @@
 # M17 — Rolling optimized runtime integration
 
-Status: blocked by M13 pass
+Status: ready for rolling integration; M13 accepted
 Class: rolling integration
 Completion depends on: M14, M15 and M16 or a recorded M16 skip
 

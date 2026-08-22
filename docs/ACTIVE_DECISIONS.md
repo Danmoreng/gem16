@@ -1,6 +1,6 @@
 # Active decisions
 
-**Accepted:** 2026-08-22 · **Track:** Gemma 4 26B A4B Fast Track · **Status:** M00–M12 accepted; M13 next
+**Accepted:** 2026-08-22 · **Track:** Gemma 4 26B A4B Fast Track · **Status:** M00–M13 accepted; M14–M17 unblocked
 
 This is the short operational policy for current work. It is not a replacement for historical evidence. Permanent
 rules in `AGENTS.md` remain binding. For facts about the implementation, current source, tests and accepted evidence
@@ -42,6 +42,12 @@ use fixed initialization-time bindings, preserve distinct FP8 K/V ownership and 
 Their clean records are `artifacts/m11/acceptance.json` and `artifacts/m12/acceptance.json`. M13 is now the first
 full-model integration and the only early quality go/no-go screen.
 
+M13 was accepted on 2026-08-22 with decision `proceed` at implementation commit
+`3cd697501585868d5ef41e60d212bb0e502c365c`. The complete experimental reference path passes deterministic
+generation, BF16 teacher-forced KL/rank, selected layer/router drift, resident continuation, finite-numerics and
+warm 32K memory gates. See `artifacts/m13/acceptance.json`. M14–M16 and rolling M17 integration are unblocked; M18
+remains conditional and was not triggered.
+
 The owner set the base-model 64K residency and later execution reserve to 400 MiB on 2026-08-14 so that 64K remains
 a required supported target. This supersedes the prior 500 MiB base-model rule for 64K and larger contexts. The 32K
 gate remains 700 MiB, and MTP keeps its separate 500 MiB 64K gate until M25 measures assistant overhead.
@@ -77,7 +83,7 @@ The integration branch remains `feat/gemma4-26b`; temporary worktrees are allowe
 
 ## Scope boundary
 
-The accepted M00–M12 source locks, evidence and historical records remain valid. The active choices above simplify
+The accepted M00–M13 source locks, evidence and historical records remain valid. The active choices above simplify
 future execution; they do not authorize silent precision changes, CPU weight offload, duplicate device layouts,
 runtime quantization, unreported fallback, weakened 12B behavior or unsupported capability claims. Experimental
 results must say which gates have not yet been run.

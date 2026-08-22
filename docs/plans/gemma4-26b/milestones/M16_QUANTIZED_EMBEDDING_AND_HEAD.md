@@ -1,6 +1,6 @@
 # M16 — Production T=1 tied embedding/head
 
-Status: blocked by M07 and M13 pass
+Status: ready; M07 and M13 accepted
 Class: parallel/conditional
 Unblocks: M17
 

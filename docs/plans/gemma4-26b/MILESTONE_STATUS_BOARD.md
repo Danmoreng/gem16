@@ -4,19 +4,22 @@ Derived from [`FAST_TRACK_STATUS.json`](FAST_TRACK_STATUS.json). Policy: [`../..
 
 ## Accepted
 
-`M00 M01 M02 M03 M04 M05 M06 M07 M08 M09 M10 M11 M12`
+`M00 M01 M02 M03 M04 M05 M06 M07 M08 M09 M10 M11 M12 M13`
 
 ## Active / next
 
 | Milestone/slice | State | Role |
 |---|---|---|
-| M13 | READY_NEXT | full slow model and early quality screen |
+| M14 | READY_NEXT | native batch-one MoE decode |
+| M15 | READY_NEXT | grouped bounded-workspace prefill |
+| M16 | READY_NEXT | production T=1 tied head or recorded retained-path decision |
+| M17 | READY_NEXT | rolling optimized-runtime integration |
 | M25 phase A | PAUSED | assistant compatibility/memory only |
 | Harness lane | PAUSED | future report/test infrastructure |
 
 ## Next vertical sequence
 
-`M13 slow correct model`
+`M14/M15/M16 → rolling M17 integration`
 
 ## Conditional/optional
 
@@ -24,5 +27,5 @@ Derived from [`FAST_TRACK_STATUS.json`](FAST_TRACK_STATUS.json). Policy: [`../..
 - M24: optional internal Q4_0 backend.
 - Vision: outside this program.
 
-Program completion is M25, not M23. M12 is accepted; M13 is the next practical vertical slice. Later qualification
+Program completion is M25, not M23. M13 passed with `proceed`; M14–M16 and rolling M17 are now unblocked. Later qualification
 remains explicit follow-up rather than a prerequisite for early experiments.

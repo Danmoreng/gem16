@@ -1,6 +1,6 @@
 # Start here — current coding-agent task
 
-Status: M00–M12 accepted; M13 full slow model and early quality screen is next.
+Status: M00–M13 accepted; M13 decided `proceed`, so M14–M17 are unblocked.
 Plan revision: Fast Track R4.
 
 ## Read now
@@ -23,7 +23,7 @@ M08 was accepted on 2026-08-14. The lead agent may assign disjoint sub-agents fo
 - M25 phase A assistant compatibility and memory modeling;
 - evaluation/benchmark harness scaffolding.
 
-Use [`PARALLEL_WORKSTREAMS.md`](PARALLEL_WORKSTREAMS.md). M12 is accepted; M13 is the next critical slice.
+Use [`PARALLEL_WORKSTREAMS.md`](PARALLEL_WORKSTREAMS.md). M13 is accepted; M14–M16 may proceed alongside rolling M17 integration.
 
 ## M08 success
 
@@ -65,3 +65,10 @@ table drives both execution and exact cache sizing; real local/global layers pas
 boundary gates, keep K and V physically distinct, repeat bitwise identically without an allocation delta and pass
 memcheck/racecheck/initcheck. See `artifacts/m12/acceptance.json`. M13 now owns the first full slow-model integration
 and the single early quality go/no-go screen.
+
+M13 is accepted with decision `proceed` at implementation commit
+`3cd697501585868d5ef41e60d212bb0e502c365c`. The full 30-layer reference path encodes the locked 18-token prompt,
+generates deterministic `OK.`, preserves a resident second-turn prefix, retains the expected first token at rank 1
+with BF16-to-M13 KL 0.0000121, passes selected layer/router drift gates and leaves 1,280,507,904 warm bytes free at
+32K without a repeat-run allocation delta. See `artifacts/m13/acceptance.json`. The path is experimental and
+reference-only; M14–M16 own native operator promotion and M17 owns rolling integration.

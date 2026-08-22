@@ -4,14 +4,14 @@ The machine-readable source is [`FAST_TRACK_STATUS.json`](FAST_TRACK_STATUS.json
 
 ## Active queue
 
-M00–M12 are accepted. M13 is the next owner-selected implementation slice.
+M00–M13 are accepted. M14–M17 native-runtime work is unblocked.
 
 | Priority | Slice | State | Notes |
 |---:|---|---|---|
-| 1 | M13 full-model reference | ready next | integrate accepted M11/M12 paths and run early quality screen |
-| 2 | M12 attention/KV integration | accepted | clean evidence in `artifacts/m12/acceptance.json` |
-| 3 | M11 CUDA MoE reference | accepted | clean evidence in `artifacts/m11/acceptance.json` |
-| 4 | M10 CPU MoE semantic oracle | accepted | clean evidence in `artifacts/m10/acceptance.json` |
+| 1 | M14 native MoE decode | ready next | optimize against accepted M11/M13 fixtures |
+| 2 | M15 grouped prefill | ready next | bounded workspace and 32K admission |
+| 3 | M16 production T=1 head | ready next | optimize or record retained M13 path |
+| 4 | M17 rolling integration | ready | integrate accepted native slices incrementally |
 | 5 | evaluation/benchmark harness scaffolding | paused | no production claims |
 | 6 | M25 phase A assistant feasibility | paused | docs/tools/locks only |
 

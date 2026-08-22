@@ -1,6 +1,6 @@
 # M14 — Native batch-one MoE decode
 
-Status: blocked by M11 and M13 pass
+Status: ready; M11 and M13 accepted
 Class: parallel
 Unblocks: M17
 

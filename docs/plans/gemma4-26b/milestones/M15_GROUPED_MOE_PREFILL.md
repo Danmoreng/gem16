@@ -1,6 +1,6 @@
 # M15 — Grouped bounded-workspace MoE prefill
 
-Status: blocked by M09, M11 and M13 pass
+Status: ready; M09, M11 and M13 accepted
 Class: parallel
 Unblocks: M17
 

@@ -1,9 +1,9 @@
 # Active contract — Gemma 4 26B Fast Track R4
 
-Status: accepted through M12; M13 full slow model and early quality screen is next
+Status: accepted through M13 with `proceed`; M14–M17 native-runtime work is unblocked
 Plan revision: `fast-track-r4`
-Accepted baseline: M00–M12
-Current milestone: M13 (ready)
+Accepted baseline: M00–M13
+Current milestone: M14 (ready; M15/M16/M17 also unblocked)
 Integration branch: `feat/gemma4-26b`
 
 ## Purpose
@@ -25,7 +25,7 @@ Report a material conflict instead of guessing. A stale status page does not ove
 
 ## Accepted baseline
 
-M00–M12 are accepted and are not reopened by current work.
+M00–M13 are accepted and are not reopened by current work.
 
 - Sources, manifests and source locks are immutable.
 - The 12B path remains separately specialized and regression-protected.
@@ -42,6 +42,8 @@ M00–M12 are accepted and are not reopened by current work.
   `91ee47586cc426c051dee247ddfcf4a6b765ecfd`; it is explicitly not performance-qualified.
 - M12 attention, RoPE and separate FP8 K/V integration is accepted at implementation commit
   `bbee9cd930133dd49cb3acc79b4867658a0968cc`; it is explicitly not performance-qualified.
+- M13 full-model reference execution and early quality screen are accepted with decision `proceed` at implementation
+  commit `3cd697501585868d5ef41e60d212bb0e502c365c`; the path remains experimental and reference-only.
 - Runtime conversion, CPU expert offload, expert streaming and duplicate persistent GPU weight layouts remain forbidden.
 
 ## Product target
@@ -147,5 +149,5 @@ M09 was accepted on 2026-08-14.
 
 - M08's complete hybrid artifact, external lock and direct loader are accepted.
 - M09 real payload upload, named CUDA-region reconciliation and 32K/64K base residency are accepted.
-- M11's CUDA MoE and M12's attention/FP8 K/V reference paths are accepted; M13 full-model integration is the next vertical slice.
+- M13 passed with `proceed`; M14 native decode, M15 grouped prefill, M16 T=1 head work and rolling M17 integration are unblocked.
 - Evaluation-harness work and M25 feasibility work remain independent of the vertical path.

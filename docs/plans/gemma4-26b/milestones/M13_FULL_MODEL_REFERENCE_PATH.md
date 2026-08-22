@@ -1,6 +1,6 @@
 # M13 — Complete slow model and early quality gate
 
-Status: implementation complete; clean commit-bound acceptance pending
+Status: accepted 2026-08-22 with decision `proceed` at implementation commit `3cd697501585868d5ef41e60d212bb0e502c365c`
 Class: critical gate
 Depends on: M07, M08, M09, M11 and M12
 
@@ -29,12 +29,12 @@ Pass when there is no catastrophic or unexplained drift in teacher-forced loss/K
 
 ## Exit gate
 
-- [ ] Full prompt and generation complete on the reference GPU.
-- [ ] Deterministic repeated execution passes.
-- [ ] Numerical captures meet the provisional envelope.
-- [ ] Resident continuation/cache-prefix behavior passes.
-- [ ] Early quality decision is explicitly `proceed` or `diagnose`.
-- [ ] Timing remains labeled reference-only.
+- [x] Full prompt and generation complete on the reference GPU.
+- [x] Deterministic repeated execution passes.
+- [x] Numerical captures meet the provisional envelope.
+- [x] Resident continuation/cache-prefix behavior passes.
+- [x] Early quality decision is explicitly `proceed` or `diagnose`.
+- [x] Timing remains labeled reference-only.
 
 ## Implementation evidence (2026-08-22)
 
@@ -61,5 +61,5 @@ captures retain 8/8). The second generated token is a period rather than the
 BF16/Q4_0 turn terminator; this matches the locked direct Unsloth NVFP4
 diagnostic and does not trip the explicit early-screen envelopes. The decision
 is `proceed`, not a held-out quality or performance claim. Compact metrics and
-raw hashes are in `artifacts/m13/diagnostic-summary.json`; acceptance must bind
-them to the clean implementation commit.
+raw hashes are in `artifacts/m13/diagnostic-summary.json`; the clean
+commit-bound record is `artifacts/m13/acceptance.json`.

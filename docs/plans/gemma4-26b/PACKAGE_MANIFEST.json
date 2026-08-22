@@ -63,9 +63,9 @@
       "sha256": "08288ad667c14063b8a4ff777dbeb24ad1869e66347331fdf42c73918a02dd8d"
     },
     {
-      "bytes": 966,
+      "bytes": 894,
       "path": "12_AGENT_TASK_QUEUE.md",
-      "sha256": "4efded7035eb89b3b10e2cdce8a69a5a96e107b8e1a330fac597df82da242baa"
+      "sha256": "3d410f1c148a15be837195a232dc9061862016f5c2d765ad7b89acecfda8ff24"
     },
     {
       "bytes": 1044,
@@ -73,9 +73,9 @@
       "sha256": "c576d0841233f275ddb6d24bf8fd62bf94f3f8bd123f30444a278e57ab9b682f"
     },
     {
-      "bytes": 9402,
+      "bytes": 9655,
       "path": "ACTIVE_CONTRACT.md",
-      "sha256": "8130bb5bbf2b81322ddc9f9408ebea7aac913fdc8868be1275b2d57b6315647b"
+      "sha256": "71c968a59246a1e1ef357dc9204c7ed0c9fb5c33f445d4e937728fc4ca1397a4"
     },
     {
       "bytes": 5099,
@@ -88,19 +88,19 @@
       "sha256": "04bf5ba894b3af72e860ec1d8a30d7ebb5afc48a0333b846bfa33beadc2d87cf"
     },
     {
-      "bytes": 6344,
+      "bytes": 6500,
       "path": "FAST_TRACK_STATUS.json",
-      "sha256": "a1068ccb038c8b458c7e852f747cf8c021eeba83310d8ca2af286796f45779de"
+      "sha256": "3ef5646ca2c073dd51cfaad65efc8e6818daf8ebad22b1c033dce92ccd181956"
     },
     {
-      "bytes": 2580,
+      "bytes": 2592,
       "path": "INDEX.md",
-      "sha256": "45310320be32585cac285bce209fb507650d880d0c9f5c1fd79777b4b6248152"
+      "sha256": "19cea5b5ff9b273c773b9a2caee3e8fff2ec25570cba9c4eea3787589df0285b"
     },
     {
-      "bytes": 974,
+      "bytes": 1196,
       "path": "MILESTONE_STATUS_BOARD.md",
-      "sha256": "34c29999279c9c8ed880fccc164b80bb71f4ba2838933648335471f4c2e9ad94"
+      "sha256": "9cd923e5170fb6c41a987f13ea819f2fbc4d56cbfbde841a6fb64859dc38378e"
     },
     {
       "bytes": 867,
@@ -123,9 +123,9 @@
       "sha256": "fa72f0280f0d9c31891462016b56e1b212649341dbbba32d9faf466958b9f76a"
     },
     {
-      "bytes": 4245,
+      "bytes": 4876,
       "path": "START_HERE_CODEX.md",
-      "sha256": "954f0c204361e0a0d1cdf6a40d5d29390b10258c02c64bac5ee20ef34a74aac2"
+      "sha256": "48c763ccd7a24c97ec100602f1c157d8018a2aa57e227d1eee611c01afc27052"
     },
     {
       "bytes": 2990,
@@ -328,29 +328,29 @@
       "sha256": "9a64e26eafeae9b1d4673924860baf55cad9959f3349ceb63f4eb78f12552a4d"
     },
     {
-      "bytes": 3250,
+      "bytes": 3303,
       "path": "milestones/M13_FULL_MODEL_REFERENCE_PATH.md",
-      "sha256": "fb00e8924098eb98911556461f4cdd42a4c4cfb7664caf015e258d78e7d5ccb5"
+      "sha256": "24cbdc7a288a71e36eef32d5904984911307033bf72afb55fe99e9cb2449855c"
     },
     {
       "bytes": 974,
       "path": "milestones/M14_NATIVE_MOE_DECODE.md",
-      "sha256": "8ff2d83e7494f288d90b8ca45119d951bda0956d842d020d6a4cd124663ae49e"
+      "sha256": "14b0a405462ba38b594c14be480aeaa4e849afb51c43126bb7e59ec8e4fd7b9b"
     },
     {
       "bytes": 938,
       "path": "milestones/M15_GROUPED_MOE_PREFILL.md",
-      "sha256": "5d09157392cf6fb816f667c247aa2feeba87d659e9c0892aa6776daedcee0e45"
+      "sha256": "52269b8025f65ce00f2eb779da8c7d50a8598c2c098b6154cbc8952251694bda"
     },
     {
       "bytes": 986,
       "path": "milestones/M16_QUANTIZED_EMBEDDING_AND_HEAD.md",
-      "sha256": "c8498bfb333e83ed7531ad839f7d0fae9dc058fd96e16304f64d7ae8fbe4c7cd"
+      "sha256": "21d43c4cc40f2cfefbfb6b6d05c91b82e0fe8270a9f9eb632cb36e0ad1af328a"
     },
     {
-      "bytes": 1102,
+      "bytes": 1126,
       "path": "milestones/M17_OPTIMIZED_RUNTIME_INTEGRATION.md",
-      "sha256": "f802105f4bd6036d77ef5e085e6bc2f0d2fd0cbafb386c59d3b4a19384233c65"
+      "sha256": "57cf03adf9b98f97f2c0a404e5879c0f8d5883d78d189cd958e3398f0b5b21bb"
     },
     {
       "bytes": 1299,
@@ -393,9 +393,9 @@
       "sha256": "41dfe9341afddb16e16a8c88fe9ac4fd49cdd8d867b3f570ee9db0d76774d8a2"
     },
     {
-      "bytes": 569,
+      "bytes": 593,
       "path": "milestones/README.md",
-      "sha256": "8c159e96aec273eded8db19b6d8f3f5957b7d6f5835415c0bd6c515a53a7700d"
+      "sha256": "e3cd809d20ae834687f8a5c0100de85ad92d1dfd74d0fc0797189b129aa0814f"
     },
     {
       "bytes": 2302,
