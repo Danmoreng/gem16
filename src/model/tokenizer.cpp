@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "model/tokenizer_config.h"
+#include "model/config.h"
 #include "util/json.h"
 
 namespace gem16 {
@@ -26,6 +27,7 @@ namespace {
 constexpr std::uint64_t kMaximumTokenizerBytes = 64U * 1024U * 1024U;
 constexpr std::uint64_t kMaximumTemplateBytes = 1024U * 1024U;
 constexpr std::uint64_t kPinnedTemplateFnv1a = 0xe9f262823e5bda06ULL;
+constexpr std::uint64_t kPinnedMoe26BTemplateFnv1a = 0x645a5f8cd6ec0ad0ULL;
 constexpr std::string_view kSpaceMarker = "\xE2\x96\x81";
 
 Status Error(StatusCode code, std::string message) { return Status(code, std::move(message)); }
@@ -768,30 +770,38 @@ Status Tokenizer::WriteDecodedToken(std::uint32_t token_id, bool skip_special_to
 }
 
 Result<GemmaChatProcessor> GemmaChatProcessor::Load(const std::filesystem::path& model_directory) {
-  auto processor_text = ReadFile(model_directory / "processor_config.json", 1024U * 1024U);
-  if (!processor_text.ok()) return processor_text.status();
-  auto processor = json::Parse(processor_text.value());
-  if (!processor.ok() || !processor.value().is_object()) {
-    return Error(StatusCode::kDataLoss, "processor_config.json is malformed");
-  }
-  const json::Value* sampling_rate = Nested(processor.value(), "feature_extractor", "sampling_rate");
-  const json::Value* samples_per_token = Nested(processor.value(), "feature_extractor", "audio_samples_per_token");
-  const json::Value* feature_size = Nested(processor.value(), "feature_extractor", "feature_size");
-  const json::Value* sequence_length = Member(processor.value(), "audio_seq_length");
-  const json::Value* milliseconds_per_token = Member(processor.value(), "audio_ms_per_token");
-  const json::Value* image_patch_size = Nested(processor.value(), "image_processor", "patch_size");
-  const json::Value* image_pooling = Nested(processor.value(), "image_processor", "pooling_kernel_size");
-  const json::Value* image_tokens = Member(processor.value(), "image_seq_length");
-  if (sampling_rate == nullptr || !sampling_rate->is_integer() || sampling_rate->as_integer() != 16000 ||
-      samples_per_token == nullptr || !samples_per_token->is_integer() || samples_per_token->as_integer() != 640 ||
-      feature_size == nullptr || !feature_size->is_integer() || feature_size->as_integer() != 640 ||
-      sequence_length == nullptr || !sequence_length->is_integer() || sequence_length->as_integer() != 750 ||
-      milliseconds_per_token == nullptr || !milliseconds_per_token->is_integer() ||
-      milliseconds_per_token->as_integer() != 40 || image_patch_size == nullptr || !image_patch_size->is_integer() ||
-      image_patch_size->as_integer() != 16 || image_pooling == nullptr || !image_pooling->is_integer() ||
-      image_pooling->as_integer() != 3 || image_tokens == nullptr || !image_tokens->is_integer() ||
-      image_tokens->as_integer() != 280) {
-    return Error(StatusCode::kUnsupported, "processor_config.json differs from the qualified audio/vision schema");
+  auto model_config = internal::LoadModelConfig(model_directory / "config.json");
+  if (!model_config.ok()) return model_config.status();
+  const bool text_only_moe26b = internal::IsGemma4Moe26BModel(model_config.value());
+  if (text_only_moe26b) {
+    Status contract = internal::ValidateGemma4Moe26BContract(model_config.value());
+    if (!contract.ok()) return contract;
+  } else {
+    auto processor_text = ReadFile(model_directory / "processor_config.json", 1024U * 1024U);
+    if (!processor_text.ok()) return processor_text.status();
+    auto processor = json::Parse(processor_text.value());
+    if (!processor.ok() || !processor.value().is_object()) {
+      return Error(StatusCode::kDataLoss, "processor_config.json is malformed");
+    }
+    const json::Value* sampling_rate = Nested(processor.value(), "feature_extractor", "sampling_rate");
+    const json::Value* samples_per_token = Nested(processor.value(), "feature_extractor", "audio_samples_per_token");
+    const json::Value* feature_size = Nested(processor.value(), "feature_extractor", "feature_size");
+    const json::Value* sequence_length = Member(processor.value(), "audio_seq_length");
+    const json::Value* milliseconds_per_token = Member(processor.value(), "audio_ms_per_token");
+    const json::Value* image_patch_size = Nested(processor.value(), "image_processor", "patch_size");
+    const json::Value* image_pooling = Nested(processor.value(), "image_processor", "pooling_kernel_size");
+    const json::Value* image_tokens = Member(processor.value(), "image_seq_length");
+    if (sampling_rate == nullptr || !sampling_rate->is_integer() || sampling_rate->as_integer() != 16000 ||
+        samples_per_token == nullptr || !samples_per_token->is_integer() || samples_per_token->as_integer() != 640 ||
+        feature_size == nullptr || !feature_size->is_integer() || feature_size->as_integer() != 640 ||
+        sequence_length == nullptr || !sequence_length->is_integer() || sequence_length->as_integer() != 750 ||
+        milliseconds_per_token == nullptr || !milliseconds_per_token->is_integer() ||
+        milliseconds_per_token->as_integer() != 40 || image_patch_size == nullptr || !image_patch_size->is_integer() ||
+        image_patch_size->as_integer() != 16 || image_pooling == nullptr || !image_pooling->is_integer() ||
+        image_pooling->as_integer() != 3 || image_tokens == nullptr || !image_tokens->is_integer() ||
+        image_tokens->as_integer() != 280) {
+      return Error(StatusCode::kUnsupported, "processor_config.json differs from the qualified audio/vision schema");
+    }
   }
   auto tokenizer = Tokenizer::Load(model_directory / "tokenizer.json");
   if (!tokenizer.ok()) return tokenizer.status();
@@ -801,7 +811,9 @@ Result<GemmaChatProcessor> GemmaChatProcessor::Load(const std::filesystem::path&
   if (!tokenizer_contract.ok()) return tokenizer_contract;
   auto chat_template = ReadFile(model_directory / "chat_template.jinja", kMaximumTemplateBytes);
   if (!chat_template.ok()) return chat_template.status();
-  if (Fnv1a(chat_template.value()) != kPinnedTemplateFnv1a) {
+  const std::uint64_t expected_template =
+      text_only_moe26b ? kPinnedMoe26BTemplateFnv1a : kPinnedTemplateFnv1a;
+  if (Fnv1a(chat_template.value()) != expected_template) {
     return Error(StatusCode::kUnsupported,
                  "chat_template.jinja differs from the natively supported pinned Gemma template");
   }

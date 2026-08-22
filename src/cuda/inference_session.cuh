@@ -14,8 +14,13 @@ Result<DeviceMemoryInfo> QueryDeviceMemoryInfo() {
 struct ModelRuntime::Impl {
   internal::LoadedTargetModel model;
   internal::AssistantModel assistant;
+  std::unique_ptr<internal::Gemma4Moe26BReferenceEngine> moe26b_engine;
+  internal::ModelVariant variant = internal::ModelVariant::kUnsupported;
+  std::mutex moe26b_slot_mutex;
+  std::uint64_t max_context_tokens = 0U;
   double load_milliseconds = 0.0;
   bool assistant_loaded = false;
+  bool moe26b_slot_leased = false;
 };
 
 ModelRuntime::ModelRuntime(std::unique_ptr<Impl> impl)
@@ -30,12 +35,35 @@ Result<std::shared_ptr<ModelRuntime>> ModelRuntime::Load(
   }
   auto impl = std::make_unique<Impl>();
   const auto load_start = std::chrono::steady_clock::now();
-  Status status = impl->model.Load(options.model_directory);
-  if (!status.ok()) return status;
-  if (!options.assistant_model_directory.empty()) {
-    status = impl->assistant.Load(options.assistant_model_directory);
+  auto config = internal::LoadModelConfig(options.model_directory / "config.json");
+  if (!config.ok()) return config.status();
+  impl->variant = internal::ClassifyModelVariant(config.value());
+  if (impl->variant == internal::ModelVariant::kGemma4Moe26BA4B) {
+    if (!options.assistant_model_directory.empty()) {
+      return Error(StatusCode::kUnsupported,
+                   "Gemma 4 26B text-only does not support MTP assistant weights");
+    }
+    if (options.max_context_tokens == 0U) {
+      return Error(StatusCode::kInvalidArgument,
+                   "Gemma 4 26B requires a positive context capacity");
+    }
+    auto engine = internal::Gemma4Moe26BReferenceEngine::Create(
+        options.model_directory, options.max_context_tokens, options.device,
+        internal::Gemma4Moe26BBackend::kSm120Integrated);
+    if (!engine.ok()) return engine.status();
+    impl->max_context_tokens = options.max_context_tokens;
+    impl->moe26b_engine =
+        std::make_unique<internal::Gemma4Moe26BReferenceEngine>(
+            std::move(engine).value());
+  } else {
+    Status status = impl->model.Load(options.model_directory);
     if (!status.ok()) return status;
-    impl->assistant_loaded = true;
+    impl->max_context_tokens = kMaximumContext;
+    if (!options.assistant_model_directory.empty()) {
+      status = impl->assistant.Load(options.assistant_model_directory);
+      if (!status.ok()) return status;
+      impl->assistant_loaded = true;
+    }
   }
   impl->load_milliseconds =
       Milliseconds(std::chrono::steady_clock::now() - load_start);
@@ -44,7 +72,10 @@ Result<std::shared_ptr<ModelRuntime>> ModelRuntime::Load(
 }
 
 std::uint64_t ModelRuntime::weight_bytes() const {
-  return impl_ == nullptr ? 0U : impl_->model.weight_bytes();
+  if (impl_ == nullptr) return 0U;
+  return impl_->moe26b_engine == nullptr
+             ? impl_->model.weight_bytes()
+             : impl_->moe26b_engine->weight_arena_bytes();
 }
 std::uint64_t ModelRuntime::assistant_weight_bytes() const {
   return impl_ == nullptr ? 0U : impl_->assistant.arena_bytes();
@@ -54,6 +85,37 @@ bool ModelRuntime::assistant_loaded() const {
 }
 double ModelRuntime::load_milliseconds() const {
   return impl_ == nullptr ? 0.0 : impl_->load_milliseconds;
+}
+const char* ModelRuntime::model_variant_name() const {
+  return impl_ == nullptr
+             ? "unsupported"
+             : internal::ModelVariantName(impl_->variant).data();
+}
+const char* ModelRuntime::selected_native_path() const {
+  if (impl_ == nullptr) return "none";
+  return impl_->variant == internal::ModelVariant::kGemma4Moe26BA4B
+             ? "sm120_integrated_nvfp4_moe_fp8_kv"
+             : "gemma4_unified_12b_sm120";
+}
+std::uint64_t ModelRuntime::max_context_tokens() const {
+  return impl_ == nullptr ? 0U : impl_->max_context_tokens;
+}
+bool ModelRuntime::supports_audio() const {
+  return impl_ != nullptr &&
+         internal::TraitsForModelVariant(impl_->variant).supports_audio;
+}
+bool ModelRuntime::supports_vision() const {
+  return impl_ != nullptr &&
+         internal::TraitsForModelVariant(impl_->variant).supports_vision;
+}
+bool ModelRuntime::supports_mtp() const {
+  return impl_ != nullptr &&
+         internal::TraitsForModelVariant(impl_->variant).supports_mtp;
+}
+std::uint32_t ModelRuntime::maximum_execution_slots() const {
+  if (impl_ == nullptr) return 0U;
+  return impl_->variant == internal::ModelVariant::kGemma4Moe26BA4B ? 1U
+                                                                    : UINT32_MAX;
 }
 
 // Host conversation state and device execution resources intentionally have
@@ -77,6 +139,15 @@ struct ExecutionSlot {
 
 struct ConversationSession::Impl : SessionState, ExecutionSlot {
   std::shared_ptr<ModelRuntime> runtime;
+  bool moe26b_slot_lease = false;
+
+  ~Impl() {
+    if (!moe26b_slot_lease || runtime == nullptr || runtime->impl_ == nullptr) {
+      return;
+    }
+    std::lock_guard lock(runtime->impl_->moe26b_slot_mutex);
+    runtime->impl_->moe26b_slot_leased = false;
+  }
 };
 
 ConversationSession::ConversationSession(std::unique_ptr<Impl> impl)
@@ -127,7 +198,8 @@ Result<ConversationSession> ConversationSession::Create(
   }
 
   auto runtime = ModelRuntime::Load(
-      {options.model_directory, options.assistant_model_directory});
+      {options.model_directory, options.assistant_model_directory,
+       options.max_context_tokens, 0});
   if (!runtime.ok()) return runtime.status();
   return Create(std::move(runtime).value(), options);
 }
@@ -139,6 +211,8 @@ Result<ConversationSession> ConversationSession::Create(
     return Error(StatusCode::kInvalidArgument,
                  "conversation session requires a loaded model runtime");
   }
+  const bool moe26b =
+      runtime->impl_->variant == internal::ModelVariant::kGemma4Moe26BA4B;
   if (options.max_context_tokens == 0U ||
       options.max_context_tokens > kMaximumContext) {
     return Error(StatusCode::kUnsupported,
@@ -170,6 +244,25 @@ Result<ConversationSession> ConversationSession::Create(
     return Error(StatusCode::kInvalidArgument,
                  "--mtp-adaptive requires active MTP");
   }
+  if (moe26b) {
+    if (options.max_context_tokens != runtime->impl_->max_context_tokens) {
+      return Error(
+          StatusCode::kInvalidArgument,
+          "Gemma 4 26B session context must match its fixed resident runtime arena");
+    }
+    if (options.kv_cache_mode != KvCacheMode::kCheckpointFp8) {
+      return Error(StatusCode::kUnsupported,
+                   "Gemma 4 26B currently supports only the compiled FP8 KV cache");
+    }
+    if (mtp_enabled || runtime->impl_->assistant_loaded) {
+      return Error(StatusCode::kUnsupported,
+                   "Gemma 4 26B text-only does not support MTP");
+    }
+    if (runtime->impl_->moe26b_engine == nullptr) {
+      return Error(StatusCode::kInternal,
+                   "Gemma 4 26B resident engine is unavailable");
+    }
+  }
 
   auto impl = std::make_unique<Impl>();
   impl->runtime = std::move(runtime);
@@ -181,6 +274,25 @@ Result<ConversationSession> ConversationSession::Create(
   impl->mtp_adaptive = options.mtp_adaptive;
   impl->cached_token_ids.reserve(
       static_cast<std::size_t>(options.max_context_tokens));
+  if (moe26b) {
+    {
+      std::lock_guard lock(impl->runtime->impl_->moe26b_slot_mutex);
+      if (impl->runtime->impl_->moe26b_slot_leased) {
+        return Error(
+            StatusCode::kResourceExhausted,
+            "Gemma 4 26B supports exactly one resident execution slot");
+      }
+      impl->runtime->impl_->moe26b_slot_leased = true;
+      impl->moe26b_slot_lease = true;
+    }
+    Status status = impl->runtime->impl_->moe26b_engine->Reset();
+    if (!status.ok()) return status;
+    status = impl->runtime->impl_->moe26b_engine->ConfigureTokenSelection(
+        options.sampling, options.suppressed_token_ids);
+    if (!status.ok()) return status;
+    impl->model_load_milliseconds = impl->runtime->load_milliseconds();
+    return ConversationSession(std::move(impl));
+  }
   Status status = impl->engine.InitializeShared(
       impl->runtime->impl_->model,
       impl->runtime->impl_->assistant_loaded
@@ -242,6 +354,14 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
                    "input token ID exceeds vocabulary");
     }
   }
+  const bool moe26b = impl_->runtime != nullptr &&
+      impl_->runtime->impl_->variant ==
+          internal::ModelVariant::kGemma4Moe26BA4B;
+  if (moe26b && (!audio_segments.empty() || !vision_segments.empty())) {
+    return Error(
+        StatusCode::kUnsupported,
+        "Gemma 4 26B is a text-only profile; audio and vision input are unsupported");
+  }
   for (const AudioEmbeddingSegment& segment : audio_segments) {
     if (segment.frames.empty() || segment.frames.size() % 640U != 0U) {
       return Error(StatusCode::kInvalidArgument,
@@ -283,6 +403,146 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
                      "vision segment token or position alignment is invalid");
       }
     }
+  }
+  if (moe26b) {
+    const std::size_t comparable_tokens = std::min(
+        impl_->cached_token_ids.size(), full_prompt_token_ids.size());
+    const auto mismatch = std::mismatch(
+        impl_->cached_token_ids.begin(),
+        impl_->cached_token_ids.begin() + comparable_tokens,
+        full_prompt_token_ids.begin());
+    if (impl_->cached_token_ids.size() > full_prompt_token_ids.size() ||
+        mismatch.first != impl_->cached_token_ids.begin() + comparable_tokens) {
+      return Error(
+          StatusCode::kInvalidArgument,
+          "rendered conversation differs from the resident Gemma 4 26B KV-cache prefix");
+    }
+    const std::size_t prefix_tokens = impl_->cached_token_ids.size();
+    const std::span<const std::uint32_t> suffix =
+        full_prompt_token_ids.subspan(prefix_tokens);
+    if (suffix.empty()) {
+      return Error(StatusCode::kInvalidArgument,
+                   "conversation turn adds no uncached prompt tokens");
+    }
+
+    GreedyInferenceResult result;
+    result.output_token_ids.reserve(
+        static_cast<std::size_t>(max_generated_tokens));
+    result.kv_cache_mode = KvCacheMode::kCheckpointFp8;
+    result.sampling = impl_->sampling;
+    result.model_load_milliseconds = impl_->model_load_milliseconds;
+    result.weight_arena_bytes =
+        impl_->runtime->impl_->moe26b_engine->weight_arena_bytes();
+    result.reasoning_enabled = reasoning.enabled;
+    result.reasoning_budget_tokens = reasoning.max_reasoning_tokens;
+    result.prompt_cached_tokens = prefix_tokens;
+    result.prompt_cache_write_tokens = suffix.size();
+    result.kv_cache_bytes =
+        impl_->runtime->impl_->moe26b_engine->kv_cache_bytes();
+    result.workspace_bytes =
+        impl_->runtime->impl_->moe26b_engine->workspace_bytes();
+    result.max_context_tokens = impl_->max_context_tokens;
+    result.packed_weight_source_layout_direct = true;
+    result.token_loop_allocations = false;
+    result.decode_graphs = true;
+
+    const auto prompt_start = std::chrono::steady_clock::now();
+    Status status =
+        impl_->runtime->impl_->moe26b_engine->PrefillTokens(suffix);
+    if (!status.ok()) {
+      impl_->poisoned = true;
+      return status;
+    }
+    auto selected = impl_->runtime->impl_->moe26b_engine->SelectToken();
+    if (!selected.ok()) {
+      impl_->poisoned = true;
+      return selected.status();
+    }
+    result.prompt_milliseconds = Milliseconds(
+        std::chrono::steady_clock::now() - prompt_start);
+    impl_->cached_token_ids.insert(impl_->cached_token_ids.end(),
+                                   suffix.begin(), suffix.end());
+
+    ResponseChannelTracker reasoning_tracker(
+        reasoning.channel_open_token_ids, reasoning.channel_close_token_id,
+        reasoning.starts_in_reasoning);
+    bool reasoning_complete = !reasoning.enabled;
+    const auto observe_reasoning_token = [&](std::uint32_t token) {
+      if (!reasoning.enabled || reasoning_complete) return;
+      const bool was_reasoning = reasoning_tracker.in_reasoning();
+      (void)reasoning_tracker.Observe(token);
+      result.reasoning_tokens = reasoning_tracker.reasoning_token_count();
+      if (was_reasoning && !reasoning_tracker.in_reasoning()) {
+        reasoning_complete = true;
+      }
+    };
+    std::uint32_t next_token = selected.value();
+    result.output_token_ids.push_back(next_token);
+    observe_reasoning_token(next_token);
+    if (generated_token_callback != nullptr) {
+      status = generated_token_callback(generated_token_callback_context,
+                                        next_token);
+      if (!status.ok()) {
+        impl_->poisoned = true;
+        return status;
+      }
+    }
+    if (std::find(impl_->stop_token_ids.begin(), impl_->stop_token_ids.end(),
+                  next_token) != impl_->stop_token_ids.end()) {
+      result.stopped = true;
+      result.stop_token_id = next_token;
+    }
+
+    const auto decode_start = std::chrono::steady_clock::now();
+    for (std::uint64_t generated = 1U;
+         generated < max_generated_tokens && !result.stopped; ++generated) {
+      const std::uint32_t input_token = next_token;
+      const bool force_reasoning_close =
+          !reasoning_complete && reasoning_tracker.in_reasoning() &&
+          reasoning_tracker.reasoning_token_count() >=
+              reasoning.max_reasoning_tokens;
+      status = impl_->runtime->impl_->moe26b_engine->ForwardToken(input_token);
+      if (!status.ok()) {
+        impl_->poisoned = true;
+        return status;
+      }
+      impl_->cached_token_ids.push_back(input_token);
+      selected = impl_->runtime->impl_->moe26b_engine->SelectToken();
+      if (!selected.ok()) {
+        impl_->poisoned = true;
+        return selected.status();
+      }
+      next_token = force_reasoning_close ? reasoning.channel_close_token_id
+                                         : selected.value();
+      result.reasoning_budget_forced =
+          result.reasoning_budget_forced || force_reasoning_close;
+      result.output_token_ids.push_back(next_token);
+      observe_reasoning_token(next_token);
+      if (generated_token_callback != nullptr) {
+        status = generated_token_callback(generated_token_callback_context,
+                                          next_token);
+        if (!status.ok()) {
+          impl_->poisoned = true;
+          return status;
+        }
+      }
+      if (std::find(impl_->stop_token_ids.begin(),
+                    impl_->stop_token_ids.end(), next_token) !=
+          impl_->stop_token_ids.end()) {
+        result.stopped = true;
+        result.stop_token_id = next_token;
+      }
+    }
+    result.decode_milliseconds = Milliseconds(
+        std::chrono::steady_clock::now() - decode_start);
+    const std::uint64_t measured_decode_tokens =
+        result.output_token_ids.size() - 1U;
+    if (measured_decode_tokens != 0U && result.decode_milliseconds > 0.0) {
+      result.decode_tokens_per_second =
+          static_cast<double>(measured_decode_tokens) * 1000.0 /
+          result.decode_milliseconds;
+    }
+    return result;
   }
   const std::size_t comparable_tokens = std::min(
       impl_->cached_token_ids.size(), full_prompt_token_ids.size());
@@ -722,6 +982,11 @@ std::uint64_t ConversationSession::cached_token_count() const {
 
 std::uint64_t ConversationSession::reserved_device_bytes() const {
   if (impl_ == nullptr) return 0U;
+  if (impl_->moe26b_slot_lease && impl_->runtime != nullptr &&
+      impl_->runtime->impl_->moe26b_engine != nullptr) {
+    return impl_->runtime->impl_->moe26b_engine->kv_cache_bytes() +
+           impl_->runtime->impl_->moe26b_engine->workspace_bytes();
+  }
   return impl_->engine.cache_bytes() + impl_->engine.workspace_bytes() +
          impl_->engine.assistant_workspace_bytes() +
          impl_->engine.decode_graph_device_bytes();
@@ -730,4 +995,3 @@ std::uint64_t ConversationSession::reserved_device_bytes() const {
 bool ConversationSession::is_poisoned() const {
   return impl_ == nullptr || impl_->poisoned;
 }
-

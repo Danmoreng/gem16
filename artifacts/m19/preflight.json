@@ -1,0 +1,80 @@
+{
+  "acceptance": false,
+  "artifact_content_sha256": "471805f7dad8abb84300be78b2822a63dcb1d35bff5aa98426a162cc8532ee17",
+  "blockers": [
+    "held-out QAT-BF16/candidate teacher-forcing and capture report is missing",
+    "paired GSM8K/GPQA/AIME26 task manifest is missing",
+    "blind per-category prose review is missing"
+  ],
+  "claims": [
+    "No production-quality claim is supported while M19 is pending or failed."
+  ],
+  "code_revision": "2b48a76e6b605bca4c9402241dd688b23787ee46",
+  "decision": "pending",
+  "evidence": {
+    "artifact_lock": {
+      "bytes": 4231,
+      "sha256": "d7d2d30743e7c42aa55537a83f563047c9cbd2d83e0d583a2d2c8bcacbfa51a4"
+    },
+    "corpus": {
+      "bytes": 294655,
+      "sha256": "2b1a96f1ce82eb171d2d42d60f08274acbbdc3305518fca1f70849faadad33ea"
+    },
+    "corpus_lock": {
+      "bytes": 628,
+      "sha256": "c1e063468f5bb33326b9f673b2c3d030d8391e12544bae8f3922eb3846423181"
+    },
+    "m17_acceptance": {
+      "bytes": 2266,
+      "sha256": "5b9a3acd35e5afa80e9e1d7ab53ea1d4d624f5454870006f92cf9f3c416a863d"
+    },
+    "m17_closure": {
+      "bytes": 4689,
+      "sha256": "ed0f64de115c889127b24231f8d66545ec44f2e201044b05974cf611997c3884"
+    },
+    "thresholds": {
+      "bytes": 4089,
+      "sha256": "f46f135f7619be0788a2767cfed440f71da3cf14e99b41f4041701e0716051ac"
+    }
+  },
+  "failed_gates": [],
+  "gates": {
+    "frozen_artifact_and_profile_identity": true,
+    "frozen_heldout_corpus_and_disjointness": true,
+    "thresholds_frozen_before_execution": true
+  },
+  "limitations": [
+    "Vision and audio are outside the 26B profile.",
+    "Task scores are paired against the exact QAT-BF16 source; public model-card scores remain non-protocol external context.",
+    "Raw responses, per-token metrics, and captures remain ignored under artifacts/raw; this compact record retains their exact hashes."
+  ],
+  "milestone": "M19",
+  "runtime_profile": "native_sm120_integrated_prefill_decode_head",
+  "schema_version": 1,
+  "static_identity": {
+    "artifact_profile": "sm120-text-hybrid-v1",
+    "m17_closure_status": "accepted_closure_hardening",
+    "m17_status": "accepted"
+  },
+  "status": "blocked_evidence_pending",
+  "thresholds": {
+    "attention_cosine_min": 0.98,
+    "attention_relative_l2_max": 0.25,
+    "prose_invalid_response_count_max": 0,
+    "prose_minimum_independent_reviewers": 2,
+    "prose_per_category_score_delta_min": -1.0,
+    "prose_relative_retention_min": 0.9,
+    "router_top8_overlap_min": 5,
+    "selected_layer_cosine_min": 0.98,
+    "selected_layer_relative_l2_max": 0.25,
+    "task_absolute_delta_min": -0.02,
+    "task_invalid_response_fraction_max": 0.01,
+    "task_relative_retention_min": 0.97,
+    "teacher_forced_category_mean_nll_delta_max": 0.2,
+    "teacher_forced_record_kl_max": 0.05,
+    "teacher_forced_reference_token_top5_fraction_min": 0.95,
+    "teacher_forced_top1_agreement_fraction_min": 0.8,
+    "teacher_forced_weighted_mean_kl_max": 0.02,
+    "teacher_forced_weighted_mean_nll_delta_max": 0.1
+  }
+}

@@ -406,6 +406,31 @@ if(GEM16_ENABLE_CUDA)
   target_link_libraries(gem16-26b-reference PRIVATE gem16_core CUDA::cudart)
   gem16_set_project_warnings(gem16-26b-reference)
   gem16_enable_sanitizers(gem16-26b-reference)
+  add_executable(gem16-26b-benchmark
+    src/cli/gemma4_26b_benchmark_main.cpp
+  )
+  target_include_directories(gem16-26b-benchmark PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/src"
+  )
+  target_link_libraries(gem16-26b-benchmark PRIVATE
+    gem16_core CUDA::cudart
+  )
+  gem16_set_project_warnings(gem16-26b-benchmark)
+  gem16_enable_sanitizers(gem16-26b-benchmark)
+  add_executable(gem16-26b-m21-context-driver
+    tests/cuda/gemma4_26b_m21_context_driver.cpp
+  )
+  target_include_directories(gem16-26b-m21-context-driver PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/src"
+  )
+  target_link_libraries(gem16-26b-m21-context-driver PRIVATE
+    gem16_core CUDA::cudart
+  )
+  set_target_properties(gem16-26b-m21-context-driver PROPERTIES
+    CUDA_ARCHITECTURES "${GEM16_CUDA_ARCHITECTURE}"
+  )
+  gem16_set_project_warnings(gem16-26b-m21-context-driver)
+  gem16_enable_sanitizers(gem16-26b-m21-context-driver)
   message(STATUS "gem16 CUDA capability scaffold: enabled for ${CMAKE_CUDA_ARCHITECTURES}")
 else()
   target_sources(gem16_core PRIVATE src/runtime/inference_stub.cpp)
@@ -531,6 +556,13 @@ if(BUILD_TESTING AND GEM16_BUILD_TESTS)
 
     find_package(Python3 QUIET COMPONENTS Interpreter)
     if(Python3_Interpreter_FOUND)
+      add_test(NAME gem16-26b-m21-host-contract
+        COMMAND "${Python3_EXECUTABLE}" -m unittest
+          tests.python.test_qualify_gemma4_26b_m21
+      )
+      set_tests_properties(gem16-26b-m21-host-contract PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+      )
       add_test(NAME gem16-26b-m17-engine-smoke
         COMMAND "${Python3_EXECUTABLE}"
           "${CMAKE_CURRENT_SOURCE_DIR}/tests/python/test_gemma4_26b_m17_engine_smoke.py"

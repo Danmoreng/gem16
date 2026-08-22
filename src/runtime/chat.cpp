@@ -332,7 +332,8 @@ Result<ChatSession> ChatSession::Create(const ChatSessionOptions& options) {
 
 Result<ChatSession> ChatSession::Create(const ChatSessionOptions& options, GemmaChatProcessor processor) {
   auto runtime = ModelRuntime::Load(
-      {options.model_directory, options.assistant_model_directory});
+      {options.model_directory, options.assistant_model_directory,
+       options.max_context_tokens, 0});
   if (!runtime.ok()) return runtime.status();
   return Create(std::move(runtime).value(), options, std::move(processor));
 }

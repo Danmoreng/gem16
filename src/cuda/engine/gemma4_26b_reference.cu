@@ -23,6 +23,8 @@
 #include "cuda/moe/reference.h"
 #include "cuda/nvfp4/reference.h"
 #include "cuda/nvfp4/sm120.h"
+#include "cuda/output_head.h"
+#include "cuda/sampling/sampling.h"
 #include "gem16/model.h"
 #include "model/config.h"
 #include "model/gemma4_26b_attention.h"
@@ -38,6 +40,7 @@ constexpr std::uint64_t kExpert = 704U;
 constexpr std::uint32_t kExperts = 128U;
 constexpr std::uint32_t kTopK = 8U;
 constexpr std::uint64_t kLayers = 30U;
+constexpr std::uint64_t kMaximumContextTokens = 262144U;
 constexpr std::uint64_t kPrefillMaxTokens = 128U;
 constexpr std::uint64_t kPrefillScoreElements =
     64U * 1024U * 1024U / sizeof(float);
@@ -48,6 +51,12 @@ constexpr unsigned kArgmaxThreads = 256U;
 constexpr unsigned kArgmaxBlocks =
     static_cast<unsigned>(kVocabulary / kArgmaxThreads);
 constexpr std::array<std::uint32_t, 4> kCaptureLayers{0U, 5U, 6U, 29U};
+constexpr std::uint64_t kMiB = 1024U * 1024U;
+constexpr std::uint64_t kPrimaryContextMargin = 700U * kMiB;
+constexpr std::uint64_t kLongContextMargin = 400U * kMiB;
+constexpr std::uint32_t kMaximumSuppressedTokens = 16U;
+constexpr std::uint32_t kRepetitionMaskWords =
+    static_cast<std::uint32_t>((kVocabulary + 31U) / 32U);
 
 Status Invalid(std::string message) {
   return Status(StatusCode::kInvalidArgument, std::move(message));
@@ -57,6 +66,15 @@ Status CudaFailure(const char* operation, cudaError_t error) {
   return Status(StatusCode::kInternal,
                 std::string(operation) + ": " + cudaGetErrorName(error) +
                     ": " + cudaGetErrorString(error));
+}
+
+Status CudaAllocationFailure(const char* operation, cudaError_t error) {
+  if (error == cudaErrorMemoryAllocation) {
+    return Status(StatusCode::kResourceExhausted,
+                  std::string(operation) + ": " + cudaGetErrorName(error) +
+                      ": " + cudaGetErrorString(error));
+  }
+  return CudaFailure(operation, error);
 }
 
 class DeviceBuffer {
@@ -76,7 +94,7 @@ class DeviceBuffer {
     }
     const cudaError_t error =
         cudaMalloc(&pointer_, static_cast<std::size_t>(bytes));
-    if (error != cudaSuccess) return CudaFailure(label, error);
+    if (error != cudaSuccess) return CudaAllocationFailure(label, error);
     bytes_ = bytes;
     return Status::Ok();
   }
@@ -96,6 +114,10 @@ struct LayoutBuilder {
   template <typename T>
   std::uint64_t Add(std::uint64_t elements) {
     constexpr std::uint64_t alignment = 256U;
+    if (bytes > std::numeric_limits<std::uint64_t>::max() - (alignment - 1U)) {
+      bytes = std::numeric_limits<std::uint64_t>::max();
+      return bytes;
+    }
     bytes = (bytes + alignment - 1U) & ~(alignment - 1U);
     const std::uint64_t offset = bytes;
     if (elements > (std::numeric_limits<std::uint64_t>::max() - bytes) /
@@ -107,6 +129,17 @@ struct LayoutBuilder {
     return offset;
   }
 };
+
+bool PrefillChunkFits(std::uint64_t start_position, std::uint64_t chunk) {
+  if (chunk == 0U ||
+      start_position > std::numeric_limits<std::uint64_t>::max() - chunk) {
+    return false;
+  }
+  const std::uint64_t extent = start_position + chunk;
+  if (extent > std::numeric_limits<std::uint64_t>::max() / 16U) return false;
+  const std::uint64_t score_elements_per_token = 16U * extent;
+  return chunk <= kPrefillScoreElements / score_elements_per_token;
+}
 
 __device__ __forceinline__ std::uint64_t DeviceTiledPackedOffset(
     std::uint64_t row, std::uint64_t column, std::uint64_t k_blocks) {
@@ -316,6 +349,9 @@ struct Gemma4Moe26BReferenceEngine::Impl {
   int device = 0;
   std::uint64_t context = 0U;
   std::uint64_t position = 0U;
+  std::uint64_t sliding_capacity = 0U;
+  std::uint64_t prefill_chunks = 0U;
+  std::uint64_t minimum_prefill_chunk = 0U;
   Gemma4Moe26BBackend backend = Gemma4Moe26BBackend::kReference;
   cudaStream_t stream = nullptr;
   Gemma4Moe26BDeviceArtifact artifact;
@@ -352,6 +388,18 @@ struct Gemma4Moe26BReferenceEngine::Impl {
   int* finite = nullptr;
   int* routing_finite = nullptr;
   LogitCandidate* output_candidates = nullptr;
+  float* sampling_logits = nullptr;
+  double* sampling_cumulative = nullptr;
+  std::uint32_t* sampling_token_ids = nullptr;
+  std::uint32_t* sampling_sorted_token_ids = nullptr;
+  std::uint32_t* repetition_mask = nullptr;
+  std::uint32_t* suppressed_token_ids = nullptr;
+  std::uint32_t* selected_token = nullptr;
+  void* sampling_algorithm_workspace = nullptr;
+  std::size_t sampling_algorithm_workspace_bytes = 0U;
+  SamplingOptions sampling{};
+  std::uint64_t sampling_step = 0U;
+  std::uint32_t suppressed_token_count = 0U;
   std::array<float*, kCaptureLayers.size()> layer_captures{};
   std::array<float*, kCaptureLayers.size()> router_probability_captures{};
   std::array<std::uint32_t*, kCaptureLayers.size()> router_id_captures{};
@@ -480,14 +528,18 @@ Gemma4Moe26BReferenceEngine::Gemma4Moe26BReferenceEngine(
 Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
     const std::filesystem::path& model_directory,
     std::uint64_t context_tokens, int device, Gemma4Moe26BBackend backend) {
-  if (context_tokens == 0U || context_tokens > 32768U || device < 0) {
-    return Invalid("M13 reference context must be in [1, 32768]");
+  if (context_tokens == 0U || context_tokens > kMaximumContextTokens ||
+      device < 0) {
+    return Invalid("Gemma 4 26B context must be in [1, 262144]");
   }
   cudaError_t error = cudaSetDevice(device);
   if (error != cudaSuccess) return CudaFailure("select M13 CUDA device", error);
 
   auto config = LoadModelConfig(model_directory / "config.json");
   if (!config.ok()) return config.status();
+  if (context_tokens > config.value().max_positions) {
+    return Invalid("Gemma 4 26B context exceeds the model maximum");
+  }
   Status valid = ValidateGemma4Moe26BContract(config.value());
   if (!valid.ok()) return valid;
   auto manifest = InspectCheckpoint({model_directory, true});
@@ -508,6 +560,20 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
   impl->context = context_tokens;
   impl->backend = backend;
   impl->traits = traits.value();
+  for (const auto& trait : impl->traits) {
+    if (trait.attention == Gemma4Moe26BAttentionType::kSliding) {
+      if (impl->sliding_capacity == 0U) {
+        impl->sliding_capacity = trait.cache_capacity;
+      } else if (impl->sliding_capacity != trait.cache_capacity) {
+        return Status(StatusCode::kDataLoss,
+                      "Gemma 4 26B sliding cache capacities disagree");
+      }
+    }
+  }
+  if (impl->sliding_capacity == 0U) {
+    return Status(StatusCode::kDataLoss,
+                  "Gemma 4 26B has no validated sliding cache layer");
+  }
   impl->artifact = std::move(artifact).value();
   error = cudaStreamCreateWithFlags(&impl->stream, cudaStreamNonBlocking);
   if (error != cudaSuccess) return CudaFailure("create M13 stream", error);
@@ -628,6 +694,23 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
   const auto routing_finite = layout.Add<int>(1U);
   const auto output_candidates = layout.Add<LogitCandidate>(kArgmaxBlocks);
   const auto decode_control = layout.Add<DecodeControl>(1U);
+  auto sampling_workspace_bytes = SamplingWorkspaceBytes(
+      static_cast<std::uint32_t>(kVocabulary), impl->stream);
+  if (!sampling_workspace_bytes.ok()) {
+    return sampling_workspace_bytes.status();
+  }
+  const auto sampling_logits = layout.Add<float>(kVocabulary);
+  const auto sampling_cumulative = layout.Add<double>(kVocabulary);
+  const auto sampling_token_ids = layout.Add<std::uint32_t>(kVocabulary);
+  const auto sampling_sorted_token_ids =
+      layout.Add<std::uint32_t>(kVocabulary);
+  const auto repetition_mask =
+      layout.Add<std::uint32_t>(kRepetitionMaskWords);
+  const auto suppressed_token_ids =
+      layout.Add<std::uint32_t>(kMaximumSuppressedTokens);
+  const auto selected_token = layout.Add<std::uint32_t>(1U);
+  const auto sampling_algorithm_workspace = layout.Add<std::uint8_t>(
+      sampling_workspace_bytes.value());
   std::array<std::uint64_t, kCaptureLayers.size()> capture_outputs{};
   std::array<std::uint64_t, kCaptureLayers.size()> capture_probs{};
   std::array<std::uint64_t, kCaptureLayers.size()> capture_ids{};
@@ -704,6 +787,22 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
   impl->output_candidates =
       reinterpret_cast<LogitCandidate*>(ptr(output_candidates));
   impl->decode_control = reinterpret_cast<DecodeControl*>(ptr(decode_control));
+  impl->sampling_logits = reinterpret_cast<float*>(ptr(sampling_logits));
+  impl->sampling_cumulative =
+      reinterpret_cast<double*>(ptr(sampling_cumulative));
+  impl->sampling_token_ids =
+      reinterpret_cast<std::uint32_t*>(ptr(sampling_token_ids));
+  impl->sampling_sorted_token_ids =
+      reinterpret_cast<std::uint32_t*>(ptr(sampling_sorted_token_ids));
+  impl->repetition_mask =
+      reinterpret_cast<std::uint32_t*>(ptr(repetition_mask));
+  impl->suppressed_token_ids =
+      reinterpret_cast<std::uint32_t*>(ptr(suppressed_token_ids));
+  impl->selected_token =
+      reinterpret_cast<std::uint32_t*>(ptr(selected_token));
+  impl->sampling_algorithm_workspace = ptr(sampling_algorithm_workspace);
+  impl->sampling_algorithm_workspace_bytes =
+      sampling_workspace_bytes.value();
   for (std::size_t i = 0; i < kCaptureLayers.size(); ++i) {
     impl->layer_captures[i] = reinterpret_cast<float*>(ptr(capture_outputs[i]));
     impl->router_probability_captures[i] =
@@ -853,6 +952,20 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
     valid = engine.implementation_->PrepareDecodeGraph();
     if (!valid.ok()) return valid;
   }
+  std::size_t free_bytes = 0U;
+  std::size_t total_bytes = 0U;
+  error = cudaMemGetInfo(&free_bytes, &total_bytes);
+  if (error != cudaSuccess) {
+    return CudaFailure("measure M21 initialized memory margin", error);
+  }
+  const std::uint64_t required_margin =
+      context_tokens >= 65536U ? kLongContextMargin : kPrimaryContextMargin;
+  if (free_bytes < required_margin) {
+    return Status(
+        StatusCode::kResourceExhausted,
+        "Gemma 4 26B initialized context leaves less than the required " +
+            std::to_string(required_margin / kMiB) + " MiB CUDA margin");
+  }
   return engine;
 }
 
@@ -877,6 +990,8 @@ Status Gemma4Moe26BReferenceEngine::Reset() {
   error = cudaStreamSynchronize(implementation_->stream);
   if (error != cudaSuccess) return CudaFailure("synchronize M13 reset", error);
   implementation_->position = 0U;
+  implementation_->prefill_chunks = 0U;
+  implementation_->minimum_prefill_chunk = 0U;
   return Status::Ok();
 }
 
@@ -885,6 +1000,11 @@ Status Gemma4Moe26BReferenceEngine::ForwardToken(std::uint32_t token) {
   auto& x = *implementation_;
   if (token >= kVocabulary || x.position >= x.context) {
     return Invalid("M13 token or position exceeds the fixed contract");
+  }
+  if (x.sampling.enabled && x.sampling.repetition_penalty != 1.0F) {
+    Status marked = LaunchMarkRepetitionToken(
+        token, x.repetition_mask, x.stream);
+    if (!marked.ok()) return marked;
   }
   if (x.backend == Gemma4Moe26BBackend::kSm120Integrated) {
     if (x.decode_graph == nullptr) {
@@ -993,8 +1113,7 @@ Status Gemma4Moe26BReferenceEngine::PrefillTokens(
   while (consumed < tokens.size()) {
     std::uint64_t chunk = std::min<std::uint64_t>(
         kPrefillMaxTokens, tokens.size() - consumed);
-    while (chunk > 0U &&
-           chunk * 16U * (x.position + chunk) > kPrefillScoreElements) {
+    while (chunk > 0U && !PrefillChunkFits(x.position, chunk)) {
       --chunk;
     }
     if (chunk == 0U) {
@@ -1009,6 +1128,12 @@ Status Gemma4Moe26BReferenceEngine::PrefillTokens(
     error = cudaMemcpyAsync(
         x.prefill_tokens, x.prefill_host_tokens,
         chunk * sizeof(std::uint32_t), cudaMemcpyHostToDevice, x.stream);
+    if (error == cudaSuccess && x.sampling.enabled &&
+        x.sampling.repetition_penalty != 1.0F) {
+      Status marked = LaunchMarkRepetitionTokens(
+          x.prefill_tokens, chunk, x.repetition_mask, x.stream);
+      if (!marked.ok()) return marked;
+    }
     if (error != cudaSuccess) return CudaFailure("copy M17 prefill tokens", error);
     error = cudaMemsetAsync(x.routing_finite, 1, sizeof(int), x.stream);
     if (error != cudaSuccess) {
@@ -1079,6 +1204,11 @@ Status Gemma4Moe26BReferenceEngine::PrefillTokens(
         x.prediction_token, x.prediction_logit, x.stream);
     if (!status.ok()) return status;
     x.position += chunk;
+    ++x.prefill_chunks;
+    x.minimum_prefill_chunk =
+        x.minimum_prefill_chunk == 0U
+            ? chunk
+            : std::min(x.minimum_prefill_chunk, chunk);
     consumed += static_cast<std::size_t>(chunk);
   }
   return Status::Ok();
@@ -1117,6 +1247,77 @@ Gemma4Moe26BReferenceEngine::Prediction() {
                   "Gemma 4 26B output logits are non-finite");
   }
   return result;
+}
+
+Status Gemma4Moe26BReferenceEngine::ConfigureTokenSelection(
+    const SamplingOptions& options,
+    std::span<const std::uint32_t> suppressed_token_ids) {
+  if (!implementation_) return Invalid("M22 engine is not initialized");
+  Status valid = ValidateSamplingOptions(
+      options, static_cast<std::uint32_t>(kVocabulary));
+  if (!valid.ok()) return valid;
+  if (suppressed_token_ids.size() > kMaximumSuppressedTokens) {
+    return Invalid("Gemma 4 26B supports at most 16 suppressed token IDs");
+  }
+  for (const std::uint32_t token : suppressed_token_ids) {
+    if (token >= kVocabulary) {
+      return Invalid("Gemma 4 26B suppressed token ID exceeds vocabulary");
+    }
+  }
+  auto& x = *implementation_;
+  cudaError_t error = cudaMemsetAsync(
+      x.repetition_mask, 0,
+      static_cast<std::size_t>(kRepetitionMaskWords) * sizeof(std::uint32_t),
+      x.stream);
+  if (error == cudaSuccess && !suppressed_token_ids.empty()) {
+    error = cudaMemcpyAsync(
+        x.suppressed_token_ids, suppressed_token_ids.data(),
+        suppressed_token_ids.size_bytes(), cudaMemcpyHostToDevice, x.stream);
+  }
+  if (error == cudaSuccess) error = cudaStreamSynchronize(x.stream);
+  if (error != cudaSuccess) {
+    return CudaFailure("configure M22 token selection", error);
+  }
+  x.sampling = options;
+  x.sampling_step = 0U;
+  x.suppressed_token_count =
+      static_cast<std::uint32_t>(suppressed_token_ids.size());
+  return Status::Ok();
+}
+
+Result<std::uint32_t> Gemma4Moe26BReferenceEngine::SelectToken() {
+  if (!implementation_) return Invalid("M22 engine is not initialized");
+  auto prediction = Prediction();
+  if (!prediction.ok()) return prediction.status();
+  auto& x = *implementation_;
+  if (!x.sampling.enabled && x.suppressed_token_count == 0U) {
+    return prediction.value().token;
+  }
+  Status selected;
+  if (x.sampling.enabled) {
+    selected = LaunchSampleToken(
+        x.logits, x.sampling_logits, x.sampling_cumulative,
+        x.sampling_token_ids, x.sampling_sorted_token_ids,
+        x.repetition_mask, x.suppressed_token_ids,
+        x.suppressed_token_count, static_cast<std::uint32_t>(kVocabulary),
+        x.sampling, x.sampling_step++, nullptr, x.selected_token,
+        x.sampling_algorithm_workspace,
+        x.sampling_algorithm_workspace_bytes, x.stream);
+  } else {
+    selected = LaunchLogitArgmax(
+        x.logits, x.suppressed_token_ids, x.suppressed_token_count,
+        x.selected_token, x.stream);
+  }
+  if (!selected.ok()) return selected;
+  std::uint32_t token = 0U;
+  cudaError_t error = cudaMemcpyAsync(
+      &token, x.selected_token, sizeof(token), cudaMemcpyDeviceToHost,
+      x.stream);
+  if (error == cudaSuccess) error = cudaStreamSynchronize(x.stream);
+  if (error != cudaSuccess) {
+    return CudaFailure("copy M22 selected token", error);
+  }
+  return token;
 }
 
 Status Gemma4Moe26BReferenceEngine::CopyLogits(std::span<float> output) {
@@ -1198,6 +1399,16 @@ std::uint64_t Gemma4Moe26BReferenceEngine::workspace_bytes() const {
   return implementation_ ? implementation_->workspace.bytes() +
                                implementation_->prefill_workspace.bytes()
                          : 0U;
+}
+std::uint64_t Gemma4Moe26BReferenceEngine::sliding_cache_capacity() const {
+  return implementation_ ? implementation_->sliding_capacity : 0U;
+}
+std::uint64_t Gemma4Moe26BReferenceEngine::prefill_chunk_count() const {
+  return implementation_ ? implementation_->prefill_chunks : 0U;
+}
+std::uint64_t
+Gemma4Moe26BReferenceEngine::minimum_prefill_chunk_tokens() const {
+  return implementation_ ? implementation_->minimum_prefill_chunk : 0U;
 }
 
 }  // namespace gem16::internal

@@ -6,6 +6,7 @@
 #include <span>
 
 #include "gem16/status.h"
+#include "gem16/sampling.h"
 
 namespace gem16::internal {
 
@@ -21,7 +22,9 @@ struct Gemma4Moe26BReferencePrediction {
   bool all_logits_finite = false;
 };
 
-// M13 reference plus initialization-selected M16/M17 execution profiles.
+// M13 reference plus initialization-selected M16/M17 execution profiles and
+// M21 long-context qualification. The context extent is validated against the
+// model's declared maximum and the M12 262144-token attention/KV ceiling.
 // Initialization binds one immutable M08 arena, all 30 layers, one
 // partitioned FP8 K/V arena and fixed decode/prefill workspaces. Recurring
 // execution performs no allocation, filesystem access, JIT, repacking, host
@@ -46,6 +49,13 @@ class Gemma4Moe26BReferenceEngine {
   [[nodiscard]] Status ForwardToken(std::uint32_t token);
   [[nodiscard]] Status PrefillTokens(std::span<const std::uint32_t> tokens);
   [[nodiscard]] Result<Gemma4Moe26BReferencePrediction> Prediction();
+  // Product token selection is configured once per resident session. All
+  // device buffers are reserved by Create; recurring selection performs no
+  // allocation and preserves the existing Gemma sampling semantics.
+  [[nodiscard]] Status ConfigureTokenSelection(
+      const SamplingOptions& options,
+      std::span<const std::uint32_t> suppressed_token_ids);
+  [[nodiscard]] Result<std::uint32_t> SelectToken();
 
   // Diagnostic copies are explicit synchronization points and never occur
   // implicitly in ForwardToken. Callers provide fixed-size host storage.
@@ -62,6 +72,9 @@ class Gemma4Moe26BReferenceEngine {
   [[nodiscard]] std::uint64_t weight_arena_bytes() const;
   [[nodiscard]] std::uint64_t kv_cache_bytes() const;
   [[nodiscard]] std::uint64_t workspace_bytes() const;
+  [[nodiscard]] std::uint64_t sliding_cache_capacity() const;
+  [[nodiscard]] std::uint64_t prefill_chunk_count() const;
+  [[nodiscard]] std::uint64_t minimum_prefill_chunk_tokens() const;
 
  private:
   struct Impl;

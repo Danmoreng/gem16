@@ -20,6 +20,13 @@ std::uint64_t ModelRuntime::weight_bytes() const { return 0U; }
 std::uint64_t ModelRuntime::assistant_weight_bytes() const { return 0U; }
 bool ModelRuntime::assistant_loaded() const { return false; }
 double ModelRuntime::load_milliseconds() const { return 0.0; }
+const char* ModelRuntime::model_variant_name() const { return "unsupported"; }
+const char* ModelRuntime::selected_native_path() const { return "none"; }
+std::uint64_t ModelRuntime::max_context_tokens() const { return 0U; }
+bool ModelRuntime::supports_audio() const { return false; }
+bool ModelRuntime::supports_vision() const { return false; }
+bool ModelRuntime::supports_mtp() const { return false; }
+std::uint32_t ModelRuntime::maximum_execution_slots() const { return 0U; }
 
 struct ConversationSession::Impl {};
 

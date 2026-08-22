@@ -1,0 +1,191 @@
+import importlib.util
+from pathlib import Path
+import sys
+import tempfile
+import unittest
+
+
+MODULE_PATH = Path(__file__).resolve().parents[2] / "tools" / "qualify_gemma4_26b_m20.py"
+SPEC = importlib.util.spec_from_file_location("qualify_gemma4_26b_m20", MODULE_PATH)
+assert SPEC is not None and SPEC.loader is not None
+m20 = importlib.util.module_from_spec(SPEC)
+sys.modules[SPEC.name] = m20
+SPEC.loader.exec_module(m20)
+
+
+DIGEST = "a" * 64
+
+
+def suite() -> dict:
+    def scenario(identifier: str, prompt_tokens: int, mode: str = "greedy") -> dict:
+        sampling = {"mode": "greedy"} if mode == "greedy" else {
+            "mode": "sampled", "temperature": 1.0, "top_k": 64,
+            "top_p": 0.95, "seed": 7,
+        }
+        return {
+            "id": identifier,
+            "prompt_tokens": prompt_tokens,
+            "output_forwards": 4,
+            "context_tokens": 32768,
+            "prompt_manifest_sha256": DIGEST,
+            "prompt_manifest_path": f"{identifier}.json",
+            "sampling": sampling,
+            "kv_mode": "fp8",
+        }
+    return {
+        "schema_version": 1,
+        "model": {
+            "profile": m20.EXPECTED_PROFILE,
+            "artifact_content_sha256": DIGEST,
+            "artifact_lock_sha256": DIGEST,
+            "source_lock_sha256": DIGEST,
+        },
+        "toolchain_lock_sha256": DIGEST,
+        "native_instruction_evidence": {
+            "observed": True,
+            "binary_sha256": DIGEST,
+            "disassembly_sha256": DIGEST,
+            "required_mnemonics": ["MMA", "FP8"],
+        },
+        "scenarios": [
+            scenario("short-greedy", 128),
+            scenario("2k-greedy", 2048),
+            scenario("8k-greedy", 8192),
+            scenario("32k-greedy", 32000),
+            scenario("short-sampled", 128, "sampled"),
+        ],
+    }
+
+
+def sample(scenario: dict) -> dict:
+    return {
+        "schema_version": 1,
+        "status": "ok",
+        "model": {
+            "profile": m20.EXPECTED_PROFILE,
+            "artifact_content_sha256": DIGEST,
+            "artifact_lock_sha256": DIGEST,
+            "source_lock_sha256": DIGEST,
+        },
+        "correctness": {
+            "all_logits_finite": True,
+            "prompt_manifest_sha256": scenario["prompt_manifest_sha256"],
+            "output_token_sha256": DIGEST,
+            "output_checksum": 123,
+        },
+        "runtime_path": {
+            "model_variant": m20.EXPECTED_VARIANT,
+            "head_format": "nvfp4",
+            "kv_mode": "fp8",
+            "backend": "sm120",
+            "prompt_cache": False,
+            "cpu_weight_offload": False,
+            "token_loop_allocations": False,
+            "native_instruction_capability": True,
+            "native_instruction_observed": True,
+            "fallback_count": 0,
+            "cuda_graph": {"enabled": True, "first_demotion_reason": "none"},
+            "resolved_dispatch": {
+                "attention_prefill": "native_fixed_sm120",
+                "attention_decode": "native_fixed_sm120",
+                "moe_decode": "native_sm120",
+                "moe_prefill": "native_grouped_sm120",
+                "embedding_head": "native_sm120",
+            },
+        },
+        "performance": {
+            "prompt_tokens": scenario["prompt_tokens"],
+            "output_forwards": scenario["output_forwards"],
+            "sampling": scenario["sampling"],
+            "prompt_ms": 100.0,
+            "ttft_ms": 105.0,
+            "decode_ms": 30.0,
+            "decode_tps": 100.0,
+            "itl_ms": [10.0, 10.0, 10.0],
+        },
+        "memory": {
+            "sampled_process_peak_bytes": 15_500_000_000,
+            "margin_bytes": 800_000_000,
+            "recurring_allocation_observed": False,
+        },
+    }
+
+
+class QualifyGemma426BM20Test(unittest.TestCase):
+    def test_suite_requires_full_matrix_and_sampling_control(self):
+        document = suite()
+        validated = m20.validate_suite(document)
+        self.assertEqual(len(validated), 5)
+        document["scenarios"] = document["scenarios"][:-2]
+        with self.assertRaisesRegex(m20.QualificationError, "32K"):
+            m20.validate_suite(document)
+
+    def test_valid_sample_preserves_exact_timing_boundaries(self):
+        document = suite()
+        scenario = document["scenarios"][0]
+        normalized = m20.validate_sample(sample(scenario), scenario, document)
+        self.assertEqual(normalized["prompt_tps"], 1280.0)
+        self.assertEqual(normalized["decode_tps"], 100.0)
+        self.assertEqual(normalized["itl_ms"], [10.0, 10.0, 10.0])
+
+    def test_prompt_manifest_is_content_addressed_and_counted(self):
+        document = suite()
+        scenario = document["scenarios"][0]
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            path = root / scenario["prompt_manifest_path"]
+            path.write_text(
+                __import__("json").dumps({
+                    "schema_version": 1,
+                    "token_ids": list(range(scenario["prompt_tokens"])),
+                }),
+                encoding="utf-8",
+            )
+            scenario["prompt_manifest_sha256"] = m20.sha256_file(path)
+            bound = m20.bind_prompt_manifests([scenario], root)
+            self.assertEqual(Path(bound[0]["prompt_manifest_path"]), path)
+            scenario["prompt_manifest_sha256"] = DIGEST
+            with self.assertRaisesRegex(m20.QualificationError, "hash mismatch"):
+                m20.bind_prompt_manifests([scenario], root)
+
+    def test_fallback_and_non_native_dispatch_fail_hard(self):
+        document = suite()
+        scenario = document["scenarios"][0]
+        bad = sample(scenario)
+        bad["runtime_path"]["fallback_count"] = 1
+        with self.assertRaisesRegex(m20.QualificationError, "fallback"):
+            m20.validate_sample(bad, scenario, document)
+        bad = sample(scenario)
+        bad["runtime_path"]["resolved_dispatch"]["moe_decode"] = "reference"
+        with self.assertRaisesRegex(m20.QualificationError, "non-native"):
+            m20.validate_sample(bad, scenario, document)
+
+    def test_inconsistent_decode_boundary_fails(self):
+        document = suite()
+        scenario = document["scenarios"][0]
+        bad = sample(scenario)
+        bad["performance"]["decode_ms"] = 20.0
+        with self.assertRaisesRegex(m20.QualificationError, "does not match ITLs"):
+            m20.validate_sample(bad, scenario, document)
+
+    def test_summary_requires_ten_retained_runs(self):
+        document = suite()
+        scenario = document["scenarios"][0]
+        normalized = m20.validate_sample(sample(scenario), scenario, document)
+        normalized["telemetry_process_peak_bytes"] = 15_490_000_000
+        with self.assertRaisesRegex(m20.QualificationError, "exactly 10"):
+            m20.summarize_runs([normalized] * 9)
+        summary = m20.summarize_runs([normalized] * 10)
+        self.assertEqual(summary["decode_tps"]["count"], 10)
+        self.assertTrue(summary["deterministic_outputs"])
+        self.assertEqual(summary["sampled_process_peak_bytes"]["median"], 15_500_000_000.0)
+
+    def test_greedy_hidden_sampling_controls_are_rejected(self):
+        document = suite()
+        document["scenarios"][0]["sampling"]["seed"] = 0
+        with self.assertRaisesRegex(m20.QualificationError, "hidden controls"):
+            m20.validate_suite(document)
+
+
+if __name__ == "__main__":
+    unittest.main()

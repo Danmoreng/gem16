@@ -23,7 +23,7 @@ constexpr ModelVariantTraits kGemma4Moe26BA4BTraits{
     .name = "gemma4_moe_26b_a4b",
     .layer_count = 30,
     .inspectable = true,
-    .executable = false,
+    .executable = true,
     .supports_text = true,
     .supports_vision = false,
     .supports_audio = false,

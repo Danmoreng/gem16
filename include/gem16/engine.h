@@ -162,6 +162,11 @@ struct ConversationSessionOptions {
 struct ModelRuntimeOptions {
   std::filesystem::path model_directory;
   std::filesystem::path assistant_model_directory;
+  // The 12B runtime keeps context-owned state in ConversationSession. The
+  // text-only 26B product profile owns exactly one execution slot, so its
+  // fixed-address arena is admitted together with the resident runtime.
+  std::uint64_t max_context_tokens = 1024U;
+  int device = 0;
 };
 
 // Process-wide immutable model residency. A runtime owns exactly one target
@@ -179,6 +184,13 @@ class ModelRuntime {
   [[nodiscard]] std::uint64_t assistant_weight_bytes() const;
   [[nodiscard]] bool assistant_loaded() const;
   [[nodiscard]] double load_milliseconds() const;
+  [[nodiscard]] const char* model_variant_name() const;
+  [[nodiscard]] const char* selected_native_path() const;
+  [[nodiscard]] std::uint64_t max_context_tokens() const;
+  [[nodiscard]] bool supports_audio() const;
+  [[nodiscard]] bool supports_vision() const;
+  [[nodiscard]] bool supports_mtp() const;
+  [[nodiscard]] std::uint32_t maximum_execution_slots() const;
 
  private:
   struct Impl;

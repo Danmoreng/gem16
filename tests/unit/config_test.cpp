@@ -121,7 +121,7 @@ void RunConfigTests() {
     GEM16_CHECK(gem16::internal::ValidateGemma4Moe26BContract(moe).ok());
     GEM16_CHECK(gem16::internal::ValidateInspectableModelContract(moe).ok());
     const auto& traits = gem16::internal::TraitsForModelVariant(moe.variant);
-    GEM16_CHECK(traits.inspectable && !traits.executable);
+    GEM16_CHECK(traits.inspectable && traits.executable);
     GEM16_CHECK(traits.layer_count == 30 && traits.supports_text);
     GEM16_CHECK(!traits.supports_vision && !traits.supports_audio &&
                 !traits.supports_video && !traits.supports_mtp);
@@ -275,6 +275,7 @@ void RunConfigTests() {
     manifest.expert_count = moe.expert_count;
     manifest.top_k_experts = moe.top_k_experts;
     manifest.supports_text = true;
+    manifest.runtime_supported = true;
     std::ostringstream json;
     GEM16_CHECK(gem16::WriteManifestJson(manifest, json).ok());
     GEM16_CHECK(json.str().find("\"schema_version\": 3") != std::string::npos);
@@ -282,7 +283,7 @@ void RunConfigTests() {
                 std::string::npos);
     GEM16_CHECK(json.str().find("\"moe_intermediate_size\": 704") !=
                 std::string::npos);
-    GEM16_CHECK(json.str().find("\"runtime_supported\": false") !=
+    GEM16_CHECK(json.str().find("\"runtime_supported\": true") !=
                 std::string::npos);
     GEM16_CHECK(json.str().find("\"capabilities\": {\"text\":true,\"vision\":false") !=
                 std::string::npos);

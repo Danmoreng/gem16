@@ -67,6 +67,7 @@ struct Options {
   gem16::KvCacheMode kv_cache_mode = gem16::KvCacheMode::kCheckpointFp8;
   std::uint32_t mtp_draft_tokens = 0U;
   std::uint32_t max_sessions = 2U;
+  bool max_sessions_explicit = false;
   bool mtp_adaptive = false;
   bool greedy = false;
 };
@@ -78,7 +79,7 @@ void PrintUsage() {
       << "  --host <address>        Listen address (default: 127.0.0.1)\n"
       << "  --port <port>           Listen port (default: 8080)\n"
       << "  --max-context <tokens>  Session context capacity (default: 8192)\n"
-      << "  --max-sessions <count>   Resident execution slots (default: 2)\n"
+      << "  --max-sessions <count>   Resident slots (default: 2; 26B profile: 1)\n"
       << "  --kv-cache fp8|bf16\n"
       << "  --greedy                Disable checkpoint-recommended sampling\n"
       << "  --assistant-model <checkpoint> --mtp-draft-tokens 1|2|4 [--mtp-adaptive]\n";
@@ -123,6 +124,7 @@ gem16::Result<Options> ParseOptions(int argc, char** argv) {
                              "--max-sessions must be in [1, 64]");
       }
       options.max_sessions = static_cast<std::uint32_t>(value);
+      options.max_sessions_explicit = true;
     } else if (argument == "--kv-cache" && index + 1 < argc) {
       const std::string_view mode(argv[++index]);
       if (mode == "fp8") {
@@ -675,9 +677,21 @@ int ServerMain(int argc, char** argv) {
   session_options.mtp_adaptive = options.value().mtp_adaptive;
   auto runtime = gem16::ModelRuntime::Load(
       {options.value().model_directory,
-       options.value().assistant_model_directory});
+       options.value().assistant_model_directory,
+       options.value().max_context, 0});
   if (!runtime.ok()) {
     std::cerr << "error: " << runtime.status().message() << '\n';
+    return 2;
+  }
+  if (!options.value().max_sessions_explicit &&
+      runtime.value()->maximum_execution_slots() == 1U) {
+    options.value().max_sessions = 1U;
+  } else if (options.value().max_sessions >
+             runtime.value()->maximum_execution_slots()) {
+    std::cerr << "error: model profile "
+              << runtime.value()->model_variant_name() << " supports at most "
+              << runtime.value()->maximum_execution_slots()
+              << " resident execution slot; use --max-sessions 1\n";
     return 2;
   }
   std::cout << "model_runtime weights=" << runtime.value()->weight_bytes()
@@ -725,6 +739,19 @@ int ServerMain(int argc, char** argv) {
                        std::to_string(state.max_sessions) +
                        ",\"max_context_tokens\":" +
                        std::to_string(state.max_context) +
+                       ",\"model_variant\":" +
+                       gem16::json::Quote(
+                           state.runtime->model_variant_name()) +
+                       ",\"native_path\":" +
+                       gem16::json::Quote(
+                           state.runtime->selected_native_path()) +
+                       ",\"capabilities\":{\"text\":true,\"audio\":" +
+                       (state.runtime->supports_audio() ? "true" : "false") +
+                       ",\"vision\":" +
+                       (state.runtime->supports_vision() ? "true" : "false") +
+                       ",\"mtp\":" +
+                       (state.runtime->supports_mtp() ? "true" : "false") +
+                       "}" +
                        ",\"mtp_draft_tokens\":" +
                        std::to_string(state.session_options.mtp_draft_tokens) +
                        ",\"mtp_adaptive\":" +
@@ -779,7 +806,9 @@ int ServerMain(int argc, char** argv) {
   std::cout << "gem16 OpenAI-compatible server listening on http://"
             << options.value().host << ':' << options.value().port
             << " (model " << state.model_name << ", max sessions "
-            << state.max_sessions << ")\n";
+            << state.max_sessions << ", variant "
+            << state.runtime->model_variant_name() << ", native path "
+            << state.runtime->selected_native_path() << ")\n";
   if (!server.listen(options.value().host, options.value().port)) {
     std::cerr << "error: failed to listen on requested address\n";
     return 2;

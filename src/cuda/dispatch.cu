@@ -32,9 +32,16 @@ std::string CudaCapabilityReport() {
          << "nvfp4_correctness_cuda=" << enabled << '\n'
          << "nvfp4_sm120_direct=" << enabled << '\n'
          << "native_nvfp4_kernels=" << enabled << '\n'
+         << "native_nvfp4_moe_decode=" << enabled << '\n'
+         << "native_nvfp4_moe_prefill=" << enabled << '\n'
+         << "nvfp4_head=" << enabled << '\n'
+         << "q4_0_head=false\n"
          << "fp8_correctness_cuda=" << enabled << '\n'
          << "fp8_sm120_direct=" << enabled << '\n'
          << "fp8_kernels=" << enabled << '\n'
+         << "native_fp8_attention=" << enabled << '\n'
+         << "model_variants=gemma4_unified_12b,gemma4_moe_26b_a4b\n"
+         << "schema_versions=manifest_v3,gemma4_26b_compiled_v1\n"
          << "gemma4_12b_path="
          << (native_sm120_available ? "qualified" : "unavailable_incompatible_gpu")
          << '\n'

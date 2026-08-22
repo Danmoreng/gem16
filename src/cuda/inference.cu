@@ -1,4 +1,5 @@
 #include "gem16/engine.h"
+#include "cuda/engine/gemma4_26b_reference.h"
 #include "cuda/engine/inference_engine.h"
 
 #include "cuda/attention/sm120.h"
@@ -20,6 +21,8 @@
 #include "cuda/sampling/sampling.h"
 #include "gem16/model.h"
 #include "gem16/tokenizer.h"
+#include "model/config.h"
+#include "model/model_variant.h"
 #include "platform/mapped_file.h"
 
 #include <cuda_bf16.h>
@@ -40,6 +43,7 @@
 #include <functional>
 #include <iomanip>
 #include <limits>
+#include <mutex>
 #include <numeric>
 #include <ostream>
 #include <string>
@@ -162,6 +166,36 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
   }
   if (options.max_generated_tokens == 0U) {
     return Error(StatusCode::kInvalidArgument, "--max-tokens must be positive");
+  }
+  auto model_config =
+      internal::LoadModelConfig(options.model_directory / "config.json");
+  if (!model_config.ok()) return model_config.status();
+  if (internal::IsGemma4Moe26BModel(model_config.value())) {
+    if (!options.teacher_forced_token_ids.empty() ||
+        !options.logits_dump_path.empty() ||
+        !options.state_dump_path.empty() ||
+        options.state_dump_position.has_value()) {
+      return Error(
+          StatusCode::kUnsupported,
+          "Gemma 4 26B product generation does not expose 12B diagnostic dumps or teacher forcing");
+    }
+    ConversationSessionOptions session_options;
+    session_options.model_directory = options.model_directory;
+    session_options.assistant_model_directory =
+        options.assistant_model_directory;
+    session_options.stop_token_ids = options.stop_token_ids;
+    session_options.suppressed_token_ids = options.suppressed_token_ids;
+    session_options.max_context_tokens = options.max_context_tokens;
+    session_options.kv_cache_mode = options.kv_cache_mode;
+    session_options.sampling = options.sampling;
+    session_options.mtp_draft_tokens = options.mtp_draft_tokens;
+    session_options.mtp_adaptive = options.mtp_adaptive;
+    auto session = ConversationSession::Create(session_options);
+    if (!session.ok()) return session.status();
+    return session.value().Generate(
+        options.input_token_ids, options.max_generated_tokens, {},
+        options.generated_token_callback,
+        options.generated_token_callback_context);
   }
   const bool teacher_forcing = !options.teacher_forced_token_ids.empty();
   const bool mtp_enabled = options.mtp_draft_tokens != 0U;

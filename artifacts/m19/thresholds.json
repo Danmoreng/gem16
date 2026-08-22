@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "milestone": "M19",
+  "status": "frozen_before_heldout_execution",
+  "frozen_at_code_revision": "2b48a76e6b605bca4c9402241dd688b23787ee46",
+  "identity": {
+    "artifact_content_sha256": "471805f7dad8abb84300be78b2822a63dcb1d35bff5aa98426a162cc8532ee17",
+    "artifact_lock_sha256": "d7d2d30743e7c42aa55537a83f563047c9cbd2d83e0d583a2d2c8bcacbfa51a4",
+    "artifact_profile": "sm120-text-hybrid-v1",
+    "runtime_profile": "native_sm120_integrated_prefill_decode_head",
+    "source_lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230",
+    "config_sha256": "8a647d5444c9e77b03bd80ac802683ffdbf64b3d9296ca5257ced8e50349ea16",
+    "generation_config_sha256": "b69207f9be617e982d13cc273cce6fd88c98dda99a4bdc5e2d52ffe0a0d9f0a9",
+    "tokenizer_sha256": "cc8d3a0ce36466ccc1278bf987df5f71db1719b9ca6b4118264f45cb627bfe0f",
+    "tokenizer_config_sha256": "3ab5c7b94dc97d65ca7064496fa69b88ff875378e1cb7ee3e43070c3a8170999",
+    "chat_template_sha256": "ae53464bf3be25802b3a5b37def7fd89667067d7577049b3b2d74c4d8de4c6d4",
+    "compilation_manifest_sha256": "7e5e78b9c6f61fbe8829866395634085261e1261a8c783f69affc5a16bd1847a",
+    "m17_acceptance_sha256": "5b9a3acd35e5afa80e9e1d7ab53ea1d4d624f5454870006f92cf9f3c416a863d",
+    "m17_closure_sha256": "ed0f64de115c889127b24231f8d66545ec44f2e201044b05974cf611997c3884"
+  },
+  "heldout": {
+    "split": "test",
+    "policy": "held_out_final_quality_no_quantizer_tuning",
+    "corpus_sha256": "2b1a96f1ce82eb171d2d42d60f08274acbbdc3305518fca1f70849faadad33ea",
+    "split_lock_sha256": "c1e063468f5bb33326b9f673b2c3d030d8391e12544bae8f3922eb3846423181",
+    "required_categories": [
+      "code",
+      "long_context",
+      "multilingual",
+      "tool_syntax"
+    ],
+    "required_record_count": 4
+  },
+  "evaluator": {
+    "sgl_eval_commit": "fe0df4731526a73e915bedc1e2750ecb79274996",
+    "requirements_sha256": "bb67064bea54e5783dcc7a1d2b77232d9c68e54977ad963f81c4d513e432932c",
+    "datasets": {
+      "aime26": {
+        "examples": 30,
+        "source": "bundled_in_pinned_sgl_eval"
+      },
+      "gpqa": {
+        "examples": 198,
+        "sha256": "41d1213cd7a4998605a26c2798500652572007161b3a92817ba46b35befcd305"
+      },
+      "gsm8k": {
+        "examples": 1319,
+        "sha256": "3730d312f6e3440559ace48831e51066acaca737f6eabec99bccb9e4b3c39d14"
+      }
+    },
+    "required_task_benchmarks": [
+      "gsm8k",
+      "gpqa",
+      "aime26"
+    ]
+  },
+  "thresholds": {
+    "teacher_forced_weighted_mean_nll_delta_max": 0.1,
+    "teacher_forced_category_mean_nll_delta_max": 0.2,
+    "teacher_forced_weighted_mean_kl_max": 0.02,
+    "teacher_forced_record_kl_max": 0.05,
+    "teacher_forced_reference_token_top5_fraction_min": 0.95,
+    "teacher_forced_top1_agreement_fraction_min": 0.8,
+    "selected_layer_relative_l2_max": 0.25,
+    "selected_layer_cosine_min": 0.98,
+    "router_top8_overlap_min": 5,
+    "attention_relative_l2_max": 0.25,
+    "attention_cosine_min": 0.98,
+    "task_absolute_delta_min": -0.02,
+    "task_relative_retention_min": 0.97,
+    "task_invalid_response_fraction_max": 0.01,
+    "prose_relative_retention_min": 0.9,
+    "prose_per_category_score_delta_min": -1.0,
+    "prose_invalid_response_count_max": 0,
+    "prose_minimum_independent_reviewers": 2
+  },
+  "rationale": {
+    "numerical": "The aggregate KL and selected-boundary limits retain the accepted M13 development envelope; the per-record/category limits prevent one held-out stratum from being hidden by an average.",
+    "tasks": "Every pinned task must independently retain at least 97 percent of the paired QAT-BF16 score and lose no more than two absolute percentage points.",
+    "prose": "The small four-category suite is reported per category and requires two independent blind reviewers; it is not allowed to compensate a category regression with another category's gain."
+  },
+  "change_policy": "Changing a threshold after any held-out candidate result has been inspected requires a decision record and a new held-out split or explicit reclassification of this split as development."
+}
