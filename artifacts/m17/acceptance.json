@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "milestone": "M17",
+  "status": "accepted",
+  "implementation_revision": "57fdeb309aacfce2e4eba65745fba86f14ebd113",
+  "qualified_artifact_content_sha256": "471805f7dad8abb84300be78b2822a63dcb1d35bff5aa98426a162cc8532ee17",
+  "profile": "native_sm120_integrated_prefill_decode_head",
+  "correctness": {
+    "generated_tokens": [7676, 236761],
+    "second_run_tokens": [7676, 236761],
+    "continuation_start_position": 20,
+    "continuation_end_position": 38,
+    "continuation_prediction": 7676,
+    "captured_layers_bitwise_equal_to_m16": true,
+    "router_probabilities_and_ids_bitwise_equal_to_m16": true,
+    "full_logit_count": 262144,
+    "full_logits_bitwise_equal_to_m16": true,
+    "logits_sha256": "fb1ea761cb36dc99b2f3382e8562168ae611c16625aea090688ba2d9a6e8f9d1",
+    "fresh_process_logits_bitwise_equal": true
+  },
+  "performance": {
+    "m13_reference_two_run_elapsed_ms": 6150.06833,
+    "m16_two_run_elapsed_ms": 4818.03496,
+    "m17_two_run_elapsed_ms": 1079.67332,
+    "m17_fresh_process_two_run_elapsed_ms": 1079.54562,
+    "speedup_vs_m13": 5.69623072,
+    "speedup_vs_m16": 4.46249330
+  },
+  "memory": {
+    "weight_arena_bytes": 14696668160,
+    "fp8_kv_32k_bytes": 440401920,
+    "fixed_workspace_bytes": 121140768,
+    "free_before_runs_bytes": 1156775936,
+    "free_after_first_run_bytes": 1156775936,
+    "free_after_runs_bytes": 1156775936,
+    "recurring_allocation_observed": false
+  },
+  "native_two_kv_attention": {
+    "shape": "QH16_KVH2_D512",
+    "relative_l2": 0.00000301729,
+    "cosine": 1.0,
+    "memcheck_errors": 0,
+    "racecheck_hazards": 0,
+    "initcheck_errors": 0
+  },
+  "raw_evidence": {
+    "report_sha256": "03d30b7ce14abccfc3b8f87da3f55759a100c9dc533fdb6a879b7ccf7bc947bb",
+    "fresh_process_report_sha256": "7225ca14bfd3fa312d4189a0540f30355280824d0c4bf917d922ab7619c101b2"
+  },
+  "tests": {
+    "build": "pass",
+    "ctest": "5_of_5_pass",
+    "attention_reference": "pass",
+    "compute_sanitizer_memcheck": "pass_0_errors",
+    "compute_sanitizer_racecheck": "pass_0_hazards",
+    "compute_sanitizer_initcheck": "pass_0_errors"
+  }
+}

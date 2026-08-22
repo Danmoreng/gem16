@@ -1,8 +1,9 @@
 {
   "schema_version": 1,
   "milestone": "M17",
-  "status": "implementation_candidate_acceptance_pending_clean_commit",
+  "status": "accepted",
   "base_revision": "57bab1b",
+  "implementation_revision": "57fdeb309aacfce2e4eba65745fba86f14ebd113",
   "device": "NVIDIA GeForce RTX 5080 Laptop GPU",
   "path": "native_sm120_integrated_prefill_decode_head",
   "initialization_selection": {
@@ -15,9 +16,10 @@
   "full_model_two_run": {
     "m13_reference_elapsed_ms": 6150.06833,
     "m16_decode_head_elapsed_ms": 4818.03496,
-    "m17_integrated_elapsed_ms": 1079.16536,
-    "speedup_vs_m13": 5.69891192,
-    "speedup_vs_m16": 4.46459379,
+    "m17_integrated_elapsed_ms": 1079.67332,
+    "m17_fresh_process_elapsed_ms": 1079.54562,
+    "speedup_vs_m13": 5.69623072,
+    "speedup_vs_m16": 4.46249330,
     "generated_tokens_bitwise_exact": true,
     "continuation_bitwise_exact": true,
     "captured_layer_outputs_bitwise_exact": true,
@@ -58,16 +60,18 @@
   },
   "frozen_profile": {
     "artifact_content_sha256": "471805f7dad8abb84300be78b2822a63dcb1d35bff5aa98426a162cc8532ee17",
-    "raw_report_sha256": "b11e1159ee22b4c10c57966d677b964fd6365c91e9587d9bc84ba068782fba36",
+    "raw_report_sha256": "03d30b7ce14abccfc3b8f87da3f55759a100c9dc533fdb6a879b7ccf7bc947bb",
+    "fresh_process_raw_report_sha256": "7225ca14bfd3fa312d4189a0540f30355280824d0c4bf917d922ab7619c101b2",
     "logits_sha256": "fb1ea761cb36dc99b2f3382e8562168ae611c16625aea090688ba2d9a6e8f9d1"
   },
   "tests": {
     "full_build": "pass",
     "ctest_5_of_5": "pass",
     "real_full_model": "pass",
-    "fresh_process_relaunch": "pass"
+    "fresh_process_relaunch": "pass",
+    "compute_sanitizer_memcheck": "pass_0_errors",
+    "compute_sanitizer_racecheck": "pass_0_hazards",
+    "compute_sanitizer_initcheck": "pass_0_errors"
   },
-  "limitations": [
-    "clean-commit-bound acceptance evidence remains to be generated"
-  ]
+  "limitations": []
 }

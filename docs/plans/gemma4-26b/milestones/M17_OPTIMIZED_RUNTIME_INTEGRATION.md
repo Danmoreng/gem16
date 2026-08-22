@@ -1,6 +1,6 @@
 # M17 — Rolling optimized runtime integration
 
-Status: implementation and qualification complete; acceptance pending clean commit
+Status: accepted at implementation revision `57fdeb309aacfce2e4eba65745fba86f14ebd113`
 Class: rolling integration
 Completion depends on: M14, M15 and M16 or a recorded M16 skip
 
@@ -35,11 +35,12 @@ chunk size to the fixed 64 MiB score slab and 192 MiB M09 workspace cap.
 
 Against the bitwise-exact M16 run, both generated sequences, continuation,
 eight captured layer boundaries, router probabilities/IDs and all 262144
-logits remain bitwise identical. The two-run time falls from 4818.03496 ms to
-1079.16536 ms (4.465×), or 5.699× versus M13. Fixed workspace is 121,140,768
+logits remain bitwise identical. The clean-commit two-run time falls from
+4818.03496 ms to 1079.67332 ms (4.462×), or 5.696× versus M13. Fixed workspace is 121,140,768
 bytes and CUDA-visible free memory remains exactly 1,156,775,936 bytes across
 both warm runs. A fresh-process relaunch is semantically and logit-bitwise
-identical. The missing QH16/KVH2/D512 native global kernel is also implemented
+identical at 1079.54562 ms. The missing QH16/KVH2/D512 native global kernel is also implemented
 and passes focused M12-envelope and compute-sanitizer tests; the frozen exact
 M17 profile deliberately does not select it. Compact evidence and the frozen
-artifact/profile hashes are in `artifacts/m17/diagnostic-summary.json`.
+artifact/profile hashes are in `artifacts/m17/diagnostic-summary.json`; the
+commit-bound acceptance record is in `artifacts/m17/acceptance.json`.
