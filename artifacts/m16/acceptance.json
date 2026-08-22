@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "milestone": "M16",
+  "status": "acceptance_pass",
+  "acceptance": true,
+  "code_revision": "9a374c3dda10b7ae870c712cd70a60aa0a9e2c52",
+  "device": "NVIDIA GeForce RTX 5080 Laptop GPU",
+  "full_model_two_run": {
+    "reference_elapsed_ms": 6150.06833,
+    "native_elapsed_ms": 4818.03496,
+    "speedup": 1.2764705,
+    "generated_tokens_bitwise_exact": true,
+    "captured_layer_outputs_bitwise_exact": true,
+    "router_ids_bitwise_exact": true,
+    "full_logits_bitwise_exact": true
+  },
+  "gates": {
+    "one_physical_tied_matrix": true,
+    "persistent_head_repack_bytes": 0,
+    "all_logits_finite": true,
+    "full_ctest_suite": true
+  },
+  "raw_evidence_sha256": {
+    "reference": "f1724ae68891e3c1e86d0d6377ff0024803a9f0ff4f066e98b36ae4f9f236e14",
+    "native": "bf8606608d28a3d3c457aa4c2f2c1e84736563c3c50393ca07556f5170a6a2df"
+  }
+}

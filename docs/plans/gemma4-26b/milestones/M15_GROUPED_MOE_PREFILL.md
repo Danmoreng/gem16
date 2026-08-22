@@ -1,6 +1,6 @@
 # M15 — Grouped bounded-workspace MoE prefill
 
-Status: implementation and qualification complete; acceptance pending clean commit
+Status: accepted at `9a374c3dda10b7ae870c712cd70a60aa0a9e2c52`
 Class: parallel
 Unblocks: M17
 
@@ -44,5 +44,5 @@ valid stable permutation. It measures 2.47318387 ms versus 77.5195084 ms
 (31.344×). Recurring launches have zero observed allocation delta and the full
 path captures, instantiates and replays as a CUDA graph. The workspace consumes
 the already accepted M09 fixed MoE/permutation reserves, so the accepted 32K
-818,741,248-byte free margin is unchanged. Clean-commit-bound acceptance is the
-only remaining administrative gate.
+818,741,248-byte free margin is unchanged. Compact commit-bound evidence is in
+`artifacts/m15/acceptance.json`.

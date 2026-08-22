@@ -1,6 +1,6 @@
 # M16 — Production T=1 tied embedding/head
 
-Status: implementation candidate; acceptance pending clean commit
+Status: accepted at `9a374c3dda10b7ae870c712cd70a60aa0a9e2c52`
 Class: parallel/conditional
 Unblocks: M17
 
@@ -37,5 +37,4 @@ and writes the required BF16 boundary into the existing FP32 logits workspace.
 Together with M14, the two-run full-model comparison improves from 6150.06833
 ms to 4818.03496 ms while generated tokens, eight captured layers, router IDs
 and the full 262144-logit payload remain bitwise identical. See
-`artifacts/m16/diagnostic-summary.json`; clean-commit acceptance remains for
-owner review.
+`artifacts/m16/acceptance.json`.

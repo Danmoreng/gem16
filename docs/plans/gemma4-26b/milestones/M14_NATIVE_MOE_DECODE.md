@@ -1,6 +1,6 @@
 # M14 — Native batch-one MoE decode
 
-Status: implementation candidate; acceptance pending clean commit
+Status: accepted at `9a374c3dda10b7ae870c712cd70a60aa0a9e2c52`
 Class: parallel
 Unblocks: M17
 
@@ -33,5 +33,4 @@ payload directly. Real layer 0 is bitwise identical at every captured shared,
 routed and output boundary and improves from 1.09499 ms to 0.542123 ms. The
 focused CUDA test captures, instantiates and replays the complete native MoE
 layer and observes the same output. Compact evidence is in
-`artifacts/m14/diagnostic-summary.json`; clean-commit acceptance remains for
-owner review.
+`artifacts/m14/acceptance.json`.
