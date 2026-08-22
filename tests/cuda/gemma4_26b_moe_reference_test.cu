@@ -1,13 +1,20 @@
 #include "cuda/moe/reference.h"
 #include "cuda/moe/prefill.h"
+#include "cuda/nvfp4/reference.h"
+#include "cuda/nvfp4/sm120.h"
+#include "cuda/nvfp4/sm120_layout.h"
+#include "gem16/nvfp4.h"
 
 #include <cuda_bf16.h>
 #include <cuda_runtime.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <iostream>
+#include <span>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -57,6 +64,192 @@ std::uint16_t Bf16(float value) {
   return __bfloat16_as_ushort(__float2bfloat16_rn(value));
 }
 
+void TestSelectedExpertSlotBatch() {
+  constexpr std::uint64_t kWidth = 64U;
+  constexpr std::uint64_t kIntermediate = 64U;
+  constexpr std::uint32_t kExperts = 8U;
+  constexpr std::uint32_t kTopK = 8U;
+  const auto make_expert_matrix = [](std::uint64_t rows,
+                                     std::uint64_t columns,
+                                     std::uint32_t seed) {
+    std::vector<std::uint8_t> result_weights, result_scales;
+    for (std::uint32_t expert = 0; expert < kExperts; ++expert) {
+      std::vector<std::uint8_t> packed(rows * columns / 2U);
+      std::vector<std::uint8_t> scales(rows * columns / 16U, 0x38U);
+      for (std::uint64_t index = 0; index < packed.size(); ++index) {
+        const std::uint8_t low = static_cast<std::uint8_t>(
+            1U + (index * 5U + expert * 3U + seed) % 6U);
+        const std::uint8_t high = static_cast<std::uint8_t>(
+            8U + (index * 7U + expert * 5U + seed) % 6U);
+        packed[index] = static_cast<std::uint8_t>(low | (high << 4U));
+      }
+      const auto layout =
+          gem16::internal::PlanSm120Nvfp4SourceLayout(rows, columns);
+      CHECK(layout.ok());
+      if (!layout.ok()) return std::pair{result_weights, result_scales};
+      const auto tiled = gem16::internal::TileSm120Nvfp4Weights(
+          layout.value(), std::span<const std::uint8_t>(packed));
+      const auto tiled_scales = gem16::internal::TileSm120Nvfp4WeightScales(
+          layout.value(), std::span<const std::uint8_t>(scales));
+      CHECK(tiled.ok());
+      CHECK(tiled_scales.ok());
+      if (!tiled.ok() || !tiled_scales.ok()) {
+        return std::pair{result_weights, result_scales};
+      }
+      result_weights.insert(result_weights.end(), tiled.value().begin(),
+                            tiled.value().end());
+      result_scales.insert(result_scales.end(), tiled_scales.value().begin(),
+                           tiled_scales.value().end());
+    }
+    return std::pair{result_weights, result_scales};
+  };
+
+  std::vector<float> activation(kWidth);
+  for (std::uint64_t index = 0; index < kWidth; ++index) {
+    activation[index] =
+        static_cast<float>(static_cast<int>((index * 11U) % 31U) - 15) /
+        16.0F;
+  }
+  const auto quantized = gem16::nvfp4::QuantizeActivation(activation, 1.0F);
+  CHECK(quantized.ok());
+  if (!quantized.ok()) return;
+  const auto [gate_up_host_weights, gate_up_host_scales] =
+      make_expert_matrix(2U * kIntermediate, kWidth, 3U);
+  const auto [down_host_weights, down_host_scales] =
+      make_expert_matrix(kWidth, kIntermediate, 11U);
+  const std::uint64_t gate_up_weight_bytes =
+      kExperts * 2U * kIntermediate * kWidth / 2U;
+  const std::uint64_t down_weight_bytes =
+      kExperts * kWidth * kIntermediate / 2U;
+  CHECK(gate_up_host_weights.size() == gate_up_weight_bytes);
+  CHECK(gate_up_host_scales.size() == gate_up_weight_bytes / 8U);
+  CHECK(down_host_weights.size() == down_weight_bytes);
+  CHECK(down_host_scales.size() == down_weight_bytes / 8U);
+  if (gate_up_host_weights.size() != gate_up_weight_bytes ||
+      gate_up_host_scales.size() != gate_up_weight_bytes / 8U ||
+      down_host_weights.size() != down_weight_bytes ||
+      down_host_scales.size() != down_weight_bytes / 8U) {
+    return;
+  }
+
+  DeviceBuffer<std::uint8_t> device_activation(
+      quantized.value().packed_e2m1.size());
+  DeviceBuffer<std::uint8_t> device_activation_scales(
+      quantized.value().block_scales_e4m3fn.size());
+  DeviceBuffer<std::uint8_t> gate_up_weights(gate_up_weight_bytes),
+      gate_up_scales(gate_up_weight_bytes / 8U),
+      down_weights(down_weight_bytes), down_scales(down_weight_bytes / 8U);
+  DeviceBuffer<std::uint32_t> selected_ids(kTopK);
+  DeviceBuffer<float> sequential_gate_up(kTopK * 2U * kIntermediate),
+      batched_gate_up(kTopK * 2U * kIntermediate),
+      sequential_product(kTopK * kIntermediate),
+      batched_product(kTopK * kIntermediate),
+      sequential_down(kTopK * kWidth), batched_down(kTopK * kWidth);
+  DeviceBuffer<std::uint8_t> product_packed(kTopK * kIntermediate / 2U),
+      product_scales(kTopK * kIntermediate / 16U);
+  const std::array<std::uint32_t, kTopK> ids{7U, 1U, 5U, 0U,
+                                             3U, 6U, 2U, 4U};
+  CHECK(CudaOk(cudaMemcpy(device_activation.get(),
+                          quantized.value().packed_e2m1.data(),
+                          device_activation.bytes(), cudaMemcpyHostToDevice),
+               "copy slot-batch activation"));
+  CHECK(CudaOk(cudaMemcpy(device_activation_scales.get(),
+                          quantized.value().block_scales_e4m3fn.data(),
+                          device_activation_scales.bytes(),
+                          cudaMemcpyHostToDevice),
+               "copy slot-batch activation scales"));
+  CHECK(CudaOk(cudaMemcpy(gate_up_weights.get(), gate_up_host_weights.data(),
+                          gate_up_weights.bytes(), cudaMemcpyHostToDevice),
+               "copy slot-batch W13 weights"));
+  CHECK(CudaOk(cudaMemcpy(gate_up_scales.get(),
+                          gate_up_host_scales.data(),
+                          gate_up_scales.bytes(), cudaMemcpyHostToDevice),
+               "copy slot-batch W13 scales"));
+  CHECK(CudaOk(cudaMemcpy(down_weights.get(), down_host_weights.data(),
+                          down_weights.bytes(), cudaMemcpyHostToDevice),
+               "copy slot-batch W2 weights"));
+  CHECK(CudaOk(cudaMemcpy(down_scales.get(),
+                          down_host_scales.data(),
+                          down_scales.bytes(), cudaMemcpyHostToDevice),
+               "copy slot-batch W2 scales"));
+  CHECK(CudaOk(cudaMemcpy(selected_ids.get(), ids.data(), selected_ids.bytes(),
+                          cudaMemcpyHostToDevice),
+               "copy slot-batch selected IDs"));
+
+  for (std::uint32_t slot = 0; slot < kTopK; ++slot) {
+    const std::uint64_t product_offset =
+        static_cast<std::uint64_t>(slot) * kIntermediate;
+    const std::uint64_t gate_offset = 2U * product_offset;
+    CHECK(gem16::internal::LaunchNvfp4Sm120SelectedFusedGateUp(
+              device_activation.get(), device_activation_scales.get(),
+              gate_up_weights.get(), gate_up_scales.get(), selected_ids.get(),
+              slot, sequential_gate_up.get() + gate_offset,
+              sequential_gate_up.get() + gate_offset + kIntermediate,
+              sequential_product.get() + product_offset, kIntermediate,
+              kWidth, kExperts, 1.0F, 1.0F, nullptr)
+              .ok());
+  }
+  CHECK(gem16::internal::LaunchNvfp4Sm120SelectedFusedGateUpBatch(
+            device_activation.get(), device_activation_scales.get(),
+            gate_up_weights.get(), gate_up_scales.get(), selected_ids.get(),
+            kTopK, batched_gate_up.get(),
+            batched_gate_up.get() + kIntermediate, batched_product.get(),
+            kIntermediate, kWidth, kExperts, 1.0F, 1.0F, nullptr)
+            .ok());
+  CHECK(CudaOk(cudaDeviceSynchronize(), "synchronize slot-batch W13"));
+  std::vector<float> sequential_gate_values(kTopK * 2U * kIntermediate),
+      batched_gate_values(kTopK * 2U * kIntermediate),
+      sequential_product_values(kTopK * kIntermediate),
+      batched_product_values(kTopK * kIntermediate);
+  CHECK(CudaOk(cudaMemcpy(sequential_gate_values.data(),
+                          sequential_gate_up.get(),
+                          sequential_gate_up.bytes(), cudaMemcpyDeviceToHost),
+               "copy sequential W13"));
+  CHECK(CudaOk(cudaMemcpy(batched_gate_values.data(), batched_gate_up.get(),
+                          batched_gate_up.bytes(), cudaMemcpyDeviceToHost),
+               "copy batched W13"));
+  CHECK(CudaOk(cudaMemcpy(sequential_product_values.data(),
+                          sequential_product.get(), sequential_product.bytes(),
+                          cudaMemcpyDeviceToHost),
+               "copy sequential products"));
+  CHECK(CudaOk(cudaMemcpy(batched_product_values.data(), batched_product.get(),
+                          batched_product.bytes(), cudaMemcpyDeviceToHost),
+               "copy batched products"));
+  CHECK(sequential_gate_values == batched_gate_values);
+  CHECK(sequential_product_values == batched_product_values);
+
+  CHECK(gem16::internal::LaunchNvfp4ReferenceActivationQuantization(
+            batched_product.get(), product_packed.get(), product_scales.get(),
+            kTopK * kIntermediate, 1.0F, nullptr)
+            .ok());
+  for (std::uint32_t slot = 0; slot < kTopK; ++slot) {
+    CHECK(gem16::internal::LaunchNvfp4Sm120SelectedDirectProjectionBf16Float(
+              product_packed.get() + slot * kIntermediate / 2U,
+              product_scales.get() + slot * kIntermediate / 16U,
+              down_weights.get(), down_scales.get(), selected_ids.get(), slot,
+              sequential_down.get() + slot * kWidth, kWidth, kIntermediate,
+              kExperts, 1.0F, 1.0F, nullptr)
+              .ok());
+  }
+  CHECK(gem16::internal::
+            LaunchNvfp4Sm120SelectedDirectProjectionBf16FloatBatch(
+                product_packed.get(), product_scales.get(), down_weights.get(),
+                down_scales.get(), selected_ids.get(), kTopK,
+                batched_down.get(), kWidth, kIntermediate, kExperts, 1.0F,
+                1.0F, nullptr)
+            .ok());
+  CHECK(CudaOk(cudaDeviceSynchronize(), "synchronize slot-batch W2"));
+  std::vector<float> sequential_down_values(kTopK * kWidth),
+      batched_down_values(kTopK * kWidth);
+  CHECK(CudaOk(cudaMemcpy(sequential_down_values.data(), sequential_down.get(),
+                          sequential_down.bytes(), cudaMemcpyDeviceToHost),
+               "copy sequential W2"));
+  CHECK(CudaOk(cudaMemcpy(batched_down_values.data(), batched_down.get(),
+                          batched_down.bytes(), cudaMemcpyDeviceToHost),
+               "copy batched W2"));
+  CHECK(sequential_down_values == batched_down_values);
+}
+
 void TestFixedAddressMoeReference() {
   constexpr std::uint64_t kWidth = 64;
   constexpr std::uint64_t kShared = 64;
@@ -104,6 +297,7 @@ void TestFixedAddressMoeReference() {
       expert_product_scales(kTopK * kExpert / 16U);
   DeviceBuffer<std::uint32_t> top_ids(kTopK);
   DeviceBuffer<float> top_weights(kTopK);
+  DeviceBuffer<int> routing_finite(1);
 
   std::vector<float> host_hidden(kWidth);
   for (std::uint64_t index = 0; index < kWidth; ++index) {
@@ -181,11 +375,17 @@ void TestFixedAddressMoeReference() {
       expert_gate_up.get(), expert_product.get(), expert_product_packed.get(),
       expert_product_scales.get(), expert_down.get(),
       expert_contributions.get(), routed_sum.get(), routed_post.get(),
-      combined.get(), feed_forward.get()};
+      combined.get(), feed_forward.get(), routing_finite.get()};
   const gem16::internal::Gemma4MoeReferenceConfig config{
       kWidth, kShared, kExpert, kExperts, kTopK, 1.0e-6F};
 
+  const auto aliased_status = gem16::internal::LaunchGemma4MoeReferenceLayer(
+      hidden.get(), hidden.get(), config, weights, workspace, nullptr);
+  CHECK(!aliased_status.ok());
+
   auto run = [&]() {
+    CHECK(CudaOk(cudaMemset(routing_finite.get(), 1, sizeof(int)),
+                 "initialize M11 routing finite flag"));
     const auto status = gem16::internal::LaunchGemma4MoeReferenceLayer(
         hidden.get(), output.get(), config, weights, workspace, nullptr);
     CHECK(status.ok());
@@ -235,6 +435,9 @@ void TestFixedAddressMoeReference() {
   CHECK(CudaOk(cudaStreamBeginCapture(capture_stream,
                                       cudaStreamCaptureModeThreadLocal),
                "begin M14 graph capture"));
+  CHECK(CudaOk(cudaMemsetAsync(routing_finite.get(), 1, sizeof(int),
+                               capture_stream),
+               "capture M14 routing finite initialization"));
   const auto capture_status = gem16::internal::LaunchGemma4MoeSm120Layer(
       hidden.get(), output.get(), config, weights, workspace, capture_stream);
   CHECK(capture_status.ok());
@@ -297,6 +500,7 @@ void TestFixedAddressMoeReference() {
       kTokens * kTopK);
   DeviceBuffer<std::uint32_t> histogram(kExperts), prefix(kExperts + 1U),
       permutation(kTokens * kTopK), inverse(kTokens * kTopK);
+  DeviceBuffer<int> prefill_routing_finite(1);
   std::vector<float> host_batch_hidden(kTokens * kWidth);
   for (std::uint64_t token = 0; token < kTokens; ++token) {
     std::copy(host_hidden.begin(), host_hidden.end(),
@@ -313,7 +517,10 @@ void TestFixedAddressMoeReference() {
       batch_expert_down.get(), batch_shared_product.get(),
       batch_shared_product_packed.get(), batch_shared_product_scales.get(),
       batch_shared_output.get(), batch_reduced_output.get(), assignments.get(),
-      histogram.get(), prefix.get(), permutation.get(), inverse.get()};
+      histogram.get(), prefix.get(), permutation.get(), inverse.get(),
+      prefill_routing_finite.get()};
+  CHECK(CudaOk(cudaMemset(prefill_routing_finite.get(), 1, sizeof(int)),
+               "initialize M15 routing finite flag"));
   const auto prefill_status = gem16::internal::LaunchGemma4MoeSm120PrefillLayer(
       batch_hidden.get(), batch_output.get(), kTokens, config, weights,
       prefill_workspace, nullptr);
@@ -376,6 +583,9 @@ void TestFixedAddressMoeReference() {
   CHECK(CudaOk(cudaStreamBeginCapture(prefill_capture_stream,
                                       cudaStreamCaptureModeThreadLocal),
                "begin M15 graph capture"));
+  CHECK(CudaOk(cudaMemsetAsync(prefill_routing_finite.get(), 1, sizeof(int),
+                               prefill_capture_stream),
+               "capture M15 routing finite initialization"));
   const auto prefill_capture_status =
       gem16::internal::LaunchGemma4MoeSm120PrefillLayer(
           batch_hidden.get(), batch_output.get(), kTokens, config, weights,
@@ -407,6 +617,8 @@ void TestFixedAddressMoeReference() {
   CHECK(CudaOk(cudaMemGetInfo(&prefill_free_before, &total),
                "memory before M15 repeats"));
   for (int repeat = 0; repeat < 4; ++repeat) {
+    CHECK(CudaOk(cudaMemset(prefill_routing_finite.get(), 1, sizeof(int)),
+                 "initialize M15 repeat routing finite flag"));
     const auto repeat_status =
         gem16::internal::LaunchGemma4MoeSm120PrefillLayer(
             batch_hidden.get(), batch_output.get(), kTokens, config, weights,
@@ -418,6 +630,71 @@ void TestFixedAddressMoeReference() {
   CHECK(CudaOk(cudaMemGetInfo(&prefill_free_after, &total),
                "memory after M15 repeats"));
   CHECK(prefill_free_before == prefill_free_after);
+
+  // A non-finite router result must be reported without using an invalid
+  // expert ID or leaving stale assignments/workspace data behind.
+  std::vector<std::uint16_t> nonfinite_router(kExperts * kWidth, Bf16(0.0F));
+  nonfinite_router[0] = Bf16(INFINITY);
+  CHECK(CudaOk(cudaMemcpy(router_projection.get(), nonfinite_router.data(),
+                          router_projection.bytes(), cudaMemcpyHostToDevice),
+               "copy non-finite router projection"));
+  CHECK(CudaOk(cudaMemset(top_ids.get(), 0xff, top_ids.bytes()),
+               "poison decode top IDs"));
+  CHECK(CudaOk(cudaMemset(top_weights.get(), 0xff, top_weights.bytes()),
+               "poison decode top weights"));
+  CHECK(CudaOk(cudaMemset(routing_finite.get(), 1, sizeof(int)),
+               "initialize non-finite decode flag"));
+  const auto nonfinite_decode_status =
+      gem16::internal::LaunchGemma4MoeSm120Layer(
+          hidden.get(), output.get(), config, weights, workspace, nullptr);
+  CHECK(nonfinite_decode_status.ok());
+  CHECK(CudaOk(cudaDeviceSynchronize(), "synchronize non-finite decode"));
+  int decode_finite = 1;
+  CHECK(CudaOk(cudaMemcpy(&decode_finite, routing_finite.get(), sizeof(int),
+                          cudaMemcpyDeviceToHost),
+               "copy non-finite decode flag"));
+  CHECK(CudaOk(cudaMemcpy(ids.data(), top_ids.get(), top_ids.bytes(),
+                          cudaMemcpyDeviceToHost),
+               "copy non-finite decode IDs"));
+  CHECK(CudaOk(cudaMemcpy(selected_weights.data(), top_weights.get(),
+                          top_weights.bytes(), cudaMemcpyDeviceToHost),
+               "copy non-finite decode weights"));
+  CHECK(decode_finite == 0);
+  for (std::uint32_t slot = 0; slot < kTopK; ++slot) {
+    CHECK(ids[slot] == 0U);
+    CHECK(selected_weights[slot] == 0.0F);
+  }
+
+  CHECK(CudaOk(cudaMemset(assignments.get(), 0xff, assignments.bytes()),
+               "poison prefill assignments"));
+  CHECK(CudaOk(cudaMemset(permutation.get(), 0xff, permutation.bytes()),
+               "poison prefill permutation"));
+  CHECK(CudaOk(cudaMemset(prefill_routing_finite.get(), 1, sizeof(int)),
+               "initialize non-finite prefill flag"));
+  const auto nonfinite_prefill_status =
+      gem16::internal::LaunchGemma4MoeSm120PrefillLayer(
+          batch_hidden.get(), batch_output.get(), kTokens, config, weights,
+          prefill_workspace, nullptr);
+  CHECK(nonfinite_prefill_status.ok());
+  CHECK(CudaOk(cudaDeviceSynchronize(), "synchronize non-finite prefill"));
+  int prefill_finite = 1;
+  CHECK(CudaOk(cudaMemcpy(&prefill_finite, prefill_routing_finite.get(),
+                          sizeof(int), cudaMemcpyDeviceToHost),
+               "copy non-finite prefill flag"));
+  CHECK(CudaOk(cudaMemcpy(assignment_values.data(), assignments.get(),
+                          assignments.bytes(), cudaMemcpyDeviceToHost),
+               "copy non-finite prefill assignments"));
+  CHECK(CudaOk(cudaMemcpy(permutation_values.data(), permutation.get(),
+                          permutation.bytes(), cudaMemcpyDeviceToHost),
+               "copy non-finite prefill permutation"));
+  CHECK(prefill_finite == 0);
+  for (std::uint64_t index = 0; index < kTokens * kTopK; ++index) {
+    CHECK(assignment_values[index].token_id < kTokens);
+    CHECK(assignment_values[index].topk_slot < kTopK);
+    CHECK(assignment_values[index].expert_id < kExperts);
+    CHECK(assignment_values[index].weight == 0.0F);
+    CHECK(permutation_values[index] < kTokens * kTopK);
+  }
 }
 
 }  // namespace
@@ -429,6 +706,7 @@ int main() {
     return 1;
   }
   TestFixedAddressMoeReference();
+  TestSelectedExpertSlotBatch();
   if (failures != 0) {
     std::cerr << failures << " M11 CUDA assertion(s) failed\n";
     return 1;

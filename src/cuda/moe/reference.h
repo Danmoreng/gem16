@@ -75,6 +75,10 @@ struct Gemma4MoeReferenceWorkspace {
   float* routed_post = nullptr;            // width
   float* combined = nullptr;               // width
   float* feed_forward = nullptr;           // width, optional capture
+  // Optional caller-owned sticky flag. Initialize to one before an engine
+  // transaction. Router kernels atomically clear it on any non-finite input
+  // or invalid scale while still writing safe, non-stale routing outputs.
+  int* routing_finite = nullptr;
 };
 
 struct Gemma4MoeReferenceConfig {

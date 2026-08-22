@@ -33,6 +33,9 @@ struct Gemma4MoePrefillWorkspace {
   std::uint32_t* prefix = nullptr;                     // experts + 1
   std::uint32_t* permutation = nullptr;                // grouped -> original
   std::uint32_t* inverse_permutation = nullptr;        // original -> grouped
+  // Optional sticky transaction flag shared with decode. See the decode
+  // workspace contract for initialization and failure semantics.
+  int* routing_finite = nullptr;
 };
 
 // Complete M15 bounded-workspace grouped prefill layer. Hidden/output contain

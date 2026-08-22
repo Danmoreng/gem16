@@ -85,28 +85,53 @@ __global__ void RouterProjectionBatchKernel(
 __global__ void RouterAssignmentsKernel(
     const float* logits, const std::uint16_t* per_expert_scale,
     float* probabilities, Gemma4MoePrefillAssignment* assignments,
-    std::uint32_t experts, std::uint32_t top_k, std::uint64_t tokens) {
+    std::uint32_t experts, std::uint32_t top_k, std::uint64_t tokens,
+    int* routing_finite) {
   const std::uint64_t token = blockIdx.x;
-  if (token >= tokens || threadIdx.x != 0U) return;
+  if (token >= tokens) return;
   logits += token * experts;
   probabilities += token * experts;
   assignments += token * top_k;
-  float maximum = -3.402823466e+38F;
-  for (std::uint32_t expert = 0; expert < experts; ++expert) {
-    maximum = fmaxf(maximum, logits[expert]);
+  __shared__ float maximum;
+  __shared__ float total;
+  __shared__ int valid;
+  __shared__ float candidate_probability[kThreads];
+  __shared__ std::uint32_t candidate_id[kThreads];
+  if (threadIdx.x == 0U) {
+    maximum = -3.402823466e+38F;
+    valid = 1;
+    for (std::uint32_t expert = 0; expert < experts; ++expert) {
+      const float logit = logits[expert];
+      if (!isfinite(logit)) valid = 0;
+      maximum = fmaxf(maximum, logit);
+    }
   }
-  float total = 0.0F;
-  for (std::uint32_t expert = 0; expert < experts; ++expert) {
+  __syncthreads();
+  for (std::uint32_t expert = threadIdx.x; expert < experts;
+       expert += blockDim.x) {
     probabilities[expert] = expf(logits[expert] - maximum);
-    total += probabilities[expert];
   }
-  for (std::uint32_t expert = 0; expert < experts; ++expert) {
+  __syncthreads();
+  if (threadIdx.x == 0U && valid) {
+    total = 0.0F;
+    for (std::uint32_t expert = 0; expert < experts; ++expert) {
+      total += probabilities[expert];
+    }
+    if (!isfinite(total) || total <= 0.0F) valid = 0;
+  }
+  __syncthreads();
+  for (std::uint32_t expert = threadIdx.x; expert < experts;
+       expert += blockDim.x) {
+    if (!valid) probabilities[expert] = 0.0F;
+    else
     probabilities[expert] /= total;
   }
+  __syncthreads();
   for (std::uint32_t slot = 0; slot < top_k; ++slot) {
     std::uint32_t best_id = experts;
     float best_probability = -1.0F;
-    for (std::uint32_t expert = 0; expert < experts; ++expert) {
+    for (std::uint32_t expert = threadIdx.x; expert < experts;
+         expert += blockDim.x) {
       bool used = false;
       for (std::uint32_t previous = 0; previous < slot; ++previous) {
         used = used || assignments[previous].expert_id == expert;
@@ -118,19 +143,61 @@ __global__ void RouterAssignmentsKernel(
         best_id = expert;
       }
     }
-    assignments[slot] = {
-        static_cast<std::uint16_t>(best_id),
-        static_cast<std::uint16_t>(slot), static_cast<std::uint32_t>(token),
-        best_probability};
+    candidate_probability[threadIdx.x] = best_probability;
+    candidate_id[threadIdx.x] = best_id;
+    __syncthreads();
+    for (unsigned stride = kThreads / 2U; stride != 0U; stride /= 2U) {
+      if (threadIdx.x < stride) {
+        const float right_probability =
+            candidate_probability[threadIdx.x + stride];
+        const std::uint32_t right_id = candidate_id[threadIdx.x + stride];
+        if (right_probability > candidate_probability[threadIdx.x] ||
+            (right_probability == candidate_probability[threadIdx.x] &&
+             right_id < candidate_id[threadIdx.x])) {
+          candidate_probability[threadIdx.x] = right_probability;
+          candidate_id[threadIdx.x] = right_id;
+        }
+      }
+      __syncthreads();
+    }
+    if (threadIdx.x == 0U) {
+      if (candidate_id[0] >= experts) {
+        valid = 0;
+      } else {
+        assignments[slot] = {
+            static_cast<std::uint16_t>(candidate_id[0]),
+            static_cast<std::uint16_t>(slot), static_cast<std::uint32_t>(token),
+            candidate_probability[0]};
+      }
+    }
+    __syncthreads();
   }
-  float selected_total = 0.0F;
-  for (std::uint32_t slot = 0; slot < top_k; ++slot) {
-    selected_total += assignments[slot].weight;
-  }
-  for (std::uint32_t slot = 0; slot < top_k; ++slot) {
-    auto& assignment = assignments[slot];
-    assignment.weight = (assignment.weight / selected_total) *
-                        Bf16(per_expert_scale[assignment.expert_id]);
+  if (threadIdx.x == 0U) {
+    float selected_total = 0.0F;
+    if (valid) {
+      for (std::uint32_t slot = 0; slot < top_k; ++slot) {
+        selected_total += assignments[slot].weight;
+      }
+      if (!isfinite(selected_total) || selected_total <= 0.0F) valid = 0;
+    }
+    if (valid) {
+      for (std::uint32_t slot = 0; slot < top_k; ++slot) {
+        auto& assignment = assignments[slot];
+        const float scale = Bf16(per_expert_scale[assignment.expert_id]);
+        if (!isfinite(scale)) {
+          valid = 0;
+          break;
+        }
+        assignment.weight = (assignment.weight / selected_total) * scale;
+      }
+    }
+    if (!valid) {
+      for (std::uint32_t slot = 0; slot < top_k; ++slot) {
+        assignments[slot] = {0U, static_cast<std::uint16_t>(slot),
+                             static_cast<std::uint32_t>(token), 0.0F};
+      }
+      if (routing_finite != nullptr) atomicExch(routing_finite, 0);
+    }
   }
 }
 
@@ -285,6 +352,9 @@ Status LaunchGemma4MoeSm120PrefillLayer(
                              stream);
   if (!status.ok()) return status;
 
+  // Fixed-arena lifetime alias: shared_output's shared-branch value is now
+  // preserved in reduced_output, so the same storage may hold the router
+  // transform until assignments are materialized.
   status = LaunchRmsNormBf16(hidden, nullptr, x.token_hidden, tokens, c.width,
                              c.epsilon, stream);
   if (!status.ok()) return status;
@@ -300,9 +370,9 @@ Status LaunchGemma4MoeSm120PrefillLayer(
                              x.router_logits, c.experts, c.width, tokens);
   status = CheckLaunch("launch M15 router projection");
   if (!status.ok()) return status;
-  RouterAssignmentsKernel<<<static_cast<unsigned>(tokens), 1U, 0, stream>>>(
+  RouterAssignmentsKernel<<<static_cast<unsigned>(tokens), kThreads, 0, stream>>>(
       x.router_logits, w.per_expert_scale_bf16, x.router_probabilities,
-      x.assignments, c.experts, c.top_k, tokens);
+      x.assignments, c.experts, c.top_k, tokens, x.routing_finite);
   status = CheckLaunch("launch M15 router assignments");
   if (!status.ok()) return status;
   StableGroupAssignmentsKernel<<<1, 1, 0, stream>>>(
@@ -342,6 +412,8 @@ Status LaunchGemma4MoeSm120PrefillLayer(
                              c.width, c.top_k, tokens);
   status = CheckLaunch("launch M15 deterministic inverse reduction");
   if (!status.ok()) return status;
+  // Assignments and expert_down no longer consume the router transform, so
+  // shared_output is reused once more for post-expert normalization.
   status = LaunchRmsNormBf16(x.token_hidden, w.post_expert_norm_bf16,
                              x.shared_output, tokens, c.width, c.epsilon,
                              stream);

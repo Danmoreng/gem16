@@ -185,24 +185,76 @@ __global__ void RouterProjectionKernel(const float* input,
 __global__ void RouterTopKKernel(
     const float* logits, const std::uint16_t* per_expert_scale,
     float* probabilities, std::uint32_t* top_ids, float* top_weights,
-    std::uint32_t experts, std::uint32_t top_k) {
-  if (blockIdx.x != 0U || threadIdx.x != 0U) return;
-  float maximum = -3.402823466e+38F;
-  for (std::uint32_t expert = 0; expert < experts; ++expert) {
-    maximum = fmaxf(maximum, logits[expert]);
+    std::uint32_t experts, std::uint32_t top_k, int* routing_finite) {
+  if (blockIdx.x != 0U) return;
+  __shared__ float maximum;
+  __shared__ float total;
+  __shared__ int valid;
+  __shared__ float candidate_probability[kThreads];
+  __shared__ std::uint32_t candidate_id[kThreads];
+  if (threadIdx.x == 0U) {
+    maximum = -3.402823466e+38F;
+    valid = 1;
+    for (std::uint32_t expert = 0; expert < experts; ++expert) {
+      const float logit = logits[expert];
+      if (!isfinite(logit)) valid = 0;
+      maximum = fmaxf(maximum, logit);
+    }
   }
-  float total = 0.0F;
-  for (std::uint32_t expert = 0; expert < experts; ++expert) {
+  __syncthreads();
+  if (!valid) {
+    for (std::uint32_t expert = threadIdx.x; expert < experts;
+         expert += blockDim.x) {
+      probabilities[expert] = 0.0F;
+    }
+    for (std::uint32_t slot = threadIdx.x; slot < top_k;
+         slot += blockDim.x) {
+      top_ids[slot] = 0U;
+      top_weights[slot] = 0.0F;
+    }
+    if (threadIdx.x == 0U && routing_finite != nullptr) {
+      atomicExch(routing_finite, 0);
+    }
+    return;
+  }
+  for (std::uint32_t expert = threadIdx.x; expert < experts;
+       expert += blockDim.x) {
     probabilities[expert] = expf(logits[expert] - maximum);
-    total += probabilities[expert];
   }
-  for (std::uint32_t expert = 0; expert < experts; ++expert) {
+  __syncthreads();
+  if (threadIdx.x == 0U) {
+    total = 0.0F;
+    for (std::uint32_t expert = 0; expert < experts; ++expert) {
+      total += probabilities[expert];
+    }
+    if (!isfinite(total) || total <= 0.0F) valid = 0;
+  }
+  __syncthreads();
+  if (!valid) {
+    for (std::uint32_t expert = threadIdx.x; expert < experts;
+         expert += blockDim.x) {
+      probabilities[expert] = 0.0F;
+    }
+    for (std::uint32_t slot = threadIdx.x; slot < top_k;
+         slot += blockDim.x) {
+      top_ids[slot] = 0U;
+      top_weights[slot] = 0.0F;
+    }
+    if (threadIdx.x == 0U && routing_finite != nullptr) {
+      atomicExch(routing_finite, 0);
+    }
+    return;
+  }
+  for (std::uint32_t expert = threadIdx.x; expert < experts;
+       expert += blockDim.x) {
     probabilities[expert] /= total;
   }
+  __syncthreads();
   for (std::uint32_t slot = 0; slot < top_k; ++slot) {
     std::uint32_t best_id = experts;
     float best_probability = -1.0F;
-    for (std::uint32_t expert = 0; expert < experts; ++expert) {
+    for (std::uint32_t expert = threadIdx.x; expert < experts;
+         expert += blockDim.x) {
       bool already_selected = false;
       for (std::uint32_t previous = 0; previous < slot; ++previous) {
         already_selected = already_selected || top_ids[previous] == expert;
@@ -215,16 +267,61 @@ __global__ void RouterTopKKernel(
         best_id = expert;
       }
     }
-    top_ids[slot] = best_id;
-    top_weights[slot] = best_probability;
+    candidate_probability[threadIdx.x] = best_probability;
+    candidate_id[threadIdx.x] = best_id;
+    __syncthreads();
+    for (unsigned stride = kThreads / 2U; stride != 0U; stride /= 2U) {
+      if (threadIdx.x < stride) {
+        const float right_probability =
+            candidate_probability[threadIdx.x + stride];
+        const std::uint32_t right_id = candidate_id[threadIdx.x + stride];
+        if (right_probability > candidate_probability[threadIdx.x] ||
+            (right_probability == candidate_probability[threadIdx.x] &&
+             right_id < candidate_id[threadIdx.x])) {
+          candidate_probability[threadIdx.x] = right_probability;
+          candidate_id[threadIdx.x] = right_id;
+        }
+      }
+      __syncthreads();
+    }
+    if (threadIdx.x == 0U) {
+      if (candidate_id[0] >= experts) {
+        valid = 0;
+      } else {
+        top_ids[slot] = candidate_id[0];
+        top_weights[slot] = candidate_probability[0];
+      }
+    }
+    __syncthreads();
   }
-  float selected_total = 0.0F;
-  for (std::uint32_t slot = 0; slot < top_k; ++slot) {
-    selected_total += top_weights[slot];
-  }
-  for (std::uint32_t slot = 0; slot < top_k; ++slot) {
-    top_weights[slot] =
-        (top_weights[slot] / selected_total) * Bf16(per_expert_scale[top_ids[slot]]);
+  if (threadIdx.x == 0U) {
+    if (valid) {
+      float selected_total = 0.0F;
+      for (std::uint32_t slot = 0; slot < top_k; ++slot) {
+        selected_total += top_weights[slot];
+      }
+      if (!isfinite(selected_total) || selected_total <= 0.0F) valid = 0;
+      if (valid) {
+        for (std::uint32_t slot = 0; slot < top_k; ++slot) {
+          const float scale = Bf16(per_expert_scale[top_ids[slot]]);
+          if (!isfinite(scale)) {
+            valid = 0;
+            break;
+          }
+          top_weights[slot] = (top_weights[slot] / selected_total) * scale;
+        }
+      }
+    }
+    if (!valid) {
+      for (std::uint32_t expert = 0; expert < experts; ++expert) {
+        probabilities[expert] = 0.0F;
+      }
+      for (std::uint32_t slot = 0; slot < top_k; ++slot) {
+        top_ids[slot] = 0U;
+        top_weights[slot] = 0.0F;
+      }
+      if (routing_finite != nullptr) atomicExch(routing_finite, 0);
+    }
   }
 }
 
@@ -331,7 +428,8 @@ Status LaunchGemma4MoeLayerImpl(
   const auto& c = config;
   const auto& w = weights;
   const auto& x = workspace;
-  if (hidden == nullptr || output == nullptr || c.width == 0U ||
+  if (hidden == nullptr || output == nullptr || hidden == output ||
+      c.width == 0U ||
       c.width % kSm120KBlock != 0U || c.shared_intermediate == 0U ||
       c.shared_intermediate % kSm120KBlock != 0U ||
       c.expert_intermediate == 0U ||
@@ -444,14 +542,14 @@ Status LaunchGemma4MoeLayerImpl(
   status = CheckLaunch("launch M11 router transform");
   if (!status.ok()) return status;
   RouterProjectionKernel<<<static_cast<unsigned>(Blocks(c.experts)), kThreads,
-                           0, stream>>>(
+                            0, stream>>>(
       x.router_transformed, w.router_projection_bf16, x.router_logits,
       c.experts, c.width);
   status = CheckLaunch("launch M11 router projection");
   if (!status.ok()) return status;
-  RouterTopKKernel<<<1, 1, 0, stream>>>(
+  RouterTopKKernel<<<1, kThreads, 0, stream>>>(
       x.router_logits, w.per_expert_scale_bf16, x.router_probabilities,
-      x.top_ids, x.top_weights, c.experts, c.top_k);
+      x.top_ids, x.top_weights, c.experts, c.top_k, x.routing_finite);
   status = CheckLaunch("launch M11 deterministic router top-k");
   if (!status.ok()) return status;
 
@@ -462,21 +560,32 @@ Status LaunchGemma4MoeLayerImpl(
       x.expert_input, x.expert_input_packed, x.expert_input_scales, c.width,
       w.expert_gate_up.activation_global_divisor, stream);
   if (!status.ok()) return status;
-  for (std::uint32_t slot = 0; slot < c.top_k; ++slot) {
-    const std::uint64_t product_offset =
-        static_cast<std::uint64_t>(slot) * c.expert_intermediate;
-    const std::uint64_t gate_up_offset = 2U * product_offset;
-    if (native_sm120) {
-      status = LaunchNvfp4Sm120SelectedFusedGateUp(
-          x.expert_input_packed, x.expert_input_scales,
-          w.expert_gate_up.packed_e2m1, w.expert_gate_up.scales_e4m3fn,
-          x.top_ids, slot, x.expert_gate_up + gate_up_offset,
-          x.expert_gate_up + gate_up_offset + c.expert_intermediate,
-          x.expert_product + product_offset, c.expert_intermediate, c.width,
-          c.experts, w.expert_gate_up.activation_global_divisor,
-          w.expert_gate_up.weight_global_divisor, stream);
-      if (!status.ok()) return status;
-    } else {
+  if (native_sm120) {
+    status = LaunchNvfp4Sm120SelectedFusedGateUpBatch(
+        x.expert_input_packed, x.expert_input_scales,
+        w.expert_gate_up.packed_e2m1, w.expert_gate_up.scales_e4m3fn,
+        x.top_ids, c.top_k, x.expert_gate_up,
+        x.expert_gate_up + c.expert_intermediate, x.expert_product,
+        c.expert_intermediate, c.width, c.experts,
+        w.expert_gate_up.activation_global_divisor,
+        w.expert_gate_up.weight_global_divisor, stream);
+    if (!status.ok()) return status;
+    status = LaunchNvfp4ReferenceActivationQuantization(
+        x.expert_product, x.expert_product_packed, x.expert_product_scales,
+        static_cast<std::uint64_t>(c.top_k) * c.expert_intermediate,
+        w.expert_down.activation_global_divisor, stream);
+    if (!status.ok()) return status;
+    status = LaunchNvfp4Sm120SelectedDirectProjectionBf16FloatBatch(
+        x.expert_product_packed, x.expert_product_scales,
+        w.expert_down.packed_e2m1, w.expert_down.scales_e4m3fn, x.top_ids,
+        c.top_k, x.expert_down, c.width, c.expert_intermediate, c.experts,
+        w.expert_down.activation_global_divisor,
+        w.expert_down.weight_global_divisor, stream);
+    if (!status.ok()) return status;
+  } else {
+    for (std::uint32_t slot = 0; slot < c.top_k; ++slot) {
+      const std::uint64_t product_offset =
+          static_cast<std::uint64_t>(slot) * c.expert_intermediate;
       status = LaunchSelectedTiled(
           w.expert_gate_up, x.expert_input_packed, x.expert_input_scales,
           x.top_ids, slot, x.expert_gate_up, 2U * c.expert_intermediate,
@@ -488,32 +597,20 @@ Status LaunchGemma4MoeLayerImpl(
                     c.expert_intermediate);
       status = CheckLaunch("launch M11 selected expert gated GELU");
       if (!status.ok()) return status;
+      const std::uint64_t packed_offset = product_offset / 2U;
+      const std::uint64_t scale_offset = product_offset / kNvfp4Block;
+      status = LaunchNvfp4ReferenceActivationQuantization(
+          x.expert_product + product_offset,
+          x.expert_product_packed + packed_offset,
+          x.expert_product_scales + scale_offset, c.expert_intermediate,
+          w.expert_down.activation_global_divisor, stream);
+      if (!status.ok()) return status;
+      status = LaunchSelectedTiled(
+          w.expert_down, x.expert_product_packed + packed_offset,
+          x.expert_product_scales + scale_offset, x.top_ids, slot,
+          x.expert_down, c.width, c.experts, stream);
+      if (!status.ok()) return status;
     }
-    const std::uint64_t packed_offset = product_offset / 2U;
-    const std::uint64_t scale_offset = product_offset / kNvfp4Block;
-    status = LaunchNvfp4ReferenceActivationQuantization(
-        x.expert_product + product_offset,
-        x.expert_product_packed + packed_offset,
-        x.expert_product_scales + scale_offset, c.expert_intermediate,
-        w.expert_down.activation_global_divisor, stream);
-    if (!status.ok()) return status;
-    status = native_sm120
-                 ? LaunchNvfp4Sm120SelectedDirectProjectionBf16Float(
-                       x.expert_product_packed + packed_offset,
-                       x.expert_product_scales + scale_offset,
-                       w.expert_down.packed_e2m1,
-                       w.expert_down.scales_e4m3fn, x.top_ids, slot,
-                       x.expert_down + static_cast<std::uint64_t>(slot) *
-                                           c.width,
-                       c.width, c.expert_intermediate, c.experts,
-                       w.expert_down.activation_global_divisor,
-                       w.expert_down.weight_global_divisor, stream)
-                 : LaunchSelectedTiled(
-                       w.expert_down,
-                       x.expert_product_packed + packed_offset,
-                       x.expert_product_scales + scale_offset, x.top_ids,
-                       slot, x.expert_down, c.width, c.experts, stream);
-    if (!status.ok()) return status;
   }
   WeightedReductionKernel<<<static_cast<unsigned>(Blocks(c.width)), kThreads,
                             0, stream>>>(

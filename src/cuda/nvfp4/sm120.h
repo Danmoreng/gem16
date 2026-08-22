@@ -69,6 +69,23 @@ struct Gemma4MoePrefillAssignment;
     float weight_global_divisor,
     cudaStream_t stream);
 
+// Batch-one decode projection for all selected Top-K experts in one launch.
+// The activation is shared and output remains slot-major.
+[[nodiscard]] Status LaunchNvfp4Sm120SelectedDirectProjectionBf16FloatBatch(
+    const std::uint8_t* packed_activation_e2m1,
+    const std::uint8_t* activation_scales_e4m3fn,
+    const std::uint8_t* packed_expert_weight_e2m1,
+    const std::uint8_t* expert_weight_scales_e4m3fn,
+    const std::uint32_t* selected_ids,
+    std::uint32_t top_k,
+    float* output,
+    std::uint64_t rows_per_expert,
+    std::uint64_t contracting_elements,
+    std::uint32_t experts,
+    float activation_global_divisor,
+    float weight_global_divisor,
+    cudaStream_t stream);
+
 // Grouped W2. Products are in stable expert-grouped order; the epilogue
 // scatters rows back to original token/top-k assignment order.
 [[nodiscard]] Status LaunchNvfp4Sm120GroupedExpertDown(
@@ -154,6 +171,23 @@ struct Gemma4MoePrefillAssignment;
     const std::uint8_t* expert_gate_up_weight_scales_e4m3fn,
     const std::uint32_t* selected_ids,
     std::uint32_t slot,
+    float* gate_output,
+    float* up_output,
+    float* product_output,
+    std::uint64_t rows,
+    std::uint64_t contracting_elements,
+    std::uint32_t experts,
+    float activation_global_divisor,
+    float weight_global_divisor,
+    cudaStream_t stream);
+
+[[nodiscard]] Status LaunchNvfp4Sm120SelectedFusedGateUpBatch(
+    const std::uint8_t* packed_activation_e2m1,
+    const std::uint8_t* activation_scales_e4m3fn,
+    const std::uint8_t* packed_expert_gate_up_weight_e2m1,
+    const std::uint8_t* expert_gate_up_weight_scales_e4m3fn,
+    const std::uint32_t* selected_ids,
+    std::uint32_t top_k,
     float* gate_output,
     float* up_output,
     float* product_output,

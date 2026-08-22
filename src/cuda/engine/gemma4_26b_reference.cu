@@ -44,6 +44,9 @@ constexpr std::uint64_t kPrefillScoreElements =
 constexpr std::uint64_t kNvfp4Block = 16U;
 constexpr std::uint64_t kSm120KBlock = 64U;
 constexpr std::uint64_t kRowsPerTile = 8U;
+constexpr unsigned kArgmaxThreads = 256U;
+constexpr unsigned kArgmaxBlocks =
+    static_cast<unsigned>(kVocabulary / kArgmaxThreads);
 constexpr std::array<std::uint32_t, 4> kCaptureLayers{0U, 5U, 6U, 29U};
 
 Status Invalid(std::string message) {
@@ -208,31 +211,88 @@ __global__ void SetDecodeControlKernel(DecodeControl* control,
   }
 }
 
-__global__ void SoftcapFiniteKernel(float* logits, float softcap,
-                                    int* all_finite) {
-  const std::uint64_t index =
-      static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
-  if (index >= kVocabulary) return;
-  const float value = tanhf(logits[index] / softcap) * softcap;
-  logits[index] = value;
-  if (!isfinite(value)) atomicExch(all_finite, 0);
+struct LogitCandidate {
+  float value;
+  std::uint32_t id;
+};
+
+__device__ __forceinline__ LogitCandidate BetterCandidate(
+    LogitCandidate left, LogitCandidate right) {
+  return right.value > left.value ||
+                 (right.value == left.value && right.id < left.id)
+             ? right
+             : left;
 }
 
-__global__ void DeterministicArgmaxKernel(const float* logits,
-                                          std::uint32_t* token,
-                                          float* value) {
-  if (blockIdx.x != 0U || threadIdx.x != 0U) return;
-  float best = -3.402823466e+38F;
-  std::uint32_t best_id = 0U;
-  for (std::uint32_t id = 0U; id < kVocabulary; ++id) {
-    const float candidate = logits[id];
-    if (candidate > best || (candidate == best && id < best_id)) {
-      best = candidate;
-      best_id = id;
-    }
+__global__ void SoftcapArgmaxBlocksKernel(float* logits, float softcap,
+                                          int* all_finite,
+                                          LogitCandidate* candidates) {
+  __shared__ LogitCandidate partial[kArgmaxThreads];
+  const std::uint64_t index =
+      static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+  LogitCandidate candidate{-3.402823466e+38F,
+                           static_cast<std::uint32_t>(index)};
+  if (index < kVocabulary) {
+    const float value = tanhf(logits[index] / softcap) * softcap;
+    logits[index] = value;
+    if (isfinite(value)) candidate.value = value;
+    else atomicExch(all_finite, 0);
   }
-  *token = best_id;
-  *value = best;
+  partial[threadIdx.x] = candidate;
+  __syncthreads();
+  for (unsigned stride = kArgmaxThreads / 2U; stride != 0U; stride /= 2U) {
+    if (threadIdx.x < stride) {
+      partial[threadIdx.x] = BetterCandidate(
+          partial[threadIdx.x], partial[threadIdx.x + stride]);
+    }
+    __syncthreads();
+  }
+  if (threadIdx.x == 0U) candidates[blockIdx.x] = partial[0];
+}
+
+__global__ void FinalArgmaxKernel(const LogitCandidate* candidates,
+                                  std::uint32_t* token, float* value) {
+  __shared__ LogitCandidate partial[kArgmaxThreads];
+  LogitCandidate best{-3.402823466e+38F, 0U};
+  for (unsigned index = threadIdx.x; index < kArgmaxBlocks;
+       index += blockDim.x) {
+    best = BetterCandidate(best, candidates[index]);
+  }
+  partial[threadIdx.x] = best;
+  __syncthreads();
+  for (unsigned stride = kArgmaxThreads / 2U; stride != 0U; stride /= 2U) {
+    if (threadIdx.x < stride) {
+      partial[threadIdx.x] = BetterCandidate(
+          partial[threadIdx.x], partial[threadIdx.x + stride]);
+    }
+    __syncthreads();
+  }
+  if (threadIdx.x == 0U) {
+    *token = partial[0].id;
+    *value = partial[0].value;
+  }
+}
+
+Status LaunchSoftcapArgmax(float* logits, float softcap, int* all_finite,
+                           LogitCandidate* candidates,
+                           std::uint32_t* token, float* value,
+                           cudaStream_t stream) {
+  cudaError_t error = cudaMemsetAsync(all_finite, 1, sizeof(int), stream);
+  if (error != cudaSuccess) {
+    return CudaFailure("initialize M17 finite flag", error);
+  }
+  SoftcapArgmaxBlocksKernel<<<kArgmaxBlocks, kArgmaxThreads, 0, stream>>>(
+      logits, softcap, all_finite, candidates);
+  error = cudaGetLastError();
+  if (error != cudaSuccess) {
+    return CudaFailure("launch M17 fused softcap/argmax blocks", error);
+  }
+  FinalArgmaxKernel<<<1, kArgmaxThreads, 0, stream>>>(candidates, token,
+                                                      value);
+  error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("launch M17 final argmax", error);
 }
 
 int CaptureIndex(std::uint32_t layer) {
@@ -290,6 +350,8 @@ struct Gemma4Moe26BReferenceEngine::Impl {
   std::uint32_t* prediction_token = nullptr;
   float* prediction_logit = nullptr;
   int* finite = nullptr;
+  int* routing_finite = nullptr;
+  LogitCandidate* output_candidates = nullptr;
   std::array<float*, kCaptureLayers.size()> layer_captures{};
   std::array<float*, kCaptureLayers.size()> router_probability_captures{};
   std::array<std::uint32_t*, kCaptureLayers.size()> router_id_captures{};
@@ -315,7 +377,10 @@ Status Gemma4Moe26BReferenceEngine::Impl::LaunchControlledDecodeBody() {
   if (decode_control == nullptr) {
     return Invalid("M17 decode graph control is not initialized");
   }
-  cudaError_t error = cudaSuccess;
+  cudaError_t error = cudaMemsetAsync(routing_finite, 1, sizeof(int), stream);
+  if (error != cudaSuccess) {
+    return CudaFailure("initialize M17 router finite flag", error);
+  }
   constexpr unsigned threads = 256U;
   TiledEmbeddingLookupControlledKernel<<<
       static_cast<unsigned>((kWidth + threads - 1U) / threads), threads, 0,
@@ -369,21 +434,8 @@ Status Gemma4Moe26BReferenceEngine::Impl::LaunchControlledDecodeBody() {
       head.scales_e4m3fn, logits, head.rows, head.columns,
       head.activation_global_divisor, head.weight_global_divisor, stream);
   if (!status.ok()) return status;
-  error = cudaMemsetAsync(finite, 1, sizeof(int), stream);
-  if (error != cudaSuccess) {
-    return CudaFailure("initialize M17 decode finite flag", error);
-  }
-  SoftcapFiniteKernel<<<
-      static_cast<unsigned>((kVocabulary + threads - 1U) / threads), threads,
-      0, stream>>>(logits, softcap, finite);
-  error = cudaGetLastError();
-  if (error != cudaSuccess) return CudaFailure("launch M17 softcap", error);
-  DeterministicArgmaxKernel<<<1, 1, 0, stream>>>(
-      logits, prediction_token, prediction_logit);
-  error = cudaGetLastError();
-  return error == cudaSuccess
-             ? Status::Ok()
-             : CudaFailure("launch M17 argmax", error);
+  return LaunchSoftcapArgmax(logits, softcap, finite, output_candidates,
+                             prediction_token, prediction_logit, stream);
 }
 
 Status Gemma4Moe26BReferenceEngine::Impl::PrepareDecodeGraph() {
@@ -573,6 +625,8 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
   const auto prediction_token = layout.Add<std::uint32_t>(1U);
   const auto prediction_logit = layout.Add<float>(1U);
   const auto finite = layout.Add<int>(1U);
+  const auto routing_finite = layout.Add<int>(1U);
+  const auto output_candidates = layout.Add<LogitCandidate>(kArgmaxBlocks);
   const auto decode_control = layout.Add<DecodeControl>(1U);
   std::array<std::uint64_t, kCaptureLayers.size()> capture_outputs{};
   std::array<std::uint64_t, kCaptureLayers.size()> capture_probs{};
@@ -637,7 +691,8 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
       reinterpret_cast<float*>(ptr(routed_sum)),
       reinterpret_cast<float*>(ptr(routed_post)),
       reinterpret_cast<float*>(ptr(combined)),
-      reinterpret_cast<float*>(ptr(feed_forward))};
+      reinterpret_cast<float*>(ptr(feed_forward)),
+      reinterpret_cast<int*>(ptr(routing_finite))};
   impl->head_activation = reinterpret_cast<std::uint8_t*>(ptr(head_activation));
   impl->head_activation_scales =
       reinterpret_cast<std::uint8_t*>(ptr(head_activation_scale_offset));
@@ -645,6 +700,9 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
   impl->prediction_token = reinterpret_cast<std::uint32_t*>(ptr(prediction_token));
   impl->prediction_logit = reinterpret_cast<float*>(ptr(prediction_logit));
   impl->finite = reinterpret_cast<int*>(ptr(finite));
+  impl->routing_finite = reinterpret_cast<int*>(ptr(routing_finite));
+  impl->output_candidates =
+      reinterpret_cast<LogitCandidate*>(ptr(output_candidates));
   impl->decode_control = reinterpret_cast<DecodeControl*>(ptr(decode_control));
   for (std::size_t i = 0; i < kCaptureLayers.size(); ++i) {
     impl->layer_captures[i] = reinterpret_cast<float*>(ptr(capture_outputs[i]));
@@ -784,7 +842,8 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
         reinterpret_cast<std::uint32_t*>(pptr(p_histogram)),
         reinterpret_cast<std::uint32_t*>(pptr(p_prefix)),
         reinterpret_cast<std::uint32_t*>(pptr(p_permutation)),
-        reinterpret_cast<std::uint32_t*>(pptr(p_inverse))};
+        reinterpret_cast<std::uint32_t*>(pptr(p_inverse)),
+        impl->routing_finite};
   }
 
   Gemma4Moe26BReferenceEngine engine(std::move(impl));
@@ -844,12 +903,17 @@ Status Gemma4Moe26BReferenceEngine::ForwardToken(std::uint32_t token) {
     return Status::Ok();
   }
   constexpr unsigned threads = 256U;
+  cudaError_t error = cudaMemsetAsync(x.routing_finite, 1, sizeof(int),
+                                      x.stream);
+  if (error != cudaSuccess) {
+    return CudaFailure("initialize M13 router finite flag", error);
+  }
   TiledEmbeddingLookupKernel<<<static_cast<unsigned>((kWidth + threads - 1U) /
                                                        threads),
                                threads, 0, x.stream>>>(
       x.head.packed_e2m1, x.head.scales_e4m3fn,
       x.head.weight_global_divisor, token, x.hidden_a);
-  cudaError_t error = cudaGetLastError();
+  error = cudaGetLastError();
   if (error != cudaSuccess) return CudaFailure("launch M13 embedding", error);
 
   for (std::uint32_t layer = 0U; layer < kLayers; ++layer) {
@@ -904,17 +968,10 @@ Status Gemma4Moe26BReferenceEngine::ForwardToken(std::uint32_t token) {
                      x.head, x.head_activation, x.head_activation_scales,
                      x.logits, x.stream);
   if (!status.ok()) return status;
-  error = cudaMemsetAsync(x.finite, 1, sizeof(int), x.stream);
-  if (error != cudaSuccess) return CudaFailure("initialize M13 finite flag", error);
-  SoftcapFiniteKernel<<<static_cast<unsigned>((kVocabulary + threads - 1U) /
-                                               threads),
-                        threads, 0, x.stream>>>(x.logits, x.softcap, x.finite);
-  error = cudaGetLastError();
-  if (error != cudaSuccess) return CudaFailure("launch M13 softcap", error);
-  DeterministicArgmaxKernel<<<1, 1, 0, x.stream>>>(
-      x.logits, x.prediction_token, x.prediction_logit);
-  error = cudaGetLastError();
-  if (error != cudaSuccess) return CudaFailure("launch M13 argmax", error);
+  status = LaunchSoftcapArgmax(
+      x.logits, x.softcap, x.finite, x.output_candidates,
+      x.prediction_token, x.prediction_logit, x.stream);
+  if (!status.ok()) return status;
   ++x.position;
   return Status::Ok();
 }
@@ -953,6 +1010,10 @@ Status Gemma4Moe26BReferenceEngine::PrefillTokens(
         x.prefill_tokens, x.prefill_host_tokens,
         chunk * sizeof(std::uint32_t), cudaMemcpyHostToDevice, x.stream);
     if (error != cudaSuccess) return CudaFailure("copy M17 prefill tokens", error);
+    error = cudaMemsetAsync(x.routing_finite, 1, sizeof(int), x.stream);
+    if (error != cudaSuccess) {
+      return CudaFailure("initialize M17 prefill router finite flag", error);
+    }
     const std::uint64_t hidden_elements = chunk * kWidth;
     TiledEmbeddingLookupBatchKernel<<<
         static_cast<unsigned>((hidden_elements + threads - 1U) / threads),
@@ -1013,23 +1074,10 @@ Status Gemma4Moe26BReferenceEngine::PrefillTokens(
         x.head.activation_global_divisor, x.head.weight_global_divisor,
         x.stream);
     if (!status.ok()) return status;
-    error = cudaMemsetAsync(x.finite, 1, sizeof(int), x.stream);
-    if (error != cudaSuccess) {
-      return CudaFailure("initialize M17 prefill finite flag", error);
-    }
-    SoftcapFiniteKernel<<<
-        static_cast<unsigned>((kVocabulary + threads - 1U) / threads),
-        threads, 0, x.stream>>>(x.logits, x.softcap, x.finite);
-    error = cudaGetLastError();
-    if (error != cudaSuccess) {
-      return CudaFailure("launch M17 prefill softcap", error);
-    }
-    DeterministicArgmaxKernel<<<1, 1, 0, x.stream>>>(
-        x.logits, x.prediction_token, x.prediction_logit);
-    error = cudaGetLastError();
-    if (error != cudaSuccess) {
-      return CudaFailure("launch M17 prefill argmax", error);
-    }
+    status = LaunchSoftcapArgmax(
+        x.logits, x.softcap, x.finite, x.output_candidates,
+        x.prediction_token, x.prediction_logit, x.stream);
+    if (!status.ok()) return status;
     x.position += chunk;
     consumed += static_cast<std::size_t>(chunk);
   }
@@ -1044,6 +1092,7 @@ Gemma4Moe26BReferenceEngine::Prediction() {
   if (error != cudaSuccess) return CudaFailure("synchronize M13 prediction", error);
   Gemma4Moe26BReferencePrediction result;
   int finite = 0;
+  int routing_finite = 0;
   error = cudaMemcpy(&result.token, x.prediction_token, sizeof(result.token),
                      cudaMemcpyDeviceToHost);
   if (error == cudaSuccess) {
@@ -1053,8 +1102,20 @@ Gemma4Moe26BReferenceEngine::Prediction() {
   if (error == cudaSuccess) {
     error = cudaMemcpy(&finite, x.finite, sizeof(finite), cudaMemcpyDeviceToHost);
   }
+  if (error == cudaSuccess) {
+    error = cudaMemcpy(&routing_finite, x.routing_finite,
+                       sizeof(routing_finite), cudaMemcpyDeviceToHost);
+  }
   if (error != cudaSuccess) return CudaFailure("copy M13 prediction", error);
+  if (routing_finite == 0) {
+    return Status(StatusCode::kInternal,
+                  "Gemma 4 26B router produced a non-finite value");
+  }
   result.all_logits_finite = finite != 0;
+  if (!result.all_logits_finite) {
+    return Status(StatusCode::kInternal,
+                  "Gemma 4 26B output logits are non-finite");
+  }
   return result;
 }
 

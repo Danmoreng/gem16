@@ -528,5 +528,18 @@ if(BUILD_TESTING AND GEM16_BUILD_TESTS)
     set_tests_properties(gem16-cuda-nvfp4-consumption PROPERTIES
       SKIP_RETURN_CODE 77
     )
+
+    find_package(Python3 QUIET COMPONENTS Interpreter)
+    if(Python3_Interpreter_FOUND)
+      add_test(NAME gem16-26b-m17-engine-smoke
+        COMMAND "${Python3_EXECUTABLE}"
+          "${CMAKE_CURRENT_SOURCE_DIR}/tests/python/test_gemma4_26b_m17_engine_smoke.py"
+          "$<TARGET_FILE:gem16-26b-reference>"
+      )
+      set_tests_properties(gem16-26b-m17-engine-smoke PROPERTIES
+        SKIP_RETURN_CODE 77
+        TIMEOUT 600
+      )
+    endif()
   endif()
 endif()

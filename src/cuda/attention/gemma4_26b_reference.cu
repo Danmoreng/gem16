@@ -10,6 +10,7 @@
 
 #include "cuda/engine/gemma4_26b_artifact.h"
 #include "cuda/fp8/reference.h"
+#include "cuda/fp8/sm120.h"
 #include "cuda/layer/reference.h"
 
 namespace gem16::internal {
@@ -389,13 +390,14 @@ Status LaunchGemma4Moe26BAttentionReferenceControlledLayer(
       hidden, w.input_norm_bf16, x.input_fp8, x.input_scale, 1U, kHidden,
       epsilon, stream);
   if (!status.ok()) return status;
-  status = LaunchFp8ReferenceProjection(
+  status = LaunchFp8Sm120GroupedQkvProjection(
       x.input_fp8, x.input_scale, w.query.weight_e4m3,
-      w.query.weight_scales_bf16, x.query_raw, q_elements, kHidden, stream);
-  if (!status.ok()) return status;
-  status = LaunchFp8ReferenceProjection(
-      x.input_fp8, x.input_scale, w.key.weight_e4m3,
-      w.key.weight_scales_bf16, x.key_raw, kv_elements, kHidden, stream);
+      w.query.weight_scales_bf16, x.query_raw, q_elements,
+      w.key.weight_e4m3, w.key.weight_scales_bf16, x.key_raw, kv_elements,
+      t.reuses_raw_k_for_v ? nullptr : w.value.weight_e4m3,
+      t.reuses_raw_k_for_v ? nullptr : w.value.weight_scales_bf16,
+      t.reuses_raw_k_for_v ? nullptr : x.value_raw,
+      t.reuses_raw_k_for_v ? 0U : kv_elements, kHidden, stream);
   if (!status.ok()) return status;
   if (t.reuses_raw_k_for_v) {
     const cudaError_t copied = cudaMemcpyAsync(
@@ -404,11 +406,6 @@ Status LaunchGemma4Moe26BAttentionReferenceControlledLayer(
     if (copied != cudaSuccess) {
       return CudaFailure("reuse M17 controlled raw K for V", copied);
     }
-  } else {
-    status = LaunchFp8ReferenceProjection(
-        x.input_fp8, x.input_scale, w.value.weight_e4m3,
-        w.value.weight_scales_bf16, x.value_raw, kv_elements, kHidden, stream);
-    if (!status.ok()) return status;
   }
   const std::uint64_t rotating_pairs = static_cast<std::uint64_t>(
       t.rotary_factor * static_cast<double>(t.head_dimension / 2U));
@@ -443,7 +440,7 @@ Status LaunchGemma4Moe26BAttentionReferenceControlledLayer(
   status = LaunchFp8ReferenceTokenQuantization(
       x.attention, x.output_fp8, x.output_scale, q_elements, stream);
   if (!status.ok()) return status;
-  status = LaunchFp8ReferenceProjection(
+  status = LaunchFp8Sm120DirectProjection(
       x.output_fp8, x.output_scale, w.output.weight_e4m3,
       w.output.weight_scales_bf16, x.output_projection, kHidden, q_elements,
       stream);

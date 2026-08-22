@@ -143,6 +143,9 @@ int main(int argc, char** argv) {
     std::cerr << "M13 tokenizer/template encoding failed\n";
     return 3;
   }
+  if (cudaSetDevice(options.device) != cudaSuccess) return 4;
+  std::size_t free_before_engine = 0U, total = 0U;
+  if (cudaMemGetInfo(&free_before_engine, &total) != cudaSuccess) return 5;
   auto engine = gem16::internal::Gemma4Moe26BReferenceEngine::Create(
       options.model, options.context, options.device, options.backend);
   if (!engine.ok()) {
@@ -152,11 +155,12 @@ int main(int argc, char** argv) {
   const std::array<std::uint32_t, 4> layers{0U, 5U, 6U, 29U};
   std::vector<Capture> captures;
   captures.reserve(8U);
-  std::vector<float> logits(262144U);
-  std::size_t free_before = 0U, total = 0U;
+  std::vector<float> logits(262144U), repeated_logits(262144U);
+  std::size_t free_before = 0U;
   if (cudaMemGetInfo(&free_before, &total) != cudaSuccess) return 5;
 
-  auto run = [&](bool capture, RunResult* result) -> gem16::Status {
+  auto run = [&](bool capture, RunResult* result,
+                 std::span<float> run_logits) -> gem16::Status {
     auto status = engine.value().Reset();
     if (!status.ok()) return status;
     auto capture_position = [&](std::size_t position) -> gem16::Status {
@@ -216,10 +220,8 @@ int main(int argc, char** argv) {
         }
       }
     }
-    if (capture) {
-      status = engine.value().CopyLogits(logits);
-      if (!status.ok()) return status;
-    }
+    status = engine.value().CopyLogits(run_logits);
+    if (!status.ok()) return status;
     result->generated.reserve(options.max_new);
     for (std::uint32_t step = 0U; step < options.max_new; ++step) {
       auto prediction = engine.value().Prediction();
@@ -249,14 +251,14 @@ int main(int argc, char** argv) {
 
   RunResult first, second;
   const auto run_start = std::chrono::steady_clock::now();
-  auto status = run(true, &first);
+  auto status = run(true, &first, logits);
   std::size_t free_after_first = 0U;
   if (status.ok() &&
       cudaMemGetInfo(&free_after_first, &total) != cudaSuccess) {
     status = {gem16::StatusCode::kInternal,
               "cannot measure M13 memory after first warm run"};
   }
-  if (status.ok()) status = run(false, &second);
+  if (status.ok()) status = run(false, &second, repeated_logits);
   const auto run_end = std::chrono::steady_clock::now();
   if (!status.ok()) {
     std::cerr << status.message() << '\n';
@@ -302,6 +304,8 @@ int main(int argc, char** argv) {
       << ((first.generated == second.generated &&
            first.continuation_prediction == second.continuation_prediction)
               ? "true" : "false")
+      << ",\"full_logits_repeat_equal\":"
+      << (logits == repeated_logits ? "true" : "false")
       << ",\"all_logits_finite\":"
       << ((first.finite && second.finite) ? "true" : "false")
       << ",\"continuation\":{\"start_position\":"
@@ -312,6 +316,7 @@ int main(int argc, char** argv) {
       << "\"weight_arena_bytes\":" << engine.value().weight_arena_bytes()
       << ",\"kv_cache_bytes\":" << engine.value().kv_cache_bytes()
       << ",\"workspace_bytes\":" << engine.value().workspace_bytes()
+      << ",\"free_before_engine_creation_bytes\":" << free_before_engine
       << ",\"free_before_runs_bytes\":" << free_before
       << ",\"free_after_first_run_bytes\":" << free_after_first
       << ",\"free_after_runs_bytes\":" << free_after
