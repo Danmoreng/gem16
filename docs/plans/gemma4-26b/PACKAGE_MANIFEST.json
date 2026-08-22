@@ -318,9 +318,9 @@
       "sha256": "4710c48c58f8001355619d4159f5af6848b41d8bd780bfcf9415eb02d33edc3d"
     },
     {
-      "bytes": 1032,
+      "bytes": 2532,
       "path": "milestones/M11_CUDA_MOE_REFERENCE.md",
-      "sha256": "a7c99b35a26ae568a0da511a02153b0845e1cbc84c4df0117e6ccd23b59c0afd"
+      "sha256": "d1c92f77fc267531be3f80169771388bfe00ed82855984eadb19a6913d17076e"
     },
     {
       "bytes": 1097,

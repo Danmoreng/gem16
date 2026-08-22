@@ -234,6 +234,7 @@ if(GEM16_ENABLE_CUDA)
     src/cuda/attention/reference.cu
     src/cuda/audio/projection.cu
     src/cuda/dispatch.cu
+    src/cuda/engine/gemma4_26b_artifact.cpp
     src/cuda/engine/target_model.cu
     src/cuda/engine/inference_engine.cu
     src/cuda/inference.cu
@@ -247,6 +248,7 @@ if(GEM16_ENABLE_CUDA)
     src/cuda/layer/checkpoint_probe.cu
     src/cuda/mtp/assistant.cu
     src/cuda/mtp/verify.cu
+    src/cuda/moe/reference.cu
     src/cuda/nvfp4/checkpoint_probe.cu
     src/cuda/nvfp4/gemv.cu
     src/cuda/nvfp4/mlp.cu
@@ -365,6 +367,15 @@ if(GEM16_ENABLE_CUDA)
   target_link_libraries(gem16-26b-memory-probe PRIVATE gem16_core CUDA::cudart)
   gem16_set_project_warnings(gem16-26b-memory-probe)
   gem16_enable_sanitizers(gem16-26b-memory-probe)
+  add_executable(gem16-26b-moe-probe
+    src/cli/gemma4_26b_moe_probe.cpp
+  )
+  target_include_directories(gem16-26b-moe-probe PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/src"
+  )
+  target_link_libraries(gem16-26b-moe-probe PRIVATE gem16_core CUDA::cudart)
+  gem16_set_project_warnings(gem16-26b-moe-probe)
+  gem16_enable_sanitizers(gem16-26b-moe-probe)
   message(STATUS "gem16 CUDA capability scaffold: enabled for ${CMAKE_CUDA_ARCHITECTURES}")
 else()
   target_sources(gem16_core PRIVATE src/runtime/inference_stub.cpp)
@@ -432,6 +443,23 @@ if(BUILD_TESTING AND GEM16_BUILD_TESTS)
     )
     gem16_set_project_warnings(gem16-cuda-tests)
     add_test(NAME gem16-cuda COMMAND gem16-cuda-tests)
+
+    add_executable(gem16-cuda-moe-reference-tests
+      tests/cuda/gemma4_26b_moe_reference_test.cu
+    )
+    target_include_directories(gem16-cuda-moe-reference-tests PRIVATE
+      "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    )
+    target_link_libraries(gem16-cuda-moe-reference-tests PRIVATE
+      gem16_core CUDA::cudart
+    )
+    set_target_properties(gem16-cuda-moe-reference-tests PROPERTIES
+      CUDA_ARCHITECTURES "${GEM16_CUDA_ARCHITECTURE}"
+    )
+    gem16_set_project_warnings(gem16-cuda-moe-reference-tests)
+    add_test(NAME gem16-cuda-moe-reference
+      COMMAND gem16-cuda-moe-reference-tests
+    )
 
     add_executable(gem16-cuda-nvfp4-consumption-tests
       tests/cuda/gemma4_26b_nvfp4_consumption_test.cu
