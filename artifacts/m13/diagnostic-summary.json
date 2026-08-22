@@ -1,0 +1,161 @@
+{
+  "acceptance": false,
+  "code_revision": "2b316301ecbec6e354a8505892b1beae1db3f07b",
+  "continuation": {
+    "end_position": 38,
+    "first_prediction": 7676,
+    "second_prediction": 7676,
+    "start_position": 20
+  },
+  "early_quality_decision": "proceed",
+  "gates": {
+    "all_logits_finite": true,
+    "exact_fp8_kv_bytes": true,
+    "fresh_process_deterministic": true,
+    "memory_margin_32k": true,
+    "prompt_ids_exact": true,
+    "prose_task_first_token_exact": true,
+    "resident_continuation_stable": true,
+    "router_envelope": true,
+    "same_process_deterministic": true,
+    "selected_layer_envelope": true,
+    "teacher_forced_logit_envelope": true,
+    "warm_forward_allocation_free": true
+  },
+  "generation": {
+    "bf16_reference": [
+      7676,
+      106
+    ],
+    "first": [
+      7676,
+      236761
+    ],
+    "second": [
+      7676,
+      236761
+    ]
+  },
+  "implementation_commit": null,
+  "limitations": [
+    "single bounded calibration prose/task prompt; held-out quality remains M19",
+    "correctness-only scalar FP8/NVFP4 operators; no performance claim",
+    "generated second token differs from BF16/Q4_0 turn-end but matches the direct Unsloth NVFP4 diagnostic period token; first-token rank/KL and drift gates decide this early screen"
+  ],
+  "memory": {
+    "free_after_first_run_bytes": 1280507904,
+    "free_after_runs_bytes": 1280507904,
+    "free_before_runs_bytes": 1282605056,
+    "kv_cache_bytes": 440401920,
+    "weight_arena_bytes": 14696668160,
+    "workspace_bytes": 3833888
+  },
+  "milestone": "M13",
+  "path": "experimental_reference_only_not_performance_qualified",
+  "raw_evidence": {
+    "golden": {
+      "bytes": 17359109,
+      "sha256": "b42e25ed07cb17e9d4881312c412165ed11befff3be8b9a60fa30983890b064a"
+    },
+    "golden_logits": {
+      "bytes": 1048576,
+      "sha256": "289893e5cfef1cd44b4f6cd536d80c33183406ec4e274d483c65a97fc69c1522"
+    },
+    "logits": {
+      "bytes": 1048576,
+      "sha256": "fb1ea761cb36dc99b2f3382e8562168ae611c16625aea090688ba2d9a6e8f9d1"
+    },
+    "repeat_logits": {
+      "bytes": 1048576,
+      "sha256": "fb1ea761cb36dc99b2f3382e8562168ae611c16625aea090688ba2d9a6e8f9d1"
+    },
+    "repeat_report": {
+      "bytes": 295348,
+      "sha256": "3ae2353ed52eed70badb7fd43996cc1062642d0cffde0d29e74c9c6235af8c1a"
+    },
+    "report": {
+      "bytes": 295390,
+      "sha256": "1af89440b5258f4462b1d3232082ee2438321865d5d87b2e36f0f77baa7251d1"
+    }
+  },
+  "schema_version": 1,
+  "selected_captures": {
+    "cases": [
+      {
+        "cosine": 0.9923369207571986,
+        "layer": 0,
+        "position": 0,
+        "relative_l2": 0.12393314445722863,
+        "router_top8_overlap": 8
+      },
+      {
+        "cosine": 0.99871538370785,
+        "layer": 5,
+        "position": 0,
+        "relative_l2": 0.05069608924766208,
+        "router_top8_overlap": 8
+      },
+      {
+        "cosine": 0.9993604455110614,
+        "layer": 6,
+        "position": 0,
+        "relative_l2": 0.03593146499060837,
+        "router_top8_overlap": 8
+      },
+      {
+        "cosine": 0.9826614340306916,
+        "layer": 29,
+        "position": 0,
+        "relative_l2": 0.1966842532314014,
+        "router_top8_overlap": 5
+      },
+      {
+        "cosine": 0.9984405457538051,
+        "layer": 0,
+        "position": 17,
+        "relative_l2": 0.05900689030787704,
+        "router_top8_overlap": 8
+      },
+      {
+        "cosine": 0.9976509293174814,
+        "layer": 5,
+        "position": 17,
+        "relative_l2": 0.06860027355404205,
+        "router_top8_overlap": 8
+      },
+      {
+        "cosine": 0.9966413858469517,
+        "layer": 6,
+        "position": 17,
+        "relative_l2": 0.08225955490938117,
+        "router_top8_overlap": 8
+      },
+      {
+        "cosine": 0.9918614011848866,
+        "layer": 29,
+        "position": 17,
+        "relative_l2": 0.1505484952449807,
+        "router_top8_overlap": 8
+      }
+    ],
+    "minimum_router_top8_overlap": 5,
+    "worst_cosine": 0.9826614340306916,
+    "worst_relative_l2": 0.1966842532314014
+  },
+  "status": "diagnostic_pass_acceptance_pending_clean_commit",
+  "teacher_forced": {
+    "bf16_target_nll": 2.7127231412293895e-06,
+    "kl_bf16_to_m13": 1.2031697031504285e-05,
+    "target_nll": 1.8927085189801574e-05,
+    "target_rank": 1,
+    "target_token": 7676
+  },
+  "thresholds": {
+    "layer_cosine_min": 0.98,
+    "layer_relative_l2_max": 0.25,
+    "router_top8_overlap_min": 5,
+    "teacher_forced_kl_max": 0.02,
+    "teacher_target_rank_max": 5,
+    "warm_free_margin_min_bytes": 734003200
+  }
+}

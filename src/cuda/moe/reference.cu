@@ -485,4 +485,19 @@ Status LaunchGemma4MoeReferenceLayer(
       1U, c.width, c.epsilon, w.layer_scalar_bf16, stream);
 }
 
+Status LaunchGemma4MoeTiledNvfp4ReferenceProjection(
+    const Gemma4MoeNvfp4Matrix& matrix,
+    const std::uint8_t* packed_activation_e2m1,
+    const std::uint8_t* activation_scales_e4m3fn, float* output,
+    cudaStream_t stream) {
+  if (!MatrixValid(matrix, matrix.rows, matrix.columns) ||
+      matrix.rows == 0U || matrix.columns == 0U ||
+      packed_activation_e2m1 == nullptr ||
+      activation_scales_e4m3fn == nullptr || output == nullptr) {
+    return Invalid("M13 tiled NVFP4 projection contract is invalid");
+  }
+  return LaunchTiled(matrix, packed_activation_e2m1,
+                     activation_scales_e4m3fn, output, stream);
+}
+
 }  // namespace gem16::internal

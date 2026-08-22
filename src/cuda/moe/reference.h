@@ -8,6 +8,8 @@
 
 namespace gem16::internal {
 
+class Gemma4Moe26BDeviceArtifact;
+
 // Correctness-only view of one NVFP4 matrix in the immutable M08/M09 arena.
 // The packed values and scales use the row8/K64 layouts documented by
 // sm120_layout.h. Divisors are immutable initialization-time metadata.
@@ -83,6 +85,21 @@ struct Gemma4MoeReferenceConfig {
   std::uint32_t top_k = 0;
   float epsilon = 0.0F;
 };
+
+// Initialization-only pointer resolution for one exact 26B layer. The
+// returned view aliases the immutable M08 arena and owns no storage.
+[[nodiscard]] Result<Gemma4MoeReferenceWeights>
+BindGemma4Moe26BReferenceWeights(
+    const Gemma4Moe26BDeviceArtifact& artifact, std::uint32_t layer);
+
+// Correctness-only projection over the accepted row8/K64 artifact layout.
+// This is shared by M11 and the provisional M13 tied head; it performs no
+// allocation, repacking, synchronization, or precision selection.
+[[nodiscard]] Status LaunchGemma4MoeTiledNvfp4ReferenceProjection(
+    const Gemma4MoeNvfp4Matrix& matrix,
+    const std::uint8_t* packed_activation_e2m1,
+    const std::uint8_t* activation_scales_e4m3fn, float* output,
+    cudaStream_t stream);
 
 // Executes one token through the accepted M10 feed-forward sequence. Hidden
 // input/output are FP32 containers holding BF16-rounded recurrent state.

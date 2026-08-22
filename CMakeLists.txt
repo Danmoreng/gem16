@@ -237,6 +237,7 @@ if(GEM16_ENABLE_CUDA)
     src/cuda/audio/projection.cu
     src/cuda/dispatch.cu
     src/cuda/engine/gemma4_26b_artifact.cpp
+    src/cuda/engine/gemma4_26b_reference.cu
     src/cuda/engine/target_model.cu
     src/cuda/engine/inference_engine.cu
     src/cuda/inference.cu
@@ -250,6 +251,7 @@ if(GEM16_ENABLE_CUDA)
     src/cuda/layer/checkpoint_probe.cu
     src/cuda/mtp/assistant.cu
     src/cuda/mtp/verify.cu
+    src/cuda/moe/gemma4_26b_bindings.cpp
     src/cuda/moe/reference.cu
     src/cuda/nvfp4/checkpoint_probe.cu
     src/cuda/nvfp4/gemv.cu
@@ -360,6 +362,12 @@ if(GEM16_ENABLE_CUDA)
     CUDA_ARCHITECTURES "${GEM16_CUDA_ARCHITECTURE}"
     CUDA_SEPARABLE_COMPILATION ON
   )
+  set_property(SOURCE src/cuda/engine/gemma4_26b_reference.cu
+    APPEND PROPERTY COMPILE_OPTIONS -diag-suppress=2810)
+  if(MSVC)
+    set_property(SOURCE src/cuda/engine/gemma4_26b_reference.cu
+      APPEND PROPERTY COMPILE_OPTIONS -Xcompiler=/wd4211)
+  endif()
   add_executable(gem16-26b-memory-probe
     src/cli/gemma4_26b_memory_probe.cpp
   )
@@ -387,6 +395,15 @@ if(GEM16_ENABLE_CUDA)
   target_link_libraries(gem16-26b-attention-probe PRIVATE gem16_core CUDA::cudart)
   gem16_set_project_warnings(gem16-26b-attention-probe)
   gem16_enable_sanitizers(gem16-26b-attention-probe)
+  add_executable(gem16-26b-reference
+    src/cli/gemma4_26b_reference_main.cpp
+  )
+  target_include_directories(gem16-26b-reference PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/src"
+  )
+  target_link_libraries(gem16-26b-reference PRIVATE gem16_core CUDA::cudart)
+  gem16_set_project_warnings(gem16-26b-reference)
+  gem16_enable_sanitizers(gem16-26b-reference)
   message(STATUS "gem16 CUDA capability scaffold: enabled for ${CMAKE_CUDA_ARCHITECTURES}")
 else()
   target_sources(gem16_core PRIVATE src/runtime/inference_stub.cpp)
