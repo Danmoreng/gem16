@@ -5,6 +5,7 @@
 #include <cuda_fp8.h>
 #include <cuda_runtime.h>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstddef>
@@ -18,6 +19,7 @@
 #include "cuda/attention/gemma4_26b_reference.h"
 #include "cuda/engine/gemma4_26b_artifact.h"
 #include "cuda/layer/reference.h"
+#include "cuda/moe/prefill.h"
 #include "cuda/moe/reference.h"
 #include "cuda/nvfp4/reference.h"
 #include "cuda/nvfp4/sm120.h"
@@ -36,6 +38,9 @@ constexpr std::uint64_t kExpert = 704U;
 constexpr std::uint32_t kExperts = 128U;
 constexpr std::uint32_t kTopK = 8U;
 constexpr std::uint64_t kLayers = 30U;
+constexpr std::uint64_t kPrefillMaxTokens = 128U;
+constexpr std::uint64_t kPrefillScoreElements =
+    64U * 1024U * 1024U / sizeof(float);
 constexpr std::uint64_t kNvfp4Block = 16U;
 constexpr std::uint64_t kSm120KBlock = 64U;
 constexpr std::uint64_t kRowsPerTile = 8U;
@@ -140,6 +145,69 @@ __global__ void TiledEmbeddingLookupKernel(
       embedding_scale));
 }
 
+__global__ void TiledEmbeddingLookupBatchKernel(
+    const std::uint8_t* packed, const std::uint8_t* scales, float divisor,
+    const std::uint32_t* tokens, float* output, std::uint64_t elements) {
+  const std::uint64_t index =
+      static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+  if (index >= elements) return;
+  const std::uint64_t token_index = index / kWidth;
+  const std::uint64_t column = index % kWidth;
+  const std::uint64_t row = tokens[token_index];
+  const std::uint64_t k_blocks = kWidth / kSm120KBlock;
+  const std::uint64_t offset = DeviceTiledPackedOffset(row, column, k_blocks);
+  const std::uint8_t byte = packed[offset];
+  __nv_fp4_e2m1 value;
+  value.__x = static_cast<std::uint8_t>(
+      (byte >> ((column & 1U) == 0U ? 0U : 4U)) & 0x0FU);
+  __nv_fp8_e4m3 scale;
+  scale.__x = scales[DeviceTiledScaleOffset(row, column, k_blocks)];
+  const float embedding_scale = static_cast<float>(
+      __float2bfloat16_rn(sqrtf(static_cast<float>(kWidth))));
+  output[index] = static_cast<float>(__float2bfloat16_rn(
+      static_cast<float>(value) * static_cast<float>(scale) / divisor *
+      embedding_scale));
+}
+
+__global__ void TiledEmbeddingLookupControlledKernel(
+    const std::uint8_t* packed, const std::uint8_t* scales, float divisor,
+    const DecodeControl* control, float* output) {
+  const std::uint64_t column =
+      static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+  if (column >= kWidth) return;
+  const std::uint64_t row = control->token;
+  const std::uint64_t k_blocks = kWidth / kSm120KBlock;
+  const std::uint64_t offset = DeviceTiledPackedOffset(row, column, k_blocks);
+  const std::uint8_t byte = packed[offset];
+  __nv_fp4_e2m1 value;
+  value.__x = static_cast<std::uint8_t>(
+      (byte >> ((column & 1U) == 0U ? 0U : 4U)) & 0x0FU);
+  __nv_fp8_e4m3 scale;
+  scale.__x = scales[DeviceTiledScaleOffset(row, column, k_blocks)];
+  const float embedding_scale = static_cast<float>(
+      __float2bfloat16_rn(sqrtf(static_cast<float>(kWidth))));
+  output[column] = static_cast<float>(__float2bfloat16_rn(
+      static_cast<float>(value) * static_cast<float>(scale) / divisor *
+      embedding_scale));
+}
+
+__global__ void CapturePrefillRouterIdsKernel(
+    const Gemma4MoePrefillAssignment* assignments, std::uint32_t* output,
+    std::uint64_t token) {
+  const std::uint32_t slot = threadIdx.x;
+  if (blockIdx.x == 0U && slot < kTopK) {
+    output[slot] = assignments[token * kTopK + slot].expert_id;
+  }
+}
+
+__global__ void SetDecodeControlKernel(DecodeControl* control,
+                                       std::uint32_t token,
+                                       std::uint64_t position) {
+  if (blockIdx.x == 0U && threadIdx.x == 0U) {
+    *control = DecodeControl{token, 0U, position, position};
+  }
+}
+
 __global__ void SoftcapFiniteKernel(float* logits, float softcap,
                                     int* all_finite) {
   const std::uint64_t index =
@@ -204,6 +272,15 @@ struct Gemma4Moe26BReferenceEngine::Impl {
   float softcap = 30.0F;
   DeviceBuffer kv;
   DeviceBuffer workspace;
+  DeviceBuffer prefill_workspace;
+  DecodeControl* decode_control = nullptr;
+  cudaGraphExec_t decode_graph = nullptr;
+  std::uint32_t* prefill_tokens = nullptr;
+  std::uint32_t* prefill_host_tokens = nullptr;
+  float* prefill_hidden_a = nullptr;
+  float* prefill_hidden_b = nullptr;
+  Gemma4Moe26BAttentionReferenceWorkspace prefill_attention_workspace{};
+  Gemma4MoePrefillWorkspace prefill_moe_workspace{};
   float* hidden_a = nullptr;
   float* hidden_b = nullptr;
   float* final_hidden = nullptr;
@@ -217,13 +294,126 @@ struct Gemma4Moe26BReferenceEngine::Impl {
   std::array<float*, kCaptureLayers.size()> router_probability_captures{};
   std::array<std::uint32_t*, kCaptureLayers.size()> router_id_captures{};
 
+  Status LaunchControlledDecodeBody();
+  Status PrepareDecodeGraph();
+
   ~Impl() {
     if (stream != nullptr) {
       (void)cudaStreamSynchronize(stream);
+    }
+    if (decode_graph != nullptr) (void)cudaGraphExecDestroy(decode_graph);
+    if (prefill_host_tokens != nullptr) {
+      (void)cudaFreeHost(prefill_host_tokens);
+    }
+    if (stream != nullptr) {
       (void)cudaStreamDestroy(stream);
     }
   }
 };
+
+Status Gemma4Moe26BReferenceEngine::Impl::LaunchControlledDecodeBody() {
+  if (decode_control == nullptr) {
+    return Invalid("M17 decode graph control is not initialized");
+  }
+  cudaError_t error = cudaSuccess;
+  constexpr unsigned threads = 256U;
+  TiledEmbeddingLookupControlledKernel<<<
+      static_cast<unsigned>((kWidth + threads - 1U) / threads), threads, 0,
+      stream>>>(head.packed_e2m1, head.scales_e4m3fn,
+                head.weight_global_divisor, decode_control, hidden_a);
+  error = cudaGetLastError();
+  if (error != cudaSuccess) {
+    return CudaFailure("launch M17 controlled embedding", error);
+  }
+  for (std::uint32_t layer = 0U; layer < kLayers; ++layer) {
+    Status status = LaunchGemma4Moe26BAttentionReferenceControlledLayer(
+        hidden_a, hidden_b, traits[layer], attention_weights[layer],
+        caches[layer], attention_workspace, decode_control, 1.0e-6F, stream);
+    if (!status.ok()) return status;
+    status = LaunchGemma4MoeSm120Layer(
+        hidden_b, hidden_a, moe_config, moe_weights[layer], moe_workspace,
+        stream);
+    if (!status.ok()) return status;
+    const int capture = CaptureIndex(layer);
+    if (capture >= 0) {
+      const std::size_t index = static_cast<std::size_t>(capture);
+      error = cudaMemcpyAsync(layer_captures[index], hidden_a,
+                              kWidth * sizeof(float),
+                              cudaMemcpyDeviceToDevice, stream);
+      if (error == cudaSuccess) {
+        error = cudaMemcpyAsync(
+            router_probability_captures[index],
+            moe_workspace.router_probabilities, kExperts * sizeof(float),
+            cudaMemcpyDeviceToDevice, stream);
+      }
+      if (error == cudaSuccess) {
+        error = cudaMemcpyAsync(router_id_captures[index],
+                                moe_workspace.top_ids,
+                                kTopK * sizeof(std::uint32_t),
+                                cudaMemcpyDeviceToDevice, stream);
+      }
+      if (error != cudaSuccess) {
+        return CudaFailure("capture M17 decode layer", error);
+      }
+    }
+  }
+  Status status = LaunchRmsNormBf16(hidden_a, final_norm, final_hidden, 1U,
+                                    kWidth, 1.0e-6F, stream);
+  if (!status.ok()) return status;
+  status = LaunchNvfp4ReferenceActivationQuantization(
+      final_hidden, head_activation, head_activation_scales, kWidth,
+      head.activation_global_divisor, stream);
+  if (!status.ok()) return status;
+  status = LaunchNvfp4Sm120DirectProjectionBf16Float(
+      head_activation, head_activation_scales, head.packed_e2m1,
+      head.scales_e4m3fn, logits, head.rows, head.columns,
+      head.activation_global_divisor, head.weight_global_divisor, stream);
+  if (!status.ok()) return status;
+  error = cudaMemsetAsync(finite, 1, sizeof(int), stream);
+  if (error != cudaSuccess) {
+    return CudaFailure("initialize M17 decode finite flag", error);
+  }
+  SoftcapFiniteKernel<<<
+      static_cast<unsigned>((kVocabulary + threads - 1U) / threads), threads,
+      0, stream>>>(logits, softcap, finite);
+  error = cudaGetLastError();
+  if (error != cudaSuccess) return CudaFailure("launch M17 softcap", error);
+  DeterministicArgmaxKernel<<<1, 1, 0, stream>>>(
+      logits, prediction_token, prediction_logit);
+  error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("launch M17 argmax", error);
+}
+
+Status Gemma4Moe26BReferenceEngine::Impl::PrepareDecodeGraph() {
+  cudaError_t error = cudaStreamSynchronize(stream);
+  if (error != cudaSuccess) {
+    return CudaFailure("synchronize before M17 graph capture", error);
+  }
+  error = cudaStreamBeginCapture(stream, cudaStreamCaptureModeThreadLocal);
+  if (error != cudaSuccess) return CudaFailure("begin M17 graph capture", error);
+  const Status body = LaunchControlledDecodeBody();
+  cudaGraph_t graph = nullptr;
+  error = cudaStreamEndCapture(stream, &graph);
+  if (!body.ok()) {
+    if (graph != nullptr) (void)cudaGraphDestroy(graph);
+    return body;
+  }
+  if (error != cudaSuccess) {
+    if (graph != nullptr) (void)cudaGraphDestroy(graph);
+    return CudaFailure("end M17 graph capture", error);
+  }
+  error = cudaGraphInstantiate(&decode_graph, graph, nullptr, nullptr, 0U);
+  const cudaError_t destroy_error = cudaGraphDestroy(graph);
+  if (error != cudaSuccess) return CudaFailure("instantiate M17 graph", error);
+  if (destroy_error != cudaSuccess) {
+    (void)cudaGraphExecDestroy(decode_graph);
+    decode_graph = nullptr;
+    return CudaFailure("destroy captured M17 graph", destroy_error);
+  }
+  return Status::Ok();
+}
 
 Gemma4Moe26BReferenceEngine::Gemma4Moe26BReferenceEngine() = default;
 Gemma4Moe26BReferenceEngine::~Gemma4Moe26BReferenceEngine() = default;
@@ -383,6 +573,7 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
   const auto prediction_token = layout.Add<std::uint32_t>(1U);
   const auto prediction_logit = layout.Add<float>(1U);
   const auto finite = layout.Add<int>(1U);
+  const auto decode_control = layout.Add<DecodeControl>(1U);
   std::array<std::uint64_t, kCaptureLayers.size()> capture_outputs{};
   std::array<std::uint64_t, kCaptureLayers.size()> capture_probs{};
   std::array<std::uint64_t, kCaptureLayers.size()> capture_ids{};
@@ -454,6 +645,7 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
   impl->prediction_token = reinterpret_cast<std::uint32_t*>(ptr(prediction_token));
   impl->prediction_logit = reinterpret_cast<float*>(ptr(prediction_logit));
   impl->finite = reinterpret_cast<int*>(ptr(finite));
+  impl->decode_control = reinterpret_cast<DecodeControl*>(ptr(decode_control));
   for (std::size_t i = 0; i < kCaptureLayers.size(); ++i) {
     impl->layer_captures[i] = reinterpret_cast<float*>(ptr(capture_outputs[i]));
     impl->router_probability_captures[i] =
@@ -462,9 +654,146 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
         reinterpret_cast<std::uint32_t*>(ptr(capture_ids[i]));
   }
 
+  if (backend == Gemma4Moe26BBackend::kSm120Integrated) {
+    LayoutBuilder prefill;
+    const auto p_tokens = prefill.Add<std::uint32_t>(kPrefillMaxTokens);
+    const auto p_hidden_a = prefill.Add<float>(kPrefillMaxTokens * kWidth);
+    const auto p_hidden_b = prefill.Add<float>(kPrefillMaxTokens * kWidth);
+    const auto p_input_fp8 =
+        prefill.Add<std::uint8_t>(kPrefillMaxTokens * kWidth);
+    const auto p_input_scale = prefill.Add<float>(kPrefillMaxTokens);
+    const auto p_q_raw =
+        prefill.Add<float>(kPrefillMaxTokens * 16U * 512U);
+    const auto p_k_raw =
+        prefill.Add<float>(kPrefillMaxTokens * 8U * 512U);
+    const auto p_v_raw =
+        prefill.Add<float>(kPrefillMaxTokens * 8U * 512U);
+    const auto p_q_norm =
+        prefill.Add<float>(kPrefillMaxTokens * 16U * 512U);
+    const auto p_k_norm =
+        prefill.Add<float>(kPrefillMaxTokens * 8U * 512U);
+    const auto p_v_norm =
+        prefill.Add<float>(kPrefillMaxTokens * 8U * 512U);
+    const auto p_cosine = prefill.Add<float>(kPrefillMaxTokens * 256U);
+    const auto p_sine = prefill.Add<float>(kPrefillMaxTokens * 256U);
+    const auto p_staged_k =
+        prefill.Add<std::uint8_t>(kPrefillMaxTokens * 8U * 512U);
+    const auto p_staged_v =
+        prefill.Add<std::uint8_t>(kPrefillMaxTokens * 8U * 512U);
+    const auto p_scores = prefill.Add<float>(kPrefillScoreElements);
+    const auto p_attention =
+        prefill.Add<float>(kPrefillMaxTokens * 16U * 512U);
+    const auto p_output_fp8 =
+        prefill.Add<std::uint8_t>(kPrefillMaxTokens * 16U * 512U);
+    const auto p_output_scale = prefill.Add<float>(kPrefillMaxTokens);
+    const auto p_output_projection =
+        prefill.Add<float>(kPrefillMaxTokens * kWidth);
+    const auto p_post_attention =
+        prefill.Add<float>(kPrefillMaxTokens * kWidth);
+
+    const auto p_router_logits =
+        prefill.Add<float>(kPrefillMaxTokens * kExperts);
+    const auto p_router_probabilities =
+        prefill.Add<float>(kPrefillMaxTokens * kExperts);
+    const auto p_token_hidden =
+        prefill.Add<float>(kPrefillMaxTokens * kWidth);
+    const auto p_token_packed =
+        prefill.Add<std::uint8_t>(kPrefillMaxTokens * kWidth / 2U);
+    const auto p_token_scales =
+        prefill.Add<std::uint8_t>(kPrefillMaxTokens * kWidth / 16U);
+    const auto p_expert_product = prefill.Add<float>(
+        kPrefillMaxTokens * kTopK * kExpert);
+    const auto p_expert_product_packed = prefill.Add<std::uint8_t>(
+        kPrefillMaxTokens * kTopK * kExpert / 2U);
+    const auto p_expert_product_scales = prefill.Add<std::uint8_t>(
+        kPrefillMaxTokens * kTopK * kExpert / 16U);
+    const auto p_expert_down = prefill.Add<float>(
+        kPrefillMaxTokens * kTopK * kWidth);
+    const auto p_shared_product =
+        prefill.Add<float>(kPrefillMaxTokens * kShared);
+    const auto p_shared_product_packed =
+        prefill.Add<std::uint8_t>(kPrefillMaxTokens * kShared / 2U);
+    const auto p_shared_product_scales =
+        prefill.Add<std::uint8_t>(kPrefillMaxTokens * kShared / 16U);
+    const auto p_shared_output =
+        prefill.Add<float>(kPrefillMaxTokens * kWidth);
+    const auto p_reduced_output =
+        prefill.Add<float>(kPrefillMaxTokens * kWidth);
+    const auto p_assignments = prefill.Add<Gemma4MoePrefillAssignment>(
+        kPrefillMaxTokens * kTopK);
+    const auto p_histogram = prefill.Add<std::uint32_t>(kExperts);
+    const auto p_prefix = prefill.Add<std::uint32_t>(kExperts + 1U);
+    const auto p_permutation =
+        prefill.Add<std::uint32_t>(kPrefillMaxTokens * kTopK);
+    const auto p_inverse =
+        prefill.Add<std::uint32_t>(kPrefillMaxTokens * kTopK);
+    constexpr std::uint64_t kM09MoePrefillCap = 192U * 1024U * 1024U;
+    if (prefill.bytes == std::numeric_limits<std::uint64_t>::max() ||
+        prefill.bytes > kM09MoePrefillCap) {
+      return Invalid("M17 fixed prefill workspace exceeds the M09 cap");
+    }
+    valid = impl->prefill_workspace.Allocate(
+        prefill.bytes, "allocate M17 fixed prefill workspace");
+    if (!valid.ok()) return valid;
+    auto pptr = [&](std::uint64_t offset) {
+      return impl->prefill_workspace.As<std::byte>(offset);
+    };
+    impl->prefill_tokens = reinterpret_cast<std::uint32_t*>(pptr(p_tokens));
+    error = cudaMallocHost(&impl->prefill_host_tokens,
+                           kPrefillMaxTokens * sizeof(std::uint32_t));
+    if (error != cudaSuccess) {
+      return CudaFailure("allocate M17 pinned prefill tokens", error);
+    }
+    impl->prefill_hidden_a = reinterpret_cast<float*>(pptr(p_hidden_a));
+    impl->prefill_hidden_b = reinterpret_cast<float*>(pptr(p_hidden_b));
+    impl->prefill_attention_workspace = {
+        reinterpret_cast<std::uint8_t*>(pptr(p_input_fp8)),
+        reinterpret_cast<float*>(pptr(p_input_scale)),
+        reinterpret_cast<float*>(pptr(p_q_raw)),
+        reinterpret_cast<float*>(pptr(p_k_raw)),
+        reinterpret_cast<float*>(pptr(p_v_raw)),
+        reinterpret_cast<float*>(pptr(p_q_norm)),
+        reinterpret_cast<float*>(pptr(p_k_norm)),
+        reinterpret_cast<float*>(pptr(p_v_norm)),
+        reinterpret_cast<float*>(pptr(p_cosine)),
+        reinterpret_cast<float*>(pptr(p_sine)),
+        reinterpret_cast<std::uint8_t*>(pptr(p_staged_k)),
+        reinterpret_cast<std::uint8_t*>(pptr(p_staged_v)),
+        reinterpret_cast<float*>(pptr(p_scores)), kPrefillScoreElements,
+        reinterpret_cast<float*>(pptr(p_attention)),
+        reinterpret_cast<std::uint8_t*>(pptr(p_output_fp8)),
+        reinterpret_cast<float*>(pptr(p_output_scale)),
+        reinterpret_cast<float*>(pptr(p_output_projection)),
+        reinterpret_cast<float*>(pptr(p_post_attention))};
+    impl->prefill_moe_workspace = {
+        reinterpret_cast<float*>(pptr(p_router_logits)),
+        reinterpret_cast<float*>(pptr(p_router_probabilities)),
+        reinterpret_cast<float*>(pptr(p_token_hidden)),
+        reinterpret_cast<std::uint8_t*>(pptr(p_token_packed)),
+        reinterpret_cast<std::uint8_t*>(pptr(p_token_scales)),
+        reinterpret_cast<float*>(pptr(p_expert_product)),
+        reinterpret_cast<std::uint8_t*>(pptr(p_expert_product_packed)),
+        reinterpret_cast<std::uint8_t*>(pptr(p_expert_product_scales)),
+        reinterpret_cast<float*>(pptr(p_expert_down)),
+        reinterpret_cast<float*>(pptr(p_shared_product)),
+        reinterpret_cast<std::uint8_t*>(pptr(p_shared_product_packed)),
+        reinterpret_cast<std::uint8_t*>(pptr(p_shared_product_scales)),
+        reinterpret_cast<float*>(pptr(p_shared_output)),
+        reinterpret_cast<float*>(pptr(p_reduced_output)),
+        reinterpret_cast<Gemma4MoePrefillAssignment*>(pptr(p_assignments)),
+        reinterpret_cast<std::uint32_t*>(pptr(p_histogram)),
+        reinterpret_cast<std::uint32_t*>(pptr(p_prefix)),
+        reinterpret_cast<std::uint32_t*>(pptr(p_permutation)),
+        reinterpret_cast<std::uint32_t*>(pptr(p_inverse))};
+  }
+
   Gemma4Moe26BReferenceEngine engine(std::move(impl));
   valid = engine.Reset();
   if (!valid.ok()) return valid;
+  if (backend == Gemma4Moe26BBackend::kSm120Integrated) {
+    valid = engine.implementation_->PrepareDecodeGraph();
+    if (!valid.ok()) return valid;
+  }
   return engine;
 }
 
@@ -478,6 +807,14 @@ Status Gemma4Moe26BReferenceEngine::Reset() {
                           implementation_->workspace.bytes(),
                           implementation_->stream);
   if (error != cudaSuccess) return CudaFailure("clear M13 workspace", error);
+  if (implementation_->prefill_workspace.bytes() != 0U) {
+    error = cudaMemsetAsync(
+        implementation_->prefill_workspace.As<std::byte>(), 0,
+        implementation_->prefill_workspace.bytes(), implementation_->stream);
+    if (error != cudaSuccess) {
+      return CudaFailure("clear M17 prefill workspace", error);
+    }
+  }
   error = cudaStreamSynchronize(implementation_->stream);
   if (error != cudaSuccess) return CudaFailure("synchronize M13 reset", error);
   implementation_->position = 0U;
@@ -489,6 +826,22 @@ Status Gemma4Moe26BReferenceEngine::ForwardToken(std::uint32_t token) {
   auto& x = *implementation_;
   if (token >= kVocabulary || x.position >= x.context) {
     return Invalid("M13 token or position exceeds the fixed contract");
+  }
+  if (x.backend == Gemma4Moe26BBackend::kSm120Integrated) {
+    if (x.decode_graph == nullptr) {
+      return Invalid("M17 decode graph is not initialized");
+    }
+    SetDecodeControlKernel<<<1, 1, 0, x.stream>>>(x.decode_control, token,
+                                                  x.position);
+    cudaError_t graph_error = cudaGetLastError();
+    if (graph_error == cudaSuccess) {
+      graph_error = cudaGraphLaunch(x.decode_graph, x.stream);
+    }
+    if (graph_error != cudaSuccess) {
+      return CudaFailure("launch M17 decode graph", graph_error);
+    }
+    ++x.position;
+    return Status::Ok();
   }
   constexpr unsigned threads = 256U;
   TiledEmbeddingLookupKernel<<<static_cast<unsigned>((kWidth + threads - 1U) /
@@ -563,6 +916,123 @@ Status Gemma4Moe26BReferenceEngine::ForwardToken(std::uint32_t token) {
   error = cudaGetLastError();
   if (error != cudaSuccess) return CudaFailure("launch M13 argmax", error);
   ++x.position;
+  return Status::Ok();
+}
+
+Status Gemma4Moe26BReferenceEngine::PrefillTokens(
+    std::span<const std::uint32_t> tokens) {
+  if (!implementation_ || tokens.empty() ||
+      implementation_->backend != Gemma4Moe26BBackend::kSm120Integrated ||
+      implementation_->prefill_workspace.bytes() == 0U ||
+      tokens.size() > implementation_->context - implementation_->position) {
+    return Invalid("M17 prefill request exceeds the initialized contract");
+  }
+  for (const std::uint32_t token : tokens) {
+    if (token >= kVocabulary) return Invalid("M17 prefill token is invalid");
+  }
+  auto& x = *implementation_;
+  constexpr unsigned threads = 256U;
+  std::size_t consumed = 0U;
+  while (consumed < tokens.size()) {
+    std::uint64_t chunk = std::min<std::uint64_t>(
+        kPrefillMaxTokens, tokens.size() - consumed);
+    while (chunk > 0U &&
+           chunk * 16U * (x.position + chunk) > kPrefillScoreElements) {
+      --chunk;
+    }
+    if (chunk == 0U) {
+      return Invalid("M17 prefill score workspace cannot fit one token");
+    }
+    cudaError_t error = cudaStreamSynchronize(x.stream);
+    if (error != cudaSuccess) {
+      return CudaFailure("synchronize M17 prefill token staging", error);
+    }
+    std::copy_n(tokens.data() + consumed, static_cast<std::size_t>(chunk),
+                x.prefill_host_tokens);
+    error = cudaMemcpyAsync(
+        x.prefill_tokens, x.prefill_host_tokens,
+        chunk * sizeof(std::uint32_t), cudaMemcpyHostToDevice, x.stream);
+    if (error != cudaSuccess) return CudaFailure("copy M17 prefill tokens", error);
+    const std::uint64_t hidden_elements = chunk * kWidth;
+    TiledEmbeddingLookupBatchKernel<<<
+        static_cast<unsigned>((hidden_elements + threads - 1U) / threads),
+        threads, 0, x.stream>>>(
+        x.head.packed_e2m1, x.head.scales_e4m3fn,
+        x.head.weight_global_divisor, x.prefill_tokens, x.prefill_hidden_a,
+        hidden_elements);
+    error = cudaGetLastError();
+    if (error != cudaSuccess) {
+      return CudaFailure("launch M17 prefill embedding", error);
+    }
+    for (std::uint32_t layer = 0U; layer < kLayers; ++layer) {
+      Status status = LaunchGemma4Moe26BAttentionReferencePrefillLayer(
+          x.prefill_hidden_a, x.prefill_hidden_b, x.position, chunk,
+          x.traits[layer], x.attention_weights[layer], x.caches[layer],
+          x.prefill_attention_workspace, 1.0e-6F, x.stream);
+      if (!status.ok()) return status;
+      status = LaunchGemma4MoeSm120PrefillLayer(
+          x.prefill_hidden_b, x.prefill_hidden_a, chunk, x.moe_config,
+          x.moe_weights[layer], x.prefill_moe_workspace, x.stream);
+      if (!status.ok()) return status;
+      const int capture = CaptureIndex(layer);
+      if (capture >= 0) {
+        const std::size_t capture_index = static_cast<std::size_t>(capture);
+        error = cudaMemcpyAsync(
+            x.layer_captures[capture_index],
+            x.prefill_hidden_a + (chunk - 1U) * kWidth,
+            kWidth * sizeof(float), cudaMemcpyDeviceToDevice, x.stream);
+        if (error == cudaSuccess) {
+          error = cudaMemcpyAsync(
+              x.router_probability_captures[capture_index],
+              x.prefill_moe_workspace.router_probabilities +
+                  (chunk - 1U) * kExperts,
+              kExperts * sizeof(float), cudaMemcpyDeviceToDevice, x.stream);
+        }
+        if (error == cudaSuccess) {
+          CapturePrefillRouterIdsKernel<<<1, kTopK, 0, x.stream>>>(
+              x.prefill_moe_workspace.assignments,
+              x.router_id_captures[capture_index], chunk - 1U);
+          error = cudaGetLastError();
+        }
+        if (error != cudaSuccess) {
+          return CudaFailure("capture M17 prefill layer", error);
+        }
+      }
+    }
+    float* last_hidden = x.prefill_hidden_a + (chunk - 1U) * kWidth;
+    Status status = LaunchRmsNormBf16(last_hidden, x.final_norm, x.final_hidden,
+                                      1U, kWidth, 1.0e-6F, x.stream);
+    if (!status.ok()) return status;
+    status = LaunchNvfp4ReferenceActivationQuantization(
+        x.final_hidden, x.head_activation, x.head_activation_scales, kWidth,
+        x.head.activation_global_divisor, x.stream);
+    if (!status.ok()) return status;
+    status = LaunchNvfp4Sm120DirectProjectionBf16Float(
+        x.head_activation, x.head_activation_scales, x.head.packed_e2m1,
+        x.head.scales_e4m3fn, x.logits, x.head.rows, x.head.columns,
+        x.head.activation_global_divisor, x.head.weight_global_divisor,
+        x.stream);
+    if (!status.ok()) return status;
+    error = cudaMemsetAsync(x.finite, 1, sizeof(int), x.stream);
+    if (error != cudaSuccess) {
+      return CudaFailure("initialize M17 prefill finite flag", error);
+    }
+    SoftcapFiniteKernel<<<
+        static_cast<unsigned>((kVocabulary + threads - 1U) / threads),
+        threads, 0, x.stream>>>(x.logits, x.softcap, x.finite);
+    error = cudaGetLastError();
+    if (error != cudaSuccess) {
+      return CudaFailure("launch M17 prefill softcap", error);
+    }
+    DeterministicArgmaxKernel<<<1, 1, 0, x.stream>>>(
+        x.logits, x.prediction_token, x.prediction_logit);
+    error = cudaGetLastError();
+    if (error != cudaSuccess) {
+      return CudaFailure("launch M17 prefill argmax", error);
+    }
+    x.position += chunk;
+    consumed += static_cast<std::size_t>(chunk);
+  }
   return Status::Ok();
 }
 
@@ -664,7 +1134,9 @@ std::uint64_t Gemma4Moe26BReferenceEngine::kv_cache_bytes() const {
   return implementation_ ? implementation_->kv.bytes() : 0U;
 }
 std::uint64_t Gemma4Moe26BReferenceEngine::workspace_bytes() const {
-  return implementation_ ? implementation_->workspace.bytes() : 0U;
+  return implementation_ ? implementation_->workspace.bytes() +
+                               implementation_->prefill_workspace.bytes()
+                         : 0U;
 }
 
 }  // namespace gem16::internal

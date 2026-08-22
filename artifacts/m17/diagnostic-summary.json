@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "milestone": "M17",
+  "status": "implementation_candidate_acceptance_pending_clean_commit",
+  "base_revision": "57bab1b",
+  "device": "NVIDIA GeForce RTX 5080 Laptop GPU",
+  "path": "native_sm120_integrated_prefill_decode_head",
+  "initialization_selection": {
+    "decode_moe": "M14 native SM120",
+    "prefill_moe": "M15 native grouped SM120",
+    "t1_tied_head": "M16 native SM120",
+    "attention": "M12 arithmetic in fixed batched/controlled CUDA paths",
+    "hidden_runtime_fallback": false
+  },
+  "full_model_two_run": {
+    "m13_reference_elapsed_ms": 6150.06833,
+    "m16_decode_head_elapsed_ms": 4818.03496,
+    "m17_integrated_elapsed_ms": 1079.16536,
+    "speedup_vs_m13": 5.69891192,
+    "speedup_vs_m16": 4.46459379,
+    "generated_tokens_bitwise_exact": true,
+    "continuation_bitwise_exact": true,
+    "captured_layer_outputs_bitwise_exact": true,
+    "router_probabilities_bitwise_exact": true,
+    "router_ids_bitwise_exact": true,
+    "full_logits_bitwise_exact": true,
+    "all_logits_finite": true
+  },
+  "lifecycle": {
+    "decode_graph_capture_instantiate_replay": true,
+    "fresh_process_relaunch_semantically_exact": true,
+    "fresh_process_logits_bitwise_exact": true,
+    "forward_allocation_free": true,
+    "host_expert_routing": false,
+    "runtime_filesystem_access": false,
+    "runtime_weight_repack": false
+  },
+  "memory": {
+    "weight_arena_bytes": 14696668160,
+    "fp8_kv_32k_bytes": 440401920,
+    "total_fixed_workspace_bytes": 121140768,
+    "free_before_runs_bytes": 1156775936,
+    "free_after_first_run_bytes": 1156775936,
+    "free_after_runs_bytes": 1156775936,
+    "m09_prefill_workspace_cap_bytes": 201326592,
+    "accepted_32k_margin_bytes": 734003200
+  },
+  "native_two_kv_global_attention": {
+    "shape": "QH16_KVH2_D512",
+    "implemented": true,
+    "focused_reference_relative_l2": 0.00000301729,
+    "focused_reference_cosine": 1.0,
+    "memcheck": "pass",
+    "racecheck": "pass",
+    "initcheck": "pass",
+    "selected_in_exact_m17_profile": false,
+    "selection_reason": "M17 freezes the bitwise-exact controlled M12 arithmetic while retaining the native operator for separately qualified profiles"
+  },
+  "frozen_profile": {
+    "artifact_content_sha256": "471805f7dad8abb84300be78b2822a63dcb1d35bff5aa98426a162cc8532ee17",
+    "raw_report_sha256": "b11e1159ee22b4c10c57966d677b964fd6365c91e9587d9bc84ba068782fba36",
+    "logits_sha256": "fb1ea761cb36dc99b2f3382e8562168ae611c16625aea090688ba2d9a6e8f9d1"
+  },
+  "tests": {
+    "full_build": "pass",
+    "ctest_5_of_5": "pass",
+    "real_full_model": "pass",
+    "fresh_process_relaunch": "pass"
+  },
+  "limitations": [
+    "clean-commit-bound acceptance evidence remains to be generated"
+  ]
+}

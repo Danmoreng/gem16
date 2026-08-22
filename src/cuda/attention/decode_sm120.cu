@@ -35,6 +35,7 @@ constexpr int kDecodeLocalD2HistoricalTokens = 1023;
 constexpr int kDecodeLocalD2UnionTokens =
     kDecodeLocalChunk + kDecodeD2Rows - 1;
 constexpr int kDecodeGlobalKvHeads = 1;
+constexpr int kDecodeGlobalKvHeads26B = 2;
 constexpr int kDecodeGlobalHeadDimension = 512;
 constexpr int kDecodeGlobalGroup = 4;
 constexpr int kDecodeGlobalChunk = 512;
@@ -1417,7 +1418,9 @@ Status LaunchOnlineAttentionDecodeFp8Sm120(
       query_heads == kDecodeQueryHeads && kv_heads == kDecodeLocalKvHeads &&
       head_dimension == kDecodeLocalHeadDimension && sliding;
   const bool global_shape =
-      query_heads == kDecodeQueryHeads && kv_heads == kDecodeGlobalKvHeads &&
+      query_heads == kDecodeQueryHeads &&
+      (kv_heads == kDecodeGlobalKvHeads ||
+       kv_heads == kDecodeGlobalKvHeads26B) &&
       head_dimension == kDecodeGlobalHeadDimension && !sliding;
   if (query == nullptr || key_cache == nullptr || value_cache == nullptr ||
       key_scale_bf16 == nullptr || value_scale_bf16 == nullptr ||
@@ -1429,9 +1432,11 @@ Status LaunchOnlineAttentionDecodeFp8Sm120(
   }
 
   const bool global_gqa =
-      global_shape && cache_capacity >= kDecodeGqaGlobalContext;
+      global_shape && kv_heads == kDecodeGlobalKvHeads &&
+      cache_capacity >= kDecodeGqaGlobalContext;
   const bool vectorized_global =
-      global_shape && cache_capacity >= kDecodeVectorizedGlobalContext;
+      global_shape && kv_heads == kDecodeGlobalKvHeads &&
+      cache_capacity >= kDecodeVectorizedGlobalContext;
   const int chunk = local_shape
       ? kDecodeLocalChunk
       : (global_gqa ? kDecodeGlobalGqaChunk : kDecodeGlobalChunk);
@@ -1499,22 +1504,42 @@ Status LaunchOnlineAttentionDecodeFp8Sm120(
                 value_scale_bf16, workspace, partial_lse, output, control, 0U,
                 nullptr, cache_capacity, max_splits);
       }
-    } else if (max_splits == 1) {
-      SplitOnlineDecodeAttentionFp8Kernel<
-          kDecodeGlobalHeadDimension, kDecodeGlobalKvHeads, 16,
-          kDecodeGlobalGroup, kDecodeGlobalChunk, true, false>
-          <<<blocks, kDecodeThreads, 0, stream>>>(
-              query, key_cache, value_cache, key_scale_bf16,
-              value_scale_bf16, workspace, nullptr, output, control,
-              cache_capacity, sliding, max_splits);
     } else {
-      SplitOnlineDecodeAttentionFp8Kernel<
-          kDecodeGlobalHeadDimension, kDecodeGlobalKvHeads, 16,
-          kDecodeGlobalGroup, kDecodeGlobalChunk, false, false>
-          <<<blocks, kDecodeThreads, 0, stream>>>(
-              query, key_cache, value_cache, key_scale_bf16,
-              value_scale_bf16, workspace, partial_lse, output, control,
-              cache_capacity, sliding, max_splits);
+      if (kv_heads == kDecodeGlobalKvHeads26B) {
+        if (max_splits == 1) {
+          SplitOnlineDecodeAttentionFp8Kernel<
+              kDecodeGlobalHeadDimension, kDecodeGlobalKvHeads26B, 8,
+              kDecodeGlobalGroup, kDecodeGlobalChunk, true, false>
+              <<<blocks, kDecodeThreads, 0, stream>>>(
+                  query, key_cache, value_cache, key_scale_bf16,
+                  value_scale_bf16, workspace, nullptr, output, control,
+                  cache_capacity, sliding, max_splits);
+        } else {
+          SplitOnlineDecodeAttentionFp8Kernel<
+              kDecodeGlobalHeadDimension, kDecodeGlobalKvHeads26B, 8,
+              kDecodeGlobalGroup, kDecodeGlobalChunk, false, false>
+              <<<blocks, kDecodeThreads, 0, stream>>>(
+                  query, key_cache, value_cache, key_scale_bf16,
+                  value_scale_bf16, workspace, partial_lse, output, control,
+                  cache_capacity, sliding, max_splits);
+        }
+      } else if (max_splits == 1) {
+        SplitOnlineDecodeAttentionFp8Kernel<
+            kDecodeGlobalHeadDimension, kDecodeGlobalKvHeads, 16,
+            kDecodeGlobalGroup, kDecodeGlobalChunk, true, false>
+            <<<blocks, kDecodeThreads, 0, stream>>>(
+                query, key_cache, value_cache, key_scale_bf16,
+                value_scale_bf16, workspace, nullptr, output, control,
+                cache_capacity, sliding, max_splits);
+      } else {
+        SplitOnlineDecodeAttentionFp8Kernel<
+            kDecodeGlobalHeadDimension, kDecodeGlobalKvHeads, 16,
+            kDecodeGlobalGroup, kDecodeGlobalChunk, false, false>
+            <<<blocks, kDecodeThreads, 0, stream>>>(
+                query, key_cache, value_cache, key_scale_bf16,
+                value_scale_bf16, workspace, partial_lse, output, control,
+                cache_capacity, sliding, max_splits);
+      }
     }
   }
   cudaError_t error = cudaGetLastError();

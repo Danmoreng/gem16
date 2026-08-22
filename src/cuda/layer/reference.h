@@ -204,6 +204,11 @@ struct DecodeControl {
     std::uint64_t start_position, double theta, double scaling_factor,
     cudaStream_t stream);
 
+[[nodiscard]] Status LaunchRotaryEmbeddingTableControlled(
+    float* cosine, float* sine, std::uint64_t rotating_pairs,
+    std::uint64_t frequency_dimension, const DecodeControl* control,
+    double theta, double scaling_factor, cudaStream_t stream);
+
 [[nodiscard]] Status LaunchProjectionRmsNormRotaryBf16Batch(
     const float* query, const std::uint16_t* query_norm_bf16,
     float* normalized_query, const float* key,

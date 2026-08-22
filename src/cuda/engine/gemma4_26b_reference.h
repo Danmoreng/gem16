@@ -12,6 +12,7 @@ namespace gem16::internal {
 enum class Gemma4Moe26BBackend {
   kReference,
   kSm120MoeHead,
+  kSm120Integrated,
 };
 
 struct Gemma4Moe26BReferencePrediction {
@@ -20,10 +21,11 @@ struct Gemma4Moe26BReferencePrediction {
   bool all_logits_finite = false;
 };
 
-// M13 correctness-only full-model path. Initialization binds one immutable
-// M08 arena, all 30 M11/M12 layers, one partitioned FP8 K/V arena and one
-// fixed workspace. ForwardToken performs no allocation, filesystem access,
-// JIT, repacking, host expert routing, or precision fallback.
+// M13 reference plus initialization-selected M16/M17 execution profiles.
+// Initialization binds one immutable M08 arena, all 30 layers, one
+// partitioned FP8 K/V arena and fixed decode/prefill workspaces. Recurring
+// execution performs no allocation, filesystem access, JIT, repacking, host
+// expert routing, or precision fallback.
 class Gemma4Moe26BReferenceEngine {
  public:
   Gemma4Moe26BReferenceEngine();
@@ -42,6 +44,7 @@ class Gemma4Moe26BReferenceEngine {
 
   [[nodiscard]] Status Reset();
   [[nodiscard]] Status ForwardToken(std::uint32_t token);
+  [[nodiscard]] Status PrefillTokens(std::span<const std::uint32_t> tokens);
   [[nodiscard]] Result<Gemma4Moe26BReferencePrediction> Prediction();
 
   // Diagnostic copies are explicit synchronization points and never occur

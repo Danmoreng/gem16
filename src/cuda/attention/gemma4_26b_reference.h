@@ -10,6 +10,7 @@
 namespace gem16::internal {
 
 class Gemma4Moe26BDeviceArtifact;
+struct DecodeControl;
 
 struct Gemma4Moe26BFp8Matrix {
   const std::uint8_t* weight_e4m3 = nullptr;
@@ -77,5 +78,27 @@ BindGemma4Moe26BAttentionReferenceWeights(
     const Gemma4Moe26BKvCacheView& cache,
     const Gemma4Moe26BAttentionReferenceWorkspace& workspace,
     float epsilon, cudaStream_t stream);
+
+// Batched causal prefill over the same M12 arithmetic boundaries. Workspace
+// pointers contain `tokens` contiguous rows and `score_elements` covers the
+// complete causal score slab for the requested start position.
+[[nodiscard]] Status LaunchGemma4Moe26BAttentionReferencePrefillLayer(
+    const float* hidden, float* output, std::uint64_t start_position,
+    std::uint64_t tokens,
+    const Gemma4Moe26BAttentionLayerTraits& traits,
+    const Gemma4Moe26BAttentionReferenceWeights& weights,
+    const Gemma4Moe26BKvCacheView& cache,
+    const Gemma4Moe26BAttentionReferenceWorkspace& workspace,
+    float epsilon, cudaStream_t stream);
+
+// Graph-capturable T=1 path. Position is read from fixed device control;
+// arithmetic and FP8 cache semantics remain the M12 reference contract.
+[[nodiscard]] Status LaunchGemma4Moe26BAttentionReferenceControlledLayer(
+    const float* hidden, float* output,
+    const Gemma4Moe26BAttentionLayerTraits& traits,
+    const Gemma4Moe26BAttentionReferenceWeights& weights,
+    const Gemma4Moe26BKvCacheView& cache,
+    const Gemma4Moe26BAttentionReferenceWorkspace& workspace,
+    const DecodeControl* control, float epsilon, cudaStream_t stream);
 
 }  // namespace gem16::internal

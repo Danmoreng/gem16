@@ -60,6 +60,9 @@ bool Parse(int argc, char** argv, Options* options) {
         options->backend = gem16::internal::Gemma4Moe26BBackend::kReference;
       } else if (value == "sm120") {
         options->backend =
+            gem16::internal::Gemma4Moe26BBackend::kSm120Integrated;
+      } else if (value == "sm120-moe-head") {
+        options->backend =
             gem16::internal::Gemma4Moe26BBackend::kSm120MoeHead;
       } else {
         return false;
@@ -119,7 +122,7 @@ int main(int argc, char** argv) {
     std::cerr << "usage: gem16-26b-reference --model DIR --output JSON "
                  "--logits F32LE [--tokenizer DIR] [--prompt TEXT] [--continuation TEXT] "
                  "[--context N] [--max-new N] [--device N] "
-                 "[--backend reference|sm120]\n";
+                 "[--backend reference|sm120-moe-head|sm120]\n";
     return 2;
   }
   if (options.tokenizer.empty()) options.tokenizer = options.model;
@@ -156,24 +159,59 @@ int main(int argc, char** argv) {
   auto run = [&](bool capture, RunResult* result) -> gem16::Status {
     auto status = engine.value().Reset();
     if (!status.ok()) return status;
-    for (std::size_t position = 0; position < prompt.value().size(); ++position) {
-      status = engine.value().ForwardToken(prompt.value()[position]);
+    auto capture_position = [&](std::size_t position) -> gem16::Status {
+      if (!capture) return gem16::Status::Ok();
+      for (const std::uint32_t layer : layers) {
+        captures.emplace_back();
+        Capture& item = captures.back();
+        item.position = position;
+        item.layer = layer;
+        auto capture_status =
+            engine.value().CopyLayerOutput(layer, item.output);
+        if (capture_status.ok()) {
+          capture_status = engine.value().CopyRouterProbabilities(
+              layer, item.probabilities);
+        }
+        if (capture_status.ok()) {
+          capture_status = engine.value().CopyRouterTopIds(layer, item.ids);
+        }
+        if (!capture_status.ok()) return capture_status;
+      }
+      return gem16::Status::Ok();
+    };
+    const bool optimized_prefill =
+        options.backend ==
+        gem16::internal::Gemma4Moe26BBackend::kSm120Integrated;
+    if (optimized_prefill) {
+      status = engine.value().ForwardToken(prompt.value().front());
       if (!status.ok()) return status;
       auto prediction = engine.value().Prediction();
       if (!prediction.ok()) return prediction.status();
       result->finite = result->finite && prediction.value().all_logits_finite;
-      if (capture && (position == 0U || position + 1U == prompt.value().size())) {
-        for (const std::uint32_t layer : layers) {
-          captures.emplace_back();
-          Capture& item = captures.back();
-          item.position = position;
-          item.layer = layer;
-          status = engine.value().CopyLayerOutput(layer, item.output);
-          if (status.ok()) {
-            status = engine.value().CopyRouterProbabilities(
-                layer, item.probabilities);
-          }
-          if (status.ok()) status = engine.value().CopyRouterTopIds(layer, item.ids);
+      status = capture_position(0U);
+      if (!status.ok()) return status;
+      if (prompt.value().size() > 1U) {
+        status = engine.value().PrefillTokens(std::span<const std::uint32_t>(
+            prompt.value()).subspan(1U));
+        if (!status.ok()) return status;
+        prediction = engine.value().Prediction();
+        if (!prediction.ok()) return prediction.status();
+        result->finite =
+            result->finite && prediction.value().all_logits_finite;
+        status = capture_position(prompt.value().size() - 1U);
+        if (!status.ok()) return status;
+      }
+    } else {
+      for (std::size_t position = 0; position < prompt.value().size();
+           ++position) {
+        status = engine.value().ForwardToken(prompt.value()[position]);
+        if (!status.ok()) return status;
+        auto prediction = engine.value().Prediction();
+        if (!prediction.ok()) return prediction.status();
+        result->finite =
+            result->finite && prediction.value().all_logits_finite;
+        if (position == 0U || position + 1U == prompt.value().size()) {
+          status = capture_position(position);
           if (!status.ok()) return status;
         }
       }
@@ -192,9 +230,14 @@ int main(int argc, char** argv) {
       if (!status.ok()) return status;
     }
     result->continuation_start = engine.value().position();
-    for (const std::uint32_t token : continuation.value()) {
-      status = engine.value().ForwardToken(token);
+    if (optimized_prefill) {
+      status = engine.value().PrefillTokens(continuation.value());
       if (!status.ok()) return status;
+    } else {
+      for (const std::uint32_t token : continuation.value()) {
+        status = engine.value().ForwardToken(token);
+        if (!status.ok()) return status;
+      }
     }
     result->continuation_end = engine.value().position();
     auto prediction = engine.value().Prediction();
@@ -230,14 +273,20 @@ int main(int argc, char** argv) {
   out << std::setprecision(9)
       << "{\"schema_version\":1,\"milestone\":\""
       << (options.backend ==
-                  gem16::internal::Gemma4Moe26BBackend::kSm120MoeHead
-              ? "M16"
-              : "M13")
+                  gem16::internal::Gemma4Moe26BBackend::kSm120Integrated
+              ? "M17"
+              : (options.backend ==
+                         gem16::internal::Gemma4Moe26BBackend::kSm120MoeHead
+                     ? "M16"
+                     : "M13"))
       << "\",\"path\":\""
       << (options.backend ==
-                  gem16::internal::Gemma4Moe26BBackend::kSm120MoeHead
-              ? "native_sm120_moe_and_head"
-              : "experimental_reference_only")
+                  gem16::internal::Gemma4Moe26BBackend::kSm120Integrated
+              ? "native_sm120_integrated_prefill_decode_head"
+              : (options.backend ==
+                         gem16::internal::Gemma4Moe26BBackend::kSm120MoeHead
+                     ? "native_sm120_moe_and_head"
+                     : "experimental_reference_only"))
       << "\",\"two_run_elapsed_ms\":"
       << std::chrono::duration<double, std::milli>(run_end - run_start).count()
       << ','

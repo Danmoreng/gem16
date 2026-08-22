@@ -130,6 +130,21 @@ __global__ void RotaryTableBatchKernel(
   sine[pair] = static_cast<float>(sin(angle));
 }
 
+__global__ void RotaryTableControlledKernel(
+    float* cosine, float* sine, std::uint64_t rotating_pairs,
+    std::uint64_t frequency_dimension, const DecodeControl* control,
+    double theta, double scaling_factor) {
+  const std::uint64_t index =
+      static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+  if (index >= rotating_pairs) return;
+  const double exponent = 2.0 * static_cast<double>(index) /
+                          static_cast<double>(frequency_dimension);
+  const double angle = static_cast<double>(control->position) /
+                       (pow(theta, exponent) * scaling_factor);
+  cosine[index] = static_cast<float>(cos(angle));
+  sine[index] = static_cast<float>(sin(angle));
+}
+
 template <typename Input>
 __device__ float LoadProjectionBoundary(const Input* input,
                                         std::uint64_t index) {
@@ -682,6 +697,31 @@ Status LaunchRotaryEmbeddingTableBatch(
   return error == cudaSuccess
              ? Status::Ok()
              : CudaFailure("launch batched RoPE table", error);
+}
+
+Status LaunchRotaryEmbeddingTableControlled(
+    float* cosine, float* sine, std::uint64_t rotating_pairs,
+    std::uint64_t frequency_dimension, const DecodeControl* control,
+    double theta, double scaling_factor, cudaStream_t stream) {
+  if (cosine == nullptr || sine == nullptr || control == nullptr ||
+      rotating_pairs == 0U || frequency_dimension == 0U ||
+      rotating_pairs * 2U > frequency_dimension ||
+      !std::isfinite(theta) || theta <= 0.0 ||
+      !std::isfinite(scaling_factor) || scaling_factor <= 0.0) {
+    return Invalid("controlled RoPE table geometry is invalid");
+  }
+  const std::uint64_t blocks = Blocks(rotating_pairs);
+  if (!ValidGrid(blocks)) {
+    return Invalid("controlled RoPE table grid exceeds CUDA limits");
+  }
+  RotaryTableControlledKernel<<<static_cast<unsigned>(blocks), kThreads, 0,
+                                stream>>>(
+      cosine, sine, rotating_pairs, frequency_dimension, control, theta,
+      scaling_factor);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("launch controlled RoPE table", error);
 }
 
 

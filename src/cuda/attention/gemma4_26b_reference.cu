@@ -231,4 +231,226 @@ Status LaunchGemma4Moe26BAttentionReferenceLayer(
       x.post_attention, output, 1U, kHidden, epsilon, nullptr, stream);
 }
 
+Status LaunchGemma4Moe26BAttentionReferencePrefillLayer(
+    const float* hidden, float* output, std::uint64_t start_position,
+    std::uint64_t tokens, const Gemma4Moe26BAttentionLayerTraits& t,
+    const Gemma4Moe26BAttentionReferenceWeights& w,
+    const Gemma4Moe26BKvCacheView& cache,
+    const Gemma4Moe26BAttentionReferenceWorkspace& x, float epsilon,
+    cudaStream_t stream) {
+  const bool sliding =
+      t.attention == Gemma4Moe26BAttentionType::kSliding;
+  const std::uint64_t q_elements = t.query_heads * t.head_dimension;
+  const std::uint64_t kv_elements = t.kv_heads * t.head_dimension;
+  if (tokens == 0U || tokens > 1024U ||
+      start_position > std::numeric_limits<std::uint64_t>::max() - tokens ||
+      start_position + tokens > 262144U || hidden == nullptr ||
+      output == nullptr || hidden == output || cache.key == nullptr ||
+      cache.value == nullptr || cache.key == cache.value || !ValidPointers(x) ||
+      w.input_norm_bf16 == nullptr ||
+      w.post_attention_norm_bf16 == nullptr ||
+      w.query_norm_bf16 == nullptr || w.key_norm_bf16 == nullptr ||
+      w.key_cache_scale_bf16 == nullptr ||
+      w.value_cache_scale_bf16 == nullptr || t.layer >= 30U ||
+      t.query_heads != kQueryHeads || t.kv_heads == 0U ||
+      t.head_dimension == 0U || t.query_heads % t.kv_heads != 0U ||
+      t.kv_producer_layer != static_cast<std::int32_t>(t.layer) ||
+      cache.capacity == 0U || cache.capacity > t.cache_capacity ||
+      (sliding && cache.capacity != t.cache_capacity) ||
+      (!sliding && start_position + tokens > cache.capacity) ||
+      tokens > std::numeric_limits<std::uint64_t>::max() / t.query_heads ||
+      tokens * t.query_heads > std::numeric_limits<std::uint64_t>::max() /
+                                   (sliding ? cache.capacity
+                                            : start_position + tokens) ||
+      tokens * t.query_heads *
+              (sliding ? cache.capacity : start_position + tokens) >
+          x.score_elements ||
+      !ValidMatrix(w.query, q_elements, kHidden) ||
+      !ValidMatrix(w.key, kv_elements, kHidden) ||
+      !ValidMatrix(w.output, kHidden, q_elements) ||
+      (t.stores_v_projection != !t.reuses_raw_k_for_v) ||
+      (t.stores_v_projection && !ValidMatrix(w.value, kv_elements, kHidden)) ||
+      (!t.stores_v_projection &&
+       (w.value.weight_e4m3 != nullptr ||
+        w.value.weight_scales_bf16 != nullptr)) ||
+      !std::isfinite(epsilon) || epsilon <= 0.0F) {
+    return Invalid("M17 attention prefill execution contract is invalid");
+  }
+  Status status = LaunchRmsNormFp8TokenQuantizationBatch(
+      hidden, w.input_norm_bf16, x.input_fp8, x.input_scale, tokens, kHidden,
+      epsilon, stream);
+  if (!status.ok()) return status;
+  status = LaunchFp8ReferenceProjectionBatch(
+      x.input_fp8, x.input_scale, w.query.weight_e4m3,
+      w.query.weight_scales_bf16, x.query_raw, tokens, q_elements, kHidden,
+      stream);
+  if (!status.ok()) return status;
+  status = LaunchFp8ReferenceProjectionBatch(
+      x.input_fp8, x.input_scale, w.key.weight_e4m3,
+      w.key.weight_scales_bf16, x.key_raw, tokens, kv_elements, kHidden,
+      stream);
+  if (!status.ok()) return status;
+  if (t.reuses_raw_k_for_v) {
+    const cudaError_t copied = cudaMemcpyAsync(
+        x.value_raw, x.key_raw, tokens * kv_elements * sizeof(float),
+        cudaMemcpyDeviceToDevice, stream);
+    if (copied != cudaSuccess) {
+      return CudaFailure("reuse M17 prefill raw K projection for V", copied);
+    }
+  } else {
+    status = LaunchFp8ReferenceProjectionBatch(
+        x.input_fp8, x.input_scale, w.value.weight_e4m3,
+        w.value.weight_scales_bf16, x.value_raw, tokens, kv_elements, kHidden,
+        stream);
+    if (!status.ok()) return status;
+  }
+  const std::uint64_t rotating_pairs = static_cast<std::uint64_t>(
+      t.rotary_factor * static_cast<double>(t.head_dimension / 2U));
+  status = LaunchRotaryEmbeddingTableBatch(
+      x.rotary_cosine, x.rotary_sine, tokens, rotating_pairs,
+      t.head_dimension, start_position, t.rope_theta, t.rope_scaling_factor,
+      stream);
+  if (!status.ok()) return status;
+  status = LaunchProjectionRmsNormRotaryBf16Batch(
+      x.query_raw, w.query_norm_bf16, x.query_normalized, x.key_raw,
+      w.key_norm_bf16, x.key_normalized, x.rotary_cosine, x.rotary_sine,
+      tokens, t.query_heads, t.kv_heads, t.head_dimension, t.rotary_factor,
+      epsilon, stream);
+  if (!status.ok()) return status;
+  status = LaunchRmsNormBf16(x.value_raw, nullptr, x.value_normalized,
+                             tokens * t.kv_heads, t.head_dimension, epsilon,
+                             stream);
+  if (!status.ok()) return status;
+  status = LaunchQuantizeKvFp8Batch(
+      x.key_normalized, x.value_normalized, x.staged_key_fp8,
+      x.staged_value_fp8, w.key_cache_scale_bf16,
+      w.value_cache_scale_bf16, tokens, kv_elements, stream);
+  if (!status.ok()) return status;
+  status = LaunchCausalAttentionPrefillFp8(
+      x.query_normalized, x.staged_key_fp8, x.staged_value_fp8, cache.key,
+      cache.value, w.key_cache_scale_bf16, w.value_cache_scale_bf16, x.scores,
+      x.attention, start_position, tokens, t.query_heads, t.kv_heads,
+      t.head_dimension, cache.capacity, sliding, stream);
+  if (!status.ok()) return status;
+  status = LaunchAppendKvFp8Batch(
+      x.staged_key_fp8, x.staged_value_fp8, cache.key, cache.value,
+      start_position, tokens, kv_elements, cache.capacity, stream);
+  if (!status.ok()) return status;
+  status = LaunchFp8ReferenceTokenQuantizationBatch(
+      x.attention, x.output_fp8, x.output_scale, tokens, q_elements, stream);
+  if (!status.ok()) return status;
+  status = LaunchFp8ReferenceProjectionBatch(
+      x.output_fp8, x.output_scale, w.output.weight_e4m3,
+      w.output.weight_scales_bf16, x.output_projection, tokens, kHidden,
+      q_elements, stream);
+  if (!status.ok()) return status;
+  return LaunchRmsNormResidualBf16(
+      x.output_projection, w.post_attention_norm_bf16, hidden,
+      x.post_attention, output, tokens, kHidden, epsilon, nullptr, stream);
+}
+
+Status LaunchGemma4Moe26BAttentionReferenceControlledLayer(
+    const float* hidden, float* output,
+    const Gemma4Moe26BAttentionLayerTraits& t,
+    const Gemma4Moe26BAttentionReferenceWeights& w,
+    const Gemma4Moe26BKvCacheView& cache,
+    const Gemma4Moe26BAttentionReferenceWorkspace& x,
+    const DecodeControl* control, float epsilon, cudaStream_t stream) {
+  const bool sliding =
+      t.attention == Gemma4Moe26BAttentionType::kSliding;
+  const std::uint64_t q_elements = t.query_heads * t.head_dimension;
+  const std::uint64_t kv_elements = t.kv_heads * t.head_dimension;
+  if (hidden == nullptr || output == nullptr || hidden == output ||
+      control == nullptr || cache.key == nullptr || cache.value == nullptr ||
+      cache.key == cache.value || !ValidPointers(x) ||
+      w.input_norm_bf16 == nullptr ||
+      w.post_attention_norm_bf16 == nullptr ||
+      w.query_norm_bf16 == nullptr || w.key_norm_bf16 == nullptr ||
+      w.key_cache_scale_bf16 == nullptr ||
+      w.value_cache_scale_bf16 == nullptr || t.layer >= 30U ||
+      t.query_heads != kQueryHeads || t.kv_heads == 0U ||
+      t.head_dimension == 0U || t.query_heads % t.kv_heads != 0U ||
+      t.kv_producer_layer != static_cast<std::int32_t>(t.layer) ||
+      cache.capacity == 0U || cache.capacity > t.cache_capacity ||
+      (sliding && cache.capacity != t.cache_capacity) ||
+      x.score_elements < t.query_heads * cache.capacity ||
+      !ValidMatrix(w.query, q_elements, kHidden) ||
+      !ValidMatrix(w.key, kv_elements, kHidden) ||
+      !ValidMatrix(w.output, kHidden, q_elements) ||
+      (t.stores_v_projection != !t.reuses_raw_k_for_v) ||
+      (t.stores_v_projection && !ValidMatrix(w.value, kv_elements, kHidden)) ||
+      (!t.stores_v_projection &&
+       (w.value.weight_e4m3 != nullptr ||
+        w.value.weight_scales_bf16 != nullptr)) ||
+      !std::isfinite(epsilon) || epsilon <= 0.0F) {
+    return Invalid("M17 controlled attention contract is invalid");
+  }
+  Status status = LaunchRmsNormFp8TokenQuantizationBatch(
+      hidden, w.input_norm_bf16, x.input_fp8, x.input_scale, 1U, kHidden,
+      epsilon, stream);
+  if (!status.ok()) return status;
+  status = LaunchFp8ReferenceProjection(
+      x.input_fp8, x.input_scale, w.query.weight_e4m3,
+      w.query.weight_scales_bf16, x.query_raw, q_elements, kHidden, stream);
+  if (!status.ok()) return status;
+  status = LaunchFp8ReferenceProjection(
+      x.input_fp8, x.input_scale, w.key.weight_e4m3,
+      w.key.weight_scales_bf16, x.key_raw, kv_elements, kHidden, stream);
+  if (!status.ok()) return status;
+  if (t.reuses_raw_k_for_v) {
+    const cudaError_t copied = cudaMemcpyAsync(
+        x.value_raw, x.key_raw, kv_elements * sizeof(float),
+        cudaMemcpyDeviceToDevice, stream);
+    if (copied != cudaSuccess) {
+      return CudaFailure("reuse M17 controlled raw K for V", copied);
+    }
+  } else {
+    status = LaunchFp8ReferenceProjection(
+        x.input_fp8, x.input_scale, w.value.weight_e4m3,
+        w.value.weight_scales_bf16, x.value_raw, kv_elements, kHidden, stream);
+    if (!status.ok()) return status;
+  }
+  const std::uint64_t rotating_pairs = static_cast<std::uint64_t>(
+      t.rotary_factor * static_cast<double>(t.head_dimension / 2U));
+  status = LaunchRotaryEmbeddingTableControlled(
+      x.rotary_cosine, x.rotary_sine, rotating_pairs, t.head_dimension,
+      control, t.rope_theta, t.rope_scaling_factor, stream);
+  if (!status.ok()) return status;
+  status = LaunchProjectionRmsNormRotaryBf16Controlled(
+      x.query_raw, w.query_norm_bf16, x.query_normalized, x.key_raw,
+      w.key_norm_bf16, x.key_normalized, x.rotary_cosine, x.rotary_sine,
+      control, t.query_heads, t.kv_heads, t.head_dimension, t.rotary_factor,
+      epsilon, stream);
+  if (!status.ok()) return status;
+  status = LaunchRmsNormBf16(x.value_raw, nullptr, x.value_normalized,
+                             t.kv_heads, t.head_dimension, epsilon, stream);
+  if (!status.ok()) return status;
+  status = LaunchQuantizeKvFp8Batch(
+      x.key_normalized, x.value_normalized, x.staged_key_fp8,
+      x.staged_value_fp8, w.key_cache_scale_bf16,
+      w.value_cache_scale_bf16, 1U, kv_elements, stream);
+  if (!status.ok()) return status;
+  status = LaunchAppendKvFp8BatchControlled(
+      x.staged_key_fp8, x.staged_value_fp8, cache.key, cache.value, control,
+      1U, kv_elements, cache.capacity, stream);
+  if (!status.ok()) return status;
+  status = LaunchLocalAttentionDecodeFp8Controlled(
+      x.query_normalized, cache.key, cache.value, w.key_cache_scale_bf16,
+      w.value_cache_scale_bf16, x.scores, x.attention, control,
+      t.query_heads, t.kv_heads, t.head_dimension, cache.capacity, sliding,
+      stream);
+  if (!status.ok()) return status;
+  status = LaunchFp8ReferenceTokenQuantization(
+      x.attention, x.output_fp8, x.output_scale, q_elements, stream);
+  if (!status.ok()) return status;
+  status = LaunchFp8ReferenceProjection(
+      x.output_fp8, x.output_scale, w.output.weight_e4m3,
+      w.output.weight_scales_bf16, x.output_projection, kHidden, q_elements,
+      stream);
+  if (!status.ok()) return status;
+  return LaunchRmsNormResidualBf16(
+      x.output_projection, w.post_attention_norm_bf16, hidden,
+      x.post_attention, output, 1U, kHidden, epsilon, nullptr, stream);
+}
+
 }  // namespace gem16::internal
