@@ -50,6 +50,7 @@ add_library(gem16_core STATIC
   src/numeric/nvfp4_head.cpp
   src/cuda/nvfp4/sm120_layout.cpp
   src/model/checkpoint_loader.cpp
+  src/model/gemma4_26b_attention.cpp
   src/model/gemma4_26b_compiled_loader.cpp
   src/model/gemma4_26b_residency.cpp
   src/model/audio.cpp
@@ -229,6 +230,7 @@ if(GEM16_ENABLE_CUDA)
   gem16_configure_cuda_architectures()
   target_sources(gem16_core PRIVATE
     src/cuda/attention/decode_sm120.cu
+    src/cuda/attention/gemma4_26b_reference.cu
     src/cuda/attention/prefill_local_sm120.cu
     src/cuda/attention/prefill_global_sm120.cu
     src/cuda/attention/reference.cu
@@ -376,6 +378,15 @@ if(GEM16_ENABLE_CUDA)
   target_link_libraries(gem16-26b-moe-probe PRIVATE gem16_core CUDA::cudart)
   gem16_set_project_warnings(gem16-26b-moe-probe)
   gem16_enable_sanitizers(gem16-26b-moe-probe)
+  add_executable(gem16-26b-attention-probe
+    src/cli/gemma4_26b_attention_probe.cpp
+  )
+  target_include_directories(gem16-26b-attention-probe PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/src"
+  )
+  target_link_libraries(gem16-26b-attention-probe PRIVATE gem16_core CUDA::cudart)
+  gem16_set_project_warnings(gem16-26b-attention-probe)
+  gem16_enable_sanitizers(gem16-26b-attention-probe)
   message(STATUS "gem16 CUDA capability scaffold: enabled for ${CMAKE_CUDA_ARCHITECTURES}")
 else()
   target_sources(gem16_core PRIVATE src/runtime/inference_stub.cpp)
@@ -459,6 +470,23 @@ if(BUILD_TESTING AND GEM16_BUILD_TESTS)
     gem16_set_project_warnings(gem16-cuda-moe-reference-tests)
     add_test(NAME gem16-cuda-moe-reference
       COMMAND gem16-cuda-moe-reference-tests
+    )
+
+    add_executable(gem16-cuda-attention-reference-tests
+      tests/cuda/gemma4_26b_attention_reference_test.cu
+    )
+    target_include_directories(gem16-cuda-attention-reference-tests PRIVATE
+      "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    )
+    target_link_libraries(gem16-cuda-attention-reference-tests PRIVATE
+      gem16_core CUDA::cudart
+    )
+    set_target_properties(gem16-cuda-attention-reference-tests PROPERTIES
+      CUDA_ARCHITECTURES "${GEM16_CUDA_ARCHITECTURE}"
+    )
+    gem16_set_project_warnings(gem16-cuda-attention-reference-tests)
+    add_test(NAME gem16-cuda-attention-reference
+      COMMAND gem16-cuda-attention-reference-tests
     )
 
     add_executable(gem16-cuda-nvfp4-consumption-tests

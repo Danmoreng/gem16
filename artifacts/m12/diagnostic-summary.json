@@ -1,0 +1,187 @@
+{
+  "acceptance": false,
+  "artifact_arena_bytes": 14696668160,
+  "code_revision": "c8c2f20d51fc28bfd5dac9e9206bf902a2aa5c03-dirty",
+  "fp8_kv_bytes": {
+    "32768": 440401920,
+    "65536": 775946240,
+    "8192": 188743680
+  },
+  "lifecycle": {
+    "cache_commit": "after_attention",
+    "forward_allocation_free": true,
+    "host_routing": false,
+    "repeated_bitwise_identical": true
+  },
+  "limitations": [
+    "correctness-only scalar FP8 projection path; no native performance claim",
+    "real comparison is position 0 for one local and one global layer; ring wrap and append boundaries use focused synthetic CUDA fixtures",
+    "quantized-versus-BF16 thresholds measure the locked M08 QAT artifact rather than byte identity"
+  ],
+  "milestone": "M12",
+  "observed_worst": {
+    "cosine": 0.998529356279,
+    "relative_l2": 0.0564669174429
+  },
+  "path": "cuda_attention_correctness_only_not_performance_qualified",
+  "raw_evidence": {
+    "fixture": {
+      "bytes": 812755,
+      "sha256": "7a642ebcc9e59f54bc96afe4e230b0eb877f27586fa8858ac3342e4ff3d12fc3"
+    },
+    "gpu": {
+      "bytes": 2100,
+      "sha256": "15e48fdddbc0690dffd04f0f884d8d4887fb3086baef653527561093874b3978"
+    }
+  },
+  "real_cases": [
+    {
+      "attention_type": "sliding",
+      "free_after_repeats_bytes": 1718812672,
+      "free_before_repeats_bytes": 1718812672,
+      "layer": 0,
+      "metrics": {
+        "attention": {
+          "cosine": 0.999603268512,
+          "max_abs": 0.5,
+          "relative_l2": 0.0310467454426
+        },
+        "k_normalized": {
+          "cosine": 0.999959255646,
+          "max_abs": 0.0078125,
+          "relative_l2": 0.00904118742838
+        },
+        "k_raw": {
+          "cosine": 0.999964957048,
+          "max_abs": 1.99536132812,
+          "relative_l2": 0.00839786606574
+        },
+        "output_projection": {
+          "cosine": 0.999877936332,
+          "max_abs": 0.56414604187,
+          "relative_l2": 0.0308068118768
+        },
+        "post_attention": {
+          "cosine": 0.999527399133,
+          "max_abs": 0.953125,
+          "relative_l2": 0.0308817874487
+        },
+        "q_normalized": {
+          "cosine": 0.999805486843,
+          "max_abs": 0.125,
+          "relative_l2": 0.0197262748507
+        },
+        "q_raw": {
+          "cosine": 0.999858198181,
+          "max_abs": 1.79302215576,
+          "relative_l2": 0.0169198003944
+        },
+        "v_normalized": {
+          "cosine": 0.99994369367,
+          "max_abs": 0.0625,
+          "relative_l2": 0.0106135930154
+        },
+        "v_raw": {
+          "cosine": 0.999958670442,
+          "max_abs": 1.62966918945,
+          "relative_l2": 0.00915502803874
+        }
+      },
+      "repeated_bitwise_identical": true,
+      "reuses_raw_k_for_v": false,
+      "separate_cache_addresses": true,
+      "stores_v_projection": true
+    },
+    {
+      "attention_type": "full",
+      "free_after_repeats_bytes": 1723006976,
+      "free_before_repeats_bytes": 1723006976,
+      "layer": 5,
+      "metrics": {
+        "attention": {
+          "cosine": 0.999363886738,
+          "max_abs": 0.75,
+          "relative_l2": 0.0359003588852
+        },
+        "k_normalized": {
+          "cosine": 0.99989331851,
+          "max_abs": 0.015625,
+          "relative_l2": 0.0146416699627
+        },
+        "k_raw": {
+          "cosine": 0.999884394785,
+          "max_abs": 0.463471412659,
+          "relative_l2": 0.0152736903243
+        },
+        "output_projection": {
+          "cosine": 0.998930091375,
+          "max_abs": 0.847644805908,
+          "relative_l2": 0.0543210995408
+        },
+        "post_attention": {
+          "cosine": 0.998529356279,
+          "max_abs": 0.453125,
+          "relative_l2": 0.0564669174429
+        },
+        "q_normalized": {
+          "cosine": 0.999355804589,
+          "max_abs": 0.78125,
+          "relative_l2": 0.0358963578638
+        },
+        "q_raw": {
+          "cosine": 0.999432502537,
+          "max_abs": 0.786190271378,
+          "relative_l2": 0.033687366716
+        },
+        "v_normalized": {
+          "cosine": 0.999893000418,
+          "max_abs": 0.25,
+          "relative_l2": 0.0146423425973
+        }
+      },
+      "repeated_bitwise_identical": true,
+      "reuses_raw_k_for_v": true,
+      "separate_cache_addresses": true,
+      "stores_v_projection": false
+    }
+  ],
+  "sanitizers": [
+    {
+      "bytes": 62,
+      "sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+      "status": "pass",
+      "tool": "memcheck"
+    },
+    {
+      "bytes": 100,
+      "sha256": "91dbb142f8feb8786cd6fde6ac035e816b67db14e4b7b400a01386ec106b75c4",
+      "status": "pass",
+      "tool": "racecheck"
+    },
+    {
+      "bytes": 62,
+      "sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+      "status": "pass",
+      "tool": "initcheck"
+    }
+  ],
+  "schema_version": 1,
+  "status": "diagnostic_pass_acceptance_pending_clean_commit",
+  "thresholds": {
+    "boundary_cosine_min": 0.998,
+    "boundary_relative_l2_max": 0.07
+  },
+  "traits": {
+    "cross_layer_kv_sharing": 0,
+    "full_layers": 5,
+    "global_head_dimension": 512,
+    "global_kv_heads": 2,
+    "layers": 30,
+    "local_head_dimension": 256,
+    "local_kv_heads": 8,
+    "local_window": 1024,
+    "max_positions": 262144,
+    "query_heads": 16,
+    "sliding_layers": 25
+  }
+}

@@ -1227,25 +1227,4 @@ Result<std::uint64_t> Gemma4Moe26BAlignedArenaBytes(
   return total;
 }
 
-Result<std::uint64_t> Gemma4Moe26B32KFp8KvBytes() {
-  constexpr std::uint64_t context = 32768;
-  auto local = CheckedMultiply(25, 1024, "local layer/window count");
-  if (!local.ok()) return local.status();
-  local = CheckedMultiply(local.value(), 8, "local KV heads");
-  if (!local.ok()) return local.status();
-  local = CheckedMultiply(local.value(), 256, "local head dimension");
-  if (!local.ok()) return local.status();
-  local = CheckedMultiply(local.value(), 2, "separate local K and V");
-  if (!local.ok()) return local.status();
-  auto global = CheckedMultiply(5, context, "global layer/context count");
-  if (!global.ok()) return global.status();
-  global = CheckedMultiply(global.value(), 2, "global KV heads");
-  if (!global.ok()) return global.status();
-  global = CheckedMultiply(global.value(), 512, "global head dimension");
-  if (!global.ok()) return global.status();
-  global = CheckedMultiply(global.value(), 2, "separate global K and V");
-  if (!global.ok()) return global.status();
-  return CheckedAdd(local.value(), global.value(), "32K FP8 K/V bytes");
-}
-
 }  // namespace gem16::internal

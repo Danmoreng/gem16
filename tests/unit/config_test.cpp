@@ -9,6 +9,7 @@
 
 #include "gem16/model.h"
 #include "model/config.h"
+#include "model/gemma4_26b_attention.h"
 
 namespace {
 
@@ -126,6 +127,53 @@ void RunConfigTests() {
                 !traits.supports_video && !traits.supports_mtp);
     GEM16_CHECK(gem16::internal::ModelVariantName(moe.variant) ==
                 "gemma4_moe_26b_a4b");
+    auto attention_traits =
+        gem16::internal::BuildGemma4Moe26BAttentionTraits(moe);
+    GEM16_CHECK(attention_traits.ok());
+    if (attention_traits.ok()) {
+      std::uint32_t sliding = 0U;
+      std::uint32_t full = 0U;
+      for (std::size_t layer = 0; layer < attention_traits.value().size();
+           ++layer) {
+        const auto& layer_traits = attention_traits.value()[layer];
+        GEM16_CHECK(layer_traits.layer == layer);
+        GEM16_CHECK(layer_traits.query_heads == 16U);
+        GEM16_CHECK(layer_traits.kv_producer_layer ==
+                    static_cast<std::int32_t>(layer));
+        if (layer_traits.attention ==
+            gem16::internal::Gemma4Moe26BAttentionType::kSliding) {
+          ++sliding;
+          GEM16_CHECK(layer_traits.kv_heads == 8U);
+          GEM16_CHECK(layer_traits.head_dimension == 256U);
+          GEM16_CHECK(layer_traits.cache_capacity == 1024U);
+          GEM16_CHECK(layer_traits.stores_v_projection);
+          GEM16_CHECK(!layer_traits.reuses_raw_k_for_v);
+          GEM16_CHECK(layer_traits.rope_theta == 10000.0);
+          GEM16_CHECK(layer_traits.rotary_factor == 1.0);
+        } else {
+          ++full;
+          GEM16_CHECK(layer_traits.kv_heads == 2U);
+          GEM16_CHECK(layer_traits.head_dimension == 512U);
+          GEM16_CHECK(layer_traits.cache_capacity == 262144U);
+          GEM16_CHECK(!layer_traits.stores_v_projection);
+          GEM16_CHECK(layer_traits.reuses_raw_k_for_v);
+          GEM16_CHECK(layer_traits.rope_theta == 1000000.0);
+          GEM16_CHECK(layer_traits.rotary_factor == 0.25);
+        }
+      }
+      GEM16_CHECK(sliding == 25U && full == 5U);
+      for (const auto [context, expected] :
+           {std::pair{8192ULL, 188743680ULL},
+            std::pair{32768ULL, 440401920ULL},
+            std::pair{65536ULL, 775946240ULL}}) {
+        auto bytes = gem16::internal::Gemma4Moe26BFp8KvBytes(
+            attention_traits.value(), context);
+        GEM16_CHECK(bytes.ok() && bytes.value() == expected);
+      }
+      GEM16_CHECK(!gem16::internal::Gemma4Moe26BFp8KvBytes(
+                       attention_traits.value(), 0U)
+                       .ok());
+    }
 
     auto bad = moe;
     bad.layer_count = 29;
@@ -194,6 +242,7 @@ void RunConfigTests() {
     bad = moe;
     bad.layer_types[5] = "sliding_attention";
     GEM16_CHECK(!gem16::internal::ValidateGemma4Moe26BContract(bad).ok());
+    GEM16_CHECK(!gem16::internal::BuildGemma4Moe26BAttentionTraits(bad).ok());
     bad = moe;
     bad.local_rope_theta = 1000000.0;
     GEM16_CHECK(!gem16::internal::ValidateGemma4Moe26BContract(bad).ok());

@@ -6,6 +6,7 @@
 #include <set>
 #include <string_view>
 
+#include "model/gemma4_26b_attention.h"
 #include "model/gemma4_26b_manifest.h"
 
 namespace gem16::internal {
@@ -26,54 +27,11 @@ Result<std::uint64_t> CheckedAdd(std::uint64_t left, std::uint64_t right,
   return left + right;
 }
 
-Result<std::uint64_t> CheckedMultiply(std::uint64_t left,
-                                      std::uint64_t right,
-                                      std::string_view label) {
-  if (right != 0U && left > std::numeric_limits<std::uint64_t>::max() / right) {
-    return Status(StatusCode::kInvalidArgument,
-                  std::string(label) + " byte count overflows uint64");
-  }
-  return left * right;
-}
-
 Result<std::uint64_t> AlignUp(std::uint64_t value, std::uint64_t alignment) {
   const std::uint64_t mask = alignment - 1U;
   auto padded = CheckedAdd(value, mask, "aligned arena offset");
   if (!padded.ok()) return padded.status();
   return padded.value() & ~mask;
-}
-
-Result<std::uint64_t> Fp8KvBytes(std::uint64_t context_tokens) {
-  constexpr std::uint64_t kLocalLayers = 25U;
-  constexpr std::uint64_t kLocalWindow = 1024U;
-  constexpr std::uint64_t kLocalHeads = 8U;
-  constexpr std::uint64_t kLocalHeadDimension = 256U;
-  constexpr std::uint64_t kGlobalLayers = 5U;
-  constexpr std::uint64_t kGlobalHeads = 2U;
-  constexpr std::uint64_t kGlobalHeadDimension = 512U;
-  constexpr std::uint64_t kSeparateKeyValue = 2U;
-
-  auto local = CheckedMultiply(kLocalLayers, kLocalWindow, "local layer/window");
-  if (!local.ok()) return local.status();
-  local = CheckedMultiply(local.value(), kLocalHeads, "local KV heads");
-  if (!local.ok()) return local.status();
-  local = CheckedMultiply(local.value(), kLocalHeadDimension,
-                          "local head dimension");
-  if (!local.ok()) return local.status();
-  local = CheckedMultiply(local.value(), kSeparateKeyValue, "local K/V");
-  if (!local.ok()) return local.status();
-
-  auto global = CheckedMultiply(kGlobalLayers, context_tokens,
-                                "global layer/context");
-  if (!global.ok()) return global.status();
-  global = CheckedMultiply(global.value(), kGlobalHeads, "global KV heads");
-  if (!global.ok()) return global.status();
-  global = CheckedMultiply(global.value(), kGlobalHeadDimension,
-                           "global head dimension");
-  if (!global.ok()) return global.status();
-  global = CheckedMultiply(global.value(), kSeparateKeyValue, "global K/V");
-  if (!global.ok()) return global.status();
-  return CheckedAdd(local.value(), global.value(), "FP8 K/V");
 }
 
 bool IsSafeShardName(const std::string& name) {
@@ -85,7 +43,7 @@ bool IsSafeShardName(const std::string& name) {
 }  // namespace
 
 Result<Gemma4Moe26BResidencyPlan> BuildGemma4Moe26BResidencyPlan(
-    const ModelManifest& manifest) {
+    const ModelManifest& manifest, const ModelConfig& config) {
   if (manifest.model_variant != "gemma4_moe_26b_a4b" ||
       manifest.checkpoint_profile != "sm120-text-hybrid-v1" ||
       manifest.validation_contract != "gemma4_26b_m08_compiled_hybrid_v1" ||
@@ -165,10 +123,16 @@ Result<Gemma4Moe26BResidencyPlan> BuildGemma4Moe26BResidencyPlan(
   }
   plan.immutable_weight_arena_bytes = arena_bytes.value();
 
+  auto attention_traits = BuildGemma4Moe26BAttentionTraits(config);
+  if (!attention_traits.ok()) return attention_traits.status();
+  Status attention_status = ValidateGemma4Moe26BAttentionBindings(
+      manifest.tensors, attention_traits.value());
+  if (!attention_status.ok()) return attention_status;
+
   constexpr std::array<std::uint64_t, 4> kContexts = {
       8192U, 16384U, 32768U, 65536U};
   for (const std::uint64_t context : kContexts) {
-    auto kv = Fp8KvBytes(context);
+    auto kv = Gemma4Moe26BFp8KvBytes(attention_traits.value(), context);
     if (!kv.ok()) return kv.status();
     auto total = CheckedAdd(plan.immutable_weight_arena_bytes, kv.value(),
                             "profile weights and K/V");

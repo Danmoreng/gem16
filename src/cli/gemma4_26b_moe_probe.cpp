@@ -17,6 +17,7 @@
 #include "cuda/engine/gemma4_26b_artifact.h"
 #include "cuda/moe/reference.h"
 #include "gem16/model.h"
+#include "model/config.h"
 #include "model/gemma4_26b_residency.h"
 #include "util/json.h"
 
@@ -222,7 +223,14 @@ int main(int argc, char** argv) {
     std::cerr << "error: " << manifest.status().message() << '\n';
     return 4;
   }
-  auto plan = gem16::internal::BuildGemma4Moe26BResidencyPlan(manifest.value());
+  auto model_config =
+      gem16::internal::LoadModelConfig(options.model / "config.json");
+  if (!model_config.ok()) {
+    std::cerr << model_config.status().message() << '\n';
+    return 3;
+  }
+  auto plan = gem16::internal::BuildGemma4Moe26BResidencyPlan(
+      manifest.value(), model_config.value());
   if (!plan.ok()) {
     std::cerr << "error: " << plan.status().message() << '\n';
     return 4;

@@ -6,6 +6,7 @@
 
 #include "gem16/status.h"
 #include "gem16/types.h"
+#include "model/config.h"
 
 namespace gem16::internal {
 
@@ -43,7 +44,8 @@ struct Gemma4Moe26BResidencyPlan {
 };
 
 [[nodiscard]] Result<Gemma4Moe26BResidencyPlan>
-BuildGemma4Moe26BResidencyPlan(const ModelManifest& manifest);
+BuildGemma4Moe26BResidencyPlan(const ModelManifest& manifest,
+                               const ModelConfig& config);
 
 [[nodiscard]] Status CheckGemma4Moe26BAdmission(
     const Gemma4Moe26BResidencyPlan& plan, std::uint64_t context_tokens,

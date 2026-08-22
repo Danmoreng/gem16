@@ -88,6 +88,5 @@ ValidateAndAnnotateGemma4Moe26BInventory(
 
 [[nodiscard]] Result<std::uint64_t> Gemma4Moe26BAlignedArenaBytes(
     std::span<const TensorInfo> tensors, std::uint64_t alignment = 256);
-[[nodiscard]] Result<std::uint64_t> Gemma4Moe26B32KFp8KvBytes();
 
 }  // namespace gem16::internal

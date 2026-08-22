@@ -669,7 +669,13 @@ int main(int argc, char** argv) {
     std::cerr << "error: " << inspected.status().message() << '\n';
     return 3;
   }
-  auto plan = gem16::internal::BuildGemma4Moe26BResidencyPlan(inspected.value());
+  auto config = gem16::internal::LoadModelConfig(options.model / "config.json");
+  if (!config.ok()) {
+    std::cerr << "error: " << config.status().message() << '\n';
+    return 3;
+  }
+  auto plan = gem16::internal::BuildGemma4Moe26BResidencyPlan(
+      inspected.value(), config.value());
   if (!plan.ok()) {
     std::cerr << "error: " << plan.status().message() << '\n';
     return 3;

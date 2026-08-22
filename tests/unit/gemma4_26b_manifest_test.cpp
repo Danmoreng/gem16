@@ -11,6 +11,7 @@
 
 #include "model/config.h"
 #include "model/gemma4_26b_manifest.h"
+#include "model/gemma4_26b_attention.h"
 #include "model/gemma4_26b_residency.h"
 #include "util/json.h"
 
@@ -554,11 +555,9 @@ void RunGemma426BManifestTests() {
       compiled_q4.value());
   auto nvfp4_arena = gem16::internal::Gemma4Moe26BAlignedArenaBytes(
       compiled_nvfp4.value());
-  auto kv_32k = gem16::internal::Gemma4Moe26B32KFp8KvBytes();
   GEM16_CHECK(q4_arena.ok() && q4_arena.value() == 14'696'667'648ULL);
   GEM16_CHECK(nvfp4_arena.ok() &&
               nvfp4_arena.value() == 14'696'668'160ULL);
-  GEM16_CHECK(kv_32k.ok() && kv_32k.value() == 440'401'920ULL);
   GEM16_CHECK(!gem16::internal::Gemma4Moe26BAlignedArenaBytes(
                    compiled_q4.value(), 192)
                    .ok());
@@ -578,8 +577,42 @@ void RunGemma426BManifestTests() {
     source_offset += tensor.byte_length;
     residency_manifest.total_tensor_bytes += tensor.byte_length;
   }
-  auto residency =
-      gem16::internal::BuildGemma4Moe26BResidencyPlan(residency_manifest);
+  const auto config_fixture = std::filesystem::path(__FILE__).parent_path().parent_path() /
+                              "fixtures" / "gemma4_26b_config.json";
+  auto residency_config = gem16::internal::LoadModelConfig(config_fixture);
+  GEM16_CHECK(residency_config.ok());
+  std::uint64_t computed_kv_32k = 0U;
+  if (residency_config.ok()) {
+    auto attention_traits =
+        gem16::internal::BuildGemma4Moe26BAttentionTraits(
+            residency_config.value());
+    GEM16_CHECK(attention_traits.ok());
+    if (attention_traits.ok()) {
+      auto kv_32k = gem16::internal::Gemma4Moe26BFp8KvBytes(
+          attention_traits.value(), 32768U);
+      GEM16_CHECK(kv_32k.ok() && kv_32k.value() == 440'401'920ULL);
+      if (kv_32k.ok()) computed_kv_32k = kv_32k.value();
+      GEM16_CHECK(gem16::internal::ValidateGemma4Moe26BAttentionBindings(
+                      compiled_nvfp4.value(), attention_traits.value())
+                      .ok());
+      auto unexpected_global_v = compiled_nvfp4.value();
+      auto fake_v = unexpected_global_v.front();
+      fake_v.name =
+          "model.language_model.layers.5.self_attn.v_proj.weight";
+      fake_v.storage_dtype = "F8_E4M3";
+      fake_v.logical_shape = {1024U, 2816U};
+      fake_v.residency_class = "immutable_device_text";
+      unexpected_global_v.push_back(std::move(fake_v));
+      GEM16_CHECK(!gem16::internal::ValidateGemma4Moe26BAttentionBindings(
+                       unexpected_global_v, attention_traits.value())
+                       .ok());
+    }
+  }
+  auto residency = residency_config.ok()
+      ? gem16::internal::BuildGemma4Moe26BResidencyPlan(
+            residency_manifest, residency_config.value())
+      : gem16::Result<gem16::internal::Gemma4Moe26BResidencyPlan>(
+            residency_config.status());
   GEM16_CHECK(residency.ok());
   if (residency.ok()) {
     GEM16_CHECK(residency.value().upload_ranges.size() == 1285U);
@@ -618,12 +651,12 @@ void RunGemma426BManifestTests() {
   auto unsafe_residency_manifest = residency_manifest;
   unsafe_residency_manifest.tensors.front().source_shard = "../unsafe.safetensors";
   GEM16_CHECK(!gem16::internal::BuildGemma4Moe26BResidencyPlan(
-                   unsafe_residency_manifest)
+                   unsafe_residency_manifest, residency_config.value())
                    .ok());
   auto modality_residency_manifest = residency_manifest;
   modality_residency_manifest.supports_vision = true;
   GEM16_CHECK(!gem16::internal::BuildGemma4Moe26BResidencyPlan(
-                   modality_residency_manifest)
+                   modality_residency_manifest, residency_config.value())
                    .ok());
 
   const auto canonical_path =
@@ -655,6 +688,6 @@ void RunGemma426BManifestTests() {
                     nvfp4_arena.value());
     GEM16_CHECK(canonical_kv != nullptr && canonical_kv->is_integer() &&
                 static_cast<std::uint64_t>(canonical_kv->as_integer()) ==
-                    kv_32k.value());
+                    computed_kv_32k);
   }
 }
