@@ -1038,10 +1038,21 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
   const std::uint64_t required_margin =
       context_tokens >= 65536U ? kLongContextMargin : kPrimaryContextMargin;
   if (free_bytes < required_margin) {
+    const std::uint64_t required_slot =
+        engine.weight_arena_bytes() + engine.kv_cache_bytes() +
+        engine.workspace_bytes();
+    const std::uint64_t shortfall =
+        required_margin - static_cast<std::uint64_t>(free_bytes);
     return Status(
         StatusCode::kResourceExhausted,
-        "Gemma 4 26B initialized context leaves less than the required " +
-            std::to_string(required_margin / kMiB) + " MiB CUDA margin");
+        "cannot create Gemma 4 26B execution slot: context=" +
+            std::to_string(context_tokens) +
+            " free=" + std::to_string(free_bytes) +
+            " required_slot=" + std::to_string(required_slot) +
+            " probe_resident=" +
+            std::to_string(engine.weight_arena_bytes()) +
+            " required_margin=" + std::to_string(required_margin) +
+            " shortfall=" + std::to_string(shortfall));
   }
   return engine;
 }

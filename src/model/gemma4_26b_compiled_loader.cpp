@@ -18,6 +18,12 @@ namespace gem16::internal {
 namespace {
 
 constexpr std::uint64_t kMaximumMetadataBytes = 64U * 1024U * 1024U;
+constexpr std::string_view kAcceptedM08ArtifactContentSha256 =
+    "471805f7dad8abb84300be78b2822a63dcb1d35bff5aa98426a162cc8532ee17";
+constexpr std::string_view kAcceptedM08SourceLockSha256 =
+    "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230";
+constexpr std::string_view kAcceptedM08CompilerCommit =
+    "f433358b8e2c1250b95801fc898faee4fcedcbe5";
 
 Result<std::string> ReadRegularFile(const std::filesystem::path& path,
                                     std::uint64_t maximum_bytes) {
@@ -65,6 +71,62 @@ const json::Value* Field(const json::Value& object, std::string_view name) {
 
 bool IsString(const json::Value* value, std::string_view expected) {
   return value != nullptr && value->is_string() && value->as_string() == expected;
+}
+
+std::filesystem::path ExternalLockPath(const std::filesystem::path& root) {
+  return root.parent_path() / (root.filename().string() + ".lock.json");
+}
+
+Result<Gemma4Moe26BCompiledIdentity> AcceptedM08Identity(
+    const json::Value& compilation, const json::Value& lock) {
+  const auto* profile = Field(compilation, "artifact_profile");
+  if (!IsString(profile, "sm120-text-hybrid-v1")) {
+    return Status(StatusCode::kDataLoss,
+                  "M08 product artifact_profile does not match the accepted artifact");
+  }
+  const auto* head = Field(compilation, "head_format");
+  if (!IsString(head, "nvfp4")) {
+    return Status(StatusCode::kDataLoss,
+                  "M08 product head_format does not match the accepted artifact");
+  }
+  const auto* source = Field(compilation, "source");
+  const auto* compiler = Field(compilation, "compiler");
+  if (source == nullptr || !source->is_object()) {
+    return Status(StatusCode::kDataLoss,
+                  "M08 product source record is missing or invalid");
+  }
+  if (compiler == nullptr || !compiler->is_object()) {
+    return Status(StatusCode::kDataLoss,
+                  "M08 product compiler record is missing or invalid");
+  }
+  const auto* artifact_hash = Field(lock, "artifact_content_sha256");
+  if (!IsString(artifact_hash, kAcceptedM08ArtifactContentSha256)) {
+    return Status(
+        StatusCode::kDataLoss,
+        "M08 product artifact_content_sha256 does not match the accepted artifact");
+  }
+  const auto* source_hash = Field(lock, "source_lock_sha256");
+  if (!IsString(source_hash, kAcceptedM08SourceLockSha256)) {
+    return Status(
+        StatusCode::kDataLoss,
+        "M08 product source_lock_sha256 does not match the accepted artifact");
+  }
+  const auto* compiler_commit = Field(lock, "compiler_commit");
+  if (!IsString(compiler_commit, kAcceptedM08CompilerCommit)) {
+    return Status(StatusCode::kDataLoss,
+                  "M08 product compiler_commit does not match the accepted artifact");
+  }
+  if (!IsString(Field(*source, "lock_sha256"), source_hash->as_string())) {
+    return Status(StatusCode::kDataLoss,
+                  "M08 product source.lock_sha256 is not bound to the external lock");
+  }
+  if (!IsString(Field(*compiler, "commit"), compiler_commit->as_string())) {
+    return Status(StatusCode::kDataLoss,
+                  "M08 product compiler.commit is not bound to the external lock");
+  }
+  return Gemma4Moe26BCompiledIdentity{
+      profile->as_string(), head->as_string(), artifact_hash->as_string(),
+      source_hash->as_string(), compiler_commit->as_string()};
 }
 
 bool AppendCanonicalJson(const json::Value& value, std::size_t depth,
@@ -220,8 +282,7 @@ Status ValidateConfigExtension(const std::filesystem::path& root) {
 
 Status ValidateExternalLock(const std::filesystem::path& root,
                             const json::Value& compilation) {
-  const auto lock_path = root.parent_path() /
-                         (root.filename().string() + ".lock.json");
+  const auto lock_path = ExternalLockPath(root);
   auto lock_payload = ReadRegularFile(lock_path, kMaximumMetadataBytes);
   if (!lock_payload.ok()) return lock_payload.status();
   auto lock = LoadJson(lock_path);
@@ -246,18 +307,8 @@ Status ValidateExternalLock(const std::filesystem::path& root,
                 "m08_complete_runtime_loadable_experimental")) {
     return Status(StatusCode::kDataLoss, "M08 external lock profile mismatch");
   }
-  const auto* source = Field(compilation, "source");
-  const auto* compiler_record = Field(compilation, "compiler");
-  const auto* locked_source = Field(lock.value(), "source_lock_sha256");
-  const auto* locked_commit = Field(lock.value(), "compiler_commit");
-  if (source == nullptr || compiler_record == nullptr || locked_source == nullptr ||
-      !locked_source->is_string() || locked_commit == nullptr ||
-      !locked_commit->is_string() ||
-      !IsString(Field(*source, "lock_sha256"), locked_source->as_string()) ||
-      !IsString(Field(*compiler_record, "commit"), locked_commit->as_string())) {
-    return Status(StatusCode::kDataLoss,
-                  "M08 external lock provenance binding mismatch");
-  }
+  auto identity = AcceptedM08Identity(compilation, lock.value());
+  if (!identity.ok()) return identity.status();
   const auto schema = Unsigned(Field(lock.value(), "schema_version"), "lock schema");
   const auto* files = Field(lock.value(), "files");
   if (!schema.ok() || schema.value() != 1 || files == nullptr ||
@@ -312,8 +363,7 @@ Status ValidateExternalLock(const std::filesystem::path& root,
   }
   auto content_object = lock.value().as_object();
   const auto* recorded_content_hash = Field(lock.value(), "artifact_content_sha256");
-  if (recorded_content_hash == nullptr || !recorded_content_hash->is_string() ||
-      recorded_content_hash->as_string().size() != 64) {
+  if (recorded_content_hash == nullptr || !recorded_content_hash->is_string()) {
     return Status(StatusCode::kDataLoss,
                   "M08 external lock content hash is invalid");
   }
@@ -452,6 +502,15 @@ Status ValidateAndBindGemma4Moe26BCompiledArtifact(
   status = ValidateExternalLock(model_directory, compilation.value());
   if (!status.ok()) return status;
   return ValidateTensorRecords(model_directory, compilation.value(), tensors);
+}
+
+Result<Gemma4Moe26BCompiledIdentity> LoadGemma4Moe26BCompiledIdentity(
+    const std::filesystem::path& model_directory) {
+  auto compilation = LoadJson(model_directory / "gem16_compilation.json");
+  if (!compilation.ok()) return compilation.status();
+  auto lock = LoadJson(ExternalLockPath(model_directory));
+  if (!lock.ok()) return lock.status();
+  return AcceptedM08Identity(compilation.value(), lock.value());
 }
 
 }  // namespace gem16::internal

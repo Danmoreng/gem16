@@ -22,7 +22,14 @@ bool ModelRuntime::assistant_loaded() const { return false; }
 double ModelRuntime::load_milliseconds() const { return 0.0; }
 const char* ModelRuntime::model_variant_name() const { return "unsupported"; }
 const char* ModelRuntime::selected_native_path() const { return "none"; }
+const char* ModelRuntime::artifact_profile() const { return "unsupported"; }
+const char* ModelRuntime::head_format() const { return "unsupported"; }
+const char* ModelRuntime::artifact_content_sha256() const { return ""; }
+const char* ModelRuntime::source_lock_sha256() const { return ""; }
+const char* ModelRuntime::compiler_commit() const { return ""; }
 std::uint64_t ModelRuntime::max_context_tokens() const { return 0U; }
+std::uint64_t ModelRuntime::kv_cache_bytes() const { return 0U; }
+std::uint64_t ModelRuntime::workspace_bytes() const { return 0U; }
 bool ModelRuntime::supports_audio() const { return false; }
 bool ModelRuntime::supports_vision() const { return false; }
 bool ModelRuntime::supports_mtp() const { return false; }

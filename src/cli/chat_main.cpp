@@ -87,6 +87,7 @@ void PrintUsage() {
       << "                [--greedy|--sample] [--temperature F] [--top-k N] [--top-p F]\n"
       << "                [--min-p F] [--repetition-penalty F] [--seed N]\n"
       << "                [--dump-state <path> --dump-state-position N]\n"
+      << "                [--print-model-report]\n"
       << "  gem16-chat --model <checkpoint> --message <text> [--json]\n"
       << "  gem16-chat --model <checkpoint> --message <text> [--audio <file>|--image <file>]...\n"
       << "  gem16-chat --model <checkpoint> --message <text> --render-only --json\n";
@@ -116,6 +117,7 @@ struct Options {
   bool render_only = false;
   bool json = false;
   bool stats = false;
+  bool print_model_report = false;
   std::filesystem::path state_dump_path;
   std::optional<std::uint64_t> state_dump_position;
   gem16::KvCacheMode kv_cache_mode =
@@ -273,6 +275,8 @@ gem16::Result<Options> ParseOptions(int argc, char** argv) {
       options.json = true;
     } else if (argument == "--stats") {
       options.stats = true;
+    } else if (argument == "--print-model-report") {
+      options.print_model_report = true;
     } else if (argument == "--dump-state" && index + 1 < argc) {
       options.state_dump_path = argv[++index];
     } else if (argument == "--dump-state-position" && index + 1 < argc) {
@@ -354,6 +358,7 @@ gem16::Result<Options> ParseOptions(int argc, char** argv) {
                           "--model is required");
   }
   if ((options.render_only || options.json) &&
+      !options.print_model_report &&
       !options.has_one_shot_message) {
     return gem16::Status(
         gem16::StatusCode::kInvalidArgument,
@@ -391,6 +396,14 @@ gem16::Result<Options> ParseOptions(int argc, char** argv) {
   if (options.mtp_adaptive && options.mtp_draft_tokens == 0U) {
     return gem16::Status(gem16::StatusCode::kInvalidArgument,
                          "--mtp-adaptive requires active MTP");
+  }
+  if (options.print_model_report &&
+      (options.has_one_shot_message || options.render_only ||
+       !options.media_files.empty() || !options.state_dump_path.empty() ||
+       options.state_dump_position.has_value())) {
+    return gem16::Status(
+        gem16::StatusCode::kInvalidArgument,
+        "--print-model-report cannot be combined with generation or media options");
   }
   return options;
 }
@@ -755,6 +768,80 @@ int ChatMain(int argc, char** argv) {
     std::cerr << "error: active MTP requires --assistant-model\n";
     return 2;
   }
+  if (moe26b && !options.media_files.empty()) {
+    std::cerr << "error: Gemma 4 26B is a text-only profile; audio and vision input are unsupported\n";
+    return 2;
+  }
+  if (options.print_model_report) {
+    auto runtime = gem16::ModelRuntime::Load(
+        {options.model_directory, options.assistant_model_directory,
+         options.max_context, 0});
+    if (!runtime.ok()) {
+      std::cerr << "error: " << runtime.status().message() << '\n';
+      return 2;
+    }
+    auto memory = gem16::QueryDeviceMemoryInfo();
+    if (!memory.ok()) {
+      std::cerr << "error: " << memory.status().message() << '\n';
+      return 2;
+    }
+    const std::uint64_t admission_margin =
+        moe26b && options.max_context >= 65536U
+            ? 400U * 1024U * 1024U
+            : 700U * 1024U * 1024U;
+    std::cout
+        << "{\"schema_version\":1,\"model_variant\":"
+        << JsonEscape(runtime.value()->model_variant_name())
+        << ",\"artifact_profile\":"
+        << JsonEscape(runtime.value()->artifact_profile())
+        << ",\"head_format\":"
+        << JsonEscape(runtime.value()->head_format())
+        << ",\"artifact_content_sha256\":"
+        << JsonEscape(runtime.value()->artifact_content_sha256())
+        << ",\"source_lock_sha256\":"
+        << JsonEscape(runtime.value()->source_lock_sha256())
+        << ",\"compiler_commit\":"
+        << JsonEscape(runtime.value()->compiler_commit())
+        << ",\"native_path\":"
+        << JsonEscape(runtime.value()->selected_native_path())
+        << ",\"text_only\":"
+        << ((!runtime.value()->supports_audio() &&
+             !runtime.value()->supports_vision())
+                ? "true"
+                : "false")
+        << ",\"supports_mtp\":"
+        << (runtime.value()->supports_mtp() ? "true" : "false")
+        << ",\"resident_weight_bytes\":"
+        << runtime.value()->weight_bytes()
+        << ",\"kv_cache_bytes\":";
+    if (moe26b) {
+      std::cout << runtime.value()->kv_cache_bytes();
+    } else {
+      std::cout << "null";
+    }
+    std::cout << ",\"workspace_bytes\":";
+    if (moe26b) {
+      std::cout << runtime.value()->workspace_bytes();
+    } else {
+      std::cout << "null";
+    }
+    std::cout
+        << ",\"configured_context_tokens\":"
+        << runtime.value()->max_context_tokens()
+        << ",\"default_context\":" << (moe26b ? 32768U : 8192U)
+        << ",\"default_context_tokens\":" << (moe26b ? 32768U : 8192U)
+        << ",\"qualified_64k\":" << (moe26b ? "false" : "null")
+        << ",\"base_max_context\":" << (moe26b ? "32768" : "null")
+        << ",\"mtp_max_context\":null"
+        << ",\"admission_free_bytes\":" << memory.value().free_bytes
+        << ",\"required_admission_margin_bytes\":" << admission_margin
+        << ",\"admission_headroom_bytes\":"
+        << (memory.value().free_bytes > admission_margin
+                ? memory.value().free_bytes - admission_margin
+                : 0U)
+        << "}\n";
+    return 0;
+  }
   auto initial_media = LoadMediaParts(
       options.media_files, options.max_context, options.max_tokens,
       options.stats);
@@ -832,10 +919,14 @@ int ChatMain(int argc, char** argv) {
     return 2;
   }
 
-  std::cout << "gem16 resident chat session (/quit to exit)\n"
-            << "Media commands: /image <path>, /audio <path>, /media, "
-               "/clear-media.\n"
-            << "Model weights and the exact conversation KV prefix stay resident.\n";
+  std::cout << "gem16 resident chat session (/quit to exit)\n";
+  if (!moe26b) {
+    std::cout << "Media commands: /image <path>, /audio <path>, /media, "
+                 "/clear-media.\n";
+  } else {
+    std::cout << "Gemma 4 26B profile: text-only; media and MTP are unsupported.\n";
+  }
+  std::cout << "Model weights and the exact conversation KV prefix stay resident.\n";
   if (options.mtp_draft_tokens != 0U) {
     std::cout << "MTP enabled: D" << options.mtp_draft_tokens
               << (options.mtp_adaptive ? " adaptive" : " fixed")
@@ -853,6 +944,10 @@ int ChatMain(int argc, char** argv) {
     }
     if (input == "/quit" || input == "/exit") break;
     if (input.starts_with("/image ") || input.starts_with("/audio ")) {
+      if (moe26b) {
+        std::cerr << "error: Gemma 4 26B is text-only; media commands are unsupported\n";
+        continue;
+      }
       const bool image = input.starts_with("/image ");
       const std::string_view path =
           std::string_view(input).substr(7U);

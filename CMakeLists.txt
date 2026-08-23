@@ -528,6 +528,9 @@ if(BUILD_TESTING AND GEM16_BUILD_TESTS)
     )
     gem16_set_project_warnings(gem16-cuda-tests)
     add_test(NAME gem16-cuda COMMAND gem16-cuda-tests)
+    set_tests_properties(gem16-cuda PROPERTIES
+      RESOURCE_LOCK gem16_gpu0
+    )
 
     add_executable(gem16-cuda-moe-reference-tests
       tests/cuda/gemma4_26b_moe_reference_test.cu
@@ -545,6 +548,9 @@ if(BUILD_TESTING AND GEM16_BUILD_TESTS)
     add_test(NAME gem16-cuda-moe-reference
       COMMAND gem16-cuda-moe-reference-tests
     )
+    set_tests_properties(gem16-cuda-moe-reference PROPERTIES
+      RESOURCE_LOCK gem16_gpu0
+    )
 
     add_executable(gem16-cuda-attention-reference-tests
       tests/cuda/gemma4_26b_attention_reference_test.cu
@@ -561,6 +567,9 @@ if(BUILD_TESTING AND GEM16_BUILD_TESTS)
     gem16_set_project_warnings(gem16-cuda-attention-reference-tests)
     add_test(NAME gem16-cuda-attention-reference
       COMMAND gem16-cuda-attention-reference-tests
+    )
+    set_tests_properties(gem16-cuda-attention-reference PROPERTIES
+      RESOURCE_LOCK gem16_gpu0
     )
 
     add_executable(gem16-cuda-nvfp4-consumption-tests
@@ -581,6 +590,7 @@ if(BUILD_TESTING AND GEM16_BUILD_TESTS)
     )
     set_tests_properties(gem16-cuda-nvfp4-consumption PROPERTIES
       SKIP_RETURN_CODE 77
+      RESOURCE_LOCK gem16_gpu0
     )
 
     find_package(Python3 QUIET COMPONENTS Interpreter)
@@ -600,6 +610,33 @@ if(BUILD_TESTING AND GEM16_BUILD_TESTS)
       set_tests_properties(gem16-26b-m17-engine-smoke PROPERTIES
         SKIP_RETURN_CODE 77
         TIMEOUT 600
+        RESOURCE_LOCK gem16_gpu0
+      )
+      add_test(NAME gem16-26b-m22-product
+        COMMAND "${Python3_EXECUTABLE}"
+          "${CMAKE_CURRENT_SOURCE_DIR}/tests/python/test_gemma4_26b_m22_product.py"
+          26b
+          "$<TARGET_FILE:gem16-26b-m22-product-driver>"
+          "$<TARGET_FILE:gem16-chat>"
+          "$<TARGET_FILE:gem16-server>"
+      )
+      set_tests_properties(gem16-26b-m22-product PROPERTIES
+        SKIP_RETURN_CODE 77
+        TIMEOUT 1200
+        RESOURCE_LOCK gem16_gpu0
+      )
+      add_test(NAME gem16-12b-m22-product
+        COMMAND "${Python3_EXECUTABLE}"
+          "${CMAKE_CURRENT_SOURCE_DIR}/tests/python/test_gemma4_26b_m22_product.py"
+          12b
+          "$<TARGET_FILE:gem16-run>"
+          "$<TARGET_FILE:gem16-server>"
+          "${CMAKE_CURRENT_SOURCE_DIR}/tests/golden/vllm-gemma4-12b-nvfp4.json"
+      )
+      set_tests_properties(gem16-12b-m22-product PROPERTIES
+        SKIP_RETURN_CODE 77
+        TIMEOUT 1200
+        RESOURCE_LOCK gem16_gpu0
       )
     endif()
   endif()

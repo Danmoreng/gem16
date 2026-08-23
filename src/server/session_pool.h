@@ -63,6 +63,11 @@ struct ServerMetrics {
   std::atomic<std::uint64_t> mtp_d2_groups{0U};
   std::atomic<std::uint64_t> mtp_d4_groups{0U};
   std::atomic<std::uint64_t> mtp_ordinary_fallback_tokens{0U};
+  std::atomic<std::uint64_t> fallback_count{0U};
+  std::atomic<std::uint64_t> resource_exhaustion_count{0U};
+  std::atomic<std::uint64_t> unsupported_feature_count{0U};
+  std::atomic<std::uint64_t> model_validation_failure_count{0U};
+  std::atomic<std::uint64_t> token_loop_allocation_count{0U};
   std::atomic<std::uint64_t> last_slot_bytes{0U};
 };
 
@@ -82,6 +87,7 @@ struct ServerState {
   std::uint64_t planned_slot_device_bytes = 0U;
   std::uint64_t configured_slot_device_bytes = 0U;
   std::uint64_t device_total_bytes = 0U;
+  std::uint64_t device_free_after_probe_bytes = 0U;
   std::uint64_t device_safety_margin_bytes = 0U;
   std::mutex pool_mutex;
   std::unordered_map<std::string, std::shared_ptr<SessionEntry>> sessions;

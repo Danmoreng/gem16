@@ -17,6 +17,11 @@ struct ModelRuntime::Impl {
   std::unique_ptr<internal::Gemma4Moe26BReferenceEngine> moe26b_engine;
   internal::ModelVariant variant = internal::ModelVariant::kUnsupported;
   std::mutex moe26b_slot_mutex;
+  std::string artifact_profile = "native-checkpoint";
+  std::string head_format = "native-checkpoint";
+  std::string artifact_content_sha256;
+  std::string source_lock_sha256;
+  std::string compiler_commit;
   std::uint64_t max_context_tokens = 0U;
   double load_milliseconds = 0.0;
   bool assistant_loaded = false;
@@ -47,6 +52,9 @@ Result<std::shared_ptr<ModelRuntime>> ModelRuntime::Load(
       return Error(StatusCode::kInvalidArgument,
                    "Gemma 4 26B requires a positive context capacity");
     }
+    auto identity = internal::LoadGemma4Moe26BCompiledIdentity(
+        options.model_directory);
+    if (!identity.ok()) return identity.status();
     auto engine = internal::Gemma4Moe26BReferenceEngine::Create(
         options.model_directory, options.max_context_tokens, options.device,
         internal::Gemma4Moe26BBackend::kSm120Integrated);
@@ -55,6 +63,12 @@ Result<std::shared_ptr<ModelRuntime>> ModelRuntime::Load(
     impl->moe26b_engine =
         std::make_unique<internal::Gemma4Moe26BReferenceEngine>(
             std::move(engine).value());
+    impl->artifact_profile = std::move(identity.value().artifact_profile);
+    impl->head_format = std::move(identity.value().head_format);
+    impl->artifact_content_sha256 =
+        std::move(identity.value().artifact_content_sha256);
+    impl->source_lock_sha256 = std::move(identity.value().source_lock_sha256);
+    impl->compiler_commit = std::move(identity.value().compiler_commit);
   } else {
     Status status = impl->model.Load(options.model_directory);
     if (!status.ok()) return status;
@@ -97,8 +111,31 @@ const char* ModelRuntime::selected_native_path() const {
              ? "sm120_integrated_nvfp4_moe_fp8_kv"
              : "gemma4_unified_12b_sm120";
 }
+const char* ModelRuntime::artifact_profile() const {
+  return impl_ == nullptr ? "unsupported" : impl_->artifact_profile.c_str();
+}
+const char* ModelRuntime::head_format() const {
+  return impl_ == nullptr ? "unsupported" : impl_->head_format.c_str();
+}
+const char* ModelRuntime::artifact_content_sha256() const {
+  return impl_ == nullptr ? "" : impl_->artifact_content_sha256.c_str();
+}
+const char* ModelRuntime::source_lock_sha256() const {
+  return impl_ == nullptr ? "" : impl_->source_lock_sha256.c_str();
+}
+const char* ModelRuntime::compiler_commit() const {
+  return impl_ == nullptr ? "" : impl_->compiler_commit.c_str();
+}
 std::uint64_t ModelRuntime::max_context_tokens() const {
   return impl_ == nullptr ? 0U : impl_->max_context_tokens;
+}
+std::uint64_t ModelRuntime::kv_cache_bytes() const {
+  if (impl_ == nullptr || impl_->moe26b_engine == nullptr) return 0U;
+  return impl_->moe26b_engine->kv_cache_bytes();
+}
+std::uint64_t ModelRuntime::workspace_bytes() const {
+  if (impl_ == nullptr || impl_->moe26b_engine == nullptr) return 0U;
+  return impl_->moe26b_engine->workspace_bytes();
 }
 bool ModelRuntime::supports_audio() const {
   return impl_ != nullptr &&

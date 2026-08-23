@@ -68,6 +68,12 @@ gem16::Result<std::shared_ptr<SessionEntry>> CreateSession(
     }
     if (state.sessions.size() + state.pending_sessions.size() >=
         state.max_sessions) {
+      if (state.runtime != nullptr &&
+          state.runtime->maximum_execution_slots() == 1U) {
+        return gem16::Status(
+            gem16::StatusCode::kResourceExhausted,
+            "Gemma 4 26B supports one resident session; reuse its session ID");
+      }
       auto victim = state.sessions.end();
       for (auto iterator = state.sessions.begin();
            iterator != state.sessions.end(); ++iterator) {
@@ -313,6 +319,9 @@ void RecordGeneration(ServerState& state,
   state.metrics.mtp_d4_groups.fetch_add(response.inference.mtp_d4_groups);
   state.metrics.mtp_ordinary_fallback_tokens.fetch_add(
       response.inference.mtp_ordinary_fallback_tokens);
+  state.metrics.fallback_count.fetch_add(response.inference.fallback_count);
+  state.metrics.token_loop_allocation_count.fetch_add(
+      response.inference.token_loop_allocations ? 1U : 0U);
   state.metrics.last_slot_bytes.store(
       response.inference.kv_cache_bytes + response.inference.workspace_bytes +
       response.inference.assistant_workspace_bytes +
@@ -387,6 +396,21 @@ std::string MetricsText(ServerState& state) {
                        state.metrics.mtp_d4_groups.load()));
   output.append(metric("gem16_mtp_ordinary_fallback_tokens_total",
                        state.metrics.mtp_ordinary_fallback_tokens.load()));
+  output.append("# TYPE gem16_fallback_total counter\n");
+  output.append(metric("gem16_fallback_total",
+                       state.metrics.fallback_count.load()));
+  output.append("# TYPE gem16_resource_exhaustion_total counter\n");
+  output.append(metric("gem16_resource_exhaustion_total",
+                       state.metrics.resource_exhaustion_count.load()));
+  output.append("# TYPE gem16_unsupported_feature_total counter\n");
+  output.append(metric("gem16_unsupported_feature_total",
+                       state.metrics.unsupported_feature_count.load()));
+  output.append("# TYPE gem16_model_validation_failure_total counter\n");
+  output.append(metric("gem16_model_validation_failure_total",
+                       state.metrics.model_validation_failure_count.load()));
+  output.append("# TYPE gem16_token_loop_allocation_total counter\n");
+  output.append(metric("gem16_token_loop_allocation_total",
+                       state.metrics.token_loop_allocation_count.load()));
   output.append(metric("gem16_model_weight_bytes",
                        state.runtime->weight_bytes()));
   output.append(metric("gem16_assistant_weight_bytes",
@@ -399,6 +423,8 @@ std::string MetricsText(ServerState& state) {
                        static_cast<std::uint64_t>(resident_sessions) *
                            state.planned_slot_device_bytes));
   output.append(metric("gem16_device_total_bytes", state.device_total_bytes));
+  output.append(metric("gem16_device_free_after_probe_bytes",
+                       state.device_free_after_probe_bytes));
   output.append(metric("gem16_device_safety_margin_bytes",
                        state.device_safety_margin_bytes));
   output.append(metric("gem16_last_execution_slot_bytes",

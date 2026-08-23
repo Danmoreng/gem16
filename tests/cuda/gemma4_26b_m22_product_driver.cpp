@@ -77,6 +77,28 @@ gem16::Status CancelOnFirstToken(void* context, std::uint32_t) {
                        "intentional M22 cancellation");
 }
 
+std::uint64_t TokenChecksum(std::span<const std::uint32_t> tokens) {
+  std::uint64_t checksum = 1469598103934665603ULL;
+  constexpr std::uint64_t kFnvPrime = 1099511628211ULL;
+  for (const std::uint32_t token : tokens) {
+    for (unsigned shift = 0U; shift < 32U; shift += 8U) {
+      checksum ^= static_cast<std::uint8_t>(token >> shift);
+      checksum *= kFnvPrime;
+    }
+  }
+  return checksum;
+}
+
+void WriteTokenIds(std::ostream& output,
+                   std::span<const std::uint32_t> tokens) {
+  output << '[';
+  for (std::size_t index = 0U; index < tokens.size(); ++index) {
+    if (index != 0U) output << ',';
+    output << tokens[index];
+  }
+  output << ']';
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -103,7 +125,18 @@ int main(int argc, char** argv) {
           "sm120_integrated_nvfp4_moe_fp8_kv" ||
       runtime->supports_audio() || runtime->supports_vision() ||
       runtime->supports_mtp() || runtime->maximum_execution_slots() != 1U ||
-      runtime->max_context_tokens() != options.context) {
+      runtime->max_context_tokens() != options.context ||
+      std::string_view(runtime->artifact_profile()) !=
+          "sm120-text-hybrid-v1" ||
+      std::string_view(runtime->head_format()) != "nvfp4" ||
+      std::string_view(runtime->artifact_content_sha256()) !=
+          "471805f7dad8abb84300be78b2822a63dcb1d35bff5aa98426a162cc8532ee17" ||
+      std::string_view(runtime->source_lock_sha256()) !=
+          "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230" ||
+      std::string_view(runtime->compiler_commit()) !=
+          "f433358b8e2c1250b95801fc898faee4fcedcbe5" ||
+      runtime->weight_bytes() == 0U || runtime->kv_cache_bytes() == 0U ||
+      runtime->workspace_bytes() == 0U) {
     return FailCheck("resident runtime capability metadata is inaccurate", 4);
   }
 
@@ -121,6 +154,9 @@ int main(int argc, char** argv) {
   std::uint64_t second_cached_tokens = 0U;
   std::uint64_t second_cache_write_tokens = 0U;
   std::int64_t second_slot_free_delta_bytes = 0;
+  std::vector<std::uint32_t> first_output_token_ids;
+  std::vector<std::uint32_t> second_output_token_ids;
+  std::vector<std::uint32_t> relaunch_output_token_ids;
 
   {
     auto session_result =
@@ -179,6 +215,7 @@ int main(int argc, char** argv) {
       return FailCheck("first resident turn telemetry is inconsistent", 8);
     }
     first_output_tokens = first.value().output_token_ids.size();
+    first_output_token_ids = first.value().output_token_ids;
 
     std::vector<std::uint32_t> continuation(kPrompt.begin(), kPrompt.end());
     continuation.insert(continuation.end(),
@@ -200,6 +237,7 @@ int main(int argc, char** argv) {
                        9);
     }
     second_output_tokens = second.value().output_token_ids.size();
+    second_output_token_ids = second.value().output_token_ids;
     second_cached_tokens = second.value().prompt_cached_tokens;
     second_cache_write_tokens = second.value().prompt_cache_write_tokens;
 
@@ -224,6 +262,21 @@ int main(int argc, char** argv) {
     if (media.ok() || media.status().code() != gem16::StatusCode::kUnsupported ||
         session.is_poisoned()) {
       return FailCheck("26B media request was not rejected safely", 11);
+    }
+    const std::array<float, 1> invalid_vision = {0.0F};
+    const gem16::VisionEmbeddingSegment vision_segment = {
+        .prompt_offset = 0U,
+        .patches = invalid_vision,
+        .positions = {},
+    };
+    const std::array<gem16::VisionEmbeddingSegment, 1> vision_segments = {
+        vision_segment};
+    auto vision = session.Generate(
+        continuation, 1U, {}, nullptr, nullptr, {}, vision_segments);
+    if (vision.ok() ||
+        vision.status().code() != gem16::StatusCode::kUnsupported ||
+        session.is_poisoned()) {
+      return FailCheck("26B vision request was not rejected safely", 11);
     }
   }
 
@@ -262,6 +315,13 @@ int main(int argc, char** argv) {
       return Fail("run M22 post-cancellation relaunch", relaunched.status(),
                   14);
     }
+    relaunch_output_token_ids = relaunched.value().output_token_ids;
+    if (relaunch_output_token_ids.size() != 1U ||
+        first_output_token_ids.empty() ||
+        relaunch_output_token_ids.front() != first_output_token_ids.front()) {
+      return FailCheck("post-cancellation relaunch changed deterministic output",
+                       14);
+    }
   }
 
   std::ofstream output(options.output, std::ios::binary | std::ios::trunc);
@@ -276,6 +336,20 @@ int main(int argc, char** argv) {
          << "\",\n"
          << "  \"native_path\": \"" << runtime->selected_native_path()
          << "\",\n"
+         << "  \"artifact_profile\": \"" << runtime->artifact_profile()
+         << "\",\n"
+         << "  \"head_format\": \"" << runtime->head_format() << "\",\n"
+         << "  \"artifact_content_sha256\": \""
+         << runtime->artifact_content_sha256() << "\",\n"
+         << "  \"source_lock_sha256\": \""
+         << runtime->source_lock_sha256() << "\",\n"
+         << "  \"compiler_commit\": \"" << runtime->compiler_commit()
+         << "\",\n"
+         << "  \"resident_weight_bytes\": " << runtime->weight_bytes()
+         << ",\n"
+         << "  \"kv_cache_bytes\": " << runtime->kv_cache_bytes() << ",\n"
+         << "  \"workspace_bytes\": " << runtime->workspace_bytes()
+         << ",\n"
          << "  \"max_context_tokens\": " << runtime->max_context_tokens()
          << ",\n"
          << "  \"maximum_execution_slots\": "
@@ -284,7 +358,20 @@ int main(int argc, char** argv) {
          << "  \"supports_vision\": false,\n"
          << "  \"supports_mtp\": false,\n"
          << "  \"first_output_tokens\": " << first_output_tokens << ",\n"
+         << "  \"first_output_token_ids\": ";
+  WriteTokenIds(output, first_output_token_ids);
+  output << ",\n"
+         << "  \"first_output_token_checksum\": "
+         << TokenChecksum(first_output_token_ids) << ",\n"
          << "  \"second_output_tokens\": " << second_output_tokens << ",\n"
+         << "  \"second_output_token_ids\": ";
+  WriteTokenIds(output, second_output_token_ids);
+  output << ",\n"
+         << "  \"second_output_token_checksum\": "
+         << TokenChecksum(second_output_token_ids) << ",\n"
+         << "  \"relaunch_output_token_ids\": ";
+  WriteTokenIds(output, relaunch_output_token_ids);
+  output << ",\n"
          << "  \"second_prompt_cached_tokens\": " << second_cached_tokens
          << ",\n"
          << "  \"second_prompt_cache_write_tokens\": "
@@ -295,6 +382,7 @@ int main(int argc, char** argv) {
          << "  \"unsupported_bf16_kv_rejected\": true,\n"
          << "  \"unsupported_mtp_rejected\": true,\n"
          << "  \"unsupported_media_rejected\": true,\n"
+         << "  \"unsupported_vision_rejected\": true,\n"
          << "  \"prefix_mismatch_rejected\": true,\n"
          << "  \"cancellation_callbacks\": " << cancellation_callbacks
          << ",\n"

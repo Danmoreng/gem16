@@ -186,7 +186,14 @@ class ModelRuntime {
   [[nodiscard]] double load_milliseconds() const;
   [[nodiscard]] const char* model_variant_name() const;
   [[nodiscard]] const char* selected_native_path() const;
+  [[nodiscard]] const char* artifact_profile() const;
+  [[nodiscard]] const char* head_format() const;
+  [[nodiscard]] const char* artifact_content_sha256() const;
+  [[nodiscard]] const char* source_lock_sha256() const;
+  [[nodiscard]] const char* compiler_commit() const;
   [[nodiscard]] std::uint64_t max_context_tokens() const;
+  [[nodiscard]] std::uint64_t kv_cache_bytes() const;
+  [[nodiscard]] std::uint64_t workspace_bytes() const;
   [[nodiscard]] bool supports_audio() const;
   [[nodiscard]] bool supports_vision() const;
   [[nodiscard]] bool supports_mtp() const;

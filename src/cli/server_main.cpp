@@ -50,12 +50,15 @@ using gem16::server::SetActiveResponse;
 using gem16::server::UnindexResponse;
 using gem16::server::WriteSse;
 
-constexpr std::uint64_t kServerVramSafetyBytes =
+constexpr std::uint64_t kPrimaryServerVramSafetyBytes =
     700U * 1024U * 1024U;
+constexpr std::uint64_t kLong26BServerVramSafetyBytes =
+    400U * 1024U * 1024U;
 
 struct SlotMemoryPlan {
   std::uint64_t slot_bytes = 0U;
   std::uint64_t configured_slot_bytes = 0U;
+  std::uint64_t safety_margin_bytes = 0U;
   gem16::DeviceMemoryInfo device;
 };
 
@@ -190,7 +193,25 @@ int HttpStatus(const gem16::Status& status) {
   }
 }
 
-void SetError(const gem16::Status& status, httplib::Response& response) {
+void RecordStatusMetric(ServerState& state, const gem16::Status& status) {
+  switch (status.code()) {
+    case gem16::StatusCode::kResourceExhausted:
+      state.metrics.resource_exhaustion_count.fetch_add(1U);
+      break;
+    case gem16::StatusCode::kUnsupported:
+      state.metrics.unsupported_feature_count.fetch_add(1U);
+      break;
+    case gem16::StatusCode::kDataLoss:
+      state.metrics.model_validation_failure_count.fetch_add(1U);
+      break;
+    default:
+      break;
+  }
+}
+
+void SetError(ServerState& state, const gem16::Status& status,
+              httplib::Response& response) {
+  RecordStatusMetric(state, status);
   response.status = HttpStatus(status);
   std::string_view type = response.status >= 500 ? "server_error"
                                                   : "invalid_request_error";
@@ -207,6 +228,27 @@ void SetError(const gem16::Status& status, httplib::Response& response) {
   response.set_content(
       gem16::server::OpenAiErrorJson(status.message(), type, code),
       "application/json; charset=utf-8");
+}
+
+gem16::Status ValidateRequestCapabilities(
+    const ServerState& state, const gem16::ChatGenerationRequest& request) {
+  for (const auto& message : request.messages) {
+    for (const auto& part : message.content) {
+      if (part.kind == gem16::GenerationContentKind::kAudio &&
+          !state.runtime->supports_audio()) {
+        return gem16::Status(
+            gem16::StatusCode::kUnsupported,
+            "Gemma 4 26B is a text-only profile; audio input is unsupported");
+      }
+      if (part.kind == gem16::GenerationContentKind::kImage &&
+          !state.runtime->supports_vision()) {
+        return gem16::Status(
+            gem16::StatusCode::kUnsupported,
+            "Gemma 4 26B is a text-only profile; image input is unsupported");
+      }
+    }
+  }
+  return gem16::Status::Ok();
 }
 
 struct CancellationContext {
@@ -250,20 +292,27 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
       request.body, {state.max_context});
   if (!parsed.ok()) {
     state.metrics.requests_failed.fetch_add(1U);
-    SetError(parsed.status(), response);
+    SetError(state, parsed.status(), response);
     return;
   }
   if (parsed.value().model != state.model_name) {
     state.metrics.requests_failed.fetch_add(1U);
-    SetError(gem16::Status(gem16::StatusCode::kNotFound,
+    SetError(state, gem16::Status(gem16::StatusCode::kNotFound,
                            "requested model is not served"),
              response);
+    return;
+  }
+  const gem16::Status capability =
+      ValidateRequestCapabilities(state, parsed.value().generation);
+  if (!capability.ok()) {
+    state.metrics.requests_failed.fetch_add(1U);
+    SetError(state, capability, response);
     return;
   }
   auto identity_result = MakeChatIdentity(state);
   if (!identity_result.ok()) {
     state.metrics.requests_failed.fetch_add(1U);
-    SetError(identity_result.status(), response);
+    SetError(state, identity_result.status(), response);
     return;
   }
   gem16::server::OpenAiResponseIdentity identity =
@@ -273,7 +322,7 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
     auto generated_id = gem16::server::MakeSecureId("session_");
     if (!generated_id.ok()) {
       state.metrics.requests_failed.fetch_add(1U);
-      SetError(generated_id.status(), response);
+      SetError(state, generated_id.status(), response);
       return;
     }
     session_id = std::move(generated_id).value();
@@ -286,7 +335,7 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
                value == '_' || value == '.';
       })) {
     state.metrics.requests_failed.fetch_add(1U);
-    SetError(gem16::Status(gem16::StatusCode::kInvalidArgument,
+    SetError(state, gem16::Status(gem16::StatusCode::kInvalidArgument,
                            "X-Gem16-Session-Id is invalid"),
              response);
     return;
@@ -294,7 +343,7 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
   auto acquired = AcquireNamedSession(state, "chat:" + session_id);
   if (!acquired.ok()) {
     state.metrics.requests_failed.fetch_add(1U);
-    SetError(acquired.status(), response);
+    SetError(state, acquired.status(), response);
     return;
   }
   std::shared_ptr<SessionEntry> entry = std::move(acquired).value();
@@ -310,7 +359,7 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
         parsed.value().generation, CheckCancellation, &cancellation);
     if (!generated.ok()) {
       state.metrics.requests_failed.fetch_add(1U);
-      SetError(generated.status(), response);
+      SetError(state, generated.status(), response);
       if (entry->session.is_poisoned()) DiscardSession(state, entry);
       ReleaseSession(state, entry);
       return;
@@ -367,6 +416,7 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
         const bool generation_completed = generated.ok();
         if (!generated.ok()) {
           provider->server->metrics.requests_failed.fetch_add(1U);
+          RecordStatusMetric(*provider->server, generated.status());
           (void)WriteSse(
               sink, gem16::server::OpenAiErrorJson(
                         generated.status().message(), "server_error"));
@@ -407,20 +457,27 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
       request.body, {state.max_context});
   if (!parsed.ok()) {
     state.metrics.requests_failed.fetch_add(1U);
-    SetError(parsed.status(), response);
+    SetError(state, parsed.status(), response);
     return;
   }
   if (parsed.value().model != state.model_name) {
     state.metrics.requests_failed.fetch_add(1U);
-    SetError(gem16::Status(gem16::StatusCode::kNotFound,
+    SetError(state, gem16::Status(gem16::StatusCode::kNotFound,
                            "requested model is not served"),
              response);
+    return;
+  }
+  const gem16::Status capability =
+      ValidateRequestCapabilities(state, parsed.value().generation);
+  if (!capability.ok()) {
+    state.metrics.requests_failed.fetch_add(1U);
+    SetError(state, capability, response);
     return;
   }
   auto identity_result = MakeResponsesIdentity(state);
   if (!identity_result.ok()) {
     state.metrics.requests_failed.fetch_add(1U);
-    SetError(identity_result.status(), response);
+    SetError(state, identity_result.status(), response);
     return;
   }
   gem16::server::OpenAiResponseIdentity identity =
@@ -432,7 +489,7 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
           : CreateSession(state, "responses:" + identity.id);
   if (!acquired.ok()) {
     state.metrics.requests_failed.fetch_add(1U);
-    SetError(acquired.status(), response);
+    SetError(state, acquired.status(), response);
     return;
   }
   std::shared_ptr<SessionEntry> entry = std::move(acquired).value();
@@ -442,7 +499,7 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
     gem16::Status status = PrepareResponsesRequest(*entry, parsed.value());
     if (!status.ok()) {
       state.metrics.requests_failed.fetch_add(1U);
-      SetError(status, response);
+      SetError(state, status, response);
       UnindexResponse(state, identity.id);
       ReleaseSession(state, entry);
       return;
@@ -456,7 +513,7 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
         parsed.value().generation, CheckCancellation, &cancellation);
     if (!generated.ok()) {
       state.metrics.requests_failed.fetch_add(1U);
-      SetError(generated.status(), response);
+      SetError(state, generated.status(), response);
       if (entry->session.is_poisoned()) DiscardSession(state, entry);
       ReleaseSession(state, entry);
       return;
@@ -509,6 +566,7 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
             *provider->entry, provider->request);
         if (!status.ok()) {
           provider->server->metrics.requests_failed.fetch_add(1U);
+          RecordStatusMetric(*provider->server, status);
           (void)WriteSse(
               sink, "{\"type\":\"error\",\"code\":null,\"message\":" +
                         gem16::json::Quote(status.message()) +
@@ -559,6 +617,7 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
                             provider->identity.id);
         if (!generated.ok()) {
           provider->server->metrics.requests_failed.fetch_add(1U);
+          RecordStatusMetric(*provider->server, generated.status());
           (void)WriteSse(
               sink, "{\"type\":\"error\",\"code\":null,\"message\":" +
                         gem16::json::Quote(generated.status().message()) +
@@ -621,15 +680,38 @@ gem16::Result<SlotMemoryPlan> PlanServerSlots(
                          "configured execution-slot memory overflows accounting");
   }
   const std::uint64_t additional_slots = max_sessions - 1U;
-  if (after.free_bytes < kServerVramSafetyBytes ||
-      additional_slots >
-          (after.free_bytes - kServerVramSafetyBytes) / slot_bytes) {
+  const bool long_26b =
+      std::string_view(runtime->model_variant_name()) ==
+          "gemma4_moe_26b_a4b" &&
+      options.max_context_tokens >= 65536U;
+  const std::uint64_t safety_margin =
+      long_26b ? kLong26BServerVramSafetyBytes
+               : kPrimaryServerVramSafetyBytes;
+  const std::uint64_t additional_slot_bytes = slot_bytes * additional_slots;
+  const bool required_overflows =
+      additional_slot_bytes >
+      std::numeric_limits<std::uint64_t>::max() - safety_margin;
+  const std::uint64_t required_free =
+      required_overflows
+          ? std::numeric_limits<std::uint64_t>::max()
+          : additional_slot_bytes + safety_margin;
+  if (required_overflows || after.free_bytes < required_free) {
+    const std::uint64_t shortfall =
+        required_free > after.free_bytes ? required_free - after.free_bytes
+                                         : 0U;
     return gem16::Status(
         gem16::StatusCode::kResourceExhausted,
-        "--max-sessions and --max-context exceed VRAM after the required "
-        "700 MiB safety margin");
+        "cannot admit configured execution slots: free=" +
+            std::to_string(after.free_bytes) +
+            " required_slot=" + std::to_string(slot_bytes) +
+            " additional_required=" +
+            std::to_string(additional_slot_bytes) +
+            " probe_resident=" + std::to_string(slot_bytes) +
+            " required_margin=" + std::to_string(safety_margin) +
+            " shortfall=" + std::to_string(shortfall));
   }
-  return SlotMemoryPlan{slot_bytes, slot_bytes * max_sessions, after};
+  return SlotMemoryPlan{slot_bytes, slot_bytes * max_sessions, safety_margin,
+                        after};
 }
 
 void HandleCancelResponse(ServerState& state, std::string_view response_id,
@@ -649,7 +731,7 @@ void HandleCancelResponse(ServerState& state, std::string_view response_id,
     }
   }
   if (!cancellation_requested) {
-    SetError(gem16::Status(gem16::StatusCode::kNotFound,
+    SetError(state, gem16::Status(gem16::StatusCode::kNotFound,
                            "response is not actively generating"),
              response);
     return;
@@ -743,7 +825,8 @@ int ServerMain(int argc, char** argv) {
             << slot_plan.value().configured_slot_bytes
             << " device_total_bytes=" << slot_plan.value().device.total_bytes
             << " free_with_probe_bytes=" << slot_plan.value().device.free_bytes
-            << " safety_margin_bytes=" << kServerVramSafetyBytes << '\n';
+            << " safety_margin_bytes="
+            << slot_plan.value().safety_margin_bytes << '\n';
   ServerState state(options.value().model_name, options.value().max_context,
                     std::move(processor).value(), runtime.value(),
                     session_options, options.value().max_sessions);
@@ -751,7 +834,8 @@ int ServerMain(int argc, char** argv) {
   state.configured_slot_device_bytes =
       slot_plan.value().configured_slot_bytes;
   state.device_total_bytes = slot_plan.value().device.total_bytes;
-  state.device_safety_margin_bytes = kServerVramSafetyBytes;
+  state.device_free_after_probe_bytes = slot_plan.value().device.free_bytes;
+  state.device_safety_margin_bytes = slot_plan.value().safety_margin_bytes;
   httplib::Server server;
   server.Get("/health",
              [&state](const httplib::Request&, httplib::Response& response) {
@@ -762,6 +846,9 @@ int ServerMain(int argc, char** argv) {
                  resident = state.sessions.size();
                  pending = state.pending_sessions.size();
                }
+               const bool is_moe26b =
+                   std::string_view(state.runtime->model_variant_name()) ==
+                   "gemma4_moe_26b_a4b";
                response.set_content(
                    "{\"status\":\"ok\",\"resident_sessions\":" +
                        std::to_string(resident) +
@@ -771,12 +858,21 @@ int ServerMain(int argc, char** argv) {
                        std::to_string(state.max_sessions) +
                        ",\"max_context_tokens\":" +
                        std::to_string(state.max_context) +
-                       ",\"default_context_tokens\":" +
+                       ",\"default_context\":" +
                        std::to_string(
-                           std::string_view(state.runtime->model_variant_name()) ==
-                                   "gemma4_moe_26b_a4b"
+                           is_moe26b
                                ? 32768U
                                : 8192U) +
+                       ",\"default_context_tokens\":" +
+                       std::to_string(
+                           is_moe26b
+                               ? 32768U
+                               : 8192U) +
+                       ",\"qualified_64k\":" +
+                       (is_moe26b ? "false" : "null") +
+                       ",\"base_max_context\":" +
+                       (is_moe26b ? "32768" : "null") +
+                       ",\"mtp_max_context\":null" +
                        ",\"model_variant\":" +
                        gem16::json::Quote(
                            state.runtime->model_variant_name()) +
@@ -784,19 +880,40 @@ int ServerMain(int argc, char** argv) {
                        gem16::json::Quote(
                            state.runtime->selected_native_path()) +
                        ",\"weight_profile\":" +
-                       gem16::json::Quote(
-                           std::string_view(state.runtime->model_variant_name()) ==
-                                   "gemma4_moe_26b_a4b"
-                               ? "sm120-text-hybrid-v1"
-                               : "native-checkpoint") +
+                       gem16::json::Quote(state.runtime->artifact_profile()) +
                        ",\"head_format\":" +
+                       gem16::json::Quote(state.runtime->head_format()) +
+                       ",\"artifact_content_sha256\":" +
                        gem16::json::Quote(
-                           std::string_view(state.runtime->model_variant_name()) ==
-                                   "gemma4_moe_26b_a4b"
-                               ? "nvfp4"
-                               : "native-checkpoint") +
+                           state.runtime->artifact_content_sha256()) +
+                       ",\"source_lock_sha256\":" +
+                       gem16::json::Quote(
+                           state.runtime->source_lock_sha256()) +
+                       ",\"compiler_commit\":" +
+                       gem16::json::Quote(state.runtime->compiler_commit()) +
                        ",\"resident_weight_bytes\":" +
                        std::to_string(state.runtime->weight_bytes()) +
+                       ",\"kv_cache_bytes\":" +
+                       (is_moe26b
+                            ? std::to_string(state.runtime->kv_cache_bytes())
+                            : "null") +
+                       ",\"workspace_bytes\":" +
+                       (is_moe26b
+                            ? std::to_string(state.runtime->workspace_bytes())
+                            : "null") +
+                       ",\"execution_slot_bytes\":" +
+                       std::to_string(state.planned_slot_device_bytes) +
+                       ",\"admission_free_bytes\":" +
+                       std::to_string(state.device_free_after_probe_bytes) +
+                       ",\"required_admission_margin_bytes\":" +
+                       std::to_string(state.device_safety_margin_bytes) +
+                       ",\"admission_headroom_bytes\":" +
+                       std::to_string(
+                           state.device_free_after_probe_bytes >
+                                   state.device_safety_margin_bytes
+                               ? state.device_free_after_probe_bytes -
+                                     state.device_safety_margin_bytes
+                               : 0U) +
                        ",\"text_only\":" +
                        ((!state.runtime->supports_audio() &&
                          !state.runtime->supports_vision())
