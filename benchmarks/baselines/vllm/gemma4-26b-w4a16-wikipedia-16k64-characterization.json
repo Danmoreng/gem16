@@ -1,0 +1,382 @@
+{
+  "schema_version": 1,
+  "status": "development_characterization",
+  "correctness_status": "unqualified_output_nondeterminism",
+  "recorded_at": "2026-08-23",
+  "decision": "Use the CUDA-Graph row only as an external performance-headroom observation. Do not use either row as a correctness, determinism, quality, or milestone-acceptance baseline.",
+  "benchmark_source": {
+    "git_commit": "6b1fddde16f2c440d5c0a622f7765ee28d491542",
+    "worktree_dirty_at_start": false,
+    "harness": "tools/benchmark_wikipedia_workload.py",
+    "isolation_wrapper": "tools/run_isolated_vllm_reference.sh"
+  },
+  "runtime": {
+    "vllm": "0.27.1",
+    "torch": "2.13.0",
+    "torch_cuda": "13.0",
+    "transformers": "5.14.1",
+    "compressed_tensors": "0.17.0",
+    "flashinfer_python": "0.6.16.post3",
+    "python": "3.13.14",
+    "gemma4_mtp_graph_safety_patch_applied_to_environment": true,
+    "gemma4_mtp_graph_safety_patch_exercised_by_this_run": false
+  },
+  "hardware": {
+    "device_name": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "compute_capability": "12.0",
+    "memory_mib": 16303,
+    "driver": "610.43.03",
+    "cuda_compiler": "13.3"
+  },
+  "checkpoint": {
+    "repository": "lokeshe09/gemma-4-26B-A4B-it-INT4-W4A16-channelwise",
+    "revision": "915f65bdfb1d8cd16232849897e63ba1e05614e4",
+    "community_checkpoint": true,
+    "checkpoint_files_modified": false,
+    "base_model_reported_by_model_card": "google/gemma-4-26B-A4B-it",
+    "local_directory_name": "lokeshe09-gemma-4-26b-a4b-it-int4-w4a16-channelwise-915f65b",
+    "architecture": "Gemma4ForConditionalGeneration",
+    "model_safetensors_bytes": 14925293356,
+    "files": {
+      "model.safetensors": "9e93613028b2c4331648b8c8d0db9a93168c0bc005b67917f1e92526ec4767b1",
+      "config.json": "d29480d4ef0da63689cafad77f3bf44cc3aeb9cb39d2f7a7117fa339279f812a",
+      "tokenizer.json": "5d84efaa7efd10a17dd1d85d92456585541d6e6c9ef37eb78b8eb753442905f5",
+      "recipe.yaml": "7f6d913fcb447aab3a949b50f7f510552bc108f56053a364c8880df61e13204e",
+      "README.md": "622f46ded8b479ef244fd6aed09cef2537ad79bd0af9c6f82033384088077d70"
+    },
+    "reported_quantization": {
+      "format": "compressed-tensors pack-quantized",
+      "configured_linear_target_weights": "symmetric static INT4 channel-wise",
+      "activations": "BF16",
+      "declared_bf16_exceptions": [
+        "vision tower Linear families",
+        "language-model router projections",
+        "vision embedding projection",
+        "lm_head"
+      ],
+      "validation_scope": "Compression metadata for the configured Linear targets and declared ignore list; not an independent validation of every tensor payload.",
+      "source_group_size": null,
+      "effective_vllm_group_size": -1,
+      "normalization": "The harness validated the configured compression-metadata contract and passed an in-memory null-to-minus-one hf_overrides normalization. It did not alter checkpoint files."
+    }
+  },
+  "workload": {
+    "id": "wikipedia-artificial-intelligence-summary-16k",
+    "path": "benchmarks/prompts/wikipedia-summary-16k.json",
+    "file_sha256": "825ff6dcf2632184c4f70a152fe12e2d2a9c2697ab3f077f5369a049792d03e6",
+    "prompt_token_ids_sha256": "d07ad4d805944f0b87869da0c5bb44d99e8c43c0eb57d05a108ad80a6abb51a8",
+    "prompt_tokens": 16384,
+    "forced_output_tokens": 64,
+    "timed_decode_intervals": 63,
+    "temperature": 0.0,
+    "seed": 0,
+    "ignore_eos": true,
+    "detokenize": false
+  },
+  "common_configuration": {
+    "batch_size": 1,
+    "max_model_len": 16448,
+    "max_num_batched_tokens": 1024,
+    "chunked_prefill": true,
+    "prefix_caching": false,
+    "cpu_offload_gb": 0,
+    "language_model_only": true,
+    "multimodal_limits": {
+      "image": 0,
+      "audio": 0,
+      "video": 0
+    },
+    "kv_cache": "fp8",
+    "linear_backend_requested": "marlin",
+    "moe_backend_requested": "marlin",
+    "mtp": "disabled",
+    "trust_remote_code": false,
+    "warmups": 1,
+    "measured_repetitions": 3,
+    "primary_statistic": "median"
+  },
+  "resolved_dispatch": {
+    "linear": "MarlinLinearKernel for CompressedTensorsWNA16",
+    "moe_method": "CompressedTensorsWNA16MoEMethod",
+    "moe_backend": "MARLIN WNA16",
+    "experts": "MarlinExperts",
+    "attention": "TRITON_ATTN",
+    "explicit_backend_fallback_observed": false,
+    "fallback_count": "not_instrumented",
+    "instruction_or_sass_evidence_captured": false
+  },
+  "results": {
+    "cuda_graph": {
+      "gpu_memory_utilization": 0.985,
+      "cuda_graphs_requested": true,
+      "service_result": "success",
+      "prompt_tokens_per_second": {
+        "samples": [
+          6492.170624083547,
+          6475.79542173232,
+          6467.2960723770475
+        ],
+        "median": 6475.79542173232
+      },
+      "time_to_first_token_ms": {
+        "samples": [
+          2523.6551761627197,
+          2530.036687850952,
+          2533.3616733551025
+        ],
+        "median": 2530.036687850952
+      },
+      "decode_tokens_per_second": {
+        "samples": [
+          149.35759414007606,
+          148.87004094402155,
+          149.34811574343945
+        ],
+        "median": 149.34811574343945
+      },
+      "average_inter_token_latency_ms": {
+        "samples": [
+          6.695340841270803,
+          6.717268253966708,
+          6.6957657619053546
+        ],
+        "median": 6.6957657619053546
+      },
+      "generated_tokens_per_run": [
+        64,
+        64,
+        64
+      ],
+      "first_output_token_ids": [
+        61684,
+        61684,
+        61684
+      ],
+      "output_token_sha256_values": [
+        "68c47fa82819f6af818780b341ee66e903f3c8c34c82c03cc70b2521d0dc3694",
+        "fc2fc07c6a3ad2643360ea884325caf25528a0d00bfcdc226232c07c40cd7a8e",
+        "d28c106dc294b4f6c0e1eb1a4e8eed2ff57d88473ed149b2d4d4e0b774583cf4"
+      ],
+      "deterministic_outputs": false,
+      "dispatch_evidence": [
+        "Using MarlinLinearKernel for CompressedTensorsWNA16",
+        "Using CompressedTensorsWNA16MoEMethod",
+        "Using 'MARLIN' WNA16 MoE backend.",
+        "Using MarlinExperts",
+        "Using AttentionBackendEnum.TRITON_ATTN backend."
+      ],
+      "engine_memory": {
+        "available_kv_cache_gib": 1.45,
+        "gpu_kv_cache_tokens": 53013,
+        "maximum_concurrency_at_16448_tokens": 3.22,
+        "reported_consumed_memory_gib": 13.66,
+        "reported_peak_activation_gib": 0.16,
+        "reported_cuda_graph_memory_gib": 0.05
+      },
+      "external_gpu_telemetry": {
+        "scope": "device-wide nvidia-smi counters, not process-attributed",
+        "interval_ms": 200,
+        "sample_count": 205,
+        "peak_memory_used_mib": 15818,
+        "minimum_memory_free_mib": 63,
+        "peak_gpu_utilization_percent": 100,
+        "peak_power_watts": 177.22,
+        "peak_temperature_c": 68,
+        "peak_sm_clock_mhz": 2790
+      }
+    },
+    "eager_control": {
+      "gpu_memory_utilization": 0.95,
+      "cuda_graphs_requested": false,
+      "enforce_eager": true,
+      "service_result": "result_json_complete_then_shutdown_timeout",
+      "prompt_tokens_per_second": {
+        "samples": [
+          6380.237448026712,
+          6367.415921904049,
+          6356.948398799053
+        ],
+        "median": 6367.415921904049
+      },
+      "time_to_first_token_ms": {
+        "samples": [
+          2567.92950630188,
+          2573.1003284454346,
+          2577.3372650146484
+        ],
+        "median": 2573.1003284454346
+      },
+      "decode_tokens_per_second": {
+        "samples": [
+          58.495127497945354,
+          59.19444745709633,
+          58.421265289368975
+        ],
+        "median": 58.495127497945354
+      },
+      "average_inter_token_latency_ms": {
+        "samples": [
+          17.095440984125133,
+          16.89347638095266,
+          17.117054809526213
+        ],
+        "median": 17.095440984125133
+      },
+      "generated_tokens_per_run": [
+        64,
+        64,
+        64
+      ],
+      "first_output_token_ids": [
+        61684,
+        61684,
+        61684
+      ],
+      "output_token_sha256_values": [
+        "cd4040d6c114cc71135a3745a0079a45abf047a47fa9ff13f0b883b027f64026",
+        "5cab76b159b6b6ba8e4e54442a7ec3abe1636c94b9eb9a9368049e5c2b2fc7ea",
+        "37b584755aed693fd707ddb57ab746753b8e8180337c56b4989bbb9fecbff2d6"
+      ],
+      "deterministic_outputs": false,
+      "dispatch_evidence": [
+        "Using MarlinLinearKernel for CompressedTensorsWNA16",
+        "Using CompressedTensorsWNA16MoEMethod",
+        "Using 'MARLIN' WNA16 MoE backend.",
+        "Using MarlinExperts",
+        "Using AttentionBackendEnum.TRITON_ATTN backend."
+      ],
+      "engine_memory": {
+        "available_kv_cache_gib": 1.01,
+        "gpu_kv_cache_tokens": 36810,
+        "maximum_concurrency_at_16448_tokens": 2.24,
+        "reported_consumed_memory_gib": 13.65,
+        "reported_peak_activation_gib": 0.08,
+        "reported_cuda_graph_memory_gib": 0.0
+      },
+      "external_gpu_telemetry": {
+        "scope": "device-wide nvidia-smi counters, not process-attributed",
+        "interval_ms": 200,
+        "sample_count": 345,
+        "peak_memory_used_mib": 15546,
+        "minimum_memory_free_mib": 335,
+        "peak_gpu_utilization_percent": 100,
+        "peak_power_watts": 176.75,
+        "peak_temperature_c": 69,
+        "peak_sm_clock_mhz": 2782
+      }
+    }
+  },
+  "correctness": {
+    "greedy_seed": 0,
+    "cuda_graph_deterministic": false,
+    "eager_deterministic": false,
+    "first_token_stable_across_all_six_runs": true,
+    "first_token_id": 61684,
+    "first_intra_mode_divergence_position": "not_captured",
+    "correctness_baseline_eligible": false,
+    "performance_characterization_eligible": true
+  },
+  "development_comparison": {
+    "warning": "The engines use different checkpoints, weight formats, and prefill timing boundaries. These ratios compare reported metrics to identify optimization headroom only; they are not isolated engine-speed, model-quality, or numerical-parity comparisons.",
+    "current_gem16_baseline": "benchmarks/baselines/gem16/gemma4-26b-a4b-ordinary-16k64-2026-08-23.json",
+    "vllm_prefill_timing_boundary": "vLLM first_token_latency, including request and first-token selection work",
+    "gem16_prefill_timing_boundary": "first prefill launch through prefill synchronization, excluding first-token head selection",
+    "gem16_prompt_tokens_per_second_median_derived_from_recorded_prompt_ms": 3169.4583975150676,
+    "gem16_decode_tokens_per_second_median": 120.398224351,
+    "vllm_reported_cuda_graph_over_gem16_reported_prefill_ratio": 2.0431867560746344,
+    "vllm_reported_cuda_graph_prefill_metric_difference_percent": 104.31867560746343,
+    "vllm_cuda_graph_over_gem16_decode_ratio": 1.2404511490804142,
+    "vllm_cuda_graph_decode_lead_percent": 24.04511490804142,
+    "cuda_graph_over_eager_prefill_ratio": 1.0170209549929734,
+    "cuda_graph_over_eager_decode_ratio": 2.5531718987822587
+  },
+  "attempt_audit": [
+    {
+      "log": "artifacts/raw/vllm/lokeshe09-w4a16-16k64-20260823/console-cudagraph.log",
+      "sha256": "40ffd305fcc0524518766cb635674f7688a508ed87fcd65a2a7a296fcce3658c",
+      "outcome": "Harness passed absent GGUF model_weights as None; vLLM 0.27.1 rejected the value before model loading. Fixed in commit 80cd430."
+    },
+    {
+      "log": "artifacts/raw/vllm/lokeshe09-w4a16-16k64-20260823/console-cudagraph-retry1.log",
+      "sha256": "75f98f759c9a4a7d3ec76235a8c1b16f422631628b0b39d3cce2e9ba801598c6",
+      "outcome": "Cold compiled graph run at utilization 0.95 and batch-token cap 2048 reported negative available KV memory."
+    },
+    {
+      "log": "artifacts/raw/vllm/lokeshe09-w4a16-16k64-20260823/console-cudagraph-retry2-util099.log",
+      "sha256": "b9f8845a074af2d3d3a5b32f42c9fa93b36e67c6abd8e761a8afc0d24482041c",
+      "outcome": "Utilization 0.99 was rejected because the requested reservation exceeded free startup memory."
+    },
+    {
+      "log": "artifacts/raw/vllm/lokeshe09-w4a16-16k64-20260823/console-cudagraph-retry3-batch1024.log",
+      "sha256": "2efd92bc1bbc8cdcab79a13a65cc8a4ff8dde4232d6a9815fa57ab9d44029ff2",
+      "outcome": "Cold compiled graph run at utilization 0.95 and batch-token cap 1024 still reported negative available KV memory."
+    },
+    {
+      "log": "artifacts/raw/vllm/lokeshe09-w4a16-16k64-20260823/console-cudagraph-retry4-util0985-batch1024.log",
+      "sha256": "32b96737979bcff76bdcdf4055e94d0da7c418b12c95e027751f1f22a5c1b0f1",
+      "outcome": "All measurements completed, but late repository-state capture failed inside the task-heavy service. Fixed by capturing state before engine construction in commit 6b1fddd."
+    }
+  ],
+  "evidence": {
+    "cuda_graph_command": "tools/run_isolated_vllm_reference.sh -- third_party/cache/vllm-0.27.1-env/bin/python tools/benchmark_wikipedia_workload.py --engine vllm --workload benchmarks/prompts/wikipedia-summary-16k.json --output artifacts/raw/vllm/lokeshe09-w4a16-16k64-20260823/result-cudagraph.json --model models/checkpoints/lokeshe09-gemma-4-26b-a4b-it-int4-w4a16-channelwise-915f65b --warmups 1 --repetitions 3 --fixed-output-tokens 64 --gpu-memory-utilization 0.985 --vllm-kv-cache-dtype fp8 --vllm-normalize-channelwise-group-size --vllm-moe-backend marlin --vllm-linear-backend marlin --vllm-max-num-batched-tokens 1024",
+    "eager_command": "tools/run_isolated_vllm_reference.sh -- third_party/cache/vllm-0.27.1-env/bin/python tools/benchmark_wikipedia_workload.py --engine vllm --workload benchmarks/prompts/wikipedia-summary-16k.json --output artifacts/raw/vllm/lokeshe09-w4a16-16k64-20260823/result-eager.json --model models/checkpoints/lokeshe09-gemma-4-26b-a4b-it-int4-w4a16-channelwise-915f65b --warmups 1 --repetitions 3 --fixed-output-tokens 64 --gpu-memory-utilization 0.95 --vllm-kv-cache-dtype fp8 --vllm-normalize-channelwise-group-size --vllm-moe-backend marlin --vllm-linear-backend marlin --vllm-max-num-batched-tokens 1024 --enforce-eager",
+    "raw_files": [
+      {
+        "path": "artifacts/raw/vllm/lokeshe09-w4a16-16k64-20260823/result-cudagraph.json",
+        "bytes": 8784,
+        "sha256": "e7010eb79a661a65a93425e2c70a99602f786799dc324a9d95957bb634d76eed"
+      },
+      {
+        "path": "artifacts/raw/vllm/lokeshe09-w4a16-16k64-20260823/console-cudagraph-retry5-final.log",
+        "bytes": 29885,
+        "sha256": "d550e198310d02fe20d08626bb01d0e54c6a61e312be49a3dba35ba39d984d7a"
+      },
+      {
+        "path": "artifacts/raw/vllm/lokeshe09-w4a16-16k64-20260823/gpu-telemetry-cudagraph-retry5-final.csv",
+        "bytes": 13655,
+        "sha256": "1724dcdcd4e1901807f3ca4be9901ffa466ecb58430c41c5e47cc7296e2ca96b"
+      },
+      {
+        "path": "artifacts/raw/vllm/lokeshe09-w4a16-16k64-20260823/result-eager.json",
+        "bytes": 8783,
+        "sha256": "b75675fc7e894c41a50d38d6adecee254e16a766c13aa30212903ef8f6fa50e4"
+      },
+      {
+        "path": "artifacts/raw/vllm/lokeshe09-w4a16-16k64-20260823/console-eager.log",
+        "bytes": 27763,
+        "sha256": "fbd09fd27700663595a0959494473f4b928af0fe5e4791626bdc3ef338bad739"
+      },
+      {
+        "path": "artifacts/raw/vllm/lokeshe09-w4a16-16k64-20260823/gpu-telemetry-eager.csv",
+        "bytes": 22223,
+        "sha256": "90e5fa67421bd4493620bee3b6c7ef6f7e0963087a11aab2348a34ce393424b4"
+      }
+    ],
+    "telemetry_csv_columns": [
+      "timestamp",
+      "gpu_index",
+      "memory_used_mib",
+      "memory_free_mib",
+      "gpu_utilization_percent",
+      "power_watts",
+      "temperature_c",
+      "sm_clock_mhz",
+      "memory_clock_mhz"
+    ]
+  },
+  "limitations": [
+    "The community W4A16 checkpoint is not the same weight artifact or quantization recipe as gem16's compiled mixed FP8/NVFP4 checkpoint or Google's official QAT Q4_0 GGUF. No quality equivalence has been established.",
+    "All three CUDA-Graph outputs and all three Eager outputs had different full-token hashes despite greedy temperature-zero sampling. The first output token was stable in all six runs, but no output-quality claim is made and this does not qualify correctness.",
+    "The common Eager divergence rules out CUDA Graph replay as the necessary cause. Marlin W4A16/MoE, Triton attention, FP8 KV, and other shared numerical or scheduling paths remain possible sources; no root cause was established.",
+    "The current harness records one complete representative token stream and only hashes plus first and last IDs for the other runs, so the first intra-mode divergence position and top-logit margins are not available.",
+    "The CUDA-Graph row uses gpu_memory_utilization=0.985 and external telemetry observed only 63 MiB free at peak. This is too little margin for a production memory policy.",
+    "Both successful modes emitted non-fatal CUDACachingAllocator OOM warnings for 1,476,395,008-byte and 127,926,272-byte allocations during initialization. Startup continued, positive Marlin dispatch lines remained present, and no fallback line was observed, but the warnings must accompany the result.",
+    "Gemma 4's heterogeneous head dimensions forced TRITON_ATTN because FA4 was unavailable in this environment.",
+    "The Graph-versus-Eager comparison is not an isolated CUDA-Graph A/B test: Eager also disables torch.compile, uses a lower memory-utilization setting, and the graph run used a warm compile cache.",
+    "The one-warm-up, three-measurement protocol is a bounded development characterization, not the formal M20 three-warm-up/ten-retained qualification protocol.",
+    "The Eager benchmark wrote its complete result after all measurements and the benchmark process exited successfully; the isolation service then reported a teardown timeout and returned wrapper status 1. Its log does not identify a remaining process after EngineCore reports exiting its busy loop.",
+    "The CUDA-Graph service also force-killed its lingering EngineCore after the result was complete, although the service itself returned success.",
+    "External 200 ms nvidia-smi telemetry spans startup, benchmark, and teardown rather than only retained measurement windows. It is device-wide rather than process-attributed, and no idle baseline is subtracted.",
+    "No pre-run record was made of the platform power profile, nvidia-powerd state, configured power limit, starting temperature, or absence of other GPU processes."
+  ]
+}

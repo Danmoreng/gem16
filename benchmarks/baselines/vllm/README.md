@@ -38,6 +38,40 @@ We do not patch the plugin for this competitor measurement: doing so would stop 
 The exact versions, model identity, attempted semantics, failure boundary and limitations are retained in
 [`gemma4-26b-q4_0-load-characterization.json`](gemma4-26b-q4_0-load-characterization.json).
 
+## Gemma 4 26B community W4A16 16K+64 result
+
+A pinned community compressed-tensors checkpoint does load in vLLM 0.27.1 after the harness validates the declared
+static symmetric weight-only channel-wise INT4 metadata for configured Linear targets and its declared BF16
+exceptions. It explicitly maps the checkpoint metadata's `group_size=null` to vLLM's equivalent `-1` convention in
+memory; checkpoint files are not modified. The exact 16,384-token Wikipedia workload plus 64 forced greedy output
+tokens, one warm-up and three measurements produced:
+
+| Mode | Prefill | TTFT | Decode | ITL | Output hashes | Peak device-wide `memory.used` |
+|---|---:|---:|---:|---:|---:|---:|
+| CUDA Graph | 6,475.80 tok/s | 2,530.04 ms | 149.35 tok/s | 6.696 ms | 3 different / 3 | 15,818 MiB |
+| Eager control | 6,367.42 tok/s | 2,573.10 ms | 58.50 tok/s | 17.095 ms | 3 different / 3 | 15,546 MiB |
+
+The CUDA-Graph row is an external performance-headroom observation only. Both modes diverged across repeated greedy
+runs after the same first output token, so CUDA Graph replay is not a necessary cause and neither row is a
+correctness, determinism or quality baseline. The checkpoint also differs from gem16's compiled mixed FP8/NVFP4
+artifact and Google's official QAT Q4_0 GGUF; the numbers do not establish model-quality parity.
+
+Positive runtime logs select Marlin W4A16 linear and MoE kernels, Marlin experts, and Triton attention. The graph run
+uses aggressive `gpu_memory_utilization=0.985` and external 200 ms telemetry observes only 63 MiB free at peak. Both
+modes emit two non-fatal allocator OOM warnings during initialization before continuing. The graph service
+force-kills a remaining EngineCore after writing its result; the Eager service merely reports a teardown timeout
+after its result is complete, without identifying the remaining process. All samples, exact commands, checkpoint
+and raw-report hashes, dispatch lines, telemetry, failed-attempt audit and limitations are retained in
+[`gemma4-26b-w4a16-wikipedia-16k64-characterization.json`](gemma4-26b-w4a16-wikipedia-16k64-characterization.json).
+The run did not record a preflight snapshot of the laptop power profile, power limit, starting temperature or other
+GPU processes.
+
+Against the current gem16 development row for the same prompt token IDs and output count, the reported graph metrics
+give a 2.04x prefill ratio (6,475.80 versus 3,169.46 tok/s) and a 1.24x ordinary-decode ratio (149.35 versus 120.40
+tok/s). The checkpoints differ, and vLLM's `first_token_latency` includes request/first-token work that gem16's
+prefill-only interval excludes. These directional ratios only prioritize engineering work: the larger reported gap
+is prefill.
+
 The following startup note belongs to the historical 0.26.0 run. A cold start JIT-builds several memory-heavy
 FlashInfer NVFP4 CUTLASS variants. Unbounded startup on the
 32-core/64-GiB reference host launched enough concurrent `cicc` processes to exhaust RAM. The cross-engine harness
