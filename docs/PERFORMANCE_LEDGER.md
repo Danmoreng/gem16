@@ -9,12 +9,32 @@ non-blocking competitive stretch target. The row remains batch one with the exac
 forwards, 63 timed decode intervals, FP8 KV, native CUDA Graph replay and MTP/speculative decode, prompt cache,
 offload, fallback and recurring allocation disabled. Existing timing boundaries and model semantics remain fixed.
 
-The current Gem16 development medians are 3,169.458 prompt and 120.398 ordinary-decode token/s. Reaching the hard
-targets therefore requires approximately +89.31% prompt throughput and +24.59% decode throughput; the prompt stretch
-requires approximately +105.08%. The motivating vLLM 0.27.1 community-W4A16 graph observation is 6,475.795 prompt
-and 149.348 decode token/s, but that checkpoint and its prefill timing boundary differ. It is a directional
-engineering reference, not a numerical parity or acceptance oracle. Its compact evidence is
+The current adjacent Gem16 development candidate averages 5,050.918 prompt and 139.106 ordinary-decode token/s.
+Reaching the hard targets therefore requires approximately +18.79% prompt throughput and +7.83% decode throughput;
+the prompt stretch requires approximately +28.69%. The motivating vLLM 0.27.1 community-W4A16 graph observation is
+6,475.795 prompt and 149.348 decode token/s, but that checkpoint and its prefill timing boundary differ. It is a
+directional engineering reference, not a numerical parity or acceptance oracle. Its compact evidence is
 `benchmarks/baselines/vllm/gemma4-26b-w4a16-wikipedia-16k64-characterization.json`.
+
+## 2026-08-23 Bounded 26B optimization checkpoint
+
+The accepted adjacent development candidate is now implementation commit `37eae9e`: physical-BF16 prompt
+intermediates, attention/MoE workspace overlay and a 1,024-token prompt chunk first raised the exact 16K+64 row to
+4,693.623 prompt tok/s; reusing routed activations across two adjacent expert row tiles then raised it to 5,050.918
+prompt tok/s. Ordinary decode remains 139.106 tok/s. Both promotions preserve output-token SHA-256
+`d8f0aa61ba66750bda8582861d3f42ef7022917e75b6abd3b6fac4e66ef75e89`, finite logits, native dispatch, zero
+fallbacks and zero recurring allocations. Compact evidence is in
+`artifacts/m20/optimization-physical-bf16-t1024.json` and
+`artifacts/m20/optimization-grouped-two-row-tiles.json`. Formal M20 3-warm-up/10-retained medians remain pending.
+
+A node-level CUDA-Graph diagnostic at `37eae9e` attributes the largest ordinary-decode kernel time to FP8 attention
+projections, NVFP4 routed/shared Gate-Up and Down projections, and split online attention. Raw diagnostic files are
+ignored under `artifacts/raw/perf-target/profile-decode-nodes-37eae9e.*`; they are profiling evidence, not a promoted
+benchmark result. Two bounded candidates were rejected and leave no source changes: eight NVFP4 warps per block kept
+the exact output but measured 139.007 decode tok/s, and a CUTLASS BF16 router prototype was unsupported by the SM120
+builder while its SM90 compatibility attempt failed to complete its first launch. The next optimization should start
+from the clean `37eae9e` kernel profile and test activation reuse/fusion in the FP8/NVFP4 direct projections before
+another canonical measurement.
 
 ## 2026-08-23 Gemma 4 26B ordinary-decode target characterization
 
