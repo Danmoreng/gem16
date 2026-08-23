@@ -17,6 +17,15 @@ namespace gem16::internal {
 namespace {
 
 constexpr unsigned kThreads = 128U;
+constexpr unsigned kRouterExpertsPerBlock = 32U;
+constexpr unsigned kRouterKTile = 32U;
+constexpr unsigned kRouterWeightVectorsPerExpert =
+    kRouterKTile * sizeof(std::uint16_t) / sizeof(uint4);
+static_assert(kRouterExpertsPerBlock * kRouterWeightVectorsPerExpert ==
+              kThreads);
+constexpr unsigned kGroupingThreads = 256U;
+constexpr unsigned kGroupingAssignmentsPerChunk = kGroupingThreads;
+constexpr unsigned kMaxParallelGroupingExperts = kThreads;
 constexpr std::uint64_t kSm120KBlock = 64U;
 
 Status Invalid(std::string message) {
@@ -71,21 +80,55 @@ __global__ void RouterTransformBatchKernel(
                                  rsqrtf(static_cast<float>(width)));
 }
 
-__global__ void RouterProjectionBatchKernel(
+__global__ void RouterProjectionBatchCoalescedKernel(
     const float* input, const std::uint16_t* weights, float* logits,
     std::uint32_t experts, std::uint64_t width, std::uint64_t tokens) {
-  const std::uint32_t expert = blockIdx.x * blockDim.x + threadIdx.x;
   const std::uint64_t token = blockIdx.y;
-  if (expert >= experts || token >= tokens) return;
-  float accumulator = 0.0F;
+  if (token >= tokens) return;
+  __shared__ alignas(16) uint4
+      staged_weights[kRouterExpertsPerBlock]
+                    [kRouterWeightVectorsPerExpert];
+  __shared__ float staged_input[kRouterKTile];
+  const unsigned local_expert =
+      threadIdx.x / kRouterWeightVectorsPerExpert;
+  const unsigned weight_vector =
+      threadIdx.x % kRouterWeightVectorsPerExpert;
+  const std::uint32_t expert =
+      blockIdx.x * kRouterExpertsPerBlock + local_expert;
   const std::uint64_t weight_base =
       static_cast<std::uint64_t>(expert) * width;
   const std::uint64_t input_base = token * width;
-  for (std::uint64_t index = 0; index < width; ++index) {
-    accumulator = fmaf(Bf16(weights[weight_base + index]),
-                       input[input_base + index], accumulator);
+  float accumulator = 0.0F;
+  for (std::uint64_t k_base = 0U; k_base < width;
+       k_base += kRouterKTile) {
+    if (expert < experts) {
+      staged_weights[local_expert][weight_vector] =
+          reinterpret_cast<const uint4*>(weights + weight_base + k_base)
+              [weight_vector];
+    }
+    if (threadIdx.x < kRouterKTile) {
+      staged_input[threadIdx.x] =
+          input[input_base + k_base + threadIdx.x];
+    }
+    __syncthreads();
+    if (threadIdx.x < kRouterExpertsPerBlock &&
+        blockIdx.x * kRouterExpertsPerBlock + threadIdx.x < experts) {
+      const auto* staged_row = reinterpret_cast<const std::uint16_t*>(
+          staged_weights[threadIdx.x]);
+#pragma unroll 1
+      for (unsigned index = 0U; index < kRouterKTile; ++index) {
+        accumulator =
+            fmaf(Bf16(staged_row[index]), staged_input[index], accumulator);
+      }
+    }
+    __syncthreads();
   }
-  logits[token * experts + expert] = RoundBf16(accumulator);
+  if (threadIdx.x < kRouterExpertsPerBlock &&
+      blockIdx.x * kRouterExpertsPerBlock + threadIdx.x < experts) {
+    const std::uint32_t output_expert =
+        blockIdx.x * kRouterExpertsPerBlock + threadIdx.x;
+    logits[token * experts + output_expert] = RoundBf16(accumulator);
+  }
 }
 
 __global__ void RouterAssignmentsKernel(
@@ -207,7 +250,7 @@ __global__ void RouterAssignmentsKernel(
   }
 }
 
-__global__ void StableGroupAssignmentsKernel(
+__global__ void StableGroupAssignmentsSerialKernel(
     const Gemma4MoePrefillAssignment* assignments,
     std::uint32_t* histogram, std::uint32_t* prefix,
     std::uint32_t* permutation, std::uint32_t* inverse,
@@ -234,6 +277,98 @@ __global__ void StableGroupAssignmentsKernel(
     permutation[grouped] = original;
     inverse[original] = grouped;
   }
+}
+
+// Count each 256-assignment chunk once. The shared atomics only compute exact
+// integer counts; they never determine output order.
+__global__ void CountGroupAssignmentsByChunkKernel(
+    const Gemma4MoePrefillAssignment* assignments,
+    std::uint32_t* chunk_offsets,
+    std::uint32_t experts, std::uint64_t assignment_count) {
+  __shared__ std::uint32_t counts[kMaxParallelGroupingExperts];
+  if (threadIdx.x < experts) counts[threadIdx.x] = 0U;
+  __syncthreads();
+  const std::uint64_t original =
+      static_cast<std::uint64_t>(blockIdx.x) *
+          kGroupingAssignmentsPerChunk +
+      threadIdx.x;
+  if (original < assignment_count) {
+    const std::uint32_t expert = assignments[original].expert_id;
+    if (expert < experts) atomicAdd(counts + expert, 1U);
+  }
+  __syncthreads();
+  if (threadIdx.x < experts) {
+    chunk_offsets[static_cast<std::uint64_t>(blockIdx.x) * experts +
+                  threadIdx.x] = counts[threadIdx.x];
+  }
+}
+
+// Convert chunk counts into absolute stable output offsets. The final
+// histogram and expert prefix remain byte-for-byte identical to the serial
+// implementation.
+__global__ void BuildGroupChunkOffsetsKernel(
+    std::uint32_t* chunk_offsets, std::uint32_t* histogram,
+    std::uint32_t* prefix, std::uint32_t experts,
+    std::uint32_t chunk_count) {
+  const std::uint32_t expert = threadIdx.x;
+  if (expert < experts) {
+    std::uint32_t count = 0U;
+    for (std::uint32_t chunk = 0U; chunk < chunk_count; ++chunk) {
+      count += chunk_offsets[static_cast<std::uint64_t>(chunk) * experts +
+                             expert];
+    }
+    histogram[expert] = count;
+  }
+  __syncthreads();
+  if (threadIdx.x == 0U) {
+    prefix[0] = 0U;
+    for (std::uint32_t index = 0U; index < experts; ++index) {
+      prefix[index + 1U] = prefix[index] + histogram[index];
+    }
+  }
+  __syncthreads();
+  if (expert < experts) {
+    std::uint32_t offset = prefix[expert];
+    for (std::uint32_t chunk = 0U; chunk < chunk_count; ++chunk) {
+      const std::uint64_t index =
+          static_cast<std::uint64_t>(chunk) * experts + expert;
+      const std::uint32_t count = chunk_offsets[index];
+      chunk_offsets[index] = offset;
+      offset += count;
+    }
+  }
+}
+
+// Every chunk is independent after its absolute offsets are known. Counting
+// equal expert IDs before the current lane reconstructs the exact original
+// token-major/slot-major rank, so no scheduling-dependent atomic cursor can
+// perturb the stable permutation.
+__global__ void ScatterStableGroupAssignmentsKernel(
+    const Gemma4MoePrefillAssignment* assignments,
+    const std::uint32_t* chunk_offsets, std::uint32_t* permutation,
+    std::uint32_t* inverse, std::uint32_t experts,
+    std::uint64_t assignment_count) {
+  __shared__ std::uint32_t expert_ids[kGroupingAssignmentsPerChunk];
+  const std::uint64_t original =
+      static_cast<std::uint64_t>(blockIdx.x) *
+          kGroupingAssignmentsPerChunk +
+      threadIdx.x;
+  const bool valid = original < assignment_count;
+  const std::uint32_t expert =
+      valid ? assignments[original].expert_id : 0xffffffffU;
+  expert_ids[threadIdx.x] = expert;
+  __syncthreads();
+  if (!valid || expert >= experts) return;
+  std::uint32_t rank = 0U;
+  for (unsigned prior = 0U; prior < threadIdx.x; ++prior) {
+    rank += expert_ids[prior] == expert ? 1U : 0U;
+  }
+  const std::uint32_t grouped =
+      chunk_offsets[static_cast<std::uint64_t>(blockIdx.x) * experts +
+                    expert] +
+      rank;
+  permutation[grouped] = static_cast<std::uint32_t>(original);
+  inverse[original] = grouped;
 }
 
 // Once routing is complete, router logits are dead for the remainder of the
@@ -265,8 +400,19 @@ __global__ void RestoreHistogramZeroKernel(std::uint32_t* histogram,
   }
 }
 
+__device__ __forceinline__ float LoadExpertDown(const float* expert_down,
+                                                std::uint64_t index) {
+  return expert_down[index];
+}
+
+__device__ __forceinline__ float LoadExpertDown(
+    const std::uint16_t* expert_down, std::uint64_t index) {
+  return Bf16(expert_down[index]);
+}
+
+template <typename ExpertDown>
 __global__ void ReduceAssignmentsKernel(
-    const float* expert_down,
+    const ExpertDown* expert_down,
     const Gemma4MoePrefillAssignment* assignments, float* routed_sum,
     std::uint64_t width, std::uint32_t top_k, std::uint64_t tokens) {
   const std::uint64_t column =
@@ -278,7 +424,8 @@ __global__ void ReduceAssignmentsKernel(
   for (std::uint32_t slot = 0; slot < top_k; ++slot) {
     const std::uint64_t assignment = assignment_base + slot;
     const float weighted =
-        RoundBf16(expert_down[assignment * width + column] *
+        RoundBf16(LoadExpertDown(expert_down,
+                                 assignment * width + column) *
                    assignments[assignment].weight);
     sum += weighted;
   }
@@ -302,6 +449,52 @@ Status CheckLaunch(const char* label) {
 }
 
 }  // namespace
+
+Status LaunchGemma4MoeReduceAssignments(
+    const float* expert_down,
+    const Gemma4MoePrefillAssignment* assignments, float* routed_sum,
+    std::uint64_t width, std::uint32_t top_k, std::uint64_t tokens,
+    cudaStream_t stream) {
+  if (expert_down == nullptr || assignments == nullptr ||
+      routed_sum == nullptr || width == 0U || top_k == 0U || tokens == 0U ||
+      tokens > std::numeric_limits<std::uint64_t>::max() / top_k ||
+      tokens * top_k >
+          std::numeric_limits<std::uint64_t>::max() / width ||
+      tokens > static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max()) ||
+      Blocks(width) >
+          static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
+    return Invalid("M15 float-container expert reduction contract is invalid");
+  }
+  ReduceAssignmentsKernel<float><<<
+      dim3(static_cast<unsigned>(Blocks(width)),
+           static_cast<unsigned>(tokens)),
+      kThreads, 0, stream>>>(expert_down, assignments, routed_sum, width,
+                             top_k, tokens);
+  return CheckLaunch("launch M15 float-container expert reduction");
+}
+
+Status LaunchGemma4MoeReduceAssignmentsBf16(
+    const std::uint16_t* expert_down_bf16,
+    const Gemma4MoePrefillAssignment* assignments, float* routed_sum,
+    std::uint64_t width, std::uint32_t top_k, std::uint64_t tokens,
+    cudaStream_t stream) {
+  if (expert_down_bf16 == nullptr || assignments == nullptr ||
+      routed_sum == nullptr || width == 0U || top_k == 0U || tokens == 0U ||
+      tokens > std::numeric_limits<std::uint64_t>::max() / top_k ||
+      tokens * top_k >
+          std::numeric_limits<std::uint64_t>::max() / width ||
+      tokens > static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max()) ||
+      Blocks(width) >
+          static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
+    return Invalid("M15 physical-BF16 expert reduction contract is invalid");
+  }
+  ReduceAssignmentsKernel<std::uint16_t><<<
+      dim3(static_cast<unsigned>(Blocks(width)),
+           static_cast<unsigned>(tokens)),
+      kThreads, 0, stream>>>(expert_down_bf16, assignments, routed_sum, width,
+                             top_k, tokens);
+  return CheckLaunch("launch M15 physical-BF16 expert reduction");
+}
 
 Status LaunchGemma4MoeSm120PrefillLayer(
     const float* hidden, float* output, std::uint64_t tokens,
@@ -404,11 +597,13 @@ Status LaunchGemma4MoeSm120PrefillLayer(
       x.token_hidden, w.router_scale_bf16, x.shared_output, tokens, c.width);
   status = CheckLaunch("launch M15 router transform");
   if (!status.ok()) return status;
-  RouterProjectionBatchKernel<<<
-      dim3(static_cast<unsigned>(Blocks(c.experts)),
-           static_cast<unsigned>(tokens)),
-      kThreads, 0, stream>>>(x.shared_output, w.router_projection_bf16,
-                             x.router_logits, c.experts, c.width, tokens);
+  const unsigned router_blocks =
+      (c.experts + kRouterExpertsPerBlock - 1U) /
+      kRouterExpertsPerBlock;
+  RouterProjectionBatchCoalescedKernel<<<
+      dim3(router_blocks, static_cast<unsigned>(tokens)), kThreads, 0,
+      stream>>>(x.shared_output, w.router_projection_bf16, x.router_logits,
+                c.experts, c.width, tokens);
   status = CheckLaunch("launch M15 router projection");
   if (!status.ok()) return status;
   RouterAssignmentsKernel<<<static_cast<unsigned>(tokens), kThreads, 0, stream>>>(
@@ -416,13 +611,33 @@ Status LaunchGemma4MoeSm120PrefillLayer(
       x.assignments, c.experts, c.top_k, tokens, x.routing_finite);
   status = CheckLaunch("launch M15 router assignments");
   if (!status.ok()) return status;
-  StableGroupAssignmentsKernel<<<1, 1, 0, stream>>>(
-      x.assignments, x.histogram, x.prefix, x.permutation,
-      x.inverse_permutation, c.experts, assignments);
-  status = CheckLaunch("launch M15 stable grouping");
-  if (!status.ok()) return status;
   auto* expert_tile_schedule =
       reinterpret_cast<std::uint32_t*>(x.router_logits);
+  if (c.experts <= kMaxParallelGroupingExperts) {
+    const unsigned grouping_chunks = static_cast<unsigned>(
+        (assignments + kGroupingAssignmentsPerChunk - 1U) /
+        kGroupingAssignmentsPerChunk);
+    CountGroupAssignmentsByChunkKernel<<<grouping_chunks, kGroupingThreads, 0,
+                                         stream>>>(
+        x.assignments, expert_tile_schedule, c.experts, assignments);
+    status = CheckLaunch("launch M15 chunk assignment counts");
+    if (!status.ok()) return status;
+    BuildGroupChunkOffsetsKernel<<<1, kThreads, 0, stream>>>(
+        expert_tile_schedule, x.histogram, x.prefix, c.experts,
+        grouping_chunks);
+    status = CheckLaunch("launch M15 group chunk offsets");
+    if (!status.ok()) return status;
+    ScatterStableGroupAssignmentsKernel<<<grouping_chunks, kGroupingThreads,
+                                           0, stream>>>(
+        x.assignments, expert_tile_schedule, x.permutation,
+        x.inverse_permutation, c.experts, assignments);
+  } else {
+    StableGroupAssignmentsSerialKernel<<<1, 1, 0, stream>>>(
+        x.assignments, x.histogram, x.prefix, x.permutation,
+        x.inverse_permutation, c.experts, assignments);
+  }
+  status = CheckLaunch("launch M15 stable grouping");
+  if (!status.ok()) return status;
   BuildExpertTileScheduleKernel<<<1, 1, 0, stream>>>(
       x.prefix, x.histogram, expert_tile_schedule, c.experts);
   status = CheckLaunch("launch M15 expert tile schedule");
@@ -457,7 +672,7 @@ Status LaunchGemma4MoeSm120PrefillLayer(
   RestoreHistogramZeroKernel<<<1, 1, 0, stream>>>(x.histogram, x.prefix);
   status = CheckLaunch("restore M15 expert-zero histogram");
   if (!status.ok()) return status;
-  ReduceAssignmentsKernel<<<
+  ReduceAssignmentsKernel<float><<<
       dim3(static_cast<unsigned>(Blocks(c.width)),
            static_cast<unsigned>(tokens)),
       kThreads, 0, stream>>>(x.expert_down, x.assignments, x.token_hidden,

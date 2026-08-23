@@ -585,7 +585,6 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
   }
   cudaError_t error = cudaSetDevice(device);
   if (error != cudaSuccess) return CudaFailure("select M13 CUDA device", error);
-
   auto config = LoadModelConfig(model_directory / "config.json");
   if (!config.ok()) return config.status();
   if (context_tokens > config.value().max_positions) {
@@ -821,7 +820,7 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
       reinterpret_cast<std::uint8_t*>(ptr(output_fp8)),
       reinterpret_cast<float*>(ptr(output_scale)),
       reinterpret_cast<float*>(ptr(output_projection)),
-      reinterpret_cast<float*>(ptr(post_attention))};
+      reinterpret_cast<float*>(ptr(post_attention)), nullptr, 0U};
   impl->moe_workspace = {
       reinterpret_cast<float*>(ptr(shared_input)),
       reinterpret_cast<std::uint8_t*>(ptr(shared_input_packed)),
@@ -943,6 +942,8 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
         kPrefillMaxTokens * kTopK * kExpert / 16U);
     const auto p_expert_down = prefill.Add<float>(
         kPrefillMaxTokens * kTopK * kWidth);
+    static_assert(kGemma4Moe26BAttentionCutlassWorkspaceBytes <=
+                  kPrefillMaxTokens * kTopK * kWidth * sizeof(float));
     const auto p_shared_product =
         prefill.Add<float>(kPrefillMaxTokens * kShared);
     const auto p_shared_product_packed =
@@ -998,7 +999,12 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
         reinterpret_cast<std::uint8_t*>(pptr(p_output_fp8)),
         reinterpret_cast<float*>(pptr(p_output_scale)),
         reinterpret_cast<float*>(pptr(p_output_projection)),
-        reinterpret_cast<float*>(pptr(p_post_attention))};
+        reinterpret_cast<float*>(pptr(p_post_attention)),
+        // Attention and routed-expert execution are ordered on impl->stream.
+        // Reuse the not-yet-live expert-down region as bounded CUTLASS scratch
+        // without increasing the fixed M17 arena or retaining another layout.
+        static_cast<void*>(pptr(p_expert_down)),
+        kGemma4Moe26BAttentionCutlassWorkspaceBytes};
     impl->prefill_moe_workspace = {
         reinterpret_cast<float*>(pptr(p_router_logits)),
         reinterpret_cast<float*>(pptr(p_router_probabilities)),

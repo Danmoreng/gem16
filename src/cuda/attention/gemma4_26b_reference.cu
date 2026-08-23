@@ -10,6 +10,7 @@
 
 #include "cuda/attention/sm120.h"
 #include "cuda/engine/gemma4_26b_artifact.h"
+#include "cuda/fp8/cutlass_sm120.h"
 #include "cuda/fp8/reference.h"
 #include "cuda/fp8/sm120.h"
 #include "cuda/layer/reference.h"
@@ -391,31 +392,45 @@ Status LaunchGemma4Moe26BAttentionSm120PrefillLayer(
       (!t.stores_v_projection &&
        (w.value.weight_e4m3 != nullptr ||
         w.value.weight_scales_bf16 != nullptr)) ||
+      x.cutlass_workspace == nullptr ||
+      x.cutlass_workspace_bytes <
+          kGemma4Moe26BAttentionCutlassWorkspaceBytes ||
       !std::isfinite(epsilon) || epsilon <= 0.0F) {
     return Invalid("native SM120 Gemma 4 26B attention prefill contract is invalid");
   }
 
+  auto* query_bf16 = reinterpret_cast<std::uint16_t*>(x.query_raw);
+  auto* key_bf16 = reinterpret_cast<std::uint16_t*>(x.key_raw);
+  auto* value_bf16 = reinterpret_cast<std::uint16_t*>(x.value_raw);
   Status status = LaunchRmsNormFp8TokenQuantizationBatch(
       hidden, w.input_norm_bf16, x.input_fp8, x.input_scale, tokens, kHidden,
       epsilon, stream);
   if (!status.ok()) return status;
-  status = LaunchFp8Sm120GroupedQkvProjectionBatch(
+  status = LaunchFp8CutlassProjectionBatch(
       x.input_fp8, x.input_scale, w.query.weight_e4m3,
-      w.query.weight_scales_bf16, x.query_raw, q_elements,
-      w.key.weight_e4m3, w.key.weight_scales_bf16, x.key_raw, kv_elements,
-      t.reuses_raw_k_for_v ? nullptr : w.value.weight_e4m3,
-      t.reuses_raw_k_for_v ? nullptr : w.value.weight_scales_bf16,
-      t.reuses_raw_k_for_v ? nullptr : x.value_raw,
-      t.reuses_raw_k_for_v ? 0U : kv_elements, tokens, kHidden, stream);
+      w.query.weight_scales_bf16, query_bf16, tokens, q_elements, kHidden,
+      x.cutlass_workspace, x.cutlass_workspace_bytes, stream);
+  if (!status.ok()) return status;
+  status = LaunchFp8CutlassProjectionBatch(
+      x.input_fp8, x.input_scale, w.key.weight_e4m3,
+      w.key.weight_scales_bf16, key_bf16, tokens, kv_elements, kHidden,
+      x.cutlass_workspace, x.cutlass_workspace_bytes, stream);
   if (!status.ok()) return status;
   if (t.reuses_raw_k_for_v) {
     const cudaError_t copied = cudaMemcpyAsync(
-        x.value_raw, x.key_raw, tokens * kv_elements * sizeof(float),
+        value_bf16, key_bf16,
+        tokens * kv_elements * sizeof(std::uint16_t),
         cudaMemcpyDeviceToDevice, stream);
     if (copied != cudaSuccess) {
-      return CudaFailure("reuse native 26B prefill raw K projection for V",
+      return CudaFailure("reuse native 26B prefill BF16 K projection for V",
                          copied);
     }
+  } else {
+    status = LaunchFp8CutlassProjectionBatch(
+        x.input_fp8, x.input_scale, w.value.weight_e4m3,
+        w.value.weight_scales_bf16, value_bf16, tokens, kv_elements, kHidden,
+        x.cutlass_workspace, x.cutlass_workspace_bytes, stream);
+    if (!status.ok()) return status;
   }
 
   const std::uint64_t rotating_pairs = static_cast<std::uint64_t>(
@@ -425,15 +440,15 @@ Status LaunchGemma4Moe26BAttentionSm120PrefillLayer(
       t.head_dimension, start_position, t.rope_theta, t.rope_scaling_factor,
       stream);
   if (!status.ok()) return status;
-  status = LaunchProjectionRmsNormRotaryBf16Batch(
-      x.query_raw, w.query_norm_bf16, x.query_normalized, x.key_raw,
+  status = LaunchProjectionRmsNormRotaryBf16BatchInput(
+      query_bf16, w.query_norm_bf16, x.query_normalized, key_bf16,
       w.key_norm_bf16, x.key_normalized, x.rotary_cosine, x.rotary_sine,
       tokens, t.query_heads, t.kv_heads, t.head_dimension, t.rotary_factor,
       epsilon, stream);
   if (!status.ok()) return status;
-  status = LaunchRmsNormBf16(x.value_raw, nullptr, x.value_normalized,
-                             tokens * t.kv_heads, t.head_dimension, epsilon,
-                             stream);
+  status = LaunchRmsNormBf16Input(
+      value_bf16, nullptr, x.value_normalized, tokens * t.kv_heads,
+      t.head_dimension, epsilon, stream);
   if (!status.ok()) return status;
   status = LaunchQuantizeKvFp8Batch(
       x.key_normalized, x.value_normalized, x.staged_key_fp8,
@@ -464,6 +479,9 @@ Status LaunchGemma4Moe26BAttentionSm120PrefillLayer(
       attention_bf16, x.output_fp8, x.output_scale, tokens, q_elements,
       stream);
   if (!status.ok()) return status;
+  // Keep O on the source-order native MMA path. CUTLASS O is locally within
+  // the BF16 differential gate, but the canonical 16K greedy run diverges;
+  // Q/K/V CUTLASS plus native O preserves the accepted output hash.
   status = LaunchFp8Sm120DirectProjectionBatch(
       x.output_fp8, x.output_scale, w.output.weight_e4m3,
       w.output.weight_scales_bf16, x.output_projection, tokens, kHidden,

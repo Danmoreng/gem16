@@ -42,11 +42,21 @@ __device__ __forceinline__ float ReciprocalApproximateFtz(float value) {
   return result;
 }
 
-__global__ void QuantizeActivationReferenceKernel(const float* input,
-                                                  std::uint8_t* packed_e2m1,
-                                                  std::uint8_t* block_scales_e4m3fn,
-                                                  std::uint64_t blocks,
-                                                  float global_divisor) {
+__device__ __forceinline__ float LoadActivationInput(const float* input,
+                                                     std::uint64_t index) {
+  return input[index];
+}
+
+__device__ __forceinline__ float LoadActivationInput(
+    const std::uint16_t* input, std::uint64_t index) {
+  return static_cast<float>(__ushort_as_bfloat16(input[index]));
+}
+
+template <typename Input>
+__global__ void QuantizeActivationReferenceKernel(
+    const Input* input, std::uint8_t* packed_e2m1,
+    std::uint8_t* block_scales_e4m3fn, std::uint64_t blocks,
+    float global_divisor) {
   const std::uint64_t block = static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
   if (block >= blocks) return;
 
@@ -54,7 +64,7 @@ __global__ void QuantizeActivationReferenceKernel(const float* input,
   float amax = 0.0F;
 #pragma unroll
   for (std::uint64_t local = 0; local < kBlockElements; ++local) {
-    amax = fmaxf(amax, fabsf(input[begin + local]));
+    amax = fmaxf(amax, fabsf(LoadActivationInput(input, begin + local)));
   }
 
   const __nv_fp8_e4m3 scale(
@@ -70,8 +80,9 @@ __global__ void QuantizeActivationReferenceKernel(const float* input,
 #pragma unroll
   for (std::uint64_t pair = 0; pair < kBlockElements / 2U; ++pair) {
     const std::uint64_t index = begin + pair * 2U;
-    const float low_value = input[index] * output_scale;
-    const float high_value = input[index + 1U] * output_scale;
+    const float low_value = LoadActivationInput(input, index) * output_scale;
+    const float high_value =
+        LoadActivationInput(input, index + 1U) * output_scale;
     const __nv_fp4_e2m1 low(low_value);
     const __nv_fp4_e2m1 high(high_value);
     packed_e2m1[index / 2U] =
@@ -282,11 +293,48 @@ Status LaunchNvfp4ReferenceActivationQuantization(const float* input,
   if (grid > static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
     return Invalid("NVFP4 reference activation grid exceeds CUDA limits");
   }
-  QuantizeActivationReferenceKernel<<<static_cast<unsigned>(grid), threads, 0, stream>>>(
+  QuantizeActivationReferenceKernel<float><<<
+      static_cast<unsigned>(grid), threads, 0, stream>>>(
       input, packed_e2m1, block_scales_e4m3fn, blocks, global_divisor);
   const cudaError_t error = cudaGetLastError();
   return error == cudaSuccess ? Status::Ok()
                               : CudaFailure("launch NVFP4 reference activation quantization", error);
+}
+
+Status LaunchNvfp4ReferenceActivationQuantizationBf16(
+    const std::uint16_t* input_bf16, std::uint8_t* packed_e2m1,
+    std::uint8_t* block_scales_e4m3fn, std::uint64_t elements,
+    float global_divisor, cudaStream_t stream) {
+  if (input_bf16 == nullptr || packed_e2m1 == nullptr ||
+      block_scales_e4m3fn == nullptr) {
+    return Invalid(
+        "physical-BF16 NVFP4 activation quantization requires non-null device pointers");
+  }
+  if (elements == 0U || elements % kBlockElements != 0U) {
+    return Invalid(
+        "physical-BF16 NVFP4 activation extent must be a nonzero multiple of 16");
+  }
+  if (!PositiveFinite(global_divisor)) {
+    return Invalid(
+        "physical-BF16 NVFP4 activation global divisor must be positive and finite");
+  }
+  const std::uint64_t blocks = elements / kBlockElements;
+  constexpr unsigned threads = 128;
+  const std::uint64_t grid = (blocks + threads - 1U) / threads;
+  if (grid > static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
+    return Invalid(
+        "physical-BF16 NVFP4 activation grid exceeds CUDA limits");
+  }
+  QuantizeActivationReferenceKernel<std::uint16_t><<<
+      static_cast<unsigned>(grid), threads, 0, stream>>>(
+      input_bf16, packed_e2m1, block_scales_e4m3fn, blocks,
+      global_divisor);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure(
+                   "launch physical-BF16 NVFP4 activation quantization",
+                   error);
 }
 
 Status LaunchRmsNormNvfp4ActivationQuantizationBatch(

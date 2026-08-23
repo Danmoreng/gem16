@@ -32,6 +32,27 @@
 #include <thread>
 #include <vector>
 
+namespace gem16::internal {
+
+Status LaunchFp8Sm120DirectProjectionLegacyForTest(
+    const std::uint8_t* activation_e4m3fn, const float* activation_scale,
+    const std::uint8_t* weight_e4m3fn,
+    const std::uint16_t* weight_scales_bf16, float* output,
+    std::uint64_t rows, std::uint64_t contracting_elements,
+    cudaStream_t stream);
+
+Status LaunchFp8Sm120LocalGroupedQkvProjectionLegacyForTest(
+    const std::uint8_t* activation_e4m3fn, const float* activation_scale,
+    const std::uint8_t* q_weight_e4m3fn,
+    const std::uint16_t* q_weight_scales_bf16, float* q_output,
+    const std::uint8_t* k_weight_e4m3fn,
+    const std::uint16_t* k_weight_scales_bf16, float* k_output,
+    const std::uint8_t* v_weight_e4m3fn,
+    const std::uint16_t* v_weight_scales_bf16, float* v_output,
+    cudaStream_t stream);
+
+}  // namespace gem16::internal
+
 namespace {
 
 int failures = 0;
@@ -1143,6 +1164,516 @@ void TestFp8ReferenceAndDirectProjection() {
       }
     }
   }
+}
+
+template <typename Launch>
+float MeasureFp8Projection(Launch&& launch) {
+  constexpr int warmups = 8;
+  constexpr int iterations = 200;
+  cudaEvent_t start = nullptr;
+  cudaEvent_t stop = nullptr;
+  if (!CudaOk(cudaEventCreate(&start), "create FP8 timing start event") ||
+      !CudaOk(cudaEventCreate(&stop), "create FP8 timing stop event")) {
+    if (start != nullptr) (void)cudaEventDestroy(start);
+    if (stop != nullptr) (void)cudaEventDestroy(stop);
+    return 0.0F;
+  }
+  for (int iteration = 0; iteration < warmups; ++iteration) {
+    const auto status = launch();
+    CUDA_TEST_CHECK(status.ok());
+    if (!status.ok()) {
+      (void)cudaEventDestroy(start);
+      (void)cudaEventDestroy(stop);
+      return 0.0F;
+    }
+  }
+  bool events_ok = CudaOk(cudaEventRecord(start), "record FP8 timing start");
+  for (int iteration = 0; iteration < iterations; ++iteration) {
+    const auto status = launch();
+    CUDA_TEST_CHECK(status.ok());
+    if (!status.ok()) events_ok = false;
+  }
+  events_ok =
+      CudaOk(cudaEventRecord(stop), "record FP8 timing stop") && events_ok;
+  events_ok =
+      CudaOk(cudaEventSynchronize(stop), "synchronize FP8 timing stop") &&
+      events_ok;
+  float elapsed_ms = 0.0F;
+  events_ok = CudaOk(cudaEventElapsedTime(&elapsed_ms, start, stop),
+                     "measure FP8 timing") &&
+              events_ok;
+  (void)cudaEventDestroy(start);
+  (void)cudaEventDestroy(stop);
+  return events_ok ? elapsed_ms / static_cast<float>(iterations) : 0.0F;
+}
+
+void CheckFp8Sm120SplitK2Geometry(std::size_t k_size,
+                                  bool measure_performance) {
+  constexpr std::size_t rows = 2816U;
+  constexpr std::size_t tail_rows = rows + 1U;
+  constexpr std::array<std::uint16_t, 4> weight_scale_values = {
+      0x3E00U, 0x3E80U, 0x3F00U, 0x3F80U};
+  std::vector<std::uint8_t> activation(k_size);
+  std::vector<std::uint8_t> weight(tail_rows * k_size);
+  std::vector<std::uint16_t> weight_scales(tail_rows);
+  const auto next_finite_fp8 = [](std::uint32_t& state) {
+    state = state * 1664525U + 1013904223U;
+    const std::uint8_t magnitude =
+        static_cast<std::uint8_t>((state >> 24U) % 0x7FU);
+    const std::uint8_t sign =
+        static_cast<std::uint8_t>((state >> 16U) & 0x80U);
+    return static_cast<std::uint8_t>(magnitude | sign);
+  };
+  std::uint32_t activation_state = 0xC001D00DU;
+  for (std::size_t index = 0U; index < activation.size(); ++index) {
+    activation[index] = next_finite_fp8(activation_state);
+  }
+  std::uint32_t weight_state = 0x5EED1234U;
+  for (std::size_t row = 0U; row < tail_rows; ++row) {
+    for (std::size_t column = 0U; column < k_size; ++column) {
+      weight[row * k_size + column] = next_finite_fp8(weight_state);
+    }
+    weight_scales[row] = weight_scale_values[row % weight_scale_values.size()];
+  }
+  constexpr float activation_scale = 0.375F;
+
+  DeviceBuffer<std::uint8_t> device_activation(activation.size());
+  DeviceBuffer<float> device_activation_scale(1U);
+  DeviceBuffer<std::uint8_t> device_weight(weight.size());
+  DeviceBuffer<std::uint16_t> device_weight_scales(weight_scales.size());
+  DeviceBuffer<float> device_split_k(tail_rows);
+  DeviceBuffer<float> device_legacy(tail_rows);
+  if (device_activation.get() == nullptr ||
+      device_activation_scale.get() == nullptr ||
+      device_weight.get() == nullptr ||
+      device_weight_scales.get() == nullptr ||
+      device_split_k.get() == nullptr || device_legacy.get() == nullptr) {
+    return;
+  }
+  if (!CudaOk(cudaMemcpy(device_activation.get(), activation.data(),
+                         device_activation.bytes(), cudaMemcpyHostToDevice),
+              "copy split-K2 FP8 activation") ||
+      !CudaOk(cudaMemcpy(device_activation_scale.get(), &activation_scale,
+                         sizeof(activation_scale), cudaMemcpyHostToDevice),
+              "copy split-K2 FP8 activation scale") ||
+      !CudaOk(cudaMemcpy(device_weight.get(), weight.data(),
+                         device_weight.bytes(), cudaMemcpyHostToDevice),
+              "copy split-K2 FP8 weight") ||
+      !CudaOk(cudaMemcpy(device_weight_scales.get(), weight_scales.data(),
+                         device_weight_scales.bytes(), cudaMemcpyHostToDevice),
+              "copy split-K2 FP8 weight scales")) {
+    return;
+  }
+
+  const auto split_k_status = gem16::internal::LaunchFp8Sm120DirectProjection(
+      device_activation.get(), device_activation_scale.get(),
+      device_weight.get(), device_weight_scales.get(), device_split_k.get(),
+      rows, k_size, nullptr);
+  const auto legacy_status =
+      gem16::internal::LaunchFp8Sm120DirectProjectionLegacyForTest(
+          device_activation.get(), device_activation_scale.get(),
+          device_weight.get(), device_weight_scales.get(), device_legacy.get(),
+          rows, k_size, nullptr);
+  CUDA_TEST_CHECK(split_k_status.ok());
+  CUDA_TEST_CHECK(legacy_status.ok());
+  if (!split_k_status.ok() || !legacy_status.ok() ||
+      !CudaOk(cudaDeviceSynchronize(),
+              "split-K2 FP8 projection synchronize")) {
+    return;
+  }
+
+  std::vector<float> split_k(rows);
+  std::vector<float> legacy(rows);
+  if (!CudaOk(cudaMemcpy(split_k.data(), device_split_k.get(),
+                         split_k.size() * sizeof(float),
+                         cudaMemcpyDeviceToHost),
+              "copy split-K2 FP8 output") ||
+      !CudaOk(cudaMemcpy(legacy.data(), device_legacy.get(),
+                         legacy.size() * sizeof(float),
+                         cudaMemcpyDeviceToHost),
+              "copy legacy FP8 output")) {
+    return;
+  }
+  std::size_t exact_mismatches = 0U;
+  std::size_t bf16_mismatches = 0U;
+  float maximum_absolute_error = 0.0F;
+  double squared_error = 0.0;
+  double reference_squared = 0.0;
+  double candidate_squared = 0.0;
+  double dot = 0.0;
+  bool finite = true;
+  for (std::size_t row = 0U; row < rows; ++row) {
+    const float reference_value = legacy[row];
+    const float candidate_value = split_k[row];
+    const double difference =
+        static_cast<double>(candidate_value) - reference_value;
+    exact_mismatches +=
+        std::bit_cast<std::uint32_t>(candidate_value) !=
+                std::bit_cast<std::uint32_t>(reference_value)
+            ? 1U
+            : 0U;
+    bf16_mismatches +=
+        Bf16BitsReference(candidate_value) != Bf16BitsReference(reference_value)
+            ? 1U
+            : 0U;
+    finite = finite && std::isfinite(reference_value) &&
+             std::isfinite(candidate_value);
+    maximum_absolute_error =
+        std::max(maximum_absolute_error,
+                 static_cast<float>(std::fabs(difference)));
+    squared_error += difference * difference;
+    reference_squared +=
+        static_cast<double>(reference_value) * reference_value;
+    candidate_squared +=
+        static_cast<double>(candidate_value) * candidate_value;
+    dot += static_cast<double>(reference_value) * candidate_value;
+  }
+  const double relative_l2 = std::sqrt(squared_error / reference_squared);
+  const double cosine =
+      dot / std::sqrt(reference_squared * candidate_squared);
+  std::cout << "SM120 FP8 split-K2 2816x" << k_size
+            << ": exact_mismatches=" << exact_mismatches << '/' << rows
+            << " bf16_mismatches=" << bf16_mismatches << '/' << rows
+            << " max_abs=" << maximum_absolute_error
+            << " relative_l2=" << relative_l2
+            << " cosine_delta=" << 1.0 - cosine << '\n';
+  CUDA_TEST_CHECK(finite);
+  CUDA_TEST_CHECK(reference_squared > 0.0);
+  CUDA_TEST_CHECK(candidate_squared > 0.0);
+  CUDA_TEST_CHECK(bf16_mismatches < rows / 100U);
+  CUDA_TEST_CHECK(relative_l2 < 1.0e-5);
+  CUDA_TEST_CHECK(cosine > 0.999999999);
+
+  // A non-production row tail must continue to dispatch the legacy fallback.
+  const auto tail_status = gem16::internal::LaunchFp8Sm120DirectProjection(
+      device_activation.get(), device_activation_scale.get(),
+      device_weight.get(), device_weight_scales.get(), device_split_k.get(),
+      tail_rows, k_size, nullptr);
+  const auto tail_legacy_status =
+      gem16::internal::LaunchFp8Sm120DirectProjectionLegacyForTest(
+          device_activation.get(), device_activation_scale.get(),
+          device_weight.get(), device_weight_scales.get(), device_legacy.get(),
+          tail_rows, k_size, nullptr);
+  CUDA_TEST_CHECK(tail_status.ok());
+  CUDA_TEST_CHECK(tail_legacy_status.ok());
+  if (!tail_status.ok() || !tail_legacy_status.ok() ||
+      !CudaOk(cudaDeviceSynchronize(),
+              "tail FP8 projection synchronize")) {
+    return;
+  }
+  split_k.resize(tail_rows);
+  legacy.resize(tail_rows);
+  if (!CudaOk(cudaMemcpy(split_k.data(), device_split_k.get(),
+                         device_split_k.bytes(), cudaMemcpyDeviceToHost),
+              "copy tail-dispatch FP8 output") ||
+      !CudaOk(cudaMemcpy(legacy.data(), device_legacy.get(),
+                         device_legacy.bytes(), cudaMemcpyDeviceToHost),
+              "copy tail legacy FP8 output")) {
+    return;
+  }
+  std::size_t tail_mismatches = 0U;
+  for (std::size_t row = 0U; row < tail_rows; ++row) {
+    tail_mismatches +=
+        std::bit_cast<std::uint32_t>(split_k[row]) !=
+                std::bit_cast<std::uint32_t>(legacy[row])
+            ? 1U
+            : 0U;
+  }
+  std::cout << "SM120 FP8 split-K2 fallback 2817x" << k_size
+            << ": exact_mismatches=" << tail_mismatches << '/' << tail_rows
+            << '\n';
+  CUDA_TEST_CHECK(tail_mismatches == 0U);
+
+  if (!measure_performance) return;
+  const auto split_k_launch = [&] {
+    return gem16::internal::LaunchFp8Sm120DirectProjection(
+        device_activation.get(), device_activation_scale.get(),
+        device_weight.get(), device_weight_scales.get(), device_split_k.get(),
+        rows, k_size, nullptr);
+  };
+  const auto legacy_launch = [&] {
+    return gem16::internal::LaunchFp8Sm120DirectProjectionLegacyForTest(
+        device_activation.get(), device_activation_scale.get(),
+        device_weight.get(), device_weight_scales.get(), device_legacy.get(),
+        rows, k_size, nullptr);
+  };
+  const float split_k_first_ms = MeasureFp8Projection(split_k_launch);
+  const float legacy_second_ms = MeasureFp8Projection(legacy_launch);
+  const float legacy_first_ms = MeasureFp8Projection(legacy_launch);
+  const float split_k_second_ms = MeasureFp8Projection(split_k_launch);
+  const float split_k_ms = (split_k_first_ms + split_k_second_ms) * 0.5F;
+  const float legacy_ms = (legacy_first_ms + legacy_second_ms) * 0.5F;
+  const double weight_gb =
+      static_cast<double>(rows) * static_cast<double>(k_size) / 1.0e9;
+  std::cout << "SM120 FP8 split-K2 timing 2816x" << k_size
+            << ": split_k_ms=" << split_k_ms
+            << " legacy_ms=" << legacy_ms
+            << " ratio=" << split_k_ms / legacy_ms
+            << " split_k_GBps=" << weight_gb * 1000.0 / split_k_ms
+            << " legacy_GBps=" << weight_gb * 1000.0 / legacy_ms << '\n';
+  CUDA_TEST_CHECK(split_k_ms > 0.0F);
+  CUDA_TEST_CHECK(legacy_ms > 0.0F);
+}
+
+void TestFp8Sm120CompactLocalQkv(bool measure_performance) {
+  constexpr std::size_t contracting = 2816U;
+  constexpr std::size_t q_rows = 4096U;
+  constexpr std::size_t q_tail_rows = q_rows + 1U;
+  constexpr std::size_t kv_rows = 2048U;
+  std::vector<std::uint8_t> activation(contracting);
+  std::vector<std::uint8_t> q_weight(q_tail_rows * contracting);
+  std::vector<std::uint8_t> k_weight(kv_rows * contracting);
+  std::vector<std::uint8_t> v_weight(kv_rows * contracting);
+  std::vector<std::uint16_t> q_scales(q_tail_rows);
+  std::vector<std::uint16_t> k_scales(kv_rows);
+  std::vector<std::uint16_t> v_scales(kv_rows);
+  const auto next_finite_fp8 = [](std::uint32_t& state) {
+    state = state * 1664525U + 1013904223U;
+    const std::uint8_t magnitude =
+        static_cast<std::uint8_t>((state >> 24U) % 0x7FU);
+    const std::uint8_t sign =
+        static_cast<std::uint8_t>((state >> 16U) & 0x80U);
+    return static_cast<std::uint8_t>(magnitude | sign);
+  };
+  std::uint32_t state = 0x12C0FFEEU;
+  for (std::uint8_t& value : activation) value = next_finite_fp8(state);
+  for (std::uint8_t& value : q_weight) value = next_finite_fp8(state);
+  for (std::uint8_t& value : k_weight) value = next_finite_fp8(state);
+  for (std::uint8_t& value : v_weight) value = next_finite_fp8(state);
+  constexpr std::array<std::uint16_t, 4> scale_values = {
+      0x3E00U, 0x3E80U, 0x3F00U, 0x3F80U};
+  for (std::size_t row = 0U; row < q_tail_rows; ++row) {
+    q_scales[row] = scale_values[row % scale_values.size()];
+  }
+  for (std::size_t row = 0U; row < kv_rows; ++row) {
+    k_scales[row] = scale_values[(row + 1U) % scale_values.size()];
+    v_scales[row] = scale_values[(row + 2U) % scale_values.size()];
+  }
+  constexpr float activation_scale = 0.5F;
+
+  DeviceBuffer<std::uint8_t> device_activation(activation.size());
+  DeviceBuffer<float> device_activation_scale(1U);
+  DeviceBuffer<std::uint8_t> device_q_weight(q_weight.size());
+  DeviceBuffer<std::uint8_t> device_k_weight(k_weight.size());
+  DeviceBuffer<std::uint8_t> device_v_weight(v_weight.size());
+  DeviceBuffer<std::uint16_t> device_q_scales(q_scales.size());
+  DeviceBuffer<std::uint16_t> device_k_scales(k_scales.size());
+  DeviceBuffer<std::uint16_t> device_v_scales(v_scales.size());
+  DeviceBuffer<float> device_q_compact(q_tail_rows);
+  DeviceBuffer<float> device_k_compact(kv_rows);
+  DeviceBuffer<float> device_v_compact(kv_rows);
+  DeviceBuffer<float> device_q_legacy(q_tail_rows);
+  DeviceBuffer<float> device_k_legacy(kv_rows);
+  DeviceBuffer<float> device_v_legacy(kv_rows);
+  if (device_activation.get() == nullptr ||
+      device_activation_scale.get() == nullptr ||
+      device_q_weight.get() == nullptr || device_k_weight.get() == nullptr ||
+      device_v_weight.get() == nullptr || device_q_scales.get() == nullptr ||
+      device_k_scales.get() == nullptr || device_v_scales.get() == nullptr ||
+      device_q_compact.get() == nullptr || device_k_compact.get() == nullptr ||
+      device_v_compact.get() == nullptr || device_q_legacy.get() == nullptr ||
+      device_k_legacy.get() == nullptr || device_v_legacy.get() == nullptr) {
+    return;
+  }
+  if (!CudaOk(cudaMemcpy(device_activation.get(), activation.data(),
+                         device_activation.bytes(), cudaMemcpyHostToDevice),
+              "copy compact QKV FP8 activation") ||
+      !CudaOk(cudaMemcpy(device_activation_scale.get(), &activation_scale,
+                         sizeof(activation_scale), cudaMemcpyHostToDevice),
+              "copy compact QKV FP8 activation scale") ||
+      !CudaOk(cudaMemcpy(device_q_weight.get(), q_weight.data(),
+                         device_q_weight.bytes(), cudaMemcpyHostToDevice),
+              "copy compact FP8 Q weight") ||
+      !CudaOk(cudaMemcpy(device_k_weight.get(), k_weight.data(),
+                         device_k_weight.bytes(), cudaMemcpyHostToDevice),
+              "copy compact FP8 K weight") ||
+      !CudaOk(cudaMemcpy(device_v_weight.get(), v_weight.data(),
+                         device_v_weight.bytes(), cudaMemcpyHostToDevice),
+              "copy compact FP8 V weight") ||
+      !CudaOk(cudaMemcpy(device_q_scales.get(), q_scales.data(),
+                         device_q_scales.bytes(), cudaMemcpyHostToDevice),
+              "copy compact FP8 Q scales") ||
+      !CudaOk(cudaMemcpy(device_k_scales.get(), k_scales.data(),
+                         device_k_scales.bytes(), cudaMemcpyHostToDevice),
+              "copy compact FP8 K scales") ||
+      !CudaOk(cudaMemcpy(device_v_scales.get(), v_scales.data(),
+                         device_v_scales.bytes(), cudaMemcpyHostToDevice),
+              "copy compact FP8 V scales") ||
+      !CudaOk(cudaMemset(device_q_compact.get(), 0,
+                         device_q_compact.bytes()),
+              "clear compact FP8 Q output") ||
+      !CudaOk(cudaMemset(device_k_compact.get(), 0,
+                         device_k_compact.bytes()),
+              "clear compact FP8 K output") ||
+      !CudaOk(cudaMemset(device_v_compact.get(), 0,
+                         device_v_compact.bytes()),
+              "clear compact FP8 V output") ||
+      !CudaOk(cudaMemset(device_q_legacy.get(), 0,
+                         device_q_legacy.bytes()),
+              "clear legacy FP8 Q output") ||
+      !CudaOk(cudaMemset(device_k_legacy.get(), 0,
+                         device_k_legacy.bytes()),
+              "clear legacy FP8 K output") ||
+      !CudaOk(cudaMemset(device_v_legacy.get(), 0,
+                         device_v_legacy.bytes()),
+              "clear legacy FP8 V output")) {
+    return;
+  }
+
+  const auto compact_launch = [&] {
+    return gem16::internal::LaunchFp8Sm120GroupedQkvProjection(
+        device_activation.get(), device_activation_scale.get(),
+        device_q_weight.get(), device_q_scales.get(), device_q_compact.get(),
+        q_rows, device_k_weight.get(), device_k_scales.get(),
+        device_k_compact.get(), kv_rows, device_v_weight.get(),
+        device_v_scales.get(), device_v_compact.get(), kv_rows, contracting,
+        nullptr);
+  };
+  const auto legacy_launch = [&] {
+    return gem16::internal::
+        LaunchFp8Sm120LocalGroupedQkvProjectionLegacyForTest(
+            device_activation.get(), device_activation_scale.get(),
+            device_q_weight.get(), device_q_scales.get(),
+            device_q_legacy.get(), device_k_weight.get(),
+            device_k_scales.get(), device_k_legacy.get(),
+            device_v_weight.get(), device_v_scales.get(),
+            device_v_legacy.get(), nullptr);
+  };
+  const auto compact_status = compact_launch();
+  const auto legacy_status = legacy_launch();
+  CUDA_TEST_CHECK(compact_status.ok());
+  CUDA_TEST_CHECK(legacy_status.ok());
+  if (!compact_status.ok() || !legacy_status.ok() ||
+      !CudaOk(cudaDeviceSynchronize(),
+              "compact local QKV projection synchronize")) {
+    return;
+  }
+
+  std::vector<float> q_compact(q_tail_rows);
+  std::vector<float> k_compact(kv_rows);
+  std::vector<float> v_compact(kv_rows);
+  std::vector<float> q_legacy(q_tail_rows);
+  std::vector<float> k_legacy(kv_rows);
+  std::vector<float> v_legacy(kv_rows);
+  const auto copy_outputs = [&] {
+    return CudaOk(cudaMemcpy(q_compact.data(), device_q_compact.get(),
+                             device_q_compact.bytes(), cudaMemcpyDeviceToHost),
+                  "copy compact FP8 Q output") &&
+           CudaOk(cudaMemcpy(k_compact.data(), device_k_compact.get(),
+                             device_k_compact.bytes(), cudaMemcpyDeviceToHost),
+                  "copy compact FP8 K output") &&
+           CudaOk(cudaMemcpy(v_compact.data(), device_v_compact.get(),
+                             device_v_compact.bytes(), cudaMemcpyDeviceToHost),
+                  "copy compact FP8 V output") &&
+           CudaOk(cudaMemcpy(q_legacy.data(), device_q_legacy.get(),
+                             device_q_legacy.bytes(), cudaMemcpyDeviceToHost),
+                  "copy legacy FP8 Q output") &&
+           CudaOk(cudaMemcpy(k_legacy.data(), device_k_legacy.get(),
+                             device_k_legacy.bytes(), cudaMemcpyDeviceToHost),
+                  "copy legacy FP8 K output") &&
+           CudaOk(cudaMemcpy(v_legacy.data(), device_v_legacy.get(),
+                             device_v_legacy.bytes(), cudaMemcpyDeviceToHost),
+                  "copy legacy FP8 V output");
+  };
+  if (!copy_outputs()) return;
+  const auto mismatch_count = [](const std::vector<float>& first,
+                                 const std::vector<float>& second,
+                                 std::size_t elements) {
+    std::size_t mismatches = 0U;
+    for (std::size_t index = 0U; index < elements; ++index) {
+      mismatches +=
+          std::bit_cast<std::uint32_t>(first[index]) !=
+                  std::bit_cast<std::uint32_t>(second[index])
+              ? 1U
+              : 0U;
+    }
+    return mismatches;
+  };
+  const std::size_t q_mismatches =
+      mismatch_count(q_compact, q_legacy, q_rows);
+  const std::size_t k_mismatches =
+      mismatch_count(k_compact, k_legacy, kv_rows);
+  const std::size_t v_mismatches =
+      mismatch_count(v_compact, v_legacy, kv_rows);
+  std::cout << "SM120 FP8 compact local QKV: q_mismatches=" << q_mismatches
+            << '/' << q_rows << " k_mismatches=" << k_mismatches << '/'
+            << kv_rows << " v_mismatches=" << v_mismatches << '/' << kv_rows
+            << '\n';
+  CUDA_TEST_CHECK(q_mismatches == 0U);
+  CUDA_TEST_CHECK(k_mismatches == 0U);
+  CUDA_TEST_CHECK(v_mismatches == 0U);
+
+  // A Q-row tail must continue to use the generic grouped fallback.
+  const auto tail_status = gem16::internal::LaunchFp8Sm120GroupedQkvProjection(
+      device_activation.get(), device_activation_scale.get(),
+      device_q_weight.get(), device_q_scales.get(), device_q_compact.get(),
+      q_tail_rows, device_k_weight.get(), device_k_scales.get(),
+      device_k_compact.get(), kv_rows, device_v_weight.get(),
+      device_v_scales.get(), device_v_compact.get(), kv_rows, contracting,
+      nullptr);
+  const auto tail_q_status =
+      gem16::internal::LaunchFp8Sm120DirectProjectionLegacyForTest(
+          device_activation.get(), device_activation_scale.get(),
+          device_q_weight.get(), device_q_scales.get(), device_q_legacy.get(),
+          q_tail_rows, contracting, nullptr);
+  const auto tail_k_status =
+      gem16::internal::LaunchFp8Sm120DirectProjectionLegacyForTest(
+          device_activation.get(), device_activation_scale.get(),
+          device_k_weight.get(), device_k_scales.get(), device_k_legacy.get(),
+          kv_rows, contracting, nullptr);
+  const auto tail_v_status =
+      gem16::internal::LaunchFp8Sm120DirectProjectionLegacyForTest(
+          device_activation.get(), device_activation_scale.get(),
+          device_v_weight.get(), device_v_scales.get(), device_v_legacy.get(),
+          kv_rows, contracting, nullptr);
+  CUDA_TEST_CHECK(tail_status.ok());
+  CUDA_TEST_CHECK(tail_q_status.ok());
+  CUDA_TEST_CHECK(tail_k_status.ok());
+  CUDA_TEST_CHECK(tail_v_status.ok());
+  if (!tail_status.ok() || !tail_q_status.ok() || !tail_k_status.ok() ||
+      !tail_v_status.ok() ||
+      !CudaOk(cudaDeviceSynchronize(),
+              "compact local QKV tail synchronize") ||
+      !copy_outputs()) {
+    return;
+  }
+  const std::size_t tail_q_mismatches =
+      mismatch_count(q_compact, q_legacy, q_tail_rows);
+  const std::size_t tail_k_mismatches =
+      mismatch_count(k_compact, k_legacy, kv_rows);
+  const std::size_t tail_v_mismatches =
+      mismatch_count(v_compact, v_legacy, kv_rows);
+  std::cout << "SM120 FP8 compact local QKV fallback: q_mismatches="
+            << tail_q_mismatches << '/' << q_tail_rows
+            << " k_mismatches=" << tail_k_mismatches << '/' << kv_rows
+            << " v_mismatches=" << tail_v_mismatches << '/' << kv_rows
+            << '\n';
+  CUDA_TEST_CHECK(tail_q_mismatches == 0U);
+  CUDA_TEST_CHECK(tail_k_mismatches == 0U);
+  CUDA_TEST_CHECK(tail_v_mismatches == 0U);
+
+  if (!measure_performance) return;
+  const float compact_first_ms = MeasureFp8Projection(compact_launch);
+  const float legacy_second_ms = MeasureFp8Projection(legacy_launch);
+  const float legacy_first_ms = MeasureFp8Projection(legacy_launch);
+  const float compact_second_ms = MeasureFp8Projection(compact_launch);
+  const float compact_ms = (compact_first_ms + compact_second_ms) * 0.5F;
+  const float legacy_ms = (legacy_first_ms + legacy_second_ms) * 0.5F;
+  const double weight_gb =
+      static_cast<double>(q_rows + 2U * kv_rows) * contracting / 1.0e9;
+  std::cout << "SM120 FP8 compact local QKV timing: compact_ms=" << compact_ms
+            << " legacy_ms=" << legacy_ms
+            << " ratio=" << compact_ms / legacy_ms
+            << " compact_GBps=" << weight_gb * 1000.0 / compact_ms
+            << " legacy_GBps=" << weight_gb * 1000.0 / legacy_ms << '\n';
+  CUDA_TEST_CHECK(compact_ms > 0.0F);
+  CUDA_TEST_CHECK(legacy_ms > 0.0F);
+}
+
+void TestFp8Sm120SplitK2Projection(bool measure_performance) {
+  CheckFp8Sm120SplitK2Geometry(4096U, measure_performance);
+  CheckFp8Sm120SplitK2Geometry(8192U, measure_performance);
+  TestFp8Sm120CompactLocalQkv(measure_performance);
 }
 
 void TestFp8CutlassPrefillGeometry() {
@@ -4200,6 +4731,24 @@ int main(int argc, char** argv) {
     std::cout << "decode fusion CUDA tests passed\n";
     return 0;
   }
+  if (argc == 2 && std::string_view(argv[1]) == "fp8-split-k") {
+    TestFp8Sm120SplitK2Projection(true);
+    if (failures != 0) {
+      std::cerr << failures << " CUDA test assertion(s) failed\n";
+      return 1;
+    }
+    std::cout << "FP8 split-K2 CUDA tests passed\n";
+    return 0;
+  }
+  if (argc == 2 && std::string_view(argv[1]) == "fp8-split-k-memcheck") {
+    TestFp8Sm120SplitK2Projection(false);
+    if (failures != 0) {
+      std::cerr << failures << " CUDA test assertion(s) failed\n";
+      return 1;
+    }
+    std::cout << "FP8 split-K2 CUDA memcheck tests passed\n";
+    return 0;
+  }
   if (argc == 2 && std::string_view(argv[1]) == "mtp-control") {
     TestMtpDeviceControlTransitions();
     TestMtpReasoningTransitions();
@@ -4228,6 +4777,7 @@ int main(int argc, char** argv) {
   TestCutlassSm120Projection();
   TestMlpElementwiseBridge();
   TestFp8ReferenceAndDirectProjection();
+  TestFp8Sm120SplitK2Projection(false);
   TestPhysicalBf16Fp8TokenQuantization();
   TestFp8CutlassPrefillGeometry();
   TestLocalLayerReferenceOperators();

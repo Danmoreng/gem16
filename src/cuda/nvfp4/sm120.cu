@@ -738,7 +738,18 @@ __global__ void Sm120MatrixProjectionKernel(
 // up to 16 assignments of one expert. Filling the complete MMA M dimension
 // lets those assignments share every W13/W2 weight fragment while preserving
 // each assignment's original K64 accumulation and BF16 epilogue.
-template <bool kFusedGateUp>
+template <typename Output>
+__device__ __forceinline__ void StorePhysicalOrContainerBf16(
+    Output* output, std::uint64_t index, __nv_bfloat16 value) {
+  if constexpr (std::is_same_v<Output, std::uint16_t>) {
+    output[index] = __bfloat16_as_ushort(value);
+  } else {
+    static_assert(std::is_same_v<Output, float>);
+    output[index] = static_cast<float>(value);
+  }
+}
+
+template <bool kFusedGateUp, typename Output>
 __global__ void Sm120GroupedExpertMatrixKernel(
     const std::uint8_t* packed_activation_e2m1,
     const std::uint8_t* activation_scales_e4m3fn,
@@ -747,7 +758,7 @@ __global__ void Sm120GroupedExpertMatrixKernel(
     const Gemma4MoePrefillAssignment* assignments,
     const std::uint32_t* permutation, const std::uint32_t* prefix,
     const std::uint32_t* expert_tiles,
-    const std::uint32_t* expert_tile_count, float* output,
+    const std::uint32_t* expert_tile_count, Output* output,
     std::uint64_t assignment_count, std::uint64_t rows,
     std::uint64_t contracting_elements, std::uint32_t experts,
     float output_divisor) {
@@ -900,12 +911,15 @@ __global__ void Sm120GroupedExpertMatrixKernel(
           kSqrtTwoOverPi * (gate + kGeluCubic * gate * gate * gate);
       const float gelu = static_cast<float>(
           __float2bfloat16_rn(0.5F * gate * (1.0F + tanhf(inner))));
-      output[static_cast<std::uint64_t>(output_row) * rows + column] =
-          static_cast<float>(__float2bfloat16_rn(gelu * up));
+      StorePhysicalOrContainerBf16(
+          output,
+          static_cast<std::uint64_t>(output_row) * rows + column,
+          __float2bfloat16_rn(gelu * up));
     } else {
-      output[static_cast<std::uint64_t>(output_row) * rows + column] =
-          static_cast<float>(
-              __float2bfloat16_rn(accumulator[pair] / output_divisor));
+      StorePhysicalOrContainerBf16(
+          output,
+          static_cast<std::uint64_t>(output_row) * rows + column,
+          __float2bfloat16_rn(accumulator[pair] / output_divisor));
     }
   }
 #else
@@ -1179,7 +1193,7 @@ Status LaunchNvfp4Sm120GroupedExpertDown(
   }
   const std::uint64_t tile_grid =
       (assignment_count + kTokensPerMma - 1U) / kTokensPerMma + experts;
-  Sm120GroupedExpertMatrixKernel<false><<<
+  Sm120GroupedExpertMatrixKernel<false, float><<<
       dim3(static_cast<unsigned>(blocks), static_cast<unsigned>(tile_grid)),
       kThreadsPerBlock, 0, stream>>>(
       grouped_product_e2m1, grouped_product_scales_e4m3fn,
@@ -1191,6 +1205,65 @@ Status LaunchNvfp4Sm120GroupedExpertDown(
   return error == cudaSuccess
              ? Status::Ok()
              : CudaFailure("launch grouped SM120 expert Down", error);
+}
+
+Status LaunchNvfp4Sm120GroupedExpertDownBf16(
+    const std::uint8_t* grouped_product_e2m1,
+    const std::uint8_t* grouped_product_scales_e4m3fn,
+    const std::uint8_t* packed_expert_weight_e2m1,
+    const std::uint8_t* expert_weight_scales_e4m3fn,
+    const Gemma4MoePrefillAssignment* assignments,
+    const std::uint32_t* permutation, const std::uint32_t* prefix,
+    const std::uint32_t* expert_tiles,
+    const std::uint32_t* expert_tile_count,
+    std::uint16_t* assignment_order_output_bf16,
+    std::uint64_t assignment_count, std::uint64_t rows_per_expert,
+    std::uint64_t contracting_elements, std::uint32_t experts,
+    float activation_global_divisor, float weight_global_divisor,
+    cudaStream_t stream) {
+  if (grouped_product_e2m1 == nullptr ||
+      grouped_product_scales_e4m3fn == nullptr ||
+      packed_expert_weight_e2m1 == nullptr ||
+      expert_weight_scales_e4m3fn == nullptr || assignments == nullptr ||
+      permutation == nullptr || prefix == nullptr || expert_tiles == nullptr ||
+      expert_tile_count == nullptr ||
+      assignment_order_output_bf16 == nullptr || assignment_count == 0U ||
+      assignment_count > 65535U || experts == 0U ||
+      rows_per_expert == 0U || rows_per_expert % kRowsPerWarp != 0U ||
+      contracting_elements == 0U ||
+      contracting_elements % kElementsPerKBlock != 0U ||
+      !PositiveFinite(activation_global_divisor) ||
+      !PositiveFinite(weight_global_divisor)) {
+    return Invalid("grouped physical-BF16 SM120 expert Down contract is invalid");
+  }
+  const float divisor = activation_global_divisor * weight_global_divisor;
+  if (!PositiveFinite(divisor)) {
+    return Invalid(
+        "grouped physical-BF16 SM120 expert Down divisor overflowed");
+  }
+  const std::uint64_t row_tiles = rows_per_expert / kRowsPerWarp;
+  const std::uint64_t blocks =
+      (row_tiles + kWarpsPerBlock - 1U) / kWarpsPerBlock;
+  if (blocks >
+      static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
+    return Invalid(
+        "grouped physical-BF16 SM120 expert Down grid exceeds CUDA limits");
+  }
+  const std::uint64_t tile_grid =
+      (assignment_count + kTokensPerMma - 1U) / kTokensPerMma + experts;
+  Sm120GroupedExpertMatrixKernel<false, std::uint16_t><<<
+      dim3(static_cast<unsigned>(blocks), static_cast<unsigned>(tile_grid)),
+      kThreadsPerBlock, 0, stream>>>(
+      grouped_product_e2m1, grouped_product_scales_e4m3fn,
+      packed_expert_weight_e2m1, expert_weight_scales_e4m3fn, assignments,
+      permutation, prefix, expert_tiles, expert_tile_count,
+      assignment_order_output_bf16, assignment_count, rows_per_expert,
+      contracting_elements, experts, divisor);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure(
+                   "launch grouped physical-BF16 SM120 expert Down", error);
 }
 
 Status LaunchNvfp4Sm120DirectProjectionBatch(
@@ -1578,7 +1651,7 @@ Status LaunchNvfp4Sm120GroupedExpertFusedGateUp(
   }
   const std::uint64_t tile_grid =
       (assignment_count + kTokensPerMma - 1U) / kTokensPerMma + experts;
-  Sm120GroupedExpertMatrixKernel<true><<<
+  Sm120GroupedExpertMatrixKernel<true, float><<<
       dim3(static_cast<unsigned>(blocks), static_cast<unsigned>(tile_grid)),
       kThreadsPerBlock, 0, stream>>>(
       token_activation_e2m1, token_activation_scales_e4m3fn,
@@ -1590,6 +1663,66 @@ Status LaunchNvfp4Sm120GroupedExpertFusedGateUp(
   return error == cudaSuccess
              ? Status::Ok()
              : CudaFailure("launch grouped SM120 expert Gate/Up", error);
+}
+
+Status LaunchNvfp4Sm120GroupedExpertFusedGateUpBf16(
+    const std::uint8_t* token_activation_e2m1,
+    const std::uint8_t* token_activation_scales_e4m3fn,
+    const std::uint8_t* packed_expert_gate_up_weight_e2m1,
+    const std::uint8_t* expert_gate_up_weight_scales_e4m3fn,
+    const Gemma4MoePrefillAssignment* assignments,
+    const std::uint32_t* permutation, const std::uint32_t* prefix,
+    const std::uint32_t* expert_tiles,
+    const std::uint32_t* expert_tile_count,
+    std::uint16_t* grouped_product_output_bf16,
+    std::uint64_t assignment_count, std::uint64_t rows,
+    std::uint64_t contracting_elements, std::uint32_t experts,
+    float activation_global_divisor, float weight_global_divisor,
+    cudaStream_t stream) {
+  if (token_activation_e2m1 == nullptr ||
+      token_activation_scales_e4m3fn == nullptr ||
+      packed_expert_gate_up_weight_e2m1 == nullptr ||
+      expert_gate_up_weight_scales_e4m3fn == nullptr ||
+      assignments == nullptr || permutation == nullptr || prefix == nullptr ||
+      expert_tiles == nullptr || expert_tile_count == nullptr ||
+      grouped_product_output_bf16 == nullptr || assignment_count == 0U ||
+      assignment_count > 65535U || experts == 0U || rows == 0U ||
+      rows % kRowsPerWarp != 0U || contracting_elements == 0U ||
+      contracting_elements % kElementsPerKBlock != 0U ||
+      !PositiveFinite(activation_global_divisor) ||
+      !PositiveFinite(weight_global_divisor)) {
+    return Invalid(
+        "grouped physical-BF16 SM120 expert Gate/Up contract is invalid");
+  }
+  const float divisor = activation_global_divisor * weight_global_divisor;
+  if (!PositiveFinite(divisor)) {
+    return Invalid(
+        "grouped physical-BF16 SM120 expert Gate/Up divisor overflowed");
+  }
+  const std::uint64_t row_tiles = rows / kRowsPerWarp;
+  const std::uint64_t blocks =
+      (row_tiles + kWarpsPerBlock - 1U) / kWarpsPerBlock;
+  if (blocks >
+      static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
+    return Invalid(
+        "grouped physical-BF16 SM120 expert Gate/Up grid exceeds CUDA limits");
+  }
+  const std::uint64_t tile_grid =
+      (assignment_count + kTokensPerMma - 1U) / kTokensPerMma + experts;
+  Sm120GroupedExpertMatrixKernel<true, std::uint16_t><<<
+      dim3(static_cast<unsigned>(blocks), static_cast<unsigned>(tile_grid)),
+      kThreadsPerBlock, 0, stream>>>(
+      token_activation_e2m1, token_activation_scales_e4m3fn,
+      packed_expert_gate_up_weight_e2m1,
+      expert_gate_up_weight_scales_e4m3fn, assignments, permutation, prefix,
+      expert_tiles, expert_tile_count, grouped_product_output_bf16,
+      assignment_count, rows, contracting_elements, experts, divisor);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure(
+                   "launch grouped physical-BF16 SM120 expert Gate/Up",
+                   error);
 }
 
 Status LaunchNvfp4Sm120FusedGateUpBatch(

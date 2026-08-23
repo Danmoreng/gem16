@@ -102,6 +102,24 @@ struct Gemma4MoePrefillAssignment;
     float activation_global_divisor, float weight_global_divisor,
     cudaStream_t stream);
 
+// Physical-BF16-output form of grouped W2. It preserves the identical MMA,
+// expert grouping, assignment scatter and BF16 epilogue while using two bytes
+// rather than a four-byte FP32 container for every output value.
+[[nodiscard]] Status LaunchNvfp4Sm120GroupedExpertDownBf16(
+    const std::uint8_t* grouped_product_e2m1,
+    const std::uint8_t* grouped_product_scales_e4m3fn,
+    const std::uint8_t* packed_expert_weight_e2m1,
+    const std::uint8_t* expert_weight_scales_e4m3fn,
+    const Gemma4MoePrefillAssignment* assignments,
+    const std::uint32_t* permutation, const std::uint32_t* prefix,
+    const std::uint32_t* expert_tiles,
+    const std::uint32_t* expert_tile_count,
+    std::uint16_t* assignment_order_output_bf16,
+    std::uint64_t assignment_count, std::uint64_t rows_per_expert,
+    std::uint64_t contracting_elements, std::uint32_t experts,
+    float activation_global_divisor, float weight_global_divisor,
+    cudaStream_t stream);
+
 [[nodiscard]] Status LaunchNvfp4Sm120DirectProjectionBatch(
     const std::uint8_t* packed_activation_e2m1,
     const std::uint8_t* activation_scales_e4m3fn,
@@ -211,6 +229,24 @@ struct Gemma4MoePrefillAssignment;
     const std::uint32_t* permutation, const std::uint32_t* prefix,
     const std::uint32_t* expert_tiles,
     const std::uint32_t* expert_tile_count, float* grouped_product_output,
+    std::uint64_t assignment_count, std::uint64_t rows,
+    std::uint64_t contracting_elements, std::uint32_t experts,
+    float activation_global_divisor, float weight_global_divisor,
+    cudaStream_t stream);
+
+// Physical-BF16-output form of grouped W13. The Gate, GELU and product
+// boundaries are unchanged; only the representation of the already-rounded
+// product changes from an FP32 container to its exact two-byte BF16 payload.
+[[nodiscard]] Status LaunchNvfp4Sm120GroupedExpertFusedGateUpBf16(
+    const std::uint8_t* token_activation_e2m1,
+    const std::uint8_t* token_activation_scales_e4m3fn,
+    const std::uint8_t* packed_expert_gate_up_weight_e2m1,
+    const std::uint8_t* expert_gate_up_weight_scales_e4m3fn,
+    const Gemma4MoePrefillAssignment* assignments,
+    const std::uint32_t* permutation, const std::uint32_t* prefix,
+    const std::uint32_t* expert_tiles,
+    const std::uint32_t* expert_tile_count,
+    std::uint16_t* grouped_product_output_bf16,
     std::uint64_t assignment_count, std::uint64_t rows,
     std::uint64_t contracting_elements, std::uint32_t experts,
     float activation_global_divisor, float weight_global_divisor,

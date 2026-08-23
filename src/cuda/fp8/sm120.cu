@@ -22,9 +22,20 @@ constexpr std::uint64_t kElementsPerStage =
 constexpr unsigned kWarpSize = 32;
 constexpr unsigned kWarpsPerBlock = 4;
 constexpr unsigned kThreadsPerBlock = kWarpSize * kWarpsPerBlock;
+constexpr unsigned kSplitKWarpsPerBlock = 2U;
+constexpr unsigned kSplitKThreadsPerBlock =
+    kWarpSize * kSplitKWarpsPerBlock;
 constexpr unsigned kMatrixWarpsPerBlock = 8;
 constexpr unsigned kMatrixThreadsPerBlock =
     kWarpSize * kMatrixWarpsPerBlock;
+constexpr std::uint64_t kGemma4Moe26BHidden = 2816U;
+constexpr std::uint64_t kGemma4Moe26BLocalAttentionWidth = 4096U;
+constexpr std::uint64_t kGemma4Moe26BLocalKvWidth = 2048U;
+constexpr std::uint64_t kGemma4Moe26BGlobalAttentionWidth = 8192U;
+constexpr unsigned kGemma4Moe26BLocalGroupedBlocks =
+    static_cast<unsigned>((kGemma4Moe26BLocalAttentionWidth +
+                           2U * kGemma4Moe26BLocalKvWidth) /
+                          (kWarpsPerBlock * kRowsPerWarp));
 
 Status Invalid(std::string message) {
   return Status(StatusCode::kInvalidArgument, std::move(message));
@@ -247,6 +258,207 @@ __global__ void Sm120DirectProjectionKernel(const std::uint8_t* activation,
   (void)third;
   (void)binding_count;
   (void)tokens;
+  (void)contracting_elements;
+#endif
+}
+
+// The 25 local 26B layers project Q4096/K2048/V2048 from the same K2816
+// activation. The generic grouped launch uses the Q-sized X grid for all three
+// Z planes, leaving half of both K/V planes empty. Flatten the three exact
+// block ranges into 256 useful CTAs while preserving the legacy per-row warp,
+// source layout, MMA order and FP32 scaling boundary.
+__launch_bounds__(kThreadsPerBlock, 1) __global__
+void Sm120LocalGroupedQkvProjectionKernel(
+    const std::uint8_t* activation, const float* activation_scale,
+    Fp8MatrixBinding query, Fp8MatrixBinding key, Fp8MatrixBinding value,
+    std::uint64_t contracting_elements) {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 890
+  constexpr unsigned kRowsPerBlock =
+      kWarpsPerBlock * static_cast<unsigned>(kRowsPerWarp);
+  constexpr unsigned kQueryBlocks =
+      static_cast<unsigned>(kGemma4Moe26BLocalAttentionWidth) / kRowsPerBlock;
+  constexpr unsigned kKvBlocks =
+      static_cast<unsigned>(kGemma4Moe26BLocalKvWidth) / kRowsPerBlock;
+  const unsigned block = blockIdx.x;
+  const bool is_query = block < kQueryBlocks;
+  const bool is_key = !is_query && block < kQueryBlocks + kKvBlocks;
+  const Fp8MatrixBinding binding =
+      is_query ? query : (is_key ? key : value);
+  const unsigned matrix_block =
+      is_query ? block
+               : (is_key ? block - kQueryBlocks
+                         : block - kQueryBlocks - kKvBlocks);
+  const unsigned warp = threadIdx.x / kWarpSize;
+  const unsigned lane = threadIdx.x & (kWarpSize - 1U);
+  const std::uint64_t global_warp =
+      static_cast<std::uint64_t>(matrix_block) * kWarpsPerBlock + warp;
+  const unsigned source_row_in_tile = lane >> 2U;
+  const unsigned k_quarter = lane & 3U;
+  const std::uint64_t source_row =
+      global_warp * kRowsPerWarp + source_row_in_tile;
+  const std::uint64_t k_blocks =
+      contracting_elements / kElementsPerKBlock;
+
+  float d0 = 0.0F;
+  float d1 = 0.0F;
+  float d2 = 0.0F;
+  float d3 = 0.0F;
+  for (std::uint64_t k_block = 0U; k_block < k_blocks; ++k_block) {
+    const std::uint64_t activation_byte =
+        k_block * kElementsPerKBlock +
+        static_cast<std::uint64_t>(k_quarter) * 4U;
+    const std::uint32_t a_first =
+        LoadU32(activation + activation_byte);
+    const std::uint32_t a_second =
+        LoadU32(activation + activation_byte + 16U);
+    const std::uint64_t weight_byte =
+        source_row * contracting_elements + activation_byte;
+    const std::uint32_t b_first = LoadU32(binding.weight + weight_byte);
+    const std::uint32_t b_second =
+        LoadU32(binding.weight + weight_byte + 16U);
+
+    float next0 = 0.0F;
+    float next1 = 0.0F;
+    float next2 = 0.0F;
+    float next3 = 0.0F;
+    asm volatile(
+        "mma.sync.aligned.m16n8k32.row.col.f32.e4m3.e4m3.f32 "
+        "{%0, %1, %2, %3}, "
+        "{%4, %5, %6, %7}, "
+        "{%8, %9}, "
+        "{%10, %11, %12, %13};\n"
+        : "=f"(next0), "=f"(next1), "=f"(next2), "=f"(next3)
+        : "r"(a_first), "r"(a_first), "r"(a_second), "r"(a_second),
+          "r"(b_first), "r"(b_second), "f"(d0), "f"(d1), "f"(d2),
+          "f"(d3));
+    d0 = next0;
+    d1 = next1;
+    d2 = next2;
+    d3 = next3;
+  }
+
+  if (lane < 4U) {
+    const std::uint64_t output_row =
+        global_warp * kRowsPerWarp + lane * 2U;
+    const float input_scale = activation_scale[0];
+    binding.output[output_row] =
+        d0 * input_scale * DecodeBf16(binding.weight_scales + output_row);
+    binding.output[output_row + 1U] =
+        d1 * input_scale *
+        DecodeBf16(binding.weight_scales + output_row + 1U);
+  }
+#else
+  (void)activation;
+  (void)activation_scale;
+  (void)query;
+  (void)key;
+  (void)value;
+  (void)contracting_elements;
+#endif
+}
+
+// Gemma 4 26B's T=1 attention O projections expose only 352 output-row
+// warps while contracting over 4K or 8K elements. Pair two warps on the same
+// eight output rows, accumulate one contiguous K half per warp, and combine the
+// two FP32 fragments inside the CTA. The accepted source-row weight layout and
+// every weight byte remain unchanged.
+__launch_bounds__(kSplitKThreadsPerBlock, 1) __global__
+void Sm120DirectProjectionSplitK2Kernel(
+    const std::uint8_t* activation, const float* activation_scale,
+    const std::uint8_t* weight, const std::uint16_t* weight_scales,
+    float* output, std::uint64_t rows,
+    std::uint64_t contracting_elements) {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 890
+  __shared__ float second_half[kRowsPerWarp];
+  const unsigned warp = threadIdx.x / kWarpSize;
+  const unsigned lane = threadIdx.x & (kWarpSize - 1U);
+  const unsigned split = warp;
+  const std::uint64_t global_warp = blockIdx.x;
+  const std::uint64_t row_tiles =
+      (rows + kRowsPerWarp - 1U) / kRowsPerWarp;
+  const unsigned source_row_in_tile = lane >> 2U;
+  const unsigned k_quarter = lane & 3U;
+  const std::uint64_t source_row =
+      global_warp * kRowsPerWarp + source_row_in_tile;
+  const std::uint64_t k_blocks =
+      contracting_elements / kElementsPerKBlock;
+  const std::uint64_t split_k_blocks = k_blocks / 2U;
+  const std::uint64_t first_k_block = split * split_k_blocks;
+  const std::uint64_t final_k_block = first_k_block + split_k_blocks;
+
+  float d0 = 0.0F;
+  float d1 = 0.0F;
+  float d2 = 0.0F;
+  float d3 = 0.0F;
+  if (global_warp < row_tiles) {
+    for (std::uint64_t k_block = first_k_block;
+         k_block < final_k_block; ++k_block) {
+      const std::uint64_t activation_byte =
+          k_block * kElementsPerKBlock +
+          static_cast<std::uint64_t>(k_quarter) * 4U;
+      const std::uint32_t a_first =
+          LoadU32(activation + activation_byte);
+      const std::uint32_t a_second =
+          LoadU32(activation + activation_byte + 16U);
+
+      std::uint32_t b_first = 0U;
+      std::uint32_t b_second = 0U;
+      if (source_row < rows) {
+        const std::uint64_t weight_byte =
+            source_row * contracting_elements + activation_byte;
+        b_first = LoadU32(weight + weight_byte);
+        b_second = LoadU32(weight + weight_byte + 16U);
+      }
+
+      float next0 = 0.0F;
+      float next1 = 0.0F;
+      float next2 = 0.0F;
+      float next3 = 0.0F;
+      asm volatile(
+          "mma.sync.aligned.m16n8k32.row.col.f32.e4m3.e4m3.f32 "
+          "{%0, %1, %2, %3}, "
+          "{%4, %5, %6, %7}, "
+          "{%8, %9}, "
+          "{%10, %11, %12, %13};\n"
+          : "=f"(next0), "=f"(next1), "=f"(next2), "=f"(next3)
+          : "r"(a_first), "r"(a_first), "r"(a_second), "r"(a_second),
+            "r"(b_first), "r"(b_second), "f"(d0), "f"(d1), "f"(d2),
+            "f"(d3));
+      d0 = next0;
+      d1 = next1;
+      d2 = next2;
+      d3 = next3;
+    }
+  }
+
+  const unsigned partial_row = lane * 2U;
+  if (split == 1U && lane < 4U) {
+    second_half[partial_row] = d0;
+    second_half[partial_row + 1U] = d1;
+  }
+  __syncthreads();
+  if (split == 0U && lane < 4U) {
+    const std::uint64_t output_row =
+        global_warp * kRowsPerWarp + lane * 2U;
+    const float input_scale = activation_scale[0];
+    if (output_row < rows) {
+      output[output_row] =
+          (d0 + second_half[partial_row]) * input_scale *
+          DecodeBf16(weight_scales + output_row);
+    }
+    if (output_row + 1U < rows) {
+      output[output_row + 1U] =
+          (d1 + second_half[partial_row + 1U]) * input_scale *
+          DecodeBf16(weight_scales + output_row + 1U);
+    }
+  }
+#else
+  (void)activation;
+  (void)activation_scale;
+  (void)weight;
+  (void)weight_scales;
+  (void)output;
+  (void)rows;
   (void)contracting_elements;
 #endif
 }
@@ -509,10 +721,26 @@ Status LaunchFp8Sm120DirectProjection(const std::uint8_t* activation_e4m3fn,
       contracting_elements % kElementsPerKBlock != 0U) {
     return Invalid("SM120 FP8 direct projection requires positive dimensions and K divisible by 32");
   }
+  const bool gemma4_moe_26b_attention_output =
+      rows == kGemma4Moe26BHidden &&
+      (contracting_elements == kGemma4Moe26BLocalAttentionWidth ||
+       contracting_elements == kGemma4Moe26BGlobalAttentionWidth);
   const std::uint64_t row_tiles = (rows + kRowsPerWarp - 1U) / kRowsPerWarp;
   const std::uint64_t blocks = (row_tiles + kWarpsPerBlock - 1U) / kWarpsPerBlock;
   if (blocks > static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
     return Invalid("SM120 FP8 direct projection grid exceeds CUDA limits");
+  }
+  if (gemma4_moe_26b_attention_output) {
+    Sm120DirectProjectionSplitK2Kernel<<<static_cast<unsigned>(row_tiles),
+                                         kSplitKThreadsPerBlock, 0, stream>>>(
+        activation_e4m3fn, activation_scale, weight_e4m3fn,
+        weight_scales_bf16, output, rows, contracting_elements);
+    const cudaError_t split_k_error = cudaGetLastError();
+    return split_k_error == cudaSuccess
+               ? Status::Ok()
+               : CudaFailure(
+                     "launch Gemma 4 26B split-K2 SM120 FP8 projection",
+                     split_k_error);
   }
   const Fp8MatrixBinding binding{weight_e4m3fn, weight_scales_bf16, output,
                                  rows};
@@ -525,6 +753,39 @@ Status LaunchFp8Sm120DirectProjection(const std::uint8_t* activation_e4m3fn,
   return error == cudaSuccess
              ? Status::Ok()
              : CudaFailure("launch direct-source SM120 FP8 projection", error);
+}
+
+Status LaunchFp8Sm120DirectProjectionLegacyForTest(
+    const std::uint8_t* activation_e4m3fn, const float* activation_scale,
+    const std::uint8_t* weight_e4m3fn,
+    const std::uint16_t* weight_scales_bf16, float* output,
+    std::uint64_t rows, std::uint64_t contracting_elements,
+    cudaStream_t stream) {
+  if (activation_e4m3fn == nullptr || activation_scale == nullptr ||
+      weight_e4m3fn == nullptr || weight_scales_bf16 == nullptr ||
+      output == nullptr || rows == 0U || contracting_elements == 0U ||
+      contracting_elements % kElementsPerKBlock != 0U) {
+    return Invalid("legacy SM120 FP8 differential arguments are invalid");
+  }
+  const std::uint64_t row_tiles =
+      (rows + kRowsPerWarp - 1U) / kRowsPerWarp;
+  const std::uint64_t blocks =
+      (row_tiles + kWarpsPerBlock - 1U) / kWarpsPerBlock;
+  if (blocks >
+      static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
+    return Invalid("legacy SM120 FP8 differential grid exceeds CUDA limits");
+  }
+  const Fp8MatrixBinding binding{weight_e4m3fn, weight_scales_bf16, output,
+                                 rows};
+  const Fp8MatrixBinding empty{};
+  Sm120DirectProjectionKernel<<<dim3(static_cast<unsigned>(blocks), 1U),
+                                kThreadsPerBlock, 0, stream>>>(
+      activation_e4m3fn, activation_scale, binding, empty, empty, 1U, 1U,
+      contracting_elements);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("launch legacy SM120 FP8 differential", error);
 }
 
 Status LaunchFp8Sm120GroupedQkvProjection(
@@ -576,6 +837,23 @@ Status LaunchFp8Sm120GroupedQkvProjection(
                            k_rows};
   const Fp8MatrixBinding v{v_weight_e4m3fn, v_weight_scales_bf16, v_output,
                            v_rows};
+  const bool gemma4_moe_26b_local_qkv =
+      has_v && contracting_elements == kGemma4Moe26BHidden &&
+      q_rows == kGemma4Moe26BLocalAttentionWidth &&
+      k_rows == kGemma4Moe26BLocalKvWidth &&
+      v_rows == kGemma4Moe26BLocalKvWidth;
+  if (gemma4_moe_26b_local_qkv) {
+    Sm120LocalGroupedQkvProjectionKernel<<<
+        kGemma4Moe26BLocalGroupedBlocks, kThreadsPerBlock, 0, stream>>>(
+        activation_e4m3fn, activation_scale, q, k, v,
+        contracting_elements);
+    const cudaError_t local_qkv_error = cudaGetLastError();
+    return local_qkv_error == cudaSuccess
+               ? Status::Ok()
+               : CudaFailure(
+                     "launch Gemma 4 26B compact local SM120 FP8 Q/K/V",
+                     local_qkv_error);
+  }
   Sm120DirectProjectionKernel<<<
       dim3(static_cast<unsigned>(blocks), 1U, has_v ? 3U : 2U),
       kThreadsPerBlock, 0, stream>>>(
@@ -586,6 +864,43 @@ Status LaunchFp8Sm120GroupedQkvProjection(
              ? Status::Ok()
              : CudaFailure(
                    "launch grouped direct-source SM120 FP8 projection", error);
+}
+
+Status LaunchFp8Sm120LocalGroupedQkvProjectionLegacyForTest(
+    const std::uint8_t* activation_e4m3fn, const float* activation_scale,
+    const std::uint8_t* q_weight_e4m3fn,
+    const std::uint16_t* q_weight_scales_bf16, float* q_output,
+    const std::uint8_t* k_weight_e4m3fn,
+    const std::uint16_t* k_weight_scales_bf16, float* k_output,
+    const std::uint8_t* v_weight_e4m3fn,
+    const std::uint16_t* v_weight_scales_bf16, float* v_output,
+    cudaStream_t stream) {
+  if (activation_e4m3fn == nullptr || activation_scale == nullptr ||
+      q_weight_e4m3fn == nullptr || q_weight_scales_bf16 == nullptr ||
+      q_output == nullptr || k_weight_e4m3fn == nullptr ||
+      k_weight_scales_bf16 == nullptr || k_output == nullptr ||
+      v_weight_e4m3fn == nullptr || v_weight_scales_bf16 == nullptr ||
+      v_output == nullptr) {
+    return Invalid("legacy local FP8 Q/K/V differential pointers are invalid");
+  }
+  const Fp8MatrixBinding q{q_weight_e4m3fn, q_weight_scales_bf16, q_output,
+                           kGemma4Moe26BLocalAttentionWidth};
+  const Fp8MatrixBinding k{k_weight_e4m3fn, k_weight_scales_bf16, k_output,
+                           kGemma4Moe26BLocalKvWidth};
+  const Fp8MatrixBinding v{v_weight_e4m3fn, v_weight_scales_bf16, v_output,
+                           kGemma4Moe26BLocalKvWidth};
+  constexpr unsigned kLegacyBlocks =
+      static_cast<unsigned>(kGemma4Moe26BLocalAttentionWidth /
+                            (kWarpsPerBlock * kRowsPerWarp));
+  Sm120DirectProjectionKernel<<<dim3(kLegacyBlocks, 1U, 3U),
+                                kThreadsPerBlock, 0, stream>>>(
+      activation_e4m3fn, activation_scale, q, k, v, 3U, 1U,
+      kGemma4Moe26BHidden);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("launch legacy local SM120 FP8 Q/K/V differential",
+                           error);
 }
 
 Status LaunchFp8Sm120DirectProjectionBatch(

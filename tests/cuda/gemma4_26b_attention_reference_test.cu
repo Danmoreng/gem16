@@ -1,5 +1,7 @@
 #include "cuda/attention/gemma4_26b_reference.h"
 #include "cuda/attention/sm120.h"
+#include "cuda/fp8/cutlass_sm120.h"
+#include "cuda/fp8/sm120.h"
 #include "cuda/layer/reference.h"
 
 #include <cuda_bf16.h>
@@ -12,6 +14,18 @@
 #include <cstdint>
 #include <iostream>
 #include <vector>
+
+namespace gem16::internal {
+
+Status LaunchOnlineAttentionDecodeFp8Sm120Kvh2Group4ForTest(
+    const float* query, const std::uint8_t* key_cache,
+    const std::uint8_t* value_cache,
+    const std::uint16_t* key_scale_bf16,
+    const std::uint16_t* value_scale_bf16, float* workspace, float* output,
+    const DecodeControl* control, std::uint64_t cache_capacity,
+    cudaStream_t stream);
+
+}  // namespace gem16::internal
 
 namespace {
 
@@ -228,6 +242,189 @@ gem16::internal::Gemma4Moe26BAttentionLayerTraits GlobalTraits() {
           1.0};
 }
 
+void CheckFp8PrefillProjectionGeometry(std::uint64_t rows,
+                                       std::uint64_t contracting,
+                                       std::uint64_t tokens,
+                                       bool stress_accumulation_order,
+                                       const char* label) {
+  constexpr std::array<std::uint8_t, 8> kFiniteNonzeroFp8{
+      0x28U, 0x30U, 0x38U, 0x40U, 0xA8U, 0xB0U, 0xB8U, 0xC0U};
+  constexpr std::array<float, 4> kActivationScales{0.125F, 0.25F, 0.5F,
+                                                   1.0F};
+  constexpr std::array<float, 4> kWeightScales{0.25F, 0.5F, 1.0F, 2.0F};
+  const std::uint64_t activation_elements = tokens * contracting;
+  const std::uint64_t weight_elements = rows * contracting;
+  const std::uint64_t output_elements = tokens * rows;
+  std::vector<std::uint8_t> activation(activation_elements);
+  std::vector<std::uint8_t> weight(weight_elements);
+  std::vector<float> activation_scales(tokens);
+  std::vector<std::uint16_t> weight_scales(rows);
+  std::uint32_t state = static_cast<std::uint32_t>(
+      0x9E3779B9U ^ rows ^ (contracting << 7U) ^ (tokens << 17U));
+  auto next_fp8 = [&]() {
+    state = state * 1664525U + 1013904223U;
+    if (stress_accumulation_order) {
+      // Cover finite E4M3 mantissas and exponents without zeros, NaNs or the
+      // extreme encodings that would obscure accumulation-order drift.
+      const std::uint8_t magnitude = static_cast<std::uint8_t>(
+          0x08U + ((state >> 24U) % 0x68U));
+      const std::uint8_t sign =
+          static_cast<std::uint8_t>((state >> 16U) & 0x80U);
+      return static_cast<std::uint8_t>(magnitude | sign);
+    }
+    return kFiniteNonzeroFp8[(state >> 29U) & 7U];
+  };
+  for (auto& value : activation) value = next_fp8();
+  for (auto& value : weight) value = next_fp8();
+  for (std::uint64_t token = 0U; token < tokens; ++token) {
+    activation_scales[token] =
+        kActivationScales[static_cast<std::size_t>(token & 3U)] *
+        (stress_accumulation_order ? 0.03125F : 1.0F);
+  }
+  for (std::uint64_t row = 0U; row < rows; ++row) {
+    const float scale = kWeightScales[static_cast<std::size_t>(row & 3U)] *
+                        (stress_accumulation_order ? 0.03125F : 1.0F);
+    weight_scales[row] = Bf16(scale);
+  }
+
+  DeviceBuffer<std::uint8_t> device_activation(activation_elements);
+  DeviceBuffer<float> device_activation_scales(tokens);
+  DeviceBuffer<std::uint8_t> device_weight(weight_elements);
+  DeviceBuffer<std::uint16_t> device_weight_scales(rows);
+  DeviceBuffer<float> device_native(output_elements);
+  DeviceBuffer<std::uint16_t> device_cutlass(output_elements);
+  DeviceBuffer<std::uint8_t> device_cutlass_workspace(
+      gem16::internal::kGemma4Moe26BAttentionCutlassWorkspaceBytes);
+  if (device_activation.get() == nullptr ||
+      device_activation_scales.get() == nullptr ||
+      device_weight.get() == nullptr ||
+      device_weight_scales.get() == nullptr ||
+      device_native.get() == nullptr || device_cutlass.get() == nullptr ||
+      device_cutlass_workspace.get() == nullptr) {
+    return;
+  }
+  if (!CudaOk(cudaMemcpy(device_activation.get(), activation.data(),
+                         device_activation.bytes(), cudaMemcpyHostToDevice),
+              "copy 26B FP8 projection activations") ||
+      !CudaOk(cudaMemcpy(device_activation_scales.get(),
+                         activation_scales.data(),
+                         device_activation_scales.bytes(),
+                         cudaMemcpyHostToDevice),
+              "copy 26B FP8 projection activation scales") ||
+      !CudaOk(cudaMemcpy(device_weight.get(), weight.data(),
+                         device_weight.bytes(), cudaMemcpyHostToDevice),
+              "copy 26B FP8 projection weights") ||
+      !CudaOk(cudaMemcpy(device_weight_scales.get(), weight_scales.data(),
+                         device_weight_scales.bytes(),
+                         cudaMemcpyHostToDevice),
+              "copy 26B FP8 projection weight scales")) {
+    return;
+  }
+
+  const auto native_status =
+      gem16::internal::LaunchFp8Sm120DirectProjectionBatch(
+          device_activation.get(), device_activation_scales.get(),
+          device_weight.get(), device_weight_scales.get(),
+          device_native.get(), tokens, rows, contracting, nullptr);
+  const auto cutlass_status =
+      gem16::internal::LaunchFp8CutlassProjectionBatch(
+          device_activation.get(), device_activation_scales.get(),
+          device_weight.get(), device_weight_scales.get(),
+          device_cutlass.get(), tokens, rows, contracting,
+          device_cutlass_workspace.get(), device_cutlass_workspace.bytes(),
+          nullptr);
+  CHECK(native_status.ok());
+  CHECK(cutlass_status.ok());
+  if (!native_status.ok() || !cutlass_status.ok() ||
+      !CudaOk(cudaDeviceSynchronize(),
+              "run 26B native/CUTLASS FP8 projection differential")) {
+    return;
+  }
+
+  std::vector<float> native(output_elements);
+  std::vector<std::uint16_t> cutlass(output_elements);
+  if (!CudaOk(cudaMemcpy(native.data(), device_native.get(),
+                         device_native.bytes(), cudaMemcpyDeviceToHost),
+              "copy 26B native FP8 projection output") ||
+      !CudaOk(cudaMemcpy(cutlass.data(), device_cutlass.get(),
+                         device_cutlass.bytes(), cudaMemcpyDeviceToHost),
+              "copy 26B CUTLASS FP8 projection output")) {
+    return;
+  }
+
+  bool finite = true;
+  std::uint64_t bf16_mismatches = 0U;
+  std::uint64_t first_bf16_mismatch = output_elements;
+  double squared_error = 0.0;
+  double native_squared = 0.0;
+  double cutlass_squared = 0.0;
+  double dot = 0.0;
+  float maximum_absolute_error = 0.0F;
+  for (std::uint64_t index = 0U; index < output_elements; ++index) {
+    const std::uint16_t native_bits = Bf16(native[index]);
+    const float native_bf16 =
+        static_cast<float>(__ushort_as_bfloat16(native_bits));
+    const float cutlass_bf16 =
+        static_cast<float>(__ushort_as_bfloat16(cutlass[index]));
+    finite = finite && std::isfinite(native_bf16) &&
+             std::isfinite(cutlass_bf16);
+    if (native_bits != cutlass[index]) {
+      if (first_bf16_mismatch == output_elements) {
+        first_bf16_mismatch = index;
+      }
+      ++bf16_mismatches;
+    }
+    const double difference =
+        static_cast<double>(cutlass_bf16) - native_bf16;
+    squared_error += difference * difference;
+    native_squared +=
+        static_cast<double>(native_bf16) * native_bf16;
+    cutlass_squared +=
+        static_cast<double>(cutlass_bf16) * cutlass_bf16;
+    dot += static_cast<double>(native_bf16) * cutlass_bf16;
+    maximum_absolute_error =
+        std::max(maximum_absolute_error,
+                 static_cast<float>(std::abs(difference)));
+  }
+  const double relative_l2 = std::sqrt(squared_error / native_squared);
+  const double cosine = dot / std::sqrt(native_squared * cutlass_squared);
+  std::cout << "M20 26B FP8 prefill projection " << label
+            << " T=" << tokens << " finite=" << finite
+            << " BF16-mismatches=" << bf16_mismatches << '/'
+            << output_elements << " first-mismatch=";
+  if (first_bf16_mismatch == output_elements) {
+    std::cout << "none";
+  } else {
+    std::cout << first_bf16_mismatch;
+  }
+  std::cout << " max-abs=" << maximum_absolute_error
+            << " relative-L2=" << relative_l2 << " cosine=" << cosine
+            << '\n';
+  CHECK(finite);
+  CHECK(native_squared > 0.0);
+  CHECK(cutlass_squared > 0.0);
+  if (stress_accumulation_order) {
+    CHECK(bf16_mismatches <= output_elements / 4U);
+    CHECK(relative_l2 <= 5.0e-4);
+    CHECK(cosine >= 0.999999);
+  } else {
+    CHECK(bf16_mismatches == 0U);
+    CHECK(relative_l2 <= 1.0e-7);
+    CHECK(cosine >= 0.999999999);
+  }
+}
+
+void TestFp8PrefillProjectionRealShapes() {
+  CheckFp8PrefillProjectionGeometry(4096U, 2816U, 16U, false, "Q-local");
+  CheckFp8PrefillProjectionGeometry(8192U, 2816U, 16U, false, "Q-global");
+  CheckFp8PrefillProjectionGeometry(2816U, 4096U, 16U, false, "O-local");
+  CheckFp8PrefillProjectionGeometry(2816U, 8192U, 16U, false, "O-global");
+  CheckFp8PrefillProjectionGeometry(4096U, 2816U, 512U, true, "Q-local");
+  CheckFp8PrefillProjectionGeometry(8192U, 2816U, 512U, true, "Q-global");
+  CheckFp8PrefillProjectionGeometry(2816U, 4096U, 512U, true, "O-local");
+  CheckFp8PrefillProjectionGeometry(2816U, 8192U, 512U, true, "O-global");
+}
+
 void CheckCase(Case* test, std::uint64_t first_position,
                std::uint64_t second_position) {
   CHECK(test->Run(first_position).ok());
@@ -298,7 +495,10 @@ void CheckNativeTwoKvHeadGlobalDecode(std::uint64_t capacity,
       kQueryHeads * (position + 1U)), reference_output(kQueryElements),
       native_workspace(
           gem16::internal::DecodeAttentionWorkspaceElements(capacity)),
-      native_output(kQueryElements);
+      native_output(kQueryElements),
+      group4_workspace(
+          gem16::internal::DecodeAttentionWorkspaceElements(capacity)),
+      group4_output(kQueryElements);
   DeviceBuffer<std::uint8_t> key_cache(capacity * kKvElements),
       value_cache(capacity * kKvElements);
   DeviceBuffer<std::uint16_t> scales(2U);
@@ -353,14 +553,29 @@ void CheckNativeTwoKvHeadGlobalDecode(std::uint64_t capacity,
             control.get(), kQueryHeads, kKvHeads, kHeadDimension, capacity,
             false, nullptr)
             .ok());
+  const bool long_context = capacity >= 16384U;
+  if (long_context) {
+    CHECK(gem16::internal::
+              LaunchOnlineAttentionDecodeFp8Sm120Kvh2Group4ForTest(
+                  query.get(), key_cache.get(), value_cache.get(), scales.get(),
+                  scales.get() + 1U, group4_workspace.get(),
+                  group4_output.get(), control.get(), capacity, nullptr)
+                  .ok());
+  }
   CHECK(CudaOk(cudaDeviceSynchronize(), "run M17 two-KV global attention"));
-  std::vector<float> reference(kQueryElements), native(kQueryElements);
+  std::vector<float> reference(kQueryElements), native(kQueryElements),
+      group4(long_context ? kQueryElements : 0U);
   CHECK(CudaOk(cudaMemcpy(reference.data(), reference_output.get(),
                           reference_output.bytes(), cudaMemcpyDeviceToHost),
                "copy M17 reference output"));
   CHECK(CudaOk(cudaMemcpy(native.data(), native_output.get(),
                           native_output.bytes(), cudaMemcpyDeviceToHost),
                "copy M17 native output"));
+  if (long_context) {
+    CHECK(CudaOk(cudaMemcpy(group4.data(), group4_output.get(),
+                            group4_output.bytes(), cudaMemcpyDeviceToHost),
+                 "copy M17 group-four differential output"));
+  }
   double error_squared = 0.0, reference_squared = 0.0, dot = 0.0,
          native_squared = 0.0;
   for (std::size_t index = 0; index < reference.size(); ++index) {
@@ -379,11 +594,32 @@ void CheckNativeTwoKvHeadGlobalDecode(std::uint64_t capacity,
             << '\n';
   CHECK(relative_l2 < 0.01);
   CHECK(cosine > 0.9999);
+  if (long_context) {
+    std::uint64_t exact_mismatches = 0U;
+    double group4_error_squared = 0.0;
+    double maximum_absolute_error = 0.0;
+    for (std::size_t index = 0; index < native.size(); ++index) {
+      const double difference =
+          static_cast<double>(native[index]) - group4[index];
+      group4_error_squared += difference * difference;
+      maximum_absolute_error =
+          std::max(maximum_absolute_error, std::abs(difference));
+      if (native[index] != group4[index]) ++exact_mismatches;
+    }
+    const double group4_relative_l2 =
+        std::sqrt(group4_error_squared / native_squared);
+    std::cout << "M17 QH16/KVH2/D512 " << tier
+              << " shared-KV-vs-group4 mismatches=" << exact_mismatches
+              << " max-abs=" << maximum_absolute_error
+              << " relative-L2=" << group4_relative_l2 << '\n';
+    CHECK(exact_mismatches == 0U);
+  }
 }
 
 void TestNativeTwoKvHeadGlobalDecode() {
   CheckNativeTwoKvHeadGlobalDecode(1024U, 777U, "scalar");
   CheckNativeTwoKvHeadGlobalDecode(16384U, 12345U, "vectorized");
+  CheckNativeTwoKvHeadGlobalDecode(16448U, 16447U, "vectorized-tail");
 }
 
 void TestNativeLocalSlidingDecode() {
@@ -490,6 +726,7 @@ int main() {
     return 1;
   }
   TestLocalRingAndGlobalAppend();
+  TestFp8PrefillProjectionRealShapes();
   TestNativeTwoKvHeadGlobalDecode();
   TestNativeLocalSlidingDecode();
   if (failures != 0) {

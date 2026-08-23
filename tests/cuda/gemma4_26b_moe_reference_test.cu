@@ -250,6 +250,285 @@ void TestSelectedExpertSlotBatch() {
   CHECK(sequential_down_values == batched_down_values);
 }
 
+void TestPhysicalBf16GroupedExpertOperators() {
+  constexpr std::uint64_t kWidth = 64U;
+  constexpr std::uint64_t kIntermediate = 64U;
+  constexpr std::uint32_t kExperts = 2U;
+  constexpr std::uint32_t kTopK = 8U;
+  constexpr std::uint64_t kTokens = 3U;
+  constexpr std::uint64_t kAssignments = kTokens * kTopK;
+
+  const auto make_expert_matrix = [](std::uint64_t rows,
+                                     std::uint64_t columns,
+                                     std::uint32_t seed) {
+    std::vector<std::uint8_t> result_weights, result_scales;
+    for (std::uint32_t expert = 0; expert < kExperts; ++expert) {
+      std::vector<std::uint8_t> packed(rows * columns / 2U);
+      std::vector<std::uint8_t> scales(rows * columns / 16U, 0x38U);
+      for (std::uint64_t index = 0; index < packed.size(); ++index) {
+        const std::uint8_t low = static_cast<std::uint8_t>(
+            1U + (index * 3U + expert * 5U + seed) % 6U);
+        const std::uint8_t high = static_cast<std::uint8_t>(
+            8U + (index * 7U + expert * 11U + seed) % 6U);
+        packed[index] = static_cast<std::uint8_t>(low | (high << 4U));
+      }
+      const auto layout =
+          gem16::internal::PlanSm120Nvfp4SourceLayout(rows, columns);
+      CHECK(layout.ok());
+      if (!layout.ok()) return std::pair{result_weights, result_scales};
+      const auto tiled = gem16::internal::TileSm120Nvfp4Weights(
+          layout.value(), std::span<const std::uint8_t>(packed));
+      const auto tiled_scales = gem16::internal::TileSm120Nvfp4WeightScales(
+          layout.value(), std::span<const std::uint8_t>(scales));
+      CHECK(tiled.ok());
+      CHECK(tiled_scales.ok());
+      if (!tiled.ok() || !tiled_scales.ok()) {
+        return std::pair{result_weights, result_scales};
+      }
+      result_weights.insert(result_weights.end(), tiled.value().begin(),
+                            tiled.value().end());
+      result_scales.insert(result_scales.end(), tiled_scales.value().begin(),
+                           tiled_scales.value().end());
+    }
+    return std::pair{result_weights, result_scales};
+  };
+
+  std::vector<float> activation(kTokens * kWidth);
+  for (std::uint64_t token = 0U; token < kTokens; ++token) {
+    for (std::uint64_t column = 0U; column < kWidth; ++column) {
+      const int centered =
+          static_cast<int>((token * 17U + column * 13U) % 37U) - 18;
+      activation[token * kWidth + column] =
+          static_cast<float>(centered) / 32.0F;
+    }
+  }
+  const auto quantized = gem16::nvfp4::QuantizeActivation(activation, 1.0F);
+  CHECK(quantized.ok());
+  if (!quantized.ok()) return;
+  const auto [gate_up_host_weights, gate_up_host_scales] =
+      make_expert_matrix(2U * kIntermediate, kWidth, 3U);
+  const auto [down_host_weights, down_host_scales] =
+      make_expert_matrix(kWidth, kIntermediate, 19U);
+  if (gate_up_host_weights.empty() || gate_up_host_scales.empty() ||
+      down_host_weights.empty() || down_host_scales.empty()) {
+    return;
+  }
+
+  std::vector<gem16::internal::Gemma4MoePrefillAssignment> assignments(
+      kAssignments);
+  for (std::uint32_t token = 0U; token < kTokens; ++token) {
+    for (std::uint32_t slot = 0U; slot < kTopK; ++slot) {
+      const std::uint64_t original = token * kTopK + slot;
+      assignments[original] = {
+          static_cast<std::uint16_t>((token + slot) % kExperts),
+          static_cast<std::uint16_t>(slot), token,
+          static_cast<float>(slot + 1U) / 36.0F};
+    }
+  }
+  std::array<std::uint32_t, kExperts + 1U> prefix{};
+  std::vector<std::uint32_t> permutation;
+  permutation.reserve(kAssignments);
+  for (std::uint32_t expert = 0U; expert < kExperts; ++expert) {
+    prefix[expert] = static_cast<std::uint32_t>(permutation.size());
+    for (std::uint32_t original = 0U; original < kAssignments; ++original) {
+      if (assignments[original].expert_id == expert) {
+        permutation.push_back(original);
+      }
+    }
+  }
+  prefix[kExperts] = static_cast<std::uint32_t>(permutation.size());
+  CHECK(permutation.size() == kAssignments);
+  std::vector<std::uint32_t> tiles;
+  for (std::uint32_t expert = 0U; expert < kExperts; ++expert) {
+    for (std::uint32_t grouped = prefix[expert];
+         grouped < prefix[expert + 1U]; grouped += 16U) {
+      tiles.push_back((expert << 16U) | grouped);
+    }
+  }
+  const std::uint32_t tile_count = static_cast<std::uint32_t>(tiles.size());
+
+  DeviceBuffer<std::uint8_t> device_activation(
+      quantized.value().packed_e2m1.size());
+  DeviceBuffer<std::uint8_t> device_activation_scales(
+      quantized.value().block_scales_e4m3fn.size());
+  DeviceBuffer<std::uint8_t> gate_up_weights(gate_up_host_weights.size()),
+      gate_up_scales(gate_up_host_scales.size()),
+      down_weights(down_host_weights.size()),
+      down_scales(down_host_scales.size());
+  DeviceBuffer<gem16::internal::Gemma4MoePrefillAssignment>
+      device_assignments(kAssignments);
+  DeviceBuffer<std::uint32_t> device_permutation(kAssignments),
+      device_prefix(kExperts + 1U), device_tiles(tiles.size()),
+      device_tile_count(1U);
+  DeviceBuffer<float> product_float(kAssignments * kIntermediate),
+      down_float(kAssignments * kWidth), reduced_float(kTokens * kWidth),
+      reduced_bf16(kTokens * kWidth);
+  DeviceBuffer<std::uint16_t> product_bf16(kAssignments * kIntermediate),
+      down_bf16(kAssignments * kWidth);
+  DeviceBuffer<std::uint8_t> product_float_packed(
+      kAssignments * kIntermediate / 2U),
+      product_bf16_packed(kAssignments * kIntermediate / 2U),
+      product_float_scales(kAssignments * kIntermediate / 16U),
+      product_bf16_scales(kAssignments * kIntermediate / 16U);
+
+  const auto copy_to_device = [](void* destination, const void* source,
+                                 std::size_t bytes, const char* label) {
+    CHECK(CudaOk(cudaMemcpy(destination, source, bytes, cudaMemcpyHostToDevice),
+                 label));
+  };
+  copy_to_device(device_activation.get(),
+                 quantized.value().packed_e2m1.data(),
+                 device_activation.bytes(), "copy physical-BF16 activation");
+  copy_to_device(device_activation_scales.get(),
+                 quantized.value().block_scales_e4m3fn.data(),
+                 device_activation_scales.bytes(),
+                 "copy physical-BF16 activation scales");
+  copy_to_device(gate_up_weights.get(), gate_up_host_weights.data(),
+                 gate_up_weights.bytes(), "copy physical-BF16 W13 weights");
+  copy_to_device(gate_up_scales.get(), gate_up_host_scales.data(),
+                 gate_up_scales.bytes(), "copy physical-BF16 W13 scales");
+  copy_to_device(down_weights.get(), down_host_weights.data(),
+                 down_weights.bytes(), "copy physical-BF16 W2 weights");
+  copy_to_device(down_scales.get(), down_host_scales.data(),
+                 down_scales.bytes(), "copy physical-BF16 W2 scales");
+  copy_to_device(device_assignments.get(), assignments.data(),
+                 device_assignments.bytes(),
+                 "copy physical-BF16 assignments");
+  copy_to_device(device_permutation.get(), permutation.data(),
+                 device_permutation.bytes(),
+                 "copy physical-BF16 permutation");
+  copy_to_device(device_prefix.get(), prefix.data(), device_prefix.bytes(),
+                 "copy physical-BF16 prefix");
+  copy_to_device(device_tiles.get(), tiles.data(), device_tiles.bytes(),
+                 "copy physical-BF16 tile schedule");
+  copy_to_device(device_tile_count.get(), &tile_count, sizeof(tile_count),
+                 "copy physical-BF16 tile count");
+
+  const auto run_float = [&]() {
+    CHECK(gem16::internal::LaunchNvfp4Sm120GroupedExpertFusedGateUp(
+              device_activation.get(), device_activation_scales.get(),
+              gate_up_weights.get(), gate_up_scales.get(),
+              device_assignments.get(), device_permutation.get(),
+              device_prefix.get(), device_tiles.get(), device_tile_count.get(),
+              product_float.get(), kAssignments, kIntermediate, kWidth,
+              kExperts, 1.0F, 1.0F, nullptr)
+              .ok());
+    CHECK(gem16::internal::LaunchNvfp4ReferenceActivationQuantization(
+              product_float.get(), product_float_packed.get(),
+              product_float_scales.get(), kAssignments * kIntermediate, 1.0F,
+              nullptr)
+              .ok());
+    CHECK(gem16::internal::LaunchNvfp4Sm120GroupedExpertDown(
+              product_float_packed.get(), product_float_scales.get(),
+              down_weights.get(), down_scales.get(), device_assignments.get(),
+              device_permutation.get(), device_prefix.get(), device_tiles.get(),
+              device_tile_count.get(), down_float.get(), kAssignments, kWidth,
+              kIntermediate, kExperts, 1.0F, 1.0F, nullptr)
+              .ok());
+    CHECK(gem16::internal::LaunchGemma4MoeReduceAssignments(
+              down_float.get(), device_assignments.get(), reduced_float.get(),
+              kWidth, kTopK, kTokens, nullptr)
+              .ok());
+  };
+  const auto run_bf16 = [&]() {
+    CHECK(gem16::internal::LaunchNvfp4Sm120GroupedExpertFusedGateUpBf16(
+              device_activation.get(), device_activation_scales.get(),
+              gate_up_weights.get(), gate_up_scales.get(),
+              device_assignments.get(), device_permutation.get(),
+              device_prefix.get(), device_tiles.get(), device_tile_count.get(),
+              product_bf16.get(), kAssignments, kIntermediate, kWidth,
+              kExperts, 1.0F, 1.0F, nullptr)
+              .ok());
+    CHECK(gem16::internal::LaunchNvfp4ReferenceActivationQuantizationBf16(
+              product_bf16.get(), product_bf16_packed.get(),
+              product_bf16_scales.get(), kAssignments * kIntermediate, 1.0F,
+              nullptr)
+              .ok());
+    CHECK(gem16::internal::LaunchNvfp4Sm120GroupedExpertDownBf16(
+              product_bf16_packed.get(), product_bf16_scales.get(),
+              down_weights.get(), down_scales.get(), device_assignments.get(),
+              device_permutation.get(), device_prefix.get(), device_tiles.get(),
+              device_tile_count.get(), down_bf16.get(), kAssignments, kWidth,
+              kIntermediate, kExperts, 1.0F, 1.0F, nullptr)
+              .ok());
+    CHECK(gem16::internal::LaunchGemma4MoeReduceAssignmentsBf16(
+              down_bf16.get(), device_assignments.get(), reduced_bf16.get(),
+              kWidth, kTopK, kTokens, nullptr)
+              .ok());
+  };
+  run_float();
+  run_bf16();
+  CHECK(CudaOk(cudaDeviceSynchronize(),
+               "synchronize physical-BF16 grouped operators"));
+
+  std::vector<float> host_product_float(kAssignments * kIntermediate),
+      host_down_float(kAssignments * kWidth),
+      host_reduced_float(kTokens * kWidth),
+      host_reduced_bf16(kTokens * kWidth);
+  std::vector<std::uint16_t> host_product_bf16(kAssignments * kIntermediate),
+      host_down_bf16(kAssignments * kWidth);
+  std::vector<std::uint8_t> host_product_float_packed(
+      product_float_packed.bytes()),
+      host_product_bf16_packed(product_bf16_packed.bytes()),
+      host_product_float_scales(product_float_scales.bytes()),
+      host_product_bf16_scales(product_bf16_scales.bytes());
+  CHECK(CudaOk(cudaMemcpy(host_product_float.data(), product_float.get(),
+                          product_float.bytes(), cudaMemcpyDeviceToHost),
+               "copy float-container W13 product"));
+  CHECK(CudaOk(cudaMemcpy(host_product_bf16.data(), product_bf16.get(),
+                          product_bf16.bytes(), cudaMemcpyDeviceToHost),
+               "copy physical-BF16 W13 product"));
+  CHECK(CudaOk(cudaMemcpy(host_product_float_packed.data(),
+                          product_float_packed.get(),
+                          product_float_packed.bytes(), cudaMemcpyDeviceToHost),
+               "copy float-container product NVFP4"));
+  CHECK(CudaOk(cudaMemcpy(host_product_bf16_packed.data(),
+                          product_bf16_packed.get(),
+                          product_bf16_packed.bytes(), cudaMemcpyDeviceToHost),
+               "copy physical-BF16 product NVFP4"));
+  CHECK(CudaOk(cudaMemcpy(host_product_float_scales.data(),
+                          product_float_scales.get(),
+                          product_float_scales.bytes(), cudaMemcpyDeviceToHost),
+               "copy float-container product scales"));
+  CHECK(CudaOk(cudaMemcpy(host_product_bf16_scales.data(),
+                          product_bf16_scales.get(),
+                          product_bf16_scales.bytes(), cudaMemcpyDeviceToHost),
+               "copy physical-BF16 product scales"));
+  CHECK(CudaOk(cudaMemcpy(host_down_float.data(), down_float.get(),
+                          down_float.bytes(), cudaMemcpyDeviceToHost),
+               "copy float-container W2 output"));
+  CHECK(CudaOk(cudaMemcpy(host_down_bf16.data(), down_bf16.get(),
+                          down_bf16.bytes(), cudaMemcpyDeviceToHost),
+               "copy physical-BF16 W2 output"));
+  CHECK(CudaOk(cudaMemcpy(host_reduced_float.data(), reduced_float.get(),
+                          reduced_float.bytes(), cudaMemcpyDeviceToHost),
+               "copy float-container routed reduction"));
+  CHECK(CudaOk(cudaMemcpy(host_reduced_bf16.data(), reduced_bf16.get(),
+                          reduced_bf16.bytes(), cudaMemcpyDeviceToHost),
+               "copy physical-BF16 routed reduction"));
+  for (std::size_t index = 0; index < host_product_float.size(); ++index) {
+    CHECK(Bf16(host_product_float[index]) == host_product_bf16[index]);
+  }
+  CHECK(host_product_float_packed == host_product_bf16_packed);
+  CHECK(host_product_float_scales == host_product_bf16_scales);
+  for (std::size_t index = 0; index < host_down_float.size(); ++index) {
+    CHECK(Bf16(host_down_float[index]) == host_down_bf16[index]);
+  }
+  CHECK(host_reduced_float == host_reduced_bf16);
+
+  std::size_t free_before = 0U;
+  std::size_t total = 0U;
+  CHECK(CudaOk(cudaMemGetInfo(&free_before, &total),
+               "memory before physical-BF16 operator repeats"));
+  for (int repeat = 0; repeat < 4; ++repeat) run_bf16();
+  CHECK(CudaOk(cudaDeviceSynchronize(),
+               "synchronize physical-BF16 operator repeats"));
+  std::size_t free_after = 0U;
+  CHECK(CudaOk(cudaMemGetInfo(&free_after, &total),
+               "memory after physical-BF16 operator repeats"));
+  CHECK(free_before == free_after);
+}
+
 void TestFixedAddressMoeReference() {
   constexpr std::uint64_t kWidth = 64;
   constexpr std::uint64_t kShared = 64;
@@ -542,9 +821,10 @@ void TestFixedAddressMoeReference() {
     CHECK(first_output[index] == expected);
   }
 
-  // Exercise one full 16-assignment expert tile plus a tail for all selected
-  // experts, while leaving the remaining expert range empty.
-  constexpr std::uint64_t kTokens = 17U;
+  // Exercise one full 16-assignment expert tile plus a tail, cross the
+  // grouping algorithm's 256-assignment chunk boundary, and leave the
+  // remaining expert range empty.
+  constexpr std::uint64_t kTokens = 33U;
   DeviceBuffer<float> batch_hidden(kTokens * kWidth), batch_output(kTokens * kWidth),
       batch_router_logits(kTokens * kExperts),
       batch_router_probabilities(kTokens * kExperts),
@@ -699,10 +979,9 @@ void TestFixedAddressMoeReference() {
                "memory after M15 repeats"));
   CHECK(prefill_free_before == prefill_free_after);
 
-  // The native warp-per-expert router deliberately changes the FP32
-  // accumulation order. Compare its BF16-rounded logits against the original
-  // serial expert/index order so vector-load or shuffle drift cannot hide
-  // behind the zero-router determinism fixture above.
+  // Compare the coalesced prefill router's BF16-rounded logits against the
+  // original serial expert/index order so tiling or vector-load drift cannot
+  // hide behind the zero-router determinism fixture above.
   std::vector<std::uint16_t> differential_router(kExperts * kWidth);
   for (std::uint32_t expert = 0; expert < kExperts; ++expert) {
     for (std::uint64_t index = 0; index < kWidth; ++index) {
@@ -722,12 +1001,16 @@ void TestFixedAddressMoeReference() {
   CHECK(differential_status.ok());
   CHECK(CudaOk(cudaDeviceSynchronize(), "synchronize differential router"));
   std::vector<float> transformed(kWidth), warp_logits(kExperts);
+  std::vector<std::uint32_t> differential_ids(kTopK);
   CHECK(CudaOk(cudaMemcpy(transformed.data(), router_transformed.get(),
                           router_transformed.bytes(), cudaMemcpyDeviceToHost),
                "copy differential router input"));
   CHECK(CudaOk(cudaMemcpy(warp_logits.data(), router_logits.get(),
                           router_logits.bytes(), cudaMemcpyDeviceToHost),
                "copy differential router logits"));
+  CHECK(CudaOk(cudaMemcpy(differential_ids.data(), top_ids.get(),
+                          top_ids.bytes(), cudaMemcpyDeviceToHost),
+               "copy differential router IDs"));
   float maximum_router_error = 0.0F;
   for (std::uint32_t expert = 0; expert < kExperts; ++expert) {
     float serial = 0.0F;
@@ -745,6 +1028,25 @@ void TestFixedAddressMoeReference() {
   std::cout << "warp-router vs serial BF16 max-abs=" << maximum_router_error
             << '\n';
   CHECK(maximum_router_error <= 1.0F / 512.0F);
+
+  CHECK(CudaOk(cudaMemset(prefill_routing_finite.get(), 1, sizeof(int)),
+               "initialize differential prefill router finite flag"));
+  const auto differential_prefill_status =
+      gem16::internal::LaunchGemma4MoeSm120PrefillLayer(
+          batch_hidden.get(), batch_output.get(), kTokens, config, weights,
+          prefill_workspace, nullptr);
+  CHECK(differential_prefill_status.ok());
+  CHECK(CudaOk(cudaDeviceSynchronize(),
+               "synchronize differential prefill router"));
+  CHECK(CudaOk(cudaMemcpy(assignment_values.data(), assignments.get(),
+                          assignments.bytes(), cudaMemcpyDeviceToHost),
+               "copy differential prefill assignments"));
+  for (std::uint64_t token = 0U; token < kTokens; ++token) {
+    for (std::uint32_t slot = 0U; slot < kTopK; ++slot) {
+      CHECK(assignment_values[token * kTopK + slot].expert_id ==
+            differential_ids[slot]);
+    }
+  }
 
   // A non-finite router result must be reported without using an invalid
   // expert ID or leaving stale assignments/workspace data behind.
@@ -822,6 +1124,7 @@ int main() {
   }
   TestFixedAddressMoeReference();
   TestSelectedExpertSlotBatch();
+  TestPhysicalBf16GroupedExpertOperators();
   if (failures != 0) {
     std::cerr << failures << " M11 CUDA assertion(s) failed\n";
     return 1;

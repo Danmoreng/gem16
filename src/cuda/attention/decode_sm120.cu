@@ -844,7 +844,6 @@ void SplitOnlineDecodeAttentionFp8GlobalGqaKernel(
 
     for (int token = 0; token < tile_tokens; ++token) {
       float score[kDecodeGlobalGqaHeadsPerWarp] = {};
-#pragma unroll
       if constexpr (kVectorized) {
 #pragma unroll
         for (int quarter = 0; quarter < 4; ++quarter) {
@@ -1018,6 +1017,213 @@ void SplitOnlineDecodeAttentionFp8GlobalGqaKernel(
                  kDecodeGlobalHeadDimension +
              dimension] = normalized;
       }
+    }
+  }
+}
+
+// Gemma 4 26B global attention maps eight adjacent query heads to each of two
+// physical KV heads. The generic group-four kernel consequently reads every
+// physical K/V row twice. This long-context specialization assigns one query
+// head to each warp and stages a physical KV tile once for all eight query
+// heads without increasing the per-thread score or accumulator footprint.
+template <bool kDirect>
+__launch_bounds__(kDecodeThreads, 1) __global__
+void SplitOnlineDecodeAttentionFp8GlobalKvh2Kernel(
+    const float* __restrict__ query,
+    const std::uint8_t* __restrict__ key_cache,
+    const std::uint8_t* __restrict__ value_cache,
+    const std::uint16_t* __restrict__ key_scale_bf16,
+    const std::uint16_t* __restrict__ value_scale_bf16,
+    float* __restrict__ partial_output, float* __restrict__ partial_lse,
+    float* __restrict__ output, const DecodeControl* __restrict__ control,
+    int max_splits) {
+  constexpr int kQueriesPerKv =
+      kDecodeQueryHeads / kDecodeGlobalKvHeads26B;
+  static_assert(kQueriesPerKv == kDecodeWarps);
+  static_assert(kDecodeGlobalHeadDimension % (32 * 4) == 0);
+  static_assert(kDecodeGlobalChunk % kDecodeGlobalGqaTileTokens == 0);
+  __shared__ alignas(16)
+      std::uint8_t staged_kv[kDecodeGlobalGqaTileTokens *
+                             kDecodeGlobalHeadDimension];
+  __shared__ float scores[kQueriesPerKv * kDecodeGlobalChunk];
+  __shared__ float reduction[kDecodeWarps];
+  __shared__ float inverse_sum_shared[kQueriesPerKv];
+
+  const int linear_block = static_cast<int>(blockIdx.x);
+  const int split = linear_block / kDecodeGlobalKvHeads26B;
+  const int kv_head = linear_block - split * kDecodeGlobalKvHeads26B;
+  if (split >= max_splits) return;
+  const std::uint64_t tokens = control->position + 1U;
+  const std::uint64_t split_start =
+      static_cast<std::uint64_t>(split) * kDecodeGlobalChunk;
+  if (split_start >= tokens) return;
+  const int split_tokens = static_cast<int>(min(
+      static_cast<std::uint64_t>(kDecodeGlobalChunk), tokens - split_start));
+  const int lane = static_cast<int>(threadIdx.x) & 31;
+  const int warp = static_cast<int>(threadIdx.x) >> 5;
+  const int query_head = kv_head * kQueriesPerKv + warp;
+  const float key_scale =
+      static_cast<float>(__ushort_as_bfloat16(key_scale_bf16[0]));
+  const float value_scale =
+      static_cast<float>(__ushort_as_bfloat16(value_scale_bf16[0]));
+
+  float query_values[16];
+#pragma unroll
+  for (int element = 0; element < 16; ++element) {
+    const int dimension =
+        lane * 4 + (element / 4) * 128 + element % 4;
+    query_values[element] =
+        query[query_head * kDecodeGlobalHeadDimension + dimension];
+  }
+
+  for (int tile_start = 0; tile_start < split_tokens;
+       tile_start += kDecodeGlobalGqaTileTokens) {
+    const int tile_tokens =
+        min(kDecodeGlobalGqaTileTokens, split_tokens - tile_start);
+    constexpr int kTileBytes =
+        kDecodeGlobalGqaTileTokens * kDecodeGlobalHeadDimension;
+    for (int byte = static_cast<int>(threadIdx.x) * 16;
+         byte < kTileBytes; byte += kDecodeThreads * 16) {
+      const int tile_token = byte / kDecodeGlobalHeadDimension;
+      const int dimension = byte - tile_token * kDecodeGlobalHeadDimension;
+      const bool valid = tile_token < tile_tokens;
+      const std::uint8_t* source = valid
+          ? key_cache +
+                (((split_start + static_cast<std::uint64_t>(tile_start +
+                                                            tile_token)) *
+                      kDecodeGlobalKvHeads26B +
+                  static_cast<std::uint64_t>(kv_head)) *
+                     kDecodeGlobalHeadDimension +
+                 dimension)
+          : key_cache;
+      CopyAsync16(staged_kv + byte, source, valid ? 16 : 0);
+    }
+    CommitAsyncCopies();
+    WaitForAsyncCopies();
+    __syncthreads();
+
+    for (int token = 0; token < tile_tokens; ++token) {
+      float score = 0.0F;
+#pragma unroll
+      for (int quarter = 0; quarter < 4; ++quarter) {
+        const int dimension = lane * 4 + quarter * 128;
+        const std::uint32_t packed =
+            *reinterpret_cast<const std::uint32_t*>(
+                staged_kv + token * kDecodeGlobalHeadDimension + dimension);
+        const float4 key_values = DecodeFp8x4(packed, key_scale);
+        score = fmaf(query_values[quarter * 4], key_values.x, score);
+        score = fmaf(query_values[quarter * 4 + 1], key_values.y, score);
+        score = fmaf(query_values[quarter * 4 + 2], key_values.z, score);
+        score = fmaf(query_values[quarter * 4 + 3], key_values.w, score);
+      }
+      for (int offset = 16; offset > 0; offset >>= 1) {
+        score += __shfl_down_sync(kFullWarpMask, score, offset);
+      }
+      if (lane == 0) {
+        scores[warp * kDecodeGlobalChunk + tile_start + token] = score;
+      }
+    }
+    __syncthreads();
+  }
+
+  for (int local_head = 0; local_head < kQueriesPerKv; ++local_head) {
+    float local_maximum = -CUDART_INF_F;
+    for (int token = static_cast<int>(threadIdx.x); token < split_tokens;
+         token += kDecodeThreads) {
+      local_maximum = fmaxf(
+          local_maximum,
+          scores[local_head * kDecodeGlobalChunk + token]);
+    }
+    const float maximum = DecodeBlockMaximum(local_maximum, reduction);
+    float local_sum = 0.0F;
+    for (int token = static_cast<int>(threadIdx.x); token < split_tokens;
+         token += kDecodeThreads) {
+      const int score_index = local_head * kDecodeGlobalChunk + token;
+      const float probability = expf(scores[score_index] - maximum);
+      scores[score_index] = probability;
+      local_sum += probability;
+    }
+    const float denominator = DecodeBlockSum(local_sum, reduction);
+    if (threadIdx.x == 0) {
+      inverse_sum_shared[local_head] =
+          denominator > 0.0F ? __frcp_rn(denominator) : 0.0F;
+      if constexpr (!kDirect) {
+        const int global_head = kv_head * kQueriesPerKv + local_head;
+        partial_lse[split * kDecodeQueryHeads + global_head] =
+            maximum + logf(denominator);
+      }
+    }
+    __syncthreads();
+  }
+
+  float accumulator[16] = {};
+  for (int tile_start = 0; tile_start < split_tokens;
+       tile_start += kDecodeGlobalGqaTileTokens) {
+    const int tile_tokens =
+        min(kDecodeGlobalGqaTileTokens, split_tokens - tile_start);
+    constexpr int kTileBytes =
+        kDecodeGlobalGqaTileTokens * kDecodeGlobalHeadDimension;
+    for (int byte = static_cast<int>(threadIdx.x) * 16;
+         byte < kTileBytes; byte += kDecodeThreads * 16) {
+      const int tile_token = byte / kDecodeGlobalHeadDimension;
+      const int dimension = byte - tile_token * kDecodeGlobalHeadDimension;
+      const bool valid = tile_token < tile_tokens;
+      const std::uint8_t* source = valid
+          ? value_cache +
+                (((split_start + static_cast<std::uint64_t>(tile_start +
+                                                            tile_token)) *
+                      kDecodeGlobalKvHeads26B +
+                  static_cast<std::uint64_t>(kv_head)) *
+                     kDecodeGlobalHeadDimension +
+                 dimension)
+          : value_cache;
+      CopyAsync16(staged_kv + byte, source, valid ? 16 : 0);
+    }
+    CommitAsyncCopies();
+    WaitForAsyncCopies();
+    __syncthreads();
+
+    for (int token = 0; token < tile_tokens; ++token) {
+      const float probability =
+          scores[warp * kDecodeGlobalChunk + tile_start + token];
+#pragma unroll
+      for (int quarter = 0; quarter < 4; ++quarter) {
+        const int dimension = lane * 4 + quarter * 128;
+        const std::uint32_t packed =
+            *reinterpret_cast<const std::uint32_t*>(
+                staged_kv + token * kDecodeGlobalHeadDimension + dimension);
+        const float4 values = DecodeFp8x4(packed, value_scale);
+        accumulator[quarter * 4] =
+            fmaf(probability, values.x, accumulator[quarter * 4]);
+        accumulator[quarter * 4 + 1] =
+            fmaf(probability, values.y, accumulator[quarter * 4 + 1]);
+        accumulator[quarter * 4 + 2] =
+            fmaf(probability, values.z, accumulator[quarter * 4 + 2]);
+        accumulator[quarter * 4 + 3] =
+            fmaf(probability, values.w, accumulator[quarter * 4 + 3]);
+      }
+    }
+    __syncthreads();
+  }
+
+  const float inverse_sum = inverse_sum_shared[warp];
+#pragma unroll
+  for (int element = 0; element < 16; ++element) {
+    const int dimension =
+        lane * 4 + (element / 4) * 128 + element % 4;
+    const float normalized = accumulator[element] * inverse_sum;
+    const std::uint64_t output_index =
+        static_cast<std::uint64_t>(query_head) *
+            kDecodeGlobalHeadDimension +
+        dimension;
+    if constexpr (kDirect) {
+      output[output_index] = normalized;
+    } else {
+      partial_output
+          [(static_cast<std::uint64_t>(split) * kDecodeQueryHeads +
+            query_head) *
+               kDecodeGlobalHeadDimension +
+           dimension] = normalized;
     }
   }
 }
@@ -1445,6 +1651,9 @@ Status LaunchOnlineAttentionDecodeFp8Sm120(
       cache_capacity >= kDecodeGqaGlobalContext;
   const bool vectorized_global =
       global_shape && cache_capacity >= kDecodeVectorizedGlobalContext;
+  const bool global_kvh2_shared =
+      global_shape && kv_heads == kDecodeGlobalKvHeads26B &&
+      vectorized_global;
   const int chunk = local_shape
       ? kDecodeLocalChunk
       : (global_gqa ? kDecodeGlobalGqaChunk : kDecodeGlobalChunk);
@@ -1456,8 +1665,11 @@ Status LaunchOnlineAttentionDecodeFp8Sm120(
           ? kDecodeLocalKvHeads
           : (global_gqa
                  ? 1
-                 : kDecodeGlobalKvHeads *
-                       (kDecodeQueryHeads / kDecodeGlobalGroup));
+                 : (global_kvh2_shared
+                        ? kDecodeGlobalKvHeads26B
+                        : kDecodeGlobalKvHeads *
+                              (kDecodeQueryHeads /
+                               kDecodeGlobalGroup)));
   const std::uint64_t partial_elements =
       static_cast<std::uint64_t>(max_splits) * kDecodeQueryHeads *
       head_dimension;
@@ -1511,6 +1723,20 @@ Status LaunchOnlineAttentionDecodeFp8Sm120(
                 query, key_cache, value_cache, key_scale_bf16,
                 value_scale_bf16, workspace, partial_lse, output, control, 0U,
                 nullptr, cache_capacity, max_splits);
+      }
+    } else if (global_kvh2_shared) {
+      if (max_splits == 1) {
+        SplitOnlineDecodeAttentionFp8GlobalKvh2Kernel<true>
+            <<<blocks, kDecodeThreads, 0, stream>>>(
+                query, key_cache, value_cache, key_scale_bf16,
+                value_scale_bf16, workspace, nullptr, output, control,
+                max_splits);
+      } else {
+        SplitOnlineDecodeAttentionFp8GlobalKvh2Kernel<false>
+            <<<blocks, kDecodeThreads, 0, stream>>>(
+                query, key_cache, value_cache, key_scale_bf16,
+                value_scale_bf16, workspace, partial_lse, output, control,
+                max_splits);
       }
     } else {
       if (kv_heads == kDecodeGlobalKvHeads26B && vectorized_global) {
@@ -1597,6 +1823,59 @@ Status LaunchOnlineAttentionDecodeFp8Sm120(
   return error == cudaSuccess
              ? Status::Ok()
              : CudaFailure("launch online FP8 decode attention merge", error);
+}
+
+// Test-only differential entry point for the previous KVH2 group-four
+// implementation. Production keeps the same kernel as the short-context
+// fallback; long-context dispatch uses the shared-K/V specialization above.
+Status LaunchOnlineAttentionDecodeFp8Sm120Kvh2Group4ForTest(
+    const float* query, const std::uint8_t* key_cache,
+    const std::uint8_t* value_cache,
+    const std::uint16_t* key_scale_bf16,
+    const std::uint16_t* value_scale_bf16, float* workspace, float* output,
+    const DecodeControl* control, std::uint64_t cache_capacity,
+    cudaStream_t stream) {
+  if (query == nullptr || key_cache == nullptr || value_cache == nullptr ||
+      key_scale_bf16 == nullptr || value_scale_bf16 == nullptr ||
+      workspace == nullptr || output == nullptr || control == nullptr ||
+      cache_capacity < kDecodeVectorizedGlobalContext ||
+      cache_capacity >
+          static_cast<std::uint64_t>(std::numeric_limits<int>::max())) {
+    return Invalid("KVH2 group-four differential arguments are invalid");
+  }
+  const int max_splits = static_cast<int>(
+      (cache_capacity + kDecodeGlobalChunk - 1U) / kDecodeGlobalChunk);
+  constexpr int kQueryGroups =
+      kDecodeGlobalKvHeads26B *
+      ((kDecodeQueryHeads / kDecodeGlobalKvHeads26B) /
+       kDecodeGlobalGroup);
+  const unsigned blocks =
+      static_cast<unsigned>(max_splits * kQueryGroups);
+  const std::uint64_t partial_elements =
+      static_cast<std::uint64_t>(max_splits) * kDecodeQueryHeads *
+      kDecodeGlobalHeadDimension;
+  float* partial_lse = workspace + partial_elements;
+  SplitOnlineDecodeAttentionFp8Kernel<
+      kDecodeGlobalHeadDimension, kDecodeGlobalKvHeads26B, 8,
+      kDecodeGlobalGroup, kDecodeGlobalChunk, false, true>
+      <<<blocks, kDecodeThreads, 0, stream>>>(
+          query, key_cache, value_cache, key_scale_bf16,
+          value_scale_bf16, workspace, partial_lse, output, control,
+          cache_capacity, false, max_splits);
+  cudaError_t error = cudaGetLastError();
+  if (error != cudaSuccess) {
+    return CudaFailure("launch KVH2 group-four differential", error);
+  }
+  MergeOnlineDecodeAttentionKernel<kDecodeGlobalHeadDimension,
+                                   kDecodeGlobalChunk>
+      <<<kDecodeQueryHeads, kDecodeThreads, 0, stream>>>(
+          workspace, partial_lse, output, control, cache_capacity, false,
+          max_splits);
+  error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("launch KVH2 group-four differential merge",
+                           error);
 }
 
 Status LaunchOnlineAttentionDecodeFp8LocalD2ControlledSm120(

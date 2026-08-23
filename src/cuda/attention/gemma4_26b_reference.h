@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 
 #include <cuda_runtime_api.h>
@@ -8,6 +9,9 @@
 #include "model/gemma4_26b_attention.h"
 
 namespace gem16::internal {
+
+inline constexpr std::size_t
+    kGemma4Moe26BAttentionCutlassWorkspaceBytes = 8U * 1024U * 1024U;
 
 class Gemma4Moe26BDeviceArtifact;
 struct DecodeControl;
@@ -52,6 +56,11 @@ struct Gemma4Moe26BAttentionReferenceWorkspace {
   float* output_scale = nullptr;            // 1
   float* output_projection = nullptr;       // 2816
   float* post_attention = nullptr;          // 2816, optional capture
+  // Prompt-only CUTLASS scratch. The integrated engine aliases this with the
+  // routed-expert down-projection buffer whose lifetime begins only after the
+  // attention layer has completed on the same stream.
+  void* cutlass_workspace = nullptr;
+  std::size_t cutlass_workspace_bytes = 0U;
 };
 
 struct Gemma4Moe26BKvCacheView {
@@ -93,8 +102,9 @@ BindGemma4Moe26BAttentionReferenceWeights(
 
 // Native SM120 batched prefill for the validated Gemma 4 26B local
 // QH16/KVH8/D256 and global QH16/KVH2/D512 attention geometries. It preserves
-// the reference path's FP8 cache, RoPE, BF16 and residual boundaries while
-// replacing the four FP8 projections and causal attention implementation.
+// the reference path's FP8 cache, RoPE, BF16 and residual boundaries. Q/K/V
+// use the prompt CUTLASS GEMM; O retains the exact native accumulation path,
+// and causal attention uses the fixed SM120 kernels.
 [[nodiscard]] Status LaunchGemma4Moe26BAttentionSm120PrefillLayer(
     const float* hidden, float* output, std::uint64_t start_position,
     std::uint64_t tokens,

@@ -18,6 +18,17 @@ namespace gem16::internal {
     float global_divisor,
     cudaStream_t stream);
 
+// Same blockwise quantization when the already-rounded activation boundary is
+// held in physical BF16 storage. The emitted NVFP4 values and E4M3 scales are
+// bit-identical to the FP32-container API for BF16-representable inputs.
+[[nodiscard]] Status LaunchNvfp4ReferenceActivationQuantizationBf16(
+    const std::uint16_t* input_bf16,
+    std::uint8_t* packed_e2m1,
+    std::uint8_t* block_scales_e4m3fn,
+    std::uint64_t elements,
+    float global_divisor,
+    cudaStream_t stream);
+
 // Production prefill boundary: Gemma RMSNorm, BF16 state rounding, and
 // blockwise NVFP4 activation quantization in one CTA per token.
 [[nodiscard]] Status LaunchRmsNormNvfp4ActivationQuantizationBatch(

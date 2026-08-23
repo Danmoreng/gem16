@@ -13,8 +13,9 @@ namespace gem16::internal {
 // All pointers alias caller-owned fixed M15 workspace. Region sizes are
 // determined by BuildGemma4MoePrefillPlan(chunk_tokens).
 struct Gemma4MoePrefillWorkspace {
-  // T * experts; after routing, this aliases at most 8T expert-tile
-  // descriptors. The model contract top_k <= experts guarantees capacity.
+  // T * experts; after routing, this first aliases ceil(T / 32) * experts
+  // stable-group chunk offsets and then at most 8T expert-tile descriptors.
+  // The top_k=8 model contract guarantees both intermediate capacities.
   float* router_logits = nullptr;
   float* router_probabilities = nullptr;   // T * experts
   float* token_hidden = nullptr;           // T * width, reusable
@@ -39,6 +40,22 @@ struct Gemma4MoePrefillWorkspace {
   // workspace contract for initialization and failure semantics.
   int* routing_finite = nullptr;
 };
+
+// Deterministic token-major/top-k-major routed-expert reduction. The float
+// form consumes BF16-rounded values held in FP32 containers.
+[[nodiscard]] Status LaunchGemma4MoeReduceAssignments(
+    const float* expert_down,
+    const Gemma4MoePrefillAssignment* assignments, float* routed_sum,
+    std::uint64_t width, std::uint32_t top_k, std::uint64_t tokens,
+    cudaStream_t stream);
+
+// Same exact weighted-BF16 and slot-order reduction for physical BF16 W2
+// output. No change is made to assignment weights or accumulation order.
+[[nodiscard]] Status LaunchGemma4MoeReduceAssignmentsBf16(
+    const std::uint16_t* expert_down_bf16,
+    const Gemma4MoePrefillAssignment* assignments, float* routed_sum,
+    std::uint64_t width, std::uint32_t top_k, std::uint64_t tokens,
+    cudaStream_t stream);
 
 // Complete M15 bounded-workspace grouped prefill layer. Hidden/output contain
 // T contiguous FP32 containers at the recurrent BF16 boundary. Routing,
