@@ -119,6 +119,17 @@ class BenchmarkWikipediaWorkloadTest(unittest.TestCase):
             args = MODULE.parse_args()
         self.assertIsNone(args.vllm_max_num_batched_tokens)
 
+    def test_vllm_model_weight_options_omit_absent_plugin_fields(self) -> None:
+        self.assertEqual(MODULE.vllm_model_weight_options(None), {})
+        self.assertEqual(
+            MODULE.vllm_model_weight_options(Path("weights.gguf")),
+            {
+                "model_weights": "weights.gguf",
+                "load_format": "gguf",
+                "quantization": "gguf",
+            },
+        )
+
     def test_vllm_channelwise_group_size_override_is_explicit(self) -> None:
         config = {
             "quantization_config": {

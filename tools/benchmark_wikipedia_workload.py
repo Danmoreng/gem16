@@ -327,6 +327,16 @@ def vllm_channelwise_hf_override(
     return {"quantization_config": quantization}, normalizations
 
 
+def vllm_model_weight_options(model_weights: Path | None) -> dict[str, Any]:
+    if model_weights is None:
+        return {}
+    return {
+        "model_weights": str(model_weights),
+        "load_format": "gguf",
+        "quantization": "gguf",
+    }
+
+
 def metric_run(
     prompt_tokens: int,
     output_tokens: list[int],
@@ -901,6 +911,7 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
             vllm_batch_options["max_num_batched_tokens"] = (
                 args.vllm_max_num_batched_tokens
             )
+        vllm_weight_options = vllm_model_weight_options(model_weights)
         tokenizer = AutoTokenizer.from_pretrained(str(model), local_files_only=True)
         suppressed_token_strings = [
             tokenizer.decode([token], skip_special_tokens=False)
@@ -935,10 +946,8 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
             spec_tokens=(
                 args.mtp_draft_tokens if args.mtp_draft_tokens != 0 else None
             ),
-            model_weights=str(model_weights) if model_weights is not None else None,
-            load_format="gguf" if model_weights is not None else "auto",
-            quantization="gguf" if model_weights is not None else None,
             **vllm_batch_options,
+            **vllm_weight_options,
         )
 
         def run_once() -> tuple[dict[str, Any], list[int]]:
