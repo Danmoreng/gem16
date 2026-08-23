@@ -71,6 +71,25 @@ class BenchmarkWikipediaWorkloadTest(unittest.TestCase):
         with self.assertRaises(MODULE.argparse.ArgumentTypeError):
             MODULE.nonnegative_int("-1")
 
+    def test_vllm_model_weights_are_separate_from_config(self) -> None:
+        argv = [
+            "benchmark_wikipedia_workload.py",
+            "--engine",
+            "vllm",
+            "--workload",
+            "workload.json",
+            "--output",
+            "output.json",
+            "--model",
+            "hf-config",
+            "--vllm-model-weights",
+            "weights.gguf",
+        ]
+        with mock.patch.object(MODULE.sys, "argv", argv):
+            args = MODULE.parse_args()
+        self.assertEqual(args.model, Path("hf-config"))
+        self.assertEqual(args.vllm_model_weights, Path("weights.gguf"))
+
     def test_single_repetition_summary_is_a_characterization(self) -> None:
         summary = MODULE.summarize([46.422])
         self.assertEqual(summary["sample_count"], 1)

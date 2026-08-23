@@ -1,10 +1,9 @@
 # vLLM direct-checkpoint characterization
 
-The current cross-engine characterization uses vLLM 0.26.0 from its official wheel with Torch 2.11.0 / CUDA 13.0,
-Transformers 5.14.1, compressed-tensors 0.17.0, and Setuptools 80.10.2. It loads the pinned
-`unsloth/gemma-4-12b-it-NVFP4` checkpoint and Google's official BF16 assistant directly. This is a development
-configuration behind the controlled same-machine performance comparison; it is not an exact output/semantic-parity
-baseline.
+The current environment pin is vLLM 0.27.1 from its official wheel with Torch 2.13.0 / CUDA 13.0, Transformers
+5.14.1, compressed-tensors 0.17.0, vllm-gguf-plugin 0.0.5, gguf 0.19.0, and Setuptools 80.10.2. Existing 12B
+cross-engine results below were produced by vLLM 0.26.0 and remain historical; updating the reproducible environment
+does not relabel them.
 
 ## Build the pinned environment
 
@@ -13,21 +12,40 @@ baseline.
 ```
 
 The helper requires the recorded CPython 3.13.14 (`VLLM_BASE_PYTHON` may point to it), creates
-`third_party/cache/vllm-0.26.0-env`, installs exact package versions, checks CUDA access, and
-applies the audited [`gemma4-mtp-suppress-graph.patch`](patches/gemma4-mtp-suppress-graph.patch). Both vLLM 0.25.1
-and 0.26.0 ship the original `gemma4_mtp.py` with SHA-256
+`third_party/cache/vllm-0.27.1-env`, installs exact package versions, checks CUDA access, and
+applies the audited [`gemma4-mtp-suppress-graph.patch`](patches/gemma4-mtp-suppress-graph.patch). vLLM versions
+0.25.1, 0.26.0, and 0.27.1 ship the original `gemma4_mtp.py` with SHA-256
 `4eee061c81430be28f029ed66360887a57f8711a75c863067d30e3840a488918`. Python-list suppression indexing constructs
 a CPU index tensor during CUDA Graph capture; the patch replaces it with two graph-safe scalar assignments without
 changing the suppressed IDs. The patched file SHA-256 is
 `2436a940cc7f525880588392a08f5f2b509b51f91394d6666dba181302cf92f7`.
 
-A cold 0.26.0 start JIT-builds several memory-heavy FlashInfer NVFP4 CUTLASS variants. Unbounded startup on the
+Transformers 5.15.0 is intentionally not selected: its configuration normalization rejects Gemma 4's heterogeneous
+per-layer `head_dim` before runtime construction.
+Transformers 5.14.1 is within vLLM 0.27.1's declared range and passes the same local configuration probe.
+
+## Gemma 4 26B official Q4_0 loader result
+
+The latest environment was tested with Google's immutable official text-only QAT Q4_0 GGUF. vLLM correctly selects
+`Gemma4ForConditionalGeneration`, the external GGUF loader and GGUF quantization when the local Hugging Face
+configuration/tokenizer is supplied separately from `model_weights`. Actual engine construction then fails before
+GPU weight upload with `Failed to map GGUF parameters (416)`. The unmapped set includes the vision tower expected by
+the multimodal model class although the GGUF is text-only, along with Gemma 4 router scale names. Consequently this
+exact upstream vLLM/plugin combination cannot currently run the selected Google Q4_0 checkpoint as-is, and there is
+no valid vLLM throughput row to report.
+
+We do not patch the plugin for this competitor measurement: doing so would stop being a latest-upstream reference.
+The exact versions, model identity, attempted semantics, failure boundary and limitations are retained in
+[`gemma4-26b-q4_0-load-characterization.json`](gemma4-26b-q4_0-load-characterization.json).
+
+The following startup note belongs to the historical 0.26.0 run. A cold start JIT-builds several memory-heavy
+FlashInfer NVFP4 CUTLASS variants. Unbounded startup on the
 32-core/64-GiB reference host launched enough concurrent `cicc` processes to exhaust RAM. The cross-engine harness
 therefore uses `MAX_JOBS=4`, `TORCHINDUCTOR_COMPILE_THREADS=4`, and one internal NVCC thread per job. A controlled
 cold start reached at most four compilers; the one-job diagnosis retained at least 49.0 GiB available RAM. Startup
 compilation is outside measured inference timing.
 
-## Current 16K fixed-D2 result
+## Historical 0.26.0 16K fixed-D2 result
 
 At `gpu_memory_utilization=0.92`, vLLM provisions 19,069 FP8-KV tokens for the exact 17,519-position workload. On
 the 16,384-token Wikipedia prompt followed by 1,135 fixed output positions, three warm-ups and ten measurements

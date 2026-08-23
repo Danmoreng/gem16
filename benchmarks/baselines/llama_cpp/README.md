@@ -1,9 +1,24 @@
 # llama.cpp baseline
 
-The current build pin is upstream build 10364, commit
-`153d324bcf86d220b235ca010eeb11213f32b5d1`, fetched from `master` on 2026-08-11. The nearest preceding release
-tag is b10362. Historical rows below retain the exact older llama.cpp revision that produced them, including the
-b10240 Linux/Windows cross-engine characterizations; updating the active build pin does not relabel those results.
+The current build pin is upstream build 10593, commit
+`b0539c43ed13b16bf0d8a0840646faea65469702`, fetched from `master` on 2026-08-23. The nearest preceding release
+tag is b10590. Historical rows below retain the exact older llama.cpp revision that produced them, including the
+b10240 Linux/Windows cross-engine characterizations and the b10364 batch audit; updating the active build pin does
+not relabel those results.
+
+## Current-build Gemma 4 26B ordinary decode refresh
+
+Build 10593 was measured against Google's immutable official QAT Q4_0 GGUF with the fixed 16,384-token Wikipedia
+workload and 64 forced greedy output tokens. This is ordinary decode: speculative types and MTP are disabled. The
+model uses Q8_0 K/V, Flash Attention, batch/ubatch 2048/512, one slot, eight threads, all layer groups plus the tied
+embedding on CUDA0, one warm-up, and three measured repetitions.
+
+The three decode samples are 120.059, 119.494, and 119.451 tok/s; the median is **119.494 tok/s** with 8.369 ms
+average inter-token latency. Median prompt throughput is 4,366.58 tok/s. All runs emit the same 64-token sequence
+with SHA-256 `9c353bfba7fde6722c86fef93d7bfdb9b30de3757b82a7493c83ee0c8c691e42`. This short refresh is a
+development characterization, not the formal M20 3-warm-up/10-retained-run promotion. Exact samples, revisions,
+configuration and limitations are retained in
+[`gemma4-26b-a4b-qat-q4_0-current-ordinary.json`](gemma4-26b-a4b-qat-q4_0-current-ordinary.json).
 
 ## Current-build Gemma 4 12B batch/ubatch audit
 

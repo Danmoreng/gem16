@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "status": "development_characterization",
+  "recorded_at": "2026-08-23",
+  "engine": {
+    "name": "llama.cpp",
+    "commit": "b0539c43ed13b16bf0d8a0840646faea65469702",
+    "build": 10593,
+    "nearest_preceding_tag": "b10590"
+  },
+  "model": {
+    "repository": "google/gemma-4-26B-A4B-it-qat-q4_0-gguf",
+    "revision": "d1c082be9cf3c8a514acf63b8761f4b41935842e",
+    "file": "gemma-4-26B_q4_0-it.gguf",
+    "bytes": 14439363584,
+    "sha256": "3eca3b8f6d7baf218a7dd6bba5fb59a56ee25fe2d567b6f5f589b4f697eca51d"
+  },
+  "workload": {
+    "id": "wikipedia-artificial-intelligence-summary-16k",
+    "prompt_tokens": 16384,
+    "forced_output_tokens": 64,
+    "temperature": 0.0,
+    "ignore_eos": true,
+    "prompt_token_ids_sha256": "d07ad4d805944f0b87869da0c5bb44d99e8c43c0eb57d05a108ad80a6abb51a8"
+  },
+  "configuration": {
+    "mode": "ordinary_decode",
+    "speculative_types": [],
+    "mtp": "disabled",
+    "kv_cache": "q8_0",
+    "flash_attention": true,
+    "gpu_layers": "all",
+    "tensor_overrides": [
+      "token_embd.weight=CUDA0"
+    ],
+    "batch_size": 2048,
+    "ubatch_size": 512,
+    "parallel": 1,
+    "threads": 8,
+    "warmups": 1,
+    "measured_repetitions": 3,
+    "primary_statistic": "median"
+  },
+  "results": {
+    "decode_tokens_per_second_samples": [
+      120.0587716272537,
+      119.49448144136899,
+      119.45098054086645
+    ],
+    "decode_tokens_per_second_median": 119.49448144136899,
+    "average_inter_token_latency_ms_median": 8.368587301587302,
+    "prompt_tokens_per_second_samples": [
+      4383.736402162865,
+      4366.577135489153,
+      4356.2916960582525
+    ],
+    "prompt_tokens_per_second_median": 4366.577135489153,
+    "deterministic_outputs": true,
+    "output_token_sha256": "9c353bfba7fde6722c86fef93d7bfdb9b30de3757b82a7493c83ee0c8c691e42"
+  },
+  "evidence": {
+    "raw_result": "artifacts/raw/decode-comparison/llama-b10593-google-q4_0-ordinary-16k64.json",
+    "raw_server_log": "artifacts/raw/decode-comparison/llama-b10593-google-q4_0-ordinary-16k64.server.log"
+  },
+  "limitations": [
+    "This is a one-warm-up, three-measurement refresh rather than the formal M20 promotion protocol.",
+    "No continuous power, clock, thermal, or peak-VRAM telemetry was captured.",
+    "TTFT includes prompt processing and first-token selection.",
+    "Decode throughput uses generated_tokens minus one measured intervals after the first output token."
+  ]
+}

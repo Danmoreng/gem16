@@ -20,7 +20,7 @@ if sys.version_info[:3] != (3, 13, 14):
     raise SystemExit(f"expected CPython 3.13.14, got {sys.version.split()[0]}")
 PY
 
-env_dir="${VLLM_ENV_DIR:-${repo_root}/third_party/cache/vllm-0.26.0-env}"
+env_dir="${VLLM_ENV_DIR:-${repo_root}/third_party/cache/vllm-0.27.1-env}"
 patch_file="${script_dir}/patches/gemma4-mtp-suppress-graph.patch"
 original_sha256="4eee061c81430be28f029ed66360887a57f8711a75c863067d30e3840a488918"
 patched_sha256="2436a940cc7f525880588392a08f5f2b509b51f91394d6666dba181302cf92f7"
@@ -31,10 +31,12 @@ fi
 
 "${env_dir}/bin/python" -m pip install --upgrade pip wheel 'setuptools==80.10.2'
 "${env_dir}/bin/python" -m pip install \
-  'vllm==0.26.0' \
-  'torch==2.11.0' \
+  'vllm==0.27.1' \
+  'torch==2.13.0' \
   'transformers==5.14.1' \
-  'compressed-tensors==0.17.0'
+  'compressed-tensors==0.17.0' \
+  'vllm-gguf-plugin==0.0.5' \
+  'gguf==0.19.0'
 
 site_dir="$("${env_dir}/bin/python" - <<'PY'
 import site
@@ -57,10 +59,12 @@ from pathlib import Path
 import torch
 
 expected = {
-    "vllm": "0.26.0",
-    "torch": "2.11.0",
+    "vllm": "0.27.1",
+    "torch": "2.13.0",
     "transformers": "5.14.1",
     "compressed-tensors": "0.17.0",
+    "vllm-gguf-plugin": "0.0.5",
+    "gguf": "0.19.0",
     "setuptools": "80.10.2",
 }
 actual = {name: importlib.metadata.version(name) for name in expected}

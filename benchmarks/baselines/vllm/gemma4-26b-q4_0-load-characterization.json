@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "status": "unsupported_by_tested_upstream_loader",
+  "recorded_at": "2026-08-23",
+  "runtime": {
+    "vllm": "0.27.1",
+    "torch": "2.13.0",
+    "torch_cuda": "13.0",
+    "transformers": "5.14.1",
+    "compressed_tensors": "0.17.0",
+    "vllm_gguf_plugin": "0.0.5",
+    "gguf": "0.19.0",
+    "python": "3.13.14"
+  },
+  "model": {
+    "architecture": "Gemma4ForConditionalGeneration",
+    "config_and_tokenizer": "google/gemma-4-26b-a4b-it-qat-bf16",
+    "weights_repository": "google/gemma-4-26B-A4B-it-qat-q4_0-gguf",
+    "weights_revision": "d1c082be9cf3c8a514acf63b8761f4b41935842e",
+    "weights_file": "gemma-4-26B_q4_0-it.gguf",
+    "weights_bytes": 14439363584,
+    "weights_sha256": "3eca3b8f6d7baf218a7dd6bba5fb59a56ee25fe2d567b6f5f589b4f697eca51d"
+  },
+  "attempt": {
+    "load_format": "gguf",
+    "quantization": "gguf",
+    "cpu_offload_gb": 0,
+    "text_only": true,
+    "enforce_eager": true,
+    "kv_cache_dtype": "fp8",
+    "max_model_len": 16448,
+    "workload": "wikipedia-artificial-intelligence-summary-16k",
+    "prompt_tokens": 16384,
+    "requested_output_tokens": 64
+  },
+  "result": {
+    "configuration_probe": "passed",
+    "engine_construction": "failed",
+    "failure_stage": "GGUF parameter-name mapping before GPU weight upload",
+    "exception": "RuntimeError: Failed to map GGUF parameters (416)",
+    "unmapped_parameter_count": 416,
+    "unmapped_parameter_families": [
+      "vision tower parameters expected by the multimodal model class but omitted by the text-only GGUF",
+      "language_model layer router.scale",
+      "language_model layer per_expert_scale",
+      "vision embedding projection"
+    ],
+    "performance_measurements": 0
+  },
+  "integrity": {
+    "vllm_gemma4_mtp_original_sha256": "4eee061c81430be28f029ed66360887a57f8711a75c863067d30e3840a488918",
+    "vllm_gguf_plugin_metadata_sha256": "70ed443ff2795bb475f9e5a5f01cc4ce16f20b8b66d505dd176e99de7b9ac1ad",
+    "gguf_metadata_sha256": "c6ed6e4d4dbb4b46f32855b4189599c568d5617a012345aa9249b3acf7204a03"
+  },
+  "decision": "Do not publish a vLLM Q4 throughput number and do not patch the competitor runtime; retain this as an upstream compatibility result.",
+  "limitations": [
+    "The engine did not reach GPU weight upload or inference.",
+    "This result applies to the exact package and model revisions recorded here.",
+    "A future upstream vLLM or GGUF-plugin release may add the missing mappings."
+  ]
+}

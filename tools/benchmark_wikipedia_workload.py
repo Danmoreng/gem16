@@ -102,6 +102,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--gpu-memory-utilization", type=float, default=0.90)
     parser.add_argument("--vllm-kv-cache-dtype", default="fp8")
     parser.add_argument(
+        "--vllm-model-weights",
+        type=Path,
+        help=(
+            "optional GGUF weights file loaded by vLLM while --model supplies "
+            "the local Hugging Face config and tokenizer"
+        ),
+    )
+    parser.add_argument(
         "--llama-kv-cache-type",
         choices=("f16", "bf16", "q8_0"),
         default="q8_0",
@@ -790,6 +798,11 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
         if not torch.cuda.is_available():
             raise BenchmarkError("CUDA is unavailable to vLLM")
         model = args.model.resolve(strict=True)
+        model_weights = (
+            args.vllm_model_weights.resolve(strict=True)
+            if args.vllm_model_weights is not None
+            else None
+        )
         assistant_model = (
             args.assistant_model.resolve(strict=True)
             if args.assistant_model is not None
@@ -823,6 +836,9 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
             spec_tokens=(
                 args.mtp_draft_tokens if args.mtp_draft_tokens != 0 else None
             ),
+            model_weights=str(model_weights) if model_weights is not None else None,
+            load_format="gguf" if model_weights is not None else "auto",
+            quantization="gguf" if model_weights is not None else None,
         )
 
         def run_once() -> tuple[dict[str, Any], list[int]]:
@@ -838,6 +854,9 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
         device = torch.cuda.get_device_properties(0)
         runtime = {
             "checkpoint": str(model),
+            "model_weights": (
+                str(model_weights) if model_weights is not None else None
+            ),
             "assistant_checkpoint": (
                 str(assistant_model) if assistant_model is not None else None
             ),
@@ -851,6 +870,7 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
         configuration = {
             "batch_size": 1,
             "kv_cache": args.vllm_kv_cache_dtype,
+            "weight_format": "gguf" if model_weights is not None else "native",
             "gpu_memory_utilization": args.gpu_memory_utilization,
             "cpu_offload_gb": 0,
             "enforce_eager": args.enforce_eager,
