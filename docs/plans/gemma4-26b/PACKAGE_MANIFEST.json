@@ -3,9 +3,9 @@
   "external_reference_anchor": "kekzl/imp@a392904d4216388828d0d56317de046f4ca49627",
   "files": [
     {
-      "bytes": 3022,
+      "bytes": 3058,
       "path": "00_MASTER_IMPLEMENTATION_PLAN.md",
-      "sha256": "9b7bd30d836e32dfce476faaf91c5a816b2553de302bf43a4ea63c40c433d52f"
+      "sha256": "42eb6f8425ba95de04489ff31bd49656969ccf62f9145cfefa2dc93767e31f86"
     },
     {
       "bytes": 2073,
@@ -33,9 +33,9 @@
       "sha256": "3802fe67f606eeee1735d199a4e202bbe56e6273253a4d2efe08cd88243732ba"
     },
     {
-      "bytes": 3215,
+      "bytes": 3239,
       "path": "06_DEPENDENCY_GRAPH.md",
-      "sha256": "5c39a3dc386e14b8eac33dfa1b63cd7e3a467c3b04432d72d396afebbcdc9143"
+      "sha256": "6bd724f550146dee6676ee4d8e98906ac3146cb7313ee20a16c0faf3e66855c9"
     },
     {
       "bytes": 2690,
@@ -73,9 +73,9 @@
       "sha256": "c576d0841233f275ddb6d24bf8fd62bf94f3f8bd123f30444a278e57ab9b682f"
     },
     {
-      "bytes": 13331,
+      "bytes": 13336,
       "path": "ACTIVE_CONTRACT.md",
-      "sha256": "8ec2588aed996f282999bab23978903a9e3ec097754d1e8bce9dd1528a5fc030"
+      "sha256": "8b9d94cec92a0bddd5ca999247a2e0732d2f60339111763580c769ceb52fa410"
     },
     {
       "bytes": 1487,
@@ -98,9 +98,9 @@
       "sha256": "2feb3a1b11b5a9290253e50739f15522d237da994d4219f4fc26c26ec023cd63"
     },
     {
-      "bytes": 2665,
+      "bytes": 2687,
       "path": "INDEX.md",
-      "sha256": "d8362172f8a4fe2b996808837abeb601c40e2b38f7859ae62e83ea1f0d381cce"
+      "sha256": "c4591a7304551e9219008543ab850074db58f4cf906b1db9338a0b1b6a513a9b"
     },
     {
       "bytes": 2169,
@@ -118,9 +118,9 @@
       "sha256": "71af29e63883addf787861d937bbc234c7c70ca8203100c51a5e0574799a5dbe"
     },
     {
-      "bytes": 1121,
+      "bytes": 1143,
       "path": "README.md",
-      "sha256": "e150edb6f75b01651c7e5b3981732092fa7288954058f0e00dce8cb2808343e7"
+      "sha256": "1c55d3268b033d406d8e63b18a3861b9719c0b28497ba16e902d1237fd3ca9f5"
     },
     {
       "bytes": 1597,
@@ -358,9 +358,9 @@
       "sha256": "d85d65187de52399cabc45cec2d610d68ce4c94fea1a1e68cad0156d27d8d8e1"
     },
     {
-      "bytes": 1626,
+      "bytes": 1657,
       "path": "milestones/M18_CONVERTER_AB_STUDY.md",
-      "sha256": "ba4f5607c3d10866eefa26f5d832db237136e31e97e2f2272e9dd90fedce74bf"
+      "sha256": "24de2d8f9895646dfe21f38d012f8d781e5fef9e9352fb32ec1a0edd2461ed13"
     },
     {
       "bytes": 1457,
@@ -378,9 +378,9 @@
       "sha256": "5cb9f72b46748e8e2c59f0d52e9b19286b054e3954f868c728df0d1f14921af4"
     },
     {
-      "bytes": 1344,
+      "bytes": 1364,
       "path": "milestones/M22_PRODUCT_INTEGRATION.md",
-      "sha256": "717ffb93ef247fa56b0d133a6ab9e55397b2ada53d4d04970ca87086098477e6"
+      "sha256": "d1dd8ff812caf57813a23cec756062a138cfffb6be689af7d6afc13ec18900bb"
     },
     {
       "bytes": 1470,
@@ -398,9 +398,9 @@
       "sha256": "f360b74ca79b35f1e24f2e5161f215e26e6f3585b00c6cf5f25ad8cc02eabc4c"
     },
     {
-      "bytes": 1000,
+      "bytes": 1055,
       "path": "milestones/README.md",
-      "sha256": "0c9c7b0de37a46262958ea87cdfa73c90e88fc775489cf0ec18980f1ae54cc14"
+      "sha256": "d3f73606497e0baf5b59c35b9dba0b19bc7df54fc94d0ab4f664cea683a11d22"
     },
     {
       "bytes": 2302,
