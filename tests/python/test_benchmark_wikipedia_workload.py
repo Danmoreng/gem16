@@ -1,5 +1,7 @@
 import importlib.util
+import json
 from pathlib import Path
+import tempfile
 import unittest
 from unittest import mock
 
@@ -84,11 +86,66 @@ class BenchmarkWikipediaWorkloadTest(unittest.TestCase):
             "hf-config",
             "--vllm-model-weights",
             "weights.gguf",
+            "--vllm-normalize-channelwise-group-size",
+            "--vllm-moe-backend",
+            "marlin",
+            "--vllm-linear-backend",
+            "marlin",
+            "--vllm-max-num-batched-tokens",
+            "1024",
         ]
         with mock.patch.object(MODULE.sys, "argv", argv):
             args = MODULE.parse_args()
         self.assertEqual(args.model, Path("hf-config"))
         self.assertEqual(args.vllm_model_weights, Path("weights.gguf"))
+        self.assertTrue(args.vllm_normalize_channelwise_group_size)
+        self.assertEqual(args.vllm_moe_backend, "marlin")
+        self.assertEqual(args.vllm_linear_backend, "marlin")
+        self.assertEqual(args.vllm_max_num_batched_tokens, 1024)
+
+    def test_vllm_channelwise_group_size_override_is_explicit(self) -> None:
+        config = {
+            "quantization_config": {
+                "format": "pack-quantized",
+                "config_groups": {
+                    "group_0": {
+                        "weights": {
+                            "num_bits": 4,
+                            "type": "int",
+                            "symmetric": True,
+                            "strategy": "channel",
+                            "group_size": None,
+                        }
+                    }
+                },
+            }
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            model = Path(directory)
+            config_path = model / "config.json"
+            config_path.write_text(json.dumps(config), encoding="utf-8")
+            override, normalizations = MODULE.vllm_channelwise_hf_override(model)
+            original = json.loads(config_path.read_text(encoding="utf-8"))
+
+        weights = override["quantization_config"]["config_groups"]["group_0"][
+            "weights"
+        ]
+        self.assertEqual(weights["group_size"], -1)
+        self.assertIsNone(
+            original["quantization_config"]["config_groups"]["group_0"][
+                "weights"
+            ]["group_size"]
+        )
+        self.assertEqual(
+            normalizations,
+            [
+                {
+                    "group": "group_0",
+                    "source_group_size": None,
+                    "effective_group_size": -1,
+                }
+            ],
+        )
 
     def test_single_repetition_summary_is_a_characterization(self) -> None:
         summary = MODULE.summarize([46.422])

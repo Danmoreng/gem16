@@ -110,6 +110,23 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--vllm-normalize-channelwise-group-size",
+        action="store_true",
+        help=(
+            "explicitly map compressed-tensors channel-wise group_size=null "
+            "to vLLM's equivalent -1 convention"
+        ),
+    )
+    parser.add_argument(
+        "--vllm-moe-backend", choices=("auto", "marlin"), default="auto"
+    )
+    parser.add_argument(
+        "--vllm-linear-backend", choices=("auto", "marlin"), default="auto"
+    )
+    parser.add_argument(
+        "--vllm-max-num-batched-tokens", type=positive_int, default=2048
+    )
+    parser.add_argument(
         "--llama-kv-cache-type",
         choices=("f16", "bf16", "q8_0"),
         default="q8_0",
@@ -244,6 +261,60 @@ def load_workload(path: Path) -> tuple[dict[str, Any], list[int], dict[str, Any]
     ):
         raise BenchmarkError("workload token IDs do not match their SHA-256")
     return document, tokens, generation
+
+
+def vllm_channelwise_hf_override(
+    model: Path,
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    config_path = model / "config.json"
+    try:
+        document = json.loads(config_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise BenchmarkError(
+            f"cannot read vLLM checkpoint configuration: {config_path}"
+        ) from error
+    if not isinstance(document, dict):
+        raise BenchmarkError("vLLM checkpoint configuration is not an object")
+    quantization = document.get("quantization_config")
+    if not isinstance(quantization, dict):
+        raise BenchmarkError("vLLM checkpoint has no quantization_config object")
+    groups = quantization.get("config_groups")
+    if not isinstance(groups, dict) or not groups:
+        raise BenchmarkError("vLLM checkpoint has no quantization config groups")
+
+    normalizations: list[dict[str, Any]] = []
+    for group_name, group in groups.items():
+        if not isinstance(group_name, str) or not isinstance(group, dict):
+            raise BenchmarkError("vLLM checkpoint has a malformed quantization group")
+        weights = group.get("weights")
+        if not isinstance(weights, dict) or weights.get("strategy") != "channel":
+            continue
+        if (
+            weights.get("num_bits") != 4
+            or weights.get("type") != "int"
+            or weights.get("symmetric") is not True
+        ):
+            raise BenchmarkError(
+                "channel-wise vLLM normalization requires symmetric INT4 weights"
+            )
+        source_group_size = weights.get("group_size")
+        if source_group_size not in (None, -1):
+            raise BenchmarkError(
+                "channel-wise vLLM checkpoint has a noncanonical group size"
+            )
+        weights["group_size"] = -1
+        normalizations.append(
+            {
+                "group": group_name,
+                "source_group_size": source_group_size,
+                "effective_group_size": -1,
+            }
+        )
+    if not normalizations:
+        raise BenchmarkError(
+            "requested vLLM channel-wise normalization found no matching group"
+        )
+    return {"quantization_config": quantization}, normalizations
 
 
 def metric_run(
@@ -720,6 +791,7 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
     representative: list[int] | None = None
     runtime: dict[str, Any]
     configuration: dict[str, Any]
+    extra_limitations: list[str] = []
 
     if args.engine == "gem16":
         if args.model is None or args.executable is None:
@@ -808,6 +880,12 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
             if args.assistant_model is not None
             else None
         )
+        hf_overrides: dict[str, Any] = {}
+        channelwise_normalizations: list[dict[str, Any]] = []
+        if args.vllm_normalize_channelwise_group_size:
+            hf_overrides, channelwise_normalizations = (
+                vllm_channelwise_hf_override(model)
+            )
         tokenizer = AutoTokenizer.from_pretrained(str(model), local_files_only=True)
         suppressed_token_strings = [
             tokenizer.decode([token], skip_special_tokens=False)
@@ -820,12 +898,14 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
             model=str(model),
             tokenizer=str(model),
             trust_remote_code=False,
+            hf_overrides=hf_overrides,
             max_model_len=max_model_len,
             gpu_memory_utilization=args.gpu_memory_utilization,
             cpu_offload_gb=0,
             enforce_eager=args.enforce_eager,
             enable_prefix_caching=False,
             enable_chunked_prefill=True,
+            max_num_batched_tokens=args.vllm_max_num_batched_tokens,
             kv_cache_dtype=args.vllm_kv_cache_dtype,
             max_num_seqs=1,
             disable_log_stats=False,
@@ -833,6 +913,8 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
             language_model_only=True,
             limit_mm_per_prompt={"image": 0, "audio": 0, "video": 0},
             mm_processor_cache_gb=0,
+            moe_backend=args.vllm_moe_backend,
+            linear_backend=args.vllm_linear_backend,
             spec_model=(
                 str(assistant_model) if assistant_model is not None else None
             ),
@@ -880,15 +962,25 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
             "cuda_graphs_requested": not args.enforce_eager,
             "prefix_caching": False,
             "chunked_prefill": True,
+            "max_num_batched_tokens": args.vllm_max_num_batched_tokens,
             "trust_remote_code": False,
             "language_model_only": True,
             "limit_mm_per_prompt": {"image": 0, "audio": 0, "video": 0},
             "mm_processor_cache_gb": 0,
+            "channelwise_group_size_normalizations": channelwise_normalizations,
+            "moe_backend": args.vllm_moe_backend,
+            "linear_backend": args.vllm_linear_backend,
             "mtp_draft_tokens": args.mtp_draft_tokens,
             "mtp_backend": (
                 "Gemma4MTPModel" if args.mtp_draft_tokens != 0 else "disabled"
             ),
         }
+        if channelwise_normalizations:
+            extra_limitations.append(
+                "The checkpoint's channel-wise group_size=null metadata was "
+                "explicitly normalized to vLLM's semantically equivalent -1 "
+                "convention; weights were not modified."
+            )
     else:
         if args.executable is None or args.gguf is None:
             raise BenchmarkError("llama.cpp requires --executable and --gguf")
@@ -1129,6 +1221,7 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
             "TTFT includes prompt processing and first-token selection.",
             "Decode throughput uses generated_tokens - 1 intervals after the first token.",
             "Engine checkpoint and KV precisions must be read from configuration before comparison.",
+            *extra_limitations,
         ],
     }
 
