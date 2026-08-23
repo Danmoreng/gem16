@@ -800,6 +800,7 @@ def package_versions(names: tuple[str, ...]) -> dict[str, str]:
 
 
 def benchmark(args: argparse.Namespace) -> dict[str, Any]:
+    benchmark_source = repository_state()
     workload_path = args.workload.resolve(strict=True)
     workload, prompt, generation = load_workload(workload_path)
     generation = dict(generation)
@@ -1217,7 +1218,7 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
         "schema_version": 1,
         "status": "development_characterization",
         "engine": args.engine,
-        "benchmark_source": repository_state(),
+        "benchmark_source": benchmark_source,
         "workload": {
             "path": str(workload_path),
             "id": workload.get("id"),
