@@ -19,6 +19,7 @@ namespace gem16::internal {
 namespace {
 
 constexpr unsigned kThreads = 128;
+constexpr unsigned kNormThreads = 256U;
 constexpr unsigned kWarpSize = 32U;
 constexpr unsigned kRouterWarpsPerBlock = 4U;
 constexpr std::uint64_t kNvfp4Block = 16;
@@ -156,17 +157,44 @@ __global__ void SelectedTiledProjectionKernel(
       RoundBf16(accumulator / output_divisor);
 }
 
-__global__ void RouterTransformKernel(const float* hidden,
-                                      const float* normalized,
-                                      const std::uint16_t* scale,
-                                      float* transformed,
-                                      std::uint64_t width) {
-  const std::uint64_t index =
-      static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
-  if (index < width) {
-    (void)hidden;
-    transformed[index] = RoundBf16(
-        normalized[index] * Bf16(scale[index]) * rsqrtf(static_cast<float>(width)));
+__device__ float MoeBlockSum(float value) {
+  __shared__ float scratch[kNormThreads];
+  scratch[threadIdx.x] = value;
+  __syncthreads();
+  for (unsigned stride = kNormThreads / 2U; stride != 0U; stride >>= 1U) {
+    if (threadIdx.x < stride) {
+      scratch[threadIdx.x] += scratch[threadIdx.x + stride];
+    }
+    __syncthreads();
+  }
+  return scratch[0];
+}
+
+__global__ void MoeInputNormsRouterTransformKernel(
+    const float* hidden, const std::uint16_t* pre_shared_norm,
+    const std::uint16_t* pre_expert_norm,
+    const std::uint16_t* router_scale, float* shared_input,
+    float* expert_input, float* router_normalized,
+    float* router_transformed, std::uint64_t width, float epsilon) {
+  float squared_sum = 0.0F;
+  for (std::uint64_t index = threadIdx.x; index < width;
+       index += blockDim.x) {
+    const float value = hidden[index];
+    squared_sum = fmaf(value, value, squared_sum);
+  }
+  const float inverse_rms = rsqrtf(
+      MoeBlockSum(squared_sum) / static_cast<float>(width) + epsilon);
+  const float router_divisor = rsqrtf(static_cast<float>(width));
+  for (std::uint64_t index = threadIdx.x; index < width;
+       index += blockDim.x) {
+    const float normalized = RoundBf16(hidden[index] * inverse_rms);
+    shared_input[index] = RoundBf16(
+        hidden[index] * inverse_rms * Bf16(pre_shared_norm[index]));
+    expert_input[index] = RoundBf16(
+        hidden[index] * inverse_rms * Bf16(pre_expert_norm[index]));
+    router_normalized[index] = normalized;
+    router_transformed[index] = RoundBf16(
+        normalized * Bf16(router_scale[index]) * router_divisor);
   }
 }
 
@@ -398,11 +426,65 @@ __global__ void WeightedReductionKernel(
   routed_sum[index] = RoundBf16(sum);
 }
 
-__global__ void CombineKernel(const float* left, const float* right,
-                              float* output, std::uint64_t width) {
-  const std::uint64_t index =
-      static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
-  if (index < width) output[index] = RoundBf16(left[index] + right[index]);
+__global__ void MoePostNormResidualKernel(
+    const float* shared_output, const std::uint16_t* post_shared_norm,
+    const float* routed_sum, const std::uint16_t* post_expert_norm,
+    const std::uint16_t* post_combined_norm, const float* residual,
+    const std::uint16_t* layer_scalar, float* shared_post,
+    float* routed_post, float* combined, float* feed_forward, float* output,
+    std::uint64_t width, float epsilon) {
+  float squared_sum = 0.0F;
+  for (std::uint64_t index = threadIdx.x; index < width;
+       index += blockDim.x) {
+    const float value = shared_output[index];
+    squared_sum = fmaf(value, value, squared_sum);
+  }
+  const float shared_inverse_rms = rsqrtf(
+      MoeBlockSum(squared_sum) / static_cast<float>(width) + epsilon);
+  for (std::uint64_t index = threadIdx.x; index < width;
+       index += blockDim.x) {
+    shared_post[index] = RoundBf16(
+        shared_output[index] * shared_inverse_rms *
+        Bf16(post_shared_norm[index]));
+  }
+  // Keep both barriers: later phases consume values written by other threads.
+  __syncthreads();
+
+  squared_sum = 0.0F;
+  for (std::uint64_t index = threadIdx.x; index < width;
+       index += blockDim.x) {
+    const float value = routed_sum[index];
+    squared_sum = fmaf(value, value, squared_sum);
+  }
+  const float routed_inverse_rms = rsqrtf(
+      MoeBlockSum(squared_sum) / static_cast<float>(width) + epsilon);
+  for (std::uint64_t index = threadIdx.x; index < width;
+       index += blockDim.x) {
+    routed_post[index] = RoundBf16(
+        routed_sum[index] * routed_inverse_rms *
+        Bf16(post_expert_norm[index]));
+  }
+  __syncthreads();
+
+  squared_sum = 0.0F;
+  for (std::uint64_t index = threadIdx.x; index < width;
+       index += blockDim.x) {
+    const float value = RoundBf16(shared_post[index] + routed_post[index]);
+    combined[index] = value;
+    squared_sum = fmaf(value, value, squared_sum);
+  }
+  const float combined_inverse_rms = rsqrtf(
+      MoeBlockSum(squared_sum) / static_cast<float>(width) + epsilon);
+  const float scalar = Bf16(layer_scalar[0]);
+  for (std::uint64_t index = threadIdx.x; index < width;
+       index += blockDim.x) {
+    const float normalized = RoundBf16(
+        combined[index] * combined_inverse_rms *
+        Bf16(post_combined_norm[index]));
+    feed_forward[index] = normalized;
+    const float residual_sum = RoundBf16(normalized + residual[index]);
+    output[index] = RoundBf16(residual_sum * scalar);
+  }
 }
 
 std::uint64_t Blocks(std::uint64_t elements) {
@@ -504,9 +586,11 @@ Status LaunchGemma4MoeLayerImpl(
     return Invalid("M11 Gate/Up activation divisors are incompatible");
   }
 
-  Status status = LaunchRmsNormBf16(hidden, w.pre_shared_norm_bf16,
-                                    x.shared_input, 1U, c.width, c.epsilon,
-                                    stream);
+  MoeInputNormsRouterTransformKernel<<<1, kNormThreads, 0, stream>>>(
+      hidden, w.pre_shared_norm_bf16, w.pre_expert_norm_bf16,
+      w.router_scale_bf16, x.shared_input, x.expert_input,
+      x.router_normalized, x.router_transformed, c.width, c.epsilon);
+  Status status = CheckLaunch("launch fused M11 input norms and router transform");
   if (!status.ok()) return status;
   status = LaunchNvfp4ReferenceActivationQuantization(
       x.shared_input, x.shared_input_packed, x.shared_input_scales, c.width,
@@ -552,19 +636,6 @@ Status LaunchGemma4MoeLayerImpl(
                : LaunchTiled(w.shared_down, x.shared_product_packed,
                              x.shared_product_scales, x.shared_output, stream);
   if (!status.ok()) return status;
-  status = LaunchRmsNormBf16(x.shared_output, w.post_shared_norm_bf16,
-                             x.shared_post, 1U, c.width, c.epsilon, stream);
-  if (!status.ok()) return status;
-
-  status = LaunchRmsNormBf16(hidden, nullptr, x.router_normalized, 1U,
-                             c.width, c.epsilon, stream);
-  if (!status.ok()) return status;
-  RouterTransformKernel<<<static_cast<unsigned>(Blocks(c.width)), kThreads, 0,
-                          stream>>>(hidden, x.router_normalized,
-                                    w.router_scale_bf16,
-                                    x.router_transformed, c.width);
-  status = CheckLaunch("launch M11 router transform");
-  if (!status.ok()) return status;
   const unsigned router_blocks =
       (c.experts + kRouterWarpsPerBlock - 1U) / kRouterWarpsPerBlock;
   RouterProjectionWarpKernel<<<router_blocks, kThreads, 0, stream>>>(
@@ -578,9 +649,6 @@ Status LaunchGemma4MoeLayerImpl(
   status = CheckLaunch("launch M11 deterministic router top-k");
   if (!status.ok()) return status;
 
-  status = LaunchRmsNormBf16(hidden, w.pre_expert_norm_bf16,
-                             x.expert_input, 1U, c.width, c.epsilon, stream);
-  if (!status.ok()) return status;
   status = LaunchNvfp4ReferenceActivationQuantization(
       x.expert_input, x.expert_input_packed, x.expert_input_scales, c.width,
       w.expert_gate_up.activation_global_divisor, stream);
@@ -643,16 +711,12 @@ Status LaunchGemma4MoeLayerImpl(
       c.width, c.top_k);
   status = CheckLaunch("launch M11 slot-order expert reduction");
   if (!status.ok()) return status;
-  status = LaunchRmsNormBf16(x.routed_sum, w.post_expert_norm_bf16,
-                             x.routed_post, 1U, c.width, c.epsilon, stream);
-  if (!status.ok()) return status;
-  CombineKernel<<<static_cast<unsigned>(Blocks(c.width)), kThreads, 0,
-                  stream>>>(x.shared_post, x.routed_post, x.combined, c.width);
-  status = CheckLaunch("launch M11 shared and routed combination");
-  if (!status.ok()) return status;
-  return LaunchRmsNormResidualBf16(
-      x.combined, w.post_combined_norm_bf16, hidden, x.feed_forward, output,
-      1U, c.width, c.epsilon, w.layer_scalar_bf16, stream);
+  MoePostNormResidualKernel<<<1, kNormThreads, 0, stream>>>(
+      x.shared_output, w.post_shared_norm_bf16, x.routed_sum,
+      w.post_expert_norm_bf16, w.post_combined_norm_bf16, hidden,
+      w.layer_scalar_bf16, x.shared_post, x.routed_post, x.combined,
+      x.feed_forward, output, c.width, c.epsilon);
+  return CheckLaunch("launch fused M11 post norms and residual");
 }
 
 Status LaunchGemma4MoeReferenceLayer(
