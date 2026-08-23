@@ -87,10 +87,10 @@ M14–M16 are accepted at implementation commit `9a374c3dda10b7ae870c712cd70a60a
 implementation commit `57fdeb309aacfce2e4eba65745fba86f14ebd113` and closure-hardening commit
 `348683e167c6c4d3b0be7580e404c097b199a3d8`. Router failures now fail safely, complete engine replay/relaunch is
 automated, native slot-batched expert execution remains bitwise exact and hardware capability reporting is
-profile-aware. The current performance candidate at `1e605766b5e2663ddf65a3f2790e610342daabd0` reaches a
-three-run 120.398 tok/s ordinary-decode median on 16K+64 versus llama.cpp 119.494 tok/s. This remains a development
-characterization; M20 still owns the formal 3-warm-up/10-retained-run result. See
-`benchmarks/baselines/gem16/gemma4-26b-a4b-ordinary-16k64-2026-08-23.json`.
+profile-aware. The latest adjacent two-run development candidate after the physical-BF16/T1024 prefill promotion
+reaches 4,693.62 prompt tok/s and 138.827 ordinary-decode tok/s on 16K+64 with the accepted output hash. This remains
+a development characterization; M20 still owns the formal 3-warm-up/10-retained-run result. See
+`artifacts/m20/optimization-physical-bf16-t1024.json`.
 
 The owner now requires that exact 16K+64 ordinary path to reach retained medians of at least 6,000 prompt token/s and
 150 decode token/s; 6,500 prompt token/s is the non-blocking competitive stretch target. MTP/speculative decode,

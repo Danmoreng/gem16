@@ -65,7 +65,7 @@ bool ValidPointers(const Gemma4Moe26BAttentionReferenceWorkspace& x) {
          x.staged_key_fp8 != nullptr && x.staged_value_fp8 != nullptr &&
          x.scores != nullptr && x.attention != nullptr &&
          x.output_fp8 != nullptr && x.output_scale != nullptr &&
-         x.output_projection != nullptr && x.post_attention != nullptr;
+         x.output_projection != nullptr;
 }
 
 }  // namespace
@@ -138,6 +138,7 @@ Status LaunchGemma4Moe26BAttentionReferenceLayer(
   if (hidden == nullptr || output == nullptr || hidden == output ||
       cache.key == nullptr || cache.value == nullptr ||
       cache.key == cache.value || !ValidPointers(x) ||
+      x.post_attention == nullptr ||
       w.input_norm_bf16 == nullptr ||
       w.post_attention_norm_bf16 == nullptr ||
       w.query_norm_bf16 == nullptr || w.key_norm_bf16 == nullptr ||
@@ -250,6 +251,7 @@ Status LaunchGemma4Moe26BAttentionReferencePrefillLayer(
       start_position + tokens > 262144U || hidden == nullptr ||
       output == nullptr || hidden == output || cache.key == nullptr ||
       cache.value == nullptr || cache.key == cache.value || !ValidPointers(x) ||
+      x.post_attention == nullptr ||
       w.input_norm_bf16 == nullptr ||
       w.post_attention_norm_bf16 == nullptr ||
       w.query_norm_bf16 == nullptr || w.key_norm_bf16 == nullptr ||
@@ -359,7 +361,8 @@ Status LaunchGemma4Moe26BAttentionSm120PrefillLayer(
     const Gemma4Moe26BKvCacheView& cache,
     const Gemma4Moe26BAttentionReferenceWorkspace& x, float epsilon,
     cudaStream_t stream) {
-  constexpr std::uint64_t kMaximumChunkTokens = 512U;
+  constexpr std::uint64_t kMaximumChunkTokens = 1024U;
+  constexpr std::uint64_t kMaximumRotaryPairs = 256U;
   const bool sliding =
       t.attention == Gemma4Moe26BAttentionType::kSliding;
   const std::uint64_t q_elements = t.query_heads * t.head_dimension;
@@ -380,6 +383,10 @@ Status LaunchGemma4Moe26BAttentionSm120PrefillLayer(
       w.key_cache_scale_bf16 == nullptr ||
       w.value_cache_scale_bf16 == nullptr || t.layer >= 30U ||
       !native_geometry ||
+      !std::isfinite(t.rotary_factor) || t.rotary_factor <= 0.0 ||
+      t.rotary_factor > 1.0 ||
+      t.rotary_factor * static_cast<double>(t.head_dimension / 2U) >
+          static_cast<double>(kMaximumRotaryPairs) ||
       t.kv_producer_layer != static_cast<std::int32_t>(t.layer) ||
       cache.capacity == 0U || cache.capacity > t.cache_capacity ||
       (sliding && cache.capacity != t.cache_capacity) ||
@@ -507,6 +514,7 @@ Status LaunchGemma4Moe26BAttentionReferenceControlledLayer(
   if (hidden == nullptr || output == nullptr || hidden == output ||
       control == nullptr || cache.key == nullptr || cache.value == nullptr ||
       cache.key == cache.value || !ValidPointers(x) ||
+      x.post_attention == nullptr ||
       w.input_norm_bf16 == nullptr ||
       w.post_attention_norm_bf16 == nullptr ||
       w.query_norm_bf16 == nullptr || w.key_norm_bf16 == nullptr ||

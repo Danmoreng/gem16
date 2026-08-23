@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "milestone": "M20-development",
+  "status": "accepted_optimization_not_formal_qualification",
+  "measured_on": "2026-08-23",
+  "base_revision": "1cdba20",
+  "device": "NVIDIA GeForce RTX 5080 Laptop GPU",
+  "scenario": {
+    "id": "wikipedia-real-16k64-greedy",
+    "prompt_tokens": 16384,
+    "output_forwards": 64,
+    "prompt_manifest_sha256": "9a5859b979d91fccf71bcbb61aade6372cf2cc3c708e6c47b8b6cfd99f7abd2d",
+    "mtp_or_speculative_decode": false,
+    "prompt_cache": false,
+    "kv_mode": "fp8"
+  },
+  "change": {
+    "prefill_chunk_tokens": 1024,
+    "prefill_chunks": 16,
+    "attention_and_moe_temporary_arenas_overlaid": true,
+    "attention_qkv_and_output_storage": "physical_bf16",
+    "routed_expert_product_and_down_storage": "physical_bf16",
+    "workspace_cap_bytes": 201326592
+  },
+  "parent": {
+    "prompt_ms": 3872.875283,
+    "prompt_tokens_per_second": 4230.448647,
+    "decode_ms": 453.176325,
+    "decode_tokens_per_second": 139.018736250,
+    "output_token_sha256": "d8f0aa61ba66750bda8582861d3f42ef7022917e75b6abd3b6fac4e66ef75e89"
+  },
+  "candidate_runs": [
+    {
+      "prompt_ms": 3490.200930,
+      "prompt_tokens_per_second": 4694.285609511,
+      "decode_ms": 453.804997,
+      "decode_tokens_per_second": 138.826148713
+    },
+    {
+      "prompt_ms": 3491.185953,
+      "prompt_tokens_per_second": 4692.961137152,
+      "decode_ms": 453.800258,
+      "decode_tokens_per_second": 138.827598463
+    }
+  ],
+  "comparison": {
+    "candidate_prompt_tokens_per_second_mean": 4693.623373331,
+    "prompt_throughput_gain_percent": 10.948596,
+    "remaining_to_6000_percent": 27.851048,
+    "remaining_to_6500_percent": 38.505302,
+    "decode_classification": "neutral"
+  },
+  "correctness": {
+    "all_logits_finite": true,
+    "output_token_sha256": "d8f0aa61ba66750bda8582861d3f42ef7022917e75b6abd3b6fac4e66ef75e89",
+    "matches_parent_output_hash": true,
+    "fallback_count": 0,
+    "recurring_allocation_count": 0,
+    "t1024_q_global_bf16_mismatches": 0,
+    "t1024_o_global_bf16_mismatches": 0
+  },
+  "memory": {
+    "prefill_workspace_bytes": 152842496,
+    "prefill_workspace_cap_reserve_bytes": 48484096,
+    "sampled_device_used_bytes": 15369830400,
+    "margin_bytes": 1282211840,
+    "parent_sampled_device_used_bytes": 15418130432,
+    "sampled_device_used_reduction_bytes": 48300032
+  },
+  "tests": {
+    "blackwell_release_targets": "pass",
+    "cuda_moe_reference": "pass",
+    "cuda_attention_reference": "pass",
+    "cuda_shared_runtime": "pass",
+    "compute_sanitizer_moe_memcheck": "pass_0_errors",
+    "compute_sanitizer_attention_memcheck": "pass_0_errors",
+    "independent_review": "ox_20260823T204006Z-47334_no_p0_p1_or_p2_findings"
+  },
+  "raw_evidence": [
+    {
+      "ignored_path": "artifacts/raw/perf-target/physical-bf16-t1024-smoke.json",
+      "size": 2918,
+      "sha256": "60c02123dc0553874d33d2ddf7275d47cfdbe72bd5c5420859fe0b8cbc4775fc"
+    },
+    {
+      "ignored_path": "artifacts/raw/perf-target/physical-bf16-t1024-canonical.json",
+      "size": 2923,
+      "sha256": "178dda86a15809f03527cd5f8f7632311085cf2a52eb5c6da487002ef7b5758d"
+    },
+    {
+      "ignored_path": "artifacts/raw/perf-target/physical-bf16-t1024-canonical-repeat.json",
+      "size": 2919,
+      "sha256": "92c30fd4c18012dea0fcd3d9894cd90cb715a6b2a01b6734494d21395f6b90f0"
+    }
+  ],
+  "limitations": {
+    "formal_m20_3_warmup_10_retained_not_run": true,
+    "hard_6000_prompt_target_reached": false,
+    "hard_150_decode_target_reached": false
+  }
+}

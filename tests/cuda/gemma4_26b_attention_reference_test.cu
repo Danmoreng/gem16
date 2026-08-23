@@ -423,6 +423,11 @@ void TestFp8PrefillProjectionRealShapes() {
   CheckFp8PrefillProjectionGeometry(8192U, 2816U, 512U, true, "Q-global");
   CheckFp8PrefillProjectionGeometry(2816U, 4096U, 512U, true, "O-local");
   CheckFp8PrefillProjectionGeometry(2816U, 8192U, 512U, true, "O-global");
+  // Production prefill admits 1024-token chunks. Exercise the largest Q and
+  // O contractions at that boundary rather than relying only on an
+  // end-to-end model run to detect a CUTLASS geometry regression.
+  CheckFp8PrefillProjectionGeometry(8192U, 2816U, 1024U, true, "Q-global");
+  CheckFp8PrefillProjectionGeometry(2816U, 8192U, 1024U, true, "O-global");
 }
 
 void CheckCase(Case* test, std::uint64_t first_position,

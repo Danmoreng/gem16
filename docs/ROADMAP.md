@@ -16,15 +16,15 @@ accepted artifact/loader → real 32K one-slot fit → deterministic reference
 ```
 
 The repository has an executable, fixed-address, all-resident 26B runtime with native SM120 MoE/head execution,
-controlled FP8 attention, grouped prefill and whole-model decode graph replay. The latest bounded 16K+64 ordinary
-decode characterization reaches 120.398 tok/s median versus llama.cpp 119.494 tok/s, but formal M20 telemetry is
-still pending. The profile remains experimental: full held-out quality, controlled performance and real 64K execution
-are not yet accepted; the CLI/server product gate is accepted.
+controlled FP8 attention, grouped prefill and whole-model decode graph replay. The latest adjacent two-run 16K+64
+development candidate reaches 4,693.62 prompt tok/s and 138.827 ordinary-decode tok/s while retaining the accepted
+output hash. This is not the formal M20 3-warm-up/10-retained result. The profile remains experimental: full held-out
+quality, controlled performance and real 64K execution are not yet accepted; the CLI/server product gate is accepted.
 
 M20 now has fixed owner targets on the exact 16K+64 ordinary row: retained medians of at least 6,000 prompt token/s
-and 150 decode token/s, plus a non-blocking 6,500 prompt-token/s stretch target. Current medians are 3,169.458 and
-120.398 token/s. These targets must be reached without MTP/speculative decode or changes to prompt, output length,
-cache/KV semantics, sampling or timing boundaries.
+and 150 decode token/s, plus a non-blocking 6,500 prompt-token/s stretch target. The current adjacent development
+candidate is 4,693.62/138.827 token/s; formal retained medians remain pending. These targets must be reached without
+MTP/speculative decode or changes to prompt, output length, cache/KV semantics, sampling or timing boundaries.
 
 ## 26B checkpoints
 

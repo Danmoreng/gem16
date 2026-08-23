@@ -10,15 +10,16 @@ current path directly loads the compiled QAT-derived FP8/NVFP4 artifact, owns on
 SM120 prefill/decode/head work without CPU weight offload or recurring token-loop allocation.
 
 The current source tree contains an executable fixed-address 26B runtime, public chat/server integration and native
-SM120 MoE, attention and tied-head dispatch. Ordinary decode on the controlled 16K+64 development workload reaches
-120.398 tok/s median versus 119.494 tok/s for current llama.cpp. This is a three-run characterization, not yet the
+SM120 MoE, attention and tied-head dispatch. The latest adjacent two-run controlled 16K+64 development candidate
+reaches 4,693.62 prompt tok/s and 138.827 ordinary-decode tok/s with the accepted output hash. This is not yet the
 formal M20 3-warm-up/10-retained result. The 12B Unified path remains the production baseline and must remain
 unchanged.
 
 The owner-set M20 objective now targets vLLM-class performance on the exact 16K+64 ordinary path: retained medians
 of at least **6,000 prompt token/s** and **150 decode token/s**, with **6,500 prompt token/s** as the non-blocking
-competitive stretch target. The current prompt median is 3,169.458 token/s. MTP/speculative decode remains disabled
-for this gate, and no prompt, cache, precision, sampling or timing-boundary change may count as a speedup.
+competitive stretch target. The current adjacent development candidate is 4,693.62/138.827 token/s; formal retained
+medians are pending. MTP/speculative decode remains disabled for this gate, and no prompt, cache, precision, sampling
+or timing-boundary change may count as a speedup.
 
 ## Fast-track path
 

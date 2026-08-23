@@ -39,6 +39,15 @@ struct Gemma4MoePrefillWorkspace {
   // Optional sticky transaction flag shared with decode. See the decode
   // workspace contract for initialization and failure semantics.
   int* routing_finite = nullptr;
+
+  // Optional production storage for the already-rounded routed-expert
+  // boundaries. When both pointers are present, expert_product/expert_down
+  // must be null and the layer uses the bit-identical physical-BF16 path.
+  // Keeping the float-container fields preserves the independent M15
+  // reference/differential harness without retaining both representations in
+  // the integrated engine.
+  std::uint16_t* expert_product_bf16 = nullptr;
+  std::uint16_t* expert_down_bf16 = nullptr;
 };
 
 // Deterministic token-major/top-k-major routed-expert reduction. The float

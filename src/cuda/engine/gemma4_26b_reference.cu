@@ -42,7 +42,7 @@ constexpr std::uint32_t kExperts = 128U;
 constexpr std::uint32_t kTopK = 8U;
 constexpr std::uint64_t kLayers = 30U;
 constexpr std::uint64_t kMaximumContextTokens = 262144U;
-constexpr std::uint64_t kPrefillMaxTokens = 512U;
+constexpr std::uint64_t kPrefillMaxTokens = 1024U;
 // The native online SM120 attention path never materializes a score slab.
 // Keep one validated sentinel element because the shared workspace contract
 // still requires a non-null pointer, and spend the reclaimed 64 MiB on larger
@@ -892,76 +892,81 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
     const auto p_tokens = prefill.Add<std::uint32_t>(kPrefillMaxTokens);
     const auto p_hidden_a = prefill.Add<float>(kPrefillMaxTokens * kWidth);
     const auto p_hidden_b = prefill.Add<float>(kPrefillMaxTokens * kWidth);
-    const auto p_input_fp8 =
-        prefill.Add<std::uint8_t>(kPrefillMaxTokens * kWidth);
-    const auto p_input_scale = prefill.Add<float>(kPrefillMaxTokens);
-    const auto p_q_raw =
-        prefill.Add<float>(kPrefillMaxTokens * 16U * 512U);
-    const auto p_k_raw =
-        prefill.Add<float>(kPrefillMaxTokens * 8U * 512U);
-    const auto p_v_raw =
-        prefill.Add<float>(kPrefillMaxTokens * 8U * 512U);
-    const auto p_q_norm =
-        prefill.Add<float>(kPrefillMaxTokens * 16U * 512U);
-    const auto p_k_norm =
-        prefill.Add<float>(kPrefillMaxTokens * 8U * 512U);
-    const auto p_v_norm =
-        prefill.Add<float>(kPrefillMaxTokens * 8U * 512U);
-    const auto p_cosine = prefill.Add<float>(kPrefillMaxTokens * 256U);
-    const auto p_sine = prefill.Add<float>(kPrefillMaxTokens * 256U);
-    const auto p_staged_k =
-        prefill.Add<std::uint8_t>(kPrefillMaxTokens * 8U * 512U);
-    const auto p_staged_v =
-        prefill.Add<std::uint8_t>(kPrefillMaxTokens * 8U * 512U);
-    const auto p_scores = prefill.Add<float>(kPrefillScoreElements);
-    const auto p_attention =
-        prefill.Add<float>(kPrefillMaxTokens * 16U * 512U);
-    const auto p_output_fp8 =
-        prefill.Add<std::uint8_t>(kPrefillMaxTokens * 16U * 512U);
-    const auto p_output_scale = prefill.Add<float>(kPrefillMaxTokens);
-    const auto p_output_projection =
-        prefill.Add<float>(kPrefillMaxTokens * kWidth);
-    const auto p_post_attention =
-        prefill.Add<float>(kPrefillMaxTokens * kWidth);
 
+    // Attention and MoE execute in-order on impl->stream. Build both phase
+    // layouts from the persistent token/hidden prefix so their temporary
+    // regions physically alias without overlapping live values.
+    LayoutBuilder attention = prefill;
+    const auto p_input_fp8 =
+        attention.Add<std::uint8_t>(kPrefillMaxTokens * kWidth);
+    const auto p_input_scale = attention.Add<float>(kPrefillMaxTokens);
+    const auto p_q_raw =
+        attention.Add<std::uint16_t>(kPrefillMaxTokens * 16U * 512U);
+    const auto p_k_raw =
+        attention.Add<std::uint16_t>(kPrefillMaxTokens * 2048U);
+    const auto p_v_raw =
+        attention.Add<std::uint16_t>(kPrefillMaxTokens * 2048U);
+    const auto p_q_norm =
+        attention.Add<float>(kPrefillMaxTokens * 16U * 512U);
+    const auto p_k_norm =
+        attention.Add<float>(kPrefillMaxTokens * 2048U);
+    const auto p_v_norm =
+        attention.Add<float>(kPrefillMaxTokens * 2048U);
+    const auto p_cosine = attention.Add<float>(kPrefillMaxTokens * 256U);
+    const auto p_sine = attention.Add<float>(kPrefillMaxTokens * 256U);
+    const auto p_staged_k =
+        attention.Add<std::uint8_t>(kPrefillMaxTokens * 2048U);
+    const auto p_staged_v =
+        attention.Add<std::uint8_t>(kPrefillMaxTokens * 2048U);
+    const auto p_scores = attention.Add<float>(kPrefillScoreElements);
+    const auto p_attention =
+        attention.Add<std::uint16_t>(kPrefillMaxTokens * 16U * 512U);
+    const auto p_output_fp8 =
+        attention.Add<std::uint8_t>(kPrefillMaxTokens * 16U * 512U);
+    const auto p_output_scale = attention.Add<float>(kPrefillMaxTokens);
+    const auto p_output_projection =
+        attention.Add<float>(kPrefillMaxTokens * kWidth);
+    const auto p_cutlass_workspace = attention.Add<std::byte>(
+        kGemma4Moe26BAttentionCutlassWorkspaceBytes);
+
+    LayoutBuilder moe = prefill;
     const auto p_router_logits =
-        prefill.Add<float>(kPrefillMaxTokens * kExperts);
+        moe.Add<float>(kPrefillMaxTokens * kExperts);
     const auto p_router_probabilities =
-        prefill.Add<float>(kPrefillMaxTokens * kExperts);
+        moe.Add<float>(kPrefillMaxTokens * kExperts);
     const auto p_token_hidden =
-        prefill.Add<float>(kPrefillMaxTokens * kWidth);
+        moe.Add<float>(kPrefillMaxTokens * kWidth);
     const auto p_token_packed =
-        prefill.Add<std::uint8_t>(kPrefillMaxTokens * kWidth / 2U);
+        moe.Add<std::uint8_t>(kPrefillMaxTokens * kWidth / 2U);
     const auto p_token_scales =
-        prefill.Add<std::uint8_t>(kPrefillMaxTokens * kWidth / 16U);
-    const auto p_expert_product = prefill.Add<float>(
+        moe.Add<std::uint8_t>(kPrefillMaxTokens * kWidth / 16U);
+    const auto p_expert_product = moe.Add<std::uint16_t>(
         kPrefillMaxTokens * kTopK * kExpert);
-    const auto p_expert_product_packed = prefill.Add<std::uint8_t>(
+    const auto p_expert_product_packed = moe.Add<std::uint8_t>(
         kPrefillMaxTokens * kTopK * kExpert / 2U);
-    const auto p_expert_product_scales = prefill.Add<std::uint8_t>(
+    const auto p_expert_product_scales = moe.Add<std::uint8_t>(
         kPrefillMaxTokens * kTopK * kExpert / 16U);
-    const auto p_expert_down = prefill.Add<float>(
+    const auto p_expert_down = moe.Add<std::uint16_t>(
         kPrefillMaxTokens * kTopK * kWidth);
-    static_assert(kGemma4Moe26BAttentionCutlassWorkspaceBytes <=
-                  kPrefillMaxTokens * kTopK * kWidth * sizeof(float));
     const auto p_shared_product =
-        prefill.Add<float>(kPrefillMaxTokens * kShared);
+        moe.Add<float>(kPrefillMaxTokens * kShared);
     const auto p_shared_product_packed =
-        prefill.Add<std::uint8_t>(kPrefillMaxTokens * kShared / 2U);
+        moe.Add<std::uint8_t>(kPrefillMaxTokens * kShared / 2U);
     const auto p_shared_product_scales =
-        prefill.Add<std::uint8_t>(kPrefillMaxTokens * kShared / 16U);
+        moe.Add<std::uint8_t>(kPrefillMaxTokens * kShared / 16U);
     const auto p_shared_output =
-        prefill.Add<float>(kPrefillMaxTokens * kWidth);
+        moe.Add<float>(kPrefillMaxTokens * kWidth);
     const auto p_reduced_output =
-        prefill.Add<float>(kPrefillMaxTokens * kWidth);
-    const auto p_assignments = prefill.Add<Gemma4MoePrefillAssignment>(
+        moe.Add<float>(kPrefillMaxTokens * kWidth);
+    const auto p_assignments = moe.Add<Gemma4MoePrefillAssignment>(
         kPrefillMaxTokens * kTopK);
-    const auto p_histogram = prefill.Add<std::uint32_t>(kExperts);
-    const auto p_prefix = prefill.Add<std::uint32_t>(kExperts + 1U);
+    const auto p_histogram = moe.Add<std::uint32_t>(kExperts);
+    const auto p_prefix = moe.Add<std::uint32_t>(kExperts + 1U);
     const auto p_permutation =
-        prefill.Add<std::uint32_t>(kPrefillMaxTokens * kTopK);
+        moe.Add<std::uint32_t>(kPrefillMaxTokens * kTopK);
     const auto p_inverse =
-        prefill.Add<std::uint32_t>(kPrefillMaxTokens * kTopK);
+        moe.Add<std::uint32_t>(kPrefillMaxTokens * kTopK);
+    prefill.bytes = std::max(attention.bytes, moe.bytes);
     constexpr std::uint64_t kM09MoePrefillCap = 192U * 1024U * 1024U;
     if (prefill.bytes == std::numeric_limits<std::uint64_t>::max() ||
         prefill.bytes > kM09MoePrefillCap) {
@@ -999,11 +1004,8 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
         reinterpret_cast<std::uint8_t*>(pptr(p_output_fp8)),
         reinterpret_cast<float*>(pptr(p_output_scale)),
         reinterpret_cast<float*>(pptr(p_output_projection)),
-        reinterpret_cast<float*>(pptr(p_post_attention)),
-        // Attention and routed-expert execution are ordered on impl->stream.
-        // Reuse the not-yet-live expert-down region as bounded CUTLASS scratch
-        // without increasing the fixed M17 arena or retaining another layout.
-        static_cast<void*>(pptr(p_expert_down)),
+        nullptr,
+        static_cast<void*>(pptr(p_cutlass_workspace)),
         kGemma4Moe26BAttentionCutlassWorkspaceBytes};
     impl->prefill_moe_workspace = {
         reinterpret_cast<float*>(pptr(p_router_logits)),
@@ -1011,10 +1013,10 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
         reinterpret_cast<float*>(pptr(p_token_hidden)),
         reinterpret_cast<std::uint8_t*>(pptr(p_token_packed)),
         reinterpret_cast<std::uint8_t*>(pptr(p_token_scales)),
-        reinterpret_cast<float*>(pptr(p_expert_product)),
+        nullptr,
         reinterpret_cast<std::uint8_t*>(pptr(p_expert_product_packed)),
         reinterpret_cast<std::uint8_t*>(pptr(p_expert_product_scales)),
-        reinterpret_cast<float*>(pptr(p_expert_down)),
+        nullptr,
         reinterpret_cast<float*>(pptr(p_shared_product)),
         reinterpret_cast<std::uint8_t*>(pptr(p_shared_product_packed)),
         reinterpret_cast<std::uint8_t*>(pptr(p_shared_product_scales)),
@@ -1026,6 +1028,10 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
         reinterpret_cast<std::uint32_t*>(pptr(p_permutation)),
         reinterpret_cast<std::uint32_t*>(pptr(p_inverse)),
         impl->routing_finite};
+    impl->prefill_moe_workspace.expert_product_bf16 =
+        reinterpret_cast<std::uint16_t*>(pptr(p_expert_product));
+    impl->prefill_moe_workspace.expert_down_bf16 =
+        reinterpret_cast<std::uint16_t*>(pptr(p_expert_down));
   }
 
   Gemma4Moe26BReferenceEngine engine(std::move(impl));

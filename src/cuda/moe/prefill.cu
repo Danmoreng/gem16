@@ -532,11 +532,18 @@ Status LaunchGemma4MoeSm120PrefillLayer(
           w.shared_up.activation_global_divisor) {
     return Invalid("M15 grouped MoE weight contract is invalid");
   }
+  const bool float_expert_boundaries =
+      x.expert_product != nullptr && x.expert_down != nullptr &&
+      x.expert_product_bf16 == nullptr && x.expert_down_bf16 == nullptr;
+  const bool physical_expert_boundaries =
+      x.expert_product == nullptr && x.expert_down == nullptr &&
+      x.expert_product_bf16 != nullptr && x.expert_down_bf16 != nullptr;
   if (x.router_logits == nullptr || x.router_probabilities == nullptr ||
       x.token_hidden == nullptr || x.token_packed == nullptr ||
-      x.token_scales == nullptr || x.expert_product == nullptr ||
+      x.token_scales == nullptr ||
+      (!float_expert_boundaries && !physical_expert_boundaries) ||
       x.expert_product_packed == nullptr ||
-      x.expert_product_scales == nullptr || x.expert_down == nullptr ||
+      x.expert_product_scales == nullptr ||
       x.shared_product == nullptr || x.shared_product_packed == nullptr ||
       x.shared_product_scales == nullptr || x.shared_output == nullptr ||
       x.reduced_output == nullptr || x.assignments == nullptr ||
@@ -647,37 +654,68 @@ Status LaunchGemma4MoeSm120PrefillLayer(
       hidden, w.pre_expert_norm_bf16, x.token_packed, x.token_scales, tokens,
       c.width, c.epsilon, w.expert_gate_up.activation_global_divisor, stream);
   if (!status.ok()) return status;
-  status = LaunchNvfp4Sm120GroupedExpertFusedGateUp(
-      x.token_packed, x.token_scales, w.expert_gate_up.packed_e2m1,
-      w.expert_gate_up.scales_e4m3fn, x.assignments, x.permutation,
-      x.prefix, expert_tile_schedule, x.histogram,
-      x.expert_product,
-      assignments, c.expert_intermediate, c.width, c.experts,
-      w.expert_gate_up.activation_global_divisor,
-      w.expert_gate_up.weight_global_divisor, stream);
+  status = physical_expert_boundaries
+               ? LaunchNvfp4Sm120GroupedExpertFusedGateUpBf16(
+                     x.token_packed, x.token_scales,
+                     w.expert_gate_up.packed_e2m1,
+                     w.expert_gate_up.scales_e4m3fn, x.assignments,
+                     x.permutation, x.prefix, expert_tile_schedule,
+                     x.histogram, x.expert_product_bf16, assignments,
+                     c.expert_intermediate, c.width, c.experts,
+                     w.expert_gate_up.activation_global_divisor,
+                     w.expert_gate_up.weight_global_divisor, stream)
+               : LaunchNvfp4Sm120GroupedExpertFusedGateUp(
+                     x.token_packed, x.token_scales,
+                     w.expert_gate_up.packed_e2m1,
+                     w.expert_gate_up.scales_e4m3fn, x.assignments,
+                     x.permutation, x.prefix, expert_tile_schedule,
+                     x.histogram, x.expert_product, assignments,
+                     c.expert_intermediate, c.width, c.experts,
+                     w.expert_gate_up.activation_global_divisor,
+                     w.expert_gate_up.weight_global_divisor, stream);
   if (!status.ok()) return status;
-  status = LaunchNvfp4ReferenceActivationQuantization(
-      x.expert_product, x.expert_product_packed, x.expert_product_scales,
-      assignments * c.expert_intermediate,
-      w.expert_down.activation_global_divisor, stream);
+  status = physical_expert_boundaries
+               ? LaunchNvfp4ReferenceActivationQuantizationBf16(
+                     x.expert_product_bf16, x.expert_product_packed,
+                     x.expert_product_scales,
+                     assignments * c.expert_intermediate,
+                     w.expert_down.activation_global_divisor, stream)
+               : LaunchNvfp4ReferenceActivationQuantization(
+                     x.expert_product, x.expert_product_packed,
+                     x.expert_product_scales,
+                     assignments * c.expert_intermediate,
+                     w.expert_down.activation_global_divisor, stream);
   if (!status.ok()) return status;
-  status = LaunchNvfp4Sm120GroupedExpertDown(
-      x.expert_product_packed, x.expert_product_scales,
-      w.expert_down.packed_e2m1, w.expert_down.scales_e4m3fn, x.assignments,
-      x.permutation, x.prefix, expert_tile_schedule, x.histogram,
-      x.expert_down, assignments, c.width, c.expert_intermediate, c.experts,
-      w.expert_down.activation_global_divisor,
-      w.expert_down.weight_global_divisor, stream);
+  status = physical_expert_boundaries
+               ? LaunchNvfp4Sm120GroupedExpertDownBf16(
+                     x.expert_product_packed, x.expert_product_scales,
+                     w.expert_down.packed_e2m1,
+                     w.expert_down.scales_e4m3fn, x.assignments,
+                     x.permutation, x.prefix, expert_tile_schedule,
+                     x.histogram, x.expert_down_bf16, assignments, c.width,
+                     c.expert_intermediate, c.experts,
+                     w.expert_down.activation_global_divisor,
+                     w.expert_down.weight_global_divisor, stream)
+               : LaunchNvfp4Sm120GroupedExpertDown(
+                     x.expert_product_packed, x.expert_product_scales,
+                     w.expert_down.packed_e2m1,
+                     w.expert_down.scales_e4m3fn, x.assignments,
+                     x.permutation, x.prefix, expert_tile_schedule,
+                     x.histogram, x.expert_down, assignments, c.width,
+                     c.expert_intermediate, c.experts,
+                     w.expert_down.activation_global_divisor,
+                     w.expert_down.weight_global_divisor, stream);
   if (!status.ok()) return status;
   RestoreHistogramZeroKernel<<<1, 1, 0, stream>>>(x.histogram, x.prefix);
   status = CheckLaunch("restore M15 expert-zero histogram");
   if (!status.ok()) return status;
-  ReduceAssignmentsKernel<float><<<
-      dim3(static_cast<unsigned>(Blocks(c.width)),
-           static_cast<unsigned>(tokens)),
-      kThreads, 0, stream>>>(x.expert_down, x.assignments, x.token_hidden,
-                             c.width, c.top_k, tokens);
-  status = CheckLaunch("launch M15 deterministic inverse reduction");
+  status = physical_expert_boundaries
+               ? LaunchGemma4MoeReduceAssignmentsBf16(
+                     x.expert_down_bf16, x.assignments, x.token_hidden,
+                     c.width, c.top_k, tokens, stream)
+               : LaunchGemma4MoeReduceAssignments(
+                     x.expert_down, x.assignments, x.token_hidden, c.width,
+                     c.top_k, tokens, stream);
   if (!status.ok()) return status;
   // Assignments and expert_down no longer consume the router transform, so
   // shared_output is reused once more for post-expert normalization.
