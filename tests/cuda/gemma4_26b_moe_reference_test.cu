@@ -637,6 +637,53 @@ void TestFixedAddressMoeReference() {
                "memory after M15 repeats"));
   CHECK(prefill_free_before == prefill_free_after);
 
+  // The native warp-per-expert router deliberately changes the FP32
+  // accumulation order. Compare its BF16-rounded logits against the original
+  // serial expert/index order so vector-load or shuffle drift cannot hide
+  // behind the zero-router determinism fixture above.
+  std::vector<std::uint16_t> differential_router(kExperts * kWidth);
+  for (std::uint32_t expert = 0; expert < kExperts; ++expert) {
+    for (std::uint64_t index = 0; index < kWidth; ++index) {
+      const int centered =
+          static_cast<int>((index * 17U + expert * 13U) % 31U) - 15;
+      differential_router[static_cast<std::uint64_t>(expert) * kWidth +
+                          index] = Bf16(static_cast<float>(centered) / 256.0F);
+    }
+  }
+  CHECK(CudaOk(cudaMemcpy(router_projection.get(), differential_router.data(),
+                          router_projection.bytes(), cudaMemcpyHostToDevice),
+               "copy differential router projection"));
+  CHECK(CudaOk(cudaMemset(routing_finite.get(), 1, sizeof(int)),
+               "initialize differential router finite flag"));
+  const auto differential_status = gem16::internal::LaunchGemma4MoeSm120Layer(
+      hidden.get(), output.get(), config, weights, workspace, nullptr);
+  CHECK(differential_status.ok());
+  CHECK(CudaOk(cudaDeviceSynchronize(), "synchronize differential router"));
+  std::vector<float> transformed(kWidth), warp_logits(kExperts);
+  CHECK(CudaOk(cudaMemcpy(transformed.data(), router_transformed.get(),
+                          router_transformed.bytes(), cudaMemcpyDeviceToHost),
+               "copy differential router input"));
+  CHECK(CudaOk(cudaMemcpy(warp_logits.data(), router_logits.get(),
+                          router_logits.bytes(), cudaMemcpyDeviceToHost),
+               "copy differential router logits"));
+  float maximum_router_error = 0.0F;
+  for (std::uint32_t expert = 0; expert < kExperts; ++expert) {
+    float serial = 0.0F;
+    for (std::uint64_t index = 0; index < kWidth; ++index) {
+      const float router_weight = static_cast<float>(__ushort_as_bfloat16(
+          differential_router[static_cast<std::uint64_t>(expert) * kWidth +
+                              index]));
+      serial = std::fma(router_weight, transformed[index], serial);
+    }
+    const float expected =
+        static_cast<float>(__ushort_as_bfloat16(Bf16(serial)));
+    maximum_router_error =
+        std::max(maximum_router_error, std::abs(warp_logits[expert] - expected));
+  }
+  std::cout << "warp-router vs serial BF16 max-abs=" << maximum_router_error
+            << '\n';
+  CHECK(maximum_router_error <= 1.0F / 512.0F);
+
   // A non-finite router result must be reported without using an invalid
   // expert ID or leaving stale assignments/workspace data behind.
   std::vector<std::uint16_t> nonfinite_router(kExperts * kWidth, Bf16(0.0F));

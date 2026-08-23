@@ -499,6 +499,7 @@ Status LaunchGemma4Moe26BAttentionReferenceControlledLayer(
       cache.capacity == 0U || cache.capacity > t.cache_capacity ||
       (sliding && cache.capacity != t.cache_capacity) ||
       x.score_elements < t.query_heads * cache.capacity ||
+      x.score_elements < DecodeAttentionWorkspaceElements(cache.capacity) ||
       !ValidMatrix(w.query, q_elements, kHidden) ||
       !ValidMatrix(w.key, kv_elements, kHidden) ||
       !ValidMatrix(w.output, kHidden, q_elements) ||
@@ -555,7 +556,7 @@ Status LaunchGemma4Moe26BAttentionReferenceControlledLayer(
       x.staged_key_fp8, x.staged_value_fp8, cache.key, cache.value, control,
       1U, kv_elements, cache.capacity, stream);
   if (!status.ok()) return status;
-  status = LaunchLocalAttentionDecodeFp8Controlled(
+  status = LaunchOnlineAttentionDecodeFp8Sm120(
       x.query_normalized, cache.key, cache.value, w.key_cache_scale_bf16,
       w.value_cache_scale_bf16, x.scores, x.attention, control,
       t.query_heads, t.kv_heads, t.head_dimension, cache.capacity, sliding,

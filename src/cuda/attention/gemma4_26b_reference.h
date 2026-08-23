@@ -104,8 +104,10 @@ BindGemma4Moe26BAttentionReferenceWeights(
     const Gemma4Moe26BAttentionReferenceWorkspace& workspace,
     float epsilon, cudaStream_t stream);
 
-// Graph-capturable T=1 path. Position is read from fixed device control;
-// arithmetic and FP8 cache semantics remain the M12 reference contract.
+// Graph-capturable native T=1 path. Position is read from fixed device
+// control; arithmetic and FP8 cache semantics remain the M12 contract.
+// `workspace.scores` is the split-online scratch arena and requires at least
+// DecodeAttentionWorkspaceElements(cache.capacity) FP32 elements.
 [[nodiscard]] Status LaunchGemma4Moe26BAttentionReferenceControlledLayer(
     const float* hidden, float* output,
     const Gemma4Moe26BAttentionLayerTraits& traits,

@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "cuda/attention/gemma4_26b_reference.h"
+#include "cuda/attention/sm120.h"
 #include "cuda/engine/gemma4_26b_artifact.h"
 #include "cuda/layer/reference.h"
 #include "cuda/moe/prefill.h"
@@ -645,7 +646,12 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
   const auto sine = layout.Add<float>(256U);
   const auto staged_k = layout.Add<std::uint8_t>(8U * 512U);
   const auto staged_v = layout.Add<std::uint8_t>(8U * 512U);
-  const auto scores = layout.Add<float>(16U * context_tokens);
+  const std::uint64_t decode_attention_workspace_elements = std::max(
+      std::max(16U * context_tokens,
+               DecodeAttentionWorkspaceElements(context_tokens)),
+      DecodeAttentionWorkspaceElements(impl->sliding_capacity));
+  const auto scores =
+      layout.Add<float>(decode_attention_workspace_elements);
   const auto attention = layout.Add<float>(16U * 512U);
   const auto output_fp8 = layout.Add<std::uint8_t>(16U * 512U);
   const auto output_scale = layout.Add<float>(1U);
@@ -738,7 +744,8 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
       reinterpret_cast<float*>(ptr(cosine)), reinterpret_cast<float*>(ptr(sine)),
       reinterpret_cast<std::uint8_t*>(ptr(staged_k)),
       reinterpret_cast<std::uint8_t*>(ptr(staged_v)),
-      reinterpret_cast<float*>(ptr(scores)), 16U * context_tokens,
+      reinterpret_cast<float*>(ptr(scores)),
+      decode_attention_workspace_elements,
       reinterpret_cast<float*>(ptr(attention)),
       reinterpret_cast<std::uint8_t*>(ptr(output_fp8)),
       reinterpret_cast<float*>(ptr(output_scale)),

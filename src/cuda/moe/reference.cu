@@ -19,6 +19,8 @@ namespace gem16::internal {
 namespace {
 
 constexpr unsigned kThreads = 128;
+constexpr unsigned kWarpSize = 32U;
+constexpr unsigned kRouterWarpsPerBlock = 4U;
 constexpr std::uint64_t kNvfp4Block = 16;
 constexpr std::uint64_t kSm120KBlock = 64;
 constexpr std::uint64_t kRowsPerTile = 8;
@@ -168,18 +170,40 @@ __global__ void RouterTransformKernel(const float* hidden,
   }
 }
 
-__global__ void RouterProjectionKernel(const float* input,
-                                       const std::uint16_t* weights,
-                                       float* logits, std::uint32_t experts,
-                                       std::uint64_t width) {
-  const std::uint32_t expert = blockIdx.x * blockDim.x + threadIdx.x;
+__global__ void RouterProjectionWarpKernel(const float* input,
+                                           const std::uint16_t* weights,
+                                           float* logits,
+                                           std::uint32_t experts,
+                                           std::uint64_t width) {
+  const unsigned warp = threadIdx.x / kWarpSize;
+  const unsigned lane = threadIdx.x & (kWarpSize - 1U);
+  const std::uint32_t expert =
+      blockIdx.x * kRouterWarpsPerBlock + warp;
   if (expert >= experts) return;
   float accumulator = 0.0F;
   const std::uint64_t base = static_cast<std::uint64_t>(expert) * width;
-  for (std::uint64_t index = 0; index < width; ++index) {
-    accumulator = fmaf(Bf16(weights[base + index]), input[index], accumulator);
+  // Width is K64-aligned. Each lane consumes adjacent BF16/FP32 pairs in a
+  // fixed stride, then the repository-standard warp butterfly combines the
+  // 32 partials deterministically. The sole BF16 boundary remains the final
+  // logit write.
+  for (std::uint64_t index = static_cast<std::uint64_t>(lane) * 2U;
+       index < width; index += kWarpSize * 2U) {
+    const std::uint32_t weight_pair =
+        *reinterpret_cast<const std::uint32_t*>(weights + base + index);
+    const float2 input_pair =
+        *reinterpret_cast<const float2*>(input + index);
+    accumulator =
+        fmaf(Bf16(static_cast<std::uint16_t>(weight_pair)), input_pair.x,
+             accumulator);
+    accumulator = fmaf(
+        Bf16(static_cast<std::uint16_t>(weight_pair >> 16U)), input_pair.y,
+        accumulator);
   }
-  logits[expert] = RoundBf16(accumulator);
+#pragma unroll
+  for (unsigned offset = kWarpSize / 2U; offset != 0U; offset >>= 1U) {
+    accumulator += __shfl_down_sync(0xffffffffU, accumulator, offset);
+  }
+  if (lane == 0U) logits[expert] = RoundBf16(accumulator);
 }
 
 __global__ void RouterTopKKernel(
@@ -541,8 +565,9 @@ Status LaunchGemma4MoeLayerImpl(
                                     x.router_transformed, c.width);
   status = CheckLaunch("launch M11 router transform");
   if (!status.ok()) return status;
-  RouterProjectionKernel<<<static_cast<unsigned>(Blocks(c.experts)), kThreads,
-                            0, stream>>>(
+  const unsigned router_blocks =
+      (c.experts + kRouterWarpsPerBlock - 1U) / kRouterWarpsPerBlock;
+  RouterProjectionWarpKernel<<<router_blocks, kThreads, 0, stream>>>(
       x.router_transformed, w.router_projection_bf16, x.router_logits,
       c.experts, c.width);
   status = CheckLaunch("launch M11 router projection");
