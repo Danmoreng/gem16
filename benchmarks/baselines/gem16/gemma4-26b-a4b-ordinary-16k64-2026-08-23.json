@@ -1,0 +1,128 @@
+{
+  "schema_version": 1,
+  "status": "development_characterization",
+  "recorded_at": "2026-08-23",
+  "implementation": {
+    "commit": "1e605766b5e2663ddf65a3f2790e610342daabd0",
+    "binary": "build/blackwell-release/bin/gem16-26b-benchmark",
+    "binary_sha256": "e3b1f9b48378d035fee5d75793b3aa5afa626a2bd13a596d794c98a41f2ec962",
+    "profile": "native_sm120_integrated_prefill_decode_head"
+  },
+  "hardware": {
+    "device_name": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "compute_capability": "12.0",
+    "memory_mib": 16303,
+    "driver": "610.43.03",
+    "cuda_compiler": "13.3"
+  },
+  "model": {
+    "variant": "gemma4-26b-a4b",
+    "artifact_content_sha256": "471805f7dad8abb84300be78b2822a63dcb1d35bff5aa98426a162cc8532ee17",
+    "artifact_lock_sha256": "d7d2d30743e7c42aa55537a83f563047c9cbd2d83e0d583a2d2c8bcacbfa51a4",
+    "source_lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230"
+  },
+  "workload": {
+    "id": "wikipedia-real-16k64-greedy",
+    "prompt_tokens": 16384,
+    "output_forwards": 64,
+    "timed_decode_intervals": 63,
+    "context_tokens": 16448,
+    "sampling": "greedy",
+    "mtp": "disabled",
+    "prompt_manifest_sha256": "9a5859b979d91fccf71bcbb61aade6372cf2cc3c708e6c47b8b6cfd99f7abd2d",
+    "job_sha256": "7fa4d5d11f40cccd8fbb30d36d43cd427316b6566d74b4e0c0a2b672f4f16156"
+  },
+  "configuration": {
+    "mode": "ordinary_decode",
+    "kv_cache": "checkpoint_fp8",
+    "cpu_weight_offload": false,
+    "prompt_cache": false,
+    "cuda_graph": true,
+    "fallback_count": 0,
+    "recurring_allocation_count": 0
+  },
+  "results": {
+    "decode_tokens_per_second_samples": [
+      120.398224351,
+      120.395791648,
+      120.4255557
+    ],
+    "decode_tokens_per_second_median": 120.398224351,
+    "decode_tokens_per_second_mean": 120.406523899667,
+    "decode_tokens_per_second_sample_stddev": 0.016526844191,
+    "decode_milliseconds_samples": [
+      523.263531,
+      523.274104,
+      523.144773
+    ],
+    "prompt_milliseconds_samples": [
+      5165.315843,
+      5172.610672,
+      5169.337453
+    ],
+    "all_logits_finite": true,
+    "deterministic_outputs": true,
+    "output_token_sha256": "d8f0aa61ba66750bda8582861d3f42ef7022917e75b6abd3b6fac4e66ef75e89",
+    "sampled_device_used_bytes": 15418064896,
+    "sampled_margin_bytes": 1233977344
+  },
+  "comparison": {
+    "baseline": "benchmarks/baselines/llama_cpp/gemma4-26b-a4b-qat-q4_0-current-ordinary.json",
+    "baseline_sha256": "e2723c0d73beb88b4a772fa7f49e03e3ebced9a36b7ef1db9a15f8b91c21423b",
+    "llama_cpp_commit": "b0539c43ed13b16bf0d8a0840646faea65469702",
+    "llama_cpp_build": 10593,
+    "llama_cpp_decode_tokens_per_second_median": 119.49448144136899,
+    "gem16_over_llama_cpp_ratio": 1.007563051437,
+    "gem16_lead_percent": 0.756305,
+    "previous_gem16_decode_tokens_per_second": 94.6679622654,
+    "improvement_over_previous_gem16_percent": 27.179483
+  },
+  "verification": {
+    "cuda_ctest": "7/7 passed; engine smoke skipped without explicit model environment",
+    "host_ctest": "1/1 passed",
+    "real_engine_smoke": "passed earlier against the same production implementation boundaries; two fresh processes and graph relaunch",
+    "compute_sanitizer": [
+      "gem16-cuda-attention-reference-tests: 0 errors",
+      "gem16-cuda-moe-reference-tests: 0 errors"
+    ],
+    "numerics": {
+      "global_scalar_relative_l2": 0.00000258584,
+      "global_vectorized_16k_relative_l2": 0.0000307378,
+      "local_ring_wrap_relative_l2": 0.00000562708,
+      "all_cosines": 1.0,
+      "fused_moe_intermediates": "bitwise equal to unfused reference"
+    },
+    "independent_review": {
+      "agent": "OX Alpha",
+      "run_id": "20260823T132548Z-14620",
+      "blocking_findings": 0
+    }
+  },
+  "evidence": {
+    "command_template": "build/blackwell-release/bin/gem16-26b-benchmark --model artifacts/raw/m08/qat-hybrid-clean-1 --benchmark-job artifacts/raw/decode-comparison/job-wikipedia-16k64.json --output <unique-output>.json",
+    "raw_results": [
+      {
+        "path": "artifacts/raw/decode-comparison/gem16-16k64-cached-merge-weights.json",
+        "sha256": "8e24b09c6cbff103ee6c595e32069bc005f96092d8f1ed81f54155634b6b4fba"
+      },
+      {
+        "path": "artifacts/raw/decode-comparison/gem16-16k64-final-retained-02.json",
+        "sha256": "d7169d73e366ad0396d24f070807b34b1a729f00e9706ca9b85e0aaec16f26a6"
+      },
+      {
+        "path": "artifacts/raw/decode-comparison/gem16-16k64-final-retained-03.json",
+        "sha256": "8e7af438baad690a3edc9ec5a8f255d7bf374ff15017a58977bdfe68f2cd2cf0"
+      }
+    ],
+    "previous_gem16_raw_result": {
+      "path": "artifacts/raw/decode-comparison/gem16-16k64-fused-moe-boundaries.json",
+      "sha256": "9b88d56ed8ba990b6d634a762bd0f476c5001612191322ba7b018110fbc2471d"
+    }
+  },
+  "limitations": [
+    "This establishes the requested ordinary-decode development target with three retained gem16 measurements; it is not the formal M20 three-warm-up/ten-retained promotion protocol.",
+    "Gem16 directly executes the compiled mixed FP8/NVFP4 artifact with checkpoint FP8 KV, while llama.cpp executes Google's Q4_0 GGUF with Q8_0 KV; output hashes are therefore not expected to match.",
+    "No continuous power, clock, thermal, or process-specific peak-VRAM telemetry was captured for this bounded comparison.",
+    "Changing split sizes and enabling the 16K vector tier changes floating-point reduction order within the recorded differential tolerances."
+  ]
+}
