@@ -819,6 +819,7 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
         llm = LLM(
             model=str(model),
             tokenizer=str(model),
+            trust_remote_code=False,
             max_model_len=max_model_len,
             gpu_memory_utilization=args.gpu_memory_utilization,
             cpu_offload_gb=0,
@@ -829,7 +830,9 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
             max_num_seqs=1,
             disable_log_stats=False,
             seed=generation["seed"],
+            language_model_only=True,
             limit_mm_per_prompt={"image": 0, "audio": 0, "video": 0},
+            mm_processor_cache_gb=0,
             spec_model=(
                 str(assistant_model) if assistant_model is not None else None
             ),
@@ -877,6 +880,10 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
             "cuda_graphs_requested": not args.enforce_eager,
             "prefix_caching": False,
             "chunked_prefill": True,
+            "trust_remote_code": False,
+            "language_model_only": True,
+            "limit_mm_per_prompt": {"image": 0, "audio": 0, "video": 0},
+            "mm_processor_cache_gb": 0,
             "mtp_draft_tokens": args.mtp_draft_tokens,
             "mtp_backend": (
                 "Gemma4MTPModel" if args.mtp_draft_tokens != 0 else "disabled"
