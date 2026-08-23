@@ -61,6 +61,13 @@ The M17 artifact/profile freeze unblocks M19 held-out quality, M20 controlled pe
 M22 CLI/server integration. M18 remains conditional and was not triggered; its number does not make it a sequential
 prerequisite.
 
+On 2026-08-23 the owner removed the 49 GB QAT-BF16 runtime comparison from M19 because that reference cannot be
+executed safely on the target laptop. M19 instead uses Google's immutable official QAT Q4_0 GGUF at revision
+`d1c082be9cf3c8a514acf63b8761f4b41935842e` through pinned llama.cpp `0b14b87d7c20cb753b94b96854dd7b45306fc696`
+as its executable paired quality reference. This supersedes the former requirement that M19 task, prose and
+teacher-forced evidence run the 49 GB QAT-BF16 checkpoint. Historical BF16 evidence from M10/M13 remains valid, but
+no new 49 GB model execution is part of M19.
+
 The owner set the base-model 64K residency and later execution reserve to 400 MiB on 2026-08-14 so that 64K remains
 a required supported target. This supersedes the prior 500 MiB base-model rule for 64K and larger contexts. The 32K
 gate remains 700 MiB, and MTP keeps its separate 500 MiB 64K gate until M25 measures assistant overhead.

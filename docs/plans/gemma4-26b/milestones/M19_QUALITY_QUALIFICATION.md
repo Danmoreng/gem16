@@ -14,7 +14,8 @@ Decide whether the frozen production artifact is acceptable on the untouched hel
 - teacher-forced NLL/KL/rank metrics;
 - task and prose evaluations;
 - router/residual diagnostics on failures;
-- comparison to QAT BF16 and practical external references;
+- paired comparison to Google's pinned official QAT Q4_0 GGUF; the 49 GB
+  QAT-BF16 checkpoint is not executed on the target laptop;
 - final head/profile acceptance.
 
 M18 is triggered only if the result fails or a causal claim is required.

@@ -53,7 +53,8 @@ struct OpenAiResponsesRequest {
     std::optional<GenerationFinishReason> finish_reason = std::nullopt,
     const ChatGenerationResponse* usage = nullptr);
 [[nodiscard]] std::string OpenAiErrorJson(std::string_view message,
-                                          std::string_view type);
+                                          std::string_view type,
+                                          std::string_view code = {});
 [[nodiscard]] std::string ResponseJson(
     const OpenAiResponseIdentity& identity,
     const OpenAiResponsesRequest& request,

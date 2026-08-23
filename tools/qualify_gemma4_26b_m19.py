@@ -2,7 +2,7 @@
 """Qualify the frozen Gemma 4 26B M17 profile on M19 held-out evidence.
 
 This command is deliberately an evidence verifier and summarizer, not a model
-runner.  The expensive candidate/QAT runs write raw reports below
+runner.  The candidate and official Google QAT Q4_0 runs write raw reports below
 ``artifacts/raw``; this tool verifies their identities, recomputes aggregate
 gates, and emits one compact auditable M19 result.  Missing evidence is a
 blocker, never an implicit pass.
@@ -11,7 +11,6 @@ blocker, never an implicit pass.
 from __future__ import annotations
 
 import argparse
-from collections import defaultdict
 import hashlib
 import json
 import math
@@ -29,6 +28,7 @@ DEFAULT_CORPUS = ROOT / "benchmarks/corpora/gemma4_26b/test.json"
 DEFAULT_CORPUS_LOCK = ROOT / "benchmarks/corpora/gemma4_26b/splits.lock.json"
 DEFAULT_M17_ACCEPTANCE = ROOT / "artifacts/m17/acceptance.json"
 DEFAULT_M17_CLOSURE = ROOT / "artifacts/m17/closure-hardening.json"
+DEFAULT_Q4_LOCK = ROOT / "models/gemma4-26b-qat-q4_0.lock.json"
 MAX_JSON_BYTES = 512 * 1024 * 1024
 
 
@@ -110,6 +110,7 @@ def validate_static_identity(
     corpus_path: Path,
     corpus_lock_path: Path,
     artifact_lock_path: Path,
+    q4_lock_path: Path,
     m17_acceptance_path: Path,
     m17_closure_path: Path,
 ) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
@@ -118,7 +119,7 @@ def validate_static_identity(
     require_equal(thresholds.get("milestone"), "M19", "threshold milestone")
     require_equal(
         thresholds.get("status"),
-        "frozen_before_heldout_execution",
+        "frozen_before_q4_heldout_execution",
         "threshold freeze status",
     )
     identity = thresholds.get("identity")
@@ -136,6 +137,11 @@ def validate_static_identity(
         "artifact lock hash",
     )
     require_equal(
+        sha256(q4_lock_path),
+        identity.get("reference_q4_lock_sha256"),
+        "official Q4 lock hash",
+    )
+    require_equal(
         sha256(m17_acceptance_path),
         identity.get("m17_acceptance_sha256"),
         "M17 acceptance hash",
@@ -149,6 +155,7 @@ def validate_static_identity(
     corpus = load_json(corpus_path)
     split_lock = load_json(corpus_lock_path)
     artifact_lock = load_json(artifact_lock_path)
+    q4_lock = load_json(q4_lock_path)
     acceptance = load_json(m17_acceptance_path)
     closure = load_json(m17_closure_path)
     require_equal(corpus.get("schema_version"), 1, "corpus schema")
@@ -198,6 +205,21 @@ def validate_static_identity(
         identity.get("source_lock_sha256"),
         "artifact source lock",
     )
+    require_equal(
+        q4_lock.get("revision"),
+        "d1c082be9cf3c8a514acf63b8761f4b41935842e",
+        "official Q4 revision",
+    )
+    q4_files = {
+        row.get("path"): row
+        for row in q4_lock.get("files", [])
+        if isinstance(row, dict)
+    }
+    require_equal(
+        (q4_files.get("gemma-4-26B_q4_0-it.gguf") or {}).get("sha256"),
+        identity.get("reference_q4_gguf_sha256"),
+        "official Q4 GGUF hash",
+    )
     require_equal(acceptance.get("profile"), identity.get("runtime_profile"), "M17 profile")
     require_equal(closure.get("profile"), identity.get("runtime_profile"), "closure profile")
 
@@ -222,6 +244,7 @@ def validate_static_identity(
         )
     return thresholds, corpus, {
         "artifact_lock": artifact_lock,
+        "q4_lock": q4_lock,
         "m17_acceptance": acceptance,
         "m17_closure": closure,
     }
@@ -246,7 +269,25 @@ def validate_numerical(
     )
     require_equal(report.get("runtime_profile"), identity["runtime_profile"], "numerical profile")
     require_equal(report.get("corpus_sha256"), heldout["corpus_sha256"], "numerical corpus hash")
-    require_equal(report.get("source_lock_sha256"), identity["source_lock_sha256"], "QAT source lock")
+    reference = report.get("reference")
+    if not isinstance(reference, dict):
+        raise QualificationError("numerical report has no official Q4 reference identity")
+    require_equal(reference.get("kind"), "official_google_qat_q4_0", "numerical reference kind")
+    require_equal(
+        reference.get("q4_lock_sha256"),
+        identity["reference_q4_lock_sha256"],
+        "numerical Q4 lock",
+    )
+    require_equal(
+        reference.get("gguf_sha256"),
+        identity["reference_q4_gguf_sha256"],
+        "numerical Q4 GGUF",
+    )
+    require_equal(
+        reference.get("llama_cpp_revision"),
+        identity["reference_llama_cpp_revision"],
+        "numerical llama.cpp revision",
+    )
 
     expected = {record["id"]: record for record in corpus["records"]}
     rows = report.get("records")
@@ -258,19 +299,12 @@ def validate_numerical(
     require_equal(sorted(actual), sorted(expected), "numerical record identities")
 
     total_tokens = 0
-    weighted_nll_delta = 0.0
-    weighted_kl = 0.0
-    category_tokens: dict[str, int] = defaultdict(int)
-    category_nll: dict[str, float] = defaultdict(float)
+    weighted_logprob_delta = 0.0
+    weighted_compared_fraction = 0.0
     all_finite = True
     min_top5 = 1.0
     min_top1 = 1.0
-    max_record_kl = 0.0
-    max_layer_l2 = 0.0
-    min_layer_cosine = 1.0
-    min_router_overlap = 8
-    max_attention_l2 = 0.0
-    min_attention_cosine = 1.0
+    max_record_logprob_delta = 0.0
     per_record: list[dict[str, Any]] = []
     for identifier, source in expected.items():
         row = actual[identifier]
@@ -283,6 +317,18 @@ def validate_numerical(
         target_hash = row.get("target_token_ids_sha256_u32le")
         if not isinstance(target_hash, str) or len(target_hash) != 64:
             raise QualificationError(f"{identifier} has no frozen target-token hash")
+        require_equal(
+            row.get("target_token_source"),
+            "official_q4_greedy_seed_0",
+            f"{identifier} target-token source",
+        )
+        for evidence_hash in (
+            "q4_reference_capture_sha256",
+            "candidate_capture_sha256",
+        ):
+            value = row.get(evidence_hash)
+            if not isinstance(value, str) or len(value) != 64:
+                raise QualificationError(f"{identifier} has no {evidence_hash}")
         finite = row.get("all_logits_finite") is True
         all_finite = all_finite and finite
         teacher = row.get("teacher_forced")
@@ -291,107 +337,69 @@ def validate_numerical(
         count = teacher.get("scored_token_count")
         if isinstance(count, bool) or not isinstance(count, int) or count <= 0:
             raise QualificationError(f"{identifier} has invalid scored_token_count")
-        candidate_nll = finite_number(teacher.get("candidate_mean_nll"), f"{identifier} candidate NLL")
-        reference_nll = finite_number(teacher.get("qat_bf16_mean_nll"), f"{identifier} reference NLL")
-        mean_kl = finite_number(teacher.get("qat_bf16_to_candidate_mean_kl"), f"{identifier} KL")
-        top5 = bounded_fraction(teacher.get("qat_reference_token_top5_fraction"), f"{identifier} top5")
+        top5 = bounded_fraction(
+            teacher.get("q4_reference_token_candidate_top5_fraction"),
+            f"{identifier} top5",
+        )
         top1 = bounded_fraction(teacher.get("top1_agreement_fraction"), f"{identifier} top1")
-        if min(candidate_nll, reference_nll, mean_kl) < 0.0:
-            raise QualificationError(f"{identifier} contains a negative NLL/KL")
-        delta = candidate_nll - reference_nll
+        compared_fraction = bounded_fraction(
+            teacher.get("selected_logprob_compared_fraction"),
+            f"{identifier} selected-logprob coverage",
+        )
+        mean_logprob_delta = finite_number(
+            teacher.get("mean_selected_logprob_absolute_delta"),
+            f"{identifier} mean selected-logprob delta",
+        )
+        max_logprob_delta = finite_number(
+            teacher.get("maximum_selected_logprob_absolute_delta"),
+            f"{identifier} maximum selected-logprob delta",
+        )
+        if min(mean_logprob_delta, max_logprob_delta) < 0.0:
+            raise QualificationError(f"{identifier} contains a negative logprob delta")
         total_tokens += count
-        weighted_nll_delta += delta * count
-        weighted_kl += mean_kl * count
+        weighted_logprob_delta += mean_logprob_delta * count
+        weighted_compared_fraction += compared_fraction * count
         category = str(source["category"])
-        category_tokens[category] += count
-        category_nll[category] += delta * count
         min_top5 = min(min_top5, top5)
         min_top1 = min(min_top1, top1)
-        max_record_kl = max(max_record_kl, mean_kl)
-
-        captures = row.get("captures")
-        if not isinstance(captures, list):
-            raise QualificationError(f"{identifier} has no capture list")
-        expected_cases = {
-            (position, layer)
-            for position in source.get("selected_positions", [])
-            for layer in source.get("selected_layers", [])
-        }
-        actual_cases: set[tuple[int, int]] = set()
-        for capture in captures:
-            if not isinstance(capture, dict):
-                raise QualificationError(f"{identifier} has malformed capture")
-            case = (capture.get("position"), capture.get("layer"))
-            if case in actual_cases:
-                raise QualificationError(f"{identifier} has duplicate capture {case}")
-            actual_cases.add(case)
-            layer_l2 = finite_number(capture.get("relative_l2"), f"{identifier} {case} layer l2")
-            layer_cosine = finite_number(capture.get("cosine"), f"{identifier} {case} layer cosine")
-            router_overlap = capture.get("router_top8_overlap")
-            if isinstance(router_overlap, bool) or not isinstance(router_overlap, int) or not 0 <= router_overlap <= 8:
-                raise QualificationError(f"{identifier} {case} has invalid router overlap")
-            attention_l2 = finite_number(capture.get("attention_relative_l2"), f"{identifier} {case} attention l2")
-            attention_cosine = finite_number(capture.get("attention_cosine"), f"{identifier} {case} attention cosine")
-            max_layer_l2 = max(max_layer_l2, layer_l2)
-            min_layer_cosine = min(min_layer_cosine, layer_cosine)
-            min_router_overlap = min(min_router_overlap, router_overlap)
-            max_attention_l2 = max(max_attention_l2, attention_l2)
-            min_attention_cosine = min(min_attention_cosine, attention_cosine)
-        require_equal(actual_cases, expected_cases, f"{identifier} capture cases")
+        max_record_logprob_delta = max(max_record_logprob_delta, max_logprob_delta)
         per_record.append(
             {
                 "id": identifier,
                 "category": category,
                 "scored_token_count": count,
-                "nll_delta": delta,
-                "mean_kl": mean_kl,
-                "reference_token_top5_fraction": top5,
+                "q4_reference_token_candidate_top5_fraction": top5,
                 "top1_agreement_fraction": top1,
+                "selected_logprob_compared_fraction": compared_fraction,
+                "mean_selected_logprob_absolute_delta": mean_logprob_delta,
+                "maximum_selected_logprob_absolute_delta": max_logprob_delta,
                 "all_logits_finite": finite,
             }
         )
 
-    weighted_nll_delta /= total_tokens
-    weighted_kl /= total_tokens
-    category_deltas = {
-        category: category_nll[category] / count
-        for category, count in category_tokens.items()
-    }
+    weighted_logprob_delta /= total_tokens
+    weighted_compared_fraction /= total_tokens
     gates = {
         "all_logits_finite": all_finite,
-        "weighted_mean_nll_delta": weighted_nll_delta
-        <= limits["teacher_forced_weighted_mean_nll_delta_max"],
-        "category_mean_nll_delta": max(category_deltas.values())
-        <= limits["teacher_forced_category_mean_nll_delta_max"],
-        "weighted_mean_kl": weighted_kl
-        <= limits["teacher_forced_weighted_mean_kl_max"],
-        "record_kl": max_record_kl <= limits["teacher_forced_record_kl_max"],
-        "reference_token_top5": min_top5
-        >= limits["teacher_forced_reference_token_top5_fraction_min"],
+        "q4_reference_token_candidate_top5": min_top5
+        >= limits["teacher_forced_q4_reference_token_candidate_top5_fraction_min"],
         "top1_agreement": min_top1
-        >= limits["teacher_forced_top1_agreement_fraction_min"],
-        "selected_layer_envelope": max_layer_l2
-        <= limits["selected_layer_relative_l2_max"]
-        and min_layer_cosine >= limits["selected_layer_cosine_min"],
-        "router_envelope": min_router_overlap >= limits["router_top8_overlap_min"],
-        "attention_envelope": max_attention_l2
-        <= limits["attention_relative_l2_max"]
-        and min_attention_cosine >= limits["attention_cosine_min"],
+        >= limits["teacher_forced_q4_top1_agreement_fraction_min"],
+        "selected_logprob_coverage": weighted_compared_fraction
+        >= limits["teacher_forced_selected_logprob_compared_fraction_min"],
+        "mean_selected_logprob_delta": weighted_logprob_delta
+        <= limits["teacher_forced_mean_selected_logprob_absolute_delta_max"],
+        "record_selected_logprob_delta": max_record_logprob_delta
+        <= limits["teacher_forced_record_selected_logprob_absolute_delta_max"],
     }
     summary = {
         "raw_report": {"bytes": path.stat().st_size, "sha256": sha256(path)},
         "scored_token_count": total_tokens,
-        "weighted_mean_nll_delta": weighted_nll_delta,
-        "weighted_mean_kl": weighted_kl,
-        "max_record_kl": max_record_kl,
-        "minimum_reference_token_top5_fraction": min_top5,
+        "weighted_mean_selected_logprob_absolute_delta": weighted_logprob_delta,
+        "weighted_selected_logprob_compared_fraction": weighted_compared_fraction,
+        "maximum_record_selected_logprob_absolute_delta": max_record_logprob_delta,
+        "minimum_q4_reference_token_candidate_top5_fraction": min_top5,
         "minimum_top1_agreement_fraction": min_top1,
-        "category_mean_nll_delta": category_deltas,
-        "max_selected_layer_relative_l2": max_layer_l2,
-        "min_selected_layer_cosine": min_layer_cosine,
-        "min_router_top8_overlap": min_router_overlap,
-        "max_attention_relative_l2": max_attention_l2,
-        "min_attention_cosine": min_attention_cosine,
         "records": per_record,
     }
     return gates, summary
@@ -446,7 +454,11 @@ def validate_tasks(
     require_equal(manifest.get("kind"), "gemma4_26b_m19_task_pairs", "task manifest kind")
     require_equal(manifest.get("status"), "complete", "task manifest status")
     require_equal(manifest.get("artifact_content_sha256"), identity["artifact_content_sha256"], "task artifact hash")
-    require_equal(manifest.get("qat_source_lock_sha256"), identity["source_lock_sha256"], "task QAT source lock")
+    require_equal(
+        manifest.get("reference_q4_lock_sha256"),
+        identity["reference_q4_lock_sha256"],
+        "task official-Q4 source lock",
+    )
     require_equal(manifest.get("sgl_eval_commit"), evaluator["sgl_eval_commit"], "task evaluator revision")
     pairs = manifest.get("pairs")
     if not isinstance(pairs, list):
@@ -474,7 +486,7 @@ def validate_tasks(
         candidate = load_json(candidate_path)
         require_equal(reference.get("benchmark"), benchmark, f"{benchmark} reference name")
         require_equal(candidate.get("benchmark"), benchmark, f"{benchmark} candidate name")
-        require_equal(pair.get("reference_source_lock_sha256"), identity["source_lock_sha256"], f"{benchmark} reference identity")
+        require_equal(pair.get("reference_q4_lock_sha256"), identity["reference_q4_lock_sha256"], f"{benchmark} reference identity")
         require_equal(pair.get("candidate_artifact_content_sha256"), identity["artifact_content_sha256"], f"{benchmark} candidate identity")
         require_equal(
             (reference.get("endpoint") or {}).get("backend"),
@@ -586,12 +598,12 @@ def validate_prose(
         row = actual[identifier]
         require_equal(row.get("category"), source.get("category"), f"{identifier} prose category")
         require_equal(row.get("input_token_ids_sha256_u32le"), source.get("input_token_ids_sha256_u32le"), f"{identifier} prose input hash")
-        for key in ("candidate_response_sha256", "qat_bf16_response_sha256", "rubric_sha256"):
+        for key in ("candidate_response_sha256", "q4_response_sha256", "rubric_sha256"):
             value = row.get(key)
             if not isinstance(value, str) or len(value) != 64:
                 raise QualificationError(f"{identifier} has invalid {key}")
         candidate_score = finite_number(row.get("candidate_score"), f"{identifier} candidate score")
-        reference_score = finite_number(row.get("qat_bf16_score"), f"{identifier} reference score")
+        reference_score = finite_number(row.get("q4_score"), f"{identifier} reference score")
         maximum_score = finite_number(row.get("maximum_score"), f"{identifier} maximum score")
         if maximum_score <= 0 or not (0 <= candidate_score <= maximum_score) or not (0 <= reference_score <= maximum_score):
             raise QualificationError(f"{identifier} prose scores are outside the rubric range")
@@ -602,7 +614,7 @@ def validate_prose(
         maximum_total += maximum_score
         delta = candidate_score - reference_score
         category_deltas[str(source["category"])] = delta
-        summaries.append({"id": identifier, "category": source["category"], "candidate_score": candidate_score, "qat_bf16_score": reference_score, "maximum_score": maximum_score, "score_delta": delta, "invalid_response": invalid})
+        summaries.append({"id": identifier, "category": source["category"], "candidate_score": candidate_score, "q4_score": reference_score, "maximum_score": maximum_score, "score_delta": delta, "invalid_response": invalid})
     retention = candidate_total / reference_total if reference_total else None
     gates = {
         "prose_independent_review": reviewers >= limits["prose_minimum_independent_reviewers"],
@@ -614,7 +626,7 @@ def validate_prose(
         "raw_report": {"bytes": path.stat().st_size, "sha256": sha256(path)},
         "independent_reviewer_count": reviewers,
         "candidate_score": candidate_total,
-        "qat_bf16_score": reference_total,
+        "q4_score": reference_total,
         "maximum_score": maximum_total,
         "relative_retention": retention,
         "invalid_response_count": invalid_count,
@@ -629,6 +641,7 @@ def qualify(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
         args.corpus,
         args.corpus_lock,
         args.artifact_lock,
+        args.q4_lock,
         args.m17_acceptance,
         args.m17_closure,
     )
@@ -643,11 +656,12 @@ def qualify(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
         "corpus": {"bytes": args.corpus.stat().st_size, "sha256": sha256(args.corpus)},
         "corpus_lock": {"bytes": args.corpus_lock.stat().st_size, "sha256": sha256(args.corpus_lock)},
         "artifact_lock": {"bytes": args.artifact_lock.stat().st_size, "sha256": sha256(args.artifact_lock)},
+        "q4_lock": {"bytes": args.q4_lock.stat().st_size, "sha256": sha256(args.q4_lock)},
         "m17_acceptance": {"bytes": args.m17_acceptance.stat().st_size, "sha256": sha256(args.m17_acceptance)},
         "m17_closure": {"bytes": args.m17_closure.stat().st_size, "sha256": sha256(args.m17_closure)},
     }
     if args.numerical_report is None:
-        blockers.append("held-out QAT-BF16/candidate teacher-forcing and capture report is missing")
+        blockers.append("held-out official-Q4/candidate teacher-forcing report is missing")
     else:
         numerical_gates, numerical = validate_numerical(args.numerical_report, thresholds, corpus)
         gates.update(numerical_gates)
@@ -699,7 +713,7 @@ def qualify(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
         ),
         "limitations": [
             "Vision and audio are outside the 26B profile.",
-            "Task scores are paired against the exact QAT-BF16 source; public model-card scores remain non-protocol external context.",
+            "Task and prose scores are paired against Google's exact official QAT Q4_0 GGUF in pinned llama.cpp; public model-card scores remain non-protocol external context.",
             "Raw responses, per-token metrics, and captures remain ignored under artifacts/raw; this compact record retains their exact hashes.",
         ],
         "static_identity": {
@@ -717,6 +731,7 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--corpus", type=Path, default=DEFAULT_CORPUS)
     result.add_argument("--corpus-lock", type=Path, default=DEFAULT_CORPUS_LOCK)
     result.add_argument("--artifact-lock", type=Path, required=True)
+    result.add_argument("--q4-lock", type=Path, default=DEFAULT_Q4_LOCK)
     result.add_argument("--m17-acceptance", type=Path, default=DEFAULT_M17_ACCEPTANCE)
     result.add_argument("--m17-closure", type=Path, default=DEFAULT_M17_CLOSURE)
     result.add_argument("--numerical-report", type=Path)

@@ -69,6 +69,7 @@ def sample(scenario: dict) -> dict:
         },
         "correctness": {
             "all_logits_finite": True,
+            "finite_checks_completed": scenario["output_forwards"],
             "prompt_manifest_sha256": scenario["prompt_manifest_sha256"],
             "output_token_sha256": DIGEST,
             "output_checksum": 123,
@@ -82,7 +83,6 @@ def sample(scenario: dict) -> dict:
             "cpu_weight_offload": False,
             "token_loop_allocations": False,
             "native_instruction_capability": True,
-            "native_instruction_observed": True,
             "fallback_count": 0,
             "cuda_graph": {"enabled": True, "first_demotion_reason": "none"},
             "resolved_dispatch": {
@@ -91,6 +91,16 @@ def sample(scenario: dict) -> dict:
                 "moe_decode": "native_sm120",
                 "moe_prefill": "native_grouped_sm120",
                 "embedding_head": "native_sm120",
+            },
+            "observations": {
+                "prefill_calls": 1,
+                "prefill_chunks": 1,
+                "decode_graph_launches": scenario["output_forwards"] - 1,
+                "token_selections": scenario["output_forwards"],
+                "sliding_ring_wraps": 0,
+                "maximum_global_position_exclusive":
+                    scenario["prompt_tokens"] + scenario["output_forwards"] - 1,
+                "recurring_allocation_count": 0,
             },
         },
         "performance": {
@@ -104,7 +114,7 @@ def sample(scenario: dict) -> dict:
             "itl_ms": [10.0, 10.0, 10.0],
         },
         "memory": {
-            "sampled_process_peak_bytes": 15_500_000_000,
+            "sampled_device_used_bytes": 15_500_000_000,
             "margin_bytes": 800_000_000,
             "recurring_allocation_observed": False,
         },
@@ -143,7 +153,7 @@ class QualifyGemma426BM20Test(unittest.TestCase):
             )
             scenario["prompt_manifest_sha256"] = m20.sha256_file(path)
             bound = m20.bind_prompt_manifests([scenario], root)
-            self.assertEqual(Path(bound[0]["prompt_manifest_path"]), path)
+            self.assertTrue(Path(bound[0]["prompt_manifest_path"]).samefile(path))
             scenario["prompt_manifest_sha256"] = DIGEST
             with self.assertRaisesRegex(m20.QualificationError, "hash mismatch"):
                 m20.bind_prompt_manifests([scenario], root)
@@ -178,7 +188,16 @@ class QualifyGemma426BM20Test(unittest.TestCase):
         summary = m20.summarize_runs([normalized] * 10)
         self.assertEqual(summary["decode_tps"]["count"], 10)
         self.assertTrue(summary["deterministic_outputs"])
-        self.assertEqual(summary["sampled_process_peak_bytes"]["median"], 15_500_000_000.0)
+        self.assertEqual(summary["sampled_device_used_bytes"]["median"], 15_500_000_000.0)
+
+    def test_instruction_evidence_is_bound_to_executable(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            executable = Path(temporary) / "runner"
+            executable.write_bytes(b"not-the-frozen-binary")
+            with self.assertRaisesRegex(m20.QualificationError, "binary SHA-256"):
+                m20.validate_instruction_evidence(
+                    executable, suite()["native_instruction_evidence"]
+                )
 
     def test_greedy_hidden_sampling_controls_are_rejected(self):
         document = suite()

@@ -1,7 +1,7 @@
 {
   "external_reference_anchor": "kekzl/imp@a392904d4216388828d0d56317de046f4ca49627",
-  "final_markdown_file_count": 133,
-  "final_package_file_count": 137,
+  "final_markdown_file_count": 134,
+  "final_package_file_count": 138,
   "generated_date": "2026-08-12",
   "package": "gem16-26b-fast-track-r4-repository-maintained",
   "repository_anchor": "Danmoreng/gem16@4a7c4e776def120f880ff765b6771a6f6ec0e8e0",
@@ -11,8 +11,8 @@
     "duplicate_milestones": [],
     "empty_markdown": [],
     "extra_milestones": [],
-    "file_count_before_checksum": 136,
-    "markdown_file_count": 133,
+    "file_count_before_checksum": 137,
+    "markdown_file_count": 134,
     "markdown_link_count": 155,
     "markdown_without_heading": [],
     "milestone_ids": [

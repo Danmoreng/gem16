@@ -172,10 +172,14 @@ int main(int argc, char** argv) {
   auto prompt_hash = Text(Field(*scenario, "prompt_manifest_sha256"),
                           "scenario.prompt_manifest_sha256");
   const auto* sampling_json = Field(*scenario, "sampling");
+  constexpr std::uint64_t kMaximumContext = 262144U;
   if (!prompt_count.ok() || !output_forwards.ok() || !context.ok() ||
       !prompt_path.ok() || !prompt_hash.ok() || sampling_json == nullptr ||
-      !sampling_json->is_object() || output_forwards.value() < 2U ||
-      prompt_count.value() + output_forwards.value() - 1U > context.value()) {
+      !sampling_json->is_object() || prompt_count.value() == 0U ||
+      prompt_count.value() > kMaximumContext || output_forwards.value() < 2U ||
+      output_forwards.value() > kMaximumContext || context.value() == 0U ||
+      context.value() > kMaximumContext ||
+      output_forwards.value() - 1U > context.value() - prompt_count.value()) {
     return Fail("validate M20 scenario",
                 gem16::Status(gem16::StatusCode::kDataLoss,
                               "M20 scenario geometry is invalid"),
@@ -320,6 +324,23 @@ int main(int argc, char** argv) {
   const std::uint64_t used_peak = total -
       std::min({free_before, free_after_create, free_after_prefill,
                 free_after_decode});
+  const auto evidence = engine.value().execution_evidence();
+  if (!evidence.integrated_native_backend || !evidence.decode_graph_ready ||
+      evidence.prefill_calls != 1U ||
+      evidence.decode_graph_launches != output_forwards.value() - 1U ||
+      evidence.token_selections != output_forwards.value() ||
+      evidence.fallback_count != 0U ||
+      evidence.recurring_allocation_count != 0U) {
+    return Fail("validate M20 execution evidence",
+                gem16::Status(gem16::StatusCode::kInternal,
+                              "M20 engine observations do not match the requested native run"),
+                6);
+  }
+  // Every successful SelectToken call completed Prediction(), which rejects
+  // non-finite router values or output logits before incrementing this
+  // source-backed counter.
+  const bool all_logits_finite =
+      evidence.token_selections == output_forwards.value();
 
   std::ofstream output(options.output, std::ios::binary | std::ios::trunc);
   if (!output) return 7;
@@ -331,7 +352,10 @@ int main(int argc, char** argv) {
          << ",\"artifact_lock_sha256\":" << gem16::json::Quote(lock_hash)
          << ",\"source_lock_sha256\":"
          << gem16::json::Quote(source_hash.value())
-         << "},\"correctness\":{\"all_logits_finite\":true,"
+         << "},\"correctness\":{\"all_logits_finite\":"
+         << (all_logits_finite ? "true" : "false") << ","
+            "\"finite_checks_completed\":"
+         << evidence.token_selections << ","
             "\"prompt_manifest_sha256\":"
          << gem16::json::Quote(prompt_hash.value())
          << ",\"output_token_sha256\":" << gem16::json::Quote(output_hash)
@@ -340,17 +364,30 @@ int main(int argc, char** argv) {
             "\"model_variant\":\"gemma4-26b-a4b\","
             "\"head_format\":\"nvfp4\",\"kv_mode\":\"fp8\","
             "\"backend\":\"sm120\",\"prompt_cache\":false,"
-            "\"cpu_weight_offload\":false,\"token_loop_allocations\":false,"
-            "\"native_instruction_capability\":true,"
-            "\"native_instruction_observed\":true,\"fallback_count\":0,"
-            "\"cuda_graph\":{\"enabled\":true,"
+            "\"cpu_weight_offload\":false,\"token_loop_allocations\":"
+         << (evidence.recurring_allocation_count == 0U ? "false" : "true")
+         << ",\"native_instruction_capability\":true,\"fallback_count\":"
+         << evidence.fallback_count << ","
+            "\"cuda_graph\":{\"enabled\":"
+         << (evidence.decode_graph_ready ? "true" : "false")
+         << ","
             "\"first_demotion_reason\":\"none\"},"
             "\"resolved_dispatch\":{"
             "\"attention_prefill\":\"native_fixed_sm120\","
             "\"attention_decode\":\"native_fixed_sm120\","
             "\"moe_decode\":\"native_sm120\","
             "\"moe_prefill\":\"native_grouped_sm120\","
-            "\"embedding_head\":\"native_sm120\"}},"
+            "\"embedding_head\":\"native_sm120\"},"
+            "\"observations\":{\"prefill_calls\":"
+         << evidence.prefill_calls << ",\"prefill_chunks\":"
+         << evidence.prefill_chunks << ",\"decode_graph_launches\":"
+         << evidence.decode_graph_launches << ",\"token_selections\":"
+         << evidence.token_selections << ",\"sliding_ring_wraps\":"
+         << evidence.sliding_ring_wraps
+         << ",\"maximum_global_position_exclusive\":"
+         << evidence.maximum_global_position_exclusive
+         << ",\"recurring_allocation_count\":"
+         << evidence.recurring_allocation_count << "}},"
             "\"performance\":{\"prompt_tokens\":"
          << prompt_count.value() << ",\"output_forwards\":"
          << output_forwards.value() << ",\"sampling\":";
@@ -365,7 +402,7 @@ int main(int argc, char** argv) {
     if (index != 0U) output << ',';
     output << intervals[index];
   }
-  output << "]},\"memory\":{\"sampled_process_peak_bytes\":" << used_peak
+  output << "]},\"memory\":{\"sampled_device_used_bytes\":" << used_peak
          << ",\"margin_bytes\":" << free_after_decode
          << ",\"recurring_allocation_observed\":"
          << (free_after_prefill == free_after_decode ? "false" : "true")

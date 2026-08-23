@@ -352,6 +352,13 @@ struct Gemma4Moe26BReferenceEngine::Impl {
   std::uint64_t sliding_capacity = 0U;
   std::uint64_t prefill_chunks = 0U;
   std::uint64_t minimum_prefill_chunk = 0U;
+  std::uint64_t prefill_calls = 0U;
+  std::uint64_t decode_graph_launches = 0U;
+  std::uint64_t token_selections = 0U;
+  std::uint64_t sliding_ring_wraps = 0U;
+  std::uint64_t maximum_global_position_exclusive = 0U;
+  std::uint64_t fallback_count = 0U;
+  std::uint64_t recurring_allocation_count = 0U;
   Gemma4Moe26BBackend backend = Gemma4Moe26BBackend::kReference;
   cudaStream_t stream = nullptr;
   Gemma4Moe26BDeviceArtifact artifact;
@@ -992,6 +999,13 @@ Status Gemma4Moe26BReferenceEngine::Reset() {
   implementation_->position = 0U;
   implementation_->prefill_chunks = 0U;
   implementation_->minimum_prefill_chunk = 0U;
+  implementation_->prefill_calls = 0U;
+  implementation_->decode_graph_launches = 0U;
+  implementation_->token_selections = 0U;
+  implementation_->sliding_ring_wraps = 0U;
+  implementation_->maximum_global_position_exclusive = 0U;
+  implementation_->fallback_count = 0U;
+  implementation_->recurring_allocation_count = 0U;
   return Status::Ok();
 }
 
@@ -1019,7 +1033,15 @@ Status Gemma4Moe26BReferenceEngine::ForwardToken(std::uint32_t token) {
     if (graph_error != cudaSuccess) {
       return CudaFailure("launch M17 decode graph", graph_error);
     }
+    const std::uint64_t previous_position = x.position;
     ++x.position;
+    ++x.decode_graph_launches;
+    if (x.sliding_capacity != 0U && previous_position != 0U &&
+        previous_position % x.sliding_capacity == 0U) {
+      ++x.sliding_ring_wraps;
+    }
+    x.maximum_global_position_exclusive =
+        std::max(x.maximum_global_position_exclusive, x.position);
     return Status::Ok();
   }
   constexpr unsigned threads = 256U;
@@ -1092,7 +1114,14 @@ Status Gemma4Moe26BReferenceEngine::ForwardToken(std::uint32_t token) {
       x.logits, x.softcap, x.finite, x.output_candidates,
       x.prediction_token, x.prediction_logit, x.stream);
   if (!status.ok()) return status;
+  const std::uint64_t previous_position = x.position;
   ++x.position;
+  if (x.sliding_capacity != 0U && previous_position != 0U &&
+      previous_position % x.sliding_capacity == 0U) {
+    ++x.sliding_ring_wraps;
+  }
+  x.maximum_global_position_exclusive =
+      std::max(x.maximum_global_position_exclusive, x.position);
   return Status::Ok();
 }
 
@@ -1203,7 +1232,14 @@ Status Gemma4Moe26BReferenceEngine::PrefillTokens(
         x.logits, x.softcap, x.finite, x.output_candidates,
         x.prediction_token, x.prediction_logit, x.stream);
     if (!status.ok()) return status;
+    const std::uint64_t previous_position = x.position;
     x.position += chunk;
+    if (x.sliding_capacity != 0U) {
+      x.sliding_ring_wraps += x.position / x.sliding_capacity -
+                                previous_position / x.sliding_capacity;
+    }
+    x.maximum_global_position_exclusive =
+        std::max(x.maximum_global_position_exclusive, x.position);
     ++x.prefill_chunks;
     x.minimum_prefill_chunk =
         x.minimum_prefill_chunk == 0U
@@ -1211,6 +1247,7 @@ Status Gemma4Moe26BReferenceEngine::PrefillTokens(
             : std::min(x.minimum_prefill_chunk, chunk);
     consumed += static_cast<std::size_t>(chunk);
   }
+  ++x.prefill_calls;
   return Status::Ok();
 }
 
@@ -1290,6 +1327,7 @@ Result<std::uint32_t> Gemma4Moe26BReferenceEngine::SelectToken() {
   auto prediction = Prediction();
   if (!prediction.ok()) return prediction.status();
   auto& x = *implementation_;
+  ++x.token_selections;
   if (!x.sampling.enabled && x.suppressed_token_count == 0U) {
     return prediction.value().token;
   }
@@ -1409,6 +1447,25 @@ std::uint64_t Gemma4Moe26BReferenceEngine::prefill_chunk_count() const {
 std::uint64_t
 Gemma4Moe26BReferenceEngine::minimum_prefill_chunk_tokens() const {
   return implementation_ ? implementation_->minimum_prefill_chunk : 0U;
+}
+Gemma4Moe26BExecutionEvidence
+Gemma4Moe26BReferenceEngine::execution_evidence() const {
+  Gemma4Moe26BExecutionEvidence result;
+  if (!implementation_) return result;
+  result.integrated_native_backend =
+      implementation_->backend == Gemma4Moe26BBackend::kSm120Integrated;
+  result.decode_graph_ready = implementation_->decode_graph != nullptr;
+  result.prefill_calls = implementation_->prefill_calls;
+  result.prefill_chunks = implementation_->prefill_chunks;
+  result.decode_graph_launches = implementation_->decode_graph_launches;
+  result.token_selections = implementation_->token_selections;
+  result.sliding_ring_wraps = implementation_->sliding_ring_wraps;
+  result.maximum_global_position_exclusive =
+      implementation_->maximum_global_position_exclusive;
+  result.fallback_count = implementation_->fallback_count;
+  result.recurring_allocation_count =
+      implementation_->recurring_allocation_count;
+  return result;
 }
 
 }  // namespace gem16::internal

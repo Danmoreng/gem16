@@ -431,6 +431,34 @@ if(GEM16_ENABLE_CUDA)
   )
   gem16_set_project_warnings(gem16-26b-m21-context-driver)
   gem16_enable_sanitizers(gem16-26b-m21-context-driver)
+  add_executable(gem16-26b-m22-product-driver
+    tests/cuda/gemma4_26b_m22_product_driver.cpp
+  )
+  target_include_directories(gem16-26b-m22-product-driver PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/src"
+  )
+  target_link_libraries(gem16-26b-m22-product-driver PRIVATE
+    gem16_core CUDA::cudart
+  )
+  set_target_properties(gem16-26b-m22-product-driver PROPERTIES
+    CUDA_ARCHITECTURES "${GEM16_CUDA_ARCHITECTURE}"
+  )
+  gem16_set_project_warnings(gem16-26b-m22-product-driver)
+  gem16_enable_sanitizers(gem16-26b-m22-product-driver)
+  add_executable(gem16-26b-m19-q4-driver
+    tests/cuda/gemma4_26b_m19_q4_driver.cpp
+  )
+  target_include_directories(gem16-26b-m19-q4-driver PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/src"
+  )
+  target_link_libraries(gem16-26b-m19-q4-driver PRIVATE
+    gem16_core CUDA::cudart
+  )
+  set_target_properties(gem16-26b-m19-q4-driver PROPERTIES
+    CUDA_ARCHITECTURES "${GEM16_CUDA_ARCHITECTURE}"
+  )
+  gem16_set_project_warnings(gem16-26b-m19-q4-driver)
+  gem16_enable_sanitizers(gem16-26b-m19-q4-driver)
   message(STATUS "gem16 CUDA capability scaffold: enabled for ${CMAKE_CUDA_ARCHITECTURES}")
 else()
   target_sources(gem16_core PRIVATE src/runtime/inference_stub.cpp)
@@ -445,6 +473,7 @@ foreach(tool IN ITEMS inspect run bench chat)
   gem16_enable_sanitizers(gem16-${tool})
 endforeach()
 target_include_directories(gem16-bench PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+target_include_directories(gem16-chat PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
 add_executable(gem16-server src/cli/server_main.cpp)
 target_include_directories(gem16-server PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")

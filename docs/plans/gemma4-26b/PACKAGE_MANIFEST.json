@@ -1,5 +1,5 @@
 {
-  "authored_file_count": 132,
+  "authored_file_count": 133,
   "external_reference_anchor": "kekzl/imp@a392904d4216388828d0d56317de046f4ca49627",
   "files": [
     {
@@ -73,9 +73,14 @@
       "sha256": "c576d0841233f275ddb6d24bf8fd62bf94f3f8bd123f30444a278e57ab9b682f"
     },
     {
-      "bytes": 10226,
+      "bytes": 10516,
       "path": "ACTIVE_CONTRACT.md",
-      "sha256": "8c9deebe92b7a76b44a2c98cc60a29d15cd89e70251ad737518efbb192066aee"
+      "sha256": "53542de02a6849845448b071ea830e54eda63f39896ca8f29300dc3b8fe287a8"
+    },
+    {
+      "bytes": 1487,
+      "path": "CHECKPOINT_2026-08-22_M19_M22.md",
+      "sha256": "07c6b0006a379e54737b192082ba93a5fd6a975f9d786c70f182ad93a6f273ad"
     },
     {
       "bytes": 5099,
@@ -358,9 +363,9 @@
       "sha256": "b100981b04a8277763d18a4c95607b732158ac5e60ca56f99a3bd4a1f25f4519"
     },
     {
-      "bytes": 886,
+      "bytes": 959,
       "path": "milestones/M19_QUALITY_QUALIFICATION.md",
-      "sha256": "d4e5e943134709d0bdc44cd7b9d4ec12b75e89a8d8d301e948a81ea020cfda24"
+      "sha256": "f0ba69d72c6e3b0d4f00b226e778b1f10924224860c3ade7c21f00edeadea452"
     },
     {
       "bytes": 971,

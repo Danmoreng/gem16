@@ -2214,6 +2214,56 @@ void TestFusedProjectionRmsNormRotaryBf16Batch() {
     CUDA_TEST_CHECK(std::equal(controlled_key_host.begin(),
                                controlled_key_host.end(),
                                candidate_key_host.begin()));
+
+    // The 26B graph materializes only the current position's RoPE row. Keep
+    // this distinct from the production 12B all-position table contract and
+    // exercise a non-zero position so an accidental position-strided read is
+    // detected.
+    DeviceBuffer<float> current_query_output(query_heads * head_dimension);
+    DeviceBuffer<float> current_key_output(kv_heads * head_dimension);
+    DeviceBuffer<float> current_cosine(rotating_pairs);
+    DeviceBuffer<float> current_sine(rotating_pairs);
+    if (current_query_output.get() == nullptr ||
+        current_key_output.get() == nullptr || current_cosine.get() == nullptr ||
+        current_sine.get() == nullptr) {
+      return;
+    }
+    const auto current_table_status =
+        gem16::internal::LaunchRotaryEmbeddingTableControlled(
+            current_cosine.get(), current_sine.get(), rotating_pairs,
+            head_dimension, control.get(), theta, 1.0, nullptr);
+    const auto current_status = gem16::internal::
+        LaunchProjectionRmsNormRotaryBf16CurrentTableControlled(
+            candidate_query.get(), device_query_norm.get(),
+            current_query_output.get(), candidate_key.get(),
+            device_key_norm.get(), current_key_output.get(),
+            current_cosine.get(), current_sine.get(), control.get(),
+            query_heads, kv_heads, head_dimension, rotary_factor, 1.0e-6F,
+            nullptr);
+    CUDA_TEST_CHECK(current_table_status.ok());
+    CUDA_TEST_CHECK(current_status.ok());
+    if (!current_table_status.ok() || !current_status.ok() ||
+        !CudaOk(cudaDeviceSynchronize(),
+                "current-table controlled fused Q/K synchronize")) {
+      return;
+    }
+    std::vector<float> current_query_host(query_heads * head_dimension);
+    std::vector<float> current_key_host(kv_heads * head_dimension);
+    if (!CudaOk(cudaMemcpy(current_query_host.data(),
+                           current_query_output.get(),
+                           current_query_output.bytes(), cudaMemcpyDeviceToHost),
+                "copy current-table controlled fused Q output") ||
+        !CudaOk(cudaMemcpy(current_key_host.data(), current_key_output.get(),
+                           current_key_output.bytes(), cudaMemcpyDeviceToHost),
+                "copy current-table controlled fused K output")) {
+      return;
+    }
+    CUDA_TEST_CHECK(std::equal(current_query_host.begin(),
+                               current_query_host.end(),
+                               candidate_query_host.begin()));
+    CUDA_TEST_CHECK(std::equal(current_key_host.begin(),
+                               current_key_host.end(),
+                               candidate_key_host.begin()));
   };
 
   run_case(256U, 1.0, 10000.0, "fused local Q/K RMSNorm RoPE");

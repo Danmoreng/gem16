@@ -129,6 +129,10 @@ M18 is conditional diagnosis, not a sequential prerequisite after the accepted M
 M13 is the only early quality gate. It uses a development corpus and selected teacher-forcing captures to reject catastrophic or unexplained drift. M19 owns held-out qualification. M18 runs only when M13/M19 fails, when a head-format decision requires attribution, or when a causal claim about QAT versus quantizer behavior will be published.
 
 Do not use the held-out set for quantizer tuning. Do not claim “QAT quality” from provenance alone.
+For M19, the executable paired reference is Google's pinned official QAT Q4_0
+GGUF through the pinned llama.cpp runtime. The owner explicitly removed a new
+49 GB QAT-BF16 run from this laptop's gate; accepted M10/M13 BF16 evidence is
+historical support, not a runtime prerequisite for M19.
 
 ## Parallel execution contract
 

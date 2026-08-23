@@ -13,6 +13,7 @@ import hashlib
 import json
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 from typing import Any
 
@@ -43,6 +44,12 @@ def expected_margin(context: int) -> int:
     return (400 if context >= 65_536 else 700) * MIB
 
 
+def driver_command(executable: Path) -> list[str]:
+    if executable.suffix.casefold() == ".py":
+        return [sys.executable, str(executable)]
+    return [str(executable)]
+
+
 def validate_run(payload: dict[str, Any], context: int) -> list[str]:
     errors: list[str] = []
     memory = payload.get("memory")
@@ -55,7 +62,13 @@ def validate_run(payload: dict[str, Any], context: int) -> list[str]:
         "finite": payload.get("all_logits_finite") is True,
         "over_limit": payload.get("over_limit_rejected") is True,
         "ring_wrap": payload.get("sliding_ring_wrap_exercised") is True,
+        "ring_wrap_count": isinstance(payload.get("sliding_ring_wrap_count"), int)
+        and payload.get("sliding_ring_wrap_count", 0) > 0,
         "global_extent": payload.get("global_extent_exercised") is True,
+        "global_extent_position": payload.get("maximum_global_position_exclusive")
+        == context,
+        "fallbacks": payload.get("fallback_count") == 0,
+        "engine_allocations": payload.get("recurring_allocation_count") == 0,
         "chunks": isinstance(payload.get("prefill_chunk_count"), int)
         and payload.get("prefill_chunk_count", 0) > 0,
         "minimum_chunk": isinstance(payload.get("minimum_prefill_chunk_tokens"), int)
@@ -96,7 +109,7 @@ def run_context(
         report = temporary / f"context-{context}-run-{run_index}.json"
         logits = temporary / f"context-{context}-run-{run_index}.f32le"
         command = [
-            str(executable),
+            *driver_command(executable),
             "--model",
             str(model),
             "--output",
@@ -110,12 +123,34 @@ def run_context(
             "--device",
             str(device),
         ]
-        completed = subprocess.run(
-            command,
-            check=False,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
+        try:
+            completed = subprocess.run(
+                command,
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+            )
+        except subprocess.TimeoutExpired as error:
+            stdout = error.stdout if isinstance(error.stdout, str) else ""
+            stderr = error.stderr if isinstance(error.stderr, str) else ""
+            retained.append(
+                {
+                    "run": run_index,
+                    "status": "failed",
+                    "failure_kind": "timeout",
+                    "exit_code": None,
+                    "stdout_sha256": hashlib.sha256(stdout.encode()).hexdigest(),
+                    "stderr_sha256": hashlib.sha256(stderr.encode()).hexdigest(),
+                    "error_tail": (stderr or stdout)[-1000:],
+                }
+            )
+            break
+        (temporary / f"context-{context}-run-{run_index}.stdout.txt").write_text(
+            completed.stdout, encoding="utf-8"
+        )
+        (temporary / f"context-{context}-run-{run_index}.stderr.txt").write_text(
+            completed.stderr, encoding="utf-8"
         )
         record: dict[str, Any] = {
             "run": run_index,
@@ -125,25 +160,57 @@ def run_context(
         }
         if completed.returncode != 0 or not report.is_file() or not logits.is_file():
             record["status"] = "failed"
+            record["failure_kind"] = (
+                "capacity_rejected" if completed.returncode == 20
+                else "driver_error"
+            )
             record["error_tail"] = (completed.stderr or completed.stdout)[-1000:]
             retained.append(record)
+            if record["failure_kind"] == "capacity_rejected":
+                continue
             break
-        payload = json.loads(report.read_text(encoding="utf-8"))
+        try:
+            payload = json.loads(report.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError) as error:
+            record.update(
+                {
+                    "status": "failed",
+                    "failure_kind": "malformed_report",
+                    "error_tail": str(error)[-1000:],
+                }
+            )
+            retained.append(record)
+            break
+        if not isinstance(payload, dict):
+            record.update(
+                {
+                    "status": "failed",
+                    "failure_kind": "malformed_report",
+                    "error_tail": "driver report root is not an object",
+                }
+            )
+            retained.append(record)
+            break
         errors = validate_run(payload, context)
         record.update(
             {
                 "status": "passed" if not errors else "failed",
+                "failure_kind": None if not errors else "validation_error",
                 "validation_errors": errors,
                 "logits_sha256": sha256(logits),
-                "prefill_elapsed_ms": payload["prefill_elapsed_ms"],
-                "decode_elapsed_ms": payload["decode_elapsed_ms"],
-                "prefill_prediction_token": payload["prefill_prediction_token"],
-                "decode_prediction_token": payload["decode_prediction_token"],
-                "prefill_chunk_count": payload["prefill_chunk_count"],
-                "minimum_prefill_chunk_tokens": payload[
+                "prefill_elapsed_ms": payload.get("prefill_elapsed_ms"),
+                "decode_elapsed_ms": payload.get("decode_elapsed_ms"),
+                "prefill_prediction_token": payload.get("prefill_prediction_token"),
+                "decode_prediction_token": payload.get("decode_prediction_token"),
+                "prefill_chunk_count": payload.get("prefill_chunk_count"),
+                "minimum_prefill_chunk_tokens": payload.get(
                     "minimum_prefill_chunk_tokens"
-                ],
-                "memory": payload["memory"],
+                ),
+                "sliding_ring_wrap_count": payload.get("sliding_ring_wrap_count"),
+                "maximum_global_position_exclusive": payload.get(
+                    "maximum_global_position_exclusive"
+                ),
+                "memory": payload.get("memory"),
             }
         )
         retained.append(record)
@@ -163,10 +230,18 @@ def run_context(
             for record in retained
         }
     ) == 1
+    capacity_rejected = len(retained) == runs and all(
+        record.get("failure_kind") == "capacity_rejected" for record in retained
+    )
     return {
         "context_tokens": context,
-        "status": "passed" if successful and deterministic else "failed",
+        "status": (
+            "passed" if successful and deterministic
+            else "capacity_rejected" if capacity_rejected
+            else "failed"
+        ),
         "fresh_process_deterministic": deterministic,
+        "capacity_rejection_reproducible": capacity_rejected,
         "runs": retained,
     }
 
@@ -180,20 +255,28 @@ def main() -> int:
     parser.add_argument("--runs", type=int, default=2)
     parser.add_argument("--device", type=int, default=0)
     parser.add_argument("--timeout", type=int, default=21_600)
+    parser.add_argument("--raw-dir", type=Path)
+    parser.add_argument(
+        "--maximum-gap-tokens", type=int, default=4096,
+        help="largest permitted gap between the highest pass and first capacity rejection",
+    )
     args = parser.parse_args()
     driver = args.driver.resolve()
     model = args.model.resolve()
-    if args.runs < 2 or args.device < 0 or args.timeout <= 0:
-        parser.error("runs must be >=2 and device/timeout must be non-negative")
+    if (args.runs < 2 or args.device < 0 or args.timeout <= 0 or
+            args.maximum_gap_tokens <= 0):
+        parser.error("runs must be >=2 and device/timeout/gap must be positive")
     if not driver.is_file() or not model.is_dir():
         parser.error("driver must be a file and model must be a directory")
     required_files = [model / "config.json", model / "gem16_compilation.json"]
     if any(not path.is_file() for path in required_files):
         parser.error("model is not a compiled Gemma 4 26B artifact")
 
-    with tempfile.TemporaryDirectory(prefix="gem16-m21-") as directory:
-        temporary = Path(directory)
-        contexts = [
+    def collect(temporary: Path) -> list[dict[str, Any]]:
+        temporary.mkdir(parents=True, exist_ok=True)
+        if any(temporary.iterdir()):
+            raise RuntimeError(f"refusing to reuse non-empty raw directory: {temporary}")
+        return [
             run_context(
                 driver,
                 model,
@@ -206,6 +289,15 @@ def main() -> int:
             for context in args.contexts
         ]
 
+    if args.raw_dir is None:
+        with tempfile.TemporaryDirectory(prefix="gem16-m21-") as directory:
+            contexts = collect(Path(directory))
+    else:
+        try:
+            contexts = collect(args.raw_dir.resolve())
+        except (OSError, RuntimeError) as error:
+            parser.error(str(error))
+
     passed_contexts = [
         item["context_tokens"] for item in contexts if item["status"] == "passed"
     ]
@@ -214,20 +306,31 @@ def main() -> int:
         (item["status"] for item in contexts if item["context_tokens"] == 65_536),
         "not_tested",
     )
-    tested_failure_above_max = any(
-        item["context_tokens"] > base_max_context and item["status"] == "failed"
+    capacity_rejections = sorted(
+        item["context_tokens"]
+        for item in contexts
+        if item["status"] == "capacity_rejected"
+    )
+    unclassified_failures = any(
+        item["status"] == "failed"
         for item in contexts
     )
-    searched_between_32k_and_64k = any(
-        32_768 < item["context_tokens"] < 65_536 for item in contexts
+    first_capacity_rejection = next(
+        (context for context in capacity_rejections if context > base_max_context),
+        None,
+    )
+    maximum_search_gap = (
+        first_capacity_rejection - base_max_context
+        if first_capacity_rejection is not None else None
     )
     maximum_search_complete = (
-        base_max_context == MAX_CONTEXT
-        or (
-            tested_failure_above_max
-            and (
-                explicit_64k == "passed"
-                or (explicit_64k == "failed" and searched_between_32k_and_64k)
+        not unclassified_failures
+        and (
+            base_max_context == MAX_CONTEXT
+            or (
+                first_capacity_rejection is not None
+                and maximum_search_gap is not None
+                and maximum_search_gap <= args.maximum_gap_tokens
             )
         )
     )
@@ -235,7 +338,16 @@ def main() -> int:
         item["context_tokens"] == 32_768 and item["status"] == "passed"
         for item in contexts
     )
-    exit_gate_pass = release_32k and explicit_64k in {"passed", "failed"} and maximum_search_complete
+    explicit_64k_capacity_rejected = any(
+        item["context_tokens"] == 65_536
+        and item["status"] == "capacity_rejected"
+        for item in contexts
+    )
+    exit_gate_pass = (
+        release_32k
+        and (explicit_64k == "passed" or explicit_64k_capacity_rejected)
+        and maximum_search_complete
+    )
     result = {
         "schema_version": 1,
         "milestone": "M21",
@@ -250,13 +362,20 @@ def main() -> int:
             "fresh_process_runs_per_context": args.runs,
             "contexts_tested": args.contexts,
             "synthetic_token_pattern": "frozen_20_token_chat_pattern",
-            "raw_reports_retained": False,
-            "raw_evidence": "sha256_only",
+            "raw_reports_retained": args.raw_dir is not None,
+            "raw_evidence": "local_ignored_files_and_compact_hashes"
+            if args.raw_dir is not None else "sha256_only",
+            "raw_directory": str(args.raw_dir.resolve())
+            if args.raw_dir is not None else None,
+            "maximum_gap_tokens": args.maximum_gap_tokens,
         },
         "contexts": contexts,
         "release_32k": release_32k,
         "base_64k_result": explicit_64k,
         "base_max_context": base_max_context,
+        "first_capacity_rejection": first_capacity_rejection,
+        "maximum_search_gap_tokens": maximum_search_gap,
+        "unclassified_failures": unclassified_failures,
         "maximum_search_complete": maximum_search_complete,
         "exit_gate_pass": exit_gate_pass,
     }

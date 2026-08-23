@@ -22,6 +22,23 @@ struct Gemma4Moe26BReferencePrediction {
   bool all_logits_finite = false;
 };
 
+// Source-backed execution observations for qualification. These counters are
+// advanced only after the corresponding native launch path succeeds. They are
+// intentionally separate from capability claims and from external SASS or
+// process-memory evidence.
+struct Gemma4Moe26BExecutionEvidence {
+  bool integrated_native_backend = false;
+  bool decode_graph_ready = false;
+  std::uint64_t prefill_calls = 0;
+  std::uint64_t prefill_chunks = 0;
+  std::uint64_t decode_graph_launches = 0;
+  std::uint64_t token_selections = 0;
+  std::uint64_t sliding_ring_wraps = 0;
+  std::uint64_t maximum_global_position_exclusive = 0;
+  std::uint64_t fallback_count = 0;
+  std::uint64_t recurring_allocation_count = 0;
+};
+
 // M13 reference plus initialization-selected M16/M17 execution profiles and
 // M21 long-context qualification. The context extent is validated against the
 // model's declared maximum and the M12 262144-token attention/KV ceiling.
@@ -75,6 +92,7 @@ class Gemma4Moe26BReferenceEngine {
   [[nodiscard]] std::uint64_t sliding_cache_capacity() const;
   [[nodiscard]] std::uint64_t prefill_chunk_count() const;
   [[nodiscard]] std::uint64_t minimum_prefill_chunk_tokens() const;
+  [[nodiscard]] Gemma4Moe26BExecutionEvidence execution_evidence() const;
 
  private:
   struct Impl;

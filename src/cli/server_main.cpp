@@ -19,6 +19,8 @@
 
 #include "gem16/chat.h"
 #include "gem16/tokenizer.h"
+#include "model/config.h"
+#include "model/model_variant.h"
 #include "server/http_streaming.h"
 #include "server/openai_chat.h"
 #include "server/secure_id.h"
@@ -68,6 +70,7 @@ struct Options {
   std::uint32_t mtp_draft_tokens = 0U;
   std::uint32_t max_sessions = 2U;
   bool max_sessions_explicit = false;
+  bool max_context_explicit = false;
   bool mtp_adaptive = false;
   bool greedy = false;
 };
@@ -116,6 +119,7 @@ gem16::Result<Options> ParseOptions(int argc, char** argv) {
         return gem16::Status(gem16::StatusCode::kInvalidArgument,
                              "--max-context must be positive");
       }
+      options.max_context_explicit = true;
     } else if (argument == "--max-sessions" && index + 1 < argc) {
       std::uint64_t value = 0U;
       if (!ParseUnsigned(argv[++index], value) || value == 0U ||
@@ -188,10 +192,20 @@ int HttpStatus(const gem16::Status& status) {
 
 void SetError(const gem16::Status& status, httplib::Response& response) {
   response.status = HttpStatus(status);
+  std::string_view type = response.status >= 500 ? "server_error"
+                                                  : "invalid_request_error";
+  std::string_view code;
+  if (status.code() == gem16::StatusCode::kUnsupported) {
+    type = "unsupported_feature";
+    code = status.message().find("Gemma 4 26B") != std::string::npos
+               ? "gemma4_26b_text_only"
+               : "unsupported_feature";
+  } else if (status.code() == gem16::StatusCode::kResourceExhausted) {
+    type = "resource_exhausted";
+    code = "resident_capacity_exhausted";
+  }
   response.set_content(
-      gem16::server::OpenAiErrorJson(
-          status.message(), response.status >= 500 ? "server_error"
-                                                   : "invalid_request_error"),
+      gem16::server::OpenAiErrorJson(status.message(), type, code),
       "application/json; charset=utf-8");
 }
 
@@ -658,6 +672,24 @@ int ServerMain(int argc, char** argv) {
     PrintUsage();
     return 64;
   }
+  auto config = gem16::internal::LoadModelConfig(
+      options.value().model_directory / "config.json");
+  if (!config.ok()) {
+    std::cerr << "error: " << config.status().message() << '\n';
+    return 2;
+  }
+  const bool moe26b = gem16::internal::ClassifyModelVariant(config.value()) ==
+                      gem16::internal::ModelVariant::kGemma4Moe26BA4B;
+  if (!options.value().max_context_explicit && moe26b) {
+    options.value().max_context = 32768U;
+  }
+  if (moe26b &&
+      (options.value().mtp_draft_tokens != 0U ||
+       options.value().mtp_adaptive ||
+       !options.value().assistant_model_directory.empty())) {
+    std::cerr << "error: Gemma 4 26B text-only does not support MTP\n";
+    return 2;
+  }
   auto processor =
       gem16::GemmaChatProcessor::Load(options.value().model_directory);
   if (!processor.ok()) {
@@ -739,12 +771,37 @@ int ServerMain(int argc, char** argv) {
                        std::to_string(state.max_sessions) +
                        ",\"max_context_tokens\":" +
                        std::to_string(state.max_context) +
+                       ",\"default_context_tokens\":" +
+                       std::to_string(
+                           std::string_view(state.runtime->model_variant_name()) ==
+                                   "gemma4_moe_26b_a4b"
+                               ? 32768U
+                               : 8192U) +
                        ",\"model_variant\":" +
                        gem16::json::Quote(
                            state.runtime->model_variant_name()) +
                        ",\"native_path\":" +
                        gem16::json::Quote(
                            state.runtime->selected_native_path()) +
+                       ",\"weight_profile\":" +
+                       gem16::json::Quote(
+                           std::string_view(state.runtime->model_variant_name()) ==
+                                   "gemma4_moe_26b_a4b"
+                               ? "sm120-text-hybrid-v1"
+                               : "native-checkpoint") +
+                       ",\"head_format\":" +
+                       gem16::json::Quote(
+                           std::string_view(state.runtime->model_variant_name()) ==
+                                   "gemma4_moe_26b_a4b"
+                               ? "nvfp4"
+                               : "native-checkpoint") +
+                       ",\"resident_weight_bytes\":" +
+                       std::to_string(state.runtime->weight_bytes()) +
+                       ",\"text_only\":" +
+                       ((!state.runtime->supports_audio() &&
+                         !state.runtime->supports_vision())
+                            ? "true"
+                            : "false") +
                        ",\"capabilities\":{\"text\":true,\"audio\":" +
                        (state.runtime->supports_audio() ? "true" : "false") +
                        ",\"vision\":" +

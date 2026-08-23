@@ -19,6 +19,8 @@
 #include "gem16/chat.h"
 #include "gem16/engine.h"
 #include "gem16/tokenizer.h"
+#include "model/config.h"
+#include "model/model_variant.h"
 
 namespace {
 
@@ -106,6 +108,7 @@ struct Options {
   std::vector<gem16::GenerationContentPart> media_parts;
   std::optional<std::uint64_t> max_tokens;
   std::uint64_t max_context = 1024;
+  bool max_context_explicit = false;
   bool has_system_message = false;
   bool has_one_shot_message = false;
   gem16::ThinkingEffort thinking_effort = gem16::ThinkingEffort::kMedium;
@@ -240,6 +243,7 @@ gem16::Result<Options> ParseOptions(int argc, char** argv) {
         return gem16::Status(gem16::StatusCode::kInvalidArgument,
                               "--max-context must be an unsigned integer");
       }
+      options.max_context_explicit = true;
     } else if (argument == "--thinking") {
       options.thinking_effort = gem16::ThinkingEffort::kMedium;
     } else if (argument == "--no-thinking") {
@@ -383,11 +387,6 @@ gem16::Result<Options> ParseOptions(int argc, char** argv) {
       options.max_context == 0U) {
     return gem16::Status(gem16::StatusCode::kInvalidArgument,
                          "specified token and context limits must be positive");
-  }
-  if (options.mtp_draft_tokens != 0U &&
-      options.assistant_model_directory.empty()) {
-    return gem16::Status(gem16::StatusCode::kInvalidArgument,
-                         "active MTP requires --assistant-model");
   }
   if (options.mtp_adaptive && options.mtp_draft_tokens == 0U) {
     return gem16::Status(gem16::StatusCode::kInvalidArgument,
@@ -734,6 +733,28 @@ int ChatMain(int argc, char** argv) {
     return 64;
   }
   Options options = std::move(parsed).value();
+  auto config = gem16::internal::LoadModelConfig(
+      options.model_directory / "config.json");
+  if (!config.ok()) {
+    std::cerr << "error: " << config.status().message() << '\n';
+    return 2;
+  }
+  const bool moe26b = gem16::internal::ClassifyModelVariant(config.value()) ==
+                      gem16::internal::ModelVariant::kGemma4Moe26BA4B;
+  if (!options.max_context_explicit && moe26b) {
+    options.max_context = 32768U;
+  }
+  if (moe26b &&
+      (options.mtp_draft_tokens != 0U || options.mtp_adaptive ||
+       !options.assistant_model_directory.empty())) {
+    std::cerr << "error: Gemma 4 26B text-only does not support MTP\n";
+    return 2;
+  }
+  if (options.mtp_draft_tokens != 0U &&
+      options.assistant_model_directory.empty()) {
+    std::cerr << "error: active MTP requires --assistant-model\n";
+    return 2;
+  }
   auto initial_media = LoadMediaParts(
       options.media_files, options.max_context, options.max_tokens,
       options.stats);

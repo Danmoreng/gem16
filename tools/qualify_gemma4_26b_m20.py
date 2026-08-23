@@ -18,6 +18,7 @@ import math
 import os
 from pathlib import Path
 import platform
+import shutil
 import statistics
 import subprocess
 import sys
@@ -39,6 +40,10 @@ EXPECTED_DISPATCH = {
 }
 REQUIRED_WARMUPS = 3
 REQUIRED_RETAINED = 10
+EXPECTED_SM120_INSTRUCTIONS = (
+    "OMMA.SF.16864.F32.E2M1.E2M1.UE4M3.4X",
+    "QMMA.16832.F32.E4M3.E4M3",
+)
 
 
 class QualificationError(RuntimeError):
@@ -186,6 +191,43 @@ def validate_suite(suite: dict[str, Any]) -> list[dict[str, Any]]:
     return validated
 
 
+def validate_instruction_evidence(
+    executable: Path, evidence: dict[str, Any]
+) -> dict[str, Any]:
+    binary_sha256 = sha256_file(executable)
+    if evidence.get("binary_sha256") != binary_sha256:
+        raise QualificationError("native instruction binary SHA-256 does not match executable")
+    cuobjdump = shutil.which("cuobjdump")
+    if cuobjdump is None:
+        raise QualificationError("cuobjdump is required to verify native instruction evidence")
+    completed = subprocess.run(
+        [cuobjdump, "--dump-sass", str(executable)],
+        check=False,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+    if completed.returncode != 0:
+        raise QualificationError(f"cuobjdump failed: {completed.stderr[-2000:]}")
+    disassembly = completed.stdout.encode("utf-8")
+    disassembly_sha256 = sha256_bytes(disassembly)
+    if evidence.get("disassembly_sha256") != disassembly_sha256:
+        raise QualificationError("native instruction disassembly SHA-256 changed")
+    required = evidence.get("required_mnemonics")
+    if required != list(EXPECTED_SM120_INSTRUCTIONS):
+        raise QualificationError("native instruction mnemonic contract changed")
+    counts = {mnemonic: completed.stdout.count(mnemonic) for mnemonic in required}
+    if any(count <= 0 for count in counts.values()):
+        raise QualificationError("required native SM120 instruction is absent")
+    return {
+        "binary_sha256": binary_sha256,
+        "disassembly_sha256": disassembly_sha256,
+        "required_mnemonic_counts": counts,
+        "cuobjdump": cuobjdump,
+    }
+
+
 def bind_prompt_manifests(
     scenarios: list[dict[str, Any]], suite_directory: Path
 ) -> list[dict[str, Any]]:
@@ -240,6 +282,12 @@ def validate_sample(
         raise QualificationError(f"{identifier}: correctness data is missing")
     if correctness.get("all_logits_finite") is not True:
         raise QualificationError(f"{identifier}: non-finite logits")
+    if integer(
+        correctness.get("finite_checks_completed"),
+        f"{identifier}.finite_checks_completed",
+        minimum=1,
+    ) != scenario["output_forwards"]:
+        raise QualificationError(f"{identifier}: finite checks do not cover every output")
     if correctness.get("prompt_manifest_sha256") != scenario["prompt_manifest_sha256"]:
         raise QualificationError(f"{identifier}: prompt identity changed")
     if not is_sha256(correctness.get("output_token_sha256")):
@@ -258,7 +306,6 @@ def validate_sample(
         "cpu_weight_offload": False,
         "token_loop_allocations": False,
         "native_instruction_capability": True,
-        "native_instruction_observed": True,
     }
     for field, expected in exact_runtime.items():
         if runtime.get(field) != expected:
@@ -273,6 +320,22 @@ def validate_sample(
         raise QualificationError(f"{identifier}: resolved dispatch is incomplete")
     if not all(isinstance(value, str) and value.startswith("native_") for value in dispatch.values()):
         raise QualificationError(f"{identifier}: resolved dispatch contains a non-native path")
+    observations = runtime.get("observations")
+    if not isinstance(observations, dict):
+        raise QualificationError(f"{identifier}: engine execution observations are missing")
+    expected_observations = {
+        "prefill_calls": 1,
+        "decode_graph_launches": scenario["output_forwards"] - 1,
+        "token_selections": scenario["output_forwards"],
+        "maximum_global_position_exclusive":
+            scenario["prompt_tokens"] + scenario["output_forwards"] - 1,
+        "recurring_allocation_count": 0,
+    }
+    for field, expected in expected_observations.items():
+        if integer(observations.get(field), f"{identifier}.observations.{field}") != expected:
+            raise QualificationError(f"{identifier}: observation {field} changed")
+    integer(observations.get("prefill_chunks"), f"{identifier}.observations.prefill_chunks", minimum=1)
+    integer(observations.get("sliding_ring_wraps"), f"{identifier}.observations.sliding_ring_wraps")
 
     performance = sample.get("performance")
     if not isinstance(performance, dict):
@@ -306,7 +369,7 @@ def validate_sample(
     memory = sample.get("memory")
     if not isinstance(memory, dict):
         raise QualificationError(f"{identifier}: memory data is missing")
-    peak = integer(memory.get("sampled_process_peak_bytes"), f"{identifier}.sampled_process_peak_bytes", minimum=1)
+    device_used = integer(memory.get("sampled_device_used_bytes"), f"{identifier}.sampled_device_used_bytes", minimum=1)
     margin = integer(memory.get("margin_bytes"), f"{identifier}.margin_bytes", minimum=1)
     if memory.get("recurring_allocation_observed") is not False:
         raise QualificationError(f"{identifier}: recurring allocation was observed")
@@ -323,7 +386,8 @@ def validate_sample(
         "output_token_sha256": correctness["output_token_sha256"],
         "output_checksum": correctness["output_checksum"],
         "fallback_count": 0,
-        "sampled_process_peak_bytes": peak,
+        "recurring_allocation_count": observations["recurring_allocation_count"],
+        "sampled_device_used_bytes": device_used,
         "margin_bytes": margin,
         "resolved_dispatch": dispatch,
     }
@@ -354,7 +418,7 @@ def summarize_runs(runs: list[dict[str, Any]]) -> dict[str, Any]:
     result: dict[str, Any] = {}
     for field in (
         "prompt_ms", "prompt_tps", "ttft_ms", "decode_ms", "decode_tps",
-        "sampled_process_peak_bytes", "telemetry_process_peak_bytes", "margin_bytes",
+        "sampled_device_used_bytes", "telemetry_process_peak_bytes", "margin_bytes",
     ):
         result[field] = distribution([float(run[field]) for run in runs])
     result["itl_ms"] = distribution([float(value) for run in runs for value in run["itl_ms"]])
@@ -540,6 +604,9 @@ def collect(args: argparse.Namespace) -> dict[str, Any]:
     suite = load_json(suite_path)
     scenarios = bind_prompt_manifests(validate_suite(suite), suite_path.parent)
     executable = args.executable.resolve(strict=True)
+    instruction_evidence = validate_instruction_evidence(
+        executable, suite["native_instruction_evidence"]
+    )
     model = args.model.resolve(strict=True)
     raw_dir = args.raw_dir.resolve()
     if raw_dir.exists() and any(raw_dir.iterdir()):
@@ -607,10 +674,6 @@ def collect(args: argparse.Namespace) -> dict[str, Any]:
                 max(float(row["process_vram_mib"]) for row in telemetry_rows)
                 * 1024 * 1024
             )
-            if observed_peak_bytes > normalized["sampled_process_peak_bytes"] + 64 * 1024 * 1024:
-                raise QualificationError(
-                    f"{identifier}: runner peak memory is below continuous telemetry"
-                )
             record = {
                 "scenario": identifier,
                 "run": phase_index,
@@ -643,8 +706,18 @@ def collect(args: argparse.Namespace) -> dict[str, Any]:
             for scenario in scenarios
         ),
         "ten_retained_per_scenario": all(len(runs) == REQUIRED_RETAINED for runs in retained_by_scenario.values()),
-        "no_fallback_or_offload": True,
-        "native_dispatch_and_instruction_evidence": True,
+        "no_fallback_or_offload": all(
+            run["fallback_count"] == 0 for run in raw_records
+        ),
+        "no_recurring_allocation": all(
+            run["recurring_allocation_count"] == 0 for run in raw_records
+        ),
+        "native_dispatch_and_instruction_evidence": bool(
+            instruction_evidence["required_mnemonic_counts"]
+        ) and all(
+            all(value.startswith("native_") for value in run["resolved_dispatch"].values())
+            for run in raw_records
+        ),
         "continuous_telemetry": all(run["telemetry_samples"] > 0 for run in raw_records),
         "m19_quality_pass": m19_gate["pass"],
         "m21_memory_pass": m21_gate["pass"],
@@ -672,7 +745,7 @@ def collect(args: argparse.Namespace) -> dict[str, Any]:
             "primary_statistic": "median",
             "telemetry_interval_seconds": args.telemetry_interval,
         },
-        "native_instruction_evidence": suite["native_instruction_evidence"],
+        "native_instruction_evidence": instruction_evidence,
         "external_gates": {"m19": m19_gate, "m21": m21_gate},
         "gates": data_gates,
         "summary": {

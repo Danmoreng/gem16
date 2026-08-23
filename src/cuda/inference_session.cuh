@@ -231,6 +231,11 @@ Result<ConversationSession> ConversationSession::Create(
     }
   }
   const bool mtp_enabled = options.mtp_draft_tokens != 0U;
+  if (moe26b &&
+      (mtp_enabled || options.mtp_adaptive || runtime->impl_->assistant_loaded)) {
+    return Error(StatusCode::kUnsupported,
+                 "Gemma 4 26B text-only does not support MTP");
+  }
   if (mtp_enabled && options.mtp_draft_tokens != 1U &&
       options.mtp_draft_tokens != 2U && options.mtp_draft_tokens != 4U) {
     return Error(StatusCode::kInvalidArgument,
@@ -253,10 +258,6 @@ Result<ConversationSession> ConversationSession::Create(
     if (options.kv_cache_mode != KvCacheMode::kCheckpointFp8) {
       return Error(StatusCode::kUnsupported,
                    "Gemma 4 26B currently supports only the compiled FP8 KV cache");
-    }
-    if (mtp_enabled || runtime->impl_->assistant_loaded) {
-      return Error(StatusCode::kUnsupported,
-                   "Gemma 4 26B text-only does not support MTP");
     }
     if (runtime->impl_->moe26b_engine == nullptr) {
       return Error(StatusCode::kInternal,

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "milestone": "M19",
-  "status": "frozen_before_heldout_execution",
+  "status": "frozen_before_q4_heldout_execution",
   "frozen_at_code_revision": "2b48a76e6b605bca4c9402241dd688b23787ee46",
   "identity": {
     "artifact_content_sha256": "471805f7dad8abb84300be78b2822a63dcb1d35bff5aa98426a162cc8532ee17",
@@ -9,6 +9,9 @@
     "artifact_profile": "sm120-text-hybrid-v1",
     "runtime_profile": "native_sm120_integrated_prefill_decode_head",
     "source_lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230",
+    "reference_q4_lock_sha256": "0893ac0a4db32f0c5549bc17b92f3951ab4da1a6180b188094190a4bbfc88784",
+    "reference_q4_gguf_sha256": "3eca3b8f6d7baf218a7dd6bba5fb59a56ee25fe2d567b6f5f589b4f697eca51d",
+    "reference_llama_cpp_revision": "0b14b87d7c20cb753b94b96854dd7b45306fc696",
     "config_sha256": "8a647d5444c9e77b03bd80ac802683ffdbf64b3d9296ca5257ced8e50349ea16",
     "generation_config_sha256": "b69207f9be617e982d13cc273cce6fd88c98dda99a4bdc5e2d52ffe0a0d9f0a9",
     "tokenizer_sha256": "cc8d3a0ce36466ccc1278bf987df5f71db1719b9ca6b4118264f45cb627bfe0f",
@@ -55,17 +58,11 @@
     ]
   },
   "thresholds": {
-    "teacher_forced_weighted_mean_nll_delta_max": 0.1,
-    "teacher_forced_category_mean_nll_delta_max": 0.2,
-    "teacher_forced_weighted_mean_kl_max": 0.02,
-    "teacher_forced_record_kl_max": 0.05,
-    "teacher_forced_reference_token_top5_fraction_min": 0.95,
-    "teacher_forced_top1_agreement_fraction_min": 0.8,
-    "selected_layer_relative_l2_max": 0.25,
-    "selected_layer_cosine_min": 0.98,
-    "router_top8_overlap_min": 5,
-    "attention_relative_l2_max": 0.25,
-    "attention_cosine_min": 0.98,
+    "teacher_forced_q4_reference_token_candidate_top5_fraction_min": 0.95,
+    "teacher_forced_q4_top1_agreement_fraction_min": 0.8,
+    "teacher_forced_selected_logprob_compared_fraction_min": 0.95,
+    "teacher_forced_mean_selected_logprob_absolute_delta_max": 0.5,
+    "teacher_forced_record_selected_logprob_absolute_delta_max": 2.0,
     "task_absolute_delta_min": -0.02,
     "task_relative_retention_min": 0.97,
     "task_invalid_response_fraction_max": 0.01,
@@ -75,9 +72,9 @@
     "prose_minimum_independent_reviewers": 2
   },
   "rationale": {
-    "numerical": "The aggregate KL and selected-boundary limits retain the accepted M13 development envelope; the per-record/category limits prevent one held-out stratum from being hidden by an average.",
-    "tasks": "Every pinned task must independently retain at least 97 percent of the paired QAT-BF16 score and lose no more than two absolute percentage points.",
+    "numerical": "The paired official-Q4 rank and selected-logprob limits compare the production candidate to Google's executable QAT-target format without loading the 49 GB BF16 checkpoint on the target laptop.",
+    "tasks": "Every pinned task must independently retain at least 97 percent of the paired official Google QAT Q4_0 score and lose no more than two absolute percentage points.",
     "prose": "The small four-category suite is reported per category and requires two independent blind reviewers; it is not allowed to compensate a category regression with another category's gain."
   },
-  "change_policy": "Changing a threshold after any held-out candidate result has been inspected requires a decision record and a new held-out split or explicit reclassification of this split as development."
+  "change_policy": "The 2026-08-23 owner decision replaced the unexecuted 49 GB QAT-BF16 reference with the pinned official Google QAT Q4_0 reference before Q4-paired held-out execution. Changing a threshold after any Q4-paired held-out candidate result has been inspected requires a decision record and a new held-out split or explicit reclassification of this split as development."
 }

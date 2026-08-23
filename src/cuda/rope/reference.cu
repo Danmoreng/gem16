@@ -302,7 +302,8 @@ __global__ void ProjectionRmsNormRotaryBf16ControlledKernel(
     const float* rotary_cosine, const float* rotary_sine,
     const DecodeControl* control, std::uint64_t query_heads,
     std::uint64_t kv_heads, std::uint64_t head_dimension,
-    std::uint64_t rotating_pairs, float epsilon) {
+    std::uint64_t rotating_pairs, float epsilon,
+    bool table_contains_all_positions) {
   const std::uint64_t combined_head = blockIdx.x;
   const bool is_query = combined_head < query_heads;
   const std::uint64_t head =
@@ -353,7 +354,10 @@ __global__ void ProjectionRmsNormRotaryBf16ControlledKernel(
       first_input * inverse_rms * first_scale));
   const float second_value = static_cast<float>(__float2bfloat16_rn(
       second_input * inverse_rms * second_scale));
-  const std::uint64_t rotary_index = control->position * rotating_pairs + index;
+  const std::uint64_t rotary_index =
+      table_contains_all_positions
+          ? control->position * rotating_pairs + index
+          : index;
   const float cosine = rotary_cosine[rotary_index];
   const float sine = rotary_sine[rotary_index];
   output[first] = static_cast<float>(__float2bfloat16_rn(
@@ -667,12 +671,53 @@ Status LaunchProjectionRmsNormRotaryBf16Controlled(
       <<<static_cast<unsigned>(blocks), kThreads, 0, stream>>>(
           query, query_norm_bf16, normalized_query, key, key_norm_bf16,
           normalized_key, rotary_cosine, rotary_sine, control, query_heads,
-          kv_heads, head_dimension, rotating_pairs, epsilon);
+          kv_heads, head_dimension, rotating_pairs, epsilon, true);
   const cudaError_t error = cudaGetLastError();
   return error == cudaSuccess
              ? Status::Ok()
              : CudaFailure("launch controlled fused projection RMSNorm/RoPE",
                            error);
+}
+
+Status LaunchProjectionRmsNormRotaryBf16CurrentTableControlled(
+    const float* query, const std::uint16_t* query_norm_bf16,
+    float* normalized_query, const float* key,
+    const std::uint16_t* key_norm_bf16, float* normalized_key,
+    const float* rotary_cosine, const float* rotary_sine,
+    const DecodeControl* control, std::uint64_t query_heads,
+    std::uint64_t kv_heads, std::uint64_t head_dimension,
+    double rotary_factor, float epsilon, cudaStream_t stream) {
+  if (query == nullptr || query_norm_bf16 == nullptr ||
+      normalized_query == nullptr || key == nullptr ||
+      key_norm_bf16 == nullptr || normalized_key == nullptr ||
+      rotary_cosine == nullptr || rotary_sine == nullptr || control == nullptr ||
+      query_heads == 0U || kv_heads == 0U || head_dimension == 0U ||
+      head_dimension > kThreads * 2U || head_dimension % 2U != 0U ||
+      !std::isfinite(rotary_factor) || rotary_factor <= 0.0 ||
+      rotary_factor > 1.0 || !std::isfinite(epsilon) || epsilon <= 0.0F) {
+    return Invalid("current-table controlled fused projection RMSNorm/RoPE "
+                   "geometry is invalid");
+  }
+  const std::uint64_t rotating_pairs = static_cast<std::uint64_t>(
+      rotary_factor * static_cast<double>(head_dimension / 2U));
+  const std::uint64_t blocks = query_heads + kv_heads;
+  if (rotating_pairs == 0U || rotating_pairs > kThreads ||
+      !ValidGrid(blocks)) {
+    return Invalid("current-table controlled fused projection RMSNorm/RoPE "
+                   "extent is invalid");
+  }
+  ProjectionRmsNormRotaryBf16ControlledKernel
+      <<<static_cast<unsigned>(blocks), kThreads, 0, stream>>>(
+          query, query_norm_bf16, normalized_query, key, key_norm_bf16,
+          normalized_key, rotary_cosine, rotary_sine, control, query_heads,
+          kv_heads, head_dimension, rotating_pairs, epsilon, false);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure(
+                   "launch current-table controlled fused projection "
+                   "RMSNorm/RoPE",
+                   error);
 }
 
 Status LaunchRotaryEmbeddingTableBatch(

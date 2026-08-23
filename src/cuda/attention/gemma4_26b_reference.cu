@@ -413,7 +413,7 @@ Status LaunchGemma4Moe26BAttentionReferenceControlledLayer(
       x.rotary_cosine, x.rotary_sine, rotating_pairs, t.head_dimension,
       control, t.rope_theta, t.rope_scaling_factor, stream);
   if (!status.ok()) return status;
-  status = LaunchProjectionRmsNormRotaryBf16Controlled(
+  status = LaunchProjectionRmsNormRotaryBf16CurrentTableControlled(
       x.query_raw, w.query_norm_bf16, x.query_normalized, x.key_raw,
       w.key_norm_bf16, x.key_normalized, x.rotary_cosine, x.rotary_sine,
       control, t.query_heads, t.kv_heads, t.head_dimension, t.rotary_factor,

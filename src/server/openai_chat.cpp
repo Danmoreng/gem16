@@ -1119,10 +1119,12 @@ std::string ResponseJson(const OpenAiResponseIdentity& identity,
       &response);
 }
 
-std::string OpenAiErrorJson(std::string_view message, std::string_view type) {
+std::string OpenAiErrorJson(std::string_view message, std::string_view type,
+                            std::string_view code) {
   return "{\"error\":{\"message\":" + json::Quote(message) +
          ",\"type\":" + json::Quote(type) +
-         ",\"param\":null,\"code\":null}}";
+         ",\"param\":null,\"code\":" +
+         (code.empty() ? "null" : json::Quote(code)) + "}}";
 }
 
 }  // namespace gem16::server

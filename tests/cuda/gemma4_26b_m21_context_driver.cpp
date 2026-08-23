@@ -76,7 +76,9 @@ bool Parse(int argc, char** argv, Options* options) {
 }
 
 int Fail(std::string_view operation, const gem16::Status& status, int code) {
-  std::cerr << operation << ": " << status.message() << '\n';
+  std::cerr << operation << ": status_code="
+            << static_cast<int>(status.code()) << ": " << status.message()
+            << '\n';
   return code;
 }
 
@@ -127,7 +129,11 @@ int main(int argc, char** argv) {
   auto engine = gem16::internal::Gemma4Moe26BReferenceEngine::Create(
       options.model, options.context, options.device,
       gem16::internal::Gemma4Moe26BBackend::kSm120Integrated);
-  if (!engine.ok()) return Fail("create M21 engine", engine.status(), 4);
+  if (!engine.ok()) {
+    const int exit_code =
+        engine.status().code() == gem16::StatusCode::kResourceExhausted ? 20 : 4;
+    return Fail("create M21 engine", engine.status(), exit_code);
+  }
   std::size_t free_after_create = 0U;
   cuda_status = cudaMemGetInfo(&free_after_create, &total);
   if (cuda_status != cudaSuccess) {
@@ -175,6 +181,16 @@ int main(int argc, char** argv) {
     std::cerr << "M21 over-limit token was not rejected without state change\n";
     return 7;
   }
+  const auto evidence = engine.value().execution_evidence();
+  if (!evidence.integrated_native_backend || !evidence.decode_graph_ready ||
+      evidence.prefill_calls != 1U || evidence.decode_graph_launches != 1U ||
+      evidence.sliding_ring_wraps == 0U ||
+      evidence.maximum_global_position_exclusive != options.context ||
+      evidence.fallback_count != 0U ||
+      evidence.recurring_allocation_count != 0U) {
+    std::cerr << "M21 execution observations do not prove the requested boundary\n";
+    return 7;
+  }
 
   std::ofstream binary(options.logits, std::ios::binary | std::ios::trunc);
   binary.write(reinterpret_cast<const char*>(logits.data()),
@@ -213,12 +229,19 @@ int main(int argc, char** argv) {
          << (over_limit_rejected ? "true" : "false")
          << ",\"sliding_cache_capacity\":"
          << engine.value().sliding_cache_capacity()
+         << ",\"sliding_ring_wrap_count\":"
+         << evidence.sliding_ring_wraps
          << ",\"sliding_ring_wrap_exercised\":"
-         << (options.prompt_tokens > engine.value().sliding_cache_capacity()
+         << (evidence.sliding_ring_wraps > 0U ? "true" : "false")
+         << ",\"maximum_global_position_exclusive\":"
+         << evidence.maximum_global_position_exclusive
+         << ",\"global_extent_exercised\":"
+         << (evidence.maximum_global_position_exclusive == options.context
                  ? "true"
                  : "false")
-         << ",\"global_extent_exercised\":"
-         << (boundary_position == options.context ? "true" : "false")
+         << ",\"fallback_count\":" << evidence.fallback_count
+         << ",\"recurring_allocation_count\":"
+         << evidence.recurring_allocation_count
          << ",\"prefill_chunk_count\":"
          << engine.value().prefill_chunk_count()
          << ",\"minimum_prefill_chunk_tokens\":"
