@@ -41,9 +41,12 @@ constexpr std::uint32_t kExperts = 128U;
 constexpr std::uint32_t kTopK = 8U;
 constexpr std::uint64_t kLayers = 30U;
 constexpr std::uint64_t kMaximumContextTokens = 262144U;
-constexpr std::uint64_t kPrefillMaxTokens = 128U;
-constexpr std::uint64_t kPrefillScoreElements =
-    64U * 1024U * 1024U / sizeof(float);
+constexpr std::uint64_t kPrefillMaxTokens = 512U;
+// The native online SM120 attention path never materializes a score slab.
+// Keep one validated sentinel element because the shared workspace contract
+// still requires a non-null pointer, and spend the reclaimed 64 MiB on larger
+// chunks that reuse resident expert weights across more tokens.
+constexpr std::uint64_t kPrefillScoreElements = 1U;
 constexpr std::uint64_t kNvfp4Block = 16U;
 constexpr std::uint64_t kSm120KBlock = 64U;
 constexpr std::uint64_t kRowsPerTile = 8U;
@@ -129,17 +132,6 @@ struct LayoutBuilder {
     return offset;
   }
 };
-
-bool PrefillChunkFits(std::uint64_t start_position, std::uint64_t chunk) {
-  if (chunk == 0U ||
-      start_position > std::numeric_limits<std::uint64_t>::max() - chunk) {
-    return false;
-  }
-  const std::uint64_t extent = start_position + chunk;
-  if (extent > std::numeric_limits<std::uint64_t>::max() / 16U) return false;
-  const std::uint64_t score_elements_per_token = 16U * extent;
-  return chunk <= kPrefillScoreElements / score_elements_per_token;
-}
 
 __device__ __forceinline__ std::uint64_t DeviceTiledPackedOffset(
     std::uint64_t row, std::uint64_t column, std::uint64_t k_blocks) {
@@ -1140,14 +1132,8 @@ Status Gemma4Moe26BReferenceEngine::PrefillTokens(
   constexpr unsigned threads = 256U;
   std::size_t consumed = 0U;
   while (consumed < tokens.size()) {
-    std::uint64_t chunk = std::min<std::uint64_t>(
+    const std::uint64_t chunk = std::min<std::uint64_t>(
         kPrefillMaxTokens, tokens.size() - consumed);
-    while (chunk > 0U && !PrefillChunkFits(x.position, chunk)) {
-      --chunk;
-    }
-    if (chunk == 0U) {
-      return Invalid("M17 prefill score workspace cannot fit one token");
-    }
     cudaError_t error = cudaStreamSynchronize(x.stream);
     if (error != cudaSuccess) {
       return CudaFailure("synchronize M17 prefill token staging", error);
@@ -1180,7 +1166,7 @@ Status Gemma4Moe26BReferenceEngine::PrefillTokens(
       return CudaFailure("launch M17 prefill embedding", error);
     }
     for (std::uint32_t layer = 0U; layer < kLayers; ++layer) {
-      Status status = LaunchGemma4Moe26BAttentionReferencePrefillLayer(
+      Status status = LaunchGemma4Moe26BAttentionSm120PrefillLayer(
           x.prefill_hidden_a, x.prefill_hidden_b, x.position, chunk,
           x.traits[layer], x.attention_weights[layer], x.caches[layer],
           x.prefill_attention_workspace, 1.0e-6F, x.stream);

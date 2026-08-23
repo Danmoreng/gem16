@@ -734,6 +734,199 @@ __global__ void Sm120MatrixProjectionKernel(
 #endif
 }
 
+// Expert-major prefill tile. Stable routing provides compact descriptors for
+// up to 16 assignments of one expert. Filling the complete MMA M dimension
+// lets those assignments share every W13/W2 weight fragment while preserving
+// each assignment's original K64 accumulation and BF16 epilogue.
+template <bool kFusedGateUp>
+__global__ void Sm120GroupedExpertMatrixKernel(
+    const std::uint8_t* packed_activation_e2m1,
+    const std::uint8_t* activation_scales_e4m3fn,
+    const std::uint8_t* packed_weight_e2m1,
+    const std::uint8_t* weight_scales_e4m3fn,
+    const Gemma4MoePrefillAssignment* assignments,
+    const std::uint32_t* permutation, const std::uint32_t* prefix,
+    const std::uint32_t* expert_tiles,
+    const std::uint32_t* expert_tile_count, float* output,
+    std::uint64_t assignment_count, std::uint64_t rows,
+    std::uint64_t contracting_elements, std::uint32_t experts,
+    float output_divisor) {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1200
+  const std::uint32_t tile_index = blockIdx.y;
+  if (tile_index >= expert_tile_count[0]) return;
+  const std::uint32_t descriptor = expert_tiles[tile_index];
+  const std::uint32_t expert = descriptor >> 16U;
+  const std::uint32_t grouped_base = descriptor & 0xffffU;
+  if (expert >= experts || grouped_base >= assignment_count) return;
+  const std::uint32_t grouped_end = prefix[expert + 1U];
+
+  const unsigned warp = threadIdx.x / kWarpSize;
+  const unsigned lane = threadIdx.x & (kWarpSize - 1U);
+  const unsigned group = lane >> 2U;
+  const unsigned thread_in_group = lane & 3U;
+  const std::uint64_t global_warp =
+      static_cast<std::uint64_t>(blockIdx.x) * kWarpsPerBlock + warp;
+  const std::uint64_t row_tiles = rows / kRowsPerWarp;
+  if (global_warp >= row_tiles) return;
+
+  const std::uint64_t k_blocks =
+      contracting_elements / kElementsPerKBlock;
+  const std::uint64_t packed_row_bytes = contracting_elements / 2U;
+  const std::uint64_t scale_row_bytes = contracting_elements / 16U;
+  const std::uint64_t expert_row_base =
+      static_cast<std::uint64_t>(expert) *
+      (kFusedGateUp ? 2U * rows : rows);
+  const std::uint64_t first_weight_row = expert_row_base +
+                                         global_warp * kRowsPerWarp;
+  const std::uint64_t weight_tile_offset =
+      first_weight_row * k_blocks * 32U;
+  const std::uint64_t scale_tile_offset =
+      first_weight_row * k_blocks * 4U;
+  const std::uint64_t up_weight_tile_offset =
+      (first_weight_row + rows) * k_blocks * 32U;
+  const std::uint64_t up_scale_tile_offset =
+      (first_weight_row + rows) * k_blocks * 4U;
+
+  float accumulator[4] = {};
+  float up_accumulator[4] = {};
+  const std::uint32_t grouped_low = grouped_base + group;
+  const std::uint32_t grouped_high = grouped_low + 8U;
+
+  for (std::uint64_t k_block = 0; k_block < k_blocks; ++k_block) {
+    std::uint32_t activation_rows[2] = {grouped_low, grouped_high};
+    bool valid[2] = {grouped_low < grouped_end,
+                     grouped_high < grouped_end};
+    if constexpr (kFusedGateUp) {
+#pragma unroll
+      for (unsigned half = 0; half < 2U; ++half) {
+        if (valid[half]) {
+          const std::uint32_t original = permutation[activation_rows[half]];
+          if (original >= assignment_count ||
+              assignments[original].expert_id != expert) {
+            valid[half] = false;
+          } else {
+            activation_rows[half] = assignments[original].token_id;
+          }
+        }
+      }
+    }
+
+    const std::uint64_t k_offset =
+        k_block * 32U + static_cast<std::uint64_t>(thread_in_group) * 4U;
+    const std::uint32_t a0 = valid[0]
+        ? LoadU32(packed_activation_e2m1 +
+                  static_cast<std::uint64_t>(activation_rows[0]) *
+                      packed_row_bytes +
+                  k_offset)
+        : 0U;
+    const std::uint32_t a1 = valid[1]
+        ? LoadU32(packed_activation_e2m1 +
+                  static_cast<std::uint64_t>(activation_rows[1]) *
+                      packed_row_bytes +
+                  k_offset)
+        : 0U;
+    const std::uint32_t a2 = valid[0]
+        ? LoadU32(packed_activation_e2m1 +
+                  static_cast<std::uint64_t>(activation_rows[0]) *
+                      packed_row_bytes +
+                  k_offset + 16U)
+        : 0U;
+    const std::uint32_t a3 = valid[1]
+        ? LoadU32(packed_activation_e2m1 +
+                  static_cast<std::uint64_t>(activation_rows[1]) *
+                      packed_row_bytes +
+                  k_offset + 16U)
+        : 0U;
+    std::uint32_t scale_a = 0U;
+    if (thread_in_group < 2U && valid[thread_in_group]) {
+      scale_a = LoadU32(
+          activation_scales_e4m3fn +
+          static_cast<std::uint64_t>(activation_rows[thread_in_group]) *
+              scale_row_bytes +
+          k_block * 4U);
+    }
+
+    const std::uint64_t weight_offset =
+        weight_tile_offset +
+        (k_block * kRowsPerWarp + group) * 32U +
+        static_cast<std::uint64_t>(thread_in_group) * 4U;
+    const std::uint64_t scale_offset =
+        scale_tile_offset + (k_block * kRowsPerWarp + group) * 4U;
+    const std::uint32_t b0 = LoadU32(packed_weight_e2m1 + weight_offset);
+    const std::uint32_t b1 =
+        LoadU32(packed_weight_e2m1 + weight_offset + 16U);
+    const std::uint32_t scale_b =
+        LoadU32(weight_scales_e4m3fn + scale_offset);
+    MmaNvfp4(accumulator[0], accumulator[1], accumulator[2], accumulator[3],
+              a0, a1, a2, a3, b0, b1, scale_a, scale_b);
+    if constexpr (kFusedGateUp) {
+      const std::uint64_t up_weight_offset =
+          up_weight_tile_offset +
+          (k_block * kRowsPerWarp + group) * 32U +
+          static_cast<std::uint64_t>(thread_in_group) * 4U;
+      const std::uint64_t up_scale_offset =
+          up_scale_tile_offset + (k_block * kRowsPerWarp + group) * 4U;
+      const std::uint32_t up_b0 =
+          LoadU32(packed_weight_e2m1 + up_weight_offset);
+      const std::uint32_t up_b1 =
+          LoadU32(packed_weight_e2m1 + up_weight_offset + 16U);
+      const std::uint32_t up_scale_b =
+          LoadU32(weight_scales_e4m3fn + up_scale_offset);
+      MmaNvfp4(up_accumulator[0], up_accumulator[1], up_accumulator[2],
+                up_accumulator[3], a0, a1, a2, a3, up_b0, up_b1, scale_a,
+                up_scale_b);
+    }
+  }
+
+  const std::uint64_t output_column =
+      global_warp * kRowsPerWarp + thread_in_group * 2U;
+#pragma unroll
+  for (unsigned pair = 0; pair < 4U; ++pair) {
+    const bool high = (pair & 2U) != 0U;
+    const std::uint32_t grouped = high ? grouped_high : grouped_low;
+    const std::uint64_t column = output_column + (pair & 1U);
+    if (grouped >= grouped_end || column >= rows) continue;
+    std::uint32_t output_row = grouped;
+    if constexpr (!kFusedGateUp) {
+      output_row = permutation[grouped];
+      if (output_row >= assignment_count) continue;
+    }
+    if constexpr (kFusedGateUp) {
+      const float gate = static_cast<float>(
+          __float2bfloat16_rn(accumulator[pair] / output_divisor));
+      const float up = static_cast<float>(
+          __float2bfloat16_rn(up_accumulator[pair] / output_divisor));
+      const float inner =
+          kSqrtTwoOverPi * (gate + kGeluCubic * gate * gate * gate);
+      const float gelu = static_cast<float>(
+          __float2bfloat16_rn(0.5F * gate * (1.0F + tanhf(inner))));
+      output[static_cast<std::uint64_t>(output_row) * rows + column] =
+          static_cast<float>(__float2bfloat16_rn(gelu * up));
+    } else {
+      output[static_cast<std::uint64_t>(output_row) * rows + column] =
+          static_cast<float>(
+              __float2bfloat16_rn(accumulator[pair] / output_divisor));
+    }
+  }
+#else
+  (void)packed_activation_e2m1;
+  (void)activation_scales_e4m3fn;
+  (void)packed_weight_e2m1;
+  (void)weight_scales_e4m3fn;
+  (void)assignments;
+  (void)permutation;
+  (void)prefix;
+  (void)expert_tiles;
+  (void)expert_tile_count;
+  (void)output;
+  (void)assignment_count;
+  (void)rows;
+  (void)contracting_elements;
+  (void)experts;
+  (void)output_divisor;
+#endif
+}
+
 }  // namespace
 
 Status LaunchNvfp4Sm120DirectProjection(const std::uint8_t* packed_activation_e2m1,
@@ -953,7 +1146,9 @@ Status LaunchNvfp4Sm120GroupedExpertDown(
     const std::uint8_t* packed_expert_weight_e2m1,
     const std::uint8_t* expert_weight_scales_e4m3fn,
     const Gemma4MoePrefillAssignment* assignments,
-    const std::uint32_t* permutation, float* assignment_order_output,
+    const std::uint32_t* permutation, const std::uint32_t* prefix,
+    const std::uint32_t* expert_tiles,
+    const std::uint32_t* expert_tile_count, float* assignment_order_output,
     std::uint64_t assignment_count, std::uint64_t rows_per_expert,
     std::uint64_t contracting_elements, std::uint32_t experts,
     float activation_global_divisor, float weight_global_divisor,
@@ -962,7 +1157,8 @@ Status LaunchNvfp4Sm120GroupedExpertDown(
       grouped_product_scales_e4m3fn == nullptr ||
       packed_expert_weight_e2m1 == nullptr ||
       expert_weight_scales_e4m3fn == nullptr || assignments == nullptr ||
-      permutation == nullptr || assignment_order_output == nullptr ||
+      permutation == nullptr || prefix == nullptr || expert_tiles == nullptr ||
+      expert_tile_count == nullptr || assignment_order_output == nullptr ||
       assignment_count == 0U || assignment_count > 65535U || experts == 0U ||
       rows_per_expert == 0U || rows_per_expert % kRowsPerWarp != 0U ||
       contracting_elements == 0U ||
@@ -981,14 +1177,16 @@ Status LaunchNvfp4Sm120GroupedExpertDown(
   if (blocks > static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
     return Invalid("grouped SM120 expert Down grid exceeds CUDA limits");
   }
-  Sm120DirectProjectionKernel<true, 2><<<
-      dim3(static_cast<unsigned>(blocks),
-           static_cast<unsigned>(assignment_count)),
+  const std::uint64_t tile_grid =
+      (assignment_count + kTokensPerMma - 1U) / kTokensPerMma + experts;
+  Sm120GroupedExpertMatrixKernel<false><<<
+      dim3(static_cast<unsigned>(blocks), static_cast<unsigned>(tile_grid)),
       kThreadsPerBlock, 0, stream>>>(
       grouped_product_e2m1, grouped_product_scales_e4m3fn,
-      packed_expert_weight_e2m1, expert_weight_scales_e4m3fn, nullptr,
-      assignments, permutation, 0U, experts, assignment_order_output,
-      assignment_count, rows_per_expert, contracting_elements, divisor);
+      packed_expert_weight_e2m1, expert_weight_scales_e4m3fn, assignments,
+      permutation, prefix, expert_tiles, expert_tile_count,
+      assignment_order_output, assignment_count, rows_per_expert,
+      contracting_elements, experts, divisor);
   const cudaError_t error = cudaGetLastError();
   return error == cudaSuccess
              ? Status::Ok()
@@ -1346,7 +1544,9 @@ Status LaunchNvfp4Sm120GroupedExpertFusedGateUp(
     const std::uint8_t* packed_expert_gate_up_weight_e2m1,
     const std::uint8_t* expert_gate_up_weight_scales_e4m3fn,
     const Gemma4MoePrefillAssignment* assignments,
-    const std::uint32_t* permutation, float* grouped_product_output,
+    const std::uint32_t* permutation, const std::uint32_t* prefix,
+    const std::uint32_t* expert_tiles,
+    const std::uint32_t* expert_tile_count, float* grouped_product_output,
     std::uint64_t assignment_count, std::uint64_t rows,
     std::uint64_t contracting_elements, std::uint32_t experts,
     float activation_global_divisor, float weight_global_divisor,
@@ -1356,7 +1556,9 @@ Status LaunchNvfp4Sm120GroupedExpertFusedGateUp(
       packed_expert_gate_up_weight_e2m1 == nullptr ||
       expert_gate_up_weight_scales_e4m3fn == nullptr ||
       assignments == nullptr || permutation == nullptr ||
-      grouped_product_output == nullptr || assignment_count == 0U ||
+      prefix == nullptr || expert_tiles == nullptr ||
+      expert_tile_count == nullptr || grouped_product_output == nullptr ||
+      assignment_count == 0U ||
       assignment_count > 65535U || experts == 0U || rows == 0U ||
       rows % kRowsPerWarp != 0U || contracting_elements == 0U ||
       contracting_elements % kElementsPerKBlock != 0U ||
@@ -1374,17 +1576,16 @@ Status LaunchNvfp4Sm120GroupedExpertFusedGateUp(
   if (blocks > static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
     return Invalid("grouped SM120 expert Gate/Up grid exceeds CUDA limits");
   }
-  Sm120FusedGateUpKernel<2><<<
-      dim3(static_cast<unsigned>(blocks),
-           static_cast<unsigned>(assignment_count)),
+  const std::uint64_t tile_grid =
+      (assignment_count + kTokensPerMma - 1U) / kTokensPerMma + experts;
+  Sm120GroupedExpertMatrixKernel<true><<<
+      dim3(static_cast<unsigned>(blocks), static_cast<unsigned>(tile_grid)),
       kThreadsPerBlock, 0, stream>>>(
       token_activation_e2m1, token_activation_scales_e4m3fn,
       packed_expert_gate_up_weight_e2m1,
-      expert_gate_up_weight_scales_e4m3fn,
-      packed_expert_gate_up_weight_e2m1,
-      expert_gate_up_weight_scales_e4m3fn, nullptr, assignments,
-      permutation, 0U, experts, nullptr, nullptr, grouped_product_output,
-      assignment_count, rows, contracting_elements, divisor, divisor);
+      expert_gate_up_weight_scales_e4m3fn, assignments, permutation, prefix,
+      expert_tiles, expert_tile_count, grouped_product_output,
+      assignment_count, rows, contracting_elements, experts, divisor);
   const cudaError_t error = cudaGetLastError();
   return error == cudaSuccess
              ? Status::Ok()

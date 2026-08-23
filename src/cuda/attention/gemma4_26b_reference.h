@@ -91,6 +91,19 @@ BindGemma4Moe26BAttentionReferenceWeights(
     const Gemma4Moe26BAttentionReferenceWorkspace& workspace,
     float epsilon, cudaStream_t stream);
 
+// Native SM120 batched prefill for the validated Gemma 4 26B local
+// QH16/KVH8/D256 and global QH16/KVH2/D512 attention geometries. It preserves
+// the reference path's FP8 cache, RoPE, BF16 and residual boundaries while
+// replacing the four FP8 projections and causal attention implementation.
+[[nodiscard]] Status LaunchGemma4Moe26BAttentionSm120PrefillLayer(
+    const float* hidden, float* output, std::uint64_t start_position,
+    std::uint64_t tokens,
+    const Gemma4Moe26BAttentionLayerTraits& traits,
+    const Gemma4Moe26BAttentionReferenceWeights& weights,
+    const Gemma4Moe26BKvCacheView& cache,
+    const Gemma4Moe26BAttentionReferenceWorkspace& workspace,
+    float epsilon, cudaStream_t stream);
+
 // Graph-capturable T=1 path. Position is read from fixed device control;
 // arithmetic and FP8 cache semantics remain the M12 reference contract.
 [[nodiscard]] Status LaunchGemma4Moe26BAttentionReferenceControlledLayer(

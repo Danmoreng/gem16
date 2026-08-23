@@ -16,6 +16,7 @@
 #include "compiler/sha256.h"
 #include "cuda/engine/gemma4_26b_reference.h"
 #include "gem16/sampling.h"
+#include "gem16/tokenizer.h"
 #include "util/json.h"
 
 namespace {
@@ -296,6 +297,13 @@ int main(int argc, char** argv) {
   const auto prompt_begin = request_begin;
   status = engine.value().PrefillTokens(tokens);
   if (!status.ok()) return Fail("run M20 prefill", status, 5);
+  // PrefillTokens enqueues work on the engine stream. Prediction is the
+  // explicit synchronization and finite-output boundary; measure through it
+  // so prompt throughput cannot report host launch latency as GPU execution.
+  auto prefill_prediction = engine.value().Prediction();
+  if (!prefill_prediction.ok()) {
+    return Fail("synchronize M20 prefill", prefill_prediction.status(), 5);
+  }
   const auto prompt_end = std::chrono::steady_clock::now();
   auto selected = engine.value().SelectToken();
   if (!selected.ok()) return Fail("select M20 first token", selected.status(), 5);
@@ -321,6 +329,14 @@ int main(int argc, char** argv) {
   for (const double interval : intervals) decode_ms += interval;
   const std::string output_hash = gem16::compiler::Sha256Hex(
       output_tokens.data(), output_tokens.size() * sizeof(std::uint32_t));
+  auto tokenizer = gem16::Tokenizer::Load(options.model / "tokenizer.json");
+  if (!tokenizer.ok()) {
+    return Fail("load M20 output tokenizer", tokenizer.status(), 6);
+  }
+  auto decoded_output = tokenizer.value().Decode(output_tokens, false);
+  if (!decoded_output.ok()) {
+    return Fail("decode M20 output tokens", decoded_output.status(), 6);
+  }
   const std::uint64_t used_peak = total -
       std::min({free_before, free_after_create, free_after_prefill,
                 free_after_decode});
@@ -360,6 +376,13 @@ int main(int argc, char** argv) {
          << gem16::json::Quote(prompt_hash.value())
          << ",\"output_token_sha256\":" << gem16::json::Quote(output_hash)
          << ",\"output_checksum\":" << TokenChecksum(output_tokens)
+         << ",\"output_token_ids\":[";
+  for (std::size_t index = 0U; index < output_tokens.size(); ++index) {
+    if (index != 0U) output << ',';
+    output << output_tokens[index];
+  }
+  output << "],\"output_text\":"
+         << gem16::json::Quote(decoded_output.value())
          << "},\"runtime_path\":{"
             "\"model_variant\":\"gemma4-26b-a4b\","
             "\"head_format\":\"nvfp4\",\"kv_mode\":\"fp8\","

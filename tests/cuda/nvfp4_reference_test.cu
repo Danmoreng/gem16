@@ -3212,14 +3212,15 @@ void TestOnlineLocalFp8CausalPrefill() {
   CUDA_TEST_CHECK(row_difference(32U) < 1.0e-6F);
 }
 
-void TestOnlineGlobalFp8CausalPrefill() {
+void RunOnlineGlobalFp8CausalPrefill(std::uint64_t kv_heads,
+                                    const char* label) {
   constexpr std::uint64_t tokens = 32;
   constexpr std::uint64_t query_heads = 16;
-  constexpr std::uint64_t kv_heads = 1;
   constexpr std::uint64_t head_dimension = 512;
   constexpr std::uint64_t capacity = 128;
   constexpr std::uint64_t start_position = 37;
   constexpr std::uint64_t score_stride = start_position + tokens;
+  const std::uint64_t kv_elements = kv_heads * head_dimension;
   constexpr std::array<std::uint16_t, 1> key_scale = {0x3E80U};
   constexpr std::array<std::uint16_t, 1> value_scale = {0x3F00U};
 
@@ -3245,10 +3246,10 @@ void TestOnlineGlobalFp8CausalPrefill() {
     }
     return values;
   };
-  const auto chunk_keys = make_fp8(tokens * head_dimension, 5U, 1U);
-  const auto chunk_values = make_fp8(tokens * head_dimension, 7U, 3U);
-  const auto cache_keys = make_fp8(capacity * head_dimension, 11U, 5U);
-  const auto cache_values = make_fp8(capacity * head_dimension, 13U, 7U);
+  const auto chunk_keys = make_fp8(tokens * kv_elements, 5U, 1U);
+  const auto chunk_values = make_fp8(tokens * kv_elements, 7U, 3U);
+  const auto cache_keys = make_fp8(capacity * kv_elements, 11U, 5U);
+  const auto cache_values = make_fp8(capacity * kv_elements, 13U, 7U);
   if (chunk_keys.empty() || chunk_values.empty() || cache_keys.empty() ||
       cache_values.empty()) {
     return;
@@ -3338,9 +3339,13 @@ void TestOnlineGlobalFp8CausalPrefill() {
   }
   std::transform(online_bits.begin(), online_bits.end(), online_output.begin(),
                  Bf16FromBits);
-  CheckAttentionMetrics(reference_output, online_output,
-                        "online global FP8 prefill", 1.0e-3F, 2.0e-4,
-                        0.99999);
+  CheckAttentionMetrics(reference_output, online_output, label, 1.0e-3F,
+                        2.0e-4, 0.99999);
+}
+
+void TestOnlineGlobalFp8CausalPrefill() {
+  RunOnlineGlobalFp8CausalPrefill(1U, "online global KVH1 FP8 prefill");
+  RunOnlineGlobalFp8CausalPrefill(2U, "online global KVH2 FP8 prefill");
 }
 
 void TestGpuSampling() {

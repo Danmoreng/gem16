@@ -53,6 +53,12 @@ __device__ __forceinline__ float RoundBf16(float value) {
   return static_cast<float>(__float2bfloat16_rn(value));
 }
 
+__global__ void RoundBf16BatchKernel(float* values, std::uint64_t elements) {
+  const std::uint64_t index =
+      static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+  if (index < elements) values[index] = RoundBf16(values[index]);
+}
+
 __global__ void RouterTransformBatchKernel(
     const float* normalized, const std::uint16_t* scale, float* transformed,
     std::uint64_t tokens, std::uint64_t width) {
@@ -230,6 +236,35 @@ __global__ void StableGroupAssignmentsKernel(
   }
 }
 
+// Once routing is complete, router logits are dead for the remainder of the
+// layer. Reuse their FP32 storage as compact expert/tile descriptors
+// schedule so the SM120 kernels launch only O(assignments / 16 + experts)
+// token tiles. histogram[0] temporarily holds the tile count and is restored
+// after W2. Each descriptor packs expert_id in the high 16 bits and the first
+// grouped assignment in the low 16 bits; tile_count never exceeds 8T, which
+// fits the documented T*experts router-logit region because top_k <= experts.
+__global__ void BuildExpertTileScheduleKernel(const std::uint32_t* prefix,
+                                              std::uint32_t* tile_count,
+                                              std::uint32_t* tiles,
+                                              std::uint32_t experts) {
+  if (blockIdx.x != 0U || threadIdx.x != 0U) return;
+  std::uint32_t count = 0U;
+  for (std::uint32_t expert = 0; expert < experts; ++expert) {
+    for (std::uint32_t grouped = prefix[expert];
+         grouped < prefix[expert + 1U]; grouped += 16U) {
+      tiles[count++] = (expert << 16U) | grouped;
+    }
+  }
+  tile_count[0] = count;
+}
+
+__global__ void RestoreHistogramZeroKernel(std::uint32_t* histogram,
+                                           const std::uint32_t* prefix) {
+  if (blockIdx.x == 0U && threadIdx.x == 0U) {
+    histogram[0] = prefix[1] - prefix[0];
+  }
+}
+
 __global__ void ReduceAssignmentsKernel(
     const float* expert_down,
     const Gemma4MoePrefillAssignment* assignments, float* routed_sum,
@@ -325,10 +360,10 @@ Status LaunchGemma4MoeSm120PrefillLayer(
       hidden, w.pre_shared_norm_bf16, x.token_packed, x.token_scales, tokens,
       c.width, c.epsilon, w.shared_gate.activation_global_divisor, stream);
   if (!status.ok()) return status;
-  status = LaunchNvfp4Sm120FusedGateUpExactBatch(
+  status = LaunchNvfp4Sm120FusedGateUpBatch(
       x.token_packed, x.token_scales, w.shared_gate.packed_e2m1,
       w.shared_gate.scales_e4m3fn, w.shared_up.packed_e2m1,
-      w.shared_up.scales_e4m3fn, x.shared_product, tokens,
+      w.shared_up.scales_e4m3fn, nullptr, nullptr, x.shared_product, tokens,
       c.shared_intermediate, c.width,
       w.shared_gate.activation_global_divisor,
       w.shared_gate.weight_global_divisor,
@@ -340,12 +375,18 @@ Status LaunchGemma4MoeSm120PrefillLayer(
       tokens * c.shared_intermediate,
       w.shared_down.activation_global_divisor, stream);
   if (!status.ok()) return status;
-  status = LaunchNvfp4Sm120DirectProjectionBf16FloatExactBatch(
+  status = LaunchNvfp4Sm120DirectProjectionBatch(
       x.shared_product_packed, x.shared_product_scales,
       w.shared_down.packed_e2m1, w.shared_down.scales_e4m3fn,
       x.shared_output, tokens, c.width, c.shared_intermediate,
       w.shared_down.activation_global_divisor,
       w.shared_down.weight_global_divisor, stream);
+  if (!status.ok()) return status;
+  const std::uint64_t shared_output_elements = tokens * c.width;
+  RoundBf16BatchKernel<<<
+      static_cast<unsigned>(Blocks(shared_output_elements)), kThreads, 0,
+      stream>>>(x.shared_output, shared_output_elements);
+  status = CheckLaunch("launch M15 shared-output BF16 rounding");
   if (!status.ok()) return status;
   status = LaunchRmsNormBf16(x.shared_output, w.post_shared_norm_bf16,
                              x.reduced_output, tokens, c.width, c.epsilon,
@@ -380,6 +421,12 @@ Status LaunchGemma4MoeSm120PrefillLayer(
       x.inverse_permutation, c.experts, assignments);
   status = CheckLaunch("launch M15 stable grouping");
   if (!status.ok()) return status;
+  auto* expert_tile_schedule =
+      reinterpret_cast<std::uint32_t*>(x.router_logits);
+  BuildExpertTileScheduleKernel<<<1, 1, 0, stream>>>(
+      x.prefix, x.histogram, expert_tile_schedule, c.experts);
+  status = CheckLaunch("launch M15 expert tile schedule");
+  if (!status.ok()) return status;
 
   status = LaunchRmsNormNvfp4ActivationQuantizationBatch(
       hidden, w.pre_expert_norm_bf16, x.token_packed, x.token_scales, tokens,
@@ -388,8 +435,10 @@ Status LaunchGemma4MoeSm120PrefillLayer(
   status = LaunchNvfp4Sm120GroupedExpertFusedGateUp(
       x.token_packed, x.token_scales, w.expert_gate_up.packed_e2m1,
       w.expert_gate_up.scales_e4m3fn, x.assignments, x.permutation,
-      x.expert_product, assignments, c.expert_intermediate, c.width,
-      c.experts, w.expert_gate_up.activation_global_divisor,
+      x.prefix, expert_tile_schedule, x.histogram,
+      x.expert_product,
+      assignments, c.expert_intermediate, c.width, c.experts,
+      w.expert_gate_up.activation_global_divisor,
       w.expert_gate_up.weight_global_divisor, stream);
   if (!status.ok()) return status;
   status = LaunchNvfp4ReferenceActivationQuantization(
@@ -400,10 +449,13 @@ Status LaunchGemma4MoeSm120PrefillLayer(
   status = LaunchNvfp4Sm120GroupedExpertDown(
       x.expert_product_packed, x.expert_product_scales,
       w.expert_down.packed_e2m1, w.expert_down.scales_e4m3fn, x.assignments,
-      x.permutation, x.expert_down, assignments, c.width,
-      c.expert_intermediate, c.experts,
+      x.permutation, x.prefix, expert_tile_schedule, x.histogram,
+      x.expert_down, assignments, c.width, c.expert_intermediate, c.experts,
       w.expert_down.activation_global_divisor,
       w.expert_down.weight_global_divisor, stream);
+  if (!status.ok()) return status;
+  RestoreHistogramZeroKernel<<<1, 1, 0, stream>>>(x.histogram, x.prefix);
+  status = CheckLaunch("restore M15 expert-zero histogram");
   if (!status.ok()) return status;
   ReduceAssignmentsKernel<<<
       dim3(static_cast<unsigned>(Blocks(c.width)),

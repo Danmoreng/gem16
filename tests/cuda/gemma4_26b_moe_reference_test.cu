@@ -254,7 +254,7 @@ void TestFixedAddressMoeReference() {
   constexpr std::uint64_t kWidth = 64;
   constexpr std::uint64_t kShared = 64;
   constexpr std::uint64_t kExpert = 64;
-  constexpr std::uint32_t kExperts = 8;
+  constexpr std::uint32_t kExperts = 16;
   constexpr std::uint32_t kTopK = 8;
 
   DeviceBuffer<float> hidden(kWidth), output(kWidth);
@@ -472,7 +472,7 @@ void TestFixedAddressMoeReference() {
   for (std::uint32_t slot = 0; slot < kTopK; ++slot) {
     CHECK(ids[slot] == slot);  // exact tie: lower expert ID first
     CHECK(std::abs(selected_weights[slot] - 0.125F) < 1.0e-7F);
-    CHECK(std::abs(probabilities[slot] - 0.125F) < 1.0e-7F);
+    CHECK(std::abs(probabilities[slot] - 0.0625F) < 1.0e-7F);
   }
   for (std::uint64_t index = 0; index < kWidth; ++index) {
     const float expected = static_cast<float>(__ushort_as_bfloat16(
@@ -480,7 +480,9 @@ void TestFixedAddressMoeReference() {
     CHECK(first_output[index] == expected);
   }
 
-  constexpr std::uint64_t kTokens = 3U;
+  // Exercise one full 16-assignment expert tile plus a tail for all selected
+  // experts, while leaving the remaining expert range empty.
+  constexpr std::uint64_t kTokens = 17U;
   DeviceBuffer<float> batch_hidden(kTokens * kWidth), batch_output(kTokens * kWidth),
       batch_router_logits(kTokens * kExperts),
       batch_router_probabilities(kTokens * kExperts),
@@ -563,8 +565,12 @@ void TestFixedAddressMoeReference() {
     }
   }
   for (std::uint32_t expert = 0; expert < kExperts; ++expert) {
-    CHECK(histogram_values[expert] == kTokens);
-    CHECK(prefix_values[expert] == expert * kTokens);
+    const std::uint32_t selected_experts =
+        std::min(expert, static_cast<std::uint32_t>(kTopK));
+    CHECK(histogram_values[expert] ==
+          (expert < kTopK ? kTokens : 0U));
+    CHECK(prefix_values[expert] == selected_experts * kTokens);
+    if (expert >= kTopK) continue;
     for (std::uint32_t token = 0; token < kTokens; ++token) {
       const std::uint32_t grouped = expert * kTokens + token;
       const std::uint32_t original = token * kTopK + expert;

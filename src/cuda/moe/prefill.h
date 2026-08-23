@@ -13,7 +13,9 @@ namespace gem16::internal {
 // All pointers alias caller-owned fixed M15 workspace. Region sizes are
 // determined by BuildGemma4MoePrefillPlan(chunk_tokens).
 struct Gemma4MoePrefillWorkspace {
-  float* router_logits = nullptr;          // T * experts
+  // T * experts; after routing, this aliases at most 8T expert-tile
+  // descriptors. The model contract top_k <= experts guarantees capacity.
+  float* router_logits = nullptr;
   float* router_probabilities = nullptr;   // T * experts
   float* token_hidden = nullptr;           // T * width, reusable
   std::uint8_t* token_packed = nullptr;     // T * width / 2
