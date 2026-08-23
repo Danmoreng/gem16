@@ -1,6 +1,6 @@
 # M22 — CLI/server product integration
 
-Status: in progress; integration and real smoke exist, automated acceptance and 12B regressions remain
+Status: accepted 2026-08-23 at implementation commit `f0aa302aa0246d44e1c8477dbbbb67fbbe2d2037`
 Class: product; closes before bounded prefill work and the final M21/M20 evidence freeze
 
 Normative inputs: [API/CLI changes](../specs/API_CLI_CHANGES.md), [Capability reporting](../specs/ERROR_AND_CAPABILITY_REPORTING.md), [Session ownership](../specs/SESSION_OWNERSHIP_AND_CONCURRENCY.md).
@@ -22,7 +22,10 @@ Studio/catalog work is a parallel nonblocking subtask and may follow M23.
 
 ## Exit gate
 
-- [ ] CLI/server load the exact frozen artifact.
-- [ ] Profile, context and native-path metadata are accurate.
-- [ ] Unsupported MTP/media/multi-slot requests fail clearly.
-- [ ] 12B API behavior remains compatible.
+- [x] CLI/server load the exact frozen artifact.
+- [x] Profile, context and native-path metadata are accurate.
+- [x] Unsupported MTP/media/multi-slot requests fail clearly.
+- [x] 12B API behavior remains compatible.
+
+Compact acceptance: `artifacts/m22/acceptance.json`. Raw product/driver reports remain ignored under
+`artifacts/raw/m22/qualification-20260823-final/` and are referenced by size and SHA-256.

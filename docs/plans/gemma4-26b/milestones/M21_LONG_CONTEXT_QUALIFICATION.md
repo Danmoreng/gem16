@@ -1,7 +1,7 @@
 # M21 — 32K, 64K and maximum safe base context
 
 Status: ready next; repeated real 32K and explicit real 64K execution remain
-Class: qualification; follows the frozen M20 candidate
+Class: qualification; follows the joint clean candidate freeze and precedes M20 execution
 
 Normative inputs: [Memory arena](../specs/MEMORY_ARENA_SPEC.md), [Benchmark matrix](../specs/BENCHMARK_MATRIX.md).
 
@@ -21,7 +21,7 @@ Use real prefill plus decode, ring wrap/global extent tests and continuous telem
 
 ## Exit gate
 
-- [ ] 32K is release-qualified.
+- [ ] 32K is execution-qualified for the technical M23 target.
 - [ ] 64K has an explicit pass/fail result.
 - [ ] `base_max_context` is measured and reproducible.
 - [ ] No context claim relies on reduced hidden safety margin.

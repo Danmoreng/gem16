@@ -2,7 +2,7 @@
 
 ## Current parallel handoffs
 
-- Product lane: M22 automated acceptance and 12B regressions.
+- Product lane: M22 automated acceptance and 12B regressions are accepted; monitor only for regressions.
 - Prefill lane: profile-driven bounded optimization after M22 and before the final evidence freeze.
 - Runner lane: align M20/M21 contracts and freeze a clean candidate.
 - Context lane: real M21 32K/64K execution after GPU serialization.
@@ -10,7 +10,7 @@
 - MTP feasibility lane: M25 phase A assets/inventory/memory only.
 - Quality lane: M19 task/prose work is owner-deferred until the end.
 
-M23 freezes a technical Target after M20–M22, with M19 explicitly pending. M25 consumes that Target; deferred M19
+M23 freezes a technical Target after M20/M21 and accepted M22, with M19 explicitly pending. M25 consumes that Target; deferred M19
 still gates shipping and production-quality claims.
 
 ## Handoff packet

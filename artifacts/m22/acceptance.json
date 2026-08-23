@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "milestone": "M22",
+  "status": "accepted",
+  "accepted_on": "2026-08-23",
+  "implementation_revision": "f0aa302aa0246d44e1c8477dbbbb67fbbe2d2037",
+  "qualified_artifact_content_sha256": "471805f7dad8abb84300be78b2822a63dcb1d35bff5aa98426a162cc8532ee17",
+  "source_lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230",
+  "compiler_commit": "f433358b8e2c1250b95801fc898faee4fcedcbe5",
+  "profile": {
+    "model_variant": "gemma4_moe_26b_a4b",
+    "artifact_profile": "sm120-text-hybrid-v1",
+    "head_format": "nvfp4",
+    "native_path": "sm120_integrated_nvfp4_moe_fp8_kv",
+    "default_context_tokens": 32768,
+    "base_max_context_tokens": 32768,
+    "qualified_64k": false,
+    "mtp_max_context_tokens": null,
+    "maximum_execution_slots": 1,
+    "supports_text": true,
+    "supports_audio": false,
+    "supports_vision": false,
+    "supports_mtp": false
+  },
+  "product_correctness": {
+    "cli_one_shot_output_token_ids": [14713],
+    "direct_first_output_token_ids": [9503, 106, 106],
+    "direct_first_output_token_checksum": 2816769010617425979,
+    "direct_continuation_output_token_ids": [45518, 107],
+    "direct_continuation_output_token_checksum": 351209085326349913,
+    "fresh_process_bitwise_equal": true,
+    "resident_server_continuation": true,
+    "exact_prefix_reuse": true,
+    "prefix_mismatch_rejected": true,
+    "cancellation_poisoned_original_session": true,
+    "post_cancellation_relaunch_passed": true,
+    "second_slot_rejected": true,
+    "media_rejected_before_session_mutation": true,
+    "mtp_rejected": true,
+    "bf16_kv_rejected": true
+  },
+  "memory": {
+    "resident_weight_bytes": 14696668160,
+    "kv_cache_bytes": 440401920,
+    "workspace_bytes": 218348576,
+    "server_execution_slot_bytes": 658750496,
+    "minimum_observed_admission_free_bytes": 1064042496,
+    "required_32k_admission_margin_bytes": 734003200,
+    "minimum_observed_admission_headroom_bytes": 330039296,
+    "second_slot_free_delta_bytes": 0
+  },
+  "observability": {
+    "fallback_total": 0,
+    "resource_exhaustion_total": 1,
+    "unsupported_feature_total": 1,
+    "model_validation_failure_total": 0,
+    "token_loop_allocation_total": 0,
+    "profile_provenance_reported_by_cli_and_health": true,
+    "free_required_margin_and_headroom_reported_separately": true
+  },
+  "protected_12b": {
+    "golden_output_token_ids": [9503, 106],
+    "golden_output_exact": true,
+    "fallbacks": 0,
+    "token_loop_allocations": 0,
+    "two_resident_sessions": true,
+    "resident_continuation": true
+  },
+  "qualified_binaries": {
+    "gem16_chat_sha256": "2999b9b51444ecb0100fa883aadb11acb30601c62b1b0df6302bfd19b19ea136",
+    "gem16_server_sha256": "44c5b686ed7f520ed83ad1352f2bd779640c762dab4cda2974959a1e0e597398",
+    "m22_product_driver_sha256": "9e7e1252bc8d295b6ee050983446e91b83e48b886369aa1a6fad73bff2a27600",
+    "protected_12b_runner_sha256": "cad14cc7c4dff76e63ef880d0ed10bf0ad5e09dbf62c4bc48ebbd4c57849e4c8"
+  },
+  "raw_evidence": [
+    {
+      "ignored_path": "artifacts/raw/m22/qualification-20260823-final/first.json",
+      "size": 1473,
+      "sha256": "c93b97cee9a7b2d14d269cd078e4be67a5ce559897d537c039d8e1a7f56f956d"
+    },
+    {
+      "ignored_path": "artifacts/raw/m22/qualification-20260823-final/relaunch.json",
+      "size": 1473,
+      "sha256": "c93b97cee9a7b2d14d269cd078e4be67a5ce559897d537c039d8e1a7f56f956d"
+    },
+    {
+      "ignored_path": "artifacts/raw/m22/qualification-20260823-final/m22-26b-product.json",
+      "size": 8787,
+      "sha256": "e4d0fb91cf8787e2498ab34e1df2dbd8636d13c577e755e1a6d6404c8811b1c7"
+    },
+    {
+      "ignored_path": "artifacts/raw/m22/qualification-20260823-final/m22-12b-product.json",
+      "size": 5594,
+      "sha256": "599c597811bee2644ee800fa4578f882df4faa415a12474d9e4e48ca97b173d3"
+    }
+  ],
+  "tests": {
+    "blackwell_release_build": "pass",
+    "m22_26b_product_ctest": "pass_1_of_1_366.06_seconds",
+    "m22_12b_product_ctest": "pass_1_of_1_5.76_seconds",
+    "short_blackwell_ctest": "pass_9_of_9_with_3_expected_environment_skips",
+    "host_debug_build_and_ctest": "pass_1_of_1",
+    "gpu_tests_serialized_by_resource_lock": true,
+    "independent_review": "ox_20260823T150138Z-29674_no_p0_or_p1_findings"
+  },
+  "limitations": {
+    "experimental_text_only_profile": true,
+    "m19_full_quality_suite_deferred": true,
+    "m20_formal_performance_pending": true,
+    "m21_real_32k_64k_and_maximum_context_pending": true,
+    "broad_or_multi_hour_benchmarks_run_for_m22": false,
+    "shipping_or_production_quality_claim": false
+  }
+}

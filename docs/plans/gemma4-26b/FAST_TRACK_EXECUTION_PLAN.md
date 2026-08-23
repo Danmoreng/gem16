@@ -46,7 +46,7 @@ Exit checkpoint: the complete optimized path is deterministic, all-resident and 
 Complete product behavior and any bounded hot-path work before freezing one current candidate hash. The
 owner-approved active sequence is:
 
-- M22: automated CLI/server product acceptance and 12B regressions;
+- accepted M22: automated CLI/server product acceptance and 12B regressions;
 - one optional bounded prefill optimization, only when current profiling supports it;
 - repair/freeze the M20/M21 evidence contracts on one clean candidate;
 - M21: 32K confirmation, 64K attempt and measured maximum safe base context;

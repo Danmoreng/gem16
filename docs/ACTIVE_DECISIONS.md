@@ -1,6 +1,6 @@
 # Active decisions
 
-**Accepted:** 2026-08-23 · **Track:** Gemma 4 26B A4B Fast Track · **Status:** M00–M17 accepted; M20–M22 active; full M19 deferred
+**Accepted:** 2026-08-23 · **Track:** Gemma 4 26B A4B Fast Track · **Status:** M00–M17 and M22 accepted; bounded prefill, M21 and M20 next; full M19 deferred
 
 This is the short operational policy for current work. It is not a replacement for historical evidence. Permanent
 rules in `AGENTS.md` remain binding. For facts about the implementation, current source, tests and accepted evidence
@@ -72,7 +72,9 @@ On 2026-08-23 the owner also deferred the remaining multi-hour M19 task and pros
 the current implementation/performance program. Bounded numerical checks against the pinned official QAT Q4_0
 reference remain valid correctness evidence, but M19 stays pending and no production-quality claim is allowed.
 This explicitly supersedes the former requirement that M19 pass before an engineering M23 freeze. M22 product
-qualification and one bounded profile-driven prefill decision close before the candidate is frozen. M21 then performs
+qualification was accepted at implementation commit `f0aa302aa0246d44e1c8477dbbbb67fbbe2d2037`; its compact
+record is `artifacts/m22/acceptance.json`. One bounded profile-driven prefill decision now closes before the candidate
+is frozen. M21 then performs
 real 32K/64K and maximum-context execution; M20's approved 3-warm-up/10-retained performance qualification consumes
 that matching M21 evidence. M23 may then freeze a **technical base Target** while carrying
 the deferred-M19 limitation; it is not a shipping or quality-qualified release until M19 is eventually accepted.

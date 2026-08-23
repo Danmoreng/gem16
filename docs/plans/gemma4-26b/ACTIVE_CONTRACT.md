@@ -1,9 +1,9 @@
 # Active contract — Gemma 4 26B Fast Track R4
 
-Status: accepted through M17; M20–M22 active; full M19 held-out qualification deferred by owner
+Status: M00–M17 and M22 accepted; bounded prefill, M21 and M20 active; full M19 held-out qualification deferred by owner
 Plan revision: `fast-track-r4`
-Accepted baseline: M00–M17
-Current milestone: M22 (then bounded prefill, clean freeze, M21, M20 and technical M23; M19 full suite deferred; M18 conditional)
+Accepted baseline: M00–M17 plus M22 product integration
+Current milestone: bounded prefill (then clean freeze, M21, M20 and technical M23; M19 full suite deferred; M18 conditional)
 Integration branch: `feat/gemma4-26b`
 
 ## Purpose
@@ -25,7 +25,7 @@ Report a material conflict instead of guessing. A stale status page does not ove
 
 ## Accepted baseline
 
-M00–M17 are accepted and are not reopened by current work.
+M00–M17 and M22 are accepted and are not reopened by current work.
 
 - Sources, manifests and source locks are immutable.
 - The 12B path remains separately specialized and regression-protected.
@@ -50,6 +50,9 @@ M00–M17 are accepted and are not reopened by current work.
   `57fdeb309aacfce2e4eba65745fba86f14ebd113` and closure-hardening commit
   `348683e167c6c4d3b0be7580e404c097b199a3d8`; its artifact/profile contract remains the basis for current work, and
   the post-M17 implementation candidate is frozen separately by M20–M23 evidence.
+- M22 CLI/server product integration is accepted at implementation commit
+  `f0aa302aa0246d44e1c8477dbbbb67fbbe2d2037`; its real 26B product gate, exact M08 provenance, one-slot/text-only
+  errors, observability and protected 12B regression record are in `artifacts/m22/acceptance.json`.
 - Runtime conversion, CPU expert offload, expert streaming and duplicate persistent GPU weight layouts remain forbidden.
 
 ## Product target
@@ -104,7 +107,7 @@ Only these owner-level gates block the critical path:
 4. **M09:** the real artifact passes one-slot 32K admission with at least 700 MiB directly measured free-device margin.
 5. **M13:** the full slow model is deterministic and passes the single early quality go/no-go screen.
 6. **M17:** one fixed-address optimized artifact/profile is frozen with deterministic engine replay and no recurring allocation.
-7. **M20–M22:** after M22 and the bounded prefill decision, one clean candidate passes real long-context in M21 and
+7. **M20–M22:** with M22 accepted, after the bounded prefill decision one clean candidate passes real long-context in M21 and
    bounded performance in M20 using the matching M21 evidence.
 8. **M23 engineering freeze:** Target hashes, available evidence and rollback are frozen with M19 explicitly pending.
 9. **Deferred M19:** the multi-hour held-out task/prose suite eventually passes before any shipping or production-quality claim.
@@ -163,8 +166,8 @@ Do not repeat an expensive run solely to produce a second prose record. M08 comp
 
 ## Current unblocked work
 
-- M17 is accepted; commit `1e605766b5e2663ddf65a3f2790e610342daabd0` is the current development candidate.
-- M22 CLI/server acceptance is first, followed by one bounded profile-driven prefill decision.
+- M17 and M22 are accepted; M22 implementation commit `f0aa302aa0246d44e1c8477dbbbb67fbbe2d2037` is the current development candidate.
+- One bounded profile-driven prefill decision is next.
 - The resulting code/binary is frozen before M21 real 32K/64K execution; M20 controlled performance then consumes
   that exact M21 evidence, avoiding duplicate evidence runs.
 - M19 numerical Q4 evidence is available, but its multi-hour task/prose suite is deferred and remains a release limitation.

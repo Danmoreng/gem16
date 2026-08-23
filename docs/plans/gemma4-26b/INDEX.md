@@ -27,7 +27,7 @@ For multi-agent work also read [`PARALLEL_WORKSTREAMS.md`](PARALLEL_WORKSTREAMS.
 
 ## Milestones
 
-M00–M17 are accepted. M22, a bounded prefill decision, M21 and M20 are the active sequence; M18 is conditional,
+M00–M17 and M22 are accepted. A bounded prefill decision, M21 and M20 are the active sequence; M18 is conditional,
 M19's multi-hour task/prose suite is owner-deferred, M24 is optional and M25 plus the deferred M19 gate define
 program completion.
 

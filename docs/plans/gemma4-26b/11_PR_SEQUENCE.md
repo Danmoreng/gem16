@@ -17,7 +17,7 @@ Do not combine arithmetic, layout and scheduling changes when they can be review
 ## Current sequence
 
 - M00–M17 are accepted and remain the protected baseline.
-- Close M22 product behavior with automated coverage and 12B regressions.
+- M22 product behavior, automated coverage and 12B regressions are accepted at `f0aa302aa0246d44e1c8477dbbbb67fbbe2d2037`.
 - Profile prefill and retain only a bounded correctness-preserving improvement before the final evidence freeze.
 - Repair the evidence contracts, freeze one clean candidate, run real M21 32K/64K qualification, then run bounded
   formal M20 telemetry against that exact M21 evidence.

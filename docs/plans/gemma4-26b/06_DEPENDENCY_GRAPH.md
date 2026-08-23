@@ -40,7 +40,7 @@ M03/M09 prework ────> M25 phase A feasibility; runtime integration waits
 
 - During M06: M10 phase A, M12 phase A, M09 prework, harness work and M25 feasibility.
 - After M13 pass: M14, M15 and M16 in parallel; M17 integrates incrementally.
-- After M17: close M22 and any bounded prefill change first. M21 then measures context and M20 consumes that
+- After accepted M17/M22: close any bounded prefill change first. M21 then measures context and M20 consumes that
   evidence on the same clean frozen candidate. Multi-hour M19 task/prose work is owner-deferred.
 
 ## Gate ownership
@@ -55,7 +55,7 @@ M03/M09 prework ────> M25 phase A feasibility; runtime integration waits
 | attention/KV parity | M12 | M13 |
 | early quality pass | M13 | normal M14–M17 path |
 | optimized deterministic target | M17 | qualification |
-| performance/context/product | M20–M22 | technical Target freeze |
+| performance/context/product | M20/M21 plus accepted M22 | technical Target freeze |
 | base evidence freeze | M23 | MTP integration |
 | exact MTP and MTP context | M25 | final technical target |
 | held-out release quality | deferred M19 | shipping/production-quality claims |

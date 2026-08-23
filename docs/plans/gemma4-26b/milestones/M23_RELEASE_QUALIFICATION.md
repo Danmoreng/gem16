@@ -1,6 +1,6 @@
 # M23 — Technical base Target freeze and rollback
 
-Status: blocked by M20, M21 and M22; full M19 is owner-deferred
+Status: blocked by M20/M21; M22 is accepted and full M19 is owner-deferred
 Class: technical base checkpoint; not a shipping release while M19 is pending
 
 Normative inputs: [Checkpoint provenance](../specs/CHECKPOINT_PROVENANCE_SPEC.md), [Test matrix](../specs/TEST_MATRIX.md), [Telemetry artifact](../specs/TELEMETRY_ARTIFACT_SPEC.md).

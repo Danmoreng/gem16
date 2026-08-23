@@ -3,7 +3,10 @@
   "plan_revision": "fast-track-r4",
   "updated": "2026-08-23",
   "accepted_through": "M17",
-  "current_milestone": "M22",
+  "accepted_additional": [
+    "M22"
+  ],
+  "current_milestone": "PREFILL_SLICE",
   "active_wave": "F4-product-performance-context-technical-freeze",
   "integration_branch": "feat/gemma4-26b",
   "source_of_truth": "docs/plans/gemma4-26b/FAST_TRACK_STATUS.json",
@@ -229,7 +232,7 @@
     },
     "M21": {
       "status": "READY_NEXT",
-      "note": "After M22, bounded prefill work and clean candidate freeze, real repeated 32K, explicit 64K and maximum-context execution remain required; allocation-only M09 evidence is not sufficient.",
+      "note": "After accepted M22, bounded prefill work and clean candidate freeze, real repeated 32K, explicit 64K and maximum-context execution remain required; allocation-only M09 evidence is not sufficient.",
       "class": "qualification",
       "lane": "long-context",
       "depends_on": [
@@ -237,8 +240,8 @@
       ]
     },
     "M22": {
-      "status": "IN_PROGRESS",
-      "note": "CLI/server integration and a real product smoke exist; automated acceptance coverage, 12B regressions and compact evidence remain.",
+      "status": "ACCEPTED",
+      "note": "Accepted 2026-08-23 at implementation commit f0aa302aa0246d44e1c8477dbbbb67fbbe2d2037; exact M08 identity, CLI/server behavior, one-slot/text-only errors, observability and protected 12B regressions are recorded in artifacts/m22/acceptance.json.",
       "class": "product",
       "lane": "cli-server",
       "depends_on": [
@@ -246,7 +249,7 @@
       ]
     },
     "M23": {
-      "status": "BLOCKED_BY_M20_M21_M22",
+      "status": "BLOCKED_BY_M20_M21",
       "note": "Owner permits a technical Target freeze with M19 explicitly pending; this is not a shipping or quality-qualified release.",
       "class": "technical-base-checkpoint",
       "lane": "engineering-freeze",
@@ -284,8 +287,7 @@
     }
   },
   "parallel_tasks_now": [
-    "M22 CLI/server product acceptance and 12B regressions",
-    "bounded correctness-preserving prefill optimization after M22",
+    "bounded correctness-preserving prefill optimization after accepted M22",
     "M20/M21 runner alignment and clean candidate freeze after prefill",
     "M21 real 32K/64K and maximum-context qualification",
     "M20 controlled 3-warm-up/10-retained performance qualification consuming matching M21 evidence",
@@ -294,7 +296,7 @@
   "paused_tasks": [
     "M19 multi-hour task/prose held-out qualification until the end of the current implementation/performance program",
     "M18 conditional diagnosis unless a trigger occurs",
-    "M23 technical Target freeze until M20-M22 pass",
+    "M23 technical Target freeze until M20/M21 pass",
     "M24 optional internal Q4_0 backend"
   ],
   "context_policy": {

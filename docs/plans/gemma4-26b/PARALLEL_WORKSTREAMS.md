@@ -13,15 +13,15 @@ The integration agent alone owns:
 - cross-workstream changes to `inference_engine` orchestration;
 - final evidence acceptance.
 
-## Current workstreams after accepted M17
+## Current workstreams after accepted M17 and M22
 
-The owner restarted the track and accepted M00–M17. The active lanes below share the current performance candidate;
+The owner restarted the track and accepted M00–M17 plus M22. The active lanes below share the current performance candidate;
 integration and evidence acceptance remain serialized.
 
 | Lane | Immediate task | May start now | Owned area | Merge gate |
 |---|---|---:|---|---|
-| P — Product | M22 automated CLI/server acceptance and 12B regressions | yes | product driver/tests and compact M22 evidence | shared runtime changes remain integration-owned |
-| F — Prefill | profile-driven bounded optimization | after M22 | isolated CUDA/prefill code and tests | completes before final M20/M21 evidence |
+| P — Product | M22 automated CLI/server acceptance and 12B regressions | accepted | product driver/tests and compact M22 evidence | reopen only on regression |
+| F — Prefill | profile-driven bounded optimization | yes | isolated CUDA/prefill code and tests | completes before final M20/M21 evidence |
 | R — Evidence contracts | make M20 consume native M21 output; add provenance/telemetry envelopes | after prefill | M20/M21 runners and manifests | freezes before model execution |
 | C — Context | M21 repeated real 32K/64K qualification | after clean candidate freeze | M21 runner and raw/compact evidence | no concurrent GPU model run |
 | B — Benchmark | M20 bounded 3/10 telemetry qualification | after M21 | M20 runner and raw/compact evidence | consumes matching M21 evidence; no code changes during measurement |

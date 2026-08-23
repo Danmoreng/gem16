@@ -100,6 +100,34 @@
       "ignored_path": "artifacts/raw/m07/qat-head-plan-release.json",
       "size": 250540,
       "sha256": "f57d6295d204dbbc19a67919b3c7fc698676c4c89d2c6643fb4d7ab3b429e141"
+    },
+    {
+      "milestone": "M22",
+      "original_path": "artifacts/raw/m22/qualification-20260823-final/first.json",
+      "ignored_path": "artifacts/raw/m22/qualification-20260823-final/first.json",
+      "size": 1473,
+      "sha256": "c93b97cee9a7b2d14d269cd078e4be67a5ce559897d537c039d8e1a7f56f956d"
+    },
+    {
+      "milestone": "M22",
+      "original_path": "artifacts/raw/m22/qualification-20260823-final/relaunch.json",
+      "ignored_path": "artifacts/raw/m22/qualification-20260823-final/relaunch.json",
+      "size": 1473,
+      "sha256": "c93b97cee9a7b2d14d269cd078e4be67a5ce559897d537c039d8e1a7f56f956d"
+    },
+    {
+      "milestone": "M22",
+      "original_path": "artifacts/raw/m22/qualification-20260823-final/m22-26b-product.json",
+      "ignored_path": "artifacts/raw/m22/qualification-20260823-final/m22-26b-product.json",
+      "size": 8787,
+      "sha256": "e4d0fb91cf8787e2498ab34e1df2dbd8636d13c577e755e1a6d6404c8811b1c7"
+    },
+    {
+      "milestone": "M22",
+      "original_path": "artifacts/raw/m22/qualification-20260823-final/m22-12b-product.json",
+      "ignored_path": "artifacts/raw/m22/qualification-20260823-final/m22-12b-product.json",
+      "size": 5594,
+      "sha256": "599c597811bee2644ee800fa4578f882df4faa415a12474d9e4e48ca97b173d3"
     }
   ]
 }
