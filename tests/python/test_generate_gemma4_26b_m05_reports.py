@@ -62,10 +62,13 @@ class M05CompactEvidenceTest(unittest.TestCase):
         self.assertEqual(self.raw_index["retention_policy"], "hash_only_not_tracked")
         self.assertEqual(self.raw_index["ignored_root"], "artifacts/raw")
         reports = self.raw_index["raw_reports"]
-        self.assertEqual(len(reports), 14)
-        self.assertEqual(sum(item["size"] for item in reports), 15_181_271)
+        legacy_reports = [
+            item for item in reports if item["milestone"] in {"M05", "M06", "M07"}
+        ]
+        self.assertEqual(len(legacy_reports), 14)
+        self.assertEqual(sum(item["size"] for item in legacy_reports), 15_181_271)
         self.assertEqual(
-            {milestone: sum(item["milestone"] == milestone for item in reports)
+            {milestone: sum(item["milestone"] == milestone for item in legacy_reports)
              for milestone in ("M05", "M06", "M07")},
             {"M05": 7, "M06": 4, "M07": 3},
         )
@@ -76,8 +79,10 @@ class M05CompactEvidenceTest(unittest.TestCase):
         for item in reports:
             self.assertRegex(item["sha256"], re.compile(r"^[0-9a-f]{64}$"))
             self.assertTrue(item["ignored_path"].startswith("artifacts/raw/"))
-            self.assertFalse((ROOT / item["original_path"]).exists())
+            original_path = ROOT / item["original_path"]
             ignored_path = ROOT / item["ignored_path"]
+            if original_path != ignored_path:
+                self.assertFalse(original_path.exists())
             if ignored_path.exists():
                 self.assertEqual(ignored_path.stat().st_size, item["size"])
                 self.assertEqual(sha256(ignored_path), item["sha256"])
