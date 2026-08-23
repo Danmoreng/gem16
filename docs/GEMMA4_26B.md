@@ -11,13 +11,13 @@ SM120 prefill/decode/head work without CPU weight offload or recurring token-loo
 
 The current source tree contains an executable fixed-address 26B runtime, public chat/server integration and native
 SM120 MoE, attention and tied-head dispatch. The latest adjacent two-run controlled 16K+64 development candidate
-reaches 4,693.62 prompt tok/s and 138.827 ordinary-decode tok/s with the accepted output hash. This is not yet the
+reaches 5,050.92 prompt tok/s and 139.106 ordinary-decode tok/s with the accepted output hash. This is not yet the
 formal M20 3-warm-up/10-retained result. The 12B Unified path remains the production baseline and must remain
 unchanged.
 
 The owner-set M20 objective now targets vLLM-class performance on the exact 16K+64 ordinary path: retained medians
 of at least **6,000 prompt token/s** and **150 decode token/s**, with **6,500 prompt token/s** as the non-blocking
-competitive stretch target. The current adjacent development candidate is 4,693.62/138.827 token/s; formal retained
+competitive stretch target. The current adjacent development candidate is 5,050.92/139.106 token/s; formal retained
 medians are pending. MTP/speculative decode remains disabled for this gate, and no prompt, cache, precision, sampling
 or timing-boundary change may count as a speedup.
 

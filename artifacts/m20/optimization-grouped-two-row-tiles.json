@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "milestone": "M20-development",
+  "status": "accepted_optimization_not_formal_qualification",
+  "measured_on": "2026-08-23",
+  "base_revision": "16b3313",
+  "device": "NVIDIA GeForce RTX 5080 Laptop GPU",
+  "scenario": {
+    "id": "wikipedia-real-16k64-greedy",
+    "prompt_tokens": 16384,
+    "output_forwards": 64,
+    "prompt_manifest_sha256": "9a5859b979d91fccf71bcbb61aade6372cf2cc3c708e6c47b8b6cfd99f7abd2d",
+    "mtp_or_speculative_decode": false,
+    "prompt_cache": false,
+    "kv_mode": "fp8"
+  },
+  "change": {
+    "kernel": "Sm120GroupedExpertMatrixKernel",
+    "grouped_output_row_tiles_per_warp": 2,
+    "activation_and_scale_fragment_reused_across_row_tiles": true,
+    "k64_accumulation_order_changed": false,
+    "bf16_epilogue_changed": false
+  },
+  "parent": {
+    "prompt_tokens_per_second_mean": 4693.623373331,
+    "decode_tokens_per_second_mean": 138.826873588,
+    "output_token_sha256": "d8f0aa61ba66750bda8582861d3f42ef7022917e75b6abd3b6fac4e66ef75e89"
+  },
+  "candidate_runs": [
+    {
+      "prompt_ms": 3243.526546,
+      "prompt_tokens_per_second": 5051.292094466,
+      "decode_ms": 453.015482,
+      "decode_tokens_per_second": 139.068094807
+    },
+    {
+      "prompt_ms": 3244.006739,
+      "prompt_tokens_per_second": 5050.544378663,
+      "decode_ms": 452.771340,
+      "decode_tokens_per_second": 139.143082687
+    }
+  ],
+  "comparison": {
+    "candidate_prompt_tokens_per_second_mean": 5050.918236564,
+    "candidate_decode_tokens_per_second_mean": 139.105588747,
+    "prompt_throughput_gain_vs_parent_percent": 7.612346,
+    "prompt_throughput_gain_vs_1cdba20_percent": 19.394387,
+    "remaining_to_6000_percent": 18.790282,
+    "remaining_to_6500_percent": 28.689472,
+    "decode_classification": "neutral"
+  },
+  "correctness": {
+    "all_logits_finite": true,
+    "output_token_sha256": "d8f0aa61ba66750bda8582861d3f42ef7022917e75b6abd3b6fac4e66ef75e89",
+    "matches_parent_output_hash": true,
+    "fallback_count": 0,
+    "recurring_allocation_count": 0
+  },
+  "memory": {
+    "sampled_device_used_bytes": 15369830400,
+    "margin_bytes": 1282211840,
+    "changed_vs_parent": false
+  },
+  "tests": {
+    "blackwell_release_targets": "pass",
+    "cuda_moe_reference": "pass",
+    "cuda_shared_runtime": "pass",
+    "compute_sanitizer_moe_memcheck": "pass_0_errors"
+  },
+  "raw_evidence": [
+    {
+      "ignored_path": "artifacts/raw/perf-target/grouped-two-row-tiles-canonical.json",
+      "size": 2921,
+      "sha256": "6c9bc84b055f6edbc14491fa71d4b99fc9ace4f54a20802562c497a92f8bf60c"
+    },
+    {
+      "ignored_path": "artifacts/raw/perf-target/grouped-two-row-tiles-canonical-repeat.json",
+      "size": 2917,
+      "sha256": "a72d2722ecd2eb621ba5b22bf768952402fee4f64c9f07fc9c0298118513cb3d"
+    }
+  ],
+  "limitations": {
+    "formal_m20_3_warmup_10_retained_not_run": true,
+    "hard_6000_prompt_target_reached": false,
+    "hard_150_decode_target_reached": false
+  }
+}

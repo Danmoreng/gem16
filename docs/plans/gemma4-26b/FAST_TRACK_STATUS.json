@@ -222,7 +222,7 @@
     },
     "M20": {
       "status": "IN_PROGRESS",
-      "note": "The latest adjacent two-run 16K+64 development candidate is 4693.62 prompt and 138.827 ordinary-decode tok/s with the accepted output hash; formal retained medians remain pending. Owner-set hard M20 targets are 6000 prompt and 150 ordinary-decode tok/s, with a non-blocking 6500 prompt stretch target. After optimization, final candidate freeze and M21, formal 3-warm-up/10-retained telemetry qualification consumes matching M21 evidence.",
+      "note": "The latest adjacent two-run 16K+64 development candidate is 5050.92 prompt and 139.106 ordinary-decode tok/s with the accepted output hash; formal retained medians remain pending. Owner-set hard M20 targets are 6000 prompt and 150 ordinary-decode tok/s, with a non-blocking 6500 prompt stretch target. After optimization, final candidate freeze and M21, formal 3-warm-up/10-retained telemetry qualification consumes matching M21 evidence.",
       "performance_target": {
         "scenario": "wikipedia-real-16k64-greedy",
         "prompt_manifest_sha256": "9a5859b979d91fccf71bcbb61aade6372cf2cc3c708e6c47b8b6cfd99f7abd2d",

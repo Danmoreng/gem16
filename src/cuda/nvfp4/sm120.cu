@@ -20,6 +20,7 @@ constexpr std::uint64_t kRowsPerWarp = 8;
 constexpr std::uint64_t kTokensPerMma = 16;
 constexpr std::uint64_t kPrefillTokenTilesPerWarp = 8;
 constexpr std::uint64_t kFusedGateUpTokenTilesPerWarp = 2;
+constexpr std::uint64_t kGroupedRowTilesPerWarp = 2;
 constexpr unsigned kWarpSize = 32;
 constexpr unsigned kWarpsPerBlock = 4;
 constexpr unsigned kThreadsPerBlock = kWarpSize * kWarpsPerBlock;
@@ -775,10 +776,12 @@ __global__ void Sm120GroupedExpertMatrixKernel(
   const unsigned lane = threadIdx.x & (kWarpSize - 1U);
   const unsigned group = lane >> 2U;
   const unsigned thread_in_group = lane & 3U;
-  const std::uint64_t global_warp =
+  const std::uint64_t logical_warp =
       static_cast<std::uint64_t>(blockIdx.x) * kWarpsPerBlock + warp;
   const std::uint64_t row_tiles = rows / kRowsPerWarp;
-  if (global_warp >= row_tiles) return;
+  const std::uint64_t first_row_tile =
+      logical_warp * kGroupedRowTilesPerWarp;
+  if (first_row_tile >= row_tiles) return;
 
   const std::uint64_t k_blocks =
       contracting_elements / kElementsPerKBlock;
@@ -788,18 +791,10 @@ __global__ void Sm120GroupedExpertMatrixKernel(
       static_cast<std::uint64_t>(expert) *
       (kFusedGateUp ? 2U * rows : rows);
   const std::uint64_t first_weight_row = expert_row_base +
-                                         global_warp * kRowsPerWarp;
-  const std::uint64_t weight_tile_offset =
-      first_weight_row * k_blocks * 32U;
-  const std::uint64_t scale_tile_offset =
-      first_weight_row * k_blocks * 4U;
-  const std::uint64_t up_weight_tile_offset =
-      (first_weight_row + rows) * k_blocks * 32U;
-  const std::uint64_t up_scale_tile_offset =
-      (first_weight_row + rows) * k_blocks * 4U;
+                                         first_row_tile * kRowsPerWarp;
 
-  float accumulator[4] = {};
-  float up_accumulator[4] = {};
+  float accumulator[kGroupedRowTilesPerWarp][4] = {};
+  float up_accumulator[kGroupedRowTilesPerWarp][4] = {};
   const std::uint32_t grouped_low = grouped_base + group;
   const std::uint32_t grouped_high = grouped_low + 8U;
 
@@ -857,69 +852,86 @@ __global__ void Sm120GroupedExpertMatrixKernel(
           k_block * 4U);
     }
 
-    const std::uint64_t weight_offset =
-        weight_tile_offset +
-        (k_block * kRowsPerWarp + group) * 32U +
-        static_cast<std::uint64_t>(thread_in_group) * 4U;
-    const std::uint64_t scale_offset =
-        scale_tile_offset + (k_block * kRowsPerWarp + group) * 4U;
-    const std::uint32_t b0 = LoadU32(packed_weight_e2m1 + weight_offset);
-    const std::uint32_t b1 =
-        LoadU32(packed_weight_e2m1 + weight_offset + 16U);
-    const std::uint32_t scale_b =
-        LoadU32(weight_scales_e4m3fn + scale_offset);
-    MmaNvfp4(accumulator[0], accumulator[1], accumulator[2], accumulator[3],
-              a0, a1, a2, a3, b0, b1, scale_a, scale_b);
-    if constexpr (kFusedGateUp) {
-      const std::uint64_t up_weight_offset =
-          up_weight_tile_offset +
+#pragma unroll
+    for (std::uint64_t row_tile = 0U;
+         row_tile < kGroupedRowTilesPerWarp; ++row_tile) {
+      if (first_row_tile + row_tile >= row_tiles) continue;
+      const std::uint64_t tile_first_weight_row =
+          first_weight_row + row_tile * kRowsPerWarp;
+      const std::uint64_t weight_offset =
+          tile_first_weight_row * k_blocks * 32U +
           (k_block * kRowsPerWarp + group) * 32U +
           static_cast<std::uint64_t>(thread_in_group) * 4U;
-      const std::uint64_t up_scale_offset =
-          up_scale_tile_offset + (k_block * kRowsPerWarp + group) * 4U;
-      const std::uint32_t up_b0 =
-          LoadU32(packed_weight_e2m1 + up_weight_offset);
-      const std::uint32_t up_b1 =
-          LoadU32(packed_weight_e2m1 + up_weight_offset + 16U);
-      const std::uint32_t up_scale_b =
-          LoadU32(weight_scales_e4m3fn + up_scale_offset);
-      MmaNvfp4(up_accumulator[0], up_accumulator[1], up_accumulator[2],
-                up_accumulator[3], a0, a1, a2, a3, up_b0, up_b1, scale_a,
-                up_scale_b);
+      const std::uint64_t scale_offset =
+          tile_first_weight_row * k_blocks * 4U +
+          (k_block * kRowsPerWarp + group) * 4U;
+      const std::uint32_t b0 = LoadU32(packed_weight_e2m1 + weight_offset);
+      const std::uint32_t b1 =
+          LoadU32(packed_weight_e2m1 + weight_offset + 16U);
+      const std::uint32_t scale_b =
+          LoadU32(weight_scales_e4m3fn + scale_offset);
+      MmaNvfp4(accumulator[row_tile][0], accumulator[row_tile][1],
+                accumulator[row_tile][2], accumulator[row_tile][3], a0, a1,
+                a2, a3, b0, b1, scale_a, scale_b);
+      if constexpr (kFusedGateUp) {
+        const std::uint64_t up_weight_offset =
+            (tile_first_weight_row + rows) * k_blocks * 32U +
+            (k_block * kRowsPerWarp + group) * 32U +
+            static_cast<std::uint64_t>(thread_in_group) * 4U;
+        const std::uint64_t up_scale_offset =
+            (tile_first_weight_row + rows) * k_blocks * 4U +
+            (k_block * kRowsPerWarp + group) * 4U;
+        const std::uint32_t up_b0 =
+            LoadU32(packed_weight_e2m1 + up_weight_offset);
+        const std::uint32_t up_b1 =
+            LoadU32(packed_weight_e2m1 + up_weight_offset + 16U);
+        const std::uint32_t up_scale_b =
+            LoadU32(weight_scales_e4m3fn + up_scale_offset);
+        MmaNvfp4(up_accumulator[row_tile][0],
+                  up_accumulator[row_tile][1],
+                  up_accumulator[row_tile][2],
+                  up_accumulator[row_tile][3], a0, a1, a2, a3, up_b0,
+                  up_b1, scale_a, up_scale_b);
+      }
     }
   }
 
-  const std::uint64_t output_column =
-      global_warp * kRowsPerWarp + thread_in_group * 2U;
 #pragma unroll
-  for (unsigned pair = 0; pair < 4U; ++pair) {
-    const bool high = (pair & 2U) != 0U;
-    const std::uint32_t grouped = high ? grouped_high : grouped_low;
-    const std::uint64_t column = output_column + (pair & 1U);
-    if (grouped >= grouped_end || column >= rows) continue;
-    std::uint32_t output_row = grouped;
-    if constexpr (!kFusedGateUp) {
-      output_row = permutation[grouped];
-      if (output_row >= assignment_count) continue;
-    }
-    if constexpr (kFusedGateUp) {
-      const float gate = static_cast<float>(
-          __float2bfloat16_rn(accumulator[pair] / output_divisor));
-      const float up = static_cast<float>(
-          __float2bfloat16_rn(up_accumulator[pair] / output_divisor));
-      const float inner =
-          kSqrtTwoOverPi * (gate + kGeluCubic * gate * gate * gate);
-      const float gelu = static_cast<float>(
-          __float2bfloat16_rn(0.5F * gate * (1.0F + tanhf(inner))));
-      StorePhysicalOrContainerBf16(
-          output,
-          static_cast<std::uint64_t>(output_row) * rows + column,
-          __float2bfloat16_rn(gelu * up));
-    } else {
-      StorePhysicalOrContainerBf16(
-          output,
-          static_cast<std::uint64_t>(output_row) * rows + column,
-          __float2bfloat16_rn(accumulator[pair] / output_divisor));
+  for (std::uint64_t row_tile = 0U;
+       row_tile < kGroupedRowTilesPerWarp; ++row_tile) {
+    const std::uint64_t output_column =
+        (first_row_tile + row_tile) * kRowsPerWarp + thread_in_group * 2U;
+#pragma unroll
+    for (unsigned pair = 0; pair < 4U; ++pair) {
+      const bool high = (pair & 2U) != 0U;
+      const std::uint32_t grouped = high ? grouped_high : grouped_low;
+      const std::uint64_t column = output_column + (pair & 1U);
+      if (grouped >= grouped_end || column >= rows) continue;
+      std::uint32_t output_row = grouped;
+      if constexpr (!kFusedGateUp) {
+        output_row = permutation[grouped];
+        if (output_row >= assignment_count) continue;
+      }
+      if constexpr (kFusedGateUp) {
+        const float gate = static_cast<float>(__float2bfloat16_rn(
+            accumulator[row_tile][pair] / output_divisor));
+        const float up = static_cast<float>(__float2bfloat16_rn(
+            up_accumulator[row_tile][pair] / output_divisor));
+        const float inner =
+            kSqrtTwoOverPi * (gate + kGeluCubic * gate * gate * gate);
+        const float gelu = static_cast<float>(
+            __float2bfloat16_rn(0.5F * gate * (1.0F + tanhf(inner))));
+        StorePhysicalOrContainerBf16(
+            output,
+            static_cast<std::uint64_t>(output_row) * rows + column,
+            __float2bfloat16_rn(gelu * up));
+      } else {
+        StorePhysicalOrContainerBf16(
+            output,
+            static_cast<std::uint64_t>(output_row) * rows + column,
+            __float2bfloat16_rn(accumulator[row_tile][pair] /
+                                output_divisor));
+      }
     }
   }
 #else
@@ -1186,8 +1198,11 @@ Status LaunchNvfp4Sm120GroupedExpertDown(
     return Invalid("grouped SM120 expert Down divisor overflowed");
   }
   const std::uint64_t row_tiles = rows_per_expert / kRowsPerWarp;
+  const std::uint64_t row_tile_groups =
+      (row_tiles + kGroupedRowTilesPerWarp - 1U) /
+      kGroupedRowTilesPerWarp;
   const std::uint64_t blocks =
-      (row_tiles + kWarpsPerBlock - 1U) / kWarpsPerBlock;
+      (row_tile_groups + kWarpsPerBlock - 1U) / kWarpsPerBlock;
   if (blocks > static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
     return Invalid("grouped SM120 expert Down grid exceeds CUDA limits");
   }
@@ -1242,8 +1257,11 @@ Status LaunchNvfp4Sm120GroupedExpertDownBf16(
         "grouped physical-BF16 SM120 expert Down divisor overflowed");
   }
   const std::uint64_t row_tiles = rows_per_expert / kRowsPerWarp;
+  const std::uint64_t row_tile_groups =
+      (row_tiles + kGroupedRowTilesPerWarp - 1U) /
+      kGroupedRowTilesPerWarp;
   const std::uint64_t blocks =
-      (row_tiles + kWarpsPerBlock - 1U) / kWarpsPerBlock;
+      (row_tile_groups + kWarpsPerBlock - 1U) / kWarpsPerBlock;
   if (blocks >
       static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
     return Invalid(
@@ -1644,8 +1662,11 @@ Status LaunchNvfp4Sm120GroupedExpertFusedGateUp(
     return Invalid("grouped SM120 expert Gate/Up divisor overflowed");
   }
   const std::uint64_t row_tiles = rows / kRowsPerWarp;
+  const std::uint64_t row_tile_groups =
+      (row_tiles + kGroupedRowTilesPerWarp - 1U) /
+      kGroupedRowTilesPerWarp;
   const std::uint64_t blocks =
-      (row_tiles + kWarpsPerBlock - 1U) / kWarpsPerBlock;
+      (row_tile_groups + kWarpsPerBlock - 1U) / kWarpsPerBlock;
   if (blocks > static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
     return Invalid("grouped SM120 expert Gate/Up grid exceeds CUDA limits");
   }
@@ -1700,8 +1721,11 @@ Status LaunchNvfp4Sm120GroupedExpertFusedGateUpBf16(
         "grouped physical-BF16 SM120 expert Gate/Up divisor overflowed");
   }
   const std::uint64_t row_tiles = rows / kRowsPerWarp;
+  const std::uint64_t row_tile_groups =
+      (row_tiles + kGroupedRowTilesPerWarp - 1U) /
+      kGroupedRowTilesPerWarp;
   const std::uint64_t blocks =
-      (row_tiles + kWarpsPerBlock - 1U) / kWarpsPerBlock;
+      (row_tile_groups + kWarpsPerBlock - 1U) / kWarpsPerBlock;
   if (blocks >
       static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
     return Invalid(
