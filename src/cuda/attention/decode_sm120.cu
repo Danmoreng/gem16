@@ -29,7 +29,7 @@ constexpr int kDecodeD2Rows = 3;
 constexpr int kDecodeLocalKvHeads = 8;
 constexpr int kDecodeLocalHeadDimension = 256;
 constexpr int kDecodeLocalGroup = 2;
-constexpr int kDecodeLocalChunk = 256;
+constexpr int kDecodeLocalChunk = 128;
 constexpr int kDecodeLocalCapacity = 1024;
 constexpr int kDecodeLocalD2HistoricalTokens = 1023;
 constexpr int kDecodeLocalD2UnionTokens =
@@ -38,15 +38,15 @@ constexpr int kDecodeGlobalKvHeads = 1;
 constexpr int kDecodeGlobalKvHeads26B = 2;
 constexpr int kDecodeGlobalHeadDimension = 512;
 constexpr int kDecodeGlobalGroup = 4;
-constexpr int kDecodeGlobalChunk = 512;
+constexpr int kDecodeGlobalChunk = 128;
 constexpr int kDecodeGlobalGqaChunk = 512;
 constexpr int kDecodeGlobalGqaTileTokens = 16;
 constexpr int kDecodeGlobalGqaHeadsPerWarp = 2;
 constexpr std::uint64_t kDecodeGqaGlobalContext = 16384U;
-// Four-wide physical E4M3 loads pay off only once global-cache traffic
-// dominates the additional registers. Shorter capacity tiers retain the
-// scalar reduction order and lower register footprint.
-constexpr std::uint64_t kDecodeVectorizedGlobalContext = 65536U;
+// Four-wide physical E4M3 loads pay off once the 16K global-cache tier is
+// selected. Shorter capacity tiers retain the scalar reduction order and
+// lower register footprint.
+constexpr std::uint64_t kDecodeVectorizedGlobalContext = 16384U;
 
 Status Invalid(std::string message) {
   return Status(StatusCode::kInvalidArgument, std::move(message));
@@ -236,8 +236,7 @@ void SplitOnlineDecodeAttentionFp8Kernel(
     std::uint64_t cache_capacity, bool sliding, int max_splits) {
   static_assert(kQueriesPerKv % kQueryGroup == 0);
   static_assert(!kVectorizedGlobal ||
-                (kHeadDimensionValue == kDecodeGlobalHeadDimension &&
-                 kKvHeadsValue == kDecodeGlobalKvHeads));
+                kHeadDimensionValue == kDecodeGlobalHeadDimension);
   constexpr int kGroupsPerKv = kQueriesPerKv / kQueryGroup;
   constexpr int kQueryGroups = kKvHeadsValue * kGroupsPerKv;
   constexpr int kQueryHeadsValue = kKvHeadsValue * kQueriesPerKv;
@@ -1273,7 +1272,7 @@ void SplitOnlineDecodeAttentionFp8GlobalBatchKernel(
   }
 }
 
-template <int kRows>
+template <int kRows, int kChunk>
 __launch_bounds__(kDecodeThreads, 1) __global__
 void MergeOnlineDecodeAttentionGlobalBatchKernel(
     const float* __restrict__ partial_output,
@@ -1286,8 +1285,8 @@ void MergeOnlineDecodeAttentionGlobalBatchKernel(
   const int row = static_cast<int>(blockIdx.y);
   const int valid_splits = static_cast<int>(
       (start_position + static_cast<std::uint64_t>(row) + 1U +
-       kDecodeGlobalChunk - 1U) /
-      kDecodeGlobalChunk);
+       kChunk - 1U) /
+      kChunk);
   const std::uint64_t lse_base =
       static_cast<std::uint64_t>(row) * max_splits * kDecodeQueryHeads;
   float local_maximum = -CUDART_INF_F;
@@ -1299,6 +1298,9 @@ void MergeOnlineDecodeAttentionGlobalBatchKernel(
   }
   const float maximum = DecodeBlockMaximum(local_maximum, reduction);
   float local_sum = 0.0F;
+  // The split LSE row is dead after this merge. Consume it destructively as
+  // one cached exp(lse - max) per split so the dimension loop preserves its
+  // FMA order without recomputing the same transcendental hundreds of times.
   for (int split = static_cast<int>(threadIdx.x); split < valid_splits;
        split += kDecodeThreads) {
     local_sum += expf(partial_lse[lse_base + split * kDecodeQueryHeads +
@@ -1335,7 +1337,7 @@ template <int kHeadDimensionValue, int kChunk>
 __launch_bounds__(kDecodeThreads, 1) __global__
 void MergeOnlineDecodeAttentionKernel(
     const float* __restrict__ partial_output,
-    const float* __restrict__ partial_lse, float* __restrict__ output,
+    float* __restrict__ partial_lse, float* __restrict__ output,
     const DecodeControl* __restrict__ control,
     std::uint64_t cache_capacity, bool sliding, int max_splits) {
   __shared__ float reduction[kDecodeWarps];
@@ -1358,19 +1360,22 @@ void MergeOnlineDecodeAttentionKernel(
   float local_sum = 0.0F;
   for (int split = static_cast<int>(threadIdx.x); split < valid_splits;
        split += kDecodeThreads) {
-    local_sum +=
-        expf(partial_lse[split * kDecodeQueryHeads + query_head] - maximum);
+    const std::uint64_t lse_index =
+        split * kDecodeQueryHeads + query_head;
+    const float weight = expf(partial_lse[lse_index] - maximum);
+    partial_lse[lse_index] = weight;
+    local_sum += weight;
   }
   const float denominator = DecodeBlockSum(local_sum, reduction);
   const float inverse_sum =
       denominator > 0.0F ? __frcp_rn(denominator) : 0.0F;
+  __syncthreads();
   for (int dimension = static_cast<int>(threadIdx.x);
        dimension < kHeadDimensionValue; dimension += kDecodeThreads) {
     float accumulator = 0.0F;
     for (int split = 0; split < valid_splits; ++split) {
       const float weight =
-          expf(partial_lse[split * kDecodeQueryHeads + query_head] -
-               maximum);
+          partial_lse[split * kDecodeQueryHeads + query_head];
       accumulator = fmaf(
           weight,
           partial_output
@@ -1394,9 +1399,13 @@ std::uint64_t DecodeAttentionWorkspaceElements(std::uint64_t max_context) {
       max_context < 1024U ? max_context : 1024U;
   const std::uint64_t local_splits =
       (local_capacity + kDecodeLocalChunk - 1U) / kDecodeLocalChunk;
+  constexpr std::uint64_t kWorkspaceGlobalChunk =
+      kDecodeGlobalChunk < kDecodeGlobalGqaChunk
+          ? kDecodeGlobalChunk
+          : kDecodeGlobalGqaChunk;
   const std::uint64_t global_splits =
-      (max_context + kDecodeGlobalGqaChunk - 1U) /
-      kDecodeGlobalGqaChunk;
+      (max_context + kWorkspaceGlobalChunk - 1U) /
+      kWorkspaceGlobalChunk;
   const std::uint64_t local_elements =
       local_splits * kDecodeQueryHeads *
       (kDecodeLocalHeadDimension + 1U);
@@ -1435,8 +1444,7 @@ Status LaunchOnlineAttentionDecodeFp8Sm120(
       global_shape && kv_heads == kDecodeGlobalKvHeads &&
       cache_capacity >= kDecodeGqaGlobalContext;
   const bool vectorized_global =
-      global_shape && kv_heads == kDecodeGlobalKvHeads &&
-      cache_capacity >= kDecodeVectorizedGlobalContext;
+      global_shape && cache_capacity >= kDecodeVectorizedGlobalContext;
   const int chunk = local_shape
       ? kDecodeLocalChunk
       : (global_gqa ? kDecodeGlobalGqaChunk : kDecodeGlobalChunk);
@@ -1505,7 +1513,25 @@ Status LaunchOnlineAttentionDecodeFp8Sm120(
                 nullptr, cache_capacity, max_splits);
       }
     } else {
-      if (kv_heads == kDecodeGlobalKvHeads26B) {
+      if (kv_heads == kDecodeGlobalKvHeads26B && vectorized_global) {
+        if (max_splits == 1) {
+          SplitOnlineDecodeAttentionFp8Kernel<
+              kDecodeGlobalHeadDimension, kDecodeGlobalKvHeads26B, 8,
+              kDecodeGlobalGroup, kDecodeGlobalChunk, true, true>
+              <<<blocks, kDecodeThreads, 0, stream>>>(
+                  query, key_cache, value_cache, key_scale_bf16,
+                  value_scale_bf16, workspace, nullptr, output, control,
+                  cache_capacity, sliding, max_splits);
+        } else {
+          SplitOnlineDecodeAttentionFp8Kernel<
+              kDecodeGlobalHeadDimension, kDecodeGlobalKvHeads26B, 8,
+              kDecodeGlobalGroup, kDecodeGlobalChunk, false, true>
+              <<<blocks, kDecodeThreads, 0, stream>>>(
+                  query, key_cache, value_cache, key_scale_bf16,
+                  value_scale_bf16, workspace, partial_lse, output, control,
+                  cache_capacity, sliding, max_splits);
+        }
+      } else if (kv_heads == kDecodeGlobalKvHeads26B) {
         if (max_splits == 1) {
           SplitOnlineDecodeAttentionFp8Kernel<
               kDecodeGlobalHeadDimension, kDecodeGlobalKvHeads26B, 8,
@@ -1633,8 +1659,12 @@ Status LaunchOnlineAttentionDecodeFp8GlobalD2Sm120(
           static_cast<std::uint64_t>(std::numeric_limits<int>::max())) {
     return Invalid("global D2 FP8 attention arguments are invalid");
   }
+  const int chunk = cache_capacity >= kDecodeGqaGlobalContext
+                        ? kDecodeGlobalGqaChunk
+                        : kDecodeGlobalChunk;
   const int max_splits = static_cast<int>(
-      (cache_capacity + kDecodeGlobalChunk - 1U) / kDecodeGlobalChunk);
+      (cache_capacity + static_cast<std::uint64_t>(chunk) - 1U) /
+      static_cast<std::uint64_t>(chunk));
   constexpr int kGroups = kDecodeQueryHeads / kDecodeGlobalGroup;
   const unsigned blocks = static_cast<unsigned>(max_splits * kGroups);
   const std::uint64_t partial_elements_per_row =
@@ -1668,9 +1698,18 @@ Status LaunchOnlineAttentionDecodeFp8GlobalD2Sm120(
     return CudaFailure("launch global D2 split FP8 attention", error);
   }
   const dim3 merge_blocks(kDecodeQueryHeads, kRows);
-  MergeOnlineDecodeAttentionGlobalBatchKernel<kRows>
-      <<<merge_blocks, kDecodeThreads, 0, stream>>>(
-          workspace, partial_lse, output, start_position, nullptr, max_splits);
+  if (cache_capacity >= kDecodeGqaGlobalContext) {
+    MergeOnlineDecodeAttentionGlobalBatchKernel<kRows,
+                                                kDecodeGlobalGqaChunk>
+        <<<merge_blocks, kDecodeThreads, 0, stream>>>(
+            workspace, partial_lse, output, start_position, nullptr,
+            max_splits);
+  } else {
+    MergeOnlineDecodeAttentionGlobalBatchKernel<kRows, kDecodeGlobalChunk>
+        <<<merge_blocks, kDecodeThreads, 0, stream>>>(
+            workspace, partial_lse, output, start_position, nullptr,
+            max_splits);
+  }
   error = cudaGetLastError();
   return error == cudaSuccess
              ? Status::Ok()
@@ -1693,8 +1732,12 @@ Status LaunchOnlineAttentionDecodeFp8GlobalD2ControlledSm120(
           static_cast<std::uint64_t>(std::numeric_limits<int>::max())) {
     return Invalid("controlled global D2 FP8 attention arguments are invalid");
   }
+  const int chunk = cache_capacity >= kDecodeGqaGlobalContext
+                        ? kDecodeGlobalGqaChunk
+                        : kDecodeGlobalChunk;
   const int max_splits = static_cast<int>(
-      (cache_capacity + kDecodeGlobalChunk - 1U) / kDecodeGlobalChunk);
+      (cache_capacity + static_cast<std::uint64_t>(chunk) - 1U) /
+      static_cast<std::uint64_t>(chunk));
   constexpr int kGroups = kDecodeQueryHeads / kDecodeGlobalGroup;
   const unsigned blocks = static_cast<unsigned>(max_splits * kGroups);
   const std::uint64_t partial_elements_per_row =
@@ -1729,9 +1772,16 @@ Status LaunchOnlineAttentionDecodeFp8GlobalD2ControlledSm120(
                        error);
   }
   const dim3 merge_blocks(kDecodeQueryHeads, kRows);
-  MergeOnlineDecodeAttentionGlobalBatchKernel<kRows>
-      <<<merge_blocks, kDecodeThreads, 0, stream>>>(
-          workspace, partial_lse, output, 0U, row_controls, max_splits);
+  if (cache_capacity >= kDecodeGqaGlobalContext) {
+    MergeOnlineDecodeAttentionGlobalBatchKernel<kRows,
+                                                kDecodeGlobalGqaChunk>
+        <<<merge_blocks, kDecodeThreads, 0, stream>>>(
+            workspace, partial_lse, output, 0U, row_controls, max_splits);
+  } else {
+    MergeOnlineDecodeAttentionGlobalBatchKernel<kRows, kDecodeGlobalChunk>
+        <<<merge_blocks, kDecodeThreads, 0, stream>>>(
+            workspace, partial_lse, output, 0U, row_controls, max_splits);
+  }
   error = cudaGetLastError();
   return error == cudaSuccess
              ? Status::Ok()

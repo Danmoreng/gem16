@@ -398,6 +398,12 @@ void TestFixedAddressMoeReference() {
   std::vector<float> first_output(kWidth), repeated_output(kWidth);
   std::vector<std::uint32_t> ids(kTopK);
   std::vector<float> probabilities(kExperts), selected_weights(kTopK);
+  std::vector<std::uint8_t> reference_shared_packed(kWidth / 2U),
+      reference_shared_scales(kWidth / 16U),
+      reference_expert_packed(kWidth / 2U),
+      reference_expert_scales(kWidth / 16U);
+  std::vector<float> reference_router_normalized(kWidth),
+      reference_router_transformed(kWidth);
   run();
   CHECK(CudaOk(cudaMemcpy(first_output.data(), output.get(), output.bytes(),
                           cudaMemcpyDeviceToHost),
@@ -412,20 +418,76 @@ void TestFixedAddressMoeReference() {
   CHECK(CudaOk(cudaMemcpy(selected_weights.data(), top_weights.get(),
                           top_weights.bytes(), cudaMemcpyDeviceToHost),
                "copy selected weights"));
+  CHECK(CudaOk(cudaMemcpy(reference_shared_packed.data(),
+                          shared_input_packed.get(),
+                          shared_input_packed.bytes(), cudaMemcpyDeviceToHost),
+               "copy reference shared-input NVFP4"));
+  CHECK(CudaOk(cudaMemcpy(reference_shared_scales.data(),
+                          shared_input_scales.get(),
+                          shared_input_scales.bytes(), cudaMemcpyDeviceToHost),
+               "copy reference shared-input scales"));
+  CHECK(CudaOk(cudaMemcpy(reference_expert_packed.data(),
+                          expert_input_packed.get(),
+                          expert_input_packed.bytes(), cudaMemcpyDeviceToHost),
+               "copy reference expert-input NVFP4"));
+  CHECK(CudaOk(cudaMemcpy(reference_expert_scales.data(),
+                          expert_input_scales.get(),
+                          expert_input_scales.bytes(), cudaMemcpyDeviceToHost),
+               "copy reference expert-input scales"));
+  CHECK(CudaOk(cudaMemcpy(reference_router_normalized.data(),
+                          router_normalized.get(), router_normalized.bytes(),
+                          cudaMemcpyDeviceToHost),
+               "copy reference router-normalized input"));
+  CHECK(CudaOk(cudaMemcpy(reference_router_transformed.data(),
+                          router_transformed.get(), router_transformed.bytes(),
+                          cudaMemcpyDeviceToHost),
+               "copy reference router-transformed input"));
   const auto native_status = gem16::internal::LaunchGemma4MoeSm120Layer(
       hidden.get(), output.get(), config, weights, workspace, nullptr);
   CHECK(native_status.ok());
   CHECK(CudaOk(cudaDeviceSynchronize(), "synchronize M14 native MoE"));
   std::vector<float> native_output(kWidth);
   std::vector<std::uint32_t> native_ids(kTopK);
+  std::vector<std::uint8_t> native_shared_packed(kWidth / 2U),
+      native_shared_scales(kWidth / 16U),
+      native_expert_packed(kWidth / 2U),
+      native_expert_scales(kWidth / 16U);
+  std::vector<float> native_router_normalized(kWidth),
+      native_router_transformed(kWidth);
   CHECK(CudaOk(cudaMemcpy(native_output.data(), output.get(), output.bytes(),
                           cudaMemcpyDeviceToHost),
                "copy M14 native output"));
   CHECK(CudaOk(cudaMemcpy(native_ids.data(), top_ids.get(), top_ids.bytes(),
                           cudaMemcpyDeviceToHost),
                "copy M14 native IDs"));
+  CHECK(CudaOk(cudaMemcpy(native_shared_packed.data(), shared_input_packed.get(),
+                          shared_input_packed.bytes(), cudaMemcpyDeviceToHost),
+               "copy M14 shared-input NVFP4"));
+  CHECK(CudaOk(cudaMemcpy(native_shared_scales.data(), shared_input_scales.get(),
+                          shared_input_scales.bytes(), cudaMemcpyDeviceToHost),
+               "copy M14 shared-input scales"));
+  CHECK(CudaOk(cudaMemcpy(native_expert_packed.data(), expert_input_packed.get(),
+                          expert_input_packed.bytes(), cudaMemcpyDeviceToHost),
+               "copy M14 expert-input NVFP4"));
+  CHECK(CudaOk(cudaMemcpy(native_expert_scales.data(), expert_input_scales.get(),
+                          expert_input_scales.bytes(), cudaMemcpyDeviceToHost),
+               "copy M14 expert-input scales"));
+  CHECK(CudaOk(cudaMemcpy(native_router_normalized.data(),
+                          router_normalized.get(), router_normalized.bytes(),
+                          cudaMemcpyDeviceToHost),
+               "copy M14 router-normalized input"));
+  CHECK(CudaOk(cudaMemcpy(native_router_transformed.data(),
+                          router_transformed.get(), router_transformed.bytes(),
+                          cudaMemcpyDeviceToHost),
+               "copy M14 router-transformed input"));
   CHECK(native_output == first_output);
   CHECK(native_ids == ids);
+  CHECK(native_shared_packed == reference_shared_packed);
+  CHECK(native_shared_scales == reference_shared_scales);
+  CHECK(native_expert_packed == reference_expert_packed);
+  CHECK(native_expert_scales == reference_expert_scales);
+  CHECK(native_router_normalized == reference_router_normalized);
+  CHECK(native_router_transformed == reference_router_transformed);
   cudaStream_t capture_stream = nullptr;
   cudaGraph_t graph = nullptr;
   cudaGraphExec_t graph_exec = nullptr;

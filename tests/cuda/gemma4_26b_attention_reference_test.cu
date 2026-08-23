@@ -286,21 +286,21 @@ void TestLocalRingAndGlobalAppend() {
   }
 }
 
-void TestNativeTwoKvHeadGlobalDecode() {
+void CheckNativeTwoKvHeadGlobalDecode(std::uint64_t capacity,
+                                      std::uint64_t position,
+                                      const char* tier) {
   constexpr std::uint64_t kQueryHeads = 16U;
   constexpr std::uint64_t kKvHeads = 2U;
   constexpr std::uint64_t kHeadDimension = 512U;
-  constexpr std::uint64_t kCapacity = 1024U;
-  constexpr std::uint64_t kPosition = 777U;
   constexpr std::uint64_t kQueryElements = kQueryHeads * kHeadDimension;
   constexpr std::uint64_t kKvElements = kKvHeads * kHeadDimension;
   DeviceBuffer<float> query(kQueryElements), reference_scores(
-      kQueryHeads * (kPosition + 1U)), reference_output(kQueryElements),
+      kQueryHeads * (position + 1U)), reference_output(kQueryElements),
       native_workspace(
-          gem16::internal::DecodeAttentionWorkspaceElements(kCapacity)),
+          gem16::internal::DecodeAttentionWorkspaceElements(capacity)),
       native_output(kQueryElements);
-  DeviceBuffer<std::uint8_t> key_cache(kCapacity * kKvElements),
-      value_cache(kCapacity * kKvElements);
+  DeviceBuffer<std::uint8_t> key_cache(capacity * kKvElements),
+      value_cache(capacity * kKvElements);
   DeviceBuffer<std::uint16_t> scales(2U);
   DeviceBuffer<gem16::internal::DecodeControl> control(1U);
   std::vector<float> host_query(kQueryElements);
@@ -309,8 +309,8 @@ void TestNativeTwoKvHeadGlobalDecode() {
     host_query[index] = static_cast<float>(__ushort_as_bfloat16(
         Bf16(static_cast<float>(centered) / 32.0F)));
   }
-  std::vector<std::uint8_t> host_key(kCapacity * kKvElements),
-      host_value(kCapacity * kKvElements);
+  std::vector<std::uint8_t> host_key(capacity * kKvElements),
+      host_value(capacity * kKvElements);
   for (std::uint64_t index = 0; index < host_key.size(); ++index) {
     const int key_value =
         static_cast<int>((index * 13U + index / 512U) % 15U) - 7;
@@ -320,8 +320,8 @@ void TestNativeTwoKvHeadGlobalDecode() {
     host_value[index] = Fp8(static_cast<float>(value) / 16.0F);
   }
   const std::array<std::uint16_t, 2> host_scales{Bf16(0.75F), Bf16(1.25F)};
-  const gem16::internal::DecodeControl host_control{0U, 0U, kPosition,
-                                                    kPosition};
+  const gem16::internal::DecodeControl host_control{0U, 0U, position,
+                                                    position};
   CHECK(CudaOk(cudaMemcpy(query.get(), host_query.data(), query.bytes(),
                           cudaMemcpyHostToDevice),
                "copy M17 two-KV query"));
@@ -338,19 +338,19 @@ void TestNativeTwoKvHeadGlobalDecode() {
                           cudaMemcpyHostToDevice),
                "copy M17 two-KV control"));
   const std::uint8_t* current_key =
-      key_cache.get() + kPosition * kKvElements;
+      key_cache.get() + position * kKvElements;
   const std::uint8_t* current_value =
-      value_cache.get() + kPosition * kKvElements;
+      value_cache.get() + position * kKvElements;
   CHECK(gem16::internal::LaunchCausalAttentionPrefillFp8(
             query.get(), current_key, current_value, key_cache.get(),
             value_cache.get(), scales.get(), scales.get() + 1U,
-            reference_scores.get(), reference_output.get(), kPosition, 1U,
-            kQueryHeads, kKvHeads, kHeadDimension, kCapacity, false, nullptr)
+            reference_scores.get(), reference_output.get(), position, 1U,
+            kQueryHeads, kKvHeads, kHeadDimension, capacity, false, nullptr)
             .ok());
   CHECK(gem16::internal::LaunchOnlineAttentionDecodeFp8Sm120(
             query.get(), key_cache.get(), value_cache.get(), scales.get(),
             scales.get() + 1U, native_workspace.get(), native_output.get(),
-            control.get(), kQueryHeads, kKvHeads, kHeadDimension, kCapacity,
+            control.get(), kQueryHeads, kKvHeads, kHeadDimension, capacity,
             false, nullptr)
             .ok());
   CHECK(CudaOk(cudaDeviceSynchronize(), "run M17 two-KV global attention"));
@@ -374,7 +374,108 @@ void TestNativeTwoKvHeadGlobalDecode() {
   }
   const double relative_l2 = std::sqrt(error_squared / reference_squared);
   const double cosine = dot / std::sqrt(reference_squared * native_squared);
-  std::cout << "M17 QH16/KVH2/D512 relative-L2=" << relative_l2
+  std::cout << "M17 QH16/KVH2/D512 " << tier
+            << " relative-L2=" << relative_l2 << " cosine=" << cosine
+            << '\n';
+  CHECK(relative_l2 < 0.01);
+  CHECK(cosine > 0.9999);
+}
+
+void TestNativeTwoKvHeadGlobalDecode() {
+  CheckNativeTwoKvHeadGlobalDecode(1024U, 777U, "scalar");
+  CheckNativeTwoKvHeadGlobalDecode(16384U, 12345U, "vectorized");
+}
+
+void TestNativeLocalSlidingDecode() {
+  constexpr std::uint64_t kQueryHeads = 16U;
+  constexpr std::uint64_t kKvHeads = 8U;
+  constexpr std::uint64_t kHeadDimension = 256U;
+  constexpr std::uint64_t kCapacity = 1024U;
+  constexpr std::uint64_t kPosition = 1100U;
+  constexpr std::uint64_t kQueryElements = kQueryHeads * kHeadDimension;
+  constexpr std::uint64_t kKvElements = kKvHeads * kHeadDimension;
+  DeviceBuffer<float> query(kQueryElements),
+      reference_scores(kQueryHeads * kCapacity),
+      reference_output(kQueryElements),
+      native_workspace(
+          gem16::internal::DecodeAttentionWorkspaceElements(kCapacity)),
+      native_output(kQueryElements);
+  DeviceBuffer<std::uint8_t> key_cache(kCapacity * kKvElements),
+      value_cache(kCapacity * kKvElements);
+  DeviceBuffer<std::uint16_t> scales(2U);
+  DeviceBuffer<gem16::internal::DecodeControl> control(1U);
+  std::vector<float> host_query(kQueryElements);
+  for (std::uint64_t index = 0; index < host_query.size(); ++index) {
+    const int centered = static_cast<int>((index * 19U + 3U) % 29U) - 14;
+    host_query[index] = static_cast<float>(__ushort_as_bfloat16(
+        Bf16(static_cast<float>(centered) / 32.0F)));
+  }
+  std::vector<std::uint8_t> host_key(kCapacity * kKvElements),
+      host_value(kCapacity * kKvElements);
+  for (std::uint64_t index = 0; index < host_key.size(); ++index) {
+    const int key_value =
+        static_cast<int>((index * 11U + index / 256U) % 15U) - 7;
+    const int value =
+        static_cast<int>((index * 5U + index / 2048U) % 17U) - 8;
+    host_key[index] = Fp8(static_cast<float>(key_value) / 16.0F);
+    host_value[index] = Fp8(static_cast<float>(value) / 16.0F);
+  }
+  const std::array<std::uint16_t, 2> host_scales{Bf16(0.75F), Bf16(1.25F)};
+  const gem16::internal::DecodeControl host_control{0U, 0U, kPosition,
+                                                    kPosition};
+  CHECK(CudaOk(cudaMemcpy(query.get(), host_query.data(), query.bytes(),
+                          cudaMemcpyHostToDevice),
+               "copy M20 local query"));
+  CHECK(CudaOk(cudaMemcpy(key_cache.get(), host_key.data(), key_cache.bytes(),
+                          cudaMemcpyHostToDevice),
+               "copy M20 local key cache"));
+  CHECK(CudaOk(cudaMemcpy(value_cache.get(), host_value.data(),
+                          value_cache.bytes(), cudaMemcpyHostToDevice),
+               "copy M20 local value cache"));
+  CHECK(CudaOk(cudaMemcpy(scales.get(), host_scales.data(), scales.bytes(),
+                          cudaMemcpyHostToDevice),
+               "copy M20 local scales"));
+  CHECK(CudaOk(cudaMemcpy(control.get(), &host_control, sizeof(host_control),
+                          cudaMemcpyHostToDevice),
+               "copy M20 local control"));
+  const std::uint64_t slot = kPosition % kCapacity;
+  const std::uint8_t* current_key =
+      key_cache.get() + slot * kKvElements;
+  const std::uint8_t* current_value =
+      value_cache.get() + slot * kKvElements;
+  CHECK(gem16::internal::LaunchCausalAttentionPrefillFp8(
+            query.get(), current_key, current_value, key_cache.get(),
+            value_cache.get(), scales.get(), scales.get() + 1U,
+            reference_scores.get(), reference_output.get(), kPosition, 1U,
+            kQueryHeads, kKvHeads, kHeadDimension, kCapacity, true, nullptr)
+            .ok());
+  CHECK(gem16::internal::LaunchOnlineAttentionDecodeFp8Sm120(
+            query.get(), key_cache.get(), value_cache.get(), scales.get(),
+            scales.get() + 1U, native_workspace.get(), native_output.get(),
+            control.get(), kQueryHeads, kKvHeads, kHeadDimension, kCapacity,
+            true, nullptr)
+            .ok());
+  CHECK(CudaOk(cudaDeviceSynchronize(), "run M20 local sliding attention"));
+  std::vector<float> reference(kQueryElements), native(kQueryElements);
+  CHECK(CudaOk(cudaMemcpy(reference.data(), reference_output.get(),
+                          reference_output.bytes(), cudaMemcpyDeviceToHost),
+               "copy M20 local reference output"));
+  CHECK(CudaOk(cudaMemcpy(native.data(), native_output.get(),
+                          native_output.bytes(), cudaMemcpyDeviceToHost),
+               "copy M20 local native output"));
+  double error_squared = 0.0, reference_squared = 0.0, dot = 0.0,
+         native_squared = 0.0;
+  for (std::size_t index = 0; index < reference.size(); ++index) {
+    const double difference =
+        static_cast<double>(native[index]) - reference[index];
+    error_squared += difference * difference;
+    reference_squared += static_cast<double>(reference[index]) * reference[index];
+    native_squared += static_cast<double>(native[index]) * native[index];
+    dot += static_cast<double>(reference[index]) * native[index];
+  }
+  const double relative_l2 = std::sqrt(error_squared / reference_squared);
+  const double cosine = dot / std::sqrt(reference_squared * native_squared);
+  std::cout << "M20 QH16/KVH8/D256 local relative-L2=" << relative_l2
             << " cosine=" << cosine << '\n';
   CHECK(relative_l2 < 0.01);
   CHECK(cosine > 0.9999);
@@ -390,6 +491,7 @@ int main() {
   }
   TestLocalRingAndGlobalAppend();
   TestNativeTwoKvHeadGlobalDecode();
+  TestNativeLocalSlidingDecode();
   if (failures != 0) {
     std::cerr << failures << " M12 CUDA assertion(s) failed\n";
     return 1;

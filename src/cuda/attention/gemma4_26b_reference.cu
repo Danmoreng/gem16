@@ -480,7 +480,8 @@ Status LaunchGemma4Moe26BAttentionReferenceControlledLayer(
     const Gemma4Moe26BAttentionReferenceWeights& w,
     const Gemma4Moe26BKvCacheView& cache,
     const Gemma4Moe26BAttentionReferenceWorkspace& x,
-    const DecodeControl* control, float epsilon, cudaStream_t stream) {
+    const DecodeControl* control, float epsilon, cudaStream_t stream,
+    bool rotary_table_prepared) {
   const bool sliding =
       t.attention == Gemma4Moe26BAttentionType::kSliding;
   const std::uint64_t q_elements = t.query_heads * t.head_dimension;
@@ -534,10 +535,12 @@ Status LaunchGemma4Moe26BAttentionReferenceControlledLayer(
   }
   const std::uint64_t rotating_pairs = static_cast<std::uint64_t>(
       t.rotary_factor * static_cast<double>(t.head_dimension / 2U));
-  status = LaunchRotaryEmbeddingTableControlled(
-      x.rotary_cosine, x.rotary_sine, rotating_pairs, t.head_dimension,
-      control, t.rope_theta, t.rope_scaling_factor, stream);
-  if (!status.ok()) return status;
+  if (!rotary_table_prepared) {
+    status = LaunchRotaryEmbeddingTableControlled(
+        x.rotary_cosine, x.rotary_sine, rotating_pairs, t.head_dimension,
+        control, t.rope_theta, t.rope_scaling_factor, stream);
+    if (!status.ok()) return status;
+  }
   status = LaunchProjectionRmsNormRotaryBf16CurrentTableControlled(
       x.query_raw, w.query_norm_bf16, x.query_normalized, x.key_raw,
       w.key_norm_bf16, x.key_normalized, x.rotary_cosine, x.rotary_sine,

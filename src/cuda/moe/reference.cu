@@ -59,6 +59,12 @@ __device__ __forceinline__ float RoundBf16(float value) {
   return static_cast<float>(__float2bfloat16_rn(value));
 }
 
+__device__ __forceinline__ float ReciprocalApproximateFtz(float value) {
+  float result;
+  asm volatile("rcp.approx.ftz.f32 %0, %1;" : "=f"(result) : "f"(value));
+  return result;
+}
+
 __device__ __forceinline__ std::uint8_t Nibble(const std::uint8_t* bytes,
                                                 std::uint64_t index) {
   const std::uint8_t byte = bytes[index / 2U];
@@ -161,12 +167,24 @@ __device__ float MoeBlockSum(float value) {
   __shared__ float scratch[kNormThreads];
   scratch[threadIdx.x] = value;
   __syncthreads();
-  for (unsigned stride = kNormThreads / 2U; stride != 0U; stride >>= 1U) {
+  // Preserve the accepted binary-tree addition order while avoiding four
+  // block-wide barriers once the live reduction fits in warp zero.
+  for (unsigned stride = kNormThreads / 2U; stride >= kWarpSize;
+       stride >>= 1U) {
     if (threadIdx.x < stride) {
       scratch[threadIdx.x] += scratch[threadIdx.x + stride];
     }
     __syncthreads();
   }
+  if (threadIdx.x < kWarpSize) {
+    for (unsigned stride = kWarpSize / 2U; stride != 0U; stride >>= 1U) {
+      if (threadIdx.x < stride) {
+        scratch[threadIdx.x] += scratch[threadIdx.x + stride];
+      }
+      __syncwarp();
+    }
+  }
+  __syncthreads();
   return scratch[0];
 }
 
@@ -195,6 +213,88 @@ __global__ void MoeInputNormsRouterTransformKernel(
     router_normalized[index] = normalized;
     router_transformed[index] = RoundBf16(
         normalized * Bf16(router_scale[index]) * router_divisor);
+  }
+}
+
+__global__ void MoeInputNormsRouterTransformNvfp4Kernel(
+    const float* hidden, const std::uint16_t* pre_shared_norm,
+    const std::uint16_t* pre_expert_norm,
+    const std::uint16_t* router_scale, std::uint8_t* shared_packed,
+    std::uint8_t* shared_scales, std::uint8_t* expert_packed,
+    std::uint8_t* expert_scales, float* router_normalized,
+    float* router_transformed, std::uint64_t width, float epsilon,
+    float shared_global_divisor, float expert_global_divisor) {
+  float squared_sum = 0.0F;
+  for (std::uint64_t index = threadIdx.x; index < width;
+       index += blockDim.x) {
+    const float value = hidden[index];
+    squared_sum = fmaf(value, value, squared_sum);
+  }
+  const float inverse_rms = rsqrtf(
+      MoeBlockSum(squared_sum) / static_cast<float>(width) + epsilon);
+  const float router_divisor = rsqrtf(static_cast<float>(width));
+  const std::uint64_t blocks = width / kNvfp4Block;
+  for (std::uint64_t block = threadIdx.x; block < blocks;
+       block += blockDim.x) {
+    const std::uint64_t begin = block * kNvfp4Block;
+    float shared_values[kNvfp4Block];
+    float expert_values[kNvfp4Block];
+    float shared_amax = 0.0F;
+    float expert_amax = 0.0F;
+#pragma unroll
+    for (std::uint64_t local = 0U; local < kNvfp4Block; ++local) {
+      const std::uint64_t index = begin + local;
+      const float normalized = RoundBf16(hidden[index] * inverse_rms);
+      const float shared_value = RoundBf16(
+          hidden[index] * inverse_rms * Bf16(pre_shared_norm[index]));
+      const float expert_value = RoundBf16(
+          hidden[index] * inverse_rms * Bf16(pre_expert_norm[index]));
+      shared_values[local] = shared_value;
+      expert_values[local] = expert_value;
+      shared_amax = fmaxf(shared_amax, fabsf(shared_value));
+      expert_amax = fmaxf(expert_amax, fabsf(expert_value));
+      router_normalized[index] = normalized;
+      router_transformed[index] = RoundBf16(
+          normalized * Bf16(router_scale[index]) * router_divisor);
+    }
+    const __nv_fp8_e4m3 shared_scale(
+        (shared_amax * ReciprocalApproximateFtz(6.0F)) *
+        shared_global_divisor);
+    const __nv_fp8_e4m3 expert_scale(
+        (expert_amax * ReciprocalApproximateFtz(6.0F)) *
+        expert_global_divisor);
+    shared_scales[block] = shared_scale.__x;
+    expert_scales[block] = expert_scale.__x;
+    const float decoded_shared_scale = static_cast<float>(shared_scale);
+    const float decoded_expert_scale = static_cast<float>(expert_scale);
+    const float shared_output_scale =
+        decoded_shared_scale == 0.0F
+            ? 0.0F
+            : ReciprocalApproximateFtz(
+                  decoded_shared_scale *
+                  ReciprocalApproximateFtz(shared_global_divisor));
+    const float expert_output_scale =
+        decoded_expert_scale == 0.0F
+            ? 0.0F
+            : ReciprocalApproximateFtz(
+                  decoded_expert_scale *
+                  ReciprocalApproximateFtz(expert_global_divisor));
+#pragma unroll
+    for (std::uint64_t pair = 0U; pair < kNvfp4Block / 2U; ++pair) {
+      const std::uint64_t low = pair * 2U;
+      const __nv_fp4_e2m1 shared_low(
+          shared_values[low] * shared_output_scale);
+      const __nv_fp4_e2m1 shared_high(
+          shared_values[low + 1U] * shared_output_scale);
+      const __nv_fp4_e2m1 expert_low(
+          expert_values[low] * expert_output_scale);
+      const __nv_fp4_e2m1 expert_high(
+          expert_values[low + 1U] * expert_output_scale);
+      shared_packed[begin / 2U + pair] = static_cast<std::uint8_t>(
+          (shared_low.__x & 0x0FU) | ((shared_high.__x & 0x0FU) << 4U));
+      expert_packed[begin / 2U + pair] = static_cast<std::uint8_t>(
+          (expert_low.__x & 0x0FU) | ((expert_high.__x & 0x0FU) << 4U));
+    }
   }
 }
 
@@ -242,8 +342,8 @@ __global__ void RouterTopKKernel(
   __shared__ float maximum;
   __shared__ float total;
   __shared__ int valid;
-  __shared__ float candidate_probability[kThreads];
-  __shared__ std::uint32_t candidate_id[kThreads];
+  __shared__ float warp_probability[kThreads / kWarpSize];
+  __shared__ std::uint32_t warp_id[kThreads / kWarpSize];
   if (threadIdx.x == 0U) {
     maximum = -3.402823466e+38F;
     valid = 1;
@@ -319,29 +419,46 @@ __global__ void RouterTopKKernel(
         best_id = expert;
       }
     }
-    candidate_probability[threadIdx.x] = best_probability;
-    candidate_id[threadIdx.x] = best_id;
+    const unsigned lane = threadIdx.x & (kWarpSize - 1U);
+    const unsigned warp = threadIdx.x / kWarpSize;
+    for (unsigned offset = kWarpSize / 2U; offset != 0U; offset >>= 1U) {
+      const float right_probability =
+          __shfl_down_sync(0xffffffffU, best_probability, offset);
+      const std::uint32_t right_id =
+          __shfl_down_sync(0xffffffffU, best_id, offset);
+      if (right_probability > best_probability ||
+          (right_probability == best_probability && right_id < best_id)) {
+        best_probability = right_probability;
+        best_id = right_id;
+      }
+    }
+    if (lane == 0U) {
+      warp_probability[warp] = best_probability;
+      warp_id[warp] = best_id;
+    }
     __syncthreads();
-    for (unsigned stride = kThreads / 2U; stride != 0U; stride /= 2U) {
-      if (threadIdx.x < stride) {
+    if (warp == 0U) {
+      best_probability =
+          lane < kThreads / kWarpSize ? warp_probability[lane] : -1.0F;
+      best_id = lane < kThreads / kWarpSize ? warp_id[lane] : experts;
+      for (unsigned offset = kWarpSize / 2U; offset != 0U; offset >>= 1U) {
         const float right_probability =
-            candidate_probability[threadIdx.x + stride];
-        const std::uint32_t right_id = candidate_id[threadIdx.x + stride];
-        if (right_probability > candidate_probability[threadIdx.x] ||
-            (right_probability == candidate_probability[threadIdx.x] &&
-             right_id < candidate_id[threadIdx.x])) {
-          candidate_probability[threadIdx.x] = right_probability;
-          candidate_id[threadIdx.x] = right_id;
+            __shfl_down_sync(0xffffffffU, best_probability, offset);
+        const std::uint32_t right_id =
+            __shfl_down_sync(0xffffffffU, best_id, offset);
+        if (right_probability > best_probability ||
+            (right_probability == best_probability && right_id < best_id)) {
+          best_probability = right_probability;
+          best_id = right_id;
         }
       }
-      __syncthreads();
     }
     if (threadIdx.x == 0U) {
-      if (candidate_id[0] >= experts) {
+      if (best_id >= experts) {
         valid = 0;
       } else {
-        top_ids[slot] = candidate_id[0];
-        top_weights[slot] = candidate_probability[0];
+        top_ids[slot] = best_id;
+        top_weights[slot] = best_probability;
       }
     }
     __syncthreads();
@@ -426,47 +543,37 @@ __global__ void WeightedReductionKernel(
   routed_sum[index] = RoundBf16(sum);
 }
 
-__global__ void MoePostNormResidualKernel(
+__global__ void MoeBranchPostNormKernel(
     const float* shared_output, const std::uint16_t* post_shared_norm,
     const float* routed_sum, const std::uint16_t* post_expert_norm,
-    const std::uint16_t* post_combined_norm, const float* residual,
-    const std::uint16_t* layer_scalar, float* shared_post,
-    float* routed_post, float* combined, float* feed_forward, float* output,
+    float* shared_post, float* routed_post,
     std::uint64_t width, float epsilon) {
+  const bool routed = blockIdx.x != 0U;
+  const float* input = routed ? routed_sum : shared_output;
+  const std::uint16_t* norm =
+      routed ? post_expert_norm : post_shared_norm;
+  float* post = routed ? routed_post : shared_post;
   float squared_sum = 0.0F;
   for (std::uint64_t index = threadIdx.x; index < width;
        index += blockDim.x) {
-    const float value = shared_output[index];
+    const float value = input[index];
     squared_sum = fmaf(value, value, squared_sum);
   }
-  const float shared_inverse_rms = rsqrtf(
+  const float inverse_rms = rsqrtf(
       MoeBlockSum(squared_sum) / static_cast<float>(width) + epsilon);
   for (std::uint64_t index = threadIdx.x; index < width;
        index += blockDim.x) {
-    shared_post[index] = RoundBf16(
-        shared_output[index] * shared_inverse_rms *
-        Bf16(post_shared_norm[index]));
+    post[index] =
+        RoundBf16(input[index] * inverse_rms * Bf16(norm[index]));
   }
-  // Keep both barriers: later phases consume values written by other threads.
-  __syncthreads();
+}
 
-  squared_sum = 0.0F;
-  for (std::uint64_t index = threadIdx.x; index < width;
-       index += blockDim.x) {
-    const float value = routed_sum[index];
-    squared_sum = fmaf(value, value, squared_sum);
-  }
-  const float routed_inverse_rms = rsqrtf(
-      MoeBlockSum(squared_sum) / static_cast<float>(width) + epsilon);
-  for (std::uint64_t index = threadIdx.x; index < width;
-       index += blockDim.x) {
-    routed_post[index] = RoundBf16(
-        routed_sum[index] * routed_inverse_rms *
-        Bf16(post_expert_norm[index]));
-  }
-  __syncthreads();
-
-  squared_sum = 0.0F;
+__global__ void MoeCombinedPostNormResidualKernel(
+    const float* shared_post, const float* routed_post,
+    const std::uint16_t* post_combined_norm, const float* residual,
+    const std::uint16_t* layer_scalar, float* combined, float* feed_forward,
+    float* output, std::uint64_t width, float epsilon) {
+  float squared_sum = 0.0F;
   for (std::uint64_t index = threadIdx.x; index < width;
        index += blockDim.x) {
     const float value = RoundBf16(shared_post[index] + routed_post[index]);
@@ -530,7 +637,8 @@ Status LaunchGemma4MoeLayerImpl(
     const Gemma4MoeReferenceConfig& config,
     const Gemma4MoeReferenceWeights& weights,
     const Gemma4MoeReferenceWorkspace& workspace, bool native_sm120,
-    cudaStream_t stream) {
+    cudaStream_t stream, cudaStream_t shared_branch_stream = nullptr,
+    cudaEvent_t fork_event = nullptr, cudaEvent_t join_event = nullptr) {
   const auto& c = config;
   const auto& w = weights;
   const auto& x = workspace;
@@ -585,17 +693,51 @@ Status LaunchGemma4MoeLayerImpl(
       w.expert_gate_up.activation_global_divisor <= 0.0F) {
     return Invalid("M11 Gate/Up activation divisors are incompatible");
   }
+  const bool concurrent_shared = shared_branch_stream != nullptr ||
+                                 fork_event != nullptr || join_event != nullptr;
+  if (concurrent_shared &&
+      (!native_sm120 || shared_branch_stream == nullptr ||
+       fork_event == nullptr || join_event == nullptr ||
+       shared_branch_stream == stream)) {
+    return Invalid("M14 concurrent shared branch contract is invalid");
+  }
 
-  MoeInputNormsRouterTransformKernel<<<1, kNormThreads, 0, stream>>>(
-      hidden, w.pre_shared_norm_bf16, w.pre_expert_norm_bf16,
-      w.router_scale_bf16, x.shared_input, x.expert_input,
-      x.router_normalized, x.router_transformed, c.width, c.epsilon);
-  Status status = CheckLaunch("launch fused M11 input norms and router transform");
-  if (!status.ok()) return status;
-  status = LaunchNvfp4ReferenceActivationQuantization(
-      x.shared_input, x.shared_input_packed, x.shared_input_scales, c.width,
-      w.shared_gate.activation_global_divisor, stream);
-  if (!status.ok()) return status;
+  Status status;
+  if (native_sm120) {
+    MoeInputNormsRouterTransformNvfp4Kernel<<<1, kNormThreads, 0, stream>>>(
+        hidden, w.pre_shared_norm_bf16, w.pre_expert_norm_bf16,
+        w.router_scale_bf16, x.shared_input_packed, x.shared_input_scales,
+        x.expert_input_packed, x.expert_input_scales, x.router_normalized,
+        x.router_transformed, c.width, c.epsilon,
+        w.shared_gate.activation_global_divisor,
+        w.expert_gate_up.activation_global_divisor);
+    status = CheckLaunch(
+        "launch fused M14 input norms, router transform, and NVFP4 quantization");
+    if (!status.ok()) return status;
+  } else {
+    MoeInputNormsRouterTransformKernel<<<1, kNormThreads, 0, stream>>>(
+        hidden, w.pre_shared_norm_bf16, w.pre_expert_norm_bf16,
+        w.router_scale_bf16, x.shared_input, x.expert_input,
+        x.router_normalized, x.router_transformed, c.width, c.epsilon);
+    status =
+        CheckLaunch("launch fused M11 input norms and router transform");
+    if (!status.ok()) return status;
+    status = LaunchNvfp4ReferenceActivationQuantization(
+        x.shared_input, x.shared_input_packed, x.shared_input_scales, c.width,
+        w.shared_gate.activation_global_divisor, stream);
+    if (!status.ok()) return status;
+  }
+  cudaStream_t shared_stream = stream;
+  if (concurrent_shared) {
+    cudaError_t error = cudaEventRecord(fork_event, stream);
+    if (error == cudaSuccess) {
+      error = cudaStreamWaitEvent(shared_branch_stream, fork_event, 0U);
+    }
+    if (error != cudaSuccess) {
+      return CudaFailure("fork M14 shared branch", error);
+    }
+    shared_stream = shared_branch_stream;
+  }
   if (native_sm120) {
     status = LaunchNvfp4Sm120FusedGateUp(
         x.shared_input_packed, x.shared_input_scales,
@@ -605,25 +747,26 @@ Status LaunchGemma4MoeLayerImpl(
         w.shared_gate.activation_global_divisor,
         w.shared_gate.weight_global_divisor,
         w.shared_up.activation_global_divisor,
-        w.shared_up.weight_global_divisor, stream);
+        w.shared_up.weight_global_divisor, shared_stream);
     if (!status.ok()) return status;
   } else {
     status = LaunchTiled(w.shared_gate, x.shared_input_packed,
-                         x.shared_input_scales, x.shared_gate, stream);
+                         x.shared_input_scales, x.shared_gate, shared_stream);
     if (!status.ok()) return status;
     status = LaunchTiled(w.shared_up, x.shared_input_packed,
-                         x.shared_input_scales, x.shared_up, stream);
+                         x.shared_input_scales, x.shared_up, shared_stream);
     if (!status.ok()) return status;
     GatedGeluSeparateProductKernel<<<
         static_cast<unsigned>(Blocks(c.shared_intermediate)), kThreads, 0,
-        stream>>>(x.shared_gate, x.shared_up, x.shared_product,
+        shared_stream>>>(x.shared_gate, x.shared_up, x.shared_product,
                   c.shared_intermediate);
     status = CheckLaunch("launch M11 shared gated GELU");
     if (!status.ok()) return status;
   }
   status = LaunchNvfp4ReferenceActivationQuantization(
       x.shared_product, x.shared_product_packed, x.shared_product_scales,
-      c.shared_intermediate, w.shared_down.activation_global_divisor, stream);
+      c.shared_intermediate, w.shared_down.activation_global_divisor,
+      shared_stream);
   if (!status.ok()) return status;
   status = native_sm120
                ? LaunchNvfp4Sm120DirectProjectionBf16Float(
@@ -632,9 +775,10 @@ Status LaunchGemma4MoeLayerImpl(
                      w.shared_down.scales_e4m3fn, x.shared_output, c.width,
                      c.shared_intermediate,
                      w.shared_down.activation_global_divisor,
-                     w.shared_down.weight_global_divisor, stream)
+                     w.shared_down.weight_global_divisor, shared_stream)
                : LaunchTiled(w.shared_down, x.shared_product_packed,
-                             x.shared_product_scales, x.shared_output, stream);
+                             x.shared_product_scales, x.shared_output,
+                             shared_stream);
   if (!status.ok()) return status;
   const unsigned router_blocks =
       (c.experts + kRouterWarpsPerBlock - 1U) / kRouterWarpsPerBlock;
@@ -649,10 +793,12 @@ Status LaunchGemma4MoeLayerImpl(
   status = CheckLaunch("launch M11 deterministic router top-k");
   if (!status.ok()) return status;
 
-  status = LaunchNvfp4ReferenceActivationQuantization(
-      x.expert_input, x.expert_input_packed, x.expert_input_scales, c.width,
-      w.expert_gate_up.activation_global_divisor, stream);
-  if (!status.ok()) return status;
+  if (!native_sm120) {
+    status = LaunchNvfp4ReferenceActivationQuantization(
+        x.expert_input, x.expert_input_packed, x.expert_input_scales, c.width,
+        w.expert_gate_up.activation_global_divisor, stream);
+    if (!status.ok()) return status;
+  }
   if (native_sm120) {
     status = LaunchNvfp4Sm120SelectedFusedGateUpBatch(
         x.expert_input_packed, x.expert_input_scales,
@@ -705,17 +851,31 @@ Status LaunchGemma4MoeLayerImpl(
       if (!status.ok()) return status;
     }
   }
+  if (concurrent_shared) {
+    cudaError_t error = cudaEventRecord(join_event, shared_stream);
+    if (error == cudaSuccess) {
+      error = cudaStreamWaitEvent(stream, join_event, 0U);
+    }
+    if (error != cudaSuccess) {
+      return CudaFailure("join M14 shared branch", error);
+    }
+  }
   WeightedReductionKernel<<<static_cast<unsigned>(Blocks(c.width)), kThreads,
                             0, stream>>>(
       x.expert_down, x.top_weights, x.expert_contributions, x.routed_sum,
       c.width, c.top_k);
   status = CheckLaunch("launch M11 slot-order expert reduction");
   if (!status.ok()) return status;
-  MoePostNormResidualKernel<<<1, kNormThreads, 0, stream>>>(
+  MoeBranchPostNormKernel<<<2, kNormThreads, 0, stream>>>(
       x.shared_output, w.post_shared_norm_bf16, x.routed_sum,
-      w.post_expert_norm_bf16, w.post_combined_norm_bf16, hidden,
-      w.layer_scalar_bf16, x.shared_post, x.routed_post, x.combined,
-      x.feed_forward, output, c.width, c.epsilon);
+      w.post_expert_norm_bf16, x.shared_post, x.routed_post, c.width,
+      c.epsilon);
+  status = CheckLaunch("launch parallel M11 branch post norms");
+  if (!status.ok()) return status;
+  MoeCombinedPostNormResidualKernel<<<1, kNormThreads, 0, stream>>>(
+      x.shared_post, x.routed_post, w.post_combined_norm_bf16, hidden,
+      w.layer_scalar_bf16, x.combined, x.feed_forward, output, c.width,
+      c.epsilon);
   return CheckLaunch("launch fused M11 post norms and residual");
 }
 
@@ -732,9 +892,12 @@ Status LaunchGemma4MoeSm120Layer(
     const float* hidden, float* output,
     const Gemma4MoeReferenceConfig& config,
     const Gemma4MoeReferenceWeights& weights,
-    const Gemma4MoeReferenceWorkspace& workspace, cudaStream_t stream) {
+    const Gemma4MoeReferenceWorkspace& workspace, cudaStream_t stream,
+    cudaStream_t shared_branch_stream, cudaEvent_t fork_event,
+    cudaEvent_t join_event) {
   return LaunchGemma4MoeLayerImpl(hidden, output, config, weights, workspace,
-                                  true, stream);
+                                  true, stream, shared_branch_stream,
+                                  fork_event, join_event);
 }
 
 Status LaunchGemma4MoeTiledNvfp4ReferenceProjection(

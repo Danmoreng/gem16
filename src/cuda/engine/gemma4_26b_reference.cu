@@ -354,6 +354,9 @@ struct Gemma4Moe26BReferenceEngine::Impl {
   std::uint64_t recurring_allocation_count = 0U;
   Gemma4Moe26BBackend backend = Gemma4Moe26BBackend::kReference;
   cudaStream_t stream = nullptr;
+  cudaStream_t shared_moe_stream = nullptr;
+  cudaEvent_t shared_moe_fork = nullptr;
+  cudaEvent_t shared_moe_join = nullptr;
   Gemma4Moe26BDeviceArtifact artifact;
   Gemma4Moe26BAttentionTraits traits{};
   std::array<Gemma4Moe26BAttentionReferenceWeights, kLayers> attention_weights{};
@@ -380,6 +383,8 @@ struct Gemma4Moe26BReferenceEngine::Impl {
   float* hidden_a = nullptr;
   float* hidden_b = nullptr;
   float* final_hidden = nullptr;
+  float* local_rotary_cosine = nullptr;
+  float* local_rotary_sine = nullptr;
   std::uint8_t* head_activation = nullptr;
   std::uint8_t* head_activation_scales = nullptr;
   float* logits = nullptr;
@@ -411,12 +416,20 @@ struct Gemma4Moe26BReferenceEngine::Impl {
     if (stream != nullptr) {
       (void)cudaStreamSynchronize(stream);
     }
+    if (shared_moe_stream != nullptr) {
+      (void)cudaStreamSynchronize(shared_moe_stream);
+    }
     if (decode_graph != nullptr) (void)cudaGraphExecDestroy(decode_graph);
     if (prefill_host_tokens != nullptr) {
       (void)cudaFreeHost(prefill_host_tokens);
     }
     if (stream != nullptr) {
       (void)cudaStreamDestroy(stream);
+    }
+    if (shared_moe_fork != nullptr) (void)cudaEventDestroy(shared_moe_fork);
+    if (shared_moe_join != nullptr) (void)cudaEventDestroy(shared_moe_join);
+    if (shared_moe_stream != nullptr) {
+      (void)cudaStreamDestroy(shared_moe_stream);
     }
   }
 };
@@ -438,14 +451,55 @@ Status Gemma4Moe26BReferenceEngine::Impl::LaunchControlledDecodeBody() {
   if (error != cudaSuccess) {
     return CudaFailure("launch M17 controlled embedding", error);
   }
+  const Gemma4Moe26BAttentionLayerTraits* local_trait = nullptr;
+  const Gemma4Moe26BAttentionLayerTraits* global_trait = nullptr;
+  for (const auto& trait : traits) {
+    const bool sliding =
+        trait.attention == Gemma4Moe26BAttentionType::kSliding;
+    const Gemma4Moe26BAttentionLayerTraits*& profile =
+        sliding ? local_trait : global_trait;
+    if (profile == nullptr) {
+      profile = &trait;
+    } else if (profile->head_dimension != trait.head_dimension ||
+               profile->rotary_factor != trait.rotary_factor ||
+               profile->rope_theta != trait.rope_theta ||
+               profile->rope_scaling_factor != trait.rope_scaling_factor) {
+      return Invalid("M17 attention classes do not share RoPE profiles");
+    }
+  }
+  if (local_trait == nullptr || global_trait == nullptr) {
+    return Invalid("M17 requires local and global RoPE profiles");
+  }
+  auto prepare_rotary = [&](const Gemma4Moe26BAttentionLayerTraits& trait,
+                            float* cosine, float* sine) {
+    const std::uint64_t rotating_pairs = static_cast<std::uint64_t>(
+        trait.rotary_factor *
+        static_cast<double>(trait.head_dimension / 2U));
+    return LaunchRotaryEmbeddingTableControlled(
+        cosine, sine, rotating_pairs, trait.head_dimension, decode_control,
+        trait.rope_theta, trait.rope_scaling_factor, stream);
+  };
+  Status status = prepare_rotary(*global_trait,
+                                 attention_workspace.rotary_cosine,
+                                 attention_workspace.rotary_sine);
+  if (!status.ok()) return status;
+  status = prepare_rotary(*local_trait, local_rotary_cosine,
+                          local_rotary_sine);
+  if (!status.ok()) return status;
   for (std::uint32_t layer = 0U; layer < kLayers; ++layer) {
-    Status status = LaunchGemma4Moe26BAttentionReferenceControlledLayer(
+    auto layer_workspace = attention_workspace;
+    if (traits[layer].attention == Gemma4Moe26BAttentionType::kSliding) {
+      layer_workspace.rotary_cosine = local_rotary_cosine;
+      layer_workspace.rotary_sine = local_rotary_sine;
+    }
+    status = LaunchGemma4Moe26BAttentionReferenceControlledLayer(
         hidden_a, hidden_b, traits[layer], attention_weights[layer],
-        caches[layer], attention_workspace, decode_control, 1.0e-6F, stream);
+        caches[layer], layer_workspace, decode_control, 1.0e-6F, stream,
+        true);
     if (!status.ok()) return status;
     status = LaunchGemma4MoeSm120Layer(
         hidden_b, hidden_a, moe_config, moe_weights[layer], moe_workspace,
-        stream);
+        stream, shared_moe_stream, shared_moe_fork, shared_moe_join);
     if (!status.ok()) return status;
     const int capture = CaptureIndex(layer);
     if (capture >= 0) {
@@ -470,12 +524,9 @@ Status Gemma4Moe26BReferenceEngine::Impl::LaunchControlledDecodeBody() {
       }
     }
   }
-  Status status = LaunchRmsNormBf16(hidden_a, final_norm, final_hidden, 1U,
-                                    kWidth, 1.0e-6F, stream);
-  if (!status.ok()) return status;
-  status = LaunchNvfp4ReferenceActivationQuantization(
-      final_hidden, head_activation, head_activation_scales, kWidth,
-      head.activation_global_divisor, stream);
+  status = LaunchRmsNormNvfp4ActivationQuantizationBatch(
+      hidden_a, final_norm, head_activation, head_activation_scales, 1U,
+      kWidth, 1.0e-6F, head.activation_global_divisor, stream);
   if (!status.ok()) return status;
   status = LaunchNvfp4Sm120DirectProjectionBf16Float(
       head_activation, head_activation_scales, head.packed_e2m1,
@@ -577,6 +628,22 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
   impl->artifact = std::move(artifact).value();
   error = cudaStreamCreateWithFlags(&impl->stream, cudaStreamNonBlocking);
   if (error != cudaSuccess) return CudaFailure("create M13 stream", error);
+  if (backend == Gemma4Moe26BBackend::kSm120Integrated) {
+    error = cudaStreamCreateWithFlags(&impl->shared_moe_stream,
+                                      cudaStreamNonBlocking);
+    if (error != cudaSuccess) {
+      return CudaFailure("create M20 shared-MoE stream", error);
+    }
+    error = cudaEventCreateWithFlags(&impl->shared_moe_fork,
+                                     cudaEventDisableTiming);
+    if (error == cudaSuccess) {
+      error = cudaEventCreateWithFlags(&impl->shared_moe_join,
+                                       cudaEventDisableTiming);
+    }
+    if (error != cudaSuccess) {
+      return CudaFailure("create M20 shared-MoE events", error);
+    }
+  }
 
   for (std::uint32_t layer = 0U; layer < kLayers; ++layer) {
     auto attention = BindGemma4Moe26BAttentionReferenceWeights(
@@ -644,6 +711,8 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
   const auto v_norm = layout.Add<float>(8U * 512U);
   const auto cosine = layout.Add<float>(256U);
   const auto sine = layout.Add<float>(256U);
+  const auto local_cosine = layout.Add<float>(256U);
+  const auto local_sine = layout.Add<float>(256U);
   const auto staged_k = layout.Add<std::uint8_t>(8U * 512U);
   const auto staged_v = layout.Add<std::uint8_t>(8U * 512U);
   const std::uint64_t decode_attention_workspace_elements = std::max(
@@ -735,6 +804,8 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
   impl->hidden_a = reinterpret_cast<float*>(ptr(hidden_a));
   impl->hidden_b = reinterpret_cast<float*>(ptr(hidden_b));
   impl->final_hidden = reinterpret_cast<float*>(ptr(final_hidden));
+  impl->local_rotary_cosine = reinterpret_cast<float*>(ptr(local_cosine));
+  impl->local_rotary_sine = reinterpret_cast<float*>(ptr(local_sine));
   impl->attention_workspace = {
       reinterpret_cast<std::uint8_t*>(ptr(a_input_fp8)),
       reinterpret_cast<float*>(ptr(a_input_scale)),

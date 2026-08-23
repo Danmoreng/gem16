@@ -120,6 +120,8 @@ BindGemma4Moe26BReferenceWeights(
     const float* hidden, float* output,
     const Gemma4MoeReferenceConfig& config,
     const Gemma4MoeReferenceWeights& weights,
-    const Gemma4MoeReferenceWorkspace& workspace, cudaStream_t stream);
+    const Gemma4MoeReferenceWorkspace& workspace, cudaStream_t stream,
+    cudaStream_t shared_branch_stream = nullptr,
+    cudaEvent_t fork_event = nullptr, cudaEvent_t join_event = nullptr);
 
 }  // namespace gem16::internal
