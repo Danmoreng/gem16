@@ -19,6 +19,8 @@ Der Coding Agent muss nicht mehr vor jeder Aufgabe die vollständigen historisch
 - zuerst ein reales 32K-Profil, danach gezielte Qualifikation von 64K und dem maximal sicheren Einzelbenutzer-Kontext;
 - abschließend ein exakt Target-verifiziertes MTP-Profil nach dem eingefrorenen Base-Ziel.
 
-M23 ist ein nutzbarer Base-Release-Checkpoint. Das Gesamtziel ist erst mit M25 erreicht. Vision gehört nicht mehr zum MTP-Milestone.
+M23 friert zunächst einen technischen Base-Target für weitere MTP- und Performance-Arbeit ein. Solange die vom Owner
+nach hinten verschobene M19-Vollqualifikation fehlt, ist dieser Stand kein Shipping- oder qualitätsfreigegebener
+Release. Das Gesamtziel benötigt M25 und den späteren M19-Release-Gate. Vision gehört nicht zum MTP-Milestone.
 
 Parallele Sub-Agent-Arbeit ist erlaubt, sofern Dateibesitz und Merge-Abhängigkeiten gemäß [`PARALLEL_WORKSTREAMS.md`](PARALLEL_WORKSTREAMS.md) getrennt sind.

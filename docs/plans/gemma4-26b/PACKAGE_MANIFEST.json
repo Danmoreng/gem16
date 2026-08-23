@@ -3,9 +3,9 @@
   "external_reference_anchor": "kekzl/imp@a392904d4216388828d0d56317de046f4ca49627",
   "files": [
     {
-      "bytes": 2597,
+      "bytes": 3022,
       "path": "00_MASTER_IMPLEMENTATION_PLAN.md",
-      "sha256": "2d72dbbcc2b996f352cb3aa1589e3970b6a95b092ba102f79e4b83cefe7a87ec"
+      "sha256": "9b7bd30d836e32dfce476faaf91c5a816b2553de302bf43a4ea63c40c433d52f"
     },
     {
       "bytes": 2073,
@@ -23,9 +23,9 @@
       "sha256": "836ff94fc89a1efc0afdd6eeb1d280ddba2d867cde7eb23117c78a14370e042c"
     },
     {
-      "bytes": 1938,
+      "bytes": 2065,
       "path": "04_TARGET_PRODUCT_PROFILE.md",
-      "sha256": "30ea165c1f5980dc34fed0e131377b281228f1d97d7c8f0194417e9773130379"
+      "sha256": "587d8f7731ce810123bb5d435b6eb4c950ada0ed910f6854e71a19b70ce53572"
     },
     {
       "bytes": 2348,
@@ -33,9 +33,9 @@
       "sha256": "3802fe67f606eeee1735d199a4e202bbe56e6273253a4d2efe08cd88243732ba"
     },
     {
-      "bytes": 2753,
+      "bytes": 3194,
       "path": "06_DEPENDENCY_GRAPH.md",
-      "sha256": "e571aa44c05f53092e7ffead55576c6d234692c74c14e09528bc11da7ef8944c"
+      "sha256": "d47fbaff7852101d3088cf2819a312fe610080f7761447b28ca74c5c4a8ec112"
     },
     {
       "bytes": 2690,
@@ -48,9 +48,9 @@
       "sha256": "c97e748addbdeba0f02865237ad6993c042b8dc669d11163245b2aa275a3fba4"
     },
     {
-      "bytes": 1671,
+      "bytes": 2000,
       "path": "09_DEFINITION_OF_DONE.md",
-      "sha256": "b88281ca1cb293eb764cd472a37514a0f3beb74cd14cfb6d41a1c87d295baaa9"
+      "sha256": "ffc1b18352fd0ce8702030d5767bb77a619e038fb88b9a8ce5dd98f189a74952"
     },
     {
       "bytes": 4347,
@@ -58,14 +58,14 @@
       "sha256": "09fe8f45d8ce9d39ed3144a44e1b8537068a55e927386e1392a1c893eb1ea0f0"
     },
     {
-      "bytes": 1232,
+      "bytes": 1381,
       "path": "11_PR_SEQUENCE.md",
-      "sha256": "08288ad667c14063b8a4ff777dbeb24ad1869e66347331fdf42c73918a02dd8d"
+      "sha256": "10abb62b68cc7df7e80f1fe227db0ed9b1f975f7dcef9f80cb9a629ccb9508b5"
     },
     {
-      "bytes": 894,
+      "bytes": 1360,
       "path": "12_AGENT_TASK_QUEUE.md",
-      "sha256": "3d410f1c148a15be837195a232dc9061862016f5c2d765ad7b89acecfda8ff24"
+      "sha256": "3dc22bf8b8413ba95d5cdffa4822d63b95dc0398a150c8f8a2cf21a6645892e4"
     },
     {
       "bytes": 1044,
@@ -73,9 +73,9 @@
       "sha256": "c576d0841233f275ddb6d24bf8fd62bf94f3f8bd123f30444a278e57ab9b682f"
     },
     {
-      "bytes": 10516,
+      "bytes": 11859,
       "path": "ACTIVE_CONTRACT.md",
-      "sha256": "53542de02a6849845448b071ea830e54eda63f39896ca8f29300dc3b8fe287a8"
+      "sha256": "c20fd4a3678dee030ab47a8409c3f4032b6c6fb0f0a65539ee84bb5fe1feed75"
     },
     {
       "bytes": 1487,
@@ -83,54 +83,54 @@
       "sha256": "07c6b0006a379e54737b192082ba93a5fd6a975f9d786c70f182ad93a6f273ad"
     },
     {
-      "bytes": 5099,
+      "bytes": 5708,
       "path": "FAST_TRACK_EXECUTION_PLAN.md",
-      "sha256": "6ecfa3f02bd33f2da43238081eb3cec9dcc44abaf75929f14fa47b3d00eb8af1"
+      "sha256": "57f4bd33e6fc1eb62d0e12f28c292440eaacb039a1b15e89471f04f7f8b2a2c7"
     },
     {
-      "bytes": 2641,
+      "bytes": 2778,
       "path": "FAST_TRACK_REVISION_NOTES.md",
-      "sha256": "04bf5ba894b3af72e860ec1d8a30d7ebb5afc48a0333b846bfa33beadc2d87cf"
+      "sha256": "0f9a1ff05e1dc30fbb10bba9f39482d970a74d2da018a8365ff311c64f1f3ac4"
     },
     {
-      "bytes": 7387,
+      "bytes": 8797,
       "path": "FAST_TRACK_STATUS.json",
-      "sha256": "9b9432a32558a8b1632fa72bab9af1429c5501dcb0af1bc46696a3dabb066507"
+      "sha256": "1ad5d08cd338d4573d3921c8e85b32d34b89280e004d61db69328910467daf47"
     },
     {
-      "bytes": 2592,
+      "bytes": 2662,
       "path": "INDEX.md",
-      "sha256": "19cea5b5ff9b273c773b9a2caee3e8fff2ec25570cba9c4eea3787589df0285b"
+      "sha256": "82292bc7b30bf8708395abc8ae13068145fa2714dff46c8c6118cbbdb726cf5c"
     },
     {
-      "bytes": 1196,
+      "bytes": 2187,
       "path": "MILESTONE_STATUS_BOARD.md",
-      "sha256": "9cd923e5170fb6c41a987f13ea819f2fbc4d56cbfbde841a6fb64859dc38378e"
+      "sha256": "30bd57e9104f8bcb38ac9720e00e5bff05f6f51d9d9953e8ffdf9e8092dfae56"
     },
     {
-      "bytes": 867,
+      "bytes": 1012,
       "path": "OWNER_DECISION_POINTS_DE.md",
-      "sha256": "e20be962510d070748bd0fa719fb2a420f2e84a4250a5544c05ab1263bd969e9"
+      "sha256": "f24386f4832d8bd52caaf55778a2ea586cdb9a7feff31924dabd27f7ded13ba4"
     },
     {
-      "bytes": 4674,
+      "bytes": 4983,
       "path": "PARALLEL_WORKSTREAMS.md",
-      "sha256": "27f507bc14b20a1cccf46e2398697c742d96c4be71faffcbef250ab93eb91dde"
+      "sha256": "07781b59af5edaee2296cb6eaaf731bd4f650b9317975e84bd36fd0ffbb5ea8a"
     },
     {
-      "bytes": 956,
+      "bytes": 1079,
       "path": "README.md",
-      "sha256": "b148b2ddfad09476beed3275d40860fc4bf802ab28861b822eaef807041829cb"
+      "sha256": "5378d717ca8c1c54714bdcec962e10d98f5fda65a8852c2a8808e9f36f6ec77d"
     },
     {
-      "bytes": 1384,
+      "bytes": 1597,
       "path": "README_DE.md",
-      "sha256": "fa72f0280f0d9c31891462016b56e1b212649341dbbba32d9faf466958b9f76a"
+      "sha256": "8147f469578cb0cd209e5b8bbde8f3e1b1f4726b5c44a3de3e452f33aa17101f"
     },
     {
-      "bytes": 5942,
+      "bytes": 6683,
       "path": "START_HERE_CODEX.md",
-      "sha256": "221db263a750c59cc768238cc4f384ccb43f45a1d546a923ca9e39ff6bd34d95"
+      "sha256": "e153ba725aab34bb0931d6fdb7b03f4966610307d7a3d70cd82f719329b2dd7e"
     },
     {
       "bytes": 2990,
@@ -138,9 +138,9 @@
       "sha256": "4978083041559873f153d170f3040b242fda0d64c6a7891c08b6303edaf80eb2"
     },
     {
-      "bytes": 962,
+      "bytes": 1109,
       "path": "appendices/CODEX_HANDOFF_MAP.md",
-      "sha256": "7f16919577352a443ede99bc86f63201fd7fcf5712c624f53afc73267ce98398"
+      "sha256": "6056190e256c52072b7b35a8ff21f6a7431e49bf81d4eeb31c3400b3fa9f0313"
     },
     {
       "bytes": 1892,
@@ -223,9 +223,9 @@
       "sha256": "f150baac266000dafe440d32b06493e1f2d5e55e94f9ab5713b4cfad9f9305ba"
     },
     {
-      "bytes": 619,
+      "bytes": 860,
       "path": "checklists/FINAL_RELEASE_CHECKLIST.md",
-      "sha256": "728ead07ce3afc1e61b4ea9c9263b4fd71443d399ffbedd89f304f2a449881c6"
+      "sha256": "d60ed84229722d27cd81f73602610211be6ffe99ed25d07f4ac32b14962b3dc7"
     },
     {
       "bytes": 845,
@@ -358,34 +358,34 @@
       "sha256": "d85d65187de52399cabc45cec2d610d68ce4c94fea1a1e68cad0156d27d8d8e1"
     },
     {
-      "bytes": 1570,
+      "bytes": 1626,
       "path": "milestones/M18_CONVERTER_AB_STUDY.md",
-      "sha256": "b100981b04a8277763d18a4c95607b732158ac5e60ca56f99a3bd4a1f25f4519"
+      "sha256": "ba4f5607c3d10866eefa26f5d832db237136e31e97e2f2272e9dd90fedce74bf"
     },
     {
-      "bytes": 959,
+      "bytes": 1457,
       "path": "milestones/M19_QUALITY_QUALIFICATION.md",
-      "sha256": "f0ba69d72c6e3b0d4f00b226e778b1f10924224860c3ade7c21f00edeadea452"
+      "sha256": "cc8021edc4cc0f6c95a781de361f8abfdcd3a552eb94c6489160f83b10bf6b6c"
     },
     {
-      "bytes": 971,
+      "bytes": 1147,
       "path": "milestones/M20_PERFORMANCE_QUALIFICATION.md",
-      "sha256": "7b9538631af0b1e4d35f4a72c44e0dd4c3a0db1a951b667f55a11dba7fd7896d"
+      "sha256": "6820dccb13793483f6b8a582214a538be2ed9eeeae43b7b57c8c2ead1ed86a94"
     },
     {
-      "bytes": 1063,
+      "bytes": 1103,
       "path": "milestones/M21_LONG_CONTEXT_QUALIFICATION.md",
-      "sha256": "7ba425d1adf222c0bbd14faeff768695ee5502242742018a496299ff3627877a"
+      "sha256": "9826b7668bb2750908d6a951be4ed6111c0ce899e15f5e33bb19ef79020ddb3b"
     },
     {
-      "bytes": 1058,
+      "bytes": 1159,
       "path": "milestones/M22_PRODUCT_INTEGRATION.md",
-      "sha256": "26971225ff0f7478b27ffbde52b9634015e0687b60f24d196705e68449b26199"
+      "sha256": "8f82d7eb129a7cd28adacc5a80d9558c4d14205815a815dabc8c5e9678364af8"
     },
     {
-      "bytes": 1068,
+      "bytes": 1459,
       "path": "milestones/M23_RELEASE_QUALIFICATION.md",
-      "sha256": "629d7b1fef892fb2df3f905656f972ce46700098f0b415dee687283a635b5eb8"
+      "sha256": "68ed26081f4b9a36eb781e714a415db4fa29c3c79eb2a9b1490744e1fe5fa858"
     },
     {
       "bytes": 834,
@@ -393,14 +393,14 @@
       "sha256": "c505420aaf7d9a2b28ca8ee94ad4d82dc58cd947a7dc2ff763ffc017eb16ec22"
     },
     {
-      "bytes": 3128,
+      "bytes": 3262,
       "path": "milestones/M25_MTP_INTEGRATION_AND_FINAL_QUALIFICATION.md",
-      "sha256": "41dfe9341afddb16e16a8c88fe9ac4fd49cdd8d867b3f570ee9db0d76774d8a2"
+      "sha256": "f360b74ca79b35f1e24f2e5161f215e26e6f3585b00c6cf5f25ad8cc02eabc4c"
     },
     {
-      "bytes": 738,
+      "bytes": 991,
       "path": "milestones/README.md",
-      "sha256": "dc9e81599714a42986a3a96a0572ee646b449a1cac735d3c1217b79b06af87be"
+      "sha256": "356275e06da401de95d5f410908fb5773bd2a46e6d663ba9c2073d75eb58165c"
     },
     {
       "bytes": 2302,

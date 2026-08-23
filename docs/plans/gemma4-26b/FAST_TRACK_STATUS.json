@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
   "plan_revision": "fast-track-r4",
-  "updated": "2026-08-22",
+  "updated": "2026-08-23",
   "accepted_through": "M17",
-  "current_milestone": "M19",
-  "active_wave": "F4-base-qualification-product",
+  "current_milestone": "M22",
+  "active_wave": "F4-product-performance-context-technical-freeze",
   "integration_branch": "feat/gemma4-26b",
   "source_of_truth": "docs/plans/gemma4-26b/FAST_TRACK_STATUS.json",
   "policy_source": "docs/ACTIVE_DECISIONS.md",
@@ -209,7 +209,8 @@
       ]
     },
     "M19": {
-      "status": "READY_NEXT",
+      "status": "DEFERRED_OWNER",
+      "note": "Bounded official-Q4 numerical evidence passes; multi-hour task/prose qualification is deferred until the end of the current implementation/performance program and remains required before any production-quality claim.",
       "class": "qualification",
       "lane": "quality",
       "depends_on": [
@@ -217,15 +218,18 @@
       ]
     },
     "M20": {
-      "status": "READY_NEXT",
+      "status": "IN_PROGRESS",
+      "note": "Three-run 16K+64 ordinary-decode characterization reaches 120.398 tok/s versus llama.cpp 119.494; after the final candidate freeze and M21, formal 3-warm-up/10-retained telemetry qualification consumes matching M21 evidence.",
       "class": "qualification",
       "lane": "performance",
       "depends_on": [
-        "M17-frozen"
+        "M17-frozen",
+        "M21-matching-evidence"
       ]
     },
     "M21": {
       "status": "READY_NEXT",
+      "note": "After M22, bounded prefill work and clean candidate freeze, real repeated 32K, explicit 64K and maximum-context execution remain required; allocation-only M09 evidence is not sufficient.",
       "class": "qualification",
       "lane": "long-context",
       "depends_on": [
@@ -233,7 +237,8 @@
       ]
     },
     "M22": {
-      "status": "READY_NEXT",
+      "status": "IN_PROGRESS",
+      "note": "CLI/server integration and a real product smoke exist; automated acceptance coverage, 12B regressions and compact evidence remain.",
       "class": "product",
       "lane": "cli-server",
       "depends_on": [
@@ -241,14 +246,17 @@
       ]
     },
     "M23": {
-      "status": "BLOCKED",
-      "class": "base-checkpoint",
-      "lane": "release",
+      "status": "BLOCKED_BY_M20_M21_M22",
+      "note": "Owner permits a technical Target freeze with M19 explicitly pending; this is not a shipping or quality-qualified release.",
+      "class": "technical-base-checkpoint",
+      "lane": "engineering-freeze",
       "depends_on": [
-        "M19",
         "M20",
         "M21",
         "M22"
+      ],
+      "deferred_release_depends_on": [
+        "M19"
       ]
     },
     "M24": {
@@ -276,15 +284,17 @@
     }
   },
   "parallel_tasks_now": [
-    "M19 held-out quality qualification",
-    "M20 controlled performance qualification",
-    "M21 real 32K/64K long-context qualification",
-    "M22 CLI/server product integration",
+    "M22 CLI/server product acceptance and 12B regressions",
+    "bounded correctness-preserving prefill optimization after M22",
+    "M20/M21 runner alignment and clean candidate freeze after prefill",
+    "M21 real 32K/64K and maximum-context qualification",
+    "M20 controlled 3-warm-up/10-retained performance qualification consuming matching M21 evidence",
     "M25 phase A assistant compatibility and memory feasibility"
   ],
   "paused_tasks": [
+    "M19 multi-hour task/prose held-out qualification until the end of the current implementation/performance program",
     "M18 conditional diagnosis unless a trigger occurs",
-    "M23 base evidence freeze until M19-M22 pass",
+    "M23 technical Target freeze until M20-M22 pass",
     "M24 optional internal Q4_0 backend"
   ],
   "context_policy": {

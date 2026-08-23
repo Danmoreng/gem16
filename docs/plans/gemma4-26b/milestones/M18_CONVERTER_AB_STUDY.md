@@ -4,7 +4,8 @@ Status: conditional
 Triggers: M13 failure, M19 failure, head-format uncertainty or explicit causal-attribution request
 
 Scheduling note: M13 passed and M17 is accepted, so M18 is currently inactive.
-Proceed directly with M19–M22 unless one of the triggers above occurs. The
+Proceed directly with M22, a bounded prefill decision, M21 and M20 unless one of the triggers above occurs. Full
+M19 is owner-deferred. The
 milestone number does not make M18 a sequential prerequisite.
 
 Normative inputs: [Quality evaluation](../specs/QUALITY_EVALUATION_SPEC.md), [Checkpoint provenance](../specs/CHECKPOINT_PROVENANCE_SPEC.md).
@@ -34,5 +35,5 @@ Localize quality loss without blocking the normal native path when M13 is health
 - [ ] A bounded corrective action or rejection is recorded.
 - [ ] No held-out set was used for tuning.
 
-M18 does not block accepted M14–M17 or the normal M19–M22 qualification and
-product wave after an M13 pass.
+M18 does not block accepted M14–M17 or the current product/performance/context
+wave after an M13 pass.

@@ -1,7 +1,7 @@
 # M22 — CLI/server product integration
 
-Status: ready; frozen M17 profile contract available
-Class: product; may overlap M19–M21
+Status: in progress; integration and real smoke exist, automated acceptance and 12B regressions remain
+Class: product; closes before bounded prefill work and the final M21/M20 evidence freeze
 
 Normative inputs: [API/CLI changes](../specs/API_CLI_CHANGES.md), [Capability reporting](../specs/ERROR_AND_CAPABILITY_REPORTING.md), [Session ownership](../specs/SESSION_OWNERSHIP_AND_CONCURRENCY.md).
 

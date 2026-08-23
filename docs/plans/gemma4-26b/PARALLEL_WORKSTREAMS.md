@@ -13,22 +13,22 @@ The integration agent alone owns:
 - cross-workstream changes to `inference_engine` orchestration;
 - final evidence acceptance.
 
-## Workstreams available after M07
+## Current workstreams after accepted M17
 
-The track is paused after M07 by owner request. No lane may start until explicit restart.
+The owner restarted the track and accepted M00–M17. The active lanes below share the current performance candidate;
+integration and evidence acceptance remain serialized.
 
 | Lane | Immediate task | May start now | Owned area | Merge gate |
 |---|---|---:|---|---|
-| A — Compiler/head | M08 complete artifact/loader | no | final artifact and loader integration | M08 exit |
-| B — MoE semantics | M10 phase A BF16 router/shared/expert oracle | no | new numeric oracle files and isolated tests/goldens | semantic fixtures accepted |
-| C — Attention traits | M12 phase A layer table, RoPE and cache fixtures | no | model-trait tests and isolated attention/KV tests | trait contract accepted |
-| D — Memory | M09 phase A formulas, one-slot tests and reporting schema | no | memory-plan tests/tools; no final artifact constants | M08 artifact reconciliation |
-| E — Harness | M13/M19/M20/M21 runners using fixtures or 12B smoke | no | new tools, prompt manifests and report schemas | no production claim |
-| F — MTP feasibility | M25 phase A assistant lock/inventory and compressed-memory model | no | docs/tools/model locks only | base runtime remains untouched |
+| P — Product | M22 automated CLI/server acceptance and 12B regressions | yes | product driver/tests and compact M22 evidence | shared runtime changes remain integration-owned |
+| F — Prefill | profile-driven bounded optimization | after M22 | isolated CUDA/prefill code and tests | completes before final M20/M21 evidence |
+| R — Evidence contracts | make M20 consume native M21 output; add provenance/telemetry envelopes | after prefill | M20/M21 runners and manifests | freezes before model execution |
+| C — Context | M21 repeated real 32K/64K qualification | after clean candidate freeze | M21 runner and raw/compact evidence | no concurrent GPU model run |
+| B — Benchmark | M20 bounded 3/10 telemetry qualification | after M21 | M20 runner and raw/compact evidence | consumes matching M21 evidence; no code changes during measurement |
+| Q — Quality | deferred M19 task/prose qualification | no, owner-deferred | quality runner and blind-review package | required before release claims |
+| T — MTP feasibility | M25 phase A assistant lock/inventory and compressed-memory model | yes, read-only base | docs/tools/model locks only | base runtime remains untouched |
 
-All lanes are paused after M07 until explicit owner restart.
-
-## Later parallel window
+## Historical M14–M17 parallel window (accepted)
 
 After M13 passes:
 
@@ -40,7 +40,7 @@ After M13 passes:
 | I | M17 rolling integration | consumes reviewed commits from D1–D3 |
 | Q | M18 diagnosis, only if triggered | frozen M13 captures |
 
-M17 begins when the first optimized operator is ready. It does not wait for all D1–D3 work before integration testing.
+This window is complete. M14–M17 are accepted and are retained here only as workstream history.
 
 ## File-overlap rules
 

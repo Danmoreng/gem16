@@ -1,35 +1,40 @@
 # Gemma 4 26B A4B in Gem16
 
-**Status:** M00–M07 accepted; paused before M08. The active policy is [`ACTIVE_DECISIONS.md`](ACTIVE_DECISIONS.md), and
+**Status:** M00–M17 accepted; M22, bounded prefill work, M20/M21 and a technical M23 freeze are next. The active policy is [`ACTIVE_DECISIONS.md`](ACTIVE_DECISIONS.md), and
 the current task entry is [`plans/gemma4-26b/ACTIVE_CONTRACT.md`](plans/gemma4-26b/ACTIVE_CONTRACT.md).
 
 ## Goal
 
-Reach an experimental text-only Gemma 4 26B A4B execution on one approximately 16 GB NVIDIA Blackwell GPU as
-quickly as possible. The first useful result is a directly loadable QAT-derived FP8/NVFP4 artifact, one resident
-slot and real 32K execution with at least 700 MiB directly measured free CUDA memory. Later work qualifies quality,
-performance, longer context and product behavior.
+Deliver an experimental text-only Gemma 4 26B A4B execution on one approximately 16 GB NVIDIA Blackwell GPU. The
+current path directly loads the compiled QAT-derived FP8/NVFP4 artifact, owns one resident slot and executes native
+SM120 prefill/decode/head work without CPU weight offload or recurring token-loop allocation.
 
-The current source tree does **not** yet contain an executable 26B runtime. M05 attention FP8 and M06 expert/shared
-NVFP4 are accepted native compiler stages and remain non-runtime-loadable. The 12B Unified path is the production
-baseline and must remain unchanged.
+The current source tree contains an executable fixed-address 26B runtime, public chat/server integration and native
+SM120 MoE, attention and tied-head dispatch. Ordinary decode on the controlled 16K+64 development workload reaches
+120.398 tok/s median versus 119.494 tok/s for current llama.cpp. This is a three-run characterization, not yet the
+formal M20 3-warm-up/10-retained result. The 12B Unified path remains the production baseline and must remain
+unchanged.
 
 ## Fast-track path
 
 ```text
 M06 NVFP4 experts → M07 provisional NVFP4 tied head → M08 artifact/loader
 → M09 32K residency → M13 slow reference execution → M17 optimized runtime
-→ base qualification → MTP
+→ M22 product → bounded prefill decision → clean candidate freeze
+→ M21 real 32K/64K → M20 performance → technical M23 freeze
+→ M25 MTP → deferred M19 release-quality gate
 ```
 
-M06 uses one clean full QAT expert conversion, exhaustive small codec/shape/determinism and representative operator
-checks, bounded-memory evidence and sampled Ordinary/Unsloth diagnostics. Full Ordinary attribution, internal Q4_0,
-broad head A/B work and M18 diagnosis are conditional rather than first-path blockers. Native execution may be
-experimental before final qualification, but must disclose missing gates and never silently fall back or offload.
+M00–M17 are accepted. M22 is implemented but still needs automated acceptance and protected 12B regressions. M21
+still needs repeated real 32K plus explicit 64K execution, then M20 needs its bounded formal 3/10 run against that
+matching context evidence. The owner
+deferred the remaining multi-hour M19 task/prose suite until the end of the implementation/performance program.
+Therefore M23 may freeze an engineering Target for later work, but it cannot be described as a shipping or
+quality-qualified release while M19 is pending.
 
 ## Scope
 
 The first profile is text-only, batch one, one fully resident 26B slot, FP8 attention/KV, NVFP4 experts/shared MLP and
-a provisional NVFP4 tied head. MTP starts only after the base target is frozen and requires a separately validated
-assistant and memory/context qualification. Vision is a separate later track. The 12B CLI/server/runtime behavior
-remains regression-protected.
+a provisional NVFP4 tied head. MTP starts only after the technical base Target is frozen and requires a separately
+validated assistant and memory/context qualification. Vision is a separate later track. The 12B CLI/server/runtime
+behavior remains regression-protected.

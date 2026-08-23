@@ -1,7 +1,7 @@
 # M21 — 32K, 64K and maximum safe base context
 
-Status: ready; frozen M17 profile available
-Class: qualification; may run alongside M19/M20
+Status: ready next; repeated real 32K and explicit real 64K execution remain
+Class: qualification; follows the frozen M20 candidate
 
 Normative inputs: [Memory arena](../specs/MEMORY_ARENA_SPEC.md), [Benchmark matrix](../specs/BENCHMARK_MATRIX.md).
 

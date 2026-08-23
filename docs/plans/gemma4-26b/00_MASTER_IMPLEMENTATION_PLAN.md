@@ -20,10 +20,12 @@ M06 NVFP4 experts
  → M11 CUDA MoE reference + M12 runtime attention/KV
  → M13 complete slow model and early quality gate
  → M14/M15/M16 in parallel, integrated continuously by M17
- → M19/M20/M21 in parallel on one frozen artifact
- → M22 CLI/server
- → M23 base target freeze
+ → M22 CLI/server and 12B regressions
+ → bounded prefill decision and clean candidate freeze
+ → M21 real context → M20 bounded performance
+ → M23 technical base Target freeze
  → M25 MTP final target
+ → deferred M19 release-quality gate
 ```
 
 M10 semantic work begins in parallel with M06. M18 is conditional diagnosis. M24 is optional Q4_0 work.
@@ -36,8 +38,9 @@ M10 semantic work begins in parallel with M06. M18 is conditional diagnosis. M24
 | M09 | the real artifact fits at 32K with the required margin |
 | M13 | a complete deterministic reference generation works |
 | M17 | the optimized all-resident path works |
-| M23 | the base target is qualified and frozen |
-| M25 | MTP and its maximum safe context are qualified |
+| M23 | the technical base Target is frozen with M19 explicitly pending |
+| M25 | MTP and its maximum safe context are technically qualified |
+| deferred M19 | release-quality claims become eligible only after the full held-out gate passes |
 
 ## Promotion gates
 
@@ -45,7 +48,9 @@ M10 semantic work begins in parallel with M06. M18 is conditional diagnosis. M24
 - Runtime correctness: independent MoE oracle, CUDA reference, attention/KV tests and full-model captures.
 - Memory: one slot, 32K with at least 700 MiB free; base-model 64K+ with at least 400 MiB free; MTP 64K+ keeps 500 MiB.
 - Early quality: M13 development-screen pass.
-- Final qualification: M19 quality, M20 performance and M21 context on one frozen hash.
+- Technical freeze: M22 product behavior precedes the final bounded prefill decision; M21 context and M20
+  performance then reference the same frozen hash.
+- Final release quality: owner-deferred M19 passes after the implementation/performance program.
 - MTP: compatible assistant, exact Target verification, transactional state and separately measured MTP context.
 
 ## Execution discipline

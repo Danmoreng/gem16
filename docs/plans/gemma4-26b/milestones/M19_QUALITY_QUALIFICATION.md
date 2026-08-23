@@ -1,6 +1,6 @@
 # M19 — Held-out quality qualification
 
-Status: ready; frozen M17 profile available
+Status: full task/prose suite deferred by owner; bounded official-Q4 numerical evidence available
 Class: qualification
 
 Normative inputs: [Quality evaluation](../specs/QUALITY_EVALUATION_SPEC.md), [Test matrix](../specs/TEST_MATRIX.md).
@@ -19,6 +19,13 @@ Decide whether the frozen production artifact is acceptable on the untouched hel
 - final head/profile acceptance.
 
 M18 is triggered only if the result fails or a causal claim is required.
+
+## Current execution policy
+
+The remaining multi-hour GSM8K/GPQA/AIME26 and blind prose qualification is postponed until the end of the current
+implementation/performance program. Do not run it during M20–M23 work. The completed bounded Q4 teacher-forced and
+capture checks remain correctness evidence, not milestone acceptance. M19 stays pending, and no shipping or
+production-quality claim is permitted until every exit gate below passes.
 
 ## Exit gate
 

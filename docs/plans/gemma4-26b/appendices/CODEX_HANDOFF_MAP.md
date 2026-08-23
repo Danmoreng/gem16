@@ -2,14 +2,16 @@
 
 ## Current parallel handoffs
 
-- Compiler lane: M06 → M07 → M08 integration.
-- MoE semantics lane: M10 phase A/B → M11.
-- Attention lane: M12 phase A/B.
-- Memory lane: M09 implementation and diagnostic complete → clean commit-bound acceptance.
-- Harness lane: future validation/report tooling without claims.
+- Product lane: M22 automated acceptance and 12B regressions.
+- Prefill lane: profile-driven bounded optimization after M22 and before the final evidence freeze.
+- Runner lane: align M20/M21 contracts and freeze a clean candidate.
+- Context lane: real M21 32K/64K execution after GPU serialization.
+- Benchmark lane: bounded formal M20 evidence consuming that matching M21 result.
 - MTP feasibility lane: M25 phase A assets/inventory/memory only.
+- Quality lane: M19 task/prose work is owner-deferred until the end.
 
-After M13 passes, M14/M15/M16 hand independent commits to the M17 integration owner. M19/M20/M21/M22 operate on one frozen M17 artifact. M23 freezes the base target; M25 completes MTP.
+M23 freezes a technical Target after M20–M22, with M19 explicitly pending. M25 consumes that Target; deferred M19
+still gates shipping and production-quality claims.
 
 ## Handoff packet
 

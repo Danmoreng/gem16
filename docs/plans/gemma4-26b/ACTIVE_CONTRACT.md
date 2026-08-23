@@ -1,9 +1,9 @@
 # Active contract — Gemma 4 26B Fast Track R4
 
-Status: accepted through M17; M19–M22 base qualification/product work is ready
+Status: accepted through M17; M20–M22 active; full M19 held-out qualification deferred by owner
 Plan revision: `fast-track-r4`
 Accepted baseline: M00–M17
-Current milestone: M19 (M20/M21/M22 also ready; M18 conditional)
+Current milestone: M22 (then bounded prefill, clean freeze, M21, M20 and technical M23; M19 full suite deferred; M18 conditional)
 Integration branch: `feat/gemma4-26b`
 
 ## Purpose
@@ -48,7 +48,8 @@ M00–M17 are accepted and are not reopened by current work.
   implementation commit `9a374c3dda10b7ae870c712cd70a60aa0a9e2c52`.
 - M17 fixed-address whole-model integration is accepted at implementation commit
   `57fdeb309aacfce2e4eba65745fba86f14ebd113` and closure-hardening commit
-  `348683e167c6c4d3b0be7580e404c097b199a3d8`; its artifact/profile hash is frozen for M19–M22.
+  `348683e167c6c4d3b0be7580e404c097b199a3d8`; its artifact/profile contract remains the basis for current work, and
+  the post-M17 implementation candidate is frozen separately by M20–M23 evidence.
 - Runtime conversion, CPU expert offload, expert streaming and duplicate persistent GPU weight layouts remain forbidden.
 
 ## Product target
@@ -103,9 +104,11 @@ Only these owner-level gates block the critical path:
 4. **M09:** the real artifact passes one-slot 32K admission with at least 700 MiB directly measured free-device margin.
 5. **M13:** the full slow model is deterministic and passes the single early quality go/no-go screen.
 6. **M17:** one fixed-address optimized artifact/profile is frozen with deterministic engine replay and no recurring allocation.
-7. **M19–M22:** that frozen artifact passes quality, performance, long-context and CLI/server product qualification.
-8. **M23:** base target hashes, evidence and rollback are frozen.
-9. **M25:** MTP compatibility, exactness, performance and the 32K MTP memory gate pass; 64K and the maximum safe MTP context are measured.
+7. **M20–M22:** after M22 and the bounded prefill decision, one clean candidate passes real long-context in M21 and
+   bounded performance in M20 using the matching M21 evidence.
+8. **M23 engineering freeze:** Target hashes, available evidence and rollback are frozen with M19 explicitly pending.
+9. **Deferred M19:** the multi-hour held-out task/prose suite eventually passes before any shipping or production-quality claim.
+10. **M25:** MTP compatibility, exactness, performance and the 32K MTP memory gate pass; 64K and the maximum safe MTP context are measured.
 
 M18 is conditional diagnosis, not a sequential prerequisite after the accepted M17 path. M24 is optional and never blocks the production path.
 
@@ -134,6 +137,11 @@ GGUF through the pinned llama.cpp runtime. The owner explicitly removed a new
 49 GB QAT-BF16 run from this laptop's gate; accepted M10/M13 BF16 evidence is
 historical support, not a runtime prerequisite for M19.
 
+The owner deferred M19's remaining multi-hour task and prose suite until after the current product, performance,
+context and engineering-freeze work. The already completed bounded Q4 numerical comparison remains a correctness
+signal only. Until M19 passes, the 26B profile remains experimental and M23 cannot be described as a shipping,
+quality-qualified or production release.
+
 ## Parallel execution contract
 
 One integration branch remains authoritative, but independent work may proceed in ephemeral worktrees or sub-agent branches. Each task packet must declare:
@@ -149,13 +157,17 @@ Sub-agents do not edit `ACTIVE_CONTRACT.md`, `FAST_TRACK_STATUS.json`, shared ma
 
 ## Full-run discipline
 
-Dirty worktrees may run unit tests, fixtures, single-layer probes and bounded throughput probes. A full model conversion or publication benchmark should start from reviewed, targeted-tested code with a clean worktree and source/output preflight. If the run is intentionally diagnostic, record that fact instead of blocking unrelated implementation.
+Dirty worktrees may run unit tests, fixtures, single-layer probes and bounded throughput probes. A full model conversion or publication benchmark should start from reviewed, targeted-tested code with a clean worktree and source/output preflight. If the run is intentionally diagnostic, record that fact instead of blocking unrelated implementation. The current owner-approved wave excludes multi-hour broad quality benchmarks; the bounded M20 3/10 run and M21 32K/64K execution are explicit exceptions.
 
 Do not repeat an expensive run solely to produce a second prose record. M08 complete-artifact reproducibility still requires two clean builds with identical hashes.
 
 ## Current unblocked work
 
-- M17 is frozen and accepted; its exact text-only profile is the shared input for M19–M22.
-- M19 held-out quality, M20 controlled performance, M21 real 32K/64K execution and M22 CLI/server integration are ready.
+- M17 is accepted; commit `1e605766b5e2663ddf65a3f2790e610342daabd0` is the current development candidate.
+- M22 CLI/server acceptance is first, followed by one bounded profile-driven prefill decision.
+- The resulting code/binary is frozen before M21 real 32K/64K execution; M20 controlled performance then consumes
+  that exact M21 evidence, avoiding duplicate evidence runs.
+- M19 numerical Q4 evidence is available, but its multi-hour task/prose suite is deferred and remains a release limitation.
+- M23 may freeze the resulting technical Target without claiming held-out quality acceptance.
 - M18 remains inactive unless quality failure, head uncertainty or explicit causal-attribution work triggers it.
 - M25 feasibility remains independent; target integration waits for the M23 base freeze.

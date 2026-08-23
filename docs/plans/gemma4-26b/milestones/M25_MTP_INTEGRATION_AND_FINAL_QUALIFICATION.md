@@ -1,6 +1,6 @@
 # M25 — 26B MTP integration and final qualification
 
-Status: phase A feasibility may run now; integration waits for M23
+Status: phase A feasibility may run now; integration waits for the technical M23 Target freeze
 Class: required final target
 
 Normative inputs: [MTP platform contract](../../../MTP.md), [Tied embedding/head](../specs/EMBEDDING_HEAD_SPEC.md), [Memory arena](../specs/MEMORY_ARENA_SPEC.md), [Session ownership](../specs/SESSION_OWNERSHIP_AND_CONCURRENCY.md), [API/CLI changes](../specs/API_CLI_CHANGES.md), [Test matrix](../specs/TEST_MATRIX.md).
@@ -49,5 +49,6 @@ After M23, compile a separately locked assistant artifact if direct BF16 residen
 - [ ] MTP provides a measured benefit for at least one supported mode; otherwise M25 fails and the M23 base profile remains the supported result.
 - [ ] 64K has an explicit pass/fail result; `mtp_max_context`, acceptance and speed are published honestly.
 - [ ] Base 26B and 12B paths remain unchanged when MTP is disabled.
+- [ ] Deferred M19 is accepted before program-complete, shipping or production-quality status is claimed.
 
 Vision is explicitly excluded and belongs to a separate future program.

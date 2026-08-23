@@ -41,17 +41,23 @@ M18 is invoked only for diagnosis or attribution. It is not between M13 and M17 
 
 Exit checkpoint: the complete optimized path is deterministic, all-resident and free of token-loop allocations.
 
-### F4 — Qualification and maximum base context
+### F4 — Product, bounded performance and maximum base context
 
-Freeze one M17 artifact hash. M19, M20 and M21 may collect evidence in parallel on that exact artifact:
+Complete product behavior and any bounded hot-path work before freezing one current candidate hash. The
+owner-approved active sequence is:
 
-- M19: held-out quality and final format acceptance;
-- M20: controlled prefill/decode performance;
-- M21: 32K confirmation, 64K attempt and measured maximum safe base context.
+- M22: automated CLI/server product acceptance and 12B regressions;
+- one optional bounded prefill optimization, only when current profiling supports it;
+- repair/freeze the M20/M21 evidence contracts on one clean candidate;
+- M21: 32K confirmation, 64K attempt and measured maximum safe base context;
+- M20: controlled prefill/decode performance with the bounded 3/10 protocol, consuming the matching M21 evidence.
 
-M22 integrates CLI/server in parallel once profile metadata is frozen. Studio is a nonblocking subtask. M23 verifies and freezes the already collected evidence; it does not blindly rerun unchanged work.
+The remaining multi-hour M19 task/prose suite is deferred until the end. M23 verifies and freezes the available
+evidence as a technical Target; it does not blindly rerun unchanged work and is not a shipping release while M19 is
+pending. Studio is a nonblocking subtask.
 
-Exit checkpoint: a base 26B release candidate with a documented default context and measured maximum.
+Exit checkpoint: a stable engineering Target with a documented default context, measured maximum and explicit
+deferred-M19 limitation.
 
 ### F5 — MTP final target
 
@@ -84,11 +90,11 @@ Vision remains outside this plan.
 | M16 | parallel/conditional | optimized head; format revision only on evidence |
 | M17 | rolling integration | optimized whole model |
 | M18 | conditional | attribution and failure diagnosis |
-| M19 | qualification | held-out quality |
+| M19 | deferred qualification | held-out task/prose quality; required before release claims |
 | M20 | qualification | performance |
 | M21 | qualification | 32K, 64K and maximum safe base context |
 | M22 | product | CLI/server; Studio nonblocking |
-| M23 | checkpoint | base evidence freeze and rollback |
+| M23 | technical checkpoint | engineering Target freeze and rollback; M19 may remain pending |
 | M24 | optional | internal Q4_0 backend/reference |
 | M25 | final target | 26B MTP and maximum safe MTP context |
 
@@ -100,8 +106,9 @@ The owner should judge progress by these outcomes rather than document count:
 2. **Fit:** M09 passes 32K on the real GPU.
 3. **Correct token:** M13 passes.
 4. **Fast token:** M17 passes.
-5. **Qualified base:** M19–M23 pass.
-6. **Final target:** M25 passes with exact MTP and measured MTP context.
+5. **Technical base:** M20–M23 pass with M19 explicitly pending.
+6. **Final technical target:** M25 passes with exact MTP and measured MTP context.
+7. **Release quality:** deferred M19 passes before shipping or production-quality claims.
 
 ## Deferred work
 

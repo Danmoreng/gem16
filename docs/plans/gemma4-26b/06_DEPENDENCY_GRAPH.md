@@ -18,12 +18,14 @@ M07 + M08 + M09 ─────────────────────�
                  ├─ M14 native decode ─┐
                  ├─ M15 native prefill ├─ M17 rolling integration
                  └─ M16 production head┘
-                         ├─ M19 quality
-                         ├─ M20 performance
-                         ├─ M21 context/max-fit
-                         └─ M22 CLI/server
-                              └─ M23 base target freeze
+                         └─ M22 CLI/server + 12B regression
+                              └─ bounded prefill decision
+                                   └─ frozen candidate
+                                        ├─ M21 context/max-fit
+                                        └─ M20 performance (consumes M21 evidence)
+                                             └─ M23 technical Target freeze
                                    └─ M25 MTP final target
+                                        └─ deferred M19 release-quality gate
 ```
 
 ## Conditional and optional lanes
@@ -38,7 +40,8 @@ M03/M09 prework ────> M25 phase A feasibility; runtime integration waits
 
 - During M06: M10 phase A, M12 phase A, M09 prework, harness work and M25 feasibility.
 - After M13 pass: M14, M15 and M16 in parallel; M17 integrates incrementally.
-- After M17 hash freeze: M19, M20, M21 and M22 can proceed in parallel on the same artifact/profile contract.
+- After M17: close M22 and any bounded prefill change first. M21 then measures context and M20 consumes that
+  evidence on the same clean frozen candidate. Multi-hour M19 task/prose work is owner-deferred.
 
 ## Gate ownership
 
@@ -52,8 +55,9 @@ M03/M09 prework ────> M25 phase A feasibility; runtime integration waits
 | attention/KV parity | M12 | M13 |
 | early quality pass | M13 | normal M14–M17 path |
 | optimized deterministic target | M17 | qualification |
-| quality/performance/context | M19–M21 | base release |
+| performance/context/product | M20–M22 | technical Target freeze |
 | base evidence freeze | M23 | MTP integration |
-| exact MTP and MTP context | M25 | program completion |
+| exact MTP and MTP context | M25 | final technical target |
+| held-out release quality | deferred M19 | shipping/production-quality claims |
 
 M18 never blocks M17 when M13 has passed. M17 never blocks M18 diagnosis. This removes the former cyclic wording.

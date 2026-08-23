@@ -1,6 +1,6 @@
 # Active decisions
 
-**Accepted:** 2026-08-22 · **Track:** Gemma 4 26B A4B Fast Track · **Status:** M00–M17 accepted; M19–M22 ready
+**Accepted:** 2026-08-23 · **Track:** Gemma 4 26B A4B Fast Track · **Status:** M00–M17 accepted; M20–M22 active; full M19 deferred
 
 This is the short operational policy for current work. It is not a replacement for historical evidence. Permanent
 rules in `AGENTS.md` remain binding. For facts about the implementation, current source, tests and accepted evidence
@@ -67,6 +67,17 @@ executed safely on the target laptop. M19 instead uses Google's immutable offici
 as its executable paired quality reference. This supersedes the former requirement that M19 task, prose and
 teacher-forced evidence run the 49 GB QAT-BF16 checkpoint. Historical BF16 evidence from M10/M13 remains valid, but
 no new 49 GB model execution is part of M19.
+
+On 2026-08-23 the owner also deferred the remaining multi-hour M19 task and prose benchmark suite until the end of
+the current implementation/performance program. Bounded numerical checks against the pinned official QAT Q4_0
+reference remain valid correctness evidence, but M19 stays pending and no production-quality claim is allowed.
+This explicitly supersedes the former requirement that M19 pass before an engineering M23 freeze. M22 product
+qualification and one bounded profile-driven prefill decision close before the candidate is frozen. M21 then performs
+real 32K/64K and maximum-context execution; M20's approved 3-warm-up/10-retained performance qualification consumes
+that matching M21 evidence. M23 may then freeze a **technical base Target** while carrying
+the deferred-M19 limitation; it is not a shipping or quality-qualified release until M19 is eventually accepted.
+No other multi-hour or broad quality benchmark is authorized in this wave. Targeted operator/model correctness,
+12B regressions, the explicitly approved M20 run and real M21 context runs remain in scope.
 
 The owner set the base-model 64K residency and later execution reserve to 400 MiB on 2026-08-14 so that 64K remains
 a required supported target. This supersedes the prior 500 MiB base-model rule for 64K and larger contexts. The 32K

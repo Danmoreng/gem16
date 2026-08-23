@@ -1,5 +1,27 @@
 # Performance ledger
 
+## 2026-08-23 Gemma 4 26B ordinary-decode target characterization
+
+At implementation commit `1e605766b5e2663ddf65a3f2790e610342daabd0`, the direct mixed FP8/NVFP4 26B path
+runs the exact 16,384-token Wikipedia prompt plus 64 forced greedy output forwards at 120.398, 120.396 and
+120.426 ordinary decode tok/s. The median is 120.398 tok/s with one deterministic output-token hash and finite
+logits in every run. This is 27.18% above the retained 94.668 tok/s parent characterization and 0.756% above the
+same-machine current llama.cpp b10593 Q4_0/Q8_0-KV median of 119.494 tok/s.
+
+The retained implementation shares per-token RoPE tables, fuses exact MoE input norms/router transform/NVFP4
+quantization, overlaps the shared and routed MoE branches, reduces post-norm synchronization, selects smaller local
+and two-KV global attention splits, enables the 16K four-wide FP8 global-load tier and caches merge weights in dead
+split-LSE scratch. CUDA differential tests cover scalar and 16K-vectorized KVH2 global attention, a real local-ring
+wrap and bitwise reference/native MoE intermediates. Common CUDA and host tests pass; attention and MoE memcheck
+report zero errors.
+
+This is a development characterization, not M20 acceptance: it has three retained candidate measurements rather
+than three warm-ups plus ten retained runs and has no continuous power, clock, thermal or process-specific peak-VRAM
+telemetry. Gem16 and llama.cpp use different direct tensor/KV formats and do not produce an exact parity output.
+Compact configuration, hashes, samples and raw-evidence hashes are recorded in
+`benchmarks/baselines/gem16/gemma4-26b-a4b-ordinary-16k64-2026-08-23.json`. The owner approved the bounded formal
+M20 run but deferred multi-hour broad M19 quality benchmarks until the end of the current implementation wave.
+
 ## 2026-08-11 Current llama.cpp 12B batch/ubatch audit
 
 Upstream llama.cpp build 10364 (`153d324bc`) reran the retained Windows Wikipedia 16K D2 workload with the same

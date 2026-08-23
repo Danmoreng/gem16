@@ -2,7 +2,13 @@
 
 ## Gemma 4 26B Fast-Track benchmark policy
 
-M20 benchmarks one frozen M17 artifact. M19, M20 and M21 may collect evidence in parallel, but all reports must reference the same artifact/binary/configuration hashes. Official Q4_0 and Unsloth remain external references; no internal Q4 backend is required. M25 compares ordinary Target and MTP using only Target-verified output tokens and reports a separate MTP context profile.
+M21 qualifies one frozen current 26B candidate first; M20 then consumes that evidence and benchmarks the same
+artifact/binary/configuration hashes.
+The owner deferred M19's multi-hour task/prose suite until the end of the implementation/performance program; its
+bounded official-Q4 numerical evidence remains correctness context only. The normal three-warm-up/ten-retained M20
+policy is explicitly approved. Official Q4_0 and Unsloth remain external references; no internal Q4 backend is
+required. M25 compares ordinary Target and MTP using only Target-verified output tokens and reports a separate MTP
+context profile.
 
 
 A controlled same-machine 16K D2 performance comparison is published below. It is not an exact

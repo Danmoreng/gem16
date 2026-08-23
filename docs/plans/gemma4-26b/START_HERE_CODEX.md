@@ -1,6 +1,6 @@
 # Start here — current coding-agent task
 
-Status: M00–M17 accepted; M19–M22 are ready and may proceed in parallel. M18 remains conditional.
+Status: M00–M17 accepted; M22, bounded prefill, M21 and M20 are the active sequence. Full M19 is owner-deferred; M18 remains conditional.
 Plan revision: Fast Track R4.
 
 ## Read now
@@ -15,17 +15,20 @@ Do not preload the full decision, correctness, benchmark or performance ledgers.
 
 ## Lead-agent orchestration
 
-The M17 profile is frozen. The lead agent may assign disjoint sub-agents for:
+The M17 profile is accepted. M22 and the bounded prefill decision may still change code; freeze the final binary only
+after those slices and before M20/M21 evidence is collected.
+The lead agent may assign disjoint sub-agents for:
 
-- M19 held-out quality qualification;
+- bounded M19/Q4 numerical reconciliation only; no multi-hour task/prose suite in the current wave;
 - M20 controlled benchmark execution and telemetry;
 - M21 real 32K/64K long-context qualification;
 - M22 CLI/server product integration;
 - M25 phase A assistant compatibility and memory modeling;
 - independent evidence reconciliation.
 
-Use [`PARALLEL_WORKSTREAMS.md`](PARALLEL_WORKSTREAMS.md). M18 runs only after a recorded trigger and does not block
-the active M19–M22 wave.
+Use [`PARALLEL_WORKSTREAMS.md`](PARALLEL_WORKSTREAMS.md). M18 runs only after a recorded trigger. The owner-approved
+sequence is documentation sync, M22, a bounded profile-driven prefill decision, clean candidate freeze, M21, M20
+and a technical M23 freeze.
 
 ## M08 success
 
@@ -81,10 +84,13 @@ M14–M16 are accepted at implementation commit `9a374c3dda10b7ae870c712cd70a60a
 implementation commit `57fdeb309aacfce2e4eba65745fba86f14ebd113` and closure-hardening commit
 `348683e167c6c4d3b0be7580e404c097b199a3d8`. Router failures now fail safely, complete engine replay/relaunch is
 automated, native slot-batched expert execution remains bitwise exact and hardware capability reporting is
-profile-aware. The closure diagnostic estimates 76.3924 decode token/s with unchanged final-logit hash and fixed
-memory, but M20 still owns the formal 3-warm-up/10-retained-run performance claim. See
-`artifacts/m17/closure-hardening.json`.
+profile-aware. The current performance candidate at `1e605766b5e2663ddf65a3f2790e610342daabd0` reaches a
+three-run 120.398 tok/s ordinary-decode median on 16K+64 versus llama.cpp 119.494 tok/s. This remains a development
+characterization; M20 still owns the formal 3-warm-up/10-retained-run result. See
+`benchmarks/baselines/gem16/gemma4-26b-a4b-ordinary-16k64-2026-08-23.json`.
 
-The current work wave is M19 quality, M20 performance, M21 long-context and M22 product integration. M18 is a
-conditional source/quantizer/head diagnosis only if M19 fails, head attribution becomes necessary or the owner
-explicitly requests causal analysis.
+The current work wave closes M22 product behavior and protected 12B regressions, then makes one bounded prefill
+decision from a fresh profile. The resulting candidate first owns M21 real 32K/64K execution; M20 then consumes that
+matching evidence for its formal performance gate. M23 then freezes a technical Target with M19 visibly pending. The
+remaining multi-hour M19 task/prose qualification is deferred until
+the end and remains mandatory before any shipping or production-quality claim.

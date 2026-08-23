@@ -12,4 +12,7 @@ Start with:
 
 The normal path prioritizes a complete artifact, real 32K residency and a correct full token before research attribution or broad product polish. Parallel sub-agent lanes are documented in [`PARALLEL_WORKSTREAMS.md`](PARALLEL_WORKSTREAMS.md).
 
-The first goal is an experimental, directly executable text-only 26B path. M09 owns the real 32K fit; M13 owns the first complete correctness/quality screen; M23 freezes the usable base target. M25 adds exact 26B MTP after that base is frozen. Vision is outside this program.
+The executable text-only 26B path is accepted through M17. M22 and a bounded prefill decision precede the final
+candidate freeze; M21 real-context and M20 bounded-performance evidence then qualify that same hash. M23 freezes a
+technical Target for exact 26B MTP. The owner-deferred M19 task/prose suite remains mandatory before shipping or
+production-quality claims. Vision is outside this program.

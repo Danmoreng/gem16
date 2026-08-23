@@ -48,8 +48,9 @@ An internal Q4_0 head/backend is not required for the first artifact.
 
 ## Release checkpoints
 
-- M23 is a usable base text release checkpoint.
-- M25 is the program-complete MTP profile.
+- M23 is a technical base Target freeze while owner-deferred M19 remains pending.
+- M25 is the final technical MTP profile.
+- Shipping or production-quality status additionally requires the deferred M19 held-out gate.
 
 ## Unsupported on this program path
 

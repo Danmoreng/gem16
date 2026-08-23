@@ -19,7 +19,8 @@ This revision changes future execution from M06 onward. The owner accepted the s
 - Reduced M09 to one positive 26B slot and explicit rejection of a second slot.
 - Moved `/health`, `/metrics` and Studio concerns out of the residency critical path.
 - Made M17 rolling integration instead of a final assembly step after all native kernels.
-- Allowed M19, M20 and M21 evidence collection in parallel on one frozen artifact.
+- Originally allowed M19, M20 and M21 evidence collection in parallel on one frozen artifact. The 2026-08-23 owner
+  decision now defers broad M19 and serializes final evidence as M21 then M20 after M22/prefill closure.
 - Changed M23 into a base-target evidence freeze rather than a full duplicate rerun.
 - Separated MTP from vision. MTP is now the final required program target in M25; vision is outside the program.
 - Replaced the former combined MTP/vision milestone with one unambiguous MTP-only M25 file.
