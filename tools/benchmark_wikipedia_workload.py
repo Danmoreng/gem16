@@ -123,9 +123,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--vllm-linear-backend", choices=("auto", "marlin"), default="auto"
     )
-    parser.add_argument(
-        "--vllm-max-num-batched-tokens", type=positive_int, default=2048
-    )
+    parser.add_argument("--vllm-max-num-batched-tokens", type=positive_int)
     parser.add_argument(
         "--llama-kv-cache-type",
         choices=("f16", "bf16", "q8_0"),
@@ -278,6 +276,15 @@ def vllm_channelwise_hf_override(
     quantization = document.get("quantization_config")
     if not isinstance(quantization, dict):
         raise BenchmarkError("vLLM checkpoint has no quantization_config object")
+    if (
+        quantization.get("quant_method") != "compressed-tensors"
+        or quantization.get("format") != "pack-quantized"
+        or quantization.get("quantization_status") != "compressed"
+    ):
+        raise BenchmarkError(
+            "channel-wise vLLM normalization requires a compressed, "
+            "pack-quantized compressed-tensors checkpoint"
+        )
     groups = quantization.get("config_groups")
     if not isinstance(groups, dict) or not groups:
         raise BenchmarkError("vLLM checkpoint has no quantization config groups")
@@ -287,22 +294,27 @@ def vllm_channelwise_hf_override(
         if not isinstance(group_name, str) or not isinstance(group, dict):
             raise BenchmarkError("vLLM checkpoint has a malformed quantization group")
         weights = group.get("weights")
-        if not isinstance(weights, dict) or weights.get("strategy") != "channel":
-            continue
         if (
-            weights.get("num_bits") != 4
+            group.get("format") != "pack-quantized"
+            or group.get("targets") != ["Linear"]
+            or group.get("input_activations") is not None
+            or group.get("output_activations") is not None
+            or not isinstance(weights, dict)
+            or weights.get("strategy") != "channel"
+            or weights.get("num_bits") != 4
             or weights.get("type") != "int"
             or weights.get("symmetric") is not True
+            or weights.get("dynamic") is not False
         ):
             raise BenchmarkError(
-                "channel-wise vLLM normalization requires symmetric INT4 weights"
+                "channel-wise vLLM normalization requires static, symmetric, "
+                "weight-only INT4 Linear groups"
             )
-        source_group_size = weights.get("group_size")
-        if source_group_size not in (None, -1):
+        if "group_size" not in weights or weights["group_size"] is not None:
             raise BenchmarkError(
-                "channel-wise vLLM checkpoint has a noncanonical group size"
+                "channel-wise vLLM normalization requires group_size=null"
             )
-        weights["group_size"] = -1
+        source_group_size = weights["group_size"]
         normalizations.append(
             {
                 "group": group_name,
@@ -310,10 +322,8 @@ def vllm_channelwise_hf_override(
                 "effective_group_size": -1,
             }
         )
-    if not normalizations:
-        raise BenchmarkError(
-            "requested vLLM channel-wise normalization found no matching group"
-        )
+    for event in normalizations:
+        groups[event["group"]]["weights"]["group_size"] = -1
     return {"quantization_config": quantization}, normalizations
 
 
@@ -886,6 +896,11 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
             hf_overrides, channelwise_normalizations = (
                 vllm_channelwise_hf_override(model)
             )
+        vllm_batch_options: dict[str, Any] = {}
+        if args.vllm_max_num_batched_tokens is not None:
+            vllm_batch_options["max_num_batched_tokens"] = (
+                args.vllm_max_num_batched_tokens
+            )
         tokenizer = AutoTokenizer.from_pretrained(str(model), local_files_only=True)
         suppressed_token_strings = [
             tokenizer.decode([token], skip_special_tokens=False)
@@ -905,7 +920,6 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
             enforce_eager=args.enforce_eager,
             enable_prefix_caching=False,
             enable_chunked_prefill=True,
-            max_num_batched_tokens=args.vllm_max_num_batched_tokens,
             kv_cache_dtype=args.vllm_kv_cache_dtype,
             max_num_seqs=1,
             disable_log_stats=False,
@@ -924,6 +938,7 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
             model_weights=str(model_weights) if model_weights is not None else None,
             load_format="gguf" if model_weights is not None else "auto",
             quantization="gguf" if model_weights is not None else None,
+            **vllm_batch_options,
         )
 
         def run_once() -> tuple[dict[str, Any], list[int]]:
@@ -962,7 +977,9 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
             "cuda_graphs_requested": not args.enforce_eager,
             "prefix_caching": False,
             "chunked_prefill": True,
-            "max_num_batched_tokens": args.vllm_max_num_batched_tokens,
+            "max_num_batched_tokens_requested": (
+                args.vllm_max_num_batched_tokens
+            ),
             "trust_remote_code": False,
             "language_model_only": True,
             "limit_mm_per_prompt": {"image": 0, "audio": 0, "video": 0},

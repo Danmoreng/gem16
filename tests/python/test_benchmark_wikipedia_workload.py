@@ -103,18 +103,41 @@ class BenchmarkWikipediaWorkloadTest(unittest.TestCase):
         self.assertEqual(args.vllm_linear_backend, "marlin")
         self.assertEqual(args.vllm_max_num_batched_tokens, 1024)
 
+    def test_vllm_max_num_batched_tokens_is_opt_in(self) -> None:
+        argv = [
+            "benchmark_wikipedia_workload.py",
+            "--engine",
+            "vllm",
+            "--workload",
+            "workload.json",
+            "--output",
+            "output.json",
+            "--model",
+            "hf-config",
+        ]
+        with mock.patch.object(MODULE.sys, "argv", argv):
+            args = MODULE.parse_args()
+        self.assertIsNone(args.vllm_max_num_batched_tokens)
+
     def test_vllm_channelwise_group_size_override_is_explicit(self) -> None:
         config = {
             "quantization_config": {
+                "quant_method": "compressed-tensors",
+                "quantization_status": "compressed",
                 "format": "pack-quantized",
                 "config_groups": {
                     "group_0": {
+                        "format": "pack-quantized",
+                        "targets": ["Linear"],
+                        "input_activations": None,
+                        "output_activations": None,
                         "weights": {
                             "num_bits": 4,
                             "type": "int",
                             "symmetric": True,
                             "strategy": "channel",
                             "group_size": None,
+                            "dynamic": False,
                         }
                     }
                 },
@@ -146,6 +169,71 @@ class BenchmarkWikipediaWorkloadTest(unittest.TestCase):
                 }
             ],
         )
+
+    def test_vllm_channelwise_override_rejects_pre_normalized_metadata(self) -> None:
+        config = {
+            "quantization_config": {
+                "quant_method": "compressed-tensors",
+                "quantization_status": "compressed",
+                "format": "pack-quantized",
+                "config_groups": {
+                    "group_0": {
+                        "format": "pack-quantized",
+                        "targets": ["Linear"],
+                        "input_activations": None,
+                        "output_activations": None,
+                        "weights": {
+                            "num_bits": 4,
+                            "type": "int",
+                            "symmetric": True,
+                            "strategy": "channel",
+                            "group_size": -1,
+                            "dynamic": False,
+                        },
+                    }
+                },
+            }
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            model = Path(directory)
+            (model / "config.json").write_text(json.dumps(config), encoding="utf-8")
+            with self.assertRaisesRegex(
+                MODULE.BenchmarkError, "requires group_size=null"
+            ):
+                MODULE.vllm_channelwise_hf_override(model)
+
+    def test_vllm_channelwise_override_requires_explicit_null_group_size(
+        self,
+    ) -> None:
+        config = {
+            "quantization_config": {
+                "quant_method": "compressed-tensors",
+                "quantization_status": "compressed",
+                "format": "pack-quantized",
+                "config_groups": {
+                    "group_0": {
+                        "format": "pack-quantized",
+                        "targets": ["Linear"],
+                        "input_activations": None,
+                        "output_activations": None,
+                        "weights": {
+                            "num_bits": 4,
+                            "type": "int",
+                            "symmetric": True,
+                            "strategy": "channel",
+                            "dynamic": False,
+                        },
+                    }
+                },
+            }
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            model = Path(directory)
+            (model / "config.json").write_text(json.dumps(config), encoding="utf-8")
+            with self.assertRaisesRegex(
+                MODULE.BenchmarkError, "requires group_size=null"
+            ):
+                MODULE.vllm_channelwise_hf_override(model)
 
     def test_single_repetition_summary_is_a_characterization(self) -> None:
         summary = MODULE.summarize([46.422])
