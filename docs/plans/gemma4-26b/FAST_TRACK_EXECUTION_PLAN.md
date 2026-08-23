@@ -47,10 +47,12 @@ Complete product behavior and any bounded hot-path work before freezing one curr
 owner-approved active sequence is:
 
 - accepted M22: automated CLI/server product acceptance and 12B regressions;
-- one optional bounded prefill optimization, only when current profiling supports it;
-- repair/freeze the M20/M21 evidence contracts on one clean candidate;
+- bounded profile-driven prefill and ordinary-decode optimization toward the owner-set 6,000/150 token/s hard
+  targets and 6,500 prompt-token/s stretch target, preserving correctness and semantics;
+- encode the fixed 16K+64 target row, repair/freeze the M20/M21 evidence contracts on one clean candidate;
 - M21: 32K confirmation, 64K attempt and measured maximum safe base context;
-- M20: controlled prefill/decode performance with the bounded 3/10 protocol, consuming the matching M21 evidence.
+- M20: controlled 16K+64 prefill/decode performance with the bounded 3/10 protocol and fixed 6,000/150 hard gates,
+  consuming the matching M21 evidence and reporting the 6,500 prefill stretch outcome.
 
 The remaining multi-hour M19 task/prose suite is deferred until the end. M23 verifies and freezes the available
 evidence as a technical Target; it does not blindly rerun unchanged work and is not a shipping release while M19 is

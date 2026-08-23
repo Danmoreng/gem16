@@ -4,9 +4,8 @@ Status: conditional
 Triggers: M13 failure, M19 failure, head-format uncertainty or explicit causal-attribution request
 
 Scheduling note: M13 passed and M17 is accepted, so M18 is currently inactive.
-Proceed directly with M22, a bounded prefill decision, M21 and M20 unless one of the triggers above occurs. Full
-M19 is owner-deferred. The
-milestone number does not make M18 a sequential prerequisite.
+Proceed directly with accepted M22, bounded fixed-target prefill/decode optimization, M21 and M20 unless one of the
+triggers above occurs. Full M19 is owner-deferred. The milestone number does not make M18 a sequential prerequisite.
 
 Normative inputs: [Quality evaluation](../specs/QUALITY_EVALUATION_SPEC.md), [Checkpoint provenance](../specs/CHECKPOINT_PROVENANCE_SPEC.md).
 

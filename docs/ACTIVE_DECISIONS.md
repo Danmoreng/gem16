@@ -1,6 +1,6 @@
 # Active decisions
 
-**Accepted:** 2026-08-23 · **Track:** Gemma 4 26B A4B Fast Track · **Status:** M00–M17 and M22 accepted; bounded prefill, M21 and M20 next; full M19 deferred
+**Accepted:** 2026-08-23 · **Track:** Gemma 4 26B A4B Fast Track · **Status:** M00–M17 and M22 accepted; fixed-target prefill/decode optimization, M21 and M20 next; full M19 deferred
 
 This is the short operational policy for current work. It is not a replacement for historical evidence. Permanent
 rules in `AGENTS.md` remain binding. For facts about the implementation, current source, tests and accepted evidence
@@ -73,13 +73,32 @@ the current implementation/performance program. Bounded numerical checks against
 reference remain valid correctness evidence, but M19 stays pending and no production-quality claim is allowed.
 This explicitly supersedes the former requirement that M19 pass before an engineering M23 freeze. M22 product
 qualification was accepted at implementation commit `f0aa302aa0246d44e1c8477dbbbb67fbbe2d2037`; its compact
-record is `artifacts/m22/acceptance.json`. One bounded profile-driven prefill decision now closes before the candidate
-is frozen. M21 then performs
+record is `artifacts/m22/acceptance.json`. Bounded profile-driven prefill/decode optimization toward the fixed M20
+targets now closes before the candidate is frozen. M21 then performs
 real 32K/64K and maximum-context execution; M20's approved 3-warm-up/10-retained performance qualification consumes
 that matching M21 evidence. M23 may then freeze a **technical base Target** while carrying
 the deferred-M19 limitation; it is not a shipping or quality-qualified release until M19 is eventually accepted.
 No other multi-hour or broad quality benchmark is authorized in this wave. Targeted operator/model correctness,
 12B regressions, the explicitly approved M20 run and real M21 context runs remain in scope.
+
+On 2026-08-23 the owner replaced llama.cpp parity and relative-only performance wording with fixed vLLM-class M20
+targets. The bounded promotion row is `wikipedia-real-16k64-greedy`: batch one, the exact 16,384-token prompt manifest
+SHA-256 `9a5859b979d91fccf71bcbb61aade6372cf2cc3c708e6c47b8b6cfd99f7abd2d`, 64 output forwards, 63 timed
+post-first-token decode intervals and a 16,448-token context. It uses the native base Target, FP8 KV, deterministic
+greedy execution and CUDA Graph replay with MTP/speculative decode, prompt cache, CPU offload, fallback and recurring
+allocation disabled. The existing timing boundaries remain fixed: prompt time is first prefill launch through prefill
+synchronization, TTFT is request-ready through first-token-ready, decode time is the sum of the 63 synchronized
+post-first-token intervals, and model load is excluded.
+
+M20 now requires the median of the ten retained runs after three warm-ups to reach at least **6,000 prompt token/s**
+and at least **150 ordinary decode token/s**. **6,500 prompt token/s** is the non-blocking competitive stretch target.
+No prompt, output length, cache state, KV precision, sampling, speculative mode or timing-boundary substitution may
+satisfy these gates. A result below either hard target keeps M20 open unless a later explicit owner decision changes
+the gate. The vLLM 0.27.1 community-W4A16 observation of 6,475.795 prompt token/s and 149.348 decode token/s only
+motivates the fixed targets; its checkpoint and prefill timing boundary differ, so it is not numerical parity or a
+moving acceptance dependency. This decision supersedes the prior generic multi-scenario/relative-only M20 promotion
+wording for the current bounded wave. The M20 qualifier must be aligned with this contract before formal execution;
+its current mandatory multi-scenario and non-deferred-M19 gates are stale under the active owner decisions.
 
 The owner set the base-model 64K residency and later execution reserve to 400 MiB on 2026-08-14 so that 64K remains
 a required supported target. This supersedes the prior 500 MiB base-model rule for 64K and larger contexts. The 32K

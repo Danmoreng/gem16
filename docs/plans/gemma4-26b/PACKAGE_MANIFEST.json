@@ -63,9 +63,9 @@
       "sha256": "fadb9f6eebbb42109358a7ea9e9d07468203eedccf271fef1c6f78ae3815f17e"
     },
     {
-      "bytes": 1386,
+      "bytes": 1547,
       "path": "12_AGENT_TASK_QUEUE.md",
-      "sha256": "9336b8fe84b67a6bdd516ae09a2a10f206efb4299cbdf5a973a7f941eb519f39"
+      "sha256": "1187c67c4d7596d276ac92859d64d01f615bd4f4e2ef5d2308d49a6056b2c4f2"
     },
     {
       "bytes": 1044,
@@ -73,9 +73,9 @@
       "sha256": "c576d0841233f275ddb6d24bf8fd62bf94f3f8bd123f30444a278e57ab9b682f"
     },
     {
-      "bytes": 12202,
+      "bytes": 13331,
       "path": "ACTIVE_CONTRACT.md",
-      "sha256": "a33bc5c52cab01bbc3f1d6f0b43ca9658f59a277aa04f23a8c3257fc34521552"
+      "sha256": "8ec2588aed996f282999bab23978903a9e3ec097754d1e8bce9dd1528a5fc030"
     },
     {
       "bytes": 1487,
@@ -83,9 +83,9 @@
       "sha256": "07c6b0006a379e54737b192082ba93a5fd6a975f9d786c70f182ad93a6f273ad"
     },
     {
-      "bytes": 5717,
+      "bytes": 5954,
       "path": "FAST_TRACK_EXECUTION_PLAN.md",
-      "sha256": "224daad9cab8308bbfb13f46c3113ced17d5fedd2f39cc06df8f0c13267f9580"
+      "sha256": "d6ffff5849ec48c713fc16c876867c54fc8bfb658aa47010e766728e3fa21adc"
     },
     {
       "bytes": 2778,
@@ -93,9 +93,9 @@
       "sha256": "0f9a1ff05e1dc30fbb10bba9f39482d970a74d2da018a8365ff311c64f1f3ac4"
     },
     {
-      "bytes": 8914,
+      "bytes": 10283,
       "path": "FAST_TRACK_STATUS.json",
-      "sha256": "3b9aca01376537dd6e6523042fbd7cbcd495784239e34281abd8b0dc01a5940f"
+      "sha256": "2feb3a1b11b5a9290253e50739f15522d237da994d4219f4fc26c26ec023cd63"
     },
     {
       "bytes": 2665,
@@ -103,9 +103,9 @@
       "sha256": "d8362172f8a4fe2b996808837abeb601c40e2b38f7859ae62e83ea1f0d381cce"
     },
     {
-      "bytes": 2040,
+      "bytes": 2169,
       "path": "MILESTONE_STATUS_BOARD.md",
-      "sha256": "8298684089c7a7fe450ea1afa6784868f2d8cc76427ff37007d128d883c0259a"
+      "sha256": "305d8694ea1ac55957fb7e39252d56f3a01ae96946cf0a89d14042137e96a1a6"
     },
     {
       "bytes": 1012,
@@ -113,9 +113,9 @@
       "sha256": "f24386f4832d8bd52caaf55778a2ea586cdb9a7feff31924dabd27f7ded13ba4"
     },
     {
-      "bytes": 4977,
+      "bytes": 5114,
       "path": "PARALLEL_WORKSTREAMS.md",
-      "sha256": "03f152f3cac3df505788b6ae06c1a4b2eb9bea823f5b629c9ba0c1d62155050d"
+      "sha256": "71af29e63883addf787861d937bbc234c7c70ca8203100c51a5e0574799a5dbe"
     },
     {
       "bytes": 1121,
@@ -128,14 +128,14 @@
       "sha256": "8147f469578cb0cd209e5b8bbde8f3e1b1f4726b5c44a3de3e452f33aa17101f"
     },
     {
-      "bytes": 6813,
+      "bytes": 7546,
       "path": "START_HERE_CODEX.md",
-      "sha256": "43dad40fbbfd858146c06268e698474ad777dec8d9b6d6c383539b7a4c7cd674"
+      "sha256": "b0ed3b4097a9c9a1ba6ba5480ac351bbda66eb8c03b1fdaf6d69f5f76e732ca0"
     },
     {
-      "bytes": 2990,
+      "bytes": 3317,
       "path": "appendices/ACCEPTANCE_THRESHOLD_RATIONALE.md",
-      "sha256": "4978083041559873f153d170f3040b242fda0d64c6a7891c08b6303edaf80eb2"
+      "sha256": "6435d205a9d8861e0b3fb0bbb898dfb614128339178eee1c52fe20d28ba89a6b"
     },
     {
       "bytes": 1167,
@@ -368,9 +368,9 @@
       "sha256": "cc8021edc4cc0f6c95a781de361f8abfdcd3a552eb94c6489160f83b10bf6b6c"
     },
     {
-      "bytes": 1147,
+      "bytes": 2874,
       "path": "milestones/M20_PERFORMANCE_QUALIFICATION.md",
-      "sha256": "6820dccb13793483f6b8a582214a538be2ed9eeeae43b7b57c8c2ead1ed86a94"
+      "sha256": "f889f6a02698931c22198f1241ca1f8d688ea64a79b02a03ad2712266c34123e"
     },
     {
       "bytes": 1169,
@@ -458,9 +458,9 @@
       "sha256": "0a75b00d694e9282de5e66f5fe964b23c43efceda7a4ed4e8be9b247d8c069cf"
     },
     {
-      "bytes": 1024,
+      "bytes": 1789,
       "path": "specs/BENCHMARK_MATRIX.md",
-      "sha256": "d0a6c91c14cb38e5ae08824a4b7d5535741b60df732b3eb3e11df93362096837"
+      "sha256": "e327eccc5b891625efa41601e1855ccbc2887d01fd1f6f17a9a1d3966bd70cb0"
     },
     {
       "bytes": 1970,

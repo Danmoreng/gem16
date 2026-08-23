@@ -1,5 +1,21 @@
 # Performance ledger
 
+## 2026-08-23 Owner-set Gemma 4 26B M20 targets
+
+The owner replaced llama.cpp parity as the performance objective with fixed vLLM-class targets for the exact
+`wikipedia-real-16k64-greedy` ordinary path. Formal M20 now requires retained medians of at least **6,000 prompt
+token/s** and **150 decode token/s** after three warm-ups and ten measurements. **6,500 prompt token/s** is the
+non-blocking competitive stretch target. The row remains batch one with the exact 16,384-token prompt, 64 output
+forwards, 63 timed decode intervals, FP8 KV, native CUDA Graph replay and MTP/speculative decode, prompt cache,
+offload, fallback and recurring allocation disabled. Existing timing boundaries and model semantics remain fixed.
+
+The current Gem16 development medians are 3,169.458 prompt and 120.398 ordinary-decode token/s. Reaching the hard
+targets therefore requires approximately +89.31% prompt throughput and +24.59% decode throughput; the prompt stretch
+requires approximately +105.08%. The motivating vLLM 0.27.1 community-W4A16 graph observation is 6,475.795 prompt
+and 149.348 decode token/s, but that checkpoint and its prefill timing boundary differ. It is a directional
+engineering reference, not a numerical parity or acceptance oracle. Its compact evidence is
+`benchmarks/baselines/vllm/gemma4-26b-w4a16-wikipedia-16k64-characterization.json`.
+
 ## 2026-08-23 Gemma 4 26B ordinary-decode target characterization
 
 At implementation commit `1e605766b5e2663ddf65a3f2790e610342daabd0`, the direct mixed FP8/NVFP4 26B path

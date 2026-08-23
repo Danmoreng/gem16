@@ -19,7 +19,7 @@ M07 + M08 + M09 ─────────────────────�
                  ├─ M15 native prefill ├─ M17 rolling integration
                  └─ M16 production head┘
                          └─ M22 CLI/server + 12B regression
-                              └─ bounded prefill decision
+                              └─ bounded fixed-target prefill/decode optimization
                                    └─ frozen candidate
                                         ├─ M21 context/max-fit
                                         └─ M20 performance (consumes M21 evidence)

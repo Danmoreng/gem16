@@ -82,10 +82,15 @@ fallback/offload = false
 
 A release claim requires:
 
-- final candidate faster than official Q4_0 in median prefill and decode;
+- M20 retained median prompt throughput at least 6,000 token/s and ordinary decode at least 150 token/s on the exact
+  16K+64 promotion row;
+- the non-blocking 6,500 prompt-token/s stretch result reported as pass or miss;
 - controlled 3/10 runs;
 - confidence intervals and raw data;
 - no quality/memory regression.
+
+External Q4_0 and vLLM rows remain directional comparisons because formats and timing boundaries differ. They do not
+replace the fixed owner targets or native correctness gates.
 
 For small changes:
 

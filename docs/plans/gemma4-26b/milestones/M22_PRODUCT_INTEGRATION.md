@@ -1,7 +1,7 @@
 # M22 — CLI/server product integration
 
 Status: accepted 2026-08-23 at implementation commit `f0aa302aa0246d44e1c8477dbbbb67fbbe2d2037`
-Class: product; closes before bounded prefill work and the final M21/M20 evidence freeze
+Class: product; closes before bounded fixed-target prefill/decode work and the final M21/M20 evidence freeze
 
 Normative inputs: [API/CLI changes](../specs/API_CLI_CHANGES.md), [Capability reporting](../specs/ERROR_AND_CAPABILITY_REPORTING.md), [Session ownership](../specs/SESSION_OWNERSHIP_AND_CONCURRENCY.md).
 

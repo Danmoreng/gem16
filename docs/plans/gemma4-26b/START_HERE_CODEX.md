@@ -1,6 +1,6 @@
 # Start here — current coding-agent task
 
-Status: M00–M17 and M22 accepted; bounded prefill, M21 and M20 are the active sequence. Full M19 is owner-deferred; M18 remains conditional.
+Status: M00–M17 and M22 accepted; bounded prefill/decode optimization, M21 and M20 are the active sequence. Full M19 is owner-deferred; M18 remains conditional.
 Plan revision: Fast Track R4.
 
 ## Read now
@@ -15,11 +15,14 @@ Do not preload the full decision, correctness, benchmark or performance ledgers.
 
 ## Lead-agent orchestration
 
-The M17 profile and M22 product slice are accepted. The bounded prefill decision may still change code; freeze the
-final binary only after that slice and before M20/M21 evidence is collected.
+The M17 profile and M22 product slice are accepted. Bounded correctness-preserving prefill/decode optimization may
+still change code; freeze the final binary only after the fixed M20 targets are reached or the owner records a new
+decision, and before M20/M21 evidence is collected.
 The lead agent may assign disjoint sub-agents for:
 
 - bounded M19/Q4 numerical reconciliation only; no multi-hour task/prose suite in the current wave;
+- profile-driven prefill and ordinary-decode optimization toward the fixed 6,000/150 token/s M20 gates and 6,500
+  prompt-token/s stretch target;
 - M20 controlled benchmark execution and telemetry;
 - M21 real 32K/64K long-context qualification;
 - M22 CLI/server product integration (accepted; evidence reconciliation only);
@@ -27,7 +30,7 @@ The lead agent may assign disjoint sub-agents for:
 - independent evidence reconciliation.
 
 Use [`PARALLEL_WORKSTREAMS.md`](PARALLEL_WORKSTREAMS.md). M18 runs only after a recorded trigger. The owner-approved
-remaining sequence is a bounded profile-driven prefill decision, clean candidate freeze, M21, M20
+remaining sequence is bounded profile-driven prefill/decode optimization, clean candidate freeze, M21, M20
 and a technical M23 freeze.
 
 ## M08 success
@@ -89,9 +92,14 @@ three-run 120.398 tok/s ordinary-decode median on 16K+64 versus llama.cpp 119.49
 characterization; M20 still owns the formal 3-warm-up/10-retained-run result. See
 `benchmarks/baselines/gem16/gemma4-26b-a4b-ordinary-16k64-2026-08-23.json`.
 
+The owner now requires that exact 16K+64 ordinary path to reach retained medians of at least 6,000 prompt token/s and
+150 decode token/s; 6,500 prompt token/s is the non-blocking competitive stretch target. MTP/speculative decode,
+cache/precision/semantic substitutions and timing-boundary changes cannot satisfy the gate. The current M20 qualifier
+must be aligned with this bounded row and deferred-M19 policy before formal execution.
+
 M22 product behavior and protected 12B regressions are accepted at
 `f0aa302aa0246d44e1c8477dbbbb67fbbe2d2037`; see `artifacts/m22/acceptance.json`. The current work wave now makes
-one bounded prefill decision from a fresh profile. The resulting candidate first owns M21 real 32K/64K execution; M20 then consumes that
+bounded prefill/decode optimization toward the fixed targets from fresh profiles. The resulting candidate first owns M21 real 32K/64K execution; M20 then consumes that
 matching evidence for its formal performance gate. M23 then freezes a technical Target with M19 visibly pending. The
 remaining multi-hour M19 task/prose qualification is deferred until
 the end and remains mandatory before any shipping or production-quality claim.

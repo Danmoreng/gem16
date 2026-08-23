@@ -1,6 +1,6 @@
 # Gemma 4 26B A4B in Gem16
 
-**Status:** M00–M17 and M22 accepted; bounded prefill work, M21/M20 and a technical M23 freeze are next. The active policy is [`ACTIVE_DECISIONS.md`](ACTIVE_DECISIONS.md), and
+**Status:** M00–M17 and M22 accepted; bounded prefill/decode optimization, M21/M20 and a technical M23 freeze are next. The active policy is [`ACTIVE_DECISIONS.md`](ACTIVE_DECISIONS.md), and
 the current task entry is [`plans/gemma4-26b/ACTIVE_CONTRACT.md`](plans/gemma4-26b/ACTIVE_CONTRACT.md).
 
 ## Goal
@@ -15,19 +15,25 @@ SM120 MoE, attention and tied-head dispatch. Ordinary decode on the controlled 1
 formal M20 3-warm-up/10-retained result. The 12B Unified path remains the production baseline and must remain
 unchanged.
 
+The owner-set M20 objective now targets vLLM-class performance on the exact 16K+64 ordinary path: retained medians
+of at least **6,000 prompt token/s** and **150 decode token/s**, with **6,500 prompt token/s** as the non-blocking
+competitive stretch target. The current prompt median is 3,169.458 token/s. MTP/speculative decode remains disabled
+for this gate, and no prompt, cache, precision, sampling or timing-boundary change may count as a speedup.
+
 ## Fast-track path
 
 ```text
 M06 NVFP4 experts → M07 provisional NVFP4 tied head → M08 artifact/loader
 → M09 32K residency → M13 slow reference execution → M17 optimized runtime
-→ accepted M22 product → bounded prefill decision → clean candidate freeze
+→ accepted M22 product → bounded prefill/decode optimization → clean candidate freeze
 → M21 real 32K/64K → M20 performance → technical M23 freeze
 → M25 MTP → deferred M19 release-quality gate
 ```
 
 M00–M17 and M22 are accepted. M22 now pins the exact M08 identity, exposes CLI/server provenance and memory
 reporting, enforces text-only one-slot behavior and passes automated 26B product plus protected 12B regressions.
-M21 still needs repeated real 32K plus explicit 64K execution, then M20 needs its bounded formal 3/10 run against that
+The fixed performance targets must first be reached or explicitly revised by the owner. M21 still needs repeated
+real 32K plus explicit 64K execution, then M20 needs its bounded formal 3/10 run against that
 matching context evidence. The owner
 deferred the remaining multi-hour M19 task/prose suite until the end of the implementation/performance program.
 Therefore M23 may freeze an engineering Target for later work, but it cannot be described as a shipping or

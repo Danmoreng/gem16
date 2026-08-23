@@ -21,8 +21,8 @@ integration and evidence acceptance remain serialized.
 | Lane | Immediate task | May start now | Owned area | Merge gate |
 |---|---|---:|---|---|
 | P — Product | M22 automated CLI/server acceptance and 12B regressions | accepted | product driver/tests and compact M22 evidence | reopen only on regression |
-| F — Prefill | profile-driven bounded optimization | yes | isolated CUDA/prefill code and tests | completes before final M20/M21 evidence |
-| R — Evidence contracts | make M20 consume native M21 output; add provenance/telemetry envelopes | after prefill | M20/M21 runners and manifests | freezes before model execution |
+| F — Performance | profile-driven bounded prefill/decode optimization toward 6,000/150 hard targets and 6,500 prefill stretch | yes | isolated CUDA hot paths and tests | correctness preserved; completes before final M20/M21 evidence |
+| R — Evidence contracts | encode the fixed target row, make M20 consume native M21 output and add provenance/telemetry envelopes | after performance slice | M20/M21 runners and manifests | freezes before model execution |
 | C — Context | M21 repeated real 32K/64K qualification | after clean candidate freeze | M21 runner and raw/compact evidence | no concurrent GPU model run |
 | B — Benchmark | M20 bounded 3/10 telemetry qualification | after M21 | M20 runner and raw/compact evidence | consumes matching M21 evidence; no code changes during measurement |
 | Q — Quality | deferred M19 task/prose qualification | no, owner-deferred | quality runner and blind-review package | required before release claims |

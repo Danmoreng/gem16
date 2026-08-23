@@ -10,10 +10,10 @@ Derived from [`FAST_TRACK_STATUS.json`](FAST_TRACK_STATUS.json). Policy: [`../..
 
 | Milestone/slice | State | Remaining work |
 |---|---|---|
-| Prefill slice | ACTIVE_NEXT | profile first; retain only a bounded, correctness-preserving improvement before final evidence |
-| Runner/freeze slice | READY_AFTER_PREFILL | align M20/M21 schemas and provenance; build one clean immutable candidate |
+| Performance optimization slice | ACTIVE_NEXT | profile-driven, correctness-preserving prefill/decode work toward hard 6,000/150 token/s targets and 6,500 prefill stretch |
+| Runner/freeze slice | READY_AFTER_PERFORMANCE | encode the fixed target row, align M20/M21 schemas and provenance, then build one clean immutable candidate |
 | M21 | READY_AFTER_FREEZE | repeated real 32K, explicit real 64K pass/fail and measured `base_max_context` |
-| M20 | IN_PROGRESS_AFTER_M21 | run formal 3-warm-up/10-retained telemetry against matching M21 evidence; current three-run decode median is 120.398 tok/s |
+| M20 | IN_PROGRESS_AFTER_M21 | exact 16K+64 retained medians must reach >=6,000 prompt and >=150 ordinary-decode tok/s; report >=6,500 prompt stretch; current medians are 3,169.458/120.398 |
 | M23 | BLOCKED_BY_M20_M21 | freeze a technical Target with rollback and M19 explicitly pending |
 | M25 phase A | PARALLEL_FEASIBILITY_ONLY | assistant compatibility and memory feasibility only |
 
@@ -28,7 +28,7 @@ M23 Target freeze, but that checkpoint must remain visibly experimental and qual
 
 ## Next vertical sequence
 
-`bounded prefill decision → clean freeze → M21 → M20 → technical M23 → M25 integration → deferred M19 release gate`
+`bounded prefill/decode optimization → clean freeze → M21 → M20 → technical M23 → M25 integration → deferred M19 release gate`
 
 ## Conditional/optional
 

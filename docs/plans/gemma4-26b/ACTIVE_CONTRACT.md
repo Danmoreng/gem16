@@ -1,9 +1,9 @@
 # Active contract — Gemma 4 26B Fast Track R4
 
-Status: M00–M17 and M22 accepted; bounded prefill, M21 and M20 active; full M19 held-out qualification deferred by owner
+Status: M00–M17 and M22 accepted; bounded performance optimization, M21 and M20 active; full M19 held-out qualification deferred by owner
 Plan revision: `fast-track-r4`
 Accepted baseline: M00–M17 plus M22 product integration
-Current milestone: bounded prefill (then clean freeze, M21, M20 and technical M23; M19 full suite deferred; M18 conditional)
+Current milestone: bounded prefill/decode optimization toward the fixed M20 targets (then clean freeze, M21, M20 and technical M23; M19 full suite deferred; M18 conditional)
 Integration branch: `feat/gemma4-26b`
 
 ## Purpose
@@ -70,6 +70,20 @@ Required base target:
 - deterministic greedy execution and the existing sampling semantics;
 - CLI and server support before optional Studio work.
 
+Required base performance target for M20:
+
+- exact `wikipedia-real-16k64-greedy` batch-one row: 16,384 prompt tokens, 64 output forwards and 63 timed decode
+  intervals at context 16,448;
+- native ordinary Target execution with FP8 KV and CUDA Graph replay; MTP/speculative decode, prompt cache, CPU
+  offload, fallback and recurring allocation disabled;
+- unchanged prompt/output/sampling/cache/KV semantics and unchanged recorded timing boundaries;
+- median of the ten retained runs after three warm-ups at **at least 6,000 prompt token/s and 150 ordinary decode
+  token/s**;
+- a separately reported, non-blocking **6,500 prompt token/s** competitive stretch result.
+
+Falling below either hard throughput target keeps M20 open unless the owner records a new decision. External vLLM
+characterizations motivate the fixed values but do not replace the native correctness, memory or timing contract.
+
 Required final target:
 
 - a 26B-compatible MTP assistant or assistant artifact;
@@ -107,8 +121,9 @@ Only these owner-level gates block the critical path:
 4. **M09:** the real artifact passes one-slot 32K admission with at least 700 MiB directly measured free-device margin.
 5. **M13:** the full slow model is deterministic and passes the single early quality go/no-go screen.
 6. **M17:** one fixed-address optimized artifact/profile is frozen with deterministic engine replay and no recurring allocation.
-7. **M20–M22:** with M22 accepted, after the bounded prefill decision one clean candidate passes real long-context in M21 and
-   bounded performance in M20 using the matching M21 evidence.
+7. **M20–M22:** with M22 accepted, after bounded correctness-preserving prefill/decode optimization one clean
+   candidate passes real long-context in M21 and the fixed 6,000 prompt/150 ordinary-decode token/s M20 gates using
+   the matching M21 evidence; 6,500 prompt token/s is the reported stretch target.
 8. **M23 engineering freeze:** Target hashes, available evidence and rollback are frozen with M19 explicitly pending.
 9. **Deferred M19:** the multi-hour held-out task/prose suite eventually passes before any shipping or production-quality claim.
 10. **M25:** MTP compatibility, exactness, performance and the 32K MTP memory gate pass; 64K and the maximum safe MTP context are measured.
@@ -167,7 +182,7 @@ Do not repeat an expensive run solely to produce a second prose record. M08 comp
 ## Current unblocked work
 
 - M17 and M22 are accepted; M22 implementation commit `f0aa302aa0246d44e1c8477dbbbb67fbbe2d2037` is the current development candidate.
-- One bounded profile-driven prefill decision is next.
+- Bounded profile-driven prefill and ordinary-decode optimization toward the fixed M20 targets is next.
 - The resulting code/binary is frozen before M21 real 32K/64K execution; M20 controlled performance then consumes
   that exact M21 evidence, avoiding duplicate evidence runs.
 - M19 numerical Q4 evidence is available, but its multi-hour task/prose suite is deferred and remains a release limitation.

@@ -6,7 +6,7 @@
   "accepted_additional": [
     "M22"
   ],
-  "current_milestone": "PREFILL_SLICE",
+  "current_milestone": "PERFORMANCE_OPTIMIZATION_SLICE",
   "active_wave": "F4-product-performance-context-technical-freeze",
   "integration_branch": "feat/gemma4-26b",
   "source_of_truth": "docs/plans/gemma4-26b/FAST_TRACK_STATUS.json",
@@ -222,7 +222,36 @@
     },
     "M20": {
       "status": "IN_PROGRESS",
-      "note": "Three-run 16K+64 ordinary-decode characterization reaches 120.398 tok/s versus llama.cpp 119.494; after the final candidate freeze and M21, formal 3-warm-up/10-retained telemetry qualification consumes matching M21 evidence.",
+      "note": "Current 16K+64 development medians are 3169.458 prompt and 120.398 ordinary-decode tok/s. Owner-set hard M20 targets are 6000 prompt and 150 ordinary-decode tok/s, with a non-blocking 6500 prompt stretch target. After optimization, final candidate freeze and M21, formal 3-warm-up/10-retained telemetry qualification consumes matching M21 evidence.",
+      "performance_target": {
+        "scenario": "wikipedia-real-16k64-greedy",
+        "prompt_manifest_sha256": "9a5859b979d91fccf71bcbb61aade6372cf2cc3c708e6c47b8b6cfd99f7abd2d",
+        "prompt_tokens": 16384,
+        "output_forwards": 64,
+        "timed_decode_intervals": 63,
+        "context_tokens": 16448,
+        "batch_size": 1,
+        "sampling": "greedy",
+        "kv_cache": "fp8",
+        "cuda_graph": true,
+        "mtp_draft_tokens": 0,
+        "prompt_cache": false,
+        "cpu_offload": false,
+        "fallback_count": 0,
+        "recurring_allocation_count": 0,
+        "warmups": 3,
+        "retained_runs": 10,
+        "primary_statistic": "median",
+        "prompt_tokens_per_second_minimum": 6000.0,
+        "decode_tokens_per_second_minimum": 150.0,
+        "prompt_tokens_per_second_stretch": 6500.0,
+        "timing_boundaries": {
+          "prompt_ms": "first_prefill_launch_to_prefill_sync",
+          "ttft_ms": "request_ready_to_first_token_ready",
+          "decode_ms": "sum_of_post_first_token_synchronized_intervals",
+          "model_load_excluded": true
+        }
+      },
       "class": "qualification",
       "lane": "performance",
       "depends_on": [
@@ -232,7 +261,7 @@
     },
     "M21": {
       "status": "READY_NEXT",
-      "note": "After accepted M22, bounded prefill work and clean candidate freeze, real repeated 32K, explicit 64K and maximum-context execution remain required; allocation-only M09 evidence is not sufficient.",
+      "note": "After accepted M22, fixed-target prefill/decode optimization and clean candidate freeze, real repeated 32K, explicit 64K and maximum-context execution remain required; allocation-only M09 evidence is not sufficient.",
       "class": "qualification",
       "lane": "long-context",
       "depends_on": [
@@ -287,8 +316,8 @@
     }
   },
   "parallel_tasks_now": [
-    "bounded correctness-preserving prefill optimization after accepted M22",
-    "M20/M21 runner alignment and clean candidate freeze after prefill",
+    "bounded correctness-preserving prefill and ordinary-decode optimization toward 6000/150 hard targets and 6500 prefill stretch after accepted M22",
+    "M20/M21 runner alignment and clean candidate freeze after performance optimization",
     "M21 real 32K/64K and maximum-context qualification",
     "M20 controlled 3-warm-up/10-retained performance qualification consuming matching M21 evidence",
     "M25 phase A assistant compatibility and memory feasibility"

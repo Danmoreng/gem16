@@ -6,11 +6,19 @@ Benchmark one frozen M17 artifact with:
 
 - short decode prompt;
 - representative 2K/8K prefill;
+- the exact 16,384-prompt-token plus 64-output-forward M20 promotion row;
 - 32K qualification prompt;
 - 64K and max-fit prompts in M21;
 - deterministic greedy and one production sampling control.
 
 Report TTFT, prompt throughput, ITL and decode throughput separately. Use three warm-ups and ten retained runs for promotion.
+
+For the current owner-approved bounded M20 wave, `wikipedia-real-16k64-greedy` is the sole numeric promotion row.
+Short, 2K/8K, 32K and sampled controls remain diagnostic or context evidence and do not substitute for its fixed
+targets. The promotion row uses batch one, FP8 KV, native CUDA Graph execution, no MTP/speculative decode, no prompt
+cache/offload/fallback/recurring allocation and the unchanged runner timing boundaries. Its retained medians must
+reach at least 6,000 prompt token/s and 150 ordinary decode token/s; 6,500 prompt token/s is a non-blocking stretch
+target. This bounded-row decision supersedes the former generic multi-scenario promotion requirement for this wave.
 
 ## References
 

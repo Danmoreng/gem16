@@ -21,7 +21,7 @@ M06 NVFP4 experts
  → M13 complete slow model and early quality gate
  → M14/M15/M16 in parallel, integrated continuously by M17
  → M22 CLI/server and 12B regressions
- → bounded prefill decision and clean candidate freeze
+ → bounded fixed-target prefill/decode optimization and clean candidate freeze
  → M21 real context → M20 bounded performance
  → M23 technical base Target freeze
  → M25 MTP final target
@@ -48,7 +48,7 @@ M10 semantic work begins in parallel with M06. M18 is conditional diagnosis. M24
 - Runtime correctness: independent MoE oracle, CUDA reference, attention/KV tests and full-model captures.
 - Memory: one slot, 32K with at least 700 MiB free; base-model 64K+ with at least 400 MiB free; MTP 64K+ keeps 500 MiB.
 - Early quality: M13 development-screen pass.
-- Technical freeze: M22 product behavior precedes the final bounded prefill decision; M21 context and M20
+- Technical freeze: M22 product behavior precedes final fixed-target prefill/decode optimization; M21 context and M20
   performance then reference the same frozen hash.
 - Final release quality: owner-deferred M19 passes after the implementation/performance program.
 - MTP: compatible assistant, exact Target verification, transactional state and separately measured MTP context.
