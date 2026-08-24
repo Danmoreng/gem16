@@ -754,6 +754,45 @@ __device__ __forceinline__ void StorePhysicalOrContainerBf16(
   }
 }
 
+__device__ __forceinline__ void StageGroupedActivationAsync(
+    uint4 (*staged_activation)[2],
+    std::uint32_t* staged_activation_scales,
+    const std::uint32_t* staged_activation_rows,
+    const std::uint32_t* staged_activation_valid,
+    const std::uint8_t* packed_activation_e2m1,
+    const std::uint8_t* activation_scales_e4m3fn,
+    std::uint64_t packed_row_bytes, std::uint64_t scale_row_bytes,
+    std::uint64_t k_block) {
+  if (threadIdx.x < 32U) {
+    const unsigned activation_index = threadIdx.x >> 1U;
+    const unsigned half = threadIdx.x & 1U;
+    const bool valid = staged_activation_valid[activation_index] != 0U;
+    const std::uint8_t* source = valid
+        ? packed_activation_e2m1 +
+              static_cast<std::uint64_t>(
+                  staged_activation_rows[activation_index]) *
+                  packed_row_bytes +
+              k_block * 32U + static_cast<std::uint64_t>(half) * 16U
+        : packed_activation_e2m1;
+    // Grouped launch validation guarantees a 16-byte base; K64 makes the
+    // packed row stride and every block/half offset 16-byte aligned.
+    CopyAsyncZeroFill<16U>(&staged_activation[activation_index][half],
+                           source, valid ? 16 : 0);
+  }
+  if (threadIdx.x < 16U) {
+    const bool valid = staged_activation_valid[threadIdx.x] != 0U;
+    const std::uint8_t* source = valid
+        ? activation_scales_e4m3fn +
+              static_cast<std::uint64_t>(
+                  staged_activation_rows[threadIdx.x]) *
+                  scale_row_bytes +
+              k_block * 4U
+        : activation_scales_e4m3fn;
+    CopyAsyncZeroFill<4U>(&staged_activation_scales[threadIdx.x], source,
+                          valid ? 4 : 0);
+  }
+}
+
 template <bool kFusedGateUp, typename Output>
 __global__ void Sm120GroupedExpertMatrixKernel(
     const std::uint8_t* packed_activation_e2m1,
@@ -802,8 +841,8 @@ __global__ void Sm120GroupedExpertMatrixKernel(
   const std::uint32_t grouped_low = grouped_base + group;
   const std::uint32_t grouped_high = grouped_low + 8U;
 
-  __shared__ alignas(16) uint4 staged_activation[16][2];
-  __shared__ std::uint32_t staged_activation_scales[16];
+  __shared__ alignas(16) uint4 staged_activation[2][16][2];
+  __shared__ std::uint32_t staged_activation_scales[2][16];
   __shared__ std::uint32_t staged_activation_rows[16];
   __shared__ std::uint32_t staged_activation_valid[16];
   if (threadIdx.x < 16U) {
@@ -826,46 +865,38 @@ __global__ void Sm120GroupedExpertMatrixKernel(
   }
   __syncthreads();
 
+  StageGroupedActivationAsync(
+      staged_activation[0], staged_activation_scales[0],
+      staged_activation_rows, staged_activation_valid,
+      packed_activation_e2m1, activation_scales_e4m3fn,
+      packed_row_bytes, scale_row_bytes, 0U);
+  CommitAsyncCopies();
+  WaitForAsyncCopies();
+  __syncthreads();
+
   for (std::uint64_t k_block = 0; k_block < k_blocks; ++k_block) {
-    if (threadIdx.x < 32U) {
-      const unsigned activation_index = threadIdx.x >> 1U;
-      const unsigned half = threadIdx.x & 1U;
-      uint4 value = make_uint4(0U, 0U, 0U, 0U);
-      if (staged_activation_valid[activation_index] != 0U) {
-        const std::uint64_t activation_row =
-            staged_activation_rows[activation_index];
-        // Grouped launch validation guarantees a 16-byte base; K64 makes
-        // both the packed row stride and every k_block offset 16-byte aligned.
-        value = reinterpret_cast<const uint4*>(
-            packed_activation_e2m1 + activation_row * packed_row_bytes +
-            k_block * 32U)[half];
-      }
-      staged_activation[activation_index][half] = value;
+    const unsigned stage = static_cast<unsigned>(k_block & 1U);
+    if (k_block + 1U < k_blocks) {
+      const unsigned next_stage = stage ^ 1U;
+      StageGroupedActivationAsync(
+          staged_activation[next_stage],
+          staged_activation_scales[next_stage], staged_activation_rows,
+          staged_activation_valid, packed_activation_e2m1,
+          activation_scales_e4m3fn, packed_row_bytes, scale_row_bytes,
+          k_block + 1U);
+      CommitAsyncCopies();
     }
-    if (threadIdx.x < 16U) {
-      std::uint32_t scale = 0U;
-      if (staged_activation_valid[threadIdx.x] != 0U) {
-        scale = LoadU32(
-            activation_scales_e4m3fn +
-            static_cast<std::uint64_t>(
-                staged_activation_rows[threadIdx.x]) *
-                scale_row_bytes +
-            k_block * 4U);
-      }
-      staged_activation_scales[threadIdx.x] = scale;
-    }
-    __syncthreads();
 
     const auto* low_words = reinterpret_cast<const std::uint32_t*>(
-        staged_activation[group]);
+        staged_activation[stage][group]);
     const auto* high_words = reinterpret_cast<const std::uint32_t*>(
-        staged_activation[group + 8U]);
+        staged_activation[stage][group + 8U]);
     const std::uint32_t a0 = low_words[thread_in_group];
     const std::uint32_t a1 = high_words[thread_in_group];
     const std::uint32_t a2 = low_words[thread_in_group + 4U];
     const std::uint32_t a3 = high_words[thread_in_group + 4U];
     const std::uint32_t scale_a = thread_in_group < 2U
-        ? staged_activation_scales[group + thread_in_group * 8U]
+        ? staged_activation_scales[stage][group + thread_in_group * 8U]
         : 0U;
 
 #pragma unroll
@@ -910,7 +941,10 @@ __global__ void Sm120GroupedExpertMatrixKernel(
                   up_b1, scale_a, up_scale_b);
       }
     }
-    __syncthreads();
+    if (k_block + 1U < k_blocks) {
+      WaitForAsyncCopies();
+      __syncthreads();
+    }
   }
 
 #pragma unroll

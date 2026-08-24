@@ -9,9 +9,9 @@ non-blocking competitive stretch target. The row remains batch one with the exac
 forwards, 63 timed decode intervals, FP8 KV, native CUDA Graph replay and MTP/speculative decode, prompt cache,
 offload, fallback and recurring allocation disabled. Existing timing boundaries and model semantics remain fixed.
 
-The current adjacent Gem16 development candidate averages 5,358.330 prompt and 138.863 ordinary-decode token/s.
-Reaching the hard targets therefore requires approximately +11.98% prompt throughput and +8.02% decode throughput;
-the prompt stretch requires approximately +21.31%. The motivating vLLM 0.27.1 community-W4A16 graph observation is
+The current adjacent Gem16 development candidate averages 5,410.284 prompt and 139.055 ordinary-decode token/s.
+Reaching the hard targets therefore requires approximately +10.90% prompt throughput and +7.87% decode throughput;
+the prompt stretch requires approximately +20.14%. The motivating vLLM 0.27.1 community-W4A16 graph observation is
 6,475.795 prompt and 149.348 decode token/s, but that checkpoint and its prefill timing boundary differ. It is a
 directional engineering reference, not a numerical parity or acceptance oracle. Its compact evidence is
 `benchmarks/baselines/vllm/gemma4-26b-w4a16-wikipedia-16k64-characterization.json`.
@@ -28,6 +28,12 @@ finite logits, native dispatch, zero fallbacks, zero recurring allocations and t
 measured margin. All configured tests pass (three model-dependent tests skip without their external artifacts), and
 MoE memcheck/racecheck report zero errors or hazards. Compact evidence is
 `artifacts/m20/optimization-grouped-shared-activation-tile.json`; formal M20 qualification remains pending.
+
+The follow-on exact pipeline double-buffers that CTA-wide activation tile and overlaps `cp.async` for K64(n+1) with
+the unchanged K64(n) MMA sequence. Two adjacent runs measure 5,411.777/5,408.791 prompt tok/s (mean 5,410.284,
++0.97%) and 139.040/139.070 decode tok/s, again with the accepted hash and unchanged memory/runtime facts. Full
+CTest and CUDA tests pass; MoE memcheck/racecheck remain clean. Compact evidence is
+`artifacts/m20/optimization-grouped-async-double-buffer.json`.
 
 ## 2026-08-23 Bounded 26B optimization checkpoint
 
