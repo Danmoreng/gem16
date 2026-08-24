@@ -18,6 +18,9 @@ namespace {
 
 constexpr unsigned kThreads = 128U;
 constexpr unsigned kRouterExpertsPerBlock = 32U;
+constexpr unsigned kRouterTokensPerBlock = 8U;
+constexpr unsigned kRouterThreads =
+    kRouterExpertsPerBlock * kRouterTokensPerBlock;
 constexpr unsigned kRouterKTile = 32U;
 constexpr unsigned kRouterWeightVectorsPerExpert =
     kRouterKTile * sizeof(std::uint16_t) / sizeof(uint4);
@@ -83,51 +86,56 @@ __global__ void RouterTransformBatchKernel(
 __global__ void RouterProjectionBatchCoalescedKernel(
     const float* input, const std::uint16_t* weights, float* logits,
     std::uint32_t experts, std::uint64_t width, std::uint64_t tokens) {
-  const std::uint64_t token = blockIdx.y;
-  if (token >= tokens) return;
+  const unsigned token_in_block =
+      threadIdx.x / kRouterExpertsPerBlock;
+  const std::uint64_t token =
+      static_cast<std::uint64_t>(blockIdx.y) * kRouterTokensPerBlock +
+      token_in_block;
   __shared__ alignas(16) uint4
       staged_weights[kRouterExpertsPerBlock]
                     [kRouterWeightVectorsPerExpert];
-  __shared__ float staged_input[kRouterKTile];
+  __shared__ float staged_input[kRouterTokensPerBlock][kRouterKTile];
   const unsigned local_expert =
-      threadIdx.x / kRouterWeightVectorsPerExpert;
-  const unsigned weight_vector =
-      threadIdx.x % kRouterWeightVectorsPerExpert;
+      threadIdx.x % kRouterExpertsPerBlock;
   const std::uint32_t expert =
       blockIdx.x * kRouterExpertsPerBlock + local_expert;
-  const std::uint64_t weight_base =
-      static_cast<std::uint64_t>(expert) * width;
   const std::uint64_t input_base = token * width;
   float accumulator = 0.0F;
   for (std::uint64_t k_base = 0U; k_base < width;
        k_base += kRouterKTile) {
-    if (expert < experts) {
-      staged_weights[local_expert][weight_vector] =
-          reinterpret_cast<const uint4*>(weights + weight_base + k_base)
-              [weight_vector];
+    if (threadIdx.x <
+        kRouterExpertsPerBlock * kRouterWeightVectorsPerExpert) {
+      const unsigned load_expert =
+          threadIdx.x / kRouterWeightVectorsPerExpert;
+      const unsigned weight_vector =
+          threadIdx.x % kRouterWeightVectorsPerExpert;
+      const std::uint32_t global_expert =
+          blockIdx.x * kRouterExpertsPerBlock + load_expert;
+      if (global_expert < experts) {
+        const std::uint64_t load_weight_base =
+            static_cast<std::uint64_t>(global_expert) * width;
+        staged_weights[load_expert][weight_vector] =
+            reinterpret_cast<const uint4*>(
+                weights + load_weight_base + k_base)[weight_vector];
+      }
     }
-    if (threadIdx.x < kRouterKTile) {
-      staged_input[threadIdx.x] =
-          input[input_base + k_base + threadIdx.x];
-    }
+    staged_input[token_in_block][local_expert] =
+        token < tokens ? input[input_base + k_base + local_expert] : 0.0F;
     __syncthreads();
-    if (threadIdx.x < kRouterExpertsPerBlock &&
-        blockIdx.x * kRouterExpertsPerBlock + threadIdx.x < experts) {
+    if (token < tokens && expert < experts) {
       const auto* staged_row = reinterpret_cast<const std::uint16_t*>(
-          staged_weights[threadIdx.x]);
+          staged_weights[local_expert]);
 #pragma unroll 1
       for (unsigned index = 0U; index < kRouterKTile; ++index) {
         accumulator =
-            fmaf(Bf16(staged_row[index]), staged_input[index], accumulator);
+            fmaf(Bf16(staged_row[index]),
+                 staged_input[token_in_block][index], accumulator);
       }
     }
     __syncthreads();
   }
-  if (threadIdx.x < kRouterExpertsPerBlock &&
-      blockIdx.x * kRouterExpertsPerBlock + threadIdx.x < experts) {
-    const std::uint32_t output_expert =
-        blockIdx.x * kRouterExpertsPerBlock + threadIdx.x;
-    logits[token * experts + output_expert] = RoundBf16(accumulator);
+  if (token < tokens && expert < experts) {
+    logits[token * experts + expert] = RoundBf16(accumulator);
   }
 }
 
@@ -607,8 +615,10 @@ Status LaunchGemma4MoeSm120PrefillLayer(
   const unsigned router_blocks =
       (c.experts + kRouterExpertsPerBlock - 1U) /
       kRouterExpertsPerBlock;
+  const unsigned router_token_blocks = static_cast<unsigned>(
+      (tokens + kRouterTokensPerBlock - 1U) / kRouterTokensPerBlock);
   RouterProjectionBatchCoalescedKernel<<<
-      dim3(router_blocks, static_cast<unsigned>(tokens)), kThreads, 0,
+      dim3(router_blocks, router_token_blocks), kRouterThreads, 0,
       stream>>>(x.shared_output, w.router_projection_bf16, x.router_logits,
                 c.experts, c.width, tokens);
   status = CheckLaunch("launch M15 router projection");

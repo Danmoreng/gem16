@@ -89,10 +89,10 @@ implementation commit `57fdeb309aacfce2e4eba65745fba86f14ebd113` and closure-har
 automated, native slot-batched expert execution remains bitwise exact and hardware capability reporting is
 profile-aware. The latest adjacent two-run development candidate after the physical-BF16/T1024 and grouped
 two-row-tile promotions, CTA-wide grouped-expert activation staging and asynchronous K64 double buffering reaches
-5,410.28 prompt tok/s and 139.055
-ordinary-decode tok/s on 16K+64 with the accepted output hash. This remains a development characterization; M20
+5,526.15 prompt tok/s after exact eight-token router weight reuse and 138.934 ordinary-decode tok/s on 16K+64 with
+the accepted output hash. This remains a development characterization; M20
 still owns the formal 3-warm-up/10-retained-run result. See
-`artifacts/m20/optimization-grouped-async-double-buffer.json`.
+`artifacts/m20/optimization-router-token-tile8.json`.
 
 The owner now requires that exact 16K+64 ordinary path to reach retained medians of at least 6,000 prompt token/s and
 150 decode token/s; 6,500 prompt token/s is the non-blocking competitive stretch target. MTP/speculative decode,

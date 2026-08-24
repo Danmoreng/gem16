@@ -9,9 +9,9 @@ non-blocking competitive stretch target. The row remains batch one with the exac
 forwards, 63 timed decode intervals, FP8 KV, native CUDA Graph replay and MTP/speculative decode, prompt cache,
 offload, fallback and recurring allocation disabled. Existing timing boundaries and model semantics remain fixed.
 
-The current adjacent Gem16 development candidate averages 5,410.284 prompt and 139.055 ordinary-decode token/s.
-Reaching the hard targets therefore requires approximately +10.90% prompt throughput and +7.87% decode throughput;
-the prompt stretch requires approximately +20.14%. The motivating vLLM 0.27.1 community-W4A16 graph observation is
+The current adjacent Gem16 development candidate averages 5,526.149 prompt and 138.934 ordinary-decode token/s.
+Reaching the hard targets therefore requires approximately +8.57% prompt throughput and +7.96% decode throughput;
+the prompt stretch requires approximately +17.62%. The motivating vLLM 0.27.1 community-W4A16 graph observation is
 6,475.795 prompt and 149.348 decode token/s, but that checkpoint and its prefill timing boundary differ. It is a
 directional engineering reference, not a numerical parity or acceptance oracle. Its compact evidence is
 `benchmarks/baselines/vllm/gemma4-26b-w4a16-wikipedia-16k64-characterization.json`.
@@ -34,6 +34,12 @@ the unchanged K64(n) MMA sequence. Two adjacent runs measure 5,411.777/5,408.791
 +0.97%) and 139.040/139.070 decode tok/s, again with the accepted hash and unchanged memory/runtime facts. Full
 CTest and CUDA tests pass; MoE memcheck/racecheck remain clean. Compact evidence is
 `artifacts/m20/optimization-grouped-async-double-buffer.json`.
+
+The next exact router tile reuses each 32-expert BF16 weight tile across eight prompt tokens while every
+token/expert thread retains the original serial 32-FMA order. Two adjacent runs measure 5,525.541/5,526.756 prompt
+tok/s (mean 5,526.149, +2.14%) and 138.930/138.939 decode tok/s with the same accepted hash and memory/runtime
+facts. Full CTest/CUDA and MoE memcheck/racecheck pass. Compact evidence is
+`artifacts/m20/optimization-router-token-tile8.json`.
 
 ## 2026-08-23 Bounded 26B optimization checkpoint
 

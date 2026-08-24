@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "milestone": "M20-development",
+  "status": "accepted_optimization_not_formal_qualification",
+  "measured_on": "2026-08-24",
+  "base_revision": "b2cf3cf",
+  "device": "NVIDIA GeForce RTX 5080 Laptop GPU",
+  "scenario": {
+    "id": "wikipedia-real-16k64-greedy",
+    "prompt_tokens": 16384,
+    "output_forwards": 64,
+    "prompt_manifest_sha256": "9a5859b979d91fccf71bcbb61aade6372cf2cc3c708e6c47b8b6cfd99f7abd2d",
+    "mtp_or_speculative_decode": false,
+    "prompt_cache": false,
+    "kv_mode": "fp8"
+  },
+  "change": {
+    "kernel": "RouterProjectionBatchCoalescedKernel",
+    "experts_per_cta": 32,
+    "tokens_per_cta": 8,
+    "threads_per_cta": 256,
+    "weight_tile_reuse_across_tokens": 8,
+    "fmaf_order_per_token_expert_changed": false,
+    "bf16_output_rounding_changed": false
+  },
+  "parent": {
+    "prompt_tokens_per_second_mean": 5410.284042198,
+    "decode_tokens_per_second_mean": 139.055018864,
+    "output_token_sha256": "d8f0aa61ba66750bda8582861d3f42ef7022917e75b6abd3b6fac4e66ef75e89"
+  },
+  "candidate_runs": [
+    {
+      "prompt_ms": 2965.139390,
+      "prompt_tokens_per_second": 5525.541246140,
+      "decode_ms": 453.465507,
+      "decode_tokens_per_second": 138.930081842
+    },
+    {
+      "prompt_ms": 2964.487798,
+      "prompt_tokens_per_second": 5526.755755599,
+      "decode_ms": 453.437395,
+      "decode_tokens_per_second": 138.938695164
+    }
+  ],
+  "comparison": {
+    "candidate_prompt_tokens_per_second_mean": 5526.148500870,
+    "candidate_decode_tokens_per_second_mean": 138.934388503,
+    "prompt_throughput_gain_vs_parent_percent": 2.141560,
+    "remaining_to_6000_percent": 8.574715,
+    "remaining_to_6500_percent": 17.622608,
+    "decode_classification": "neutral"
+  },
+  "correctness": {
+    "all_logits_finite": true,
+    "output_token_sha256": "d8f0aa61ba66750bda8582861d3f42ef7022917e75b6abd3b6fac4e66ef75e89",
+    "matches_parent_output_hash": true,
+    "fallback_count": 0,
+    "recurring_allocation_count": 0
+  },
+  "memory": {
+    "sampled_device_used_bytes": 15369830400,
+    "margin_bytes": 1282211840,
+    "changed_vs_parent": false
+  },
+  "tests": {
+    "blackwell_release_ctest": "pass_6_run_3_environment_skipped",
+    "cuda_moe_reference": "pass",
+    "cuda_shared_runtime": "pass",
+    "compute_sanitizer_moe_memcheck": "pass_0_errors",
+    "compute_sanitizer_moe_racecheck": "pass_0_errors_0_warnings"
+  },
+  "raw_evidence": [
+    {
+      "ignored_path": "artifacts/raw/perf-target/candidate-router-token8-16k-run1.json",
+      "size": 2917,
+      "sha256": "08e13e3f4f21a23f54fdd61684a622ee54fd68f80f4c4f58a3a965d73382de21"
+    },
+    {
+      "ignored_path": "artifacts/raw/perf-target/candidate-router-token8-16k-run2.json",
+      "size": 2922,
+      "sha256": "ef987fb12b21c85cc49d39a056f41f2bce0e4dfd0527734874ff77af6d568e90"
+    }
+  ],
+  "limitations": {
+    "formal_m20_3_warmup_10_retained_not_run": true,
+    "hard_6000_prompt_target_reached": false,
+    "hard_150_decode_target_reached": false
+  }
+}
