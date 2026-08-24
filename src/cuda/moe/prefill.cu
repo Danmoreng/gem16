@@ -18,9 +18,11 @@ namespace {
 
 constexpr unsigned kThreads = 128U;
 constexpr unsigned kRouterExpertsPerBlock = 32U;
-constexpr unsigned kRouterTokensPerBlock = 8U;
+constexpr unsigned kRouterTokensPerBlock = 16U;
+constexpr unsigned kRouterTokenRowsPerBlock = 8U;
 constexpr unsigned kRouterThreads =
-    kRouterExpertsPerBlock * kRouterTokensPerBlock;
+    kRouterExpertsPerBlock * kRouterTokenRowsPerBlock;
+static_assert(kRouterTokensPerBlock == 2U * kRouterTokenRowsPerBlock);
 constexpr unsigned kRouterKTile = 32U;
 constexpr unsigned kRouterWeightVectorsPerExpert =
     kRouterKTile * sizeof(std::uint16_t) / sizeof(uint4);
@@ -88,9 +90,10 @@ __global__ void RouterProjectionBatchCoalescedKernel(
     std::uint32_t experts, std::uint64_t width, std::uint64_t tokens) {
   const unsigned token_in_block =
       threadIdx.x / kRouterExpertsPerBlock;
-  const std::uint64_t token =
+  const std::uint64_t token0 =
       static_cast<std::uint64_t>(blockIdx.y) * kRouterTokensPerBlock +
       token_in_block;
+  const std::uint64_t token1 = token0 + kRouterTokenRowsPerBlock;
   __shared__ alignas(16) uint4
       staged_weights[kRouterExpertsPerBlock]
                     [kRouterWeightVectorsPerExpert];
@@ -99,8 +102,13 @@ __global__ void RouterProjectionBatchCoalescedKernel(
       threadIdx.x % kRouterExpertsPerBlock;
   const std::uint32_t expert =
       blockIdx.x * kRouterExpertsPerBlock + local_expert;
-  const std::uint64_t input_base = token * width;
-  float accumulator = 0.0F;
+  const std::uint64_t input_base0 = token0 * width;
+  const std::uint64_t input_base1 = token1 * width;
+  // One 256-thread CTA owns two independent eight-token rows. Both
+  // accumulators retain the original increasing-K fmaf dependency chain;
+  // only the staged BF16 weight tile is shared across twice as many tokens.
+  float accumulator0 = 0.0F;
+  float accumulator1 = 0.0F;
   for (std::uint64_t k_base = 0U; k_base < width;
        k_base += kRouterKTile) {
     if (threadIdx.x <
@@ -120,22 +128,34 @@ __global__ void RouterProjectionBatchCoalescedKernel(
       }
     }
     staged_input[token_in_block][local_expert] =
-        token < tokens ? input[input_base + k_base + local_expert] : 0.0F;
+        token0 < tokens ? input[input_base0 + k_base + local_expert] : 0.0F;
+    staged_input[token_in_block + kRouterTokenRowsPerBlock][local_expert] =
+        token1 < tokens ? input[input_base1 + k_base + local_expert] : 0.0F;
     __syncthreads();
-    if (token < tokens && expert < experts) {
+    if (expert < experts) {
       const auto* staged_row = reinterpret_cast<const std::uint16_t*>(
           staged_weights[local_expert]);
 #pragma unroll 1
       for (unsigned index = 0U; index < kRouterKTile; ++index) {
-        accumulator =
-            fmaf(Bf16(staged_row[index]),
-                 staged_input[token_in_block][index], accumulator);
+        const float weight = Bf16(staged_row[index]);
+        accumulator0 =
+            fmaf(weight, staged_input[token_in_block][index], accumulator0);
+        accumulator1 =
+            fmaf(weight,
+                 staged_input[token_in_block + kRouterTokenRowsPerBlock]
+                             [index],
+                 accumulator1);
       }
     }
     __syncthreads();
   }
-  if (token < tokens && expert < experts) {
-    logits[token * experts + expert] = RoundBf16(accumulator);
+  if (expert < experts) {
+    if (token0 < tokens) {
+      logits[token0 * experts + expert] = RoundBf16(accumulator0);
+    }
+    if (token1 < tokens) {
+      logits[token1 * experts + expert] = RoundBf16(accumulator1);
+    }
   }
 }
 

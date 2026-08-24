@@ -9,9 +9,9 @@ non-blocking competitive stretch target. The row remains batch one with the exac
 forwards, 63 timed decode intervals, FP8 KV, native CUDA Graph replay and MTP/speculative decode, prompt cache,
 offload, fallback and recurring allocation disabled. Existing timing boundaries and model semantics remain fixed.
 
-The current adjacent Gem16 development candidate averages 5,595.826 prompt and 138.826 ordinary-decode token/s.
-Reaching the hard targets therefore requires approximately +7.22% prompt throughput and +8.05% decode throughput;
-the prompt stretch requires approximately +16.16%. The motivating vLLM 0.27.1 community-W4A16 graph observation is
+The current adjacent Gem16 development candidate averages 6,084.047 prompt and 138.747 ordinary-decode token/s.
+It exceeds the hard prompt target by 1.40%; reaching the hard decode target still requires approximately +8.11%,
+and the prompt stretch requires approximately +6.84%. The motivating vLLM 0.27.1 community-W4A16 graph observation is
 6,475.795 prompt and 149.348 decode token/s, but that checkpoint and its prefill timing boundary differ. It is a
 directional engineering reference, not a numerical parity or acceptance oracle. Its compact evidence is
 `benchmarks/baselines/vllm/gemma4-26b-w4a16-wikipedia-16k64-characterization.json`.
@@ -49,6 +49,16 @@ operator paths are bit-exact over 262,144 randomized output elements; the accept
 native dispatch, zero fallbacks and zero recurring allocations are preserved. Targeted memcheck/racecheck are clean,
 while an unfiltered memcheck still encounters the pre-existing MTP system-atomic diagnostic in
 `AdvanceMtpD2ChainKernel`. Compact evidence is `artifacts/m20/optimization-prepared-global-kv.json`.
+
+The next exact router step keeps a 256-thread CTA but assigns two independent prompt tokens to each expert thread,
+reusing every K32 BF16 weight tile across 16 tokens. Each token/expert accumulator retains the original increasing-K
+`fmaf` dependency chain and BF16 output rounding. Two adjacent runs measure 6,077.863/6,090.231 prompt tok/s (mean
+6,084.047, +8.72%) and 138.723/138.770 decode tok/s, crossing the 6,000 development target with the accepted output
+hash and unchanged memory/runtime facts. Nsight records the same 480 router dispatches but reduces their aggregate
+time from 614.404 to 371.760 ms (-39.49%). Full CTest/CUDA and targeted router memcheck/racecheck pass. A faster
+6,555.52 tok/s tensor-core prototype was rejected and removed because reassociated accumulation changed the output
+hash. Compact evidence is `artifacts/m20/optimization-router-dual-token16.json`; formal M20 qualification remains
+pending.
 
 ## 2026-08-23 Bounded 26B optimization checkpoint
 

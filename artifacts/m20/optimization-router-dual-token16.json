@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "milestone": "M20-development",
+  "status": "accepted_optimization_not_formal_qualification",
+  "measured_on": "2026-08-24",
+  "base_revision": "77f0a16",
+  "device": "NVIDIA GeForce RTX 5080 Laptop GPU",
+  "scenario": {
+    "id": "wikipedia-real-16k64-greedy",
+    "prompt_tokens": 16384,
+    "output_forwards": 64,
+    "prompt_manifest_sha256": "9a5859b979d91fccf71bcbb61aade6372cf2cc3c708e6c47b8b6cfd99f7abd2d",
+    "mtp_or_speculative_decode": false,
+    "prompt_cache": false,
+    "kv_mode": "fp8"
+  },
+  "change": {
+    "kernel": "RouterProjectionBatchCoalescedKernel",
+    "experts_per_cta": 32,
+    "tokens_per_cta": 16,
+    "thread_owned_token_rows": 2,
+    "threads_per_cta": 256,
+    "weight_tile_reuse_across_tokens": 16,
+    "fmaf_order_per_token_expert_changed": false,
+    "bf16_output_rounding_changed": false
+  },
+  "parent": {
+    "prompt_tokens_per_second_mean": 5595.826456751,
+    "decode_tokens_per_second_mean": 138.825541704,
+    "output_token_sha256": "d8f0aa61ba66750bda8582861d3f42ef7022917e75b6abd3b6fac4e66ef75e89"
+  },
+  "candidate_runs": [
+    {
+      "prompt_ms": 2695.684401,
+      "prompt_tokens_per_second": 6077.862821747,
+      "decode_ms": 454.142176,
+      "decode_tokens_per_second": 138.723076889
+    },
+    {
+      "prompt_ms": 2690.209928,
+      "prompt_tokens_per_second": 6090.231037167,
+      "decode_ms": 453.987408,
+      "decode_tokens_per_second": 138.770368715
+    }
+  ],
+  "comparison": {
+    "candidate_prompt_tokens_per_second_mean": 6084.046929457,
+    "candidate_decode_tokens_per_second_mean": 138.746722802,
+    "prompt_throughput_gain_vs_parent_percent": 8.724725,
+    "hard_6000_prompt_target_exceeded_percent": 1.400782,
+    "remaining_to_6500_percent": 6.836783,
+    "remaining_to_150_decode_percent": 8.110662,
+    "decode_classification": "neutral"
+  },
+  "profile": {
+    "parent_router_total_ns": 614404206,
+    "candidate_router_total_ns": 371759955,
+    "router_kernel_time_reduction_percent": 39.492609,
+    "instances_each": 480,
+    "dispatch_observed": "RouterProjectionBatchCoalescedKernel"
+  },
+  "correctness": {
+    "all_logits_finite": true,
+    "output_token_sha256": "d8f0aa61ba66750bda8582861d3f42ef7022917e75b6abd3b6fac4e66ef75e89",
+    "matches_parent_output_hash": true,
+    "fallback_count": 0,
+    "recurring_allocation_count": 0
+  },
+  "memory": {
+    "sampled_device_used_bytes": 15359344640,
+    "margin_bytes": 1292697600,
+    "changed_vs_parent": false
+  },
+  "tests": {
+    "blackwell_release_ctest": "pass_6_run_3_environment_skipped",
+    "cuda_moe_reference": "pass",
+    "cuda_shared_runtime": "pass",
+    "compute_sanitizer_router_memcheck": "pass_0_errors",
+    "compute_sanitizer_router_racecheck": "pass_0_errors_0_warnings"
+  },
+  "raw_evidence": [
+    {
+      "ignored_path": "artifacts/raw/perf-target/candidate-router-dual-token16-16k-run1.json",
+      "size": 2925,
+      "sha256": "58e975797383a04443745437f9a64728ce0ffd7d8cab9aaf9c35742cca9d650d"
+    },
+    {
+      "ignored_path": "artifacts/raw/perf-target/candidate-router-dual-token16-16k-run2.json",
+      "size": 2923,
+      "sha256": "10b2f863bdecbbeffdf3fc1c33b9b719437df0b2c98cc975fc576dc4171341c8"
+    },
+    {
+      "ignored_path": "artifacts/raw/perf-target/profile-prefill-16k-router-dual-token16.nsys-rep",
+      "size": 2344195,
+      "sha256": "4b1c2f8ed2ce64ff66e509d6986c3824d6f70a3582a0d7cd2df01d1ad9c253be"
+    },
+    {
+      "ignored_path": "artifacts/raw/perf-target/profile-prefill-16k-router-dual-token16-kernels_cuda_gpu_kern_sum.csv",
+      "size": 12418,
+      "sha256": "412c3693781a8993c44031e52dfc741410b7d14c839d4e68d0b7b8015d5a1b82"
+    }
+  ],
+  "rejected_adjacent_candidates": {
+    "tokens16_threads512_prompt_tokens_per_second": 5474.733028933,
+    "k64_prompt_tokens_per_second": 4711.150798672,
+    "tensor_core_prompt_tokens_per_second": 6555.519466589,
+    "tensor_core_rejection": "output_hash_changed_by_reassociated_accumulation"
+  },
+  "limitations": {
+    "formal_m20_3_warmup_10_retained_not_run": true,
+    "hard_6000_prompt_target_reached_in_adjacent_development_runs": true,
+    "stretch_6500_prompt_target_reached": false,
+    "hard_150_decode_target_reached": false
+  }
+}
