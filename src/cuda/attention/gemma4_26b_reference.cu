@@ -464,6 +464,20 @@ Status LaunchGemma4Moe26BAttentionSm120PrefillLayer(
   if (!status.ok()) return status;
 
   auto* attention_bf16 = reinterpret_cast<std::uint16_t*>(x.attention);
+  const bool prepared_global =
+      !sliding && x.global_key_bf16 != nullptr &&
+      x.global_value_bf16 != nullptr &&
+      tokens <= x.global_bf16_capacity &&
+      start_position <= x.global_bf16_capacity - tokens;
+  if (prepared_global) {
+    // Prepared BF16 staging aliases projection-only temporaries, including
+    // staged_key/value. Commit the physical FP8 bytes first so preparation
+    // reads only the persistent cache while reusing those dead buffers.
+    status = LaunchAppendKvFp8Batch(
+        x.staged_key_fp8, x.staged_value_fp8, cache.key, cache.value,
+        start_position, tokens, kv_elements, cache.capacity, stream);
+    if (!status.ok()) return status;
+  }
   status = sliding
                ? LaunchOnlineCausalAttentionPrefillFp8LocalSm120(
                      x.query_normalized, x.staged_key_fp8,
@@ -471,17 +485,32 @@ Status LaunchGemma4Moe26BAttentionSm120PrefillLayer(
                      w.key_cache_scale_bf16, w.value_cache_scale_bf16,
                      attention_bf16, start_position, tokens, t.query_heads,
                      t.kv_heads, t.head_dimension, cache.capacity, stream)
-               : LaunchOnlineCausalAttentionPrefillFp8GlobalSm120(
-                     x.query_normalized, x.staged_key_fp8,
-                     x.staged_value_fp8, cache.key, cache.value,
-                     w.key_cache_scale_bf16, w.value_cache_scale_bf16,
-                     attention_bf16, start_position, tokens, t.query_heads,
-                     t.kv_heads, t.head_dimension, cache.capacity, stream);
+               : (prepared_global
+                      ? LaunchOnlineCausalAttentionPrefillFp8GlobalPreparedSm120(
+                            x.query_normalized,
+                            cache.key + start_position * kv_elements,
+                            cache.value + start_position * kv_elements,
+                            cache.key, cache.value,
+                            w.key_cache_scale_bf16,
+                            w.value_cache_scale_bf16, x.global_key_bf16,
+                            x.global_value_bf16, attention_bf16,
+                            start_position, tokens, t.query_heads, t.kv_heads,
+                            t.head_dimension, cache.capacity,
+                            x.global_bf16_capacity, stream)
+                      : LaunchOnlineCausalAttentionPrefillFp8GlobalSm120(
+                            x.query_normalized, x.staged_key_fp8,
+                            x.staged_value_fp8, cache.key, cache.value,
+                            w.key_cache_scale_bf16,
+                            w.value_cache_scale_bf16, attention_bf16,
+                            start_position, tokens, t.query_heads, t.kv_heads,
+                            t.head_dimension, cache.capacity, stream));
   if (!status.ok()) return status;
-  status = LaunchAppendKvFp8Batch(
-      x.staged_key_fp8, x.staged_value_fp8, cache.key, cache.value,
-      start_position, tokens, kv_elements, cache.capacity, stream);
-  if (!status.ok()) return status;
+  if (!prepared_global) {
+    status = LaunchAppendKvFp8Batch(
+        x.staged_key_fp8, x.staged_value_fp8, cache.key, cache.value,
+        start_position, tokens, kv_elements, cache.capacity, stream);
+    if (!status.ok()) return status;
+  }
   status = LaunchFp8ReferenceTokenQuantizationBf16Batch(
       attention_bf16, x.output_fp8, x.output_scale, tokens, q_elements,
       stream);

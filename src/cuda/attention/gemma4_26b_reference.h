@@ -61,6 +61,12 @@ struct Gemma4Moe26BAttentionReferenceWorkspace {
   // attention layer has completed on the same stream.
   void* cutlass_workspace = nullptr;
   std::size_t cutlass_workspace_bytes = 0U;
+  // Prompt-only, lifetime-aliased staging for the <=16K global-attention
+  // path. The physical cache remains FP8; these buffers hold one layer's
+  // exact BF16 dequantization only while that layer's attention is live.
+  std::uint16_t* global_key_bf16 = nullptr;
+  std::uint16_t* global_value_bf16 = nullptr;
+  std::uint64_t global_bf16_capacity = 0U;
 };
 
 struct Gemma4Moe26BKvCacheView {

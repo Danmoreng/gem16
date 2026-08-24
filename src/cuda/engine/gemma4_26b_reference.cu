@@ -43,6 +43,7 @@ constexpr std::uint32_t kTopK = 8U;
 constexpr std::uint64_t kLayers = 30U;
 constexpr std::uint64_t kMaximumContextTokens = 262144U;
 constexpr std::uint64_t kPrefillMaxTokens = 1024U;
+constexpr std::uint64_t kPreparedGlobalPrefillTokens = 16384U;
 // The native online SM120 attention path never materializes a score slab.
 // Keep one validated sentinel element because the shared workspace contract
 // still requires a non-null pointer, and spend the reclaimed 64 MiB on larger
@@ -896,38 +897,61 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
     // Attention and MoE execute in-order on impl->stream. Build both phase
     // layouts from the persistent token/hidden prefix so their temporary
     // regions physically alias without overlapping live values.
-    LayoutBuilder attention = prefill;
+    // Query-normalized rows stay live through attention. All projection
+    // temporaries are dead by then, while prepared global K/V are dead before
+    // output quantization. Model those three phases explicitly so the <=16K
+    // BF16 staging does not increase the fixed M09 workspace.
+    LayoutBuilder attention_common = prefill;
+    const auto p_scores =
+        attention_common.Add<float>(kPrefillScoreElements);
+    const auto p_q_norm = attention_common.Add<float>(
+        kPrefillMaxTokens * 16U * 512U);
+
+    LayoutBuilder attention_projection = attention_common;
     const auto p_input_fp8 =
-        attention.Add<std::uint8_t>(kPrefillMaxTokens * kWidth);
-    const auto p_input_scale = attention.Add<float>(kPrefillMaxTokens);
+        attention_projection.Add<std::uint8_t>(kPrefillMaxTokens * kWidth);
+    const auto p_input_scale =
+        attention_projection.Add<float>(kPrefillMaxTokens);
     const auto p_q_raw =
-        attention.Add<std::uint16_t>(kPrefillMaxTokens * 16U * 512U);
+        attention_projection.Add<std::uint16_t>(kPrefillMaxTokens * 16U * 512U);
     const auto p_k_raw =
-        attention.Add<std::uint16_t>(kPrefillMaxTokens * 2048U);
+        attention_projection.Add<std::uint16_t>(kPrefillMaxTokens * 2048U);
     const auto p_v_raw =
-        attention.Add<std::uint16_t>(kPrefillMaxTokens * 2048U);
-    const auto p_q_norm =
-        attention.Add<float>(kPrefillMaxTokens * 16U * 512U);
+        attention_projection.Add<std::uint16_t>(kPrefillMaxTokens * 2048U);
     const auto p_k_norm =
-        attention.Add<float>(kPrefillMaxTokens * 2048U);
+        attention_projection.Add<float>(kPrefillMaxTokens * 2048U);
     const auto p_v_norm =
-        attention.Add<float>(kPrefillMaxTokens * 2048U);
-    const auto p_cosine = attention.Add<float>(kPrefillMaxTokens * 256U);
-    const auto p_sine = attention.Add<float>(kPrefillMaxTokens * 256U);
+        attention_projection.Add<float>(kPrefillMaxTokens * 2048U);
+    const auto p_cosine =
+        attention_projection.Add<float>(kPrefillMaxTokens * 256U);
+    const auto p_sine =
+        attention_projection.Add<float>(kPrefillMaxTokens * 256U);
     const auto p_staged_k =
-        attention.Add<std::uint8_t>(kPrefillMaxTokens * 2048U);
+        attention_projection.Add<std::uint8_t>(kPrefillMaxTokens * 2048U);
     const auto p_staged_v =
-        attention.Add<std::uint8_t>(kPrefillMaxTokens * 2048U);
-    const auto p_scores = attention.Add<float>(kPrefillScoreElements);
-    const auto p_attention =
-        attention.Add<std::uint16_t>(kPrefillMaxTokens * 16U * 512U);
-    const auto p_output_fp8 =
-        attention.Add<std::uint8_t>(kPrefillMaxTokens * 16U * 512U);
-    const auto p_output_scale = attention.Add<float>(kPrefillMaxTokens);
-    const auto p_output_projection =
-        attention.Add<float>(kPrefillMaxTokens * kWidth);
-    const auto p_cutlass_workspace = attention.Add<std::byte>(
+        attention_projection.Add<std::uint8_t>(kPrefillMaxTokens * 2048U);
+    const auto p_cutlass_workspace = attention_projection.Add<std::byte>(
         kGemma4Moe26BAttentionCutlassWorkspaceBytes);
+
+    LayoutBuilder attention_prepared = attention_common;
+    const auto p_global_key_bf16 = attention_prepared.Add<std::uint16_t>(
+        kPreparedGlobalPrefillTokens * 2U * 512U);
+    const auto p_global_value_bf16 = attention_prepared.Add<std::uint16_t>(
+        kPreparedGlobalPrefillTokens * 2U * 512U);
+    const auto p_attention = attention_prepared.Add<std::uint16_t>(
+        kPrefillMaxTokens * 16U * 512U);
+
+    LayoutBuilder attention_post = attention_common;
+    const auto p_output_fp8 =
+        attention_post.Add<std::uint8_t>(kPrefillMaxTokens * 16U * 512U);
+    const auto p_output_scale =
+        attention_post.Add<float>(kPrefillMaxTokens);
+    const auto p_output_projection =
+        attention_post.Add<float>(kPrefillMaxTokens * kWidth);
+    LayoutBuilder attention = attention_projection;
+    attention.bytes = std::max(
+        {attention_projection.bytes, attention_prepared.bytes,
+         attention_post.bytes});
 
     LayoutBuilder moe = prefill;
     const auto p_router_logits =
@@ -1007,6 +1031,12 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
         nullptr,
         static_cast<void*>(pptr(p_cutlass_workspace)),
         kGemma4Moe26BAttentionCutlassWorkspaceBytes};
+    impl->prefill_attention_workspace.global_key_bf16 =
+        reinterpret_cast<std::uint16_t*>(pptr(p_global_key_bf16));
+    impl->prefill_attention_workspace.global_value_bf16 =
+        reinterpret_cast<std::uint16_t*>(pptr(p_global_value_bf16));
+    impl->prefill_attention_workspace.global_bf16_capacity =
+        kPreparedGlobalPrefillTokens;
     impl->prefill_moe_workspace = {
         reinterpret_cast<float*>(pptr(p_router_logits)),
         reinterpret_cast<float*>(pptr(p_router_probabilities)),

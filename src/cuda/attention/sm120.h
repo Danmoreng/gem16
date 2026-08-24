@@ -38,6 +38,18 @@ struct DecodeControl;
     std::uint64_t head_dimension, std::uint64_t cache_capacity,
     cudaStream_t stream);
 
+[[nodiscard]] Status LaunchOnlineCausalAttentionPrefillFp8GlobalPreparedSm120(
+    const float* query, const std::uint8_t* chunk_key,
+    const std::uint8_t* chunk_value, const std::uint8_t* key_cache,
+    const std::uint8_t* value_cache, const std::uint16_t* key_scale_bf16,
+    const std::uint16_t* value_scale_bf16,
+    std::uint16_t* prepared_key_bf16,
+    std::uint16_t* prepared_value_bf16, std::uint16_t* output_bf16,
+    std::uint64_t start_position, std::uint64_t tokens,
+    std::uint64_t query_heads, std::uint64_t kv_heads,
+    std::uint64_t head_dimension, std::uint64_t cache_capacity,
+    std::uint64_t prepared_capacity, cudaStream_t stream);
+
 // Product-shape batch-one decode attention over the checkpoint's physical
 // E4M3 K/V cache. Token ranges are split across CTAs; each CTA computes a
 // normalized partial output and FP32 log-sum-exp state without materializing

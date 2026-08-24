@@ -306,6 +306,95 @@ __device__ __forceinline__ void ConvertGlobalFp8Value(
 }
 
 template <int KvHeads>
+__global__ void PrepareGlobalBf16KvKernel(
+    const std::uint8_t* chunk_key, const std::uint8_t* chunk_value,
+    const std::uint8_t* key_cache, const std::uint8_t* value_cache,
+    const std::uint16_t* key_scale_bf16,
+    const std::uint16_t* value_scale_bf16, __nv_bfloat16* prepared_key,
+    __nv_bfloat16* prepared_value, int start_position, int tokens) {
+  const std::uint64_t total_tokens =
+      static_cast<std::uint64_t>(start_position) + tokens;
+  const std::uint64_t elements =
+      total_tokens * KvHeads * kGlobalHeadDimension;
+  const std::uint64_t index =
+      static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+  if (index >= elements) return;
+  const std::uint64_t token =
+      index / (KvHeads * kGlobalHeadDimension);
+  const std::uint64_t row_offset =
+      index - token * KvHeads * kGlobalHeadDimension;
+  const bool in_chunk = token >= static_cast<std::uint64_t>(start_position);
+  const std::uint64_t source_token =
+      in_chunk ? token - start_position : token;
+  const std::uint64_t source_index =
+      source_token * KvHeads * kGlobalHeadDimension + row_offset;
+  const std::uint8_t* key_source = in_chunk ? chunk_key : key_cache;
+  const std::uint8_t* value_source = in_chunk ? chunk_value : value_cache;
+  const float key_scale =
+      static_cast<float>(__ushort_as_bfloat16(key_scale_bf16[0]));
+  const float value_scale =
+      static_cast<float>(__ushort_as_bfloat16(value_scale_bf16[0]));
+  prepared_key[index] = __float2bfloat16_rn(
+      DecodeFp8(key_source[source_index], key_scale));
+  prepared_value[index] = __float2bfloat16_rn(
+      DecodeFp8(value_source[source_index], value_scale));
+}
+
+template <int KvHeads>
+__device__ __forceinline__ void StageGlobalBf16KeyAsync(
+    __nv_bfloat16* destination, const __nv_bfloat16* source,
+    int key_start, int max_query_position, int kv_head, int thread) {
+  constexpr int kElementsPerVector = 8;
+  constexpr int kVectorsPerRow = kGlobalHeadDimension / kElementsPerVector;
+  for (int chunk_index = thread;
+       chunk_index < kGlobalKeyColumns * kVectorsPerRow;
+       chunk_index += kGlobalThreads) {
+    const int row = chunk_index / kVectorsPerRow;
+    const int dimension =
+        (chunk_index % kVectorsPerRow) * kElementsPerVector;
+    const int absolute_key = key_start + row;
+    const bool valid = absolute_key <= max_query_position;
+    CopyAsync16(
+        destination + row * kGlobalHeadDimension + Swizzle(row, dimension),
+        source +
+            (static_cast<std::uint64_t>(valid ? absolute_key : 0) * KvHeads +
+             kv_head) *
+                kGlobalHeadDimension +
+            dimension,
+        valid ? 16 : 0);
+  }
+}
+
+template <int KvHeads>
+__device__ __forceinline__ void StageGlobalBf16ValueAsync(
+    __nv_bfloat16* destination, const __nv_bfloat16* source,
+    int key_start, int max_query_position, int kv_head, int thread) {
+  constexpr int kElementsPerVector = 8;
+  constexpr int kVectorsPerRow = kGlobalHeadDimension / kElementsPerVector;
+  for (int chunk_index = thread;
+       chunk_index < kGlobalKeyColumns * kVectorsPerRow;
+       chunk_index += kGlobalThreads) {
+    const int row = chunk_index / kVectorsPerRow;
+    const int dimension =
+        (chunk_index % kVectorsPerRow) * kElementsPerVector;
+    const int output_half = dimension / kGlobalOutputHalf;
+    const int half_dimension = dimension % kGlobalOutputHalf;
+    const int absolute_key = key_start + row;
+    const bool valid = absolute_key <= max_query_position;
+    CopyAsync16(
+        destination +
+            (output_half * kGlobalKeyColumns + row) * kGlobalOutputHalf +
+            Swizzle(row, half_dimension),
+        source +
+            (static_cast<std::uint64_t>(valid ? absolute_key : 0) * KvHeads +
+             kv_head) *
+                kGlobalHeadDimension +
+            dimension,
+        valid ? 16 : 0);
+  }
+}
+
+template <int KvHeads, bool kPrepared>
 __launch_bounds__(kGlobalThreads, 1) __global__
     void OnlineGlobalAttentionFp8Kernel(
         const float* __restrict__ query,
@@ -324,9 +413,11 @@ __launch_bounds__(kGlobalThreads, 1) __global__
       query_shared + kGlobalQueryHeadsPerBlock * kGlobalQueryRows *
                          kGlobalHeadDimension;
   __nv_bfloat16* key_shared = operand_shared;
-  __nv_bfloat16* value_shared = operand_shared;
+  __nv_bfloat16* value_shared =
+      operand_shared + (kPrepared ? kGlobalOperandElements : 0);
   std::uint8_t* raw_shared = reinterpret_cast<std::uint8_t*>(
-      operand_shared + kGlobalOperandElements);
+      operand_shared + (kPrepared ? 2 * kGlobalOperandElements
+                                  : kGlobalOperandElements));
 
   const int query_block = static_cast<int>(blockIdx.x);
   const int query_head_base =
@@ -405,22 +496,36 @@ __launch_bounds__(kGlobalThreads, 1) __global__
   const float value_scale =
       static_cast<float>(__ushort_as_bfloat16(value_scale_bf16[0]));
 
-  StageGlobalFp8RawAsync<KvHeads>(
-      raw_shared, chunk_key, key_cache, 0, max_query_position,
-      start_position, kv_head, thread);
+  if constexpr (kPrepared) {
+    StageGlobalBf16KeyAsync<KvHeads>(
+        key_shared, reinterpret_cast<const __nv_bfloat16*>(key_cache), 0,
+        max_query_position, kv_head, thread);
+  } else {
+    StageGlobalFp8RawAsync<KvHeads>(
+        raw_shared, chunk_key, key_cache, 0, max_query_position,
+        start_position, kv_head, thread);
+  }
   CommitAsyncCopies();
   WaitForAsyncCopies();
   __syncthreads();
-  ConvertGlobalFp8Key(key_shared, raw_shared, key_scale, thread);
-  __syncthreads();
+  if constexpr (!kPrepared) {
+    ConvertGlobalFp8Key(key_shared, raw_shared, key_scale, thread);
+    __syncthreads();
+  }
 
   for (int key_block = 0; key_block < key_block_count; ++key_block) {
     const int key_start = key_block * kGlobalKeyColumns;
     const int current_raw = key_block & 1;
     const int next_raw = current_raw ^ 1;
-    StageGlobalFp8RawAsync<KvHeads>(
-        raw_shared + current_raw * kGlobalRawBytes, chunk_value, value_cache,
-        key_start, max_query_position, start_position, kv_head, thread);
+    if constexpr (kPrepared) {
+      StageGlobalBf16ValueAsync<KvHeads>(
+          value_shared, reinterpret_cast<const __nv_bfloat16*>(value_cache),
+          key_start, max_query_position, kv_head, thread);
+    } else {
+      StageGlobalFp8RawAsync<KvHeads>(
+          raw_shared + current_raw * kGlobalRawBytes, chunk_value, value_cache,
+          key_start, max_query_position, start_position, kv_head, thread);
+    }
     CommitAsyncCopies();
 
     float scores[kGlobalScoreTiles][4];
@@ -593,17 +698,26 @@ __launch_bounds__(kGlobalThreads, 1) __global__
 
     WaitForAsyncCopies();
     __syncthreads();
-    ConvertGlobalFp8Value(
-        value_shared, raw_shared + current_raw * kGlobalRawBytes,
-        value_scale, thread);
-    __syncthreads();
+    if constexpr (!kPrepared) {
+      ConvertGlobalFp8Value(
+          value_shared, raw_shared + current_raw * kGlobalRawBytes,
+          value_scale, thread);
+      __syncthreads();
+    }
 
     const bool has_next_key = key_block + 1 < key_block_count;
     if (has_next_key) {
-      StageGlobalFp8RawAsync<KvHeads>(
-          raw_shared + next_raw * kGlobalRawBytes, chunk_key, key_cache,
-          key_start + kGlobalKeyColumns, max_query_position, start_position,
-          kv_head, thread);
+      if constexpr (kPrepared) {
+        StageGlobalBf16KeyAsync<KvHeads>(
+            key_shared, reinterpret_cast<const __nv_bfloat16*>(key_cache),
+            key_start + kGlobalKeyColumns, max_query_position, kv_head,
+            thread);
+      } else {
+        StageGlobalFp8RawAsync<KvHeads>(
+            raw_shared + next_raw * kGlobalRawBytes, chunk_key, key_cache,
+            key_start + kGlobalKeyColumns, max_query_position, start_position,
+            kv_head, thread);
+      }
       CommitAsyncCopies();
     }
 
@@ -647,10 +761,12 @@ __launch_bounds__(kGlobalThreads, 1) __global__
     if (has_next_key) {
       WaitForAsyncCopies();
       __syncthreads();
-      ConvertGlobalFp8Key(
-          key_shared, raw_shared + next_raw * kGlobalRawBytes, key_scale,
-          thread);
-      __syncthreads();
+      if constexpr (!kPrepared) {
+        ConvertGlobalFp8Key(
+            key_shared, raw_shared + next_raw * kGlobalRawBytes, key_scale,
+            thread);
+        __syncthreads();
+      }
     }
   }
 
@@ -726,13 +842,13 @@ Status LaunchOnlineCausalAttentionPrefillFp8GlobalSm120(
   const dim3 grid(static_cast<unsigned>(query_blocks),
                   kGlobalQueryHeads / kGlobalQueryHeadsPerBlock);
   if (kv_heads == 1U) {
-    OnlineGlobalAttentionFp8Kernel<1><<<grid, kGlobalThreads, 0, stream>>>(
+    OnlineGlobalAttentionFp8Kernel<1, false><<<grid, kGlobalThreads, 0, stream>>>(
         query, chunk_key, chunk_value, key_cache, value_cache,
         key_scale_bf16, value_scale_bf16, output_bf16,
         static_cast<int>(start_position), static_cast<int>(tokens),
         static_cast<int>(cache_capacity));
   } else {
-    OnlineGlobalAttentionFp8Kernel<2><<<grid, kGlobalThreads, 0, stream>>>(
+    OnlineGlobalAttentionFp8Kernel<2, false><<<grid, kGlobalThreads, 0, stream>>>(
         query, chunk_key, chunk_value, key_cache, value_cache,
         key_scale_bf16, value_scale_bf16, output_bf16,
         static_cast<int>(start_position), static_cast<int>(tokens),
@@ -742,6 +858,71 @@ Status LaunchOnlineCausalAttentionPrefillFp8GlobalSm120(
   return error == cudaSuccess
              ? Status::Ok()
              : CudaFailure("launch online global FP8 prefill attention", error);
+}
+
+Status LaunchOnlineCausalAttentionPrefillFp8GlobalPreparedSm120(
+    const float* query, const std::uint8_t* chunk_key,
+    const std::uint8_t* chunk_value, const std::uint8_t* key_cache,
+    const std::uint8_t* value_cache, const std::uint16_t* key_scale_bf16,
+    const std::uint16_t* value_scale_bf16,
+    std::uint16_t* prepared_key_bf16,
+    std::uint16_t* prepared_value_bf16, std::uint16_t* output_bf16,
+    std::uint64_t start_position, std::uint64_t tokens,
+    std::uint64_t query_heads, std::uint64_t kv_heads,
+    std::uint64_t head_dimension, std::uint64_t cache_capacity,
+    std::uint64_t prepared_capacity, cudaStream_t stream) {
+  if (query == nullptr || chunk_key == nullptr || chunk_value == nullptr ||
+      key_cache == nullptr || value_cache == nullptr ||
+      key_scale_bf16 == nullptr || value_scale_bf16 == nullptr ||
+      prepared_key_bf16 == nullptr || prepared_value_bf16 == nullptr ||
+      output_bf16 == nullptr || tokens == 0U ||
+      query_heads != kGlobalQueryHeads || kv_heads != 2U ||
+      head_dimension != kGlobalHeadDimension || cache_capacity == 0U ||
+      tokens > std::numeric_limits<std::uint64_t>::max() - start_position) {
+    return Invalid("prepared global FP8 prefill attention arguments are invalid");
+  }
+  const std::uint64_t total_tokens = start_position + tokens;
+  if (total_tokens > cache_capacity || total_tokens > prepared_capacity ||
+      total_tokens > static_cast<std::uint64_t>(std::numeric_limits<int>::max())) {
+    return Invalid("prepared global FP8 prefill attention arguments are invalid");
+  }
+  const std::uint64_t kv_elements =
+      total_tokens * kv_heads * head_dimension;
+  constexpr unsigned kPrepareThreads = 256U;
+  const std::uint64_t prepare_blocks =
+      (kv_elements + kPrepareThreads - 1U) / kPrepareThreads;
+  if (prepare_blocks >
+      static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
+    return Invalid("prepared global FP8 prefill grid exceeds CUDA limits");
+  }
+  PrepareGlobalBf16KvKernel<2><<<static_cast<unsigned>(prepare_blocks),
+                                      kPrepareThreads, 0, stream>>>(
+      chunk_key, chunk_value, key_cache, value_cache, key_scale_bf16,
+      value_scale_bf16,
+      reinterpret_cast<__nv_bfloat16*>(prepared_key_bf16),
+      reinterpret_cast<__nv_bfloat16*>(prepared_value_bf16),
+      static_cast<int>(start_position), static_cast<int>(tokens));
+  cudaError_t error = cudaGetLastError();
+  if (error != cudaSuccess) {
+    return CudaFailure("prepare global BF16 K/V staging", error);
+  }
+  const std::uint64_t query_blocks =
+      (tokens + static_cast<std::uint64_t>(kGlobalQueryRows) - 1U) /
+      static_cast<std::uint64_t>(kGlobalQueryRows);
+  const dim3 grid(static_cast<unsigned>(query_blocks),
+                  kGlobalQueryHeads / kGlobalQueryHeadsPerBlock);
+  OnlineGlobalAttentionFp8Kernel<2, true><<<grid, kGlobalThreads, 0, stream>>>(
+      query, nullptr, nullptr,
+      reinterpret_cast<const std::uint8_t*>(prepared_key_bf16),
+      reinterpret_cast<const std::uint8_t*>(prepared_value_bf16),
+      key_scale_bf16, value_scale_bf16, output_bf16,
+      static_cast<int>(start_position), static_cast<int>(tokens),
+      static_cast<int>(cache_capacity));
+  error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("launch prepared global FP8 prefill attention",
+                           error);
 }
 
 

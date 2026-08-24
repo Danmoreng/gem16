@@ -3796,6 +3796,9 @@ void RunOnlineGlobalFp8CausalPrefill(std::uint64_t kv_heads,
   DeviceBuffer<float> device_scores(tokens * query_heads * score_stride);
   DeviceBuffer<float> device_reference_output(queries.size());
   DeviceBuffer<std::uint16_t> device_online_output(queries.size());
+  DeviceBuffer<std::uint16_t> device_prepared_key(capacity * kv_elements);
+  DeviceBuffer<std::uint16_t> device_prepared_value(capacity * kv_elements);
+  DeviceBuffer<std::uint16_t> device_prepared_output(queries.size());
   if (device_queries.get() == nullptr ||
       device_chunk_keys.get() == nullptr ||
       device_chunk_values.get() == nullptr ||
@@ -3804,7 +3807,10 @@ void RunOnlineGlobalFp8CausalPrefill(std::uint64_t kv_heads,
       device_key_scale.get() == nullptr ||
       device_value_scale.get() == nullptr || device_scores.get() == nullptr ||
       device_reference_output.get() == nullptr ||
-      device_online_output.get() == nullptr) {
+      device_online_output.get() == nullptr ||
+      device_prepared_key.get() == nullptr ||
+      device_prepared_value.get() == nullptr ||
+      device_prepared_output.get() == nullptr) {
     return;
   }
   if (!CudaOk(cudaMemcpy(device_queries.get(), queries.data(),
@@ -3847,15 +3853,39 @@ void RunOnlineGlobalFp8CausalPrefill(std::uint64_t kv_heads,
           device_value_scale.get(), device_online_output.get(),
           start_position, tokens, query_heads, kv_heads, head_dimension,
           capacity, nullptr);
+  const auto prepared = kv_heads == 2U
+      ? gem16::internal::LaunchOnlineCausalAttentionPrefillFp8GlobalPreparedSm120(
+            device_queries.get(), device_chunk_keys.get(),
+            device_chunk_values.get(), device_cache_keys.get(),
+            device_cache_values.get(), device_key_scale.get(),
+            device_value_scale.get(), device_prepared_key.get(),
+            device_prepared_value.get(), device_prepared_output.get(),
+            start_position, tokens, query_heads, kv_heads, head_dimension,
+            capacity, capacity, nullptr)
+      : gem16::Status::Ok();
+  const auto insufficient_prepared_capacity = kv_heads == 2U
+      ? gem16::internal::LaunchOnlineCausalAttentionPrefillFp8GlobalPreparedSm120(
+            device_queries.get(), device_chunk_keys.get(),
+            device_chunk_values.get(), device_cache_keys.get(),
+            device_cache_values.get(), device_key_scale.get(),
+            device_value_scale.get(), device_prepared_key.get(),
+            device_prepared_value.get(), device_prepared_output.get(),
+            start_position, tokens, query_heads, kv_heads, head_dimension,
+            capacity, start_position + tokens - 1U, nullptr)
+      : gem16::Status(gem16::StatusCode::kInvalidArgument,
+                      "prepared path is unavailable for KVH1");
   CUDA_TEST_CHECK(reference.ok());
   CUDA_TEST_CHECK(online.ok());
-  if (!reference.ok() || !online.ok() ||
+  CUDA_TEST_CHECK(prepared.ok());
+  CUDA_TEST_CHECK(!insufficient_prepared_capacity.ok());
+  if (!reference.ok() || !online.ok() || !prepared.ok() ||
       !CudaOk(cudaDeviceSynchronize(), "global online-prefill synchronize")) {
     return;
   }
 
   std::vector<float> reference_output(queries.size());
   std::vector<std::uint16_t> online_bits(queries.size());
+  std::vector<std::uint16_t> prepared_bits(queries.size());
   std::vector<float> online_output(queries.size());
   if (!CudaOk(cudaMemcpy(reference_output.data(),
                          device_reference_output.get(),
@@ -3865,8 +3895,22 @@ void RunOnlineGlobalFp8CausalPrefill(std::uint64_t kv_heads,
       !CudaOk(cudaMemcpy(online_bits.data(), device_online_output.get(),
                          device_online_output.bytes(),
                          cudaMemcpyDeviceToHost),
-              "copy global online-prefill tensor-core output")) {
+              "copy global online-prefill tensor-core output") ||
+      (kv_heads == 2U &&
+       !CudaOk(cudaMemcpy(prepared_bits.data(), device_prepared_output.get(),
+                         device_prepared_output.bytes(),
+                         cudaMemcpyDeviceToHost),
+               "copy prepared global online-prefill output"))) {
     return;
+  }
+  if (kv_heads == 2U) {
+    std::size_t mismatches = 0U;
+    for (std::size_t index = 0U; index < online_bits.size(); ++index) {
+      mismatches += online_bits[index] != prepared_bits[index] ? 1U : 0U;
+    }
+    std::cout << "prepared global KVH2 exact BF16 mismatches=" << mismatches
+              << '/' << online_bits.size() << '\n';
+    CUDA_TEST_CHECK(mismatches == 0U);
   }
   std::transform(online_bits.begin(), online_bits.end(), online_output.begin(),
                  Bf16FromBits);

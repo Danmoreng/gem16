@@ -9,9 +9,9 @@ non-blocking competitive stretch target. The row remains batch one with the exac
 forwards, 63 timed decode intervals, FP8 KV, native CUDA Graph replay and MTP/speculative decode, prompt cache,
 offload, fallback and recurring allocation disabled. Existing timing boundaries and model semantics remain fixed.
 
-The current adjacent Gem16 development candidate averages 5,526.149 prompt and 138.934 ordinary-decode token/s.
-Reaching the hard targets therefore requires approximately +8.57% prompt throughput and +7.96% decode throughput;
-the prompt stretch requires approximately +17.62%. The motivating vLLM 0.27.1 community-W4A16 graph observation is
+The current adjacent Gem16 development candidate averages 5,595.826 prompt and 138.826 ordinary-decode token/s.
+Reaching the hard targets therefore requires approximately +7.22% prompt throughput and +8.05% decode throughput;
+the prompt stretch requires approximately +16.16%. The motivating vLLM 0.27.1 community-W4A16 graph observation is
 6,475.795 prompt and 149.348 decode token/s, but that checkpoint and its prefill timing boundary differ. It is a
 directional engineering reference, not a numerical parity or acceptance oracle. Its compact evidence is
 `benchmarks/baselines/vllm/gemma4-26b-w4a16-wikipedia-16k64-characterization.json`.
@@ -40,6 +40,15 @@ token/expert thread retains the original serial 32-FMA order. Two adjacent runs 
 tok/s (mean 5,526.149, +2.14%) and 138.930/138.939 decode tok/s with the same accepted hash and memory/runtime
 facts. Full CTest/CUDA and MoE memcheck/racecheck pass. Compact evidence is
 `artifacts/m20/optimization-router-token-tile8.json`.
+
+The latest exact global-attention step dequantizes the physical FP8 K/V cache once per global layer and prompt chunk
+into lifetime-aliased BF16 staging for total positions up to 16,384. The existing BF16 MMA and online-softmax order
+are unchanged, and larger contexts retain the original FP8 staging path. Two adjacent runs measure
+5,595.791/5,595.862 prompt tok/s (mean 5,595.826, +1.26%) and 138.817/138.834 decode tok/s. The prepared and original
+operator paths are bit-exact over 262,144 randomized output elements; the accepted end-to-end hash, finite logits,
+native dispatch, zero fallbacks and zero recurring allocations are preserved. Targeted memcheck/racecheck are clean,
+while an unfiltered memcheck still encounters the pre-existing MTP system-atomic diagnostic in
+`AdvanceMtpD2ChainKernel`. Compact evidence is `artifacts/m20/optimization-prepared-global-kv.json`.
 
 ## 2026-08-23 Bounded 26B optimization checkpoint
 
