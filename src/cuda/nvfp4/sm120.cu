@@ -44,6 +44,10 @@ bool PositiveFinite(float value) {
   return std::isfinite(value) && value > 0.0F;
 }
 
+bool Aligned16(const void* pointer) {
+  return reinterpret_cast<std::uintptr_t>(pointer) % alignof(uint4) == 0U;
+}
+
 __device__ __forceinline__ std::uint32_t LoadU32(const std::uint8_t* source) {
   return *reinterpret_cast<const std::uint32_t*>(source);
 }
@@ -781,7 +785,7 @@ __global__ void Sm120GroupedExpertMatrixKernel(
   const std::uint64_t row_tiles = rows / kRowsPerWarp;
   const std::uint64_t first_row_tile =
       logical_warp * kGroupedRowTilesPerWarp;
-  if (first_row_tile >= row_tiles) return;
+  const bool active_warp = first_row_tile < row_tiles;
 
   const std::uint64_t k_blocks =
       contracting_elements / kElementsPerKBlock;
@@ -798,64 +802,76 @@ __global__ void Sm120GroupedExpertMatrixKernel(
   const std::uint32_t grouped_low = grouped_base + group;
   const std::uint32_t grouped_high = grouped_low + 8U;
 
-  for (std::uint64_t k_block = 0; k_block < k_blocks; ++k_block) {
-    std::uint32_t activation_rows[2] = {grouped_low, grouped_high};
-    bool valid[2] = {grouped_low < grouped_end,
-                     grouped_high < grouped_end};
+  __shared__ alignas(16) uint4 staged_activation[16][2];
+  __shared__ std::uint32_t staged_activation_scales[16];
+  __shared__ std::uint32_t staged_activation_rows[16];
+  __shared__ std::uint32_t staged_activation_valid[16];
+  if (threadIdx.x < 16U) {
+    const std::uint32_t grouped = grouped_base + threadIdx.x;
+    std::uint32_t activation_row = grouped;
+    bool valid = grouped < grouped_end;
     if constexpr (kFusedGateUp) {
-#pragma unroll
-      for (unsigned half = 0; half < 2U; ++half) {
-        if (valid[half]) {
-          const std::uint32_t original = permutation[activation_rows[half]];
-          if (original >= assignment_count ||
-              assignments[original].expert_id != expert) {
-            valid[half] = false;
-          } else {
-            activation_rows[half] = assignments[original].token_id;
-          }
+      if (valid) {
+        const std::uint32_t original = permutation[grouped];
+        if (original >= assignment_count ||
+            assignments[original].expert_id != expert) {
+          valid = false;
+        } else {
+          activation_row = assignments[original].token_id;
         }
       }
     }
+    staged_activation_rows[threadIdx.x] = activation_row;
+    staged_activation_valid[threadIdx.x] = valid ? 1U : 0U;
+  }
+  __syncthreads();
 
-    const std::uint64_t k_offset =
-        k_block * 32U + static_cast<std::uint64_t>(thread_in_group) * 4U;
-    const std::uint32_t a0 = valid[0]
-        ? LoadU32(packed_activation_e2m1 +
-                  static_cast<std::uint64_t>(activation_rows[0]) *
-                      packed_row_bytes +
-                  k_offset)
-        : 0U;
-    const std::uint32_t a1 = valid[1]
-        ? LoadU32(packed_activation_e2m1 +
-                  static_cast<std::uint64_t>(activation_rows[1]) *
-                      packed_row_bytes +
-                  k_offset)
-        : 0U;
-    const std::uint32_t a2 = valid[0]
-        ? LoadU32(packed_activation_e2m1 +
-                  static_cast<std::uint64_t>(activation_rows[0]) *
-                      packed_row_bytes +
-                  k_offset + 16U)
-        : 0U;
-    const std::uint32_t a3 = valid[1]
-        ? LoadU32(packed_activation_e2m1 +
-                  static_cast<std::uint64_t>(activation_rows[1]) *
-                      packed_row_bytes +
-                  k_offset + 16U)
-        : 0U;
-    std::uint32_t scale_a = 0U;
-    if (thread_in_group < 2U && valid[thread_in_group]) {
-      scale_a = LoadU32(
-          activation_scales_e4m3fn +
-          static_cast<std::uint64_t>(activation_rows[thread_in_group]) *
-              scale_row_bytes +
-          k_block * 4U);
+  for (std::uint64_t k_block = 0; k_block < k_blocks; ++k_block) {
+    if (threadIdx.x < 32U) {
+      const unsigned activation_index = threadIdx.x >> 1U;
+      const unsigned half = threadIdx.x & 1U;
+      uint4 value = make_uint4(0U, 0U, 0U, 0U);
+      if (staged_activation_valid[activation_index] != 0U) {
+        const std::uint64_t activation_row =
+            staged_activation_rows[activation_index];
+        // Grouped launch validation guarantees a 16-byte base; K64 makes
+        // both the packed row stride and every k_block offset 16-byte aligned.
+        value = reinterpret_cast<const uint4*>(
+            packed_activation_e2m1 + activation_row * packed_row_bytes +
+            k_block * 32U)[half];
+      }
+      staged_activation[activation_index][half] = value;
     }
+    if (threadIdx.x < 16U) {
+      std::uint32_t scale = 0U;
+      if (staged_activation_valid[threadIdx.x] != 0U) {
+        scale = LoadU32(
+            activation_scales_e4m3fn +
+            static_cast<std::uint64_t>(
+                staged_activation_rows[threadIdx.x]) *
+                scale_row_bytes +
+            k_block * 4U);
+      }
+      staged_activation_scales[threadIdx.x] = scale;
+    }
+    __syncthreads();
+
+    const auto* low_words = reinterpret_cast<const std::uint32_t*>(
+        staged_activation[group]);
+    const auto* high_words = reinterpret_cast<const std::uint32_t*>(
+        staged_activation[group + 8U]);
+    const std::uint32_t a0 = low_words[thread_in_group];
+    const std::uint32_t a1 = high_words[thread_in_group];
+    const std::uint32_t a2 = low_words[thread_in_group + 4U];
+    const std::uint32_t a3 = high_words[thread_in_group + 4U];
+    const std::uint32_t scale_a = thread_in_group < 2U
+        ? staged_activation_scales[group + thread_in_group * 8U]
+        : 0U;
 
 #pragma unroll
     for (std::uint64_t row_tile = 0U;
          row_tile < kGroupedRowTilesPerWarp; ++row_tile) {
-      if (first_row_tile + row_tile >= row_tiles) continue;
+      if (!active_warp || first_row_tile + row_tile >= row_tiles) continue;
       const std::uint64_t tile_first_weight_row =
           first_weight_row + row_tile * kRowsPerWarp;
       const std::uint64_t weight_offset =
@@ -894,6 +910,7 @@ __global__ void Sm120GroupedExpertMatrixKernel(
                   up_b1, scale_a, up_scale_b);
       }
     }
+    __syncthreads();
   }
 
 #pragma unroll
@@ -1180,6 +1197,7 @@ Status LaunchNvfp4Sm120GroupedExpertDown(
     float activation_global_divisor, float weight_global_divisor,
     cudaStream_t stream) {
   if (grouped_product_e2m1 == nullptr ||
+      !Aligned16(grouped_product_e2m1) ||
       grouped_product_scales_e4m3fn == nullptr ||
       packed_expert_weight_e2m1 == nullptr ||
       expert_weight_scales_e4m3fn == nullptr || assignments == nullptr ||
@@ -1237,6 +1255,7 @@ Status LaunchNvfp4Sm120GroupedExpertDownBf16(
     float activation_global_divisor, float weight_global_divisor,
     cudaStream_t stream) {
   if (grouped_product_e2m1 == nullptr ||
+      !Aligned16(grouped_product_e2m1) ||
       grouped_product_scales_e4m3fn == nullptr ||
       packed_expert_weight_e2m1 == nullptr ||
       expert_weight_scales_e4m3fn == nullptr || assignments == nullptr ||
@@ -1643,6 +1662,7 @@ Status LaunchNvfp4Sm120GroupedExpertFusedGateUp(
     float activation_global_divisor, float weight_global_divisor,
     cudaStream_t stream) {
   if (token_activation_e2m1 == nullptr ||
+      !Aligned16(token_activation_e2m1) ||
       token_activation_scales_e4m3fn == nullptr ||
       packed_expert_gate_up_weight_e2m1 == nullptr ||
       expert_gate_up_weight_scales_e4m3fn == nullptr ||
@@ -1701,6 +1721,7 @@ Status LaunchNvfp4Sm120GroupedExpertFusedGateUpBf16(
     float activation_global_divisor, float weight_global_divisor,
     cudaStream_t stream) {
   if (token_activation_e2m1 == nullptr ||
+      !Aligned16(token_activation_e2m1) ||
       token_activation_scales_e4m3fn == nullptr ||
       packed_expert_gate_up_weight_e2m1 == nullptr ||
       expert_gate_up_weight_scales_e4m3fn == nullptr ||

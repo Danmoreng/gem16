@@ -9,12 +9,25 @@ non-blocking competitive stretch target. The row remains batch one with the exac
 forwards, 63 timed decode intervals, FP8 KV, native CUDA Graph replay and MTP/speculative decode, prompt cache,
 offload, fallback and recurring allocation disabled. Existing timing boundaries and model semantics remain fixed.
 
-The current adjacent Gem16 development candidate averages 5,050.918 prompt and 139.106 ordinary-decode token/s.
-Reaching the hard targets therefore requires approximately +18.79% prompt throughput and +7.83% decode throughput;
-the prompt stretch requires approximately +28.69%. The motivating vLLM 0.27.1 community-W4A16 graph observation is
+The current adjacent Gem16 development candidate averages 5,358.330 prompt and 138.863 ordinary-decode token/s.
+Reaching the hard targets therefore requires approximately +11.98% prompt throughput and +8.02% decode throughput;
+the prompt stretch requires approximately +21.31%. The motivating vLLM 0.27.1 community-W4A16 graph observation is
 6,475.795 prompt and 149.348 decode token/s, but that checkpoint and its prefill timing boundary differ. It is a
 directional engineering reference, not a numerical parity or acceptance oracle. Its compact evidence is
 `benchmarks/baselines/vllm/gemma4-26b-w4a16-wikipedia-16k64-characterization.json`.
+
+## 2026-08-24 CTA-wide grouped-expert activation staging
+
+The accepted development candidate stages each 16-assignment/K64 activation tile once per four-warp grouped-expert
+CTA instead of loading it independently in every warp. Thirty routed Gate-Up and Down layers retain their original
+weight operands, K64 MMA accumulation order and BF16 epilogues. Two adjacent exact 16K+64 runs measure
+5,357.228/5,359.433 prompt tok/s (mean 5,358.330, +6.09% over implementation parent `37eae9e`; documentation
+HEAD `11ed807`) and 138.806/138.919 ordinary-decode tok/s.
+Both preserve output-token SHA-256 `d8f0aa61ba66750bda8582861d3f42ef7022917e75b6abd3b6fac4e66ef75e89`,
+finite logits, native dispatch, zero fallbacks, zero recurring allocations and the unchanged 1,282,211,840-byte
+measured margin. All configured tests pass (three model-dependent tests skip without their external artifacts), and
+MoE memcheck/racecheck report zero errors or hazards. Compact evidence is
+`artifacts/m20/optimization-grouped-shared-activation-tile.json`; formal M20 qualification remains pending.
 
 ## 2026-08-23 Bounded 26B optimization checkpoint
 
@@ -27,14 +40,14 @@ fallbacks and zero recurring allocations. Compact evidence is in
 `artifacts/m20/optimization-physical-bf16-t1024.json` and
 `artifacts/m20/optimization-grouped-two-row-tiles.json`. Formal M20 3-warm-up/10-retained medians remain pending.
 
-A node-level CUDA-Graph diagnostic at `37eae9e` attributes the largest ordinary-decode kernel time to FP8 attention
-projections, NVFP4 routed/shared Gate-Up and Down projections, and split online attention. Raw diagnostic files are
-ignored under `artifacts/raw/perf-target/profile-decode-nodes-37eae9e.*`; they are profiling evidence, not a promoted
-benchmark result. Two bounded candidates were rejected and leave no source changes: eight NVFP4 warps per block kept
+A corrected node-level CUDA-Graph diagnostic at `11ed807` attributes the largest ordinary-decode kernel time to FP8
+attention projections, NVFP4 routed/shared Gate-Up and Down projections, and split online attention. Raw diagnostic
+files are ignored under `artifacts/raw/perf-target/profile-decode-nodes-11ed807.*`; they are profiling evidence, not
+a promoted benchmark result. The earlier `profile-decode-nodes-37eae9e` trace used a stale build and must not be
+used. Two bounded candidates were rejected and leave no source changes: eight NVFP4 warps per block kept
 the exact output but measured 139.007 decode tok/s, and a CUTLASS BF16 router prototype was unsupported by the SM120
-builder while its SM90 compatibility attempt failed to complete its first launch. The next optimization should start
-from the clean `37eae9e` kernel profile and test activation reuse/fusion in the FP8/NVFP4 direct projections before
-another canonical measurement.
+builder while its SM90 compatibility attempt failed to complete its first launch. Subsequent optimization should
+use the corrected `11ed807` decode profile and the accepted CTA-wide activation-staging candidate as its baseline.
 
 ## 2026-08-23 Gemma 4 26B ordinary-decode target characterization
 
