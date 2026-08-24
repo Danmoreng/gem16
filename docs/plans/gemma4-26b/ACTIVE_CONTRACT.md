@@ -151,9 +151,13 @@ M13 is the only early quality gate. It uses a development corpus and selected te
 
 Do not use the held-out set for quantizer tuning. Do not claim “QAT quality” from provenance alone.
 For M19, the executable paired reference is Google's pinned official QAT Q4_0
-GGUF through the pinned llama.cpp runtime. The owner explicitly removed a new
-49 GB QAT-BF16 run from this laptop's gate; accepted M10/M13 BF16 evidence is
-historical support, not a runtime prerequisite for M19.
+GGUF through the pinned llama.cpp runtime. The owner removed a broad or long
+49 GB QAT-BF16 run from M19's mandatory suite, but explicitly permits bounded
+CPU or CPU/GPU/disk-offload QAT-BF16 runs for Golden Gates and targeted
+numerical diagnosis. Such runs use an explicit memory budget, remain
+performance-ineligible, and do not enter the production runtime. Accepted
+M10/M13 BF16 evidence remains historical support rather than an M19 runtime
+prerequisite.
 
 The owner deferred M19's remaining multi-hour task and prose suite until after the current product, performance,
 context and engineering-freeze work. The already completed bounded Q4 numerical comparison remains a correctness

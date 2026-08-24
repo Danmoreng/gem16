@@ -30,6 +30,8 @@ struct Options {
   int device = 0;
   gem16::internal::Gemma4Moe26BBackend backend =
       gem16::internal::Gemma4Moe26BBackend::kReference;
+  gem16::internal::Gemma4MoePrefillRouter prefill_router =
+      gem16::internal::Gemma4MoePrefillRouter::kSerialExact;
 };
 
 bool ParseUnsigned(std::string_view text, std::uint64_t* output) {
@@ -64,6 +66,17 @@ bool Parse(int argc, char** argv, Options* options) {
       } else if (value == "sm120-moe-head") {
         options->backend =
             gem16::internal::Gemma4Moe26BBackend::kSm120MoeHead;
+      } else {
+        return false;
+      }
+    }
+    else if (key == "--prefill-router") {
+      if (value == "exact") {
+        options->prefill_router =
+            gem16::internal::Gemma4MoePrefillRouter::kSerialExact;
+      } else if (value == "tensor-core") {
+        options->prefill_router =
+            gem16::internal::Gemma4MoePrefillRouter::kSm120TensorCore;
       } else {
         return false;
       }
@@ -122,7 +135,8 @@ int main(int argc, char** argv) {
     std::cerr << "usage: gem16-26b-reference --model DIR --output JSON "
                  "--logits F32LE [--tokenizer DIR] [--prompt TEXT] [--continuation TEXT] "
                  "[--context N] [--max-new N] [--device N] "
-                 "[--backend reference|sm120-moe-head|sm120]\n";
+                 "[--backend reference|sm120-moe-head|sm120] "
+                 "[--prefill-router exact|tensor-core]\n";
     return 2;
   }
   if (options.tokenizer.empty()) options.tokenizer = options.model;
@@ -150,6 +164,12 @@ int main(int argc, char** argv) {
       options.model, options.context, options.device, options.backend);
   if (!engine.ok()) {
     std::cerr << engine.status().message() << '\n';
+    return 4;
+  }
+  auto router_status =
+      engine.value().ConfigurePrefillRouter(options.prefill_router);
+  if (!router_status.ok()) {
+    std::cerr << router_status.message() << '\n';
     return 4;
   }
   const std::array<std::uint32_t, 4> layers{0U, 5U, 6U, 29U};
@@ -289,6 +309,11 @@ int main(int argc, char** argv) {
                          gem16::internal::Gemma4Moe26BBackend::kSm120MoeHead
                      ? "native_sm120_moe_and_head"
                      : "experimental_reference_only"))
+      << "\",\"prefill_router\":\""
+      << (options.prefill_router ==
+                  gem16::internal::Gemma4MoePrefillRouter::kSm120TensorCore
+              ? "sm120_tensor_core"
+              : "serial_exact")
       << "\",\"two_run_elapsed_ms\":"
       << std::chrono::duration<double, std::milli>(run_end - run_start).count()
       << ','

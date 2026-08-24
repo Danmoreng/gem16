@@ -255,6 +255,7 @@ if(GEM16_ENABLE_CUDA)
     src/cuda/moe/gemma4_26b_bindings.cpp
     src/cuda/moe/prefill.cu
     src/cuda/moe/reference.cu
+    src/cuda/moe/router_diagnostic.cu
     src/cuda/nvfp4/checkpoint_probe.cu
     src/cuda/nvfp4/gemv.cu
     src/cuda/nvfp4/mlp.cu
@@ -388,6 +389,17 @@ if(GEM16_ENABLE_CUDA)
   target_link_libraries(gem16-26b-moe-probe PRIVATE gem16_core CUDA::cudart)
   gem16_set_project_warnings(gem16-26b-moe-probe)
   gem16_enable_sanitizers(gem16-26b-moe-probe)
+  add_executable(gem16-26b-router-diagnostic
+    src/cli/gemma4_26b_router_diagnostic.cpp
+  )
+  target_include_directories(gem16-26b-router-diagnostic PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/src"
+  )
+  target_link_libraries(gem16-26b-router-diagnostic PRIVATE
+    gem16_core CUDA::cudart
+  )
+  gem16_set_project_warnings(gem16-26b-router-diagnostic)
+  gem16_enable_sanitizers(gem16-26b-router-diagnostic)
   add_executable(gem16-26b-attention-probe
     src/cli/gemma4_26b_attention_probe.cpp
   )

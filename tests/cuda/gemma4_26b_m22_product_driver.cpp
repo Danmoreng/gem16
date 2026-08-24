@@ -122,7 +122,7 @@ int main(int argc, char** argv) {
   if (std::string_view(runtime->model_variant_name()) !=
           "gemma4_moe_26b_a4b" ||
       std::string_view(runtime->selected_native_path()) !=
-          "sm120_integrated_nvfp4_moe_fp8_kv" ||
+          "sm120_integrated_nvfp4_moe_bf16_tensor_router_fp8_kv" ||
       runtime->supports_audio() || runtime->supports_vision() ||
       runtime->supports_mtp() || runtime->maximum_execution_slots() != 1U ||
       runtime->max_context_tokens() != options.context ||

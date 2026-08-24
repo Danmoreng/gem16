@@ -22,8 +22,10 @@ def row(captures: dict, name: str, position: int, key: str) -> list:
     return next(record[key] for record in records if int(record["position"]) == position)
 
 
-def build(layer: int, position: int) -> dict:
-    golden = _load_json_file(GOLDEN)
+def build(layer: int, position: int, golden_path: Path = GOLDEN) -> dict:
+    golden = _load_json_file(golden_path)
+    golden_label = (str(GOLDEN.relative_to(GOLDEN.parents[3]))
+                    if golden_path == GOLDEN else str(golden_path))
     captures = golden["captures"]
     prefix = f"model.language_model.layers.{layer}"
     trusted_prefix = f"layer_{layer}"
@@ -43,7 +45,7 @@ def build(layer: int, position: int) -> dict:
         "milestone": "M11",
         "source": {
             "m10_acceptance": "artifacts/m10/acceptance.json",
-            "golden": str(GOLDEN.relative_to(GOLDEN.parents[3])),
+            "golden": golden_label,
             "compiled_artifact": str(COMPILED.relative_to(COMPILED.parents[3])),
             "layer": layer,
             "position": position,
@@ -69,12 +71,13 @@ def build(layer: int, position: int) -> dict:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--golden", type=Path, default=GOLDEN)
     parser.add_argument("--layer", type=int, default=0)
     parser.add_argument("--position", type=int, default=0)
     args = parser.parse_args()
-    if args.layer not in (0, 5, 6, 29) or args.position not in (0, 17):
-        raise SystemExit("fixture must use one of the accepted M10 layer/position pairs")
-    document = build(args.layer, args.position)
+    if args.layer not in (0, 5, 6, 29) or args.position < 0:
+        raise SystemExit("fixture must use a selected layer and non-negative position")
+    document = build(args.layer, args.position, args.golden)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(document, separators=(",", ":")) + "\n",
                            encoding="utf-8")

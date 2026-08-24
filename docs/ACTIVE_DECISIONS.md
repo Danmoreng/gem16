@@ -61,12 +61,19 @@ The M17 artifact/profile freeze unblocks M19 held-out quality, M20 controlled pe
 M22 CLI/server integration. M18 remains conditional and was not triggered; its number does not make it a sequential
 prerequisite.
 
-On 2026-08-23 the owner removed the 49 GB QAT-BF16 runtime comparison from M19 because that reference cannot be
-executed safely on the target laptop. M19 instead uses Google's immutable official QAT Q4_0 GGUF at revision
-`d1c082be9cf3c8a514acf63b8761f4b41935842e` through pinned llama.cpp `0b14b87d7c20cb753b94b96854dd7b45306fc696`
-as its executable paired quality reference. This supersedes the former requirement that M19 task, prose and
-teacher-forced evidence run the 49 GB QAT-BF16 checkpoint. Historical BF16 evidence from M10/M13 remains valid, but
-no new 49 GB model execution is part of M19.
+On 2026-08-23 the owner removed the 49 GB QAT-BF16 runtime comparison from the mandatory M19 suite. M19 instead uses
+Google's immutable official QAT Q4_0 GGUF at revision `d1c082be9cf3c8a514acf63b8761f4b41935842e` through pinned
+llama.cpp `0b14b87d7c20cb753b94b96854dd7b45306fc696` as its executable paired quality reference. This supersedes the
+former requirement that M19 task, prose and teacher-forced evidence run the 49 GB QAT-BF16 checkpoint.
+
+On 2026-08-24 the owner clarified that the 49 GB checkpoint restriction applies to a fully GPU-resident load and to
+long benchmark or quality-suite execution, not to short correctness work. Bounded CPU or explicit CPU/GPU/disk
+offload runs of the pinned QAT-BF16 checkpoint are allowed for Golden Gates and targeted numerical diagnosis. They
+remain diagnostic and performance-ineligible, must use an explicit host/GPU memory budget, and must not silently
+enter the production path. The accepted M01 capture (approximately 49 GiB peak process RSS and 11.25 GB peak CUDA
+allocation on this 62 GiB/no-swap laptop) is the feasibility boundary; a planned run that materially exceeds it
+requires a new capacity preflight. Historical BF16 evidence from M10/M13 remains valid, while the broad M19 suite
+stays on the official QAT Q4_0 reference and remains deferred.
 
 On 2026-08-23 the owner also deferred the remaining multi-hour M19 task and prose benchmark suite until the end of
 the current implementation/performance program. Bounded numerical checks against the pinned official QAT Q4_0
@@ -99,6 +106,16 @@ motivates the fixed targets; its checkpoint and prefill timing boundary differ, 
 moving acceptance dependency. This decision supersedes the prior generic multi-scenario/relative-only M20 promotion
 wording for the current bounded wave. The M20 qualifier must be aligned with this contract before formal execution;
 its current mandatory multi-scenario and non-deferred-M19 gates are stale under the active owner decisions.
+
+On 2026-08-24 the integrated SM120 26B prefill backend promoted the BF16 Tensor-Core router after a bounded
+four-prompt, 14-row QAT-BF16 Golden Gate, real-shape CUDA and sanitizer checks, deterministic engine relaunch, real
+26B product execution and protected 12B regression. Two canonical default-path runs average 6,574.16 prompt tok/s,
+passing both the 6,000 hard target and 6,500 stretch target with unchanged timing boundaries, memory semantics and
+zero fallback/allocation. Tensor-Core changes the exact quantized output hash but improves the bounded aggregate
+QAT-BF16 Top-1/KL/NLL tail metrics; the serial exact router remains an explicit per-engine pre-execution rollback.
+Formal M20 remains open because ordinary decode averages 139.05 rather than 150 tok/s and the 3-warm-up/10-retained
+protocol has not run. The next bounded work is last-chunk-only output-head/argmax, safe non-aliasing prefill staging,
+and reducing greedy Prediction host synchronization/D2H transfers.
 
 The owner set the base-model 64K residency and later execution reserve to 400 MiB on 2026-08-14 so that 64K remains
 a required supported target. This supersedes the prior 500 MiB base-model rule for 64K and larger contexts. The 32K

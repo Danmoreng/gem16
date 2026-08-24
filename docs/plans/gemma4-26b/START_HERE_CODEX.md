@@ -87,12 +87,14 @@ M14–M16 are accepted at implementation commit `9a374c3dda10b7ae870c712cd70a60a
 implementation commit `57fdeb309aacfce2e4eba65745fba86f14ebd113` and closure-hardening commit
 `348683e167c6c4d3b0be7580e404c097b199a3d8`. Router failures now fail safely, complete engine replay/relaunch is
 automated, native slot-batched expert execution remains bitwise exact and hardware capability reporting is
-profile-aware. The latest adjacent two-run development candidate after the physical-BF16/T1024 and grouped
-two-row-tile promotions, CTA-wide grouped-expert activation staging, asynchronous K64 double buffering, prepared
-global K/V staging and exact dual-token K32 router reuse reaches 6,084.05 prompt tok/s and 138.747
-ordinary-decode tok/s on 16K+64 with the accepted output hash. This remains a development characterization; M20
-still owns the formal 3-warm-up/10-retained-run result. See
-`artifacts/m20/optimization-router-dual-token16.json`.
+profile-aware. The latest two-run development candidate adds an engine-local BF16 Tensor-Core router to the
+physical-BF16/T1024, grouped expert, asynchronous K64, prepared global K/V and exact dual-token parent. It reaches
+6,574.16 mean prompt tok/s and 139.054 mean ordinary-decode tok/s on 16K+64, passing the 6,000 prompt target and
+6,500 stretch. A bounded four-prompt/14-row QAT-BF16 Golden Gate, real-shape CUDA and sanitizers, deterministic engine
+relaunch, the real 26B product test and protected 12B regression pass. Tensor-Core is the integrated prefill default;
+serial exact remains an explicit rollback. This remains a development characterization; M20 still owns the formal
+3-warm-up/10-retained result and remains open on the 150 decode target. See
+`artifacts/m20/router-tensor-core-diagnostic.json`.
 
 The owner now requires that exact 16K+64 ordinary path to reach retained medians of at least 6,000 prompt token/s and
 150 decode token/s; 6,500 prompt token/s is the non-blocking competitive stretch target. MTP/speculative decode,

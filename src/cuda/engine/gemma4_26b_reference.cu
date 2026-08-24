@@ -610,6 +610,10 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
   impl->device = device;
   impl->context = context_tokens;
   impl->backend = backend;
+  if (backend == Gemma4Moe26BBackend::kSm120Integrated) {
+    impl->moe_config.prefill_router =
+        Gemma4MoePrefillRouter::kSm120TensorCore;
+  }
   impl->traits = traits.value();
   for (const auto& trait : impl->traits) {
     if (trait.attention == Gemma4Moe26BAttentionType::kSliding) {
@@ -1439,6 +1443,27 @@ Status Gemma4Moe26BReferenceEngine::ConfigureTokenSelection(
   return Status::Ok();
 }
 
+Status Gemma4Moe26BReferenceEngine::ConfigurePrefillRouter(
+    Gemma4MoePrefillRouter router) {
+  if (!implementation_) return Invalid("M20 engine is not initialized");
+  auto& x = *implementation_;
+  if (x.position != 0U || x.prefill_calls != 0U ||
+      x.decode_graph_launches != 0U) {
+    return Invalid("M20 prefill router must be selected before execution");
+  }
+  if (router != Gemma4MoePrefillRouter::kSerialExact &&
+      router != Gemma4MoePrefillRouter::kSm120TensorCore) {
+    return Invalid("M20 prefill router selection is invalid");
+  }
+  if (router == Gemma4MoePrefillRouter::kSm120TensorCore &&
+      x.backend != Gemma4Moe26BBackend::kSm120Integrated) {
+    return Status(StatusCode::kUnsupported,
+                  "SM120 tensor prefill router requires the integrated backend");
+  }
+  x.moe_config.prefill_router = router;
+  return Status::Ok();
+}
+
 Result<std::uint32_t> Gemma4Moe26BReferenceEngine::SelectToken() {
   if (!implementation_) return Invalid("M22 engine is not initialized");
   auto prediction = Prediction();
@@ -1572,6 +1597,9 @@ Gemma4Moe26BReferenceEngine::execution_evidence() const {
   result.integrated_native_backend =
       implementation_->backend == Gemma4Moe26BBackend::kSm120Integrated;
   result.decode_graph_ready = implementation_->decode_graph != nullptr;
+  result.tensor_core_prefill_router =
+      implementation_->moe_config.prefill_router ==
+      Gemma4MoePrefillRouter::kSm120TensorCore;
   result.prefill_calls = implementation_->prefill_calls;
   result.prefill_chunks = implementation_->prefill_chunks;
   result.decode_graph_launches = implementation_->decode_graph_launches;

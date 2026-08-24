@@ -1,0 +1,156 @@
+{
+  "schema_version": 1,
+  "status": "development_promotion_pass",
+  "date": "2026-08-24",
+  "accepted_parent_commit": "f54706d10e7d2ce26d1aa6bfec60339bea7ca2aa",
+  "candidate_scope": "engine-local SM120 Tensor-Core prefill router default with explicit serial-exact rollback",
+  "source": {
+    "repository": "google/gemma-4-26B-A4B-it-qat-q4_0-unquantized",
+    "revision": "f1e06dc520982d9b9edd76859fdb7ab209449949",
+    "lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230",
+    "dtype": "BF16",
+    "trust_remote_code": false
+  },
+  "router_projection": {
+    "qat_bf16_capture_cases": 16,
+    "serial_tensor_top8_set_matches": 16,
+    "serial_tensor_top8_order_matches": 16,
+    "serial_trusted_top8_set_matches": 16,
+    "tensor_trusted_top8_set_matches": 16,
+    "maximum_bf16_logit_absolute_delta": 0.001953125,
+    "serial_mean_fp64_rms_error": 6.62256531999e-7,
+    "tensor_mean_fp64_rms_error": 3.21994613772e-6,
+    "interpretation": "The serial FP32-FMA projection is locally closer to an FP64 dot-product oracle, while both projections preserve every selected QAT-BF16 top-8 set and order. The full-model QAT-BF16 gate below owns semantic selection."
+  },
+  "canonical_quantized_prefill": {
+    "cases": 491520,
+    "top8_set_matches": 491453,
+    "top8_order_matches": 491201,
+    "flip_cases": 67,
+    "flip_rate": 0.000136311848958,
+    "mean_flip_margin_8_9": 0.00746268656716,
+    "maximum_flip_margin_8_9": 0.03125,
+    "mean_gating_l1": 4.00079884135e-5,
+    "maximum_gating_l1": 0.214311316609,
+    "maximum_logit_absolute_delta": 0.0625,
+    "all_margin_histogram": [52998, 173, 2889, 73239, 76665, 97737, 103675, 84144],
+    "flip_margin_histogram": [35, 0, 2, 27, 3, 0, 0, 0],
+    "margin_histogram_bins": ["<=1/512", "<=1/256", "<=1/128", "<=1/64", "<=1/32", "<=1/16", "<=1/8", ">1/8"],
+    "hybrid_le_1_32_recompute_fraction": 0.41903,
+    "hybrid_decision": "rejected as the default because it would recompute about 41.9% of all rows and undo much of the measured gain; serial-exact remains an explicit whole-engine rollback"
+  },
+  "canonical_quantized_teacher_forced_64": {
+    "identical_contexts": 64,
+    "top1_agreements": 63,
+    "reference_token_in_tensor_top5": 64,
+    "mean_top5_overlap": 4.0,
+    "mean_kl_exact_to_tensor": 0.03053106696,
+    "median_kl_exact_to_tensor": 6.71448e-5,
+    "p95_kl_exact_to_tensor": 0.12698,
+    "maximum_kl_exact_to_tensor": 0.630657,
+    "mean_absolute_target_nll_delta": 0.0328707728,
+    "maximum_absolute_target_nll_delta": 0.775446
+  },
+  "full_model_qat_bf16_teacher_forced": {
+    "prompts": ["cal-tiny-ok", "cal-multilingual", "cal-code", "dev-reasoning"],
+    "rows": 14,
+    "serial": {
+      "top1_matches": 13,
+      "target_in_top5": 14,
+      "mean_top5_overlap": 4.0,
+      "mean_kl_bf16_to_candidate": 0.117413531529,
+      "median_kl_bf16_to_candidate": 0.000200436466,
+      "p95_kl_bf16_to_candidate": 0.61681709,
+      "maximum_kl_bf16_to_candidate": 1.293353277,
+      "mean_absolute_target_nll_delta": 0.1411367105,
+      "maximum_absolute_target_nll_delta": 1.406240549,
+      "mean_logit_rms_delta": 1.306790594
+    },
+    "tensor_core": {
+      "top1_matches": 14,
+      "target_in_top5": 14,
+      "mean_top5_overlap": 3.642857,
+      "mean_kl_bf16_to_candidate": 0.05446083026,
+      "median_kl_bf16_to_candidate": 0.00137036063,
+      "p95_kl_bf16_to_candidate": 0.318166874,
+      "maximum_kl_bf16_to_candidate": 0.385732404,
+      "mean_absolute_target_nll_delta": 0.076255284,
+      "maximum_absolute_target_nll_delta": 0.461099929,
+      "mean_logit_rms_delta": 1.475804784
+    },
+    "interpretation": "Serial is closer on 11 of 14 individual KL rows, but Tensor-Core removes the large serial outliers, reproduces all 14 QAT-BF16 top-1 tokens, halves mean KL and improves every aggregate tail metric except full-vocabulary RMS. This bounded gate favors Tensor-Core without making an M19 quality claim."
+  },
+  "canonical_performance": {
+    "workload": "wikipedia-real-16k64-greedy",
+    "timing_boundary_unchanged": true,
+    "tensor_core_prompt_tokens_per_second_samples": [6574.442381390347, 6573.885606800621],
+    "tensor_core_prompt_tokens_per_second_mean": 6574.163994095484,
+    "tensor_core_decode_tokens_per_second_samples": [139.15403377, 138.954172537],
+    "tensor_core_decode_tokens_per_second_mean": 139.0541031535,
+    "serial_parent_prompt_tokens_per_second_mean": 6084.046929457,
+    "prompt_improvement_percent": 8.05577390052,
+    "prompt_target_6000_pass": true,
+    "prompt_stretch_6500_pass": true,
+    "decode_target_150_pass": false,
+    "tensor_core_output_token_sha256": "c750d0b33f8eb4a8103299875886e51ab144d874cafe8cea77b0cfd99d2aedaf",
+    "serial_rollback_output_token_sha256": "d8f0aa61ba66750bda8582861d3f42ef7022917e75b6abd3b6fac4e66ef75e89",
+    "margin_bytes": 1292697600,
+    "fallback_count": 0,
+    "recurring_allocation_count": 0
+  },
+  "engine_lifecycle": {
+    "first_generated_token_ids": [7676, 106],
+    "second_generated_token_ids": [7676, 106],
+    "deterministic": true,
+    "full_logits_repeat_equal": true,
+    "all_logits_finite": true,
+    "continuation_start": 20,
+    "continuation_end": 38,
+    "free_before_runs_bytes": 1122828288,
+    "free_after_runs_bytes": 1122828288
+  },
+  "verification": {
+    "build": "cmake --build build/Linux/blackwell-release -j4: passed",
+    "non_model_ctest": "6/6 passed",
+    "real_shape_cuda": "16 tokens x 2816 width x 128 experts; Tensor-Core and serial BF16 outputs identical; FP64 squared errors 5.3838e-10 and 2.23169e-11",
+    "compute_sanitizer": "memcheck 0 errors; racecheck 0 hazards; initcheck 0 errors",
+    "m17_tensor_lifecycle": "passed with deterministic relaunch and no allocation delta",
+    "m22_26b_product": "passed in 369.92 seconds after final native-path reporting change",
+    "m22_12b_product_regression": "passed in 7.86 seconds",
+    "serial_exact_rollback": "diagnostic-only run passed at 6081.131 prompt and 138.787 decode token/s with the prior exact hash"
+  },
+  "raw_evidence": [
+    {"path": "artifacts/raw/router-diagnostic/canonical-tensor-promoted-default-1.json", "bytes": 3036, "sha256": "7ecbca1b79bbcf3eaec75f04e4dbcbe3dc076a33ad54ef8aef88fe60b643ccde"},
+    {"path": "artifacts/raw/router-diagnostic/canonical-tensor-promoted-default-2.json", "bytes": 3035, "sha256": "a2af28ed221ed5d1398cd2f0b396d100a035e5bd1270d680a4c45c7a29024911"},
+    {"path": "artifacts/raw/router-diagnostic/canonical-exact-rollback-final.json", "bytes": 3023, "sha256": "97ea476640ac2dfacf8e82855d2932d4486acde866c5024f2532f84322bb2bcf"},
+    {"path": "artifacts/raw/router-diagnostic/tensor-engine-lifecycle.json", "bytes": 295597, "sha256": "3b039b208f403b54baa84c7bc5d552292c85ff144af313446ea9d0396c19aac3"},
+    {"path": "artifacts/raw/router-diagnostic/tensor-engine-lifecycle.f32le", "bytes": 1048576, "sha256": "f149dd0ea27e1789647c88423aa63a2b94e93c851bff695c64aab890af7f521a"},
+    {"path": "artifacts/raw/router-diagnostic/qat-bf16-cal-tiny-teacher.json", "bytes": 17359425, "sha256": "d0d1ab99182e26cfcb28b5e8476cbc657ec97e63ad4e5a22186c45f31908e3cb"},
+    {"path": "artifacts/raw/router-diagnostic/qat-bf16-cal-tiny-teacher-all.f32le", "bytes": 2097152, "sha256": "7bc93ddbc38f01229ea9bfeba563b501a45751985bc2f4954c2a890a311f6b85"},
+    {"path": "artifacts/raw/router-diagnostic/qat-bf16-cal-multilingual-teacher.json", "bytes": 17337018, "sha256": "dc89efd486aec520283032a3a604fd11ab760d9993d2b80ec97b3c62453f3ce8"},
+    {"path": "artifacts/raw/router-diagnostic/qat-bf16-cal-multilingual-teacher-all.f32le", "bytes": 4194304, "sha256": "c5570d3278082749a1618ded86eb51b8307e104a97618adcc9845887bd8e4f4a"},
+    {"path": "artifacts/raw/router-diagnostic/qat-bf16-cal-code-teacher.json", "bytes": 17344342, "sha256": "b3e5d595a95056dc302eb00dd35e7d9f69460563db8ae3593a399046230e3c4e"},
+    {"path": "artifacts/raw/router-diagnostic/qat-bf16-cal-code-teacher-all.f32le", "bytes": 4194304, "sha256": "bfbc13dedf0bc1768f5d08fbf052dbf6011af9ee41b97a62fcba478463a71e1b"},
+    {"path": "artifacts/raw/router-diagnostic/qat-bf16-dev-reasoning-teacher.json", "bytes": 17344642, "sha256": "f6c6a52f3596b5ad4f33e16854b41a03976870afc9d607154a562c8c73ee886f"},
+    {"path": "artifacts/raw/router-diagnostic/qat-bf16-dev-reasoning-teacher-all.f32le", "bytes": 4194304, "sha256": "6ce645b288115fbd6a015c72a79c98c48e2414bbc824b310c67b96b8f88b961a"},
+    {"path": "artifacts/raw/router-diagnostic/tensor-router-memcheck.log", "bytes": 62, "sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425"},
+    {"path": "artifacts/raw/router-diagnostic/tensor-router-racecheck.log", "bytes": 100, "sha256": "91dbb142f8feb8786cd6fde6ac035e816b67db14e4b7b400a01386ec106b75c4"},
+    {"path": "artifacts/raw/router-diagnostic/tensor-router-initcheck.log", "bytes": 62, "sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425"}
+  ],
+  "decision": {
+    "accepted_default": "sm120_bf16_tensor_core for the integrated 26B prefill backend",
+    "rollback": "serial_exact selected per engine before execution",
+    "reason": "The candidate exceeds the 6500 prompt stretch target by a stable 8.06% improvement over the exact parent, passes real-shape CUDA, sanitizer, lifecycle, product and protected 12B gates, and is closer to the pinned original QAT-BF16 model on all bounded aggregate Top-1/KL/NLL tail metrics."
+  },
+  "next_work": [
+    "remove intermediate-chunk output-head and argmax work without changing the final prediction boundary",
+    "remove safe prefill chunk host barriers with non-aliasing pinned staging",
+    "reduce greedy decode Prediction host synchronization and D2H transfers toward the 150 token/s gate"
+  ],
+  "limitations": [
+    "This is a bounded development promotion, not formal M19 quality acceptance or formal M20 3-warm-up/10-retained qualification.",
+    "The QAT-BF16 Golden Gate contains four small prompts and 14 teacher-forced rows; the owner-deferred broad M19 suite remains pending.",
+    "Tensor-Core changes the exact quantized output hash, so both hashes are recorded and serial-exact remains an explicit rollback.",
+    "Raw reports are ignored and retained locally; compact hashes make the tracked record tamper-evident but do not make absent raw files independently reproducible."
+  ]
+}

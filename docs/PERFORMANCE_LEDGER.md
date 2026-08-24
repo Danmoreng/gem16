@@ -9,12 +9,41 @@ non-blocking competitive stretch target. The row remains batch one with the exac
 forwards, 63 timed decode intervals, FP8 KV, native CUDA Graph replay and MTP/speculative decode, prompt cache,
 offload, fallback and recurring allocation disabled. Existing timing boundaries and model semantics remain fixed.
 
-The current adjacent Gem16 development candidate averages 6,084.047 prompt and 138.747 ordinary-decode token/s.
-It exceeds the hard prompt target by 1.40%; reaching the hard decode target still requires approximately +8.11%,
-and the prompt stretch requires approximately +6.84%. The motivating vLLM 0.27.1 community-W4A16 graph observation is
+The current adjacent Gem16 development candidate averages 6,574.164 prompt and 139.054 ordinary-decode token/s.
+It exceeds the hard prompt target by 9.57% and the prompt stretch by 1.14%; reaching the hard decode target still
+requires approximately +7.87%. The motivating vLLM 0.27.1 community-W4A16 graph observation is
 6,475.795 prompt and 149.348 decode token/s, but that checkpoint and its prefill timing boundary differ. It is a
 directional engineering reference, not a numerical parity or acceptance oracle. Its compact evidence is
 `benchmarks/baselines/vllm/gemma4-26b-w4a16-wikipedia-16k64-characterization.json`.
+
+## 2026-08-24 BF16 Tensor-Core router promotion
+
+The integrated SM120 26B prefill backend now selects its BF16 Tensor-Core router per engine and exposes the serial
+FP32-FMA projection as an explicit pre-execution rollback. Reference/diagnostic engines remain serial by default.
+The selected native path is reported as `sm120_bf16_tensor_core`; an explicit selector, side-by-side comparison and
+logit dumps remain diagnostic and performance-ineligible.
+
+Across 16 selected states from two direct, pinned QAT-BF16 CPU/GPU/disk-offload captures, both projections preserve
+all trusted top-8 expert sets and orders. The serial projection remains about 4.86 times closer to an FP64 dot-product
+oracle. Across all 491,520 router decisions in the canonical quantized 16K prefill, however, only 67 top-8 sets differ
+(0.013631%); those flips have a maximum exact #8/#9 margin of 0.03125. A 64-step quantized-model teacher-forced run
+keeps 63/64 Top-1 predictions and the reference token in Top-5 at 64/64 positions, but has a 0.03053 mean and 0.63066
+maximum KL, so rare changes can still amplify materially.
+
+The decisive bounded full-model comparison uses four original QAT-BF16 CPU/GPU/disk-offload captures and 14
+teacher-forced rows. Tensor-Core matches all 14 QAT-BF16 Top-1 tokens versus 13/14 for serial, reduces mean KL from
+0.11741 to 0.05446, p95 KL from 0.61682 to 0.31817, maximum KL from 1.29335 to 0.38573, and mean absolute target-NLL
+delta from 0.14114 to 0.07626. Serial is individually closer on 11/14 KL rows and has lower full-vocabulary RMS, but
+its rare outliers are materially worse. A 1/32-margin hybrid would recompute about 41.9% of all rows and was therefore
+not selected.
+
+Two default-path canonical runs reach 6,574.44 and 6,573.89 prompt tok/s (mean 6,574.16, +8.06% over the exact
+6,084.05 parent) and 139.154/138.954 ordinary-decode tok/s. The prompt target and 6,500 stretch both pass; the 150
+decode target remains open. Both runs retain one output hash, 1,292,697,600 bytes of sampled margin, zero fallback
+and zero recurring allocation. Real-shape CUDA, memcheck/racecheck/initcheck, deterministic engine relaunch, the
+real 26B product test and the protected 12B product regression pass. An explicit serial rollback reproduces the
+prior exact hash at 6,081.13 prompt tok/s. Compact evidence and raw hashes are in
+`artifacts/m20/router-tensor-core-diagnostic.json`.
 
 ## 2026-08-24 CTA-wide grouped-expert activation staging
 
@@ -56,9 +85,10 @@ reusing every K32 BF16 weight tile across 16 tokens. Each token/expert accumulat
 6,084.047, +8.72%) and 138.723/138.770 decode tok/s, crossing the 6,000 development target with the accepted output
 hash and unchanged memory/runtime facts. Nsight records the same 480 router dispatches but reduces their aggregate
 time from 614.404 to 371.760 ms (-39.49%). Full CTest/CUDA and targeted router memcheck/racecheck pass. A faster
-6,555.52 tok/s tensor-core prototype was rejected and removed because reassociated accumulation changed the output
-hash. Compact evidence is `artifacts/m20/optimization-router-dual-token16.json`; formal M20 qualification remains
-pending.
+6,555.52 tok/s tensor-core prototype changed the exact-router output hash and was initially removed. The bounded
+promotion above supersedes rejection based on that hash alone and makes Tensor-Core the integrated prefill default;
+serial exact remains available as an explicit rollback. Compact exact-path evidence is
+`artifacts/m20/optimization-router-dual-token16.json`; formal M20 qualification remains pending.
 
 ## 2026-08-23 Bounded 26B optimization checkpoint
 

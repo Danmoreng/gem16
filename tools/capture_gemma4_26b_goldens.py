@@ -22,6 +22,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--inventory", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--logits-output", type=Path, required=True)
+    parser.add_argument("--teacher-forced-logits-output", type=Path)
     parser.add_argument("--offload-folder", type=Path, required=True)
     parser.add_argument("--gpu-memory", default="12GiB")
     parser.add_argument("--cpu-memory", default="38GiB")
@@ -285,6 +286,38 @@ def main() -> int:
         )
     generated_ids = [int(value) for value in generated[0, len(token_ids) :].cpu()]
 
+    teacher_forced_logits = None
+    if args.teacher_forced_logits_output is not None:
+        rows = [final_logits]
+        with torch.inference_mode():
+            for index in range(1, len(generated_ids)):
+                prefix = torch.tensor(
+                    [generated_ids[:index]], dtype=torch.long,
+                    device=input_device,
+                )
+                forced = model(
+                    input_ids=torch.cat((input_ids, prefix), dim=1),
+                    use_cache=False,
+                    return_dict=True,
+                )
+                rows.append(forced.logits[0, -1].detach().float().cpu().contiguous())
+                del forced
+        teacher_forced_array = (
+            torch.stack(rows).numpy().astype("<f4", copy=False)
+        )
+        args.teacher_forced_logits_output.parent.mkdir(parents=True, exist_ok=True)
+        args.teacher_forced_logits_output.write_bytes(
+            teacher_forced_array.tobytes()
+        )
+        teacher_forced_logits = {
+            "path": args.teacher_forced_logits_output.name,
+            "dtype": "float32_le",
+            "shape": [len(rows), int(rows[0].shape[0])],
+            "bytes": args.teacher_forced_logits_output.stat().st_size,
+            "sha256": file_sha256(args.teacher_forced_logits_output),
+            "context_token_ids": generated_ids[:-1],
+        }
+
     placements: dict[str, int] = {}
     for destination in model.hf_device_map.values():
         placements[str(destination)] = placements.get(str(destination), 0) + 1
@@ -340,6 +373,8 @@ def main() -> int:
         },
         "generated_token_ids": generated_ids,
     }
+    if teacher_forced_logits is not None:
+        result["teacher_forced_logits"] = teacher_forced_logits
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     print(

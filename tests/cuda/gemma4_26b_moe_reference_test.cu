@@ -1,5 +1,6 @@
 #include "cuda/moe/reference.h"
 #include "cuda/moe/prefill.h"
+#include "cuda/moe/router_diagnostic.h"
 #include "cuda/nvfp4/reference.h"
 #include "cuda/nvfp4/sm120.h"
 #include "cuda/nvfp4/sm120_layout.h"
@@ -13,6 +14,7 @@
 #include <cmath>
 #include <cstdint>
 #include <iostream>
+#include <numeric>
 #include <span>
 #include <utility>
 #include <vector>
@@ -62,6 +64,138 @@ class DeviceBuffer {
 
 std::uint16_t Bf16(float value) {
   return __bfloat16_as_ushort(__float2bfloat16_rn(value));
+}
+
+float DecodeBf16(std::uint16_t value) {
+  return static_cast<float>(__ushort_as_bfloat16(value));
+}
+
+std::array<std::uint32_t, 8> Top8(std::span<const float> values) {
+  std::vector<std::uint32_t> ids(values.size());
+  std::iota(ids.begin(), ids.end(), 0U);
+  std::stable_sort(ids.begin(), ids.end(), [&](std::uint32_t left,
+                                               std::uint32_t right) {
+    return values[left] > values[right] ||
+           (values[left] == values[right] && left < right);
+  });
+  std::array<std::uint32_t, 8> result{};
+  std::copy_n(ids.begin(), result.size(), result.begin());
+  return result;
+}
+
+void TestRealShapeTensorRouterProjection() {
+  constexpr std::uint64_t kTokens = 16U;
+  constexpr std::uint64_t kWidth = 2816U;
+  constexpr std::uint32_t kExperts = 128U;
+  std::vector<float> normalized(kTokens * kWidth);
+  std::vector<std::uint16_t> scale(kWidth, Bf16(1.0F));
+  std::vector<std::uint16_t> weights(kExperts * kWidth);
+  for (std::uint64_t token = 0U; token < kTokens; ++token) {
+    for (std::uint64_t column = 0U; column < kWidth; ++column) {
+      normalized[token * kWidth + column] =
+          static_cast<float>((column % 17U) + 1U) / 256.0F *
+          (1.0F + static_cast<float>(token) / 32.0F);
+    }
+  }
+  for (std::uint32_t expert = 0U; expert < kExperts; ++expert) {
+    for (std::uint64_t column = 0U; column < kWidth; ++column) {
+      const float slope = static_cast<float>(expert) / 2048.0F;
+      const float texture =
+          static_cast<float>(static_cast<int>((column * 7U) % 13U) - 6) /
+          4096.0F;
+      weights[static_cast<std::uint64_t>(expert) * kWidth + column] =
+          Bf16(slope + texture);
+    }
+  }
+
+  DeviceBuffer<float> normalized_device(normalized.size());
+  DeviceBuffer<std::uint16_t> scale_device(scale.size()),
+      weights_device(weights.size());
+  DeviceBuffer<float> transformed(kTokens * kWidth),
+      serial_raw(kTokens * kExperts), serial_bf16(kTokens * kExperts),
+      tensor_raw(kTokens * kExperts), tensor_bf16(kTokens * kExperts);
+  CHECK(CudaOk(cudaMemcpy(normalized_device.get(), normalized.data(),
+                          normalized_device.bytes(), cudaMemcpyHostToDevice),
+               "copy real-shape router input"));
+  CHECK(CudaOk(cudaMemcpy(scale_device.get(), scale.data(),
+                          scale_device.bytes(), cudaMemcpyHostToDevice),
+               "copy real-shape router scale"));
+  CHECK(CudaOk(cudaMemcpy(weights_device.get(), weights.data(),
+                          weights_device.bytes(), cudaMemcpyHostToDevice),
+               "copy real-shape router weights"));
+  const gem16::internal::Gemma4RouterDiagnosticWorkspace workspace{
+      transformed.get(), serial_raw.get(), serial_bf16.get(),
+      tensor_raw.get(), tensor_bf16.get()};
+  const auto status = gem16::internal::LaunchGemma4RouterProjectionDiagnostic(
+      normalized_device.get(), scale_device.get(), weights_device.get(),
+      workspace, kTokens, kWidth, kExperts, nullptr);
+  CHECK(status.ok());
+  CHECK(CudaOk(cudaDeviceSynchronize(),
+               "synchronize real-shape tensor router"));
+
+  std::vector<float> transformed_host(kTokens * kWidth),
+      serial_raw_host(kTokens * kExperts),
+      serial_bf16_host(kTokens * kExperts),
+      tensor_raw_host(kTokens * kExperts),
+      tensor_bf16_host(kTokens * kExperts);
+  CHECK(CudaOk(cudaMemcpy(transformed_host.data(), transformed.get(),
+                          transformed.bytes(), cudaMemcpyDeviceToHost),
+               "copy real-shape transformed input"));
+  CHECK(CudaOk(cudaMemcpy(serial_raw_host.data(), serial_raw.get(),
+                          serial_raw.bytes(), cudaMemcpyDeviceToHost),
+               "copy real-shape serial raw logits"));
+  CHECK(CudaOk(cudaMemcpy(serial_bf16_host.data(), serial_bf16.get(),
+                          serial_bf16.bytes(), cudaMemcpyDeviceToHost),
+               "copy real-shape serial BF16 logits"));
+  CHECK(CudaOk(cudaMemcpy(tensor_raw_host.data(), tensor_raw.get(),
+                          tensor_raw.bytes(), cudaMemcpyDeviceToHost),
+               "copy real-shape tensor raw logits"));
+  CHECK(CudaOk(cudaMemcpy(tensor_bf16_host.data(), tensor_bf16.get(),
+                          tensor_bf16.bytes(), cudaMemcpyDeviceToHost),
+               "copy real-shape tensor BF16 logits"));
+
+  double serial_squared_error = 0.0;
+  double tensor_squared_error = 0.0;
+  float maximum_bf16_delta = 0.0F;
+  for (std::uint64_t token = 0U; token < kTokens; ++token) {
+    const auto serial_ids = Top8(std::span<const float>(serial_bf16_host)
+                                     .subspan(token * kExperts, kExperts));
+    const auto tensor_ids = Top8(std::span<const float>(tensor_bf16_host)
+                                     .subspan(token * kExperts, kExperts));
+    CHECK(serial_ids == tensor_ids);
+    for (std::uint32_t expert = 0U; expert < kExperts; ++expert) {
+      const std::uint64_t output = token * kExperts + expert;
+      double oracle = 0.0;
+      for (std::uint64_t column = 0U; column < kWidth; ++column) {
+        oracle += static_cast<double>(
+                      transformed_host[token * kWidth + column]) *
+                  static_cast<double>(DecodeBf16(
+                      weights[static_cast<std::uint64_t>(expert) * kWidth +
+                              column]));
+      }
+      const double serial_error =
+          static_cast<double>(serial_raw_host[output]) - oracle;
+      const double tensor_error =
+          static_cast<double>(tensor_raw_host[output]) - oracle;
+      serial_squared_error += serial_error * serial_error;
+      tensor_squared_error += tensor_error * tensor_error;
+      CHECK(serial_bf16_host[output] ==
+            DecodeBf16(Bf16(serial_raw_host[output])));
+      CHECK(tensor_bf16_host[output] ==
+            DecodeBf16(Bf16(tensor_raw_host[output])));
+      CHECK(std::isfinite(tensor_raw_host[output]));
+      maximum_bf16_delta =
+          std::max(maximum_bf16_delta,
+                   std::abs(serial_bf16_host[output] -
+                            tensor_bf16_host[output]));
+    }
+  }
+  CHECK(tensor_squared_error > 0.0);
+  CHECK(serial_squared_error <= tensor_squared_error);
+  CHECK(maximum_bf16_delta <= 0.0625F);
+  std::cout << "real-shape tensor router max BF16 delta="
+            << maximum_bf16_delta << " serial/tensor squared error="
+            << serial_squared_error << '/' << tensor_squared_error << '\n';
 }
 
 void TestSelectedExpertSlotBatch() {
@@ -1125,6 +1259,7 @@ int main() {
   TestFixedAddressMoeReference();
   TestSelectedExpertSlotBatch();
   TestPhysicalBf16GroupedExpertOperators();
+  TestRealShapeTensorRouterProjection();
   if (failures != 0) {
     std::cerr << failures << " M11 CUDA assertion(s) failed\n";
     return 1;

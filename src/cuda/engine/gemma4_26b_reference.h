@@ -7,6 +7,7 @@
 
 #include "gem16/status.h"
 #include "gem16/sampling.h"
+#include "cuda/moe/reference.h"
 
 namespace gem16::internal {
 
@@ -29,6 +30,7 @@ struct Gemma4Moe26BReferencePrediction {
 struct Gemma4Moe26BExecutionEvidence {
   bool integrated_native_backend = false;
   bool decode_graph_ready = false;
+  bool tensor_core_prefill_router = false;
   std::uint64_t prefill_calls = 0;
   std::uint64_t prefill_chunks = 0;
   std::uint64_t decode_graph_launches = 0;
@@ -72,6 +74,11 @@ class Gemma4Moe26BReferenceEngine {
   [[nodiscard]] Status ConfigureTokenSelection(
       const SamplingOptions& options,
       std::span<const std::uint32_t> suppressed_token_ids);
+  // Initialization-time precision/dispatch selection. It is immutable after
+  // the first prefill/decode token so one session cannot silently mix router
+  // arithmetic or leak a process-global diagnostic choice.
+  [[nodiscard]] Status ConfigurePrefillRouter(
+      Gemma4MoePrefillRouter router);
   [[nodiscard]] Result<std::uint32_t> SelectToken();
 
   // Diagnostic copies are explicit synchronization points and never occur

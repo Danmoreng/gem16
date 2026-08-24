@@ -108,7 +108,7 @@ const char* ModelRuntime::model_variant_name() const {
 const char* ModelRuntime::selected_native_path() const {
   if (impl_ == nullptr) return "none";
   return impl_->variant == internal::ModelVariant::kGemma4Moe26BA4B
-             ? "sm120_integrated_nvfp4_moe_fp8_kv"
+             ? "sm120_integrated_nvfp4_moe_bf16_tensor_router_fp8_kv"
              : "gemma4_unified_12b_sm120";
 }
 const char* ModelRuntime::artifact_profile() const {

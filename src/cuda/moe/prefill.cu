@@ -10,6 +10,7 @@
 #include <utility>
 
 #include "cuda/layer/reference.h"
+#include "cuda/moe/router_diagnostic.h"
 #include "cuda/nvfp4/reference.h"
 #include "cuda/nvfp4/sm120.h"
 
@@ -637,12 +638,42 @@ Status LaunchGemma4MoeSm120PrefillLayer(
       kRouterExpertsPerBlock;
   const unsigned router_token_blocks = static_cast<unsigned>(
       (tokens + kRouterTokensPerBlock - 1U) / kRouterTokensPerBlock);
-  RouterProjectionBatchCoalescedKernel<<<
-      dim3(router_blocks, router_token_blocks), kRouterThreads, 0,
-      stream>>>(x.shared_output, w.router_projection_bf16, x.router_logits,
-                c.experts, c.width, tokens);
-  status = CheckLaunch("launch M15 router projection");
-  if (!status.ok()) return status;
+  const bool compare_routers = Gemma4RouterComparisonEnabled();
+  const bool select_tensor_router =
+      c.prefill_router == Gemma4MoePrefillRouter::kSm120TensorCore;
+  if (!select_tensor_router || compare_routers) {
+    RouterProjectionBatchCoalescedKernel<<<
+        dim3(router_blocks, router_token_blocks), kRouterThreads, 0,
+        stream>>>(x.shared_output, w.router_projection_bf16, x.router_logits,
+                  c.experts, c.width, tokens);
+    status = CheckLaunch("launch M15 exact router projection");
+    if (!status.ok()) return status;
+  }
+  if (compare_routers || select_tensor_router) {
+    float* tensor_logits = select_tensor_router && !compare_routers
+                               ? x.router_logits
+                               : x.router_probabilities;
+    status = LaunchGemma4Sm120TensorRouterProjection(
+        x.shared_output, w.router_projection_bf16, tensor_logits,
+        tokens, c.width, c.experts, stream);
+    if (!status.ok()) return status;
+    if (compare_routers) {
+      status = LaunchGemma4RouterComparisonDiagnostic(
+          x.router_logits, x.router_probabilities, w.per_expert_scale_bf16,
+          tokens, c.experts, c.top_k, stream);
+      if (!status.ok()) return status;
+    }
+    if (select_tensor_router && compare_routers) {
+      const cudaError_t copy_error = cudaMemcpyAsync(
+          x.router_logits, x.router_probabilities,
+          tokens * c.experts * sizeof(float), cudaMemcpyDeviceToDevice,
+          stream);
+      if (copy_error != cudaSuccess) {
+        return CudaFailure("select tensor router diagnostic logits",
+                           copy_error);
+      }
+    }
+  }
   RouterAssignmentsKernel<<<static_cast<unsigned>(tokens), kThreads, 0, stream>>>(
       x.router_logits, w.per_expert_scale_bf16, x.router_probabilities,
       x.assignments, c.experts, c.top_k, tokens, x.routing_finite);

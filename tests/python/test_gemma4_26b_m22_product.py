@@ -242,7 +242,7 @@ def run_26b(driver: Path, chat: Path, server_executable: Path) -> int:
         "artifact_content_sha256": M08_ARTIFACT_SHA256,
         "source_lock_sha256": M08_SOURCE_LOCK_SHA256,
         "compiler_commit": M08_COMPILER_COMMIT,
-        "native_path": "sm120_integrated_nvfp4_moe_fp8_kv",
+        "native_path": "sm120_integrated_nvfp4_moe_bf16_tensor_router_fp8_kv",
         "text_only": True,
         "supports_mtp": False,
         "default_context": 32768,

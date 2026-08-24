@@ -81,6 +81,11 @@ struct Gemma4MoeReferenceWorkspace {
   int* routing_finite = nullptr;
 };
 
+enum class Gemma4MoePrefillRouter {
+  kSerialExact,
+  kSm120TensorCore,
+};
+
 struct Gemma4MoeReferenceConfig {
   std::uint64_t width = 0;
   std::uint64_t shared_intermediate = 0;
@@ -88,6 +93,8 @@ struct Gemma4MoeReferenceConfig {
   std::uint32_t experts = 0;
   std::uint32_t top_k = 0;
   float epsilon = 0.0F;
+  Gemma4MoePrefillRouter prefill_router =
+      Gemma4MoePrefillRouter::kSerialExact;
 };
 
 // Initialization-only pointer resolution for one exact 26B layer. The
