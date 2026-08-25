@@ -20,6 +20,7 @@ namespace {
 
 constexpr unsigned kThreads = 128;
 constexpr unsigned kNormThreads = 256U;
+constexpr unsigned kFusedPostNormThreads = 2U * kNormThreads;
 constexpr unsigned kWarpSize = 32U;
 constexpr unsigned kRouterWarpsPerBlock = 4U;
 constexpr std::uint64_t kNvfp4Block = 16;
@@ -186,6 +187,34 @@ __device__ float MoeBlockSum(float value) {
   }
   __syncthreads();
   return scratch[0];
+}
+
+__device__ float MoeDualGroupSum(float value, unsigned group,
+                                 unsigned local_thread) {
+  __shared__ float scratch[2U][kNormThreads];
+  scratch[group][local_thread] = value;
+  __syncthreads();
+  // Each 256-thread group reproduces MoeBlockSum's accepted binary tree.
+  // Both groups reach every block barrier together.
+  for (unsigned stride = kNormThreads / 2U; stride >= kWarpSize;
+       stride >>= 1U) {
+    if (local_thread < stride) {
+      scratch[group][local_thread] +=
+          scratch[group][local_thread + stride];
+    }
+    __syncthreads();
+  }
+  if (local_thread < kWarpSize) {
+    for (unsigned stride = kWarpSize / 2U; stride != 0U; stride >>= 1U) {
+      if (local_thread < stride) {
+        scratch[group][local_thread] +=
+            scratch[group][local_thread + stride];
+      }
+      __syncwarp();
+    }
+  }
+  __syncthreads();
+  return scratch[group][0];
 }
 
 __global__ void MoeInputNormsRouterTransformKernel(
@@ -679,6 +708,65 @@ __global__ void MoeCombinedPostNormResidualKernel(
   }
 }
 
+__global__ void MoeFusedPostNormResidualKernel(
+    const float* shared_output, const std::uint16_t* post_shared_norm,
+    const float* routed_sum, const std::uint16_t* post_expert_norm,
+    float* shared_post, float* routed_post,
+    const std::uint16_t* post_combined_norm, const float* residual,
+    const std::uint16_t* layer_scalar, float* combined, float* feed_forward,
+    float* output, std::uint64_t width, float epsilon) {
+  const unsigned group = threadIdx.x / kNormThreads;
+  const unsigned local_thread = threadIdx.x % kNormThreads;
+  const bool routed = group != 0U;
+  const float* branch_input = routed ? routed_sum : shared_output;
+  const std::uint16_t* branch_norm =
+      routed ? post_expert_norm : post_shared_norm;
+  float* branch_post = routed ? routed_post : shared_post;
+
+  float branch_squared_sum = 0.0F;
+  for (std::uint64_t index = local_thread; index < width;
+       index += kNormThreads) {
+    const float value = branch_input[index];
+    branch_squared_sum = fmaf(value, value, branch_squared_sum);
+  }
+  const float branch_inverse_rms =
+      rsqrtf(MoeDualGroupSum(branch_squared_sum, group, local_thread) /
+                 static_cast<float>(width) +
+             epsilon);
+  for (std::uint64_t index = local_thread; index < width;
+       index += kNormThreads) {
+    branch_post[index] = RoundBf16(branch_input[index] * branch_inverse_rms *
+                                   Bf16(branch_norm[index]));
+  }
+  __syncthreads();
+
+  float combined_squared_sum = 0.0F;
+  if (group == 0U) {
+    for (std::uint64_t index = local_thread; index < width;
+         index += kNormThreads) {
+      const float value = RoundBf16(shared_post[index] + routed_post[index]);
+      combined[index] = value;
+      combined_squared_sum = fmaf(value, value, combined_squared_sum);
+    }
+  }
+  const float combined_sum =
+      MoeDualGroupSum(combined_squared_sum, group, local_thread);
+  if (group == 0U) {
+    const float combined_inverse_rms =
+        rsqrtf(combined_sum / static_cast<float>(width) + epsilon);
+    const float scalar = Bf16(layer_scalar[0]);
+    for (std::uint64_t index = local_thread; index < width;
+         index += kNormThreads) {
+      const float normalized = RoundBf16(
+          combined[index] * combined_inverse_rms *
+          Bf16(post_combined_norm[index]));
+      feed_forward[index] = normalized;
+      const float residual_sum = RoundBf16(normalized + residual[index]);
+      output[index] = RoundBf16(residual_sum * scalar);
+    }
+  }
+}
+
 std::uint64_t Blocks(std::uint64_t elements) {
   return (elements + kThreads - 1U) / kThreads;
 }
@@ -953,6 +1041,14 @@ Status LaunchGemma4MoeLayerImpl(
       c.width, c.top_k);
   status = CheckLaunch("launch M11 slot-order expert reduction");
   if (!status.ok()) return status;
+  if (native_sm120) {
+    MoeFusedPostNormResidualKernel<<<1, kFusedPostNormThreads, 0, stream>>>(
+        x.shared_output, w.post_shared_norm_bf16, x.routed_sum,
+        w.post_expert_norm_bf16, x.shared_post, x.routed_post,
+        w.post_combined_norm_bf16, hidden, w.layer_scalar_bf16, x.combined,
+        x.feed_forward, output, c.width, c.epsilon);
+    return CheckLaunch("launch fused native MoE post norms and residual");
+  }
   MoeBranchPostNormKernel<<<2, kNormThreads, 0, stream>>>(
       x.shared_output, w.post_shared_norm_bf16, x.routed_sum,
       w.post_expert_norm_bf16, x.shared_post, x.routed_post, c.width,
@@ -963,7 +1059,7 @@ Status LaunchGemma4MoeLayerImpl(
       x.shared_post, x.routed_post, w.post_combined_norm_bf16, hidden,
       w.layer_scalar_bf16, x.combined, x.feed_forward, output, c.width,
       c.epsilon);
-  return CheckLaunch("launch fused M11 post norms and residual");
+  return CheckLaunch("launch M11 combined post norm and residual");
 }
 
 Status LaunchGemma4MoeReferenceLayer(

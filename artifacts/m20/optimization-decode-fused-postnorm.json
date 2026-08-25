@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "milestone": "M20-development",
+  "status": "accepted_optimization_not_formal_qualification",
+  "measured_on": "2026-08-25",
+  "base_revision": "16513e9",
+  "device": "NVIDIA GeForce RTX 5080 Laptop GPU",
+  "driver": "610.43.03",
+  "scenario": {
+    "id": "wikipedia-real-16k64-greedy",
+    "prompt_tokens": 16384,
+    "output_forwards": 64,
+    "prompt_manifest_sha256": "9a5859b979d91fccf71bcbb61aade6372cf2cc3c708e6c47b8b6cfd99f7abd2d",
+    "mtp_or_speculative_decode": false,
+    "prompt_cache": false,
+    "kv_mode": "fp8"
+  },
+  "change": {
+    "candidate": "D12_exact_native_moe_postnorm_fusion",
+    "native_path": "one 512-thread CTA uses two independent 256-thread groups for shared/routed branch norms, then performs the combined norm and residual after a block barrier",
+    "diagnostic_path": "the serial/reference path retains separate two-block branch and one-block combined kernels",
+    "preserved_semantics": "each branch and combined norm retain the accepted 256-thread index assignment, binary-tree FP32 reduction order, BF16 boundaries, intermediate diagnostic writes, and residual order",
+    "parent_decode_graph_kernel_nodes": 697,
+    "candidate_decode_graph_kernel_nodes": 667,
+    "candidate_binary_sha256": "2935ceb30c14f8d3e47f2545a08119a561de3d44b27349cc2c4bfc82b5206867",
+    "recurring_host_or_device_allocations": 0
+  },
+  "measurements": {
+    "decode_tokens_per_second_samples": [
+      144.279085548,
+      144.346292530,
+      144.339737471
+    ],
+    "decode_tokens_per_second_mean": 144.321705183,
+    "decode_tokens_per_second_median": 144.339737471,
+    "prompt_tokens_per_second_samples": [
+      6557.828876283,
+      6565.620074608,
+      6588.396733303
+    ],
+    "prompt_tokens_per_second_mean": 6570.615228064
+  },
+  "comparison": {
+    "parent_decode_tokens_per_second_mean": 142.842963366,
+    "decode_gain_percent": 1.035222024,
+    "latency_saving_microseconds_per_token": 71.730168587,
+    "parent_branch_plus_combined_postnorm_microseconds_per_token": 491.897,
+    "candidate_fused_postnorm_microseconds_per_token": 419.096,
+    "profiled_postnorm_saving_microseconds_per_token": 72.801,
+    "postnorm_change_percent": -14.800659496,
+    "decision": "retain: bit-exact full-layer output, repeatable end-to-end gain, and isolated profile agree"
+  },
+  "correctness": {
+    "all_logits_finite": true,
+    "output_token_sha256": "c750d0b33f8eb4a8103299875886e51ab144d874cafe8cea77b0cfd99d2aedaf",
+    "matches_parent_output_hash": true,
+    "reference_native_full_layer_differential": "bit_exact",
+    "fresh_engine_relaunch": "bit_exact",
+    "fallback_count": 0,
+    "recurring_allocation_count": 0,
+    "sampled_device_margin_bytes": 1292697600
+  },
+  "tests": {
+    "blackwell_release_build": "pass",
+    "focused_unit_and_cuda": "pass_5_of_5_34.96_seconds",
+    "moe_memcheck": "pass_0_errors",
+    "moe_racecheck": "pass_0_hazards_0_errors_0_warnings",
+    "moe_initcheck": "pass_0_errors",
+    "real_26b_m17_engine_smoke": "pass_148.84_seconds",
+    "protected_12b_product_regression": "pass_4.30_seconds"
+  },
+  "commands": [
+    "cmake --build build/Linux/blackwell-release --target gem16-cuda-moe-reference-tests gem16-26b-benchmark -j4",
+    "ctest --test-dir build/Linux/blackwell-release -R '^(gem16-unit|gem16-cuda|gem16-cuda-moe-reference|gem16-cuda-attention-reference|gem16-cuda-nvfp4-consumption)$' --output-on-failure",
+    "compute-sanitizer --tool memcheck --error-exitcode=1 build/Linux/blackwell-release/bin/gem16-cuda-moe-reference-tests",
+    "compute-sanitizer --tool racecheck --error-exitcode=1 build/Linux/blackwell-release/bin/gem16-cuda-moe-reference-tests",
+    "compute-sanitizer --tool initcheck --error-exitcode=1 build/Linux/blackwell-release/bin/gem16-cuda-moe-reference-tests",
+    "GEM16_26B_COMPILED_MODEL=artifacts/raw/m08/qat-hybrid-clean-1 ctest --test-dir build/Linux/blackwell-release -R '^gem16-26b-m17-engine-smoke$' --output-on-failure",
+    "GEM16_12B_MODEL=models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 ctest --test-dir build/Linux/blackwell-release -R '^gem16-12b-m22-product$' --output-on-failure"
+  ],
+  "raw_evidence": [
+    {
+      "ignored_path": "artifacts/raw/max-performance/d12-fused-postnorm-16k-01.json",
+      "bytes": 3025,
+      "sha256": "6b5788e0ea45f0e44d4ba54af53a7a7acc840d65d7f8c1addbc7954c15e7c480"
+    },
+    {
+      "ignored_path": "artifacts/raw/max-performance/d12-fused-postnorm-16k-02.json",
+      "bytes": 3033,
+      "sha256": "342c6894b2c1407bf8b7a6ee073c7c9c9f645b529dfdc4d6588979768f737c18"
+    },
+    {
+      "ignored_path": "artifacts/raw/max-performance/d12-fused-postnorm-16k-03.json",
+      "bytes": 3031,
+      "sha256": "b33b6ba7e6d5958695980669e74bf1f26e1efff29a230f473a88d737322461da"
+    },
+    {
+      "ignored_path": "artifacts/raw/max-performance/d12-fused-postnorm-node.nsys-rep",
+      "bytes": 2320296,
+      "sha256": "4d42e6d92e1d9fa7e1a50c51c93a76439743e93275a58060bcdf196787fc4a94"
+    },
+    {
+      "ignored_path": "artifacts/raw/max-performance/d12-fused-postnorm-profile-result.json",
+      "bytes": 1837,
+      "sha256": "f304a76c416e01825ef793677de460a5cfc9645b62f0f1be66be31228e744e72"
+    }
+  ],
+  "limitations": {
+    "formal_m20_3_warmup_10_retained_not_run": true,
+    "hard_150_decode_target_reached": false,
+    "remaining_decode_gap_percent": 3.934470432,
+    "full_26b_m22_product_lifecycle_not_repeated": "the changed native decode Graph is covered by three real 16K+64 runs plus the real M17 replay/relaunch test; product wrapper behavior is unchanged"
+  }
+}

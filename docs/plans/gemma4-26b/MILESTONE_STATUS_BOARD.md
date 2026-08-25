@@ -13,7 +13,7 @@ Derived from [`FAST_TRACK_STATUS.json`](FAST_TRACK_STATUS.json). Policy: [`../..
 | Performance optimization slice | ACTIVE_NEXT | profile-driven, correctness-preserving prefill/decode work toward hard 6,000/150 token/s targets and 6,500 prefill stretch |
 | Runner/freeze slice | READY_AFTER_PERFORMANCE | encode the fixed target row, align M20/M21 schemas and provenance, then build one clean immutable candidate |
 | M21 | READY_AFTER_FREEZE | repeated real 32K, explicit real 64K pass/fail and measured `base_max_context` |
-| M20 | IN_PROGRESS_AFTER_M21 | exact 16K+64 retained medians must reach >=6,000 prompt and >=150 ordinary-decode tok/s; report >=6,500 prompt stretch; latest adjacent development candidate is 6,570.312/142.843, formal medians pending |
+| M20 | IN_PROGRESS_AFTER_M21 | exact 16K+64 retained medians must reach >=6,000 prompt and >=150 ordinary-decode tok/s; report >=6,500 prompt stretch; latest adjacent development candidate is 6,570.615/144.322, formal medians pending |
 | M23 | BLOCKED_BY_M20_M21 | freeze a technical Target with rollback and M19 explicitly pending |
 | M25 phase A | PARALLEL_FEASIBILITY_ONLY | assistant compatibility and memory feasibility only |
 
