@@ -1,8 +1,8 @@
 # llama.cpp baseline
 
-The current build pin is upstream build 10593, commit
-`b0539c43ed13b16bf0d8a0840646faea65469702`, fetched from `master` on 2026-08-23. The nearest preceding release
-tag is b10590. Historical rows below retain the exact older llama.cpp revision that produced them, including the
+The current build pin is upstream build 10623, commit
+`f1357e49980f5462af9783164f3fdec407d90137`, fetched from `master` on 2026-08-25. The nearest preceding release
+tag is b10622. Historical rows below retain the exact older llama.cpp revision that produced them, including the
 b10240 Linux/Windows cross-engine characterizations and the b10364 batch audit; updating the active build pin does
 not relabel those results.
 
