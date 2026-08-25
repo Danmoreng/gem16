@@ -37,8 +37,8 @@ The maximum-performance campaign stops only when at least one of these condition
 Implementation baseline:
 
 - branch: `feat/gemma4-26b`;
-- retained local development series: `4b7c2f3` through the D04b attention, D09 decode-MoE, D11 host-tail and D05
-  exact decode Top-8 candidates;
+- retained local development series: `4b7c2f3` through the D04b attention, D09 decode-MoE including omitted native
+  contribution writes, D11 host-tail and D05 exact decode Top-8 candidates;
 - integrated 26B prefill router: `sm120_bf16_tensor_core`;
 - explicit rollback: `serial_exact` selected before execution;
 - one fully resident target-weight representation;
@@ -50,10 +50,10 @@ Adjacent development measurements:
 
 | Metric | Current mean | M20 gate | Status |
 |---|---:|---:|---|
-| Prompt throughput | 6,594.831 token/s | 6,000 token/s | pass |
-| Prompt stretch | 6,594.831 token/s | 6,500 token/s | pass |
-| Ordinary decode | 142.250 token/s | 150 token/s | open |
-| Ordinary token latency | 7.030 ms | 6.667 ms | save about 0.363 ms/token |
+| Prompt throughput | 6,570.312 token/s | 6,000 token/s | pass |
+| Prompt stretch | 6,570.312 token/s | 6,500 token/s | pass |
+| Ordinary decode | 142.843 token/s | 150 token/s | open |
+| Ordinary token latency | 7.001 ms | 6.667 ms | save about 0.334 ms/token |
 
 The current Tensor-Core-router output-token SHA-256 is
 `c750d0b33f8eb4a8103299875886e51ab144d874cafe8cea77b0cfd99d2aedaf`. The explicit serial-router rollback produces
@@ -533,14 +533,15 @@ under the current owner authorization; do not push unless the owner explicitly r
 
 ## 11. Immediate handoff
 
-P01, D04b and D05 are retained; P02, D03a and D10 are rejected; D03b is skipped; D00 is complete. D05 replaces eight
+P01, D04b, D05 and D09d are retained; P02, D03a and D10 are rejected; D03b is skipped; D00 is complete. D05 replaces eight
 serial Top-8 selection rounds with an exact two-stage four-warp bitonic selection, reducing the profiled router from
-326.238 to 209.214 microseconds/token. Its three-run 16K+64 row is 6,594.831 prompt and 142.250 ordinary-decode
-token/s with the unchanged `c750d0...` hash. The next isolated mechanisms are the larger remaining constant-cost
-targets identified by the refreshed profile:
+326.238 to 209.214 microseconds/token. D09d then omits the unused native 8x2816 contribution writes, reducing its
+reduction kernel from 52.735 to 25.344 microseconds/token. The resulting three-run 16K+64 row is 6,570.312 prompt and
+142.843 ordinary-decode token/s with the unchanged `c750d0...` hash. The next isolated mechanisms are the larger
+remaining constant-cost targets identified by the refreshed profile:
 
-1. use the exact D09, D11 and D05 result as the new 142.250-token/s measured parent;
-2. reprofile that parent, then select the next exact D09 expert-kernel or attention candidate by measured remaining
+1. use the exact D09, D11, D05 and D09d result as the new 142.843-token/s measured parent;
+2. select the next exact D09 expert-kernel or attention candidate by measured remaining
    time; D10 full-logit fusion remains rejected;
 3. retain the current `c750d0...` output hash, fixed Graph/arena contract and no-spill boundary;
 4. screen each mechanism with an operator differential and adjacent 16K+64 full-engine samples;

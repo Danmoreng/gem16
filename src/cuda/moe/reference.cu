@@ -619,7 +619,10 @@ __global__ void WeightedReductionKernel(
   for (std::uint32_t slot = 0; slot < top_k; ++slot) {
     const std::uint64_t offset = static_cast<std::uint64_t>(slot) * width + index;
     const float weighted = RoundBf16(expert_down[offset] * top_weights[slot]);
-    contributions[offset] = weighted;
+    // The exact diagnostic path materializes every slot contribution. Native
+    // decode consumes only the fixed-order sum and avoids the unused 8xwidth
+    // write by passing null without changing any arithmetic boundary.
+    if (contributions != nullptr) contributions[offset] = weighted;
     sum += weighted;
   }
   routed_sum[index] = RoundBf16(sum);
@@ -945,7 +948,8 @@ Status LaunchGemma4MoeLayerImpl(
   }
   WeightedReductionKernel<<<static_cast<unsigned>(Blocks(c.width)), kThreads,
                             0, stream>>>(
-      x.expert_down, x.top_weights, x.expert_contributions, x.routed_sum,
+      x.expert_down, x.top_weights,
+      native_sm120 ? nullptr : x.expert_contributions, x.routed_sum,
       c.width, c.top_k);
   status = CheckLaunch("launch M11 slot-order expert reduction");
   if (!status.ok()) return status;

@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "milestone": "M20-development",
+  "status": "accepted_optimization_not_formal_qualification",
+  "measured_on": "2026-08-25",
+  "base_revision": "0ff22b5",
+  "device": "NVIDIA GeForce RTX 5080 Laptop GPU",
+  "driver": "610.43.03",
+  "scenario": {
+    "id": "wikipedia-real-16k64-greedy",
+    "prompt_tokens": 16384,
+    "output_forwards": 64,
+    "prompt_manifest_sha256": "9a5859b979d91fccf71bcbb61aade6372cf2cc3c708e6c47b8b6cfd99f7abd2d",
+    "mtp_or_speculative_decode": false,
+    "prompt_cache": false,
+    "kv_mode": "fp8"
+  },
+  "change": {
+    "candidate": "D09d_native_decode_without_materialized_slot_contributions",
+    "native_path": "the fixed-order reduction computes each BF16-rounded weighted slot and accumulates it without writing the otherwise unused 8x2816 contribution matrix",
+    "diagnostic_path": "the serial/reference path continues to materialize every slot contribution",
+    "preserved_semantics": "expert-down storage, per-slot BF16 weighted value, slot-order FP32 sum, final BF16 routed sum, Graph node count, and workspace addresses are unchanged",
+    "avoided_write_bytes_per_layer": 90112,
+    "avoided_write_bytes_per_model_token": 2703360,
+    "candidate_binary_sha256": "96fca1ac19f8731a8c1004ad4ca3f56e50ecee29f185df8105c4044367e657d0",
+    "recurring_host_or_device_allocations": 0
+  },
+  "measurements": {
+    "decode_tokens_per_second_samples": [
+      142.846756181,
+      142.809082258,
+      142.873051658
+    ],
+    "decode_tokens_per_second_mean": 142.842963366,
+    "decode_tokens_per_second_median": 142.846756181,
+    "prompt_tokens_per_second_samples": [
+      6568.480519527,
+      6569.646727404,
+      6572.810144509
+    ],
+    "prompt_tokens_per_second_mean": 6570.312463813
+  },
+  "comparison": {
+    "parent_decode_tokens_per_second_mean": 142.250074890,
+    "decode_gain_percent": 0.416793085,
+    "latency_saving_microseconds_per_token": 29.178412101,
+    "parent_weighted_reduction_microseconds_per_token": 52.735,
+    "candidate_weighted_reduction_microseconds_per_token": 25.344,
+    "weighted_reduction_change_percent": -51.940836257,
+    "profiled_reduction_saving_microseconds_per_token": 27.391,
+    "decision": "retain: the exact end-to-end gain agrees with the isolated eliminated-store profile"
+  },
+  "correctness": {
+    "all_logits_finite": true,
+    "output_token_sha256": "c750d0b33f8eb4a8103299875886e51ab144d874cafe8cea77b0cfd99d2aedaf",
+    "matches_parent_output_hash": true,
+    "diagnostic_materialization_preserved": true,
+    "fallback_count": 0,
+    "recurring_allocation_count": 0,
+    "sampled_device_margin_bytes": 1292697600
+  },
+  "tests": {
+    "blackwell_release_build": "pass",
+    "focused_unit_and_cuda": "pass_5_of_5_36.01_seconds",
+    "moe_memcheck": "pass_0_errors",
+    "moe_racecheck": "pass_0_hazards_0_errors_0_warnings",
+    "moe_initcheck": "pass_0_errors",
+    "real_26b_m17_engine_smoke": "pass_152.97_seconds",
+    "protected_12b_product_regression": "pass_5.37_seconds"
+  },
+  "commands": [
+    "cmake --build build/Linux/blackwell-release --target gem16-cuda-moe-reference-tests gem16-26b-benchmark -j4",
+    "ctest --test-dir build/Linux/blackwell-release -R '^(gem16-unit|gem16-cuda|gem16-cuda-moe-reference|gem16-cuda-attention-reference|gem16-cuda-nvfp4-consumption)$' --output-on-failure",
+    "compute-sanitizer --tool memcheck --error-exitcode=1 build/Linux/blackwell-release/bin/gem16-cuda-moe-reference-tests",
+    "compute-sanitizer --tool racecheck --error-exitcode=1 build/Linux/blackwell-release/bin/gem16-cuda-moe-reference-tests",
+    "compute-sanitizer --tool initcheck --error-exitcode=1 build/Linux/blackwell-release/bin/gem16-cuda-moe-reference-tests",
+    "GEM16_26B_COMPILED_MODEL=artifacts/raw/m08/qat-hybrid-clean-1 ctest --test-dir build/Linux/blackwell-release -R '^gem16-26b-m17-engine-smoke$' --output-on-failure",
+    "GEM16_12B_MODEL=models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 ctest --test-dir build/Linux/blackwell-release -R '^gem16-12b-m22-product$' --output-on-failure"
+  ],
+  "raw_evidence": [
+    {
+      "ignored_path": "artifacts/raw/max-performance/d09d-no-contribution-write-16k-01.json",
+      "bytes": 3037,
+      "sha256": "998a0f5693c747246d5bf3a84a08f5a4958ea7362fbe6dac1129417ecaa20a8a"
+    },
+    {
+      "ignored_path": "artifacts/raw/max-performance/d09d-no-contribution-write-16k-02.json",
+      "bytes": 3039,
+      "sha256": "b8de3493f3a4773ccdf2012aed56f83f4bb1715106ccad8e273023ff4f091b59"
+    },
+    {
+      "ignored_path": "artifacts/raw/max-performance/d09d-no-contribution-write-16k-03.json",
+      "bytes": 3033,
+      "sha256": "200e1079f8762c40fc56b6c4fd8dc7e39945225b97ee141d0a42f3ddff110506"
+    },
+    {
+      "ignored_path": "artifacts/raw/max-performance/d09d-no-contribution-write-node.nsys-rep",
+      "bytes": 2359031,
+      "sha256": "fab46b5d3092c91b5960b1c7cbe5bba9e8f04fbba85e1cc7f99325343d29c63d"
+    },
+    {
+      "ignored_path": "artifacts/raw/max-performance/d09d-no-contribution-write-profile-result.json",
+      "bytes": 1837,
+      "sha256": "872e93623511a599f84c0f70d832253d79e5d9a9e217f22fc8abb7bbdd4d55d5"
+    }
+  ],
+  "limitations": {
+    "formal_m20_3_warmup_10_retained_not_run": true,
+    "hard_150_decode_target_reached": false,
+    "remaining_decode_gap_percent": 5.010422961,
+    "physical_workspace_size_not_reduced": "the contribution region remains in the fixed diagnostic-compatible arena; only recurring native writes are eliminated",
+    "full_26b_m22_product_lifecycle_not_repeated": "the changed native decode layer is covered by three real 16K+64 runs plus the real M17 replay/relaunch test; product wrapper behavior is unchanged"
+  }
+}
