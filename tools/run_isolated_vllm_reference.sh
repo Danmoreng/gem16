@@ -8,7 +8,7 @@ readonly memory_max="45G"
 readonly max_jobs="4"
 readonly torchinductor_compile_threads="4"
 readonly flashinfer_nvcc_threads="1"
-readonly tasks_max="128"
+readonly tasks_max="256"
 readonly runtime_max="3h"
 
 usage() {
@@ -19,7 +19,7 @@ Usage:
 Runs COMMAND from the repository root in a transient systemd user service with:
   MemoryHigh=40G, MemoryMax=45G, MemorySwapMax=0
   MAX_JOBS=4, TORCHINDUCTOR_COMPILE_THREADS=4, FLASHINFER_NVCC_THREADS=1
-  OOMPolicy=kill, KillMode=control-group, TasksMax=128
+  OOMPolicy=kill, KillMode=control-group, TasksMax=256
   RuntimeMaxSec=3h
 
 If the command exceeds its memory limit, systemd kills the complete service
