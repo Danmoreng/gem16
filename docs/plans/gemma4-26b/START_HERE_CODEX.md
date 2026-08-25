@@ -18,6 +18,9 @@ Do not preload the full decision, correctness, benchmark or performance ledgers.
 The M17 profile and M22 product slice are accepted. Bounded correctness-preserving prefill/decode optimization may
 still change code; freeze the final binary only after the fixed M20 targets are reached or the owner records a new
 decision, and before M20/M21 evidence is collected.
+Use [`MAX_PERFORMANCE_EXECUTION_PLAN.md`](MAX_PERFORMANCE_EXECUTION_PLAN.md) as the consolidated execution order for
+the current optimization campaign. It reconciles the two 2026-08-25 owner-supplied German plans with active policy,
+current source and accepted evidence; higher-precedence rules in `AGENTS.md` and `ACTIVE_DECISIONS.md` still win.
 The lead agent may assign disjoint sub-agents for:
 
 - bounded M19/Q4 numerical reconciliation only; no multi-hour task/prose suite in the current wave;
