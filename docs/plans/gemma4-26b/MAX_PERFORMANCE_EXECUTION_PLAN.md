@@ -236,7 +236,14 @@ P01 and P02 are isolated candidates and are measured separately.
 
 ### W1 — fresh decode cost model
 
-#### D00: profile the current `4b7c2f3`-derived candidate
+#### D00: profile the current `7f745f5` candidate
+
+Status: complete on 2026-08-25. Compact attribution is
+`artifacts/m20/decode-attribution-d00.json`. The 16K Graph contains 697 kernel, 17 D2D-copy and 2 memset nodes.
+Global split plus merge accounts for 635.988 instrumented microseconds per token and is the largest
+context-dependent exact target. The special KVH2 kernel uses 56 registers/thread, 12,352 bytes static shared memory,
+66.67% theoretical occupancy and 51.67% achieved occupancy. D03a is selected next under a strict four-block
+register-residency and zero-spill boundary.
 
 Build a current microsecond/token table for:
 
@@ -493,16 +500,16 @@ under the current owner authorization; do not push unless the owner explicitly r
 
 ## 11. Immediate handoff
 
-P01 is retained and P02 is rejected. The next slice is **D00**, a fresh decode attribution on the new source parent:
+P01 is retained, P02 is rejected and D00 is complete. The compact profile selects **D03a** as the next isolated
+mechanism:
 
-1. record the current binary, model, driver, power-state and canonical-row hashes;
-2. profile bounded 512, 2K, 8K and 16K contexts; do not run 32K/64K without a context-owned hypothesis;
-3. separate constant T=1 work from context-dependent local/global attention;
-4. attribute attention projection/cache, split/merge, MoE, head, graph/control and host-tail cost;
-5. record graph-node counts plus register/shared/occupancy facts for the five largest kernel groups;
-6. check in a compact attribution that selects D03a or a larger measured exact bottleneck.
-
-Do not edit decode code before D00 selects the next isolated mechanism.
+1. implement two independent existing 128-token global splits per CTA without combining their online-softmax state;
+2. add 127/128/129 and 255/256/257 operator boundaries plus both physical KV heads and a final tail;
+3. compare partial output, LSE and merged output against the current kernel before full-engine timing;
+4. reject any exact-hash change, spill, loss of the current four-block register residency, or sub-threshold full-engine
+   result;
+5. if D03a is rejected, proceed to the larger constant-cost D09/D10 targets identified by D00 rather than forcing the
+   attention design.
 
 ## 12. Complete candidate inventory
 

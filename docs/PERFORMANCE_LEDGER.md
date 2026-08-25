@@ -63,6 +63,22 @@ The follow-on context-sized pinned staging candidate measured only +0.08% over P
 results and raw hashes are recorded in `artifacts/m20/optimization-final-chunk-only.json`. Formal M20 remains open on
 ordinary decode and the final 3/10 qualification.
 
+## 2026-08-25 D00 current decode attribution
+
+Bounded uninstrumented 512/2K/8K/16K runs measure 148.275, 147.039, 139.267 and 138.706 ordinary token/s. Most of the
+context penalty appears between 2K and 8K; the 8K-to-16K delta is small. The current 16K Graph executes 697 kernel,
+17 D2D-copy and two memset nodes. Under Nsight Systems, its kernels total 8,225.978 microseconds; the additive four
+post-synchronization prediction copies total only 36.578 microseconds.
+
+The largest individual 16K groups are routed W13 (983.377 microseconds), local QKV (806.802), local split attention
+(699.223), shared W13 (599.830), global split attention (595.574), all attention O projections (551.605) and the
+output head (494.616). Global split plus merge grows from 297.722 microseconds at context 512 to 635.988 at 16K,
+making it the leading context-dependent exact candidate. Current-build Nsight Compute reports 56 registers/thread,
+12,352 bytes static shared memory, 66.67% theoretical occupancy and 51.67% achieved occupancy for the special 16K
+KVH2 kernel, with no observed local-memory spill. D03a is therefore selected next, but must preserve its current
+four-block register residency and exact output hash. Compact attribution, raw hashes and measurement limitations are
+in `artifacts/m20/decode-attribution-d00.json`; this profiling step changes no runtime source and makes no speed claim.
+
 ## 2026-08-24 CTA-wide grouped-expert activation staging
 
 The accepted development candidate stages each 16-assignment/K64 activation tile once per four-warp grouped-expert

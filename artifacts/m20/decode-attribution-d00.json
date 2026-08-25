@@ -1,0 +1,149 @@
+{
+  "schema_version": 1,
+  "milestone": "M20-development",
+  "status": "profiling_complete_no_performance_promotion",
+  "measured_on": "2026-08-25",
+  "source_revision": "7f745f5",
+  "device": "NVIDIA GeForce RTX 5080 Laptop GPU",
+  "driver": "610.43.03",
+  "current_binary": {
+    "path": "build/Linux/blackwell-release/bin/gem16-26b-benchmark",
+    "sha256": "3115978e790085636141107a70b341b4fda10e3f482d38325649a420425fe982"
+  },
+  "model": {
+    "profile": "native_sm120_integrated_prefill_decode_head",
+    "artifact_content_sha256": "471805f7dad8abb84300be78b2822a63dcb1d35bff5aa98426a162cc8532ee17",
+    "artifact_lock_sha256": "d7d2d30743e7c42aa55537a83f563047c9cbd2d83e0d583a2d2c8bcacbfa51a4"
+  },
+  "scenario": {
+    "prompt_family": "wikipedia-real-greedy",
+    "output_forwards": 64,
+    "mtp_or_speculative_decode": false,
+    "prompt_cache": false,
+    "kv_mode": "fp8"
+  },
+  "uninstrumented_context_curve": [
+    {
+      "prompt_tokens": 512,
+      "decode_tokens_per_second": 148.274711,
+      "median_itl_ms": 6.741728,
+      "output_token_sha256": "43aa4a7b08eed1f3d34757a1aafefdba1792b6b1af3320a8126ae98e55e05a1f"
+    },
+    {
+      "prompt_tokens": 2048,
+      "decode_tokens_per_second": 147.039495,
+      "median_itl_ms": 6.792373,
+      "output_token_sha256": "eb509ff8ecabb576085d7f5b964d5e981e6c639152c70a55a4fde963dece19c6"
+    },
+    {
+      "prompt_tokens": 8192,
+      "decode_tokens_per_second": 139.267360,
+      "median_itl_ms": 7.170683,
+      "output_token_sha256": "12a0c88dd4755ff12b5b78a6c9add88b7f27075eb763536e5a8b783403287067"
+    },
+    {
+      "prompt_tokens": 16384,
+      "decode_tokens_per_second": 138.706359,
+      "median_itl_ms": 7.204677,
+      "output_token_sha256": "c750d0b33f8eb4a8103299875886e51ab144d874cafe8cea77b0cfd99d2aedaf"
+    }
+  ],
+  "nsight_systems": {
+    "tool_version": "2026.1.3",
+    "decode_graph": {
+      "kernel_nodes": 697,
+      "device_to_device_copy_nodes": 17,
+      "memset_nodes": 2,
+      "total_executed_nodes": 716,
+      "kernel_time_us": 8225.978,
+      "copy_time_us": 11.327,
+      "memset_time_us": 0.512
+    },
+    "context_attention_us": [
+      {
+        "prompt_tokens": 512,
+        "local_split": 670.933,
+        "local_merge": 49.246,
+        "global_split": 285.275,
+        "global_merge": 12.447,
+        "all_graph_kernels": 7776.223
+      },
+      {
+        "prompt_tokens": 2048,
+        "local_split": 698.132,
+        "local_merge": 48.127,
+        "global_split": 268.987,
+        "global_merge": 15.616,
+        "all_graph_kernels": 7829.178
+      },
+      {
+        "prompt_tokens": 8192,
+        "local_split": 707.700,
+        "local_merge": 48.767,
+        "global_split": 604.886,
+        "global_merge": 27.040,
+        "all_graph_kernels": 8259.252
+      },
+      {
+        "prompt_tokens": 16384,
+        "local_split": 699.223,
+        "local_merge": 47.775,
+        "global_split": 595.574,
+        "global_merge": 40.414,
+        "all_graph_kernels": 8225.978
+      }
+    ],
+    "top_16k_operator_groups": [
+      {"operator": "routed_moe_w13", "time_us": 983.377, "percent": 11.95},
+      {"operator": "local_attention_qkv", "time_us": 806.802, "percent": 9.81},
+      {"operator": "local_attention_split", "time_us": 699.223, "percent": 8.50},
+      {"operator": "shared_moe_w13", "time_us": 599.830, "percent": 7.29},
+      {"operator": "global_attention_split", "time_us": 595.574, "percent": 7.24},
+      {"operator": "all_attention_o", "time_us": 551.605, "percent": 6.71},
+      {"operator": "output_head", "time_us": 494.616, "percent": 6.01},
+      {"operator": "shared_moe_w2", "time_us": 486.360, "percent": 5.91},
+      {"operator": "routed_moe_w2", "time_us": 432.342, "percent": 5.26}
+    ],
+    "host_tail": {
+      "graph_launch_api_us": 889.619,
+      "following_stream_synchronize_us": 7235.424,
+      "four_prediction_d2h_copies_us": 36.578,
+      "interpretation": "the graph launch API and synchronization enclose GPU work; only the four post-sync scalar copies are additive host-tail work"
+    }
+  },
+  "nsight_compute": {
+    "tool_version": "2026.2.1",
+    "representative_current_graph_nodes": [
+      {"kernel": "routed_moe_w13", "registers_per_thread": 56, "static_shared_bytes": 0, "theoretical_occupancy_percent": 75.0, "achieved_occupancy_percent": 23.01},
+      {"kernel": "local_attention_qkv", "registers_per_thread": 72, "static_shared_bytes": 0, "theoretical_occupancy_percent": 58.33, "achieved_occupancy_percent": 34.61},
+      {"kernel": "local_attention_split", "registers_per_thread": 49, "static_shared_bytes": 1056, "theoretical_occupancy_percent": 66.67, "achieved_occupancy_percent": 17.69},
+      {"kernel": "shared_moe_w13", "registers_per_thread": 52, "static_shared_bytes": 0, "theoretical_occupancy_percent": 75.0, "achieved_occupancy_percent": 9.11},
+      {"kernel": "global_attention_kvh2_split", "registers_per_thread": 56, "static_shared_bytes": 12352, "theoretical_occupancy_percent": 66.67, "achieved_occupancy_percent": 51.67}
+    ],
+    "spill_observation": "Nsight Systems reports zero local memory per thread for all five selected groups; Nsight Compute emitted no spill warning in the launch/occupancy pass"
+  },
+  "decision": {
+    "next_candidate": "D03a_two_independent_128_token_global_splits_per_cta",
+    "reason": "global split plus merge is the largest context-dependent exact target at 635.988 us per profiled 16K token; the current special kernel retains four register-limited blocks per SM and 51.67 percent achieved occupancy, so paired scheduling is testable under a strict no-residency-loss boundary",
+    "kill_boundary": "reject if exact hash changes, register/shared growth drops the four-block occupancy limit, spills appear, or isolated and full-engine screening fail the plan thresholds",
+    "secondary_constant_cost_targets": ["D09_decode_moe_nvfp4", "D10_output_head", "D11_coherent_device_self_feed"]
+  },
+  "raw_evidence": [
+    {"ignored_path": "artifacts/raw/max-performance/d00/profile-512-node.nsys-rep", "sha256": "1a5789a079cdde402000377f9de97dcfd6ab8e3e66048e574fe288e29f58ed28"},
+    {"ignored_path": "artifacts/raw/max-performance/d00/profile-2048-node.nsys-rep", "sha256": "d68b4b1c6adef1168e1002942872b47c6ee7f58e8d6746023e6ce11430c5575e"},
+    {"ignored_path": "artifacts/raw/max-performance/d00/profile-8192-node.nsys-rep", "sha256": "d18059ca3b2f2532455ce22cbe380bd199cfb781121cef2c0b0a20341ed4f622"},
+    {"ignored_path": "artifacts/raw/max-performance/d00/profile-16384-node.nsys-rep", "sha256": "896dbb60a52c8cd60f98bd6d7f958272227aaf18cbd01e7a4e42638821f185f1"},
+    {"ignored_path": "artifacts/raw/max-performance/d00/ncu-top5-current-16384.ncu-rep", "sha256": "5b9f006549d773db1763bc807acb901bb96733611a2405912ff29dad124e139b"},
+    {"ignored_path": "artifacts/raw/max-performance/d00/timing-512x64.json", "sha256": "0c6e19e75ecd9df7b6db511b80dee82f1761fc6f7de34525af554a2a60e05929"},
+    {"ignored_path": "artifacts/raw/max-performance/d00/timing-2048x64.json", "sha256": "2ab72b7cb1143ec9cb71c84bd64df7b5bb65bbc3eed994c3bee0a4d70209c9f2"},
+    {"ignored_path": "artifacts/raw/max-performance/d00/timing-8192x64.json", "sha256": "6df67c3e82867c0e52d499588e96fc61ceb68c2f9cda3523ec0bc915f991e0b9"},
+    {"ignored_path": "artifacts/raw/max-performance/p01-candidate-e1aad34-worktree-03.json", "sha256": "fc325640f8f57a8064049ea68b713328c58bd21c872182169980f344d653523a"}
+  ],
+  "limitations": {
+    "nsight_systems_timing_is_instrumented": true,
+    "use_profile_for_relative_attribution_not_throughput": true,
+    "contexts_above_16k_not_run": true,
+    "formal_m20_3_warmup_10_retained_not_run": true,
+    "source_modified_by_d00": false
+  }
+}
