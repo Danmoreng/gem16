@@ -529,6 +529,17 @@ if(BUILD_TESTING AND GEM16_BUILD_TESTS)
   gem16_enable_sanitizers(gem16-unit-tests)
   add_test(NAME gem16-unit COMMAND gem16-unit-tests)
 
+  find_package(Python3 QUIET COMPONENTS Interpreter)
+  if(Python3_Interpreter_FOUND)
+    add_test(NAME gem16-26b-m23-host-contract
+      COMMAND "${Python3_EXECUTABLE}" -m unittest
+        tests.python.test_qualify_gemma4_26b_m23
+    )
+    set_tests_properties(gem16-26b-m23-host-contract PROPERTIES
+      WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    )
+  endif()
+
   if(GEM16_ENABLE_CUDA)
     add_executable(gem16-cuda-tests tests/cuda/nvfp4_reference_test.cu)
     target_include_directories(gem16-cuda-tests PRIVATE
@@ -605,7 +616,6 @@ if(BUILD_TESTING AND GEM16_BUILD_TESTS)
       RESOURCE_LOCK gem16_gpu0
     )
 
-    find_package(Python3 QUIET COMPONENTS Interpreter)
     if(Python3_Interpreter_FOUND)
       add_test(NAME gem16-26b-m21-host-contract
         COMMAND "${Python3_EXECUTABLE}" -m unittest

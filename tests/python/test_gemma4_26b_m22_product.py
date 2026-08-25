@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import base64
 import contextlib
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -75,6 +76,14 @@ def write_evidence(name: str, payload: dict[str, Any]) -> None:
     (directory / name).write_text(
         json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
+
+
+def sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for block in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
 
 
 def free_port() -> int:
@@ -472,6 +481,11 @@ def run_26b(driver: Path, chat: Path, server_executable: Path) -> int:
         {
             "schema_version": 1,
             "passed": True,
+            "qualified_binaries": {
+                "gem16_chat_sha256": sha256(chat),
+                "gem16_server_sha256": sha256(server_executable),
+                "m22_product_driver_sha256": sha256(driver),
+            },
             "model_report": report,
             "chat_one_shot": one_shot,
             "driver_reports": driver_reports,
@@ -601,6 +615,10 @@ def run_12b(run_executable: Path, server_executable: Path, golden: Path) -> int:
         {
             "schema_version": 1,
             "passed": True,
+            "qualified_binaries": {
+                "gem16_server_sha256": sha256(server_executable),
+                "protected_12b_runner_sha256": sha256(run_executable),
+            },
             "expected_output_token_ids": expected,
             "run_output": exact,
             "server_health": health,

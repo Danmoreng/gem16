@@ -142,6 +142,9 @@ std::uint64_t ModelRuntime::base_max_context_tokens() const {
              : 0U;
 }
 bool ModelRuntime::qualified_64k() const {
+  // The 26B compiled loader admits only the exact M08 artifact identity that
+  // M21 qualified. A future artifact must update that lock and requalify this
+  // product capability rather than inheriting it from a generic config.
   return impl_ != nullptr &&
          impl_->variant == internal::ModelVariant::kGemma4Moe26BA4B;
 }
