@@ -192,6 +192,53 @@ class M21QualificationTest(unittest.TestCase):
             self.assertTrue(result["unclassified_failures"])
             self.assertFalse(result["exit_gate_pass"])
 
+    def test_reproducible_margin_failure_defines_safe_boundary(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="gem16-m21-host-test-") as temp:
+            root = Path(temp)
+            model = root / "model"
+            model.mkdir()
+            (model / "config.json").write_text("{}\n", encoding="utf-8")
+            (model / "gem16_compilation.json").write_text("{}\n", encoding="utf-8")
+            driver = root / "fake_driver.py"
+            driver.write_text(
+                FAKE_DRIVER.replace(
+                    "if args.context > 65_536:\n    raise SystemExit(20)",
+                    "if False:\n    raise SystemExit(20)",
+                ).replace(
+                    "free = margin + 1024 * 1024",
+                    "free = margin + 1024 * 1024 if args.context <= 65_536 else margin - 1",
+                ),
+                encoding="utf-8",
+            )
+            driver.chmod(driver.stat().st_mode | stat.S_IXUSR)
+            benchmark, toolchain = self.candidate_inputs(root, model)
+            output = root / "acceptance.json"
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(TOOL),
+                    "--driver", str(driver),
+                    "--model", str(model),
+                    "--output", str(output),
+                    "--benchmark-executable", str(benchmark),
+                    "--toolchain-lock", str(toolchain),
+                    "--contexts", "32768,65536,69632",
+                    "--runs", "2",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            result = json.loads(output.read_text(encoding="utf-8"))
+            self.assertEqual(result["base_max_context"], 65536)
+            self.assertEqual(result["first_capacity_rejection"], 69632)
+            self.assertEqual(
+                result["contexts"][2]["runs"][0]["failure_kind"],
+                "safety_margin_rejected",
+            )
+            self.assertTrue(result["maximum_search_complete"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -248,10 +248,17 @@ def run_context(
             retained.append(record)
             break
         errors = validate_run(payload, context)
+        safety_margin_rejected = bool(errors) and set(errors) == {"margin"}
         record.update(
             {
                 "status": "passed" if not errors else "failed",
-                "failure_kind": None if not errors else "validation_error",
+                "failure_kind": (
+                    None
+                    if not errors
+                    else "safety_margin_rejected"
+                    if safety_margin_rejected
+                    else "validation_error"
+                ),
                 "validation_errors": errors,
                 "logits_sha256": sha256(logits),
                 "prefill_elapsed_ms": payload.get("prefill_elapsed_ms"),
@@ -270,7 +277,7 @@ def run_context(
             }
         )
         retained.append(record)
-        if errors:
+        if errors and not safety_margin_rejected:
             break
 
     successful = len(retained) == runs and all(
@@ -287,7 +294,9 @@ def run_context(
         }
     ) == 1
     capacity_rejected = len(retained) == runs and all(
-        record.get("failure_kind") == "capacity_rejected" for record in retained
+        record.get("failure_kind")
+        in {"capacity_rejected", "safety_margin_rejected"}
+        for record in retained
     )
     return {
         "context_tokens": context,
