@@ -47,6 +47,13 @@ struct Gemma4Moe26BResidencyPlan {
 BuildGemma4Moe26BResidencyPlan(const ModelManifest& manifest,
                                const ModelConfig& config);
 
+// Builds the immutable M25 Assistant arena. Its attention reads the target's
+// existing FP8 KV cache, so these profiles add no second context-sized KV
+// allocation. The fixed region is sized for the 64K proposal workspace and is
+// deliberately accounted separately from the target profile safety reserve.
+[[nodiscard]] Result<Gemma4Moe26BResidencyPlan>
+BuildGemma4Moe26BAssistantResidencyPlan(const ModelManifest& manifest);
+
 [[nodiscard]] Status CheckGemma4Moe26BAdmission(
     const Gemma4Moe26BResidencyPlan& plan, std::uint64_t context_tokens,
     std::uint64_t free_device_bytes, bool include_weight_arena);

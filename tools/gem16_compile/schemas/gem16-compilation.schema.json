@@ -77,14 +77,25 @@
             "quantization": {"$ref": "#/$defs/quantizationM08"},
             "compiler_settings": {"$ref": "#/$defs/settingsM08"}
           }
+        },
+        {
+          "properties": {
+            "artifact_profile": {"const": "sm120-mtp-assistant-hybrid-v1"},
+            "artifact_status": {"const": "m25_mtp_assistant_runtime_candidate"},
+            "head_format": {"const": "nvfp4"},
+            "compiler": {"$ref": "#/$defs/compilerM25"},
+            "quantization": {"$ref": "#/$defs/quantizationM25"},
+            "compiler_settings": {"$ref": "#/$defs/settingsM08"},
+            "omitted_families": {"const": ["audio", "video", "vision"]}
+          }
         }
       ]
     }
   ],
   "properties": {
     "schema_version": {"const": 1},
-    "artifact_profile": {"enum": ["synthetic-copy-v1", "fp8-attention-partial-v1", "nvfp4-experts-partial-v1", "nvfp4-tied-head-partial-v1", "sm120-text-hybrid-v1"]},
-    "artifact_status": {"enum": ["m04_scaffold_not_runtime_loadable", "m05_fp8_attention_partial_not_runtime_loadable", "m06_nvfp4_experts_partial_not_runtime_loadable", "m07_nvfp4_tied_head_partial_not_runtime_loadable", "m08_complete_runtime_loadable_experimental"]},
+    "artifact_profile": {"enum": ["synthetic-copy-v1", "fp8-attention-partial-v1", "nvfp4-experts-partial-v1", "nvfp4-tied-head-partial-v1", "sm120-text-hybrid-v1", "sm120-mtp-assistant-hybrid-v1"]},
+    "artifact_status": {"enum": ["m04_scaffold_not_runtime_loadable", "m05_fp8_attention_partial_not_runtime_loadable", "m06_nvfp4_experts_partial_not_runtime_loadable", "m07_nvfp4_tied_head_partial_not_runtime_loadable", "m08_complete_runtime_loadable_experimental", "m25_mtp_assistant_runtime_candidate"]},
     "source": {"$ref": "#/$defs/source"},
     "compiler": {"$ref": "#/$defs/compiler"},
     "plan": {"$ref": "#/$defs/plan"},
@@ -92,7 +103,10 @@
     "head_format": {"enum": ["source", "deferred", "nvfp4"]},
     "text_only": {"const": true},
     "omitted_families": {
-      "const": ["audio", "mtp", "video", "vision"]
+      "oneOf": [
+        {"const": ["audio", "mtp", "video", "vision"]},
+        {"const": ["audio", "video", "vision"]}
+      ]
     },
     "omitted_tensor_groups": {
       "type": "array",
@@ -269,6 +283,34 @@
         }
       ]
     },
+    "compilerM25": {
+      "allOf": [
+        {"$ref": "#/$defs/compiler"},
+        {
+          "required": ["native_encoders"],
+          "not": {"required": ["native_encoder"]},
+          "properties": {
+            "implementation": {"const": "gem16_compile_m25_assistant_hybrid_v1"},
+            "native_encoders": {
+              "properties": {
+                "fp8": {
+                  "properties": {
+                    "protocol": {"const": "gem16-fp8-batch-v1"},
+                    "build": {"properties": {"build_type": {"const": "Release"}}}
+                  }
+                },
+                "nvfp4": {
+                  "properties": {
+                    "protocol": {"const": "gem16-nvfp4-direct-v1"},
+                    "build": {"properties": {"build_type": {"const": "Release"}}}
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
     "quantizationM04": {
       "const": {
         "profile": "synthetic-copy-v1",
@@ -314,6 +356,15 @@
     "quantizationM08": {
       "const": {
         "profile": "sm120-text-hybrid-v1",
+        "attention": "fp8-per-output-row-v1",
+        "experts": "nvfp4-group16-divisor-v1",
+        "embedding_head": "nvfp4-group16-divisor-v1",
+        "production_quantization_implemented": true
+      }
+    },
+    "quantizationM25": {
+      "const": {
+        "profile": "sm120-mtp-assistant-hybrid-v1",
         "attention": "fp8-per-output-row-v1",
         "experts": "nvfp4-group16-divisor-v1",
         "embedding_head": "nvfp4-group16-divisor-v1",

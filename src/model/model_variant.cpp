@@ -42,6 +42,18 @@ constexpr ModelVariantTraits kGemma4UnifiedAssistantTraits{
     .supports_video = false,
     .supports_mtp = true,
 };
+constexpr ModelVariantTraits kGemma4Moe26BAssistantTraits{
+    .variant = ModelVariant::kGemma4Moe26BAssistant,
+    .name = "gemma4_moe_26b_assistant",
+    .layer_count = 4,
+    .inspectable = true,
+    .executable = false,
+    .supports_text = true,
+    .supports_vision = false,
+    .supports_audio = false,
+    .supports_video = false,
+    .supports_mtp = true,
+};
 
 }  // namespace
 
@@ -61,6 +73,11 @@ ModelVariant ClassifyModelVariant(const ModelConfig& config) {
       config.text_model_type == "gemma4_unified_text") {
     return ModelVariant::kGemma4UnifiedAssistant;
   }
+  if (config.architecture == "Gemma4AssistantForCausalLM" &&
+      config.model_type == "gemma4_assistant" &&
+      config.text_model_type == "gemma4_text") {
+    return ModelVariant::kGemma4Moe26BAssistant;
+  }
   return ModelVariant::kUnsupported;
 }
 
@@ -72,6 +89,8 @@ const ModelVariantTraits& TraitsForModelVariant(ModelVariant variant) {
       return kGemma4Moe26BA4BTraits;
     case ModelVariant::kGemma4UnifiedAssistant:
       return kGemma4UnifiedAssistantTraits;
+    case ModelVariant::kGemma4Moe26BAssistant:
+      return kGemma4Moe26BAssistantTraits;
     case ModelVariant::kUnsupported:
       return kUnsupportedTraits;
   }

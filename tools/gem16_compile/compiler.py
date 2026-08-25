@@ -60,13 +60,16 @@ from .writer import (
     prepare_direct_shards,
     finalize_direct_shards,
     finalize_mixed_shards,
-    m08_config_bytes,
+    compiled_config_bytes,
 )
 
 
 COMPILATION_MANIFEST = "gem16_compilation.json"
 DEPENDENCIES_LOCK = Path(__file__).with_name("dependencies.lock.json")
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+COMPLETE_HYBRID_PROFILES = frozenset({
+    "sm120-text-hybrid-v1", "sm120-mtp-assistant-hybrid-v1",
+})
 
 
 @dataclass(frozen=True)
@@ -344,7 +347,7 @@ def _build_compilation_manifest(
     for name in sorted(payload.metadata_names):
         kind = (
             "generated_config"
-            if plan.artifact_profile == "sm120-text-hybrid-v1" and name == "config.json"
+            if plan.artifact_profile in COMPLETE_HYBRID_PROFILES and name == "config.json"
             else "source_metadata_copy"
         )
         files.append(_file_record(staging, name, kind, workspace))
@@ -361,7 +364,7 @@ def _build_compilation_manifest(
         if native_identity is None:
             raise InvalidPlanError("native compilation is missing execution identity")
         compiler_record["native_encoder"] = dict(native_identity)
-    elif plan.artifact_profile == "sm120-text-hybrid-v1":
+    elif plan.artifact_profile in COMPLETE_HYBRID_PROFILES:
         if native_identity is None or set(native_identity) != {"fp8", "nvfp4"}:
             raise InvalidPlanError("M08 compilation is missing both native identities")
         compiler_record["native_encoders"] = {
@@ -396,7 +399,7 @@ def _build_compilation_manifest(
         "file_hash_scope": (
             "all artifact files except gem16_compilation.json; its self-hash "
             "is supplied by the external artifact lock"
-            if plan.artifact_profile == "sm120-text-hybrid-v1"
+            if plan.artifact_profile in COMPLETE_HYBRID_PROFILES
             else "all artifact files except gem16_compilation.json; its self-hash "
                  "is supplied by the external artifact lock in M08"
         ),
@@ -665,7 +668,7 @@ def compile_artifact(
             "--allow-dirty is diagnostic only"
         )
     native_preflight: NativeNvfp4Preflight | None = None
-    if request.profile == "sm120-text-hybrid-v1" and (
+    if request.profile in COMPLETE_HYBRID_PROFILES and (
         request.native_fp8_encoder is None or request.native_nvfp4_encoder is None
     ):
         raise InvalidPlanError(
@@ -683,7 +686,7 @@ def compile_artifact(
             ),
             workspace,
         )
-    elif request.profile == "sm120-text-hybrid-v1":
+    elif request.profile in COMPLETE_HYBRID_PROFILES:
         assert request.native_nvfp4_encoder is not None
         native_preflight = preflight_native_nvfp4(
             NativeNvfp4Request(
@@ -774,7 +777,7 @@ def compile_artifact(
             payload = finalize_direct_shards(
                 staging, plan, direct_layout, native_direct, workspace
             )
-        elif plan.artifact_profile == "sm120-text-hybrid-v1":
+        elif plan.artifact_profile in COMPLETE_HYBRID_PROFILES:
             assert request.native_fp8_encoder is not None
             assert request.native_nvfp4_encoder is not None
             fp8_plan = _plan_with_encoders(
@@ -884,7 +887,7 @@ def compile_artifact(
             plan,
             dependency_hash,
             workspace,
-            expected_threads=request.threads if plan.artifact_profile in {"fp8-attention-partial-v1", "nvfp4-experts-partial-v1", "nvfp4-tied-head-partial-v1", "sm120-text-hybrid-v1"} else 1,
+            expected_threads=request.threads if plan.artifact_profile in {"fp8-attention-partial-v1", "nvfp4-experts-partial-v1", "nvfp4-tied-head-partial-v1", *COMPLETE_HYBRID_PROFILES} else 1,
         )
         _reverify_source_files(request, source, workspace)
 
@@ -914,7 +917,7 @@ def compile_artifact(
             }
         )
         if native_identity is not None:
-            if plan.artifact_profile == "sm120-text-hybrid-v1":
+            if plan.artifact_profile in COMPLETE_HYBRID_PROFILES:
                 report["native_encoders"] = native_identity
                 report["native_builds"] = {
                     name: dict(value["build"])
@@ -928,14 +931,14 @@ def compile_artifact(
         if statistics:
             report_key = (
                 "tensor_statistics"
-                if plan.artifact_profile == "sm120-text-hybrid-v1"
+                if plan.artifact_profile in COMPLETE_HYBRID_PROFILES
                 else "fp8_tensor_statistics"
                 if plan.artifact_profile == "fp8-attention-partial-v1"
                 else "nvfp4_tensor_statistics"
             )
             report[report_key] = statistics
         artifact_lock_payload: bytes | None = None
-        if plan.artifact_profile == "sm120-text-hybrid-v1":
+        if plan.artifact_profile in COMPLETE_HYBRID_PROFILES:
             if artifact_lock_path is None:
                 raise InvalidPlanError("M08 external artifact lock path is missing")
             artifact_lock_document = _external_lock_document(
@@ -1113,9 +1116,13 @@ def _validate_canonical_layout(
     for relative in plan.approved_metadata_files:
         path = artifact.joinpath(*safe_relative_path(relative, "approved metadata").parts)
         source_file = source.files[relative]
-        generated_config = plan.artifact_profile == "sm120-text-hybrid-v1" and relative == "config.json"
+        generated_config = (
+            plan.artifact_profile in COMPLETE_HYBRID_PROFILES
+            and relative == "config.json"
+        )
         expected_payload = (
-            m08_config_bytes(source_file.path.read_bytes()) if generated_config else None
+            compiled_config_bytes(source_file.path.read_bytes(), plan.artifact_profile)
+            if generated_config else None
         )
         expected_size = len(expected_payload) if expected_payload is not None else source_file.size
         if path.stat().st_size != expected_size:
@@ -1220,7 +1227,7 @@ def _verify_loaded_artifact(
     }
     if plan.artifact_profile in {"fp8-attention-partial-v1", "nvfp4-experts-partial-v1", "nvfp4-tied-head-partial-v1"}:
         expected_compiler_keys.add("native_encoder")
-    elif plan.artifact_profile == "sm120-text-hybrid-v1":
+    elif plan.artifact_profile in COMPLETE_HYBRID_PROFILES:
         expected_compiler_keys.add("native_encoders")
     if not isinstance(compiler_record, dict) or set(compiler_record) != expected_compiler_keys:
         raise DataError("compiled artifact compiler provenance is missing")
@@ -1264,7 +1271,7 @@ def _verify_loaded_artifact(
         )
         if plan.artifact_profile in {"nvfp4-experts-partial-v1", "nvfp4-tied-head-partial-v1"} and native_build.get("build_type") != "Release":
             raise DataError(f"compiled native {milestone} build must be Release")
-    elif plan.artifact_profile == "sm120-text-hybrid-v1":
+    elif plan.artifact_profile in COMPLETE_HYBRID_PROFILES:
         native_records = compiler_record.get("native_encoders")
         if not isinstance(native_records, dict) or set(native_records) != {"fp8", "nvfp4"}:
             raise DataError("compiled native M08 encoder provenance is invalid")
@@ -1289,7 +1296,7 @@ def _verify_loaded_artifact(
     expected_hash_scope = (
         "all artifact files except gem16_compilation.json; its self-hash "
         "is supplied by the external artifact lock"
-        if plan.artifact_profile == "sm120-text-hybrid-v1"
+        if plan.artifact_profile in COMPLETE_HYBRID_PROFILES
         else "all artifact files except gem16_compilation.json; its self-hash "
              "is supplied by the external artifact lock in M08"
     )
@@ -1406,11 +1413,13 @@ def _verify_loaded_artifact(
         )
         output_hash = workspace.hash_range(output_file, 0, output_file.stat().st_size)
         generated_config = (
-            plan.artifact_profile == "sm120-text-hybrid-v1"
+            plan.artifact_profile in COMPLETE_HYBRID_PROFILES
             and relative == "config.json"
         )
         expected_hash = (
-            sha256_bytes(m08_config_bytes(source_file.path.read_bytes()))
+            sha256_bytes(compiled_config_bytes(
+                source_file.path.read_bytes(), plan.artifact_profile
+            ))
             if generated_config
             else source_file.sha256
         )
@@ -1526,10 +1535,10 @@ def verify_artifact(
         plan,
         dependency_hash,
         workspace,
-        expected_threads=request.threads if plan.artifact_profile in {"fp8-attention-partial-v1", "nvfp4-experts-partial-v1", "nvfp4-tied-head-partial-v1", "sm120-text-hybrid-v1"} else 1,
+        expected_threads=request.threads if plan.artifact_profile in {"fp8-attention-partial-v1", "nvfp4-experts-partial-v1", "nvfp4-tied-head-partial-v1", *COMPLETE_HYBRID_PROFILES} else 1,
     )
     artifact_lock_sha256: str | None = None
-    if plan.artifact_profile == "sm120-text-hybrid-v1":
+    if plan.artifact_profile in COMPLETE_HYBRID_PROFILES:
         if request.artifact_lock is None:
             raise InvalidPlanError("M08 external artifact lock path is missing")
         artifact_lock_sha256 = _verify_external_artifact_lock(
@@ -1622,10 +1631,14 @@ def compare_reproducibility(
         left_manifest = load_json(left / COMPILATION_MANIFEST, 64 * 1024 * 1024)
         right_manifest = load_json(right / COMPILATION_MANIFEST, 64 * 1024 * 1024)
         if (
-            left_manifest.get("artifact_profile") == "sm120-text-hybrid-v1"
-            and right_manifest.get("artifact_profile") == "sm120-text-hybrid-v1"
+            left_manifest.get("artifact_profile") in COMPLETE_HYBRID_PROFILES
+            and right_manifest.get("artifact_profile")
+            == left_manifest.get("artifact_profile")
         ):
-            milestone = "M08"
+            milestone = (
+                "M25" if left_manifest.get("artifact_profile")
+                == "sm120-mtp-assistant-hybrid-v1" else "M08"
+            )
     except InvalidPlanError:
         # Reproducibility comparison remains useful for deliberately malformed
         # artifacts; schema validation is owned by verify.

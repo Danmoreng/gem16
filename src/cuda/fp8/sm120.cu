@@ -370,6 +370,10 @@ void Sm120DirectProjectionSplitK2Kernel(
     std::uint64_t contracting_elements) {
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 890
   __shared__ float second_half[kRowsPerWarp];
+  const std::uint64_t token = blockIdx.y;
+  activation += token * contracting_elements;
+  activation_scale += token;
+  output += token * rows;
   const unsigned warp = threadIdx.x / kWarpSize;
   const unsigned lane = threadIdx.x & (kWarpSize - 1U);
   const unsigned split = warp;
@@ -731,8 +735,9 @@ Status LaunchFp8Sm120DirectProjection(const std::uint8_t* activation_e4m3fn,
     return Invalid("SM120 FP8 direct projection grid exceeds CUDA limits");
   }
   if (gemma4_moe_26b_attention_output) {
-    Sm120DirectProjectionSplitK2Kernel<<<static_cast<unsigned>(row_tiles),
-                                         kSplitKThreadsPerBlock, 0, stream>>>(
+    Sm120DirectProjectionSplitK2Kernel<<<
+        dim3(static_cast<unsigned>(row_tiles), 1U),
+        kSplitKThreadsPerBlock, 0, stream>>>(
         activation_e4m3fn, activation_scale, weight_e4m3fn,
         weight_scales_bf16, output, rows, contracting_elements);
     const cudaError_t split_k_error = cudaGetLastError();
@@ -920,6 +925,27 @@ Status LaunchFp8Sm120DirectProjectionBatch(
     return Invalid("batched SM120 FP8 projection dimensions are invalid");
   }
   const std::uint64_t row_tiles = (rows + kRowsPerWarp - 1U) / kRowsPerWarp;
+  const bool gemma4_moe_26b_attention_output =
+      rows == kGemma4Moe26BHidden &&
+      (contracting_elements == kGemma4Moe26BLocalAttentionWidth ||
+       contracting_elements == kGemma4Moe26BGlobalAttentionWidth);
+  if (gemma4_moe_26b_attention_output && tokens <= 5U) {
+    if (row_tiles >
+        static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
+      return Invalid("batched split-K2 SM120 FP8 projection grid exceeds CUDA limits");
+    }
+    Sm120DirectProjectionSplitK2Kernel<<<
+        dim3(static_cast<unsigned>(row_tiles), static_cast<unsigned>(tokens)),
+        kSplitKThreadsPerBlock, 0, stream>>>(
+        activation_e4m3fn, activation_scales, weight_e4m3fn,
+        weight_scales_bf16, output, rows, contracting_elements);
+    const cudaError_t split_k_error = cudaGetLastError();
+    return split_k_error == cudaSuccess
+               ? Status::Ok()
+               : CudaFailure(
+                     "launch batched Gemma 4 26B split-K2 SM120 FP8 projection",
+                     split_k_error);
+  }
   if (tokens <= 5U) {
     const std::uint64_t direct_blocks =
         (row_tiles + kWarpsPerBlock - 1U) / kWarpsPerBlock;

@@ -25,15 +25,12 @@ constexpr unsigned kFullWarpMask = 0xffffffffU;
 constexpr int kDecodeThreads = 256;
 constexpr int kDecodeWarps = kDecodeThreads / 32;
 constexpr int kDecodeQueryHeads = 16;
-constexpr int kDecodeD2Rows = 3;
 constexpr int kDecodeLocalKvHeads = 8;
 constexpr int kDecodeLocalHeadDimension = 256;
 constexpr int kDecodeLocalGroup = 2;
 constexpr int kDecodeLocalChunk = 128;
 constexpr int kDecodeLocalCapacity = 1024;
-constexpr int kDecodeLocalD2HistoricalTokens = 1023;
-constexpr int kDecodeLocalD2UnionTokens =
-    kDecodeLocalChunk + kDecodeD2Rows - 1;
+constexpr int kDecodeLocalHistoricalTokens = 1023;
 constexpr int kDecodeGlobalKvHeads = 1;
 constexpr int kDecodeGlobalKvHeads26B = 2;
 constexpr int kDecodeGlobalHeadDimension = 512;
@@ -477,13 +474,14 @@ void SplitOnlineDecodeAttentionFp8Kernel(
   }
 }
 
-// A fixed D2 verifier evaluates three consecutive causal rows. Local attention
-// shifts the same 1024-token window by one slot per row, so stage the 1023
-// historical entries and three speculative entries once per KV head/split.
+// A fixed-D verifier evaluates consecutive causal rows. Local attention shifts
+// the same 1024-token window by one slot per row, so stage the 1023 historical
+// entries and the fixed speculative rows once per KV head/split.
 // Before the window fills, the same storage represents a growing prefix and
 // invalid split entries receive zero probability.
+template <int kRows>
 __launch_bounds__(kDecodeThreads, 1) __global__
-void SplitOnlineDecodeAttentionFp8LocalD2SharedKvKernel(
+void SplitOnlineDecodeAttentionFp8LocalFixedSharedKvKernel(
     const float* __restrict__ query,
     const std::uint8_t* __restrict__ key_cache,
     const std::uint8_t* __restrict__ value_cache,
@@ -494,12 +492,12 @@ void SplitOnlineDecodeAttentionFp8LocalD2SharedKvKernel(
     float* __restrict__ partial_output, float* __restrict__ partial_lse,
     const DecodeControl* __restrict__ row_controls, int max_splits) {
   __shared__ alignas(16)
-      std::uint8_t staged_kv[kDecodeLocalD2UnionTokens *
+      std::uint8_t staged_kv[(kDecodeLocalChunk + kRows - 1) *
                              kDecodeLocalHeadDimension];
-  __shared__ float scores[kDecodeD2Rows * kDecodeLocalGroup *
+  __shared__ float scores[kRows * kDecodeLocalGroup *
                           kDecodeLocalChunk];
   __shared__ float reduction[kDecodeWarps];
-  __shared__ float inverse_sum[kDecodeD2Rows][kDecodeLocalGroup];
+  __shared__ float inverse_sum[kRows][kDecodeLocalGroup];
 
   const int linear_block = static_cast<int>(blockIdx.x);
   const int split = linear_block / kDecodeLocalKvHeads;
@@ -510,7 +508,7 @@ void SplitOnlineDecodeAttentionFp8LocalD2SharedKvKernel(
   const int query_head_base = kv_head * kDecodeLocalGroup;
   const std::uint64_t start_position = row_controls[0].position;
   const bool full_window =
-      start_position >= kDecodeLocalD2HistoricalTokens;
+      start_position >= kDecodeLocalHistoricalTokens;
   const std::uint64_t first_slot = full_window
       ? (start_position + 1U) % kDecodeLocalCapacity
       : 0U;
@@ -519,9 +517,9 @@ void SplitOnlineDecodeAttentionFp8LocalD2SharedKvKernel(
   const float value_scale =
       static_cast<float>(__ushort_as_bfloat16(value_scale_bf16[0]));
 
-  float query_values[kDecodeD2Rows][kDecodeLocalGroup][8];
+  float query_values[kRows][kDecodeLocalGroup][8];
 #pragma unroll
-  for (int row = 0; row < kDecodeD2Rows; ++row) {
+  for (int row = 0; row < kRows; ++row) {
 #pragma unroll
     for (int group = 0; group < kDecodeLocalGroup; ++group) {
 #pragma unroll
@@ -539,7 +537,7 @@ void SplitOnlineDecodeAttentionFp8LocalD2SharedKvKernel(
   const auto stage = [&](const std::uint8_t* cache,
                          const std::uint8_t* speculative) {
     constexpr int kStageBytes =
-        kDecodeLocalD2UnionTokens * kDecodeLocalHeadDimension;
+        (kDecodeLocalChunk + kRows - 1) * kDecodeLocalHeadDimension;
     for (int byte = static_cast<int>(threadIdx.x) * 16;
          byte < kStageBytes; byte += kDecodeThreads * 16) {
       const int union_token = byte / kDecodeLocalHeadDimension;
@@ -547,7 +545,7 @@ void SplitOnlineDecodeAttentionFp8LocalD2SharedKvKernel(
       const int union_index = split * kDecodeLocalChunk + union_token;
       const std::uint8_t* source = cache;
       bool valid = true;
-      if (full_window && union_index < kDecodeLocalD2HistoricalTokens) {
+      if (full_window && union_index < kDecodeLocalHistoricalTokens) {
         std::uint64_t cache_slot =
             first_slot + static_cast<std::uint64_t>(union_index);
         if (cache_slot >= kDecodeLocalCapacity) {
@@ -559,7 +557,7 @@ void SplitOnlineDecodeAttentionFp8LocalD2SharedKvKernel(
                  dimension;
       } else if (full_window) {
         const int speculative_row =
-            union_index - kDecodeLocalD2HistoricalTokens;
+            union_index - kDecodeLocalHistoricalTokens;
         source = speculative +
                  (static_cast<std::uint64_t>(speculative_row) *
                       kDecodeLocalKvHeads +
@@ -574,7 +572,7 @@ void SplitOnlineDecodeAttentionFp8LocalD2SharedKvKernel(
                      kDecodeLocalHeadDimension +
                  dimension;
       } else if (static_cast<std::uint64_t>(union_index) <
-                 start_position + kDecodeD2Rows) {
+                 start_position + kRows) {
         const std::uint64_t speculative_row =
             static_cast<std::uint64_t>(union_index) - start_position;
         source = speculative +
@@ -594,12 +592,12 @@ void SplitOnlineDecodeAttentionFp8LocalD2SharedKvKernel(
   stage(key_cache, speculative_key);
   for (int token = warp; token < kDecodeLocalChunk;
        token += kDecodeWarps) {
-    float score[kDecodeD2Rows][kDecodeLocalGroup] = {};
+    float score[kRows][kDecodeLocalGroup] = {};
 #pragma unroll
     for (int element = 0; element < 8; ++element) {
       const int dimension = lane + element * 32;
 #pragma unroll
-      for (int row = 0; row < kDecodeD2Rows; ++row) {
+      for (int row = 0; row < kRows; ++row) {
         const int staged_token = full_window ? token + row : token;
         const float key_value = DecodeFp8(
             staged_kv[staged_token * kDecodeLocalHeadDimension +
@@ -614,7 +612,7 @@ void SplitOnlineDecodeAttentionFp8LocalD2SharedKvKernel(
       }
     }
 #pragma unroll
-    for (int row = 0; row < kDecodeD2Rows; ++row) {
+    for (int row = 0; row < kRows; ++row) {
       const std::uint64_t row_tokens = start_position + row + 1U;
       const int split_tokens = full_window
           ? kDecodeLocalChunk
@@ -641,7 +639,7 @@ void SplitOnlineDecodeAttentionFp8LocalD2SharedKvKernel(
   __syncthreads();
 
 #pragma unroll
-  for (int row = 0; row < kDecodeD2Rows; ++row) {
+  for (int row = 0; row < kRows; ++row) {
 #pragma unroll
     for (int group = 0; group < kDecodeLocalGroup; ++group) {
       const std::uint64_t row_tokens = start_position + row + 1U;
@@ -692,10 +690,10 @@ void SplitOnlineDecodeAttentionFp8LocalD2SharedKvKernel(
   for (int dimension = static_cast<int>(threadIdx.x);
        dimension < kDecodeLocalHeadDimension;
        dimension += kDecodeThreads) {
-    float accumulator[kDecodeD2Rows][kDecodeLocalGroup] = {};
+    float accumulator[kRows][kDecodeLocalGroup] = {};
     for (int token = 0; token < kDecodeLocalChunk; ++token) {
 #pragma unroll
-      for (int row = 0; row < kDecodeD2Rows; ++row) {
+      for (int row = 0; row < kRows; ++row) {
         const int staged_token = full_window ? token + row : token;
         const float value = DecodeFp8(
             staged_kv[staged_token * kDecodeLocalHeadDimension +
@@ -711,7 +709,7 @@ void SplitOnlineDecodeAttentionFp8LocalD2SharedKvKernel(
       }
     }
 #pragma unroll
-    for (int row = 0; row < kDecodeD2Rows; ++row) {
+    for (int row = 0; row < kRows; ++row) {
 #pragma unroll
       for (int group = 0; group < kDecodeLocalGroup; ++group) {
         const int query_head = query_head_base + group;
@@ -727,7 +725,7 @@ void SplitOnlineDecodeAttentionFp8LocalD2SharedKvKernel(
 }
 
 __launch_bounds__(kDecodeThreads, 1) __global__
-void MergeOnlineDecodeAttentionFp8LocalD2Kernel(
+void MergeOnlineDecodeAttentionFp8LocalFixedKernel(
     const float* __restrict__ partial_output,
     const float* __restrict__ partial_lse, float* __restrict__ output,
     int max_splits) {
@@ -1249,7 +1247,7 @@ void SplitOnlineDecodeAttentionFp8GlobalBatchKernel(
     float* __restrict__ partial_output, float* __restrict__ partial_lse,
     std::uint64_t start_position, const DecodeControl* row_controls,
     std::uint64_t cache_capacity, int max_splits) {
-  static_assert(kRows == 3);
+  static_assert(kRows == 2 || kRows == 3 || kRows == 5);
   if (row_controls != nullptr) start_position = row_controls[0].position;
   constexpr int kGroups = kDecodeQueryHeads / kDecodeGlobalGroup;
   __shared__ float scores[kRows * kDecodeGlobalGroup * kDecodeGlobalChunk];
@@ -1888,7 +1886,8 @@ Status LaunchOnlineAttentionDecodeFp8Sm120Kvh2Group4ForTest(
                            error);
 }
 
-Status LaunchOnlineAttentionDecodeFp8LocalD2ControlledSm120(
+template <int kRows>
+Status LaunchOnlineAttentionDecodeFp8LocalFixedControlledImpl(
     const float* query, const std::uint8_t* key_cache,
     const std::uint8_t* value_cache, const std::uint8_t* speculative_key,
     const std::uint8_t* speculative_value,
@@ -1901,7 +1900,7 @@ Status LaunchOnlineAttentionDecodeFp8LocalD2ControlledSm120(
       key_scale_bf16 == nullptr || value_scale_bf16 == nullptr ||
       workspace == nullptr || output == nullptr || row_controls == nullptr ||
       cache_capacity != kDecodeLocalCapacity) {
-    return Invalid("controlled local D2 shared-K/V arguments are invalid");
+    return Invalid("controlled local fixed-D shared-K/V arguments are invalid");
   }
   constexpr int kMaxSplits =
       kDecodeLocalCapacity / kDecodeLocalChunk;
@@ -1909,26 +1908,69 @@ Status LaunchOnlineAttentionDecodeFp8LocalD2ControlledSm120(
       static_cast<std::uint64_t>(kMaxSplits) * kDecodeQueryHeads *
       kDecodeLocalHeadDimension;
   float* partial_lse =
-      workspace + kDecodeD2Rows * kPartialElementsPerRow;
+      workspace + kRows * kPartialElementsPerRow;
   constexpr unsigned kBlocks = kMaxSplits * kDecodeLocalKvHeads;
-  SplitOnlineDecodeAttentionFp8LocalD2SharedKvKernel
+  SplitOnlineDecodeAttentionFp8LocalFixedSharedKvKernel<kRows>
       <<<kBlocks, kDecodeThreads, 0, stream>>>(
           query, key_cache, value_cache, speculative_key, speculative_value,
           key_scale_bf16, value_scale_bf16, workspace, partial_lse,
           row_controls, kMaxSplits);
   cudaError_t error = cudaGetLastError();
   if (error != cudaSuccess) {
-    return CudaFailure("launch controlled local D2 shared-K/V split", error);
+    return CudaFailure("launch controlled local fixed-D shared-K/V split", error);
   }
-  const dim3 merge_blocks(kDecodeQueryHeads, kDecodeD2Rows);
-  MergeOnlineDecodeAttentionFp8LocalD2Kernel
+  const dim3 merge_blocks(kDecodeQueryHeads, kRows);
+  MergeOnlineDecodeAttentionFp8LocalFixedKernel
       <<<merge_blocks, kDecodeThreads, 0, stream>>>(
           workspace, partial_lse, output, kMaxSplits);
   error = cudaGetLastError();
   return error == cudaSuccess
              ? Status::Ok()
-             : CudaFailure("launch controlled local D2 shared-K/V merge",
+             : CudaFailure("launch controlled local fixed-D shared-K/V merge",
                            error);
+}
+
+Status LaunchOnlineAttentionDecodeFp8LocalFixedControlledSm120(
+    const float* query, const std::uint8_t* key_cache,
+    const std::uint8_t* value_cache, const std::uint8_t* speculative_key,
+    const std::uint8_t* speculative_value,
+    const std::uint16_t* key_scale_bf16,
+    const std::uint16_t* value_scale_bf16, float* workspace, float* output,
+    const DecodeControl* row_controls, std::uint32_t tokens,
+    std::uint64_t cache_capacity, cudaStream_t stream) {
+  switch (tokens) {
+    case 2U:
+      return LaunchOnlineAttentionDecodeFp8LocalFixedControlledImpl<2>(
+          query, key_cache, value_cache, speculative_key, speculative_value,
+          key_scale_bf16, value_scale_bf16, workspace, output, row_controls,
+          cache_capacity, stream);
+    case 3U:
+      return LaunchOnlineAttentionDecodeFp8LocalFixedControlledImpl<3>(
+          query, key_cache, value_cache, speculative_key, speculative_value,
+          key_scale_bf16, value_scale_bf16, workspace, output, row_controls,
+          cache_capacity, stream);
+    case 5U:
+      return LaunchOnlineAttentionDecodeFp8LocalFixedControlledImpl<5>(
+          query, key_cache, value_cache, speculative_key, speculative_value,
+          key_scale_bf16, value_scale_bf16, workspace, output, row_controls,
+          cache_capacity, stream);
+    default:
+      return Invalid("controlled local fixed-D token count is unsupported");
+  }
+}
+
+Status LaunchOnlineAttentionDecodeFp8LocalD2ControlledSm120(
+    const float* query, const std::uint8_t* key_cache,
+    const std::uint8_t* value_cache, const std::uint8_t* speculative_key,
+    const std::uint8_t* speculative_value,
+    const std::uint16_t* key_scale_bf16,
+    const std::uint16_t* value_scale_bf16, float* workspace, float* output,
+    const DecodeControl* row_controls, std::uint64_t cache_capacity,
+    cudaStream_t stream) {
+  return LaunchOnlineAttentionDecodeFp8LocalFixedControlledSm120(
+      query, key_cache, value_cache, speculative_key, speculative_value,
+      key_scale_bf16, value_scale_bf16, workspace, output, row_controls, 3U,
+      cache_capacity, stream);
 }
 
 Status LaunchOnlineAttentionDecodeFp8GlobalD2Sm120(
@@ -2005,21 +2047,21 @@ Status LaunchOnlineAttentionDecodeFp8GlobalD2Sm120(
              : CudaFailure("launch global D2 FP8 attention merge", error);
 }
 
-Status LaunchOnlineAttentionDecodeFp8GlobalD2ControlledSm120(
+template <int kRows>
+Status LaunchOnlineAttentionDecodeFp8GlobalFixedControlledImpl(
     const float* query, const std::uint8_t* key_cache,
     const std::uint8_t* value_cache,
     const std::uint16_t* key_scale_bf16,
     const std::uint16_t* value_scale_bf16, float* workspace, float* output,
     const DecodeControl* row_controls, std::uint64_t cache_capacity,
     cudaStream_t stream) {
-  constexpr int kRows = 3;
   if (query == nullptr || key_cache == nullptr || value_cache == nullptr ||
       key_scale_bf16 == nullptr || value_scale_bf16 == nullptr ||
       workspace == nullptr || output == nullptr || row_controls == nullptr ||
       cache_capacity <= 512U ||
       cache_capacity >
           static_cast<std::uint64_t>(std::numeric_limits<int>::max())) {
-    return Invalid("controlled global D2 FP8 attention arguments are invalid");
+    return Invalid("controlled global fixed-D FP8 attention arguments are invalid");
   }
   const int chunk = cache_capacity >= kDecodeGqaGlobalContext
                         ? kDecodeGlobalGqaChunk
@@ -2057,7 +2099,7 @@ Status LaunchOnlineAttentionDecodeFp8GlobalD2ControlledSm120(
   }
   cudaError_t error = cudaGetLastError();
   if (error != cudaSuccess) {
-    return CudaFailure("launch controlled global D2 split FP8 attention",
+    return CudaFailure("launch controlled global fixed-D split FP8 attention",
                        error);
   }
   const dim3 merge_blocks(kDecodeQueryHeads, kRows);
@@ -2074,8 +2116,48 @@ Status LaunchOnlineAttentionDecodeFp8GlobalD2ControlledSm120(
   error = cudaGetLastError();
   return error == cudaSuccess
              ? Status::Ok()
-             : CudaFailure("launch controlled global D2 FP8 attention merge",
+             : CudaFailure("launch controlled global fixed-D FP8 attention merge",
                            error);
+}
+
+Status LaunchOnlineAttentionDecodeFp8GlobalFixedControlledSm120(
+    const float* query, const std::uint8_t* key_cache,
+    const std::uint8_t* value_cache,
+    const std::uint16_t* key_scale_bf16,
+    const std::uint16_t* value_scale_bf16, float* workspace, float* output,
+    const DecodeControl* row_controls, std::uint32_t tokens,
+    std::uint64_t cache_capacity, cudaStream_t stream) {
+  switch (tokens) {
+    case 2U:
+      return LaunchOnlineAttentionDecodeFp8GlobalFixedControlledImpl<2>(
+          query, key_cache, value_cache, key_scale_bf16,
+          value_scale_bf16, workspace, output, row_controls, cache_capacity,
+          stream);
+    case 3U:
+      return LaunchOnlineAttentionDecodeFp8GlobalFixedControlledImpl<3>(
+          query, key_cache, value_cache, key_scale_bf16,
+          value_scale_bf16, workspace, output, row_controls, cache_capacity,
+          stream);
+    case 5U:
+      return LaunchOnlineAttentionDecodeFp8GlobalFixedControlledImpl<5>(
+          query, key_cache, value_cache, key_scale_bf16,
+          value_scale_bf16, workspace, output, row_controls, cache_capacity,
+          stream);
+    default:
+      return Invalid("controlled global fixed-D token count is unsupported");
+  }
+}
+
+Status LaunchOnlineAttentionDecodeFp8GlobalD2ControlledSm120(
+    const float* query, const std::uint8_t* key_cache,
+    const std::uint8_t* value_cache,
+    const std::uint16_t* key_scale_bf16,
+    const std::uint16_t* value_scale_bf16, float* workspace, float* output,
+    const DecodeControl* row_controls, std::uint64_t cache_capacity,
+    cudaStream_t stream) {
+  return LaunchOnlineAttentionDecodeFp8GlobalFixedControlledSm120(
+      query, key_cache, value_cache, key_scale_bf16, value_scale_bf16,
+      workspace, output, row_controls, 3U, cache_capacity, stream);
 }
 
 }  // namespace gem16::internal

@@ -12,6 +12,7 @@ enum class ModelVariant : std::uint8_t {
   kGemma4Unified12B,
   kGemma4Moe26BA4B,
   kGemma4UnifiedAssistant,
+  kGemma4Moe26BAssistant,
 };
 
 struct ModelVariantTraits {

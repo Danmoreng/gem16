@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "milestone": "M25-development",
+  "status": "bounded_fixed_d2_cuda_graph_characterization_pass",
+  "performance_eligible": false,
+  "measured_on": "2026-08-25",
+  "scenario": {
+    "id": "wikipedia-real-16k1135-forced-greedy-fixed-d2-chain",
+    "prompt_tokens": 16384,
+    "fixed_output_tokens": 1135,
+    "timed_post_first_tokens": 1134,
+    "context_capacity": 32768,
+    "draft_length": 2,
+    "stop_tokens_ignored": true,
+    "note": "One bounded sustained-decode characterization, not the formal retained M25 distribution."
+  },
+  "correctness": {
+    "ordinary_target_identity": true,
+    "matched_output_tokens": 1135,
+    "chain_non_finite_steps": 0,
+    "output_token_ids_le_u32_sha256": "d0fcfcc68cc3b015282e301261e6d90079a84cd9b8f2927c4fe0f98bcb461983"
+  },
+  "acceptance": {
+    "groups": 490,
+    "proposed_drafts": 980,
+    "accepted_drafts": 642,
+    "rejected_drafts": 338,
+    "ordinary_tail_tokens": 1,
+    "target_verified_rate": 0.655102040816,
+    "precision_gate_50_percent_pass": true
+  },
+  "cuda_graph": {
+    "registry_keyed_by_draft_length": true,
+    "memory_accounting": "observed_cudaMemGetInfo_delta_during_capture_and_instantiation",
+    "prepared_specializations": [2],
+    "group_graph_prepared": true,
+    "group_graph_launches": 0,
+    "chain_graph_prepared": true,
+    "chain_graph_launches": 1,
+    "group_graph_device_bytes": 4194304,
+    "chain_graph_device_bytes": 8388608,
+    "total_graph_device_bytes": 12582912,
+    "host_group_round_trips": 0
+  },
+  "timing": {
+    "mtp_post_first_seconds": 7.321138468,
+    "mtp_post_first_tokens_per_second": 154.893942377,
+    "ordinary_post_first_seconds": 7.768676485,
+    "ordinary_post_first_tokens_per_second": 145.97081011,
+    "mtp_speedup_percent": 6.11295659747
+  },
+  "memory": {
+    "free_device_bytes_after_target_assistant_and_graphs": 831324160,
+    "required_32k_reserve_bytes": 734003200,
+    "reserve_gate_pass": true
+  },
+  "limitations": [
+    "D2 is the first prepared specialization; D1 and D4 require their exact T2 and T5 attention/KV kernels before their registry slots can be prepared.",
+    "D3 is not a selected fixed profile; the established scheduler profiles are D1, D2 and D4.",
+    "The chain returns tokens after the final graph synchronization; live streaming and sampled MTP remain follow-up product work.",
+    "The 4 MiB and 8 MiB executable sizes are observed free-device-memory deltas, not CUDA-reported exact graph-pool allocations.",
+    "The forced-output harness suppresses two stop-token IDs and therefore adds a full-vocabulary suppressed argmax to every ordinary comparator token; 145.65 token/s is not the ordinary product baseline.",
+    "This single run does not satisfy the formal warm-up and retained-sample performance gate."
+  ],
+  "ordinary_product_control": {
+    "scenario": "unchanged-m20-wikipedia-real-16k64-greedy",
+    "single_run_decode_tokens_per_second": 149.994467704,
+    "accepted_m20_ten_run_median": 150.615209175,
+    "output_token_sha256": "c750d0b33f8eb4a8103299875886e51ab144d874cafe8cea77b0cfd99d2aedaf",
+    "raw_path": "artifacts/raw/m25/current-worktree-m20-ordinary-control-v1.json",
+    "raw_sha256": "ae19e437c827ba654e0a67884e3758fd9c272fc44e63f9847fe1f13431e84a41",
+    "binary_sha256": "436e98f2733455b271c1017d50a57885d4056c240054564cc771e74c62a202e1"
+  },
+  "evidence": {
+    "parent_revision": "86a369f7e2cc2295569234f27b1efb5154f8e227",
+    "implementation_scope": "working tree M25 fixed-D CUDA Graph slice pending owner review",
+    "raw_path": "artifacts/raw/m25/hybrid-target-fixed-chain-d2-wikipedia-16k1135-generic-d-graph-finite-v1.json",
+    "raw_sha256": "8f02990e22d8f94051ee9e663da609949acf3ff7c6f9c16c25e0e25eb197430f",
+    "binary_path": "build/blackwell-release/bin/gem16-26b-assistant-acceptance",
+    "binary_sha256": "86fc0bcd15af0301f5fe589797895dff4cbce618ce0da918ab85f13b3a18b233",
+    "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "driver": "610.43.03",
+    "cuda_compiler": "13.3"
+  }
+}

@@ -24,6 +24,14 @@ struct Gemma4Moe26BCompiledIdentity {
     const std::filesystem::path& model_directory,
     std::vector<TensorInfo>* tensors);
 
+// Validates the M25 Assistant candidate independently from the accepted M08
+// target artifact. This contract pins the official Google source lock and the
+// exact 97-tensor hybrid layout, but intentionally does not freeze a candidate
+// artifact hash before M25 acceptance.
+[[nodiscard]] Status ValidateAndBindGemma4Moe26BAssistantCompiledArtifact(
+    const std::filesystem::path& model_directory,
+    std::vector<TensorInfo>* tensors);
+
 [[nodiscard]] Result<Gemma4Moe26BCompiledIdentity>
 LoadGemma4Moe26BCompiledIdentity(
     const std::filesystem::path& model_directory);

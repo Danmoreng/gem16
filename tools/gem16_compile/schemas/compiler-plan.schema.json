@@ -66,6 +66,17 @@
       }
     },
     {
+      "if": {"properties": {"artifact_profile": {"const": "sm120-mtp-assistant-hybrid-v1"}}, "required": ["artifact_profile"]},
+      "then": {
+        "properties": {
+          "head_format": {"const": "nvfp4"},
+          "source_contract": {"const": "gemma4-26b-qat-q4_0-assistant-bf16-hybrid-v1"},
+          "source_lock_sha256": {"const": "83e509316eab22749fade9c0968333b0a29f0daf99832314b333702bf45bdda5"},
+          "omitted_families": {"const": ["audio", "video", "vision"]}
+        }
+      }
+    },
+    {
       "if": {"properties": {"artifact_profile": {"const": "nvfp4-experts-partial-v1"}}, "required": ["artifact_profile"]},
       "then": {"properties": {"tensors": {"items": {"properties": {"aliased": {"const": false}}}}}}
     },
@@ -76,7 +87,7 @@
   ],
   "properties": {
     "schema_version": {"const": 1},
-    "artifact_profile": {"enum": ["synthetic-copy-v1", "fp8-attention-partial-v1", "nvfp4-experts-partial-v1", "nvfp4-tied-head-partial-v1", "sm120-text-hybrid-v1"]},
+    "artifact_profile": {"enum": ["synthetic-copy-v1", "fp8-attention-partial-v1", "nvfp4-experts-partial-v1", "nvfp4-tied-head-partial-v1", "sm120-text-hybrid-v1", "sm120-mtp-assistant-hybrid-v1"]},
     "head_format": {"enum": ["source", "deferred", "nvfp4"]},
     "source_contract": {"type": "string", "minLength": 1},
     "source_lock_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
@@ -87,7 +98,10 @@
       "items": {"type": "string", "minLength": 1}
     },
     "omitted_families": {
-      "const": ["audio", "mtp", "video", "vision"]
+      "oneOf": [
+        {"const": ["audio", "mtp", "video", "vision"]},
+        {"const": ["audio", "video", "vision"]}
+      ]
     },
     "tensors": {
       "type": "array",

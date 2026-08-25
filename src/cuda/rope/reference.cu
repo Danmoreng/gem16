@@ -145,6 +145,23 @@ __global__ void RotaryTableControlledKernel(
   sine[index] = static_cast<float>(sin(angle));
 }
 
+__global__ void RotaryTableBatchControlledKernel(
+    float* cosine, float* sine, std::uint64_t rotating_pairs,
+    std::uint64_t frequency_dimension, const DecodeControl* controls,
+    double theta, double scaling_factor, std::uint64_t total_pairs) {
+  const std::uint64_t pair =
+      static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+  if (pair >= total_pairs) return;
+  const std::uint64_t token = pair / rotating_pairs;
+  const std::uint64_t index = pair % rotating_pairs;
+  const double exponent = 2.0 * static_cast<double>(index) /
+                          static_cast<double>(frequency_dimension);
+  const double angle = static_cast<double>(controls[token].position) /
+                       (pow(theta, exponent) * scaling_factor);
+  cosine[pair] = static_cast<float>(cos(angle));
+  sine[pair] = static_cast<float>(sin(angle));
+}
+
 template <typename Input>
 __device__ float LoadProjectionBoundary(const Input* input,
                                         std::uint64_t index) {
@@ -767,6 +784,33 @@ Status LaunchRotaryEmbeddingTableControlled(
   return error == cudaSuccess
              ? Status::Ok()
              : CudaFailure("launch controlled RoPE table", error);
+}
+
+Status LaunchRotaryEmbeddingTableBatchControlled(
+    float* cosine, float* sine, std::uint64_t tokens,
+    std::uint64_t rotating_pairs, std::uint64_t frequency_dimension,
+    const DecodeControl* controls, double theta, double scaling_factor,
+    cudaStream_t stream) {
+  if (cosine == nullptr || sine == nullptr || controls == nullptr ||
+      tokens == 0U || rotating_pairs == 0U || frequency_dimension == 0U ||
+      rotating_pairs * 2U > frequency_dimension ||
+      !std::isfinite(theta) || theta <= 0.0 ||
+      !std::isfinite(scaling_factor) || scaling_factor <= 0.0) {
+    return Invalid("batch-controlled RoPE table geometry is invalid");
+  }
+  const std::uint64_t total_pairs = tokens * rotating_pairs;
+  const std::uint64_t blocks = Blocks(total_pairs);
+  if (!ValidGrid(blocks)) {
+    return Invalid("batch-controlled RoPE table grid exceeds CUDA limits");
+  }
+  RotaryTableBatchControlledKernel
+      <<<static_cast<unsigned>(blocks), kThreads, 0, stream>>>(
+          cosine, sine, rotating_pairs, frequency_dimension, controls, theta,
+          scaling_factor, total_pairs);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("launch batch-controlled RoPE table", error);
 }
 
 

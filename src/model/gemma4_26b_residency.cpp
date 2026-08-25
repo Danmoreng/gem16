@@ -17,6 +17,7 @@ constexpr std::uint64_t kWeightAlignment = 256U;
 constexpr std::uint64_t kPrimaryMargin = 700U * kMiB;
 constexpr std::uint64_t kLongContextMargin = 400U * kMiB;
 constexpr std::uint64_t kM08PayloadBytes = 14'696'569'196ULL;
+constexpr std::uint64_t kM25AssistantPayloadBytes = 258'306'160ULL;
 
 Result<std::uint64_t> CheckedAdd(std::uint64_t left, std::uint64_t right,
                                  std::string_view label) {
@@ -147,6 +148,94 @@ Result<Gemma4Moe26BResidencyPlan> BuildGemma4Moe26BResidencyPlan(
     if (!admission.ok()) return admission.status();
     plan.context_profiles.push_back(
         {context, kv.value(), margin, total.value(), admission.value()});
+  }
+  return plan;
+}
+
+Result<Gemma4Moe26BResidencyPlan>
+BuildGemma4Moe26BAssistantResidencyPlan(const ModelManifest& manifest) {
+  if (manifest.model_variant != "gemma4_moe_26b_assistant" ||
+      manifest.checkpoint_profile != "sm120-mtp-assistant-hybrid-v1" ||
+      manifest.validation_contract !=
+          "gemma4_26b_m25_assistant_compiled_hybrid_v1" ||
+      !manifest.tensor_contract_validated || !manifest.supports_text ||
+      manifest.supports_vision || manifest.supports_audio ||
+      manifest.supports_video || !manifest.supports_mtp ||
+      manifest.runtime_supported) {
+    return Status(
+        StatusCode::kUnsupported,
+        "M25 residency requires the exact validated, pre-execution Assistant candidate");
+  }
+  if (manifest.tensors.size() != 97U ||
+      manifest.total_tensor_bytes != kM25AssistantPayloadBytes) {
+    return Status(StatusCode::kDataLoss,
+                  "M25 Assistant artifact tensor inventory is incomplete");
+  }
+
+  Gemma4Moe26BResidencyPlan plan;
+  plan.artifact_payload_bytes = manifest.total_tensor_bytes;
+  // The split-reduction online-attention workspace is about 16.1 MiB at 64K;
+  // reserve 20 MiB for it and the remaining fixed activations, plus explicit
+  // graph and allocator regions. Unlike the target profile, no Assistant KV
+  // cache is present: all four layers consume the target model's existing
+  // views.
+  plan.fixed_regions = {
+      {"mtp_assistant_workspace_64k", 20U * kMiB},
+      {"mtp_assistant_graph_reserve", 16U * kMiB},
+      {"mtp_assistant_allocator_metadata_guard", 4U * kMiB},
+  };
+  for (const auto& region : plan.fixed_regions) {
+    auto total = CheckedAdd(plan.fixed_region_bytes, region.bytes,
+                            "M25 Assistant fixed regions");
+    if (!total.ok()) return total.status();
+    plan.fixed_region_bytes = total.value();
+  }
+
+  std::set<std::string> names;
+  std::uint64_t payload_bytes = 0U;
+  std::uint64_t cursor = 0U;
+  for (const auto& tensor : manifest.tensors) {
+    if (!names.insert(tensor.name).second || tensor.byte_length == 0U ||
+        !IsSafeShardName(tensor.source_shard) ||
+        tensor.residency_class != "immutable_device_mtp_assistant" ||
+        tensor.final_gpu_layout.empty() || tensor.final_gpu_layout == "none") {
+      return Status(StatusCode::kDataLoss,
+                    "invalid M25 Assistant upload tensor: " + tensor.name);
+    }
+    auto destination = AlignUp(cursor, plan.arena_alignment);
+    if (!destination.ok()) return destination.status();
+    auto end = CheckedAdd(destination.value(), tensor.byte_length,
+                          "M25 Assistant immutable arena");
+    if (!end.ok()) return end.status();
+    auto payload = CheckedAdd(payload_bytes, tensor.byte_length,
+                              "M25 Assistant payload");
+    if (!payload.ok()) return payload.status();
+    plan.upload_ranges.push_back({tensor.name,
+                                  tensor.source_shard,
+                                  tensor.quantization_class,
+                                  tensor.final_gpu_layout,
+                                  tensor.byte_offset,
+                                  destination.value(),
+                                  tensor.byte_length});
+    cursor = end.value();
+    payload_bytes = payload.value();
+  }
+  if (payload_bytes != manifest.total_tensor_bytes) {
+    return Status(StatusCode::kDataLoss,
+                  "M25 Assistant payload disagrees with its manifest");
+  }
+  auto arena_bytes = AlignUp(cursor, plan.arena_alignment);
+  if (!arena_bytes.ok()) return arena_bytes.status();
+  plan.immutable_weight_arena_bytes = arena_bytes.value();
+
+  constexpr std::array<std::uint64_t, 2> kContexts = {32768U, 65536U};
+  for (const auto context : kContexts) {
+    auto total = CheckedAdd(plan.immutable_weight_arena_bytes,
+                            plan.fixed_region_bytes,
+                            "M25 Assistant resident bytes");
+    if (!total.ok()) return total.status();
+    plan.context_profiles.push_back(
+        {context, 0U, 0U, total.value(), total.value()});
   }
   return plan;
 }

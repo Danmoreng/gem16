@@ -12,6 +12,7 @@
 #include <utility>
 
 #include "cuda/layer/reference.h"
+#include "cuda/moe/prefill.h"
 #include "cuda/nvfp4/reference.h"
 #include "cuda/nvfp4/sm120.h"
 
@@ -1099,6 +1100,136 @@ Status LaunchGemma4MoeSm120Layer(
   return LaunchGemma4MoeLayerImpl(hidden, output, config, weights, workspace,
                                   true, stream, shared_branch_stream,
                                   fork_event, join_event);
+}
+
+Status LaunchGemma4MoeSm120MtpSharedBatchLayer(
+    const float* hidden, float* output, std::uint64_t tokens,
+    const Gemma4MoeReferenceConfig& c,
+    const Gemma4MoeReferenceWeights& w,
+    const Gemma4MoePrefillWorkspace& batch,
+    const Gemma4MoeReferenceWorkspace& decode, cudaStream_t stream) {
+  if (hidden == nullptr || output == nullptr || hidden == output ||
+      tokens == 0U || tokens > 5U || c.width == 0U ||
+      c.width % kSm120KBlock != 0U || c.shared_intermediate == 0U ||
+      c.expert_intermediate == 0U || c.experts == 0U || c.top_k == 0U ||
+      batch.token_hidden == nullptr || batch.token_packed == nullptr ||
+      batch.token_scales == nullptr || batch.router_logits == nullptr ||
+      batch.router_probabilities == nullptr ||
+      batch.shared_product == nullptr ||
+      batch.shared_product_packed == nullptr ||
+      batch.shared_product_scales == nullptr ||
+      batch.shared_output == nullptr || batch.reduced_output == nullptr ||
+      batch.permutation == nullptr ||
+      batch.expert_product_packed == nullptr ||
+      batch.expert_product_scales == nullptr ||
+      batch.expert_down_bf16 == nullptr || batch.routing_finite == nullptr) {
+    return Invalid("M25 exact shared-batch MoE contract is invalid");
+  }
+  (void)decode;
+  const std::uint64_t packed_per_token = c.width / 2U;
+  const std::uint64_t scales_per_token = c.width / kNvfp4Block;
+  for (std::uint64_t row = 0U; row < tokens; ++row) {
+    MoeInputNormsRouterTransformNvfp4Kernel<false><<<
+        1U, kNormThreads, 0, stream>>>(
+        hidden + row * c.width, w.pre_shared_norm_bf16,
+        w.pre_expert_norm_bf16, w.router_scale_bf16,
+        batch.token_packed + row * packed_per_token,
+        batch.token_scales + row * scales_per_token,
+        batch.expert_product_packed + row * packed_per_token,
+        batch.expert_product_scales + row * scales_per_token,
+        batch.shared_output + row * c.width,
+        batch.token_hidden + row * c.width, c.width, c.epsilon,
+        w.shared_gate.activation_global_divisor,
+        w.expert_gate_up.activation_global_divisor);
+    Status status = CheckLaunch("launch M25 exact batched MoE input boundary");
+    if (!status.ok()) return status;
+  }
+  Status status = LaunchNvfp4Sm120FusedGateUpExactBatch(
+      batch.token_packed, batch.token_scales, w.shared_gate.packed_e2m1,
+      w.shared_gate.scales_e4m3fn, w.shared_up.packed_e2m1,
+      w.shared_up.scales_e4m3fn, batch.shared_product, tokens,
+      c.shared_intermediate, c.width,
+      w.shared_gate.activation_global_divisor,
+      w.shared_gate.weight_global_divisor,
+      w.shared_up.activation_global_divisor,
+      w.shared_up.weight_global_divisor, stream);
+  if (!status.ok()) return status;
+  status = LaunchNvfp4ReferenceActivationQuantization(
+      batch.shared_product, batch.shared_product_packed,
+      batch.shared_product_scales, tokens * c.shared_intermediate,
+      w.shared_down.activation_global_divisor, stream);
+  if (!status.ok()) return status;
+  status = LaunchNvfp4Sm120DirectProjectionBf16FloatExactBatch(
+      batch.shared_product_packed, batch.shared_product_scales,
+      w.shared_down.packed_e2m1, w.shared_down.scales_e4m3fn,
+      batch.shared_output, tokens, c.width, c.shared_intermediate,
+      w.shared_down.activation_global_divisor,
+      w.shared_down.weight_global_divisor, stream);
+  if (!status.ok()) return status;
+
+  const unsigned router_blocks =
+      (c.experts + kRouterWarpsPerBlock - 1U) / kRouterWarpsPerBlock;
+  for (std::uint64_t row = 0U; row < tokens; ++row) {
+    RouterProjectionWarpKernel<<<router_blocks, kThreads, 0, stream>>>(
+        batch.token_hidden + row * c.width, w.router_projection_bf16,
+        batch.router_logits + row * c.experts, c.experts, c.width);
+    status = CheckLaunch("launch M25 exact router projection");
+    if (!status.ok()) return status;
+    RouterTopKKernel<true><<<1U, kThreads, 0, stream>>>(
+        batch.router_logits + row * c.experts, w.per_expert_scale_bf16,
+        batch.router_probabilities + row * c.experts,
+        batch.permutation + row * c.top_k,
+        batch.reduced_output + row * c.top_k, c.experts, c.top_k,
+        batch.routing_finite);
+    status = CheckLaunch("launch M25 exact router Top-K");
+    if (!status.ok()) return status;
+  }
+
+  // The physical-BF16 prefill W2 region is dead after routing and has exactly
+  // enough bytes for assignment-major FP32 Gate/Up. The shared-product region
+  // is likewise dead after shared W2 and holds the smaller routed GELU product.
+  // These lifetime aliases stay inside the fixed M17 arena and add no M25
+  // allocation or persistent representation.
+  float* expert_gate_up =
+      reinterpret_cast<float*>(batch.expert_down_bf16);
+  float* expert_product = batch.shared_product;
+  status = LaunchNvfp4Sm120SelectedSplitGateUpMtpBatch(
+      batch.expert_product_packed, batch.expert_product_scales,
+      w.expert_gate_up.packed_e2m1, w.expert_gate_up.scales_e4m3fn,
+      batch.permutation, tokens, c.top_k, expert_gate_up,
+      expert_gate_up + c.expert_intermediate, c.expert_intermediate, c.width,
+      c.experts, w.expert_gate_up.activation_global_divisor,
+      w.expert_gate_up.weight_global_divisor, stream);
+  if (!status.ok()) return status;
+  status = LaunchStridedGatedGeluNvfp4ActivationQuantization(
+      expert_gate_up, expert_gate_up + c.expert_intermediate,
+      expert_product, batch.expert_product_packed,
+      batch.expert_product_scales, tokens * c.top_k,
+      c.expert_intermediate, w.expert_down.activation_global_divisor, stream);
+  if (!status.ok()) return status;
+  status =
+      LaunchNvfp4Sm120SelectedDirectProjectionReduceBf16FloatMtpBatch(
+          batch.expert_product_packed, batch.expert_product_scales,
+          w.expert_down.packed_e2m1, w.expert_down.scales_e4m3fn,
+          batch.permutation, batch.reduced_output, tokens, c.top_k,
+          batch.token_hidden, c.width, c.expert_intermediate, c.experts,
+          w.expert_down.activation_global_divisor,
+          w.expert_down.weight_global_divisor, stream);
+  if (!status.ok()) return status;
+
+  for (std::uint64_t row = 0U; row < tokens; ++row) {
+    const std::size_t post_norm_shared_bytes =
+        3U * static_cast<std::size_t>(c.width) * sizeof(float);
+    MoeFusedPostNormResidualKernel<<<1U, kFusedPostNormThreads,
+                                     post_norm_shared_bytes, stream>>>(
+        batch.shared_output + row * c.width, w.post_shared_norm_bf16,
+        batch.token_hidden + row * c.width, w.post_expert_norm_bf16,
+        w.post_combined_norm_bf16, hidden + row * c.width,
+        w.layer_scalar_bf16, output + row * c.width, c.width, c.epsilon);
+    status = CheckLaunch("launch M25 exact shared-batch MoE post boundary");
+    if (!status.ok()) return status;
+  }
+  return Status::Ok();
 }
 
 Status LaunchGemma4MoeDecodeTopKDiagnostic(

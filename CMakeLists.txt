@@ -251,6 +251,7 @@ if(GEM16_ENABLE_CUDA)
     src/cuda/rope/reference.cu
     src/cuda/layer/checkpoint_probe.cu
     src/cuda/mtp/assistant.cu
+    src/cuda/mtp/gemma4_26b_assistant.cu
     src/cuda/mtp/verify.cu
     src/cuda/moe/gemma4_26b_bindings.cpp
     src/cuda/moe/prefill.cu
@@ -367,6 +368,8 @@ if(GEM16_ENABLE_CUDA)
   )
   set_property(SOURCE src/cuda/engine/gemma4_26b_reference.cu
     APPEND PROPERTY COMPILE_OPTIONS -diag-suppress=2810)
+  set_property(SOURCE src/cuda/mtp/gemma4_26b_assistant.cu
+    APPEND PROPERTY COMPILE_OPTIONS -diag-suppress=2810)
   if(MSVC)
     set_property(SOURCE src/cuda/engine/gemma4_26b_reference.cu
       APPEND PROPERTY COMPILE_OPTIONS -Xcompiler=/wd4211)
@@ -380,6 +383,39 @@ if(GEM16_ENABLE_CUDA)
   target_link_libraries(gem16-26b-memory-probe PRIVATE gem16_core CUDA::cudart)
   gem16_set_project_warnings(gem16-26b-memory-probe)
   gem16_enable_sanitizers(gem16-26b-memory-probe)
+  add_executable(gem16-26b-assistant-residency-probe
+    src/cli/gemma4_26b_assistant_residency_probe.cpp
+  )
+  target_include_directories(gem16-26b-assistant-residency-probe PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/src"
+  )
+  target_link_libraries(gem16-26b-assistant-residency-probe PRIVATE
+    gem16_core CUDA::cudart
+  )
+  gem16_set_project_warnings(gem16-26b-assistant-residency-probe)
+  gem16_enable_sanitizers(gem16-26b-assistant-residency-probe)
+  add_executable(gem16-26b-assistant-smoke
+    src/cli/gemma4_26b_assistant_smoke.cpp
+  )
+  target_include_directories(gem16-26b-assistant-smoke PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/src"
+  )
+  target_link_libraries(gem16-26b-assistant-smoke PRIVATE
+    gem16_core CUDA::cudart
+  )
+  gem16_set_project_warnings(gem16-26b-assistant-smoke)
+  gem16_enable_sanitizers(gem16-26b-assistant-smoke)
+  add_executable(gem16-26b-assistant-acceptance
+    src/cli/gemma4_26b_assistant_acceptance.cpp
+  )
+  target_include_directories(gem16-26b-assistant-acceptance PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/src"
+  )
+  target_link_libraries(gem16-26b-assistant-acceptance PRIVATE
+    gem16_core CUDA::cudart
+  )
+  gem16_set_project_warnings(gem16-26b-assistant-acceptance)
+  gem16_enable_sanitizers(gem16-26b-assistant-acceptance)
   add_executable(gem16-26b-moe-probe
     src/cli/gemma4_26b_moe_probe.cpp
   )

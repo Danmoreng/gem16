@@ -1118,7 +1118,8 @@ Measure 16K+256 as well as shorter interactive runs:
 
 ### 12.31 M00 — 26B assistant asset and architecture audit
 
-Candidate source: `google/gemma-4-26B-A4B-it-assistant`. Lock without executing model-repository code:
+Locked source: `google/gemma-4-26B-A4B-it-qat-q4_0-unquantized-assistant` at revision
+`9537141506fe8875b3ed45b264af13580cb29166`. Lock without executing model-repository code:
 
 - exact repository revision and SHA-256;
 - configuration and complete tensor inventory;
@@ -1139,12 +1140,14 @@ The source plans estimate about 845,713,928 BF16 payload bytes, but the locked i
 
 ### 12.32 M01 — assistant compiler and precision matrix
 
-Build BF16 first as the numerical oracle, then compare:
+Use the locked BF16 payload as the numerical oracle and build exactly one production candidate:
 
-- FP8 weights with BF16 or FP8 activations;
-- NVFP4 for large MLP/projection matrices with BF16 norms/small tensors;
-- Q4 only if an existing trusted decoder can be reused;
-- hybrid FP8 attention plus NVFP4 MLP.
+- NVFP4 tied embedding/output head and MLP matrices;
+- FP8 attention Q/O and pre/post interface projections;
+- BF16 norms and scalar controls.
+
+All-FP8, all-NVFP4 and Q4 production candidates are excluded unless a measured correctness, acceptance or residency
+failure triggers a later owner decision.
 
 Ideal payload estimates from 845,713,928 BF16 bytes are about 806.5 MiB BF16, 403.3 MiB FP8 before metadata, and
 201.6 MiB at four bits before scales/alignment. Select production precision by draft acceptance, proposal latency,
@@ -1209,6 +1212,13 @@ time_per_emitted_token(K) =
 Select among `{0,1,2,4}` with hysteresis. Google's increase-on-full-accept/decrease-on-reject heuristic is an initial
 reference; final thresholds come from RTX 5080 measurements. Prefer device-resident selection without per-group CPU
 roundtrips.
+
+Development checkpoint, 2026-08-25: graph executables, memory and launch accounting are indexed by fixed draft
+length, and exact greedy D1/D2/D4 specializations execute the complete proposal/verify/commit/continue chain in one
+CUDA Graph replay. On identical bounded 16K+1,135 runs, all depths are Target-identical with no non-finite step: D1
+is 149.64 token/s at 74.46% draft acceptance, D2 wins at 154.81 token/s and 65.51%, and D4 is 125.80 token/s at
+50.94%. All three fixed graphs coexist with 808,255,488 bytes free at 32K. D2 remains the fixed-depth product
+candidate; no D3 profile is selected. This is a development checkpoint, not formal M04/M25 acceptance.
 
 ### 12.36 M05 — greedy and sampled MTP
 

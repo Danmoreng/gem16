@@ -62,27 +62,40 @@ class DirectShardLayout:
     outputs: dict[str, tuple[Path, int]]
 
 
-def m08_config_bytes(source: bytes) -> bytes:
-    """Add the versioned Gem16 block without rewriting architecture facts."""
+def compiled_config_bytes(source: bytes, profile: str) -> bytes:
+    """Add a versioned Gem16 block without rewriting architecture facts."""
     try:
         document = json.loads(source.decode("utf-8"), object_pairs_hook=reject_duplicate_keys)
     except (UnicodeError, json.JSONDecodeError, DataError, ValueError) as error:
-        raise OutputError(f"cannot parse locked M08 config.json: {error}") from error
+        raise OutputError(f"cannot parse locked compiled config.json: {error}") from error
     if not isinstance(document, dict) or "gem16" in document:
-        raise OutputError("M08 source config must be an object without a gem16 block")
+        raise OutputError("compiled source config must be an object without a gem16 block")
+    if profile == "sm120-text-hybrid-v1":
+        variant = "gemma4-26b-a4b"
+        supports_mtp = False
+    elif profile == "sm120-mtp-assistant-hybrid-v1":
+        variant = "gemma4-26b-a4b-mtp-assistant"
+        supports_mtp = True
+    else:
+        raise OutputError(f"unsupported generated config profile: {profile}")
     document["gem16"] = {
         "schema_version": 1,
         "compiler_data_plane": "native-cpp20",
-        "profile": "sm120-text-hybrid-v1",
-        "variant": "gemma4-26b-a4b",
+        "profile": profile,
+        "variant": variant,
         "text_only": True,
         "head_format": "nvfp4-group16-divisor-v1",
-        "supports_mtp": False,
+        "supports_mtp": supports_mtp,
         "supports_vision": False,
         "supports_audio": False,
         "supports_video": False,
     }
     return canonical_json_bytes(document)
+
+
+def m08_config_bytes(source: bytes) -> bytes:
+    """Compatibility wrapper for the accepted M08 config contract."""
+    return compiled_config_bytes(source, "sm120-text-hybrid-v1")
 
 
 class _BoundedRangeWriter:
@@ -446,11 +459,13 @@ def copy_approved_metadata(
         source = source_files[relative]
         destination = staging.joinpath(*parsed.parts)
         destination.parent.mkdir(parents=True, exist_ok=True)
-        if plan.artifact_profile == "sm120-text-hybrid-v1" and relative == "config.json":
+        if plan.artifact_profile in {
+            "sm120-text-hybrid-v1", "sm120-mtp-assistant-hybrid-v1"
+        } and relative == "config.json":
             source_payload = source.path.read_bytes()
             if len(source_payload) != source.size:
                 raise OutputError("M08 source config size changed while reading")
-            payload = m08_config_bytes(source_payload)
+            payload = compiled_config_bytes(source_payload, plan.artifact_profile)
             with _open_exclusive(destination) as output:
                 write_all(output, payload, "writing M08 config.json")
                 output.flush()

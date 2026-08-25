@@ -659,6 +659,57 @@ void RunGemma426BManifestTests() {
                    modality_residency_manifest, residency_config.value())
                    .ok());
 
+  gem16::ModelManifest assistant_residency_manifest;
+  assistant_residency_manifest.model_variant = "gemma4_moe_26b_assistant";
+  assistant_residency_manifest.checkpoint_profile =
+      "sm120-mtp-assistant-hybrid-v1";
+  assistant_residency_manifest.validation_contract =
+      "gemma4_26b_m25_assistant_compiled_hybrid_v1";
+  assistant_residency_manifest.tensor_contract_validated = true;
+  assistant_residency_manifest.supports_text = true;
+  assistant_residency_manifest.supports_mtp = true;
+  constexpr std::uint64_t kAssistantPayload = 258'306'160ULL;
+  for (std::uint64_t index = 0; index < 97U; ++index) {
+    TensorInfo tensor;
+    tensor.name = "assistant.tensor." + std::to_string(index);
+    tensor.source_shard = "model-00001-of-00001.safetensors";
+    tensor.byte_offset = index;
+    tensor.byte_length =
+        index + 1U == 97U ? kAssistantPayload - 96U : 1U;
+    tensor.residency_class = "immutable_device_mtp_assistant";
+    tensor.final_gpu_layout = "source_bf16";
+    assistant_residency_manifest.tensors.push_back(std::move(tensor));
+  }
+  assistant_residency_manifest.total_tensor_bytes = kAssistantPayload;
+  auto assistant_residency =
+      gem16::internal::BuildGemma4Moe26BAssistantResidencyPlan(
+          assistant_residency_manifest);
+  GEM16_CHECK(assistant_residency.ok());
+  if (assistant_residency.ok()) {
+    GEM16_CHECK(assistant_residency.value().upload_ranges.size() == 97U);
+    GEM16_CHECK(assistant_residency.value().artifact_payload_bytes ==
+                kAssistantPayload);
+    GEM16_CHECK(assistant_residency.value().immutable_weight_arena_bytes ==
+                258'330'880ULL);
+    GEM16_CHECK(assistant_residency.value().fixed_region_bytes ==
+                41'943'040ULL);
+    GEM16_CHECK(assistant_residency.value().context_profiles.size() == 2U);
+    for (const auto& profile :
+         assistant_residency.value().context_profiles) {
+      GEM16_CHECK(profile.fp8_kv_bytes == 0U);
+      GEM16_CHECK(profile.required_free_margin_bytes == 0U);
+      GEM16_CHECK(profile.total_device_bytes_without_margin ==
+                  assistant_residency.value().immutable_weight_arena_bytes +
+                      assistant_residency.value().fixed_region_bytes);
+    }
+  }
+  auto assistant_with_own_kv = assistant_residency_manifest;
+  assistant_with_own_kv.supports_mtp = false;
+  GEM16_CHECK(
+      !gem16::internal::BuildGemma4Moe26BAssistantResidencyPlan(
+           assistant_with_own_kv)
+           .ok());
+
   const auto canonical_path =
       std::filesystem::path(__FILE__).parent_path().parent_path() / "fixtures" /
       "gemma4_26b_inventory.json";

@@ -528,6 +528,209 @@ Status LaunchGemma4Moe26BAttentionSm120PrefillLayer(
       x.post_attention, output, tokens, kHidden, epsilon, nullptr, stream);
 }
 
+Status LaunchGemma4Moe26BAttentionSm120MtpFixedLayer(
+    const float* hidden, float* output, std::uint64_t start_position,
+    const Gemma4Moe26BAttentionLayerTraits& t,
+    const Gemma4Moe26BAttentionReferenceWeights& w,
+    const Gemma4Moe26BKvCacheView& cache,
+    const Gemma4Moe26BAttentionReferenceWorkspace& x,
+    float* decode_attention_workspace, const DecodeControl* row_controls,
+    std::uint32_t tokens, bool shared_fixed_attention, bool batched_output_tail,
+    bool controlled_positions, float epsilon, cudaStream_t stream) {
+  const bool sliding =
+      t.attention == Gemma4Moe26BAttentionType::kSliding;
+  const std::uint64_t q_elements = t.query_heads * t.head_dimension;
+  const std::uint64_t kv_elements = t.kv_heads * t.head_dimension;
+  const bool native_geometry =
+      sliding ? t.query_heads == 16U && t.kv_heads == 8U &&
+                    t.head_dimension == 256U
+              : t.query_heads == 16U && t.kv_heads == 2U &&
+                    t.head_dimension == 512U;
+  if (hidden == nullptr || output == nullptr || hidden == output ||
+      decode_attention_workspace == nullptr || row_controls == nullptr ||
+      cache.key == nullptr || cache.value == nullptr ||
+      cache.key == cache.value || !ValidPointers(x) ||
+      w.input_norm_bf16 == nullptr ||
+      w.post_attention_norm_bf16 == nullptr ||
+      w.query_norm_bf16 == nullptr || w.key_norm_bf16 == nullptr ||
+      w.key_cache_scale_bf16 == nullptr ||
+      w.value_cache_scale_bf16 == nullptr || t.layer >= 30U ||
+      (tokens != 2U && tokens != 3U && tokens != 5U) ||
+      !native_geometry ||
+      t.kv_producer_layer != static_cast<std::int32_t>(t.layer) ||
+      cache.capacity == 0U || cache.capacity > t.cache_capacity ||
+      (sliding && cache.capacity != t.cache_capacity) ||
+      (!controlled_positions && !sliding &&
+       (start_position >= cache.capacity ||
+        tokens > cache.capacity - start_position)) ||
+      !ValidMatrix(w.query, q_elements, kHidden) ||
+      !ValidMatrix(w.key, kv_elements, kHidden) ||
+      !ValidMatrix(w.output, kHidden, q_elements) ||
+      (t.stores_v_projection != !t.reuses_raw_k_for_v) ||
+      (t.stores_v_projection && !ValidMatrix(w.value, kv_elements, kHidden)) ||
+      (!t.stores_v_projection &&
+       (w.value.weight_e4m3 != nullptr ||
+        w.value.weight_scales_bf16 != nullptr)) ||
+      !std::isfinite(epsilon) || epsilon <= 0.0F) {
+    return Invalid("M25 exact fixed-D attention contract is invalid");
+  }
+
+  Status status = LaunchRmsNormFp8TokenQuantizationBatch(
+      hidden, w.input_norm_bf16, x.input_fp8, x.input_scale, tokens,
+      kHidden, epsilon, stream);
+  if (!status.ok()) return status;
+  status = LaunchFp8Sm120GroupedQkvProjectionBatch(
+      x.input_fp8, x.input_scale, w.query.weight_e4m3,
+      w.query.weight_scales_bf16, x.query_raw, q_elements,
+      w.key.weight_e4m3, w.key.weight_scales_bf16, x.key_raw, kv_elements,
+      t.reuses_raw_k_for_v ? nullptr : w.value.weight_e4m3,
+      t.reuses_raw_k_for_v ? nullptr : w.value.weight_scales_bf16,
+      t.reuses_raw_k_for_v ? nullptr : x.value_raw,
+      t.reuses_raw_k_for_v ? 0U : kv_elements, tokens, kHidden, stream);
+  if (!status.ok()) return status;
+  if (t.reuses_raw_k_for_v) {
+    const cudaError_t copied = cudaMemcpyAsync(
+        x.value_raw, x.key_raw, tokens * kv_elements * sizeof(float),
+        cudaMemcpyDeviceToDevice, stream);
+    if (copied != cudaSuccess) {
+      return CudaFailure("reuse M25 exact fixed-D raw K for V", copied);
+    }
+  }
+
+  const std::uint64_t rotating_pairs = static_cast<std::uint64_t>(
+      t.rotary_factor * static_cast<double>(t.head_dimension / 2U));
+  if (controlled_positions) {
+    status = LaunchRotaryEmbeddingTableBatchControlled(
+        x.rotary_cosine, x.rotary_sine, tokens, rotating_pairs,
+        t.head_dimension, row_controls, t.rope_theta, t.rope_scaling_factor,
+        stream);
+  } else {
+    status = LaunchRotaryEmbeddingTableBatch(
+        x.rotary_cosine, x.rotary_sine, tokens, rotating_pairs,
+        t.head_dimension, start_position, t.rope_theta,
+        t.rope_scaling_factor, stream);
+  }
+  if (!status.ok()) return status;
+  status = LaunchProjectionRmsNormRotaryBf16Batch(
+      x.query_raw, w.query_norm_bf16, x.query_normalized, x.key_raw,
+      w.key_norm_bf16, x.key_normalized, x.rotary_cosine, x.rotary_sine,
+      tokens, t.query_heads, t.kv_heads, t.head_dimension, t.rotary_factor,
+      epsilon, stream);
+  if (!status.ok()) return status;
+  status = LaunchRmsNormBf16(x.value_raw, nullptr, x.value_normalized,
+                             tokens * t.kv_heads, t.head_dimension,
+                             epsilon, stream);
+  if (!status.ok()) return status;
+  status = LaunchQuantizeKvFp8Batch(
+      x.key_normalized, x.value_normalized, x.staged_key_fp8,
+      x.staged_value_fp8, w.key_cache_scale_bf16,
+      w.value_cache_scale_bf16, tokens, kv_elements, stream);
+  if (!status.ok()) return status;
+
+  if (!shared_fixed_attention) {
+    for (std::uint64_t row = 0U; row < tokens; ++row) {
+      status = controlled_positions
+                   ? LaunchAppendKvFp8BatchControlled(
+                         x.staged_key_fp8 + row * kv_elements,
+                         x.staged_value_fp8 + row * kv_elements, cache.key,
+                         cache.value, row_controls + row, 1U, kv_elements,
+                         cache.capacity, stream)
+                   : LaunchAppendKvFp8Batch(
+                         x.staged_key_fp8 + row * kv_elements,
+                         x.staged_value_fp8 + row * kv_elements, cache.key,
+                         cache.value, start_position + row, 1U, kv_elements,
+                         cache.capacity, stream);
+      if (!status.ok()) return status;
+      status = LaunchOnlineAttentionDecodeFp8Sm120(
+          x.query_normalized + row * q_elements, cache.key, cache.value,
+          w.key_cache_scale_bf16, w.value_cache_scale_bf16,
+          decode_attention_workspace, x.attention + row * q_elements,
+          row_controls + row, t.query_heads, t.kv_heads, t.head_dimension,
+          cache.capacity, sliding, stream);
+      if (!status.ok()) return status;
+    }
+  } else if (sliding) {
+    status = LaunchOnlineAttentionDecodeFp8LocalFixedControlledSm120(
+        x.query_normalized, cache.key, cache.value, x.staged_key_fp8,
+        x.staged_value_fp8, w.key_cache_scale_bf16,
+        w.value_cache_scale_bf16, decode_attention_workspace, x.attention,
+        row_controls, tokens, cache.capacity, stream);
+    if (!status.ok()) return status;
+    status = controlled_positions
+                 ? LaunchAppendKvFp8BatchControlled(
+                       x.staged_key_fp8, x.staged_value_fp8, cache.key,
+                       cache.value, row_controls, tokens, kv_elements,
+                       cache.capacity, stream)
+                 : LaunchAppendKvFp8Batch(
+                       x.staged_key_fp8, x.staged_value_fp8, cache.key,
+                       cache.value, start_position, tokens, kv_elements,
+                       cache.capacity, stream);
+  } else {
+    status = controlled_positions
+                 ? LaunchAppendKvFp8BatchControlled(
+                       x.staged_key_fp8, x.staged_value_fp8, cache.key,
+                       cache.value, row_controls, tokens, kv_elements,
+                       cache.capacity, stream)
+                 : LaunchAppendKvFp8Batch(
+                       x.staged_key_fp8, x.staged_value_fp8, cache.key,
+                       cache.value, start_position, tokens, kv_elements,
+                       cache.capacity, stream);
+    if (!status.ok()) return status;
+    status = LaunchOnlineAttentionDecodeFp8GlobalFixedControlledSm120(
+        x.query_normalized, cache.key, cache.value,
+        w.key_cache_scale_bf16, w.value_cache_scale_bf16,
+        decode_attention_workspace, x.attention, row_controls, tokens,
+        cache.capacity, stream);
+  }
+  if (!status.ok()) return status;
+  if (batched_output_tail) {
+    status = LaunchFp8ReferenceTokenQuantizationBatch(
+        x.attention, x.output_fp8, x.output_scale, tokens, q_elements,
+        stream);
+    if (!status.ok()) return status;
+    status = LaunchFp8Sm120DirectProjectionBatch(
+        x.output_fp8, x.output_scale, w.output.weight_e4m3,
+        w.output.weight_scales_bf16, x.output_projection, tokens, kHidden,
+        q_elements, stream);
+    if (!status.ok()) return status;
+    return LaunchRmsNormResidualBf16(
+        x.output_projection, w.post_attention_norm_bf16, hidden, nullptr,
+        output, tokens, kHidden, epsilon, nullptr, stream);
+  }
+  for (std::uint64_t row = 0U; row < tokens; ++row) {
+    status = LaunchFp8ReferenceTokenQuantization(
+        x.attention + row * q_elements, x.output_fp8 + row * q_elements,
+        x.output_scale + row, q_elements, stream);
+    if (!status.ok()) return status;
+    status = LaunchFp8Sm120DirectProjection(
+        x.output_fp8 + row * q_elements, x.output_scale + row,
+        w.output.weight_e4m3, w.output.weight_scales_bf16,
+        x.output_projection + row * kHidden, kHidden, q_elements, stream);
+    if (!status.ok()) return status;
+    status = LaunchRmsNormResidualBf16(
+        x.output_projection + row * kHidden,
+        w.post_attention_norm_bf16, hidden + row * kHidden, nullptr,
+        output + row * kHidden, 1U, kHidden, epsilon, nullptr, stream);
+    if (!status.ok()) return status;
+  }
+  return Status::Ok();
+}
+
+Status LaunchGemma4Moe26BAttentionSm120MtpD2Layer(
+    const float* hidden, float* output, std::uint64_t start_position,
+    const Gemma4Moe26BAttentionLayerTraits& t,
+    const Gemma4Moe26BAttentionReferenceWeights& w,
+    const Gemma4Moe26BKvCacheView& cache,
+    const Gemma4Moe26BAttentionReferenceWorkspace& x,
+    float* decode_attention_workspace, const DecodeControl* row_controls,
+    bool shared_d2_attention, bool batched_output_tail,
+    bool controlled_positions, float epsilon, cudaStream_t stream) {
+  return LaunchGemma4Moe26BAttentionSm120MtpFixedLayer(
+      hidden, output, start_position, t, w, cache, x,
+      decode_attention_workspace, row_controls, 3U, shared_d2_attention,
+      batched_output_tail, controlled_positions, epsilon, stream);
+}
+
 Status LaunchGemma4Moe26BAttentionReferenceControlledLayer(
     const float* hidden, float* output,
     const Gemma4Moe26BAttentionLayerTraits& t,

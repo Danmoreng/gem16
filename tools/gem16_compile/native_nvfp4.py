@@ -200,8 +200,10 @@ def preflight_native_nvfp4(
         if native_build.get("build_type") != "Release":
             if request.profile == "nvfp4-tied-head-partial-v1":
                 message = "M07 tied-head conversion requires a native Release build"
-            elif request.profile == "sm120-text-hybrid-v1":
-                message = "M08 complete conversion requires a native Release build"
+            elif request.profile in {
+                "sm120-text-hybrid-v1", "sm120-mtp-assistant-hybrid-v1"
+            }:
+                message = "complete hybrid conversion requires a native Release build"
             else:
                 message = "M06 full conversion requires a native Release build"
             raise InvalidPlanError(f"{message}; got {native_build.get('build_type')!r}")
@@ -384,7 +386,9 @@ def _make_job(
         "schema_version": 1,
         "protocol": PROTOCOL,
         "artifact_profile": plan.artifact_profile,
-        "scope": ("complete" if plan.artifact_profile == "sm120-text-hybrid-v1"
+        "scope": ("complete" if plan.artifact_profile in {
+                      "sm120-text-hybrid-v1", "sm120-mtp-assistant-hybrid-v1"
+                  }
                   else "tied_head" if plan.artifact_profile == "nvfp4-tied-head-partial-v1"
                   else "full" if len(operations) == 150 else "fixture"),
         "contract_id": CONTRACT_ID,
@@ -510,16 +514,18 @@ def prepare_native_direct(
         operation_count = sum(1 for tensor in plan.tensors if tensor.encoder == "nvfp4-packed-v1")
         requires_release = plan.artifact_profile in {
             "nvfp4-experts-partial-v1", "nvfp4-tied-head-partial-v1",
-            "sm120-text-hybrid-v1",
+            "sm120-text-hybrid-v1", "sm120-mtp-assistant-hybrid-v1",
         } and (
-            operation_count in {150, 151}
+            operation_count in {13, 150, 151}
             or plan.artifact_profile == "nvfp4-tied-head-partial-v1"
         )
         if requires_release and native_build.get("build_type") != "Release":
             if plan.artifact_profile == "nvfp4-tied-head-partial-v1":
                 message = "M07 tied-head conversion requires a native Release build"
-            elif plan.artifact_profile == "sm120-text-hybrid-v1":
-                message = "M08 complete conversion requires a native Release build"
+            elif plan.artifact_profile in {
+                "sm120-text-hybrid-v1", "sm120-mtp-assistant-hybrid-v1"
+            }:
+                message = "complete hybrid conversion requires a native Release build"
             else:
                 message = "M06 full conversion requires a native Release build"
             raise InvalidPlanError(f"{message}; got {native_build.get('build_type')!r}")

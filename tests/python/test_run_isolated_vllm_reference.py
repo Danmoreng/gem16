@@ -19,6 +19,7 @@ class RunIsolatedVllmReferenceTest(unittest.TestCase):
             "OOMPolicy=kill",
             "KillMode=control-group",
             "MAX_JOBS=4",
+            "TORCHINDUCTOR_COMPILE_THREADS=4",
             "FLASHINFER_NVCC_THREADS=1",
         ):
             self.assertIn(required, source)
@@ -44,7 +45,11 @@ class RunIsolatedVllmReferenceTest(unittest.TestCase):
             text=True,
         )
         self.assertIn("MemoryHigh:40G MemoryMax:45G", result.stdout)
-        self.assertIn("MAX_JOBS:4 FLASHINFER_NVCC_THREADS:1", result.stdout)
+        self.assertIn(
+            "MAX_JOBS:4 TORCHINDUCTOR_COMPILE_THREADS:4 "
+            "FLASHINFER_NVCC_THREADS:1",
+            result.stdout,
+        )
         self.assertIn("OOMPolicy=kill", result.stdout)
         self.assertIn("KillMode=control-group", result.stdout)
         self.assertIn("/usr/bin/printf", result.stdout)

@@ -96,6 +96,42 @@ void RunConfigTests() {
   invalid.hidden_size = 2048;
   GEM16_CHECK(!gem16::internal::ValidateAssistantModelContract(invalid).ok());
 
+  auto moe_26b_assistant = assistant;
+  moe_26b_assistant.architecture = "Gemma4AssistantForCausalLM";
+  moe_26b_assistant.model_type = "gemma4_assistant";
+  moe_26b_assistant.text_model_type = "gemma4_text";
+  moe_26b_assistant.backbone_hidden_size = 2816;
+  moe_26b_assistant.global_kv_heads = 2;
+  moe_26b_assistant.attention_k_eq_v = true;
+  moe_26b_assistant.shared_kv_layer_count_present = true;
+  moe_26b_assistant.variant =
+      gem16::internal::ClassifyModelVariant(moe_26b_assistant);
+  GEM16_CHECK(moe_26b_assistant.variant ==
+              gem16::internal::ModelVariant::kGemma4Moe26BAssistant);
+  GEM16_CHECK(gem16::internal::IsAssistantModel(moe_26b_assistant));
+  GEM16_CHECK(
+      gem16::internal::IsGemma4Moe26BAssistantModel(moe_26b_assistant));
+  GEM16_CHECK(
+      gem16::internal::ValidateGemma4Moe26BAssistantContract(
+          moe_26b_assistant)
+          .ok());
+  GEM16_CHECK(
+      gem16::internal::ValidateInspectableModelContract(moe_26b_assistant).ok());
+  const auto& moe_26b_assistant_traits =
+      gem16::internal::TraitsForModelVariant(moe_26b_assistant.variant);
+  GEM16_CHECK(moe_26b_assistant_traits.inspectable);
+  GEM16_CHECK(!moe_26b_assistant_traits.executable);
+  GEM16_CHECK(moe_26b_assistant_traits.supports_mtp);
+
+  invalid = moe_26b_assistant;
+  invalid.global_kv_heads = 1;
+  GEM16_CHECK(
+      !gem16::internal::ValidateGemma4Moe26BAssistantContract(invalid).ok());
+  invalid = moe_26b_assistant;
+  invalid.shared_kv_layer_count_present = false;
+  GEM16_CHECK(
+      !gem16::internal::ValidateGemma4Moe26BAssistantContract(invalid).ok());
+
   const auto primary = Unified12BConfig();
   GEM16_CHECK(gem16::internal::IsPrimaryModel(primary));
   GEM16_CHECK(!gem16::internal::IsGemma4Moe26BModel(primary));

@@ -133,4 +133,30 @@ BindGemma4Moe26BAttentionReferenceWeights(
     const DecodeControl* control, float epsilon, cudaStream_t stream,
     bool rotary_table_prepared = false);
 
+// Exact fixed-D Target verifier. It reuses the production 12B decode-attention
+// arithmetic because the 26B Target has the same local
+// QH16/KVH8/D256 and global QH16/KVH2/D512 geometries. Q/K/V/O projection,
+// recurrent BF16 boundaries and causal row order remain those of ordinary
+// decode; only immutable weights and historical K/V are shared across rows.
+[[nodiscard]] Status LaunchGemma4Moe26BAttentionSm120MtpFixedLayer(
+    const float* hidden, float* output, std::uint64_t start_position,
+    const Gemma4Moe26BAttentionLayerTraits& traits,
+    const Gemma4Moe26BAttentionReferenceWeights& weights,
+    const Gemma4Moe26BKvCacheView& cache,
+    const Gemma4Moe26BAttentionReferenceWorkspace& workspace,
+    float* decode_attention_workspace, const DecodeControl* row_controls,
+    std::uint32_t tokens, bool shared_fixed_attention,
+    bool batched_output_tail, bool controlled_positions, float epsilon,
+    cudaStream_t stream);
+
+[[nodiscard]] Status LaunchGemma4Moe26BAttentionSm120MtpD2Layer(
+    const float* hidden, float* output, std::uint64_t start_position,
+    const Gemma4Moe26BAttentionLayerTraits& traits,
+    const Gemma4Moe26BAttentionReferenceWeights& weights,
+    const Gemma4Moe26BKvCacheView& cache,
+    const Gemma4Moe26BAttentionReferenceWorkspace& workspace,
+    float* decode_attention_workspace, const DecodeControl* row_controls,
+    bool shared_d2_attention, bool batched_output_tail,
+    bool controlled_positions, float epsilon, cudaStream_t stream);
+
 }  // namespace gem16::internal

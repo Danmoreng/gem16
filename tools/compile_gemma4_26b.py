@@ -74,7 +74,8 @@ def add_source_options(parser: argparse.ArgumentParser) -> None:
         help=(
             "versioned compiler profile: synthetic-copy-v1 (M04), "
             "fp8-attention-partial-v1 (M05), nvfp4-experts-partial-v1 (M06), "
-            "nvfp4-tied-head-partial-v1 (M07), or sm120-text-hybrid-v1 (M08)"
+            "nvfp4-tied-head-partial-v1 (M07), sm120-text-hybrid-v1 (M08), "
+            "or sm120-mtp-assistant-hybrid-v1 (M25)"
         ),
     )
     parser.add_argument(
@@ -180,7 +181,10 @@ def request_from_args(args: argparse.Namespace) -> CompilerRequest:
         shard_size=args.shard_size,
         threads=(
             args.threads if args.threads is not None else
-            (min(16, os.cpu_count() or 1) if args.profile in {"nvfp4-experts-partial-v1", "nvfp4-tied-head-partial-v1", "sm120-text-hybrid-v1"} else 1)
+            (min(16, os.cpu_count() or 1) if args.profile in {
+                "nvfp4-experts-partial-v1", "nvfp4-tied-head-partial-v1",
+                "sm120-text-hybrid-v1", "sm120-mtp-assistant-hybrid-v1",
+            } else 1)
         ),
         reference_platform_strict=args.reference_platform_strict,
         dependencies_lock=args.dependencies_lock,
@@ -190,7 +194,10 @@ def request_from_args(args: argparse.Namespace) -> CompilerRequest:
         artifact_lock=getattr(args, "artifact_lock", None),
         native_timeout_seconds=(
             getattr(args, "native_timeout_seconds", None)
-            or (14_400 if args.profile in {"nvfp4-experts-partial-v1", "nvfp4-tied-head-partial-v1", "sm120-text-hybrid-v1"} else 600)
+            or (14_400 if args.profile in {
+                "nvfp4-experts-partial-v1", "nvfp4-tied-head-partial-v1",
+                "sm120-text-hybrid-v1", "sm120-mtp-assistant-hybrid-v1",
+            } else 600)
         ),
     )
 
@@ -207,7 +214,10 @@ def write_failure_report(args: argparse.Namespace, error: CompilerError) -> None
                 {
                     "schema_version": 1,
                     "milestone": (
-                        "M08"
+                        "M25"
+                        if getattr(args, "profile", None)
+                        == "sm120-mtp-assistant-hybrid-v1"
+                        else "M08"
                         if getattr(args, "profile", None)
                         == "sm120-text-hybrid-v1"
                         else "M05"
@@ -256,7 +266,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                         "compiler resume is intentionally unsupported; remove only a reviewed "
                         ".incomplete directory and restart"
                     )
-                if args.profile in {"nvfp4-experts-partial-v1", "nvfp4-tied-head-partial-v1", "sm120-text-hybrid-v1"}:
+                if args.profile in {
+                    "nvfp4-experts-partial-v1", "nvfp4-tied-head-partial-v1",
+                    "sm120-text-hybrid-v1", "sm120-mtp-assistant-hybrid-v1",
+                }:
                     print(
                         "[preflight] native Release compiler, then source lock and files",
                         file=sys.stderr,
@@ -276,6 +289,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                 elif args.profile == "sm120-text-hybrid-v1":
                     print(
                         "[compile] deterministic complete M08 hybrid artifact",
+                        file=sys.stderr,
+                    )
+                elif args.profile == "sm120-mtp-assistant-hybrid-v1":
+                    print(
+                        "[compile] deterministic M25 Assistant hybrid artifact",
                         file=sys.stderr,
                     )
                 else:
@@ -303,7 +321,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"error: {wrapped}", file=sys.stderr)
         return wrapped.exit_code
     display_report = report
-    if report.get("artifact_profile") == "sm120-text-hybrid-v1":
+    if report.get("artifact_profile") in {
+        "sm120-text-hybrid-v1", "sm120-mtp-assistant-hybrid-v1"
+    }:
         display_report = {
             key: report[key]
             for key in (

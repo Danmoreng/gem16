@@ -452,6 +452,342 @@ Status ValidateTensorRecords(const std::filesystem::path& root,
   return Status::Ok();
 }
 
+struct M25ExpectedTensor {
+  std::string dtype;
+  std::vector<std::uint64_t> physical_shape;
+  std::vector<std::uint64_t> logical_shape;
+  std::string role;
+  std::string runtime_layout;
+  std::string quantization_class;
+  bool aliased = false;
+};
+
+using M25ExpectedInventory =
+    std::map<std::string, M25ExpectedTensor, std::less<>>;
+
+void AddM25Copy(M25ExpectedInventory* expected, std::string name,
+                std::vector<std::uint64_t> shape, std::string role) {
+  expected->emplace(std::move(name),
+                    M25ExpectedTensor{"BF16", shape, std::move(shape),
+                                      std::move(role), "source_bf16", "BF16",
+                                      false});
+}
+
+void AddM25Fp8(M25ExpectedInventory* expected, std::string module,
+               std::uint64_t rows, std::uint64_t columns, std::string role) {
+  expected->emplace(
+      module + ".weight",
+      M25ExpectedTensor{"F8_E4M3", {rows, columns}, {rows, columns}, role,
+                        "source_nk_fp8", "FP8_WEIGHT_E4M3", false});
+  expected->emplace(
+      module + ".weight_scale",
+      M25ExpectedTensor{"BF16", {rows, 1}, {rows, 1}, std::move(role),
+                        "row_bf16", "FP8_WEIGHT_SCALE", false});
+}
+
+void AddM25Nvfp4(M25ExpectedInventory* expected, std::string module,
+                 std::uint64_t rows, std::uint64_t columns, std::string role,
+                 bool aliased) {
+  expected->emplace(
+      module + ".input_global_scale",
+      M25ExpectedTensor{"F32", {1}, {rows, columns}, role, "scalar_f32",
+                        "NVFP4_INPUT_SCALE", aliased});
+  expected->emplace(
+      module + ".weight_global_scale",
+      M25ExpectedTensor{"F32", {1}, {rows, columns}, role, "scalar_f32",
+                        "NVFP4_GLOBAL_SCALE", aliased});
+  expected->emplace(
+      module + ".weight_packed",
+      M25ExpectedTensor{"U8", {rows, columns / 2U}, {rows, columns}, role,
+                        "sm120_row8_k64", "NVFP4_PACKED", aliased});
+  expected->emplace(
+      module + ".weight_scale",
+      M25ExpectedTensor{"F8_E4M3", {rows, columns / 16U}, {rows, columns},
+                        std::move(role), "sm120_row8_group16_e4m3",
+                        "NVFP4_LOCAL_SCALE_E4M3", aliased});
+}
+
+M25ExpectedInventory BuildM25ExpectedInventory() {
+  M25ExpectedInventory expected;
+  AddM25Nvfp4(&expected, "model.embed_tokens", 262144, 1024,
+              "tied_embedding_and_output", true);
+  for (std::uint64_t layer = 0; layer < 4; ++layer) {
+    const std::string prefix = "model.layers." + std::to_string(layer) + ".";
+    AddM25Copy(&expected, prefix + "input_layernorm.weight", {1024},
+               "input_layer_norm");
+    AddM25Copy(&expected, prefix + "layer_scalar", {1}, "layer_scalar");
+    AddM25Nvfp4(&expected, prefix + "mlp.down_proj", 1024, 8192,
+                "assistant_mlp_down", false);
+    AddM25Nvfp4(&expected, prefix + "mlp.gate_proj", 8192, 1024,
+                "assistant_mlp_gate", false);
+    AddM25Nvfp4(&expected, prefix + "mlp.up_proj", 8192, 1024,
+                "assistant_mlp_up", false);
+    AddM25Copy(&expected, prefix + "post_attention_layernorm.weight", {1024},
+               "post_attention_layer_norm");
+    AddM25Copy(&expected, prefix + "post_feedforward_layernorm.weight", {1024},
+               "post_feed_forward_layer_norm");
+    AddM25Copy(&expected, prefix + "pre_feedforward_layernorm.weight", {1024},
+               "pre_feed_forward_layer_norm");
+    const bool global = layer == 3;
+    const std::uint64_t head_dimension = global ? 512 : 256;
+    const std::uint64_t projection_size = 16U * head_dimension;
+    AddM25Fp8(&expected, prefix + "self_attn.o_proj", 1024,
+              projection_size, "assistant_attention_o_projection");
+    AddM25Copy(&expected, prefix + "self_attn.q_norm.weight",
+               {head_dimension}, "assistant_attention_q_norm");
+    AddM25Fp8(&expected, prefix + "self_attn.q_proj", projection_size, 1024,
+              "assistant_attention_q_projection");
+  }
+  AddM25Copy(&expected, "model.norm.weight", {1024}, "final_norm");
+  AddM25Fp8(&expected, "post_projection", 2816, 1024,
+            "assistant_post_projection");
+  AddM25Fp8(&expected, "pre_projection", 1024, 5632,
+            "assistant_pre_projection");
+  return expected;
+}
+
+Status ValidateM25ConfigExtension(const std::filesystem::path& root) {
+  auto config = LoadJson(root / "config.json");
+  if (!config.ok()) return config.status();
+  const auto* gem16 = Field(config.value(), "gem16");
+  if (gem16 == nullptr || !gem16->is_object() ||
+      !IsString(Field(*gem16, "profile"),
+                "sm120-mtp-assistant-hybrid-v1") ||
+      !IsString(Field(*gem16, "variant"),
+                "gemma4-26b-a4b-mtp-assistant") ||
+      !IsString(Field(*gem16, "head_format"),
+                "nvfp4-group16-divisor-v1")) {
+    return Status(StatusCode::kUnsupported,
+                  "compiled Assistant config lacks the exact M25 gem16 block");
+  }
+  const auto schema =
+      Unsigned(Field(*gem16, "schema_version"), "gem16.schema_version");
+  const auto* text_only = Field(*gem16, "text_only");
+  const auto* vision = Field(*gem16, "supports_vision");
+  const auto* audio = Field(*gem16, "supports_audio");
+  const auto* video = Field(*gem16, "supports_video");
+  const auto* mtp = Field(*gem16, "supports_mtp");
+  if (!schema.ok() || schema.value() != 1 || text_only == nullptr ||
+      !text_only->is_bool() || !text_only->as_bool() || vision == nullptr ||
+      !vision->is_bool() || vision->as_bool() || audio == nullptr ||
+      !audio->is_bool() || audio->as_bool() || video == nullptr ||
+      !video->is_bool() || video->as_bool() || mtp == nullptr ||
+      !mtp->is_bool() || !mtp->as_bool()) {
+    return Status(StatusCode::kUnsupported,
+                  "compiled Assistant capability block is invalid");
+  }
+  return Status::Ok();
+}
+
+Status ValidateM25ExternalLock(const std::filesystem::path& root,
+                               const json::Value& compilation) {
+  constexpr std::string_view kM25Profile =
+      "sm120-mtp-assistant-hybrid-v1";
+  constexpr std::string_view kM25Status =
+      "m25_mtp_assistant_runtime_candidate";
+  constexpr std::string_view kM25SourceLock =
+      "83e509316eab22749fade9c0968333b0a29f0daf99832314b333702bf45bdda5";
+  const auto lock_path = ExternalLockPath(root);
+  auto lock_payload = ReadRegularFile(lock_path, kMaximumMetadataBytes);
+  if (!lock_payload.ok()) return lock_payload.status();
+  auto lock = LoadJson(lock_path);
+  if (!lock.ok()) return lock.status();
+  const std::set<std::string> expected_lock_fields = {
+      "artifact_content_sha256", "artifact_profile", "artifact_status",
+      "compiler_commit", "files", "schema_version", "source_lock_sha256"};
+  std::set<std::string> actual_lock_fields;
+  for (const auto& [name, unused] : lock.value().as_object()) {
+    (void)unused;
+    actual_lock_fields.insert(name);
+  }
+  auto canonical_lock = CanonicalJsonDocument(lock.value());
+  if (actual_lock_fields != expected_lock_fields || !canonical_lock.ok() ||
+      canonical_lock.value() != lock_payload.value() ||
+      !IsString(Field(lock.value(), "artifact_profile"), kM25Profile) ||
+      !IsString(Field(lock.value(), "artifact_status"), kM25Status) ||
+      !IsString(Field(lock.value(), "source_lock_sha256"), kM25SourceLock)) {
+    return Status(StatusCode::kDataLoss,
+                  "M25 external lock is not the exact canonical contract");
+  }
+  const auto schema = Unsigned(Field(lock.value(), "schema_version"),
+                               "M25 lock schema");
+  const auto* files = Field(lock.value(), "files");
+  const auto* lock_commit = Field(lock.value(), "compiler_commit");
+  const auto* source = Field(compilation, "source");
+  const auto* compiler = Field(compilation, "compiler");
+  if (!schema.ok() || schema.value() != 1 || files == nullptr ||
+      !files->is_array() || lock_commit == nullptr || !lock_commit->is_string() ||
+      lock_commit->as_string().size() != 40 || source == nullptr ||
+      !source->is_object() || compiler == nullptr || !compiler->is_object() ||
+      !IsString(Field(*source, "lock_sha256"), kM25SourceLock) ||
+      !IsString(Field(*source, "repository"),
+                "google/gemma-4-26B-A4B-it-qat-q4_0-unquantized-assistant") ||
+      !IsString(Field(*source, "revision"),
+                "9537141506fe8875b3ed45b264af13580cb29166") ||
+      !IsString(Field(*compiler, "commit"), lock_commit->as_string())) {
+    return Status(StatusCode::kDataLoss,
+                  "M25 source/compiler identity is not bound to its lock");
+  }
+
+  std::set<std::string> locked_names;
+  std::string previous_name;
+  for (const auto& record : files->as_array()) {
+    const auto* relative = Field(record, "path");
+    auto path = SafeArtifactPath(root, relative);
+    auto size = Unsigned(Field(record, "size"), "M25 artifact file size");
+    const auto* hash = Field(record, "sha256");
+    if (!record.is_object() || record.as_object().size() != 3U || !path.ok() ||
+        !size.ok() || hash == nullptr || !hash->is_string() ||
+        hash->as_string().size() != 64 ||
+        (!previous_name.empty() && relative->as_string() <= previous_name) ||
+        !locked_names.insert(relative->as_string()).second) {
+      return Status(StatusCode::kDataLoss,
+                    "invalid M25 external lock file record");
+    }
+    previous_name = relative->as_string();
+    std::error_code error;
+    const auto status = std::filesystem::symlink_status(path.value(), error);
+    if (error || std::filesystem::is_symlink(status) ||
+        !std::filesystem::is_regular_file(status) ||
+        std::filesystem::file_size(path.value(), error) != size.value()) {
+      return Status(StatusCode::kDataLoss,
+                    "M25 locked artifact file is missing or changed");
+    }
+    auto actual = Sha256Range(path.value(), 0, size.value());
+    if (!actual.ok() || actual.value() != hash->as_string()) {
+      return Status(StatusCode::kDataLoss,
+                    "M25 locked artifact file hash mismatch: " +
+                        relative->as_string());
+    }
+  }
+  std::set<std::string> actual_names;
+  std::error_code error;
+  for (std::filesystem::directory_iterator iterator(root, error), end;
+       !error && iterator != end; iterator.increment(error)) {
+    const auto status = iterator->symlink_status(error);
+    if (error || std::filesystem::is_symlink(status) ||
+        !std::filesystem::is_regular_file(status)) {
+      return Status(StatusCode::kDataLoss,
+                    "M25 artifact contains a non-regular entry");
+    }
+    actual_names.insert(iterator->path().filename().string());
+  }
+  if (error || actual_names != locked_names) {
+    return Status(StatusCode::kDataLoss,
+                  "M25 external lock does not cover the exact artifact file set");
+  }
+  auto content_object = lock.value().as_object();
+  const auto* recorded_content_hash =
+      Field(lock.value(), "artifact_content_sha256");
+  if (recorded_content_hash == nullptr || !recorded_content_hash->is_string()) {
+    return Status(StatusCode::kDataLoss,
+                  "M25 external lock content hash is invalid");
+  }
+  content_object.erase("artifact_content_sha256");
+  content_object.erase("schema_version");
+  auto canonical_content =
+      CanonicalJsonDocument(json::Value(std::move(content_object)));
+  if (!canonical_content.ok() ||
+      compiler::Sha256Hex(canonical_content.value().data(),
+                          canonical_content.value().size()) !=
+          recorded_content_hash->as_string()) {
+    return Status(StatusCode::kDataLoss,
+                  "M25 external lock aggregate content hash mismatch");
+  }
+  return Status::Ok();
+}
+
+Status ValidateM25TensorRecords(const std::filesystem::path& root,
+                                const json::Value& compilation,
+                                std::vector<TensorInfo>* tensors) {
+  const auto expected = BuildM25ExpectedInventory();
+  const auto* records = Field(compilation, "tensors");
+  if (expected.size() != 97 || records == nullptr || !records->is_array() ||
+      records->as_array().size() != expected.size() || tensors == nullptr) {
+    return Status(StatusCode::kDataLoss,
+                  "M25 tensor provenance count must be exactly 97");
+  }
+  std::map<std::string, TensorInfo*, std::less<>> by_name;
+  for (auto& tensor : *tensors) {
+    if (!by_name.emplace(tensor.name, &tensor).second) {
+      return Status(StatusCode::kDataLoss, "duplicate M25 tensor");
+    }
+  }
+  if (by_name.size() != expected.size()) {
+    return Status(StatusCode::kDataLoss,
+                  "M25 Safetensors inventory count mismatch");
+  }
+  std::set<std::string> record_names;
+  for (const auto& record : records->as_array()) {
+    const auto* name = Field(record, "output_name");
+    const auto* dtype = Field(record, "output_dtype");
+    const auto* shard = Field(record, "output_shard");
+    auto bytes = Unsigned(Field(record, "byte_length"), "M25 tensor bytes");
+    auto physical = Shape(Field(record, "physical_shape"), "M25 physical shape");
+    auto logical = Shape(Field(record, "logical_shape"), "M25 logical shape");
+    const auto* hash = Field(record, "sha256");
+    const auto* role = Field(record, "role");
+    const auto* residency = Field(record, "residency_class");
+    const auto* runtime_layout = Field(record, "runtime_layout");
+    const auto* aliased = Field(record, "aliased");
+    if (name == nullptr || !name->is_string() || dtype == nullptr ||
+        !dtype->is_string() || shard == nullptr || !shard->is_string() ||
+        !bytes.ok() || !physical.ok() || !logical.ok() || hash == nullptr ||
+        !hash->is_string() || role == nullptr || !role->is_string() ||
+        residency == nullptr || !residency->is_string() ||
+        runtime_layout == nullptr || !runtime_layout->is_string() ||
+        aliased == nullptr || !aliased->is_bool() ||
+        !record_names.insert(name->as_string()).second) {
+      return Status(StatusCode::kDataLoss,
+                    "invalid M25 tensor provenance record");
+    }
+    const auto schema = expected.find(name->as_string());
+    const auto found = by_name.find(name->as_string());
+    if (schema == expected.end() || found == by_name.end() ||
+        dtype->as_string() != schema->second.dtype ||
+        physical.value() != schema->second.physical_shape ||
+        logical.value() != schema->second.logical_shape ||
+        role->as_string() != schema->second.role ||
+        residency->as_string() != "immutable_device_mtp_assistant" ||
+        runtime_layout->as_string() != schema->second.runtime_layout ||
+        aliased->as_bool() != schema->second.aliased ||
+        found->second->storage_dtype != schema->second.dtype ||
+        found->second->shape != schema->second.physical_shape ||
+        found->second->byte_length != bytes.value() ||
+        found->second->source_shard != shard->as_string()) {
+      return Status(StatusCode::kDataLoss,
+                    "M25 tensor schema differs from the fixed hybrid contract: " +
+                        name->as_string());
+    }
+    auto actual_hash = Sha256Range(root / found->second->source_shard,
+                                   found->second->byte_offset,
+                                   found->second->byte_length);
+    if (!actual_hash.ok() || actual_hash.value() != hash->as_string()) {
+      return Status(StatusCode::kDataLoss,
+                    "M25 tensor payload hash mismatch: " + name->as_string());
+    }
+    auto& tensor = *found->second;
+    tensor.logical_shape = schema->second.logical_shape;
+    tensor.logical_dtype = "BF16";
+    tensor.quantization_class = schema->second.quantization_class;
+    tensor.tensor_role = schema->second.role;
+    tensor.residency_class = "immutable_device_mtp_assistant";
+    tensor.final_gpu_layout = schema->second.runtime_layout;
+    tensor.layout = schema->second.runtime_layout;
+    tensor.aliased = schema->second.aliased;
+    if (tensor.quantization_class == "FP8_WEIGHT_E4M3") {
+      tensor.local_scale_tensor = tensor.name + "_scale";
+    } else if (tensor.quantization_class == "NVFP4_PACKED") {
+      const auto module = tensor.name.substr(
+          0, tensor.name.size() - std::string_view(".weight_packed").size());
+      tensor.local_scale_tensor = module + ".weight_scale";
+      tensor.global_scale_tensor = module + ".weight_global_scale";
+      tensor.input_scale_tensor = module + ".input_global_scale";
+    }
+  }
+  return Status::Ok();
+}
+
 }  // namespace
 
 Status ValidateAndBindGemma4Moe26BCompiledArtifact(
@@ -502,6 +838,69 @@ Status ValidateAndBindGemma4Moe26BCompiledArtifact(
   status = ValidateExternalLock(model_directory, compilation.value());
   if (!status.ok()) return status;
   return ValidateTensorRecords(model_directory, compilation.value(), tensors);
+}
+
+Status ValidateAndBindGemma4Moe26BAssistantCompiledArtifact(
+    const std::filesystem::path& model_directory,
+    std::vector<TensorInfo>* tensors) {
+  auto compilation = LoadJson(model_directory / "gem16_compilation.json");
+  if (!compilation.ok()) return compilation.status();
+  const auto schema = Unsigned(Field(compilation.value(), "schema_version"),
+                               "M25 compilation schema");
+  const auto* text_only = Field(compilation.value(), "text_only");
+  const auto* excluded = Field(compilation.value(), "excluded_tensors");
+  const auto* omitted = Field(compilation.value(), "omitted_families");
+  constexpr std::array<std::string_view, 3> kOmitted = {
+      "audio", "video", "vision"};
+  if (!schema.ok() || schema.value() != 1 ||
+      !IsString(Field(compilation.value(), "artifact_profile"),
+                "sm120-mtp-assistant-hybrid-v1") ||
+      !IsString(Field(compilation.value(), "artifact_status"),
+                "m25_mtp_assistant_runtime_candidate") ||
+      !IsString(Field(compilation.value(), "head_format"), "nvfp4") ||
+      text_only == nullptr || !text_only->is_bool() || !text_only->as_bool() ||
+      excluded == nullptr || !excluded->is_array() ||
+      !excluded->as_array().empty() || omitted == nullptr ||
+      !omitted->is_array() || omitted->as_array().size() != kOmitted.size()) {
+    return Status(StatusCode::kUnsupported,
+                  "unsupported Gemma 4 26B Assistant compiled artifact contract");
+  }
+  for (std::size_t index = 0; index < kOmitted.size(); ++index) {
+    if (!IsString(&omitted->as_array()[index], kOmitted[index])) {
+      return Status(StatusCode::kDataLoss,
+                    "M25 omitted modality list is not canonical");
+    }
+  }
+  const auto* plan = Field(compilation.value(), "plan");
+  const auto* compiler = Field(compilation.value(), "compiler");
+  const auto* totals = Field(compilation.value(), "byte_totals");
+  if (plan == nullptr || !plan->is_object() ||
+      !IsString(Field(*plan, "source_contract"),
+                "gemma4-26b-qat-q4_0-assistant-bf16-hybrid-v1") ||
+      compiler == nullptr || !compiler->is_object() ||
+      !IsString(Field(*compiler, "implementation"),
+                "gem16_compile_m25_assistant_hybrid_v1") ||
+      totals == nullptr || !totals->is_object()) {
+    return Status(StatusCode::kDataLoss,
+                  "M25 compiler identity or plan contract mismatch");
+  }
+  const auto source_count =
+      Unsigned(Field(*totals, "source_tensor_count"), "M25 source count");
+  const auto output_count =
+      Unsigned(Field(*totals, "output_tensor_count"), "M25 output count");
+  const auto output_bytes =
+      Unsigned(Field(*totals, "output_tensor_bytes"), "M25 output bytes");
+  if (!source_count.ok() || source_count.value() != 48 || !output_count.ok() ||
+      output_count.value() != 97 || !output_bytes.ok() ||
+      output_bytes.value() != 258306160) {
+    return Status(StatusCode::kDataLoss,
+                  "M25 compiler byte totals differ from the fixed contract");
+  }
+  auto status = ValidateM25ConfigExtension(model_directory);
+  if (!status.ok()) return status;
+  status = ValidateM25ExternalLock(model_directory, compilation.value());
+  if (!status.ok()) return status;
+  return ValidateM25TensorRecords(model_directory, compilation.value(), tensors);
 }
 
 Result<Gemma4Moe26BCompiledIdentity> LoadGemma4Moe26BCompiledIdentity(

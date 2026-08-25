@@ -374,6 +374,12 @@ Result<ModelManifest> BuildManifest(const std::filesystem::path& model_directory
       variant == ModelVariant::kGemma4Moe26BA4B &&
       std::filesystem::is_regular_file(model_directory /
                                        "gem16_compilation.json");
+  const bool compiled_gemma4_26b_assistant =
+      variant == ModelVariant::kGemma4Moe26BAssistant &&
+      std::filesystem::is_regular_file(model_directory /
+                                       "gem16_compilation.json");
+  const bool compiled_gem16_artifact =
+      compiled_gemma4_26b || compiled_gemma4_26b_assistant;
 
   for (const auto& stored_tensor : stored.value()) {
     TensorInfo tensor;
@@ -428,11 +434,11 @@ Result<ModelManifest> BuildManifest(const std::filesystem::path& model_directory
       tensor.quantization_class = StorageClass(tensor.storage_dtype);
     }
 
-    if (validate && !compiled_gemma4_26b &&
+    if (validate && !compiled_gem16_artifact &&
         tensor.quantization_class == "UNSUPPORTED") {
       return Status(StatusCode::kUnsupported, "unsupported tensor: name=" + tensor.name + " shape=" + ShapeText(tensor.shape) + " dtype=" + tensor.storage_dtype + " quantization_group=" + (rule == nullptr ? "none" : rule->group_name));
     }
-    if (validate && !compiled_gemma4_26b &&
+    if (validate && !compiled_gem16_artifact &&
         tensor.quantization_class == "NVFP4_PACKED") {
       for (const auto& required : {tensor.local_scale_tensor, tensor.global_scale_tensor, tensor.input_scale_tensor}) {
         if (!names.contains(required)) return Status(StatusCode::kDataLoss, "NVFP4 tensor is missing required scale tensor: " + tensor.name + " -> " + required);
@@ -453,7 +459,7 @@ Result<ModelManifest> BuildManifest(const std::filesystem::path& model_directory
         return Status(StatusCode::kDataLoss, "NVFP4 global scales must have shape [1]: " + tensor.name);
       }
     }
-    if (validate && !compiled_gemma4_26b &&
+    if (validate && !compiled_gem16_artifact &&
         tensor.quantization_class == "FP8_WEIGHT_E4M3") {
       const auto scale = names.find(tensor.local_scale_tensor);
       if (scale == names.end()) return Status(StatusCode::kDataLoss, "FP8 weight is missing its channel scale: " + tensor.name);
@@ -466,7 +472,7 @@ Result<ModelManifest> BuildManifest(const std::filesystem::path& model_directory
 
     manifest.tensors.push_back(std::move(tensor));
   }
-  if (validate && config.tied_embeddings && !compiled_gemma4_26b) {
+  if (validate && config.tied_embeddings && !compiled_gem16_artifact) {
     const std::string expected_embedding =
         IsAssistantModel(config) ? "model.embed_tokens.weight"
                                  : "model.language_model.embed_tokens.weight";
@@ -493,6 +499,22 @@ Result<ModelManifest> BuildManifest(const std::filesystem::path& model_directory
     manifest.supports_audio = false;
     manifest.supports_video = false;
     manifest.supports_mtp = false;
+  } else if (validate && compiled_gemma4_26b_assistant) {
+    auto status = ValidateAndBindGemma4Moe26BAssistantCompiledArtifact(
+        model_directory, &manifest.tensors);
+    if (!status.ok()) return status;
+    manifest.checkpoint_profile = "sm120-mtp-assistant-hybrid-v1";
+    manifest.validation_contract =
+        "gemma4_26b_m25_assistant_compiled_hybrid_v1";
+    manifest.tensor_contract_validated = true;
+    // The artifact is inspectable and fully resident by contract, but execution
+    // remains disabled until the dedicated M25 runtime passes its gates.
+    manifest.runtime_supported = false;
+    manifest.supports_text = true;
+    manifest.supports_vision = false;
+    manifest.supports_audio = false;
+    manifest.supports_video = false;
+    manifest.supports_mtp = true;
   } else if (validate && variant == ModelVariant::kGemma4Moe26BA4B) {
     auto profile =
         ValidateAndAnnotateGemma4Moe26BInventory(config, &manifest.tensors);

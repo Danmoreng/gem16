@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "milestone": "M25-development",
+  "status": "bounded_fixed_d1_d2_d4_cuda_graph_comparison_pass",
+  "performance_eligible": false,
+  "measured_on": "2026-08-25",
+  "scenario": {
+    "id": "wikipedia-real-16k1135-forced-greedy-fixed-depth-chain",
+    "prompt_tokens": 16384,
+    "fixed_output_tokens": 1135,
+    "timed_post_first_tokens": 1134,
+    "context_capacity": 32768,
+    "stop_tokens_ignored": true,
+    "note": "One bounded sustained-decode characterization per fixed depth, not the formal retained M25 distribution."
+  },
+  "correctness": {
+    "ordinary_target_identity_all_depths": true,
+    "matched_output_tokens_per_depth": 1135,
+    "chain_non_finite_steps_all_depths": 0,
+    "output_token_ids_le_u32_sha256": "d0fcfcc68cc3b015282e301261e6d90079a84cd9b8f2927c4fe0f98bcb461983"
+  },
+  "results": {
+    "d1": {
+      "draft_length": 1,
+      "groups": 650,
+      "proposed_drafts": 650,
+      "accepted_drafts": 484,
+      "rejected_drafts": 166,
+      "target_verified_rate": 0.744615384615,
+      "post_first_tokens_per_second": 149.635345472,
+      "ordinary_comparator_tokens_per_second": 145.231744488,
+      "speedup_over_ordinary_percent": 3.03212014668,
+      "relative_to_d2_percent": -3.33947492012,
+      "observed_graph_device_bytes": 20971520
+    },
+    "d2": {
+      "draft_length": 2,
+      "groups": 490,
+      "proposed_drafts": 980,
+      "accepted_drafts": 642,
+      "rejected_drafts": 338,
+      "target_verified_rate": 0.655102040816,
+      "post_first_tokens_per_second": 154.8050203,
+      "ordinary_comparator_tokens_per_second": 145.197737557,
+      "speedup_over_ordinary_percent": 6.61668900952,
+      "relative_to_d2_percent": 0.0,
+      "observed_graph_device_bytes": 23068672
+    },
+    "d4": {
+      "draft_length": 4,
+      "groups": 372,
+      "proposed_drafts": 1488,
+      "accepted_drafts": 758,
+      "rejected_drafts": 730,
+      "target_verified_rate": 0.509408602151,
+      "post_first_tokens_per_second": 125.800067714,
+      "ordinary_comparator_tokens_per_second": 145.223914213,
+      "speedup_over_ordinary_percent": -13.375101893,
+      "relative_to_d2_percent": -18.7364418349,
+      "observed_graph_device_bytes": 25165824
+    }
+  },
+  "selection": {
+    "winner": "d2",
+    "reason": "D2 has the highest sustained post-first throughput on the identical bounded workload; D1's higher per-draft acceptance does not offset its greater group count, while D4 over-verifies too many rejected rows.",
+    "fixed_depth_product_candidate": 2
+  },
+  "memory": {
+    "free_device_bytes_after_target_assistant_and_all_prepared_graphs": 808255488,
+    "required_32k_reserve_bytes": 734003200,
+    "reserve_gate_pass": true
+  },
+  "evidence": {
+    "parent_revision": "86a369f7e2cc2295569234f27b1efb5154f8e227",
+    "implementation_scope": "working tree M25 exact fixed-D CUDA Graph specializations pending owner review",
+    "binary_path": "build/blackwell-release/bin/gem16-26b-assistant-acceptance",
+    "binary_sha256": "427c6129306f13512535ca05d583928178772113bacfaed36c34ffd2489b8b7b",
+    "raw": {
+      "d1_path": "artifacts/raw/m25/fixed-chain-d1-wikipedia-16k1135-t235-characterization-v1.json",
+      "d1_sha256": "99c33b3ca5d56e88cc405bec9a70e541facbff362596cfacbc2f69e1f49b43e7",
+      "d2_path": "artifacts/raw/m25/fixed-chain-d2-wikipedia-16k1135-t235-characterization-v1.json",
+      "d2_sha256": "e976926dc2143485bb28c38fa6bcd4bc4f52c83166d66365107eec1bf342bb80",
+      "d4_path": "artifacts/raw/m25/fixed-chain-d4-wikipedia-16k1135-t235-characterization-v1.json",
+      "d4_sha256": "47e5ffb122744c17ecefabacabbb86e834eeac1b124bb783a5e4c5077bda6c0e"
+    }
+  },
+  "limitations": [
+    "This is one bounded characterization per depth, not the formal warm-up and retained-sample M25 performance gate.",
+    "The forced-output comparator suppresses stop-token IDs and is not the ordinary M20 product baseline.",
+    "Observed graph bytes are cudaMemGetInfo deltas during capture/instantiation, not exact CUDA graph-pool allocation sizes.",
+    "Sampled MTP and live token streaming remain follow-up qualification work."
+  ]
+}

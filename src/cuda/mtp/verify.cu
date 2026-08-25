@@ -77,12 +77,12 @@ __global__ void BuildMtpVerificationInputsKernel(
   inputs[index] = index == 0U ? input_token : drafts[index - 1U];
 }
 
-__global__ void BuildControlledMtpD2InputsKernel(
+__global__ void BuildControlledMtpInputsKernel(
     const MtpDeviceControl* control, const std::uint32_t* drafts,
     std::uint32_t* inputs, DecodeControl* row_controls,
-    std::uint32_t suppressed_token_count) {
+    std::uint32_t tokens, std::uint32_t suppressed_token_count) {
   const std::uint32_t row = threadIdx.x;
-  if (blockIdx.x != 0U || row >= 3U) return;
+  if (blockIdx.x != 0U || row >= tokens) return;
   inputs[row] = row == 0U ? control->current.input_token : drafts[row - 1U];
   row_controls[row] = {};
   row_controls[row].position = control->current.processed_position + 1U + row;
@@ -124,17 +124,18 @@ __device__ void ObserveReasoningToken(MtpReasoningState& reasoning,
       token == reasoning.open_token_ids[0] ? 1U : 0U;
 }
 
-__device__ bool CanRunMtpD2(const MtpDeviceControl& control) {
-  if (control.current.remaining_output_capacity < 3U) return false;
+__device__ bool CanRunFixedMtp(const MtpDeviceControl& control) {
+  const std::uint32_t tokens = control.fixed_draft_tokens + 1U;
+  if (control.current.remaining_output_capacity < tokens) return false;
   const MtpReasoningState& reasoning = control.reasoning;
   if (reasoning.enabled == 0U || reasoning.complete != 0U) return true;
   if (reasoning.in_reasoning != 0U) {
     return reasoning.reasoning_token_count <= reasoning.max_reasoning_tokens &&
            reasoning.max_reasoning_tokens - reasoning.reasoning_token_count >=
-               3U;
+               tokens;
   }
   return reasoning.open_match_length == 0U &&
-         reasoning.max_reasoning_tokens >= 3U;
+         reasoning.max_reasoning_tokens >= tokens;
 }
 
 __global__ void SelectMtpChainBranchKernel(
@@ -142,7 +143,7 @@ __global__ void SelectMtpChainBranchKernel(
     cudaGraphConditionalHandle d2_condition,
     cudaGraphConditionalHandle ordinary_condition) {
   if (blockIdx.x != 0U || threadIdx.x != 0U) return;
-  const bool d2 = CanRunMtpD2(transaction->control);
+  const bool d2 = CanRunFixedMtp(transaction->control);
   cudaGraphSetConditional(d2_condition, d2 ? 1U : 0U);
   cudaGraphSetConditional(ordinary_condition, d2 ? 0U : 1U);
 }
@@ -357,12 +358,13 @@ __global__ void CommitMtpKvControlledD2Kernel(
 }
 
 template <typename T, bool kRestore>
-__global__ void CopyCircularMtpKvControlledD2Kernel(
+__global__ void CopyCircularMtpKvControlledKernel(
     T* cache_key, T* cache_value, T* compact_key, T* compact_value,
-    std::uint64_t elements_per_token, std::uint64_t capacity,
+    std::uint32_t tokens, std::uint64_t elements_per_token,
+    std::uint64_t capacity,
     const MtpDeviceControl* control) {
-  constexpr std::uint64_t kTokens = 3U;
-  const std::uint64_t total = kTokens * elements_per_token;
+  const std::uint64_t total =
+      static_cast<std::uint64_t>(tokens) * elements_per_token;
   const std::uint64_t index =
       static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
   if (index >= total) return;
@@ -462,17 +464,30 @@ Status LaunchBuildControlledMtpD2Inputs(
     const MtpDeviceControl* control, const std::uint32_t* drafts,
     std::uint32_t* inputs, DecodeControl* row_controls,
     std::uint32_t suppressed_token_count, cudaStream_t stream) {
+  return LaunchBuildControlledMtpInputs(
+      control, drafts, 2U, inputs, row_controls, suppressed_token_count,
+      stream);
+}
+
+Status LaunchBuildControlledMtpInputs(
+    const MtpDeviceControl* control, const std::uint32_t* drafts,
+    std::uint32_t draft_count, std::uint32_t* inputs,
+    DecodeControl* row_controls, std::uint32_t suppressed_token_count,
+    cudaStream_t stream) {
   if (control == nullptr || drafts == nullptr || inputs == nullptr ||
-      row_controls == nullptr) {
+      row_controls == nullptr || draft_count == 0U ||
+      draft_count > kMaximumMtpDraftTokens) {
     return Status(StatusCode::kInvalidArgument,
-                  "controlled MTP D2 input arguments are invalid");
+                  "controlled fixed-D MTP input arguments are invalid");
   }
-  BuildControlledMtpD2InputsKernel<<<1U, 3U, 0, stream>>>(
-      control, drafts, inputs, row_controls, suppressed_token_count);
+  const std::uint32_t tokens = draft_count + 1U;
+  BuildControlledMtpInputsKernel<<<1U, tokens, 0, stream>>>(
+      control, drafts, inputs, row_controls, tokens,
+      suppressed_token_count);
   const cudaError_t error = cudaGetLastError();
   return error == cudaSuccess
              ? Status::Ok()
-             : CudaFailure("build controlled MTP D2 inputs", error);
+             : CudaFailure("build controlled fixed-D MTP inputs", error);
 }
 
 Status LaunchAcceptMtpGroup(
@@ -538,29 +553,42 @@ Status LaunchCopyCircularMtpKvFp8ControlledD2(
     std::uint8_t* compact_key, std::uint8_t* compact_value,
     std::uint64_t elements_per_token, std::uint64_t capacity, bool restore,
     const MtpDeviceControl* control, cudaStream_t stream) {
+  return LaunchCopyCircularMtpKvFp8Controlled(
+      cache_key, cache_value, compact_key, compact_value, 3U,
+      elements_per_token, capacity, restore, control, stream);
+}
+
+Status LaunchCopyCircularMtpKvFp8Controlled(
+    std::uint8_t* cache_key, std::uint8_t* cache_value,
+    std::uint8_t* compact_key, std::uint8_t* compact_value,
+    std::uint32_t tokens, std::uint64_t elements_per_token,
+    std::uint64_t capacity, bool restore,
+    const MtpDeviceControl* control, cudaStream_t stream) {
   if (cache_key == nullptr || cache_value == nullptr ||
       compact_key == nullptr || compact_value == nullptr ||
+      tokens < 2U || tokens > kMaximumMtpVerifyTokens ||
       elements_per_token == 0U || capacity == 0U || control == nullptr) {
     return Status(StatusCode::kInvalidArgument,
-                  "controlled MTP D2 circular-copy arguments are invalid");
+                  "controlled fixed-D MTP circular-copy arguments are invalid");
   }
-  const std::uint64_t elements = 3U * elements_per_token;
+  const std::uint64_t elements =
+      static_cast<std::uint64_t>(tokens) * elements_per_token;
   const std::uint64_t blocks = (elements + kThreads - 1U) / kThreads;
   if (restore) {
-    CopyCircularMtpKvControlledD2Kernel<std::uint8_t, true>
+    CopyCircularMtpKvControlledKernel<std::uint8_t, true>
         <<<static_cast<unsigned>(blocks), kThreads, 0, stream>>>(
             cache_key, cache_value, compact_key, compact_value,
-            elements_per_token, capacity, control);
+            tokens, elements_per_token, capacity, control);
   } else {
-    CopyCircularMtpKvControlledD2Kernel<std::uint8_t, false>
+    CopyCircularMtpKvControlledKernel<std::uint8_t, false>
         <<<static_cast<unsigned>(blocks), kThreads, 0, stream>>>(
             cache_key, cache_value, compact_key, compact_value,
-            elements_per_token, capacity, control);
+            tokens, elements_per_token, capacity, control);
   }
   const cudaError_t error = cudaGetLastError();
   return error == cudaSuccess
              ? Status::Ok()
-             : CudaFailure("launch controlled MTP D2 circular copy", error);
+             : CudaFailure("launch controlled fixed-D MTP circular copy", error);
 }
 
 Status LaunchSetMtpAttentionPosition(DecodeControl* control,
@@ -592,12 +620,23 @@ Status LaunchCommitMtpKvFp8ControlledD2(
     std::uint64_t elements_per_token, std::uint64_t capacity,
     const MtpGroupResult* result, const MtpDeviceControl* control,
     cudaStream_t stream) {
+  return LaunchCommitMtpKvFp8Controlled(
+      compact_key, compact_value, cache_key, cache_value,
+      elements_per_token, capacity, result, control, stream);
+}
+
+Status LaunchCommitMtpKvFp8Controlled(
+    const std::uint8_t* compact_key, const std::uint8_t* compact_value,
+    std::uint8_t* cache_key, std::uint8_t* cache_value,
+    std::uint64_t elements_per_token, std::uint64_t capacity,
+    const MtpGroupResult* result, const MtpDeviceControl* control,
+    cudaStream_t stream) {
   if (compact_key == nullptr || compact_value == nullptr ||
       cache_key == nullptr || cache_value == nullptr ||
       elements_per_token == 0U || capacity == 0U || result == nullptr ||
       control == nullptr) {
     return Status(StatusCode::kInvalidArgument,
-                  "controlled MTP D2 commit arguments are invalid");
+                  "controlled fixed-D MTP commit arguments are invalid");
   }
   const std::uint64_t maximum_elements =
       kMaximumMtpVerifyTokens * elements_per_token;
@@ -610,17 +649,25 @@ Status LaunchCommitMtpKvFp8ControlledD2(
   const cudaError_t error = cudaGetLastError();
   return error == cudaSuccess
              ? Status::Ok()
-             : CudaFailure("launch controlled MTP D2 FP8 KV commit", error);
+             : CudaFailure("launch controlled fixed-D MTP FP8 KV commit", error);
 }
 
 Status LaunchAdvanceMtpD2Chain(
     MtpGroupTransaction* transaction, MtpChainResult* chain_result,
     std::uint32_t* output_tokens, std::uint32_t* proposed_tokens,
     MtpStreamingRing* streaming_ring, cudaStream_t stream) {
+  return LaunchAdvanceMtpChain(transaction, chain_result, output_tokens,
+                               proposed_tokens, streaming_ring, stream);
+}
+
+Status LaunchAdvanceMtpChain(
+    MtpGroupTransaction* transaction, MtpChainResult* chain_result,
+    std::uint32_t* output_tokens, std::uint32_t* proposed_tokens,
+    MtpStreamingRing* streaming_ring, cudaStream_t stream) {
   if (transaction == nullptr || chain_result == nullptr ||
       output_tokens == nullptr || proposed_tokens == nullptr) {
     return Status(StatusCode::kInvalidArgument,
-                  "MTP D2 chain-advance arguments are invalid");
+                  "fixed-D MTP chain-advance arguments are invalid");
   }
   AdvanceMtpD2ChainKernel<<<1U, 1U, 0, stream>>>(
       transaction, chain_result, output_tokens, proposed_tokens,
@@ -628,7 +675,7 @@ Status LaunchAdvanceMtpD2Chain(
   const cudaError_t error = cudaGetLastError();
   return error == cudaSuccess
              ? Status::Ok()
-             : CudaFailure("launch MTP D2 chain advance", error);
+             : CudaFailure("launch fixed-D MTP chain advance", error);
 }
 
 Status LaunchSelectMtpChainBranch(

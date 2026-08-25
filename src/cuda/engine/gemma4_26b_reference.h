@@ -8,6 +8,7 @@
 #include "gem16/status.h"
 #include "gem16/sampling.h"
 #include "cuda/moe/reference.h"
+#include "cuda/mtp/verify.h"
 
 namespace gem16::internal {
 
@@ -15,6 +16,14 @@ enum class Gemma4Moe26BBackend {
   kReference,
   kSm120MoeHead,
   kSm120Integrated,
+};
+
+enum class Gemma4Moe26BMtpVerifierBackend {
+  kExactDecodeParent,
+  kBatchedAttention,
+  kBatchedMoe,
+  kExactSharedBatchedMoe,
+  kFullyBatched,
 };
 
 struct Gemma4Moe26BReferencePrediction {
@@ -80,6 +89,59 @@ class Gemma4Moe26BReferenceEngine {
   [[nodiscard]] Status ConfigurePrefillRouter(
       Gemma4MoePrefillRouter router);
   [[nodiscard]] Result<std::uint32_t> SelectToken();
+
+  // M25 initialization and proposal hook. The Assistant owns only its fixed
+  // compiled weights/workspace and aliases the target's final hidden state and
+  // final sliding/full FP8 KV views.
+  [[nodiscard]] Status LoadMtpAssistant(
+      const std::filesystem::path& assistant_directory);
+  [[nodiscard]] Status GenerateMtpAssistantDrafts(
+      std::span<std::uint32_t> draft_token_ids);
+  [[nodiscard]] Status GenerateMtpAssistantDraftsForPending(
+      std::uint32_t pending_token,
+      std::span<std::uint32_t> draft_token_ids);
+  // Production M25 group primitive. The caller supplies the pending Target
+  // token (already emitted but not yet processed). The Assistant proposes from
+  // the last committed Target hidden/KV state, then one multi-row Target batch
+  // verifies [pending, drafts...] and commits only the accepted transaction.
+  // The returned verified tokens are the only tokens callers may emit.
+  [[nodiscard]] Status RunMtpAssistantGroup(
+      std::uint32_t pending_token, std::uint32_t proposal_count,
+      MtpGroupResult* host_result);
+  // Fixed-D graph-chain execution. The caller has already emitted
+  // pending_token; output_token_ids receives exactly the requested number of
+  // subsequent Target-verified tokens in one device-controlled graph replay.
+  [[nodiscard]] Status RunFixedMtpGraphChain(
+      std::uint32_t pending_token, std::uint32_t draft_count,
+      std::span<std::uint32_t> output_token_ids,
+      MtpChainResult* host_result);
+  [[nodiscard]] Status ConfigureMtpVerifierBackend(
+      Gemma4Moe26BMtpVerifierBackend backend);
+  [[nodiscard]] bool mtp_assistant_loaded() const;
+  [[nodiscard]] std::uint64_t mtp_assistant_weight_bytes() const;
+  [[nodiscard]] std::uint64_t mtp_assistant_workspace_bytes() const;
+  [[nodiscard]] bool mtp_group_graph_prepared(
+      std::uint32_t draft_count) const;
+  [[nodiscard]] std::uint64_t mtp_group_graph_device_bytes() const;
+  [[nodiscard]] std::uint64_t mtp_group_graph_launches() const;
+  [[nodiscard]] bool mtp_chain_graph_prepared(
+      std::uint32_t draft_count) const;
+  [[nodiscard]] std::uint64_t mtp_chain_graph_device_bytes(
+      std::uint32_t draft_count) const;
+  [[nodiscard]] std::uint64_t mtp_chain_graph_launches(
+      std::uint32_t draft_count) const;
+  [[nodiscard]] float last_mtp_verification_min_margin() const;
+  // One-token diagnostic export used only to compare the compiled Assistant
+  // with Google's immutable BF16 source checkpoint. Cache bytes remain in the
+  // target's FP8 representation and the four BF16 scale bit patterns are
+  // copied separately.
+  [[nodiscard]] Status CopyMtpAssistantOracleInputs(
+      std::span<float> concatenated_input, std::span<float> assistant_logits,
+      std::span<std::uint8_t> sliding_key,
+      std::span<std::uint8_t> sliding_value,
+      std::span<std::uint8_t> full_key,
+      std::span<std::uint8_t> full_value,
+      std::span<std::uint16_t> kv_scale_bf16_bits);
 
   // Diagnostic copies are explicit synchronization points and never occur
   // implicitly in ForwardToken. Callers provide fixed-size host storage.

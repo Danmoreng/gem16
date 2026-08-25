@@ -169,6 +169,39 @@ The owner set the base-model 64K residency and later execution reserve to 400 Mi
 a required supported target. This supersedes the prior 500 MiB base-model rule for 64K and larger contexts. The 32K
 gate remains 700 MiB, and MTP keeps its separate 500 MiB 64K gate until M25 measures assistant overhead.
 
+On 2026-08-25 the owner selected Google's official QAT-Q4_0-matched 26B Assistant at immutable revision
+`9537141506fe8875b3ed45b264af13580cb29166` as the sole native M25 source. The production candidate uses NVFP4 for
+the tied embedding/output head and MLP matrices, FP8 for attention Q/O and the 2,816↔1,024 interface projections,
+and BF16 for norms and scalar controls. The official BF16 payload is the numerical oracle; all-FP8 and all-NVFP4
+production candidates are out of scope unless a measured failure triggers a later owner decision. The Assistant
+must read the Target KV cache and may not allocate a second long-context cache.
+
+"Numerical oracle" applies only to component-level Assistant differential tests. It does not make the BF16
+Assistant's proposed token authoritative. M25 draft quality and acceptance are decided by the actual frozen Target
+engine: both BF16 and compiled-hybrid proposals must be verified independently against the Target continuation. A
+hybrid proposal that differs from BF16 is not a failure when the Target accepts it, and a BF16 proposal that the
+Target rejects is not counted as correct.
+
+The owner also superseded M25's fixed 500 MiB rule for 64K and larger with a measured, profile-specific safety
+reserve. M25 still qualifies 32K first against the conservative 700 MiB gate. After exact Assistant and verifier
+residency is known, 64K is tested first with a 200 MiB reserve and may additionally be tested down to 100 MiB only
+with repeated fresh-process lifecycle, deterministic output, allocation-delta and capacity-rejection evidence.
+The accepted reserve, `mtp_max_context` and all excluded larger contexts must be published explicitly. A smaller
+MTP reserve never changes the base-model 400 MiB rule or permits an allocation failure during inference.
+
+The first native 26B MTP CUDA-Graph checkpoint was implemented on 2026-08-25 as a draft-length-indexed fixed-Graph
+registry with exact greedy D1, D2 and D4 specializations. One graph replay owns proposal, T=2/3/5 Target verification,
+accept/commit, device-side continuation and the final ordinary tail. On identical bounded 16K+1,135 runs, all three
+depths exactly match ordinary Target tokens and report no non-finite step. D1 reaches 149.64 token/s at 74.46% draft
+acceptance, D2 wins at 154.81 token/s and 65.51%, and D4 reaches 125.80 token/s at 50.94%. All fixed graphs remain
+resident together with 808,255,488 bytes free at 32K, passing the 700 MiB gate; D2 remains the fixed-depth candidate.
+This is development evidence, not formal M25 acceptance; graph-byte observations are not exact CUDA graph-pool sizes.
+The 145.97 comparator is deliberately forced-output/suppressed-token diagnostic timing, not a new ordinary product
+baseline; the current worktree produces 149.994 token/s and the unchanged `c750d0...` output on one exact M20
+16K+64 control, consistent with the accepted 150.615 retained median.
+Greedy depth qualification remains first; sampled MTP follows as a separate correctness slice even though ordinary
+26B GPU sampling and shared speculative-sampling primitives already exist.
+
 The owner clarified on 2026-08-14 that M09 should load the real artifact and prove pre-execution residency so the
 critical path reaches inference quickly. This supersedes the old M09-card wording that required captured execution
 graphs, warm model execution and an executable bounded-prefill selector before M09 could pass. M09 must still reserve

@@ -1,0 +1,4076 @@
+{
+  "approved_metadata_files": [
+    "chat_template.jinja",
+    "config.json",
+    "generation_config.json",
+    "tokenizer.json",
+    "tokenizer_config.json"
+  ],
+  "artifact_profile": "sm120-mtp-assistant-hybrid-v1",
+  "excluded_tensors": [],
+  "head_format": "nvfp4",
+  "omitted_families": [
+    "audio",
+    "video",
+    "vision"
+  ],
+  "reference_environment": {
+    "byteorder": "little",
+    "locale": "C.UTF-8",
+    "machine": "x86_64",
+    "python_implementation": "CPython",
+    "python_major_minor": "3.14",
+    "python_version": "3.14.6",
+    "system": "Linux"
+  },
+  "schema_version": 1,
+  "source_contract": "gemma4-26b-qat-q4_0-assistant-bf16-hybrid-v1",
+  "source_lock_sha256": "83e509316eab22749fade9c0968333b0a29f0daf99832314b333702bf45bdda5",
+  "target_shard_bytes": 1073741824,
+  "tensors": [
+    {
+      "aliased": true,
+      "axis_transformation": "vocabulary,hidden",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "scalar_f32",
+      "encoder": "nvfp4-input-divisor-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        262144,
+        1024
+      ],
+      "operation_id": "nvfp4-assistant:model.embed_tokens",
+      "output_dtype": "F32",
+      "output_name": "model.embed_tokens.input_global_scale",
+      "physical_shape": [
+        1
+      ],
+      "quantizer_parameters": {
+        "component": "input_global_scale",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "tied_embedding_and_output",
+      "runtime_layout": "scalar_f32",
+      "source_names": [
+        "model.embed_tokens.weight"
+      ],
+      "transformation": "nvfp4-input-divisor",
+      "transformation_version": 1
+    },
+    {
+      "aliased": true,
+      "axis_transformation": "vocabulary,hidden",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "scalar_f32",
+      "encoder": "nvfp4-weight-divisor-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        262144,
+        1024
+      ],
+      "operation_id": "nvfp4-assistant:model.embed_tokens",
+      "output_dtype": "F32",
+      "output_name": "model.embed_tokens.weight_global_scale",
+      "physical_shape": [
+        1
+      ],
+      "quantizer_parameters": {
+        "component": "weight_global_scale",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "tied_embedding_and_output",
+      "runtime_layout": "scalar_f32",
+      "source_names": [
+        "model.embed_tokens.weight"
+      ],
+      "transformation": "nvfp4-weight-divisor",
+      "transformation_version": 1
+    },
+    {
+      "aliased": true,
+      "axis_transformation": "vocabulary,hidden",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "canonical_row_major_low_nibble_first",
+      "encoder": "nvfp4-packed-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        262144,
+        1024
+      ],
+      "operation_id": "nvfp4-assistant:model.embed_tokens",
+      "output_dtype": "U8",
+      "output_name": "model.embed_tokens.weight_packed",
+      "physical_shape": [
+        262144,
+        512
+      ],
+      "quantizer_parameters": {
+        "component": "weight_packed",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "tied_embedding_and_output",
+      "runtime_layout": "sm120_row8_k64",
+      "source_names": [
+        "model.embed_tokens.weight"
+      ],
+      "transformation": "nvfp4-packed",
+      "transformation_version": 1
+    },
+    {
+      "aliased": true,
+      "axis_transformation": "vocabulary,hidden",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "canonical_row_major_group16_e4m3",
+      "encoder": "nvfp4-local-scale-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        262144,
+        1024
+      ],
+      "operation_id": "nvfp4-assistant:model.embed_tokens",
+      "output_dtype": "F8_E4M3",
+      "output_name": "model.embed_tokens.weight_scale",
+      "physical_shape": [
+        262144,
+        64
+      ],
+      "quantizer_parameters": {
+        "component": "weight_scale",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "tied_embedding_and_output",
+      "runtime_layout": "sm120_row8_group16_e4m3",
+      "source_names": [
+        "model.embed_tokens.weight"
+      ],
+      "transformation": "nvfp4-local-scale",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "identity",
+      "dequantization_equation": "output = source",
+      "disk_layout": "source_bf16",
+      "encoder": "copy-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        1024
+      ],
+      "operation_id": "copy-assistant:model.layers.0.input_layernorm.weight",
+      "output_dtype": "BF16",
+      "output_name": "model.layers.0.input_layernorm.weight",
+      "physical_shape": [
+        1024
+      ],
+      "quantizer_parameters": {},
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "input_layer_norm",
+      "runtime_layout": "source_bf16",
+      "source_names": [
+        "model.layers.0.input_layernorm.weight"
+      ],
+      "transformation": "identity-copy",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "identity",
+      "dequantization_equation": "output = source",
+      "disk_layout": "source_bf16",
+      "encoder": "copy-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        1
+      ],
+      "operation_id": "copy-assistant:model.layers.0.layer_scalar",
+      "output_dtype": "BF16",
+      "output_name": "model.layers.0.layer_scalar",
+      "physical_shape": [
+        1
+      ],
+      "quantizer_parameters": {},
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "layer_scalar",
+      "runtime_layout": "source_bf16",
+      "source_names": [
+        "model.layers.0.layer_scalar"
+      ],
+      "transformation": "identity-copy",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "scalar_f32",
+      "encoder": "nvfp4-input-divisor-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        1024,
+        8192
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.0.mlp.down_proj",
+      "output_dtype": "F32",
+      "output_name": "model.layers.0.mlp.down_proj.input_global_scale",
+      "physical_shape": [
+        1
+      ],
+      "quantizer_parameters": {
+        "component": "input_global_scale",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_down",
+      "runtime_layout": "scalar_f32",
+      "source_names": [
+        "model.layers.0.mlp.down_proj.weight"
+      ],
+      "transformation": "nvfp4-input-divisor",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "scalar_f32",
+      "encoder": "nvfp4-weight-divisor-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        1024,
+        8192
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.0.mlp.down_proj",
+      "output_dtype": "F32",
+      "output_name": "model.layers.0.mlp.down_proj.weight_global_scale",
+      "physical_shape": [
+        1
+      ],
+      "quantizer_parameters": {
+        "component": "weight_global_scale",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_down",
+      "runtime_layout": "scalar_f32",
+      "source_names": [
+        "model.layers.0.mlp.down_proj.weight"
+      ],
+      "transformation": "nvfp4-weight-divisor",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "canonical_row_major_low_nibble_first",
+      "encoder": "nvfp4-packed-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        1024,
+        8192
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.0.mlp.down_proj",
+      "output_dtype": "U8",
+      "output_name": "model.layers.0.mlp.down_proj.weight_packed",
+      "physical_shape": [
+        1024,
+        4096
+      ],
+      "quantizer_parameters": {
+        "component": "weight_packed",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_down",
+      "runtime_layout": "sm120_row8_k64",
+      "source_names": [
+        "model.layers.0.mlp.down_proj.weight"
+      ],
+      "transformation": "nvfp4-packed",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "canonical_row_major_group16_e4m3",
+      "encoder": "nvfp4-local-scale-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        1024,
+        8192
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.0.mlp.down_proj",
+      "output_dtype": "F8_E4M3",
+      "output_name": "model.layers.0.mlp.down_proj.weight_scale",
+      "physical_shape": [
+        1024,
+        512
+      ],
+      "quantizer_parameters": {
+        "component": "weight_scale",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_down",
+      "runtime_layout": "sm120_row8_group16_e4m3",
+      "source_names": [
+        "model.layers.0.mlp.down_proj.weight"
+      ],
+      "transformation": "nvfp4-local-scale",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "scalar_f32",
+      "encoder": "nvfp4-input-divisor-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        8192,
+        1024
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.0.mlp.gate_proj",
+      "output_dtype": "F32",
+      "output_name": "model.layers.0.mlp.gate_proj.input_global_scale",
+      "physical_shape": [
+        1
+      ],
+      "quantizer_parameters": {
+        "component": "input_global_scale",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_gate",
+      "runtime_layout": "scalar_f32",
+      "source_names": [
+        "model.layers.0.mlp.gate_proj.weight"
+      ],
+      "transformation": "nvfp4-input-divisor",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "scalar_f32",
+      "encoder": "nvfp4-weight-divisor-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        8192,
+        1024
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.0.mlp.gate_proj",
+      "output_dtype": "F32",
+      "output_name": "model.layers.0.mlp.gate_proj.weight_global_scale",
+      "physical_shape": [
+        1
+      ],
+      "quantizer_parameters": {
+        "component": "weight_global_scale",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_gate",
+      "runtime_layout": "scalar_f32",
+      "source_names": [
+        "model.layers.0.mlp.gate_proj.weight"
+      ],
+      "transformation": "nvfp4-weight-divisor",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "canonical_row_major_low_nibble_first",
+      "encoder": "nvfp4-packed-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        8192,
+        1024
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.0.mlp.gate_proj",
+      "output_dtype": "U8",
+      "output_name": "model.layers.0.mlp.gate_proj.weight_packed",
+      "physical_shape": [
+        8192,
+        512
+      ],
+      "quantizer_parameters": {
+        "component": "weight_packed",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_gate",
+      "runtime_layout": "sm120_row8_k64",
+      "source_names": [
+        "model.layers.0.mlp.gate_proj.weight"
+      ],
+      "transformation": "nvfp4-packed",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "canonical_row_major_group16_e4m3",
+      "encoder": "nvfp4-local-scale-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        8192,
+        1024
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.0.mlp.gate_proj",
+      "output_dtype": "F8_E4M3",
+      "output_name": "model.layers.0.mlp.gate_proj.weight_scale",
+      "physical_shape": [
+        8192,
+        64
+      ],
+      "quantizer_parameters": {
+        "component": "weight_scale",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_gate",
+      "runtime_layout": "sm120_row8_group16_e4m3",
+      "source_names": [
+        "model.layers.0.mlp.gate_proj.weight"
+      ],
+      "transformation": "nvfp4-local-scale",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "scalar_f32",
+      "encoder": "nvfp4-input-divisor-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        8192,
+        1024
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.0.mlp.up_proj",
+      "output_dtype": "F32",
+      "output_name": "model.layers.0.mlp.up_proj.input_global_scale",
+      "physical_shape": [
+        1
+      ],
+      "quantizer_parameters": {
+        "component": "input_global_scale",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_up",
+      "runtime_layout": "scalar_f32",
+      "source_names": [
+        "model.layers.0.mlp.up_proj.weight"
+      ],
+      "transformation": "nvfp4-input-divisor",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "scalar_f32",
+      "encoder": "nvfp4-weight-divisor-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        8192,
+        1024
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.0.mlp.up_proj",
+      "output_dtype": "F32",
+      "output_name": "model.layers.0.mlp.up_proj.weight_global_scale",
+      "physical_shape": [
+        1
+      ],
+      "quantizer_parameters": {
+        "component": "weight_global_scale",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_up",
+      "runtime_layout": "scalar_f32",
+      "source_names": [
+        "model.layers.0.mlp.up_proj.weight"
+      ],
+      "transformation": "nvfp4-weight-divisor",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "canonical_row_major_low_nibble_first",
+      "encoder": "nvfp4-packed-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        8192,
+        1024
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.0.mlp.up_proj",
+      "output_dtype": "U8",
+      "output_name": "model.layers.0.mlp.up_proj.weight_packed",
+      "physical_shape": [
+        8192,
+        512
+      ],
+      "quantizer_parameters": {
+        "component": "weight_packed",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_up",
+      "runtime_layout": "sm120_row8_k64",
+      "source_names": [
+        "model.layers.0.mlp.up_proj.weight"
+      ],
+      "transformation": "nvfp4-packed",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "canonical_row_major_group16_e4m3",
+      "encoder": "nvfp4-local-scale-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        8192,
+        1024
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.0.mlp.up_proj",
+      "output_dtype": "F8_E4M3",
+      "output_name": "model.layers.0.mlp.up_proj.weight_scale",
+      "physical_shape": [
+        8192,
+        64
+      ],
+      "quantizer_parameters": {
+        "component": "weight_scale",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_up",
+      "runtime_layout": "sm120_row8_group16_e4m3",
+      "source_names": [
+        "model.layers.0.mlp.up_proj.weight"
+      ],
+      "transformation": "nvfp4-local-scale",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "identity",
+      "dequantization_equation": "output = source",
+      "disk_layout": "source_bf16",
+      "encoder": "copy-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        1024
+      ],
+      "operation_id": "copy-assistant:model.layers.0.post_attention_layernorm.weight",
+      "output_dtype": "BF16",
+      "output_name": "model.layers.0.post_attention_layernorm.weight",
+      "physical_shape": [
+        1024
+      ],
+      "quantizer_parameters": {},
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "post_attention_layer_norm",
+      "runtime_layout": "source_bf16",
+      "source_names": [
+        "model.layers.0.post_attention_layernorm.weight"
+      ],
+      "transformation": "identity-copy",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "identity",
+      "dequantization_equation": "output = source",
+      "disk_layout": "source_bf16",
+      "encoder": "copy-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        1024
+      ],
+      "operation_id": "copy-assistant:model.layers.0.post_feedforward_layernorm.weight",
+      "output_dtype": "BF16",
+      "output_name": "model.layers.0.post_feedforward_layernorm.weight",
+      "physical_shape": [
+        1024
+      ],
+      "quantizer_parameters": {},
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "post_feed_forward_layer_norm",
+      "runtime_layout": "source_bf16",
+      "source_names": [
+        "model.layers.0.post_feedforward_layernorm.weight"
+      ],
+      "transformation": "identity-copy",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "identity",
+      "dequantization_equation": "output = source",
+      "disk_layout": "source_bf16",
+      "encoder": "copy-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        1024
+      ],
+      "operation_id": "copy-assistant:model.layers.0.pre_feedforward_layernorm.weight",
+      "output_dtype": "BF16",
+      "output_name": "model.layers.0.pre_feedforward_layernorm.weight",
+      "physical_shape": [
+        1024
+      ],
+      "quantizer_parameters": {},
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "pre_feed_forward_layer_norm",
+      "runtime_layout": "source_bf16",
+      "source_names": [
+        "model.layers.0.pre_feedforward_layernorm.weight"
+      ],
+      "transformation": "identity-copy",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "identity",
+      "dequantization_equation": "source_approx[n,k] = decode_e4m3fn(weight[n,k]) * decode_bf16(weight_scale[n,0])",
+      "disk_layout": "source_nk_fp8",
+      "encoder": "fp8-rowwise-weight-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        1024,
+        4096
+      ],
+      "operation_id": "fp8-assistant:model.layers.0.self_attn.o_proj",
+      "output_dtype": "F8_E4M3",
+      "output_name": "model.layers.0.self_attn.o_proj.weight",
+      "physical_shape": [
+        1024,
+        4096
+      ],
+      "quantizer_parameters": {
+        "codec": "E4M3FN",
+        "contract_id": "gem16.fp8_attention_rowwise",
+        "contract_version": 1,
+        "finite_max": 448.0,
+        "output_dtype": "F8_E4M3",
+        "rounding": "nearest_even",
+        "scale_axis": "output_row",
+        "scale_dtype": "BF16",
+        "signed_zero": "preserve",
+        "source_dtype": "BF16",
+        "underflow": "minimum_positive_bf16_subnormal",
+        "zero_row_scale": "1.0"
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_attention_o_projection",
+      "runtime_layout": "source_nk_fp8",
+      "source_names": [
+        "model.layers.0.self_attn.o_proj.weight"
+      ],
+      "transformation": "bf16-to-fp8-e4m3fn-rowwise-weight",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "identity",
+      "dequantization_equation": "source_approx[n,k] = decode_e4m3fn(weight[n,k]) * decode_bf16(weight_scale[n,0])",
+      "disk_layout": "row_bf16",
+      "encoder": "fp8-rowwise-scale-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        1024,
+        1
+      ],
+      "operation_id": "fp8-assistant:model.layers.0.self_attn.o_proj",
+      "output_dtype": "BF16",
+      "output_name": "model.layers.0.self_attn.o_proj.weight_scale",
+      "physical_shape": [
+        1024,
+        1
+      ],
+      "quantizer_parameters": {
+        "codec": "E4M3FN",
+        "contract_id": "gem16.fp8_attention_rowwise",
+        "contract_version": 1,
+        "finite_max": 448.0,
+        "output_dtype": "F8_E4M3",
+        "rounding": "nearest_even",
+        "scale_axis": "output_row",
+        "scale_dtype": "BF16",
+        "signed_zero": "preserve",
+        "source_dtype": "BF16",
+        "underflow": "minimum_positive_bf16_subnormal",
+        "zero_row_scale": "1.0"
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_attention_o_projection",
+      "runtime_layout": "row_bf16",
+      "source_names": [
+        "model.layers.0.self_attn.o_proj.weight"
+      ],
+      "transformation": "bf16-to-bf16-rowwise-scale",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "identity",
+      "dequantization_equation": "output = source",
+      "disk_layout": "source_bf16",
+      "encoder": "copy-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        256
+      ],
+      "operation_id": "copy-assistant:model.layers.0.self_attn.q_norm.weight",
+      "output_dtype": "BF16",
+      "output_name": "model.layers.0.self_attn.q_norm.weight",
+      "physical_shape": [
+        256
+      ],
+      "quantizer_parameters": {},
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_attention_q_norm",
+      "runtime_layout": "source_bf16",
+      "source_names": [
+        "model.layers.0.self_attn.q_norm.weight"
+      ],
+      "transformation": "identity-copy",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "identity",
+      "dequantization_equation": "source_approx[n,k] = decode_e4m3fn(weight[n,k]) * decode_bf16(weight_scale[n,0])",
+      "disk_layout": "source_nk_fp8",
+      "encoder": "fp8-rowwise-weight-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        4096,
+        1024
+      ],
+      "operation_id": "fp8-assistant:model.layers.0.self_attn.q_proj",
+      "output_dtype": "F8_E4M3",
+      "output_name": "model.layers.0.self_attn.q_proj.weight",
+      "physical_shape": [
+        4096,
+        1024
+      ],
+      "quantizer_parameters": {
+        "codec": "E4M3FN",
+        "contract_id": "gem16.fp8_attention_rowwise",
+        "contract_version": 1,
+        "finite_max": 448.0,
+        "output_dtype": "F8_E4M3",
+        "rounding": "nearest_even",
+        "scale_axis": "output_row",
+        "scale_dtype": "BF16",
+        "signed_zero": "preserve",
+        "source_dtype": "BF16",
+        "underflow": "minimum_positive_bf16_subnormal",
+        "zero_row_scale": "1.0"
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_attention_q_projection",
+      "runtime_layout": "source_nk_fp8",
+      "source_names": [
+        "model.layers.0.self_attn.q_proj.weight"
+      ],
+      "transformation": "bf16-to-fp8-e4m3fn-rowwise-weight",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "identity",
+      "dequantization_equation": "source_approx[n,k] = decode_e4m3fn(weight[n,k]) * decode_bf16(weight_scale[n,0])",
+      "disk_layout": "row_bf16",
+      "encoder": "fp8-rowwise-scale-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        4096,
+        1
+      ],
+      "operation_id": "fp8-assistant:model.layers.0.self_attn.q_proj",
+      "output_dtype": "BF16",
+      "output_name": "model.layers.0.self_attn.q_proj.weight_scale",
+      "physical_shape": [
+        4096,
+        1
+      ],
+      "quantizer_parameters": {
+        "codec": "E4M3FN",
+        "contract_id": "gem16.fp8_attention_rowwise",
+        "contract_version": 1,
+        "finite_max": 448.0,
+        "output_dtype": "F8_E4M3",
+        "rounding": "nearest_even",
+        "scale_axis": "output_row",
+        "scale_dtype": "BF16",
+        "signed_zero": "preserve",
+        "source_dtype": "BF16",
+        "underflow": "minimum_positive_bf16_subnormal",
+        "zero_row_scale": "1.0"
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_attention_q_projection",
+      "runtime_layout": "row_bf16",
+      "source_names": [
+        "model.layers.0.self_attn.q_proj.weight"
+      ],
+      "transformation": "bf16-to-bf16-rowwise-scale",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "identity",
+      "dequantization_equation": "output = source",
+      "disk_layout": "source_bf16",
+      "encoder": "copy-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        1024
+      ],
+      "operation_id": "copy-assistant:model.layers.1.input_layernorm.weight",
+      "output_dtype": "BF16",
+      "output_name": "model.layers.1.input_layernorm.weight",
+      "physical_shape": [
+        1024
+      ],
+      "quantizer_parameters": {},
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "input_layer_norm",
+      "runtime_layout": "source_bf16",
+      "source_names": [
+        "model.layers.1.input_layernorm.weight"
+      ],
+      "transformation": "identity-copy",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "identity",
+      "dequantization_equation": "output = source",
+      "disk_layout": "source_bf16",
+      "encoder": "copy-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        1
+      ],
+      "operation_id": "copy-assistant:model.layers.1.layer_scalar",
+      "output_dtype": "BF16",
+      "output_name": "model.layers.1.layer_scalar",
+      "physical_shape": [
+        1
+      ],
+      "quantizer_parameters": {},
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "layer_scalar",
+      "runtime_layout": "source_bf16",
+      "source_names": [
+        "model.layers.1.layer_scalar"
+      ],
+      "transformation": "identity-copy",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "scalar_f32",
+      "encoder": "nvfp4-input-divisor-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        1024,
+        8192
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.1.mlp.down_proj",
+      "output_dtype": "F32",
+      "output_name": "model.layers.1.mlp.down_proj.input_global_scale",
+      "physical_shape": [
+        1
+      ],
+      "quantizer_parameters": {
+        "component": "input_global_scale",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_down",
+      "runtime_layout": "scalar_f32",
+      "source_names": [
+        "model.layers.1.mlp.down_proj.weight"
+      ],
+      "transformation": "nvfp4-input-divisor",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "scalar_f32",
+      "encoder": "nvfp4-weight-divisor-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        1024,
+        8192
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.1.mlp.down_proj",
+      "output_dtype": "F32",
+      "output_name": "model.layers.1.mlp.down_proj.weight_global_scale",
+      "physical_shape": [
+        1
+      ],
+      "quantizer_parameters": {
+        "component": "weight_global_scale",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_down",
+      "runtime_layout": "scalar_f32",
+      "source_names": [
+        "model.layers.1.mlp.down_proj.weight"
+      ],
+      "transformation": "nvfp4-weight-divisor",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "canonical_row_major_low_nibble_first",
+      "encoder": "nvfp4-packed-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        1024,
+        8192
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.1.mlp.down_proj",
+      "output_dtype": "U8",
+      "output_name": "model.layers.1.mlp.down_proj.weight_packed",
+      "physical_shape": [
+        1024,
+        4096
+      ],
+      "quantizer_parameters": {
+        "component": "weight_packed",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_down",
+      "runtime_layout": "sm120_row8_k64",
+      "source_names": [
+        "model.layers.1.mlp.down_proj.weight"
+      ],
+      "transformation": "nvfp4-packed",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "canonical_row_major_group16_e4m3",
+      "encoder": "nvfp4-local-scale-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        1024,
+        8192
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.1.mlp.down_proj",
+      "output_dtype": "F8_E4M3",
+      "output_name": "model.layers.1.mlp.down_proj.weight_scale",
+      "physical_shape": [
+        1024,
+        512
+      ],
+      "quantizer_parameters": {
+        "component": "weight_scale",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_down",
+      "runtime_layout": "sm120_row8_group16_e4m3",
+      "source_names": [
+        "model.layers.1.mlp.down_proj.weight"
+      ],
+      "transformation": "nvfp4-local-scale",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "scalar_f32",
+      "encoder": "nvfp4-input-divisor-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        8192,
+        1024
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.1.mlp.gate_proj",
+      "output_dtype": "F32",
+      "output_name": "model.layers.1.mlp.gate_proj.input_global_scale",
+      "physical_shape": [
+        1
+      ],
+      "quantizer_parameters": {
+        "component": "input_global_scale",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_gate",
+      "runtime_layout": "scalar_f32",
+      "source_names": [
+        "model.layers.1.mlp.gate_proj.weight"
+      ],
+      "transformation": "nvfp4-input-divisor",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "scalar_f32",
+      "encoder": "nvfp4-weight-divisor-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        8192,
+        1024
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.1.mlp.gate_proj",
+      "output_dtype": "F32",
+      "output_name": "model.layers.1.mlp.gate_proj.weight_global_scale",
+      "physical_shape": [
+        1
+      ],
+      "quantizer_parameters": {
+        "component": "weight_global_scale",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_gate",
+      "runtime_layout": "scalar_f32",
+      "source_names": [
+        "model.layers.1.mlp.gate_proj.weight"
+      ],
+      "transformation": "nvfp4-weight-divisor",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "canonical_row_major_low_nibble_first",
+      "encoder": "nvfp4-packed-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        8192,
+        1024
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.1.mlp.gate_proj",
+      "output_dtype": "U8",
+      "output_name": "model.layers.1.mlp.gate_proj.weight_packed",
+      "physical_shape": [
+        8192,
+        512
+      ],
+      "quantizer_parameters": {
+        "component": "weight_packed",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_gate",
+      "runtime_layout": "sm120_row8_k64",
+      "source_names": [
+        "model.layers.1.mlp.gate_proj.weight"
+      ],
+      "transformation": "nvfp4-packed",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "canonical_row_major_group16_e4m3",
+      "encoder": "nvfp4-local-scale-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        8192,
+        1024
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.1.mlp.gate_proj",
+      "output_dtype": "F8_E4M3",
+      "output_name": "model.layers.1.mlp.gate_proj.weight_scale",
+      "physical_shape": [
+        8192,
+        64
+      ],
+      "quantizer_parameters": {
+        "component": "weight_scale",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_gate",
+      "runtime_layout": "sm120_row8_group16_e4m3",
+      "source_names": [
+        "model.layers.1.mlp.gate_proj.weight"
+      ],
+      "transformation": "nvfp4-local-scale",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "scalar_f32",
+      "encoder": "nvfp4-input-divisor-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        8192,
+        1024
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.1.mlp.up_proj",
+      "output_dtype": "F32",
+      "output_name": "model.layers.1.mlp.up_proj.input_global_scale",
+      "physical_shape": [
+        1
+      ],
+      "quantizer_parameters": {
+        "component": "input_global_scale",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_up",
+      "runtime_layout": "scalar_f32",
+      "source_names": [
+        "model.layers.1.mlp.up_proj.weight"
+      ],
+      "transformation": "nvfp4-input-divisor",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "scalar_f32",
+      "encoder": "nvfp4-weight-divisor-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        8192,
+        1024
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.1.mlp.up_proj",
+      "output_dtype": "F32",
+      "output_name": "model.layers.1.mlp.up_proj.weight_global_scale",
+      "physical_shape": [
+        1
+      ],
+      "quantizer_parameters": {
+        "component": "weight_global_scale",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_up",
+      "runtime_layout": "scalar_f32",
+      "source_names": [
+        "model.layers.1.mlp.up_proj.weight"
+      ],
+      "transformation": "nvfp4-weight-divisor",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "canonical_row_major_low_nibble_first",
+      "encoder": "nvfp4-packed-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        8192,
+        1024
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.1.mlp.up_proj",
+      "output_dtype": "U8",
+      "output_name": "model.layers.1.mlp.up_proj.weight_packed",
+      "physical_shape": [
+        8192,
+        512
+      ],
+      "quantizer_parameters": {
+        "component": "weight_packed",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_up",
+      "runtime_layout": "sm120_row8_k64",
+      "source_names": [
+        "model.layers.1.mlp.up_proj.weight"
+      ],
+      "transformation": "nvfp4-packed",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "canonical_row_major_group16_e4m3",
+      "encoder": "nvfp4-local-scale-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        8192,
+        1024
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.1.mlp.up_proj",
+      "output_dtype": "F8_E4M3",
+      "output_name": "model.layers.1.mlp.up_proj.weight_scale",
+      "physical_shape": [
+        8192,
+        64
+      ],
+      "quantizer_parameters": {
+        "component": "weight_scale",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_up",
+      "runtime_layout": "sm120_row8_group16_e4m3",
+      "source_names": [
+        "model.layers.1.mlp.up_proj.weight"
+      ],
+      "transformation": "nvfp4-local-scale",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "identity",
+      "dequantization_equation": "output = source",
+      "disk_layout": "source_bf16",
+      "encoder": "copy-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        1024
+      ],
+      "operation_id": "copy-assistant:model.layers.1.post_attention_layernorm.weight",
+      "output_dtype": "BF16",
+      "output_name": "model.layers.1.post_attention_layernorm.weight",
+      "physical_shape": [
+        1024
+      ],
+      "quantizer_parameters": {},
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "post_attention_layer_norm",
+      "runtime_layout": "source_bf16",
+      "source_names": [
+        "model.layers.1.post_attention_layernorm.weight"
+      ],
+      "transformation": "identity-copy",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "identity",
+      "dequantization_equation": "output = source",
+      "disk_layout": "source_bf16",
+      "encoder": "copy-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        1024
+      ],
+      "operation_id": "copy-assistant:model.layers.1.post_feedforward_layernorm.weight",
+      "output_dtype": "BF16",
+      "output_name": "model.layers.1.post_feedforward_layernorm.weight",
+      "physical_shape": [
+        1024
+      ],
+      "quantizer_parameters": {},
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "post_feed_forward_layer_norm",
+      "runtime_layout": "source_bf16",
+      "source_names": [
+        "model.layers.1.post_feedforward_layernorm.weight"
+      ],
+      "transformation": "identity-copy",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "identity",
+      "dequantization_equation": "output = source",
+      "disk_layout": "source_bf16",
+      "encoder": "copy-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        1024
+      ],
+      "operation_id": "copy-assistant:model.layers.1.pre_feedforward_layernorm.weight",
+      "output_dtype": "BF16",
+      "output_name": "model.layers.1.pre_feedforward_layernorm.weight",
+      "physical_shape": [
+        1024
+      ],
+      "quantizer_parameters": {},
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "pre_feed_forward_layer_norm",
+      "runtime_layout": "source_bf16",
+      "source_names": [
+        "model.layers.1.pre_feedforward_layernorm.weight"
+      ],
+      "transformation": "identity-copy",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "identity",
+      "dequantization_equation": "source_approx[n,k] = decode_e4m3fn(weight[n,k]) * decode_bf16(weight_scale[n,0])",
+      "disk_layout": "source_nk_fp8",
+      "encoder": "fp8-rowwise-weight-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        1024,
+        4096
+      ],
+      "operation_id": "fp8-assistant:model.layers.1.self_attn.o_proj",
+      "output_dtype": "F8_E4M3",
+      "output_name": "model.layers.1.self_attn.o_proj.weight",
+      "physical_shape": [
+        1024,
+        4096
+      ],
+      "quantizer_parameters": {
+        "codec": "E4M3FN",
+        "contract_id": "gem16.fp8_attention_rowwise",
+        "contract_version": 1,
+        "finite_max": 448.0,
+        "output_dtype": "F8_E4M3",
+        "rounding": "nearest_even",
+        "scale_axis": "output_row",
+        "scale_dtype": "BF16",
+        "signed_zero": "preserve",
+        "source_dtype": "BF16",
+        "underflow": "minimum_positive_bf16_subnormal",
+        "zero_row_scale": "1.0"
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_attention_o_projection",
+      "runtime_layout": "source_nk_fp8",
+      "source_names": [
+        "model.layers.1.self_attn.o_proj.weight"
+      ],
+      "transformation": "bf16-to-fp8-e4m3fn-rowwise-weight",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "identity",
+      "dequantization_equation": "source_approx[n,k] = decode_e4m3fn(weight[n,k]) * decode_bf16(weight_scale[n,0])",
+      "disk_layout": "row_bf16",
+      "encoder": "fp8-rowwise-scale-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        1024,
+        1
+      ],
+      "operation_id": "fp8-assistant:model.layers.1.self_attn.o_proj",
+      "output_dtype": "BF16",
+      "output_name": "model.layers.1.self_attn.o_proj.weight_scale",
+      "physical_shape": [
+        1024,
+        1
+      ],
+      "quantizer_parameters": {
+        "codec": "E4M3FN",
+        "contract_id": "gem16.fp8_attention_rowwise",
+        "contract_version": 1,
+        "finite_max": 448.0,
+        "output_dtype": "F8_E4M3",
+        "rounding": "nearest_even",
+        "scale_axis": "output_row",
+        "scale_dtype": "BF16",
+        "signed_zero": "preserve",
+        "source_dtype": "BF16",
+        "underflow": "minimum_positive_bf16_subnormal",
+        "zero_row_scale": "1.0"
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_attention_o_projection",
+      "runtime_layout": "row_bf16",
+      "source_names": [
+        "model.layers.1.self_attn.o_proj.weight"
+      ],
+      "transformation": "bf16-to-bf16-rowwise-scale",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "identity",
+      "dequantization_equation": "output = source",
+      "disk_layout": "source_bf16",
+      "encoder": "copy-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        256
+      ],
+      "operation_id": "copy-assistant:model.layers.1.self_attn.q_norm.weight",
+      "output_dtype": "BF16",
+      "output_name": "model.layers.1.self_attn.q_norm.weight",
+      "physical_shape": [
+        256
+      ],
+      "quantizer_parameters": {},
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_attention_q_norm",
+      "runtime_layout": "source_bf16",
+      "source_names": [
+        "model.layers.1.self_attn.q_norm.weight"
+      ],
+      "transformation": "identity-copy",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "identity",
+      "dequantization_equation": "source_approx[n,k] = decode_e4m3fn(weight[n,k]) * decode_bf16(weight_scale[n,0])",
+      "disk_layout": "source_nk_fp8",
+      "encoder": "fp8-rowwise-weight-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        4096,
+        1024
+      ],
+      "operation_id": "fp8-assistant:model.layers.1.self_attn.q_proj",
+      "output_dtype": "F8_E4M3",
+      "output_name": "model.layers.1.self_attn.q_proj.weight",
+      "physical_shape": [
+        4096,
+        1024
+      ],
+      "quantizer_parameters": {
+        "codec": "E4M3FN",
+        "contract_id": "gem16.fp8_attention_rowwise",
+        "contract_version": 1,
+        "finite_max": 448.0,
+        "output_dtype": "F8_E4M3",
+        "rounding": "nearest_even",
+        "scale_axis": "output_row",
+        "scale_dtype": "BF16",
+        "signed_zero": "preserve",
+        "source_dtype": "BF16",
+        "underflow": "minimum_positive_bf16_subnormal",
+        "zero_row_scale": "1.0"
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_attention_q_projection",
+      "runtime_layout": "source_nk_fp8",
+      "source_names": [
+        "model.layers.1.self_attn.q_proj.weight"
+      ],
+      "transformation": "bf16-to-fp8-e4m3fn-rowwise-weight",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "identity",
+      "dequantization_equation": "source_approx[n,k] = decode_e4m3fn(weight[n,k]) * decode_bf16(weight_scale[n,0])",
+      "disk_layout": "row_bf16",
+      "encoder": "fp8-rowwise-scale-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        4096,
+        1
+      ],
+      "operation_id": "fp8-assistant:model.layers.1.self_attn.q_proj",
+      "output_dtype": "BF16",
+      "output_name": "model.layers.1.self_attn.q_proj.weight_scale",
+      "physical_shape": [
+        4096,
+        1
+      ],
+      "quantizer_parameters": {
+        "codec": "E4M3FN",
+        "contract_id": "gem16.fp8_attention_rowwise",
+        "contract_version": 1,
+        "finite_max": 448.0,
+        "output_dtype": "F8_E4M3",
+        "rounding": "nearest_even",
+        "scale_axis": "output_row",
+        "scale_dtype": "BF16",
+        "signed_zero": "preserve",
+        "source_dtype": "BF16",
+        "underflow": "minimum_positive_bf16_subnormal",
+        "zero_row_scale": "1.0"
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_attention_q_projection",
+      "runtime_layout": "row_bf16",
+      "source_names": [
+        "model.layers.1.self_attn.q_proj.weight"
+      ],
+      "transformation": "bf16-to-bf16-rowwise-scale",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "identity",
+      "dequantization_equation": "output = source",
+      "disk_layout": "source_bf16",
+      "encoder": "copy-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        1024
+      ],
+      "operation_id": "copy-assistant:model.layers.2.input_layernorm.weight",
+      "output_dtype": "BF16",
+      "output_name": "model.layers.2.input_layernorm.weight",
+      "physical_shape": [
+        1024
+      ],
+      "quantizer_parameters": {},
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "input_layer_norm",
+      "runtime_layout": "source_bf16",
+      "source_names": [
+        "model.layers.2.input_layernorm.weight"
+      ],
+      "transformation": "identity-copy",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "identity",
+      "dequantization_equation": "output = source",
+      "disk_layout": "source_bf16",
+      "encoder": "copy-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        1
+      ],
+      "operation_id": "copy-assistant:model.layers.2.layer_scalar",
+      "output_dtype": "BF16",
+      "output_name": "model.layers.2.layer_scalar",
+      "physical_shape": [
+        1
+      ],
+      "quantizer_parameters": {},
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "layer_scalar",
+      "runtime_layout": "source_bf16",
+      "source_names": [
+        "model.layers.2.layer_scalar"
+      ],
+      "transformation": "identity-copy",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "scalar_f32",
+      "encoder": "nvfp4-input-divisor-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        1024,
+        8192
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.2.mlp.down_proj",
+      "output_dtype": "F32",
+      "output_name": "model.layers.2.mlp.down_proj.input_global_scale",
+      "physical_shape": [
+        1
+      ],
+      "quantizer_parameters": {
+        "component": "input_global_scale",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_down",
+      "runtime_layout": "scalar_f32",
+      "source_names": [
+        "model.layers.2.mlp.down_proj.weight"
+      ],
+      "transformation": "nvfp4-input-divisor",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "scalar_f32",
+      "encoder": "nvfp4-weight-divisor-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        1024,
+        8192
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.2.mlp.down_proj",
+      "output_dtype": "F32",
+      "output_name": "model.layers.2.mlp.down_proj.weight_global_scale",
+      "physical_shape": [
+        1
+      ],
+      "quantizer_parameters": {
+        "component": "weight_global_scale",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_down",
+      "runtime_layout": "scalar_f32",
+      "source_names": [
+        "model.layers.2.mlp.down_proj.weight"
+      ],
+      "transformation": "nvfp4-weight-divisor",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "canonical_row_major_low_nibble_first",
+      "encoder": "nvfp4-packed-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        1024,
+        8192
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.2.mlp.down_proj",
+      "output_dtype": "U8",
+      "output_name": "model.layers.2.mlp.down_proj.weight_packed",
+      "physical_shape": [
+        1024,
+        4096
+      ],
+      "quantizer_parameters": {
+        "component": "weight_packed",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_down",
+      "runtime_layout": "sm120_row8_k64",
+      "source_names": [
+        "model.layers.2.mlp.down_proj.weight"
+      ],
+      "transformation": "nvfp4-packed",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "canonical_row_major_group16_e4m3",
+      "encoder": "nvfp4-local-scale-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        1024,
+        8192
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.2.mlp.down_proj",
+      "output_dtype": "F8_E4M3",
+      "output_name": "model.layers.2.mlp.down_proj.weight_scale",
+      "physical_shape": [
+        1024,
+        512
+      ],
+      "quantizer_parameters": {
+        "component": "weight_scale",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_down",
+      "runtime_layout": "sm120_row8_group16_e4m3",
+      "source_names": [
+        "model.layers.2.mlp.down_proj.weight"
+      ],
+      "transformation": "nvfp4-local-scale",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "scalar_f32",
+      "encoder": "nvfp4-input-divisor-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        8192,
+        1024
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.2.mlp.gate_proj",
+      "output_dtype": "F32",
+      "output_name": "model.layers.2.mlp.gate_proj.input_global_scale",
+      "physical_shape": [
+        1
+      ],
+      "quantizer_parameters": {
+        "component": "input_global_scale",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_gate",
+      "runtime_layout": "scalar_f32",
+      "source_names": [
+        "model.layers.2.mlp.gate_proj.weight"
+      ],
+      "transformation": "nvfp4-input-divisor",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "scalar_f32",
+      "encoder": "nvfp4-weight-divisor-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        8192,
+        1024
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.2.mlp.gate_proj",
+      "output_dtype": "F32",
+      "output_name": "model.layers.2.mlp.gate_proj.weight_global_scale",
+      "physical_shape": [
+        1
+      ],
+      "quantizer_parameters": {
+        "component": "weight_global_scale",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_gate",
+      "runtime_layout": "scalar_f32",
+      "source_names": [
+        "model.layers.2.mlp.gate_proj.weight"
+      ],
+      "transformation": "nvfp4-weight-divisor",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "canonical_row_major_low_nibble_first",
+      "encoder": "nvfp4-packed-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        8192,
+        1024
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.2.mlp.gate_proj",
+      "output_dtype": "U8",
+      "output_name": "model.layers.2.mlp.gate_proj.weight_packed",
+      "physical_shape": [
+        8192,
+        512
+      ],
+      "quantizer_parameters": {
+        "component": "weight_packed",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_gate",
+      "runtime_layout": "sm120_row8_k64",
+      "source_names": [
+        "model.layers.2.mlp.gate_proj.weight"
+      ],
+      "transformation": "nvfp4-packed",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "canonical_row_major_group16_e4m3",
+      "encoder": "nvfp4-local-scale-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        8192,
+        1024
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.2.mlp.gate_proj",
+      "output_dtype": "F8_E4M3",
+      "output_name": "model.layers.2.mlp.gate_proj.weight_scale",
+      "physical_shape": [
+        8192,
+        64
+      ],
+      "quantizer_parameters": {
+        "component": "weight_scale",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_gate",
+      "runtime_layout": "sm120_row8_group16_e4m3",
+      "source_names": [
+        "model.layers.2.mlp.gate_proj.weight"
+      ],
+      "transformation": "nvfp4-local-scale",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "scalar_f32",
+      "encoder": "nvfp4-input-divisor-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        8192,
+        1024
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.2.mlp.up_proj",
+      "output_dtype": "F32",
+      "output_name": "model.layers.2.mlp.up_proj.input_global_scale",
+      "physical_shape": [
+        1
+      ],
+      "quantizer_parameters": {
+        "component": "input_global_scale",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_up",
+      "runtime_layout": "scalar_f32",
+      "source_names": [
+        "model.layers.2.mlp.up_proj.weight"
+      ],
+      "transformation": "nvfp4-input-divisor",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "scalar_f32",
+      "encoder": "nvfp4-weight-divisor-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        8192,
+        1024
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.2.mlp.up_proj",
+      "output_dtype": "F32",
+      "output_name": "model.layers.2.mlp.up_proj.weight_global_scale",
+      "physical_shape": [
+        1
+      ],
+      "quantizer_parameters": {
+        "component": "weight_global_scale",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_up",
+      "runtime_layout": "scalar_f32",
+      "source_names": [
+        "model.layers.2.mlp.up_proj.weight"
+      ],
+      "transformation": "nvfp4-weight-divisor",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "canonical_row_major_low_nibble_first",
+      "encoder": "nvfp4-packed-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        8192,
+        1024
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.2.mlp.up_proj",
+      "output_dtype": "U8",
+      "output_name": "model.layers.2.mlp.up_proj.weight_packed",
+      "physical_shape": [
+        8192,
+        512
+      ],
+      "quantizer_parameters": {
+        "component": "weight_packed",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_up",
+      "runtime_layout": "sm120_row8_k64",
+      "source_names": [
+        "model.layers.2.mlp.up_proj.weight"
+      ],
+      "transformation": "nvfp4-packed",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "canonical_row_major_group16_e4m3",
+      "encoder": "nvfp4-local-scale-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        8192,
+        1024
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.2.mlp.up_proj",
+      "output_dtype": "F8_E4M3",
+      "output_name": "model.layers.2.mlp.up_proj.weight_scale",
+      "physical_shape": [
+        8192,
+        64
+      ],
+      "quantizer_parameters": {
+        "component": "weight_scale",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_up",
+      "runtime_layout": "sm120_row8_group16_e4m3",
+      "source_names": [
+        "model.layers.2.mlp.up_proj.weight"
+      ],
+      "transformation": "nvfp4-local-scale",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "identity",
+      "dequantization_equation": "output = source",
+      "disk_layout": "source_bf16",
+      "encoder": "copy-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        1024
+      ],
+      "operation_id": "copy-assistant:model.layers.2.post_attention_layernorm.weight",
+      "output_dtype": "BF16",
+      "output_name": "model.layers.2.post_attention_layernorm.weight",
+      "physical_shape": [
+        1024
+      ],
+      "quantizer_parameters": {},
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "post_attention_layer_norm",
+      "runtime_layout": "source_bf16",
+      "source_names": [
+        "model.layers.2.post_attention_layernorm.weight"
+      ],
+      "transformation": "identity-copy",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "identity",
+      "dequantization_equation": "output = source",
+      "disk_layout": "source_bf16",
+      "encoder": "copy-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        1024
+      ],
+      "operation_id": "copy-assistant:model.layers.2.post_feedforward_layernorm.weight",
+      "output_dtype": "BF16",
+      "output_name": "model.layers.2.post_feedforward_layernorm.weight",
+      "physical_shape": [
+        1024
+      ],
+      "quantizer_parameters": {},
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "post_feed_forward_layer_norm",
+      "runtime_layout": "source_bf16",
+      "source_names": [
+        "model.layers.2.post_feedforward_layernorm.weight"
+      ],
+      "transformation": "identity-copy",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "identity",
+      "dequantization_equation": "output = source",
+      "disk_layout": "source_bf16",
+      "encoder": "copy-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        1024
+      ],
+      "operation_id": "copy-assistant:model.layers.2.pre_feedforward_layernorm.weight",
+      "output_dtype": "BF16",
+      "output_name": "model.layers.2.pre_feedforward_layernorm.weight",
+      "physical_shape": [
+        1024
+      ],
+      "quantizer_parameters": {},
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "pre_feed_forward_layer_norm",
+      "runtime_layout": "source_bf16",
+      "source_names": [
+        "model.layers.2.pre_feedforward_layernorm.weight"
+      ],
+      "transformation": "identity-copy",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "identity",
+      "dequantization_equation": "source_approx[n,k] = decode_e4m3fn(weight[n,k]) * decode_bf16(weight_scale[n,0])",
+      "disk_layout": "source_nk_fp8",
+      "encoder": "fp8-rowwise-weight-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        1024,
+        4096
+      ],
+      "operation_id": "fp8-assistant:model.layers.2.self_attn.o_proj",
+      "output_dtype": "F8_E4M3",
+      "output_name": "model.layers.2.self_attn.o_proj.weight",
+      "physical_shape": [
+        1024,
+        4096
+      ],
+      "quantizer_parameters": {
+        "codec": "E4M3FN",
+        "contract_id": "gem16.fp8_attention_rowwise",
+        "contract_version": 1,
+        "finite_max": 448.0,
+        "output_dtype": "F8_E4M3",
+        "rounding": "nearest_even",
+        "scale_axis": "output_row",
+        "scale_dtype": "BF16",
+        "signed_zero": "preserve",
+        "source_dtype": "BF16",
+        "underflow": "minimum_positive_bf16_subnormal",
+        "zero_row_scale": "1.0"
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_attention_o_projection",
+      "runtime_layout": "source_nk_fp8",
+      "source_names": [
+        "model.layers.2.self_attn.o_proj.weight"
+      ],
+      "transformation": "bf16-to-fp8-e4m3fn-rowwise-weight",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "identity",
+      "dequantization_equation": "source_approx[n,k] = decode_e4m3fn(weight[n,k]) * decode_bf16(weight_scale[n,0])",
+      "disk_layout": "row_bf16",
+      "encoder": "fp8-rowwise-scale-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        1024,
+        1
+      ],
+      "operation_id": "fp8-assistant:model.layers.2.self_attn.o_proj",
+      "output_dtype": "BF16",
+      "output_name": "model.layers.2.self_attn.o_proj.weight_scale",
+      "physical_shape": [
+        1024,
+        1
+      ],
+      "quantizer_parameters": {
+        "codec": "E4M3FN",
+        "contract_id": "gem16.fp8_attention_rowwise",
+        "contract_version": 1,
+        "finite_max": 448.0,
+        "output_dtype": "F8_E4M3",
+        "rounding": "nearest_even",
+        "scale_axis": "output_row",
+        "scale_dtype": "BF16",
+        "signed_zero": "preserve",
+        "source_dtype": "BF16",
+        "underflow": "minimum_positive_bf16_subnormal",
+        "zero_row_scale": "1.0"
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_attention_o_projection",
+      "runtime_layout": "row_bf16",
+      "source_names": [
+        "model.layers.2.self_attn.o_proj.weight"
+      ],
+      "transformation": "bf16-to-bf16-rowwise-scale",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "identity",
+      "dequantization_equation": "output = source",
+      "disk_layout": "source_bf16",
+      "encoder": "copy-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        256
+      ],
+      "operation_id": "copy-assistant:model.layers.2.self_attn.q_norm.weight",
+      "output_dtype": "BF16",
+      "output_name": "model.layers.2.self_attn.q_norm.weight",
+      "physical_shape": [
+        256
+      ],
+      "quantizer_parameters": {},
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_attention_q_norm",
+      "runtime_layout": "source_bf16",
+      "source_names": [
+        "model.layers.2.self_attn.q_norm.weight"
+      ],
+      "transformation": "identity-copy",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "identity",
+      "dequantization_equation": "source_approx[n,k] = decode_e4m3fn(weight[n,k]) * decode_bf16(weight_scale[n,0])",
+      "disk_layout": "source_nk_fp8",
+      "encoder": "fp8-rowwise-weight-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        4096,
+        1024
+      ],
+      "operation_id": "fp8-assistant:model.layers.2.self_attn.q_proj",
+      "output_dtype": "F8_E4M3",
+      "output_name": "model.layers.2.self_attn.q_proj.weight",
+      "physical_shape": [
+        4096,
+        1024
+      ],
+      "quantizer_parameters": {
+        "codec": "E4M3FN",
+        "contract_id": "gem16.fp8_attention_rowwise",
+        "contract_version": 1,
+        "finite_max": 448.0,
+        "output_dtype": "F8_E4M3",
+        "rounding": "nearest_even",
+        "scale_axis": "output_row",
+        "scale_dtype": "BF16",
+        "signed_zero": "preserve",
+        "source_dtype": "BF16",
+        "underflow": "minimum_positive_bf16_subnormal",
+        "zero_row_scale": "1.0"
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_attention_q_projection",
+      "runtime_layout": "source_nk_fp8",
+      "source_names": [
+        "model.layers.2.self_attn.q_proj.weight"
+      ],
+      "transformation": "bf16-to-fp8-e4m3fn-rowwise-weight",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "identity",
+      "dequantization_equation": "source_approx[n,k] = decode_e4m3fn(weight[n,k]) * decode_bf16(weight_scale[n,0])",
+      "disk_layout": "row_bf16",
+      "encoder": "fp8-rowwise-scale-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        4096,
+        1
+      ],
+      "operation_id": "fp8-assistant:model.layers.2.self_attn.q_proj",
+      "output_dtype": "BF16",
+      "output_name": "model.layers.2.self_attn.q_proj.weight_scale",
+      "physical_shape": [
+        4096,
+        1
+      ],
+      "quantizer_parameters": {
+        "codec": "E4M3FN",
+        "contract_id": "gem16.fp8_attention_rowwise",
+        "contract_version": 1,
+        "finite_max": 448.0,
+        "output_dtype": "F8_E4M3",
+        "rounding": "nearest_even",
+        "scale_axis": "output_row",
+        "scale_dtype": "BF16",
+        "signed_zero": "preserve",
+        "source_dtype": "BF16",
+        "underflow": "minimum_positive_bf16_subnormal",
+        "zero_row_scale": "1.0"
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_attention_q_projection",
+      "runtime_layout": "row_bf16",
+      "source_names": [
+        "model.layers.2.self_attn.q_proj.weight"
+      ],
+      "transformation": "bf16-to-bf16-rowwise-scale",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "identity",
+      "dequantization_equation": "output = source",
+      "disk_layout": "source_bf16",
+      "encoder": "copy-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        1024
+      ],
+      "operation_id": "copy-assistant:model.layers.3.input_layernorm.weight",
+      "output_dtype": "BF16",
+      "output_name": "model.layers.3.input_layernorm.weight",
+      "physical_shape": [
+        1024
+      ],
+      "quantizer_parameters": {},
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "input_layer_norm",
+      "runtime_layout": "source_bf16",
+      "source_names": [
+        "model.layers.3.input_layernorm.weight"
+      ],
+      "transformation": "identity-copy",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "identity",
+      "dequantization_equation": "output = source",
+      "disk_layout": "source_bf16",
+      "encoder": "copy-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        1
+      ],
+      "operation_id": "copy-assistant:model.layers.3.layer_scalar",
+      "output_dtype": "BF16",
+      "output_name": "model.layers.3.layer_scalar",
+      "physical_shape": [
+        1
+      ],
+      "quantizer_parameters": {},
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "layer_scalar",
+      "runtime_layout": "source_bf16",
+      "source_names": [
+        "model.layers.3.layer_scalar"
+      ],
+      "transformation": "identity-copy",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "scalar_f32",
+      "encoder": "nvfp4-input-divisor-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        1024,
+        8192
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.3.mlp.down_proj",
+      "output_dtype": "F32",
+      "output_name": "model.layers.3.mlp.down_proj.input_global_scale",
+      "physical_shape": [
+        1
+      ],
+      "quantizer_parameters": {
+        "component": "input_global_scale",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_down",
+      "runtime_layout": "scalar_f32",
+      "source_names": [
+        "model.layers.3.mlp.down_proj.weight"
+      ],
+      "transformation": "nvfp4-input-divisor",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "scalar_f32",
+      "encoder": "nvfp4-weight-divisor-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        1024,
+        8192
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.3.mlp.down_proj",
+      "output_dtype": "F32",
+      "output_name": "model.layers.3.mlp.down_proj.weight_global_scale",
+      "physical_shape": [
+        1
+      ],
+      "quantizer_parameters": {
+        "component": "weight_global_scale",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_down",
+      "runtime_layout": "scalar_f32",
+      "source_names": [
+        "model.layers.3.mlp.down_proj.weight"
+      ],
+      "transformation": "nvfp4-weight-divisor",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "canonical_row_major_low_nibble_first",
+      "encoder": "nvfp4-packed-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        1024,
+        8192
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.3.mlp.down_proj",
+      "output_dtype": "U8",
+      "output_name": "model.layers.3.mlp.down_proj.weight_packed",
+      "physical_shape": [
+        1024,
+        4096
+      ],
+      "quantizer_parameters": {
+        "component": "weight_packed",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_down",
+      "runtime_layout": "sm120_row8_k64",
+      "source_names": [
+        "model.layers.3.mlp.down_proj.weight"
+      ],
+      "transformation": "nvfp4-packed",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "canonical_row_major_group16_e4m3",
+      "encoder": "nvfp4-local-scale-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        1024,
+        8192
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.3.mlp.down_proj",
+      "output_dtype": "F8_E4M3",
+      "output_name": "model.layers.3.mlp.down_proj.weight_scale",
+      "physical_shape": [
+        1024,
+        512
+      ],
+      "quantizer_parameters": {
+        "component": "weight_scale",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_down",
+      "runtime_layout": "sm120_row8_group16_e4m3",
+      "source_names": [
+        "model.layers.3.mlp.down_proj.weight"
+      ],
+      "transformation": "nvfp4-local-scale",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "scalar_f32",
+      "encoder": "nvfp4-input-divisor-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        8192,
+        1024
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.3.mlp.gate_proj",
+      "output_dtype": "F32",
+      "output_name": "model.layers.3.mlp.gate_proj.input_global_scale",
+      "physical_shape": [
+        1
+      ],
+      "quantizer_parameters": {
+        "component": "input_global_scale",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_gate",
+      "runtime_layout": "scalar_f32",
+      "source_names": [
+        "model.layers.3.mlp.gate_proj.weight"
+      ],
+      "transformation": "nvfp4-input-divisor",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "scalar_f32",
+      "encoder": "nvfp4-weight-divisor-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        8192,
+        1024
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.3.mlp.gate_proj",
+      "output_dtype": "F32",
+      "output_name": "model.layers.3.mlp.gate_proj.weight_global_scale",
+      "physical_shape": [
+        1
+      ],
+      "quantizer_parameters": {
+        "component": "weight_global_scale",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_gate",
+      "runtime_layout": "scalar_f32",
+      "source_names": [
+        "model.layers.3.mlp.gate_proj.weight"
+      ],
+      "transformation": "nvfp4-weight-divisor",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "canonical_row_major_low_nibble_first",
+      "encoder": "nvfp4-packed-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        8192,
+        1024
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.3.mlp.gate_proj",
+      "output_dtype": "U8",
+      "output_name": "model.layers.3.mlp.gate_proj.weight_packed",
+      "physical_shape": [
+        8192,
+        512
+      ],
+      "quantizer_parameters": {
+        "component": "weight_packed",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_gate",
+      "runtime_layout": "sm120_row8_k64",
+      "source_names": [
+        "model.layers.3.mlp.gate_proj.weight"
+      ],
+      "transformation": "nvfp4-packed",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "canonical_row_major_group16_e4m3",
+      "encoder": "nvfp4-local-scale-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        8192,
+        1024
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.3.mlp.gate_proj",
+      "output_dtype": "F8_E4M3",
+      "output_name": "model.layers.3.mlp.gate_proj.weight_scale",
+      "physical_shape": [
+        8192,
+        64
+      ],
+      "quantizer_parameters": {
+        "component": "weight_scale",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_gate",
+      "runtime_layout": "sm120_row8_group16_e4m3",
+      "source_names": [
+        "model.layers.3.mlp.gate_proj.weight"
+      ],
+      "transformation": "nvfp4-local-scale",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "scalar_f32",
+      "encoder": "nvfp4-input-divisor-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        8192,
+        1024
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.3.mlp.up_proj",
+      "output_dtype": "F32",
+      "output_name": "model.layers.3.mlp.up_proj.input_global_scale",
+      "physical_shape": [
+        1
+      ],
+      "quantizer_parameters": {
+        "component": "input_global_scale",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_up",
+      "runtime_layout": "scalar_f32",
+      "source_names": [
+        "model.layers.3.mlp.up_proj.weight"
+      ],
+      "transformation": "nvfp4-input-divisor",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "scalar_f32",
+      "encoder": "nvfp4-weight-divisor-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        8192,
+        1024
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.3.mlp.up_proj",
+      "output_dtype": "F32",
+      "output_name": "model.layers.3.mlp.up_proj.weight_global_scale",
+      "physical_shape": [
+        1
+      ],
+      "quantizer_parameters": {
+        "component": "weight_global_scale",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_up",
+      "runtime_layout": "scalar_f32",
+      "source_names": [
+        "model.layers.3.mlp.up_proj.weight"
+      ],
+      "transformation": "nvfp4-weight-divisor",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "canonical_row_major_low_nibble_first",
+      "encoder": "nvfp4-packed-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        8192,
+        1024
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.3.mlp.up_proj",
+      "output_dtype": "U8",
+      "output_name": "model.layers.3.mlp.up_proj.weight_packed",
+      "physical_shape": [
+        8192,
+        512
+      ],
+      "quantizer_parameters": {
+        "component": "weight_packed",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_up",
+      "runtime_layout": "sm120_row8_k64",
+      "source_names": [
+        "model.layers.3.mlp.up_proj.weight"
+      ],
+      "transformation": "nvfp4-packed",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "output,input",
+      "dequantization_equation": "W_approx = decode_e2m1(weight_packed) * decode_e4m3fn(weight_scale) / weight_global_divisor",
+      "disk_layout": "canonical_row_major_group16_e4m3",
+      "encoder": "nvfp4-local-scale-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        8192,
+        1024
+      ],
+      "operation_id": "nvfp4-assistant:model.layers.3.mlp.up_proj",
+      "output_dtype": "F8_E4M3",
+      "output_name": "model.layers.3.mlp.up_proj.weight_scale",
+      "physical_shape": [
+        8192,
+        64
+      ],
+      "quantizer_parameters": {
+        "component": "weight_scale",
+        "contract_id": "gem16.nvfp4_bf16_group16",
+        "contract_version": 1,
+        "global_scale_dtype": "F32",
+        "global_scale_role": "divisor",
+        "group_size": 16,
+        "input_divisor": 1.0,
+        "local_scale": "e4m3fn(binary32((block_amax*(1/6))*weight_divisor))",
+        "local_scale_dtype": "F8_E4M3",
+        "packed_dtype": "U8",
+        "packing": "low_nibble_first",
+        "rounding": "nearest_even",
+        "saturation": "finite_saturation",
+        "scale_codec": "E4M3FN",
+        "signed_zero": "preserve_in_nonzero_blocks_canonicalize_zero_blocks",
+        "source_dtype": "BF16",
+        "tensor_granularity": "one_weight_and_input_divisor_per_source_tensor",
+        "value_codec": "E2M1",
+        "weight_divisor": "bf16_rne((448*6)/tensor_amax)",
+        "zero_behavior": "zero_or_underflow_block_emits_zero_scale_and_zero_payload",
+        "zero_tensor_divisor": 1.0
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_mlp_up",
+      "runtime_layout": "sm120_row8_group16_e4m3",
+      "source_names": [
+        "model.layers.3.mlp.up_proj.weight"
+      ],
+      "transformation": "nvfp4-local-scale",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "identity",
+      "dequantization_equation": "output = source",
+      "disk_layout": "source_bf16",
+      "encoder": "copy-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        1024
+      ],
+      "operation_id": "copy-assistant:model.layers.3.post_attention_layernorm.weight",
+      "output_dtype": "BF16",
+      "output_name": "model.layers.3.post_attention_layernorm.weight",
+      "physical_shape": [
+        1024
+      ],
+      "quantizer_parameters": {},
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "post_attention_layer_norm",
+      "runtime_layout": "source_bf16",
+      "source_names": [
+        "model.layers.3.post_attention_layernorm.weight"
+      ],
+      "transformation": "identity-copy",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "identity",
+      "dequantization_equation": "output = source",
+      "disk_layout": "source_bf16",
+      "encoder": "copy-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        1024
+      ],
+      "operation_id": "copy-assistant:model.layers.3.post_feedforward_layernorm.weight",
+      "output_dtype": "BF16",
+      "output_name": "model.layers.3.post_feedforward_layernorm.weight",
+      "physical_shape": [
+        1024
+      ],
+      "quantizer_parameters": {},
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "post_feed_forward_layer_norm",
+      "runtime_layout": "source_bf16",
+      "source_names": [
+        "model.layers.3.post_feedforward_layernorm.weight"
+      ],
+      "transformation": "identity-copy",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "identity",
+      "dequantization_equation": "output = source",
+      "disk_layout": "source_bf16",
+      "encoder": "copy-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        1024
+      ],
+      "operation_id": "copy-assistant:model.layers.3.pre_feedforward_layernorm.weight",
+      "output_dtype": "BF16",
+      "output_name": "model.layers.3.pre_feedforward_layernorm.weight",
+      "physical_shape": [
+        1024
+      ],
+      "quantizer_parameters": {},
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "pre_feed_forward_layer_norm",
+      "runtime_layout": "source_bf16",
+      "source_names": [
+        "model.layers.3.pre_feedforward_layernorm.weight"
+      ],
+      "transformation": "identity-copy",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "identity",
+      "dequantization_equation": "source_approx[n,k] = decode_e4m3fn(weight[n,k]) * decode_bf16(weight_scale[n,0])",
+      "disk_layout": "source_nk_fp8",
+      "encoder": "fp8-rowwise-weight-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        1024,
+        8192
+      ],
+      "operation_id": "fp8-assistant:model.layers.3.self_attn.o_proj",
+      "output_dtype": "F8_E4M3",
+      "output_name": "model.layers.3.self_attn.o_proj.weight",
+      "physical_shape": [
+        1024,
+        8192
+      ],
+      "quantizer_parameters": {
+        "codec": "E4M3FN",
+        "contract_id": "gem16.fp8_attention_rowwise",
+        "contract_version": 1,
+        "finite_max": 448.0,
+        "output_dtype": "F8_E4M3",
+        "rounding": "nearest_even",
+        "scale_axis": "output_row",
+        "scale_dtype": "BF16",
+        "signed_zero": "preserve",
+        "source_dtype": "BF16",
+        "underflow": "minimum_positive_bf16_subnormal",
+        "zero_row_scale": "1.0"
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_attention_o_projection",
+      "runtime_layout": "source_nk_fp8",
+      "source_names": [
+        "model.layers.3.self_attn.o_proj.weight"
+      ],
+      "transformation": "bf16-to-fp8-e4m3fn-rowwise-weight",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "identity",
+      "dequantization_equation": "source_approx[n,k] = decode_e4m3fn(weight[n,k]) * decode_bf16(weight_scale[n,0])",
+      "disk_layout": "row_bf16",
+      "encoder": "fp8-rowwise-scale-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        1024,
+        1
+      ],
+      "operation_id": "fp8-assistant:model.layers.3.self_attn.o_proj",
+      "output_dtype": "BF16",
+      "output_name": "model.layers.3.self_attn.o_proj.weight_scale",
+      "physical_shape": [
+        1024,
+        1
+      ],
+      "quantizer_parameters": {
+        "codec": "E4M3FN",
+        "contract_id": "gem16.fp8_attention_rowwise",
+        "contract_version": 1,
+        "finite_max": 448.0,
+        "output_dtype": "F8_E4M3",
+        "rounding": "nearest_even",
+        "scale_axis": "output_row",
+        "scale_dtype": "BF16",
+        "signed_zero": "preserve",
+        "source_dtype": "BF16",
+        "underflow": "minimum_positive_bf16_subnormal",
+        "zero_row_scale": "1.0"
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_attention_o_projection",
+      "runtime_layout": "row_bf16",
+      "source_names": [
+        "model.layers.3.self_attn.o_proj.weight"
+      ],
+      "transformation": "bf16-to-bf16-rowwise-scale",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "identity",
+      "dequantization_equation": "output = source",
+      "disk_layout": "source_bf16",
+      "encoder": "copy-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        512
+      ],
+      "operation_id": "copy-assistant:model.layers.3.self_attn.q_norm.weight",
+      "output_dtype": "BF16",
+      "output_name": "model.layers.3.self_attn.q_norm.weight",
+      "physical_shape": [
+        512
+      ],
+      "quantizer_parameters": {},
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_attention_q_norm",
+      "runtime_layout": "source_bf16",
+      "source_names": [
+        "model.layers.3.self_attn.q_norm.weight"
+      ],
+      "transformation": "identity-copy",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "identity",
+      "dequantization_equation": "source_approx[n,k] = decode_e4m3fn(weight[n,k]) * decode_bf16(weight_scale[n,0])",
+      "disk_layout": "source_nk_fp8",
+      "encoder": "fp8-rowwise-weight-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        8192,
+        1024
+      ],
+      "operation_id": "fp8-assistant:model.layers.3.self_attn.q_proj",
+      "output_dtype": "F8_E4M3",
+      "output_name": "model.layers.3.self_attn.q_proj.weight",
+      "physical_shape": [
+        8192,
+        1024
+      ],
+      "quantizer_parameters": {
+        "codec": "E4M3FN",
+        "contract_id": "gem16.fp8_attention_rowwise",
+        "contract_version": 1,
+        "finite_max": 448.0,
+        "output_dtype": "F8_E4M3",
+        "rounding": "nearest_even",
+        "scale_axis": "output_row",
+        "scale_dtype": "BF16",
+        "signed_zero": "preserve",
+        "source_dtype": "BF16",
+        "underflow": "minimum_positive_bf16_subnormal",
+        "zero_row_scale": "1.0"
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_attention_q_projection",
+      "runtime_layout": "source_nk_fp8",
+      "source_names": [
+        "model.layers.3.self_attn.q_proj.weight"
+      ],
+      "transformation": "bf16-to-fp8-e4m3fn-rowwise-weight",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "identity",
+      "dequantization_equation": "source_approx[n,k] = decode_e4m3fn(weight[n,k]) * decode_bf16(weight_scale[n,0])",
+      "disk_layout": "row_bf16",
+      "encoder": "fp8-rowwise-scale-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        8192,
+        1
+      ],
+      "operation_id": "fp8-assistant:model.layers.3.self_attn.q_proj",
+      "output_dtype": "BF16",
+      "output_name": "model.layers.3.self_attn.q_proj.weight_scale",
+      "physical_shape": [
+        8192,
+        1
+      ],
+      "quantizer_parameters": {
+        "codec": "E4M3FN",
+        "contract_id": "gem16.fp8_attention_rowwise",
+        "contract_version": 1,
+        "finite_max": 448.0,
+        "output_dtype": "F8_E4M3",
+        "rounding": "nearest_even",
+        "scale_axis": "output_row",
+        "scale_dtype": "BF16",
+        "signed_zero": "preserve",
+        "source_dtype": "BF16",
+        "underflow": "minimum_positive_bf16_subnormal",
+        "zero_row_scale": "1.0"
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_attention_q_projection",
+      "runtime_layout": "row_bf16",
+      "source_names": [
+        "model.layers.3.self_attn.q_proj.weight"
+      ],
+      "transformation": "bf16-to-bf16-rowwise-scale",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "identity",
+      "dequantization_equation": "output = source",
+      "disk_layout": "source_bf16",
+      "encoder": "copy-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        1024
+      ],
+      "operation_id": "copy-assistant:model.norm.weight",
+      "output_dtype": "BF16",
+      "output_name": "model.norm.weight",
+      "physical_shape": [
+        1024
+      ],
+      "quantizer_parameters": {},
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "final_norm",
+      "runtime_layout": "source_bf16",
+      "source_names": [
+        "model.norm.weight"
+      ],
+      "transformation": "identity-copy",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "identity",
+      "dequantization_equation": "source_approx[n,k] = decode_e4m3fn(weight[n,k]) * decode_bf16(weight_scale[n,0])",
+      "disk_layout": "source_nk_fp8",
+      "encoder": "fp8-rowwise-weight-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        2816,
+        1024
+      ],
+      "operation_id": "fp8-assistant:post_projection",
+      "output_dtype": "F8_E4M3",
+      "output_name": "post_projection.weight",
+      "physical_shape": [
+        2816,
+        1024
+      ],
+      "quantizer_parameters": {
+        "codec": "E4M3FN",
+        "contract_id": "gem16.fp8_attention_rowwise",
+        "contract_version": 1,
+        "finite_max": 448.0,
+        "output_dtype": "F8_E4M3",
+        "rounding": "nearest_even",
+        "scale_axis": "output_row",
+        "scale_dtype": "BF16",
+        "signed_zero": "preserve",
+        "source_dtype": "BF16",
+        "underflow": "minimum_positive_bf16_subnormal",
+        "zero_row_scale": "1.0"
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_post_projection",
+      "runtime_layout": "source_nk_fp8",
+      "source_names": [
+        "post_projection.weight"
+      ],
+      "transformation": "bf16-to-fp8-e4m3fn-rowwise-weight",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "identity",
+      "dequantization_equation": "source_approx[n,k] = decode_e4m3fn(weight[n,k]) * decode_bf16(weight_scale[n,0])",
+      "disk_layout": "row_bf16",
+      "encoder": "fp8-rowwise-scale-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        2816,
+        1
+      ],
+      "operation_id": "fp8-assistant:post_projection",
+      "output_dtype": "BF16",
+      "output_name": "post_projection.weight_scale",
+      "physical_shape": [
+        2816,
+        1
+      ],
+      "quantizer_parameters": {
+        "codec": "E4M3FN",
+        "contract_id": "gem16.fp8_attention_rowwise",
+        "contract_version": 1,
+        "finite_max": 448.0,
+        "output_dtype": "F8_E4M3",
+        "rounding": "nearest_even",
+        "scale_axis": "output_row",
+        "scale_dtype": "BF16",
+        "signed_zero": "preserve",
+        "source_dtype": "BF16",
+        "underflow": "minimum_positive_bf16_subnormal",
+        "zero_row_scale": "1.0"
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_post_projection",
+      "runtime_layout": "row_bf16",
+      "source_names": [
+        "post_projection.weight"
+      ],
+      "transformation": "bf16-to-bf16-rowwise-scale",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "identity",
+      "dequantization_equation": "source_approx[n,k] = decode_e4m3fn(weight[n,k]) * decode_bf16(weight_scale[n,0])",
+      "disk_layout": "source_nk_fp8",
+      "encoder": "fp8-rowwise-weight-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        1024,
+        5632
+      ],
+      "operation_id": "fp8-assistant:pre_projection",
+      "output_dtype": "F8_E4M3",
+      "output_name": "pre_projection.weight",
+      "physical_shape": [
+        1024,
+        5632
+      ],
+      "quantizer_parameters": {
+        "codec": "E4M3FN",
+        "contract_id": "gem16.fp8_attention_rowwise",
+        "contract_version": 1,
+        "finite_max": 448.0,
+        "output_dtype": "F8_E4M3",
+        "rounding": "nearest_even",
+        "scale_axis": "output_row",
+        "scale_dtype": "BF16",
+        "signed_zero": "preserve",
+        "source_dtype": "BF16",
+        "underflow": "minimum_positive_bf16_subnormal",
+        "zero_row_scale": "1.0"
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_pre_projection",
+      "runtime_layout": "source_nk_fp8",
+      "source_names": [
+        "pre_projection.weight"
+      ],
+      "transformation": "bf16-to-fp8-e4m3fn-rowwise-weight",
+      "transformation_version": 1
+    },
+    {
+      "aliased": false,
+      "axis_transformation": "identity",
+      "dequantization_equation": "source_approx[n,k] = decode_e4m3fn(weight[n,k]) * decode_bf16(weight_scale[n,0])",
+      "disk_layout": "row_bf16",
+      "encoder": "fp8-rowwise-scale-v1",
+      "logical_dtype": "BF16",
+      "logical_shape": [
+        1024,
+        1
+      ],
+      "operation_id": "fp8-assistant:pre_projection",
+      "output_dtype": "BF16",
+      "output_name": "pre_projection.weight_scale",
+      "physical_shape": [
+        1024,
+        1
+      ],
+      "quantizer_parameters": {
+        "codec": "E4M3FN",
+        "contract_id": "gem16.fp8_attention_rowwise",
+        "contract_version": 1,
+        "finite_max": 448.0,
+        "output_dtype": "F8_E4M3",
+        "rounding": "nearest_even",
+        "scale_axis": "output_row",
+        "scale_dtype": "BF16",
+        "signed_zero": "preserve",
+        "source_dtype": "BF16",
+        "underflow": "minimum_positive_bf16_subnormal",
+        "zero_row_scale": "1.0"
+      },
+      "residency_class": "immutable_device_mtp_assistant",
+      "role": "assistant_pre_projection",
+      "runtime_layout": "row_bf16",
+      "source_names": [
+        "pre_projection.weight"
+      ],
+      "transformation": "bf16-to-bf16-rowwise-scale",
+      "transformation_version": 1
+    }
+  ]
+}

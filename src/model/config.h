@@ -115,9 +115,12 @@ struct ModelConfig {
 [[nodiscard]] Status ValidateGemma4Moe26BContract(const ModelConfig& config);
 [[nodiscard]] Status ValidatePrimaryModelContract(const ModelConfig& config);
 [[nodiscard]] Status ValidateAssistantModelContract(const ModelConfig& config);
+[[nodiscard]] Status ValidateGemma4Moe26BAssistantContract(
+    const ModelConfig& config);
 [[nodiscard]] Status ValidateInspectableModelContract(const ModelConfig& config);
 [[nodiscard]] bool IsPrimaryModel(const ModelConfig& config);
 [[nodiscard]] bool IsGemma4Moe26BModel(const ModelConfig& config);
 [[nodiscard]] bool IsAssistantModel(const ModelConfig& config);
+[[nodiscard]] bool IsGemma4Moe26BAssistantModel(const ModelConfig& config);
 
 }  // namespace gem16::internal

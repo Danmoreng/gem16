@@ -30,8 +30,9 @@ These are payloads, not process peaks.
 Use direct CUDA-visible memory accounting.
 
 - 32K: at least 700 MiB free after weights, slot, graphs and warm generation.
-- Base-model 64K and larger advertised profiles: at least 400 MiB free after the same process. MTP keeps a separate
-  500 MiB requirement.
+- Base-model 64K and larger advertised profiles: at least 400 MiB free after the same process. MTP qualifies 32K
+  first at 700 MiB, then tests 64K at 200 MiB. A 100–199 MiB MTP profile requires repeated fresh-process lifecycle,
+  deterministic-output, zero-allocation-delta and capacity-rejection evidence.
 - `max-single-user`: highest measured base-model context satisfying the 400 MiB rule and correctness tests.
 - one positive 26B slot; a second slot is an expected rejection case.
 
@@ -61,7 +62,10 @@ base target weights
 + safety margin
 ```
 
-Do not assume a BF16 assistant fits. M25 phase A must inventory the compatible assistant and calculate BF16, FP8 and NVFP4 candidate sizes. Prefer an assistant contract that reads Target KV and does not allocate another long-context cache. MTP must pass 32K with the 700 MiB margin, then attempt 64K; publish separate `base_max_context` and `mtp_max_context`.
+The locked QAT-Q4_0 Assistant is compiled as one hybrid candidate: NVFP4 tied embedding/head and MLP, FP8 attention
+Q/O and interface projections, and BF16 norms/scalars. It reads Target KV and must not allocate another long-context
+cache. MTP must pass 32K with the 700 MiB margin, then attempt 64K under the profile-specific reserve rules above;
+publish separate `base_max_context` and `mtp_max_context`.
 
 ## Regression thresholds
 

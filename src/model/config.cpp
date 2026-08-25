@@ -285,7 +285,13 @@ bool IsGemma4Moe26BModel(const ModelConfig& config) {
 }
 
 bool IsAssistantModel(const ModelConfig& config) {
-  return ClassifyModelVariant(config) == ModelVariant::kGemma4UnifiedAssistant;
+  const auto variant = ClassifyModelVariant(config);
+  return variant == ModelVariant::kGemma4UnifiedAssistant ||
+         variant == ModelVariant::kGemma4Moe26BAssistant;
+}
+
+bool IsGemma4Moe26BAssistantModel(const ModelConfig& config) {
+  return ClassifyModelVariant(config) == ModelVariant::kGemma4Moe26BAssistant;
 }
 
 Status ValidateGemma4Unified12BContract(const ModelConfig& config) {
@@ -479,6 +485,81 @@ Status ValidateAssistantModelContract(const ModelConfig& config) {
   return Status::Ok();
 }
 
+Status ValidateGemma4Moe26BAssistantContract(const ModelConfig& config) {
+  if (config.architecture != "Gemma4AssistantForCausalLM") {
+    return AssistantContractError("architecture", "Gemma4AssistantForCausalLM");
+  }
+  if (config.model_type != "gemma4_assistant") {
+    return AssistantContractError("model_type", "gemma4_assistant");
+  }
+  if (config.text_model_type != "gemma4_text") {
+    return AssistantContractError("text_config.model_type", "gemma4_text");
+  }
+  if (config.backbone_hidden_size != 2816 || config.hidden_size != 1024) {
+    return AssistantContractError("hidden dimensions",
+                                  "2816 backbone / 1024 assistant");
+  }
+  if (config.intermediate_size != 8192 || config.layer_count != 4) {
+    return AssistantContractError("decoder dimensions",
+                                  "4 layers / 8192 intermediate");
+  }
+  if (config.query_heads != 16 || config.local_kv_heads != 8 ||
+      config.global_kv_heads != 2) {
+    return AssistantContractError(
+        "attention head counts", "16 query / 8 local KV / 2 global KV");
+  }
+  if (config.local_head_dimension != 256 ||
+      config.global_head_dimension != 512) {
+    return AssistantContractError("head dimensions",
+                                  "256 local / 512 global");
+  }
+  if (config.sliding_window != 1024 || config.max_positions != 262144) {
+    return AssistantContractError("context dimensions",
+                                  "1024 sliding / 262144 maximum");
+  }
+  if (config.vocabulary_size != 262144 || !config.tied_embeddings ||
+      !config.attention_k_eq_v) {
+    return AssistantContractError(
+        "vocabulary, tied embeddings and attention_k_eq_v",
+        "262144 / true / true");
+  }
+  if (!config.shared_kv_layer_count_present ||
+      config.shared_kv_layer_count != 4) {
+    return AssistantContractError("num_kv_shared_layers", "present and 4");
+  }
+  if (config.centroid_count != 2048 ||
+      config.centroid_intermediate_top_k != 32) {
+    return AssistantContractError("centroid metadata",
+                                  "2048 centroids / top-k 32");
+  }
+  if (config.ordered_embeddings || config.use_double_wide_mlp ||
+      config.attention_bias) {
+    return AssistantContractError(
+        "ordered embeddings, double-wide MLP and attention bias",
+        "false / false / false");
+  }
+  constexpr std::array<std::string_view, 4> expected = {
+      "sliding_attention", "sliding_attention", "sliding_attention",
+      "full_attention"};
+  if (config.layer_types.size() != expected.size()) {
+    return AssistantContractError("layer_types length", "4");
+  }
+  for (std::size_t index = 0; index < expected.size(); ++index) {
+    if (config.layer_types[index] != expected[index]) {
+      return AssistantContractError(
+          "layer_types pattern",
+          "three sliding layers followed by one full layer");
+    }
+  }
+  if (!config.quant_method.empty() || !config.quant_format.empty() ||
+      !config.quantization_rules.empty()) {
+    return AssistantContractError(
+        "quantization schema",
+        "absent; the offline Gem16 compilation manifest owns storage formats");
+  }
+  return Status::Ok();
+}
+
 Status ValidateInspectableModelContract(const ModelConfig& config) {
   switch (ClassifyModelVariant(config)) {
     case ModelVariant::kGemma4Unified12B:
@@ -487,6 +568,8 @@ Status ValidateInspectableModelContract(const ModelConfig& config) {
       return ValidateGemma4Moe26BContract(config);
     case ModelVariant::kGemma4UnifiedAssistant:
       return ValidateAssistantModelContract(config);
+    case ModelVariant::kGemma4Moe26BAssistant:
+      return ValidateGemma4Moe26BAssistantContract(config);
     case ModelVariant::kUnsupported:
       break;
   }

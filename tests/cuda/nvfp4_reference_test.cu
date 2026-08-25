@@ -2642,15 +2642,64 @@ void TestFusedProjectionRmsNormRotaryBf16Batch() {
             device_key_norm.get(), physical_key_output.get(),
             rotary_cosine.get(), rotary_sine.get(), tokens, query_heads,
             kv_heads, head_dimension, rotary_factor, 1.0e-6F, nullptr);
+    DeviceBuffer<float> controlled_batch_cosine(tokens * rotating_pairs);
+    DeviceBuffer<float> controlled_batch_sine(tokens * rotating_pairs);
+    DeviceBuffer<gem16::internal::DecodeControl> batch_controls(tokens);
+    std::vector<gem16::internal::DecodeControl> host_batch_controls(tokens);
+    for (std::uint64_t row = 0U; row < tokens; ++row) {
+      host_batch_controls[row].position = start_position + row;
+    }
+    CUDA_TEST_CHECK(controlled_batch_cosine.get() != nullptr);
+    CUDA_TEST_CHECK(controlled_batch_sine.get() != nullptr);
+    CUDA_TEST_CHECK(batch_controls.get() != nullptr);
+    if (controlled_batch_cosine.get() == nullptr ||
+        controlled_batch_sine.get() == nullptr ||
+        batch_controls.get() == nullptr ||
+        !CudaOk(cudaMemcpy(batch_controls.get(), host_batch_controls.data(),
+                           batch_controls.bytes(), cudaMemcpyHostToDevice),
+                "copy batch-controlled RoPE positions")) {
+      return;
+    }
+    const auto controlled_batch_table_status =
+        gem16::internal::LaunchRotaryEmbeddingTableBatchControlled(
+            controlled_batch_cosine.get(), controlled_batch_sine.get(), tokens,
+            rotating_pairs, head_dimension, batch_controls.get(), theta, 1.0,
+            nullptr);
     CUDA_TEST_CHECK(table_status.ok());
     CUDA_TEST_CHECK(fused_status.ok());
     CUDA_TEST_CHECK(physical_status.ok());
+    CUDA_TEST_CHECK(controlled_batch_table_status.ok());
     if (!status.ok() || !table_status.ok() || !fused_status.ok() ||
-        !physical_status.ok() ||
+        !physical_status.ok() || !controlled_batch_table_status.ok() ||
         !CudaOk(cudaGetLastError(), "launch fused Q/K comparison kernels") ||
         !CudaOk(cudaDeviceSynchronize(), label)) {
       return;
     }
+
+    std::vector<float> rotary_cosine_host(tokens * rotating_pairs);
+    std::vector<float> rotary_sine_host(tokens * rotating_pairs);
+    std::vector<float> controlled_batch_cosine_host(tokens * rotating_pairs);
+    std::vector<float> controlled_batch_sine_host(tokens * rotating_pairs);
+    if (!CudaOk(cudaMemcpy(rotary_cosine_host.data(), rotary_cosine.get(),
+                           rotary_cosine.bytes(), cudaMemcpyDeviceToHost),
+                "copy batched RoPE cosine") ||
+        !CudaOk(cudaMemcpy(rotary_sine_host.data(), rotary_sine.get(),
+                           rotary_sine.bytes(), cudaMemcpyDeviceToHost),
+                "copy batched RoPE sine") ||
+        !CudaOk(cudaMemcpy(controlled_batch_cosine_host.data(),
+                           controlled_batch_cosine.get(),
+                           controlled_batch_cosine.bytes(),
+                           cudaMemcpyDeviceToHost),
+                "copy batch-controlled RoPE cosine") ||
+        !CudaOk(cudaMemcpy(controlled_batch_sine_host.data(),
+                           controlled_batch_sine.get(),
+                           controlled_batch_sine.bytes(),
+                           cudaMemcpyDeviceToHost),
+                "copy batch-controlled RoPE sine")) {
+      return;
+    }
+    CUDA_TEST_CHECK(rotary_cosine_host == controlled_batch_cosine_host);
+    CUDA_TEST_CHECK(rotary_sine_host == controlled_batch_sine_host);
 
     std::vector<float> reference_query_host(query_elements);
     std::vector<float> reference_key_host(key_elements);

@@ -414,17 +414,25 @@ Result<Operation> ParseOperation(const Value& value, std::set<std::string>& name
       source_name.value().ends_with(".weight")
           ? source_name.value().substr(0, source_name.value().size() - 7U)
           : source_name.value();
+  const bool mtp_assistant = profile == "sm120-mtp-assistant-hybrid-v1";
   const bool tied_head =
       profile == "nvfp4-tied-head-partial-v1" ||
       (profile == "sm120-text-hybrid-v1" &&
-       source_name.value() == "model.language_model.embed_tokens.weight");
+       source_name.value() == "model.language_model.embed_tokens.weight") ||
+      (mtp_assistant && source_name.value() == "model.embed_tokens.weight");
   const bool complete = scope == "complete";
   const std::string expected_operation_prefix =
+      mtp_assistant ? "nvfp4-assistant:" :
       (scope == "full" || complete) ? "nvfp4-experts:" : "fixture:";
   if (tied_head) {
-    if ((scope != "tied_head" && !complete) ||
-        operation_id.value() != "nvfp4-head:model.language_model.embed_tokens" ||
-        source_name.value() != "model.language_model.embed_tokens.weight") {
+    const bool canonical_m25 =
+        mtp_assistant && operation_id.value() == "nvfp4-assistant:model.embed_tokens" &&
+        source_name.value() == "model.embed_tokens.weight";
+    const bool canonical_m07 =
+        !mtp_assistant &&
+        operation_id.value() == "nvfp4-head:model.language_model.embed_tokens" &&
+        source_name.value() == "model.language_model.embed_tokens.weight";
+    if ((scope != "tied_head" && !complete) || (!canonical_m25 && !canonical_m07)) {
       return Invalid("M07 tied-head operation identity is not canonical");
     }
   } else if (operation_id.value() != expected_operation_prefix + source_stem &&
@@ -435,14 +443,17 @@ Result<Operation> ParseOperation(const Value& value, std::set<std::string>& name
   const bool routed_gate_up = role.value() == "routed_expert_gate_up";
   const bool shared = role.value() == "shared_mlp_down" ||
                       role.value() == "shared_mlp_gate" || role.value() == "shared_mlp_up";
+  const bool assistant_mlp = role.value() == "assistant_mlp_down" ||
+                             role.value() == "assistant_mlp_gate" ||
+                             role.value() == "assistant_mlp_up";
   const bool legal_axis = (routed_down && axis.value() == "expert,output,input") ||
                           (routed_gate_up && axis.value() == "expert,gate_then_up,input") ||
-                          (shared && axis.value() == "output,input") ||
+                          ((shared || assistant_mlp) && axis.value() == "output,input") ||
                           (tied_head && role.value() == "tied_embedding_and_output" && axis.value() == "vocabulary,hidden") ||
                           (scope == "fixture" && axis.value() == "identity");
   const bool legal_runtime = (routed_down || routed_gate_up) &&
                                  runtime.value() == "expert_major_sm120_row8_k64";
-  const bool legal_shared_runtime = shared &&
+  const bool legal_shared_runtime = (shared || assistant_mlp) &&
                                     runtime.value() == "sm120_row8_k64";
   const bool legal_tied_runtime = tied_head && runtime.value() == "sm120_row8_k64";
   if (source_dtype.value() != "BF16" || !legal_axis ||
@@ -517,14 +528,18 @@ Result<Operation> ParseOperation(const Value& value, std::set<std::string>& name
     }
   }
   if (tied_head) {
-    if (shape != std::vector<std::uint64_t>{262144, 2816} || rows.value() != 262144 ||
-        columns.value() != 2816 || role.value() != "tied_embedding_and_output" ||
+    const std::vector<std::uint64_t> expected_shape =
+        mtp_assistant ? std::vector<std::uint64_t>{262144, 1024}
+                      : std::vector<std::uint64_t>{262144, 2816};
+    if (shape != expected_shape || rows.value() != 262144 ||
+        columns.value() != expected_shape[1] || role.value() != "tied_embedding_and_output" ||
         axis.value() != "vocabulary,hidden" || runtime.value() != "sm120_row8_k64") {
       return Invalid("M07 tied-head name/role/shape/layout mismatch");
     }
   }
   if ((scope == "full" || complete) && !tied_head) {
-    const std::string prefix = "model.language_model.layers.";
+    const std::string prefix = mtp_assistant ? "model.layers." :
+                                               "model.language_model.layers.";
     if (source_name.value().find(prefix) != 0) {
       return Invalid("full operation is not canonical");
     }
@@ -535,12 +550,20 @@ Result<Operation> ParseOperation(const Value& value, std::set<std::string>& name
     }
     try {
       const auto layer = std::stoul(source_name.value().substr(layer_start, layer_end - layer_start));
-      if (layer >= 30) return Invalid("full operation layer is outside Gemma 4 26B");
+      if (layer >= (mtp_assistant ? 4U : 30U)) {
+        return Invalid("full operation layer is outside the selected profile");
+      }
     } catch (const std::exception&) {
       return Invalid("full operation layer is invalid");
     }
     const std::string suffix = source_name.value().substr(layer_end);
-    const bool expected =
+    const bool expected = mtp_assistant ?
+        ((suffix == ".mlp.down_proj.weight" && role.value() == "assistant_mlp_down" &&
+          shape == std::vector<std::uint64_t>{1024, 8192}) ||
+         (suffix == ".mlp.gate_proj.weight" && role.value() == "assistant_mlp_gate" &&
+          shape == std::vector<std::uint64_t>{8192, 1024}) ||
+         (suffix == ".mlp.up_proj.weight" && role.value() == "assistant_mlp_up" &&
+          shape == std::vector<std::uint64_t>{8192, 1024})) :
         (suffix == ".experts.down_proj" && routed_down && shape == std::vector<std::uint64_t>{128, 2816, 704}) ||
         (suffix == ".experts.gate_up_proj" && routed_gate_up && shape == std::vector<std::uint64_t>{128, 1408, 2816}) ||
         (suffix == ".mlp.down_proj.weight" && role.value() == "shared_mlp_down" && shape == std::vector<std::uint64_t>{2816, 2112}) ||
@@ -573,10 +596,13 @@ Result<Job> ParseJob(const Value& root) {
       protocol.value() != "gem16-nvfp4-direct-v1" ||
       (profile.value() != "nvfp4-experts-partial-v1" &&
        profile.value() != "nvfp4-tied-head-partial-v1" &&
-       profile.value() != "sm120-text-hybrid-v1") ||
+       profile.value() != "sm120-text-hybrid-v1" &&
+       profile.value() != "sm120-mtp-assistant-hybrid-v1") ||
       ((profile.value() == "nvfp4-experts-partial-v1" && scope.value() != "fixture" && scope.value() != "full") ||
        (profile.value() == "nvfp4-tied-head-partial-v1" && scope.value() != "tied_head") ||
-       (profile.value() == "sm120-text-hybrid-v1" && scope.value() != "complete")) ||
+       ((profile.value() == "sm120-text-hybrid-v1" ||
+         profile.value() == "sm120-mtp-assistant-hybrid-v1") &&
+        scope.value() != "complete")) ||
       contract.value() != "gem16.nvfp4_bf16_group16" || version.value() != 1 ||
       threads.value() < 1 || threads.value() > kMaxThreads) {
     return Invalid("unsupported NVFP4 job identity");
@@ -592,8 +618,12 @@ Result<Job> ParseJob(const Value& root) {
   if (scope.value() == "tied_head" && operations->as_array().size() != 1) {
     return Invalid("tied_head scope requires exactly one operation");
   }
-  if (scope.value() == "complete" && operations->as_array().size() != 151) {
-    return Invalid("complete scope requires 150 expert operations and one tied head");
+  if (scope.value() == "complete") {
+    const std::size_t expected =
+        profile.value() == "sm120-mtp-assistant-hybrid-v1" ? 13U : 151U;
+    if (operations->as_array().size() != expected) {
+      return Invalid("complete scope operation count does not match profile");
+    }
   }
   Job job{schema.value(), protocol.value(), profile.value(), scope.value(), contract.value(),
           version.value(), threads.value(), {}};
@@ -618,6 +648,18 @@ Result<Job> ParseJob(const Value& root) {
       expected.insert(prefix + ".mlp.up_proj.weight");
     }
     if (names != expected) return Invalid("full scope operation inventory is not canonical");
+  }
+  if (profile.value() == "sm120-mtp-assistant-hybrid-v1") {
+    std::set<std::string> expected{"model.embed_tokens.weight"};
+    for (std::size_t layer = 0; layer < 4; ++layer) {
+      const std::string prefix = "model.layers." + std::to_string(layer) + ".mlp.";
+      expected.insert(prefix + "down_proj.weight");
+      expected.insert(prefix + "gate_proj.weight");
+      expected.insert(prefix + "up_proj.weight");
+    }
+    if (names != expected) {
+      return Invalid("M25 Assistant NVFP4 operation inventory is not canonical");
+    }
   }
   return job;
 }

@@ -85,6 +85,9 @@ struct alignas(16) MtpChainResult {
   std::uint64_t rejected_count = 0U;
   std::uint64_t group_count = 0U;
   std::uint64_t ordinary_tail_count = 0U;
+  // Sticky device-side fault counter. Every verifier group and ordinary tail
+  // latches non-finite Target logits/router state before the chain advances.
+  std::uint64_t non_finite_step_count = 0U;
   std::uint64_t reasoning_ordinary_count = 0U;
   std::uint64_t reasoning_token_count = 0U;
   std::uint32_t stopped = 0U;
@@ -104,6 +107,12 @@ static_assert(offsetof(MtpGroupTransaction, control) % 16U == 0U);
     const MtpDeviceControl* control, const std::uint32_t* drafts,
     std::uint32_t* inputs, DecodeControl* row_controls,
     std::uint32_t suppressed_token_count, cudaStream_t stream);
+
+[[nodiscard]] Status LaunchBuildControlledMtpInputs(
+    const MtpDeviceControl* control, const std::uint32_t* drafts,
+    std::uint32_t draft_count, std::uint32_t* inputs,
+    DecodeControl* row_controls, std::uint32_t suppressed_token_count,
+    cudaStream_t stream);
 
 [[nodiscard]] Status LaunchAcceptMtpGroup(
     const std::uint32_t* drafts, const std::uint32_t* verified,
@@ -142,6 +151,13 @@ static_assert(offsetof(MtpGroupTransaction, control) % 16U == 0U);
     std::uint64_t elements_per_token, std::uint64_t capacity, bool restore,
     const MtpDeviceControl* control, cudaStream_t stream);
 
+[[nodiscard]] Status LaunchCopyCircularMtpKvFp8Controlled(
+    std::uint8_t* cache_key, std::uint8_t* cache_value,
+    std::uint8_t* compact_key, std::uint8_t* compact_value,
+    std::uint32_t tokens, std::uint64_t elements_per_token,
+    std::uint64_t capacity, bool restore,
+    const MtpDeviceControl* control, cudaStream_t stream);
+
 [[nodiscard]] Status LaunchSetMtpAttentionPosition(DecodeControl* control,
                                                     std::uint64_t position,
                                                     cudaStream_t stream);
@@ -159,7 +175,19 @@ static_assert(offsetof(MtpGroupTransaction, control) % 16U == 0U);
     const MtpGroupResult* result, const MtpDeviceControl* control,
     cudaStream_t stream);
 
+[[nodiscard]] Status LaunchCommitMtpKvFp8Controlled(
+    const std::uint8_t* compact_key, const std::uint8_t* compact_value,
+    std::uint8_t* cache_key, std::uint8_t* cache_value,
+    std::uint64_t elements_per_token, std::uint64_t capacity,
+    const MtpGroupResult* result, const MtpDeviceControl* control,
+    cudaStream_t stream);
+
 [[nodiscard]] Status LaunchAdvanceMtpD2Chain(
+    MtpGroupTransaction* transaction, MtpChainResult* chain_result,
+    std::uint32_t* output_tokens, std::uint32_t* proposed_tokens,
+    MtpStreamingRing* streaming_ring, cudaStream_t stream);
+
+[[nodiscard]] Status LaunchAdvanceMtpChain(
     MtpGroupTransaction* transaction, MtpChainResult* chain_result,
     std::uint32_t* output_tokens, std::uint32_t* proposed_tokens,
     MtpStreamingRing* streaming_ring, cudaStream_t stream);

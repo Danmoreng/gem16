@@ -8,6 +8,8 @@
 
 namespace gem16::internal {
 
+struct Gemma4MoePrefillWorkspace;
+
 class Gemma4Moe26BDeviceArtifact;
 
 // Correctness-only view of one NVFP4 matrix in the immutable M08/M09 arena.
@@ -142,6 +144,17 @@ BindGemma4Moe26BReferenceWeights(
     const Gemma4MoeReferenceWorkspace& workspace, cudaStream_t stream,
     cudaStream_t shared_branch_stream = nullptr,
     cudaEvent_t fork_event = nullptr, cudaEvent_t join_event = nullptr);
+
+// M25 correctness-preserving Target microbatch. Shared Gate/Up/Down weights
+// are consumed once across T<=5 rows by exact-batch kernels; router and routed
+// experts retain the frozen ordinary-decode arithmetic and slot order.
+[[nodiscard]] Status LaunchGemma4MoeSm120MtpSharedBatchLayer(
+    const float* hidden, float* output, std::uint64_t tokens,
+    const Gemma4MoeReferenceConfig& config,
+    const Gemma4MoeReferenceWeights& weights,
+    const Gemma4MoePrefillWorkspace& batch_workspace,
+    const Gemma4MoeReferenceWorkspace& decode_workspace,
+    cudaStream_t stream);
 
 // Launches only the deterministic decode softmax/Top-K/scaling stage. This is
 // an internal differential-test hook: all pointers are caller-owned device

@@ -77,6 +77,18 @@ struct DecodeControl;
     const DecodeControl* row_controls, std::uint64_t cache_capacity,
     cudaStream_t stream);
 
+// Exact fixed-D local verifier for T=D+1 rows. The production MTP depths use
+// T=2, 3, or 5; each specialization stages the shared historical/speculative
+// K/V union once while preserving the ordinary row-wise arithmetic order.
+[[nodiscard]] Status LaunchOnlineAttentionDecodeFp8LocalFixedControlledSm120(
+    const float* query, const std::uint8_t* key_cache,
+    const std::uint8_t* value_cache, const std::uint8_t* speculative_key,
+    const std::uint8_t* speculative_value,
+    const std::uint16_t* key_scale_bf16,
+    const std::uint16_t* value_scale_bf16, float* workspace, float* output,
+    const DecodeControl* row_controls, std::uint32_t tokens,
+    std::uint64_t cache_capacity, cudaStream_t stream);
+
 // Exact three-row global-attention verifier. Historical K/V values are loaded
 // once for all rows below the GQA threshold. At 16K and above, each row uses
 // the ordinary all-head GQA staging kernel independently, retaining identical
@@ -96,6 +108,14 @@ struct DecodeControl;
     const std::uint16_t* value_scale_bf16, float* workspace, float* output,
     const DecodeControl* row_controls, std::uint64_t cache_capacity,
     cudaStream_t stream);
+
+[[nodiscard]] Status LaunchOnlineAttentionDecodeFp8GlobalFixedControlledSm120(
+    const float* query, const std::uint8_t* key_cache,
+    const std::uint8_t* value_cache,
+    const std::uint16_t* key_scale_bf16,
+    const std::uint16_t* value_scale_bf16, float* workspace, float* output,
+    const DecodeControl* row_controls, std::uint32_t tokens,
+    std::uint64_t cache_capacity, cudaStream_t stream);
 
 // Covers both the local D256/256-token split and global D512/512-token split.
 // The returned count includes normalized partial outputs and their LSE values.

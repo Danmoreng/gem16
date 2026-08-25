@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "milestone": "M25-development",
+  "status": "bounded_long_d2_characterization_pass",
+  "performance_eligible": false,
+  "measured_on": "2026-08-25",
+  "scenario": {
+    "id": "wikipedia-real-16k1135-forced-greedy",
+    "prompt_tokens": 16384,
+    "fixed_output_tokens": 1135,
+    "timed_post_first_tokens": 1134,
+    "context_capacity": 32768,
+    "draft_length": 2,
+    "stop_tokens_ignored": true,
+    "note": "The established 1,135-token forced-output characterization is a sustained decode stress, not natural EOS completion."
+  },
+  "correctness": {
+    "ordinary_target_identity": true,
+    "matched_post_first_tokens": 1134,
+    "output_token_ids_le_u32_sha256": "d0fcfcc68cc3b015282e301261e6d90079a84cd9b8f2927c4fe0f98bcb461983",
+    "minimum_target_top1_margin": 0.0
+  },
+  "acceptance": {
+    "groups": 491,
+    "proposed_drafts": 981,
+    "accepted_drafts": 643,
+    "rejected_drafts": 338,
+    "target_verified_rate": 0.655453618756,
+    "precision_gate_50_percent_pass": true
+  },
+  "timing": {
+    "mtp_post_first_seconds": 7.313598256,
+    "mtp_post_first_tokens_per_second": 155.053635749,
+    "ordinary_post_first_seconds": 7.806124564,
+    "ordinary_post_first_tokens_per_second": 145.270548875,
+    "mtp_speedup_percent": 6.73439107222,
+    "mtp_initial_selection_seconds": 0.184748427,
+    "ordinary_initial_selection_seconds": 0.18484616
+  },
+  "comparison_limitations": [
+    "This is one development run, not a three-warm-up/ten-retained qualification.",
+    "The accepted M20 150.615 token/s median uses only 63 post-first intervals at positions 16,384 through 16,447; this run advances through roughly 17.5K context.",
+    "The earlier 169.73 token/s short-group projection assumed the first 64-token sample's 74 percent acceptance; sustained acceptance is 65.55 percent."
+  ],
+  "evidence": {
+    "raw_path": "artifacts/raw/m25/hybrid-target-exact-qkvo-moe-batch-wikipedia-16k1135-d2-v1.json",
+    "raw_sha256": "c5e9b686632d714c4571788a8e373e04f6eb5508f3866e30337f9b16ed725c3e",
+    "binary_sha256": "4d9a9af39bad9fb01de1d2e16f34752ea9d71838bb2b1a60b664c7a97bc39435"
+  }
+}

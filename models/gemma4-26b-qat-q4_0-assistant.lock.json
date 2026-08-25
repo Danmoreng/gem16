@@ -1,0 +1,60 @@
+{
+  "schema_version": 2,
+  "repository": "google/gemma-4-26B-A4B-it-qat-q4_0-unquantized-assistant",
+  "revision": "9537141506fe8875b3ed45b264af13580cb29166",
+  "resolved_at_utc": "2026-08-25T14:23:10Z",
+  "source_url": "https://huggingface.co/google/gemma-4-26B-A4B-it-qat-q4_0-unquantized-assistant/tree/9537141506fe8875b3ed45b264af13580cb29166",
+  "terms_url": "https://ai.google.dev/gemma/terms",
+  "files": [
+    {
+      "path": ".gitattributes",
+      "size": 1570,
+      "sha256": "34448b82c17d60fec9b65b1f093c115ddbaadc04beb1b0140b6bfed2e012a930",
+      "git_oid": "52373fe24473b1aa44333d318f578ae6bf04b49b"
+    },
+    {
+      "path": "README.md",
+      "size": 29389,
+      "sha256": "732b098d24ea2b7e6cec99ebbf8e8500345e946294e4649db5657435e2ac7e92",
+      "git_oid": "9418304cf302e90ca04dc4e7527de91c00ae0053"
+    },
+    {
+      "path": "chat_template.jinja",
+      "size": 18683,
+      "sha256": "ae53464bf3be25802b3a5b37def7fd89667067d7577049b3b2d74c4d8de4c6d4",
+      "git_oid": "4741bf6e4132ba23a5537f9d6e74e9a6d613d7cd"
+    },
+    {
+      "path": "config.json",
+      "size": 2355,
+      "sha256": "23d2bc4a8920f24c23653ff6871437bbd95e52527bf50007aaad05b0b6cab510",
+      "git_oid": "fb66d3adaec276da489ea549bc6ec5e82a798ee8"
+    },
+    {
+      "path": "generation_config.json",
+      "size": 209,
+      "sha256": "fb53f4c64e58896a63472e8eb304397db4a39453e1da0f5d57625ec5a8c1050e",
+      "git_oid": "76d3a00538aca6a1b85db3328e1b0f4e93316420"
+    },
+    {
+      "path": "model.safetensors",
+      "size": 839427840,
+      "sha256": "c082cc581c3ec90d70285c1a41c81544ff56cbc96650f16c900a280940655801",
+      "git_oid": "929c00492f3bcf1c573fae6b97b4b667342be222",
+      "lfs_oid": "c082cc581c3ec90d70285c1a41c81544ff56cbc96650f16c900a280940655801"
+    },
+    {
+      "path": "tokenizer.json",
+      "size": 32169440,
+      "sha256": "75a6583c1a418e2bbd79c60d95d28e0f5bf549ad3f2990b5bdb5238c6c2bf70c",
+      "git_oid": "24aa4244652e010036db5fdd29ed39b9428e6e19",
+      "lfs_oid": "75a6583c1a418e2bbd79c60d95d28e0f5bf549ad3f2990b5bdb5238c6c2bf70c"
+    },
+    {
+      "path": "tokenizer_config.json",
+      "size": 3023,
+      "sha256": "01f2ff1c21ef2e722891380323edcaecd9c86a776aeb9b40148e2f35e3cee4d3",
+      "git_oid": "0672fbe45a4922b10e6ccd13947ecdb166bead28"
+    }
+  ]
+}

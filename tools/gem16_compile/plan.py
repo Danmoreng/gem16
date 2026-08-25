@@ -40,6 +40,9 @@ from .profiles import (
     M07_QUANTIZER_PARAMETERS,
     M07_SOURCE_CONTRACT,
     M08_PROFILE,
+    M25_PROFILE,
+    M25_SOURCE_CONTRACT,
+    M25_SOURCE_LOCK_SHA256,
     classify_m05_source,
     m06_component_parameters,
     m06_expected_source_specs,
@@ -735,6 +738,230 @@ def _validate_m08_coverage(
             raise InvalidPlanError(f"M08 exclusion mismatch: {item.source_name}")
 
 
+def _m25_source_specs() -> dict[str, tuple[str, tuple[int, ...]]]:
+    specs: dict[str, tuple[str, tuple[int, ...]]] = {
+        "model.embed_tokens.weight": (
+            "tied_embedding_and_output", (262144, 1024)
+        ),
+        "model.norm.weight": ("final_norm", (1024,)),
+        "pre_projection.weight": ("assistant_pre_projection", (1024, 5632)),
+        "post_projection.weight": ("assistant_post_projection", (2816, 1024)),
+    }
+    for layer in range(4):
+        prefix = f"model.layers.{layer}."
+        q_rows = 8192 if layer == 3 else 4096
+        q_norm = 512 if layer == 3 else 256
+        specs.update({
+            prefix + "input_layernorm.weight": ("input_layer_norm", (1024,)),
+            prefix + "layer_scalar": ("layer_scalar", (1,)),
+            prefix + "mlp.down_proj.weight": ("assistant_mlp_down", (1024, 8192)),
+            prefix + "mlp.gate_proj.weight": ("assistant_mlp_gate", (8192, 1024)),
+            prefix + "mlp.up_proj.weight": ("assistant_mlp_up", (8192, 1024)),
+            prefix + "post_attention_layernorm.weight": (
+                "post_attention_layer_norm", (1024,)
+            ),
+            prefix + "post_feedforward_layernorm.weight": (
+                "post_feed_forward_layer_norm", (1024,)
+            ),
+            prefix + "pre_feedforward_layernorm.weight": (
+                "pre_feed_forward_layer_norm", (1024,)
+            ),
+            prefix + "self_attn.o_proj.weight": (
+                "assistant_attention_o_projection", (1024, q_rows)
+            ),
+            prefix + "self_attn.q_norm.weight": (
+                "assistant_attention_q_norm", (q_norm,)
+            ),
+            prefix + "self_attn.q_proj.weight": (
+                "assistant_attention_q_projection", (q_rows, 1024)
+            ),
+        })
+    return dict(sorted(specs.items()))
+
+
+def _validate_m25_nvfp4_source(
+    source_name: str,
+    source: TensorDescriptor,
+    group: list[TensorCompilePlan],
+    role: str,
+    expected_shape: tuple[int, ...],
+) -> None:
+    if source.dtype != "BF16" or tuple(source.shape) != expected_shape:
+        raise InvalidPlanError(
+            f"M25 NVFP4 source mismatch: {source_name}; expected BF16 "
+            f"{expected_shape}, got {source.dtype} {source.shape}"
+        )
+    if len(expected_shape) != 2 or expected_shape[-1] % 16 != 0:
+        raise InvalidPlanError(f"M25 NVFP4 source shape is unsupported: {source_name}")
+    if len(group) != 4:
+        raise InvalidPlanError(f"M25 NVFP4 source requires four outputs: {source_name}")
+    stem = source_name.removesuffix(".weight")
+    expected = {
+        f"{stem}.weight_packed": (
+            "nvfp4-packed-v1", "nvfp4-packed", "U8",
+            expected_shape[:-1] + (expected_shape[-1] // 2,),
+        ),
+        f"{stem}.weight_scale": (
+            "nvfp4-local-scale-v1", "nvfp4-local-scale", "F8_E4M3",
+            expected_shape[:-1] + (expected_shape[-1] // 16,),
+        ),
+        f"{stem}.weight_global_scale": (
+            "nvfp4-weight-divisor-v1", "nvfp4-weight-divisor", "F32", (1,)
+        ),
+        f"{stem}.input_global_scale": (
+            "nvfp4-input-divisor-v1", "nvfp4-input-divisor", "F32", (1,)
+        ),
+    }
+    if {item.output_name for item in group} != set(expected):
+        raise InvalidPlanError(f"M25 NVFP4 output names mismatch: {source_name}")
+    tied = role == "tied_embedding_and_output"
+    axis = "vocabulary,hidden" if tied else "output,input"
+    for item in group:
+        encoder, transformation, dtype, shape = expected[item.output_name]
+        component = item.output_name.rsplit(".", 1)[-1]
+        layout = M07_COMPONENT_LAYOUTS[component]
+        if (
+            item.operation_id != f"nvfp4-assistant:{stem}"
+            or item.source_names != (source_name,)
+            or item.encoder != encoder
+            or item.transformation != transformation
+            or item.transformation_version != 1
+            or item.output_dtype != dtype
+            or item.physical_shape != shape
+            or item.logical_dtype != "BF16"
+            or item.logical_shape != expected_shape
+            or item.axis_transformation != axis
+            or item.quantizer_parameters != m07_component_parameters(component)
+            or item.dequantization_equation != M07_DEQUANTIZATION_EQUATION
+            or item.role != role
+            or item.residency_class != "immutable_device_mtp_assistant"
+            or item.disk_layout != layout["disk_layout"]
+            or item.runtime_layout != layout["runtime_layout_shared"]
+            or item.aliased != tied
+        ):
+            raise InvalidPlanError(
+                f"M25 NVFP4 semantic contract mismatch: {item.output_name}"
+            )
+
+
+def _validate_m25_fp8_source(
+    source_name: str,
+    source: TensorDescriptor,
+    group: list[TensorCompilePlan],
+    role: str,
+    expected_shape: tuple[int, ...],
+) -> None:
+    if source.dtype != "BF16" or tuple(source.shape) != expected_shape:
+        raise InvalidPlanError(
+            f"M25 FP8 source mismatch: {source_name}; expected BF16 "
+            f"{expected_shape}, got {source.dtype} {source.shape}"
+        )
+    if len(expected_shape) != 2 or len(group) != 2:
+        raise InvalidPlanError(f"M25 FP8 source requires two matrix outputs: {source_name}")
+    rows, columns = expected_shape
+    stem = source_name.removesuffix(".weight")
+    expected = {
+        source_name: (
+            "fp8-rowwise-weight-v1", "bf16-to-fp8-e4m3fn-rowwise-weight",
+            "F8_E4M3", (rows, columns), "source_nk_fp8",
+        ),
+        f"{stem}.weight_scale": (
+            "fp8-rowwise-scale-v1", "bf16-to-bf16-rowwise-scale",
+            "BF16", (rows, 1), "row_bf16",
+        ),
+    }
+    if {item.output_name for item in group} != set(expected):
+        raise InvalidPlanError(f"M25 FP8 output names mismatch: {source_name}")
+    for item in group:
+        encoder, transformation, dtype, shape, layout = expected[item.output_name]
+        if (
+            item.operation_id != f"fp8-assistant:{stem}"
+            or item.source_names != (source_name,)
+            or item.encoder != encoder
+            or item.transformation != transformation
+            or item.transformation_version != 1
+            or item.output_dtype != dtype
+            or item.physical_shape != shape
+            or item.logical_dtype != "BF16"
+            or item.logical_shape != shape
+            or item.axis_transformation != "identity"
+            or item.quantizer_parameters != M05_QUANTIZER_PARAMETERS
+            or item.dequantization_equation != M05_DEQUANTIZATION_EQUATION
+            or item.role != role
+            or item.residency_class != "immutable_device_mtp_assistant"
+            or item.disk_layout != layout
+            or item.runtime_layout != layout
+            or item.aliased
+        ):
+            raise InvalidPlanError(
+                f"M25 FP8 semantic contract mismatch: {item.output_name}"
+            )
+
+
+def _validate_m25_coverage(
+    tensors: tuple[TensorCompilePlan, ...],
+    excluded: tuple[ExcludedTensorPlan, ...],
+    source_tensors: dict[str, TensorDescriptor],
+) -> None:
+    specs = _m25_source_specs()
+    if set(source_tensors) != set(specs):
+        missing = sorted(set(specs) - set(source_tensors))
+        extra = sorted(set(source_tensors) - set(specs))
+        raise InvalidPlanError(
+            f"M25 Assistant source inventory mismatch: missing={missing[:3]} "
+            f"extra={extra[:3]}"
+        )
+    if excluded:
+        raise InvalidPlanError("M25 Assistant hybrid artifact excludes no source tensors")
+    by_source: dict[str, list[TensorCompilePlan]] = {}
+    for tensor in tensors:
+        if len(tensor.source_names) != 1:
+            raise InvalidPlanError("M25 Assistant encoders require one source tensor")
+        by_source.setdefault(tensor.source_names[0], []).append(tensor)
+    if set(by_source) != set(specs):
+        raise InvalidPlanError("M25 Assistant source coverage is incomplete")
+    nvfp4_roles = {
+        "tied_embedding_and_output", "assistant_mlp_down",
+        "assistant_mlp_gate", "assistant_mlp_up",
+    }
+    fp8_roles = {
+        "assistant_attention_q_projection", "assistant_attention_o_projection",
+        "assistant_pre_projection", "assistant_post_projection",
+    }
+    for name, (role, shape) in specs.items():
+        source = source_tensors[name]
+        if (
+            source.dtype != "BF16"
+            or tuple(source.shape) != shape
+            or source.byte_length != tensor_bytes("BF16", shape, name)
+        ):
+            raise InvalidPlanError(f"M25 Assistant source descriptor mismatch: {name}")
+        group = by_source[name]
+        if role in nvfp4_roles:
+            _validate_m25_nvfp4_source(name, source, group, role, shape)
+        elif role in fp8_roles:
+            _validate_m25_fp8_source(name, source, group, role, shape)
+        else:
+            if len(group) != 1:
+                raise InvalidPlanError(f"M25 BF16 source must be copied once: {name}")
+            item = group[0]
+            _validate_copy_plan(item, source)
+            if (
+                item.output_name != name
+                or item.operation_id != f"copy-assistant:{name}"
+                or item.role != role
+                or item.residency_class != "immutable_device_mtp_assistant"
+                or item.disk_layout != "source_bf16"
+                or item.runtime_layout != "source_bf16"
+                or item.aliased
+            ):
+                raise InvalidPlanError(f"M25 BF16 copy contract mismatch: {name}")
+    if len(tensors) != 97:
+        raise InvalidPlanError(f"M25 expected 97 output tensors, got {len(tensors)}")
+    if sum(item.output_bytes for item in tensors) != 258_306_160:
+        raise InvalidPlanError("M25 Assistant hybrid output byte count mismatch")
+
+
 def _validate_coverage(
     tensors: tuple[TensorCompilePlan, ...],
     excluded: tuple[ExcludedTensorPlan, ...],
@@ -790,6 +1017,8 @@ def _validate_coverage(
         _validate_m07_coverage(tensors, excluded, source_tensors)
     elif profile.name == M08_PROFILE.name:
         _validate_m08_coverage(tensors, excluded, source_tensors)
+    elif profile.name == M25_PROFILE.name:
+        _validate_m25_coverage(tensors, excluded, source_tensors)
     for item in excluded:
         if item.source_name not in source_tensors:
             raise InvalidPlanError(f"excluded source tensor is absent: {item.source_name}")
@@ -862,6 +1091,12 @@ def load_quantization_plan(
         qat_lock = M05_SOURCE_LOCK_SHA256["qat_bf16"]
         if source.lock_sha256 != qat_lock or expected_source_lock != qat_lock:
             raise InvalidPlanError(f"{contract.milestone} requires the approved QAT BF16 source lock")
+    elif contract.name == M25_PROFILE.name:
+        if (
+            source.lock_sha256 != M25_SOURCE_LOCK_SHA256
+            or expected_source_lock != M25_SOURCE_LOCK_SHA256
+        ):
+            raise InvalidPlanError("M25 requires the approved QAT-Q4_0 Assistant source lock")
     if expected_source_lock != source.lock_sha256:
         raise InvalidPlanError(
             "compiler manifest is bound to another source lock: "
@@ -892,9 +1127,14 @@ def load_quantization_plan(
     omitted_families = tuple(
         sorted(_string_array(document.get("omitted_families"), "omitted_families"))
     )
-    if omitted_families != EXPECTED_OMITTED_FAMILIES:
+    expected_omitted = (
+        ("audio", "video", "vision")
+        if contract.name == M25_PROFILE.name
+        else EXPECTED_OMITTED_FAMILIES
+    )
+    if omitted_families != expected_omitted:
         raise InvalidPlanError(
-            "compiler omitted_families must be exactly audio, mtp, video, vision"
+            f"compiler omitted_families must be exactly {', '.join(expected_omitted)}"
         )
     tensor_values = document.get("tensors")
     excluded_values = document.get("excluded_tensors")
@@ -940,6 +1180,10 @@ def load_quantization_plan(
         raise InvalidPlanError(
             "M07 source_contract must be "
             f"{M07_SOURCE_CONTRACT!r}"
+        )
+    if contract.name == M25_PROFILE.name and source_contract != M25_SOURCE_CONTRACT:
+        raise InvalidPlanError(
+            f"M25 source_contract must be {M25_SOURCE_CONTRACT!r}"
         )
     compiler_manifest_hash = sha256_bytes(raw_bytes)
     resolved_document = {

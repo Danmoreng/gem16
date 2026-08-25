@@ -209,6 +209,15 @@ struct DecodeControl {
     std::uint64_t frequency_dimension, const DecodeControl* control,
     double theta, double scaling_factor, cudaStream_t stream);
 
+// Device-controlled counterpart of LaunchRotaryEmbeddingTableBatch. Each row
+// reads its position from controls[row], which keeps fixed-D graph replay to a
+// single RoPE-table launch without assuming consecutive host-known positions.
+[[nodiscard]] Status LaunchRotaryEmbeddingTableBatchControlled(
+    float* cosine, float* sine, std::uint64_t tokens,
+    std::uint64_t rotating_pairs, std::uint64_t frequency_dimension,
+    const DecodeControl* controls, double theta, double scaling_factor,
+    cudaStream_t stream);
+
 [[nodiscard]] Status LaunchProjectionRmsNormRotaryBf16Batch(
     const float* query, const std::uint16_t* query_norm_bf16,
     float* normalized_query, const float* key,
