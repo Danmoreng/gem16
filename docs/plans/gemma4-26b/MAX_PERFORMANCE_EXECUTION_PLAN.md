@@ -265,6 +265,12 @@ Exit: a checked-in compact attribution that selects the next decode candidate. T
 
 #### D03a: two independent 128-token splits per CTA
 
+Status: rejected and fully reverted on 2026-08-25. Two exact end-to-end samples regressed from the 138.746-token/s
+parent mean to 137.489 token/s. The special global kernel grew from 56 to 80 registers/thread and from 595.574 to
+691.700 instrumented microseconds despite reducing the 16K grid from 258 to 130 CTAs. D03b is therefore skipped.
+Negative evidence is `artifacts/m20/optimization-global-paired-splits-rejected.json`; do not retry sequential split
+pairing without a different live-range design and fresh occupancy proof.
+
 In `SplitOnlineDecodeAttentionFp8GlobalKvh2Kernel`, map one CTA to two adjacent existing 128-token splits while
 preserving:
 
@@ -500,16 +506,15 @@ under the current owner authorization; do not push unless the owner explicitly r
 
 ## 11. Immediate handoff
 
-P01 is retained, P02 is rejected and D00 is complete. The compact profile selects **D03a** as the next isolated
-mechanism:
+P01 is retained, P02 and D03a are rejected, D03b is skipped and D00 is complete. The next isolated mechanism is
+**D04**, independent asynchronous K/V double buffering inside the existing one-split KVH2 CTA:
 
-1. implement two independent existing 128-token global splits per CTA without combining their online-softmax state;
-2. add 127/128/129 and 255/256/257 operator boundaries plus both physical KV heads and a final tail;
-3. compare partial output, LSE and merged output against the current kernel before full-engine timing;
-4. reject any exact-hash change, spill, loss of the current four-block register residency, or sub-threshold full-engine
-   result;
-5. if D03a is rejected, proceed to the larger constant-cost D09/D10 targets identified by D00 rather than forcing the
-   attention design.
+1. keep one split per CTA and preserve all current score, softmax, PV and merge arithmetic;
+2. test K-only and V-only ping-pong staging independently before combining them;
+3. keep the current 56-register/four-block residency and reject spills or harmful shared-memory occupancy loss;
+4. retain the existing long-context and final-tail differential gates, then measure isolated kernel and full-engine
+   decode;
+5. if no D04 subcandidate wins, proceed to the larger constant-cost D09/D10 targets identified by D00.
 
 ## 12. Complete candidate inventory
 

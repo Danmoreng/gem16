@@ -79,6 +79,21 @@ KVH2 kernel, with no observed local-memory spill. D03a is therefore selected nex
 four-block register residency and exact output hash. Compact attribution, raw hashes and measurement limitations are
 in `artifacts/m20/decode-attribution-d00.json`; this profiling step changes no runtime source and makes no speed claim.
 
+## 2026-08-25 Rejected D03a paired global splits
+
+D03a mapped two adjacent 128-token global-attention splits to one KVH2 CTA while retaining two sequential, independent
+online-softmax states and reusing query registers. Operator differentials were bit-exact against both the prior
+single-split specialization and group-four oracle at 127/128/129, 255/256/257, long-context and final-tail token
+counts. Both full-engine samples retained output hash `c750d0…`, finite output, zero fallback/allocation and the same
+memory margin.
+
+Performance rejected the design: the two samples reached 137.660 and 137.317 ordinary token/s (mean 137.489), or
+-0.91% versus the 138.746 parent mean. Nsight reduced the 16K global grid from 258 to 130 CTAs but increased the
+kernel from 595.574 to 691.700 microseconds (+16.14%) and its register demand from 56 to 80 per thread. The candidate
+therefore crossed the predefined residency kill boundary. All runtime/test code was reverted, D03b is skipped, and
+D04 K/V pipelining is selected next. Compact negative evidence is
+`artifacts/m20/optimization-global-paired-splits-rejected.json`.
+
 ## 2026-08-24 CTA-wide grouped-expert activation staging
 
 The accepted development candidate stages each 16-assignment/K64 activation tile once per four-warp grouped-expert
