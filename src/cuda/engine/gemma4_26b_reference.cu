@@ -243,6 +243,14 @@ struct LogitCandidate {
   std::uint32_t id;
 };
 
+struct PredictionStatus {
+  std::uint32_t token;
+  float logit;
+  int finite;
+  int routing_finite;
+};
+static_assert(sizeof(PredictionStatus) == 16U);
+
 __device__ __forceinline__ LogitCandidate BetterCandidate(
     LogitCandidate left, LogitCandidate right) {
   return right.value > left.value ||
@@ -278,7 +286,8 @@ __global__ void SoftcapArgmaxBlocksKernel(float* logits, float softcap,
 }
 
 __global__ void FinalArgmaxKernel(const LogitCandidate* candidates,
-                                  std::uint32_t* token, float* value) {
+                                  std::uint32_t* token, float* value,
+                                  DecodeControl* next_control) {
   __shared__ LogitCandidate partial[kArgmaxThreads];
   LogitCandidate best{-3.402823466e+38F, 0U};
   for (unsigned index = threadIdx.x; index < kArgmaxBlocks;
@@ -297,13 +306,21 @@ __global__ void FinalArgmaxKernel(const LogitCandidate* candidates,
   if (threadIdx.x == 0U) {
     *token = partial[0].id;
     *value = partial[0].value;
+    if (next_control != nullptr) {
+      // Prepare the ordinary greedy successor inside the captured graph. The
+      // host validates token and position before it omits an explicit control
+      // update, so teacher forcing and sampled overrides remain exact.
+      next_control->token = partial[0].id;
+      ++next_control->position;
+    }
   }
 }
 
 Status LaunchSoftcapArgmax(float* logits, float softcap, int* all_finite,
                            LogitCandidate* candidates,
                            std::uint32_t* token, float* value,
-                           cudaStream_t stream) {
+                           cudaStream_t stream,
+                           DecodeControl* next_control = nullptr) {
   cudaError_t error = cudaMemsetAsync(all_finite, 1, sizeof(int), stream);
   if (error != cudaSuccess) {
     return CudaFailure("initialize M17 finite flag", error);
@@ -314,8 +331,8 @@ Status LaunchSoftcapArgmax(float* logits, float softcap, int* all_finite,
   if (error != cudaSuccess) {
     return CudaFailure("launch M17 fused softcap/argmax blocks", error);
   }
-  FinalArgmaxKernel<<<1, kArgmaxThreads, 0, stream>>>(candidates, token,
-                                                      value);
+  FinalArgmaxKernel<<<1, kArgmaxThreads, 0, stream>>>(
+      candidates, token, value, next_control);
   error = cudaGetLastError();
   return error == cudaSuccess
              ? Status::Ok()
@@ -353,6 +370,10 @@ struct Gemma4Moe26BReferenceEngine::Impl {
   std::uint64_t maximum_global_position_exclusive = 0U;
   std::uint64_t fallback_count = 0U;
   std::uint64_t recurring_allocation_count = 0U;
+  bool pending_decode_self_feed = false;
+  bool decode_self_feed_valid = false;
+  std::uint32_t decode_self_feed_token = 0U;
+  std::uint64_t decode_self_feed_position = 0U;
   Gemma4Moe26BBackend backend = Gemma4Moe26BBackend::kReference;
   cudaStream_t stream = nullptr;
   cudaStream_t shared_moe_stream = nullptr;
@@ -389,6 +410,8 @@ struct Gemma4Moe26BReferenceEngine::Impl {
   std::uint8_t* head_activation = nullptr;
   std::uint8_t* head_activation_scales = nullptr;
   float* logits = nullptr;
+  PredictionStatus* prediction_device_status = nullptr;
+  PredictionStatus* prediction_host_status = nullptr;
   std::uint32_t* prediction_token = nullptr;
   float* prediction_logit = nullptr;
   int* finite = nullptr;
@@ -423,6 +446,9 @@ struct Gemma4Moe26BReferenceEngine::Impl {
     if (decode_graph != nullptr) (void)cudaGraphExecDestroy(decode_graph);
     if (prefill_host_tokens != nullptr) {
       (void)cudaFreeHost(prefill_host_tokens);
+    }
+    if (prediction_host_status != nullptr) {
+      (void)cudaFreeHost(prediction_host_status);
     }
     if (stream != nullptr) {
       (void)cudaStreamDestroy(stream);
@@ -535,7 +561,8 @@ Status Gemma4Moe26BReferenceEngine::Impl::LaunchControlledDecodeBody() {
       head.activation_global_divisor, head.weight_global_divisor, stream);
   if (!status.ok()) return status;
   return LaunchSoftcapArgmax(logits, softcap, finite, output_candidates,
-                             prediction_token, prediction_logit, stream);
+                             prediction_token, prediction_logit, stream,
+                             decode_control);
 }
 
 Status Gemma4Moe26BReferenceEngine::Impl::PrepareDecodeGraph() {
@@ -766,10 +793,7 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
   const auto head_activation_scale_offset =
       layout.Add<std::uint8_t>(kWidth / 16U);
   const auto logits = layout.Add<float>(kVocabulary);
-  const auto prediction_token = layout.Add<std::uint32_t>(1U);
-  const auto prediction_logit = layout.Add<float>(1U);
-  const auto finite = layout.Add<int>(1U);
-  const auto routing_finite = layout.Add<int>(1U);
+  const auto prediction_status = layout.Add<PredictionStatus>(1U);
   const auto output_candidates = layout.Add<LogitCandidate>(kArgmaxBlocks);
   const auto decode_control = layout.Add<DecodeControl>(1U);
   auto sampling_workspace_bytes = SamplingWorkspaceBytes(
@@ -856,15 +880,30 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
       reinterpret_cast<float*>(ptr(routed_post)),
       reinterpret_cast<float*>(ptr(combined)),
       reinterpret_cast<float*>(ptr(feed_forward)),
-      reinterpret_cast<int*>(ptr(routing_finite))};
+      reinterpret_cast<int*>(
+          ptr(prediction_status) +
+          offsetof(PredictionStatus, routing_finite))};
   impl->head_activation = reinterpret_cast<std::uint8_t*>(ptr(head_activation));
   impl->head_activation_scales =
       reinterpret_cast<std::uint8_t*>(ptr(head_activation_scale_offset));
   impl->logits = reinterpret_cast<float*>(ptr(logits));
-  impl->prediction_token = reinterpret_cast<std::uint32_t*>(ptr(prediction_token));
-  impl->prediction_logit = reinterpret_cast<float*>(ptr(prediction_logit));
-  impl->finite = reinterpret_cast<int*>(ptr(finite));
-  impl->routing_finite = reinterpret_cast<int*>(ptr(routing_finite));
+  impl->prediction_device_status =
+      reinterpret_cast<PredictionStatus*>(ptr(prediction_status));
+  auto* prediction_status_bytes = reinterpret_cast<std::byte*>(
+      impl->prediction_device_status);
+  impl->prediction_token = reinterpret_cast<std::uint32_t*>(
+      prediction_status_bytes + offsetof(PredictionStatus, token));
+  impl->prediction_logit = reinterpret_cast<float*>(
+      prediction_status_bytes + offsetof(PredictionStatus, logit));
+  impl->finite = reinterpret_cast<int*>(
+      prediction_status_bytes + offsetof(PredictionStatus, finite));
+  impl->routing_finite = reinterpret_cast<int*>(
+      prediction_status_bytes + offsetof(PredictionStatus, routing_finite));
+  error = cudaMallocHost(&impl->prediction_host_status,
+                         sizeof(PredictionStatus));
+  if (error != cudaSuccess) {
+    return CudaFailure("allocate pinned M20 prediction status", error);
+  }
   impl->output_candidates =
       reinterpret_cast<LogitCandidate*>(ptr(output_candidates));
   impl->decode_control = reinterpret_cast<DecodeControl*>(ptr(decode_control));
@@ -1133,6 +1172,10 @@ Status Gemma4Moe26BReferenceEngine::Reset() {
   implementation_->maximum_global_position_exclusive = 0U;
   implementation_->fallback_count = 0U;
   implementation_->recurring_allocation_count = 0U;
+  implementation_->pending_decode_self_feed = false;
+  implementation_->decode_self_feed_valid = false;
+  implementation_->decode_self_feed_token = 0U;
+  implementation_->decode_self_feed_position = 0U;
   return Status::Ok();
 }
 
@@ -1151,9 +1194,16 @@ Status Gemma4Moe26BReferenceEngine::ForwardToken(std::uint32_t token) {
     if (x.decode_graph == nullptr) {
       return Invalid("M17 decode graph is not initialized");
     }
-    SetDecodeControlKernel<<<1, 1, 0, x.stream>>>(x.decode_control, token,
-                                                  x.position);
-    cudaError_t graph_error = cudaGetLastError();
+    const bool use_device_self_feed =
+        x.decode_self_feed_valid && x.decode_self_feed_token == token &&
+        x.decode_self_feed_position == x.position;
+    x.decode_self_feed_valid = false;
+    cudaError_t graph_error = cudaSuccess;
+    if (!use_device_self_feed) {
+      SetDecodeControlKernel<<<1, 1, 0, x.stream>>>(x.decode_control, token,
+                                                    x.position);
+      graph_error = cudaGetLastError();
+    }
     if (graph_error == cudaSuccess) {
       graph_error = cudaGraphLaunch(x.decode_graph, x.stream);
     }
@@ -1163,6 +1213,7 @@ Status Gemma4Moe26BReferenceEngine::ForwardToken(std::uint32_t token) {
     const std::uint64_t previous_position = x.position;
     ++x.position;
     ++x.decode_graph_launches;
+    x.pending_decode_self_feed = true;
     if (x.sliding_capacity != 0U && previous_position != 0U &&
         previous_position % x.sliding_capacity == 0U) {
       ++x.sliding_ring_wraps;
@@ -1264,6 +1315,8 @@ Status Gemma4Moe26BReferenceEngine::PrefillTokens(
     if (token >= kVocabulary) return Invalid("M17 prefill token is invalid");
   }
   auto& x = *implementation_;
+  x.pending_decode_self_feed = false;
+  x.decode_self_feed_valid = false;
   constexpr unsigned threads = 256U;
   std::size_t consumed = 0U;
   cudaError_t error =
@@ -1382,33 +1435,29 @@ Result<Gemma4Moe26BReferencePrediction>
 Gemma4Moe26BReferenceEngine::Prediction() {
   if (!implementation_) return Invalid("M13 engine is not initialized");
   auto& x = *implementation_;
-  cudaError_t error = cudaStreamSynchronize(x.stream);
-  if (error != cudaSuccess) return CudaFailure("synchronize M13 prediction", error);
-  Gemma4Moe26BReferencePrediction result;
-  int finite = 0;
-  int routing_finite = 0;
-  error = cudaMemcpy(&result.token, x.prediction_token, sizeof(result.token),
-                     cudaMemcpyDeviceToHost);
-  if (error == cudaSuccess) {
-    error = cudaMemcpy(&result.logit, x.prediction_logit, sizeof(result.logit),
-                       cudaMemcpyDeviceToHost);
+  cudaError_t error = cudaMemcpyAsync(
+      x.prediction_host_status, x.prediction_device_status,
+      sizeof(PredictionStatus), cudaMemcpyDeviceToHost, x.stream);
+  if (error == cudaSuccess) error = cudaStreamSynchronize(x.stream);
+  if (error != cudaSuccess) {
+    return CudaFailure("copy compact M20 prediction status", error);
   }
-  if (error == cudaSuccess) {
-    error = cudaMemcpy(&finite, x.finite, sizeof(finite), cudaMemcpyDeviceToHost);
-  }
-  if (error == cudaSuccess) {
-    error = cudaMemcpy(&routing_finite, x.routing_finite,
-                       sizeof(routing_finite), cudaMemcpyDeviceToHost);
-  }
-  if (error != cudaSuccess) return CudaFailure("copy M13 prediction", error);
-  if (routing_finite == 0) {
+  const PredictionStatus status = *x.prediction_host_status;
+  Gemma4Moe26BReferencePrediction result{status.token, status.logit,
+                                         status.finite != 0};
+  if (status.routing_finite == 0) {
     return Status(StatusCode::kInternal,
                   "Gemma 4 26B router produced a non-finite value");
   }
-  result.all_logits_finite = finite != 0;
   if (!result.all_logits_finite) {
     return Status(StatusCode::kInternal,
                   "Gemma 4 26B output logits are non-finite");
+  }
+  if (x.pending_decode_self_feed) {
+    x.pending_decode_self_feed = false;
+    x.decode_self_feed_valid = true;
+    x.decode_self_feed_token = status.token;
+    x.decode_self_feed_position = x.position;
   }
   return result;
 }

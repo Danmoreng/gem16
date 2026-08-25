@@ -37,7 +37,7 @@ The maximum-performance campaign stops only when at least one of these condition
 Implementation baseline:
 
 - branch: `feat/gemma4-26b`;
-- retained local development series: `4b7c2f3` through the D04b attention and D09 decode-MoE candidates;
+- retained local development series: `4b7c2f3` through the D04b attention, D09 decode-MoE and D11 host-tail candidates;
 - integrated 26B prefill router: `sm120_bf16_tensor_core`;
 - explicit rollback: `serial_exact` selected before execution;
 - one fully resident target-weight representation;
@@ -49,10 +49,10 @@ Adjacent development measurements:
 
 | Metric | Current mean | M20 gate | Status |
 |---|---:|---:|---|
-| Prompt throughput | 6,564.959 token/s | 6,000 token/s | pass |
-| Prompt stretch | 6,564.959 token/s | 6,500 token/s | pass |
-| Ordinary decode | 140.029 token/s | 150 token/s | open |
-| Ordinary token latency | 7.141 ms | 6.667 ms | save about 0.475 ms/token |
+| Prompt throughput | 6,586.402 token/s | 6,000 token/s | pass |
+| Prompt stretch | 6,586.402 token/s | 6,500 token/s | pass |
+| Ordinary decode | 140.459 token/s | 150 token/s | open |
+| Ordinary token latency | 7.120 ms | 6.667 ms | save about 0.453 ms/token |
 
 The current Tensor-Core-router output-token SHA-256 is
 `c750d0b33f8eb4a8103299875886e51ab144d874cafe8cea77b0cfd99d2aedaf`. The explicit serial-router rollback produces
@@ -367,6 +367,11 @@ Do not use the invalid historical W13 result as a baseline. Require current hash
 
 #### D10: fused greedy head candidates
 
+Status: the exact full-logit fusion was rejected on 2026-08-25 at 139.830 token/s. Folding softcap and per-block
+candidate reduction into the already memory-bound head epilogue cost more than the removed 4.3-microsecond softcap
+kernel. The more invasive production-only no-logit Graph remains optional, but its traffic ceiling is small relative
+to the open M20 gap and it must retain a separate full-logit sampling/diagnostic path.
+
 For ordinary greedy, test an NVFP4 head epilogue that emits per-CTA finite candidate `(rounded_logit, token_id)`
 without writing the complete 262,144-float logit buffer. Preserve the current BF16 projection rounding, softcap
 evaluation, and token-ID tie-break. Keep the full-logit path for sampling, suppression, `CopyLogits()`, and diagnosis.
@@ -375,6 +380,13 @@ Measure head traffic, candidate reduction, Graph nodes, and full-engine effect. 
 bit-identical merely because softcap is monotonic.
 
 #### D11: device self-feed and compact host status
+
+Status: retained on 2026-08-25. One create-time pinned 16-byte status replaces four aligned device scalar regions and
+four pageable D2H calls; FinalArgmax advances `DecodeControl` on device, and a matching greedy follow-up skips the
+separate control kernel. Forced/sampled overrides still restore control explicitly. Three final samples average
+140.459 token/s, while the direct A/B parent/candidate comparison attributes +0.193% and 13.7 microseconds/token to
+the coherent change. Engine replay/relaunch, forced-token override, the real M22 product lifecycle and the protected
+12B path pass. Compact evidence is `artifacts/m20/optimization-compact-prediction-self-feed.json`.
 
 Treat this as one coherent Graph/control experiment rather than repeating a copy-only microchange:
 
@@ -523,8 +535,8 @@ under the current owner authorization; do not push unless the owner explicitly r
 P01 and D04b are retained; P02 and D03a are rejected; D03b is skipped; D00 is complete. The next isolated mechanisms
 are the larger constant-cost targets identified by D00:
 
-1. retain the exact D09 split-routed-W13 plus fused product/quantization result as the new measured parent;
-2. implement D10 output-head traffic reduction next, then keep D11 coherent device self-feed independent;
+1. retain the exact D09 and D11 results as the new 140.459-token/s measured parent; D10 full-logit fusion is rejected;
+2. implement D05 exact parallel Router Top-8 next; D00 attributes about 326 microseconds/token to the current kernel;
 3. retain the current `c750d0...` output hash, fixed Graph/arena contract and no-spill boundary;
 4. screen each mechanism with an operator differential and adjacent 16K+64 full-engine samples;
 5. do not combine candidates until each isolated delta is known.
