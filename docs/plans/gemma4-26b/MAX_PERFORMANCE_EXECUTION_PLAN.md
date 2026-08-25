@@ -38,8 +38,8 @@ Implementation baseline:
 
 - branch: `feat/gemma4-26b`;
 - retained local development series: `4b7c2f3` through the D04b attention, D09 decode-MoE including omitted native
-  contribution writes, D11 host-tail, D05 exact decode Top-8, D12 exact native MoE post-norm fusion and D13
-  shared-memory post-norm intermediates;
+  contribution writes, D11 host-tail, D05 exact decode Top-8, D12/D13 native MoE post-norm fusion, and D15-D20
+  exact expert-epilog/warp-geometry cleanup;
 - integrated 26B prefill router: `sm120_bf16_tensor_core`;
 - explicit rollback: `serial_exact` selected before execution;
 - one fully resident target-weight representation;
@@ -51,10 +51,10 @@ Adjacent development measurements:
 
 | Metric | Current mean | M20 gate | Status |
 |---|---:|---:|---|
-| Prompt throughput | 6,591.300 token/s | 6,000 token/s | pass |
-| Prompt stretch | 6,591.300 token/s | 6,500 token/s | pass |
-| Ordinary decode | 146.567 token/s | 150 token/s | open |
-| Ordinary token latency | 6.823 ms | 6.667 ms | save about 0.156 ms/token |
+| Prompt throughput | 6,568.395 token/s | 6,000 token/s | development pass |
+| Prompt stretch | 6,568.395 token/s | 6,500 token/s | development pass |
+| Ordinary decode | 150.413 token/s | 150 token/s | development pass |
+| Ordinary token latency | 6.648 ms | 6.667 ms | 0.275% throughput margin |
 
 The current Tensor-Core-router output-token SHA-256 is
 `c750d0b33f8eb4a8103299875886e51ab144d874cafe8cea77b0cfd99d2aedaf`. The explicit serial-router rollback produces
@@ -534,22 +534,23 @@ under the current owner authorization; do not push unless the owner explicitly r
 
 ## 11. Immediate handoff
 
-P01, D04b, D05, D09d, D12 and D13 are retained; P02, D03a and D10 are rejected; D03b is skipped; D00 is complete. D05 replaces eight
+P01, D04b, D05, D09d, D12, D13 and D15-D20 are retained; P02, D03a, D10 and D17 are rejected; D03b is skipped; D00 is complete. D05 replaces eight
 serial Top-8 selection rounds with an exact two-stage four-warp bitonic selection, reducing the profiled router from
 326.238 to 209.214 microseconds/token. D09d then omits the unused native 8x2816 contribution writes, reducing its
 reduction kernel from 52.735 to 25.344 microseconds/token. D12 fuses the two exact branch post norms and combined
 post-norm/residual into one 512-thread CTA, reducing 491.897 to 419.096 microseconds/token and removing 30 Graph
 nodes. D13 keeps those exact post-norm intermediates in 33,792 bytes of CTA shared memory, reducing the fused kernel
-from 419.096 to 290.329 microseconds/token with zero local bytes/thread. The resulting three-run 16K+64 row is
-6,591.300 prompt and 146.567 ordinary-decode token/s with the unchanged `c750d0...` hash. The next isolated mechanisms
-are the larger remaining constant-cost targets identified by the refreshed profile:
+from 419.096 to 290.329 microseconds/token with zero local bytes/thread. D15 then fuses W2's exact BF16 slot-order
+reduction, D16/D18 use eight useful warps for routed/shared W13, and D19 omits the unconsumed native
+router-normalization diagnostic write. The final D20 launch audit leaves 637 decode-Graph nodes and actual SM120
+`OMMA.SF.16864.F32.E2M1.E2M1.UE4M3.4X` dispatch. The resulting three-run 16K+64 row is 6,568.395 prompt and
+150.413 ordinary-decode token/s with the unchanged `c750d0...` hash. The immediate sequence is now:
 
-1. use the exact D09, D11, D05, D09d, D12 and D13 result as the new 146.567-token/s measured parent;
-2. select the next exact D09 expert-kernel or attention candidate by measured remaining
-   time; D10 full-logit fusion remains rejected;
-3. retain the current `c750d0...` output hash, fixed Graph/arena contract and no-spill boundary;
-4. screen each mechanism with an operator differential and adjacent 16K+64 full-engine samples;
-5. do not combine candidates until each isolated delta is known.
+1. freeze this exact development candidate; do not mix another optimization into its qualification evidence;
+2. run matching M21 real 32K/64K context execution and memory checks;
+3. align and run M20's exact three-warm-up/ten-retained qualifier;
+4. accept M20 only if both retained medians pass and all fixed semantics/evidence remain valid;
+5. resume post-M20 staged performance work from this parent rather than treating 150 as a terminal optimum.
 
 ## 12. Complete candidate inventory
 

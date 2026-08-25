@@ -640,6 +640,7 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
   if (backend == Gemma4Moe26BBackend::kSm120Integrated) {
     impl->moe_config.prefill_router =
         Gemma4MoePrefillRouter::kSm120TensorCore;
+    impl->moe_config.materialize_native_router_normalized = false;
   }
   impl->traits = traits.value();
   for (const auto& trait : impl->traits) {

@@ -127,6 +127,16 @@ candidate. Compact evidence is under `artifacts/m20/optimization-final-chunk-onl
 `artifacts/m20/optimization-decode-moe-split-fused-quant.json`, plus
 `artifacts/m20/optimization-compact-prediction-self-feed.json`.
 
+Later on 2026-08-25 the exact development series reached 6,568.395 mean prompt tok/s and 150.413 mean ordinary
+decode tok/s over three adjacent canonical runs. The retained slice fuses selected W2 with the original BF16,
+slot-ordered reduction epilogue, uses eight useful warps per CTA for routed and shared W13 without changing logical
+work or arithmetic, and omits an unconsumed native router-normalization diagnostic write. The output remains
+`c750d0…`; real-shape randomized differentials, the five focused test groups, memcheck/racecheck/initcheck, real
+two-process engine replay/relaunch and protected 12B product regression pass. This satisfies the fixed throughput
+targets for a **development candidate**, not formal M20: M21 matching 32K/64K execution and M20's three-warm-up/ten-
+retained median qualification are still required. See
+`artifacts/m20/optimization-decode-fused-expert-epilog.json`.
+
 The owner set the base-model 64K residency and later execution reserve to 400 MiB on 2026-08-14 so that 64K remains
 a required supported target. This supersedes the prior 500 MiB base-model rule for 64K and larger contexts. The 32K
 gate remains 700 MiB, and MTP keeps its separate 500 MiB 64K gate until M25 measures assistant overhead.

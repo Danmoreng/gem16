@@ -245,6 +245,7 @@ __global__ void MoeInputNormsRouterTransformKernel(
   }
 }
 
+template <bool kMaterializeRouterNormalized>
 __global__ void MoeInputNormsRouterTransformNvfp4Kernel(
     const float* hidden, const std::uint16_t* pre_shared_norm,
     const std::uint16_t* pre_expert_norm,
@@ -282,7 +283,9 @@ __global__ void MoeInputNormsRouterTransformNvfp4Kernel(
       expert_values[local] = expert_value;
       shared_amax = fmaxf(shared_amax, fabsf(shared_value));
       expert_amax = fmaxf(expert_amax, fabsf(expert_value));
-      router_normalized[index] = normalized;
+      if constexpr (kMaterializeRouterNormalized) {
+        router_normalized[index] = normalized;
+      }
       router_transformed[index] = RoundBf16(
           normalized * Bf16(router_scale[index]) * router_divisor);
     }
@@ -877,13 +880,25 @@ Status LaunchGemma4MoeLayerImpl(
 
   Status status;
   if (native_sm120) {
-    MoeInputNormsRouterTransformNvfp4Kernel<<<1, kNormThreads, 0, stream>>>(
-        hidden, w.pre_shared_norm_bf16, w.pre_expert_norm_bf16,
-        w.router_scale_bf16, x.shared_input_packed, x.shared_input_scales,
-        x.expert_input_packed, x.expert_input_scales, x.router_normalized,
-        x.router_transformed, c.width, c.epsilon,
-        w.shared_gate.activation_global_divisor,
-        w.expert_gate_up.activation_global_divisor);
+    if (c.materialize_native_router_normalized) {
+      MoeInputNormsRouterTransformNvfp4Kernel<true><<<
+          1, kNormThreads, 0, stream>>>(
+          hidden, w.pre_shared_norm_bf16, w.pre_expert_norm_bf16,
+          w.router_scale_bf16, x.shared_input_packed, x.shared_input_scales,
+          x.expert_input_packed, x.expert_input_scales, x.router_normalized,
+          x.router_transformed, c.width, c.epsilon,
+          w.shared_gate.activation_global_divisor,
+          w.expert_gate_up.activation_global_divisor);
+    } else {
+      MoeInputNormsRouterTransformNvfp4Kernel<false><<<
+          1, kNormThreads, 0, stream>>>(
+          hidden, w.pre_shared_norm_bf16, w.pre_expert_norm_bf16,
+          w.router_scale_bf16, x.shared_input_packed, x.shared_input_scales,
+          x.expert_input_packed, x.expert_input_scales, x.router_normalized,
+          x.router_transformed, c.width, c.epsilon,
+          w.shared_gate.activation_global_divisor,
+          w.expert_gate_up.activation_global_divisor);
+    }
     status = CheckLaunch(
         "launch fused M14 input norms, router transform, and NVFP4 quantization");
     if (!status.ok()) return status;
@@ -988,11 +1003,11 @@ Status LaunchGemma4MoeLayerImpl(
         x.expert_product_scales, c.top_k, c.expert_intermediate,
         w.expert_down.activation_global_divisor, stream);
     if (!status.ok()) return status;
-    status = LaunchNvfp4Sm120SelectedDirectProjectionBf16FloatBatch(
+    status = LaunchNvfp4Sm120SelectedDirectProjectionReduceBf16FloatBatch(
         x.expert_product_packed, x.expert_product_scales,
         w.expert_down.packed_e2m1, w.expert_down.scales_e4m3fn, x.top_ids,
-        c.top_k, x.expert_down, c.width, c.expert_intermediate, c.experts,
-        w.expert_down.activation_global_divisor,
+        x.top_weights, c.top_k, x.routed_sum, c.width,
+        c.expert_intermediate, c.experts, w.expert_down.activation_global_divisor,
         w.expert_down.weight_global_divisor, stream);
     if (!status.ok()) return status;
   } else {
@@ -1034,13 +1049,14 @@ Status LaunchGemma4MoeLayerImpl(
       return CudaFailure("join M14 shared branch", error);
     }
   }
-  WeightedReductionKernel<<<static_cast<unsigned>(Blocks(c.width)), kThreads,
-                            0, stream>>>(
-      x.expert_down, x.top_weights,
-      native_sm120 ? nullptr : x.expert_contributions, x.routed_sum,
-      c.width, c.top_k);
-  status = CheckLaunch("launch M11 slot-order expert reduction");
-  if (!status.ok()) return status;
+  if (!native_sm120) {
+    WeightedReductionKernel<<<static_cast<unsigned>(Blocks(c.width)), kThreads,
+                              0, stream>>>(
+        x.expert_down, x.top_weights, x.expert_contributions, x.routed_sum,
+        c.width, c.top_k);
+    status = CheckLaunch("launch M11 slot-order expert reduction");
+    if (!status.ok()) return status;
+  }
   if (native_sm120) {
     const std::size_t post_norm_shared_bytes =
         3U * static_cast<std::size_t>(c.width) * sizeof(float);

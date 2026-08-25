@@ -384,6 +384,7 @@ void TestSelectedExpertSlotBatch() {
       gate_up_scales(gate_up_weight_bytes / 8U),
       down_weights(down_weight_bytes), down_scales(down_weight_bytes / 8U);
   DeviceBuffer<std::uint32_t> selected_ids(kTopK);
+  DeviceBuffer<float> selected_weights(kTopK), reduced_down(kWidth);
   DeviceBuffer<float> sequential_gate_up(kTopK * 2U * kIntermediate),
       batched_gate_up(kTopK * 2U * kIntermediate),
       split_gate_up(kTopK * 2U * kIntermediate),
@@ -397,6 +398,9 @@ void TestSelectedExpertSlotBatch() {
       split_product_scales(kTopK * kIntermediate / 16U);
   const std::array<std::uint32_t, kTopK> ids{7U, 1U, 5U, 0U,
                                              3U, 6U, 2U, 4U};
+  const std::array<float, kTopK> weights{0.1875F, 0.15625F, 0.140625F,
+                                         0.125F, 0.109375F, 0.09375F,
+                                         0.078125F, 0.0625F};
   CHECK(CudaOk(cudaMemcpy(device_activation.get(),
                           quantized.value().packed_e2m1.data(),
                           device_activation.bytes(), cudaMemcpyHostToDevice),
@@ -423,6 +427,9 @@ void TestSelectedExpertSlotBatch() {
   CHECK(CudaOk(cudaMemcpy(selected_ids.get(), ids.data(), selected_ids.bytes(),
                           cudaMemcpyHostToDevice),
                "copy slot-batch selected IDs"));
+  CHECK(CudaOk(cudaMemcpy(selected_weights.get(), weights.data(),
+                          selected_weights.bytes(), cudaMemcpyHostToDevice),
+               "copy slot-batch selected weights"));
 
   for (std::uint32_t slot = 0; slot < kTopK; ++slot) {
     const std::uint64_t product_offset =
@@ -529,16 +536,38 @@ void TestSelectedExpertSlotBatch() {
                 batched_down.get(), kWidth, kIntermediate, kExperts, 1.0F,
                 1.0F, nullptr)
             .ok());
+  CHECK(gem16::internal::
+            LaunchNvfp4Sm120SelectedDirectProjectionReduceBf16FloatBatch(
+                product_packed.get(), product_scales.get(), down_weights.get(),
+                down_scales.get(), selected_ids.get(), selected_weights.get(),
+                kTopK, reduced_down.get(), kWidth, kIntermediate, kExperts,
+                1.0F, 1.0F, nullptr)
+            .ok());
   CHECK(CudaOk(cudaDeviceSynchronize(), "synchronize slot-batch W2"));
   std::vector<float> sequential_down_values(kTopK * kWidth),
-      batched_down_values(kTopK * kWidth);
+      batched_down_values(kTopK * kWidth), reduced_down_values(kWidth);
   CHECK(CudaOk(cudaMemcpy(sequential_down_values.data(), sequential_down.get(),
                           sequential_down.bytes(), cudaMemcpyDeviceToHost),
                "copy sequential W2"));
   CHECK(CudaOk(cudaMemcpy(batched_down_values.data(), batched_down.get(),
                           batched_down.bytes(), cudaMemcpyDeviceToHost),
                "copy batched W2"));
+  CHECK(CudaOk(cudaMemcpy(reduced_down_values.data(), reduced_down.get(),
+                          reduced_down.bytes(), cudaMemcpyDeviceToHost),
+               "copy fused/reduced W2"));
   CHECK(sequential_down_values == batched_down_values);
+  for (std::uint64_t row = 0U; row < kWidth; ++row) {
+    float expected = 0.0F;
+    for (std::uint32_t slot = 0U; slot < kTopK; ++slot) {
+      const float weighted = DecodeBf16(Bf16(
+          batched_down_values[static_cast<std::uint64_t>(slot) * kWidth +
+                              row] *
+          weights[slot]));
+      expected += weighted;
+    }
+    expected = DecodeBf16(Bf16(expected));
+    CHECK(reduced_down_values[row] == expected);
+  }
 }
 
 void TestPhysicalBf16GroupedExpertOperators() {

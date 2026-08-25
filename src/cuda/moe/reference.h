@@ -103,6 +103,10 @@ struct Gemma4MoeReferenceConfig {
   float epsilon = 0.0F;
   Gemma4MoePrefillRouter prefill_router =
       Gemma4MoePrefillRouter::kSerialExact;
+  // Standalone diagnostics materialize this pre-projection boundary. The
+  // integrated native engine has no consumer for it and may omit only this
+  // redundant write while retaining router_transformed and all outputs.
+  bool materialize_native_router_normalized = true;
 };
 
 // Initialization-only pointer resolution for one exact 26B layer. The

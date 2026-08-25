@@ -86,6 +86,28 @@ struct Gemma4MoePrefillAssignment;
     float weight_global_divisor,
     cudaStream_t stream);
 
+// Batch-one decode W2 for all eight selected experts with the exact
+// slot-ordered weighted reduction in the projection epilogue. Each expert
+// accumulator crosses the same BF16 boundary as the materialized path before
+// multiplication by its router weight; only the unused slot-major FP32
+// intermediate is omitted.
+[[nodiscard]] Status
+LaunchNvfp4Sm120SelectedDirectProjectionReduceBf16FloatBatch(
+    const std::uint8_t* packed_activation_e2m1,
+    const std::uint8_t* activation_scales_e4m3fn,
+    const std::uint8_t* packed_expert_weight_e2m1,
+    const std::uint8_t* expert_weight_scales_e4m3fn,
+    const std::uint32_t* selected_ids,
+    const float* selected_weights,
+    std::uint32_t top_k,
+    float* reduced_output,
+    std::uint64_t rows_per_expert,
+    std::uint64_t contracting_elements,
+    std::uint32_t experts,
+    float activation_global_divisor,
+    float weight_global_divisor,
+    cudaStream_t stream);
+
 // Grouped W2. Products are in stable expert-grouped order; the epilogue
 // scatters rows back to original token/top-k assignment order.
 [[nodiscard]] Status LaunchNvfp4Sm120GroupedExpertDown(
