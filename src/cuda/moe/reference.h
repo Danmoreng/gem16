@@ -86,6 +86,14 @@ enum class Gemma4MoePrefillRouter {
   kSm120TensorCore,
 };
 
+// Internal correctness selector for differential decode-router tests. The
+// production SM120 path uses kParallelExact; kSerialExact remains an explicit
+// bitwise oracle and rollback without changing softmax or scaling semantics.
+enum class Gemma4MoeDecodeTopK {
+  kSerialExact,
+  kParallelExact,
+};
+
 struct Gemma4MoeReferenceConfig {
   std::uint64_t width = 0;
   std::uint64_t shared_intermediate = 0;
@@ -130,5 +138,15 @@ BindGemma4Moe26BReferenceWeights(
     const Gemma4MoeReferenceWorkspace& workspace, cudaStream_t stream,
     cudaStream_t shared_branch_stream = nullptr,
     cudaEvent_t fork_event = nullptr, cudaEvent_t join_event = nullptr);
+
+// Launches only the deterministic decode softmax/Top-K/scaling stage. This is
+// an internal differential-test hook: all pointers are caller-owned device
+// storage and the launcher performs no allocation or synchronization.
+[[nodiscard]] Status LaunchGemma4MoeDecodeTopKDiagnostic(
+    const float* logits, const std::uint16_t* per_expert_scale_bf16,
+    float* probabilities, std::uint32_t* top_ids, float* top_weights,
+    std::uint32_t experts, std::uint32_t top_k,
+    Gemma4MoeDecodeTopK implementation, int* routing_finite,
+    cudaStream_t stream);
 
 }  // namespace gem16::internal

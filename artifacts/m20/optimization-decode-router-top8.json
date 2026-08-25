@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "milestone": "M20-development",
+  "status": "accepted_optimization_not_formal_qualification",
+  "measured_on": "2026-08-25",
+  "base_revision": "5527d92",
+  "device": "NVIDIA GeForce RTX 5080 Laptop GPU",
+  "driver": "610.43.03",
+  "scenario": {
+    "id": "wikipedia-real-16k64-greedy",
+    "prompt_tokens": 16384,
+    "output_forwards": 64,
+    "prompt_manifest_sha256": "9a5859b979d91fccf71bcbb61aade6372cf2cc3c708e6c47b8b6cfd99f7abd2d",
+    "mtp_or_speculative_decode": false,
+    "prompt_cache": false,
+    "kv_mode": "fp8"
+  },
+  "change": {
+    "candidate": "D05b_four_warp_local_top8_then_warp0_top8",
+    "selection": "each warp bitonically orders its 32 probability/expert-id pairs, emits eight candidates, and warp zero bitonically orders the 32-candidate union",
+    "preserved_semantics": "serial maximum, expf, serial global softmax sum, probability normalization, selected-total accumulation, per-expert scaling, slot order, and lower-expert-id tie break are unchanged",
+    "production_specialization": "compile_time_parallel_exact_for_128_experts_top8",
+    "rollback": "compile_time_serial_exact diagnostic specialization",
+    "candidate_binary_sha256": "dde22b63780708c8e867a37a790226c38c2ca480792e1547be463ee365d25738",
+    "recurring_host_or_device_allocations": 0
+  },
+  "measurements": {
+    "decode_tokens_per_second_samples": [
+      142.211793799,
+      142.282467520,
+      142.255963350
+    ],
+    "decode_tokens_per_second_mean": 142.250074890,
+    "decode_tokens_per_second_median": 142.255963350,
+    "prompt_tokens_per_second_samples": [
+      6596.527177663,
+      6594.897121793,
+      6593.069595741
+    ],
+    "prompt_tokens_per_second_mean": 6594.831298399
+  },
+  "comparison": {
+    "parent_decode_tokens_per_second_mean": 140.459132948,
+    "decode_gain_percent": 1.275062649,
+    "latency_saving_microseconds_per_token": 89.635288433,
+    "parent_router_topk_microseconds_per_token": 326.238,
+    "candidate_router_topk_microseconds_per_token": 209.214,
+    "router_topk_change_percent": -35.870746491,
+    "profiled_router_saving_microseconds_per_token": 117.024,
+    "decision": "retain: exact outputs and a repeatable end-to-end gain agree with the isolated Router Top-K profile"
+  },
+  "correctness": {
+    "all_logits_finite": true,
+    "output_token_sha256": "c750d0b33f8eb4a8103299875886e51ab144d874cafe8cea77b0cfd99d2aedaf",
+    "matches_parent_output_hash": true,
+    "serial_parallel_differential": "bit_exact probabilities, top IDs, scaled weights, and finite flag",
+    "differential_cases": "32 deterministic random/collision inputs, all-expert ties, NaN logits, Inf logits, and selected Inf expert scale",
+    "fallback_count": 0,
+    "recurring_allocation_count": 0,
+    "sampled_device_margin_bytes": 1292697600
+  },
+  "tests": {
+    "blackwell_release_build": "pass",
+    "focused_unit_and_cuda": "pass_5_of_5_35.34_seconds",
+    "moe_memcheck": "pass_0_errors",
+    "moe_racecheck": "pass_0_hazards_0_errors_0_warnings",
+    "moe_initcheck": "pass_0_errors",
+    "real_26b_m17_engine_smoke": "pass_151.27_seconds",
+    "protected_12b_product_regression": "pass_4.49_seconds"
+  },
+  "commands": [
+    "cmake --build build/Linux/blackwell-release --target gem16-cuda-moe-reference-tests gem16-26b-benchmark -j4",
+    "ctest --test-dir build/Linux/blackwell-release -R '^(gem16-unit|gem16-cuda|gem16-cuda-moe-reference|gem16-cuda-attention-reference|gem16-cuda-nvfp4-consumption)$' --output-on-failure",
+    "compute-sanitizer --tool memcheck --error-exitcode=1 build/Linux/blackwell-release/bin/gem16-cuda-moe-reference-tests",
+    "compute-sanitizer --tool racecheck --error-exitcode=1 build/Linux/blackwell-release/bin/gem16-cuda-moe-reference-tests",
+    "compute-sanitizer --tool initcheck --error-exitcode=1 build/Linux/blackwell-release/bin/gem16-cuda-moe-reference-tests",
+    "GEM16_26B_COMPILED_MODEL=artifacts/raw/m08/qat-hybrid-clean-1 ctest --test-dir build/Linux/blackwell-release -R '^gem16-26b-m17-engine-smoke$' --output-on-failure",
+    "GEM16_12B_MODEL=models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 ctest --test-dir build/Linux/blackwell-release -R '^gem16-12b-m22-product$' --output-on-failure"
+  ],
+  "raw_evidence": [
+    {
+      "ignored_path": "artifacts/raw/max-performance/d05-router-top8-16k-01.json",
+      "bytes": 3037,
+      "sha256": "932e2aeb4b1d0ad3342c5645d92aa45ba8e22d7166e46912e3e95b79d278e8e6"
+    },
+    {
+      "ignored_path": "artifacts/raw/max-performance/d05-router-top8-16k-02.json",
+      "bytes": 3033,
+      "sha256": "002b0770e6f1990bdadf750297089d2a03199490012b02f76c1c76e3620fb6e6"
+    },
+    {
+      "ignored_path": "artifacts/raw/max-performance/d05-router-top8-16k-03.json",
+      "bytes": 3033,
+      "sha256": "22142e9021c745a1a38ebef406e06706774470a9c40120a60da752d5af8910c8"
+    },
+    {
+      "ignored_path": "artifacts/raw/max-performance/d05-router-top8-node.nsys-rep",
+      "bytes": 2336528,
+      "sha256": "f99fd693a800a6e42df435639b6086734dc4c580c2ba722836bd269c2102ed23"
+    },
+    {
+      "ignored_path": "artifacts/raw/max-performance/d05-router-top8-profile-result.json",
+      "bytes": 1837,
+      "sha256": "10c2323cec00aee772764072969f9eaec9877a717f9e475c6db95ad1e0f1b230"
+    }
+  ],
+  "limitations": {
+    "formal_m20_3_warmup_10_retained_not_run": true,
+    "hard_150_decode_target_reached": false,
+    "remaining_decode_gap_percent": 5.448099143,
+    "full_26b_m22_product_lifecycle_not_repeated": "the changed native decode layer is covered by three real 16K+64 runs plus the real M17 replay/relaunch test; product wrapper behavior is unchanged"
+  }
+}

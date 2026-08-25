@@ -334,6 +334,7 @@ __global__ void RouterProjectionWarpKernel(const float* input,
   if (lane == 0U) logits[expert] = RoundBf16(accumulator);
 }
 
+template <bool kParallelExact>
 __global__ void RouterTopKKernel(
     const float* logits, const std::uint16_t* per_expert_scale,
     float* probabilities, std::uint32_t* top_ids, float* top_weights,
@@ -342,8 +343,10 @@ __global__ void RouterTopKKernel(
   __shared__ float maximum;
   __shared__ float total;
   __shared__ int valid;
-  __shared__ float warp_probability[kThreads / kWarpSize];
-  __shared__ std::uint32_t warp_id[kThreads / kWarpSize];
+  __shared__ float warp_probability[
+      (kThreads / kWarpSize) * 8U];
+  __shared__ std::uint32_t warp_id[
+      (kThreads / kWarpSize) * 8U];
   if (threadIdx.x == 0U) {
     maximum = -3.402823466e+38F;
     valid = 1;
@@ -402,45 +405,101 @@ __global__ void RouterTopKKernel(
     probabilities[expert] /= total;
   }
   __syncthreads();
-  for (std::uint32_t slot = 0; slot < top_k; ++slot) {
-    std::uint32_t best_id = experts;
-    float best_probability = -1.0F;
-    for (std::uint32_t expert = threadIdx.x; expert < experts;
-         expert += blockDim.x) {
-      bool already_selected = false;
-      for (std::uint32_t previous = 0; previous < slot; ++previous) {
-        already_selected = already_selected || top_ids[previous] == expert;
-      }
-      const float probability = probabilities[expert];
-      if (!already_selected &&
-          (probability > best_probability ||
-           (probability == best_probability && expert < best_id))) {
-        best_probability = probability;
-        best_id = expert;
+  const unsigned lane = threadIdx.x & (kWarpSize - 1U);
+  const unsigned warp = threadIdx.x / kWarpSize;
+  if (kParallelExact && experts == 128U && top_k == 8U &&
+      blockDim.x == kThreads) {
+    float candidate_probability = probabilities[threadIdx.x];
+    std::uint32_t candidate_id = threadIdx.x;
+#pragma unroll
+    for (unsigned size = 2U; size <= kWarpSize; size <<= 1U) {
+#pragma unroll
+      for (unsigned stride = size >> 1U; stride != 0U; stride >>= 1U) {
+        const float other_probability = __shfl_xor_sync(
+            0xFFFFFFFFU, candidate_probability, stride);
+        const std::uint32_t other_id =
+            __shfl_xor_sync(0xFFFFFFFFU, candidate_id, stride);
+        const bool other_better =
+            other_probability > candidate_probability ||
+            (other_probability == candidate_probability &&
+             other_id < candidate_id);
+        const float better_probability =
+            other_better ? other_probability : candidate_probability;
+        const std::uint32_t better_id =
+            other_better ? other_id : candidate_id;
+        const float worse_probability =
+            other_better ? candidate_probability : other_probability;
+        const std::uint32_t worse_id =
+            other_better ? candidate_id : other_id;
+        const bool descending_segment = (lane & size) == 0U;
+        const bool lower_lane = (lane & stride) == 0U;
+        const bool take_better = descending_segment == lower_lane;
+        candidate_probability =
+            take_better ? better_probability : worse_probability;
+        candidate_id = take_better ? better_id : worse_id;
       }
     }
-    const unsigned lane = threadIdx.x & (kWarpSize - 1U);
-    const unsigned warp = threadIdx.x / kWarpSize;
-    for (unsigned offset = kWarpSize / 2U; offset != 0U; offset >>= 1U) {
-      const float right_probability =
-          __shfl_down_sync(0xffffffffU, best_probability, offset);
-      const std::uint32_t right_id =
-          __shfl_down_sync(0xffffffffU, best_id, offset);
-      if (right_probability > best_probability ||
-          (right_probability == best_probability && right_id < best_id)) {
-        best_probability = right_probability;
-        best_id = right_id;
-      }
-    }
-    if (lane == 0U) {
-      warp_probability[warp] = best_probability;
-      warp_id[warp] = best_id;
+    if (lane < 8U) {
+      const unsigned index = warp * 8U + lane;
+      warp_probability[index] = candidate_probability;
+      warp_id[index] = candidate_id;
     }
     __syncthreads();
     if (warp == 0U) {
-      best_probability =
-          lane < kThreads / kWarpSize ? warp_probability[lane] : -1.0F;
-      best_id = lane < kThreads / kWarpSize ? warp_id[lane] : experts;
+      candidate_probability = warp_probability[lane];
+      candidate_id = warp_id[lane];
+#pragma unroll
+      for (unsigned size = 2U; size <= kWarpSize; size <<= 1U) {
+#pragma unroll
+        for (unsigned stride = size >> 1U; stride != 0U; stride >>= 1U) {
+          const float other_probability = __shfl_xor_sync(
+              0xFFFFFFFFU, candidate_probability, stride);
+          const std::uint32_t other_id =
+              __shfl_xor_sync(0xFFFFFFFFU, candidate_id, stride);
+          const bool other_better =
+              other_probability > candidate_probability ||
+              (other_probability == candidate_probability &&
+               other_id < candidate_id);
+          const float better_probability =
+              other_better ? other_probability : candidate_probability;
+          const std::uint32_t better_id =
+              other_better ? other_id : candidate_id;
+          const float worse_probability =
+              other_better ? candidate_probability : other_probability;
+          const std::uint32_t worse_id =
+              other_better ? candidate_id : other_id;
+          const bool descending_segment = (lane & size) == 0U;
+          const bool lower_lane = (lane & stride) == 0U;
+          const bool take_better = descending_segment == lower_lane;
+          candidate_probability =
+              take_better ? better_probability : worse_probability;
+          candidate_id = take_better ? better_id : worse_id;
+        }
+      }
+      if (lane < 8U) {
+        top_ids[lane] = candidate_id;
+        top_weights[lane] = candidate_probability;
+      }
+    }
+    __syncthreads();
+  } else {
+    for (std::uint32_t slot = 0; slot < top_k; ++slot) {
+      std::uint32_t best_id = experts;
+      float best_probability = -1.0F;
+      for (std::uint32_t expert = threadIdx.x; expert < experts;
+           expert += blockDim.x) {
+        bool already_selected = false;
+        for (std::uint32_t previous = 0; previous < slot; ++previous) {
+          already_selected = already_selected || top_ids[previous] == expert;
+        }
+        const float probability = probabilities[expert];
+        if (!already_selected &&
+            (probability > best_probability ||
+             (probability == best_probability && expert < best_id))) {
+          best_probability = probability;
+          best_id = expert;
+        }
+      }
       for (unsigned offset = kWarpSize / 2U; offset != 0U; offset >>= 1U) {
         const float right_probability =
             __shfl_down_sync(0xffffffffU, best_probability, offset);
@@ -452,16 +511,39 @@ __global__ void RouterTopKKernel(
           best_id = right_id;
         }
       }
-    }
-    if (threadIdx.x == 0U) {
-      if (best_id >= experts) {
-        valid = 0;
-      } else {
-        top_ids[slot] = best_id;
-        top_weights[slot] = best_probability;
+      if (lane == 0U) {
+        warp_probability[warp] = best_probability;
+        warp_id[warp] = best_id;
       }
+      __syncthreads();
+      if (warp == 0U) {
+        best_probability =
+            lane < kThreads / kWarpSize ? warp_probability[lane] : -1.0F;
+        best_id = lane < kThreads / kWarpSize ? warp_id[lane] : experts;
+        for (unsigned offset = kWarpSize / 2U; offset != 0U;
+             offset >>= 1U) {
+          const float right_probability =
+              __shfl_down_sync(0xffffffffU, best_probability, offset);
+          const std::uint32_t right_id =
+              __shfl_down_sync(0xffffffffU, best_id, offset);
+          if (right_probability > best_probability ||
+              (right_probability == best_probability &&
+               right_id < best_id)) {
+            best_probability = right_probability;
+            best_id = right_id;
+          }
+        }
+      }
+      if (threadIdx.x == 0U) {
+        if (best_id >= experts) {
+          valid = 0;
+        } else {
+          top_ids[slot] = best_id;
+          top_weights[slot] = best_probability;
+        }
+      }
+      __syncthreads();
     }
-    __syncthreads();
   }
   if (threadIdx.x == 0U) {
     if (valid) {
@@ -787,7 +869,7 @@ Status LaunchGemma4MoeLayerImpl(
       c.experts, c.width);
   status = CheckLaunch("launch M11 router projection");
   if (!status.ok()) return status;
-  RouterTopKKernel<<<1, kThreads, 0, stream>>>(
+  RouterTopKKernel<true><<<1, kThreads, 0, stream>>>(
       x.router_logits, w.per_expert_scale_bf16, x.router_probabilities,
       x.top_ids, x.top_weights, c.experts, c.top_k, x.routing_finite);
   status = CheckLaunch("launch M11 deterministic router top-k");
@@ -899,6 +981,30 @@ Status LaunchGemma4MoeSm120Layer(
   return LaunchGemma4MoeLayerImpl(hidden, output, config, weights, workspace,
                                   true, stream, shared_branch_stream,
                                   fork_event, join_event);
+}
+
+Status LaunchGemma4MoeDecodeTopKDiagnostic(
+    const float* logits, const std::uint16_t* per_expert_scale_bf16,
+    float* probabilities, std::uint32_t* top_ids, float* top_weights,
+    std::uint32_t experts, std::uint32_t top_k,
+    Gemma4MoeDecodeTopK implementation, int* routing_finite,
+    cudaStream_t stream) {
+  if (logits == nullptr || per_expert_scale_bf16 == nullptr ||
+      probabilities == nullptr || top_ids == nullptr ||
+      top_weights == nullptr || experts == 0U || top_k == 0U ||
+      top_k > experts) {
+    return Invalid("decode router Top-K diagnostic contract is invalid");
+  }
+  if (implementation == Gemma4MoeDecodeTopK::kParallelExact) {
+    RouterTopKKernel<true><<<1, kThreads, 0, stream>>>(
+        logits, per_expert_scale_bf16, probabilities, top_ids, top_weights,
+        experts, top_k, routing_finite);
+  } else {
+    RouterTopKKernel<false><<<1, kThreads, 0, stream>>>(
+        logits, per_expert_scale_bf16, probabilities, top_ids, top_weights,
+        experts, top_k, routing_finite);
+  }
+  return CheckLaunch("launch decode router Top-K diagnostic");
 }
 
 Status LaunchGemma4MoeTiledNvfp4ReferenceProjection(

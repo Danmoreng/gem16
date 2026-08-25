@@ -12,8 +12,10 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstring>
 #include <cstdint>
 #include <iostream>
+#include <limits>
 #include <numeric>
 #include <span>
 #include <utility>
@@ -81,6 +83,114 @@ std::array<std::uint32_t, 8> Top8(std::span<const float> values) {
   std::array<std::uint32_t, 8> result{};
   std::copy_n(ids.begin(), result.size(), result.begin());
   return result;
+}
+
+struct DecodeTopKHostResult {
+  std::vector<float> probabilities;
+  std::array<std::uint32_t, 8> ids{};
+  std::array<float, 8> weights{};
+  int finite = 1;
+};
+
+void TestExactParallelDecodeTopK() {
+  constexpr std::uint32_t kExperts = 128U;
+  constexpr std::uint32_t kTopK = 8U;
+  DeviceBuffer<float> logits_device(kExperts), probabilities_device(kExperts);
+  DeviceBuffer<std::uint16_t> scales_device(kExperts);
+  DeviceBuffer<std::uint32_t> ids_device(kTopK);
+  DeviceBuffer<float> weights_device(kTopK);
+  DeviceBuffer<int> finite_device(1U);
+
+  auto run = [&](const std::vector<float>& logits,
+                 const std::vector<std::uint16_t>& scales,
+                 gem16::internal::Gemma4MoeDecodeTopK implementation) {
+    DecodeTopKHostResult result{std::vector<float>(kExperts)};
+    CHECK(CudaOk(cudaMemcpy(logits_device.get(), logits.data(),
+                            logits_device.bytes(), cudaMemcpyHostToDevice),
+                 "copy decode Top-K logits"));
+    CHECK(CudaOk(cudaMemcpy(scales_device.get(), scales.data(),
+                            scales_device.bytes(), cudaMemcpyHostToDevice),
+                 "copy decode Top-K scales"));
+    CHECK(CudaOk(cudaMemset(probabilities_device.get(), 0xff,
+                            probabilities_device.bytes()),
+                 "poison decode Top-K probabilities"));
+    CHECK(CudaOk(cudaMemset(ids_device.get(), 0xff, ids_device.bytes()),
+                 "poison decode Top-K IDs"));
+    CHECK(CudaOk(cudaMemset(weights_device.get(), 0xff,
+                            weights_device.bytes()),
+                 "poison decode Top-K weights"));
+    CHECK(CudaOk(cudaMemset(finite_device.get(), 1, finite_device.bytes()),
+                 "initialize decode Top-K finite flag"));
+    const auto status = gem16::internal::LaunchGemma4MoeDecodeTopKDiagnostic(
+        logits_device.get(), scales_device.get(), probabilities_device.get(),
+        ids_device.get(), weights_device.get(), kExperts, kTopK,
+        implementation, finite_device.get(), nullptr);
+    CHECK(status.ok());
+    CHECK(CudaOk(cudaDeviceSynchronize(), "synchronize decode Top-K"));
+    CHECK(CudaOk(cudaMemcpy(result.probabilities.data(),
+                            probabilities_device.get(),
+                            probabilities_device.bytes(),
+                            cudaMemcpyDeviceToHost),
+                 "copy decode Top-K probabilities"));
+    CHECK(CudaOk(cudaMemcpy(result.ids.data(), ids_device.get(),
+                            ids_device.bytes(), cudaMemcpyDeviceToHost),
+                 "copy decode Top-K IDs"));
+    CHECK(CudaOk(cudaMemcpy(result.weights.data(), weights_device.get(),
+                            weights_device.bytes(), cudaMemcpyDeviceToHost),
+                 "copy decode Top-K weights"));
+    CHECK(CudaOk(cudaMemcpy(&result.finite, finite_device.get(), sizeof(int),
+                            cudaMemcpyDeviceToHost),
+                 "copy decode Top-K finite flag"));
+    return result;
+  };
+
+  auto compare = [&](const std::vector<float>& logits,
+                     const std::vector<std::uint16_t>& scales,
+                     bool expect_finite) {
+    const auto serial = run(logits, scales,
+                            gem16::internal::Gemma4MoeDecodeTopK::kSerialExact);
+    const auto parallel =
+        run(logits, scales,
+            gem16::internal::Gemma4MoeDecodeTopK::kParallelExact);
+    CHECK(serial.finite == parallel.finite);
+    CHECK((serial.finite != 0) == expect_finite);
+    CHECK(std::memcmp(serial.probabilities.data(),
+                      parallel.probabilities.data(),
+                      serial.probabilities.size() * sizeof(float)) == 0);
+    CHECK(std::memcmp(serial.ids.data(), parallel.ids.data(),
+                      serial.ids.size() * sizeof(std::uint32_t)) == 0);
+    CHECK(std::memcmp(serial.weights.data(), parallel.weights.data(),
+                      serial.weights.size() * sizeof(float)) == 0);
+    if (expect_finite) CHECK(serial.ids == Top8(logits));
+  };
+
+  std::vector<float> logits(kExperts);
+  std::vector<std::uint16_t> scales(kExperts);
+  for (std::uint32_t expert = 0U; expert < kExperts; ++expert) {
+    scales[expert] = Bf16(0.75F + static_cast<float>(expert % 7U) / 8.0F);
+  }
+  std::uint32_t state = 0x6d2b79f5U;
+  for (unsigned trial = 0U; trial < 32U; ++trial) {
+    for (std::uint32_t expert = 0U; expert < kExperts; ++expert) {
+      state = state * 1664525U + 1013904223U;
+      const int centered = static_cast<int>((state >> 8U) % 4097U) - 2048;
+      logits[expert] = static_cast<float>(centered) / 128.0F;
+    }
+    compare(logits, scales, true);
+  }
+
+  std::fill(logits.begin(), logits.end(), 0.0F);
+  std::fill(scales.begin(), scales.end(), Bf16(1.0F));
+  compare(logits, scales, true);  // All-expert tie: lower IDs must win.
+
+  logits[17] = std::numeric_limits<float>::quiet_NaN();
+  compare(logits, scales, false);
+  logits[17] = 0.0F;
+  logits[93] = std::numeric_limits<float>::infinity();
+  compare(logits, scales, false);
+  logits[93] = 0.0F;
+  scales[0] = Bf16(std::numeric_limits<float>::infinity());
+  compare(logits, scales, false);
 }
 
 void TestRealShapeTensorRouterProjection() {
@@ -1303,6 +1413,7 @@ int main() {
       devices == 0) {
     return 1;
   }
+  TestExactParallelDecodeTopK();
   TestFixedAddressMoeReference();
   TestSelectedExpertSlotBatch();
   TestPhysicalBf16GroupedExpertOperators();
