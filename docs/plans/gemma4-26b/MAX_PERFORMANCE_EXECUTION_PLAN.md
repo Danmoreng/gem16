@@ -1,6 +1,6 @@
 # Gemma 4 26B A4B maximum-performance execution plan
 
-Status: active engineering plan after implementation commit `4b7c2f3`
+Status: M20 performance baseline accepted 2026-08-25; post-M20 optimization remains open after technical M23 freeze
 Primary hardware: NVIDIA GeForce RTX 5080 Laptop GPU, 16 GB, native `sm_120a` build
 Primary promotion row: `wikipedia-real-16k64-greedy`
 Plan inputs: `CODEX_GEMMA4_26B_MAX_PERFORMANCE_PLAN.md`, `chatgptpro_plan.md`, current source, accepted evidence, and active project policy
@@ -51,10 +51,10 @@ Adjacent development measurements:
 
 | Metric | Current mean | M20 gate | Status |
 |---|---:|---:|---|
-| Prompt throughput | 6,568.395 token/s | 6,000 token/s | development pass |
-| Prompt stretch | 6,568.395 token/s | 6,500 token/s | development pass |
-| Ordinary decode | 150.413 token/s | 150 token/s | development pass |
-| Ordinary token latency | 6.648 ms | 6.667 ms | 0.275% throughput margin |
+| Prompt throughput | 6,572.809 token/s | 6,000 token/s | formal M20 pass |
+| Prompt stretch | 6,572.809 token/s | 6,500 token/s | formal M20 pass |
+| Ordinary decode | 150.615 token/s | 150 token/s | formal M20 pass |
+| Ordinary token latency | 6.639 ms | 6.667 ms | 0.410% throughput margin |
 
 The current Tensor-Core-router output-token SHA-256 is
 `c750d0b33f8eb4a8103299875886e51ab144d874cafe8cea77b0cfd99d2aedaf`. The explicit serial-router rollback produces
@@ -543,14 +543,15 @@ nodes. D13 keeps those exact post-norm intermediates in 33,792 bytes of CTA shar
 from 419.096 to 290.329 microseconds/token with zero local bytes/thread. D15 then fuses W2's exact BF16 slot-order
 reduction, D16/D18 use eight useful warps for routed/shared W13, and D19 omits the unconsumed native
 router-normalization diagnostic write. The final D20 launch audit leaves 637 decode-Graph nodes and actual SM120
-`OMMA.SF.16864.F32.E2M1.E2M1.UE4M3.4X` dispatch. The resulting three-run 16K+64 row is 6,568.395 prompt and
-150.413 ordinary-decode token/s with the unchanged `c750d0...` hash. The immediate sequence is now:
+`OMMA.SF.16864.F32.E2M1.E2M1.UE4M3.4X` dispatch. Formal M20 now records 6,572.809 prompt and 150.615
+ordinary-decode token/s retained medians with the unchanged `c750d0...` hash. Matching M21 accepts 32K/64K/96K and
+sets `base_max_context=98,304`. The immediate sequence is now:
 
-1. freeze this exact development candidate; do not mix another optimization into its qualification evidence;
-2. run matching M21 real 32K/64K context execution and memory checks;
-3. align and run M20's exact three-warm-up/ten-retained qualifier;
-4. accept M20 only if both retained medians pass and all fixed semantics/evidence remain valid;
-5. resume post-M20 staged performance work from this parent rather than treating 150 as a terminal optimum.
+1. freeze this accepted base candidate and its explicit serial/exact rollback in technical M23;
+2. keep M19 visibly deferred, so M23 is not a shipping or production-quality release;
+3. begin M25 assistant compatibility/memory feasibility and later Target-verification integration;
+4. resume post-M20 staged performance work only from a separately measured branch/slice, preserving this rollback;
+5. treat 150 as the accepted baseline, not a terminal optimization ceiling.
 
 ## 12. Complete candidate inventory
 

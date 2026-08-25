@@ -1,6 +1,6 @@
 # Active decisions
 
-**Accepted:** 2026-08-23 · **Track:** Gemma 4 26B A4B Fast Track · **Status:** M00–M17 and M22 accepted; fixed-target prefill/decode optimization, M21 and M20 next; full M19 deferred
+**Accepted:** 2026-08-25 · **Track:** Gemma 4 26B A4B Fast Track · **Status:** M00–M17 and M20–M22 accepted; technical M23 next; full M19 deferred
 
 This is the short operational policy for current work. It is not a replacement for historical evidence. Permanent
 rules in `AGENTS.md` remain binding. For facts about the implementation, current source, tests and accepted evidence
@@ -136,6 +136,15 @@ two-process engine replay/relaunch and protected 12B product regression pass. Th
 targets for a **development candidate**, not formal M20: M21 matching 32K/64K execution and M20's three-warm-up/ten-
 retained median qualification are still required. See
 `artifacts/m20/optimization-decode-fused-expert-epilog.json`.
+
+The frozen candidate then passed M21 and formal M20 on 2026-08-25. M21 executes 32K, 64K and 98,304 tokens twice
+in fresh processes with deterministic finite logits, real ring/global-boundary coverage, zero fallback/allocation
+and unchanged margins; 102,400 is reproducibly capacity-rejected, so `base_max_context=98,304`. Formal M20 uses
+the real Wikipedia 16K+64 row, three warm-ups and ten retained runs with continuous telemetry. Its retained medians
+are 6,572.809 prompt tok/s and 150.615 ordinary-decode tok/s; the 6,000/150 gates and 6,500 prompt stretch all pass
+with unchanged `c750d0…` output. M20 and M21 are accepted; technical M23 is next, while M19 remains explicitly
+deferred and blocks shipping/production-quality claims. See `artifacts/m20/acceptance.json` and
+`artifacts/m21/acceptance.json`.
 
 The owner set the base-model 64K residency and later execution reserve to 400 MiB on 2026-08-14 so that 64K remains
 a required supported target. This supersedes the prior 500 MiB base-model rule for 64K and larger contexts. The 32K

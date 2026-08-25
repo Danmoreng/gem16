@@ -1,9 +1,9 @@
 # Active contract — Gemma 4 26B Fast Track R4
 
-Status: M00–M17 and M22 accepted; bounded performance optimization, M21 and M20 active; full M19 held-out qualification deferred by owner
+Status: M00–M17 and M20–M22 accepted; technical M23 freeze next; full M19 held-out qualification deferred by owner
 Plan revision: `fast-track-r4`
-Accepted baseline: M00–M17 plus M22 product integration
-Current milestone: bounded prefill/decode optimization toward the fixed M20 targets (then clean freeze, M21, M20 and technical M23; M19 full suite deferred; M18 conditional)
+Accepted baseline: M00–M17 plus M20 performance, M21 long context and M22 product integration
+Current milestone: technical M23 Target freeze with M19 visibly pending (then M25; M19 full suite deferred; M18 conditional)
 Integration branch: `feat/gemma4-26b`
 
 ## Purpose
@@ -25,7 +25,7 @@ Report a material conflict instead of guessing. A stale status page does not ove
 
 ## Accepted baseline
 
-M00–M17 and M22 are accepted and are not reopened by current work.
+M00–M17 and M20–M22 are accepted and are not reopened by current work.
 
 - Sources, manifests and source locks are immutable.
 - The 12B path remains separately specialized and regression-protected.
@@ -53,6 +53,11 @@ M00–M17 and M22 are accepted and are not reopened by current work.
 - M22 CLI/server product integration is accepted at implementation commit
   `f0aa302aa0246d44e1c8477dbbbb67fbbe2d2037`; its real 26B product gate, exact M08 provenance, one-slot/text-only
   errors, observability and protected 12B regression record are in `artifacts/m22/acceptance.json`.
+- M21 real long-context execution is accepted on the frozen native candidate: 32K, 64K and 96K each pass twice,
+  100K is reproducibly capacity-rejected, and `base_max_context` is 98,304. See `artifacts/m21/acceptance.json`.
+- M20 controlled performance is accepted after three warm-ups and ten retained real Wikipedia 16K+64 runs: retained
+  medians are 6,572.809 prompt and 150.615 ordinary-decode token/s, with the unchanged `c750d0…` output hash. See
+  `artifacts/m20/acceptance.json`.
 - Runtime conversion, CPU expert offload, expert streaming and duplicate persistent GPU weight layouts remain forbidden.
 
 ## Product target
@@ -81,7 +86,7 @@ Required base performance target for M20:
   token/s**;
 - a separately reported, non-blocking **6,500 prompt token/s** competitive stretch result.
 
-Falling below either hard throughput target keeps M20 open unless the owner records a new decision. External vLLM
+M20 passed both hard targets and the prompt stretch on 2026-08-25. External vLLM
 characterizations motivate the fixed values but do not replace the native correctness, memory or timing contract.
 
 Required final target:
@@ -139,8 +144,8 @@ M18 is conditional diagnosis, not a sequential prerequisite after the accepted M
   M11/M12/M15 must revalidate the same 32K margin after graph capture, warm execution and measured prefill planning.
 - Base-model 64K and larger advertised profiles must leave at least 400 MiB after the same process. MTP retains its
   separate 500 MiB rule until M25 qualifies assistant overhead.
-- The experimental base-model maximum is the largest measured context that still leaves at least 400 MiB; do not
-  advertise a larger allocation-only result.
+- The accepted base-model maximum is 98,304 tokens, leaving 434,962,432 bytes after real execution against the
+  419,430,400-byte gate. 102,400 is reproducibly rejected with a 26,411,008-byte shortfall.
 - Base and MTP maxima are separate because assistant weights and verification workspace consume memory. M25 cannot pass with an MTP profile below 32K; a lower measured result remains diagnostic while M23 stays supported.
 - One 26B slot is the only positive admission case on a 16 GB device. A second slot must be rejected clearly.
 - No token-loop allocation, filesystem access, JIT, repack or host routing is permitted.
@@ -185,10 +190,8 @@ Do not repeat an expensive run solely to produce a second prose record. M08 comp
 
 ## Current unblocked work
 
-- M17 and M22 are accepted; M22 implementation commit `f0aa302aa0246d44e1c8477dbbbb67fbbe2d2037` is the current development candidate.
-- Bounded profile-driven prefill and ordinary-decode optimization toward the fixed M20 targets is next.
-- The resulting code/binary is frozen before M21 real 32K/64K execution; M20 controlled performance then consumes
-  that exact M21 evidence, avoiding duplicate evidence runs.
+- M17 and M20–M22 are accepted; the M20/M21 native binary is the frozen technical base candidate.
+- M23 may now freeze its hashes, accepted evidence and rollback while retaining the experimental/quality-pending label.
 - M19 numerical Q4 evidence is available, but its multi-hour task/prose suite is deferred and remains a release limitation.
 - M23 may freeze the resulting technical Target without claiming held-out quality acceptance.
 - M18 remains inactive unless quality failure, head uncertainty or explicit causal-attribution work triggers it.

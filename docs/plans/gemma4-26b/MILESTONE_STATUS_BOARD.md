@@ -1,20 +1,18 @@
 # Milestone status board — Fast Track R4
 
-Derived from [`FAST_TRACK_STATUS.json`](FAST_TRACK_STATUS.json). Policy: [`../../ACTIVE_DECISIONS.md`](../../ACTIVE_DECISIONS.md). Last synchronized: 2026-08-23.
+Derived from [`FAST_TRACK_STATUS.json`](FAST_TRACK_STATUS.json). Policy: [`../../ACTIVE_DECISIONS.md`](../../ACTIVE_DECISIONS.md). Last synchronized: 2026-08-25.
 
 ## Accepted
 
-`M00 M01 M02 M03 M04 M05 M06 M07 M08 M09 M10 M11 M12 M13 M14 M15 M16 M17 M22`
+`M00 M01 M02 M03 M04 M05 M06 M07 M08 M09 M10 M11 M12 M13 M14 M15 M16 M17 M20 M21 M22`
 
 ## Active / next
 
 | Milestone/slice | State | Remaining work |
 |---|---|---|
-| Performance optimization slice | DEVELOPMENT_TARGET_REACHED | exact three-run candidate reaches 6,568.395/150.413 token/s; formal evidence remains pending |
-| Runner/freeze slice | IMPLEMENTED_PENDING_COMMIT | bounded-row gates and M20/M21 artifact/toolchain/source/binary handshake are covered by host tests |
-| M21 | READY_AFTER_RUNNER_COMMIT | repeated real 32K, explicit real 64K pass/fail and measured `base_max_context` |
-| M20 | IN_PROGRESS_AFTER_M21 | exact 16K+64 retained medians must reach >=6,000 prompt and >=150 ordinary-decode tok/s; report >=6,500 prompt stretch; latest adjacent development candidate is 6,568.395/150.413, formal medians pending |
-| M23 | BLOCKED_BY_M20_M21 | freeze a technical Target with rollback and M19 explicitly pending |
+| Performance optimization slice | ACCEPTED_M20 | retained medians 6,572.809 prompt / 150.615 ordinary decode tok/s; prompt stretch passes |
+| M21 | ACCEPTED | 32K/64K/96K pass twice; 100K capacity-rejected; `base_max_context=98,304` |
+| M23 | READY_NEXT | freeze technical Target hashes, evidence and rollback with M19 explicitly pending |
 | M25 phase A | PARALLEL_FEASIBILITY_ONLY | assistant compatibility and memory feasibility only |
 
 ## Deferred
@@ -28,7 +26,7 @@ M23 Target freeze, but that checkpoint must remain visibly experimental and qual
 
 ## Next vertical sequence
 
-`bounded prefill/decode optimization → clean freeze → M21 → M20 → technical M23 → M25 integration → deferred M19 release gate`
+`technical M23 → M25 integration → deferred M19 release gate`
 
 ## Conditional/optional
 

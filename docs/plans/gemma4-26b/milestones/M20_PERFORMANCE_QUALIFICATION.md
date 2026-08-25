@@ -1,6 +1,6 @@
 # M20 — Controlled performance qualification
 
-Status: in progress; current adjacent 16K+64 candidate averages 6,568.395 prompt and 150.413 ordinary-decode tok/s; matching M21 and formal 3/10 telemetry remain
+Status: accepted 2026-08-25; retained medians 6,572.809 prompt and 150.615 ordinary-decode tok/s
 Class: qualification; GPU execution follows M21 and consumes its matching context evidence
 
 Normative inputs: [Benchmark matrix](../specs/BENCHMARK_MATRIX.md), [Telemetry artifact](../specs/TELEMETRY_ARTIFACT_SPEC.md).
@@ -19,8 +19,8 @@ the fixed owner targets without changing model semantics.
 - hard retained medians: **prompt throughput >= 6,000 token/s** and **ordinary decode throughput >= 150 token/s**;
 - non-blocking competitive stretch: **prompt throughput >= 6,500 token/s**.
 
-The current 6,568.395/150.413 development row passes both hard targets and the non-blocking stretch but remains an
-adjacent three-run development result rather than formal M20 acceptance. The external
+The formal three-warm-up/ten-retained row passes both hard targets and the non-blocking stretch with deterministic
+`c750d0…` output. Compact evidence is `artifacts/m20/acceptance.json`. The external
 vLLM 0.27.1 community-W4A16 row motivates the targets but differs in checkpoint and prefill timing boundary and is
 not the correctness oracle.
 
@@ -45,10 +45,10 @@ not the correctness oracle.
 
 ## Exit gate
 
-- [ ] No fallback/offload/prompt-cache asymmetry exists.
-- [ ] Native paths and instruction evidence are recorded.
-- [ ] Headline claims use retained distributions and honest boundaries.
-- [ ] Retained median prompt throughput is at least 6,000 token/s.
-- [ ] Retained median ordinary decode throughput is at least 150 token/s with MTP/speculative decode disabled.
-- [ ] The 6,500 prompt-token/s stretch outcome is reported separately as pass or miss.
-- [ ] Performance does not invalidate M19 quality or M21 memory.
+- [x] No fallback/offload/prompt-cache asymmetry exists.
+- [x] Native paths and instruction evidence are recorded.
+- [x] Headline claims use retained distributions and honest boundaries.
+- [x] Retained median prompt throughput is at least 6,000 token/s.
+- [x] Retained median ordinary decode throughput is at least 150 token/s with MTP/speculative decode disabled.
+- [x] The 6,500 prompt-token/s stretch outcome is reported separately as pass.
+- [x] Performance does not invalidate deferred M19 policy or accepted M21 memory.

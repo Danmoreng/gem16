@@ -1,6 +1,6 @@
 # M21 — 32K, 64K and maximum safe base context
 
-Status: ready next; repeated real 32K and explicit real 64K execution remain
+Status: accepted 2026-08-25; `base_max_context=98,304`, first reproducible rejection at 102,400
 Class: qualification; follows the joint clean candidate freeze and precedes M20 execution
 
 Normative inputs: [Memory arena](../specs/MEMORY_ARENA_SPEC.md), [Benchmark matrix](../specs/BENCHMARK_MATRIX.md).
@@ -25,7 +25,9 @@ reported but does not invalidate an otherwise byte-identical native candidate.
 
 ## Exit gate
 
-- [ ] 32K is execution-qualified for the technical M23 target.
-- [ ] 64K has an explicit pass/fail result.
-- [ ] `base_max_context` is measured and reproducible.
-- [ ] No context claim relies on reduced hidden safety margin.
+- [x] 32K is execution-qualified for the technical M23 target with 1,122,828,288 bytes free.
+- [x] 64K passes twice with 778,895,360 bytes free.
+- [x] `base_max_context=98,304` passes twice with 434,962,432 bytes free; 102,400 is rejected twice.
+- [x] No context claim relies on reduced hidden safety margin; the 400 MiB rule is unchanged.
+
+Compact evidence is `artifacts/m21/acceptance.json`.

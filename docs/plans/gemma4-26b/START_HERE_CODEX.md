@@ -1,6 +1,6 @@
 # Start here — current coding-agent task
 
-Status: M00–M17 and M22 accepted; bounded prefill/decode optimization, M21 and M20 are the active sequence. Full M19 is owner-deferred; M18 remains conditional.
+Status: M00–M17 and M20–M22 accepted; technical M23 freeze is next. Full M19 is owner-deferred; M18 remains conditional.
 Plan revision: Fast Track R4.
 
 ## Read now
@@ -15,9 +15,8 @@ Do not preload the full decision, correctness, benchmark or performance ledgers.
 
 ## Lead-agent orchestration
 
-The M17 profile and M22 product slice are accepted. Bounded correctness-preserving prefill/decode optimization may
-still change code; freeze the final binary only after the fixed M20 targets are reached or the owner records a new
-decision, and before M20/M21 evidence is collected.
+The M17 profile and M20–M22 slices are accepted. The exact native candidate is now frozen for technical M23; do not
+mix another optimization into the accepted M20/M21 evidence.
 Use [`MAX_PERFORMANCE_EXECUTION_PLAN.md`](MAX_PERFORMANCE_EXECUTION_PLAN.md) as the consolidated execution order for
 the current optimization campaign. It reconciles the two 2026-08-25 owner-supplied German plans with active policy,
 current source and accepted evidence; higher-precedence rules in `AGENTS.md` and `ACTIVE_DECISIONS.md` still win.
@@ -33,8 +32,7 @@ The lead agent may assign disjoint sub-agents for:
 - independent evidence reconciliation.
 
 Use [`PARALLEL_WORKSTREAMS.md`](PARALLEL_WORKSTREAMS.md). M18 runs only after a recorded trigger. The owner-approved
-remaining sequence is bounded profile-driven prefill/decode optimization, clean candidate freeze, M21, M20
-and a technical M23 freeze.
+remaining sequence is technical M23 freeze, M25 and the deferred M19 release gate.
 
 ## M08 success
 
@@ -96,8 +94,9 @@ expert, asynchronous K64, prepared global K/V and exact dual-token parent. The c
 6,568.395 mean prompt tok/s and 150.413 mean ordinary-decode tok/s on 16K+64, passing all development thresholds.
 A bounded four-prompt/14-row QAT-BF16 Golden Gate, real-shape CUDA and sanitizers, deterministic engine
 relaunch, the real 26B product test and protected 12B regression pass. Tensor-Core is the integrated prefill default;
-serial exact remains an explicit rollback. This remains a development characterization; M20 still owns the formal
-3-warm-up/10-retained result after matching M21 context evidence. See
+serial exact remains an explicit rollback. M20 subsequently accepted the exact candidate at retained medians of
+6,572.809 prompt and 150.615 ordinary-decode tok/s after three warm-ups and ten retained runs. M21 accepted real
+32K/64K/96K execution and measured `base_max_context=98,304`; 100K is reproducibly capacity-rejected. See
 `artifacts/m20/router-tensor-core-diagnostic.json` and
 `artifacts/m20/optimization-decode-moe-split-fused-quant.json`, with the latest host-tail evidence in
 `artifacts/m20/optimization-compact-prediction-self-feed.json` and the latest exact decode-router evidence in
@@ -108,14 +107,12 @@ serial exact remains an explicit rollback. This remains a development characteri
 geometry and production diagnostic-write cleanup are in
 `artifacts/m20/optimization-decode-fused-expert-epilog.json`.
 
-The owner now requires that exact 16K+64 ordinary path to reach retained medians of at least 6,000 prompt token/s and
-150 decode token/s; 6,500 prompt token/s is the non-blocking competitive stretch target. MTP/speculative decode,
-cache/precision/semantic substitutions and timing-boundary changes cannot satisfy the gate. The current M20 qualifier
-must be aligned with this bounded row and deferred-M19 policy before formal execution.
+The exact 16K+64 ordinary path passed the 6,000 prompt, 150 decode and 6,500 prompt-stretch gates without
+MTP/speculative decode, cache/precision/semantic substitutions or timing-boundary changes. Compact acceptance is in
+`artifacts/m20/acceptance.json`; matching long-context acceptance is in `artifacts/m21/acceptance.json`.
 
 M22 product behavior and protected 12B regressions are accepted at
-`f0aa302aa0246d44e1c8477dbbbb67fbbe2d2037`; see `artifacts/m22/acceptance.json`. The current work wave now makes
-bounded prefill/decode optimization toward the fixed targets from fresh profiles. The resulting candidate first owns M21 real 32K/64K execution; M20 then consumes that
-matching evidence for its formal performance gate. M23 then freezes a technical Target with M19 visibly pending. The
+`f0aa302aa0246d44e1c8477dbbbb67fbbe2d2037`; see `artifacts/m22/acceptance.json`. M23 now freezes the accepted
+technical Target with M19 visibly pending. The
 remaining multi-hour M19 task/prose qualification is deferred until
 the end and remains mandatory before any shipping or production-quality claim.

@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "milestone": "M21",
+  "status": "qualified",
+  "acceptance": true,
+  "measured_on": "2026-08-25",
+  "candidate": {
+    "native_source_commit": "d1470bece8ad58963835874b9b89cc026c7aca4e",
+    "benchmark_binary_sha256": "cbcb047e2c8f2653133794122a41bbf97be0d8aad9ccf6f5bcdd4a9cb78402f6",
+    "context_driver_sha256": "d6f8aa41ee91d6fe9ddb68558d595b5430381fb62c2509613c819ed84261129f",
+    "artifact_content_sha256": "471805f7dad8abb84300be78b2822a63dcb1d35bff5aa98426a162cc8532ee17",
+    "artifact_lock_sha256": "d7d2d30743e7c42aa55537a83f563047c9cbd2d83e0d583a2d2c8bcacbfa51a4",
+    "source_lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230",
+    "toolchain_lock_sha256": "9046e1e9f82735879232d8ed6848f1b6d87082a4e5ec73f6fef8d46c50248146"
+  },
+  "controls": {
+    "fresh_process_runs_per_context": 2,
+    "contexts_tested": [32768, 65536, 98304, 102400],
+    "maximum_search_gap_tokens": 4096,
+    "backend": "native_sm120_integrated",
+    "fallback_count": 0,
+    "recurring_allocation_count": 0
+  },
+  "release_32k": true,
+  "base_64k_result": "passed",
+  "base_max_context": 98304,
+  "first_capacity_rejection": 102400,
+  "maximum_search_complete": true,
+  "contexts": [
+    {
+      "context_tokens": 32768,
+      "status": "passed",
+      "fresh_process_deterministic": true,
+      "logits_sha256": "d33d7d4d181fce0c20a01422c58b2e10e73698f9d5eee3ed775ac2c44ac90f95",
+      "free_after_decode_bytes": 1122828288,
+      "required_margin_bytes": 734003200,
+      "kv_cache_bytes": 440401920,
+      "prefill_elapsed_ms": [6232.52975, 6218.05912]
+    },
+    {
+      "context_tokens": 65536,
+      "status": "passed",
+      "fresh_process_deterministic": true,
+      "logits_sha256": "8fdf156afb1e686bb0c005f4de032fa2da143e712a86f4f293073e8b5b355b7a",
+      "free_after_decode_bytes": 778895360,
+      "required_margin_bytes": 419430400,
+      "kv_cache_bytes": 775946240,
+      "prefill_elapsed_ms": [17819.5373, 17812.9582]
+    },
+    {
+      "context_tokens": 98304,
+      "status": "passed",
+      "fresh_process_deterministic": true,
+      "logits_sha256": "65a08cb2d02f7fdd551b499160c9648ecfa0788cc7969a4e2ca5f7a4210dc464",
+      "free_after_decode_bytes": 434962432,
+      "required_margin_bytes": 419430400,
+      "kv_cache_bytes": 1111490560,
+      "prefill_elapsed_ms": [34753.873, 34766.4724]
+    },
+    {
+      "context_tokens": 102400,
+      "status": "capacity_rejected",
+      "capacity_rejection_reproducible": true,
+      "free_bytes": 393019392,
+      "required_margin_bytes": 419430400,
+      "shortfall_bytes": 26411008
+    }
+  ],
+  "raw_evidence": {
+    "ignored_acceptance_path": "artifacts/raw/m21/d1470be-final-acceptance.json",
+    "acceptance_sha256": "e88f4c74bef40542ee925b9de017edb8397604125055b11ca1375490fcb4fab2",
+    "ignored_directory": "artifacts/raw/m21/d1470be-final"
+  },
+  "limitations": [
+    "M21 uses the frozen synthetic 20-token chat pattern for boundary execution; the formal M20 performance row uses the real Wikipedia token manifest.",
+    "The 98,304-token base maximum has only 15,532,032 bytes above the mandatory 400 MiB reserve; 102,400 is therefore rejected even though the failure is a safety-margin boundary rather than a crash."
+  ]
+}
