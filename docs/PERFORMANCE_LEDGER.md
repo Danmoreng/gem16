@@ -94,6 +94,25 @@ therefore crossed the predefined residency kill boundary. All runtime/test code 
 D04 K/V pipelining is selected next. Compact negative evidence is
 `artifacts/m20/optimization-global-paired-splits-rejected.json`.
 
+## 2026-08-25 Global value-cache ping-pong staging
+
+The retained D04b path keeps one 128-token KVH2 split per CTA and leaves QK, softmax, PV and merge arithmetic
+unchanged. It preloads the first 16x512 FP8 value tile, issues `cp.async` for the next tile into an alternate shared
+buffer while the current PV loop runs, and waits only before the buffer handoff. The K path remains synchronous.
+
+Three canonical samples reach 139.486, 139.381 and 139.443 ordinary token/s (mean 139.437, +0.497% versus the
+138.746 parent mean) with exact `c750d0...` output hash, finite outputs, unchanged 1,292,697,600-byte margin and zero
+fallback/allocation. The isolated global kernel falls from 595.574 to 570.454 microseconds (-4.22%). Registers remain
+56/thread, local memory remains zero, and shared memory rises from 12,352 to 20,544 bytes while preserving the same
+four-block occupancy limit and 66.67% theoretical occupancy. K-only was positive but smaller; combined K+V did not
+improve on V-only and is not retained.
+
+The Attention operator, full memcheck, full racecheck, targeted changed-kernel initcheck, six focused CTests, the
+protected 12B product path and real 26B M22 lifecycle pass. Full-suite initcheck with API-memory checking still flags
+a pre-existing uninitialized CUTLASS prefill-test D2H output before the changed decode cases; the filtered KVH2
+kernel itself is clean. Compact evidence and raw hashes are in
+`artifacts/m20/optimization-global-value-pingpong.json`. Formal M20 remains open at 150 ordinary token/s.
+
 ## 2026-08-24 CTA-wide grouped-expert activation staging
 
 The accepted development candidate stages each 16-assignment/K64 activation tile once per four-warp grouped-expert

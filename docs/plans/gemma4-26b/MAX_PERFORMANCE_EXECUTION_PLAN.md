@@ -291,6 +291,12 @@ wave utilization.
 
 #### D04: global K/V ping-pong staging
 
+Status: D04b value-only staging was retained on 2026-08-25. Three exact samples average 139.437 token/s (+0.497%
+versus the 138.746 parent mean), while the isolated global kernel falls 4.22% from 595.574 to 570.454 microseconds.
+Registers remain 56/thread, local memory remains zero, and the 20,544-byte shared footprint preserves the same
+four-block occupancy limit. D04a K-only was positive but smaller; D04c K+V did not add a gain and is not retained.
+Compact evidence is `artifacts/m20/optimization-global-value-pingpong.json`.
+
 Test separately from D03:
 
 1. preload tile 0;
@@ -506,15 +512,14 @@ under the current owner authorization; do not push unless the owner explicitly r
 
 ## 11. Immediate handoff
 
-P01 is retained, P02 and D03a are rejected, D03b is skipped and D00 is complete. The next isolated mechanism is
-**D04**, independent asynchronous K/V double buffering inside the existing one-split KVH2 CTA:
+P01 and D04b are retained; P02 and D03a are rejected; D03b is skipped; D00 is complete. The next isolated mechanisms
+are the larger constant-cost targets identified by D00:
 
-1. keep one split per CTA and preserve all current score, softmax, PV and merge arithmetic;
-2. test K-only and V-only ping-pong staging independently before combining them;
-3. keep the current 56-register/four-block residency and reject spills or harmful shared-memory occupancy loss;
-4. retain the existing long-context and final-tail differential gates, then measure isolated kernel and full-engine
-   decode;
-5. if no D04 subcandidate wins, proceed to the larger constant-cost D09/D10 targets identified by D00.
+1. profile and implement D09 decode-MoE M=1 row reuse or scheduling without changing the BF16/product boundary;
+2. keep D10 output-head and D11 coherent device self-feed as independent candidates;
+3. retain the current `c750d0...` output hash, fixed Graph/arena contract and no-spill boundary;
+4. screen each mechanism with an operator differential and adjacent 16K+64 full-engine samples;
+5. do not combine candidates until each isolated delta is known.
 
 ## 12. Complete candidate inventory
 

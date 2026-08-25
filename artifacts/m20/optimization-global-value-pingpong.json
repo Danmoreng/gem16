@@ -1,0 +1,120 @@
+{
+  "schema_version": 1,
+  "milestone": "M20-development",
+  "status": "accepted_optimization_not_formal_qualification",
+  "measured_on": "2026-08-25",
+  "base_revision": "d8ed7fa",
+  "device": "NVIDIA GeForce RTX 5080 Laptop GPU",
+  "driver": "610.43.03",
+  "scenario": {
+    "id": "wikipedia-real-16k64-greedy",
+    "prompt_tokens": 16384,
+    "output_forwards": 64,
+    "prompt_manifest_sha256": "9a5859b979d91fccf71bcbb61aade6372cf2cc3c708e6c47b8b6cfd99f7abd2d",
+    "mtp_or_speculative_decode": false,
+    "prompt_cache": false,
+    "kv_mode": "fp8"
+  },
+  "change": {
+    "candidate": "D04b_global_value_cache_ping_pong",
+    "kernel": "SplitOnlineDecodeAttentionFp8GlobalKvh2Kernel",
+    "tile_shape": "16_tokens_x_512_fp8_elements",
+    "pipeline": "preload V tile zero, issue cp.async for tile i+1 into the alternate shared buffer, compute PV for tile i, wait before buffer handoff",
+    "key_pipeline": "unchanged_synchronous",
+    "score_softmax_pv_and_merge_order": "unchanged",
+    "graph_nodes": "unchanged",
+    "candidate_binary_sha256": "3174eed9af9b6c11ccfa60169cbbc46e7bb37f4fda4b52214f27c028fc208937"
+  },
+  "screened_subcandidates": {
+    "D04a_key_only": {
+      "decode_tokens_per_second": 139.323681979,
+      "global_kernel_us": 577.720,
+      "decision": "positive_but_not_selected"
+    },
+    "D04b_value_only": {
+      "decode_tokens_per_second_samples": [139.486003068, 139.380743745, 139.443332919],
+      "decode_tokens_per_second_mean": 139.436693244,
+      "decode_tokens_per_second_median": 139.443332919,
+      "median_itl_ms_samples": [7.166404, 7.169140, 7.167858],
+      "prompt_tokens_per_second_mean": 6592.156475581,
+      "global_kernel_us": 570.454,
+      "decision": "selected"
+    },
+    "D04c_key_and_value": {
+      "decode_tokens_per_second": 139.444824601,
+      "global_kernel_us": 579.160,
+      "decision": "not_selected_no_incremental_gain"
+    }
+  },
+  "comparison": {
+    "parent_decode_tokens_per_second_mean": 138.746493375,
+    "candidate_decode_tokens_per_second_mean": 139.436693244,
+    "decode_gain_percent": 0.497453919,
+    "parent_global_kernel_us": 595.574,
+    "candidate_global_kernel_us": 570.454,
+    "global_kernel_change_percent": -4.217780,
+    "parent_all_graph_kernels_us": 8225.978,
+    "candidate_all_graph_kernels_us": 8217.526,
+    "all_graph_kernel_change_percent": -0.102748,
+    "decision": "retain the stable value-only pipeline; the rounded end-to-end gain is 0.50 percent and is supported by a 4.22 percent isolated-kernel reduction"
+  },
+  "resources": {
+    "registers_per_thread_before": 56,
+    "registers_per_thread_after": 56,
+    "static_shared_bytes_before": 12352,
+    "static_shared_bytes_after": 20544,
+    "local_memory_per_thread_bytes": 0,
+    "register_block_limit": 4,
+    "shared_memory_block_limit": 4,
+    "theoretical_occupancy_percent": 66.67,
+    "achieved_occupancy_percent": 52.43,
+    "device_arena_delta_bytes": 0,
+    "sampled_margin_bytes": 1292697600
+  },
+  "correctness": {
+    "all_logits_finite": true,
+    "output_token_sha256": "c750d0b33f8eb4a8103299875886e51ab144d874cafe8cea77b0cfd99d2aedaf",
+    "matches_parent_output_hash": true,
+    "group4_operator_oracle": "bit_exact_at_16k_and_final_tail",
+    "fallback_count": 0,
+    "recurring_allocation_count": 0
+  },
+  "tests": {
+    "blackwell_release_build": "pass",
+    "attention_operator": "pass",
+    "compute_sanitizer_memcheck": "pass_0_errors",
+    "compute_sanitizer_racecheck": "pass_0_hazards_0_warnings",
+    "targeted_kvh2_initcheck": "pass_0_errors_with_api_memory_check_disabled",
+    "focused_unit_cuda_moe_attention_nvfp4_m21": "pass_6_of_6_36.95_seconds",
+    "protected_12b_product_regression": "pass_5.46_seconds",
+    "real_26b_m22_product_lifecycle": "pass_368.92_seconds"
+  },
+  "raw_evidence": [
+    {"ignored_path": "artifacts/raw/max-performance/d04a-k-pingpong-16k-01.json", "sha256": "e6ebf55d9bd9167857556a1bde680bac622ede0cfa32a32c8da00b8d910570af"},
+    {"ignored_path": "artifacts/raw/max-performance/d04a-k-pingpong-node.nsys-rep", "sha256": "79f26672f363f9d14690c9072b2a3873508224e5f745f2a26f7d5db5825f68f1"},
+    {"ignored_path": "artifacts/raw/max-performance/d04b-v-pingpong-16k-01.json", "sha256": "a7fb7e169d199d6cbb7df91d47444cac61458445152c5e71a1da602f892eda5e"},
+    {"ignored_path": "artifacts/raw/max-performance/d04b-v-pingpong-16k-02.json", "sha256": "c250b74eb89256c35ac0f4ef125ddbe29af72f07d3e9c92351c42bd69fe547ff"},
+    {"ignored_path": "artifacts/raw/max-performance/d04b-v-pingpong-16k-03.json", "sha256": "298c829ea6e4406ec4b246047935ec326555dc34778f554531b5828e547ddc05"},
+    {"ignored_path": "artifacts/raw/max-performance/d04b-v-pingpong-node.nsys-rep", "sha256": "537d84c0a50c3e5cf51bc7564f3951f2a04d48b1f941a95449fd490271fb063a"},
+    {"ignored_path": "artifacts/raw/max-performance/d04b-v-pingpong-occupancy.ncu-rep", "sha256": "92d5dd3a1246acf5db3ceb52bb16f82d8df4cf9cec5734b26fbea177147fd522"},
+    {"ignored_path": "artifacts/raw/max-performance/d04b-attention-memcheck.log", "sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425"},
+    {"ignored_path": "artifacts/raw/max-performance/d04b-attention-racecheck.log", "sha256": "91dbb142f8feb8786cd6fde6ac035e816b67db14e4b7b400a01386ec106b75c4"},
+    {"ignored_path": "artifacts/raw/max-performance/d04b-attention-kvh2-initcheck.log", "sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425"},
+    {"ignored_path": "artifacts/raw/max-performance/d04b-attention-initcheck.log", "sha256": "3f60627be969458cda808e2655cd2fb4789a80524b697dd884155297b342273b"},
+    {"ignored_path": "artifacts/raw/max-performance/d04c-kv-pingpong-16k-01.json", "sha256": "092ce60c1caf3a87633df34cfc564bde0b1bc88d5e616a7b0fe7ca607c6a19b9"},
+    {"ignored_path": "artifacts/raw/max-performance/d04c-kv-pingpong-node.nsys-rep", "sha256": "1ed025ab5f9d6dec32bb82d571200a676aea53af5c2e94932319e6a7b1e04dad"}
+  ],
+  "review": {
+    "ox_run_id": "20260825T075048Z-49385",
+    "ox_status": "failed_without_report_after_automatic_retries",
+    "activity_log": "/home/sebastian/.local/state/ox-agent/runs/20260825T075048Z-49385/activity.log",
+    "result_md": "not_created",
+    "independent_primary_review": "verified uniform control flow around every barrier, prologue/steady-state/tail cp.async group completion, alternate-buffer lifetime, unchanged PV FMA order, exact raw hashes, and retained four-block resource limits"
+  },
+  "limitations": {
+    "formal_m20_3_warmup_10_retained_not_run": true,
+    "hard_150_decode_target_reached": false,
+    "full_suite_initcheck_with_api_memory_access": "fails in the pre-existing CUTLASS prefill projection fixture before the changed KVH2 decode cases; 1295872 uninitialized D2H output-byte reports, raw log sha256 3f60627be969458cda808e2655cd2fb4789a80524b697dd884155297b342273b",
+    "targeted_changed_kernel_initcheck_clean": true
+  }
+}

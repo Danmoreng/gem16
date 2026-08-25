@@ -177,6 +177,31 @@ __device__ __forceinline__ float4 DecodeFp8x4(std::uint32_t bits,
   return values;
 }
 
+__device__ __forceinline__ void StageGlobalKvh2TileAsync(
+    std::uint8_t* staged, const std::uint8_t* cache,
+    std::uint64_t split_start, int tile_start, int tile_tokens,
+    int kv_head) {
+  constexpr int kTileBytes =
+      kDecodeGlobalGqaTileTokens * kDecodeGlobalHeadDimension;
+  for (int byte = static_cast<int>(threadIdx.x) * 16;
+       byte < kTileBytes; byte += kDecodeThreads * 16) {
+    const int tile_token = byte / kDecodeGlobalHeadDimension;
+    const int dimension = byte - tile_token * kDecodeGlobalHeadDimension;
+    const bool valid = tile_token < tile_tokens;
+    const std::uint8_t* source =
+        valid
+            ? cache +
+                  (((split_start + static_cast<std::uint64_t>(
+                                        tile_start + tile_token)) *
+                        kDecodeGlobalKvHeads26B +
+                    static_cast<std::uint64_t>(kv_head)) *
+                       kDecodeGlobalHeadDimension +
+                   dimension)
+            : cache;
+    CopyAsync16(staged + byte, source, valid ? 16 : 0);
+  }
+}
+
 __device__ __forceinline__ float DecodeBlockMaximum(float value,
                                                      float* warp_values) {
   for (int offset = 16; offset > 0; offset >>= 1) {
@@ -1043,8 +1068,8 @@ void SplitOnlineDecodeAttentionFp8GlobalKvh2Kernel(
   static_assert(kDecodeGlobalHeadDimension % (32 * 4) == 0);
   static_assert(kDecodeGlobalChunk % kDecodeGlobalGqaTileTokens == 0);
   __shared__ alignas(16)
-      std::uint8_t staged_kv[kDecodeGlobalGqaTileTokens *
-                             kDecodeGlobalHeadDimension];
+      std::uint8_t staged_kv[2][kDecodeGlobalGqaTileTokens *
+                                kDecodeGlobalHeadDimension];
   __shared__ float scores[kQueriesPerKv * kDecodeGlobalChunk];
   __shared__ float reduction[kDecodeWarps];
   __shared__ float inverse_sum_shared[kQueriesPerKv];
@@ -1080,24 +1105,8 @@ void SplitOnlineDecodeAttentionFp8GlobalKvh2Kernel(
        tile_start += kDecodeGlobalGqaTileTokens) {
     const int tile_tokens =
         min(kDecodeGlobalGqaTileTokens, split_tokens - tile_start);
-    constexpr int kTileBytes =
-        kDecodeGlobalGqaTileTokens * kDecodeGlobalHeadDimension;
-    for (int byte = static_cast<int>(threadIdx.x) * 16;
-         byte < kTileBytes; byte += kDecodeThreads * 16) {
-      const int tile_token = byte / kDecodeGlobalHeadDimension;
-      const int dimension = byte - tile_token * kDecodeGlobalHeadDimension;
-      const bool valid = tile_token < tile_tokens;
-      const std::uint8_t* source = valid
-          ? key_cache +
-                (((split_start + static_cast<std::uint64_t>(tile_start +
-                                                            tile_token)) *
-                      kDecodeGlobalKvHeads26B +
-                  static_cast<std::uint64_t>(kv_head)) *
-                     kDecodeGlobalHeadDimension +
-                 dimension)
-          : key_cache;
-      CopyAsync16(staged_kv + byte, source, valid ? 16 : 0);
-    }
+    StageGlobalKvh2TileAsync(staged_kv[0], key_cache, split_start,
+                             tile_start, tile_tokens, kv_head);
     CommitAsyncCopies();
     WaitForAsyncCopies();
     __syncthreads();
@@ -1109,7 +1118,8 @@ void SplitOnlineDecodeAttentionFp8GlobalKvh2Kernel(
         const int dimension = lane * 4 + quarter * 128;
         const std::uint32_t packed =
             *reinterpret_cast<const std::uint32_t*>(
-                staged_kv + token * kDecodeGlobalHeadDimension + dimension);
+                staged_kv[0] +
+                token * kDecodeGlobalHeadDimension + dimension);
         const float4 key_values = DecodeFp8x4(packed, key_scale);
         score = fmaf(query_values[quarter * 4], key_values.x, score);
         score = fmaf(query_values[quarter * 4 + 1], key_values.y, score);
@@ -1157,41 +1167,40 @@ void SplitOnlineDecodeAttentionFp8GlobalKvh2Kernel(
   }
 
   float accumulator[16] = {};
-  for (int tile_start = 0; tile_start < split_tokens;
-       tile_start += kDecodeGlobalGqaTileTokens) {
-    const int tile_tokens =
-        min(kDecodeGlobalGqaTileTokens, split_tokens - tile_start);
-    constexpr int kTileBytes =
-        kDecodeGlobalGqaTileTokens * kDecodeGlobalHeadDimension;
-    for (int byte = static_cast<int>(threadIdx.x) * 16;
-         byte < kTileBytes; byte += kDecodeThreads * 16) {
-      const int tile_token = byte / kDecodeGlobalHeadDimension;
-      const int dimension = byte - tile_token * kDecodeGlobalHeadDimension;
-      const bool valid = tile_token < tile_tokens;
-      const std::uint8_t* source = valid
-          ? value_cache +
-                (((split_start + static_cast<std::uint64_t>(tile_start +
-                                                            tile_token)) *
-                      kDecodeGlobalKvHeads26B +
-                  static_cast<std::uint64_t>(kv_head)) *
-                     kDecodeGlobalHeadDimension +
-                 dimension)
-          : value_cache;
-      CopyAsync16(staged_kv + byte, source, valid ? 16 : 0);
-    }
-    CommitAsyncCopies();
-    WaitForAsyncCopies();
-    __syncthreads();
+  int value_tile_start = 0;
+  int value_tile_tokens =
+      min(kDecodeGlobalGqaTileTokens, split_tokens);
+  StageGlobalKvh2TileAsync(staged_kv[0], value_cache, split_start,
+                           value_tile_start, value_tile_tokens, kv_head);
+  CommitAsyncCopies();
+  WaitForAsyncCopies();
+  __syncthreads();
 
-    for (int token = 0; token < tile_tokens; ++token) {
+  for (int tile_index = 0; value_tile_start < split_tokens;
+       ++tile_index, value_tile_start += kDecodeGlobalGqaTileTokens) {
+    value_tile_tokens = min(kDecodeGlobalGqaTileTokens,
+                            split_tokens - value_tile_start);
+    const int current_buffer = tile_index & 1;
+    const int next_start = value_tile_start + kDecodeGlobalGqaTileTokens;
+    const bool has_next = next_start < split_tokens;
+    if (has_next) {
+      const int next_tokens =
+          min(kDecodeGlobalGqaTileTokens, split_tokens - next_start);
+      StageGlobalKvh2TileAsync(staged_kv[current_buffer ^ 1], value_cache,
+                               split_start, next_start, next_tokens, kv_head);
+      CommitAsyncCopies();
+    }
+
+    for (int token = 0; token < value_tile_tokens; ++token) {
       const float probability =
-          scores[warp * kDecodeGlobalChunk + tile_start + token];
+          scores[warp * kDecodeGlobalChunk + value_tile_start + token];
 #pragma unroll
       for (int quarter = 0; quarter < 4; ++quarter) {
         const int dimension = lane * 4 + quarter * 128;
         const std::uint32_t packed =
             *reinterpret_cast<const std::uint32_t*>(
-                staged_kv + token * kDecodeGlobalHeadDimension + dimension);
+                staged_kv[current_buffer] +
+                token * kDecodeGlobalHeadDimension + dimension);
         const float4 values = DecodeFp8x4(packed, value_scale);
         accumulator[quarter * 4] =
             fmaf(probability, values.x, accumulator[quarter * 4]);
@@ -1203,6 +1212,7 @@ void SplitOnlineDecodeAttentionFp8GlobalKvh2Kernel(
             fmaf(probability, values.w, accumulator[quarter * 4 + 3]);
       }
     }
+    if (has_next) WaitForAsyncCopies();
     __syncthreads();
   }
 
