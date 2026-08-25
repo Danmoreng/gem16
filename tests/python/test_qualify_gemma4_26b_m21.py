@@ -74,6 +74,22 @@ args.logits.write_bytes(args.context.to_bytes(4, "little"))
 
 
 class M21QualificationTest(unittest.TestCase):
+    @staticmethod
+    def candidate_inputs(root: Path, model: Path) -> tuple[Path, Path]:
+        lock = model.parent / f"{model.name}.lock.json"
+        lock.write_text(
+            json.dumps({
+                "artifact_content_sha256": "a" * 64,
+                "source_lock_sha256": "b" * 64,
+            }),
+            encoding="utf-8",
+        )
+        benchmark = root / "benchmark"
+        benchmark.write_bytes(b"benchmark")
+        toolchain = root / "toolchain.lock"
+        toolchain.write_bytes(b"toolchain")
+        return benchmark, toolchain
+
     def test_context_parser_and_margins(self) -> None:
         self.assertEqual(MODULE.parse_contexts("65536,32768,65536"), [32768, 65536])
         self.assertEqual(MODULE.expected_margin(32768), 700 * 1024 * 1024)
@@ -94,6 +110,7 @@ class M21QualificationTest(unittest.TestCase):
             driver = root / "fake_driver.py"
             driver.write_text(FAKE_DRIVER, encoding="utf-8")
             driver.chmod(driver.stat().st_mode | stat.S_IXUSR)
+            benchmark, toolchain = self.candidate_inputs(root, model)
             output = root / "acceptance.json"
             completed = subprocess.run(
                 [
@@ -105,6 +122,10 @@ class M21QualificationTest(unittest.TestCase):
                     str(model),
                     "--output",
                     str(output),
+                    "--benchmark-executable",
+                    str(benchmark),
+                    "--toolchain-lock",
+                    str(toolchain),
                     "--contexts",
                     "32768,65536,69632",
                     "--runs",
@@ -121,6 +142,11 @@ class M21QualificationTest(unittest.TestCase):
             self.assertEqual(result["base_max_context"], 65536)
             self.assertTrue(result["maximum_search_complete"])
             self.assertTrue(result["exit_gate_pass"])
+            self.assertTrue(result["acceptance"])
+            self.assertEqual(
+                result["candidate"]["benchmark_binary_sha256"],
+                MODULE.sha256(benchmark),
+            )
             self.assertEqual(
                 [item["status"] for item in result["contexts"]],
                 ["passed", "passed", "capacity_rejected"],
@@ -142,6 +168,7 @@ class M21QualificationTest(unittest.TestCase):
                 encoding="utf-8",
             )
             driver.chmod(driver.stat().st_mode | stat.S_IXUSR)
+            benchmark, toolchain = self.candidate_inputs(root, model)
             output = root / "acceptance.json"
             completed = subprocess.run(
                 [
@@ -150,6 +177,8 @@ class M21QualificationTest(unittest.TestCase):
                     "--driver", str(driver),
                     "--model", str(model),
                     "--output", str(output),
+                    "--benchmark-executable", str(benchmark),
+                    "--toolchain-lock", str(toolchain),
                     "--contexts", "32768,65536,69632",
                     "--runs", "2",
                 ],

@@ -1,4 +1,5 @@
 import importlib.util
+import json
 from pathlib import Path
 import sys
 import tempfile
@@ -17,21 +18,6 @@ DIGEST = "a" * 64
 
 
 def suite() -> dict:
-    def scenario(identifier: str, prompt_tokens: int, mode: str = "greedy") -> dict:
-        sampling = {"mode": "greedy"} if mode == "greedy" else {
-            "mode": "sampled", "temperature": 1.0, "top_k": 64,
-            "top_p": 0.95, "seed": 7,
-        }
-        return {
-            "id": identifier,
-            "prompt_tokens": prompt_tokens,
-            "output_forwards": 4,
-            "context_tokens": 32768,
-            "prompt_manifest_sha256": DIGEST,
-            "prompt_manifest_path": f"{identifier}.json",
-            "sampling": sampling,
-            "kv_mode": "fp8",
-        }
     return {
         "schema_version": 1,
         "model": {
@@ -48,11 +34,16 @@ def suite() -> dict:
             "required_mnemonics": ["MMA", "FP8"],
         },
         "scenarios": [
-            scenario("short-greedy", 128),
-            scenario("2k-greedy", 2048),
-            scenario("8k-greedy", 8192),
-            scenario("32k-greedy", 32000),
-            scenario("short-sampled", 128, "sampled"),
+            {
+                "id": m20.PROMOTION_SCENARIO,
+                "prompt_tokens": m20.PROMOTION_PROMPT_TOKENS,
+                "output_forwards": m20.PROMOTION_OUTPUT_FORWARDS,
+                "context_tokens": m20.PROMOTION_CONTEXT_TOKENS,
+                "prompt_manifest_sha256": m20.PROMOTION_PROMPT_SHA256,
+                "prompt_manifest_path": "wikipedia-summary-16k.json",
+                "sampling": {"mode": "greedy"},
+                "kv_mode": "fp8",
+            },
         ],
     }
 
@@ -109,9 +100,9 @@ def sample(scenario: dict) -> dict:
             "sampling": scenario["sampling"],
             "prompt_ms": 100.0,
             "ttft_ms": 105.0,
-            "decode_ms": 30.0,
+            "decode_ms": 630.0,
             "decode_tps": 100.0,
-            "itl_ms": [10.0, 10.0, 10.0],
+            "itl_ms": [10.0] * 63,
         },
         "memory": {
             "sampled_device_used_bytes": 15_500_000_000,
@@ -122,21 +113,21 @@ def sample(scenario: dict) -> dict:
 
 
 class QualifyGemma426BM20Test(unittest.TestCase):
-    def test_suite_requires_full_matrix_and_sampling_control(self):
+    def test_suite_requires_exact_bounded_promotion_row(self):
         document = suite()
         validated = m20.validate_suite(document)
-        self.assertEqual(len(validated), 5)
-        document["scenarios"] = document["scenarios"][:-2]
-        with self.assertRaisesRegex(m20.QualificationError, "32K"):
+        self.assertEqual(len(validated), 1)
+        document["scenarios"][0]["prompt_tokens"] -= 1
+        with self.assertRaisesRegex(m20.QualificationError, "prompt_tokens"):
             m20.validate_suite(document)
 
     def test_valid_sample_preserves_exact_timing_boundaries(self):
         document = suite()
         scenario = document["scenarios"][0]
         normalized = m20.validate_sample(sample(scenario), scenario, document)
-        self.assertEqual(normalized["prompt_tps"], 1280.0)
+        self.assertEqual(normalized["prompt_tps"], 163840.0)
         self.assertEqual(normalized["decode_tps"], 100.0)
-        self.assertEqual(normalized["itl_ms"], [10.0, 10.0, 10.0])
+        self.assertEqual(normalized["itl_ms"], [10.0] * 63)
 
     def test_prompt_manifest_is_content_addressed_and_counted(self):
         document = suite()
@@ -204,6 +195,49 @@ class QualifyGemma426BM20Test(unittest.TestCase):
         document["scenarios"][0]["sampling"]["seed"] = 0
         with self.assertRaisesRegex(m20.QualificationError, "hidden controls"):
             m20.validate_suite(document)
+
+    def test_m21_gate_binds_exact_candidate_identity(self):
+        document = suite()
+        code = {"commit": "1" * 40, "dirty": False}
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "m21.json"
+            path.write_text(
+                json.dumps({
+                    "schema_version": 1,
+                    "milestone": "M21",
+                    "status": "qualified",
+                    "acceptance": True,
+                    "exit_gate_pass": True,
+                    "release_32k": True,
+                    "base_64k_result": "passed",
+                    "base_max_context": 65536,
+                    "maximum_search_complete": True,
+                    "code": code,
+                    "candidate": {
+                        "model": document["model"],
+                        "toolchain_lock_sha256": document["toolchain_lock_sha256"],
+                        "benchmark_binary_sha256": DIGEST,
+                    },
+                }),
+                encoding="utf-8",
+            )
+            accepted = m20.m21_gate(path, document, code, DIGEST)
+            self.assertTrue(accepted["pass"])
+            rejected = m20.m21_gate(path, document, code, "b" * 64)
+            self.assertFalse(rejected["pass"])
+            self.assertFalse(rejected["checks"]["same_benchmark_binary"])
+
+    def test_deferred_external_gate_still_reports_evidence(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "m19.json"
+            path.write_text(
+                json.dumps({"milestone": "M19", "status": "pending"}),
+                encoding="utf-8",
+            )
+            report = m20.external_gate(path, "M19")
+            self.assertTrue(report["available"])
+            self.assertFalse(report["pass"])
+            self.assertEqual(report["reported_milestone"], "M19")
 
 
 if __name__ == "__main__":

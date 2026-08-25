@@ -40,6 +40,14 @@ EXPECTED_DISPATCH = {
 }
 REQUIRED_WARMUPS = 3
 REQUIRED_RETAINED = 10
+PROMOTION_SCENARIO = "wikipedia-real-16k64-greedy"
+PROMOTION_PROMPT_TOKENS = 16_384
+PROMOTION_OUTPUT_FORWARDS = 64
+PROMOTION_CONTEXT_TOKENS = 16_448
+PROMOTION_PROMPT_SHA256 = "9a5859b979d91fccf71bcbb61aade6372cf2cc3c708e6c47b8b6cfd99f7abd2d"
+PROMPT_TPS_TARGET = 6_000.0
+PROMPT_TPS_STRETCH = 6_500.0
+DECODE_TPS_TARGET = 150.0
 EXPECTED_SM120_INSTRUCTIONS = (
     "OMMA.SF.16864.F32.E2M1.E2M1.UE4M3.4X",
     "QMMA.16832.F32.E4M3.E4M3",
@@ -136,9 +144,9 @@ def validate_suite(suite: dict[str, Any]) -> list[dict[str, Any]]:
     scenarios = suite.get("scenarios")
     if not isinstance(scenarios, list) or not scenarios:
         raise QualificationError("suite scenarios must be a non-empty list")
+    if len(scenarios) != 1:
+        raise QualificationError("suite must contain only the bounded M20 promotion row")
     identifiers: set[str] = set()
-    greedy_lengths: list[int] = []
-    sampled = False
     validated: list[dict[str, Any]] = []
     for index, scenario in enumerate(scenarios):
         if not isinstance(scenario, dict):
@@ -166,7 +174,6 @@ def validate_suite(suite: dict[str, Any]) -> list[dict[str, Any]]:
         if sampling["mode"] == "greedy":
             if set(sampling) != {"mode"}:
                 raise QualificationError(f"{identifier} greedy sampling has hidden controls")
-            greedy_lengths.append(prompt_tokens)
         else:
             expected = {"mode", "temperature", "top_k", "top_p", "seed"}
             if set(sampling) != expected:
@@ -177,17 +184,24 @@ def validate_suite(suite: dict[str, Any]) -> list[dict[str, Any]]:
             if top_p > 1.0:
                 raise QualificationError(f"{identifier}.top_p exceeds one")
             integer(sampling["seed"], f"{identifier}.seed")
-            sampled = True
         if scenario.get("kv_mode") != "fp8":
             raise QualificationError(f"{identifier} does not lock FP8 K/V")
         validated.append(scenario)
-
-    ranges = ((1, 512, "short"), (1536, 2560, "2K"), (7168, 9216, "8K"), (28672, 32768, "32K"))
-    for low, high, label in ranges:
-        if not any(low <= length <= high for length in greedy_lengths):
-            raise QualificationError(f"suite lacks a greedy {label} scenario")
-    if not sampled:
-        raise QualificationError("suite lacks a production sampling control")
+    promotion = validated[0]
+    expected = {
+        "id": PROMOTION_SCENARIO,
+        "prompt_tokens": PROMOTION_PROMPT_TOKENS,
+        "output_forwards": PROMOTION_OUTPUT_FORWARDS,
+        "context_tokens": PROMOTION_CONTEXT_TOKENS,
+        "prompt_manifest_sha256": PROMOTION_PROMPT_SHA256,
+        "sampling": {"mode": "greedy"},
+        "kv_mode": "fp8",
+    }
+    for field, value in expected.items():
+        if promotion.get(field) != value:
+            raise QualificationError(
+                f"bounded promotion row {field} is {promotion.get(field)!r}, expected {value!r}"
+            )
     return validated
 
 
@@ -444,6 +458,46 @@ def external_gate(path: Path | None, milestone: str) -> dict[str, Any]:
     }
 
 
+def m21_gate(
+    path: Path | None,
+    suite: dict[str, Any],
+    code: dict[str, Any],
+    benchmark_binary_sha256: str,
+) -> dict[str, Any]:
+    if path is None:
+        return {"available": False, "pass": False, "reason": "M21 evidence not supplied"}
+    document = load_json(path)
+    candidate = document.get("candidate")
+    model = candidate.get("model") if isinstance(candidate, dict) else None
+    candidate_code = document.get("code")
+    checks = {
+        "milestone": document.get("milestone") == "M21",
+        "accepted": document.get("acceptance") is True
+        and document.get("status") == "qualified"
+        and document.get("exit_gate_pass") is True,
+        "same_model": isinstance(model, dict) and model == suite["model"],
+        "same_toolchain": isinstance(candidate, dict)
+        and candidate.get("toolchain_lock_sha256") == suite["toolchain_lock_sha256"],
+        "same_benchmark_binary": isinstance(candidate, dict)
+        and candidate.get("benchmark_binary_sha256") == benchmark_binary_sha256,
+        "same_source_revision": isinstance(candidate_code, dict)
+        and candidate_code.get("commit") == code["commit"]
+        and candidate_code.get("dirty") is False
+        and code["dirty"] is False,
+        "required_32k": document.get("release_32k") is True,
+        "explicit_64k": document.get("base_64k_result") in {"passed", "capacity_rejected"},
+        "maximum_complete": document.get("maximum_search_complete") is True,
+    }
+    return {
+        "available": True,
+        "pass": all(checks.values()),
+        "path": str(path),
+        "sha256": sha256_file(path),
+        "checks": checks,
+        "base_max_context": document.get("base_max_context"),
+    }
+
+
 def repository_state() -> dict[str, Any]:
     def git(*arguments: str) -> str:
         return subprocess.check_output(["git", *arguments], text=True, stderr=subprocess.DEVNULL).strip()
@@ -697,8 +751,17 @@ def collect(args: argparse.Namespace) -> dict[str, Any]:
     )
 
     code = repository_state()
-    m19_gate = external_gate(args.m19_evidence, "M19")
-    m21_gate = external_gate(args.m21_evidence, "M21")
+    m19_report = external_gate(args.m19_evidence, "M19")
+    m21_report = m21_gate(
+        args.m21_evidence, suite, code, instruction_evidence["binary_sha256"]
+    )
+    summaries = {
+        identifier: summarize_runs(runs)
+        for identifier, runs in retained_by_scenario.items()
+    }
+    promotion_summary = summaries[PROMOTION_SCENARIO]
+    prompt_median = promotion_summary["prompt_tps"]["median"]
+    decode_median = promotion_summary["decode_tps"]["median"]
     data_gates = {
         "clean_code_revision": code["dirty"] is False,
         "three_warmups_per_scenario": all(
@@ -719,8 +782,9 @@ def collect(args: argparse.Namespace) -> dict[str, Any]:
             for run in raw_records
         ),
         "continuous_telemetry": all(run["telemetry_samples"] > 0 for run in raw_records),
-        "m19_quality_pass": m19_gate["pass"],
-        "m21_memory_pass": m21_gate["pass"],
+        "prompt_median_at_least_6000": prompt_median >= PROMPT_TPS_TARGET,
+        "ordinary_decode_median_at_least_150": decode_median >= DECODE_TPS_TARGET,
+        "m21_memory_pass": m21_report["pass"],
     }
     accepted = all(data_gates.values())
     return {
@@ -746,12 +810,25 @@ def collect(args: argparse.Namespace) -> dict[str, Any]:
             "telemetry_interval_seconds": args.telemetry_interval,
         },
         "native_instruction_evidence": instruction_evidence,
-        "external_gates": {"m19": m19_gate, "m21": m21_gate},
-        "gates": data_gates,
-        "summary": {
-            identifier: summarize_runs(runs)
-            for identifier, runs in retained_by_scenario.items()
+        "external_gates": {
+            "m19": {
+                **m19_report,
+                "blocking": False,
+                "owner_policy": "full_M19_deferred",
+            },
+            "m21": m21_report,
         },
+        "gates": data_gates,
+        "promotion": {
+            "scenario": PROMOTION_SCENARIO,
+            "prompt_tps_target": PROMPT_TPS_TARGET,
+            "decode_tps_target": DECODE_TPS_TARGET,
+            "prompt_tps_stretch": PROMPT_TPS_STRETCH,
+            "prompt_tps_median": prompt_median,
+            "decode_tps_median": decode_median,
+            "prompt_stretch_pass": prompt_median >= PROMPT_TPS_STRETCH,
+        },
+        "summary": summaries,
         "runs": raw_records,
         "raw_evidence": {
             "directory": str(raw_dir),

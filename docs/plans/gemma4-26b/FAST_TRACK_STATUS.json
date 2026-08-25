@@ -260,8 +260,8 @@
       ]
     },
     "M21": {
-      "status": "READY_NEXT",
-      "note": "After accepted M22, fixed-target prefill/decode optimization and clean candidate freeze, real repeated 32K, explicit 64K and maximum-context execution remain required; allocation-only M09 evidence is not sufficient.",
+      "status": "READY_AFTER_RUNNER_COMMIT",
+      "note": "The frozen development candidate reaches the fixed throughput targets. The bounded M20/M21 evidence handshake now binds artifact lock, toolchain lock, clean source revision and benchmark binary while hashing the distinct context driver separately. Real repeated 32K, explicit 64K and maximum-context execution remain required; allocation-only M09 evidence is not sufficient.",
       "class": "qualification",
       "lane": "long-context",
       "depends_on": [

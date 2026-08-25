@@ -18,6 +18,9 @@ Qualify real execution at 32K, attempt 64K and determine the largest safely supp
 5. record the limiting region and selected prompt chunk.
 
 Use real prefill plus decode, ring wrap/global extent tests and continuous telemetry. Allocation-only success is not support.
+The compact reconciler binds every result to the compiled artifact lock, toolchain lock, clean source revision, M20
+benchmark binary and separately hashed context-driver binary. M20 rejects an M21 envelope if any candidate identity
+changes.
 
 ## Exit gate
 

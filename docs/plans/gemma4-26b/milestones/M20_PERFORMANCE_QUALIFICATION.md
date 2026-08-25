@@ -1,6 +1,6 @@
 # M20 — Controlled performance qualification
 
-Status: in progress; current adjacent 16K+64 candidate averages 6,591.300 prompt and 146.567 ordinary-decode tok/s; fixed owner decode target and formal 3/10 telemetry run remain
+Status: in progress; current adjacent 16K+64 candidate averages 6,568.395 prompt and 150.413 ordinary-decode tok/s; matching M21 and formal 3/10 telemetry remain
 Class: qualification; GPU execution follows M21 and consumes its matching context evidence
 
 Normative inputs: [Benchmark matrix](../specs/BENCHMARK_MATRIX.md), [Telemetry artifact](../specs/TELEMETRY_ARTIFACT_SPEC.md).
@@ -19,7 +19,7 @@ the fixed owner targets without changing model semantics.
 - hard retained medians: **prompt throughput >= 6,000 token/s** and **ordinary decode throughput >= 150 token/s**;
 - non-blocking competitive stretch: **prompt throughput >= 6,500 token/s**.
 
-The current 6,591.300/146.567 development row passes the prompt target and non-blocking stretch but remains an
+The current 6,568.395/150.413 development row passes both hard targets and the non-blocking stretch but remains an
 adjacent three-run development result rather than formal M20 acceptance. The external
 vLLM 0.27.1 community-W4A16 row motivates the targets but differs in checkpoint and prefill timing boundary and is
 not the correctness oracle.
@@ -36,9 +36,10 @@ not the correctness oracle.
   `decode_ms=sum_of_post_first_token_synchronized_intervals`, with model load excluded;
 - record raw runs, clocks, power, thermals, VRAM and actual dispatch;
 - compare external Q4_0/Unsloth with explicit format/timing caveats.
-- require the native M21 acceptance envelope from the identical artifact, binary and source revision.
-- align the M20 qualifier with this single bounded promotion row and the owner-deferred M19 policy before execution;
-  its older mandatory multi-scenario/M19 gates cannot accept this milestone unchanged.
+- require the native M21 acceptance envelope from the identical artifact, toolchain lock, source revision and M20
+  benchmark-binary hash; the distinct M21 context-driver binary is also hashed independently;
+- use only the bounded promotion row above for this qualification. Full M19 remains owner-deferred and is reported
+  but does not block this technical performance milestone.
 
 ## Exit gate
 

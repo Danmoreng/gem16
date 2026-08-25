@@ -11,8 +11,8 @@ Derived from [`FAST_TRACK_STATUS.json`](FAST_TRACK_STATUS.json). Policy: [`../..
 | Milestone/slice | State | Remaining work |
 |---|---|---|
 | Performance optimization slice | DEVELOPMENT_TARGET_REACHED | exact three-run candidate reaches 6,568.395/150.413 token/s; formal evidence remains pending |
-| Runner/freeze slice | ACTIVE_NEXT | encode the fixed target row, align M20/M21 schemas and provenance, then build one clean immutable candidate |
-| M21 | READY_AFTER_FREEZE | repeated real 32K, explicit real 64K pass/fail and measured `base_max_context` |
+| Runner/freeze slice | IMPLEMENTED_PENDING_COMMIT | bounded-row gates and M20/M21 artifact/toolchain/source/binary handshake are covered by host tests |
+| M21 | READY_AFTER_RUNNER_COMMIT | repeated real 32K, explicit real 64K pass/fail and measured `base_max_context` |
 | M20 | IN_PROGRESS_AFTER_M21 | exact 16K+64 retained medians must reach >=6,000 prompt and >=150 ordinary-decode tok/s; report >=6,500 prompt stretch; latest adjacent development candidate is 6,568.395/150.413, formal medians pending |
 | M23 | BLOCKED_BY_M20_M21 | freeze a technical Target with rollback and M19 explicitly pending |
 | M25 phase A | PARALLEL_FEASIBILITY_ONLY | assistant compatibility and memory feasibility only |

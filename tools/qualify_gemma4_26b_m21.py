@@ -16,6 +16,7 @@ import subprocess
 import sys
 import tempfile
 from typing import Any
+import urllib.parse
 
 
 MIB = 1024 * 1024
@@ -28,6 +29,61 @@ def sha256(path: Path) -> str:
         for block in iter(lambda: source.read(1024 * 1024), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+def repository_state() -> dict[str, Any]:
+    def git(*arguments: str) -> str:
+        return subprocess.check_output(
+            ["git", *arguments], text=True, stderr=subprocess.DEVNULL
+        ).strip()
+
+    try:
+        commit = git("rev-parse", "HEAD")
+        repository = git("config", "--get", "remote.origin.url")
+        if "://" in repository:
+            parsed = urllib.parse.urlsplit(repository)
+            host = parsed.hostname or "redacted"
+            if parsed.port is not None:
+                host = f"{host}:{parsed.port}"
+            repository = urllib.parse.urlunsplit(
+                (parsed.scheme, host, parsed.path, parsed.query, parsed.fragment)
+            )
+        elif "@" in repository and ":" in repository:
+            repository = repository.split("@", 1)[1]
+        dirty = bool(git("status", "--porcelain"))
+    except (OSError, subprocess.CalledProcessError):
+        commit, repository, dirty = "unknown", "unknown", True
+    return {"repository": repository, "commit": commit, "dirty": dirty}
+
+
+def artifact_identity(model: Path) -> dict[str, Any]:
+    lock = model.parent / f"{model.name}.lock.json"
+    if not lock.is_file() or lock.is_symlink() or lock.stat().st_size > 16 * MIB:
+        raise RuntimeError(f"compiled artifact lock is missing or unsafe: {lock}")
+    try:
+        document = json.loads(lock.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        raise RuntimeError(f"cannot parse compiled artifact lock: {error}") from error
+    if not isinstance(document, dict):
+        raise RuntimeError("compiled artifact lock root is not an object")
+    result = {
+        "profile": "native_sm120_integrated_prefill_decode_head",
+        "artifact_content_sha256": document.get("artifact_content_sha256"),
+        "artifact_lock_sha256": sha256(lock),
+        "source_lock_sha256": document.get("source_lock_sha256"),
+    }
+    if any(
+        not isinstance(result[field], str)
+        or len(result[field]) != 64
+        or any(character not in "0123456789abcdef" for character in result[field])
+        for field in (
+            "artifact_content_sha256",
+            "artifact_lock_sha256",
+            "source_lock_sha256",
+        )
+    ):
+        raise RuntimeError("compiled artifact lock identity is incomplete")
+    return result
 
 
 def parse_contexts(value: str) -> list[int]:
@@ -251,6 +307,8 @@ def main() -> int:
     parser.add_argument("--driver", type=Path, required=True)
     parser.add_argument("--model", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--benchmark-executable", type=Path, required=True)
+    parser.add_argument("--toolchain-lock", type=Path, required=True)
     parser.add_argument("--contexts", type=parse_contexts, default=parse_contexts("32768,65536"))
     parser.add_argument("--runs", type=int, default=2)
     parser.add_argument("--device", type=int, default=0)
@@ -263,11 +321,20 @@ def main() -> int:
     args = parser.parse_args()
     driver = args.driver.resolve()
     model = args.model.resolve()
+    benchmark_executable = args.benchmark_executable.resolve()
+    toolchain_lock = args.toolchain_lock.resolve()
     if (args.runs < 2 or args.device < 0 or args.timeout <= 0 or
             args.maximum_gap_tokens <= 0):
         parser.error("runs must be >=2 and device/timeout/gap must be positive")
-    if not driver.is_file() or not model.is_dir():
-        parser.error("driver must be a file and model must be a directory")
+    if (
+        not driver.is_file()
+        or not benchmark_executable.is_file()
+        or not toolchain_lock.is_file()
+        or not model.is_dir()
+    ):
+        parser.error(
+            "driver, benchmark executable and toolchain lock must be files and model must be a directory"
+        )
     required_files = [model / "config.json", model / "gem16_compilation.json"]
     if any(not path.is_file() for path in required_files):
         parser.error("model is not a compiled Gemma 4 26B artifact")
@@ -298,6 +365,11 @@ def main() -> int:
         except (OSError, RuntimeError) as error:
             parser.error(str(error))
 
+    code = repository_state()
+    try:
+        model_identity = artifact_identity(model)
+    except RuntimeError as error:
+        parser.error(str(error))
     passed_contexts = [
         item["context_tokens"] for item in contexts if item["status"] == "passed"
     ]
@@ -351,7 +423,16 @@ def main() -> int:
     result = {
         "schema_version": 1,
         "milestone": "M21",
+        "status": "qualified" if exit_gate_pass else "incomplete",
+        "acceptance": exit_gate_pass,
         "qualification_status": "passed" if exit_gate_pass else "incomplete",
+        "code": code,
+        "candidate": {
+            "model": model_identity,
+            "toolchain_lock_sha256": sha256(toolchain_lock),
+            "benchmark_binary_sha256": sha256(benchmark_executable),
+            "context_driver_sha256": sha256(driver),
+        },
         "artifact": {
             "model_directory": str(model),
             "config_sha256": sha256(model / "config.json"),
