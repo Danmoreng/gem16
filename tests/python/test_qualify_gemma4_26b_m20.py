@@ -223,6 +223,7 @@ class QualifyGemma426BM20Test(unittest.TestCase):
             )
             accepted = m20.m21_gate(path, document, code, DIGEST)
             self.assertTrue(accepted["pass"])
+            self.assertTrue(accepted["checks"]["same_runtime_source"])
             rejected = m20.m21_gate(path, document, code, "b" * 64)
             self.assertFalse(rejected["pass"])
             self.assertFalse(rejected["checks"]["same_benchmark_binary"])
@@ -238,6 +239,18 @@ class QualifyGemma426BM20Test(unittest.TestCase):
             self.assertTrue(report["available"])
             self.assertFalse(report["pass"])
             self.assertEqual(report["reported_milestone"], "M19")
+
+    def test_telemetry_allows_unmatched_startup_or_teardown_samples(self):
+        self.assertEqual(
+            m20.process_vram_samples([
+                {"process_vram_mib": None},
+                {"process_vram_mib": 14626.0},
+                {"process_vram_mib": None},
+            ]),
+            [14626.0],
+        )
+        with self.assertRaisesRegex(m20.QualificationError, "process VRAM"):
+            m20.process_vram_samples([{"process_vram_mib": None}])
 
 
 if __name__ == "__main__":

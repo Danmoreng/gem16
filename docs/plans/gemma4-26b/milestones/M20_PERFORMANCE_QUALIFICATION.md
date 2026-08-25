@@ -36,8 +36,10 @@ not the correctness oracle.
   `decode_ms=sum_of_post_first_token_synchronized_intervals`, with model load excluded;
 - record raw runs, clocks, power, thermals, VRAM and actual dispatch;
 - compare external Q4_0/Unsloth with explicit format/timing caveats.
-- require the native M21 acceptance envelope from the identical artifact, toolchain lock, source revision and M20
-  benchmark-binary hash; the distinct M21 context-driver binary is also hashed independently;
+- require the native M21 acceptance envelope from the identical artifact, toolchain lock, unchanged native
+  `src`/`include`/CMake source trees and M20 benchmark-binary hash; the distinct M21 context-driver binary is also
+  hashed independently. Evidence-harness-only follow-up commits are allowed only while those native trees and the
+  binary remain identical;
 - use only the bounded promotion row above for this qualification. Full M19 remains owner-deferred and is reported
   but does not block this technical performance milestone.
 

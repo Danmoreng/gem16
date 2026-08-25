@@ -470,6 +470,35 @@ def m21_gate(
     candidate = document.get("candidate")
     model = candidate.get("model") if isinstance(candidate, dict) else None
     candidate_code = document.get("code")
+    candidate_commit = (
+        candidate_code.get("commit") if isinstance(candidate_code, dict) else None
+    )
+    current_commit = code.get("commit")
+    same_runtime_source = candidate_commit == current_commit
+    if (
+        not same_runtime_source
+        and isinstance(candidate_commit, str)
+        and isinstance(current_commit, str)
+    ):
+        try:
+            ancestor = subprocess.run(
+                ["git", "merge-base", "--is-ancestor", candidate_commit, current_commit],
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            ).returncode == 0
+            runtime_diff = subprocess.run(
+                [
+                    "git", "diff", "--quiet", candidate_commit, current_commit, "--",
+                    "src", "include", "cmake", "CMakeLists.txt",
+                ],
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            ).returncode
+            same_runtime_source = ancestor and runtime_diff == 0
+        except OSError:
+            same_runtime_source = False
     checks = {
         "milestone": document.get("milestone") == "M21",
         "accepted": document.get("acceptance") is True
@@ -480,8 +509,8 @@ def m21_gate(
         and candidate.get("toolchain_lock_sha256") == suite["toolchain_lock_sha256"],
         "same_benchmark_binary": isinstance(candidate, dict)
         and candidate.get("benchmark_binary_sha256") == benchmark_binary_sha256,
-        "same_source_revision": isinstance(candidate_code, dict)
-        and candidate_code.get("commit") == code["commit"]
+        "same_runtime_source": same_runtime_source
+        and isinstance(candidate_code, dict)
         and candidate_code.get("dirty") is False
         and code["dirty"] is False,
         "required_32k": document.get("release_32k") is True,
@@ -618,6 +647,17 @@ class TelemetrySampler:
         return self.samples, self.error
 
 
+def process_vram_samples(samples: list[dict[str, Any]]) -> list[float]:
+    values = [
+        float(sample["process_vram_mib"])
+        for sample in samples
+        if sample.get("process_vram_mib") is not None
+    ]
+    if not values:
+        raise QualificationError("continuous telemetry did not observe process VRAM")
+    return values
+
+
 def execute_run(
     executable: Path,
     model: Path,
@@ -648,8 +688,7 @@ def execute_run(
         raise QualificationError(f"benchmark runner exited {process.returncode}: {(stderr or stdout)[-2000:]}")
     if telemetry_error is not None or not samples:
         raise QualificationError(f"continuous GPU telemetry failed: {telemetry_error or 'no samples'}")
-    if any(sample["process_vram_mib"] is None for sample in samples):
-        raise QualificationError("continuous telemetry did not observe process VRAM")
+    process_vram_samples(samples)
     return load_json(output_path), command
 
 
@@ -724,10 +763,8 @@ def collect(args: argparse.Namespace) -> dict[str, Any]:
                             f"{identifier}: telemetry line {line_number} is not an object"
                         )
                     telemetry_rows.append(telemetry_row)
-            observed_peak_bytes = int(
-                max(float(row["process_vram_mib"]) for row in telemetry_rows)
-                * 1024 * 1024
-            )
+            observed_process_vram = process_vram_samples(telemetry_rows)
+            observed_peak_bytes = int(max(observed_process_vram) * 1024 * 1024)
             record = {
                 "scenario": identifier,
                 "run": phase_index,
@@ -736,6 +773,7 @@ def collect(args: argparse.Namespace) -> dict[str, Any]:
                 "sample_sha256": sha256_file(sample_path),
                 "telemetry_sha256": sha256_file(telemetry_path),
                 "telemetry_samples": len(telemetry_rows),
+                "telemetry_process_vram_samples": len(observed_process_vram),
                 "telemetry_process_peak_bytes": observed_peak_bytes,
             }
             raw_records.append(record)
@@ -781,7 +819,11 @@ def collect(args: argparse.Namespace) -> dict[str, Any]:
             all(value.startswith("native_") for value in run["resolved_dispatch"].values())
             for run in raw_records
         ),
-        "continuous_telemetry": all(run["telemetry_samples"] > 0 for run in raw_records),
+        "continuous_telemetry": all(
+            run["telemetry_samples"] > 0
+            and run["telemetry_process_vram_samples"] > 0
+            for run in raw_records
+        ),
         "prompt_median_at_least_6000": prompt_median >= PROMPT_TPS_TARGET,
         "ordinary_decode_median_at_least_150": decode_median >= DECODE_TPS_TARGET,
         "m21_memory_pass": m21_report["pass"],

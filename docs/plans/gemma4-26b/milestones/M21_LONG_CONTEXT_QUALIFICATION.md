@@ -19,8 +19,9 @@ Qualify real execution at 32K, attempt 64K and determine the largest safely supp
 
 Use real prefill plus decode, ring wrap/global extent tests and continuous telemetry. Allocation-only success is not support.
 The compact reconciler binds every result to the compiled artifact lock, toolchain lock, clean source revision, M20
-benchmark binary and separately hashed context-driver binary. M20 rejects an M21 envelope if any candidate identity
-changes.
+benchmark binary and separately hashed context-driver binary. M20 rejects an M21 envelope if the artifact,
+toolchain, native `src`/`include`/CMake trees or benchmark binary changes; a later evidence-harness-only commit is
+reported but does not invalidate an otherwise byte-identical native candidate.
 
 ## Exit gate
 
