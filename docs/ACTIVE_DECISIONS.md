@@ -117,6 +117,15 @@ Formal M20 remains open because ordinary decode averages 139.05 rather than 150 
 protocol has not run. The next bounded work is last-chunk-only output-head/argmax, safe non-aliasing prefill staging,
 and reducing greedy Prediction host synchronization/D2H transfers.
 
+On 2026-08-25 the retained exact development series advanced the same canonical row to 6,564.96 mean prompt tok/s
+and 140.029 mean ordinary-decode tok/s. Final-chunk-only prefill output, global value-cache ping-pong staging and a
+split routed Gate/Up plus fused BF16-product/NVFP4-quantization path preserve the `c750d0…` output hash, fixed arena,
+Graph node count and zero fallback/allocation contract. M20 remains open by 9.971 token/s (7.12% throughput) on
+ordinary decode; D10 greedy-head traffic reduction is the next isolated candidate, followed by coherent D11 device
+self-feed. Compact evidence is under `artifacts/m20/optimization-final-chunk-only.json`,
+`artifacts/m20/optimization-global-value-pingpong.json` and
+`artifacts/m20/optimization-decode-moe-split-fused-quant.json`.
+
 The owner set the base-model 64K residency and later execution reserve to 400 MiB on 2026-08-14 so that 64K remains
 a required supported target. This supersedes the prior 500 MiB base-model rule for 64K and larger contexts. The 32K
 gate remains 700 MiB, and MTP keeps its separate 500 MiB 64K gate until M25 measures assistant overhead.

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "plan_revision": "fast-track-r4",
-  "updated": "2026-08-23",
+  "updated": "2026-08-25",
   "accepted_through": "M17",
   "accepted_additional": [
     "M22"
@@ -222,7 +222,7 @@
     },
     "M20": {
       "status": "IN_PROGRESS",
-      "note": "The latest adjacent two-run 16K+64 development candidate is 6574.16 mean prompt and 139.054 mean ordinary-decode tok/s with the promoted SM120 BF16 Tensor-Core prefill router; both prompt gates pass, while the 150 decode gate and formal retained medians remain pending. The serial exact router is an explicit rollback. After decode optimization, final candidate freeze and M21, formal 3-warm-up/10-retained telemetry qualification consumes matching M21 evidence.",
+      "note": "The latest adjacent three-run 16K+64 development candidate is 6564.96 mean prompt and 140.029 mean ordinary-decode tok/s after the promoted SM120 BF16 Tensor-Core prefill router, exact attention staging and exact D09 decode-MoE work; both prompt gates pass, while the 150 decode gate and formal retained medians remain pending. The serial exact router is an explicit rollback. After decode optimization, final candidate freeze and M21, formal 3-warm-up/10-retained telemetry qualification consumes matching M21 evidence.",
       "performance_target": {
         "scenario": "wikipedia-real-16k64-greedy",
         "prompt_manifest_sha256": "9a5859b979d91fccf71bcbb61aade6372cf2cc3c708e6c47b8b6cfd99f7abd2d",

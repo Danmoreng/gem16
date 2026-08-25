@@ -1,6 +1,6 @@
 # M20 — Controlled performance qualification
 
-Status: in progress; current adjacent 16K+64 candidate averages 6,574.164 prompt and 139.054 ordinary-decode tok/s; fixed owner decode target and formal 3/10 telemetry run remain
+Status: in progress; current adjacent 16K+64 candidate averages 6,564.959 prompt and 140.029 ordinary-decode tok/s; fixed owner decode target and formal 3/10 telemetry run remain
 Class: qualification; GPU execution follows M21 and consumes its matching context evidence
 
 Normative inputs: [Benchmark matrix](../specs/BENCHMARK_MATRIX.md), [Telemetry artifact](../specs/TELEMETRY_ARTIFACT_SPEC.md).
@@ -19,8 +19,8 @@ the fixed owner targets without changing model semantics.
 - hard retained medians: **prompt throughput >= 6,000 token/s** and **ordinary decode throughput >= 150 token/s**;
 - non-blocking competitive stretch: **prompt throughput >= 6,500 token/s**.
 
-The current 6,574.164/139.054 development row passes the prompt target and non-blocking stretch but remains an
-adjacent two-run development result rather than formal M20 acceptance. The external
+The current 6,564.959/140.029 development row passes the prompt target and non-blocking stretch but remains an
+adjacent three-run development result rather than formal M20 acceptance. The external
 vLLM 0.27.1 community-W4A16 row motivates the targets but differs in checkpoint and prefill timing boundary and is
 not the correctness oracle.
 

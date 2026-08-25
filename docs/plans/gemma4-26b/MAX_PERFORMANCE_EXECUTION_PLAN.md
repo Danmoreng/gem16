@@ -37,7 +37,7 @@ The maximum-performance campaign stops only when at least one of these condition
 Implementation baseline:
 
 - branch: `feat/gemma4-26b`;
-- commit: `4b7c2f3` (`Promote SM120 tensor-core prefill router`);
+- retained local development series: `4b7c2f3` through the D04b attention and D09 decode-MoE candidates;
 - integrated 26B prefill router: `sm120_bf16_tensor_core`;
 - explicit rollback: `serial_exact` selected before execution;
 - one fully resident target-weight representation;
@@ -49,10 +49,10 @@ Adjacent development measurements:
 
 | Metric | Current mean | M20 gate | Status |
 |---|---:|---:|---|
-| Prompt throughput | 6,574.164 token/s | 6,000 token/s | pass |
-| Prompt stretch | 6,574.164 token/s | 6,500 token/s | pass |
-| Ordinary decode | 139.054 token/s | 150 token/s | open |
-| Ordinary token latency | 7.191 ms | 6.667 ms | save about 0.525 ms/token |
+| Prompt throughput | 6,564.959 token/s | 6,000 token/s | pass |
+| Prompt stretch | 6,564.959 token/s | 6,500 token/s | pass |
+| Ordinary decode | 140.029 token/s | 150 token/s | open |
+| Ordinary token latency | 7.141 ms | 6.667 ms | save about 0.475 ms/token |
 
 The current Tensor-Core-router output-token SHA-256 is
 `c750d0b33f8eb4a8103299875886e51ab144d874cafe8cea77b0cfd99d2aedaf`. The explicit serial-router rollback produces
@@ -347,6 +347,14 @@ candidate select Top-8 directly from logits, exponentiate only winners, and omit
 
 #### D09: M=1 NVFP4 MoE
 
+Status: the exact D09 split-routed-W13 plus fused product/quantization candidate was retained on 2026-08-25. Three
+canonical samples average 140.029 token/s (+0.425% over D04b), while all decode-Graph kernel time falls from
+8,225.978 to 8,190.935 microseconds. A direct operator differential is bit exact for Gate/Up, the BF16 product,
+packed E2M1 payload and block scales; the real-model output remains `c750d0…`. Two-row-per-warp W13 and W2 variants,
+stream priorities, and a split W13 with a separate product kernel were rejected. Compact evidence is
+`artifacts/m20/optimization-decode-moe-split-fused-quant.json`. D09d/e remain optional follow-ons if a later profile
+justifies their larger complexity.
+
 Profile routed/shared Gate-Up and Down separately. Reimplement current-semantics candidates one at a time:
 
 - reuse one activation/scale load across multiple output-row tiles;
@@ -515,8 +523,8 @@ under the current owner authorization; do not push unless the owner explicitly r
 P01 and D04b are retained; P02 and D03a are rejected; D03b is skipped; D00 is complete. The next isolated mechanisms
 are the larger constant-cost targets identified by D00:
 
-1. profile and implement D09 decode-MoE M=1 row reuse or scheduling without changing the BF16/product boundary;
-2. keep D10 output-head and D11 coherent device self-feed as independent candidates;
+1. retain the exact D09 split-routed-W13 plus fused product/quantization result as the new measured parent;
+2. implement D10 output-head traffic reduction next, then keep D11 coherent device self-feed independent;
 3. retain the current `c750d0...` output hash, fixed Graph/arena contract and no-spill boundary;
 4. screen each mechanism with an operator differential and adjacent 16K+64 full-engine samples;
 5. do not combine candidates until each isolated delta is known.

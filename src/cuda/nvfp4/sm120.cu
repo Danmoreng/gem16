@@ -308,6 +308,93 @@ __global__ void Sm120DirectProjectionKernel(const std::uint8_t* packed_activatio
 #endif
 }
 
+__global__ void Sm120SelectedSplitGateUpKernel(
+    const std::uint8_t* packed_activation_e2m1,
+    const std::uint8_t* activation_scales_e4m3fn,
+    const std::uint8_t* packed_expert_gate_up_weight_e2m1,
+    const std::uint8_t* expert_gate_up_weight_scales_e4m3fn,
+    const std::uint32_t* selected_ids, std::uint32_t experts,
+    float* gate_output, float* up_output, std::uint64_t rows,
+    std::uint64_t contracting_elements, float output_divisor) {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1200
+  const std::uint64_t token = blockIdx.y;
+  const std::uint32_t expert = selected_ids[token];
+  if (expert >= experts) return;
+
+  const unsigned warp = threadIdx.x / kWarpSize;
+  const unsigned lane = threadIdx.x & (kWarpSize - 1U);
+  const std::uint64_t logical_warp =
+      static_cast<std::uint64_t>(blockIdx.x) * kWarpsPerBlock + warp;
+  const std::uint64_t row_tiles = rows / kRowsPerWarp;
+  if (logical_warp >= 2U * row_tiles) return;
+  const bool up_projection = logical_warp >= row_tiles;
+  const std::uint64_t row_tile =
+      logical_warp - (up_projection ? row_tiles : 0U);
+
+  const std::uint64_t k_blocks = contracting_elements / kElementsPerKBlock;
+  const std::uint64_t expert_row =
+      static_cast<std::uint64_t>(expert) * 2U * rows +
+      (up_projection ? rows : 0U);
+  packed_expert_gate_up_weight_e2m1 += expert_row * k_blocks * 32U;
+  expert_gate_up_weight_scales_e4m3fn += expert_row * k_blocks * 4U;
+  float* projection_output = up_projection ? up_output : gate_output;
+  projection_output += token * 2U * rows;
+
+  const unsigned row_in_tile = lane >> 2U;
+  const unsigned k_quarter = lane & 3U;
+  const std::uint64_t first_row = row_tile * kRowsPerWarp;
+  const std::uint64_t weight_tile_offset = first_row * k_blocks * 32U;
+  const std::uint64_t scale_tile_offset = first_row * k_blocks * 4U;
+  float d0 = 0.0F;
+  float d1 = 0.0F;
+  float d2 = 0.0F;
+  float d3 = 0.0F;
+  for (std::uint64_t k_block = 0U; k_block < k_blocks; ++k_block) {
+    const std::uint64_t activation_byte =
+        k_block * 32U + static_cast<std::uint64_t>(k_quarter) * 4U;
+    const std::uint32_t a_first =
+        LoadU32(packed_activation_e2m1 + activation_byte);
+    const std::uint32_t a_second =
+        LoadU32(packed_activation_e2m1 + activation_byte + 16U);
+    const std::uint64_t weight_byte =
+        weight_tile_offset +
+        (k_block * kRowsPerWarp + row_in_tile) * 32U +
+        static_cast<std::uint64_t>(k_quarter) * 4U;
+    const std::uint32_t b_first =
+        LoadU32(packed_expert_gate_up_weight_e2m1 + weight_byte);
+    const std::uint32_t b_second =
+        LoadU32(packed_expert_gate_up_weight_e2m1 + weight_byte + 16U);
+    const std::uint32_t scale_a =
+        LoadU32(activation_scales_e4m3fn + k_block * 4U);
+    const std::uint32_t scale_b = LoadU32(
+        expert_gate_up_weight_scales_e4m3fn + scale_tile_offset +
+        (k_block * kRowsPerWarp + row_in_tile) * 4U);
+    MmaNvfp4(d0, d1, d2, d3, a_first, a_first, a_second, a_second,
+              b_first, b_second, scale_a, scale_b);
+  }
+
+  if (lane < 4U) {
+    const std::uint64_t output_row = first_row + lane * 2U;
+    projection_output[output_row] = static_cast<float>(
+        __float2bfloat16_rn(d0 / output_divisor));
+    projection_output[output_row + 1U] = static_cast<float>(
+        __float2bfloat16_rn(d1 / output_divisor));
+  }
+#else
+  (void)packed_activation_e2m1;
+  (void)activation_scales_e4m3fn;
+  (void)packed_expert_gate_up_weight_e2m1;
+  (void)expert_gate_up_weight_scales_e4m3fn;
+  (void)selected_ids;
+  (void)experts;
+  (void)gate_output;
+  (void)up_output;
+  (void)rows;
+  (void)contracting_elements;
+  (void)output_divisor;
+#endif
+}
+
 template <int kSelectionMode>
 __global__ void Sm120FusedGateUpKernel(
     const std::uint8_t* packed_activation_e2m1,
@@ -1680,6 +1767,55 @@ Status LaunchNvfp4Sm120SelectedFusedGateUpBatch(
              ? Status::Ok()
              : CudaFailure("launch batched selected SM120 fused Gate/Up",
                            error);
+}
+
+Status LaunchNvfp4Sm120SelectedSplitGateUpBatch(
+    const std::uint8_t* packed_activation_e2m1,
+    const std::uint8_t* activation_scales_e4m3fn,
+    const std::uint8_t* packed_expert_gate_up_weight_e2m1,
+    const std::uint8_t* expert_gate_up_weight_scales_e4m3fn,
+    const std::uint32_t* selected_ids, std::uint32_t top_k,
+    float* gate_output, float* up_output, std::uint64_t rows,
+    std::uint64_t contracting_elements, std::uint32_t experts,
+    float activation_global_divisor, float weight_global_divisor,
+    cudaStream_t stream) {
+  if (packed_activation_e2m1 == nullptr ||
+      activation_scales_e4m3fn == nullptr ||
+      packed_expert_gate_up_weight_e2m1 == nullptr ||
+      expert_gate_up_weight_scales_e4m3fn == nullptr ||
+      selected_ids == nullptr || gate_output == nullptr ||
+      up_output == nullptr || top_k == 0U || top_k > experts ||
+      experts == 0U || rows == 0U || rows % kRowsPerWarp != 0U ||
+      contracting_elements == 0U ||
+      contracting_elements % kElementsPerKBlock != 0U ||
+      !PositiveFinite(activation_global_divisor) ||
+      !PositiveFinite(weight_global_divisor)) {
+    return Invalid("split selected SM120 Gate/Up contract is invalid");
+  }
+  const float output_divisor =
+      activation_global_divisor * weight_global_divisor;
+  if (!PositiveFinite(output_divisor)) {
+    return Invalid("split selected SM120 Gate/Up divisor overflowed");
+  }
+  const std::uint64_t row_tiles = rows / kRowsPerWarp;
+  const std::uint64_t logical_warps = 2U * row_tiles;
+  const std::uint64_t blocks =
+      (logical_warps + kWarpsPerBlock - 1U) / kWarpsPerBlock;
+  if (blocks >
+      static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
+    return Invalid("split selected SM120 Gate/Up grid exceeds CUDA limits");
+  }
+  Sm120SelectedSplitGateUpKernel<<<
+      dim3(static_cast<unsigned>(blocks), top_k), kThreadsPerBlock, 0,
+      stream>>>(
+      packed_activation_e2m1, activation_scales_e4m3fn,
+      packed_expert_gate_up_weight_e2m1,
+      expert_gate_up_weight_scales_e4m3fn, selected_ids, experts,
+      gate_output, up_output, rows, contracting_elements, output_divisor);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("launch split selected SM120 Gate/Up", error);
 }
 
 Status LaunchNvfp4Sm120GroupedExpertFusedGateUp(

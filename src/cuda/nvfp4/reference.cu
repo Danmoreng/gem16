@@ -228,6 +228,66 @@ __global__ void GatedGeluQuantizeActivationKernel(
   }
 }
 
+__global__ void StridedGatedGeluQuantizeActivationKernel(
+    const float* gate, const float* up, float* product,
+    std::uint8_t* packed_e2m1, std::uint8_t* block_scales_e4m3fn,
+    std::uint64_t blocks, std::uint64_t rows, float global_divisor) {
+  constexpr unsigned kThreads = 128;
+  constexpr unsigned kGroupsPerBlock = kThreads / kBlockElements;
+  const unsigned lane_in_group = threadIdx.x % kBlockElements;
+  const std::uint64_t block =
+      static_cast<std::uint64_t>(blockIdx.x) * kGroupsPerBlock +
+      threadIdx.x / kBlockElements;
+  const bool valid = block < blocks;
+  const std::uint64_t product_index =
+      block * kBlockElements + lane_in_group;
+  const std::uint64_t token = valid ? product_index / rows : 0U;
+  const std::uint64_t row = valid ? product_index - token * rows : 0U;
+  const std::uint64_t gate_up_index = token * 2U * rows + row;
+  const float gate_value = valid ? gate[gate_up_index] : 0.0F;
+  const float up_value = valid ? up[gate_up_index] : 0.0F;
+  const float inner = kSqrtTwoOverPi *
+                      (gate_value + kGeluCubic * gate_value * gate_value *
+                                        gate_value);
+  const float gelu = static_cast<float>(__float2bfloat16_rn(
+      0.5F * gate_value * (1.0F + tanhf(inner))));
+  const float product_value =
+      static_cast<float>(__float2bfloat16_rn(gelu * up_value));
+  if (valid) product[product_index] = product_value;
+
+  float amax = fabsf(product_value);
+  constexpr unsigned kFullMask = 0xFFFFFFFFU;
+#pragma unroll
+  for (unsigned offset = kBlockElements / 2U; offset != 0U; offset >>= 1U) {
+    amax = fmaxf(amax,
+                 __shfl_down_sync(kFullMask, amax, offset, kBlockElements));
+  }
+  std::uint32_t scale_bits = 0U;
+  if (valid && lane_in_group == 0U) {
+    const __nv_fp8_e4m3 scale(
+        (amax * ReciprocalApproximateFtz(6.0F)) * global_divisor);
+    scale_bits = scale.__x;
+    block_scales_e4m3fn[block] = scale.__x;
+  }
+  scale_bits = __shfl_sync(kFullMask, scale_bits, 0, kBlockElements);
+  __nv_fp8_e4m3 scale;
+  scale.__x = static_cast<std::uint8_t>(scale_bits);
+  const float decoded_scale = static_cast<float>(scale);
+  const float output_scale =
+      decoded_scale == 0.0F
+          ? 0.0F
+          : ReciprocalApproximateFtz(
+                decoded_scale * ReciprocalApproximateFtz(global_divisor));
+  const float high_product =
+      __shfl_down_sync(kFullMask, product_value, 1, kBlockElements);
+  if (valid && (lane_in_group & 1U) == 0U) {
+    const __nv_fp4_e2m1 low(product_value * output_scale);
+    const __nv_fp4_e2m1 high(high_product * output_scale);
+    packed_e2m1[product_index / 2U] = static_cast<std::uint8_t>(
+        (low.__x & 0x0FU) | ((high.__x & 0x0FU) << 4U));
+  }
+}
+
 __global__ void ProjectionReferenceKernel(const std::uint8_t* packed_activation_e2m1,
                                           const std::uint8_t* activation_scales_e4m3fn,
                                           const std::uint8_t* packed_weight_e2m1,
@@ -429,6 +489,41 @@ Status LaunchGatedGeluNvfp4ActivationQuantization(
   return error == cudaSuccess
              ? Status::Ok()
              : CudaFailure("launch fused Gate/Up GELU NVFP4 quantization", error);
+}
+
+Status LaunchStridedGatedGeluNvfp4ActivationQuantization(
+    const float* gate, const float* up, float* product,
+    std::uint8_t* packed_e2m1, std::uint8_t* block_scales_e4m3fn,
+    std::uint64_t tokens, std::uint64_t rows, float global_divisor,
+    cudaStream_t stream) {
+  if (gate == nullptr || up == nullptr || product == nullptr ||
+      packed_e2m1 == nullptr || block_scales_e4m3fn == nullptr ||
+      tokens == 0U || rows == 0U || rows % kBlockElements != 0U ||
+      tokens > std::numeric_limits<std::uint64_t>::max() / rows) {
+    return Invalid("strided Gate/Up GELU NVFP4 contract is invalid");
+  }
+  if (!PositiveFinite(global_divisor)) {
+    return Invalid(
+        "strided Gate/Up GELU NVFP4 divisor must be positive and finite");
+  }
+  const std::uint64_t elements = tokens * rows;
+  const std::uint64_t blocks = elements / kBlockElements;
+  constexpr unsigned threads = 128;
+  constexpr unsigned groups_per_block = threads / kBlockElements;
+  const std::uint64_t grid =
+      (blocks + groups_per_block - 1U) / groups_per_block;
+  if (grid > static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
+    return Invalid("strided Gate/Up GELU NVFP4 grid exceeds CUDA limits");
+  }
+  StridedGatedGeluQuantizeActivationKernel<<<
+      static_cast<unsigned>(grid), threads, 0, stream>>>(
+      gate, up, product, packed_e2m1, block_scales_e4m3fn, blocks, rows,
+      global_divisor);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure(
+                   "launch strided Gate/Up GELU NVFP4 quantization", error);
 }
 
 Status LaunchGatedGeluNvfp4ActivationQuantizationBf16(

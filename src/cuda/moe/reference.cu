@@ -800,18 +800,19 @@ Status LaunchGemma4MoeLayerImpl(
     if (!status.ok()) return status;
   }
   if (native_sm120) {
-    status = LaunchNvfp4Sm120SelectedFusedGateUpBatch(
+    status = LaunchNvfp4Sm120SelectedSplitGateUpBatch(
         x.expert_input_packed, x.expert_input_scales,
         w.expert_gate_up.packed_e2m1, w.expert_gate_up.scales_e4m3fn,
         x.top_ids, c.top_k, x.expert_gate_up,
-        x.expert_gate_up + c.expert_intermediate, x.expert_product,
-        c.expert_intermediate, c.width, c.experts,
+        x.expert_gate_up + c.expert_intermediate, c.expert_intermediate,
+        c.width, c.experts,
         w.expert_gate_up.activation_global_divisor,
         w.expert_gate_up.weight_global_divisor, stream);
     if (!status.ok()) return status;
-    status = LaunchNvfp4ReferenceActivationQuantization(
-        x.expert_product, x.expert_product_packed, x.expert_product_scales,
-        static_cast<std::uint64_t>(c.top_k) * c.expert_intermediate,
+    status = LaunchStridedGatedGeluNvfp4ActivationQuantization(
+        x.expert_gate_up, x.expert_gate_up + c.expert_intermediate,
+        x.expert_product, x.expert_product_packed,
+        x.expert_product_scales, c.top_k, c.expert_intermediate,
         w.expert_down.activation_global_divisor, stream);
     if (!status.ok()) return status;
     status = LaunchNvfp4Sm120SelectedDirectProjectionBf16FloatBatch(

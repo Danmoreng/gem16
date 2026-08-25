@@ -218,6 +218,26 @@ struct Gemma4MoePrefillAssignment;
     float weight_global_divisor,
     cudaStream_t stream);
 
+// Decode-only high-parallelism form. Gate and Up use independent warps while
+// retaining the same K64 accumulation and BF16 projection boundary. The
+// caller closes the GELU/product/quantization boundary with the strided fused
+// quantizer so the diagnostic product remains available without a round trip.
+[[nodiscard]] Status LaunchNvfp4Sm120SelectedSplitGateUpBatch(
+    const std::uint8_t* packed_activation_e2m1,
+    const std::uint8_t* activation_scales_e4m3fn,
+    const std::uint8_t* packed_expert_gate_up_weight_e2m1,
+    const std::uint8_t* expert_gate_up_weight_scales_e4m3fn,
+    const std::uint32_t* selected_ids,
+    std::uint32_t top_k,
+    float* gate_output,
+    float* up_output,
+    std::uint64_t rows,
+    std::uint64_t contracting_elements,
+    std::uint32_t experts,
+    float activation_global_divisor,
+    float weight_global_divisor,
+    cudaStream_t stream);
+
 // Grouped W13 over stable expert-grouped assignments. The product is emitted
 // in grouped order for immediate batched quantization and W2 consumption.
 [[nodiscard]] Status LaunchNvfp4Sm120GroupedExpertFusedGateUp(

@@ -78,6 +78,20 @@ namespace gem16::internal {
     float global_divisor,
     cudaStream_t stream);
 
+// Decode Top-K layout: each slot stores [Gate rows, Up rows]. This closes the
+// exact BF16 GELU/product boundary, retains the diagnostic product in stable
+// slot-major order, and emits its NVFP4 representation in the same pass.
+[[nodiscard]] Status LaunchStridedGatedGeluNvfp4ActivationQuantization(
+    const float* gate,
+    const float* up,
+    float* product,
+    std::uint8_t* packed_e2m1,
+    std::uint8_t* block_scales_e4m3fn,
+    std::uint64_t tokens,
+    std::uint64_t rows,
+    float global_divisor,
+    cudaStream_t stream);
+
 [[nodiscard]] Status LaunchNvfp4ReferenceProjection(
     const std::uint8_t* packed_activation_e2m1,
     const std::uint8_t* activation_scales_e4m3fn,

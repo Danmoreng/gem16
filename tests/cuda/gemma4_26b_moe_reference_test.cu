@@ -276,11 +276,15 @@ void TestSelectedExpertSlotBatch() {
   DeviceBuffer<std::uint32_t> selected_ids(kTopK);
   DeviceBuffer<float> sequential_gate_up(kTopK * 2U * kIntermediate),
       batched_gate_up(kTopK * 2U * kIntermediate),
+      split_gate_up(kTopK * 2U * kIntermediate),
       sequential_product(kTopK * kIntermediate),
       batched_product(kTopK * kIntermediate),
+      split_product(kTopK * kIntermediate),
       sequential_down(kTopK * kWidth), batched_down(kTopK * kWidth);
   DeviceBuffer<std::uint8_t> product_packed(kTopK * kIntermediate / 2U),
-      product_scales(kTopK * kIntermediate / 16U);
+      product_scales(kTopK * kIntermediate / 16U),
+      split_product_packed(kTopK * kIntermediate / 2U),
+      split_product_scales(kTopK * kIntermediate / 16U);
   const std::array<std::uint32_t, kTopK> ids{7U, 1U, 5U, 0U,
                                              3U, 6U, 2U, 4U};
   CHECK(CudaOk(cudaMemcpy(device_activation.get(),
@@ -330,11 +334,33 @@ void TestSelectedExpertSlotBatch() {
             batched_gate_up.get() + kIntermediate, batched_product.get(),
             kIntermediate, kWidth, kExperts, 1.0F, 1.0F, nullptr)
             .ok());
+  CHECK(gem16::internal::LaunchNvfp4Sm120SelectedSplitGateUpBatch(
+            device_activation.get(), device_activation_scales.get(),
+            gate_up_weights.get(), gate_up_scales.get(), selected_ids.get(),
+            kTopK, split_gate_up.get(),
+            split_gate_up.get() + kIntermediate, kIntermediate, kWidth,
+            kExperts, 1.0F, 1.0F, nullptr)
+            .ok());
+  CHECK(gem16::internal::LaunchStridedGatedGeluNvfp4ActivationQuantization(
+            split_gate_up.get(), split_gate_up.get() + kIntermediate,
+            split_product.get(), split_product_packed.get(),
+            split_product_scales.get(), kTopK, kIntermediate, 1.0F, nullptr)
+            .ok());
+  CHECK(gem16::internal::LaunchNvfp4ReferenceActivationQuantization(
+            batched_product.get(), product_packed.get(), product_scales.get(),
+            kTopK * kIntermediate, 1.0F, nullptr)
+            .ok());
   CHECK(CudaOk(cudaDeviceSynchronize(), "synchronize slot-batch W13"));
   std::vector<float> sequential_gate_values(kTopK * 2U * kIntermediate),
       batched_gate_values(kTopK * 2U * kIntermediate),
+      split_gate_values(kTopK * 2U * kIntermediate),
       sequential_product_values(kTopK * kIntermediate),
       batched_product_values(kTopK * kIntermediate);
+  std::vector<float> split_product_values(kTopK * kIntermediate);
+  std::vector<std::uint8_t> product_packed_values(product_packed.bytes()),
+      product_scale_values(product_scales.bytes()),
+      split_product_packed_values(split_product_packed.bytes()),
+      split_product_scale_values(split_product_scales.bytes());
   CHECK(CudaOk(cudaMemcpy(sequential_gate_values.data(),
                           sequential_gate_up.get(),
                           sequential_gate_up.bytes(), cudaMemcpyDeviceToHost),
@@ -342,6 +368,9 @@ void TestSelectedExpertSlotBatch() {
   CHECK(CudaOk(cudaMemcpy(batched_gate_values.data(), batched_gate_up.get(),
                           batched_gate_up.bytes(), cudaMemcpyDeviceToHost),
                "copy batched W13"));
+  CHECK(CudaOk(cudaMemcpy(split_gate_values.data(), split_gate_up.get(),
+                          split_gate_up.bytes(), cudaMemcpyDeviceToHost),
+               "copy split W13"));
   CHECK(CudaOk(cudaMemcpy(sequential_product_values.data(),
                           sequential_product.get(), sequential_product.bytes(),
                           cudaMemcpyDeviceToHost),
@@ -349,13 +378,31 @@ void TestSelectedExpertSlotBatch() {
   CHECK(CudaOk(cudaMemcpy(batched_product_values.data(), batched_product.get(),
                           batched_product.bytes(), cudaMemcpyDeviceToHost),
                "copy batched products"));
+  CHECK(CudaOk(cudaMemcpy(split_product_values.data(), split_product.get(),
+                          split_product.bytes(), cudaMemcpyDeviceToHost),
+               "copy split products"));
+  CHECK(CudaOk(cudaMemcpy(product_packed_values.data(), product_packed.get(),
+                          product_packed.bytes(), cudaMemcpyDeviceToHost),
+               "copy batched packed products"));
+  CHECK(CudaOk(cudaMemcpy(product_scale_values.data(), product_scales.get(),
+                          product_scales.bytes(), cudaMemcpyDeviceToHost),
+               "copy batched product scales"));
+  CHECK(CudaOk(cudaMemcpy(split_product_packed_values.data(),
+                          split_product_packed.get(),
+                          split_product_packed.bytes(),
+                          cudaMemcpyDeviceToHost),
+               "copy split packed products"));
+  CHECK(CudaOk(cudaMemcpy(split_product_scale_values.data(),
+                          split_product_scales.get(),
+                          split_product_scales.bytes(),
+                          cudaMemcpyDeviceToHost),
+               "copy split product scales"));
   CHECK(sequential_gate_values == batched_gate_values);
+  CHECK(batched_gate_values == split_gate_values);
   CHECK(sequential_product_values == batched_product_values);
-
-  CHECK(gem16::internal::LaunchNvfp4ReferenceActivationQuantization(
-            batched_product.get(), product_packed.get(), product_scales.get(),
-            kTopK * kIntermediate, 1.0F, nullptr)
-            .ok());
+  CHECK(batched_product_values == split_product_values);
+  CHECK(product_packed_values == split_product_packed_values);
+  CHECK(product_scale_values == split_product_scale_values);
   for (std::uint32_t slot = 0; slot < kTopK; ++slot) {
     CHECK(gem16::internal::LaunchNvfp4Sm120SelectedDirectProjectionBf16Float(
               product_packed.get() + slot * kIntermediate / 2U,
