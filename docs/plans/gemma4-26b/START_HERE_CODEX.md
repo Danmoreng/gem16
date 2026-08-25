@@ -93,7 +93,7 @@ automated, native slot-batched expert execution remains bitwise exact and hardwa
 profile-aware. The latest retained development series adds an engine-local BF16 Tensor-Core router, final-chunk-only
 prefill output, value-cache ping-pong staging and an exact split-routed-W13/fused-product-quantization decode path to
 the physical-BF16/T1024, grouped expert, asynchronous K64, prepared global K/V and exact dual-token parent. The
-current three-run row reaches 6,570.615 mean prompt tok/s and 144.322 mean ordinary-decode tok/s on 16K+64, passing
+current three-run row reaches 6,591.300 mean prompt tok/s and 146.567 mean ordinary-decode tok/s on 16K+64, passing
 the 6,000 prompt target and 6,500 stretch. A bounded four-prompt/14-row QAT-BF16 Golden Gate, real-shape CUDA and sanitizers, deterministic engine
 relaunch, the real 26B product test and protected 12B regression pass. Tensor-Core is the integrated prefill default;
 serial exact remains an explicit rollback. This remains a development characterization; M20 still owns the formal
@@ -103,7 +103,8 @@ serial exact remains an explicit rollback. This remains a development characteri
 `artifacts/m20/optimization-compact-prediction-self-feed.json` and the latest exact decode-router evidence in
 `artifacts/m20/optimization-decode-router-top8.json`; D09d's eliminated native contribution writes are recorded in
 `artifacts/m20/optimization-decode-no-contribution-write.json`, and D12's exact native post-norm fusion in
-`artifacts/m20/optimization-decode-fused-postnorm.json`.
+`artifacts/m20/optimization-decode-fused-postnorm.json`; D13's shared-memory native intermediates are in
+`artifacts/m20/optimization-decode-shared-postnorm.json`.
 
 The owner now requires that exact 16K+64 ordinary path to reach retained medians of at least 6,000 prompt token/s and
 150 decode token/s; 6,500 prompt token/s is the non-blocking competitive stretch target. MTP/speculative decode,

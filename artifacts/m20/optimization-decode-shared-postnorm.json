@@ -1,0 +1,119 @@
+{
+  "schema_version": 1,
+  "milestone": "M20-development",
+  "status": "accepted_optimization_not_formal_qualification",
+  "measured_on": "2026-08-25",
+  "base_revision": "052bd3a",
+  "device": "NVIDIA GeForce RTX 5080 Laptop GPU",
+  "driver": "610.43.03",
+  "scenario": {
+    "id": "wikipedia-real-16k64-greedy",
+    "prompt_tokens": 16384,
+    "output_forwards": 64,
+    "prompt_manifest_sha256": "9a5859b979d91fccf71bcbb61aade6372cf2cc3c708e6c47b8b6cfd99f7abd2d",
+    "mtp_or_speculative_decode": false,
+    "prompt_cache": false,
+    "kv_mode": "fp8"
+  },
+  "change": {
+    "candidate": "D13_exact_native_moe_postnorm_shared_intermediates",
+    "native_path": "shared-post, routed-post, and combined BF16-boundary values stay in one CTA's dynamic shared memory; only the final recurrent output is written globally",
+    "diagnostic_path": "the serial/reference path continues to materialize shared-post, routed-post, combined, and feed-forward workspace vectors",
+    "preserved_semantics": "D12's 256-thread group index assignment, binary-tree reductions, BF16 boundaries, combined order, residual order, Graph nodes, fixed external arena addresses, and final output are unchanged",
+    "avoided_global_intermediate_bytes_per_layer": 78848,
+    "avoided_global_intermediate_bytes_per_model_token": 2365440,
+    "dynamic_shared_bytes": 33792,
+    "static_shared_bytes": 2048,
+    "registers_per_thread": 40,
+    "local_memory_per_thread_bytes": 0,
+    "candidate_binary_sha256": "289b9bf3d80710bdd46fabba4dd2b09e131910c1296ac5e4bf6c57dd041115f7",
+    "recurring_host_or_device_allocations": 0
+  },
+  "measurements": {
+    "decode_tokens_per_second_samples": [
+      146.526946788,
+      146.569351349,
+      146.603687181
+    ],
+    "decode_tokens_per_second_mean": 146.566661773,
+    "decode_tokens_per_second_median": 146.569351349,
+    "prompt_tokens_per_second_samples": [
+      6591.263889760,
+      6589.632850465,
+      6593.003093537
+    ],
+    "prompt_tokens_per_second_mean": 6591.299944588
+  },
+  "comparison": {
+    "parent_decode_tokens_per_second_mean": 144.321705183,
+    "decode_gain_percent": 1.555522495,
+    "latency_saving_microseconds_per_token": 106.130717344,
+    "parent_fused_postnorm_microseconds_per_token": 419.096,
+    "candidate_shared_postnorm_microseconds_per_token": 290.329,
+    "profiled_postnorm_saving_microseconds_per_token": 128.767,
+    "postnorm_change_percent": -30.724182572,
+    "decision": "retain: exact output, repeatable end-to-end gain, isolated profile, and zero per-thread local memory agree"
+  },
+  "correctness": {
+    "all_logits_finite": true,
+    "output_token_sha256": "c750d0b33f8eb4a8103299875886e51ab144d874cafe8cea77b0cfd99d2aedaf",
+    "matches_parent_output_hash": true,
+    "reference_native_full_layer_differential": "bit_exact",
+    "fresh_engine_relaunch": "bit_exact",
+    "fallback_count": 0,
+    "recurring_allocation_count": 0,
+    "sampled_device_margin_bytes": 1292697600
+  },
+  "tests": {
+    "blackwell_release_build": "pass",
+    "focused_unit_and_cuda": "pass_5_of_5_36.38_seconds",
+    "moe_memcheck": "pass_0_errors",
+    "moe_racecheck": "pass_0_hazards_0_errors_0_warnings",
+    "moe_initcheck": "pass_0_errors",
+    "real_26b_m17_engine_smoke": "pass_153.90_seconds",
+    "protected_12b_product_regression": "pass_5.34_seconds"
+  },
+  "commands": [
+    "cmake --build build/Linux/blackwell-release --target gem16-cuda-moe-reference-tests gem16-26b-benchmark -j4",
+    "ctest --test-dir build/Linux/blackwell-release -R '^(gem16-unit|gem16-cuda|gem16-cuda-moe-reference|gem16-cuda-attention-reference|gem16-cuda-nvfp4-consumption)$' --output-on-failure",
+    "compute-sanitizer --tool memcheck --error-exitcode=1 build/Linux/blackwell-release/bin/gem16-cuda-moe-reference-tests",
+    "compute-sanitizer --tool racecheck --error-exitcode=1 build/Linux/blackwell-release/bin/gem16-cuda-moe-reference-tests",
+    "compute-sanitizer --tool initcheck --error-exitcode=1 build/Linux/blackwell-release/bin/gem16-cuda-moe-reference-tests",
+    "GEM16_26B_COMPILED_MODEL=artifacts/raw/m08/qat-hybrid-clean-1 ctest --test-dir build/Linux/blackwell-release -R '^gem16-26b-m17-engine-smoke$' --output-on-failure",
+    "GEM16_12B_MODEL=models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 ctest --test-dir build/Linux/blackwell-release -R '^gem16-12b-m22-product$' --output-on-failure"
+  ],
+  "raw_evidence": [
+    {
+      "ignored_path": "artifacts/raw/max-performance/d13-shared-postnorm-16k-01.json",
+      "bytes": 3035,
+      "sha256": "a7625ddac1ab888559783f7b01c81b20809ad14c63c118183f4ff2a0ec1e1d32"
+    },
+    {
+      "ignored_path": "artifacts/raw/max-performance/d13-shared-postnorm-16k-02.json",
+      "bytes": 3035,
+      "sha256": "8b4ce4db2cda42e51e259877b9faa061d5b93de4fde4598defdc7a700c11de89"
+    },
+    {
+      "ignored_path": "artifacts/raw/max-performance/d13-shared-postnorm-16k-03.json",
+      "bytes": 3040,
+      "sha256": "43be1bc78fb5e5a50cc70671e321a52d228989057592b520817ea7a06238f3b1"
+    },
+    {
+      "ignored_path": "artifacts/raw/max-performance/d13-shared-postnorm-node.nsys-rep",
+      "bytes": 2345624,
+      "sha256": "4d3a35878e705d5e357d15276c4ca05a9dce162314cf931b197ebf0a8b484daa"
+    },
+    {
+      "ignored_path": "artifacts/raw/max-performance/d13-shared-postnorm-profile-result.json",
+      "bytes": 1837,
+      "sha256": "344cfdf22adf92fd7e3656e0a05b87c27fe6c7d2442fcf94edc1fdfba7041442"
+    }
+  ],
+  "limitations": {
+    "formal_m20_3_warmup_10_retained_not_run": true,
+    "hard_150_decode_target_reached": false,
+    "remaining_decode_gap_percent": 2.342509672,
+    "physical_workspace_size_not_reduced": "the intermediate regions remain in the fixed diagnostic-compatible arena; recurring native decode no longer touches them",
+    "full_26b_m22_product_lifecycle_not_repeated": "the changed native decode Graph is covered by three real 16K+64 runs plus the real M17 replay/relaunch test; product wrapper behavior is unchanged"
+  }
+}
