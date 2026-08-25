@@ -6,6 +6,7 @@ set -euo pipefail
 readonly memory_high="40G"
 readonly memory_max="45G"
 readonly max_jobs="4"
+readonly torchinductor_compile_threads="4"
 readonly flashinfer_nvcc_threads="1"
 readonly tasks_max="128"
 readonly runtime_max="3h"
@@ -17,7 +18,7 @@ Usage:
 
 Runs COMMAND from the repository root in a transient systemd user service with:
   MemoryHigh=40G, MemoryMax=45G, MemorySwapMax=0
-  MAX_JOBS=4, FLASHINFER_NVCC_THREADS=1
+  MAX_JOBS=4, TORCHINDUCTOR_COMPILE_THREADS=4, FLASHINFER_NVCC_THREADS=1
   OOMPolicy=kill, KillMode=control-group, TasksMax=128
   RuntimeMaxSec=3h
 
@@ -81,6 +82,7 @@ runner=(
   "--property=RuntimeMaxSec=${runtime_max}"
   --property=TimeoutStopSec=30s
   "--setenv=MAX_JOBS=${max_jobs}"
+  "--setenv=TORCHINDUCTOR_COMPILE_THREADS=${torchinductor_compile_threads}"
   "--setenv=FLASHINFER_NVCC_THREADS=${flashinfer_nvcc_threads}"
   "--setenv=PATH=${PATH}"
   --expand-environment=no
@@ -100,8 +102,8 @@ if [[ "${dry_run}" == true ]]; then
   printf 'repository=%s\n' "${repo_root}"
   printf 'limits=MemoryHigh:%s MemoryMax:%s MemorySwapMax:0 TasksMax:%s RuntimeMaxSec:%s\n' \
     "${memory_high}" "${memory_max}" "${tasks_max}" "${runtime_max}"
-  printf 'parallelism=MAX_JOBS:%s FLASHINFER_NVCC_THREADS:%s\n' \
-    "${max_jobs}" "${flashinfer_nvcc_threads}"
+  printf 'parallelism=MAX_JOBS:%s TORCHINDUCTOR_COMPILE_THREADS:%s FLASHINFER_NVCC_THREADS:%s\n' \
+    "${max_jobs}" "${torchinductor_compile_threads}" "${flashinfer_nvcc_threads}"
   printf 'systemd-command='
   printf ' %q' "${runner[@]}"
   printf '\n'
@@ -136,8 +138,9 @@ on_signal() {
 trap on_signal HUP INT TERM
 
 printf 'Starting bounded vLLM reference unit %s.service\n' "${unit}" >&2
-printf 'Limits: MemoryHigh=%s MemoryMax=%s MAX_JOBS=%s FLASHINFER_NVCC_THREADS=%s\n' \
-  "${memory_high}" "${memory_max}" "${max_jobs}" "${flashinfer_nvcc_threads}" >&2
+printf 'Limits: MemoryHigh=%s MemoryMax=%s MAX_JOBS=%s TORCHINDUCTOR_COMPILE_THREADS=%s FLASHINFER_NVCC_THREADS=%s\n' \
+  "${memory_high}" "${memory_max}" "${max_jobs}" "${torchinductor_compile_threads}" \
+  "${flashinfer_nvcc_threads}" >&2
 started=true
 set +e
 "${runner[@]}"
