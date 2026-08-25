@@ -4,10 +4,13 @@
   "updated": "2026-08-25",
   "accepted_through": "M17",
   "accepted_additional": [
-    "M22"
+    "M20",
+    "M21",
+    "M22",
+    "M23"
   ],
-  "current_milestone": "PERFORMANCE_OPTIMIZATION_SLICE",
-  "active_wave": "F4-product-performance-context-technical-freeze",
+  "current_milestone": "M25_BASELINE_CHARACTERIZATION",
+  "active_wave": "F5-mtp-baseline-and-integration",
   "integration_branch": "feat/gemma4-26b",
   "source_of_truth": "docs/plans/gemma4-26b/FAST_TRACK_STATUS.json",
   "policy_source": "docs/ACTIVE_DECISIONS.md",
@@ -278,8 +281,8 @@
       ]
     },
     "M23": {
-      "status": "READY_NEXT",
-      "note": "Owner permits a technical Target freeze with M19 explicitly pending; this is not a shipping or quality-qualified release.",
+      "status": "ACCEPTED",
+      "note": "Accepted 2026-08-25 at implementation/evidence revision c8e09e4e337d58ac0cfe402585ef818135845faa. Exact M20/M21 hashes, binary-bound updated 26B product behavior, protected 12B regression, capability statement and rollback are frozen in artifacts/m23/acceptance.json. M19 remains pending, so this is not a shipping or quality-qualified release.",
       "class": "technical-base-checkpoint",
       "lane": "engineering-freeze",
       "depends_on": [
@@ -300,7 +303,7 @@
       ]
     },
     "M25": {
-      "status": "PARALLEL_FEASIBILITY_ONLY",
+      "status": "READY",
       "class": "final-target",
       "lane": "mtp",
       "feasibility_depends_on": [
@@ -316,8 +319,8 @@
     }
   },
   "parallel_tasks_now": [
-    "M23 technical Target hash/evidence/rollback freeze with M19 visibly pending",
-    "M25 phase A assistant compatibility and memory feasibility"
+    "update and pin llama.cpp and vLLM for bounded 26B ordinary/MTP baseline characterization",
+    "M25 assistant compatibility, artifact and exact target integration against the frozen M23 rollback"
   ],
   "paused_tasks": [
     "M19 multi-hour task/prose held-out qualification until the end of the current implementation/performance program",

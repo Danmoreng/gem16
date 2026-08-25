@@ -1,9 +1,9 @@
 # Active contract — Gemma 4 26B Fast Track R4
 
-Status: M00–M17 and M20–M22 accepted; technical M23 freeze next; full M19 held-out qualification deferred by owner
+Status: M00–M17 and M20–M23 accepted; M25 baseline characterization and integration next; full M19 held-out qualification deferred by owner
 Plan revision: `fast-track-r4`
-Accepted baseline: M00–M17 plus M20 performance, M21 long context and M22 product integration
-Current milestone: technical M23 Target freeze with M19 visibly pending (then M25; M19 full suite deferred; M18 conditional)
+Accepted baseline: M00–M17 plus M20 performance, M21 long context, M22 product integration and the M23 technical Target freeze
+Current milestone: bounded external 26B MTP characterization followed by M25 (M19 full suite deferred; M18 conditional)
 Integration branch: `feat/gemma4-26b`
 
 ## Purpose
@@ -25,7 +25,7 @@ Report a material conflict instead of guessing. A stale status page does not ove
 
 ## Accepted baseline
 
-M00–M17 and M20–M22 are accepted and are not reopened by current work.
+M00–M17 and M20–M23 are accepted and are not reopened by current work.
 
 - Sources, manifests and source locks are immutable.
 - The 12B path remains separately specialized and regression-protected.
@@ -58,6 +58,10 @@ M00–M17 and M20–M22 are accepted and are not reopened by current work.
 - M20 controlled performance is accepted after three warm-ups and ten retained real Wikipedia 16K+64 runs: retained
   medians are 6,572.809 prompt and 150.615 ordinary-decode token/s, with the unchanged `c750d0…` output hash. See
   `artifacts/m20/acceptance.json`.
+- M23 freezes that exact ordinary-decode Target at capability implementation revision
+  `c8e09e4e337d58ac0cfe402585ef818135845faa`. CLI/server reporting, the real 32K product lifecycle and the protected
+  12B regression were revalidated; the hash reconciliation, capabilities, limitations and rollback are in
+  `artifacts/m23/acceptance.json`.
 - Runtime conversion, CPU expert offload, expert streaming and duplicate persistent GPU weight layouts remain forbidden.
 
 ## Product target
@@ -129,7 +133,7 @@ Only these owner-level gates block the critical path:
 7. **M20–M22:** with M22 accepted, after bounded correctness-preserving prefill/decode optimization one clean
    candidate passes real long-context in M21 and the fixed 6,000 prompt/150 ordinary-decode token/s M20 gates using
    the matching M21 evidence; 6,500 prompt token/s is the reported stretch target.
-8. **M23 engineering freeze:** Target hashes, available evidence and rollback are frozen with M19 explicitly pending.
+8. **M23 engineering freeze:** accepted; Target hashes, available evidence and rollback are frozen with M19 explicitly pending.
 9. **Deferred M19:** the multi-hour held-out task/prose suite eventually passes before any shipping or production-quality claim.
 10. **M25:** MTP compatibility, exactness, performance and the 32K MTP memory gate pass; 64K and the maximum safe MTP context are measured.
 
@@ -190,9 +194,9 @@ Do not repeat an expensive run solely to produce a second prose record. M08 comp
 
 ## Current unblocked work
 
-- M17 and M20–M22 are accepted; the M20/M21 native binary is the frozen technical base candidate.
-- M23 may now freeze its hashes, accepted evidence and rollback while retaining the experimental/quality-pending label.
+- M17 and M20–M23 are accepted; M23 is the frozen ordinary-decode Target and rollback for M25.
+- Bounded, freshly pinned llama.cpp and vLLM 26B ordinary/MTP characterizations may run before native M25 integration.
 - M19 numerical Q4 evidence is available, but its multi-hour task/prose suite is deferred and remains a release limitation.
-- M23 may freeze the resulting technical Target without claiming held-out quality acceptance.
 - M18 remains inactive unless quality failure, head uncertainty or explicit causal-attribution work triggers it.
-- M25 feasibility remains independent; target integration waits for the M23 base freeze.
+- M25 assistant feasibility and target integration are unblocked; M23 remains supported if MTP fails exactness,
+  memory or measured-benefit gates.

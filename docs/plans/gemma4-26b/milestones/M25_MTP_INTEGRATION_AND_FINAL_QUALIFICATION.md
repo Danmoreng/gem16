@@ -1,6 +1,6 @@
 # M25 — 26B MTP integration and final qualification
 
-Status: phase A feasibility may run now; integration waits for the technical M23 Target freeze
+Status: ready; technical M23 Target accepted, bounded external 26B MTP characterization runs before integration
 Class: required final target
 
 Normative inputs: [MTP platform contract](../../../MTP.md), [Tied embedding/head](../specs/EMBEDDING_HEAD_SPEC.md), [Memory arena](../specs/MEMORY_ARENA_SPEC.md), [Session ownership](../specs/SESSION_OWNERSHIP_AND_CONCURRENCY.md), [API/CLI changes](../specs/API_CLI_CHANGES.md), [Test matrix](../specs/TEST_MATRIX.md).

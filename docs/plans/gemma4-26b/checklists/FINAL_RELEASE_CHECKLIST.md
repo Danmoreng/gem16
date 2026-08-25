@@ -2,11 +2,11 @@
 
 ## Technical base M23
 
-- [ ] M20/M21/M22 reference one frozen artifact/binary contract.
-- [ ] 32K passes 700 MiB margin; base maximum is measured.
-- [ ] Performance/context/product claims are bounded by evidence.
-- [ ] Deferred M19 and the prohibition on shipping/production-quality claims are explicit.
-- [ ] Locks, provenance, rollback and 12B regressions are complete.
+- [x] M20/M21/M22 reference one frozen artifact/binary contract.
+- [x] 32K passes 700 MiB margin; base maximum is measured.
+- [x] Performance/context/product claims are bounded by evidence.
+- [x] Deferred M19 and the prohibition on shipping/production-quality claims are explicit.
+- [x] Locks, provenance, rollback and 12B regressions are complete.
 
 ## MTP M25
 

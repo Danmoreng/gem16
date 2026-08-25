@@ -1,6 +1,6 @@
 # Start here — current coding-agent task
 
-Status: M00–M17 and M20–M22 accepted; technical M23 freeze is next. Full M19 is owner-deferred; M18 remains conditional.
+Status: M00–M17 and M20–M23 accepted; bounded external 26B MTP characterization and M25 are next. Full M19 is owner-deferred; M18 remains conditional.
 Plan revision: Fast Track R4.
 
 ## Read now
@@ -15,8 +15,8 @@ Do not preload the full decision, correctness, benchmark or performance ledgers.
 
 ## Lead-agent orchestration
 
-The M17 profile and M20–M22 slices are accepted. The exact native candidate is now frozen for technical M23; do not
-mix another optimization into the accepted M20/M21 evidence.
+The M17 profile and M20–M23 slices are accepted. M23 freezes the exact native ordinary-decode Target and rollback;
+do not rewrite its M20/M21 evidence when adding MTP.
 Use [`MAX_PERFORMANCE_EXECUTION_PLAN.md`](MAX_PERFORMANCE_EXECUTION_PLAN.md) as the consolidated execution order for
 the current optimization campaign. It reconciles the two 2026-08-25 owner-supplied German plans with active policy,
 current source and accepted evidence; higher-precedence rules in `AGENTS.md` and `ACTIVE_DECISIONS.md` still win.
@@ -32,7 +32,7 @@ The lead agent may assign disjoint sub-agents for:
 - independent evidence reconciliation.
 
 Use [`PARALLEL_WORKSTREAMS.md`](PARALLEL_WORKSTREAMS.md). M18 runs only after a recorded trigger. The owner-approved
-remaining sequence is technical M23 freeze, M25 and the deferred M19 release gate.
+remaining sequence is bounded current llama.cpp/vLLM 26B MTP characterization, M25 and the deferred M19 release gate.
 
 ## M08 success
 
@@ -112,7 +112,8 @@ MTP/speculative decode, cache/precision/semantic substitutions or timing-boundar
 `artifacts/m20/acceptance.json`; matching long-context acceptance is in `artifacts/m21/acceptance.json`.
 
 M22 product behavior and protected 12B regressions are accepted at
-`f0aa302aa0246d44e1c8477dbbbb67fbbe2d2037`; see `artifacts/m22/acceptance.json`. M23 now freezes the accepted
-technical Target with M19 visibly pending. The
+`f0aa302aa0246d44e1c8477dbbbb67fbbe2d2037`; see `artifacts/m22/acceptance.json`. M23 revalidated the updated
+capability/product binaries at implementation revision `c8e09e4e337d58ac0cfe402585ef818135845faa` and froze the
+accepted technical Target in `artifacts/m23/acceptance.json`, with M19 visibly pending. The
 remaining multi-hour M19 task/prose qualification is deferred until
 the end and remains mandatory before any shipping or production-quality claim.

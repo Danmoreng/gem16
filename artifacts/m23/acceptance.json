@@ -1,0 +1,117 @@
+{
+  "accepted_evidence": {
+    "inputs": {
+      "m20_acceptance": {
+        "path": "artifacts/m20/acceptance.json",
+        "sha256": "ff1ed10e1bf5863a1d0ca172106846f35bd98ca36a962f65578e5e0646f565ce"
+      },
+      "m21_acceptance": {
+        "path": "artifacts/m21/acceptance.json",
+        "sha256": "621c12cfd23e6fe221a525dd4ad8311dd6f66f5bf9ab518d625454a4a6a3b722"
+      },
+      "m22_acceptance": {
+        "path": "artifacts/m22/acceptance.json",
+        "sha256": "95af539654affcb977fcba18766e6dfe7712f4cfcd57d167750af2287a726789"
+      }
+    },
+    "m20": {
+      "benchmark_binary_sha256": "cbcb047e2c8f2653133794122a41bbf97be0d8aad9ccf6f5bcdd4a9cb78402f6",
+      "decode_tps_median": 150.61520917500002,
+      "prompt_tps_median": 6572.808575533594,
+      "retained_runs": 10,
+      "scenario": "wikipedia-real-16k64-greedy",
+      "warmups": 3
+    },
+    "m21": {
+      "base_max_context_tokens": 98304,
+      "context_driver_sha256": "d6f8aa41ee91d6fe9ddb68558d595b5430381fb62c2509613c819ed84261129f",
+      "first_capacity_rejection_tokens": 102400,
+      "qualified_contexts": [
+        32768,
+        65536,
+        98304
+      ]
+    },
+    "m22_revalidation": {
+      "fresh_process_bitwise_equal": true,
+      "product_26b": "passed",
+      "protected_12b": "passed",
+      "qualified_binaries": {
+        "gem16_chat_sha256": "32499a4df0ccfa149e194cfe64171082533495e4231e00f912193bf378a00850",
+        "gem16_server_sha256": "561490a948a5c65b3f1d969d652972a1a68eb7d7034bfa84147864f6043b7dfe",
+        "m22_product_driver_sha256": "3cac04ad3adc48caeed99b07c00cdc0bc9f49c52ae2ca6a2cc95fe6a2d535024",
+        "protected_12b_runner_sha256": "ad0ce974ac4572098e84b934668b6ac94d5824970dcc7e917205d82818b50ef7"
+      }
+    },
+    "same_artifact_source_and_toolchain": true
+  },
+  "accepted_on": "2026-08-25",
+  "capability_statement": {
+    "base_max_context_tokens": 98304,
+    "batch_size": 1,
+    "default_context_tokens": 32768,
+    "experimental_text_only": true,
+    "first_capacity_rejection_tokens": 102400,
+    "m19_full_quality_suite": "owner_deferred_pending",
+    "maximum_execution_slots": 1,
+    "mtp_max_context_tokens": null,
+    "qualified_64k": true,
+    "shipping_or_production_quality_claim": false,
+    "supports_audio": false,
+    "supports_mtp": false,
+    "supports_vision": false
+  },
+  "implementation_revision": "c8e09e4e337d58ac0cfe402585ef818135845faa",
+  "limitations": [
+    "M19 full held-out task/prose quality qualification remains owner-deferred and pending.",
+    "This is an experimental engineering Target, not a shipping or production-quality release.",
+    "Vision and audio are excluded; MTP remains disabled until M25 passes its independent gates.",
+    "M21 boundary prompts are synthetic; M20 performance uses the real Wikipedia 16K manifest."
+  ],
+  "milestone": "M23",
+  "raw_evidence": [
+    {
+      "ignored_path": "artifacts/raw/m23/product-freeze-c8e09e4/first.json",
+      "sha256": "888aec7d3bd5c28ad94036b67d087f055a208cfa377f3e505e44f03d7125b29a",
+      "size": 1492
+    },
+    {
+      "ignored_path": "artifacts/raw/m23/product-freeze-c8e09e4/relaunch.json",
+      "sha256": "888aec7d3bd5c28ad94036b67d087f055a208cfa377f3e505e44f03d7125b29a",
+      "size": 1492
+    },
+    {
+      "ignored_path": "artifacts/raw/m23/product-freeze-c8e09e4/m22-26b-product.json",
+      "sha256": "6531284c60be26d9267e694d61619637ba6735b6c339c2cda3eeb0ff4f328d22",
+      "size": 9180
+    },
+    {
+      "ignored_path": "artifacts/raw/m23/product-freeze-c8e09e4/m22-12b-product.json",
+      "sha256": "c987ab0d163d421cdce6d914e59bbefeb0ee1b0eb774e351d8d6d059e12a1c75",
+      "size": 5822
+    }
+  ],
+  "rollback": {
+    "failed_or_nonbeneficial_mtp_does_not_replace_this_target": true,
+    "m25_base_target": "this M23 ordinary-decode Target",
+    "ordinary_decode_remains_available_when_mtp_is_disabled": true,
+    "protected_12b_is_a_separate_product_profile_not_a_silent_model_substitution": true,
+    "router_rollback": "serial_exact selected explicitly before engine execution",
+    "silent_precision_model_cpu_or_runtime_fallback_allowed": false
+  },
+  "schema_version": 1,
+  "status": "accepted_technical_target",
+  "target": {
+    "artifact_content_sha256": "471805f7dad8abb84300be78b2822a63dcb1d35bff5aa98426a162cc8532ee17",
+    "artifact_lock_sha256": "d7d2d30743e7c42aa55537a83f563047c9cbd2d83e0d583a2d2c8bcacbfa51a4",
+    "artifact_profile": "sm120-text-hybrid-v1",
+    "compiler_commit": "f433358b8e2c1250b95801fc898faee4fcedcbe5",
+    "head_format": "nvfp4",
+    "kv_cache": "checkpoint_fp8",
+    "model_variant": "gemma4_moe_26b_a4b",
+    "native_path": "sm120_integrated_nvfp4_moe_bf16_tensor_router_fp8_kv",
+    "output_token_sha256": "c750d0b33f8eb4a8103299875886e51ab144d874cafe8cea77b0cfd99d2aedaf",
+    "source_lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230",
+    "toolchain_lock_sha256": "9046e1e9f82735879232d8ed6848f1b6d87082a4e5ec73f6fef8d46c50248146"
+  }
+}

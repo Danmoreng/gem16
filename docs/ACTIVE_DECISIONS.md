@@ -1,6 +1,6 @@
 # Active decisions
 
-**Accepted:** 2026-08-25 · **Track:** Gemma 4 26B A4B Fast Track · **Status:** M00–M17 and M20–M22 accepted; technical M23 next; full M19 deferred
+**Accepted:** 2026-08-25 · **Track:** Gemma 4 26B A4B Fast Track · **Status:** M00–M17 and M20–M23 accepted; M25 next; full M19 deferred
 
 This is the short operational policy for current work. It is not a replacement for historical evidence. Permanent
 rules in `AGENTS.md` remain binding. For facts about the implementation, current source, tests and accepted evidence
@@ -142,9 +142,18 @@ in fresh processes with deterministic finite logits, real ring/global-boundary c
 and unchanged margins; 102,400 is reproducibly capacity-rejected, so `base_max_context=98,304`. Formal M20 uses
 the real Wikipedia 16K+64 row, three warm-ups and ten retained runs with continuous telemetry. Its retained medians
 are 6,572.809 prompt tok/s and 150.615 ordinary-decode tok/s; the 6,000/150 gates and 6,500 prompt stretch all pass
-with unchanged `c750d0…` output. M20 and M21 are accepted; technical M23 is next, while M19 remains explicitly
-deferred and blocks shipping/production-quality claims. See `artifacts/m20/acceptance.json` and
+with unchanged `c750d0…` output. M20 and M21 are accepted and consumed by the technical M23 freeze, while M19
+remains explicitly deferred and blocks shipping/production-quality claims. See `artifacts/m20/acceptance.json` and
 `artifacts/m21/acceptance.json`.
+
+Technical M23 was accepted on 2026-08-25 with implementation/evidence revision
+`c8e09e4e337d58ac0cfe402585ef818135845faa`. The CLI and server keep 32K as the default, report 64K as qualified
+and publish `base_max_context=98,304`; the real 32K product lifecycle and protected 12B product regression pass on
+the updated binaries. `artifacts/m23/acceptance.json` reconciles the exact M20/M21 artifact, source, toolchain,
+benchmark-binary and output hashes and freezes this ordinary-decode profile as the M25 rollback Target. M19 remains
+visibly pending, so M23 is an experimental engineering checkpoint rather than a shipping or production-quality
+release. Before native M25 integration, update and pin the available llama.cpp and vLLM reference runtimes and run
+bounded 26B ordinary/MTP baseline characterizations to select proposal lengths and a realistic performance target.
 
 The owner set the base-model 64K residency and later execution reserve to 400 MiB on 2026-08-14 so that 64K remains
 a required supported target. This supersedes the prior 500 MiB base-model rule for 64K and larger contexts. The 32K

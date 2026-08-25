@@ -27,7 +27,7 @@ For multi-agent work also read [`PARALLEL_WORKSTREAMS.md`](PARALLEL_WORKSTREAMS.
 
 ## Milestones
 
-M00–M17 and M20–M22 are accepted. Technical M23 freeze is next;
+M00–M17 and M20–M23 are accepted. Bounded external 26B MTP characterization and M25 are next;
 M18 is conditional, M19's multi-hour task/prose suite is owner-deferred, M24 is optional and M25 plus the deferred
 M19 gate define program completion.
 

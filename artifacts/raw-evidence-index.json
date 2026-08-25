@@ -128,6 +128,34 @@
       "ignored_path": "artifacts/raw/m22/qualification-20260823-final/m22-12b-product.json",
       "size": 5594,
       "sha256": "599c597811bee2644ee800fa4578f882df4faa415a12474d9e4e48ca97b173d3"
+    },
+    {
+      "milestone": "M23",
+      "original_path": "artifacts/raw/m23/product-freeze-c8e09e4/first.json",
+      "ignored_path": "artifacts/raw/m23/product-freeze-c8e09e4/first.json",
+      "size": 1492,
+      "sha256": "888aec7d3bd5c28ad94036b67d087f055a208cfa377f3e505e44f03d7125b29a"
+    },
+    {
+      "milestone": "M23",
+      "original_path": "artifacts/raw/m23/product-freeze-c8e09e4/relaunch.json",
+      "ignored_path": "artifacts/raw/m23/product-freeze-c8e09e4/relaunch.json",
+      "size": 1492,
+      "sha256": "888aec7d3bd5c28ad94036b67d087f055a208cfa377f3e505e44f03d7125b29a"
+    },
+    {
+      "milestone": "M23",
+      "original_path": "artifacts/raw/m23/product-freeze-c8e09e4/m22-26b-product.json",
+      "ignored_path": "artifacts/raw/m23/product-freeze-c8e09e4/m22-26b-product.json",
+      "size": 9180,
+      "sha256": "6531284c60be26d9267e694d61619637ba6735b6c339c2cda3eeb0ff4f328d22"
+    },
+    {
+      "milestone": "M23",
+      "original_path": "artifacts/raw/m23/product-freeze-c8e09e4/m22-12b-product.json",
+      "ignored_path": "artifacts/raw/m23/product-freeze-c8e09e4/m22-12b-product.json",
+      "size": 5822,
+      "sha256": "c987ab0d163d421cdce6d914e59bbefeb0ee1b0eb774e351d8d6d059e12a1c75"
     }
   ]
 }
