@@ -1,6 +1,6 @@
 # Start here — current coding-agent task
 
-Status: M00–M17 and M20–M23 accepted; bounded external 26B MTP characterization and M25 are next. Full M19 is owner-deferred; M18 remains conditional.
+Status: M00–M17 and M20–M23 accepted; bounded external 26B MTP characterization is complete and M25 is next. Full M19 is owner-deferred; M18 remains conditional.
 Plan revision: Fast Track R4.
 
 ## Read now
@@ -32,7 +32,9 @@ The lead agent may assign disjoint sub-agents for:
 - independent evidence reconciliation.
 
 Use [`PARALLEL_WORKSTREAMS.md`](PARALLEL_WORKSTREAMS.md). M18 runs only after a recorded trigger. The owner-approved
-remaining sequence is bounded current llama.cpp/vLLM 26B MTP characterization, M25 and the deferred M19 release gate.
+remaining sequence is M25 and the deferred M19 release gate. The current external reference is llama.cpp build
+10623 at 118.627 ordinary / 151.919 D2 decode token/s; vLLM 0.27.1 remains the ordinary-only comparison because a
+fully GPU-resident 26B MTP configuration does not fit on the 16 GB reference device.
 
 ## M08 success
 

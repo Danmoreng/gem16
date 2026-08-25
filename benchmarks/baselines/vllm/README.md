@@ -1,7 +1,8 @@
 # vLLM direct-checkpoint characterization
 
-The current environment pin is vLLM 0.27.1 from its official wheel with Torch 2.13.0 / CUDA 13.0, Transformers
-5.14.1, compressed-tensors 0.17.0, vllm-gguf-plugin 0.0.5, gguf 0.19.0, and Setuptools 80.10.2. Existing 12B
+The current environment pin is vLLM 0.27.1, confirmed as the latest published wheel on 2026-08-25, with Torch
+2.13.0 / CUDA 13.0, Transformers 5.14.1, compressed-tensors 0.17.0, vllm-gguf-plugin 0.0.5, gguf 0.19.0, and
+Setuptools 80.10.2. Existing 12B
 cross-engine results below were produced by vLLM 0.26.0 and remain historical; updating the reproducible environment
 does not relabel them.
 
@@ -65,6 +66,16 @@ and raw-report hashes, dispatch lines, telemetry, failed-attempt audit and limit
 [`gemma4-26b-w4a16-wikipedia-16k64-characterization.json`](gemma4-26b-w4a16-wikipedia-16k64-characterization.json).
 The run did not record a preflight snapshot of the laptop power profile, power limit, starting temperature or other
 GPU processes.
+
+The same vLLM 0.27.1 environment cannot construct a fully GPU-resident 26B MTP engine on this 16 GB device with
+the community W4A16 target and Google's official 839.4 MB BF16 assistant. Initialization reaches approximately
+14.51 GiB in use and then fails when the current low-latency BF16 router autotuner requests another 1.38 GiB with
+about 1.0 GiB free. A supported 634.4 MB ModelOpt NVFP4 assistant raises free memory only to about 1.18 GiB and
+fails at the same boundary. A separate text-only W4A16 candidate also fails during model construction and was
+removed from the cache after the fit probe. No CPU offload or local kernel-disable patch is used to manufacture a
+number. Per the 2026-08-25 owner decision, the retained ordinary CUDA-Graph row near 6,400 prompt / 150 decode tok/s
+remains the vLLM comparison candidate; MTP performance is compared only against llama.cpp until a native vLLM
+configuration fits.
 
 Against the current gem16 development row for the same prompt token IDs and output count, the reported graph metrics
 give a 2.04x prefill ratio (6,475.80 versus 3,169.46 tok/s) and a 1.24x ordinary-decode ratio (149.35 versus 120.40

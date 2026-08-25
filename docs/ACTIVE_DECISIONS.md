@@ -155,6 +155,16 @@ visibly pending, so M23 is an experimental engineering checkpoint rather than a 
 release. Before native M25 integration, update and pin the available llama.cpp and vLLM reference runtimes and run
 bounded 26B ordinary/MTP baseline characterizations to select proposal lengths and a realistic performance target.
 
+That prerequisite completed on 2026-08-25. vLLM 0.27.1 remains the latest published wheel and its retained ordinary
+CUDA-Graph comparison stays near 6,400 prompt / 150 decode token/s; native 26B MTP construction with both the
+official BF16 and a supported ModelOpt NVFP4 assistant exceeds the 16 GB device, so the owner directed that vLLM not
+be rerun and remain the ordinary-only comparison. llama.cpp was updated to build 10623
+(`f1357e49980f5462af9783164f3fdec407d90137`). On the fixed 16K+1,135 workload its ordinary/D2 medians are
+118.627/151.919 decode token/s, a 28.06% D2 gain with 62.85% draft acceptance. D2 leaves only 343 MiB free and its
+output first differs from ordinary at zero-based token 44, so it is a performance target for M25 feasibility—not
+quality, exactness, memory-gate or default-mode acceptance. See
+`benchmarks/baselines/llama_cpp/gemma4-26b-a4b-qat-q4_0-mtp-b10623.json`.
+
 The owner set the base-model 64K residency and later execution reserve to 400 MiB on 2026-08-14 so that 64K remains
 a required supported target. This supersedes the prior 500 MiB base-model rule for 64K and larger contexts. The 32K
 gate remains 700 MiB, and MTP keeps its separate 500 MiB 64K gate until M25 measures assistant overhead.

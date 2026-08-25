@@ -6,6 +6,26 @@ tag is b10622. Historical rows below retain the exact older llama.cpp revision t
 b10240 Linux/Windows cross-engine characterizations and the b10364 batch audit; updating the active build pin does
 not relabel those results.
 
+## Build 10623 Gemma 4 26B MTP baseline
+
+The current build was measured on Linux Max Power with Google's immutable official QAT Q4_0 target and Unsloth's
+251.9 MB Q4 MTP assistant. Both ordinary and D2 use the exact 16,384-token Wikipedia prompt, 1,135 forced greedy
+output positions, Q8_0 K/V, Flash Attention, batch/ubatch 2048/512, target and assistant embeddings on CUDA0, three
+warm-ups, ten measurements, and 200 ms device-wide telemetry.
+
+| Mode | Prefill tok/s | TTFT | Decode tok/s | ITL | Peak VRAM | Free margin |
+|---|---:|---:|---:|---:|---:|---:|
+| Ordinary | **4,262.13** | **3,844.08 ms** | 118.627 | 8.430 ms | **15,182 MiB** | **699 MiB** |
+| MTP D2 | 4,202.74 | 3,898.41 ms | **151.919** | **6.582 ms** | 15,538 MiB | 343 MiB |
+
+D2 raises effective decode throughput by **28.06%**, lowers aggregate ITL by 21.92%, and costs 1.39% prefill plus
+356 MiB sampled peak VRAM. It proposes 1,004 tokens, accepts 631, rejects 373, and executes 504 target groups in
+every measured run. Each mode is internally deterministic, but D2 first differs from ordinary at zero-based output
+index 44. The D2 row is therefore a controlled performance characterization, not quality acceptance, and its 343
+MiB free margin misses gem16's 700 MiB operating target. Full samples, hashes, commands, telemetry and limitations
+are retained in
+[`gemma4-26b-a4b-qat-q4_0-mtp-b10623.json`](gemma4-26b-a4b-qat-q4_0-mtp-b10623.json).
+
 ## Current-build Gemma 4 26B ordinary decode refresh
 
 Build 10593 was measured against Google's immutable official QAT Q4_0 GGUF with the fixed 16,384-token Wikipedia

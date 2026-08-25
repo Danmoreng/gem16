@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "status": "CONTROLLED_PERFORMANCE_CHARACTERIZATION_NOT_QUALITY_ACCEPTANCE",
+  "captured_at": "2026-08-25",
+  "repository": {"commit": "adb106d2aa13288e2759a625b8cc16ed5c8b4749", "worktree_dirty_at_start": false},
+  "runtime": {
+    "name": "llama.cpp", "version": "0.3.0-dev", "build": 10623,
+    "commit": "f1357e49980f5462af9783164f3fdec407d90137",
+    "nearest_preceding_release": "b10622",
+    "build_info": "benchmarks/baselines/llama_cpp/build-info-10623.txt"
+  },
+  "models": {
+    "target": {
+      "repository": "google/gemma-4-26B-A4B-it-qat-q4_0-gguf",
+      "revision": "d1c082be9cf3c8a514acf63b8761f4b41935842e",
+      "filename": "gemma-4-26B_q4_0-it.gguf", "size_bytes": 14439363584,
+      "sha256": "3eca3b8f6d7baf218a7dd6bba5fb59a56ee25fe2d567b6f5f589b4f697eca51d"
+    },
+    "assistant": {
+      "repository": "unsloth/gemma-4-26B-A4B-it-qat-GGUF",
+      "revision": "7b92b5b28818151e8669af2e45e88d6086f490dd",
+      "filename": "mtp-gemma-4-26B-A4B-it.gguf", "size_bytes": 251939328,
+      "sha256": "7272d97595f0d4c74bd7b623492b7dbdaafd8b7c72f329a8270ba4eca68f768a"
+    }
+  },
+  "workload": {
+    "id": "wikipedia-artificial-intelligence-summary-16k", "prompt_tokens": 16384,
+    "prompt_token_ids_sha256": "d07ad4d805944f0b87869da0c5bb44d99e8c43c0eb57d05a108ad80a6abb51a8",
+    "forced_output_tokens": 1135, "temperature": 0.0, "ignore_eos": true,
+    "warmups": 3, "measured_repetitions": 10, "primary_statistic": "median"
+  },
+  "common_configuration": {
+    "batch_size": 2048, "ubatch_size": 512, "parallel": 1, "threads": 8,
+    "poll": 100, "priority": 0, "gpu_layers": "all", "target_embedding": "CUDA0",
+    "flash_attention": true, "kv_cache_k": "q8_0", "kv_cache_v": "q8_0", "prompt_cache": false
+  },
+  "results": {
+    "ordinary": {
+      "prompt_tokens_per_second": {
+        "median": 4262.134829041399, "mean_95_ci": [4257.095265787966, 4273.470637178867],
+        "samples": [4286.200130804447, 4281.326866397463, 4272.4288825997355, 4267.213403383976, 4262.345491927064, 4261.9241661557335, 4256.750875889367, 4255.799969089344, 4256.744240183883, 4252.095488403152]
+      },
+      "decode_tokens_per_second": {
+        "median": 118.62710274830827, "mean_95_ci": [118.30338327055196, 118.7776152322225],
+        "samples": [118.61525166202561, 118.8260862868095, 118.76495755095345, 118.63895383459094, 118.7102166367239, 118.60439649972697, 118.39573157286327, 118.03981460046333, 118.90497950776484, 117.9046043619505]
+      },
+      "time_to_first_token_ms_median": 3844.083,
+      "average_inter_token_latency_ms_median": 8.429776895943563,
+      "output_token_sha256": "e80ffb719e4cb7864e418d58932af4bc0caf2a0f7bf1cc1bec626d61733f27e5",
+      "deterministic_across_measured_runs": true, "peak_vram_mib": 15182, "minimum_free_vram_mib": 699
+    },
+    "mtp_d2": {
+      "prompt_tokens_per_second": {
+        "median": 4202.741588985232, "mean_95_ci": [4198.054564266483, 4209.803897081693],
+        "samples": [4219.563590399463, 4214.2107177379075, 4208.234670726955, 4205.494248247368, 4204.693427446198, 4200.789750524265, 4197.977263689547, 4196.720236495841, 4194.064569241871, 4197.543832231469]
+      },
+      "decode_tokens_per_second": {
+        "median": 151.91878465626894, "mean_95_ci": [151.42942914212043, 152.35775497303408],
+        "samples": [153.04901576931223, 152.2198118514802, 152.25414681085965, 152.22138519849722, 151.3445239307189, 151.16259229715953, 151.6177574610577, 152.51898417514667, 151.4145240977417, 151.13317898379864]
+      },
+      "time_to_first_token_ms_median": 3898.4085,
+      "average_inter_token_latency_ms_median": 6.582490299823633,
+      "output_token_sha256": "a7b38be05281c09fd90d43bbfaa9f7cc0585489f6458f635ec218e61667323f8",
+      "deterministic_across_measured_runs": true, "peak_vram_mib": 15538, "minimum_free_vram_mib": 343,
+      "proposed_tokens": 1004, "accepted_tokens": 631, "rejected_tokens": 373,
+      "acceptance_percent": 62.84860557768924, "target_batches": 504,
+      "mean_accepted_length": 1.251984126984127
+    },
+    "d2_relative_to_ordinary": {
+      "decode_throughput_percent": 28.064144817391167,
+      "prefill_throughput_percent": -1.3935091788151,
+      "peak_vram_delta_mib": 356,
+      "first_output_divergence_zero_based_index": 44
+    }
+  },
+  "telemetry": {
+    "source": "nvidia-smi device-wide sampling", "interval_ms": 200,
+    "ordinary_samples": 884, "mtp_d2_samples": 760,
+    "ordinary_peak_gpu_utilization_percent": 100, "mtp_d2_peak_gpu_utilization_percent": 100,
+    "ordinary_peak_temperature_c": 80, "mtp_d2_peak_temperature_c": 80,
+    "ordinary_peak_power_w": 175.09, "mtp_d2_peak_power_w": 176.69
+  },
+  "raw_evidence": {
+    "ordinary_result": {"path": "artifacts/raw/external-mtp-20260825/llama-full/ordinary.json", "sha256": "148d5190f755893d290bbc2fee5581f4fc1a79f61cee12a2b938b1e5f266b6e2"},
+    "ordinary_server_log": {"path": "artifacts/raw/external-mtp-20260825/llama-full/ordinary.server.log", "sha256": "1f56bcf67818fa8da439a010afc1850b0e8bbe93cd1813951a45765e92aa45e6"},
+    "ordinary_telemetry": {"path": "artifacts/raw/external-mtp-20260825/llama-full/ordinary-telemetry.csv", "sha256": "bf8a13467af18d66cc534213769ba201e0be3ad1ffb3394a9ed1f5dfb7ec61a5"},
+    "mtp_d2_result": {"path": "artifacts/raw/external-mtp-20260825/llama-full/d2.json", "sha256": "64938e87329c68237586af86f0027d280cf837a64d58777c4c9cdbd20774aef2"},
+    "mtp_d2_server_log": {"path": "artifacts/raw/external-mtp-20260825/llama-full/d2.server.log", "sha256": "d682abf2356930d3e549da3b8af665dd0fbabbe1179167abe0be52fb077e0cee"},
+    "mtp_d2_telemetry": {"path": "artifacts/raw/external-mtp-20260825/llama-full/d2-telemetry.csv", "sha256": "6d840e755168989f2f9774beabdfd38068e0ad724364f77125e4dc282d0033d5"}
+  },
+  "commands": {
+    "ordinary": "python tools/benchmark_wikipedia_workload.py --engine llama-cpp --workload benchmarks/prompts/wikipedia-summary-16k.json --output artifacts/raw/external-mtp-20260825/llama-full/ordinary.json --executable build/Linux/llama_cpp/latest-release/bin/llama-server --gguf models/checkpoints/google-gemma-4-26b-a4b-it-qat-q4_0-gguf-d1c082b/gemma-4-26B_q4_0-it.gguf --fixed-output-tokens 1135 --warmups 3 --repetitions 10 --mtp-draft-tokens 0 --llama-kv-cache-type q8_0 --llama-threads 8 --llama-poll 100 --llama-prio 0 --llama-override-tensor token_embd.weight=CUDA0",
+    "mtp_d2": "python tools/benchmark_wikipedia_workload.py --engine llama-cpp --workload benchmarks/prompts/wikipedia-summary-16k.json --output artifacts/raw/external-mtp-20260825/llama-full/d2.json --executable build/Linux/llama_cpp/latest-release/bin/llama-server --gguf models/checkpoints/google-gemma-4-26b-a4b-it-qat-q4_0-gguf-d1c082b/gemma-4-26B_q4_0-it.gguf --assistant-model <unsloth-gemma-4-26B-A4B-it-qat-GGUF@7b92b5b/mtp-gemma-4-26B-A4B-it.gguf> --fixed-output-tokens 1135 --warmups 3 --repetitions 10 --mtp-draft-tokens 2 --llama-kv-cache-type q8_0 --llama-threads 8 --llama-poll 100 --llama-prio 0 --llama-override-tensor token_embd.weight=CUDA0 --llama-draft-override-tensor token_embd.weight=CUDA0"
+  },
+  "limitations": [
+    "Ordinary and MTP D2 outputs are each internally deterministic but diverge at zero-based output index 44; this is not exact speculative-decoding or quality acceptance.",
+    "The D2 peak leaves only 343 MiB device-wide free VRAM and therefore does not satisfy gem16's 700 MiB operating-reserve target.",
+    "The assistant is a separate Q4 GGUF from Unsloth while the target is Google's official QAT Q4_0 GGUF.",
+    "llama.cpp MTP is host-controlled with CUDA-offloaded target and assistant forwards; it is not a fully device-resident speculative scheduler.",
+    "The raw files are intentionally ignored by Git; their hashes and all performance samples are retained in this compact report."
+  ]
+}

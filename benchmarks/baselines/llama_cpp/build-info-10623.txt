@@ -1,4 +1,4 @@
-status=BUILT_PENDING_CONTROLLED_26B_MTP_BASELINE
+status=CONTROLLED_26B_MTP_PERFORMANCE_CHARACTERIZATION_COMPLETE
 captured_at=2026-08-25
 llama_cpp_commit=f1357e49980f5462af9783164f3fdec407d90137
 llama_cpp_release=b10622
@@ -17,5 +17,5 @@ gpu=NVIDIA GeForce RTX 5080 Laptop GPU
 gpu_compute_capability=12.0
 gpu_uuid=GPU-93070293-2184-eb69-555b-1d856a4fdbb8
 gpu_vram_reported_by_nvidia_smi=16303 MiB
-result=pending
-note=This records the reproducible dependency build only. Performance, residency and MTP behavior require the subsequent controlled baseline and are not claimed here.
+result=benchmarks/baselines/llama_cpp/gemma4-26b-a4b-qat-q4_0-mtp-b10623.json
+note=The controlled 26B ordinary/D2 comparison uses Google's official QAT Q4_0 target and Unsloth's Q4 MTP assistant. It is a performance characterization, not quality acceptance; the D2 peak also misses gem16's 700 MiB operating-reserve target.
