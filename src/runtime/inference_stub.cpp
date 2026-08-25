@@ -28,6 +28,9 @@ const char* ModelRuntime::artifact_content_sha256() const { return ""; }
 const char* ModelRuntime::source_lock_sha256() const { return ""; }
 const char* ModelRuntime::compiler_commit() const { return ""; }
 std::uint64_t ModelRuntime::max_context_tokens() const { return 0U; }
+std::uint64_t ModelRuntime::default_context_tokens() const { return 0U; }
+std::uint64_t ModelRuntime::base_max_context_tokens() const { return 0U; }
+bool ModelRuntime::qualified_64k() const { return false; }
 std::uint64_t ModelRuntime::kv_cache_bytes() const { return 0U; }
 std::uint64_t ModelRuntime::workspace_bytes() const { return 0U; }
 bool ModelRuntime::supports_audio() const { return false; }

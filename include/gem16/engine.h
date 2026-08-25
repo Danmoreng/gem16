@@ -192,6 +192,9 @@ class ModelRuntime {
   [[nodiscard]] const char* source_lock_sha256() const;
   [[nodiscard]] const char* compiler_commit() const;
   [[nodiscard]] std::uint64_t max_context_tokens() const;
+  [[nodiscard]] std::uint64_t default_context_tokens() const;
+  [[nodiscard]] std::uint64_t base_max_context_tokens() const;
+  [[nodiscard]] bool qualified_64k() const;
   [[nodiscard]] std::uint64_t kv_cache_bytes() const;
   [[nodiscard]] std::uint64_t workspace_bytes() const;
   [[nodiscard]] bool supports_audio() const;

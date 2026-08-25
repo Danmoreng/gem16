@@ -246,8 +246,8 @@ def run_26b(driver: Path, chat: Path, server_executable: Path) -> int:
         "text_only": True,
         "supports_mtp": False,
         "default_context": 32768,
-        "qualified_64k": False,
-        "base_max_context": 32768,
+        "qualified_64k": True,
+        "base_max_context": 98304,
         "mtp_max_context": None,
     }
     for key, expected in expected_report.items():

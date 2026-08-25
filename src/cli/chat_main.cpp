@@ -828,10 +828,23 @@ int ChatMain(int argc, char** argv) {
     std::cout
         << ",\"configured_context_tokens\":"
         << runtime.value()->max_context_tokens()
-        << ",\"default_context\":" << (moe26b ? 32768U : 8192U)
-        << ",\"default_context_tokens\":" << (moe26b ? 32768U : 8192U)
-        << ",\"qualified_64k\":" << (moe26b ? "false" : "null")
-        << ",\"base_max_context\":" << (moe26b ? "32768" : "null")
+        << ",\"default_context\":"
+        << runtime.value()->default_context_tokens()
+        << ",\"default_context_tokens\":"
+        << runtime.value()->default_context_tokens()
+        << ",\"qualified_64k\":";
+    if (moe26b) {
+      std::cout << (runtime.value()->qualified_64k() ? "true" : "false");
+    } else {
+      std::cout << "null";
+    }
+    std::cout << ",\"base_max_context\":";
+    if (moe26b) {
+      std::cout << runtime.value()->base_max_context_tokens();
+    } else {
+      std::cout << "null";
+    }
+    std::cout
         << ",\"mtp_max_context\":null"
         << ",\"admission_free_bytes\":" << memory.value().free_bytes
         << ",\"required_admission_margin_bytes\":" << admission_margin

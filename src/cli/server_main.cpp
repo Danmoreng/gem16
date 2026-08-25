@@ -860,18 +860,20 @@ int ServerMain(int argc, char** argv) {
                        std::to_string(state.max_context) +
                        ",\"default_context\":" +
                        std::to_string(
-                           is_moe26b
-                               ? 32768U
-                               : 8192U) +
+                           state.runtime->default_context_tokens()) +
                        ",\"default_context_tokens\":" +
                        std::to_string(
-                           is_moe26b
-                               ? 32768U
-                               : 8192U) +
+                           state.runtime->default_context_tokens()) +
                        ",\"qualified_64k\":" +
-                       (is_moe26b ? "false" : "null") +
+                       (is_moe26b
+                            ? (state.runtime->qualified_64k() ? "true"
+                                                             : "false")
+                            : "null") +
                        ",\"base_max_context\":" +
-                       (is_moe26b ? "32768" : "null") +
+                       (is_moe26b
+                            ? std::to_string(
+                                  state.runtime->base_max_context_tokens())
+                            : "null") +
                        ",\"mtp_max_context\":null" +
                        ",\"model_variant\":" +
                        gem16::json::Quote(

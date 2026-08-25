@@ -129,6 +129,22 @@ const char* ModelRuntime::compiler_commit() const {
 std::uint64_t ModelRuntime::max_context_tokens() const {
   return impl_ == nullptr ? 0U : impl_->max_context_tokens;
 }
+std::uint64_t ModelRuntime::default_context_tokens() const {
+  if (impl_ == nullptr) return 0U;
+  return impl_->variant == internal::ModelVariant::kGemma4Moe26BA4B
+             ? 32768U
+             : 8192U;
+}
+std::uint64_t ModelRuntime::base_max_context_tokens() const {
+  if (impl_ == nullptr) return 0U;
+  return impl_->variant == internal::ModelVariant::kGemma4Moe26BA4B
+             ? 98304U
+             : 0U;
+}
+bool ModelRuntime::qualified_64k() const {
+  return impl_ != nullptr &&
+         impl_->variant == internal::ModelVariant::kGemma4Moe26BA4B;
+}
 std::uint64_t ModelRuntime::kv_cache_bytes() const {
   if (impl_ == nullptr || impl_->moe26b_engine == nullptr) return 0U;
   return impl_->moe26b_engine->kv_cache_bytes();
