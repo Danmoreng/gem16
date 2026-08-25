@@ -1266,10 +1266,17 @@ Status Gemma4Moe26BReferenceEngine::PrefillTokens(
   auto& x = *implementation_;
   constexpr unsigned threads = 256U;
   std::size_t consumed = 0U;
+  cudaError_t error =
+      cudaMemsetAsync(x.routing_finite, 1, sizeof(int), x.stream);
+  if (error != cudaSuccess) {
+    return CudaFailure("initialize M17 prefill router finite flag", error);
+  }
   while (consumed < tokens.size()) {
     const std::uint64_t chunk = std::min<std::uint64_t>(
         kPrefillMaxTokens, tokens.size() - consumed);
-    cudaError_t error = cudaStreamSynchronize(x.stream);
+    const bool is_last_chunk =
+        consumed + static_cast<std::size_t>(chunk) == tokens.size();
+    error = cudaStreamSynchronize(x.stream);
     if (error != cudaSuccess) {
       return CudaFailure("synchronize M17 prefill token staging", error);
     }
@@ -1285,10 +1292,6 @@ Status Gemma4Moe26BReferenceEngine::PrefillTokens(
       if (!marked.ok()) return marked;
     }
     if (error != cudaSuccess) return CudaFailure("copy M17 prefill tokens", error);
-    error = cudaMemsetAsync(x.routing_finite, 1, sizeof(int), x.stream);
-    if (error != cudaSuccess) {
-      return CudaFailure("initialize M17 prefill router finite flag", error);
-    }
     const std::uint64_t hidden_elements = chunk * kWidth;
     TiledEmbeddingLookupBatchKernel<<<
         static_cast<unsigned>((hidden_elements + threads - 1U) / threads),
@@ -1311,7 +1314,7 @@ Status Gemma4Moe26BReferenceEngine::PrefillTokens(
           x.moe_weights[layer], x.prefill_moe_workspace, x.stream);
       if (!status.ok()) return status;
       const int capture = CaptureIndex(layer);
-      if (capture >= 0) {
+      if (is_last_chunk && capture >= 0) {
         const std::size_t capture_index = static_cast<std::size_t>(capture);
         error = cudaMemcpyAsync(
             x.layer_captures[capture_index],
@@ -1335,24 +1338,27 @@ Status Gemma4Moe26BReferenceEngine::PrefillTokens(
         }
       }
     }
-    float* last_hidden = x.prefill_hidden_a + (chunk - 1U) * kWidth;
-    Status status = LaunchRmsNormBf16(last_hidden, x.final_norm, x.final_hidden,
-                                      1U, kWidth, 1.0e-6F, x.stream);
-    if (!status.ok()) return status;
-    status = LaunchNvfp4ReferenceActivationQuantization(
-        x.final_hidden, x.head_activation, x.head_activation_scales, kWidth,
-        x.head.activation_global_divisor, x.stream);
-    if (!status.ok()) return status;
-    status = LaunchNvfp4Sm120DirectProjectionBf16Float(
-        x.head_activation, x.head_activation_scales, x.head.packed_e2m1,
-        x.head.scales_e4m3fn, x.logits, x.head.rows, x.head.columns,
-        x.head.activation_global_divisor, x.head.weight_global_divisor,
-        x.stream);
-    if (!status.ok()) return status;
-    status = LaunchSoftcapArgmax(
-        x.logits, x.softcap, x.finite, x.output_candidates,
-        x.prediction_token, x.prediction_logit, x.stream);
-    if (!status.ok()) return status;
+    if (is_last_chunk) {
+      float* last_hidden = x.prefill_hidden_a + (chunk - 1U) * kWidth;
+      Status status = LaunchRmsNormBf16(
+          last_hidden, x.final_norm, x.final_hidden, 1U, kWidth, 1.0e-6F,
+          x.stream);
+      if (!status.ok()) return status;
+      status = LaunchNvfp4ReferenceActivationQuantization(
+          x.final_hidden, x.head_activation, x.head_activation_scales, kWidth,
+          x.head.activation_global_divisor, x.stream);
+      if (!status.ok()) return status;
+      status = LaunchNvfp4Sm120DirectProjectionBf16Float(
+          x.head_activation, x.head_activation_scales, x.head.packed_e2m1,
+          x.head.scales_e4m3fn, x.logits, x.head.rows, x.head.columns,
+          x.head.activation_global_divisor, x.head.weight_global_divisor,
+          x.stream);
+      if (!status.ok()) return status;
+      status = LaunchSoftcapArgmax(
+          x.logits, x.softcap, x.finite, x.output_candidates,
+          x.prediction_token, x.prediction_logit, x.stream);
+      if (!status.ok()) return status;
+    }
     const std::uint64_t previous_position = x.position;
     x.position += chunk;
     if (x.sliding_capacity != 0U) {

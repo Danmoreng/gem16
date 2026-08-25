@@ -19,6 +19,7 @@ import tempfile
 
 
 SKIP = 77
+MULTI_CHUNK_PROMPT = " ".join(str(index) for index in range(2048))
 
 
 def fail(message: str) -> None:
@@ -38,6 +39,8 @@ def run_once(executable: Path, model: Path, root: Path, name: str) -> tuple[dict
         str(logits),
         "--backend",
         "sm120",
+        "--prompt",
+        MULTI_CHUNK_PROMPT,
         "--context",
         "32768",
         "--max-new",
@@ -69,6 +72,9 @@ def validate(payload: dict, name: str) -> None:
         fail(f"{name}: intra-engine full-logit replay mismatch")
     if payload.get("first_generated") != payload.get("second_generated"):
         fail(f"{name}: graph replay token mismatch")
+    prompt_tokens = payload.get("prompt_token_ids")
+    if not isinstance(prompt_tokens, list) or len(prompt_tokens) <= 1025:
+        fail(f"{name}: prompt did not exercise multi-chunk PrefillTokens")
     captures = payload.get("captures")
     if not isinstance(captures, list) or len(captures) != 8:
         fail(f"{name}: incomplete layer/router captures")

@@ -1,0 +1,138 @@
+{
+  "schema_version": 1,
+  "milestone": "M20-development",
+  "status": "accepted_exact_safety_and_efficiency_cleanup_not_standalone_performance_promotion",
+  "measured_on": "2026-08-25",
+  "base_revision": "e1aad34",
+  "device": "NVIDIA GeForce RTX 5080 Laptop GPU",
+  "driver": "610.43.03",
+  "scenario": {
+    "id": "wikipedia-real-16k64-greedy",
+    "prompt_tokens": 16384,
+    "output_forwards": 64,
+    "prompt_manifest_sha256": "9a5859b979d91fccf71bcbb61aade6372cf2cc3c708e6c47b8b6cfd99f7abd2d",
+    "mtp_or_speculative_decode": false,
+    "prompt_cache": false,
+    "kv_mode": "fp8"
+  },
+  "p01": {
+    "change": {
+      "classification": "exact",
+      "intermediate_chunk_finalization": "removed",
+      "final_prompt_captures": "last_chunk_only",
+      "final_norm_head_softcap_argmax": "last_chunk_only",
+      "kv_cache_updates": "unchanged_per_chunk",
+      "position_and_ring_accounting": "unchanged_per_chunk",
+      "routing_finite": "initialized_once_per_prefill_call_and_accumulated_across_all_chunks",
+      "canonical_finalizations_before": 16,
+      "canonical_finalizations_after": 1
+    },
+    "parent": {
+      "binary_sha256": "135528b2c60b9ccb5ce432021975a30ca269fe5806a573ffd6bbc935a8417199",
+      "prompt_ms": 2501.328589,
+      "prompt_tokens_per_second": 6550.119033561327,
+      "decode_ms": 453.730993,
+      "decode_tokens_per_second": 138.848791403
+    },
+    "candidate": {
+      "measurement_binary_sha256": "3925c493e19726cd38a00df428b7312a8cf08f8fbc777623f65d41b8a11edd69",
+      "prompt_tokens_per_second_samples": [
+        6564.075497810488,
+        6567.059387854012,
+        6568.197522110362
+      ],
+      "prompt_tokens_per_second_mean": 6566.444135924954,
+      "prompt_tokens_per_second_median": 6567.059387854012,
+      "decode_tokens_per_second_samples": [
+        138.875934177,
+        138.657186494,
+        138.706359454
+      ],
+      "decode_tokens_per_second_mean": 138.746493375,
+      "prompt_throughput_gain_vs_fresh_parent_percent": 0.24923367468561164,
+      "decode_classification": "neutral"
+    },
+    "correctness": {
+      "all_logits_finite": true,
+      "output_token_sha256": "c750d0b33f8eb4a8103299875886e51ab144d874cafe8cea77b0cfd99d2aedaf",
+      "matches_parent_output_hash": true,
+      "multi_chunk_final_captures_and_continuation": "pass",
+      "fresh_engine_relaunch": "pass",
+      "fallback_count": 0,
+      "recurring_allocation_count": 0
+    },
+    "memory": {
+      "margin_bytes": 1292697600,
+      "margin_changed": false
+    },
+    "decision": "retain as an exact safety and redundant-work cleanup; the isolated 0.25% gain is below the normal 0.5% standalone performance-promotion threshold"
+  },
+  "p02": {
+    "candidate": "context-sized absolute-position pinned staging without per-chunk stream barriers",
+    "prompt_tokens_per_second_samples": [
+      6562.569255027869,
+      6569.761563516062,
+      6582.557766954445
+    ],
+    "prompt_tokens_per_second_mean": 6571.6295284994585,
+    "gain_over_p01_mean_percent": 0.0789680452184971,
+    "output_token_sha256": "c750d0b33f8eb4a8103299875886e51ab144d874cafe8cea77b0cfd99d2aedaf",
+    "decision": "rejected_as_measurement_neutral_and_source_reverted"
+  },
+  "tests": {
+    "blackwell_release_build": "pass",
+    "python_smoke_syntax": "pass",
+    "multi_chunk_m17_engine_smoke": "pass_156.12_seconds_two_fresh_processes",
+    "unit_cuda_moe_attention_nvfp4_and_m21_host": "pass_6_of_6",
+    "protected_12b_product_regression": "pass_9.11_seconds"
+  },
+  "raw_evidence": [
+    {
+      "ignored_path": "artifacts/raw/max-performance/p01-parent-e1aad34-01.json",
+      "bytes": 3037,
+      "sha256": "b44c098a14d2a59b690d4d3a3bc1220a7a7b1a02cf9837c3e9d68278b2d6f3a9"
+    },
+    {
+      "ignored_path": "artifacts/raw/max-performance/p01-candidate-e1aad34-worktree-01.json",
+      "bytes": 3038,
+      "sha256": "bc82e699584e218373b56cf035836a9aa21f7c3425d4ddac75826acbaa7e50f9"
+    },
+    {
+      "ignored_path": "artifacts/raw/max-performance/p01-candidate-e1aad34-worktree-02.json",
+      "bytes": 3041,
+      "sha256": "b4f4865acf7eea16b63b3211abf30ab67b856723b7134c89ccbe864b9b8e7e14"
+    },
+    {
+      "ignored_path": "artifacts/raw/max-performance/p01-candidate-e1aad34-worktree-03.json",
+      "bytes": 3036,
+      "sha256": "fc325640f8f57a8064049ea68b713328c58bd21c872182169980f344d653523a"
+    },
+    {
+      "ignored_path": "artifacts/raw/max-performance/p02-candidate-e1aad34-worktree-01.json",
+      "bytes": 3035,
+      "sha256": "6f0bb1930a9387e0241ee6ec9beecda8e712d2673c69729fa2c50ca31e77dcaf"
+    },
+    {
+      "ignored_path": "artifacts/raw/max-performance/p02-candidate-e1aad34-worktree-02.json",
+      "bytes": 3027,
+      "sha256": "cfd862bae637f587f89d978f56ae6a4a461b0eb7561252a3c6ca129afda46ddf"
+    },
+    {
+      "ignored_path": "artifacts/raw/max-performance/p02-candidate-e1aad34-worktree-03.json",
+      "bytes": 3037,
+      "sha256": "f7b5fc5445fc026dda17ebfe58cf41d93cef96f4bac1fb860e9bc0cd8cb23bb4"
+    }
+  ],
+  "review": {
+    "ox_run_id": "20260825T061127Z-40484",
+    "ox_status": "failed_without_report_after_automatic_retries",
+    "activity_log": "/home/sebastian/.local/state/ox-agent/runs/20260825T061127Z-40484/activity.log",
+    "independent_verification": "primary agent traced all capture, head, finite, position, KV and continuation consumers before editing"
+  },
+  "limitations": {
+    "formal_m20_3_warmup_10_retained_not_run": true,
+    "hard_150_decode_target_reached": false,
+    "p01_below_normal_standalone_performance_threshold": true,
+    "p02_retained": false
+  }
+}

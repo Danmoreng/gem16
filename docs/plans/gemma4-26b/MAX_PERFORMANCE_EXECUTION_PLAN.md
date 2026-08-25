@@ -198,7 +198,10 @@ Do not repeat these as new ideas:
 
 #### P01: finalize only the last prompt chunk
 
-Current `PrefillTokens()` performs layer captures, final RMSNorm, tied head projection, softcap, and argmax for every
+Status: retained on 2026-08-25 as an exact safety and redundant-work cleanup; compact evidence is
+`../../../artifacts/m20/optimization-final-chunk-only.json`.
+
+Before P01, `PrefillTokens()` performed layer captures, final RMSNorm, tied head projection, softcap, and argmax for every
 1,024-token chunk, although only the final prompt position is externally visible.
 
 Implement `is_last_chunk = consumed + chunk == tokens.size()` and execute only on the last chunk:
@@ -213,6 +216,9 @@ Require the same final prediction, captures, output hash, finite behavior, memor
 reads. This is the first implementation slice after this plan.
 
 #### P02: remove chunk staging barriers safely
+
+Status: P02b was measured separately on P01, was neutral at +0.08%, and was fully reverted. Do not retry a staging
+variant without fresh profiler evidence of a material host gap.
 
 Do not delete `cudaStreamSynchronize` while reusing one pinned host slot. Test the simplest safe design first:
 
@@ -487,19 +493,16 @@ under the current owner authorization; do not push unless the owner explicitly r
 
 ## 11. Immediate handoff
 
-The next implementation slice is **P01**. Before editing:
+P01 is retained and P02 is rejected. The next slice is **D00**, a fresh decode attribution on the new source parent:
 
-1. confirm the final-prompt capture semantics and every consumer;
-2. prove that skipped intermediate captures/head work has no dependency in the next chunk;
-3. add or extend a multi-chunk engine test that compares final prediction, captures, position, KV-visible behavior,
-   finite errors, and allocation evidence;
-4. implement only the last-chunk guard;
-5. run operator/engine/12B checks proportional to touched shared code;
-6. measure the exact canonical parent/candidate pair;
-7. promote or reject P01 before starting P02.
+1. record the current binary, model, driver, power-state and canonical-row hashes;
+2. profile bounded 512, 2K, 8K and 16K contexts; do not run 32K/64K without a context-owned hypothesis;
+3. separate constant T=1 work from context-dependent local/global attention;
+4. attribute attention projection/cache, split/merge, MoE, head, graph/control and host-tail cost;
+5. record graph-node counts plus register/shared/occupancy facts for the five largest kernel groups;
+6. check in a compact attribution that selects D03a or a larger measured exact bottleneck.
 
-If P01 is promoted, P02 follows as a separate exact candidate. The first decode-code candidate after fresh D00
-attribution is D03a unless the profile selects a larger measured bottleneck.
+Do not edit decode code before D00 selects the next isolated mechanism.
 
 ## 12. Complete candidate inventory
 
@@ -819,7 +822,11 @@ and per-chunk tail effects. No large prefill-GEMM or attention rewrite starts wi
 
 ### 12.15 P01 — final work only after the last chunk
 
-The active implementation slice remains:
+Status: implemented and retained on 2026-08-25 as an exact safety/redundant-work cleanup. Three canonical samples
+measure a +0.25% mean prompt gain with the same output hash; see
+`../../../artifacts/m20/optimization-final-chunk-only.json`.
+
+The implemented condition is:
 
 ```text
 is_last_chunk = consumed + chunk == tokens.size()
@@ -831,6 +838,9 @@ Require identical final captures, prediction, output hash, continuation behavior
 removed head-weight traffic and launches.
 
 ### 12.16 P02 — safe prompt staging without whole-stream chunk barriers
+
+Status: P02b measured neutral at +0.08% over P01 on three canonical samples and was fully reverted on 2026-08-25.
+Do not retry without profiler evidence of a material host gap.
 
 Variants:
 

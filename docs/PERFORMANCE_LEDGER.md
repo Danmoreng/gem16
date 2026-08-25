@@ -45,6 +45,24 @@ real 26B product test and the protected 12B product regression pass. An explicit
 prior exact hash at 6,081.13 prompt tok/s. Compact evidence and raw hashes are in
 `artifacts/m20/router-tensor-core-diagnostic.json`.
 
+## 2026-08-25 Exact final-chunk-only prefill cleanup
+
+`PrefillTokens()` now writes final-prompt diagnostic captures and runs final RMSNorm, tied head, softcap and argmax
+only for the last 1,024-token chunk. All KV writes, attention/MoE work, position/ring accounting and state needed by
+the next chunk remain unchanged. The router-finite flag is initialized once per prefill call, so a non-finite result
+from an early chunk can no longer be hidden by a later chunk reset.
+
+Three canonical candidate samples reach 6,564.075, 6,567.059 and 6,568.198 prompt tok/s (mean 6,566.444), versus a
+fresh 6,550.119 parent sample. The exact `c750d0…` output hash, finite behavior, 1,292,697,600-byte margin, zero
+fallback and zero recurring allocation are unchanged. The isolated +0.25% result is below the normal standalone
+performance-promotion threshold, so this is retained as an exact safety and redundant-work cleanup rather than a
+formal performance promotion. A real multi-chunk two-process lifecycle/relaunch test and the protected 12B product
+regression pass.
+
+The follow-on context-sized pinned staging candidate measured only +0.08% over P01 and was fully reverted. Compact
+results and raw hashes are recorded in `artifacts/m20/optimization-final-chunk-only.json`. Formal M20 remains open on
+ordinary decode and the final 3/10 qualification.
+
 ## 2026-08-24 CTA-wide grouped-expert activation staging
 
 The accepted development candidate stages each 16-assignment/K64 activation tile once per four-warp grouped-expert
