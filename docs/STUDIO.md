@@ -1,226 +1,105 @@
-# gem16 Studio
+# gem16 Native Studio
 
-gem16 is a Kotlin Compose Desktop application for local Gemma 4 chat and
-`gem16-server` lifecycle management. It follows the desktop structure proven by
-the neighboring Qwen-TTS Studio while remaining an HTTP client: the JVM does
-not load CUDA or model weights directly.
+gem16 Studio is a C++20 Dear ImGui desktop client for Linux and Windows. It keeps CUDA and model weights in the
+separate `gem16-server` process and communicates through the existing OpenAI-compatible HTTP/SSE interface. The
+native client replaces the Kotlin/Compose application as the default development launcher while the previous source
+remains in `studioApp/` as a parity reference during migration.
 
-## Features
+## Native architecture
 
-- streamed Chat Completions with separate reasoning and answer presentation;
-- CommonMark headings, emphasis, lists, quotes, links, and fenced code rendering;
-- selection across complete multi-paragraph Markdown answers, one-click copying
-  of full model responses, and per-block copy actions for fenced code and HTML;
-- ordered PNG/JPEG/BMP image and WAV/FLAC/MP3 audio attachments;
-- drag-and-drop attachment handling across the complete chat area, with a
-  visible drop target and the same size/type validation as the file picker;
-- direct image paste from the system clipboard with Ctrl+V or Cmd+V, encoded
-  in memory as PNG without creating a temporary file;
-- in-memory microphone recording with live level, timer, cancel, and automatic
-  stop after the server's 30-second audio limit;
-- Enter-to-send with Shift+Enter for multiline input;
-- streaming auto-follow that pauses for explicit user scrolling and resumes at
-  the bottom, with a desktop scrollbar and **Jump to latest** action;
-- resident multi-turn sessions through `X-Gem16-Session-Id`;
-- an editable persistent system prompt, defaulting to `You are a helpful assistant.`;
-- exact used/available context-token display from server-reported usage;
-- an elapsed-time activity banner that distinguishes local attachment/PDF processing, request preparation,
-  waiting for the first token (including possible prefill), decoding, and local tool execution;
-- bounded app-executed current-date and current-time function-tool loops;
-- local extraction of UTF-8/UTF-16 text files and text-based PDFs before they are added to the user prompt;
-- selectable off/low/medium/high thinking budgets;
-- cancellation, new-chat, usage, and finish-reason state;
-- automatic managed-server startup plus explicit start/stop on Linux and Windows;
-- attachment to a compatible externally started server;
-- first-run download of the pinned target model, MTP assistant, and official
-  tokenizer configuration into the shared Hugging Face Hub cache;
-- automatic reuse of existing content-addressed Hugging Face blobs, resumable
-  downloads, SHA-256 verification, and cache-backed server configuration;
-- MTP, context, session, host, port, and sampling settings;
-- live `/health` state and bounded process logs;
-- persistent settings under `~/.gem16-studio/settings.properties`;
-- dark and light themes;
-- a logo-driven light palette and a neutral charcoal dark palette with gem16
-  green accents, plus compact sidebar navigation with inline server state;
-- live client-observed stream throughput and time to first token while a reply
-  is generated, followed by exact decode/prefill metrics from `/metrics` when
-  the request completes.
+| Layer | Linux | Windows |
+|---|---|---|
+| Window and input | GLFW 3.4 | Win32 |
+| Renderer | OpenGL 3.3 | Direct3D 11 |
+| Immediate UI | Dear ImGui 1.92.9b | Dear ImGui 1.92.9b |
+| Animated background | Native GLSL full-screen pass | Equivalent HLSL full-screen pass |
+| Server process | `fork`/`exec`, pipe capture | `CreateProcessW`, pipe capture |
+| Chat transport | `cpp-httplib` HTTP/1.1 and SSE | `cpp-httplib` HTTP/1.1 and SSE |
 
-The Server screen includes a persisted model-profile selector. Gemma 4 12B Unified remains the default and keeps
-audio/vision support. Gemma 4 26B A4B selects compiled Target and Assistant directories, fixed D2 MTP, 32K context
-and one resident session. In 26B mode the Studio rejects image/audio attachment and microphone actions locally;
-plain text, extracted document text and resident multi-turn chat remain available. Development builds discover the
-known ignored artifact directories or honor `GEM16_26B_COMPILED_MODEL` and `GEM16_26B_ASSISTANT_MODEL`; packaged
-builds require the user to choose those external compiled directories.
+The visual foundation is adapted from `Free-Solace-ImGui-Interface` commit
+`bb35bb3f11ef390fa94ca4aa57daa0a6ee379e67` under MIT. The app reuses the cross-platform ImGui backend approach and
+shader aesthetic, not the example's authentication screens, image assets, brands, avatars, or glass cursor. The
+normal operating-system cursor remains enabled. Attribution is kept in `nativeStudio/licenses/` and Dear ImGui's
+license remains beside the vendored source.
 
-Web search, OCR for scanned PDFs, Responses history, sampled video frames, and remote
-authenticated deployments remain follow-ups. Markdown parsing uses the pinned
-BSD-2-Clause `org.commonmark:commonmark` dependency; raw HTML is displayed as
-text rather than executed. PDF text extraction uses the pinned Apache-2.0
-`org.apache.pdfbox:pdfbox` dependency.
+## Current product slice
+
+- Chat, Models, Server, and Settings screens with a dark/light glass palette, procedural gemstone branding, and the
+  original animated GPU science-fiction wave.
+- Persisted Gemma 4 12B Unified and experimental Gemma 4 26B A4B profiles.
+- Correct 26B compiled Target and Assistant paths, one resident session, 32K default context, and fixed D1/D2/D4
+  controls with D2 selected by default.
+- Managed `gem16-server` start, stop, output capture, health polling, and non-owning attachment to an external server.
+- Incremental SSE rendering for answer and `reasoning_content`, cancellation, resident session IDs, and new-chat
+  reset. Starting a new chat omits the old session ID; the one-slot 26B server then evicts the inactive root.
+- Desktop-style wrapped response selection with mouse drag, double-click word selection, Shift extension,
+  `Ctrl+A`/`Ctrl+C`, a context menu, per-message copy feedback, and equivalent selectable/copyable server logs.
+- Persistent server, generation, and theme settings under `$XDG_CONFIG_HOME/gem16/studio.conf`,
+  `~/.config/gem16/studio.conf`, or `%APPDATA%\gem16\studio.conf`.
+- Normal operating-system window chrome and cursor on both platforms.
+
+This first native slice is text-chat complete but does not yet claim feature parity with Compose. The old app's model
+downloader, Markdown/code-block renderer, document/PDF extraction, image/audio attachments, microphone capture,
+local time tools, exact metrics cards, and MSI installer remain follow-up ports. The 12B server still supports its
+multimodal capabilities; the current native UI sends text only. The 26B profile is intentionally text-only.
 
 ## Build and run
 
-Requirements:
-
-- JDK 21;
-- network access for the first Gradle dependency resolution;
-- a built SM120/SM120a `gem16-server`;
-- enough disk space in the configured Hugging Face cache for the pinned target
-  and assistant checkpoints.
+Requirements are CMake 3.28+, a C++20 compiler, and a current `gem16-server`. Linux additionally needs OpenGL and
+the GLFW build dependencies for X11 or Wayland; GLFW 3.4 is pinned and fetched by CMake. Windows uses platform SDK
+Direct3D 11 libraries and requires no GLFW dependency.
 
 Linux:
 
 ```bash
-./scripts/build.sh --cuda --test
 ./scripts/run-studio.sh
 ```
 
 Windows PowerShell:
 
 ```powershell
-.\scripts\build.ps1 -Cuda -Test
 .\scripts\run-studio.ps1
 ```
 
-The development launchers incrementally rebuild `gem16-server` and force that
-workspace binary for the current Studio process, even when persisted settings
-refer to an installed package under `Program Files`. Use
-`-SkipServerBuild` on Windows or `--skip-server-build` on Linux only when the
-workspace server is already current. The override is not written back over the
-persisted installer path.
-
-Direct Gradle commands:
+Both scripts rebuild the CUDA server and native Studio incrementally. Use `--skip-server-build` on Linux or
+`-SkipServerBuild` on Windows when the workspace server is already current. Direct native build and test:
 
 ```bash
-./gradlew :studioApp:desktopTest
-./gradlew :studioApp:run
-./gradlew :studioApp:packageDistributionForCurrentOS
+cmake -S nativeStudio -B build/native-studio -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+cmake --build build/native-studio --parallel
+ctest --test-dir build/native-studio --output-on-failure
+./build/native-studio/bin/gem16-studio
 ```
 
-A local microphone smoke test is opt-in because CI machines may not expose a
-capture device:
+The native host test exercises the exact 26B launch arguments and an in-process SSE endpoint, including reasoning,
+answer text, terminal marker, and resident session-ID propagation. It also drives the real selectable-text ImGui
+widget and verifies that click plus `Ctrl+A`/`Ctrl+C` reaches the platform clipboard callback, including UTF-8 helper
+coverage. It does not load a model or GPU.
+
+## Packaging
+
+The current packaging scripts produce self-contained portable archives containing `gem16-studio`, the already-built
+CUDA `gem16-server`, and third-party notices. Checkpoints remain external.
 
 ```bash
-GEM16_TEST_MIC=1 ./gradlew :studioApp:desktopTest \
-  --tests com.gem16.studio.AudioRecorderDeviceTest --rerun-tasks
+./scripts/package-studio.sh
 ```
 
-Compose packaging can produce DMG, MSI, and DEB images. Packaging first stages
-the current platform's release `gem16-server` into the application resources;
-the installed application discovers that binary automatically. Checkpoints are never
-embedded in the application. On first launch, the **Models** screen downloads
-the exact locked snapshots and configures the managed server automatically.
-
-On Windows, `scripts/package-studio.ps1` removes only previous gem16 MSI outputs,
-forces the Compose packaging tasks to rerun, and fails unless exactly one fresh MSI
-is produced. The result is written below
-`studioApp/build/compose/binaries/main/msi/` and installs per machine to
-`C:\Program Files\gem16`. The packaged CUDA server lives at
-`app\resources\bin\gem16-server.exe` inside that installation.
-
-`.github/workflows/windows-release.yml` provides the corresponding reproducible
-GitHub path. A `v*` tag or manual dispatch builds with pinned CUDA 13.3 and WiX
-toolchains, verifies the server contains the expected native SM120a NVFP4 and FP8
-instructions, packages the MSI, and uploads both the installer and a SHA-256 file
-to the workflow run and GitHub Release. The server executable has no dynamic CUDA
-Toolkit DLL dependency, so only a compatible NVIDIA driver is required on the
-target machine. The model payload is still downloaded separately on first use.
-
-gem16 honors `HF_HUB_CACHE`, then `HF_HOME`, then `XDG_CACHE_HOME`, and otherwise
-uses `~/.cache/huggingface/hub`, matching Hugging Face Hub conventions. The
-target model view is composed inside that cache from content-addressed hardlinks:
-the 9.3 GB payload is not duplicated. An access token can come from `HF_TOKEN`,
-`HUGGING_FACE_HUB_TOKEN`, the normal Hugging Face token file, or the in-memory
-field on the Models screen. Google repository licenses must be accepted by the
-account before gated files can be downloaded.
-
-## Managed server behavior
-
-gem16 probes the configured endpoint at application startup only after the
-configured model set exists. It attaches when
-a compatible server is already healthy; otherwise it immediately executes the
-configured binary with an argument vector and without invoking a shell. A
-typical command is equivalent to:
-
-```bash
-gem16-server \
-  --model /models/unsloth-gemma-4-12b-it-NVFP4 \
-  --assistant-model /models/google-gemma-4-12B-it-assistant \
-  --mtp-draft-tokens 2 \
-  --model-name gem16 \
-  --host 127.0.0.1 --port 8080 \
-  --max-context 32768 --max-sessions 1
+```powershell
+.\scripts\package-studio.ps1
 ```
 
-Output is captured into a 1,000-line in-memory ring. On application shutdown,
-gem16 stops only the process it created. A server discovered through `/health`
-is labeled external and is never terminated by the UI.
+Outputs are `build/packages/gem16-linux-x64.tar.gz` and `build/packages/gem16-windows-x64.zip`. Native MSI/DEB
+installation and the corresponding Windows release-workflow migration remain open; the historical Compose packaging
+contract is preserved in [`legacy/KOTLIN_COMPOSE_STUDIO.md`](legacy/KOTLIN_COMPOSE_STUDIO.md).
 
-The server has no built-in authentication or TLS. gem16 defaults to loopback
-and visibly warns for any other bind address.
+## Security and lifecycle
 
-## Chat protocol
-
-The client sends the complete conversation, including hidden tool-result messages, to
-`POST /v1/chat/completions`, requests SSE, and retains the opaque session ID
-returned by gem16. Text and `reasoning_content` deltas are rendered separately.
-User content is either plain text or an ordered OpenAI content array containing
-text, inline data-URL images, and Base64 audio. Image and audio media are held in memory so a
-resident continuation can reproduce the exact prior request; gem16 limits one
-file to 10 MiB and the conversation to 14 MiB of Base64 payload below the
-server's 16 MiB request limit. On Linux the microphone path prefers the default
-PipeWire source through `pw-record`, temporarily lowers an overdriven source
-volume and restores it afterward. The first click asks `wpctl` to resolve the default source immediately; if
-PipeWire/WirePlumber is still activating, it polls every 100 ms for at most two seconds and only then starts one
-`pw-record` process. An already-active source returns on the first check without polling. Recording is never opened
-proactively at app startup. Systems without both PipeWire CLI tools use a ranked Java Sound input.
-Both paths reject silent or clipped recordings, normalize valid PCM16 audio,
-and wrap it as WAV without writing a temporary file. Changing or removing
-history starts a new resident root because an existing KV cache cannot be
-rolled back safely.
-
-The configured system prompt is prepended as a real OpenAI `system` message.
-Changing it or the local-tool setting starts a fresh resident session while
-preserving visible history. When enabled, Gemma receives strict no-argument
-schemas for `get_current_date` and `get_current_time`; the app executes only
-those allow-listed functions and feeds their JSON results back through ordinary
-assistant/tool messages. A maximum of eight consecutive tool rounds prevents a
-runaway loop. No shell, arbitrary file, or network tool is exposed, and web
-search is not implemented.
-
-Tool requests remain distinct assistant protocol messages, but the chat labels
-them as tool requests rather than final answers. Each request is collapsed by
-default and can be expanded to inspect the exact function name and argument JSON
-emitted by Gemma alongside the result JSON returned by the app. Result JSON is
-never serialized as assistant-authored text; it remains a `tool` message in the
-continuation history.
-
-The client treats an SSE `error` event, a stream without the terminal `[DONE]`
-marker, a missing finish reason, and a completed response without model output
-as visible failures. While a request remains open, the activity timer continues
-to tick. Waiting longer than 30 seconds for the first token changes the banner
-to a warning and points to GPU activity and the Server logs; this does not claim
-that prefill is definitely active because the HTTP protocol cannot distinguish
-prefill from server-side queueing before the first token.
-
-Text documents are decoded locally and PDFs are parsed locally into Unicode
-text. Only that extracted text, wrapped with the attachment name, is included in
-the prompt; the original PDF bytes are not sent to the server. Files are limited
-to 10 MiB and extracted document text to 500,000 characters. Image-only/scanned
-PDFs fail visibly because OCR is intentionally not part of this path.
-
-Sampling remains a server-level choice, matching gem16's current strict API:
-
-- default server startup uses checkpoint sampling (`temperature=1`, `top_k=64`,
-  `top_p=0.95`);
-- selecting **Greedy** on the Server screen adds `--greedy`;
-- the UI never sends unsupported per-request sampling fields.
-
-## Security and privacy
-
-All model requests target the configured endpoint. The default is
-`http://127.0.0.1:8080/v1`. Model downloads contact only pinned immutable files
-on `huggingface.co`; gem16 never executes repository code or transmits
-telemetry. A token entered in the UI remains in memory and is not written to
-gem16 settings. Settings contain cache-backed paths and server configuration.
+- Model paths and server executable paths are passed as direct argument arrays, never through a shell.
+- Server logs are held in a bounded 1,000-line memory ring.
+- Studio terminates only a process it started. A healthy external server is labeled `Attached` and is never stopped.
+- The server defaults to loopback and still has no TLS or authentication; do not bind it to an untrusted network.
+- Settings contain paths and UI preferences only. Tokens and credentials are neither requested nor persisted by this
+  native slice.
+- Closing or cancelling a stream closes the client connection; the server's existing cancellation and session
+  lifecycle rules remain authoritative.

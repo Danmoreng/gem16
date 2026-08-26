@@ -443,7 +443,7 @@ def run_26b(driver: Path, chat: Path, server_executable: Path) -> int:
         )
         if status != 400 or media.get("error", {}).get("type") != "unsupported_feature":
             fail(f"26B media API rejection is imprecise: HTTP {status} {media}")
-        status, second_slot, _ = json_call(
+        status, replacement_session, replacement_headers = json_call(
             server.port,
             "POST",
             "/v1/chat/completions",
@@ -454,10 +454,16 @@ def run_26b(driver: Path, chat: Path, server_executable: Path) -> int:
                 "reasoning_effort": "none",
             },
             {"X-Gem16-Session-Id": "resident-b"},
-            timeout=30.0,
+            timeout=180.0,
         )
-        if status != 503 or second_slot.get("error", {}).get("type") != "resource_exhausted":
-            fail(f"26B second server session was not rejected: HTTP {status} {second_slot}")
+        if (
+            status != 200
+            or replacement_headers.get("X-Gem16-Session-Id") != "resident-b"
+        ):
+            fail(
+                "26B replacement server session did not evict the inactive root: "
+                f"HTTP {status} {replacement_session}"
+            )
         metrics_status, metrics_bytes, _ = http_call(
             server.port, "GET", "/metrics", timeout=10.0
         )
@@ -466,8 +472,8 @@ def run_26b(driver: Path, chat: Path, server_executable: Path) -> int:
             fail("metrics endpoint failed")
         if metric_value(metrics, "gem16_unsupported_feature_total") < 1:
             fail("unsupported feature counter did not increment")
-        if metric_value(metrics, "gem16_resource_exhaustion_total") < 1:
-            fail("resource exhaustion counter did not increment")
+        if metric_value(metrics, "gem16_sessions_evicted_total") < 1:
+            fail("inactive 26B root was not recorded as evicted")
         for name in (
             "gem16_fallback_total",
             "gem16_model_validation_failure_total",
@@ -493,12 +499,12 @@ def run_26b(driver: Path, chat: Path, server_executable: Path) -> int:
             "server_first": first,
             "server_continuation": second,
             "media_rejection": media,
-            "second_slot_rejection": second_slot,
+            "replacement_session": replacement_session,
             "metrics": {
                 name: metric_value(metrics, name)
                 for name in (
                     "gem16_fallback_total",
-                    "gem16_resource_exhaustion_total",
+                    "gem16_sessions_evicted_total",
                     "gem16_unsupported_feature_total",
                     "gem16_model_validation_failure_total",
                     "gem16_token_loop_allocation_total",

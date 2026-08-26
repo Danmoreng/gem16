@@ -19,9 +19,10 @@
   <img src="docs/images/gem16-chat.png" alt="gem16 desktop app running a multimodal local Gemma 4 chat" width="1200">
 </p>
 
-gem16 is a local inference stack built specifically for Gemma 4 12B on Blackwell GPUs with about 16 GB of VRAM.
-The desktop app is the primary entry point: it downloads the pinned model set into the shared Hugging Face cache,
-starts or attaches to `gem16-server`, and provides a compact multimodal chat UI.
+gem16 is a local inference stack built specifically for Gemma 4 on Blackwell GPUs with about 16 GB of VRAM. The
+native C++ desktop app is the primary entry point: it starts or attaches to `gem16-server` and provides local streamed
+text chat for the qualified 12B path and experimental 26B A4B path. Populate the pinned 12B cache with
+`tools/fetch_model.py`; the previous Compose downloader remains a migration reference.
 
 The engine loads the original mixed FP8/NVFP4 Safetensors checkpoint directly.
 
@@ -165,7 +166,7 @@ higher-precision fallback.
 - A Blackwell NVIDIA GPU with approximately 16 GB of VRAM for the optimized inference path
 - The pinned CUDA toolkit and CUTLASS submodule
 - CMake 3.28 or newer, Ninja, and a C++20 compiler
-- JDK 21 for the Compose Desktop application
+- OpenGL/X11 or Wayland development libraries on Linux; the Windows client uses Direct3D 11
 - A Hugging Face account with access to the gated Google Gemma repositories
 
 The exact reference environment is recorded in
@@ -201,9 +202,9 @@ launches.
 
 The Linux launcher provides the equivalent `--skip-server-build` opt-out.
 
-On first launch, open **Models**, provide a Hugging Face token if necessary, and download the pinned model set.
-Files are stored in the shared content-addressed Hugging Face cache and are not copied into the application.
-After verification, the managed server can start and the Chat screen is ready to use.
+On first launch, open **Models** to select 12B or 26B, then verify the compiled/model paths on **Server**. The native
+Studio reuses already populated checkpoints and never copies them into the application archive. The model downloader
+from the previous Compose client has not yet been ported; use `tools/fetch_model.py` for the locked 12B set.
 
 To build a native installer for the current platform after the release server exists:
 
@@ -212,15 +213,15 @@ To build a native installer for the current platform after the release server ex
 .\scripts\package-studio.ps1
 ```
 
-The Windows script writes the MSI to `studioApp/build/compose/binaries/main/msi/`. The installer includes the
-CUDA-enabled server; checkpoints remain in the shared Hugging Face cache.
+The Windows script writes `build/packages/gem16-windows-x64.zip`. The portable archive includes the CUDA-enabled
+server; checkpoints remain external.
 
 ```bash
 # Linux
 ./scripts/package-studio.sh
 ```
 
-See [`docs/STUDIO.md`](docs/STUDIO.md) for application packaging, cache behavior, protocol details, and security
+See [`docs/STUDIO.md`](docs/STUDIO.md) for native architecture, packaging, protocol details, and security
 notes.
 
 ## Download models without the app
@@ -297,7 +298,7 @@ live in [`benchmarks/baselines/cross_engine_mtp/`](benchmarks/baselines/cross_en
 
 ## Current limitations
 
-- Only the pinned Gemma 4 12B Unified checkpoint family is supported.
+- Gemma 4 12B Unified is the qualified baseline; Gemma 4 26B A4B remains experimental and text-only.
 - Inference is batch one; continuous batching is not implemented.
 - The optimized CUDA backend requires Blackwell SM120/SM120a.
 - Video input, response branching, and persistent prompt-cache files are not implemented.
@@ -305,7 +306,7 @@ live in [`benchmarks/baselines/cross_engine_mtp/`](benchmarks/baselines/cross_en
 
 ## Documentation
 
-- [`docs/STUDIO.md`](docs/STUDIO.md) — desktop app, model downloads, and managed server
+- [`docs/STUDIO.md`](docs/STUDIO.md) — native C++ desktop app, chat, packaging, and managed server
 - [`docs/SERVER.md`](docs/SERVER.md) — HTTP APIs, streaming, sessions, tools, and media
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — runtime and kernel architecture
 - [`docs/CORRECTNESS.md`](docs/CORRECTNESS.md) — numerical validation and current gates

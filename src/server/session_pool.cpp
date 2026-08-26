@@ -68,12 +68,6 @@ gem16::Result<std::shared_ptr<SessionEntry>> CreateSession(
     }
     if (state.sessions.size() + state.pending_sessions.size() >=
         state.max_sessions) {
-      if (state.runtime != nullptr &&
-          state.runtime->maximum_execution_slots() == 1U) {
-        return gem16::Status(
-            gem16::StatusCode::kResourceExhausted,
-            "Gemma 4 26B supports one resident session; reuse its session ID");
-      }
       auto victim = state.sessions.end();
       for (auto iterator = state.sessions.begin();
            iterator != state.sessions.end(); ++iterator) {

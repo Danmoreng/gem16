@@ -21,4 +21,7 @@ if [[ ! -x "$server" ]]; then
 fi
 export GEM16_REPO_ROOT="$repo_root"
 export GEM16_STUDIO_SERVER_EXECUTABLE="$server"
-exec "$repo_root/gradlew" -p "$repo_root" :studioApp:run
+cmake -S "$repo_root/nativeStudio" -B "$repo_root/build/native-studio" \
+  -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+cmake --build "$repo_root/build/native-studio" --target gem16-studio --parallel
+exec "$repo_root/build/native-studio/bin/gem16-studio"
