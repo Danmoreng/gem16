@@ -9,8 +9,8 @@
     "M22",
     "M23"
   ],
-  "current_milestone": "M25_PRODUCT_INTEGRATION",
-  "active_wave": "F5-performance-freeze-and-live-chat",
+  "current_milestone": "M25_FORMAL_QUALIFICATION",
+  "active_wave": "F6-sampled-mtp-and-context",
   "integration_branch": "feat/gemma4-26b",
   "source_of_truth": "docs/plans/gemma4-26b/FAST_TRACK_STATUS.json",
   "policy_source": "docs/ACTIVE_DECISIONS.md",
@@ -304,7 +304,7 @@
     },
     "M25": {
       "status": "IN_PROGRESS",
-      "note": "Owner-frozen development checkpoint: exact D2 median 202.505 token/s and exact canonical Prefill screen 6907.684 token/s. Further performance work is paused pending review; selectable server/UI live chat is the active slice. Formal sampled/context/product M25 gates remain open.",
+      "note": "Owner-frozen development checkpoint: exact greedy D2 median 202.505 token/s and exact canonical Prefill screen 6907.684 token/s. Sampled fixed-D2 CLI/server/Studio live chat is implemented at c4ead1dc2b74f2b2cffe38599ff21703fba55a6f with bounded same-seed Target identity, 32K admission and resident continuation evidence. Formal retained sampled timing and the explicit 64K MTP context gate remain open; M25 is not accepted.",
       "class": "final-target",
       "lane": "mtp",
       "feasibility_depends_on": [

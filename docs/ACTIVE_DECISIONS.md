@@ -1,6 +1,6 @@
 # Active decisions
 
-**Accepted:** 2026-08-26 · **Track:** Gemma 4 26B A4B Fast Track · **Status:** M00–M17 and M20–M23 accepted; M25 performance checkpoint frozen for product integration; full M19 deferred
+**Accepted:** 2026-08-26 · **Track:** Gemma 4 26B A4B Fast Track · **Status:** M00–M17 and M20–M23 accepted; M25 sampled product checkpoint implemented, formal context/timing gates open; full M19 deferred
 
 This is the short operational policy for current work. It is not a replacement for historical evidence. Permanent
 rules in `AGENTS.md` remain binding. For facts about the implementation, current source, tests and accepted evidence
@@ -220,6 +220,17 @@ selectable 26B server/UI live-chat product path while further performance work r
 `artifacts/m25/optimization-weight-stationary-d2.json` and
 `artifacts/m20/optimization-prefill-token-reuse-rope.json`; the combined owner freeze and host/product checks are
 bound by `artifacts/m25/performance-freeze.json`.
+
+The next product slice completed at implementation commit `c4ead1dc2b74f2b2cffe38599ff21703fba55a6f` on
+2026-08-26. Fixed 26B D1/D2/D4 verification now applies ordinary same-seed Target sampling to every verifier row on
+the GPU and commits RNG, repetition history, K/V and hidden state only for emitted outputs. D2 remains the selected
+profile; adaptive 26B MTP remains unsupported. CLI/server load the separately compiled Assistant, expose the actual
+MTP capability and stream bounded verified chunks. Studio now offers a persisted 12B/26B model selector, compiled
+Target/Assistant paths and text-only enforcement while retaining 12B as the multimodal default. Bounded real
+sampling differentials, a 32K server continuation, zero fallback/allocation metrics, the complete host/CUDA suite,
+Studio tests and the protected real 12B product regression pass. This is a usable experimental product checkpoint,
+not formal M25 acceptance: retained sampled timing, 64K MTP context qualification and full M19 remain open. See
+`artifacts/m25/sampled-mtp-product.json`.
 
 The owner clarified on 2026-08-14 that M09 should load the real artifact and prove pre-execution residency so the
 critical path reaches inference quickly. This supersedes the old M09-card wording that required captured execution

@@ -15,5 +15,6 @@ The normal path prioritizes a complete artifact, real 32K residency and a correc
 The executable text-only 26B path is accepted through M17 and its M22 CLI/server product slice is accepted. Bounded
 fixed-target prefill/decode optimization precedes the final candidate freeze; M21 real-context and M20
 bounded-performance evidence then qualify that same hash. M23 freezes a technical Target for exact 26B MTP. The
-owner-deferred M19 task/prose suite remains mandatory before shipping or production-quality claims. Vision is outside
-this program.
+hybrid Assistant, sampled fixed-D2 server path and selectable Studio chat are implemented at `c4ead1d`; retained
+sampled timing and the 64K MTP context gate remain before M25 acceptance. The owner-deferred M19 task/prose suite
+remains mandatory before shipping or production-quality claims. Vision is outside this program.

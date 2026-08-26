@@ -1982,6 +1982,11 @@ The current remaining performance order is:
 4. **Formal/product qualification:** after greedy D2 and prefill stabilize, run the bounded formal distribution,
    sampled lossless speculation, context-memory profiles and product lifecycle gates.
 
+Update (2026-08-26): the bounded sampled-lossless and product-lifecycle slice in item 4 is implemented at
+`c4ead1d`. Same-seed Target identity, 32K server continuation and selectable text-only Studio chat pass; formal
+retained sampled timing and the 64K MTP context profile remain. Compact evidence is
+`artifacts/m25/sampled-mtp-product.json`.
+
 The active performance objective is now asymmetric: the D2 >=200 development target is met; prefill >=7,000 remains
 open. Optimization continues beyond either threshold only when profiling identifies a safe, reproducible additional
 gain, in accordance with section 1's stop conditions.

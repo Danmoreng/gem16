@@ -1,9 +1,9 @@
 # Active contract — Gemma 4 26B Fast Track R4
 
-Status: M00–M17 and M20–M23 accepted; M25 baseline characterization and integration next; full M19 held-out qualification deferred by owner
+Status: M00–M17 and M20–M23 accepted; M25 sampled product integration implemented, retained timing and 64K context open; full M19 held-out qualification deferred by owner
 Plan revision: `fast-track-r4`
 Accepted baseline: M00–M17 plus M20 performance, M21 long context, M22 product integration and the M23 technical Target freeze
-Current milestone: bounded external 26B MTP characterization followed by M25 (M19 full suite deferred; M18 conditional)
+Current milestone: complete M25 sampled timing and 64K context qualification (M19 full suite deferred; M18 conditional)
 Integration branch: `feat/gemma4-26b`
 
 ## Purpose
@@ -195,8 +195,9 @@ Do not repeat an expensive run solely to produce a second prose record. M08 comp
 ## Current unblocked work
 
 - M17 and M20–M23 are accepted; M23 is the frozen ordinary-decode Target and rollback for M25.
-- Bounded, freshly pinned llama.cpp and vLLM 26B ordinary/MTP characterizations may run before native M25 integration.
+- The hybrid Assistant, fixed D1/D2/D4 exact verifier and sampled D2 CLI/server/Studio product path are implemented
+  at `c4ead1d`; compact bounded evidence is `artifacts/m25/sampled-mtp-product.json`.
 - M19 numerical Q4 evidence is available, but its multi-hour task/prose suite is deferred and remains a release limitation.
 - M18 remains inactive unless quality failure, head uncertainty or explicit causal-attribution work triggers it.
-- M25 assistant feasibility and target integration are unblocked; M23 remains supported if MTP fails exactness,
-  memory or measured-benefit gates.
+- M25 retained sampled timing and explicit 64K MTP context qualification are unblocked; M23 remains the supported
+  rollback if either remaining gate fails.

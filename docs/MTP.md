@@ -6,6 +6,14 @@ The 26B program now treats MTP as the required final target in M25, after the ba
 
 The 26B MTP profile must preserve ordinary Target output exactly under matched deterministic controls, commit tentative state transactionally, allocate nothing in the token loop and pass 32K with the normal 700 MiB margin. It must then attempt 64K and publish a separate measured `mtp_max_context`. Vision is not part of M25.
 
+Status: fixed D1/D2/D4 CUDA-Graph verification and sampled Target selection are implemented; D2 is the selected
+product profile. The 258,313,728-byte hybrid Assistant is loaded beside the frozen Target and reads its K/V cache
+without an independent long-context cache. Sampled verification applies the ordinary suppression, repetition,
+temperature, top-k, min-p, top-p and seed/step rules to every Target row on the GPU, then transactionally commits
+only emitted state. CLI, server and Studio support sampled D2 text chat at 32K. Adaptive 26B MTP, formal retained
+sampled timing and the separate 64K MTP context gate remain open, so M25 is not accepted yet. See
+`artifacts/m25/sampled-mtp-product.json` and the M25 milestone card.
+
 ---
 
 # Gemma 4 12B MTP

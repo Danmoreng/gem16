@@ -1,0 +1,104 @@
+{
+  "schema_version": 1,
+  "milestone": "M25-product-slice",
+  "status": "passed",
+  "scope": "Bounded sampled-MTP product integration; this is not formal M25 acceptance or a performance benchmark.",
+  "implementation_commit": "c4ead1dc2b74f2b2cffe38599ff21703fba55a6f",
+  "parent_performance_freeze_commit": "9c665a1a013ac601d9efaf2845fd0feaae8b0782",
+  "target": {
+    "artifact_content_sha256": "471805f7dad8abb84300be78b2822a63dcb1d35bff5aa98426a162cc8532ee17",
+    "source_lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230",
+    "weight_bytes": 14696668160
+  },
+  "assistant": {
+    "artifact_content_sha256": "978f5e3804dd08b8ea5551883811e0bf6737a23ae5ae3dcfa0ef71dc4ffe532b",
+    "source_lock_sha256": "83e509316eab22749fade9c0968333b0a29f0daf99832314b333702bf45bdda5",
+    "compiler_commit": "86a369f7e2cc2295569234f27b1efb5154f8e227",
+    "profile": "sm120-mtp-assistant-hybrid-v1",
+    "weight_bytes": 258313728
+  },
+  "sampling_differentials": [
+    {
+      "name": "natural-prompt-seed-zero",
+      "prompt": "Explain in two short sentences why the sky appears blue.",
+      "sampling": {
+        "temperature": 1.0,
+        "top_k": 64,
+        "top_p": 0.95,
+        "min_p": 0.0,
+        "repetition_penalty": 1.0,
+        "seed": 0
+      },
+      "ordinary_output_token_ids": [2205, 26808, 28062, 10824, 236789, 236751, 11661, 236764, 625, 563, 29892, 684, 22112, 532, 10390, 528, 506, 2634, 236761, 1705, 8525, 3730, 57583, 659, 29892, 919, 12117, 1082, 1032, 7913, 236764, 3043],
+      "mtp_output_token_ids": [2205, 26808, 28062, 10824, 236789, 236751, 11661, 236764, 625, 563, 29892, 684, 22112, 532, 10390, 528, 506, 2634, 236761, 1705, 8525, 3730, 57583, 659, 29892, 919, 12117, 1082, 1032, 7913, 236764, 3043],
+      "exact_match": true,
+      "mtp": {
+        "draft_tokens": 2,
+        "proposed_tokens": 28,
+        "accepted_tokens": 15,
+        "rejected_tokens": 13,
+        "verification_groups": 14,
+        "ordinary_fallback_tokens": 2
+      }
+    },
+    {
+      "name": "repetition-penalty-seed-42-final-control",
+      "input_token_ids": [2, 106],
+      "sampling": {
+        "temperature": 1.0,
+        "top_k": 64,
+        "top_p": 0.95,
+        "min_p": 0.0,
+        "repetition_penalty": 1.1,
+        "seed": 42
+      },
+      "ordinary_output_token_ids": [1852, 586, 236764, 569, 236779, 236766, 8140, 236772, 236832, 236772, 236778, 236772],
+      "mtp_output_token_ids": [1852, 586, 236764, 569, 236779, 236766, 8140, 236772, 236832, 236772, 236778, 236772],
+      "exact_match": true,
+      "mtp": {
+        "draft_tokens": 2,
+        "proposed_tokens": 16,
+        "accepted_tokens": 2,
+        "rejected_tokens": 14,
+        "verification_groups": 8,
+        "ordinary_fallback_tokens": 1
+      }
+    }
+  ],
+  "server_product": {
+    "model_variant": "gemma4_moe_26b_a4b",
+    "text_only": true,
+    "supports_mtp": true,
+    "mtp_draft_tokens": 2,
+    "mtp_adaptive": false,
+    "max_context_tokens": 32768,
+    "resident_session_limit": 1,
+    "admission_free_bytes": 812384256,
+    "required_admission_margin_bytes": 734003200,
+    "first_response": "Berlin is a vibrant city defined by its rich history and creative energy.",
+    "continuation_response": "It is Germany.",
+    "continuation_cached_tokens": 35,
+    "mtp_proposed_tokens": 18,
+    "mtp_accepted_tokens": 9,
+    "fallback_total": 0,
+    "token_loop_allocation_total": 0
+  },
+  "checks": {
+    "release_build": "passed",
+    "python_tests": 237,
+    "python_skips": 2,
+    "studio_desktop_tests": "passed",
+    "ctest_executed": 7,
+    "ctest_optional_model_skips": 3,
+    "protected_12b_product": "passed",
+    "real_sampled_target_identity": "passed",
+    "real_server_continuation": "passed"
+  },
+  "limitations": [
+    "Formal retained sampled-MTP timing and context distributions are not complete.",
+    "M25 is not accepted until its remaining 64K and formal qualification gates pass.",
+    "The 26B product profile is text-only and supports one resident session.",
+    "Full M19 quality qualification remains owner-deferred.",
+    "The recorded server run is a bounded product smoke test, not a performance result."
+  ]
+}

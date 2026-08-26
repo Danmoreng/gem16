@@ -21,6 +21,12 @@ Do not report architecture maximum as a qualified runtime maximum.
 
 ## MTP at M25
 
-After qualification, expose assistant identity, proposal modes, exact-verification capability, acceptance counters and `mtp_max_context`. Enabling MTP must not silently lower a user-requested context; admission returns a precise error or the user selects a documented MTP context profile.
+Implementation commit `c4ead1d` exposes the Assistant resident bytes, fixed proposal depth, exact sampled Target
+verification capability, acceptance counters and the configured 32K `mtp_max_context` in CLI/server health. Studio
+selects the same fixed-D2 profile. Adaptive 26B MTP is rejected. The published maximum remains a configured product
+checkpoint rather than a formally qualified limit until the M25 64K context gate completes.
+
+Enabling MTP must not silently lower a user-requested context; admission returns a precise error or the user selects
+a documented MTP context profile.
 
 All new fields are additive and 12B behavior remains compatible.

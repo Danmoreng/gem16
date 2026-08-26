@@ -1,6 +1,6 @@
 # Milestone status board — Fast Track R4
 
-Derived from [`FAST_TRACK_STATUS.json`](FAST_TRACK_STATUS.json). Policy: [`../../ACTIVE_DECISIONS.md`](../../ACTIVE_DECISIONS.md). Last synchronized: 2026-08-25.
+Derived from [`FAST_TRACK_STATUS.json`](FAST_TRACK_STATUS.json). Policy: [`../../ACTIVE_DECISIONS.md`](../../ACTIVE_DECISIONS.md). Last synchronized: 2026-08-26.
 
 ## Accepted
 
@@ -13,8 +13,8 @@ Derived from [`FAST_TRACK_STATUS.json`](FAST_TRACK_STATUS.json). Policy: [`../..
 | Performance optimization slice | ACCEPTED_M20 | retained medians 6,572.809 prompt / 150.615 ordinary decode tok/s; prompt stretch passes |
 | M21 | ACCEPTED | 32K/64K/96K pass twice; 100K capacity-rejected; `base_max_context=98,304` |
 | M23 | ACCEPTED | exact hash/evidence/capability/rollback freeze; M19 remains visibly pending |
-| External 26B MTP baselines | ACTIVE_NEXT | update and pin llama.cpp/vLLM; bounded ordinary versus MTP characterization |
-| M25 | READY | assistant compatibility, artifact, exact target verification, memory/context and measured benefit |
+| M25 sampled product | IMPLEMENTED | exact GPU sampling, CLI/server/Studio D2 chat and bounded 32K continuation pass at `c4ead1d` |
+| M25 formal qualification | ACTIVE_NEXT | retained sampled timing and explicit 64K MTP context result |
 
 ## Deferred
 
@@ -27,7 +27,7 @@ M23 Target freeze, but that checkpoint must remain visibly experimental and qual
 
 ## Next vertical sequence
 
-`external 26B MTP baselines → M25 integration → deferred M19 release gate`
+`M25 sampled timing → M25 64K context gate → deferred M19 release gate`
 
 ## Conditional/optional
 

@@ -27,9 +27,9 @@ For multi-agent work also read [`PARALLEL_WORKSTREAMS.md`](PARALLEL_WORKSTREAMS.
 
 ## Milestones
 
-M00–M17 and M20–M23 are accepted. Bounded external 26B MTP characterization and M25 are next;
-M18 is conditional, M19's multi-hour task/prose suite is owner-deferred, M24 is optional and M25 plus the deferred
-M19 gate define program completion.
+M00–M17 and M20–M23 are accepted. M25's assistant, exact greedy/sampled verifier and CLI/server/Studio product slice
+are implemented; retained sampled timing and the 64K MTP context gate remain. M18 is conditional, M19's multi-hour
+task/prose suite is owner-deferred, M24 is optional and M25 plus the deferred M19 gate define program completion.
 
 ## Specifications
 

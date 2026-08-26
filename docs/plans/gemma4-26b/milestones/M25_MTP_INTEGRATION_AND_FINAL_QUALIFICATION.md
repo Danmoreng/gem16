@@ -1,6 +1,6 @@
 # M25 — 26B MTP integration and final qualification
 
-Status: in progress; technical M23 Target accepted, exact greedy D2 CUDA-Graph development path implemented
+Status: in progress; technical M23 Target accepted, exact sampled D2 CUDA-Graph product path implemented
 Class: required final target
 
 Normative inputs: [MTP platform contract](../../../MTP.md), [Tied embedding/head](../specs/EMBEDDING_HEAD_SPEC.md), [Memory arena](../specs/MEMORY_ARENA_SPEC.md), [Session ownership](../specs/SESSION_OWNERSHIP_AND_CONCURRENCY.md), [API/CLI changes](../specs/API_CLI_CHANGES.md), [Test matrix](../specs/TEST_MATRIX.md).
@@ -98,6 +98,27 @@ the Target samples every verifier row with identical seed/step semantics, drafts
 that Target sample, and seeded replay plus transactional RNG/repetition-state commit are tested inside the selected
 fixed-depth graph. Standard p/q residual rejection sampling remains a later research path.
 
+## Sampled product checkpoint (2026-08-26)
+
+Implementation commit `c4ead1dc2b74f2b2cffe38599ff21703fba55a6f` closes that sampled-product slice. The selected
+D2 chain now performs Target sampling for every verification row on the GPU with the ordinary temperature, top-k,
+top-p, min-p, suppression, seed/step and repetition-penalty semantics. Only the emitted prefix commits RNG and
+repetition state; a rejected proposal is replaced by the Target sample, and stop-token handling remains inside the
+fixed graph. The ordinary tail is sampled on the GPU as well. D1 and D4 use the same fixed-depth machinery; adaptive
+26B routing remains explicitly unsupported.
+
+Two bounded real differentials match ordinary Target output IDs exactly: a 32-token natural prompt at seed 0 and a
+12-token repetition-penalty control at seed 42. The latter was repeated after the final host sampling-step fix and
+matched all twelve IDs while replacing 14/16 rejected proposals correctly. A real 32K server smoke loaded the
+14,696,668,160-byte Target plus the 258,313,728-byte Assistant, reported MTP capability, completed a sampled D2
+answer and resident continuation, retained 35 cached tokens, and reported zero fallback and token-loop allocation.
+Studio can now select the 26B profile, its compiled Target and Assistant; it enforces one resident session and
+text-only input while preserving the 12B default and multimodal behavior. Compact, host-CI-validated evidence is
+`artifacts/m25/sampled-mtp-product.json`.
+
+This checkpoint makes sampled MTP usable in CLI, server and Studio, but does not accept M25. Formal retained sampled
+timing, the separate 64K MTP context result and the owner-deferred M19 gate remain open.
+
 ## Phase C — exact verification runtime
 
 - proposal lengths selected from the existing verified design (for example D1/D2/D4), based on measured benefit;
@@ -118,13 +139,13 @@ fixed-depth graph. Standard p/q residual rejection sampling remains a later rese
 
 ## Exit gate
 
-- [ ] Compatible assistant source/artifact is locked and validated.
-- [ ] Assistant plus verifier memory is fully named and admitted at 32K with at least 700 MiB free-device margin.
-- [ ] Exact ordinary/MTP output identity and transactional state tests pass.
-- [ ] MTP provides a measured benefit for at least one supported mode; otherwise M25 fails and the M23 base profile remains the supported result.
+- [x] Compatible assistant source/artifact is locked and validated.
+- [x] Assistant plus verifier memory is fully named and admitted at 32K with at least 700 MiB free-device margin.
+- [x] Exact ordinary/MTP output identity and transactional state tests pass for greedy and bounded sampled controls.
+- [x] MTP provides a measured benefit for fixed D2; formal retained sampled timing remains open.
 - [ ] 64K has an explicit pass/fail result with its measured reserve; `mtp_max_context`, acceptance and speed are
   published honestly.
-- [ ] Base 26B and 12B paths remain unchanged when MTP is disabled.
+- [x] Base 26B and 12B paths remain unchanged when MTP is disabled.
 - [ ] Deferred M19 is accepted before program-complete, shipping or production-quality status is claimed.
 
 Vision is explicitly excluded and belongs to a separate future program.

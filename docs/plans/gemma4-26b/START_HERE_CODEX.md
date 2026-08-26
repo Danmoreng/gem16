@@ -1,6 +1,6 @@
 # Start here — current coding-agent task
 
-Status: M00–M17 and M20–M23 accepted; the owner-frozen M25 development checkpoint reaches 202.505 token/s exact-greedy D2 and 6,907.684 prompt token/s. Further performance work is paused pending review; selectable server/UI live chat is the active product slice. Full M19 is owner-deferred; M18 remains conditional.
+Status: M00–M17 and M20–M23 accepted; the owner-frozen M25 development checkpoint reaches 202.505 token/s exact-greedy D2 and 6,907.684 prompt token/s. Sampled D2 is now integrated in CLI, server and selectable Studio live chat at implementation commit `c4ead1d`; formal sampled timing and MTP 64K qualification remain. Full M19 is owner-deferred; M18 remains conditional.
 Plan revision: Fast Track R4.
 
 ## Read now
@@ -31,11 +31,11 @@ The lead agent may assign disjoint sub-agents for:
 - M25 phase A assistant compatibility and memory modeling;
 - independent evidence reconciliation.
 
-The 2026-08-26 owner decision freezes the current performance working tree before product work. Commit and push the
-exact checkpoint, its generated package metadata and host-CI fixture first. Do not mix server/UI changes into that
-freeze commit. Afterward, connect the already accepted 26B M22 server runtime and the current M25-capable engine to
-the selectable Studio model catalog and exercise a real text-only streaming chat. Preserve the 12B default and its
-audio/vision behavior; 26B remains text-only and experimental.
+The 2026-08-26 owner decision froze the performance checkpoint before product work. Commit `c4ead1d` subsequently
+connected the M22 server runtime and M25 engine to the selectable Studio model catalog and completed bounded real
+sampled-D2 chat and continuation. Preserve the 12B default and its audio/vision behavior; 26B remains text-only,
+single-slot, fixed-depth and experimental. Next qualify sampled MTP timing and the largest safe MTP context without
+reopening the frozen performance checkpoint, then complete the deferred M19 release gate.
 
 Use [`PARALLEL_WORKSTREAMS.md`](PARALLEL_WORKSTREAMS.md). M18 runs only after a recorded trigger. The owner-approved
 remaining sequence is M25 and the deferred M19 release gate. The current external reference is llama.cpp build

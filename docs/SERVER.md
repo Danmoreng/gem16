@@ -16,6 +16,22 @@ selects deterministic generation. `--assistant-model`,
 path as resident chat. The server has no authentication or TLS layer; bind to
 loopback unless a trusted reverse proxy supplies those controls.
 
+The experimental Gemma 4 26B A4B profile uses a compiled Target and separately compiled Assistant:
+
+```bash
+gem16-server \
+  --model /models/gemma4-26b-a4b-compiled \
+  --assistant-model /models/gemma4-26b-a4b-assistant-compiled \
+  --mtp-draft-tokens 2 --model-name gemma4-26b-a4b \
+  --host 127.0.0.1 --port 8080 \
+  --max-context 32768 --max-sessions 1
+```
+
+For 26B, fixed D1/D2/D4 and the normal GPU sampling controls are supported; D2 is the selected profile and
+`--mtp-adaptive` is rejected. Health reports `model_variant=gemma4_moe_26b_a4b`, `text_only=true`, actual MTP
+capability and the configured `mtp_max_context`. Images and audio are rejected, and exactly one resident execution
+slot is admitted. These restrictions do not change the 12B server path.
+
 Startup creates one `ModelRuntime` and logs its target/assistant weight bytes
 and load time. It constructs one temporary execution-slot probe, measures the
 larger of allocator accounting and observed VRAM delta, and rejects a

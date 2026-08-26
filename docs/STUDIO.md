@@ -46,6 +46,13 @@ not load CUDA or model weights directly.
   is generated, followed by exact decode/prefill metrics from `/metrics` when
   the request completes.
 
+The Server screen includes a persisted model-profile selector. Gemma 4 12B Unified remains the default and keeps
+audio/vision support. Gemma 4 26B A4B selects compiled Target and Assistant directories, fixed D2 MTP, 32K context
+and one resident session. In 26B mode the Studio rejects image/audio attachment and microphone actions locally;
+plain text, extracted document text and resident multi-turn chat remain available. Development builds discover the
+known ignored artifact directories or honor `GEM16_26B_COMPILED_MODEL` and `GEM16_26B_ASSISTANT_MODEL`; packaged
+builds require the user to choose those external compiled directories.
+
 Web search, OCR for scanned PDFs, Responses history, sampled video frames, and remote
 authenticated deployments remain follow-ups. Markdown parsing uses the pinned
 BSD-2-Clause `org.commonmark:commonmark` dependency; raw HTML is displayed as
