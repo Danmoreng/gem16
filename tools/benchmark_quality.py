@@ -385,6 +385,248 @@ def estimate_seconds(
     )
 
 
+def write_json_atomic(path: pathlib.Path, document: dict[str, Any]) -> None:
+    temporary = path.with_name(path.name + ".partial")
+    temporary.write_text(
+        json.dumps(document, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    temporary.replace(path)
+
+
+def quality_loader(benchmark: str, example_type: Any) -> Callable[[int | None], list[Any]]:
+    if benchmark == "gsm8k":
+        return gsm8k_loader(example_type)
+    if benchmark == "gpqa":
+        return gpqa_loader(example_type)
+    if benchmark == "aime26":
+        try:
+            from sgl_eval.evals._loader import load_bundled
+        except ImportError as error:
+            raise BenchmarkError(f"cannot load bundled AIME26 data: {error}") from error
+        return load_bundled("aime26")
+    raise BenchmarkError(f"no resumable loader for benchmark {benchmark!r}")
+
+
+def resume_identity(
+    args: argparse.Namespace,
+    *,
+    model: str,
+    provenance: dict[str, Any],
+    examples: list[Any],
+) -> dict[str, Any]:
+    return {
+        "benchmark": args.benchmark,
+        "backend": args.backend,
+        "model": model,
+        "sgl_eval_commit": provenance["commit"],
+        "dataset": BENCHMARKS[args.benchmark].dataset,
+        "protocol": {
+            "reasoning": args.reasoning,
+            "generation": args.generation,
+            "temperature": generation_parameters(args.generation)[0],
+            "top_p": generation_parameters(args.generation)[1],
+            "top_k": generation_parameters(args.generation)[2],
+            "seed": args.seed,
+            "max_tokens": args.max_tokens,
+            "repeats": args.repeats,
+        },
+        "planned_example_ids": [example.id for example in examples],
+    }
+
+
+def initialize_resume_state(
+    state_path: pathlib.Path,
+    identity: dict[str, Any],
+) -> dict[str, Any]:
+    if state_path.exists():
+        if state_path.is_symlink() or not state_path.is_file():
+            raise BenchmarkError(f"resume state is not a regular file: {state_path}")
+        try:
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError) as error:
+            raise BenchmarkError(f"cannot read resume state {state_path}: {error}") from error
+        if not isinstance(state, dict) or state.get("schema_version") != 1:
+            raise BenchmarkError(f"invalid resume state: {state_path}")
+        if state.get("identity") != identity:
+            raise BenchmarkError(
+                "resume contract differs from the original run; use the original "
+                "model, dataset, protocol, and example count or select a new output path"
+            )
+        return state
+    state = {
+        "schema_version": 1,
+        "status": "in_progress",
+        "created_at_unix": time.time(),
+        "identity": identity,
+    }
+    write_json_atomic(state_path, state)
+    return state
+
+
+def prediction_row(
+    example: Any,
+    sample: Any,
+    score: float,
+    extracted: str | None,
+) -> dict[str, Any]:
+    completion = sample.completion_tokens or 0
+    reasoning = sample.reasoning_tokens or 0
+    row: dict[str, Any] = {
+        "id": example.id,
+        "expected_answer": str(example.target),
+        "num_generated_tokens": completion,
+        "num_prompt_tokens": sample.prompt_tokens,
+        "num_reasoning_tokens": reasoning,
+        "num_answer_tokens": max(completion - reasoning, 0),
+        "finish_reason": sample.finish_reason,
+        "problem": example.inputs.get("problem", ""),
+        "generation": sample.text,
+        "predicted_answer": extracted,
+        "symbolic_correct": bool(score),
+    }
+    if sample.generation_start_time is not None:
+        row["generation_start_time"] = sample.generation_start_time
+    if sample.generation_end_time is not None:
+        row["generation_end_time"] = sample.generation_end_time
+    return row
+
+
+def load_prediction_rows(
+    path: pathlib.Path,
+    examples: list[Any],
+) -> dict[str, dict[str, Any]]:
+    expected = {example.id: example for example in examples}
+    rows: dict[str, dict[str, Any]] = {}
+    if not path.exists():
+        return rows
+    if path.is_symlink() or not path.is_file():
+        raise BenchmarkError(f"prediction journal is not a regular file: {path}")
+    with path.open(encoding="utf-8") as source:
+        for line_number, line in enumerate(source, start=1):
+            if len(line) > 16 * 1024 * 1024:
+                raise BenchmarkError(f"prediction journal line {line_number} is too large")
+            if not line.strip():
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError as error:
+                raise BenchmarkError(
+                    f"prediction journal has invalid JSON on line {line_number}: {error}"
+                ) from error
+            if not isinstance(row, dict) or not isinstance(row.get("id"), str):
+                raise BenchmarkError(
+                    f"prediction journal has a malformed row on line {line_number}"
+                )
+            identifier = row["id"]
+            if identifier in rows:
+                raise BenchmarkError(f"prediction journal contains duplicate id {identifier!r}")
+            example = expected.get(identifier)
+            if example is None:
+                raise BenchmarkError(f"prediction journal contains unexpected id {identifier!r}")
+            if row.get("problem") != example.inputs.get("problem", ""):
+                raise BenchmarkError(f"prediction journal problem changed for {identifier!r}")
+            if row.get("expected_answer") != str(example.target):
+                raise BenchmarkError(f"prediction journal target changed for {identifier!r}")
+            if row.get("symbolic_correct") not in (True, False):
+                raise BenchmarkError(f"prediction journal score is invalid for {identifier!r}")
+            rows[identifier] = row
+    return rows
+
+
+class ResumablePredictionsWriter:
+    def __init__(
+        self,
+        path: pathlib.Path,
+        examples: list[Any],
+    ) -> None:
+        self._path = path
+        self._completed = set(load_prediction_rows(path, examples))
+        self._file = path.open("a", encoding="utf-8")
+
+    def __call__(
+        self,
+        example: Any,
+        repeat: int,
+        sample: Any,
+        score: float,
+        extracted: str | None,
+    ) -> None:
+        if repeat != 0:
+            raise BenchmarkError("resumable quality runs support exactly one repeat")
+        if example.id in self._completed:
+            raise BenchmarkError(f"refusing duplicate resumed sample {example.id!r}")
+        row = prediction_row(example, sample, score, extracted)
+        self._file.write(json.dumps(row, ensure_ascii=False) + "\n")
+        self._file.flush()
+        os.fsync(self._file.fileno())
+        self._completed.add(example.id)
+
+    def close(self) -> None:
+        if not self._file.closed:
+            self._file.close()
+
+
+def serialize_prediction_rows(
+    examples: list[Any],
+    rows: dict[str, dict[str, Any]],
+) -> list[dict[str, Any]]:
+    serialized: list[dict[str, Any]] = []
+    for example in examples:
+        row = rows.get(example.id)
+        if row is None:
+            continue
+        started = row.get("generation_start_time")
+        ended = row.get("generation_end_time")
+        serialized.append(
+            {
+                "id": example.id,
+                "inputs": example.inputs,
+                "target": example.target,
+                "meta": example.meta,
+                "samples": [
+                    {
+                        "text": row.get("generation", ""),
+                        "score": 1.0 if row["symbolic_correct"] else 0.0,
+                        "extracted": row.get("predicted_answer"),
+                        "prompt_tokens": row.get("num_prompt_tokens"),
+                        "completion_tokens": row.get("num_generated_tokens"),
+                        "reasoning_tokens": row.get("num_reasoning_tokens"),
+                        "finish_reason": row.get("finish_reason"),
+                        "generation_seconds": (
+                            ended - started
+                            if isinstance(started, (int, float))
+                            and isinstance(ended, (int, float))
+                            else None
+                        ),
+                    }
+                ],
+            }
+        )
+    return serialized
+
+
+def resumed_aggregate(rows: dict[str, dict[str, Any]]) -> dict[str, float]:
+    if not rows:
+        return {"score": 0.0}
+    result: dict[str, float] = {
+        "score": sum(bool(row["symbolic_correct"]) for row in rows.values())
+        / len(rows)
+    }
+    reasons = [row.get("finish_reason") for row in rows.values() if row.get("finish_reason")]
+    if reasons:
+        count = len(reasons)
+        result.update(
+            {
+                "stop_rate": sum(value == "stop" for value in reasons) / count,
+                "truncated_rate": sum(value == "length" for value in reasons) / count,
+                "error_rate": sum(value not in ("stop", "length") for value in reasons)
+                / count,
+            }
+        )
+    return result
+
+
 def serialize_result(result: Any) -> list[dict[str, Any]]:
     serialized = []
     for example_result in result.per_example:
@@ -419,6 +661,138 @@ def serialize_result(result: Any) -> list[dict[str, Any]]:
             }
         )
     return serialized
+
+
+def run_resumable(
+    args: argparse.Namespace,
+    *,
+    provenance: dict[str, Any],
+    spec_config: BenchmarkSpec,
+    model: str,
+    health: dict[str, Any] | None,
+    example_type: Any,
+    benchmark_spec: Any,
+    generation: Any,
+    sampler: Any,
+) -> dict[str, Any]:
+    raw_dir = args.output.parent / f"{args.output.stem}.samples"
+    if raw_dir.exists() and (raw_dir.is_symlink() or not raw_dir.is_dir()):
+        raise BenchmarkError(f"sample path is not a regular directory: {raw_dir}")
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    state_path = raw_dir / "resume-state.json"
+    journal_path = raw_dir / "output-rs0.jsonl"
+    if journal_path.exists() and not state_path.exists():
+        raise BenchmarkError(
+            f"prediction journal exists without its resume contract: {journal_path}"
+        )
+
+    loader = quality_loader(args.benchmark, example_type)
+    examples = loader(args.num_examples)
+    identifiers = [example.id for example in examples]
+    if len(set(identifiers)) != len(identifiers):
+        raise BenchmarkError("benchmark loader produced duplicate example ids")
+    identity = resume_identity(
+        args,
+        model=model,
+        provenance=provenance,
+        examples=examples,
+    )
+    state = initialize_resume_state(state_path, identity)
+    before = load_prediction_rows(journal_path, examples)
+    remaining = [example for example in examples if example.id not in before]
+    if before:
+        print(
+            f"Resuming {args.benchmark}: {len(before)} complete, "
+            f"{len(remaining)} remaining",
+            file=sys.stderr,
+        )
+
+    if remaining:
+        writer = ResumablePredictionsWriter(journal_path, examples)
+        try:
+            benchmark_spec.run(
+                sampler=sampler,
+                gen=generation,
+                n_repeats=1,
+                num_examples=None,
+                num_threads=1,
+                predictions_writer=writer,
+                load_examples=lambda _limit: remaining,
+            )
+        finally:
+            writer.close()
+
+    rows = load_prediction_rows(journal_path, examples)
+    completed = time.time()
+    status = "complete" if len(rows) == len(examples) else "partial"
+    state.update(
+        {
+            "status": status,
+            "completed_example_count": len(rows),
+            "updated_at_unix": completed,
+        }
+    )
+    write_json_atomic(state_path, state)
+
+    generation_seconds = sum(
+        max(0.0, float(row["generation_end_time"]) - float(row["generation_start_time"]))
+        for row in rows.values()
+        if isinstance(row.get("generation_start_time"), (int, float))
+        and isinstance(row.get("generation_end_time"), (int, float))
+    )
+    prompt_tokens = sum(
+        int(row.get("num_prompt_tokens") or 0) for row in rows.values()
+    )
+    completion_tokens = sum(
+        int(row.get("num_generated_tokens") or 0) for row in rows.values()
+    )
+    output = {
+        "schema_version": 1,
+        "status": status,
+        "benchmark": args.benchmark,
+        "benchmark_source": {
+            "gem16_commit": git_revision(),
+            "sgl_eval": provenance,
+            "dataset": spec_config.dataset,
+        },
+        "endpoint": {
+            "backend": args.backend,
+            "base_url": normalize_base_url(args.base_url),
+            "model": model,
+            "gem16_health": health,
+        },
+        "protocol": {
+            **identity["protocol"],
+            "threads": 1,
+        },
+        "published_reference": {
+            "score": spec_config.published_score,
+            "source": spec_config.published_source,
+            "comparison_is_exact_protocol": False,
+        },
+        "started_at_unix": state["created_at_unix"],
+        "completed_at_unix": completed,
+        "latency_seconds": generation_seconds,
+        "planned_examples": len(examples),
+        "completed_examples": len(rows),
+        "total_prompt_tokens": prompt_tokens,
+        "total_completion_tokens": completion_tokens,
+        "output_tokens_per_second": (
+            completion_tokens / generation_seconds if generation_seconds > 0 else 0.0
+        ),
+        "aggregate": resumed_aggregate(rows),
+        "examples": serialize_prediction_rows(examples, rows),
+        "resume": {
+            "enabled": True,
+            "journal": journal_path.name,
+            "state": state_path.name,
+            "completed_before_attempt": len(before),
+            "generated_this_attempt": len(rows) - len(before),
+            "remaining": len(examples) - len(rows),
+        },
+    }
+    write_json_atomic(args.output, output)
+    return output
 
 
 def run(args: argparse.Namespace) -> dict[str, Any]:
@@ -487,6 +861,19 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         chat_template_kwargs={"thinking": args.reasoning != "none"},
         seed=args.seed,
     )
+    if args.resume:
+        return run_resumable(
+            args,
+            provenance=provenance,
+            spec_config=spec_config,
+            model=model,
+            health=health,
+            example_type=Example,
+            benchmark_spec=benchmark_spec,
+            generation=generation,
+            sampler=EndpointSampler(),
+        )
+
     loader = None
     if args.benchmark == "gsm8k":
         loader = gsm8k_loader(Example)
@@ -554,7 +941,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         "aggregate": result.aggregate,
         "examples": serialize_result(result),
     }
-    args.output.write_text(json.dumps(output, indent=2, ensure_ascii=False) + "\n")
+    write_json_atomic(args.output, output)
     return output
 
 
@@ -566,6 +953,14 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--api-key", default=os.environ.get("OPENAI_API_KEY", "EMPTY"))
     result.add_argument("--model")
     result.add_argument("--output", type=pathlib.Path, required=True)
+    result.add_argument(
+        "--resume",
+        action="store_true",
+        help=(
+            "journal each completed sample and resume the same output path; "
+            "requires --repeats 1 --threads 1"
+        ),
+    )
     result.add_argument("--num-examples", type=int)
     result.add_argument("--repeats", type=int, default=1)
     result.add_argument("--threads", type=int, default=1)
@@ -591,6 +986,12 @@ def main() -> int:
         return 64
     if args.repeats <= 0 or args.threads <= 0:
         print("error: --repeats and --threads must be positive", file=sys.stderr)
+        return 64
+    if args.resume and (args.repeats != 1 or args.threads != 1):
+        print(
+            "error: --resume currently requires --repeats 1 --threads 1",
+            file=sys.stderr,
+        )
         return 64
     if args.max_tokens is not None and args.max_tokens <= 0:
         print("error: --max-tokens must be positive", file=sys.stderr)
@@ -621,7 +1022,7 @@ def main() -> int:
         )
         if args.estimate_only:
             return 0
-        if args.output.exists():
+        if args.output.exists() and not args.resume:
             raise BenchmarkError(f"refusing to overwrite {args.output}")
         args.output.parent.mkdir(parents=True, exist_ok=True)
         result = run(args)
@@ -630,7 +1031,7 @@ def main() -> int:
             f"{args.benchmark}: {score * 100.0:.2f}% over "
             f"{result['completed_examples']} examples; wrote {args.output}"
         )
-        return 0
+        return 0 if result["status"] == "complete" else 2
     except (BenchmarkError, OSError, ValueError, KeyError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 1

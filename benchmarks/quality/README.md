@@ -14,6 +14,41 @@ The first supported matrix is deliberately small:
 | GPQA Diamond | 198 | high | Google Gemma 4 12B 78.8% |
 | AIME 2026 | 30 | high | Google Gemma 4 12B 77.5% |
 
+## Paired Gemma 4 26B smoke
+
+The repository provides a one-command 20-question GSM8K smoke for the frozen
+Gemma 4 26B candidate and Google's pinned official QAT Q4_0 GGUF reference:
+
+```bash
+./scripts/run-gemma4-26b-gsm8k-smoke.sh
+```
+
+It creates the pinned quality environment when necessary, starts the pinned
+llama.cpp reference once, runs the first 20 GSM8K questions, releases that
+server, then starts gem16 and runs the identical questions. The final paired
+report includes both accuracies, outcome counts, changed IDs, and the exact
+McNemar result. Set `OUTPUT_DIR` to choose a different result directory; all
+server, model, Python, port, and timeout paths have explicit environment
+overrides documented by `--help`.
+
+This smoke is diagnostic. M19 requires complete task reports with the frozen
+artifact and reference identities.
+
+Run the complete paired 1,319-question GSM8K comparison with an explicit,
+stable result directory:
+
+```bash
+OUTPUT_DIR="$PWD/benchmarks/results/<date>/<revision>/local-gsm8k-full1319" \
+  ./scripts/run-gemma4-26b-gsm8k-full.sh
+```
+
+The reference and gem16 servers are loaded sequentially and each remains
+resident for its complete pass. Both passes journal every completed question;
+rerunning the same command with the same `OUTPUT_DIR` resumes the unfinished
+pass and skips any already complete pass before regenerating the paired
+comparison. Keep that explicit path unchanged when continuing on a later day;
+the date-scoped default would otherwise select a new directory after midnight.
+
 Google's exact internal protocols are not fully published, so those model-card
 numbers are plausibility anchors rather than exact pass/fail thresholds. The
 primary engine-quality comparison is paired task accuracy between the exact
@@ -132,3 +167,24 @@ Every output includes all questions, raw responses, extracted answers, binary
 scores, token usage, finish reason, timing, endpoint health, dataset revision,
 and benchmark implementation provenance. Existing files and incremental sample
 directories are never overwritten.
+
+## Resuming long runs
+
+Add `--resume` to the first and every later invocation of a long run. Resume is
+currently restricted to the M19 protocol of one repeat and one request thread:
+
+```bash
+.venv-quality/bin/python tools/benchmark_quality.py \
+  --benchmark gsm8k --backend gem16 \
+  --base-url http://127.0.0.1:8080/v1 \
+  --repeats 1 --threads 1 --resume \
+  --output benchmarks/results/<date>/<sha>/<machine>/gem16-gsm8k.json
+```
+
+Each scored sample is appended and synchronized immediately in the adjacent
+`<output-stem>.samples/output-rs0.jsonl` journal. A `resume-state.json` freezes
+the benchmark, model ID, dataset, evaluator revision, generation protocol, and
+planned question IDs before the first request. Reusing the same command and
+output path skips completed IDs. Any change to that contract fails visibly and
+requires a new output path. The top-level JSON is derived from the journal and
+may be safely regenerated after an interrupted attempt.

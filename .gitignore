@@ -9,6 +9,7 @@
 /benchmarks/results/*
 !/benchmarks/results/.gitkeep
 /artifacts/raw/
+/.venv-quality/
 *.log
 *.prof
 *.nsys-rep

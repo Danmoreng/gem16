@@ -47,3 +47,28 @@ first, and M20 consumes the matching M21 evidence, avoiding invalidation and dup
 multi-hour broad quality benchmark is authorized in this wave. Internal Q4_0 work, positive
 multi-slot admission, Studio polish and vision do not block the base vertical path. Vision is outside the 26B Fast
 Track. The 12B production path and its existing contracts remain regression-protected and unchanged.
+
+## Near-term backlog after the M19 benchmark
+
+### Reduce Gemma 4 26B server startup latency
+
+Do not change the loader or compiled artifact before the currently planned M19 quality benchmark. Afterwards, remove
+the dominant startup-time weight transformation from the 26B path:
+
+- make the offline checkpoint compiler emit the exact final SM120 Row8/K64 weight and scale byte order consumed by
+  the runtime, while preserving the immutable-source provenance, hashes, strict validation and single persistent
+  device representation;
+- replace the current CPU tiling through the 4 MiB staging buffer with validated direct or large contiguous uploads
+  into the final GPU arena; do not move quantization or another transformation into server startup;
+- add phase timings for manifest validation, file/page-cache I/O, arena allocation, layout work, host-to-device
+  transfer, workspace/KV initialization, CUDA Graph construction and server admission;
+- flush or line-buffer startup progress so Studio and redirected benchmark logs do not appear hung while loading.
+
+The motivating 2026-08-26 GSM8K smoke run measured approximately 73.6 seconds from gem16 process start to health
+readiness, versus approximately 4.1 seconds from llama.cpp's logged model-load start to listener readiness. The
+current compiled artifact contains 14,696,569,196 payload bytes; 13,562,689,536 bytes (92.3%) take one of the
+load-time SM120 tiled paths. Treat those observations as diagnostic evidence, not a controlled startup benchmark.
+
+Acceptance requires byte-identical final device tensors and unchanged generation/correctness results, no extra
+persistent host or device weight copy, no startup-time quantization, preserved 12B behavior, and a separately
+recorded cold-cache and warm-cache before/after startup measurement on the reference machine.
