@@ -1299,6 +1299,70 @@ void TestFixedAddressMoeReference() {
                "memory after M15 repeats"));
   CHECK(prefill_free_before == prefill_free_after);
 
+  // The M25 Target verifier uses T=3 and a different execution schedule from
+  // both ordinary decode and grouped prefill. Exercise the exact batched row
+  // offsets directly with three distinct recurrent states, then compare every
+  // output bit against three ordinary SM120 layer calls. The oversized BF16
+  // alias mirrors the fixed-arena lifetime alias used by the integrated
+  // engine for temporary routed Gate/Up storage.
+  constexpr std::uint64_t kMtpTokens = 3U;
+  DeviceBuffer<float> mtp_hidden(kMtpTokens * kWidth),
+      mtp_reference(kMtpTokens * kWidth), mtp_output(kMtpTokens * kWidth);
+  constexpr std::size_t kMtpExpertAliasBytes =
+      kMtpTokens * kTopK * 2U * kExpert * sizeof(float);
+  DeviceBuffer<std::uint16_t> mtp_expert_alias(
+      kMtpExpertAliasBytes / sizeof(std::uint16_t));
+  std::vector<float> host_mtp_hidden(kMtpTokens * kWidth);
+  for (std::uint64_t token = 0U; token < kMtpTokens; ++token) {
+    for (std::uint64_t index = 0U; index < kWidth; ++index) {
+      const float shifted =
+          host_hidden[index] + static_cast<float>(token) * 0.03125F;
+      host_mtp_hidden[token * kWidth + index] = DecodeBf16(Bf16(shifted));
+    }
+  }
+  CHECK(CudaOk(cudaMemcpy(mtp_hidden.get(), host_mtp_hidden.data(),
+                          mtp_hidden.bytes(), cudaMemcpyHostToDevice),
+               "copy M25 exact-batch hidden states"));
+  for (std::uint64_t token = 0U; token < kMtpTokens; ++token) {
+    CHECK(CudaOk(cudaMemset(routing_finite.get(), 1, sizeof(int)),
+                 "initialize M25 ordinary routing finite flag"));
+    const auto ordinary_status = gem16::internal::LaunchGemma4MoeSm120Layer(
+        mtp_hidden.get() + token * kWidth,
+        mtp_reference.get() + token * kWidth, config, weights, workspace,
+        nullptr);
+    CHECK(ordinary_status.ok());
+  }
+  auto mtp_workspace = prefill_workspace;
+  mtp_workspace.expert_down_bf16 = mtp_expert_alias.get();
+  CHECK(CudaOk(cudaMemset(prefill_routing_finite.get(), 1, sizeof(int)),
+               "initialize M25 batched routing finite flag"));
+  const auto mtp_status =
+      gem16::internal::LaunchGemma4MoeSm120MtpSharedBatchLayer(
+          mtp_hidden.get(), mtp_output.get(), kMtpTokens, config, weights,
+          mtp_workspace, workspace, nullptr);
+  CHECK(mtp_status.ok());
+  CHECK(CudaOk(cudaDeviceSynchronize(),
+               "synchronize M25 exact-batch differential"));
+  std::vector<float> mtp_reference_values(kMtpTokens * kWidth),
+      mtp_output_values(kMtpTokens * kWidth);
+  CHECK(CudaOk(cudaMemcpy(mtp_reference_values.data(), mtp_reference.get(),
+                          mtp_reference.bytes(), cudaMemcpyDeviceToHost),
+               "copy M25 ordinary differential outputs"));
+  CHECK(CudaOk(cudaMemcpy(mtp_output_values.data(), mtp_output.get(),
+                          mtp_output.bytes(), cudaMemcpyDeviceToHost),
+               "copy M25 exact-batch differential outputs"));
+  CHECK(mtp_output_values == mtp_reference_values);
+  std::vector<std::uint32_t> mtp_ids(kMtpTokens * kTopK);
+  CHECK(CudaOk(cudaMemcpy(mtp_ids.data(), permutation.get(),
+                          mtp_ids.size() * sizeof(std::uint32_t),
+                          cudaMemcpyDeviceToHost),
+               "copy M25 exact-batch router IDs"));
+  for (std::uint64_t token = 0U; token < kMtpTokens; ++token) {
+    for (std::uint32_t slot = 0U; slot < kTopK; ++slot) {
+      CHECK(mtp_ids[token * kTopK + slot] == slot);
+    }
+  }
+
   // Compare the coalesced prefill router's BF16-rounded logits against the
   // original serial expert/index order so tiling or vector-load drift cannot
   // hide behind the zero-router determinism fixture above.

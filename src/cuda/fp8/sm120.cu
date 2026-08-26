@@ -15,7 +15,7 @@ namespace {
 constexpr std::uint64_t kElementsPerKBlock = 32;
 constexpr std::uint64_t kRowsPerWarp = 8;
 constexpr std::uint64_t kTokensPerMma = 16;
-constexpr std::uint64_t kTokenTilesPerWarp = 8;
+constexpr std::uint64_t kTokenTilesPerWarp = 16;
 constexpr std::uint64_t kKBlocksPerStage = 2;
 constexpr std::uint64_t kElementsPerStage =
     kElementsPerKBlock * kKBlocksPerStage;
@@ -467,6 +467,106 @@ void Sm120DirectProjectionSplitK2Kernel(
 #endif
 }
 
+// Fixed T=3 form of the 26B attention O projection. The two split-K warps
+// retain the accepted half-K accumulation and combination order for each row,
+// while every FP8 weight fragment feeds all three verifier activations before
+// it is discarded.
+__launch_bounds__(kSplitKThreadsPerBlock, 1) __global__
+void Sm120DirectProjectionSplitK2FixedT3Kernel(
+    const std::uint8_t* activation, const float* activation_scale,
+    const std::uint8_t* weight, const std::uint16_t* weight_scales,
+    float* output, std::uint64_t rows,
+    std::uint64_t contracting_elements) {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 890
+  constexpr unsigned kTokens = 3U;
+  __shared__ float second_half[kTokens][kRowsPerWarp];
+  const unsigned warp = threadIdx.x / kWarpSize;
+  const unsigned lane = threadIdx.x & (kWarpSize - 1U);
+  const unsigned split = warp;
+  const std::uint64_t global_warp = blockIdx.x;
+  const std::uint64_t row_tiles =
+      (rows + kRowsPerWarp - 1U) / kRowsPerWarp;
+  const unsigned source_row_in_tile = lane >> 2U;
+  const unsigned k_quarter = lane & 3U;
+  const std::uint64_t source_row =
+      global_warp * kRowsPerWarp + source_row_in_tile;
+  const std::uint64_t k_blocks =
+      contracting_elements / kElementsPerKBlock;
+  const std::uint64_t split_k_blocks = k_blocks / 2U;
+  const std::uint64_t first_k_block = split * split_k_blocks;
+  const std::uint64_t final_k_block = first_k_block + split_k_blocks;
+
+  Fp8Accumulator accumulators[kTokens]{};
+  if (global_warp < row_tiles) {
+    for (std::uint64_t k_block = first_k_block;
+         k_block < final_k_block; ++k_block) {
+      const std::uint64_t activation_byte =
+          k_block * kElementsPerKBlock +
+          static_cast<std::uint64_t>(k_quarter) * 4U;
+      std::uint32_t b_first = 0U;
+      std::uint32_t b_second = 0U;
+      if (source_row < rows) {
+        const std::uint64_t weight_byte =
+            source_row * contracting_elements + activation_byte;
+        b_first = LoadU32(weight + weight_byte);
+        b_second = LoadU32(weight + weight_byte + 16U);
+      }
+#pragma unroll
+      for (unsigned token = 0U; token < kTokens; ++token) {
+        const std::uint8_t* token_activation =
+            activation +
+            static_cast<std::uint64_t>(token) * contracting_elements;
+        const std::uint32_t a_first =
+            LoadU32(token_activation + activation_byte);
+        const std::uint32_t a_second =
+            LoadU32(token_activation + activation_byte + 16U);
+        AccumulateFp8(a_first, a_first, a_second, a_second, b_first, b_second,
+                      accumulators[token]);
+      }
+    }
+  }
+
+  const unsigned partial_row = lane * 2U;
+  if (split == 1U && lane < 4U) {
+#pragma unroll
+    for (unsigned token = 0U; token < kTokens; ++token) {
+      second_half[token][partial_row] = accumulators[token].x0;
+      second_half[token][partial_row + 1U] = accumulators[token].x1;
+    }
+  }
+  __syncthreads();
+  if (split == 0U && lane < 4U) {
+    const std::uint64_t output_row =
+        global_warp * kRowsPerWarp + lane * 2U;
+#pragma unroll
+    for (unsigned token = 0U; token < kTokens; ++token) {
+      const float input_scale = activation_scale[token];
+      const std::uint64_t output_offset =
+          static_cast<std::uint64_t>(token) * rows + output_row;
+      if (output_row < rows) {
+        output[output_offset] =
+            (accumulators[token].x0 + second_half[token][partial_row]) *
+            input_scale * DecodeBf16(weight_scales + output_row);
+      }
+      if (output_row + 1U < rows) {
+        output[output_offset + 1U] =
+            (accumulators[token].x1 +
+             second_half[token][partial_row + 1U]) *
+            input_scale * DecodeBf16(weight_scales + output_row + 1U);
+      }
+    }
+  }
+#else
+  (void)activation;
+  (void)activation_scale;
+  (void)weight;
+  (void)weight_scales;
+  (void)output;
+  (void)rows;
+  (void)contracting_elements;
+#endif
+}
+
 template <unsigned kTokens>
 __global__ void Sm120DirectProjectionFixedBatchKernel(
     const std::uint8_t* activation, const float* activation_scale,
@@ -572,9 +672,9 @@ __global__ void Sm120DirectProjectionFixedBatchKernel(
 #endif
 }
 
-// Eight warps form one 64-column by 128-token CTA tile. Two consecutive K32
+// Eight warps form one 64-column by 256-token CTA tile. Two consecutive K32
 // fragments of source-layout FP8 activation and weights are double-buffered
-// through shared memory, while every weight fragment is reused for eight
+// through shared memory, while every weight fragment is reused for sixteen
 // independent 16-token MMA tiles. This is the sole matrix path; T=1 remains
 // on the latency-oriented direct kernel above.
 __global__ void Sm120MatrixProjectionKernel(
@@ -934,11 +1034,20 @@ Status LaunchFp8Sm120DirectProjectionBatch(
         static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
       return Invalid("batched split-K2 SM120 FP8 projection grid exceeds CUDA limits");
     }
-    Sm120DirectProjectionSplitK2Kernel<<<
-        dim3(static_cast<unsigned>(row_tiles), static_cast<unsigned>(tokens)),
-        kSplitKThreadsPerBlock, 0, stream>>>(
-        activation_e4m3fn, activation_scales, weight_e4m3fn,
-        weight_scales_bf16, output, rows, contracting_elements);
+    if (tokens == 3U) {
+      Sm120DirectProjectionSplitK2FixedT3Kernel<<<
+          static_cast<unsigned>(row_tiles), kSplitKThreadsPerBlock, 0,
+          stream>>>(activation_e4m3fn, activation_scales, weight_e4m3fn,
+                    weight_scales_bf16, output, rows,
+                    contracting_elements);
+    } else {
+      Sm120DirectProjectionSplitK2Kernel<<<
+          dim3(static_cast<unsigned>(row_tiles),
+               static_cast<unsigned>(tokens)),
+          kSplitKThreadsPerBlock, 0, stream>>>(
+          activation_e4m3fn, activation_scales, weight_e4m3fn,
+          weight_scales_bf16, output, rows, contracting_elements);
+    }
     const cudaError_t split_k_error = cudaGetLastError();
     return split_k_error == cudaSuccess
                ? Status::Ok()
@@ -1000,6 +1109,37 @@ Status LaunchFp8Sm120DirectProjectionBatch(
   return error == cudaSuccess
              ? Status::Ok()
              : CudaFailure("launch batched direct-source SM120 FP8 projection", error);
+}
+
+Status LaunchFp8Sm120DirectProjectionBatchLegacyForTest(
+    const std::uint8_t* activation_e4m3fn, const float* activation_scales,
+    const std::uint8_t* weight_e4m3fn,
+    const std::uint16_t* weight_scales_bf16, float* output,
+    std::uint64_t tokens, std::uint64_t rows,
+    std::uint64_t contracting_elements, cudaStream_t stream) {
+  if (activation_e4m3fn == nullptr || activation_scales == nullptr ||
+      weight_e4m3fn == nullptr || weight_scales_bf16 == nullptr ||
+      output == nullptr || tokens == 0U || tokens > 65535U || rows == 0U ||
+      contracting_elements == 0U ||
+      contracting_elements % kElementsPerKBlock != 0U) {
+    return Invalid("legacy batched split-K2 SM120 FP8 contract is invalid");
+  }
+  const std::uint64_t row_tiles =
+      (rows + kRowsPerWarp - 1U) / kRowsPerWarp;
+  if (row_tiles >
+      static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
+    return Invalid("legacy batched split-K2 SM120 FP8 grid exceeds CUDA limits");
+  }
+  Sm120DirectProjectionSplitK2Kernel<<<
+      dim3(static_cast<unsigned>(row_tiles), static_cast<unsigned>(tokens)),
+      kSplitKThreadsPerBlock, 0, stream>>>(
+      activation_e4m3fn, activation_scales, weight_e4m3fn,
+      weight_scales_bf16, output, rows, contracting_elements);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("launch legacy batched split-K2 SM120 FP8",
+                           error);
 }
 
 Status LaunchFp8Sm120GroupedQkvProjectionBatch(

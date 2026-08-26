@@ -51,6 +51,22 @@ Status LaunchFp8Sm120LocalGroupedQkvProjectionLegacyForTest(
     const std::uint16_t* v_weight_scales_bf16, float* v_output,
     cudaStream_t stream);
 
+Status LaunchFp8Sm120DirectProjectionBatchLegacyForTest(
+    const std::uint8_t* activation_e4m3fn, const float* activation_scales,
+    const std::uint8_t* weight_e4m3fn,
+    const std::uint16_t* weight_scales_bf16, float* output,
+    std::uint64_t tokens, std::uint64_t rows,
+    std::uint64_t contracting_elements, cudaStream_t stream);
+
+Status LaunchNvfp4Sm120DirectProjectionBf16FloatExactBatchLegacyForTest(
+    const std::uint8_t* packed_activation_e2m1,
+    const std::uint8_t* activation_scales_e4m3fn,
+    const std::uint8_t* packed_weight_e2m1,
+    const std::uint8_t* weight_scales_e4m3fn, float* output,
+    std::uint64_t tokens, std::uint64_t rows,
+    std::uint64_t contracting_elements, float activation_global_divisor,
+    float weight_global_divisor, cudaStream_t stream);
+
 }  // namespace gem16::internal
 
 namespace {
@@ -1207,6 +1223,157 @@ float MeasureFp8Projection(Launch&& launch) {
   return events_ok ? elapsed_ms / static_cast<float>(iterations) : 0.0F;
 }
 
+void TestNvfp4FixedT3Head(bool measure_performance) {
+  constexpr std::size_t tokens = 3U;
+  constexpr std::size_t rows = 262144U;
+  constexpr std::size_t contracting = 2816U;
+  constexpr std::size_t packed_token_bytes = contracting / 2U;
+  constexpr std::size_t scale_token_bytes = contracting / 16U;
+  constexpr std::size_t packed_weight_bytes = rows * contracting / 2U;
+  constexpr std::size_t weight_scale_bytes = rows * contracting / 16U;
+  constexpr float activation_divisor = 1.25F;
+  constexpr float weight_divisor = 1.5F;
+
+  std::vector<std::uint8_t> activation(tokens * packed_token_bytes);
+  std::vector<std::uint8_t> activation_scales(tokens * scale_token_bytes);
+  std::vector<std::uint8_t> weight(packed_weight_bytes);
+  std::vector<std::uint8_t> weight_scales(weight_scale_bytes);
+  for (std::size_t index = 0U; index < activation.size(); ++index) {
+    activation[index] = static_cast<std::uint8_t>(
+        (index * 37U + index / packed_token_bytes * 53U + 19U) & 0xFFU);
+  }
+  constexpr std::array<std::uint8_t, 4> scales = {
+      0x30U, 0x38U, 0x3CU, 0x40U};
+  for (std::size_t index = 0U; index < activation_scales.size(); ++index) {
+    activation_scales[index] =
+        scales[(index * 5U + index / scale_token_bytes) % scales.size()];
+  }
+  for (std::size_t index = 0U; index < weight.size(); ++index) {
+    weight[index] =
+        static_cast<std::uint8_t>((index * 29U + index / 97U + 7U) & 0xFFU);
+  }
+  for (std::size_t index = 0U; index < weight_scales.size(); ++index) {
+    weight_scales[index] = scales[(index * 3U + index / 131U) % scales.size()];
+  }
+
+  DeviceBuffer<std::uint8_t> device_activation(activation.size());
+  DeviceBuffer<std::uint8_t> device_activation_scales(
+      activation_scales.size());
+  DeviceBuffer<std::uint8_t> device_weight(weight.size());
+  DeviceBuffer<std::uint8_t> device_weight_scales(weight_scales.size());
+  DeviceBuffer<float> device_legacy(tokens * rows);
+  DeviceBuffer<float> device_fixed(tokens * rows);
+  DeviceBuffer<float> device_repeat(tokens * rows);
+  if (device_activation.get() == nullptr ||
+      device_activation_scales.get() == nullptr ||
+      device_weight.get() == nullptr || device_weight_scales.get() == nullptr ||
+      device_legacy.get() == nullptr || device_fixed.get() == nullptr ||
+      device_repeat.get() == nullptr) {
+    return;
+  }
+  if (!CudaOk(cudaMemcpy(device_activation.get(), activation.data(),
+                         device_activation.bytes(), cudaMemcpyHostToDevice),
+              "copy fixed-T3 activation") ||
+      !CudaOk(cudaMemcpy(device_activation_scales.get(),
+                         activation_scales.data(),
+                         device_activation_scales.bytes(),
+                         cudaMemcpyHostToDevice),
+              "copy fixed-T3 activation scales") ||
+      !CudaOk(cudaMemcpy(device_weight.get(), weight.data(),
+                         device_weight.bytes(), cudaMemcpyHostToDevice),
+              "copy fixed-T3 weights") ||
+      !CudaOk(cudaMemcpy(device_weight_scales.get(), weight_scales.data(),
+                         device_weight_scales.bytes(), cudaMemcpyHostToDevice),
+              "copy fixed-T3 weight scales")) {
+    return;
+  }
+
+  const auto legacy_launch = [&] {
+    return gem16::internal::
+        LaunchNvfp4Sm120DirectProjectionBf16FloatExactBatchLegacyForTest(
+            device_activation.get(), device_activation_scales.get(),
+            device_weight.get(), device_weight_scales.get(),
+            device_legacy.get(), tokens, rows, contracting,
+            activation_divisor, weight_divisor, nullptr);
+  };
+  const auto fixed_launch = [&] {
+    return gem16::internal::
+        LaunchNvfp4Sm120DirectProjectionBf16FloatExactBatch(
+            device_activation.get(), device_activation_scales.get(),
+            device_weight.get(), device_weight_scales.get(), device_fixed.get(),
+            tokens, rows, contracting, activation_divisor, weight_divisor,
+            nullptr);
+  };
+  const auto repeat_launch = [&] {
+    return gem16::internal::
+        LaunchNvfp4Sm120DirectProjectionBf16FloatExactBatch(
+            device_activation.get(), device_activation_scales.get(),
+            device_weight.get(), device_weight_scales.get(),
+            device_repeat.get(), tokens, rows, contracting,
+            activation_divisor, weight_divisor, nullptr);
+  };
+  const auto legacy_status = legacy_launch();
+  const auto fixed_status = fixed_launch();
+  const auto repeat_status = repeat_launch();
+  CUDA_TEST_CHECK(legacy_status.ok());
+  CUDA_TEST_CHECK(fixed_status.ok());
+  CUDA_TEST_CHECK(repeat_status.ok());
+  if (!legacy_status.ok() || !fixed_status.ok() || !repeat_status.ok() ||
+      !CudaOk(cudaDeviceSynchronize(), "fixed-T3 head synchronize")) {
+    return;
+  }
+
+  std::vector<float> legacy(tokens * rows);
+  std::vector<float> fixed(tokens * rows);
+  std::vector<float> repeat(tokens * rows);
+  if (!CudaOk(cudaMemcpy(legacy.data(), device_legacy.get(),
+                         device_legacy.bytes(), cudaMemcpyDeviceToHost),
+              "copy legacy fixed-T3 output") ||
+      !CudaOk(cudaMemcpy(fixed.data(), device_fixed.get(),
+                         device_fixed.bytes(), cudaMemcpyDeviceToHost),
+              "copy fixed-T3 output") ||
+      !CudaOk(cudaMemcpy(repeat.data(), device_repeat.get(),
+                         device_repeat.bytes(), cudaMemcpyDeviceToHost),
+              "copy repeated fixed-T3 output")) {
+    return;
+  }
+  std::size_t legacy_mismatches = 0U;
+  std::size_t repeat_mismatches = 0U;
+  for (std::size_t index = 0U; index < fixed.size(); ++index) {
+    legacy_mismatches +=
+        std::bit_cast<std::uint32_t>(fixed[index]) !=
+                std::bit_cast<std::uint32_t>(legacy[index])
+            ? 1U
+            : 0U;
+    repeat_mismatches +=
+        std::bit_cast<std::uint32_t>(fixed[index]) !=
+                std::bit_cast<std::uint32_t>(repeat[index])
+            ? 1U
+            : 0U;
+  }
+  CUDA_TEST_CHECK(legacy_mismatches == 0U);
+  CUDA_TEST_CHECK(repeat_mismatches == 0U);
+
+  std::cout << "SM120 NVFP4 fixed-T3 head: exact_mismatches="
+            << legacy_mismatches << '/' << fixed.size()
+            << " repeat_mismatches=" << repeat_mismatches << '/'
+            << fixed.size();
+  if (!measure_performance) {
+    std::cout << '\n';
+    return;
+  }
+  const float fixed_first_ms = MeasureFp8Projection(fixed_launch);
+  const float legacy_second_ms = MeasureFp8Projection(legacy_launch);
+  const float legacy_first_ms = MeasureFp8Projection(legacy_launch);
+  const float fixed_second_ms = MeasureFp8Projection(fixed_launch);
+  const float fixed_ms = (fixed_first_ms + fixed_second_ms) * 0.5F;
+  const float legacy_ms = (legacy_first_ms + legacy_second_ms) * 0.5F;
+  std::cout << " fixed_ms=" << fixed_ms << " legacy_ms=" << legacy_ms
+            << " ratio=" << fixed_ms / legacy_ms << '\n';
+  CUDA_TEST_CHECK(fixed_ms > 0.0F);
+  CUDA_TEST_CHECK(legacy_ms > 0.0F);
+}
+
 void CheckFp8Sm120SplitK2Geometry(std::size_t k_size,
                                   bool measure_performance) {
   constexpr std::size_t rows = 2816U;
@@ -1670,9 +1837,148 @@ void TestFp8Sm120CompactLocalQkv(bool measure_performance) {
   CUDA_TEST_CHECK(legacy_ms > 0.0F);
 }
 
+void CheckFp8Sm120SplitK2FixedT3Geometry(
+    std::size_t contracting, bool measure_performance) {
+  constexpr std::size_t tokens = 3U;
+  constexpr std::size_t rows = 2816U;
+  std::vector<std::uint8_t> activation(tokens * contracting);
+  std::vector<float> activation_scales = {0.25F, 0.375F, 0.625F};
+  std::vector<std::uint8_t> weight(rows * contracting);
+  std::vector<std::uint16_t> weight_scales(rows);
+  const auto next_finite_fp8 = [](std::uint32_t& state) {
+    state = state * 1664525U + 1013904223U;
+    const std::uint8_t magnitude =
+        static_cast<std::uint8_t>((state >> 24U) % 0x7FU);
+    const std::uint8_t sign =
+        static_cast<std::uint8_t>((state >> 16U) & 0x80U);
+    return static_cast<std::uint8_t>(magnitude | sign);
+  };
+  std::uint32_t state =
+      contracting == 4096U ? 0xF17E3A41U : 0xF17E3A82U;
+  for (std::uint8_t& value : activation) value = next_finite_fp8(state);
+  for (std::uint8_t& value : weight) value = next_finite_fp8(state);
+  constexpr std::array<std::uint16_t, 4> scale_bits = {
+      0x3E00U, 0x3E80U, 0x3F00U, 0x3F80U};
+  for (std::size_t row = 0U; row < rows; ++row) {
+    weight_scales[row] = scale_bits[(row * 3U + contracting / 4096U) %
+                                    scale_bits.size()];
+  }
+
+  DeviceBuffer<std::uint8_t> device_activation(activation.size());
+  DeviceBuffer<float> device_activation_scales(activation_scales.size());
+  DeviceBuffer<std::uint8_t> device_weight(weight.size());
+  DeviceBuffer<std::uint16_t> device_weight_scales(weight_scales.size());
+  DeviceBuffer<float> device_legacy(tokens * rows);
+  DeviceBuffer<float> device_fixed(tokens * rows);
+  DeviceBuffer<float> device_repeat(tokens * rows);
+  if (device_activation.get() == nullptr ||
+      device_activation_scales.get() == nullptr ||
+      device_weight.get() == nullptr || device_weight_scales.get() == nullptr ||
+      device_legacy.get() == nullptr || device_fixed.get() == nullptr ||
+      device_repeat.get() == nullptr) {
+    return;
+  }
+  if (!CudaOk(cudaMemcpy(device_activation.get(), activation.data(),
+                         device_activation.bytes(), cudaMemcpyHostToDevice),
+              "copy split-K2 fixed-T3 activation") ||
+      !CudaOk(cudaMemcpy(device_activation_scales.get(),
+                         activation_scales.data(),
+                         device_activation_scales.bytes(),
+                         cudaMemcpyHostToDevice),
+              "copy split-K2 fixed-T3 activation scales") ||
+      !CudaOk(cudaMemcpy(device_weight.get(), weight.data(),
+                         device_weight.bytes(), cudaMemcpyHostToDevice),
+              "copy split-K2 fixed-T3 weight") ||
+      !CudaOk(cudaMemcpy(device_weight_scales.get(), weight_scales.data(),
+                         device_weight_scales.bytes(), cudaMemcpyHostToDevice),
+              "copy split-K2 fixed-T3 weight scales")) {
+    return;
+  }
+
+  const auto legacy_launch = [&] {
+    return gem16::internal::LaunchFp8Sm120DirectProjectionBatchLegacyForTest(
+        device_activation.get(), device_activation_scales.get(),
+        device_weight.get(), device_weight_scales.get(), device_legacy.get(),
+        tokens, rows, contracting, nullptr);
+  };
+  const auto fixed_launch = [&] {
+    return gem16::internal::LaunchFp8Sm120DirectProjectionBatch(
+        device_activation.get(), device_activation_scales.get(),
+        device_weight.get(), device_weight_scales.get(), device_fixed.get(),
+        tokens, rows, contracting, nullptr);
+  };
+  const auto repeat_launch = [&] {
+    return gem16::internal::LaunchFp8Sm120DirectProjectionBatch(
+        device_activation.get(), device_activation_scales.get(),
+        device_weight.get(), device_weight_scales.get(), device_repeat.get(),
+        tokens, rows, contracting, nullptr);
+  };
+  const auto legacy_status = legacy_launch();
+  const auto fixed_status = fixed_launch();
+  const auto repeat_status = repeat_launch();
+  CUDA_TEST_CHECK(legacy_status.ok());
+  CUDA_TEST_CHECK(fixed_status.ok());
+  CUDA_TEST_CHECK(repeat_status.ok());
+  if (!legacy_status.ok() || !fixed_status.ok() || !repeat_status.ok() ||
+      !CudaOk(cudaDeviceSynchronize(),
+              "split-K2 fixed-T3 synchronize")) {
+    return;
+  }
+  std::vector<float> legacy(tokens * rows);
+  std::vector<float> fixed(tokens * rows);
+  std::vector<float> repeat(tokens * rows);
+  if (!CudaOk(cudaMemcpy(legacy.data(), device_legacy.get(),
+                         device_legacy.bytes(), cudaMemcpyDeviceToHost),
+              "copy split-K2 legacy fixed-T3 output") ||
+      !CudaOk(cudaMemcpy(fixed.data(), device_fixed.get(),
+                         device_fixed.bytes(), cudaMemcpyDeviceToHost),
+              "copy split-K2 fixed-T3 output") ||
+      !CudaOk(cudaMemcpy(repeat.data(), device_repeat.get(),
+                         device_repeat.bytes(), cudaMemcpyDeviceToHost),
+              "copy split-K2 repeat fixed-T3 output")) {
+    return;
+  }
+  std::size_t legacy_mismatches = 0U;
+  std::size_t repeat_mismatches = 0U;
+  for (std::size_t index = 0U; index < fixed.size(); ++index) {
+    legacy_mismatches +=
+        std::bit_cast<std::uint32_t>(fixed[index]) !=
+                std::bit_cast<std::uint32_t>(legacy[index])
+            ? 1U
+            : 0U;
+    repeat_mismatches +=
+        std::bit_cast<std::uint32_t>(fixed[index]) !=
+                std::bit_cast<std::uint32_t>(repeat[index])
+            ? 1U
+            : 0U;
+  }
+  CUDA_TEST_CHECK(legacy_mismatches == 0U);
+  CUDA_TEST_CHECK(repeat_mismatches == 0U);
+  std::cout << "SM120 FP8 split-K2 fixed-T3 " << rows << 'x'
+            << contracting << ": exact_mismatches=" << legacy_mismatches
+            << '/' << fixed.size() << " repeat_mismatches="
+            << repeat_mismatches << '/' << fixed.size();
+  if (!measure_performance) {
+    std::cout << '\n';
+    return;
+  }
+  const float fixed_first_ms = MeasureFp8Projection(fixed_launch);
+  const float legacy_second_ms = MeasureFp8Projection(legacy_launch);
+  const float legacy_first_ms = MeasureFp8Projection(legacy_launch);
+  const float fixed_second_ms = MeasureFp8Projection(fixed_launch);
+  const float fixed_ms = (fixed_first_ms + fixed_second_ms) * 0.5F;
+  const float legacy_ms = (legacy_first_ms + legacy_second_ms) * 0.5F;
+  std::cout << " fixed_ms=" << fixed_ms << " legacy_ms=" << legacy_ms
+            << " ratio=" << fixed_ms / legacy_ms << '\n';
+  CUDA_TEST_CHECK(fixed_ms > 0.0F);
+  CUDA_TEST_CHECK(legacy_ms > 0.0F);
+}
+
 void TestFp8Sm120SplitK2Projection(bool measure_performance) {
   CheckFp8Sm120SplitK2Geometry(4096U, measure_performance);
   CheckFp8Sm120SplitK2Geometry(8192U, measure_performance);
+  CheckFp8Sm120SplitK2FixedT3Geometry(4096U, measure_performance);
+  CheckFp8Sm120SplitK2FixedT3Geometry(8192U, measure_performance);
   TestFp8Sm120CompactLocalQkv(measure_performance);
 }
 
@@ -4988,6 +5294,25 @@ int main(int argc, char** argv) {
       return 1;
     }
     std::cout << "FP8 split-K2 CUDA memcheck tests passed\n";
+    return 0;
+  }
+  if (argc == 2 && std::string_view(argv[1]) == "nvfp4-fixed-t3") {
+    TestNvfp4FixedT3Head(true);
+    if (failures != 0) {
+      std::cerr << failures << " CUDA test assertion(s) failed\n";
+      return 1;
+    }
+    std::cout << "NVFP4 fixed-T3 CUDA tests passed\n";
+    return 0;
+  }
+  if (argc == 2 &&
+      std::string_view(argv[1]) == "nvfp4-fixed-t3-memcheck") {
+    TestNvfp4FixedT3Head(false);
+    if (failures != 0) {
+      std::cerr << failures << " CUDA test assertion(s) failed\n";
+      return 1;
+    }
+    std::cout << "NVFP4 fixed-T3 CUDA memcheck tests passed\n";
     return 0;
   }
   if (argc == 2 && std::string_view(argv[1]) == "mtp-control") {

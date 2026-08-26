@@ -360,7 +360,7 @@ Status LaunchGemma4Moe26BAttentionSm120PrefillLayer(
     const Gemma4Moe26BAttentionReferenceWeights& w,
     const Gemma4Moe26BKvCacheView& cache,
     const Gemma4Moe26BAttentionReferenceWorkspace& x, float epsilon,
-    cudaStream_t stream) {
+    cudaStream_t stream, bool rotary_prepared) {
   constexpr std::uint64_t kMaximumChunkTokens = 1024U;
   constexpr std::uint64_t kMaximumRotaryPairs = 256U;
   const bool sliding =
@@ -442,11 +442,13 @@ Status LaunchGemma4Moe26BAttentionSm120PrefillLayer(
 
   const std::uint64_t rotating_pairs = static_cast<std::uint64_t>(
       t.rotary_factor * static_cast<double>(t.head_dimension / 2U));
-  status = LaunchRotaryEmbeddingTableBatch(
-      x.rotary_cosine, x.rotary_sine, tokens, rotating_pairs,
-      t.head_dimension, start_position, t.rope_theta, t.rope_scaling_factor,
-      stream);
-  if (!status.ok()) return status;
+  if (!rotary_prepared) {
+    status = LaunchRotaryEmbeddingTableBatch(
+        x.rotary_cosine, x.rotary_sine, tokens, rotating_pairs,
+        t.head_dimension, start_position, t.rope_theta,
+        t.rope_scaling_factor, stream);
+    if (!status.ok()) return status;
+  }
   status = LaunchProjectionRmsNormRotaryBf16BatchInput(
       query_bf16, w.query_norm_bf16, x.query_normalized, key_bf16,
       w.key_norm_bf16, x.key_normalized, x.rotary_cosine, x.rotary_sine,

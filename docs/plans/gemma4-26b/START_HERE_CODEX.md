@@ -1,6 +1,6 @@
 # Start here — current coding-agent task
 
-Status: M00–M17 and M20–M23 accepted; M25 is in progress and its exact greedy D2 path reaches 164.763 token/s after shared fixed-row attention. Full M19 is owner-deferred; M18 remains conditional.
+Status: M00–M17 and M20–M23 accepted; the owner-frozen M25 development checkpoint reaches 202.505 token/s exact-greedy D2 and 6,907.684 prompt token/s. Further performance work is paused pending review; selectable server/UI live chat is the active product slice. Full M19 is owner-deferred; M18 remains conditional.
 Plan revision: Fast Track R4.
 
 ## Read now
@@ -30,6 +30,12 @@ The lead agent may assign disjoint sub-agents for:
 - M22 CLI/server product integration (accepted; evidence reconciliation only);
 - M25 phase A assistant compatibility and memory modeling;
 - independent evidence reconciliation.
+
+The 2026-08-26 owner decision freezes the current performance working tree before product work. Commit and push the
+exact checkpoint, its generated package metadata and host-CI fixture first. Do not mix server/UI changes into that
+freeze commit. Afterward, connect the already accepted 26B M22 server runtime and the current M25-capable engine to
+the selectable Studio model catalog and exercise a real text-only streaming chat. Preserve the 12B default and its
+audio/vision behavior; 26B remains text-only and experimental.
 
 Use [`PARALLEL_WORKSTREAMS.md`](PARALLEL_WORKSTREAMS.md). M18 runs only after a recorded trigger. The owner-approved
 remaining sequence is M25 and the deferred M19 release gate. The current external reference is llama.cpp build
@@ -112,6 +118,14 @@ geometry and production diagnostic-write cleanup are in
 The exact 16K+64 ordinary path passed the 6,000 prompt, 150 decode and 6,500 prompt-stretch gates without
 MTP/speculative decode, cache/precision/semantic substitutions or timing-boundary changes. Compact acceptance is in
 `artifacts/m20/acceptance.json`; matching long-context acceptance is in `artifacts/m21/acceptance.json`.
+
+The later owner-frozen development checkpoint retains exact staged weight reuse in Prefill and D2. Its canonical
+single-screen Prefill is 6,907.684 token/s with the unchanged `c750d0...` output, and its three-run fixed-D2 median is
+202.505 token/s with all 1,135 outputs exactly matching the Target. Compact records are
+`artifacts/m20/optimization-prefill-token-reuse-rope.json` and
+`artifacts/m25/optimization-weight-stationary-d2.json`. These bounded results do not replace formal M20 evidence or
+accept M25; `artifacts/m25/performance-freeze.json` binds them to the host-CI fixture and real product checks as the
+rollback checkpoint for the active product-integration slice.
 
 M22 product behavior and protected 12B regressions are accepted at
 `f0aa302aa0246d44e1c8477dbbbb67fbbe2d2037`; see `artifacts/m22/acceptance.json`. M23 revalidated the updated

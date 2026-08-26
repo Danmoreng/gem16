@@ -10,6 +10,8 @@ ROOT = Path(__file__).resolve().parents[2]
 CORPUS = ROOT / "benchmarks/corpora/gemma4_26b"
 GOLDENS = ROOT / "benchmarks/goldens/gemma4_26b"
 MODELS = ROOT / "models"
+M20 = ROOT / "artifacts/m20"
+M25 = ROOT / "artifacts/m25"
 
 
 def sha256(path: Path) -> str:
@@ -21,6 +23,67 @@ def sha256(path: Path) -> str:
 
 
 class Gemma426BEvidenceTest(unittest.TestCase):
+    def test_frozen_performance_checkpoint_is_exact_and_bounded(self) -> None:
+        freeze = json.loads(
+            (M25 / "performance-freeze.json").read_text(encoding="utf-8")
+        )
+        prefill = json.loads(
+            (M20 / "optimization-prefill-token-reuse-rope.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        mtp = json.loads(
+            (M25 / "optimization-weight-stationary-d2.json").read_text(
+                encoding="utf-8"
+            )
+        )
+
+        self.assertEqual(freeze["status"], "owner_frozen_performance_checkpoint")
+        self.assertFalse(freeze["performance_eligible"])
+        self.assertEqual(
+            freeze["results"]["prefill"]["compact_evidence_sha256"],
+            sha256(M20 / "optimization-prefill-token-reuse-rope.json"),
+        )
+        self.assertEqual(
+            freeze["results"]["mtp_d2"]["compact_evidence_sha256"],
+            sha256(M25 / "optimization-weight-stationary-d2.json"),
+        )
+        self.assertFalse(freeze["results"]["prefill"]["target_reached"])
+        self.assertTrue(freeze["results"]["mtp_d2"]["target_reached"])
+        self.assertTrue(freeze["invariants"]["protected_12b_regression_pass"])
+        self.assertTrue(
+            freeze["owner_decision"]["further_performance_work_paused"]
+        )
+
+        self.assertEqual(prefill["status"], "exact_checkpoint_owner_paused_below_7000")
+        self.assertFalse(prefill["performance_eligible"])
+        self.assertEqual(prefill["scenario"]["prompt_tokens"], 16_384)
+        self.assertFalse(prefill["scenario"]["timing_boundary_changed"])
+        self.assertEqual(
+            prefill["current_screen"]["output_token_sha256"],
+            "c750d0b33f8eb4a8103299875886e51ab144d874cafe8cea77b0cfd99d2aedaf",
+        )
+        self.assertTrue(prefill["current_screen"]["all_logits_finite"])
+        self.assertEqual(prefill["current_screen"]["fallback_count"], 0)
+        self.assertEqual(prefill["current_screen"]["recurring_allocation_count"], 0)
+        self.assertGreater(prefill["current_screen"]["prompt_tokens_per_second"], 6_900)
+        self.assertLess(prefill["current_screen"]["prompt_tokens_per_second"], 7_000)
+        self.assertEqual(prefill["profile"]["rotary_table_launches"], 32)
+        self.assertEqual(prefill["retained_mechanisms"][-1]["launches_before"], 480)
+        self.assertFalse(prefill["last_rejected_screen"]["retained"])
+
+        self.assertEqual(mtp["status"], "bounded_exact_d2_weight_stationary_200_pass")
+        self.assertFalse(mtp["performance_eligible"])
+        self.assertTrue(mtp["correctness"]["ordinary_target_identity"])
+        self.assertEqual(mtp["correctness"]["matching_output_token_ids"], 1_135)
+        self.assertEqual(mtp["correctness"]["non_finite_steps"], 0)
+        self.assertGreaterEqual(
+            mtp["performance"]["three_run_characterization"]
+            ["median_d2_post_first_tokens_per_second"],
+            200.0,
+        )
+        self.assertTrue(mtp["resources"]["minimum_32k_gate_pass"])
+
     def test_frozen_corpus_files_match_lock_and_are_disjoint(self) -> None:
         lock = json.loads((CORPUS / "splits.lock.json").read_text(encoding="utf-8"))
         self.assertEqual(lock["status"], "frozen")

@@ -21,6 +21,9 @@ constexpr std::uint64_t kTokensPerMma = 16;
 constexpr std::uint64_t kPrefillTokenTilesPerWarp = 8;
 constexpr std::uint64_t kFusedGateUpTokenTilesPerWarp = 2;
 constexpr std::uint64_t kGroupedRowTilesPerWarp = 2;
+constexpr std::uint64_t kGroupedTokenTiles = 2;
+constexpr std::uint64_t kGroupedAssignmentsPerTile =
+    kTokensPerMma * kGroupedTokenTiles;
 constexpr unsigned kWarpSize = 32;
 constexpr unsigned kWarpsPerBlock = 4;
 constexpr unsigned kThreadsPerBlock = kWarpSize * kWarpsPerBlock;
@@ -310,6 +313,98 @@ __global__ void Sm120DirectProjectionKernel(const std::uint8_t* packed_activatio
   (void)experts;
   (void)output;
   (void)tokens;
+  (void)rows;
+  (void)contracting_elements;
+  (void)output_divisor;
+#endif
+}
+
+// Fixed T=3 verifier projection. Unlike the generic exact-batch launcher,
+// blockIdx.y is not a token dimension: every warp keeps three independent
+// accumulator sets while reusing each NVFP4 weight and weight-scale fragment
+// for all verifier rows. Each row retains the ordinary K64 traversal, MMA
+// operand mapping and BF16 epilogue, so the optimization changes only weight
+// traffic.
+__launch_bounds__(kThreadsPerBlock, 1) __global__
+void Sm120DirectProjectionFixedT3Kernel(
+    const std::uint8_t* packed_activation_e2m1,
+    const std::uint8_t* activation_scales_e4m3fn,
+    const std::uint8_t* packed_weight_e2m1,
+    const std::uint8_t* weight_scales_e4m3fn, float* output,
+    std::uint64_t rows, std::uint64_t contracting_elements,
+    float output_divisor) {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1200
+  constexpr unsigned kTokens = 3U;
+  const unsigned warp = threadIdx.x / kWarpSize;
+  const unsigned lane = threadIdx.x & (kWarpSize - 1U);
+  const std::uint64_t global_warp =
+      static_cast<std::uint64_t>(blockIdx.x) * kWarpsPerBlock + warp;
+  const std::uint64_t row_tiles = rows / kRowsPerWarp;
+  if (global_warp >= row_tiles) return;
+
+  const unsigned row_in_tile = lane >> 2U;
+  const unsigned k_quarter = lane & 3U;
+  const std::uint64_t first_row = global_warp * kRowsPerWarp;
+  const std::uint64_t k_blocks =
+      contracting_elements / kElementsPerKBlock;
+  const std::uint64_t packed_token_bytes = contracting_elements / 2U;
+  const std::uint64_t scale_token_bytes = contracting_elements / 16U;
+  const std::uint64_t weight_tile_offset =
+      first_row * k_blocks * 32U;
+  const std::uint64_t scale_tile_offset = first_row * k_blocks * 4U;
+
+  float accumulators[kTokens][4] = {};
+  for (std::uint64_t k_block = 0U; k_block < k_blocks; ++k_block) {
+    const std::uint64_t activation_byte =
+        k_block * 32U + static_cast<std::uint64_t>(k_quarter) * 4U;
+    const std::uint64_t weight_byte =
+        weight_tile_offset +
+        (k_block * kRowsPerWarp + row_in_tile) * 32U +
+        static_cast<std::uint64_t>(k_quarter) * 4U;
+    const std::uint32_t b_first =
+        LoadU32(packed_weight_e2m1 + weight_byte);
+    const std::uint32_t b_second =
+        LoadU32(packed_weight_e2m1 + weight_byte + 16U);
+    const std::uint32_t scale_b =
+        LoadU32(weight_scales_e4m3fn + scale_tile_offset +
+                (k_block * kRowsPerWarp + row_in_tile) * 4U);
+#pragma unroll
+    for (unsigned token = 0U; token < kTokens; ++token) {
+      const std::uint8_t* activation =
+          packed_activation_e2m1 + token * packed_token_bytes;
+      const std::uint8_t* activation_scales =
+          activation_scales_e4m3fn + token * scale_token_bytes;
+      const std::uint32_t a_first =
+          LoadU32(activation + activation_byte);
+      const std::uint32_t a_second =
+          LoadU32(activation + activation_byte + 16U);
+      const std::uint32_t scale_a =
+          LoadU32(activation_scales + k_block * 4U);
+      MmaNvfp4(accumulators[token][0], accumulators[token][1],
+                accumulators[token][2], accumulators[token][3], a_first,
+                a_first, a_second, a_second, b_first, b_second, scale_a,
+                scale_b);
+    }
+  }
+
+  if (lane < 4U) {
+    const std::uint64_t output_row = first_row + lane * 2U;
+#pragma unroll
+    for (unsigned token = 0U; token < kTokens; ++token) {
+      output[static_cast<std::uint64_t>(token) * rows + output_row] =
+          static_cast<float>(
+              __float2bfloat16_rn(accumulators[token][0] / output_divisor));
+      output[static_cast<std::uint64_t>(token) * rows + output_row + 1U] =
+          static_cast<float>(
+              __float2bfloat16_rn(accumulators[token][1] / output_divisor));
+    }
+  }
+#else
+  (void)packed_activation_e2m1;
+  (void)activation_scales_e4m3fn;
+  (void)packed_weight_e2m1;
+  (void)weight_scales_e4m3fn;
+  (void)output;
   (void)rows;
   (void)contracting_elements;
   (void)output_divisor;
@@ -956,9 +1051,9 @@ __global__ void Sm120MatrixProjectionKernel(
 }
 
 // Expert-major prefill tile. Stable routing provides compact descriptors for
-// up to 16 assignments of one expert. Filling the complete MMA M dimension
-// lets those assignments share every W13/W2 weight fragment while preserving
-// each assignment's original K64 accumulation and BF16 epilogue.
+// up to 32 assignments of one expert. Each pair of complete MMA M tiles shares
+// every W13/W2 weight fragment while preserving every assignment's original
+// K64 accumulation order and BF16 epilogue.
 template <typename Output>
 __device__ __forceinline__ void StorePhysicalOrContainerBf16(
     Output* output, std::uint64_t index, __nv_bfloat16 value) {
@@ -1052,16 +1147,18 @@ __global__ void Sm120GroupedExpertMatrixKernel(
   const std::uint64_t first_weight_row = expert_row_base +
                                          first_row_tile * kRowsPerWarp;
 
-  float accumulator[kGroupedRowTilesPerWarp][4] = {};
-  float up_accumulator[kGroupedRowTilesPerWarp][4] = {};
-  const std::uint32_t grouped_low = grouped_base + group;
-  const std::uint32_t grouped_high = grouped_low + 8U;
+  float accumulator[kGroupedTokenTiles][kGroupedRowTilesPerWarp][4] = {};
+  float up_accumulator[kGroupedTokenTiles][kGroupedRowTilesPerWarp][4] = {};
 
-  __shared__ alignas(16) uint4 staged_activation[2][16][2];
-  __shared__ std::uint32_t staged_activation_scales[2][16];
-  __shared__ std::uint32_t staged_activation_rows[16];
-  __shared__ std::uint32_t staged_activation_valid[16];
-  if (threadIdx.x < 16U) {
+  __shared__ alignas(16)
+      uint4 staged_activation[2][kGroupedTokenTiles][16][2];
+  __shared__ std::uint32_t
+      staged_activation_scales[2][kGroupedTokenTiles][16];
+  __shared__ std::uint32_t
+      staged_activation_rows[kGroupedAssignmentsPerTile];
+  __shared__ std::uint32_t
+      staged_activation_valid[kGroupedAssignmentsPerTile];
+  if (threadIdx.x < kGroupedAssignmentsPerTile) {
     const std::uint32_t grouped = grouped_base + threadIdx.x;
     std::uint32_t activation_row = grouped;
     bool valid = grouped < grouped_end;
@@ -1081,11 +1178,17 @@ __global__ void Sm120GroupedExpertMatrixKernel(
   }
   __syncthreads();
 
-  StageGroupedActivationAsync(
-      staged_activation[0], staged_activation_scales[0],
-      staged_activation_rows, staged_activation_valid,
-      packed_activation_e2m1, activation_scales_e4m3fn,
-      packed_row_bytes, scale_row_bytes, 0U);
+#pragma unroll
+  for (std::uint64_t token_tile = 0U;
+       token_tile < kGroupedTokenTiles; ++token_tile) {
+    StageGroupedActivationAsync(
+        staged_activation[0][token_tile],
+        staged_activation_scales[0][token_tile],
+        staged_activation_rows + token_tile * kTokensPerMma,
+        staged_activation_valid + token_tile * kTokensPerMma,
+        packed_activation_e2m1, activation_scales_e4m3fn,
+        packed_row_bytes, scale_row_bytes, 0U);
+  }
   CommitAsyncCopies();
   WaitForAsyncCopies();
   __syncthreads();
@@ -1094,26 +1197,19 @@ __global__ void Sm120GroupedExpertMatrixKernel(
     const unsigned stage = static_cast<unsigned>(k_block & 1U);
     if (k_block + 1U < k_blocks) {
       const unsigned next_stage = stage ^ 1U;
-      StageGroupedActivationAsync(
-          staged_activation[next_stage],
-          staged_activation_scales[next_stage], staged_activation_rows,
-          staged_activation_valid, packed_activation_e2m1,
-          activation_scales_e4m3fn, packed_row_bytes, scale_row_bytes,
-          k_block + 1U);
+#pragma unroll
+      for (std::uint64_t token_tile = 0U;
+           token_tile < kGroupedTokenTiles; ++token_tile) {
+        StageGroupedActivationAsync(
+            staged_activation[next_stage][token_tile],
+            staged_activation_scales[next_stage][token_tile],
+            staged_activation_rows + token_tile * kTokensPerMma,
+            staged_activation_valid + token_tile * kTokensPerMma,
+            packed_activation_e2m1, activation_scales_e4m3fn,
+            packed_row_bytes, scale_row_bytes, k_block + 1U);
+      }
       CommitAsyncCopies();
     }
-
-    const auto* low_words = reinterpret_cast<const std::uint32_t*>(
-        staged_activation[stage][group]);
-    const auto* high_words = reinterpret_cast<const std::uint32_t*>(
-        staged_activation[stage][group + 8U]);
-    const std::uint32_t a0 = low_words[thread_in_group];
-    const std::uint32_t a1 = high_words[thread_in_group];
-    const std::uint32_t a2 = low_words[thread_in_group + 4U];
-    const std::uint32_t a3 = high_words[thread_in_group + 4U];
-    const std::uint32_t scale_a = thread_in_group < 2U
-        ? staged_activation_scales[stage][group + thread_in_group * 8U]
-        : 0U;
 
 #pragma unroll
     for (std::uint64_t row_tile = 0U;
@@ -1133,9 +1229,6 @@ __global__ void Sm120GroupedExpertMatrixKernel(
           LoadU32(packed_weight_e2m1 + weight_offset + 16U);
       const std::uint32_t scale_b =
           LoadU32(weight_scales_e4m3fn + scale_offset);
-      MmaNvfp4(accumulator[row_tile][0], accumulator[row_tile][1],
-                accumulator[row_tile][2], accumulator[row_tile][3], a0, a1,
-                a2, a3, b0, b1, scale_a, scale_b);
       if constexpr (kFusedGateUp) {
         const std::uint64_t up_weight_offset =
             (tile_first_weight_row + rows) * k_blocks * 32U +
@@ -1150,11 +1243,54 @@ __global__ void Sm120GroupedExpertMatrixKernel(
             LoadU32(packed_weight_e2m1 + up_weight_offset + 16U);
         const std::uint32_t up_scale_b =
             LoadU32(weight_scales_e4m3fn + up_scale_offset);
-        MmaNvfp4(up_accumulator[row_tile][0],
-                  up_accumulator[row_tile][1],
-                  up_accumulator[row_tile][2],
-                  up_accumulator[row_tile][3], a0, a1, a2, a3, up_b0,
-                  up_b1, scale_a, up_scale_b);
+#pragma unroll
+        for (std::uint64_t token_tile = 0U;
+             token_tile < kGroupedTokenTiles; ++token_tile) {
+          const auto* low_words = reinterpret_cast<const std::uint32_t*>(
+              staged_activation[stage][token_tile][group]);
+          const auto* high_words = reinterpret_cast<const std::uint32_t*>(
+              staged_activation[stage][token_tile][group + 8U]);
+          const std::uint32_t a0 = low_words[thread_in_group];
+          const std::uint32_t a1 = high_words[thread_in_group];
+          const std::uint32_t a2 = low_words[thread_in_group + 4U];
+          const std::uint32_t a3 = high_words[thread_in_group + 4U];
+          const std::uint32_t scale_a = thread_in_group < 2U
+              ? staged_activation_scales[stage][token_tile]
+                                                [group + thread_in_group * 8U]
+              : 0U;
+          MmaNvfp4(accumulator[token_tile][row_tile][0],
+                    accumulator[token_tile][row_tile][1],
+                    accumulator[token_tile][row_tile][2],
+                    accumulator[token_tile][row_tile][3], a0, a1, a2, a3,
+                    b0, b1, scale_a, scale_b);
+          MmaNvfp4(up_accumulator[token_tile][row_tile][0],
+                    up_accumulator[token_tile][row_tile][1],
+                    up_accumulator[token_tile][row_tile][2],
+                    up_accumulator[token_tile][row_tile][3], a0, a1, a2, a3,
+                    up_b0, up_b1, scale_a, up_scale_b);
+        }
+      } else {
+#pragma unroll
+        for (std::uint64_t token_tile = 0U;
+             token_tile < kGroupedTokenTiles; ++token_tile) {
+          const auto* low_words = reinterpret_cast<const std::uint32_t*>(
+              staged_activation[stage][token_tile][group]);
+          const auto* high_words = reinterpret_cast<const std::uint32_t*>(
+              staged_activation[stage][token_tile][group + 8U]);
+          const std::uint32_t a0 = low_words[thread_in_group];
+          const std::uint32_t a1 = high_words[thread_in_group];
+          const std::uint32_t a2 = low_words[thread_in_group + 4U];
+          const std::uint32_t a3 = high_words[thread_in_group + 4U];
+          const std::uint32_t scale_a = thread_in_group < 2U
+              ? staged_activation_scales[stage][token_tile]
+                                                [group + thread_in_group * 8U]
+              : 0U;
+          MmaNvfp4(accumulator[token_tile][row_tile][0],
+                    accumulator[token_tile][row_tile][1],
+                    accumulator[token_tile][row_tile][2],
+                    accumulator[token_tile][row_tile][3], a0, a1, a2, a3,
+                    b0, b1, scale_a, scale_b);
+        }
       }
     }
     if (k_block + 1U < k_blocks) {
@@ -1164,40 +1300,47 @@ __global__ void Sm120GroupedExpertMatrixKernel(
   }
 
 #pragma unroll
-  for (std::uint64_t row_tile = 0U;
-       row_tile < kGroupedRowTilesPerWarp; ++row_tile) {
-    const std::uint64_t output_column =
-        (first_row_tile + row_tile) * kRowsPerWarp + thread_in_group * 2U;
+  for (std::uint64_t token_tile = 0U;
+       token_tile < kGroupedTokenTiles; ++token_tile) {
+    const std::uint32_t grouped_low =
+        grouped_base + token_tile * kTokensPerMma + group;
+    const std::uint32_t grouped_high = grouped_low + 8U;
 #pragma unroll
-    for (unsigned pair = 0; pair < 4U; ++pair) {
-      const bool high = (pair & 2U) != 0U;
-      const std::uint32_t grouped = high ? grouped_high : grouped_low;
-      const std::uint64_t column = output_column + (pair & 1U);
-      if (grouped >= grouped_end || column >= rows) continue;
-      std::uint32_t output_row = grouped;
-      if constexpr (!kFusedGateUp) {
-        output_row = permutation[grouped];
-        if (output_row >= assignment_count) continue;
-      }
-      if constexpr (kFusedGateUp) {
-        const float gate = static_cast<float>(__float2bfloat16_rn(
-            accumulator[row_tile][pair] / output_divisor));
-        const float up = static_cast<float>(__float2bfloat16_rn(
-            up_accumulator[row_tile][pair] / output_divisor));
-        const float inner =
-            kSqrtTwoOverPi * (gate + kGeluCubic * gate * gate * gate);
-        const float gelu = static_cast<float>(
-            __float2bfloat16_rn(0.5F * gate * (1.0F + tanhf(inner))));
-        StorePhysicalOrContainerBf16(
-            output,
-            static_cast<std::uint64_t>(output_row) * rows + column,
-            __float2bfloat16_rn(gelu * up));
-      } else {
-        StorePhysicalOrContainerBf16(
-            output,
-            static_cast<std::uint64_t>(output_row) * rows + column,
-            __float2bfloat16_rn(accumulator[row_tile][pair] /
-                                output_divisor));
+    for (std::uint64_t row_tile = 0U;
+         row_tile < kGroupedRowTilesPerWarp; ++row_tile) {
+      const std::uint64_t output_column =
+          (first_row_tile + row_tile) * kRowsPerWarp + thread_in_group * 2U;
+#pragma unroll
+      for (unsigned pair = 0; pair < 4U; ++pair) {
+        const bool high = (pair & 2U) != 0U;
+        const std::uint32_t grouped = high ? grouped_high : grouped_low;
+        const std::uint64_t column = output_column + (pair & 1U);
+        if (grouped >= grouped_end || column >= rows) continue;
+        std::uint32_t output_row = grouped;
+        if constexpr (!kFusedGateUp) {
+          output_row = permutation[grouped];
+          if (output_row >= assignment_count) continue;
+        }
+        if constexpr (kFusedGateUp) {
+          const float gate = static_cast<float>(__float2bfloat16_rn(
+              accumulator[token_tile][row_tile][pair] / output_divisor));
+          const float up = static_cast<float>(__float2bfloat16_rn(
+              up_accumulator[token_tile][row_tile][pair] / output_divisor));
+          const float inner =
+              kSqrtTwoOverPi * (gate + kGeluCubic * gate * gate * gate);
+          const float gelu = static_cast<float>(
+              __float2bfloat16_rn(0.5F * gate * (1.0F + tanhf(inner))));
+          StorePhysicalOrContainerBf16(
+              output,
+              static_cast<std::uint64_t>(output_row) * rows + column,
+              __float2bfloat16_rn(gelu * up));
+        } else {
+          StorePhysicalOrContainerBf16(
+              output,
+              static_cast<std::uint64_t>(output_row) * rows + column,
+              __float2bfloat16_rn(
+                  accumulator[token_tile][row_tile][pair] / output_divisor));
+        }
       }
     }
   }
@@ -1332,6 +1475,54 @@ Status LaunchNvfp4Sm120DirectProjectionBf16FloatExactBatch(
   if (blocks > static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
     return Invalid("exact-batch SM120 NVFP4 projection grid exceeds CUDA limits");
   }
+  if (tokens == 3U) {
+    Sm120DirectProjectionFixedT3Kernel<<<
+        static_cast<unsigned>(blocks), kThreadsPerBlock, 0, stream>>>(
+        packed_activation_e2m1, activation_scales_e4m3fn,
+        packed_weight_e2m1, weight_scales_e4m3fn, output, rows,
+        contracting_elements, divisor);
+  } else {
+    Sm120DirectProjectionKernel<true, 0><<<
+        dim3(static_cast<unsigned>(blocks), static_cast<unsigned>(tokens)),
+        kThreadsPerBlock, 0, stream>>>(
+        packed_activation_e2m1, activation_scales_e4m3fn,
+        packed_weight_e2m1, weight_scales_e4m3fn, nullptr, nullptr, nullptr,
+        0U, 0U, output, tokens, rows, contracting_elements, divisor);
+  }
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("launch exact-batch SM120 NVFP4 projection", error);
+}
+
+Status LaunchNvfp4Sm120DirectProjectionBf16FloatExactBatchLegacyForTest(
+    const std::uint8_t* packed_activation_e2m1,
+    const std::uint8_t* activation_scales_e4m3fn,
+    const std::uint8_t* packed_weight_e2m1,
+    const std::uint8_t* weight_scales_e4m3fn, float* output,
+    std::uint64_t tokens, std::uint64_t rows,
+    std::uint64_t contracting_elements, float activation_global_divisor,
+    float weight_global_divisor, cudaStream_t stream) {
+  if (packed_activation_e2m1 == nullptr ||
+      activation_scales_e4m3fn == nullptr || packed_weight_e2m1 == nullptr ||
+      weight_scales_e4m3fn == nullptr || output == nullptr || tokens == 0U ||
+      tokens > 65535U || rows == 0U || rows % kRowsPerWarp != 0U ||
+      contracting_elements == 0U ||
+      contracting_elements % kElementsPerKBlock != 0U ||
+      !PositiveFinite(activation_global_divisor) ||
+      !PositiveFinite(weight_global_divisor)) {
+    return Invalid("legacy exact-batch SM120 NVFP4 projection contract is invalid");
+  }
+  const float divisor = activation_global_divisor * weight_global_divisor;
+  if (!PositiveFinite(divisor)) {
+    return Invalid("legacy exact-batch SM120 NVFP4 divisor overflowed");
+  }
+  const std::uint64_t row_tiles = rows / kRowsPerWarp;
+  const std::uint64_t blocks =
+      (row_tiles + kWarpsPerBlock - 1U) / kWarpsPerBlock;
+  if (blocks > static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
+    return Invalid("legacy exact-batch SM120 NVFP4 grid exceeds CUDA limits");
+  }
   Sm120DirectProjectionKernel<true, 0><<<
       dim3(static_cast<unsigned>(blocks), static_cast<unsigned>(tokens)),
       kThreadsPerBlock, 0, stream>>>(
@@ -1341,7 +1532,8 @@ Status LaunchNvfp4Sm120DirectProjectionBf16FloatExactBatch(
   const cudaError_t error = cudaGetLastError();
   return error == cudaSuccess
              ? Status::Ok()
-             : CudaFailure("launch exact-batch SM120 NVFP4 projection", error);
+             : CudaFailure("launch legacy exact-batch SM120 NVFP4 projection",
+                           error);
 }
 
 Status LaunchNvfp4Sm120SelectedDirectProjectionBf16Float(
@@ -1527,7 +1719,9 @@ Status LaunchNvfp4Sm120GroupedExpertDown(
     return Invalid("grouped SM120 expert Down grid exceeds CUDA limits");
   }
   const std::uint64_t tile_grid =
-      (assignment_count + kTokensPerMma - 1U) / kTokensPerMma + experts;
+      (assignment_count + kGroupedAssignmentsPerTile - 1U) /
+          kGroupedAssignmentsPerTile +
+      experts;
   Sm120GroupedExpertMatrixKernel<false, float><<<
       dim3(static_cast<unsigned>(blocks), static_cast<unsigned>(tile_grid)),
       kThreadsPerBlock, 0, stream>>>(
@@ -1589,7 +1783,9 @@ Status LaunchNvfp4Sm120GroupedExpertDownBf16(
         "grouped physical-BF16 SM120 expert Down grid exceeds CUDA limits");
   }
   const std::uint64_t tile_grid =
-      (assignment_count + kTokensPerMma - 1U) / kTokensPerMma + experts;
+      (assignment_count + kGroupedAssignmentsPerTile - 1U) /
+          kGroupedAssignmentsPerTile +
+      experts;
   Sm120GroupedExpertMatrixKernel<false, std::uint16_t><<<
       dim3(static_cast<unsigned>(blocks), static_cast<unsigned>(tile_grid)),
       kThreadsPerBlock, 0, stream>>>(
@@ -2151,7 +2347,9 @@ Status LaunchNvfp4Sm120GroupedExpertFusedGateUp(
     return Invalid("grouped SM120 expert Gate/Up grid exceeds CUDA limits");
   }
   const std::uint64_t tile_grid =
-      (assignment_count + kTokensPerMma - 1U) / kTokensPerMma + experts;
+      (assignment_count + kGroupedAssignmentsPerTile - 1U) /
+          kGroupedAssignmentsPerTile +
+      experts;
   Sm120GroupedExpertMatrixKernel<true, float><<<
       dim3(static_cast<unsigned>(blocks), static_cast<unsigned>(tile_grid)),
       kThreadsPerBlock, 0, stream>>>(
@@ -2213,7 +2411,9 @@ Status LaunchNvfp4Sm120GroupedExpertFusedGateUpBf16(
         "grouped physical-BF16 SM120 expert Gate/Up grid exceeds CUDA limits");
   }
   const std::uint64_t tile_grid =
-      (assignment_count + kTokensPerMma - 1U) / kTokensPerMma + experts;
+      (assignment_count + kGroupedAssignmentsPerTile - 1U) /
+          kGroupedAssignmentsPerTile +
+      experts;
   Sm120GroupedExpertMatrixKernel<true, std::uint16_t><<<
       dim3(static_cast<unsigned>(blocks), static_cast<unsigned>(tile_grid)),
       kThreadsPerBlock, 0, stream>>>(

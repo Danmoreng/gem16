@@ -15,7 +15,9 @@ namespace gem16::internal {
 namespace {
 
 constexpr unsigned kThreads = 256U;
-constexpr unsigned kTensorTokens = 16U;
+constexpr unsigned kTensorTokenRows = 16U;
+constexpr unsigned kTensorTokenTiles = 2U;
+constexpr unsigned kTensorTokens = kTensorTokenRows * kTensorTokenTiles;
 constexpr unsigned kTensorExperts = 128U;
 constexpr unsigned kTensorKTile = 64U;
 constexpr unsigned kTensorWarps = 8U;
@@ -170,8 +172,6 @@ __global__ void TensorProjectionKernel(
   const unsigned b_row_in_matrix = lane & 7U;
   const unsigned b_contracting_offset = ((lane >> 3U) & 1U) << 3U;
   const unsigned input_base = SharedAddress(staged_input);
-  const unsigned input_lane_base =
-      input_base + a_row_offset * kTensorKTile * sizeof(std::uint16_t);
   const unsigned input_address_select = (a_matrix >> 1U) << 4U;
   const unsigned input_row_select = a_row_in_matrix << 4U;
   const unsigned weight_base =
@@ -182,7 +182,7 @@ __global__ void TensorProjectionKernel(
   const unsigned weight_address_select =
       (b_contracting_offset >> 3U) << 4U;
   const unsigned weight_row_select = b_row_in_matrix << 4U;
-  float accumulators[2][4] = {};
+  float accumulators[kTensorTokenTiles][2][4] = {};
   const std::uint64_t token_base =
       static_cast<std::uint64_t>(blockIdx.x) * kTensorTokens;
 
@@ -196,7 +196,9 @@ __global__ void TensorProjectionKernel(
       const float value = token < tokens
                               ? input[token * width + k_base + column]
                               : 0.0F;
-      staged_input[token_in_block][Swizzle(token_in_block, column)] =
+      staged_input[token_in_block]
+                  [Swizzle(token_in_block & (kTensorTokenRows - 1U),
+                           column)] =
           __bfloat16_as_ushort(__float2bfloat16_rn(value));
     }
     for (unsigned index = thread; index < kTensorExperts * kTensorKTile;
@@ -209,72 +211,71 @@ __global__ void TensorProjectionKernel(
     }
     __syncthreads();
 
-    unsigned input_fragments[2][4];
-    unsigned weight_fragments[2][2][2];
-    LoadMatrixX4(input_fragments[0][0], input_fragments[0][1],
-                 input_fragments[0][2], input_fragments[0][3],
-                 SwizzledAddress(input_lane_base, 0U, input_address_select,
-                                 input_row_select));
-    LoadMatrixX4(weight_fragments[0][0][0], weight_fragments[0][0][1],
-                 weight_fragments[0][1][0], weight_fragments[0][1][1],
-                 SwizzledAddress(weight_lane_base, 0U, weight_address_select,
-                                 weight_row_select));
 #pragma unroll
     for (unsigned step = 0U; step < kTensorKTile / 16U; ++step) {
-      const unsigned current = step & 1U;
-      const unsigned next = current ^ 1U;
-      if (step + 1U < kTensorKTile / 16U) {
-        const unsigned contracting_offset = (step + 1U) << 5U;
-        LoadMatrixX4(input_fragments[next][0], input_fragments[next][1],
-                     input_fragments[next][2], input_fragments[next][3],
+      const unsigned contracting_offset = step << 5U;
+      unsigned weight_fragments[2][2];
+      LoadMatrixX4(weight_fragments[0][0], weight_fragments[0][1],
+                   weight_fragments[1][0], weight_fragments[1][1],
+                   SwizzledAddress(weight_lane_base, contracting_offset,
+                                   weight_address_select,
+                                   weight_row_select));
+#pragma unroll
+      for (unsigned token_tile = 0U; token_tile < kTensorTokenTiles;
+           ++token_tile) {
+        const unsigned input_lane_base =
+            input_base +
+            (token_tile * kTensorTokenRows + a_row_offset) *
+                kTensorKTile * sizeof(std::uint16_t);
+        unsigned input_fragments[4];
+        LoadMatrixX4(input_fragments[0], input_fragments[1],
+                     input_fragments[2], input_fragments[3],
                      SwizzledAddress(input_lane_base, contracting_offset,
                                      input_address_select, input_row_select));
-        LoadMatrixX4(weight_fragments[next][0][0],
-                     weight_fragments[next][0][1],
-                     weight_fragments[next][1][0],
-                     weight_fragments[next][1][1],
-                     SwizzledAddress(weight_lane_base, contracting_offset,
-                                     weight_address_select,
-                                     weight_row_select));
-      }
 #pragma unroll
-      for (unsigned expert_tile = 0U; expert_tile < 2U; ++expert_tile) {
-        MmaBf16(accumulators[expert_tile][0],
-                accumulators[expert_tile][1],
-                accumulators[expert_tile][2],
-                accumulators[expert_tile][3], input_fragments[current][0],
-                input_fragments[current][1], input_fragments[current][2],
-                input_fragments[current][3],
-                weight_fragments[current][expert_tile][0],
-                weight_fragments[current][expert_tile][1]);
+        for (unsigned expert_tile = 0U; expert_tile < 2U; ++expert_tile) {
+          MmaBf16(accumulators[token_tile][expert_tile][0],
+                  accumulators[token_tile][expert_tile][1],
+                  accumulators[token_tile][expert_tile][2],
+                  accumulators[token_tile][expert_tile][3],
+                  input_fragments[0], input_fragments[1],
+                  input_fragments[2], input_fragments[3],
+                  weight_fragments[expert_tile][0],
+                  weight_fragments[expert_tile][1]);
+        }
       }
     }
     __syncthreads();
   }
 
-  const std::uint64_t token0 = token_base + group_lane;
-  const std::uint64_t token1 = token0 + 8U;
 #pragma unroll
-  for (unsigned expert_tile = 0U; expert_tile < 2U; ++expert_tile) {
-    const unsigned expert0 =
-        warp * 16U + expert_tile * 8U + lane_in_group * 2U;
-    const float raw0 = accumulators[expert_tile][0];
-    const float raw1 = accumulators[expert_tile][1];
-    const float raw2 = accumulators[expert_tile][2];
-    const float raw3 = accumulators[expert_tile][3];
-    if (token0 < tokens) {
-      const std::uint64_t output = token0 * kTensorExperts + expert0;
-      raw_logits[output] = raw0;
-      raw_logits[output + 1U] = raw1;
-      bf16_logits[output] = RoundBf16(raw0);
-      bf16_logits[output + 1U] = RoundBf16(raw1);
-    }
-    if (token1 < tokens) {
-      const std::uint64_t output = token1 * kTensorExperts + expert0;
-      raw_logits[output] = raw2;
-      raw_logits[output + 1U] = raw3;
-      bf16_logits[output] = RoundBf16(raw2);
-      bf16_logits[output + 1U] = RoundBf16(raw3);
+  for (unsigned token_tile = 0U; token_tile < kTensorTokenTiles;
+       ++token_tile) {
+    const std::uint64_t token0 =
+        token_base + token_tile * kTensorTokenRows + group_lane;
+    const std::uint64_t token1 = token0 + 8U;
+#pragma unroll
+    for (unsigned expert_tile = 0U; expert_tile < 2U; ++expert_tile) {
+      const unsigned expert0 =
+          warp * 16U + expert_tile * 8U + lane_in_group * 2U;
+      const float raw0 = accumulators[token_tile][expert_tile][0];
+      const float raw1 = accumulators[token_tile][expert_tile][1];
+      const float raw2 = accumulators[token_tile][expert_tile][2];
+      const float raw3 = accumulators[token_tile][expert_tile][3];
+      if (token0 < tokens) {
+        const std::uint64_t output = token0 * kTensorExperts + expert0;
+        raw_logits[output] = raw0;
+        raw_logits[output + 1U] = raw1;
+        bf16_logits[output] = RoundBf16(raw0);
+        bf16_logits[output + 1U] = RoundBf16(raw1);
+      }
+      if (token1 < tokens) {
+        const std::uint64_t output = token1 * kTensorExperts + expert0;
+        raw_logits[output] = raw2;
+        raw_logits[output + 1U] = raw3;
+        bf16_logits[output] = RoundBf16(raw2);
+        bf16_logits[output + 1U] = RoundBf16(raw3);
+      }
     }
   }
 #else

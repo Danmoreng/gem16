@@ -533,6 +533,8 @@ struct Gemma4Moe26BReferenceEngine::Impl {
   float* prefill_hidden_a = nullptr;
   float* prefill_hidden_b = nullptr;
   Gemma4Moe26BAttentionReferenceWorkspace prefill_attention_workspace{};
+  float* prefill_local_rotary_cosine = nullptr;
+  float* prefill_local_rotary_sine = nullptr;
   Gemma4MoePrefillWorkspace prefill_moe_workspace{};
   float* hidden_a = nullptr;
   float* hidden_b = nullptr;
@@ -1716,6 +1718,19 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
     const auto p_tokens = prefill.Add<std::uint32_t>(kPrefillMaxTokens);
     const auto p_hidden_a = prefill.Add<float>(kPrefillMaxTokens * kWidth);
     const auto p_hidden_b = prefill.Add<float>(kPrefillMaxTokens * kWidth);
+    // The two RoPE profiles remain live across every attention/MoE pair in a
+    // chunk. Keep them in the persistent prefix shared by both phase layouts;
+    // placing them in attention-only scratch would let each intervening MoE
+    // layer overwrite the tables before the next attention layer consumes
+    // them.
+    const auto p_global_cosine =
+        prefill.Add<float>(kPrefillMaxTokens * 256U);
+    const auto p_global_sine =
+        prefill.Add<float>(kPrefillMaxTokens * 256U);
+    const auto p_local_cosine =
+        prefill.Add<float>(kPrefillMaxTokens * 256U);
+    const auto p_local_sine =
+        prefill.Add<float>(kPrefillMaxTokens * 256U);
 
     // Attention and MoE execute in-order on impl->stream. Build both phase
     // layouts from the persistent token/hidden prefix so their temporary
@@ -1729,7 +1744,6 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
         attention_common.Add<float>(kPrefillScoreElements);
     const auto p_q_norm = attention_common.Add<float>(
         kPrefillMaxTokens * 16U * 512U);
-
     LayoutBuilder attention_projection = attention_common;
     const auto p_input_fp8 =
         attention_projection.Add<std::uint8_t>(kPrefillMaxTokens * kWidth);
@@ -1745,10 +1759,6 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
         attention_projection.Add<float>(kPrefillMaxTokens * 2048U);
     const auto p_v_norm =
         attention_projection.Add<float>(kPrefillMaxTokens * 2048U);
-    const auto p_cosine =
-        attention_projection.Add<float>(kPrefillMaxTokens * 256U);
-    const auto p_sine =
-        attention_projection.Add<float>(kPrefillMaxTokens * 256U);
     const auto p_staged_k =
         attention_projection.Add<std::uint8_t>(kPrefillMaxTokens * 2048U);
     const auto p_staged_v =
@@ -1842,8 +1852,8 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
         reinterpret_cast<float*>(pptr(p_q_norm)),
         reinterpret_cast<float*>(pptr(p_k_norm)),
         reinterpret_cast<float*>(pptr(p_v_norm)),
-        reinterpret_cast<float*>(pptr(p_cosine)),
-        reinterpret_cast<float*>(pptr(p_sine)),
+        reinterpret_cast<float*>(pptr(p_global_cosine)),
+        reinterpret_cast<float*>(pptr(p_global_sine)),
         reinterpret_cast<std::uint8_t*>(pptr(p_staged_k)),
         reinterpret_cast<std::uint8_t*>(pptr(p_staged_v)),
         reinterpret_cast<float*>(pptr(p_scores)), kPrefillScoreElements,
@@ -1860,6 +1870,10 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
         reinterpret_cast<std::uint16_t*>(pptr(p_global_value_bf16));
     impl->prefill_attention_workspace.global_bf16_capacity =
         kPreparedGlobalPrefillTokens;
+    impl->prefill_local_rotary_cosine =
+        reinterpret_cast<float*>(pptr(p_local_cosine));
+    impl->prefill_local_rotary_sine =
+        reinterpret_cast<float*>(pptr(p_local_sine));
     impl->prefill_moe_workspace = {
         reinterpret_cast<float*>(pptr(p_router_logits)),
         reinterpret_cast<float*>(pptr(p_router_probabilities)),
@@ -2123,6 +2137,27 @@ Status Gemma4Moe26BReferenceEngine::PrefillTokens(
   if (error != cudaSuccess) {
     return CudaFailure("initialize M17 prefill router finite flag", error);
   }
+  const Gemma4Moe26BAttentionLayerTraits* local_trait = nullptr;
+  const Gemma4Moe26BAttentionLayerTraits* global_trait = nullptr;
+  for (const auto& trait : x.traits) {
+    const bool sliding =
+        trait.attention == Gemma4Moe26BAttentionType::kSliding;
+    const Gemma4Moe26BAttentionLayerTraits*& profile =
+        sliding ? local_trait : global_trait;
+    if (profile == nullptr) {
+      profile = &trait;
+    } else if (profile->head_dimension != trait.head_dimension ||
+               profile->rotary_factor != trait.rotary_factor ||
+               profile->rope_theta != trait.rope_theta ||
+               profile->rope_scaling_factor != trait.rope_scaling_factor) {
+      return Invalid("M17 prefill attention classes do not share RoPE profiles");
+    }
+  }
+  if (local_trait == nullptr || global_trait == nullptr ||
+      x.prefill_local_rotary_cosine == nullptr ||
+      x.prefill_local_rotary_sine == nullptr) {
+    return Invalid("M17 prefill RoPE profiles are not initialized");
+  }
   while (consumed < tokens.size()) {
     const std::uint64_t chunk = std::min<std::uint64_t>(
         kPrefillMaxTokens, tokens.size() - consumed);
@@ -2155,11 +2190,33 @@ Status Gemma4Moe26BReferenceEngine::PrefillTokens(
     if (error != cudaSuccess) {
       return CudaFailure("launch M17 prefill embedding", error);
     }
+    auto prepare_rotary = [&](const Gemma4Moe26BAttentionLayerTraits& trait,
+                              float* cosine, float* sine) {
+      const std::uint64_t rotating_pairs = static_cast<std::uint64_t>(
+          trait.rotary_factor *
+          static_cast<double>(trait.head_dimension / 2U));
+      return LaunchRotaryEmbeddingTableBatch(
+          cosine, sine, chunk, rotating_pairs, trait.head_dimension,
+          x.position, trait.rope_theta, trait.rope_scaling_factor, x.stream);
+    };
+    Status status = prepare_rotary(
+        *global_trait, x.prefill_attention_workspace.rotary_cosine,
+        x.prefill_attention_workspace.rotary_sine);
+    if (!status.ok()) return status;
+    status = prepare_rotary(*local_trait, x.prefill_local_rotary_cosine,
+                            x.prefill_local_rotary_sine);
+    if (!status.ok()) return status;
     for (std::uint32_t layer = 0U; layer < kLayers; ++layer) {
-      Status status = LaunchGemma4Moe26BAttentionSm120PrefillLayer(
+      auto layer_workspace = x.prefill_attention_workspace;
+      if (x.traits[layer].attention ==
+          Gemma4Moe26BAttentionType::kSliding) {
+        layer_workspace.rotary_cosine = x.prefill_local_rotary_cosine;
+        layer_workspace.rotary_sine = x.prefill_local_rotary_sine;
+      }
+      status = LaunchGemma4Moe26BAttentionSm120PrefillLayer(
           x.prefill_hidden_a, x.prefill_hidden_b, x.position, chunk,
           x.traits[layer], x.attention_weights[layer], x.caches[layer],
-          x.prefill_attention_workspace, 1.0e-6F, x.stream);
+          layer_workspace, 1.0e-6F, x.stream, true);
       if (!status.ok()) return status;
       status = LaunchGemma4MoeSm120PrefillLayer(
           x.prefill_hidden_b, x.prefill_hidden_a, chunk, x.moe_config,

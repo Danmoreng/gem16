@@ -62,7 +62,7 @@ __device__ __forceinline__ unsigned SharedAddress(const void* pointer) {
 __device__ __forceinline__ void CopyAsync16(
     void* shared_destination, const void* global_source, int source_bytes) {
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1200
-  asm volatile("cp.async.ca.shared.global [%0], [%1], 16, %2;\n"
+  asm volatile("cp.async.cg.shared.global [%0], [%1], 16, %2;\n"
                :
                : "r"(SharedAddress(shared_destination)), "l"(global_source),
                  "r"(source_bytes));

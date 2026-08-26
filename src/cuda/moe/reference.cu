@@ -255,6 +255,14 @@ __global__ void MoeInputNormsRouterTransformNvfp4Kernel(
     std::uint8_t* expert_scales, float* router_normalized,
     float* router_transformed, std::uint64_t width, float epsilon,
     float shared_global_divisor, float expert_global_divisor) {
+  const std::uint64_t row = blockIdx.x;
+  hidden += row * width;
+  shared_packed += row * width / 2U;
+  shared_scales += row * width / kNvfp4Block;
+  expert_packed += row * width / 2U;
+  expert_scales += row * width / kNvfp4Block;
+  router_normalized += row * width;
+  router_transformed += row * width;
   float squared_sum = 0.0F;
   for (std::uint64_t index = threadIdx.x; index < width;
        index += blockDim.x) {
@@ -336,6 +344,9 @@ __global__ void RouterProjectionWarpKernel(const float* input,
                                            float* logits,
                                            std::uint32_t experts,
                                            std::uint64_t width) {
+  const std::uint64_t token = blockIdx.y;
+  input += token * width;
+  logits += token * experts;
   const unsigned warp = threadIdx.x / kWarpSize;
   const unsigned lane = threadIdx.x & (kWarpSize - 1U);
   const std::uint32_t expert =
@@ -372,7 +383,11 @@ __global__ void RouterTopKKernel(
     const float* logits, const std::uint16_t* per_expert_scale,
     float* probabilities, std::uint32_t* top_ids, float* top_weights,
     std::uint32_t experts, std::uint32_t top_k, int* routing_finite) {
-  if (blockIdx.x != 0U) return;
+  const std::uint64_t row = blockIdx.x;
+  logits += row * experts;
+  probabilities += row * experts;
+  top_ids += row * top_k;
+  top_weights += row * top_k;
   __shared__ float maximum;
   __shared__ float total;
   __shared__ int valid;
@@ -718,6 +733,11 @@ __global__ void MoeFusedPostNormResidualKernel(
     const std::uint16_t* post_combined_norm, const float* residual,
     const std::uint16_t* layer_scalar, float* output, std::uint64_t width,
     float epsilon) {
+  const std::uint64_t row = blockIdx.x;
+  shared_output += row * width;
+  routed_sum += row * width;
+  residual += row * width;
+  output += row * width;
   extern __shared__ float post_values[];
   const unsigned group = threadIdx.x / kNormThreads;
   const unsigned local_thread = threadIdx.x % kNormThreads;
@@ -1126,25 +1146,17 @@ Status LaunchGemma4MoeSm120MtpSharedBatchLayer(
     return Invalid("M25 exact shared-batch MoE contract is invalid");
   }
   (void)decode;
-  const std::uint64_t packed_per_token = c.width / 2U;
-  const std::uint64_t scales_per_token = c.width / kNvfp4Block;
-  for (std::uint64_t row = 0U; row < tokens; ++row) {
-    MoeInputNormsRouterTransformNvfp4Kernel<false><<<
-        1U, kNormThreads, 0, stream>>>(
-        hidden + row * c.width, w.pre_shared_norm_bf16,
-        w.pre_expert_norm_bf16, w.router_scale_bf16,
-        batch.token_packed + row * packed_per_token,
-        batch.token_scales + row * scales_per_token,
-        batch.expert_product_packed + row * packed_per_token,
-        batch.expert_product_scales + row * scales_per_token,
-        batch.shared_output + row * c.width,
-        batch.token_hidden + row * c.width, c.width, c.epsilon,
-        w.shared_gate.activation_global_divisor,
-        w.expert_gate_up.activation_global_divisor);
-    Status status = CheckLaunch("launch M25 exact batched MoE input boundary");
-    if (!status.ok()) return status;
-  }
-  Status status = LaunchNvfp4Sm120FusedGateUpExactBatch(
+  MoeInputNormsRouterTransformNvfp4Kernel<false><<<
+      static_cast<unsigned>(tokens), kNormThreads, 0, stream>>>(
+      hidden, w.pre_shared_norm_bf16, w.pre_expert_norm_bf16,
+      w.router_scale_bf16, batch.token_packed, batch.token_scales,
+      batch.expert_product_packed, batch.expert_product_scales,
+      batch.shared_output, batch.token_hidden, c.width, c.epsilon,
+      w.shared_gate.activation_global_divisor,
+      w.expert_gate_up.activation_global_divisor);
+  Status status = CheckLaunch("launch M25 exact batched MoE input boundary");
+  if (!status.ok()) return status;
+  status = LaunchNvfp4Sm120FusedGateUpExactBatch(
       batch.token_packed, batch.token_scales, w.shared_gate.packed_e2m1,
       w.shared_gate.scales_e4m3fn, w.shared_up.packed_e2m1,
       w.shared_up.scales_e4m3fn, batch.shared_product, tokens,
@@ -1169,21 +1181,19 @@ Status LaunchGemma4MoeSm120MtpSharedBatchLayer(
 
   const unsigned router_blocks =
       (c.experts + kRouterWarpsPerBlock - 1U) / kRouterWarpsPerBlock;
-  for (std::uint64_t row = 0U; row < tokens; ++row) {
-    RouterProjectionWarpKernel<<<router_blocks, kThreads, 0, stream>>>(
-        batch.token_hidden + row * c.width, w.router_projection_bf16,
-        batch.router_logits + row * c.experts, c.experts, c.width);
-    status = CheckLaunch("launch M25 exact router projection");
-    if (!status.ok()) return status;
-    RouterTopKKernel<true><<<1U, kThreads, 0, stream>>>(
-        batch.router_logits + row * c.experts, w.per_expert_scale_bf16,
-        batch.router_probabilities + row * c.experts,
-        batch.permutation + row * c.top_k,
-        batch.reduced_output + row * c.top_k, c.experts, c.top_k,
-        batch.routing_finite);
-    status = CheckLaunch("launch M25 exact router Top-K");
-    if (!status.ok()) return status;
-  }
+  RouterProjectionWarpKernel<<<
+      dim3(router_blocks, static_cast<unsigned>(tokens)), kThreads, 0,
+      stream>>>(batch.token_hidden, w.router_projection_bf16,
+                batch.router_logits, c.experts, c.width);
+  status = CheckLaunch("launch M25 exact router projection");
+  if (!status.ok()) return status;
+  RouterTopKKernel<true><<<static_cast<unsigned>(tokens), kThreads, 0,
+                           stream>>>(
+      batch.router_logits, w.per_expert_scale_bf16,
+      batch.router_probabilities, batch.permutation, batch.reduced_output,
+      c.experts, c.top_k, batch.routing_finite);
+  status = CheckLaunch("launch M25 exact router Top-K");
+  if (!status.ok()) return status;
 
   // The physical-BF16 prefill W2 region is dead after routing and has exactly
   // enough bytes for assignment-major FP32 Gate/Up. The shared-product region
@@ -1217,18 +1227,16 @@ Status LaunchGemma4MoeSm120MtpSharedBatchLayer(
           w.expert_down.weight_global_divisor, stream);
   if (!status.ok()) return status;
 
-  for (std::uint64_t row = 0U; row < tokens; ++row) {
-    const std::size_t post_norm_shared_bytes =
-        3U * static_cast<std::size_t>(c.width) * sizeof(float);
-    MoeFusedPostNormResidualKernel<<<1U, kFusedPostNormThreads,
-                                     post_norm_shared_bytes, stream>>>(
-        batch.shared_output + row * c.width, w.post_shared_norm_bf16,
-        batch.token_hidden + row * c.width, w.post_expert_norm_bf16,
-        w.post_combined_norm_bf16, hidden + row * c.width,
-        w.layer_scalar_bf16, output + row * c.width, c.width, c.epsilon);
-    status = CheckLaunch("launch M25 exact shared-batch MoE post boundary");
-    if (!status.ok()) return status;
-  }
+  const std::size_t post_norm_shared_bytes =
+      3U * static_cast<std::size_t>(c.width) * sizeof(float);
+  MoeFusedPostNormResidualKernel<<<
+      static_cast<unsigned>(tokens), kFusedPostNormThreads,
+      post_norm_shared_bytes, stream>>>(
+      batch.shared_output, w.post_shared_norm_bf16, batch.token_hidden,
+      w.post_expert_norm_bf16, w.post_combined_norm_bf16, hidden,
+      w.layer_scalar_bf16, output, c.width, c.epsilon);
+  status = CheckLaunch("launch M25 exact shared-batch MoE post boundary");
+  if (!status.ok()) return status;
   return Status::Ok();
 }
 

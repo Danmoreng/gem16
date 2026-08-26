@@ -1,0 +1,132 @@
+{
+  "schema_version": 1,
+  "milestone": "M20-post-acceptance-development",
+  "status": "exact_checkpoint_owner_paused_below_7000",
+  "performance_eligible": false,
+  "measured_on": "2026-08-26",
+  "scenario": {
+    "id": "wikipedia-real-16k64-greedy",
+    "prompt_tokens": 16384,
+    "output_forwards": 64,
+    "prompt_manifest_sha256": "9a5859b979d91fccf71bcbb61aade6372cf2cc3c708e6c47b8b6cfd99f7abd2d",
+    "prompt_cache": false,
+    "kv_mode": "fp8",
+    "timing_boundary_changed": false
+  },
+  "parent": {
+    "prompt_ms": 2500.792373,
+    "prompt_tokens_per_second": 6551.522553,
+    "raw_path": "artifacts/raw/m20/prefill-current-parent-confirmation-v1.json",
+    "raw_sha256": "4553b57b306411531408ceffd899429789c347e924ce519a2c54a3118475b766"
+  },
+  "retained_mechanisms": [
+    {
+      "name": "grouped_expert_assignment_tile_32",
+      "description": "Reuse each staged routed-expert weight fragment across two exact 16-row token tiles.",
+      "screen_prompt_tokens_per_second": [6668.862310, 6675.195305]
+    },
+    {
+      "name": "router_token_tile_32",
+      "description": "Reuse each staged Tensor-Core router weight tile across two exact 16-row accumulator tiles.",
+      "screen_prompt_tokens_per_second": [6776.293893, 6773.400684]
+    },
+    {
+      "name": "fp8_matrix_projection_token_tile_256",
+      "description": "Use eight warps to retain FP8 matrix weights across sixteen token tiles per warp.",
+      "screen_prompt_tokens_per_second": [6840.731067, 6836.759778]
+    },
+    {
+      "name": "global_attention_streaming_cache_modifier",
+      "description": "Use cp.async.cg for the global prepared-K/V stream; the combined exact screen reached 6852.010 token/s.",
+      "screen_prompt_tokens_per_second": [6852.010285]
+    },
+    {
+      "name": "rope_table_once_per_profile_per_chunk",
+      "description": "Generate one local and one global table per chunk in fixed non-aliasing workspace instead of one table per layer.",
+      "launches_before": 480,
+      "launches_after": 32,
+      "net_workspace_bytes": 2097152
+    }
+  ],
+  "current_screen": {
+    "prompt_ms": 2371.851367,
+    "prompt_tokens_per_second": 6907.684110,
+    "decode_tokens_per_second": 150.181405192,
+    "gain_over_parent_percent": 5.435,
+    "remaining_to_7000_percent": 1.336,
+    "all_logits_finite": true,
+    "output_token_sha256": "c750d0b33f8eb4a8103299875886e51ab144d874cafe8cea77b0cfd99d2aedaf",
+    "fallback_count": 0,
+    "recurring_allocation_count": 0,
+    "device_margin_bytes": 1288503296,
+    "raw_path": "artifacts/raw/m20/prefill-rope-hoist-screen-v2.json",
+    "raw_sha256": "bb65ec279140ef109ce24c1711063614a4c0fb189348ad62fbc4eb360c9a2d0a"
+  },
+  "profile": {
+    "rotary_table_launches": 32,
+    "rotary_table_total_ms": 1.936222,
+    "largest_prefill_kernel_totals_ms": {
+      "global_attention": 645.230983,
+      "grouped_expert_gate_up": 324.399705,
+      "grouped_expert_down": 248.696929,
+      "local_attention": 228.254662,
+      "fp8_matrix_projection": 221.660763,
+      "cutlass_qkv": 195.586441,
+      "router_projection": 103.005934
+    },
+    "raw_path": "artifacts/raw/m20/prefill-rope-hoist-profile-v1.nsys-rep",
+    "raw_sha256": "ce5d74f1c12c4464f21aed8ce2cce67de77f857b1fcfc780c0c321047aca2860",
+    "stats_path": "artifacts/raw/m20/prefill-rope-hoist-profile-v1-stats.csv",
+    "stats_sha256": "10b7935a391ee2ddd26044bbf554c920640ab88e7b5b73e3a2d934c5b9165ebd",
+    "note": "Profiler throughput is diagnostic only and is not used as the checkpoint speed claim."
+  },
+  "resources": {
+    "grouped_gate_up_registers_per_thread": 72,
+    "grouped_down_registers_per_thread": 56,
+    "router_registers_per_thread": 70,
+    "fp8_projection_registers_per_thread": 127,
+    "fp8_projection_shared_bytes_per_block": 41984,
+    "changed_kernel_stack_bytes": 0,
+    "changed_kernel_local_bytes": 0
+  },
+  "rejected_candidates": [
+    "grouped expert assignment tile 64",
+    "router token tile 64",
+    "FP8 projection token tile 512",
+    "FP8 projection K stage 128",
+    "CUTLASS 128x64 tile",
+    "global attention shared-softmax prototypes",
+    "global attention two-query-head/128-thread CTA"
+  ],
+  "last_rejected_screen": {
+    "candidate": "global_attention_two_query_heads_per_cta",
+    "prompt_ms": 2488.103183,
+    "prompt_tokens_per_second": 6584.935911,
+    "output_token_sha256": "c750d0b33f8eb4a8103299875886e51ab144d874cafe8cea77b0cfd99d2aedaf",
+    "raw_path": "artifacts/raw/m20/prefill-global-qh2-screen-v1.json",
+    "raw_sha256": "8190c146efa4e07155768ed8b82788d8d135ef43abf452a74a3277690b348d85",
+    "retained": false
+  },
+  "verification": [
+    {
+      "command": "cmake --build build/blackwell-release --target gem16-26b-benchmark gem16-cuda-tests gem16-cuda-attention-reference-tests -j4",
+      "result": "pass"
+    },
+    {
+      "command": "ctest --test-dir build/blackwell-release -R '^gem16-cuda$|^gem16-cuda-attention-reference$|^gem16-cuda-moe-reference$' --output-on-failure",
+      "result": "3/3 pass"
+    }
+  ],
+  "evidence": {
+    "parent_revision": "261167fb1c33a2facee4ab630c1ca3027ebb8ba0",
+    "implementation_scope": "working tree based on parent_revision",
+    "source_test_diff_sha256": "3b6d917911544b4cf5fb6a75d9395d983b35d4395dc01c479ed9ec82c50eb3fd",
+    "benchmark_binary_sha256": "2ef25b9349be71507f4dcee80c727fec992c1b9768fe33609760af865d205afd"
+  },
+  "limitations": [
+    "The 6907.684 token/s result is a bounded exact screen, not a formal three-warm-up plus ten-retained promotion distribution.",
+    "The active 7000 token/s stretch objective remains unmet by 1.336 percent.",
+    "The owner paused further performance work after the final QH2 rejection screen pending an independent review.",
+    "Formal M25 sampled/context/product qualification remains separate from this M20 prefill checkpoint."
+  ]
+}

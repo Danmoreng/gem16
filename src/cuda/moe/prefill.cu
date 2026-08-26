@@ -402,7 +402,7 @@ __global__ void ScatterStableGroupAssignmentsKernel(
 
 // Once routing is complete, router logits are dead for the remainder of the
 // layer. Reuse their FP32 storage as compact expert/tile descriptors
-// schedule so the SM120 kernels launch only O(assignments / 16 + experts)
+// schedule so the SM120 kernels launch only O(assignments / 32 + experts)
 // token tiles. histogram[0] temporarily holds the tile count and is restored
 // after W2. Each descriptor packs expert_id in the high 16 bits and the first
 // grouped assignment in the low 16 bits; tile_count never exceeds 8T, which
@@ -415,7 +415,7 @@ __global__ void BuildExpertTileScheduleKernel(const std::uint32_t* prefix,
   std::uint32_t count = 0U;
   for (std::uint32_t expert = 0; expert < experts; ++expert) {
     for (std::uint32_t grouped = prefix[expert];
-         grouped < prefix[expert + 1U]; grouped += 16U) {
+         grouped < prefix[expert + 1U]; grouped += 32U) {
       tiles[count++] = (expert << 16U) | grouped;
     }
   }

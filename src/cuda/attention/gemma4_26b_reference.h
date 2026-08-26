@@ -118,7 +118,7 @@ BindGemma4Moe26BAttentionReferenceWeights(
     const Gemma4Moe26BAttentionReferenceWeights& weights,
     const Gemma4Moe26BKvCacheView& cache,
     const Gemma4Moe26BAttentionReferenceWorkspace& workspace,
-    float epsilon, cudaStream_t stream);
+    float epsilon, cudaStream_t stream, bool rotary_prepared = false);
 
 // Graph-capturable native T=1 path. Position is read from fixed device
 // control; arithmetic and FP8 cache semantics remain the M12 contract.

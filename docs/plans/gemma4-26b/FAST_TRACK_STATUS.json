@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "plan_revision": "fast-track-r4",
-  "updated": "2026-08-25",
+  "updated": "2026-08-26",
   "accepted_through": "M17",
   "accepted_additional": [
     "M20",
@@ -9,8 +9,8 @@
     "M22",
     "M23"
   ],
-  "current_milestone": "M25_BASELINE_CHARACTERIZATION",
-  "active_wave": "F5-mtp-baseline-and-integration",
+  "current_milestone": "M25_PRODUCT_INTEGRATION",
+  "active_wave": "F5-performance-freeze-and-live-chat",
   "integration_branch": "feat/gemma4-26b",
   "source_of_truth": "docs/plans/gemma4-26b/FAST_TRACK_STATUS.json",
   "policy_source": "docs/ACTIVE_DECISIONS.md",
@@ -303,7 +303,8 @@
       ]
     },
     "M25": {
-      "status": "READY",
+      "status": "IN_PROGRESS",
+      "note": "Owner-frozen development checkpoint: exact D2 median 202.505 token/s and exact canonical Prefill screen 6907.684 token/s. Further performance work is paused pending review; selectable server/UI live chat is the active slice. Formal sampled/context/product M25 gates remain open.",
       "class": "final-target",
       "lane": "mtp",
       "feasibility_depends_on": [
@@ -319,8 +320,8 @@
     }
   },
   "parallel_tasks_now": [
-    "update and pin llama.cpp and vLLM for bounded 26B ordinary/MTP baseline characterization",
-    "M25 assistant compatibility, artifact and exact target integration against the frozen M23 rollback"
+    "freeze and host-CI validate the exact 202.505 D2 and 6907.684 Prefill development checkpoint",
+    "connect the accepted 26B runtime to selectable Studio/server live chat without changing the protected 12B path"
   ],
   "paused_tasks": [
     "M19 multi-hour task/prose held-out qualification until the end of the current implementation/performance program",
@@ -336,7 +337,7 @@
     "mtp_next_target_tokens": 65536,
     "margin_mib_at_32k": 700,
     "base_margin_mib_at_64k_or_above": 400,
-    "mtp_margin_mib_at_64k_or_above": 500,
+    "mtp_margin_mib_at_64k_or_above": 200,
     "publish_only_after_real_execution": true
   }
 }

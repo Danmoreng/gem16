@@ -1,6 +1,6 @@
 # Active decisions
 
-**Accepted:** 2026-08-25 · **Track:** Gemma 4 26B A4B Fast Track · **Status:** M00–M17 and M20–M23 accepted; M25 next; full M19 deferred
+**Accepted:** 2026-08-26 · **Track:** Gemma 4 26B A4B Fast Track · **Status:** M00–M17 and M20–M23 accepted; M25 performance checkpoint frozen for product integration; full M19 deferred
 
 This is the short operational policy for current work. It is not a replacement for historical evidence. Permanent
 rules in `AGENTS.md` remain binding. For facts about the implementation, current source, tests and accepted evidence
@@ -208,6 +208,18 @@ retain their qualified serial parent. The model-specific global batch uses the 2
 improves D2 from 154.805 to 164.763 post-first token/s (+6.43%), or +13.32% over its in-run ordinary comparator.
 This passes the 10% development promotion rule but does not accept M25: formal retained and sampled-MTP gates remain.
 Compact evidence is `artifacts/m25/optimization-shared-fixed-attention.json`.
+
+On 2026-08-26 the owner froze the next exact performance checkpoint and paused further kernel tuning pending an
+independent review. Fixed-T3 Target Head and Split-K2 O weight reuse plus batched T=3 MoE boundaries raise bounded
+D2 to a repeated median of 202.505 post-first token/s with all 1,135 Target output IDs identical, unchanged 642/980
+draft acceptance and the 32K 700 MiB gate passing. Prefill weight/token reuse and one RoPE table per local/global
+profile and chunk raise the exact canonical 16K screen from 6,551.523 to 6,907.684 prompt token/s with the unchanged
+`c750d0...` output hash, zero fallback/allocation and unchanged timing semantics. This is a development freeze, not
+formal M25 acceptance; the 7,000 prompt stretch remains open by 1.336%. The next owner-priority slice is the
+selectable 26B server/UI live-chat product path while further performance work remains paused. See
+`artifacts/m25/optimization-weight-stationary-d2.json` and
+`artifacts/m20/optimization-prefill-token-reuse-rope.json`; the combined owner freeze and host/product checks are
+bound by `artifacts/m25/performance-freeze.json`.
 
 The owner clarified on 2026-08-14 that M09 should load the real artifact and prove pre-execution residency so the
 critical path reaches inference quickly. This supersedes the old M09-card wording that required captured execution

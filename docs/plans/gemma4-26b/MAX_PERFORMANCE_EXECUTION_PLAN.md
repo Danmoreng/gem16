@@ -1,9 +1,9 @@
 # Gemma 4 26B A4B maximum-performance execution plan
 
-Status: M20 performance baseline accepted 2026-08-25; post-M20 optimization remains open after technical M23 freeze
+Status: M20 performance baseline accepted 2026-08-25; M25 exact-greedy D2 has a repeated 202.505 token/s development candidate; the exact post-M20 prefill checkpoint reaches 6,907.684 token/s and is owner-paused 2026-08-26 pending review, while formal M25/product promotion remains open after technical M23 freeze
 Primary hardware: NVIDIA GeForce RTX 5080 Laptop GPU, 16 GB, native `sm_120a` build
 Primary promotion row: `wikipedia-real-16k64-greedy`
-Plan inputs: `CODEX_GEMMA4_26B_MAX_PERFORMANCE_PLAN.md`, `chatgptpro_plan.md`, current source, accepted evidence, and active project policy
+Plan inputs: `CODEX_GEMMA4_26B_MAX_PERFORMANCE_PLAN.md`, `chatgptpro_plan.md`, the 2026-08-26 post-implementation static review, current source, accepted evidence, and active project policy
 
 ## 1. Purpose and authority
 
@@ -55,6 +55,25 @@ Adjacent development measurements:
 | Prompt stretch | 6,572.809 token/s | 6,500 token/s | formal M20 pass |
 | Ordinary decode | 150.615 token/s | 150 token/s | formal M20 pass |
 | Ordinary token latency | 6.639 ms | 6.667 ms | 0.410% throughput margin |
+
+Current M25 development measurement, reported separately from ordinary M20:
+
+| Metric | Current bounded result | Status |
+|---|---:|---|
+| D2 MTP post-first throughput | 202.505 token/s | median of three adjacent exact-greedy development runs |
+| D2 group latency | 11.428 ms | 5.599871 median seconds / 490 groups |
+| Emitted outputs per D2 group | 2.3143 | 1,134 post-first outputs / 490 groups |
+| Target-verified draft acceptance | 65.51% | 642 / 980 drafts |
+| Gain over in-run ordinary | 39.35% | passes the 10% development threshold |
+| Matching Target output IDs | 1,135 / 1,135 | exact |
+| Free device memory after load/graphs | 816,644,096 bytes | passes the 700 MiB 32K gate |
+
+This MTP row is a three-run forced-output 16K+1,135 characterization, not the formal three-warm-up/ten-retained
+distribution. It supersedes the older approximately 155 and 164.763 token/s development baselines for current
+planning calculations but does not rewrite historical evidence. The three values are 202.389, 202.505 and 202.515
+token/s with identical output IDs and MTP counters. Compact evidence is
+`artifacts/m25/optimization-weight-stationary-d2.json`; the preceding shared-attention parent remains in
+`artifacts/m25/optimization-shared-fixed-attention.json`.
 
 The current Tensor-Core-router output-token SHA-256 is
 `c750d0b33f8eb4a8103299875886e51ab144d874cafe8cea77b0cfd99d2aedaf`. The explicit serial-router rollback produces
@@ -509,6 +528,22 @@ EAGLE/P-EAGLE-like approaches require a locked compatible drafter, explicit trai
 and a complete VRAM/context comparison against native MTP. They are not part of current M20/M23 completion.
 
 ## 10. Execution order
+
+Current owner priority, 2026-08-26, supersedes the already-completed ordinary/M20 steps below without deleting their
+historical order:
+
+1. preserve the repeated exact 202.505 token/s D2 candidate and its 164.763 token/s shared-attention rollback;
+2. treat Target Head, Split-K2 O and MoE row-boundary batching as completed retained mechanisms, with the rejected
+   Shared Gate/Up weight-stationary experiment recorded as negative evidence;
+3. profile the current prefill implementation and optimize its actual dominant kernel until at least 7,000 prompt
+   token/s is reached;
+4. only after the prefill slice is stable, decide whether global T=3 historical-K/V reuse, KV transaction fusion or
+   Assistant boundary work is justified by a fresh D2 profile rather than by the now-stale 164.763 parent;
+5. qualify sampled MTP, contexts and formal retained distributions only after the winning greedy and prefill
+   mechanisms stabilize.
+
+The staged MTP targets are 170, 180, 190 and 200+ effective token/s. The active goal is at least 200 MTP token/s and
+7,000 prefill token/s, but neither number authorizes semantic, precision, context, cache or timing-boundary changes.
 
 Use this order unless a fresh profile provides contrary evidence:
 
@@ -1345,12 +1380,12 @@ Alias only proven non-overlapping lifetimes. Targets:
 
 - 96K base with at least 400 MiB reserve;
 - 32K MTP with at least 700 MiB reserve;
-- 64K MTP with at least 500 MiB reserve or an explicit clear failure.
+- 64K MTP is attempted first with at least 200 MiB reserve; a 100–199 MiB diagnostic profile may be promoted only
+  with repeated fresh-process lifecycle, deterministic-output, zero-allocation-delta and capacity-rejection gates.
 
-The source plan notes that an approximately 781 MiB current 32K base reserve would leave only about 81 MiB for MTP
-under the 700 MiB rule, while even ideal four-bit assistant weights are about 202 MiB before metadata/workspace.
-Therefore base/workspace savings of at least roughly 121 MiB plus verifier reserve are likely needed. Re-measure on
-the final candidate rather than treating this estimate as acceptance evidence.
+The earlier source-plan estimate predated the compiled hybrid Assistant and fixed graphs. The current measured 32K
+development profile leaves 812,449,792 bytes free after Target, Assistant and graphs, passing the 700 MiB gate. It is
+not 64K evidence; re-measure the final candidate rather than projecting this margin across contexts.
 
 ### 12.42 C03 — global KV compression
 
@@ -1486,7 +1521,7 @@ M00/M01 can begin earlier without base-runtime overlap. Runtime integration foll
 | Numeric ordinary | N-class Golden Gate and rollback | reproducible full-engine win | peak and free margin |
 | Prefill | final token/captures/KV/continuation correct | exact raw 16K prefill | 64K support not silently lost |
 | Sampling | same-seed versus oracle | separate sampling token/s | sampling-only workspace/profile |
-| MTP | ordinary-identical target output | effective verified token/s | 32K >=700 MiB; 64K >=500 MiB or fail |
+| MTP | ordinary-identical target output | effective verified token/s | 32K >=700 MiB; 64K >=200 MiB first, 100–199 MiB only with explicit lifecycle gates |
 | KV4 | quality plus FP8 rollback | 16K/64K/96K decode | maximum context and margin |
 | DFlash/N-gram | target verified | compared against ordinary and MTP | context loss disclosed |
 
@@ -1549,6 +1584,433 @@ silently omitted.
 | Recommended waves | Sections 10 and 13 | complete |
 | First D03a slice | Sections 7/W2 and 12.5 | retained; P01/P02 execute first per latest owner ordering |
 
-No proposal from either source plan is intentionally omitted. Where a source proposal conflicts with accepted model
-semantics or active policy, this plan records the corrected version and the reason rather than copying an unsafe or
-stale instruction literally.
+### 15.3 2026-08-26 post-implementation static review
+
+| Source finding | English destination | Coverage note |
+|---|---|---|
+| Updated D2 feasibility/latency model | Sections 2, 10 and 16.2 | recalculated from the retained 164.763 token/s parent |
+| Already-implemented M07 inventory | Section 16.1 | stale missing-feature claims corrected against current source |
+| Shared fixed T=3 attention | Sections 12.35 and 16.1/16.4 | implemented and measured; deeper global K/V row reuse remains open |
+| T=3 Target Head weight reuse | Section 16.5 | retained as first large kernel, full logits before epilog fusion |
+| T=3 Split-K2 O weight reuse | Section 16.6 | retained as second large weight-stationary candidate |
+| T=3 Shared MoE/router boundaries | Section 16.7 | retained; routed-expert bucketing gated on measured correlation |
+| KV transaction reduction/overlay | Sections 16.4 and 16.8 | low-risk fusion first; overlay only after microbenchmark |
+| Greedy diagnostic cleanup | Section 16.4 | Top-1 compact path while preserving diagnostic/sampling APIs |
+| Assistant argmax/boundary work | Section 16.9 | 4,096/1,024/512 sweep and exact epilog/boundary fusion |
+| NVTX/profiler attribution | Sections 4.3 and 16.3 | current long-chain profile required before large follow-on work |
+| Prefill 7K analysis | Section 16.10 | fresh attribution; completed buckets/RoPE/raw-KV work not reimplemented |
+| Benchmark/thermal/resource rules | Sections 4 and 16.11 | bounded screens, formal 3/10 only for stabilized winners |
+| CUTLASS upgrade caution | Section 16.11 | isolated kernel-specific A/B only |
+| Realistic target corridor | Section 16.12 | 200 assigned to MTP stretch, not near-term ordinary claim |
+
+No actionable proposal from any of the three source inputs is intentionally omitted. Where a proposal conflicts with
+accepted model semantics, a later owner decision or current measured source state, this plan records the corrected
+version and the reason rather than copying an unsafe or stale instruction literally.
+
+## 16. Post-implementation static-review delta — 2026-08-26
+
+This section incorporates the later German static analysis supplied after substantial parts of the original plan had
+already been implemented. It is the authoritative reconciliation of that review with the current source and evidence.
+The review did not execute SM120 hardware, so traffic and latency numbers from it are hypotheses or roofline ceilings
+until measured locally. Current code and retained evidence take precedence over snapshot line numbers.
+
+### 16.1 Freshness corrections
+
+The review's approximately 155.1 token/s D2 baseline and its observation that `shared_fixed_attention` was disabled
+were correct for its snapshot but are stale for the current working tree. D2 now selects shared fixed-row attention
+for T=3. The local kernel shares historical K/V work across the three rows; the corrected global dispatcher uses the
+26B KVH2 geometry and ordinary 128-token split. The retained 16K+1,135 characterization reaches 164.763 token/s,
+matches all 1,135 Target output IDs, preserves 642/980 accepted drafts and passes memcheck/racecheck/initcheck.
+
+The current implementation also already contains more of the original M07 architecture than a ticket-name audit
+suggests:
+
+- selective Target embedding lookup for the current draft ID;
+- Q-only Assistant attention over mapped Target K/V caches;
+- device-resident proposals and accept/commit control;
+- one conditional CUDA Graph chain without a host round-trip per D2 group;
+- multi-row Target QKV and fixed-row attention APIs;
+- fused Assistant Gate/Up and exact multi-row verifier APIs.
+
+Those facts do not mean the verifier is weight-stationary. Several `*Batch` APIs still use a token dimension in the
+grid and reload the same large weight matrix once per verifier row. Future tickets must distinguish launch batching,
+row batching and true cross-row weight reuse.
+
+Section 15's word `complete` means source-plan coverage, not implementation status. Implementation status is stated
+only by current source, tests, compact evidence and the milestone record.
+
+### 16.2 Current D2 cost target
+
+The current bounded row has 1,134 post-first outputs, 490 D2 groups and 6.882612639 seconds of group time:
+
+```text
+outputs_per_group = 1134 / 490 = 2.314285714
+group_latency      = 6.882612639 s / 490 = 14.046148243 ms
+```
+
+At unchanged acceptance, the verifier-group budgets are:
+
+| Effective target | Allowed group latency | Saving from current | Required reduction |
+|---:|---:|---:|---:|
+| 170 token/s | 13.613 ms | 0.433 ms | 3.08% |
+| 180 token/s | 12.857 ms | 1.189 ms | 8.46% |
+| 190 token/s | 12.180 ms | 1.866 ms | 13.28% |
+| 200 token/s | 11.571 ms | 2.475 ms | 17.62% |
+
+At unchanged 14.046 ms group latency, 200 token/s would require about 2.809 emitted outputs per group, or about 1.809
+accepted drafts from each two-draft group. That is roughly 90.5% average draft acceptance rather than the current
+65.5%. Acceptance improvement can help, but the plan must primarily make Target verification and Assistant proposal
+cheaper. Adaptive D1/D2 selection alone cannot supply the required structural reduction.
+
+The ordinary M20 median remains 150.615 token/s on a different canonical timing row. It must not be substituted into
+the forced-output MTP denominator. Ordinary 200 token/s is not the active near-term claim; 200 is an MTP stretch goal.
+
+### 16.3 Required attribution before another large kernel
+
+Add stable NVTX ranges, without changing timing boundaries, for:
+
+- Assistant total, each draft and Assistant Head;
+- Target QKV;
+- local fixed attention and global fixed attention;
+- Split-K2 O projection;
+- Shared MoE, Router, Routed Experts and post boundaries;
+- Target final norm/quantization and Target Head;
+- Top-1 and diagnostic second-best reductions;
+- KV backup, compact, restore and commit;
+- Graph control, branch selection and ordinary fallback.
+
+Coarse engine/MTP NVTX ranges already exist. The missing work is fine-grained attribution inside the current 26B
+fixed D2 reference/product chain and a post-shared-attention M25 profile artifact; do not rebuild the range framework.
+
+Use a long current D2 chain, approximately the retained 16K+1,135 workload, for Nsight Systems attribution. Use
+Nsight Compute only on isolated representative kernels; CUDA Graphs may use Application Range Replay when it avoids
+artificially serializing the graph. Record per-range and per-group time, kernel count, DRAM/L2 bytes, achieved memory
+bandwidth, registers, occupancy, local-memory spills, graph nodes, free VRAM, clocks, power and temperature.
+
+The profiler run is diagnostic and cannot be published as absolute throughput. The unprofiled exact run remains the
+throughput authority.
+
+### 16.4 Small exact D2 slices
+
+Screen these as independent, bisectable mechanisms before combining them:
+
+1. **Shared fixed-row attention — retained.** The launch-batched local/global T=3 path is now the parent at 164.763
+   token/s. A later global kernel may still reuse each historical K/V tile across all three query rows; the current
+   KVH2 batch uses one row per `blockIdx.y` and therefore does not provide that deeper cross-row reuse.
+2. **Production-only Target reduction cleanup.** Greedy acceptance needs Top-1. Keep second-best, margin, full logits
+   and `CopyLogits()` behavior in diagnostic/sampling/API paths, but remove second-best work and the 262K-logit commit
+   from the pure greedy chain when no consumer requests them. Validate non-finite latching and prediction status.
+3. **Assistant argmax geometry.** The current 4,096-block candidate reduction has only about 1,024 blocks with an
+   initial in-range vocabulary index at 262,144 vocabulary rows and 256 threads. Compare exact 1,024 and 512-block
+   variants. This removes empty reduction work; it does not avoid the Assistant Head weight read.
+4. **Target final boundary.** Fuse final RMSNorm with NVFP4 activation quantization while preserving its exact BF16
+   and scale conventions.
+5. **KV transaction launch reduction.** Fuse compact-copy plus restore per layer, then test a descriptor-driven commit
+   covering all 30 layers. Do not adopt a speculative overlay until a microbenchmark proves the current transaction
+   edges are material.
+6. **Raw K/V handoff only.** Alias or reuse raw projection scratch only where `attention_k_eq_v` and lifetimes prove it
+   exact. Physical normalized/rotated K and normalized V caches remain distinct by permanent policy.
+
+Use the bounded screening protocol from section 4.2 for losing candidates. Apply three warm-ups and ten retained
+measurements only to a stabilized winner or formal promotion candidate; the owner has explicitly deferred multi-hour
+benchmark suites. Preserve identical output IDs, MTP groups, accepted/rejected counts, fallback count and timing
+boundary for every A/B.
+
+### 16.5 WS-T3-H — weight-stationary Target Head
+
+The first large kernel candidate is an exact fixed-T=3 NVFP4 Target Head. The existing exact-batch launcher uses a
+token grid dimension, so the approximately 396 MiB tied Head weight/scales are conceptually traversed for each of the
+three verifier rows. The supplied review estimates about 0.93 ms as an ideal roofline ceiling for eliminating two of
+those reads at an assumed 896 GB/s; this is not a promised saving.
+
+Build a `Sm120DirectProjectionFixedBatchExactKernel<3>` candidate that:
+
+- stages or otherwise presents three quantized activation rows together;
+- loads each Head weight/scale fragment once;
+- maintains three independent accumulators;
+- preserves the current K64 traversal and accumulation order per row;
+- applies the identical BF16 output rounding;
+- initially writes complete logits for differential qualification;
+- reports registers, occupancy and local-memory spills.
+
+Qualify randomized and real hidden states, all three rows, ties, suppression, Softcap boundaries and non-finite
+handling. Require bit-identical complete logits and Top-1. Retain only if the isolated kernel wins and the end-to-end
+D2 group improves by roughly 0.4 ms or more without new persistent memory. Fuse Softcap/candidate reduction only
+after cross-row weight reuse is proven; omitting the roughly 1 MiB logit write alone cannot remove the dominant Head
+weight traffic. A prior D10 full-logit/epilog-fusion candidate regressed, so it is negative evidence against repeating
+the same mechanism without the new weight-stationary kernel.
+
+### 16.6 WS-T3-O — weight-stationary Split-K2 O projection
+
+The small-token 26B attention O projection takes the Split-K2 path before the generic fixed-batch path. Its token grid
+dimension reloads the same O weights for each verifier row. Across 30 layers the supplied review estimates about
+385 MiB for one row and about 0.90 ms as the ideal ceiling for eliminating two redundant reads.
+
+Build an exact `Sm120DirectProjectionSplitK2FixedBatchKernel<3>` candidate that:
+
+- loads a weight fragment once per split for all three inputs;
+- keeps three independent row accumulators;
+- preserves the existing split-combination and BF16 boundary order;
+- introduces no local-memory spills or new persistent workspace.
+
+Require bit-identical projection and adjacent layer outputs. A planning retention target is approximately 0.3–0.4 ms
+per D2 group, but measured exact end-to-end evidence—not the roofline estimate—decides.
+
+### 16.7 WS-T3-SM — weight-stationary Shared MoE and row boundaries
+
+The verifier already calls batched Shared Gate/Up and Shared Down APIs, but their token grid dimension still reloads
+shared weights per row. The supplied review estimates roughly 287 MiB of shared matrices for one Target pass and a
+0.67 ms ideal ceiling for removing two redundant reads.
+
+Implement and evaluate, in separable stages:
+
+- T=3 Shared Gate/Up with one weight load feeding three row accumulators;
+- T=3 Shared Down with the same invariant;
+- one T=3 input-norm/router-transform launch;
+- one T=3 Router projection;
+- one deterministic T=3 Top-8 launch;
+- one T=3 post-norm/residual boundary.
+
+Current code still loops per row for input boundaries, Router projection, Top-8 and post boundaries. Removing these
+launches is useful, but the primary hypothesis is shared-weight reuse rather than launch count alone.
+
+Before cross-row grouping of routed experts, record per layer the number of unique experts among 24 assignments,
+maximum multiplicity and Gate/Up/Down time by expert. Independent random routing predicts little duplication; only
+measured adjacent-row correlation can justify a more complex expert-bucket architecture. Preserve stable slot order
+and deterministic reduction even when expert execution order changes.
+
+### 16.8 T=3 attention and KV transactions after weight reuse
+
+The retained local fixed kernel already shares historical K/V tiles across T rows. The corrected global KVH2 batch is
+exact and launch-batched, but each row still owns a separate split grid. After WS-T3-H/O/SM, profile a global kernel
+that loads each historical K/V tile once and carries three query/LSE/output accumulator sets. Register pressure and
+spills are hard gates.
+
+The verifier currently performs backup, tentative append, compact copy, restore and final commit for every layer. Use
+low-risk launch fusion first. A committed-cache-plus-T=3-overlay design is a later structural candidate only after an
+isolated microbenchmark; a related older 12B overlay regressed and must not be copied blindly.
+
+### 16.9 Assistant-specific work
+
+Draft 2 depends on Draft 1, so the two Assistant Head rows cannot use the Target's simultaneous T=3 weight-sharing
+scheme. Prioritize:
+
+- the 4,096/1,024/512 candidate-reduction block sweep;
+- PrepareInput plus preprojection quantization/prolog fusion;
+- FP8 projection epilogs that write the exact BF16 boundary directly;
+- Q-Norm plus RoPE plus exact BF16 output;
+- attention output directly into the O-projection quantization input;
+- MLP product quantization and residual-boundary fusion;
+- an Assistant Head candidate epilog only after its full weight traversal is attributed.
+
+The existing selective embedding lookup, Q-only Target-KV attention, fused Gate/Up, device-resident drafts and fixed
+Graph chain must not be reimplemented or described as missing. Adaptive D1/D2 and any D3 experiment come only after
+the fixed D2 verifier and Assistant have been optimized and remeasured.
+
+### 16.10 Prefill delta toward 7,000 token/s
+
+At the accepted 6,572.809 token/s baseline, 16K prefill is about 2.493 seconds. Reaching 7,000 requires about 2.341
+seconds, or roughly 152 ms less. Small launch/copy cleanup cannot plausibly supply that entire reduction.
+
+Re-profile the current binary before choosing the large prefill kernel. Older raw profiles are not the authority for
+the current Tensor-Core-router and fused-expert checkpoint. Attribute global/local attention, Router projection,
+grouped Gate/Up and Down, expert-tile imbalance, tail chunks, staging and boundary kernels.
+
+Reconcile the supplied hypotheses as follows:
+
+- **RoPE:** persistent full-context local/global tables are already generated once during initialization. Remaining
+  per-layer/chunk launches apply row-specific transforms rather than rebuilding those tables. Treat the review's RoPE
+  hoist proposal as stale unless a fresh trace identifies a different invariant operation.
+- **Raw K=V:** prior raw-handoff work exists. Any remaining copy is a small cleanup and cannot alias final K/V caches.
+- **Chunks:** first sweep 512/768/1,024 under the current contract. Treat 1,536/2,048 as workspace/kernel changes,
+  not command-line tuning.
+- **MoE:** stable assignment grouping/permutation and a 16-assignment expert-tile schedule already exist. P06 now
+  means measure tile distribution, tails and load imbalance, then test count-band buckets, work queues or tile
+  geometry only where the trace justifies them; it does not mean rebuild the existing grouping layer.
+- **Dominant kernel:** global attention, Router projection, routed Gate/Up/Down and grouped-MoE imbalance are current
+  hypotheses. A fresh P00 trace chooses among them.
+- **Prefill Graph:** do not retry the previously rejected whole-prefill graph without a new mechanism; the historical
+  result was approximately 0.09% with extra memory.
+
+### 16.11 Qualification, resources and dependency policy
+
+For every retained hot-path mechanism record the exact parent, source/binary/model hashes, output IDs, MTP counters,
+group latency, effective token/s, allocation/fallback counts, DRAM/L2 bytes, registers, occupancy, spills, peak/free
+VRAM and power/clock/thermal state. Alternate parent/candidate order when effects are thermally sensitive.
+
+The current shared fixed-attention evidence has complete exactness and sanitizer results but not its compiled register,
+occupancy or spill delta. Collect those facts in the next attribution pass before calling the kernel formally promoted.
+
+The current 812,449,792 free bytes are about 774.8 MiB, leaving only about 74.8 MiB above the 700 MiB 32K MTP gate.
+New T=3 kernels should reuse existing arenas and keep scratch small. Graph-memory observations remain conservative
+residency deltas rather than exact CUDA graph-pool sizes.
+
+Do not start a general CUTLASS upgrade as a performance project. The repository's pinned version remains the parent;
+test a newer CUTLASS only as an isolated A/B for a specifically attributed kernel, with correctness, generated code,
+register/spill and end-to-end evidence. Upstream release presence is not itself a reason to upgrade.
+
+The supplied external references are retained as background only: [RTX 50-series Laptop GPUs](https://www.nvidia.com/en-us/geforce/laptops/50-series/),
+[Blackwell tuning guide](https://docs.nvidia.com/cuda/blackwell-tuning-guide/index.html),
+[Nsight Compute profiling guide](https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html), and
+[CUTLASS releases](https://github.com/NVIDIA/cutlass/releases).
+
+### 16.12 Realistic staged corridor and immediate assignment
+
+Use staged targets, not promises:
+
+- prefill 7,000–7,200 token/s: realistic short-term target after fresh attribution;
+- ordinary 160–170 token/s: plausible continued exact-optimization corridor; ordinary 200 is not the near-term plan;
+- D2 MTP 170: next checkpoint and only 3.08% group-latency reduction from the current parent;
+- D2 MTP 180–190: plausible only with successful structural cross-row reuse;
+- D2 MTP 200+: stretch goal requiring approximately 17.62% lower current group latency, materially better acceptance,
+  or both.
+
+The next implementation assignment is therefore:
+
+1. preserve the 164.763 shared-attention checkpoint;
+2. add long-chain attribution;
+3. screen production second-best/full-logit cleanup and Assistant argmax geometry independently;
+4. implement WS-T3-H as the first large kernel;
+5. report measured attribution and the next largest hotspot before starting WS-T3-O, WS-T3-SM or adaptive depth.
+
+This section incorporates every actionable proposal in the 2026-08-26 post-implementation static review. Stale
+snapshot observations are preserved as reconciled history rather than copied as current facts.
+
+## 17. Execution update after the post-implementation review — 2026-08-26
+
+This section is the current execution authority for the work proposed in section 16. Section 16 remains the complete
+reconciliation of the owner-supplied German review and its hypotheses; the measurements below record which of those
+hypotheses won on the target GPU. Historical numbers and projected roofline ceilings in section 16 are not rewritten.
+
+### 17.1 Attribution result
+
+The long fixed-D2 Nsight Systems trace covers 490 groups, 642 accepted of 980 proposed drafts and 164.707 profiled
+token/s. The MTP Graph contains 603,496 kernel launches, 6.76546 seconds of aggregate kernel time and a 6.882978
+second Graph span. The largest parent costs per group were:
+
+| Parent cost | Time per group |
+|---|---:|
+| Target Head | 1.4767 ms |
+| global fixed attention | 1.4269 ms |
+| routed Gate/Up | 1.3498 ms |
+| routed Down | 0.8630 ms |
+| local fixed attention | 0.8130 ms |
+| Split-K2 O projection | 0.7788 ms |
+| MoE post boundary | 0.7843 ms |
+| Router Top-8 | 0.5721 ms |
+| MoE input boundary | 0.4894 ms |
+| Router projection | 0.2975 ms |
+| Assistant argmax | about 0.036 ms |
+
+This attribution changed the immediate priority: Assistant argmax geometry was too small to justify leading the
+slice, while Target Head, O projection and MoE boundaries collectively owned enough latency to reach the staged D2
+goal. The raw `.nsys-rep` and JSON export remain ignored under `artifacts/raw/`; their paths and SHA-256 hashes are
+recorded in `artifacts/m25/optimization-weight-stationary-d2.json`.
+
+### 17.2 Retained exact mechanisms
+
+Three independently measured mechanisms are retained:
+
+1. **WS-T3-H complete.** `Sm120DirectProjectionFixedT3Kernel` traverses each NVFP4 Target Head weight/scale fragment
+   once and maintains three independent accumulator rows. The real `T3x262144x2816` differential has 0/786,432
+   complete-logit mismatches and 0 repeat mismatches. The kernel uses 106 registers/thread, 1,024 bytes shared memory,
+   zero stack and zero local memory. End-to-end D2 improved from 164.763 to 178.876 token/s.
+2. **WS-T3-O complete.** `Sm120DirectProjectionSplitK2FixedT3Kernel` reuses each FP8 O-projection weight fragment
+   across three rows while preserving the two split-K accumulator and combination sequences. Both 2816x4096 and
+   2816x8192 real-shape differentials have 0/8,448 exact and repeat mismatches. The kernel uses 89 registers/thread,
+   1,120 bytes shared memory, zero stack and zero local memory. The adjacent D2 result improved from 178.876 to
+   181.844 token/s.
+3. **T=3 MoE row boundaries complete.** Input norm/router transform, Router projection, deterministic Top-8 and the
+   post-norm/residual boundary now use one token-indexed launch each instead of three host-side launches. The Graph
+   observation fell from 20 MiB to 14 MiB and free loaded memory rose to 816,644,096 bytes. A direct unit differential
+   compares three distinct T=3 rows with three ordinary SM120 MoE layer calls bit for bit. The adjacent D2 result
+   improved from 181.844 to 202.339 token/s.
+
+Ordinary decode continues to dispatch its one-row kernels; these T=3 specializations do not claim an ordinary-path
+speedup and do not replace the accepted 150.615 M20 ordinary median.
+
+### 17.3 Rejected Shared Gate/Up candidate
+
+The exact fixed-T3 Shared Gate/Up experiment used 95 registers/thread, zero stack/local memory and passed its direct
+differential plus memcheck/initcheck/racecheck. It was nevertheless rejected and fully removed: the end-to-end row
+fell from 202.339 to 201.581 token/s while preserving all output IDs and counters. This is direct negative evidence
+against assuming that every cross-row weight-reuse kernel is profitable after cache and scheduling effects.
+
+Do not retry this exact mechanism without a materially different schedule and a fresh attribution showing Shared
+Gate/Up as the limiting cost. Shared Down is already reached through the retained fixed-T3 direct projection where
+its geometry matches; routed-expert cross-row bucketing remains conditional on measured expert correlation.
+
+### 17.4 Repeated D2 characterization
+
+Three adjacent fresh-process runs of the retained final candidate produced:
+
+| Run | D2 token/s | Group seconds | In-run ordinary token/s |
+|---:|---:|---:|---:|
+| 1 | 202.389 | 5.603065 | 145.286 |
+| 2 | 202.505 | 5.599871 | 145.321 |
+| 3 | 202.515 | 5.599577 | 145.324 |
+| **Median** | **202.505** | **5.599871** | **145.321** |
+
+Every run emits the same 1,135 token IDs (`d0fcfcc6...`), uses 490 groups, proposes 980 drafts, accepts 642, rejects
+338, reports zero non-finite chain steps and keeps ordinary Target identity. Median D2 throughput is 22.907% above
+the 164.763 parent and 39.350% above the same-run forced-output ordinary comparator. The 200 token/s development
+target is therefore achieved with unchanged 65.51% acceptance; it did not depend on a speculative acceptance uplift.
+
+This is still a bounded three-run characterization. Formal M25 promotion requires the specified warm-up/retained
+distribution plus the remaining sampled/context/product gates; this result must not be labelled full M25 acceptance.
+
+### 17.5 Verification and remaining order
+
+The retained slice passes:
+
+- full release build;
+- full local CTest suite (seven executed tests pass; three model-dependent tests skip without their environment);
+- the explicitly enabled 12B M22 product regression (1/1 pass);
+- direct real-shape Target Head and O-projection differentials;
+- T=3 MoE batch-versus-three-ordinary differential;
+- memcheck, initcheck and racecheck on the changed Head, O and MoE paths.
+
+The current remaining performance order is:
+
+1. **Prefill P00 now:** profile the current 6,572.809 token/s binary rather than using older raw profiles.
+2. **Prefill dominant-kernel work:** retain only isolated exact wins until at least 7,000 token/s is repeated. Likely
+   candidates remain global attention, Router projection, routed Gate/Up/Down and grouped-MoE imbalance; the fresh
+   profile chooses the first implementation.
+3. **D2 follow-on only from a fresh 202.505-parent trace:** global cross-row historical-K/V reuse, KV transaction
+   launch fusion, production diagnostic cleanup and Assistant boundary fusion remain valid candidates, but the old
+   164.763 cost ranking cannot establish their current priority.
+4. **Formal/product qualification:** after greedy D2 and prefill stabilize, run the bounded formal distribution,
+   sampled lossless speculation, context-memory profiles and product lifecycle gates.
+
+The active performance objective is now asymmetric: the D2 >=200 development target is met; prefill >=7,000 remains
+open. Optimization continues beyond either threshold only when profiling identifies a safe, reproducible additional
+gain, in accordance with section 1's stop conditions.
+
+### 17.6 Exact prefill checkpoint and owner pause
+
+The fresh P00 trace led to four retained weight-/token-reuse changes and one invariant-work removal:
+
+- routed Expert Gate/Up and Down reuse staged weights across 32 assignments rather than 16;
+- the Tensor-Core Router reuses one staged weight tile across 32 tokens rather than 16;
+- the FP8 matrix projection processes 256 tokens per CTA with eight warps;
+- prepared global-attention streaming uses the measured `cp.async.cg` cache policy;
+- RoPE cosine/sine tables are generated once for each local/global profile and chunk, reducing table launches from
+  480 to 32 while preserving the same table math and rounding.
+
+The RoPE tables occupy fixed, disjoint regions in the common Prefill arena. An initial implementation incorrectly
+placed them in attention-only scratch, allowing the intervening MoE phase to overwrite them. That candidate produced
+an invalid `1bd7...` output hash and is rejected evidence. Moving the tables into the persistent shared phase prefix
+restored the canonical `c750d0...` hash without changing the approximately 2 MiB net workspace increase.
+
+The final bounded exact screen reports 2,371.851 ms for 16,384 prompt tokens, or **6,907.684 token/s**. This is a
+5.435% gain over the adjacent 6,551.523 token/s parent and leaves 1.336% to the 7,000 stretch target. Decode remains
+neutral at 150.181 token/s, all logits are finite, fallback and recurring-allocation counts are zero, and device
+margin is 1,288,503,296 bytes. This is a development screen rather than a formal three-warm-up/ten-retained claim.
+
+The last tile experiment reduced global-attention CTA ownership from four query heads/256 threads to two query
+heads/128 threads. It retained the canonical output hash but regressed to 6,584.936 token/s and was fully reverted.
+At the owner's direction, further performance optimization stops at this checkpoint pending independent review; the
+next active product slice is the 26B UI selection and live-chat path. Compact evidence is retained in
+`artifacts/m20/optimization-prefill-token-reuse-rope.json`, with raw screens and the Nsight report ignored under
+`artifacts/raw/m20/`. The cross-slice owner freeze, host-CI fixture and real 12B/26B product verification are bound by
+`artifacts/m25/performance-freeze.json`.

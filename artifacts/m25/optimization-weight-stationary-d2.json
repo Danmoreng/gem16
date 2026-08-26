@@ -1,0 +1,211 @@
+{
+  "schema_version": 1,
+  "milestone": "M25-development",
+  "status": "bounded_exact_d2_weight_stationary_200_pass",
+  "performance_eligible": false,
+  "measured_on": "2026-08-26",
+  "change": {
+    "scope": "exact-greedy fixed-D2 Target verifier",
+    "retained_mechanisms": [
+      "fixed-T3 NVFP4 Target Head with one weight traversal and three independent accumulator rows",
+      "fixed-T3 FP8 Split-K2 O projection with one weight traversal per split and three independent accumulator rows",
+      "single batched launches for MoE input boundaries, Router projection, deterministic Top-8 and post-norm/residual boundaries"
+    ],
+    "rejected_mechanism": "fixed-T3 Shared Gate/Up weight reuse was bit exact and sanitizer clean but regressed end-to-end throughput from 202.339 to 201.581 token/s, so it was fully removed",
+    "ordinary_path_changed": false
+  },
+  "scenario": {
+    "prompt": "retained Wikipedia 16K fixture",
+    "prompt_tokens": 16384,
+    "output_tokens": 1135,
+    "timed_post_first_tokens": 1134,
+    "context_capacity": 32768,
+    "draft_length": 2,
+    "forced_output": true,
+    "verifier_backend": "exact-shared-batch",
+    "timing_boundary": "fixed D2 chain group time after the initial Target selection"
+  },
+  "correctness": {
+    "ordinary_target_identity": true,
+    "matching_output_token_ids": 1135,
+    "output_token_ids_le_u32_sha256": "d0fcfcc68cc3b015282e301261e6d90079a84cd9b8f2927c4fe0f98bcb461983",
+    "groups": 490,
+    "proposed_drafts": 980,
+    "accepted_drafts": 642,
+    "rejected_drafts": 338,
+    "target_verified_acceptance": 0.655102040816,
+    "non_finite_steps": 0,
+    "operator_differentials": {
+      "target_head": {
+        "shape": "T3x262144x2816",
+        "exact_mismatches": 0,
+        "elements": 786432,
+        "repeat_mismatches": 0
+      },
+      "attention_o_4096": {
+        "shape": "T3x2816x4096",
+        "exact_mismatches": 0,
+        "elements": 8448,
+        "repeat_mismatches": 0
+      },
+      "attention_o_8192": {
+        "shape": "T3x2816x8192",
+        "exact_mismatches": 0,
+        "elements": 8448,
+        "repeat_mismatches": 0
+      },
+      "moe_batch": "three distinct T=3 hidden rows are bit identical to three ordinary SM120 MoE layer calls; all token-major tie-router IDs match"
+    }
+  },
+  "attribution": {
+    "raw_profile_path": "artifacts/raw/m25/nsys-shared-fixed-attention-d2-16k1135-v4.nsys-rep",
+    "raw_profile_sha256": "3d3d496b1344eff0a4b9edf8eab3a251ae96ff8aa942adf80175a0a431561eb9",
+    "raw_export_path": "artifacts/raw/m25/nsys-shared-fixed-attention-d2-16k1135-v4.json",
+    "raw_export_sha256": "9870b7d125d7c0e4c0d71971cb785c17928737c79f3c1b77c4de88ea77c11cd6",
+    "profiled_groups": 490,
+    "profiled_d2_tokens_per_second": 164.707,
+    "mtp_graph_kernel_launches": 603496,
+    "mtp_graph_kernel_seconds": 6.76546,
+    "mtp_graph_span_seconds": 6.882978,
+    "largest_parent_costs_ms_per_group": {
+      "target_head": 1.4767,
+      "global_attention": 1.4269,
+      "selected_routed_gate_up": 1.3498,
+      "selected_routed_down": 0.863,
+      "local_fixed_attention": 0.813,
+      "attention_o_split_k2": 0.7788,
+      "moe_post_boundary": 0.7843,
+      "router_top_k": 0.5721,
+      "moe_input_boundary": 0.4894,
+      "router_projection": 0.2975,
+      "assistant_argmax": 0.036
+    }
+  },
+  "performance": {
+    "parent": {
+      "d2_group_seconds": 6.882612639,
+      "d2_post_first_tokens_per_second": 164.763013623,
+      "ordinary_post_first_tokens_per_second": 145.389954812
+    },
+    "isolated_steps": [
+      {
+        "name": "fixed_t3_target_head",
+        "d2_group_seconds": 6.339573307,
+        "d2_post_first_tokens_per_second": 178.876392004,
+        "throughput_delta_from_previous_percent": 8.5659
+      },
+      {
+        "name": "fixed_t3_split_k2_o",
+        "d2_group_seconds": 6.236128983,
+        "d2_post_first_tokens_per_second": 181.843576855,
+        "throughput_delta_from_previous_percent": 1.6588
+      },
+      {
+        "name": "batched_moe_row_boundaries",
+        "d2_group_seconds": 5.604444183,
+        "d2_post_first_tokens_per_second": 202.339422603,
+        "throughput_delta_from_previous_percent": 11.2711
+      }
+    ],
+    "three_run_characterization": {
+      "d2_post_first_tokens_per_second": [
+        202.389245846,
+        202.50464712,
+        202.515301948
+      ],
+      "median_d2_post_first_tokens_per_second": 202.50464712,
+      "minimum_d2_post_first_tokens_per_second": 202.389245846,
+      "maximum_d2_post_first_tokens_per_second": 202.515301948,
+      "median_d2_group_seconds": 5.59987149,
+      "median_ordinary_post_first_tokens_per_second": 145.320870385,
+      "median_speedup_over_in_run_ordinary_percent": 39.3498,
+      "median_throughput_delta_from_parent_percent": 22.9066,
+      "median_group_time_delta_from_parent_percent": -18.6376
+    }
+  },
+  "resources": {
+    "target_head_fixed_t3": {
+      "registers_per_thread": 106,
+      "stack_bytes": 0,
+      "local_bytes": 0,
+      "shared_bytes_per_block": 1024
+    },
+    "attention_o_split_k2_fixed_t3": {
+      "registers_per_thread": 89,
+      "stack_bytes": 0,
+      "local_bytes": 0,
+      "shared_bytes_per_block": 1120
+    },
+    "free_loaded_bytes": 816644096,
+    "minimum_32k_free_bytes": 734003200,
+    "minimum_32k_gate_pass": true,
+    "total_graph_observed_bytes": 14680064
+  },
+  "evidence": {
+    "parent_revision": "261167fb1c33a2facee4ab630c1ca3027ebb8ba0",
+    "implementation_scope": "working tree based on parent_revision",
+    "source_test_diff_sha256": "a3a1ae3e37739ea2356573ea0e4676d0d1d0dcfb29371663e66db3ae1be02a25",
+    "benchmark_binary_path": "build/blackwell-release/bin/gem16-26b-assistant-acceptance",
+    "benchmark_binary_sha256": "878866ac501efe6a478f7ca2aab97eb41a24f9eaf82282385ea5b13b90800a62",
+    "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "driver": "610.43.03",
+    "cuda_compiler": "13.3",
+    "raw": {
+      "head_path": "artifacts/raw/m25/fixed-t3-head-d2-wikipedia-16k1135-characterization-v1.json",
+      "head_sha256": "95e1dc1db1eb699aaa6b6d23157bafe39a008e777515e40e80bc2fab5211ef52",
+      "head_o_path": "artifacts/raw/m25/fixed-t3-head-o-d2-wikipedia-16k1135-characterization-v1.json",
+      "head_o_sha256": "066b784688cf5bf20cdadbe910ba34eb196b144c335eadafd2684d523cbc3f6d",
+      "head_o_moe_path": "artifacts/raw/m25/fixed-t3-head-o-moe-boundaries-d2-wikipedia-16k1135-characterization-v1.json",
+      "head_o_moe_sha256": "8af2defa4404c5faaa5b44d243dd645e798884b5c43a657abb338ed3cfd26946",
+      "rejected_shared_gate_up_path": "artifacts/raw/m25/fixed-t3-shared-all-d2-wikipedia-16k1135-characterization-v1.json",
+      "rejected_shared_gate_up_sha256": "ea5ba6278c4948cacb656c54ec8c80b9571b717a1f31b733c8adc77630c46b21",
+      "repeat_paths": [
+        "artifacts/raw/m25/fixed-t3-head-o-moe-boundaries-d2-wikipedia-16k1135-repeat-1.json",
+        "artifacts/raw/m25/fixed-t3-head-o-moe-boundaries-d2-wikipedia-16k1135-repeat-2.json",
+        "artifacts/raw/m25/fixed-t3-head-o-moe-boundaries-d2-wikipedia-16k1135-repeat-3.json"
+      ],
+      "repeat_sha256": [
+        "ea2a4334f356563b1f1e91ec54005129a1fe5ab2491a1cfd4b4cf9bf01ed99bd",
+        "1f2d59c4d7f7c8275c63a2df3399071c3efcd7c9637938aaba2c53658d633d47",
+        "1cd7369eeb0823159feb7da1e89698fb1d327b36c8048a918e13f299e3b41078"
+      ]
+    }
+  },
+  "verification": [
+    {
+      "command": "cmake --build build/blackwell-release --parallel 8",
+      "result": "pass"
+    },
+    {
+      "command": "build/blackwell-release/bin/gem16-cuda-tests nvfp4-fixed-t3",
+      "result": "0/786432 exact mismatches and 0/786432 repeat mismatches"
+    },
+    {
+      "command": "build/blackwell-release/bin/gem16-cuda-tests fp8-split-k",
+      "result": "fixed T=3 O projection 0/8448 exact and repeat mismatches at both 2816x4096 and 2816x8192"
+    },
+    {
+      "command": "build/blackwell-release/bin/gem16-cuda-moe-reference-tests",
+      "result": "pass including T=3 M25 batch versus three ordinary SM120 layers"
+    },
+    {
+      "command": "compute-sanitizer memcheck/initcheck/racecheck for nvfp4-fixed-t3, fp8-split-k and gem16-cuda-moe-reference-tests",
+      "result": "0 errors and 0 racecheck hazards"
+    },
+    {
+      "command": "ctest --test-dir build/blackwell-release --output-on-failure",
+      "result": "7/7 executed tests pass; three model-dependent product tests skipped"
+    },
+    {
+      "command": "GEM16_12B_MODEL=/home/sebastian/Development/gem16gb/models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 ctest --test-dir build/blackwell-release -R '^gem16-12b-m22-product$' --output-on-failure",
+      "result": "1/1 pass"
+    }
+  ],
+  "limitations": [
+    "This is a three-run bounded characterization, not the formal three-warm-up plus ten-retained M25 promotion distribution.",
+    "The forced-output greedy workload suppresses natural stop tokens; sampled MTP remains a separate correctness and performance slice.",
+    "Power, clocks and temperature were not sampled during the retained runs, so the narrow run-to-run spread is reported but not thermally attributed.",
+    "Ordinary throughput in this forced-output harness is not the accepted M20 canonical ordinary row.",
+    "Prefill remains at the accepted 6572.809 token/s baseline and has not yet reached the active 7000 token/s goal."
+  ]
+}
