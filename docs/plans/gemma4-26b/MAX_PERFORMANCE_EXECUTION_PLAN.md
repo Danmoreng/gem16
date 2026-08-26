@@ -1,6 +1,6 @@
 # Gemma 4 26B A4B maximum-performance execution plan
 
-Status: M20 performance baseline accepted 2026-08-25; M25 exact-greedy D2 has a repeated 202.505 token/s development candidate; the exact post-M20 prefill checkpoint reaches 6,907.684 token/s and is owner-paused 2026-08-26 pending review, while formal M25/product promotion remains open after technical M23 freeze
+Status: M20 performance baseline accepted 2026-08-25; the owner-paused post-M20 checkpoint reaches a 7,068.125 prompt-token/s median and 204.246–204.415 token/s exact-greedy D2, while formal M25 promotion remains open after technical M23 freeze
 Primary hardware: NVIDIA GeForce RTX 5080 Laptop GPU, 16 GB, native `sm_120a` build
 Primary promotion row: `wikipedia-real-16k64-greedy`
 Plan inputs: `CODEX_GEMMA4_26B_MAX_PERFORMANCE_PLAN.md`, `chatgptpro_plan.md`, the 2026-08-26 post-implementation static review, current source, accepted evidence, and active project policy
@@ -74,6 +74,25 @@ planning calculations but does not rewrite historical evidence. The three values
 token/s with identical output IDs and MTP counters. Compact evidence is
 `artifacts/m25/optimization-weight-stationary-d2.json`; the preceding shared-attention parent remains in
 `artifacts/m25/optimization-shared-fixed-attention.json`.
+
+Owner-paused maximum-performance checkpoint, 2026-08-26:
+
+| Metric | Bounded result | Status |
+|---|---:|---|
+| Prefill | 7,068.125 token/s | median of 7,046.454 / 7,073.667 / 7,068.125; exact `c750d0...` output |
+| D2 MTP | 204.246–204.415 token/s | two completed final runs; planned third run stopped by owner |
+| D2 group time | 5.548–5.552 seconds | 490 groups / 1,134 post-first outputs |
+| D2 acceptance | 65.51% | unchanged 642 / 980 drafts and 1,135 / 1,135 Target IDs |
+| Free MTP memory | 812,449,792 bytes | unchanged 32K development margin pass |
+
+Prefill crossed the 7,000 target through a specialized fully-visible global-attention loop and a fused physical-BF16
+Shared-Down boundary. Hybrid Tile-16 expert tails and a sibling-CTA launch-order prototype were measured and rejected.
+The D2 chain retained an exact parallel/shared Router, production-only diagnostic cleanup, fused final RMSNorm/Head
+quantization, concurrent six-state local-attention reductions and compact status-only inter-group commits. A first
+Fixed-T3 global-attention layout was exact and spill-free but slower and was removed. Compact evidence is
+`artifacts/m20/optimization-prefill-full-tile-bf16-down.json` and
+`artifacts/m25/optimization-production-chain-cleanup.json`. The 7,500 Prefill stretch and further MTP optimization
+remain future work; the owner explicitly paused the campaign after this bounded checkpoint.
 
 The current Tensor-Core-router output-token SHA-256 is
 `c750d0b33f8eb4a8103299875886e51ab144d874cafe8cea77b0cfd99d2aedaf`. The explicit serial-router rollback produces

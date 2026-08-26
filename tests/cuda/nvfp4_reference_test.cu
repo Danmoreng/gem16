@@ -2324,6 +2324,12 @@ void TestLocalLayerReferenceOperators() {
       norm_nvfp4_elements / 16U);
   DeviceBuffer<std::uint8_t> device_norm_nvfp4_physical_scales(
       norm_nvfp4_elements / 16U);
+  DeviceBuffer<float> device_norm_nvfp4_fused_normalized(
+      norm_nvfp4_elements);
+  DeviceBuffer<std::uint8_t> device_norm_nvfp4_fused_output_packed(
+      norm_nvfp4_elements / 2U);
+  DeviceBuffer<std::uint8_t> device_norm_nvfp4_fused_output_scales(
+      norm_nvfp4_elements / 16U);
   if (device_norm_nvfp4_input.get() == nullptr ||
       device_norm_nvfp4_input_bf16.get() == nullptr ||
       device_norm_nvfp4_weight.get() == nullptr ||
@@ -2334,6 +2340,9 @@ void TestLocalLayerReferenceOperators() {
       device_norm_nvfp4_reference_scales.get() == nullptr ||
       device_norm_nvfp4_fused_scales.get() == nullptr ||
       device_norm_nvfp4_physical_scales.get() == nullptr ||
+      device_norm_nvfp4_fused_normalized.get() == nullptr ||
+      device_norm_nvfp4_fused_output_packed.get() == nullptr ||
+      device_norm_nvfp4_fused_output_scales.get() == nullptr ||
       !CudaOk(cudaMemcpy(device_norm_nvfp4_input.get(),
                          norm_nvfp4_input.data(),
                          device_norm_nvfp4_input.bytes(),
@@ -2372,12 +2381,21 @@ void TestLocalLayerReferenceOperators() {
           device_norm_nvfp4_physical_packed.get(),
           device_norm_nvfp4_physical_scales.get(), norm_nvfp4_tokens,
           norm_nvfp4_width, 1.0e-6F, 1.25F, nullptr);
+  const auto norm_nvfp4_fused_output_status =
+      gem16::internal::LaunchRmsNormBf16Nvfp4ActivationQuantizationBatch(
+          device_norm_nvfp4_input.get(), device_norm_nvfp4_weight.get(),
+          device_norm_nvfp4_fused_normalized.get(),
+          device_norm_nvfp4_fused_output_packed.get(),
+          device_norm_nvfp4_fused_output_scales.get(), norm_nvfp4_tokens,
+          norm_nvfp4_width, 1.0e-6F, 1.25F, nullptr);
   CUDA_TEST_CHECK(norm_nvfp4_status.ok());
   CUDA_TEST_CHECK(norm_nvfp4_reference_status.ok());
   CUDA_TEST_CHECK(norm_nvfp4_fused_status.ok());
   CUDA_TEST_CHECK(norm_nvfp4_physical_status.ok());
+  CUDA_TEST_CHECK(norm_nvfp4_fused_output_status.ok());
   if (!norm_nvfp4_status.ok() || !norm_nvfp4_reference_status.ok() ||
       !norm_nvfp4_fused_status.ok() || !norm_nvfp4_physical_status.ok() ||
+      !norm_nvfp4_fused_output_status.ok() ||
       !CudaOk(cudaDeviceSynchronize(), "fused RMSNorm NVFP4 synchronize")) return;
   std::array<std::uint8_t, norm_nvfp4_elements / 2U>
       gpu_norm_nvfp4_reference_packed{};
@@ -2391,6 +2409,12 @@ void TestLocalLayerReferenceOperators() {
       gpu_norm_nvfp4_fused_scales{};
   std::array<std::uint8_t, norm_nvfp4_elements / 16U>
       gpu_norm_nvfp4_physical_scales{};
+  std::array<float, norm_nvfp4_elements>
+      gpu_norm_nvfp4_fused_normalized{};
+  std::array<std::uint8_t, norm_nvfp4_elements / 2U>
+      gpu_norm_nvfp4_fused_output_packed{};
+  std::array<std::uint8_t, norm_nvfp4_elements / 16U>
+      gpu_norm_nvfp4_fused_output_scales{};
   if (!CudaOk(cudaMemcpy(gpu_norm_nvfp4_reference_packed.data(),
                          device_norm_nvfp4_reference_packed.get(),
                          device_norm_nvfp4_reference_packed.bytes(),
@@ -2420,7 +2444,22 @@ void TestLocalLayerReferenceOperators() {
                          device_norm_nvfp4_physical_scales.get(),
                          device_norm_nvfp4_physical_scales.bytes(),
                          cudaMemcpyDeviceToHost),
-              "copy physical RMSNorm NVFP4 scales")) return;
+              "copy physical RMSNorm NVFP4 scales") ||
+      !CudaOk(cudaMemcpy(gpu_norm_nvfp4_fused_normalized.data(),
+                         device_norm_nvfp4_fused_normalized.get(),
+                         device_norm_nvfp4_fused_normalized.bytes(),
+                         cudaMemcpyDeviceToHost),
+              "copy fused-output RMSNorm normalized output") ||
+      !CudaOk(cudaMemcpy(gpu_norm_nvfp4_fused_output_packed.data(),
+                         device_norm_nvfp4_fused_output_packed.get(),
+                         device_norm_nvfp4_fused_output_packed.bytes(),
+                         cudaMemcpyDeviceToHost),
+              "copy fused-output RMSNorm NVFP4 packed output") ||
+      !CudaOk(cudaMemcpy(gpu_norm_nvfp4_fused_output_scales.data(),
+                         device_norm_nvfp4_fused_output_scales.get(),
+                         device_norm_nvfp4_fused_output_scales.bytes(),
+                         cudaMemcpyDeviceToHost),
+              "copy fused-output RMSNorm NVFP4 scales")) return;
   CUDA_TEST_CHECK(gpu_norm_nvfp4_reference_packed ==
                   gpu_norm_nvfp4_fused_packed);
   CUDA_TEST_CHECK(gpu_norm_nvfp4_reference_scales ==
@@ -2429,6 +2468,18 @@ void TestLocalLayerReferenceOperators() {
                   gpu_norm_nvfp4_physical_packed);
   CUDA_TEST_CHECK(gpu_norm_nvfp4_fused_scales ==
                   gpu_norm_nvfp4_physical_scales);
+  std::array<float, norm_nvfp4_elements> gpu_norm_nvfp4_reference{};
+  CUDA_TEST_CHECK(CudaOk(
+      cudaMemcpy(gpu_norm_nvfp4_reference.data(),
+                 device_norm_nvfp4_reference.get(),
+                 device_norm_nvfp4_reference.bytes(), cudaMemcpyDeviceToHost),
+      "copy reference RMSNorm normalized output"));
+  CUDA_TEST_CHECK(gpu_norm_nvfp4_reference ==
+                  gpu_norm_nvfp4_fused_normalized);
+  CUDA_TEST_CHECK(gpu_norm_nvfp4_reference_packed ==
+                  gpu_norm_nvfp4_fused_output_packed);
+  CUDA_TEST_CHECK(gpu_norm_nvfp4_reference_scales ==
+                  gpu_norm_nvfp4_fused_output_scales);
 
   constexpr std::size_t fused_gelu_elements = 32;
   std::array<float, fused_gelu_elements> fused_gelu_gate{};

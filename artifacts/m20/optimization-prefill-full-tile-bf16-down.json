@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "milestone": "post-M20-development",
+  "status": "bounded_exact_prefill_7000_pass_owner_paused",
+  "measured_on": "2026-08-26",
+  "scenario": {
+    "job": "artifacts/raw/m20/23a085f-formal/wikipedia-real-16k64-greedy-retained-01.job.json",
+    "model": "artifacts/raw/m08/qat-hybrid-clean-1",
+    "prompt_tokens": 16384,
+    "output_tokens": 64,
+    "timing_boundary": "unchanged M20 canonical prefill"
+  },
+  "change": {
+    "retained": [
+      "separate fully-visible and masked global-attention probability paths",
+      "remove finite predicates only from the proven fully-visible steady path",
+      "write Shared-Down directly at the physical BF16 boundary and consume it in the following RMSNorm"
+    ],
+    "rejected": [
+      "hybrid Tile-16 MoE tail schedule: 6884.341 prompt token/s",
+      "linearized sibling-CTA launch order: 7029.638 prompt token/s",
+      "no fast math, precision, cache, context, token or timing-boundary change"
+    ]
+  },
+  "performance": {
+    "same_day_parent": {
+      "prefill_seconds": 2.369180259,
+      "prompt_tokens_per_second": 6915.472108
+    },
+    "retained_runs_prompt_tokens_per_second": [
+      7046.453532,
+      7073.667246,
+      7068.125173
+    ],
+    "median_prompt_tokens_per_second": 7068.125173,
+    "mean_prompt_tokens_per_second": 7062.74865,
+    "minimum_prompt_tokens_per_second": 7046.453532,
+    "maximum_prompt_tokens_per_second": 7073.667246,
+    "median_gain_over_same_day_parent_percent": 2.2074,
+    "stretch_7000_pass": true,
+    "stretch_7500_pass": false
+  },
+  "correctness": {
+    "output_sha256": "c750d0b33f8eb4a8103299875886e51ab144d874cafe8cea77b0cfd99f7abd2aedaf",
+    "all_logits_finite": true,
+    "fallback_count": 0,
+    "ordinary_decode_unchanged": true,
+    "free_device_bytes": 1288503296
+  },
+  "schedule_telemetry": {
+    "records": 480,
+    "real_assignments": 3932160,
+    "padding_slots": 942112,
+    "padding_fraction": 0.23959,
+    "nonzero_tails_in_1_to_16_fraction": 0.652813,
+    "conclusion": "padding was material, but the extra Tail-16 launches regressed end-to-end throughput"
+  },
+  "evidence": {
+    "parent_revision": "30a43b3f458d33888292e8f1105122c8782d4769",
+    "source_diff_sha256": "6c7783703ec5342d6a1e19d82ddffb708accd0e921183afdc9099642302f1e04",
+    "benchmark_binary_sha256": "d27150ec4242affb1d0363b883aad470e21a6fb770825bbe1143dc8e5f111237",
+    "raw_sha256": [
+      "7a806c48b964adac3e425cdd208cb3d232d6733a91ed160d1c69132c73e61641",
+      "ae5f52ef20284edd0cf8cd463b92efd565fc4bd878f8c06d0770223e78b631e7",
+      "56ccfad787b2b489431c7349d6bc5a6b36ca4bb9ced94a56b2a6593ecc1604c1"
+    ],
+    "verification": [
+      "gem16-cuda-attention-reference-tests: pass",
+      "gem16-cuda-moe-reference-tests: pass",
+      "gem16-cuda-nvfp4-consumption-tests: pass",
+      "ctest: 10/10 pass with three model-dependent skips",
+      "real gem16-12b-m22-product: pass",
+      "real gem16-26b-m22-product: pass"
+    ]
+  },
+  "limitations": [
+    "This is a bounded three-run development characterization, not a replacement for accepted formal M20 evidence.",
+    "The owner paused performance optimization before the 7500 prompt-token/s stretch goal was reached."
+  ]
+}

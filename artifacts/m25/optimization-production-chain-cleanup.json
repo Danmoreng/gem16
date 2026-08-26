@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "milestone": "M25-development",
+  "status": "bounded_exact_d2_production_cleanup_owner_paused",
+  "measured_on": "2026-08-26",
+  "scenario": {
+    "target": "artifacts/raw/m08/qat-hybrid-clean-1",
+    "assistant": "artifacts/raw/m25/qat-q4_0-assistant-hybrid-diagnostic-v2",
+    "prompt_tokens": 16384,
+    "output_tokens": 1135,
+    "draft_length": 2,
+    "groups": 490,
+    "timing_boundary": "fixed D2 chain group time after initial Target selection"
+  },
+  "change": {
+    "retained": [
+      "parallel exact Router maximum and Shared-Memory production probabilities",
+      "omit unused second-best vocabulary scans from copy_transaction=false chain graphs",
+      "fuse final BF16 RMSNorm output with exact NVFP4 Head activation quantization",
+      "reduce all six fixed-T3 local-attention softmax states in shared synchronization phases",
+      "commit only compact prediction status between chain groups instead of copying one full vocabulary row"
+    ],
+    "rejected": [
+      "first Fixed-T3 global KVH2 verifier-attention layout: exact and spill-free but 198.929 token/s",
+      "no acceptance, sampling, precision, context, token or timing-boundary change"
+    ]
+  },
+  "performance": {
+    "parent_median_post_first_tokens_per_second": 202.50464712,
+    "retained_runs_post_first_tokens_per_second": [
+      204.415360134,
+      204.2459546
+    ],
+    "two_run_midpoint_tokens_per_second": 204.330657367,
+    "minimum_tokens_per_second": 204.2459546,
+    "maximum_tokens_per_second": 204.415360134,
+    "midpoint_gain_over_parent_percent": 0.9017,
+    "retained_group_seconds": [
+      5.547528323,
+      5.55212955
+    ],
+    "outputs_per_group": 2.314285714286
+  },
+  "correctness": {
+    "ordinary_target_identity": true,
+    "matching_output_token_ids": 1135,
+    "output_token_ids_le_u32_sha256": "d0fcfcc68cc3b015282e301261e6d90079a84cd9b8f2927c4fe0f98bcb461983",
+    "proposed_drafts": 980,
+    "accepted_drafts": 642,
+    "rejected_drafts": 338,
+    "target_verified_acceptance": 0.655102040816,
+    "non_finite_steps": 0
+  },
+  "resources": {
+    "free_loaded_bytes": 812449792,
+    "fixed_t3_local_attention_registers_per_thread": 108,
+    "fixed_t3_local_attention_shared_bytes": 37592,
+    "fixed_t3_local_attention_stack_bytes": 0,
+    "fixed_t3_local_attention_local_bytes": 0
+  },
+  "evidence": {
+    "parent_revision": "30a43b3f458d33888292e8f1105122c8782d4769",
+    "source_test_diff_sha256": "2dd287430f673882b400b6df701876ca7dc5f9639de9160c14b20ce5cc398e29",
+    "benchmark_binary_sha256": "adcc57a97463727297399e85335c0d3c6cf91b7c00e8c0026afa863d180dbaf3",
+    "raw_sha256": [
+      "deaee3b004320e6e79c75600db1fd22950ce0bfb2b3ed79caf54f4ce48358f7e",
+      "00e7b841cca6db07ce730f18b6b7df23a2e578ea93bd94a52ea4a3d020236a23"
+    ],
+    "verification": [
+      "gem16-cuda-tests nvfp4-reference: all CUDA tests passed",
+      "gem16-cuda-tests online-attention: all CUDA tests passed",
+      "gem16-cuda-tests mtp-chain: all CUDA tests passed",
+      "gem16-cuda-moe-reference-tests: pass and exact Router differential",
+      "ctest: 10/10 pass with three model-dependent skips",
+      "real gem16-12b-m22-product: pass in 5.67 seconds",
+      "real gem16-26b-m22-product: pass in 369.59 seconds"
+    ]
+  },
+  "limitations": [
+    "The owner stopped the planned third adjacent retained run after the second complete result; this record reports both values and no formal median.",
+    "This exact-greedy forced-output development row does not replace formal sampled MTP qualification or accept M25.",
+    "Performance optimization is owner-paused after this checkpoint."
+  ]
+}

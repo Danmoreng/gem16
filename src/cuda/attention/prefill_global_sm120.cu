@@ -639,47 +639,84 @@ __launch_bounds__(kGlobalThreads, 1) __global__
 
     const float next_maximum0 = fmaxf(maximum0, block_maximum0);
     const float next_maximum1 = fmaxf(maximum1, block_maximum1);
-    const float alpha0 = isfinite(maximum0)
-                             ? expf(maximum0 - next_maximum0)
-                             : 0.0F;
-    const float alpha1 = isfinite(maximum1)
-                             ? expf(maximum1 - next_maximum1)
-                             : 0.0F;
+    float alpha0;
+    float alpha1;
+    if (full_score_tile) {
+      // A full first tile has no previous online-softmax state. Every later
+      // full tile has valid rows and therefore finite running maxima. Keeping
+      // these CTA-uniform cases separate removes redundant finite checks from
+      // the dominant 16K path without changing expf/FMA ordering.
+      alpha0 = key_block == 0 ? 0.0F : expf(maximum0 - next_maximum0);
+      alpha1 = key_block == 0 ? 0.0F : expf(maximum1 - next_maximum1);
+    } else {
+      // The final partial query block can contain an invalid second row, whose
+      // maximum remains -inf across every key tile.
+      alpha0 = isfinite(maximum0) ? expf(maximum0 - next_maximum0) : 0.0F;
+      alpha1 = isfinite(maximum1) ? expf(maximum1 - next_maximum1) : 0.0F;
+    }
 
     float block_sum0 = 0.0F;
     float block_sum1 = 0.0F;
     unsigned probability_fragments[kGlobalPvSteps][4];
+    if (full_score_tile) {
 #pragma unroll
-    for (int score_tile = 0; score_tile < kGlobalScoreTiles;
-         ++score_tile) {
-      const float probability00 = isfinite(scores[score_tile][0])
-                                      ? expf(scores[score_tile][0] -
-                                             next_maximum0)
-                                      : 0.0F;
-      const float probability01 = isfinite(scores[score_tile][1])
-                                      ? expf(scores[score_tile][1] -
-                                             next_maximum0)
-                                      : 0.0F;
-      const float probability10 = isfinite(scores[score_tile][2])
-                                      ? expf(scores[score_tile][2] -
-                                             next_maximum1)
-                                      : 0.0F;
-      const float probability11 = isfinite(scores[score_tile][3])
-                                      ? expf(scores[score_tile][3] -
-                                             next_maximum1)
-                                      : 0.0F;
-      block_sum0 += probability00 + probability01;
-      block_sum1 += probability10 + probability11;
-      if (score_tile == 0) {
-        probability_fragments[0][0] =
-            PackBf16x2(probability00, probability01);
-        probability_fragments[0][1] =
-            PackBf16x2(probability10, probability11);
-      } else {
-        probability_fragments[0][2] =
-            PackBf16x2(probability00, probability01);
-        probability_fragments[0][3] =
-            PackBf16x2(probability10, probability11);
+      for (int score_tile = 0; score_tile < kGlobalScoreTiles;
+           ++score_tile) {
+        const float probability00 =
+            expf(scores[score_tile][0] - next_maximum0);
+        const float probability01 =
+            expf(scores[score_tile][1] - next_maximum0);
+        const float probability10 =
+            expf(scores[score_tile][2] - next_maximum1);
+        const float probability11 =
+            expf(scores[score_tile][3] - next_maximum1);
+        block_sum0 += probability00 + probability01;
+        block_sum1 += probability10 + probability11;
+        if (score_tile == 0) {
+          probability_fragments[0][0] =
+              PackBf16x2(probability00, probability01);
+          probability_fragments[0][1] =
+              PackBf16x2(probability10, probability11);
+        } else {
+          probability_fragments[0][2] =
+              PackBf16x2(probability00, probability01);
+          probability_fragments[0][3] =
+              PackBf16x2(probability10, probability11);
+        }
+      }
+    } else {
+#pragma unroll
+      for (int score_tile = 0; score_tile < kGlobalScoreTiles;
+           ++score_tile) {
+        const float probability00 = isfinite(scores[score_tile][0])
+                                        ? expf(scores[score_tile][0] -
+                                               next_maximum0)
+                                        : 0.0F;
+        const float probability01 = isfinite(scores[score_tile][1])
+                                        ? expf(scores[score_tile][1] -
+                                               next_maximum0)
+                                        : 0.0F;
+        const float probability10 = isfinite(scores[score_tile][2])
+                                        ? expf(scores[score_tile][2] -
+                                               next_maximum1)
+                                        : 0.0F;
+        const float probability11 = isfinite(scores[score_tile][3])
+                                        ? expf(scores[score_tile][3] -
+                                               next_maximum1)
+                                        : 0.0F;
+        block_sum0 += probability00 + probability01;
+        block_sum1 += probability10 + probability11;
+        if (score_tile == 0) {
+          probability_fragments[0][0] =
+              PackBf16x2(probability00, probability01);
+          probability_fragments[0][1] =
+              PackBf16x2(probability10, probability11);
+        } else {
+          probability_fragments[0][2] =
+              PackBf16x2(probability00, probability01);
+          probability_fragments[0][3] =
+              PackBf16x2(probability10, probability11);
+        }
       }
     }
 

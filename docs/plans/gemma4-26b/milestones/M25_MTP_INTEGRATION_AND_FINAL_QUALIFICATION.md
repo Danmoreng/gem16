@@ -119,6 +119,23 @@ text-only input while preserving the 12B default and multimodal behavior. Compac
 This checkpoint makes sampled MTP usable in CLI, server and Studio, but does not accept M25. Formal retained sampled
 timing, the separate 64K MTP context result and the owner-deferred M19 gate remain open.
 
+## Owner-paused production-chain performance checkpoint (2026-08-26)
+
+The exact-greedy D2 chain retains five independently checked production cleanups: parallel exact Router maximum with
+Shared-Memory probabilities, omission of the unused second-best scan when no host transaction is copied, one fused
+final BF16 RMSNorm/NVFP4 Head-activation boundary, concurrent reduction of all six fixed-T3 local-attention softmax
+states, and a compact prediction-status commit instead of a full 262,144-logit copy between chain groups. The full
+diagnostic/sampling buffers and ordinary non-chain behavior remain available where required. Operator differentials,
+the CUDA attention/NVFP4/MTP-chain suites and the complete Target-identity screen pass; the T=3 local kernel uses 108
+registers, 37,592 bytes Shared Memory and no local memory or stack.
+
+Two completed final 16K+1,135 runs reach 204.415 and 204.246 post-first token/s over the same 490 groups. Both retain
+642/980 Target-verified drafts, all 1,135 ordinary Target IDs, zero non-finite steps and 812,449,792 free loaded bytes.
+The owner stopped the planned third adjacent run and paused performance optimization, so this is reported as a
+two-run range rather than a formal median. It does not accept M25 or replace pending sampled timing and 64K context
+qualification. Compact evidence is `artifacts/m25/optimization-production-chain-cleanup.json`; the 202.505 token/s
+checkpoint remains the rollback.
+
 ## Phase C — exact verification runtime
 
 - proposal lengths selected from the existing verified design (for example D1/D2/D4), based on measured benefit;

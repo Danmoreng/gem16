@@ -1,6 +1,6 @@
 # Start here — current coding-agent task
 
-Status: M00–M17 and M20–M23 accepted; the owner-frozen M25 development checkpoint reaches 202.505 token/s exact-greedy D2 and 6,907.684 prompt token/s. Sampled D2 is now integrated in CLI, server and selectable Studio live chat at implementation commit `c4ead1d`; formal sampled timing and MTP 64K qualification remain. Full M19 is owner-deferred; M18 remains conditional.
+Status: M00–M17 and M20–M23 accepted; the owner-paused post-M20 checkpoint reaches a 7,068.125 prompt-token/s three-run median and 204.246–204.415 token/s exact-greedy D2 in two completed final runs. Sampled D2 is integrated in CLI, server and selectable Studio live chat at implementation commit `c4ead1d`; formal sampled timing and MTP 64K qualification remain. Full M19 is owner-deferred; M18 remains conditional.
 Plan revision: Fast Track R4.
 
 ## Read now
@@ -119,13 +119,17 @@ The exact 16K+64 ordinary path passed the 6,000 prompt, 150 decode and 6,500 pro
 MTP/speculative decode, cache/precision/semantic substitutions or timing-boundary changes. Compact acceptance is in
 `artifacts/m20/acceptance.json`; matching long-context acceptance is in `artifacts/m21/acceptance.json`.
 
-The later owner-frozen development checkpoint retains exact staged weight reuse in Prefill and D2. Its canonical
-single-screen Prefill is 6,907.684 token/s with the unchanged `c750d0...` output, and its three-run fixed-D2 median is
-202.505 token/s with all 1,135 outputs exactly matching the Target. Compact records are
+The later owner-paused development checkpoint retains exact staged weight reuse plus full-tile global-attention and
+physical-BF16 Shared-Down Prefill boundaries. Its unchanged `c750d0...` output reaches 7,046.454, 7,073.667 and
+7,068.125 prompt token/s (7,068.125 median). The exact fixed-D2 production chain now uses a parallel/shared Router,
+fused final norm/Head quantization, concurrent local T=3 softmax reductions and compact status-only inter-group
+commits. Its two completed final runs reach 204.415 and 204.246 token/s with all 1,135 outputs and 642/980 acceptance
+unchanged; the owner stopped the planned third run and paused further optimization. Compact records are
+`artifacts/m20/optimization-prefill-full-tile-bf16-down.json` and
+`artifacts/m25/optimization-production-chain-cleanup.json`; the prior rollbacks remain
 `artifacts/m20/optimization-prefill-token-reuse-rope.json` and
 `artifacts/m25/optimization-weight-stationary-d2.json`. These bounded results do not replace formal M20 evidence or
-accept M25; `artifacts/m25/performance-freeze.json` binds them to the host-CI fixture and real product checks as the
-rollback checkpoint for the active product-integration slice.
+accept M25; `artifacts/m25/performance-freeze.json` remains the accepted product-integration rollback checkpoint.
 
 M22 product behavior and protected 12B regressions are accepted at
 `f0aa302aa0246d44e1c8477dbbbb67fbbe2d2037`; see `artifacts/m22/acceptance.json`. M23 revalidated the updated

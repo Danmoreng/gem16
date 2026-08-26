@@ -378,7 +378,7 @@ __global__ void RouterProjectionWarpKernel(const float* input,
   if (lane == 0U) logits[expert] = RoundBf16(accumulator);
 }
 
-template <bool kParallelExact>
+template <bool kParallelExact, bool kMaterializeProbabilities = true>
 __global__ void RouterTopKKernel(
     const float* logits, const std::uint16_t* per_expert_scale,
     float* probabilities, std::uint32_t* top_ids, float* top_weights,
@@ -395,20 +395,45 @@ __global__ void RouterTopKKernel(
       (kThreads / kWarpSize) * 8U];
   __shared__ std::uint32_t warp_id[
       (kThreads / kWarpSize) * 8U];
-  if (threadIdx.x == 0U) {
-    maximum = -3.402823466e+38F;
-    valid = 1;
-    for (std::uint32_t expert = 0; expert < experts; ++expert) {
-      const float logit = logits[expert];
-      if (!isfinite(logit)) valid = 0;
-      maximum = fmaxf(maximum, logit);
+  __shared__ float local_probability[kThreads];
+  const unsigned lane = threadIdx.x & (kWarpSize - 1U);
+  const unsigned warp = threadIdx.x / kWarpSize;
+  if (threadIdx.x == 0U) valid = 1;
+  __syncthreads();
+  float local_maximum = -3.402823466e+38F;
+  for (std::uint32_t expert = threadIdx.x; expert < experts;
+       expert += blockDim.x) {
+    const float logit = logits[expert];
+    if (!isfinite(logit)) atomicExch(&valid, 0);
+    local_maximum = fmaxf(local_maximum, logit);
+  }
+#pragma unroll
+  for (unsigned offset = kWarpSize / 2U; offset != 0U; offset >>= 1U) {
+    local_maximum = fmaxf(
+        local_maximum,
+        __shfl_down_sync(0xffffffffU, local_maximum, offset));
+  }
+  if (lane == 0U) warp_probability[warp] = local_maximum;
+  __syncthreads();
+  if (warp == 0U) {
+    local_maximum = lane < kThreads / kWarpSize
+                        ? warp_probability[lane]
+                        : -3.402823466e+38F;
+#pragma unroll
+    for (unsigned offset = kWarpSize / 2U; offset != 0U; offset >>= 1U) {
+      local_maximum = fmaxf(
+          local_maximum,
+          __shfl_down_sync(0xffffffffU, local_maximum, offset));
     }
+    if (lane == 0U) maximum = local_maximum;
   }
   __syncthreads();
   if (!valid) {
-    for (std::uint32_t expert = threadIdx.x; expert < experts;
-         expert += blockDim.x) {
-      probabilities[expert] = 0.0F;
+    if constexpr (kMaterializeProbabilities) {
+      for (std::uint32_t expert = threadIdx.x; expert < experts;
+           expert += blockDim.x) {
+        probabilities[expert] = 0.0F;
+      }
     }
     for (std::uint32_t slot = threadIdx.x; slot < top_k;
          slot += blockDim.x) {
@@ -422,21 +447,32 @@ __global__ void RouterTopKKernel(
   }
   for (std::uint32_t expert = threadIdx.x; expert < experts;
        expert += blockDim.x) {
-    probabilities[expert] = expf(logits[expert] - maximum);
+    const float probability = expf(logits[expert] - maximum);
+    if constexpr (kMaterializeProbabilities) {
+      probabilities[expert] = probability;
+    } else {
+      local_probability[expert] = probability;
+    }
   }
   __syncthreads();
   if (threadIdx.x == 0U) {
     total = 0.0F;
     for (std::uint32_t expert = 0; expert < experts; ++expert) {
-      total += probabilities[expert];
+      if constexpr (kMaterializeProbabilities) {
+        total += probabilities[expert];
+      } else {
+        total += local_probability[expert];
+      }
     }
     if (!isfinite(total) || total <= 0.0F) valid = 0;
   }
   __syncthreads();
   if (!valid) {
-    for (std::uint32_t expert = threadIdx.x; expert < experts;
-         expert += blockDim.x) {
-      probabilities[expert] = 0.0F;
+    if constexpr (kMaterializeProbabilities) {
+      for (std::uint32_t expert = threadIdx.x; expert < experts;
+           expert += blockDim.x) {
+        probabilities[expert] = 0.0F;
+      }
     }
     for (std::uint32_t slot = threadIdx.x; slot < top_k;
          slot += blockDim.x) {
@@ -450,14 +486,21 @@ __global__ void RouterTopKKernel(
   }
   for (std::uint32_t expert = threadIdx.x; expert < experts;
        expert += blockDim.x) {
-    probabilities[expert] /= total;
+    if constexpr (kMaterializeProbabilities) {
+      probabilities[expert] /= total;
+    } else {
+      local_probability[expert] /= total;
+    }
   }
   __syncthreads();
-  const unsigned lane = threadIdx.x & (kWarpSize - 1U);
-  const unsigned warp = threadIdx.x / kWarpSize;
   if (kParallelExact && experts == 128U && top_k == 8U &&
       blockDim.x == kThreads) {
-    float candidate_probability = probabilities[threadIdx.x];
+    float candidate_probability;
+    if constexpr (kMaterializeProbabilities) {
+      candidate_probability = probabilities[threadIdx.x];
+    } else {
+      candidate_probability = local_probability[threadIdx.x];
+    }
     std::uint32_t candidate_id = threadIdx.x;
 #pragma unroll
     for (unsigned size = 2U; size <= kWarpSize; size <<= 1U) {
@@ -612,8 +655,10 @@ __global__ void RouterTopKKernel(
       }
     }
     if (!valid) {
-      for (std::uint32_t expert = 0; expert < experts; ++expert) {
-        probabilities[expert] = 0.0F;
+      if constexpr (kMaterializeProbabilities) {
+        for (std::uint32_t expert = 0; expert < experts; ++expert) {
+          probabilities[expert] = 0.0F;
+        }
       }
       for (std::uint32_t slot = 0; slot < top_k; ++slot) {
         top_ids[slot] = 0U;
@@ -1187,8 +1232,8 @@ Status LaunchGemma4MoeSm120MtpSharedBatchLayer(
                 batch.router_logits, c.experts, c.width);
   status = CheckLaunch("launch M25 exact router projection");
   if (!status.ok()) return status;
-  RouterTopKKernel<true><<<static_cast<unsigned>(tokens), kThreads, 0,
-                           stream>>>(
+  RouterTopKKernel<true, false><<<static_cast<unsigned>(tokens), kThreads, 0,
+                                  stream>>>(
       batch.router_logits, w.per_expert_scale_bf16,
       batch.router_probabilities, batch.permutation, batch.reduced_output,
       c.experts, c.top_k, batch.routing_finite);

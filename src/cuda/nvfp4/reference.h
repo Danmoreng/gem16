@@ -42,6 +42,20 @@ namespace gem16::internal {
     float global_divisor,
     cudaStream_t stream);
 
+// Exact MTP final boundary: emit the BF16-rounded normalized hidden state and
+// its blockwise NVFP4 Head activation from the same RMS reduction.
+[[nodiscard]] Status LaunchRmsNormBf16Nvfp4ActivationQuantizationBatch(
+    const float* input,
+    const std::uint16_t* weight_bf16,
+    float* normalized_bf16,
+    std::uint8_t* packed_e2m1,
+    std::uint8_t* block_scales_e4m3fn,
+    std::uint64_t tokens,
+    std::uint64_t elements_per_token,
+    float epsilon,
+    float global_divisor,
+    cudaStream_t stream);
+
 // Same exact production boundary for a recurrent hidden state held in
 // physical BF16 storage.
 [[nodiscard]] Status LaunchRmsNormNvfp4ActivationQuantizationBf16Batch(

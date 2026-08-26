@@ -399,6 +399,7 @@ Status LaunchSoftcapArgmax(float* logits, float softcap, int* all_finite,
              : CudaFailure("launch M17 final argmax", error);
 }
 
+template <bool kCommitLogits>
 __global__ void CommitMtpPredictionKernel(
     const float* batch_logits, float* committed_logits,
     const MtpGroupResult* result, const int* logits_finite,
@@ -406,8 +407,10 @@ __global__ void CommitMtpPredictionKernel(
   const std::uint64_t index =
       static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
   const std::uint32_t row = result->output_count - 1U;
-  if (index < kVocabulary) {
-    committed_logits[index] = batch_logits[row * kVocabulary + index];
+  if constexpr (kCommitLogits) {
+    if (index < kVocabulary) {
+      committed_logits[index] = batch_logits[row * kVocabulary + index];
+    }
   }
   if (index == 0U) {
     const std::uint32_t token = result->verified[row];
@@ -929,12 +932,9 @@ Status Gemma4Moe26BReferenceEngine::Impl::LaunchFixedMtpGraphBody(
   float* top_values = mtp_verifier.As<float>(mtp_top_values_offset);
   float* second_values = mtp_verifier.As<float>(mtp_second_values_offset);
   int* logits_finite = mtp_verifier.As<int>(mtp_finite_offset);
-  status = LaunchRmsNormBf16(prefill_hidden_a, final_norm, normalized, tokens,
-                             kWidth, 1.0e-6F, stream);
-  if (!status.ok()) return status;
-  status = LaunchRmsNormNvfp4ActivationQuantizationBatch(
-      prefill_hidden_a, final_norm, head_activation, head_scales, tokens,
-      kWidth, 1.0e-6F, head.activation_global_divisor, stream);
+  status = LaunchRmsNormBf16Nvfp4ActivationQuantizationBatch(
+      prefill_hidden_a, final_norm, normalized, head_activation, head_scales,
+      tokens, kWidth, 1.0e-6F, head.activation_global_divisor, stream);
   if (!status.ok()) return status;
   status = LaunchNvfp4Sm120DirectProjectionBf16FloatExactBatch(
       head_activation, head_scales, head.packed_e2m1, head.scales_e4m3fn,
@@ -947,12 +947,14 @@ Status Gemma4Moe26BReferenceEngine::Impl::LaunchFixedMtpGraphBody(
         output_candidates, selected + row, top_values + row, stream, nullptr,
         suppressed_token_ids, suppressed_token_count);
     if (!status.ok()) return status;
-    status = LaunchSoftcapArgmax(
-        batch_logits + row * kVocabulary, softcap, logits_finite + row,
-        output_candidates, second_selected + row, second_values + row,
-        stream, nullptr, suppressed_token_ids, suppressed_token_count,
-        selected + row, false);
-    if (!status.ok()) return status;
+    if (copy_transaction) {
+      status = LaunchSoftcapArgmax(
+          batch_logits + row * kVocabulary, softcap, logits_finite + row,
+          output_candidates, second_selected + row, second_values + row,
+          stream, nullptr, suppressed_token_ids, suppressed_token_count,
+          selected + row, false);
+      if (!status.ok()) return status;
+    }
   }
   status = SelectMtpVerificationTokens(
       batch_logits, prefill_tokens, row_controls, tokens, selected);
@@ -985,9 +987,16 @@ Status Gemma4Moe26BReferenceEngine::Impl::LaunchFixedMtpGraphBody(
   status = LaunchCommitMtpHidden(normalized, final_hidden, kWidth,
                                  &transaction->result, stream);
   if (!status.ok()) return status;
-  CommitMtpPredictionKernel<<<kArgmaxBlocks, kArgmaxThreads, 0, stream>>>(
-      batch_logits, logits, &transaction->result, logits_finite,
-      routing_finite, prediction_device_status);
+  if (copy_transaction) {
+    CommitMtpPredictionKernel<true>
+        <<<kArgmaxBlocks, kArgmaxThreads, 0, stream>>>(
+            batch_logits, logits, &transaction->result, logits_finite,
+            routing_finite, prediction_device_status);
+  } else {
+    CommitMtpPredictionKernel<false><<<1U, 1U, 0, stream>>>(
+        batch_logits, logits, &transaction->result, logits_finite,
+        routing_finite, prediction_device_status);
+  }
   error = cudaGetLastError();
   if (error != cudaSuccess) {
     return CudaFailure("commit M25 fixed graph prediction", error);
@@ -3080,9 +3089,10 @@ Status Gemma4Moe26BReferenceEngine::RunMtpAssistantGroup(
   status = LaunchCommitMtpHidden(normalized, x.final_hidden, kWidth,
                                  &transaction->result, x.stream);
   if (!status.ok()) return status;
-  CommitMtpPredictionKernel<<<kArgmaxBlocks, kArgmaxThreads, 0, x.stream>>>(
-      batch_logits, x.logits, &transaction->result, finite, x.routing_finite,
-      x.prediction_device_status);
+  CommitMtpPredictionKernel<true>
+      <<<kArgmaxBlocks, kArgmaxThreads, 0, x.stream>>>(
+          batch_logits, x.logits, &transaction->result, finite,
+          x.routing_finite, x.prediction_device_status);
   error = cudaGetLastError();
   if (error != cudaSuccess) {
     return CudaFailure("commit M25 verifier prediction", error);

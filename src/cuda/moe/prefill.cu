@@ -68,12 +68,6 @@ __device__ __forceinline__ float RoundBf16(float value) {
   return static_cast<float>(__float2bfloat16_rn(value));
 }
 
-__global__ void RoundBf16BatchKernel(float* values, std::uint64_t elements) {
-  const std::uint64_t index =
-      static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
-  if (index < elements) values[index] = RoundBf16(values[index]);
-}
-
 __global__ void RouterTransformBatchKernel(
     const float* normalized, const std::uint16_t* scale, float* transformed,
     std::uint64_t tokens, std::uint64_t width) {
@@ -604,22 +598,18 @@ Status LaunchGemma4MoeSm120PrefillLayer(
       tokens * c.shared_intermediate,
       w.shared_down.activation_global_divisor, stream);
   if (!status.ok()) return status;
-  status = LaunchNvfp4Sm120DirectProjectionBatch(
+  auto* shared_output_bf16 =
+      reinterpret_cast<std::uint16_t*>(x.shared_output);
+  status = LaunchNvfp4Sm120DirectProjectionBf16Batch(
       x.shared_product_packed, x.shared_product_scales,
       w.shared_down.packed_e2m1, w.shared_down.scales_e4m3fn,
-      x.shared_output, tokens, c.width, c.shared_intermediate,
+      shared_output_bf16, tokens, c.width, c.shared_intermediate,
       w.shared_down.activation_global_divisor,
       w.shared_down.weight_global_divisor, stream);
   if (!status.ok()) return status;
-  const std::uint64_t shared_output_elements = tokens * c.width;
-  RoundBf16BatchKernel<<<
-      static_cast<unsigned>(Blocks(shared_output_elements)), kThreads, 0,
-      stream>>>(x.shared_output, shared_output_elements);
-  status = CheckLaunch("launch M15 shared-output BF16 rounding");
-  if (!status.ok()) return status;
-  status = LaunchRmsNormBf16(x.shared_output, w.post_shared_norm_bf16,
-                             x.reduced_output, tokens, c.width, c.epsilon,
-                             stream);
+  status = LaunchRmsNormBf16Input(
+      shared_output_bf16, w.post_shared_norm_bf16, x.reduced_output, tokens,
+      c.width, c.epsilon, stream);
   if (!status.ok()) return status;
 
   // Fixed-arena lifetime alias: shared_output's shared-branch value is now
