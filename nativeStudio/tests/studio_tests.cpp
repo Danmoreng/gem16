@@ -1,4 +1,6 @@
 #include "api_client.h"
+#include "chat_history.h"
+#include "markdown.h"
 #include "server_manager.h"
 #include "selectable_text.h"
 
@@ -6,6 +8,7 @@
 #include "imgui.h"
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cstdio>
 #include <thread>
@@ -94,6 +97,119 @@ bool TestSelectableTextWidgetClipboard() {
   return clipboard == response;
 }
 
+bool TestMarkdownParser() {
+  using gem16::studio::markdown::BlockKind;
+  const std::string source =
+      "# Gem 16\n\n"
+      "A **strong**, *calm*, `local` [assistant](https://example.com).\n\n"
+      "- first item\n"
+      "2. second item\n"
+      "> quoted answer\n\n"
+      "```cpp\nint value = 16;\n```\n"
+      "---\n";
+  const auto blocks = gem16::studio::markdown::Parse(source);
+  if (blocks.size() != 7 || blocks[0].kind != BlockKind::kHeading ||
+      blocks[0].level != 1 || blocks[0].text != "Gem 16" ||
+      blocks[1].kind != BlockKind::kParagraph ||
+      blocks[1].text != "A strong, calm, local assistant." ||
+      blocks[2].kind != BlockKind::kBulletItem ||
+      blocks[3].kind != BlockKind::kOrderedItem || blocks[3].ordinal != 2 ||
+      blocks[4].kind != BlockKind::kQuote ||
+      blocks[5].kind != BlockKind::kCode || blocks[5].info != "cpp" ||
+      blocks[5].text != "int value = 16;" ||
+      blocks[6].kind != BlockKind::kRule) {
+    return false;
+  }
+  bool strong = false;
+  bool emphasis = false;
+  bool code = false;
+  bool link = false;
+  for (const auto& span : blocks[1].spans) {
+    strong |= span.strong;
+    emphasis |= span.emphasis;
+    code |= span.code;
+    link |= span.link && span.destination == "https://example.com";
+    if (span.begin >= span.end || span.end > blocks[1].text.size()) return false;
+  }
+  const auto streaming = gem16::studio::markdown::Parse("```html\n<div>streaming");
+  return strong && emphasis && code && link && streaming.size() == 1 &&
+         streaming[0].kind == BlockKind::kCode &&
+         streaming[0].text == "<div>streaming";
+}
+
+bool TestChatHistoryUndo() {
+  std::vector<gem16::studio::ChatMessage> messages{
+      {"user", "first", {}, false, false},
+      {"assistant", "first answer", {}, false, false},
+      {"user", "second", {}, false, false},
+      {"assistant", "second answer", {}, false, false}};
+  if (!gem16::studio::RemoveLastExchange(messages) || messages.size() != 2 ||
+      messages.back().content != "first answer") {
+    return false;
+  }
+  if (!gem16::studio::RemoveLastExchange(messages) || !messages.empty())
+    return false;
+  messages.push_back({"assistant", "orphan", {}, false, false});
+  return !gem16::studio::RemoveLastExchange(messages) && messages.size() == 1;
+}
+
+bool TestComposerEnterBehavior() {
+  IMGUI_CHECKVERSION();
+  ImGui::CreateContext();
+  ImGuiIO& io = ImGui::GetIO();
+  io.DisplaySize = {480.0f, 260.0f};
+  io.DeltaTime = 1.0f / 60.0f;
+  io.ConfigInputTrickleEventQueue = false;
+  unsigned char* pixels = nullptr;
+  int atlas_width = 0;
+  int atlas_height = 0;
+  io.Fonts->GetTexDataAsRGBA32(&pixels, &atlas_width, &atlas_height);
+  std::array<char, 128> buffer{};
+  std::snprintf(buffer.data(), buffer.size(), "hello");
+
+  const auto draw_frame = [&buffer] {
+    ImGui::NewFrame();
+    ImGui::SetNextWindowPos({0.0f, 0.0f});
+    ImGui::SetNextWindowSize({480.0f, 260.0f});
+    ImGui::Begin("##composer-test", nullptr,
+                 ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoSavedSettings);
+    ImGui::SetCursorScreenPos({24.0f, 24.0f});
+    const bool submitted = ImGui::InputTextMultiline(
+        "##message", buffer.data(), buffer.size(), {360.0f, 100.0f},
+        ImGuiInputTextFlags_EnterReturnsTrue |
+            ImGuiInputTextFlags_CtrlEnterForNewLine);
+    ImGui::End();
+    ImGui::Render();
+    return submitted;
+  };
+
+  draw_frame();
+  io.AddMousePosEvent(70.0f, 45.0f);
+  io.AddMouseButtonEvent(ImGuiMouseButton_Left, true);
+  draw_frame();
+  io.AddMouseButtonEvent(ImGuiMouseButton_Left, false);
+  draw_frame();
+  io.AddKeyEvent(ImGuiKey_Enter, true);
+  const bool enter_submitted = draw_frame();
+  io.AddKeyEvent(ImGuiKey_Enter, false);
+  draw_frame();
+
+  io.AddMouseButtonEvent(ImGuiMouseButton_Left, true);
+  draw_frame();
+  io.AddMouseButtonEvent(ImGuiMouseButton_Left, false);
+  draw_frame();
+  io.AddKeyEvent(ImGuiMod_Shift, true);
+  io.AddKeyEvent(ImGuiKey_Enter, true);
+  const bool shift_submitted = draw_frame();
+  io.AddKeyEvent(ImGuiKey_Enter, false);
+  io.AddKeyEvent(ImGuiMod_Shift, false);
+  draw_frame();
+
+  const std::string result(buffer.data());
+  ImGui::DestroyContext();
+  return enter_submitted && !shift_submitted && result.find('\n') != std::string::npos;
+}
+
 bool TestStreamingClient() {
   httplib::Server server;
   server.Post("/v1/chat/completions", [](const httplib::Request& request,
@@ -153,6 +269,18 @@ int main() {
   }
   if (!TestSelectableTextWidgetClipboard()) {
     std::fprintf(stderr, "selectable text clipboard integration test failed\n");
+    return 1;
+  }
+  if (!TestMarkdownParser()) {
+    std::fprintf(stderr, "markdown parser test failed\n");
+    return 1;
+  }
+  if (!TestChatHistoryUndo()) {
+    std::fprintf(stderr, "chat history undo test failed\n");
+    return 1;
+  }
+  if (!TestComposerEnterBehavior()) {
+    std::fprintf(stderr, "composer Enter/Shift+Enter test failed\n");
     return 1;
   }
   if (!TestServerCommand()) {

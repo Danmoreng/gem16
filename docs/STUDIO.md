@@ -32,15 +32,21 @@ license remains beside the vendored source.
 - Managed `gem16-server` start, stop, output capture, health polling, and non-owning attachment to an external server.
 - Incremental SSE rendering for answer and `reasoning_content`, cancellation, resident session IDs, and new-chat
   reset. Starting a new chat omits the old session ID; the one-slot 26B server then evicts the inactive root.
+- Selectable Markdown rendering for headings, emphasis, strong text, inline and fenced code, ordered/unordered lists,
+  quotes, rules, links, and image labels. Fenced code blocks expose their own copy action.
+- Reasoning is available per assistant response, collapsed by default, and expandable without affecting the answer.
 - Desktop-style wrapped response selection with mouse drag, double-click word selection, Shift extension,
   `Ctrl+A`/`Ctrl+C`, a context menu, per-message copy feedback, and equivalent selectable/copyable server logs.
+- A compact, dynamically growing composer uses `Enter` to send and `Shift+Enter` for a line break. Undo removes the
+  most recent user/assistant exchange and invalidates the resident session; Delete clears the complete chat. The
+  composer itself never exposes an outer scrollbar.
 - Persistent server, generation, and theme settings under `$XDG_CONFIG_HOME/gem16/studio.conf`,
   `~/.config/gem16/studio.conf`, or `%APPDATA%\gem16\studio.conf`.
 - Normal operating-system window chrome and cursor on both platforms.
 
 This first native slice is text-chat complete but does not yet claim feature parity with Compose. The old app's model
-downloader, Markdown/code-block renderer, document/PDF extraction, image/audio attachments, microphone capture,
-local time tools, exact metrics cards, and MSI installer remain follow-up ports. The 12B server still supports its
+downloader, document/PDF extraction, image/audio attachments, microphone capture, local time tools, exact metrics
+cards, and MSI installer remain follow-up ports. The 12B server still supports its
 multimodal capabilities; the current native UI sends text only. The 26B profile is intentionally text-only.
 
 ## Build and run
@@ -74,7 +80,8 @@ ctest --test-dir build/native-studio --output-on-failure
 The native host test exercises the exact 26B launch arguments and an in-process SSE endpoint, including reasoning,
 answer text, terminal marker, and resident session-ID propagation. It also drives the real selectable-text ImGui
 widget and verifies that click plus `Ctrl+A`/`Ctrl+C` reaches the platform clipboard callback, including UTF-8 helper
-coverage. It does not load a model or GPU.
+coverage. It also covers Markdown parsing and streaming fences, undo-turn history behavior, and the real ImGui
+`Enter`/`Shift+Enter` composer interaction. It does not load a model or GPU.
 
 ## Packaging
 

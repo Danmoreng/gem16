@@ -17,7 +17,9 @@ find_package(Threads REQUIRED)
 set(STUDIO_SOURCES
   src/app.cpp
   src/api_client.cpp
+  src/chat_history.cpp
   src/main.cpp
+  src/markdown.cpp
   src/platform_process.cpp
   src/selectable_text.cpp
   src/server_manager.cpp
@@ -101,6 +103,8 @@ if(BUILD_TESTING)
   add_executable(gem16-studio-tests
     tests/studio_tests.cpp
     src/api_client.cpp
+    src/chat_history.cpp
+    src/markdown.cpp
     src/platform_process.cpp
     src/selectable_text.cpp
     src/server_manager.cpp

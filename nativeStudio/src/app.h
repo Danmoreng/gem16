@@ -6,6 +6,7 @@
 
 #include <array>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 namespace gem16::studio {
@@ -29,7 +30,8 @@ class StudioApp final {
   void DrawSettings();
   void DrawMessage(const ChatMessage& message, std::size_t index);
   void SendMessage();
-  void NewChat();
+  void ClearChat();
+  void RemoveLastExchange();
   void SelectProfile(ModelProfile profile);
   void SyncBuffersFromSettings();
   void SyncSettingsFromBuffers();
@@ -49,6 +51,7 @@ class StudioApp final {
   std::array<char, 16384> system_prompt_{};
   bool scroll_to_bottom_ = false;
   bool show_reasoning_ = true;
+  std::unordered_set<std::size_t> expanded_reasoning_;
   std::size_t copied_message_index_ = static_cast<std::size_t>(-1);
   double copied_message_at_ = -100.0;
   float sidebar_width_ = 214.0f;

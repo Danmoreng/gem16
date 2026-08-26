@@ -6,14 +6,26 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 namespace gem16::studio::selectable_text {
+
+struct StyleSpan {
+  std::size_t begin = 0;
+  std::size_t end = 0;
+  ImU32 text_color = 0;
+  ImU32 background_color = 0;
+  bool strong = false;
+  bool emphasis = false;
+  bool underline = false;
+};
 
 struct Options {
   float width = 0.0f;
   ImU32 text_color = IM_COL32_WHITE;
   ImU32 selection_color = IM_COL32(37, 132, 96, 190);
   float line_spacing = 3.0f;
+  const std::vector<StyleSpan>* spans = nullptr;
 };
 
 // Draws wrapped text with native desktop-style character selection. Selection
@@ -30,4 +42,3 @@ void Wrapped(const char* id, const std::string& text, const Options& options = {
                                        std::size_t caret);
 
 }  // namespace gem16::studio::selectable_text
-

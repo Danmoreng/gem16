@@ -22,6 +22,16 @@ struct SelectionState {
   bool dragging = false;
 };
 
+struct ResolvedStyle {
+  ImU32 text_color = 0;
+  ImU32 background_color = 0;
+  bool strong = false;
+  bool emphasis = false;
+  bool underline = false;
+
+  bool operator==(const ResolvedStyle&) const = default;
+};
+
 SelectionState g_selection;
 
 std::size_t NextCodepoint(std::string_view text, std::size_t position) {
@@ -164,6 +174,49 @@ void MoveCaret(std::string_view text, bool right, bool extend) {
   if (!extend) g_selection.anchor = target;
 }
 
+ResolvedStyle ResolveStyle(const std::vector<StyleSpan>* spans,
+                           std::size_t position, ImU32 default_color) {
+  ResolvedStyle result;
+  result.text_color = default_color;
+  if (spans == nullptr) return result;
+  for (const StyleSpan& span : *spans) {
+    if (position < span.begin || position >= span.end) continue;
+    if (span.text_color != 0) result.text_color = span.text_color;
+    if (span.background_color != 0)
+      result.background_color = span.background_color;
+    result.strong = result.strong || span.strong;
+    result.emphasis = result.emphasis || span.emphasis;
+    result.underline = result.underline || span.underline;
+  }
+  return result;
+}
+
+struct StyledRun {
+  std::size_t begin = 0;
+  std::size_t end = 0;
+  ResolvedStyle style;
+};
+
+std::vector<StyledRun> BuildStyledRuns(std::string_view text,
+                                       const WrappedLine& line,
+                                       const std::vector<StyleSpan>* spans,
+                                       ImU32 default_color) {
+  std::vector<StyledRun> runs;
+  if (line.begin == line.end) return runs;
+  std::size_t begin = line.begin;
+  ResolvedStyle style = ResolveStyle(spans, begin, default_color);
+  for (std::size_t position = NextCodepoint(text, begin);
+       position < line.end; position = NextCodepoint(text, position)) {
+    const ResolvedStyle next = ResolveStyle(spans, position, default_color);
+    if (next == style) continue;
+    runs.push_back({begin, position, style});
+    begin = position;
+    style = next;
+  }
+  runs.push_back({begin, line.end, style});
+  return runs;
+}
+
 }  // namespace
 
 std::pair<std::size_t, std::size_t> NormalizedRange(
@@ -279,6 +332,18 @@ void Wrapped(const char* id, const std::string& text, const Options& options) {
   for (std::size_t index = 0; index < lines.size(); ++index) {
     const WrappedLine& line = lines[index];
     const ImVec2 position(origin.x, origin.y + line_height * index);
+    const std::vector<StyledRun> runs =
+        BuildStyledRuns(text, line, options.spans, options.text_color);
+    for (const StyledRun& run : runs) {
+      if (run.style.background_color == 0) continue;
+      const float x1 = position.x + XAtByte(text, line, font, font_size,
+                                            run.begin);
+      const float x2 = position.x + XAtByte(text, line, font, font_size,
+                                            run.end);
+      draw->AddRectFilled({x1 - 2.0f, position.y - 1.0f},
+                          {x2 + 2.0f, position.y + font_size + 2.0f},
+                          run.style.background_color, 3.0f);
+    }
     if (g_selection.id == item_id && selection_end > line.begin &&
         selection_begin < line.end) {
       const std::size_t begin = std::max(selection_begin, line.begin);
@@ -289,8 +354,27 @@ void Wrapped(const char* id, const std::string& text, const Options& options) {
                           {std::max(x1 + 1.0f, x2), position.y + font_size + 2.0f},
                           options.selection_color, 2.0f);
     }
-    draw->AddText(font, font_size, position, options.text_color,
-                  text.data() + line.begin, text.data() + line.end);
+    for (const StyledRun& run : runs) {
+      const float x = position.x +
+                      XAtByte(text, line, font, font_size, run.begin);
+      const ImVec2 text_position(
+          x, position.y + (run.style.emphasis ? -0.35f : 0.0f));
+      if (run.style.strong) {
+        draw->AddText(font, font_size,
+                      {text_position.x + 0.55f, text_position.y},
+                      run.style.text_color, text.data() + run.begin,
+                      text.data() + run.end);
+      }
+      draw->AddText(font, font_size, text_position, run.style.text_color,
+                    text.data() + run.begin, text.data() + run.end);
+      if (run.style.underline) {
+        const float x2 = position.x +
+                         XAtByte(text, line, font, font_size, run.end);
+        draw->AddLine({x, position.y + font_size + 1.0f},
+                      {x2, position.y + font_size + 1.0f},
+                      run.style.text_color, 1.0f);
+      }
+    }
   }
 
   if (ImGui::BeginPopupContextItem()) {

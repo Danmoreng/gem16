@@ -1,5 +1,7 @@
 #include "app.h"
 
+#include "chat_history.h"
+#include "markdown.h"
 #include "selectable_text.h"
 #include "settings.h"
 
@@ -116,23 +118,64 @@ void DrawNavIcon(ImDrawList* draw, Screen screen, ImVec2 center, ImU32 color) {
 }
 
 bool NavButton(const char* label, Screen screen, bool selected, float width) {
-  ImGui::PushStyleColor(ImGuiCol_Button, selected ? ImVec4(0.10f, 0.30f, 0.22f, 0.96f) : ImVec4(0, 0, 0, 0));
-  ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.12f, 0.25f, 0.20f, 0.94f));
-  ImGui::PushStyleColor(ImGuiCol_Text, selected ? kAccent : ImGui::GetStyleColorVec4(ImGuiCol_Text));
-  ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, {0.30f, 0.5f});
-  const bool clicked = ImGui::Button(label, ImVec2(width, 48.0f));
-  const ImVec2 min = ImGui::GetItemRectMin();
-  DrawNavIcon(ImGui::GetWindowDrawList(), screen,
-              {min.x + 26.0f, (min.y + ImGui::GetItemRectMax().y) * 0.5f},
-              ImGui::ColorConvertFloat4ToU32(
-                  selected ? kAccent : ImVec4(0.52f, 0.58f, 0.57f, 1.0f)));
-  if (selected) {
-    ImGui::GetWindowDrawList()->AddRectFilled(
-        {min.x, min.y + 8.0f}, {min.x + 3.0f, ImGui::GetItemRectMax().y - 8.0f},
-        ImGui::ColorConvertFloat4ToU32(kAccent), 2.0f);
+  static std::array<float, 4> glow_strength{};
+  ImGui::InvisibleButton(label, {width, 48.0f});
+  const bool clicked = ImGui::IsItemClicked();
+  const bool hovered = ImGui::IsItemHovered();
+  const std::size_t glow_index = static_cast<std::size_t>(screen);
+  const float target = selected ? 1.0f : (hovered ? 0.72f : 0.0f);
+  const float response =
+      1.0f - std::exp(-ImGui::GetIO().DeltaTime * (target > glow_strength[glow_index]
+                                                       ? 18.0f
+                                                       : 11.0f));
+  glow_strength[glow_index] +=
+      (target - glow_strength[glow_index]) * response;
+
+  const float glow = glow_strength[glow_index];
+  const ImVec2 minimum = ImGui::GetItemRectMin();
+  const ImVec2 maximum = ImGui::GetItemRectMax();
+  const ImVec2 center{minimum.x + 28.0f, (minimum.y + maximum.y) * 0.5f};
+  ImDrawList* draw = ImGui::GetWindowDrawList();
+  draw->PushClipRect(minimum, maximum, true);
+  if (selected || glow > 0.01f) {
+    draw->AddRectFilled(
+        minimum, maximum,
+        IM_COL32(8, 61, 43,
+                 static_cast<int>((selected ? 162.0f : 105.0f) * glow)),
+        11.0f, ImDrawFlags_RoundCornersRight);
+    draw->AddCircleFilled(
+        {minimum.x - 2.0f, center.y}, 34.0f,
+        IM_COL32(38, 244, 164, static_cast<int>(42.0f * glow)), 36);
+    draw->AddRectFilledMultiColor(
+        {minimum.x + 1.0f, minimum.y + 2.0f},
+        {minimum.x + width * 0.72f, maximum.y - 2.0f},
+        IM_COL32(37, 239, 160, static_cast<int>(84.0f * glow)),
+        IM_COL32(37, 239, 160, 0), IM_COL32(37, 239, 160, 0),
+        IM_COL32(37, 239, 160, static_cast<int>(84.0f * glow)));
+    draw->AddRectFilled(
+        {minimum.x, minimum.y + 5.0f},
+        {minimum.x + 2.0f, maximum.y - 5.0f},
+        IM_COL32(76, 255, 190, static_cast<int>(245.0f * glow)), 1.0f);
+    draw->AddRectFilled(
+        {minimum.x + 2.0f, minimum.y + 8.0f},
+        {minimum.x + 5.0f, maximum.y - 8.0f},
+        IM_COL32(40, 244, 164, static_cast<int>(92.0f * glow)), 2.0f);
   }
-  ImGui::PopStyleVar();
-  ImGui::PopStyleColor(3);
+  draw->PopClipRect();
+
+  const ImVec4 idle{0.52f, 0.58f, 0.57f, 1.0f};
+  const ImVec4 lit = selected || hovered
+                         ? ImVec4(kAccent.x, kAccent.y, kAccent.z, 1.0f)
+                         : idle;
+  DrawNavIcon(draw, screen, center, ImGui::ColorConvertFloat4ToU32(lit));
+  const ImVec2 text_size = ImGui::CalcTextSize(label);
+  draw->AddText({minimum.x + 53.0f,
+                 minimum.y + (48.0f - text_size.y) * 0.5f},
+                ImGui::ColorConvertFloat4ToU32(
+                    selected ? kAccent
+                             : (hovered ? ImVec4(0.78f, 0.97f, 0.88f, 1.0f)
+                                        : ImGui::GetStyleColorVec4(ImGuiCol_Text))),
+                label);
   return clicked;
 }
 
@@ -188,6 +231,63 @@ void CapabilityChip(const char* text, bool active = true) {
                                : ImVec4(0.48f, 0.53f, 0.52f, 1.0f));
   ImGui::SmallButton(text);
   ImGui::PopStyleColor(3);
+}
+
+enum class ComposerIcon { kUndo, kDelete, kSend, kStop };
+
+bool ComposerButton(const char* id, ComposerIcon icon, float size,
+                    const char* tooltip, bool disabled = false) {
+  const bool clicked = ImGui::Button(id, {size, size});
+  const ImVec2 minimum = ImGui::GetItemRectMin();
+  const ImVec2 maximum = ImGui::GetItemRectMax();
+  const ImVec2 center{(minimum.x + maximum.x) * 0.5f,
+                      (minimum.y + maximum.y) * 0.5f};
+  ImDrawList* draw = ImGui::GetWindowDrawList();
+  const ImU32 color = ImGui::GetColorU32(
+      disabled ? ImGuiCol_TextDisabled : ImGuiCol_Text);
+  if (icon == ComposerIcon::kUndo) {
+    draw->PathArcTo(center, 8.0f, 0.15f * std::numbers::pi_v<float>,
+                    1.55f * std::numbers::pi_v<float>, 20);
+    draw->PathStroke(color, 0, 1.8f);
+    const ImVec2 arrow[3] = {{center.x - 9.0f, center.y - 5.0f},
+                             {center.x - 10.0f, center.y + 3.0f},
+                             {center.x - 3.0f, center.y - 1.0f}};
+    draw->AddConvexPolyFilled(arrow, 3, color);
+  } else if (icon == ComposerIcon::kDelete) {
+    draw->AddRect({center.x - 6.0f, center.y - 5.0f},
+                  {center.x + 6.0f, center.y + 8.0f}, color, 2.0f, 0, 1.7f);
+    draw->AddLine({center.x - 8.0f, center.y - 8.0f},
+                  {center.x + 8.0f, center.y - 8.0f}, color, 1.7f);
+    draw->AddLine({center.x - 3.0f, center.y - 11.0f},
+                  {center.x + 3.0f, center.y - 11.0f}, color, 1.7f);
+  } else if (icon == ComposerIcon::kStop) {
+    draw->AddRectFilled({center.x - 6.0f, center.y - 6.0f},
+                        {center.x + 6.0f, center.y + 6.0f}, color, 2.0f);
+  } else {
+    const ImVec2 send[3] = {{center.x - 7.0f, center.y - 8.0f},
+                            {center.x + 9.0f, center.y},
+                            {center.x - 7.0f, center.y + 8.0f}};
+    draw->AddTriangle(send[0], send[1], send[2], color, 2.0f);
+  }
+  if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+    ImGui::SetTooltip("%s", tooltip);
+  return clicked;
+}
+
+int ComposerLineCount(const char* text, float width) {
+  if (text == nullptr || text[0] == '\0') return 1;
+  width = std::max(width, 80.0f);
+  int lines = 0;
+  const char* begin = text;
+  while (true) {
+    const char* end = std::strchr(begin, '\n');
+    const char* line_end = end == nullptr ? begin + std::strlen(begin) : end;
+    const float measured = ImGui::CalcTextSize(begin, line_end).x;
+    lines += std::max(1, static_cast<int>(std::ceil(measured / width)));
+    if (end == nullptr) break;
+    begin = end + 1;
+  }
+  return std::clamp(lines, 1, 8);
 }
 
 }  // namespace
@@ -306,16 +406,21 @@ void StudioApp::DrawSidebar() {
   ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 52.0f);
   ImGui::TextDisabled("Local AI Studio");
   ImGui::Dummy({0, 32});
-  const float width = ImGui::GetContentRegionAvail().x;
+  const float width = ImGui::GetWindowWidth() - 2.0f;
+  ImGui::SetCursorPosX(1.0f);
   if (NavButton("Chat", Screen::kChat, screen_ == Screen::kChat, width))
     screen_ = Screen::kChat;
+  ImGui::SetCursorPosX(1.0f);
   if (NavButton("Models", Screen::kModels, screen_ == Screen::kModels, width))
     screen_ = Screen::kModels;
+  ImGui::SetCursorPosX(1.0f);
   if (NavButton("Server", Screen::kServer, screen_ == Screen::kServer, width))
     screen_ = Screen::kServer;
+  ImGui::SetCursorPosX(1.0f);
   if (NavButton("Settings", Screen::kSettings, screen_ == Screen::kSettings,
                 width))
     screen_ = Screen::kSettings;
+  ImGui::SetCursorPosX(ImGui::GetStyle().WindowPadding.x);
   ImGui::SetCursorPosY(ImGui::GetWindowHeight() - 104);
   ImGui::Separator();
   ImGui::Spacing();
@@ -337,9 +442,16 @@ void StudioApp::DrawHeader() {
 }
 
 void StudioApp::DrawChat() {
-  const float composer_height = 136;
+  const float available_width = ImGui::GetContentRegionAvail().x;
+  const float action_width = 44.0f * 3.0f + 18.0f;
+  const float input_width = std::max(180.0f, available_width - action_width - 38.0f);
+  const int composer_lines = ComposerLineCount(composer_.data(), input_width - 24.0f);
+  const float input_height = std::clamp(
+      22.0f + static_cast<float>(composer_lines) * (ImGui::GetFontSize() + 3.0f),
+      48.0f, 154.0f);
+  const float composer_height = input_height + 36.0f;
   ImGui::BeginChild("##conversation", {0, -composer_height}, ImGuiChildFlags_None,
-                    ImGuiWindowFlags_AlwaysVerticalScrollbar);
+                    ImGuiWindowFlags_None);
   if (messages_.empty()) {
     const float y = std::max(30.0f, ImGui::GetContentRegionAvail().y * 0.23f);
     ImGui::Dummy({0, y});
@@ -363,44 +475,56 @@ void StudioApp::DrawChat() {
   ImGui::EndChild();
 
   ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 18.0f);
-  ImGui::BeginChild("##composer", {0, 0}, ImGuiChildFlags_Borders);
+  ImGui::BeginChild("##composer", {0, 0}, ImGuiChildFlags_Borders,
+                    ImGuiWindowFlags_NoScrollbar |
+                        ImGuiWindowFlags_NoScrollWithMouse);
   ImGui::PopStyleVar();
-  ImGui::TextDisabled("Message %s", ProfileLabel(settings_.server.profile));
+  const HealthSnapshot health = server_.Health();
+  const bool busy = api_.Busy();
+  const bool has_draft = composer_[0] != '\0';
+  const bool can_send = !busy && has_draft && health.available;
   const ImVec2 input_origin = ImGui::GetCursorScreenPos();
-  const bool enter = ImGui::InputTextMultiline("##message", composer_.data(), composer_.size(),
-                                               {-72, 62}, ImGuiInputTextFlags_EnterReturnsTrue);
+  ImGui::BeginDisabled(busy);
+  const bool enter = ImGui::InputTextMultiline(
+      "##message", composer_.data(), composer_.size(), {input_width, input_height},
+      ImGuiInputTextFlags_EnterReturnsTrue |
+          ImGuiInputTextFlags_CtrlEnterForNewLine);
+  ImGui::EndDisabled();
   if (composer_[0] == '\0' && !ImGui::IsItemActive()) {
     ImGui::GetWindowDrawList()->AddText(
-        {input_origin.x + 13.0f, input_origin.y + 12.0f},
-        IM_COL32(122, 137, 132, 190), "Ask Gem 16 anything...");
+      {input_origin.x + 13.0f, input_origin.y + 12.0f},
+        IM_COL32(122, 137, 132, 190),
+        "Message Gem 16...  Enter to send · Shift+Enter for a new line");
   }
-  ImGui::SameLine();
-  const bool can_send = !api_.Busy() && composer_[0] != '\0' && server_.Health().available;
-  ImGui::BeginDisabled(!can_send);
-  ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 30.0f);
-  const bool send_clicked = ImGui::Button("##send", {56, 56});
-  ImGui::PopStyleVar();
-  const ImVec2 send_min = ImGui::GetItemRectMin();
-  const ImVec2 send_max = ImGui::GetItemRectMax();
-  const ImVec2 send_center{(send_min.x + send_max.x) * 0.5f,
-                           (send_min.y + send_max.y) * 0.5f};
-  ImGui::GetWindowDrawList()->AddTriangle(
-      {send_center.x - 7.0f, send_center.y - 8.0f},
-      {send_center.x + 9.0f, send_center.y},
-      {send_center.x - 7.0f, send_center.y + 8.0f}, IM_COL32_WHITE, 2.0f);
-  if (send_clicked || (enter && can_send)) SendMessage();
+  const float action_y = input_origin.y + input_height - 44.0f;
+  ImGui::SameLine(0, 6);
+  ImGui::SetCursorScreenPos({ImGui::GetCursorScreenPos().x, action_y});
+  ImGui::BeginDisabled(busy || messages_.empty());
+  if (ComposerButton("##undo-turn", ComposerIcon::kUndo, 40.0f,
+                     "Remove the last exchange", busy || messages_.empty()))
+    RemoveLastExchange();
   ImGui::EndDisabled();
-  if (api_.Busy()) {
-    if (ImGui::Button("Stop")) api_.Cancel();
+  ImGui::SameLine(0, 6);
+  ImGui::BeginDisabled(busy || messages_.empty());
+  if (ComposerButton("##clear-chat", ComposerIcon::kDelete, 40.0f,
+                     "Delete the complete chat", busy || messages_.empty()))
+    ClearChat();
+  ImGui::EndDisabled();
+  ImGui::SameLine(0, 8);
+  ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 30.0f);
+  if (busy) {
+    if (ComposerButton("##stop", ComposerIcon::kStop, 44.0f,
+                       "Stop generation"))
+      api_.Cancel();
   } else {
-    if (ImGui::Button("New chat")) NewChat();
+    ImGui::BeginDisabled(!can_send);
+    const bool send_clicked = ComposerButton(
+        "##send", ComposerIcon::kSend, 44.0f,
+        health.available ? "Send message" : "Server is offline", !can_send);
+    ImGui::EndDisabled();
+    if (send_clicked || (enter && can_send)) SendMessage();
   }
-  ImGui::SameLine();
-  const HealthSnapshot health = server_.Health();
-  ImGui::TextDisabled("%s · %s · MTP D%d · %s", ProfileLabel(settings_.server.profile),
-                      settings_.server.greedy ? "Greedy" : "Sampling",
-                      settings_.server.mtp_draft_tokens,
-                      health.available ? "GPU ready" : "server offline");
+  ImGui::PopStyleVar();
   ImGui::EndChild();
 }
 
@@ -444,30 +568,54 @@ void StudioApp::DrawMessage(const ChatMessage& message, std::size_t index) {
     }
     ImGui::PopStyleColor();
   }
-  if (show_reasoning_ && !message.reasoning.empty()) {
+  if (show_reasoning_ && (!message.reasoning.empty() || message.streaming)) {
     ImGui::Spacing();
-    ImGui::TextDisabled("Reasoning");
-    ImGui::PushStyleColor(ImGuiCol_Text, {0.55f, 0.62f, 0.60f, 1});
-    selectable_text::Wrapped(
-        (std::string("reasoning##") + std::to_string(index)).c_str(),
-        message.reasoning,
-        {.width = ImGui::GetContentRegionAvail().x,
-         .text_color = ImGui::ColorConvertFloat4ToU32({0.55f, 0.62f, 0.60f, 1}),
-         .selection_color = IM_COL32(42, 123, 94, 190)});
+    const bool reasoning_expanded = expanded_reasoning_.contains(index);
+    ImGui::PushStyleColor(ImGuiCol_Button, {0.04f, 0.11f, 0.09f, 0.88f});
+    const std::string reasoning_label =
+        std::string("Reasoning##") + std::to_string(index);
+    if (ImGui::Button(reasoning_label.c_str(), {-1.0f, 32.0f})) {
+      if (reasoning_expanded)
+        expanded_reasoning_.erase(index);
+      else
+        expanded_reasoning_.insert(index);
+    }
+    const ImVec2 reasoning_min = ImGui::GetItemRectMin();
+    const float reasoning_center_y =
+        (reasoning_min.y + ImGui::GetItemRectMax().y) * 0.5f;
+    if (reasoning_expanded) {
+      ImGui::GetWindowDrawList()->AddTriangleFilled(
+          {reasoning_min.x + 15.0f, reasoning_center_y - 3.0f},
+          {reasoning_min.x + 23.0f, reasoning_center_y - 3.0f},
+          {reasoning_min.x + 19.0f, reasoning_center_y + 4.0f},
+          ImGui::GetColorU32(ImGuiCol_TextDisabled));
+    } else {
+      ImGui::GetWindowDrawList()->AddTriangleFilled(
+          {reasoning_min.x + 16.0f, reasoning_center_y - 5.0f},
+          {reasoning_min.x + 16.0f, reasoning_center_y + 5.0f},
+          {reasoning_min.x + 23.0f, reasoning_center_y},
+          ImGui::GetColorU32(ImGuiCol_TextDisabled));
+    }
     ImGui::PopStyleColor();
-    ImGui::Separator();
+    if (reasoning_expanded && !message.reasoning.empty()) {
+      ImGui::PushStyleColor(ImGuiCol_Text, {0.55f, 0.62f, 0.60f, 1});
+      selectable_text::Wrapped(
+          (std::string("reasoning##") + std::to_string(index)).c_str(),
+          message.reasoning,
+          {.width = ImGui::GetContentRegionAvail().x,
+           .text_color = ImGui::ColorConvertFloat4ToU32(
+               {0.55f, 0.62f, 0.60f, 1}),
+           .selection_color = IM_COL32(42, 123, 94, 190)});
+      ImGui::PopStyleColor();
+    }
   }
   if (message.content.empty() && message.streaming) {
     const int dots = 1 + static_cast<int>(std::fmod(ImGui::GetTime() * 2.5, 3.0));
     ImGui::TextColored(kAccent, "%.*s", dots, "...");
   } else {
     ImGui::Spacing();
-    selectable_text::Wrapped(
-        (std::string("content##") + std::to_string(index)).c_str(),
-        message.content,
-        {.width = ImGui::GetContentRegionAvail().x,
-         .text_color = ImGui::GetColorU32(ImGuiCol_Text),
-         .selection_color = IM_COL32(38, 144, 102, 205)});
+    markdown::Render((std::string("content##") + std::to_string(index)).c_str(),
+                     message.content, ImGui::GetContentRegionAvail().x);
   }
   ImGui::EndChild();
   const ImVec2 bubble_min = ImGui::GetItemRectMin();
@@ -686,11 +834,19 @@ void StudioApp::SendMessage() {
   scroll_to_bottom_ = true;
 }
 
-void StudioApp::NewChat() {
-  if (api_.Busy()) api_.Cancel();
+void StudioApp::ClearChat() {
+  if (api_.Busy()) return;
   messages_.clear();
   session_id_.clear();
   composer_[0] = '\0';
+  expanded_reasoning_.clear();
+}
+
+void StudioApp::RemoveLastExchange() {
+  if (api_.Busy() || messages_.empty()) return;
+  if (!gem16::studio::RemoveLastExchange(messages_)) return;
+  session_id_.clear();
+  expanded_reasoning_.clear();
 }
 
 void StudioApp::SelectProfile(ModelProfile profile) {
@@ -698,7 +854,8 @@ void StudioApp::SelectProfile(ModelProfile profile) {
   ApplyProfileDefaults(settings_.server, profile);
   SyncBuffersFromSettings();
   server_.Configure(settings_.server);
-  NewChat();
+  if (api_.Busy()) api_.Cancel();
+  ClearChat();
   (void)SaveSettings(settings_);
 }
 
