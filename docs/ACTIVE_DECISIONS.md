@@ -202,6 +202,13 @@ baseline; the current worktree produces 149.994 token/s and the unchanged `c750d
 Greedy depth qualification remains first; sampled MTP follows as a separate correctness slice even though ordinary
 26B GPU sampling and shared speculative-sampling primitives already exist.
 
+The first selected-D2 optimization on 2026-08-26 shares fixed-row local/global Target attention for T=3 while D1/D4
+retain their qualified serial parent. The model-specific global batch uses the 26B KVH2 cache geometry and ordinary
+128-token split. The bounded 16K+1,135 result remains exactly Target-identical with unchanged 642/980 acceptance and
+improves D2 from 154.805 to 164.763 post-first token/s (+6.43%), or +13.32% over its in-run ordinary comparator.
+This passes the 10% development promotion rule but does not accept M25: formal retained and sampled-MTP gates remain.
+Compact evidence is `artifacts/m25/optimization-shared-fixed-attention.json`.
+
 The owner clarified on 2026-08-14 that M09 should load the real artifact and prove pre-execution residency so the
 critical path reaches inference quickly. This supersedes the old M09-card wording that required captured execution
 graphs, warm model execution and an executable bounded-prefill selector before M09 could pass. M09 must still reserve

@@ -1,6 +1,6 @@
 # Start here — current coding-agent task
 
-Status: M00–M17 and M20–M23 accepted; bounded external 26B MTP characterization is complete and M25 is next. Full M19 is owner-deferred; M18 remains conditional.
+Status: M00–M17 and M20–M23 accepted; M25 is in progress and its exact greedy D2 path reaches 164.763 token/s after shared fixed-row attention. Full M19 is owner-deferred; M18 remains conditional.
 Plan revision: Fast Track R4.
 
 ## Read now

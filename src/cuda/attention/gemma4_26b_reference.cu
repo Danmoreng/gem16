@@ -680,7 +680,7 @@ Status LaunchGemma4Moe26BAttentionSm120MtpFixedLayer(
         x.query_normalized, cache.key, cache.value,
         w.key_cache_scale_bf16, w.value_cache_scale_bf16,
         decode_attention_workspace, x.attention, row_controls, tokens,
-        cache.capacity, stream);
+        t.kv_heads, cache.capacity, stream);
   }
   if (!status.ok()) return status;
   if (batched_output_tail) {

@@ -75,6 +75,15 @@ graphs are resident together and leave 808,255,488 bytes free, still above the 7
 the fixed-depth product candidate. Compact evidence is
 `artifacts/m25/development-fixed-depth-graph-comparison.json`.
 
+The first post-selection D2 optimization now shares both local and global attention across the three fixed Target
+rows. The retained global dispatcher is model-geometry aware: Gemma 4 26B uses KVH2 and the same 128-token split as
+ordinary decode. A real KVH2 differential matches three ordinary calls bit-for-bit across 24,576 output elements,
+and memcheck, racecheck and initcheck are clean. On the new bounded 16K+1,135 run, the unchanged 642/980 acceptance
+and all 1,135 Target-identical token IDs reach 164.763 post-first token/s, up 6.43% from the 154.805 parent and 13.32%
+above the in-run ordinary comparator. The loaded profile leaves 812,449,792 bytes free. This clears the development
+10% promotion criterion but remains a single forced-output greedy characterization; formal retained measurement and
+sampled MTP are still open. Compact evidence is `artifacts/m25/optimization-shared-fixed-attention.json`.
+
 The 145.97 ordinary number is local to this forced-output diagnostic: it suppresses both stop-token IDs so the model
 cannot end before 1,135 outputs, which makes ordinary `SelectToken()` run an additional full-vocabulary suppressed
 argmax every token. It is not an M20 product-path regression. A bounded current-worktree control using the unchanged

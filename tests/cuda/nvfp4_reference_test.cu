@@ -3464,6 +3464,153 @@ void TestOnlineFp8DecodeGlobalD2Gqa() {
       }));
 }
 
+void TestOnlineFp8DecodeGlobalD2Kvh2() {
+  constexpr std::uint64_t rows = 3;
+  constexpr std::uint64_t query_heads = 16;
+  constexpr std::uint64_t kv_heads = 2;
+  constexpr std::uint64_t head_dimension = 512;
+  constexpr std::uint64_t capacity = 16384;
+  constexpr std::uint64_t start_position = 1024;
+  constexpr std::array<std::uint16_t, 1> key_scale = {0x3F00U};
+  constexpr std::array<std::uint16_t, 1> value_scale = {0x3F40U};
+  const std::size_t query_elements = query_heads * head_dimension;
+  std::vector<float> query(rows * query_elements);
+  for (std::size_t index = 0; index < query.size(); ++index) {
+    query[index] =
+        static_cast<float>(static_cast<int>((index * 17U) % 43U) - 21) *
+        0.00390625F;
+  }
+
+  std::array<std::uint8_t, 4> key_bytes{};
+  std::array<std::uint8_t, 4> value_bytes{};
+  constexpr std::array<float, 4> key_values{-0.5F, -0.125F, 0.25F, 0.75F};
+  constexpr std::array<float, 4> value_values{-0.75F, -0.25F, 0.125F, 0.5F};
+  for (std::size_t index = 0; index < key_bytes.size(); ++index) {
+    const auto key = gem16::fp8::EncodeE4M3Fn(key_values[index]);
+    const auto value = gem16::fp8::EncodeE4M3Fn(value_values[index]);
+    CUDA_TEST_CHECK(key.ok());
+    CUDA_TEST_CHECK(value.ok());
+    if (!key.ok() || !value.ok()) return;
+    key_bytes[index] = key.value();
+    value_bytes[index] = value.value();
+  }
+
+  const std::size_t cache_elements = capacity * kv_heads * head_dimension;
+  std::vector<std::uint8_t> keys(cache_elements);
+  std::vector<std::uint8_t> values(cache_elements);
+  for (std::uint64_t token = 0; token <= start_position + rows; ++token) {
+    for (std::uint64_t head = 0; head < kv_heads; ++head) {
+      for (std::uint64_t dimension = 0; dimension < head_dimension;
+           ++dimension) {
+        const std::size_t offset =
+            (token * kv_heads + head) * head_dimension + dimension;
+        keys[offset] = key_bytes[(token * 3U + head + dimension / 32U) % 4U];
+        values[offset] =
+            value_bytes[(token + head * 3U + dimension / 64U) % 4U];
+      }
+    }
+  }
+  std::array<gem16::internal::DecodeControl, rows> controls{};
+  for (std::uint64_t row = 0; row < rows; ++row) {
+    controls[row].position = start_position + row;
+  }
+
+  const std::size_t workspace_elements = static_cast<std::size_t>(
+      gem16::internal::DecodeAttentionWorkspaceElements(capacity));
+  DeviceBuffer<float> device_query(query.size());
+  DeviceBuffer<std::uint8_t> device_keys(cache_elements);
+  DeviceBuffer<std::uint8_t> device_values(cache_elements);
+  DeviceBuffer<std::uint16_t> device_key_scale(key_scale.size());
+  DeviceBuffer<std::uint16_t> device_value_scale(value_scale.size());
+  DeviceBuffer<float> device_d2_workspace(rows * workspace_elements);
+  DeviceBuffer<float> device_ordinary_workspace(workspace_elements);
+  DeviceBuffer<float> device_d2_output(query.size());
+  DeviceBuffer<float> device_ordinary_output(query.size());
+  DeviceBuffer<gem16::internal::DecodeControl> device_controls(rows);
+  if (device_query.get() == nullptr || device_keys.get() == nullptr ||
+      device_values.get() == nullptr || device_key_scale.get() == nullptr ||
+      device_value_scale.get() == nullptr ||
+      device_d2_workspace.get() == nullptr ||
+      device_ordinary_workspace.get() == nullptr ||
+      device_d2_output.get() == nullptr ||
+      device_ordinary_output.get() == nullptr ||
+      device_controls.get() == nullptr) {
+    return;
+  }
+  if (!CudaOk(cudaMemcpy(device_query.get(), query.data(), device_query.bytes(),
+                         cudaMemcpyHostToDevice),
+              "copy global D2 KVH2 query") ||
+      !CudaOk(cudaMemcpy(device_keys.get(), keys.data(), device_keys.bytes(),
+                         cudaMemcpyHostToDevice),
+              "copy global D2 KVH2 keys") ||
+      !CudaOk(cudaMemcpy(device_values.get(), values.data(),
+                         device_values.bytes(), cudaMemcpyHostToDevice),
+              "copy global D2 KVH2 values") ||
+      !CudaOk(cudaMemcpy(device_key_scale.get(), key_scale.data(),
+                         device_key_scale.bytes(), cudaMemcpyHostToDevice),
+              "copy global D2 KVH2 key scale") ||
+      !CudaOk(cudaMemcpy(device_value_scale.get(), value_scale.data(),
+                         device_value_scale.bytes(), cudaMemcpyHostToDevice),
+              "copy global D2 KVH2 value scale") ||
+      !CudaOk(cudaMemcpy(device_controls.get(), controls.data(),
+                         device_controls.bytes(), cudaMemcpyHostToDevice),
+              "copy global D2 KVH2 controls")) {
+    return;
+  }
+
+  const auto d2 =
+      gem16::internal::LaunchOnlineAttentionDecodeFp8GlobalFixedControlledSm120(
+          device_query.get(), device_keys.get(), device_values.get(),
+          device_key_scale.get(), device_value_scale.get(),
+          device_d2_workspace.get(), device_d2_output.get(),
+          device_controls.get(), rows, kv_heads, capacity, nullptr);
+  CUDA_TEST_CHECK(d2.ok());
+  if (!d2.ok()) return;
+  for (std::uint64_t row = 0; row < rows; ++row) {
+    const auto ordinary = gem16::internal::LaunchOnlineAttentionDecodeFp8Sm120(
+        device_query.get() + row * query_elements, device_keys.get(),
+        device_values.get(), device_key_scale.get(), device_value_scale.get(),
+        device_ordinary_workspace.get(),
+        device_ordinary_output.get() + row * query_elements,
+        device_controls.get() + row, query_heads, kv_heads, head_dimension,
+        capacity, false, nullptr);
+    CUDA_TEST_CHECK(ordinary.ok());
+    if (!ordinary.ok()) return;
+  }
+  if (!CudaOk(cudaDeviceSynchronize(), "global D2 KVH2 synchronize")) return;
+  std::vector<float> d2_output(query.size());
+  std::vector<float> ordinary_output(query.size());
+  if (!CudaOk(cudaMemcpy(d2_output.data(), device_d2_output.get(),
+                         device_d2_output.bytes(), cudaMemcpyDeviceToHost),
+              "copy global D2 KVH2 output") ||
+      !CudaOk(cudaMemcpy(ordinary_output.data(), device_ordinary_output.get(),
+                         device_ordinary_output.bytes(),
+                         cudaMemcpyDeviceToHost),
+              "copy global D2 KVH2 ordinary output")) {
+    return;
+  }
+  std::size_t exact_mismatches = 0;
+  std::size_t bf16_mismatches = 0;
+  float maximum_absolute = 0.0F;
+  for (std::size_t index = 0; index < d2_output.size(); ++index) {
+    if (std::bit_cast<std::uint32_t>(d2_output[index]) !=
+        std::bit_cast<std::uint32_t>(ordinary_output[index])) {
+      ++exact_mismatches;
+    }
+    if (__float2bfloat16(d2_output[index]) !=
+        __float2bfloat16(ordinary_output[index])) {
+      ++bf16_mismatches;
+    }
+    maximum_absolute =
+        std::max(maximum_absolute,
+                 std::abs(d2_output[index] - ordinary_output[index]));
+  }
+  std::cout << "global D2 KVH2 fixed exact mismatches=" << exact_mismatches
+            << '/' << d2_output.size() << " bf16 mismatches="
+            << bf16_mismatches << " max_abs=" << maximum_absolute << '\n';
+  CUDA_TEST_CHECK(exact_mismatches == 0U);
+}
+
 void TestOnlineFp8DecodeAttention() {
   TestOnlineFp8DecodeAttentionShape(8, 256, 1024, 1100, true,
                                     "online local FP8 decode");
@@ -3474,6 +3621,7 @@ void TestOnlineFp8DecodeAttention() {
   TestOnlineFp8DecodeAttentionShape(1, 512, 65536, 65535, false,
                                     "vectorized 64K global FP8 decode");
   TestOnlineFp8DecodeGlobalD2Gqa();
+  TestOnlineFp8DecodeGlobalD2Kvh2();
 }
 
 void TestVectorizedFp8CausalPrefill() {

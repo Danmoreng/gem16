@@ -836,11 +836,17 @@ Status Gemma4Moe26BReferenceEngine::Impl::LaunchFixedMtpGraphBody(
         caches[layer].key, caches[layer].value, backup_key, backup_value,
         tokens, kv_elements, caches[layer].capacity, false, control, stream);
     if (!status.ok()) return status;
+    // D2 is the selected fixed-depth candidate. Its three consecutive Target
+    // rows share the qualified fixed-row attention body instead of replaying
+    // one online-attention launch sequence per row. Keep D1/D4 on their
+    // established parent until those non-selected depths are qualified
+    // independently.
+    const bool shared_fixed_attention = tokens == 3U;
     status = LaunchGemma4Moe26BAttentionSm120MtpFixedLayer(
         prefill_hidden_a, prefill_hidden_b, 0U, trait,
         attention_weights[layer], caches[layer], prefill_attention_workspace,
-        prefill_moe_workspace.shared_product, row_controls, tokens, false,
-        true, true, 1.0e-6F, stream);
+        prefill_moe_workspace.shared_product, row_controls, tokens,
+        shared_fixed_attention, true, true, 1.0e-6F, stream);
     if (!status.ok()) return status;
     status = LaunchGemma4MoeSm120MtpSharedBatchLayer(
         prefill_hidden_b, prefill_hidden_a, tokens, moe_config,

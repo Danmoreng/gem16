@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "milestone": "M25-development",
+  "status": "bounded_d2_shared_fixed_attention_pass",
+  "performance_eligible": false,
+  "measured_on": "2026-08-26",
+  "change": {
+    "scope": "D2 T=3 Target verification only; D1 and D4 retain their serial attention parent",
+    "implementation": "share local and global fixed-row attention across the three Target rows",
+    "corrected_during_development": "the first global batch dispatcher incorrectly selected the KVH1 cache geometry; the retained implementation dispatches the Gemma 4 26B KVH2 kernel with the ordinary 128-token split"
+  },
+  "scenario": {
+    "prompt": "retained Wikipedia 16K fixture",
+    "prompt_tokens": 16384,
+    "output_tokens": 1135,
+    "context_capacity": 32768,
+    "draft_length": 2,
+    "forced_output": true,
+    "timing_boundary": "1134 post-first outputs inside the fixed D2 chain"
+  },
+  "correctness": {
+    "ordinary_target_identity": true,
+    "matching_output_token_ids": 1135,
+    "output_token_ids_le_u32_sha256": "d0fcfcc68cc3b015282e301261e6d90079a84cd9b8f2927c4fe0f98bcb461983",
+    "groups": 490,
+    "proposed_drafts": 980,
+    "accepted_drafts": 642,
+    "rejected_drafts": 338,
+    "target_verified_acceptance": 0.655102040816,
+    "non_finite_steps": 0,
+    "kvh2_operator_differential": {
+      "elements": 24576,
+      "exact_mismatches": 0,
+      "bf16_mismatches": 0,
+      "maximum_absolute_error": 0.0
+    }
+  },
+  "performance": {
+    "parent": {
+      "d2_group_seconds": 7.325343828,
+      "d2_post_first_tokens_per_second": 154.8050203,
+      "ordinary_post_first_tokens_per_second": 145.197737557
+    },
+    "candidate": {
+      "d2_group_seconds": 6.882612639,
+      "d2_post_first_tokens_per_second": 164.763013623,
+      "ordinary_post_first_tokens_per_second": 145.389954812
+    },
+    "candidate_vs_parent": {
+      "d2_group_seconds_delta_percent": -6.044,
+      "d2_tokens_per_second_delta": 9.957993323,
+      "d2_tokens_per_second_delta_percent": 6.433
+    },
+    "candidate_vs_in_run_ordinary_percent": 13.3248949943,
+    "development_promotion_minimum_percent": 10.0,
+    "development_promotion_gate_pass": true
+  },
+  "memory": {
+    "free_loaded_bytes": 812449792,
+    "minimum_32k_free_bytes": 734003200,
+    "minimum_32k_gate_pass": true,
+    "chain_graph_observed_bytes": 4194304,
+    "total_graph_observed_bytes": 20971520
+  },
+  "evidence": {
+    "parent_revision": "781119e9d6c14fee32d63210fd6f903900a82e41",
+    "implementation_scope": "working tree based on parent_revision",
+    "source_test_diff_sha256": "da3990c02db55a149b8c6bc48812609708286f327ea2e6dd26ac99e6d3410c19",
+    "benchmark_binary_sha256": "aa7644e190c77c4ed16d9067b58418a41b9283a10af22fbaa31dcb17d2520535",
+    "candidate_raw_path": "artifacts/raw/m25/shared-fixed-attention-kvh2-d2-wikipedia-16k1135-characterization-v1.json",
+    "candidate_raw_sha256": "5cdaf280878a8f733313e3839492f17e9923bb302378d0fbda626856137ac167",
+    "parent_raw_path": "artifacts/raw/m25/fixed-chain-d2-wikipedia-16k1135-t235-characterization-v1.json",
+    "parent_raw_sha256": "e976926dc2143485bb28c38fa6bcd4bc4f52c83166d66365107eec1bf342bb80",
+    "independent_review_run": "20260826T121500Z-7241"
+  },
+  "verification": [
+    {
+      "command": "cmake --build build/blackwell-release --parallel 8",
+      "result": "pass"
+    },
+    {
+      "command": "ctest --test-dir build/blackwell-release --output-on-failure",
+      "result": "10/10 pass; three model-path-dependent product tests skipped"
+    },
+    {
+      "command": "GEM16_12B_MODEL=/home/sebastian/Development/gem16gb/models/checkpoints/unsloth-gemma-4-12b-it-NVFP4-b1f6497 ctest --test-dir build/blackwell-release -R '^gem16-12b-m22-product$' --output-on-failure",
+      "result": "1/1 pass"
+    },
+    {
+      "command": "compute-sanitizer --tool memcheck --error-exitcode=99 build/blackwell-release/bin/gem16-cuda-tests online-decode",
+      "result": "0 errors"
+    },
+    {
+      "command": "compute-sanitizer --tool racecheck --error-exitcode=99 build/blackwell-release/bin/gem16-cuda-tests online-decode",
+      "result": "0 errors, 0 warnings, 0 hazards"
+    },
+    {
+      "command": "compute-sanitizer --tool initcheck --error-exitcode=99 build/blackwell-release/bin/gem16-cuda-tests online-decode",
+      "result": "0 errors"
+    }
+  ],
+  "limitations": [
+    "One bounded development characterization, not the formal warm-up plus retained M25 distribution.",
+    "Forced-output greedy semantics; sampled MTP remains a separate M25 correctness slice.",
+    "D1 and D4 deliberately retain serial per-row attention and were not remeasured."
+  ]
+}

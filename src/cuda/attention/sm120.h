@@ -109,13 +109,17 @@ struct DecodeControl;
     const DecodeControl* row_controls, std::uint64_t cache_capacity,
     cudaStream_t stream);
 
+// Executes one fixed Target-verifier batch for either the KVH1 or KVH2 global
+// cache geometry. `tokens` selects the compile-time-specialized row count;
+// every row advances from row_controls[0].position.
 [[nodiscard]] Status LaunchOnlineAttentionDecodeFp8GlobalFixedControlledSm120(
     const float* query, const std::uint8_t* key_cache,
     const std::uint8_t* value_cache,
     const std::uint16_t* key_scale_bf16,
     const std::uint16_t* value_scale_bf16, float* workspace, float* output,
     const DecodeControl* row_controls, std::uint32_t tokens,
-    std::uint64_t cache_capacity, cudaStream_t stream);
+    std::uint64_t kv_heads, std::uint64_t cache_capacity,
+    cudaStream_t stream);
 
 // Covers both the local D256/256-token split and global D512/512-token split.
 // The returned count includes normalized partial outputs and their LSE values.

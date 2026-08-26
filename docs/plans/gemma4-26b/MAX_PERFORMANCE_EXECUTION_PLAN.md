@@ -1220,6 +1220,11 @@ is 149.64 token/s at 74.46% draft acceptance, D2 wins at 154.81 token/s and 65.5
 50.94%. All three fixed graphs coexist with 808,255,488 bytes free at 32K. D2 remains the fixed-depth product
 candidate; no D3 profile is selected. This is a development checkpoint, not formal M04/M25 acceptance.
 
+Development checkpoint, 2026-08-26: the selected D2 graph now shares local and KVH2 global Target attention across
+its three verifier rows. The bounded 16K+1,135 result preserves all ordinary Target IDs and 65.51% acceptance while
+raising D2 from 154.805 to 164.763 post-first token/s (+6.43%, +13.32% over its in-run ordinary comparator). D1/D4
+remain on the serial parent and were not remeasured. Formal retained and sampled-MTP qualification remain open.
+
 ### 12.36 M05 — greedy and sampled MTP
 
 Greedy accepts a draft token exactly when it equals the target argmax for that verifier row. Ordinary and MTP output
