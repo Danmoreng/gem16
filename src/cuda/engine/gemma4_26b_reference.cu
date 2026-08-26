@@ -250,11 +250,11 @@ __global__ void SetDecodeControlKernel(DecodeControl* control,
 
 __global__ void BuildMtpDecodeControlsKernel(
     DecodeControl* controls, std::uint64_t start_position,
-    std::uint64_t tokens) {
+    std::uint64_t sampling_step, std::uint64_t tokens) {
   const std::uint64_t row = threadIdx.x;
   if (blockIdx.x == 0U && row < tokens) {
     controls[row] = DecodeControl{0U, 0U, start_position + row,
-                                  start_position + row};
+                                  sampling_step + row};
   }
 }
 
@@ -506,10 +506,13 @@ struct Gemma4Moe26BReferenceEngine::Impl {
   std::uint64_t mtp_finite_offset = 0U;
   std::uint64_t mtp_transaction_offset = 0U;
   std::uint64_t mtp_row_controls_offset = 0U;
+  std::uint64_t mtp_sampling_repetition_masks_offset = 0U;
+  std::uint64_t mtp_stop_tokens_offset = 0U;
   std::uint64_t mtp_chain_result_offset = 0U;
   std::uint64_t mtp_chain_outputs_offset = 0U;
   std::uint64_t mtp_chain_proposals_offset = 0U;
   std::byte* mtp_chain_host = nullptr;
+  std::uint32_t mtp_stop_token_count = 0U;
   std::array<MtpVerifierLayerOffsets, kLayers> mtp_layer_offsets{};
   float last_mtp_verification_min_margin = 0.0F;
   Gemma4Moe26BAttentionTraits traits{};
@@ -571,6 +574,10 @@ struct Gemma4Moe26BReferenceEngine::Impl {
   Status PrepareDecodeGraph();
   Status LaunchFixedMtpGraphBody(std::uint32_t draft_count,
                                  bool copy_transaction);
+  Status SelectMtpVerificationTokens(
+      float* batch_logits, const std::uint32_t* verification_inputs,
+      DecodeControl* row_controls, std::uint32_t tokens,
+      std::uint32_t* selected);
   Status PrepareFixedMtpGraph(std::uint32_t draft_count);
   Status LaunchFixedMtpOrdinaryTailBody();
   Status PrepareFixedMtpChainGraph(std::uint32_t draft_count);
@@ -746,6 +753,51 @@ Status Gemma4Moe26BReferenceEngine::Impl::PrepareDecodeGraph() {
   return Status::Ok();
 }
 
+Status Gemma4Moe26BReferenceEngine::Impl::SelectMtpVerificationTokens(
+    float* batch_logits, const std::uint32_t* verification_inputs,
+    DecodeControl* row_controls, std::uint32_t tokens,
+    std::uint32_t* selected) {
+  if (!sampling.enabled) return Status::Ok();
+  if (batch_logits == nullptr || verification_inputs == nullptr ||
+      row_controls == nullptr || tokens == 0U ||
+      tokens > kM25MaximumVerifyTokens || selected == nullptr) {
+    return Invalid("M25 sampled verifier buffers are invalid");
+  }
+  auto* row_masks = mtp_verifier.As<std::uint32_t>(
+      mtp_sampling_repetition_masks_offset);
+  if (sampling.repetition_penalty != 1.0F) {
+    Status status = LaunchBuildSpeculativeRepetitionMasks(
+        repetition_mask, verification_inputs, tokens, kRepetitionMaskWords,
+        row_masks, stream);
+    if (!status.ok()) return status;
+  }
+  for (std::uint32_t row = 0U; row < tokens; ++row) {
+    // LaunchSampleToken uses its logits input as radix-sort output. Stage one
+    // row in the ordinary logits buffer so the verifier batch remains intact
+    // for commit diagnostics and the accepted-row prediction state.
+    cudaError_t error = cudaMemcpyAsync(
+        logits, batch_logits + static_cast<std::uint64_t>(row) * kVocabulary,
+        kVocabulary * sizeof(float), cudaMemcpyDeviceToDevice, stream);
+    if (error != cudaSuccess) {
+      return CudaFailure("stage M25 sampled verifier logits", error);
+    }
+    std::uint32_t* mask = sampling.repetition_penalty == 1.0F
+                              ? repetition_mask
+                              : row_masks +
+                                    static_cast<std::uint64_t>(row) *
+                                        kRepetitionMaskWords;
+    Status status = LaunchSampleToken(
+        logits, sampling_logits, sampling_cumulative, sampling_token_ids,
+        sampling_sorted_token_ids, mask, suppressed_token_ids,
+        suppressed_token_count, static_cast<std::uint32_t>(kVocabulary),
+        sampling, 0U, row_controls + row, selected + row,
+        sampling_algorithm_workspace, sampling_algorithm_workspace_bytes,
+        stream);
+    if (!status.ok()) return status;
+  }
+  return Status::Ok();
+}
+
 Status Gemma4Moe26BReferenceEngine::Impl::LaunchFixedMtpGraphBody(
     std::uint32_t draft_count, bool copy_transaction) {
   const std::uint32_t tokens = draft_count + 1U;
@@ -902,10 +954,23 @@ Status Gemma4Moe26BReferenceEngine::Impl::LaunchFixedMtpGraphBody(
         selected + row, false);
     if (!status.ok()) return status;
   }
+  status = SelectMtpVerificationTokens(
+      batch_logits, prefill_tokens, row_controls, tokens, selected);
+  if (!status.ok()) return status;
   status = LaunchAcceptMtpGroup(
-      drafts, selected, draft_count, suppressed_token_ids, 0U,
+      drafts, selected, draft_count,
+      mtp_verifier.As<std::uint32_t>(mtp_stop_tokens_offset),
+      mtp_stop_token_count,
       &transaction->result, control, stream);
   if (!status.ok()) return status;
+  if (sampling.enabled && sampling.repetition_penalty != 1.0F) {
+    status = LaunchCommitSpeculativeRepetitionMask(
+        mtp_verifier.As<std::uint32_t>(
+            mtp_sampling_repetition_masks_offset),
+        kRepetitionMaskWords, &transaction->result.output_count,
+        repetition_mask, stream);
+    if (!status.ok()) return status;
+  }
   for (std::uint32_t layer = 0U; layer < kLayers; ++layer) {
     const auto& trait = traits[layer];
     const auto offsets = mtp_layer_offsets[layer];
@@ -1048,7 +1113,7 @@ Status Gemma4Moe26BReferenceEngine::Impl::ExecuteFixedMtpGraphGroup(
   host_control.current.sampling_step = sampling_step;
   host_control.next = host_control.current;
   host_control.fixed_draft_tokens = draft_count;
-  host_control.sampling_enabled = 0U;
+  host_control.sampling_enabled = sampling.enabled ? 1U : 0U;
   auto* transaction =
       mtp_verifier.As<MtpGroupTransaction>(mtp_transaction_offset);
   cudaError_t error = cudaMemcpyAsync(
@@ -1105,6 +1170,7 @@ Status Gemma4Moe26BReferenceEngine::Impl::ExecuteFixedMtpGraphGroup(
   maximum_global_position_exclusive =
       std::max(maximum_global_position_exclusive, position);
   token_selections += completed.result.output_count;
+  sampling_step = completed.control.next.sampling_step;
   pending_decode_self_feed = false;
   decode_self_feed_valid = false;
   has_last_input_token = true;
@@ -1122,6 +1188,11 @@ Status Gemma4Moe26BReferenceEngine::Impl::LaunchFixedMtpOrdinaryTailBody() {
   Status status = LaunchInitializeMtpOrdinaryTail(
       transaction, decode_control, suppressed_token_count, stream);
   if (!status.ok()) return status;
+  if (sampling.enabled && sampling.repetition_penalty != 1.0F) {
+    status = LaunchMarkControlledRepetitionToken(
+        decode_control, repetition_mask, stream);
+    if (!status.ok()) return status;
+  }
   status = LaunchControlledDecodeBody();
   if (!status.ok()) return status;
   // The ordinary graph normally keeps only the fused final activation/head.
@@ -1136,8 +1207,21 @@ Status Gemma4Moe26BReferenceEngine::Impl::LaunchFixedMtpOrdinaryTailBody() {
   if (error != cudaSuccess) {
     return CudaFailure("latch M25 chain ordinary finite state", error);
   }
+  const std::uint32_t* selected = prediction_token;
+  if (sampling.enabled) {
+    status = LaunchSampleToken(
+        logits, sampling_logits, sampling_cumulative, sampling_token_ids,
+        sampling_sorted_token_ids, repetition_mask, suppressed_token_ids,
+        suppressed_token_count, static_cast<std::uint32_t>(kVocabulary),
+        sampling, 0U, decode_control, selected_token,
+        sampling_algorithm_workspace, sampling_algorithm_workspace_bytes,
+        stream);
+    if (!status.ok()) return status;
+    selected = selected_token;
+  }
   return LaunchFinalizeMtpOrdinaryTail(
-      prediction_token, suppressed_token_ids, 0U, transaction,
+      selected, mtp_verifier.As<std::uint32_t>(mtp_stop_tokens_offset),
+      mtp_stop_token_count, transaction,
       mtp_verifier.As<MtpChainResult>(mtp_chain_result_offset),
       mtp_verifier.As<std::uint32_t>(mtp_chain_outputs_offset), nullptr,
       stream);
@@ -1977,8 +2061,11 @@ Status Gemma4Moe26BReferenceEngine::Reset() {
   implementation_->mtp_group_graph_launches = 0U;
   implementation_->mtp_chain_graph_launches.fill(0U);
   implementation_->last_mtp_verification_min_margin = 0.0F;
+  implementation_->sampling_step = 0U;
   // Graph executables remain instantiated across Reset(), so their observed
-  // cudaMemGetInfo deltas intentionally remain part of residency reporting.
+  // cudaMemGetInfo deltas and captured stop-token count intentionally remain
+  // part of the configured runtime. ConversationSession recaptures the graphs
+  // when its sampling/stop-token configuration changes.
   implementation_->pending_decode_self_feed = false;
   implementation_->decode_self_feed_valid = false;
   implementation_->has_last_input_token = false;
@@ -2336,6 +2423,23 @@ Status Gemma4Moe26BReferenceEngine::ConfigureTokenSelection(
     }
   }
   auto& x = *implementation_;
+  if (x.position != 0U || x.prefill_calls != 0U ||
+      x.decode_graph_launches != 0U) {
+    return Invalid("M22 token selection must be configured before execution");
+  }
+  // Sampling options are captured by value in the fixed MTP graphs. A reused
+  // resident runtime may start a new session with different sampling controls,
+  // so discard only the MTP executables and recapture them after configuration.
+  for (cudaGraphExec_t& graph : x.mtp_group_graphs) {
+    if (graph != nullptr) (void)cudaGraphExecDestroy(graph);
+    graph = nullptr;
+  }
+  for (cudaGraphExec_t& graph : x.mtp_chain_graphs) {
+    if (graph != nullptr) (void)cudaGraphExecDestroy(graph);
+    graph = nullptr;
+  }
+  x.mtp_group_graph_device_bytes = 0U;
+  x.mtp_chain_graph_device_bytes.fill(0U);
   cudaError_t error = cudaMemsetAsync(
       x.repetition_mask, 0,
       static_cast<std::size_t>(kRepetitionMaskWords) * sizeof(std::uint32_t),
@@ -2476,6 +2580,11 @@ Status Gemma4Moe26BReferenceEngine::LoadMtpAssistant(
   const std::uint64_t transaction = layout.Add<MtpGroupTransaction>(1U);
   const std::uint64_t row_controls =
       layout.Add<DecodeControl>(kM25MaximumVerifyTokens);
+  const std::uint64_t sampling_repetition_masks =
+      layout.Add<std::uint32_t>(kM25MaximumVerifyTokens *
+                                kRepetitionMaskWords);
+  const std::uint64_t stop_tokens =
+      layout.Add<std::uint32_t>(kMaximumSuppressedTokens);
   const std::uint64_t chain_result = layout.Add<MtpChainResult>(1U);
   const std::uint64_t chain_outputs =
       layout.Add<std::uint32_t>(x.context);
@@ -2544,10 +2653,51 @@ Status Gemma4Moe26BReferenceEngine::LoadMtpAssistant(
   x.mtp_finite_offset = finite;
   x.mtp_transaction_offset = transaction;
   x.mtp_row_controls_offset = row_controls;
+  x.mtp_sampling_repetition_masks_offset = sampling_repetition_masks;
+  x.mtp_stop_tokens_offset = stop_tokens;
   x.mtp_chain_result_offset = chain_result;
   x.mtp_chain_outputs_offset = chain_outputs;
   x.mtp_chain_proposals_offset = chain_proposals;
   x.mtp_layer_offsets = layer_offsets;
+  return Status::Ok();
+}
+
+Status Gemma4Moe26BReferenceEngine::ConfigureMtpStopTokens(
+    std::span<const std::uint32_t> stop_token_ids) {
+  if (!implementation_) return Invalid("M25 engine is not initialized");
+  auto& x = *implementation_;
+  if (!x.assistant.prepared() || x.mtp_verifier.bytes() == 0U ||
+      x.position != 0U || x.prefill_calls != 0U ||
+      x.decode_graph_launches != 0U) {
+    return Invalid("M25 stop tokens must be configured before execution");
+  }
+  if (stop_token_ids.size() > kMaximumSuppressedTokens) {
+    return Invalid("Gemma 4 26B MTP supports at most 16 stop-token IDs");
+  }
+  for (const std::uint32_t token : stop_token_ids) {
+    if (token >= kVocabulary) {
+      return Invalid("Gemma 4 26B MTP stop-token ID exceeds vocabulary");
+    }
+  }
+  const bool graphs_prepared = std::any_of(
+      x.mtp_chain_graphs.begin(), x.mtp_chain_graphs.end(),
+      [](cudaGraphExec_t graph) { return graph != nullptr; });
+  if (graphs_prepared && stop_token_ids.size() != x.mtp_stop_token_count) {
+    return Invalid("M25 stop-token count cannot change after graph capture");
+  }
+  cudaError_t error = cudaSuccess;
+  if (!stop_token_ids.empty()) {
+    error = cudaMemcpyAsync(
+        x.mtp_verifier.As<std::uint32_t>(x.mtp_stop_tokens_offset),
+        stop_token_ids.data(), stop_token_ids.size_bytes(),
+        cudaMemcpyHostToDevice, x.stream);
+  }
+  if (error == cudaSuccess) error = cudaStreamSynchronize(x.stream);
+  if (error != cudaSuccess) {
+    return CudaFailure("configure M25 stop-token IDs", error);
+  }
+  x.mtp_stop_token_count =
+      static_cast<std::uint32_t>(stop_token_ids.size());
   return Status::Ok();
 }
 
@@ -2654,10 +2804,6 @@ Status Gemma4Moe26BReferenceEngine::RunMtpAssistantGroup(
       tokens > x.context - x.position) {
     return Invalid("M25 Target-verification group exceeds resident state");
   }
-  if (x.sampling.enabled || x.sampling.repetition_penalty != 1.0F) {
-    return Status(StatusCode::kUnsupported,
-                  "M25 batched verifier currently supports exact greedy selection only");
-  }
   if (x.mtp_verifier_backend ==
           Gemma4Moe26BMtpVerifierBackend::kExactSharedBatchedMoe &&
       (proposal_count == 1U || proposal_count == 2U ||
@@ -2725,7 +2871,7 @@ Status Gemma4Moe26BReferenceEngine::RunMtpAssistantGroup(
   control.current.sampling_step = x.sampling_step;
   control.next = control.current;
   control.fixed_draft_tokens = proposal_count;
-  control.sampling_enabled = 0U;
+  control.sampling_enabled = x.sampling.enabled ? 1U : 0U;
   cudaError_t error = cudaMemcpyAsync(
       transaction, &x.mtp_verifier_host->transaction,
       sizeof(MtpGroupTransaction), cudaMemcpyHostToDevice, x.stream);
@@ -2758,7 +2904,7 @@ Status Gemma4Moe26BReferenceEngine::RunMtpAssistantGroup(
       x.mtp_verifier.As<DecodeControl>(x.mtp_row_controls_offset);
   BuildMtpDecodeControlsKernel<<<1U, static_cast<unsigned>(tokens), 0,
                                  x.stream>>>(
-      row_controls, start_position, tokens);
+      row_controls, start_position, x.sampling_step, tokens);
   error = cudaGetLastError();
   if (error != cudaSuccess) {
     return CudaFailure("build M25 exact verifier row controls", error);
@@ -2902,10 +3048,24 @@ Status Gemma4Moe26BReferenceEngine::RunMtpAssistantGroup(
         selected + row, false);
     if (!status.ok()) return status;
   }
+  status = x.SelectMtpVerificationTokens(
+      batch_logits, x.prefill_tokens, row_controls,
+      static_cast<std::uint32_t>(tokens), selected);
+  if (!status.ok()) return status;
   status = LaunchAcceptMtpGroup(
-      drafts, selected, proposal_count, x.suppressed_token_ids, 0U,
+      drafts, selected, proposal_count,
+      x.mtp_verifier.As<std::uint32_t>(x.mtp_stop_tokens_offset),
+      x.mtp_stop_token_count,
       &transaction->result, &transaction->control, x.stream);
   if (!status.ok()) return status;
+  if (x.sampling.enabled && x.sampling.repetition_penalty != 1.0F) {
+    status = LaunchCommitSpeculativeRepetitionMask(
+        x.mtp_verifier.As<std::uint32_t>(
+            x.mtp_sampling_repetition_masks_offset),
+        kRepetitionMaskWords, &transaction->result.output_count,
+        x.repetition_mask, x.stream);
+    if (!status.ok()) return status;
+  }
   for (std::uint32_t layer = 0U; layer < kLayers; ++layer) {
     const auto& trait = x.traits[layer];
     const auto offsets = x.mtp_layer_offsets[layer];
@@ -2993,6 +3153,9 @@ Status Gemma4Moe26BReferenceEngine::RunMtpAssistantGroup(
   x.maximum_global_position_exclusive =
       std::max(x.maximum_global_position_exclusive, x.position);
   x.token_selections += completed.result.output_count;
+  if (x.sampling.enabled) {
+    x.sampling_step += completed.result.output_count;
+  }
   x.pending_decode_self_feed = false;
   x.decode_self_feed_valid = false;
   x.has_last_input_token = true;
@@ -3017,8 +3180,7 @@ Status Gemma4Moe26BReferenceEngine::RunFixedMtpGraphChain(
   if (x.mtp_chain_graphs[draft_count] == nullptr ||
       !x.assistant.prepared() ||
       x.position == 0U || x.position >= x.context ||
-      output_token_ids.size() > x.context - x.position ||
-      x.sampling.enabled || x.sampling.repetition_penalty != 1.0F) {
+      output_token_ids.size() > x.context - x.position) {
     return Invalid("M25 fixed graph chain exceeds the resident state");
   }
   *x.mtp_verifier_host = {};
@@ -3030,7 +3192,7 @@ Status Gemma4Moe26BReferenceEngine::RunFixedMtpGraphChain(
   host_control.current.sampling_step = x.sampling_step;
   host_control.next = host_control.current;
   host_control.fixed_draft_tokens = draft_count;
-  host_control.sampling_enabled = 0U;
+  host_control.sampling_enabled = x.sampling.enabled ? 1U : 0U;
   auto* device_transaction =
       x.mtp_verifier.As<MtpGroupTransaction>(x.mtp_transaction_offset);
   auto* device_result =
@@ -3069,7 +3231,10 @@ Status Gemma4Moe26BReferenceEngine::RunFixedMtpGraphChain(
     return CudaFailure("copy M25 fixed graph chain result", error);
   }
   const auto& final_control = x.mtp_verifier_host->transaction.control;
-  if (pinned_result->output_count != output_token_ids.size() ||
+  if (pinned_result->output_count == 0U ||
+      pinned_result->output_count > output_token_ids.size() ||
+      (pinned_result->stopped == 0U &&
+       pinned_result->output_count != output_token_ids.size()) ||
       pinned_result->proposed_count !=
           draft_count * pinned_result->group_count ||
       pinned_result->accepted_count + pinned_result->rejected_count !=
@@ -3077,31 +3242,34 @@ Status Gemma4Moe26BReferenceEngine::RunFixedMtpGraphChain(
       pinned_result->ordinary_tail_count > draft_count ||
       pinned_result->non_finite_step_count != 0U ||
       final_control.current.input_token !=
-          pinned_outputs[output_token_ids.size() - 1U] ||
+          pinned_outputs[pinned_result->output_count - 1U] ||
       final_control.current.processed_position !=
-          x.position - 1U + output_token_ids.size() ||
-      final_control.current.remaining_output_capacity != 0U ||
-      final_control.current.output_write_position != output_token_ids.size()) {
+          x.position - 1U + pinned_result->output_count ||
+      final_control.current.remaining_output_capacity !=
+          output_token_ids.size() - pinned_result->output_count ||
+      final_control.current.output_write_position !=
+          pinned_result->output_count) {
     return Status(StatusCode::kInternal,
                   "M25 fixed graph chain result is inconsistent");
   }
-  std::copy_n(pinned_outputs, output_token_ids.size(),
+  std::copy_n(pinned_outputs, pinned_result->output_count,
               output_token_ids.begin());
   const std::uint64_t previous_position = x.position;
-  x.position += output_token_ids.size();
+  x.position += pinned_result->output_count;
   if (x.sliding_capacity != 0U) {
     x.sliding_ring_wraps += x.position / x.sliding_capacity -
                             previous_position / x.sliding_capacity;
   }
   x.maximum_global_position_exclusive =
       std::max(x.maximum_global_position_exclusive, x.position);
-  x.token_selections += output_token_ids.size();
+  x.token_selections += pinned_result->output_count;
+  x.sampling_step = final_control.current.sampling_step;
   x.pending_decode_self_feed = false;
   x.decode_self_feed_valid = false;
   x.has_last_input_token = true;
-  x.last_input_token = output_token_ids.size() == 1U
+  x.last_input_token = pinned_result->output_count == 1U
                            ? pending_token
-                           : output_token_ids[output_token_ids.size() - 2U];
+                           : output_token_ids[pinned_result->output_count - 2U];
   *host_result = *pinned_result;
   return Status::Ok();
 }

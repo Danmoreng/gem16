@@ -1,6 +1,7 @@
 package com.gem16.studio.service
 
 import com.gem16.studio.model.GenerationConfig
+import com.gem16.studio.model.ModelProfile
 import com.gem16.studio.model.ServerConfig
 import com.gem16.studio.model.StudioSettings
 import com.gem16.studio.model.ThinkingEffort
@@ -44,6 +45,9 @@ class SettingsStore(
             persistedServerExecutable = configuredServerExecutable
             StudioSettings(
                 server = ServerConfig(
+                    modelProfile = properties.getProperty("server.modelProfile")
+                        ?.let { value -> ModelProfile.entries.firstOrNull { it.wireValue == value } }
+                        ?: defaults.server.modelProfile,
                     executable = serverExecutableOverride ?: configuredServerExecutable,
                     modelDirectory = properties.path("server.model", defaults.server.modelDirectory),
                     assistantModelDirectory = properties.path(
@@ -101,6 +105,7 @@ class SettingsStore(
                     settings.server.executable
                 },
             )
+            setProperty("server.modelProfile", settings.server.modelProfile.wireValue)
             setProperty("server.model", settings.server.modelDirectory)
             setProperty("server.assistant", settings.server.assistantModelDirectory)
             setProperty("server.modelName", settings.server.modelName)

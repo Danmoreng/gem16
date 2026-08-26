@@ -765,13 +765,6 @@ int ServerMain(int argc, char** argv) {
   if (!options.value().max_context_explicit && moe26b) {
     options.value().max_context = 32768U;
   }
-  if (moe26b &&
-      (options.value().mtp_draft_tokens != 0U ||
-       options.value().mtp_adaptive ||
-       !options.value().assistant_model_directory.empty())) {
-    std::cerr << "error: Gemma 4 26B text-only does not support MTP\n";
-    return 2;
-  }
   auto processor =
       gem16::GemmaChatProcessor::Load(options.value().model_directory);
   if (!processor.ok()) {
@@ -874,7 +867,10 @@ int ServerMain(int argc, char** argv) {
                             ? std::to_string(
                                   state.runtime->base_max_context_tokens())
                             : "null") +
-                       ",\"mtp_max_context\":null" +
+                       ",\"mtp_max_context\":" +
+                       (state.runtime->supports_mtp()
+                            ? std::to_string(state.runtime->max_context_tokens())
+                            : "null") +
                        ",\"model_variant\":" +
                        gem16::json::Quote(
                            state.runtime->model_variant_name()) +

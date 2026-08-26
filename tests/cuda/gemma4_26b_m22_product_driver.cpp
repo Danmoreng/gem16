@@ -201,8 +201,8 @@ int main(int argc, char** argv) {
     mtp_options.mtp_draft_tokens = 1U;
     auto mtp_session = gem16::ConversationSession::Create(runtime, mtp_options);
     if (mtp_session.ok() ||
-        mtp_session.status().code() != gem16::StatusCode::kUnsupported) {
-      return FailCheck("unsupported 26B MTP request was not rejected", 7);
+        mtp_session.status().code() != gem16::StatusCode::kInvalidArgument) {
+      return FailCheck("26B MTP without Assistant was not rejected", 7);
     }
 
     auto first = session.Generate(kPrompt, 3U);

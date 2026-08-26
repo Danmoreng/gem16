@@ -20,6 +20,16 @@ enum class MediaKind {
     Document,
 }
 
+enum class ModelProfile(
+    val wireValue: String,
+    val label: String,
+    val supportsAudio: Boolean,
+    val supportsVision: Boolean,
+) {
+    Gemma4Unified12B("gemma4_12b", "Gemma 4 12B Unified", true, true),
+    Gemma4Moe26BA4B("gemma4_26b_a4b", "Gemma 4 26B A4B", false, false),
+}
+
 data class MediaAttachment(
     val id: String = UUID.randomUUID().toString(),
     val fileName: String,
@@ -52,6 +62,7 @@ enum class ThinkingEffort(val wireValue: String, val label: String) {
 }
 
 data class ServerConfig(
+    val modelProfile: ModelProfile = ModelProfile.Gemma4Unified12B,
     val executable: String = defaultServerExecutable(),
     val modelDirectory: String = defaultModelDirectory(),
     val assistantModelDirectory: String = defaultAssistantDirectory(),
@@ -64,6 +75,9 @@ data class ServerConfig(
     val mtpAdaptive: Boolean = false,
     val greedy: Boolean = false,
 ) {
+    val supportsMedia: Boolean
+        get() = modelProfile.supportsAudio || modelProfile.supportsVision
+
     val clientHost: String
         get() = when (host) {
             "0.0.0.0" -> "127.0.0.1"
@@ -71,6 +85,29 @@ data class ServerConfig(
             else -> host
         }
     val baseUrl: String get() = "http://$clientHost:$port/v1"
+
+    fun selectProfile(profile: ModelProfile): ServerConfig = when (profile) {
+        ModelProfile.Gemma4Unified12B -> copy(
+            modelProfile = profile,
+            modelDirectory = defaultModelDirectory(),
+            assistantModelDirectory = defaultAssistantDirectory(),
+            modelName = "gem16-12b",
+            maxContextTokens = 32768,
+            maxSessions = 1,
+            mtpDraftTokens = 2,
+            mtpAdaptive = false,
+        )
+        ModelProfile.Gemma4Moe26BA4B -> copy(
+            modelProfile = profile,
+            modelDirectory = default26BModelDirectory(),
+            assistantModelDirectory = default26BAssistantDirectory(),
+            modelName = "gemma4-26b-a4b",
+            maxContextTokens = 32768,
+            maxSessions = 1,
+            mtpDraftTokens = 2,
+            mtpAdaptive = false,
+        )
+    }
 }
 
 data class GenerationConfig(
@@ -89,6 +126,9 @@ data class StudioSettings(
 
 data class HealthSnapshot(
     val status: String,
+    val modelVariant: String,
+    val textOnly: Boolean,
+    val supportsMtp: Boolean,
     val residentSessions: Int,
     val sessionLimit: Int,
     val maxContextTokens: Long,
@@ -186,5 +226,23 @@ internal fun defaultAssistantDirectory(): String =
         Gem16ModelCatalog.assistantRepository,
         Gem16ModelCatalog.assistantRevision,
     ).toAbsolutePath().normalize().toString()
+
+private fun localArtifactDirectory(environmentName: String, relative: String): String {
+    System.getenv(environmentName)
+        ?.trim()
+        ?.takeIf(String::isNotEmpty)
+        ?.let { return Path.of(it).toAbsolutePath().normalize().toString() }
+    val candidate = repositoryRoot().resolve(relative).normalize()
+    return candidate.takeIf(Files::isDirectory)?.toString().orEmpty()
+}
+
+internal fun default26BModelDirectory(): String =
+    localArtifactDirectory("GEM16_26B_COMPILED_MODEL", "artifacts/raw/m08/qat-hybrid-clean-1")
+
+internal fun default26BAssistantDirectory(): String =
+    localArtifactDirectory(
+        "GEM16_26B_ASSISTANT_MODEL",
+        "artifacts/raw/m25/qat-q4_0-assistant-hybrid-diagnostic-v2",
+    )
 
 fun String.asAbsolutePath(): String = Path.of(this).toAbsolutePath().normalize().toString()

@@ -95,6 +95,11 @@ class Gemma4Moe26BReferenceEngine {
   // final sliding/full FP8 KV views.
   [[nodiscard]] Status LoadMtpAssistant(
       const std::filesystem::path& assistant_directory);
+  // Configure Target stop tokens before the fixed MTP graphs are captured.
+  // Stop tokens are distinct from sampling-suppressed tokens: they may be
+  // emitted, then terminate the device-controlled chain.
+  [[nodiscard]] Status ConfigureMtpStopTokens(
+      std::span<const std::uint32_t> stop_token_ids);
   [[nodiscard]] Status GenerateMtpAssistantDrafts(
       std::span<std::uint32_t> draft_token_ids);
   [[nodiscard]] Status GenerateMtpAssistantDraftsForPending(

@@ -41,6 +41,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.gem16.studio.model.ServerPhase
+import com.gem16.studio.model.ModelProfile
 import com.gem16.studio.state.StudioState
 import java.io.File
 import javax.swing.JFileChooser
@@ -105,7 +106,7 @@ private fun ServerStatusCard(
             }
             health?.let {
                 Text(
-                    "Context ${formatCount(it.maxContextTokens)} · sessions ${it.residentSessions}/${it.sessionLimit} · " +
+                    "${it.modelVariant} · context ${formatCount(it.maxContextTokens)} · sessions ${it.residentSessions}/${it.sessionLimit} · " +
                         "MTP D${it.mtpDraftTokens} · " +
                         if (it.samplingEnabled) "sampled ${it.temperature}/${it.topP}/${it.topK}" else "greedy",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -130,15 +131,57 @@ private fun ServerConfiguration(state: StudioState, phase: ServerPhase) {
                 onChange = { value -> state.updateServer { it.copy(executable = value) } },
             )
             Column(verticalArrangement = Arrangement.spacedBy(StudioCompactGap)) {
-                Text("Models", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("Managed through the shared Hugging Face cache on the Models screen.")
+                Text("Model profile", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                var profileMenu by remember { mutableStateOf(false) }
+                Box {
+                    StudioPrimaryButton(
+                        onClick = { profileMenu = true },
+                        enabled = phase == ServerPhase.Stopped || phase == ServerPhase.Error,
+                        modifier = Modifier.height(StudioControlHeight),
+                    ) { Text(config.modelProfile.label, color = MaterialTheme.colorScheme.onPrimary) }
+                    DropdownMenu(expanded = profileMenu, onDismissRequest = { profileMenu = false }) {
+                        ModelProfile.entries.forEach { profile ->
+                            DropdownMenuItem(
+                                text = { Text(profile.label) },
+                                onClick = {
+                                    state.selectModelProfile(profile)
+                                    profileMenu = false
+                                },
+                            )
+                        }
+                    }
+                }
                 Text(
-                    config.modelDirectory,
-                    style = MaterialTheme.typography.labelSmall,
+                    if (config.modelProfile == ModelProfile.Gemma4Moe26BA4B) {
+                        "Experimental text-only profile · one resident session · local compiled artifacts"
+                    } else {
+                        "Qualified multimodal profile · managed through the Models screen"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
                 )
             }
+            PathField(
+                label = if (config.modelProfile == ModelProfile.Gemma4Moe26BA4B) {
+                    "Compiled 26B target directory"
+                } else {
+                    "12B target directory"
+                },
+                value = config.modelDirectory,
+                directory = true,
+                onChange = { value -> state.updateServer { it.copy(modelDirectory = value) } },
+            )
+            PathField(
+                label = if (config.modelProfile == ModelProfile.Gemma4Moe26BA4B) {
+                    "Compiled 26B MTP assistant directory"
+                } else {
+                    "12B MTP assistant directory"
+                },
+                value = config.assistantModelDirectory,
+                directory = true,
+                enabled = config.mtpDraftTokens != 0,
+                onChange = { value -> state.updateServer { it.copy(assistantModelDirectory = value) } },
+            )
             StudioTextField(
                 value = config.modelName,
                 onValueChange = { value -> state.updateServer { it.copy(modelName = value) } },
@@ -166,14 +209,14 @@ private fun ServerConfiguration(state: StudioState, phase: ServerPhase) {
                 NumericField(
                     label = "Context tokens",
                     value = config.maxContextTokens,
-                    range = 1L..262144L,
+                    range = if (config.modelProfile == ModelProfile.Gemma4Moe26BA4B) 1L..98304L else 1L..262144L,
                     modifier = Modifier.weight(1f),
                     onValid = { value -> state.updateServer { it.copy(maxContextTokens = value) } },
                 )
                 NumericField(
                     label = "Sessions",
                     value = config.maxSessions.toLong(),
-                    range = 1L..64L,
+                    range = if (config.modelProfile == ModelProfile.Gemma4Moe26BA4B) 1L..1L else 1L..64L,
                     modifier = Modifier.weight(0.55f),
                     onValid = { value -> state.updateServer { it.copy(maxSessions = value.toInt()) } },
                 )
@@ -206,7 +249,7 @@ private fun ServerConfiguration(state: StudioState, phase: ServerPhase) {
                 LabeledCheckbox(
                     "Adaptive",
                     config.mtpAdaptive,
-                    config.mtpDraftTokens != 0,
+                    config.mtpDraftTokens != 0 && config.modelProfile != ModelProfile.Gemma4Moe26BA4B,
                 ) { checked -> state.updateServer { it.copy(mtpAdaptive = checked) } }
                 LabeledCheckbox("Greedy", config.greedy) { checked ->
                     state.updateServer { it.copy(greedy = checked) }

@@ -177,8 +177,12 @@ class ServerManager : AutoCloseable {
         require(response.statusCode() == 200) { "health returned HTTP ${response.statusCode()}" }
         val root = json.parseToJsonElement(response.body()).jsonObject
         val sampling = root["sampling"]?.jsonObject
+        val capabilities = root["capabilities"]?.jsonObject
         HealthSnapshot(
             status = root["status"]?.jsonPrimitive?.content ?: "unknown",
+            modelVariant = root["model_variant"]?.jsonPrimitive?.content ?: "unknown",
+            textOnly = root["text_only"]?.jsonPrimitive?.booleanOrNull ?: false,
+            supportsMtp = capabilities?.get("mtp")?.jsonPrimitive?.booleanOrNull ?: false,
             residentSessions = root["resident_sessions"]?.jsonPrimitive?.intOrNull ?: 0,
             sessionLimit = root["session_limit"]?.jsonPrimitive?.intOrNull ?: 0,
             maxContextTokens = root["max_context_tokens"]?.jsonPrimitive?.longOrNull ?: 0,
@@ -198,11 +202,25 @@ class ServerManager : AutoCloseable {
     private fun validate(config: ServerConfig): String? {
         if (!Files.isRegularFile(Path.of(config.executable))) return "Server executable does not exist"
         if (!Files.isDirectory(Path.of(config.modelDirectory))) {
-            return "Model cache is not ready. Download the pinned model set on the Models screen."
+            return if (config.modelProfile == com.gem16.studio.model.ModelProfile.Gemma4Moe26BA4B) {
+                "The compiled 26B target directory does not exist. Select it on the Server screen."
+            } else {
+                "Model cache is not ready. Download the pinned model set on the Models screen."
+            }
         }
         if (config.mtpDraftTokens != 0 && !Files.isDirectory(Path.of(config.assistantModelDirectory))) {
-            return "MTP is enabled, but its assistant is not cached. Complete the download on the Models screen."
+            return if (config.modelProfile == com.gem16.studio.model.ModelProfile.Gemma4Moe26BA4B) {
+                "26B MTP is enabled, but its compiled assistant directory does not exist."
+            } else {
+                "MTP is enabled, but its assistant is not cached. Complete the download on the Models screen."
+            }
         }
+        if (config.modelProfile == com.gem16.studio.model.ModelProfile.Gemma4Moe26BA4B &&
+            config.maxSessions != 1
+        ) return "Gemma 4 26B supports exactly one resident session"
+        if (config.modelProfile == com.gem16.studio.model.ModelProfile.Gemma4Moe26BA4B &&
+            config.mtpAdaptive
+        ) return "Gemma 4 26B currently supports fixed-depth MTP only"
         if (config.port !in 1..65535) return "Port must be in [1, 65535]"
         if (config.maxContextTokens !in 1..262144) return "Context must be in [1, 262144]"
         return null

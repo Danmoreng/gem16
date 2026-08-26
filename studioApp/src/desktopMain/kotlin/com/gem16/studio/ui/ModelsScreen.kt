@@ -34,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.gem16.studio.model.Gem16ModelCatalog
+import com.gem16.studio.model.ModelProfile
 import com.gem16.studio.model.ServerPhase
 import com.gem16.studio.service.ModelInstallState
 import com.gem16.studio.service.formatBytes
@@ -46,7 +47,8 @@ fun ModelsScreen(state: StudioState) {
     val install by state.modelManager.state.collectAsState()
     val serverPhase by state.serverManager.phase.collectAsState()
     var token by remember { mutableStateOf("") }
-    val configured = state.settings.server.modelDirectory == install.targetDirectory.toString() &&
+    val configured = state.settings.server.modelProfile == ModelProfile.Gemma4Unified12B &&
+        state.settings.server.modelDirectory == install.targetDirectory.toString() &&
         state.settings.server.assistantModelDirectory == install.assistantDirectory.toString()
 
     Column(
@@ -78,6 +80,12 @@ fun ModelsScreen(state: StudioState) {
                     title = "Official tokenizer configuration",
                     detail = "${Gem16ModelCatalog.tokenizerRepository}/tokenizer_config.json",
                     ready = install.tokenizerConfigReady,
+                )
+                Text(
+                    "Gemma 4 26B A4B uses offline-compiled local target and assistant artifacts. " +
+                        "Select the 26B profile and its directories on the Server screen; Studio disables image and audio input for it.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }

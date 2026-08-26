@@ -757,12 +757,6 @@ int ChatMain(int argc, char** argv) {
   if (!options.max_context_explicit && moe26b) {
     options.max_context = 32768U;
   }
-  if (moe26b &&
-      (options.mtp_draft_tokens != 0U || options.mtp_adaptive ||
-       !options.assistant_model_directory.empty())) {
-    std::cerr << "error: Gemma 4 26B text-only does not support MTP\n";
-    return 2;
-  }
   if (options.mtp_draft_tokens != 0U &&
       options.assistant_model_directory.empty()) {
     std::cerr << "error: active MTP requires --assistant-model\n";
@@ -844,8 +838,13 @@ int ChatMain(int argc, char** argv) {
     } else {
       std::cout << "null";
     }
+    std::cout << ",\"mtp_max_context\":";
+    if (runtime.value()->supports_mtp()) {
+      std::cout << runtime.value()->max_context_tokens();
+    } else {
+      std::cout << "null";
+    }
     std::cout
-        << ",\"mtp_max_context\":null"
         << ",\"admission_free_bytes\":" << memory.value().free_bytes
         << ",\"required_admission_margin_bytes\":" << admission_margin
         << ",\"admission_headroom_bytes\":"
@@ -937,7 +936,7 @@ int ChatMain(int argc, char** argv) {
     std::cout << "Media commands: /image <path>, /audio <path>, /media, "
                  "/clear-media.\n";
   } else {
-    std::cout << "Gemma 4 26B profile: text-only; media and MTP are unsupported.\n";
+    std::cout << "Gemma 4 26B profile: text-only; vision and audio are unsupported.\n";
   }
   std::cout << "Model weights and the exact conversation KV prefix stay resident.\n";
   if (options.mtp_draft_tokens != 0U) {

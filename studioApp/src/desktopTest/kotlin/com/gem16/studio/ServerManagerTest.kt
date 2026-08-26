@@ -4,6 +4,7 @@ import com.gem16.studio.model.GenerationConfig
 import com.gem16.studio.model.Gem16ModelCatalog
 import com.gem16.studio.model.HuggingFaceCachePaths
 import com.gem16.studio.model.ServerConfig
+import com.gem16.studio.model.ModelProfile
 import com.gem16.studio.model.StudioSettings
 import com.gem16.studio.model.ThinkingEffort
 import com.gem16.studio.model.repositoryRoot
@@ -118,11 +119,31 @@ class ServerManagerTest {
     }
 
     @Test
+    fun gemma26BProfileUsesTextOnlySingleSlotFixedMtpContract() {
+        val config = ServerConfig().selectProfile(ModelProfile.Gemma4Moe26BA4B).copy(
+            executable = "server",
+            modelDirectory = "/models/26b-target",
+            assistantModelDirectory = "/models/26b-assistant",
+        )
+        assertEquals(ModelProfile.Gemma4Moe26BA4B, config.modelProfile)
+        assertFalse(config.supportsMedia)
+        assertEquals(1, config.maxSessions)
+        assertEquals(2, config.mtpDraftTokens)
+        assertFalse(config.mtpAdaptive)
+        val command = buildServerCommand(config)
+        assertTrue(command.containsAll(listOf("--model", "/models/26b-target")))
+        assertTrue(command.containsAll(listOf("--assistant-model", "/models/26b-assistant")))
+        assertTrue(command.containsAll(listOf("--mtp-draft-tokens", "2")))
+        assertFalse(command.contains("--mtp-adaptive"))
+    }
+
+    @Test
     fun settingsRoundTrip() {
         val directory = Files.createTempDirectory("gem16-studio-test")
         val store = SettingsStore(directory.resolve("settings.properties"))
         val expected = StudioSettings(
             server = ServerConfig(
+                modelProfile = ModelProfile.Gemma4Moe26BA4B,
                 executable = "server.exe",
                 modelDirectory = "target",
                 assistantModelDirectory = "assistant",

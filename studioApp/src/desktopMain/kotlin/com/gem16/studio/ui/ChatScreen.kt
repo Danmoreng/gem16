@@ -183,7 +183,7 @@ fun ChatScreen(state: StudioState) {
                 ) {
                     item { Spacer(Modifier.height(StudioGap)) }
                     if (state.messages.isEmpty()) {
-                        item { WelcomeCard() }
+                        item { WelcomeCard(state.mediaInputsEnabled) }
                     }
                     items(visibleMessages, key = ChatMessage::id) { message ->
                         MessageCard(message, state.settings.generation.showReasoning)
@@ -257,7 +257,7 @@ private fun DropFilesOverlay() {
 }
 
 @Composable
-private fun WelcomeCard() {
+private fun WelcomeCard(mediaInputsEnabled: Boolean) {
     StudioSurface(
         modifier = Modifier.fillMaxWidth().padding(top = 18.dp),
         color = MaterialTheme.colorScheme.surfaceVariant,
@@ -265,8 +265,13 @@ private fun WelcomeCard() {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(StudioGap)) {
             Text("Chat locally with Gemma 4", style = MaterialTheme.typography.headlineSmall)
             Text(
-                "The managed gem16 server starts automatically. Send text, documents, images, or audio; " +
-                    "the model, KV cache, and optional MTP assistant remain resident on your GPU.",
+                if (mediaInputsEnabled) {
+                    "The managed gem16 server starts automatically. Send text, documents, images, or audio; " +
+                        "the model, KV cache, and optional MTP assistant remain resident on your GPU."
+                } else {
+                    "Gemma 4 26B A4B is selected in its text-only profile. Send text or extracted PDF documents; " +
+                        "the target, KV cache, and sampled MTP assistant remain resident on your GPU."
+                },
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
@@ -544,7 +549,11 @@ private fun Composer(state: StudioState) {
             maxLines = 6,
             minHeight = 68.dp,
             maxHeight = 144.dp,
-            supportingText = "Enter to send · Shift+Enter for a new line · Drop files (including text/PDF) or paste images",
+            supportingText = if (state.mediaInputsEnabled) {
+                "Enter to send · Shift+Enter for a new line · Drop files (including text/PDF) or paste images"
+            } else {
+                "Enter to send · Shift+Enter for a new line · 26B text-only: text and PDF documents"
+            },
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(
@@ -564,7 +573,8 @@ private fun Composer(state: StudioState) {
             }
             IconButton(
                 onClick = state::startRecording,
-                enabled = !state.isGenerating && !state.isLoadingAttachments && !state.isRecording,
+                enabled = state.mediaInputsEnabled && !state.isGenerating &&
+                    !state.isLoadingAttachments && !state.isRecording,
                 modifier = Modifier.size(StudioControlHeight),
             ) {
                 Icon(Icons.Default.Mic, contentDescription = "Record audio", modifier = Modifier.size(18.dp))

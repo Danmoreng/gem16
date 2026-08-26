@@ -44,10 +44,6 @@ Result<std::shared_ptr<ModelRuntime>> ModelRuntime::Load(
   if (!config.ok()) return config.status();
   impl->variant = internal::ClassifyModelVariant(config.value());
   if (impl->variant == internal::ModelVariant::kGemma4Moe26BA4B) {
-    if (!options.assistant_model_directory.empty()) {
-      return Error(StatusCode::kUnsupported,
-                   "Gemma 4 26B text-only does not support MTP assistant weights");
-    }
     if (options.max_context_tokens == 0U) {
       return Error(StatusCode::kInvalidArgument,
                    "Gemma 4 26B requires a positive context capacity");
@@ -63,6 +59,12 @@ Result<std::shared_ptr<ModelRuntime>> ModelRuntime::Load(
     impl->moe26b_engine =
         std::make_unique<internal::Gemma4Moe26BReferenceEngine>(
             std::move(engine).value());
+    if (!options.assistant_model_directory.empty()) {
+      Status status = impl->moe26b_engine->LoadMtpAssistant(
+          options.assistant_model_directory);
+      if (!status.ok()) return status;
+      impl->assistant_loaded = true;
+    }
     impl->artifact_profile = std::move(identity.value().artifact_profile);
     impl->head_format = std::move(identity.value().head_format);
     impl->artifact_content_sha256 =
@@ -92,7 +94,10 @@ std::uint64_t ModelRuntime::weight_bytes() const {
              : impl_->moe26b_engine->weight_arena_bytes();
 }
 std::uint64_t ModelRuntime::assistant_weight_bytes() const {
-  return impl_ == nullptr ? 0U : impl_->assistant.arena_bytes();
+  if (impl_ == nullptr) return 0U;
+  return impl_->moe26b_engine == nullptr
+             ? impl_->assistant.arena_bytes()
+             : impl_->moe26b_engine->mtp_assistant_weight_bytes();
 }
 bool ModelRuntime::assistant_loaded() const {
   return impl_ != nullptr && impl_->assistant_loaded;
@@ -165,8 +170,12 @@ bool ModelRuntime::supports_vision() const {
          internal::TraitsForModelVariant(impl_->variant).supports_vision;
 }
 bool ModelRuntime::supports_mtp() const {
-  return impl_ != nullptr &&
-         internal::TraitsForModelVariant(impl_->variant).supports_mtp;
+  if (impl_ == nullptr) return false;
+  if (impl_->variant == internal::ModelVariant::kGemma4Moe26BA4B) {
+    return impl_->assistant_loaded && impl_->moe26b_engine != nullptr &&
+           impl_->moe26b_engine->mtp_assistant_loaded();
+  }
+  return internal::TraitsForModelVariant(impl_->variant).supports_mtp;
 }
 std::uint32_t ModelRuntime::maximum_execution_slots() const {
   if (impl_ == nullptr) return 0U;
@@ -252,7 +261,6 @@ Result<ConversationSession> ConversationSession::Create(
     return Error(StatusCode::kInvalidArgument,
                  "--mtp-adaptive requires active MTP");
   }
-
   auto runtime = ModelRuntime::Load(
       {options.model_directory, options.assistant_model_directory,
        options.max_context_tokens, 0});
@@ -287,11 +295,6 @@ Result<ConversationSession> ConversationSession::Create(
     }
   }
   const bool mtp_enabled = options.mtp_draft_tokens != 0U;
-  if (moe26b &&
-      (mtp_enabled || options.mtp_adaptive || runtime->impl_->assistant_loaded)) {
-    return Error(StatusCode::kUnsupported,
-                 "Gemma 4 26B text-only does not support MTP");
-  }
   if (mtp_enabled && options.mtp_draft_tokens != 1U &&
       options.mtp_draft_tokens != 2U && options.mtp_draft_tokens != 4U) {
     return Error(StatusCode::kInvalidArgument,
@@ -304,6 +307,10 @@ Result<ConversationSession> ConversationSession::Create(
   if (options.mtp_adaptive && !mtp_enabled) {
     return Error(StatusCode::kInvalidArgument,
                  "--mtp-adaptive requires active MTP");
+  }
+  if (moe26b && options.mtp_adaptive) {
+    return Error(StatusCode::kUnsupported,
+                 "Gemma 4 26B currently supports fixed-depth MTP only");
   }
   if (moe26b) {
     if (options.max_context_tokens != runtime->impl_->max_context_tokens) {
@@ -347,6 +354,14 @@ Result<ConversationSession> ConversationSession::Create(
     status = impl->runtime->impl_->moe26b_engine->ConfigureTokenSelection(
         options.sampling, options.suppressed_token_ids);
     if (!status.ok()) return status;
+    if (mtp_enabled) {
+      status = impl->runtime->impl_->moe26b_engine->ConfigureMtpStopTokens(
+          options.stop_token_ids);
+      if (!status.ok()) return status;
+      status = impl->runtime->impl_->moe26b_engine->ConfigureMtpVerifierBackend(
+          internal::Gemma4Moe26BMtpVerifierBackend::kExactSharedBatchedMoe);
+      if (!status.ok()) return status;
+    }
     impl->model_load_milliseconds = impl->runtime->load_milliseconds();
     return ConversationSession(std::move(impl));
   }
@@ -490,6 +505,16 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
     result.model_load_milliseconds = impl_->model_load_milliseconds;
     result.weight_arena_bytes =
         impl_->runtime->impl_->moe26b_engine->weight_arena_bytes();
+    result.assistant_loaded =
+        impl_->runtime->impl_->moe26b_engine->mtp_assistant_loaded();
+    result.assistant_weight_arena_bytes =
+        impl_->runtime->impl_->moe26b_engine->mtp_assistant_weight_bytes();
+    result.assistant_workspace_bytes =
+        impl_->runtime->impl_->moe26b_engine->mtp_assistant_workspace_bytes();
+    result.mtp_enabled = impl_->mtp_draft_tokens != 0U;
+    result.mtp_draft_tokens = impl_->mtp_draft_tokens;
+    result.mtp_fixed_d2_graph = impl_->mtp_draft_tokens == 2U;
+    result.mtp_gpu_chained = result.mtp_enabled;
     result.reasoning_enabled = reasoning.enabled;
     result.reasoning_budget_tokens = reasoning.max_reasoning_tokens;
     result.prompt_cached_tokens = prefix_tokens;
@@ -551,8 +576,8 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
     }
 
     const auto decode_start = std::chrono::steady_clock::now();
-    for (std::uint64_t generated = 1U;
-         generated < max_generated_tokens && !result.stopped; ++generated) {
+    while (result.output_token_ids.size() < max_generated_tokens &&
+           !result.stopped && !reasoning_complete) {
       const std::uint32_t input_token = next_token;
       const bool force_reasoning_close =
           !reasoning_complete && reasoning_tracker.in_reasoning() &&
@@ -588,6 +613,99 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
           impl_->stop_token_ids.end()) {
         result.stopped = true;
         result.stop_token_id = next_token;
+      }
+      ++result.reasoning_ordinary_target_tokens;
+      if (result.mtp_enabled) ++result.mtp_ordinary_fallback_tokens;
+    }
+    if (result.mtp_enabled) {
+      constexpr std::size_t kInteractiveMtpChunkTokens = 16U;
+      std::array<std::uint32_t, kInteractiveMtpChunkTokens> chain_tokens{};
+      while (result.output_token_ids.size() < max_generated_tokens &&
+             !result.stopped) {
+        const std::size_t remaining = static_cast<std::size_t>(
+            max_generated_tokens - result.output_token_ids.size());
+        const std::size_t requested =
+            std::min(remaining, kInteractiveMtpChunkTokens);
+        internal::MtpChainResult chain{};
+        status = impl_->runtime->impl_->moe26b_engine->RunFixedMtpGraphChain(
+            next_token, impl_->mtp_draft_tokens,
+            std::span<std::uint32_t>(chain_tokens).first(requested), &chain);
+        if (!status.ok()) {
+          impl_->poisoned = true;
+          return status;
+        }
+        if (chain.output_count == 0U || chain.output_count > requested) {
+          impl_->poisoned = true;
+          return Error(StatusCode::kInternal,
+                       "Gemma 4 26B MTP returned an invalid output extent");
+        }
+        result.mtp_proposed_tokens += chain.proposed_count;
+        result.mtp_accepted_tokens += chain.accepted_count;
+        result.mtp_rejected_tokens += chain.rejected_count;
+        result.mtp_verification_groups += chain.group_count;
+        result.mtp_target_batches += chain.group_count;
+        result.mtp_target_forwards += chain.group_count;
+        result.mtp_ordinary_fallback_tokens += chain.ordinary_tail_count;
+        if (impl_->mtp_draft_tokens == 1U) {
+          result.mtp_d1_groups += chain.group_count;
+        } else if (impl_->mtp_draft_tokens == 2U) {
+          result.mtp_d2_groups += chain.group_count;
+        } else if (impl_->mtp_draft_tokens == 4U) {
+          result.mtp_d4_groups += chain.group_count;
+        }
+        for (std::size_t index = 0U; index < chain.output_count; ++index) {
+          // The graph processed the previously pending output token to produce
+          // this one. Keep the host prefix aligned with the resident KV cache;
+          // the final emitted token remains pending for the next turn.
+          impl_->cached_token_ids.push_back(next_token);
+          next_token = chain_tokens[index];
+          result.output_token_ids.push_back(next_token);
+          observe_reasoning_token(next_token);
+          if (generated_token_callback != nullptr) {
+            status = generated_token_callback(generated_token_callback_context,
+                                              next_token);
+            if (!status.ok()) {
+              impl_->poisoned = true;
+              return status;
+            }
+          }
+        }
+        if (chain.stopped != 0U) {
+          result.stopped = true;
+          result.stop_token_id = chain.stop_token;
+        }
+      }
+    } else {
+      while (result.output_token_ids.size() < max_generated_tokens &&
+             !result.stopped) {
+        const std::uint32_t input_token = next_token;
+        status = impl_->runtime->impl_->moe26b_engine->ForwardToken(input_token);
+        if (!status.ok()) {
+          impl_->poisoned = true;
+          return status;
+        }
+        impl_->cached_token_ids.push_back(input_token);
+        selected = impl_->runtime->impl_->moe26b_engine->SelectToken();
+        if (!selected.ok()) {
+          impl_->poisoned = true;
+          return selected.status();
+        }
+        next_token = selected.value();
+        result.output_token_ids.push_back(next_token);
+        if (generated_token_callback != nullptr) {
+          status = generated_token_callback(generated_token_callback_context,
+                                            next_token);
+          if (!status.ok()) {
+            impl_->poisoned = true;
+            return status;
+          }
+        }
+        if (std::find(impl_->stop_token_ids.begin(),
+                      impl_->stop_token_ids.end(), next_token) !=
+            impl_->stop_token_ids.end()) {
+          result.stopped = true;
+          result.stop_token_id = next_token;
+        }
       }
     }
     result.decode_milliseconds = Milliseconds(

@@ -10,8 +10,10 @@ import com.gem16.studio.model.ChatActivityPhase
 import com.gem16.studio.model.GenerationConfig
 import com.gem16.studio.model.MediaAttachment
 import com.gem16.studio.model.MediaKind
+import com.gem16.studio.model.ModelProfile
 import com.gem16.studio.model.PerformanceStats
 import com.gem16.studio.model.ServerConfig
+import com.gem16.studio.model.ServerPhase
 import com.gem16.studio.model.StudioSettings
 import com.gem16.studio.model.StreamPerformanceStats
 import com.gem16.studio.model.Usage
@@ -88,6 +90,9 @@ class StudioState(
     private var modelDownloadJob: Job? = null
     private var discardRecording = false
 
+    val mediaInputsEnabled: Boolean
+        get() = settings.server.supportsMedia
+
     init {
         serverManager.configure(settings.server)
         if (serverConfigurationExists()) startServer()
@@ -97,6 +102,18 @@ class StudioState(
         settings = settings.copy(server = transform(settings.server))
         serverManager.configure(settings.server)
         persist()
+    }
+
+    fun selectModelProfile(profile: ModelProfile) {
+        if (profile == settings.server.modelProfile) return
+        if (serverManager.phase.value !in setOf(ServerPhase.Stopped, ServerPhase.Error)) {
+            chatError = "Stop the managed server before switching model profiles."
+            return
+        }
+        sessionId = null
+        contextTokensUsed = 0L
+        pendingAttachments.removeAll { it.kind != MediaKind.Document }
+        updateServer { it.selectProfile(profile) }
     }
 
     fun updateGeneration(transform: (GenerationConfig) -> GenerationConfig) {
@@ -136,6 +153,7 @@ class StudioState(
                 val installed = modelManager.downloadAll(token)
                 updateServer {
                     it.copy(
+                        modelProfile = ModelProfile.Gemma4Unified12B,
                         modelDirectory = installed.targetDirectory.toString(),
                         assistantModelDirectory = installed.assistantDirectory.toString(),
                     )
@@ -158,6 +176,7 @@ class StudioState(
         if (!installed.allReady) return
         updateServer {
             it.copy(
+                modelProfile = ModelProfile.Gemma4Unified12B,
                 modelDirectory = installed.targetDirectory.toString(),
                 assistantModelDirectory = installed.assistantDirectory.toString(),
             )
@@ -165,6 +184,10 @@ class StudioState(
     }
 
     fun startRecording() {
+        if (!settings.server.modelProfile.supportsAudio) {
+            chatError = "Gemma 4 26B A4B is text-only; audio input is unavailable."
+            return
+        }
         if (isGenerating || isLoadingAttachments || isRecording) return
         chatError = null
         recordingMillis = 0L
@@ -238,6 +261,10 @@ class StudioState(
                 val failures = loaded.mapNotNull { it.exceptionOrNull() }
                 var encoded = encodedMediaBytes(messages) + pendingAttachments.sumOf(MediaAttachment::encodedSize)
                 loaded.mapNotNull { it.getOrNull() }.forEach { attachment ->
+                    if (!mediaInputsEnabled && attachment.kind != MediaKind.Document) {
+                        chatError = "Gemma 4 26B A4B is text-only; attach text or PDF documents instead."
+                        return@forEach
+                    }
                     if (encoded + attachment.encodedSize <= MaxEncodedMediaBytes) {
                         pendingAttachments += attachment
                         encoded += attachment.encodedSize
@@ -257,6 +284,7 @@ class StudioState(
     }
 
     fun addClipboardImage(): Boolean {
+        if (!settings.server.modelProfile.supportsVision) return false
         if (isGenerating || isLoadingAttachments || isRecording || !clipboardContainsImage()) return false
         isLoadingAttachments = true
         chatError = null
@@ -291,6 +319,10 @@ class StudioState(
     fun sendMessage() {
         val text = draft.trim()
         val attachments = pendingAttachments.toList()
+        if (!mediaInputsEnabled && attachments.any { it.kind != MediaKind.Document }) {
+            chatError = "Gemma 4 26B A4B is text-only; remove image and audio attachments."
+            return
+        }
         if ((text.isEmpty() && attachments.isEmpty()) || isGenerating || isLoadingAttachments || isRecording) return
         if (serverManager.health.value == null) {
             chatError = "The gem16 server is not reachable. Start it on the Server screen first."
