@@ -19,13 +19,64 @@ ServerState::ServerState(std::string served_model_name,
                          GemmaChatProcessor chat_processor,
                          std::shared_ptr<ModelRuntime> model_runtime,
                          ChatSessionOptions chat_session_options,
-                         std::uint32_t session_limit)
+                         std::uint32_t session_limit,
+                         std::size_t max_queued_requests)
     : model_name(std::move(served_model_name)),
       max_context(context_limit),
       processor(std::move(chat_processor)),
       runtime(std::move(model_runtime)),
       session_options(std::move(chat_session_options)),
-      max_sessions(session_limit) {}
+      max_sessions(session_limit),
+      request_queue(session_limit, max_queued_requests) {}
+
+namespace {
+
+void ObserveLatency(ServerMetrics::LatencyHistogram& histogram,
+                    std::uint64_t microseconds) {
+  histogram.count.fetch_add(1U);
+  histogram.sum_microseconds.fetch_add(microseconds);
+  for (std::size_t index = 0U;
+       index < ServerMetrics::kLatencyBucketsUs.size(); ++index) {
+    if (microseconds <= ServerMetrics::kLatencyBucketsUs[index]) {
+      histogram.buckets[index].fetch_add(1U);
+    }
+  }
+}
+
+void AppendLatencyHistogram(
+    std::string& output, std::string_view name,
+    const ServerMetrics::LatencyHistogram& histogram) {
+  output.append("# TYPE ").append(name).append(" histogram\n");
+  for (std::size_t index = 0U;
+       index < ServerMetrics::kLatencyBucketsUs.size(); ++index) {
+    const double seconds =
+        static_cast<double>(ServerMetrics::kLatencyBucketsUs[index]) /
+        1'000'000.0;
+    output.append(name)
+        .append("_bucket{le=\"")
+        .append(std::to_string(seconds))
+        .append("\"} ")
+        .append(std::to_string(histogram.buckets[index].load()))
+        .append("\n");
+  }
+  const std::uint64_t count = histogram.count.load();
+  output.append(name)
+      .append("_bucket{le=\"+Inf\"} ")
+      .append(std::to_string(count))
+      .append("\n");
+  output.append(name)
+      .append("_sum ")
+      .append(std::to_string(
+          static_cast<double>(histogram.sum_microseconds.load()) /
+          1'000'000.0))
+      .append("\n");
+  output.append(name)
+      .append("_count ")
+      .append(std::to_string(count))
+      .append("\n");
+}
+
+}  // namespace
 
 Result<OpenAiResponseIdentity> MakeChatIdentity(const ServerState& state) {
   auto id = MakeSecureId("chatcmpl-gem16-");
@@ -96,8 +147,11 @@ gem16::Result<std::shared_ptr<SessionEntry>> CreateSession(
   auto session = gem16::ChatSession::Create(
       state.runtime, state.session_options, state.processor);
   if (!session.ok()) {
-    std::lock_guard pool_lock(state.pool_mutex);
-    state.pending_sessions.erase(id);
+    {
+      std::lock_guard pool_lock(state.pool_mutex);
+      state.pending_sessions.erase(id);
+    }
+    state.pool_changed.notify_all();
     return session.status();
   }
   auto entry = std::make_shared<SessionEntry>(
@@ -115,51 +169,111 @@ gem16::Result<std::shared_ptr<SessionEntry>> CreateSession(
     state.metrics.active_requests.fetch_add(1U);
     state.sessions.emplace(entry->id, entry);
   }
+  state.pool_changed.notify_all();
   return entry;
+}
+
+gem16::Result<std::shared_ptr<SessionEntry>> CreateSessionQueued(
+    ServerState& state, std::string id) {
+  for (;;) {
+    auto created = CreateSession(state, id);
+    if (created.ok()) return created;
+    if (created.status().code() != gem16::StatusCode::kResourceExhausted) {
+      return created.status();
+    }
+    std::unique_lock pool_lock(state.pool_mutex);
+    state.pool_changed.wait(pool_lock, [&] {
+      if (state.sessions.contains(id) || state.pending_sessions.contains(id)) {
+        return false;
+      }
+      if (state.sessions.size() + state.pending_sessions.size() <
+          state.max_sessions) {
+        return true;
+      }
+      return std::any_of(state.sessions.begin(), state.sessions.end(),
+                         [](const auto& item) {
+                           return item.second->active_requests.load() == 0U;
+                         });
+    });
+  }
 }
 
 gem16::Result<std::shared_ptr<SessionEntry>> AcquireNamedSession(
     ServerState& state, const std::string& id) {
-  {
-    std::lock_guard pool_lock(state.pool_mutex);
+  for (;;) {
+    std::unique_lock pool_lock(state.pool_mutex);
     const auto found = state.sessions.find(id);
     if (found != state.sessions.end()) {
       if (found->second->active_requests.load() != 0U) {
-        return gem16::Status(
-            gem16::StatusCode::kResourceExhausted,
-            "session already has an active request");
+        const std::shared_ptr<SessionEntry> busy_entry = found->second;
+        state.pool_changed.wait(pool_lock, [busy_entry] {
+          return busy_entry->active_requests.load() == 0U;
+        });
+        continue;
       }
       found->second->active_requests.fetch_add(1U);
       found->second->last_used.store(state.lru_clock.fetch_add(1U));
       state.metrics.active_requests.fetch_add(1U);
       return found->second;
     }
+    if (state.pending_sessions.contains(id)) {
+      state.pool_changed.wait(pool_lock, [&] {
+        return !state.pending_sessions.contains(id);
+      });
+      continue;
+    }
+    pool_lock.unlock();
+    auto created = CreateSession(state, id);
+    if (created.ok()) return created;
+    if (created.status().code() != gem16::StatusCode::kResourceExhausted &&
+        created.status().code() != gem16::StatusCode::kInvalidArgument) {
+      return created.status();
+    }
+    std::unique_lock retry_lock(state.pool_mutex);
+    state.pool_changed.wait(retry_lock, [&] {
+      const auto current = state.sessions.find(id);
+      if (current != state.sessions.end()) {
+        return current->second->active_requests.load() == 0U;
+      }
+      if (state.pending_sessions.contains(id)) return false;
+      if (state.sessions.size() + state.pending_sessions.size() <
+          state.max_sessions) {
+        return true;
+      }
+      return std::any_of(state.sessions.begin(), state.sessions.end(),
+                         [](const auto& item) {
+                           return item.second->active_requests.load() == 0U;
+                         });
+    });
   }
-  return CreateSession(state, id);
 }
 
 gem16::Result<std::shared_ptr<SessionEntry>> AcquireResponseSession(
     ServerState& state, const std::string& response_id) {
-  std::lock_guard pool_lock(state.pool_mutex);
-  const auto found = state.response_index.find(response_id);
-  if (found == state.response_index.end()) {
-    return gem16::Status(gem16::StatusCode::kNotFound,
-                         "previous_response_id is not resident");
+  for (;;) {
+    std::unique_lock pool_lock(state.pool_mutex);
+    const auto found = state.response_index.find(response_id);
+    if (found == state.response_index.end()) {
+      return gem16::Status(gem16::StatusCode::kNotFound,
+                           "previous_response_id is not resident");
+    }
+    std::shared_ptr<SessionEntry> entry = found->second.lock();
+    if (entry == nullptr) {
+      state.response_index.erase(found);
+      return gem16::Status(gem16::StatusCode::kNotFound,
+                           "previous_response_id was evicted");
+    }
+    if (entry->active_requests.load() != 0U) {
+      state.pool_changed.wait(pool_lock, [entry] {
+        return entry->active_requests.load() == 0U;
+      });
+      continue;
+    }
+    entry->active_requests.fetch_add(1U);
+    entry->last_used.store(state.lru_clock.fetch_add(1U));
+    state.metrics.active_requests.fetch_add(1U);
+    return entry;
   }
-  std::shared_ptr<SessionEntry> entry = found->second.lock();
-  if (entry == nullptr) {
-    state.response_index.erase(found);
-    return gem16::Status(gem16::StatusCode::kNotFound,
-                         "previous_response_id was evicted");
-  }
-  if (entry->active_requests.load() != 0U) {
-    return gem16::Status(gem16::StatusCode::kResourceExhausted,
-                         "response session already has an active request");
-  }
-  entry->active_requests.fetch_add(1U);
-  entry->last_used.store(state.lru_clock.fetch_add(1U));
-  state.metrics.active_requests.fetch_add(1U);
-  return entry;
 }
 
 void ReleaseSession(ServerState& state,
@@ -167,12 +281,15 @@ void ReleaseSession(ServerState& state,
   entry->last_used.store(state.lru_clock.fetch_add(1U));
   entry->active_requests.fetch_sub(1U);
   state.metrics.active_requests.fetch_sub(1U);
+  state.pool_changed.notify_all();
 }
 
 void DiscardSession(ServerState& state,
                     const std::shared_ptr<SessionEntry>& entry) {
-  std::lock_guard pool_lock(state.pool_mutex);
-  EraseSessionLocked(state, entry->id);
+  {
+    std::lock_guard pool_lock(state.pool_mutex);
+    EraseSessionLocked(state, entry->id);
+  }
 }
 
 SessionLease::SessionLease(ServerState& state,
@@ -320,6 +437,24 @@ void RecordGeneration(ServerState& state,
       response.inference.kv_cache_bytes + response.inference.workspace_bytes +
       response.inference.assistant_workspace_bytes +
       response.inference.decode_graph_device_bytes);
+  const auto generation_us = static_cast<std::uint64_t>(
+      std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count());
+  ObserveLatency(state.metrics.generation_latency, generation_us);
+  ObserveLatency(state.metrics.prompt_latency, static_cast<std::uint64_t>(
+      std::max(0.0, response.inference.prompt_milliseconds) * 1000.0));
+  ObserveLatency(state.metrics.decode_latency, static_cast<std::uint64_t>(
+      std::max(0.0, response.inference.decode_milliseconds) * 1000.0));
+}
+
+void RecordRequestLatency(ServerState& state, std::uint64_t microseconds) {
+  ObserveLatency(state.metrics.request_latency, microseconds);
+}
+
+void RecordQueueAdmission(ServerState& state, std::uint64_t microseconds) {
+  state.metrics.queue_admissions.fetch_add(1U);
+  state.metrics.queue_wait_microseconds.fetch_add(microseconds);
+  if (microseconds != 0U) state.metrics.queue_waits.fetch_add(1U);
+  ObserveLatency(state.metrics.queue_latency, microseconds);
 }
 
 std::string MetricsText(ServerState& state) {
@@ -334,6 +469,7 @@ std::string MetricsText(ServerState& state) {
     return std::string(name) + " " + std::to_string(value) + "\n";
   };
   std::string output;
+  const RequestQueueSnapshot queue = state.request_queue.Snapshot();
   output.append("# TYPE gem16_requests_total counter\n");
   output.append(metric("gem16_requests_total",
                        state.metrics.requests_total.load()));
@@ -343,6 +479,22 @@ std::string MetricsText(ServerState& state) {
   output.append("# TYPE gem16_active_requests gauge\n");
   output.append(metric("gem16_active_requests",
                        state.metrics.active_requests.load()));
+  output.append("# TYPE gem16_request_queue_active gauge\n");
+  output.append(metric("gem16_request_queue_active", queue.active));
+  output.append("# TYPE gem16_request_queue_depth gauge\n");
+  output.append(metric("gem16_request_queue_depth", queue.queued));
+  output.append(metric("gem16_request_queue_capacity", queue.capacity));
+  output.append(metric("gem16_request_queue_max_depth", queue.max_queued));
+  output.append(metric("gem16_request_queue_high_watermark",
+                       queue.high_watermark));
+  output.append(metric("gem16_request_queue_admissions_total",
+                       state.metrics.queue_admissions.load()));
+  output.append(metric("gem16_request_queue_waits_total",
+                       state.metrics.queue_waits.load()));
+  output.append(metric("gem16_request_queue_rejections_total",
+                       state.metrics.queue_rejections.load()));
+  output.append(metric("gem16_request_queue_wait_microseconds_total",
+                       state.metrics.queue_wait_microseconds.load()));
   output.append("# TYPE gem16_resident_sessions gauge\n");
   output.append(metric("gem16_resident_sessions", resident_sessions));
   output.append("# TYPE gem16_pending_session_creations gauge\n");
@@ -423,8 +575,21 @@ std::string MetricsText(ServerState& state) {
                        state.device_safety_margin_bytes));
   output.append(metric("gem16_last_execution_slot_bytes",
                        state.metrics.last_slot_bytes.load()));
+  output.append(metric("gem16_model_load_microseconds",
+                       state.model_load_microseconds));
+  output.append(metric("gem16_server_startup_microseconds",
+                       state.server_startup_microseconds));
+  AppendLatencyHistogram(output, "gem16_request_duration_seconds",
+                         state.metrics.request_latency);
+  AppendLatencyHistogram(output, "gem16_request_queue_wait_seconds",
+                         state.metrics.queue_latency);
+  AppendLatencyHistogram(output, "gem16_generation_duration_seconds",
+                         state.metrics.generation_latency);
+  AppendLatencyHistogram(output, "gem16_prompt_duration_seconds",
+                         state.metrics.prompt_latency);
+  AppendLatencyHistogram(output, "gem16_decode_duration_seconds",
+                         state.metrics.decode_latency);
   return output;
 }
-
 
 }  // namespace gem16::server

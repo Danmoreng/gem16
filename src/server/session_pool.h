@@ -1,7 +1,9 @@
 #pragma once
 
 #include <atomic>
+#include <array>
 #include <chrono>
+#include <condition_variable>
 #include <cstdint>
 #include <memory>
 #include <mutex>
@@ -13,6 +15,7 @@
 
 #include "gem16/chat.h"
 #include "server/openai_chat.h"
+#include "server/request_queue.h"
 
 namespace gem16::server {
 
@@ -69,6 +72,24 @@ struct ServerMetrics {
   std::atomic<std::uint64_t> model_validation_failure_count{0U};
   std::atomic<std::uint64_t> token_loop_allocation_count{0U};
   std::atomic<std::uint64_t> last_slot_bytes{0U};
+  std::atomic<std::uint64_t> queue_admissions{0U};
+  std::atomic<std::uint64_t> queue_waits{0U};
+  std::atomic<std::uint64_t> queue_rejections{0U};
+  std::atomic<std::uint64_t> queue_wait_microseconds{0U};
+  static constexpr std::array<std::uint64_t, 11U> kLatencyBucketsUs = {
+      10'000U,     50'000U,     100'000U,    250'000U,
+      500'000U,    1'000'000U,  2'500'000U,  5'000'000U,
+      10'000'000U, 30'000'000U, 60'000'000U};
+  struct LatencyHistogram {
+    std::array<std::atomic<std::uint64_t>, kLatencyBucketsUs.size()> buckets{};
+    std::atomic<std::uint64_t> count{0U};
+    std::atomic<std::uint64_t> sum_microseconds{0U};
+  };
+  LatencyHistogram request_latency;
+  LatencyHistogram queue_latency;
+  LatencyHistogram generation_latency;
+  LatencyHistogram prompt_latency;
+  LatencyHistogram decode_latency;
 };
 
 struct ServerState {
@@ -76,7 +97,8 @@ struct ServerState {
               GemmaChatProcessor chat_processor,
               std::shared_ptr<ModelRuntime> model_runtime,
               ChatSessionOptions chat_session_options,
-              std::uint32_t session_limit);
+              std::uint32_t session_limit,
+              std::size_t max_queued_requests = 64U);
 
   std::string model_name;
   std::uint64_t max_context = 0U;
@@ -84,12 +106,16 @@ struct ServerState {
   std::shared_ptr<ModelRuntime> runtime;
   ChatSessionOptions session_options;
   std::uint32_t max_sessions = 2U;
+  RequestQueue request_queue;
   std::uint64_t planned_slot_device_bytes = 0U;
   std::uint64_t configured_slot_device_bytes = 0U;
   std::uint64_t device_total_bytes = 0U;
   std::uint64_t device_free_after_probe_bytes = 0U;
   std::uint64_t device_safety_margin_bytes = 0U;
+  std::uint64_t model_load_microseconds = 0U;
+  std::uint64_t server_startup_microseconds = 0U;
   std::mutex pool_mutex;
+  std::condition_variable pool_changed;
   std::unordered_map<std::string, std::shared_ptr<SessionEntry>> sessions;
   std::unordered_map<std::string, std::weak_ptr<SessionEntry>> response_index;
   // Session construction allocates CUDA slot state and must run without
@@ -123,6 +149,8 @@ class SessionLease {
     const ServerState& state);
 [[nodiscard]] Result<std::shared_ptr<SessionEntry>> CreateSession(
     ServerState& state, std::string id);
+[[nodiscard]] Result<std::shared_ptr<SessionEntry>> CreateSessionQueued(
+    ServerState& state, std::string id);
 [[nodiscard]] Result<std::shared_ptr<SessionEntry>> AcquireNamedSession(
     ServerState& state, const std::string& id);
 [[nodiscard]] Result<std::shared_ptr<SessionEntry>> AcquireResponseSession(
@@ -150,6 +178,8 @@ void ClearActiveResponse(ServerState& state,
 void RecordGeneration(ServerState& state,
                       const ChatGenerationResponse& response,
                       std::chrono::steady_clock::duration elapsed);
+void RecordRequestLatency(ServerState& state, std::uint64_t microseconds);
+void RecordQueueAdmission(ServerState& state, std::uint64_t microseconds);
 [[nodiscard]] std::string MetricsText(ServerState& state);
 
 }  // namespace gem16::server

@@ -18,6 +18,8 @@ void RunNvfp4Tests();
 void RunNvfp4BatchEncoderTests();
 void RunNvfp4HeadTests();
 void RunOpenAiChatTests();
+void RunObservabilityTests();
+void RunRequestQueueTests();
 void RunSafetensorsTests();
 void RunSamplingTests();
 void RunSm120LayoutTests();
@@ -42,6 +44,8 @@ int main() {
   RunNvfp4BatchEncoderTests();
   RunNvfp4HeadTests();
   RunOpenAiChatTests();
+  RunObservabilityTests();
+  RunRequestQueueTests();
   RunSafetensorsTests();
   RunSamplingTests();
   RunSm120LayoutTests();

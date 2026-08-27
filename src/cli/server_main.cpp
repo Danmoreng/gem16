@@ -1,6 +1,8 @@
 #include <algorithm>
 #include <atomic>
+#include <charconv>
 #include <chrono>
+#include <csignal>
 #include <cstdint>
 #include <filesystem>
 #include <iostream>
@@ -9,6 +11,7 @@
 #include <mutex>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <vector>
 
 #if defined(_WIN32)
@@ -22,7 +25,9 @@
 #include "model/config.h"
 #include "model/model_variant.h"
 #include "server/http_streaming.h"
+#include "server/observability.h"
 #include "server/openai_chat.h"
+#include "server/request_queue.h"
 #include "server/secure_id.h"
 #include "server/session_pool.h"
 #include "util/json.h"
@@ -34,18 +39,28 @@ using gem16::server::AcquireResponseSession;
 using gem16::server::ClearActiveResponse;
 using gem16::server::CommitResponsesRequest;
 using gem16::server::CreateSession;
+using gem16::server::CreateSessionQueued;
 using gem16::server::DiscardSession;
 using gem16::server::FinishSse;
 using gem16::server::IndexResponse;
 using gem16::server::MakeChatIdentity;
 using gem16::server::MakeResponsesIdentity;
 using gem16::server::MetricsText;
+using gem16::server::LogField;
+using gem16::server::LogFormat;
+using gem16::server::LogLevel;
+using gem16::server::ParseLogFormat;
+using gem16::server::ParseLogLevel;
 using gem16::server::PrepareResponsesRequest;
 using gem16::server::RecordGeneration;
+using gem16::server::RecordQueueAdmission;
+using gem16::server::RecordRequestLatency;
+using gem16::server::RequestAdmission;
 using gem16::server::ReleaseSession;
 using gem16::server::ServerState;
 using gem16::server::SessionEntry;
 using gem16::server::SessionLease;
+using gem16::server::StructuredLogger;
 using gem16::server::SetActiveResponse;
 using gem16::server::UnindexResponse;
 using gem16::server::WriteSse;
@@ -54,6 +69,19 @@ constexpr std::uint64_t kPrimaryServerVramSafetyBytes =
     700U * 1024U * 1024U;
 constexpr std::uint64_t kLong26BServerVramSafetyBytes =
     400U * 1024U * 1024U;
+constexpr std::uint64_t kRequestPayloadLimit = 16U * 1024U * 1024U;
+
+volatile std::sig_atomic_t g_shutdown_signal = 0;
+
+void HandleShutdownSignal(int signal) { g_shutdown_signal = signal; }
+
+struct RequestLogContext {
+  std::chrono::steady_clock::time_point started{};
+  std::string request_id;
+  std::uint64_t queue_wait_microseconds = 0U;
+};
+
+thread_local RequestLogContext g_request_log_context;
 
 struct SlotMemoryPlan {
   std::uint64_t slot_bytes = 0U;
@@ -72,6 +100,9 @@ struct Options {
   gem16::KvCacheMode kv_cache_mode = gem16::KvCacheMode::kCheckpointFp8;
   std::uint32_t mtp_draft_tokens = 0U;
   std::uint32_t max_sessions = 2U;
+  std::size_t max_queued_requests = 64U;
+  LogLevel log_level = LogLevel::kInfo;
+  LogFormat log_format = LogFormat::kText;
   bool max_sessions_explicit = false;
   bool max_context_explicit = false;
   bool mtp_adaptive = false;
@@ -87,6 +118,9 @@ void PrintUsage() {
       << "  --port <port>           Listen port (default: 8080)\n"
       << "  --max-context <tokens>  Session context capacity (default: 8192)\n"
       << "  --max-sessions <count>   Resident slots (default: 2; 26B profile: 1)\n"
+      << "  --max-queued-requests <count>  FIFO waiters (default: 64)\n"
+      << "  --log-level debug|info|warning|error|off (default: info)\n"
+      << "  --log-format text|json (default: text)\n"
       << "  --kv-cache fp8|bf16\n"
       << "  --model-integrity structural|sha256 (default: structural)\n"
       << "  --greedy                Disable checkpoint-recommended sampling\n"
@@ -134,6 +168,22 @@ gem16::Result<Options> ParseOptions(int argc, char** argv) {
       }
       options.max_sessions = static_cast<std::uint32_t>(value);
       options.max_sessions_explicit = true;
+    } else if (argument == "--max-queued-requests" && index + 1 < argc) {
+      std::uint64_t value = 0U;
+      if (!ParseUnsigned(argv[++index], value) || value == 0U ||
+          value > 4096U) {
+        return gem16::Status(gem16::StatusCode::kInvalidArgument,
+                             "--max-queued-requests must be in [1, 4096]");
+      }
+      options.max_queued_requests = static_cast<std::size_t>(value);
+    } else if (argument == "--log-level" && index + 1 < argc) {
+      auto level = ParseLogLevel(argv[++index]);
+      if (!level.ok()) return level.status();
+      options.log_level = level.value();
+    } else if (argument == "--log-format" && index + 1 < argc) {
+      auto format = ParseLogFormat(argv[++index]);
+      if (!format.ok()) return format.status();
+      options.log_format = format.value();
     } else if (argument == "--kv-cache" && index + 1 < argc) {
       const std::string_view mode(argv[++index]);
       if (mode == "fp8") {
@@ -236,11 +286,30 @@ void SetError(ServerState& state, const gem16::Status& status,
                : "unsupported_feature";
   } else if (status.code() == gem16::StatusCode::kResourceExhausted) {
     type = "resource_exhausted";
-    code = "resident_capacity_exhausted";
+    if (status.message() == "request queue is full") {
+      code = "request_queue_full";
+    } else if (status.message() == "server is draining") {
+      code = "server_draining";
+    } else {
+      code = "resident_capacity_exhausted";
+    }
+    response.set_header("Retry-After", "1");
   }
   response.set_content(
       gem16::server::OpenAiErrorJson(status.message(), type, code),
       "application/json; charset=utf-8");
+}
+
+gem16::Result<RequestAdmission> AcquireRequestAdmission(ServerState& state) {
+  auto admission = state.request_queue.Acquire();
+  if (!admission.ok()) {
+    state.metrics.queue_rejections.fetch_add(1U);
+    return admission.status();
+  }
+  RecordQueueAdmission(state, admission.value().wait_microseconds());
+  g_request_log_context.queue_wait_microseconds =
+      admission.value().wait_microseconds();
+  return std::move(admission).value();
 }
 
 gem16::Status ValidateRequestCapabilities(
@@ -353,6 +422,13 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
              response);
     return;
   }
+  auto admission_result = AcquireRequestAdmission(state);
+  if (!admission_result.ok()) {
+    state.metrics.requests_failed.fetch_add(1U);
+    SetError(state, admission_result.status(), response);
+    return;
+  }
+  RequestAdmission admission = std::move(admission_result).value();
   auto acquired = AcquireNamedSession(state, "chat:" + session_id);
   if (!acquired.ok()) {
     state.metrics.requests_failed.fetch_add(1U);
@@ -391,6 +467,7 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
     gem16::ChatGenerationRequest generation;
     gem16::server::OpenAiResponseIdentity identity;
     std::shared_ptr<SessionEntry> entry;
+    RequestAdmission admission;
     std::unique_ptr<SessionLease> lease;
     bool include_usage = false;
     bool ran = false;
@@ -400,6 +477,7 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
   provider->generation = std::move(parsed.value().generation);
   provider->identity = identity;
   provider->entry = entry;
+  provider->admission = std::move(admission);
   provider->lease = std::make_unique<SessionLease>(state, entry);
   provider->include_usage = parsed.value().include_usage;
   response.set_header("Cache-Control", "no-cache");
@@ -495,11 +573,18 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
   }
   gem16::server::OpenAiResponseIdentity identity =
       std::move(identity_result).value();
+  auto admission_result = AcquireRequestAdmission(state);
+  if (!admission_result.ok()) {
+    state.metrics.requests_failed.fetch_add(1U);
+    SetError(state, admission_result.status(), response);
+    return;
+  }
+  RequestAdmission admission = std::move(admission_result).value();
   gem16::Result<std::shared_ptr<SessionEntry>> acquired =
       parsed.value().previous_response_id.has_value()
           ? AcquireResponseSession(state,
                                    *parsed.value().previous_response_id)
-          : CreateSession(state, "responses:" + identity.id);
+          : CreateSessionQueued(state, "responses:" + identity.id);
   if (!acquired.ok()) {
     state.metrics.requests_failed.fetch_add(1U);
     SetError(state, acquired.status(), response);
@@ -549,6 +634,7 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
     gem16::server::OpenAiResponsesRequest request;
     gem16::server::OpenAiResponseIdentity identity;
     std::shared_ptr<SessionEntry> entry;
+    RequestAdmission admission;
     std::unique_ptr<SessionLease> lease;
     std::atomic<bool> keep_response_index{false};
     bool ran = false;
@@ -565,6 +651,7 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
   provider->request = std::move(parsed).value();
   provider->identity = identity;
   provider->entry = entry;
+  provider->admission = std::move(admission);
   provider->lease = std::make_unique<SessionLease>(state, entry);
   response.set_header("Cache-Control", "no-cache");
   response.set_header("X-Accel-Buffering", "no");
@@ -767,10 +854,18 @@ int ServerMain(int argc, char** argv) {
     PrintUsage();
     return 64;
   }
+  StructuredLogger logger(options.value().log_level,
+                          options.value().log_format, std::cerr);
+  const auto startup_started = std::chrono::steady_clock::now();
+  logger.Log(LogLevel::kInfo, "server_starting",
+             {{"model", options.value().model_name},
+              {"host", options.value().host},
+              {"port", std::to_string(options.value().port)}});
   auto config = gem16::internal::LoadModelConfig(
       options.value().model_directory / "config.json");
   if (!config.ok()) {
-    std::cerr << "error: " << config.status().message() << '\n';
+    logger.Log(LogLevel::kError, "model_config_failed",
+               {{"error", config.status().message()}});
     return 2;
   }
   const bool moe26b = gem16::internal::ClassifyModelVariant(config.value()) ==
@@ -781,7 +876,8 @@ int ServerMain(int argc, char** argv) {
   auto processor =
       gem16::GemmaChatProcessor::Load(options.value().model_directory);
   if (!processor.ok()) {
-    std::cerr << "error: " << processor.status().message() << '\n';
+    logger.Log(LogLevel::kError, "chat_processor_load_failed",
+               {{"error", processor.status().message()}});
     return 2;
   }
   gem16::ChatSessionOptions session_options;
@@ -801,7 +897,8 @@ int ServerMain(int argc, char** argv) {
        options.value().max_context, 0,
        options.value().verify_device_image_sha256});
   if (!runtime.ok()) {
-    std::cerr << "error: " << runtime.status().message() << '\n';
+    logger.Log(LogLevel::kError, "model_load_failed",
+               {{"error", runtime.status().message()}});
     return 2;
   }
   if (!options.value().max_sessions_explicit &&
@@ -809,42 +906,59 @@ int ServerMain(int argc, char** argv) {
     options.value().max_sessions = 1U;
   } else if (options.value().max_sessions >
              runtime.value()->maximum_execution_slots()) {
-    std::cerr << "error: model profile "
-              << runtime.value()->model_variant_name() << " supports at most "
-              << runtime.value()->maximum_execution_slots()
-              << " resident execution slot; use --max-sessions 1\n";
+    logger.Log(
+        LogLevel::kError, "execution_slot_limit_exceeded",
+        {{"variant", runtime.value()->model_variant_name()},
+         {"requested_sessions", std::to_string(options.value().max_sessions)},
+         {"maximum_execution_slots",
+          std::to_string(runtime.value()->maximum_execution_slots())}});
     return 2;
   }
-  std::cout << "model_runtime weights=" << runtime.value()->weight_bytes()
-            << " assistant_weights="
-            << runtime.value()->assistant_weight_bytes()
-            << " weight_load_path=" << runtime.value()->weight_load_path()
-            << " load_ms=" << runtime.value()->load_milliseconds() << '\n';
+  logger.Log(LogLevel::kInfo, "model_loaded",
+             {{"variant", runtime.value()->model_variant_name()},
+              {"native_path", runtime.value()->selected_native_path()},
+              {"weight_load_path", runtime.value()->weight_load_path()},
+              {"weight_bytes", std::to_string(runtime.value()->weight_bytes())},
+              {"assistant_weight_bytes",
+               std::to_string(runtime.value()->assistant_weight_bytes())},
+              {"load_ms", std::to_string(runtime.value()->load_milliseconds())}});
   auto slot_plan = PlanServerSlots(
       runtime.value(), session_options, processor.value(),
       options.value().max_sessions);
   if (!slot_plan.ok()) {
-    std::cerr << "error: server memory admission failed: "
-              << slot_plan.status().message() << '\n';
+    logger.Log(LogLevel::kError, "slot_admission_failed",
+               {{"error", slot_plan.status().message()}});
     return 2;
   }
-  std::cout << "execution_slot planned_bytes=" << slot_plan.value().slot_bytes
-            << " configured_bytes="
-            << slot_plan.value().configured_slot_bytes
-            << " device_total_bytes=" << slot_plan.value().device.total_bytes
-            << " free_with_probe_bytes=" << slot_plan.value().device.free_bytes
-            << " safety_margin_bytes="
-            << slot_plan.value().safety_margin_bytes << '\n';
+  logger.Log(LogLevel::kInfo, "execution_slots_admitted",
+             {{"slot_bytes", std::to_string(slot_plan.value().slot_bytes)},
+              {"configured_slot_bytes",
+               std::to_string(slot_plan.value().configured_slot_bytes)},
+              {"session_limit", std::to_string(options.value().max_sessions)},
+              {"device_free_bytes",
+               std::to_string(slot_plan.value().device.free_bytes)},
+              {"safety_margin_bytes",
+               std::to_string(slot_plan.value().safety_margin_bytes)}});
   ServerState state(options.value().model_name, options.value().max_context,
                     std::move(processor).value(), runtime.value(),
-                    session_options, options.value().max_sessions);
+                    session_options, options.value().max_sessions,
+                    options.value().max_queued_requests);
   state.planned_slot_device_bytes = slot_plan.value().slot_bytes;
   state.configured_slot_device_bytes =
       slot_plan.value().configured_slot_bytes;
   state.device_total_bytes = slot_plan.value().device.total_bytes;
   state.device_free_after_probe_bytes = slot_plan.value().device.free_bytes;
   state.device_safety_margin_bytes = slot_plan.value().safety_margin_bytes;
+  state.model_load_microseconds = static_cast<std::uint64_t>(
+      std::max(0.0, runtime.value()->load_milliseconds()) * 1000.0);
   httplib::Server server;
+  const std::size_t http_task_queue_limit =
+      options.value().max_queued_requests + options.value().max_sessions + 16U;
+  server.new_task_queue = [http_task_queue_limit] {
+    return new httplib::ThreadPool(CPPHTTPLIB_THREAD_POOL_COUNT,
+                                   CPPHTTPLIB_THREAD_POOL_MAX_COUNT,
+                                   http_task_queue_limit);
+  };
   server.Get("/health",
              [&state](const httplib::Request&, httplib::Response& response) {
                std::size_t resident = 0U;
@@ -857,8 +971,16 @@ int ServerMain(int argc, char** argv) {
                const bool is_moe26b =
                    std::string_view(state.runtime->model_variant_name()) ==
                    "gemma4_moe_26b_a4b";
+               const auto queue = state.request_queue.Snapshot();
+               if (queue.draining) response.status = 503;
                response.set_content(
-                   "{\"status\":\"ok\",\"resident_sessions\":" +
+                   "{\"status\":" +
+                       gem16::json::Quote(queue.draining ? "draining" : "ok") +
+                       ",\"request_queue_depth\":" +
+                       std::to_string(queue.queued) +
+                       ",\"request_queue_active\":" +
+                       std::to_string(queue.active) +
+                       ",\"resident_sessions\":" +
                        std::to_string(resident) +
                        ",\"pending_session_creations\":" +
                        std::to_string(pending) +
@@ -961,6 +1083,20 @@ int ServerMain(int argc, char** argv) {
                        "}}",
                    "application/json; charset=utf-8");
              });
+  server.Get("/live",
+             [](const httplib::Request&, httplib::Response& response) {
+               response.set_content("{\"status\":\"ok\"}",
+                                    "application/json; charset=utf-8");
+             });
+  server.Get("/ready",
+             [&state](const httplib::Request&, httplib::Response& response) {
+               const bool ready = !state.request_queue.Snapshot().draining;
+               if (!ready) response.status = 503;
+               response.set_content(
+                   std::string("{\"status\":\"") +
+                       (ready ? "ready" : "draining") + "\"}",
+                   "application/json; charset=utf-8");
+             });
   server.Get("/metrics",
              [&state](const httplib::Request&, httplib::Response& response) {
                response.set_content(MetricsText(state),
@@ -989,17 +1125,156 @@ int ServerMain(int argc, char** argv) {
                        httplib::Response& response) {
                 HandleCancelResponse(state, request.matches[1].str(), response);
               });
-  server.set_payload_max_length(16U * 1024U * 1024U);
-  std::cout << "gem16 OpenAI-compatible server listening on http://"
-            << options.value().host << ':' << options.value().port
-            << " (model " << state.model_name << ", max sessions "
-            << state.max_sessions << ", variant "
-            << state.runtime->model_variant_name() << ", native path "
-            << state.runtime->selected_native_path() << ")\n";
-  if (!server.listen(options.value().host, options.value().port)) {
-    std::cerr << "error: failed to listen on requested address\n";
+  server.set_pre_request_handler(
+      [&state](const httplib::Request&, httplib::Response& response) {
+        g_request_log_context = {};
+        auto id = gem16::server::MakeSecureId("req_gem16_");
+        if (!id.ok()) {
+          state.metrics.requests_failed.fetch_add(1U);
+          response.status = 500;
+          response.set_content(
+              gem16::server::OpenAiErrorJson(
+                  "failed to create request identity", "server_error"),
+              "application/json; charset=utf-8");
+          return httplib::Server::HandlerResponse::Handled;
+        }
+        g_request_log_context =
+            {std::chrono::steady_clock::now(), std::move(id).value()};
+        response.set_header("X-Request-Id", g_request_log_context.request_id);
+        return httplib::Server::HandlerResponse::Unhandled;
+      });
+  server.set_logger([&state, &logger](const httplib::Request& request,
+                                      const httplib::Response& response) {
+    std::uint64_t elapsed_us = 0U;
+    if (!g_request_log_context.request_id.empty()) {
+      const auto elapsed =
+          std::chrono::duration_cast<std::chrono::microseconds>(
+              std::chrono::steady_clock::now() -
+              g_request_log_context.started);
+      elapsed_us = elapsed.count() < 0
+                       ? 0U
+                       : static_cast<std::uint64_t>(elapsed.count());
+    }
+    RecordRequestLatency(state, elapsed_us);
+    const int status = response.status < 0 ? 200 : response.status;
+    LogLevel level = status >= 500 ? LogLevel::kError
+                                   : (status >= 400 ? LogLevel::kWarning
+                                                    : LogLevel::kInfo);
+    if (request.path == "/health" || request.path == "/live" ||
+        request.path == "/ready" || request.path == "/metrics") {
+      level = status >= 400 ? LogLevel::kWarning : LogLevel::kDebug;
+    }
+    logger.Log(level, "request_completed",
+               {{"request_id", g_request_log_context.request_id},
+                {"method", request.method},
+                {"route", request.matched_route.empty()
+                              ? request.path
+                              : request.matched_route},
+                {"status", std::to_string(status)},
+                {"duration_ms",
+                 std::to_string(static_cast<double>(elapsed_us) / 1000.0)},
+                {"queue_wait_ms",
+                 std::to_string(
+                     static_cast<double>(
+                         g_request_log_context.queue_wait_microseconds) /
+                     1000.0)},
+                {"request_bytes", std::to_string(request.body.size())}});
+    g_request_log_context = {};
+  });
+  server.set_exception_handler(
+      [&state, &logger](const httplib::Request& request,
+                        httplib::Response& response, std::exception_ptr error) {
+        std::string message = "unknown exception";
+        try {
+          if (error != nullptr) std::rethrow_exception(error);
+        } catch (const std::exception& exception) {
+          message = exception.what();
+        } catch (...) {
+        }
+        state.metrics.requests_failed.fetch_add(1U);
+        logger.Log(LogLevel::kError, "request_exception",
+                   {{"request_id", g_request_log_context.request_id},
+                    {"route", request.matched_route.empty()
+                                  ? request.path
+                                  : request.matched_route},
+                    {"error", message}});
+        response.status = 500;
+        response.set_content(
+            gem16::server::OpenAiErrorJson("internal server error",
+                                           "server_error"),
+            "application/json; charset=utf-8");
+      });
+  server.set_error_handler([](const httplib::Request&,
+                              httplib::Response& response) {
+    if (!response.body.empty()) {
+      return httplib::Server::HandlerResponse::Unhandled;
+    }
+    const int status = response.status < 0 ? 500 : response.status;
+    response.status = status;
+    response.set_content(
+        gem16::server::OpenAiErrorJson(
+            status == 404 ? "endpoint not found" : "HTTP request failed",
+            status >= 500 ? "server_error" : "invalid_request_error"),
+        "application/json; charset=utf-8");
+    return httplib::Server::HandlerResponse::Handled;
+  });
+  server.set_payload_max_length(kRequestPayloadLimit);
+  server.set_read_timeout(std::chrono::seconds(30));
+  server.set_write_timeout(std::chrono::seconds(60));
+  server.set_keep_alive_timeout(5);
+  server.set_keep_alive_max_count(100U);
+
+  if (!server.bind_to_port(options.value().host, options.value().port)) {
+    logger.Log(LogLevel::kError, "listen_failed",
+               {{"host", options.value().host},
+                {"port", std::to_string(options.value().port)}});
     return 2;
   }
+  const auto startup_elapsed =
+      std::chrono::duration_cast<std::chrono::milliseconds>(
+          std::chrono::steady_clock::now() - startup_started);
+  state.server_startup_microseconds = static_cast<std::uint64_t>(
+      std::chrono::duration_cast<std::chrono::microseconds>(
+          std::chrono::steady_clock::now() - startup_started)
+          .count());
+  logger.Log(LogLevel::kInfo, "server_ready",
+             {{"host", options.value().host},
+              {"port", std::to_string(options.value().port)},
+              {"model", state.model_name},
+              {"session_limit", std::to_string(state.max_sessions)},
+              {"max_queued_requests",
+               std::to_string(options.value().max_queued_requests)},
+              {"http_task_queue_limit",
+               std::to_string(http_task_queue_limit)},
+              {"startup_ms", std::to_string(startup_elapsed.count())}});
+
+  g_shutdown_signal = 0;
+  std::signal(SIGINT, HandleShutdownSignal);
+  std::signal(SIGTERM, HandleShutdownSignal);
+  std::atomic<bool> monitor_stop{false};
+  std::thread signal_monitor([&] {
+    while (!monitor_stop.load()) {
+      if (g_shutdown_signal != 0) {
+        const int signal = g_shutdown_signal;
+        state.request_queue.StartDraining();
+        logger.Log(LogLevel::kInfo, "shutdown_requested",
+                   {{"signal", std::to_string(signal)}});
+        server.stop();
+        return;
+      }
+      std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    }
+  });
+  const bool listened = server.listen_after_bind();
+  state.request_queue.StartDraining();
+  monitor_stop.store(true);
+  signal_monitor.join();
+  if (!listened && g_shutdown_signal == 0) {
+    logger.Log(LogLevel::kError, "server_stopped_unexpectedly");
+    return 2;
+  }
+  logger.Log(LogLevel::kInfo, "shutdown_completed",
+             {{"signal", std::to_string(g_shutdown_signal)}});
   return 0;
 }
 

@@ -13,6 +13,13 @@ Reach an experimental, text-only Gemma 4 26B A4B execution on one approximately 
 possible, first proving a directly usable QAT-derived FP8/NVFP4 path and a real 32K one-slot fit. This is not yet a
 quality-, performance- or release-qualified product. The existing 12B path remains the protected production baseline.
 
+On 2026-08-27 the owner scoped the next server-hardening slice to one local user on one machine. Structured
+privacy-safe logging, bounded FIFO generation admission, graceful lifecycle/error handling and operational metrics
+are in scope. Authentication/TLS, deployment packaging and a multi-hundred-client soak runner are explicitly
+deferred. The queue follows configured execution capacity: one-slot 26B serializes generation, while two-slot 12B
+retains two independent active requests; same-session work remains single-flight and waits instead of failing for
+ordinary contention.
+
 The first vertical path is:
 
 ```text

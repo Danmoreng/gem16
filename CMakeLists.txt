@@ -184,7 +184,9 @@ gem16_enable_sanitizers(gem16-nvfp4-head-diagnostic)
 
 add_library(gem16_server_support STATIC
   src/server/http_streaming.cpp
+  src/server/observability.cpp
   src/server/openai_chat.cpp
+  src/server/request_queue.cpp
   src/server/secure_id.cpp
   src/server/session_pool.cpp
 )
@@ -563,6 +565,8 @@ if(BUILD_TESTING AND GEM16_BUILD_TESTS)
     tests/unit/nvfp4_batch_encoder_test.cpp
     tests/unit/nvfp4_head_test.cpp
     tests/unit/openai_chat_test.cpp
+    tests/unit/observability_test.cpp
+    tests/unit/request_queue_test.cpp
     tests/unit/safetensors_test.cpp
     tests/unit/sampling_test.cpp
     tests/unit/sm120_layout_test.cpp

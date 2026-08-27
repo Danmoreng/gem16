@@ -7,7 +7,8 @@
   --model .\models\checkpoints\unsloth-gemma-4-12b-it-NVFP4-b1f6497 `
   --model-name gem16 `
   --host 127.0.0.1 --port 8080 `
-  --max-context 8192 --max-sessions 2
+  --max-context 8192 --max-sessions 2 `
+  --max-queued-requests 64 --log-level info --log-format text
 ```
 
 The default uses the checkpoint-recommended sampling profile. `--greedy`
@@ -46,15 +47,49 @@ slot without holding that mutex, then publishes the completed session. Health,
 metrics, cancellation, and unrelated resident-session acquisition therefore
 remain responsive while a new slot is being prepared.
 
+Generation admission uses a bounded FIFO in front of those execution slots.
+Up to `--max-sessions` independent requests may execute concurrently; the next
+`--max-queued-requests` wait in arrival order. A request beyond that bound gets
+HTTP 503 with `resource_exhausted` instead of growing host memory without a
+limit. Requests targeting the same resident session also wait for its current
+turn to finish. Thus the one-slot 26B profile serializes all generation while
+the default two-slot 12B profile retains two-request parallelism. Cancellation,
+health, readiness, liveness and metrics bypass the generation queue.
+The underlying HTTP worker-task queue is bounded separately with a small
+control-plane reserve, so connections cannot accumulate unbounded host work
+before reaching generation admission.
+
 ## Endpoints
 
 - `GET /health` reports status, resident session count, and the configured limit.
+- `GET /live` reports process liveness.
+- `GET /ready` reports readiness and changes to HTTP 503 while draining.
 - `GET /metrics` exports Prometheus text metrics.
 - `GET /v1/models` lists the configured `--model-name`.
 - `POST /v1/chat/completions` returns an OpenAI Chat Completion or chunked SSE.
 - `POST /v1/responses` returns an OpenAI Response or typed Responses SSE
   events and supports a resident `previous_response_id` continuation.
 - `POST /v1/responses/{response_id}/cancel` cancels an active response.
+
+## Logging and lifecycle
+
+Every HTTP response receives an `X-Request-Id`. The server writes one atomic
+access-log record after the response (including after an SSE stream ends), with
+request ID, method, matched route, status, total duration, queue wait and input
+byte count. Lifecycle, model-load, memory-admission, unexpected-exception and
+shutdown events use the same logger. Request bodies, generated text, tool
+arguments and session IDs are not logged.
+
+`--log-format text` is the local-readable default; `--log-format json` emits
+one JSON object per line. `--log-level` accepts `debug`, `info`, `warning`,
+`error`, or `off`. Health/readiness/liveness/metrics access records are debug
+level unless they fail. Logs go to stderr so a process supervisor can perform
+rotation without the inference process opening or managing log files.
+
+SIGINT and SIGTERM switch readiness and health to draining, reject and wake
+queued-but-not-admitted work, stop accepting connections and let admitted
+handlers unwind before model teardown. HTTP reads time out after 30 seconds,
+writes after 60 seconds, and idle keep-alive connections after 5 seconds.
 
 The 16 MiB request limit, JSON depth/value limits, codec limits, 30-second
 audio limit, 100-megapixel image limit, maximum 280 image soft tokens, output
@@ -172,12 +207,15 @@ uses `X-Gem16-Session-Id`: omit it to create a session and read the generated ID
 from the response header; send it on later requests to reuse the same resident
 conversation. Server-generated chat-completion, response, and session handles
 contain 128 bits from the operating system cryptographic random generator; they
-are opaque and must not be inferred from creation order. A session is single-flight and rejects a second concurrent
-request with HTTP 503, while distinct sessions can run concurrently. Request-validation
+are opaque and must not be inferred from creation order. A session remains
+single-flight internally; a second concurrent request waits in FIFO admission
+and then for that session, while distinct sessions can use separate slots.
+Request-validation
 or unsupported-option errors leave an unchanged resident cache available for a
 corrected retry; only state-mutating inference, cancellation, or streaming failures
-poison and discard the slot. If every configured slot is active, admission also
-returns 503 instead of evicting live state or allocating beyond the configured bound.
+poison and discard the slot. If every configured slot is active, admission
+waits up to the configured queue bound instead of evicting live state or
+allocating beyond the configured limit.
 
 The HTTP stream owns its session lease from admission until the provider is
 released. Consequently a peer that disconnects after admission but before the
@@ -197,8 +235,11 @@ input tokens, output tokens, generation/prompt/decode time, decode-timed tokens,
 MTP proposed/accepted/rejected tokens, verifier and D1/D2/D4 group counts,
 ordinary fallback tokens, immutable target/assistant bytes, pending session
 creations, planned/configured/resident execution-slot bytes,
-device capacity and safety margin, and the latest measured execution-slot byte
-count. Responses `completed_at` is sampled only after successful generation and
+device capacity and safety margin, the latest measured execution-slot byte
+count, current/maximum/high-water queue depth, queue admissions/waits/rejections,
+model-load/server-startup time, and cumulative Prometheus histograms for request,
+queue, generation, prompt and decode duration. Responses `completed_at` is
+sampled only after successful generation and
 KV-chain commit rather than copied from `created_at`.
 
 ## Official OpenAI SDK qualification
