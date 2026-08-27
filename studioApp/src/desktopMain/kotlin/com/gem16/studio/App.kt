@@ -62,7 +62,12 @@ enum class StudioScreen(val label: String, val icon: ImageVector) {
 @Composable
 fun StudioApp(state: StudioState) {
     var screen by remember {
-        mutableStateOf(if (state.modelManager.state.value.allReady) StudioScreen.Chat else StudioScreen.Models)
+        val install = state.modelManager.state.value
+        val ready = when (state.settings.server.modelProfile) {
+            com.gem16.studio.model.ModelProfile.Gemma4Unified12B -> install.allReady
+            com.gem16.studio.model.ModelProfile.Gemma4Moe26BA4B -> install.all26BReady
+        }
+        mutableStateOf(if (ready) StudioScreen.Chat else StudioScreen.Models)
     }
     Gem16Theme(dark = state.settings.darkTheme) {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {

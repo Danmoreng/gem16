@@ -6,6 +6,7 @@
 
 #include "gem16/status.h"
 #include "gem16/types.h"
+#include "model/safetensors.h"
 
 namespace gem16::internal {
 
@@ -19,6 +20,13 @@ struct Gemma4Moe26BCompiledIdentity {
   std::string source_lock_sha256;
   std::string compiler_commit;
 };
+
+// A product checkpoint may contain the already-arranged model.gem16 image
+// without duplicating the source-order Safetensors payload.  In that case the
+// immutable compilation manifest is the structural tensor inventory.
+[[nodiscard]] Result<std::vector<StoredTensor>>
+LoadGemma4Moe26BDeviceImageInventory(
+    const std::filesystem::path& model_directory);
 
 [[nodiscard]] Status ValidateAndBindGemma4Moe26BCompiledArtifact(
     const std::filesystem::path& model_directory,

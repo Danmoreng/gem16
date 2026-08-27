@@ -11,6 +11,7 @@
 
 #include "model/gemma4_26b_manifest.h"
 #include "model/gemma4_26b_compiled_loader.h"
+#include "model/gemma4_26b_device_image.h"
 #include "model/safetensors.h"
 #include "util/json.h"
 
@@ -336,7 +337,27 @@ Status BuildManifestTotals(ModelManifest* manifest) {
 }  // namespace
 
 Result<ModelManifest> BuildManifest(const std::filesystem::path& model_directory, const ModelConfig& config, bool validate) {
-  auto stored = LoadSafetensorsDirectory(model_directory);
+  const auto variant = ClassifyModelVariant(config);
+  const bool compiled_gemma4_26b =
+      variant == ModelVariant::kGemma4Moe26BA4B &&
+      std::filesystem::is_regular_file(model_directory /
+                                       "gem16_compilation.json");
+  const bool compiled_gemma4_26b_assistant =
+      variant == ModelVariant::kGemma4Moe26BAssistant &&
+      std::filesystem::is_regular_file(model_directory /
+                                       "gem16_compilation.json");
+  const bool compiled_gem16_artifact =
+      compiled_gemma4_26b || compiled_gemma4_26b_assistant;
+  auto stored = [&]() -> Result<std::vector<StoredTensor>> {
+    if (compiled_gemma4_26b) {
+      auto image = ProbeAcceptedGemma4Moe26BDeviceImage(model_directory);
+      if (!image.ok()) return image.status();
+      if (image.value()) {
+        return LoadGemma4Moe26BDeviceImageInventory(model_directory);
+      }
+    }
+    return LoadSafetensorsDirectory(model_directory);
+  }();
   if (!stored.ok()) return stored.status();
   auto compiled = CompileRules(config);
   if (!compiled.ok()) return compiled.status();
@@ -352,7 +373,6 @@ Result<ModelManifest> BuildManifest(const std::filesystem::path& model_directory
   manifest.model_directory = model_directory.string();
   manifest.architecture = config.architecture;
   manifest.model_type = config.model_type;
-  const auto variant = ClassifyModelVariant(config);
   const auto& traits = TraitsForModelVariant(variant);
   manifest.model_variant = std::string(traits.name);
   manifest.checkpoint_profile = manifest.model_variant;
@@ -370,17 +390,6 @@ Result<ModelManifest> BuildManifest(const std::filesystem::path& model_directory
   manifest.supports_audio = traits.supports_audio;
   manifest.supports_video = traits.supports_video;
   manifest.supports_mtp = traits.supports_mtp;
-  const bool compiled_gemma4_26b =
-      variant == ModelVariant::kGemma4Moe26BA4B &&
-      std::filesystem::is_regular_file(model_directory /
-                                       "gem16_compilation.json");
-  const bool compiled_gemma4_26b_assistant =
-      variant == ModelVariant::kGemma4Moe26BAssistant &&
-      std::filesystem::is_regular_file(model_directory /
-                                       "gem16_compilation.json");
-  const bool compiled_gem16_artifact =
-      compiled_gemma4_26b || compiled_gemma4_26b_assistant;
-
   for (const auto& stored_tensor : stored.value()) {
     TensorInfo tensor;
     tensor.name = stored_tensor.name;

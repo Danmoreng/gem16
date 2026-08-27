@@ -1,6 +1,7 @@
 package com.gem16.studio.service
 
 import com.gem16.studio.model.Gem16ModelCatalog
+import com.gem16.studio.model.Gem16Qualified26BModelCatalog
 import com.gem16.studio.model.HuggingFaceCachePaths
 import com.gem16.studio.model.HuggingFaceSource
 import com.gem16.studio.model.LockedModel
@@ -30,6 +31,10 @@ data class ModelInstallState(
     val targetReady: Boolean,
     val assistantReady: Boolean,
     val tokenizerConfigReady: Boolean,
+    val target26BDirectory: Path,
+    val assistant26BDirectory: Path,
+    val target26BReady: Boolean,
+    val assistant26BReady: Boolean,
     val isDownloading: Boolean = false,
     val currentFile: String? = null,
     val downloadedBytes: Long = 0,
@@ -37,6 +42,7 @@ data class ModelInstallState(
     val error: String? = null,
 ) {
     val allReady: Boolean get() = targetReady && assistantReady && tokenizerConfigReady
+    val all26BReady: Boolean get() = target26BReady && assistant26BReady
     val progress: Float get() = if (totalBytes == 0L) 0f else {
         (downloadedBytes.toDouble() / totalBytes.toDouble()).coerceIn(0.0, 1.0).toFloat()
     }
@@ -61,19 +67,41 @@ class ModelManager {
         cancelRequested = true
     }
 
-    suspend fun downloadAll(explicitToken: String? = null): ModelInstallState = withContext(Dispatchers.IO) {
+    suspend fun downloadAll(explicitToken: String? = null): ModelInstallState = downloadSet(
+        models = listOf(Gem16ModelCatalog.target, Gem16ModelCatalog.assistant),
+        totalBytes = Gem16ModelCatalog.totalBytes,
+        explicitToken = explicitToken,
+        compose12BTarget = true,
+        ready = ModelInstallState::allReady,
+    )
+
+    suspend fun download26B(explicitToken: String? = null): ModelInstallState = downloadSet(
+        models = listOf(Gem16Qualified26BModelCatalog.target, Gem16Qualified26BModelCatalog.assistant),
+        totalBytes = Gem16Qualified26BModelCatalog.totalBytes,
+        explicitToken = explicitToken,
+        compose12BTarget = false,
+        ready = ModelInstallState::all26BReady,
+    )
+
+    private suspend fun downloadSet(
+        models: List<LockedModel>,
+        totalBytes: Long,
+        explicitToken: String?,
+        compose12BTarget: Boolean,
+        ready: (ModelInstallState) -> Boolean,
+    ): ModelInstallState = withContext(Dispatchers.IO) {
         check(!_state.value.isDownloading) { "A model download is already running" }
         cancelRequested = false
         val token = resolveToken(explicitToken)
-        var completedBytes = cachedBytes()
+        var completedBytes = cachedBytes(models)
         _state.value = inspect().copy(
             isDownloading = true,
             downloadedBytes = completedBytes,
-            totalBytes = Gem16ModelCatalog.totalBytes,
+            totalBytes = totalBytes,
             error = null,
         )
         try {
-            for (model in listOf(Gem16ModelCatalog.target, Gem16ModelCatalog.assistant)) {
+            for (model in models) {
                 for (file in model.files) {
                     ensureNotCancelled()
                     val alreadyCached = cachedFileBytes(model, file)
@@ -82,9 +110,9 @@ class ModelManager {
                     _state.value = _state.value.copy(downloadedBytes = completedBytes)
                 }
             }
-            composeTargetView()
+            if (compose12BTarget) composeTargetView()
             val result = inspect()
-            check(result.allReady) { "The Hugging Face cache is incomplete after download" }
+            check(ready(result)) { "The Hugging Face cache is incomplete after download" }
             _state.value = result
             result
         } catch (error: Exception) {
@@ -104,6 +132,14 @@ class ModelManager {
             Gem16ModelCatalog.tokenizerRepository,
             Gem16ModelCatalog.tokenizerRevision,
         ).resolve("tokenizer_config.json")
+        val target26BDirectory = HuggingFaceCachePaths.snapshot(
+            Gem16Qualified26BModelCatalog.targetRepository,
+            Gem16Qualified26BModelCatalog.targetRevision,
+        )
+        val assistant26BDirectory = HuggingFaceCachePaths.snapshot(
+            Gem16Qualified26BModelCatalog.assistantRepository,
+            Gem16Qualified26BModelCatalog.assistantRevision,
+        )
         return ModelInstallState(
             cacheRoot = HuggingFaceCachePaths.hubRoot(),
             targetDirectory = targetDirectory,
@@ -116,11 +152,21 @@ class ModelManager {
                 tokenizerPath,
                 Gem16ModelCatalog.target.files.single { it.path == "tokenizer_config.json" },
             ),
-            downloadedBytes = cachedBytes(),
+            target26BDirectory = target26BDirectory,
+            assistant26BDirectory = assistant26BDirectory,
+            target26BReady = Gem16Qualified26BModelCatalog.target.files.all {
+                fileMatches(target26BDirectory.resolve(it.path), it)
+            },
+            assistant26BReady = Gem16Qualified26BModelCatalog.assistant.files.all {
+                fileMatches(assistant26BDirectory.resolve(it.path), it)
+            },
+            downloadedBytes = cachedBytes(
+                listOf(Gem16ModelCatalog.target, Gem16ModelCatalog.assistant),
+            ),
         )
     }
 
-    private fun cachedBytes(): Long = listOf(Gem16ModelCatalog.target, Gem16ModelCatalog.assistant)
+    private fun cachedBytes(models: List<LockedModel>): Long = models
         .sumOf { model -> model.files.sumOf { cachedFileBytes(model, it) } }
 
     private fun cachedFileBytes(model: LockedModel, file: LockedModelFile): Long {
@@ -188,8 +234,8 @@ class ModelManager {
         if (response.statusCode() == 401 || response.statusCode() == 403) {
             response.body().close()
             error(
-                "Hugging Face denied access to ${source.repository}. Accept the repository license and " +
-                    "sign in with HF_TOKEN or the token field in gem16.",
+                "Hugging Face denied access to ${source.repository}. Sign in with HF_TOKEN or the token field " +
+                    "in gem16, ensure the account can access private repositories, and accept gated terms where required.",
             )
         }
         check(response.statusCode() == 200 || response.statusCode() == 206) {

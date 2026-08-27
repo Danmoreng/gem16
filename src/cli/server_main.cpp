@@ -69,6 +69,8 @@ constexpr std::uint64_t kPrimaryServerVramSafetyBytes =
     700U * 1024U * 1024U;
 constexpr std::uint64_t kLong26BServerVramSafetyBytes =
     400U * 1024U * 1024U;
+constexpr std::uint64_t kLong26BMtpServerVramSafetyBytes =
+    200U * 1024U * 1024U;
 constexpr std::uint64_t kRequestPayloadLimit = 16U * 1024U * 1024U;
 
 volatile std::sig_atomic_t g_shutdown_signal = 0;
@@ -780,13 +782,18 @@ gem16::Result<SlotMemoryPlan> PlanServerSlots(
                          "configured execution-slot memory overflows accounting");
   }
   const std::uint64_t additional_slots = max_sessions - 1U;
-  const bool long_26b =
+  const bool moe_26b =
       std::string_view(runtime->model_variant_name()) ==
-          "gemma4_moe_26b_a4b" &&
-      options.max_context_tokens >= 65536U;
+          "gemma4_moe_26b_a4b";
+  const bool long_26b = moe_26b && options.max_context_tokens >= 65536U;
+  const bool long_26b_mtp =
+      moe_26b && options.mtp_draft_tokens != 0U &&
+      options.max_context_tokens >= 64000U;
   const std::uint64_t safety_margin =
-      long_26b ? kLong26BServerVramSafetyBytes
-               : kPrimaryServerVramSafetyBytes;
+      long_26b_mtp
+          ? kLong26BMtpServerVramSafetyBytes
+          : long_26b ? kLong26BServerVramSafetyBytes
+                     : kPrimaryServerVramSafetyBytes;
   const std::uint64_t additional_slot_bytes = slot_bytes * additional_slots;
   const bool required_overflows =
       additional_slot_bytes >

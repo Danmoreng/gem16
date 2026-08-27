@@ -4,8 +4,8 @@ The machine-readable source is [`FAST_TRACK_STATUS.json`](FAST_TRACK_STATUS.json
 
 ## Active queue
 
-M00–M17 and M20–M23 are accepted. M25 sampled product integration is implemented; formal timing/context gates are
-next and full M19 is owner-deferred.
+M00–M17, M20–M23 and M25 are accepted. The qualified 72K MTP product checkpoint now needs immutable publication and
+Studio download integration; full M19 is waived for this bounded checkpoint.
 
 | Priority | Slice | State | Notes |
 |---:|---|---|---|
@@ -13,9 +13,9 @@ next and full M19 is owner-deferred.
 | — | M20 controlled performance | accepted | 6,572.809 prompt / 150.615 ordinary-decode retained medians; prompt stretch passes |
 | — | M21 real context | accepted | 32K/64K/96K pass twice; 100K rejected; `base_max_context=98,304` |
 | — | M23 technical Target freeze | accepted | exact hashes, capability report, M25 rollback and protected 12B regression |
-| — | M25 sampled product integration | implemented | fixed D2 CLI/server/Studio chat at `c4ead1d`; same-seed Target identity passes |
-| 1 | M25 sampled retained timing | active next | qualify the implemented product controls without reopening the performance freeze |
-| 2 | M25 64K context | ready | publish explicit pass/fail reserve and separate `mtp_max_context` |
-| 3 | M19 task/prose qualification | deferred owner | multi-hour suite at end; required before release claims |
+| — | M25 sampled product integration | accepted | fixed D2 CLI/server/Studio chat at `c4ead1d`; same-seed Target identity passes |
+| — | M25 context | accepted | 64K and 72K pass at 200 MiB reserve; `mtp_max_context=73,728` |
+| 1 | Target/Assistant HF publication | active next | separate immutable repos with source provenance and locked revisions |
+| 2 | Studio 26B download | next | authenticated resumable download and qualified profile selection |
 
 Sub-agent packets follow [`PARALLEL_WORKSTREAMS.md`](PARALLEL_WORKSTREAMS.md).

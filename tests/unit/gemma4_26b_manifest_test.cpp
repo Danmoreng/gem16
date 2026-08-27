@@ -12,6 +12,7 @@
 #include "model/config.h"
 #include "model/gemma4_26b_manifest.h"
 #include "model/gemma4_26b_attention.h"
+#include "model/gemma4_26b_device_image.h"
 #include "model/gemma4_26b_residency.h"
 #include "util/json.h"
 
@@ -186,6 +187,33 @@ gem16::internal::ModelConfig ExternalUnslothConfig(
 }  // namespace
 
 void RunGemma426BManifestTests() {
+  const auto image_root = std::filesystem::temp_directory_path() /
+                          "gem16-device-image-path-test";
+  std::filesystem::remove_all(image_root);
+  const auto image_model = image_root / "model";
+  std::filesystem::create_directories(image_model);
+  const auto legacy_image =
+      image_root / "model.gem16-sm120-device-image-v1.bin";
+  GEM16_CHECK(gem16::internal::Gemma4Moe26BDeviceImagePath(image_model) ==
+              legacy_image);
+  {
+    std::ofstream output(image_model / "model.gem16", std::ios::binary);
+    output.put('\0');
+  }
+  GEM16_CHECK(gem16::internal::Gemma4Moe26BDeviceImagePath(image_model) ==
+              image_model / "model.gem16");
+  auto undersized =
+      gem16::internal::ProbeAcceptedGemma4Moe26BDeviceImage(image_model);
+  GEM16_CHECK(!undersized.ok());
+  {
+    std::ofstream output(legacy_image, std::ios::binary);
+    output.put('\0');
+  }
+  auto ambiguous =
+      gem16::internal::ProbeAcceptedGemma4Moe26BDeviceImage(image_model);
+  GEM16_CHECK(!ambiguous.ok());
+  std::filesystem::remove_all(image_root);
+
   const auto fixture = std::filesystem::path(__FILE__).parent_path().parent_path() /
                        "fixtures" / "gemma4_26b_config.json";
   auto config = gem16::internal::LoadModelConfig(fixture);
@@ -692,8 +720,8 @@ void RunGemma426BManifestTests() {
     GEM16_CHECK(assistant_residency.value().immutable_weight_arena_bytes ==
                 258'330'880ULL);
     GEM16_CHECK(assistant_residency.value().fixed_region_bytes ==
-                41'943'040ULL);
-    GEM16_CHECK(assistant_residency.value().context_profiles.size() == 2U);
+                46'137'344ULL);
+    GEM16_CHECK(assistant_residency.value().context_profiles.size() == 3U);
     for (const auto& profile :
          assistant_residency.value().context_profiles) {
       GEM16_CHECK(profile.fp8_kv_bytes == 0U);

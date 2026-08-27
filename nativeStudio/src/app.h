@@ -1,6 +1,7 @@
 #pragma once
 
 #include "api_client.h"
+#include "model_manager.h"
 #include "server_manager.h"
 #include "types.h"
 
@@ -38,6 +39,7 @@ class StudioApp final {
 
   StudioSettings settings_;
   ServerManager server_;
+  ModelManager models_;
   ApiClient api_;
   Screen screen_ = Screen::kChat;
   std::vector<ChatMessage> messages_;

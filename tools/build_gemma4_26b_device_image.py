@@ -33,7 +33,7 @@ ACCEPTED_ARTIFACT_SHA256 = (
     "471805f7dad8abb84300be78b2822a63dcb1d35bff5aa98426a162cc8532ee17"
 )
 FORMAT = "gem16-sm120-device-image-v1"
-IMAGE_SUFFIX = f".{FORMAT}.bin"
+IMAGE_NAME = "model.gem16"
 ARENA_ALIGNMENT = 256
 EXPECTED_TENSORS = 1285
 EXPECTED_PAYLOAD_BYTES = 14_696_569_196
@@ -372,7 +372,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
     output = (
         options.output.resolve(strict=False)
         if options.output is not None
-        else model.parent / f"{model.name}{IMAGE_SUFFIX}"
+        else model / IMAGE_NAME
     )
     started = time.monotonic()
     _verify_external_lock(model)

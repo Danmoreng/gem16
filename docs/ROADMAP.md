@@ -6,25 +6,21 @@ The active execution policy is [`ACTIVE_DECISIONS.md`](ACTIVE_DECISIONS.md). The
 [`plans/gemma4-26b/ACTIVE_CONTRACT.md`](plans/gemma4-26b/ACTIVE_CONTRACT.md). Historical decisions and benchmark
 ledgers remain evidence, not default task instructions.
 
-M00–M17 and M22 of the Gemma 4 26B track are accepted. The frozen experimental text-only SM120 profile now enters
-the bounded performance-optimization and final base-qualification sequence:
+M00–M17, M20–M23 and M25 of the Gemma 4 26B track are accepted. The text-only SM120 profile is a qualified,
+selectable peer to the protected 12B default. Target and fixed-D2 Assistant are published in separately pinned
+Hugging Face repositories, and Studio can install the pair into immutable cache snapshots.
 
 ```text
-accepted artifact/loader → real 32K one-slot fit → deterministic reference
-→ accepted optimized M17 runtime → accepted M22 product → bounded prefill/decode optimization → clean freeze → M21 → M20 → technical M23 freeze
-→ M25 MTP/performance work → deferred M19 release-quality gate
+accepted artifact/loader → accepted optimized M17 runtime → accepted M22 product
+→ accepted M20/M21 performance and context → accepted M23 freeze
+→ accepted M25 fixed-D2 product → split immutable publication → Main-promotion review
 ```
 
 The repository has an executable, fixed-address, all-resident 26B runtime with native SM120 MoE/head execution,
-controlled FP8 attention, grouped prefill and whole-model decode graph replay. The latest adjacent two-run 16K+64
-development candidate reaches 5,050.92 prompt tok/s and 139.106 ordinary-decode tok/s while retaining the accepted
-output hash. This is not the formal M20 3-warm-up/10-retained result. The profile remains experimental: full held-out
-quality, controlled performance and real 64K execution are not yet accepted; the CLI/server product gate is accepted.
-
-M20 now has fixed owner targets on the exact 16K+64 ordinary row: retained medians of at least 6,000 prompt token/s
-and 150 decode token/s, plus a non-blocking 6,500 prompt-token/s stretch target. The current adjacent development
-candidate is 5,050.92/139.106 token/s; formal retained medians remain pending. These targets must be reached without
-MTP/speculative decode or changes to prompt, output length, cache/KV semantics, sampling or timing boundaries.
+controlled FP8 attention, grouped prefill and whole-model decode graph replay. The qualified M25 profile is text-only,
+batch one, one resident session, fixed D2, FP8 KV, and supports up to 73,728 MTP context tokens with a 200 MiB reserve.
+The separate Target-only ceiling is 98,304 tokens. The owner accepted the bounded GSM8K/AIME and product evidence and
+waived the remaining broad M19 suite for this checkpoint; claims do not extend beyond that recorded evidence.
 
 ## 26B checkpoints
 

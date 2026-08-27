@@ -42,7 +42,7 @@ bool ParseBool(std::string_view value, bool fallback) {
   return fallback;
 }
 
-std::filesystem::path HubRoot() {
+std::filesystem::path ResolveHubRoot() {
   if (const char* value = std::getenv("HF_HUB_CACHE"); value && *value) return value;
   if (const char* value = std::getenv("HF_HOME"); value && *value) return std::filesystem::path(value) / "hub";
   if (const char* value = std::getenv("XDG_CACHE_HOME"); value && *value) {
@@ -71,6 +71,20 @@ std::filesystem::path ExecutableDirectory() {
 }
 
 }  // namespace
+
+std::filesystem::path HuggingFaceHubRoot() { return ResolveHubRoot(); }
+
+std::filesystem::path Qualified26BTargetDirectory() {
+  return ResolveHubRoot() /
+         "models--danmoreng--gemma-4-26B-A4B-it-GEM16/snapshots/"
+         "b5feb4d146c5ce943160514df0c70a31059885bd";
+}
+
+std::filesystem::path Qualified26BAssistantDirectory() {
+  return ResolveHubRoot() /
+         "models--danmoreng--gemma-4-26B-A4B-it-assistant-GEM16/snapshots/"
+         "a741c642353ccdaefc6f987a3120f434dc9487c7";
+}
 
 const char* ProfileLabel(ModelProfile profile) {
   return profile == ModelProfile::kGemma4Moe26BA4B ? "Gemma 4 26B A4B" : "Gemma 4 12B Unified";
@@ -111,18 +125,17 @@ void ApplyProfileDefaults(ServerConfig& config, ModelProfile profile) {
   config.max_context_tokens = 32768;
   config.mtp_draft_tokens = 2;
   config.mtp_adaptive = false;
-  const auto root = RepositoryRoot();
   if (profile == ModelProfile::kGemma4Moe26BA4B) {
     config.model_name = "gemma4-26b-a4b";
-    config.model_directory = (root / "artifacts/raw/m08/qat-hybrid-clean-1").string();
-    config.assistant_directory =
-        (root / "artifacts/raw/m25/qat-q4_0-assistant-hybrid-diagnostic-v2").string();
+    config.model_directory = Qualified26BTargetDirectory().string();
+    config.assistant_directory = Qualified26BAssistantDirectory().string();
+    config.max_context_tokens = 73728;
   } else {
     config.model_name = "gem16-12b";
     config.model_directory =
-        (HubRoot() / ".gem16/snapshots/unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4").string();
+        (ResolveHubRoot() / ".gem16/snapshots/unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4").string();
     config.assistant_directory =
-        (HubRoot() / "models--google--gemma-4-12B-it-assistant/snapshots/364bd03c9952e5b7da73665ee30c9eccfc408345").string();
+        (ResolveHubRoot() / "models--google--gemma-4-12B-it-assistant/snapshots/364bd03c9952e5b7da73665ee30c9eccfc408345").string();
   }
 }
 

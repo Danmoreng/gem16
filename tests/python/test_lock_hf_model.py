@@ -96,6 +96,21 @@ class LockHuggingFaceModelTest(unittest.TestCase):
                     "owner/model", "1" * 40, "https://example.com/terms"
                 )
 
+    def test_build_lock_can_explicitly_allow_private_repository(self) -> None:
+        with mock.patch.object(
+            lock_hf_model,
+            "fetch_model_document",
+            return_value={"sha": "1" * 40, "private": True, "siblings": []},
+        ):
+            with mock.patch.object(lock_hf_model, "create_entry"):
+                with self.assertRaisesRegex(ValueError, "no files"):
+                    lock_hf_model.build_lock(
+                        "owner/model",
+                        "1" * 40,
+                        "https://example.com/terms",
+                        allow_private=True,
+                    )
+
 
 if __name__ == "__main__":
     unittest.main()

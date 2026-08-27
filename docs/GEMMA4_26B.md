@@ -1,19 +1,18 @@
 # Gemma 4 26B A4B in Gem16
 
-**Status:** M00–M17 and M22 accepted; bounded prefill/decode optimization, M21/M20 and a technical M23 freeze are next. The active policy is [`ACTIVE_DECISIONS.md`](ACTIVE_DECISIONS.md), and
+**Status:** M00–M17, M20–M23 and M25 accepted; qualified text-only 26B checkpoint publication is active. The active policy is [`ACTIVE_DECISIONS.md`](ACTIVE_DECISIONS.md), and
 the current task entry is [`plans/gemma4-26b/ACTIVE_CONTRACT.md`](plans/gemma4-26b/ACTIVE_CONTRACT.md).
 
 ## Goal
 
-Deliver an experimental text-only Gemma 4 26B A4B execution on one approximately 16 GB NVIDIA Blackwell GPU. The
+Deliver a qualified text-only Gemma 4 26B A4B execution on one approximately 16 GB NVIDIA Blackwell GPU. The
 current path directly loads the compiled QAT-derived FP8/NVFP4 artifact, owns one resident slot and executes native
 SM120 prefill/decode/head work without CPU weight offload or recurring token-loop allocation.
 
-The current source tree contains an executable fixed-address 26B runtime, public chat/server integration and native
-SM120 MoE, attention and tied-head dispatch. The latest adjacent two-run controlled 16K+64 development candidate
-reaches 5,050.92 prompt tok/s and 139.106 ordinary-decode tok/s with the accepted output hash. This is not yet the
-formal M20 3-warm-up/10-retained result. The 12B Unified path remains the production baseline and must remain
-unchanged.
+The current source tree contains an executable fixed-address 26B runtime, chat/server/Studio integration and native
+SM120 MoE, attention, tied-head and fixed-D2 MTP dispatch. M20 accepted retained medians of 6,572.809 prompt and
+150.615 ordinary-decode token/s. M25 publishes `mtp_max_context=73,728`; the Target-only maximum remains 98,304.
+The 12B Unified path remains the multimodal default and must remain unchanged.
 
 The owner-set M20 objective now targets vLLM-class performance on the exact 16K+64 ordinary path: retained medians
 of at least **6,000 prompt token/s** and **150 decode token/s**, with **6,500 prompt token/s** as the non-blocking
@@ -28,17 +27,14 @@ M06 NVFP4 experts → M07 provisional NVFP4 tied head → M08 artifact/loader
 → M09 32K residency → M13 slow reference execution → M17 optimized runtime
 → accepted M22 product → bounded prefill/decode optimization → clean candidate freeze
 → M21 real 32K/64K → M20 performance → technical M23 freeze
-→ M25 MTP → deferred M19 release-quality gate
+→ M25 MTP → qualified Target/Assistant publication → Main promotion
 ```
 
-M00–M17 and M22 are accepted. M22 now pins the exact M08 identity, exposes CLI/server provenance and memory
-reporting, enforces text-only one-slot behavior and passes automated 26B product plus protected 12B regressions.
-The fixed performance targets must first be reached or explicitly revised by the owner. M21 still needs repeated
-real 32K plus explicit 64K execution, then M20 needs its bounded formal 3/10 run against that
-matching context evidence. The owner
-deferred the remaining multi-hour M19 task/prose suite until the end of the implementation/performance program.
-Therefore M23 may freeze an engineering Target for later work, but it cannot be described as a shipping or
-quality-qualified release while M19 is pending.
+M00–M17, M20–M23 and M25 are accepted. The owner accepted full GSM8K and AIME 2026 plus bounded sampled/product
+evidence as the checkpoint quality gate and waived the broader historical M19 suite. The qualified claim remains
+limited to text-only SM120, one resident slot, fixed D2 and the published context limits. Target and Assistant are
+distributed as separately pinned Hugging Face repositories; see
+[`GEMMA4_26B_HUGGING_FACE.md`](GEMMA4_26B_HUGGING_FACE.md).
 
 ## Scope
 

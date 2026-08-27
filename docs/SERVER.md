@@ -17,7 +17,7 @@ selects deterministic generation. `--assistant-model`,
 path as resident chat. The server has no authentication or TLS layer; bind to
 loopback unless a trusted reverse proxy supplies those controls.
 
-The experimental Gemma 4 26B A4B profile uses a compiled Target and separately compiled Assistant:
+The qualified Gemma 4 26B A4B profile uses a compiled Target and separately compiled Assistant:
 
 ```bash
 gem16-server \
@@ -33,11 +33,16 @@ For 26B, fixed D1/D2/D4 and the normal GPU sampling controls are supported; D2 i
 capability and the configured `mtp_max_context`. Images and audio are rejected, and exactly one resident execution
 slot is admitted. These restrictions do not change the 12B server path.
 
+The measured 26B limits are separate: ordinary Target execution supports up to 98,304 tokens with a 400 MiB
+long-context reserve, while fixed-D2 MTP supports up to 73,728 tokens with a 200 MiB reserve. The server applies the
+smaller reserve only when MTP is active and rejects larger Assistant contexts during initialization.
+
 Startup creates one `ModelRuntime` and logs its target/assistant weight bytes
 and load time. It constructs one temporary execution-slot probe, measures the
 larger of allocator accounting and observed VRAM delta, and rejects a
 `--max-sessions`/`--max-context` combination that cannot retain every configured
-slot plus a 700 MiB safety margin. The probe is released before listening.
+slot plus the selected safety margin: 700 MiB for the primary profile, 400 MiB for long-context 26B Target-only,
+or 200 MiB for qualified long-context 26B MTP. The probe is released before listening.
 Sessions are then created on demand. Each receives an isolated `SessionState`
 plus `ExecutionSlot` while sharing the immutable runtime.
 `--max-sessions` bounds resident slots; inactive least-recently-used sessions

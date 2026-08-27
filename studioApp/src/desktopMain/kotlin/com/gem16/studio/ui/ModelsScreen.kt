@@ -34,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.gem16.studio.model.Gem16ModelCatalog
+import com.gem16.studio.model.Gem16Qualified26BModelCatalog
 import com.gem16.studio.model.ModelProfile
 import com.gem16.studio.model.ServerPhase
 import com.gem16.studio.service.ModelInstallState
@@ -47,9 +48,12 @@ fun ModelsScreen(state: StudioState) {
     val install by state.modelManager.state.collectAsState()
     val serverPhase by state.serverManager.phase.collectAsState()
     var token by remember { mutableStateOf("") }
-    val configured = state.settings.server.modelProfile == ModelProfile.Gemma4Unified12B &&
+    val configured12B = state.settings.server.modelProfile == ModelProfile.Gemma4Unified12B &&
         state.settings.server.modelDirectory == install.targetDirectory.toString() &&
         state.settings.server.assistantModelDirectory == install.assistantDirectory.toString()
+    val configured26B = state.settings.server.modelProfile == ModelProfile.Gemma4Moe26BA4B &&
+        state.settings.server.modelDirectory == install.target26BDirectory.toString() &&
+        state.settings.server.assistantModelDirectory == install.assistant26BDirectory.toString()
 
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(StudioScreenPadding),
@@ -81,9 +85,22 @@ fun ModelsScreen(state: StudioState) {
                     detail = "${Gem16ModelCatalog.tokenizerRepository}/tokenizer_config.json",
                     ready = install.tokenizerConfigReady,
                 )
+                Spacer(Modifier.height(StudioCompactGap))
+                Text("Qualified Gemma 4 26B A4B", fontWeight = FontWeight.SemiBold)
+                ModelComponentRow(
+                    title = "GEM16 SM120 Target",
+                    detail = "${Gem16Qualified26BModelCatalog.targetRepository} · " +
+                        formatBytes(Gem16Qualified26BModelCatalog.target.totalBytes),
+                    ready = install.target26BReady,
+                )
+                ModelComponentRow(
+                    title = "GEM16 fixed-D2 Assistant",
+                    detail = "${Gem16Qualified26BModelCatalog.assistantRepository} · " +
+                        formatBytes(Gem16Qualified26BModelCatalog.assistant.totalBytes),
+                    ready = install.assistant26BReady,
+                )
                 Text(
-                    "Gemma 4 26B A4B uses offline-compiled local target and assistant artifacts. " +
-                        "Select the 26B profile and its directories on the Server screen; Studio disables image and audio input for it.",
+                    "Text-only · one session · fixed D2 · 73,728-token qualified MTP context",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -118,56 +135,105 @@ fun ModelsScreen(state: StudioState) {
                     Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 }
 
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(StudioGap),
-                ) {
-                    when {
-                        install.isDownloading -> OutlinedButton(
-                            onClick = state::cancelModelDownload,
-                            modifier = Modifier.height(StudioControlHeight),
+                if (install.isDownloading) {
+                    OutlinedButton(
+                        onClick = state::cancelModelDownload,
+                        modifier = Modifier.height(StudioControlHeight),
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(StudioGap),
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(StudioGap),
+                            Icon(
+                                Icons.Default.Pause,
+                                contentDescription = null,
+                                modifier = Modifier.size(StudioIconSize),
+                            )
+                            Text("Pause")
+                        }
+                    }
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(StudioGap)) {
+                        Text("Gemma 4 12B Unified", fontWeight = FontWeight.Medium)
+                        when {
+                            !install.allReady -> StudioPrimaryButton(
+                                onClick = { state.downloadModels(token.takeIf(String::isNotBlank)) },
+                                modifier = Modifier.height(StudioControlHeight),
                             ) {
                                 Icon(
-                                    Icons.Default.Pause,
+                                    Icons.Default.Download,
                                     contentDescription = null,
                                     modifier = Modifier.size(StudioIconSize),
                                 )
-                                Text("Pause")
+                                Spacer(Modifier.width(StudioGap))
+                                Text(
+                                    "Download ${formatBytes(Gem16ModelCatalog.totalBytes)}",
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                )
+                            }
+                            !configured12B -> StudioPrimaryButton(
+                                onClick = state::useCachedModels,
+                                modifier = Modifier.height(StudioControlHeight),
+                            ) {
+                                Icon(
+                                    Icons.Default.Check,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(StudioIconSize),
+                                )
+                                Spacer(Modifier.width(StudioGap))
+                                Text("Use cached 12B", color = MaterialTheme.colorScheme.onPrimary)
+                            }
+                            else -> Text(
+                                "12B is configured.",
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Medium,
+                            )
+                        }
+
+                        Text("Gemma 4 26B A4B", fontWeight = FontWeight.Medium)
+                        when {
+                            !install.all26BReady -> StudioPrimaryButton(
+                                onClick = { state.download26BModels(token.takeIf(String::isNotBlank)) },
+                                modifier = Modifier.height(StudioControlHeight),
+                            ) {
+                                Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(StudioIconSize))
+                                Spacer(Modifier.width(StudioGap))
+                                Text(
+                                    "Download ${formatBytes(Gem16Qualified26BModelCatalog.totalBytes)}",
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                )
+                            }
+                            !configured26B -> StudioPrimaryButton(
+                                onClick = state::useCached26BModels,
+                                modifier = Modifier.height(StudioControlHeight),
+                            ) {
+                                Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(StudioIconSize))
+                                Spacer(Modifier.width(StudioGap))
+                                Text("Use cached 26B", color = MaterialTheme.colorScheme.onPrimary)
+                            }
+                            else -> Text(
+                                "26B is configured.",
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Medium,
+                            )
+                        }
+
+                        if ((configured12B || configured26B) &&
+                            (serverPhase == ServerPhase.Stopped || serverPhase == ServerPhase.Error)
+                        ) {
+                            StudioPrimaryButton(
+                                onClick = state::startServer,
+                                modifier = Modifier.height(StudioControlHeight),
+                            ) {
+                                Icon(
+                                    Icons.Default.PlayArrow,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(StudioIconSize),
+                                )
+                                Spacer(Modifier.width(StudioGap))
+                                Text("Start server", color = MaterialTheme.colorScheme.onPrimary)
                             }
                         }
-                        !install.allReady -> StudioPrimaryButton(
-                            onClick = { state.downloadModels(token.takeIf(String::isNotBlank)) },
-                            modifier = Modifier.height(StudioControlHeight),
-                        ) {
-                            Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(StudioIconSize))
-                            Spacer(Modifier.width(StudioGap))
-                            Text("Download ${formatBytes(Gem16ModelCatalog.totalBytes)}", color = MaterialTheme.colorScheme.onPrimary)
-                        }
-                        !configured -> StudioPrimaryButton(
-                            onClick = state::useCachedModels,
-                            modifier = Modifier.height(StudioControlHeight),
-                        ) {
-                            Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(StudioIconSize))
-                            Spacer(Modifier.width(StudioGap))
-                            Text("Use cached models", color = MaterialTheme.colorScheme.onPrimary)
-                        }
-                        serverPhase == ServerPhase.Stopped || serverPhase == ServerPhase.Error -> StudioPrimaryButton(
-                            onClick = state::startServer,
-                            modifier = Modifier.height(StudioControlHeight),
-                        ) {
-                            Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(StudioIconSize))
-                            Spacer(Modifier.width(StudioGap))
-                            Text("Start server", color = MaterialTheme.colorScheme.onPrimary)
-                        }
-                        else -> Text(
-                            "Model set is configured and ready.",
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Medium,
-                        )
                     }
                 }
             }

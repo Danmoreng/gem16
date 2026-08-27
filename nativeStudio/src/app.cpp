@@ -233,6 +233,18 @@ void CapabilityChip(const char* text, bool active = true) {
   ImGui::PopStyleColor(3);
 }
 
+std::string FormatBytes(std::uint64_t bytes) {
+  constexpr double gib = 1024.0 * 1024.0 * 1024.0;
+  constexpr double mib = 1024.0 * 1024.0;
+  char result[64]{};
+  if (bytes >= static_cast<std::uint64_t>(gib)) {
+    std::snprintf(result, sizeof(result), "%.2f GiB", static_cast<double>(bytes) / gib);
+  } else {
+    std::snprintf(result, sizeof(result), "%.1f MiB", static_cast<double>(bytes) / mib);
+  }
+  return result;
+}
+
 enum class ComposerIcon { kUndo, kDelete, kSend, kStop };
 
 bool ComposerButton(const char* id, ComposerIcon icon, float size,
@@ -641,10 +653,14 @@ void StudioApp::DrawMessage(const ChatMessage& message, std::size_t index) {
 }
 
 void StudioApp::DrawModels() {
+  const ModelInstallState install = models_.State();
   PanelHeading("Local model profiles",
-               "Choose the resident engine that powers chat and generation.");
-  const auto draw_profile = [this](ModelProfile profile, const char* summary, const char* capabilities) {
+               "Choose the resident engine that powers chat and generation. The runtime remains a separate process.");
+  const auto draw_profile = [this, &install](ModelProfile profile, const char* summary,
+                                             const char* capabilities) {
     const bool selected = settings_.server.profile == profile;
+    const bool available = profile != ModelProfile::kGemma4Moe26BA4B ||
+                           install.All26BReady();
     ImGui::PushStyleColor(ImGuiCol_ChildBg, selected ? ImVec4(0.07f, 0.22f, 0.16f, 0.96f)
                                                      : ImGui::GetStyleColorVec4(ImGuiCol_ChildBg));
     ImGui::PushStyleColor(ImGuiCol_Border, selected ? kAccent : ImGui::GetStyleColorVec4(ImGuiCol_Border));
@@ -666,7 +682,8 @@ void StudioApp::DrawModels() {
     if (selected) {
       ImGui::TextColored(kAccent, "● Selected");
     }
-    else if (ImGui::Button("Select")) SelectProfile(profile);
+    else if (available && ImGui::Button("Select")) SelectProfile(profile);
+    else if (!available) ImGui::TextDisabled("Download below");
     ImGui::EndChild();
     ImGui::PopStyleColor(2);
     ImGui::Dummy({0, 10});
@@ -675,8 +692,39 @@ void StudioApp::DrawModels() {
                "Production baseline with multimodal chat and the established optimized path.",
                "Text · Vision · Audio · MTP");
   draw_profile(ModelProfile::kGemma4Moe26BA4B,
-               "Experimental text-only A4B mixture-of-experts path for approximately 16 GB Blackwell GPUs.",
-               "Text · Sampled MTP D2 · 32K default");
+               "Qualified text-only A4B mixture-of-experts checkpoint for approximately 16 GB Blackwell GPUs.",
+               "Text · Fixed MTP D2 · 73,728 tokens");
+
+  ImGui::BeginChild("##qualified-26b-download", {0, 150}, ImGuiChildFlags_Borders);
+  ImGui::TextColored(kAccent, "Qualified 26B checkpoint");
+  ImGui::TextDisabled("Pinned Target b5feb4d1 · Assistant a741c642 · private Hugging Face repositories");
+  ImGui::Text("Target: %s", install.target_26b_ready ? "Cached" : "Missing");
+  ImGui::SameLine(180.0f);
+  ImGui::Text("Assistant: %s", install.assistant_26b_ready ? "Cached" : "Missing");
+  if (install.downloading) {
+    const float progress = install.total_bytes == 0 ? 0.0f :
+        static_cast<float>(static_cast<double>(install.completed_bytes) /
+                           static_cast<double>(install.total_bytes));
+    ImGui::ProgressBar(std::clamp(progress, 0.0f, 1.0f), {-110.0f, 0.0f},
+                       FormatBytes(install.completed_bytes).c_str());
+    ImGui::SameLine();
+    if (ImGui::Button("Pause")) models_.Cancel();
+    if (!install.current_file.empty()) ImGui::TextDisabled("%s", install.current_file.c_str());
+  } else if (!install.All26BReady()) {
+    if (ImGui::Button(("Download " + FormatBytes(install.total_bytes)).c_str())) {
+      models_.DownloadQualified26B();
+    }
+    ImGui::SameLine();
+    ImGui::TextDisabled("Resumable · SHA-256 verified · uses HF_TOKEN or your Hugging Face login");
+  } else if (settings_.server.profile != ModelProfile::kGemma4Moe26BA4B) {
+    if (ImGui::Button("Use qualified 26B")) SelectProfile(ModelProfile::kGemma4Moe26BA4B);
+  } else {
+    ImGui::TextColored(kAccent, "Ready and selected");
+  }
+  if (!install.error.empty()) {
+    ImGui::TextColored({1.0f, 0.45f, 0.45f, 1.0f}, "%s", install.error.c_str());
+  }
+  ImGui::EndChild();
   ImGui::TextDisabled("Changing profiles updates paths and launch options. Restart a running server to apply it.");
 }
 

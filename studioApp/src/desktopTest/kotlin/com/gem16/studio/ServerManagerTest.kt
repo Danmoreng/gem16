@@ -2,6 +2,7 @@ package com.gem16.studio
 
 import com.gem16.studio.model.GenerationConfig
 import com.gem16.studio.model.Gem16ModelCatalog
+import com.gem16.studio.model.Gem16Qualified26BModelCatalog
 import com.gem16.studio.model.HuggingFaceCachePaths
 import com.gem16.studio.model.ServerConfig
 import com.gem16.studio.model.ModelProfile
@@ -120,7 +121,24 @@ class ServerManagerTest {
 
     @Test
     fun gemma26BProfileUsesTextOnlySingleSlotFixedMtpContract() {
-        val config = ServerConfig().selectProfile(ModelProfile.Gemma4Moe26BA4B).copy(
+        val selected = ServerConfig().selectProfile(ModelProfile.Gemma4Moe26BA4B)
+        assertEquals(
+            HuggingFaceCachePaths.snapshot(
+                Gem16Qualified26BModelCatalog.targetRepository,
+                Gem16Qualified26BModelCatalog.targetRevision,
+            ).toAbsolutePath().normalize().toString(),
+            selected.modelDirectory,
+        )
+        assertEquals(
+            HuggingFaceCachePaths.snapshot(
+                Gem16Qualified26BModelCatalog.assistantRepository,
+                Gem16Qualified26BModelCatalog.assistantRevision,
+            ).toAbsolutePath().normalize().toString(),
+            selected.assistantModelDirectory,
+        )
+        assertEquals(73_728, selected.maxContextTokens)
+
+        val config = selected.copy(
             executable = "server",
             modelDirectory = "/models/26b-target",
             assistantModelDirectory = "/models/26b-assistant",

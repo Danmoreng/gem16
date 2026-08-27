@@ -1,6 +1,7 @@
 package com.gem16.studio
 
 import com.gem16.studio.model.Gem16ModelCatalog
+import com.gem16.studio.model.Gem16Qualified26BModelCatalog
 import com.gem16.studio.model.LockedModel
 import com.gem16.studio.model.repositoryRoot
 import kotlin.test.Test
@@ -14,7 +15,12 @@ import kotlinx.serialization.json.jsonPrimitive
 class ModelCatalogTest {
     @Test
     fun `catalog uses immutable revisions and valid hashes`() {
-        for (model in listOf(Gem16ModelCatalog.target, Gem16ModelCatalog.assistant)) {
+        for (model in listOf(
+            Gem16ModelCatalog.target,
+            Gem16ModelCatalog.assistant,
+            Gem16Qualified26BModelCatalog.target,
+            Gem16Qualified26BModelCatalog.assistant,
+        )) {
             assertTrue(model.revision.matches(Regex("[0-9a-f]{40}")))
             assertTrue(model.files.isNotEmpty())
             model.files.forEach { file ->
@@ -46,12 +52,25 @@ class ModelCatalogTest {
                 Gem16ModelCatalog.assistant.files.sumOf { it.size },
             Gem16ModelCatalog.totalBytes,
         )
+        assertEquals(
+            Gem16Qualified26BModelCatalog.target.files.sumOf { it.size } +
+                Gem16Qualified26BModelCatalog.assistant.files.sumOf { it.size },
+            Gem16Qualified26BModelCatalog.totalBytes,
+        )
     }
 
     @Test
     fun `catalog exactly matches repository lock files`() {
         assertMatchesLock(Gem16ModelCatalog.target, "models/gemma4-12b-nvfp4.lock.json")
         assertMatchesLock(Gem16ModelCatalog.assistant, "models/gemma4-12b-mtp-assistant.lock.json")
+        assertMatchesLock(
+            Gem16Qualified26BModelCatalog.target,
+            "models/gemma4-26b-gem16-target.lock.json",
+        )
+        assertMatchesLock(
+            Gem16Qualified26BModelCatalog.assistant,
+            "models/gemma4-26b-gem16-assistant.lock.json",
+        )
     }
 
     private fun assertMatchesLock(model: LockedModel, relativePath: String) {

@@ -166,6 +166,25 @@ class StudioState(
         }
     }
 
+    fun download26BModels(token: String?) {
+        if (modelDownloadJob?.isActive == true) return
+        modelDownloadJob = scope.launch {
+            try {
+                val installed = modelManager.download26B(token)
+                updateServer {
+                    it.selectProfile(ModelProfile.Gemma4Moe26BA4B).copy(
+                        modelDirectory = installed.target26BDirectory.toString(),
+                        assistantModelDirectory = installed.assistant26BDirectory.toString(),
+                    )
+                }
+            } catch (_: Exception) {
+                // ModelManager exposes a user-facing error in its StateFlow.
+            } finally {
+                modelDownloadJob = null
+            }
+        }
+    }
+
     fun cancelModelDownload() {
         modelManager.cancel()
     }
@@ -179,6 +198,18 @@ class StudioState(
                 modelProfile = ModelProfile.Gemma4Unified12B,
                 modelDirectory = installed.targetDirectory.toString(),
                 assistantModelDirectory = installed.assistantDirectory.toString(),
+            )
+        }
+    }
+
+    fun useCached26BModels() {
+        modelManager.refresh()
+        val installed = modelManager.state.value
+        if (!installed.all26BReady) return
+        updateServer {
+            it.selectProfile(ModelProfile.Gemma4Moe26BA4B).copy(
+                modelDirectory = installed.target26BDirectory.toString(),
+                assistantModelDirectory = installed.assistant26BDirectory.toString(),
             )
         }
     }

@@ -1,6 +1,6 @@
 # Active decisions
 
-**Accepted:** 2026-08-26 · **Track:** Gemma 4 26B A4B Fast Track · **Status:** M00–M17 and M20–M23 accepted; M25 sampled product checkpoint implemented, formal context/timing gates open; full M19 deferred
+**Updated:** 2026-08-27 · **Track:** Gemma 4 26B A4B Fast Track · **Status:** M00–M17, M20–M23 and M25 accepted; qualified 26B product checkpoint; broad M19 suite waived
 
 This is the short operational policy for current work. It is not a replacement for historical evidence. Permanent
 rules in `AGENTS.md` remain binding. For facts about the implementation, current source, tests and accepted evidence
@@ -9,9 +9,10 @@ next task entry. Read historical `docs/DECISIONS.md` only for a specific histori
 
 ## Fast-track target
 
-Reach an experimental, text-only Gemma 4 26B A4B execution on one approximately 16 GB Blackwell GPU as quickly as
-possible, first proving a directly usable QAT-derived FP8/NVFP4 path and a real 32K one-slot fit. This is not yet a
-quality-, performance- or release-qualified product. The existing 12B path remains the protected production baseline.
+Maintain a qualified, text-only Gemma 4 26B A4B product checkpoint for one approximately 16 GB Blackwell GPU. It is
+a selectable peer to the qualified 12B checkpoint, while 12B remains the protected default and multimodal baseline.
+The 26B qualification is platform- and capability-specific: SM120, batch one, one resident slot, fixed-D2 MTP and
+the published context limits.
 
 On 2026-08-27 the owner scoped the next server-hardening slice to one local user on one machine. Structured
 privacy-safe logging, bounded FIFO generation admission, graceful lifecycle/error handling and operational metrics
@@ -236,8 +237,30 @@ MTP capability and stream bounded verified chunks. Studio now offers a persisted
 Target/Assistant paths and text-only enforcement while retaining 12B as the multimodal default. Bounded real
 sampling differentials, a 32K server continuation, zero fallback/allocation metrics, the complete host/CUDA suite,
 Studio tests and the protected real 12B product regression pass. This is a usable experimental product checkpoint,
-not formal M25 acceptance: retained sampled timing, 64K MTP context qualification and full M19 remain open. See
+not formal M25 acceptance: retained sampled timing and full M19 remain open. See
 `artifacts/m25/sampled-mtp-product.json`.
+
+On 2026-08-27 the 26B fixed-D2 MTP context gate passed in repeated fresh processes at 65,536 and 73,728 tokens.
+The respective free-device measurements after boundary generation are 458,031,104 and 369,950,720 bytes, with
+repeat-identical output checksums, zero fallback and no token-loop allocation. The server now applies the selected
+200 MiB reserve only to active long-context MTP; the base-model 400 MiB rule is unchanged. Allocation-only admission
+reaches 88,640 tokens, but boundary execution becomes unsafe between 74,944 and 75,000 tokens. Therefore
+`mtp_max_context=73,728`; larger MTP contexts fail during initialization until that CUDA fault is diagnosed. This
+closes the M25 context slice. See
+`artifacts/m25/context-capacity-2026-08-27.json`.
+
+On 2026-08-27 the owner accepted M25 as the qualified 26B product checkpoint. This supersedes the earlier requirement
+that the formal retained sampled-timing distribution and the complete historical M19 suite pass before checkpoint
+qualification. The retained ordinary M20 performance, bounded sampled Target-identity evidence, full GSM8K and AIME
+2026 comparisons, real product execution and repeated 73,728-token MTP boundary are the accepted evidence set. The
+missing retained sampled timing limits which throughput number may be called formal; it does not make the checkpoint
+optional or experimental. General quality claims remain bounded to the published tests.
+
+The qualified Target and Assistant are published as two independently pinned Hugging Face repositories because they
+derive from different immutable Google sources. The Target package uses a single `model.gem16` SM120 device image in
+final GPU arena order and does not duplicate the source-order Safetensors payload. The Assistant remains a separate
+GEM16 hybrid NVFP4/FP8 artifact. Studio must download and verify both immutable revisions and expose 26B alongside
+12B; it must not silently substitute either component.
 
 The owner clarified on 2026-08-14 that M09 should load the real artifact and prove pre-execution residency so the
 critical path reaches inference quickly. This supersedes the old M09-card wording that required captured execution

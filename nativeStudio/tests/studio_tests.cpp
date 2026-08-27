@@ -2,6 +2,7 @@
 #include "chat_history.h"
 #include "markdown.h"
 #include "server_manager.h"
+#include "settings.h"
 #include "selectable_text.h"
 
 #include "httplib.h"
@@ -37,6 +38,18 @@ bool TestServerCommand() {
          Contains(command, "2") && !Contains(command, "--mtp-adaptive");
 }
 
+bool TestQualified26BDefaults() {
+  gem16::studio::ServerConfig config;
+  gem16::studio::ApplyProfileDefaults(
+      config, gem16::studio::ModelProfile::kGemma4Moe26BA4B);
+  return config.max_context_tokens == 73728 && config.max_sessions == 1 &&
+         config.mtp_draft_tokens == 2 && !config.mtp_adaptive &&
+         config.model_directory ==
+             gem16::studio::Qualified26BTargetDirectory().string() &&
+         config.assistant_directory ==
+             gem16::studio::Qualified26BAssistantDirectory().string();
+}
+
 bool TestTextSelection() {
   using gem16::studio::selectable_text::NormalizedRange;
   using gem16::studio::selectable_text::SelectedText;
@@ -54,6 +67,7 @@ bool TestSelectableTextWidgetClipboard() {
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
   ImGuiIO& io = ImGui::GetIO();
+  io.IniFilename = nullptr;
   io.DisplaySize = {480.0f, 260.0f};
   io.DeltaTime = 1.0f / 60.0f;
   io.ConfigInputTrickleEventQueue = false;
@@ -157,6 +171,7 @@ bool TestComposerEnterBehavior() {
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
   ImGuiIO& io = ImGui::GetIO();
+  io.IniFilename = nullptr;
   io.DisplaySize = {480.0f, 260.0f};
   io.DeltaTime = 1.0f / 60.0f;
   io.ConfigInputTrickleEventQueue = false;
@@ -285,6 +300,10 @@ int main() {
   }
   if (!TestServerCommand()) {
     std::fprintf(stderr, "server command test failed\n");
+    return 1;
+  }
+  if (!TestQualified26BDefaults()) {
+    std::fprintf(stderr, "qualified 26B defaults test failed\n");
     return 1;
   }
   if (!TestStreamingClient()) {

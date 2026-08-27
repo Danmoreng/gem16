@@ -75,6 +75,12 @@ bool IsString(const json::Value* value, std::string_view expected) {
 }
 
 std::filesystem::path ExternalLockPath(const std::filesystem::path& root) {
+  const auto product_lock = root / "gem16.lock.json";
+  std::error_code error;
+  const auto status = std::filesystem::symlink_status(product_lock, error);
+  if (!error && status.type() != std::filesystem::file_type::not_found) {
+    return product_lock;
+  }
   return root.parent_path() / (root.filename().string() + ".lock.json");
 }
 
@@ -285,6 +291,7 @@ Status ValidateExternalLock(const std::filesystem::path& root,
                             const json::Value& compilation,
                             bool device_image_candidate) {
   const auto lock_path = ExternalLockPath(root);
+  const bool product_package = lock_path == root / "gem16.lock.json";
   auto lock_payload = ReadRegularFile(lock_path, kMaximumMetadataBytes);
   if (!lock_payload.ok()) return lock_payload.status();
   auto lock = LoadJson(lock_path);
@@ -332,6 +339,11 @@ Status ValidateExternalLock(const std::filesystem::path& root,
       return Status(StatusCode::kDataLoss, "invalid M08 external lock file record");
     }
     previous_name = relative->as_string();
+    if (product_package &&
+        (path.value().extension() == ".safetensors" ||
+         relative->as_string() == "model.safetensors.index.json")) {
+      continue;
+    }
     std::error_code error;
     const auto status = std::filesystem::symlink_status(path.value(), error);
     if (error || std::filesystem::is_symlink(status) ||
@@ -359,9 +371,32 @@ Status ValidateExternalLock(const std::filesystem::path& root,
       return Status(StatusCode::kDataLoss,
                     "M08 artifact contains a non-regular entry");
     }
-    actual_names.insert(iterator->path().filename().string());
+    const auto name = iterator->path().filename().string();
+    if (name == ".gitattributes" || name == "README.md" ||
+        name == "gem16_model.json") {
+      continue;
+    }
+    actual_names.insert(name);
   }
-  if (error || actual_names != locked_names) {
+  auto product_names = locked_names;
+  for (auto iterator = product_names.begin(); iterator != product_names.end();) {
+    if (std::filesystem::path(*iterator).extension() == ".safetensors" ||
+        *iterator == "model.safetensors.index.json") {
+      iterator = product_names.erase(iterator);
+    } else {
+      ++iterator;
+    }
+  }
+  product_names.insert("gem16.lock.json");
+  product_names.insert("model.gem16");
+  auto full_product_names = locked_names;
+  full_product_names.insert("gem16.lock.json");
+  full_product_names.insert("model.gem16");
+  const bool exact_files = actual_names == locked_names ||
+                           (product_package &&
+                            (actual_names == product_names ||
+                             actual_names == full_product_names));
+  if (error || !exact_files) {
     return Status(StatusCode::kDataLoss,
                   "M08 external lock does not cover the exact artifact file set");
   }
@@ -677,9 +712,17 @@ Status ValidateM25ExternalLock(const std::filesystem::path& root,
       return Status(StatusCode::kDataLoss,
                     "M25 artifact contains a non-regular entry");
     }
-    actual_names.insert(iterator->path().filename().string());
+    const auto name = iterator->path().filename().string();
+    if (name == ".gitattributes" || name == "README.md" ||
+        name == "gem16_model.json") {
+      continue;
+    }
+    actual_names.insert(name);
   }
-  if (error || actual_names != locked_names) {
+  auto product_names = locked_names;
+  product_names.insert("gem16.lock.json");
+  if (error ||
+      (actual_names != locked_names && actual_names != product_names)) {
     return Status(StatusCode::kDataLoss,
                   "M25 external lock does not cover the exact artifact file set");
   }
@@ -702,6 +745,64 @@ Status ValidateM25ExternalLock(const std::filesystem::path& root,
                   "M25 external lock aggregate content hash mismatch");
   }
   return Status::Ok();
+}
+
+Result<std::vector<StoredTensor>> LoadGemma4Moe26BDeviceImageInventoryImpl(
+    const std::filesystem::path& model_directory) {
+  auto image = ProbeAcceptedGemma4Moe26BDeviceImage(model_directory);
+  if (!image.ok()) return image.status();
+  if (!image.value()) {
+    return Status(StatusCode::kNotFound,
+                  "qualified Gemma 4 26B model.gem16 image is missing");
+  }
+  auto compilation = LoadJson(model_directory / "gem16_compilation.json");
+  if (!compilation.ok()) return compilation.status();
+  const auto* records = Field(compilation.value(), "tensors");
+  if (records == nullptr || !records->is_array() ||
+      records->as_array().size() != 1285U) {
+    return Status(StatusCode::kDataLoss,
+                  "GEM16 image tensor inventory count mismatch");
+  }
+
+  std::vector<StoredTensor> tensors;
+  tensors.reserve(records->as_array().size());
+  std::set<std::string> names;
+  for (const auto& record : records->as_array()) {
+    const auto* name = Field(record, "output_name");
+    const auto* dtype = Field(record, "output_dtype");
+    const auto* shard = Field(record, "output_shard");
+    auto shape = Shape(Field(record, "physical_shape"),
+                       "GEM16 image tensor shape");
+    auto bytes = Unsigned(Field(record, "byte_length"),
+                          "GEM16 image tensor byte length");
+    const auto* offsets = Field(record, "output_data_offsets");
+    if (name == nullptr || !name->is_string() || name->as_string().empty() ||
+        !names.insert(name->as_string()).second || dtype == nullptr ||
+        !dtype->is_string() || shard == nullptr || !shard->is_string() ||
+        !shape.ok() || !bytes.ok() || bytes.value() == 0U ||
+        offsets == nullptr || !offsets->is_array() ||
+        offsets->as_array().size() != 2U) {
+      return Status(StatusCode::kDataLoss,
+                    "invalid GEM16 image tensor inventory record");
+    }
+    auto begin = Unsigned(&offsets->as_array()[0],
+                          "GEM16 image tensor offset");
+    auto end = Unsigned(&offsets->as_array()[1],
+                        "GEM16 image tensor end");
+    if (!begin.ok() || !end.ok() || end.value() < begin.value() ||
+        end.value() - begin.value() != bytes.value()) {
+      return Status(StatusCode::kDataLoss,
+                    "invalid GEM16 image tensor byte range");
+    }
+    tensors.push_back(StoredTensor{name->as_string(), std::move(shape).value(),
+                                   dtype->as_string(), begin.value(),
+                                   bytes.value(), 1U, shard->as_string()});
+  }
+  std::sort(tensors.begin(), tensors.end(),
+            [](const StoredTensor& left, const StoredTensor& right) {
+              return left.name < right.name;
+            });
+  return tensors;
 }
 
 Status ValidateM25TensorRecords(const std::filesystem::path& root,
@@ -796,6 +897,11 @@ Status ValidateM25TensorRecords(const std::filesystem::path& root,
 }
 
 }  // namespace
+
+Result<std::vector<StoredTensor>> LoadGemma4Moe26BDeviceImageInventory(
+    const std::filesystem::path& model_directory) {
+  return LoadGemma4Moe26BDeviceImageInventoryImpl(model_directory);
+}
 
 Status ValidateAndBindGemma4Moe26BCompiledArtifact(
     const std::filesystem::path& model_directory,

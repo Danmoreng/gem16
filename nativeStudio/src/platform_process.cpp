@@ -19,6 +19,7 @@ namespace gem16::studio {
 
 struct PlatformProcess::Impl {
   std::atomic<bool> running{false};
+  std::mutex stop_mutex;
   std::jthread reader;
   std::jthread waiter;
 #ifdef _WIN32
@@ -192,6 +193,7 @@ bool PlatformProcess::Start(const std::vector<std::string>& arguments,
 }
 
 void PlatformProcess::Stop() {
+  std::scoped_lock stop_lock(impl_->stop_mutex);
   if (impl_->running.exchange(false)) {
 #ifdef _WIN32
     if (impl_->process) TerminateProcess(impl_->process, 0);

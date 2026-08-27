@@ -21,7 +21,7 @@
 
 gem16 is a local inference stack built specifically for Gemma 4 on Blackwell GPUs with about 16 GB of VRAM. The
 native C++ desktop app is the primary entry point: it starts or attaches to `gem16-server` and provides local streamed
-text chat for the qualified 12B path and experimental 26B A4B path. Populate the pinned 12B cache with
+text chat for the qualified 12B and text-only 26B A4B paths. Populate either pinned model set with
 `tools/fetch_model.py`; the previous Compose downloader remains a migration reference.
 
 The engine loads the original mixed FP8/NVFP4 Safetensors checkpoint directly.
@@ -131,7 +131,7 @@ It is exported from the [editable tldraw source](docs/gem16-overview.tldraw).
 
 ### Desktop app
 
-- Download and verify the target model, the official MTP draft assistant, and Google's tokenizer configuration.
+- Download and verify either qualified model set, including the separately pinned 26B GEM16 Target and Assistant.
 - Reuse the standard Hugging Face Hub cache through `HF_HUB_CACHE`, `HF_HOME`, or `XDG_CACHE_HOME`.
 - Start, stop, restart, inspect, or attach to a local `gem16-server` process.
 - Stream Markdown answers with separate, collapsed-by-default reasoning.
@@ -166,8 +166,11 @@ higher-precision fallback.
 - A Blackwell NVIDIA GPU with approximately 16 GB of VRAM for the optimized inference path
 - The pinned CUDA toolkit and CUTLASS submodule
 - CMake 3.28 or newer, Ninja, and a C++20 compiler
+- `curl` on `PATH` for resumable downloads in the native Models screen (included with current Windows)
 - OpenGL/X11 or Wayland development libraries on Linux; the Windows client uses Direct3D 11
 - A Hugging Face account with access to the gated Google Gemma repositories
+- For the currently private qualified 26B repositories, `HF_TOKEN` or the normal Hugging Face token file for an
+  account with access to `danmoreng/gemma-4-26B-A4B-it-GEM16` and its Assistant repository
 
 The exact reference environment is recorded in
 [`toolchains/blackwell16gb.lock`](toolchains/blackwell16gb.lock).
@@ -298,7 +301,7 @@ live in [`benchmarks/baselines/cross_engine_mtp/`](benchmarks/baselines/cross_en
 
 ## Current limitations
 
-- Gemma 4 12B Unified is the qualified baseline; Gemma 4 26B A4B remains experimental and text-only.
+- Gemma 4 12B Unified remains the qualified multimodal default; Gemma 4 26B A4B is a qualified selectable text-only SM120 profile.
 - Inference is batch one; continuous batching is not implemented.
 - The optimized CUDA backend requires Blackwell SM120/SM120a.
 - Video input, response branching, and persistent prompt-cache files are not implemented.
@@ -315,7 +318,8 @@ live in [`benchmarks/baselines/cross_engine_mtp/`](benchmarks/baselines/cross_en
 - [`docs/BENCHMARKING.md`](docs/BENCHMARKING.md) — benchmark methodology
 - [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) — C++, CUDA, testing, dependency, and security rules
 - [`docs/PERFORMANCE_IMPROVEMENT_PLAN.md`](docs/PERFORMANCE_IMPROVEMENT_PLAN.md) — completed bounded 12B performance sprint
-- [`docs/GEMMA4_26B.md`](docs/GEMMA4_26B.md) — experimental 26B artifact and product contract
+- [`docs/GEMMA4_26B.md`](docs/GEMMA4_26B.md) — qualified 26B artifact and product contract
+- [`docs/GEMMA4_26B_HUGGING_FACE.md`](docs/GEMMA4_26B_HUGGING_FACE.md) — immutable Target/Assistant publication and download contract
 - [`docs/plans/gemma4-26b/START_HERE_CODEX.md`](docs/plans/gemma4-26b/START_HERE_CODEX.md) — active 26B M00 entry point
 - [`docs/PERFORMANCE_LEDGER.md`](docs/PERFORMANCE_LEDGER.md) — retained measurements and profiling evidence
 - [`docs/ROADMAP.md`](docs/ROADMAP.md) — active tracks and deferred work

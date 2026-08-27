@@ -20,12 +20,14 @@ set(STUDIO_SOURCES
   src/chat_history.cpp
   src/main.cpp
   src/markdown.cpp
+  src/model_manager.cpp
   src/platform_process.cpp
   src/selectable_text.cpp
   src/server_manager.cpp
   src/settings.cpp
   src/shader_background.cpp
   "${GEM16_ROOT}/src/util/json.cpp"
+  "${GEM16_ROOT}/src/compiler/sha256.cpp"
   "${GEM16_ROOT}/third_party/cpp-httplib/httplib.cpp"
   "${IMGUI_DIR}/imgui.cpp"
   "${IMGUI_DIR}/imgui_draw.cpp"
@@ -105,11 +107,13 @@ if(BUILD_TESTING)
     src/api_client.cpp
     src/chat_history.cpp
     src/markdown.cpp
+    src/model_manager.cpp
     src/platform_process.cpp
     src/selectable_text.cpp
     src/server_manager.cpp
     src/settings.cpp
     "${GEM16_ROOT}/src/util/json.cpp"
+    "${GEM16_ROOT}/src/compiler/sha256.cpp"
     "${GEM16_ROOT}/third_party/cpp-httplib/httplib.cpp"
     "${IMGUI_DIR}/imgui.cpp"
     "${IMGUI_DIR}/imgui_draw.cpp"

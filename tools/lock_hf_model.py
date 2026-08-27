@@ -40,6 +40,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--terms-url", required=True)
     parser.add_argument("--max-inline-bytes", type=int, default=DEFAULT_MAX_INLINE_BYTES)
+    parser.add_argument(
+        "--allow-private",
+        action="store_true",
+        help="allow an authenticated immutable lock for a private repository",
+    )
     parser.add_argument("--force", action="store_true")
     return parser.parse_args()
 
@@ -175,6 +180,7 @@ def build_lock(
     revision: str,
     terms_url: str,
     max_inline_bytes: int = DEFAULT_MAX_INLINE_BYTES,
+    allow_private: bool = False,
 ) -> dict[str, object]:
     repository = hugging_face_repository(repository, "repository")
     revision = immutable_revision(revision, "requested revision")
@@ -184,7 +190,7 @@ def build_lock(
     resolved = immutable_revision(document.get("sha"), "resolved revision")
     if resolved != revision:
         raise RuntimeError(f"resolved revision differs: requested {revision}, got {resolved}")
-    if bool(document.get("private")):
+    if bool(document.get("private")) and not allow_private:
         raise RuntimeError("refusing to create a distributable lock for a private repository")
     siblings = document.get("siblings")
     if not isinstance(siblings, list) or not siblings:
@@ -216,6 +222,7 @@ def main() -> int:
         args.revision,
         args.terms_url,
         args.max_inline_bytes,
+        args.allow_private,
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(lock, indent=2) + "\n", encoding="utf-8")

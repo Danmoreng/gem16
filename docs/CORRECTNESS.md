@@ -8,8 +8,9 @@ The 2026-08-26 sampled 26B product checkpoint applies ordinary Target sampling i
 verification row on the GPU. Bounded D2 controls at seeds 0 and 42, including repetition penalty 1.1, reproduce the
 ordinary Target output IDs exactly while rejected Assistant proposals are replaced by Target samples. RNG and
 repetition history commit only for emitted rows. A real 32K server continuation reports MTP enabled with zero
-fallback/token-loop allocation. This establishes the product-path correctness slice, not formal M25 acceptance;
-retained sampled timing, 64K MTP context and full M19 remain. See `artifacts/m25/sampled-mtp-product.json`.
+fallback/token-loop allocation. Together with repeated 73,728-token context execution and the owner-bounded
+GSM8K/AIME evidence, this is part of the accepted M25 checkpoint. Retained sampled timing remains optional
+performance evidence. See `artifacts/m25/sampled-mtp-product.json`.
 
 
 ## Implemented level

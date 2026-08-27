@@ -26,9 +26,11 @@ license remains beside the vendored source.
 
 - Chat, Models, Server, and Settings screens with a dark/light glass palette, procedural gemstone branding, and the
   original animated GPU science-fiction wave.
-- Persisted Gemma 4 12B Unified and experimental Gemma 4 26B A4B profiles.
-- Correct 26B compiled Target and Assistant paths, one resident session, 32K default context, and fixed D1/D2/D4
-  controls with D2 selected by default.
+- Persisted qualified Gemma 4 12B Unified and qualified text-only Gemma 4 26B A4B profiles.
+- Resumable, SHA-256-verified download of the separately pinned private 26B Target and Assistant repositories into
+  immutable Hugging Face snapshots, using the standard token sources and cache root.
+- Qualified 26B Target and Assistant paths, one resident session, 73,728-token MTP context, and fixed D2 selected
+  by default.
 - Managed `gem16-server` start, stop, output capture, health polling, and non-owning attachment to an external server.
 - Incremental SSE rendering for answer and `reasoning_content`, cancellation, resident session IDs, and new-chat
   reset. Starting a new chat omits the old session ID; the one-slot 26B server then evicts the inactive root.
@@ -44,7 +46,7 @@ license remains beside the vendored source.
   `~/.config/gem16/studio.conf`, or `%APPDATA%\gem16\studio.conf`.
 - Normal operating-system window chrome and cursor on both platforms.
 
-This first native slice is text-chat complete but does not yet claim feature parity with Compose. The old app's model
+This native slice is text-chat complete but does not yet claim feature parity with Compose. The old app's 12B model
 downloader, document/PDF extraction, image/audio attachments, microphone capture, local time tools, exact metrics
 cards, and MSI installer remain follow-up ports. The 12B server still supports its
 multimodal capabilities; the current native UI sends text only. The 26B profile is intentionally text-only.

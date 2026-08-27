@@ -1,0 +1,57 @@
+{
+  "schema": "gem16.m25.hf-publication.v1",
+  "date": "2026-08-27",
+  "status": "qualified",
+  "visibility": "private",
+  "target": {
+    "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+    "revision": "b5feb4d146c5ce943160514df0c70a31059885bd",
+    "lock": "models/gemma4-26b-gem16-target.lock.json",
+    "files": 11,
+    "total_bytes": 14731931886,
+    "device_image": {
+      "path": "model.gem16",
+      "bytes": 14696668160,
+      "sha256": "1ed73cf105b68db937ac0992283d31fdb2225474204341440721f41fe871bb72"
+    },
+    "source": {
+      "repository": "google/gemma-4-26B-A4B-it-qat-q4_0-unquantized",
+      "revision": "f1e06dc520982d9b9edd76859fdb7ab209449949"
+    }
+  },
+  "assistant": {
+    "repository": "danmoreng/gemma-4-26B-A4B-it-assistant-GEM16",
+    "revision": "a741c642353ccdaefc6f987a3120f434dc9487c7",
+    "lock": "models/gemma4-26b-gem16-assistant.lock.json",
+    "files": 12,
+    "total_bytes": 290740050,
+    "source": {
+      "repository": "google/gemma-4-26B-A4B-it-qat-q4_0-unquantized-assistant",
+      "revision": "9537141506fe8875b3ed45b264af13580cb29166"
+    }
+  },
+  "qualified_runtime": {
+    "architecture": "sm120",
+    "text_only": true,
+    "resident_sessions": 1,
+    "mtp_draft_tokens": 2,
+    "mtp_max_context_tokens": 73728,
+    "mtp_vram_reserve_bytes": 209715200,
+    "base_max_context_tokens": 98304,
+    "context_evidence": "artifacts/m25/context-capacity-2026-08-27.json"
+  },
+  "studio_integration": {
+    "native_imgui": "resumable curl download, SHA-256 verification, immutable Hub snapshots, qualified selection",
+    "compose_reference": "resumable Java HTTP download, SHA-256 verification, immutable Hub snapshots, qualified selection",
+    "default_mtp_context_tokens": 73728
+  },
+  "local_package_smoke": {
+    "max_context_tokens": 73728,
+    "mtp_draft_tokens": 2,
+    "load_milliseconds": 3128.57,
+    "ready_milliseconds": 3699,
+    "weight_upload_path": "sm120_device_image_pinned_async_structural",
+    "chat_expected": "OK",
+    "chat_observed": "OK"
+  }
+}

@@ -1,9 +1,9 @@
 # Active contract — Gemma 4 26B Fast Track R4
 
-Status: M00–M17 and M20–M23 accepted; M25 sampled product integration implemented, retained timing and 64K context open; full M19 held-out qualification deferred by owner
+Status: M00–M17, M20–M23 and M25 accepted; qualified 26B product checkpoint; broad M19 suite waived by owner
 Plan revision: `fast-track-r4`
 Accepted baseline: M00–M17 plus M20 performance, M21 long context, M22 product integration and the M23 technical Target freeze
-Current milestone: complete M25 sampled timing and 64K context qualification (M19 full suite deferred; M18 conditional)
+Current milestone: publish immutable Target/Assistant repositories and complete Studio download integration (M18 conditional)
 Integration branch: `feat/gemma4-26b`
 
 ## Purpose
@@ -134,8 +134,8 @@ Only these owner-level gates block the critical path:
    candidate passes real long-context in M21 and the fixed 6,000 prompt/150 ordinary-decode token/s M20 gates using
    the matching M21 evidence; 6,500 prompt token/s is the reported stretch target.
 8. **M23 engineering freeze:** accepted; Target hashes, available evidence and rollback are frozen with M19 explicitly pending.
-9. **Deferred M19:** the multi-hour held-out task/prose suite eventually passes before any shipping or production-quality claim.
-10. **M25:** MTP compatibility, exactness, performance and the 32K MTP memory gate pass; 64K and the maximum safe MTP context are measured.
+9. **Owner-bounded M19:** full GSM8K and AIME 2026 plus retained product/correctness evidence replace the broad multi-hour suite for this checkpoint; claims do not exceed those tests.
+10. **M25:** accepted; MTP compatibility, exactness, product execution and the 32K/64K/73,728 context gates pass.
 
 M18 is conditional diagnosis, not a sequential prerequisite after the accepted M17 path. M24 is optional and never blocks the production path.
 
@@ -146,8 +146,8 @@ M18 is conditional diagnosis, not a sequential prerequisite after the accepted M
 - 32K must leave at least 700 MiB after initialization, graph capture and warm execution.
 - M09's earlier residency gate uses the real uploaded artifact plus touched named reserves before execution exists;
   M11/M12/M15 must revalidate the same 32K margin after graph capture, warm execution and measured prefill planning.
-- Base-model 64K and larger advertised profiles must leave at least 400 MiB after the same process. MTP retains its
-  separate 500 MiB rule until M25 qualifies assistant overhead.
+- Base-model 64K and larger advertised profiles must leave at least 400 MiB after the same process. Qualified
+  long-context MTP uses its measured 200 MiB reserve.
 - The accepted base-model maximum is 98,304 tokens, leaving 434,962,432 bytes after real execution against the
   419,430,400-byte gate. 102,400 is reproducibly rejected with a 26,411,008-byte shortfall.
 - Base and MTP maxima are separate because assistant weights and verification workspace consume memory. M25 cannot pass with an MTP profile below 32K; a lower measured result remains diagnostic while M23 stays supported.
@@ -168,10 +168,10 @@ performance-ineligible, and do not enter the production runtime. Accepted
 M10/M13 BF16 evidence remains historical support rather than an M19 runtime
 prerequisite.
 
-The owner deferred M19's remaining multi-hour task and prose suite until after the current product, performance,
-context and engineering-freeze work. The already completed bounded Q4 numerical comparison remains a correctness
-signal only. Until M19 passes, the 26B profile remains experimental and M23 cannot be described as a shipping,
-quality-qualified or production release.
+The owner accepted the completed full GSM8K and AIME 2026 comparisons together with bounded sampled/product
+evidence as the quality gate for this checkpoint and waived the remaining multi-hour M19 task/prose suite. The 26B
+profile is qualified for its published local SM120 contract. This does not establish broad, unmeasured domain
+quality or portability beyond that contract.
 
 ## Parallel execution contract
 
@@ -194,10 +194,13 @@ Do not repeat an expensive run solely to produce a second prose record. M08 comp
 
 ## Current unblocked work
 
-- M17 and M20–M23 are accepted; M23 is the frozen ordinary-decode Target and rollback for M25.
+- M17, M20–M23 and M25 are accepted; M23 remains the frozen ordinary-decode rollback Target.
 - The hybrid Assistant, fixed D1/D2/D4 exact verifier and sampled D2 CLI/server/Studio product path are implemented
   at `c4ead1d`; compact bounded evidence is `artifacts/m25/sampled-mtp-product.json`.
-- M19 numerical Q4 evidence is available, but its multi-hour task/prose suite is deferred and remains a release limitation.
+- Fresh-process D2 boundary execution passes 65,536 and 73,728 tokens with the 200 MiB long-context reserve;
+  `mtp_max_context` is 73,728 while `base_max_context` remains 98,304. Allocation-only admission reaches 88,640,
+  but execution becomes unsafe above 74,944, so larger MTP contexts are rejected. See
+  `artifacts/m25/context-capacity-2026-08-27.json`.
+- Full GSM8K and AIME 2026 paired evidence is accepted; the broad historical M19 suite is waived for this checkpoint.
 - M18 remains inactive unless quality failure, head uncertainty or explicit causal-attribution work triggers it.
-- M25 retained sampled timing and explicit 64K MTP context qualification are unblocked; M23 remains the supported
-  rollback if either remaining gate fails.
+- Retained sampled timing remains useful optional performance evidence, not a checkpoint-acceptance gate.

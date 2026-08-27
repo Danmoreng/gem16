@@ -1092,7 +1092,7 @@ Status Gemma4Moe26BReferenceEngine::Impl::PrepareFixedMtpGraph(
     return CudaFailure("measure after M25 fixed graph capture", error);
   }
   const std::uint64_t required_margin =
-      context >= 65536U ? 200U * kMiB : 700U * kMiB;
+      context >= 64000U ? 200U * kMiB : 700U * kMiB;
   if (free_after < required_margin) {
     (void)cudaGraphExecDestroy(executable);
     return Status(StatusCode::kResourceExhausted,
@@ -1455,7 +1455,7 @@ Status Gemma4Moe26BReferenceEngine::Impl::PrepareFixedMtpChainGraph(
     return CudaFailure("measure after M25 chain graph capture", error);
   }
   const std::uint64_t required_margin =
-      context >= 65536U ? 200U * kMiB : 700U * kMiB;
+      context >= 64000U ? 200U * kMiB : 700U * kMiB;
   if (free_after < required_margin) {
     (void)cudaGraphExecDestroy(mtp_chain_graphs[draft_count]);
     mtp_chain_graphs[draft_count] = nullptr;
@@ -2641,7 +2641,7 @@ Status Gemma4Moe26BReferenceEngine::LoadMtpAssistant(
     return CudaFailure("measure M25 post-Assistant margin", measured);
   }
   const std::uint64_t required_margin =
-      x.context >= 65536U ? 200U * kMiB : 700U * kMiB;
+      x.context >= 64000U ? 200U * kMiB : 700U * kMiB;
   if (free_bytes < required_margin) {
     (void)cudaFreeHost(host_result);
     (void)cudaFreeHost(chain_host);

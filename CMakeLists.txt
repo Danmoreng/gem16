@@ -494,6 +494,20 @@ if(GEM16_ENABLE_CUDA)
   )
   gem16_set_project_warnings(gem16-26b-m21-context-driver)
   gem16_enable_sanitizers(gem16-26b-m21-context-driver)
+  add_executable(gem16-26b-m25-context-driver
+    tests/cuda/gemma4_26b_m25_context_driver.cpp
+  )
+  target_include_directories(gem16-26b-m25-context-driver PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/src"
+  )
+  target_link_libraries(gem16-26b-m25-context-driver PRIVATE
+    gem16_core CUDA::cudart
+  )
+  set_target_properties(gem16-26b-m25-context-driver PROPERTIES
+    CUDA_ARCHITECTURES "${GEM16_CUDA_ARCHITECTURE}"
+  )
+  gem16_set_project_warnings(gem16-26b-m25-context-driver)
+  gem16_enable_sanitizers(gem16-26b-m25-context-driver)
   add_executable(gem16-26b-m22-product-driver
     tests/cuda/gemma4_26b_m22_product_driver.cpp
   )

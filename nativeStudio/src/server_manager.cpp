@@ -207,6 +207,14 @@ std::string ServerManager::Validate(const ServerConfig& config) const {
   if (config.profile == ModelProfile::kGemma4Moe26BA4B && config.mtp_adaptive) {
     return "Gemma 4 26B supports fixed-depth MTP only";
   }
+  if (config.profile == ModelProfile::kGemma4Moe26BA4B &&
+      config.mtp_draft_tokens != 0 && config.max_context_tokens > 73728) {
+    return "Gemma 4 26B fixed-D2 MTP supports at most 73,728 context tokens";
+  }
+  if (config.profile == ModelProfile::kGemma4Moe26BA4B &&
+      config.mtp_draft_tokens == 0 && config.max_context_tokens > 98304) {
+    return "Gemma 4 26B Target-only supports at most 98,304 context tokens";
+  }
   if (config.port < 1 || config.port > 65535) return "Port must be in [1, 65535]";
   if (config.max_context_tokens < 1 || config.max_context_tokens > 262144) return "Context is outside the supported range";
   return {};

@@ -124,7 +124,7 @@ fun SettingsScreen(state: StudioState) {
                 Text("About gem16", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 Text(
                     "A local, cross-platform Compose Desktop client for the qualified Gemma 4 12B path and " +
-                        "the experimental text-only Gemma 4 26B A4B inference path.",
+                        "the qualified text-only Gemma 4 26B A4B inference path.",
                 )
                 Text(
                     "The UI communicates only with gem16's OpenAI-compatible HTTP API. Model weights and prompts " +

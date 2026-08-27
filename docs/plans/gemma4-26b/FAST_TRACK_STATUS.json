@@ -1,16 +1,17 @@
 {
   "schema_version": 1,
   "plan_revision": "fast-track-r4",
-  "updated": "2026-08-26",
+  "updated": "2026-08-27",
   "accepted_through": "M17",
   "accepted_additional": [
     "M20",
     "M21",
     "M22",
-    "M23"
+    "M23",
+    "M25"
   ],
-  "current_milestone": "M25_FORMAL_QUALIFICATION",
-  "active_wave": "F6-sampled-mtp-and-context",
+  "current_milestone": "QUALIFIED_CHECKPOINT_PUBLICATION",
+  "active_wave": "F7-hugging-face-and-studio-download",
   "integration_branch": "feat/gemma4-26b",
   "source_of_truth": "docs/plans/gemma4-26b/FAST_TRACK_STATUS.json",
   "policy_source": "docs/ACTIVE_DECISIONS.md",
@@ -215,8 +216,8 @@
       ]
     },
     "M19": {
-      "status": "DEFERRED_OWNER",
-      "note": "Bounded official-Q4 numerical evidence passes; multi-hour task/prose qualification is deferred until the end of the current implementation/performance program and remains required before any production-quality claim.",
+      "status": "WAIVED_BOUNDED_REPLACEMENT_ACCEPTED",
+      "note": "The owner accepted the full GSM8K and AIME 2026 paired comparisons plus bounded sampled/product evidence as the quality gate for this checkpoint and waived the remaining multi-hour task/prose suite. Claims remain bounded to that evidence.",
       "class": "qualification",
       "lane": "quality",
       "depends_on": [
@@ -303,8 +304,8 @@
       ]
     },
     "M25": {
-      "status": "IN_PROGRESS",
-      "note": "Owner-frozen development checkpoint: exact greedy D2 median 202.505 token/s and exact canonical Prefill screen 6907.684 token/s. Sampled fixed-D2 CLI/server/Studio live chat is implemented at c4ead1dc2b74f2b2cffe38599ff21703fba55a6f with bounded same-seed Target identity, 32K admission and resident continuation evidence. Formal retained sampled timing and the explicit 64K MTP context gate remain open; M25 is not accepted.",
+      "status": "ACCEPTED",
+      "note": "Accepted by owner on 2026-08-27 as the qualified selectable 26B checkpoint. Sampled fixed-D2 CLI/server/Studio live chat has bounded same-seed Target identity, 32K admission and resident continuation evidence. Fresh-process 65,536- and 73,728-token boundary runs pass the selected 200 MiB MTP reserve with repeat-identical output checksums, zero fallback and no token-loop allocation; mtp_max_context is 73,728 and base_max_context remains 98,304. Formal retained sampled timing is optional additional performance evidence, not an acceptance gate.",
       "class": "final-target",
       "lane": "mtp",
       "feasibility_depends_on": [
@@ -320,11 +321,11 @@
     }
   },
   "parallel_tasks_now": [
-    "freeze and host-CI validate the exact 202.505 D2 and 6907.684 Prefill development checkpoint",
-    "connect the accepted 26B runtime to selectable Studio/server live chat without changing the protected 12B path"
+    "publish the qualified Target and Assistant as separately pinned Hugging Face repositories",
+    "download and select the qualified 26B pair from Studio without changing the protected 12B default"
   ],
   "paused_tasks": [
-    "M19 multi-hour task/prose held-out qualification until the end of the current implementation/performance program",
+    "M19 broad multi-hour task/prose suite, waived for this checkpoint",
     "M18 conditional diagnosis unless a trigger occurs",
     "M24 optional internal Q4_0 backend"
   ],

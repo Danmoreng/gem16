@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "milestone": "M25-context-capacity",
+  "status": "context_gate_passed_kernel_limited",
+  "performance_eligible": false,
+  "measured_on": "2026-08-27",
+  "implementation_parent": "75899402fde0ff64a12f1b54166d0c8161c2f6d6",
+  "device": {
+    "name": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "driver": "610.43.03",
+    "visible_total_bytes": 16652042240
+  },
+  "artifacts": {
+    "target_compilation_manifest_sha256": "7e5e78b9c6f61fbe8829866395634085261e1261a8c783f69affc5a16bd1847a",
+    "assistant_compilation_manifest_sha256": "d2a722ccad675807ff73a1a645a0f1fbcc0fc200c402a14e823a5927618a116d",
+    "context_driver_sha256": "116ccca32c352a3399d90b2f4acbf4a050abda445f95419f73771f88fbcaf1ff",
+    "server_sha256": "30ab163491e470c20180d2d3983ad8623d729b8f4856448c70c89b5b3ad21148"
+  },
+  "profile": {
+    "target": "Gemma 4 26B A4B compiled hybrid",
+    "assistant": "official QAT-Q4_0-matched compiled hybrid",
+    "kv_cache": "fp8",
+    "mtp_draft_tokens": 2,
+    "required_long_context_reserve_bytes": 209715200,
+    "base_max_context_tokens": 98304,
+    "mtp_max_context_tokens": 73728
+  },
+  "qualified_runs": [
+    {
+      "context_tokens": 65536,
+      "prompt_tokens": 65532,
+      "fresh_process_runs": 3,
+      "free_after_generation_bytes": [458031104, 458031104, 458031104],
+      "output_token_checksums": [12349349481286814512, 12349349481286814512, 12349349481286814512],
+      "fallback_count": 0,
+      "token_loop_allocations": false,
+      "passed": true,
+      "raw_reports": [
+        "artifacts/raw/m25/context-capacity-2026-08-27/context-65536-run2.json",
+        "artifacts/raw/m25/context-capacity-2026-08-27/context-65536-run3.json",
+        "artifacts/raw/m25/context-capacity-2026-08-27/context-65536-final.json"
+      ],
+      "raw_report_sha256": [
+        "9abc7eaddf7036be59ebb1639eddd4f54f6e6a9ef155a9480e9784d6bb4e1e14",
+        "d1092ada9e2f510bc96e5161ff7f3c3f43fe857b84f3196c3de31cec30af1428",
+        "5df6b2271dc2b732b316a8b1aed9928edf68601e19f46ed9bbe3707533a0b1f3"
+      ]
+    },
+    {
+      "context_tokens": 73728,
+      "prompt_tokens": 73724,
+      "fresh_process_runs": 3,
+      "free_after_generation_bytes": [369950720, 369950720, 369950720],
+      "output_token_checksums": [12797746567443849143, 12797746567443849143, 12797746567443849143],
+      "fallback_count": 0,
+      "token_loop_allocations": false,
+      "passed": true,
+      "raw_reports": [
+        "artifacts/raw/m25/context-capacity-2026-08-27/context-73728-run2.json",
+        "artifacts/raw/m25/context-capacity-2026-08-27/context-73728-run3.json",
+        "artifacts/raw/m25/context-capacity-2026-08-27/context-73728-final.json"
+      ],
+      "raw_report_sha256": [
+        "40262c3962bbf9d5460ec656229b0d4963de91f4abeceeb6b4ce90fa0be662e2",
+        "ba905f9f2bca8c19206f75ebb8dfc81a9863a1132e5da861f13f078c4bd820b0",
+        "8613604a1107d07763ceeae515b757edfde57bbc39eeccc2b9eb6e0a6a8c6489"
+      ]
+    }
+  ],
+  "decimal_probes": [
+    {
+      "context_tokens": 64000,
+      "free_after_generation_bytes": 472711168,
+      "output_token_checksum": 12349349481286814512,
+      "passed": true,
+      "raw_report": "artifacts/raw/m25/context-capacity-2026-08-27/context-64000.json",
+      "raw_report_sha256": "204142feb36f18099977bd6933f5f017ffece692a1df86c100963ef238b7d07b"
+    },
+    {
+      "context_tokens": 72000,
+      "free_after_generation_bytes": 386727936,
+      "output_token_checksum": 12349349481286814512,
+      "passed": true,
+      "raw_report": "artifacts/raw/m25/context-capacity-2026-08-27/context-72000.json",
+      "raw_report_sha256": "9897375bd8baaaf839a42b4fa55c575c40edfd51f3e62cf3e1196c69258386eb"
+    }
+  ],
+  "capacity_boundary_diagnostics": {
+    "vram_admission_only": {
+      "highest_tested_pass_tokens": 88640,
+      "highest_tested_pass_free_bytes": 210567168,
+      "first_tested_failure_tokens": 88704,
+      "failure": "M25 chain graph leaves less than the profile margin"
+    },
+    "boundary_execution": {
+      "highest_tested_pass_tokens": 74944,
+      "highest_tested_pass_free_bytes": 357367808,
+      "first_tested_failure_tokens": 75000,
+      "failure": "cudaErrorIllegalAddress during fixed D2 graph-chain execution",
+      "additional_failed_tokens": [75008, 75264, 75776, 77824, 81920, 86016]
+    }
+  },
+  "runtime_policy": {
+    "server_long_context_mtp_reserve_bytes": 209715200,
+    "server_long_context_base_reserve_bytes": 419430400,
+    "assistant_context_guard_tokens": 73728,
+    "contexts_above_guard_fail_before_cuda_execution": true
+  },
+  "limitations": [
+    "The 88,640-token result is an allocation/admission ceiling only and is not an executable product context.",
+    "A pre-guard diagnostic build exposed an illegal-address failure beginning between 74,944 and 75,000 tokens; its exact CUDA root cause remains open.",
+    "The advertised 73,728-token maximum is deliberately rounded down to a repeated, conventional 72K profile.",
+    "Formal retained sampled-MTP timing remains open, so this record does not accept all of M25."
+  ]
+}

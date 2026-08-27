@@ -27,7 +27,7 @@ enum class ModelProfile(
     val supportsVision: Boolean,
 ) {
     Gemma4Unified12B("gemma4_12b", "Gemma 4 12B Unified", true, true),
-    Gemma4Moe26BA4B("gemma4_26b_a4b", "Gemma 4 26B A4B", false, false),
+    Gemma4Moe26BA4B("gemma4_26b_a4b", "Gemma 4 26B A4B · Qualified", false, false),
 }
 
 data class MediaAttachment(
@@ -102,7 +102,7 @@ data class ServerConfig(
             modelDirectory = default26BModelDirectory(),
             assistantModelDirectory = default26BAssistantDirectory(),
             modelName = "gemma4-26b-a4b",
-            maxContextTokens = 32768,
+            maxContextTokens = 73728,
             maxSessions = 1,
             mtpDraftTokens = 2,
             mtpAdaptive = false,
@@ -227,22 +227,24 @@ internal fun defaultAssistantDirectory(): String =
         Gem16ModelCatalog.assistantRevision,
     ).toAbsolutePath().normalize().toString()
 
-private fun localArtifactDirectory(environmentName: String, relative: String): String {
-    System.getenv(environmentName)
+internal fun default26BModelDirectory(): String =
+    System.getenv("GEM16_26B_COMPILED_MODEL")
         ?.trim()
         ?.takeIf(String::isNotEmpty)
-        ?.let { return Path.of(it).toAbsolutePath().normalize().toString() }
-    val candidate = repositoryRoot().resolve(relative).normalize()
-    return candidate.takeIf(Files::isDirectory)?.toString().orEmpty()
-}
-
-internal fun default26BModelDirectory(): String =
-    localArtifactDirectory("GEM16_26B_COMPILED_MODEL", "artifacts/raw/m08/qat-hybrid-clean-1")
+        ?.let { Path.of(it).toAbsolutePath().normalize().toString() }
+        ?: HuggingFaceCachePaths.snapshot(
+            Gem16Qualified26BModelCatalog.targetRepository,
+            Gem16Qualified26BModelCatalog.targetRevision,
+        ).toAbsolutePath().normalize().toString()
 
 internal fun default26BAssistantDirectory(): String =
-    localArtifactDirectory(
-        "GEM16_26B_ASSISTANT_MODEL",
-        "artifacts/raw/m25/qat-q4_0-assistant-hybrid-diagnostic-v2",
-    )
+    System.getenv("GEM16_26B_ASSISTANT_MODEL")
+        ?.trim()
+        ?.takeIf(String::isNotEmpty)
+        ?.let { Path.of(it).toAbsolutePath().normalize().toString() }
+        ?: HuggingFaceCachePaths.snapshot(
+            Gem16Qualified26BModelCatalog.assistantRepository,
+            Gem16Qualified26BModelCatalog.assistantRevision,
+        ).toAbsolutePath().normalize().toString()
 
 fun String.asAbsolutePath(): String = Path.of(this).toAbsolutePath().normalize().toString()

@@ -1,6 +1,6 @@
 # Start here — current coding-agent task
 
-Status: M00–M17 and M20–M23 accepted; the owner-paused post-M20 checkpoint reaches a 7,068.125 prompt-token/s three-run median and 204.246–204.415 token/s exact-greedy D2 in two completed final runs. Sampled D2 is integrated in CLI, server and selectable Studio live chat at implementation commit `c4ead1d`; formal sampled timing and MTP 64K qualification remain. Full M19 is owner-deferred; M18 remains conditional.
+Status: M00–M17, M20–M23 and M25 accepted. The qualified text-only 26B fixed-D2 checkpoint is selectable alongside 12B, supports 73,728 MTP context tokens with a 200 MiB reserve, and keeps a 98,304-token Target-only maximum. The broad historical M19 suite is waived for this checkpoint; claims remain bounded to the recorded GSM8K/AIME and product evidence. M18 remains conditional.
 Plan revision: Fast Track R4.
 
 ## Read now
@@ -34,11 +34,12 @@ The lead agent may assign disjoint sub-agents for:
 The 2026-08-26 owner decision froze the performance checkpoint before product work. Commit `c4ead1d` subsequently
 connected the M22 server runtime and M25 engine to the selectable Studio model catalog and completed bounded real
 sampled-D2 chat and continuation. Preserve the 12B default and its audio/vision behavior; 26B remains text-only,
-single-slot, fixed-depth and experimental. Next qualify sampled MTP timing and the largest safe MTP context without
-reopening the frozen performance checkpoint, then complete the deferred M19 release gate.
+single-slot and fixed-depth, but is now a qualified selectable product checkpoint. Immutable Hugging Face publication
+and Studio download integration are complete; retained sampled timing is optional additional
+performance evidence, not an acceptance gate.
 
 Use [`PARALLEL_WORKSTREAMS.md`](PARALLEL_WORKSTREAMS.md). M18 runs only after a recorded trigger. The owner-approved
-remaining sequence is M25 and the deferred M19 release gate. The current external reference is llama.cpp build
+remaining sequence is Main-promotion review and bounded follow-up work. The current external reference is llama.cpp build
 10623 at 118.627 ordinary / 151.919 D2 decode token/s; vLLM 0.27.1 remains the ordinary-only comparison because a
 fully GPU-resident 26B MTP configuration does not fit on the 16 GB reference device.
 
@@ -128,12 +129,13 @@ unchanged; the owner stopped the planned third run and paused further optimizati
 `artifacts/m20/optimization-prefill-full-tile-bf16-down.json` and
 `artifacts/m25/optimization-production-chain-cleanup.json`; the prior rollbacks remain
 `artifacts/m20/optimization-prefill-token-reuse-rope.json` and
-`artifacts/m25/optimization-weight-stationary-d2.json`. These bounded results do not replace formal M20 evidence or
-accept M25; `artifacts/m25/performance-freeze.json` remains the accepted product-integration rollback checkpoint.
+`artifacts/m25/optimization-weight-stationary-d2.json`. These bounded results do not replace formal M20 evidence;
+`artifacts/m25/performance-freeze.json` remains the product-integration rollback checkpoint consumed by the later
+owner acceptance of M25.
 
 M22 product behavior and protected 12B regressions are accepted at
 `f0aa302aa0246d44e1c8477dbbbb67fbbe2d2037`; see `artifacts/m22/acceptance.json`. M23 revalidated the updated
 capability/product binaries at implementation revision `c8e09e4e337d58ac0cfe402585ef818135845faa` and froze the
-accepted technical Target in `artifacts/m23/acceptance.json`, with M19 visibly pending. The
-remaining multi-hour M19 task/prose qualification is deferred until
-the end and remains mandatory before any shipping or production-quality claim.
+accepted technical Target in `artifacts/m23/acceptance.json`. The owner subsequently accepted full GSM8K and AIME
+2026 plus the bounded sampled/product evidence and waived the remaining multi-hour M19 suite for this local
+qualified checkpoint. Claims remain limited to that evidence and the explicit SM120 product contract.
