@@ -913,7 +913,7 @@ ResponseTokenChannel ResponseChannelTracker::Observe(std::uint32_t token_id) {
     ++open_match_length_;
     if (open_match_length_ == thinking_open_token_ids_.size()) {
       open_match_length_ = 0U;
-      if (reasoning_complete_) {
+      if (reasoning_complete_ && suppress_additional_reasoning_fields_) {
         suppressing_additional_reasoning_ = true;
       } else {
         in_reasoning_ = true;

@@ -174,6 +174,21 @@ void TestReasoningMaterialization() {
   GEM16_CHECK(gem16::internal::ExtractVisibleTokenIds(
                   prompted_reasoning, controls, true) ==
               std::vector<std::uint32_t>({9U}));
+
+  const std::vector<std::uint32_t> unexpected_reasoning = {
+      42U, 100U, 45518U, 108U, 7U, 8U, 101U, 9U};
+  GEM16_CHECK(gem16::internal::ProjectResponseChannel(
+                  gem16::ResponseTokenChannel::kReasoning, true) ==
+              gem16::ResponseTokenChannel::kText);
+  GEM16_CHECK(gem16::internal::ProjectResponseChannel(
+                  gem16::ResponseTokenChannel::kControl, true) ==
+              gem16::ResponseTokenChannel::kControl);
+  GEM16_CHECK(gem16::internal::ExtractVisibleTokenIds(
+                  unexpected_reasoning, controls, false, true) ==
+              std::vector<std::uint32_t>({42U, 7U, 8U, 9U}));
+  GEM16_CHECK(gem16::internal::ExtractVisibleTokenIds(
+                  repeated_reasoning, controls, false, true) ==
+              std::vector<std::uint32_t>({7U, 9U, 8U, 10U}));
 }
 
 void TestResidentImageIdentity() {

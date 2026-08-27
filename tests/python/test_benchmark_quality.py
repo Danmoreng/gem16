@@ -104,6 +104,49 @@ class BenchmarkQualityTest(unittest.TestCase):
                     {"benchmark": "gsm8k", "planned_example_ids": ["gsm8k-1"]},
                 )
 
+    def test_resume_identity_locks_mtp_runtime_contract(self):
+        args = SimpleNamespace(
+            benchmark="gsm8k",
+            backend="gem16",
+            reasoning="none",
+            generation="checkpoint",
+            seed=0,
+            max_tokens=512,
+            repeats=1,
+            runtime_profile="gem16-exact-sampled-mtp-d2",
+        )
+        example = SimpleNamespace(id="gsm8k-0")
+        provenance = {"commit": benchmark_quality.SGL_EVAL_COMMIT}
+        base_health = {
+            "model_variant": "gemma4_moe_26b_a4b",
+            "native_path": "sm120",
+            "artifact_content_sha256": "target-hash",
+            "source_lock_sha256": "source-hash",
+            "max_context_tokens": 32768,
+            "capabilities": {"mtp": True},
+            "mtp_draft_tokens": 2,
+            "mtp_adaptive": False,
+            "sampling": {"enabled": True, "seed": 0},
+        }
+        identity = benchmark_quality.resume_identity(
+            args,
+            model="gem16",
+            provenance=provenance,
+            examples=[example],
+            health=base_health,
+        )
+        self.assertEqual(identity["gem16_runtime_contract"]["mtp_draft_tokens"], 2)
+        ordinary_health = dict(base_health, mtp_draft_tokens=0)
+        ordinary_health["capabilities"] = {"mtp": False}
+        ordinary = benchmark_quality.resume_identity(
+            args,
+            model="gem16",
+            provenance=provenance,
+            examples=[example],
+            health=ordinary_health,
+        )
+        self.assertNotEqual(identity, ordinary)
+
     def test_prediction_journal_rejects_changed_problem(self):
         example = SimpleNamespace(
             id="gsm8k-0",

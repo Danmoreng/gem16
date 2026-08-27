@@ -273,6 +273,14 @@ bool ResidentMessageEquivalent(const GenerationMessage& cached,
   return true;
 }
 
+ResponseTokenChannel ProjectResponseChannel(
+    ResponseTokenChannel channel, bool flatten_reasoning_to_text) {
+  return flatten_reasoning_to_text &&
+                 channel == ResponseTokenChannel::kReasoning
+             ? ResponseTokenChannel::kText
+             : channel;
+}
+
 std::vector<std::uint32_t> ExtractReasoningTokenIds(
     std::span<const std::uint32_t> token_ids,
     const GenerationTokenControls& controls,
@@ -291,11 +299,16 @@ std::vector<std::uint32_t> ExtractReasoningTokenIds(
 std::vector<std::uint32_t> ExtractVisibleTokenIds(
     std::span<const std::uint32_t> token_ids,
     const GenerationTokenControls& controls,
-    bool starts_in_reasoning) {
+    bool starts_in_reasoning,
+  bool flatten_reasoning_to_text) {
   std::vector<std::uint32_t> visible_ids;
   ResponseChannelTracker response_channels(controls, starts_in_reasoning);
+  response_channels.SetSuppressAdditionalReasoning(
+      !flatten_reasoning_to_text);
   for (const std::uint32_t token_id : token_ids) {
-    if (response_channels.Observe(token_id) == ResponseTokenChannel::kText) {
+    const ResponseTokenChannel channel = ProjectResponseChannel(
+        response_channels.Observe(token_id), flatten_reasoning_to_text);
+    if (channel == ResponseTokenChannel::kText) {
       visible_ids.push_back(token_id);
     }
   }
@@ -557,16 +570,21 @@ Result<ChatGenerationResponse> ChatSession::Generate(const ChatGenerationRequest
   }
   auto assistant_content = impl_->processor.Decode(content_ids, false);
   if (!assistant_content.ok()) return poison(assistant_content.status());
+  const bool flatten_reasoning_to_text =
+      request.thinking.effort == ThinkingEffort::kOff &&
+      !tool_result_continuation;
   std::vector<std::uint32_t> visible_ids =
       internal::ExtractVisibleTokenIds(
           content_ids, impl_->processor.generation_controls(),
-          tool_result_continuation);
+          tool_result_continuation, flatten_reasoning_to_text);
   auto assistant_text = impl_->processor.DecodeResponseText(visible_ids);
   if (!assistant_text.ok()) return poison(assistant_text.status());
-  std::vector<std::uint32_t> reasoning_ids =
-      internal::ExtractReasoningTokenIds(
-          content_ids, impl_->processor.generation_controls(),
-          tool_result_continuation);
+  std::vector<std::uint32_t> reasoning_ids;
+  if (!flatten_reasoning_to_text) {
+    reasoning_ids = internal::ExtractReasoningTokenIds(
+        content_ids, impl_->processor.generation_controls(),
+        tool_result_continuation);
+  }
   if (reasoning_ids.size() != inference.value().reasoning_tokens) {
     return poison(Status(
         StatusCode::kInternal,

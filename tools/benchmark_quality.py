@@ -414,8 +414,9 @@ def resume_identity(
     model: str,
     provenance: dict[str, Any],
     examples: list[Any],
+    health: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    return {
+    identity = {
         "benchmark": args.benchmark,
         "backend": args.backend,
         "model": model,
@@ -433,6 +434,23 @@ def resume_identity(
         },
         "planned_example_ids": [example.id for example in examples],
     }
+    runtime_profile = getattr(args, "runtime_profile", None)
+    if runtime_profile:
+        identity["runtime_profile"] = runtime_profile
+    if health is not None:
+        capabilities = health.get("capabilities") or {}
+        identity["gem16_runtime_contract"] = {
+            "model_variant": health.get("model_variant"),
+            "native_path": health.get("native_path"),
+            "artifact_content_sha256": health.get("artifact_content_sha256"),
+            "source_lock_sha256": health.get("source_lock_sha256"),
+            "max_context_tokens": health.get("max_context_tokens"),
+            "mtp": bool(capabilities.get("mtp")),
+            "mtp_draft_tokens": health.get("mtp_draft_tokens"),
+            "mtp_adaptive": health.get("mtp_adaptive"),
+            "sampling": health.get("sampling"),
+        }
+    return identity
 
 
 def initialize_resume_state(
@@ -696,6 +714,7 @@ def run_resumable(
         model=model,
         provenance=provenance,
         examples=examples,
+        health=health,
     )
     state = initialize_resume_state(state_path, identity)
     before = load_prediction_rows(journal_path, examples)
@@ -760,6 +779,7 @@ def run_resumable(
             "base_url": normalize_base_url(args.base_url),
             "model": model,
             "gem16_health": health,
+            "runtime_profile": args.runtime_profile,
         },
         "protocol": {
             **identity["protocol"],
@@ -913,6 +933,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             "base_url": normalize_base_url(args.base_url),
             "model": model,
             "gem16_health": health,
+            "runtime_profile": args.runtime_profile,
         },
         "protocol": {
             "reasoning": args.reasoning,
@@ -952,6 +973,10 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--base-url", default="http://127.0.0.1:8080/v1")
     result.add_argument("--api-key", default=os.environ.get("OPENAI_API_KEY", "EMPTY"))
     result.add_argument("--model")
+    result.add_argument(
+        "--runtime-profile",
+        help="stable execution-profile label included in result and resume identity",
+    )
     result.add_argument("--output", type=pathlib.Path, required=True)
     result.add_argument(
         "--resume",

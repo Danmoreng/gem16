@@ -49,6 +49,26 @@ pass and skips any already complete pass before regenerating the paired
 comparison. Keep that explicit path unchanged when continuing on a later day;
 the date-scoped default would otherwise select a new directory after midnight.
 
+## Complete resumable paired suite
+
+Run all three task benchmarks overnight in the fixed M19 order:
+
+```bash
+systemd-inhibit --what=sleep --why="gem16 paired quality suite" \
+  ./scripts/run-gemma4-26b-quality-suite.sh
+```
+
+The suite runs full GSM8K, full AIME 2026, and full GPQA Diamond. Within each
+task it loads llama.cpp once for the complete official-Q4 pass, releases it,
+then loads gem16 once with the compiled official-matched Assistant and exact
+sampled fixed-D2 MTP for the complete candidate pass. llama.cpp deliberately
+stays on ordinary decoding because its characterized 26B MTP path changes the
+Target output and therefore is not a valid quality reference. Its default output root
+is `benchmarks/results/m19-quality-suite/<revision>`, which remains stable
+across dates. Interrupting the command stops the active server; invoking the
+same command later skips complete task/engine results and resumes the active
+engine from its per-question journal.
+
 Google's exact internal protocols are not fully published, so those model-card
 numbers are plausibility anchors rather than exact pass/fail thresholds. The
 primary engine-quality comparison is paired task accuracy between the exact

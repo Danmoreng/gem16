@@ -13,6 +13,11 @@ namespace gem16::internal {
 // resident session continues with its canonical, already-prefilled image.
 [[nodiscard]] bool ResidentMessageEquivalent(const GenerationMessage& cached,
                                               const GenerationMessage& supplied);
+// The inference engine reports the model's physical channel tokens. API
+// projection may flatten unexpected reasoning into visible text when the
+// caller disabled thinking, while still discarding the channel controls.
+[[nodiscard]] ResponseTokenChannel ProjectResponseChannel(
+    ResponseTokenChannel channel, bool flatten_reasoning_to_text);
 [[nodiscard]] std::vector<std::uint32_t> ExtractReasoningTokenIds(
     std::span<const std::uint32_t> token_ids,
     const GenerationTokenControls& controls,
@@ -20,6 +25,7 @@ namespace gem16::internal {
 [[nodiscard]] std::vector<std::uint32_t> ExtractVisibleTokenIds(
     std::span<const std::uint32_t> token_ids,
     const GenerationTokenControls& controls,
-    bool starts_in_reasoning = false);
+    bool starts_in_reasoning = false,
+    bool flatten_reasoning_to_text = false);
 
 }  // namespace gem16::internal

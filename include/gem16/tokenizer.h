@@ -74,6 +74,12 @@ class ResponseChannelTracker {
   // Must be called before observing output when the channel opener was the
   // final part of the prompt rather than the first generated tokens.
   void StartReasoningFromPrompt() { in_reasoning_ = true; }
+  // API projection uses this to flatten every model-emitted reasoning field
+  // into text when thinking was disabled. Engine accounting keeps the default
+  // first-field-only behavior.
+  void SetSuppressAdditionalReasoning(bool suppress) {
+    suppress_additional_reasoning_fields_ = suppress;
+  }
 
   [[nodiscard]] ResponseTokenChannel Observe(std::uint32_t token_id);
   [[nodiscard]] bool in_reasoning() const { return in_reasoning_; }
@@ -89,6 +95,7 @@ class ResponseChannelTracker {
   bool in_reasoning_ = false;
   bool reasoning_complete_ = false;
   bool suppressing_additional_reasoning_ = false;
+  bool suppress_additional_reasoning_fields_ = true;
 };
 
 class Tokenizer {

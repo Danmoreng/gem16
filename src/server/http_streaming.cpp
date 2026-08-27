@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "server/sse_chunk.h"
+#include "runtime/chat_internal.h"
 #include "util/json.h"
 
 namespace gem16::server {
@@ -112,6 +113,7 @@ struct StreamingContext {
   Utf8Pending utf8_pending;
   Utf8Pending reasoning_utf8_pending;
   bool inside_tool_call = false;
+  bool flatten_reasoning_to_text = false;
   std::atomic<bool>* cancel_requested = nullptr;
   std::atomic<std::uint64_t>* cancellations_observed = nullptr;
   std::atomic<std::uint64_t>* client_disconnects = nullptr;
@@ -255,7 +257,10 @@ gem16::Status StreamToken(void* opaque_context,
     return gem16::Status(gem16::StatusCode::kCancelled,
                          "client disconnected during generation");
   }
-  const gem16::ResponseTokenChannel channel = context->channels.Observe(event.token_id);
+  const gem16::ResponseTokenChannel channel =
+      gem16::internal::ProjectResponseChannel(
+          context->channels.Observe(event.token_id),
+          context->flatten_reasoning_to_text);
   if (channel == gem16::ResponseTokenChannel::kControl) {
     return gem16::Status::Ok();
   }
@@ -332,6 +337,7 @@ struct ResponsesStreamingContext {
   bool reasoning_done = false;
   bool message_started = false;
   bool inside_tool_call = false;
+  bool flatten_reasoning_to_text = false;
   std::atomic<bool>* cancel_requested = nullptr;
   std::atomic<std::uint64_t>* cancellations_observed = nullptr;
   std::atomic<std::uint64_t>* client_disconnects = nullptr;
@@ -645,7 +651,9 @@ gem16::Status StreamResponseToken(void* opaque_context,
   }
   const bool was_reasoning = context->channels.in_reasoning();
   const gem16::ResponseTokenChannel channel =
-      context->channels.Observe(event.token_id);
+      gem16::internal::ProjectResponseChannel(
+          context->channels.Observe(event.token_id),
+          context->flatten_reasoning_to_text);
   if (channel == gem16::ResponseTokenChannel::kControl) {
     if (was_reasoning && !context->channels.in_reasoning()) {
       return FinalizeResponseReasoning(*context);
@@ -821,7 +829,14 @@ ChatCompletionStream::~ChatCompletionStream() = default;
 
 Result<ChatGenerationResponse> ChatCompletionStream::Generate(
     ChatSession& session, const ChatGenerationRequest& request) {
-  if (!request.messages.empty() && request.messages.back().role == "tool") {
+  const bool tool_result_continuation =
+      !request.messages.empty() && request.messages.back().role == "tool";
+  impl_->context.flatten_reasoning_to_text =
+      request.thinking.effort == ThinkingEffort::kOff &&
+      !tool_result_continuation;
+  impl_->context.channels.SetSuppressAdditionalReasoning(
+      !impl_->context.flatten_reasoning_to_text);
+  if (tool_result_continuation) {
     impl_->context.channels.StartReasoningFromPrompt();
   }
   auto generated = session.Generate(request, StreamToken, &impl_->context);
@@ -885,7 +900,14 @@ ResponsesStream::~ResponsesStream() = default;
 
 Result<ChatGenerationResponse> ResponsesStream::Generate(
     ChatSession& session, const ChatGenerationRequest& request) {
-  if (!request.messages.empty() && request.messages.back().role == "tool") {
+  const bool tool_result_continuation =
+      !request.messages.empty() && request.messages.back().role == "tool";
+  impl_->context.flatten_reasoning_to_text =
+      request.thinking.effort == ThinkingEffort::kOff &&
+      !tool_result_continuation;
+  impl_->context.channels.SetSuppressAdditionalReasoning(
+      !impl_->context.flatten_reasoning_to_text);
+  if (tool_result_continuation) {
     impl_->context.channels.StartReasoningFromPrompt();
   }
   auto generated = session.Generate(request, StreamResponseToken,

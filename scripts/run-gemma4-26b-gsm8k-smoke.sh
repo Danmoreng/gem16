@@ -7,7 +7,8 @@ cd "$repo_root"
 
 if [[ ${1:-} == "--help" ]]; then
   cat <<'EOF'
-Run a paired Gemma 4 26B GSM8K benchmark (20-question smoke by default).
+Run one paired Gemma 4 26B quality benchmark (20-question GSM8K smoke by
+default). The reference always runs first, followed by gem16.
 
 The script starts the pinned Google QAT Q4_0 reference in llama.cpp, runs the
 quality harness, stops it, then repeats the same questions with gem16 and emits
@@ -21,9 +22,12 @@ Environment overrides:
   Q4_GGUF               Official Google QAT Q4_0 GGUF
   GEM16_SERVER          gem16-server executable
   GEM16_MODEL           Compiled gem16 26B Target directory
+  GEM16_ASSISTANT_MODEL Compiled 26B MTP Assistant directory
+  GEM16_MTP_DRAFT_TOKENS  0, 1, 2, or 4 (default: 0)
   SERVER_PORT           Loopback port reused sequentially (default: 18080)
   STARTUP_TIMEOUT       Server startup timeout in seconds (default: 300)
-  NUM_EXAMPLES          Number of GSM8K questions (default: 20; full: 1319)
+  BENCHMARK             gsm8k, aime26, or gpqa (default: gsm8k)
+  NUM_EXAMPLES          Number of questions (default: 20)
 EOF
   exit 0
 fi
@@ -37,26 +41,58 @@ llama_server=${LLAMA_SERVER:-$repo_root/build/Linux/llama_cpp/release/bin/llama-
 q4_gguf=${Q4_GGUF:-$repo_root/models/checkpoints/google-gemma-4-26b-a4b-it-qat-q4_0-gguf-d1c082b/gemma-4-26B_q4_0-it.gguf}
 gem16_server=${GEM16_SERVER:-$repo_root/build/Linux/blackwell-release/bin/gem16-server}
 gem16_model=${GEM16_MODEL:-$repo_root/artifacts/raw/m08/qat-hybrid-clean-1}
+gem16_assistant_model=${GEM16_ASSISTANT_MODEL:-$repo_root/artifacts/raw/m25/qat-q4_0-assistant-hybrid-diagnostic-v2}
+gem16_mtp_draft_tokens=${GEM16_MTP_DRAFT_TOKENS:-0}
+case $gem16_mtp_draft_tokens in
+  0|1|2|4) ;;
+  *)
+    echo "error: GEM16_MTP_DRAFT_TOKENS must be 0, 1, 2, or 4" >&2
+    exit 64
+    ;;
+esac
 server_port=${SERVER_PORT:-18080}
 startup_timeout=${STARTUP_TIMEOUT:-300}
+benchmark=${BENCHMARK:-gsm8k}
+case $benchmark in
+  gsm8k)
+    benchmark_examples=1319
+    reasoning=none
+    max_tokens=512
+    ;;
+  aime26)
+    benchmark_examples=30
+    reasoning=high
+    max_tokens=16384
+    ;;
+  gpqa)
+    benchmark_examples=198
+    reasoning=high
+    max_tokens=16384
+    ;;
+  *)
+    echo "error: BENCHMARK must be gsm8k, aime26, or gpqa" >&2
+    exit 64
+    ;;
+esac
 num_examples=${NUM_EXAMPLES:-20}
-if [[ ! $num_examples =~ ^[1-9][0-9]*$ || $num_examples -gt 1319 ]]; then
-  echo "error: NUM_EXAMPLES must be an integer in [1, 1319]" >&2
+if [[ ! $num_examples =~ ^[1-9][0-9]*$ || $num_examples -gt $benchmark_examples ]]; then
+  echo "error: NUM_EXAMPLES must be an integer in [1, $benchmark_examples] for $benchmark" >&2
   exit 64
 fi
 revision=$(git rev-parse --short=12 HEAD)
 run_date=$(date -u +%F)
-if [[ $num_examples -eq 20 ]]; then
+if [[ $benchmark == gsm8k && $num_examples -eq 20 ]]; then
   default_run_name=local-gsm8k-smoke20
-elif [[ $num_examples -eq 1319 ]]; then
-  default_run_name=local-gsm8k-full1319
+elif [[ $num_examples -eq $benchmark_examples ]]; then
+  default_run_name=local-${benchmark}-full${num_examples}
 else
-  default_run_name=local-gsm8k-${num_examples}
+  default_run_name=local-${benchmark}-${num_examples}
 fi
 output_dir=${OUTPUT_DIR:-$repo_root/benchmarks/results/$run_date/$revision/$default_run_name}
-reference_output=$output_dir/reference-q4-gsm8k${num_examples}.json
-candidate_output=$output_dir/gem16-gsm8k${num_examples}.json
-comparison_output=$output_dir/comparison-gsm8k${num_examples}.json
+result_stem=${benchmark}${num_examples}
+reference_output=$output_dir/reference-q4-${result_stem}.json
+candidate_output=$output_dir/gem16-${result_stem}.json
+comparison_output=$output_dir/comparison-${result_stem}.json
 
 for required in "$llama_server" "$q4_gguf" "$gem16_server" "$gem16_model"; do
   if [[ ! -e $required ]]; then
@@ -64,6 +100,10 @@ for required in "$llama_server" "$q4_gguf" "$gem16_server" "$gem16_model"; do
     exit 1
   fi
 done
+if [[ $gem16_mtp_draft_tokens -ne 0 && ! -d $gem16_assistant_model ]]; then
+  echo "error: required MTP Assistant directory does not exist: $gem16_assistant_model" >&2
+  exit 1
+fi
 if [[ ! -x $llama_server || ! -x $gem16_server ]]; then
   echo "error: server binaries must be executable" >&2
   exit 1
@@ -142,6 +182,31 @@ wait_for_server() {
   return 1
 }
 
+wait_for_port_release() {
+  local deadline=$((SECONDS + startup_timeout))
+  while (( SECONDS < deadline )); do
+    if "$quality_python" - "$server_port" <<'PY'
+import socket
+import sys
+
+probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+try:
+    probe.bind(("127.0.0.1", int(sys.argv[1])))
+except OSError:
+    raise SystemExit(1)
+finally:
+    probe.close()
+PY
+    then
+      return 0
+    fi
+    sleep 0.25
+  done
+  echo "error: 127.0.0.1:$server_port did not become bindable within ${startup_timeout}s" >&2
+  ss -ltnp "sport = :$server_port" >&2 || true
+  return 1
+}
+
 result_complete() {
   local path=$1
   [[ -f $path ]] && "$quality_python" -c \
@@ -153,23 +218,26 @@ run_quality() {
   local backend=$1
   local model_name=$2
   local output_path=$3
+  local runtime_profile=$4
   "$quality_python" "$repo_root/tools/benchmark_quality.py" \
-    --benchmark gsm8k \
+    --benchmark "$benchmark" \
     --backend "$backend" \
     --base-url "http://127.0.0.1:$server_port/v1" \
     --model "$model_name" \
     --num-examples "$num_examples" \
     --repeats 1 \
     --threads 1 \
-    --reasoning none \
+    --reasoning "$reasoning" \
     --generation checkpoint \
-    --max-tokens 512 \
+    --max-tokens "$max_tokens" \
     --seed 0 \
+    --runtime-profile "$runtime_profile" \
     --resume \
     --output "$output_path"
 }
 
 if ! result_complete "$reference_output"; then
+  wait_for_port_release
   reference_log=$output_dir/reference-server-$(date -u +%H%M%S).log
   echo "Starting pinned llama.cpp Q4 reference; log: $reference_log"
   "$llama_server" \
@@ -187,28 +255,43 @@ if ! result_complete "$reference_output"; then
     >"$reference_log" 2>&1 &
   server_pid=$!
   wait_for_server "$reference_log"
-  echo "Running $num_examples GSM8K questions against the Q4 reference"
-  run_quality openai google-gemma-4-26b-qat-q4_0 "$reference_output"
+  echo "Running $num_examples $benchmark questions against the Q4 reference"
+  run_quality openai google-gemma-4-26b-qat-q4_0 "$reference_output" \
+    llama-cpp-ordinary-q8-kv
   stop_server
 else
   echo "Reference result is already complete: $reference_output"
 fi
 
 if ! result_complete "$candidate_output"; then
+  wait_for_port_release
   candidate_log=$output_dir/gem16-server-$(date -u +%H%M%S).log
   echo "Starting gem16 26B Target; log: $candidate_log"
-  "$gem16_server" \
+  gem16_server_args=(
     --model "$gem16_model" \
     --model-name gem16-gemma4-26b-a4b \
     --host 127.0.0.1 \
     --port "$server_port" \
     --max-context 32768 \
-    --max-sessions 1 \
+    --max-sessions 1
+  )
+  gem16_runtime_profile=gem16-ordinary-fp8-kv
+  if [[ $gem16_mtp_draft_tokens -ne 0 ]]; then
+    gem16_server_args+=(
+      --assistant-model "$gem16_assistant_model"
+      --mtp-draft-tokens "$gem16_mtp_draft_tokens"
+    )
+    assistant_manifest_sha=$(sha256sum \
+      "$gem16_assistant_model/gem16_compilation.json" | awk '{print $1}')
+    gem16_runtime_profile=gem16-exact-sampled-mtp-d${gem16_mtp_draft_tokens}-assistant-${assistant_manifest_sha}
+  fi
+  "$gem16_server" "${gem16_server_args[@]}" \
     >"$candidate_log" 2>&1 &
   server_pid=$!
   wait_for_server "$candidate_log"
-  echo "Running the same $num_examples GSM8K questions against gem16"
-  run_quality gem16 gem16-gemma4-26b-a4b "$candidate_output"
+  echo "Running the same $num_examples $benchmark questions against gem16"
+  run_quality gem16 gem16-gemma4-26b-a4b "$candidate_output" \
+    "$gem16_runtime_profile"
   stop_server
 else
   echo "gem16 result is already complete: $candidate_output"
@@ -227,6 +310,6 @@ else
   echo "Comparison is already complete: $comparison_output"
 fi
 
-echo "Paired GSM8K benchmark complete"
+echo "Paired $benchmark benchmark complete"
 echo "Results: $output_dir"
 echo "Comparison: $comparison_output"
