@@ -20,6 +20,7 @@ std::uint64_t ModelRuntime::weight_bytes() const { return 0U; }
 std::uint64_t ModelRuntime::assistant_weight_bytes() const { return 0U; }
 bool ModelRuntime::assistant_loaded() const { return false; }
 double ModelRuntime::load_milliseconds() const { return 0.0; }
+const char* ModelRuntime::weight_load_path() const { return "none"; }
 const char* ModelRuntime::model_variant_name() const { return "unsupported"; }
 const char* ModelRuntime::selected_native_path() const { return "none"; }
 const char* ModelRuntime::artifact_profile() const { return "unsupported"; }

@@ -167,6 +167,11 @@ struct ModelRuntimeOptions {
   // fixed-address arena is admitted together with the resident runtime.
   std::uint64_t max_context_tokens = 1024U;
   int device = 0;
+  // Structural mode validates the complete schema, geometry, ranges and
+  // allocation plan without rereading every payload byte. Set this for a
+  // llama.cpp-like fast server start; the default preserves full identity
+  // verification for direct library callers.
+  bool verify_device_image_sha256 = true;
 };
 
 // Process-wide immutable model residency. A runtime owns exactly one target
@@ -184,6 +189,7 @@ class ModelRuntime {
   [[nodiscard]] std::uint64_t assistant_weight_bytes() const;
   [[nodiscard]] bool assistant_loaded() const;
   [[nodiscard]] double load_milliseconds() const;
+  [[nodiscard]] const char* weight_load_path() const;
   [[nodiscard]] const char* model_variant_name() const;
   [[nodiscard]] const char* selected_native_path() const;
   [[nodiscard]] const char* artifact_profile() const;

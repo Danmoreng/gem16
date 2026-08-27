@@ -22,6 +22,7 @@ struct ModelRuntime::Impl {
   std::string artifact_content_sha256;
   std::string source_lock_sha256;
   std::string compiler_commit;
+  std::string weight_load_path = "canonical_safetensors_runtime_layout";
   std::uint64_t max_context_tokens = 0U;
   double load_milliseconds = 0.0;
   bool assistant_loaded = false;
@@ -53,12 +54,14 @@ Result<std::shared_ptr<ModelRuntime>> ModelRuntime::Load(
     if (!identity.ok()) return identity.status();
     auto engine = internal::Gemma4Moe26BReferenceEngine::Create(
         options.model_directory, options.max_context_tokens, options.device,
-        internal::Gemma4Moe26BBackend::kSm120Integrated);
+        internal::Gemma4Moe26BBackend::kSm120Integrated,
+        options.verify_device_image_sha256);
     if (!engine.ok()) return engine.status();
     impl->max_context_tokens = options.max_context_tokens;
     impl->moe26b_engine =
         std::make_unique<internal::Gemma4Moe26BReferenceEngine>(
             std::move(engine).value());
+    impl->weight_load_path = impl->moe26b_engine->weight_load_path();
     if (!options.assistant_model_directory.empty()) {
       Status status = impl->moe26b_engine->LoadMtpAssistant(
           options.assistant_model_directory);
@@ -104,6 +107,9 @@ bool ModelRuntime::assistant_loaded() const {
 }
 double ModelRuntime::load_milliseconds() const {
   return impl_ == nullptr ? 0.0 : impl_->load_milliseconds;
+}
+const char* ModelRuntime::weight_load_path() const {
+  return impl_ == nullptr ? "none" : impl_->weight_load_path.c_str();
 }
 const char* ModelRuntime::model_variant_name() const {
   return impl_ == nullptr

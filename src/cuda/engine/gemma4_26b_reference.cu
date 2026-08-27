@@ -1480,7 +1480,8 @@ Gemma4Moe26BReferenceEngine::Gemma4Moe26BReferenceEngine(
 
 Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
     const std::filesystem::path& model_directory,
-    std::uint64_t context_tokens, int device, Gemma4Moe26BBackend backend) {
+    std::uint64_t context_tokens, int device, Gemma4Moe26BBackend backend,
+    bool verify_device_image_sha256) {
   if (context_tokens == 0U || context_tokens > kMaximumContextTokens ||
       device < 0) {
     return Invalid("Gemma 4 26B context must be in [1, 262144]");
@@ -1504,7 +1505,8 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
   auto plan = BuildGemma4Moe26BResidencyPlan(manifest.value(), config.value());
   if (!plan.ok()) return plan.status();
   auto artifact = Gemma4Moe26BDeviceArtifact::Load(
-      model_directory, manifest.value(), plan.value());
+      model_directory, manifest.value(), plan.value(),
+      verify_device_image_sha256);
   if (!artifact.ok()) return artifact.status();
 
   auto impl = std::make_unique<Impl>();
@@ -3488,6 +3490,11 @@ std::uint64_t Gemma4Moe26BReferenceEngine::context_capacity() const {
 }
 std::uint64_t Gemma4Moe26BReferenceEngine::weight_arena_bytes() const {
   return implementation_ ? implementation_->artifact.arena_bytes() : 0U;
+}
+const char* Gemma4Moe26BReferenceEngine::weight_load_path() const {
+  return implementation_
+             ? implementation_->artifact.stats().load_path.c_str()
+             : "none";
 }
 std::uint64_t Gemma4Moe26BReferenceEngine::kv_cache_bytes() const {
   return implementation_ ? implementation_->kv.bytes() : 0U;

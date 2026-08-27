@@ -71,7 +71,8 @@ class Gemma4Moe26BReferenceEngine {
   [[nodiscard]] static Result<Gemma4Moe26BReferenceEngine> Create(
       const std::filesystem::path& model_directory,
       std::uint64_t context_tokens = 32768U, int device = 0,
-      Gemma4Moe26BBackend backend = Gemma4Moe26BBackend::kReference);
+      Gemma4Moe26BBackend backend = Gemma4Moe26BBackend::kReference,
+      bool verify_device_image_sha256 = true);
 
   [[nodiscard]] Status Reset();
   [[nodiscard]] Status ForwardToken(std::uint32_t token);
@@ -161,6 +162,7 @@ class Gemma4Moe26BReferenceEngine {
   [[nodiscard]] std::uint64_t position() const;
   [[nodiscard]] std::uint64_t context_capacity() const;
   [[nodiscard]] std::uint64_t weight_arena_bytes() const;
+  [[nodiscard]] const char* weight_load_path() const;
   [[nodiscard]] std::uint64_t kv_cache_bytes() const;
   [[nodiscard]] std::uint64_t workspace_bytes() const;
   [[nodiscard]] std::uint64_t sliding_cache_capacity() const;

@@ -11,6 +11,7 @@
 #include <string_view>
 
 #include "compiler/sha256.h"
+#include "model/gemma4_26b_device_image.h"
 #include "model/gemma4_26b_manifest.h"
 #include "util/json.h"
 
@@ -281,7 +282,8 @@ Status ValidateConfigExtension(const std::filesystem::path& root) {
 }
 
 Status ValidateExternalLock(const std::filesystem::path& root,
-                            const json::Value& compilation) {
+                            const json::Value& compilation,
+                            bool device_image_candidate) {
   const auto lock_path = ExternalLockPath(root);
   auto lock_payload = ReadRegularFile(lock_path, kMaximumMetadataBytes);
   if (!lock_payload.ok()) return lock_payload.status();
@@ -338,11 +340,13 @@ Status ValidateExternalLock(const std::filesystem::path& root,
       return Status(StatusCode::kDataLoss,
                     "M08 locked artifact file is missing or changed");
     }
-    auto actual = Sha256Range(path.value(), 0, size.value());
-    if (!actual.ok() || actual.value() != hash->as_string()) {
-      return Status(StatusCode::kDataLoss,
-                    "M08 locked artifact file hash mismatch: " +
-                        relative->as_string());
+    if (!device_image_candidate || path.value().extension() != ".safetensors") {
+      auto actual = Sha256Range(path.value(), 0, size.value());
+      if (!actual.ok() || actual.value() != hash->as_string()) {
+        return Status(StatusCode::kDataLoss,
+                      "M08 locked artifact file hash mismatch: " +
+                          relative->as_string());
+      }
     }
   }
   std::set<std::string> actual_names;
@@ -383,7 +387,8 @@ Status ValidateExternalLock(const std::filesystem::path& root,
 
 Status ValidateTensorRecords(const std::filesystem::path& root,
                              const json::Value& compilation,
-                             std::vector<TensorInfo>* tensors) {
+                             std::vector<TensorInfo>* tensors,
+                             bool device_image_candidate) {
   const auto* records = Field(compilation, "tensors");
   if (records == nullptr || !records->is_array() ||
       records->as_array().size() != 1285 || tensors == nullptr) {
@@ -421,12 +426,14 @@ Status ValidateTensorRecords(const std::filesystem::path& root,
                     "M08 tensor record differs from Safetensors: " +
                         name->as_string());
     }
-    auto actual_hash = Sha256Range(
-        root / found->second->source_shard, found->second->byte_offset,
-        found->second->byte_length);
-    if (!actual_hash.ok() || actual_hash.value() != hash->as_string()) {
-      return Status(StatusCode::kDataLoss,
-                    "M08 tensor payload hash mismatch: " + name->as_string());
+    if (!device_image_candidate) {
+      auto actual_hash = Sha256Range(
+          root / found->second->source_shard, found->second->byte_offset,
+          found->second->byte_length);
+      if (!actual_hash.ok() || actual_hash.value() != hash->as_string()) {
+        return Status(StatusCode::kDataLoss,
+                      "M08 tensor payload hash mismatch: " + name->as_string());
+      }
     }
   }
   auto annotation = ValidateAndAnnotateGemma4Moe26BCompiledHybridInventory(
@@ -793,6 +800,8 @@ Status ValidateM25TensorRecords(const std::filesystem::path& root,
 Status ValidateAndBindGemma4Moe26BCompiledArtifact(
     const std::filesystem::path& model_directory,
     std::vector<TensorInfo>* tensors) {
+  auto image = ProbeAcceptedGemma4Moe26BDeviceImage(model_directory);
+  if (!image.ok()) return image.status();
   auto compilation = LoadJson(model_directory / "gem16_compilation.json");
   if (!compilation.ok()) return compilation.status();
   const auto schema = Unsigned(Field(compilation.value(), "schema_version"),
@@ -835,9 +844,11 @@ Status ValidateAndBindGemma4Moe26BCompiledArtifact(
   }
   auto status = ValidateConfigExtension(model_directory);
   if (!status.ok()) return status;
-  status = ValidateExternalLock(model_directory, compilation.value());
+  status = ValidateExternalLock(model_directory, compilation.value(),
+                                image.value());
   if (!status.ok()) return status;
-  return ValidateTensorRecords(model_directory, compilation.value(), tensors);
+  return ValidateTensorRecords(model_directory, compilation.value(), tensors,
+                               image.value());
 }
 
 Status ValidateAndBindGemma4Moe26BAssistantCompiledArtifact(

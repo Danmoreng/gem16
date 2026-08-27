@@ -273,7 +273,8 @@ if ! result_complete "$candidate_output"; then
     --host 127.0.0.1 \
     --port "$server_port" \
     --max-context 32768 \
-    --max-sessions 1
+    --max-sessions 1 \
+    --model-integrity structural
   )
   gem16_runtime_profile=gem16-ordinary-fp8-kv
   if [[ $gem16_mtp_draft_tokens -ne 0 ]]; then

@@ -2,12 +2,28 @@
 
 #include <cuda_runtime_api.h>
 
+#if defined(GEM16_HAS_OPENSSL)
+#include <openssl/evp.h>
+#endif
+
+#if defined(GEM16_HAS_CUFILE)
+#include <cufile.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#endif
+
 #include <algorithm>
 #include <array>
 #include <bit>
+#include <cerrno>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
+#include <cstring>
+#include <fstream>
 #include <limits>
 #include <map>
 #include <set>
@@ -16,18 +32,124 @@
 #include <utility>
 #include <vector>
 
+#include "compiler/sha256.h"
 #include "cuda/nvfp4/sm120_layout.h"
+#include "model/gemma4_26b_device_image.h"
 #include "platform/mapped_file.h"
 
 namespace gem16::internal {
 namespace {
 
 constexpr std::uint64_t kUploadStagingBytes = 4U * 1024U * 1024U;
+constexpr std::uint64_t kImageUploadBufferBytes = 64U * 1024U * 1024U;
+constexpr std::size_t kImageUploadBuffers = 4U;
+constexpr std::uint64_t kCuFileRequestBytes = 1024U * 1024U * 1024U;
+
+enum class DeviceImageIo { kAuto, kPinned, kCuFile };
 
 Status CudaFailure(const char* operation, cudaError_t error) {
   return Status(StatusCode::kInternal,
                 std::string(operation) + ": " + cudaGetErrorName(error) +
                     ": " + cudaGetErrorString(error));
+}
+
+#if defined(GEM16_HAS_OPENSSL)
+std::string HexDigest(const std::array<std::uint8_t, 32>& digest) {
+  constexpr std::array<char, 16> kHex = {
+      '0', '1', '2', '3', '4', '5', '6', '7',
+      '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
+  std::string result(digest.size() * 2U, '0');
+  for (std::size_t index = 0; index < digest.size(); ++index) {
+    result[index * 2U] = kHex[digest[index] >> 4U];
+    result[index * 2U + 1U] = kHex[digest[index] & 0x0fU];
+  }
+  return result;
+}
+#endif
+
+class DeviceImageSha256 {
+ public:
+  DeviceImageSha256() = default;
+  DeviceImageSha256(const DeviceImageSha256&) = delete;
+  DeviceImageSha256& operator=(const DeviceImageSha256&) = delete;
+#if defined(GEM16_HAS_OPENSSL)
+  ~DeviceImageSha256() {
+    if (context_ != nullptr) EVP_MD_CTX_free(context_);
+  }
+#endif
+
+  Status Initialize() {
+#if defined(GEM16_HAS_OPENSSL)
+    context_ = EVP_MD_CTX_new();
+    if (context_ == nullptr ||
+        EVP_DigestInit_ex(context_, EVP_sha256(), nullptr) != 1) {
+      return Status(StatusCode::kInternal,
+                    "initialize accelerated SM120 device-image SHA-256");
+    }
+#endif
+    return Status::Ok();
+  }
+
+  Status Update(const void* data, std::size_t size) {
+#if defined(GEM16_HAS_OPENSSL)
+    if (context_ == nullptr || EVP_DigestUpdate(context_, data, size) != 1) {
+      return Status(StatusCode::kInternal,
+                    "update accelerated SM120 device-image SHA-256");
+    }
+#else
+    fallback_.Update(data, size);
+#endif
+    return Status::Ok();
+  }
+
+  Result<std::string> FinalHex() {
+#if defined(GEM16_HAS_OPENSSL)
+    std::array<std::uint8_t, 32> digest{};
+    unsigned int digest_bytes = 0U;
+    if (context_ == nullptr ||
+        EVP_DigestFinal_ex(context_, digest.data(), &digest_bytes) != 1 ||
+        digest_bytes != digest.size()) {
+      return Status(StatusCode::kInternal,
+                    "finish accelerated SM120 device-image SHA-256");
+    }
+    return HexDigest(digest);
+#else
+    return fallback_.HexDigest();
+#endif
+  }
+
+ private:
+#if defined(GEM16_HAS_OPENSSL)
+  EVP_MD_CTX* context_ = nullptr;
+#else
+  compiler::Sha256 fallback_;
+#endif
+};
+
+Result<DeviceImageIo> RequestedDeviceImageIo() {
+  const char* value = std::getenv("GEM16_DEVICE_IMAGE_IO");
+  if (value == nullptr || std::string_view(value) == "auto") {
+    return DeviceImageIo::kAuto;
+  }
+  if (std::string_view(value) == "pinned") return DeviceImageIo::kPinned;
+  if (std::string_view(value) == "cufile") return DeviceImageIo::kCuFile;
+  return Status(StatusCode::kInvalidArgument,
+                "GEM16_DEVICE_IMAGE_IO must be auto, pinned, or cufile");
+}
+
+Result<bool> GpuSupportsPeerDirectMemory() {
+  int device = 0;
+  cudaError_t error = cudaGetDevice(&device);
+  if (error != cudaSuccess) {
+    return CudaFailure("query current CUDA device", error);
+  }
+  int supported = 0;
+  error = cudaDeviceGetAttribute(&supported, cudaDevAttrGPUDirectRDMASupported,
+                                 device);
+  if (error != cudaSuccess) {
+    return CudaFailure("query CUDA GPUDirect capability", error);
+  }
+  return supported != 0;
 }
 
 Result<std::uint64_t> CheckedProduct(std::span<const std::uint64_t> factors,
@@ -181,6 +303,307 @@ Status UploadOne(std::byte* arena, const TensorInfo& tensor,
   return Status::Ok();
 }
 
+class PinnedImageUpload {
+ public:
+  PinnedImageUpload() = default;
+  PinnedImageUpload(const PinnedImageUpload&) = delete;
+  PinnedImageUpload& operator=(const PinnedImageUpload&) = delete;
+  ~PinnedImageUpload() {
+    for (std::size_t index = 0; index < kImageUploadBuffers; ++index) {
+      if (events_[index] != nullptr) (void)cudaEventDestroy(events_[index]);
+      if (buffers_[index] != nullptr) (void)cudaFreeHost(buffers_[index]);
+    }
+    if (stream_ != nullptr) (void)cudaStreamDestroy(stream_);
+  }
+
+  Status Initialize() {
+    cudaError_t error = cudaStreamCreateWithFlags(&stream_, cudaStreamNonBlocking);
+    if (error != cudaSuccess) {
+      return CudaFailure("create SM120 device-image upload stream", error);
+    }
+    for (std::size_t index = 0; index < kImageUploadBuffers; ++index) {
+      error = cudaHostAlloc(reinterpret_cast<void**>(&buffers_[index]),
+                            static_cast<std::size_t>(kImageUploadBufferBytes),
+                            cudaHostAllocDefault);
+      if (error != cudaSuccess) {
+        return CudaFailure("allocate SM120 device-image pinned staging", error);
+      }
+      error = cudaEventCreateWithFlags(&events_[index], cudaEventDisableTiming);
+      if (error != cudaSuccess) {
+        return CudaFailure("create SM120 device-image upload event", error);
+      }
+    }
+    return Status::Ok();
+  }
+
+  Status Upload(const std::filesystem::path& path, std::byte* destination,
+                std::uint64_t bytes, bool verify_sha256,
+                std::string* digest) {
+    if (destination == nullptr || digest == nullptr) {
+      return Status(StatusCode::kInvalidArgument,
+                    "invalid SM120 device-image upload destination");
+    }
+    std::ifstream input(path, std::ios::binary);
+    if (!input) {
+      return Status(StatusCode::kIoError,
+                    "cannot open SM120 device image: " + path.string());
+    }
+    DeviceImageSha256 sha256;
+    if (verify_sha256) {
+      Status hash_initialized = sha256.Initialize();
+      if (!hash_initialized.ok()) return hash_initialized;
+    }
+    std::array<bool, kImageUploadBuffers> in_flight{};
+    std::uint64_t offset = 0U;
+    std::size_t slot = 0U;
+    while (offset != bytes) {
+      if (in_flight[slot]) {
+        const cudaError_t waited = cudaEventSynchronize(events_[slot]);
+        if (waited != cudaSuccess) {
+          return CudaFailure("wait for SM120 device-image upload", waited);
+        }
+      }
+      const std::uint64_t count =
+          std::min<std::uint64_t>(kImageUploadBufferBytes, bytes - offset);
+      input.read(reinterpret_cast<char*>(buffers_[slot]),
+                 static_cast<std::streamsize>(count));
+      if (input.gcount() != static_cast<std::streamsize>(count)) {
+        return Status(StatusCode::kDataLoss,
+                      "short read from SM120 device image: " + path.string());
+      }
+      if (verify_sha256) {
+        Status hashed =
+            sha256.Update(buffers_[slot], static_cast<std::size_t>(count));
+        if (!hashed.ok()) return hashed;
+      }
+      cudaError_t error = cudaMemcpyAsync(
+          destination + offset, buffers_[slot], static_cast<std::size_t>(count),
+          cudaMemcpyHostToDevice, stream_);
+      if (error != cudaSuccess) {
+        return CudaFailure("upload final-layout SM120 device image", error);
+      }
+      error = cudaEventRecord(events_[slot], stream_);
+      if (error != cudaSuccess) {
+        return CudaFailure("record SM120 device-image upload event", error);
+      }
+      in_flight[slot] = true;
+      offset += count;
+      slot = (slot + 1U) % kImageUploadBuffers;
+    }
+    const cudaError_t synchronized = cudaStreamSynchronize(stream_);
+    if (synchronized != cudaSuccess) {
+      return CudaFailure("synchronize final-layout SM120 device image",
+                         synchronized);
+    }
+    if (verify_sha256) {
+      auto final_digest = sha256.FinalHex();
+      if (!final_digest.ok()) return final_digest.status();
+      *digest = std::move(final_digest.value());
+    } else {
+      digest->clear();
+    }
+    return Status::Ok();
+  }
+
+ private:
+  cudaStream_t stream_ = nullptr;
+  std::array<std::byte*, kImageUploadBuffers> buffers_{};
+  std::array<cudaEvent_t, kImageUploadBuffers> events_{};
+};
+
+#if defined(GEM16_HAS_CUFILE)
+Status CuFileFailure(std::string_view operation, CUfileError_t error) {
+  std::string message(operation);
+  message.append(": ");
+  message.append(CUFILE_ERRSTR(error.err));
+  return Status(StatusCode::kIoError, std::move(message));
+}
+
+class CuFileImageUpload {
+ public:
+  CuFileImageUpload() = default;
+  CuFileImageUpload(const CuFileImageUpload&) = delete;
+  CuFileImageUpload& operator=(const CuFileImageUpload&) = delete;
+  ~CuFileImageUpload() {
+    if (handle_ != nullptr) cuFileHandleDeregister(handle_);
+    if (file_descriptor_ >= 0) (void)close(file_descriptor_);
+    if (driver_open_) (void)cuFileDriverClose();
+  }
+
+  Status Initialize(const std::filesystem::path& path) {
+    CUfileError_t error = cuFileDriverOpen();
+    if (error.err != CU_FILE_SUCCESS) {
+      return CuFileFailure("open cuFile driver", error);
+    }
+    driver_open_ = true;
+    file_descriptor_ = open(path.c_str(), O_RDONLY | O_DIRECT | O_CLOEXEC);
+    if (file_descriptor_ < 0) {
+      return Status(StatusCode::kIoError,
+                    "cannot open SM120 device image for cuFile: " +
+                        std::string(std::strerror(errno)));
+    }
+    struct stat opened {};
+    struct stat named {};
+    if (fstat(file_descriptor_, &opened) != 0 || lstat(path.c_str(), &named) != 0 ||
+        !S_ISREG(opened.st_mode) || !S_ISREG(named.st_mode) ||
+        S_ISLNK(named.st_mode) || opened.st_dev != named.st_dev ||
+        opened.st_ino != named.st_ino || opened.st_size < 0 ||
+        static_cast<std::uint64_t>(opened.st_size) !=
+            kAcceptedM08DeviceImageBytes) {
+      return Status(StatusCode::kDataLoss,
+                    "cuFile SM120 device image changed during secure open");
+    }
+    CUfileDescr_t descriptor{};
+    descriptor.type = CU_FILE_HANDLE_TYPE_OPAQUE_FD;
+    descriptor.handle.fd = file_descriptor_;
+    error = cuFileHandleRegister(&handle_, &descriptor);
+    if (error.err != CU_FILE_SUCCESS) {
+      return CuFileFailure("register SM120 device image with cuFile", error);
+    }
+    return Status::Ok();
+  }
+
+  Status VerifyDigest(std::uint64_t bytes) const {
+    if (file_descriptor_ < 0 || bytes > std::numeric_limits<std::size_t>::max()) {
+      return Status(StatusCode::kInvalidArgument,
+                    "invalid cuFile SM120 device-image hash range");
+    }
+    void* mapping = mmap(nullptr, static_cast<std::size_t>(bytes), PROT_READ,
+                         MAP_PRIVATE, file_descriptor_, 0);
+    if (mapping == MAP_FAILED) {
+      return Status(StatusCode::kIoError,
+                    "cannot map cuFile SM120 device image for validation: " +
+                        std::string(std::strerror(errno)));
+    }
+    DeviceImageSha256 sha256;
+    Status initialized = sha256.Initialize();
+    if (!initialized.ok()) {
+      (void)munmap(mapping, static_cast<std::size_t>(bytes));
+      return initialized;
+    }
+    Status hashed = sha256.Update(mapping, static_cast<std::size_t>(bytes));
+    if (!hashed.ok()) {
+      (void)munmap(mapping, static_cast<std::size_t>(bytes));
+      return hashed;
+    }
+    const int unmapped = munmap(mapping, static_cast<std::size_t>(bytes));
+    if (unmapped != 0) {
+      return Status(StatusCode::kIoError,
+                    "cannot unmap validated cuFile SM120 device image");
+    }
+    auto digest = sha256.FinalHex();
+    if (!digest.ok()) return digest.status();
+    if (digest.value() != kAcceptedM08DeviceImageSha256) {
+      return Status(StatusCode::kDataLoss,
+                    "SM120 device image hash does not match the accepted image");
+    }
+    return Status::Ok();
+  }
+
+  Status Upload(std::byte* destination, std::uint64_t bytes) {
+    if (destination == nullptr || handle_ == nullptr) {
+      return Status(StatusCode::kInvalidArgument,
+                    "invalid cuFile SM120 device-image destination");
+    }
+    std::uint64_t offset = 0U;
+    while (offset != bytes) {
+      const std::uint64_t request =
+          std::min<std::uint64_t>(kCuFileRequestBytes, bytes - offset);
+      const ssize_t transferred = cuFileRead(
+          handle_, destination, static_cast<std::size_t>(request),
+          static_cast<off_t>(offset), static_cast<off_t>(offset));
+      if (transferred <= 0) {
+        if (transferred == -1) {
+          return Status(StatusCode::kIoError,
+                        "cuFile read of SM120 device image failed: " +
+                            std::string(std::strerror(errno)));
+        }
+        return Status(StatusCode::kIoError,
+                      "cuFile read of SM120 device image failed: " +
+                          std::string(CUFILE_ERRSTR(transferred)));
+      }
+      if (static_cast<std::uint64_t>(transferred) > request) {
+        return Status(StatusCode::kDataLoss,
+                      "cuFile returned an invalid SM120 device-image byte count");
+      }
+      offset += static_cast<std::uint64_t>(transferred);
+    }
+    const cudaError_t synchronized = cudaDeviceSynchronize();
+    return synchronized == cudaSuccess
+               ? Status::Ok()
+               : CudaFailure("synchronize cuFile SM120 device image",
+                             synchronized);
+  }
+
+ private:
+  bool driver_open_ = false;
+  int file_descriptor_ = -1;
+  CUfileHandle_t handle_ = nullptr;
+};
+#endif
+
+Status BindDeviceImageMetadata(
+    const ModelManifest& manifest, const Gemma4Moe26BResidencyPlan& plan,
+    std::uint64_t image_bytes,
+    std::map<std::string, std::uint64_t, std::less<>>* offsets,
+    std::vector<const TensorInfo*>* scalar_tensors) {
+  if (offsets == nullptr || scalar_tensors == nullptr) {
+    return Status(StatusCode::kInvalidArgument,
+                  "missing SM120 device-image host metadata");
+  }
+  std::map<std::string, const TensorInfo*, std::less<>> tensors;
+  for (const auto& tensor : manifest.tensors) tensors.emplace(tensor.name, &tensor);
+  for (const auto& range : plan.upload_ranges) {
+    const auto found = tensors.find(range.tensor_name);
+    if (found == tensors.end() ||
+        !offsets->emplace(range.tensor_name, range.destination_offset).second ||
+        range.destination_offset > image_bytes ||
+        range.bytes > image_bytes - range.destination_offset) {
+      return Status(StatusCode::kDataLoss,
+                    "invalid SM120 device-image tensor binding: " +
+                        range.tensor_name);
+    }
+    const auto& tensor = *found->second;
+    if (tensor.storage_dtype == "F32" && tensor.shape.size() == 1U &&
+        tensor.shape[0] == 1U && range.bytes == sizeof(float)) {
+      scalar_tensors->push_back(&tensor);
+    }
+  }
+  return Status::Ok();
+}
+
+Status BindDeviceImageScalars(
+    const std::vector<const TensorInfo*>& scalar_tensors,
+    const std::map<std::string, std::uint64_t, std::less<>>& offsets,
+    const std::byte* arena,
+    std::map<std::string, float, std::less<>>* host_f32) {
+  if (arena == nullptr || host_f32 == nullptr) {
+    return Status(StatusCode::kInvalidArgument,
+                  "missing uploaded SM120 device-image scalar storage");
+  }
+  for (const TensorInfo* tensor : scalar_tensors) {
+    const auto offset = offsets.find(tensor->name);
+    if (offset == offsets.end()) {
+      return Status(StatusCode::kDataLoss,
+                    "missing SM120 device-image scalar offset: " + tensor->name);
+    }
+    float value = 0.0F;
+    const cudaError_t copied = cudaMemcpy(&value, arena + offset->second,
+                                          sizeof(value),
+                                          cudaMemcpyDeviceToHost);
+    if (copied != cudaSuccess) {
+      return CudaFailure("read uploaded SM120 device-image scalar", copied);
+    }
+    if (!std::isfinite(value) || value <= 0.0F) {
+      return Status(StatusCode::kDataLoss,
+                    "invalid positive F32 device-image scalar: " +
+                        tensor->name);
+    }
+    host_f32->emplace(tensor->name, value);
+  }
+  return Status::Ok();
+}
+
 }  // namespace
 
 Gemma4Moe26BDeviceArtifact::~Gemma4Moe26BDeviceArtifact() {
@@ -206,7 +629,8 @@ Gemma4Moe26BDeviceArtifact& Gemma4Moe26BDeviceArtifact::operator=(
 
 Result<Gemma4Moe26BDeviceArtifact> Gemma4Moe26BDeviceArtifact::Load(
     const std::filesystem::path& model_directory,
-    const ModelManifest& manifest, const Gemma4Moe26BResidencyPlan& plan) {
+    const ModelManifest& manifest, const Gemma4Moe26BResidencyPlan& plan,
+    bool verify_image_sha256) {
   if (plan.upload_ranges.size() != manifest.tensors.size() ||
       plan.immutable_weight_arena_bytes == 0U ||
       plan.immutable_weight_arena_bytes >
@@ -221,6 +645,86 @@ Result<Gemma4Moe26BDeviceArtifact> Gemma4Moe26BDeviceArtifact::Load(
       static_cast<std::size_t>(artifact.arena_bytes_));
   if (allocated != cudaSuccess) {
     return CudaFailure("allocate M11 immutable weight arena", allocated);
+  }
+  auto image_candidate = ProbeAcceptedGemma4Moe26BDeviceImage(model_directory);
+  if (!image_candidate.ok()) return image_candidate.status();
+  if (image_candidate.value()) {
+    if (artifact.arena_bytes_ != kAcceptedM08DeviceImageBytes) {
+      return Status(StatusCode::kDataLoss,
+                    "SM120 device image disagrees with the resident arena plan");
+    }
+    const auto image_path = Gemma4Moe26BDeviceImagePath(model_directory);
+    std::vector<const TensorInfo*> scalar_tensors;
+    Status metadata = BindDeviceImageMetadata(
+        manifest, plan, artifact.arena_bytes_, &artifact.offsets_,
+        &scalar_tensors);
+    if (!metadata.ok()) return metadata;
+    auto requested_io = RequestedDeviceImageIo();
+    if (!requested_io.ok()) return requested_io.status();
+    auto gdr = GpuSupportsPeerDirectMemory();
+    if (!gdr.ok()) return gdr.status();
+    bool used_cufile = false;
+    bool cufile_attempted = false;
+#if defined(GEM16_HAS_CUFILE)
+    if (requested_io.value() == DeviceImageIo::kCuFile ||
+        (requested_io.value() == DeviceImageIo::kAuto && gdr.value())) {
+      cufile_attempted = true;
+      CuFileImageUpload upload;
+      Status status = upload.Initialize(image_path);
+      if (status.ok() && verify_image_sha256) {
+        status = upload.VerifyDigest(artifact.arena_bytes_);
+      }
+      if (status.ok()) status = upload.Upload(artifact.arena_, artifact.arena_bytes_);
+      if (status.ok()) {
+        used_cufile = true;
+      } else if (requested_io.value() == DeviceImageIo::kCuFile) {
+        return status;
+      }
+    }
+#else
+    if (requested_io.value() == DeviceImageIo::kCuFile) {
+      return Status(StatusCode::kUnsupported,
+                    "this build does not include NVIDIA cuFile support");
+    }
+#endif
+    if (!used_cufile) {
+      PinnedImageUpload upload;
+      Status initialized = upload.Initialize();
+      if (!initialized.ok()) return initialized;
+      std::string digest;
+      Status uploaded = upload.Upload(image_path, artifact.arena_,
+                                      artifact.arena_bytes_,
+                                      verify_image_sha256, &digest);
+      if (!uploaded.ok()) return uploaded;
+      if (verify_image_sha256 &&
+          digest != kAcceptedM08DeviceImageSha256) {
+        return Status(StatusCode::kDataLoss,
+                      "SM120 device image hash does not match the accepted image");
+      }
+    }
+    Status scalars = BindDeviceImageScalars(
+        scalar_tensors, artifact.offsets_, artifact.arena_,
+        &artifact.host_f32_);
+    if (!scalars.ok()) return scalars;
+    artifact.stats_.tensors = plan.upload_ranges.size();
+    artifact.stats_.payload_bytes = plan.artifact_payload_bytes;
+    artifact.stats_.shards = 1U;
+    artifact.stats_.direct_tensors = plan.upload_ranges.size();
+    artifact.stats_.host_staging_peak_bytes =
+        used_cufile ? 0U : kImageUploadBuffers * kImageUploadBufferBytes;
+    artifact.stats_.image_bytes = artifact.arena_bytes_;
+    const std::string verification =
+        verify_image_sha256 ? "_sha256" : "_structural";
+    artifact.stats_.load_path =
+        used_cufile
+            ? ((gdr.value() ? "sm120_device_image_cufile_gpu_gdr_capable"
+                            : "sm120_device_image_cufile_compat") +
+               verification)
+            : (cufile_attempted
+                   ? "sm120_device_image_pinned_after_cufile_unavailable" +
+                         verification
+                   : "sm120_device_image_pinned_async" + verification);
+    return artifact;
   }
   std::map<std::string, const TensorInfo*, std::less<>> tensors;
   for (const auto& tensor : manifest.tensors) tensors.emplace(tensor.name, &tensor);

@@ -21,6 +21,8 @@ struct Gemma4Moe26BDeviceArtifactStats {
   std::uint64_t tiled_weight_tensors = 0;
   std::uint64_t tiled_scale_tensors = 0;
   std::uint64_t host_staging_peak_bytes = 0;
+  std::uint64_t image_bytes = 0;
+  std::string load_path = "canonical_safetensors_repack";
 };
 
 // One immutable, final-layout device arena for the exact validated M08 artifact.
@@ -38,7 +40,8 @@ class Gemma4Moe26BDeviceArtifact {
   [[nodiscard]] static Result<Gemma4Moe26BDeviceArtifact> Load(
       const std::filesystem::path& model_directory,
       const ModelManifest& manifest,
-      const Gemma4Moe26BResidencyPlan& plan);
+      const Gemma4Moe26BResidencyPlan& plan,
+      bool verify_image_sha256 = true);
 
   [[nodiscard]] Result<const std::byte*> Pointer(std::string_view name) const;
   [[nodiscard]] Result<float> HostFloat32(std::string_view name) const;

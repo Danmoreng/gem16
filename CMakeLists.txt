@@ -53,6 +53,7 @@ add_library(gem16_core STATIC
   src/model/checkpoint_loader.cpp
   src/model/gemma4_26b_attention.cpp
   src/model/gemma4_26b_compiled_loader.cpp
+  src/model/gemma4_26b_device_image.cpp
   src/model/gemma4_26b_residency.cpp
   src/model/audio.cpp
   src/model/image.cpp
@@ -88,6 +89,14 @@ target_include_directories(gem16_core SYSTEM PRIVATE
 )
 target_compile_features(gem16_core PUBLIC cxx_std_20)
 target_link_libraries(gem16_core PRIVATE gem16_json)
+
+# Keep full device-image integrity validation while using the platform's
+# hardware-accelerated SHA-256 implementation when it is available.
+find_package(OpenSSL QUIET COMPONENTS Crypto)
+if(OpenSSL_FOUND)
+  target_link_libraries(gem16_core PRIVATE OpenSSL::Crypto)
+  target_compile_definitions(gem16_core PRIVATE GEM16_HAS_OPENSSL=1)
+endif()
 gem16_set_project_warnings(gem16_core)
 gem16_enable_sanitizers(gem16_core)
 
@@ -358,6 +367,10 @@ if(GEM16_ENABLE_CUDA)
     )
   endif()
   target_link_libraries(gem16_core PRIVATE CUDA::cudart CUDA::nvtx3)
+  if(UNIX AND NOT APPLE AND TARGET CUDA::cuFile)
+    target_link_libraries(gem16_core PRIVATE CUDA::cuFile)
+    target_compile_definitions(gem16_core PRIVATE GEM16_HAS_CUFILE=1)
+  endif()
   target_compile_definitions(gem16_core
     PUBLIC GEM16_HAS_CUDA=1
     PRIVATE GEM16_COMPILED_CUDA_ARCH="${GEM16_CUDA_ARCHITECTURE}"

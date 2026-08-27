@@ -76,6 +76,7 @@ struct Options {
   bool max_context_explicit = false;
   bool mtp_adaptive = false;
   bool greedy = false;
+  bool verify_device_image_sha256 = false;
 };
 
 void PrintUsage() {
@@ -87,6 +88,7 @@ void PrintUsage() {
       << "  --max-context <tokens>  Session context capacity (default: 8192)\n"
       << "  --max-sessions <count>   Resident slots (default: 2; 26B profile: 1)\n"
       << "  --kv-cache fp8|bf16\n"
+      << "  --model-integrity structural|sha256 (default: structural)\n"
       << "  --greedy                Disable checkpoint-recommended sampling\n"
       << "  --assistant-model <checkpoint> --mtp-draft-tokens 1|2|4 [--mtp-adaptive]\n";
 }
@@ -150,6 +152,17 @@ gem16::Result<Options> ParseOptions(int argc, char** argv) {
                              "--mtp-draft-tokens must be 1, 2, or 4");
       }
       options.mtp_draft_tokens = static_cast<std::uint32_t>(value);
+    } else if (argument == "--model-integrity" && index + 1 < argc) {
+      const std::string_view mode(argv[++index]);
+      if (mode == "structural") {
+        options.verify_device_image_sha256 = false;
+      } else if (mode == "sha256") {
+        options.verify_device_image_sha256 = true;
+      } else {
+        return gem16::Status(
+            gem16::StatusCode::kInvalidArgument,
+            "--model-integrity must be structural or sha256");
+      }
     } else if (argument == "--mtp-adaptive") {
       options.mtp_adaptive = true;
     } else if (argument == "--greedy") {
@@ -785,7 +798,8 @@ int ServerMain(int argc, char** argv) {
   auto runtime = gem16::ModelRuntime::Load(
       {options.value().model_directory,
        options.value().assistant_model_directory,
-       options.value().max_context, 0});
+       options.value().max_context, 0,
+       options.value().verify_device_image_sha256});
   if (!runtime.ok()) {
     std::cerr << "error: " << runtime.status().message() << '\n';
     return 2;
@@ -804,6 +818,7 @@ int ServerMain(int argc, char** argv) {
   std::cout << "model_runtime weights=" << runtime.value()->weight_bytes()
             << " assistant_weights="
             << runtime.value()->assistant_weight_bytes()
+            << " weight_load_path=" << runtime.value()->weight_load_path()
             << " load_ms=" << runtime.value()->load_milliseconds() << '\n';
   auto slot_plan = PlanServerSlots(
       runtime.value(), session_options, processor.value(),
