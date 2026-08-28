@@ -65,6 +65,7 @@ constexpr std::uint32_t kMaximumSuppressedTokens = 16U;
 constexpr std::uint32_t kRepetitionMaskWords =
     static_cast<std::uint32_t>((kVocabulary + 31U) / 32U);
 constexpr std::uint64_t kM25MaximumVerifyTokens = 5U;
+constexpr std::uint32_t kM25FixedD2Rows = 3U;
 
 Status Invalid(std::string message) {
   return Status(StatusCode::kInvalidArgument, std::move(message));
@@ -1900,6 +1901,15 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
         kPrefillMaxTokens * kTopK * kExpert / 16U);
     const auto p_expert_down = moe.Add<std::uint16_t>(
         kPrefillMaxTokens * kTopK * kWidth);
+    // Fixed-D2 attention and prefill MoE execute in-order. Alias the dead MoE
+    // suffix, but plan the alias with its actual long-context size instead of
+    // relying on whatever bytes happen to follow shared_product. The previous
+    // implicit alias crossed the prefill allocation at long context and caused
+    // the 75K illegal-address boundary.
+    LayoutBuilder mtp_d2_attention = moe;
+    const auto p_mtp_d2_attention = mtp_d2_attention.Add<float>(
+        DecodeAttentionFixedWorkspaceElements(context_tokens,
+                                               kM25FixedD2Rows));
     const auto p_shared_product =
         moe.Add<float>(kPrefillMaxTokens * kShared);
     const auto p_shared_product_packed =
@@ -1918,9 +1928,11 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
         moe.Add<std::uint32_t>(kPrefillMaxTokens * kTopK);
     const auto p_inverse =
         moe.Add<std::uint32_t>(kPrefillMaxTokens * kTopK);
-    prefill.bytes = std::max(attention.bytes, moe.bytes);
+    prefill.bytes =
+        std::max({attention.bytes, moe.bytes, mtp_d2_attention.bytes});
     constexpr std::uint64_t kM09MoePrefillCap = 192U * 1024U * 1024U;
-    if (prefill.bytes == std::numeric_limits<std::uint64_t>::max() ||
+    if (p_mtp_d2_attention != p_shared_product ||
+        prefill.bytes == std::numeric_limits<std::uint64_t>::max() ||
         prefill.bytes > kM09MoePrefillCap) {
       return Invalid("M17 fixed prefill workspace exceeds the M09 cap");
     }

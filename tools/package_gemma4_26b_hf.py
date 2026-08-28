@@ -112,7 +112,7 @@ Source: `google/gemma-4-26B-A4B-it-qat-q4_0-unquantized`, pinned in
 vision, audio, and video weights are intentionally omitted.
 
 Qualified product profile: fixed D2 MTP with the separately published GEM16
-Assistant, one resident session, FP8 KV cache, maximum MTP context 73,728
+Assistant, one resident session, FP8 KV cache, maximum MTP context 86,016
 tokens. The Target-only runtime remains qualified through 98,304 tokens.
 """
 

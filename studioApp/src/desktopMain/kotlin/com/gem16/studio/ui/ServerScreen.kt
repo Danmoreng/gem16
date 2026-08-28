@@ -153,7 +153,7 @@ private fun ServerConfiguration(state: StudioState, phase: ServerPhase) {
                 }
                 Text(
                     if (config.modelProfile == ModelProfile.Gemma4Moe26BA4B) {
-                        "Qualified text-only profile · one resident session · fixed D2 · up to 73,728 tokens"
+                        "Qualified text-only profile · one resident session · fixed D2 · up to 86,016 tokens"
                     } else {
                         "Qualified multimodal profile · managed through the Models screen"
                     },

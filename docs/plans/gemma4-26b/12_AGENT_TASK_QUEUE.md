@@ -4,7 +4,7 @@ The machine-readable source is [`FAST_TRACK_STATUS.json`](FAST_TRACK_STATUS.json
 
 ## Active queue
 
-M00–M17, M20–M23 and M25 are accepted. The qualified 72K MTP product checkpoint now needs immutable publication and
+M00–M17, M20–M23 and M25 are accepted. The qualified 86,016-token MTP product checkpoint now needs immutable publication and
 Studio download integration; full M19 is waived for this bounded checkpoint.
 
 | Priority | Slice | State | Notes |
@@ -14,7 +14,7 @@ Studio download integration; full M19 is waived for this bounded checkpoint.
 | — | M21 real context | accepted | 32K/64K/96K pass twice; 100K rejected; `base_max_context=98,304` |
 | — | M23 technical Target freeze | accepted | exact hashes, capability report, M25 rollback and protected 12B regression |
 | — | M25 sampled product integration | accepted | fixed D2 CLI/server/Studio chat at `c4ead1d`; same-seed Target identity passes |
-| — | M25 context | accepted | 64K and 72K pass at 200 MiB reserve; `mtp_max_context=73,728` |
+| — | M25 context | accepted | repaired D2 arena repeats at 86,016 with 200 MiB reserve |
 | 1 | Target/Assistant HF publication | active next | separate immutable repos with source provenance and locked revisions |
 | 2 | Studio 26B download | next | authenticated resumable download and qualified profile selection |
 

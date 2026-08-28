@@ -135,7 +135,7 @@ Only these owner-level gates block the critical path:
    the matching M21 evidence; 6,500 prompt token/s is the reported stretch target.
 8. **M23 engineering freeze:** accepted; Target hashes, available evidence and rollback are frozen with M19 explicitly pending.
 9. **Owner-bounded M19:** full GSM8K and AIME 2026 plus retained product/correctness evidence replace the broad multi-hour suite for this checkpoint; claims do not exceed those tests.
-10. **M25:** accepted; MTP compatibility, exactness, product execution and the 32K/64K/73,728 context gates pass.
+10. **M25:** accepted; MTP compatibility, exactness, product execution and the 32K/64K/86,016 context gates pass.
 
 M18 is conditional diagnosis, not a sequential prerequisite after the accepted M17 path. M24 is optional and never blocks the production path.
 
@@ -197,10 +197,10 @@ Do not repeat an expensive run solely to produce a second prose record. M08 comp
 - M17, M20–M23 and M25 are accepted; M23 remains the frozen ordinary-decode rollback Target.
 - The hybrid Assistant, fixed D1/D2/D4 exact verifier and sampled D2 CLI/server/Studio product path are implemented
   at `c4ead1d`; compact bounded evidence is `artifacts/m25/sampled-mtp-product.json`.
-- Fresh-process D2 boundary execution passes 65,536 and 73,728 tokens with the 200 MiB long-context reserve;
-  `mtp_max_context` is 73,728 while `base_max_context` remains 98,304. Allocation-only admission reaches 88,640,
-  but execution becomes unsafe above 74,944, so larger MTP contexts are rejected. See
-  `artifacts/m25/context-capacity-2026-08-27.json`.
+- The repaired fixed-D2 attention alias passes 75,000 and repeats identically at 86,016 tokens with the 200 MiB
+  long-context reserve; `mtp_max_context` is 86,016 while `base_max_context` remains 98,304. The first tested
+  post-generation reserve failure is 86,464 tokens. See
+  `artifacts/m25/context-capacity-2026-08-28.json`.
 - Full GSM8K and AIME 2026 paired evidence is accepted; the broad historical M19 suite is waived for this checkpoint.
 - M18 remains inactive unless quality failure, head uncertainty or explicit causal-attribution work triggers it.
 - Retained sampled timing remains useful optional performance evidence, not a checkpoint-acceptance gate.

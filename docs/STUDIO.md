@@ -29,7 +29,7 @@ license remains beside the vendored source.
 - Persisted qualified Gemma 4 12B Unified and qualified text-only Gemma 4 26B A4B profiles.
 - Resumable, SHA-256-verified download of the separately pinned private 26B Target and Assistant repositories into
   immutable Hugging Face snapshots, using the standard token sources and cache root.
-- Qualified 26B Target and Assistant paths, one resident session, 73,728-token MTP context, and fixed D2 selected
+- Qualified 26B Target and Assistant paths, one resident session, 86,016-token MTP context, and fixed D2 selected
   by default.
 - Managed `gem16-server` start, stop, output capture, health polling, and non-owning attachment to an external server.
 - Incremental SSE rendering for answer and `reasoning_content`, cancellation, resident session IDs, and new-chat

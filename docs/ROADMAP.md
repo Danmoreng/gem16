@@ -18,7 +18,7 @@ accepted artifact/loader → accepted optimized M17 runtime → accepted M22 pro
 
 The repository has an executable, fixed-address, all-resident 26B runtime with native SM120 MoE/head execution,
 controlled FP8 attention, grouped prefill and whole-model decode graph replay. The qualified M25 profile is text-only,
-batch one, one resident session, fixed D2, FP8 KV, and supports up to 73,728 MTP context tokens with a 200 MiB reserve.
+batch one, one resident session, fixed D2, FP8 KV, and supports up to 86,016 MTP context tokens with a 200 MiB reserve.
 The separate Target-only ceiling is 98,304 tokens. The owner accepted the bounded GSM8K/AIME and product evidence and
 waived the remaining broad M19 suite for this checkpoint; claims do not extend beyond that recorded evidence.
 
@@ -36,7 +36,7 @@ waived the remaining broad M19 suite for this checkpoint; claims do not extend b
   token/s and the 6,500 prompt stretch, while M21 established `base_max_context=98,304`;
 - **M22:** accepted CLI/server product integration and protected 12B behavior at `f0aa302aa0246d44e1c8477dbbbb67fbbe2d2037`;
 - **M23:** accepted technical Target freeze after M20/M21 and M22;
-- **M25:** accepted fixed-D2 compatibility, exactness, product and 73,728-token MTP context qualification;
+- **M25:** accepted fixed-D2 compatibility, exactness, product and 86,016-token MTP context qualification;
 - **Main promotion:** accepted after current-HEAD release, CUDA/sanitizer, real 12B/26B product and server lifecycle
   revalidation; 12B remains the default.
 

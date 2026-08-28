@@ -126,4 +126,10 @@ struct DecodeControl;
 [[nodiscard]] std::uint64_t DecodeAttentionWorkspaceElements(
     std::uint64_t max_context);
 
+// Fixed speculative verification keeps one split-online partial row per
+// verified token. The returned count is the complete FP32 arena requirement
+// for `rows` rows, including their LSE values.
+[[nodiscard]] std::uint64_t DecodeAttentionFixedWorkspaceElements(
+    std::uint64_t max_context, std::uint32_t rows);
+
 }  // namespace gem16::internal

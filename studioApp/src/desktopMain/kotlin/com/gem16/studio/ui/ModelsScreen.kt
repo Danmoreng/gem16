@@ -100,7 +100,7 @@ fun ModelsScreen(state: StudioState) {
                     ready = install.assistant26BReady,
                 )
                 Text(
-                    "Text-only · one session · fixed D2 · 73,728-token qualified MTP context",
+                    "Text-only · one session · fixed D2 · 86,016-token qualified MTP context",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

@@ -249,10 +249,19 @@ reaches 88,640 tokens, but boundary execution becomes unsafe between 74,944 and 
 closes the M25 context slice. See
 `artifacts/m25/context-capacity-2026-08-27.json`.
 
+On 2026-08-28 the 75K fault was diagnosed as an undersized alias in the Target fixed-D2 verifier: split-attention
+borrowed dead prefill-MoE scratch, but the arena plan accounted only the normal MoE layout instead of three
+long-context attention rows. The explicit fixed-row alias now participates in the prefill arena maximum. Fresh
+process execution passes 75,000 and repeats identically three times at 86,016 tokens with 214,761,472 bytes free,
+zero fallback and no token-loop allocation. A diagnostic 86,400 run retains 210,567,168 bytes; 86,464 executes but
+falls below the 200 MiB post-generation reserve. The qualified rounded product limit is therefore
+`mtp_max_context=86,016`; this supersedes the 73,728 guard and the prior open-CUDA-fault limitation without changing
+`base_max_context=98,304`. See `artifacts/m25/context-capacity-2026-08-28.json`.
+
 On 2026-08-27 the owner accepted M25 as the qualified 26B product checkpoint. This supersedes the earlier requirement
 that the formal retained sampled-timing distribution and the complete historical M19 suite pass before checkpoint
 qualification. The retained ordinary M20 performance, bounded sampled Target-identity evidence, full GSM8K and AIME
-2026 comparisons, real product execution and repeated 73,728-token MTP boundary are the accepted evidence set. The
+2026 comparisons, real product execution and the superseding repeated 86,016-token MTP boundary are the accepted evidence set. The
 missing retained sampled timing limits which throughput number may be called formal; it does not make the checkpoint
 optional or experimental. General quality claims remain bounded to the published tests.
 

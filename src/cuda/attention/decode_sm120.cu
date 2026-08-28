@@ -1720,6 +1720,17 @@ std::uint64_t DecodeAttentionWorkspaceElements(std::uint64_t max_context) {
   return local_elements > global_elements ? local_elements : global_elements;
 }
 
+std::uint64_t DecodeAttentionFixedWorkspaceElements(
+    std::uint64_t max_context, std::uint32_t rows) {
+  const std::uint64_t per_row =
+      DecodeAttentionWorkspaceElements(max_context);
+  if (rows == 0U || per_row == 0U) return 0U;
+  if (per_row > std::numeric_limits<std::uint64_t>::max() / rows) {
+    return std::numeric_limits<std::uint64_t>::max();
+  }
+  return per_row * rows;
+}
+
 Status LaunchOnlineAttentionDecodeFp8Sm120(
     const float* query, const std::uint8_t* key_cache,
     const std::uint8_t* value_cache,

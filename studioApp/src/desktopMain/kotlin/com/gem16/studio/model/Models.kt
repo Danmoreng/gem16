@@ -102,7 +102,7 @@ data class ServerConfig(
             modelDirectory = default26BModelDirectory(),
             assistantModelDirectory = default26BAssistantDirectory(),
             modelName = "gemma4-26b-a4b",
-            maxContextTokens = 73728,
+            maxContextTokens = 86016,
             maxSessions = 1,
             mtpDraftTokens = 2,
             mtpAdaptive = false,

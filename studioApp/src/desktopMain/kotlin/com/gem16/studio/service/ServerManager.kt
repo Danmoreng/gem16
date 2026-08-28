@@ -222,8 +222,8 @@ class ServerManager : AutoCloseable {
             config.mtpAdaptive
         ) return "Gemma 4 26B currently supports fixed-depth MTP only"
         if (config.modelProfile == com.gem16.studio.model.ModelProfile.Gemma4Moe26BA4B &&
-            config.mtpDraftTokens != 0 && config.maxContextTokens > 73_728
-        ) return "Gemma 4 26B fixed-D2 MTP supports at most 73,728 context tokens"
+            config.mtpDraftTokens != 0 && config.maxContextTokens > 86_016
+        ) return "Gemma 4 26B fixed-D2 MTP supports at most 86,016 context tokens"
         if (config.modelProfile == com.gem16.studio.model.ModelProfile.Gemma4Moe26BA4B &&
             config.mtpDraftTokens == 0 && config.maxContextTokens > 98_304
         ) return "Gemma 4 26B Target-only supports at most 98,304 context tokens"

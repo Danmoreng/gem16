@@ -34,7 +34,7 @@ capability and the configured `mtp_max_context`. Images and audio are rejected, 
 slot is admitted. These restrictions do not change the 12B server path.
 
 The measured 26B limits are separate: ordinary Target execution supports up to 98,304 tokens with a 400 MiB
-long-context reserve, while fixed-D2 MTP supports up to 73,728 tokens with a 200 MiB reserve. The server applies the
+long-context reserve, while fixed-D2 MTP supports up to 86,016 tokens with a 200 MiB reserve. The server applies the
 smaller reserve only when MTP is active and rejects larger Assistant contexts during initialization.
 
 Startup creates one `ModelRuntime` and logs its target/assistant weight bytes

@@ -14,7 +14,7 @@ Derived from [`FAST_TRACK_STATUS.json`](FAST_TRACK_STATUS.json). Policy: [`../..
 | M21 | ACCEPTED | 32K/64K/96K pass twice; 100K capacity-rejected; `base_max_context=98,304` |
 | M23 | ACCEPTED | exact hash/evidence/capability/rollback freeze; M19 remains visibly pending |
 | M25 sampled product | ACCEPTED | exact GPU sampling, CLI/server/Studio D2 chat and bounded 32K continuation pass at `c4ead1d` |
-| M25 context | ACCEPTED | 64K and 72K pass with 200 MiB reserve; `mtp_max_context=73,728` |
+| M25 context | ACCEPTED | repaired fixed-D2 arena repeats at 86,016 with 200 MiB reserve |
 | Checkpoint publication | ACCEPTED | separate immutable Target/Assistant repositories and Studio download complete |
 | Main promotion | ACCEPTED | current-HEAD release gates passed; Fast Track promoted to `main` |
 

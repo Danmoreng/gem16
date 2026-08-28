@@ -208,8 +208,8 @@ std::string ServerManager::Validate(const ServerConfig& config) const {
     return "Gemma 4 26B supports fixed-depth MTP only";
   }
   if (config.profile == ModelProfile::kGemma4Moe26BA4B &&
-      config.mtp_draft_tokens != 0 && config.max_context_tokens > 73728) {
-    return "Gemma 4 26B fixed-D2 MTP supports at most 73,728 context tokens";
+      config.mtp_draft_tokens != 0 && config.max_context_tokens > 86016) {
+    return "Gemma 4 26B fixed-D2 MTP supports at most 86,016 context tokens";
   }
   if (config.profile == ModelProfile::kGemma4Moe26BA4B &&
       config.mtp_draft_tokens == 0 && config.max_context_tokens > 98304) {

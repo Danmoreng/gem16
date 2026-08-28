@@ -693,7 +693,7 @@ void StudioApp::DrawModels() {
                "Text · Vision · Audio · MTP");
   draw_profile(ModelProfile::kGemma4Moe26BA4B,
                "Qualified text-only A4B mixture-of-experts checkpoint for approximately 16 GB Blackwell GPUs.",
-               "Text · Fixed MTP D2 · 73,728 tokens");
+               "Text · Fixed MTP D2 · 86,016 tokens");
 
   ImGui::BeginChild("##qualified-26b-download", {0, 150}, ImGuiChildFlags_Borders);
   ImGui::TextColored(kAccent, "Qualified 26B checkpoint");

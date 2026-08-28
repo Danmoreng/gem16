@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "milestone": "M25-context-capacity-repair",
+  "status": "passed",
+  "measured_on": "2026-08-28",
+  "implementation_parent": "66d05a601ed22356d6a909876544b04824505860",
+  "device": {
+    "name": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "driver": "610.43.03",
+    "visible_total_bytes": 16652042240
+  },
+  "artifacts": {
+    "target_compilation_manifest_sha256": "7e5e78b9c6f61fbe8829866395634085261e1261a8c783f69affc5a16bd1847a",
+    "assistant_compilation_manifest_sha256": "d2a722ccad675807ff73a1a645a0f1fbcc0fc200c402a14e823a5927618a116d",
+    "context_driver_sha256": "31d447e478e06adc0cacbabf58814b44e4bcfb8a640b7a52cc207498e4cd7fbb",
+    "server_sha256": "5e77a26798a48d63c3be2118ee938165906b66254a25ab1f6c787cba276f366d",
+    "raw_measurements": "artifacts/raw/m25/context-capacity-2026-08-28.json",
+    "raw_measurements_sha256": "f9be3487db6f95562ef5acdcf00212a2ac8d5d8aca1279015c929d4e1abcf77f"
+  },
+  "root_cause": {
+    "component": "Target fixed-D2 verifier attention workspace",
+    "failure": "cudaErrorIllegalAddress at and above the 75K boundary",
+    "cause": "The three-row split-attention workspace aliased dead prefill-MoE scratch, but its long-context size did not participate in the prefill arena maximum. At large context it wrote beyond the allocation.",
+    "repair": "Plan an explicit three-row DecodeAttentionFixedWorkspaceElements alias at the shared-product offset and include it in the fixed prefill arena maximum."
+  },
+  "profile": {
+    "target": "Gemma 4 26B A4B compiled hybrid",
+    "assistant": "official QAT-Q4_0-matched compiled hybrid",
+    "kv_cache": "fp8",
+    "mtp_draft_tokens": 2,
+    "required_long_context_reserve_bytes": 209715200,
+    "base_max_context_tokens": 98304,
+    "mtp_max_context_tokens": 86016
+  },
+  "qualification": {
+    "former_failure_context_tokens": 75000,
+    "former_failure_now_passes": true,
+    "qualified_context_tokens": 86016,
+    "fresh_process_runs": 3,
+    "free_after_generation_bytes": [214761472, 214761472, 214761472],
+    "output_token_checksums": [12349349481286814512, 12349349481286814512, 12349349481286814512],
+    "fallback_count": 0,
+    "token_loop_allocations": false,
+    "passed": true
+  },
+  "boundary_diagnostics": {
+    "highest_tested_reserve_pass_tokens": 86400,
+    "highest_tested_reserve_pass_free_bytes": 210567168,
+    "first_tested_reserve_failure_tokens": 86464,
+    "first_tested_reserve_failure_free_bytes": 208470016,
+    "first_tested_reserve_failure_execution_pass": true,
+    "qualification_rounding": "86,016 is 84 Ki tokens and retains approximately 4.8 MiB above the 200 MiB contract; the razor-thin 86,400 diagnostic pass is not promoted."
+  },
+  "checks": [
+    {
+      "command": "ctest --test-dir build/Linux/blackwell-release -R '^(gem16-unit|gem16-cuda-attention-reference)$' --output-on-failure",
+      "result": "2/2 passed"
+    },
+    {
+      "command": "compute-sanitizer --tool memcheck --error-exitcode 99 build/Linux/blackwell-release/bin/gem16-cuda-tests online-decode-kvh2-d2-memcheck",
+      "result": "0 errors; fixed-D2 and ordinary outputs bit-identical"
+    },
+    {
+      "command": "ctest --test-dir build/native-studio --output-on-failure",
+      "result": "1/1 passed"
+    },
+    {
+      "command": "GEM16_26B_COMPILED_MODEL=<locked-target> GEM16_26B_ASSISTANT_MODEL=<locked-assistant> ctest --test-dir build/Linux/blackwell-release -R '^gem16-26b-m22-product$' --output-on-failure",
+      "result": "1/1 passed in 36.27 s"
+    },
+    {
+      "command": "GEM16_12B_MODEL=<locked-12b> ctest --test-dir build/Linux/blackwell-release -R '^gem16-12b-m22-product$' --output-on-failure",
+      "result": "1/1 passed in 5.33 s"
+    },
+    {
+      "command": "gem16-26b-m25-context-driver --context 73728 --required-reserve-mib 200",
+      "result": "previous qualified boundary regression passed"
+    },
+    {
+      "command": "gem16-26b-m25-context-driver --context 86017 --required-reserve-mib 200",
+      "result": "rejected during Assistant preparation before inference"
+    }
+  ],
+  "runtime_policy": {
+    "server_long_context_mtp_reserve_bytes": 209715200,
+    "assistant_context_guard_tokens": 86016,
+    "contexts_above_guard_fail_before_cuda_execution": true
+  }
+}

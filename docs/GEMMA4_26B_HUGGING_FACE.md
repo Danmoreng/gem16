@@ -50,14 +50,14 @@ and must be paired with the qualified Target.
 - batch one and one resident session;
 - fixed D2 MTP with Target verification;
 - FP8 KV cache;
-- `mtp_max_context=73,728` with a 200 MiB long-context reserve;
+- `mtp_max_context=86,016` with a 200 MiB long-context reserve;
 - `base_max_context=98,304` with the separate 400 MiB base reserve;
 - text only; no 26B image, audio or video input;
 - no CPU weight offload, runtime repacking, silent precision fallback or
   recurring token-loop allocation.
 
 The measured context record is
-`artifacts/m25/context-capacity-2026-08-27.json`. Full GSM8K and AIME 2026,
+`artifacts/m25/context-capacity-2026-08-28.json`. Full GSM8K and AIME 2026,
 bounded sampled Target identity and the product/runtime gates are the accepted
 quality evidence for this checkpoint. The owner waived the broader historical
 M19 suite; quality claims remain limited to the published evidence.

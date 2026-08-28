@@ -42,7 +42,7 @@ bool TestQualified26BDefaults() {
   gem16::studio::ServerConfig config;
   gem16::studio::ApplyProfileDefaults(
       config, gem16::studio::ModelProfile::kGemma4Moe26BA4B);
-  return config.max_context_tokens == 73728 && config.max_sessions == 1 &&
+  return config.max_context_tokens == 86016 && config.max_sessions == 1 &&
          config.mtp_draft_tokens == 2 && !config.mtp_adaptive &&
          config.model_directory ==
              gem16::studio::Qualified26BTargetDirectory().string() &&

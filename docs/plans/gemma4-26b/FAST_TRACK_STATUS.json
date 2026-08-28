@@ -305,7 +305,7 @@
     },
     "M25": {
       "status": "ACCEPTED",
-      "note": "Accepted by owner on 2026-08-27 as the qualified selectable 26B checkpoint. Sampled fixed-D2 CLI/server/Studio live chat has bounded same-seed Target identity, 32K admission and resident continuation evidence. Fresh-process 65,536- and 73,728-token boundary runs pass the selected 200 MiB MTP reserve with repeat-identical output checksums, zero fallback and no token-loop allocation; mtp_max_context is 73,728 and base_max_context remains 98,304. Formal retained sampled timing is optional additional performance evidence, not an acceptance gate.",
+      "note": "Accepted by owner on 2026-08-27 as the qualified selectable 26B checkpoint. Sampled fixed-D2 CLI/server/Studio live chat has bounded same-seed Target identity, 32K admission and resident continuation evidence. After the fixed-D2 alias repair, fresh-process 86,016-token boundary runs pass the selected 200 MiB MTP reserve with repeat-identical output checksums, zero fallback and no token-loop allocation; mtp_max_context is 86,016 and base_max_context remains 98,304. Formal retained sampled timing is optional additional performance evidence, not an acceptance gate.",
       "class": "final-target",
       "lane": "mtp",
       "feasibility_depends_on": [

@@ -27,7 +27,7 @@ For multi-agent work also read [`PARALLEL_WORKSTREAMS.md`](PARALLEL_WORKSTREAMS.
 
 ## Milestones
 
-M00–M17, M20–M23 and M25 are accepted. The qualified fixed-D2 product passes 73,728 MTP context tokens with a
+M00–M17, M20–M23 and M25 are accepted. The qualified fixed-D2 product passes 86,016 MTP context tokens with a
 200 MiB reserve and 98,304 Target-only tokens. The owner accepted the bounded M19 replacement and waived the broad
 multi-hour suite for this checkpoint. Current-HEAD release gates passed on 2026-08-28 and the Fast Track was promoted
 to `main`; M18 remains conditional and M24 optional.

@@ -11,7 +11,7 @@ SM120 prefill/decode/head work without CPU weight offload or recurring token-loo
 
 The current source tree contains an executable fixed-address 26B runtime, chat/server/Studio integration and native
 SM120 MoE, attention, tied-head and fixed-D2 MTP dispatch. M20 accepted retained medians of 6,572.809 prompt and
-150.615 ordinary-decode token/s. M25 publishes `mtp_max_context=73,728`; the Target-only maximum remains 98,304.
+150.615 ordinary-decode token/s. M25 publishes `mtp_max_context=86,016`; the Target-only maximum remains 98,304.
 The 12B Unified path remains the multimodal default and must remain unchanged.
 
 The owner-set M20 objective now targets vLLM-class performance on the exact 16K+64 ordinary path: retained medians

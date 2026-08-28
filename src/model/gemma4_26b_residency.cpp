@@ -174,13 +174,13 @@ BuildGemma4Moe26BAssistantResidencyPlan(const ModelManifest& manifest) {
 
   Gemma4Moe26BResidencyPlan plan;
   plan.artifact_payload_bytes = manifest.total_tensor_bytes;
-  // The split-reduction online-attention workspace is about 18.1 MiB at the
-  // qualified 72K MTP maximum. Reserve 24 MiB for it and the remaining
+  // The split-reduction online-attention workspace remains below 13 MiB at the
+  // qualified 84 Ki-token MTP maximum. Reserve 24 MiB for it and the remaining
   // fixed activations, plus explicit graph and allocator regions. Unlike the
   // target profile, no Assistant KV cache is present: all four layers consume
   // the target model's existing views.
   plan.fixed_regions = {
-      {"mtp_assistant_workspace_72k", 24U * kMiB},
+      {"mtp_assistant_workspace_84k", 24U * kMiB},
       {"mtp_assistant_graph_reserve", 16U * kMiB},
       {"mtp_assistant_allocator_metadata_guard", 4U * kMiB},
   };
@@ -229,7 +229,7 @@ BuildGemma4Moe26BAssistantResidencyPlan(const ModelManifest& manifest) {
   plan.immutable_weight_arena_bytes = arena_bytes.value();
 
   constexpr std::array<std::uint64_t, 3> kContexts = {
-      32768U, 65536U, 73728U};
+      32768U, 65536U, 86016U};
   for (const auto context : kContexts) {
     auto total = CheckedAdd(plan.immutable_weight_arena_bytes,
                             plan.fixed_region_bytes,

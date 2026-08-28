@@ -129,7 +129,7 @@ void ApplyProfileDefaults(ServerConfig& config, ModelProfile profile) {
     config.model_name = "gemma4-26b-a4b";
     config.model_directory = Qualified26BTargetDirectory().string();
     config.assistant_directory = Qualified26BAssistantDirectory().string();
-    config.max_context_tokens = 73728;
+    config.max_context_tokens = 86016;
   } else {
     config.model_name = "gem16-12b";
     config.model_directory =

@@ -5319,6 +5319,16 @@ int main(int argc, char** argv) {
     std::cout << "online decode CUDA tests passed\n";
     return 0;
   }
+  if (argc == 2 &&
+      std::string_view(argv[1]) == "online-decode-kvh2-d2-memcheck") {
+    TestOnlineFp8DecodeGlobalD2Kvh2();
+    if (failures != 0) {
+      std::cerr << failures << " CUDA test assertion(s) failed\n";
+      return 1;
+    }
+    std::cout << "online decode KVH2 D2 CUDA memcheck tests passed\n";
+    return 0;
+  }
   if (argc == 2 && std::string_view(argv[1]) == "decode-fusion") {
     TestLocalLayerReferenceOperators();
     TestFusedProjectionRmsNormRotaryBf16Batch();

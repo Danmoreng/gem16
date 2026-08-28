@@ -622,6 +622,10 @@ void CheckNativeTwoKvHeadGlobalDecode(std::uint64_t capacity,
 }
 
 void TestNativeTwoKvHeadGlobalDecode() {
+  CHECK(gem16::internal::DecodeAttentionFixedWorkspaceElements(75000U, 3U) ==
+        3U * gem16::internal::DecodeAttentionWorkspaceElements(75000U));
+  CHECK(gem16::internal::DecodeAttentionFixedWorkspaceElements(75000U, 0U) ==
+        0U);
   CheckNativeTwoKvHeadGlobalDecode(1024U, 777U, "scalar");
   CheckNativeTwoKvHeadGlobalDecode(16384U, 12345U, "vectorized");
   CheckNativeTwoKvHeadGlobalDecode(16448U, 16447U, "vectorized-tail");
