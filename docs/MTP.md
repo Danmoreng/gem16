@@ -15,9 +15,13 @@ passes 75,000 tokens and repeats identically at 86,016 tokens with at least 200 
 checksums, zero fallback and no token-loop allocation; `mtp_max_context` is therefore 86,016. The base Target remains
 separately qualified to 98,304 tokens. The first tested post-generation reserve failure is 86,464 tokens; it is
 rejected as unsupported by the qualified guard. Adaptive 26B MTP remains unsupported. The owner accepted M25 on
-2026-08-27; formal retained sampled timing remains optional additional performance evidence. See
+2026-08-27. Formal sampled timing now records 199.871 token/s fixed D2 versus 148.709 token/s ordinary after three
+warm-ups and ten retained paired runs. Output and the 496/770 acceptance count are unchanged from the 194.803
+token/s parent. Assistant precision and acceptance are frozen; execution-only optimization remains open toward
+220 token/s, with 250 token/s as the stretch target. See
 `artifacts/m25/sampled-mtp-product.json`,
-`artifacts/m25/context-capacity-2026-08-28.json` and the M25 milestone card.
+`artifacts/m25/context-capacity-2026-08-28.json`,
+`artifacts/m25/sampled-d2-performance-2026-08-28.json` and the M25 milestone card.
 
 ---
 

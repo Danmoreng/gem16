@@ -359,6 +359,7 @@ def metric_run(
         "prompt_ms": prompt_ms,
         "prompt_tokens_per_second": prompt_tokens * 1000.0 / prompt_ms,
         "decode_ms": decode_ms,
+        "inference_end_to_end_ms": prompt_ms + decode_ms,
         "decode_tokens_per_second": decode_throughput,
         "average_inter_token_latency_ms": (
             decode_ms / decode_intervals if decode_intervals > 0 else 0.0
@@ -403,8 +404,16 @@ def summarize_runs(runs: list[dict[str, Any]]) -> dict[str, Any]:
             {str(run["stop_reason"]) for run in runs}
         ),
     }
+    if all("inference_end_to_end_ms" in run for run in runs):
+        summary["inference_end_to_end_ms"] = summarize(
+            [float(run["inference_end_to_end_ms"]) for run in runs]
+        )
+    if all("process_wall_ms" in run for run in runs):
+        summary["process_wall_ms"] = summarize(
+            [float(run["process_wall_ms"]) for run in runs]
+        )
     def summarize_speculation(field: str) -> dict[str, Any]:
-        return {
+        result = {
             "proposed_tokens": summarize(
                 [float(run[field]["proposed_tokens"]) for run in runs]
             ),
@@ -433,6 +442,16 @@ def summarize_runs(runs: list[dict[str, Any]]) -> dict[str, Any]:
                 [float(run[field]["ordinary_fallback_tokens"]) for run in runs]
             ),
         }
+        result["acceptance_rate"] = summarize(
+            [
+                float(run[field]["accepted_tokens"])
+                / float(run[field]["proposed_tokens"])
+                if int(run[field]["proposed_tokens"]) > 0
+                else 0.0
+                for run in runs
+            ]
+        )
+        return result
 
     if all("speculative" in run for run in runs):
         summary["speculative"] = summarize_speculation("speculative")
@@ -500,7 +519,9 @@ def run_gem16(
         )
         if mtp_adaptive:
             command.append("--mtp-adaptive")
+    process_started = time.perf_counter()
     completed = subprocess.run(command, check=False, capture_output=True, text=True)
+    process_wall_ms = (time.perf_counter() - process_started) * 1000.0
     if completed.returncode != 0:
         detail = completed.stderr.strip() or completed.stdout.strip()
         raise BenchmarkError(
@@ -522,6 +543,7 @@ def run_gem16(
         result.get("finish_reason"),
     )
     run["model_load_ms"] = float(result["model_load_ms"])
+    run["process_wall_ms"] = process_wall_ms
     run["workspace_bytes"] = int(result["workspace_bytes"])
     run["kv_cache_bytes"] = int(result["kv_cache_bytes"])
     if mtp_draft_tokens != 0:

@@ -199,6 +199,31 @@ __device__ __forceinline__ void StageGlobalKvh2TileAsync(
   }
 }
 
+template <int kTileTokens>
+__device__ __forceinline__ void StageGlobalKvh2FixedTileAsync(
+    std::uint8_t* staged, const std::uint8_t* cache,
+    std::uint64_t split_start, int tile_start, int tile_tokens,
+    int kv_head) {
+  constexpr int kTileBytes = kTileTokens * kDecodeGlobalHeadDimension;
+  for (int byte = static_cast<int>(threadIdx.x) * 16;
+       byte < kTileBytes; byte += kDecodeThreads * 16) {
+    const int tile_token = byte / kDecodeGlobalHeadDimension;
+    const int dimension = byte - tile_token * kDecodeGlobalHeadDimension;
+    const bool valid = tile_token < tile_tokens;
+    const std::uint8_t* source =
+        valid
+            ? cache +
+                  (((split_start + static_cast<std::uint64_t>(
+                                        tile_start + tile_token)) *
+                        kDecodeGlobalKvHeads26B +
+                    static_cast<std::uint64_t>(kv_head)) *
+                       kDecodeGlobalHeadDimension +
+                   dimension)
+            : cache;
+    CopyAsync16(staged + byte, source, valid ? 16 : 0);
+  }
+}
+
 __device__ __forceinline__ float DecodeBlockMaximum(float value,
                                                      float* warp_values) {
   for (int offset = 16; offset > 0; offset >>= 1) {
@@ -1325,6 +1350,247 @@ void SplitOnlineDecodeAttentionFp8GlobalKvh2Kernel(
   }
 }
 
+// Fixed-row Gemma 4 26B verifier attention. One CTA owns one physical KV
+// head and one 128-token split for all verifier rows, so historical K/V is
+// staged and decoded once while every row retains the ordinary per-token
+// accumulation and split/LSE merge order.
+template <int kRows>
+__launch_bounds__(kDecodeThreads, 1) __global__
+void SplitOnlineDecodeAttentionFp8GlobalKvh2FixedRowsKernel(
+    const float* __restrict__ query,
+    const std::uint8_t* __restrict__ key_cache,
+    const std::uint8_t* __restrict__ value_cache,
+    const std::uint16_t* __restrict__ key_scale_bf16,
+    const std::uint16_t* __restrict__ value_scale_bf16,
+    float* __restrict__ partial_output, float* __restrict__ partial_lse,
+    const DecodeControl* __restrict__ row_controls, int max_splits) {
+  static_assert(kRows == 2 || kRows == 3 || kRows == 5);
+  constexpr int kQueriesPerKv =
+      kDecodeQueryHeads / kDecodeGlobalKvHeads26B;
+  constexpr int kFixedTileTokens = 32;
+  static_assert(kQueriesPerKv == kDecodeWarps);
+  static_assert(kDecodeGlobalHeadDimension % (32 * 4) == 0);
+  static_assert(kDecodeGlobalChunk % kFixedTileTokens == 0);
+  __shared__ alignas(16)
+      std::uint8_t staged_kv[2][kFixedTileTokens *
+                                kDecodeGlobalHeadDimension];
+  __shared__ float
+      scores[kRows * kQueriesPerKv * kDecodeGlobalChunk];
+  __shared__ float reduction[kDecodeWarps];
+  __shared__ float inverse_sum_shared[kRows][kQueriesPerKv];
+
+  const int linear_block = static_cast<int>(blockIdx.x);
+  const int split = linear_block / kDecodeGlobalKvHeads26B;
+  const int kv_head = linear_block - split * kDecodeGlobalKvHeads26B;
+  if (split >= max_splits) return;
+  const std::uint64_t start_position = row_controls[0].position;
+  const std::uint64_t split_start =
+      static_cast<std::uint64_t>(split) * kDecodeGlobalChunk;
+  const std::uint64_t final_tokens = start_position + kRows;
+  if (split_start >= final_tokens) return;
+
+  int split_tokens[kRows];
+#pragma unroll
+  for (int row = 0; row < kRows; ++row) {
+    const std::uint64_t row_tokens =
+        start_position + static_cast<std::uint64_t>(row) + 1U;
+    split_tokens[row] =
+        split_start < row_tokens
+            ? static_cast<int>(min(
+                  static_cast<std::uint64_t>(kDecodeGlobalChunk),
+                  row_tokens - split_start))
+            : 0;
+  }
+  const int maximum_split_tokens = split_tokens[kRows - 1];
+  const int lane = static_cast<int>(threadIdx.x) & 31;
+  const int warp = static_cast<int>(threadIdx.x) >> 5;
+  const int query_head = kv_head * kQueriesPerKv + warp;
+  const float key_scale =
+      static_cast<float>(__ushort_as_bfloat16(key_scale_bf16[0]));
+  const float value_scale =
+      static_cast<float>(__ushort_as_bfloat16(value_scale_bf16[0]));
+
+  float query_values[kRows][16];
+#pragma unroll
+  for (int row = 0; row < kRows; ++row) {
+#pragma unroll
+    for (int element = 0; element < 16; ++element) {
+      const int dimension =
+          lane * 4 + (element / 4) * 128 + element % 4;
+      query_values[row][element] =
+          query[(static_cast<std::uint64_t>(row) * kDecodeQueryHeads +
+                 query_head) *
+                    kDecodeGlobalHeadDimension +
+                dimension];
+    }
+  }
+
+  for (int tile_start = 0; tile_start < maximum_split_tokens;
+       tile_start += kFixedTileTokens) {
+    const int tile_tokens = min(kFixedTileTokens,
+                                maximum_split_tokens - tile_start);
+    StageGlobalKvh2FixedTileAsync<kFixedTileTokens>(
+        staged_kv[0], key_cache, split_start, tile_start, tile_tokens,
+        kv_head);
+    CommitAsyncCopies();
+    WaitForAsyncCopies();
+    __syncthreads();
+
+    for (int token = 0; token < tile_tokens; ++token) {
+      float row_scores[kRows] = {};
+#pragma unroll
+      for (int quarter = 0; quarter < 4; ++quarter) {
+        const int dimension = lane * 4 + quarter * 128;
+        const std::uint32_t packed =
+            *reinterpret_cast<const std::uint32_t*>(
+                staged_kv[0] +
+                token * kDecodeGlobalHeadDimension + dimension);
+        const float4 key_values = DecodeFp8x4(packed, key_scale);
+#pragma unroll
+        for (int row = 0; row < kRows; ++row) {
+          row_scores[row] = fmaf(query_values[row][quarter * 4],
+                                 key_values.x, row_scores[row]);
+          row_scores[row] = fmaf(query_values[row][quarter * 4 + 1],
+                                 key_values.y, row_scores[row]);
+          row_scores[row] = fmaf(query_values[row][quarter * 4 + 2],
+                                 key_values.z, row_scores[row]);
+          row_scores[row] = fmaf(query_values[row][quarter * 4 + 3],
+                                 key_values.w, row_scores[row]);
+        }
+      }
+#pragma unroll
+      for (int row = 0; row < kRows; ++row) {
+        for (int offset = 16; offset > 0; offset >>= 1) {
+          row_scores[row] += __shfl_down_sync(
+              kFullWarpMask, row_scores[row], offset);
+        }
+        if (lane == 0 && tile_start + token < split_tokens[row]) {
+          scores[(row * kQueriesPerKv + warp) * kDecodeGlobalChunk +
+                 tile_start + token] = row_scores[row];
+        }
+      }
+    }
+    __syncthreads();
+  }
+
+#pragma unroll
+  for (int row = 0; row < kRows; ++row) {
+    for (int local_head = 0; local_head < kQueriesPerKv; ++local_head) {
+      float local_maximum = -CUDART_INF_F;
+      for (int token = static_cast<int>(threadIdx.x);
+           token < split_tokens[row]; token += kDecodeThreads) {
+        local_maximum = fmaxf(
+            local_maximum,
+            scores[(row * kQueriesPerKv + local_head) *
+                       kDecodeGlobalChunk +
+                   token]);
+      }
+      const float maximum = DecodeBlockMaximum(local_maximum, reduction);
+      float local_sum = 0.0F;
+      for (int token = static_cast<int>(threadIdx.x);
+           token < split_tokens[row]; token += kDecodeThreads) {
+        const int score_index =
+            (row * kQueriesPerKv + local_head) * kDecodeGlobalChunk + token;
+        const float probability = expf(scores[score_index] - maximum);
+        scores[score_index] = probability;
+        local_sum += probability;
+      }
+      const float denominator = DecodeBlockSum(local_sum, reduction);
+      if (threadIdx.x == 0) {
+        inverse_sum_shared[row][local_head] =
+            denominator > 0.0F ? __frcp_rn(denominator) : 0.0F;
+        const int global_head = kv_head * kQueriesPerKv + local_head;
+        partial_lse[(static_cast<std::uint64_t>(row) * max_splits + split) *
+                        kDecodeQueryHeads +
+                    global_head] = maximum + logf(denominator);
+      }
+      __syncthreads();
+    }
+  }
+
+  float accumulators[kRows][16] = {};
+  int value_tile_start = 0;
+  int value_tile_tokens = min(kFixedTileTokens, maximum_split_tokens);
+  StageGlobalKvh2FixedTileAsync<kFixedTileTokens>(
+      staged_kv[0], value_cache, split_start, value_tile_start,
+      value_tile_tokens, kv_head);
+  CommitAsyncCopies();
+  WaitForAsyncCopies();
+  __syncthreads();
+
+  for (int tile_index = 0; value_tile_start < maximum_split_tokens;
+       ++tile_index, value_tile_start += kFixedTileTokens) {
+    value_tile_tokens = min(kFixedTileTokens,
+                            maximum_split_tokens - value_tile_start);
+    const int current_buffer = tile_index & 1;
+    const int next_start = value_tile_start + kFixedTileTokens;
+    const bool has_next = next_start < maximum_split_tokens;
+    if (has_next) {
+      const int next_tokens = min(kFixedTileTokens,
+                                  maximum_split_tokens - next_start);
+      StageGlobalKvh2FixedTileAsync<kFixedTileTokens>(
+          staged_kv[current_buffer ^ 1], value_cache, split_start,
+          next_start, next_tokens, kv_head);
+      CommitAsyncCopies();
+    }
+
+    for (int token = 0; token < value_tile_tokens; ++token) {
+      float probabilities[kRows];
+#pragma unroll
+      for (int row = 0; row < kRows; ++row) {
+        probabilities[row] =
+            value_tile_start + token < split_tokens[row]
+                ? scores[(row * kQueriesPerKv + warp) *
+                             kDecodeGlobalChunk +
+                         value_tile_start + token]
+                : 0.0F;
+      }
+#pragma unroll
+      for (int quarter = 0; quarter < 4; ++quarter) {
+        const int dimension = lane * 4 + quarter * 128;
+        const std::uint32_t packed =
+            *reinterpret_cast<const std::uint32_t*>(
+                staged_kv[current_buffer] +
+                token * kDecodeGlobalHeadDimension + dimension);
+        const float4 values = DecodeFp8x4(packed, value_scale);
+#pragma unroll
+        for (int row = 0; row < kRows; ++row) {
+          accumulators[row][quarter * 4] =
+              fmaf(probabilities[row], values.x,
+                   accumulators[row][quarter * 4]);
+          accumulators[row][quarter * 4 + 1] =
+              fmaf(probabilities[row], values.y,
+                   accumulators[row][quarter * 4 + 1]);
+          accumulators[row][quarter * 4 + 2] =
+              fmaf(probabilities[row], values.z,
+                   accumulators[row][quarter * 4 + 2]);
+          accumulators[row][quarter * 4 + 3] =
+              fmaf(probabilities[row], values.w,
+                   accumulators[row][quarter * 4 + 3]);
+        }
+      }
+    }
+    if (has_next) WaitForAsyncCopies();
+    __syncthreads();
+  }
+
+#pragma unroll
+  for (int row = 0; row < kRows; ++row) {
+    const float inverse_sum = inverse_sum_shared[row][warp];
+#pragma unroll
+    for (int element = 0; element < 16; ++element) {
+      const int dimension =
+          lane * 4 + (element / 4) * 128 + element % 4;
+      partial_output
+          [((static_cast<std::uint64_t>(row) * max_splits + split) *
+                kDecodeQueryHeads +
+            query_head) *
+               kDecodeGlobalHeadDimension +
+           dimension] = accumulators[row][element] * inverse_sum;
+    }
+  }
+}
+
 template <int kRows, bool kVectorized>
 __launch_bounds__(kDecodeThreads, 1) __global__
 void SplitOnlineDecodeAttentionFp8GlobalBatchKernel(
@@ -2184,14 +2450,13 @@ Status LaunchOnlineAttentionDecodeFp8GlobalFixedControlledImpl(
   float* partial_lse = workspace + kRows * partial_elements_per_row;
   if (cache_capacity >= kDecodeGqaGlobalContext) {
     if (kv_heads == kDecodeGlobalKvHeads26B) {
-      const dim3 kvh2_blocks(
-          static_cast<unsigned>(max_splits * kDecodeGlobalKvHeads26B),
-          kRows);
-      SplitOnlineDecodeAttentionFp8GlobalKvh2Kernel<false, true>
+      const unsigned kvh2_blocks =
+          static_cast<unsigned>(max_splits * kDecodeGlobalKvHeads26B);
+      SplitOnlineDecodeAttentionFp8GlobalKvh2FixedRowsKernel<kRows>
           <<<kvh2_blocks, kDecodeThreads, 0, stream>>>(
               query, key_cache, value_cache, key_scale_bf16,
-              value_scale_bf16, workspace, partial_lse, nullptr, nullptr, 0U,
-              row_controls, max_splits);
+              value_scale_bf16, workspace, partial_lse, row_controls,
+              max_splits);
     } else if (cache_capacity >= kDecodeVectorizedGlobalContext) {
       const dim3 gqa_blocks(static_cast<unsigned>(max_splits), kRows);
       SplitOnlineDecodeAttentionFp8GlobalGqaKernel<false, true>

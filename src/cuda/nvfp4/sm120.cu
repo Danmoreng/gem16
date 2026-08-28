@@ -38,6 +38,9 @@ constexpr unsigned kSelectedSplitThreadsPerBlock =
 constexpr unsigned kSharedDecodeWarpsPerBlock = 8U;
 constexpr unsigned kSharedDecodeThreadsPerBlock =
     kWarpSize * kSharedDecodeWarpsPerBlock;
+constexpr unsigned kHeadCandidateWarpsPerBlock = 8U;
+constexpr unsigned kHeadCandidateThreadsPerBlock =
+    kWarpSize * kHeadCandidateWarpsPerBlock;
 constexpr float kSqrtTwoOverPi = 0.7978845608028654F;
 constexpr float kGeluCubic = 0.044715F;
 
@@ -57,6 +60,14 @@ bool PositiveFinite(float value) {
 
 bool Aligned16(const void* pointer) {
   return reinterpret_cast<std::uintptr_t>(pointer) % alignof(uint4) == 0U;
+}
+
+__device__ __forceinline__ Nvfp4ProjectionCandidate BetterCandidate(
+    Nvfp4ProjectionCandidate left, Nvfp4ProjectionCandidate right) {
+  return right.value > left.value ||
+                 (right.value == left.value && right.token < left.token)
+             ? right
+             : left;
 }
 
 __device__ __forceinline__ std::uint32_t LoadU32(const std::uint8_t* source) {
@@ -316,6 +327,134 @@ __global__ void Sm120DirectProjectionKernel(const std::uint8_t* packed_activatio
   (void)rows;
   (void)contracting_elements;
   (void)output_divisor;
+#endif
+}
+
+__launch_bounds__(kHeadCandidateThreadsPerBlock, 1) __global__
+void Sm120ProjectionArgmaxCandidatesBf16Kernel(
+    const std::uint8_t* packed_activation_e2m1,
+    const std::uint8_t* activation_scales_e4m3fn,
+    const std::uint8_t* packed_weight_e2m1,
+    const std::uint8_t* weight_scales_e4m3fn,
+    Nvfp4ProjectionCandidate* candidates, std::uint64_t rows,
+    std::uint64_t contracting_elements, float output_divisor,
+    std::uint32_t suppressed_token_a, std::uint32_t suppressed_token_b) {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1200
+  __shared__ Nvfp4ProjectionCandidate
+      warp_candidates[kHeadCandidateWarpsPerBlock];
+  const unsigned warp = threadIdx.x / kWarpSize;
+  const unsigned lane = threadIdx.x & (kWarpSize - 1U);
+  const std::uint64_t global_warp =
+      static_cast<std::uint64_t>(blockIdx.x) *
+          kHeadCandidateWarpsPerBlock +
+      warp;
+  const std::uint64_t first_row = global_warp * kRowsPerWarp;
+  const unsigned row_in_tile = lane >> 2U;
+  const unsigned k_quarter = lane & 3U;
+  const std::uint64_t k_blocks =
+      contracting_elements / kElementsPerKBlock;
+  const std::uint64_t weight_tile_offset =
+      first_row * k_blocks * 32U;
+  const std::uint64_t scale_tile_offset =
+      first_row * k_blocks * 4U;
+
+  float d0 = 0.0F;
+  float d1 = 0.0F;
+  float d2 = 0.0F;
+  float d3 = 0.0F;
+  constexpr std::uint16_t instruction_block_id = 0;
+  constexpr std::uint16_t instruction_thread_id = 0;
+  for (std::uint64_t k_block = 0U; k_block < k_blocks; ++k_block) {
+    const std::uint64_t activation_byte =
+        k_block * 32U + static_cast<std::uint64_t>(k_quarter) * 4U;
+    const std::uint32_t a_first =
+        LoadU32(packed_activation_e2m1 + activation_byte);
+    const std::uint32_t a_second =
+        LoadU32(packed_activation_e2m1 + activation_byte + 16U);
+    const std::uint64_t weight_byte =
+        weight_tile_offset +
+        (k_block * kRowsPerWarp + row_in_tile) * 32U +
+        static_cast<std::uint64_t>(k_quarter) * 4U;
+    const std::uint32_t b_first =
+        LoadU32(packed_weight_e2m1 + weight_byte);
+    const std::uint32_t b_second =
+        LoadU32(packed_weight_e2m1 + weight_byte + 16U);
+    const std::uint32_t scale_a =
+        LoadU32(activation_scales_e4m3fn + k_block * 4U);
+    const std::uint32_t scale_b = LoadU32(
+        weight_scales_e4m3fn + scale_tile_offset +
+        (k_block * kRowsPerWarp + row_in_tile) * 4U);
+    float next0 = 0.0F;
+    float next1 = 0.0F;
+    float next2 = 0.0F;
+    float next3 = 0.0F;
+    asm volatile(
+        "mma.sync.aligned.m16n8k64.row.col.kind::mxf4nvf4.block_scale.scale_vec::4X.f32.e2m1.e2m1.f32.ue4m3 "
+        "{%0, %1, %2, %3}, "
+        "{%4, %5, %6, %7}, "
+        "{%8, %9}, "
+        "{%10, %11, %12, %13}, "
+        "%14, {%16, %17}, "
+        "%15, {%16, %17};\n"
+        : "=f"(next0), "=f"(next1), "=f"(next2), "=f"(next3)
+        : "r"(a_first), "r"(a_first), "r"(a_second), "r"(a_second),
+          "r"(b_first), "r"(b_second), "f"(d0), "f"(d1), "f"(d2),
+          "f"(d3), "r"(scale_a), "r"(scale_b),
+          "h"(instruction_block_id), "h"(instruction_thread_id));
+    d0 = next0;
+    d1 = next1;
+    d2 = next2;
+    d3 = next3;
+  }
+
+  Nvfp4ProjectionCandidate best{-3.402823466e+38F, 0U};
+  if (lane < 4U) {
+    const std::uint32_t token = static_cast<std::uint32_t>(
+        first_row + static_cast<std::uint64_t>(lane) * 2U);
+    const float value0 = static_cast<float>(
+        __float2bfloat16_rn(d0 / output_divisor));
+    const float value1 = static_cast<float>(
+        __float2bfloat16_rn(d1 / output_divisor));
+    if (isfinite(value0) && token != suppressed_token_a &&
+        token != suppressed_token_b) {
+      best = {value0, token};
+    }
+    if (isfinite(value1) && token + 1U != suppressed_token_a &&
+        token + 1U != suppressed_token_b) {
+      best = BetterCandidate(best, {value1, token + 1U});
+    }
+  }
+  for (unsigned offset = kWarpSize / 2U; offset != 0U; offset >>= 1U) {
+    const Nvfp4ProjectionCandidate other{
+        __shfl_down_sync(0xFFFFFFFFU, best.value, offset),
+        __shfl_down_sync(0xFFFFFFFFU, best.token, offset)};
+    best = BetterCandidate(best, other);
+  }
+  if (lane == 0U) warp_candidates[warp] = best;
+  __syncthreads();
+  if (warp == 0U) {
+    best = lane < kHeadCandidateWarpsPerBlock
+               ? warp_candidates[lane]
+               : Nvfp4ProjectionCandidate{-3.402823466e+38F, 0U};
+    for (unsigned offset = kWarpSize / 2U; offset != 0U; offset >>= 1U) {
+      const Nvfp4ProjectionCandidate other{
+          __shfl_down_sync(0xFFFFFFFFU, best.value, offset),
+          __shfl_down_sync(0xFFFFFFFFU, best.token, offset)};
+      best = BetterCandidate(best, other);
+    }
+    if (lane == 0U) candidates[blockIdx.x] = best;
+  }
+#else
+  (void)packed_activation_e2m1;
+  (void)activation_scales_e4m3fn;
+  (void)packed_weight_e2m1;
+  (void)weight_scales_e4m3fn;
+  (void)candidates;
+  (void)rows;
+  (void)contracting_elements;
+  (void)output_divisor;
+  (void)suppressed_token_a;
+  (void)suppressed_token_b;
 #endif
 }
 
@@ -1445,6 +1584,52 @@ Status LaunchNvfp4Sm120DirectProjectionBf16Float(
   return error == cudaSuccess
              ? Status::Ok()
              : CudaFailure("launch SM120 NVFP4 BF16-float projection", error);
+}
+
+Status LaunchNvfp4Sm120ProjectionArgmaxCandidatesBf16(
+    const std::uint8_t* packed_activation_e2m1,
+    const std::uint8_t* activation_scales_e4m3fn,
+    const std::uint8_t* packed_weight_e2m1,
+    const std::uint8_t* weight_scales_e4m3fn,
+    Nvfp4ProjectionCandidate* candidates, std::uint64_t rows,
+    std::uint64_t contracting_elements, float activation_global_divisor,
+    float weight_global_divisor, std::uint32_t suppressed_token_a,
+    std::uint32_t suppressed_token_b, cudaStream_t stream) {
+  constexpr std::uint64_t kRowsPerBlock =
+      kRowsPerWarp * kHeadCandidateWarpsPerBlock;
+  if (packed_activation_e2m1 == nullptr ||
+      activation_scales_e4m3fn == nullptr ||
+      packed_weight_e2m1 == nullptr ||
+      weight_scales_e4m3fn == nullptr || candidates == nullptr ||
+      rows == 0U || rows % kRowsPerBlock != 0U ||
+      rows > std::numeric_limits<std::uint32_t>::max() ||
+      contracting_elements == 0U ||
+      contracting_elements % kElementsPerKBlock != 0U ||
+      !PositiveFinite(activation_global_divisor) ||
+      !PositiveFinite(weight_global_divisor)) {
+    return Invalid("SM120 NVFP4 candidate projection contract is invalid");
+  }
+  const float output_divisor =
+      activation_global_divisor * weight_global_divisor;
+  if (!PositiveFinite(output_divisor)) {
+    return Invalid("SM120 NVFP4 candidate projection divisor overflowed");
+  }
+  const std::uint64_t blocks = rows / kRowsPerBlock;
+  if (blocks >
+      static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
+    return Invalid("SM120 NVFP4 candidate projection grid exceeds CUDA limits");
+  }
+  Sm120ProjectionArgmaxCandidatesBf16Kernel<<<
+      static_cast<unsigned>(blocks), kHeadCandidateThreadsPerBlock, 0,
+      stream>>>(
+      packed_activation_e2m1, activation_scales_e4m3fn,
+      packed_weight_e2m1, weight_scales_e4m3fn, candidates, rows,
+      contracting_elements, output_divisor, suppressed_token_a,
+      suppressed_token_b);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("launch SM120 NVFP4 candidate projection", error);
 }
 
 Status LaunchNvfp4Sm120DirectProjectionBf16FloatExactBatch(

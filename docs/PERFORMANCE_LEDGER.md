@@ -1,5 +1,26 @@
 # Performance ledger
 
+## 2026-08-28 Formal sampled 26B D2 execution characterization
+
+The fixed 16,384-token Wikipedia prompt was run with batch one, fixed D2, checkpoint FP8 KV, seed 0,
+`temperature=1`, `top_k=64`, `top_p=0.95`, three paired warm-ups and ten retained alternating pairs. The measured
+parent medians are 148.298 ordinary and 194.803 D2 token/s. Fusing the Assistant NVFP4 vocabulary projection with
+its suppression-aware BF16 argmax candidates and sharing each global KVH2 K/V tile across all three Target verifier
+rows raises the retained medians to 148.709 ordinary and 199.871 D2 token/s. This is +5.068 D2 token/s (+2.60%) and
+raises the D2/ordinary ratio from 1.3136x to 1.3440x.
+
+All measured runs generate the same 942 token IDs with SHA-256
+`ee97710da349b4bcb5feedfaa81e10ff003c5a54642c9886d494db5c76ccc112`. Acceptance is exactly unchanged at 496/770
+(64.4156%), with 274 rejected proposals, 385 D2 groups and 60 ordinary-tail tokens. Sampled peak VRAM remains
+14,732 MiB ordinary and 15,026 MiB D2. The optimized D2 median inference boundary is 7,040.53 ms. Operator
+differentials, the complete Assistant oracle fixture, targeted memcheck/racecheck/initcheck and the full available
+CTest suite pass. Three model-dependent product tests remain skipped without their external checkpoints.
+
+The owner froze Assistant precision and acceptance as optimization variables. The next work is execution-only in
+ordinary decode, existing Assistant kernels or Target verification. The 220 token/s first target and 250 token/s
+stretch target remain open. Compact evidence and raw-file hashes are in
+`artifacts/m25/sampled-d2-performance-2026-08-28.json`.
+
 ## 2026-08-23 Owner-set Gemma 4 26B M20 targets
 
 The owner replaced llama.cpp parity as the performance objective with fixed vLLM-class targets for the exact

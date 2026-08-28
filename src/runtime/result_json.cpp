@@ -237,9 +237,9 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
                  ? "disabled"
                  : result.mtp_draft_tokens == 2U
                        ? (result.max_context_tokens >= 65536U
-                              ? "global_t3_row_gqa_shared_fp8x4_local_serial_exact"
+                              ? "global_t3_kvh2_shared_kv_tile32_local_serial_exact"
                               : result.max_context_tokens >= 16384U
-                                    ? "global_t3_row_gqa_shared_scalar_local_serial_exact"
+                                    ? "global_t3_kvh2_shared_kv_tile32_local_t3_shared_kv_exact"
                                     : "global_t3_shared_kv_local_serial_exact")
                        : "inactive")
          << "\",\"d2_output_head_path\":\""

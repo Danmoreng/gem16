@@ -107,10 +107,7 @@ struct LayoutBuilder {
   }
 };
 
-struct Candidate {
-  float value;
-  std::uint32_t token;
-};
+using Candidate = Nvfp4ProjectionCandidate;
 
 __global__ void InitializeControlledAssistantKernel(
     const MtpDeviceControl* control, std::uint32_t* selected,
@@ -188,33 +185,6 @@ __global__ void SetControlKernel(DecodeControl* control,
   if (blockIdx.x == 0U && threadIdx.x == 0U) {
     *control = DecodeControl{token, 0U, position, position};
   }
-}
-
-__global__ void ArgmaxCandidatesKernel(const float* logits,
-                                       Candidate* candidates) {
-  __shared__ Candidate scratch[kThreads];
-  Candidate best{-FLT_MAX, 0U};
-  for (std::uint64_t token =
-           static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
-       token < kVocabulary;
-       token += static_cast<std::uint64_t>(gridDim.x) * blockDim.x) {
-    if (token == kSuppressedTokenA || token == kSuppressedTokenB) continue;
-    const float value = logits[token];
-    if (isfinite(value)) {
-      const Candidate candidate{value, static_cast<std::uint32_t>(token)};
-      if (Better(candidate, best)) best = candidate;
-    }
-  }
-  scratch[threadIdx.x] = best;
-  __syncthreads();
-  for (unsigned stride = kThreads / 2U; stride != 0U; stride >>= 1U) {
-    if (threadIdx.x < stride &&
-        Better(scratch[threadIdx.x + stride], scratch[threadIdx.x])) {
-      scratch[threadIdx.x] = scratch[threadIdx.x + stride];
-    }
-    __syncthreads();
-  }
-  if (threadIdx.x == 0U) candidates[blockIdx.x] = scratch[0];
 }
 
 __global__ void ArgmaxFinalKernel(const Candidate* candidates,
@@ -684,14 +654,15 @@ Status Gemma4Moe26BAssistantModel::GenerateDraftsDevice(
     if (!status.ok()) return status;
     status = quantize_nvfp4(normalized, impl_->bindings.head);
     if (!status.ok()) return status;
-    status = project_nvfp4(impl_->bindings.head, logits);
+    status = LaunchNvfp4Sm120ProjectionArgmaxCandidatesBf16(
+        nvfp4_activation, nvfp4_scales,
+        impl_->bindings.head.packed_e2m1,
+        impl_->bindings.head.scales_e4m3fn, candidates,
+        impl_->bindings.head.rows, impl_->bindings.head.columns,
+        impl_->bindings.head.activation_global_divisor,
+        impl_->bindings.head.weight_global_divisor, kSuppressedTokenA,
+        kSuppressedTokenB, stream);
     if (!status.ok()) return status;
-    ArgmaxCandidatesKernel<<<kArgmaxBlocks, kThreads, 0, stream>>>(logits,
-                                                                  candidates);
-    error = cudaGetLastError();
-    if (error != cudaSuccess) {
-      return CudaFailure("launch M25 Assistant argmax candidates", error);
-    }
     ArgmaxFinalKernel<<<1U, kThreads, 0, stream>>>(candidates, selected, drafts,
                                                    step);
     error = cudaGetLastError();
@@ -729,6 +700,14 @@ Status Gemma4Moe26BAssistantModel::CopyLastOracleState(
       logits.size() != kVocabulary) {
     return Invalid("M25 Assistant oracle copy geometry is invalid");
   }
+  const auto& head = impl_->bindings.head;
+  Status status = LaunchNvfp4Sm120DirectProjectionBf16Float(
+      impl_->Workspace<std::uint8_t>(impl_->offsets.nvfp4_activation),
+      impl_->Workspace<std::uint8_t>(impl_->offsets.nvfp4_scales),
+      head.packed_e2m1, head.scales_e4m3fn,
+      impl_->Workspace<float>(impl_->offsets.logits), head.rows, head.columns,
+      head.activation_global_divisor, head.weight_global_divisor, stream);
+  if (!status.ok()) return status;
   auto error = cudaMemcpyAsync(
       concatenated_input.data(),
       impl_->Workspace<float>(impl_->offsets.concatenated),

@@ -35,6 +35,21 @@ The engine loads the original mixed FP8/NVFP4 Safetensors checkpoint directly.
 gem16 is developed primarily with AI coding agents. It explores model-specific execution plans and
 Blackwell-optimized CUDA kernels for Gemma 4 12B within 16 GB of VRAM.
 
+## Gemma 4 26B sampled performance
+
+On the RTX 5080 Laptop GPU, the qualified text-only 26B path completes the fixed 16,384-token Wikipedia workload
+with Google's recommended sampling controls as follows:
+
+| Mode | Decode tok/s | TTFT | Inference end-to-end | Sampled peak VRAM | Output tokens |
+|---|---:|---:|---:|---:|---:|
+| Ordinary | 148.71 | 2,333.44 ms | 8,660.74 ms | 14,732 MiB | 942 |
+| **Fixed D2 MTP** | **199.87** | **2,332.61 ms** | **7,040.53 ms** | 15,026 MiB | 942 |
+
+This is a batch-one, checkpoint-FP8-KV characterization with seed 0, `temperature=1`, `top_k=64`, `top_p=0.95`,
+three paired warm-ups and ten retained alternating pairs. D2 is 34.40% faster than ordinary. Every retained pair
+produces the same output hash; D2 accepts 496 of 770 proposals (64.42%). Assistant quality and acceptance were not
+changed for this speedup. See the [compact evidence](artifacts/m25/sampled-d2-performance-2026-08-28.json).
+
 ## Current 16K performance
 
 ### Linux

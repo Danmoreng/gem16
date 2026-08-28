@@ -1,6 +1,6 @@
 # Active decisions
 
-**Updated:** 2026-08-27 · **Track:** Gemma 4 26B A4B Fast Track · **Status:** M00–M17, M20–M23 and M25 accepted; qualified 26B product checkpoint; broad M19 suite waived
+**Updated:** 2026-08-28 · **Track:** Gemma 4 26B A4B Fast Track · **Status:** M00–M17, M20–M23 and M25 accepted; qualified 26B product checkpoint; broad M19 suite waived
 
 This is the short operational policy for current work. It is not a replacement for historical evidence. Permanent
 rules in `AGENTS.md` remain binding. For facts about the implementation, current source, tests and accepted evidence
@@ -264,6 +264,14 @@ qualification. The retained ordinary M20 performance, bounded sampled Target-ide
 2026 comparisons, real product execution and the superseding repeated 86,016-token MTP boundary are the accepted evidence set. The
 missing retained sampled timing limits which throughput number may be called formal; it does not make the checkpoint
 optional or experimental. General quality claims remain bounded to the published tests.
+
+On 2026-08-28 the owner froze the current Assistant artifact, precision and proposal acceptance as optimization
+variables. Earlier CR16 comparison work found no acceptance deficit attributable to this Assistant. Follow-up
+throughput work therefore changes execution only: ordinary Target decode, existing Assistant kernels or fixed-D2
+Target verification. It must not promote Assistant matrices to a different precision or pursue higher acceptance.
+The first sampled-D2 execution target is **220 token/s** and the stretch target is **250 token/s**. The retained
+3-warm-up/10-measured sampled characterization currently reaches 199.871 token/s with the exact same 496/770
+accepted drafts and output tokens as its 194.803 token/s parent; both targets remain open.
 
 The qualified Target and Assistant are published as two independently pinned Hugging Face repositories because they
 derive from different immutable Google sources. The Target package uses a single `model.gem16` SM120 device image in

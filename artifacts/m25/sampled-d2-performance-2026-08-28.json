@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "status": "characterized_execution_optimization",
+  "date": "2026-08-28",
+  "source": {
+    "parent_commit": "17ae6a06e782c5ec05a0bb38cc41701aa0864b35",
+    "measurement_worktree_dirty": true,
+    "optimized_executable_sha256": "c415d817a94afb96ae4443a428660cd60f48128acb25f128ea35b2b268cd9bc7"
+  },
+  "configuration": {
+    "workload": "benchmarks/prompts/wikipedia-summary-16k.json",
+    "prompt_tokens": 16384,
+    "batch_size": 1,
+    "kv_cache": "checkpoint_fp8",
+    "mtp_draft_tokens": 2,
+    "sampling": {
+      "temperature": 1.0,
+      "top_k": 64,
+      "top_p": 0.95,
+      "repetition_penalty": 1.0,
+      "seed": 0
+    },
+    "warmup_pairs": 3,
+    "measured_pairs": 10,
+    "alternating_first_mode": true
+  },
+  "parent": {
+    "ordinary_decode_median_tokens_per_second": 148.298273409964,
+    "mtp_d2_decode_median_tokens_per_second": 194.80264074492948,
+    "median_speedup": 1.3135867078263697,
+    "raw_sha256": "fff6014360b2a00b21b28eca5293e2e050376e251cf99c76680bdaa7c0036d21"
+  },
+  "optimized": {
+    "ordinary_decode_median_tokens_per_second": 148.7085200586164,
+    "mtp_d2_decode_median_tokens_per_second": 199.87107148778742,
+    "mtp_d2_decode_mean_tokens_per_second": 199.8539063655156,
+    "mtp_d2_decode_range_tokens_per_second": [199.69313891724303, 199.9558014806504],
+    "median_speedup": 1.344045865085634,
+    "median_throughput_increase": 0.34404586508563395,
+    "ordinary_ttft_median_ms": 2333.435,
+    "mtp_d2_ttft_median_ms": 2332.605,
+    "ordinary_inference_end_to_end_median_ms": 8660.735,
+    "mtp_d2_inference_end_to_end_median_ms": 7040.53,
+    "ordinary_peak_vram_mib": 14732.0,
+    "mtp_d2_peak_vram_mib": 15026.0,
+    "generated_tokens": 942,
+    "output_token_sha256": "ee97710da349b4bcb5feedfaa81e10ff003c5a54642c9886d494db5c76ccc112",
+    "accepted_tokens": 496,
+    "proposed_tokens": 770,
+    "acceptance_rate": 0.6441558441558441,
+    "rejected_tokens": 274,
+    "d2_groups": 385,
+    "ordinary_fallback_tokens": 60,
+    "raw_sha256": "87aff2f920294522b2952d35922749b1abd777556513dcf38f41bb8cac44140d"
+  },
+  "delta": {
+    "mtp_d2_tokens_per_second": 5.06843074285794,
+    "mtp_d2_relative": 0.026018285146344194,
+    "acceptance_changed": false,
+    "output_changed": false,
+    "peak_vram_changed": false
+  },
+  "targets": {
+    "first_tokens_per_second": 220.0,
+    "first_met": false,
+    "stretch_tokens_per_second": 250.0,
+    "stretch_met": false
+  },
+  "retained_execution_changes": [
+    "Assistant NVFP4 vocabulary projection fused with suppression-aware BF16 argmax candidate reduction",
+    "global KVH2 historical K/V tiles shared across all three fixed-D2 Target verifier rows"
+  ],
+  "owner_decision": "Freeze Assistant artifact, precision, numerical behavior and proposal acceptance; optimize ordinary decode or existing MTP execution only.",
+  "validation": {
+    "python_tests": "23 passed in the final focused run",
+    "ctest": "10/10 passed; 3 model-dependent tests skipped without external checkpoint fixtures",
+    "cuda_differential": "0/24576 mismatches",
+    "assistant_oracle_fixture": "byte-identical",
+    "compute_sanitizer": "memcheck 0 errors; racecheck 0 hazards; initcheck 0 errors",
+    "git_diff_check": "passed"
+  }
+}

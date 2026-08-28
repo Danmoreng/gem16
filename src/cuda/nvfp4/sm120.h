@@ -10,6 +10,11 @@ namespace gem16::internal {
 
 struct Gemma4MoePrefillAssignment;
 
+struct Nvfp4ProjectionCandidate {
+  float value = 0.0F;
+  std::uint32_t token = 0U;
+};
+
 // Native SM120a W4A4 projection. Packed weight and weight-scale bytes must use
 // TileSm120Nvfp4Weights/TileSm120Nvfp4WeightScales' exact 8-row/K64 runtime order. Nibbles remain
 // low-first within each packed byte; activation values and scales remain compact row-major.
@@ -38,6 +43,23 @@ struct Gemma4MoePrefillAssignment;
     std::uint64_t contracting_elements,
     float activation_global_divisor,
     float weight_global_divisor,
+    cudaStream_t stream);
+
+// Batch-one vocabulary projection whose BF16 epilogue reduces directly to
+// one exact argmax candidate per 64 rows. This avoids materializing and then
+// rereading a full logits vector on greedy Assistant proposal paths.
+[[nodiscard]] Status LaunchNvfp4Sm120ProjectionArgmaxCandidatesBf16(
+    const std::uint8_t* packed_activation_e2m1,
+    const std::uint8_t* activation_scales_e4m3fn,
+    const std::uint8_t* packed_weight_e2m1,
+    const std::uint8_t* weight_scales_e4m3fn,
+    Nvfp4ProjectionCandidate* candidates,
+    std::uint64_t rows,
+    std::uint64_t contracting_elements,
+    float activation_global_divisor,
+    float weight_global_divisor,
+    std::uint32_t suppressed_token_a,
+    std::uint32_t suppressed_token_b,
     cudaStream_t stream);
 
 // Exact batched form of the batch-one kernel. Each token follows the same K64

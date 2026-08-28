@@ -14,11 +14,11 @@ SM120 MoE, attention, tied-head and fixed-D2 MTP dispatch. M20 accepted retained
 150.615 ordinary-decode token/s. M25 publishes `mtp_max_context=86,016`; the Target-only maximum remains 98,304.
 The 12B Unified path remains the multimodal default and must remain unchanged.
 
-The owner-set M20 objective now targets vLLM-class performance on the exact 16K+64 ordinary path: retained medians
-of at least **6,000 prompt token/s** and **150 decode token/s**, with **6,500 prompt token/s** as the non-blocking
-competitive stretch target. The current adjacent development candidate is 5,050.92/139.106 token/s; formal retained
-medians are pending. MTP/speculative decode remains disabled for this gate, and no prompt, cache, precision, sampling
-or timing-boundary change may count as a speedup.
+The accepted M20 ordinary 16K+64 medians are 6,572.809 prompt token/s and 150.615 decode token/s. A separate sampled
+16K fixed-D2 characterization with Google's recommended `temperature=1`, `top_k=64`, `top_p=0.95` controls records
+199.871 decode token/s versus 148.709 ordinary after three warm-ups and ten retained pairs. The sampled D2 output is
+identical to ordinary and retains the parent's 496/770 accepted proposals. Further work is execution-only: Assistant
+precision and acceptance are frozen, 220 token/s is the first target and 250 token/s is the stretch target.
 
 ## Fast-track path
 
