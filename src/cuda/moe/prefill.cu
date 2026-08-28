@@ -405,15 +405,48 @@ __global__ void BuildExpertTileScheduleKernel(const std::uint32_t* prefix,
                                               std::uint32_t* tile_count,
                                               std::uint32_t* tiles,
                                               std::uint32_t experts) {
-  if (blockIdx.x != 0U || threadIdx.x != 0U) return;
-  std::uint32_t count = 0U;
-  for (std::uint32_t expert = 0; expert < experts; ++expert) {
-    for (std::uint32_t grouped = prefix[expert];
-         grouped < prefix[expert + 1U]; grouped += 32U) {
-      tiles[count++] = (expert << 16U) | grouped;
+  if (blockIdx.x != 0U) return;
+  if (experts > kThreads) {
+    if (threadIdx.x != 0U) return;
+    std::uint32_t count = 0U;
+    for (std::uint32_t expert = 0; expert < experts; ++expert) {
+      for (std::uint32_t grouped = prefix[expert];
+           grouped < prefix[expert + 1U]; grouped += 32U) {
+        tiles[count++] = (expert << 16U) | grouped;
+      }
+    }
+    tile_count[0] = count;
+    return;
+  }
+
+  __shared__ std::uint32_t tile_offsets[kThreads + 1U];
+  const std::uint32_t expert = threadIdx.x;
+  tile_offsets[expert] =
+      expert < experts
+          ? (prefix[expert + 1U] - prefix[expert] + 31U) / 32U
+          : 0U;
+  if (expert == 0U) tile_offsets[kThreads] = 0U;
+  __syncthreads();
+  if (expert == 0U) {
+    std::uint32_t offset = 0U;
+    for (std::uint32_t index = 0U; index < experts; ++index) {
+      const std::uint32_t count = tile_offsets[index];
+      tile_offsets[index] = offset;
+      offset += count;
+    }
+    tile_offsets[experts] = offset;
+    tile_count[0] = offset;
+  }
+  __syncthreads();
+  if (expert < experts) {
+    const std::uint32_t first = prefix[expert];
+    const std::uint32_t count = tile_offsets[expert + 1U] -
+                                tile_offsets[expert];
+    for (std::uint32_t tile = 0U; tile < count; ++tile) {
+      tiles[tile_offsets[expert] + tile] =
+          (expert << 16U) | (first + tile * 32U);
     }
   }
-  tile_count[0] = count;
 }
 
 __global__ void RestoreHistogramZeroKernel(std::uint32_t* histogram,
@@ -696,7 +729,7 @@ Status LaunchGemma4MoeSm120PrefillLayer(
   }
   status = CheckLaunch("launch M15 stable grouping");
   if (!status.ok()) return status;
-  BuildExpertTileScheduleKernel<<<1, 1, 0, stream>>>(
+  BuildExpertTileScheduleKernel<<<1, kThreads, 0, stream>>>(
       x.prefix, x.histogram, expert_tile_schedule, c.experts);
   status = CheckLaunch("launch M15 expert tile schedule");
   if (!status.ok()) return status;

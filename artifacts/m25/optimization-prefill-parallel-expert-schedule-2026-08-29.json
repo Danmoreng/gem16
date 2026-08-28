@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "status": "accepted",
+  "date": "2026-08-29",
+  "optimization": "parallel_expert_tile_schedule",
+  "parent_revision": "2c28221",
+  "implementation": {
+    "description": "Build the deterministic expert-major 32-assignment tile schedule with one thread per expert, retaining the serial path for expert counts above 128.",
+    "source": "src/cuda/moe/prefill.cu",
+    "source_diff_sha256": "0945bb8fd3fe63d351e738638d04e0d7eb76fcea04d5e605ed8f1d4ad9655411",
+    "parent_executable_sha256": "3ae5c98398764303df664bf2a9ad47034ed1163426d09178344a1f8c4874f3f8",
+    "candidate_executable_sha256": "ded730a5523d42473e5f55dbe72d57a815a3528b9966ea93f1f3525be695fad3"
+  },
+  "workload": {
+    "id": "wikipedia-artificial-intelligence-summary-16k",
+    "prompt_tokens": 16384,
+    "sampling": {
+      "temperature": 1.0,
+      "top_k": 64,
+      "top_p": 0.95,
+      "repetition_penalty": 1.0,
+      "seed": 0
+    },
+    "kv_cache": "fp8"
+  },
+  "alternating_screens": [
+    {
+      "order": ["parent", "candidate", "candidate", "parent", "parent", "candidate"],
+      "parent_prompt_ms": [2326.85, 2335.93, 2335.48],
+      "candidate_prompt_ms": [2324.30, 2327.73, 2331.72],
+      "parent_median_prompt_tokens_per_second": 7015.260246287701,
+      "candidate_median_prompt_tokens_per_second": 7038.617021733621,
+      "speed_delta_percent": 0.33294239452170693
+    },
+    {
+      "order": ["candidate", "parent", "parent", "candidate", "candidate", "parent", "parent", "candidate"],
+      "parent_prompt_ms": [2336.63, 2337.97, 2341.23, 2342.30],
+      "candidate_prompt_ms": [2325.58, 2334.82, 2335.62, 2337.73],
+      "parent_median_prompt_tokens_per_second": 7002.906479740127,
+      "candidate_median_prompt_tokens_per_second": 7016.041315165166,
+      "speed_delta_percent": 0.18756262793224732
+    }
+  ],
+  "full_sampled_validation": {
+    "raw_path": "artifacts/raw/m25/prefill-26b-parallel-expert-schedule-1w3-2026-08-29.json",
+    "raw_sha256": "be10e94f0b5abe889f1729984e10acbfb9014ed092d00bd17da1a47a3142ea29",
+    "warmup_pairs": 1,
+    "measured_pairs": 3,
+    "ordinary_prompt_tokens_per_second_median": 6981.629757151441,
+    "mtp_d2_prompt_tokens_per_second_median": 6983.355710419197,
+    "ordinary_decode_tokens_per_second_median": 148.479153747718,
+    "mtp_d2_decode_tokens_per_second_median": 203.83274883949633,
+    "generated_tokens": 942,
+    "output_token_sha256": "ee97710da349b4bcb5feedfaa81e10ff003c5a54642c9886d494db5c76ccc112",
+    "accepted_tokens": 523,
+    "proposed_tokens": 836,
+    "acceptance_rate": 0.6255980861244019,
+    "d2_groups": 418,
+    "ordinary_fallback_tokens": 0,
+    "peak_mtp_vram_mib": 15024
+  },
+  "verification": [
+    {
+      "command": "ctest --test-dir build/Linux/blackwell-release -R '^(gem16-cuda-moe-reference|gem16-cuda)$' --output-on-failure",
+      "result": "2/2 passed"
+    },
+    {
+      "command": "GEM16_26B_COMPILED_MODEL=<locked-target> GEM16_26B_ASSISTANT_MODEL=<locked-assistant> GEM16_12B_MODEL=<locked-12b> ctest --test-dir build/Linux/blackwell-release -R '^(gem16-26b-m22-product|gem16-12b-m22-product)$' --output-on-failure",
+      "result": "2/2 passed"
+    }
+  ],
+  "interpretation": "Both thermally alternating screens retain a small positive prefill delta. Full sampled generation preserves every output token and all fixed-D2 acceptance counters; allocation sizes and peak VRAM are unchanged."
+}
