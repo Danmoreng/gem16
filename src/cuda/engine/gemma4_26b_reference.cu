@@ -898,10 +898,6 @@ Status Gemma4Moe26BReferenceEngine::Impl::LaunchFixedMtpGraphBody(
     auto* compact_key = mtp_verifier.As<std::uint8_t>(offsets.compact_key);
     auto* compact_value =
         mtp_verifier.As<std::uint8_t>(offsets.compact_value);
-    status = LaunchCopyCircularMtpKvFp8Controlled(
-        caches[layer].key, caches[layer].value, backup_key, backup_value,
-        tokens, kv_elements, caches[layer].capacity, false, control, stream);
-    if (!status.ok()) return status;
     // D2 is the selected fixed-depth candidate. Its three consecutive Target
     // rows share the qualified fixed-row attention body instead of replaying
     // one online-attention launch sequence per row. Keep D1/D4 on their
@@ -912,7 +908,8 @@ Status Gemma4Moe26BReferenceEngine::Impl::LaunchFixedMtpGraphBody(
         prefill_hidden_a, prefill_hidden_b, 0U, trait,
         attention_weights[layer], caches[layer], prefill_attention_workspace,
         prefill_moe_workspace.shared_product, row_controls, tokens,
-        shared_fixed_attention, true, true, 1.0e-6F, stream);
+        shared_fixed_attention, true, true, 1.0e-6F, stream, backup_key,
+        backup_value);
     if (!status.ok()) return status;
     status = LaunchGemma4MoeSm120MtpSharedBatchLayer(
         prefill_hidden_b, prefill_hidden_a, tokens, moe_config,

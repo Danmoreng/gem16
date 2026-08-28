@@ -538,7 +538,8 @@ Status LaunchGemma4Moe26BAttentionSm120MtpFixedLayer(
     const Gemma4Moe26BAttentionReferenceWorkspace& x,
     float* decode_attention_workspace, const DecodeControl* row_controls,
     std::uint32_t tokens, bool shared_fixed_attention, bool batched_output_tail,
-    bool controlled_positions, float epsilon, cudaStream_t stream) {
+    bool controlled_positions, float epsilon, cudaStream_t stream,
+    std::uint8_t* backup_key, std::uint8_t* backup_value) {
   const bool sliding =
       t.attention == Gemma4Moe26BAttentionType::kSliding;
   const std::uint64_t q_elements = t.query_heads * t.head_dimension;
@@ -552,6 +553,8 @@ Status LaunchGemma4Moe26BAttentionSm120MtpFixedLayer(
       decode_attention_workspace == nullptr || row_controls == nullptr ||
       cache.key == nullptr || cache.value == nullptr ||
       cache.key == cache.value || !ValidPointers(x) ||
+      ((backup_key == nullptr) != (backup_value == nullptr)) ||
+      (backup_key != nullptr && !controlled_positions) ||
       w.input_norm_bf16 == nullptr ||
       w.post_attention_norm_bf16 == nullptr ||
       w.query_norm_bf16 == nullptr || w.key_norm_bf16 == nullptr ||
@@ -632,11 +635,20 @@ Status LaunchGemma4Moe26BAttentionSm120MtpFixedLayer(
   if (!shared_fixed_attention) {
     for (std::uint64_t row = 0U; row < tokens; ++row) {
       status = controlled_positions
-                   ? LaunchAppendKvFp8BatchControlled(
-                         x.staged_key_fp8 + row * kv_elements,
-                         x.staged_value_fp8 + row * kv_elements, cache.key,
-                         cache.value, row_controls + row, 1U, kv_elements,
-                         cache.capacity, stream)
+                   ? (backup_key != nullptr
+                          ? LaunchBackupAppendKvFp8BatchControlled(
+                                x.staged_key_fp8 + row * kv_elements,
+                                x.staged_value_fp8 + row * kv_elements,
+                                cache.key, cache.value,
+                                backup_key + row * kv_elements,
+                                backup_value + row * kv_elements,
+                                row_controls + row, 1U, kv_elements,
+                                cache.capacity, stream)
+                          : LaunchAppendKvFp8BatchControlled(
+                                x.staged_key_fp8 + row * kv_elements,
+                                x.staged_value_fp8 + row * kv_elements,
+                                cache.key, cache.value, row_controls + row, 1U,
+                                kv_elements, cache.capacity, stream))
                    : LaunchAppendKvFp8Batch(
                          x.staged_key_fp8 + row * kv_elements,
                          x.staged_value_fp8 + row * kv_elements, cache.key,
@@ -659,20 +671,32 @@ Status LaunchGemma4Moe26BAttentionSm120MtpFixedLayer(
         row_controls, tokens, cache.capacity, stream);
     if (!status.ok()) return status;
     status = controlled_positions
-                 ? LaunchAppendKvFp8BatchControlled(
-                       x.staged_key_fp8, x.staged_value_fp8, cache.key,
-                       cache.value, row_controls, tokens, kv_elements,
-                       cache.capacity, stream)
+                 ? (backup_key != nullptr
+                        ? LaunchBackupAppendKvFp8BatchControlled(
+                              x.staged_key_fp8, x.staged_value_fp8, cache.key,
+                              cache.value, backup_key, backup_value,
+                              row_controls, tokens, kv_elements,
+                              cache.capacity, stream)
+                        : LaunchAppendKvFp8BatchControlled(
+                              x.staged_key_fp8, x.staged_value_fp8, cache.key,
+                              cache.value, row_controls, tokens, kv_elements,
+                              cache.capacity, stream))
                  : LaunchAppendKvFp8Batch(
                        x.staged_key_fp8, x.staged_value_fp8, cache.key,
                        cache.value, start_position, tokens, kv_elements,
                        cache.capacity, stream);
   } else {
     status = controlled_positions
-                 ? LaunchAppendKvFp8BatchControlled(
-                       x.staged_key_fp8, x.staged_value_fp8, cache.key,
-                       cache.value, row_controls, tokens, kv_elements,
-                       cache.capacity, stream)
+                 ? (backup_key != nullptr
+                        ? LaunchBackupAppendKvFp8BatchControlled(
+                              x.staged_key_fp8, x.staged_value_fp8, cache.key,
+                              cache.value, backup_key, backup_value,
+                              row_controls, tokens, kv_elements,
+                              cache.capacity, stream)
+                        : LaunchAppendKvFp8BatchControlled(
+                              x.staged_key_fp8, x.staged_value_fp8, cache.key,
+                              cache.value, row_controls, tokens, kv_elements,
+                              cache.capacity, stream))
                  : LaunchAppendKvFp8Batch(
                        x.staged_key_fp8, x.staged_value_fp8, cache.key,
                        cache.value, start_position, tokens, kv_elements,

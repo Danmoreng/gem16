@@ -122,6 +122,28 @@ __global__ void AppendKvBatchControlledKernel(
   value_cache[destination] = value[index];
 }
 
+__global__ void BackupAppendKvFp8BatchControlledKernel(
+    const std::uint8_t* key, const std::uint8_t* value,
+    std::uint8_t* key_cache, std::uint8_t* value_cache,
+    std::uint8_t* backup_key, std::uint8_t* backup_value,
+    const DecodeControl* row_controls, std::uint64_t elements_per_token,
+    std::uint64_t cache_capacity, std::uint64_t total_elements) {
+  const std::uint64_t index =
+      static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+  if (index >= total_elements) return;
+  const std::uint64_t token = index / elements_per_token;
+  const std::uint64_t element = index % elements_per_token;
+  const std::uint64_t slot =
+      row_controls[token].position % cache_capacity;
+  const std::uint64_t destination = slot * elements_per_token + element;
+  const std::uint8_t original_key = key_cache[destination];
+  const std::uint8_t original_value = value_cache[destination];
+  backup_key[index] = original_key;
+  backup_value[index] = original_value;
+  key_cache[destination] = key[index];
+  value_cache[destination] = value[index];
+}
+
 std::uint64_t Blocks(std::uint64_t elements) {
   return (elements + kThreads - 1U) / kThreads;
 }
@@ -331,6 +353,35 @@ Status LaunchAppendKvFp8BatchControlled(
   return error == cudaSuccess
              ? Status::Ok()
              : CudaFailure("launch controlled batched FP8 KV append", error);
+}
+
+Status LaunchBackupAppendKvFp8BatchControlled(
+    const std::uint8_t* key, const std::uint8_t* value,
+    std::uint8_t* key_cache, std::uint8_t* value_cache,
+    std::uint8_t* backup_key, std::uint8_t* backup_value,
+    const DecodeControl* row_controls, std::uint64_t tokens,
+    std::uint64_t elements_per_token, std::uint64_t cache_capacity,
+    cudaStream_t stream) {
+  if (key == nullptr || value == nullptr || key_cache == nullptr ||
+      value_cache == nullptr || backup_key == nullptr ||
+      backup_value == nullptr || row_controls == nullptr || tokens == 0U ||
+      elements_per_token == 0U || cache_capacity == 0U ||
+      tokens > cache_capacity) {
+    return Invalid("controlled backup/append FP8 KV arguments are invalid");
+  }
+  const std::uint64_t elements = tokens * elements_per_token;
+  const std::uint64_t blocks = Blocks(elements);
+  if (!ValidGrid(blocks)) {
+    return Invalid("controlled backup/append FP8 KV grid exceeds CUDA limits");
+  }
+  BackupAppendKvFp8BatchControlledKernel
+      <<<static_cast<unsigned>(blocks), kThreads, 0, stream>>>(
+          key, value, key_cache, value_cache, backup_key, backup_value,
+          row_controls, elements_per_token, cache_capacity, elements);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("launch controlled backup/append FP8 KV", error);
 }
 
 

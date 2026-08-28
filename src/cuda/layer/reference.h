@@ -294,6 +294,14 @@ struct DecodeControl {
     std::uint64_t elements_per_token, std::uint64_t cache_capacity,
     cudaStream_t stream);
 
+[[nodiscard]] Status LaunchBackupAppendKvFp8BatchControlled(
+    const std::uint8_t* key, const std::uint8_t* value,
+    std::uint8_t* key_cache, std::uint8_t* value_cache,
+    std::uint8_t* backup_key, std::uint8_t* backup_value,
+    const DecodeControl* row_controls, std::uint64_t tokens,
+    std::uint64_t elements_per_token, std::uint64_t cache_capacity,
+    cudaStream_t stream);
+
 [[nodiscard]] Status LaunchCausalAttentionPrefill(
     const float* query, const float* chunk_key, const float* chunk_value,
     const float* key_cache, const float* value_cache, float* scores,

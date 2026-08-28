@@ -147,7 +147,8 @@ BindGemma4Moe26BAttentionReferenceWeights(
     float* decode_attention_workspace, const DecodeControl* row_controls,
     std::uint32_t tokens, bool shared_fixed_attention,
     bool batched_output_tail, bool controlled_positions, float epsilon,
-    cudaStream_t stream);
+    cudaStream_t stream, std::uint8_t* backup_key = nullptr,
+    std::uint8_t* backup_value = nullptr);
 
 [[nodiscard]] Status LaunchGemma4Moe26BAttentionSm120MtpD2Layer(
     const float* hidden, float* output, std::uint64_t start_position,
