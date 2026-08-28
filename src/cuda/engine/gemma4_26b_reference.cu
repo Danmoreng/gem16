@@ -274,6 +274,16 @@ struct PredictionStatus {
 };
 static_assert(sizeof(PredictionStatus) == 16U);
 
+__global__ void CommitSampledSelectionKernel(
+    const std::uint32_t* selected, PredictionStatus* status,
+    DecodeControl* next_control, std::uint64_t position) {
+  if (blockIdx.x == 0U && threadIdx.x == 0U) {
+    const std::uint32_t token = *selected;
+    status->token = token;
+    *next_control = DecodeControl{token, 0U, position, position};
+  }
+}
+
 struct MtpVerifierHostResult {
   MtpGroupTransaction transaction{};
   std::array<int, kM25MaximumVerifyTokens> logits_finite{};
@@ -2597,16 +2607,10 @@ Status Gemma4Moe26BReferenceEngine::CopyMtpRouterOverlapDiagnostic(
 
 Result<std::uint32_t> Gemma4Moe26BReferenceEngine::SelectToken() {
   if (!implementation_) return Invalid("M22 engine is not initialized");
-  auto prediction = Prediction();
-  if (!prediction.ok()) return prediction.status();
   auto& x = *implementation_;
   ++x.token_selections;
-  if (!x.sampling.enabled && x.suppressed_token_count == 0U) {
-    return prediction.value().token;
-  }
-  Status selected;
   if (x.sampling.enabled) {
-    selected = LaunchSampleToken(
+    Status selected = LaunchSampleToken(
         x.logits, x.sampling_logits, x.sampling_cumulative,
         x.sampling_token_ids, x.sampling_sorted_token_ids,
         x.repetition_mask, x.suppressed_token_ids,
@@ -2614,11 +2618,43 @@ Result<std::uint32_t> Gemma4Moe26BReferenceEngine::SelectToken() {
         x.sampling, x.sampling_step++, nullptr, x.selected_token,
         x.sampling_algorithm_workspace,
         x.sampling_algorithm_workspace_bytes, x.stream);
-  } else {
-    selected = LaunchLogitArgmax(
-        x.logits, x.suppressed_token_ids, x.suppressed_token_count,
-        x.selected_token, x.stream);
+    if (!selected.ok()) return selected;
+    CommitSampledSelectionKernel<<<1U, 1U, 0, x.stream>>>(
+        x.selected_token, x.prediction_device_status, x.decode_control,
+        x.position);
+    cudaError_t error = cudaGetLastError();
+    if (error == cudaSuccess) {
+      error = cudaMemcpyAsync(
+          x.prediction_host_status, x.prediction_device_status,
+          sizeof(PredictionStatus), cudaMemcpyDeviceToHost, x.stream);
+    }
+    if (error == cudaSuccess) error = cudaStreamSynchronize(x.stream);
+    if (error != cudaSuccess) {
+      return CudaFailure("copy sampled M22 prediction status", error);
+    }
+    const PredictionStatus status = *x.prediction_host_status;
+    if (status.routing_finite == 0) {
+      return Status(StatusCode::kInternal,
+                    "Gemma 4 26B router produced a non-finite value");
+    }
+    if (status.finite == 0) {
+      return Status(StatusCode::kInternal,
+                    "Gemma 4 26B output logits are non-finite");
+    }
+    x.pending_decode_self_feed = false;
+    x.decode_self_feed_valid = true;
+    x.decode_self_feed_token = status.token;
+    x.decode_self_feed_position = x.position;
+    return status.token;
   }
+  auto prediction = Prediction();
+  if (!prediction.ok()) return prediction.status();
+  if (x.suppressed_token_count == 0U) {
+    return prediction.value().token;
+  }
+  Status selected = LaunchLogitArgmax(
+      x.logits, x.suppressed_token_ids, x.suppressed_token_count,
+      x.selected_token, x.stream);
   if (!selected.ok()) return selected;
   std::uint32_t token = 0U;
   cudaError_t error = cudaMemcpyAsync(

@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "status": "retained_bounded_sampled_prefill_win",
+  "date": "2026-08-29",
+  "parent_commit": "3cd52bc2435b6cd8cf247a44e96ca820d30fe2a3",
+  "change": {
+    "scope": "26B sampled SelectToken host tail",
+    "description": "Skip the preliminary greedy Prediction D2H synchronization, commit the sampled token directly to the resident DecodeControl, and validate one compact PredictionStatus after sampling.",
+    "sampling_algorithm_changed": false,
+    "precision_changed": false,
+    "timing_boundary_changed": false
+  },
+  "workload": {
+    "id": "wikipedia-artificial-intelligence-summary-16k",
+    "prompt_tokens": 16384,
+    "sampling": {
+      "temperature": 1.0,
+      "top_k": 64,
+      "top_p": 0.95,
+      "repetition_penalty": 1.0,
+      "seed": 0
+    }
+  },
+  "performance": {
+    "immediate_clean_parent_control": {
+      "runs": 1,
+      "ordinary_prompt_tokens_per_second": 7018.2051831227245,
+      "mtp_d2_prompt_tokens_per_second": 7020.310223669551,
+      "ordinary_ttft_ms": 2334.5,
+      "mtp_d2_ttft_ms": 2333.8
+    },
+    "candidate_retained": {
+      "runs": 3,
+      "ordinary_prompt_tokens_per_second_samples": [
+        7027.8385450178,
+        7025.970016124052,
+        7029.074731111293
+      ],
+      "ordinary_prompt_tokens_per_second_median": 7027.8385450178,
+      "mtp_d2_prompt_tokens_per_second_samples": [
+        7032.30292468946,
+        7028.833489920506,
+        7027.687820361593
+      ],
+      "mtp_d2_prompt_tokens_per_second_median": 7028.833489920506,
+      "ordinary_ttft_ms_median": 2331.3,
+      "mtp_d2_ttft_ms_median": 2330.97,
+      "ordinary_decode_tokens_per_second_median": 148.72132847183698,
+      "mtp_d2_decode_tokens_per_second_median": 204.02853363977363
+    },
+    "bounded_gain_over_immediate_control_percent": {
+      "ordinary_prompt": 0.1373,
+      "mtp_d2_prompt": 0.1214
+    }
+  },
+  "correctness": {
+    "output_token_sha256": "ee97710da349b4bcb5feedfaa81e10ff003c5a54642c9886d494db5c76ccc112",
+    "ordinary_equals_mtp": true,
+    "generated_tokens": 942,
+    "all_candidate_outputs_identical": true,
+    "cuda_tests": "pass"
+  },
+  "evidence": {
+    "control_raw": "artifacts/raw/m25/prefill-26b-clean-head-control-1w1-2026-08-29.json",
+    "control_raw_sha256": "f5ab237ec81712b3aae59e173880741fdeb65a90b8ec2c105da8688e1cfd1212",
+    "candidate_raw": "artifacts/raw/m25/prefill-26b-sampled-one-sync-screen-1w3-2026-08-29.json",
+    "candidate_raw_sha256": "10bf470ca4c85c17dc3539601a70e7be77a2ce2ec3f2422ad4d53a1c3c5580ca",
+    "source_diff_sha256": "6935ab66aa98d406fa35c745d32df22257c81326b11e3badf33ec99575990cc1",
+    "benchmark_binary_sha256": "f8ffbf6f175d10c05209917a07a46c3e1d7795f48c66d37c18dee5e25701b816"
+  },
+  "limitations": [
+    "This is a bounded one-control versus three-candidate development screen, not a replacement for the formal 3-warm-up/10-retained record.",
+    "The small gain is retained because all three candidate prompt samples exceed the adjacent control and the change removes a proven redundant synchronization; later candidates remain compared against this retained parent."
+  ]
+}
