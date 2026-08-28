@@ -1312,6 +1312,7 @@ void TestFixedAddressMoeReference() {
       kMtpTokens * kTopK * 2U * kExpert * sizeof(float);
   DeviceBuffer<std::uint16_t> mtp_expert_alias(
       kMtpExpertAliasBytes / sizeof(std::uint16_t));
+  DeviceBuffer<gem16::internal::MtpRouterOverlapCounters> mtp_overlap(1U);
   std::vector<float> host_mtp_hidden(kMtpTokens * kWidth);
   for (std::uint64_t token = 0U; token < kMtpTokens; ++token) {
     for (std::uint64_t index = 0U; index < kWidth; ++index) {
@@ -1336,10 +1337,12 @@ void TestFixedAddressMoeReference() {
   mtp_workspace.expert_down_bf16 = mtp_expert_alias.get();
   CHECK(CudaOk(cudaMemset(prefill_routing_finite.get(), 1, sizeof(int)),
                "initialize M25 batched routing finite flag"));
+  CHECK(CudaOk(cudaMemset(mtp_overlap.get(), 0, mtp_overlap.bytes()),
+               "initialize M25 router-overlap counters"));
   const auto mtp_status =
       gem16::internal::LaunchGemma4MoeSm120MtpSharedBatchLayer(
           mtp_hidden.get(), mtp_output.get(), kMtpTokens, config, weights,
-          mtp_workspace, workspace, nullptr);
+          mtp_workspace, workspace, nullptr, mtp_overlap.get());
   CHECK(mtp_status.ok());
   CHECK(CudaOk(cudaDeviceSynchronize(),
                "synchronize M25 exact-batch differential"));
@@ -1362,6 +1365,18 @@ void TestFixedAddressMoeReference() {
       CHECK(mtp_ids[token * kTopK + slot] == slot);
     }
   }
+  gem16::internal::MtpRouterOverlapCounters overlap{};
+  CHECK(CudaOk(cudaMemcpy(&overlap, mtp_overlap.get(), sizeof(overlap),
+                          cudaMemcpyDeviceToHost),
+               "copy M25 router-overlap counters"));
+  CHECK(overlap.verifier_layer_samples == 1U);
+  CHECK(overlap.routed_assignments == 24U);
+  CHECK(overlap.unique_experts_sum == 8U);
+  CHECK(overlap.row01_intersection_sum == 8U);
+  CHECK(overlap.row02_intersection_sum == 8U);
+  CHECK(overlap.row12_intersection_sum == 8U);
+  CHECK(overlap.triple_intersection_sum == 8U);
+  CHECK(overlap.union_size_histogram[8] == 1U);
 
   // Compare the coalesced prefill router's BF16-rounded logits against the
   // original serial expert/index order so tiling or vector-load drift cannot

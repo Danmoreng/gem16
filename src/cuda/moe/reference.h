@@ -8,6 +8,17 @@
 
 namespace gem16::internal {
 
+struct MtpRouterOverlapCounters {
+  unsigned long long verifier_layer_samples = 0U;
+  unsigned long long routed_assignments = 0U;
+  unsigned long long unique_experts_sum = 0U;
+  unsigned long long row01_intersection_sum = 0U;
+  unsigned long long row02_intersection_sum = 0U;
+  unsigned long long row12_intersection_sum = 0U;
+  unsigned long long triple_intersection_sum = 0U;
+  unsigned long long union_size_histogram[25]{};
+};
+
 struct Gemma4MoePrefillWorkspace;
 
 class Gemma4Moe26BDeviceArtifact;
@@ -154,7 +165,8 @@ BindGemma4Moe26BReferenceWeights(
     const Gemma4MoeReferenceWeights& weights,
     const Gemma4MoePrefillWorkspace& batch_workspace,
     const Gemma4MoeReferenceWorkspace& decode_workspace,
-    cudaStream_t stream);
+    cudaStream_t stream,
+    MtpRouterOverlapCounters* router_overlap = nullptr);
 
 // Launches only the deterministic decode softmax/Top-K/scaling stage. This is
 // an internal differential-test hook: all pointers are caller-owned device

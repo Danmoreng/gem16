@@ -55,6 +55,8 @@ void PrintUsage() {
       << "  gem16-run --model <checkpoint> --input-token-ids <id,id,...>\n"
       << "              [--assistant-model <official-mtp-checkpoint>]\n"
       << "              [--mtp-draft-tokens 1|2|4] [--mtp-adaptive]\n"
+      << "              [--mtp-router-overlap-diagnostic]\n"
+      << "              [--cuda-profile-phase prefill|decode]\n"
       << "              [--input-token-ids-file <comma-separated-token-file>]\n"
       << "              [--teacher-forced-token-ids <id,id,...>]\n"
       << "              [--stop-token-ids <id,id,...>]\n"
@@ -102,6 +104,18 @@ int main(int argc, char** argv) {
       options.mtp_draft_tokens = static_cast<std::uint32_t>(value);
     } else if (argument == "--mtp-adaptive") {
       options.mtp_adaptive = true;
+    } else if (argument == "--mtp-router-overlap-diagnostic") {
+      options.mtp_router_overlap_diagnostic = true;
+    } else if (argument == "--cuda-profile-phase" && index + 1 < argc) {
+      const std::string_view phase = argv[++index];
+      if (phase == "prefill") {
+        options.cuda_profile_phase = gem16::CudaProfilePhase::kPrefill;
+      } else if (phase == "decode") {
+        options.cuda_profile_phase = gem16::CudaProfilePhase::kDecode;
+      } else {
+        std::cerr << "error: --cuda-profile-phase must be prefill or decode\n";
+        return 64;
+      }
     } else if (argument == "--input-token-ids" && index + 1 < argc) {
       if (!options.input_token_ids.empty() ||
           !ParseTokenIds(argv[++index], options.input_token_ids)) {

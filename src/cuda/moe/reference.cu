@@ -1167,12 +1167,59 @@ Status LaunchGemma4MoeSm120Layer(
                                   fork_event, join_event);
 }
 
+__global__ void RecordMtpRouterOverlapKernel(
+    const std::uint32_t* top_ids, std::uint32_t experts,
+    std::uint32_t top_k, MtpRouterOverlapCounters* counters) {
+  if (blockIdx.x != 0U || threadIdx.x != 0U || top_ids == nullptr ||
+      counters == nullptr || experts > 128U || top_k == 0U || top_k > 64U) {
+    return;
+  }
+  unsigned long long low[3]{};
+  unsigned long long high[3]{};
+  for (std::uint32_t row = 0U; row < 3U; ++row) {
+    for (std::uint32_t slot = 0U; slot < top_k; ++slot) {
+      const std::uint32_t expert = top_ids[row * top_k + slot];
+      if (expert >= experts) return;
+      if (expert < 64U) {
+        low[row] |= 1ULL << expert;
+      } else {
+        high[row] |= 1ULL << (expert - 64U);
+      }
+    }
+  }
+  const auto cardinality = [](unsigned long long lo,
+                              unsigned long long hi) {
+    return static_cast<unsigned long long>(__popcll(lo) + __popcll(hi));
+  };
+  const unsigned long long union_size = cardinality(
+      low[0] | low[1] | low[2], high[0] | high[1] | high[2]);
+  const unsigned long long row01 =
+      cardinality(low[0] & low[1], high[0] & high[1]);
+  const unsigned long long row02 =
+      cardinality(low[0] & low[2], high[0] & high[2]);
+  const unsigned long long row12 =
+      cardinality(low[1] & low[2], high[1] & high[2]);
+  const unsigned long long triple = cardinality(
+      low[0] & low[1] & low[2], high[0] & high[1] & high[2]);
+  ++counters->verifier_layer_samples;
+  counters->routed_assignments += 3ULL * top_k;
+  counters->unique_experts_sum += union_size;
+  counters->row01_intersection_sum += row01;
+  counters->row02_intersection_sum += row02;
+  counters->row12_intersection_sum += row12;
+  counters->triple_intersection_sum += triple;
+  if (union_size < 25U) {
+    ++counters->union_size_histogram[union_size];
+  }
+}
+
 Status LaunchGemma4MoeSm120MtpSharedBatchLayer(
     const float* hidden, float* output, std::uint64_t tokens,
     const Gemma4MoeReferenceConfig& c,
     const Gemma4MoeReferenceWeights& w,
     const Gemma4MoePrefillWorkspace& batch,
-    const Gemma4MoeReferenceWorkspace& decode, cudaStream_t stream) {
+    const Gemma4MoeReferenceWorkspace& decode, cudaStream_t stream,
+    MtpRouterOverlapCounters* router_overlap) {
   if (hidden == nullptr || output == nullptr || hidden == output ||
       tokens == 0U || tokens > 5U || c.width == 0U ||
       c.width % kSm120KBlock != 0U || c.shared_intermediate == 0U ||
@@ -1239,6 +1286,15 @@ Status LaunchGemma4MoeSm120MtpSharedBatchLayer(
       c.experts, c.top_k, batch.routing_finite);
   status = CheckLaunch("launch M25 exact router Top-K");
   if (!status.ok()) return status;
+  if (router_overlap != nullptr) {
+    if (tokens != 3U || c.top_k != 8U || c.experts > 128U) {
+      return Invalid("M25 router-overlap diagnostic requires T3 Top-8");
+    }
+    RecordMtpRouterOverlapKernel<<<1U, 1U, 0, stream>>>(
+        batch.permutation, c.experts, c.top_k, router_overlap);
+    status = CheckLaunch("record M25 T3 router overlap");
+    if (!status.ok()) return status;
+  }
 
   // The physical-BF16 prefill W2 region is dead after routing and has exactly
   // enough bytes for assignment-major FP32 Gate/Up. The shared-product region

@@ -20,6 +20,12 @@ enum class KvCacheMode {
   kBf16Correctness,
 };
 
+enum class CudaProfilePhase {
+  kNone,
+  kPrefill,
+  kDecode,
+};
+
 struct DeviceMemoryInfo {
   std::uint64_t free_bytes = 0U;
   std::uint64_t total_bytes = 0U;
@@ -66,6 +72,11 @@ struct GreedyInferenceOptions {
   // to mtp_draft_tokens, including ordinary decode fallback when proposals do
   // not amortize target verification.
   bool mtp_adaptive = false;
+  // Diagnostic-only fixed-D2 router instrumentation. When enabled, one tiny
+  // counter kernel records Top-8 expert-set overlap across the three Target
+  // verifier rows. The ordinary product graph is unchanged when this is false.
+  bool mtp_router_overlap_diagnostic = false;
+  CudaProfilePhase cuda_profile_phase = CudaProfilePhase::kNone;
   std::vector<std::uint32_t> input_token_ids;
   // When non-empty, capture one prediction per target and feed the preceding
   // target token into later decode positions. This isolates per-position
@@ -86,6 +97,19 @@ struct GreedyInferenceOptions {
   // null so terminal I/O never enters benchmark timing.
   GeneratedTokenCallback generated_token_callback = nullptr;
   void* generated_token_callback_context = nullptr;
+};
+
+struct MtpRouterOverlapDiagnostics {
+  std::uint64_t verifier_layer_samples = 0U;
+  std::uint64_t routed_assignments = 0U;
+  std::uint64_t unique_experts_sum = 0U;
+  std::uint64_t row01_intersection_sum = 0U;
+  std::uint64_t row02_intersection_sum = 0U;
+  std::uint64_t row12_intersection_sum = 0U;
+  std::uint64_t triple_intersection_sum = 0U;
+  // Index is the union cardinality. Fixed D2/Top-8 uses indices 8..24.
+  std::vector<std::uint64_t> union_size_histogram;
+  bool enabled = false;
 };
 
 struct GreedyInferenceResult {
@@ -130,6 +154,7 @@ struct GreedyInferenceResult {
   std::uint64_t state_dump_position = 0;
   KvCacheMode kv_cache_mode = KvCacheMode::kCheckpointFp8;
   SamplingOptions sampling;
+  MtpRouterOverlapDiagnostics mtp_router_overlap;
   bool packed_weight_source_layout_direct = false;
   bool assistant_loaded = false;
   bool mtp_enabled = false;
@@ -157,6 +182,8 @@ struct ConversationSessionOptions {
   SamplingOptions sampling;
   std::uint32_t mtp_draft_tokens = 0;
   bool mtp_adaptive = false;
+  bool mtp_router_overlap_diagnostic = false;
+  CudaProfilePhase cuda_profile_phase = CudaProfilePhase::kNone;
 };
 
 struct ModelRuntimeOptions {

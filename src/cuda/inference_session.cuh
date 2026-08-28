@@ -201,6 +201,8 @@ struct SessionState {
   SamplingOptions sampling;
   std::uint32_t mtp_draft_tokens = 0U;
   bool mtp_adaptive = false;
+  bool mtp_router_overlap_diagnostic = false;
+  CudaProfilePhase cuda_profile_phase = CudaProfilePhase::kNone;
   bool poisoned = false;
 };
 
@@ -267,6 +269,11 @@ Result<ConversationSession> ConversationSession::Create(
     return Error(StatusCode::kInvalidArgument,
                  "--mtp-adaptive requires active MTP");
   }
+  if (options.mtp_router_overlap_diagnostic &&
+      options.mtp_draft_tokens != 2U) {
+    return Error(StatusCode::kInvalidArgument,
+                 "router-overlap diagnosis requires fixed-D2 MTP");
+  }
   auto runtime = ModelRuntime::Load(
       {options.model_directory, options.assistant_model_directory,
        options.max_context_tokens, 0});
@@ -318,6 +325,10 @@ Result<ConversationSession> ConversationSession::Create(
     return Error(StatusCode::kUnsupported,
                  "Gemma 4 26B currently supports fixed-depth MTP only");
   }
+  if (!moe26b && options.mtp_router_overlap_diagnostic) {
+    return Error(StatusCode::kUnsupported,
+                 "router-overlap diagnosis is available only for Gemma 4 26B");
+  }
   if (moe26b) {
     if (options.max_context_tokens != runtime->impl_->max_context_tokens) {
       return Error(
@@ -342,6 +353,9 @@ Result<ConversationSession> ConversationSession::Create(
   impl->sampling = options.sampling;
   impl->mtp_draft_tokens = options.mtp_draft_tokens;
   impl->mtp_adaptive = options.mtp_adaptive;
+  impl->mtp_router_overlap_diagnostic =
+      options.mtp_router_overlap_diagnostic;
+  impl->cuda_profile_phase = options.cuda_profile_phase;
   impl->cached_token_ids.reserve(
       static_cast<std::size_t>(options.max_context_tokens));
   if (moe26b) {
@@ -364,6 +378,11 @@ Result<ConversationSession> ConversationSession::Create(
       status = impl->runtime->impl_->moe26b_engine->ConfigureMtpStopTokens(
           options.stop_token_ids);
       if (!status.ok()) return status;
+      if (options.mtp_router_overlap_diagnostic) {
+        status = impl->runtime->impl_->moe26b_engine
+                     ->ConfigureMtpRouterOverlapDiagnostic();
+        if (!status.ok()) return status;
+      }
       status = impl->runtime->impl_->moe26b_engine->ConfigureMtpVerifierBackend(
           internal::Gemma4Moe26BMtpVerifierBackend::kExactSharedBatchedMoe);
       if (!status.ok()) return status;
@@ -521,6 +540,8 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
     result.mtp_draft_tokens = impl_->mtp_draft_tokens;
     result.mtp_fixed_d2_graph = impl_->mtp_draft_tokens == 2U;
     result.mtp_gpu_chained = result.mtp_enabled;
+    result.mtp_router_overlap.enabled =
+        impl_->mtp_router_overlap_diagnostic;
     result.reasoning_enabled = reasoning.enabled;
     result.reasoning_budget_tokens = reasoning.max_reasoning_tokens;
     result.prompt_cached_tokens = prefix_tokens;
@@ -534,22 +555,40 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
     result.token_loop_allocations = false;
     result.decode_graphs = true;
 
-    const auto prompt_start = std::chrono::steady_clock::now();
-    Status status =
-        impl_->runtime->impl_->moe26b_engine->PrefillTokens(suffix);
-    if (!status.ok()) {
-      impl_->poisoned = true;
-      return status;
+    if (impl_->mtp_router_overlap_diagnostic) {
+      Status reset = impl_->runtime->impl_->moe26b_engine
+                         ->ResetMtpRouterOverlapDiagnostic();
+      if (!reset.ok()) return reset;
     }
-    auto selected = impl_->runtime->impl_->moe26b_engine->SelectToken();
+    if (impl_->cuda_profile_phase == CudaProfilePhase::kPrefill) {
+      const cudaError_t profile_error = cudaProfilerStart();
+      if (profile_error != cudaSuccess) {
+        return CudaFailure("start 26B prefill profiling", profile_error);
+      }
+    }
+    const auto prompt_start = std::chrono::steady_clock::now();
+    auto selected = [&]() -> Result<std::uint32_t> {
+      const NvtxRange range("gem16.26b.prefill");
+      Status prefill =
+          impl_->runtime->impl_->moe26b_engine->PrefillTokens(suffix);
+      if (!prefill.ok()) return prefill;
+      return impl_->runtime->impl_->moe26b_engine->SelectToken();
+    }();
     if (!selected.ok()) {
       impl_->poisoned = true;
       return selected.status();
     }
     result.prompt_milliseconds = Milliseconds(
         std::chrono::steady_clock::now() - prompt_start);
+    if (impl_->cuda_profile_phase == CudaProfilePhase::kPrefill) {
+      const cudaError_t profile_error = cudaProfilerStop();
+      if (profile_error != cudaSuccess) {
+        return CudaFailure("stop 26B prefill profiling", profile_error);
+      }
+    }
     impl_->cached_token_ids.insert(impl_->cached_token_ids.end(),
                                    suffix.begin(), suffix.end());
+    Status status = Status::Ok();
 
     ResponseChannelTracker reasoning_tracker(
         reasoning.channel_open_token_ids, reasoning.channel_close_token_id,
@@ -581,7 +620,14 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
       result.stop_token_id = next_token;
     }
 
+    if (impl_->cuda_profile_phase == CudaProfilePhase::kDecode) {
+      const cudaError_t profile_error = cudaProfilerStart();
+      if (profile_error != cudaSuccess) {
+        return CudaFailure("start 26B decode profiling", profile_error);
+      }
+    }
     const auto decode_start = std::chrono::steady_clock::now();
+    const NvtxRange decode_range("gem16.26b.decode");
     while (result.output_token_ids.size() < max_generated_tokens &&
            !result.stopped && !reasoning_complete) {
       const std::uint32_t input_token = next_token;
@@ -624,62 +670,54 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
       if (result.mtp_enabled) ++result.mtp_ordinary_fallback_tokens;
     }
     if (result.mtp_enabled) {
-      constexpr std::size_t kInteractiveMtpChunkTokens = 16U;
-      std::array<std::uint32_t, kInteractiveMtpChunkTokens> chain_tokens{};
-      while (result.output_token_ids.size() < max_generated_tokens &&
-             !result.stopped) {
-        const std::size_t remaining = static_cast<std::size_t>(
-            max_generated_tokens - result.output_token_ids.size());
-        const std::size_t requested =
-            std::min(remaining, kInteractiveMtpChunkTokens);
-        internal::MtpChainResult chain{};
-        status = impl_->runtime->impl_->moe26b_engine->RunFixedMtpGraphChain(
-            next_token, impl_->mtp_draft_tokens,
-            std::span<std::uint32_t>(chain_tokens).first(requested), &chain);
-        if (!status.ok()) {
-          impl_->poisoned = true;
-          return status;
-        }
-        if (chain.output_count == 0U || chain.output_count > requested) {
-          impl_->poisoned = true;
-          return Error(StatusCode::kInternal,
-                       "Gemma 4 26B MTP returned an invalid output extent");
-        }
-        result.mtp_proposed_tokens += chain.proposed_count;
-        result.mtp_accepted_tokens += chain.accepted_count;
-        result.mtp_rejected_tokens += chain.rejected_count;
-        result.mtp_verification_groups += chain.group_count;
-        result.mtp_target_batches += chain.group_count;
-        result.mtp_target_forwards += chain.group_count;
-        result.mtp_ordinary_fallback_tokens += chain.ordinary_tail_count;
-        if (impl_->mtp_draft_tokens == 1U) {
-          result.mtp_d1_groups += chain.group_count;
-        } else if (impl_->mtp_draft_tokens == 2U) {
-          result.mtp_d2_groups += chain.group_count;
-        } else if (impl_->mtp_draft_tokens == 4U) {
-          result.mtp_d4_groups += chain.group_count;
-        }
-        for (std::size_t index = 0U; index < chain.output_count; ++index) {
-          // The graph processed the previously pending output token to produce
-          // this one. Keep the host prefix aligned with the resident KV cache;
-          // the final emitted token remains pending for the next turn.
-          impl_->cached_token_ids.push_back(next_token);
-          next_token = chain_tokens[index];
-          result.output_token_ids.push_back(next_token);
-          observe_reasoning_token(next_token);
-          if (generated_token_callback != nullptr) {
-            status = generated_token_callback(generated_token_callback_context,
-                                              next_token);
-            if (!status.ok()) {
-              impl_->poisoned = true;
-              return status;
-            }
-          }
-        }
-        if (chain.stopped != 0U) {
-          result.stopped = true;
-          result.stop_token_id = chain.stop_token;
-        }
+      const std::size_t output_begin = result.output_token_ids.size();
+      const std::size_t requested = static_cast<std::size_t>(
+          max_generated_tokens - output_begin);
+      result.output_token_ids.resize(static_cast<std::size_t>(
+          max_generated_tokens));
+      internal::MtpChainResult chain{};
+      status = impl_->runtime->impl_->moe26b_engine->RunFixedMtpGraphChain(
+          next_token, impl_->mtp_draft_tokens,
+          std::span<std::uint32_t>(result.output_token_ids)
+              .subspan(output_begin, requested),
+          &chain, generated_token_callback,
+          generated_token_callback_context);
+      if (!status.ok()) {
+        impl_->poisoned = true;
+        return status;
+      }
+      if (chain.output_count == 0U || chain.output_count > requested) {
+        impl_->poisoned = true;
+        return Error(StatusCode::kInternal,
+                     "Gemma 4 26B MTP returned an invalid output extent");
+      }
+      result.output_token_ids.resize(output_begin + chain.output_count);
+      result.mtp_proposed_tokens = chain.proposed_count;
+      result.mtp_accepted_tokens = chain.accepted_count;
+      result.mtp_rejected_tokens = chain.rejected_count;
+      result.mtp_verification_groups = chain.group_count;
+      result.mtp_target_batches = chain.group_count;
+      result.mtp_target_forwards = chain.group_count;
+      result.mtp_ordinary_fallback_tokens += chain.ordinary_tail_count;
+      if (impl_->mtp_draft_tokens == 1U) {
+        result.mtp_d1_groups = chain.group_count;
+      } else if (impl_->mtp_draft_tokens == 2U) {
+        result.mtp_d2_groups = chain.group_count;
+      } else if (impl_->mtp_draft_tokens == 4U) {
+        result.mtp_d4_groups = chain.group_count;
+      }
+      for (std::size_t index = output_begin;
+           index < result.output_token_ids.size(); ++index) {
+        // The graph processed the previously pending output token to produce
+        // this one. Keep the host prefix aligned with the resident KV cache;
+        // the final emitted token remains pending for the next turn.
+        impl_->cached_token_ids.push_back(next_token);
+        next_token = result.output_token_ids[index];
+        observe_reasoning_token(next_token);
+      }
+      if (chain.stopped != 0U) {
+        result.stopped = true;
+        result.stop_token_id = chain.stop_token;
       }
     } else {
       while (result.output_token_ids.size() < max_generated_tokens &&
@@ -716,12 +754,35 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
     }
     result.decode_milliseconds = Milliseconds(
         std::chrono::steady_clock::now() - decode_start);
+    if (impl_->cuda_profile_phase == CudaProfilePhase::kDecode) {
+      const cudaError_t profile_error = cudaProfilerStop();
+      if (profile_error != cudaSuccess) {
+        return CudaFailure("stop 26B decode profiling", profile_error);
+      }
+    }
     const std::uint64_t measured_decode_tokens =
         result.output_token_ids.size() - 1U;
     if (measured_decode_tokens != 0U && result.decode_milliseconds > 0.0) {
       result.decode_tokens_per_second =
           static_cast<double>(measured_decode_tokens) * 1000.0 /
           result.decode_milliseconds;
+    }
+    if (impl_->mtp_router_overlap_diagnostic) {
+      internal::MtpRouterOverlapCounters raw{};
+      status = impl_->runtime->impl_->moe26b_engine
+                   ->CopyMtpRouterOverlapDiagnostic(&raw);
+      if (!status.ok()) return status;
+      auto& diagnostic = result.mtp_router_overlap;
+      diagnostic.verifier_layer_samples = raw.verifier_layer_samples;
+      diagnostic.routed_assignments = raw.routed_assignments;
+      diagnostic.unique_experts_sum = raw.unique_experts_sum;
+      diagnostic.row01_intersection_sum = raw.row01_intersection_sum;
+      diagnostic.row02_intersection_sum = raw.row02_intersection_sum;
+      diagnostic.row12_intersection_sum = raw.row12_intersection_sum;
+      diagnostic.triple_intersection_sum = raw.triple_intersection_sum;
+      diagnostic.union_size_histogram.assign(
+          std::begin(raw.union_size_histogram),
+          std::end(raw.union_size_histogram));
     }
     return result;
   }

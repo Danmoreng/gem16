@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "status": "retained_execution_optimization",
+  "date": "2026-08-28",
+  "source": {
+    "parent_commit": "3dd1ed019e5b49e5fc4c20d222022987f46b8ded",
+    "measurement_worktree_dirty": true
+  },
+  "configuration": {
+    "workload": "benchmarks/prompts/wikipedia-summary-16k.json",
+    "prompt_tokens": 16384,
+    "max_context_tokens": 32768,
+    "max_output_tokens": 8192,
+    "actual_output_tokens": 942,
+    "mtp_draft_tokens": 2,
+    "sampling": {
+      "temperature": 1.0,
+      "top_k": 64,
+      "top_p": 0.95,
+      "repetition_penalty": 1.0,
+      "seed": 0
+    }
+  },
+  "parent": {
+    "interactive_chain_tokens": 16,
+    "retained_decode_median_tokens_per_second": 199.87107148778742,
+    "output_token_sha256": "ee97710da349b4bcb5feedfaa81e10ff003c5a54642c9886d494db5c76ccc112",
+    "proposed_tokens": 770,
+    "accepted_tokens": 496,
+    "acceptance_rate": 0.6441558441558441,
+    "ordinary_tail_tokens": 60
+  },
+  "chunk_screens": [
+    {
+      "interactive_chain_tokens": 16,
+      "decode_tokens_per_second": 199.777,
+      "ordinary_tail_tokens": 60,
+      "output_token_sha256": "ee97710da349b4bcb5feedfaa81e10ff003c5a54642c9886d494db5c76ccc112"
+    },
+    {
+      "interactive_chain_tokens": 64,
+      "decode_tokens_per_second": 202.792,
+      "proposed_tokens": 816,
+      "accepted_tokens": 520,
+      "ordinary_tail_tokens": 13,
+      "output_token_sha256": "ee97710da349b4bcb5feedfaa81e10ff003c5a54642c9886d494db5c76ccc112"
+    },
+    {
+      "interactive_chain_tokens": 256,
+      "decode_tokens_per_second": 201.573,
+      "proposed_tokens": 834,
+      "accepted_tokens": 522,
+      "ordinary_tail_tokens": 2,
+      "output_token_sha256": "ee97710da349b4bcb5feedfaa81e10ff003c5a54642c9886d494db5c76ccc112"
+    }
+  ],
+  "candidate": {
+    "execution": "one device-controlled chain with mapped-pinned SPSC token streaming",
+    "warmup_decode_tokens_per_second": 201.756,
+    "retained_decode_tokens_per_second": [
+      201.717,
+      201.640,
+      201.677
+    ],
+    "retained_decode_median_tokens_per_second": 201.677,
+    "relative_improvement": 0.009034,
+    "retained_prompt_tokens_per_second": [
+      7028.501810319681,
+      7014.20908199655,
+      7015.170134146289
+    ],
+    "output_token_sha256": "ee97710da349b4bcb5feedfaa81e10ff003c5a54642c9886d494db5c76ccc112",
+    "proposed_tokens": 836,
+    "accepted_tokens": 523,
+    "rejected_tokens": 313,
+    "acceptance_rate": 0.6255980861244019,
+    "verification_groups": 418,
+    "ordinary_tail_tokens": 0,
+    "token_loop_allocations": false
+  },
+  "acceptance_interpretation": {
+    "assistant_precision_changed": false,
+    "sampling_changed": false,
+    "verifier_arithmetic_changed": false,
+    "output_changed": false,
+    "group_boundaries_changed": true,
+    "note": "Removing forced ordinary chunk tails changes later proposal-group alignment, so raw accepted/proposed counts are not directly comparable. The Target-verified output remains byte-identical and total accepted drafts increase from 496 to 523."
+  },
+  "streaming_smoke": {
+    "protocol": "OpenAI-compatible SSE through gem16-server, sampled fixed-D2, 64 completion tokens",
+    "sse_chunks": 64,
+    "completion_tokens": 64,
+    "elapsed_milliseconds": 406.19,
+    "result": "pass"
+  },
+  "validation": {
+    "build": "cmake --build build/Linux/blackwell-release --target gem16-run gem16-26b-assistant-acceptance -j2",
+    "focused_ctest": "7/7 passed",
+    "real_26b_m22_product": "passed",
+    "full_output_identity": "passed",
+    "git_diff_check": "passed"
+  },
+  "limitations": [
+    "The retained screen is one warm-up plus three retained runs, not a new formal three-warm-up/ten-retained qualification.",
+    "The protected real 12B product regression requires GEM16_12B_MODEL and was not available in this environment."
+  ]
+}

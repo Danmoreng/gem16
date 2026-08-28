@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "status": "diagnostic",
+  "date": "2026-08-28",
+  "source": {
+    "git_commit": "3dd1ed019e5b49e5fc4c20d222022987f46b8ded",
+    "worktree_contains_diagnostic_instrumentation": true,
+    "executable_sha256": "ac1c4579c75a8d3a885a19c5afd1702f6c81ad3ba6e4a56bc03a10466a5ef834"
+  },
+  "platform": {
+    "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "driver": "610.43.03",
+    "memory_mib": 16303,
+    "nsight_systems": "2026.1.3.425-261338342291v0"
+  },
+  "workload": {
+    "prompt": "wikipedia-artificial-intelligence-summary-16k",
+    "prompt_tokens": 16384,
+    "max_context_tokens": 32768,
+    "sampling": {
+      "temperature": 1.0,
+      "top_k": 64,
+      "top_p": 0.95,
+      "repetition_penalty": 1.0,
+      "seed": 0
+    },
+    "mtp_draft_tokens": 2
+  },
+  "phase_profiles": {
+    "prefill": {
+      "capture_boundary": "cudaProfilerApi around 26B PrefillTokens plus first sampled SelectToken",
+      "prompt_ms_under_profiler": 2374.86,
+      "gpu_kernel_time_ms": 2369.726515,
+      "top_kernels": [
+        {"name": "OnlineGlobalAttentionFp8Kernel", "time_ms": 609.162395, "percent": 25.7},
+        {"name": "Sm120GroupedExpertMatrixKernel_w13", "time_ms": 323.177162, "percent": 13.6},
+        {"name": "Sm120GroupedExpertMatrixKernel_w2", "time_ms": 248.059680, "percent": 10.5},
+        {"name": "OnlineLocalAttentionFp8Kernel", "time_ms": 228.128979, "percent": 9.6},
+        {"name": "Sm120MatrixProjectionKernel_qkv", "time_ms": 221.533640, "percent": 9.3},
+        {"name": "CUTLASS_prefill_projections", "time_ms": 195.124451, "percent": 8.2}
+      ],
+      "report": "artifacts/raw/m25/nsys-current-sampled-prefill-wikipedia-16k-2026-08-28.nsys-rep",
+      "report_sha256": "f3006527106f1623f24dce3aebce2a370330bcf1a1a23b3b4758cbdc52e53d71"
+    },
+    "sampled_d2_decode": {
+      "capture_boundary": "cudaProfilerApi around the complete 26B post-first-token decode",
+      "generated_tokens": 128,
+      "d2_groups": 49,
+      "accepted_tokens": 70,
+      "proposed_tokens": 98,
+      "decode_ms_under_profiler": 603.06,
+      "decode_tokens_per_second_under_profiler": 210.593,
+      "gpu_kernel_time_ms": 597.143209,
+      "top_kernels": [
+        {"name": "Sm120SelectedSplitGateUpKernel", "time_ms": 72.136715, "percent": 12.1},
+        {"name": "SplitOnlineDecodeAttentionFp8GlobalKvh2FixedRowsKernel_T3", "time_ms": 55.443144, "percent": 9.3},
+        {"name": "Sm120DirectProjectionFixedBatchKernel_T3_QKV", "time_ms": 47.382445, "percent": 7.9},
+        {"name": "Sm120SelectedDirectProjectionReduceKernel", "time_ms": 45.463157, "percent": 7.6},
+        {"name": "SplitOnlineDecodeAttentionFp8LocalFixedSharedKvKernel_T3", "time_ms": 38.194477, "percent": 6.4},
+        {"name": "Sm120DirectProjectionFixedT3Kernel", "time_ms": 35.066781, "percent": 5.9},
+        {"name": "Sm120DirectProjectionSplitK2FixedT3Kernel", "time_ms": 28.220125, "percent": 4.7},
+        {"name": "Assistant_fused_NVFP4_head_argmax", "time_ms": 17.839034, "percent": 3.0}
+      ],
+      "report": "artifacts/raw/m25/nsys-current-sampled-d2-decode-wikipedia-16k128-2026-08-28.nsys-rep",
+      "report_sha256": "6e2631f4ae67a401d0cd57b7117a1b50ef4a68506009bdfda88301802e3bfc12"
+    }
+  },
+  "t3_router_overlap": {
+    "generated_tokens": 942,
+    "output_token_sha256": "ee97710da349b4bcb5feedfaa81e10ff003c5a54642c9886d494db5c76ccc112",
+    "matches_formal_sampled_output": true,
+    "d2_groups": 385,
+    "layers_per_group": 30,
+    "verifier_layer_samples": 11550,
+    "routed_assignments": 277200,
+    "unique_experts_sum": 175275,
+    "mean_unique_experts_per_t3_layer": 15.175324675324676,
+    "mean_potential_reused_assignments_per_t3_layer": 8.824675324675324,
+    "potential_cross_row_weight_load_reuse_percent": 36.76948051948052,
+    "mean_pairwise_intersection": {
+      "row_0_1": 4.017489177489177,
+      "row_0_2": 3.55991341991342,
+      "row_1_2": 3.9065800865800866
+    },
+    "mean_triple_intersection": 2.6593073593073595,
+    "union_size_histogram_8_through_24": [3, 53, 263, 583, 976, 1344, 1559, 1649, 1572, 1251, 1007, 660, 402, 171, 42, 14, 1],
+    "raw_result": "artifacts/raw/m25/sampled-d2-t3-router-overlap-wikipedia-16k-2026-08-28.json",
+    "raw_result_sha256": "25636e296bdbbaef32fea04d5f1db4d9221699cfccfd9d8694ae0e43b009c3b5"
+  },
+  "interpretation": {
+    "prefill": "The current 16K prefill remains attention-dominated; global plus local attention account for 35.3% of captured GPU kernel time. Routed expert W13 plus W2 account for 24.1%.",
+    "decode": "The sampled D2 profile is led by routed expert GateUp/Down and fixed-T3 attention/projection kernels. The 128-token profile has higher draft acceptance than the formal 942-token run, so its throughput is diagnostic and must not replace retained performance evidence.",
+    "overlap": "Cross-row expert overlap is large enough to justify profiling an expert-keyed T3 routed-MoE execution path: the three Top-8 rows expose a theoretical 36.77% reduction in distinct per-expert row loads. This is an upper bound, not a projected end-to-end speedup."
+  },
+  "limitations": [
+    "Nsight tracing perturbs wall-clock timing; retained formal medians remain the performance claims.",
+    "The router-overlap counter adds one diagnostic kernel per verifier layer only when explicitly enabled.",
+    "No Assistant precision, sampling, routing, acceptance, output token, or production graph change is represented by this diagnostic evidence."
+  ]
+}

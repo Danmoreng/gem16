@@ -7,12 +7,14 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <memory>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -488,6 +490,7 @@ struct Gemma4Moe26BReferenceEngine::Impl {
   Gemma4Moe26BDeviceArtifact artifact;
   Gemma4Moe26BAssistantModel assistant;
   DeviceBuffer mtp_verifier;
+  DeviceBuffer mtp_router_overlap;
   MtpVerifierHostResult* mtp_verifier_host = nullptr;
   std::array<cudaGraphExec_t, kMaximumMtpDraftTokens + 1U>
       mtp_group_graphs{};
@@ -516,6 +519,8 @@ struct Gemma4Moe26BReferenceEngine::Impl {
   std::uint64_t mtp_chain_outputs_offset = 0U;
   std::uint64_t mtp_chain_proposals_offset = 0U;
   std::byte* mtp_chain_host = nullptr;
+  MtpStreamingRing* mtp_streaming_ring_host = nullptr;
+  MtpStreamingRing* mtp_streaming_ring_device = nullptr;
   std::uint32_t mtp_stop_token_count = 0U;
   std::array<MtpVerifierLayerOffsets, kLayers> mtp_layer_offsets{};
   float last_mtp_verification_min_margin = 0.0F;
@@ -613,6 +618,9 @@ struct Gemma4Moe26BReferenceEngine::Impl {
       (void)cudaFreeHost(mtp_verifier_host);
     }
     if (mtp_chain_host != nullptr) (void)cudaFreeHost(mtp_chain_host);
+    if (mtp_streaming_ring_host != nullptr) {
+      (void)cudaFreeHost(mtp_streaming_ring_host);
+    }
     if (stream != nullptr) {
       (void)cudaStreamDestroy(stream);
     }
@@ -908,7 +916,10 @@ Status Gemma4Moe26BReferenceEngine::Impl::LaunchFixedMtpGraphBody(
     if (!status.ok()) return status;
     status = LaunchGemma4MoeSm120MtpSharedBatchLayer(
         prefill_hidden_b, prefill_hidden_a, tokens, moe_config,
-        moe_weights[layer], prefill_moe_workspace, moe_workspace, stream);
+        moe_weights[layer], prefill_moe_workspace, moe_workspace, stream,
+        tokens != 3U || mtp_router_overlap.bytes() == 0U
+            ? nullptr
+            : mtp_router_overlap.As<MtpRouterOverlapCounters>());
     if (!status.ok()) return status;
     status = LaunchCopyCircularMtpKvFp8Controlled(
         caches[layer].key, caches[layer].value, compact_key, compact_value,
@@ -1233,8 +1244,8 @@ Status Gemma4Moe26BReferenceEngine::Impl::LaunchFixedMtpOrdinaryTailBody() {
       selected, mtp_verifier.As<std::uint32_t>(mtp_stop_tokens_offset),
       mtp_stop_token_count, transaction,
       mtp_verifier.As<MtpChainResult>(mtp_chain_result_offset),
-      mtp_verifier.As<std::uint32_t>(mtp_chain_outputs_offset), nullptr,
-      stream);
+      mtp_verifier.As<std::uint32_t>(mtp_chain_outputs_offset),
+      mtp_streaming_ring_device, stream);
 }
 
 Status Gemma4Moe26BReferenceEngine::Impl::PrepareFixedMtpChainGraph(
@@ -1344,8 +1355,8 @@ Status Gemma4Moe26BReferenceEngine::Impl::PrepareFixedMtpChainGraph(
   status = LaunchFixedMtpGraphBody(draft_count, false);
   if (status.ok()) {
     status = LaunchAdvanceMtpChain(
-        transaction, chain_result, chain_outputs, chain_proposals, nullptr,
-        stream);
+        transaction, chain_result, chain_outputs, chain_proposals,
+        mtp_streaming_ring_device, stream);
   }
   error = cudaStreamEndCapture(stream, &d2_source);
   if (!status.ok() || error != cudaSuccess) {
@@ -1374,7 +1385,7 @@ Status Gemma4Moe26BReferenceEngine::Impl::PrepareFixedMtpChainGraph(
     return CudaFailure("begin M25 chain continuation capture", error);
   }
   status = LaunchContinueMtpChain(
-      transaction, nullptr, loop_condition, stream);
+      transaction, mtp_streaming_ring_device, loop_condition, stream);
   error = cudaStreamEndCapture(stream, &continue_source);
   if (!status.ok() || error != cudaSuccess) {
     cleanup();
@@ -2525,6 +2536,55 @@ Status Gemma4Moe26BReferenceEngine::ConfigureMtpVerifierBackend(
   return Status::Ok();
 }
 
+Status Gemma4Moe26BReferenceEngine::ConfigureMtpRouterOverlapDiagnostic() {
+  if (!implementation_) return Invalid("M25 engine is not initialized");
+  auto& x = *implementation_;
+  const bool graphs_prepared = std::any_of(
+      x.mtp_group_graphs.begin(), x.mtp_group_graphs.end(),
+      [](cudaGraphExec_t graph) { return graph != nullptr; });
+  if (!x.assistant.prepared() || x.position != 0U || x.prefill_calls != 0U ||
+      x.decode_graph_launches != 0U || graphs_prepared ||
+      x.mtp_router_overlap.bytes() != 0U) {
+    return Invalid(
+        "M25 router-overlap diagnostic must be enabled once before graph capture");
+  }
+  Status status = x.mtp_router_overlap.Allocate(
+      sizeof(MtpRouterOverlapCounters),
+      "allocate M25 router-overlap diagnostic counters");
+  if (!status.ok()) return status;
+  return ResetMtpRouterOverlapDiagnostic();
+}
+
+Status Gemma4Moe26BReferenceEngine::ResetMtpRouterOverlapDiagnostic() {
+  if (!implementation_ || implementation_->mtp_router_overlap.bytes() == 0U) {
+    return Invalid("M25 router-overlap diagnostic is not enabled");
+  }
+  auto& x = *implementation_;
+  cudaError_t error = cudaMemsetAsync(
+      x.mtp_router_overlap.As<MtpRouterOverlapCounters>(), 0,
+      sizeof(MtpRouterOverlapCounters), x.stream);
+  if (error == cudaSuccess) error = cudaStreamSynchronize(x.stream);
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("reset M25 router-overlap diagnostic", error);
+}
+
+Status Gemma4Moe26BReferenceEngine::CopyMtpRouterOverlapDiagnostic(
+    MtpRouterOverlapCounters* output) {
+  if (!implementation_ || output == nullptr ||
+      implementation_->mtp_router_overlap.bytes() == 0U) {
+    return Invalid("M25 router-overlap diagnostic output is unavailable");
+  }
+  auto& x = *implementation_;
+  cudaError_t error = cudaMemcpyAsync(
+      output, x.mtp_router_overlap.As<MtpRouterOverlapCounters>(),
+      sizeof(MtpRouterOverlapCounters), cudaMemcpyDeviceToHost, x.stream);
+  if (error == cudaSuccess) error = cudaStreamSynchronize(x.stream);
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("copy M25 router-overlap diagnostic", error);
+}
+
 Result<std::uint32_t> Gemma4Moe26BReferenceEngine::SelectToken() {
   if (!implementation_) return Invalid("M22 engine is not initialized");
   auto prediction = Prediction();
@@ -2644,12 +2704,30 @@ Status Gemma4Moe26BReferenceEngine::LoadMtpAssistant(
     (void)cudaFreeHost(host_result);
     return CudaFailure("allocate pinned M25 chain result", host_error);
   }
+  MtpStreamingRing* streaming_ring_host = nullptr;
+  host_error = cudaHostAlloc(&streaming_ring_host, sizeof(MtpStreamingRing),
+                             cudaHostAllocMapped);
+  if (host_error != cudaSuccess) {
+    (void)cudaFreeHost(host_result);
+    (void)cudaFreeHost(chain_host);
+    return CudaFailure("allocate mapped M25 streaming ring", host_error);
+  }
+  MtpStreamingRing* streaming_ring_device = nullptr;
+  host_error = cudaHostGetDevicePointer(&streaming_ring_device,
+                                        streaming_ring_host, 0U);
+  if (host_error != cudaSuccess) {
+    (void)cudaFreeHost(host_result);
+    (void)cudaFreeHost(chain_host);
+    (void)cudaFreeHost(streaming_ring_host);
+    return CudaFailure("map M25 streaming ring into device space", host_error);
+  }
   std::size_t free_bytes = 0U;
   std::size_t total_bytes = 0U;
   const auto measured = cudaMemGetInfo(&free_bytes, &total_bytes);
   if (measured != cudaSuccess) {
     (void)cudaFreeHost(host_result);
     (void)cudaFreeHost(chain_host);
+    (void)cudaFreeHost(streaming_ring_host);
     return CudaFailure("measure M25 post-Assistant margin", measured);
   }
   const std::uint64_t required_margin =
@@ -2657,6 +2735,7 @@ Status Gemma4Moe26BReferenceEngine::LoadMtpAssistant(
   if (free_bytes < required_margin) {
     (void)cudaFreeHost(host_result);
     (void)cudaFreeHost(chain_host);
+    (void)cudaFreeHost(streaming_ring_host);
     return Status(
         StatusCode::kResourceExhausted,
         "M25 Assistant and verifier leave less than the profile margin");
@@ -2665,6 +2744,8 @@ Status Gemma4Moe26BReferenceEngine::LoadMtpAssistant(
   x.mtp_verifier = std::move(verifier);
   x.mtp_verifier_host = host_result;
   x.mtp_chain_host = chain_host;
+  x.mtp_streaming_ring_host = streaming_ring_host;
+  x.mtp_streaming_ring_device = streaming_ring_device;
   x.mtp_normalized_offset = normalized;
   x.mtp_head_activation_offset = head_activation;
   x.mtp_head_scales_offset = head_scales;
@@ -3000,7 +3081,10 @@ Status Gemma4Moe26BReferenceEngine::RunMtpAssistantGroup(
       status = LaunchGemma4MoeSm120MtpSharedBatchLayer(
           x.prefill_hidden_b, x.prefill_hidden_a, tokens, x.moe_config,
           x.moe_weights[layer], x.prefill_moe_workspace, x.moe_workspace,
-          x.stream);
+          x.stream,
+          tokens != 3U || x.mtp_router_overlap.bytes() == 0U
+              ? nullptr
+              : x.mtp_router_overlap.As<MtpRouterOverlapCounters>());
       if (!status.ok()) return status;
     } else if (batch_moe) {
       status = LaunchGemma4MoeSm120PrefillLayer(
@@ -3194,7 +3278,9 @@ Status Gemma4Moe26BReferenceEngine::RunMtpAssistantGroup(
 Status Gemma4Moe26BReferenceEngine::RunFixedMtpGraphChain(
     std::uint32_t pending_token, std::uint32_t draft_count,
     std::span<std::uint32_t> output_token_ids,
-    MtpChainResult* host_result) {
+    MtpChainResult* host_result,
+    Status (*generated_token_callback)(void*, std::uint32_t),
+    void* generated_token_callback_context) {
   if (!implementation_ || host_result == nullptr ||
       output_token_ids.empty() || pending_token >= kVocabulary ||
       draft_count == 0U || draft_count > kMaximumMtpDraftTokens) {
@@ -3203,6 +3289,8 @@ Status Gemma4Moe26BReferenceEngine::RunFixedMtpGraphChain(
   auto& x = *implementation_;
   if (x.mtp_chain_graphs[draft_count] == nullptr ||
       !x.assistant.prepared() ||
+      x.mtp_streaming_ring_host == nullptr ||
+      x.mtp_streaming_ring_device == nullptr ||
       x.position == 0U || x.position >= x.context ||
       output_token_ids.size() > x.context - x.position) {
     return Invalid("M25 fixed graph chain exceeds the resident state");
@@ -3221,6 +3309,18 @@ Status Gemma4Moe26BReferenceEngine::RunFixedMtpGraphChain(
       x.mtp_verifier.As<MtpGroupTransaction>(x.mtp_transaction_offset);
   auto* device_result =
       x.mtp_verifier.As<MtpChainResult>(x.mtp_chain_result_offset);
+  std::atomic_ref<unsigned long long> producer(
+      x.mtp_streaming_ring_host->producer);
+  std::atomic_ref<unsigned long long> consumer(
+      x.mtp_streaming_ring_host->consumer);
+  std::atomic_ref<unsigned long long> cancelled(
+      x.mtp_streaming_ring_host->cancelled);
+  std::atomic_ref<unsigned long long> backpressure(
+      x.mtp_streaming_ring_host->backpressure_events);
+  producer.store(0U, std::memory_order_relaxed);
+  consumer.store(0U, std::memory_order_relaxed);
+  cancelled.store(0U, std::memory_order_relaxed);
+  backpressure.store(0U, std::memory_order_relaxed);
   cudaError_t error = cudaMemcpyAsync(
       device_transaction, &x.mtp_verifier_host->transaction,
       sizeof(MtpGroupTransaction), cudaMemcpyHostToDevice, x.stream);
@@ -3230,9 +3330,39 @@ Status Gemma4Moe26BReferenceEngine::RunFixedMtpGraphChain(
   if (error == cudaSuccess) {
     error = cudaGraphLaunch(x.mtp_chain_graphs[draft_count], x.stream);
   }
-  if (error == cudaSuccess) error = cudaStreamSynchronize(x.stream);
   if (error != cudaSuccess) {
     return CudaFailure("execute M25 fixed graph chain", error);
+  }
+  Status callback_status = Status::Ok();
+  unsigned long long consumed = 0U;
+  const auto consume_available = [&]() {
+    const unsigned long long published =
+        producer.load(std::memory_order_acquire);
+    while (consumed < published) {
+      const std::uint32_t token = x.mtp_streaming_ring_host->tokens[
+          consumed % kMtpStreamingRingCapacity];
+      if (generated_token_callback != nullptr && callback_status.ok()) {
+        callback_status = generated_token_callback(
+            generated_token_callback_context, token);
+        if (!callback_status.ok()) {
+          cancelled.store(1U, std::memory_order_release);
+        }
+      }
+      ++consumed;
+      consumer.store(consumed, std::memory_order_release);
+    }
+  };
+  while (true) {
+    consume_available();
+    error = cudaStreamQuery(x.stream);
+    if (error == cudaSuccess) {
+      consume_available();
+      break;
+    }
+    if (error != cudaErrorNotReady) {
+      return CudaFailure("poll M25 fixed graph chain", error);
+    }
+    std::this_thread::yield();
   }
   ++x.mtp_chain_graph_launches[draft_count];
 
@@ -3265,6 +3395,7 @@ Status Gemma4Moe26BReferenceEngine::RunFixedMtpGraphChain(
           pinned_result->proposed_count ||
       pinned_result->ordinary_tail_count > draft_count ||
       pinned_result->non_finite_step_count != 0U ||
+      consumed != pinned_result->output_count ||
       final_control.current.input_token !=
           pinned_outputs[pinned_result->output_count - 1U] ||
       final_control.current.processed_position !=
@@ -3295,7 +3426,7 @@ Status Gemma4Moe26BReferenceEngine::RunFixedMtpGraphChain(
                            ? pending_token
                            : output_token_ids[pinned_result->output_count - 2U];
   *host_result = *pinned_result;
-  return Status::Ok();
+  return callback_status;
 }
 
 bool Gemma4Moe26BReferenceEngine::mtp_assistant_loaded() const {

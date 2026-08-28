@@ -120,9 +120,18 @@ class Gemma4Moe26BReferenceEngine {
   [[nodiscard]] Status RunFixedMtpGraphChain(
       std::uint32_t pending_token, std::uint32_t draft_count,
       std::span<std::uint32_t> output_token_ids,
-      MtpChainResult* host_result);
+      MtpChainResult* host_result,
+      Status (*generated_token_callback)(void*, std::uint32_t) = nullptr,
+      void* generated_token_callback_context = nullptr);
   [[nodiscard]] Status ConfigureMtpVerifierBackend(
       Gemma4Moe26BMtpVerifierBackend backend);
+  // Opt-in diagnosis of cross-row expert reuse in the fixed-D2 T3 verifier.
+  // It must be configured before graph capture and adds no node or allocation
+  // to ordinary production execution when unused.
+  [[nodiscard]] Status ConfigureMtpRouterOverlapDiagnostic();
+  [[nodiscard]] Status ResetMtpRouterOverlapDiagnostic();
+  [[nodiscard]] Status CopyMtpRouterOverlapDiagnostic(
+      MtpRouterOverlapCounters* output);
   [[nodiscard]] bool mtp_assistant_loaded() const;
   [[nodiscard]] std::uint64_t mtp_assistant_weight_bytes() const;
   [[nodiscard]] std::uint64_t mtp_assistant_workspace_bytes() const;

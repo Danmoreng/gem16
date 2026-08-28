@@ -275,6 +275,36 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
     output << result.mtp_proposed_token_ids[index];
   }
   output << "]},\n"
+         << "  \"mtp_router_overlap_diagnostic\": {\"enabled\":"
+         << (result.mtp_router_overlap.enabled ? "true" : "false")
+         << ",\"verifier_layer_samples\":"
+         << result.mtp_router_overlap.verifier_layer_samples
+         << ",\"routed_assignments\":"
+         << result.mtp_router_overlap.routed_assignments
+         << ",\"unique_experts_sum\":"
+         << result.mtp_router_overlap.unique_experts_sum
+         << ",\"potential_reused_assignments\":"
+         << (result.mtp_router_overlap.routed_assignments >=
+                     result.mtp_router_overlap.unique_experts_sum
+                 ? result.mtp_router_overlap.routed_assignments -
+                       result.mtp_router_overlap.unique_experts_sum
+                 : 0U)
+         << ",\"row01_intersection_sum\":"
+         << result.mtp_router_overlap.row01_intersection_sum
+         << ",\"row02_intersection_sum\":"
+         << result.mtp_router_overlap.row02_intersection_sum
+         << ",\"row12_intersection_sum\":"
+         << result.mtp_router_overlap.row12_intersection_sum
+         << ",\"triple_intersection_sum\":"
+         << result.mtp_router_overlap.triple_intersection_sum
+         << ",\"union_size_histogram\":[";
+  for (std::size_t index = 0U;
+       index < result.mtp_router_overlap.union_size_histogram.size();
+       ++index) {
+    if (index != 0U) output << ',';
+    output << result.mtp_router_overlap.union_size_histogram[index];
+  }
+  output << "]},\n"
          << "  \"kv_cache_bytes\": " << result.kv_cache_bytes << ",\n"
          << "  \"workspace_bytes\": " << result.workspace_bytes << ",\n"
          << "  \"prefill_chunk_tokens\": " << result.prefill_chunk_tokens << ",\n"

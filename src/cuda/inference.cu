@@ -28,6 +28,7 @@
 
 #include <cuda_bf16.h>
 #include <cuda_fp8.h>
+#include <cuda_profiler_api.h>
 #include <cuda_runtime.h>
 #include <nvtx3/nvToolsExt.h>
 
@@ -65,6 +66,14 @@ Status CudaFailure(const char* operation, cudaError_t error) {
   return Error(StatusCode::kInternal, std::string(operation) + ": " +
       cudaGetErrorName(error) + ": " + cudaGetErrorString(error));
 }
+
+class NvtxRange {
+ public:
+  explicit NvtxRange(const char* name) { nvtxRangePushA(name); }
+  NvtxRange(const NvtxRange&) = delete;
+  NvtxRange& operator=(const NvtxRange&) = delete;
+  ~NvtxRange() { nvtxRangePop(); }
+};
 
 class PinnedHostAllocation {
  public:
@@ -191,6 +200,9 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
     session_options.sampling = options.sampling;
     session_options.mtp_draft_tokens = options.mtp_draft_tokens;
     session_options.mtp_adaptive = options.mtp_adaptive;
+    session_options.mtp_router_overlap_diagnostic =
+        options.mtp_router_overlap_diagnostic;
+    session_options.cuda_profile_phase = options.cuda_profile_phase;
     auto session = ConversationSession::Create(session_options);
     if (!session.ok()) return session.status();
     return session.value().Generate(
