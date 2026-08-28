@@ -21,6 +21,18 @@ namespace gem16::internal {
     std::uint64_t contracting_elements,
     cudaStream_t stream);
 
+// Batch-one direct-source projection with the exact physical-BF16 boundary
+// applied in the projection epilogue and stored in float workspace form.
+[[nodiscard]] Status LaunchFp8Sm120DirectProjectionBf16(
+    const std::uint8_t* activation_e4m3fn,
+    const float* activation_scale,
+    const std::uint8_t* weight_e4m3fn,
+    const std::uint16_t* weight_scales_bf16,
+    float* output,
+    std::uint64_t rows,
+    std::uint64_t contracting_elements,
+    cudaStream_t stream);
+
 // Batch-one grouped Q/K/V projection. One CUDA launch contains the independent
 // direct-source projection CTAs, reducing decode-graph node count without
 // changing MMA ordering or projection outputs.

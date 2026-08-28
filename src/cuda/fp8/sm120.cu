@@ -168,6 +168,7 @@ __device__ __forceinline__ void StageFp8OperandsAsync(
   }
 }
 
+template <bool kRoundBf16>
 __global__ void Sm120DirectProjectionKernel(const std::uint8_t* activation,
                                             const float* activation_scale,
                                             Fp8MatrixBinding first,
@@ -242,12 +243,20 @@ __global__ void Sm120DirectProjectionKernel(const std::uint8_t* activation,
     const std::uint64_t output_row = global_warp * kRowsPerWarp + lane * 2U;
     const float input_scale = activation_scale[0];
     if (output_row < rows) {
-      output[output_row] =
+      const float value =
           d0 * input_scale * DecodeBf16(weight_scales + output_row);
+      output[output_row] =
+          kRoundBf16
+              ? static_cast<float>(__float2bfloat16_rn(value))
+              : value;
     }
     if (output_row + 1U < rows) {
-      output[output_row + 1U] =
+      const float value =
           d1 * input_scale * DecodeBf16(weight_scales + output_row + 1U);
+      output[output_row + 1U] =
+          kRoundBf16
+              ? static_cast<float>(__float2bfloat16_rn(value))
+              : value;
     }
   }
 #else
@@ -850,14 +859,54 @@ Status LaunchFp8Sm120DirectProjection(const std::uint8_t* activation_e4m3fn,
   const Fp8MatrixBinding binding{weight_e4m3fn, weight_scales_bf16, output,
                                  rows};
   const Fp8MatrixBinding empty{};
-  Sm120DirectProjectionKernel<<<dim3(static_cast<unsigned>(blocks), 1U),
-                                kThreadsPerBlock, 0, stream>>>(
+  Sm120DirectProjectionKernel<false><<<
+      dim3(static_cast<unsigned>(blocks), 1U), kThreadsPerBlock, 0, stream>>>(
       activation_e4m3fn, activation_scale, binding, empty, empty, 1U, 1U,
       contracting_elements);
   const cudaError_t error = cudaGetLastError();
   return error == cudaSuccess
              ? Status::Ok()
              : CudaFailure("launch direct-source SM120 FP8 projection", error);
+}
+
+Status LaunchFp8Sm120DirectProjectionBf16(
+    const std::uint8_t* activation_e4m3fn, const float* activation_scale,
+    const std::uint8_t* weight_e4m3fn,
+    const std::uint16_t* weight_scales_bf16, float* output,
+    std::uint64_t rows, std::uint64_t contracting_elements,
+    cudaStream_t stream) {
+  if (activation_e4m3fn == nullptr || activation_scale == nullptr ||
+      weight_e4m3fn == nullptr || weight_scales_bf16 == nullptr ||
+      output == nullptr) {
+    return Invalid(
+        "BF16-output SM120 FP8 direct projection requires non-null pointers");
+  }
+  if (rows == 0U || contracting_elements == 0U ||
+      contracting_elements % kElementsPerKBlock != 0U) {
+    return Invalid(
+        "BF16-output SM120 FP8 projection dimensions are invalid");
+  }
+  const std::uint64_t row_tiles =
+      (rows + kRowsPerWarp - 1U) / kRowsPerWarp;
+  const std::uint64_t blocks =
+      (row_tiles + kWarpsPerBlock - 1U) / kWarpsPerBlock;
+  if (blocks >
+      static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
+    return Invalid("BF16-output SM120 FP8 projection grid exceeds CUDA limits");
+  }
+  const Fp8MatrixBinding binding{weight_e4m3fn, weight_scales_bf16, output,
+                                 rows};
+  const Fp8MatrixBinding empty{};
+  Sm120DirectProjectionKernel<true><<<
+      dim3(static_cast<unsigned>(blocks), 1U), kThreadsPerBlock, 0, stream>>>(
+      activation_e4m3fn, activation_scale, binding, empty, empty, 1U, 1U,
+      contracting_elements);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure(
+                   "launch BF16-output direct-source SM120 FP8 projection",
+                   error);
 }
 
 Status LaunchFp8Sm120DirectProjectionLegacyForTest(
@@ -883,7 +932,7 @@ Status LaunchFp8Sm120DirectProjectionLegacyForTest(
   const Fp8MatrixBinding binding{weight_e4m3fn, weight_scales_bf16, output,
                                  rows};
   const Fp8MatrixBinding empty{};
-  Sm120DirectProjectionKernel<<<dim3(static_cast<unsigned>(blocks), 1U),
+  Sm120DirectProjectionKernel<false><<<dim3(static_cast<unsigned>(blocks), 1U),
                                 kThreadsPerBlock, 0, stream>>>(
       activation_e4m3fn, activation_scale, binding, empty, empty, 1U, 1U,
       contracting_elements);
@@ -959,7 +1008,7 @@ Status LaunchFp8Sm120GroupedQkvProjection(
                      "launch Gemma 4 26B compact local SM120 FP8 Q/K/V",
                      local_qkv_error);
   }
-  Sm120DirectProjectionKernel<<<
+  Sm120DirectProjectionKernel<false><<<
       dim3(static_cast<unsigned>(blocks), 1U, has_v ? 3U : 2U),
       kThreadsPerBlock, 0, stream>>>(
       activation_e4m3fn, activation_scale, q, k, v, has_v ? 3U : 2U, 1U,
@@ -997,7 +1046,7 @@ Status LaunchFp8Sm120LocalGroupedQkvProjectionLegacyForTest(
   constexpr unsigned kLegacyBlocks =
       static_cast<unsigned>(kGemma4Moe26BLocalAttentionWidth /
                             (kWarpsPerBlock * kRowsPerWarp));
-  Sm120DirectProjectionKernel<<<dim3(kLegacyBlocks, 1U, 3U),
+  Sm120DirectProjectionKernel<false><<<dim3(kLegacyBlocks, 1U, 3U),
                                 kThreadsPerBlock, 0, stream>>>(
       activation_e4m3fn, activation_scale, q, k, v, 3U, 1U,
       kGemma4Moe26BHidden);
@@ -1074,7 +1123,7 @@ Status LaunchFp8Sm120DirectProjectionBatch(
                                   binding, empty, empty, 1U,
                                   contracting_elements);
     } else {
-      Sm120DirectProjectionKernel<<<
+      Sm120DirectProjectionKernel<false><<<
           dim3(static_cast<unsigned>(direct_blocks),
                static_cast<unsigned>(tokens)),
           kThreadsPerBlock, 0, stream>>>(
@@ -1199,7 +1248,7 @@ Status LaunchFp8Sm120GroupedQkvProjectionBatch(
           activation_e4m3fn, activation_scales, q, k, v,
           has_v ? 3U : 2U, contracting_elements);
     } else {
-      Sm120DirectProjectionKernel<<<
+      Sm120DirectProjectionKernel<false><<<
           dim3(static_cast<unsigned>(direct_blocks),
                static_cast<unsigned>(tokens), has_v ? 3U : 2U),
           kThreadsPerBlock, 0, stream>>>(

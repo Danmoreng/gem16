@@ -513,11 +513,10 @@ Status Gemma4Moe26BAssistantModel::GenerateDraftsDevice(
     Status projected = LaunchFp8ReferenceTokenQuantization(
         input, fp8_activation, fp8_scale, matrix.columns, stream);
     if (!projected.ok()) return projected;
-    projected = LaunchFp8Sm120DirectProjection(
+    projected = LaunchFp8Sm120DirectProjectionBf16(
         fp8_activation, fp8_scale, matrix.weight, matrix.scale, output,
         matrix.rows, matrix.columns, stream);
-    if (!projected.ok()) return projected;
-    return round(output, matrix.rows);
+    return projected;
   };
   const auto quantize_nvfp4 = [&](const float* input,
                                   const Gemma4MoeNvfp4Matrix& matrix) {
@@ -646,13 +645,12 @@ Status Gemma4Moe26BAssistantModel::GenerateDraftsDevice(
       if (!status.ok()) return status;
     }
 
-    status = LaunchRmsNormBf16(hidden_a, impl_->bindings.final_norm,
-                               normalized, 1U, kAssistantHidden, kEpsilon,
-                               stream);
+    status = LaunchRmsNormBf16Nvfp4ActivationQuantizationBatch(
+        hidden_a, impl_->bindings.final_norm, normalized, nvfp4_activation,
+        nvfp4_scales, 1U, kAssistantHidden, kEpsilon,
+        impl_->bindings.head.activation_global_divisor, stream);
     if (!status.ok()) return status;
     status = fp8(normalized, impl_->bindings.post, feedback);
-    if (!status.ok()) return status;
-    status = quantize_nvfp4(normalized, impl_->bindings.head);
     if (!status.ok()) return status;
     status = LaunchNvfp4Sm120ProjectionArgmaxCandidatesBf16(
         nvfp4_activation, nvfp4_scales,

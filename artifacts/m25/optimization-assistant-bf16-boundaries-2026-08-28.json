@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "status": "retained_execution_optimization",
+  "date": "2026-08-28",
+  "source": {
+    "parent_commit": "a67acf6",
+    "measurement_worktree_dirty": true,
+    "candidate_executable_sha256": "4c20fbe0ef98911716bbda054b98e4902ee127076312cf1b23f812ff33456798"
+  },
+  "configuration": {
+    "workload": "benchmarks/prompts/wikipedia-summary-16k.json",
+    "prompt_tokens": 16384,
+    "actual_output_tokens": 942,
+    "max_context_tokens": 24576,
+    "kv_cache": "checkpoint_fp8",
+    "mtp_draft_tokens": 2,
+    "sampling": {
+      "temperature": 1.0,
+      "top_k": 64,
+      "top_p": 0.95,
+      "repetition_penalty": 1.0,
+      "seed": 0
+    }
+  },
+  "changes": [
+    {
+      "description": "Fuse the Assistant final BF16 RMSNorm boundary with the existing NVFP4 Head activation quantization.",
+      "parent_median_tokens_per_second": 203.814,
+      "candidate_retained_tokens_per_second": [203.889, 203.822, 203.863],
+      "candidate_median_tokens_per_second": 203.863
+    },
+    {
+      "description": "Apply Assistant FP8 projection BF16 boundaries in the projection epilogue instead of separate RoundBf16 kernels.",
+      "parent_median_tokens_per_second": 203.863,
+      "candidate_retained_tokens_per_second": [203.997, 204.003, 203.981],
+      "candidate_median_tokens_per_second": 203.997
+    }
+  ],
+  "combined": {
+    "parent_retained_decode_median_tokens_per_second": 203.814,
+    "candidate_retained_decode_median_tokens_per_second": 203.997,
+    "relative_improvement": 0.000898,
+    "removed_rounding_kernel_launches_per_verification_group": 20,
+    "removed_final_head_quantization_launches_per_verification_group": 2,
+    "precision_changed": false,
+    "assistant_weights_changed": false,
+    "sampling_changed": false,
+    "workspace_or_vram_allocation_changed": false
+  },
+  "quality": {
+    "output_token_sha256": "ee97710da349b4bcb5feedfaa81e10ff003c5a54642c9886d494db5c76ccc112",
+    "accepted_tokens": 523,
+    "proposed_tokens": 836,
+    "verification_groups": 418,
+    "ordinary_tail_tokens": 0,
+    "all_retained_runs_match_parent": true
+  },
+  "validation": {
+    "focused_ctest": "7/7 passed",
+    "real_26b_m22_product": "passed",
+    "git_diff_check": "passed"
+  },
+  "limitations": [
+    "Each isolated stage is one warm-up plus three retained runs, not a new formal three-warm-up/ten-retained qualification.",
+    "Prompt throughput drifted with sustained GPU temperature; these Assistant-only kernels do not execute during Target prefill, so no prefill claim is made from this sample.",
+    "Peak VRAM was not resampled; the implementation changes neither allocation sizes nor workspace ownership.",
+    "The protected real 12B product test requires GEM16_12B_MODEL and was unavailable in this environment."
+  ]
+}
