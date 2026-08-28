@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "status": "retained_execution_optimization",
+  "date": "2026-08-28",
+  "source": {
+    "parent_commit": "d51095b",
+    "measurement_worktree_dirty": true,
+    "candidate_executable_sha256": "ff65011bc7708c3166020830d5c18e12fc3eaa1647c57afb7bcf02504581c286",
+    "profiler": "Nsight Compute 2026.2.1"
+  },
+  "configuration": {
+    "workload": "benchmarks/prompts/wikipedia-summary-16k.json",
+    "prompt_tokens": 16384,
+    "actual_output_tokens": 942,
+    "max_context_tokens": 24576,
+    "kv_cache": "checkpoint_fp8",
+    "mtp_draft_tokens": 2,
+    "sampling": {
+      "temperature": 1.0,
+      "top_k": 64,
+      "top_p": 0.95,
+      "repetition_penalty": 1.0,
+      "seed": 0
+    }
+  },
+  "profiles": {
+    "global_attention_fixed_t3": {
+      "grid_blocks": 4,
+      "threads_per_block": 256,
+      "registers_per_thread": 255,
+      "static_shared_bytes_per_block": 98304,
+      "waves_per_sm": 0.07,
+      "achieved_occupancy": 0.1623,
+      "finding": "Only four blocks execute for T3; simple one-head block splitting duplicates K/V staging and is not an end-to-end win."
+    },
+    "grouped_moe_gate_up": {
+      "original_grid_blocks": 1419,
+      "threads_per_block": 128,
+      "registers_per_thread": 72,
+      "dram_throughput": 0.5189,
+      "l2_hit_rate": 0.0183,
+      "finding": "The host upper bound launched 129 expert-tile rows for 24 assignments although every non-empty tile consumes at least one assignment."
+    },
+    "t3_fused_gate_up_projection": {
+      "original_grid_blocks": 66,
+      "threads_per_block": 128,
+      "registers_per_thread": 64,
+      "waves_per_sm": 0.14,
+      "achieved_occupancy": 0.0907,
+      "finding": "The unstaged short-batch kernel has only 1.1 blocks per SM; two warps per block doubles independent blocks without duplicating activation staging."
+    }
+  },
+  "accepted_changes": [
+    {
+      "description": "Cap grouped expert launch rows by assignment_count, a strict upper bound on non-empty expert tiles.",
+      "parent_median_tokens_per_second": 203.997,
+      "candidate_retained_tokens_per_second": [204.135, 204.120, 204.149],
+      "candidate_median_tokens_per_second": 204.135
+    },
+    {
+      "description": "Use two warps per block for unstaged fused Gate/Up projections with T<=3.",
+      "parent_median_tokens_per_second": 204.135,
+      "candidate_retained_tokens_per_second": [204.248, 204.186, 204.178],
+      "candidate_median_tokens_per_second": 204.186
+    }
+  ],
+  "rejected_changes": [
+    {
+      "description": "Split fixed-T3 global attention from four query heads per block to one.",
+      "candidate_median_tokens_per_second": 203.910,
+      "reason": "Fourfold K/V staging offsets the additional block parallelism."
+    },
+    {
+      "description": "Use one warp per block for unstaged fused Gate/Up projections with T<=3.",
+      "candidate_median_tokens_per_second": 204.010,
+      "reason": "Additional block scheduling and reduced per-block work regress versus the two-warp variant."
+    }
+  ],
+  "combined": {
+    "parent_retained_decode_median_tokens_per_second": 203.997,
+    "candidate_retained_decode_median_tokens_per_second": 204.186,
+    "relative_improvement": 0.000926,
+    "precision_changed": false,
+    "sampling_changed": false,
+    "assistant_changed": false,
+    "workspace_or_vram_allocation_changed": false
+  },
+  "quality": {
+    "output_token_sha256": "ee97710da349b4bcb5feedfaa81e10ff003c5a54642c9886d494db5c76ccc112",
+    "accepted_tokens": 523,
+    "proposed_tokens": 836,
+    "verification_groups": 418,
+    "ordinary_tail_tokens": 0,
+    "all_retained_runs_match_parent": true
+  },
+  "validation": {
+    "focused_ctest": "7/7 passed",
+    "real_26b_m22_product": "passed",
+    "git_diff_check": "passed"
+  },
+  "limitations": [
+    "Each candidate is one warm-up plus three retained runs, not the final formal three-warm-up/ten-retained qualification.",
+    "Nsight Compute kernel replay makes the instrumented process exit after capture; reports are complete and only hardware counters, not profiled application throughput, are used.",
+    "The raw .ncu-rep files remain outside version control under /tmp.",
+    "The protected real 12B product test requires GEM16_12B_MODEL and was unavailable in this environment."
+  ]
+}

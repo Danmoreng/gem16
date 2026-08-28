@@ -4,6 +4,7 @@
 #include <cuda_bf16.h>
 #include <cuda_runtime.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -33,6 +34,7 @@ constexpr unsigned kPrefillThreadsPerBlock =
 constexpr unsigned kDecodeTopK = 8U;
 constexpr unsigned kDecodeReductionThreads = kWarpSize * kDecodeTopK;
 constexpr unsigned kSelectedSplitWarpsPerBlock = 8U;
+
 constexpr unsigned kSelectedSplitThreadsPerBlock =
     kWarpSize * kSelectedSplitWarpsPerBlock;
 constexpr unsigned kSharedDecodeWarpsPerBlock = 8U;
@@ -43,6 +45,15 @@ constexpr unsigned kHeadCandidateThreadsPerBlock =
     kWarpSize * kHeadCandidateWarpsPerBlock;
 constexpr float kSqrtTwoOverPi = 0.7978845608028654F;
 constexpr float kGeluCubic = 0.044715F;
+
+std::uint64_t GroupedTileGridUpperBound(std::uint64_t assignment_count,
+                                        std::uint32_t experts) {
+  const std::uint64_t schedule_bound =
+      (assignment_count + kGroupedAssignmentsPerTile - 1U) /
+          kGroupedAssignmentsPerTile +
+      experts;
+  return std::min(assignment_count, schedule_bound);
+}
 
 Status Invalid(std::string message) {
   return Status(StatusCode::kInvalidArgument, std::move(message));
@@ -1904,9 +1915,7 @@ Status LaunchNvfp4Sm120GroupedExpertDown(
     return Invalid("grouped SM120 expert Down grid exceeds CUDA limits");
   }
   const std::uint64_t tile_grid =
-      (assignment_count + kGroupedAssignmentsPerTile - 1U) /
-          kGroupedAssignmentsPerTile +
-      experts;
+      GroupedTileGridUpperBound(assignment_count, experts);
   Sm120GroupedExpertMatrixKernel<false, float><<<
       dim3(static_cast<unsigned>(blocks), static_cast<unsigned>(tile_grid)),
       kThreadsPerBlock, 0, stream>>>(
@@ -1968,9 +1977,7 @@ Status LaunchNvfp4Sm120GroupedExpertDownBf16(
         "grouped physical-BF16 SM120 expert Down grid exceeds CUDA limits");
   }
   const std::uint64_t tile_grid =
-      (assignment_count + kGroupedAssignmentsPerTile - 1U) /
-          kGroupedAssignmentsPerTile +
-      experts;
+      GroupedTileGridUpperBound(assignment_count, experts);
   Sm120GroupedExpertMatrixKernel<false, std::uint16_t><<<
       dim3(static_cast<unsigned>(blocks), static_cast<unsigned>(tile_grid)),
       kThreadsPerBlock, 0, stream>>>(
@@ -2532,9 +2539,7 @@ Status LaunchNvfp4Sm120GroupedExpertFusedGateUp(
     return Invalid("grouped SM120 expert Gate/Up grid exceeds CUDA limits");
   }
   const std::uint64_t tile_grid =
-      (assignment_count + kGroupedAssignmentsPerTile - 1U) /
-          kGroupedAssignmentsPerTile +
-      experts;
+      GroupedTileGridUpperBound(assignment_count, experts);
   Sm120GroupedExpertMatrixKernel<true, float><<<
       dim3(static_cast<unsigned>(blocks), static_cast<unsigned>(tile_grid)),
       kThreadsPerBlock, 0, stream>>>(
@@ -2596,9 +2601,7 @@ Status LaunchNvfp4Sm120GroupedExpertFusedGateUpBf16(
         "grouped physical-BF16 SM120 expert Gate/Up grid exceeds CUDA limits");
   }
   const std::uint64_t tile_grid =
-      (assignment_count + kGroupedAssignmentsPerTile - 1U) /
-          kGroupedAssignmentsPerTile +
-      experts;
+      GroupedTileGridUpperBound(assignment_count, experts);
   Sm120GroupedExpertMatrixKernel<true, std::uint16_t><<<
       dim3(static_cast<unsigned>(blocks), static_cast<unsigned>(tile_grid)),
       kThreadsPerBlock, 0, stream>>>(
@@ -2651,7 +2654,12 @@ Status LaunchNvfp4Sm120FusedGateUpBatch(
     return Invalid("batched SM120 fused Gate/Up divisor product overflowed");
   }
   const std::uint64_t row_tiles = (rows + kRowsPerWarp - 1U) / kRowsPerWarp;
-  const std::uint64_t blocks = (row_tiles + kWarpsPerBlock - 1U) / kWarpsPerBlock;
+  constexpr unsigned kShortBatchWarpsPerBlock = 2U;
+  const bool short_batch = tokens <= 3U;
+  const unsigned block_warps =
+      short_batch ? kShortBatchWarpsPerBlock : kWarpsPerBlock;
+  const std::uint64_t blocks =
+      (row_tiles + block_warps - 1U) / block_warps;
   if (blocks > static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max())) {
     return Invalid("batched SM120 fused Gate/Up grid exceeds CUDA limits");
   }
@@ -2660,16 +2668,29 @@ Status LaunchNvfp4Sm120FusedGateUpBatch(
   const std::uint64_t grouped_token_tiles =
       (token_tiles + kFusedGateUpTokenTilesPerWarp - 1U) /
       kFusedGateUpTokenTilesPerWarp;
-  Sm120MatrixProjectionKernel<true, kFusedGateUpTokenTilesPerWarp,
-                              kWarpsPerBlock, false><<<
-      dim3(static_cast<unsigned>(blocks),
-           static_cast<unsigned>(grouped_token_tiles)),
-      kThreadsPerBlock, 0, stream>>>(
-      packed_activation_e2m1, activation_scales_e4m3fn,
-      packed_gate_weight_e2m1, gate_weight_scales_e4m3fn,
-      packed_up_weight_e2m1, up_weight_scales_e4m3fn, gate_output, up_output,
-      product_output, tokens, rows, contracting_elements,
-      gate_output_divisor, up_output_divisor);
+  if (short_batch) {
+    Sm120MatrixProjectionKernel<true, kFusedGateUpTokenTilesPerWarp,
+                                kShortBatchWarpsPerBlock, false><<<
+        dim3(static_cast<unsigned>(blocks),
+             static_cast<unsigned>(grouped_token_tiles)),
+        kShortBatchWarpsPerBlock * kWarpSize, 0, stream>>>(
+        packed_activation_e2m1, activation_scales_e4m3fn,
+        packed_gate_weight_e2m1, gate_weight_scales_e4m3fn,
+        packed_up_weight_e2m1, up_weight_scales_e4m3fn, gate_output,
+        up_output, product_output, tokens, rows, contracting_elements,
+        gate_output_divisor, up_output_divisor);
+  } else {
+    Sm120MatrixProjectionKernel<true, kFusedGateUpTokenTilesPerWarp,
+                                kWarpsPerBlock, false><<<
+        dim3(static_cast<unsigned>(blocks),
+             static_cast<unsigned>(grouped_token_tiles)),
+        kThreadsPerBlock, 0, stream>>>(
+        packed_activation_e2m1, activation_scales_e4m3fn,
+        packed_gate_weight_e2m1, gate_weight_scales_e4m3fn,
+        packed_up_weight_e2m1, up_weight_scales_e4m3fn, gate_output,
+        up_output, product_output, tokens, rows, contracting_elements,
+        gate_output_divisor, up_output_divisor);
+  }
   const cudaError_t error = cudaGetLastError();
   return error == cudaSuccess
              ? Status::Ok()
