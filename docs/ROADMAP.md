@@ -13,7 +13,7 @@ Hugging Face repositories, and Studio can install the pair into immutable cache 
 ```text
 accepted artifact/loader → accepted optimized M17 runtime → accepted M22 product
 → accepted M20/M21 performance and context → accepted M23 freeze
-→ accepted M25 fixed-D2 product → split immutable publication → Main-promotion review
+→ accepted M25 fixed-D2 product → split immutable publication → accepted Main promotion
 ```
 
 The repository has an executable, fixed-address, all-resident 26B runtime with native SM120 MoE/head execution,
@@ -30,17 +30,19 @@ waived the remaining broad M19 suite for this checkpoint; claims do not extend b
 - **M10–M13:** accepted semantic oracles, CUDA references and early full-model quality screen;
 - **M14–M17:** accepted native operators and optimized all-resident runtime;
 - **M18:** conditional source/quantizer/head diagnosis only when triggered;
-- **M19:** bounded Q4 numerical comparison passes; the remaining multi-hour task/prose suite is owner-deferred;
-- **M20–M21:** active fixed-target performance and context work; M20 requires >=6,000 prompt and >=150 ordinary
-  decode token/s and reports the >=6,500 prompt stretch outcome;
+- **M19:** full GSM8K/AIME plus bounded sampled/product evidence accepted as the owner-approved replacement; the
+  remaining broad multi-hour task/prose suite is waived for this checkpoint;
+- **M20–M21:** accepted fixed-target performance and context work; M20 passed 6,000 prompt / 150 ordinary-decode
+  token/s and the 6,500 prompt stretch, while M21 established `base_max_context=98,304`;
 - **M22:** accepted CLI/server product integration and protected 12B behavior at `f0aa302aa0246d44e1c8477dbbbb67fbbe2d2037`;
-- **M23:** after M20/M21 and accepted M22, freezes a technical Target with M19 explicitly pending and no shipping-quality claim;
-- **M25:** post-freeze MTP compatibility, exactness and separate MTP context qualification;
-- **deferred release gate:** M19 must eventually pass before production-quality or shipping claims.
+- **M23:** accepted technical Target freeze after M20/M21 and M22;
+- **M25:** accepted fixed-D2 compatibility, exactness, product and 73,728-token MTP context qualification;
+- **Main promotion:** accepted after current-HEAD release, CUDA/sanitizer, real 12B/26B product and server lifecycle
+  revalidation; 12B remains the default.
 
-A bounded profile-driven prefill/decode optimization slice now produces the final candidate. M21 context runs
-first, and M20 consumes the matching M21 evidence, avoiding invalidation and duplicate full evidence runs. No
-multi-hour broad quality benchmark is authorized in this wave. Internal Q4_0 work, positive
+A bounded profile-driven prefill/decode optimization slice produced the promoted candidate. M21 context ran first,
+and M20 consumed the matching M21 evidence, avoiding invalidation and duplicate full evidence runs. No multi-hour
+broad quality benchmark is required for this checkpoint. Internal Q4_0 work, positive
 multi-slot admission, Studio polish and vision do not block the base vertical path. Vision is outside the 26B Fast
 Track. The 12B production path and its existing contracts remain regression-protected and unchanged.
 

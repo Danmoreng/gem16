@@ -1,0 +1,120 @@
+{
+  "schema_version": 1,
+  "status": "accepted",
+  "decision": "promote_feat_gemma4_26b_to_main",
+  "measured_on": "2026-08-28",
+  "implementation_revision": "bd5b1af9690994665d5f5b5f903b25c7f31c1531",
+  "source_branch": "feat/gemma4-26b",
+  "target_branch": "main",
+  "profile": {
+    "model": "Gemma 4 26B A4B",
+    "platform": "NVIDIA Blackwell SM120",
+    "text_only": true,
+    "batch_size": 1,
+    "resident_sessions": 1,
+    "kv_cache": "fp8",
+    "mtp": "fixed_d2",
+    "base_max_context_tokens": 98304,
+    "mtp_max_context_tokens": 73728,
+    "mtp_reserve_mib": 200,
+    "default_model_remains": "qualified Gemma 4 12B Unified"
+  },
+  "checkpoints": {
+    "target_artifact_content_sha256": "471805f7dad8abb84300be78b2822a63dcb1d35bff5aa98426a162cc8532ee17",
+    "target_source_lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230",
+    "target_resident_weight_bytes": 14696668160,
+    "assistant_artifact_content_sha256": "978f5e3804dd08b8ea5551883811e0bf6737a23ae5ae3dcfa0ef71dc4ffe532b",
+    "assistant_source_lock_sha256": "83e509316eab22749fade9c0968333b0a29f0daf99832314b333702bf45bdda5",
+    "assistant_resident_weight_bytes": 258313728
+  },
+  "qualified_binaries": {
+    "gem16_run_sha256": "b7f3c14af7ff322dee658c7c6673a8aed1a0b0b3e79711adeae92881479c2dc0",
+    "gem16_server_sha256": "b691d4cccd41c00b062ef2293054b3e82fc271e780da1a64559cc4a61642239c",
+    "gem16_cuda_tests_sha256": "974a662dc01aa4452bbc4458d2de14a6cde8ae28d2a777dd132cf094c5d59214",
+    "gem16_26b_m22_product_driver_sha256": "d49063d02a3fd57aeabe527022c01ecfa451c5dd72a25da78c6419e9b2bf3462"
+  },
+  "release_checks": {
+    "blackwell_release_configure_and_build": "passed",
+    "python_unittests": {
+      "executed": 246,
+      "skipped": 2,
+      "status": "passed"
+    },
+    "host_contract_ctests": [
+      "gem16-unit",
+      "gem16-26b-m23-host-contract",
+      "gem16-26b-m21-host-contract"
+    ],
+    "native_studio_build_and_ctest": "passed",
+    "compose_studio_desktop_test": "passed",
+    "cuda_ctests": [
+      "gem16-cuda",
+      "gem16-26b-moe-reference",
+      "gem16-26b-attention-reference",
+      "gem16-26b-nvfp4-consumption"
+    ],
+    "compute_sanitizer_online_decode": {
+      "memcheck_errors": 0,
+      "racecheck_hazards": 0,
+      "racecheck_errors": 0,
+      "racecheck_warnings": 0,
+      "initcheck_errors": 0,
+      "d2_kvh2_exact_mismatches": 0,
+      "d2_kvh2_compared_elements": 24576,
+      "bf16_mismatches": 0
+    },
+    "protected_12b_product": "passed",
+    "real_26b_m17_engine_smoke": "passed",
+    "real_26b_m22_product": "passed"
+  },
+  "sampled_d2_server_differential": {
+    "prompt": "Explain in two short sentences why the sky appears blue.",
+    "sampling": {
+      "temperature": 1.0,
+      "top_k": 64,
+      "top_p": 0.95,
+      "repetition_penalty": 1.0,
+      "seed": 0
+    },
+    "ordinary_equals_mtp": true,
+    "prompt_tokens": 24,
+    "completion_tokens": 32,
+    "mtp_proposed_tokens": 28,
+    "mtp_accepted_tokens": 15,
+    "mtp_rejected_tokens": 13,
+    "mtp_verification_groups": 14,
+    "fallback_total": 0,
+    "token_loop_allocation_total": 0
+  },
+  "real_server_lifecycle": {
+    "weight_load_path": "sm120_device_image_pinned_async_structural",
+    "observed_model_load_ms": 3170.733,
+    "observed_server_ready_ms": 3733,
+    "fifo_overlapping_requests": 2,
+    "fifo_http_200": 2,
+    "fifo_waits": 1,
+    "fifo_wait_microseconds": 494259,
+    "fifo_rejections": 0,
+    "stream_client_disconnects": 1,
+    "post_disconnect_request_status": 200,
+    "mtp_proposed_tokens": 86,
+    "mtp_accepted_tokens": 45,
+    "fallback_total": 0,
+    "token_loop_allocation_total": 0,
+    "graceful_shutdown": true
+  },
+  "quality_scope": {
+    "gsm8k_candidate_accuracy_percent": 92.34,
+    "gsm8k_reference_accuracy_percent": 92.87,
+    "aime_2026_candidate_accuracy_percent": 63.33,
+    "aime_2026_reference_accuracy_percent": 63.33,
+    "broad_m19_suite": "owner_waived_for_this_checkpoint",
+    "claim": "qualified only for the recorded local SM120 profile and bounded quality evidence"
+  },
+  "limitations": [
+    "The 26B profile is text-only, SM120-specific, batch one and one resident session; 12B remains the default and multimodal baseline.",
+    "Formal retained sampled-D2 timing is optional follow-up evidence and was not rerun for this promotion.",
+    "The broad historical M19 task/prose suite and GPQA Diamond are not part of this accepted checkpoint.",
+    "The legacy raw-token validate_sampled_mtp.py default fixture is not a promotion gate: it also differs at the historical c4ead1d sampled-product implementation, while the released chat-template server differential passes exactly. The fixture should be repaired or retired before being advertised as a general gate."
+  ]
+}

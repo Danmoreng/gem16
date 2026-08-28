@@ -3,7 +3,7 @@
 Status: M00–M17, M20–M23 and M25 accepted; qualified 26B product checkpoint; broad M19 suite waived by owner
 Plan revision: `fast-track-r4`
 Accepted baseline: M00–M17 plus M20 performance, M21 long context, M22 product integration and the M23 technical Target freeze
-Current milestone: publish immutable Target/Assistant repositories and complete Studio download integration (M18 conditional)
+Current milestone: Fast Track complete; qualified 26B profile promoted to `main` after current-HEAD release revalidation (M18 conditional)
 Integration branch: `feat/gemma4-26b`
 
 ## Purpose

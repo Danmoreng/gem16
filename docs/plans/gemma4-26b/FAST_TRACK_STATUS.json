@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "plan_revision": "fast-track-r4",
-  "updated": "2026-08-27",
+  "updated": "2026-08-28",
   "accepted_through": "M17",
   "accepted_additional": [
     "M20",
@@ -10,8 +10,8 @@
     "M23",
     "M25"
   ],
-  "current_milestone": "QUALIFIED_CHECKPOINT_PUBLICATION",
-  "active_wave": "F7-hugging-face-and-studio-download",
+  "current_milestone": "MAIN_PROMOTION_ACCEPTED",
+  "active_wave": "FAST_TRACK_COMPLETE",
   "integration_branch": "feat/gemma4-26b",
   "source_of_truth": "docs/plans/gemma4-26b/FAST_TRACK_STATUS.json",
   "policy_source": "docs/ACTIVE_DECISIONS.md",
@@ -320,9 +320,11 @@
       ]
     }
   },
-  "parallel_tasks_now": [
+  "parallel_tasks_now": [],
+  "completed_delivery": [
     "publish the qualified Target and Assistant as separately pinned Hugging Face repositories",
-    "download and select the qualified 26B pair from Studio without changing the protected 12B default"
+    "download and select the qualified 26B pair from Studio without changing the protected 12B default",
+    "revalidate current HEAD and promote feat/gemma4-26b to main"
   ],
   "paused_tasks": [
     "M19 broad multi-hour task/prose suite, waived for this checkpoint",

@@ -1,6 +1,6 @@
 # Milestone status board — Fast Track R4
 
-Derived from [`FAST_TRACK_STATUS.json`](FAST_TRACK_STATUS.json). Policy: [`../../ACTIVE_DECISIONS.md`](../../ACTIVE_DECISIONS.md). Last synchronized: 2026-08-27.
+Derived from [`FAST_TRACK_STATUS.json`](FAST_TRACK_STATUS.json). Policy: [`../../ACTIVE_DECISIONS.md`](../../ACTIVE_DECISIONS.md). Last synchronized: 2026-08-28.
 
 ## Accepted
 
@@ -15,7 +15,8 @@ Derived from [`FAST_TRACK_STATUS.json`](FAST_TRACK_STATUS.json). Policy: [`../..
 | M23 | ACCEPTED | exact hash/evidence/capability/rollback freeze; M19 remains visibly pending |
 | M25 sampled product | ACCEPTED | exact GPU sampling, CLI/server/Studio D2 chat and bounded 32K continuation pass at `c4ead1d` |
 | M25 context | ACCEPTED | 64K and 72K pass with 200 MiB reserve; `mtp_max_context=73,728` |
-| Checkpoint publication | ACTIVE_NEXT | separate immutable Target/Assistant repositories and Studio download |
+| Checkpoint publication | ACCEPTED | separate immutable Target/Assistant repositories and Studio download complete |
+| Main promotion | ACCEPTED | current-HEAD release gates passed; Fast Track promoted to `main` |
 
 ## Deferred
 
@@ -28,7 +29,7 @@ explicit SM120 product contract.
 
 ## Next vertical sequence
 
-`qualified checkpoint publication → Studio immutable download → Main promotion`
+`qualified checkpoint publication → Studio immutable download → Main promotion → Fast Track complete`
 
 ## Conditional/optional
 
@@ -36,5 +37,5 @@ explicit SM120 product contract.
 - M24: optional internal Q4_0 backend.
 - Vision: outside this program.
 
-M25 is accepted. Publication and Studio download integration are the remaining delivery tasks. The 12B production
-path remains separately specialized, regression-protected and the default.
+M25, publication, Studio download integration and Main promotion are accepted. The 12B production path remains
+separately specialized, regression-protected and the default.

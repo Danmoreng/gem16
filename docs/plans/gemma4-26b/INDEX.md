@@ -27,9 +27,10 @@ For multi-agent work also read [`PARALLEL_WORKSTREAMS.md`](PARALLEL_WORKSTREAMS.
 
 ## Milestones
 
-M00–M17 and M20–M23 are accepted. M25's assistant, exact greedy/sampled verifier and CLI/server/Studio product slice
-are implemented; retained sampled timing and the 64K MTP context gate remain. M18 is conditional, M19's multi-hour
-task/prose suite is owner-deferred, M24 is optional and M25 plus the deferred M19 gate define program completion.
+M00–M17, M20–M23 and M25 are accepted. The qualified fixed-D2 product passes 73,728 MTP context tokens with a
+200 MiB reserve and 98,304 Target-only tokens. The owner accepted the bounded M19 replacement and waived the broad
+multi-hour suite for this checkpoint. Current-HEAD release gates passed on 2026-08-28 and the Fast Track was promoted
+to `main`; M18 remains conditional and M24 optional.
 
 ## Specifications
 

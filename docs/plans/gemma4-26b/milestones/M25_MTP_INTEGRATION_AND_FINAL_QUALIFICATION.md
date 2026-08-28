@@ -1,6 +1,6 @@
 # M25 — 26B MTP integration and final qualification
 
-Status: in progress; technical M23 Target accepted, exact sampled D2 CUDA-Graph product path implemented
+Status: accepted; qualified fixed-D2 product checkpoint promoted through the final release gate
 Class: required final target
 
 Normative inputs: [MTP platform contract](../../../MTP.md), [Tied embedding/head](../specs/EMBEDDING_HEAD_SPEC.md), [Memory arena](../specs/MEMORY_ARENA_SPEC.md), [Session ownership](../specs/SESSION_OWNERSHIP_AND_CONCURRENCY.md), [API/CLI changes](../specs/API_CLI_CHANGES.md), [Test matrix](../specs/TEST_MATRIX.md).
@@ -160,9 +160,10 @@ checkpoint remains the rollback.
 - [x] Assistant plus verifier memory is fully named and admitted at 32K with at least 700 MiB free-device margin.
 - [x] Exact ordinary/MTP output identity and transactional state tests pass for greedy and bounded sampled controls.
 - [x] MTP provides a measured benefit for fixed D2; formal retained sampled timing remains open.
-- [ ] 64K has an explicit pass/fail result with its measured reserve; `mtp_max_context`, acceptance and speed are
+- [x] 64K has an explicit pass/fail result with its measured reserve; `mtp_max_context`, acceptance and speed are
   published honestly.
 - [x] Base 26B and 12B paths remain unchanged when MTP is disabled.
-- [ ] Deferred M19 is accepted before program-complete, shipping or production-quality status is claimed.
+- [x] The owner accepted full GSM8K and AIME 2026 plus bounded sampled/product evidence as the M19 replacement for
+  this checkpoint and waived the remaining broad suite; quality claims remain limited to that evidence.
 
 Vision is explicitly excluded and belongs to a separate future program.

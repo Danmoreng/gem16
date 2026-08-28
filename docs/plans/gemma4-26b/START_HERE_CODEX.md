@@ -39,7 +39,7 @@ and Studio download integration are complete; retained sampled timing is optiona
 performance evidence, not an acceptance gate.
 
 Use [`PARALLEL_WORKSTREAMS.md`](PARALLEL_WORKSTREAMS.md). M18 runs only after a recorded trigger. The owner-approved
-remaining sequence is Main-promotion review and bounded follow-up work. The current external reference is llama.cpp build
+Fast Track and Main promotion are complete; remaining work is optional bounded follow-up. The current external reference is llama.cpp build
 10623 at 118.627 ordinary / 151.919 D2 decode token/s; vLLM 0.27.1 remains the ordinary-only comparison because a
 fully GPU-resident 26B MTP configuration does not fit on the 16 GB reference device.
 

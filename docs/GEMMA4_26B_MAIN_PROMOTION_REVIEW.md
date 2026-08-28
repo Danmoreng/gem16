@@ -1,7 +1,9 @@
 # Gemma 4 26B: Stand, nächste Schritte und Main-Promotion
 
-Stand: 2026-08-27  
-Review-Snapshot: `7589940` (`feat/gemma4-26b`)  
+Stand: 2026-08-28
+
+Review-Snapshot: `bd5b1af` (`feat/gemma4-26b`, current-HEAD release gates passed)
+
 Zweck: Entscheidungsgrundlage für einen externen ChatGPT-Pro-Review und die anschließende Main-Promotion.
 
 Das zugehörige Review-Archiv enthält zusätzlich kuratierten Referenzcode aus llama.cpp
@@ -18,10 +20,9 @@ damit kein experimentelles Optionalprofil mehr, ersetzt aber nicht den 12B-Defau
 Vertrag nicht. Die komplette mehrstündige historische M19-Suite ist für diese klar begrenzte Qualifikation nicht
 mehr erforderlich.
 
-Für die konkrete Main-Auslieferung fehlen noch zwei klar begrenzte Delivery-Punkte:
-
-1. aktuelle HEAD-Binaries und beide Produktprofile (12B/26B) neu revalidieren;
-2. die getrennten Target-/Assistant-Repositories unveränderlich pinnen und den Studio-Download abschließen.
+Die beiden Delivery-Punkte sind abgeschlossen: aktuelle HEAD-Binaries und beide Produktprofile wurden neu
+revalidiert; die getrennten Target-/Assistant-Repositories sind gepinnt und Studio installiert immutable Snapshots.
+Die Main-Promotion wurde nach dem finalen Gate freigegeben.
 
 Die zuvor offene Quality-Entscheidung ist getroffen: vollständiges GSM8K und AIME 2026 plus die begrenzte
 Sampled-/Produktevidenz ersetzen die historische Vollsuite für diesen Checkpoint. Das qualifiziert den konkreten
@@ -138,7 +139,9 @@ Der Review soll keine Präzisions-, Kontext-, Sampling-, Cache- oder Timingseman
 
 ## Vorgeschlagene Promotion-Entscheidung
 
-**Jetzt nach Main:** ja, nach P0-HEAD-Revalidierung, als qualifizierter auswählbarer 26B-SM120-Pfad.  
-**Als Default oder plattformunabhängig bezeichnen:** nein; 12B bleibt Default.  
+**Nach Main:** erfolgt nach bestandener P0-HEAD-Revalidierung, als qualifizierter auswählbarer 26B-SM120-Pfad.
+
+**Als Default oder plattformunabhängig bezeichnen:** nein; 12B bleibt Default.
+
 **Claim-Grenze:** text-only, SM120, ein Slot, fixed D2, 73.728 MTP-Kontext; Qualität nur im Umfang der akzeptierten
 GSM8K-/AIME- und Produktevidenz.

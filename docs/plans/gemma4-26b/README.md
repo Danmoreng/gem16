@@ -12,9 +12,9 @@ Start with:
 
 The normal path prioritizes a complete artifact, real 32K residency and a correct full token before research attribution or broad product polish. Parallel sub-agent lanes are documented in [`PARALLEL_WORKSTREAMS.md`](PARALLEL_WORKSTREAMS.md).
 
-The executable text-only 26B path is accepted through M17 and its M22 CLI/server product slice is accepted. Bounded
-fixed-target prefill/decode optimization precedes the final candidate freeze; M21 real-context and M20
-bounded-performance evidence then qualify that same hash. M23 freezes a technical Target for exact 26B MTP. The
-hybrid Assistant, sampled fixed-D2 server path and selectable Studio chat are implemented at `c4ead1d`; retained
-sampled timing and the 64K MTP context gate remain before M25 acceptance. The owner-deferred M19 task/prose suite
-remains mandatory before shipping or production-quality claims. Vision is outside this program.
+The executable text-only 26B path is accepted through M25 and is a qualified selectable peer to the protected 12B
+default. M21/M25 establish 98,304 Target-only and 73,728 fixed-D2 context-token maxima respectively; M20 records the
+bounded performance baseline. Target and Assistant publication plus Studio installation are complete. The owner
+accepted full GSM8K and AIME 2026 with bounded sampled/product evidence as the M19 replacement for this checkpoint.
+Current-HEAD release gates passed on 2026-08-28 and the Fast Track was promoted to `main`. Vision remains outside
+this program.
