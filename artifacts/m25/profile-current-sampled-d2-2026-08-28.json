@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "status": "current_hotspot_profile",
+  "date": "2026-08-28",
+  "source": {
+    "git_commit": "4a305c54d586f5c2924f58fb00267082769ee302",
+    "worktree_dirty_at_capture": false,
+    "profiler": "Nsight Systems"
+  },
+  "configuration": {
+    "prompt_tokens": 16384,
+    "requested_output_tokens": 128,
+    "actual_output_tokens": 128,
+    "kv_cache": "checkpoint_fp8",
+    "mtp_draft_tokens": 2,
+    "sampling": {
+      "temperature": 1.0,
+      "top_k": 64,
+      "top_p": 0.95,
+      "repetition_penalty": 1.0,
+      "seed": 0
+    }
+  },
+  "result": {
+    "decode_tokens_per_second_under_profiler": 212.595,
+    "accepted_tokens": 73,
+    "proposed_tokens": 108,
+    "verification_groups": 54,
+    "ordinary_tail_tokens": 0
+  },
+  "gpu_kernel_time_share": {
+    "global_attention": 0.258,
+    "routed_gate_up": 0.136,
+    "routed_down": 0.105,
+    "local_attention": 0.096,
+    "t3_qkv_projection": 0.093,
+    "cutlass_projection_family": 0.082,
+    "t3_down_projection": 0.045,
+    "t3_output_projection": 0.043,
+    "dominant_attention_moe_projection_total": 0.858
+  },
+  "interpretation": [
+    "After the accepted streaming and speculative-KV launch reductions, sustained Sampled-D2 time is dominated by Target attention, routed MoE and T3 projections.",
+    "Sampling and control work is now a bounded secondary target; reaching 220 tokens/s requires a core-kernel improvement rather than launch cleanup alone."
+  ],
+  "limitations": [
+    "Nsight instrumentation perturbs absolute kernel durations, so only shares and dispatch identity are used here.",
+    "This is a 128-token hotspot capture, not the formal 3-warm-up/10-retained performance qualification.",
+    "The raw .nsys-rep remains outside version control at /tmp/gem16-current-sampled-d2-128.nsys-rep."
+  ]
+}

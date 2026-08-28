@@ -586,7 +586,8 @@ struct Gemma4Moe26BReferenceEngine::Impl {
   Status SelectMtpVerificationTokens(
       float* batch_logits, const std::uint32_t* verification_inputs,
       DecodeControl* row_controls, std::uint32_t tokens,
-      std::uint32_t* selected);
+      std::uint32_t* selected, bool apply_softcap = false,
+      int* logits_finite = nullptr);
   Status PrepareFixedMtpGraph(std::uint32_t draft_count);
   Status LaunchFixedMtpOrdinaryTailBody();
   Status PrepareFixedMtpChainGraph(std::uint32_t draft_count);
@@ -768,12 +769,15 @@ Status Gemma4Moe26BReferenceEngine::Impl::PrepareDecodeGraph() {
 Status Gemma4Moe26BReferenceEngine::Impl::SelectMtpVerificationTokens(
     float* batch_logits, const std::uint32_t* verification_inputs,
     DecodeControl* row_controls, std::uint32_t tokens,
-    std::uint32_t* selected) {
+    std::uint32_t* selected, bool apply_softcap, int* logits_finite) {
   if (!sampling.enabled) return Status::Ok();
   if (batch_logits == nullptr || verification_inputs == nullptr ||
       row_controls == nullptr || tokens == 0U ||
       tokens > kM25MaximumVerifyTokens || selected == nullptr) {
     return Invalid("M25 sampled verifier buffers are invalid");
+  }
+  if (apply_softcap && logits_finite == nullptr) {
+    return Invalid("M25 sampled verifier finite-state buffer is missing");
   }
   auto* row_masks = mtp_verifier.As<std::uint32_t>(
       mtp_sampling_repetition_masks_offset);
@@ -784,27 +788,33 @@ Status Gemma4Moe26BReferenceEngine::Impl::SelectMtpVerificationTokens(
     if (!status.ok()) return status;
   }
   for (std::uint32_t row = 0U; row < tokens; ++row) {
-    // LaunchSampleToken uses its logits input as radix-sort output. Stage one
-    // row in the ordinary logits buffer so the verifier batch remains intact
-    // for commit diagnostics and the accepted-row prediction state.
-    cudaError_t error = cudaMemcpyAsync(
-        logits, batch_logits + static_cast<std::uint64_t>(row) * kVocabulary,
-        kVocabulary * sizeof(float), cudaMemcpyDeviceToDevice, stream);
-    if (error != cudaSuccess) {
-      return CudaFailure("stage M25 sampled verifier logits", error);
-    }
     std::uint32_t* mask = sampling.repetition_penalty == 1.0F
                               ? repetition_mask
                               : row_masks +
                                     static_cast<std::uint64_t>(row) *
                                         kRepetitionMaskWords;
-    Status status = LaunchSampleToken(
-        logits, sampling_logits, sampling_cumulative, sampling_token_ids,
-        sampling_sorted_token_ids, mask, suppressed_token_ids,
-        suppressed_token_count, static_cast<std::uint32_t>(kVocabulary),
-        sampling, 0U, row_controls + row, selected + row,
-        sampling_algorithm_workspace, sampling_algorithm_workspace_bytes,
-        stream);
+    float* row_logits =
+        batch_logits + static_cast<std::uint64_t>(row) * kVocabulary;
+    Status status = apply_softcap
+                        ? LaunchSampleTokenSoftcapInPlace(
+                              row_logits, logits, sampling_logits,
+                              sampling_cumulative, sampling_token_ids,
+                              sampling_sorted_token_ids, mask,
+                              suppressed_token_ids, suppressed_token_count,
+                              static_cast<std::uint32_t>(kVocabulary), softcap,
+                              logits_finite + row, sampling, 0U,
+                              row_controls + row, selected + row,
+                              sampling_algorithm_workspace,
+                              sampling_algorithm_workspace_bytes, stream)
+                        : LaunchSampleTokenFromLogits(
+                              row_logits, logits, sampling_logits,
+                              sampling_cumulative, sampling_token_ids,
+                              sampling_sorted_token_ids, mask,
+                              suppressed_token_ids, suppressed_token_count,
+                              static_cast<std::uint32_t>(kVocabulary), sampling,
+                              0U, row_controls + row, selected + row,
+                              sampling_algorithm_workspace,
+                              sampling_algorithm_workspace_bytes, stream);
     if (!status.ok()) return status;
   }
   return Status::Ok();
@@ -947,23 +957,26 @@ Status Gemma4Moe26BReferenceEngine::Impl::LaunchFixedMtpGraphBody(
       batch_logits, tokens, head.rows, head.columns,
       head.activation_global_divisor, head.weight_global_divisor, stream);
   if (!status.ok()) return status;
-  for (std::uint64_t row = 0U; row < tokens; ++row) {
-    status = LaunchSoftcapArgmax(
-        batch_logits + row * kVocabulary, softcap, logits_finite + row,
-        output_candidates, selected + row, top_values + row, stream, nullptr,
-        suppressed_token_ids, suppressed_token_count);
-    if (!status.ok()) return status;
-    if (copy_transaction) {
+  if (!sampling.enabled || copy_transaction) {
+    for (std::uint64_t row = 0U; row < tokens; ++row) {
       status = LaunchSoftcapArgmax(
           batch_logits + row * kVocabulary, softcap, logits_finite + row,
-          output_candidates, second_selected + row, second_values + row,
-          stream, nullptr, suppressed_token_ids, suppressed_token_count,
-          selected + row, false);
+          output_candidates, selected + row, top_values + row, stream, nullptr,
+          suppressed_token_ids, suppressed_token_count);
       if (!status.ok()) return status;
+      if (copy_transaction) {
+        status = LaunchSoftcapArgmax(
+            batch_logits + row * kVocabulary, softcap, logits_finite + row,
+            output_candidates, second_selected + row, second_values + row,
+            stream, nullptr, suppressed_token_ids, suppressed_token_count,
+            selected + row, false);
+        if (!status.ok()) return status;
+      }
     }
   }
   status = SelectMtpVerificationTokens(
-      batch_logits, prefill_tokens, row_controls, tokens, selected);
+      batch_logits, prefill_tokens, row_controls, tokens, selected,
+      sampling.enabled && !copy_transaction, logits_finite);
   if (!status.ok()) return status;
   status = LaunchAcceptMtpGroup(
       drafts, selected, draft_count,

@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "status": "retained_execution_optimization",
+  "date": "2026-08-28",
+  "source": {
+    "parent_commit": "4a305c54d586f5c2924f58fb00267082769ee302",
+    "measurement_worktree_dirty": true,
+    "candidate_executable_sha256": "fc92eaf644be67f8b6db7158919831fcba197bbfa6733673cf6755b5a98e4b29"
+  },
+  "configuration": {
+    "workload": "benchmarks/prompts/wikipedia-summary-16k.json",
+    "prompt_tokens": 16384,
+    "actual_output_tokens": 942,
+    "max_context_tokens": 24576,
+    "kv_cache": "checkpoint_fp8",
+    "mtp_draft_tokens": 2,
+    "sampling": {
+      "temperature": 1.0,
+      "top_k": 64,
+      "top_p": 0.95,
+      "repetition_penalty": 1.0,
+      "seed": 0
+    }
+  },
+  "change": {
+    "description": "Sample directly from each verifier batch-logit row, using a separate radix-sort destination, and fuse the production-chain softcap/finite pass into sampling so sampled D2 no longer stages three full rows or computes unused greedy selections.",
+    "removed_device_to_device_bytes_per_verification_group": 3145728,
+    "removed_greedy_argmax_launches_per_verification_group": 6,
+    "precision_changed": false,
+    "sampling_changed": false,
+    "assistant_changed": false,
+    "workspace_or_vram_allocation_changed": false
+  },
+  "performance": {
+    "parent_retained_decode_median_tokens_per_second": 203.638,
+    "candidate_warmup_tokens_per_second": 204.751,
+    "candidate_retained_tokens_per_second": [
+      203.905,
+      203.814,
+      203.778
+    ],
+    "candidate_retained_median_tokens_per_second": 203.814,
+    "relative_improvement": 0.000864,
+    "candidate_retained_prompt_tokens_per_second": [
+      7050.733,
+      7031.156,
+      7028.502
+    ]
+  },
+  "quality": {
+    "output_token_sha256": "ee97710da349b4bcb5feedfaa81e10ff003c5a54642c9886d494db5c76ccc112",
+    "accepted_tokens": 523,
+    "proposed_tokens": 836,
+    "verification_groups": 418,
+    "ordinary_tail_tokens": 0,
+    "all_retained_runs_match_parent": true
+  },
+  "validation": {
+    "focused_ctest": "7/7 passed",
+    "real_26b_m22_product": "passed",
+    "git_diff_check": "passed"
+  },
+  "limitations": [
+    "This is one warm-up plus three retained runs, not a new formal three-warm-up/ten-retained qualification.",
+    "Peak VRAM was not resampled; the implementation changes neither allocation sizes nor workspace ownership.",
+    "The protected real 12B product test requires GEM16_12B_MODEL and was unavailable in this environment."
+  ]
+}

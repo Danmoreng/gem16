@@ -82,14 +82,19 @@ __global__ void CommitSpeculativeRepetitionMaskKernel(
 }
 
 __global__ void PrepareSamplingLogitsKernel(
-    const float* logits, float* adjusted, std::uint32_t* token_ids,
+    float* logits, float* adjusted, std::uint32_t* token_ids,
     const std::uint32_t* repetition_mask, float repetition_penalty,
     float inverse_temperature, const std::uint32_t* suppressed,
     std::uint32_t suppressed_count, const DecodeControl* control,
-    std::uint32_t vocabulary) {
+    std::uint32_t vocabulary, float softcap, int* all_finite) {
   const std::uint32_t token = blockIdx.x * blockDim.x + threadIdx.x;
   if (token >= vocabulary) return;
   float value = logits[token];
+  if (softcap > 0.0F) {
+    value = tanhf(value / softcap) * softcap;
+    logits[token] = value;
+    if (!isfinite(value)) atomicExch(all_finite, 0);
+  }
   const bool repeated =
       (repetition_mask[token / 32U] & (1U << (token % 32U))) != 0U;
   if (repetition_penalty != 1.0F && repeated) {
@@ -280,18 +285,20 @@ Status LaunchCommitSpeculativeRepetitionMask(
              : CudaFailure("commit speculative repetition mask", error);
 }
 
-Status LaunchSampleToken(
-    float* logits, float* adjusted_logits, double* cumulative_probabilities,
+Status LaunchSampleTokenImpl(
+    float* source_logits, float* sorted_logits, float* adjusted_logits,
+    double* cumulative_probabilities,
     std::uint32_t* token_ids, std::uint32_t* sorted_token_ids,
     std::uint32_t* repetition_mask,
     const std::uint32_t* suppressed, std::uint32_t suppressed_count,
     std::uint32_t vocabulary, const SamplingOptions& options,
     std::uint64_t step, const DecodeControl* control, std::uint32_t* selected,
     void* algorithm_workspace, std::size_t algorithm_workspace_bytes,
-    cudaStream_t stream) {
+    float softcap, int* all_finite, cudaStream_t stream) {
   Status validation = ValidateSamplingOptions(options, vocabulary);
   if (!validation.ok()) return validation;
-  if (logits == nullptr || adjusted_logits == nullptr || token_ids == nullptr ||
+  if (source_logits == nullptr || sorted_logits == nullptr ||
+      adjusted_logits == nullptr || token_ids == nullptr ||
       cumulative_probabilities == nullptr || sorted_token_ids == nullptr ||
       repetition_mask == nullptr || selected == nullptr ||
       algorithm_workspace == nullptr ||
@@ -299,15 +306,28 @@ Status LaunchSampleToken(
     return Status(StatusCode::kInvalidArgument,
                   "sampling launch has an invalid buffer or vocabulary");
   }
+  if ((softcap > 0.0F) != (all_finite != nullptr)) {
+    return Status(StatusCode::kInvalidArgument,
+                  "sampling softcap requires a finite-state buffer");
+  }
+  if (all_finite != nullptr) {
+    const cudaError_t finite_error =
+        cudaMemsetAsync(all_finite, 1, sizeof(int), stream);
+    if (finite_error != cudaSuccess) {
+      return CudaFailure("initialize sampled verifier finite flag",
+                         finite_error);
+    }
+  }
   const unsigned blocks = (vocabulary + kThreads - 1U) / kThreads;
   PrepareSamplingLogitsKernel<<<blocks, kThreads, 0, stream>>>(
-      logits, adjusted_logits, token_ids, repetition_mask,
+      source_logits, adjusted_logits, token_ids, repetition_mask,
       options.repetition_penalty, 1.0F / options.temperature, suppressed,
-      suppressed_count, control, vocabulary);
+      suppressed_count, control, vocabulary, softcap, all_finite);
   cudaError_t error = cudaGetLastError();
   if (error != cudaSuccess) return CudaFailure("prepare sampling logits", error);
   error = cub::DeviceRadixSort::SortPairsDescending(
-      algorithm_workspace, algorithm_workspace_bytes, adjusted_logits, logits,
+      algorithm_workspace, algorithm_workspace_bytes, adjusted_logits,
+      sorted_logits,
       token_ids, sorted_token_ids, static_cast<int>(vocabulary), 0,
       sizeof(float) * 8, stream);
   if (error != cudaSuccess) return CudaFailure("sort sampling logits", error);
@@ -317,7 +337,7 @@ Status LaunchSampleToken(
       (probability_count + kThreads - 1U) / kThreads;
   PrepareSamplingProbabilitiesKernel<<<probability_blocks, kThreads, 0,
                                         stream>>>(
-      logits, cumulative_probabilities, probability_count, options.top_k,
+      sorted_logits, cumulative_probabilities, probability_count, options.top_k,
       options.min_p);
   error = cudaGetLastError();
   if (error != cudaSuccess) {
@@ -330,12 +350,67 @@ Status LaunchSampleToken(
     return CudaFailure("scan sampling probabilities", error);
   }
   SampleCumulativeProbabilitiesKernel<<<1U, 1U, 0, stream>>>(
-      logits, cumulative_probabilities, sorted_token_ids, vocabulary,
+      sorted_logits, cumulative_probabilities, sorted_token_ids, vocabulary,
       options.top_k, options.top_p, options.min_p, options.seed, control, step,
       selected);
   error = cudaGetLastError();
   return error == cudaSuccess ? Status::Ok()
                               : CudaFailure("select sampled token", error);
+}
+
+Status LaunchSampleToken(
+    float* logits, float* adjusted_logits, double* cumulative_probabilities,
+    std::uint32_t* token_ids, std::uint32_t* sorted_token_ids,
+    std::uint32_t* repetition_mask,
+    const std::uint32_t* suppressed, std::uint32_t suppressed_count,
+    std::uint32_t vocabulary, const SamplingOptions& options,
+    std::uint64_t step, const DecodeControl* control, std::uint32_t* selected,
+    void* algorithm_workspace, std::size_t algorithm_workspace_bytes,
+    cudaStream_t stream) {
+  return LaunchSampleTokenImpl(
+      logits, logits, adjusted_logits, cumulative_probabilities, token_ids,
+      sorted_token_ids, repetition_mask, suppressed, suppressed_count,
+      vocabulary, options, step, control, selected, algorithm_workspace,
+      algorithm_workspace_bytes, 0.0F, nullptr, stream);
+}
+
+Status LaunchSampleTokenFromLogits(
+    float* source_logits, float* sorted_logits, float* adjusted_logits,
+    double* cumulative_probabilities, std::uint32_t* token_ids,
+    std::uint32_t* sorted_token_ids, std::uint32_t* repetition_mask,
+    const std::uint32_t* suppressed, std::uint32_t suppressed_count,
+    std::uint32_t vocabulary, const SamplingOptions& options,
+    std::uint64_t step, const DecodeControl* control, std::uint32_t* selected,
+    void* algorithm_workspace, std::size_t algorithm_workspace_bytes,
+    cudaStream_t stream) {
+  return LaunchSampleTokenImpl(
+      source_logits, sorted_logits, adjusted_logits,
+      cumulative_probabilities, token_ids, sorted_token_ids, repetition_mask,
+      suppressed, suppressed_count, vocabulary, options, step, control,
+      selected, algorithm_workspace, algorithm_workspace_bytes, 0.0F,
+      nullptr, stream);
+}
+
+Status LaunchSampleTokenSoftcapInPlace(
+    float* source_logits, float* sorted_logits, float* adjusted_logits,
+    double* cumulative_probabilities, std::uint32_t* token_ids,
+    std::uint32_t* sorted_token_ids, std::uint32_t* repetition_mask,
+    const std::uint32_t* suppressed, std::uint32_t suppressed_count,
+    std::uint32_t vocabulary, float softcap, int* all_finite,
+    const SamplingOptions& options, std::uint64_t step,
+    const DecodeControl* control, std::uint32_t* selected,
+    void* algorithm_workspace, std::size_t algorithm_workspace_bytes,
+    cudaStream_t stream) {
+  if (!(softcap > 0.0F)) {
+    return Status(StatusCode::kInvalidArgument,
+                  "sampled verifier softcap must be positive");
+  }
+  return LaunchSampleTokenImpl(
+      source_logits, sorted_logits, adjusted_logits,
+      cumulative_probabilities, token_ids, sorted_token_ids, repetition_mask,
+      suppressed, suppressed_count, vocabulary, options, step, control,
+      selected, algorithm_workspace, algorithm_workspace_bytes, softcap,
+      all_finite, stream);
 }
 
 }  // namespace gem16::internal
