@@ -5,6 +5,7 @@ import copy
 import json
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -87,7 +88,9 @@ class M25AssistantPlanContractTest(unittest.TestCase):
             )
 
     def test_generated_plan_and_exact_hybrid_contract(self) -> None:
-        subprocess.run([str(GENERATOR), "--check"], cwd=ROOT, check=True)
+        subprocess.run(
+            [sys.executable, str(GENERATOR), "--check"], cwd=ROOT, check=True
+        )
         plan = self.load(json.loads(PLAN.read_text(encoding="utf-8")))
         self.assertEqual(plan.source_contract, M25_SOURCE_CONTRACT)
         self.assertEqual(len(plan.tensors), 97)

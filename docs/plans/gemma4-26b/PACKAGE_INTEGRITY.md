@@ -10,4 +10,8 @@ For day-to-day work use:
 - Git commit identity;
 - model/compiler/evidence hashes.
 
-After normative plan changes, run the repository-maintained `tools/update_gemma4_26b_plan_integrity.py` generator and verify its output. Do not edit generated metadata manually. Model artifacts, compiler binaries and release evidence retain their independent locks.
+Normal host CI runs `tools/update_gemma4_26b_plan_integrity.py --validate-source`. That stable check validates required
+files, milestone uniqueness, UTF-8 Markdown, headings and relative links; it deliberately does not compare the
+release-snapshot hash indexes. Before publishing or archiving a new documentation package, run the generator and
+then `tools/update_gemma4_26b_plan_integrity.py --check`. Do not edit generated metadata manually. Model artifacts,
+compiler binaries and release evidence retain their independent locks.

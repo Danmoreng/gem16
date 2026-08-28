@@ -1,0 +1,3 @@
+# Dependencies imported by the repository-wide Python unit-test discovery.
+# Keep this intentionally smaller than benchmark/reference-runtime environments.
+numpy==2.5.1

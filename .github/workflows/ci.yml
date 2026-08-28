@@ -30,14 +30,17 @@ jobs:
       - name: Build and test native Studio
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgl1-mesa-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev
+          sudo apt-get install -y libgl1-mesa-dev libwayland-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libxkbcommon-dev wayland-protocols
           cmake -S nativeStudio -B build/native-studio -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
           cmake --build build/native-studio --parallel 2
           ctest --test-dir build/native-studio --output-on-failure
         working-directory: source
       - name: Check Python tools
         run: |
-          python3 -m py_compile \
+          python3 -m venv .ci-venv
+          . .ci-venv/bin/activate
+          python -m pip install --disable-pip-version-check -r tools/requirements-ci.txt
+          python -m py_compile \
             tools/compare_manifests.py \
             tools/benchmark_vllm.py \
             tools/compare_logits.py \
@@ -54,8 +57,8 @@ jobs:
             tools/summarize_llama_bench.py \
             tools/gemma4_26b_moe_oracle.py \
             tools/update_gemma4_26b_plan_integrity.py
-          python3 tools/update_gemma4_26b_plan_integrity.py --check
-          python3 -m unittest discover -s tests/python -v
+          python tools/update_gemma4_26b_plan_integrity.py --validate-source
+          python -m unittest discover -s tests/python -v
         working-directory: source
 
   windows-host:
@@ -88,7 +91,12 @@ jobs:
       - name: Check Python tools
         shell: pwsh
         run: |
+          $ErrorActionPreference = "Stop"
+          $PSNativeCommandUseErrorActionPreference = $true
+          python -m venv .ci-venv
+          .\.ci-venv\Scripts\Activate.ps1
+          python -m pip install --disable-pip-version-check -r tools/requirements-ci.txt
           python -m py_compile tools/compare_manifests.py tools/benchmark_vllm.py tools/benchmark_quality.py tools/compare_logits.py tools/compare_quality_benchmarks.py tools/fetch_model.py tools/generate_golden.py tools/generate_llama_golden.py tools/inspect_checkpoint.py tools/inspect_gguf.py tools/validate_inference.py tools/validate_layer_checkpoint.py tools/verify_sm120_sass.py tools/summarize_llama_bench.py tools/gemma4_26b_moe_oracle.py tools/update_gemma4_26b_plan_integrity.py
-          python tools/update_gemma4_26b_plan_integrity.py --check
+          python tools/update_gemma4_26b_plan_integrity.py --validate-source
           python -m unittest discover -s tests/python -v
         working-directory: source

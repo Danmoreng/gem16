@@ -226,10 +226,26 @@ def expected_outputs(plan_root: Path) -> dict[str, bytes]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--check", action="store_true", help="verify generated metadata without writing")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument(
+        "--check", action="store_true",
+        help="verify generated package metadata without writing",
+    )
+    mode.add_argument(
+        "--validate-source", action="store_true",
+        help="validate authored structure and links without comparing generated hashes",
+    )
     args = parser.parse_args()
 
     plan_root = repository_root() / "docs" / "plans" / "gemma4-26b"
+    if args.validate_source:
+        report = source_validation(plan_root)
+        if not report["source_validation_passed"]:
+            print(json.dumps(report, ensure_ascii=False, indent=2), file=sys.stderr)
+            return 1
+        print("Gemma 4 26B authored plan structure verified.")
+        return 0
+
     outputs = expected_outputs(plan_root)
     stale = [
         name
