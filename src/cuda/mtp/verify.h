@@ -15,6 +15,7 @@ namespace gem16::internal {
 constexpr std::uint64_t kMaximumMtpDraftTokens = 4U;
 constexpr std::uint64_t kMaximumMtpVerifyTokens =
     kMaximumMtpDraftTokens + 1U;
+constexpr std::uint32_t kMaximumMtpKvCommitLayers = 30U;
 constexpr std::uint64_t kMtpStreamingRingCapacity = 256U;
 constexpr std::uint32_t kMaximumThinkingOpenTokens = 8U;
 
@@ -94,6 +95,15 @@ struct alignas(16) MtpChainResult {
   std::uint32_t stop_token = 0U;
   std::uint32_t reasoning_complete = 0U;
   std::uint32_t reasoning_budget_forced = 0U;
+};
+
+struct MtpKvCommitLayer {
+  const std::uint8_t* compact_key = nullptr;
+  const std::uint8_t* compact_value = nullptr;
+  std::uint8_t* cache_key = nullptr;
+  std::uint8_t* cache_value = nullptr;
+  std::uint64_t elements_per_token = 0U;
+  std::uint64_t capacity = 0U;
 };
 
 static_assert(std::is_trivially_copyable_v<MtpGroupTransaction>);
@@ -187,6 +197,11 @@ static_assert(offsetof(MtpGroupTransaction, control) % 16U == 0U);
     const std::uint8_t* compact_key, const std::uint8_t* compact_value,
     std::uint8_t* cache_key, std::uint8_t* cache_value,
     std::uint64_t elements_per_token, std::uint64_t capacity,
+    const MtpGroupResult* result, const MtpDeviceControl* control,
+    cudaStream_t stream);
+
+[[nodiscard]] Status LaunchCommitMtpKvFp8ControlledLayers(
+    const MtpKvCommitLayer* layers, std::uint32_t layer_count,
     const MtpGroupResult* result, const MtpDeviceControl* control,
     cudaStream_t stream);
 

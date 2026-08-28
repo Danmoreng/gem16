@@ -982,17 +982,20 @@ Status Gemma4Moe26BReferenceEngine::Impl::LaunchFixedMtpGraphBody(
         repetition_mask, stream);
     if (!status.ok()) return status;
   }
+  std::array<MtpKvCommitLayer, kLayers> commit_layers{};
   for (std::uint32_t layer = 0U; layer < kLayers; ++layer) {
     const auto& trait = traits[layer];
     const auto offsets = mtp_layer_offsets[layer];
-    status = LaunchCommitMtpKvFp8Controlled(
+    commit_layers[layer] = {
         mtp_verifier.As<std::uint8_t>(offsets.compact_key),
         mtp_verifier.As<std::uint8_t>(offsets.compact_value),
         caches[layer].key, caches[layer].value,
-        trait.kv_heads * trait.head_dimension, caches[layer].capacity,
-        &transaction->result, control, stream);
-    if (!status.ok()) return status;
+        trait.kv_heads * trait.head_dimension, caches[layer].capacity};
   }
+  status = LaunchCommitMtpKvFp8ControlledLayers(
+      commit_layers.data(), static_cast<std::uint32_t>(commit_layers.size()),
+      &transaction->result, control, stream);
+  if (!status.ok()) return status;
   status = LaunchCommitMtpHidden(normalized, final_hidden, kWidth,
                                  &transaction->result, stream);
   if (!status.ok()) return status;

@@ -2,6 +2,7 @@
 
 #include <cuda_runtime.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <limits>
 #include <string>
@@ -357,6 +358,34 @@ __global__ void CommitMtpKvControlledD2Kernel(
   cache_value[cache_index] = compact_value[index];
 }
 
+struct MtpKvCommitLayerTable {
+  std::array<MtpKvCommitLayer, kMaximumMtpKvCommitLayers> layers{};
+  std::uint32_t count = 0U;
+};
+
+__global__ void CommitMtpKvFp8ControlledLayersKernel(
+    MtpKvCommitLayerTable table, const MtpGroupResult* result,
+    const MtpDeviceControl* control) {
+  const std::uint32_t layer = blockIdx.y;
+  if (layer >= table.count) return;
+  const MtpKvCommitLayer view = table.layers[layer];
+  const std::uint64_t index =
+      static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+  const std::uint64_t total =
+      static_cast<std::uint64_t>(result->output_count) *
+      view.elements_per_token;
+  if (index >= total) return;
+  const std::uint64_t token = index / view.elements_per_token;
+  const std::uint64_t element = index % view.elements_per_token;
+  const std::uint64_t start_position =
+      control->current.processed_position + 1U;
+  const std::uint64_t cache_index =
+      ((start_position + token) % view.capacity) * view.elements_per_token +
+      element;
+  view.cache_key[cache_index] = view.compact_key[index];
+  view.cache_value[cache_index] = view.compact_value[index];
+}
+
 template <typename T, bool kRestore>
 __global__ void CopyCircularMtpKvControlledKernel(
     T* cache_key, T* cache_value, T* compact_key, T* compact_value,
@@ -705,6 +734,47 @@ Status LaunchCommitMtpKvFp8Controlled(
   return error == cudaSuccess
              ? Status::Ok()
              : CudaFailure("launch controlled fixed-D MTP FP8 KV commit", error);
+}
+
+Status LaunchCommitMtpKvFp8ControlledLayers(
+    const MtpKvCommitLayer* layers, std::uint32_t layer_count,
+    const MtpGroupResult* result, const MtpDeviceControl* control,
+    cudaStream_t stream) {
+  if (layers == nullptr || layer_count == 0U ||
+      layer_count > kMaximumMtpKvCommitLayers || result == nullptr ||
+      control == nullptr) {
+    return Status(StatusCode::kInvalidArgument,
+                  "controlled layered MTP KV commit arguments are invalid");
+  }
+  MtpKvCommitLayerTable table;
+  table.count = layer_count;
+  std::uint64_t maximum_elements_per_token = 0U;
+  for (std::uint32_t layer = 0U; layer < layer_count; ++layer) {
+    const MtpKvCommitLayer& view = layers[layer];
+    if (view.compact_key == nullptr || view.compact_value == nullptr ||
+        view.cache_key == nullptr || view.cache_value == nullptr ||
+        view.elements_per_token == 0U || view.capacity == 0U) {
+      return Status(StatusCode::kInvalidArgument,
+                    "controlled layered MTP KV commit view is invalid");
+    }
+    table.layers[layer] = view;
+    maximum_elements_per_token =
+        std::max(maximum_elements_per_token, view.elements_per_token);
+  }
+  const std::uint64_t maximum_elements =
+      kMaximumMtpVerifyTokens * maximum_elements_per_token;
+  const std::uint64_t blocks = (maximum_elements + kThreads - 1U) / kThreads;
+  if (blocks > std::numeric_limits<unsigned>::max()) {
+    return Status(StatusCode::kInvalidArgument,
+                  "controlled layered MTP KV commit grid exceeds CUDA limits");
+  }
+  CommitMtpKvFp8ControlledLayersKernel
+      <<<dim3(static_cast<unsigned>(blocks), layer_count), kThreads, 0,
+         stream>>>(table, result, control);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("launch controlled layered MTP FP8 KV commit", error);
 }
 
 Status LaunchAdvanceMtpD2Chain(
