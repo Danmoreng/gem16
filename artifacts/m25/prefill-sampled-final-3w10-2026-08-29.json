@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "status": "prefill_optimization_round_complete",
+  "date": "2026-08-29",
+  "implementation_commit": "3c1c556",
+  "configuration": {
+    "workload": "benchmarks/prompts/wikipedia-summary-16k.json",
+    "warmup_pairs": 3,
+    "measured_pairs": 10,
+    "alternating_ordinary_and_mtp_d2": true,
+    "prompt_tokens": 16384,
+    "generated_tokens": 942,
+    "kv_cache": "checkpoint_fp8",
+    "mtp_draft_tokens": 2,
+    "sampling": {
+      "temperature": 1.0,
+      "top_k": 64,
+      "top_p": 0.95,
+      "repetition_penalty": 1.0,
+      "seed": 0
+    }
+  },
+  "source": {
+    "executable_sha256": "ded730a5523d42473e5f55dbe72d57a815a3528b9966ea93f1f3525be695fad3",
+    "raw_path": "artifacts/raw/m25/prefill-26b-final-sampled-3w10-2026-08-29.json",
+    "raw_sha256": "ce5bffde47fc1d6561d6910684365307ed5aab5fdf883ffc31adbc61517dcc39"
+  },
+  "formal_result": {
+    "ordinary": {
+      "prompt_tokens_per_second_median": 6966.475162005645,
+      "time_to_first_token_ms_median": 2351.835,
+      "decode_tokens_per_second_median": 148.43945339414051
+    },
+    "mtp_d2": {
+      "prompt_tokens_per_second_median": 6965.631007235295,
+      "prompt_tokens_per_second_confidence_interval_95": [6964.383497771188, 6967.5728049844065],
+      "time_to_first_token_ms_median": 2352.12,
+      "decode_tokens_per_second_median": 203.8314242649105,
+      "decode_tokens_per_second_confidence_interval_95": [203.80204283813285, 203.8369701437331],
+      "end_to_end_ms_median": 6968.585,
+      "peak_vram_mib": 15024,
+      "accepted_tokens": 523,
+      "proposed_tokens": 836,
+      "acceptance_rate": 0.6255980861244019,
+      "verification_groups": 418,
+      "ordinary_tail_tokens": 0
+    },
+    "paired_speedup_median": 1.3731119916532841,
+    "paired_speedup_confidence_interval_95": [1.3729360876190477, 1.3732733696767987],
+    "output_token_sha256": "ee97710da349b4bcb5feedfaa81e10ff003c5a54642c9886d494db5c76ccc112",
+    "all_retained_outputs_identical": true
+  },
+  "comparison_to_previous_formal": {
+    "previous_commit": "7862112",
+    "previous_sampled_d2_prompt_tokens_per_second_median": 6956.448006894921,
+    "current_sampled_d2_prompt_tokens_per_second_median": 6965.631007235295,
+    "absolute_gain_tokens_per_second": 9.183000340374,
+    "relative_gain_percent": 0.132013065,
+    "previous_time_to_first_token_ms_median": 2355.225,
+    "current_time_to_first_token_ms_median": 2352.12,
+    "time_to_first_token_reduction_ms": 3.105,
+    "output_hash_unchanged": true
+  },
+  "targets": {
+    "sampled_prefill_7000_tokens_per_second_met_in_sustained_3w10": false,
+    "remaining_to_7000_tokens_per_second": 34.368992764705,
+    "sampled_prefill_7200_tokens_per_second_met": false,
+    "sampled_prefill_7500_tokens_per_second_met": false
+  },
+  "accepted_commits": [
+    "2c28221",
+    "3c1c556"
+  ],
+  "rejected_candidates": [
+    "hierarchical exact Top-K64 sampler",
+    "raw K/V scratch copy removal",
+    "512- and 768-token prefill chunks",
+    "1536- and 2048-token chunks under the qualified memory contract",
+    "local-attention cp.async.cg cache policy",
+    "local-attention 16-key tile because sampled output changed",
+    "grouped-MoE one- and four-row-tile warp geometries"
+  ],
+  "verification": [
+    "gem16-cuda and gem16-cuda-moe-reference: 2/2 passed",
+    "gem16-cuda-attention-reference: passed for attention candidates",
+    "gem16-26b-m22-product and gem16-12b-m22-product: 2/2 passed"
+  ],
+  "limitations": [
+    "Short thermally alternating screens exceed 7000 prompt token/s, but the sustained 3-warm-up/10-measured record does not; only the sustained number is the final claim.",
+    "The accepted changes are exact orchestration/scheduling wins and do not alter allocation sizes, model weights, sampling semantics, output tokens or MTP acceptance."
+  ]
+}
