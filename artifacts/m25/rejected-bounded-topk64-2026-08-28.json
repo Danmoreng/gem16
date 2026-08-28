@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "status": "rejected_execution_candidate",
+  "date": "2026-08-28",
+  "parent_commit": "268bbeeb990d5a585e0c8191bd77a4fbedc383ff",
+  "hypothesis": "Replace the full-vocabulary CUB radix sort for sampled Top-K 64 with an exact hierarchical 256-to-64 contraction.",
+  "configuration": {
+    "workload": "benchmarks/prompts/wikipedia-summary-16k.json",
+    "sampling": {
+      "temperature": 1.0,
+      "top_k": 64,
+      "top_p": 0.95,
+      "repetition_penalty": 1.0,
+      "seed": 0
+    },
+    "mtp_draft_tokens": 2
+  },
+  "adjacent_screen": {
+    "parent_decode_tokens_per_second": 201.679,
+    "candidate_decode_tokens_per_second": 201.445,
+    "relative_change": -0.0011602596204860482
+  },
+  "quality": {
+    "generated_tokens": 942,
+    "output_token_sha256": "ee97710da349b4bcb5feedfaa81e10ff003c5a54642c9886d494db5c76ccc112",
+    "accepted_tokens": 523,
+    "proposed_tokens": 836,
+    "verification_groups": 418,
+    "ordinary_tail_tokens": 0,
+    "matches_parent": true
+  },
+  "validation": {
+    "gem16_cuda": "passed"
+  },
+  "decision": "reject_and_revert",
+  "interpretation": "The full radix sort is only a small part of sampled D2 time. Multiple contraction launches cost more than sorting the complete vocabulary, even though the final deterministic pair ordering preserves the exact output."
+}

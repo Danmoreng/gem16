@@ -158,6 +158,14 @@ static_assert(offsetof(MtpGroupTransaction, control) % 16U == 0U);
     std::uint64_t capacity, bool restore,
     const MtpDeviceControl* control, cudaStream_t stream);
 
+[[nodiscard]] Status LaunchCompactRestoreCircularMtpKvFp8Controlled(
+    std::uint8_t* cache_key, std::uint8_t* cache_value,
+    std::uint8_t* compact_key, std::uint8_t* compact_value,
+    const std::uint8_t* backup_key, const std::uint8_t* backup_value,
+    std::uint32_t tokens, std::uint64_t elements_per_token,
+    std::uint64_t capacity, const MtpDeviceControl* control,
+    cudaStream_t stream);
+
 [[nodiscard]] Status LaunchSetMtpAttentionPosition(DecodeControl* control,
                                                     std::uint64_t position,
                                                     cudaStream_t stream);

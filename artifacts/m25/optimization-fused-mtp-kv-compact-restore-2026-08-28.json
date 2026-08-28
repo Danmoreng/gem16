@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "status": "retained_execution_optimization",
+  "date": "2026-08-28",
+  "source": {
+    "parent_commit": "268bbeeb990d5a585e0c8191bd77a4fbedc383ff",
+    "measurement_worktree_dirty": true,
+    "candidate_executable_sha256": "77b6493f44eaf1ab92e98569db163111a5d8e8bb87b282105169f848126c401b"
+  },
+  "configuration": {
+    "workload": "benchmarks/prompts/wikipedia-summary-16k.json",
+    "prompt_tokens": 16384,
+    "actual_output_tokens": 942,
+    "max_context_tokens": 24576,
+    "kv_cache": "checkpoint_fp8",
+    "mtp_draft_tokens": 2,
+    "sampling": {
+      "temperature": 1.0,
+      "top_k": 64,
+      "top_p": 0.95,
+      "repetition_penalty": 1.0,
+      "seed": 0
+    }
+  },
+  "change": {
+    "description": "Fuse each verifier layer's speculative-KV compaction and original-KV restoration into one exact byte-copy kernel.",
+    "removed_kernel_launches_per_verification_group": 30,
+    "precision_changed": false,
+    "sampling_changed": false,
+    "assistant_changed": false,
+    "workspace_or_vram_allocation_changed": false
+  },
+  "performance": {
+    "parent_retained_decode_median_tokens_per_second": 201.677,
+    "adjacent_parent_screen_tokens_per_second": 201.679,
+    "candidate_warmup_tokens_per_second": 203.259,
+    "candidate_retained_tokens_per_second": [
+      203.157,
+      202.543,
+      202.529
+    ],
+    "candidate_retained_median_tokens_per_second": 202.543,
+    "relative_improvement_over_parent_median": 0.004293994853156402,
+    "candidate_retained_prompt_tokens_per_second": [
+      7081.298353286943,
+      7056.928358221812,
+      7045.487774461827
+    ]
+  },
+  "quality": {
+    "output_token_sha256": "ee97710da349b4bcb5feedfaa81e10ff003c5a54642c9886d494db5c76ccc112",
+    "accepted_tokens": 523,
+    "proposed_tokens": 836,
+    "verification_groups": 418,
+    "ordinary_tail_tokens": 0,
+    "all_retained_runs_match_parent": true
+  },
+  "validation": {
+    "focused_ctest": "7/7 passed",
+    "real_26b_m22_product": "passed",
+    "git_diff_check": "passed"
+  },
+  "limitations": [
+    "This is one warm-up plus three retained runs, not a new formal three-warm-up/ten-retained qualification.",
+    "Peak VRAM was not resampled; the implementation changes neither allocation sizes nor workspace ownership.",
+    "The protected real 12B product test requires GEM16_12B_MODEL and was unavailable in this environment."
+  ]
+}

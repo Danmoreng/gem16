@@ -383,6 +383,33 @@ __global__ void CopyCircularMtpKvControlledKernel(
   }
 }
 
+__global__ void CompactRestoreCircularMtpKvFp8ControlledKernel(
+    std::uint8_t* cache_key, std::uint8_t* cache_value,
+    std::uint8_t* compact_key, std::uint8_t* compact_value,
+    const std::uint8_t* backup_key, const std::uint8_t* backup_value,
+    std::uint32_t tokens, std::uint64_t elements_per_token,
+    std::uint64_t capacity, const MtpDeviceControl* control) {
+  const std::uint64_t total =
+      static_cast<std::uint64_t>(tokens) * elements_per_token;
+  const std::uint64_t index =
+      static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+  if (index >= total) return;
+  const std::uint64_t token = index / elements_per_token;
+  const std::uint64_t element = index % elements_per_token;
+  const std::uint64_t start_position =
+      control->current.processed_position + 1U;
+  const std::uint64_t cache_index =
+      ((start_position + token) % capacity) * elements_per_token + element;
+  const std::uint8_t speculative_key = cache_key[cache_index];
+  const std::uint8_t speculative_value = cache_value[cache_index];
+  const std::uint8_t original_key = backup_key[index];
+  const std::uint8_t original_value = backup_value[index];
+  compact_key[index] = speculative_key;
+  compact_value[index] = speculative_value;
+  cache_key[cache_index] = original_key;
+  cache_value[cache_index] = original_value;
+}
+
 __global__ void CommitMtpHiddenKernel(const float* verified_hidden,
                                       float* committed_hidden,
                                       std::uint64_t hidden,
@@ -589,6 +616,34 @@ Status LaunchCopyCircularMtpKvFp8Controlled(
   return error == cudaSuccess
              ? Status::Ok()
              : CudaFailure("launch controlled fixed-D MTP circular copy", error);
+}
+
+Status LaunchCompactRestoreCircularMtpKvFp8Controlled(
+    std::uint8_t* cache_key, std::uint8_t* cache_value,
+    std::uint8_t* compact_key, std::uint8_t* compact_value,
+    const std::uint8_t* backup_key, const std::uint8_t* backup_value,
+    std::uint32_t tokens, std::uint64_t elements_per_token,
+    std::uint64_t capacity, const MtpDeviceControl* control,
+    cudaStream_t stream) {
+  if (cache_key == nullptr || cache_value == nullptr ||
+      compact_key == nullptr || compact_value == nullptr ||
+      backup_key == nullptr || backup_value == nullptr || tokens < 2U ||
+      tokens > kMaximumMtpVerifyTokens || elements_per_token == 0U ||
+      capacity == 0U || control == nullptr) {
+    return Status(StatusCode::kInvalidArgument,
+                  "controlled MTP compact/restore arguments are invalid");
+  }
+  const std::uint64_t elements =
+      static_cast<std::uint64_t>(tokens) * elements_per_token;
+  const std::uint64_t blocks = (elements + kThreads - 1U) / kThreads;
+  CompactRestoreCircularMtpKvFp8ControlledKernel
+      <<<static_cast<unsigned>(blocks), kThreads, 0, stream>>>(
+          cache_key, cache_value, compact_key, compact_value, backup_key,
+          backup_value, tokens, elements_per_token, capacity, control);
+  const cudaError_t error = cudaGetLastError();
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("launch controlled MTP compact/restore", error);
 }
 
 Status LaunchSetMtpAttentionPosition(DecodeControl* control,

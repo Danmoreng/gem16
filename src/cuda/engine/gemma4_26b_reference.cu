@@ -921,13 +921,10 @@ Status Gemma4Moe26BReferenceEngine::Impl::LaunchFixedMtpGraphBody(
             ? nullptr
             : mtp_router_overlap.As<MtpRouterOverlapCounters>());
     if (!status.ok()) return status;
-    status = LaunchCopyCircularMtpKvFp8Controlled(
+    status = LaunchCompactRestoreCircularMtpKvFp8Controlled(
         caches[layer].key, caches[layer].value, compact_key, compact_value,
-        tokens, kv_elements, caches[layer].capacity, false, control, stream);
-    if (!status.ok()) return status;
-    status = LaunchCopyCircularMtpKvFp8Controlled(
-        caches[layer].key, caches[layer].value, backup_key, backup_value,
-        tokens, kv_elements, caches[layer].capacity, true, control, stream);
+        backup_key, backup_value, tokens, kv_elements,
+        caches[layer].capacity, control, stream);
     if (!status.ok()) return status;
   }
 

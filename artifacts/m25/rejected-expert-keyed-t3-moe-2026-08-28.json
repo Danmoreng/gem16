@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "status": "rejected_execution_candidate",
+  "date": "2026-08-28",
+  "parent_commit": "268bbeeb990d5a585e0c8191bd77a4fbedc383ff",
+  "hypothesis": "Reuse each routed-expert W13/W2 weight fragment across the one-to-three fixed-T3 rows selecting that expert while scattering results back to original slot order.",
+  "measured_router_overlap": {
+    "mean_unique_experts_per_24_assignments": 15.175324675324676,
+    "potential_reused_assignments_percent": 36.76948051948052
+  },
+  "parent": {
+    "decode_tokens_per_second": 201.677,
+    "output_token_sha256": "ee97710da349b4bcb5feedfaa81e10ff003c5a54642c9886d494db5c76ccc112",
+    "accepted_tokens": 523,
+    "proposed_tokens": 836,
+    "verification_groups": 418,
+    "ordinary_tail_tokens": 0
+  },
+  "screens": [
+    {
+      "candidate": "expert-keyed GateUp plus expert-keyed W2",
+      "decode_tokens_per_second": 193.169,
+      "relative_change": -0.042186
+    },
+    {
+      "candidate": "expert-keyed GateUp only",
+      "decode_tokens_per_second": 193.437,
+      "relative_change": -0.040857
+    },
+    {
+      "candidate": "expert-keyed W2 only",
+      "decode_tokens_per_second": 197.168,
+      "relative_change": -0.022352
+    }
+  ],
+  "correctness": {
+    "output_token_sha256": "ee97710da349b4bcb5feedfaa81e10ff003c5a54642c9886d494db5c76ccc112",
+    "accepted_tokens": 523,
+    "proposed_tokens": 836,
+    "verification_groups": 418,
+    "ordinary_tail_tokens": 0,
+    "t3_vs_three_ordinary_cuda_differential": "passed"
+  },
+  "decision": "reject_and_revert",
+  "interpretation": "The fixed schedule builder and exact scatter/reduction preserve arithmetic, but additional register state and physical-BF16 materialization outweigh reduced expert-weight reads on SM120. Do not retry this architecture without a materially different persistent/grouped kernel geometry."
+}
