@@ -133,6 +133,13 @@ unchanged; the owner stopped the planned third run and paused further optimizati
 `artifacts/m25/performance-freeze.json` remains the product-integration rollback checkpoint consumed by the later
 owner acceptance of M25.
 
+The subsequent owner-authorized Sampled-D2 execution pass is now closed at implementation commit
+`7862112d5d8cf00aef5209eb7438b0adad4b6f14`. Its final alternating 3-warm-up/10-measured Wikipedia-16K result is
+203.842 Decode token/s median with exact retained output, 523/836 accepted proposals, zero Ordinary tails and
+15,024 MiB peak process VRAM. Do not resume Decode tuning without a new owner decision; the unmet 220/250 token/s
+targets were not weakened. Prefill is outside this Decode freeze. Compact evidence is
+`artifacts/m25/decode-optimization-freeze-2026-08-28.json`.
+
 M22 product behavior and protected 12B regressions are accepted at
 `f0aa302aa0246d44e1c8477dbbbb67fbbe2d2037`; see `artifacts/m22/acceptance.json`. M23 revalidated the updated
 capability/product binaries at implementation revision `c8e09e4e337d58ac0cfe402585ef818135845faa` and froze the

@@ -273,6 +273,16 @@ The first sampled-D2 execution target is **220 token/s** and the stretch target 
 3-warm-up/10-measured sampled characterization currently reaches 199.871 token/s with the exact same 496/770
 accepted drafts and output tokens as its 194.803 token/s parent; both targets remain open.
 
+On 2026-08-28 the owner ended the current Decode-optimization phase after four final execution-only passes. The
+accepted streaming, speculative-KV, direct sampled-verifier, Assistant-boundary and fixed-T3 grid changes culminate
+at commit `7862112d5d8cf00aef5209eb7438b0adad4b6f14`. The new alternating 3-warm-up/10-measured formal Sampled-D2
+characterization reaches a 203.842 token/s median (95% CI 203.824–203.858), versus 148.293 token/s Ordinary and
+199.871 token/s at the start of this sequence. All retained runs reproduce output hash `ee9771...c112`, 523/836
+accepted proposals, 418 D2 groups and zero Ordinary tails; peak process VRAM is 15,024 MiB. The 200 token/s floor is
+met, while the 220 and 250 token/s targets are not. They are closed for this phase without changing their values;
+further Decode work requires a new owner decision. This freeze does not close a separate Prefill workstream. See
+`artifacts/m25/decode-optimization-freeze-2026-08-28.json`.
+
 The qualified Target and Assistant are published as two independently pinned Hugging Face repositories because they
 derive from different immutable Google sources. The Target package uses a single `model.gem16` SM120 device image in
 final GPU arena order and does not duplicate the source-order Safetensors payload. The Assistant remains a separate

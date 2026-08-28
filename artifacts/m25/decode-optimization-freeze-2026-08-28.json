@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "status": "sampled_d2_decode_optimization_frozen",
+  "date": "2026-08-28",
+  "implementation_commit": "7862112d5d8cf00aef5209eb7438b0adad4b6f14",
+  "configuration": {
+    "workload": "benchmarks/prompts/wikipedia-summary-16k.json",
+    "warmup_pairs": 3,
+    "measured_pairs": 10,
+    "alternating_ordinary_and_mtp_d2": true,
+    "prompt_tokens": 16384,
+    "generated_tokens": 942,
+    "kv_cache": "checkpoint_fp8",
+    "mtp_draft_tokens": 2,
+    "sampling": {
+      "temperature": 1.0,
+      "top_k": 64,
+      "top_p": 0.95,
+      "repetition_penalty": 1.0,
+      "seed": 0
+    }
+  },
+  "formal_result": {
+    "sampled_d2_decode_tokens_per_second": {
+      "median": 203.84246326483017,
+      "confidence_interval_95": [203.82374992516833, 203.85844339065835],
+      "minimum": 203.79610859885304,
+      "maximum": 203.8817702397615
+    },
+    "ordinary_decode_tokens_per_second_median": 148.29301506947996,
+    "paired_speedup_median": 1.3746222672246768,
+    "paired_speedup_confidence_interval_95": [
+      1.3744182487708514,
+      1.374740487579683
+    ],
+    "sampled_d2_prompt_tokens_per_second_median": 6956.448006894921,
+    "sampled_d2_time_to_first_token_ms_median": 2355.225,
+    "sampled_d2_end_to_end_ms_median": 6970.995000000001,
+    "sampled_d2_peak_vram_mib": 15024.0,
+    "output_token_sha256": "ee97710da349b4bcb5feedfaa81e10ff003c5a54642c9886d494db5c76ccc112",
+    "accepted_tokens": 523,
+    "proposed_tokens": 836,
+    "acceptance_rate": 0.6255980861244019,
+    "verification_groups": 418,
+    "ordinary_tail_tokens": 0,
+    "all_retained_outputs_identical": true
+  },
+  "comparison_to_pre_optimization_formal": {
+    "parent_sampled_d2_decode_tokens_per_second_median": 199.87107148778742,
+    "frozen_sampled_d2_decode_tokens_per_second_median": 203.84246326483017,
+    "absolute_gain_tokens_per_second": 3.97139177704275,
+    "relative_gain": 0.019869765780319737,
+    "output_hash_unchanged": true
+  },
+  "targets": {
+    "minimum_200_tokens_per_second_met": true,
+    "first_target_220_tokens_per_second_met": false,
+    "stretch_target_250_tokens_per_second_met": false
+  },
+  "accepted_commits": [
+    "268bbee",
+    "d85c47e",
+    "d6f5b69",
+    "4a305c5",
+    "a67acf6",
+    "d51095b",
+    "7862112"
+  ],
+  "decision": {
+    "decode_optimization_stops_here": true,
+    "assistant_precision_and_acceptance_remain_frozen": true,
+    "further_decode_work_requires_a_new_owner_decision": true,
+    "prefill_is_not_frozen_by_this_decision": true
+  },
+  "evidence": [
+    "artifacts/m25/optimization-full-generation-streaming-d2-2026-08-28.json",
+    "artifacts/m25/optimization-fused-mtp-kv-compact-restore-2026-08-28.json",
+    "artifacts/m25/optimization-layered-mtp-kv-commit-2026-08-28.json",
+    "artifacts/m25/optimization-fused-mtp-kv-backup-append-2026-08-28.json",
+    "artifacts/m25/optimization-direct-sampled-verifier-logits-2026-08-28.json",
+    "artifacts/m25/optimization-assistant-bf16-boundaries-2026-08-28.json",
+    "artifacts/m25/optimization-ncu-fixed-t3-kernels-2026-08-28.json",
+    "artifacts/raw/m25/sampled-d2-wikipedia-16k-decode-freeze-3w10-2026-08-28.json"
+  ],
+  "limitations": [
+    "The 220 and 250 token/s targets were not reached and are deliberately closed for this optimization phase rather than redefined.",
+    "The formal prompt median is 6956.448 token/s; prefill remains a separate potential workstream and is not claimed as frozen here.",
+    "The raw 3-warm-up/10-measured runner output is kept under the ignored artifacts/raw evidence tree on this machine; this compact summary is versioned."
+  ]
+}
