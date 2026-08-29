@@ -77,13 +77,13 @@ std::filesystem::path HuggingFaceHubRoot() { return ResolveHubRoot(); }
 std::filesystem::path Qualified26BTargetDirectory() {
   return ResolveHubRoot() /
          "models--danmoreng--gemma-4-26B-A4B-it-GEM16/snapshots/"
-         "b5feb4d146c5ce943160514df0c70a31059885bd";
+         "63508b5826527484e707b4b46e2eacf077cf2b35";
 }
 
 std::filesystem::path Qualified26BAssistantDirectory() {
   return ResolveHubRoot() /
          "models--danmoreng--gemma-4-26B-A4B-it-assistant-GEM16/snapshots/"
-         "a741c642353ccdaefc6f987a3120f434dc9487c7";
+         "466cc26d157fad0cc946f094ae904445147c38b4";
 }
 
 const char* ProfileLabel(ModelProfile profile) {

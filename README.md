@@ -189,8 +189,7 @@ higher-precision fallback.
 - `curl` on `PATH` for resumable downloads in the native Models screen (included with current Windows)
 - OpenGL/X11 or Wayland development libraries on Linux; the Windows client uses Direct3D 11
 - A Hugging Face account with access to the gated Google Gemma repositories
-- For the currently private qualified 26B repositories, `HF_TOKEN` or the normal Hugging Face token file for an
-  account with access to `danmoreng/gemma-4-26B-A4B-it-GEM16` and its Assistant repository
+- No account or token is required for the public, ungated GEM16 26B Target and Assistant repositories
 
 The exact reference environment is recorded in
 [`toolchains/blackwell16gb.lock`](toolchains/blackwell16gb.lock).

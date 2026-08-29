@@ -34,12 +34,14 @@ struct LockedRepository {
 
 constexpr std::array kTargetFiles{
     LockedFile{".gitattributes", 95, "f15b349b90d515d0af07dc0d7da57e1a3ef9f00a723c70e8bdb8ff7fcb943b83", "c1ad41cbcce50cb9c28dbc5c41f4b17d8ce29f00"},
-    LockedFile{"README.md", 930, "c718e5a5e2b4a9a27eb6bc65428fe7a5b3d558378392f1cc167dbdbb0417690e", "bf0c89c228278db401faaae7ab1ca384ce424783"},
+    LockedFile{"LICENSE", 634, "e32c5cdb30142b7c670d61be0f2de18ab0007f72ef131e2869ef51687539c86d", "506ff98349a36c9b78904645c9ae492a9b62e826"},
+    LockedFile{"NOTICE", 778, "e26e0f5e20bc05d54543aae77d45686b614f948e1af7346597e1b4ef533d990b", "a365f24b0c9e70ebfff6128d45fb9f0c62bba3d5"},
+    LockedFile{"README.md", 31418, "7349b325178b75830da550d010c313b2756beb1ebabec5923ba71f108e359a28", "1535491512e42a3ceab0eba250b0810368901ba4"},
     LockedFile{"chat_template.jinja", 18683, "ae53464bf3be25802b3a5b37def7fd89667067d7577049b3b2d74c4d8de4c6d4", "4741bf6e4132ba23a5537f9d6e74e9a6d613d7cd"},
     LockedFile{"config.json", 4152, "8a647d5444c9e77b03bd80ac802683ffdbf64b3d9296ca5257ced8e50349ea16", "ef0ecec886c4ee7fb9151bbd2a4395973e96c061"},
     LockedFile{"gem16.lock.json", 4231, "d7d2d30743e7c42aa55537a83f563047c9cbd2d83e0d583a2d2c8bcacbfa51a4", "d2f5aa90480db072e7b3258e16abca22e6bd93cf"},
     LockedFile{"gem16_compilation.json", 3061406, "7e5e78b9c6f61fbe8829866395634085261e1261a8c783f69affc5a16bd1847a", "fe671accce31db603d8d139bcef8523ee3baac34"},
-    LockedFile{"gem16_model.json", 671, "6281508359782c2ea4977352828bcdca65987c9d74a55b553b945488ffd27a66", "7a5a33188b216561cf929af2926b648cabcc8a3d"},
+    LockedFile{"gem16_model.json", 671, "c1015228120105ff5e54efe300c77c7e6a831ed598425f4f4c1b27c673732049", "02cf4afbfe3051e630eecd85c313fbb2a11ef015"},
     LockedFile{"generation_config.json", 203, "b69207f9be617e982d13cc273cce6fd88c98dda99a4bdc5e2d52ffe0a0d9f0a9", "5a376e9fca28bfac73fe81b623bd6e4d00bb0817"},
     LockedFile{"model.gem16", 14696668160ULL, "1ed73cf105b68db937ac0992283d31fdb2225474204341440721f41fe871bb72", "1ed73cf105b68db937ac0992283d31fdb2225474204341440721f41fe871bb72"},
     LockedFile{"tokenizer.json", 32169626, "cc8d3a0ce36466ccc1278bf987df5f71db1719b9ca6b4118264f45cb627bfe0f", "cc8d3a0ce36466ccc1278bf987df5f71db1719b9ca6b4118264f45cb627bfe0f"},
@@ -48,12 +50,14 @@ constexpr std::array kTargetFiles{
 
 constexpr std::array kAssistantFiles{
     LockedFile{".gitattributes", 101, "a0e948ca693c63e0b5139f66bd709003cbcf8bc764acb1ee687a552885c8fe2c", "0fd17d2f7c330afce8bc2b472393143fa66f68a1"},
-    LockedFile{"README.md", 619, "1d346a57a39bb97f74897dacb43fef636b2cc6b34a1455a43214ea775468d9d9", "74c95d6c287b95e04d549b4be9630e49b36bb664"},
+    LockedFile{"LICENSE", 634, "e32c5cdb30142b7c670d61be0f2de18ab0007f72ef131e2869ef51687539c86d", "506ff98349a36c9b78904645c9ae492a9b62e826"},
+    LockedFile{"NOTICE", 791, "555f14e6346372367e5facd6979a9594fd1502f319548933f7c867a1b00ec9d3", "80da8080b8090add2bedb8bec8dc62682b16c88d"},
+    LockedFile{"README.md", 31457, "d93671a2e9b9064f670525925ba085c43b4023e70ec76f29b0c4ea0c9a1f5dcc", "1e883f1f67f7231ac09567790a012a84997293da"},
     LockedFile{"chat_template.jinja", 18683, "ae53464bf3be25802b3a5b37def7fd89667067d7577049b3b2d74c4d8de4c6d4", "4741bf6e4132ba23a5537f9d6e74e9a6d613d7cd"},
     LockedFile{"config.json", 2720, "d3c79600ce09c86c993c89bed7ce05baa376770967ffaa1ac9a0c29347a633e4", "049ec62ef9a48d2f0732b580d90b48cbb0f3616b"},
     LockedFile{"gem16.lock.json", 1664, "f2d2278a53ecfb3bf7a093a3207dce70148a88708a51b5050dd8d436c3d69455", "bd555c8d0653bd74ec609bb51720e462174c3545"},
     LockedFile{"gem16_compilation.json", 217371, "d2a722ccad675807ff73a1a645a0f1fbcc0fc200c402a14e823a5927618a116d", "6e938657610d03a7f30aeec5172849238d8708a0"},
-    LockedFile{"gem16_model.json", 613, "5769df5631d9c2d1d6cb0b4799c382b7e7aab8b340418c5e87557efab9406c39", "be525d72629e7d34bff9f67c616ddbc6b1c7df9c"},
+    LockedFile{"gem16_model.json", 613, "ef69d5384d6cca061e9941375bb2b18ebc9fee6587e492ef16701dce29b0131e", "f34e42339b16ee761c8724ee21aef629dfd84b65"},
     LockedFile{"generation_config.json", 209, "fb53f4c64e58896a63472e8eb304397db4a39453e1da0f5d57625ec5a8c1050e", "76d3a00538aca6a1b85db3328e1b0f4e93316420"},
     LockedFile{"model-00001-of-00001.safetensors", 258317280, "4d3ce2102ad0631d9e7e0586be0b108d5789cbc5b90d21b4c50613979228d927", "4d3ce2102ad0631d9e7e0586be0b108d5789cbc5b90d21b4c50613979228d927"},
     LockedFile{"model.safetensors.index.json", 8327, "8fcc4b09fb62f710558176406385e9a04423119cd6e81301171d9a64bbfd9165", "c094c640185f76249eb96a10d0d07dd7afd9ec89"},
@@ -63,12 +67,12 @@ constexpr std::array kAssistantFiles{
 
 constexpr LockedRepository kTarget{
     "danmoreng/gemma-4-26B-A4B-it-GEM16",
-    "b5feb4d146c5ce943160514df0c70a31059885bd", kTargetFiles};
+    "63508b5826527484e707b4b46e2eacf077cf2b35", kTargetFiles};
 constexpr LockedRepository kAssistant{
     "danmoreng/gemma-4-26B-A4B-it-assistant-GEM16",
-    "a741c642353ccdaefc6f987a3120f434dc9487c7", kAssistantFiles};
+    "466cc26d157fad0cc946f094ae904445147c38b4", kAssistantFiles};
 constexpr std::array kRepositories{kTarget, kAssistant};
-constexpr std::uint64_t kTotalBytes = 15022671936ULL;
+constexpr std::uint64_t kTotalBytes = 15022736099ULL;
 
 bool HasSize(const std::filesystem::path& path, std::uint64_t size) {
   std::error_code error;
@@ -96,23 +100,6 @@ std::filesystem::path BlobPath(const LockedRepository& repository,
 std::filesystem::path VerificationMarker(const LockedFile& file) {
   return HuggingFaceHubRoot() / ".gem16-verified" /
          (std::string(file.blob_id) + ".sha256");
-}
-
-std::optional<std::string> ReadToken() {
-  for (const char* name : {"HF_TOKEN", "HUGGING_FACE_HUB_TOKEN"}) {
-    if (const char* value = std::getenv(name); value && *value) return value;
-  }
-  std::filesystem::path token;
-  if (const char* home = std::getenv("HF_HOME"); home && *home) {
-    token = std::filesystem::path(home) / "token";
-  } else if (const char* home = std::getenv("HOME"); home && *home) {
-    token = std::filesystem::path(home) / ".cache/huggingface/token";
-  }
-  std::ifstream input(token);
-  std::string value;
-  std::getline(input, value);
-  if (!value.empty() && value.back() == '\r') value.pop_back();
-  return value.empty() ? std::nullopt : std::optional<std::string>(value);
 }
 
 std::optional<std::filesystem::path> CurlExecutable() {
@@ -241,12 +228,6 @@ void ModelManager::DownloadWorker() {
     finish("curl was not found on PATH; install curl to download the pinned Hugging Face files");
     return;
   }
-  const auto token = ReadToken();
-  if (!token) {
-    finish("The 26B repositories are private. Sign in with HF_TOKEN or the Hugging Face token file.");
-    return;
-  }
-
   std::uint64_t completed = ReadyBytes();
   for (const auto& repository : kRepositories) {
     const auto snapshot = SnapshotDirectory(repository);
@@ -309,8 +290,7 @@ void ModelManager::DownloadWorker() {
           std::vector<std::string> arguments{
               curl->string(), "--fail", "--location", "--silent", "--show-error",
               "--retry", "5", "--retry-all-errors", "--continue-at", "-",
-              "--output", partial.string(), "--header",
-              "Authorization: Bearer " + *token, url};
+              "--output", partial.string(), url};
           std::mutex wait_mutex;
           std::condition_variable wait_condition;
           bool exited = false;

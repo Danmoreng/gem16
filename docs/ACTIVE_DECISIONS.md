@@ -27,6 +27,11 @@ Read it only for a concrete historical or evidence question.
    is the preferred product choice. Capability differences remain explicit:
    12B is the qualified multimodal profile; 26B is qualified text-only,
    single-slot, and optionally uses its separately pinned fixed-D2 Assistant.
+   Studio stores model files in the standard shared Hugging Face Hub cache and
+   must not create a second private model store. Each profile is represented by
+   an independently pinned Target and Assistant catalog entry. The 12B entries
+   continue to reference the existing upstream Hugging Face repositories; no
+   GEM16 mirror or duplicate 12B weight repository is created.
 4. **One active GUI.** `nativeStudio/` is the only active GUI. `studioApp/` is
    deprecated, receives no new product work, and remains temporarily as
    read-only migration evidence.
@@ -66,7 +71,12 @@ record. This summary does not replace that evidence.
 
 - Native Studio installs the qualified 26B pair but does not yet provide the
   equivalent native 12B download/onboarding flow. Fresh settings also still
-  seed 12B instead of presenting a neutral first-run model choice.
+  seed 12B instead of presenting a neutral first-run model choice. The current
+  12B path uses a custom `.gem16/snapshots` directory below the Hub cache and
+  the Windows cache fallback is not yet aligned with Hugging Face defaults;
+  both must be removed by the common catalog implementation. Cross-repository
+  12B files must resolve from their existing canonical upstream snapshots
+  without duplicating model blobs.
 - The current OpenAI SDK validators establish a narrow development gate; full
   Agent Core v1 still needs equal Windows/Linux and 12B/26B qualification,
   TypeScript SDK coverage, and an external coding-agent workflow.

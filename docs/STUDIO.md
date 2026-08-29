@@ -27,8 +27,8 @@ license remains beside the vendored source.
 - Chat, Models, Server, and Settings screens with a dark/light glass palette, procedural gemstone branding, and the
   original animated GPU science-fiction wave.
 - Persisted selectors for qualified Gemma 4 12B Unified and qualified text-only Gemma 4 26B A4B.
-- Resumable, SHA-256-verified download of the separately pinned private 26B Target and Assistant repositories into
-  immutable Hugging Face snapshots, using the standard token sources and cache root.
+- Resumable, SHA-256-verified anonymous download of the separately pinned public 26B Target and Assistant
+  repositories into immutable snapshots under the standard Hugging Face cache root.
 - Qualified 26B Target and Assistant paths, one resident session, 86,016-token MTP context, and fixed D2 selected
   as its selected MTP profile.
 - Managed `gem16-server` start, stop, output capture, health polling, and non-owning attachment to an external server.

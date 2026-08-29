@@ -49,11 +49,19 @@ Studio and the server must report these differences before execution. They may
 not silently substitute a profile, Assistant, precision, context limit, or
 fallback path. Model files remain external to application archives and must be
 resolved from immutable locks, downloaded resumably, and verified before use.
+Target and Assistant are separate data-driven catalog components for both
+profiles. Their verified blobs and immutable snapshots live in the user's
+standard shared Hugging Face Hub cache, respecting `HF_HUB_CACHE` and
+`HF_HOME`; Studio must not maintain a second model repository. The 12B catalog
+uses the existing upstream repositories directly and does not publish or
+download a duplicate GEM16 mirror.
 
 The current native Studio can install the qualified 26B pair but still lacks
 native 12B installation, and a fresh settings file still seeds the 12B profile
 instead of asking for a neutral first-run choice. Closing both gaps is a product
-gate, not optional polish.
+gate, not optional polish. The current custom 12B `.gem16/snapshots` directory
+is transitional and must be replaced by direct resolution from the canonical
+upstream Hub snapshots without duplicating the underlying model blobs.
 
 ## Local-machine boundary
 

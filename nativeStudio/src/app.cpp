@@ -697,7 +697,7 @@ void StudioApp::DrawModels() {
 
   ImGui::BeginChild("##qualified-26b-download", {0, 150}, ImGuiChildFlags_Borders);
   ImGui::TextColored(kAccent, "Qualified 26B checkpoint");
-  ImGui::TextDisabled("Pinned Target b5feb4d1 · Assistant a741c642 · private Hugging Face repositories");
+  ImGui::TextDisabled("Pinned Target 63508b58 · Assistant 466cc26d · public Hugging Face repositories");
   ImGui::Text("Target: %s", install.target_26b_ready ? "Cached" : "Missing");
   ImGui::SameLine(180.0f);
   ImGui::Text("Assistant: %s", install.assistant_26b_ready ? "Cached" : "Missing");
@@ -715,7 +715,7 @@ void StudioApp::DrawModels() {
       models_.DownloadQualified26B();
     }
     ImGui::SameLine();
-    ImGui::TextDisabled("Resumable · SHA-256 verified · uses HF_TOKEN or your Hugging Face login");
+    ImGui::TextDisabled("Resumable · SHA-256 verified · no account or token required");
   } else if (settings_.server.profile != ModelProfile::kGemma4Moe26BA4B) {
     if (ImGui::Button("Use qualified 26B")) SelectProfile(ModelProfile::kGemma4Moe26BA4B);
   } else {

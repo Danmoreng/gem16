@@ -1,0 +1,70 @@
+{
+  "schema": "gem16.m25.hf-publication.v2",
+  "date": "2026-08-29",
+  "verified_at_utc": "2026-08-29T09:23:55Z",
+  "status": "public_ungated_verified",
+  "metadata_commit": {
+    "message": "Document GEM16 quantization and upstream provenance",
+    "files": [
+      "README.md",
+      "LICENSE",
+      "NOTICE",
+      "gem16_model.json"
+    ],
+    "weight_files_changed": false
+  },
+  "target": {
+    "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+    "previous_revision": "b5feb4d146c5ce943160514df0c70a31059885bd",
+    "revision": "63508b5826527484e707b4b46e2eacf077cf2b35",
+    "commit_url": "https://huggingface.co/danmoreng/gemma-4-26B-A4B-it-GEM16/commit/63508b5826527484e707b4b46e2eacf077cf2b35",
+    "lock": "models/gemma4-26b-gem16-target.lock.json",
+    "lock_sha256": "d0ef3c2f55d81158151efe873585cce19b67e98882e0b313113ad199a4c40cc3",
+    "files": 13,
+    "total_bytes": 14731963786,
+    "model_file": {
+      "path": "model.gem16",
+      "bytes": 14696668160,
+      "sha256": "1ed73cf105b68db937ac0992283d31fdb2225474204341440721f41fe871bb72"
+    },
+    "source": {
+      "repository": "google/gemma-4-26B-A4B-it-qat-q4_0-unquantized",
+      "revision": "f1e06dc520982d9b9edd76859fdb7ab209449949"
+    }
+  },
+  "assistant": {
+    "repository": "danmoreng/gemma-4-26B-A4B-it-assistant-GEM16",
+    "previous_revision": "a741c642353ccdaefc6f987a3120f434dc9487c7",
+    "revision": "466cc26d157fad0cc946f094ae904445147c38b4",
+    "commit_url": "https://huggingface.co/danmoreng/gemma-4-26B-A4B-it-assistant-GEM16/commit/466cc26d157fad0cc946f094ae904445147c38b4",
+    "lock": "models/gemma4-26b-gem16-assistant.lock.json",
+    "lock_sha256": "7f5c0bf98cb482c8e11df34afab3d04e780df3665074bc2a215b40307e90ac7d",
+    "files": 14,
+    "total_bytes": 290772313,
+    "model_file": {
+      "path": "model-00001-of-00001.safetensors",
+      "bytes": 258317280,
+      "sha256": "4d3ce2102ad0631d9e7e0586be0b108d5789cbc5b90d21b4c50613979228d927"
+    },
+    "source": {
+      "repository": "google/gemma-4-26B-A4B-it-qat-q4_0-unquantized-assistant",
+      "revision": "9537141506fe8875b3ed45b264af13580cb29166"
+    }
+  },
+  "hub_metadata": {
+    "license": "apache-2.0",
+    "base_model_relation": "quantized",
+    "upstream_card_body_retained": true
+  },
+  "anonymous_verification": {
+    "target_api_http_status": 200,
+    "assistant_api_http_status": 200,
+    "target_readme_http_status": 200,
+    "target_weight_head_http_status": 200,
+    "assistant_weight_head_http_status": 200,
+    "target_private": false,
+    "assistant_private": false,
+    "target_gated": false,
+    "assistant_gated": false
+  }
+}
