@@ -1,14 +1,31 @@
 # Gem16 roadmap
 
-## Current priority: Gemma 4 26B Fast Track
+## Current priority: productization baseline
 
-The active execution policy is [`ACTIVE_DECISIONS.md`](ACTIVE_DECISIONS.md). The detailed current task entry is
-[`plans/gemma4-26b/ACTIVE_CONTRACT.md`](plans/gemma4-26b/ACTIVE_CONTRACT.md). Historical decisions and benchmark
-ledgers remain evidence, not default task instructions.
+The active execution policy is [`ACTIVE_DECISIONS.md`](ACTIVE_DECISIONS.md). The owner-approved scope is
+[`PRODUCT_CONTRACT.md`](PRODUCT_CONTRACT.md), and the coding-agent API boundary is
+[`OPENAI_AGENT_CORE_V1.md`](OPENAI_AGENT_CORE_V1.md). Historical milestone documents and benchmark ledgers remain
+evidence, not default task instructions.
 
-M00–M17, M20–M23 and M25 of the Gemma 4 26B track are accepted. The text-only SM120 profile is a qualified,
-selectable peer to the protected 12B default. Target and fixed-D2 Assistant are published in separately pinned
-Hugging Face repositories, and Studio can install the pair into immutable cache snapshots.
+The next product increments are, in order:
+
+1. keep `AGENTS.md`, active decisions, README, Studio/server docs, and the central `VERSION` consistent;
+2. provide one equal native model-management flow for installing, verifying, selecting, and removing either 12B or
+   26B side by side;
+3. qualify OpenAI Agent Core v1 with the official Python and JavaScript/TypeScript SDKs and one unmodified external
+   coding-agent workflow on both model profiles and both product platforms;
+4. produce equally supported Windows and Linux archives with exact dependency contracts, licenses/notices,
+   manifests, hashes, and clean-machine smoke evidence;
+5. harden installers, signing, updates, and release automation after the portable two-platform gate passes.
+
+The Kotlin/Compose GUI is deprecated. All current UI and release work belongs in `nativeStudio/`. The 26B decode
+optimization phase is frozen; new decode tuning requires a separate owner decision.
+
+## Completed Gemma 4 26B qualification track
+
+M00–M17, M20–M23 and M25 of the Gemma 4 26B track are accepted. The text-only SM120 profile and the multimodal 12B
+profile are equal product choices with different capabilities. Target and fixed-D2 Assistant are published in
+separately pinned Hugging Face repositories, and Studio can install the pair into immutable cache snapshots.
 
 ```text
 accepted artifact/loader → accepted optimized M17 runtime → accepted M22 product
@@ -38,15 +55,15 @@ waived the remaining broad M19 suite for this checkpoint; claims do not extend b
 - **M23:** accepted technical Target freeze after M20/M21 and M22;
 - **M25:** accepted fixed-D2 compatibility, exactness, product and 86,016-token MTP context qualification;
 - **Main promotion:** accepted after current-HEAD release, CUDA/sanitizer, real 12B/26B product and server lifecycle
-  revalidation; 12B remains the default.
+  revalidation.
 
 A bounded profile-driven prefill/decode optimization slice produced the promoted candidate. M21 context ran first,
 and M20 consumed the matching M21 evidence, avoiding invalidation and duplicate full evidence runs. No multi-hour
 broad quality benchmark is required for this checkpoint. Internal Q4_0 work, positive
 multi-slot admission, Studio polish and vision do not block the base vertical path. Vision is outside the 26B Fast
-Track. The 12B production path and its existing contracts remain regression-protected and unchanged.
+Track. The qualified 12B path and its existing contracts remain regression-protected and unchanged.
 
-## Near-term backlog after the M19 benchmark
+## Retained model-specific backlog
 
 ### Reduce Gemma 4 26B server startup latency
 

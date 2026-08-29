@@ -1,326 +1,91 @@
 # Active decisions
 
-**Updated:** 2026-08-28 · **Track:** Gemma 4 26B A4B Fast Track · **Status:** M00–M17, M20–M23 and M25 accepted; qualified 26B product checkpoint; broad M19 suite waived
+**Updated:** 2026-08-29
+**Track:** Productization baseline
+**Status:** owner-approved product contract; implementation and release gates in progress
 
-This is the short operational policy for current work. It is not a replacement for historical evidence. Permanent
-rules in `AGENTS.md` remain binding. For facts about the implementation, current source, tests and accepted evidence
-win; this file defines the active execution choices; the detailed active contract and milestone status provide the
-next task entry. Read historical `docs/DECISIONS.md` only for a specific historical question or disputed detail.
+This file is the short operational policy for current work. Permanent safety,
+security, evidence, and runtime-integrity rules in `AGENTS.md` remain binding.
+The detailed product scope is [`PRODUCT_CONTRACT.md`](PRODUCT_CONTRACT.md), and
+the API subset is [`OPENAI_AGENT_CORE_V1.md`](OPENAI_AGENT_CORE_V1.md).
 
-## Fast-track target
+The prior Gemma 4 26B fast-track decision history is preserved unchanged at
+[`archive/ACTIVE_DECISIONS_2026-08-28_GEMMA4_26B_FAST_TRACK.md`](archive/ACTIVE_DECISIONS_2026-08-28_GEMMA4_26B_FAST_TRACK.md).
+Read it only for a concrete historical or evidence question.
 
-Maintain a qualified, text-only Gemma 4 26B A4B product checkpoint for one approximately 16 GB Blackwell GPU. It is
-a selectable peer to the qualified 12B checkpoint, while 12B remains the protected default and multimodal baseline.
-The 26B qualification is platform- and capability-specific: SM120, batch one, one resident slot, fixed-D2 MTP and
-the published context limits.
+## Active product decisions
 
-On 2026-08-27 the owner scoped the next server-hardening slice to one local user on one machine. Structured
-privacy-safe logging, bounded FIFO generation admission, graceful lifecycle/error handling and operational metrics
-are in scope. Authentication/TLS, deployment packaging and a multi-hundred-client soak runner are explicitly
-deferred. The queue follows configured execution capacity: one-slot 26B serializes generation, while two-slot 12B
-retains two independent active requests; same-session work remains single-flight and waits instead of failing for
-ordinary contention.
+1. **Equal platforms.** Windows x64 and Linux x86-64 are equal product
+   platforms. A product release must pass the same applicable source, host,
+   GPU, API, Studio, packaging, and clean-machine gates on both.
+2. **Local single machine.** The initial deployment is one local user on one
+   supported machine. Loopback is the default and the supported security
+   boundary. Authentication/TLS and remote multi-user serving remain outside
+   this baseline.
+3. **Equal model profiles.** Gemma 4 12B Unified and Gemma 4 26B A4B are equal,
+   user-selectable product profiles and may be installed side by side. Neither
+   is the preferred product choice. Capability differences remain explicit:
+   12B is the qualified multimodal profile; 26B is qualified text-only,
+   single-slot, and optionally uses its separately pinned fixed-D2 Assistant.
+4. **One active GUI.** `nativeStudio/` is the only active GUI. `studioApp/` is
+   deprecated, receives no new product work, and remains temporarily as
+   read-only migration evidence.
+5. **Bounded OpenAI compatibility.** The product API is OpenAI Agent Core v1,
+   not full OpenAI platform emulation. Supported fields, events, state, tools,
+   exclusions, and qualification gates are versioned and fail visibly when a
+   request exceeds the contract.
+6. **One version source.** Repository, CMake builds, packaged server, native
+   Studio, and release automation consume the root `VERSION` file. Release tags
+   and manually supplied release versions must match it.
+7. **Product work before new decode tuning.** The 26B decode optimization phase
+   remains frozen. Current priority is documentation consistency, two-profile
+   native onboarding, Agent Core qualification, and equal Windows/Linux
+   packaging.
 
-The first vertical path is:
+## Current qualified model facts
 
-```text
-M06 NVFP4 experts → M07 provisional tied head → M08 artifact/loader
-→ M09 real 32K residency → M13 slow correct model/early quality screen
-→ M17 optimized runtime → base qualification → MTP feasibility/integration
-```
+- 12B remains regression-protected and qualified for text, image, and audio on
+  the existing SM120 product path.
+- 26B is a qualified selectable product checkpoint for SM120, batch one, one
+  resident slot, fixed-D2 MTP, and bounded published quality claims.
+- 26B fixed-D2 MTP supports up to 86,016 context tokens with the accepted
+  200 MiB reserve. Target-only execution supports up to 98,304 with its
+  separate reserve contract.
+- The qualified 26B Target and Assistant are separate immutable model
+  repositories. Studio must download and verify both when MTP is selected and
+  may never silently substitute either component.
+- The final retained sampled-D2 characterization reaches 203.842 token/s
+  median; the prior 220 and 250 token/s targets remain unmet and closed for the
+  frozen decode phase. This does not block the accepted product checkpoint.
 
-M08 was accepted on 2026-08-14 at implementation commit `f433358b8e2c1250b95801fc898faee4fcedcbe5` after
-byte-identical clean complete-artifact builds, direct-loader validation, protected 12B inspection and exact-arena
-reference-GPU admission. M09 was accepted on 2026-08-14 at implementation commit
-`6c3b9e456bc7fed68e2e90a51ba20c1c895fd085`: the clean real-artifact probe passes 32K and owner-required 64K
-residency, exact single-arena upload, second-slot rejection and protected 12B regressions. See
-`artifacts/m09/acceptance.json`.
+Accepted numerical, performance, context, product, and publication evidence
+continues to live in `artifacts/`, `benchmarks/`, and the archived fast-track
+record. This summary does not replace that evidence.
 
-M10 now has a passing independent CPU/NumPy replay for the locked BF16 router, shared MLP, 24 post-norm boundaries
-and all 64 selected expert contributions at eight real capture points, plus a bounded independent decoder for real
-M08 NVFP4 rows. It deliberately
-uses lower expert ID for exact top-k ties and FP32 top-k-slot accumulation; the pinned PyTorch capture has one
-tie-equivalent ordering difference and uses expert-ID/BF16 accumulation. The measured drift passes the explicit M10
-boundary gates. M10 was accepted on 2026-08-14 at clean implementation commit
-`eac6b443b239d5e04c5be5daef3dd659d57d5de9`; see `artifacts/m10/acceptance.json`.
+## Current product gaps
 
-M11 was accepted on 2026-08-22 at implementation commit `91ee47586cc426c051dee247ddfcf4a6b765ecfd` and M12 at
-implementation commit `bbee9cd930133dd49cb3acc79b4867658a0968cc`. The isolated CUDA references keep routing on device,
-use fixed initialization-time bindings, preserve distinct FP8 K/V ownership and repeat without allocation deltas.
-Their clean records are `artifacts/m11/acceptance.json` and `artifacts/m12/acceptance.json`. M13 is now the first
-full-model integration and the only early quality go/no-go screen.
+- Native Studio installs the qualified 26B pair but does not yet provide the
+  equivalent native 12B download/onboarding flow. Fresh settings also still
+  seed 12B instead of presenting a neutral first-run model choice.
+- The current OpenAI SDK validators establish a narrow development gate; full
+  Agent Core v1 still needs equal Windows/Linux and 12B/26B qualification,
+  TypeScript SDK coverage, and an external coding-agent workflow.
+- The native Studio has not yet shipped in a release produced after its
+  migration from Compose.
+- Windows and Linux packaging are not yet equal. Linux runtime dependencies and
+  clean-machine installation remain unresolved, and both packages require
+  complete notices/manifests and release smoke evidence.
+- Version reporting is being centralized in the 0.2.x development line; no
+  0.2 product release is implied by the source version alone.
 
-M13 was accepted on 2026-08-22 with decision `proceed` at implementation commit
-`3cd697501585868d5ef41e60d212bb0e502c365c`. The complete experimental reference path passes deterministic
-generation, BF16 teacher-forced KL/rank, selected layer/router drift, resident continuation, finite-numerics and
-warm 32K memory gates. See `artifacts/m13/acceptance.json`.
+## Permanent product constraints
 
-M14–M16 were accepted on 2026-08-22 at implementation commit
-`9a374c3dda10b7ae870c712cd70a60aa0a9e2c52`; M17 was accepted at implementation commit
-`57fdeb309aacfce2e4eba65745fba86f14ebd113` and closed after safety, lifecycle and decode-performance hardening at
-`348683e167c6c4d3b0be7580e404c097b199a3d8`. The frozen text-only profile keeps the 14,696,668,160-byte target arena,
-separate FP8 K/V, fixed-address prefill/decode workspaces and whole-model decode graph. It rejects non-finite routing
-and logits, reports SM120 capabilities only on compatible hardware and passes the real two-process engine lifecycle
-smoke. The final short diagnostic remains logit-bitwise identical to the accepted profile and estimates 13.0903 ms
-per decode token (76.3924 token/s); this is an M20 candidate measurement, not the controlled M20 promotion result.
-See `artifacts/m17/closure-hardening.json`.
-
-The M17 artifact/profile freeze unblocks M19 held-out quality, M20 controlled performance, M21 real long-context and
-M22 CLI/server integration. M18 remains conditional and was not triggered; its number does not make it a sequential
-prerequisite.
-
-On 2026-08-23 the owner removed the 49 GB QAT-BF16 runtime comparison from the mandatory M19 suite. M19 instead uses
-Google's immutable official QAT Q4_0 GGUF at revision `d1c082be9cf3c8a514acf63b8761f4b41935842e` through pinned
-llama.cpp `0b14b87d7c20cb753b94b96854dd7b45306fc696` as its executable paired quality reference. This supersedes the
-former requirement that M19 task, prose and teacher-forced evidence run the 49 GB QAT-BF16 checkpoint.
-
-On 2026-08-24 the owner clarified that the 49 GB checkpoint restriction applies to a fully GPU-resident load and to
-long benchmark or quality-suite execution, not to short correctness work. Bounded CPU or explicit CPU/GPU/disk
-offload runs of the pinned QAT-BF16 checkpoint are allowed for Golden Gates and targeted numerical diagnosis. They
-remain diagnostic and performance-ineligible, must use an explicit host/GPU memory budget, and must not silently
-enter the production path. The accepted M01 capture (approximately 49 GiB peak process RSS and 11.25 GB peak CUDA
-allocation on this 62 GiB/no-swap laptop) is the feasibility boundary; a planned run that materially exceeds it
-requires a new capacity preflight. Historical BF16 evidence from M10/M13 remains valid, while the broad M19 suite
-stays on the official QAT Q4_0 reference and remains deferred.
-
-On 2026-08-23 the owner also deferred the remaining multi-hour M19 task and prose benchmark suite until the end of
-the current implementation/performance program. Bounded numerical checks against the pinned official QAT Q4_0
-reference remain valid correctness evidence, but M19 stays pending and no production-quality claim is allowed.
-This explicitly supersedes the former requirement that M19 pass before an engineering M23 freeze. M22 product
-qualification was accepted at implementation commit `f0aa302aa0246d44e1c8477dbbbb67fbbe2d2037`; its compact
-record is `artifacts/m22/acceptance.json`. Bounded profile-driven prefill/decode optimization toward the fixed M20
-targets now closes before the candidate is frozen. M21 then performs
-real 32K/64K and maximum-context execution; M20's approved 3-warm-up/10-retained performance qualification consumes
-that matching M21 evidence. M23 may then freeze a **technical base Target** while carrying
-the deferred-M19 limitation; it is not a shipping or quality-qualified release until M19 is eventually accepted.
-No other multi-hour or broad quality benchmark is authorized in this wave. Targeted operator/model correctness,
-12B regressions, the explicitly approved M20 run and real M21 context runs remain in scope.
-
-On 2026-08-23 the owner replaced llama.cpp parity and relative-only performance wording with fixed vLLM-class M20
-targets. The bounded promotion row is `wikipedia-real-16k64-greedy`: batch one, the exact 16,384-token prompt manifest
-SHA-256 `9a5859b979d91fccf71bcbb61aade6372cf2cc3c708e6c47b8b6cfd99f7abd2d`, 64 output forwards, 63 timed
-post-first-token decode intervals and a 16,448-token context. It uses the native base Target, FP8 KV, deterministic
-greedy execution and CUDA Graph replay with MTP/speculative decode, prompt cache, CPU offload, fallback and recurring
-allocation disabled. The existing timing boundaries remain fixed: prompt time is first prefill launch through prefill
-synchronization, TTFT is request-ready through first-token-ready, decode time is the sum of the 63 synchronized
-post-first-token intervals, and model load is excluded.
-
-M20 now requires the median of the ten retained runs after three warm-ups to reach at least **6,000 prompt token/s**
-and at least **150 ordinary decode token/s**. **6,500 prompt token/s** is the non-blocking competitive stretch target.
-No prompt, output length, cache state, KV precision, sampling, speculative mode or timing-boundary substitution may
-satisfy these gates. A result below either hard target keeps M20 open unless a later explicit owner decision changes
-the gate. The vLLM 0.27.1 community-W4A16 observation of 6,475.795 prompt token/s and 149.348 decode token/s only
-motivates the fixed targets; its checkpoint and prefill timing boundary differ, so it is not numerical parity or a
-moving acceptance dependency. This decision supersedes the prior generic multi-scenario/relative-only M20 promotion
-wording for the current bounded wave. The M20 qualifier must be aligned with this contract before formal execution;
-its current mandatory multi-scenario and non-deferred-M19 gates are stale under the active owner decisions.
-
-On 2026-08-24 the integrated SM120 26B prefill backend promoted the BF16 Tensor-Core router after a bounded
-four-prompt, 14-row QAT-BF16 Golden Gate, real-shape CUDA and sanitizer checks, deterministic engine relaunch, real
-26B product execution and protected 12B regression. Two canonical default-path runs average 6,574.16 prompt tok/s,
-passing both the 6,000 hard target and 6,500 stretch target with unchanged timing boundaries, memory semantics and
-zero fallback/allocation. Tensor-Core changes the exact quantized output hash but improves the bounded aggregate
-QAT-BF16 Top-1/KL/NLL tail metrics; the serial exact router remains an explicit per-engine pre-execution rollback.
-Formal M20 remains open because ordinary decode averages 139.05 rather than 150 tok/s and the 3-warm-up/10-retained
-protocol has not run. The next bounded work is last-chunk-only output-head/argmax, safe non-aliasing prefill staging,
-and reducing greedy Prediction host synchronization/D2H transfers.
-
-On 2026-08-25 the retained exact development series advanced the same canonical row to 6,586.40 mean prompt tok/s
-and 140.459 mean ordinary-decode tok/s. Final-chunk-only prefill output, global value-cache ping-pong staging, split
-routed Gate/Up plus fused BF16-product/NVFP4 quantization, and a compact pinned status/device-self-feed host tail
-preserve the `c750d0…` output hash, fixed arena and zero fallback/allocation contract. The full-logit D10 head fusion
-was rejected. M20 remains open by 9.541 token/s (6.79% throughput); exact parallel Router Top-8 is the next isolated
-candidate. Compact evidence is under `artifacts/m20/optimization-final-chunk-only.json`,
-`artifacts/m20/optimization-global-value-pingpong.json` and
-`artifacts/m20/optimization-decode-moe-split-fused-quant.json`, plus
-`artifacts/m20/optimization-compact-prediction-self-feed.json`.
-
-Later on 2026-08-25 the exact development series reached 6,568.395 mean prompt tok/s and 150.413 mean ordinary
-decode tok/s over three adjacent canonical runs. The retained slice fuses selected W2 with the original BF16,
-slot-ordered reduction epilogue, uses eight useful warps per CTA for routed and shared W13 without changing logical
-work or arithmetic, and omits an unconsumed native router-normalization diagnostic write. The output remains
-`c750d0…`; real-shape randomized differentials, the five focused test groups, memcheck/racecheck/initcheck, real
-two-process engine replay/relaunch and protected 12B product regression pass. This satisfies the fixed throughput
-targets for a **development candidate**, not formal M20: M21 matching 32K/64K execution and M20's three-warm-up/ten-
-retained median qualification are still required. See
-`artifacts/m20/optimization-decode-fused-expert-epilog.json`.
-
-The frozen candidate then passed M21 and formal M20 on 2026-08-25. M21 executes 32K, 64K and 98,304 tokens twice
-in fresh processes with deterministic finite logits, real ring/global-boundary coverage, zero fallback/allocation
-and unchanged margins; 102,400 is reproducibly capacity-rejected, so `base_max_context=98,304`. Formal M20 uses
-the real Wikipedia 16K+64 row, three warm-ups and ten retained runs with continuous telemetry. Its retained medians
-are 6,572.809 prompt tok/s and 150.615 ordinary-decode tok/s; the 6,000/150 gates and 6,500 prompt stretch all pass
-with unchanged `c750d0…` output. M20 and M21 are accepted and consumed by the technical M23 freeze, while M19
-remains explicitly deferred and blocks shipping/production-quality claims. See `artifacts/m20/acceptance.json` and
-`artifacts/m21/acceptance.json`.
-
-Technical M23 was accepted on 2026-08-25 with implementation/evidence revision
-`c8e09e4e337d58ac0cfe402585ef818135845faa`. The CLI and server keep 32K as the default, report 64K as qualified
-and publish `base_max_context=98,304`; the real 32K product lifecycle and protected 12B product regression pass on
-the updated binaries. `artifacts/m23/acceptance.json` reconciles the exact M20/M21 artifact, source, toolchain,
-benchmark-binary and output hashes and freezes this ordinary-decode profile as the M25 rollback Target. M19 remains
-visibly pending, so M23 is an experimental engineering checkpoint rather than a shipping or production-quality
-release. Before native M25 integration, update and pin the available llama.cpp and vLLM reference runtimes and run
-bounded 26B ordinary/MTP baseline characterizations to select proposal lengths and a realistic performance target.
-
-That prerequisite completed on 2026-08-25. vLLM 0.27.1 remains the latest published wheel and its retained ordinary
-CUDA-Graph comparison stays near 6,400 prompt / 150 decode token/s; native 26B MTP construction with both the
-official BF16 and a supported ModelOpt NVFP4 assistant exceeds the 16 GB device, so the owner directed that vLLM not
-be rerun and remain the ordinary-only comparison. llama.cpp was updated to build 10623
-(`f1357e49980f5462af9783164f3fdec407d90137`). On the fixed 16K+1,135 workload its ordinary/D2 medians are
-118.627/151.919 decode token/s, a 28.06% D2 gain with 62.85% draft acceptance. D2 leaves only 343 MiB free and its
-output first differs from ordinary at zero-based token 44, so it is a performance target for M25 feasibility—not
-quality, exactness, memory-gate or default-mode acceptance. See
-`benchmarks/baselines/llama_cpp/gemma4-26b-a4b-qat-q4_0-mtp-b10623.json`.
-
-The owner set the base-model 64K residency and later execution reserve to 400 MiB on 2026-08-14 so that 64K remains
-a required supported target. This supersedes the prior 500 MiB base-model rule for 64K and larger contexts. The 32K
-gate remains 700 MiB, and MTP keeps its separate 500 MiB 64K gate until M25 measures assistant overhead.
-
-On 2026-08-25 the owner selected Google's official QAT-Q4_0-matched 26B Assistant at immutable revision
-`9537141506fe8875b3ed45b264af13580cb29166` as the sole native M25 source. The production candidate uses NVFP4 for
-the tied embedding/output head and MLP matrices, FP8 for attention Q/O and the 2,816↔1,024 interface projections,
-and BF16 for norms and scalar controls. The official BF16 payload is the numerical oracle; all-FP8 and all-NVFP4
-production candidates are out of scope unless a measured failure triggers a later owner decision. The Assistant
-must read the Target KV cache and may not allocate a second long-context cache.
-
-"Numerical oracle" applies only to component-level Assistant differential tests. It does not make the BF16
-Assistant's proposed token authoritative. M25 draft quality and acceptance are decided by the actual frozen Target
-engine: both BF16 and compiled-hybrid proposals must be verified independently against the Target continuation. A
-hybrid proposal that differs from BF16 is not a failure when the Target accepts it, and a BF16 proposal that the
-Target rejects is not counted as correct.
-
-The owner also superseded M25's fixed 500 MiB rule for 64K and larger with a measured, profile-specific safety
-reserve. M25 still qualifies 32K first against the conservative 700 MiB gate. After exact Assistant and verifier
-residency is known, 64K is tested first with a 200 MiB reserve and may additionally be tested down to 100 MiB only
-with repeated fresh-process lifecycle, deterministic output, allocation-delta and capacity-rejection evidence.
-The accepted reserve, `mtp_max_context` and all excluded larger contexts must be published explicitly. A smaller
-MTP reserve never changes the base-model 400 MiB rule or permits an allocation failure during inference.
-
-The first native 26B MTP CUDA-Graph checkpoint was implemented on 2026-08-25 as a draft-length-indexed fixed-Graph
-registry with exact greedy D1, D2 and D4 specializations. One graph replay owns proposal, T=2/3/5 Target verification,
-accept/commit, device-side continuation and the final ordinary tail. On identical bounded 16K+1,135 runs, all three
-depths exactly match ordinary Target tokens and report no non-finite step. D1 reaches 149.64 token/s at 74.46% draft
-acceptance, D2 wins at 154.81 token/s and 65.51%, and D4 reaches 125.80 token/s at 50.94%. All fixed graphs remain
-resident together with 808,255,488 bytes free at 32K, passing the 700 MiB gate; D2 remains the fixed-depth candidate.
-This is development evidence, not formal M25 acceptance; graph-byte observations are not exact CUDA graph-pool sizes.
-The 145.97 comparator is deliberately forced-output/suppressed-token diagnostic timing, not a new ordinary product
-baseline; the current worktree produces 149.994 token/s and the unchanged `c750d0...` output on one exact M20
-16K+64 control, consistent with the accepted 150.615 retained median.
-Greedy depth qualification remains first; sampled MTP follows as a separate correctness slice even though ordinary
-26B GPU sampling and shared speculative-sampling primitives already exist.
-
-The first selected-D2 optimization on 2026-08-26 shares fixed-row local/global Target attention for T=3 while D1/D4
-retain their qualified serial parent. The model-specific global batch uses the 26B KVH2 cache geometry and ordinary
-128-token split. The bounded 16K+1,135 result remains exactly Target-identical with unchanged 642/980 acceptance and
-improves D2 from 154.805 to 164.763 post-first token/s (+6.43%), or +13.32% over its in-run ordinary comparator.
-This passes the 10% development promotion rule but does not accept M25: formal retained and sampled-MTP gates remain.
-Compact evidence is `artifacts/m25/optimization-shared-fixed-attention.json`.
-
-On 2026-08-26 the owner froze the next exact performance checkpoint and paused further kernel tuning pending an
-independent review. Fixed-T3 Target Head and Split-K2 O weight reuse plus batched T=3 MoE boundaries raise bounded
-D2 to a repeated median of 202.505 post-first token/s with all 1,135 Target output IDs identical, unchanged 642/980
-draft acceptance and the 32K 700 MiB gate passing. Prefill weight/token reuse and one RoPE table per local/global
-profile and chunk raise the exact canonical 16K screen from 6,551.523 to 6,907.684 prompt token/s with the unchanged
-`c750d0...` output hash, zero fallback/allocation and unchanged timing semantics. This is a development freeze, not
-formal M25 acceptance; the 7,000 prompt stretch remains open by 1.336%. The next owner-priority slice is the
-selectable 26B server/UI live-chat product path while further performance work remains paused. See
-`artifacts/m25/optimization-weight-stationary-d2.json` and
-`artifacts/m20/optimization-prefill-token-reuse-rope.json`; the combined owner freeze and host/product checks are
-bound by `artifacts/m25/performance-freeze.json`.
-
-The next product slice completed at implementation commit `c4ead1dc2b74f2b2cffe38599ff21703fba55a6f` on
-2026-08-26. Fixed 26B D1/D2/D4 verification now applies ordinary same-seed Target sampling to every verifier row on
-the GPU and commits RNG, repetition history, K/V and hidden state only for emitted outputs. D2 remains the selected
-profile; adaptive 26B MTP remains unsupported. CLI/server load the separately compiled Assistant, expose the actual
-MTP capability and stream bounded verified chunks. Studio now offers a persisted 12B/26B model selector, compiled
-Target/Assistant paths and text-only enforcement while retaining 12B as the multimodal default. Bounded real
-sampling differentials, a 32K server continuation, zero fallback/allocation metrics, the complete host/CUDA suite,
-Studio tests and the protected real 12B product regression pass. This is a usable experimental product checkpoint,
-not formal M25 acceptance: retained sampled timing and full M19 remain open. See
-`artifacts/m25/sampled-mtp-product.json`.
-
-On 2026-08-27 the 26B fixed-D2 MTP context gate passed in repeated fresh processes at 65,536 and 73,728 tokens.
-The respective free-device measurements after boundary generation are 458,031,104 and 369,950,720 bytes, with
-repeat-identical output checksums, zero fallback and no token-loop allocation. The server now applies the selected
-200 MiB reserve only to active long-context MTP; the base-model 400 MiB rule is unchanged. Allocation-only admission
-reaches 88,640 tokens, but boundary execution becomes unsafe between 74,944 and 75,000 tokens. Therefore
-`mtp_max_context=73,728`; larger MTP contexts fail during initialization until that CUDA fault is diagnosed. This
-closes the M25 context slice. See
-`artifacts/m25/context-capacity-2026-08-27.json`.
-
-On 2026-08-28 the 75K fault was diagnosed as an undersized alias in the Target fixed-D2 verifier: split-attention
-borrowed dead prefill-MoE scratch, but the arena plan accounted only the normal MoE layout instead of three
-long-context attention rows. The explicit fixed-row alias now participates in the prefill arena maximum. Fresh
-process execution passes 75,000 and repeats identically three times at 86,016 tokens with 214,761,472 bytes free,
-zero fallback and no token-loop allocation. A diagnostic 86,400 run retains 210,567,168 bytes; 86,464 executes but
-falls below the 200 MiB post-generation reserve. The qualified rounded product limit is therefore
-`mtp_max_context=86,016`; this supersedes the 73,728 guard and the prior open-CUDA-fault limitation without changing
-`base_max_context=98,304`. See `artifacts/m25/context-capacity-2026-08-28.json`.
-
-On 2026-08-27 the owner accepted M25 as the qualified 26B product checkpoint. This supersedes the earlier requirement
-that the formal retained sampled-timing distribution and the complete historical M19 suite pass before checkpoint
-qualification. The retained ordinary M20 performance, bounded sampled Target-identity evidence, full GSM8K and AIME
-2026 comparisons, real product execution and the superseding repeated 86,016-token MTP boundary are the accepted evidence set. The
-missing retained sampled timing limits which throughput number may be called formal; it does not make the checkpoint
-optional or experimental. General quality claims remain bounded to the published tests.
-
-On 2026-08-28 the owner froze the current Assistant artifact, precision and proposal acceptance as optimization
-variables. Earlier CR16 comparison work found no acceptance deficit attributable to this Assistant. Follow-up
-throughput work therefore changes execution only: ordinary Target decode, existing Assistant kernels or fixed-D2
-Target verification. It must not promote Assistant matrices to a different precision or pursue higher acceptance.
-The first sampled-D2 execution target is **220 token/s** and the stretch target is **250 token/s**. The retained
-3-warm-up/10-measured sampled characterization currently reaches 199.871 token/s with the exact same 496/770
-accepted drafts and output tokens as its 194.803 token/s parent; both targets remain open.
-
-On 2026-08-28 the owner ended the current Decode-optimization phase after four final execution-only passes. The
-accepted streaming, speculative-KV, direct sampled-verifier, Assistant-boundary and fixed-T3 grid changes culminate
-at commit `7862112d5d8cf00aef5209eb7438b0adad4b6f14`. The new alternating 3-warm-up/10-measured formal Sampled-D2
-characterization reaches a 203.842 token/s median (95% CI 203.824–203.858), versus 148.293 token/s Ordinary and
-199.871 token/s at the start of this sequence. All retained runs reproduce output hash `ee9771...c112`, 523/836
-accepted proposals, 418 D2 groups and zero Ordinary tails; peak process VRAM is 15,024 MiB. The 200 token/s floor is
-met, while the 220 and 250 token/s targets are not. They are closed for this phase without changing their values;
-further Decode work requires a new owner decision. This freeze does not close a separate Prefill workstream. See
-`artifacts/m25/decode-optimization-freeze-2026-08-28.json`.
-
-The qualified Target and Assistant are published as two independently pinned Hugging Face repositories because they
-derive from different immutable Google sources. The Target package uses a single `model.gem16` SM120 device image in
-final GPU arena order and does not duplicate the source-order Safetensors payload. The Assistant remains a separate
-GEM16 hybrid NVFP4/FP8 artifact. Studio must download and verify both immutable revisions and expose 26B alongside
-12B; it must not silently substitute either component.
-
-The owner clarified on 2026-08-14 that M09 should load the real artifact and prove pre-execution residency so the
-critical path reaches inference quickly. This supersedes the old M09-card wording that required captured execution
-graphs, warm model execution and an executable bounded-prefill selector before M09 could pass. M09 must still reserve
-and touch every named graph/workspace region. M11/M12 own the first executable/captured paths, M15 owns measured
-prefill chunk selection, and the final 700 MiB post-warm 32K requirement remains binding and must be revalidated there.
-
-M10/M12 semantic and attention fixture work may proceed in disjoint slices when it does not delay the vertical path.
-The integration branch remains `feat/gemma4-26b`; temporary worktrees are allowed only with explicit file ownership.
-
-## Active implementation choices
-
-- **M06:** perform one clean full QAT-BF16-to-NVFP4 expert conversion. Require exhaustive small codec, shape, byte,
-  determinism and representative real-shape operator-consumption tests, bounded-memory evidence and sampled
-  Ordinary/Unsloth diagnostics sufficient to catch convention errors. A complete Ordinary conversion and exhaustive
-  Ordinary-versus-Unsloth attribution are conditional work, not M06/M07 blockers. This explicitly supersedes the
-  former future-stage requirement for a full Ordinary conversion at every M05–M07 partial stage.
-- **M07:** use one provisional NVFP4 tied embedding/output head for the first complete artifact. The accepted
-  implementation compiles one QAT tied source into four aliased components and validates CPU lookup/T=1 reference
-  semantics. An internal Q4_0 encoder/backend and broad head A/B study are optional and do not block the first
-  executable path. MTP verifier head batches belong to M25, not M07.
-- **M13:** is the only early quality go/no-go screen. It must still check deterministic generation, teacher-forced
-  drift and catastrophic numerical behavior. **M18** is conditional diagnosis/attribution when M13 or later quality
-  fails, a head decision needs attribution, or the owner requests it; it is not a normal prerequisite for native work.
-- **Memory:** qualify one fully resident 26B slot at 32K with at least 700 MiB directly measured free CUDA memory.
-  Treat 64K and the measured maximum safe context as later qualification work. Keep the existing 14,100 MiB target
-  and 14,300 MiB review stop for the immutable weight arena.
-- **MTP and vision:** MTP follows a frozen base target and requires its own assistant, exactness and memory work.
-  Vision is a separate later track and is outside this fast path.
-
-## Scope boundary
-
-The accepted M00–M17 source locks, evidence and historical records remain valid. The active choices above simplify
-future execution; they do not authorize silent precision changes, CPU weight offload, duplicate device layouts,
-runtime quantization, unreported fallback, weakened 12B behavior or unsupported capability claims. Experimental
-results must say which gates have not yet been run.
+- No productization change may weaken qualified 12B or 26B model behavior,
+  precision, cache semantics, resident-weight ownership, context limits,
+  fallback reporting, or allocation rules.
+- Model locks, model files, requests, media, tool schemas, tool arguments, and
+  tool results remain untrusted inputs.
+- Studio and server must disclose the selected model profile and actual
+  capabilities. Equal product status never permits capability substitution.
+- Historical evidence is preserved rather than rewritten. Compact active docs
+  point to archived decisions and accepted immutable records.

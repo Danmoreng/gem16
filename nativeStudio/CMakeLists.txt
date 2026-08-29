@@ -1,6 +1,15 @@
 cmake_minimum_required(VERSION 3.28)
 
-project(gem16-studio LANGUAGES CXX)
+set(GEM16_ROOT "${CMAKE_CURRENT_LIST_DIR}/..")
+file(STRINGS "${GEM16_ROOT}/VERSION" GEM16_VERSION LIMIT_COUNT 1)
+string(STRIP "${GEM16_VERSION}" GEM16_VERSION)
+if(NOT GEM16_VERSION MATCHES "^([0-9]+)\\.([0-9]+)\\.([0-9]+)(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$")
+  message(FATAL_ERROR "VERSION must contain one semantic version, got '${GEM16_VERSION}'")
+endif()
+set(GEM16_CMAKE_VERSION
+    "${CMAKE_MATCH_1}.${CMAKE_MATCH_2}.${CMAKE_MATCH_3}")
+
+project(gem16-studio VERSION "${GEM16_CMAKE_VERSION}" LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -9,7 +18,6 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/bin")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/bin")
 
-set(GEM16_ROOT "${CMAKE_CURRENT_LIST_DIR}/..")
 set(IMGUI_DIR "${CMAKE_CURRENT_LIST_DIR}/third_party/imgui")
 
 find_package(Threads REQUIRED)
@@ -75,6 +83,7 @@ target_compile_definitions(gem16-studio PRIVATE
   IMGUI_DEFINE_MATH_OPERATORS
   CPPHTTPLIB_TCP_NODELAY=1
   GEM16_REPOSITORY_ROOT="${GEM16_ROOT}"
+  GEM16_VERSION_STRING="${GEM16_VERSION}"
 )
 target_link_libraries(gem16-studio PRIVATE Threads::Threads)
 

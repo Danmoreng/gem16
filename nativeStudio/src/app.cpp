@@ -866,7 +866,8 @@ void StudioApp::DrawSettings() {
   if (ImGui::Button("Save settings", {140, 42})) (void)SaveSettings(settings_);
   ImGui::Dummy({0, 18});
   SectionLabel("ABOUT");
-  ImGui::TextWrapped("gem16 Native Studio · C++20 · Dear ImGui · Linux OpenGL / Windows Direct3D 11");
+  ImGui::TextWrapped("gem16 Native Studio %s · C++20 · Dear ImGui · Linux OpenGL / Windows Direct3D 11",
+                     GEM16_VERSION_STRING);
   ImGui::TextDisabled("Visual foundation adapted from Free Solace at bb35bb3 (MIT). Native operating-system cursor enabled.");
   ImGui::EndChild();
 }

@@ -9,6 +9,12 @@ $Server = Join-Path $RepoRoot "build\Windows\blackwell-release\bin\gem16-server.
 if (-not (Test-Path -LiteralPath $Server -PathType Leaf)) {
     throw "Build the Windows CUDA release server before packaging: $Server"
 }
+$Version = (Get-Content -LiteralPath (Join-Path $RepoRoot "VERSION") -Raw).Trim()
+$ServerVersion = (& $Server --version | Out-String).Trim()
+if ($LASTEXITCODE -ne 0) { throw "Unable to read the release server version" }
+if ($ServerVersion -ne "gem16-server $Version") {
+    throw "Release server version mismatch: expected 'gem16-server $Version', got '$ServerVersion'"
+}
 . (Join-Path $PSScriptRoot "windows-toolchain.ps1")
 Import-Gem16VisualStudioEnvironment
 $Build = Join-Path $RepoRoot "build\Windows\native-studio-package"
@@ -22,6 +28,8 @@ New-Item -ItemType Directory -Path (Join-Path $Stage "bin") -Force | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $Stage "licenses") -Force | Out-Null
 Copy-Item (Join-Path $Build "bin\gem16-studio.exe") (Join-Path $Stage "bin") -Force
 Copy-Item $Server (Join-Path $Stage "bin") -Force
+Copy-Item (Join-Path $RepoRoot "VERSION") $Stage -Force
+Copy-Item (Join-Path $RepoRoot "LICENSE") $Stage -Force
 Copy-Item (Join-Path $RepoRoot "nativeStudio\third_party\imgui\LICENSE.txt") (Join-Path $Stage "licenses\Dear-ImGui-MIT.txt") -Force
 Copy-Item (Join-Path $RepoRoot "nativeStudio\licenses\Free-Solace-ImGui-Interface-MIT.txt") (Join-Path $Stage "licenses") -Force
 if (Test-Path $Archive) { Remove-Item $Archive -Force }

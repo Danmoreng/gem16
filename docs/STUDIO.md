@@ -1,9 +1,9 @@
 # gem16 Native Studio
 
 gem16 Studio is a C++20 Dear ImGui desktop client for Linux and Windows. It keeps CUDA and model weights in the
-separate `gem16-server` process and communicates through the existing OpenAI-compatible HTTP/SSE interface. The
-native client replaces the Kotlin/Compose application as the default development launcher while the previous source
-remains in `studioApp/` as a parity reference during migration.
+separate `gem16-server` process and communicates through the bounded OpenAI Agent Core v1 HTTP/SSE interface. It is
+the only active GUI and owns all new product and release work. The Kotlin/Compose application in `studioApp/` is
+deprecated and retained temporarily as read-only migration evidence; see [`PRODUCT_CONTRACT.md`](PRODUCT_CONTRACT.md).
 
 ## Native architecture
 
@@ -26,11 +26,11 @@ license remains beside the vendored source.
 
 - Chat, Models, Server, and Settings screens with a dark/light glass palette, procedural gemstone branding, and the
   original animated GPU science-fiction wave.
-- Persisted qualified Gemma 4 12B Unified and qualified text-only Gemma 4 26B A4B profiles.
+- Persisted selectors for qualified Gemma 4 12B Unified and qualified text-only Gemma 4 26B A4B.
 - Resumable, SHA-256-verified download of the separately pinned private 26B Target and Assistant repositories into
   immutable Hugging Face snapshots, using the standard token sources and cache root.
 - Qualified 26B Target and Assistant paths, one resident session, 86,016-token MTP context, and fixed D2 selected
-  by default.
+  as its selected MTP profile.
 - Managed `gem16-server` start, stop, output capture, health polling, and non-owning attachment to an external server.
 - Incremental SSE rendering for answer and `reasoning_content`, cancellation, resident session IDs, and new-chat
   reset. Starting a new chat omits the old session ID; the one-slot 26B server then evicts the inactive root.
@@ -46,10 +46,12 @@ license remains beside the vendored source.
   `~/.config/gem16/studio.conf`, or `%APPDATA%\gem16\studio.conf`.
 - Normal operating-system window chrome and cursor on both platforms.
 
-This native slice is text-chat complete but does not yet claim feature parity with Compose. The old app's 12B model
-downloader, document/PDF extraction, image/audio attachments, microphone capture, local time tools, exact metrics
-cards, and MSI installer remain follow-up ports. The 12B server still supports its
-multimodal capabilities; the current native UI sends text only. The 26B profile is intentionally text-only.
+This native slice is text-chat complete but does not yet satisfy the full product contract. Fresh settings currently
+seed 12B rather than showing a neutral first-run model choice. Equivalent 12B model installation, document/PDF
+extraction, image/audio attachments, microphone capture, local time tools, exact metrics cards, and native installers
+remain open work. The 12B server still supports its multimodal capabilities; the current native UI sends text only.
+The 26B profile is intentionally text-only. Deprecated Compose behavior is input to a new native product decision,
+not a parity requirement and not a reason to continue modifying the old GUI.
 
 ## Build and run
 
@@ -87,8 +89,10 @@ coverage. It also covers Markdown parsing and streaming fences, undo-turn histor
 
 ## Packaging
 
-The current packaging scripts produce self-contained portable archives containing `gem16-studio`, the already-built
-CUDA `gem16-server`, and third-party notices. Checkpoints remain external.
+The current packaging scripts produce development-preview portable archives containing `gem16-studio`, the
+already-built CUDA `gem16-server`, the central `VERSION`, and available licenses/notices. Checkpoints remain external.
+The archives are not yet described as self-contained: Linux runtime dependencies, complete notices/manifests, and
+clean-machine installation still need qualification on both equal product platforms.
 
 ```bash
 ./scripts/package-studio.sh
@@ -98,9 +102,10 @@ CUDA `gem16-server`, and third-party notices. Checkpoints remain external.
 .\scripts\package-studio.ps1
 ```
 
-Outputs are `build/packages/gem16-linux-x64.tar.gz` and `build/packages/gem16-windows-x64.zip`. Native MSI/DEB
-installation and the corresponding Windows release-workflow migration remain open; the historical Compose packaging
-contract is preserved in [`legacy/KOTLIN_COMPOSE_STUDIO.md`](legacy/KOTLIN_COMPOSE_STUDIO.md).
+Outputs are `build/packages/gem16-linux-x64.tar.gz` and `build/packages/gem16-windows-x64.zip`. The Windows release
+workflow packages native Studio; an equal Linux release workflow, MSI/DEB installation, complete package manifests,
+and two-platform clean-machine smoke evidence remain open. Historical Compose packaging details are preserved only
+as deprecated evidence in [`legacy/KOTLIN_COMPOSE_STUDIO.md`](legacy/KOTLIN_COMPOSE_STUDIO.md).
 
 ## Security and lifecycle
 

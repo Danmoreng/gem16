@@ -1,6 +1,14 @@
 cmake_minimum_required(VERSION 3.28)
 
-project(gem16 VERSION 0.1.0 LANGUAGES CXX)
+file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" GEM16_VERSION LIMIT_COUNT 1)
+string(STRIP "${GEM16_VERSION}" GEM16_VERSION)
+if(NOT GEM16_VERSION MATCHES "^([0-9]+)\\.([0-9]+)\\.([0-9]+)(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$")
+  message(FATAL_ERROR "VERSION must contain one semantic version, got '${GEM16_VERSION}'")
+endif()
+set(GEM16_CMAKE_VERSION
+    "${CMAKE_MATCH_1}.${CMAKE_MATCH_2}.${CMAKE_MATCH_3}")
+
+project(gem16 VERSION "${GEM16_CMAKE_VERSION}" LANGUAGES CXX)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
@@ -554,6 +562,9 @@ target_include_directories(gem16-chat PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
 add_executable(gem16-server src/cli/server_main.cpp)
 target_include_directories(gem16-server PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+target_compile_definitions(gem16-server PRIVATE
+  GEM16_VERSION_STRING="${GEM16_VERSION}"
+)
 # Keep the CUDA-bearing core as a direct dependency so CMake includes its
 # separable-compilation objects in the server executable's device-link step.
 target_link_libraries(gem16-server PRIVATE gem16_server_support gem16_httplib gem16_core)
@@ -561,6 +572,12 @@ gem16_set_project_warnings(gem16-server)
 gem16_enable_sanitizers(gem16-server)
 
 include(CTest)
+if(BUILD_TESTING)
+  add_test(NAME gem16-server-version COMMAND gem16-server --version)
+  set_tests_properties(gem16-server-version PROPERTIES
+    PASS_REGULAR_EXPRESSION "gem16-server ${GEM16_VERSION}"
+  )
+endif()
 if(BUILD_TESTING AND GEM16_BUILD_TESTS)
   add_executable(gem16-unit-tests
     tests/unit/audio_test.cpp

@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Release version, for example 0.1.0. Defaults to the tag name without v."
+        description: "Release version. When supplied, it must match the root VERSION file."
         required: false
         type: string
       prerelease:
@@ -44,23 +44,25 @@ jobs:
       - name: Resolve release version
         shell: pwsh
         run: |
+          $sourceVersion = (Get-Content -LiteralPath VERSION -Raw).Trim()
+          if ($sourceVersion -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$') {
+            throw "VERSION must contain one semantic version. Got '$sourceVersion'."
+          }
+
           $version = "${{ inputs.version }}"
           if ([string]::IsNullOrWhiteSpace($version)) {
             if ("${{ github.ref_type }}" -eq "tag") {
               $version = "${{ github.ref_name }}"
             } else {
-              $version = "0.1.${{ github.run_number }}"
+              $version = $sourceVersion
             }
           }
 
           $releaseVersion = $version -replace '^v', ''
-          $packageVersion = ($releaseVersion -replace '[^0-9.].*$', '')
-          if ($packageVersion -notmatch '^\d+(\.\d+){1,3}$') {
-            throw "Package version must be numeric, for example 0.1.0. Got '$releaseVersion'."
+          if ($releaseVersion -ne $sourceVersion) {
+            throw "Release version '$releaseVersion' must match VERSION '$sourceVersion'."
           }
-
           "RELEASE_VERSION=$releaseVersion" | Out-File -FilePath $env:GITHUB_ENV -Append
-          "APP_VERSION=$packageVersion" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Install pinned CUDA toolchain
         shell: pwsh
@@ -146,7 +148,7 @@ jobs:
 
             - `windows-x64-sm120a.zip`: native C++ gem16 Studio with the CUDA-enabled gem16 server for NVIDIA Blackwell SM120/SM120a.
 
-            The CUDA runtime is linked into the server executable, so the target machine does not need a CUDA Toolkit installation. A compatible NVIDIA driver and Blackwell GPU are required. Model checkpoints are not embedded; populate the pinned 12B cache with `tools/fetch_model.py` or select an existing compiled checkpoint directory.
-          prerelease: ${{ inputs.prerelease || false }}
+            The CUDA runtime is linked into the server executable, so the target machine does not need a CUDA Toolkit installation. A compatible NVIDIA driver and Blackwell GPU are required. Model checkpoints are not embedded. Choose the qualified 12B or 26B profile; populate the locked 12B cache with `tools/fetch_model.py`, or let native Studio download the separately pinned 26B Target and Assistant.
+          prerelease: ${{ contains(env.RELEASE_VERSION, '-') || inputs.prerelease || false }}
           files: artifacts/*
           fail_on_unmatched_files: true

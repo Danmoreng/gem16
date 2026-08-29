@@ -1,6 +1,18 @@
-# OpenAI-compatible server
+# OpenAI Agent Core v1 server
+
+`gem16-server` implements the deliberately bounded
+[`OpenAI Agent Core v1`](OPENAI_AGENT_CORE_V1.md) compatibility contract. The
+field-level details below describe the current implementation. “Compatible”
+does not mean complete OpenAI platform emulation, and unsupported fields fail
+visibly instead of being ignored.
 
 ## Start
+
+The binary and `GET /health` report the central repository version:
+
+```bash
+gem16-server --version
+```
 
 ```powershell
 .\build\Windows\blackwell-release\bin\gem16-server.exe `
@@ -58,7 +70,7 @@ Up to `--max-sessions` independent requests may execute concurrently; the next
 HTTP 503 with `resource_exhausted` instead of growing host memory without a
 limit. Requests targeting the same resident session also wait for its current
 turn to finish. Thus the one-slot 26B profile serializes all generation while
-the default two-slot 12B profile retains two-request parallelism. Cancellation,
+the qualified two-slot 12B profile retains two-request parallelism. Cancellation,
 health, readiness, liveness and metrics bypass the generation queue.
 The underlying HTTP worker-task queue is bounded separately with a small
 control-plane reserve, so connections cannot accumulate unbounded host work
@@ -66,7 +78,7 @@ before reaching generation admission.
 
 ## Endpoints
 
-- `GET /health` reports status, resident session count, and the configured limit.
+- `GET /health` reports version, status, model capabilities, resident session count, and the configured limit.
 - `GET /live` reports process liveness.
 - `GET /ready` reports readiness and changes to HTTP 503 while draining.
 - `GET /metrics` exports Prometheus text metrics.

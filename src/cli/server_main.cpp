@@ -850,6 +850,10 @@ void HandleCancelResponse(ServerState& state, std::string_view response_id,
 }
 
 int ServerMain(int argc, char** argv) {
+  if (argc == 2 && std::string_view(argv[1]) == "--version") {
+    std::cout << "gem16-server " << GEM16_VERSION_STRING << '\n';
+    return 0;
+  }
   if (argc == 2 && (std::string_view(argv[1]) == "--help" ||
                     std::string_view(argv[1]) == "-h")) {
     PrintUsage();
@@ -865,7 +869,8 @@ int ServerMain(int argc, char** argv) {
                           options.value().log_format, std::cerr);
   const auto startup_started = std::chrono::steady_clock::now();
   logger.Log(LogLevel::kInfo, "server_starting",
-             {{"model", options.value().model_name},
+             {{"version", GEM16_VERSION_STRING},
+              {"model", options.value().model_name},
               {"host", options.value().host},
               {"port", std::to_string(options.value().port)}});
   auto config = gem16::internal::LoadModelConfig(
@@ -983,6 +988,8 @@ int ServerMain(int argc, char** argv) {
                response.set_content(
                    "{\"status\":" +
                        gem16::json::Quote(queue.draining ? "draining" : "ok") +
+                       ",\"version\":" +
+                       gem16::json::Quote(GEM16_VERSION_STRING) +
                        ",\"request_queue_depth\":" +
                        std::to_string(queue.queued) +
                        ",\"request_queue_active\":" +

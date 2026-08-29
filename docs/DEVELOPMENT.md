@@ -3,6 +3,13 @@
 This document contains the implementation rules shared across gem16 features. Model arithmetic and execution
 architecture belong in their feature specifications and `ARCHITECTURE.md`.
 
+## Product version
+
+The root `VERSION` file is the sole product-version source. It uses semantic-version syntax and may carry a
+prerelease suffix such as `0.2.0-dev`. Root CMake, native Studio CMake, server version/health reporting, portable
+packages, and release automation consume it. A release tag or manually supplied workflow version must match it;
+do not introduce another independently edited product version.
+
 ## Languages and runtime dependencies
 
 - Runtime code uses C++20 and CUDA C++. Use C only for narrow system interfaces.

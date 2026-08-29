@@ -1,4 +1,8 @@
-# gem16 Studio
+# Deprecated Kotlin/Compose Studio
+
+> [!CAUTION]
+> This GUI is deprecated as of the 2026-08-29 product baseline. `nativeStudio/` is the only active GUI. The material
+> below is retained as migration evidence and does not define current product, packaging, or release behavior.
 
 gem16 is a Kotlin Compose Desktop application for local Gemma 4 chat and
 `gem16-server` lifecycle management. It follows the desktop structure proven by

@@ -5,8 +5,8 @@
 <h1 align="center">gem16</h1>
 
 <p align="center">
-  Run Gemma 4 12B locally on a single 16 GB NVIDIA GPU.<br>
-  Desktop app, OpenAI-compatible server, and a purpose-built CUDA inference engine.
+  Run Gemma 4 12B or 26B locally on a single 16 GB NVIDIA GPU.<br>
+  Native desktop app, OpenAI Agent Core v1 server, and a purpose-built CUDA inference engine.
 </p>
 
 <p align="center">
@@ -19,36 +19,40 @@
   <img src="docs/images/gem16-chat.png" alt="gem16 desktop app running a multimodal local Gemma 4 chat" width="1200">
 </p>
 
-gem16 is a local inference stack built specifically for Gemma 4 on Blackwell GPUs with about 16 GB of VRAM. The
-native C++ desktop app is the primary entry point: it starts or attaches to `gem16-server` and provides local streamed
-text chat for the qualified 12B and text-only 26B A4B paths. Populate either pinned model set with
-`tools/fetch_model.py`; the previous Compose downloader remains a migration reference.
+gem16 is a local inference stack built specifically for Gemma 4 on Blackwell GPUs with about 16 GB of VRAM. Gemma 4
+12B Unified and Gemma 4 26B A4B are equal, user-selectable product profiles that can be installed side by side. The
+native C++ desktop app is the primary entry point: it starts or attaches to `gem16-server`, manages the selected
+profile, and provides local streamed chat. The 12B profile supports text, image, and audio; 26B is text-only and may
+use its separately pinned fixed-D2 Assistant.
 
-The engine loads the original mixed FP8/NVFP4 Safetensors checkpoint directly.
+The 12B profile loads its pinned mixed FP8/NVFP4 Safetensors checkpoint directly. The 26B profile consumes its
+offline-compiled, immutable GEM16 Target artifact and optional separately compiled Assistant.
 
 > [!IMPORTANT]
 > gem16 is a development preview, not a release-qualified general-purpose runtime. The optimized CUDA backend
 > currently targets Blackwell SM120/SM120a, and the supported model revisions are pinned deliberately.
 
-## Experimental project
+## Specialized project
 
 gem16 is developed primarily with AI coding agents. It explores model-specific execution plans and
-Blackwell-optimized CUDA kernels for Gemma 4 12B within 16 GB of VRAM.
+Blackwell-optimized CUDA kernels for the qualified Gemma 4 12B and 26B profiles within 16 GB of VRAM.
 
 ## Gemma 4 26B sampled performance
 
 On the RTX 5080 Laptop GPU, the qualified text-only 26B path completes the fixed 16,384-token Wikipedia workload
 with Google's recommended sampling controls as follows:
 
-| Mode | Decode tok/s | TTFT | Inference end-to-end | Sampled peak VRAM | Output tokens |
-|---|---:|---:|---:|---:|---:|
-| Ordinary | 148.71 | 2,333.44 ms | 8,660.74 ms | 14,732 MiB | 942 |
-| **Fixed D2 MTP** | **199.87** | **2,332.61 ms** | **7,040.53 ms** | 15,026 MiB | 942 |
+| Mode | Decode tok/s | Output tokens |
+|---|---:|---:|
+| Ordinary | 148.293 | 942 |
+| **Fixed D2 MTP** | **203.842** | 942 |
 
 This is a batch-one, checkpoint-FP8-KV characterization with seed 0, `temperature=1`, `top_k=64`, `top_p=0.95`,
-three paired warm-ups and ten retained alternating pairs. D2 is 34.40% faster than ordinary. Every retained pair
-produces the same output hash; D2 accepts 496 of 770 proposals (64.42%). Assistant quality and acceptance were not
-changed for this speedup. See the [compact evidence](artifacts/m25/sampled-d2-performance-2026-08-28.json).
+three paired warm-ups and ten retained alternating pairs. D2 is 37.46% faster than ordinary, has a 2,355.225 ms
+median TTFT and 6,970.995 ms median end-to-end inference time, and peaks at 15,024 MiB. Every retained run produces
+the same output hash; D2 accepts 523 of 836 proposals (62.56%). Assistant precision and acceptance were frozen during
+this execution-only optimization. See the
+[compact evidence](artifacts/m25/decode-optimization-freeze-2026-08-28.json).
 
 ## Current 16K performance
 
@@ -146,7 +150,8 @@ It is exported from the [editable tldraw source](docs/gem16-overview.tldraw).
 
 ### Desktop app
 
-- Download and verify either qualified model set, including the separately pinned 26B GEM16 Target and Assistant.
+- Select either qualified profile and install the separately pinned 26B GEM16 Target and Assistant. Native 12B
+  installation is still a product gap; populate its locked cache with `tools/fetch_model.py`.
 - Reuse the standard Hugging Face Hub cache through `HF_HUB_CACHE`, `HF_HOME`, or `XDG_CACHE_HOME`.
 - Start, stop, restart, inspect, or attach to a local `gem16-server` process.
 - Stream Markdown answers with separate, collapsed-by-default reasoning.
@@ -161,14 +166,14 @@ It is exported from the [editable tldraw source](docs/gem16-overview.tldraw).
 
 | Area | Current implementation |
 |---|---|
-| Model | Pinned Gemma 4 12B Unified mixed FP8/NVFP4 checkpoint |
+| Models | Pinned Gemma 4 12B Unified and Gemma 4 26B A4B profiles |
 | Platforms | Windows x64 and Linux x86-64; optimized CUDA path for SM120/SM120a |
 | Execution | Batch-one prefill and decode with resident weights and conversation KV state |
 | Precision | FP8 attention, packed NVFP4 MLPs, BF16 embeddings, FP8 or BF16 KV cache |
 | Decode | Whole-model CUDA Graph replay and native T=1 projection plans |
 | MTP | Optional pinned assistant with D1/D2/D4 verification and GPU acceptance/commit |
 | Inputs | Text, images, and audio; video is not implemented |
-| Interfaces | Desktop app, interactive CLI, and OpenAI-compatible HTTP/SSE server |
+| Interfaces | Desktop app, interactive CLI, and bounded OpenAI Agent Core v1 HTTP/SSE server |
 | Validation | Host/CUDA tests plus operator, layer, logit, generation, and long-context checks |
 
 Unsupported precision paths fail visibly. A missing native NVFP4 kernel is never hidden behind a silent
@@ -224,7 +229,7 @@ On first launch, open **Models** to select 12B or 26B, then verify the compiled/
 Studio reuses already populated checkpoints and never copies them into the application archive. The model downloader
 from the previous Compose client has not yet been ported; use `tools/fetch_model.py` for the locked 12B set.
 
-To build a native installer for the current platform after the release server exists:
+To build a native portable archive for the current platform after the release server exists:
 
 ```powershell
 # Windows
@@ -256,8 +261,10 @@ resolve these cache snapshots automatically; `--model` remains available as an e
 
 ## Server and CLI
 
-`gem16-server` exposes `/health`, `/metrics`, `/v1/models`, `/v1/chat/completions`, and `/v1/responses`. It supports
-streaming SSE, reasoning deltas, cancellation, structured tools, resident sessions, and ordered multimodal content.
+`gem16-server` exposes `/health`, `/metrics`, `/v1/models`, `/v1/chat/completions`, and `/v1/responses`. Its published
+[OpenAI Agent Core v1 contract](docs/OPENAI_AGENT_CORE_V1.md) supports streaming SSE, reasoning deltas, cancellation,
+client-executed function tools, resident sessions, and ordered multimodal content where the selected profile permits
+it. This is a bounded compatibility subset, not complete OpenAI platform emulation.
 
 ```powershell
 $model = python -c "from tools.hf_cache import default_target_model; print(default_target_model())"
@@ -280,7 +287,7 @@ examples live in [`docs/SERVER.md`](docs/SERVER.md), [`docs/VISION.md`](docs/VIS
 
 | Binary | Purpose |
 |---|---|
-| `gem16-server` | OpenAI-compatible local Chat Completions and Responses server |
+| `gem16-server` | Local OpenAI Agent Core v1 Chat Completions and Responses server |
 | `gem16-chat` | Interactive or one-shot terminal chat |
 | `gem16-run` | Inference, MTP, teacher forcing, state dumps, and capability reporting |
 | `gem16-inspect` | Checkpoint validation and tensor/quantization inventory |
@@ -316,7 +323,10 @@ live in [`benchmarks/baselines/cross_engine_mtp/`](benchmarks/baselines/cross_en
 
 ## Current limitations
 
-- Gemma 4 12B Unified remains the qualified multimodal default; Gemma 4 26B A4B is a qualified selectable text-only SM120 profile.
+- Gemma 4 12B Unified and 26B A4B are equal product choices with different capabilities: 12B is multimodal; 26B is
+  text-only, single-slot, and optionally uses its separately pinned Assistant.
+- Native Studio does not yet provide the same model-installation flow for 12B that it provides for 26B, and fresh
+  settings still seed 12B instead of presenting a neutral first-run choice.
 - Inference is batch one; continuous batching is not implemented.
 - The optimized CUDA backend requires Blackwell SM120/SM120a.
 - Video input, response branching, and persistent prompt-cache files are not implemented.
@@ -324,6 +334,8 @@ live in [`benchmarks/baselines/cross_engine_mtp/`](benchmarks/baselines/cross_en
 
 ## Documentation
 
+- [`docs/PRODUCT_CONTRACT.md`](docs/PRODUCT_CONTRACT.md) — equal platforms, model profiles, GUI, and release boundary
+- [`docs/OPENAI_AGENT_CORE_V1.md`](docs/OPENAI_AGENT_CORE_V1.md) — exact coding-agent API subset and qualification gate
 - [`docs/STUDIO.md`](docs/STUDIO.md) — native C++ desktop app, chat, packaging, and managed server
 - [`docs/SERVER.md`](docs/SERVER.md) — HTTP APIs, streaming, sessions, tools, and media
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — runtime and kernel architecture
