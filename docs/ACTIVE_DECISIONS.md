@@ -69,14 +69,16 @@ record. This summary does not replace that evidence.
 
 ## Current product gaps
 
-- Native Studio installs the qualified 26B pair but does not yet provide the
-  equivalent native 12B download/onboarding flow. Fresh settings also still
-  seed 12B instead of presenting a neutral first-run model choice. The current
-  12B path uses a custom `.gem16/snapshots` directory below the Hub cache and
-  the Windows cache fallback is not yet aligned with Hugging Face defaults;
-  both must be removed by the common catalog implementation. Cross-repository
-  12B files must resolve from their existing canonical upstream snapshots
-  without duplicating model blobs.
+- Native Studio now consumes one generated catalog for the pinned 12B Target,
+  12B Assistant, 26B Target, and 26B Assistant. A fresh installation presents
+  a neutral profile choice, checks available storage, and can install either
+  or both profiles. Payloads remain in their source repositories' canonical
+  Hub blobs and snapshots. Because the 12B Target lock includes one file from
+  the separate Google repository, Studio creates a deterministic
+  `.gem16/snapshots` runtime view made only from hardlinks to verified Hub
+  blobs; it is not a mirror or second blob store. Full large-download and
+  clean-machine qualification on both product platforms remains a release
+  gate.
 - The current OpenAI SDK validators establish a narrow development gate; full
   Agent Core v1 still needs equal Windows/Linux and 12B/26B qualification,
   TypeScript SDK coverage, and an external coding-agent workflow.

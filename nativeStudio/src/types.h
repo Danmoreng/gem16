@@ -35,6 +35,7 @@ struct StudioSettings {
   ServerConfig server;
   GenerationConfig generation;
   bool dark_theme = true;
+  bool onboarding_complete = false;
 };
 
 struct HealthSnapshot {
@@ -68,4 +69,3 @@ struct ChatEvent {
 [[nodiscard]] const char* ProfileWireName(ModelProfile profile);
 
 }  // namespace gem16::studio
-

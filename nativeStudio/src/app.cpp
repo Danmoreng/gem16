@@ -2,6 +2,7 @@
 
 #include "chat_history.h"
 #include "markdown.h"
+#include "model_catalog.h"
 #include "selectable_text.h"
 #include "settings.h"
 
@@ -305,6 +306,7 @@ int ComposerLineCount(const char* text, float width) {
 }  // namespace
 
 StudioApp::StudioApp() : settings_(LoadSettings()) {
+  if (!settings_.onboarding_complete) screen_ = Screen::kModels;
   SyncBuffersFromSettings();
   server_.Configure(settings_.server);
   ApplyTheme();
@@ -357,6 +359,10 @@ void StudioApp::ApplyTheme() const {
 
 void StudioApp::Render() {
   DrainChatEvents();
+  if (!settings_.onboarding_complete &&
+      screen_ != Screen::kModels && screen_ != Screen::kSettings) {
+    screen_ = Screen::kModels;
+  }
   const ImGuiViewport* viewport = ImGui::GetMainViewport();
   ImGui::SetNextWindowPos(viewport->WorkPos);
   ImGui::SetNextWindowSize(viewport->WorkSize);
@@ -420,14 +426,18 @@ void StudioApp::DrawSidebar() {
   ImGui::Dummy({0, 32});
   const float width = ImGui::GetWindowWidth() - 2.0f;
   ImGui::SetCursorPosX(1.0f);
+  ImGui::BeginDisabled(!settings_.onboarding_complete);
   if (NavButton("Chat", Screen::kChat, screen_ == Screen::kChat, width))
     screen_ = Screen::kChat;
+  ImGui::EndDisabled();
   ImGui::SetCursorPosX(1.0f);
   if (NavButton("Models", Screen::kModels, screen_ == Screen::kModels, width))
     screen_ = Screen::kModels;
   ImGui::SetCursorPosX(1.0f);
+  ImGui::BeginDisabled(!settings_.onboarding_complete);
   if (NavButton("Server", Screen::kServer, screen_ == Screen::kServer, width))
     screen_ = Screen::kServer;
+  ImGui::EndDisabled();
   ImGui::SetCursorPosX(1.0f);
   if (NavButton("Settings", Screen::kSettings, screen_ == Screen::kSettings,
                 width))
@@ -438,7 +448,9 @@ void StudioApp::DrawSidebar() {
   ImGui::Spacing();
   const ServerPhase phase = server_.Phase();
   StatusPill(PhaseLabel(phase), PhaseColor(phase));
-  ImGui::TextDisabled("%s", ProfileLabel(settings_.server.profile));
+  ImGui::TextDisabled("%s", settings_.onboarding_complete
+                                ? ProfileLabel(settings_.server.profile)
+                                : "No model selected");
 }
 
 void StudioApp::DrawHeader() {
@@ -449,7 +461,9 @@ void StudioApp::DrawHeader() {
   StatusPill(PhaseLabel(server_.Phase()), PhaseColor(server_.Phase()));
   if (screen_ != Screen::kChat) {
     ImGui::SameLine(0, 10);
-    ImGui::TextDisabled("%s", ProfileLabel(settings_.server.profile));
+    ImGui::TextDisabled("%s", settings_.onboarding_complete
+                                  ? ProfileLabel(settings_.server.profile)
+                                  : "Choose a model to continue");
   }
 }
 
@@ -654,18 +668,25 @@ void StudioApp::DrawMessage(const ChatMessage& message, std::size_t index) {
 
 void StudioApp::DrawModels() {
   const ModelInstallState install = models_.State();
-  PanelHeading("Local model profiles",
-               "Choose the resident engine that powers chat and generation. The runtime remains a separate process.");
-  const auto draw_profile = [this, &install](ModelProfile profile, const char* summary,
-                                             const char* capabilities) {
-    const bool selected = settings_.server.profile == profile;
-    const bool available = profile != ModelProfile::kGemma4Moe26BA4B ||
-                           install.All26BReady();
+  PanelHeading(settings_.onboarding_complete ? "Local model profiles"
+                                             : "Welcome to Gem 16",
+               settings_.onboarding_complete
+                   ? "Install either profile or keep both side by side in the shared Hugging Face cache."
+                   : "Choose and install a model profile. Nothing is selected by default on a new system.");
+  ImGui::TextDisabled("Hub cache: %s", HuggingFaceHubRoot().string().c_str());
+  ImGui::Dummy({0, 8});
+  const auto draw_profile = [this, &install](const ModelProfileCatalog& catalog) {
+    const ModelProfile profile = catalog.profile;
+    const ProfileInstallState& profile_state = install.For(profile);
+    const bool selected = settings_.onboarding_complete &&
+                          settings_.server.profile == profile;
+    const bool downloading = install.downloading &&
+                             install.downloading_profile == profile;
     ImGui::PushStyleColor(ImGuiCol_ChildBg, selected ? ImVec4(0.07f, 0.22f, 0.16f, 0.96f)
                                                      : ImGui::GetStyleColorVec4(ImGuiCol_ChildBg));
     ImGui::PushStyleColor(ImGuiCol_Border, selected ? kAccent : ImGui::GetStyleColorVec4(ImGuiCol_Border));
     const std::string id = std::string("##profile-") + ProfileWireName(profile);
-    ImGui::BeginChild(id.c_str(), {0, 154}, ImGuiChildFlags_Borders);
+    ImGui::BeginChild(id.c_str(), {0, 218}, ImGuiChildFlags_Borders);
     const ImVec2 gem_origin = ImGui::GetCursorScreenPos();
     DrawGemstone(ImGui::GetWindowDrawList(),
                  {gem_origin.x + 27.0f, gem_origin.y + 29.0f}, 22.0f);
@@ -674,58 +695,60 @@ void StudioApp::DrawModels() {
     ImGui::TextUnformatted(ProfileLabel(profile));
     ImGui::SetWindowFontScale(1.0f);
     ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 64.0f);
-    ImGui::TextWrapped("%s", summary);
+    ImGui::TextWrapped("%s", catalog.description);
     ImGui::Dummy({0, 4});
-    ImGui::TextColored(kAccent, "%s", capabilities);
-    ImGui::SameLine();
-    ImGui::SetCursorPosX(ImGui::GetWindowWidth() - 110);
-    if (selected) {
-      ImGui::TextColored(kAccent, "● Selected");
+    ImGui::TextColored(kAccent, "%s", catalog.capabilities);
+    ImGui::Text("Target: %s", profile_state.target_ready ? "Verified" : "Missing");
+    ImGui::SameLine(180.0f);
+    ImGui::Text("Assistant: %s", profile_state.assistant_ready ? "Verified" : "Missing");
+    if (downloading) {
+      const float progress = profile_state.total_bytes == 0 ? 0.0f :
+          static_cast<float>(static_cast<double>(profile_state.completed_bytes) /
+                             static_cast<double>(profile_state.total_bytes));
+      ImGui::ProgressBar(std::clamp(progress, 0.0f, 1.0f), {-110.0f, 0.0f},
+                         FormatBytes(profile_state.completed_bytes).c_str());
+      ImGui::SameLine();
+      if (ImGui::Button((std::string("Pause##") + ProfileWireName(profile)).c_str())) {
+        models_.Cancel();
+      }
+      if (!install.current_file.empty()) ImGui::TextDisabled("%s", install.current_file.c_str());
+    } else if (!profile_state.Ready()) {
+      const bool blocked = install.downloading || !profile_state.storage_available ||
+                           !profile_state.sufficient_space;
+      ImGui::BeginDisabled(blocked);
+      const std::string button = "Install " + FormatBytes(profile_state.required_download_bytes) +
+                                 "##" + ProfileWireName(profile);
+      if (ImGui::Button(button.c_str())) models_.DownloadProfile(profile);
+      ImGui::EndDisabled();
+      ImGui::SameLine();
+      if (!profile_state.storage_available) {
+        ImGui::TextDisabled("Free space unavailable");
+      } else if (!profile_state.sufficient_space) {
+        ImGui::TextColored({1.0f, 0.48f, 0.36f, 1.0f}, "Need %s + 256 MiB reserve · %s free",
+                           FormatBytes(profile_state.required_download_bytes).c_str(),
+                           FormatBytes(profile_state.available_disk_bytes).c_str());
+      } else {
+        ImGui::TextDisabled("%s free · resumable · SHA-256 verified",
+                            FormatBytes(profile_state.available_disk_bytes).c_str());
+      }
+    } else if (selected) {
+      ImGui::TextColored(kAccent, "● Installed and selected");
+    } else {
+      const std::string button = "Use this profile##" +
+                                 std::string(ProfileWireName(profile));
+      if (ImGui::Button(button.c_str())) SelectProfile(profile);
+      ImGui::SameLine();
+      ImGui::TextDisabled("Installed in the shared Hub cache");
     }
-    else if (available && ImGui::Button("Select")) SelectProfile(profile);
-    else if (!available) ImGui::TextDisabled("Download below");
     ImGui::EndChild();
     ImGui::PopStyleColor(2);
     ImGui::Dummy({0, 10});
   };
-  draw_profile(ModelProfile::kGemma4Unified12B,
-               "Production baseline with multimodal chat and the established optimized path.",
-               "Text · Vision · Audio · MTP");
-  draw_profile(ModelProfile::kGemma4Moe26BA4B,
-               "Qualified text-only A4B mixture-of-experts checkpoint for approximately 16 GB Blackwell GPUs.",
-               "Text · Fixed MTP D2 · 86,016 tokens");
-
-  ImGui::BeginChild("##qualified-26b-download", {0, 150}, ImGuiChildFlags_Borders);
-  ImGui::TextColored(kAccent, "Qualified 26B checkpoint");
-  ImGui::TextDisabled("Pinned Target 63508b58 · Assistant 466cc26d · public Hugging Face repositories");
-  ImGui::Text("Target: %s", install.target_26b_ready ? "Cached" : "Missing");
-  ImGui::SameLine(180.0f);
-  ImGui::Text("Assistant: %s", install.assistant_26b_ready ? "Cached" : "Missing");
-  if (install.downloading) {
-    const float progress = install.total_bytes == 0 ? 0.0f :
-        static_cast<float>(static_cast<double>(install.completed_bytes) /
-                           static_cast<double>(install.total_bytes));
-    ImGui::ProgressBar(std::clamp(progress, 0.0f, 1.0f), {-110.0f, 0.0f},
-                       FormatBytes(install.completed_bytes).c_str());
-    ImGui::SameLine();
-    if (ImGui::Button("Pause")) models_.Cancel();
-    if (!install.current_file.empty()) ImGui::TextDisabled("%s", install.current_file.c_str());
-  } else if (!install.All26BReady()) {
-    if (ImGui::Button(("Download " + FormatBytes(install.total_bytes)).c_str())) {
-      models_.DownloadQualified26B();
-    }
-    ImGui::SameLine();
-    ImGui::TextDisabled("Resumable · SHA-256 verified · no account or token required");
-  } else if (settings_.server.profile != ModelProfile::kGemma4Moe26BA4B) {
-    if (ImGui::Button("Use qualified 26B")) SelectProfile(ModelProfile::kGemma4Moe26BA4B);
-  } else {
-    ImGui::TextColored(kAccent, "Ready and selected");
-  }
+  for (const auto& catalog : ModelCatalog()) draw_profile(catalog);
   if (!install.error.empty()) {
     ImGui::TextColored({1.0f, 0.45f, 0.45f, 1.0f}, "%s", install.error.c_str());
   }
-  ImGui::EndChild();
-  ImGui::TextDisabled("Changing profiles updates paths and launch options. Restart a running server to apply it.");
+  ImGui::TextDisabled("Profiles may coexist. Changing the active profile updates launch paths; restart a running server to apply it.");
 }
 
 void StudioApp::DrawServer() {
@@ -899,8 +922,10 @@ void StudioApp::RemoveLastExchange() {
 }
 
 void StudioApp::SelectProfile(ModelProfile profile) {
+  if (!models_.State().For(profile).Ready()) return;
   SyncSettingsFromBuffers();
   ApplyProfileDefaults(settings_.server, profile);
+  settings_.onboarding_complete = true;
   SyncBuffersFromSettings();
   server_.Configure(settings_.server);
   if (api_.Busy()) api_.Cancel();

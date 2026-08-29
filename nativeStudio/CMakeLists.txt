@@ -28,6 +28,7 @@ set(STUDIO_SOURCES
   src/chat_history.cpp
   src/main.cpp
   src/markdown.cpp
+  src/model_catalog.cpp
   src/model_manager.cpp
   src/platform_process.cpp
   src/selectable_text.cpp
@@ -116,6 +117,7 @@ if(BUILD_TESTING)
     src/api_client.cpp
     src/chat_history.cpp
     src/markdown.cpp
+    src/model_catalog.cpp
     src/model_manager.cpp
     src/platform_process.cpp
     src/selectable_text.cpp

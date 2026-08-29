@@ -1,6 +1,8 @@
 #include "api_client.h"
 #include "chat_history.h"
 #include "markdown.h"
+#include "model_catalog.h"
+#include "model_manager.h"
 #include "server_manager.h"
 #include "settings.h"
 #include "selectable_text.h"
@@ -12,6 +14,9 @@
 #include <array>
 #include <chrono>
 #include <cstdio>
+#include <cstdlib>
+#include <filesystem>
+#include <string_view>
 #include <thread>
 
 namespace {
@@ -22,6 +27,22 @@ void CaptureClipboard(void* user_data, const char* text) {
 
 bool Contains(const std::vector<std::string>& values, const std::string& expected) {
   return std::find(values.begin(), values.end(), expected) != values.end();
+}
+
+void SetEnvironment(const char* name, const std::string& value) {
+#ifdef _WIN32
+  _putenv_s(name, value.c_str());
+#else
+  setenv(name, value.c_str(), 1);
+#endif
+}
+
+void ClearEnvironment(const char* name) {
+#ifdef _WIN32
+  _putenv_s(name, "");
+#else
+  unsetenv(name);
+#endif
 }
 
 bool TestServerCommand() {
@@ -45,9 +66,129 @@ bool TestQualified26BDefaults() {
   return config.max_context_tokens == 86016 && config.max_sessions == 1 &&
          config.mtp_draft_tokens == 2 && !config.mtp_adaptive &&
          config.model_directory ==
-             gem16::studio::Qualified26BTargetDirectory().string() &&
+             gem16::studio::ProfileTargetDirectory(
+                 gem16::studio::ModelProfile::kGemma4Moe26BA4B).string() &&
          config.assistant_directory ==
-             gem16::studio::Qualified26BAssistantDirectory().string();
+             gem16::studio::ProfileAssistantDirectory(
+                 gem16::studio::ModelProfile::kGemma4Moe26BA4B).string();
+}
+
+bool TestModelCatalog() {
+  const auto catalog = gem16::studio::ModelCatalog();
+  if (catalog.size() != 2) return false;
+  const auto& twelve = gem16::studio::CatalogForProfile(
+      gem16::studio::ModelProfile::kGemma4Unified12B);
+  const auto& twenty_six = gem16::studio::CatalogForProfile(
+      gem16::studio::ModelProfile::kGemma4Moe26BA4B);
+  if (std::string_view(twelve.target->repository) !=
+          "unsloth/gemma-4-12b-it-NVFP4" ||
+      std::string_view(twelve.assistant->repository) !=
+          "google/gemma-4-12B-it-assistant" ||
+      !twelve.target->composed_view || twelve.assistant->composed_view ||
+      twenty_six.target->composed_view || twenty_six.assistant->composed_view) {
+    return false;
+  }
+  bool external_tokenizer = false;
+  for (const auto& file : twelve.target->files) {
+    external_tokenizer |=
+        std::string_view(file.path) == "tokenizer_config.json" &&
+        std::string_view(file.source_repository) == "google/gemma-4-12B-it";
+  }
+  const auto root = std::filesystem::path("/hub");
+  const auto& first_target_file = twelve.target->files.front();
+  return external_tokenizer &&
+         gem16::studio::ComponentDirectory(*twelve.target, root) ==
+             root / ".gem16/snapshots/"
+                    "unsloth--gemma-4-12b-it-NVFP4--"
+                    "b1f649734b34aa5575b03d186abd1b9be3d0d5c4" &&
+         gem16::studio::ComponentDirectory(*twenty_six.target, root) ==
+             root / "models--danmoreng--gemma-4-26B-A4B-it-GEM16/snapshots/"
+                    "63508b5826527484e707b4b46e2eacf077cf2b35" &&
+         gem16::studio::VerificationMarkerPath(first_target_file, root) ==
+             root / "models--unsloth--gemma-4-12b-it-NVFP4/.gem16-verified" /
+                    (std::string(first_target_file.blob_id) + ".sha256");
+}
+
+bool TestNeutralFirstRunDefaults() {
+  const auto settings = gem16::studio::DefaultSettings();
+  return !settings.onboarding_complete &&
+         settings.server.model_directory ==
+             gem16::studio::ProfileTargetDirectory(
+                 gem16::studio::ModelProfile::kGemma4Unified12B).string() &&
+         settings.server.assistant_directory ==
+             gem16::studio::ProfileAssistantDirectory(
+                 gem16::studio::ModelProfile::kGemma4Unified12B).string();
+}
+
+bool TestOnboardingPersistence() {
+#ifdef _WIN32
+  constexpr const char* environment_name = "APPDATA";
+#else
+  constexpr const char* environment_name = "XDG_CONFIG_HOME";
+#endif
+  const char* previous = std::getenv(environment_name);
+  const std::string previous_value = previous == nullptr ? "" : previous;
+  const auto suffix = std::chrono::steady_clock::now().time_since_epoch().count();
+  const auto config = std::filesystem::temp_directory_path() /
+                      ("gem16-studio-settings-test-" + std::to_string(suffix));
+  std::filesystem::create_directories(config);
+  SetEnvironment(environment_name, config.string());
+
+  auto settings = gem16::studio::LoadSettings();
+  bool valid = !settings.onboarding_complete;
+  settings.onboarding_complete = true;
+  gem16::studio::ApplyProfileDefaults(
+      settings.server, gem16::studio::ModelProfile::kGemma4Moe26BA4B);
+  valid = valid && gem16::studio::SaveSettings(settings);
+  const auto loaded = gem16::studio::LoadSettings();
+  valid = valid && loaded.onboarding_complete &&
+          loaded.server.profile ==
+              gem16::studio::ModelProfile::kGemma4Moe26BA4B;
+
+  if (previous == nullptr)
+    ClearEnvironment(environment_name);
+  else
+    SetEnvironment(environment_name, previous_value);
+  std::error_code error;
+  std::filesystem::remove_all(config, error);
+  return valid && !error;
+}
+
+bool TestEmptyCacheInstallState() {
+  const char* previous = std::getenv("HF_HUB_CACHE");
+  const std::string previous_value = previous == nullptr ? "" : previous;
+  const auto suffix = std::chrono::steady_clock::now().time_since_epoch().count();
+  const auto cache = std::filesystem::temp_directory_path() /
+                     ("gem16-studio-catalog-test-" + std::to_string(suffix));
+  std::filesystem::create_directories(cache);
+  SetEnvironment("HF_HUB_CACHE", cache.string());
+
+  std::array<std::uint64_t, 2> expected{};
+  for (const auto& profile : gem16::studio::ModelCatalog()) {
+    const auto index = profile.profile ==
+                               gem16::studio::ModelProfile::kGemma4Moe26BA4B
+                           ? 1U
+                           : 0U;
+    for (const auto& file : profile.target->files) expected[index] += file.size;
+    for (const auto& file : profile.assistant->files) expected[index] += file.size;
+  }
+  gem16::studio::ModelManager manager;
+  const auto state = manager.State();
+  const bool valid =
+      !state.downloading && state.For(gem16::studio::ModelProfile::kGemma4Unified12B)
+                                .required_download_bytes == expected[0] &&
+      state.For(gem16::studio::ModelProfile::kGemma4Moe26BA4B)
+              .required_download_bytes == expected[1] &&
+      state.For(gem16::studio::ModelProfile::kGemma4Unified12B).storage_available &&
+      state.For(gem16::studio::ModelProfile::kGemma4Moe26BA4B).storage_available;
+
+  if (previous == nullptr)
+    ClearEnvironment("HF_HUB_CACHE");
+  else
+    SetEnvironment("HF_HUB_CACHE", previous_value);
+  std::error_code error;
+  std::filesystem::remove_all(cache, error);
+  return valid && !error;
 }
 
 bool TestTextSelection() {
@@ -304,6 +445,22 @@ int main() {
   }
   if (!TestQualified26BDefaults()) {
     std::fprintf(stderr, "qualified 26B defaults test failed\n");
+    return 1;
+  }
+  if (!TestModelCatalog()) {
+    std::fprintf(stderr, "model catalog test failed\n");
+    return 1;
+  }
+  if (!TestNeutralFirstRunDefaults()) {
+    std::fprintf(stderr, "neutral first-run defaults test failed\n");
+    return 1;
+  }
+  if (!TestOnboardingPersistence()) {
+    std::fprintf(stderr, "onboarding persistence test failed\n");
+    return 1;
+  }
+  if (!TestEmptyCacheInstallState()) {
+    std::fprintf(stderr, "empty-cache install state test failed\n");
     return 1;
   }
   if (!TestStreamingClient()) {

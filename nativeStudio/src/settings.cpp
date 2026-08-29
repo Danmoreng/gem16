@@ -1,5 +1,7 @@
 #include "settings.h"
 
+#include "model_catalog.h"
+
 #include <cstdlib>
 #include <fstream>
 #include <string_view>
@@ -45,12 +47,21 @@ bool ParseBool(std::string_view value, bool fallback) {
 std::filesystem::path ResolveHubRoot() {
   if (const char* value = std::getenv("HF_HUB_CACHE"); value && *value) return value;
   if (const char* value = std::getenv("HF_HOME"); value && *value) return std::filesystem::path(value) / "hub";
+#ifdef _WIN32
+  if (const char* value = std::getenv("USERPROFILE"); value && *value) {
+    return std::filesystem::path(value) / ".cache/huggingface/hub";
+  }
+  if (const char* value = std::getenv("LOCALAPPDATA"); value && *value) {
+    return std::filesystem::path(value) / "huggingface/hub";
+  }
+#else
   if (const char* value = std::getenv("XDG_CACHE_HOME"); value && *value) {
     return std::filesystem::path(value) / "huggingface/hub";
   }
   if (const char* value = std::getenv("HOME"); value && *value) {
     return std::filesystem::path(value) / ".cache/huggingface/hub";
   }
+#endif
   return RepositoryRoot() / ".cache/huggingface/hub";
 }
 
@@ -74,16 +85,12 @@ std::filesystem::path ExecutableDirectory() {
 
 std::filesystem::path HuggingFaceHubRoot() { return ResolveHubRoot(); }
 
-std::filesystem::path Qualified26BTargetDirectory() {
-  return ResolveHubRoot() /
-         "models--danmoreng--gemma-4-26B-A4B-it-GEM16/snapshots/"
-         "63508b5826527484e707b4b46e2eacf077cf2b35";
+std::filesystem::path ProfileTargetDirectory(ModelProfile profile) {
+  return ComponentDirectory(*CatalogForProfile(profile).target, ResolveHubRoot());
 }
 
-std::filesystem::path Qualified26BAssistantDirectory() {
-  return ResolveHubRoot() /
-         "models--danmoreng--gemma-4-26B-A4B-it-assistant-GEM16/snapshots/"
-         "466cc26d157fad0cc946f094ae904445147c38b4";
+std::filesystem::path ProfileAssistantDirectory(ModelProfile profile) {
+  return ComponentDirectory(*CatalogForProfile(profile).assistant, ResolveHubRoot());
 }
 
 const char* ProfileLabel(ModelProfile profile) {
@@ -127,15 +134,13 @@ void ApplyProfileDefaults(ServerConfig& config, ModelProfile profile) {
   config.mtp_adaptive = false;
   if (profile == ModelProfile::kGemma4Moe26BA4B) {
     config.model_name = "gemma4-26b-a4b";
-    config.model_directory = Qualified26BTargetDirectory().string();
-    config.assistant_directory = Qualified26BAssistantDirectory().string();
+    config.model_directory = ProfileTargetDirectory(profile).string();
+    config.assistant_directory = ProfileAssistantDirectory(profile).string();
     config.max_context_tokens = 86016;
   } else {
     config.model_name = "gem16-12b";
-    config.model_directory =
-        (ResolveHubRoot() / ".gem16/snapshots/unsloth--gemma-4-12b-it-NVFP4--b1f649734b34aa5575b03d186abd1b9be3d0d5c4").string();
-    config.assistant_directory =
-        (ResolveHubRoot() / "models--google--gemma-4-12B-it-assistant/snapshots/364bd03c9952e5b7da73665ee30c9eccfc408345").string();
+    config.model_directory = ProfileTargetDirectory(profile).string();
+    config.assistant_directory = ProfileAssistantDirectory(profile).string();
   }
 }
 
@@ -163,7 +168,11 @@ StudioSettings DefaultSettings() {
 
 StudioSettings LoadSettings() {
   StudioSettings result = DefaultSettings();
-  std::ifstream input(SettingsPath());
+  const auto settings_path = SettingsPath();
+  std::error_code file_error;
+  const bool existing_settings = std::filesystem::is_regular_file(settings_path, file_error);
+  std::ifstream input(settings_path);
+  bool saw_onboarding = false;
   std::string line;
   while (std::getline(input, line)) {
     const std::size_t delimiter = line.find('=');
@@ -172,6 +181,10 @@ StudioSettings LoadSettings() {
     const std::string value = UnescapeLine(std::string_view(line).substr(delimiter + 1));
     try {
       if (key == "profile") result.server.profile = value == "gemma4_26b_a4b" ? ModelProfile::kGemma4Moe26BA4B : ModelProfile::kGemma4Unified12B;
+      else if (key == "onboarding_complete") {
+        result.onboarding_complete = ParseBool(value, result.onboarding_complete);
+        saw_onboarding = true;
+      }
       else if (key == "executable") result.server.executable = value;
       else if (key == "model_directory") result.server.model_directory = value;
       else if (key == "assistant_directory") result.server.assistant_directory = value;
@@ -193,6 +206,7 @@ StudioSettings LoadSettings() {
       override_server && *override_server) {
     result.server.executable = override_server;
   }
+  if (existing_settings && !saw_onboarding) result.onboarding_complete = true;
   return result;
 }
 
@@ -202,7 +216,8 @@ bool SaveSettings(const StudioSettings& settings) {
   std::ofstream output(SettingsPath(), std::ios::trunc);
   if (!output) return false;
   const ServerConfig& server = settings.server;
-  output << "profile=" << ProfileWireName(server.profile) << '\n'
+  output << "onboarding_complete=" << (settings.onboarding_complete ? 1 : 0) << '\n'
+         << "profile=" << ProfileWireName(server.profile) << '\n'
          << "executable=" << EscapeLine(server.executable) << '\n'
          << "model_directory=" << EscapeLine(server.model_directory) << '\n'
          << "assistant_directory=" << EscapeLine(server.assistant_directory) << '\n'

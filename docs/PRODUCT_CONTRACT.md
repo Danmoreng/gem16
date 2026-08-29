@@ -54,14 +54,16 @@ profiles. Their verified blobs and immutable snapshots live in the user's
 standard shared Hugging Face Hub cache, respecting `HF_HUB_CACHE` and
 `HF_HOME`; Studio must not maintain a second model repository. The 12B catalog
 uses the existing upstream repositories directly and does not publish or
-download a duplicate GEM16 mirror.
+download a duplicate GEM16 mirror. A lock may reference files from more than
+one source repository. In that case Studio may create a deterministic runtime
+view below the same Hub cache, provided it consists only of hardlinks to
+verified canonical blobs and never creates a second payload copy or private
+blob store.
 
-The current native Studio can install the qualified 26B pair but still lacks
-native 12B installation, and a fresh settings file still seeds the 12B profile
-instead of asking for a neutral first-run choice. Closing both gaps is a product
-gate, not optional polish. The current custom 12B `.gem16/snapshots` directory
-is transitional and must be replaced by direct resolution from the canonical
-upstream Hub snapshots without duplicating the underlying model blobs.
+Native Studio implements the shared four-component catalog and presents a
+neutral first-run choice. Either profile may be installed independently and
+both may coexist. Release qualification still requires complete large-download
+and clean-machine first-run evidence on Windows and Linux.
 
 ## Local-machine boundary
 

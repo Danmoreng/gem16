@@ -150,17 +150,14 @@ It is exported from the [editable tldraw source](docs/gem16-overview.tldraw).
 
 ### Desktop app
 
-- Select either qualified profile and install the separately pinned 26B GEM16 Target and Assistant. Native 12B
-  installation is still a product gap; populate its locked cache with `tools/fetch_model.py`.
+- On a fresh installation, choose either qualified profile and install its separately pinned Target and Assistant;
+  install both profiles side by side if desired.
+- Resume interrupted downloads, verify every locked file with SHA-256, and check required disk space before download.
 - Reuse the standard Hugging Face Hub cache through `HF_HUB_CACHE`, `HF_HOME`, or `XDG_CACHE_HOME`.
 - Start, stop, restart, inspect, or attach to a local `gem16-server` process.
 - Stream Markdown answers with separate, collapsed-by-default reasoning.
 - Copy complete answers or individual fenced code and HTML blocks with one click.
-- Send text, text-based PDFs, UTF-8/UTF-16 text documents, PNG/JPEG/BMP images, and WAV/FLAC/MP3 audio.
-- Attach files with the file picker or drag and drop; use microphone recording or image paste with `Ctrl+V`/`Cmd+V`.
-- See live prefill, decode, token, and throughput statistics while a response is streaming.
-- See exact used/available context tokens after each response.
-- Configure the system prompt, local date/time tools, context, sampling, MTP draft budget, reasoning budget, and appearance.
+- Configure the system prompt, context, sampling, MTP draft budget, reasoning budget, and appearance.
 
 ### Runtime
 
@@ -188,8 +185,7 @@ higher-precision fallback.
 - CMake 3.28 or newer, Ninja, and a C++20 compiler
 - `curl` on `PATH` for resumable downloads in the native Models screen (included with current Windows)
 - OpenGL/X11 or Wayland development libraries on Linux; the Windows client uses Direct3D 11
-- A Hugging Face account with access to the gated Google Gemma repositories
-- No account or token is required for the public, ungated GEM16 26B Target and Assistant repositories
+- No account or token is required for the public repositories pinned by the current Studio catalog
 
 The exact reference environment is recorded in
 [`toolchains/blackwell16gb.lock`](toolchains/blackwell16gb.lock).
@@ -224,9 +220,11 @@ launches.
 
 The Linux launcher provides the equivalent `--skip-server-build` opt-out.
 
-On first launch, open **Models** to select 12B or 26B, then verify the compiled/model paths on **Server**. The native
-Studio reuses already populated checkpoints and never copies them into the application archive. The model downloader
-from the previous Compose client has not yet been ported; use `tools/fetch_model.py` for the locked 12B set.
+On first launch, Studio opens **Models** and presents 12B and 26B without a preselected default. Install either profile
+or both, then select a verified profile and verify the compiled path on **Server**. Studio reuses already populated Hub
+blobs, resumes incomplete downloads, and never copies checkpoints into the application archive. The 12B Target spans
+two existing upstream repositories, so Studio creates a hardlink-only runtime view inside the same Hub cache; it does
+not publish a mirror or duplicate the payload bytes.
 
 To build a native portable archive for the current platform after the release server exists:
 
@@ -324,8 +322,7 @@ live in [`benchmarks/baselines/cross_engine_mtp/`](benchmarks/baselines/cross_en
 
 - Gemma 4 12B Unified and 26B A4B are equal product choices with different capabilities: 12B is multimodal; 26B is
   text-only, single-slot, and optionally uses its separately pinned Assistant.
-- Native Studio does not yet provide the same model-installation flow for 12B that it provides for 26B, and fresh
-  settings still seed 12B instead of presenting a neutral first-run choice.
+- Full-model download and clean-machine onboarding still need release qualification on both Windows and Linux.
 - Inference is batch one; continuous batching is not implemented.
 - The optimized CUDA backend requires Blackwell SM120/SM120a.
 - Video input, response branching, and persistent prompt-cache files are not implemented.

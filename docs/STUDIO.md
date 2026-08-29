@@ -26,9 +26,15 @@ license remains beside the vendored source.
 
 - Chat, Models, Server, and Settings screens with a dark/light glass palette, procedural gemstone branding, and the
   original animated GPU science-fiction wave.
-- Persisted selectors for qualified Gemma 4 12B Unified and qualified text-only Gemma 4 26B A4B.
-- Resumable, SHA-256-verified anonymous download of the separately pinned public 26B Target and Assistant
-  repositories into immutable snapshots under the standard Hugging Face cache root.
+- Neutral first-run onboarding and persisted selectors for qualified Gemma 4 12B Unified and qualified text-only
+  Gemma 4 26B A4B. Either profile or both can be installed.
+- One generated, lock-derived catalog for the independently pinned 12B Target, 12B Assistant, 26B Target, and 26B
+  Assistant components.
+- Resumable, SHA-256-verified anonymous downloads with a preflight storage check. Source payloads and immutable
+  snapshots remain in the standard Hugging Face cache selected through `HF_HUB_CACHE`, `HF_HOME`, platform cache
+  conventions, or the repository fallback.
+- The cross-repository 12B Target receives a hardlink-only composed runtime view below the same Hub cache. It reuses
+  canonical verified blobs and does not duplicate model payloads.
 - Qualified 26B Target and Assistant paths, one resident session, 86,016-token MTP context, and fixed D2 selected
   as its selected MTP profile.
 - Managed `gem16-server` start, stop, output capture, health polling, and non-owning attachment to an external server.
@@ -46,12 +52,12 @@ license remains beside the vendored source.
   `~/.config/gem16/studio.conf`, or `%APPDATA%\gem16\studio.conf`.
 - Normal operating-system window chrome and cursor on both platforms.
 
-This native slice is text-chat complete but does not yet satisfy the full product contract. Fresh settings currently
-seed 12B rather than showing a neutral first-run model choice. Equivalent 12B model installation, document/PDF
-extraction, image/audio attachments, microphone capture, local time tools, exact metrics cards, and native installers
-remain open work. The 12B server still supports its multimodal capabilities; the current native UI sends text only.
-The 26B profile is intentionally text-only. Deprecated Compose behavior is input to a new native product decision,
-not a parity requirement and not a reason to continue modifying the old GUI.
+This native slice is text-chat and two-profile onboarding complete but does not yet satisfy the full product contract.
+Complete real-model downloads and clean-machine installation still require equal Windows and Linux qualification.
+Document/PDF extraction, image/audio attachments, microphone capture, local time tools, exact metrics cards, and
+native installers remain open work. The 12B server still supports its multimodal capabilities; the current native UI
+sends text only. The 26B profile is intentionally text-only. Deprecated Compose behavior is input to a new native
+product decision, not a parity requirement and not a reason to continue modifying the old GUI.
 
 ## Build and run
 
@@ -81,11 +87,12 @@ ctest --test-dir build/native-studio --output-on-failure
 ./build/native-studio/bin/gem16-studio
 ```
 
-The native host test exercises the exact 26B launch arguments and an in-process SSE endpoint, including reasoning,
-answer text, terminal marker, and resident session-ID propagation. It also drives the real selectable-text ImGui
-widget and verifies that click plus `Ctrl+A`/`Ctrl+C` reaches the platform clipboard callback, including UTF-8 helper
-coverage. It also covers Markdown parsing and streaming fences, undo-turn history behavior, and the real ImGui
-`Enter`/`Shift+Enter` composer interaction. It does not load a model or GPU.
+The native host test exercises the generated four-component model catalog, neutral first-run settings, empty-cache
+storage accounting, exact 26B launch arguments, and an in-process SSE endpoint, including reasoning, answer text,
+terminal marker, and resident session-ID propagation. It also drives the real selectable-text ImGui widget and
+verifies that click plus `Ctrl+A`/`Ctrl+C` reaches the platform clipboard callback, including UTF-8 helper coverage.
+It also covers Markdown parsing and streaming fences, undo-turn history behavior, and the real ImGui
+`Enter`/`Shift+Enter` composer interaction. It does not download a full model or load a GPU.
 
 ## Packaging
 
