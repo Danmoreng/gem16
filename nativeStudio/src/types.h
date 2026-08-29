@@ -9,6 +9,7 @@ namespace gem16::studio {
 enum class ModelProfile { kGemma4Unified12B, kGemma4Moe26BA4B };
 enum class ServerPhase { kStopped, kStarting, kRunning, kExternal, kStopping, kError };
 enum class Screen { kChat, kModels, kServer, kSettings };
+enum class MediaKind { kImage, kAudio, kDocument };
 
 struct ServerConfig {
   ModelProfile profile = ModelProfile::kGemma4Unified12B;
@@ -36,6 +37,8 @@ struct StudioSettings {
   GenerationConfig generation;
   bool dark_theme = true;
   bool onboarding_complete = false;
+  // Zero selects the platform-aware automatic scale.
+  float ui_scale = 0.0f;
 };
 
 struct HealthSnapshot {
@@ -51,18 +54,31 @@ struct HealthSnapshot {
   bool sampling_enabled = false;
 };
 
+struct MediaAttachment {
+  MediaKind kind = MediaKind::kDocument;
+  std::string file_name;
+  std::string mime_type;
+  std::string format;
+  std::vector<std::uint8_t> bytes;
+  std::string document_text;
+  std::uint64_t byte_size = 0;
+};
+
 struct ChatMessage {
   std::string role;
   std::string content;
   std::string reasoning;
   bool streaming = false;
   bool error = false;
+  std::vector<MediaAttachment> attachments;
 };
 
 struct ChatEvent {
-  enum class Kind { kText, kReasoning, kFinished, kError, kSession };
+  enum class Kind { kText, kReasoning, kUsage, kFinished, kError, kSession };
   Kind kind = Kind::kText;
   std::string value;
+  std::int64_t prompt_tokens = 0;
+  std::int64_t completion_tokens = 0;
 };
 
 [[nodiscard]] const char* ProfileLabel(ModelProfile profile);

@@ -1,11 +1,15 @@
 #include "app.h"
+#include "platform_ui.h"
+#include "settings.h"
 #include "shader_background.h"
 
 #include "imgui.h"
 
+#include <algorithm>
 #include <chrono>
 #include <cstdio>
 #include <filesystem>
+#include <vector>
 
 #ifdef _WIN32
 #include "imgui_impl_dx11.h"
@@ -25,7 +29,7 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(
 
 namespace {
 
-void InitializeImGuiStyle() {
+void InitializeImGuiStyle(float ui_scale) {
   ImGuiIO& io = ImGui::GetIO();
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
   io.IniFilename = nullptr;
@@ -37,7 +41,7 @@ void InitializeImGuiStyle() {
   const char* font_path = std::filesystem::is_regular_file(noto) ? noto : dejavu;
 #endif
   ImFont* font = std::filesystem::is_regular_file(font_path)
-                     ? io.Fonts->AddFontFromFileTTF(font_path, 17.0f)
+                     ? io.Fonts->AddFontFromFileTTF(font_path, 17.0f * ui_scale)
                      : nullptr;
   if (!font) io.Fonts->AddFontDefault();
   ImGui::GetStyle().CircleTessellationMaxError = 0.12f;
@@ -77,6 +81,21 @@ LRESULT WINAPI WindowProc(HWND window, UINT message, WPARAM w_param, LPARAM l_pa
     case WM_DESTROY:
       PostQuitMessage(0);
       return 0;
+    case WM_DROPFILES: {
+      const HDROP drop = reinterpret_cast<HDROP>(w_param);
+      const UINT count = DragQueryFileW(drop, 0xFFFFFFFF, nullptr, 0);
+      std::vector<std::filesystem::path> paths;
+      for (UINT index = 0; index < count; ++index) {
+        const UINT length = DragQueryFileW(drop, index, nullptr, 0);
+        std::wstring path(length + 1, L'\0');
+        DragQueryFileW(drop, index, path.data(), length + 1);
+        path.resize(length);
+        paths.emplace_back(std::move(path));
+      }
+      DragFinish(drop);
+      gem16::studio::QueueDroppedFiles(paths);
+      return 0;
+    }
   }
   return DefWindowProcW(window, message, w_param, l_param);
 }
@@ -126,11 +145,16 @@ int RunWindows() {
   BOOL dark = TRUE;
   DwmSetWindowAttribute(window, 20, &dark, sizeof(dark));
   ShowWindow(window, SW_SHOWDEFAULT);
+  DragAcceptFiles(window, TRUE);
   UpdateWindow(window);
 
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
-  InitializeImGuiStyle();
+  const auto settings = gem16::studio::LoadSettings();
+  const float platform_scale = static_cast<float>(GetDpiForWindow(window)) / 96.0f;
+  const float ui_scale = gem16::studio::ResolveUiScale(
+      settings.ui_scale, platform_scale, false);
+  InitializeImGuiStyle(ui_scale);
   ImGui_ImplWin32_Init(window);
   ImGui_ImplDX11_Init(d3d.device.Get(), d3d.context.Get());
 
@@ -140,7 +164,7 @@ int RunWindows() {
   }
   const auto started = std::chrono::steady_clock::now();
   {
-    gem16::studio::StudioApp app;
+    gem16::studio::StudioApp app(settings, ui_scale);
     bool running = true;
     while (running) {
       MSG message;
@@ -199,12 +223,25 @@ int RunLinux() {
     glfwTerminate();
     return 3;
   }
+  glfwSetWindowPos(window, 100, 100);
   glfwMakeContextCurrent(window);
   glfwSwapInterval(1);
+  glfwSetDropCallback(window, [](GLFWwindow*, int count, const char** paths) {
+    std::vector<std::filesystem::path> dropped;
+    dropped.reserve(static_cast<std::size_t>(count));
+    for (int index = 0; index < count; ++index) dropped.emplace_back(paths[index]);
+    gem16::studio::QueueDroppedFiles(dropped);
+  });
 
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
-  InitializeImGuiStyle();
+  float x_scale = 1.0f;
+  float y_scale = 1.0f;
+  glfwGetWindowContentScale(window, &x_scale, &y_scale);
+  const auto settings = gem16::studio::LoadSettings();
+  const float ui_scale = gem16::studio::ResolveUiScale(
+      settings.ui_scale, std::max(x_scale, y_scale), true);
+  InitializeImGuiStyle(ui_scale);
   if (!ImGui_ImplGlfw_InitForOpenGL(window, true) || !ImGui_ImplOpenGL3_Init("#version 330")) {
     glfwDestroyWindow(window);
     glfwTerminate();
@@ -217,7 +254,7 @@ int RunLinux() {
   }
   const auto started = std::chrono::steady_clock::now();
   {
-    gem16::studio::StudioApp app;
+    gem16::studio::StudioApp app(settings, ui_scale);
     while (!glfwWindowShouldClose(window)) {
       glfwPollEvents();
       if (glfwGetWindowAttrib(window, GLFW_ICONIFIED)) {

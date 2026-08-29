@@ -4,6 +4,7 @@
 
 #include "httplib.h"
 
+#include <atomic>
 #include <deque>
 #include <memory>
 #include <mutex>
@@ -11,6 +12,10 @@
 #include <thread>
 
 namespace gem16::studio {
+
+[[nodiscard]] std::string BuildChatPayload(
+    const ServerConfig& server, const GenerationConfig& generation,
+    const std::vector<ChatMessage>& messages);
 
 class ApiClient final {
  public:
@@ -33,8 +38,8 @@ class ApiClient final {
   std::deque<ChatEvent> events_;
   std::shared_ptr<httplib::Client> active_client_;
   std::jthread worker_;
+  std::atomic<bool> cancel_requested_{false};
   bool busy_ = false;
 };
 
 }  // namespace gem16::studio
-

@@ -1,11 +1,13 @@
 #include "api_client.h"
 #include "chat_history.h"
 #include "markdown.h"
+#include "media_loader.h"
 #include "model_catalog.h"
 #include "model_manager.h"
 #include "server_manager.h"
 #include "settings.h"
 #include "selectable_text.h"
+#include "util/json.h"
 
 #include "httplib.h"
 #include "imgui.h"
@@ -16,6 +18,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
+#include <fstream>
 #include <string_view>
 #include <thread>
 
@@ -120,6 +123,14 @@ bool TestNeutralFirstRunDefaults() {
                  gem16::studio::ModelProfile::kGemma4Unified12B).string();
 }
 
+bool TestUiScaleResolution() {
+  return gem16::studio::ResolveUiScale(0.0f, 1.0f, true) == 1.25f &&
+         gem16::studio::ResolveUiScale(0.0f, 1.5f, true) == 1.5f &&
+         gem16::studio::ResolveUiScale(0.0f, 1.0f, false) == 1.0f &&
+         gem16::studio::ResolveUiScale(1.0f, 1.5f, true) == 1.0f &&
+         gem16::studio::ResolveUiScale(1.25f, 1.0f, false) == 1.25f;
+}
+
 bool TestOnboardingPersistence() {
 #ifdef _WIN32
   constexpr const char* environment_name = "APPDATA";
@@ -137,11 +148,12 @@ bool TestOnboardingPersistence() {
   auto settings = gem16::studio::LoadSettings();
   bool valid = !settings.onboarding_complete;
   settings.onboarding_complete = true;
+  settings.ui_scale = 1.25f;
   gem16::studio::ApplyProfileDefaults(
       settings.server, gem16::studio::ModelProfile::kGemma4Moe26BA4B);
   valid = valid && gem16::studio::SaveSettings(settings);
   const auto loaded = gem16::studio::LoadSettings();
-  valid = valid && loaded.onboarding_complete &&
+  valid = valid && loaded.onboarding_complete && loaded.ui_scale == 1.25f &&
           loaded.server.profile ==
               gem16::studio::ModelProfile::kGemma4Moe26BA4B;
 
@@ -152,6 +164,58 @@ bool TestOnboardingPersistence() {
   std::error_code error;
   std::filesystem::remove_all(config, error);
   return valid && !error;
+}
+
+bool TestMediaPayload() {
+  gem16::studio::MediaAttachment image;
+  image.kind = gem16::studio::MediaKind::kImage;
+  image.file_name = "tiny.png";
+  image.mime_type = "image/png";
+  image.format = "png";
+  image.bytes = {0x01, 0x02, 0x03};
+  gem16::studio::MediaAttachment audio;
+  audio.kind = gem16::studio::MediaKind::kAudio;
+  audio.file_name = "tiny.wav";
+  audio.mime_type = "audio/wav";
+  audio.format = "wav";
+  audio.bytes = {0x04, 0x05};
+  gem16::studio::MediaAttachment document;
+  document.kind = gem16::studio::MediaKind::kDocument;
+  document.file_name = "notes.txt";
+  document.document_text = "native studio";
+  gem16::studio::ChatMessage message{"user", "Inspect", {}, false, false};
+  message.attachments = {image, audio, document};
+  gem16::studio::ServerConfig server;
+  gem16::studio::GenerationConfig generation;
+  const std::string payload = gem16::studio::BuildChatPayload(
+      server, generation, {message});
+  const auto parsed = gem16::json::Parse(payload);
+  return parsed.ok() && payload.find("image_url") != std::string::npos &&
+         payload.find("input_audio") != std::string::npos &&
+         payload.find("native studio") != std::string::npos &&
+         payload.find("AQID") != std::string::npos;
+}
+
+bool TestMediaLoader() {
+  const auto suffix = std::chrono::steady_clock::now().time_since_epoch().count();
+  const auto directory = std::filesystem::temp_directory_path() /
+                         ("gem16-media-test-" + std::to_string(suffix));
+  std::filesystem::create_directories(directory);
+  const auto document = directory / "notes.md";
+  {
+    std::ofstream output(document, std::ios::binary);
+    output << "# Native Studio\n\nUTF-8: gruen";
+  }
+  gem16::studio::MediaAttachment attachment;
+  std::string error;
+  const bool loaded = gem16::studio::LoadMediaAttachment(
+      document, attachment, error);
+  std::error_code remove_error;
+  std::filesystem::remove_all(directory, remove_error);
+  return loaded && error.empty() && !remove_error &&
+         attachment.kind == gem16::studio::MediaKind::kDocument &&
+         attachment.file_name == "notes.md" &&
+         attachment.document_text.find("Native Studio") != std::string::npos;
 }
 
 bool TestEmptyCacheInstallState() {
@@ -378,6 +442,7 @@ bool TestStreamingClient() {
     const std::string stream =
         "data: {\"choices\":[{\"delta\":{\"reasoning_content\":\"Think\"}}]}\n\n"
         "data: {\"choices\":[{\"delta\":{\"content\":\"Hello\"}}]}\n\n"
+        "data: {\"choices\":[],\"usage\":{\"prompt_tokens\":7,\"completion_tokens\":2,\"total_tokens\":9}}\n\n"
         "data: [DONE]\n\n";
     response.set_content(stream, "text/event-stream");
   });
@@ -405,15 +470,18 @@ bool TestStreamingClient() {
   bool reasoning = false;
   bool finished = false;
   bool session = false;
+  bool usage = false;
   bool error = false;
   for (const auto& event : events) {
     text |= event.kind == gem16::studio::ChatEvent::Kind::kText && event.value == "Hello";
     reasoning |= event.kind == gem16::studio::ChatEvent::Kind::kReasoning && event.value == "Think";
     finished |= event.kind == gem16::studio::ChatEvent::Kind::kFinished;
     session |= event.kind == gem16::studio::ChatEvent::Kind::kSession && event.value == "session_returned";
+    usage |= event.kind == gem16::studio::ChatEvent::Kind::kUsage &&
+             event.prompt_tokens == 7 && event.completion_tokens == 2;
     error |= event.kind == gem16::studio::ChatEvent::Kind::kError;
   }
-  return text && reasoning && finished && session && !error;
+  return text && reasoning && usage && finished && session && !error;
 }
 
 }  // namespace
@@ -455,8 +523,20 @@ int main() {
     std::fprintf(stderr, "neutral first-run defaults test failed\n");
     return 1;
   }
+  if (!TestUiScaleResolution()) {
+    std::fprintf(stderr, "UI scale resolution test failed\n");
+    return 1;
+  }
   if (!TestOnboardingPersistence()) {
     std::fprintf(stderr, "onboarding persistence test failed\n");
+    return 1;
+  }
+  if (!TestMediaPayload()) {
+    std::fprintf(stderr, "multimodal payload test failed\n");
+    return 1;
+  }
+  if (!TestMediaLoader()) {
+    std::fprintf(stderr, "media loader test failed\n");
     return 1;
   }
   if (!TestEmptyCacheInstallState()) {

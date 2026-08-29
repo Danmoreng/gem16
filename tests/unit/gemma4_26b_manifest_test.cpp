@@ -13,6 +13,7 @@
 #include "model/gemma4_26b_manifest.h"
 #include "model/gemma4_26b_attention.h"
 #include "model/gemma4_26b_device_image.h"
+#include "model/gemma4_26b_compiled_loader.h"
 #include "model/gemma4_26b_residency.h"
 #include "util/json.h"
 
@@ -187,6 +188,17 @@ gem16::internal::ModelConfig ExternalUnslothConfig(
 }  // namespace
 
 void RunGemma426BManifestTests() {
+  GEM16_CHECK(gem16::internal::IsGemma4Moe26BPackagingMetadata(
+      ".gitattributes"));
+  GEM16_CHECK(gem16::internal::IsGemma4Moe26BPackagingMetadata("LICENSE"));
+  GEM16_CHECK(gem16::internal::IsGemma4Moe26BPackagingMetadata("NOTICE"));
+  GEM16_CHECK(gem16::internal::IsGemma4Moe26BPackagingMetadata("README.md"));
+  GEM16_CHECK(gem16::internal::IsGemma4Moe26BPackagingMetadata(
+      "gem16_model.json"));
+  GEM16_CHECK(!gem16::internal::IsGemma4Moe26BPackagingMetadata(
+      "config.json"));
+  GEM16_CHECK(!gem16::internal::IsGemma4Moe26BPackagingMetadata(
+      "model.gem16"));
   const auto image_root = std::filesystem::temp_directory_path() /
                           "gem16-device-image-path-test";
   std::filesystem::remove_all(image_root);

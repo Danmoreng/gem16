@@ -1,11 +1,14 @@
 #pragma once
 
 #include "api_client.h"
+#include "audio_recorder.h"
 #include "model_manager.h"
 #include "server_manager.h"
 #include "types.h"
 
 #include <array>
+#include <chrono>
+#include <filesystem>
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -14,7 +17,7 @@ namespace gem16::studio {
 
 class StudioApp final {
  public:
-  StudioApp();
+  StudioApp(StudioSettings settings, float ui_scale);
   ~StudioApp();
 
   void Render();
@@ -33,6 +36,7 @@ class StudioApp final {
   void SendMessage();
   void ClearChat();
   void RemoveLastExchange();
+  void AddAttachments(const std::vector<std::filesystem::path>& paths);
   void SelectProfile(ModelProfile profile);
   void SyncBuffersFromSettings();
   void SyncSettingsFromBuffers();
@@ -41,8 +45,11 @@ class StudioApp final {
   ServerManager server_;
   ModelManager models_;
   ApiClient api_;
+  AudioRecorder recorder_;
   Screen screen_ = Screen::kChat;
   std::vector<ChatMessage> messages_;
+  std::vector<MediaAttachment> pending_attachments_;
+  std::string attachment_error_;
   std::string session_id_;
   std::array<char, 65536> composer_{};
   std::array<char, 4096> executable_{};
@@ -52,11 +59,19 @@ class StudioApp final {
   std::array<char, 256> host_{};
   std::array<char, 16384> system_prompt_{};
   bool scroll_to_bottom_ = false;
+  bool auto_follow_ = true;
   bool show_reasoning_ = true;
   std::unordered_set<std::size_t> expanded_reasoning_;
   std::size_t copied_message_index_ = static_cast<std::size_t>(-1);
   double copied_message_at_ = -100.0;
   float sidebar_width_ = 214.0f;
+  float ui_scale_ = 1.0f;
+  std::chrono::steady_clock::time_point generation_started_{};
+  std::chrono::steady_clock::time_point first_token_at_{};
+  std::chrono::steady_clock::time_point generation_finished_{};
+  std::int64_t prompt_tokens_ = 0;
+  std::int64_t completion_tokens_ = 0;
+  std::int64_t streamed_chunks_ = 0;
 };
 
 }  // namespace gem16::studio

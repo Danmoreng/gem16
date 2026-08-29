@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "gem16/status.h"
@@ -20,6 +21,10 @@ struct Gemma4Moe26BCompiledIdentity {
   std::string source_lock_sha256;
   std::string compiler_commit;
 };
+
+// Repository-level presentation and legal files are verified by the external
+// distribution lock, but are not members of the compiled runtime artifact.
+[[nodiscard]] bool IsGemma4Moe26BPackagingMetadata(std::string_view name);
 
 // A product checkpoint may contain the already-arranged model.gem16 image
 // without duplicating the source-order Safetensors payload.  In that case the

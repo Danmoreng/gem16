@@ -14,6 +14,9 @@ namespace gem16::studio {
 [[nodiscard]] StudioSettings DefaultSettings();
 [[nodiscard]] StudioSettings LoadSettings();
 [[nodiscard]] bool SaveSettings(const StudioSettings& settings);
+[[nodiscard]] float ResolveUiScale(float configured_scale,
+                                   float platform_scale,
+                                   bool linux_platform);
 void ApplyProfileDefaults(ServerConfig& config, ModelProfile profile);
 
 }  // namespace gem16::studio

@@ -1,5 +1,6 @@
 #include "api_client.h"
 
+#include "media_loader.h"
 #include "util/json.h"
 
 #include <algorithm>
@@ -9,9 +10,26 @@
 namespace gem16::studio {
 namespace {
 
-std::string BuildPayload(const ServerConfig& server,
-                         const GenerationConfig& generation,
-                         const std::vector<ChatMessage>& messages) {
+std::string UserTextWithDocuments(const ChatMessage& message) {
+  std::string result = message.content;
+  for (const MediaAttachment& attachment : message.attachments) {
+    if (attachment.kind != MediaKind::kDocument) continue;
+    if (!result.empty()) result += "\n\n";
+    std::string safe_name = attachment.file_name;
+    std::replace(safe_name.begin(), safe_name.end(), '\n', ' ');
+    std::replace(safe_name.begin(), safe_name.end(), '\r', ' ');
+    result += "--- Begin attached document: " + safe_name + " ---\n";
+    result += attachment.document_text;
+    result += "\n--- End attached document: " + safe_name + " ---";
+  }
+  return result;
+}
+
+}  // namespace
+
+std::string BuildChatPayload(const ServerConfig& server,
+                             const GenerationConfig& generation,
+                             const std::vector<ChatMessage>& messages) {
   std::ostringstream output;
   output << "{\"model\":" << json::Quote(server.model_name)
          << ",\"stream\":true,\"stream_options\":{\"include_usage\":true}"
@@ -28,18 +46,52 @@ std::string BuildPayload(const ServerConfig& server,
     if (message.role != "user" && message.role != "assistant") continue;
     if (!first) output << ',';
     first = false;
-    std::string content = message.content;
+    std::string content = message.role == "user" ? UserTextWithDocuments(message)
+                                                   : message.content;
     if (message.role == "assistant") {
       while (!content.empty() && (content.back() == ' ' || content.back() == '\n' || content.back() == '\r' || content.back() == '\t')) {
         content.pop_back();
       }
     }
-    output << "{\"role\":" << json::Quote(message.role)
-           << ",\"content\":" << json::Quote(content) << '}';
+    output << "{\"role\":" << json::Quote(message.role);
+    const bool has_media = message.role == "user" &&
+        std::any_of(message.attachments.begin(), message.attachments.end(),
+                    [](const MediaAttachment& attachment) {
+                      return attachment.kind != MediaKind::kDocument;
+                    });
+    if (!has_media) {
+      output << ",\"content\":" << json::Quote(content);
+    } else {
+      output << ",\"content\":[";
+      bool first_part = true;
+      if (!content.empty()) {
+        output << "{\"type\":\"text\",\"text\":" << json::Quote(content) << '}';
+        first_part = false;
+      }
+      for (const MediaAttachment& attachment : message.attachments) {
+        if (attachment.kind == MediaKind::kDocument) continue;
+        if (!first_part) output << ',';
+        first_part = false;
+        const std::string encoded = EncodeBase64(attachment.bytes);
+        if (attachment.kind == MediaKind::kImage) {
+          output << "{\"type\":\"image_url\",\"image_url\":{\"url\":"
+                 << json::Quote("data:" + attachment.mime_type + ";base64," + encoded)
+                 << "}}";
+        } else {
+          output << "{\"type\":\"input_audio\",\"input_audio\":{\"format\":"
+                 << json::Quote(attachment.format) << ",\"data\":"
+                 << json::Quote(encoded) << "}}";
+        }
+      }
+      output << ']';
+    }
+    output << '}';
   }
   output << "]}";
   return output.str();
 }
+
+namespace {
 
 const json::Value* Member(const json::Value* value, std::string_view key) {
   return value && value->is_object() ? value->find(key) : nullptr;
@@ -48,6 +100,11 @@ const json::Value* Member(const json::Value* value, std::string_view key) {
 std::string TextMember(const json::Value* value, std::string_view key) {
   const json::Value* member = Member(value, key);
   return member && member->is_string() ? member->as_string() : std::string{};
+}
+
+std::int64_t IntegerMember(const json::Value* value, std::string_view key) {
+  const json::Value* member = Member(value, key);
+  return member && member->is_integer() ? member->as_integer() : 0;
 }
 
 void ParseSseData(std::string_view data, const std::function<void(ChatEvent)>& emit,
@@ -64,6 +121,13 @@ void ParseSseData(std::string_view data, const std::function<void(ChatEvent)>& e
     std::string message = TextMember(error, "message");
     emit({ChatEvent::Kind::kError, message.empty() ? "The server returned a streaming error" : message});
     return;
+  }
+  if (const json::Value* usage = Member(&root, "usage");
+      usage && usage->is_object()) {
+    ChatEvent event{ChatEvent::Kind::kUsage, {}};
+    event.prompt_tokens = IntegerMember(usage, "prompt_tokens");
+    event.completion_tokens = IntegerMember(usage, "completion_tokens");
+    emit(std::move(event));
   }
   const json::Value* choices = Member(&root, "choices");
   if (!choices || !choices->is_array() || choices->as_array().empty()) return;
@@ -85,6 +149,7 @@ void ApiClient::StreamChat(const ServerConfig& server,
                            const std::string& session_id) {
   if (Busy()) return;
   if (worker_.joinable()) worker_.join();
+  cancel_requested_.store(false);
   {
     std::lock_guard lock(mutex_);
     busy_ = true;
@@ -109,7 +174,7 @@ void ApiClient::StreamChat(const ServerConfig& server,
     std::string response_prefix;
     bool saw_done = false;
     const auto response = client->Post(
-        "/v1/chat/completions", headers, BuildPayload(server, generation, messages),
+        "/v1/chat/completions", headers, BuildChatPayload(server, generation, messages),
         "application/json",
         [this, &buffer, &response_prefix, &saw_done](const char* data, std::size_t size) {
           if (response_prefix.size() < 16U * 1024U) {
@@ -130,7 +195,9 @@ void ApiClient::StreamChat(const ServerConfig& server,
           return true;
         });
 
-    if (!response) {
+    if (!response && cancel_requested_.load()) {
+      Emit({ChatEvent::Kind::kFinished, "cancelled"});
+    } else if (!response) {
       Emit({ChatEvent::Kind::kError,
             "Could not reach gem16-server: " + httplib::to_string(response.error())});
     } else if (response->status < 200 || response->status >= 300) {
@@ -156,6 +223,7 @@ void ApiClient::StreamChat(const ServerConfig& server,
 }
 
 void ApiClient::Cancel() {
+  cancel_requested_.store(true);
   std::shared_ptr<httplib::Client> client;
   {
     std::lock_guard lock(mutex_);

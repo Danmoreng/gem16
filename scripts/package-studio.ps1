@@ -32,6 +32,7 @@ Copy-Item (Join-Path $RepoRoot "VERSION") $Stage -Force
 Copy-Item (Join-Path $RepoRoot "LICENSE") $Stage -Force
 Copy-Item (Join-Path $RepoRoot "nativeStudio\third_party\imgui\LICENSE.txt") (Join-Path $Stage "licenses\Dear-ImGui-MIT.txt") -Force
 Copy-Item (Join-Path $RepoRoot "nativeStudio\licenses\Free-Solace-ImGui-Interface-MIT.txt") (Join-Path $Stage "licenses") -Force
+Copy-Item (Join-Path $RepoRoot "third_party\miniaudio\LICENSE") (Join-Path $Stage "licenses\miniaudio-MIT-0-or-Public-Domain.txt") -Force
 if (Test-Path $Archive) { Remove-Item $Archive -Force }
 Compress-Archive -Path "$Stage\*" -DestinationPath $Archive
 $hash = Get-FileHash -LiteralPath $Archive -Algorithm SHA256

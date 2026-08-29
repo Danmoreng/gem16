@@ -23,6 +23,7 @@ cp "$repo_root/VERSION" "$stage_dir/"
 cp "$repo_root/LICENSE" "$stage_dir/"
 cp "$repo_root/nativeStudio/third_party/imgui/LICENSE.txt" "$stage_dir/licenses/Dear-ImGui-MIT.txt"
 cp "$repo_root/nativeStudio/licenses/Free-Solace-ImGui-Interface-MIT.txt" "$stage_dir/licenses/"
+cp "$repo_root/third_party/miniaudio/LICENSE" "$stage_dir/licenses/miniaudio-MIT-0-or-Public-Domain.txt"
 cp "$build_dir/_deps/glfw-src/LICENSE.md" "$stage_dir/licenses/GLFW-zlib.txt"
 tar -C "$repo_root/build/packages" -czf "$repo_root/build/packages/gem16-linux-x64.tar.gz" gem16-linux-x64
 sha256sum "$repo_root/build/packages/gem16-linux-x64.tar.gz"

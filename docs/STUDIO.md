@@ -9,7 +9,7 @@ deprecated and retained temporarily as read-only migration evidence; see [`PRODU
 
 | Layer | Linux | Windows |
 |---|---|---|
-| Window and input | GLFW 3.4 | Win32 |
+| Window and input | GLFW 3.4 + GTK file dialogs | Win32 |
 | Renderer | OpenGL 3.3 | Direct3D 11 |
 | Immediate UI | Dear ImGui 1.92.9b | Dear ImGui 1.92.9b |
 | Animated background | Native GLSL full-screen pass | Equivalent HLSL full-screen pass |
@@ -51,19 +51,31 @@ license remains beside the vendored source.
 - Persistent server, generation, and theme settings under `$XDG_CONFIG_HOME/gem16/studio.conf`,
   `~/.config/gem16/studio.conf`, or `%APPDATA%\gem16\studio.conf`.
 - Normal operating-system window chrome and cursor on both platforms.
+- Platform-aware interface scaling with a 125% Linux minimum in `Auto` mode, explicit 100/125/150% choices, scaled
+  procedural icons and responsive stacked layouts for narrower windows.
+- Composer file selection and desktop drag-and-drop for bounded UTF-8 text/code documents, PNG/JPEG/BMP images, and
+  WAV/FLAC/MP3 audio. Images and audio use OpenAI-compatible content parts on 12B Unified; the text-only 26B profile
+  rejects them before a request is sent. PDF text extraction is enabled when the mature Poppler `pdftotext` utility
+  is installed and otherwise fails visibly with an export-to-text instruction.
+- Cross-platform microphone capture through the already pinned miniaudio boundary. Recordings are bounded to five
+  minutes and attached as mono 16 kHz WAV input.
+- Chat autoscroll that disengages when the user reads earlier output, a `Jump to latest` action, context usage,
+  streamed progress, terminal usage statistics, and quick thinking-effort controls.
+- Model cache open/reverify actions, automatic managed-server restart after a profile switch, server preflight
+  status, path pickers, auto-sized errors, and responsive configuration/log panels.
 
-This native slice is text-chat and two-profile onboarding complete but does not yet satisfy the full product contract.
+This native slice covers text and 12B multimodal chat plus two-profile onboarding but does not yet satisfy the full product contract.
 Complete real-model downloads and clean-machine installation still require equal Windows and Linux qualification.
-Document/PDF extraction, image/audio attachments, microphone capture, local time tools, exact metrics cards, and
-native installers remain open work. The 12B server still supports its multimodal capabilities; the current native UI
-sends text only. The 26B profile is intentionally text-only. Deprecated Compose behavior is input to a new native
-product decision, not a parity requirement and not a reason to continue modifying the old GUI.
+Bundled PDF extraction, local time tools, exact server-side metrics cards, model-payload reclamation, and native
+installers remain open work. The 26B profile is intentionally text-only. Deprecated Compose behavior is input to a
+new native product decision, not a parity requirement and not a reason to continue modifying the old GUI.
 
 ## Build and run
 
-Requirements are CMake 3.28+, a C++20 compiler, and a current `gem16-server`. Linux additionally needs OpenGL and
-the GLFW build dependencies for X11 or Wayland; GLFW 3.4 is pinned and fetched by CMake. Windows uses platform SDK
-Direct3D 11 libraries and requires no GLFW dependency.
+Requirements are CMake 3.28+, a C++20 compiler, and a current `gem16-server`. Linux additionally needs OpenGL, GTK 3,
+and the GLFW build dependencies for X11 or Wayland; GLFW 3.4 is pinned and fetched by CMake. Poppler `pdftotext` is
+an optional runtime dependency for PDF attachments. Windows uses platform SDK Direct3D 11 libraries and requires no
+GLFW dependency.
 
 Linux:
 
@@ -91,8 +103,9 @@ The native host test exercises the generated four-component model catalog, neutr
 storage accounting, exact 26B launch arguments, and an in-process SSE endpoint, including reasoning, answer text,
 terminal marker, and resident session-ID propagation. It also drives the real selectable-text ImGui widget and
 verifies that click plus `Ctrl+A`/`Ctrl+C` reaches the platform clipboard callback, including UTF-8 helper coverage.
-It also covers Markdown parsing and streaming fences, undo-turn history behavior, and the real ImGui
-`Enter`/`Shift+Enter` composer interaction. It does not download a full model or load a GPU.
+It also covers Markdown parsing and streaming fences, undo-turn history behavior, the multimodal OpenAI request
+shape and usage events, UI-scale policy/persistence, and the real ImGui `Enter`/`Shift+Enter` composer interaction.
+It does not download a full model, open a microphone, or load a GPU.
 
 ## Packaging
 
@@ -117,6 +130,8 @@ as deprecated evidence in [`legacy/KOTLIN_COMPOSE_STUDIO.md`](legacy/KOTLIN_COMP
 ## Security and lifecycle
 
 - Model paths and server executable paths are passed as direct argument arrays, never through a shell.
+- Attachment files are size-bounded before reading; text must be valid UTF-8. `pdftotext` receives paths as direct
+  process arguments and writes only inside a newly created private temporary directory.
 - Server logs are held in a bounded 1,000-line memory ring.
 - Studio terminates only a process it started. A healthy external server is labeled `Attached` and is never stopped.
 - The server defaults to loopback and still has no TLS or authentication; do not bind it to an untrusted network.

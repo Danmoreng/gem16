@@ -372,8 +372,7 @@ Status ValidateExternalLock(const std::filesystem::path& root,
                     "M08 artifact contains a non-regular entry");
     }
     const auto name = iterator->path().filename().string();
-    if (name == ".gitattributes" || name == "README.md" ||
-        name == "gem16_model.json") {
+    if (IsGemma4Moe26BPackagingMetadata(name)) {
       continue;
     }
     actual_names.insert(name);
@@ -713,8 +712,7 @@ Status ValidateM25ExternalLock(const std::filesystem::path& root,
                     "M25 artifact contains a non-regular entry");
     }
     const auto name = iterator->path().filename().string();
-    if (name == ".gitattributes" || name == "README.md" ||
-        name == "gem16_model.json") {
+    if (IsGemma4Moe26BPackagingMetadata(name)) {
       continue;
     }
     actual_names.insert(name);
@@ -897,6 +895,11 @@ Status ValidateM25TensorRecords(const std::filesystem::path& root,
 }
 
 }  // namespace
+
+bool IsGemma4Moe26BPackagingMetadata(std::string_view name) {
+  return name == ".gitattributes" || name == "LICENSE" || name == "NOTICE" ||
+         name == "README.md" || name == "gem16_model.json";
+}
 
 Result<std::vector<StoredTensor>> LoadGemma4Moe26BDeviceImageInventory(
     const std::filesystem::path& model_directory) {

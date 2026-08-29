@@ -2,6 +2,7 @@
 
 #include "model_catalog.h"
 
+#include <algorithm>
 #include <cstdlib>
 #include <fstream>
 #include <string_view>
@@ -44,6 +45,10 @@ bool ParseBool(std::string_view value, bool fallback) {
   return fallback;
 }
 
+bool SupportedUiScale(float value) {
+  return value == 0.0f || value == 1.0f || value == 1.25f || value == 1.5f;
+}
+
 std::filesystem::path ResolveHubRoot() {
   if (const char* value = std::getenv("HF_HUB_CACHE"); value && *value) return value;
   if (const char* value = std::getenv("HF_HOME"); value && *value) return std::filesystem::path(value) / "hub";
@@ -84,6 +89,15 @@ std::filesystem::path ExecutableDirectory() {
 }  // namespace
 
 std::filesystem::path HuggingFaceHubRoot() { return ResolveHubRoot(); }
+
+float ResolveUiScale(float configured_scale, float platform_scale,
+                     bool linux_platform) {
+  if (SupportedUiScale(configured_scale) && configured_scale != 0.0f) {
+    return configured_scale;
+  }
+  const float platform = std::clamp(platform_scale, 1.0f, 2.0f);
+  return linux_platform ? std::max(platform, 1.25f) : platform;
+}
 
 std::filesystem::path ProfileTargetDirectory(ModelProfile profile) {
   return ComponentDirectory(*CatalogForProfile(profile).target, ResolveHubRoot());
@@ -198,6 +212,10 @@ StudioSettings LoadSettings() {
       else if (key == "max_output_tokens") result.generation.max_output_tokens = std::stoll(value);
       else if (key == "system_prompt") result.generation.system_prompt = value;
       else if (key == "dark_theme") result.dark_theme = ParseBool(value, result.dark_theme);
+      else if (key == "ui_scale") {
+        const float scale = std::stof(value);
+        if (SupportedUiScale(scale)) result.ui_scale = scale;
+      }
     } catch (...) {
       // A malformed setting is ignored and retains the safe default.
     }
@@ -231,6 +249,7 @@ bool SaveSettings(const StudioSettings& settings) {
          << "max_output_tokens=" << settings.generation.max_output_tokens << '\n'
          << "system_prompt=" << EscapeLine(settings.generation.system_prompt) << '\n'
          << "dark_theme=" << (settings.dark_theme ? 1 : 0) << '\n';
+  output << "ui_scale=" << settings.ui_scale << '\n';
   return static_cast<bool>(output);
 }
 
