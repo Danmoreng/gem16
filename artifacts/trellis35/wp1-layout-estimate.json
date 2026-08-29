@@ -1,0 +1,81 @@
+{
+  "baseline_manifest": {
+    "path": "benchmarks/goldens/gemma4_26b/manifests/compiled-hybrid.json",
+    "sha256": "c1b4239582ca7bf8072a5f2c896584200ddee13716f9b76208d68608894c1e6f"
+  },
+  "estimate": {
+    "alignment_bytes": 0,
+    "baseline": {
+      "non_routed_bytes": 1850270720,
+      "routed_down_bytes": 4282137600,
+      "routed_gate_up_bytes": 8564259840,
+      "target_arena_bytes": 14696668160
+    },
+    "codebook_bytes": 0,
+    "effective_expert_bpw": 3.627087637741047,
+    "encoded_expert_coefficients": 23530045440,
+    "families": {
+      "down": {
+        "alignment_bytes": 0,
+        "encoded_coefficients": 8304721920,
+        "k3_payload_bytes_per_layer": 51904512,
+        "k4_payload_bytes_per_layer": 69206016,
+        "logical_coefficients": 7612661760,
+        "logical_input": 704,
+        "output": 2816,
+        "physical_input": 768,
+        "rate_descriptor_bytes": 30720,
+        "suh_bytes": 5898240,
+        "svh_bytes": 21626880,
+        "total_bytes": 3660871680,
+        "trellis_payload_bytes": 3633315840
+      },
+      "gate_up": {
+        "alignment_bytes": 0,
+        "encoded_coefficients": 15225323520,
+        "k3_payload_bytes_per_layer": 95158272,
+        "k4_payload_bytes_per_layer": 126877696,
+        "logical_coefficients": 15225323520,
+        "logical_input": 2816,
+        "output": 1408,
+        "physical_input": 2816,
+        "rate_descriptor_bytes": 30720,
+        "suh_bytes": 21626880,
+        "svh_bytes": 10813440,
+        "total_bytes": 6693550080,
+        "trellis_payload_bytes": 6661079040
+      }
+    },
+    "logical_expert_coefficients": 22837985280,
+    "payload_bpw_encoded": 3.5,
+    "payload_bpw_logical": 3.606060606060606,
+    "rate_descriptor_bytes": 61440,
+    "saving_vs_locked_nvfp4_bytes": 2491975680,
+    "suh_bytes": 27525120,
+    "svh_bytes": 32440320,
+    "total_expert_bytes": 10354421760,
+    "total_target_arena_bytes": 12204692480,
+    "trellis_payload_bytes": 10294394880
+  },
+  "format": "GEM16-Trellis35",
+  "format_spec": {
+    "path": "tools/gem16_compile/specs/trellis35-experts-v1.json",
+    "sha256": "1d24030dbf8c52f43111683e61419083ff5281aaf3d46231f3adb3c581e652cd"
+  },
+  "format_version": 1,
+  "limitations": [
+    "This is static byte accounting, not a compiled artifact or measured device arena.",
+    "WP2 must finalize payload packing, codebook IDs, proxy errors, and all 60 rate maps.",
+    "Context and workspace capacity are not requalified by this estimate."
+  ],
+  "rate_map_status": "deferred_until_wp2_proxy_errors",
+  "schema_version": 1,
+  "source": {
+    "lock_path": "models/gemma4-26b-qat-bf16.lock.json",
+    "lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230",
+    "repository": "google/gemma-4-26B-A4B-it-qat-q4_0-unquantized",
+    "revision": "f1e06dc520982d9b9edd76859fdb7ab209449949"
+  },
+  "status": "format_byte_estimate_not_runtime_evidence",
+  "work_package": "WP1"
+}

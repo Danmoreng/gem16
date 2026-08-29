@@ -1,0 +1,118 @@
+{
+  "alignment_bytes": 256,
+  "codebook_bytes": 0,
+  "codebook_storage": "kernel_builtin_selected_by_validated_id",
+  "descriptor": {
+    "bytes": 8,
+    "fields": [
+      {
+        "dtype": "U32",
+        "name": "pool_offset"
+      },
+      {
+        "dtype": "U16",
+        "name": "rate_bits"
+      },
+      {
+        "dtype": "U16",
+        "name": "codebook_id"
+      }
+    ],
+    "offset_validation": "checked_u64_before_narrowing"
+  },
+  "experts_per_layer": 128,
+  "families": {
+    "down": {
+      "logical_axis_order": "expert,output,input",
+      "logical_shape": [
+        128,
+        2816,
+        704
+      ],
+      "padding": "input_zero_pad_704_to_768",
+      "physical_shape": [
+        128,
+        2816,
+        768
+      ],
+      "source_name": "model.language_model.layers.{layer}.experts.down_proj",
+      "suh_shape": [
+        128,
+        768
+      ],
+      "svh_shape": [
+        128,
+        2816
+      ]
+    },
+    "gate_up": {
+      "gate_up_boundary": 704,
+      "gate_up_inverse_before_split": true,
+      "logical_axis_order": "expert,gate_then_up,input",
+      "logical_shape": [
+        128,
+        1408,
+        2816
+      ],
+      "padding": "none",
+      "physical_shape": [
+        128,
+        1408,
+        2816
+      ],
+      "source_name": "model.language_model.layers.{layer}.experts.gate_up_proj",
+      "suh_shape": [
+        128,
+        2816
+      ],
+      "svh_shape": [
+        128,
+        1408
+      ]
+    }
+  },
+  "format": "GEM16-Trellis35",
+  "format_version": 1,
+  "hadamard_block": 128,
+  "layer_count": 30,
+  "payload_bitstream_contract_deferred_to_wp2": true,
+  "payload_rates": {
+    "allowed_rate_bits": [
+      3,
+      4
+    ],
+    "final_rate_maps_deferred_to_wp2": true,
+    "k3_experts_per_family_layer": 64,
+    "k4_experts_per_family_layer": 64,
+    "payload_bpw_encoded": 3.5,
+    "selection": "top_64_positive_proxy_error_k3_minus_k4",
+    "tie_break": "ascending_expert_id"
+  },
+  "per_layer_region_order": [
+    "gate_up_k3_payload_pool",
+    "gate_up_k4_payload_pool",
+    "gate_up_descriptor",
+    "gate_up_suh",
+    "gate_up_svh",
+    "down_k3_payload_pool",
+    "down_k4_payload_pool",
+    "down_descriptor",
+    "down_suh",
+    "down_svh"
+  ],
+  "schema_version": 1,
+  "scope": "gemma4_26b_routed_experts_only",
+  "sidecar_dtype": "F16",
+  "sidecar_element_bytes": 2,
+  "source": {
+    "lock_path": "models/gemma4-26b-qat-bf16.lock.json",
+    "lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230",
+    "repository": "google/gemma-4-26B-A4B-it-qat-q4_0-unquantized",
+    "revision": "f1e06dc520982d9b9edd76859fdb7ab209449949"
+  },
+  "status": "experimental_not_runtime_loadable",
+  "trellis_tile": [
+    16,
+    16
+  ]
+}
