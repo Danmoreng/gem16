@@ -30,6 +30,13 @@ from tools.gem16_compile.trellis35_layout import (
     TRELLIS35_TILE,
     estimate_trellis35_layout,
 )
+from tools.gem16_compile.trellis35_quant import (
+    CODEBOOK_3INST,
+    CODEBOOK_MCG,
+    CODEBOOK_MUL1,
+    CODEBOOK_MCG_MULTIPLIER,
+    CODEBOOK_MUL1_MULTIPLIER,
+)
 
 
 INVENTORY = ROOT / "benchmarks/goldens/gemma4_26b/source-inventories/qat-bf16.json"
@@ -145,7 +152,7 @@ def make_spec(source: dict[str, str]) -> dict[str, Any]:
             "payload_bpw_encoded": 3.5,
             "selection": "top_64_positive_proxy_error_k3_minus_k4",
             "tie_break": "ascending_expert_id",
-            "final_rate_maps_deferred_to_wp2": True,
+            "rate_maps_stored_per_layer_artifact": True,
         },
         "descriptor": {
             "bytes": TRELLIS35_DESCRIPTOR_BYTES,
@@ -159,8 +166,25 @@ def make_spec(source: dict[str, str]) -> dict[str, Any]:
         "alignment_bytes": TRELLIS35_ALIGNMENT,
         "sidecar_dtype": "F16",
         "sidecar_element_bytes": TRELLIS35_SIDECAR_ELEMENT_BYTES,
-        "codebook_storage": "kernel_builtin_selected_by_validated_id",
-        "codebook_bytes": 0,
+        "codebooks": {
+            "storage": "kernel_builtin_selected_by_validated_id",
+            "artifact_bytes": 0,
+            "allowed": [
+                {"id": CODEBOOK_3INST, "name": "3inst"},
+                {
+                    "id": CODEBOOK_MCG,
+                    "name": "mcg",
+                    "multiplier": CODEBOOK_MCG_MULTIPLIER,
+                },
+                {
+                    "id": CODEBOOK_MUL1,
+                    "name": "mul1",
+                    "multiplier": CODEBOOK_MUL1_MULTIPLIER,
+                },
+            ],
+            "selected_v1_id": CODEBOOK_MUL1,
+            "selection_evidence": "artifacts/trellis35/wp2-layer0-artifact.json",
+        },
         "families": {
             "gate_up": {
                 "source_name": GATE_UP_NAME,
@@ -195,7 +219,7 @@ def make_spec(source: dict[str, str]) -> dict[str, Any]:
             "down_suh",
             "down_svh",
         ],
-        "payload_bitstream_contract_deferred_to_wp2": True,
+        "payload_bitstream_contract": "validated_tail_biting_states_packed_in_exact_upstream_k_bit_order",
     }
 
 
@@ -221,11 +245,11 @@ def make_estimate(source: dict[str, str], spec_sha256: str) -> dict[str, Any]:
             "path": _relative(OUTPUT_SPEC),
             "sha256": spec_sha256,
         },
-        "rate_map_status": "deferred_until_wp2_proxy_errors",
+        "rate_map_status": "artifact_specific_proxy_selection",
         "estimate": estimate,
         "limitations": [
             "This is static byte accounting, not a compiled artifact or measured device arena.",
-            "WP2 must finalize payload packing, codebook IDs, proxy errors, and all 60 rate maps.",
+            "Actual rate maps are generated per compiled layer from measured K3/K4 proxy errors.",
             "Context and workspace capacity are not requalified by this estimate.",
         ],
     }

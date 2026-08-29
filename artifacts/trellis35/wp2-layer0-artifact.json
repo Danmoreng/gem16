@@ -1,0 +1,50 @@
+{
+  "artifact": {
+    "bytes": 345147392,
+    "path": "layer-00.trellis35.bin",
+    "sha256": "60cb1b5bc667b9e2566eb4c4a0deb4040a265f6f9a2e1e68b126ddebee7e9783"
+  },
+  "descriptor_checks": {
+    "down": {
+      "descriptors": 128,
+      "k3": 64,
+      "k4": 64,
+      "pool_coverage": "exact"
+    },
+    "gate_up": {
+      "descriptors": 128,
+      "k3": 64,
+      "k4": 64,
+      "pool_coverage": "exact"
+    }
+  },
+  "down_padding": "704_to_768",
+  "gate_up_inverse_before_split": true,
+  "gate_up_padding": "none",
+  "layer": 0,
+  "manifest_sha256": "d5f0472d29c4387f05c921c796a5c918f8a480a8e62dc8fe8d9ae406c181f1fb",
+  "numerical_checks": [
+    {
+      "codebook_id": 2,
+      "expert": 0,
+      "full_output_semantic_max_abs": 7.91033905045424e-16,
+      "gelu_product_semantic_max_abs": 6.158268339717665e-17,
+      "quantized_output_nmse": 0.020508955681262108,
+      "rate_bits": 3
+    },
+    {
+      "codebook_id": 2,
+      "expert": 3,
+      "full_output_semantic_max_abs": 9.992007221626409e-16,
+      "gelu_product_semantic_max_abs": 5.898059818321144e-17,
+      "quantized_output_nmse": 0.0049821151228328685,
+      "rate_bits": 4
+    }
+  ],
+  "payload_bpw": 3.5,
+  "schema_version": 1,
+  "source_lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230",
+  "status": "complete_single_layer_artifact_pass",
+  "verifier_sha256": "8971359e63c5366a897420efd9699eea0fd37074cc3cdfcf8e58699484463860",
+  "work_package": "WP2"
+}

@@ -588,6 +588,12 @@ struct Gemma4Moe26BReferenceEngine::Impl {
   std::array<float*, kCaptureLayers.size()> layer_captures{};
   std::array<float*, kCaptureLayers.size()> router_probability_captures{};
   std::array<std::uint32_t*, kCaptureLayers.size()> router_id_captures{};
+  bool calibration_capture_enabled = false;
+  bool calibration_capture_valid = false;
+  std::uint32_t calibration_capture_layer = 0U;
+  std::vector<float> calibration_gate_up_input;
+  std::vector<float> calibration_down_inputs;
+  std::vector<std::uint32_t> calibration_expert_ids;
 
   Status LaunchControlledDecodeBody();
   Status PrepareDecodeGraph();
@@ -2126,12 +2132,14 @@ Status Gemma4Moe26BReferenceEngine::Reset() {
   implementation_->last_input_token = 0U;
   implementation_->decode_self_feed_token = 0U;
   implementation_->decode_self_feed_position = 0U;
+  implementation_->calibration_capture_valid = false;
   return Status::Ok();
 }
 
 Status Gemma4Moe26BReferenceEngine::ForwardToken(std::uint32_t token) {
   if (!implementation_) return Invalid("M13 engine is not initialized");
   auto& x = *implementation_;
+  x.calibration_capture_valid = false;
   if (token >= kVocabulary || x.position >= x.context) {
     return Invalid("M13 token or position exceeds the fixed contract");
   }
@@ -2202,6 +2210,25 @@ Status Gemma4Moe26BReferenceEngine::ForwardToken(std::uint32_t token) {
                        x.hidden_b, x.hidden_a, x.moe_config,
                        x.moe_weights[layer], x.moe_workspace, x.stream);
     if (!status.ok()) return status;
+    if (x.calibration_capture_enabled && layer == x.calibration_capture_layer) {
+      error = cudaMemcpyAsync(
+          x.calibration_gate_up_input.data(), x.moe_workspace.expert_input,
+          kWidth * sizeof(float), cudaMemcpyDeviceToHost, x.stream);
+      if (error == cudaSuccess) {
+        error = cudaMemcpyAsync(
+            x.calibration_down_inputs.data(), x.moe_workspace.expert_product,
+            kTopK * kExpert * sizeof(float), cudaMemcpyDeviceToHost, x.stream);
+      }
+      if (error == cudaSuccess) {
+        error = cudaMemcpyAsync(
+            x.calibration_expert_ids.data(), x.moe_workspace.top_ids,
+            kTopK * sizeof(std::uint32_t), cudaMemcpyDeviceToHost, x.stream);
+      }
+      if (error != cudaSuccess) {
+        return CudaFailure("capture Trellis35 calibration inputs", error);
+      }
+      x.calibration_capture_valid = true;
+    }
     const int capture = CaptureIndex(layer);
     if (capture >= 0) {
       error = cudaMemcpyAsync(x.layer_captures[static_cast<std::size_t>(capture)],
@@ -3669,6 +3696,57 @@ Status Gemma4Moe26BReferenceEngine::CopyRouterTopIds(
   }
   return error == cudaSuccess ? Status::Ok()
                               : CudaFailure("copy M13 router IDs", error);
+}
+
+Status Gemma4Moe26BReferenceEngine::ConfigureMoeCalibrationCapture(
+    std::uint32_t layer) {
+  if (!implementation_ || layer >= kLayers) {
+    return Invalid("Trellis35 calibration layer is invalid");
+  }
+  auto& x = *implementation_;
+  if (x.backend != Gemma4Moe26BBackend::kReference) {
+    return Invalid("Trellis35 calibration capture requires the reference backend");
+  }
+  if (x.has_last_input_token || x.position != 0U) {
+    return Invalid("Trellis35 calibration capture must be configured before execution");
+  }
+  try {
+    x.calibration_gate_up_input.assign(kWidth, 0.0F);
+    x.calibration_down_inputs.assign(kTopK * kExpert, 0.0F);
+    x.calibration_expert_ids.assign(kTopK, 0U);
+  } catch (const std::bad_alloc&) {
+    return Status(StatusCode::kResourceExhausted,
+                  "cannot allocate Trellis35 calibration host buffers");
+  }
+  x.calibration_capture_layer = layer;
+  x.calibration_capture_enabled = true;
+  x.calibration_capture_valid = false;
+  return Status::Ok();
+}
+
+Status Gemma4Moe26BReferenceEngine::CopyMoeCalibrationCapture(
+    std::span<float> gate_up_input, std::span<float> routed_down_inputs,
+    std::span<std::uint32_t> routed_expert_ids) {
+  if (!implementation_ || gate_up_input.size() != kWidth ||
+      routed_down_inputs.size() != kTopK * kExpert ||
+      routed_expert_ids.size() != kTopK) {
+    return Invalid("Trellis35 calibration destinations have the wrong extent");
+  }
+  auto& x = *implementation_;
+  if (!x.calibration_capture_enabled || !x.calibration_capture_valid) {
+    return Invalid("Trellis35 calibration capture is not available");
+  }
+  const cudaError_t error = cudaStreamSynchronize(x.stream);
+  if (error != cudaSuccess) {
+    return CudaFailure("synchronize Trellis35 calibration capture", error);
+  }
+  std::copy(x.calibration_gate_up_input.begin(),
+            x.calibration_gate_up_input.end(), gate_up_input.begin());
+  std::copy(x.calibration_down_inputs.begin(), x.calibration_down_inputs.end(),
+            routed_down_inputs.begin());
+  std::copy(x.calibration_expert_ids.begin(), x.calibration_expert_ids.end(),
+            routed_expert_ids.begin());
+  return Status::Ok();
 }
 
 std::uint64_t Gemma4Moe26BReferenceEngine::position() const {

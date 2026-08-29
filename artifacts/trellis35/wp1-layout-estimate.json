@@ -60,15 +60,15 @@
   "format": "GEM16-Trellis35",
   "format_spec": {
     "path": "tools/gem16_compile/specs/trellis35-experts-v1.json",
-    "sha256": "1d24030dbf8c52f43111683e61419083ff5281aaf3d46231f3adb3c581e652cd"
+    "sha256": "f0973e4a2dd155e473901777fe6b8e02a9f6fa9df4cf74f668228c1ea2c8f411"
   },
   "format_version": 1,
   "limitations": [
     "This is static byte accounting, not a compiled artifact or measured device arena.",
-    "WP2 must finalize payload packing, codebook IDs, proxy errors, and all 60 rate maps.",
+    "Actual rate maps are generated per compiled layer from measured K3/K4 proxy errors.",
     "Context and workspace capacity are not requalified by this estimate."
   ],
-  "rate_map_status": "deferred_until_wp2_proxy_errors",
+  "rate_map_status": "artifact_specific_proxy_selection",
   "schema_version": 1,
   "source": {
     "lock_path": "models/gemma4-26b-qat-bf16.lock.json",

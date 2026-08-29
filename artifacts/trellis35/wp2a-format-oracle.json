@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "work_package": "WP2a",
+  "status": "bounded_upstream_format_oracle_pass",
+  "upstream": {
+    "repository": "https://github.com/turboderp-org/exllamav3",
+    "revision": "0c49587a7c235e6303a6bbedc8b665272ad3a2ea",
+    "license_sha256": "27a32b6263fcd96c79d3beeecf221c4366780bdf15ad51986f48650bd7369bff",
+    "pack_source_sha256": "27606eed6650acc31c6b6484aad1e89195da88823a5bd62ffb3e9911a9b47e60",
+    "codebook_source_sha256": "0e3c63b323f8d3cc15c6a8f2e2b3816efafd71e149a99997b30b2f806375138a"
+  },
+  "environment": {
+    "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "compute_capability": "12.0",
+    "cuda_compiler": "13.3.73",
+    "cuda_target": "sm_120"
+  },
+  "comparison": {
+    "method": "standalone CUDA harness compiled directly against the pinned upstream codebook header and a literal copy of the pinned pack kernel body",
+    "states": [0, 1, 2, 3, 4660, 32767, 65535],
+    "codebook_half_bits": {
+      "3inst": [14885, 47963, 15220, 13494, 49254, 47766, 45328],
+      "mcg": [16224, 12366, 47635, 15032, 15887, 16754, 15053],
+      "mul1": [49896, 14625, 46893, 12857, 47262, 16330, 47414]
+    },
+    "packed_tile_sha256": {
+      "K3": "bdc93f20bc6959aced975d522cdec35be573fd0fdad15581bf256de045188640",
+      "K4": "8ed6ecf035a536fd677f9dd6d9b34d7ca2db2ab38c02d0e91aefaa177e5db6e2"
+    },
+    "result": "Gem16 CPU oracle is byte-identical for K3/K4 packing and bit-identical for all three procedural codebooks on the bounded golden vectors."
+  },
+  "limitations": [
+    "This validates format primitives only, not Viterbi encoding, LDLQ, transforms, or a quantized model layer.",
+    "The bounded CUDA comparison is diagnostic evidence and not a runtime performance claim."
+  ]
+}

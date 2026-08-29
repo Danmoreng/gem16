@@ -1,7 +1,27 @@
 {
   "alignment_bytes": 256,
-  "codebook_bytes": 0,
-  "codebook_storage": "kernel_builtin_selected_by_validated_id",
+  "codebooks": {
+    "allowed": [
+      {
+        "id": 0,
+        "name": "3inst"
+      },
+      {
+        "id": 1,
+        "multiplier": 3417055213,
+        "name": "mcg"
+      },
+      {
+        "id": 2,
+        "multiplier": 2212286765,
+        "name": "mul1"
+      }
+    ],
+    "artifact_bytes": 0,
+    "selected_v1_id": 2,
+    "selection_evidence": "artifacts/trellis35/wp2-layer0-artifact.json",
+    "storage": "kernel_builtin_selected_by_validated_id"
+  },
   "descriptor": {
     "bytes": 8,
     "fields": [
@@ -75,16 +95,16 @@
   "format_version": 1,
   "hadamard_block": 128,
   "layer_count": 30,
-  "payload_bitstream_contract_deferred_to_wp2": true,
+  "payload_bitstream_contract": "validated_tail_biting_states_packed_in_exact_upstream_k_bit_order",
   "payload_rates": {
     "allowed_rate_bits": [
       3,
       4
     ],
-    "final_rate_maps_deferred_to_wp2": true,
     "k3_experts_per_family_layer": 64,
     "k4_experts_per_family_layer": 64,
     "payload_bpw_encoded": 3.5,
+    "rate_maps_stored_per_layer_artifact": true,
     "selection": "top_64_positive_proxy_error_k3_minus_k4",
     "tie_break": "ascending_expert_id"
   },

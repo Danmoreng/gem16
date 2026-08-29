@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "work_package": "WP2c",
+  "status": "native_hessian_ldlq_producer_pass",
+  "implementations": {
+    "tile_encoder": "gem16_trellis35_quantize_v1",
+    "full_matrix_ldlq": "gem16_trellis35_ldlq_v1"
+  },
+  "sources": {
+    "tile_encoder_sha256": "86c8b3bd611d906c92d5c7addb4c6eda8c8550761c0448f9e327bd471ac38410",
+    "full_matrix_ldlq_sha256": "2f3e338d9bd201bc6ae1b247a33913df597c63385431b4bbfc0d8ee1e8f03362"
+  },
+  "diagnostic_binaries": {
+    "tile_encoder_sha256": "d0e1bcd956ae6b0e373c8d7f382375df3805759636465165365fab8984bb356c",
+    "full_matrix_ldlq_sha256": "6d07a1d41a7eb7725c68fa35a3412df2fd8f11eca1dc60a7c5311375b5364e96"
+  },
+  "upstream": {
+    "revision": "0c49587a7c235e6303a6bbedc8b665272ad3a2ea",
+    "codebook_sha256": "0e3c63b323f8d3cc15c6a8f2e2b3816efafd71e149a99997b30b2f806375138a",
+    "quantize_tiles_kernel_sha256": "85a9ab6295362212f3c6edc990cb6edb57c77a7b5473fe89b5109fdf57c28bfa",
+    "vendored_race_fixed_kernel_sha256": "e687fa4b9cb6905bafe11d36431129152f7428c22fa2089410396a7683b75561"
+  },
+  "build": {
+    "cmake_preset": "blackwell-release",
+    "cuda_architecture": "120a",
+    "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "compute_capability": "12.0"
+  },
+  "golden_fixture": {
+    "tiles": 1,
+    "codebook_id": 2,
+    "K3_mismatched_states": 0,
+    "K4_mismatched_states": 0,
+    "K3_encoded_u16_sha256": "36cc860b34245853d67f55f24fbd0bb1281529c2c5310866d33b56f58b5a0597",
+    "K4_encoded_u16_sha256": "0b3303bc9bb2d677a0a65faa835a85d06fc08da03ce35e56bfdfde7546a7e7b3"
+  },
+  "multi_block_ldlq_fixture": {
+    "shape": [32, 32],
+    "nonzero_compensation_blocks": 1,
+    "K3_mismatched_states": 0,
+    "K4_mismatched_states": 0,
+    "K3_reconstruction_max_abs": 0.0,
+    "K4_reconstruction_max_abs": 0.0,
+    "K3_proxy_abs_diff": 5.965339888724941e-10,
+    "K4_proxy_abs_diff": 4.2661166179541743e-10
+  },
+  "compute_sanitizer": {
+    "fixture": "K3 16x16 with Hessian proxy",
+    "memcheck_errors": 0,
+    "initcheck_errors": 0,
+    "racecheck_hazards_after_lane0_guard": 0,
+    "pre_fix_racecheck_hazards": 4
+  },
+  "result": "The native CUDA producer matches the CPU oracle exactly for K3/K4 states and reconstructed values on isolated and compensated multi-block LDLQ fixtures; native Hessian proxy ratios match the CPU reference below 6e-10 absolute error.",
+  "limitations": [
+    "The binaries are offline compiler tools and are not runtime kernels or performance evidence.",
+    "Complete real-layer artifact evidence is recorded separately in wp2-layer0-artifact.json."
+  ]
+}

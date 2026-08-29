@@ -248,6 +248,53 @@ if(GEM16_ENABLE_CUDA)
   enable_language(CUDA)
   find_package(CUDAToolkit REQUIRED)
   gem16_configure_cuda_architectures()
+  add_executable(gem16-trellis35-quantize
+    src/cli/trellis35_quantize_main.cu
+  )
+  target_include_directories(gem16-trellis35-quantize PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}"
+  )
+  target_link_libraries(gem16-trellis35-quantize PRIVATE CUDA::cudart)
+  set_target_properties(gem16-trellis35-quantize PROPERTIES
+    CUDA_ARCHITECTURES "${GEM16_CUDA_ARCHITECTURE}"
+  )
+  gem16_set_project_warnings(gem16-trellis35-quantize)
+  add_executable(gem16-trellis35-calibration
+    src/cli/trellis35_calibration_main.cpp
+  )
+  target_include_directories(gem16-trellis35-calibration PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/src"
+  )
+  target_link_libraries(gem16-trellis35-calibration PRIVATE
+    gem16_core CUDA::cudart
+  )
+  set_target_properties(gem16-trellis35-calibration PROPERTIES
+    CUDA_ARCHITECTURES "${GEM16_CUDA_ARCHITECTURE}"
+  )
+  gem16_set_project_warnings(gem16-trellis35-calibration)
+  add_executable(gem16-trellis35-expand-down
+    src/cli/trellis35_expand_down_main.cu
+  )
+  target_link_libraries(gem16-trellis35-expand-down PRIVATE
+    CUDA::cudart CUDA::cublas
+  )
+  set_target_properties(gem16-trellis35-expand-down PROPERTIES
+    CUDA_ARCHITECTURES "${GEM16_CUDA_ARCHITECTURE}"
+  )
+  gem16_set_project_warnings(gem16-trellis35-expand-down)
+  add_executable(gem16-trellis35-ldlq
+    src/cli/trellis35_ldlq_main.cu
+  )
+  target_include_directories(gem16-trellis35-ldlq PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}"
+  )
+  target_link_libraries(gem16-trellis35-ldlq PRIVATE
+    CUDA::cudart CUDA::cublas
+  )
+  set_target_properties(gem16-trellis35-ldlq PROPERTIES
+    CUDA_ARCHITECTURES "${GEM16_CUDA_ARCHITECTURE}"
+  )
+  gem16_set_project_warnings(gem16-trellis35-ldlq)
   target_sources(gem16_core PRIVATE
     src/cuda/attention/decode_sm120.cu
     src/cuda/attention/gemma4_26b_reference.cu

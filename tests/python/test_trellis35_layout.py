@@ -104,12 +104,15 @@ class Trellis35LayoutTest(unittest.TestCase):
 
     def test_spec_hash_and_source_identity_are_bound(self) -> None:
         report = json.loads(OUTPUT_ESTIMATE.read_text(encoding="utf-8"))
+        spec = json.loads(OUTPUT_SPEC.read_text(encoding="utf-8"))
         self.assertEqual(
             report["format_spec"]["sha256"],
             hashlib.sha256(OUTPUT_SPEC.read_bytes()).hexdigest(),
         )
-        self.assertEqual(report["source"], json.loads(OUTPUT_SPEC.read_text())["source"])
-        self.assertEqual(report["rate_map_status"], "deferred_until_wp2_proxy_errors")
+        self.assertEqual(report["source"], spec["source"])
+        self.assertEqual(report["rate_map_status"], "artifact_specific_proxy_selection")
+        self.assertEqual(spec["codebooks"]["selected_v1_id"], 2)
+        self.assertTrue(spec["payload_rates"]["rate_maps_stored_per_layer_artifact"])
         self.assertIn("not a compiled artifact", report["limitations"][0])
 
 

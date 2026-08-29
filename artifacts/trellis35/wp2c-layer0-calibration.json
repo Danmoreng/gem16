@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "work_package": "WP2c",
+  "status": "layer0_calibration_and_all_expert_bf16_down_expansion_pass",
+  "layer": 0,
+  "capture_source": {
+    "runtime_repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+    "runtime_revision": "63508b5826527484e707b4b46e2eacf077cf2b35",
+    "runtime_backend": "reference",
+    "weights_to_compile_repository": "google/gemma-4-26B-A4B-it-qat-q4_0-unquantized",
+    "weights_to_compile_revision": "f1e06dc520982d9b9edd76859fdb7ab209449949"
+  },
+  "corpus": {
+    "path": "benchmarks/corpora/gemma4_26b/calibration.json",
+    "sha256": "686c18b5f2df35a051d7ab3610ae621920c578877bd57b3f3dbce9f99baaac29",
+    "records": 4,
+    "token_records": 1258,
+    "token_ids": "exact pinned input_token_ids from each corpus record"
+  },
+  "capture_files": [
+    {"id": "cal-tiny-ok", "records": 18, "sha256": "626ac2e2d7f5291c8eb57584d6fc6d75824eb5a5d23fd030828075b2e6279663"},
+    {"id": "cal-multilingual", "records": 34, "sha256": "07db21692f0b12c5562e99f39bfbfda62cea38751bfab41d757f035184c3cd20"},
+    {"id": "cal-code", "records": 41, "sha256": "342d31c2beb89824e706dccc66477a21cac88ee5d943eb723f9359440650f831"},
+    {"id": "cal-repeated", "records": 1165, "sha256": "0819a97fc88cd03760d5b22b24f7e10097f8ef68283012cc547bd759fa1cfdb3"}
+  ],
+  "observations": {
+    "finite_gate_up_inputs": true,
+    "finite_routed_down_inputs": true,
+    "naturally_routed_experts_seen": 100,
+    "naturally_routed_experts_total": 128,
+    "maximum_route_count": 968
+  },
+  "all_expert_down_expansion": {
+    "implementation": "gem16-trellis35-expand-down",
+    "source_sha256": "9d8a1e60aab606e9b4e94fbae69985e8b0b8fe515c2fba4342e0dfb57ddab8e2",
+    "diagnostic_binary_sha256": "b25021084bc381b7cd9447ca328241596b84a9082f205271e6b6b0814160fe0d",
+    "gate_input_f32_sha256": "ee263ccf552703d2023baeb5d55d50464d17f9fc23f74ab72922dec54f4dd2c5",
+    "down_inputs_f32_sha256": "c6040334e40489e8ae8cb0f595397967e0561bb251cf491e5a11d605b6110753",
+    "down_inputs_bytes": 453443584,
+    "shape": [128, 1258, 704],
+    "finite": true,
+    "expert_rms_min": 0.05649875432836144,
+    "expert_rms_max": 0.2907275795728688,
+    "independent_spot_max_abs_error": 3.160841816618465e-7,
+    "independent_spot_rms_error": 4.1289113701931015e-8,
+    "math": "pedantic FP32 cuBLAS projection from direct BF16 source weights, then fused tanh-GELU(gate) * up"
+  },
+  "hessian_finalization": {
+    "sigma_reg": 0.025,
+    "gate_up_shape": [2816, 2816],
+    "gate_up_samples": 1258,
+    "gate_up_capture_sum_diagonal_min": 4.040273427061017e-6,
+    "gate_up_capture_sum_diagonal_max": 3169.2666517831385,
+    "gate_up_ldl_frobenius_norm": 84.48743519287221,
+    "down_experts": 128,
+    "down_shape_after_padding": [768, 768],
+    "down_samples_per_expert": 1258,
+    "down_unpadded_capture_sum_diagonal_global_min": 0.05224096246110756,
+    "down_unpadded_capture_sum_diagonal_global_max": 65415.85281932987,
+    "down_ldl_frobenius_norm_min": 31.488947955369756,
+    "down_ldl_frobenius_norm_max": 130.17617586823883,
+    "all_block_cholesky_factorizations": "pass",
+    "padding": "704 captured coordinates followed by 64 exact zero coordinates before damping and H128 transforms"
+  },
+  "next_required_step": "Completed by the single-layer artifact evidence in wp2-layer0-artifact.json.",
+  "limitations": [
+    "Capture activations come from the qualified compiled reference runtime, not a full BF16 forward pass; this provenance must remain visible in quality evidence.",
+    "The four raw capture binaries are local diagnostic intermediates identified by hash and are not committed model artifacts.",
+    "The expanded Down-input binary is a local diagnostic intermediate identified by hash and is not committed.",
+    "The complete layer artifact is local and identified by hash; only its compact verification evidence is committed."
+  ]
+}

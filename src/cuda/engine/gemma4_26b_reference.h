@@ -167,6 +167,15 @@ class Gemma4Moe26BReferenceEngine {
                                                std::span<float> output);
   [[nodiscard]] Status CopyRouterTopIds(std::uint32_t layer,
                                         std::span<std::uint32_t> output);
+  // Opt-in offline-compiler diagnostic. It is supported only by the slow
+  // reference backend, allocates host storage before the first token, and
+  // copies the selected layer's Gate+Up input plus eight routed Down inputs.
+  // Production/native paths never enable it and acquire no extra device state.
+  [[nodiscard]] Status ConfigureMoeCalibrationCapture(std::uint32_t layer);
+  [[nodiscard]] Status CopyMoeCalibrationCapture(
+      std::span<float> gate_up_input,
+      std::span<float> routed_down_inputs,
+      std::span<std::uint32_t> routed_expert_ids);
 
   [[nodiscard]] std::uint64_t position() const;
   [[nodiscard]] std::uint64_t context_capacity() const;
