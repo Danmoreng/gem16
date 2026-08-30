@@ -1,5 +1,7 @@
 #include "api_client.h"
 #include "chat_history.h"
+#include "gem16_logo.generated.h"
+#include "image_texture.h"
 #include "markdown.h"
 #include "media_loader.h"
 #include "model_catalog.h"
@@ -15,6 +17,7 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
@@ -196,6 +199,41 @@ bool TestMediaPayload() {
          payload.find("AQID") != std::string::npos;
 }
 
+bool TestPerformanceMetrics() {
+  const std::string before_text =
+      "# TYPE gem16_input_tokens_total counter\n"
+      "gem16_input_tokens_total 100\n"
+      "gem16_cache_write_tokens_total 80\n"
+      "gem16_prompt_microseconds_total 40000\n"
+      "gem16_decode_microseconds_total 90000\n"
+      "gem16_decode_measured_tokens_total 9\n";
+  const std::string after_text =
+      "gem16_input_tokens_total 112\n"
+      "gem16_cache_write_tokens_total 92\n"
+      "gem16_prompt_microseconds_total 46000\n"
+      "gem16_decode_microseconds_total 230000\n"
+      "gem16_decode_measured_tokens_total 16\n";
+  const auto before = gem16::studio::ParseServerMetrics(before_text);
+  const auto after = gem16::studio::ParseServerMetrics(after_text);
+  if (!before || !after) return false;
+  const auto performance = gem16::studio::PerformanceDifference(*before, *after);
+  return performance &&
+         std::abs(performance->decode_tokens_per_second - 50.0) < 0.001 &&
+         std::abs(performance->prefill_tokens_per_second - 2000.0) < 0.001 &&
+         std::abs(performance->prefill_milliseconds - 6.0) < 0.001 &&
+         std::abs(performance->decode_milliseconds - 140.0) < 0.001;
+}
+
+bool TestPreviewImageDecode() {
+  const auto logo = gem16::studio::DecodePreviewImage(
+      gem16::studio::kGem16LogoPng, gem16::studio::kGem16LogoPngSize);
+  const std::array<std::uint8_t, 8> invalid{0, 1, 2, 3, 4, 5, 6, 7};
+  const auto rejected = gem16::studio::DecodePreviewImage(
+      invalid.data(), invalid.size());
+  return logo.width == 256 && logo.height == 256 &&
+         logo.rgba.size() == 256U * 256U * 4U && rejected.rgba.empty();
+}
+
 bool TestMediaLoader() {
   const auto suffix = std::chrono::steady_clock::now().time_since_epoch().count();
   const auto directory = std::filesystem::temp_directory_path() /
@@ -213,6 +251,7 @@ bool TestMediaLoader() {
   std::error_code remove_error;
   std::filesystem::remove_all(directory, remove_error);
   return loaded && error.empty() && !remove_error &&
+         attachment.id != 0 &&
          attachment.kind == gem16::studio::MediaKind::kDocument &&
          attachment.file_name == "notes.md" &&
          attachment.document_text.find("Native Studio") != std::string::npos;
@@ -314,6 +353,82 @@ bool TestSelectableTextWidgetClipboard() {
   io.AddKeyEvent(ImGuiMod_Ctrl, false);
   ImGui::DestroyContext();
   return clipboard == response;
+}
+
+bool TestGroupedSelectableTextClipboard() {
+  IMGUI_CHECKVERSION();
+  ImGui::CreateContext();
+  ImGuiIO& io = ImGui::GetIO();
+  io.IniFilename = nullptr;
+  io.DisplaySize = {480.0f, 260.0f};
+  io.DeltaTime = 1.0f / 60.0f;
+  io.ConfigInputTrickleEventQueue = false;
+  std::string clipboard;
+  io.SetClipboardTextFn = CaptureClipboard;
+  io.ClipboardUserData = &clipboard;
+  unsigned char* pixels = nullptr;
+  int atlas_width = 0;
+  int atlas_height = 0;
+  io.Fonts->GetTexDataAsRGBA32(&pixels, &atlas_width, &atlas_height);
+
+  const std::string first = "First line";
+  const std::string second = "Second line";
+  const std::string combined = first + "\n" + second;
+  ImVec2 first_min{};
+  ImVec2 first_max{};
+  ImVec2 second_min{};
+  ImVec2 second_max{};
+  const auto draw_frame = [&] {
+    ImGui::NewFrame();
+    ImGui::SetNextWindowPos({0.0f, 0.0f});
+    ImGui::SetNextWindowSize({480.0f, 260.0f});
+    ImGui::Begin("##grouped-selection-test", nullptr,
+                 ImGuiWindowFlags_NoDecoration |
+                     ImGuiWindowFlags_NoSavedSettings);
+    ImGui::SetCursorScreenPos({24.0f, 24.0f});
+    const ImGuiID group = ImGui::GetID("##selection-group");
+    gem16::studio::selectable_text::Wrapped(
+        "##first", first,
+        {.width = 340.0f,
+         .selection_group = group,
+         .selection_text = combined,
+         .selection_offset = 0});
+    first_min = ImGui::GetItemRectMin();
+    first_max = ImGui::GetItemRectMax();
+    gem16::studio::selectable_text::Wrapped(
+        "##second", second,
+        {.width = 340.0f,
+         .selection_group = group,
+         .selection_text = combined,
+         .selection_offset = first.size() + 1U});
+    second_min = ImGui::GetItemRectMin();
+    second_max = ImGui::GetItemRectMax();
+    ImGui::End();
+    ImGui::Render();
+  };
+
+  draw_frame();
+  io.AddMousePosEvent(first_min.x + 2.0f,
+                      (first_min.y + first_max.y) * 0.5f);
+  io.AddMouseButtonEvent(ImGuiMouseButton_Left, true);
+  draw_frame();
+  io.AddMousePosEvent(second_max.x - 2.0f,
+                      (second_min.y + second_max.y) * 0.5f);
+  draw_frame();
+  io.AddMouseButtonEvent(ImGuiMouseButton_Left, false);
+  draw_frame();
+  io.AddKeyEvent(ImGuiMod_Ctrl, true);
+  io.AddKeyEvent(ImGuiKey_C, true);
+  draw_frame();
+
+  io.AddKeyEvent(ImGuiKey_C, false);
+  io.AddKeyEvent(ImGuiMod_Ctrl, false);
+  ImGui::DestroyContext();
+  if (clipboard != combined) {
+    std::fprintf(stderr, "grouped selection copied '%s', expected '%s'\n",
+                 clipboard.c_str(), combined.c_str());
+  }
+  return clipboard == combined;
 }
 
 bool TestMarkdownParser() {
@@ -495,6 +610,10 @@ int main() {
     std::fprintf(stderr, "selectable text clipboard integration test failed\n");
     return 1;
   }
+  if (!TestGroupedSelectableTextClipboard()) {
+    std::fprintf(stderr, "grouped selectable text clipboard test failed\n");
+    return 1;
+  }
   if (!TestMarkdownParser()) {
     std::fprintf(stderr, "markdown parser test failed\n");
     return 1;
@@ -533,6 +652,14 @@ int main() {
   }
   if (!TestMediaPayload()) {
     std::fprintf(stderr, "multimodal payload test failed\n");
+    return 1;
+  }
+  if (!TestPerformanceMetrics()) {
+    std::fprintf(stderr, "performance metrics test failed\n");
+    return 1;
+  }
+  if (!TestPreviewImageDecode()) {
+    std::fprintf(stderr, "preview image decode test failed\n");
     return 1;
   }
   if (!TestMediaLoader()) {

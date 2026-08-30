@@ -5,7 +5,11 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
+#include <cstdlib>
+#include <optional>
 #include <sstream>
+#include <unordered_map>
 
 namespace gem16::studio {
 namespace {
@@ -26,6 +30,74 @@ std::string UserTextWithDocuments(const ChatMessage& message) {
 }
 
 }  // namespace
+
+std::optional<ServerMetrics> ParseServerMetrics(std::string_view body) {
+  std::unordered_map<std::string, double> values;
+  while (!body.empty()) {
+    const std::size_t newline = body.find('\n');
+    std::string_view line = body.substr(0, newline);
+    if (!line.empty() && line.back() == '\r') line.remove_suffix(1);
+    const std::size_t first = line.find_first_not_of(" \t");
+    if (first != std::string_view::npos && line[first] != '#') {
+      line.remove_prefix(first);
+      const std::size_t separator = line.find_first_of(" \t");
+      if (separator != std::string_view::npos && separator > 0) {
+        std::string name(line.substr(0, separator));
+        const std::size_t value_start = line.find_first_not_of(" \t", separator);
+        if (value_start != std::string_view::npos) {
+          std::string value_text(line.substr(value_start));
+          char* end = nullptr;
+          const double value = std::strtod(value_text.c_str(), &end);
+          if (end != value_text.c_str() && *end == '\0' && std::isfinite(value))
+            values.insert_or_assign(std::move(name), value);
+        }
+      }
+    }
+    if (newline == std::string_view::npos) break;
+    body.remove_prefix(newline + 1);
+  }
+  const auto metric = [&values](const char* name) -> std::optional<double> {
+    const auto found = values.find(name);
+    return found == values.end() ? std::nullopt
+                                 : std::optional<double>(found->second);
+  };
+  const auto input_tokens = metric("gem16_input_tokens_total");
+  const auto cache_write_tokens = metric("gem16_cache_write_tokens_total");
+  const auto prompt_microseconds = metric("gem16_prompt_microseconds_total");
+  const auto decode_microseconds = metric("gem16_decode_microseconds_total");
+  const auto decode_measured_tokens =
+      metric("gem16_decode_measured_tokens_total");
+  if (!input_tokens || !cache_write_tokens || !prompt_microseconds ||
+      !decode_microseconds || !decode_measured_tokens)
+    return std::nullopt;
+  return ServerMetrics{*input_tokens, *cache_write_tokens,
+                       *prompt_microseconds, *decode_microseconds,
+                       *decode_measured_tokens};
+}
+
+std::optional<PerformanceStats> PerformanceDifference(
+    const ServerMetrics& before, const ServerMetrics& after) {
+  const double prompt_micros =
+      after.prompt_microseconds - before.prompt_microseconds;
+  const double decode_micros =
+      after.decode_microseconds - before.decode_microseconds;
+  const double input_tokens = after.input_tokens - before.input_tokens;
+  const double cache_write_tokens =
+      after.cache_write_tokens - before.cache_write_tokens;
+  const double decode_tokens =
+      after.decode_measured_tokens - before.decode_measured_tokens;
+  if (prompt_micros < 0.0 || decode_micros <= 0.0 || input_tokens < 0.0 ||
+      cache_write_tokens < 0.0 || decode_tokens < 0.0)
+    return std::nullopt;
+  return PerformanceStats{
+      .decode_tokens_per_second = decode_tokens * 1'000'000.0 / decode_micros,
+      .prefill_tokens_per_second = prompt_micros > 0.0
+          ? cache_write_tokens * 1'000'000.0 / prompt_micros
+          : 0.0,
+      .prefill_milliseconds = prompt_micros / 1'000.0,
+      .decode_milliseconds = decode_micros / 1'000.0,
+  };
+}
 
 std::string BuildChatPayload(const ServerConfig& server,
                              const GenerationConfig& generation,
@@ -93,6 +165,18 @@ std::string BuildChatPayload(const ServerConfig& server,
 
 namespace {
 
+std::optional<ServerMetrics> FetchServerMetrics(const std::string& host,
+                                                int port) {
+  httplib::Client client(host, port);
+  client.set_connection_timeout(std::chrono::seconds(3));
+  client.set_read_timeout(std::chrono::seconds(3));
+  client.set_write_timeout(std::chrono::seconds(3));
+  const auto response = client.Get("/metrics");
+  if (!response || response->status < 200 || response->status >= 300)
+    return std::nullopt;
+  return ParseServerMetrics(response->body);
+}
+
 const json::Value* Member(const json::Value* value, std::string_view key) {
   return value && value->is_object() ? value->find(key) : nullptr;
 }
@@ -157,6 +241,7 @@ void ApiClient::StreamChat(const ServerConfig& server,
   }
   worker_ = std::jthread([this, server, generation, messages, session_id] {
     const std::string host = server.host == "0.0.0.0" ? "127.0.0.1" : server.host;
+    const auto metrics_before = FetchServerMetrics(host, server.port);
     auto client = std::make_shared<httplib::Client>(host, server.port);
     client->set_connection_timeout(std::chrono::seconds(5));
     client->set_read_timeout(std::chrono::minutes(30));
@@ -214,6 +299,16 @@ void ApiClient::StreamChat(const ServerConfig& server,
     } else {
       const std::string returned_session = response->get_header_value("X-Gem16-Session-Id");
       if (!returned_session.empty()) Emit({ChatEvent::Kind::kSession, returned_session});
+      if (metrics_before) {
+        if (const auto metrics_after = FetchServerMetrics(host, server.port)) {
+          if (const auto performance =
+                  PerformanceDifference(*metrics_before, *metrics_after)) {
+            ChatEvent event{ChatEvent::Kind::kPerformance, {}};
+            event.performance = *performance;
+            Emit(std::move(event));
+          }
+        }
+      }
       Emit({ChatEvent::Kind::kFinished, {}});
     }
     std::lock_guard lock(mutex_);

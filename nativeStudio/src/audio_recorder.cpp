@@ -12,9 +12,12 @@
 namespace gem16::studio {
 namespace {
 
+std::atomic<std::uint64_t> g_next_recording_id{1ULL << 63U};
+
 constexpr ma_uint32 kSampleRate = 16000;
 constexpr ma_uint32 kChannels = 1;
-constexpr std::size_t kMaximumFrames = 5U * 60U * kSampleRate;
+constexpr std::size_t kMaximumFrames =
+    kMaximumRecordingSeconds * kSampleRate;
 
 void AppendU16(std::vector<std::uint8_t>& output, std::uint16_t value) {
   output.push_back(static_cast<std::uint8_t>(value));
@@ -132,6 +135,7 @@ bool AudioRecorder::Stop(MediaAttachment& attachment, std::string& error) {
     return false;
   }
   attachment = {};
+  attachment.id = g_next_recording_id.fetch_add(1, std::memory_order_relaxed);
   attachment.kind = MediaKind::kAudio;
   attachment.file_name = "microphone.wav";
   attachment.mime_type = "audio/wav";
@@ -142,5 +146,12 @@ bool AudioRecorder::Stop(MediaAttachment& attachment, std::string& error) {
 }
 
 bool AudioRecorder::Recording() const { return impl_->recording.load(); }
+
+bool AudioRecorder::Active() const { return impl_->initialized; }
+
+std::uint64_t AudioRecorder::ElapsedMilliseconds() const {
+  const std::size_t frames = std::min(impl_->frames.load(), kMaximumFrames);
+  return static_cast<std::uint64_t>(frames) * 1000U / kSampleRate;
+}
 
 }  // namespace gem16::studio

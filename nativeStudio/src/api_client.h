@@ -8,14 +8,28 @@
 #include <deque>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <thread>
 
 namespace gem16::studio {
 
+struct ServerMetrics {
+  double input_tokens = 0.0;
+  double cache_write_tokens = 0.0;
+  double prompt_microseconds = 0.0;
+  double decode_microseconds = 0.0;
+  double decode_measured_tokens = 0.0;
+};
+
 [[nodiscard]] std::string BuildChatPayload(
     const ServerConfig& server, const GenerationConfig& generation,
     const std::vector<ChatMessage>& messages);
+[[nodiscard]] std::optional<ServerMetrics> ParseServerMetrics(
+    std::string_view body);
+[[nodiscard]] std::optional<PerformanceStats> PerformanceDifference(
+    const ServerMetrics& before, const ServerMetrics& after);
 
 class ApiClient final {
  public:

@@ -1,6 +1,7 @@
 #include "app.h"
 
 #include "chat_history.h"
+#include "gem16_logo.generated.h"
 #include "markdown.h"
 #include "media_loader.h"
 #include "model_catalog.h"
@@ -30,16 +31,6 @@ void CopyTo(std::array<char, Size>& destination, const std::string& source) {
   const std::size_t count = std::min(source.size(), Size - 1);
   std::memcpy(destination.data(), source.data(), count);
   destination[count] = '\0';
-}
-
-const char* ScreenTitle(Screen screen) {
-  switch (screen) {
-    case Screen::kChat: return "Chat";
-    case Screen::kModels: return "Models";
-    case Screen::kServer: return "Server";
-    case Screen::kSettings: return "Settings";
-  }
-  return "gem16";
 }
 
 const char* PhaseLabel(ServerPhase phase) {
@@ -264,13 +255,19 @@ std::string FormatBytes(std::uint64_t bytes) {
   char result[64]{};
   if (bytes >= static_cast<std::uint64_t>(gib)) {
     std::snprintf(result, sizeof(result), "%.2f GiB", static_cast<double>(bytes) / gib);
-  } else {
+  } else if (bytes >= static_cast<std::uint64_t>(mib)) {
     std::snprintf(result, sizeof(result), "%.1f MiB", static_cast<double>(bytes) / mib);
+  } else if (bytes >= 1024U) {
+    std::snprintf(result, sizeof(result), "%.1f KiB",
+                  static_cast<double>(bytes) / 1024.0);
+  } else {
+    std::snprintf(result, sizeof(result), "%llu B",
+                  static_cast<unsigned long long>(bytes));
   }
   return result;
 }
 
-enum class ComposerIcon { kUndo, kDelete, kSend, kStop };
+enum class ComposerIcon { kAttach, kMic, kMicStop, kUndo, kDelete, kSend, kStop };
 
 bool ComposerButton(const char* id, ComposerIcon icon, float size,
                     const char* tooltip, bool disabled = false) {
@@ -282,22 +279,69 @@ bool ComposerButton(const char* id, ComposerIcon icon, float size,
   ImDrawList* draw = ImGui::GetWindowDrawList();
   const ImU32 color = ImGui::GetColorU32(
       disabled ? ImGuiCol_TextDisabled : ImGuiCol_Text);
-  if (icon == ComposerIcon::kUndo) {
-    draw->PathArcTo(center, Ui(8.0f), 0.15f * std::numbers::pi_v<float>,
-                    1.55f * std::numbers::pi_v<float>, 20);
+  if (icon == ComposerIcon::kAttach) {
+    draw->PathLineTo({center.x + Ui(2.0f), center.y - Ui(10.0f)});
+    draw->PathBezierCubicCurveTo(
+        {center.x + Ui(8.0f), center.y - Ui(10.0f)},
+        {center.x + Ui(10.0f), center.y - Ui(4.0f)},
+        {center.x + Ui(6.0f), center.y}, 12);
+    draw->PathLineTo({center.x - Ui(2.0f), center.y + Ui(8.0f)});
+    draw->PathBezierCubicCurveTo(
+        {center.x - Ui(6.0f), center.y + Ui(12.0f)},
+        {center.x - Ui(12.0f), center.y + Ui(5.0f)},
+        {center.x - Ui(7.0f), center.y}, 12);
+    draw->PathLineTo({center.x + Ui(1.0f), center.y - Ui(8.0f)});
+    draw->PathBezierCubicCurveTo(
+        {center.x + Ui(4.0f), center.y - Ui(11.0f)},
+        {center.x + Ui(8.0f), center.y - Ui(6.0f)},
+        {center.x + Ui(5.0f), center.y - Ui(3.0f)}, 10);
+    draw->PathLineTo({center.x - Ui(2.0f), center.y + Ui(4.0f)});
     draw->PathStroke(color, 0, Ui(1.8f));
-    const ImVec2 arrow[3] = {{center.x - Ui(9.0f), center.y - Ui(5.0f)},
-                             {center.x - Ui(10.0f), center.y + Ui(3.0f)},
-                             {center.x - Ui(3.0f), center.y - Ui(1.0f)}};
+  } else if (icon == ComposerIcon::kMic ||
+             icon == ComposerIcon::kMicStop) {
+    if (icon == ComposerIcon::kMicStop) {
+      draw->AddRectFilled({center.x - Ui(5.0f), center.y - Ui(5.0f)},
+                          {center.x + Ui(5.0f), center.y + Ui(5.0f)}, color,
+                          Ui(1.5f));
+    } else {
+      draw->AddRect({center.x - Ui(4.0f), center.y - Ui(9.0f)},
+                    {center.x + Ui(4.0f), center.y + Ui(3.0f)}, color,
+                    Ui(4.0f), 0, Ui(1.8f));
+      draw->PathArcTo({center.x, center.y + Ui(1.0f)}, Ui(8.0f), 0.0f,
+                      std::numbers::pi_v<float>, 16);
+      draw->PathStroke(color, 0, Ui(1.8f));
+      draw->AddLine({center.x, center.y + Ui(9.0f)},
+                    {center.x, center.y + Ui(12.0f)}, color, Ui(1.8f));
+      draw->AddLine({center.x - Ui(5.0f), center.y + Ui(12.0f)},
+                    {center.x + Ui(5.0f), center.y + Ui(12.0f)}, color,
+                    Ui(1.8f));
+    }
+  } else if (icon == ComposerIcon::kUndo) {
+    const ImVec2 start{center.x - Ui(8.0f), center.y - Ui(3.0f)};
+    const ImVec2 arrow[3] = {
+        {start.x, start.y},
+        {start.x + Ui(6.0f), start.y - Ui(5.0f)},
+        {start.x + Ui(6.0f), start.y + Ui(5.0f)},
+    };
     draw->AddConvexPolyFilled(arrow, 3, color);
+    draw->PathLineTo({start.x + Ui(5.0f), start.y});
+    draw->PathBezierCubicCurveTo(
+        {center.x + Ui(9.0f), center.y - Ui(4.0f)},
+        {center.x + Ui(10.0f), center.y + Ui(8.0f)},
+        {center.x + Ui(2.0f), center.y + Ui(9.0f)}, 18);
+    draw->PathStroke(color, 0, Ui(1.9f));
   } else if (icon == ComposerIcon::kDelete) {
-    draw->AddRect({center.x - Ui(6.0f), center.y - Ui(5.0f)},
-                  {center.x + Ui(6.0f), center.y + Ui(8.0f)}, color, Ui(2.0f),
+    draw->AddRect({center.x - Ui(7.0f), center.y - Ui(5.0f)},
+                  {center.x + Ui(7.0f), center.y + Ui(9.0f)}, color, Ui(2.0f),
                   0, Ui(1.7f));
-    draw->AddLine({center.x - Ui(8.0f), center.y - Ui(8.0f)},
-                  {center.x + Ui(8.0f), center.y - Ui(8.0f)}, color, Ui(1.7f));
+    draw->AddLine({center.x - Ui(9.0f), center.y - Ui(8.0f)},
+                  {center.x + Ui(9.0f), center.y - Ui(8.0f)}, color, Ui(1.7f));
     draw->AddLine({center.x - Ui(3.0f), center.y - Ui(11.0f)},
                   {center.x + Ui(3.0f), center.y - Ui(11.0f)}, color, Ui(1.7f));
+    draw->AddLine({center.x - Ui(3.0f), center.y - Ui(2.0f)},
+                  {center.x - Ui(3.0f), center.y + Ui(6.0f)}, color, Ui(1.3f));
+    draw->AddLine({center.x + Ui(3.0f), center.y - Ui(2.0f)},
+                  {center.x + Ui(3.0f), center.y + Ui(6.0f)}, color, Ui(1.3f));
   } else if (icon == ComposerIcon::kStop) {
     draw->AddRectFilled({center.x - Ui(6.0f), center.y - Ui(6.0f)},
                         {center.x + Ui(6.0f), center.y + Ui(6.0f)}, color, Ui(2.0f));
@@ -328,22 +372,64 @@ int ComposerLineCount(const char* text, float width) {
   return std::clamp(lines, 1, 8);
 }
 
+float AttachmentGalleryHeight(std::size_t count, float width) {
+  if (count == 0) return 0.0f;
+  const float card_width = Ui(152.0f);
+  const float gap = Ui(8.0f);
+  const std::size_t columns = std::max<std::size_t>(
+      1, static_cast<std::size_t>((std::max(width, card_width) + gap) /
+                                  (card_width + gap)));
+  const std::size_t rows = (count + columns - 1U) / columns;
+  return static_cast<float>(rows) * Ui(112.0f) +
+         static_cast<float>(rows - 1U) * gap;
+}
+
+std::string FormatRecordingTime(std::uint64_t milliseconds) {
+  const std::uint64_t total_seconds = milliseconds / 1000U;
+  const unsigned minutes = static_cast<unsigned>(
+      std::min<std::uint64_t>(total_seconds / 60U, 999U));
+  const unsigned seconds = static_cast<unsigned>(total_seconds % 60U);
+  char value[16]{};
+  std::snprintf(value, sizeof(value), "%02u:%02u", minutes, seconds);
+  return value;
+}
+
 }  // namespace
 
-StudioApp::StudioApp(StudioSettings settings, float ui_scale)
-    : settings_(std::move(settings)), ui_scale_(ui_scale) {
-  g_ui_scale = ui_scale_;
-  sidebar_width_ = Ui(176.0f);
+StudioApp::StudioApp(StudioSettings settings, float automatic_ui_scale)
+    : settings_(std::move(settings)), automatic_ui_scale_(automatic_ui_scale) {
+  ApplyUiScale(settings_.ui_scale);
   if (!settings_.onboarding_complete) screen_ = Screen::kModels;
   SyncBuffersFromSettings();
   server_.Configure(settings_.server);
-  ApplyTheme();
+  (void)logo_texture_.Load(kGem16LogoPng, kGem16LogoPngSize);
 }
 
 StudioApp::~StudioApp() {
   SyncSettingsFromBuffers();
   (void)SaveSettings(settings_);
   api_.Cancel();
+}
+
+void StudioApp::DrawAppLogo(ImVec2 position, float size) {
+  if (logo_texture_.Valid()) {
+    ImGui::GetWindowDrawList()->AddImageRounded(
+        ImTextureRef(logo_texture_.Id()), position,
+        {position.x + size, position.y + size}, {0.0f, 0.0f}, {1.0f, 1.0f},
+        IM_COL32_WHITE, Ui(7.0f));
+    return;
+  }
+  DrawGemstone(ImGui::GetWindowDrawList(),
+               {position.x + size * 0.5f, position.y + size * 0.5f},
+               size * 0.46f);
+}
+
+void StudioApp::ApplyUiScale(float configured_scale) {
+  ui_scale_ = configured_scale > 0.0f ? configured_scale : automatic_ui_scale_;
+  g_ui_scale = ui_scale_;
+  sidebar_width_ = Ui(176.0f);
+  ImGui::GetStyle().FontScaleMain = ui_scale_;
+  ApplyTheme();
 }
 
 void StudioApp::ApplyTheme() const {
@@ -392,16 +478,14 @@ void StudioApp::ApplyTheme() const {
 
 void StudioApp::Render() {
   DrainChatEvents();
+  if (recorder_.Active() && !recorder_.Recording()) FinishRecording();
+  PruneAttachmentTextures();
   const auto dropped = DrainDroppedFiles();
   if (!dropped.empty()) {
     if (screen_ == Screen::kChat)
       AddAttachments(dropped);
     else
       attachment_error_ = "Open Chat before dropping attachments.";
-  }
-  if (!settings_.onboarding_complete &&
-      screen_ != Screen::kModels && screen_ != Screen::kSettings) {
-    screen_ = Screen::kModels;
   }
   const ImGuiViewport* viewport = ImGui::GetMainViewport();
   ImGui::SetNextWindowPos(viewport->WorkPos);
@@ -419,9 +503,6 @@ void StudioApp::Render() {
   ImGui::EndChild();
   ImGui::SameLine(0, Ui(12));
   ImGui::BeginChild("##content", {0, 0}, ImGuiChildFlags_Borders);
-  DrawHeader();
-  ImGui::Separator();
-  ImGui::Spacing();
   switch (screen_) {
     case Screen::kChat: DrawChat(); break;
     case Screen::kModels: DrawModels(); break;
@@ -441,6 +522,10 @@ void StudioApp::DrainChatEvents() {
     if (event.kind == ChatEvent::Kind::kUsage) {
       prompt_tokens_ = event.prompt_tokens;
       completion_tokens_ = event.completion_tokens;
+      continue;
+    }
+    if (event.kind == ChatEvent::Kind::kPerformance) {
+      performance_ = event.performance;
       continue;
     }
     if (messages_.empty() || messages_.back().role != "assistant") continue;
@@ -470,8 +555,7 @@ void StudioApp::DrainChatEvents() {
 
 void StudioApp::DrawSidebar() {
   const ImVec2 logo_position = ImGui::GetCursorScreenPos();
-  DrawGemstone(ImGui::GetWindowDrawList(),
-               {logo_position.x + Ui(21.0f), logo_position.y + Ui(22.0f)}, Ui(19.0f));
+  DrawAppLogo(logo_position, Ui(44.0f));
   ImGui::SetCursorPosX(ImGui::GetCursorPosX() + Ui(52.0f));
   ImGui::SetWindowFontScale(1.34f);
   ImGui::TextUnformatted("Gem 16");
@@ -481,18 +565,14 @@ void StudioApp::DrawSidebar() {
   ImGui::Dummy({0, Ui(32)});
   const float width = ImGui::GetWindowWidth() - 2.0f;
   ImGui::SetCursorPosX(1.0f);
-  ImGui::BeginDisabled(!settings_.onboarding_complete);
   if (NavButton("Chat", Screen::kChat, screen_ == Screen::kChat, width))
     screen_ = Screen::kChat;
-  ImGui::EndDisabled();
   ImGui::SetCursorPosX(1.0f);
   if (NavButton("Models", Screen::kModels, screen_ == Screen::kModels, width))
     screen_ = Screen::kModels;
   ImGui::SetCursorPosX(1.0f);
-  ImGui::BeginDisabled(!settings_.onboarding_complete);
   if (NavButton("Server", Screen::kServer, screen_ == Screen::kServer, width))
     screen_ = Screen::kServer;
-  ImGui::EndDisabled();
   ImGui::SetCursorPosX(1.0f);
   if (NavButton("Settings", Screen::kSettings, screen_ == Screen::kSettings,
                 width))
@@ -508,20 +588,6 @@ void StudioApp::DrawSidebar() {
                                 : "No model selected");
 }
 
-void StudioApp::DrawHeader() {
-  ImGui::SetWindowFontScale(1.42f);
-  ImGui::TextUnformatted(screen_ == Screen::kChat ? "Gem 16" : ScreenTitle(screen_));
-  ImGui::SetWindowFontScale(1.0f);
-  ImGui::SameLine(0, Ui(14));
-  StatusPill(PhaseLabel(server_.Phase()), PhaseColor(server_.Phase()));
-  if (screen_ != Screen::kChat) {
-    ImGui::SameLine(0, Ui(10));
-    ImGui::TextDisabled("%s", settings_.onboarding_complete
-                                  ? ProfileLabel(settings_.server.profile)
-                                  : "Choose a model to continue");
-  }
-}
-
 void StudioApp::DrawChat() {
   const float available_width = ImGui::GetContentRegionAvail().x;
   const float composer_content_width =
@@ -534,13 +600,17 @@ void StudioApp::DrawChat() {
       Ui(18.0f) + static_cast<float>(composer_lines) * (ImGui::GetFontSize() + Ui(3.0f)),
       Ui(44.0f), Ui(126.0f));
   const float toolbar_height = Ui(32.0f);
+  const float recording_height = recorder_.Active() ? Ui(28.0f) : 0.0f;
   const float context_height = ImGui::GetFontSize();
-  const float attachment_height = pending_attachments_.empty() ? 0.0f : Ui(28.0f);
+  const float attachment_height = AttachmentGalleryHeight(
+      pending_attachments_.size(), composer_content_width);
   const float error_height = attachment_error_.empty() ? 0.0f : ImGui::GetFontSize();
-  const int composer_gaps = 2 + (!pending_attachments_.empty() ? 1 : 0) +
+  const int composer_gaps = 2 + (recorder_.Active() ? 1 : 0) +
+                            (!pending_attachments_.empty() ? 1 : 0) +
                             (!attachment_error_.empty() ? 1 : 0);
   const float composer_height = ImGui::GetStyle().WindowPadding.y * 2.0f +
-                                toolbar_height + context_height + attachment_height +
+                                recording_height + toolbar_height + context_height +
+                                attachment_height +
                                 error_height + input_height +
                                 static_cast<float>(composer_gaps) * Ui(6.0f);
   ImGui::BeginChild("##conversation", {0, -composer_height}, ImGuiChildFlags_None,
@@ -548,17 +618,25 @@ void StudioApp::DrawChat() {
   if (messages_.empty()) {
     const float y = std::max(Ui(30.0f), ImGui::GetContentRegionAvail().y * 0.23f);
     ImGui::Dummy({0, y});
-    const ImVec2 center = {ImGui::GetCursorScreenPos().x + Ui(35.0f),
-                           ImGui::GetCursorScreenPos().y + Ui(34.0f)};
-    DrawGemstone(ImGui::GetWindowDrawList(), center, Ui(29.0f));
+    const ImVec2 logo = {ImGui::GetCursorScreenPos().x,
+                         ImGui::GetCursorScreenPos().y};
+    DrawAppLogo(logo, Ui(68.0f));
     ImGui::SetCursorPosX(ImGui::GetCursorPosX() + Ui(82.0f));
     ImGui::SetWindowFontScale(1.48f);
-    ImGui::TextColored(kAccent, "What should we build today?");
+    ImGui::TextColored(kAccent, "%s",
+                       settings_.onboarding_complete
+                           ? "What should we build today?"
+                           : "Select a model to begin");
     ImGui::SetWindowFontScale(1.0f);
     ImGui::SetCursorPosX(ImGui::GetCursorPosX() + Ui(82.0f));
-    ImGui::TextWrapped(
-        "Chat locally with %s. Responses stream directly from the resident GPU session.",
-        ProfileLabel(settings_.server.profile));
+    if (settings_.onboarding_complete) {
+      ImGui::TextWrapped(
+          "Chat locally with %s. Responses stream directly from the resident GPU session.",
+          ProfileLabel(settings_.server.profile));
+    } else {
+      ImGui::TextWrapped(
+          "Open Models and select either qualified profile. You can return here at any time.");
+    }
   }
   for (std::size_t index = 0; index < messages_.size(); ++index) DrawMessage(messages_[index], index);
   const bool at_bottom = ImGui::GetScrollY() >= ImGui::GetScrollMaxY() - Ui(18.0f);
@@ -587,29 +665,74 @@ void StudioApp::DrawChat() {
   const HealthSnapshot health = server_.Health();
   const bool busy = api_.Busy();
   const bool has_draft = composer_[0] != '\0' || !pending_attachments_.empty();
-  const bool can_send = !busy && has_draft && health.available;
+  const bool can_send = settings_.onboarding_complete && !busy &&
+                        !recorder_.Active() && has_draft && health.available;
+
+  if (recorder_.Active()) {
+    const ImVec2 recording_origin = ImGui::GetCursorScreenPos();
+    ImDrawList* draw = ImGui::GetWindowDrawList();
+    const std::uint64_t elapsed = recorder_.ElapsedMilliseconds();
+    const std::uint64_t maximum = kMaximumRecordingSeconds * 1000U;
+    const std::uint64_t remaining = elapsed >= maximum ? 0U : maximum - elapsed;
+    const std::string label = "Recording " + FormatRecordingTime(elapsed) +
+                              " / 00:30 · " +
+                              FormatRecordingTime(remaining) + " left";
+    const float center_y = recording_origin.y + recording_height * 0.5f;
+    draw->AddCircleFilled({recording_origin.x + Ui(5.0f), center_y},
+                          Ui(4.0f), IM_COL32(255, 91, 83, 255));
+    draw->AddText({recording_origin.x + Ui(16.0f),
+                   center_y - ImGui::GetFontSize() * 0.5f},
+                  ImGui::GetColorU32(ImGuiCol_Text), label.c_str());
+    const float label_width = ImGui::CalcTextSize(label.c_str()).x;
+    const float bar_left = recording_origin.x + Ui(28.0f) + label_width;
+    const float bar_right = recording_origin.x + ImGui::GetContentRegionAvail().x;
+    if (bar_right > bar_left + Ui(30.0f)) {
+      draw->AddRectFilled({bar_left, center_y - Ui(3.0f)},
+                          {bar_right, center_y + Ui(3.0f)},
+                          ImGui::GetColorU32(ImGuiCol_FrameBg), Ui(3.0f));
+      const float progress = std::clamp(
+          static_cast<float>(elapsed) / static_cast<float>(maximum), 0.0f,
+          1.0f);
+      draw->AddRectFilled({bar_left, center_y - Ui(3.0f)},
+                          {bar_left + (bar_right - bar_left) * progress,
+                           center_y + Ui(3.0f)},
+                          IM_COL32(255, 91, 83, 255), Ui(3.0f));
+    }
+    ImGui::SetCursorScreenPos(
+        {recording_origin.x, recording_origin.y + recording_height + Ui(6.0f)});
+  }
 
   const ImVec2 toolbar_origin = ImGui::GetCursorScreenPos();
   float toolbar_x = toolbar_origin.x;
   ImGui::SetCursorScreenPos({toolbar_x, toolbar_origin.y});
-  if (ImGui::Button("+ Attach", {Ui(88.0f), toolbar_height}))
+  const bool attach_disabled = busy || recorder_.Active();
+  ImGui::BeginDisabled(attach_disabled);
+  if (ComposerButton("##attach-files", ComposerIcon::kAttach, toolbar_height,
+                     "Attach files", attach_disabled))
     AddAttachments(OpenAttachmentDialog());
-  toolbar_x += Ui(96.0f);
-  const bool media_profile = settings_.server.profile == ModelProfile::kGemma4Unified12B;
+  ImGui::EndDisabled();
+  toolbar_x += toolbar_height + Ui(8.0f);
+  const bool media_profile = settings_.onboarding_complete &&
+                             settings_.server.profile == ModelProfile::kGemma4Unified12B;
   ImGui::SetCursorScreenPos({toolbar_x, toolbar_origin.y});
-  ImGui::BeginDisabled(!media_profile || (busy && !recorder_.Recording()));
-  if (ImGui::Button(recorder_.Recording() ? "Stop mic" : "Record mic",
-                    {Ui(96.0f), Ui(32.0f)})) {
-    if (recorder_.Recording()) {
-      MediaAttachment recording;
-      if (recorder_.Stop(recording, attachment_error_))
-        pending_attachments_.push_back(std::move(recording));
+  const bool mic_disabled =
+      !media_profile || (busy && !recorder_.Active());
+  ImGui::BeginDisabled(mic_disabled);
+  if (ComposerButton("##record-mic",
+                     recorder_.Active() ? ComposerIcon::kMicStop
+                                        : ComposerIcon::kMic,
+                     toolbar_height,
+                     recorder_.Active() ? "Stop and attach recording"
+                                        : "Record audio",
+                     mic_disabled)) {
+    if (recorder_.Active()) {
+      FinishRecording();
     } else {
       (void)recorder_.Start(attachment_error_);
     }
   }
   ImGui::EndDisabled();
-  toolbar_x += Ui(104.0f);
+  toolbar_x += toolbar_height + Ui(8.0f);
   ImGui::SetCursorScreenPos({toolbar_x, toolbar_origin.y});
   ImGui::SetNextItemWidth(Ui(132.0f));
   const char* efforts[] = {"none", "low", "medium", "high"};
@@ -641,21 +764,46 @@ void StudioApp::DrawChat() {
                             : 0.0;
     if (busy && streamed_chunks_ == 0)
       std::snprintf(status_label, sizeof(status_label), "Prefilling...");
+    else if (!busy && performance_)
+      std::snprintf(
+          status_label, sizeof(status_label),
+          "%lld in · %lld out · Decode %.1f tok/s · Prefill %.0f tok/s · %.1fs",
+          static_cast<long long>(prompt_tokens_),
+          static_cast<long long>(completion_tokens_),
+          performance_->decode_tokens_per_second,
+          performance_->prefill_tokens_per_second, seconds);
     else
       std::snprintf(status_label, sizeof(status_label),
-                    "%lld in · %lld out · %.1f tok/s · %.1fs",
+                    "%lld in · %lld out · Stream %.1f tok/s · %.1fs",
                     static_cast<long long>(prompt_tokens_),
                     static_cast<long long>(observed_tokens), rate, seconds);
+  } else if (!settings_.onboarding_complete) {
+    std::snprintf(status_label, sizeof(status_label),
+                  "Select a model profile in Models to begin");
   } else {
     std::snprintf(status_label, sizeof(status_label),
                   "Drop files anywhere · media require 12B Unified");
   }
   const float toolbar_right = ImGui::GetWindowPos().x +
                               ImGui::GetWindowContentRegionMax().x;
-  if (toolbar_x + ImGui::CalcTextSize(status_label).x <= toolbar_right)
+  if (toolbar_x + ImGui::CalcTextSize(status_label).x > toolbar_right &&
+      !busy && performance_) {
+    std::snprintf(status_label, sizeof(status_label),
+                  "%lld/%lld · D %.1f · P %.0f tok/s",
+                  static_cast<long long>(prompt_tokens_),
+                  static_cast<long long>(completion_tokens_),
+                  performance_->decode_tokens_per_second,
+                  performance_->prefill_tokens_per_second);
+  }
+  if (toolbar_x < toolbar_right) {
+    composer_draw->PushClipRect({toolbar_x, toolbar_origin.y},
+                                {toolbar_right, toolbar_origin.y + toolbar_height},
+                                true);
     composer_draw->AddText({toolbar_x, toolbar_text_y},
                            busy ? ImGui::GetColorU32(kAccent) : disabled_text,
                            status_label);
+    composer_draw->PopClipRect();
+  }
   ImGui::SetCursorScreenPos({toolbar_origin.x,
                              toolbar_origin.y + toolbar_height + Ui(6.0f)});
 
@@ -693,53 +841,15 @@ void StudioApp::DrawChat() {
   ImGui::SetCursorScreenPos({context_origin.x,
                              context_origin.y + context_height + Ui(6.0f)});
 
-  if (!pending_attachments_.empty()) {
-    const ImVec2 attachment_origin = ImGui::GetCursorScreenPos();
-    float attachment_x = attachment_origin.x;
-    const float attachment_right = attachment_origin.x + ImGui::GetContentRegionAvail().x;
-    for (std::size_t index = 0; index < pending_attachments_.size();) {
-      const auto& attachment = pending_attachments_[index];
-      const char* kind = attachment.kind == MediaKind::kImage ? "Image" :
-                         attachment.kind == MediaKind::kAudio ? "Audio" : "Text";
-      const std::string label = std::string(kind) + " · " + attachment.file_name + "  ×";
-      const float chip_width = std::clamp(ImGui::CalcTextSize(label.c_str()).x + Ui(24.0f),
-                                          Ui(120.0f), Ui(245.0f));
-      if (attachment_x + chip_width > attachment_right) {
-        const std::string remaining = "+" +
-            std::to_string(pending_attachments_.size() - index) + " more";
-        composer_draw->AddText(
-            {attachment_x, attachment_origin.y +
-                               (attachment_height - ImGui::GetFontSize()) * 0.5f},
-            disabled_text, remaining.c_str());
-        break;
-      }
-      ImGui::PushID(static_cast<int>(index));
-      ImGui::SetCursorScreenPos({attachment_x, attachment_origin.y});
-      ImGui::PushStyleColor(ImGuiCol_Button, kAccentDim);
-      ImGui::PushStyleColor(ImGuiCol_Text, kAccent);
-      const bool remove = ImGui::Button(label.c_str(), {chip_width, attachment_height});
-      ImGui::PopStyleColor(2);
-      if (ImGui::IsItemHovered()) ImGui::SetTooltip("Remove %s", attachment.file_name.c_str());
-      if (remove) {
-        pending_attachments_.erase(pending_attachments_.begin() +
-                                   static_cast<std::ptrdiff_t>(index));
-        ImGui::PopID();
-        continue;
-      }
-      attachment_x += chip_width + Ui(8.0f);
-      ++index;
-      ImGui::PopID();
-    }
-    ImGui::SetCursorScreenPos({attachment_origin.x,
-                               attachment_origin.y + attachment_height + Ui(6.0f)});
-  }
+  if (!pending_attachments_.empty())
+    DrawAttachmentGallery(pending_attachments_, &pending_attachments_);
   if (!attachment_error_.empty()) {
     ImGui::TextColored({1.0f, 0.47f, 0.42f, 1.0f}, "%s", attachment_error_.c_str());
     ImGui::SetCursorPosY(ImGui::GetCursorPosY() + Ui(6.0f));
   }
 
   const ImVec2 input_origin = ImGui::GetCursorScreenPos();
-  ImGui::BeginDisabled(busy);
+  ImGui::BeginDisabled(busy || recorder_.Active());
   const bool enter = ImGui::InputTextMultiline(
       "##message", composer_.data(), composer_.size(), {input_width, input_height},
       ImGuiInputTextFlags_EnterReturnsTrue |
@@ -776,9 +886,12 @@ void StudioApp::DrawChat() {
       api_.Cancel();
   } else {
     ImGui::BeginDisabled(!can_send);
+    const char* send_hint = !settings_.onboarding_complete
+                                ? "Select a model profile first"
+                                : (health.available ? "Send message"
+                                                    : "Server is offline");
     const bool send_clicked = ComposerButton(
-        "##send", ComposerIcon::kSend, Ui(44.0f),
-        health.available ? "Send message" : "Server is offline", !can_send);
+        "##send", ComposerIcon::kSend, Ui(44.0f), send_hint, !can_send);
     ImGui::EndDisabled();
     if (send_clicked || (enter && can_send)) SendMessage();
   }
@@ -786,6 +899,163 @@ void StudioApp::DrawChat() {
   ImGui::SetCursorScreenPos({input_origin.x, input_origin.y + input_height});
   ImGui::Dummy({0.0f, 0.0f});
   ImGui::EndChild();
+}
+
+ImageTexture* StudioApp::AttachmentTexture(
+    const MediaAttachment& attachment) {
+  if (attachment.kind != MediaKind::kImage || attachment.id == 0 ||
+      attachment.bytes.empty())
+    return nullptr;
+  if (const auto found = attachment_textures_.find(attachment.id);
+      found != attachment_textures_.end())
+    return found->second->Valid() ? found->second.get() : nullptr;
+  auto texture = std::make_unique<ImageTexture>();
+  const bool loaded = texture->Load(attachment.bytes.data(), attachment.bytes.size());
+  ImageTexture* result = loaded ? texture.get() : nullptr;
+  attachment_textures_.emplace(attachment.id, std::move(texture));
+  return result;
+}
+
+void StudioApp::PruneAttachmentTextures() {
+  std::unordered_set<std::uint64_t> active;
+  for (const MediaAttachment& attachment : pending_attachments_)
+    if (attachment.kind == MediaKind::kImage) active.insert(attachment.id);
+  for (const ChatMessage& message : messages_)
+    for (const MediaAttachment& attachment : message.attachments)
+      if (attachment.kind == MediaKind::kImage) active.insert(attachment.id);
+  std::erase_if(attachment_textures_, [&active](const auto& entry) {
+    return !active.contains(entry.first);
+  });
+}
+
+void StudioApp::DrawAttachmentGallery(
+    const std::vector<MediaAttachment>& attachments,
+    std::vector<MediaAttachment>* removable) {
+  if (attachments.empty()) return;
+  constexpr ImU32 card_fill = IM_COL32(17, 42, 34, 246);
+  constexpr ImU32 card_border = IM_COL32(53, 83, 72, 235);
+  const float card_width = Ui(152.0f);
+  const float card_height = Ui(112.0f);
+  const float gap = Ui(8.0f);
+  const ImVec2 origin = ImGui::GetCursorScreenPos();
+  const float right = origin.x + ImGui::GetContentRegionAvail().x;
+  float x = origin.x;
+  float y = origin.y;
+  ImDrawList* draw = ImGui::GetWindowDrawList();
+  for (std::size_t index = 0; index < attachments.size(); ++index) {
+    if (index > 0 && x + card_width > right) {
+      x = origin.x;
+      y += card_height + gap;
+    }
+    const MediaAttachment& attachment = attachments[index];
+    ImGui::PushID(attachment.id == 0 ? static_cast<int>(index)
+                                     : static_cast<int>(attachment.id));
+    ImGui::SetCursorScreenPos({x, y});
+    ImGui::InvisibleButton("##attachment-card", {card_width, card_height});
+    const ImVec2 minimum{x, y};
+    const ImVec2 maximum{x + card_width, y + card_height};
+    draw->AddRectFilled(minimum, maximum, card_fill, Ui(10.0f));
+    draw->AddRect(minimum, maximum,
+                  ImGui::IsItemHovered() ? ImGui::GetColorU32(kAccent)
+                                         : card_border,
+                  Ui(10.0f), 0, Ui(1.0f));
+
+    const float inset = Ui(7.0f);
+    const ImVec2 preview_min{x + inset, y + inset};
+    const ImVec2 preview_max{x + card_width - inset, y + Ui(67.0f)};
+    if (ImageTexture* texture = AttachmentTexture(attachment)) {
+      const float source_aspect = static_cast<float>(texture->Width()) /
+                                  static_cast<float>(texture->Height());
+      const float target_aspect = (preview_max.x - preview_min.x) /
+                                  (preview_max.y - preview_min.y);
+      ImVec2 uv_min{0.0f, 0.0f};
+      ImVec2 uv_max{1.0f, 1.0f};
+      if (source_aspect > target_aspect) {
+        const float visible = target_aspect / source_aspect;
+        uv_min.x = (1.0f - visible) * 0.5f;
+        uv_max.x = 1.0f - uv_min.x;
+      } else {
+        const float visible = source_aspect / target_aspect;
+        uv_min.y = (1.0f - visible) * 0.5f;
+        uv_max.y = 1.0f - uv_min.y;
+      }
+      draw->AddImageRounded(ImTextureRef(texture->Id()), preview_min,
+                            preview_max, uv_min, uv_max, IM_COL32_WHITE,
+                            Ui(7.0f));
+    } else {
+      draw->AddRectFilled(preview_min, preview_max, IM_COL32(12, 32, 27, 255),
+                          Ui(7.0f));
+      const ImVec2 center{(preview_min.x + preview_max.x) * 0.5f,
+                          (preview_min.y + preview_max.y) * 0.5f};
+      if (attachment.kind == MediaKind::kAudio) {
+        const ImU32 color = ImGui::GetColorU32(kAccent);
+        draw->AddCircleFilled({center.x - Ui(4.0f), center.y + Ui(7.0f)},
+                              Ui(4.0f), color);
+        draw->AddRectFilled({center.x, center.y - Ui(11.0f)},
+                            {center.x + Ui(3.0f), center.y + Ui(7.0f)}, color,
+                            Ui(1.0f));
+        draw->AddLine({center.x + Ui(2.0f), center.y - Ui(10.0f)},
+                      {center.x + Ui(10.0f), center.y - Ui(13.0f)}, color,
+                      Ui(3.0f));
+      } else {
+        const ImU32 color = ImGui::GetColorU32(kAccent);
+        draw->AddRect({center.x - Ui(9.0f), center.y - Ui(13.0f)},
+                      {center.x + Ui(9.0f), center.y + Ui(13.0f)}, color,
+                      Ui(2.0f), 0, Ui(1.7f));
+        for (int row = -1; row <= 1; ++row)
+          draw->AddLine({center.x - Ui(5.0f), center.y + row * Ui(5.0f)},
+                        {center.x + Ui(5.0f), center.y + row * Ui(5.0f)},
+                        color, Ui(1.3f));
+      }
+    }
+
+    const char* kind = attachment.kind == MediaKind::kImage
+                           ? "Image"
+                           : (attachment.kind == MediaKind::kAudio
+                                  ? "Audio"
+                                  : (attachment.format == "pdf" ? "PDF" : "Text"));
+    const ImVec2 text_min{x + inset, y + Ui(73.0f)};
+    const ImVec2 text_max{x + card_width - inset, maximum.y - inset};
+    draw->PushClipRect(text_min, text_max, true);
+    draw->AddText(text_min, ImGui::GetColorU32(ImGuiCol_Text),
+                  attachment.file_name.c_str());
+    const std::string detail = std::string(kind) + " · " +
+                               FormatBytes(attachment.byte_size);
+    draw->AddText({text_min.x, y + Ui(92.0f)},
+                  ImGui::GetColorU32(ImGuiCol_TextDisabled), detail.c_str());
+    draw->PopClipRect();
+
+    if (removable != nullptr) {
+      const ImVec2 remove_min{x + card_width - Ui(25.0f), y + Ui(3.0f)};
+      ImGui::SetCursorScreenPos(remove_min);
+      ImGui::InvisibleButton("##remove-attachment", {Ui(22.0f), Ui(22.0f)});
+      if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Remove %s", attachment.file_name.c_str());
+      const ImU32 remove_color = ImGui::GetColorU32(
+          ImGui::IsItemHovered() ? ImGuiCol_Text : ImGuiCol_TextDisabled);
+      draw->AddCircleFilled({remove_min.x + Ui(11.0f), remove_min.y + Ui(11.0f)},
+                            Ui(9.0f), IM_COL32(7, 21, 17, 220));
+      draw->AddLine({remove_min.x + Ui(7.0f), remove_min.y + Ui(7.0f)},
+                    {remove_min.x + Ui(15.0f), remove_min.y + Ui(15.0f)},
+                    remove_color, Ui(1.5f));
+      draw->AddLine({remove_min.x + Ui(15.0f), remove_min.y + Ui(7.0f)},
+                    {remove_min.x + Ui(7.0f), remove_min.y + Ui(15.0f)},
+                    remove_color, Ui(1.5f));
+      if (ImGui::IsItemClicked()) {
+        removable->erase(removable->begin() +
+                         static_cast<std::ptrdiff_t>(index));
+        ImGui::PopID();
+        ImGui::SetCursorScreenPos(
+            {origin.x, origin.y + AttachmentGalleryHeight(
+                                      removable->size(), right - origin.x) + gap});
+        return;
+      }
+    }
+    ImGui::PopID();
+    x += card_width + gap;
+  }
+  ImGui::SetCursorScreenPos(
+      {origin.x, y + card_height + Ui(6.0f)});
 }
 
 void StudioApp::DrawMessage(const ChatMessage& message, std::size_t index) {
@@ -797,7 +1067,7 @@ void StudioApp::DrawMessage(const ChatMessage& message, std::size_t index) {
     ImGui::SetCursorPosX(original_x + available - width - Ui(10.0f));
   } else {
     const ImVec2 avatar = ImGui::GetCursorScreenPos();
-    DrawGemstone(ImGui::GetWindowDrawList(), {avatar.x + Ui(21.0f), avatar.y + Ui(28.0f)}, Ui(18.0f));
+    DrawAppLogo({avatar.x + Ui(3.0f), avatar.y + Ui(10.0f)}, Ui(38.0f));
     ImGui::SetCursorPosX(original_x + Ui(52.0f));
   }
   ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, Ui(17.0f));
@@ -830,13 +1100,7 @@ void StudioApp::DrawMessage(const ChatMessage& message, std::size_t index) {
   }
   if (!message.attachments.empty()) {
     ImGui::Spacing();
-    for (const auto& attachment : message.attachments) {
-      const char* kind = attachment.kind == MediaKind::kImage ? "Image" :
-                         attachment.kind == MediaKind::kAudio ? "Audio" : "Document";
-      ImGui::PushStyleColor(ImGuiCol_Button, {0.07f, 0.18f, 0.14f, 0.96f});
-      ImGui::SmallButton((std::string(kind) + " · " + attachment.file_name + "##attachment").c_str());
-      ImGui::PopStyleColor();
-    }
+    DrawAttachmentGallery(message.attachments);
   }
   if (show_reasoning_ && (!message.reasoning.empty() || message.streaming)) {
     ImGui::Spacing();
@@ -1028,7 +1292,16 @@ void StudioApp::DrawServer() {
                "Configure the local executable, resident model and generation path.");
   ImGui::TextDisabled("ACTIVE PROFILE");
   ImGui::SameLine();
-  ImGui::TextColored(kAccent, "%s", ProfileLabel(settings_.server.profile));
+  ImGui::TextColored(settings_.onboarding_complete
+                         ? kAccent
+                         : ImVec4(1.0f, 0.65f, 0.32f, 1.0f),
+                     "%s", settings_.onboarding_complete
+                               ? ProfileLabel(settings_.server.profile)
+                               : "None selected");
+  if (!settings_.onboarding_complete) {
+    ImGui::TextWrapped(
+        "Select a qualified profile in Models before starting the server.");
+  }
   ImGui::Dummy({0, Ui(5)});
   PathField("Server executable", "##server-executable", "Browse##server", executable_, false);
   PathField("Compiled target model", "##target-model", "Browse##target", model_directory_, true);
@@ -1036,11 +1309,20 @@ void StudioApp::DrawServer() {
   TextField("Served model name", "##served-name", model_name_);
 
   if (ImGui::BeginTable("##network-fields", 2,
-                        ImGuiTableFlags_SizingStretchSame)) {
-    ImGui::TableNextColumn();
-    TextField("Server host", "##server-host", host_);
-    ImGui::TableNextColumn();
-    FieldLabel("Port");
+                        ImGuiTableFlags_SizingStretchProp)) {
+    ImGui::TableSetupColumn("Host", ImGuiTableColumnFlags_WidthStretch, 1.35f);
+    ImGui::TableSetupColumn("Port", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+    ImGui::TableNextRow();
+    ImGui::TableSetColumnIndex(0);
+    ImGui::TextColored({0.72f, 0.77f, 0.75f, 1.0f}, "Server host");
+    ImGui::TableSetColumnIndex(1);
+    ImGui::TextColored({0.72f, 0.77f, 0.75f, 1.0f}, "Port");
+    ImGui::TableNextRow();
+    ImGui::TableSetColumnIndex(0);
+    ImGui::SetNextItemWidth(-1.0f);
+    ImGui::InputText("##server-host", host_.data(), host_.size());
+    ImGui::TableSetColumnIndex(1);
+    ImGui::SetNextItemWidth(-1.0f);
     ImGui::InputInt("##server-port", &settings_.server.port);
     ImGui::EndTable();
   }
@@ -1071,6 +1353,7 @@ void StudioApp::DrawServer() {
       std::filesystem::is_directory(settings_.server.assistant_directory);
   const bool preflight_ready = executable_ready && target_ready && assistant_ready &&
       settings_.server.port > 0 && settings_.server.port <= 65535;
+  const bool can_start = settings_.onboarding_complete && preflight_ready;
   ImGui::TextColored(preflight_ready ? kAccent : ImVec4(1.0f, 0.48f, 0.36f, 1.0f),
                      "%s  Executable · %s  Target · %s  Assistant",
                      executable_ready ? "Ready" : "Missing",
@@ -1082,7 +1365,7 @@ void StudioApp::DrawServer() {
     if (ImGui::Button("Stop server", {Ui(140), Ui(42)})) server_.Stop();
     ImGui::EndDisabled();
   } else {
-    ImGui::BeginDisabled(!preflight_ready);
+    ImGui::BeginDisabled(!can_start);
     if (ImGui::Button(phase == ServerPhase::kExternal ? "External server" : "Start server", {Ui(140), Ui(42)}) && phase != ServerPhase::kExternal) {
       (void)SaveSettings(settings_);
       server_.Start(settings_.server);
@@ -1148,9 +1431,11 @@ void StudioApp::DrawSettings() {
   int scale_index = 0;
   for (int index = 0; index < 4; ++index)
     if (settings_.ui_scale == scale_values[index]) scale_index = index;
-  if (ImGui::Combo("##ui-scale", &scale_index, scale_labels, 4))
+  if (ImGui::Combo("##ui-scale", &scale_index, scale_labels, 4)) {
     settings_.ui_scale = scale_values[scale_index];
-  ImGui::TextDisabled("Current %.0f%% · changes apply after restart", ui_scale_ * 100.0f);
+    ApplyUiScale(settings_.ui_scale);
+  }
+  ImGui::TextDisabled("Current %.0f%% · applies immediately", ui_scale_ * 100.0f);
   ImGui::Dummy({0, Ui(8)});
   ImGui::TextWrapped(
       "The animated science-fiction wave is rendered by the native OpenGL and Direct3D 11 backends.");
@@ -1201,6 +1486,7 @@ void StudioApp::SendMessage() {
   prompt_tokens_ = 0;
   completion_tokens_ = 0;
   streamed_chunks_ = 0;
+  performance_.reset();
   api_.StreamChat(settings_.server, settings_.generation, request_messages, session_id_);
   auto_follow_ = true;
   scroll_to_bottom_ = true;
@@ -1225,9 +1511,16 @@ void StudioApp::AddAttachments(
   }
 }
 
+void StudioApp::FinishRecording() {
+  if (!recorder_.Active()) return;
+  MediaAttachment recording;
+  if (recorder_.Stop(recording, attachment_error_))
+    pending_attachments_.push_back(std::move(recording));
+}
+
 void StudioApp::ClearChat() {
   if (api_.Busy()) return;
-  if (recorder_.Recording()) {
+  if (recorder_.Active()) {
     MediaAttachment discarded;
     std::string ignored;
     (void)recorder_.Stop(discarded, ignored);
@@ -1238,6 +1531,7 @@ void StudioApp::ClearChat() {
   pending_attachments_.clear();
   attachment_error_.clear();
   expanded_reasoning_.clear();
+  performance_.reset();
 }
 
 void StudioApp::RemoveLastExchange() {

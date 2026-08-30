@@ -1,4 +1,6 @@
 #include "app.h"
+#include "gem16_logo.generated.h"
+#include "image_texture.h"
 #include "platform_ui.h"
 #include "settings.h"
 #include "shader_background.h"
@@ -29,7 +31,7 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(
 
 namespace {
 
-void InitializeImGuiStyle(float ui_scale) {
+void InitializeImGuiStyle() {
   ImGuiIO& io = ImGui::GetIO();
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
   io.IniFilename = nullptr;
@@ -41,7 +43,7 @@ void InitializeImGuiStyle(float ui_scale) {
   const char* font_path = std::filesystem::is_regular_file(noto) ? noto : dejavu;
 #endif
   ImFont* font = std::filesystem::is_regular_file(font_path)
-                     ? io.Fonts->AddFontFromFileTTF(font_path, 17.0f * ui_scale)
+                     ? io.Fonts->AddFontFromFileTTF(font_path, 17.0f)
                      : nullptr;
   if (!font) io.Fonts->AddFontDefault();
   ImGui::GetStyle().CircleTessellationMaxError = 0.12f;
@@ -62,6 +64,46 @@ bool CreateRenderTarget(D3dState& state) {
   if (FAILED(state.swap_chain->GetBuffer(0, IID_PPV_ARGS(&back_buffer)))) return false;
   return SUCCEEDED(state.device->CreateRenderTargetView(back_buffer.Get(), nullptr,
                                                          &state.render_target));
+}
+
+HICON CreateGem16WindowIcon() {
+  const gem16::studio::DecodedImage image = gem16::studio::DecodePreviewImage(
+      gem16::studio::kGem16LogoPng, gem16::studio::kGem16LogoPngSize);
+  if (image.rgba.empty()) return nullptr;
+  BITMAPV5HEADER header{};
+  header.bV5Size = sizeof(header);
+  header.bV5Width = image.width;
+  header.bV5Height = -image.height;
+  header.bV5Planes = 1;
+  header.bV5BitCount = 32;
+  header.bV5Compression = BI_BITFIELDS;
+  header.bV5RedMask = 0x00FF0000;
+  header.bV5GreenMask = 0x0000FF00;
+  header.bV5BlueMask = 0x000000FF;
+  header.bV5AlphaMask = 0xFF000000;
+  void* bitmap_pixels = nullptr;
+  HDC screen = GetDC(nullptr);
+  HBITMAP color = CreateDIBSection(screen,
+                                   reinterpret_cast<BITMAPINFO*>(&header),
+                                   DIB_RGB_COLORS, &bitmap_pixels, nullptr, 0);
+  ReleaseDC(nullptr, screen);
+  if (color == nullptr || bitmap_pixels == nullptr) return nullptr;
+  auto* destination = static_cast<std::uint8_t*>(bitmap_pixels);
+  for (std::size_t index = 0; index < image.rgba.size(); index += 4U) {
+    destination[index] = image.rgba[index + 2U];
+    destination[index + 1U] = image.rgba[index + 1U];
+    destination[index + 2U] = image.rgba[index];
+    destination[index + 3U] = image.rgba[index + 3U];
+  }
+  HBITMAP mask = CreateBitmap(image.width, image.height, 1, 1, nullptr);
+  ICONINFO info{};
+  info.fIcon = TRUE;
+  info.hbmColor = color;
+  info.hbmMask = mask;
+  HICON icon = CreateIconIndirect(&info);
+  DeleteObject(mask);
+  DeleteObject(color);
+  return icon;
 }
 
 LRESULT WINAPI WindowProc(HWND window, UINT message, WPARAM w_param, LPARAM l_param) {
@@ -102,9 +144,15 @@ LRESULT WINAPI WindowProc(HWND window, UINT message, WPARAM w_param, LPARAM l_pa
 
 int RunWindows() {
   ImGui_ImplWin32_EnableDpiAwareness();
-  WNDCLASSEXW window_class{sizeof(window_class), CS_CLASSDC, WindowProc, 0, 0,
-                           GetModuleHandleW(nullptr), nullptr, nullptr, nullptr, nullptr,
-                           L"gem16NativeStudio", nullptr};
+  HICON window_icon = CreateGem16WindowIcon();
+  WNDCLASSEXW window_class{};
+  window_class.cbSize = sizeof(window_class);
+  window_class.style = CS_CLASSDC;
+  window_class.lpfnWndProc = WindowProc;
+  window_class.hInstance = GetModuleHandleW(nullptr);
+  window_class.hIcon = window_icon;
+  window_class.hIconSm = window_icon;
+  window_class.lpszClassName = L"gem16NativeStudio";
   RegisterClassExW(&window_class);
   HWND window = CreateWindowW(window_class.lpszClassName, L"gem16 Studio",
                               WS_OVERLAPPEDWINDOW, 100, 100, 1320, 840, nullptr,
@@ -152,11 +200,12 @@ int RunWindows() {
   ImGui::CreateContext();
   const auto settings = gem16::studio::LoadSettings();
   const float platform_scale = static_cast<float>(GetDpiForWindow(window)) / 96.0f;
-  const float ui_scale = gem16::studio::ResolveUiScale(
-      settings.ui_scale, platform_scale, false);
-  InitializeImGuiStyle(ui_scale);
+  const float automatic_ui_scale = gem16::studio::ResolveUiScale(
+      0.0f, platform_scale, false);
+  InitializeImGuiStyle();
   ImGui_ImplWin32_Init(window);
   ImGui_ImplDX11_Init(d3d.device.Get(), d3d.context.Get());
+  gem16::studio::ImageTexture::InitializeRenderer(d3d.device.Get());
 
   gem16::studio::ShaderBackground background;
   if (!background.Initialize(d3d.device.Get(), d3d.context.Get())) {
@@ -164,7 +213,7 @@ int RunWindows() {
   }
   const auto started = std::chrono::steady_clock::now();
   {
-    gem16::studio::StudioApp app(settings, ui_scale);
+    gem16::studio::StudioApp app(settings, automatic_ui_scale);
     bool running = true;
     while (running) {
       MSG message;
@@ -204,6 +253,7 @@ int RunWindows() {
   g_d3d = nullptr;
   DestroyWindow(window);
   UnregisterClassW(window_class.lpszClassName, window_class.hInstance);
+  if (window_icon != nullptr) DestroyIcon(window_icon);
   return 0;
 }
 #else
@@ -224,6 +274,14 @@ int RunLinux() {
     return 3;
   }
   glfwSetWindowPos(window, 100, 100);
+  const gem16::studio::DecodedImage window_icon =
+      gem16::studio::DecodePreviewImage(gem16::studio::kGem16LogoPng,
+                                        gem16::studio::kGem16LogoPngSize);
+  if (!window_icon.rgba.empty()) {
+    GLFWimage icon{window_icon.width, window_icon.height,
+                   const_cast<unsigned char*>(window_icon.rgba.data())};
+    glfwSetWindowIcon(window, 1, &icon);
+  }
   glfwMakeContextCurrent(window);
   glfwSwapInterval(1);
   glfwSetDropCallback(window, [](GLFWwindow*, int count, const char** paths) {
@@ -239,14 +297,15 @@ int RunLinux() {
   float y_scale = 1.0f;
   glfwGetWindowContentScale(window, &x_scale, &y_scale);
   const auto settings = gem16::studio::LoadSettings();
-  const float ui_scale = gem16::studio::ResolveUiScale(
-      settings.ui_scale, std::max(x_scale, y_scale), true);
-  InitializeImGuiStyle(ui_scale);
+  const float automatic_ui_scale = gem16::studio::ResolveUiScale(
+      0.0f, std::max(x_scale, y_scale), true);
+  InitializeImGuiStyle();
   if (!ImGui_ImplGlfw_InitForOpenGL(window, true) || !ImGui_ImplOpenGL3_Init("#version 330")) {
     glfwDestroyWindow(window);
     glfwTerminate();
     return 4;
   }
+  gem16::studio::ImageTexture::InitializeRenderer(nullptr);
 
   gem16::studio::ShaderBackground background;
   if (!background.Initialize(nullptr, nullptr)) {
@@ -254,7 +313,7 @@ int RunLinux() {
   }
   const auto started = std::chrono::steady_clock::now();
   {
-    gem16::studio::StudioApp app(settings, ui_scale);
+    gem16::studio::StudioApp app(settings, automatic_ui_scale);
     while (!glfwWindowShouldClose(window)) {
       glfwPollEvents();
       if (glfwGetWindowAttrib(window, GLFW_ICONIFIED)) {

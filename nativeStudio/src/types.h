@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace gem16::studio {
@@ -55,6 +56,7 @@ struct HealthSnapshot {
 };
 
 struct MediaAttachment {
+  std::uint64_t id = 0;
   MediaKind kind = MediaKind::kDocument;
   std::string file_name;
   std::string mime_type;
@@ -62,6 +64,13 @@ struct MediaAttachment {
   std::vector<std::uint8_t> bytes;
   std::string document_text;
   std::uint64_t byte_size = 0;
+};
+
+struct PerformanceStats {
+  double decode_tokens_per_second = 0.0;
+  double prefill_tokens_per_second = 0.0;
+  double prefill_milliseconds = 0.0;
+  double decode_milliseconds = 0.0;
 };
 
 struct ChatMessage {
@@ -74,11 +83,24 @@ struct ChatMessage {
 };
 
 struct ChatEvent {
-  enum class Kind { kText, kReasoning, kUsage, kFinished, kError, kSession };
+  enum class Kind {
+    kText,
+    kReasoning,
+    kUsage,
+    kPerformance,
+    kFinished,
+    kError,
+    kSession,
+  };
   Kind kind = Kind::kText;
   std::string value;
   std::int64_t prompt_tokens = 0;
   std::int64_t completion_tokens = 0;
+  PerformanceStats performance;
+
+  ChatEvent() = default;
+  ChatEvent(Kind event_kind, std::string event_value)
+      : kind(event_kind), value(std::move(event_value)) {}
 };
 
 [[nodiscard]] const char* ProfileLabel(ModelProfile profile);
