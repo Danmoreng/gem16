@@ -59,6 +59,10 @@ class Gemma4Moe26BTrellis35DeviceArtifact {
 
   [[nodiscard]] Result<const std::byte*> NonRoutedPointer(
       std::string_view name) const;
+  // Initialization-only scalar lookup. Values are copied from the immutable
+  // device arena after the complete artifact upload; recurring execution does
+  // not consult this object or perform a device transfer.
+  [[nodiscard]] Result<float> HostFloat32(std::string_view name) const;
   [[nodiscard]] const std::array<Trellis35DeviceLayerBinding,
                                  kTrellis35LayerCount>&
   layers() const {
@@ -74,6 +78,7 @@ class Gemma4Moe26BTrellis35DeviceArtifact {
   std::byte* arena_ = nullptr;
   std::uint64_t arena_bytes_ = 0;
   std::map<std::string, const std::byte*, std::less<>> non_routed_;
+  std::map<std::string, float, std::less<>> host_f32_;
   std::array<Trellis35DeviceLayerBinding, kTrellis35LayerCount> layers_{};
   Gemma4Moe26BTrellis35DeviceArtifactStats stats_;
 };

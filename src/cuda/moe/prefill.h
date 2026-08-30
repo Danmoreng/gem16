@@ -48,7 +48,13 @@ struct Gemma4MoePrefillWorkspace {
   // the integrated engine.
   std::uint16_t* expert_product_bf16 = nullptr;
   std::uint16_t* expert_down_bf16 = nullptr;
+  // Trellis35 reuses this fixed activation scratch for Gate+Up and Down E4M3
+  // rows. It is separate from physical BF16 output because assignment-major
+  // strides differ and therefore cannot safely alias during tiled projection.
+  std::uint8_t* trellis_activation = nullptr;
 };
+
+struct Trellis35DeviceLayerBinding;
 
 // Deterministic token-major/top-k-major routed-expert reduction. The float
 // form consumes BF16-rounded values held in FP32 containers.
@@ -73,6 +79,13 @@ struct Gemma4MoePrefillWorkspace {
     const float* hidden, float* output, std::uint64_t tokens,
     const Gemma4MoeReferenceConfig& config,
     const Gemma4MoeReferenceWeights& weights,
+    const Gemma4MoePrefillWorkspace& workspace, cudaStream_t stream);
+
+[[nodiscard]] Status LaunchGemma4MoeSm120Trellis35PrefillLayer(
+    const float* hidden, float* output, std::uint64_t tokens,
+    const Gemma4MoeReferenceConfig& config,
+    const Gemma4MoeReferenceWeights& weights,
+    const Trellis35DeviceLayerBinding& trellis_layer,
     const Gemma4MoePrefillWorkspace& workspace, cudaStream_t stream);
 
 }  // namespace gem16::internal

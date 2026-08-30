@@ -2,22 +2,30 @@
 
 #include <cstdint>
 #include <string>
+#include <type_traits>
 
 #include "cuda/engine/gemma4_26b_artifact.h"
+#include "cuda/engine/gemma4_26b_trellis35_artifact.h"
 
 namespace gem16::internal {
 namespace {
 
-template <typename T>
-Result<const T*> Pointer(const Gemma4Moe26BDeviceArtifact& artifact,
-                         const std::string& name) {
-  auto pointer = artifact.Pointer(name);
+template <typename T, typename Artifact>
+Result<const T*> Pointer(const Artifact& artifact, const std::string& name) {
+  auto pointer = [&]() {
+    if constexpr (std::is_same_v<Artifact, Gemma4Moe26BDeviceArtifact>) {
+      return artifact.Pointer(name);
+    } else {
+      return artifact.NonRoutedPointer(name);
+    }
+  }();
   if (!pointer.ok()) return pointer.status();
   return reinterpret_cast<const T*>(pointer.value());
 }
 
+template <typename Artifact>
 Result<Gemma4MoeNvfp4Matrix> Matrix(
-    const Gemma4Moe26BDeviceArtifact& artifact, const std::string& stem,
+    const Artifact& artifact, const std::string& stem,
     std::uint64_t rows, std::uint64_t columns) {
   auto packed = Pointer<std::uint8_t>(artifact, stem + ".weight_packed");
   auto scales = Pointer<std::uint8_t>(artifact, stem + ".weight_scale");
@@ -33,8 +41,9 @@ Result<Gemma4MoeNvfp4Matrix> Matrix(
 
 }  // namespace
 
-Result<Gemma4MoeReferenceWeights> BindGemma4Moe26BReferenceWeights(
-    const Gemma4Moe26BDeviceArtifact& artifact, std::uint32_t layer) {
+template <typename Artifact>
+Result<Gemma4MoeReferenceWeights> BindWeights(
+    const Artifact& artifact, std::uint32_t layer, bool trellis35) {
   constexpr std::uint64_t kLayers = 30U;
   constexpr std::uint64_t kWidth = 2816U;
   constexpr std::uint64_t kShared = 2112U;
@@ -77,22 +86,40 @@ Result<Gemma4MoeReferenceWeights> BindGemma4Moe26BReferenceWeights(
   auto shared_up = Matrix(artifact, prefix + ".mlp.up_proj", kShared, kWidth);
   auto shared_down = Matrix(artifact, prefix + ".mlp.down_proj", kWidth,
                             kShared);
-  auto expert_gate_up =
-      Matrix(artifact, prefix + ".experts.gate_up_proj",
-             kExperts * 2U * kExpert, kWidth);
-  auto expert_down = Matrix(artifact, prefix + ".experts.down_proj",
-                            kExperts * kWidth, kExpert);
   if (!shared_gate.ok()) return shared_gate.status();
   if (!shared_up.ok()) return shared_up.status();
   if (!shared_down.ok()) return shared_down.status();
-  if (!expert_gate_up.ok()) return expert_gate_up.status();
-  if (!expert_down.ok()) return expert_down.status();
   result.shared_gate = shared_gate.value();
   result.shared_up = shared_up.value();
   result.shared_down = shared_down.value();
-  result.expert_gate_up = expert_gate_up.value();
-  result.expert_down = expert_down.value();
+  if (!trellis35) {
+    auto expert_gate_up =
+        Matrix(artifact, prefix + ".experts.gate_up_proj",
+               kExperts * 2U * kExpert, kWidth);
+    auto expert_down = Matrix(artifact, prefix + ".experts.down_proj",
+                              kExperts * kWidth, kExpert);
+    if (!expert_gate_up.ok()) return expert_gate_up.status();
+    if (!expert_down.ok()) return expert_down.status();
+    result.expert_gate_up = expert_gate_up.value();
+    result.expert_down = expert_down.value();
+  } else {
+    // The fused input-boundary kernel still writes its now-dead NVFP4 expert
+    // activation scratch. A positive divisor preserves that kernel contract;
+    // no routed NVFP4 weight pointer or persistent fallback is bound.
+    result.expert_gate_up.activation_global_divisor = 1.0F;
+  }
   return result;
+}
+
+Result<Gemma4MoeReferenceWeights> BindGemma4Moe26BReferenceWeights(
+    const Gemma4Moe26BDeviceArtifact& artifact, std::uint32_t layer) {
+  return BindWeights(artifact, layer, false);
+}
+
+Result<Gemma4MoeReferenceWeights> BindGemma4Moe26BReferenceWeights(
+    const Gemma4Moe26BTrellis35DeviceArtifact& artifact,
+    std::uint32_t layer) {
+  return BindWeights(artifact, layer, true);
 }
 
 }  // namespace gem16::internal

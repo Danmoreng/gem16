@@ -134,30 +134,10 @@ int main(int argc, char** argv) {
   }
   const auto dispatch =
       gem16::internal::Gemma4Moe26BTrellis35EngineDispatchStatus();
-  if (dispatch.ok() || dispatch.code() != gem16::StatusCode::kUnsupported) {
+  if (!dispatch.ok()) {
     return Fail(gem16::Status(
         gem16::StatusCode::kInternal,
-        "Trellis35 dispatch did not reject the incomplete full engine"));
-  }
-  gem16::ModelRuntimeOptions runtime_options;
-  runtime_options.model_directory = argv[1];
-  runtime_options.max_context_tokens = 1024U;
-  auto runtime = gem16::ModelRuntime::Load(runtime_options);
-  if (runtime.ok() || runtime.status().code() != gem16::StatusCode::kUnsupported ||
-      runtime.status().message() != dispatch.message()) {
-    return Fail(gem16::Status(
-        gem16::StatusCode::kInternal,
-        "full runtime did not visibly reject the incomplete Trellis35 profile"));
-  }
-  std::size_t free_runtime_reject = 0U;
-  error = cudaMemGetInfo(&free_runtime_reject, &total);
-  if (error != cudaSuccess) {
-    return Fail(CudaFailure("query CUDA memory after runtime rejection", error));
-  }
-  if (free_runtime_reject != free_loaded) {
-    return Fail(gem16::Status(
-        gem16::StatusCode::kInternal,
-        "Trellis35 runtime rejection caused a device allocation delta"));
+        "Trellis35 full-engine dispatch is not enabled after WP7"));
   }
   const auto& stats = artifact.value().stats();
   std::cout << "{\"status\":\"wp3_device_loader_pass\""
@@ -174,11 +154,11 @@ int main(int argc, char** argv) {
             << ",\"free_before\":" << free_before
             << ",\"free_loaded\":" << free_loaded
             << ",\"free_after_binding_replay\":" << free_rebound
-            << ",\"free_after_runtime_reject\":" << free_runtime_reject
+            << ",\"full_engine_dispatch\":true"
             << ",\"binding_replay_iterations\":100000"
             << ",\"k3_descriptors\":" << k3
             << ",\"k4_descriptors\":" << k4
-            << ",\"dispatch_status\":\"unsupported_full_engine_not_integrated\""
+            << ",\"dispatch_status\":\"wp7_full_text_engine_integrated\""
             << ",\"load_path\":\"" << stats.load_path << "\"}\n";
   return 0;
 }

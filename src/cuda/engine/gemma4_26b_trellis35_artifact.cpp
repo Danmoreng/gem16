@@ -139,6 +139,7 @@ Gemma4Moe26BTrellis35DeviceArtifact::operator=(
   arena_ = std::exchange(other.arena_, nullptr);
   arena_bytes_ = std::exchange(other.arena_bytes_, 0U);
   non_routed_ = std::move(other.non_routed_);
+  host_f32_ = std::move(other.host_f32_);
   layers_ = other.layers_;
   stats_ = std::move(other.stats_);
   return *this;
@@ -187,6 +188,16 @@ Gemma4Moe26BTrellis35DeviceArtifact::Load(
       return Status(StatusCode::kDataLoss,
                     "duplicate Trellis35 non-routed device binding");
     }
+    if (tensor.bytes == sizeof(float)) {
+      float value = 0.0F;
+      const cudaError_t copied = cudaMemcpy(
+          &value, artifact.arena_ + tensor.offset, sizeof(value),
+          cudaMemcpyDeviceToHost);
+      if (copied != cudaSuccess) {
+        return CudaFailure("copy Trellis35 host scalar", copied);
+      }
+      artifact.host_f32_.emplace(name, value);
+    }
   }
   for (const auto& layer : plan.value().layers) {
     const std::byte* base = artifact.arena_ + layer.arena_offset;
@@ -203,6 +214,17 @@ Gemma4Moe26BTrellis35DeviceArtifact::Load(
   artifact.stats_.load_path =
       "trellis35_single_arena_pinned_sha256_no_nvfp4_experts";
   return artifact;
+}
+
+Result<float> Gemma4Moe26BTrellis35DeviceArtifact::HostFloat32(
+    std::string_view name) const {
+  const auto found = host_f32_.find(name);
+  if (found == host_f32_.end()) {
+    return Status(StatusCode::kNotFound,
+                  "Trellis35 host scalar metadata is not bound: " +
+                      std::string(name));
+  }
+  return found->second;
 }
 
 Result<const std::byte*>

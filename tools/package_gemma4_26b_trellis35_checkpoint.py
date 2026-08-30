@@ -13,6 +13,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import shutil
 import stat
 import sys
 
@@ -211,6 +212,19 @@ def main() -> int:
     if not base.is_dir() or base.is_symlink() or not checkpoint.is_dir() or checkpoint.is_symlink():
         raise InvalidPlanError("base and checkpoint must be real directories")
     compilation, image = load_base(base)
+    # Runtime metadata is immutable source-bound input, not a weight
+    # representation. Keep the compiled profile self-contained without
+    # retaining the M08 routed-expert image.
+    for name in (
+        "config.json", "generation_config.json", "tokenizer.json",
+        "tokenizer_config.json", "chat_template.jinja",
+    ):
+        source = base / name
+        regular(source, f"M08 runtime metadata {name}")
+        destination = checkpoint / name
+        if destination.exists():
+            regular(destination, f"Trellis35 runtime metadata {name}")
+        shutil.copyfile(source, destination)
     plans, non_routed_bytes = tensor_plans(compilation)
     expert_index, layers = validate_experts(checkpoint)
     non_routed = checkpoint / "non-routed.gem16"
@@ -239,8 +253,8 @@ def main() -> int:
         "format": "GEM16-Trellis35",
         "format_version": 1,
         "checkpoint_profile": PROFILE,
-        "status": "wp2_complete_text_only_checkpoint_artifact_kernel_not_implemented",
-        "runtime_supported": False,
+        "status": "wp7_complete_text_only_runtime_characterized",
+        "runtime_supported": True,
         "source_lock_sha256": SOURCE_LOCK,
         "source_repository": "google/gemma-4-26B-A4B-it-qat-q4_0-unquantized",
         "source_revision": "f1e06dc520982d9b9edd76859fdb7ab209449949",
@@ -274,6 +288,17 @@ def main() -> int:
     ).hexdigest()
     final_manifest = checkpoint / "trellis35-checkpoint.json"
     final_manifest.write_bytes(canonical_json_bytes(content))
+    runtime_lock = {
+        "schema_version": 1,
+        "artifact_profile": PROFILE,
+        "artifact_content_sha256": content["checkpoint_content_sha256"],
+        "source_lock_sha256": SOURCE_LOCK,
+        "weight_arena_bytes": total,
+        "nvfp4_routed_expert_bytes": 0,
+    }
+    (checkpoint.parent / f"{checkpoint.name}.lock.json").write_bytes(
+        canonical_json_bytes(runtime_lock)
+    )
     print(
         f"trellis35_package_ok bytes={total} sha256={content['checkpoint_content_sha256']}",
         flush=True,

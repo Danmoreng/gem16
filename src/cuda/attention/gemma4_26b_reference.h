@@ -14,6 +14,7 @@ inline constexpr std::size_t
     kGemma4Moe26BAttentionCutlassWorkspaceBytes = 8U * 1024U * 1024U;
 
 class Gemma4Moe26BDeviceArtifact;
+class Gemma4Moe26BTrellis35DeviceArtifact;
 struct DecodeControl;
 
 struct Gemma4Moe26BFp8Matrix {
@@ -80,6 +81,10 @@ struct Gemma4Moe26BKvCacheView {
 [[nodiscard]] Result<Gemma4Moe26BAttentionReferenceWeights>
 BindGemma4Moe26BAttentionReferenceWeights(
     const Gemma4Moe26BDeviceArtifact& artifact,
+    const Gemma4Moe26BAttentionLayerTraits& traits);
+[[nodiscard]] Result<Gemma4Moe26BAttentionReferenceWeights>
+BindGemma4Moe26BAttentionReferenceWeights(
+    const Gemma4Moe26BTrellis35DeviceArtifact& artifact,
     const Gemma4Moe26BAttentionLayerTraits& traits);
 
 // Correctness-first, one-token attention. It reads prior cache plus staged

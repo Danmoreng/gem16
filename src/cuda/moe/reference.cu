@@ -13,6 +13,7 @@
 
 #include "cuda/layer/reference.h"
 #include "cuda/moe/prefill.h"
+#include "cuda/trellis35/reference.h"
 #include "cuda/nvfp4/reference.h"
 #include "cuda/nvfp4/sm120.h"
 
@@ -880,7 +881,9 @@ Status LaunchGemma4MoeLayerImpl(
     const Gemma4MoeReferenceWeights& weights,
     const Gemma4MoeReferenceWorkspace& workspace, bool native_sm120,
     cudaStream_t stream, cudaStream_t shared_branch_stream = nullptr,
-    cudaEvent_t fork_event = nullptr, cudaEvent_t join_event = nullptr) {
+    cudaEvent_t fork_event = nullptr, cudaEvent_t join_event = nullptr,
+    const Trellis35DeviceLayerBinding* trellis_layer = nullptr,
+    const Trellis35M1Workspace* trellis_workspace = nullptr) {
   const auto& c = config;
   const auto& w = weights;
   const auto& x = workspace;
@@ -893,6 +896,12 @@ Status LaunchGemma4MoeLayerImpl(
       c.top_k == 0U || c.top_k > c.experts || !PositiveFinite(c.epsilon)) {
     return Invalid("M11 MoE reference geometry is invalid");
   }
+  const bool trellis35 = trellis_layer != nullptr || trellis_workspace != nullptr;
+  if (trellis35 &&
+      (!native_sm120 || trellis_layer == nullptr ||
+       trellis_workspace == nullptr)) {
+    return Invalid("Trellis35 decode requires complete native bindings");
+  }
   if (w.pre_shared_norm_bf16 == nullptr ||
       w.post_shared_norm_bf16 == nullptr ||
       w.pre_expert_norm_bf16 == nullptr ||
@@ -904,13 +913,14 @@ Status LaunchGemma4MoeLayerImpl(
       !MatrixValid(w.shared_gate, c.shared_intermediate, c.width) ||
       !MatrixValid(w.shared_up, c.shared_intermediate, c.width) ||
       !MatrixValid(w.shared_down, c.width, c.shared_intermediate) ||
-      !MatrixValid(w.expert_gate_up,
-                   static_cast<std::uint64_t>(c.experts) * 2U *
-                       c.expert_intermediate,
-                   c.width) ||
-      !MatrixValid(w.expert_down,
-                   static_cast<std::uint64_t>(c.experts) * c.width,
-                   c.expert_intermediate)) {
+      (!trellis35 &&
+       (!MatrixValid(w.expert_gate_up,
+                     static_cast<std::uint64_t>(c.experts) * 2U *
+                         c.expert_intermediate,
+                     c.width) ||
+        !MatrixValid(w.expert_down,
+                     static_cast<std::uint64_t>(c.experts) * c.width,
+                     c.expert_intermediate)))) {
     return Invalid("M11 MoE reference weight contract is invalid");
   }
   const bool workspace_valid =
@@ -968,6 +978,12 @@ Status LaunchGemma4MoeLayerImpl(
     status = CheckLaunch(
         "launch fused M14 input norms, router transform, and NVFP4 quantization");
     if (!status.ok()) return status;
+    if (trellis35) {
+      status = LaunchRmsNormBf16(hidden, w.pre_expert_norm_bf16,
+                                 x.expert_input, 1U, c.width, c.epsilon,
+                                 stream);
+      if (!status.ok()) return status;
+    }
   } else {
     MoeInputNormsRouterTransformKernel<<<1, kNormThreads, 0, stream>>>(
         hidden, w.pre_shared_norm_bf16, w.pre_expert_norm_bf16,
@@ -1053,7 +1069,12 @@ Status LaunchGemma4MoeLayerImpl(
         w.expert_gate_up.activation_global_divisor, stream);
     if (!status.ok()) return status;
   }
-  if (native_sm120) {
+  if (trellis35) {
+    status = LaunchTrellis35SelectedExpertsM1(
+        x.expert_input, x.top_ids, x.top_weights, *trellis_layer,
+        *trellis_workspace, x.routed_sum, stream);
+    if (!status.ok()) return status;
+  } else if (native_sm120) {
     status = LaunchNvfp4Sm120SelectedSplitGateUpBatch(
         x.expert_input_packed, x.expert_input_scales,
         w.expert_gate_up.packed_e2m1, w.expert_gate_up.scales_e4m3fn,
@@ -1167,6 +1188,21 @@ Status LaunchGemma4MoeSm120Layer(
                                   fork_event, join_event);
 }
 
+Status LaunchGemma4MoeSm120Trellis35Layer(
+    const float* hidden, float* output,
+    const Gemma4MoeReferenceConfig& config,
+    const Gemma4MoeReferenceWeights& weights,
+    const Trellis35DeviceLayerBinding& trellis_layer,
+    const Trellis35M1Workspace& trellis_workspace,
+    const Gemma4MoeReferenceWorkspace& workspace, cudaStream_t stream,
+    cudaStream_t shared_branch_stream, cudaEvent_t fork_event,
+    cudaEvent_t join_event) {
+  return LaunchGemma4MoeLayerImpl(
+      hidden, output, config, weights, workspace, true, stream,
+      shared_branch_stream, fork_event, join_event, &trellis_layer,
+      &trellis_workspace);
+}
+
 __global__ void RecordMtpRouterOverlapKernel(
     const std::uint32_t* top_ids, std::uint32_t experts,
     std::uint32_t top_k, MtpRouterOverlapCounters* counters) {
@@ -1213,13 +1249,16 @@ __global__ void RecordMtpRouterOverlapKernel(
   }
 }
 
-Status LaunchGemma4MoeSm120MtpSharedBatchLayer(
+Status LaunchGemma4MoeSm120MtpSharedBatchLayerImpl(
     const float* hidden, float* output, std::uint64_t tokens,
     const Gemma4MoeReferenceConfig& c,
     const Gemma4MoeReferenceWeights& w,
     const Gemma4MoePrefillWorkspace& batch,
     const Gemma4MoeReferenceWorkspace& decode, cudaStream_t stream,
-    MtpRouterOverlapCounters* router_overlap) {
+    MtpRouterOverlapCounters* router_overlap,
+    const Trellis35DeviceLayerBinding* trellis_layer = nullptr,
+    const Trellis35T3Workspace* trellis_workspace = nullptr) {
+  const bool trellis35 = trellis_layer != nullptr || trellis_workspace != nullptr;
   if (hidden == nullptr || output == nullptr || hidden == output ||
       tokens == 0U || tokens > 5U || c.width == 0U ||
       c.width % kSm120KBlock != 0U || c.shared_intermediate == 0U ||
@@ -1234,7 +1273,11 @@ Status LaunchGemma4MoeSm120MtpSharedBatchLayer(
       batch.permutation == nullptr ||
       batch.expert_product_packed == nullptr ||
       batch.expert_product_scales == nullptr ||
-      batch.expert_down_bf16 == nullptr || batch.routing_finite == nullptr) {
+      (!trellis35 && batch.expert_down_bf16 == nullptr) ||
+      batch.routing_finite == nullptr ||
+      (trellis35 && (tokens != kTrellis35T3Rows ||
+                     trellis_layer == nullptr ||
+                     trellis_workspace == nullptr))) {
     return Invalid("M25 exact shared-batch MoE contract is invalid");
   }
   (void)decode;
@@ -1296,6 +1339,16 @@ Status LaunchGemma4MoeSm120MtpSharedBatchLayer(
     if (!status.ok()) return status;
   }
 
+  if (trellis35) {
+    status = LaunchRmsNormBf16(hidden, w.pre_expert_norm_bf16,
+                              batch.token_hidden, tokens, c.width, c.epsilon,
+                              stream);
+    if (!status.ok()) return status;
+    status = LaunchTrellis35SelectedExpertsT3(
+        batch.token_hidden, batch.permutation, batch.reduced_output,
+        *trellis_layer, *trellis_workspace, batch.token_hidden, stream);
+    if (!status.ok()) return status;
+  } else {
   // The physical-BF16 prefill W2 region is dead after routing and has exactly
   // enough bytes for assignment-major FP32 Gate/Up. The shared-product region
   // is likewise dead after shared W2 and holds the smaller routed GELU product.
@@ -1327,6 +1380,7 @@ Status LaunchGemma4MoeSm120MtpSharedBatchLayer(
           w.expert_down.activation_global_divisor,
           w.expert_down.weight_global_divisor, stream);
   if (!status.ok()) return status;
+  }
 
   const std::size_t post_norm_shared_bytes =
       3U * static_cast<std::size_t>(c.width) * sizeof(float);
@@ -1339,6 +1393,32 @@ Status LaunchGemma4MoeSm120MtpSharedBatchLayer(
   status = CheckLaunch("launch M25 exact shared-batch MoE post boundary");
   if (!status.ok()) return status;
   return Status::Ok();
+}
+
+Status LaunchGemma4MoeSm120MtpSharedBatchLayer(
+    const float* hidden, float* output, std::uint64_t tokens,
+    const Gemma4MoeReferenceConfig& config,
+    const Gemma4MoeReferenceWeights& weights,
+    const Gemma4MoePrefillWorkspace& batch_workspace,
+    const Gemma4MoeReferenceWorkspace& decode_workspace,
+    cudaStream_t stream, MtpRouterOverlapCounters* router_overlap) {
+  return LaunchGemma4MoeSm120MtpSharedBatchLayerImpl(
+      hidden, output, tokens, config, weights, batch_workspace,
+      decode_workspace, stream, router_overlap);
+}
+
+Status LaunchGemma4MoeSm120Trellis35T3Layer(
+    const float* hidden, float* output, std::uint64_t tokens,
+    const Gemma4MoeReferenceConfig& config,
+    const Gemma4MoeReferenceWeights& weights,
+    const Trellis35DeviceLayerBinding& trellis_layer,
+    const Trellis35T3Workspace& trellis_workspace,
+    const Gemma4MoePrefillWorkspace& batch_workspace,
+    cudaStream_t stream, MtpRouterOverlapCounters* router_overlap) {
+  Gemma4MoeReferenceWorkspace unused;
+  return LaunchGemma4MoeSm120MtpSharedBatchLayerImpl(
+      hidden, output, tokens, config, weights, batch_workspace, unused,
+      stream, router_overlap, &trellis_layer, &trellis_workspace);
 }
 
 Status LaunchGemma4MoeDecodeTopKDiagnostic(

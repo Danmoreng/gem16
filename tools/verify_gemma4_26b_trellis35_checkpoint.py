@@ -402,8 +402,8 @@ def main() -> int:
         or checkpoint.get("format_version") != 1
         or checkpoint.get("checkpoint_profile") != PROFILE
         or checkpoint.get("status")
-        != "wp2_complete_text_only_checkpoint_artifact_kernel_not_implemented"
-        or checkpoint.get("runtime_supported") is not False
+        != "wp7_complete_text_only_runtime_characterized"
+        or checkpoint.get("runtime_supported") is not True
         or checkpoint.get("source_lock_sha256") != SOURCE_LOCK
         or experts.get("schema_version") != 1
         or experts.get("format") != "GEM16-Trellis35"

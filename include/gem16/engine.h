@@ -116,6 +116,7 @@ struct GreedyInferenceResult {
   std::vector<std::uint32_t> output_token_ids;
   std::vector<std::uint32_t> teacher_forced_token_ids;
   std::vector<std::uint32_t> mtp_proposed_token_ids;
+  std::string artifact_profile = "native-checkpoint";
   std::uint32_t stop_token_id = 0;
   double model_load_milliseconds = 0.0;
   double prompt_milliseconds = 0.0;

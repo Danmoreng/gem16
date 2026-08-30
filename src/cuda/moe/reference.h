@@ -22,6 +22,10 @@ struct MtpRouterOverlapCounters {
 struct Gemma4MoePrefillWorkspace;
 
 class Gemma4Moe26BDeviceArtifact;
+class Gemma4Moe26BTrellis35DeviceArtifact;
+struct Trellis35DeviceLayerBinding;
+struct Trellis35M1Workspace;
+struct Trellis35T3Workspace;
 
 // Correctness-only view of one NVFP4 matrix in the immutable M08/M09 arena.
 // The packed values and scales use the row8/K64 layouts documented by
@@ -127,6 +131,10 @@ struct Gemma4MoeReferenceConfig {
 [[nodiscard]] Result<Gemma4MoeReferenceWeights>
 BindGemma4Moe26BReferenceWeights(
     const Gemma4Moe26BDeviceArtifact& artifact, std::uint32_t layer);
+[[nodiscard]] Result<Gemma4MoeReferenceWeights>
+BindGemma4Moe26BReferenceWeights(
+    const Gemma4Moe26BTrellis35DeviceArtifact& artifact,
+    std::uint32_t layer);
 
 // Correctness-only projection over the accepted row8/K64 artifact layout.
 // This is shared by M11 and the provisional M13 tied head; it performs no
@@ -156,6 +164,19 @@ BindGemma4Moe26BReferenceWeights(
     cudaStream_t shared_branch_stream = nullptr,
     cudaEvent_t fork_event = nullptr, cudaEvent_t join_event = nullptr);
 
+// Trellis35 variant of the complete native layer. Only the routed expert
+// projections change representation; shared/router/norm/residual arithmetic
+// remains on the established SM120 path.
+[[nodiscard]] Status LaunchGemma4MoeSm120Trellis35Layer(
+    const float* hidden, float* output,
+    const Gemma4MoeReferenceConfig& config,
+    const Gemma4MoeReferenceWeights& weights,
+    const Trellis35DeviceLayerBinding& trellis_layer,
+    const Trellis35M1Workspace& trellis_workspace,
+    const Gemma4MoeReferenceWorkspace& workspace, cudaStream_t stream,
+    cudaStream_t shared_branch_stream = nullptr,
+    cudaEvent_t fork_event = nullptr, cudaEvent_t join_event = nullptr);
+
 // M25 correctness-preserving Target microbatch. Shared Gate/Up/Down weights
 // are consumed once across T<=5 rows by exact-batch kernels; router and routed
 // experts retain the frozen ordinary-decode arithmetic and slot order.
@@ -165,6 +186,16 @@ BindGemma4Moe26BReferenceWeights(
     const Gemma4MoeReferenceWeights& weights,
     const Gemma4MoePrefillWorkspace& batch_workspace,
     const Gemma4MoeReferenceWorkspace& decode_workspace,
+    cudaStream_t stream,
+    MtpRouterOverlapCounters* router_overlap = nullptr);
+
+[[nodiscard]] Status LaunchGemma4MoeSm120Trellis35T3Layer(
+    const float* hidden, float* output, std::uint64_t tokens,
+    const Gemma4MoeReferenceConfig& config,
+    const Gemma4MoeReferenceWeights& weights,
+    const Trellis35DeviceLayerBinding& trellis_layer,
+    const Trellis35T3Workspace& trellis_workspace,
+    const Gemma4MoePrefillWorkspace& batch_workspace,
     cudaStream_t stream,
     MtpRouterOverlapCounters* router_overlap = nullptr);
 

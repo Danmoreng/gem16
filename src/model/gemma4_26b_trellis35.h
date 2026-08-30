@@ -93,9 +93,9 @@ LoadGemma4Moe26BTrellis35CheckpointPlan(
 [[nodiscard]] Status ValidateGemma4Moe26BTrellis35LayerPayload(
     Trellis35LayerPlan* layer);
 
-// WP4 has an isolated ordinary-decode routed-expert kernel, while the complete
-// text-only engine remains unsupported. No qualified precision path may be
-// selected as a fallback.
+// Reports whether the experimental text-only engine has complete M1, fixed-D2
+// T3, and prefill dispatch. No qualified precision path may be selected as a
+// fallback.
 [[nodiscard]] Status Gemma4Moe26BTrellis35EngineDispatchStatus();
 
 }  // namespace gem16::internal

@@ -829,8 +829,8 @@ LoadGemma4Moe26BTrellis35CheckpointPlan(
                 kSourceRevision) ||
       !StringIs(
           Field(checkpoint.value(), "status"),
-          "wp2_complete_text_only_checkpoint_artifact_kernel_not_implemented") ||
-      !BoolIs(Field(checkpoint.value(), "runtime_supported"), false)) {
+          "wp7_complete_text_only_runtime_characterized") ||
+      !BoolIs(Field(checkpoint.value(), "runtime_supported"), true)) {
     return Status(StatusCode::kDataLoss,
                   "Trellis35 checkpoint profile is invalid");
   }
@@ -960,11 +960,7 @@ LoadGemma4Moe26BTrellis35CheckpointPlan(
 }
 
 Status Gemma4Moe26BTrellis35EngineDispatchStatus() {
-  return Status(
-      StatusCode::kUnsupported,
-      "GEM16-Trellis35 has verified WP4 M1, WP5 Fixed-D2 T3, and WP6 "
-      "prefill routed-expert kernels, but full text-only engine integration "
-      "is not implemented");
+  return Status::Ok();
 }
 
 }  // namespace gem16::internal

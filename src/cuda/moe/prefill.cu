@@ -13,6 +13,7 @@
 #include "cuda/moe/router_diagnostic.h"
 #include "cuda/nvfp4/reference.h"
 #include "cuda/nvfp4/sm120.h"
+#include "cuda/trellis35/reference.h"
 
 namespace gem16::internal {
 namespace {
@@ -552,11 +553,13 @@ Status LaunchGemma4MoeReduceAssignmentsBf16(
   return CheckLaunch("launch M15 physical-BF16 expert reduction");
 }
 
-Status LaunchGemma4MoeSm120PrefillLayer(
+Status LaunchGemma4MoeSm120PrefillLayerImpl(
     const float* hidden, float* output, std::uint64_t tokens,
     const Gemma4MoeReferenceConfig& c,
     const Gemma4MoeReferenceWeights& w,
-    const Gemma4MoePrefillWorkspace& x, cudaStream_t stream) {
+    const Gemma4MoePrefillWorkspace& x, cudaStream_t stream,
+    const Trellis35DeviceLayerBinding* trellis_layer) {
+  const bool trellis35 = trellis_layer != nullptr;
   if (hidden == nullptr || output == nullptr || hidden == output ||
       tokens == 0U || tokens > 1024U || c.width == 0U ||
       c.width % kSm120KBlock != 0U || c.shared_intermediate == 0U ||
@@ -577,13 +580,14 @@ Status LaunchGemma4MoeSm120PrefillLayer(
       !MatrixValid(w.shared_gate, c.shared_intermediate, c.width) ||
       !MatrixValid(w.shared_up, c.shared_intermediate, c.width) ||
       !MatrixValid(w.shared_down, c.width, c.shared_intermediate) ||
-      !MatrixValid(w.expert_gate_up,
-                   static_cast<std::uint64_t>(c.experts) * 2U *
-                       c.expert_intermediate,
-                   c.width) ||
-      !MatrixValid(w.expert_down,
-                   static_cast<std::uint64_t>(c.experts) * c.width,
-                   c.expert_intermediate) ||
+      (!trellis35 &&
+       (!MatrixValid(w.expert_gate_up,
+                     static_cast<std::uint64_t>(c.experts) * 2U *
+                         c.expert_intermediate,
+                     c.width) ||
+        !MatrixValid(w.expert_down,
+                     static_cast<std::uint64_t>(c.experts) * c.width,
+                     c.expert_intermediate))) ||
       w.shared_gate.activation_global_divisor !=
           w.shared_up.activation_global_divisor) {
     return Invalid("M15 grouped MoE weight contract is invalid");
@@ -734,11 +738,20 @@ Status LaunchGemma4MoeSm120PrefillLayer(
   status = CheckLaunch("launch M15 expert tile schedule");
   if (!status.ok()) return status;
 
-  status = LaunchRmsNormNvfp4ActivationQuantizationBatch(
-      hidden, w.pre_expert_norm_bf16, x.token_packed, x.token_scales, tokens,
-      c.width, c.epsilon, w.expert_gate_up.activation_global_divisor, stream);
-  if (!status.ok()) return status;
-  status = physical_expert_boundaries
+  if (trellis35) {
+    status = LaunchRmsNormBf16(hidden, w.pre_expert_norm_bf16,
+                              x.token_hidden, tokens, c.width, c.epsilon,
+                              stream);
+    if (!status.ok()) return status;
+    status = LaunchTrellis35PrefillExpertsW4A8(
+        x.token_hidden, tokens, *trellis_layer, x, stream);
+    if (!status.ok()) return status;
+  } else {
+    status = LaunchRmsNormNvfp4ActivationQuantizationBatch(
+        hidden, w.pre_expert_norm_bf16, x.token_packed, x.token_scales, tokens,
+        c.width, c.epsilon, w.expert_gate_up.activation_global_divisor, stream);
+    if (!status.ok()) return status;
+    status = physical_expert_boundaries
                ? LaunchNvfp4Sm120GroupedExpertFusedGateUpBf16(
                      x.token_packed, x.token_scales,
                      w.expert_gate_up.packed_e2m1,
@@ -757,8 +770,8 @@ Status LaunchGemma4MoeSm120PrefillLayer(
                      c.expert_intermediate, c.width, c.experts,
                      w.expert_gate_up.activation_global_divisor,
                      w.expert_gate_up.weight_global_divisor, stream);
-  if (!status.ok()) return status;
-  status = physical_expert_boundaries
+    if (!status.ok()) return status;
+    status = physical_expert_boundaries
                ? LaunchNvfp4ReferenceActivationQuantizationBf16(
                      x.expert_product_bf16, x.expert_product_packed,
                      x.expert_product_scales,
@@ -769,8 +782,8 @@ Status LaunchGemma4MoeSm120PrefillLayer(
                      x.expert_product_scales,
                      assignments * c.expert_intermediate,
                      w.expert_down.activation_global_divisor, stream);
-  if (!status.ok()) return status;
-  status = physical_expert_boundaries
+    if (!status.ok()) return status;
+    status = physical_expert_boundaries
                ? LaunchNvfp4Sm120GroupedExpertDownBf16(
                      x.expert_product_packed, x.expert_product_scales,
                      w.expert_down.packed_e2m1,
@@ -789,18 +802,19 @@ Status LaunchGemma4MoeSm120PrefillLayer(
                      c.expert_intermediate, c.experts,
                      w.expert_down.activation_global_divisor,
                      w.expert_down.weight_global_divisor, stream);
-  if (!status.ok()) return status;
-  RestoreHistogramZeroKernel<<<1, 1, 0, stream>>>(x.histogram, x.prefix);
-  status = CheckLaunch("restore M15 expert-zero histogram");
-  if (!status.ok()) return status;
-  status = physical_expert_boundaries
+    if (!status.ok()) return status;
+    RestoreHistogramZeroKernel<<<1, 1, 0, stream>>>(x.histogram, x.prefix);
+    status = CheckLaunch("restore M15 expert-zero histogram");
+    if (!status.ok()) return status;
+    status = physical_expert_boundaries
                ? LaunchGemma4MoeReduceAssignmentsBf16(
                      x.expert_down_bf16, x.assignments, x.token_hidden,
                      c.width, c.top_k, tokens, stream)
                : LaunchGemma4MoeReduceAssignments(
                      x.expert_down, x.assignments, x.token_hidden, c.width,
                      c.top_k, tokens, stream);
-  if (!status.ok()) return status;
+    if (!status.ok()) return status;
+  }
   // Assignments and expert_down no longer consume the router transform, so
   // shared_output is reused once more for post-expert normalization.
   status = LaunchRmsNormBf16(x.token_hidden, w.post_expert_norm_bf16,
@@ -815,6 +829,26 @@ Status LaunchGemma4MoeSm120PrefillLayer(
   return LaunchRmsNormResidualBf16(
       x.token_hidden, w.post_combined_norm_bf16, hidden, nullptr, output,
       tokens, c.width, c.epsilon, w.layer_scalar_bf16, stream);
+}
+
+Status LaunchGemma4MoeSm120PrefillLayer(
+    const float* hidden, float* output, std::uint64_t tokens,
+    const Gemma4MoeReferenceConfig& config,
+    const Gemma4MoeReferenceWeights& weights,
+    const Gemma4MoePrefillWorkspace& workspace, cudaStream_t stream) {
+  return LaunchGemma4MoeSm120PrefillLayerImpl(
+      hidden, output, tokens, config, weights, workspace, stream, nullptr);
+}
+
+Status LaunchGemma4MoeSm120Trellis35PrefillLayer(
+    const float* hidden, float* output, std::uint64_t tokens,
+    const Gemma4MoeReferenceConfig& config,
+    const Gemma4MoeReferenceWeights& weights,
+    const Trellis35DeviceLayerBinding& trellis_layer,
+    const Gemma4MoePrefillWorkspace& workspace, cudaStream_t stream) {
+  return LaunchGemma4MoeSm120PrefillLayerImpl(
+      hidden, output, tokens, config, weights, workspace, stream,
+      &trellis_layer);
 }
 
 }  // namespace gem16::internal

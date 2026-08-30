@@ -90,10 +90,18 @@ void WriteDistributionJson(std::ostream& output,
 }  // namespace
 
 Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostream& output) {
+  const bool trellis35 =
+      result.artifact_profile == "gem16-trellis35-w4a8-v1";
   output << "{\n  \"schema_version\": 1,\n"
          << "  \"status\": \"characterization\",\n"
          << "  \"benchmark_qualified\": false,\n"
-         << "  \"precision\": \"bf16_state_fp8_attention_nvfp4_mlp\",\n"
+         << "  \"artifact_profile\": \"" << result.artifact_profile
+         << "\",\n"
+         << "  \"precision\": \""
+         << (trellis35
+                 ? "bf16_state_fp8_attention_trellis35_w4a8_routed_nvfp4_non_routed"
+                 : "bf16_state_fp8_attention_nvfp4_mlp")
+         << "\",\n"
          << "  \"projection_path\": \"native_sm120\",\n"
          << "  \"decode_attention_path\": \""
          << (result.kv_cache_mode == KvCacheMode::kCheckpointFp8 &&
@@ -136,14 +144,25 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
          << "  \"fallbacks\": " << result.fallback_count << ",\n"
          << "  \"packed_weight_source_layout_direct\": "
          << (result.packed_weight_source_layout_direct ? "true" : "false") << ",\n"
-         << "  \"weight_layout\": \"sm120_row8_k64\",\n"
-         << "  \"weight_scale_layout\": \"sm120_row8_k64\",\n"
-         << "  \"load_time_weight_swizzle\": true,\n"
-         << "  \"load_time_scale_swizzle\": true,\n"
+         << "  \"weight_layout\": \""
+         << (trellis35
+                 ? "trellis35_mixed_k3_k4_routed+sm120_row8_k64_non_routed"
+                 : "sm120_row8_k64")
+         << "\",\n"
+         << "  \"weight_scale_layout\": \""
+         << (trellis35
+                 ? "trellis35_f32_tile_sidecars+sm120_row8_k64_non_routed"
+                 : "sm120_row8_k64")
+         << "\",\n"
+         << "  \"load_time_weight_swizzle\": "
+         << (trellis35 ? "false" : "true") << ",\n"
+         << "  \"load_time_scale_swizzle\": "
+         << (trellis35 ? "false" : "true") << ",\n"
          << "  \"persistent_repack_bytes\": 0,\n"
          << "  \"token_loop_allocations\": "
          << (result.token_loop_allocations ? "true" : "false") << ",\n"
-         << "  \"fused_gate_up\": false,\n"
+         << "  \"fused_gate_up\": " << (trellis35 ? "true" : "false")
+         << ",\n"
          << "  \"fused_prefill_attention\": true,\n"
          << "  \"fp8_prefill_tile\": \"cutlass_m128n128k64\",\n"
          << "  \"fp8_prefill_output\": \"scaled_bf16\",\n"
@@ -157,10 +176,24 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
          << (result.kv_cache_mode == KvCacheMode::kCheckpointFp8
                  ? "physical_bf16"
                  : "bf16_values_in_fp32")
-         << "\",\n"
+         << "\",\n";
+  if (trellis35) {
+    output
+         << "  \"routed_expert_path\": \"trellis35_to_e4m3_w4a8\",\n"
+         << "  \"routed_expert_activation_precision\": \"e4m3\",\n"
+         << "  \"trellis35_gate_up_prefill_tile\": \"mixed_k3_k4_reference\",\n"
+         << "  \"trellis35_down_prefill_tile\": \"mixed_k3_k4_reference\",\n"
+         << "  \"trellis35_gate_up_padding\": \"none\",\n"
+         << "  \"trellis35_down_padding\": \"704_to_768\",\n"
+         << "  \"routed_expert_prefill_boundary_storage\": \"physical_bf16\",\n";
+  } else {
+    output
+         << "  \"routed_expert_path\": \"native_nvfp4\",\n"
          << "  \"nvfp4_gate_up_prefill_tile\": \"cutlass_m128n128k128\",\n"
          << "  \"nvfp4_gate_up_prefill_weight_scratch\": true,\n"
-         << "  \"nvfp4_down_prefill_tile\": \"cutlass_m128n128k128\",\n"
+         << "  \"nvfp4_down_prefill_tile\": \"cutlass_m128n128k128\",\n";
+  }
+  output
          << "  \"fp8_prefill_pipeline_stages\": 0,\n"
          << "  \"fp8_prefill_schedule\": \"cutlass_auto\",\n"
          << "  \"local_prefill_query_heads_per_cta\": 2,\n"
@@ -172,9 +205,9 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
          << "  \"grouped_qkv_decode\": true,\n"
          << "  \"fused_rmsnorm_boundaries\": true,\n"
          << "  \"fused_prefill_rmsnorm_fp8_quantization\": true,\n"
-         << "  \"fused_prefill_rmsnorm_nvfp4_quantization\": true,\n"
-         << "  \"fused_prefill_gated_gelu_nvfp4_quantization\": true,\n"
-         << "  \"fused_prefill_up_epilogue_gated_gelu_nvfp4\": true,\n"
+         << "  \"fused_prefill_rmsnorm_routed_activation_quantization\": true,\n"
+         << "  \"fused_prefill_gated_gelu_routed_activation_quantization\": true,\n"
+         << "  \"fused_prefill_up_epilogue_gated_gelu_routed\": true,\n"
          << "  \"prefill_down_activation_scales\": \"cutlass_epilogue_interleaved\",\n"
          << "  \"fused_prefill_qk_rmsnorm_rope\": true,\n"
          << "  \"prefill_rope_table\": \"precomputed_exact_max_context\",\n"
@@ -230,7 +263,9 @@ Status WriteGreedyInferenceJson(const GreedyInferenceResult& result, std::ostrea
          << (!result.mtp_enabled
                  ? "disabled"
                  : result.mtp_draft_tokens == 2U
-                       ? "decode_order_fp8_t3_vector_stage_scale_store_qkv_o_nvfp4_down8"
+                       ? (trellis35
+                              ? "decode_order_fp8_t3_trellis35_w4a8_routed"
+                              : "decode_order_fp8_t3_vector_stage_scale_store_qkv_o_nvfp4_down8")
                        : "decode_order_fp8_qkv_nvfp4_down_t_le_5")
          << "\",\"d2_attention_path\":\""
          << (!result.mtp_enabled

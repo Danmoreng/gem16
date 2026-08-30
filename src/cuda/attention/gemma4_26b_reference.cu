@@ -6,10 +6,12 @@
 #include <cstddef>
 #include <limits>
 #include <string>
+#include <type_traits>
 #include <utility>
 
 #include "cuda/attention/sm120.h"
 #include "cuda/engine/gemma4_26b_artifact.h"
+#include "cuda/engine/gemma4_26b_trellis35_artifact.h"
 #include "cuda/fp8/cutlass_sm120.h"
 #include "cuda/fp8/reference.h"
 #include "cuda/fp8/sm120.h"
@@ -31,16 +33,22 @@ Status CudaFailure(const char* operation, cudaError_t error) {
                     ": " + cudaGetErrorString(error));
 }
 
-template <typename T>
-Result<const T*> Pointer(const Gemma4Moe26BDeviceArtifact& artifact,
-                         const std::string& name) {
-  auto pointer = artifact.Pointer(name);
+template <typename T, typename Artifact>
+Result<const T*> Pointer(const Artifact& artifact, const std::string& name) {
+  auto pointer = [&]() {
+    if constexpr (std::is_same_v<Artifact, Gemma4Moe26BDeviceArtifact>) {
+      return artifact.Pointer(name);
+    } else {
+      return artifact.NonRoutedPointer(name);
+    }
+  }();
   if (!pointer.ok()) return pointer.status();
   return reinterpret_cast<const T*>(pointer.value());
 }
 
+template <typename Artifact>
 Result<Gemma4Moe26BFp8Matrix> Matrix(
-    const Gemma4Moe26BDeviceArtifact& artifact, const std::string& module,
+    const Artifact& artifact, const std::string& module,
     std::uint64_t rows, std::uint64_t columns) {
   auto weight = Pointer<std::uint8_t>(artifact, module + ".weight");
   if (!weight.ok()) return weight.status();
@@ -70,9 +78,9 @@ bool ValidPointers(const Gemma4Moe26BAttentionReferenceWorkspace& x) {
 
 }  // namespace
 
-Result<Gemma4Moe26BAttentionReferenceWeights>
-BindGemma4Moe26BAttentionReferenceWeights(
-    const Gemma4Moe26BDeviceArtifact& artifact,
+template <typename Artifact>
+Result<Gemma4Moe26BAttentionReferenceWeights> BindAttentionWeights(
+    const Artifact& artifact,
     const Gemma4Moe26BAttentionLayerTraits& traits) {
   if (traits.layer >= 30U || traits.query_heads != kQueryHeads ||
       traits.kv_producer_layer != static_cast<std::int32_t>(traits.layer)) {
@@ -120,6 +128,20 @@ BindGemma4Moe26BAttentionReferenceWeights(
   if (!output.ok()) return output.status();
   result.output = output.value();
   return result;
+}
+
+Result<Gemma4Moe26BAttentionReferenceWeights>
+BindGemma4Moe26BAttentionReferenceWeights(
+    const Gemma4Moe26BDeviceArtifact& artifact,
+    const Gemma4Moe26BAttentionLayerTraits& traits) {
+  return BindAttentionWeights(artifact, traits);
+}
+
+Result<Gemma4Moe26BAttentionReferenceWeights>
+BindGemma4Moe26BAttentionReferenceWeights(
+    const Gemma4Moe26BTrellis35DeviceArtifact& artifact,
+    const Gemma4Moe26BAttentionLayerTraits& traits) {
+  return BindAttentionWeights(artifact, traits);
 }
 
 Status LaunchGemma4Moe26BAttentionReferenceLayer(

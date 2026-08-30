@@ -46,10 +46,52 @@ Result<std::shared_ptr<ModelRuntime>> ModelRuntime::Load(
       std::filesystem::symlink_status(trellis_manifest, trellis_error);
   if (!trellis_error &&
       trellis_status.type() != std::filesystem::file_type::not_found) {
+    const auto load_start = std::chrono::steady_clock::now();
     auto plan = internal::LoadGemma4Moe26BTrellis35CheckpointPlan(
         options.model_directory);
     if (!plan.ok()) return plan.status();
-    return internal::Gemma4Moe26BTrellis35EngineDispatchStatus();
+    Status dispatch = internal::Gemma4Moe26BTrellis35EngineDispatchStatus();
+    if (!dispatch.ok()) return dispatch;
+    if (options.max_context_tokens == 0U) {
+      return Error(StatusCode::kInvalidArgument,
+                   "Gemma 4 26B Trellis35 requires a positive context capacity");
+    }
+    auto config =
+        internal::LoadModelConfig(options.model_directory / "config.json");
+    if (!config.ok()) return config.status();
+    if (internal::ClassifyModelVariant(config.value()) !=
+        internal::ModelVariant::kGemma4Moe26BA4B) {
+      return Error(StatusCode::kDataLoss,
+                   "Trellis35 config is not the exact 26B A4B profile");
+    }
+    auto engine = internal::Gemma4Moe26BReferenceEngine::Create(
+        options.model_directory, options.max_context_tokens, options.device,
+        internal::Gemma4Moe26BBackend::kSm120Integrated,
+        options.verify_device_image_sha256);
+    if (!engine.ok()) return engine.status();
+    auto impl = std::make_unique<Impl>();
+    impl->variant = internal::ModelVariant::kGemma4Moe26BA4B;
+    impl->max_context_tokens = options.max_context_tokens;
+    impl->moe26b_engine =
+        std::make_unique<internal::Gemma4Moe26BReferenceEngine>(
+            std::move(engine).value());
+    impl->weight_load_path = impl->moe26b_engine->weight_load_path();
+    if (!options.assistant_model_directory.empty()) {
+      Status status = impl->moe26b_engine->LoadMtpAssistant(
+          options.assistant_model_directory);
+      if (!status.ok()) return status;
+      impl->assistant_loaded = true;
+    }
+    impl->artifact_profile =
+        std::string(internal::kGemma4Moe26BTrellis35Profile);
+    impl->head_format = "nvfp4_non_routed_trellis35_w4a8_experts";
+    impl->artifact_content_sha256 = plan.value().checkpoint_content_sha256;
+    impl->source_lock_sha256 =
+        std::string(internal::kGemma4Moe26BTrellis35SourceLock);
+    impl->compiler_commit = "trellis35_layer_manifests";
+    impl->load_milliseconds =
+        Milliseconds(std::chrono::steady_clock::now() - load_start);
+    return std::shared_ptr<ModelRuntime>(new ModelRuntime(std::move(impl)));
   }
   if (trellis_error != std::errc::no_such_file_or_directory) {
     return Error(StatusCode::kIoError,
@@ -136,7 +178,10 @@ const char* ModelRuntime::model_variant_name() const {
 const char* ModelRuntime::selected_native_path() const {
   if (impl_ == nullptr) return "none";
   return impl_->variant == internal::ModelVariant::kGemma4Moe26BA4B
-             ? "sm120_integrated_nvfp4_moe_bf16_tensor_router_fp8_kv"
+             ? (impl_->artifact_profile ==
+                        internal::kGemma4Moe26BTrellis35Profile
+                    ? "sm120_integrated_trellis35_w4a8_moe_bf16_tensor_router_fp8_kv"
+                    : "sm120_integrated_nvfp4_moe_bf16_tensor_router_fp8_kv")
              : "gemma4_unified_12b_sm120";
 }
 const char* ModelRuntime::artifact_profile() const {
@@ -342,6 +387,13 @@ Result<ConversationSession> ConversationSession::Create(
     return Error(StatusCode::kUnsupported,
                  "Gemma 4 26B currently supports fixed-depth MTP only");
   }
+  if (moe26b && mtp_enabled &&
+      runtime->impl_->artifact_profile ==
+          internal::kGemma4Moe26BTrellis35Profile &&
+      options.mtp_draft_tokens != 2U) {
+    return Error(StatusCode::kUnsupported,
+                 "Trellis35 supports only fixed-D2/T3 verification");
+  }
   if (!moe26b && options.mtp_router_overlap_diagnostic) {
     return Error(StatusCode::kUnsupported,
                  "router-overlap diagnosis is available only for Gemma 4 26B");
@@ -542,6 +594,7 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
     GreedyInferenceResult result;
     result.output_token_ids.reserve(
         static_cast<std::size_t>(max_generated_tokens));
+    result.artifact_profile = impl_->runtime->impl_->artifact_profile;
     result.kv_cache_mode = KvCacheMode::kCheckpointFp8;
     result.sampling = impl_->sampling;
     result.model_load_milliseconds = impl_->model_load_milliseconds;
@@ -839,6 +892,7 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
   GreedyInferenceResult result;
   result.output_token_ids.reserve(
       static_cast<std::size_t>(max_generated_tokens));
+  result.artifact_profile = impl_->runtime->impl_->artifact_profile;
   if (impl_->mtp_draft_tokens != 0U) {
     result.mtp_proposed_token_ids.reserve(static_cast<std::size_t>(
         max_generated_tokens * impl_->mtp_draft_tokens));

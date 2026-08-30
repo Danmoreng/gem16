@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "work_packet": "WP7",
+  "status": "complete_text_only_characterization",
+  "artifact": {
+    "path": "models/checkpoints/google-gemma-4-26b-a4b-it-trellis35-w4a8-wp2",
+    "content_sha256": "39183e2c7a1bd04c87a8f5bb5887453f8e92a3980bb507fd06d6252a6439c9f0",
+    "layers": 30,
+    "weight_arena_bytes": 12204692480,
+    "weight_arena_gib": 11.3665618896,
+    "target_payload_bpw": 3.5,
+    "effective_routed_artifact_bpw_including_sidecars": 3.6270876377,
+    "nvfp4_parent_weight_arena_bytes": 14696668160,
+    "arena_saving_bytes": 2491975680,
+    "arena_saving_gib": 2.3208332062,
+    "duplicate_persistent_routed_expert_layout": false
+  },
+  "runtime": {
+    "ordinary_m1": "trellis35_mixed_k3_k4_to_e4m3_w4a8",
+    "fixed_d2_t3": "single_batched_t3_kernel_family",
+    "prefill": "grouped_trellis35_to_e4m3_w4a8",
+    "gate_up_padding": "none",
+    "down_padding": "704_to_768",
+    "prefill_routed_boundary": "physical_bf16",
+    "recurring_allocation_count": 0,
+    "fallback_count": 0,
+    "vision_attempted": false
+  },
+  "context_admission": {
+    "32768": "accepted",
+    "65536": "accepted",
+    "98304": "accepted",
+    "131072": "rejected_fixed_prefill_workspace_cap",
+    "196608": "rejected_fixed_prefill_workspace_cap",
+    "98304_evidence": {
+      "kv_cache_bytes": 1111490560,
+      "workspace_bytes": 236780832,
+      "engine_device_memory_delta_bytes": 13560184832,
+      "free_after_residency_bytes": 2865561600,
+      "free_after_two_runs_bytes": 2865561600,
+      "deterministic": true,
+      "full_logits_repeat_equal": true,
+      "all_logits_finite": true
+    }
+  },
+  "performance_characterization": {
+    "qualified": false,
+    "prefill_16384_tokens_per_second": 211.692,
+    "prefill_16384_ttft_ms": 77395.327871,
+    "ordinary_decode_tokens_per_second_range": [38.1, 40.2],
+    "fixed_d2_hybrid_tokens_per_second": 32.5535984877,
+    "fixed_d2_batched_group_tokens_per_second": 33.4949376243,
+    "fixed_d2_proposed": 18,
+    "fixed_d2_accepted": 5,
+    "fixed_d2_acceptance": 0.277777777778,
+    "fixed_d2_ordinary_target_identity": true,
+    "fixed_d2_non_finite_steps": 0
+  },
+  "verification": {
+    "build": "cmake --build build/blackwell-release -j2",
+    "ctest": "13/13 passed; 3 model-dependent product tests skipped by fixture admission",
+    "python_trellis35": "33/33 passed",
+    "compute_sanitizer_real_prefill": "ERROR SUMMARY: 0 errors",
+    "checkpoint_verifier": "30/30 layer payloads verified",
+    "product_smoke": "complete artifact profile, zero fallback, zero token-loop allocations",
+    "fixed_d2": "graph prepared, one chain launch, ordinary Target identity",
+    "context_98304": "two deterministic finite runs with stable free device memory"
+  },
+  "limitations": [
+    "The kernels are correctness-first discovery implementations and remain far below the existing NVFP4 performance path.",
+    "Quality is intentionally unqualified until WP8 completes frozen-prompt numerical and task evaluation.",
+    "The 128K and 196K plans exceed the inherited fixed prefill-workspace cap.",
+    "Vision is excluded from this work packet."
+  ]
+}

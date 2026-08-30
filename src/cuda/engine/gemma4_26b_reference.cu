@@ -21,6 +21,7 @@
 #include "cuda/attention/gemma4_26b_reference.h"
 #include "cuda/attention/sm120.h"
 #include "cuda/engine/gemma4_26b_artifact.h"
+#include "cuda/engine/gemma4_26b_trellis35_artifact.h"
 #include "cuda/layer/reference.h"
 #include "cuda/moe/prefill.h"
 #include "cuda/moe/reference.h"
@@ -30,6 +31,7 @@
 #include "cuda/nvfp4/sm120.h"
 #include "cuda/output_head.h"
 #include "cuda/sampling/sampling.h"
+#include "cuda/trellis35/reference.h"
 #include "gem16/model.h"
 #include "model/config.h"
 #include "model/gemma4_26b_attention.h"
@@ -498,6 +500,8 @@ struct Gemma4Moe26BReferenceEngine::Impl {
   cudaEvent_t shared_moe_fork = nullptr;
   cudaEvent_t shared_moe_join = nullptr;
   Gemma4Moe26BDeviceArtifact artifact;
+  Gemma4Moe26BTrellis35DeviceArtifact trellis35_artifact;
+  bool trellis35 = false;
   Gemma4Moe26BAssistantModel assistant;
   DeviceBuffer mtp_verifier;
   DeviceBuffer mtp_router_overlap;
@@ -548,6 +552,9 @@ struct Gemma4Moe26BReferenceEngine::Impl {
   DeviceBuffer kv;
   DeviceBuffer workspace;
   DeviceBuffer prefill_workspace;
+  DeviceBuffer trellis35_workspace;
+  Trellis35M1Workspace trellis35_m1_workspace{};
+  Trellis35T3Workspace trellis35_t3_workspace{};
   DecodeControl* decode_control = nullptr;
   cudaGraphExec_t decode_graph = nullptr;
   std::uint32_t* prefill_tokens = nullptr;
@@ -712,9 +719,16 @@ Status Gemma4Moe26BReferenceEngine::Impl::LaunchControlledDecodeBody() {
         caches[layer], layer_workspace, decode_control, 1.0e-6F, stream,
         true);
     if (!status.ok()) return status;
-    status = LaunchGemma4MoeSm120Layer(
-        hidden_b, hidden_a, moe_config, moe_weights[layer], moe_workspace,
-        stream, shared_moe_stream, shared_moe_fork, shared_moe_join);
+    status = trellis35
+                 ? LaunchGemma4MoeSm120Trellis35Layer(
+                       hidden_b, hidden_a, moe_config, moe_weights[layer],
+                       trellis35_artifact.layers()[layer],
+                       trellis35_m1_workspace, moe_workspace, stream,
+                       shared_moe_stream, shared_moe_fork, shared_moe_join)
+                 : LaunchGemma4MoeSm120Layer(
+                       hidden_b, hidden_a, moe_config, moe_weights[layer],
+                       moe_workspace, stream, shared_moe_stream,
+                       shared_moe_fork, shared_moe_join);
     if (!status.ok()) return status;
     const int capture = CaptureIndex(layer);
     if (capture >= 0) {
@@ -937,12 +951,23 @@ Status Gemma4Moe26BReferenceEngine::Impl::LaunchFixedMtpGraphBody(
         shared_fixed_attention, true, true, 1.0e-6F, stream, backup_key,
         backup_value);
     if (!status.ok()) return status;
-    status = LaunchGemma4MoeSm120MtpSharedBatchLayer(
-        prefill_hidden_b, prefill_hidden_a, tokens, moe_config,
-        moe_weights[layer], prefill_moe_workspace, moe_workspace, stream,
-        tokens != 3U || mtp_router_overlap.bytes() == 0U
-            ? nullptr
-            : mtp_router_overlap.As<MtpRouterOverlapCounters>());
+    auto* overlap = tokens != 3U || mtp_router_overlap.bytes() == 0U
+                        ? nullptr
+                        : mtp_router_overlap.As<MtpRouterOverlapCounters>();
+    if (trellis35 && tokens != kTrellis35T3Rows) {
+      return Status(StatusCode::kUnsupported,
+                    "Trellis35 fixed verifier supports only D2/T3");
+    }
+    status = trellis35
+                 ? LaunchGemma4MoeSm120Trellis35T3Layer(
+                       prefill_hidden_b, prefill_hidden_a, tokens, moe_config,
+                       moe_weights[layer], trellis35_artifact.layers()[layer],
+                       trellis35_t3_workspace, prefill_moe_workspace, stream,
+                       overlap)
+                 : LaunchGemma4MoeSm120MtpSharedBatchLayer(
+                       prefill_hidden_b, prefill_hidden_a, tokens, moe_config,
+                       moe_weights[layer], prefill_moe_workspace,
+                       moe_workspace, stream, overlap);
     if (!status.ok()) return status;
     status = LaunchCompactRestoreCircularMtpKvFp8Controlled(
         caches[layer].key, caches[layer].value, compact_key, compact_value,
@@ -1533,24 +1558,45 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
   }
   Status valid = ValidateGemma4Moe26BContract(config.value());
   if (!valid.ok()) return valid;
-  auto manifest = InspectCheckpoint({model_directory, true});
-  if (!manifest.ok()) return manifest.status();
+  std::error_code trellis_probe_error;
+  const bool trellis35 = std::filesystem::is_regular_file(
+      model_directory / "trellis35-checkpoint.json", trellis_probe_error);
+  if (trellis_probe_error) {
+    return Status(StatusCode::kIoError,
+                  "cannot inspect Trellis35 checkpoint marker: " +
+                      trellis_probe_error.message());
+  }
   auto traits = BuildGemma4Moe26BAttentionTraits(config.value());
   if (!traits.ok()) return traits.status();
-  valid = ValidateGemma4Moe26BAttentionBindings(manifest.value().tensors,
-                                                traits.value());
-  if (!valid.ok()) return valid;
-  auto plan = BuildGemma4Moe26BResidencyPlan(manifest.value(), config.value());
-  if (!plan.ok()) return plan.status();
-  auto artifact = Gemma4Moe26BDeviceArtifact::Load(
-      model_directory, manifest.value(), plan.value(),
-      verify_device_image_sha256);
-  if (!artifact.ok()) return artifact.status();
 
   auto impl = std::make_unique<Impl>();
   impl->device = device;
   impl->context = context_tokens;
   impl->backend = backend;
+  impl->trellis35 = trellis35;
+  if (trellis35) {
+    if (backend != Gemma4Moe26BBackend::kSm120Integrated) {
+      return Invalid("Trellis35 requires the SM120 integrated backend");
+    }
+    auto artifact =
+        Gemma4Moe26BTrellis35DeviceArtifact::Load(model_directory);
+    if (!artifact.ok()) return artifact.status();
+    impl->trellis35_artifact = std::move(artifact).value();
+  } else {
+    auto manifest = InspectCheckpoint({model_directory, true});
+    if (!manifest.ok()) return manifest.status();
+    valid = ValidateGemma4Moe26BAttentionBindings(manifest.value().tensors,
+                                                  traits.value());
+    if (!valid.ok()) return valid;
+    auto plan =
+        BuildGemma4Moe26BResidencyPlan(manifest.value(), config.value());
+    if (!plan.ok()) return plan.status();
+    auto artifact = Gemma4Moe26BDeviceArtifact::Load(
+        model_directory, manifest.value(), plan.value(),
+        verify_device_image_sha256);
+    if (!artifact.ok()) return artifact.status();
+    impl->artifact = std::move(artifact).value();
+  }
   if (backend == Gemma4Moe26BBackend::kSm120Integrated) {
     impl->moe_config.prefill_router =
         Gemma4MoePrefillRouter::kSm120TensorCore;
@@ -1571,7 +1617,6 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
     return Status(StatusCode::kDataLoss,
                   "Gemma 4 26B has no validated sliding cache layer");
   }
-  impl->artifact = std::move(artifact).value();
   error = cudaStreamCreateWithFlags(&impl->stream, cudaStreamNonBlocking);
   if (error != cudaSuccess) return CudaFailure("create M13 stream", error);
   if (backend == Gemma4Moe26BBackend::kSm120Integrated) {
@@ -1592,25 +1637,57 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
   }
 
   for (std::uint32_t layer = 0U; layer < kLayers; ++layer) {
-    auto attention = BindGemma4Moe26BAttentionReferenceWeights(
-        impl->artifact, impl->traits[layer]);
+    auto attention = trellis35
+                         ? BindGemma4Moe26BAttentionReferenceWeights(
+                               impl->trellis35_artifact, impl->traits[layer])
+                         : BindGemma4Moe26BAttentionReferenceWeights(
+                               impl->artifact, impl->traits[layer]);
     if (!attention.ok()) return attention.status();
     impl->attention_weights[layer] = attention.value();
-    auto moe = BindGemma4Moe26BReferenceWeights(impl->artifact, layer);
+    auto moe = trellis35
+                   ? BindGemma4Moe26BReferenceWeights(
+                         impl->trellis35_artifact, layer)
+                   : BindGemma4Moe26BReferenceWeights(impl->artifact, layer);
     if (!moe.ok()) return moe.status();
     impl->moe_weights[layer] = moe.value();
   }
 
-  auto head_packed = ArtifactPointer<std::uint8_t>(
-      impl->artifact, "model.language_model.embed_tokens.weight_packed");
-  auto head_scales = ArtifactPointer<std::uint8_t>(
-      impl->artifact, "model.language_model.embed_tokens.weight_scale");
-  auto final_norm = ArtifactPointer<std::uint16_t>(
-      impl->artifact, "model.language_model.norm.weight");
-  auto head_activation_divisor = impl->artifact.HostFloat32(
-      "model.language_model.embed_tokens.input_global_scale");
-  auto head_weight_divisor = impl->artifact.HostFloat32(
-      "model.language_model.embed_tokens.weight_global_scale");
+  auto artifact_pointer = [&](const char* name) {
+    return trellis35 ? impl->trellis35_artifact.NonRoutedPointer(name)
+                     : impl->artifact.Pointer(name);
+  };
+  auto head_packed_bytes =
+      artifact_pointer("model.language_model.embed_tokens.weight_packed");
+  auto head_scales_bytes =
+      artifact_pointer("model.language_model.embed_tokens.weight_scale");
+  auto final_norm_bytes = artifact_pointer("model.language_model.norm.weight");
+  Result<const std::uint8_t*> head_packed =
+      head_packed_bytes.ok()
+          ? Result<const std::uint8_t*>(reinterpret_cast<const std::uint8_t*>(
+                head_packed_bytes.value()))
+          : Result<const std::uint8_t*>(head_packed_bytes.status());
+  Result<const std::uint8_t*> head_scales =
+      head_scales_bytes.ok()
+          ? Result<const std::uint8_t*>(reinterpret_cast<const std::uint8_t*>(
+                head_scales_bytes.value()))
+          : Result<const std::uint8_t*>(head_scales_bytes.status());
+  Result<const std::uint16_t*> final_norm =
+      final_norm_bytes.ok()
+          ? Result<const std::uint16_t*>(
+                reinterpret_cast<const std::uint16_t*>(final_norm_bytes.value()))
+          : Result<const std::uint16_t*>(final_norm_bytes.status());
+  auto head_activation_divisor =
+      trellis35
+          ? impl->trellis35_artifact.HostFloat32(
+                "model.language_model.embed_tokens.input_global_scale")
+          : impl->artifact.HostFloat32(
+                "model.language_model.embed_tokens.input_global_scale");
+  auto head_weight_divisor =
+      trellis35
+          ? impl->trellis35_artifact.HostFloat32(
+                "model.language_model.embed_tokens.weight_global_scale")
+          : impl->artifact.HostFloat32(
+                "model.language_model.embed_tokens.weight_global_scale");
   if (!head_packed.ok()) return head_packed.status();
   if (!head_scales.ok()) return head_scales.status();
   if (!final_norm.ok()) return final_norm.status();
@@ -2045,6 +2122,68 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
         reinterpret_cast<std::uint16_t*>(pptr(p_expert_down));
   }
 
+  if (trellis35) {
+    LayoutBuilder trellis_layout;
+    constexpr std::uint64_t assignments = kTrellis35T3Assignments;
+    const auto prefill_activation = trellis_layout.Add<std::uint8_t>(
+        kPrefillMaxTokens * kTopK * kTrellis35GateUpInput);
+    const auto gate_input = trellis_layout.Add<float>(
+        assignments * kTrellis35GateUpInput);
+    const auto gate_e4m3 = trellis_layout.Add<std::uint8_t>(
+        assignments * kTrellis35GateUpInput);
+    const auto gate_scales = trellis_layout.Add<float>(assignments);
+    const auto gate_transformed = trellis_layout.Add<float>(
+        assignments * kTrellis35GateUpOutput);
+    const auto gate_output = trellis_layout.Add<float>(
+        assignments * kTrellis35GateUpOutput);
+    const auto product = trellis_layout.Add<float>(
+        assignments * kTrellis35ExpertIntermediate);
+    const auto down_input = trellis_layout.Add<float>(
+        assignments * kTrellis35DownInput);
+    const auto down_e4m3 = trellis_layout.Add<std::uint8_t>(
+        assignments * kTrellis35DownInput);
+    const auto down_scales = trellis_layout.Add<float>(assignments);
+    const auto down_transformed = trellis_layout.Add<float>(
+        assignments * kTrellis35DownOutput);
+    const auto down_output = trellis_layout.Add<float>(
+        assignments * kTrellis35DownOutput);
+    if (trellis_layout.bytes == std::numeric_limits<std::uint64_t>::max()) {
+      return Invalid("Trellis35 fixed workspace layout overflow");
+    }
+    valid = impl->trellis35_workspace.Allocate(
+        trellis_layout.bytes, "allocate Trellis35 M1/T3 fixed workspace");
+    if (!valid.ok()) return valid;
+    auto tptr = [&](std::uint64_t offset) {
+      return impl->trellis35_workspace.As<std::byte>(offset);
+    };
+    impl->trellis35_t3_workspace = {
+        reinterpret_cast<float*>(tptr(gate_input)),
+        reinterpret_cast<std::uint8_t*>(tptr(gate_e4m3)),
+        reinterpret_cast<float*>(tptr(gate_scales)),
+        reinterpret_cast<float*>(tptr(gate_transformed)),
+        reinterpret_cast<float*>(tptr(gate_output)),
+        reinterpret_cast<float*>(tptr(product)),
+        reinterpret_cast<float*>(tptr(down_input)),
+        reinterpret_cast<std::uint8_t*>(tptr(down_e4m3)),
+        reinterpret_cast<float*>(tptr(down_scales)),
+        reinterpret_cast<float*>(tptr(down_transformed)),
+        reinterpret_cast<float*>(tptr(down_output))};
+    impl->prefill_moe_workspace.trellis_activation =
+        reinterpret_cast<std::uint8_t*>(tptr(prefill_activation));
+    impl->trellis35_m1_workspace = {
+        impl->trellis35_t3_workspace.gate_up_input_transformed,
+        impl->trellis35_t3_workspace.gate_up_input_e4m3,
+        impl->trellis35_t3_workspace.gate_up_input_scales,
+        impl->trellis35_t3_workspace.gate_up_transformed_output,
+        impl->trellis35_t3_workspace.gate_up_output,
+        impl->trellis35_t3_workspace.product,
+        impl->trellis35_t3_workspace.down_input_transformed,
+        impl->trellis35_t3_workspace.down_input_e4m3,
+        impl->trellis35_t3_workspace.down_input_scales,
+        impl->trellis35_t3_workspace.down_transformed_output,
+        impl->trellis35_t3_workspace.down_output};
+  }
+
   Gemma4Moe26BReferenceEngine engine(std::move(impl));
   valid = engine.Reset();
   if (!valid.ok()) return valid;
@@ -2096,6 +2235,15 @@ Status Gemma4Moe26BReferenceEngine::Reset() {
         implementation_->prefill_workspace.bytes(), implementation_->stream);
     if (error != cudaSuccess) {
       return CudaFailure("clear M17 prefill workspace", error);
+    }
+  }
+  if (implementation_->trellis35_workspace.bytes() != 0U) {
+    error = cudaMemsetAsync(
+        implementation_->trellis35_workspace.As<std::byte>(), 0,
+        implementation_->trellis35_workspace.bytes(),
+        implementation_->stream);
+    if (error != cudaSuccess) {
+      return CudaFailure("clear Trellis35 fixed workspace", error);
     }
   }
   if (implementation_->mtp_verifier.bytes() != 0U) {
@@ -2386,9 +2534,16 @@ Status Gemma4Moe26BReferenceEngine::PrefillTokens(
           x.traits[layer], x.attention_weights[layer], x.caches[layer],
           layer_workspace, 1.0e-6F, x.stream, true);
       if (!status.ok()) return status;
-      status = LaunchGemma4MoeSm120PrefillLayer(
-          x.prefill_hidden_b, x.prefill_hidden_a, chunk, x.moe_config,
-          x.moe_weights[layer], x.prefill_moe_workspace, x.stream);
+      status = x.trellis35
+                   ? LaunchGemma4MoeSm120Trellis35PrefillLayer(
+                         x.prefill_hidden_b, x.prefill_hidden_a, chunk,
+                         x.moe_config, x.moe_weights[layer],
+                         x.trellis35_artifact.layers()[layer],
+                         x.prefill_moe_workspace, x.stream)
+                   : LaunchGemma4MoeSm120PrefillLayer(
+                         x.prefill_hidden_b, x.prefill_hidden_a, chunk,
+                         x.moe_config, x.moe_weights[layer],
+                         x.prefill_moe_workspace, x.stream);
       if (!status.ok()) return status;
       const int capture = CaptureIndex(layer);
       if (is_last_chunk && capture >= 0) {
@@ -2575,6 +2730,7 @@ Status Gemma4Moe26BReferenceEngine::ConfigureMtpVerifierBackend(
     return Status::Ok();
   }
   for (const std::uint32_t draft_count : {1U, 2U, 4U}) {
+    if (x.trellis35 && draft_count != 2U) continue;
     Status status = x.PrepareFixedMtpGraph(draft_count);
     if (!status.ok()) return status;
     status = x.PrepareFixedMtpChainGraph(draft_count);
@@ -2974,6 +3130,10 @@ Status Gemma4Moe26BReferenceEngine::RunMtpAssistantGroup(
     return Invalid("M25 Target-verification group request is invalid");
   }
   auto& x = *implementation_;
+  if (x.trellis35 && proposal_count != 2U) {
+    return Status(StatusCode::kUnsupported,
+                  "Trellis35 Target verification supports only D2/T3");
+  }
   const std::uint64_t tokens = proposal_count + 1U;
   if (!x.assistant.prepared() || x.mtp_verifier.bytes() == 0U ||
       x.mtp_verifier_host == nullptr || x.position == 0U ||
@@ -3150,7 +3310,20 @@ Status Gemma4Moe26BReferenceEngine::RunMtpAssistantGroup(
         if (!status.ok()) return status;
       }
     }
-    if (exact_shared_batch_moe) {
+    if (x.trellis35) {
+      if (!exact_shared_batch_moe || tokens != kTrellis35T3Rows) {
+        return Status(StatusCode::kUnsupported,
+                      "Trellis35 verifier requires exact Fixed-D2/T3");
+      }
+      status = LaunchGemma4MoeSm120Trellis35T3Layer(
+          x.prefill_hidden_b, x.prefill_hidden_a, tokens, x.moe_config,
+          x.moe_weights[layer], x.trellis35_artifact.layers()[layer],
+          x.trellis35_t3_workspace, x.prefill_moe_workspace, x.stream,
+          x.mtp_router_overlap.bytes() == 0U
+              ? nullptr
+              : x.mtp_router_overlap.As<MtpRouterOverlapCounters>());
+      if (!status.ok()) return status;
+    } else if (exact_shared_batch_moe) {
       status = LaunchGemma4MoeSm120MtpSharedBatchLayer(
           x.prefill_hidden_b, x.prefill_hidden_a, tokens, x.moe_config,
           x.moe_weights[layer], x.prefill_moe_workspace, x.moe_workspace,
@@ -3756,11 +3929,18 @@ std::uint64_t Gemma4Moe26BReferenceEngine::context_capacity() const {
   return implementation_ ? implementation_->context : 0U;
 }
 std::uint64_t Gemma4Moe26BReferenceEngine::weight_arena_bytes() const {
-  return implementation_ ? implementation_->artifact.arena_bytes() : 0U;
+  return implementation_
+             ? (implementation_->trellis35
+                    ? implementation_->trellis35_artifact.arena_bytes()
+                    : implementation_->artifact.arena_bytes())
+             : 0U;
 }
 const char* Gemma4Moe26BReferenceEngine::weight_load_path() const {
   return implementation_
-             ? implementation_->artifact.stats().load_path.c_str()
+             ? (implementation_->trellis35
+                    ? implementation_->trellis35_artifact.stats()
+                          .load_path.c_str()
+                    : implementation_->artifact.stats().load_path.c_str())
              : "none";
 }
 std::uint64_t Gemma4Moe26BReferenceEngine::kv_cache_bytes() const {
@@ -3769,7 +3949,8 @@ std::uint64_t Gemma4Moe26BReferenceEngine::kv_cache_bytes() const {
 std::uint64_t Gemma4Moe26BReferenceEngine::workspace_bytes() const {
   return implementation_ ? implementation_->workspace.bytes() +
                                implementation_->prefill_workspace.bytes() +
-                               implementation_->mtp_verifier.bytes()
+                               implementation_->mtp_verifier.bytes() +
+                               implementation_->trellis35_workspace.bytes()
                          : 0U;
 }
 std::uint64_t Gemma4Moe26BReferenceEngine::sliding_cache_capacity() const {
