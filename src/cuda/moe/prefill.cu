@@ -5,8 +5,10 @@
 
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
 #include <limits>
 #include <string>
+#include <string_view>
 #include <utility>
 
 #include "cuda/layer/reference.h"
@@ -37,6 +39,14 @@ constexpr std::uint64_t kSm120KBlock = 64U;
 
 Status Invalid(std::string message) {
   return Status(StatusCode::kInvalidArgument, std::move(message));
+}
+
+bool Trellis35M64PrefillEnabled() {
+  static const bool enabled = [] {
+    const char* value = std::getenv("GEM16_TRELLIS35_PREFILL_M64");
+    return value == nullptr || std::string_view(value) != "0";
+  }();
+  return enabled;
 }
 
 Status CudaFailure(const char* operation, cudaError_t error) {
@@ -733,10 +743,13 @@ Status LaunchGemma4MoeSm120PrefillLayerImpl(
   }
   status = CheckLaunch("launch M15 stable grouping");
   if (!status.ok()) return status;
-  BuildExpertTileScheduleKernel<<<1, kThreads, 0, stream>>>(
-      x.prefix, x.histogram, expert_tile_schedule, c.experts);
-  status = CheckLaunch("launch M15 expert tile schedule");
-  if (!status.ok()) return status;
+  const bool use_trellis_m64 = trellis35 && Trellis35M64PrefillEnabled();
+  if (!use_trellis_m64) {
+    BuildExpertTileScheduleKernel<<<1, kThreads, 0, stream>>>(
+        x.prefix, x.histogram, expert_tile_schedule, c.experts);
+    status = CheckLaunch("launch M15 expert tile schedule");
+    if (!status.ok()) return status;
+  }
 
   if (trellis35) {
     status = LaunchRmsNormBf16(hidden, w.pre_expert_norm_bf16,
@@ -745,8 +758,10 @@ Status LaunchGemma4MoeSm120PrefillLayerImpl(
     if (!status.ok()) return status;
     status = LaunchTrellis35PrefillExpertsW4A8(
         x.token_hidden, tokens, *trellis_layer, x,
-        Trellis35PrefillScheduleMode::kConsumeM32,
-        Trellis35PrefillKernelMode::kGroupedM32,
+        use_trellis_m64 ? Trellis35PrefillScheduleMode::kBuildM64Hybrid
+                        : Trellis35PrefillScheduleMode::kConsumeM32,
+        use_trellis_m64 ? Trellis35PrefillKernelMode::kGroupedM64Hybrid
+                        : Trellis35PrefillKernelMode::kGroupedM32,
         Trellis35PrefillTransformMode::kWarpH128,
         Trellis35PrefillOutputMode::kFusedN128, stream);
     if (!status.ok()) return status;

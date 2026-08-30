@@ -316,6 +316,155 @@ void TestWp14OutputMatrix() {
   }
 }
 
+PrefillHostRouting MakeWp17RowRouting(std::uint32_t target_rows,
+                                      PrefillRoutingPattern pattern) {
+  constexpr std::uint64_t kTokens = 16U;
+  PrefillHostRouting routing =
+      MakePrefillRouting(kTokens, SequentialExpertOrder());
+  CHECK(target_rows >= 1U && target_rows <= routing.assignments.size());
+  static constexpr std::array<std::uint16_t, 16> kRealExperts{
+      3U,  9U,  14U, 22U, 31U, 47U, 55U, 64U,
+      70U, 75U, 83U, 91U, 101U, 110U, 117U, 126U};
+  for (std::uint32_t index = 0U; index < routing.assignments.size(); ++index) {
+    std::uint16_t expert = 0U;
+    if (index >= target_rows) {
+      const std::uint32_t tail = index - target_rows;
+      switch (pattern) {
+        case PrefillRoutingPattern::kUniform:
+          expert = static_cast<std::uint16_t>(1U + tail % 127U);
+          break;
+        case PrefillRoutingPattern::kRealFixture:
+          expert = kRealExperts[tail % kRealExperts.size()];
+          break;
+        case PrefillRoutingPattern::kOneHot:
+          expert = 1U;
+          break;
+        case PrefillRoutingPattern::kLongTail:
+          expert = static_cast<std::uint16_t>(
+              1U + ((tail * 29U + (tail % 8U) * 11U) % 127U));
+          break;
+      }
+    }
+    routing.assignments[index].expert_id = expert;
+  }
+  RebuildPrefillGrouping(routing);
+  CHECK(routing.histogram[0] == target_rows);
+  return routing;
+}
+
+void RunWp17M64Ab(
+    const gem16::internal::Trellis35DeviceLayerBinding& layer,
+    DeviceBuffer<float>& input, const PrefillHostRouting& routing,
+    std::uint32_t target_rows, const char* rate_name,
+    PrefillRoutingPattern pattern) {
+  constexpr std::uint64_t kTokens = 16U;
+  PrefillStorage m32(kTokens);
+  PrefillStorage m64(kTokens);
+  CHECK(UploadPrefillRouting(m32, routing));
+  CHECK(UploadPrefillRouting(m64, routing));
+  const float m32_ms = RunFullPrefill(
+      layer, input, m32, 1U, false,
+      gem16::internal::Trellis35PrefillKernelMode::kGroupedM32,
+      gem16::internal::Trellis35PrefillTransformMode::kWarpH128,
+      gem16::internal::Trellis35PrefillOutputMode::kFusedN128);
+  const bool capture = target_rows == 65U &&
+                       pattern == PrefillRoutingPattern::kLongTail &&
+                       std::string_view(rate_name) == "mixed";
+  const float m64_ms = RunFullPrefill(
+      layer, input, m64, 1U, capture,
+      gem16::internal::Trellis35PrefillKernelMode::kGroupedM64Hybrid,
+      gem16::internal::Trellis35PrefillTransformMode::kWarpH128,
+      gem16::internal::Trellis35PrefillOutputMode::kFusedN128);
+  std::vector<float> m32_experts(m32.expert_down.elements());
+  std::vector<float> m64_experts(m64.expert_down.elements());
+  std::vector<float> m32_reduced(m32.token_hidden.elements());
+  std::vector<float> m64_reduced(m64.token_hidden.elements());
+  CHECK(CudaOk(cudaMemcpy(m32_experts.data(), m32.expert_down.get(),
+                          m32.expert_down.bytes(), cudaMemcpyDeviceToHost),
+               "download WP17 M32 experts"));
+  CHECK(CudaOk(cudaMemcpy(m64_experts.data(), m64.expert_down.get(),
+                          m64.expert_down.bytes(), cudaMemcpyDeviceToHost),
+               "download WP17 M64 experts"));
+  CHECK(CudaOk(cudaMemcpy(m32_reduced.data(), m32.token_hidden.get(),
+                          m32.token_hidden.bytes(), cudaMemcpyDeviceToHost),
+               "download WP17 M32 reduction"));
+  CHECK(CudaOk(cudaMemcpy(m64_reduced.data(), m64.token_hidden.get(),
+                          m64.token_hidden.bytes(), cudaMemcpyDeviceToHost),
+               "download WP17 M64 reduction"));
+  const std::string prefix =
+      std::string("WP17 ") + rate_name + " " + RoutingPatternName(pattern) +
+      " rows=" + std::to_string(target_rows);
+  Compare(m32_experts, m64_experts, 0.0F, 0.0F,
+          (prefix + " expert parity").c_str());
+  Compare(m32_reduced, m64_reduced, 0.0F, 0.0F,
+          (prefix + " reduction parity").c_str());
+  std::cout << prefix << " m32_ms=" << m32_ms << " m64_ms=" << m64_ms
+            << " graph_replay=" << (capture ? "true" : "false") << '\n';
+}
+
+void TestWp17M64Matrix() {
+  constexpr std::array<std::uint32_t, 18> kRows{
+      1U,  2U,  3U,  15U, 16U, 17U, 31U, 32U, 33U,
+      47U, 48U, 63U, 64U, 65U, 95U, 96U, 127U, 128U};
+  constexpr std::array<PrefillRoutingPattern, 4> kPatterns{
+      PrefillRoutingPattern::kUniform, PrefillRoutingPattern::kRealFixture,
+      PrefillRoutingPattern::kOneHot, PrefillRoutingPattern::kLongTail};
+  struct RateCase {
+    std::uint16_t forced_rate;
+    const char* name;
+  };
+  constexpr std::array<RateCase, 3> kRates{{{3U, "K3"},
+                                            {4U, "K4"},
+                                            {0U, "mixed"}}};
+  constexpr std::uint64_t kTokens = 16U;
+  DeviceBuffer<float> input(kTokens * gem16::internal::kTrellis35GateUpInput);
+  std::vector<float> host_input(input.elements());
+  for (std::uint64_t index = 0U; index < host_input.size(); ++index) {
+    host_input[index] =
+        std::sin(static_cast<float>(index * 31U + 7U) * 0.001953125F) *
+        1.0e-4F;
+  }
+  CHECK(Upload(input, host_input, "upload WP17 matrix input"));
+  for (const auto& rate : kRates) {
+    FamilyStorage gate(gem16::internal::kTrellis35GateUpInput,
+                       gem16::internal::kTrellis35GateUpOutput, 1709U,
+                       rate.forced_rate);
+    FamilyStorage down(gem16::internal::kTrellis35DownInput,
+                       gem16::internal::kTrellis35DownOutput, 1753U,
+                       rate.forced_rate);
+    const gem16::internal::Trellis35DeviceLayerBinding layer{gate.binding,
+                                                             down.binding};
+    for (const std::uint32_t rows : kRows) {
+      for (const PrefillRoutingPattern pattern : kPatterns) {
+        const auto routing = MakeWp17RowRouting(rows, pattern);
+        RunWp17M64Ab(layer, input, routing, rows, rate.name, pattern);
+      }
+    }
+  }
+}
+
+void TestWp17M64Smoke() {
+  constexpr std::uint64_t kTokens = 16U;
+  DeviceBuffer<float> input(kTokens * gem16::internal::kTrellis35GateUpInput);
+  std::vector<float> host_input(input.elements());
+  for (std::uint64_t index = 0U; index < host_input.size(); ++index) {
+    host_input[index] =
+        std::sin(static_cast<float>(index * 37U + 11U) * 0.001953125F) *
+        1.0e-4F;
+  }
+  CHECK(Upload(input, host_input, "upload WP17 smoke input"));
+  FamilyStorage gate(gem16::internal::kTrellis35GateUpInput,
+                     gem16::internal::kTrellis35GateUpOutput, 1777U);
+  FamilyStorage down(gem16::internal::kTrellis35DownInput,
+                     gem16::internal::kTrellis35DownOutput, 1789U);
+  const gem16::internal::Trellis35DeviceLayerBinding layer{gate.binding,
+                                                           down.binding};
+  const auto routing =
+      MakeWp17RowRouting(65U, PrefillRoutingPattern::kLongTail);
+  RunWp17M64Ab(layer, input, routing, 65U, "mixed",
+               PrefillRoutingPattern::kLongTail);
+}
+
 }  // namespace
 
 int RunTrellis35PrefillTests() {
@@ -335,5 +484,15 @@ int RunTrellis35Wp12NumericalMatrix() {
 
 int RunTrellis35Wp14OutputMatrix() {
   TestWp14OutputMatrix();
+  return failures;
+}
+
+int RunTrellis35Wp17M64Matrix() {
+  TestWp17M64Matrix();
+  return failures;
+}
+
+int RunTrellis35Wp17M64Smoke() {
+  TestWp17M64Smoke();
   return failures;
 }

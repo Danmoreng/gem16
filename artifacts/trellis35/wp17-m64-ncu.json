@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "work_packet": "WP17",
+  "status": "accepted_experimental",
+  "implementation_parent_revision": "18eef182b7193a04e43cd4b45dc75228187cba41",
+  "profiler": "Nsight Compute 2026.2.1",
+  "workload": "real Wikipedia 16K first 1024-token chunk",
+  "layers": [0, 15, 29],
+  "launches_per_layer": ["gate_up", "down"],
+  "measurements": [
+    {
+      "layer": 0,
+      "gate_up_duration_ms": 1.82,
+      "down_duration_ms": 1.18,
+      "gate_up_achieved_occupancy_percent": 64.96,
+      "down_achieved_occupancy_percent": 65.68
+    },
+    {
+      "layer": 15,
+      "gate_up_duration_ms": 1.90,
+      "down_duration_ms": 1.22,
+      "gate_up_achieved_occupancy_percent": 65.27,
+      "down_achieved_occupancy_percent": 65.67
+    },
+    {
+      "layer": 29,
+      "gate_up_duration_ms": 1.97,
+      "down_duration_ms": 1.26,
+      "gate_up_achieved_occupancy_percent": 65.29,
+      "down_achieved_occupancy_percent": 65.59
+    }
+  ],
+  "common_resources": {
+    "registers_per_thread": 64,
+    "static_shared_kib_per_block": 37.12,
+    "driver_shared_kib_per_block": 1.02,
+    "theoretical_occupancy_percent": 66.67,
+    "local_spilling_requests": 0,
+    "shared_spilling_requests": 0
+  },
+  "interpretation": {
+    "highest_utilized_instruction_pipeline": "LSU",
+    "tensor_pipe_compute_ceiling_observed": false,
+    "next_packet": "WP18 LSU and synchronization optimization"
+  },
+  "raw_evidence": [
+    {
+      "path": "artifacts/raw/trellis35/wp17/m64-layer0-gate-down-details.csv",
+      "sha256": "7aede84cb81f2904fb99bda659fa1c46152f23b1f8140ed6fb6a2946abca931c"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp17/m64-layer15-gate-down-details.csv",
+      "sha256": "1a5dff0ae93d32b57358f899fcebbbfe116df26f26ac8625245bbf81a5f3a0da"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp17/m64-layer29-gate-down-details.csv",
+      "sha256": "1037e085dca6ef209182e5daf414afc4c189b08ec4b079b55f45812381792bf5"
+    }
+  ]
+}

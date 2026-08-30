@@ -193,20 +193,52 @@ Status LaunchPrefillProjectionBlocks(
   const unsigned output_blocks =
       kPrefillOutputBlock / (kMmaWarps * 8U);
   if (output_mode == Trellis35PrefillOutputMode::kFusedN128) {
-    if (kernel_mode != Trellis35PrefillKernelMode::kGroupedM32 ||
-        transform_mode != Trellis35PrefillTransformMode::kWarpH128) {
+    if (transform_mode != Trellis35PrefillTransformMode::kWarpH128 ||
+        (kernel_mode != Trellis35PrefillKernelMode::kGroupedM32 &&
+         kernel_mode != Trellis35PrefillKernelMode::kGroupedM64Hybrid)) {
       return Invalid(
-          "Trellis35 fused N128 prefill requires M32 and Warp-H128");
+          "Trellis35 fused N128 prefill requires grouped MMA and Warp-H128");
+    }
+    if (kernel_mode == Trellis35PrefillKernelMode::kGroupedM64Hybrid) {
+      const unsigned m64_schedule_blocks = static_cast<unsigned>(
+          (assignment_count + (kPrefillM64RowsPerTile - 1U) *
+                                  active_expert_upper_bound) /
+          kPrefillM64RowsPerTile);
+      MmaW4A8ProjectionGroupedPrefillM64N128Kernel<<<
+          dim3(static_cast<unsigned>(output_elements / kPrefillOutputBlock),
+               m64_schedule_blocks),
+          kMmaN128Threads, 0, stream>>>(
+          activation, activation_scales, family, assignments, expert_prefix,
+          schedule_count, schedule, permutation,
+          PrefillFloatOutputPolicy{output}, assignment_count, input_elements,
+          output_elements);
+      Status status = CheckLaunch(
+          "launch M64 fused-N128 Trellis35 prefill projection and inverse");
+      if (!status.ok()) return status;
+      MmaW4A8ProjectionGroupedPrefillM32N128Kernel<<<
+          dim3(static_cast<unsigned>(output_elements / kPrefillOutputBlock),
+               static_cast<unsigned>(active_expert_upper_bound)),
+          kMmaN128Threads, 0, stream>>>(
+          activation, activation_scales, family, assignments, expert_prefix,
+          schedule_count, schedule, permutation, 1U, true,
+          PrefillFloatOutputPolicy{output}, assignment_count, input_elements,
+          output_elements);
+      return CheckLaunch(
+          "launch M32-tail fused-N128 Trellis35 prefill projection and inverse");
     }
     MmaW4A8ProjectionGroupedPrefillM32N128Kernel<<<
         dim3(static_cast<unsigned>(output_elements / kPrefillOutputBlock),
              schedule_blocks),
         kMmaN128Threads, 0, stream>>>(
         activation, activation_scales, family, assignments, expert_prefix,
-        schedule_count, schedule, permutation, PrefillFloatOutputPolicy{output},
-        assignment_count, input_elements, output_elements);
+        schedule_count, schedule, permutation, 0U, false,
+        PrefillFloatOutputPolicy{output}, assignment_count, input_elements,
+        output_elements);
     return CheckLaunch(
         "launch fused-N128 Trellis35 prefill projection and inverse");
+  }
+  if (kernel_mode == Trellis35PrefillKernelMode::kGroupedM64Hybrid) {
+    return Invalid("Trellis35 M64 prefill requires fused N128 output");
   }
   for (std::uint64_t output_offset = 0U; output_offset < output_elements;
        output_offset += kPrefillOutputBlock) {
@@ -284,20 +316,52 @@ Status LaunchPrefillProjectionBlocksBf16Reverse(
       rows_per_tile);
   const unsigned output_blocks = kPrefillOutputBlock / (kMmaWarps * 8U);
   if (output_mode == Trellis35PrefillOutputMode::kFusedN128) {
-    if (kernel_mode != Trellis35PrefillKernelMode::kGroupedM32 ||
-        transform_mode != Trellis35PrefillTransformMode::kWarpH128) {
+    if (transform_mode != Trellis35PrefillTransformMode::kWarpH128 ||
+        (kernel_mode != Trellis35PrefillKernelMode::kGroupedM32 &&
+         kernel_mode != Trellis35PrefillKernelMode::kGroupedM64Hybrid)) {
       return Invalid(
-          "Trellis35 fused N128 BF16 prefill requires M32 and Warp-H128");
+          "Trellis35 fused N128 BF16 prefill requires grouped MMA and Warp-H128");
+    }
+    if (kernel_mode == Trellis35PrefillKernelMode::kGroupedM64Hybrid) {
+      const unsigned m64_schedule_blocks = static_cast<unsigned>(
+          (assignment_count + (kPrefillM64RowsPerTile - 1U) *
+                                  active_expert_upper_bound) /
+          kPrefillM64RowsPerTile);
+      MmaW4A8ProjectionGroupedPrefillM64N128Kernel<<<
+          dim3(static_cast<unsigned>(output_elements / kPrefillOutputBlock),
+               m64_schedule_blocks),
+          kMmaN128Threads, 0, stream>>>(
+          activation, activation_scales, family, assignments, expert_prefix,
+          schedule_count, schedule, permutation,
+          PrefillBf16OutputPolicy{output}, assignment_count, input_elements,
+          output_elements);
+      Status status = CheckLaunch(
+          "launch M64 fused-N128 Trellis35 BF16 prefill projection and inverse");
+      if (!status.ok()) return status;
+      MmaW4A8ProjectionGroupedPrefillM32N128Kernel<<<
+          dim3(static_cast<unsigned>(output_elements / kPrefillOutputBlock),
+               static_cast<unsigned>(active_expert_upper_bound)),
+          kMmaN128Threads, 0, stream>>>(
+          activation, activation_scales, family, assignments, expert_prefix,
+          schedule_count, schedule, permutation, 1U, true,
+          PrefillBf16OutputPolicy{output}, assignment_count, input_elements,
+          output_elements);
+      return CheckLaunch(
+          "launch M32-tail fused-N128 Trellis35 BF16 prefill projection and inverse");
     }
     MmaW4A8ProjectionGroupedPrefillM32N128Kernel<<<
         dim3(static_cast<unsigned>(output_elements / kPrefillOutputBlock),
              schedule_blocks),
         kMmaN128Threads, 0, stream>>>(
         activation, activation_scales, family, assignments, expert_prefix,
-        schedule_count, schedule, permutation, PrefillBf16OutputPolicy{output},
-        assignment_count, input_elements, output_elements);
+        schedule_count, schedule, permutation, 0U, false,
+        PrefillBf16OutputPolicy{output}, assignment_count, input_elements,
+        output_elements);
     return CheckLaunch(
         "launch fused-N128 Trellis35 BF16 prefill projection and inverse");
+  }
+  if (kernel_mode == Trellis35PrefillKernelMode::kGroupedM64Hybrid) {
+    return Invalid("Trellis35 M64 BF16 prefill requires fused N128 output");
   }
   for (std::uint64_t output_end = output_elements; output_end != 0U;
        output_end -= kPrefillOutputBlock) {
@@ -833,6 +897,11 @@ Status LaunchTrellis35PrefillExpertsW4A8(
       kernel_mode != Trellis35PrefillKernelMode::kGroupedM32) {
     return Invalid("Trellis35 prebuilt prefill schedule requires M32 kernel");
   }
+  if ((schedule_mode == Trellis35PrefillScheduleMode::kBuildM64Hybrid) !=
+      (kernel_mode == Trellis35PrefillKernelMode::kGroupedM64Hybrid)) {
+    return Invalid(
+        "Trellis35 M64 hybrid kernel requires its private hybrid schedule");
+  }
   auto* activation_scales =
       reinterpret_cast<float*>(workspace.token_scales);
   auto* projection_tile = workspace.shared_product;
@@ -850,6 +919,12 @@ Status LaunchTrellis35PrefillExpertsW4A8(
           workspace.prefix, workspace.histogram, schedule);
     }
     status = CheckLaunch("build standalone Trellis35 prefill schedule");
+    if (!status.ok()) return status;
+  } else if (schedule_mode ==
+             Trellis35PrefillScheduleMode::kBuildM64Hybrid) {
+    BuildTrellis35PrefillM64HybridScheduleKernel<<<1, kThreads, 0, stream>>>(
+        workspace.prefix, workspace.histogram, schedule);
+    status = CheckLaunch("build Trellis35 M64/M32 hybrid prefill schedule");
     if (!status.ok()) return status;
   }
 

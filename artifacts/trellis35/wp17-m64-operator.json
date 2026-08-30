@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "work_packet": "WP17",
+  "status": "accepted_experimental",
+  "implementation_parent_revision": "18eef182b7193a04e43cd4b45dc75228187cba41",
+  "kernel": {
+    "name": "MmaW4A8ProjectionGroupedPrefillM64N128Kernel",
+    "threads": 512,
+    "warps": 16,
+    "m_rows": 64,
+    "n_columns": 128,
+    "k_step": 32,
+    "m16_fragments": 4,
+    "tail_policy": "M64 for 33-63 rows; M32 for 1-32 rows",
+    "full_reconstruction": false,
+    "fallback": "GEM16_TRELLIS35_PREFILL_M64=0"
+  },
+  "matrix": {
+    "row_counts": [1, 2, 3, 15, 16, 17, 31, 32, 33, 47, 48, 63, 64, 65, 95, 96, 127, 128],
+    "rate_modes": ["k3", "k4", "mixed_k3_k4"],
+    "routing_patterns": ["uniform", "real_fixture", "one_hot", "long_tail"],
+    "cases": 216,
+    "gate_up_and_down": true,
+    "expert_output_bit_identical_to_m32": true,
+    "reduced_output_bit_identical_to_m32": true,
+    "maximum_absolute_difference": 0.0,
+    "cuda_graph_replay": "passed at rows=65, mixed_k3_k4, long_tail"
+  },
+  "resources": {
+    "registers_per_thread": 64,
+    "static_shared_bytes": 38144,
+    "stack_bytes": 0,
+    "local_bytes": 0,
+    "spill_stores": 0,
+    "spill_loads": 0,
+    "sass_tensor_instruction": "QMMA.16832.F32.E4M3.E4M3"
+  },
+  "sanitizers": {
+    "memcheck_full_matrix": "0 errors",
+    "initcheck_full_matrix": "0 errors",
+    "racecheck_representative_m64_plus_m32_tail_and_graph": "0 hazards, 0 errors, 0 warnings",
+    "racecheck_full_matrix": "not run to completion because the instrumented 216-case matrix was prohibitively slow"
+  },
+  "raw_evidence": [
+    {
+      "path": "artifacts/raw/trellis35/wp17/m64-matrix.log",
+      "sha256": "e688588ca8b42aae12e6e59cc1188a64c102586b4d279c094874a6c5ed549f41"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp17/cuobjdump-resource-usage.txt",
+      "sha256": "587a32c8d2bcaeaca814fdef11f7f7b9e576b52a48e1b3f77e6410f4251d37"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp17/m64-sass-evidence.txt",
+      "sha256": "baf58686786fcd05ad4b83c29ae31aa1f79bcb0c28fa224102e21854f69e274c"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp17/compute-sanitizer-memcheck.txt",
+      "sha256": "a0200e4c34450b80851009b190e87324e2ce942ce0282b378d15aa2932fb6e08"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp17/compute-sanitizer-initcheck.txt",
+      "sha256": "d95853229c1d64ce8a656bf3ab9527337671b472cde6946b279a267080aa2206"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp17/compute-sanitizer-racecheck-smoke.txt",
+      "sha256": "de10241da28cfb0939d2818a4e1d8fbbfec58c46b5a47d5843e84b2e14686921"
+    }
+  ]
+}

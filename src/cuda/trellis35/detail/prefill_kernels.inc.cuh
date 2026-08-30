@@ -357,6 +357,7 @@ __device__ __forceinline__ void PrefillWaitForAsyncCopies() {
 #endif
 }
 
+template <unsigned RowsPerTile>
 __device__ __forceinline__ void StageGroupedPrefillActivationAsync(
     std::uint32_t* staged_activation, unsigned stage,
     const std::uint8_t* activation, const std::uint32_t* activation_rows,
@@ -364,7 +365,7 @@ __device__ __forceinline__ void StageGroupedPrefillActivationAsync(
   constexpr unsigned kWordsPerK32 = 32U / sizeof(std::uint32_t);
   constexpr unsigned kCopiesPerRow = 32U / 16U;
   constexpr unsigned kCopies =
-      kPrefillGroupedRowsPerTile * kCopiesPerRow;
+      RowsPerTile * kCopiesPerRow;
   for (unsigned copy = threadIdx.x; copy < kCopies; copy += blockDim.x) {
     const unsigned row = copy / kCopiesPerRow;
     const unsigned chunk = copy % kCopiesPerRow;
@@ -378,19 +379,21 @@ __device__ __forceinline__ void StageGroupedPrefillActivationAsync(
               : activation;
     PrefillCopyAsync16(
         staged_activation +
-            (stage * kPrefillGroupedRowsPerTile + row) * kWordsPerK32 +
+            (stage * RowsPerTile + row) * kWordsPerK32 +
             chunk * (16U / sizeof(std::uint32_t)),
         source, valid ? 16 : 0);
   }
 }
 
-template <int Rate>
-__device__ __forceinline__ void AccumulateGroupedPrefillM32(
+template <int Rate, unsigned RowsPerTile>
+__device__ __forceinline__ void AccumulateGroupedPrefill(
     const std::uint8_t* activation, const std::uint32_t* activation_rows,
     const std::byte* pool, std::uint32_t pool_offset,
     std::uint64_t input_elements, std::uint64_t output_elements,
     std::uint64_t source_output, std::uint32_t* staged_activation,
-    Fp8Accumulator (&accumulators)[2]) {
+    Fp8Accumulator (&accumulators)[RowsPerTile / 16U],
+    unsigned valid_m16_tiles) {
+  static_assert(RowsPerTile == 32U || RowsPerTile == 64U);
   constexpr unsigned kWordsPerK32 = 32U / sizeof(std::uint32_t);
   constexpr unsigned kPayloadWords = Rate * 256U / 32U;
   const unsigned lane = threadIdx.x & 31U;
@@ -411,8 +414,8 @@ __device__ __forceinline__ void AccumulateGroupedPrefillM32(
     return payload[tile * kPayloadWords + lane];
   };
 
-  StageGroupedPrefillActivationAsync(staged_activation, 0U, activation,
-                                     activation_rows, input_elements, 0U);
+  StageGroupedPrefillActivationAsync<RowsPerTile>(
+      staged_activation, 0U, activation, activation_rows, input_elements, 0U);
   PrefillCommitAsyncCopies();
   PrefillWaitForAsyncCopies();
   __syncthreads();
@@ -420,7 +423,7 @@ __device__ __forceinline__ void AccumulateGroupedPrefillM32(
     const unsigned stage = iteration & 1U;
     const bool has_next = iteration + 1U < iterations;
     if (has_next) {
-      StageGroupedPrefillActivationAsync(
+      StageGroupedPrefillActivationAsync<RowsPerTile>(
           staged_activation, stage ^ 1U, activation, activation_rows,
           input_elements,
           static_cast<std::uint64_t>(iteration + 1U) * 32U);
@@ -433,9 +436,10 @@ __device__ __forceinline__ void AccumulateGroupedPrefillM32(
     const std::uint32_t b1 =
         DecodeLanePayloadE4M3x4<Rate>(lane_word1, position);
     const std::uint32_t* current =
-        staged_activation + stage * kPrefillGroupedRowsPerTile * kWordsPerK32;
+        staged_activation + stage * RowsPerTile * kWordsPerK32;
 #pragma unroll
-    for (unsigned tile = 0U; tile < 2U; ++tile) {
+    for (unsigned tile = 0U; tile < RowsPerTile / 16U; ++tile) {
+      if (tile >= valid_m16_tiles) continue;
       const unsigned low_row = tile * 16U + group;
       const unsigned high_row = low_row + 8U;
       const std::uint32_t a0 =
@@ -505,15 +509,15 @@ __global__ void MmaW4A8ProjectionGroupedPrefillM32Kernel(
                               : family.k4_payload_pool;
   Fp8Accumulator accumulators[2]{};
   if (descriptor.rate_bits == 3U) {
-    AccumulateGroupedPrefillM32<3>(
+    AccumulateGroupedPrefill<3, kPrefillGroupedRowsPerTile>(
         activation, activation_rows, pool, descriptor.pool_offset,
         input_elements, output_elements, source_output, staged_activation,
-        accumulators);
+        accumulators, 2U);
   } else if (descriptor.rate_bits == 4U) {
-    AccumulateGroupedPrefillM32<4>(
+    AccumulateGroupedPrefill<4, kPrefillGroupedRowsPerTile>(
         activation, activation_rows, pool, descriptor.pool_offset,
         input_elements, output_elements, source_output, staged_activation,
-        accumulators);
+        accumulators, 2U);
   } else {
     return;
   }
@@ -560,12 +564,15 @@ __global__ void MmaW4A8ProjectionGroupedPrefillM32N128Kernel(
     const Gemma4MoePrefillAssignment* assignments,
     const std::uint32_t* expert_prefix, const std::uint32_t* schedule_count,
     const std::uint32_t* schedule, const std::uint32_t* permutation,
+    unsigned schedule_count_slot, bool schedule_after_m64,
     OutputPolicy policy, std::uint64_t assignment_count,
     std::uint64_t input_elements, std::uint64_t output_elements) {
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 890
   const unsigned schedule_index = blockIdx.y;
-  if (schedule_index >= schedule_count[0]) return;
-  const std::uint32_t packed_tile = schedule[schedule_index];
+  if (schedule_index >= schedule_count[schedule_count_slot]) return;
+  const unsigned schedule_offset =
+      schedule_after_m64 ? schedule_count[0] : 0U;
+  const std::uint32_t packed_tile = schedule[schedule_offset + schedule_index];
   const unsigned expert = packed_tile >> 16U;
   const std::uint32_t grouped_begin = packed_tile & 0xffffU;
   if (expert >= kTrellis35ExpertCount) return;
@@ -605,15 +612,15 @@ __global__ void MmaW4A8ProjectionGroupedPrefillM32N128Kernel(
                               : family.k4_payload_pool;
   Fp8Accumulator accumulators[2]{};
   if (descriptor.rate_bits == 3U) {
-    AccumulateGroupedPrefillM32<3>(
+    AccumulateGroupedPrefill<3, kPrefillGroupedRowsPerTile>(
         activation, activation_rows, pool, descriptor.pool_offset,
         input_elements, output_elements, source_output, staged_activation,
-        accumulators);
+        accumulators, 2U);
   } else if (descriptor.rate_bits == 4U) {
-    AccumulateGroupedPrefillM32<4>(
+    AccumulateGroupedPrefill<4, kPrefillGroupedRowsPerTile>(
         activation, activation_rows, pool, descriptor.pool_offset,
         input_elements, output_elements, source_output, staged_activation,
-        accumulators);
+        accumulators, 2U);
   } else {
     return;
   }
@@ -641,6 +648,132 @@ __global__ void MmaW4A8ProjectionGroupedPrefillM32N128Kernel(
 #pragma unroll
   for (unsigned row = warp; row < kPrefillGroupedRowsPerTile;
        row += kMmaN128Warps) {
+    const std::uint32_t original = activation_rows[row];
+    if (original == 0xffffffffU) continue;
+    float values[4];
+#pragma unroll
+    for (unsigned element = 0U; element < 4U; ++element) {
+      values[element] = projection[row][lane * 4U + element];
+    }
+    H128Warp(values);
+    const std::uint64_t output_base =
+        static_cast<std::uint64_t>(original) * output_elements +
+        output_offset + lane * 4U;
+#pragma unroll
+    for (unsigned element = 0U; element < 4U; ++element) {
+      policy.Store(output_base + element,
+                   values[element] * F16(svh + element));
+    }
+  }
+#else
+  (void)activation;
+  (void)activation_scales;
+  (void)family;
+  (void)assignments;
+  (void)expert_prefix;
+  (void)schedule_count;
+  (void)schedule;
+  (void)permutation;
+  (void)schedule_count_slot;
+  (void)schedule_after_m64;
+  (void)policy;
+  (void)assignment_count;
+  (void)input_elements;
+  (void)output_elements;
+#endif
+}
+
+template <typename OutputPolicy>
+__global__ void MmaW4A8ProjectionGroupedPrefillM64N128Kernel(
+    const std::uint8_t* activation, const float* activation_scales,
+    Trellis35DeviceFamilyBinding family,
+    const Gemma4MoePrefillAssignment* assignments,
+    const std::uint32_t* expert_prefix, const std::uint32_t* schedule_count,
+    const std::uint32_t* schedule, const std::uint32_t* permutation,
+    OutputPolicy policy, std::uint64_t assignment_count,
+    std::uint64_t input_elements, std::uint64_t output_elements) {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 890
+  const unsigned schedule_index = blockIdx.y;
+  if (schedule_index >= schedule_count[0]) return;
+  const std::uint32_t packed_tile = schedule[schedule_index];
+  const unsigned expert = packed_tile >> 16U;
+  const std::uint32_t grouped_begin = packed_tile & 0xffffU;
+  if (expert >= kTrellis35ExpertCount) return;
+  const std::uint32_t grouped_end = expert_prefix[expert + 1U];
+  if (grouped_begin >= grouped_end) return;
+  const unsigned valid_rows = static_cast<unsigned>(
+      min(grouped_end - grouped_begin,
+          static_cast<std::uint32_t>(kPrefillM64RowsPerTile)));
+  const unsigned valid_m16_tiles = (valid_rows + 15U) / 16U;
+
+  __shared__ std::uint32_t activation_rows[kPrefillM64RowsPerTile];
+  __shared__ alignas(16) std::uint32_t staged_activation
+      [2U * kPrefillM64RowsPerTile * (32U / sizeof(std::uint32_t))];
+  __shared__ float projection[kPrefillM64RowsPerTile]
+                             [kPrefillOutputBlock];
+  if (threadIdx.x < kPrefillM64RowsPerTile) {
+    const std::uint32_t grouped = grouped_begin + threadIdx.x;
+    std::uint32_t original = 0xffffffffU;
+    if (grouped < grouped_end) {
+      const std::uint32_t candidate = permutation[grouped];
+      if (candidate < assignment_count &&
+          assignments[candidate].expert_id == expert) {
+        original = candidate;
+      }
+    }
+    activation_rows[threadIdx.x] = original;
+  }
+  __syncthreads();
+
+  const unsigned warp = threadIdx.x >> 5U;
+  const unsigned lane = threadIdx.x & 31U;
+  const unsigned group = lane >> 2U;
+  const unsigned thread_in_group = lane & 3U;
+  const std::uint64_t output_offset =
+      static_cast<std::uint64_t>(blockIdx.x) * kPrefillOutputBlock;
+  const std::uint64_t output_column_base = output_offset + warp * 8U;
+  const std::uint64_t source_output = output_column_base + group;
+  const Trellis35ExpertDescriptor descriptor = family.descriptors[expert];
+  const std::byte* pool = descriptor.rate_bits == 3U
+                              ? family.k3_payload_pool
+                              : family.k4_payload_pool;
+  Fp8Accumulator accumulators[4]{};
+  if (descriptor.rate_bits == 3U) {
+    AccumulateGroupedPrefill<3, kPrefillM64RowsPerTile>(
+        activation, activation_rows, pool, descriptor.pool_offset,
+        input_elements, output_elements, source_output, staged_activation,
+        accumulators, valid_m16_tiles);
+  } else if (descriptor.rate_bits == 4U) {
+    AccumulateGroupedPrefill<4, kPrefillM64RowsPerTile>(
+        activation, activation_rows, pool, descriptor.pool_offset,
+        input_elements, output_elements, source_output, staged_activation,
+        accumulators, valid_m16_tiles);
+  } else {
+    return;
+  }
+
+#pragma unroll
+  for (unsigned tile = 0U; tile < 4U; ++tile) {
+    if (tile >= valid_m16_tiles) continue;
+    const float values[4] = {accumulators[tile].x0, accumulators[tile].x1,
+                             accumulators[tile].x2, accumulators[tile].x3};
+#pragma unroll
+    for (unsigned pair = 0U; pair < 4U; ++pair) {
+      const unsigned row = tile * 16U +
+                           ((pair & 2U) == 0U ? group : group + 8U);
+      const std::uint32_t original = activation_rows[row];
+      if (original == 0xffffffffU) continue;
+      const unsigned column = warp * 8U + thread_in_group * 2U +
+                              (pair & 1U);
+      projection[row][column] = values[pair] * activation_scales[original];
+    }
+  }
+  __syncthreads();
+
+  const std::uint16_t* svh =
+      family.svh_f16 + static_cast<std::uint64_t>(expert) * output_elements +
+      output_offset + lane * 4U;
+  for (unsigned row = warp; row < valid_rows; row += kMmaN128Warps) {
     const std::uint32_t original = activation_rows[row];
     if (original == 0xffffffffU) continue;
     float values[4];
@@ -779,10 +912,67 @@ __global__ void BuildTrellis35PrefillTileScheduleKernel(
   tile_count[0] = count;
 }
 
+__global__ void BuildTrellis35PrefillM64HybridScheduleKernel(
+    const std::uint32_t* prefix, std::uint32_t* tile_counts,
+    std::uint32_t* schedule) {
+  if (blockIdx.x != 0U) return;
+  __shared__ std::uint32_t m64_offsets[kTrellis35ExpertCount + 1U];
+  __shared__ std::uint32_t m32_offsets[kTrellis35ExpertCount + 1U];
+  const unsigned expert = threadIdx.x;
+  if (expert < kTrellis35ExpertCount) {
+    const std::uint32_t rows = prefix[expert + 1U] - prefix[expert];
+    const std::uint32_t full_m64 = rows / kPrefillM64RowsPerTile;
+    const std::uint32_t remainder = rows % kPrefillM64RowsPerTile;
+    m64_offsets[expert] = full_m64 + (remainder > 32U ? 1U : 0U);
+    m32_offsets[expert] =
+        remainder != 0U && remainder <= 32U ? 1U : 0U;
+  }
+  if (expert == 0U) {
+    m64_offsets[kTrellis35ExpertCount] = 0U;
+    m32_offsets[kTrellis35ExpertCount] = 0U;
+  }
+  __syncthreads();
+  if (expert == 0U) {
+    std::uint32_t m64_total = 0U;
+    std::uint32_t m32_total = 0U;
+    for (unsigned index = 0U; index < kTrellis35ExpertCount; ++index) {
+      const std::uint32_t m64_count = m64_offsets[index];
+      const std::uint32_t m32_count = m32_offsets[index];
+      m64_offsets[index] = m64_total;
+      m32_offsets[index] = m32_total;
+      m64_total += m64_count;
+      m32_total += m32_count;
+    }
+    m64_offsets[kTrellis35ExpertCount] = m64_total;
+    m32_offsets[kTrellis35ExpertCount] = m32_total;
+    tile_counts[0] = m64_total;
+    tile_counts[1] = m32_total;
+  }
+  __syncthreads();
+  if (expert >= kTrellis35ExpertCount) return;
+
+  const std::uint32_t first = prefix[expert];
+  const std::uint32_t rows = prefix[expert + 1U] - first;
+  const std::uint32_t full_m64 = rows / kPrefillM64RowsPerTile;
+  const std::uint32_t remainder = rows % kPrefillM64RowsPerTile;
+  for (std::uint32_t tile = 0U; tile < full_m64; ++tile) {
+    schedule[m64_offsets[expert] + tile] =
+        (expert << 16U) | (first + tile * kPrefillM64RowsPerTile);
+  }
+  if (remainder > 32U) {
+    schedule[m64_offsets[expert] + full_m64] =
+        (expert << 16U) | (first + full_m64 * kPrefillM64RowsPerTile);
+  } else if (remainder != 0U) {
+    schedule[m64_offsets[kTrellis35ExpertCount] + m32_offsets[expert]] =
+        (expert << 16U) | (first + full_m64 * kPrefillM64RowsPerTile);
+  }
+}
+
 __global__ void RestoreTrellis35PrefillHistogramZeroKernel(
     std::uint32_t* histogram, const std::uint32_t* prefix) {
   if (blockIdx.x == 0U && threadIdx.x == 0U) {
     histogram[0] = prefix[1U] - prefix[0U];
+    histogram[1] = prefix[2U] - prefix[1U];
   }
 }
 

@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "work_packet": "WP17",
+  "status": "accepted_experimental",
+  "implementation_parent_revision": "18eef182b7193a04e43cd4b45dc75228187cba41",
+  "workload": {
+    "prompt": "benchmarks/prompts/wikipedia-summary-16k.json",
+    "prompt_tokens": 16384,
+    "prefill_chunk_tokens": 1024,
+    "chunks": 16,
+    "layers": 30,
+    "records": 480,
+    "routed_assignments_per_record": 8192
+  },
+  "routing": {
+    "active_experts": {
+      "mean": 104.4104,
+      "minimum": 88,
+      "maximum": 124
+    },
+    "rows_per_expert": {
+      "minimum": 0,
+      "maximum": 999
+    },
+    "m32_tiles": {
+      "total": 152183,
+      "mean_per_layer_chunk": 317.0479,
+      "minimum_per_layer_chunk": 301,
+      "maximum_per_layer_chunk": 333
+    },
+    "m64_hybrid_tiles": {
+      "total": 93749,
+      "mean_per_layer_chunk": 195.3104,
+      "minimum_per_layer_chunk": 179,
+      "maximum_per_layer_chunk": 212,
+      "full_m64": 44025,
+      "m64_tail_33_to_63": 14409,
+      "m32_tail_1_to_32": 35315,
+      "fraction_of_m32_schedule": 0.616028,
+      "schedule_entry_reduction_percent": 38.3972
+    },
+    "active_rate_tasks": {
+      "gate_up_k3": 26429,
+      "gate_up_k4": 23688,
+      "down_k3": 25816,
+      "down_k4": 24301
+    }
+  },
+  "diagnostic_contract": {
+    "enabled_by": "GEM16_TRELLIS35_ROUTING_TELEMETRY=1",
+    "default_enabled": false,
+    "scope": "Trellis35 prefill only",
+    "normal_path_copy_or_synchronization": false
+  },
+  "raw_evidence": [
+    {
+      "path": "artifacts/raw/trellis35/wp17/routing-16k-lines.log",
+      "sha256": "b745c1b146e5961635447c124b1c1a7ec346c9714822516fe0bbd90550433e18"
+    }
+  ]
+}

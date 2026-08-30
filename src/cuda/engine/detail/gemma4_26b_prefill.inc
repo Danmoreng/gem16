@@ -10,6 +10,10 @@ Status Gemma4Moe26BReferenceEngine::PrefillTokens(
     if (token >= kVocabulary) return Invalid("M17 prefill token is invalid");
   }
   auto& x = *implementation_;
+  static const bool trellis35_routing_diagnostic = [] {
+    const char* value = std::getenv("GEM16_TRELLIS35_ROUTING_TELEMETRY");
+    return value != nullptr && std::string_view(value) == "1";
+  }();
   x.pending_decode_self_feed = false;
   x.decode_self_feed_valid = false;
   constexpr unsigned threads = 256U;
@@ -111,6 +115,81 @@ Status Gemma4Moe26BReferenceEngine::PrefillTokens(
                          x.moe_config, x.moe_weights[layer],
                          x.prefill_moe_workspace, x.stream);
       if (!status.ok()) return status;
+      if (trellis35_routing_diagnostic &&
+          IsTrellis35RoutedExpertFormat(x.routed_expert_format)) {
+        std::array<std::uint32_t, kExperts + 1U> host_prefix{};
+        std::array<Trellis35ExpertDescriptor, kExperts> host_gate{};
+        std::array<Trellis35ExpertDescriptor, kExperts> host_down{};
+        error = cudaMemcpyAsync(
+            host_prefix.data(), x.prefill_moe_workspace.prefix,
+            host_prefix.size() * sizeof(host_prefix[0]),
+            cudaMemcpyDeviceToHost, x.stream);
+        if (error == cudaSuccess) {
+          error = cudaMemcpyAsync(
+              host_gate.data(),
+              x.trellis35_artifact.layers()[layer].gate_up.descriptors,
+              host_gate.size() * sizeof(host_gate[0]), cudaMemcpyDeviceToHost,
+              x.stream);
+        }
+        if (error == cudaSuccess) {
+          error = cudaMemcpyAsync(
+              host_down.data(),
+              x.trellis35_artifact.layers()[layer].down.descriptors,
+              host_down.size() * sizeof(host_down[0]), cudaMemcpyDeviceToHost,
+              x.stream);
+        }
+        if (error == cudaSuccess) error = cudaStreamSynchronize(x.stream);
+        if (error != cudaSuccess) {
+          return CudaFailure("copy WP17 Trellis35 routing telemetry", error);
+        }
+        std::uint64_t active_experts = 0U;
+        std::uint64_t m32_schedules = 0U;
+        std::uint64_t m64_schedules = 0U;
+        std::uint64_t m64_full_tiles = 0U;
+        std::uint64_t m64_33_63_tails = 0U;
+        std::uint64_t m32_le32_tails = 0U;
+        std::uint64_t gate_k3 = 0U;
+        std::uint64_t gate_k4 = 0U;
+        std::uint64_t down_k3 = 0U;
+        std::uint64_t down_k4 = 0U;
+        for (unsigned expert = 0U; expert < kExperts; ++expert) {
+          const std::uint32_t rows =
+              host_prefix[expert + 1U] - host_prefix[expert];
+          if (rows == 0U) continue;
+          ++active_experts;
+          m32_schedules += (rows + 31U) / 32U;
+          m64_schedules += (rows + 63U) / 64U;
+          m64_full_tiles += rows / 64U;
+          const std::uint32_t remainder = rows % 64U;
+          m64_33_63_tails += remainder > 32U ? 1U : 0U;
+          m32_le32_tails +=
+              remainder != 0U && remainder <= 32U ? 1U : 0U;
+          gate_k3 += host_gate[expert].rate_bits == 3U ? 1U : 0U;
+          gate_k4 += host_gate[expert].rate_bits == 4U ? 1U : 0U;
+          down_k3 += host_down[expert].rate_bits == 3U ? 1U : 0U;
+          down_k4 += host_down[expert].rate_bits == 4U ? 1U : 0U;
+        }
+        std::cerr << "TRELLIS35_WP17_ROUTING {\"chunk\":"
+                  << consumed / kPrefillMaxTokens << ",\"layer\":" << layer
+                  << ",\"tokens\":" << chunk
+                  << ",\"assignment_count\":" << chunk * kTopK
+                  << ",\"active_experts\":" << active_experts
+                  << ",\"m32_schedule_count\":" << m32_schedules
+                  << ",\"m64_schedule_count\":" << m64_schedules
+                  << ",\"m64_full_tiles\":" << m64_full_tiles
+                  << ",\"m64_33_63_tails\":" << m64_33_63_tails
+                  << ",\"m32_le32_tails\":" << m32_le32_tails
+                  << ",\"gate_up_k3_active\":" << gate_k3
+                  << ",\"gate_up_k4_active\":" << gate_k4
+                  << ",\"down_k3_active\":" << down_k3
+                  << ",\"down_k4_active\":" << down_k4
+                  << ",\"rows_per_expert\":[";
+        for (unsigned expert = 0U; expert < kExperts; ++expert) {
+          if (expert != 0U) std::cerr << ',';
+          std::cerr << host_prefix[expert + 1U] - host_prefix[expert];
+        }
+        std::cerr << "]}\n";
+      }
       const int capture = CaptureIndex(layer, x.quality_capture_all_layers);
       if (is_last_chunk && capture >= 0) {
         const std::size_t capture_index = static_cast<std::size_t>(capture);

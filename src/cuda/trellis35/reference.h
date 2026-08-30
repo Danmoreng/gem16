@@ -147,6 +147,9 @@ enum class Trellis35PrefillScheduleMode {
   kBuildStandalone,
   // Production consumes BuildExpertTileScheduleKernel's existing M32 result.
   kConsumeM32,
+  // Trellis35-only hybrid schedule: full/33--63-row M64 tiles followed by
+  // <=32-row M32 tails. The NVFP4 scheduler and its descriptors are unchanged.
+  kBuildM64Hybrid,
 };
 
 enum class Trellis35PrefillKernelMode {
@@ -154,6 +157,8 @@ enum class Trellis35PrefillKernelMode {
   kLegacyM4,
   // WP12 true two-M16 grouped candidate.
   kGroupedM32,
+  // WP17 four-M16 candidate with M32 tail fallback.
+  kGroupedM64Hybrid,
 };
 
 enum class Trellis35PrefillTransformMode {

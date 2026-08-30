@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "work_packet": "WP17",
+  "status": "accepted_experimental",
+  "implementation_parent_revision": "18eef182b7193a04e43cd4b45dc75228187cba41",
+  "workload": {
+    "prompt": "benchmarks/prompts/wikipedia-summary-16k.json",
+    "prompt_tokens": 16384,
+    "output_tokens": 1229,
+    "sampling": true,
+    "seed": 0,
+    "warmup_pairs": 1,
+    "measured_pairs": 3,
+    "primary_statistic": "median"
+  },
+  "wp16_parent": {
+    "prefill_tokens_per_second": 4564.500312,
+    "ordinary_decode_tokens_per_second": 125.719586,
+    "fixed_d2_decode_tokens_per_second": 168.938672
+  },
+  "same_binary_m32_control": {
+    "ordinary_prefill_tokens_per_second": 4570.0514,
+    "fixed_d2_prefill_tokens_per_second": 4566.38313,
+    "ordinary_decode_tokens_per_second": 125.78256,
+    "fixed_d2_decode_tokens_per_second": 169.03913
+  },
+  "m64_hybrid_candidate": {
+    "ordinary_prefill_tokens_per_second": {
+      "median": 5112.666518961863,
+      "samples": [5086.36640216568, 5112.666518961863, 5119.232115182723]
+    },
+    "fixed_d2_prefill_tokens_per_second": {
+      "median": 5085.955882809444,
+      "samples": [5084.361801497628, 5085.955882809444, 5119.104156772565]
+    },
+    "ordinary_decode_tokens_per_second": {
+      "median": 126.0367497708656,
+      "samples": [125.90197280599408, 126.0367497708656, 126.10923236653011]
+    },
+    "fixed_d2_decode_tokens_per_second": {
+      "median": 169.36786341336932,
+      "samples": [169.32535978191774, 169.36786341336932, 170.0334112883908]
+    },
+    "prefill_gain_vs_wp16_percent": 11.4242,
+    "prefill_gain_vs_same_binary_m32_percent": 11.3782,
+    "fixed_d2_speedup_over_ordinary": 1.3437974536893371,
+    "ordinary_peak_vram_mib": 12380,
+    "fixed_d2_peak_vram_mib": 12656
+  },
+  "identity": {
+    "output_token_sha256": "12235104322e01e0d53875e11c980312f8f42fe763d04b0762697f54eb922c48",
+    "generated_tokens": 1229,
+    "accepted_tokens": 690,
+    "proposed_tokens": 1076,
+    "rejected_tokens": 386,
+    "d2_groups": 538,
+    "ordinary_fallback_tokens": 0,
+    "deterministic_outputs": true
+  },
+  "gate": {
+    "minimum_full_16k_gain_percent": 5,
+    "minimum_full_16k_gain_met": true,
+    "stretch_prefill_tokens_per_second": 5000,
+    "stretch_met": true,
+    "decode_regression": false,
+    "vram_delta_mib": 0,
+    "accepted": true
+  },
+  "raw_evidence": [
+    {
+      "path": "artifacts/raw/trellis35/wp17/m32-control-full-wikipedia-16k-sampled-1w3.json",
+      "sha256": "e88acea21180658b3b233abd48c1a09953ae51a72809920d0dba74874ff9a253"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp17/m64-final-full-wikipedia-16k-sampled-1w3.json",
+      "sha256": "80bd90b578bc5ac2f0c32eb69c1fc05edc5261e7e95c30e61527f31ba7f402bf"
+    }
+  ],
+  "limitations": [
+    "This packet does not product-qualify Trellis35.",
+    "The protected real 12B product test was skipped because no 12B model path is configured in this workspace.",
+    "clang-format is unavailable in the current environment; git diff --check and compiler formatting checks were used."
+  ]
+}

@@ -5,10 +5,12 @@
 namespace {
 
 void PrintPrefillScheduleTelemetry(const PrefillHostRouting& routing) {
-  constexpr std::uint32_t kRowsPerTile = 32U;
   std::uint64_t active_experts = 0U;
-  std::uint64_t schedule_count = 0U;
-  std::array<std::uint64_t, kRowsPerTile + 1U> tile_row_histogram{};
+  std::uint64_t m32_schedule_count = 0U;
+  std::uint64_t m64_schedule_count = 0U;
+  std::uint64_t m64_full_tiles = 0U;
+  std::uint64_t m64_33_63_tails = 0U;
+  std::uint64_t m32_le32_tails = 0U;
   std::cout << "profile prefill expert_rows=[";
   bool first = true;
   for (std::uint32_t expert = 0U; expert < routing.histogram.size();
@@ -19,35 +21,38 @@ void PrintPrefillScheduleTelemetry(const PrefillHostRouting& routing) {
     std::cout << expert << ':' << rows;
     first = false;
     ++active_experts;
-    schedule_count += (rows + kRowsPerTile - 1U) / kRowsPerTile;
-    tile_row_histogram[kRowsPerTile] += rows / kRowsPerTile;
-    if (rows % kRowsPerTile != 0U) {
-      ++tile_row_histogram[rows % kRowsPerTile];
-    }
+    m32_schedule_count += (rows + 31U) / 32U;
+    m64_schedule_count += (rows + 63U) / 64U;
+    m64_full_tiles += rows / 64U;
+    const std::uint32_t remainder = rows % 64U;
+    m64_33_63_tails += remainder > 32U ? 1U : 0U;
+    m32_le32_tails += remainder != 0U && remainder <= 32U ? 1U : 0U;
   }
   const std::uint64_t assignment_count = routing.assignments.size();
   const std::uint64_t active_expert_upper_bound =
       std::min<std::uint64_t>(assignment_count,
                               gem16::internal::kTrellis35ExpertCount);
-  const std::uint64_t launched_blocks =
-      (assignment_count + (kRowsPerTile - 1U) *
+  const std::uint64_t m32_launched_blocks =
+      (assignment_count + 31U *
                               active_expert_upper_bound) /
-      kRowsPerTile;
+      32U;
+  const std::uint64_t m64_launched_blocks =
+      (assignment_count + 63U * active_expert_upper_bound) / 64U;
   std::cout << "] assignment_count=" << assignment_count
             << " active_experts=" << active_experts
-            << " actual_schedule_count=" << schedule_count
-            << " launched_blocks=" << launched_blocks
-            << " tile_rows_histogram=[";
-  for (std::uint32_t rows = 1U; rows <= kRowsPerTile; ++rows) {
-    if (rows != 1U) std::cout << ',';
-    std::cout << rows << ':' << tile_row_histogram[rows];
-  }
-  std::cout << "]\n";
+            << " m32_schedule_count=" << m32_schedule_count
+            << " m64_schedule_count=" << m64_schedule_count
+            << " m64_full_tiles=" << m64_full_tiles
+            << " m64_33_63_tails=" << m64_33_63_tails
+            << " m32_le32_tails=" << m32_le32_tails
+            << " m32_launched_blocks=" << m32_launched_blocks
+            << " m64_launched_blocks=" << m64_launched_blocks << '\n';
 }
 
 void ProfileRealPrefill(
     const std::string& checkpoint, std::uint64_t tokens,
-    gem16::internal::Trellis35PrefillOutputMode output_mode) {
+    gem16::internal::Trellis35PrefillOutputMode output_mode,
+    gem16::internal::Trellis35PrefillKernelMode kernel_mode) {
   auto artifact =
       gem16::internal::Gemma4Moe26BTrellis35DeviceArtifact::Load(checkpoint);
   CHECK(artifact.ok());
@@ -69,10 +74,15 @@ void ProfileRealPrefill(
   CHECK(UploadPrefillRouting(storage, routing));
   const float latency = RunFullPrefill(
       artifact.value().layers()[0], input, storage, 1U, false,
-      gem16::internal::Trellis35PrefillKernelMode::kGroupedM32,
+      kernel_mode,
       gem16::internal::Trellis35PrefillTransformMode::kWarpH128, output_mode);
   std::cout << "profile real layer-0 W4A8 prefill tokens=" << tokens
             << " assignments=" << tokens * gem16::internal::kTrellis35M1TopK
+            << " kernel_mode="
+            << (kernel_mode == gem16::internal::Trellis35PrefillKernelMode::
+                                   kGroupedM64Hybrid
+                    ? "m64_hybrid"
+                    : "m32")
             << " latency_ms=" << latency
             << " checkpoint_sha256="
             << artifact.value().stats().checkpoint_content_sha256 << '\n';
@@ -442,6 +452,7 @@ int main(int argc, char** argv) {
   }
   if (argc == 4 &&
       (std::string(argv[1]) == "--profile-prefill-checkpoint" ||
+       std::string(argv[1]) == "--profile-prefill-checkpoint-m64" ||
        std::string(argv[1]) == "--profile-prefill-checkpoint-loop")) {
     const std::uint64_t tokens = std::stoull(argv[3]);
     if (tokens == 0U || tokens > 1024U) {
@@ -452,7 +463,11 @@ int main(int argc, char** argv) {
         std::string(argv[1]) == "--profile-prefill-checkpoint-loop"
             ? gem16::internal::Trellis35PrefillOutputMode::kLoopN128
             : gem16::internal::Trellis35PrefillOutputMode::kFusedN128;
-    ProfileRealPrefill(argv[2], tokens, output_mode);
+    const auto kernel_mode =
+        std::string(argv[1]) == "--profile-prefill-checkpoint-m64"
+            ? gem16::internal::Trellis35PrefillKernelMode::kGroupedM64Hybrid
+            : gem16::internal::Trellis35PrefillKernelMode::kGroupedM32;
+    ProfileRealPrefill(argv[2], tokens, output_mode, kernel_mode);
     return failures == 0 ? 0 : 1;
   }
   if (argc == 3 && std::string(argv[1]) == "--profile-slab-checkpoint") {
@@ -464,6 +479,12 @@ int main(int argc, char** argv) {
   }
   if (argc == 2 && std::string(argv[1]) == "--wp14-output-matrix") {
     return RunTrellis35Wp14OutputMatrix() == 0 ? 0 : 1;
+  }
+  if (argc == 2 && std::string(argv[1]) == "--wp17-m64-matrix") {
+    return RunTrellis35Wp17M64Matrix() == 0 ? 0 : 1;
+  }
+  if (argc == 2 && std::string(argv[1]) == "--wp17-m64-smoke") {
+    return RunTrellis35Wp17M64Smoke() == 0 ? 0 : 1;
   }
   int suite_failures = 0;
   suite_failures += RunTrellis35CodecTests();
@@ -478,9 +499,11 @@ int main(int argc, char** argv) {
                  "[--checkpoint PATH | --profile-t3 UNIQUE | "
                  "--profile-prefill TOKENS | "
                  "--profile-prefill-checkpoint PATH TOKENS | "
+                 "--profile-prefill-checkpoint-m64 PATH TOKENS | "
                  "--profile-prefill-checkpoint-loop PATH TOKENS | "
                  "--profile-slab-checkpoint PATH | "
-                 "--wp12-numerical-matrix | --wp14-output-matrix]\n";
+                 "--wp12-numerical-matrix | --wp14-output-matrix | "
+                 "--wp17-m64-matrix | --wp17-m64-smoke]\n";
     return 2;
   }
   suite_failures += failures;

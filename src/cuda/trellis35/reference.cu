@@ -31,6 +31,7 @@ constexpr float kGeluCubic = 0.044715F;
 constexpr float kE4M3Maximum = 448.0F;
 constexpr unsigned kPrefillLegacyRowsPerTile = 4U;
 constexpr unsigned kPrefillGroupedRowsPerTile = 32U;
+constexpr unsigned kPrefillM64RowsPerTile = 64U;
 constexpr unsigned kPrefillOutputBlock = 128U;
 
 
