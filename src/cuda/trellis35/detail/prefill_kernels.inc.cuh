@@ -85,6 +85,24 @@ struct PrefillBf16InputPolicy {
   }
 };
 
+struct PrefillFloatOutputPolicy {
+  float* output;
+
+  __device__ __forceinline__ void Store(std::uint64_t index,
+                                        float value) const {
+    output[index] = value;
+  }
+};
+
+struct PrefillBf16OutputPolicy {
+  std::uint16_t* output;
+
+  __device__ __forceinline__ void Store(std::uint64_t index,
+                                        float value) const {
+    output[index] = Bf16Bits(value);
+  }
+};
+
 template <unsigned PhysicalElements, typename InputPolicy>
 __global__ void PrefillTransformQuantizeWarpKernel(
     InputPolicy policy, const std::uint16_t* all_suh,
@@ -535,6 +553,127 @@ __global__ void MmaW4A8ProjectionGroupedPrefillM32Kernel(
 #endif
 }
 
+template <typename OutputPolicy>
+__global__ void MmaW4A8ProjectionGroupedPrefillM32N128Kernel(
+    const std::uint8_t* activation, const float* activation_scales,
+    Trellis35DeviceFamilyBinding family,
+    const Gemma4MoePrefillAssignment* assignments,
+    const std::uint32_t* expert_prefix, const std::uint32_t* schedule_count,
+    const std::uint32_t* schedule, const std::uint32_t* permutation,
+    OutputPolicy policy, std::uint64_t assignment_count,
+    std::uint64_t input_elements, std::uint64_t output_elements) {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 890
+  const unsigned schedule_index = blockIdx.y;
+  if (schedule_index >= schedule_count[0]) return;
+  const std::uint32_t packed_tile = schedule[schedule_index];
+  const unsigned expert = packed_tile >> 16U;
+  const std::uint32_t grouped_begin = packed_tile & 0xffffU;
+  if (expert >= kTrellis35ExpertCount) return;
+  const std::uint32_t grouped_end = expert_prefix[expert + 1U];
+  if (grouped_begin >= grouped_end) return;
+
+  __shared__ std::uint32_t activation_rows[kPrefillGroupedRowsPerTile];
+  __shared__ alignas(16) std::uint32_t staged_activation
+      [2U * kPrefillGroupedRowsPerTile * (32U / sizeof(std::uint32_t))];
+  __shared__ float projection[kPrefillGroupedRowsPerTile]
+                             [kPrefillOutputBlock];
+  if (threadIdx.x < kPrefillGroupedRowsPerTile) {
+    const std::uint32_t grouped = grouped_begin + threadIdx.x;
+    std::uint32_t original = 0xffffffffU;
+    if (grouped < grouped_end) {
+      const std::uint32_t candidate = permutation[grouped];
+      if (candidate < assignment_count &&
+          assignments[candidate].expert_id == expert) {
+        original = candidate;
+      }
+    }
+    activation_rows[threadIdx.x] = original;
+  }
+  __syncthreads();
+
+  const unsigned warp = threadIdx.x >> 5U;
+  const unsigned lane = threadIdx.x & 31U;
+  const unsigned group = lane >> 2U;
+  const unsigned thread_in_group = lane & 3U;
+  const std::uint64_t output_offset =
+      static_cast<std::uint64_t>(blockIdx.x) * kPrefillOutputBlock;
+  const std::uint64_t output_column_base = output_offset + warp * 8U;
+  const std::uint64_t source_output = output_column_base + group;
+  const Trellis35ExpertDescriptor descriptor = family.descriptors[expert];
+  const std::byte* pool = descriptor.rate_bits == 3U
+                              ? family.k3_payload_pool
+                              : family.k4_payload_pool;
+  Fp8Accumulator accumulators[2]{};
+  if (descriptor.rate_bits == 3U) {
+    AccumulateGroupedPrefillM32<3>(
+        activation, activation_rows, pool, descriptor.pool_offset,
+        input_elements, output_elements, source_output, staged_activation,
+        accumulators);
+  } else if (descriptor.rate_bits == 4U) {
+    AccumulateGroupedPrefillM32<4>(
+        activation, activation_rows, pool, descriptor.pool_offset,
+        input_elements, output_elements, source_output, staged_activation,
+        accumulators);
+  } else {
+    return;
+  }
+
+#pragma unroll
+  for (unsigned tile = 0U; tile < 2U; ++tile) {
+    const float values[4] = {accumulators[tile].x0, accumulators[tile].x1,
+                             accumulators[tile].x2, accumulators[tile].x3};
+#pragma unroll
+    for (unsigned pair = 0U; pair < 4U; ++pair) {
+      const unsigned row = tile * 16U +
+                           ((pair & 2U) == 0U ? group : group + 8U);
+      const std::uint32_t original = activation_rows[row];
+      if (original == 0xffffffffU) continue;
+      const unsigned column = warp * 8U + thread_in_group * 2U +
+                              (pair & 1U);
+      projection[row][column] = values[pair] * activation_scales[original];
+    }
+  }
+  __syncthreads();
+
+  const std::uint16_t* svh =
+      family.svh_f16 + static_cast<std::uint64_t>(expert) * output_elements +
+      output_offset + lane * 4U;
+#pragma unroll
+  for (unsigned row = warp; row < kPrefillGroupedRowsPerTile;
+       row += kMmaN128Warps) {
+    const std::uint32_t original = activation_rows[row];
+    if (original == 0xffffffffU) continue;
+    float values[4];
+#pragma unroll
+    for (unsigned element = 0U; element < 4U; ++element) {
+      values[element] = projection[row][lane * 4U + element];
+    }
+    H128Warp(values);
+    const std::uint64_t output_base =
+        static_cast<std::uint64_t>(original) * output_elements +
+        output_offset + lane * 4U;
+#pragma unroll
+    for (unsigned element = 0U; element < 4U; ++element) {
+      policy.Store(output_base + element,
+                   values[element] * F16(svh + element));
+    }
+  }
+#else
+  (void)activation;
+  (void)activation_scales;
+  (void)family;
+  (void)assignments;
+  (void)expert_prefix;
+  (void)schedule_count;
+  (void)schedule;
+  (void)permutation;
+  (void)policy;
+  (void)assignment_count;
+  (void)input_elements;
+  (void)output_elements;
+#endif
+}
+
 __global__ void MmaW4A8ProjectionGroupedPrefillTileKernel(
     const std::uint8_t* activation, const float* activation_scales,
     Trellis35DeviceFamilyBinding family,
@@ -704,24 +843,6 @@ __global__ void PrefillOutputTransformTileBf16Kernel(
          output_offset + column] =
       Bf16Bits(accumulator * kHadamardScale * F16(svh + column));
 }
-
-struct PrefillFloatOutputPolicy {
-  float* output;
-
-  __device__ __forceinline__ void Store(std::uint64_t index,
-                                        float value) const {
-    output[index] = value;
-  }
-};
-
-struct PrefillBf16OutputPolicy {
-  std::uint16_t* output;
-
-  __device__ __forceinline__ void Store(std::uint64_t index,
-                                        float value) const {
-    output[index] = Bf16Bits(value);
-  }
-};
 
 template <typename OutputPolicy>
 __global__ void PrefillOutputTransformTileWarpKernel(

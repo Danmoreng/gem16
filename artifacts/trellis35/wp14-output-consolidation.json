@@ -1,0 +1,130 @@
+{
+  "schema_version": 1,
+  "work_packet": "WP14",
+  "candidate": "C_output_launch_consolidation",
+  "status": "accepted",
+  "implementation_parent_revision": "7633d4a94608d28e7593534a848e83cf89f085b4",
+  "artifact_content_sha256": "39183e2c7a1bd04c87a8f5bb5887453f8e92a3980bb507fd06d6252a6439c9f0",
+  "selection": {
+    "wp12_ncu": "The M32 kernel is not decoder/ALU dominant: LSU is the highest instruction-count pipeline, Shared FMA Heavy is 44.4 percent utilized, and there are no spills.",
+    "candidate_a": "not_attempted_gate_not_met",
+    "candidate_b": "not_attempted_wp11_transient_slab_did_not_beat_optimized_inline_m32",
+    "candidate_c": "selected_after_WP13_Nsight_showed_990_projection_plus_990_inverse_launches"
+  },
+  "implementation": {
+    "kernel": "MmaW4A8ProjectionGroupedPrefillM32N128Kernel",
+    "geometry": {
+      "threads_per_cta": 512,
+      "warps_per_cta": 16,
+      "rows_per_schedule_tile": 32,
+      "output_columns_per_cta": 128
+    },
+    "operation": "One CTA reuses the M32 activation tile across all N128 output columns, stores the projection in CTA shared memory, applies H128Warp, SVH and the explicit output policy, then writes the final boundary.",
+    "physical_bf16_boundaries_preserved": true,
+    "rollback_mode": "Trellis35PrefillOutputMode::kLoopN128",
+    "production_mode": "Trellis35PrefillOutputMode::kFusedN128",
+    "persistent_weight_bytes_delta": 0,
+    "workspace_bytes_delta": 0,
+    "context_capacity_bytes_delta": 0,
+    "recurring_allocation_count_delta": 0
+  },
+  "numerical": {
+    "matrix_cases": 168,
+    "rates": ["K3", "K4", "mixed_K3_K4"],
+    "token_counts": [1, 2, 3, 4, 8, 15, 16, 17, 31, 32, 33, 128, 512, 1024],
+    "routing_patterns": ["uniform", "real_fixture", "one_hot", "long_tail"],
+    "expert_output_maximum_absolute_difference": 0.0,
+    "reduced_output_maximum_absolute_difference": 0.0,
+    "all_layer_logits_byte_identical_to_wp13": true,
+    "all_layer_logits_sha256": "6f83bab0cc454ae9767f2712b7cb17d7d4c848c0bece620168c98f1218e1d8c3",
+    "generated_tokens": [7676, 106],
+    "all_logits_finite": true,
+    "raw_matrix": "artifacts/raw/trellis35/wp14/output-matrix.txt",
+    "raw_matrix_sha256": "5a402b8ad6331754bbaab203f850730692b690a7af270216f11358810279735b",
+    "all_layer_report": "artifacts/raw/trellis35/wp14/fused-n128-all-layers.json",
+    "all_layer_report_sha256": "c211d97eaf3e24ff3bfc72a74a53bba7ec54f265217d984b9d508c2628349f6b"
+  },
+  "kernel_resources": {
+    "registers_per_thread": 56,
+    "static_shared_bytes_per_block": 19584,
+    "stack_bytes": 0,
+    "local_bytes": 0,
+    "sass_ldl_or_stl_instructions": 0,
+    "theoretical_occupancy_percent": 66.67,
+    "achieved_occupancy_percent": 65.25,
+    "local_spilling_requests": 0,
+    "shared_spilling_requests": 0,
+    "ncu_gate_up_duration_ms": 1.54,
+    "ncu_report": "artifacts/raw/trellis35/wp14/fused-n128-layer0.ncu-rep",
+    "ncu_report_sha256": "23d8098386f00f7f9069e02ab2881678ce5a818896ed91b33479a7a079eef5c9",
+    "resource_report_sha256": "a2723a469c86628d3d7d76ebd04e9d47848e1e339c244b6841457231c50b7169",
+    "sass_report_sha256": "289623d49d2c83a96cb73550043e0ec57a00a698b583b2a2c06934b6bfbdf4b9"
+  },
+  "launch_and_gpu_time": {
+    "workload": "real 30-layer 512-token physical-BF16 prefill",
+    "wp13_projection_launches": 990,
+    "wp13_inverse_launches": 990,
+    "wp13_projection_plus_inverse_ms": 74.86076,
+    "wp14_fused_launches": 60,
+    "wp14_fused_ms": 64.610869,
+    "combined_speedup": 1.15864,
+    "combined_time_reduction_percent": 13.691941,
+    "nsys_report": "artifacts/raw/trellis35/wp14/fused-n128-512x16.nsys-rep",
+    "nsys_report_sha256": "e45ac7003d5c8588acf9e0f2a08b63f17a609336a7be55af6042d9e0dc182d01",
+    "kernel_summary_sha256": "0aa3bc1b55e6b298dce0afe905d7ca1b4061b36b51de10581f1a1bf0a99f306d"
+  },
+  "end_to_end": {
+    "workload": "wikipedia-real-512x16-greedy",
+    "wp13_median_prompt_ms": 118.211197,
+    "wp13_prompt_tokens_per_second": 4331.230992,
+    "wp14_prompt_ms_samples": [107.66161, 107.610354, 107.672531],
+    "wp14_median_prompt_ms": 107.66161,
+    "wp14_median_prompt_tokens_per_second": 4755.64131,
+    "speedup": 1.097988,
+    "prompt_time_reduction_percent": 8.924355,
+    "decode_tokens_per_second_samples": [126.961412042, 127.064185219, 127.004415436],
+    "output_token_sha256": "f19c52bcd74b968b1ad99162e6c854060978249c8b5b143eade6380ef3c22169",
+    "fallback_count": 0,
+    "recurring_allocation_count": 0,
+    "sampled_device_used_bytes": 12733710336,
+    "raw_sha256": [
+      "e299d167fa60bc8708d9c0f3077e631965c1f096a4a30f4e16b11645f3156a28",
+      "276a454c93c49c08444edfc9cc9079cfd37aa04d28b9b58a5a75cd7d16107bec",
+      "beea3982d18a211e845446758251478afd4b0c7c99f35eef70842ffa42d13739"
+    ]
+  },
+  "sanitizers": {
+    "memcheck": "0 errors",
+    "memcheck_sha256": "e1cec1224e5d972fcd9dd511a9ba6df9a9016e7841d98ed5c5d68d5cb7b9f642",
+    "initcheck": "0 errors",
+    "initcheck_sha256": "cdb3c3acd8c86aa9fe3a9c7a039d0c92054db23dab83ba67beb6476103c5c22e",
+    "racecheck": "0 errors, 0 warnings",
+    "racecheck_sha256": "e8de060d53387de1202f142c41c99c74e3aacd10ae3ebd6ae07116dcea326076"
+  },
+  "verification": {
+    "build": "gem16-26b-reference, gem16-server, gem16-chat, gem16-unit-tests and gem16-cuda-trellis35-tests passed",
+    "full_ctest": "13 of 13 passed; three model-dependent tests skipped without environment",
+    "real_26b_m17": "passed",
+    "real_26b_m22": "passed",
+    "protected_real_12b_m22": "passed",
+    "wp12_regression_matrix": "168 cases passed with bit-identical legacy-M4 and grouped-M32 outputs",
+    "wp12_regression_matrix_sha256": "f9d40aed5c8b663fd1a75dfff4fcae7fd225023904fa1ed7c6870e7eeb1918f1",
+    "cuda_graph_replay": "passed in the Trellis35 operator suite",
+    "nvfp4_source_diff_lines": 0,
+    "nvfp4_sm120_object_sha256": "45b82607e7986bcb467afe668eb6ff074f86868bb67c13dee2fc526e99ebec3c"
+  },
+  "environment": {
+    "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "gpu_memory_mib": 16303,
+    "driver": "610.43.03",
+    "cuda_compiler": "13.3.73",
+    "cmake": "4.4.2"
+  },
+  "limitations": [
+    "Candidate A was not prototyped because the plan's decoder/ALU-dominance gate was not met.",
+    "Candidate B was not prototyped because the WP11 transient-slab probe did not beat the optimized inline M32 path.",
+    "The one-layer operator A/B is approximately neutral; the accepted gain comes from launch consolidation and activation-tile reuse across the complete 30-layer prefill path.",
+    "This bounded packet does not run the deferred WP8B long quality suite and does not product-qualify Trellis35."
+  ],
+  "decision": "Accept candidate C and default-enable fused N128 projection plus inverse for Trellis35 prefill. Retain the WP13 loop as an explicit internal rollback."
+}

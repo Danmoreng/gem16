@@ -23,6 +23,8 @@ namespace {
 constexpr unsigned kThreads = 256U;
 constexpr unsigned kMmaWarps = 4U;
 constexpr unsigned kMmaThreads = 32U * kMmaWarps;
+constexpr unsigned kMmaN128Warps = 16U;
+constexpr unsigned kMmaN128Threads = 32U * kMmaN128Warps;
 constexpr float kHadamardScale = 0.08838834764831845F;
 constexpr float kGeluScale = 0.7978845608028654F;
 constexpr float kGeluCubic = 0.044715F;

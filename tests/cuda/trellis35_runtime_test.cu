@@ -45,7 +45,9 @@ void PrintPrefillScheduleTelemetry(const PrefillHostRouting& routing) {
   std::cout << "]\n";
 }
 
-void ProfileRealPrefill(const std::string& checkpoint, std::uint64_t tokens) {
+void ProfileRealPrefill(
+    const std::string& checkpoint, std::uint64_t tokens,
+    gem16::internal::Trellis35PrefillOutputMode output_mode) {
   auto artifact =
       gem16::internal::Gemma4Moe26BTrellis35DeviceArtifact::Load(checkpoint);
   CHECK(artifact.ok());
@@ -65,8 +67,10 @@ void ProfileRealPrefill(const std::string& checkpoint, std::uint64_t tokens) {
   const auto routing = MakePrefillRouting(tokens, SequentialExpertOrder());
   PrintPrefillScheduleTelemetry(routing);
   CHECK(UploadPrefillRouting(storage, routing));
-  const float latency = RunFullPrefill(artifact.value().layers()[0], input,
-                                       storage, 1U, false);
+  const float latency = RunFullPrefill(
+      artifact.value().layers()[0], input, storage, 1U, false,
+      gem16::internal::Trellis35PrefillKernelMode::kGroupedM32,
+      gem16::internal::Trellis35PrefillTransformMode::kWarpH128, output_mode);
   std::cout << "profile real layer-0 W4A8 prefill tokens=" << tokens
             << " assignments=" << tokens * gem16::internal::kTrellis35M1TopK
             << " latency_ms=" << latency
@@ -436,13 +440,19 @@ int main(int argc, char** argv) {
     }
     return ProfileTrellis35Prefill(tokens) == 0 ? 0 : 1;
   }
-  if (argc == 4 && std::string(argv[1]) == "--profile-prefill-checkpoint") {
+  if (argc == 4 &&
+      (std::string(argv[1]) == "--profile-prefill-checkpoint" ||
+       std::string(argv[1]) == "--profile-prefill-checkpoint-loop")) {
     const std::uint64_t tokens = std::stoull(argv[3]);
     if (tokens == 0U || tokens > 1024U) {
       std::cerr << "prefill profile tokens must be in [1, 1024]\n";
       return 2;
     }
-    ProfileRealPrefill(argv[2], tokens);
+    const auto output_mode =
+        std::string(argv[1]) == "--profile-prefill-checkpoint-loop"
+            ? gem16::internal::Trellis35PrefillOutputMode::kLoopN128
+            : gem16::internal::Trellis35PrefillOutputMode::kFusedN128;
+    ProfileRealPrefill(argv[2], tokens, output_mode);
     return failures == 0 ? 0 : 1;
   }
   if (argc == 3 && std::string(argv[1]) == "--profile-slab-checkpoint") {
@@ -451,6 +461,9 @@ int main(int argc, char** argv) {
   }
   if (argc == 2 && std::string(argv[1]) == "--wp12-numerical-matrix") {
     return RunTrellis35Wp12NumericalMatrix() == 0 ? 0 : 1;
+  }
+  if (argc == 2 && std::string(argv[1]) == "--wp14-output-matrix") {
+    return RunTrellis35Wp14OutputMatrix() == 0 ? 0 : 1;
   }
   int suite_failures = 0;
   suite_failures += RunTrellis35CodecTests();
@@ -465,8 +478,9 @@ int main(int argc, char** argv) {
                  "[--checkpoint PATH | --profile-t3 UNIQUE | "
                  "--profile-prefill TOKENS | "
                  "--profile-prefill-checkpoint PATH TOKENS | "
+                 "--profile-prefill-checkpoint-loop PATH TOKENS | "
                  "--profile-slab-checkpoint PATH | "
-                 "--wp12-numerical-matrix]\n";
+                 "--wp12-numerical-matrix | --wp14-output-matrix]\n";
     return 2;
   }
   suite_failures += failures;

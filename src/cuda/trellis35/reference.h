@@ -140,6 +140,13 @@ enum class Trellis35PrefillTransformMode {
   kWarpH128,
 };
 
+enum class Trellis35PrefillOutputMode {
+  // WP12/WP13 rollback: one projection and inverse-transform launch per N128.
+  kLoopN128,
+  // WP14 candidate C: one N128 CTA with a shared projection/inverse epilogue.
+  kFusedN128,
+};
+
 // Bounded diagnostic entry used by the exhaustive transform oracle. It does
 // not participate in model execution or allocate storage.
 [[nodiscard]] Status LaunchTrellis35H128WarpDiagnostic(
@@ -152,6 +159,7 @@ enum class Trellis35PrefillTransformMode {
     const Gemma4MoePrefillWorkspace& workspace,
     Trellis35PrefillScheduleMode schedule_mode,
     Trellis35PrefillKernelMode kernel_mode,
-    Trellis35PrefillTransformMode transform_mode, cudaStream_t stream);
+    Trellis35PrefillTransformMode transform_mode,
+    Trellis35PrefillOutputMode output_mode, cudaStream_t stream);
 
 }  // namespace gem16::internal

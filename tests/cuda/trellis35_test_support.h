@@ -922,7 +922,9 @@ float RunFullPrefill(
     gem16::internal::Trellis35PrefillKernelMode kernel_mode =
         gem16::internal::Trellis35PrefillKernelMode::kGroupedM32,
     gem16::internal::Trellis35PrefillTransformMode transform_mode =
-        gem16::internal::Trellis35PrefillTransformMode::kWarpH128) {
+        gem16::internal::Trellis35PrefillTransformMode::kWarpH128,
+    gem16::internal::Trellis35PrefillOutputMode output_mode =
+        gem16::internal::Trellis35PrefillOutputMode::kFusedN128) {
   const auto workspace = storage.Bind();
   if (capture) {
     cudaStream_t stream = nullptr;
@@ -934,7 +936,7 @@ float RunFullPrefill(
     const auto status = gem16::internal::LaunchTrellis35PrefillExpertsW4A8(
         input.get(), storage.tokens, layer, workspace,
         gem16::internal::Trellis35PrefillScheduleMode::kBuildStandalone,
-        kernel_mode, transform_mode, stream);
+        kernel_mode, transform_mode, output_mode, stream);
     CHECK(status.ok());
     CHECK(CudaOk(cudaStreamEndCapture(stream, &graph),
                  "end Trellis35 prefill capture"));
@@ -959,7 +961,7 @@ float RunFullPrefill(
     const auto status = gem16::internal::LaunchTrellis35PrefillExpertsW4A8(
         input.get(), storage.tokens, layer, workspace,
         gem16::internal::Trellis35PrefillScheduleMode::kBuildStandalone,
-        kernel_mode, transform_mode, nullptr);
+        kernel_mode, transform_mode, output_mode, nullptr);
     CHECK(status.ok());
   }
   CHECK(CudaOk(cudaEventRecord(end), "record prefill end event"));
@@ -1104,3 +1106,4 @@ int RunTrellis35PrefillTests();
 int ProfileTrellis35T3(unsigned unique_experts);
 int ProfileTrellis35Prefill(std::uint64_t tokens);
 int RunTrellis35Wp12NumericalMatrix();
+int RunTrellis35Wp14OutputMatrix();

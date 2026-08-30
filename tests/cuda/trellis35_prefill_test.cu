@@ -151,10 +151,14 @@ void RunWp12KernelAb(
   CHECK(UploadPrefillRouting(grouped, routing));
   const float legacy_ms = RunFullPrefill(
       layer, input, legacy, 1U, false,
-      gem16::internal::Trellis35PrefillKernelMode::kLegacyM4);
+      gem16::internal::Trellis35PrefillKernelMode::kLegacyM4,
+      gem16::internal::Trellis35PrefillTransformMode::kWarpH128,
+      gem16::internal::Trellis35PrefillOutputMode::kLoopN128);
   const float grouped_ms = RunFullPrefill(
       layer, input, grouped, 1U, false,
-      gem16::internal::Trellis35PrefillKernelMode::kGroupedM32);
+      gem16::internal::Trellis35PrefillKernelMode::kGroupedM32,
+      gem16::internal::Trellis35PrefillTransformMode::kWarpH128,
+      gem16::internal::Trellis35PrefillOutputMode::kLoopN128);
   std::vector<float> legacy_experts(legacy.expert_down.elements());
   std::vector<float> grouped_experts(grouped.expert_down.elements());
   std::vector<float> legacy_reduced(legacy.token_hidden.elements());
@@ -224,6 +228,93 @@ void TestWp12NumericalMatrix() {
   }
 }
 
+void RunWp14OutputAb(
+    const gem16::internal::Trellis35DeviceLayerBinding& layer,
+    DeviceBuffer<float>& input, const PrefillHostRouting& routing,
+    std::uint64_t tokens, const char* rate_name,
+    PrefillRoutingPattern pattern) {
+  PrefillStorage loop(tokens);
+  PrefillStorage fused(tokens);
+  CHECK(UploadPrefillRouting(loop, routing));
+  CHECK(UploadPrefillRouting(fused, routing));
+  const float loop_ms = RunFullPrefill(
+      layer, input, loop, 1U, false,
+      gem16::internal::Trellis35PrefillKernelMode::kGroupedM32,
+      gem16::internal::Trellis35PrefillTransformMode::kWarpH128,
+      gem16::internal::Trellis35PrefillOutputMode::kLoopN128);
+  const float fused_ms = RunFullPrefill(
+      layer, input, fused, 1U, false,
+      gem16::internal::Trellis35PrefillKernelMode::kGroupedM32,
+      gem16::internal::Trellis35PrefillTransformMode::kWarpH128,
+      gem16::internal::Trellis35PrefillOutputMode::kFusedN128);
+  std::vector<float> loop_experts(loop.expert_down.elements());
+  std::vector<float> fused_experts(fused.expert_down.elements());
+  std::vector<float> loop_reduced(loop.token_hidden.elements());
+  std::vector<float> fused_reduced(fused.token_hidden.elements());
+  CHECK(CudaOk(cudaMemcpy(loop_experts.data(), loop.expert_down.get(),
+                          loop.expert_down.bytes(), cudaMemcpyDeviceToHost),
+               "download WP14 loop experts"));
+  CHECK(CudaOk(cudaMemcpy(fused_experts.data(), fused.expert_down.get(),
+                          fused.expert_down.bytes(), cudaMemcpyDeviceToHost),
+               "download WP14 fused experts"));
+  CHECK(CudaOk(cudaMemcpy(loop_reduced.data(), loop.token_hidden.get(),
+                          loop.token_hidden.bytes(), cudaMemcpyDeviceToHost),
+               "download WP14 loop reduction"));
+  CHECK(CudaOk(cudaMemcpy(fused_reduced.data(), fused.token_hidden.get(),
+                          fused.token_hidden.bytes(), cudaMemcpyDeviceToHost),
+               "download WP14 fused reduction"));
+  const std::string prefix = std::string("WP14 ") + rate_name + " " +
+                             RoutingPatternName(pattern) + " T=" +
+                             std::to_string(tokens);
+  Compare(loop_experts, fused_experts, 0.0F, 0.0F,
+          (prefix + " expert parity").c_str());
+  Compare(loop_reduced, fused_reduced, 0.0F, 0.0F,
+          (prefix + " reduction parity").c_str());
+  std::cout << prefix << " loop_n128_ms=" << loop_ms
+            << " fused_n128_ms=" << fused_ms << '\n';
+}
+
+void TestWp14OutputMatrix() {
+  constexpr std::array<std::uint64_t, 14> kTokens{
+      1U, 2U, 3U, 4U, 8U, 15U, 16U, 17U, 31U, 32U, 33U, 128U, 512U,
+      1024U};
+  constexpr std::array<PrefillRoutingPattern, 4> kPatterns{
+      PrefillRoutingPattern::kUniform, PrefillRoutingPattern::kRealFixture,
+      PrefillRoutingPattern::kOneHot, PrefillRoutingPattern::kLongTail};
+  struct RateCase {
+    std::uint16_t forced_rate;
+    const char* name;
+  };
+  constexpr std::array<RateCase, 3> kRates{{{3U, "K3"},
+                                            {4U, "K4"},
+                                            {0U, "mixed"}}};
+  for (const auto& rate : kRates) {
+    FamilyStorage gate(gem16::internal::kTrellis35GateUpInput,
+                       gem16::internal::kTrellis35GateUpOutput, 1409U,
+                       rate.forced_rate);
+    FamilyStorage down(gem16::internal::kTrellis35DownInput,
+                       gem16::internal::kTrellis35DownOutput, 1451U,
+                       rate.forced_rate);
+    const gem16::internal::Trellis35DeviceLayerBinding layer{gate.binding,
+                                                             down.binding};
+    for (const std::uint64_t tokens : kTokens) {
+      DeviceBuffer<float> input(
+          tokens * gem16::internal::kTrellis35GateUpInput);
+      std::vector<float> host_input(input.elements());
+      for (std::uint64_t index = 0U; index < host_input.size(); ++index) {
+        host_input[index] =
+            std::sin(static_cast<float>(index * 23U + tokens * 7U + 5U) *
+                     0.001953125F) *
+            1.0e-4F;
+      }
+      CHECK(Upload(input, host_input, "upload WP14 matrix input"));
+      for (const PrefillRoutingPattern pattern : kPatterns) {
+        const auto routing = MakeWp12Routing(tokens, pattern);
+        RunWp14OutputAb(layer, input, routing, tokens, rate.name, pattern);
+      }
+    }
+  }
+}
 
 }  // namespace
 
@@ -239,5 +330,10 @@ int ProfileTrellis35Prefill(std::uint64_t tokens) {
 
 int RunTrellis35Wp12NumericalMatrix() {
   TestWp12NumericalMatrix();
+  return failures;
+}
+
+int RunTrellis35Wp14OutputMatrix() {
+  TestWp14OutputMatrix();
   return failures;
 }
