@@ -1,0 +1,14 @@
+Function: MmaW4A8ProjectionSelectedKernel
+Binary: build/Linux/blackwell-release/bin/gem16-cuda-trellis35-tests
+Extraction: cuobjdump --dump-sass, restricted to the named function
+
+F2FP.SATFINITE.E4M3.F32.PACK_AB_MERGE_C
+F2FP.SATFINITE.E4M3.F32.PACK_AB_MERGE_C
+F2FP.SATFINITE.E4M3.F32.PACK_AB_MERGE_C
+F2FP.SATFINITE.E4M3.F32.PACK_AB_MERGE_C
+QMMA.16832.F32.E4M3.E4M3 R8, R12, R22, R8
+
+The conversion instruction is present in both K3/K4 decode branches (the full
+raw extraction contains 16 conversion sites). The QMMA instruction is inside
+the contracting-dimension loop and was observed by Nsight Compute 123,904 times
+for the profiled full-shape Gate+Up launch.

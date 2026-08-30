@@ -962,7 +962,8 @@ LoadGemma4Moe26BTrellis35CheckpointPlan(
 Status Gemma4Moe26BTrellis35EngineDispatchStatus() {
   return Status(
       StatusCode::kUnsupported,
-      "GEM16-Trellis35 W4A8 inference kernel is not implemented (WP3 loader only)");
+      "GEM16-Trellis35 has a verified WP4 M1 routed-expert kernel, but full "
+      "text-only engine integration is not implemented");
 }
 
 }  // namespace gem16::internal

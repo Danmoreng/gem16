@@ -137,7 +137,7 @@ int main(int argc, char** argv) {
   if (dispatch.ok() || dispatch.code() != gem16::StatusCode::kUnsupported) {
     return Fail(gem16::Status(
         gem16::StatusCode::kInternal,
-        "Trellis35 WP3 dispatch did not reject the missing kernel"));
+        "Trellis35 dispatch did not reject the incomplete full engine"));
   }
   gem16::ModelRuntimeOptions runtime_options;
   runtime_options.model_directory = argv[1];
@@ -147,7 +147,7 @@ int main(int argc, char** argv) {
       runtime.status().message() != dispatch.message()) {
     return Fail(gem16::Status(
         gem16::StatusCode::kInternal,
-        "full runtime did not visibly reject the Trellis35 WP3 profile"));
+        "full runtime did not visibly reject the incomplete Trellis35 profile"));
   }
   std::size_t free_runtime_reject = 0U;
   error = cudaMemGetInfo(&free_runtime_reject, &total);
@@ -178,7 +178,7 @@ int main(int argc, char** argv) {
             << ",\"binding_replay_iterations\":100000"
             << ",\"k3_descriptors\":" << k3
             << ",\"k4_descriptors\":" << k4
-            << ",\"dispatch_status\":\"unsupported_kernel_not_implemented\""
+            << ",\"dispatch_status\":\"unsupported_full_engine_not_integrated\""
             << ",\"load_path\":\"" << stats.load_path << "\"}\n";
   return 0;
 }

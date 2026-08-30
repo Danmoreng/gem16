@@ -93,8 +93,9 @@ LoadGemma4Moe26BTrellis35CheckpointPlan(
 [[nodiscard]] Status ValidateGemma4Moe26BTrellis35LayerPayload(
     Trellis35LayerPlan* layer);
 
-// WP3 exposes the profile and loader but deliberately has no inference
-// dispatch. No qualified precision path may be selected as a fallback.
+// WP4 has an isolated ordinary-decode routed-expert kernel, while the complete
+// text-only engine remains unsupported. No qualified precision path may be
+// selected as a fallback.
 [[nodiscard]] Status Gemma4Moe26BTrellis35EngineDispatchStatus();
 
 }  // namespace gem16::internal

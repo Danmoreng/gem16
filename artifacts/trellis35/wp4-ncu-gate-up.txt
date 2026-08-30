@@ -1,0 +1,19 @@
+Nsight Compute 2026.3.0 raw command-line metric sample
+Command:
+ncu --target-processes all --kernel-name 'regex:.*MmaW4A8ProjectionSelectedKernel.*' --launch-skip 1 --launch-count 1 --metrics gpu__time_duration.sum,dram__bytes_op_read.sum,dram__bytes_op_write.sum,sm__inst_executed_pipe_tensor_subpipe_hmma.sum --page details build/Linux/blackwell-release/bin/gem16-cuda-trellis35-tests
+
+Kernel:
+MmaW4A8ProjectionSelectedKernel
+Grid: (44, 8, 1)
+Block: (128, 1, 1)
+Device: NVIDIA GeForce RTX 5080 Laptop GPU, CC 12.0
+
+Metric Name                                             Metric Unit  Metric Value
+dram__bytes_op_read.sum                                 Mbyte        3.53
+dram__bytes_op_write.sum                                byte         0
+gpu__time_duration.sum                                  us           736.86
+sm__inst_executed_pipe_tensor_subpipe_hmma.sum           inst         123904
+
+The launch is the synthetic full-shape Gate+Up projection after skipping the
+128x128 randomized parity launch. Its aliased synthetic descriptors intentionally
+exercise K3/K4 dispatch but do not represent real-checkpoint DRAM traffic.

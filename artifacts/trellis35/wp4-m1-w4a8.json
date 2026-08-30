@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "work_package": "WP4",
+  "status": "ordinary_decode_m1_selected_expert_operator_pass",
+  "implementation_parent_revision": "4af6e07fd3b429b213283335ab92785ffacf96e3",
+  "checkpoint": {
+    "path": "models/checkpoints/google-gemma-4-26b-a4b-it-trellis35-w4a8-wp2",
+    "checkpoint_content_sha256": "18d759d9244b8fcf2437af8c9d5ec525bdf1eb5b3b600a59d37dfd630208b876",
+    "layer": 0
+  },
+  "operator": {
+    "tokens": 1,
+    "selected_experts": 8,
+    "rate_dispatch": "device descriptor mixed K3/K4 in one launch",
+    "compute": "Trellis decode to E4M3 registers, SM120 FP8 QMMA, FP32 accumulation",
+    "gate_up": "2816x1408, complete 1408 inverse before 704/704 split",
+    "down": "logical 704 input, explicit zero padding to physical 768, 768x2816",
+    "reduction": "router slot order 0 through 7",
+    "complete_expert_matrix_global_bytes": 0,
+    "workspace_bytes": 436288,
+    "allocation_during_launch": false,
+    "cuda_graph_replays": 2
+  },
+  "randomized_operator_parity": {
+    "shape": [128, 128],
+    "rates": [3, 4],
+    "independent_cpu_oracle_max_abs": 1.19209e-7,
+    "independent_cpu_oracle_max_rel": 1.10783e-7,
+    "simt_decoder_max_abs": 1.19209e-7,
+    "mismatches": 0
+  },
+  "transform_checks": {
+    "down_704_to_768_roundtrip_max_abs": 6.55651e-7,
+    "down_padding_max_abs": 3.1676e-7,
+    "gate_up_crossing_block_gate_l1": 5.65686,
+    "gate_up_crossing_block_up_l1": 5.65686
+  },
+  "real_layer_parity": {
+    "finite": true,
+    "output_min": -0.00130574,
+    "output_max": 0.00126098,
+    "route_id_changes": 0,
+    "slot_order_bit_mismatches": 0,
+    "gate_up_k3_max_abs": 2.23517e-8,
+    "gate_up_k4_max_abs": 1.86265e-8,
+    "down_k3_max_abs": 1.16415e-10,
+    "down_k4_max_abs": 1.16415e-10,
+    "selected_payload_bytes": 21716992,
+    "selected_sidecar_bytes": 124928,
+    "descriptors_read": 16,
+    "unselected_expert_payload_regions_touched": 0
+  },
+  "latency_characterization": {
+    "scope": "isolated routed-expert Top-8 M1 operator, not full model decode",
+    "synthetic_ms": 0.628725,
+    "real_layer0_ms": 0.631405,
+    "iterations_real": 5,
+    "performance_gate": "observational_only"
+  },
+  "profiler": {
+    "scope": "synthetic full-shape Gate+Up projection after skipping the 128x128 parity launch",
+    "grid": [44, 8, 1],
+    "block": [128, 1, 1],
+    "gpu_time_us": 736.86,
+    "dram_read_mb": 3.53,
+    "dram_write_bytes": 0,
+    "tensor_hmma_instructions": 123904,
+    "sass_instruction": "QMMA.16832.F32.E4M3.E4M3",
+    "raw_ncu": "artifacts/trellis35/wp4-ncu-gate-up.txt",
+    "sass_evidence": "artifacts/trellis35/wp4-sass-evidence.txt"
+  },
+  "sanitizers": {
+    "memcheck_errors": 0,
+    "initcheck_errors": 0,
+    "racecheck_errors": 0,
+    "racecheck_warnings": 0
+  },
+  "regression": {
+    "preset": "blackwell-release",
+    "full_build": "pass",
+    "ctest_passed": 13,
+    "ctest_failed": 0,
+    "external_product_tests_skipped": 3
+  },
+  "toolchain": {
+    "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "compute_capability": "12.0",
+    "driver": "610.43.03",
+    "cuda": "13.3.73",
+    "host_compiler": "GCC 16.1.1"
+  },
+  "limitations": [
+    "This work package qualifies the isolated routed-expert ordinary-decode operator; complete text-only engine dispatch remains visibly unsupported.",
+    "The first kernel is correctness-oriented and not yet tuned for occupancy, decode reuse, or end-to-end token throughput.",
+    "Fixed-D2 T=3 and prefill remain WP5 and WP6 respectively."
+  ]
+}

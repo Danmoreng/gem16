@@ -348,7 +348,11 @@ if(GEM16_ENABLE_CUDA)
     src/cuda/nvfp4/cutlass_sm120.cu
     src/cuda/output_head.cu
     src/cuda/sampling/sampling.cu
+    src/cuda/trellis35/reference.cu
     src/cuda/vision/projection.cu
+  )
+  set_property(SOURCE src/cuda/trellis35/reference.cu APPEND PROPERTY
+    INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/third_party"
   )
   if(NOT EXISTS "${GEM16_CUTLASS_DIR}/include/cutlass/cutlass.h")
     message(FATAL_ERROR
@@ -728,6 +732,26 @@ if(BUILD_TESTING AND GEM16_BUILD_TESTS)
       COMMAND gem16-cuda-moe-reference-tests
     )
     set_tests_properties(gem16-cuda-moe-reference PROPERTIES
+      RESOURCE_LOCK gem16_gpu0
+    )
+
+    add_executable(gem16-cuda-trellis35-tests
+      tests/cuda/trellis35_m1_test.cu
+    )
+    target_include_directories(gem16-cuda-trellis35-tests PRIVATE
+      "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    )
+    target_link_libraries(gem16-cuda-trellis35-tests PRIVATE
+      gem16_core CUDA::cudart
+    )
+    set_target_properties(gem16-cuda-trellis35-tests PROPERTIES
+      CUDA_ARCHITECTURES "${GEM16_CUDA_ARCHITECTURE}"
+    )
+    gem16_set_project_warnings(gem16-cuda-trellis35-tests)
+    add_test(NAME gem16-cuda-trellis35
+      COMMAND gem16-cuda-trellis35-tests
+    )
+    set_tests_properties(gem16-cuda-trellis35 PROPERTIES
       RESOURCE_LOCK gem16_gpu0
     )
 

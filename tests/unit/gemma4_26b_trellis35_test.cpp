@@ -79,7 +79,7 @@ void RunGemma426BTrellis35Tests() {
   const auto dispatch = Gemma4Moe26BTrellis35EngineDispatchStatus();
   GEM16_CHECK(!dispatch.ok());
   GEM16_CHECK(dispatch.code() == gem16::StatusCode::kUnsupported);
-  GEM16_CHECK(dispatch.message().find("kernel is not implemented") !=
+  GEM16_CHECK(dispatch.message().find("full text-only engine integration") !=
               std::string::npos);
 
   const auto root = std::filesystem::temp_directory_path() /
