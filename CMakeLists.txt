@@ -694,6 +694,8 @@ if(BUILD_TESTING AND GEM16_BUILD_TESTS)
       COMMAND "${Python3_EXECUTABLE}" -m unittest
         tests.python.test_trellis35_compiler
         tests.python.test_trellis35_checkpoint
+        tests.python.test_compare_gemma4_26b_wp8
+        tests.python.test_benchmark_gemma4_26b_wp8_text
     )
     set_tests_properties(gem16-trellis35-compiler-contract PROPERTIES
       WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"

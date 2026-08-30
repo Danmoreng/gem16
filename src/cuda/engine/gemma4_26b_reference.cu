@@ -455,9 +455,11 @@ __global__ void LatchMtpOrdinaryNonFiniteKernel(
   }
 }
 
-int CaptureIndex(std::uint32_t layer) {
-  for (std::size_t index = 0; index < kCaptureLayers.size(); ++index) {
-    if (kCaptureLayers[index] == layer) return static_cast<int>(index);
+int CaptureIndex(std::uint32_t layer, bool capture_all_layers) {
+  if (layer >= kLayers) return -1;
+  if (capture_all_layers) return static_cast<int>(layer);
+  for (const std::uint32_t selected : kCaptureLayers) {
+    if (selected == layer) return static_cast<int>(layer);
   }
   return -1;
 }
@@ -592,9 +594,10 @@ struct Gemma4Moe26BReferenceEngine::Impl {
   SamplingOptions sampling{};
   std::uint64_t sampling_step = 0U;
   std::uint32_t suppressed_token_count = 0U;
-  std::array<float*, kCaptureLayers.size()> layer_captures{};
-  std::array<float*, kCaptureLayers.size()> router_probability_captures{};
-  std::array<std::uint32_t*, kCaptureLayers.size()> router_id_captures{};
+  std::array<float*, kLayers> layer_captures{};
+  std::array<float*, kLayers> router_probability_captures{};
+  std::array<std::uint32_t*, kLayers> router_id_captures{};
+  bool quality_capture_all_layers = false;
   bool calibration_capture_enabled = false;
   bool calibration_capture_valid = false;
   std::uint32_t calibration_capture_layer = 0U;
@@ -730,7 +733,7 @@ Status Gemma4Moe26BReferenceEngine::Impl::LaunchControlledDecodeBody() {
                        moe_workspace, stream, shared_moe_stream,
                        shared_moe_fork, shared_moe_join);
     if (!status.ok()) return status;
-    const int capture = CaptureIndex(layer);
+    const int capture = CaptureIndex(layer, quality_capture_all_layers);
     if (capture >= 0) {
       const std::size_t index = static_cast<std::size_t>(capture);
       error = cudaMemcpyAsync(layer_captures[index], hidden_a,
@@ -1544,7 +1547,7 @@ Gemma4Moe26BReferenceEngine::Gemma4Moe26BReferenceEngine(
 Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
     const std::filesystem::path& model_directory,
     std::uint64_t context_tokens, int device, Gemma4Moe26BBackend backend,
-    bool verify_device_image_sha256) {
+    bool verify_device_image_sha256, bool quality_capture_all_layers) {
   if (context_tokens == 0U || context_tokens > kMaximumContextTokens ||
       device < 0) {
     return Invalid("Gemma 4 26B context must be in [1, 262144]");
@@ -1558,14 +1561,20 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
   }
   Status valid = ValidateGemma4Moe26BContract(config.value());
   if (!valid.ok()) return valid;
+  const auto trellis_marker =
+      model_directory / "trellis35-checkpoint.json";
   std::error_code trellis_probe_error;
-  const bool trellis35 = std::filesystem::is_regular_file(
-      model_directory / "trellis35-checkpoint.json", trellis_probe_error);
-  if (trellis_probe_error) {
+  const auto trellis_marker_status =
+      std::filesystem::symlink_status(trellis_marker, trellis_probe_error);
+  if (trellis_probe_error &&
+      trellis_probe_error != std::errc::no_such_file_or_directory) {
     return Status(StatusCode::kIoError,
                   "cannot inspect Trellis35 checkpoint marker: " +
                       trellis_probe_error.message());
   }
+  const bool trellis35 =
+      !trellis_probe_error &&
+      trellis_marker_status.type() != std::filesystem::file_type::not_found;
   auto traits = BuildGemma4Moe26BAttentionTraits(config.value());
   if (!traits.ok()) return traits.status();
 
@@ -1574,6 +1583,7 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
   impl->context = context_tokens;
   impl->backend = backend;
   impl->trellis35 = trellis35;
+  impl->quality_capture_all_layers = quality_capture_all_layers;
   if (trellis35) {
     if (backend != Gemma4Moe26BBackend::kSm120Integrated) {
       return Invalid("Trellis35 requires the SM120 integrated backend");
@@ -1805,10 +1815,14 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
   const auto selected_token = layout.Add<std::uint32_t>(1U);
   const auto sampling_algorithm_workspace = layout.Add<std::uint8_t>(
       sampling_workspace_bytes.value());
-  std::array<std::uint64_t, kCaptureLayers.size()> capture_outputs{};
-  std::array<std::uint64_t, kCaptureLayers.size()> capture_probs{};
-  std::array<std::uint64_t, kCaptureLayers.size()> capture_ids{};
-  for (std::size_t i = 0; i < kCaptureLayers.size(); ++i) {
+  std::array<std::uint64_t, kLayers> capture_outputs{};
+  std::array<std::uint64_t, kLayers> capture_probs{};
+  std::array<std::uint64_t, kLayers> capture_ids{};
+  for (std::size_t i = 0; i < kLayers; ++i) {
+    if (CaptureIndex(static_cast<std::uint32_t>(i),
+                     quality_capture_all_layers) < 0) {
+      continue;
+    }
     capture_outputs[i] = layout.Add<float>(kWidth);
     capture_probs[i] = layout.Add<float>(kExperts);
     capture_ids[i] = layout.Add<std::uint32_t>(kTopK);
@@ -1915,7 +1929,11 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
   impl->sampling_algorithm_workspace = ptr(sampling_algorithm_workspace);
   impl->sampling_algorithm_workspace_bytes =
       sampling_workspace_bytes.value();
-  for (std::size_t i = 0; i < kCaptureLayers.size(); ++i) {
+  for (std::size_t i = 0; i < kLayers; ++i) {
+    if (CaptureIndex(static_cast<std::uint32_t>(i),
+                     quality_capture_all_layers) < 0) {
+      continue;
+    }
     impl->layer_captures[i] = reinterpret_cast<float*>(ptr(capture_outputs[i]));
     impl->router_probability_captures[i] =
         reinterpret_cast<float*>(ptr(capture_probs[i]));
@@ -2377,7 +2395,7 @@ Status Gemma4Moe26BReferenceEngine::ForwardToken(std::uint32_t token) {
       }
       x.calibration_capture_valid = true;
     }
-    const int capture = CaptureIndex(layer);
+    const int capture = CaptureIndex(layer, x.quality_capture_all_layers);
     if (capture >= 0) {
       error = cudaMemcpyAsync(x.layer_captures[static_cast<std::size_t>(capture)],
                               x.hidden_a, kWidth * sizeof(float),
@@ -2545,7 +2563,7 @@ Status Gemma4Moe26BReferenceEngine::PrefillTokens(
                          x.moe_config, x.moe_weights[layer],
                          x.prefill_moe_workspace, x.stream);
       if (!status.ok()) return status;
-      const int capture = CaptureIndex(layer);
+      const int capture = CaptureIndex(layer, x.quality_capture_all_layers);
       if (is_last_chunk && capture >= 0) {
         const std::size_t capture_index = static_cast<std::size_t>(capture);
         error = cudaMemcpyAsync(
@@ -3823,7 +3841,8 @@ Status Gemma4Moe26BReferenceEngine::CopyLogits(std::span<float> output) {
 
 Status Gemma4Moe26BReferenceEngine::CopyLayerOutput(
     std::uint32_t layer, std::span<float> output) {
-  const int index = CaptureIndex(layer);
+  const int index = CaptureIndex(
+      layer, implementation_ && implementation_->quality_capture_all_layers);
   if (!implementation_ || index < 0 || output.size() != kWidth) {
     return Invalid("M13 layer capture request is invalid");
   }
@@ -3839,7 +3858,8 @@ Status Gemma4Moe26BReferenceEngine::CopyLayerOutput(
 
 Status Gemma4Moe26BReferenceEngine::CopyRouterProbabilities(
     std::uint32_t layer, std::span<float> output) {
-  const int index = CaptureIndex(layer);
+  const int index = CaptureIndex(
+      layer, implementation_ && implementation_->quality_capture_all_layers);
   if (!implementation_ || index < 0 || output.size() != kExperts) {
     return Invalid("M13 router probability capture request is invalid");
   }
@@ -3856,7 +3876,8 @@ Status Gemma4Moe26BReferenceEngine::CopyRouterProbabilities(
 
 Status Gemma4Moe26BReferenceEngine::CopyRouterTopIds(
     std::uint32_t layer, std::span<std::uint32_t> output) {
-  const int index = CaptureIndex(layer);
+  const int index = CaptureIndex(
+      layer, implementation_ && implementation_->quality_capture_all_layers);
   if (!implementation_ || index < 0 || output.size() != kTopK) {
     return Invalid("M13 router ID capture request is invalid");
   }

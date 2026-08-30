@@ -89,6 +89,7 @@ void PrintUsage() {
       << "                [--dump-state <path> --dump-state-position N]\n"
       << "                [--print-model-report]\n"
       << "  gem16-chat --model <checkpoint> --message <text> [--json]\n"
+      << "  gem16-chat --model <checkpoint> --message-file <path> [--json]\n"
       << "  gem16-chat --model <checkpoint> --message <text> [--audio <file>|--image <file>]...\n"
       << "  gem16-chat --model <checkpoint> --message <text> --render-only --json\n";
 }
@@ -148,6 +149,33 @@ gem16::Result<std::string> ReadToolSchema(const std::filesystem::path& path) {
   if (!input || input.gcount() != static_cast<std::streamsize>(text.size())) {
     return gem16::Status(gem16::StatusCode::kIoError,
                          "cannot read tool schema: " + path.string());
+  }
+  return text;
+}
+
+gem16::Result<std::string> ReadOneShotMessage(
+    const std::filesystem::path& path) {
+  constexpr std::uintmax_t kMaximumMessageBytes = 16U * 1024U * 1024U;
+  std::error_code error;
+  const auto status = std::filesystem::symlink_status(path, error);
+  if (error || std::filesystem::is_symlink(status) ||
+      !std::filesystem::is_regular_file(status)) {
+    return gem16::Status(gem16::StatusCode::kInvalidArgument,
+                         "message file must be a real regular file: " +
+                             path.string());
+  }
+  const std::uintmax_t size = std::filesystem::file_size(path, error);
+  if (error || size > kMaximumMessageBytes) {
+    return gem16::Status(gem16::StatusCode::kIoError,
+                         "cannot read message file or it exceeds 16 MiB: " +
+                             path.string());
+  }
+  std::string text(static_cast<std::size_t>(size), '\0');
+  std::ifstream input(path, std::ios::binary);
+  input.read(text.data(), static_cast<std::streamsize>(text.size()));
+  if (!input || input.gcount() != static_cast<std::streamsize>(text.size())) {
+    return gem16::Status(gem16::StatusCode::kIoError,
+                         "cannot read complete message file: " + path.string());
   }
   return text;
 }
@@ -225,7 +253,20 @@ gem16::Result<Options> ParseOptions(int argc, char** argv) {
       tool.parameters_json = std::move(schema).value();
       options.tools.push_back(std::move(tool));
     } else if (argument == "--message" && index + 1 < argc) {
+      if (options.has_one_shot_message) {
+        return gem16::Status(gem16::StatusCode::kInvalidArgument,
+                             "specify exactly one one-shot message source");
+      }
       options.one_shot_message = argv[++index];
+      options.has_one_shot_message = true;
+    } else if (argument == "--message-file" && index + 1 < argc) {
+      if (options.has_one_shot_message) {
+        return gem16::Status(gem16::StatusCode::kInvalidArgument,
+                             "specify exactly one one-shot message source");
+      }
+      auto message = ReadOneShotMessage(argv[++index]);
+      if (!message.ok()) return message.status();
+      options.one_shot_message = std::move(message).value();
       options.has_one_shot_message = true;
     } else if (argument == "--audio" && index + 1 < argc) {
       options.media_files.push_back(

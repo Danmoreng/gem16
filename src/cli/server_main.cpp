@@ -110,6 +110,7 @@ struct Options {
   bool mtp_adaptive = false;
   bool greedy = false;
   bool verify_device_image_sha256 = false;
+  std::uint64_t sampling_seed = 0U;
 };
 
 void PrintUsage() {
@@ -126,6 +127,7 @@ void PrintUsage() {
       << "  --kv-cache fp8|bf16\n"
       << "  --model-integrity structural|sha256 (default: structural)\n"
       << "  --greedy                Disable checkpoint-recommended sampling\n"
+      << "  --seed <integer>        Sampling seed (default: 0)\n"
       << "  --assistant-model <checkpoint> --mtp-draft-tokens 1|2|4 [--mtp-adaptive]\n";
 }
 
@@ -219,6 +221,11 @@ gem16::Result<Options> ParseOptions(int argc, char** argv) {
       options.mtp_adaptive = true;
     } else if (argument == "--greedy") {
       options.greedy = true;
+    } else if (argument == "--seed" && index + 1 < argc) {
+      if (!ParseUnsigned(argv[++index], options.sampling_seed)) {
+        return gem16::Status(gem16::StatusCode::kInvalidArgument,
+                             "--seed must be an unsigned integer");
+      }
     } else {
       return gem16::Status(gem16::StatusCode::kInvalidArgument,
                            "unknown or incomplete option: " +
@@ -901,6 +908,7 @@ int ServerMain(int argc, char** argv) {
   session_options.sampling =
       processor.value().generation_controls().recommended_sampling;
   if (options.value().greedy) session_options.sampling.enabled = false;
+  session_options.sampling.seed = options.value().sampling_seed;
   session_options.mtp_draft_tokens = options.value().mtp_draft_tokens;
   session_options.mtp_adaptive = options.value().mtp_adaptive;
   auto runtime = gem16::ModelRuntime::Load(

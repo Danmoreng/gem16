@@ -72,7 +72,8 @@ class Gemma4Moe26BReferenceEngine {
       const std::filesystem::path& model_directory,
       std::uint64_t context_tokens = 32768U, int device = 0,
       Gemma4Moe26BBackend backend = Gemma4Moe26BBackend::kReference,
-      bool verify_device_image_sha256 = true);
+      bool verify_device_image_sha256 = true,
+      bool quality_capture_all_layers = false);
 
   [[nodiscard]] Status Reset();
   [[nodiscard]] Status ForwardToken(std::uint32_t token);

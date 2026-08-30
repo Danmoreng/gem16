@@ -1,0 +1,145 @@
+{
+  "schema_version": 1,
+  "suite": "gemma4-26b-trellis35-w4a8-wp8",
+  "status": "frozen_before_wp8_candidate_results",
+  "frozen_at": "2026-08-30",
+  "purpose": "Discovery-only text quality characterization; this is not a product qualification or promotion gate.",
+  "candidate": {
+    "directory": "models/checkpoints/google-gemma-4-26b-a4b-it-trellis35-w4a8-wp2",
+    "profile": "gem16-trellis35-w4a8-v1",
+    "checkpoint_content_sha256": "39183e2c7a1bd04c87a8f5bb5887453f8e92a3980bb507fd06d6252a6439c9f0",
+    "checkpoint_manifest": "trellis35-checkpoint.json",
+    "checkpoint_manifest_sha256": "0b239cac8d2c49a60a33066c7c7b57d201c0e51df45590248137588563dc78a7"
+  },
+  "control": {
+    "directory": "artifacts/raw/m25/hf-qualified-checkpoints-final-test-2026-08-27/target",
+    "profile": "sm120-text-hybrid-v1",
+    "checkpoint_content_sha256": "471805f7dad8abb84300be78b2822a63dcb1d35bff5aa98426a162cc8532ee17",
+    "compilation_manifest": "gem16_compilation.json",
+    "compilation_manifest_sha256": "7e5e78b9c6f61fbe8829866395634085261e1261a8c783f69affc5a16bd1847a"
+  },
+  "shared_source": {
+    "repository": "google/gemma-4-26B-A4B-it-qat-q4_0-unquantized",
+    "revision": "f1e06dc520982d9b9edd76859fdb7ab209449949",
+    "source_lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230",
+    "tokenizer_sha256": "cc8d3a0ce36466ccc1278bf987df5f71db1719b9ca6b4118264f45cb627bfe0f"
+  },
+  "qat_bf16_anchor": {
+    "report": "benchmarks/goldens/gemma4_26b/qat-bf16-selected/qat-bf16-selected.json",
+    "report_sha256": "b42e25ed07cb17e9d4881312c412165ed11befff3be8b9a60fa30983890b064a",
+    "logits": "benchmarks/goldens/gemma4_26b/qat-bf16-selected/qat-bf16-final-logits.f32le",
+    "logits_sha256": "289893e5cfef1cd44b4f6cd536d80c33183406ec4e274d483c65a97fc69c1522"
+  },
+  "numerical_differential": {
+    "prompt": "Reply with exactly OK.",
+    "continuation": "Reply with exactly OK.",
+    "template": "<bos><|turn>user\\n{prompt}<turn|>\\n<|turn>model\\n<|channel>thought\\n<channel|>",
+    "capture_layers": [
+      0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+      10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+      20, 21, 22, 23, 24, 25, 26, 27, 28, 29
+    ],
+    "capture_positions": [0, 17],
+    "same_process_repetitions": 2,
+    "thresholds": {
+      "layer_relative_l2_max": 0.25,
+      "layer_cosine_min": 0.98,
+      "router_top8_set_overlap_min": 5,
+      "full_logit_kl_control_to_candidate_max": 0.02,
+      "control_top1_candidate_rank_max": 5,
+      "same_runtime_deterministic": true,
+      "all_logits_finite": true
+    },
+    "notes": [
+      "All-layer capture is one opt-in offline run; selected layers 0/5/6/29 remain the normal regression default.",
+      "The QAT-BF16 anchor only contains selected layers 0/5/6/29; all-layer localization therefore uses the qualified NVFP4 control.",
+      "Thresholds reuse the previously frozen M13 early-quality envelope and are not adjusted after candidate inspection."
+    ]
+  },
+  "sampled_generation": {
+    "sampling": {
+      "temperature": 1.0,
+      "top_p": 0.95,
+      "top_k": 64,
+      "seeds": [0, 20260830]
+    },
+    "prompts": [
+      "Explain in three concise sentences why the sky appears blue.",
+      "Write a safe C++20 function that returns the median of a non-empty vector of floats.",
+      "A farmer has 17 sheep and all but 9 run away. How many remain? Show the reasoning briefly.",
+      "Continue this opening as one coherent paragraph: The observatory had been silent for eighty years."
+    ],
+    "checks": [
+      "finite completion",
+      "non-empty completion",
+      "valid UTF-8",
+      "same-seed same-runtime identity",
+      "candidate/control completion retained for inspection"
+    ]
+  },
+  "task_quality": {
+    "protocol": {
+      "generation": "checkpoint",
+      "temperature": 1.0,
+      "top_p": 0.95,
+      "top_k": 64,
+      "seed": 0,
+      "repeats": 1,
+      "threads": 1,
+      "evaluator_revision": "fe0df4731526a73e915bedc1e2750ecb79274996"
+    },
+    "benchmarks": [
+      {
+        "name": "gsm8k",
+        "examples": 1319,
+        "selection": "full",
+        "reasoning": "none",
+        "max_tokens": 512
+      },
+      {
+        "name": "aime26",
+        "examples": 30,
+        "selection": "full",
+        "reasoning": "high",
+        "max_tokens": 16384
+      },
+      {
+        "name": "gpqa",
+        "examples": 20,
+        "selection": "first_20_dataset_order",
+        "reasoning": "high",
+        "max_tokens": 16384
+      }
+    ],
+    "decision": "Report candidate accuracy, control accuracy, absolute delta, retention, changed IDs and exact paired McNemar result. No post-hoc task threshold is introduced in discovery."
+  },
+  "long_context_retrieval": {
+    "context_tokens": [16384, 65536, 98304],
+    "needle": "GEM16-WP8-NEEDLE-629041",
+    "filler": "This neutral WP8 context sentence carries no answer and exists only to occupy stable text positions. ",
+    "needle_sentence": "Remember this exact value for the final question: {needle}. ",
+    "placement_fractions": [0.1, 0.5, 0.9],
+    "query": "Return only the exact GEM16 WP8 needle value found earlier in the context.",
+    "generation": "greedy",
+    "max_output_tokens": 32,
+    "pass_condition": "exact needle occurs in decoded completion"
+  },
+  "fixed_d2": {
+    "assistant_directory": "artifacts/raw/m25/hf-qualified-checkpoints-final-test-2026-08-27/assistant",
+    "assistant_compilation_manifest_sha256": "d2a722ccad675807ff73a1a645a0f1fbcc0fc200c402a14e823a5927618a116d",
+    "draft_tokens": 2,
+    "workload": "artifacts/raw/decode-comparison/job-wikipedia-16k64.json",
+    "generation": "greedy",
+    "requirements": [
+      "every accepted token equals ordinary Target verification",
+      "candidate Target identity with and without Fixed-D2",
+      "acceptance numerator and denominator reported",
+      "no fallback or recurring allocation"
+    ]
+  },
+  "attribution": {
+    "weight_quantization": "full-model candidate versus qualified NVFP4 control and selected QAT-BF16 anchor",
+    "activation_precision": "WP4/WP5/WP6 operator reference parity compares W4A8 execution against decoded-weight higher-precision reference",
+    "limitation": "The first implementation deliberately has no full-model W4A16 Trellis path; attribution is bounded rather than a factorial full-model ablation."
+  }
+}

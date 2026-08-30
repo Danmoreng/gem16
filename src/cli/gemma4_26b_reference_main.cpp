@@ -32,6 +32,7 @@ struct Options {
       gem16::internal::Gemma4Moe26BBackend::kReference;
   gem16::internal::Gemma4MoePrefillRouter prefill_router =
       gem16::internal::Gemma4MoePrefillRouter::kSerialExact;
+  bool capture_all_layers = false;
 };
 
 bool ParseUnsigned(std::string_view text, std::uint64_t* output) {
@@ -80,6 +81,11 @@ bool Parse(int argc, char** argv, Options* options) {
       } else {
         return false;
       }
+    }
+    else if (key == "--capture-layers") {
+      if (value == "selected") options->capture_all_layers = false;
+      else if (value == "all") options->capture_all_layers = true;
+      else return false;
     }
     else if (key == "--context") {
       if (!ParseUnsigned(value, &options->context)) return false;
@@ -136,7 +142,8 @@ int main(int argc, char** argv) {
                  "--logits F32LE [--tokenizer DIR] [--prompt TEXT] [--continuation TEXT] "
                  "[--context N] [--max-new N] [--device N] "
                  "[--backend reference|sm120-moe-head|sm120] "
-                 "[--prefill-router exact|tensor-core]\n";
+                 "[--prefill-router exact|tensor-core] "
+                 "[--capture-layers selected|all]\n";
     return 2;
   }
   if (options.tokenizer.empty()) options.tokenizer = options.model;
@@ -161,7 +168,8 @@ int main(int argc, char** argv) {
   std::size_t free_before_engine = 0U, total = 0U;
   if (cudaMemGetInfo(&free_before_engine, &total) != cudaSuccess) return 5;
   auto engine = gem16::internal::Gemma4Moe26BReferenceEngine::Create(
-      options.model, options.context, options.device, options.backend);
+      options.model, options.context, options.device, options.backend, true,
+      options.capture_all_layers);
   if (!engine.ok()) {
     std::cerr << engine.status().message() << '\n';
     return 4;
@@ -172,9 +180,17 @@ int main(int argc, char** argv) {
     std::cerr << router_status.message() << '\n';
     return 4;
   }
-  const std::array<std::uint32_t, 4> layers{0U, 5U, 6U, 29U};
+  std::vector<std::uint32_t> layers;
+  if (options.capture_all_layers) {
+    layers.reserve(30U);
+    for (std::uint32_t layer = 0U; layer < 30U; ++layer) {
+      layers.push_back(layer);
+    }
+  } else {
+    layers = {0U, 5U, 6U, 29U};
+  }
   std::vector<Capture> captures;
-  captures.reserve(8U);
+  captures.reserve(layers.size() * 2U);
   std::vector<float> logits(262144U), repeated_logits(262144U);
   std::size_t free_before = 0U;
   if (cudaMemGetInfo(&free_before, &total) != cudaSuccess) return 5;
@@ -314,6 +330,8 @@ int main(int argc, char** argv) {
                   gem16::internal::Gemma4MoePrefillRouter::kSm120TensorCore
               ? "sm120_tensor_core"
               : "serial_exact")
+      << "\",\"capture_layers\":\""
+      << (options.capture_all_layers ? "all" : "selected")
       << "\",\"two_run_elapsed_ms\":"
       << std::chrono::duration<double, std::milli>(run_end - run_start).count()
       << ','

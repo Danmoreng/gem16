@@ -679,6 +679,32 @@ Fixed-D2 Target identity/acceptance behavior
 
 Freeze prompts/seeds before inspecting failures.
 
+#### Owner-directed staging (2026-08-30)
+
+The quality contract was frozen before candidate inspection, but the first
+correct full-model implementation is intentionally too slow for the complete
+suite to be an efficient pre-optimization gate.  WP8 is therefore split
+without changing the frozen prompts, seeds, datasets, or thresholds:
+
+```text
+WP8A before performance work:
+  all-layer numerical/router/logit differential
+  sampled-generation determinism for candidate and control
+  16K retrieval at 10% / 50% / 90% needle placement
+
+WP8B after the first performance pass:
+  64K / 98K retrieval
+  GSM8K / AIME / GPQA
+  full Fixed-D2 identity and acceptance characterization
+```
+
+WP8A is a bounded sanity/diagnostic gate, not completion of the original WP8
+quality scope and not product qualification.  The already frozen full suite is
+retained unchanged for WP8B.  The owner explicitly superseded the original
+execution order after the three 16K retrieval cases because running the large
+suite at roughly 212 prompt tok/s and 38–40 decode tok/s would consume many
+hours on an implementation already known to need optimization.
+
 ---
 
 ## 10. Discovery performance policy

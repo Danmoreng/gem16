@@ -1,0 +1,126 @@
+{
+  "schema_version": 1,
+  "work_packet": "WP8A",
+  "status": "pass_with_diagnostic",
+  "qualification": "discovery_sanity_only",
+  "code_revision": "40c14c55b03019a498b4981ce41c6f4182bde7ca",
+  "owner_scope_change": {
+    "date": "2026-08-30",
+    "reason": "The complete frozen quality suite is deferred until after the first performance pass because the correct baseline runs at about 212 prompt tok/s and 38-40 ordinary decode tok/s.",
+    "completed_now": [
+      "all-layer numerical, router, and full-logit differential",
+      "candidate and qualified-control sampled-generation determinism",
+      "candidate 16K retrieval at 10%, 50%, and 90% needle placement"
+    ],
+    "deferred_to_wp8b": [
+      "64K and 98K retrieval",
+      "GSM8K, AIME, and GPQA task evaluation",
+      "full Fixed-D2 target-identity and acceptance characterization"
+    ]
+  },
+  "frozen_suite": {
+    "path": "benchmarks/quality/trellis35-wp8-suite.json",
+    "bytes": 6324,
+    "sha256": "ec07cd2ca434e6b7862edb1ed0dbccb696704251d61a1e30ab8e9ed8a5804a7d"
+  },
+  "numerical": {
+    "report": "artifacts/trellis35/wp8-numerical.json",
+    "report_sha256": "22480151c7269f0cd7cd203ae55c093f1afdfc4aef4ffe8594bc98c2ab9c93a1",
+    "quality_decision": "proceed",
+    "control_distance_decision": "outside_frozen_envelope_diagnose",
+    "cases": 60,
+    "full_logit_kl_control_to_candidate": 0.000015550982943985136,
+    "top1_agreement": true,
+    "control_top1_candidate_rank": 1,
+    "minimum_router_top8_set_overlap": 6,
+    "mean_router_top8_set_overlap": 7.516666666666667,
+    "candidate_qat_bf16_selected_worst_relative_l2": 0.14520362570412518,
+    "candidate_qat_bf16_selected_worst_cosine": 0.9901414627628822,
+    "candidate_qat_bf16_selected_minimum_router_top8_set_overlap": 6,
+    "nvfp4_control_distance_worst_relative_l2": 0.2580428867489718,
+    "nvfp4_control_distance_worst_cosine": 0.966598344235818,
+    "diagnostic": "The all-layer NVFP4-control residual envelope misses its frozen 0.25/0.98 thresholds at layer 28 position 17. The candidate passes the selected QAT-BF16 envelope and is closer to that source anchor than the qualified NVFP4 control; thresholds were not changed."
+  },
+  "sampled_generation": {
+    "status": "pass",
+    "prompts_per_arm": 4,
+    "repetitions_per_prompt": 2,
+    "candidate_and_control_seeds": [0, 20260830],
+    "total_generations": 32,
+    "checks": {
+      "all_nonempty": true,
+      "all_valid_utf8": true,
+      "all_same_seed_same_runtime_identical": true
+    },
+    "raw_evidence": [
+      {
+        "path": "artifacts/raw/trellis35/wp8/candidate-sampled-seed0.json",
+        "sha256": "5abb133453dc1569b73aecc79e821c319f3abddd08def9515629d3c45f6737dd"
+      },
+      {
+        "path": "artifacts/raw/trellis35/wp8/candidate-sampled-seed20260830.json",
+        "sha256": "fbb12a326320ae875d99593f86529174ae31c8332262e65ad1d9eea65e415eac"
+      },
+      {
+        "path": "artifacts/raw/trellis35/wp8/control-sampled-seed0.json",
+        "sha256": "ac60446598406f4a572b6a181d95f5661e2a165ec33fabc22338ab36734799ec"
+      },
+      {
+        "path": "artifacts/raw/trellis35/wp8/control-sampled-seed20260830.json",
+        "sha256": "6e1709d58da26f9361cc918c12675d3f5ccb11d657f086e289a9549c762e34da"
+      }
+    ]
+  },
+  "long_context_retrieval": {
+    "status": "16k_subset_pass",
+    "context_capacity": 16384,
+    "rendered_prompt_tokens_per_case": 16330,
+    "needle": "GEM16-WP8-NEEDLE-629041",
+    "placements": [
+      {
+        "fraction": 0.1,
+        "elapsed_seconds": 76.61897971099825,
+        "retrieved": true
+      },
+      {
+        "fraction": 0.5,
+        "elapsed_seconds": 77.22869800999615,
+        "retrieved": true
+      },
+      {
+        "fraction": 0.9,
+        "elapsed_seconds": 77.38824473600107,
+        "retrieved": true
+      }
+    ],
+    "raw_evidence": {
+      "path": "artifacts/raw/trellis35/wp8/candidate-long-context-retrieval.json",
+      "sha256": "755b89bb2d270159391c07a0077481365f1673c8336ad6abaa8d0592b751bd2b"
+    }
+  },
+  "verification": {
+    "build": {
+      "command": "cmake --build build/blackwell-release --target gem16-26b-reference gem16-server gem16-chat gem16-unit-tests -j 4",
+      "status": "pass"
+    },
+    "python": {
+      "command": "python3 -m unittest tests.python.test_trellis35_compiler tests.python.test_trellis35_checkpoint tests.python.test_compare_gemma4_26b_wp8 tests.python.test_benchmark_gemma4_26b_wp8_text",
+      "tests": 24,
+      "status": "pass"
+    },
+    "ctest": {
+      "command": "ctest --test-dir build/blackwell-release --output-on-failure",
+      "tests": 13,
+      "passed": 10,
+      "skipped": 3,
+      "status": "pass"
+    }
+  },
+  "limitations": [
+    "WP8A does not complete the original WP8 quality characterization.",
+    "No task-accuracy result is claimed before optimization.",
+    "No 64K or 98K retrieval result is claimed by this report.",
+    "No full Fixed-D2 identity or acceptance result is claimed by this report.",
+    "This evidence does not promote or product-qualify the Trellis35 checkpoint."
+  ]
+}
