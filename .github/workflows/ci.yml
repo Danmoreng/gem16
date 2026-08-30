@@ -37,7 +37,7 @@ jobs:
       - name: Build and test native Studio
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgl1-mesa-dev libwayland-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libxkbcommon-dev wayland-protocols
+          sudo apt-get install -y libgl1-mesa-dev libgtk-3-dev libwayland-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libxkbcommon-dev pkg-config wayland-protocols
           cmake -S nativeStudio -B build/native-studio -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
           cmake --build build/native-studio --parallel 2
           ctest --test-dir build/native-studio --output-on-failure
@@ -91,7 +91,7 @@ jobs:
         working-directory: source
       - name: Configure, build, and test
         shell: pwsh
-        run: .\scripts\build.ps1 -Test
+        run: .\scripts\build.ps1 -Test -PythonExecutable "$PWD\.ci-venv\Scripts\python.exe"
         working-directory: source
       - name: Build and test native Studio
         shell: pwsh

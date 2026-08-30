@@ -4,6 +4,7 @@ param(
     [switch]$Sanitize,
     [switch]$Test,
     [switch]$ConfigureOnly,
+    [string]$PythonExecutable = "",
     [ValidateRange(0, 1024)]
     [int]$Jobs = 0
 )
@@ -34,7 +35,12 @@ if ($Cuda) {
 
 Push-Location $repoRoot
 try {
-    Invoke-Gem16Checked "cmake.exe" @("--preset", $preset, "-S", $repoRoot)
+    $configureArguments = @("--preset", $preset, "-S", $repoRoot)
+    if ($PythonExecutable) {
+        $resolvedPython = (Resolve-Path -LiteralPath $PythonExecutable).Path
+        $configureArguments += "-DPython3_EXECUTABLE=$resolvedPython"
+    }
+    Invoke-Gem16Checked "cmake.exe" $configureArguments
     if ($ConfigureOnly) {
         return
     }
