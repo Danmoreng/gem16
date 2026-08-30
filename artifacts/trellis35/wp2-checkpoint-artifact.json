@@ -1,0 +1,39 @@
+{
+  "arena": {
+    "alignment_bytes": 256,
+    "non_routed_bytes": 1850270720,
+    "nvfp4_routed_expert_bytes": 0,
+    "one_immutable_device_representation": true,
+    "total_bytes": 12204692480,
+    "trellis35_routed_expert_bytes": 10354421760
+  },
+  "checkpoint_content_sha256": "18d759d9244b8fcf2437af8c9d5ec525bdf1eb5b3b600a59d37dfd630208b876",
+  "checkpoint_manifest_sha256": "2baa4ae220b8fdb615be61518c4d78672c6e412b74ddb38b025290af90c48ea2",
+  "checkpoint_profile": "gem16-trellis35-w4a8-v1",
+  "down_padding": "input_zero_pad_704_to_768",
+  "expert_count_per_layer": 128,
+  "expert_index_content_sha256": "7649fe3656f30c9ea8f8cbe82dba6555ede3a6092d8033169e154d14bf28b142",
+  "expert_index_sha256": "5ffdfcbc85da7a09024da87d5090d0c6a7b2840f4ab2d3d70af58cb68815424d",
+  "gate_up_padding": "none",
+  "layer_count": 30,
+  "non_routed": {
+    "artifact_sha256": "ee62705d1e680f0c3bc131be503b3d32367cf3aedb1efe4bdccf80ebac0ec2ef",
+    "bytes": 1850270720,
+    "manifest_sha256": "b7f93c1a9b7c9680ff526c72dc6df65cc9e117d765c93ae5bc36e3b4b9b635a2",
+    "routed_expert_tensors": 0,
+    "tensor_count": 1045
+  },
+  "payload_bpw_encoded": 3.5,
+  "rate_totals": {
+    "down_k3": 1920,
+    "down_k4": 1920,
+    "gate_up_k3": 1920,
+    "gate_up_k4": 1920
+  },
+  "runtime_supported": false,
+  "schema_version": 1,
+  "source_lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230",
+  "status": "complete_30_layer_checkpoint_artifact_pass",
+  "verifier_sha256": "da0e0b41df16ef661973b878d09427ffc073d7bbb9702f4d8c01b5badb71ccb0",
+  "work_package": "WP2"
+}

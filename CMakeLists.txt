@@ -669,6 +669,14 @@ if(BUILD_TESTING AND GEM16_BUILD_TESTS)
     set_tests_properties(gem16-26b-m23-host-contract PROPERTIES
       WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
     )
+    add_test(NAME gem16-trellis35-compiler-contract
+      COMMAND "${Python3_EXECUTABLE}" -m unittest
+        tests.python.test_trellis35_compiler
+        tests.python.test_trellis35_checkpoint
+    )
+    set_tests_properties(gem16-trellis35-compiler-contract PROPERTIES
+      WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    )
   endif()
 
   if(GEM16_ENABLE_CUDA)

@@ -21,7 +21,7 @@ struct Options {
   std::filesystem::path model;
   std::filesystem::path tokenizer;
   std::filesystem::path output;
-  std::filesystem::path token_ids;
+  std::vector<std::filesystem::path> token_ids;
   std::string prompt;
   std::uint32_t layer = 0U;
   std::uint64_t context = 4096U;
@@ -46,7 +46,7 @@ bool Parse(int argc, char** argv, Options* options) {
     if (key == "--model") options->model = value;
     else if (key == "--tokenizer") options->tokenizer = value;
     else if (key == "--output") options->output = value;
-    else if (key == "--token-ids") options->token_ids = value;
+    else if (key == "--token-ids") options->token_ids.emplace_back(value);
     else if (key == "--prompt") options->prompt = value;
     else if (key == "--layer") {
       std::uint64_t parsed = 0U;
@@ -63,7 +63,8 @@ bool Parse(int argc, char** argv, Options* options) {
     }
   }
   return !options->model.empty() && !options->output.empty() &&
-         (options->prompt.empty() != options->token_ids.empty());
+         (options->prompt.empty() != options->token_ids.empty()) &&
+         options->token_ids.size() <= 64U;
 }
 
 template <typename T>
@@ -82,19 +83,25 @@ int main(int argc, char** argv) {
                  "[--layer N] [--context N] [--device N]\n";
     return 2;
   }
-  std::vector<std::uint32_t> token_values;
+  std::vector<std::vector<std::uint32_t>> token_records;
   if (!options.token_ids.empty()) {
     if constexpr (std::endian::native != std::endian::little) return 3;
-    std::error_code error;
-    const auto bytes = std::filesystem::file_size(options.token_ids, error);
-    if (error || bytes == 0U || bytes % sizeof(std::uint32_t) != 0U ||
-        bytes / sizeof(std::uint32_t) > options.context) return 3;
-    token_values.resize(bytes / sizeof(std::uint32_t));
-    std::ifstream input(options.token_ids, std::ios::binary);
-    input.read(reinterpret_cast<char*>(token_values.data()),
-               static_cast<std::streamsize>(bytes));
-    if (!input || std::any_of(token_values.begin(), token_values.end(),
-                              [](std::uint32_t token) { return token >= 262144U; })) return 3;
+    for (const auto& path : options.token_ids) {
+      std::error_code error;
+      const auto bytes = std::filesystem::file_size(path, error);
+      if (error || bytes == 0U || bytes % sizeof(std::uint32_t) != 0U ||
+          bytes / sizeof(std::uint32_t) > options.context) return 3;
+      std::vector<std::uint32_t> values(bytes / sizeof(std::uint32_t));
+      std::ifstream input(path, std::ios::binary);
+      input.read(reinterpret_cast<char*>(values.data()),
+                 static_cast<std::streamsize>(bytes));
+      if (!input ||
+          std::any_of(values.begin(), values.end(),
+                      [](std::uint32_t token) { return token >= 262144U; })) {
+        return 3;
+      }
+      token_records.push_back(std::move(values));
+    }
   } else {
     if (options.tokenizer.empty()) options.tokenizer = options.model;
     auto tokenizer = gem16::Tokenizer::Load(options.tokenizer / "tokenizer.json");
@@ -109,8 +116,11 @@ int main(int argc, char** argv) {
       std::cerr << "Trellis35 calibration prompt tokenization failed\n";
       return 3;
     }
-    token_values = std::move(tokens.value());
-    if (token_values.empty() || token_values.size() > options.context) return 3;
+    token_records.push_back(std::move(tokens.value()));
+    if (token_records.back().empty() ||
+        token_records.back().size() > options.context) {
+      return 3;
+    }
   }
   if (cudaSetDevice(options.device) != cudaSuccess) return 4;
   auto engine = gem16::internal::Gemma4Moe26BReferenceEngine::Create(
@@ -130,27 +140,44 @@ int main(int argc, char** argv) {
   const std::array<char, 8> magic{'G', '1', '6', 'T', '3', '5', 'C', '1'};
   output.write(magic.data(), magic.size());
   const std::uint32_t version = 1U;
-  const std::uint32_t records = static_cast<std::uint32_t>(token_values.size());
-  if (!Write(output, version) || !Write(output, options.layer) || !Write(output, records)) return 5;
+  std::uint64_t total_records = 0U;
+  for (const auto& record : token_records) total_records += record.size();
+  if (total_records == 0U || total_records > 4096U) return 3;
+  const std::uint32_t records = static_cast<std::uint32_t>(total_records);
+  if (!Write(output, version) || !Write(output, options.layer) ||
+      !Write(output, records)) {
+    return 5;
+  }
   std::vector<float> gate_up(2816U);
   std::vector<float> down(8U * 704U);
   std::array<std::uint32_t, 8> ids{};
-  for (std::uint32_t position = 0U; position < records; ++position) {
-    status = engine.value().ForwardToken(token_values[position]);
-    if (status.ok()) {
-      status = engine.value().CopyMoeCalibrationCapture(gate_up, down, ids);
+  std::uint32_t output_position = 0U;
+  for (std::size_t record_index = 0U; record_index < token_records.size();
+       ++record_index) {
+    if (record_index != 0U) {
+      status = engine.value().Reset();
+      if (!status.ok()) {
+        std::cerr << status.message() << '\n';
+        return 6;
+      }
     }
-    if (!status.ok()) {
-      std::cerr << status.message() << '\n';
-      return 6;
+    for (const std::uint32_t token : token_records[record_index]) {
+      status = engine.value().ForwardToken(token);
+      if (status.ok()) {
+        status = engine.value().CopyMoeCalibrationCapture(gate_up, down, ids);
+      }
+      if (!status.ok()) {
+        std::cerr << status.message() << '\n';
+        return 6;
+      }
+      if (!Write(output, output_position++)) return 5;
+      output.write(reinterpret_cast<const char*>(ids.data()), sizeof(ids));
+      output.write(reinterpret_cast<const char*>(gate_up.data()),
+                   static_cast<std::streamsize>(gate_up.size() * sizeof(float)));
+      output.write(reinterpret_cast<const char*>(down.data()),
+                   static_cast<std::streamsize>(down.size() * sizeof(float)));
+      if (!output) return 5;
     }
-    if (!Write(output, position)) return 5;
-    output.write(reinterpret_cast<const char*>(ids.data()), sizeof(ids));
-    output.write(reinterpret_cast<const char*>(gate_up.data()),
-                 static_cast<std::streamsize>(gate_up.size() * sizeof(float)));
-    output.write(reinterpret_cast<const char*>(down.data()),
-                 static_cast<std::streamsize>(down.size() * sizeof(float)));
-    if (!output) return 5;
   }
   std::cout << "trellis35_calibration_ok layer=" << options.layer
             << " records=" << records << '\n';

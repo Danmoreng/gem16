@@ -359,6 +359,7 @@ def write_layer_artifact(
         "schema_version": 1,
         "format": "GEM16-Trellis35",
         "format_version": 1,
+        "checkpoint_profile": "gem16-trellis35-w4a8-v1",
         "layer": layer,
         "trellis_tile": [16, 16],
         "hadamard_block": 128,
