@@ -39,6 +39,23 @@ Result<std::shared_ptr<ModelRuntime>> ModelRuntime::Load(
     return Error(StatusCode::kInvalidArgument,
                  "model runtime requires --model");
   }
+  const auto trellis_manifest =
+      options.model_directory / "trellis35-checkpoint.json";
+  std::error_code trellis_error;
+  const auto trellis_status =
+      std::filesystem::symlink_status(trellis_manifest, trellis_error);
+  if (!trellis_error &&
+      trellis_status.type() != std::filesystem::file_type::not_found) {
+    auto plan = internal::LoadGemma4Moe26BTrellis35CheckpointPlan(
+        options.model_directory);
+    if (!plan.ok()) return plan.status();
+    return internal::Gemma4Moe26BTrellis35EngineDispatchStatus();
+  }
+  if (trellis_error != std::errc::no_such_file_or_directory) {
+    return Error(StatusCode::kIoError,
+                 "cannot inspect Trellis35 checkpoint profile: " +
+                     trellis_error.message());
+  }
   auto impl = std::make_unique<Impl>();
   const auto load_start = std::chrono::steady_clock::now();
   auto config = internal::LoadModelConfig(options.model_directory / "config.json");

@@ -49,6 +49,7 @@ gem16_enable_sanitizers(gem16_json)
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   set_property(SOURCE src/util/json.cpp APPEND PROPERTY COMPILE_OPTIONS -Wno-maybe-uninitialized)
   set_property(SOURCE src/model/gemma4_26b_compiled_loader.cpp APPEND PROPERTY COMPILE_OPTIONS -Wno-maybe-uninitialized)
+  set_property(SOURCE src/model/gemma4_26b_trellis35.cpp APPEND PROPERTY COMPILE_OPTIONS -Wno-maybe-uninitialized)
 endif()
 
 add_library(gem16_core STATIC
@@ -63,6 +64,7 @@ add_library(gem16_core STATIC
   src/model/gemma4_26b_compiled_loader.cpp
   src/model/gemma4_26b_device_image.cpp
   src/model/gemma4_26b_residency.cpp
+  src/model/gemma4_26b_trellis35.cpp
   src/model/audio.cpp
   src/model/image.cpp
   src/model/config.cpp
@@ -295,6 +297,19 @@ if(GEM16_ENABLE_CUDA)
     CUDA_ARCHITECTURES "${GEM16_CUDA_ARCHITECTURE}"
   )
   gem16_set_project_warnings(gem16-trellis35-ldlq)
+  add_executable(gem16-trellis35-load-probe
+    src/cli/trellis35_load_probe.cpp
+  )
+  target_include_directories(gem16-trellis35-load-probe PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/src"
+  )
+  target_link_libraries(gem16-trellis35-load-probe PRIVATE
+    gem16_core CUDA::cudart
+  )
+  set_target_properties(gem16-trellis35-load-probe PROPERTIES
+    CUDA_ARCHITECTURES "${GEM16_CUDA_ARCHITECTURE}"
+  )
+  gem16_set_project_warnings(gem16-trellis35-load-probe)
   target_sources(gem16_core PRIVATE
     src/cuda/attention/decode_sm120.cu
     src/cuda/attention/gemma4_26b_reference.cu
@@ -304,6 +319,7 @@ if(GEM16_ENABLE_CUDA)
     src/cuda/audio/projection.cu
     src/cuda/dispatch.cu
     src/cuda/engine/gemma4_26b_artifact.cpp
+    src/cuda/engine/gemma4_26b_trellis35_artifact.cpp
     src/cuda/engine/gemma4_26b_reference.cu
     src/cuda/engine/target_model.cu
     src/cuda/engine/inference_engine.cu
@@ -633,6 +649,7 @@ if(BUILD_TESTING AND GEM16_BUILD_TESTS)
     tests/unit/fp8_test.cpp
     tests/unit/fp8_batch_encoder_test.cpp
     tests/unit/gemma4_26b_manifest_test.cpp
+    tests/unit/gemma4_26b_trellis35_test.cpp
     tests/unit/image_test.cpp
     tests/unit/json_test.cpp
     tests/unit/gemma4_26b_moe_prefill_plan_test.cpp

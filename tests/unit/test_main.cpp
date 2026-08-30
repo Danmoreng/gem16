@@ -10,6 +10,7 @@ void RunLayerTests();
 void RunFp8Tests();
 void RunFp8BatchEncoderTests();
 void RunGemma426BManifestTests();
+void RunGemma426BTrellis35Tests();
 void RunGemma426BMoePrefillPlanTests();
 void RunImageTests();
 void RunMemoryPlanTests();
@@ -36,6 +37,7 @@ int main() {
   RunFp8Tests();
   RunFp8BatchEncoderTests();
   RunGemma426BManifestTests();
+  RunGemma426BTrellis35Tests();
   RunGemma426BMoePrefillPlanTests();
   RunImageTests();
   RunMemoryPlanTests();

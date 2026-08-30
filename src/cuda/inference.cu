@@ -23,6 +23,7 @@
 #include "gem16/tokenizer.h"
 #include "model/config.h"
 #include "model/gemma4_26b_compiled_loader.h"
+#include "model/gemma4_26b_trellis35.h"
 #include "model/model_variant.h"
 #include "platform/mapped_file.h"
 

@@ -1,0 +1,37 @@
+{
+  "arena": {
+    "device_allocations": 1,
+    "non_routed_bytes": 1850270720,
+    "nvfp4_routed_expert_bytes": 0,
+    "total_bytes": 12204692480,
+    "trellis35_routed_expert_bytes": 10354421760,
+    "uploaded_bytes": 12204692480
+  },
+  "binding_replay": {
+    "free_device_bytes_after": 4220321792,
+    "free_device_bytes_after_runtime_reject": 4220321792,
+    "free_device_bytes_before": 4220321792,
+    "iterations": 100000,
+    "result": "zero_device_allocation_delta"
+  },
+  "checkpoint_content_sha256": "18d759d9244b8fcf2437af8c9d5ec525bdf1eb5b3b600a59d37dfd630208b876",
+  "checkpoint_profile": "gem16-trellis35-w4a8-v1",
+  "descriptor_totals": {
+    "k3": 3840,
+    "k4": 3840
+  },
+  "dispatch": {
+    "fallback": "none",
+    "full_runtime_status": "unsupported",
+    "message": "GEM16-Trellis35 W4A8 inference kernel is not implemented (WP3 loader only)"
+  },
+  "files": 31,
+  "implementation_parent_revision": "2ff0058297a646aee14ef4e6f64e069882d0347c",
+  "load_path": "trellis35_single_arena_pinned_sha256_no_nvfp4_experts",
+  "non_routed_tensors": 1045,
+  "profile_scope": "text_only",
+  "schema_version": 1,
+  "source_lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230",
+  "status": "wp3_device_loader_pass_kernel_not_implemented",
+  "work_package": "WP3"
+}
