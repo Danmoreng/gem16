@@ -176,7 +176,8 @@ Status Gemma4Moe26BReferenceEngine::Impl::LaunchFixedMtpGraphBody(
                          moe_config, moe_weights[layer],
                          trellis35_artifact.layers()[layer],
                          trellis35_t3_workspace, prefill_moe_workspace, stream,
-                         overlap)
+                         overlap, shared_moe_stream, shared_moe_fork,
+                         shared_moe_join)
                    : LaunchGemma4MoeSm120MtpSharedBatchLayer(
                          prefill_hidden_b, prefill_hidden_a, tokens,
                          moe_config, moe_weights[layer],

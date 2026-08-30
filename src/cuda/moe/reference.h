@@ -197,7 +197,9 @@ BindGemma4Moe26BReferenceWeights(
     const Trellis35T3Workspace& trellis_workspace,
     const Gemma4MoePrefillWorkspace& batch_workspace,
     cudaStream_t stream,
-    MtpRouterOverlapCounters* router_overlap = nullptr);
+    MtpRouterOverlapCounters* router_overlap = nullptr,
+    cudaStream_t shared_branch_stream = nullptr,
+    cudaEvent_t fork_event = nullptr, cudaEvent_t join_event = nullptr);
 
 // Launches only the deterministic decode softmax/Top-K/scaling stage. This is
 // an internal differential-test hook: all pointers are caller-owned device

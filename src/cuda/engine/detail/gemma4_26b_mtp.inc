@@ -684,7 +684,8 @@ Status Gemma4Moe26BReferenceEngine::RunMtpAssistantGroup(
           x.trellis35_t3_workspace, x.prefill_moe_workspace, x.stream,
           x.mtp_router_overlap.bytes() == 0U
               ? nullptr
-              : x.mtp_router_overlap.As<MtpRouterOverlapCounters>());
+              : x.mtp_router_overlap.As<MtpRouterOverlapCounters>(),
+          x.shared_moe_stream, x.shared_moe_fork, x.shared_moe_join);
       if (!status.ok()) return status;
     } else if (exact_shared_batch_moe) {
       status = LaunchGemma4MoeSm120MtpSharedBatchLayer(

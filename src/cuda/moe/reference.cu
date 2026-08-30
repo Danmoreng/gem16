@@ -7,9 +7,11 @@
 #include <nvtx3/nvToolsExt.h>
 
 #include <cmath>
+#include <cstdlib>
 #include <cstdint>
 #include <limits>
 #include <string>
+#include <string_view>
 #include <utility>
 
 #include "cuda/layer/reference.h"
@@ -51,6 +53,14 @@ Status CudaFailure(const char* operation, cudaError_t error) {
 }
 
 bool PositiveFinite(float value) { return std::isfinite(value) && value > 0.0F; }
+
+bool Trellis35T3SharedOverlapEnabled() {
+  static const bool enabled = [] {
+    const char* value = std::getenv("GEM16_TRELLIS35_T3_SHARED_OVERLAP");
+    return value == nullptr || std::string_view(value) != "0";
+  }();
+  return enabled;
+}
 
 bool MatrixValid(const Gemma4MoeNvfp4Matrix& matrix,
                  std::uint64_t rows, std::uint64_t columns) {
@@ -1355,7 +1365,9 @@ Status LaunchGemma4MoeSm120MtpSharedBatchLayerImpl(
     const Gemma4MoeReferenceWorkspace& decode, cudaStream_t stream,
     MtpRouterOverlapCounters* router_overlap,
     const Trellis35DeviceLayerBinding* trellis_layer = nullptr,
-    const Trellis35T3Workspace* trellis_workspace = nullptr) {
+    const Trellis35T3Workspace* trellis_workspace = nullptr,
+    cudaStream_t shared_branch_stream = nullptr,
+    cudaEvent_t fork_event = nullptr, cudaEvent_t join_event = nullptr) {
   const bool trellis35 = trellis_layer != nullptr || trellis_workspace != nullptr;
   if (hidden == nullptr || output == nullptr || hidden == output ||
       tokens == 0U || tokens > 5U || c.width == 0U ||
@@ -1379,6 +1391,17 @@ Status LaunchGemma4MoeSm120MtpSharedBatchLayerImpl(
     return Invalid("M25 exact shared-batch MoE contract is invalid");
   }
   (void)decode;
+  const bool concurrent_requested = shared_branch_stream != nullptr ||
+                                    fork_event != nullptr ||
+                                    join_event != nullptr;
+  if (concurrent_requested &&
+      (!trellis35 || shared_branch_stream == nullptr ||
+       fork_event == nullptr || join_event == nullptr ||
+       shared_branch_stream == stream)) {
+    return Invalid("Trellis35 T3 concurrent shared branch contract is invalid");
+  }
+  const bool concurrent_shared =
+      concurrent_requested && Trellis35T3SharedOverlapEnabled();
   if (trellis35) {
     MoeInputNormsRouterTransformTrellis35Kernel<false><<<
         static_cast<unsigned>(tokens), kNormThreads, 0, stream>>>(
@@ -1401,6 +1424,17 @@ Status LaunchGemma4MoeSm120MtpSharedBatchLayerImpl(
                                   ? "launch Trellis35 T3 input boundary"
                                   : "launch M25 exact batched MoE input boundary");
   if (!status.ok()) return status;
+  cudaStream_t shared_stream = stream;
+  if (concurrent_shared) {
+    cudaError_t error = cudaEventRecord(fork_event, stream);
+    if (error == cudaSuccess) {
+      error = cudaStreamWaitEvent(shared_branch_stream, fork_event, 0U);
+    }
+    if (error != cudaSuccess) {
+      return CudaFailure("fork Trellis35 T3 shared branch", error);
+    }
+    shared_stream = shared_branch_stream;
+  }
   {
     const NvtxRange range("gem16.mtp.target_shared_moe");
     status = LaunchNvfp4Sm120FusedGateUpExactBatch(
@@ -1411,19 +1445,19 @@ Status LaunchGemma4MoeSm120MtpSharedBatchLayerImpl(
         w.shared_gate.activation_global_divisor,
         w.shared_gate.weight_global_divisor,
         w.shared_up.activation_global_divisor,
-        w.shared_up.weight_global_divisor, stream);
+        w.shared_up.weight_global_divisor, shared_stream);
     if (!status.ok()) return status;
     status = LaunchNvfp4ReferenceActivationQuantization(
         batch.shared_product, batch.shared_product_packed,
         batch.shared_product_scales, tokens * c.shared_intermediate,
-        w.shared_down.activation_global_divisor, stream);
+        w.shared_down.activation_global_divisor, shared_stream);
     if (!status.ok()) return status;
     status = LaunchNvfp4Sm120DirectProjectionBf16FloatExactBatch(
         batch.shared_product_packed, batch.shared_product_scales,
         w.shared_down.packed_e2m1, w.shared_down.scales_e4m3fn,
         batch.shared_output, tokens, c.width, c.shared_intermediate,
         w.shared_down.activation_global_divisor,
-        w.shared_down.weight_global_divisor, stream);
+        w.shared_down.weight_global_divisor, shared_stream);
   }
   if (!status.ok()) return status;
 
@@ -1499,6 +1533,16 @@ Status LaunchGemma4MoeSm120MtpSharedBatchLayerImpl(
     }
   }
 
+  if (concurrent_shared) {
+    cudaError_t error = cudaEventRecord(join_event, shared_stream);
+    if (error == cudaSuccess) {
+      error = cudaStreamWaitEvent(stream, join_event, 0U);
+    }
+    if (error != cudaSuccess) {
+      return CudaFailure("join Trellis35 T3 shared branch", error);
+    }
+  }
+
   const std::size_t post_norm_shared_bytes =
       3U * static_cast<std::size_t>(c.width) * sizeof(float);
   MoeFusedPostNormResidualKernel<<<
@@ -1531,11 +1575,14 @@ Status LaunchGemma4MoeSm120Trellis35T3Layer(
     const Trellis35DeviceLayerBinding& trellis_layer,
     const Trellis35T3Workspace& trellis_workspace,
     const Gemma4MoePrefillWorkspace& batch_workspace,
-    cudaStream_t stream, MtpRouterOverlapCounters* router_overlap) {
+    cudaStream_t stream, MtpRouterOverlapCounters* router_overlap,
+    cudaStream_t shared_branch_stream, cudaEvent_t fork_event,
+    cudaEvent_t join_event) {
   Gemma4MoeReferenceWorkspace unused;
   return LaunchGemma4MoeSm120MtpSharedBatchLayerImpl(
       hidden, output, tokens, config, weights, batch_workspace, unused,
-      stream, router_overlap, &trellis_layer, &trellis_workspace);
+      stream, router_overlap, &trellis_layer, &trellis_workspace,
+      shared_branch_stream, fork_event, join_event);
 }
 
 Status LaunchGemma4MoeDecodeTopKDiagnostic(

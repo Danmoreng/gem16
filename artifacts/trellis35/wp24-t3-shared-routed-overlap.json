@@ -1,0 +1,148 @@
+{
+  "schema_version": 1,
+  "work_packet": "WP24",
+  "status": "accepted",
+  "implementation_parent_revision": "20a47f3eeb1e662857f78139bd5039a9639efc10",
+  "candidate": {
+    "name": "Trellis35 Fixed-D2/T3 Shared-Routed MoE overlap",
+    "scope": "experimental Trellis35 W4A8 fixed-D2 Target verifier only",
+    "default_enabled": true,
+    "rollback_environment": "GEM16_TRELLIS35_T3_SHARED_OVERLAP=0",
+    "precision_changed": false,
+    "graph_semantics_changed": false,
+    "workspace_delta_bytes": 0,
+    "persistent_device_representation_changed": false,
+    "new_streams_or_events": 0,
+    "nvfp4_t3_changed": false,
+    "ordinary_m1_changed": false
+  },
+  "execution_topology": {
+    "fork_after": "MoeInputNormsRouterTransformTrellis35Kernel input boundary",
+    "shared_branch": [
+      "NVFP4 exact-batch fused Gate+Up",
+      "shared-product activation quantization",
+      "NVFP4 exact-batch Down"
+    ],
+    "main_branch": [
+      "router projection",
+      "deterministic Top-K",
+      "optional routing diagnostic",
+      "Trellis35 T3 Gate+Up, fused GELU/Down quantization, Down and slot reduction"
+    ],
+    "join_before": "MoeFusedPostNormResidualKernel",
+    "resources": "reuse the resident ordinary-decode shared_moe_stream, shared_moe_fork and shared_moe_join"
+  },
+  "same_binary_512_ab": {
+    "workload": "Wikipedia 16K prompt, greedy fixed 512 generated tokens",
+    "warmups": 1,
+    "measured_runs": 3,
+    "parent_decode_tokens_per_second": {
+      "median": 171.2099281655409,
+      "samples": [171.2099281655409, 171.15774312940664, 171.21968054629465]
+    },
+    "candidate_decode_tokens_per_second": {
+      "median": 175.76264132382633,
+      "samples": [175.76324587592697, 175.70643615082557, 175.76264132382633]
+    },
+    "gain_percent": 2.659140861,
+    "output_token_sha256": "1c665647cdeeb592cf490419c957ad8c0e7e05aa40e273d4db33f7b8ad6426ec",
+    "accepted_tokens": 285,
+    "proposed_tokens": 448,
+    "rejected_tokens": 163,
+    "d2_groups": 224,
+    "trajectory_identical": true
+  },
+  "full_wikipedia_16k_sampled": {
+    "sampling": true,
+    "seed": 0,
+    "prompt_tokens": 16384,
+    "generated_tokens": 1229,
+    "warmup_pairs": 1,
+    "measured_pairs": 3,
+    "ordinary_prefill_tokens_per_second": {
+      "median": 5708.392563480782,
+      "samples": [5713.528480460876, 5708.392563480782, 5701.26141800783]
+    },
+    "fixed_d2_prefill_tokens_per_second": {
+      "median": 5710.302523351457,
+      "samples": [5710.302523351457, 5707.815847689387, 5710.521454537849]
+    },
+    "ordinary_decode_tokens_per_second": {
+      "median": 126.4794125917053,
+      "samples": [126.53167207277014, 126.4794125917053, 126.46482413871585]
+    },
+    "fixed_d2_decode_tokens_per_second": {
+      "median": 174.16043466359946,
+      "samples": [174.14215842682128, 174.16043466359946, 174.1799500154606]
+    },
+    "fixed_d2_gain_vs_wp23_percent": 2.506463650,
+    "ordinary_change_vs_wp23_percent": -0.012359552,
+    "ordinary_prefill_change_vs_wp23_percent": -0.162011874,
+    "paired_d2_over_ordinary_speedup": 1.3769864288175953,
+    "ordinary_peak_vram_mib": 12522,
+    "fixed_d2_peak_vram_mib": 12798,
+    "ordinary_workspace_bytes": 333881888,
+    "fixed_d2_workspace_bytes": 340973600,
+    "output_token_sha256": "12235104322e01e0d53875e11c980312f8f42fe763d04b0762697f54eb922c48",
+    "accepted_tokens": 690,
+    "proposed_tokens": 1076,
+    "rejected_tokens": 386,
+    "d2_groups": 538,
+    "ordinary_fallback_tokens": 0,
+    "deterministic_outputs": true
+  },
+  "dispatch_evidence": {
+    "tool": "Nsight Systems 2026.1.3 with --cuda-graph-trace=node",
+    "profile_scope": "one real fixed-D2 group plus ordinary rejection tail",
+    "target_shared_stream_id": 23,
+    "target_routed_stream_id": 24,
+    "relevant_shared_kernel_instances": 61,
+    "shared_kernel_instances_overlapping_router_or_trellis": 48,
+    "target_t3_projection_instances": 60,
+    "observation": "NVFP4 Shared Gate+Up/Down overlaps RouterProjectionWarpKernel and MmaW4A8ProjectionGroupedT3M16Kernel; fused post norm follows the joined branches"
+  },
+  "sanitizers": {
+    "scope": "real-shape mixed-K3/K4 T3 operator with typical 16-expert union",
+    "memcheck_errors": 0,
+    "initcheck_errors": 0,
+    "racecheck_errors": 0,
+    "racecheck_warnings": 0
+  },
+  "tests": [
+    {
+      "command": "ctest --test-dir build/blackwell-release --output-on-failure -R '^gem16-(unit|cuda|cuda-moe-reference|cuda-trellis35|trellis35-compiler-contract|cuda-nvfp4-consumption)$'",
+      "result": "6/6 passed"
+    },
+    {
+      "command": "ctest --test-dir build/blackwell-release --output-on-failure -R '^gem16-12b-m22-product$'",
+      "result": "skipped: no configured 12B model path"
+    },
+    {
+      "command": "ctest --test-dir build/blackwell-release --output-on-failure -R '^gem16-26b-m17-engine-smoke$'",
+      "result": "skipped: no configured qualified NVFP4 model path"
+    }
+  ],
+  "raw_evidence": [
+    {
+      "path": "artifacts/raw/trellis35/wp24-overlap-parent-512-1w3.json",
+      "sha256": "622aa124dc15716e87328b1cbc737470806462d3c1ea05f4ad41a847c1f63f32"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp24-overlap-candidate-512-1w3.json",
+      "sha256": "28ec14395ffef80b5c3bbab3b75f61ae213f82bde0b8ba71678df01d894921fa"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp24-overlap-candidate-full-wikipedia-16k-sampled-1w3.json",
+      "sha256": "73b7e3c451468cba86a529a4a8f40b1c88840012117ce51a59ecf8a1295d9af0"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp24-overlap-candidate-decode-nodes.nsys-rep",
+      "sha256": "6ffc0d8e13cddf97a24511a0bfa4a26abe7c3f7b118366fc6589991e9e56fdd5"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp24-overlap-candidate-decode-nodes-kernel-summary.csv",
+      "sha256": "fdd84c37a1ca316405c91f8da0841f3c1ee3decd3f3e0278e0fad857d1a8af2a"
+    }
+  ],
+  "decision": "retain; WP24 materially improves Fixed-D2 while preserving output, acceptance, memory and ordinary decode"
+}
