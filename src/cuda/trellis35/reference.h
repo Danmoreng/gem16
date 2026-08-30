@@ -9,6 +9,8 @@
 
 namespace gem16::internal {
 
+struct Gemma4MoePrefillWorkspace;
+
 inline constexpr std::uint32_t kTrellis35M1TopK = 8U;
 inline constexpr std::uint32_t kTrellis35T3Rows = 3U;
 inline constexpr std::uint32_t kTrellis35T3Assignments =
@@ -101,5 +103,15 @@ struct Trellis35T3Workspace {
     const float* route_weights, const Trellis35DeviceLayerBinding& layer,
     const Trellis35T3Workspace& workspace, float* output_rows,
     cudaStream_t stream);
+
+// Routed-expert-only prefill replacement. normalized_hidden contains T
+// recurrent BF16 values in FP32 containers. The launcher consumes the existing
+// token-major assignments plus stable expert permutation/prefix and aliases
+// only dead regions of Gemma4MoePrefillWorkspace; no second prefill arena is
+// required. The reduced routed result is written to workspace.token_hidden.
+[[nodiscard]] Status LaunchTrellis35PrefillExpertsW4A8(
+    const float* normalized_hidden, std::uint64_t tokens,
+    const Trellis35DeviceLayerBinding& layer,
+    const Gemma4MoePrefillWorkspace& workspace, cudaStream_t stream);
 
 }  // namespace gem16::internal

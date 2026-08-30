@@ -1,0 +1,9 @@
+Time (%),Total Time (ns),Instances,Avg (ns),Med (ns),Min (ns),Max (ns),StdDev (ns),Name
+93.8,18270444,33,553649.8,298235.0,288699,1088334,369971.6,"gem16::internal::<unnamed>::MmaW4A8ProjectionGroupedPrefillTileKernel(const unsigned char *, const float *, gem16::internal::Trellis35DeviceFamilyBinding, const unsigned int *, const unsigned int *, const unsigned int *, const unsigned int *, float *, unsigned long, unsigned long, unsigned long)"
+2.3,456280,2,228140.0,228140.0,100446,355834,180586.6,"gem16::internal::<unnamed>::PrefillTransformScaleKernel(const float *, const unsigned short *, const gem16::internal::Gemma4MoePrefillAssignment *, float *, unsigned long, unsigned long, unsigned long, unsigned long, unsigned long, bool)"
+2.2,428441,2,214220.5,214220.5,92607,335834,171987.5,"gem16::internal::<unnamed>::PrefillTransformQuantizeKernel(const float *, const unsigned short *, const gem16::internal::Gemma4MoePrefillAssignment *, const float *, unsigned char *, unsigned long, unsigned long, unsigned long, unsigned long, unsigned long, bool)"
+1.5,295899,33,8966.6,8960.0,8863,9120,60.3,"gem16::internal::<unnamed>::PrefillOutputTransformTileKernel(const float *, const unsigned short *, const gem16::internal::Gemma4MoePrefillAssignment *, float *, unsigned long, unsigned long, unsigned long)"
+0.1,14944,1,14944.0,14944.0,14944,14944,0.0,"gem16::internal::<unnamed>::BuildTrellis35PrefillTileScheduleKernel(const unsigned int *, unsigned int *, unsigned int *)"
+0.0,4159,1,4159.0,4159.0,4159,4159,0.0,"void gem16::internal::<unnamed>::ReduceAssignmentsKernel<float>(const T1 *, const gem16::internal::Gemma4MoePrefillAssignment *, float *, unsigned long, unsigned int, unsigned long)"
+0.0,3872,1,3872.0,3872.0,3872,3872,0.0,"gem16::internal::<unnamed>::GatedGeluKernel(const float *, float *)"
+0.0,544,1,544.0,544.0,544,544,0.0,"gem16::internal::<unnamed>::RestoreTrellis35PrefillHistogramZeroKernel(unsigned int *, const unsigned int *)"

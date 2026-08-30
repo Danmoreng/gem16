@@ -1,0 +1,131 @@
+{
+  "schema_version": 1,
+  "work_package": "WP6",
+  "status": "prefill_routed_expert_w4a8_operator_pass",
+  "implementation_parent_revision": "dc302c5c75683afddba5485fc8915445f6325fa0",
+  "checkpoint": {
+    "path": "models/checkpoints/google-gemma-4-26b-a4b-it-trellis35-w4a8-wp2",
+    "checkpoint_content_sha256": "18d759d9244b8fcf2437af8c9d5ec525bdf1eb5b3b600a59d37dfd630208b876",
+    "layer": 0
+  },
+  "operator": {
+    "input_boundary": "recurrent BF16 values in FP32 containers after existing pre-expert normalization",
+    "routing": "existing token-major 8T assignments, stable expert prefix and permutation",
+    "route_tile_rows": 4,
+    "output_tile_elements": 128,
+    "gate_up_output_tiles": 11,
+    "down_output_tiles": 22,
+    "compute": "direct Trellis transform to E4M3 plus mixed-K3/K4 SM120 FP8 QMMA",
+    "w4a16_path_present": false,
+    "complete_expert_matrix_global_bytes": 0,
+    "cuda_graph_replays": 2,
+    "allocation_during_launch": false,
+    "assignment_prefix_permutation_changes": 0
+  },
+  "existing_workspace_aliases": {
+    "expert_product": "Gate+Up E4M3 activation, then 704-element GELU product",
+    "expert_down_partials": "1408-element Gate+Up inverse output, then 2816-element Down output",
+    "shared_product": "128-element projection tile",
+    "shared_output": "768-element Down E4M3 activation",
+    "token_nvfp4_scale_tail": "one FP32 dynamic E4M3 scale per assignment",
+    "router_logits": "four-row expert tile schedule after router logits die",
+    "token_hidden": "slot-ordered routed reduction",
+    "additional_prefill_arena_bytes": 0,
+    "plan_chunk_tokens_verified": 1024
+  },
+  "correctness": {
+    "oracle": "verified WP4 M1 per token plus existing exact prefill assignment reduction",
+    "synthetic_assignment_output_max_abs": 0.0,
+    "synthetic_slot_reduction_max_abs": 0.0,
+    "real_layer0_assignment_output_max_abs": 0.0,
+    "real_layer0_slot_reduction_max_abs": 0.0,
+    "route_schedule_restored": true,
+    "histogram_restored": true,
+    "finite": true
+  },
+  "latency_characterization": {
+    "scope": "one isolated routed-expert layer; excludes router, Shared MLP, attention and all other model work",
+    "synthetic_128_tokens_ms": 23.3555,
+    "synthetic_1024_tokens_ms": 141.777,
+    "real_layer0_128_tokens_ms": 23.9961,
+    "real_layer0_1024_tokens_ms": 145.486,
+    "diagnostic_30_layer_routed_only_ms": 4364.58,
+    "diagnostic_routed_only_ceiling_tokens_per_second": 234.616,
+    "performance_gate": "observational_only"
+  },
+  "bottleneck_decomposition_128_tokens": {
+    "scope": "synthetic full-shape payload with exact 1024 assignments; Nsight Systems GPU kernel time",
+    "route_packing_us": 14.944,
+    "gate_up_transform_max_us": 355.834,
+    "gate_up_direct_e4m3_quantization_us": 335.834,
+    "gate_up_trellis_decode_plus_fp8_mma_us": 11756.826,
+    "gate_up_inverse_transform_us": 99.294,
+    "gated_gelu_us": 3.872,
+    "down_transform_max_us": 100.446,
+    "down_direct_e4m3_quantization_us": 92.607,
+    "down_trellis_decode_plus_fp8_mma_us": 6513.618,
+    "down_inverse_transform_us": 196.605,
+    "slot_reduction_us": 4.159,
+    "schedule_restore_us": 0.544,
+    "projection_fraction_percent": 93.8,
+    "activation_transform_fraction_percent": 2.3,
+    "activation_quantization_fraction_percent": 2.2,
+    "inverse_transform_fraction_percent": 1.5,
+    "raw_summary": "artifacts/trellis35/wp6-prefill-128-kernels_cuda_gpu_kern_sum.csv",
+    "raw_trace": "artifacts/trellis35/wp6-prefill-128-trace_cuda_kern_exec_trace.csv"
+  },
+  "projection_profiler": {
+    "scope": "first 128-output Gate+Up tile at 128 tokens and 1024 assignments",
+    "grid": [4, 1024, 1],
+    "block": [128, 1, 1],
+    "registers_per_thread": 52,
+    "static_shared_bytes": 0,
+    "dynamic_shared_bytes": 0,
+    "local_spill_bytes": 0,
+    "shared_spill_bytes": 0,
+    "theoretical_occupancy_percent": 75.0,
+    "achieved_occupancy_percent": 63.52,
+    "synthetic_compute_throughput_percent": 61.30,
+    "synthetic_l1_tex_throughput_percent": 67.29,
+    "synthetic_dram_throughput_percent": 0.24,
+    "synthetic_l1_hit_percent": 99.33,
+    "synthetic_l2_hit_percent": 91.34,
+    "executed_instructions": 417734656,
+    "tensor_instructions": 1441792,
+    "real_checkpoint_dram_read_mb": 23.12,
+    "real_checkpoint_l2_read_sector_bytes": 52434016,
+    "logical_gate_up_trellis_payload_bytes_for_tile": 40370176,
+    "tensor_pipe_active_cycles_percent_real_checkpoint": 36.06,
+    "sass_instruction": "QMMA.16832.F32.E4M3.E4M3",
+    "raw_ncu": "artifacts/trellis35/wp6-ncu-prefill-projection.txt",
+    "raw_ncu_tensor": "artifacts/trellis35/wp6-ncu-prefill-tensor.txt",
+    "raw_ncu_real_checkpoint": "artifacts/trellis35/wp6-ncu-prefill-real-projection.txt",
+    "sass_evidence": "artifacts/trellis35/wp6-sass-evidence.txt"
+  },
+  "sanitizers": {
+    "memcheck_errors": 0,
+    "initcheck_errors": 0,
+    "racecheck_errors": 0,
+    "racecheck_warnings": 0
+  },
+  "regression": {
+    "preset": "blackwell-release",
+    "full_build": "pass",
+    "ctest_passed": 13,
+    "ctest_failed": 0,
+    "external_product_tests_skipped": 3
+  },
+  "toolchain": {
+    "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "compute_capability": "12.0",
+    "driver": "610.43.03",
+    "cuda": "13.3.73",
+    "host_compiler": "GCC 16.1.1"
+  },
+  "limitations": [
+    "WP6 qualifies the isolated routed-expert prefill replacement; unchanged router, Shared MLP and full engine orchestration are integrated in WP7.",
+    "The 30-layer throughput ceiling is a diagnostic extrapolation, not an end-to-end benchmark or performance claim.",
+    "The first kernel serializes 33 output tiles and is decode/ALU dominated; this is intentionally retained as WP9 optimization evidence rather than hidden by a fallback.",
+    "Vision and W4A4 remain out of scope."
+  ]
+}

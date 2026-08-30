@@ -11,11 +11,13 @@
 #include <iostream>
 #include <limits>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
 #include "cuda/engine/gemma4_26b_trellis35_artifact.h"
 #include "cuda/fp8/reference.h"
+#include "cuda/moe/prefill.h"
 #include "cuda/trellis35/reference.h"
 #include "gem16/fp8.h"
 
@@ -392,6 +394,61 @@ struct T3Storage {
             down_input.get(),       down_input_fp8.get(), down_scales.get(),
             down_transformed.get(), down_output.get()};
   }
+};
+
+struct PrefillStorage {
+  explicit PrefillStorage(std::uint64_t token_count)
+      : tokens(token_count),
+        token_hidden(tokens * gem16::internal::kTrellis35DownOutput),
+        token_packed(tokens *
+                     (gem16::internal::kTrellis35GateUpInput / 2U +
+                      gem16::internal::kTrellis35GateUpInput / 16U)),
+        expert_product(tokens * gem16::internal::kTrellis35M1TopK *
+                       gem16::internal::kTrellis35ExpertIntermediate),
+        expert_down(tokens * gem16::internal::kTrellis35M1TopK *
+                    gem16::internal::kTrellis35DownOutput),
+        shared_product(tokens * 2112U),
+        shared_output(tokens * gem16::internal::kTrellis35DownOutput),
+        schedule(tokens * gem16::internal::kTrellis35M1TopK),
+        assignments(tokens * gem16::internal::kTrellis35M1TopK),
+        histogram(gem16::internal::kTrellis35ExpertCount),
+        prefix(gem16::internal::kTrellis35ExpertCount + 1U),
+        permutation(tokens * gem16::internal::kTrellis35M1TopK),
+        inverse(tokens * gem16::internal::kTrellis35M1TopK) {}
+
+  gem16::internal::Gemma4MoePrefillWorkspace Bind() {
+    gem16::internal::Gemma4MoePrefillWorkspace workspace;
+    workspace.token_hidden = token_hidden.get();
+    workspace.token_packed = token_packed.get();
+    workspace.token_scales =
+        token_packed.get() +
+        tokens * (gem16::internal::kTrellis35GateUpInput / 2U);
+    workspace.expert_product = expert_product.get();
+    workspace.expert_down = expert_down.get();
+    workspace.shared_product = shared_product.get();
+    workspace.shared_output = shared_output.get();
+    workspace.router_logits = reinterpret_cast<float*>(schedule.get());
+    workspace.assignments = assignments.get();
+    workspace.histogram = histogram.get();
+    workspace.prefix = prefix.get();
+    workspace.permutation = permutation.get();
+    workspace.inverse_permutation = inverse.get();
+    return workspace;
+  }
+
+  std::uint64_t tokens;
+  DeviceBuffer<float> token_hidden;
+  DeviceBuffer<std::uint8_t> token_packed;
+  DeviceBuffer<float> expert_product;
+  DeviceBuffer<float> expert_down;
+  DeviceBuffer<float> shared_product;
+  DeviceBuffer<float> shared_output;
+  DeviceBuffer<std::uint32_t> schedule;
+  DeviceBuffer<gem16::internal::Gemma4MoePrefillAssignment> assignments;
+  DeviceBuffer<std::uint32_t> histogram;
+  DeviceBuffer<std::uint32_t> prefix;
+  DeviceBuffer<std::uint32_t> permutation;
+  DeviceBuffer<std::uint32_t> inverse;
 };
 
 void Compare(const std::vector<float>& expected,
@@ -1057,6 +1114,345 @@ void BenchmarkRetainedOverlapHistogram(
             << weighted_latency / kSamples << '\n';
 }
 
+struct PrefillHostRouting {
+  std::vector<gem16::internal::Gemma4MoePrefillAssignment> assignments;
+  std::array<std::uint32_t, gem16::internal::kTrellis35ExpertCount>
+      histogram{};
+  std::array<std::uint32_t,
+             gem16::internal::kTrellis35ExpertCount + 1U>
+      prefix{};
+  std::vector<std::uint32_t> permutation;
+  std::vector<std::uint32_t> inverse;
+};
+
+PrefillHostRouting MakePrefillRouting(
+    std::uint64_t tokens, const std::vector<std::uint32_t>& expert_order) {
+  const std::uint64_t assignment_count =
+      tokens * gem16::internal::kTrellis35M1TopK;
+  CHECK(!expert_order.empty());
+  CHECK(assignment_count <= std::numeric_limits<std::uint32_t>::max());
+  PrefillHostRouting routing;
+  routing.assignments.resize(assignment_count);
+  routing.permutation.resize(assignment_count);
+  routing.inverse.resize(assignment_count);
+  const std::array<float, gem16::internal::kTrellis35M1TopK> weights{
+      0.21F, 0.18F, 0.15F, 0.13F, 0.11F, 0.09F, 0.07F, 0.06F};
+  for (std::uint64_t token = 0U; token < tokens; ++token) {
+    for (unsigned slot = 0U; slot < gem16::internal::kTrellis35M1TopK;
+         ++slot) {
+      const std::uint64_t original =
+          token * gem16::internal::kTrellis35M1TopK + slot;
+      const std::uint32_t expert =
+          expert_order[(token * 3U + slot) % expert_order.size()];
+      CHECK(expert < gem16::internal::kTrellis35ExpertCount);
+      routing.assignments[original] = {
+          static_cast<std::uint16_t>(expert), static_cast<std::uint16_t>(slot),
+          static_cast<std::uint32_t>(token), weights[slot]};
+      ++routing.histogram[expert];
+    }
+  }
+  for (unsigned expert = 0U;
+       expert < gem16::internal::kTrellis35ExpertCount; ++expert) {
+    routing.prefix[expert + 1U] =
+        routing.prefix[expert] + routing.histogram[expert];
+  }
+  auto cursors = routing.prefix;
+  for (std::uint32_t original = 0U; original < assignment_count; ++original) {
+    const std::uint32_t expert = routing.assignments[original].expert_id;
+    const std::uint32_t grouped = cursors[expert]++;
+    routing.permutation[grouped] = original;
+    routing.inverse[original] = grouped;
+  }
+  CHECK(routing.prefix.back() == assignment_count);
+  return routing;
+}
+
+bool UploadPrefillRouting(PrefillStorage& storage,
+                          const PrefillHostRouting& routing) {
+  std::vector<std::uint32_t> prefix(routing.prefix.begin(),
+                                    routing.prefix.end());
+  std::vector<std::uint32_t> histogram(routing.histogram.begin(),
+                                       routing.histogram.end());
+  return Upload(storage.assignments, routing.assignments,
+                "upload prefill assignments") &&
+         Upload(storage.histogram, histogram, "upload prefill histogram") &&
+         Upload(storage.prefix, prefix, "upload prefill prefix") &&
+         Upload(storage.permutation, routing.permutation,
+                "upload prefill permutation") &&
+         Upload(storage.inverse, routing.inverse,
+                "upload prefill inverse permutation");
+}
+
+float RunFullPrefill(
+    const gem16::internal::Trellis35DeviceLayerBinding& layer,
+    DeviceBuffer<float>& input, PrefillStorage& storage, unsigned iterations,
+    bool capture) {
+  const auto workspace = storage.Bind();
+  if (capture) {
+    cudaStream_t stream = nullptr;
+    cudaGraph_t graph = nullptr;
+    cudaGraphExec_t executable = nullptr;
+    CHECK(CudaOk(cudaStreamCreate(&stream), "create prefill graph stream"));
+    CHECK(CudaOk(cudaStreamBeginCapture(stream, cudaStreamCaptureModeGlobal),
+                 "begin Trellis35 prefill capture"));
+    const auto status = gem16::internal::LaunchTrellis35PrefillExpertsW4A8(
+        input.get(), storage.tokens, layer, workspace, stream);
+    CHECK(status.ok());
+    CHECK(CudaOk(cudaStreamEndCapture(stream, &graph),
+                 "end Trellis35 prefill capture"));
+    CHECK(CudaOk(cudaGraphInstantiate(&executable, graph, 0U),
+                 "instantiate Trellis35 prefill graph"));
+    CHECK(CudaOk(cudaGraphLaunch(executable, stream),
+                 "launch Trellis35 prefill graph first"));
+    CHECK(CudaOk(cudaGraphLaunch(executable, stream),
+                 "launch Trellis35 prefill graph replay"));
+    CHECK(CudaOk(cudaStreamSynchronize(stream),
+                 "synchronize Trellis35 prefill graph"));
+    if (executable != nullptr) (void)cudaGraphExecDestroy(executable);
+    if (graph != nullptr) (void)cudaGraphDestroy(graph);
+    if (stream != nullptr) (void)cudaStreamDestroy(stream);
+  }
+  cudaEvent_t begin = nullptr;
+  cudaEvent_t end = nullptr;
+  CHECK(CudaOk(cudaEventCreate(&begin), "create prefill begin event"));
+  CHECK(CudaOk(cudaEventCreate(&end), "create prefill end event"));
+  CHECK(CudaOk(cudaEventRecord(begin), "record prefill begin event"));
+  for (unsigned iteration = 0U; iteration < iterations; ++iteration) {
+    const auto status = gem16::internal::LaunchTrellis35PrefillExpertsW4A8(
+        input.get(), storage.tokens, layer, workspace, nullptr);
+    CHECK(status.ok());
+  }
+  CHECK(CudaOk(cudaEventRecord(end), "record prefill end event"));
+  CHECK(CudaOk(cudaEventSynchronize(end), "synchronize prefill end event"));
+  float milliseconds = 0.0F;
+  CHECK(CudaOk(cudaEventElapsedTime(&milliseconds, begin, end),
+               "measure Trellis35 prefill"));
+  if (begin != nullptr) (void)cudaEventDestroy(begin);
+  if (end != nullptr) (void)cudaEventDestroy(end);
+  return milliseconds / static_cast<float>(iterations);
+}
+
+float RunPrefillScenario(
+    const gem16::internal::Trellis35DeviceLayerBinding& layer,
+    DeviceBuffer<float>& input, PrefillStorage& storage,
+    const PrefillHostRouting& routing, const char* description,
+    bool compare_m1, bool capture) {
+  CHECK(UploadPrefillRouting(storage, routing));
+  const float latency = RunFullPrefill(layer, input, storage, 3U, capture);
+  std::vector<float> host_output(storage.token_hidden.elements());
+  CHECK(CudaOk(cudaMemcpy(host_output.data(), storage.token_hidden.get(),
+                          storage.token_hidden.bytes(),
+                          cudaMemcpyDeviceToHost),
+               "download prefill reduced output"));
+  CHECK(std::all_of(host_output.begin(), host_output.end(),
+                    [](float value) { return std::isfinite(value); }));
+  std::vector<gem16::internal::Gemma4MoePrefillAssignment>
+      unchanged_assignments(storage.assignments.elements());
+  std::vector<std::uint32_t> unchanged_permutation(
+      storage.permutation.elements());
+  std::vector<std::uint32_t> unchanged_prefix(storage.prefix.elements());
+  std::vector<std::uint32_t> unchanged_histogram(
+      storage.histogram.elements());
+  CHECK(CudaOk(cudaMemcpy(unchanged_assignments.data(),
+                          storage.assignments.get(), storage.assignments.bytes(),
+                          cudaMemcpyDeviceToHost),
+               "download unchanged prefill assignments"));
+  CHECK(CudaOk(cudaMemcpy(unchanged_permutation.data(),
+                          storage.permutation.get(), storage.permutation.bytes(),
+                          cudaMemcpyDeviceToHost),
+               "download unchanged prefill permutation"));
+  CHECK(CudaOk(cudaMemcpy(unchanged_prefix.data(), storage.prefix.get(),
+                          storage.prefix.bytes(), cudaMemcpyDeviceToHost),
+               "download unchanged prefill prefix"));
+  CHECK(CudaOk(cudaMemcpy(unchanged_histogram.data(), storage.histogram.get(),
+                          storage.histogram.bytes(), cudaMemcpyDeviceToHost),
+               "download restored prefill histogram"));
+  CHECK(std::memcmp(unchanged_assignments.data(), routing.assignments.data(),
+                    storage.assignments.bytes()) == 0);
+  CHECK(unchanged_permutation == routing.permutation);
+  CHECK(std::equal(unchanged_prefix.begin(), unchanged_prefix.end(),
+                   routing.prefix.begin()));
+  CHECK(std::equal(unchanged_histogram.begin(), unchanged_histogram.end(),
+                   routing.histogram.begin()));
+
+  if (compare_m1) {
+    DeviceBuffer<std::uint32_t> ids(gem16::internal::kTrellis35M1TopK);
+    DeviceBuffer<float> weights(gem16::internal::kTrellis35M1TopK);
+    DeviceBuffer<float> ignored_output(gem16::internal::kTrellis35DownOutput);
+    DeviceBuffer<float> reference_experts(storage.expert_down.elements());
+    DeviceBuffer<float> reference_reduced(storage.token_hidden.elements());
+    M1Storage m1;
+    for (std::uint64_t token = 0U; token < storage.tokens; ++token) {
+      std::array<std::uint32_t, gem16::internal::kTrellis35M1TopK> host_ids{};
+      std::array<float, gem16::internal::kTrellis35M1TopK> host_weights{};
+      for (unsigned slot = 0U; slot < gem16::internal::kTrellis35M1TopK;
+           ++slot) {
+        const auto& assignment =
+            routing.assignments[token * gem16::internal::kTrellis35M1TopK +
+                                slot];
+        host_ids[slot] = assignment.expert_id;
+        host_weights[slot] = assignment.weight;
+      }
+      CHECK(Upload(ids, host_ids, "upload prefill M1 oracle IDs"));
+      CHECK(Upload(weights, host_weights,
+                   "upload prefill M1 oracle weights"));
+      const auto status = gem16::internal::LaunchTrellis35SelectedExpertsM1(
+          input.get() + token * gem16::internal::kTrellis35GateUpInput,
+          ids.get(), weights.get(), layer, m1.Bind(), ignored_output.get(),
+          nullptr);
+      CHECK(status.ok());
+      CHECK(CudaOk(cudaMemcpyAsync(
+                       reference_experts.get() +
+                           token * gem16::internal::kTrellis35M1TopK *
+                               gem16::internal::kTrellis35DownOutput,
+                       m1.down_output.get(), m1.down_output.bytes(),
+                       cudaMemcpyDeviceToDevice),
+                   "copy prefill M1 oracle expert outputs"));
+    }
+    auto status = gem16::internal::LaunchGemma4MoeReduceAssignments(
+        reference_experts.get(), storage.assignments.get(),
+        reference_reduced.get(), gem16::internal::kTrellis35DownOutput,
+        gem16::internal::kTrellis35M1TopK, storage.tokens, nullptr);
+    CHECK(status.ok());
+    CHECK(CudaOk(cudaDeviceSynchronize(), "synchronize prefill M1 oracle"));
+    std::vector<float> host_experts(storage.expert_down.elements());
+    std::vector<float> host_reference_experts(reference_experts.elements());
+    std::vector<float> host_reference(reference_reduced.elements());
+    CHECK(CudaOk(cudaMemcpy(host_experts.data(), storage.expert_down.get(),
+                            storage.expert_down.bytes(),
+                            cudaMemcpyDeviceToHost),
+                 "download prefill expert outputs"));
+    CHECK(CudaOk(cudaMemcpy(host_reference_experts.data(),
+                            reference_experts.get(), reference_experts.bytes(),
+                            cudaMemcpyDeviceToHost),
+                 "download prefill oracle expert outputs"));
+    CHECK(CudaOk(cudaMemcpy(host_reference.data(), reference_reduced.get(),
+                            reference_reduced.bytes(),
+                            cudaMemcpyDeviceToHost),
+                 "download prefill oracle reduction"));
+    const std::string expert_label =
+        std::string(description) + " assignment outputs";
+    const std::string reduction_label =
+        std::string(description) + " slot reduction";
+    Compare(host_reference_experts, host_experts, 4.0e-6F, 2.0e-6F,
+            expert_label.c_str());
+    Compare(host_reference, host_output, 4.0e-6F, 2.0e-6F,
+            reduction_label.c_str());
+  }
+  std::cout << description << " tokens=" << storage.tokens
+            << " assignments=" << storage.assignments.elements()
+            << " latency_ms=" << latency << '\n';
+  return latency;
+}
+
+std::vector<std::uint32_t> SequentialExpertOrder() {
+  std::vector<std::uint32_t> experts(gem16::internal::kTrellis35ExpertCount);
+  for (std::uint32_t expert = 0U; expert < experts.size(); ++expert) {
+    experts[expert] = expert;
+  }
+  return experts;
+}
+
+void TestSyntheticPrefill() {
+  auto plan = gem16::internal::BuildGemma4MoePrefillPlan(1024U);
+  CHECK(plan.ok());
+  if (plan.ok()) {
+    CHECK(plan.value().chunk_tokens == 1024U);
+    auto region_bytes = [&](std::string_view name) {
+      const auto found = std::find_if(
+          plan.value().moe_regions.begin(), plan.value().moe_regions.end(),
+          [&](const auto& region) { return region.name == name; });
+      CHECK(found != plan.value().moe_regions.end());
+      return found == plan.value().moe_regions.end() ? 0U : found->bytes;
+    };
+    constexpr std::uint64_t kPlanTokens = 1024U;
+    constexpr std::uint64_t kAssignments =
+        kPlanTokens * gem16::internal::kTrellis35M1TopK;
+    CHECK(region_bytes("expert_product") ==
+          kAssignments * gem16::internal::kTrellis35ExpertIntermediate *
+              sizeof(float));
+    CHECK(region_bytes("expert_product") >=
+          kAssignments * gem16::internal::kTrellis35GateUpInput);
+    CHECK(region_bytes("expert_down_partials") ==
+          kAssignments * gem16::internal::kTrellis35DownOutput *
+              sizeof(float));
+    CHECK(region_bytes("shared_product") >=
+          kAssignments * 128U * sizeof(float));
+    CHECK(region_bytes("shared_output") >=
+          kAssignments * gem16::internal::kTrellis35DownInput);
+    CHECK(region_bytes("token_nvfp4") -
+              kPlanTokens *
+                  (gem16::internal::kTrellis35GateUpInput / 2U) >=
+          kAssignments * sizeof(float));
+  }
+  FamilyStorage gate(gem16::internal::kTrellis35GateUpInput,
+                     gem16::internal::kTrellis35GateUpOutput, 701U);
+  FamilyStorage down(gem16::internal::kTrellis35DownInput,
+                     gem16::internal::kTrellis35DownOutput, 809U);
+  const gem16::internal::Trellis35DeviceLayerBinding layer{gate.binding,
+                                                           down.binding};
+  constexpr std::uint64_t kTokens = 4U;
+  DeviceBuffer<float> input(kTokens * gem16::internal::kTrellis35GateUpInput);
+  std::vector<float> host_input(input.elements());
+  for (std::uint64_t index = 0U; index < host_input.size(); ++index) {
+    host_input[index] =
+        std::sin(static_cast<float>(index * 7U + 3U) * 0.001953125F) *
+        1.0e-4F;
+  }
+  CHECK(Upload(input, host_input, "upload synthetic prefill input"));
+  PrefillStorage storage(kTokens);
+  const auto routing = MakePrefillRouting(kTokens, SequentialExpertOrder());
+  (void)RunPrefillScenario(layer, input, storage, routing,
+                           "synthetic W4A8 prefill", true, true);
+}
+
+void ProfileSyntheticPrefill(std::uint64_t tokens) {
+  FamilyStorage gate(gem16::internal::kTrellis35GateUpInput,
+                     gem16::internal::kTrellis35GateUpOutput, 907U);
+  FamilyStorage down(gem16::internal::kTrellis35DownInput,
+                     gem16::internal::kTrellis35DownOutput, 1009U);
+  const gem16::internal::Trellis35DeviceLayerBinding layer{gate.binding,
+                                                           down.binding};
+  DeviceBuffer<float> input(tokens * gem16::internal::kTrellis35GateUpInput);
+  std::vector<float> host_input(input.elements(), 1.0e-4F);
+  CHECK(Upload(input, host_input, "upload profile prefill input"));
+  PrefillStorage storage(tokens);
+  const auto routing = MakePrefillRouting(tokens, SequentialExpertOrder());
+  CHECK(UploadPrefillRouting(storage, routing));
+  const float latency = RunFullPrefill(layer, input, storage, 1U, false);
+  std::cout << "profile W4A8 prefill tokens=" << tokens
+            << " assignments=" << tokens * gem16::internal::kTrellis35M1TopK
+            << " latency_ms=" << latency << '\n';
+}
+
+void ProfileRealPrefill(const std::string& checkpoint, std::uint64_t tokens) {
+  auto artifact =
+      gem16::internal::Gemma4Moe26BTrellis35DeviceArtifact::Load(checkpoint);
+  CHECK(artifact.ok());
+  if (!artifact.ok()) {
+    std::cerr << artifact.status().message() << '\n';
+    return;
+  }
+  DeviceBuffer<float> input(tokens * gem16::internal::kTrellis35GateUpInput);
+  std::vector<float> host_input(input.elements());
+  for (std::uint64_t index = 0U; index < host_input.size(); ++index) {
+    host_input[index] =
+        std::sin(static_cast<float>(index * 19U + 11U) * 0.001953125F) *
+        0.03125F;
+  }
+  CHECK(Upload(input, host_input, "upload real profile prefill input"));
+  PrefillStorage storage(tokens);
+  const auto routing = MakePrefillRouting(tokens, SequentialExpertOrder());
+  CHECK(UploadPrefillRouting(storage, routing));
+  const float latency = RunFullPrefill(artifact.value().layers()[0], input,
+                                       storage, 1U, false);
+  std::cout << "profile real layer-0 W4A8 prefill tokens=" << tokens
+            << " assignments=" << tokens * gem16::internal::kTrellis35M1TopK
+            << " latency_ms=" << latency
+            << " checkpoint_sha256="
+            << artifact.value().stats().checkpoint_content_sha256 << '\n';
+}
+
 void CompareRealProjection(
     const gem16::internal::Trellis35DeviceFamilyBinding& family,
     std::uint64_t input_elements, std::uint64_t output_elements,
@@ -1223,6 +1619,24 @@ void TestRealCheckpoint(const std::string& checkpoint) {
             << t3_assignment_payload_bytes - t3_unique_payload_bytes << '\n';
   BenchmarkRetainedOverlapHistogram(layer, t3_input, t3_weights,
                                     expert_order);
+
+  constexpr std::uint64_t kPrefillTokens = 4U;
+  DeviceBuffer<float> prefill_input(
+      kPrefillTokens * gem16::internal::kTrellis35GateUpInput);
+  std::vector<float> host_prefill_input(prefill_input.elements());
+  for (std::uint64_t index = 0U; index < host_prefill_input.size(); ++index) {
+    host_prefill_input[index] =
+        std::sin(static_cast<float>(index * 17U + 5U) * 0.001953125F) *
+        0.03125F;
+  }
+  CHECK(Upload(prefill_input, host_prefill_input,
+               "upload real prefill input"));
+  PrefillStorage prefill_storage(kPrefillTokens);
+  const auto prefill_routing =
+      MakePrefillRouting(kPrefillTokens, expert_order);
+  (void)RunPrefillScenario(layer, prefill_input, prefill_storage,
+                           prefill_routing, "real layer-0 W4A8 prefill",
+                           true, true);
 }
 
 }  // namespace
@@ -1239,15 +1653,36 @@ int main(int argc, char** argv) {
     ProfileSyntheticT3(unique_experts);
     return failures == 0 ? 0 : 1;
   }
+  if (argc == 3 && std::string(argv[1]) == "--profile-prefill") {
+    const std::uint64_t tokens = std::stoull(argv[2]);
+    if (tokens == 0U || tokens > 1024U) {
+      std::cerr << "prefill profile tokens must be in [1, 1024]\n";
+      return 2;
+    }
+    ProfileSyntheticPrefill(tokens);
+    return failures == 0 ? 0 : 1;
+  }
+  if (argc == 4 && std::string(argv[1]) == "--profile-prefill-checkpoint") {
+    const std::uint64_t tokens = std::stoull(argv[3]);
+    if (tokens == 0U || tokens > 1024U) {
+      std::cerr << "prefill profile tokens must be in [1, 1024]\n";
+      return 2;
+    }
+    ProfileRealPrefill(argv[2], tokens);
+    return failures == 0 ? 0 : 1;
+  }
   TestRandomizedProjectionParity();
   TestTransformsAndDownPadding();
   TestSyntheticFullM1();
   TestSyntheticT3();
+  TestSyntheticPrefill();
   if (argc == 3 && std::string(argv[1]) == "--checkpoint") {
     TestRealCheckpoint(argv[2]);
   } else if (argc != 1) {
     std::cerr << "usage: gem16-cuda-trellis35-tests "
-                 "[--checkpoint PATH | --profile-t3 UNIQUE]\n";
+                 "[--checkpoint PATH | --profile-t3 UNIQUE | "
+                 "--profile-prefill TOKENS | "
+                 "--profile-prefill-checkpoint PATH TOKENS]\n";
     return 2;
   }
   if (failures == 0) {

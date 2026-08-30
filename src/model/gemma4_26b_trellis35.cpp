@@ -962,9 +962,9 @@ LoadGemma4Moe26BTrellis35CheckpointPlan(
 Status Gemma4Moe26BTrellis35EngineDispatchStatus() {
   return Status(
       StatusCode::kUnsupported,
-      "GEM16-Trellis35 has verified WP4 M1 and WP5 Fixed-D2 T3 "
-      "routed-expert kernels, but full text-only engine integration is not "
-      "implemented");
+      "GEM16-Trellis35 has verified WP4 M1, WP5 Fixed-D2 T3, and WP6 "
+      "prefill routed-expert kernels, but full text-only engine integration "
+      "is not implemented");
 }
 
 }  // namespace gem16::internal

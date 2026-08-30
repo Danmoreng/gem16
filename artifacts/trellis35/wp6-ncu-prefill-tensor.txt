@@ -1,0 +1,31 @@
+==PROF== Connected to process 570582 (/home/sebastian/Development/gem16gb/build/Linux/blackwell-release/bin/gem16-cuda-trellis35-tests)
+==PROF== Profiling "MmaW4A8ProjectionGroupedPrefillTileKernel": 0%....50%....100% - 1 pass
+==PROF== Disconnected from process 570582
+[570582] gem16-cuda-trellis35-tests@127.0.0.1
+  unnamed>::MmaW4A8ProjectionGroupedPrefillTileKernel(const unsigned char *, const float *, Trellis35DeviceFamilyBinding, const unsigned int *, const unsigned int *, const unsigned int *, const unsigned int *, float *, unsigned long, unsigned long, unsigned long) (4, 1024, 1)x(128, 1, 1), Context 1, Stream 7, Device 0, CC 12.0
+    Section: Command line profiler metrics
+    --------------------------------- ----------- ------------
+    Metric Name                       Metric Unit Metric Value
+    --------------------------------- ----------- ------------
+    dram__bytes_op_read.avg                 Kbyte       413.63
+    dram__bytes_op_read.max                 Kbyte       422.14
+    dram__bytes_op_read.min                 Kbyte       405.76
+    dram__bytes_op_read.sum                 Mbyte         3.31
+    gpu__time_duration.avg                     ms         1.91
+    gpu__time_duration.max                     ms         1.91
+    gpu__time_duration.min                     ms         1.91
+    gpu__time_duration.sum                     ms         1.91
+    sm__cycles_elapsed.avg                  cycle      2864594
+    sm__cycles_elapsed.max                  cycle      2866867
+    sm__cycles_elapsed.min                  cycle      2862786
+    sm__cycles_elapsed.sum                  cycle    171875640
+    sm__inst_executed_pipe_tensor.avg        inst     24029.87
+    sm__inst_executed_pipe_tensor.max        inst        25344
+    sm__inst_executed_pipe_tensor.min        inst        22528
+    sm__inst_executed_pipe_tensor.sum        inst      1441792
+    sm__pipe_tensor_cycles_active.avg       cycle    999378.87
+    sm__pipe_tensor_cycles_active.max       cycle      1057730
+    sm__pipe_tensor_cycles_active.min       cycle       930042
+    sm__pipe_tensor_cycles_active.sum       cycle     59962732
+    --------------------------------- ----------- ------------
+

@@ -1,0 +1,35 @@
+==PROF== Connected to process 573565 (/home/sebastian/Development/gem16gb/build/Linux/blackwell-release/bin/gem16-cuda-trellis35-tests)
+==PROF== Profiling "MmaW4A8ProjectionGroupedPrefillTileKernel": 0%....50%....100% - 1 pass
+==PROF== Disconnected from process 573565
+[573565] gem16-cuda-trellis35-tests@127.0.0.1
+  unnamed>::MmaW4A8ProjectionGroupedPrefillTileKernel(const unsigned char *, const float *, Trellis35DeviceFamilyBinding, const unsigned int *, const unsigned int *, const unsigned int *, const unsigned int *, float *, unsigned long, unsigned long, unsigned long) (4, 1024, 1)x(128, 1, 1), Context 1, Stream 7, Device 0, CC 12.0
+    Section: Command line profiler metrics
+    --------------------------------- ----------- ------------
+    Metric Name                       Metric Unit Metric Value
+    --------------------------------- ----------- ------------
+    dram__bytes_op_read.avg                 Mbyte         2.89
+    dram__bytes_op_read.max                 Mbyte         2.93
+    dram__bytes_op_read.min                 Mbyte         2.87
+    dram__bytes_op_read.sum                 Mbyte        23.12
+    gpu__time_duration.avg                     ms         1.85
+    gpu__time_duration.max                     ms         1.85
+    gpu__time_duration.min                     ms         1.85
+    gpu__time_duration.sum                     ms         1.85
+    lts__t_sectors_op_read.avg             sector     68273.46
+    lts__t_sectors_op_read.max             sector        69777
+    lts__t_sectors_op_read.min             sector        66308
+    lts__t_sectors_op_read.sum             sector      1638563
+    sm__cycles_elapsed.avg                  cycle   2768504.83
+    sm__cycles_elapsed.max                  cycle      2770892
+    sm__cycles_elapsed.min                  cycle      2764382
+    sm__cycles_elapsed.sum                  cycle    166110290
+    sm__inst_executed_pipe_tensor.avg        inst     24029.87
+    sm__inst_executed_pipe_tensor.max        inst        25344
+    sm__inst_executed_pipe_tensor.min        inst        21120
+    sm__inst_executed_pipe_tensor.sum        inst      1441792
+    sm__pipe_tensor_cycles_active.avg       cycle    998320.98
+    sm__pipe_tensor_cycles_active.max       cycle      1049458
+    sm__pipe_tensor_cycles_active.min       cycle       906156
+    sm__pipe_tensor_cycles_active.sum       cycle     59899259
+    --------------------------------- ----------- ------------
+

@@ -1,0 +1,139 @@
+==PROF== Connected to process 570523 (/home/sebastian/Development/gem16gb/build/Linux/blackwell-release/bin/gem16-cuda-trellis35-tests)
+==PROF== Profiling "MmaW4A8ProjectionGroupedPrefillTileKernel": 0%....50%....100% - 13 passes
+==PROF== Disconnected from process 570523
+[570523] gem16-cuda-trellis35-tests@127.0.0.1
+  unnamed>::MmaW4A8ProjectionGroupedPrefillTileKernel(const unsigned char *, const float *, Trellis35DeviceFamilyBinding, const unsigned int *, const unsigned int *, const unsigned int *, const unsigned int *, float *, unsigned long, unsigned long, unsigned long) (4, 1024, 1)x(128, 1, 1), Context 1, Stream 7, Device 0, CC 12.0
+    Section: GPU Speed Of Light Throughput
+    ----------------------- ----------- ------------
+    Metric Name             Metric Unit Metric Value
+    ----------------------- ----------- ------------
+    DRAM Frequency                  Ghz        13.99
+    SM Frequency                    Ghz         1.50
+    Elapsed Cycles                cycle      2963831
+    Memory Throughput                 %        58.95
+    DRAM Throughput                   %         0.24
+    Duration                         ms         1.98
+    L1/TEX Cache Throughput           %        67.29
+    L2 Cache Throughput               %         1.02
+    SM Active Cycles              cycle   2594333.18
+    Compute (SM) Throughput           %        61.30
+    ----------------------- ----------- ------------
+
+    INF   Compute and Memory are well-balanced: To reduce runtime, both computation and memory traffic must be reduced. 
+          Check both the Compute Workload Analysis and Memory Workload Analysis sections.                               
+
+    Section: Compute Workload Analysis
+    -------------------- ----------- ------------
+    Metric Name          Metric Unit Metric Value
+    -------------------- ----------- ------------
+    Executed Ipc Active   inst/cycle         2.68
+    Executed Ipc Elapsed  inst/cycle         2.35
+    Issue Slots Busy               %        58.77
+    Issued Ipc Active     inst/cycle         2.68
+    SM Busy                        %        61.30
+    -------------------- ----------- ------------
+
+    INF   Shared FMA Heavy is the highest-utilized pipeline (56.9%) based on elapsed cycles in the workload, taking     
+          into account the rates of its different instructions. It is a physical pipe and shared by the logical pipes   
+          FMA Heavy and ALU Lite. It's dominated by its FMA Heavy sub-pipeline. It is well-utilized, but should not be  
+          a bottleneck. Based on the number of executed instructions, the highest utilized pipeline (61.3%) is ALU      
+          Heavy. It is part of the aggregated pipe ALU. Comparing the two, the overall pipeline utilization appears to  
+          be caused by frequent, low-latency instructions. See the Profiling Guide                                      
+          (https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html#metrics-decoder) or hover over the          
+          pipeline name to understand the workloads handled by each pipeline. The Instruction Statistics section shows  
+          the mix of executed instructions for this workload.                                                           
+
+    Section: Memory Workload Analysis
+    --------------------------------------- ----------- ------------
+    Metric Name                             Metric Unit Metric Value
+    --------------------------------------- ----------- ------------
+    Local Memory Spilling Requests                                 0
+    Local Memory Spilling Request Overhead            %            0
+    L2 Sector Promotion Misses                        %            0
+    Shared Memory Spilling Requests                                0
+    Shared Memory Spilling Request Overhead           %            0
+    Memory Throughput                           Gbyte/s         1.64
+    Mem Busy                                          %        29.64
+    Max Bandwidth                                     %        58.95
+    L1/TEX Hit Rate                                   %        99.33
+    L2 Persisting Size                            Mbyte         9.44
+    L2 Compression Success Rate                       %            0
+    L2 Compression Ratio                                           0
+    L2 Compression Input Sectors                 sector            0
+    L2 Hit Rate                                       %        91.34
+    Mem Pipes Busy                                    %        58.95
+    --------------------------------------- ----------- ------------
+
+    Section: Instruction Statistics
+    ---------------------------------------- ----------- ------------
+    Metric Name                              Metric Unit Metric Value
+    ---------------------------------------- ----------- ------------
+    Local Memory Spilling Requests                  byte            0
+    Shared Memory Spilling Requests                 byte            0
+    Avg. Executed Instructions Per Scheduler        inst   1740561.07
+    Executed Instructions                           inst    417734656
+    Avg. Issued Instructions Per Scheduler          inst   1740561.07
+    Issued Instructions                             inst    417734656
+    ---------------------------------------- ----------- ------------
+
+    OPT   Est. Speedup: 6.804%                                                                                          
+          This workload executes 0 fused and 32768 non-fused FP32 instructions. By converting pairs of non-fused        
+          instructions to their fused (https://docs.nvidia.com/cuda/floating-point/#cuda-and-floating-point),           
+          higher-throughput equivalent, the achieved FP32 performance could be increased by up to 50% (relative to its  
+          current performance).                                                                                         
+
+    Section: Launch Statistics
+    -------------------------------- --------------- ---------------
+    Metric Name                          Metric Unit    Metric Value
+    -------------------------------- --------------- ---------------
+    Block Size                                                   128
+    Cluster Scheduling Policy                           PolicySpread
+    Cluster Size                                                   0
+    Function Cache Configuration                     CachePreferNone
+    Grid Size                                                   4096
+    Preferred Cluster Size                                         0
+    Registers Per Thread             register/thread              52
+    Shared Memory Configuration Size           Kbyte           32.77
+    Driver Shared Memory Per Block       Kbyte/block            1.02
+    Dynamic Shared Memory Per Block       byte/block               0
+    Static Shared Memory Per Block        byte/block               0
+    # SMs                                         SM              60
+    Stack Size                                                  1024
+    Threads                                   thread          524288
+    # TPCs                                                        30
+    Enabled TPC IDs                                              all
+    Uses Green Context                                             0
+    Waves Per SM                                                7.59
+    -------------------------------- --------------- ---------------
+
+    Section: Occupancy
+    ------------------------------- ----------- ------------
+    Metric Name                     Metric Unit Metric Value
+    ------------------------------- ----------- ------------
+    Max Active Clusters                 cluster            0
+    Max Cluster Size                      block            8
+    Overall GPU Occupancy                     %            0
+    Cluster Occupancy                         %            0
+    Block Limit Barriers                  block           24
+    Block Limit SM                        block           24
+    Block Limit Registers                 block            9
+    Block Limit Shared Mem                block           32
+    Block Limit Warps                     block           12
+    Theoretical Active Warps per SM        warp           36
+    Theoretical Occupancy                     %           75
+    Achieved Occupancy                        %        63.52
+    Achieved Active Warps Per SM           warp        30.49
+    ------------------------------- ----------- ------------
+
+    OPT   Est. Local Speedup: 15.31%                                                                                    
+          The difference between calculated theoretical (75.0%) and measured achieved occupancy (63.5%) can be the      
+          result of warp scheduling overheads or workload imbalances during the kernel execution. Load imbalances can   
+          occur between warps within a block as well as across blocks of the same kernel. See the CUDA Best Practices   
+          Guide (https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/index.html#occupancy) for more details on     
+          optimizing occupancy.                                                                                         
+    ----- --------------------------------------------------------------------------------------------------------------
+    OPT   Est. Local Speedup: 25%                                                                                       
+          The 9.00 theoretical warps per scheduler this kernel can issue according to its occupancy are below the       
+          hardware maximum of 12. This kernel's theoretical occupancy (75.0%) is limited by the number of required      
+          registers.                                                                                                    
+

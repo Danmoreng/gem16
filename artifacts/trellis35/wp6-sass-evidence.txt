@@ -1,0 +1,16 @@
+Function: MmaW4A8ProjectionGroupedPrefillTileKernel
+Binary: build/Linux/blackwell-release/bin/gem16-cuda-trellis35-tests
+Extraction: cuobjdump --dump-sass, restricted to the named function
+
+F2FP.SATFINITE.E4M3.F32.PACK_AB_MERGE_C
+
+/*9160*/ @P0 QMMA.16832.F32.E4M3.E4M3 R16, R20, R36, R16
+/*91a0*/ @P0 QMMA.16832.F32.E4M3.E4M3 R12, R24, R36, R12
+/*91e0*/ @P0 QMMA.16832.F32.E4M3.E4M3 R8,  R28, R36, R8
+/*9220*/ @P0 QMMA.16832.F32.E4M3.E4M3 R4,  R32, R36, R4
+
+The four assignment-row accumulators have independent destinations R16, R12,
+R8, and R4. Every row consumes the same decoded E4M3 weight operand R36 before
+the output tile advances. This is mixed-K3/K4 Trellis decode to E4M3 followed
+by actual SM120 FP8 Tensor Core compute; no W4A16 path or decoded full expert
+matrix is present.
