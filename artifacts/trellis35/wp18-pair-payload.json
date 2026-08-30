@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "work_packet": "WP18-C",
+  "status": "rejected_rolled_back",
+  "base_revision": "494e77c1b8f1e0682c2169a31a86a4561203e59d",
+  "candidate": "double-buffered shared Trellis payload reused by adjacent N8 warp pairs",
+  "correctness": {
+    "operator_matrix_bit_identical": true,
+    "maximum_absolute_difference": 0.0
+  },
+  "resources": {
+    "registers_per_thread": 64,
+    "shared_bytes": 42240,
+    "shared_bytes_delta": 4096,
+    "spills": 0
+  },
+  "mixed_128_row_operator_ms": {
+    "wp17_control_range": [0.109856, 0.116192],
+    "candidate_range": [0.126176, 0.133312]
+  },
+  "decision": "rejected at the operator gate because shared staging cost exceeded the removed global payload loads",
+  "raw_evidence": [
+    {"path": "artifacts/raw/trellis35/wp18-pair-payload-matrix.log", "sha256": "455a12130ed7056e21b1ec00fda614fb91b6a3852c4aaf8d4ee4c67ccdf1741b"}
+  ]
+}

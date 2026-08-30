@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "work_packet": "WP18",
+  "status": "completed_no_retained_code_change",
+  "base_revision": "494e77c1b8f1e0682c2169a31a86a4561203e59d",
+  "retained_candidate": null,
+  "final_runtime": "bit-for-bit source-equivalent to accepted WP17 M64 hybrid runtime",
+  "candidate_results": {
+    "scale_stage": "rejected",
+    "svh_stage": "rejected",
+    "pair_shared_payload": "rejected",
+    "packed_e4m3_conversion": "rejected",
+    "vectorized_projection_and_output": "rejected",
+    "k64_pipeline": "rejected"
+  },
+  "final_performance": {
+    "source": "artifacts/trellis35/wp17-full-16k-ab.json",
+    "ordinary_prefill_tokens_per_second_median": 5112.666518961863,
+    "fixed_d2_prefill_tokens_per_second_median": 5085.955882809444,
+    "ordinary_decode_tokens_per_second_median": 126.0367497708656,
+    "fixed_d2_decode_tokens_per_second_median": 169.36786341336932,
+    "output_token_sha256": "12235104322e01e0d53875e11c980312f8f42fe763d04b0762697f54eb922c48",
+    "generated_tokens": 1229,
+    "ordinary_peak_vram_mib": 12380,
+    "fixed_d2_peak_vram_mib": 12656
+  },
+  "final_verification": {
+    "full_216_case_operator_matrix": "passed with exact M32/M64 expert and reduction parity",
+    "unit": "passed",
+    "trellis35_compiler_contract": "passed",
+    "general_cuda": "passed",
+    "trellis35_cuda": "passed",
+    "nvfp4_consumption": "passed",
+    "git_diff_after_rollback": "no runtime source differences from WP17"
+  },
+  "interpretation": "WP17 already removed the dominant schedule overhead. The tested local LSU and barrier reductions either traded global traffic for slower shared or dependency behavior, or failed to survive real routing. WP19 proceeds at the inter-kernel BF16 product boundary instead.",
+  "raw_evidence": [
+    {"path": "artifacts/raw/trellis35/wp18-final-wp17-matrix.log", "sha256": "a0aa4d6abf788d304012f4fa245f29367132e252d8d760005b10365c145d3389"},
+    {"path": "artifacts/raw/trellis35/wp18-final-wp17-layer0-1024.txt", "sha256": "88a8a6362fc6b5ab87b8ce812cd1cce35af84cca3ddc5bba270dddbd427a75a2"}
+  ]
+}

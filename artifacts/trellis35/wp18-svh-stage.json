@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "work_packet": "WP18-B",
+  "status": "rejected_rolled_back",
+  "base_revision": "494e77c1b8f1e0682c2169a31a86a4561203e59d",
+  "candidate": "stage 128 FP16 SVH values once per M64 CTA",
+  "sass": {
+    "baseline_epilogue": "four global U16 loads per warp-row iteration",
+    "candidate_epilogue": "four shared U16 loads per warp-row iteration",
+    "addressed_counter_changed": true
+  },
+  "correctness": {
+    "operator_matrix_bit_identical": true,
+    "maximum_absolute_difference": 0.0
+  },
+  "resources": {
+    "registers_per_thread": 64,
+    "shared_bytes": 38400,
+    "shared_bytes_delta": 256,
+    "spills": 0
+  },
+  "real_layer0_1024_ms": {
+    "wp17_control_median": 6.84646,
+    "candidate_median": 6.86966,
+    "candidate_latency_change_percent": 0.338861
+  },
+  "decision": "rejected because removing global SVH reloads did not improve kernel latency",
+  "raw_evidence": [
+    {"path": "artifacts/raw/trellis35/wp18-m64-bf16-baseline-sass.txt", "sha256": "3a8bfa4ec9e89f2cdc0b24f1db2fe5084c210b6fe01e20ff1cdc4d4915850cf5"},
+    {"path": "artifacts/raw/trellis35/wp18-m64-bf16-svh-sass.txt", "sha256": "568547387c9954698354aa735b678f1c38f45f9638f5286e0bf97c644c69fb9e"},
+    {"path": "artifacts/raw/trellis35/wp18-svh-stage-matrix.log", "sha256": "bab61b7b259e65d6b88292acaaf51229131224f8ede6a92a5a03b9c734bddb72"},
+    {"path": "artifacts/raw/trellis35/wp18-svh-stage-layer0-1024.txt", "sha256": "16b05f7faeab4ba89d17295a788857d7a1b3047bbfeeb6409e69b8cfb5116854"}
+  ]
+}

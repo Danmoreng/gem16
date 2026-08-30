@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "work_packet": "WP18-F",
+  "status": "rejected_rolled_back",
+  "base_revision": "494e77c1b8f1e0682c2169a31a86a4561203e59d",
+  "candidate": "double-buffered K64 activation staging with two ordered K32 MMAs per barrier epoch",
+  "correctness": {
+    "operator_matrix_bit_identical": true,
+    "maximum_absolute_difference": 0.0,
+    "accumulation_order_changed": false
+  },
+  "resources": {
+    "registers_per_thread": 64,
+    "shared_bytes": 42240,
+    "shared_bytes_delta": 4096,
+    "spills": 0,
+    "gate_up_barrier_epochs": 44,
+    "down_barrier_epochs": 12
+  },
+  "mixed_128_row_operator_ms": {
+    "wp17_control_range": [0.109856, 0.116192],
+    "candidate_range": [0.102976, 0.107872],
+    "operator_gate_signal": "positive"
+  },
+  "real_layer0_1024_ms": {
+    "final_wp17_control_median": 6.70003,
+    "candidate_median": 7.79501,
+    "candidate_latency_change_percent": 16.3429
+  },
+  "full_16k_max1_screen": {
+    "wp17_control_prompt_ms_median": 3205.86,
+    "candidate_prompt_ms_median": 3239.41,
+    "wp17_control_prefill_tokens_per_second": 5110.64,
+    "candidate_prefill_tokens_per_second": 5057.71,
+    "candidate_prefill_change_percent": -1.03568
+  },
+  "decision": "rejected because the isolated full-row signal did not survive real routing or full 16K prefill",
+  "raw_evidence": [
+    {"path": "artifacts/raw/trellis35/wp18-k64-matrix.log", "sha256": "79a522a72316f1ad4290817798ad0cee19006ff131b8d332911607b7089de2f3"},
+    {"path": "artifacts/raw/trellis35/wp18-k64-layer0-1024.txt", "sha256": "98c81ae06b5cc2c5205068ecb9521a4637102350f0fcc0958c33a0f69dc950e4"},
+    {"path": "artifacts/raw/trellis35/wp18-k64-prefill-screen.jsonl", "sha256": "e0afc3558e1af7004a347fd73072769f2d24e4daa6e7c07a0032185058dd2312"}
+  ]
+}

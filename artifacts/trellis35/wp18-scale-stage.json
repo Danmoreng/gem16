@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "work_packet": "WP18-A",
+  "status": "rejected_rolled_back",
+  "base_revision": "494e77c1b8f1e0682c2169a31a86a4561203e59d",
+  "candidate": "stage 64 activation scales once per M64 CTA in shared memory",
+  "correctness": {
+    "operator_matrix_bit_identical": true,
+    "maximum_absolute_difference": 0.0
+  },
+  "resources": {
+    "registers_per_thread": 64,
+    "shared_bytes": 38400,
+    "shared_bytes_delta": 256,
+    "spills": 0
+  },
+  "real_layer0_1024_ms": {
+    "wp17_control_median": 6.84646,
+    "candidate_median": 8.01504,
+    "candidate_latency_change_percent": 17.0684
+  },
+  "full_16k_max1_screen": {
+    "wp17_control_prompt_ms_median": 3205.86,
+    "candidate_prompt_ms_median": 3194.79,
+    "candidate_prefill_change_percent": 0.346502,
+    "interpretation": "within run-to-run noise and contradicted by the required kernel gate"
+  },
+  "decision": "rejected because the real 1024-token kernel did not win",
+  "raw_evidence": [
+    {"path": "artifacts/raw/trellis35/wp18-scale-stage-matrix.log", "sha256": "4c8a3720925cc0eef75d40a1137f8724b5e02faff0ecb44420c54259843a71a3"},
+    {"path": "artifacts/raw/trellis35/wp18-scale-stage-layer0-1024.txt", "sha256": "578696ac76a8f3476ca2023676f968cbf3497a472bc965aac92fc38d755922d9"},
+    {"path": "artifacts/raw/trellis35/wp18-scale-stage-baseline-layer0-1024.txt", "sha256": "0f0906e66430d2f6cff16222c14e829a4e327fac49a81ba019be7d489bad67be"},
+    {"path": "artifacts/raw/trellis35/wp18-scale-stage-prefill-screen.jsonl", "sha256": "0a459221816aca9d3e6f5b27d264f28503697d5ef1a5aac1b599441ecce4b9c3"},
+    {"path": "artifacts/raw/trellis35/wp18-scale-stage-baseline-prefill-screen.jsonl", "sha256": "cdf8312e0f22e40c19f85491736494860954d9a047d26b6a3db2a58c9a0cd32e"}
+  ]
+}
