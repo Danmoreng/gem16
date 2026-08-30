@@ -3,6 +3,7 @@
 #include "platform_process.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cctype>
 #include <chrono>
 #include <condition_variable>
@@ -16,6 +17,12 @@
 
 namespace gem16::studio {
 namespace {
+
+std::atomic<std::uint64_t> g_next_attachment_id{1};
+
+void AssignAttachmentId(MediaAttachment& attachment) {
+  attachment.id = g_next_attachment_id.fetch_add(1, std::memory_order_relaxed);
+}
 
 struct MediaType {
   MediaKind kind;
@@ -251,6 +258,7 @@ bool LoadMediaAttachment(const std::filesystem::path& path,
     std::string text;
     if (!ExtractPdf(normalized, text, error)) return false;
     attachment = {};
+    AssignAttachmentId(attachment);
     attachment.kind = MediaKind::kDocument;
     attachment.file_name = normalized.filename().string();
     attachment.mime_type = "application/pdf";
@@ -266,6 +274,7 @@ bool LoadMediaAttachment(const std::filesystem::path& path,
     return false;
   }
   attachment = {};
+  AssignAttachmentId(attachment);
   attachment.file_name = normalized.filename().string();
   attachment.byte_size = size;
   attachment.format = extension;

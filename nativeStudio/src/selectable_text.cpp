@@ -20,6 +20,7 @@ struct SelectionState {
   std::size_t anchor = 0;
   std::size_t caret = 0;
   bool dragging = false;
+  int keyboard_frame = -1;
 };
 
 struct ResolvedStyle {
@@ -271,13 +272,22 @@ void Wrapped(const char* id, const std::string& text, const Options& options) {
                          ImGuiButtonFlags_MouseButtonLeft |
                              ImGuiButtonFlags_MouseButtonRight);
   const ImGuiID item_id = ImGui::GetItemID();
-  const bool hovered = ImGui::IsItemHovered();
+  const bool grouped = options.selection_group != 0 &&
+                       options.selection_offset <= options.selection_text.size() &&
+                       text.size() <= options.selection_text.size() -
+                                          options.selection_offset;
+  const ImGuiID selection_id = grouped ? options.selection_group : item_id;
+  const std::string_view selection_text =
+      grouped ? options.selection_text : std::string_view(text);
+  const std::size_t selection_offset = grouped ? options.selection_offset : 0U;
+  const bool hovered = ImGui::IsItemHovered(
+      ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
 
   if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-    const std::size_t byte = ByteAtPoint(text, lines, font, font_size,
-                                         line_height, origin,
-                                         ImGui::GetMousePos());
-    g_selection.id = item_id;
+    const std::size_t byte = selection_offset +
+        ByteAtPoint(text, lines, font, font_size, line_height, origin,
+                    ImGui::GetMousePos());
+    g_selection.id = selection_id;
     if (ImGui::GetIO().KeyShift) {
       g_selection.caret = byte;
     } else {
@@ -285,16 +295,17 @@ void Wrapped(const char* id, const std::string& text, const Options& options) {
       g_selection.caret = byte;
     }
     if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-      const auto [begin, end] = WordRange(text, byte);
+      const auto [begin, end] = WordRange(selection_text, byte);
       g_selection.anchor = begin;
       g_selection.caret = end;
     }
     g_selection.dragging = true;
   }
-  if (g_selection.id == item_id && g_selection.dragging &&
+  if (g_selection.id == selection_id && g_selection.dragging && hovered &&
       ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
-    g_selection.caret = ByteAtPoint(text, lines, font, font_size, line_height,
-                                    origin, ImGui::GetMousePos());
+    g_selection.caret = selection_offset +
+        ByteAtPoint(text, lines, font, font_size, line_height, origin,
+                    ImGui::GetMousePos());
     const float mouse_y = ImGui::GetMousePos().y;
     if (mouse_y < window->InnerRect.Min.y + 18.0f)
       ImGui::SetScrollY(window, std::max(0.0f, window->Scroll.y - line_height));
@@ -303,31 +314,36 @@ void Wrapped(const char* id, const std::string& text, const Options& options) {
   }
   if (!ImGui::IsMouseDown(ImGuiMouseButton_Left)) g_selection.dragging = false;
 
-  if (g_selection.id == item_id) {
-    g_selection.anchor = std::min(g_selection.anchor, text.size());
-    g_selection.caret = std::min(g_selection.caret, text.size());
+  if (g_selection.id == selection_id) {
+    g_selection.anchor = std::min(g_selection.anchor, selection_text.size());
+    g_selection.caret = std::min(g_selection.caret, selection_text.size());
     const ImGuiIO& io = ImGui::GetIO();
-    if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_A)) {
-      g_selection.anchor = 0;
-      g_selection.caret = text.size();
-    }
-    if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_C)) CopySelection(text);
-    if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow))
-      MoveCaret(text, false, io.KeyShift);
-    if (ImGui::IsKeyPressed(ImGuiKey_RightArrow))
-      MoveCaret(text, true, io.KeyShift);
-    if (ImGui::IsKeyPressed(ImGuiKey_Home)) {
-      g_selection.caret = 0;
-      if (!io.KeyShift) g_selection.anchor = 0;
-    }
-    if (ImGui::IsKeyPressed(ImGuiKey_End)) {
-      g_selection.caret = text.size();
-      if (!io.KeyShift) g_selection.anchor = text.size();
+    if (g_selection.keyboard_frame != ImGui::GetFrameCount()) {
+      g_selection.keyboard_frame = ImGui::GetFrameCount();
+      if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_A)) {
+        g_selection.anchor = 0;
+        g_selection.caret = selection_text.size();
+      }
+      if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_C))
+        CopySelection(selection_text);
+      if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow))
+        MoveCaret(selection_text, false, io.KeyShift);
+      if (ImGui::IsKeyPressed(ImGuiKey_RightArrow))
+        MoveCaret(selection_text, true, io.KeyShift);
+      if (ImGui::IsKeyPressed(ImGuiKey_Home)) {
+        g_selection.caret = 0;
+        if (!io.KeyShift) g_selection.anchor = 0;
+      }
+      if (ImGui::IsKeyPressed(ImGuiKey_End)) {
+        g_selection.caret = selection_text.size();
+        if (!io.KeyShift) g_selection.anchor = selection_text.size();
+      }
     }
   }
 
   const auto [selection_begin, selection_end] =
-      NormalizedRange(g_selection.anchor, g_selection.caret, text.size());
+      NormalizedRange(g_selection.anchor, g_selection.caret,
+                      selection_text.size());
   ImDrawList* draw = ImGui::GetWindowDrawList();
   for (std::size_t index = 0; index < lines.size(); ++index) {
     const WrappedLine& line = lines[index];
@@ -344,10 +360,15 @@ void Wrapped(const char* id, const std::string& text, const Options& options) {
                           {x2 + 2.0f, position.y + font_size + 2.0f},
                           run.style.background_color, 3.0f);
     }
-    if (g_selection.id == item_id && selection_end > line.begin &&
-        selection_begin < line.end) {
-      const std::size_t begin = std::max(selection_begin, line.begin);
-      const std::size_t end = std::min(selection_end, line.end);
+    const std::size_t global_line_begin = selection_offset + line.begin;
+    const std::size_t global_line_end = selection_offset + line.end;
+    if (g_selection.id == selection_id &&
+        selection_end > global_line_begin &&
+        selection_begin < global_line_end) {
+      const std::size_t begin =
+          std::max(selection_begin, global_line_begin) - selection_offset;
+      const std::size_t end =
+          std::min(selection_end, global_line_end) - selection_offset;
       const float x1 = position.x + XAtByte(text, line, font, font_size, begin);
       const float x2 = position.x + XAtByte(text, line, font, font_size, end);
       draw->AddRectFilled({x1, position.y - 1.0f},
@@ -380,14 +401,17 @@ void Wrapped(const char* id, const std::string& text, const Options& options) {
   if (ImGui::BeginPopupContextItem()) {
     if (ImGui::MenuItem("Copy selection", "Ctrl+C",
                         false, selection_begin != selection_end)) {
-      CopySelection(text);
+      CopySelection(selection_text);
     }
     if (ImGui::MenuItem("Select all", "Ctrl+A")) {
-      g_selection.id = item_id;
+      g_selection.id = selection_id;
       g_selection.anchor = 0;
-      g_selection.caret = text.size();
+      g_selection.caret = selection_text.size();
     }
-    if (ImGui::MenuItem("Copy full text")) ImGui::SetClipboardText(text.c_str());
+    if (ImGui::MenuItem("Copy full text")) {
+      const std::string copy(selection_text);
+      ImGui::SetClipboardText(copy.c_str());
+    }
     ImGui::EndPopup();
   }
   if (hovered) ImGui::SetMouseCursor(ImGuiMouseCursor_TextInput);

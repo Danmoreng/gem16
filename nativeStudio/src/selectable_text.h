@@ -26,6 +26,11 @@ struct Options {
   ImU32 selection_color = IM_COL32(37, 132, 96, 190);
   float line_spacing = 3.0f;
   const std::vector<StyleSpan>* spans = nullptr;
+  // Widgets that share a group use one selection over selection_text. The
+  // offset maps this widget's local text into that shared string.
+  ImGuiID selection_group = 0;
+  std::string_view selection_text{};
+  std::size_t selection_offset = 0;
 };
 
 // Draws wrapped text with native desktop-style character selection. Selection

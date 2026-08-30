@@ -7,6 +7,8 @@
 
 namespace gem16::studio {
 
+inline constexpr std::uint64_t kMaximumRecordingSeconds = 30;
+
 class AudioRecorder final {
  public:
   AudioRecorder();
@@ -17,6 +19,8 @@ class AudioRecorder final {
   [[nodiscard]] bool Start(std::string& error);
   [[nodiscard]] bool Stop(MediaAttachment& attachment, std::string& error);
   [[nodiscard]] bool Recording() const;
+  [[nodiscard]] bool Active() const;
+  [[nodiscard]] std::uint64_t ElapsedMilliseconds() const;
 
  private:
   struct Impl;

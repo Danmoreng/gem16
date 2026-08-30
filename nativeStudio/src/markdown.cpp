@@ -269,7 +269,9 @@ std::vector<selectable_text::StyleSpan> DrawSpans(const Block& block) {
 }
 
 void DrawInline(const char* id, const Block& block, float width,
-                ImU32 text_color) {
+                ImU32 text_color, ImGuiID selection_group,
+                std::string_view selection_text,
+                std::size_t selection_offset) {
   const std::vector<selectable_text::StyleSpan> spans = DrawSpans(block);
   selectable_text::Wrapped(
       id, block.text,
@@ -277,7 +279,10 @@ void DrawInline(const char* id, const Block& block, float width,
        .text_color = text_color,
        .selection_color = IM_COL32(38, 144, 102, 205),
        .line_spacing = 3.0f,
-       .spans = &spans});
+       .spans = &spans,
+       .selection_group = selection_group,
+       .selection_text = selection_text,
+       .selection_offset = selection_offset});
 }
 
 }  // namespace
@@ -418,7 +423,21 @@ std::vector<Block> Parse(std::string_view source) {
 
 void Render(const char* id, const std::string& source, float width) {
   const std::vector<Block> blocks = Parse(source);
+  std::string selection_text;
+  std::vector<std::size_t> selection_offsets(blocks.size(), 0U);
+  bool has_selection_text = false;
+  for (std::size_t index = 0; index < blocks.size(); ++index) {
+    if (blocks[index].text.empty()) {
+      selection_offsets[index] = selection_text.size();
+      continue;
+    }
+    if (has_selection_text) selection_text.push_back('\n');
+    selection_offsets[index] = selection_text.size();
+    selection_text += blocks[index].text;
+    has_selection_text = true;
+  }
   ImGui::PushID(id);
+  const ImGuiID selection_group = ImGui::GetID("##markdown-selection");
   for (std::size_t index = 0; index < blocks.size(); ++index) {
     const Block& block = blocks[index];
     ImGui::PushID(static_cast<int>(index));
@@ -428,7 +447,8 @@ void Render(const char* id, const std::string& source, float width) {
         const float scales[] = {1.0f, 1.42f, 1.30f, 1.20f, 1.12f, 1.06f, 1.03f};
         ImGui::SetWindowFontScale(scales[std::clamp(block.level, 1, 6)]);
         DrawInline("##heading", block, available,
-                   ImGui::ColorConvertFloat4ToU32(kAccent));
+                   ImGui::ColorConvertFloat4ToU32(kAccent), selection_group,
+                   selection_text, selection_offsets[index]);
         ImGui::SetWindowFontScale(1.0f);
         break;
       }
@@ -453,7 +473,10 @@ void Render(const char* id, const std::string& source, float width) {
              .text_color = ImGui::ColorConvertFloat4ToU32(
                  {0.82f, 0.89f, 0.86f, 1.0f}),
              .selection_color = IM_COL32(38, 144, 102, 205),
-             .line_spacing = 4.0f});
+             .line_spacing = 4.0f,
+             .selection_group = selection_group,
+             .selection_text = selection_text,
+             .selection_offset = selection_offsets[index]});
         ImGui::EndChild();
         ImGui::PopStyleColor(2);
         break;
@@ -467,7 +490,8 @@ void Render(const char* id, const std::string& source, float width) {
         ImGui::SameLine(0, 7);
         DrawInline("##list-item", block,
                    std::max(40.0f, available - 30.0f),
-                   ImGui::GetColorU32(ImGuiCol_Text));
+                   ImGui::GetColorU32(ImGuiCol_Text), selection_group,
+                   selection_text, selection_offsets[index]);
         break;
       }
       case BlockKind::kQuote: {
@@ -475,7 +499,8 @@ void Render(const char* id, const std::string& source, float width) {
         ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 14.0f);
         DrawInline("##quote", block, std::max(40.0f, available - 14.0f),
                    ImGui::ColorConvertFloat4ToU32(
-                       {0.72f, 0.80f, 0.77f, 1.0f}));
+                       {0.72f, 0.80f, 0.77f, 1.0f}), selection_group,
+                   selection_text, selection_offsets[index]);
         ImGui::GetWindowDrawList()->AddRectFilled(
             rail, {rail.x + 3.0f, ImGui::GetItemRectMax().y},
             ImGui::ColorConvertFloat4ToU32(kAccent), 2.0f);
@@ -486,7 +511,8 @@ void Render(const char* id, const std::string& source, float width) {
         break;
       case BlockKind::kParagraph:
         DrawInline("##paragraph", block, available,
-                   ImGui::GetColorU32(ImGuiCol_Text));
+                   ImGui::GetColorU32(ImGuiCol_Text), selection_group,
+                   selection_text, selection_offsets[index]);
         break;
     }
     if (block.kind != BlockKind::kRule) ImGui::Dummy({0, 5.0f});
