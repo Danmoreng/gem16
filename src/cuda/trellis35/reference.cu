@@ -65,27 +65,6 @@ __device__ __forceinline__ unsigned TensorCoreIndex(unsigned row,
   return thread * 8U + offset;
 }
 
-__device__ __forceinline__ std::uint16_t PackedWord(
-    const std::uint16_t* payload, unsigned original_word) {
-  return payload[original_word ^ 1U];
-}
-
-template <int Rate>
-__device__ __forceinline__ unsigned BranchAt(const std::uint16_t* payload,
-                                              unsigned position) {
-  const unsigned span = position >> 4U;
-  const unsigned element = position & 15U;
-  std::uint64_t bits = 0U;
-#pragma unroll
-  for (unsigned word = 0U; word < Rate; ++word) {
-    bits = (bits << 16U) |
-           static_cast<std::uint64_t>(
-               PackedWord(payload, span * Rate + word));
-  }
-  return static_cast<unsigned>(
-      (bits >> (Rate * (15U - element))) & ((1U << Rate) - 1U));
-}
-
 template <int Rate>
 __device__ __forceinline__ half DecodeWeight(
     const std::byte* pool, std::uint32_t pool_offset,
@@ -93,19 +72,87 @@ __device__ __forceinline__ half DecodeWeight(
     std::uint64_t input, std::uint64_t output) {
   const std::uint64_t tile_columns = output_elements / 16U;
   const std::uint64_t tile = (input / 16U) * tile_columns + output / 16U;
-  const auto* payload = reinterpret_cast<const std::uint16_t*>(
+  const auto* payload = reinterpret_cast<const std::uint32_t*>(
       pool + pool_offset + tile * 32U * Rate);
   const unsigned position =
       TensorCoreIndex(static_cast<unsigned>(input & 15U),
                       static_cast<unsigned>(output & 15U));
-  std::uint32_t state = 0U;
-#pragma unroll
-  for (unsigned history = 0U; history < (16U + Rate - 1U) / Rate;
-       ++history) {
-    const unsigned prior = (position + 256U - history) & 255U;
-    state |= BranchAt<Rate>(payload, prior) << (Rate * history);
-  }
+
+  // The compiler swaps adjacent U16 words so a little-endian U32 load sees
+  // the original MSW-first packed branch stream. Extract the complete
+  // tail-biting 16-bit state from the two U32 words that straddle its bit
+  // window instead of reloading every historical branch independently.
+  // This is the bounded cb2 adaptation of ExLlamaV3 exl3_dq.cuh::dq.
+  constexpr int kPayloadWords = Rate * 256 / 32;
+  const int bit_begin = static_cast<int>(position) * Rate + Rate - 16 +
+                        256 * Rate;
+  const int bit_end = bit_begin + 16;
+  const int first_word = bit_begin / 32;
+  const int last_word = (bit_end - 1) / 32;
+  const int shift = (last_word + 1) * 32 - bit_end;
+  const std::uint32_t first = payload[first_word % kPayloadWords];
+  const std::uint32_t last = payload[last_word % kPayloadWords];
+  const std::uint32_t state = __funnelshift_r(last, first, shift) & 0xffffU;
   return decode_3inst<2>(state & 0xffffU);
+}
+
+template <int Rate>
+__device__ __forceinline__ half2 DecodeAdjacentStates(
+    std::uint32_t lane_payload_word, unsigned first_position) {
+  constexpr int kPayloadWords = Rate * 256 / 32;
+  const int bit_begin = static_cast<int>(first_position) * Rate + Rate - 16 +
+                        256 * Rate;
+  const int bit_end =
+      (static_cast<int>(first_position) + 1) * Rate + Rate + 256 * Rate;
+  const int first_word = bit_begin / 32;
+  const int last_word = (bit_end - 1) / 32;
+  const int shift = (last_word + 1) * 32 - bit_end;
+  const std::uint32_t first = __shfl_sync(
+      0xffffffffU, lane_payload_word, first_word % kPayloadWords);
+  const std::uint32_t last = __shfl_sync(
+      0xffffffffU, lane_payload_word, last_word % kPayloadWords);
+  const std::uint64_t merged =
+      (static_cast<std::uint64_t>(first) << 32U) | last;
+  const std::uint32_t state0 =
+      static_cast<std::uint32_t>(merged >> (shift + Rate)) & 0xffffU;
+  const std::uint32_t state1 =
+      static_cast<std::uint32_t>(merged >> shift) & 0xffffU;
+  return decode_3inst_2<2>(state0, state1);
+}
+
+template <int Rate>
+__device__ __forceinline__ std::uint32_t DecodeLanePayloadE4M3x4(
+    std::uint32_t lane_payload_word, unsigned position) {
+  const half2 first_pair =
+      DecodeAdjacentStates<Rate>(lane_payload_word, position);
+  const half2 second_pair =
+      DecodeAdjacentStates<Rate>(lane_payload_word, position + 8U);
+  const __nv_fp8_e4m3 value0(__half2float(__low2half(first_pair)));
+  const __nv_fp8_e4m3 value1(__half2float(__high2half(first_pair)));
+  const __nv_fp8_e4m3 value2(__half2float(__low2half(second_pair)));
+  const __nv_fp8_e4m3 value3(__half2float(__high2half(second_pair)));
+  const std::uint32_t packed =
+      static_cast<std::uint32_t>(value0.__x) |
+      (static_cast<std::uint32_t>(value1.__x) << 8U) |
+      (static_cast<std::uint32_t>(value2.__x) << 16U) |
+      (static_cast<std::uint32_t>(value3.__x) << 24U);
+  return packed;
+}
+
+template <int Rate>
+__device__ __forceinline__ std::uint32_t LoadLanePayloadWord(
+    const std::byte* pool, std::uint32_t pool_offset,
+    std::uint64_t output_elements, std::uint64_t input,
+    std::uint64_t output) {
+  constexpr unsigned kPayloadWords = Rate * 256U / 32U;
+  const unsigned lane = threadIdx.x & 31U;
+  if (lane >= kPayloadWords) return 0U;
+  const std::uint64_t tile_columns = output_elements / 16U;
+  const std::uint64_t tile =
+      (input / 16U) * tile_columns + output / 16U;
+  const auto* payload = reinterpret_cast<const std::uint32_t*>(
+      pool + pool_offset + tile * 32U * Rate);
+  return payload[lane];
 }
 
 template <int Rate>
@@ -113,16 +160,13 @@ __device__ __forceinline__ std::uint32_t DecodeWeightE4M3x4(
     const std::byte* pool, std::uint32_t pool_offset,
     std::uint64_t input_elements, std::uint64_t output_elements,
     std::uint64_t input, std::uint64_t output) {
-  std::uint32_t packed = 0U;
-#pragma unroll
-  for (unsigned index = 0U; index < 4U; ++index) {
-    const half decoded = DecodeWeight<Rate>(
-        pool, pool_offset, input_elements, output_elements, input + index,
-        output);
-    const __nv_fp8_e4m3 value(__half2float(decoded));
-    packed |= static_cast<std::uint32_t>(value.__x) << (index * 8U);
-  }
-  return packed;
+  (void)input_elements;
+  const std::uint32_t lane_payload_word = LoadLanePayloadWord<Rate>(
+      pool, pool_offset, output_elements, input, output);
+  const unsigned position =
+      TensorCoreIndex(static_cast<unsigned>(input & 15U),
+                      static_cast<unsigned>(output & 15U));
+  return DecodeLanePayloadE4M3x4<Rate>(lane_payload_word, position);
 }
 
 struct Fp8Accumulator {
@@ -152,6 +196,139 @@ __device__ __forceinline__ void AccumulateFp8(
   (void)b1;
   (void)accumulator;
 #endif
+}
+
+template <int Rate>
+__device__ __forceinline__ void AccumulateSelectedProjectionM1(
+    const std::uint8_t* activation, const std::byte* pool,
+    std::uint32_t pool_offset, std::uint64_t input_elements,
+    std::uint64_t output_elements, std::uint64_t source_output,
+    Fp8Accumulator& accumulator) {
+  constexpr unsigned kPrefetch = 4U;
+  constexpr unsigned kPayloadWords = Rate * 256U / 32U;
+  const unsigned lane = threadIdx.x & 31U;
+  const std::uint64_t tile_columns = output_elements / 16U;
+  const std::uint64_t output_tile = source_output / 16U;
+  const auto* payload = reinterpret_cast<const std::uint32_t*>(
+      pool + pool_offset);
+  const unsigned iterations = static_cast<unsigned>(input_elements / 32U);
+  const unsigned k_quarter = lane & 3U;
+  const unsigned position = TensorCoreIndex(
+      k_quarter * 4U, static_cast<unsigned>(source_output & 15U));
+
+  auto load_word = [&](unsigned input_tile) {
+    if (lane >= kPayloadWords) return std::uint32_t{0U};
+    const std::uint64_t tile =
+        static_cast<std::uint64_t>(input_tile) * tile_columns + output_tile;
+    return payload[tile * kPayloadWords + lane];
+  };
+
+  std::uint32_t prefetched0[kPrefetch]{};
+  std::uint32_t prefetched1[kPrefetch]{};
+#pragma unroll
+  for (unsigned depth = 0U; depth < kPrefetch; ++depth) {
+    if (depth < iterations) {
+      prefetched0[depth] = load_word(depth * 2U);
+      prefetched1[depth] = load_word(depth * 2U + 1U);
+    }
+  }
+
+  for (unsigned base = 0U; base < iterations; base += kPrefetch) {
+#pragma unroll
+    for (unsigned depth = 0U; depth < kPrefetch; ++depth) {
+      const unsigned iteration = base + depth;
+      if (iteration >= iterations) break;
+      const std::uint32_t lane_word0 = prefetched0[depth];
+      const std::uint32_t lane_word1 = prefetched1[depth];
+      if (iteration + kPrefetch < iterations) {
+        prefetched0[depth] = load_word((iteration + kPrefetch) * 2U);
+        prefetched1[depth] =
+            load_word((iteration + kPrefetch) * 2U + 1U);
+      }
+      const std::uint64_t first =
+          static_cast<std::uint64_t>(iteration) * 32U + k_quarter * 4U;
+      const std::uint32_t a0 =
+          *reinterpret_cast<const std::uint32_t*>(activation + first);
+      const std::uint32_t a1 =
+          *reinterpret_cast<const std::uint32_t*>(activation + first + 16U);
+      const std::uint32_t b0 =
+          DecodeLanePayloadE4M3x4<Rate>(lane_word0, position);
+      const std::uint32_t b1 =
+          DecodeLanePayloadE4M3x4<Rate>(lane_word1, position);
+      AccumulateFp8(a0, a1, b0, b1, accumulator);
+    }
+  }
+}
+
+template <int Rate, unsigned MaximumRows>
+__device__ __forceinline__ void AccumulateGroupedProjection(
+    const std::uint8_t* activation, const unsigned* assignments,
+    unsigned assignment_count, const std::byte* pool,
+    std::uint32_t pool_offset, std::uint64_t input_elements,
+    std::uint64_t output_elements, std::uint64_t source_output,
+    Fp8Accumulator (&accumulators)[MaximumRows]) {
+  constexpr unsigned kPrefetch = 4U;
+  constexpr unsigned kPayloadWords = Rate * 256U / 32U;
+  const unsigned lane = threadIdx.x & 31U;
+  const std::uint64_t tile_columns = output_elements / 16U;
+  const std::uint64_t output_tile = source_output / 16U;
+  const auto* payload = reinterpret_cast<const std::uint32_t*>(
+      pool + pool_offset);
+  const unsigned iterations = static_cast<unsigned>(input_elements / 32U);
+  const unsigned k_quarter = lane & 3U;
+  const unsigned position = TensorCoreIndex(
+      k_quarter * 4U, static_cast<unsigned>(source_output & 15U));
+
+  auto load_word = [&](unsigned input_tile) {
+    if (lane >= kPayloadWords) return std::uint32_t{0U};
+    const std::uint64_t tile =
+        static_cast<std::uint64_t>(input_tile) * tile_columns + output_tile;
+    return payload[tile * kPayloadWords + lane];
+  };
+
+  std::uint32_t prefetched0[kPrefetch]{};
+  std::uint32_t prefetched1[kPrefetch]{};
+#pragma unroll
+  for (unsigned depth = 0U; depth < kPrefetch; ++depth) {
+    if (depth < iterations) {
+      prefetched0[depth] = load_word(depth * 2U);
+      prefetched1[depth] = load_word(depth * 2U + 1U);
+    }
+  }
+
+  for (unsigned base = 0U; base < iterations; base += kPrefetch) {
+#pragma unroll
+    for (unsigned depth = 0U; depth < kPrefetch; ++depth) {
+      const unsigned iteration = base + depth;
+      if (iteration >= iterations) break;
+      const std::uint32_t lane_word0 = prefetched0[depth];
+      const std::uint32_t lane_word1 = prefetched1[depth];
+      if (iteration + kPrefetch < iterations) {
+        prefetched0[depth] = load_word((iteration + kPrefetch) * 2U);
+        prefetched1[depth] =
+            load_word((iteration + kPrefetch) * 2U + 1U);
+      }
+      const std::uint64_t first =
+          static_cast<std::uint64_t>(iteration) * 32U + k_quarter * 4U;
+      const std::uint32_t b0 =
+          DecodeLanePayloadE4M3x4<Rate>(lane_word0, position);
+      const std::uint32_t b1 =
+          DecodeLanePayloadE4M3x4<Rate>(lane_word1, position);
+#pragma unroll
+      for (unsigned index = 0U; index < MaximumRows; ++index) {
+        if (index < assignment_count) {
+          const std::uint8_t* assignment_activation =
+              activation +
+              static_cast<std::uint64_t>(assignments[index]) * input_elements;
+          const std::uint32_t a0 = *reinterpret_cast<const std::uint32_t*>(
+              assignment_activation + first);
+          const std::uint32_t a1 = *reinterpret_cast<const std::uint32_t*>(
+              assignment_activation + first + 16U);
+          AccumulateFp8(a0, a1, b0, b1, accumulators[index]);
+        }
+      }
+    }
+  }
 }
 
 __global__ void InputTransformKernel(const float* input,
@@ -222,32 +399,15 @@ __global__ void MmaW4A8ProjectionSelectedKernel(
                               : family.k4_payload_pool;
   activation += static_cast<std::uint64_t>(slot) * input_elements;
   output += static_cast<std::uint64_t>(slot) * output_elements;
-  const std::uint64_t k_quarter = lane & 3U;
-
   Fp8Accumulator accumulator;
-  for (std::uint64_t k = 0U; k < input_elements; k += 32U) {
-    const std::uint64_t first = k + k_quarter * 4U;
-    const std::uint32_t a0 =
-        *reinterpret_cast<const std::uint32_t*>(activation + first);
-    const std::uint32_t a1 =
-        *reinterpret_cast<const std::uint32_t*>(activation + first + 16U);
-    const std::uint32_t b0 =
-        descriptor.rate_bits == 3U
-            ? DecodeWeightE4M3x4<3>(
-                  pool, descriptor.pool_offset, input_elements,
-                  output_elements, first, source_output)
-            : DecodeWeightE4M3x4<4>(
-                  pool, descriptor.pool_offset, input_elements,
-                  output_elements, first, source_output);
-    const std::uint32_t b1 =
-        descriptor.rate_bits == 3U
-            ? DecodeWeightE4M3x4<3>(
-                  pool, descriptor.pool_offset, input_elements,
-                  output_elements, first + 16U, source_output)
-            : DecodeWeightE4M3x4<4>(
-                  pool, descriptor.pool_offset, input_elements,
-                  output_elements, first + 16U, source_output);
-    AccumulateFp8(a0, a1, b0, b1, accumulator);
+  if (descriptor.rate_bits == 3U) {
+    AccumulateSelectedProjectionM1<3>(
+        activation, pool, descriptor.pool_offset, input_elements,
+        output_elements, source_output, accumulator);
+  } else {
+    AccumulateSelectedProjectionM1<4>(
+        activation, pool, descriptor.pool_offset, input_elements,
+        output_elements, source_output, accumulator);
   }
 
   if (lane < 4U) {
@@ -307,40 +467,17 @@ __global__ void MmaW4A8ProjectionGroupedT3Kernel(
   const std::byte* pool = descriptor.rate_bits == 3U
                               ? family.k3_payload_pool
                               : family.k4_payload_pool;
-  const std::uint64_t k_quarter = lane & 3U;
   Fp8Accumulator accumulators[kTrellis35T3Rows]{};
-
-  for (std::uint64_t k = 0U; k < input_elements; k += 32U) {
-    const std::uint64_t first = k + k_quarter * 4U;
-    const std::uint32_t b0 =
-        descriptor.rate_bits == 3U
-            ? DecodeWeightE4M3x4<3>(
-                  pool, descriptor.pool_offset, input_elements,
-                  output_elements, first, source_output)
-            : DecodeWeightE4M3x4<4>(
-                  pool, descriptor.pool_offset, input_elements,
-                  output_elements, first, source_output);
-    const std::uint32_t b1 =
-        descriptor.rate_bits == 3U
-            ? DecodeWeightE4M3x4<3>(
-                  pool, descriptor.pool_offset, input_elements,
-                  output_elements, first + 16U, source_output)
-            : DecodeWeightE4M3x4<4>(
-                  pool, descriptor.pool_offset, input_elements,
-                  output_elements, first + 16U, source_output);
-#pragma unroll
-    for (unsigned index = 0U; index < kTrellis35T3Rows; ++index) {
-      if (index < assignment_count) {
-        const std::uint8_t* assignment_activation =
-            activation +
-            static_cast<std::uint64_t>(assignments[index]) * input_elements;
-        const std::uint32_t a0 = *reinterpret_cast<const std::uint32_t*>(
-            assignment_activation + first);
-        const std::uint32_t a1 = *reinterpret_cast<const std::uint32_t*>(
-            assignment_activation + first + 16U);
-        AccumulateFp8(a0, a1, b0, b1, accumulators[index]);
-      }
-    }
+  if (descriptor.rate_bits == 3U) {
+    AccumulateGroupedProjection<3, kTrellis35T3Rows>(
+        activation, assignments, assignment_count, pool,
+        descriptor.pool_offset, input_elements, output_elements, source_output,
+        accumulators);
+  } else {
+    AccumulateGroupedProjection<4, kTrellis35T3Rows>(
+        activation, assignments, assignment_count, pool,
+        descriptor.pool_offset, input_elements, output_elements, source_output,
+        accumulators);
   }
 
   if (lane < 4U) {
@@ -620,39 +757,17 @@ __global__ void MmaW4A8ProjectionGroupedPrefillTileKernel(
   const std::byte* pool = descriptor.rate_bits == 3U
                               ? family.k3_payload_pool
                               : family.k4_payload_pool;
-  const std::uint64_t k_quarter = lane & 3U;
   Fp8Accumulator accumulators[kPrefillRowsPerTile]{};
-  for (std::uint64_t k = 0U; k < input_elements; k += 32U) {
-    const std::uint64_t first = k + k_quarter * 4U;
-    const std::uint32_t b0 =
-        descriptor.rate_bits == 3U
-            ? DecodeWeightE4M3x4<3>(
-                  pool, descriptor.pool_offset, input_elements,
-                  output_elements, first, source_output)
-            : DecodeWeightE4M3x4<4>(
-                  pool, descriptor.pool_offset, input_elements,
-                  output_elements, first, source_output);
-    const std::uint32_t b1 =
-        descriptor.rate_bits == 3U
-            ? DecodeWeightE4M3x4<3>(
-                  pool, descriptor.pool_offset, input_elements,
-                  output_elements, first + 16U, source_output)
-            : DecodeWeightE4M3x4<4>(
-                  pool, descriptor.pool_offset, input_elements,
-                  output_elements, first + 16U, source_output);
-#pragma unroll
-    for (unsigned index = 0U; index < kPrefillRowsPerTile; ++index) {
-      if (index < assignment_count) {
-        const std::uint8_t* assignment_activation =
-            activation +
-            static_cast<std::uint64_t>(assignments[index]) * input_elements;
-        const std::uint32_t a0 = *reinterpret_cast<const std::uint32_t*>(
-            assignment_activation + first);
-        const std::uint32_t a1 = *reinterpret_cast<const std::uint32_t*>(
-            assignment_activation + first + 16U);
-        AccumulateFp8(a0, a1, b0, b1, accumulators[index]);
-      }
-    }
+  if (descriptor.rate_bits == 3U) {
+    AccumulateGroupedProjection<3, kPrefillRowsPerTile>(
+        activation, assignments, assignment_count, pool,
+        descriptor.pool_offset, input_elements, output_elements, source_output,
+        accumulators);
+  } else {
+    AccumulateGroupedProjection<4, kPrefillRowsPerTile>(
+        activation, assignments, assignment_count, pool,
+        descriptor.pool_offset, input_elements, output_elements, source_output,
+        accumulators);
   }
   if (lane < 4U) {
     const std::uint64_t column =

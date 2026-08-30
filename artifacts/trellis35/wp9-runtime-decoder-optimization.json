@@ -1,0 +1,127 @@
+{
+  "schema_version": 1,
+  "work_packet": "WP9",
+  "status": "complete_first_performance_pass",
+  "base_commit": "e4ae33e738be57d360f3f65cda69e98efa4dc904",
+  "hardware": {
+    "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "vram_mib": 16303,
+    "driver": "610.43.03",
+    "cuda_compiler": "13.3.73"
+  },
+  "artifact": {
+    "path": "models/checkpoints/google-gemma-4-26b-a4b-it-trellis35-w4a8-wp2",
+    "content_sha256": "39183e2c7a1bd04c87a8f5bb5887453f8e92a3980bb507fd06d6252a6439c9f0",
+    "weight_arena_bytes": 12204692480,
+    "persistent_payload_bpw": 3.5
+  },
+  "implementation": [
+    "replace repeated branch-history reconstruction with a direct two-U32 tail-biting state window",
+    "decode adjacent states with decode_3inst_2 and pack E4M3 values in pairs",
+    "load one payload word per active warp lane and distribute required words with warp shuffles",
+    "prefetch four Trellis payload iterations in the M1 and grouped T3/prefill accumulators",
+    "hoist the K3/K4 rate dispatch outside the K loop"
+  ],
+  "correctness": {
+    "randomized_mixed_k3_k4_max_abs": 1.19209e-07,
+    "randomized_mixed_k3_k4_max_rel": 1.10783e-07,
+    "randomized_mixed_k3_k4_mismatches": 0,
+    "independent_cpu_oracle_mismatches": 0,
+    "m1_slot_order_bit_mismatches": 0,
+    "t3_zero_typical_maximal_overlap_mismatches": 0,
+    "prefill_assignment_and_reduction_mismatches": 0,
+    "fixed_d2_ordinary_target_identity": true,
+    "fixed_d2_non_finite_steps": 0,
+    "bounded_512_output_hash_unchanged": true,
+    "bounded_512_output_token_sha256": "f19c52bcd74b968b1ad99162e6c854060978249c8b5b143eade6380ef3c22169",
+    "fallback_count": 0,
+    "recurring_allocation_count": 0
+  },
+  "performance": {
+    "bounded_512x16": {
+      "baseline_prompt_ms": 2449.36898,
+      "optimized_prompt_ms": 506.73902,
+      "prompt_speedup": 4.833591,
+      "baseline_decode_tokens_per_second": 39.0845608936,
+      "optimized_decode_tokens_per_second": 123.438704067,
+      "decode_speedup": 3.158247,
+      "profiled_optimized_prompt_ms": 513.82992,
+      "profiled_optimized_decode_tokens_per_second": 120.755647301
+    },
+    "real_16384x64": {
+      "prompt_ms": 17226.804888,
+      "prefill_tokens_per_second": 951.07596,
+      "decode_tokens_per_second": 119.435704968,
+      "peak_device_used_bytes": 12897288192,
+      "device_margin_bytes": 3754754048,
+      "output_token_sha256": "c322ca1301550d194f4b5f2d6e54e0c17a998ef68e3052c039729aba1865068b"
+    },
+    "fixed_d2_t3_16384x64": {
+      "status": "diagnostic_transactional_batch_verifier_pass",
+      "draft_length": 2,
+      "fixed_chain": true,
+      "verifier_backend": "exact-shared-batched-moe",
+      "proposed_drafts": 50,
+      "accepted_drafts": 38,
+      "acceptance": 0.76,
+      "precision_gate_50_percent_pass": true,
+      "ordinary_target_identity": true,
+      "batched_group_tokens_per_second": 168.507588894,
+      "hybrid_tokens_per_second": 85.1603376016,
+      "ordinary_post_first_tokens_per_second": 115.564660893,
+      "initial_selection_seconds": 0.377650482,
+      "performance_eligible": false,
+      "qualification_scope": "single bounded functional and performance characterization; formal retained multi-sample qualification remains deferred"
+    }
+  },
+  "profiling": {
+    "m1_projection_kernel": {
+      "baseline_duration_us": 734.02,
+      "optimized_duration_us": 73.15,
+      "kernel_speedup": 10.03445,
+      "baseline_l1_bytes": 1880000000,
+      "optimized_l1_bytes": 35950000,
+      "optimized_l2_bytes": 14840000,
+      "baseline_registers_per_thread": 40,
+      "optimized_registers_per_thread": 48
+    },
+    "final_512_prefill_gpu_time_percent": {
+      "grouped_trellis_projection": 63.3,
+      "activation_transform_scale": 8.3,
+      "activation_transform_quantize": 8.2,
+      "output_inverse_transform": 6.9,
+      "bf16_transform_scale": 2.3,
+      "bf16_transform_quantize": 2.2
+    },
+    "diagnosis": "Prefill remains dominated by reconstructing the persistent Trellis payload separately for small row groups. Decode is now much closer to the current NVFP4 parent than prefill. Fixed-D2 gains substantially inside its batched T3 verifier, but end-to-end throughput is diluted by initial selection and the surrounding Assistant/Target chain."
+  },
+  "rejected_candidate": {
+    "name": "prefill_rows_per_tile_8",
+    "baseline_prompt_ms": 506.73902,
+    "candidate_prompt_ms": 623.913,
+    "regression_percent": 23.122,
+    "reason": "higher per-warp row reuse increased register pressure and reduced throughput",
+    "reverted": true
+  },
+  "verification": {
+    "build": "cmake --build build/blackwell-release -j2: passed",
+    "ctest": "13/13 passed; three fixture-dependent product tests reported expected skips",
+    "python_unittest": "33/33 Trellis35 tests passed",
+    "compute_sanitizer_memcheck": "0 errors",
+    "compute_sanitizer_racecheck": "0 hazards, 0 errors, 0 warnings"
+  },
+  "raw_evidence": {
+    "baseline_512x16_sha256": "5084d5c48524fad35e23c1bd3a895b91ffd00039fc2ef509a8e4c546aec1a3cb",
+    "optimized_512x16_sha256": "02f45b930ba9f4f088ccca49c8b18a10c5ff806fffdffbe0ff1e62ed69882afb",
+    "final_profile_result_sha256": "26f9897607971c16ec3e565f399a4a5ae417245241a0bf22ac4e3aed9cb8b302",
+    "final_profile_kernel_csv_sha256": "f52e30e03f836920919ae14d34271372c0d615aaf5bbf0d75cecf7cdaf1d6c51",
+    "real_16k64_sha256": "4482416b506d18836e960af49d1b0340c6c06c89d26301b2f3d64a68f1ba5dc5",
+    "fixed_d2_16k64_sha256": "c2645c996a20f4f30c641077ef0d8de4601eeaa6269deb27fcc72c5e065926bd"
+  },
+  "limitations": [
+    "The performance figures are diagnostic single runs, not retained publication medians.",
+    "WP8B long-context and task quality evaluation remains intentionally deferred until performance is materially better.",
+    "The optimized W4A8 prefill path remains about 7.3 times slower than the approximately 6966 tok/s NVFP4 parent reference.",
+    "The implementation remains experimental and is not a qualified product path."
+  ]
+}

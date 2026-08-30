@@ -34,6 +34,7 @@ primitives from the pinned sources:
 | procedural codebooks | `exllamav3/exllamav3_ext/quant/codebook.cuh` | `0e3c63b323f8d3cc15c6a8f2e2b3816efafd71e149a99997b30b2f806375138a` |
 | tail-biting Viterbi recurrence | `exllamav3/exllamav3_ext/quant/quantize_tiles_kernel.cuh` | `85a9ab6295362212f3c6edc990cb6edb57c77a7b5473fe89b5109fdf57c28bfa` |
 | 128-wide Hadamard reconstruction contract | `exllamav3/exllamav3_ext/quant/hadamard_inner.cuh` | `63ca981a4a706924b4ab87047a903bc51ed86d6abe713b8d8034d8812d3467f3` |
+| two-word runtime trellis state extraction | `exllamav3/exllamav3_ext/quant/exl3_dq.cuh` | `7e3009b0f70635e8a98edf8b929832ca0fe16b6a5ad20f13b77ebfa72723feac` |
 
 The CPU implementation additionally validates tail-biting state consistency
 before packing. Upstream masks the low K bits because its encoder already
@@ -47,6 +48,12 @@ other (step-254) buffer. This affects the K3 golden fixture and is therefore
 part of the reproducible v1 producer contract, irrespective of whether a
 later producer revision elects to correct it together with an explicit
 format/compiler version change.
+
+WP9 ports only the bounded two-word bit-window calculation from upstream
+`exl3_dq.cuh::dq` into Gem16's mixed-K3/K4 cb2 runtime decoder.  Gem16 retains
+its own tensor-core coordinate mapping, E4M3 conversion, SM120 MMA, expert
+dispatch, fused Gate+Up shape, and caller-owned workspace.  No upstream runtime
+dependency or full EXL3 operator is introduced.
 
 ## Reviewed for later work, not yet ported
 

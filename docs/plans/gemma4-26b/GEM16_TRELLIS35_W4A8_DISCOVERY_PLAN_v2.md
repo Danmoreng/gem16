@@ -705,6 +705,34 @@ execution order after the three 16K retrieval cases because running the large
 suite at roughly 212 prompt tok/s and 38–40 decode tok/s would consume many
 hours on an implementation already known to need optimization.
 
+### WP9 — first performance pass (complete 2026-08-30)
+
+The first evidence-led optimization pass replaced repeated branch-history
+loads with direct two-word tail-biting state extraction, paired state decode,
+warp-shared payload words, and four-deep payload prefetch.  It preserved the
+single mixed-K3/K4 persistent artifact and the W4A8 compute contract.
+
+On the bounded 512 x 16 workload, prompt time fell from 2449.37 ms to
+506.74 ms and ordinary decode rose from 39.08 to 123.44 tok/s with the exact
+same output-token hash.  On the real 16K x 64 workload, the path reached
+951.09 prefill tok/s and 119.44 ordinary decode tok/s.  A bounded Fixed-D2 T3
+run passed exact ordinary-Target identity and the frozen 50% precision gate,
+accepted 38/50 drafts, reached 168.51 tok/s inside the batched verifier, and
+85.16 tok/s end to end.
+
+The final profiler still attributes 63.3% of GPU time to grouped Trellis
+prefill projection and another 21.0% to activation/output transforms.  An
+eight-row reuse candidate regressed prompt time by 23.1% and was reverted.
+The next performance design should therefore address large-M reconstruction
+amortization and transform fusion rather than merely increasing per-thread
+row accumulators.  Full evidence is retained in
+`artifacts/trellis35/wp9-runtime-decoder-optimization.json`.
+
+Per the owner decision, WP8B remains deferred until another reviewed
+performance plan materially improves the current path.  A dedicated external
+review request is retained in
+`docs/plans/gemma4-26b/CHATGPT_PRO_TRELLIS35_PERFORMANCE_REVIEW_2026-08-30.md`.
+
 ---
 
 ## 10. Discovery performance policy
