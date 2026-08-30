@@ -49,6 +49,115 @@ __device__ __forceinline__ const float* PrefillAssignmentInput(
   return input + row * input_stride;
 }
 
+struct PrefillFloatInputPolicy {
+  const float* input;
+  std::uint64_t tokens;
+  std::uint64_t input_stride;
+  bool token_major_input;
+
+  __device__ __forceinline__ const float* AssignmentInput(
+      const Gemma4MoePrefillAssignment& assignment,
+      unsigned assignment_index) const {
+    return PrefillAssignmentInput(input, assignment, assignment_index,
+                                  input_stride, token_major_input, tokens);
+  }
+
+  __device__ __forceinline__ float Load(const float* row,
+                                        std::uint64_t index) const {
+    return row[index];
+  }
+};
+
+struct PrefillBf16InputPolicy {
+  const std::uint16_t* input;
+  std::uint64_t input_stride;
+
+  __device__ __forceinline__ const std::uint16_t* AssignmentInput(
+      const Gemma4MoePrefillAssignment& assignment,
+      unsigned assignment_index) const {
+    if (assignment.expert_id >= kTrellis35ExpertCount) return nullptr;
+    return input + static_cast<std::uint64_t>(assignment_index) * input_stride;
+  }
+
+  __device__ __forceinline__ float Load(const std::uint16_t* row,
+                                        std::uint64_t index) const {
+    return Bf16(row[index]);
+  }
+};
+
+template <unsigned PhysicalElements, typename InputPolicy>
+__global__ void PrefillTransformQuantizeWarpKernel(
+    InputPolicy policy, const std::uint16_t* all_suh,
+    const Gemma4MoePrefillAssignment* assignments, float* scales,
+    std::uint8_t* output, std::uint64_t assignment_count,
+    std::uint64_t logical_elements) {
+  static_assert(PhysicalElements % 128U == 0U);
+  const unsigned assignment_index = blockIdx.x;
+  if (assignment_index >= assignment_count) return;
+  const auto assignment = assignments[assignment_index];
+  const auto* assignment_input =
+      policy.AssignmentInput(assignment, assignment_index);
+  const bool valid = assignment_input != nullptr &&
+                     assignment.expert_id < kTrellis35ExpertCount;
+  const std::uint16_t* suh =
+      valid ? all_suh + static_cast<std::uint64_t>(assignment.expert_id) *
+                            PhysicalElements
+            : nullptr;
+
+  __shared__ float transformed[PhysicalElements];
+  __shared__ float warp_maxima[8];
+  const unsigned warp = threadIdx.x >> 5U;
+  const unsigned lane = threadIdx.x & 31U;
+  constexpr unsigned kH128Blocks = PhysicalElements / 128U;
+  float local_maximum = 0.0F;
+  for (unsigned block = warp; block < kH128Blocks; block += 8U) {
+    const std::uint64_t base =
+        static_cast<std::uint64_t>(block) * 128U + lane * 4U;
+    float values[4];
+#pragma unroll
+    for (unsigned element = 0U; element < 4U; ++element) {
+      const std::uint64_t index = base + element;
+      values[element] =
+          valid && index < logical_elements
+              ? policy.Load(assignment_input, index) * F16(suh + index)
+              : 0.0F;
+    }
+    H128Warp(values);
+#pragma unroll
+    for (unsigned element = 0U; element < 4U; ++element) {
+      transformed[base + element] = values[element];
+      local_maximum = fmaxf(local_maximum, fabsf(values[element]));
+    }
+  }
+  for (unsigned offset = 16U; offset != 0U; offset >>= 1U) {
+    local_maximum = fmaxf(
+        local_maximum,
+        __shfl_down_sync(0xffffffffU, local_maximum, offset));
+  }
+  if (lane == 0U) warp_maxima[warp] = local_maximum;
+  __syncthreads();
+  if (warp == 0U) {
+    float block_maximum = lane < 8U ? warp_maxima[lane] : 0.0F;
+    for (unsigned offset = 16U; offset != 0U; offset >>= 1U) {
+      block_maximum = fmaxf(
+          block_maximum,
+          __shfl_down_sync(0xffffffffU, block_maximum, offset));
+    }
+    if (lane == 0U) {
+      scales[assignment_index] =
+          block_maximum == 0.0F ? 1.0F
+                                : block_maximum / kE4M3Maximum;
+    }
+  }
+  __syncthreads();
+  for (std::uint64_t index = threadIdx.x; index < PhysicalElements;
+       index += blockDim.x) {
+    output[static_cast<std::uint64_t>(assignment_index) * PhysicalElements +
+           index] =
+        __nv_fp8_e4m3(transformed[index] / scales[assignment_index]).__x;
+  }
+}
+
 __global__ void PrefillTransformScaleKernel(
     const float* input, const std::uint16_t* all_suh,
     const Gemma4MoePrefillAssignment* assignments, float* scales,
@@ -594,4 +703,54 @@ __global__ void PrefillOutputTransformTileBf16Kernel(
   output[static_cast<std::uint64_t>(assignment_index) * output_elements +
          output_offset + column] =
       Bf16Bits(accumulator * kHadamardScale * F16(svh + column));
+}
+
+struct PrefillFloatOutputPolicy {
+  float* output;
+
+  __device__ __forceinline__ void Store(std::uint64_t index,
+                                        float value) const {
+    output[index] = value;
+  }
+};
+
+struct PrefillBf16OutputPolicy {
+  std::uint16_t* output;
+
+  __device__ __forceinline__ void Store(std::uint64_t index,
+                                        float value) const {
+    output[index] = Bf16Bits(value);
+  }
+};
+
+template <typename OutputPolicy>
+__global__ void PrefillOutputTransformTileWarpKernel(
+    const float* input_tile, const std::uint16_t* all_svh,
+    const Gemma4MoePrefillAssignment* assignments, OutputPolicy policy,
+    std::uint64_t assignment_count, std::uint64_t output_elements,
+    std::uint64_t output_offset) {
+  const unsigned warp = threadIdx.x >> 5U;
+  const unsigned lane = threadIdx.x & 31U;
+  const std::uint64_t assignment_index =
+      static_cast<std::uint64_t>(blockIdx.x) * 8U + warp;
+  if (assignment_index >= assignment_count) return;
+  const std::uint32_t expert = assignments[assignment_index].expert_id;
+  if (expert >= kTrellis35ExpertCount) return;
+  const std::uint64_t base = assignment_index * kPrefillOutputBlock + lane * 4U;
+  float values[4];
+#pragma unroll
+  for (unsigned element = 0U; element < 4U; ++element) {
+    values[element] = input_tile[base + element];
+  }
+  H128Warp(values);
+  const std::uint16_t* svh =
+      all_svh + static_cast<std::uint64_t>(expert) * output_elements +
+      output_offset + lane * 4U;
+  const std::uint64_t output_base =
+      assignment_index * output_elements + output_offset + lane * 4U;
+#pragma unroll
+  for (unsigned element = 0U; element < 4U; ++element) {
+    policy.Store(output_base + element,
+                 values[element] * F16(svh + element));
+  }
 }

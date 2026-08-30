@@ -2,6 +2,69 @@
 
 namespace {
 
+// Frozen before executing the WP13 oracle. The warp FWHT changes FP32
+// association relative to the direct 128-FMA reference but does not change the
+// mathematical transform.
+constexpr float kWp13H128AbsoluteTolerance = 2.0e-5F;
+constexpr float kWp13H128RelativeTolerance = 2.0e-5F;
+
+void TestH128WarpExhaustiveOracle() {
+  constexpr std::uint64_t kVectors = 130U;
+  constexpr std::uint64_t kElements = kVectors * 128U;
+  DeviceBuffer<float> input(kElements);
+  DeviceBuffer<float> output(kElements);
+  std::vector<float> host_input(kElements, 0.0F);
+  for (unsigned impulse = 0U; impulse < 128U; ++impulse) {
+    host_input[static_cast<std::uint64_t>(impulse) * 128U + impulse] = 1.0F;
+  }
+  for (unsigned index = 0U; index < 128U; ++index) {
+    host_input[128U * 128U + index] =
+        std::sin(static_cast<float>(index * 37U + 5U) * 0.03125F);
+    host_input[129U * 128U + index] =
+        std::cos(static_cast<float>(index * 19U + 11U) * 0.015625F) *
+        static_cast<float>(static_cast<int>(index % 7U) - 3);
+  }
+  CHECK(Upload(input, host_input, "upload exhaustive H128 oracle input"));
+  const auto status = gem16::internal::LaunchTrellis35H128WarpDiagnostic(
+      input.get(), output.get(), kVectors, nullptr);
+  CHECK(status.ok());
+  CHECK(CudaOk(cudaDeviceSynchronize(), "synchronize H128 warp oracle"));
+  std::vector<float> actual(kElements);
+  CHECK(CudaOk(cudaMemcpy(actual.data(), output.get(), output.bytes(),
+                          cudaMemcpyDeviceToHost),
+               "download H128 warp oracle"));
+  std::vector<float> expected(kElements, 0.0F);
+  constexpr float kNormalization = 0.08838834764831845F;
+  for (std::uint64_t vector = 0U; vector < kVectors; ++vector) {
+    for (unsigned column = 0U; column < 128U; ++column) {
+      float accumulator = 0.0F;
+      for (unsigned row = 0U; row < 128U; ++row) {
+        const float sign = (__builtin_popcount(row & column) & 1U) == 0U
+                               ? 1.0F
+                               : -1.0F;
+        accumulator = std::fma(host_input[vector * 128U + row], sign,
+                               accumulator);
+      }
+      expected[vector * 128U + column] = accumulator * kNormalization;
+    }
+  }
+  Compare(expected, actual, kWp13H128AbsoluteTolerance,
+          kWp13H128RelativeTolerance, "WP13 exhaustive H128 warp oracle");
+
+  DeviceBuffer<float> roundtrip(kElements);
+  const auto inverse_status =
+      gem16::internal::LaunchTrellis35H128WarpDiagnostic(
+          output.get(), roundtrip.get(), kVectors, nullptr);
+  CHECK(inverse_status.ok());
+  CHECK(CudaOk(cudaDeviceSynchronize(), "synchronize H128 warp roundtrip"));
+  std::vector<float> reconstructed(kElements);
+  CHECK(CudaOk(cudaMemcpy(reconstructed.data(), roundtrip.get(),
+                          roundtrip.bytes(), cudaMemcpyDeviceToHost),
+               "download H128 warp roundtrip"));
+  Compare(host_input, reconstructed, kWp13H128AbsoluteTolerance,
+          kWp13H128RelativeTolerance, "WP13 H128 warp roundtrip");
+}
+
 void TestTransformsAndDownPadding() {
   constexpr std::uint64_t kLogical =
       gem16::internal::kTrellis35ExpertIntermediate;
@@ -90,6 +153,7 @@ void TestTransformsAndDownPadding() {
 }  // namespace
 
 int RunTrellis35TransformTests() {
+  TestH128WarpExhaustiveOracle();
   TestTransformsAndDownPadding();
   return failures;
 }

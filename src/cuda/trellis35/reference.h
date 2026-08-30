@@ -133,11 +133,25 @@ enum class Trellis35PrefillKernelMode {
   kGroupedM32,
 };
 
+enum class Trellis35PrefillTransformMode {
+  // WP12 numerical and performance rollback.
+  kDirectH128,
+  // WP13 warp FWHT with fused amax/scale/E4M3 input quantization.
+  kWarpH128,
+};
+
+// Bounded diagnostic entry used by the exhaustive transform oracle. It does
+// not participate in model execution or allocate storage.
+[[nodiscard]] Status LaunchTrellis35H128WarpDiagnostic(
+    const float* input, float* output, std::uint64_t vectors,
+    cudaStream_t stream);
+
 [[nodiscard]] Status LaunchTrellis35PrefillExpertsW4A8(
     const float* normalized_hidden, std::uint64_t tokens,
     const Trellis35DeviceLayerBinding& layer,
     const Gemma4MoePrefillWorkspace& workspace,
     Trellis35PrefillScheduleMode schedule_mode,
-    Trellis35PrefillKernelMode kernel_mode, cudaStream_t stream);
+    Trellis35PrefillKernelMode kernel_mode,
+    Trellis35PrefillTransformMode transform_mode, cudaStream_t stream);
 
 }  // namespace gem16::internal

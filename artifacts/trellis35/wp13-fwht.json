@@ -1,0 +1,152 @@
+{
+  "schema_version": 1,
+  "work_packet": "WP13",
+  "status": "accepted",
+  "implementation_parent_revision": "4f22cd4",
+  "artifact_content_sha256": "39183e2c7a1bd04c87a8f5bb5887453f8e92a3980bb507fd06d6252a6439c9f0",
+  "implementation": {
+    "primitive": "H128Warp",
+    "geometry": {
+      "lanes": 32,
+      "values_per_lane": 4,
+      "local_transform": "H4",
+      "shuffle_xor_masks": [1, 2, 4, 8, 16],
+      "normalization": "1/sqrt(128)"
+    },
+    "input": "one eight-warp CTA per assignment; load and SUH, one FWHT, shared transformed row, CTA amax, scale and E4M3 quantization in one kernel",
+    "input_policies": ["float_container", "physical_bf16"],
+    "inverse": "one warp per assignment and H128 output block",
+    "production_mode": "Trellis35PrefillTransformMode::kWarpH128",
+    "rollback_mode": "Trellis35PrefillTransformMode::kDirectH128",
+    "new_recurring_allocations": 0,
+    "physical_bf16_boundaries": [
+      "Gate+Up inverse to BF16 before gated GELU",
+      "gated GELU product to BF16 before Down transform",
+      "Down inverse to BF16 before route reduction"
+    ]
+  },
+  "transform_oracle": {
+    "vectors": 130,
+    "basis_impulses": 128,
+    "additional_dense_vectors": 2,
+    "predeclared_absolute_tolerance": 0.00002,
+    "predeclared_relative_tolerance": 0.00002,
+    "maximum_absolute_difference": 9.53674e-7,
+    "maximum_relative_difference": 5.96046e-7,
+    "roundtrip_maximum_absolute_difference": 4.76837e-7,
+    "roundtrip_maximum_relative_difference": 2.52881e-7,
+    "status": "pass",
+    "raw_path": "artifacts/raw/trellis35/wp13/transform-and-operator-tests.txt",
+    "raw_sha256": "fc31eaa5d663973f26ad41a7b12dc56f770e282a9299b566660ea46ee8e97b15"
+  },
+  "transform_performance": {
+    "workload": "real 30-layer physical-BF16 512-token prefill",
+    "measurement": "Nsight Systems CUDA kernel summary using the explicit same-build Direct and Warp selectors",
+    "direct_h128_ms": {
+      "float_input_scale": 40.526917,
+      "float_input_quantize": 40.359981,
+      "bf16_input_scale": 11.21898,
+      "bf16_input_quantize": 11.003691,
+      "bf16_inverse_output": 33.648729,
+      "combined": 136.758298
+    },
+    "warp_h128_ms": {
+      "float_input_fused": 2.202936,
+      "bf16_input_fused": 0.68879,
+      "bf16_inverse_output": 4.479895,
+      "combined": 7.371621
+    },
+    "combined_speedup": 18.551998,
+    "required_speedup": 2.0,
+    "gate": "pass",
+    "direct_raw": "artifacts/raw/trellis35/wp13/direct-512x16.nsys-rep",
+    "direct_raw_sha256": "c58d6afecadcafdd4e2e5c79dcf54de77dc505ec72cc011e3a4a490d2188ded2",
+    "warp_raw": "artifacts/raw/trellis35/wp13/warp-specialized-512x16.nsys-rep",
+    "warp_raw_sha256": "e83d26e78c070421412cc536101441f885278f272a6b27d996b2f48b78bde9dc"
+  },
+  "kernel_resources": {
+    "gate_up_float_input": {"registers_per_thread": 38, "shared_bytes": 12320, "stack_bytes": 0, "local_bytes": 0},
+    "down_float_input": {"registers_per_thread": 38, "shared_bytes": 4128, "stack_bytes": 0, "local_bytes": 0},
+    "gate_up_bf16_input": {"registers_per_thread": 38, "shared_bytes": 12320, "stack_bytes": 0, "local_bytes": 0},
+    "down_bf16_input": {"registers_per_thread": 38, "shared_bytes": 4128, "stack_bytes": 0, "local_bytes": 0},
+    "float_inverse_output": {"registers_per_thread": 22, "shared_bytes": 1024, "stack_bytes": 0, "local_bytes": 0},
+    "bf16_inverse_output": {"registers_per_thread": 22, "shared_bytes": 1024, "stack_bytes": 0, "local_bytes": 0},
+    "sass_shuffle_instructions_in_retained_kernel_sections": 280,
+    "sass_ldl_or_stl_in_retained_kernel_sections": 0,
+    "resource_raw": "artifacts/raw/trellis35/wp13/warp-specialized-resource-usage.txt",
+    "resource_raw_sha256": "7439ebaad68f134af72a9b088ef54ba9c1cedf66073068f6e9e5b7f4dc88e0da",
+    "sass_raw": "artifacts/raw/trellis35/wp13/warp-specialized-sass.txt",
+    "sass_raw_sha256": "7fb6cd787bc2e0762e89ba42c5263ca414d73b8820d71d2eb173369a936ecec8"
+  },
+  "end_to_end": {
+    "workload": "wikipedia-real-512x16-greedy",
+    "wp12_median_prompt_ms": 246.186247,
+    "wp12_prompt_tokens_per_second": 2079.726249,
+    "wp13_prompt_ms_samples": [117.942734, 118.211197, 118.253647],
+    "wp13_median_prompt_ms": 118.211197,
+    "wp13_median_prompt_tokens_per_second": 4331.230992,
+    "speedup": 2.082597,
+    "prompt_time_reduction_percent": 51.983022,
+    "output_token_sha256": "f19c52bcd74b968b1ad99162e6c854060978249c8b5b143eade6380ef3c22169",
+    "matches_wp12_output": true,
+    "fallback_count": 0,
+    "recurring_allocation_count": 0,
+    "sampled_device_used_bytes": 12733710336,
+    "memory_matches_wp12": true,
+    "raw_sha256": [
+      "9edcf01d1df4c85e93f2f6f24eb6f86fa49214d57907534787139268aff9695c",
+      "b391b3c572ae1b7d99efbc5e1abc4c7ed2bb2aab33186b3e3f9bee6105605f10",
+      "8fb7794a9e8c8505a851d8952f3b71b47806da6315cbce97f4bca9516cc146ea"
+    ]
+  },
+  "bounded_numerical": {
+    "frozen_suite": "benchmarks/quality/trellis35-wp8-suite.json",
+    "quality_decision": "proceed",
+    "candidate_qat_bf16_selected_worst_relative_l2": 0.14520362570412518,
+    "candidate_qat_bf16_selected_worst_cosine": 0.9901414627628822,
+    "candidate_qat_bf16_selected_minimum_router_top8_set_overlap": 6,
+    "full_logit_kl_control_to_candidate": 1.4207680444220178e-5,
+    "control_top1_candidate_rank": 1,
+    "top1_agreement": true,
+    "generated_tokens": [7676, 106],
+    "same_process_deterministic": true,
+    "direct_to_warp_characterization": {
+      "cases": 60,
+      "worst_relative_l2": 0.2162232528818602,
+      "worst_cosine": 0.977779199172956,
+      "minimum_router_top8_set_overlap": 6,
+      "mean_router_top8_set_overlap": 7.8,
+      "changed_router_top8_sets": 10,
+      "full_logits_relative_l2": 0.0995841876454275,
+      "full_logits_cosine": 0.9961422650391036,
+      "full_logits_top1_equal": true
+    },
+    "raw_path": "artifacts/raw/trellis35/wp13/warp-specialized-wp8-numerical.json",
+    "raw_sha256": "f825f56aed48bdc4f6d8bda3f488863419346dd024cb8d6d7ab8f999bca933f7",
+    "note": "The transform association is intentionally different. Router sets may change within the frozen WP8 overlap contract; the selected QAT-BF16 quality anchor, full-logit envelope and deterministic generation gates pass."
+  },
+  "sanitizers": {
+    "memcheck": "0 errors",
+    "memcheck_sha256": "e9c869c885d9c5ef49b66a31245ab050038bda6a18d497ba460c4b8a52b7eea7",
+    "racecheck": "0 errors, 0 warnings",
+    "racecheck_sha256": "931e272405403fc205afd3f7da0c2b4430bcd74e4dbf92b17f672a417d698ee1"
+  },
+  "verification": {
+    "build": "gem16-26b-reference, gem16-server, gem16-chat, gem16-unit-tests and gem16-cuda-trellis35-tests passed",
+    "full_ctest": "13 of 13 passed; three model-dependent tests skipped without environment",
+    "real_26b_m17": "passed",
+    "real_26b_m22": "passed",
+    "protected_real_12b_m22": "passed",
+    "m32_warp_numerical_matrix": "168 cases; legacy M4 and grouped M32 expert and reduced outputs bit-identical",
+    "m32_warp_numerical_matrix_sha256": "8fa656b9be7dadaa36430d7ca48d0172382b847260c636b2b46d11d40bf770d1",
+    "nvfp4_source_diff_lines": 0,
+    "nvfp4_sm120_object_sha256": "45b82607e7986bcb467afe668eb6ff074f86868bb67c13dee2fc526e99ebec3c"
+  },
+  "limitations": [
+    "WP13 is bounded numerical and performance qualification, not the deferred full WP8B task-quality suite.",
+    "A periodic float-container stress input can place many transformed values directly on E4M3 rounding boundaries, so Direct-H128 and Warp-H128 are not claimed to be elementwise identical after quantization.",
+    "The frozen WP8 comparison against the qualified NVFP4 control remains outside its historical all-layer residual envelope, as it already did before WP13; the selected QAT-BF16 anchor and all quality gates still pass.",
+    "This evidence does not promote or product-qualify the Trellis35 checkpoint."
+  ],
+  "decision": "Default-enable Warp-H128 for Trellis35 prefill and retain Direct-H128 as an explicit internal rollback."
+}

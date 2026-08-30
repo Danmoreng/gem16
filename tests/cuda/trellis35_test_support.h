@@ -920,7 +920,9 @@ float RunFullPrefill(
     DeviceBuffer<float>& input, PrefillStorage& storage, unsigned iterations,
     bool capture,
     gem16::internal::Trellis35PrefillKernelMode kernel_mode =
-        gem16::internal::Trellis35PrefillKernelMode::kGroupedM32) {
+        gem16::internal::Trellis35PrefillKernelMode::kGroupedM32,
+    gem16::internal::Trellis35PrefillTransformMode transform_mode =
+        gem16::internal::Trellis35PrefillTransformMode::kWarpH128) {
   const auto workspace = storage.Bind();
   if (capture) {
     cudaStream_t stream = nullptr;
@@ -932,7 +934,7 @@ float RunFullPrefill(
     const auto status = gem16::internal::LaunchTrellis35PrefillExpertsW4A8(
         input.get(), storage.tokens, layer, workspace,
         gem16::internal::Trellis35PrefillScheduleMode::kBuildStandalone,
-        kernel_mode, stream);
+        kernel_mode, transform_mode, stream);
     CHECK(status.ok());
     CHECK(CudaOk(cudaStreamEndCapture(stream, &graph),
                  "end Trellis35 prefill capture"));
@@ -957,7 +959,7 @@ float RunFullPrefill(
     const auto status = gem16::internal::LaunchTrellis35PrefillExpertsW4A8(
         input.get(), storage.tokens, layer, workspace,
         gem16::internal::Trellis35PrefillScheduleMode::kBuildStandalone,
-        kernel_mode, nullptr);
+        kernel_mode, transform_mode, nullptr);
     CHECK(status.ok());
   }
   CHECK(CudaOk(cudaEventRecord(end), "record prefill end event"));
