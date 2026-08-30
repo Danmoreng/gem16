@@ -1,6 +1,6 @@
 # Active decisions
 
-**Updated:** 2026-08-29
+**Updated:** 2026-08-30
 **Track:** Productization baseline
 **Status:** owner-approved product contract; implementation and release gates in progress
 
@@ -42,10 +42,16 @@ Read it only for a concrete historical or evidence question.
 6. **One version source.** Repository, CMake builds, packaged server, native
    Studio, and release automation consume the root `VERSION` file. Release tags
    and manually supplied release versions must match it.
-7. **Product work before new decode tuning.** The 26B decode optimization phase
-   remains frozen. Current priority is documentation consistency, two-profile
-   native onboarding, Agent Core qualification, and equal Windows/Linux
-   packaging.
+7. **Productization remains primary; experimental Trellis35 tuning is narrowly
+   reopened.** The owner's 2026-08-30 direction supersedes only this item's
+   prior blanket prohibition on new 26B decode tuning: bounded performance
+   work may resume on the separate, unqualified Gemma 4 26B Trellis35/W4A8
+   feature profile. The qualified 26B NVFP4 decode checkpoint and its accepted
+   evidence remain frozen, its 220/250 token/s targets remain closed, and the
+   protected 12B path, product claims, release sequencing, and productization
+   priority remain unchanged. Trellis35 work stays experimental and requires
+   packet-local correctness, dispatch, memory, performance, and rollback
+   evidence without modifying or silently falling back to a qualified path.
 
 ## Current qualified model facts
 
