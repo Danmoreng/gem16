@@ -1,0 +1,43 @@
+==PROF== Connected to process 567025 (/home/sebastian/Development/gem16gb/build/Linux/blackwell-release/bin/gem16-cuda-trellis35-tests)
+==PROF== Profiling "MmaW4A8ProjectionGroupedT3Kernel": 0%....50%....100% - 1 pass
+==PROF== Profiling "MmaW4A8ProjectionGroupedT3Kernel": 0%....50%....100% - 1 pass
+==PROF== Disconnected from process 567025
+[567025] gem16-cuda-trellis35-tests@127.0.0.1
+  unnamed>::MmaW4A8ProjectionGroupedT3Kernel(const unsigned char *, const float *, Trellis35DeviceFamilyBinding, const unsigned int *, float *, unsigned long, unsigned long) (44, 24, 1)x(128, 1, 1), Context 1, Stream 7, Device 0, CC 12.0
+    Section: Command line profiler metrics
+    --------------------------------- ----------- ------------
+    Metric Name                       Metric Unit Metric Value
+    --------------------------------- ----------- ------------
+    dram__bytes_op_read.avg                 Kbyte       447.81
+    dram__bytes_op_read.max                 Kbyte       448.51
+    dram__bytes_op_read.min                 Kbyte       446.72
+    dram__bytes_op_read.sum                 Mbyte         3.58
+    gpu__time_duration.avg                     us       784.61
+    gpu__time_duration.max                     us       784.61
+    gpu__time_duration.min                     us       784.61
+    gpu__time_duration.sum                     us       784.61
+    sm__inst_executed_pipe_tensor.avg        inst      6195.20
+    sm__inst_executed_pipe_tensor.max        inst         6336
+    sm__inst_executed_pipe_tensor.min        inst         5280
+    sm__inst_executed_pipe_tensor.sum        inst       371712
+    --------------------------------- ----------- ------------
+
+  unnamed>::MmaW4A8ProjectionGroupedT3Kernel(const unsigned char *, const float *, Trellis35DeviceFamilyBinding, const unsigned int *, float *, unsigned long, unsigned long) (88, 24, 1)x(128, 1, 1), Context 1, Stream 7, Device 0, CC 12.0
+    Section: Command line profiler metrics
+    --------------------------------- ----------- ------------
+    Metric Name                       Metric Unit Metric Value
+    --------------------------------- ----------- ------------
+    dram__bytes_op_read.avg                 Kbyte       244.38
+    dram__bytes_op_read.max                 Kbyte       246.27
+    dram__bytes_op_read.min                 Kbyte       243.71
+    dram__bytes_op_read.sum                 Mbyte         1.96
+    gpu__time_duration.avg                     us       376.16
+    gpu__time_duration.max                     us       376.16
+    gpu__time_duration.min                     us       376.16
+    gpu__time_duration.sum                     us       376.16
+    sm__inst_executed_pipe_tensor.avg        inst      3379.20
+    sm__inst_executed_pipe_tensor.max        inst         3456
+    sm__inst_executed_pipe_tensor.min        inst         3168
+    sm__inst_executed_pipe_tensor.sum        inst       202752
+    --------------------------------- ----------- ------------
+

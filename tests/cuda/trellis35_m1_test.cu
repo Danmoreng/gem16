@@ -355,6 +355,45 @@ struct M1Storage {
   }
 };
 
+struct T3Storage {
+  DeviceBuffer<float> gate_input{
+      gem16::internal::kTrellis35T3Assignments *
+      gem16::internal::kTrellis35GateUpInput};
+  DeviceBuffer<std::uint8_t> gate_input_fp8{
+      gem16::internal::kTrellis35T3Assignments *
+      gem16::internal::kTrellis35GateUpInput};
+  DeviceBuffer<float> gate_scales{gem16::internal::kTrellis35T3Assignments};
+  DeviceBuffer<float> gate_transformed{
+      gem16::internal::kTrellis35T3Assignments *
+      gem16::internal::kTrellis35GateUpOutput};
+  DeviceBuffer<float> gate_output{
+      gem16::internal::kTrellis35T3Assignments *
+      gem16::internal::kTrellis35GateUpOutput};
+  DeviceBuffer<float> product{
+      gem16::internal::kTrellis35T3Assignments *
+      gem16::internal::kTrellis35ExpertIntermediate};
+  DeviceBuffer<float> down_input{
+      gem16::internal::kTrellis35T3Assignments *
+      gem16::internal::kTrellis35DownInput};
+  DeviceBuffer<std::uint8_t> down_input_fp8{
+      gem16::internal::kTrellis35T3Assignments *
+      gem16::internal::kTrellis35DownInput};
+  DeviceBuffer<float> down_scales{gem16::internal::kTrellis35T3Assignments};
+  DeviceBuffer<float> down_transformed{
+      gem16::internal::kTrellis35T3Assignments *
+      gem16::internal::kTrellis35DownOutput};
+  DeviceBuffer<float> down_output{
+      gem16::internal::kTrellis35T3Assignments *
+      gem16::internal::kTrellis35DownOutput};
+
+  gem16::internal::Trellis35T3Workspace Bind() {
+    return {gate_input.get(),       gate_input_fp8.get(), gate_scales.get(),
+            gate_transformed.get(), gate_output.get(),    product.get(),
+            down_input.get(),       down_input_fp8.get(), down_scales.get(),
+            down_transformed.get(), down_output.get()};
+  }
+};
+
 void Compare(const std::vector<float>& expected,
              const std::vector<float>& actual, float absolute_tolerance,
              float relative_tolerance, const char* description) {
@@ -585,6 +624,217 @@ float RunFullM1(const gem16::internal::Trellis35DeviceLayerBinding& layer,
   return milliseconds / static_cast<float>(iterations);
 }
 
+float RunFullT3(const gem16::internal::Trellis35DeviceLayerBinding& layer,
+                DeviceBuffer<float>& input, DeviceBuffer<std::uint32_t>& ids,
+                DeviceBuffer<float>& weights, T3Storage& storage,
+                DeviceBuffer<float>& output, unsigned iterations,
+                bool capture) {
+  const auto workspace = storage.Bind();
+  if (capture) {
+    cudaStream_t stream = nullptr;
+    cudaGraph_t graph = nullptr;
+    cudaGraphExec_t executable = nullptr;
+    CHECK(CudaOk(cudaStreamCreate(&stream), "create T3 graph stream"));
+    CHECK(CudaOk(cudaStreamBeginCapture(stream, cudaStreamCaptureModeGlobal),
+                 "begin Trellis35 T3 capture"));
+    const auto status = gem16::internal::LaunchTrellis35SelectedExpertsT3(
+        input.get(), ids.get(), weights.get(), layer, workspace, output.get(),
+        stream);
+    CHECK(status.ok());
+    CHECK(CudaOk(cudaStreamEndCapture(stream, &graph),
+                 "end Trellis35 T3 capture"));
+    CHECK(CudaOk(cudaGraphInstantiate(&executable, graph, 0U),
+                 "instantiate Trellis35 T3 graph"));
+    CHECK(CudaOk(cudaGraphLaunch(executable, stream),
+                 "launch Trellis35 T3 graph first"));
+    CHECK(CudaOk(cudaGraphLaunch(executable, stream),
+                 "launch Trellis35 T3 graph replay"));
+    CHECK(CudaOk(cudaStreamSynchronize(stream),
+                 "synchronize Trellis35 T3 graph"));
+    if (executable != nullptr) (void)cudaGraphExecDestroy(executable);
+    if (graph != nullptr) (void)cudaGraphDestroy(graph);
+    if (stream != nullptr) (void)cudaStreamDestroy(stream);
+  }
+
+  cudaEvent_t begin = nullptr;
+  cudaEvent_t end = nullptr;
+  CHECK(CudaOk(cudaEventCreate(&begin), "create T3 begin event"));
+  CHECK(CudaOk(cudaEventCreate(&end), "create T3 end event"));
+  CHECK(CudaOk(cudaEventRecord(begin), "record T3 begin event"));
+  for (unsigned iteration = 0U; iteration < iterations; ++iteration) {
+    const auto status = gem16::internal::LaunchTrellis35SelectedExpertsT3(
+        input.get(), ids.get(), weights.get(), layer, workspace, output.get(),
+        nullptr);
+    CHECK(status.ok());
+  }
+  CHECK(CudaOk(cudaEventRecord(end), "record T3 end event"));
+  CHECK(CudaOk(cudaEventSynchronize(end), "synchronize T3 end event"));
+  float milliseconds = 0.0F;
+  CHECK(CudaOk(cudaEventElapsedTime(&milliseconds, begin, end),
+               "measure Trellis35 T3"));
+  if (begin != nullptr) (void)cudaEventDestroy(begin);
+  if (end != nullptr) (void)cudaEventDestroy(end);
+  return milliseconds / static_cast<float>(iterations);
+}
+
+unsigned UniqueExperts(
+    const std::array<std::uint32_t,
+                     gem16::internal::kTrellis35T3Assignments>& ids) {
+  std::array<bool, gem16::internal::kTrellis35ExpertCount> seen{};
+  unsigned unique = 0U;
+  for (const std::uint32_t expert : ids) {
+    if (!seen[expert]) {
+      seen[expert] = true;
+      ++unique;
+    }
+  }
+  return unique;
+}
+
+std::array<std::uint32_t, gem16::internal::kTrellis35T3Assignments>
+MakeT3RoutesWithUnionSize(unsigned unique_experts) {
+  CHECK(unique_experts >= gem16::internal::kTrellis35M1TopK);
+  CHECK(unique_experts <= gem16::internal::kTrellis35T3Assignments);
+  std::array<std::uint32_t, gem16::internal::kTrellis35T3Assignments> ids{};
+  for (unsigned slot = 0U; slot < gem16::internal::kTrellis35M1TopK;
+       ++slot) {
+    ids[slot] = slot;
+  }
+  unsigned next_new = gem16::internal::kTrellis35M1TopK;
+  for (unsigned row = 1U; row < gem16::internal::kTrellis35T3Rows; ++row) {
+    const unsigned new_in_row =
+        std::min<unsigned>(gem16::internal::kTrellis35M1TopK,
+                           unique_experts - next_new);
+    for (unsigned slot = 0U; slot < new_in_row; ++slot) {
+      ids[row * gem16::internal::kTrellis35M1TopK + slot] = next_new++;
+    }
+    for (unsigned slot = new_in_row;
+         slot < gem16::internal::kTrellis35M1TopK; ++slot) {
+      ids[row * gem16::internal::kTrellis35M1TopK + slot] =
+          slot - new_in_row;
+    }
+  }
+  CHECK(next_new == unique_experts);
+  CHECK(UniqueExperts(ids) == unique_experts);
+  return ids;
+}
+
+std::array<std::uint32_t, gem16::internal::kTrellis35T3Assignments>
+RemapT3Routes(
+    const std::array<std::uint32_t,
+                     gem16::internal::kTrellis35T3Assignments>& routes,
+    const std::vector<std::uint32_t>& expert_order) {
+  std::array<std::uint32_t, gem16::internal::kTrellis35T3Assignments> result{};
+  for (unsigned assignment = 0U; assignment < routes.size(); ++assignment) {
+    CHECK(routes[assignment] < expert_order.size());
+    result[assignment] = expert_order[routes[assignment]];
+  }
+  return result;
+}
+
+void CheckT3SlotOrderedReduction(
+    const DeviceBuffer<float>& expert_output,
+    const std::array<float, gem16::internal::kTrellis35T3Assignments>& weights,
+    const DeviceBuffer<float>& reduced, const char* description) {
+  std::vector<float> host_experts(expert_output.elements());
+  std::vector<float> host_reduced(reduced.elements());
+  CHECK(CudaOk(cudaMemcpy(host_experts.data(), expert_output.get(),
+                          expert_output.bytes(), cudaMemcpyDeviceToHost),
+               "download T3 expert slots"));
+  CHECK(CudaOk(cudaMemcpy(host_reduced.data(), reduced.get(), reduced.bytes(),
+                          cudaMemcpyDeviceToHost),
+               "download T3 reduced experts"));
+  std::uint64_t mismatches = 0U;
+  for (unsigned row = 0U; row < gem16::internal::kTrellis35T3Rows; ++row) {
+    for (std::uint64_t index = 0U;
+         index < gem16::internal::kTrellis35DownOutput; ++index) {
+      float expected = 0.0F;
+      for (unsigned slot = 0U; slot < gem16::internal::kTrellis35M1TopK;
+           ++slot) {
+        const unsigned assignment =
+            row * gem16::internal::kTrellis35M1TopK + slot;
+        expected = std::fma(
+            weights[assignment],
+            host_experts[static_cast<std::uint64_t>(assignment) *
+                             gem16::internal::kTrellis35DownOutput +
+                         index],
+            expected);
+      }
+      const float actual =
+          host_reduced[static_cast<std::uint64_t>(row) *
+                           gem16::internal::kTrellis35DownOutput +
+                       index];
+      if (std::bit_cast<std::uint32_t>(expected) !=
+          std::bit_cast<std::uint32_t>(actual)) {
+        ++mismatches;
+      }
+    }
+  }
+  std::cout << description << " T3_slot_order_bit_mismatches=" << mismatches
+            << '\n';
+  CHECK(mismatches == 0U);
+}
+
+float RunT3Scenario(
+    const gem16::internal::Trellis35DeviceLayerBinding& layer,
+    DeviceBuffer<float>& input,
+    const std::array<std::uint32_t,
+                     gem16::internal::kTrellis35T3Assignments>& host_ids,
+    const std::array<float, gem16::internal::kTrellis35T3Assignments>&
+        host_weights,
+    const char* description, bool capture) {
+  DeviceBuffer<std::uint32_t> ids(gem16::internal::kTrellis35T3Assignments);
+  DeviceBuffer<float> weights(gem16::internal::kTrellis35T3Assignments);
+  DeviceBuffer<float> output(gem16::internal::kTrellis35T3Rows *
+                             gem16::internal::kTrellis35DownOutput);
+  DeviceBuffer<float> reference(gem16::internal::kTrellis35T3Rows *
+                                gem16::internal::kTrellis35DownOutput);
+  T3Storage storage;
+  M1Storage reference_storage;
+  if (!Upload(ids, host_ids, "upload T3 IDs") ||
+      !Upload(weights, host_weights, "upload T3 weights")) {
+    return 0.0F;
+  }
+  const float latency = RunFullT3(layer, input, ids, weights, storage, output,
+                                  5U, capture);
+  const auto m1_workspace = reference_storage.Bind();
+  for (unsigned row = 0U; row < gem16::internal::kTrellis35T3Rows; ++row) {
+    const auto status = gem16::internal::LaunchTrellis35SelectedExpertsM1(
+        input.get() + static_cast<std::uint64_t>(row) *
+                          gem16::internal::kTrellis35GateUpInput,
+        ids.get() + row * gem16::internal::kTrellis35M1TopK,
+        weights.get() + row * gem16::internal::kTrellis35M1TopK, layer,
+        m1_workspace,
+        reference.get() + static_cast<std::uint64_t>(row) *
+                              gem16::internal::kTrellis35DownOutput,
+        nullptr);
+    CHECK(status.ok());
+  }
+  CHECK(CudaOk(cudaDeviceSynchronize(), "synchronize T3 versus M1"));
+  std::vector<float> host_output(output.elements());
+  std::vector<float> host_reference(reference.elements());
+  std::array<std::uint32_t, gem16::internal::kTrellis35T3Assignments>
+      unchanged_ids{};
+  CHECK(CudaOk(cudaMemcpy(host_output.data(), output.get(), output.bytes(),
+                          cudaMemcpyDeviceToHost),
+               "download T3 output"));
+  CHECK(CudaOk(cudaMemcpy(host_reference.data(), reference.get(),
+                          reference.bytes(), cudaMemcpyDeviceToHost),
+               "download three-M1 oracle"));
+  CHECK(CudaOk(cudaMemcpy(unchanged_ids.data(), ids.get(), ids.bytes(),
+                          cudaMemcpyDeviceToHost),
+               "download unchanged T3 IDs"));
+  CHECK(unchanged_ids == host_ids);
+  CHECK(std::all_of(host_output.begin(), host_output.end(),
+                    [](float value) { return std::isfinite(value); }));
+  Compare(host_reference, host_output, 4.0e-6F, 2.0e-6F, description);
+  CheckT3SlotOrderedReduction(storage.down_output, host_weights, output,
+                              description);
+  std::cout << description << " unique_experts=" << UniqueExperts(host_ids)
+            << " latency_ms=" << latency << '\n';
+  return latency;
+}
+
 void CheckFiniteAndIds(const DeviceBuffer<float>& output,
                        const DeviceBuffer<std::uint32_t>& ids,
                        const std::array<std::uint32_t,
@@ -673,6 +923,138 @@ void TestSyntheticFullM1() {
   CheckSlotOrderedReduction(storage.down_output, host_weights, output,
                             "synthetic full M1");
   std::cout << "synthetic full M1 latency_ms=" << latency << '\n';
+}
+
+void TestSyntheticT3() {
+  FamilyStorage gate(gem16::internal::kTrellis35GateUpInput,
+                     gem16::internal::kTrellis35GateUpOutput, 307U);
+  FamilyStorage down(gem16::internal::kTrellis35DownInput,
+                     gem16::internal::kTrellis35DownOutput, 401U);
+  const gem16::internal::Trellis35DeviceLayerBinding layer{gate.binding,
+                                                           down.binding};
+  DeviceBuffer<float> input(gem16::internal::kTrellis35T3Rows *
+                            gem16::internal::kTrellis35GateUpInput);
+  std::vector<float> host_input(input.elements());
+  for (unsigned row = 0U; row < gem16::internal::kTrellis35T3Rows; ++row) {
+    for (std::uint64_t index = 0U;
+         index < gem16::internal::kTrellis35GateUpInput; ++index) {
+      host_input[static_cast<std::uint64_t>(row) *
+                     gem16::internal::kTrellis35GateUpInput +
+                 index] =
+          std::sin(static_cast<float>(index * 11U + row * 37U) *
+                   0.00390625F) *
+          1.0e-4F;
+    }
+  }
+  if (!Upload(input, host_input, "upload synthetic T3 input")) return;
+  std::array<float, gem16::internal::kTrellis35T3Assignments> weights{};
+  for (unsigned row = 0U; row < gem16::internal::kTrellis35T3Rows; ++row) {
+    const std::array<float, gem16::internal::kTrellis35M1TopK> row_weights{
+        0.19F, 0.17F, 0.15F, 0.13F, 0.11F, 0.10F, 0.08F, 0.07F};
+    std::copy(row_weights.begin(), row_weights.end(),
+              weights.begin() + row * gem16::internal::kTrellis35M1TopK);
+  }
+
+  std::array<std::uint32_t, gem16::internal::kTrellis35T3Assignments>
+      zero_overlap{};
+  for (unsigned assignment = 0U; assignment < zero_overlap.size();
+       ++assignment) {
+    zero_overlap[assignment] = assignment;
+  }
+  std::array<std::uint32_t, gem16::internal::kTrellis35T3Assignments>
+      typical_overlap{0U, 1U, 2U, 3U, 4U, 5U, 6U, 7U,
+                      0U, 1U, 2U, 3U, 8U, 9U, 10U, 11U,
+                      0U, 1U, 4U, 5U, 12U, 13U, 14U, 15U};
+  std::array<std::uint32_t, gem16::internal::kTrellis35T3Assignments>
+      maximal_overlap{};
+  for (unsigned assignment = 0U; assignment < maximal_overlap.size();
+       ++assignment) {
+    maximal_overlap[assignment] =
+        assignment % gem16::internal::kTrellis35M1TopK;
+  }
+  (void)RunT3Scenario(layer, input, zero_overlap, weights,
+                      "synthetic T3 zero-overlap", false);
+  (void)RunT3Scenario(layer, input, typical_overlap, weights,
+                      "synthetic T3 typical-overlap", false);
+  (void)RunT3Scenario(layer, input, maximal_overlap, weights,
+                      "synthetic T3 maximal-overlap", true);
+}
+
+void ProfileSyntheticT3(unsigned unique_experts) {
+  FamilyStorage gate(gem16::internal::kTrellis35GateUpInput,
+                     gem16::internal::kTrellis35GateUpOutput, 503U);
+  FamilyStorage down(gem16::internal::kTrellis35DownInput,
+                     gem16::internal::kTrellis35DownOutput, 601U);
+  const gem16::internal::Trellis35DeviceLayerBinding layer{gate.binding,
+                                                           down.binding};
+  DeviceBuffer<float> input(gem16::internal::kTrellis35T3Rows *
+                            gem16::internal::kTrellis35GateUpInput);
+  DeviceBuffer<std::uint32_t> ids(gem16::internal::kTrellis35T3Assignments);
+  DeviceBuffer<float> weights(gem16::internal::kTrellis35T3Assignments);
+  DeviceBuffer<float> output(gem16::internal::kTrellis35T3Rows *
+                             gem16::internal::kTrellis35DownOutput);
+  T3Storage storage;
+  std::vector<float> host_input(input.elements(), 1.0e-4F);
+  std::array<float, gem16::internal::kTrellis35T3Assignments> host_weights{};
+  host_weights.fill(0.125F);
+  const auto host_ids = MakeT3RoutesWithUnionSize(unique_experts);
+  if (!Upload(input, host_input, "upload profile T3 input") ||
+      !Upload(ids, host_ids, "upload profile T3 IDs") ||
+      !Upload(weights, host_weights, "upload profile T3 weights")) {
+    return;
+  }
+  const auto status = gem16::internal::LaunchTrellis35SelectedExpertsT3(
+      input.get(), ids.get(), weights.get(), layer, storage.Bind(),
+      output.get(), nullptr);
+  CHECK(status.ok());
+  CHECK(CudaOk(cudaDeviceSynchronize(), "synchronize profile T3"));
+  std::cout << "profile T3 unique_experts=" << unique_experts << '\n';
+}
+
+void BenchmarkRetainedOverlapHistogram(
+    const gem16::internal::Trellis35DeviceLayerBinding& layer,
+    DeviceBuffer<float>& input,
+    const std::array<float, gem16::internal::kTrellis35T3Assignments>&
+        host_weights,
+    const std::vector<std::uint32_t>& expert_order) {
+  // Exact union-size histogram from the retained 16K Wikipedia sampled-D2
+  // characterization: 11,550 verifier-layer samples, union sizes 8..24.
+  constexpr std::array<std::uint64_t, 17> kWikipediaUnionHistogram{
+      3U,   53U,  263U, 583U, 976U, 1344U, 1559U, 1649U, 1572U,
+      1251U, 1007U, 660U, 402U, 171U, 42U,   14U,   1U};
+  constexpr std::uint64_t kSamples = 11550U;
+  DeviceBuffer<std::uint32_t> ids(gem16::internal::kTrellis35T3Assignments);
+  DeviceBuffer<float> weights(gem16::internal::kTrellis35T3Assignments);
+  DeviceBuffer<float> output(gem16::internal::kTrellis35T3Rows *
+                             gem16::internal::kTrellis35DownOutput);
+  T3Storage storage;
+  CHECK(Upload(weights, host_weights, "upload retained-overlap weights"));
+  double weighted_latency = 0.0;
+  double weighted_union = 0.0;
+  std::uint64_t observed_samples = 0U;
+  for (unsigned offset = 0U; offset < kWikipediaUnionHistogram.size();
+       ++offset) {
+    const unsigned unique_experts = 8U + offset;
+    const auto host_ids = RemapT3Routes(
+        MakeT3RoutesWithUnionSize(unique_experts), expert_order);
+    CHECK(Upload(ids, host_ids, "upload retained-overlap IDs"));
+    const float latency =
+        RunFullT3(layer, input, ids, weights, storage, output, 20U, false);
+    const std::uint64_t count = kWikipediaUnionHistogram[offset];
+    weighted_latency += static_cast<double>(latency) * count;
+    weighted_union += static_cast<double>(unique_experts) * count;
+    observed_samples += count;
+    std::cout << "retained Wikipedia overlap union=" << unique_experts
+              << " samples=" << count << " operator_latency_ms=" << latency
+              << '\n';
+  }
+  CHECK(observed_samples == kSamples);
+  const double mean_union = weighted_union / kSamples;
+  CHECK(std::fabs(mean_union - 15.175324675324676) < 1.0e-12);
+  std::cout << "retained Wikipedia overlap samples=" << observed_samples
+            << " mean_unique_experts=" << mean_union
+            << " histogram_weighted_operator_latency_ms="
+            << weighted_latency / kSamples << '\n';
 }
 
 void CompareRealProjection(
@@ -785,18 +1167,87 @@ void TestRealCheckpoint(const std::string& checkpoint) {
             << " latency_ms=" << latency
             << " checkpoint_sha256="
             << artifact.value().stats().checkpoint_content_sha256 << '\n';
+
+  std::vector<std::uint32_t> expert_order;
+  expert_order.reserve(gem16::internal::kTrellis35ExpertCount);
+  for (unsigned index = 0U; index < 12U; ++index) {
+    expert_order.push_back(k3[index]);
+    expert_order.push_back(k4[index]);
+  }
+  const auto t3_ids = RemapT3Routes(MakeT3RoutesWithUnionSize(16U),
+                                    expert_order);
+  std::array<float, gem16::internal::kTrellis35T3Assignments> t3_weights{};
+  for (unsigned row = 0U; row < gem16::internal::kTrellis35T3Rows; ++row) {
+    std::copy(host_weights.begin(), host_weights.end(),
+              t3_weights.begin() + row * gem16::internal::kTrellis35M1TopK);
+  }
+  DeviceBuffer<float> t3_input(gem16::internal::kTrellis35T3Rows *
+                               gem16::internal::kTrellis35GateUpInput);
+  std::vector<float> host_t3_input(t3_input.elements());
+  for (unsigned row = 0U; row < gem16::internal::kTrellis35T3Rows; ++row) {
+    for (std::uint64_t index = 0U;
+         index < gem16::internal::kTrellis35GateUpInput; ++index) {
+      host_t3_input[static_cast<std::uint64_t>(row) *
+                        gem16::internal::kTrellis35GateUpInput +
+                    index] =
+          std::sin(static_cast<float>(index * 13U + row * 41U + 7U) *
+                   0.001953125F) *
+          0.03125F;
+    }
+  }
+  CHECK(Upload(t3_input, host_t3_input, "upload real T3 input"));
+  (void)RunT3Scenario(layer, t3_input, t3_ids, t3_weights,
+                      "real layer-0 T3 typical-overlap", true);
+
+  std::array<bool, gem16::internal::kTrellis35ExpertCount> seen{};
+  std::uint64_t t3_assignment_payload_bytes = 0U;
+  std::uint64_t t3_unique_payload_bytes = 0U;
+  for (const std::uint32_t expert : t3_ids) {
+    const std::uint64_t expert_bytes =
+        gem16::internal::kTrellis35GateUpInput *
+            gem16::internal::kTrellis35GateUpOutput *
+            layer.gate_up.rate_map[expert] / 8U +
+        gem16::internal::kTrellis35DownInput *
+            gem16::internal::kTrellis35DownOutput *
+            layer.down.rate_map[expert] / 8U;
+    t3_assignment_payload_bytes += expert_bytes;
+    if (!seen[expert]) {
+      seen[expert] = true;
+      t3_unique_payload_bytes += expert_bytes;
+    }
+  }
+  std::cout << "real layer-0 T3 assignment_payload_bytes="
+            << t3_assignment_payload_bytes
+            << " grouped_unique_payload_bytes=" << t3_unique_payload_bytes
+            << " payload_bytes_avoided="
+            << t3_assignment_payload_bytes - t3_unique_payload_bytes << '\n';
+  BenchmarkRetainedOverlapHistogram(layer, t3_input, t3_weights,
+                                    expert_order);
 }
 
 }  // namespace
 
 int main(int argc, char** argv) {
+  if (argc == 3 && std::string(argv[1]) == "--profile-t3") {
+    const unsigned unique_experts =
+        static_cast<unsigned>(std::stoul(argv[2]));
+    if (unique_experts < gem16::internal::kTrellis35M1TopK ||
+        unique_experts > gem16::internal::kTrellis35T3Assignments) {
+      std::cerr << "profile T3 union size must be in [8, 24]\n";
+      return 2;
+    }
+    ProfileSyntheticT3(unique_experts);
+    return failures == 0 ? 0 : 1;
+  }
   TestRandomizedProjectionParity();
   TestTransformsAndDownPadding();
   TestSyntheticFullM1();
+  TestSyntheticT3();
   if (argc == 3 && std::string(argv[1]) == "--checkpoint") {
     TestRealCheckpoint(argv[2]);
   } else if (argc != 1) {
-    std::cerr << "usage: gem16-cuda-trellis35-tests [--checkpoint PATH]\n";
+    std::cerr << "usage: gem16-cuda-trellis35-tests "
+                 "[--checkpoint PATH | --profile-t3 UNIQUE]\n";
     return 2;
   }
   if (failures == 0) {

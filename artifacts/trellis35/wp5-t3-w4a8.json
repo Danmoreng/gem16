@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "work_package": "WP5",
+  "status": "fixed_d2_t3_selected_expert_operator_pass",
+  "implementation_parent_revision": "045ffbbaeee2e6d272d996e96c381626f17e1af0",
+  "checkpoint": {
+    "path": "models/checkpoints/google-gemma-4-26b-a4b-it-trellis35-w4a8-wp2",
+    "checkpoint_content_sha256": "18d759d9244b8fcf2437af8c9d5ec525bdf1eb5b3b600a59d37dfd630208b876",
+    "layer": 0
+  },
+  "operator": {
+    "target_rows": 3,
+    "router_slots_per_row": 8,
+    "assignments": 24,
+    "implementation": "one dedicated 24-assignment pipeline; no M1 operator calls",
+    "weight_reuse": "first-occurrence expert CTA decodes one E4M3 weight fragment and contracts every selecting row before discarding it",
+    "accumulators": "three independent FP32 rows",
+    "reduction": "independent row-major reductions, router slot order 0 through 7",
+    "workspace_bytes": 1308864,
+    "allocation_during_launch": false,
+    "cuda_graph_replays": 2,
+    "commit_rollback_state_changes": 0
+  },
+  "correctness": {
+    "oracle": "three independently launched verified WP4 M1 operators in test code only",
+    "synthetic_zero_overlap_max_abs": 0.0,
+    "synthetic_typical_overlap_max_abs": 0.0,
+    "synthetic_maximal_overlap_max_abs": 0.0,
+    "real_layer0_typical_overlap_max_abs": 0.0,
+    "real_layer0_typical_overlap_max_rel": 0.0,
+    "real_layer0_typical_overlap_unique_experts": 16,
+    "route_id_changes": 0,
+    "slot_order_bit_mismatches": 0,
+    "finite": true
+  },
+  "real_layer0_payload": {
+    "assignment_payload_bytes_without_reuse": 65421312,
+    "grouped_unique_payload_bytes": 43704320,
+    "logical_payload_bytes_avoided": 21716992,
+    "complete_expert_matrix_global_bytes": 0
+  },
+  "latency_characterization": {
+    "scope": "isolated routed-expert T3 operator, not full-model Fixed-D2 decode",
+    "synthetic_zero_overlap_unique_experts": 24,
+    "synthetic_zero_overlap_ms": 1.67608,
+    "synthetic_typical_overlap_unique_experts": 16,
+    "synthetic_typical_overlap_ms": 1.17955,
+    "synthetic_maximal_overlap_unique_experts": 8,
+    "synthetic_maximal_overlap_ms": 0.672934,
+    "real_layer0_typical_overlap_ms": 1.1587,
+    "performance_gate": "observational_only"
+  },
+  "retained_wikipedia_overlap_characterization": {
+    "source": "artifacts/m25/profile-prefill-sampled-d2-router-overlap-2026-08-28.json",
+    "workload": "wikipedia-artificial-intelligence-summary-16k",
+    "verifier_layer_samples": 11550,
+    "union_size_histogram_8_through_24": [3, 53, 263, 583, 976, 1344, 1559, 1649, 1572, 1251, 1007, 660, 402, 171, 42, 14, 1],
+    "mean_unique_experts": 15.175324675324676,
+    "potential_cross_row_weight_load_reuse_percent": 36.76948051948052,
+    "histogram_weighted_real_layer0_operator_ms": 1.14684,
+    "qualification_boundary": "exact retained overlap distribution replayed as isolated real-layer operator microbenchmarks; individual retained route IDs were not recorded"
+  },
+  "profiler": {
+    "kernel": "MmaW4A8ProjectionGroupedT3Kernel",
+    "zero_overlap_gate_up": {
+      "grid": [44, 24, 1],
+      "block": [128, 1, 1],
+      "gpu_time_ms_under_ncu": 1.92,
+      "dram_read_mb": 3.58,
+      "tensor_instructions": 1115136
+    },
+    "maximal_overlap_gate_up": {
+      "grid": [44, 24, 1],
+      "block": [128, 1, 1],
+      "gpu_time_us_under_ncu": 784.61,
+      "dram_read_mb": 3.58,
+      "tensor_instructions": 371712
+    },
+    "sass_instruction": "QMMA.16832.F32.E4M3.E4M3",
+    "sass_weight_operand_reuse": "R28 is shared by three independently predicated accumulator rows",
+    "raw_ncu_zero_overlap": "artifacts/trellis35/wp5-ncu-t3-union24.txt",
+    "raw_ncu_maximal_overlap": "artifacts/trellis35/wp5-ncu-t3-union8.txt",
+    "sass_evidence": "artifacts/trellis35/wp5-sass-evidence.txt"
+  },
+  "sanitizers": {
+    "memcheck_errors": 0,
+    "initcheck_errors": 0,
+    "racecheck_errors": 0,
+    "racecheck_warnings": 0
+  },
+  "regression": {
+    "preset": "blackwell-release",
+    "full_build": "pass",
+    "ctest_passed": 13,
+    "ctest_failed": 0,
+    "external_product_tests_skipped": 3
+  },
+  "toolchain": {
+    "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "compute_capability": "12.0",
+    "driver": "610.43.03",
+    "cuda": "13.3.73",
+    "host_compiler": "GCC 16.1.1"
+  },
+  "limitations": [
+    "WP5 qualifies the isolated Fixed-D2 routed-expert operator; complete text-only engine dispatch remains visibly unsupported until WP7.",
+    "The retained Wikipedia result is histogram-weighted layer-0 operator characterization, not end-to-end decode throughput; the retained artifact contains aggregate overlap counters but no individual expert-ID traces.",
+    "Prefill W4A8 remains WP6, and performance remains observational during discovery."
+  ]
+}

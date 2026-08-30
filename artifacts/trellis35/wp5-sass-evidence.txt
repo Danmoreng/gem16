@@ -1,0 +1,13 @@
+Function: MmaW4A8ProjectionGroupedT3Kernel
+Binary: build/Linux/blackwell-release/bin/gem16-cuda-trellis35-tests
+Extraction: cuobjdump --dump-sass, restricted to the named function
+
+/*9a50*/     QMMA.16832.F32.E4M3.E4M3 R16, R4,  R28,       R16
+/*9a90*/ @P0 QMMA.16832.F32.E4M3.E4M3 R12, R20, R28.reuse, R12
+/*9aa0*/ @P1 QMMA.16832.F32.E4M3.E4M3 R8,  R24, R28,       R8
+
+The three independent accumulator destinations are R16, R12, and R8. The
+decoded E4M3 weight operand R28 is reused for the additional selected rows;
+P0/P1 predicate whether the grouped expert occurs in the second and third
+row. Nsight Compute observed the grouped kernel for both Gate+Up and Down at
+union sizes 24 and 8; raw counters are retained in the two WP5 NCU files.

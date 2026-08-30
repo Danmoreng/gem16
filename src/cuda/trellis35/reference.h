@@ -10,6 +10,9 @@
 namespace gem16::internal {
 
 inline constexpr std::uint32_t kTrellis35M1TopK = 8U;
+inline constexpr std::uint32_t kTrellis35T3Rows = 3U;
+inline constexpr std::uint32_t kTrellis35T3Assignments =
+    kTrellis35T3Rows * kTrellis35M1TopK;
 inline constexpr std::uint64_t kTrellis35GateUpInput = 2816U;
 inline constexpr std::uint64_t kTrellis35GateUpOutput = 1408U;
 inline constexpr std::uint64_t kTrellis35ExpertIntermediate = 704U;
@@ -31,6 +34,22 @@ struct Trellis35M1Workspace {
   float* down_input_scales = nullptr;               // 8
   float* down_transformed_output = nullptr;         // 8 * 2816
   float* down_output = nullptr;                     // 8 * 2816
+};
+
+// Fixed storage for the dedicated Fixed-D2 verifier operator. Assignment-major
+// regions contain 3 rows * 8 router slots; outputs remain row-major.
+struct Trellis35T3Workspace {
+  float* gate_up_input_transformed = nullptr;       // 24 * 2816
+  std::uint8_t* gate_up_input_e4m3 = nullptr;       // 24 * 2816
+  float* gate_up_input_scales = nullptr;            // 24
+  float* gate_up_transformed_output = nullptr;      // 24 * 1408
+  float* gate_up_output = nullptr;                  // 24 * 1408
+  float* product = nullptr;                         // 24 * 704
+  float* down_input_transformed = nullptr;          // 24 * 768
+  std::uint8_t* down_input_e4m3 = nullptr;          // 24 * 768
+  float* down_input_scales = nullptr;               // 24
+  float* down_transformed_output = nullptr;         // 24 * 2816
+  float* down_output = nullptr;                     // 24 * 2816
 };
 
 // Applies diag(SUH) followed by independent normalized 128-point Hadamard
@@ -72,6 +91,15 @@ struct Trellis35M1Workspace {
     const float* input, const std::uint32_t* selected_experts,
     const float* route_weights, const Trellis35DeviceLayerBinding& layer,
     const Trellis35M1Workspace& workspace, float* output,
+    cudaStream_t stream);
+
+// Dedicated Fixed-D2 T=3 path. This is one 24-assignment pipeline, not three
+// M1 calls. Each first-occurrence expert group decodes a weight fragment once
+// and feeds every row that selected that expert before discarding it.
+[[nodiscard]] Status LaunchTrellis35SelectedExpertsT3(
+    const float* input_rows, const std::uint32_t* selected_experts,
+    const float* route_weights, const Trellis35DeviceLayerBinding& layer,
+    const Trellis35T3Workspace& workspace, float* output_rows,
     cudaStream_t stream);
 
 }  // namespace gem16::internal
