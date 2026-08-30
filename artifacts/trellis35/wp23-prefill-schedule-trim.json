@@ -1,0 +1,154 @@
+{
+  "schema_version": 1,
+  "work_packet": "WP23",
+  "status": "accepted",
+  "implementation_parent_revision": "fb52c90d4b3fa14986819d11ec6dbaa1dbf3ae5f",
+  "candidate": {
+    "name": "trim Trellis35 hybrid-prefill launch and M32 tail work",
+    "routed_expert_format": "trellis35_w4a8",
+    "default_enabled": true,
+    "rollback_environment": "GEM16_TRELLIS35_PREFILL_SCHEDULE_TRIM=0",
+    "precision_changed": false,
+    "workspace_delta_bytes": 0,
+    "persistent_device_representation_changed": false
+  },
+  "schedule_bound": {
+    "parent_formula": "floor((assignment_count + 63 * active_expert_upper_bound) / 64)",
+    "candidate_formula": "max(1, floor((assignment_count + 31 * active_expert_upper_bound) / 64))",
+    "proof": "sum_i floor((rows_i + 31) / 64) <= floor((sum_i rows_i + 31 * E) / 64)",
+    "assignment_count_max": 65535,
+    "active_expert_upper_bound": 128,
+    "maximum_candidate_intermediate": 69503,
+    "production_2048": {
+      "assignment_count": 16384,
+      "parent_grid_y": 382,
+      "candidate_grid_y": 318,
+      "uniform_actual_m64_schedule_count": 256
+    }
+  },
+  "m32_tail": {
+    "change": "derive valid_rows and valid_m16_tiles from the scheduled expert tail; skip the second M16 MMA and inverse-transform rows for tails of at most 16 rows",
+    "rollback": "the packet rollback restores two M16 tiles and the full 32-row epilogue",
+    "numerics": "the skipped accumulator is independent of the retained tile and all non-participating activation rows remain zero-filled sentinels"
+  },
+  "operator_verification": {
+    "wp17_matrix": {
+      "row_boundaries": [1, 2, 3, 15, 16, 17, 31, 32, 33, 47, 48, 63, 64, 65, 79, 80, 81, 95, 96, 97, 127, 128],
+      "routing_patterns": ["uniform", "real_fixture", "one_hot", "long_tail"],
+      "rate_patterns": ["k3", "k4", "mixed"],
+      "case_count": 264,
+      "gate_up_and_down_bit_exact": true,
+      "cuda_graph_capture_and_replay": true
+    },
+    "real_layer0_gate_up_2048_ms": {
+      "parent_samples": [10.3244, 10.3582, 10.4264],
+      "parent_median": 10.3582,
+      "candidate_samples": [10.1268, 10.5128, 10.0738],
+      "candidate_median": 10.1268,
+      "median_gain_percent": 2.234
+    }
+  },
+  "resource_usage": {
+    "command": "/opt/cuda/bin/cuobjdump --dump-resource-usage build/blackwell-release/bin/gem16-cuda-trellis35-tests",
+    "m32_n128_float_and_bf16": {
+      "registers_per_thread": 64,
+      "stack_bytes": 0,
+      "shared_bytes": 19584,
+      "local_bytes": 0
+    },
+    "m64_n128_float_and_bf16": {
+      "registers_per_thread": 64,
+      "stack_bytes": 0,
+      "shared_bytes": 38144,
+      "local_bytes": 0
+    }
+  },
+  "same_binary_screen": {
+    "workload": "Wikipedia 16K sampled, 64 generated tokens, 1 warm-up and 1 measured pair",
+    "executable_sha256": "9159f47924a243ef02a1674743411816a603bd42a4c4ebbd5a319695129ad724",
+    "parent": {
+      "ordinary_prefill_tokens_per_second": 5727.0694,
+      "fixed_d2_prefill_tokens_per_second": 5722.9484
+    },
+    "candidate": {
+      "ordinary_prefill_tokens_per_second": 5735.5901,
+      "fixed_d2_prefill_tokens_per_second": 5737.3174
+    },
+    "ordinary_gain_percent": 0.1488,
+    "fixed_d2_gain_percent": 0.2511,
+    "output_token_sha256": "3f2a319c29ac8aa0271db963a5579833b79af8fcaee844f7ed54a38d1b71d38e"
+  },
+  "full_wikipedia_16k": {
+    "sampling": true,
+    "seed": 0,
+    "prompt_tokens": 16384,
+    "generated_tokens": 1229,
+    "warmup_pairs": 1,
+    "measured_pairs": 3,
+    "ordinary_prefill_tokens_per_second": {
+      "median": 5717.655844858332,
+      "samples": [5717.855385442223, 5717.655844858332, 5706.10627205004]
+    },
+    "fixed_d2_prefill_tokens_per_second": {
+      "median": 5714.265784508285,
+      "samples": [5718.034983876146, 5714.265784508285, 5706.960931839714]
+    },
+    "ordinary_decode_tokens_per_second": {
+      "median": 126.49504681243813,
+      "samples": [126.50455952101336, 126.49504681243813, 126.45844274872047]
+    },
+    "fixed_d2_decode_tokens_per_second": {
+      "median": 169.90190517038616,
+      "samples": [169.95387164053926, 169.90190517038616, 169.78656390984722]
+    },
+    "ordinary_prefill_gain_vs_wp21_percent": 0.2400969,
+    "fixed_d2_prefill_gain_vs_wp21_percent": 0.1981020,
+    "ordinary_peak_vram_mib": 12522,
+    "fixed_d2_peak_vram_mib": 12798,
+    "ordinary_workspace_bytes": 333881888,
+    "fixed_d2_workspace_bytes": 340973600,
+    "output_token_sha256": "12235104322e01e0d53875e11c980312f8f42fe763d04b0762697f54eb922c48",
+    "accepted_tokens": 690,
+    "proposed_tokens": 1076,
+    "rejected_tokens": 386,
+    "d2_groups": 538,
+    "ordinary_fallback_tokens": 0,
+    "deterministic_outputs": true
+  },
+  "sanitizers": {
+    "scope": "WP17 mixed long-tail rows=65 M64 plus one-row M32 tail with CUDA graph replay",
+    "memcheck_errors": 0,
+    "initcheck_errors": 0,
+    "racecheck_errors": 0,
+    "racecheck_warnings": 0
+  },
+  "tests": [
+    {
+      "command": "build/blackwell-release/bin/gem16-cuda-trellis35-tests --wp17-m64-matrix",
+      "result": "264/264 routing/rate cases passed; Gate+Up and Down exact"
+    },
+    {
+      "command": "ctest --test-dir build/blackwell-release --output-on-failure -R '^gem16-(unit|cuda|cuda-trellis35|trellis35-compiler-contract|cuda-nvfp4-consumption)$'",
+      "result": "5/5 passed"
+    },
+    {
+      "command": "ctest --test-dir build/blackwell-release --output-on-failure -R '^gem16-12b-m22-product$'",
+      "result": "skipped: no configured 12B model path"
+    }
+  ],
+  "raw_evidence": [
+    {
+      "path": "artifacts/raw/trellis35/wp23/schedule-parent-screen.json",
+      "sha256": "5df4b530018b8044492991f9d2fbd33f0457fef1e35276a6825642abe950c006"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp23/schedule-trim-screen.json",
+      "sha256": "b93b78f0f9fd2d8b26960ad631176bb54c4ab2ccc11a93f280e70b1284a601c7"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp23/schedule-trim-full-wikipedia-16k-sampled-1w3.json",
+      "sha256": "6bf8fce3d7969578c8c1375f040f17e29f9a5b5b61df299c6818c52809ba98bf"
+    }
+  ],
+  "decision": "retain as the final bounded prefill scheduling cleanup; move the next packet to decode optimization"
+}

@@ -647,7 +647,7 @@ __global__ void MmaW4A8ProjectionGroupedPrefillM32N128Kernel(
     const std::uint32_t* expert_prefix, const std::uint32_t* schedule_count,
     const std::uint32_t* schedule, const std::uint32_t* permutation,
     unsigned schedule_count_slot, bool schedule_after_m64,
-    OutputPolicy policy, std::uint64_t assignment_count,
+    bool trim_m32_tail, OutputPolicy policy, std::uint64_t assignment_count,
     std::uint64_t input_elements, std::uint64_t output_elements) {
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 890
   const unsigned schedule_index = blockIdx.y;
@@ -660,6 +660,13 @@ __global__ void MmaW4A8ProjectionGroupedPrefillM32N128Kernel(
   if (expert >= kTrellis35ExpertCount) return;
   const std::uint32_t grouped_end = expert_prefix[expert + 1U];
   if (grouped_begin >= grouped_end) return;
+  const unsigned valid_rows =
+      trim_m32_tail
+          ? static_cast<unsigned>(min(
+                grouped_end - grouped_begin,
+                static_cast<std::uint32_t>(kPrefillGroupedRowsPerTile)))
+          : kPrefillGroupedRowsPerTile;
+  const unsigned valid_m16_tiles = (valid_rows + 15U) / 16U;
 
   __shared__ std::uint32_t activation_rows[kPrefillGroupedRowsPerTile];
   __shared__ alignas(16) std::uint32_t staged_activation
@@ -697,18 +704,19 @@ __global__ void MmaW4A8ProjectionGroupedPrefillM32N128Kernel(
     AccumulateGroupedPrefill<3, kPrefillGroupedRowsPerTile>(
         activation, activation_rows, pool, descriptor.pool_offset,
         input_elements, output_elements, source_output, staged_activation,
-        accumulators, 2U);
+        accumulators, valid_m16_tiles);
   } else if (descriptor.rate_bits == 4U) {
     AccumulateGroupedPrefill<4, kPrefillGroupedRowsPerTile>(
         activation, activation_rows, pool, descriptor.pool_offset,
         input_elements, output_elements, source_output, staged_activation,
-        accumulators, 2U);
+        accumulators, valid_m16_tiles);
   } else {
     return;
   }
 
 #pragma unroll
   for (unsigned tile = 0U; tile < 2U; ++tile) {
+    if (tile >= valid_m16_tiles) continue;
     const float values[4] = {accumulators[tile].x0, accumulators[tile].x1,
                              accumulators[tile].x2, accumulators[tile].x3};
 #pragma unroll
@@ -728,8 +736,7 @@ __global__ void MmaW4A8ProjectionGroupedPrefillM32N128Kernel(
       family.svh_f16 + static_cast<std::uint64_t>(expert) * output_elements +
       output_offset + lane * 4U;
 #pragma unroll
-  for (unsigned row = warp; row < kPrefillGroupedRowsPerTile;
-       row += kMmaN128Warps) {
+  for (unsigned row = warp; row < valid_rows; row += kMmaN128Warps) {
     const std::uint32_t original = activation_rows[row];
     if (original == 0xffffffffU) continue;
     float values[4];
@@ -758,6 +765,7 @@ __global__ void MmaW4A8ProjectionGroupedPrefillM32N128Kernel(
   (void)permutation;
   (void)schedule_count_slot;
   (void)schedule_after_m64;
+  (void)trim_m32_tail;
   (void)policy;
   (void)assignment_count;
   (void)input_elements;

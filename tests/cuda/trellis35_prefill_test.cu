@@ -403,9 +403,10 @@ void RunWp17M64Ab(
 }
 
 void TestWp17M64Matrix() {
-  constexpr std::array<std::uint32_t, 18> kRows{
+  constexpr std::array<std::uint32_t, 22> kRows{
       1U,  2U,  3U,  15U, 16U, 17U, 31U, 32U, 33U,
-      47U, 48U, 63U, 64U, 65U, 95U, 96U, 127U, 128U};
+      47U, 48U, 63U, 64U, 65U, 79U, 80U, 81U, 95U,
+      96U, 97U, 127U, 128U};
   constexpr std::array<PrefillRoutingPattern, 4> kPatterns{
       PrefillRoutingPattern::kUniform, PrefillRoutingPattern::kRealFixture,
       PrefillRoutingPattern::kOneHot, PrefillRoutingPattern::kLongTail};

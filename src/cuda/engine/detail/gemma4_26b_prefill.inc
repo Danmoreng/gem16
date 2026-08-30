@@ -172,9 +172,10 @@ Status Gemma4Moe26BReferenceEngine::PrefillTokens(
           if (rows == 0U) continue;
           ++active_experts;
           m32_schedules += (rows + 31U) / 32U;
-          m64_schedules += (rows + 63U) / 64U;
           m64_full_tiles += rows / 64U;
           const std::uint32_t remainder = rows % 64U;
+          m64_schedules +=
+              rows / 64U + (remainder > 32U ? 1U : 0U);
           m64_33_63_tails += remainder > 32U ? 1U : 0U;
           m32_le32_tails +=
               remainder != 0U && remainder <= 32U ? 1U : 0U;

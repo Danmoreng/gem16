@@ -22,9 +22,9 @@ void PrintPrefillScheduleTelemetry(const PrefillHostRouting& routing) {
     first = false;
     ++active_experts;
     m32_schedule_count += (rows + 31U) / 32U;
-    m64_schedule_count += (rows + 63U) / 64U;
     m64_full_tiles += rows / 64U;
     const std::uint32_t remainder = rows % 64U;
+    m64_schedule_count += rows / 64U + (remainder > 32U ? 1U : 0U);
     m64_33_63_tails += remainder > 32U ? 1U : 0U;
     m32_le32_tails += remainder != 0U && remainder <= 32U ? 1U : 0U;
   }
@@ -37,6 +37,9 @@ void PrintPrefillScheduleTelemetry(const PrefillHostRouting& routing) {
                               active_expert_upper_bound) /
       32U;
   const std::uint64_t m64_launched_blocks =
+      std::max<std::uint64_t>(
+          1U, (assignment_count + 31U * active_expert_upper_bound) / 64U);
+  const std::uint64_t m64_parent_launched_blocks =
       (assignment_count + 63U * active_expert_upper_bound) / 64U;
   std::cout << "] assignment_count=" << assignment_count
             << " active_experts=" << active_experts
@@ -46,7 +49,8 @@ void PrintPrefillScheduleTelemetry(const PrefillHostRouting& routing) {
             << " m64_33_63_tails=" << m64_33_63_tails
             << " m32_le32_tails=" << m32_le32_tails
             << " m32_launched_blocks=" << m32_launched_blocks
-            << " m64_launched_blocks=" << m64_launched_blocks << '\n';
+            << " m64_parent_launched_blocks=" << m64_parent_launched_blocks
+            << " m64_trimmed_launched_blocks=" << m64_launched_blocks << '\n';
 }
 
 void ProfileRealPrefill(
