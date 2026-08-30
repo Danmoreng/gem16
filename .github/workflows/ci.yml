@@ -18,6 +18,13 @@ jobs:
           git -C source remote add origin "$SERVER/$REPOSITORY"
           git -C source fetch --depth=1 origin "$REVISION"
           git -C source checkout --detach FETCH_HEAD
+      - name: Prepare Python test environment
+        run: |
+          python3 -m venv .ci-venv
+          . .ci-venv/bin/activate
+          python -m pip install --disable-pip-version-check -r tools/requirements-ci.txt
+          echo "$PWD/.ci-venv/bin" >> "$GITHUB_PATH"
+        working-directory: source
       - name: Configure
         run: cmake --preset host-debug
         working-directory: source
@@ -37,9 +44,7 @@ jobs:
         working-directory: source
       - name: Check Python tools
         run: |
-          python3 -m venv .ci-venv
           . .ci-venv/bin/activate
-          python -m pip install --disable-pip-version-check -r tools/requirements-ci.txt
           python -m py_compile \
             tools/compare_manifests.py \
             tools/benchmark_vllm.py \
@@ -75,6 +80,15 @@ jobs:
           git -C source remote add origin "$env:SERVER/$env:REPOSITORY"
           git -C source fetch --depth=1 origin "$env:REVISION"
           git -C source checkout --detach FETCH_HEAD
+      - name: Prepare Python test environment
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $PSNativeCommandUseErrorActionPreference = $true
+          python -m venv .ci-venv
+          .\.ci-venv\Scripts\python.exe -m pip install --disable-pip-version-check -r tools/requirements-ci.txt
+          "$PWD\.ci-venv\Scripts" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        working-directory: source
       - name: Configure, build, and test
         shell: pwsh
         run: .\scripts\build.ps1 -Test
@@ -93,9 +107,7 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           $PSNativeCommandUseErrorActionPreference = $true
-          python -m venv .ci-venv
           .\.ci-venv\Scripts\Activate.ps1
-          python -m pip install --disable-pip-version-check -r tools/requirements-ci.txt
           python -m py_compile tools/compare_manifests.py tools/benchmark_vllm.py tools/benchmark_quality.py tools/compare_logits.py tools/compare_quality_benchmarks.py tools/fetch_model.py tools/generate_golden.py tools/generate_llama_golden.py tools/inspect_checkpoint.py tools/inspect_gguf.py tools/validate_inference.py tools/validate_layer_checkpoint.py tools/verify_sm120_sass.py tools/summarize_llama_bench.py tools/gemma4_26b_moe_oracle.py tools/update_gemma4_26b_plan_integrity.py
           python tools/update_gemma4_26b_plan_integrity.py --validate-source
           python -m unittest discover -s tests/python -v
