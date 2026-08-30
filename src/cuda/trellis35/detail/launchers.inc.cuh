@@ -194,7 +194,7 @@ Status LaunchPrefillProjectionBlocks(
       output == nullptr || tokens == 0U || assignment_count == 0U ||
       input_elements == 0U || input_elements % 32U != 0U ||
       output_elements == 0U ||
-      output_elements % kPrefillOutputBlock != 0U || tokens > 1024U ||
+      output_elements % kPrefillOutputBlock != 0U || tokens > 2048U ||
       assignment_count > 65535U) {
     return Invalid("Trellis35 grouped prefill projection contract is invalid");
   }
@@ -318,7 +318,7 @@ Status LaunchPrefillProjectionBlocksBf16Reverse(
       output == nullptr || tokens == 0U || assignment_count == 0U ||
       input_elements == 0U || input_elements % 32U != 0U ||
       output_elements == 0U ||
-      output_elements % kPrefillOutputBlock != 0U || tokens > 1024U ||
+      output_elements % kPrefillOutputBlock != 0U || tokens > 2048U ||
       assignment_count > 65535U) {
     return Invalid("Trellis35 grouped BF16 prefill projection contract is invalid");
   }
@@ -983,7 +983,7 @@ Status LaunchTrellis35PrefillExpertsW4A8(
                                         workspace.expert_down == nullptr &&
                                         workspace.expert_product_bf16 != nullptr &&
                                         workspace.expert_down_bf16 != nullptr;
-  if (normalized_hidden == nullptr || tokens == 0U || tokens > 1024U ||
+  if (normalized_hidden == nullptr || tokens == 0U || tokens > 2048U ||
       assignment_count > 65535U ||
       (!float_boundaries && !physical_bf16_boundaries) ||
       (physical_bf16_boundaries && workspace.trellis_activation == nullptr) ||

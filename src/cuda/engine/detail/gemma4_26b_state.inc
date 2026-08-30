@@ -5,6 +5,7 @@ struct Gemma4Moe26BReferenceEngine::Impl {
   std::uint64_t sliding_capacity = 0U;
   std::uint64_t prefill_chunks = 0U;
   std::uint64_t minimum_prefill_chunk = 0U;
+  std::uint64_t prefill_chunk_tokens = kDefaultPrefillChunkTokens;
   std::uint64_t prefill_calls = 0U;
   std::uint64_t decode_graph_launches = 0U;
   std::uint64_t token_selections = 0U;

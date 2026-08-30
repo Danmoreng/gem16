@@ -43,6 +43,10 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
   impl->context = context_tokens;
   impl->backend = backend;
   impl->routed_expert_format = routed_expert_format.value();
+  auto prefill_chunk_tokens = ResolvePrefillChunkTokens(
+      IsTrellis35RoutedExpertFormat(routed_expert_format.value()));
+  if (!prefill_chunk_tokens.ok()) return prefill_chunk_tokens.status();
+  impl->prefill_chunk_tokens = prefill_chunk_tokens.value();
   impl->quality_capture_all_layers = quality_capture_all_layers;
   if (IsTrellis35RoutedExpertFormat(routed_expert_format.value())) {
     if (backend != Gemma4Moe26BBackend::kSm120Integrated) {
@@ -403,23 +407,24 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
   }
 
   if (backend == Gemma4Moe26BBackend::kSm120Integrated) {
+    const std::uint64_t prefill_tokens = impl->prefill_chunk_tokens;
     LayoutBuilder prefill;
-    const auto p_tokens = prefill.Add<std::uint32_t>(kPrefillMaxTokens);
-    const auto p_hidden_a = prefill.Add<float>(kPrefillMaxTokens * kWidth);
-    const auto p_hidden_b = prefill.Add<float>(kPrefillMaxTokens * kWidth);
+    const auto p_tokens = prefill.Add<std::uint32_t>(prefill_tokens);
+    const auto p_hidden_a = prefill.Add<float>(prefill_tokens * kWidth);
+    const auto p_hidden_b = prefill.Add<float>(prefill_tokens * kWidth);
     // The two RoPE profiles remain live across every attention/MoE pair in a
     // chunk. Keep them in the persistent prefix shared by both phase layouts;
     // placing them in attention-only scratch would let each intervening MoE
     // layer overwrite the tables before the next attention layer consumes
     // them.
     const auto p_global_cosine =
-        prefill.Add<float>(kPrefillMaxTokens * 256U);
+        prefill.Add<float>(prefill_tokens * 256U);
     const auto p_global_sine =
-        prefill.Add<float>(kPrefillMaxTokens * 256U);
+        prefill.Add<float>(prefill_tokens * 256U);
     const auto p_local_cosine =
-        prefill.Add<float>(kPrefillMaxTokens * 256U);
+        prefill.Add<float>(prefill_tokens * 256U);
     const auto p_local_sine =
-        prefill.Add<float>(kPrefillMaxTokens * 256U);
+        prefill.Add<float>(prefill_tokens * 256U);
 
     // Attention and MoE execute in-order on impl->stream. Build both phase
     // layouts from the persistent token/hidden prefix so their temporary
@@ -432,26 +437,26 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
     const auto p_scores =
         attention_common.Add<float>(kPrefillScoreElements);
     const auto p_q_norm = attention_common.Add<float>(
-        kPrefillMaxTokens * 16U * 512U);
+        prefill_tokens * 16U * 512U);
     LayoutBuilder attention_projection = attention_common;
     const auto p_input_fp8 =
-        attention_projection.Add<std::uint8_t>(kPrefillMaxTokens * kWidth);
+        attention_projection.Add<std::uint8_t>(prefill_tokens * kWidth);
     const auto p_input_scale =
-        attention_projection.Add<float>(kPrefillMaxTokens);
+        attention_projection.Add<float>(prefill_tokens);
     const auto p_q_raw =
-        attention_projection.Add<std::uint16_t>(kPrefillMaxTokens * 16U * 512U);
+        attention_projection.Add<std::uint16_t>(prefill_tokens * 16U * 512U);
     const auto p_k_raw =
-        attention_projection.Add<std::uint16_t>(kPrefillMaxTokens * 2048U);
+        attention_projection.Add<std::uint16_t>(prefill_tokens * 2048U);
     const auto p_v_raw =
-        attention_projection.Add<std::uint16_t>(kPrefillMaxTokens * 2048U);
+        attention_projection.Add<std::uint16_t>(prefill_tokens * 2048U);
     const auto p_k_norm =
-        attention_projection.Add<float>(kPrefillMaxTokens * 2048U);
+        attention_projection.Add<float>(prefill_tokens * 2048U);
     const auto p_v_norm =
-        attention_projection.Add<float>(kPrefillMaxTokens * 2048U);
+        attention_projection.Add<float>(prefill_tokens * 2048U);
     const auto p_staged_k =
-        attention_projection.Add<std::uint8_t>(kPrefillMaxTokens * 2048U);
+        attention_projection.Add<std::uint8_t>(prefill_tokens * 2048U);
     const auto p_staged_v =
-        attention_projection.Add<std::uint8_t>(kPrefillMaxTokens * 2048U);
+        attention_projection.Add<std::uint8_t>(prefill_tokens * 2048U);
     const auto p_cutlass_workspace = attention_projection.Add<std::byte>(
         kGemma4Moe26BAttentionCutlassWorkspaceBytes);
 
@@ -461,15 +466,15 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
     const auto p_global_value_bf16 = attention_prepared.Add<std::uint16_t>(
         kPreparedGlobalPrefillTokens * 2U * 512U);
     const auto p_attention = attention_prepared.Add<std::uint16_t>(
-        kPrefillMaxTokens * 16U * 512U);
+        prefill_tokens * 16U * 512U);
 
     LayoutBuilder attention_post = attention_common;
     const auto p_output_fp8 =
-        attention_post.Add<std::uint8_t>(kPrefillMaxTokens * 16U * 512U);
+        attention_post.Add<std::uint8_t>(prefill_tokens * 16U * 512U);
     const auto p_output_scale =
-        attention_post.Add<float>(kPrefillMaxTokens);
+        attention_post.Add<float>(prefill_tokens);
     const auto p_output_projection =
-        attention_post.Add<float>(kPrefillMaxTokens * kWidth);
+        attention_post.Add<float>(prefill_tokens * kWidth);
     LayoutBuilder attention = attention_projection;
     attention.bytes = std::max(
         {attention_projection.bytes, attention_prepared.bytes,
@@ -477,23 +482,23 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
 
     LayoutBuilder moe = prefill;
     const auto p_router_logits =
-        moe.Add<float>(kPrefillMaxTokens * kExperts);
+        moe.Add<float>(prefill_tokens * kExperts);
     const auto p_router_probabilities =
-        moe.Add<float>(kPrefillMaxTokens * kExperts);
+        moe.Add<float>(prefill_tokens * kExperts);
     const auto p_token_hidden =
-        moe.Add<float>(kPrefillMaxTokens * kWidth);
+        moe.Add<float>(prefill_tokens * kWidth);
     const auto p_token_packed =
-        moe.Add<std::uint8_t>(kPrefillMaxTokens * kWidth / 2U);
+        moe.Add<std::uint8_t>(prefill_tokens * kWidth / 2U);
     const auto p_token_scales =
-        moe.Add<std::uint8_t>(kPrefillMaxTokens * kWidth / 16U);
+        moe.Add<std::uint8_t>(prefill_tokens * kWidth / 16U);
     const auto p_expert_product = moe.Add<std::uint16_t>(
-        kPrefillMaxTokens * kTopK * kExpert);
+        prefill_tokens * kTopK * kExpert);
     const auto p_expert_product_packed = moe.Add<std::uint8_t>(
-        kPrefillMaxTokens * kTopK * kExpert / 2U);
+        prefill_tokens * kTopK * kExpert / 2U);
     const auto p_expert_product_scales = moe.Add<std::uint8_t>(
-        kPrefillMaxTokens * kTopK * kExpert / 16U);
+        prefill_tokens * kTopK * kExpert / 16U);
     const auto p_expert_down = moe.Add<std::uint16_t>(
-        kPrefillMaxTokens * kTopK * kWidth);
+        prefill_tokens * kTopK * kWidth);
     // Fixed-D2 attention and prefill MoE execute in-order. Alias the dead MoE
     // suffix, but plan the alias with its actual long-context size instead of
     // relying on whatever bytes happen to follow shared_product. The previous
@@ -504,30 +509,39 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
         DecodeAttentionFixedWorkspaceElements(context_tokens,
                                                kM25FixedD2Rows));
     const auto p_shared_product =
-        moe.Add<float>(kPrefillMaxTokens * kShared);
+        moe.Add<float>(prefill_tokens * kShared);
     const auto p_shared_product_packed =
-        moe.Add<std::uint8_t>(kPrefillMaxTokens * kShared / 2U);
+        moe.Add<std::uint8_t>(prefill_tokens * kShared / 2U);
     const auto p_shared_product_scales =
-        moe.Add<std::uint8_t>(kPrefillMaxTokens * kShared / 16U);
+        moe.Add<std::uint8_t>(prefill_tokens * kShared / 16U);
     const auto p_shared_output =
-        moe.Add<float>(kPrefillMaxTokens * kWidth);
+        moe.Add<float>(prefill_tokens * kWidth);
     const auto p_reduced_output =
-        moe.Add<float>(kPrefillMaxTokens * kWidth);
+        moe.Add<float>(prefill_tokens * kWidth);
     const auto p_assignments = moe.Add<Gemma4MoePrefillAssignment>(
-        kPrefillMaxTokens * kTopK);
+        prefill_tokens * kTopK);
     const auto p_histogram = moe.Add<std::uint32_t>(kExperts);
     const auto p_prefix = moe.Add<std::uint32_t>(kExperts + 1U);
     const auto p_permutation =
-        moe.Add<std::uint32_t>(kPrefillMaxTokens * kTopK);
+        moe.Add<std::uint32_t>(prefill_tokens * kTopK);
     const auto p_inverse =
-        moe.Add<std::uint32_t>(kPrefillMaxTokens * kTopK);
+        moe.Add<std::uint32_t>(prefill_tokens * kTopK);
     prefill.bytes =
         std::max({attention.bytes, moe.bytes, mtp_d2_attention.bytes});
     constexpr std::uint64_t kM09MoePrefillCap = 192U * 1024U * 1024U;
+    // The Trellis35 checkpoint leaves enough residency headroom to plan the
+    // full 262144-token engine contract.  At that hard maximum the fixed-D2
+    // prefill alias requires 406,495,232 bytes; retain a small bounded margin
+    // while keeping the NVFP4 M09 cap unchanged.
+    constexpr std::uint64_t kTrellis35PrefillCap = 416U * 1024U * 1024U;
+    const std::uint64_t prefill_cap =
+        IsTrellis35RoutedExpertFormat(routed_expert_format.value())
+            ? kTrellis35PrefillCap
+            : kM09MoePrefillCap;
     if (p_mtp_d2_attention != p_shared_product ||
         prefill.bytes == std::numeric_limits<std::uint64_t>::max() ||
-        prefill.bytes > kM09MoePrefillCap) {
-      return Invalid("M17 fixed prefill workspace exceeds the M09 cap");
+        prefill.bytes > prefill_cap) {
+      return Invalid("M17 fixed prefill workspace exceeds its format cap");
     }
     valid = impl->prefill_workspace.Allocate(
         prefill.bytes, "allocate M17 fixed prefill workspace");
@@ -537,7 +551,7 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
     };
     impl->prefill_tokens = reinterpret_cast<std::uint32_t*>(pptr(p_tokens));
     error = cudaMallocHost(&impl->prefill_host_tokens,
-                           kPrefillMaxTokens * sizeof(std::uint32_t));
+                           prefill_tokens * sizeof(std::uint32_t));
     if (error != cudaSuccess) {
       return CudaFailure("allocate M17 pinned prefill tokens", error);
     }
@@ -605,7 +619,7 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
     LayoutBuilder trellis_layout;
     constexpr std::uint64_t assignments = kTrellis35T3Assignments;
     const auto prefill_activation = trellis_layout.Add<std::uint8_t>(
-        kPrefillMaxTokens * kTopK * kTrellis35GateUpInput);
+        impl->prefill_chunk_tokens * kTopK * kTrellis35GateUpInput);
     const auto gate_input = trellis_layout.Add<float>(
         assignments * kTrellis35GateUpInput);
     const auto gate_e4m3 = trellis_layout.Add<std::uint8_t>(

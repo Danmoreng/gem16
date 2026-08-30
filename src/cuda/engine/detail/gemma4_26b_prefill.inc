@@ -18,6 +18,7 @@ Status Gemma4Moe26BReferenceEngine::PrefillTokens(
   x.decode_self_feed_valid = false;
   constexpr unsigned threads = 256U;
   std::size_t consumed = 0U;
+  std::uint64_t chunk_index = 0U;
   cudaError_t error =
       cudaMemsetAsync(x.routing_finite, 1, sizeof(int), x.stream);
   if (error != cudaSuccess) {
@@ -45,8 +46,21 @@ Status Gemma4Moe26BReferenceEngine::PrefillTokens(
     return Invalid("M17 prefill RoPE profiles are not initialized");
   }
   while (consumed < tokens.size()) {
+    const std::uint64_t absolute_chunk_begin = x.position;
+    // The 2048-token WP21 candidate is qualified for the prepared global
+    // attention extent used by the complete Wikipedia-16K workload. Preserve
+    // the established 1024-token long-context path once that fixed prepared
+    // extent is exhausted.
+    const std::uint64_t prepared_remaining =
+        absolute_chunk_begin < kPreparedGlobalPrefillTokens
+            ? kPreparedGlobalPrefillTokens - absolute_chunk_begin
+            : 0U;
+    const std::uint64_t chunk_limit =
+        prepared_remaining == 0U
+            ? kDefaultPrefillChunkTokens
+            : std::min(x.prefill_chunk_tokens, prepared_remaining);
     const std::uint64_t chunk = std::min<std::uint64_t>(
-        kPrefillMaxTokens, tokens.size() - consumed);
+        chunk_limit, tokens.size() - consumed);
     const bool is_last_chunk =
         consumed + static_cast<std::size_t>(chunk) == tokens.size();
     error = cudaStreamSynchronize(x.stream);
@@ -170,7 +184,7 @@ Status Gemma4Moe26BReferenceEngine::PrefillTokens(
           down_k4 += host_down[expert].rate_bits == 4U ? 1U : 0U;
         }
         std::cerr << "TRELLIS35_WP17_ROUTING {\"chunk\":"
-                  << consumed / kPrefillMaxTokens << ",\"layer\":" << layer
+                  << chunk_index << ",\"layer\":" << layer
                   << ",\"tokens\":" << chunk
                   << ",\"assignment_count\":" << chunk * kTopK
                   << ",\"active_experts\":" << active_experts
@@ -250,6 +264,7 @@ Status Gemma4Moe26BReferenceEngine::PrefillTokens(
             ? chunk
             : std::min(x.minimum_prefill_chunk, chunk);
     consumed += static_cast<std::size_t>(chunk);
+    ++chunk_index;
   }
   ++x.prefill_calls;
   x.has_last_input_token = true;

@@ -6,7 +6,8 @@ constexpr std::uint32_t kExperts = 128U;
 constexpr std::uint32_t kTopK = 8U;
 constexpr std::uint64_t kLayers = 30U;
 constexpr std::uint64_t kMaximumContextTokens = 262144U;
-constexpr std::uint64_t kPrefillMaxTokens = 1024U;
+constexpr std::uint64_t kDefaultPrefillChunkTokens = 1024U;
+constexpr std::uint64_t kMaximumTrellis35PrefillChunkTokens = 2048U;
 constexpr std::uint64_t kPreparedGlobalPrefillTokens = 16384U;
 // The native online SM120 attention path never materializes a score slab.
 // Keep one validated sentinel element because the shared workspace contract
@@ -54,6 +55,19 @@ Status CudaAllocationFailure(const char* operation, cudaError_t error) {
                       ": " + cudaGetErrorString(error));
   }
   return CudaFailure(operation, error);
+}
+
+Result<std::uint64_t> ResolvePrefillChunkTokens(bool trellis35) {
+  if (!trellis35) return kDefaultPrefillChunkTokens;
+  const char* value = std::getenv("GEM16_TRELLIS35_PREFILL_CHUNK_TOKENS");
+  if (value != nullptr && std::string_view(value) == "1024") {
+    return kDefaultPrefillChunkTokens;
+  }
+  if (value == nullptr || std::string_view(value) == "2048") {
+    return kMaximumTrellis35PrefillChunkTokens;
+  }
+  return Invalid(
+      "GEM16_TRELLIS35_PREFILL_CHUNK_TOKENS must be 1024 or 2048");
 }
 
 class DeviceBuffer {

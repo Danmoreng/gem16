@@ -444,8 +444,8 @@ int main(int argc, char** argv) {
   }
   if (argc == 3 && std::string(argv[1]) == "--profile-prefill") {
     const std::uint64_t tokens = std::stoull(argv[2]);
-    if (tokens == 0U || tokens > 1024U) {
-      std::cerr << "prefill profile tokens must be in [1, 1024]\n";
+    if (tokens == 0U || tokens > 2048U) {
+      std::cerr << "prefill profile tokens must be in [1, 2048]\n";
       return 2;
     }
     return ProfileTrellis35Prefill(tokens) == 0 ? 0 : 1;
@@ -455,8 +455,8 @@ int main(int argc, char** argv) {
        std::string(argv[1]) == "--profile-prefill-checkpoint-m64" ||
        std::string(argv[1]) == "--profile-prefill-checkpoint-loop")) {
     const std::uint64_t tokens = std::stoull(argv[3]);
-    if (tokens == 0U || tokens > 1024U) {
-      std::cerr << "prefill profile tokens must be in [1, 1024]\n";
+    if (tokens == 0U || tokens > 2048U) {
+      std::cerr << "prefill profile tokens must be in [1, 2048]\n";
       return 2;
     }
     const auto output_mode =

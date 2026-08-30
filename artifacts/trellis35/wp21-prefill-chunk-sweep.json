@@ -1,0 +1,250 @@
+{
+  "schema_version": 1,
+  "work_packet": "WP21",
+  "status": "accepted",
+  "implementation_parent_revision": "5e7615944e47ac0a4f516d63b9ae2457681d303c",
+  "candidate": {
+    "routed_expert_format": "trellis35_w4a8",
+    "prepared_extent_chunk_tokens": 2048,
+    "prepared_extent_tokens": 16384,
+    "long_context_chunk_tokens": 1024,
+    "rollback_environment": "GEM16_TRELLIS35_PREFILL_CHUNK_TOKENS=1024",
+    "trellis_prefill_cap_bytes": 436207616,
+    "nvfp4_prefill_cap_bytes": 201326592,
+    "engine_hard_max_context_tokens": 262144,
+    "workspace_delta_vs_1024_bytes": 149337088,
+    "peak_vram_delta_vs_1024_mib": 142
+  },
+  "preflight": {
+    "context_scope": "16384 or 32768 tokens",
+    "chunks": [
+      {
+        "tokens": 1024,
+        "prefill_arena_bytes": 144707840,
+        "trellis_arena_bytes": 24377856,
+        "combined_bytes": 169085696,
+        "disposition": "retained rollback"
+      },
+      {
+        "tokens": 1536,
+        "prefill_arena_bytes": 203232512,
+        "trellis_arena_bytes": 35912192,
+        "combined_bytes": 239144704,
+        "disposition": "analytical comparison only; not retained after the owner selected the power-of-two 2048 candidate"
+      },
+      {
+        "tokens": 2048,
+        "prefill_arena_bytes": 270976256,
+        "trellis_arena_bytes": 47446528,
+        "combined_bytes": 318422784,
+        "disposition": "accepted Trellis35 default"
+      }
+    ],
+    "graph_topology": "unchanged and chunk-independent",
+    "device_allocation_residual_including_graph_private_and_allocator_bytes": {
+      "context_98304": 7593696,
+      "context_128000": 8582880,
+      "context_262144": 7266016
+    }
+  },
+  "same_binary_screen": {
+    "executable_sha256": "431bffb7bfcd85a8f3efb5a23df6d22c8248bf670f608f68b7a30966dae00917",
+    "warmup_pairs": 1,
+    "measured_pairs": 1,
+    "chunk_1024": {
+      "ordinary_prefill_tokens_per_second": 5109.493603777233,
+      "fixed_d2_prefill_tokens_per_second": 5103.00062915413,
+      "ordinary_decode_tokens_per_second": 126.63514537776564,
+      "fixed_d2_decode_tokens_per_second": 169.9578703780594,
+      "ordinary_peak_vram_mib": 12380,
+      "fixed_d2_peak_vram_mib": 12656
+    },
+    "chunk_2048": {
+      "ordinary_prefill_tokens_per_second": 5705.967165613746,
+      "fixed_d2_prefill_tokens_per_second": 5702.968091364445,
+      "ordinary_decode_tokens_per_second": 126.59519742356095,
+      "fixed_d2_decode_tokens_per_second": 169.93599723231276,
+      "ordinary_peak_vram_mib": 12522,
+      "fixed_d2_peak_vram_mib": 12798
+    },
+    "ordinary_prefill_gain_percent": 11.673829308555451,
+    "fixed_d2_prefill_gain_percent": 11.757150465210998,
+    "output_token_sha256": "12235104322e01e0d53875e11c980312f8f42fe763d04b0762697f54eb922c48",
+    "draft_trajectory_identical": true
+  },
+  "boundary_numerics": {
+    "prompt_tokens": 2047,
+    "chunk_2048_count": 1,
+    "chunk_1024_count": 2,
+    "prefill_prediction_token": 506,
+    "decode_prediction_token": 3658,
+    "logits_byte_identical": true,
+    "logits_sha256": "d869166536d248461a310ec7e13e074663dc5feba63e02396c126fe37b5dab53",
+    "sliding_ring_wraps": 1,
+    "fallback_count": 0,
+    "recurring_allocation_count": 0
+  },
+  "full_wikipedia_16k": {
+    "sampling": true,
+    "seed": 0,
+    "prompt_tokens": 16384,
+    "generated_tokens": 1229,
+    "warmup_pairs": 1,
+    "measured_pairs": 3,
+    "ordinary_prefill_tokens_per_second": {
+      "median": 5703.9608131207815,
+      "samples": [5705.967165613746, 5703.9608131207815, 5700.428297560687]
+    },
+    "fixed_d2_prefill_tokens_per_second": {
+      "median": 5702.968091364445,
+      "samples": [5702.968091364445, 5703.1864605016735, 5698.80243061715]
+    },
+    "ordinary_decode_tokens_per_second": {
+      "median": 126.53480119198255,
+      "samples": [126.59519742356095, 126.53480119198255, 126.52006960664417]
+    },
+    "fixed_d2_decode_tokens_per_second": {
+      "median": 169.91601057132183,
+      "samples": [169.93599723231276, 169.88968238376805, 169.91601057132183]
+    },
+    "ordinary_prefill_gain_vs_wp20_percent": 10.770125226727579,
+    "fixed_d2_prefill_gain_vs_wp20_percent": 10.769643111988291,
+    "ordinary_decode_change_vs_wp20_percent": -0.2480205753005671,
+    "fixed_d2_decode_change_vs_wp20_percent": -0.5940141965656953,
+    "ordinary_peak_vram_mib": 12522,
+    "fixed_d2_peak_vram_mib": 12798,
+    "output_token_sha256": "12235104322e01e0d53875e11c980312f8f42fe763d04b0762697f54eb922c48",
+    "accepted_tokens": 690,
+    "proposed_tokens": 1076,
+    "rejected_tokens": 386,
+    "d2_groups": 538,
+    "ordinary_fallback_tokens": 0,
+    "deterministic_outputs": true
+  },
+  "context_memory": {
+    "kv_bytes_per_token": 10240,
+    "named_workspace_bytes_per_token": 1026,
+    "conservative_observed_bytes_per_token": 11300,
+    "target_only": [
+      {
+        "context_tokens": 98304,
+        "prefill_chunk_count": 88,
+        "free_after_decode_bytes": 2739732480,
+        "workspace_bytes": 362237216,
+        "passed": true
+      },
+      {
+        "context_tokens": 128000,
+        "prefill_chunk_count": 117,
+        "free_after_decode_bytes": 2404188160,
+        "workspace_bytes": 392705312,
+        "passed": true
+      },
+      {
+        "context_tokens": 206848,
+        "purpose": "approximately 1.4 GiB future Vision reserve",
+        "prefill_chunk_count": 194,
+        "free_after_decode_bytes": 1517092864,
+        "free_after_decode_gib": 1.41290283203125,
+        "workspace_bytes": 473603360,
+        "passed": true
+      },
+      {
+        "context_tokens": 262144,
+        "purpose": "absolute text-only engine maximum",
+        "prefill_chunk_count": 248,
+        "free_after_decode_bytes": 894238720,
+        "free_after_decode_gib": 0.83282470703125,
+        "workspace_bytes": 530337056,
+        "passed": true
+      }
+    ],
+    "fixed_d2": {
+      "context_tokens": 86016,
+      "generated_tokens": 4,
+      "free_after_generation_bytes": 2576154624,
+      "required_reserve_bytes": 1468006400,
+      "reserve_pass": true,
+      "execution_pass": true,
+      "fallback_count": 0,
+      "token_loop_allocations": false
+    }
+  },
+  "sanitizers": {
+    "scope": "Trellis35 grouped W4A8 prefill with 2048 tokens and 16384 assignments",
+    "memcheck_errors": 0,
+    "initcheck_errors": 0,
+    "racecheck_errors": 0,
+    "racecheck_warnings": 0
+  },
+  "tests": [
+    {
+      "command": "build/blackwell-release/bin/gem16-cuda-trellis35-tests --profile-prefill 2048",
+      "result": "passed; 2048 tokens and 16384 assignments"
+    },
+    {
+      "command": "ctest --test-dir build/blackwell-release --output-on-failure -R '^gem16-(unit|cuda|cuda-trellis35|trellis35-compiler-contract|cuda-nvfp4-consumption)$'",
+      "result": "5/5 passed after the final 416 MiB Trellis cap change"
+    },
+    {
+      "command": "ctest --test-dir build/blackwell-release --output-on-failure -R '^gem16-12b-m22-product$'",
+      "result": "skipped: no configured 12B model path"
+    }
+  ],
+  "raw_evidence": [
+    {
+      "path": "artifacts/raw/trellis35/wp21/chunk2048-final-full-wikipedia-16k-sampled-1w3.json",
+      "sha256": "9a60ea4f5415135080df0a88d3cf6c1250ab177c8d070346c4b81befe22ee045"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp21/chunk1024-rollback-screen-wikipedia-16k-sampled-1w1.json",
+      "sha256": "ec66294ab6b8aba10a6ce38eee7e7b5a071926b0783b49029f48740fedacf7ad"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp21/boundary-2048-default-final.json",
+      "sha256": "b5f04ffa29676879032ce739313e72344a13b3e03b7730f2666ffdacdfd06bae"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp21/boundary-2048-rollback-final.json",
+      "sha256": "5e71e22937bd7bc665abbafe86b6fb6181d6ceb9e8eca098f1b93e3b25fc5cf1"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp21/context-target-98304-final.json",
+      "sha256": "4ccda5ebaa0c7c0330a39c26796a89959d7b6455917181785d009c646100a255"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp21/context-target-128000.json",
+      "sha256": "a238d635d0c1bcb1401c7a6842e3c4ded4a99916b23bfe4e2b828343ee620b6f"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp21/context-d2-86016-final.json",
+      "sha256": "7c8e720e992aff21d3123f353f409e2e8714e1403e8a7294dff2c2736dbe9250"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp21/context-target-206848-vision-reserve-final.json",
+      "sha256": "69311060958d86bc43df50ab1f394bf2c23e08785915282902f4ac03207acc70"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp21/context-target-262144-hard-max-final.json",
+      "sha256": "3c1fe2cc73259df3cfd517d048de65d25c3b34c6afd92eb81924e4ce1fdc400b"
+    }
+  ],
+  "gate": {
+    "rollback_1024_retained": true,
+    "boundary_logits_identical": true,
+    "full_16k_prefill_gain": true,
+    "full_16k_output_and_draft_identical": true,
+    "peak_vram_published": true,
+    "target_only_hard_max_directly_qualified": true,
+    "fixed_d2_context_directly_qualified": true,
+    "no_oom_near_promotion": true,
+    "packet_accepted": true
+  },
+  "limitations": [
+    "Vision remains unsupported and excluded from every WP21 execution; the 206848 reserve is capacity evidence, not Vision qualification.",
+    "Fixed-D2 remains qualified at its existing 86016-token product boundary; the 262144 hard-max result is Target-only.",
+    "The final 416 MiB admission-cap-only rebuild changed the executable SHA after the full 1W3 run but did not change an allocated 16K workspace, CUDA kernel, launch geometry, or hot-path instruction.",
+    "The protected real 12B product test was skipped because no 12B model path is configured in this workspace.",
+    "This packet does not product-qualify Trellis35."
+  ]
+}

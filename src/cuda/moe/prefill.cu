@@ -571,7 +571,7 @@ Status LaunchGemma4MoeSm120PrefillLayerImpl(
     const Trellis35DeviceLayerBinding* trellis_layer) {
   const bool trellis35 = trellis_layer != nullptr;
   if (hidden == nullptr || output == nullptr || hidden == output ||
-      tokens == 0U || tokens > 1024U || c.width == 0U ||
+      tokens == 0U || tokens > (trellis35 ? 2048U : 1024U) || c.width == 0U ||
       c.width % kSm120KBlock != 0U || c.shared_intermediate == 0U ||
       c.shared_intermediate % kSm120KBlock != 0U ||
       c.expert_intermediate == 0U ||

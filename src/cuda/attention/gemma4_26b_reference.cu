@@ -392,7 +392,7 @@ Status LaunchGemma4Moe26BAttentionSm120PrefillLayer(
     const Gemma4Moe26BKvCacheView& cache,
     const Gemma4Moe26BAttentionReferenceWorkspace& x, float epsilon,
     cudaStream_t stream, bool rotary_prepared) {
-  constexpr std::uint64_t kMaximumChunkTokens = 1024U;
+  constexpr std::uint64_t kMaximumChunkTokens = 2048U;
   constexpr std::uint64_t kMaximumRotaryPairs = 256U;
   const bool sliding =
       t.attention == Gemma4Moe26BAttentionType::kSliding;
@@ -539,9 +539,18 @@ Status LaunchGemma4Moe26BAttentionSm120PrefillLayer(
                             t.head_dimension, cache.capacity, stream));
   if (!status.ok()) return status;
   if (!prepared_global) {
+    // A Trellis35 WP21 chunk may exceed the 1024-token sliding ring. Local
+    // attention has already consumed the complete chunk directly; retain only
+    // the newest ring-capacity suffix so no two append threads target the same
+    // circular slot.
+    const std::uint64_t commit_tokens =
+        sliding ? std::min(tokens, cache.capacity) : tokens;
+    const std::uint64_t commit_offset = tokens - commit_tokens;
     status = LaunchAppendKvFp8Batch(
-        x.staged_key_fp8, x.staged_value_fp8, cache.key, cache.value,
-        start_position, tokens, kv_elements, cache.capacity, stream);
+        x.staged_key_fp8 + commit_offset * kv_elements,
+        x.staged_value_fp8 + commit_offset * kv_elements, cache.key,
+        cache.value, start_position + commit_offset, commit_tokens,
+        kv_elements, cache.capacity, stream);
     if (!status.ok()) return status;
   }
   status = LaunchFp8ReferenceTokenQuantizationBf16Batch(
