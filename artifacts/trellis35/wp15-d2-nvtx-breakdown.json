@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "work_packet": "WP15",
+  "status": "accepted_diagnostic",
+  "capture": {
+    "prompt_tokens": 16384,
+    "output_tokens": 4,
+    "draft_length": 2,
+    "profiled_groups": 1,
+    "cuda_graph_trace": "node",
+    "nvtx_pure_t3_verifier_group_ms": 12.856891,
+    "gpu_kernel_time_ms": 12.342
+  },
+  "dominant_kernels": {
+    "trellis_t3_m16_projection_ms": 3.641414,
+    "trellis_t3_m16_projection_gpu_percent": 29.5,
+    "parent_independent_projection_ms": 4.920942,
+    "projection_time_reduction_percent": 26.0017,
+    "global_attention_fixed_rows_ms": 1.127404,
+    "shared_moe_fixed_batch_projection_ms": 0.964561,
+    "local_attention_fixed_shared_kv_ms": 0.768596,
+    "trellis_input_transform_warp_ms": 0.084730,
+    "trellis_output_transform_warp_ms": 0.098109,
+    "router_projection_ms": 0.152159,
+    "router_topk_ms": 0.141308,
+    "kv_backup_tentative_append_ms": 0.046656,
+    "restore_ms": 0.043872,
+    "commit_kv_ms": 0.002304
+  },
+  "comparison": {
+    "wp11_outer_pure_t3_ms": 13.263768,
+    "wp15_outer_pure_t3_ms": 12.856891,
+    "outer_time_reduction_percent": 3.06758,
+    "interpretation": "The M16 projection removes a quarter of the former dominant Trellis projection cost. At a 16k prompt, attention and the remaining target graph now bound the smaller outer-range gain."
+  },
+  "raw_evidence": {
+    "result": "artifacts/raw/trellis35/wp15/d2-m16-profile-one-group-result.json",
+    "result_sha256": "5f2a2f5c5e02d5d7769dc553a4b97815ac1663af5d82e0a6b6f98f1e7775ae53",
+    "nsys_report": "artifacts/raw/trellis35/wp15/d2-m16-profile-one-group.nsys-rep",
+    "nsys_report_sha256": "695801778caf85a04bab2baa04bb438c81700032aa3304ff7a34ec3469100b63",
+    "kernel_summary": "artifacts/raw/trellis35/wp15/d2-m16-profile-one-group-stats_cuda_gpu_kern_sum.csv",
+    "kernel_summary_sha256": "14e028124d7bc2b677e3cefa291238339e7991a811ba2fd8e2e21d59b65364fa",
+    "nvtx_summary": "artifacts/raw/trellis35/wp15/d2-m16-profile-one-group-stats_nvtx_sum.csv",
+    "nvtx_summary_sha256": "b026286271a4dbbcff87d3bea34c71e8ea6d3a336d535e20f42699954d7efc45"
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "work_packet": "WP15",
+  "status": "accepted",
+  "kernel": "MmaW4A8ProjectionGroupedT3M16Kernel",
+  "profile_workload": "synthetic T3 with 16 unique experts; first Gate+Up projection launch",
+  "parent_independent_rows": {
+    "duration_us": 159.58,
+    "issue_slots_busy_percent": 68.27,
+    "executed_instructions": 38726336,
+    "registers_per_thread": 70,
+    "static_shared_bytes_per_block": 0,
+    "waves_per_sm": 2.51,
+    "theoretical_occupancy_percent": 58.33,
+    "achieved_occupancy_percent": 48.44,
+    "local_or_shared_spills": 0,
+    "report": "artifacts/raw/trellis35/wp15/t3-parent.ncu-rep",
+    "report_sha256": "da4125d380fe7dc072e5b5779fcfa92683352ed6af66dd7e90c2893c1ae24d88"
+  },
+  "m16": {
+    "duration_us": 151.07,
+    "duration_reduction_percent": 5.33275,
+    "issue_slots_busy_percent": 61.82,
+    "executed_instructions": 32518464,
+    "instruction_reduction_percent": 16.0301,
+    "registers_per_thread": 39,
+    "static_shared_bytes_per_block": 0,
+    "waves_per_sm": 1.47,
+    "theoretical_occupancy_percent": 100.0,
+    "achieved_occupancy_percent": 75.90,
+    "local_or_shared_spills": 0,
+    "highest_utilized_pipeline": "Shared FMA Heavy at 55.4 percent",
+    "report": "artifacts/raw/trellis35/wp15/t3-m16.ncu-rep",
+    "report_sha256": "c4923640e80842e4c37ca636504b5bafbc2b6cde8df088266a6a8ff84b16593b",
+    "details": "artifacts/raw/trellis35/wp15/t3-m16-ncu-details.txt",
+    "details_sha256": "b3de0b34403ffb020e45369a11412077b5cd184b890596bf0c22a06de30447b5"
+  },
+  "correctness": {
+    "m16_vs_independent_rows_maximum_absolute_difference": 0.0,
+    "m16_vs_three_m1_maximum_absolute_difference": 0.0,
+    "zero_overlap": "passed",
+    "typical_overlap": "passed",
+    "maximal_overlap": "passed",
+    "slot_order_bit_mismatches": 0,
+    "cuda_graph_replay": "passed"
+  },
+  "environment": {
+    "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "gpu_memory_mib": 16303,
+    "driver": "610.43.03",
+    "cuda_compiler": "13.3.73"
+  },
+  "decision": "Accept register-delivered M16. It preserves unique-expert reuse and exact output while reducing instruction and register pressure. Retain IndependentRows as an explicit rollback."
+}

@@ -17,11 +17,13 @@ Status LaunchGroupedT3Projection(
     const Trellis35DeviceFamilyBinding& family,
     const std::uint32_t* selected_experts, float* transformed_output,
     std::uint64_t input_elements, std::uint64_t output_elements,
-    cudaStream_t stream) {
+    Trellis35T3ProjectionMode projection_mode, cudaStream_t stream) {
   if (activation_e4m3 == nullptr || activation_scales == nullptr ||
       family.k3_payload_pool == nullptr || family.k4_payload_pool == nullptr ||
       family.descriptors == nullptr || selected_experts == nullptr ||
-      transformed_output == nullptr) {
+      transformed_output == nullptr ||
+      (projection_mode != Trellis35T3ProjectionMode::kIndependentRows &&
+       projection_mode != Trellis35T3ProjectionMode::kM16)) {
     return Invalid("Trellis35 grouped T3 projection requires non-null pointers");
   }
   if (input_elements == 0U || output_elements == 0U ||
@@ -33,10 +35,17 @@ Status LaunchGroupedT3Projection(
   }
   const unsigned blocks = static_cast<unsigned>(
       (output_elements + kMmaWarps * 8U - 1U) / (kMmaWarps * 8U));
-  MmaW4A8ProjectionGroupedT3Kernel<<<
-      dim3(blocks, kTrellis35T3Assignments), kMmaThreads, 0, stream>>>(
-      activation_e4m3, activation_scales, family, selected_experts,
-      transformed_output, input_elements, output_elements);
+  if (projection_mode == Trellis35T3ProjectionMode::kM16) {
+    MmaW4A8ProjectionGroupedT3M16Kernel<<<
+        dim3(blocks, kTrellis35T3Assignments), kMmaThreads, 0, stream>>>(
+        activation_e4m3, activation_scales, family, selected_experts,
+        transformed_output, input_elements, output_elements);
+  } else {
+    MmaW4A8ProjectionGroupedT3Kernel<<<
+        dim3(blocks, kTrellis35T3Assignments), kMmaThreads, 0, stream>>>(
+        activation_e4m3, activation_scales, family, selected_experts,
+        transformed_output, input_elements, output_elements);
+  }
   return CheckLaunch("launch Trellis35 grouped T3 W4A8 projection");
 }
 
@@ -482,7 +491,7 @@ Status LaunchTrellis35SelectedExpertsM1(
     const float* input, const std::uint32_t* selected_experts,
     const float* route_weights, const Trellis35DeviceLayerBinding& layer,
     const Trellis35M1Workspace& workspace, float* output,
-    cudaStream_t stream) {
+    cudaStream_t stream, Trellis35SmallTransformMode transform_mode) {
   if (input == nullptr || selected_experts == nullptr ||
       route_weights == nullptr || output == nullptr ||
       layer.gate_up.k3_payload_pool == nullptr ||
@@ -502,18 +511,36 @@ Status LaunchTrellis35SelectedExpertsM1(
       workspace.down_input_e4m3 == nullptr ||
       workspace.down_input_scales == nullptr ||
       workspace.down_transformed_output == nullptr ||
-      workspace.down_output == nullptr) {
+      workspace.down_output == nullptr ||
+      (transform_mode != Trellis35SmallTransformMode::kDirectH128 &&
+       transform_mode != Trellis35SmallTransformMode::kWarpInputH128 &&
+       transform_mode != Trellis35SmallTransformMode::kWarpOutputH128 &&
+       transform_mode != Trellis35SmallTransformMode::kWarpH128)) {
     return Invalid("Trellis35 selected-expert M1 requires complete bindings");
   }
 
-  const dim3 gate_input_blocks(
-      static_cast<unsigned>((kTrellis35GateUpInput + kThreads - 1U) /
-                            kThreads),
-      kTrellis35M1TopK);
-  SelectedInputTransformKernel<<<gate_input_blocks, kThreads, 0, stream>>>(
-      input, layer.gate_up.suh_f16, selected_experts,
-      workspace.gate_up_input_transformed, 0U, kTrellis35GateUpInput,
-      kTrellis35GateUpInput);
+  const bool warp_input =
+      transform_mode == Trellis35SmallTransformMode::kWarpInputH128 ||
+      transform_mode == Trellis35SmallTransformMode::kWarpH128;
+  const bool warp_output =
+      transform_mode == Trellis35SmallTransformMode::kWarpOutputH128 ||
+      transform_mode == Trellis35SmallTransformMode::kWarpH128;
+  if (warp_input) {
+    SelectedInputTransformWarpKernel<<<
+        dim3(kTrellis35GateUpInput / 128U, 1U), kThreads, 0, stream>>>(
+        input, layer.gate_up.suh_f16, selected_experts,
+        workspace.gate_up_input_transformed, kTrellis35M1TopK, 0U,
+        kTrellis35M1TopK, kTrellis35GateUpInput, kTrellis35GateUpInput);
+  } else {
+    const dim3 gate_input_blocks(
+        static_cast<unsigned>((kTrellis35GateUpInput + kThreads - 1U) /
+                              kThreads),
+        kTrellis35M1TopK);
+    SelectedInputTransformKernel<<<gate_input_blocks, kThreads, 0, stream>>>(
+        input, layer.gate_up.suh_f16, selected_experts,
+        workspace.gate_up_input_transformed, 0U, kTrellis35GateUpInput,
+        kTrellis35GateUpInput);
+  }
   Status status = CheckLaunch("launch Trellis35 selected Gate+Up input transform");
   if (!status.ok()) return status;
 
@@ -529,13 +556,21 @@ Status LaunchTrellis35SelectedExpertsM1(
       kTrellis35GateUpOutput, stream);
   if (!status.ok()) return status;
 
-  const dim3 gate_output_blocks(
-      static_cast<unsigned>((kTrellis35GateUpOutput + kThreads - 1U) /
-                            kThreads),
-      kTrellis35M1TopK);
-  SelectedOutputTransformKernel<<<gate_output_blocks, kThreads, 0, stream>>>(
-      workspace.gate_up_transformed_output, layer.gate_up.svh_f16,
-      selected_experts, workspace.gate_up_output, kTrellis35GateUpOutput);
+  if (warp_output) {
+    SelectedOutputTransformWarpKernel<<<
+        dim3(kTrellis35GateUpOutput / 128U, 1U), kThreads, 0, stream>>>(
+        workspace.gate_up_transformed_output, layer.gate_up.svh_f16,
+        selected_experts, workspace.gate_up_output, kTrellis35M1TopK,
+        kTrellis35GateUpOutput);
+  } else {
+    const dim3 gate_output_blocks(
+        static_cast<unsigned>((kTrellis35GateUpOutput + kThreads - 1U) /
+                              kThreads),
+        kTrellis35M1TopK);
+    SelectedOutputTransformKernel<<<gate_output_blocks, kThreads, 0, stream>>>(
+        workspace.gate_up_transformed_output, layer.gate_up.svh_f16,
+        selected_experts, workspace.gate_up_output, kTrellis35GateUpOutput);
+  }
   status = CheckLaunch("launch Trellis35 selected Gate+Up output transform");
   if (!status.ok()) return status;
 
@@ -548,14 +583,23 @@ Status LaunchTrellis35SelectedExpertsM1(
   status = CheckLaunch("launch Trellis35 selected gated GELU");
   if (!status.ok()) return status;
 
-  const dim3 down_input_blocks(
-      static_cast<unsigned>((kTrellis35DownInput + kThreads - 1U) / kThreads),
-      kTrellis35M1TopK);
-  SelectedInputTransformKernel<<<down_input_blocks, kThreads, 0, stream>>>(
-      workspace.product, layer.down.suh_f16, selected_experts,
-      workspace.down_input_transformed, kTrellis35ExpertIntermediate,
-      kTrellis35ExpertIntermediate,
-      kTrellis35DownInput);
+  if (warp_input) {
+    SelectedInputTransformWarpKernel<<<
+        dim3(kTrellis35DownInput / 128U, 1U), kThreads, 0, stream>>>(
+        workspace.product, layer.down.suh_f16, selected_experts,
+        workspace.down_input_transformed, kTrellis35M1TopK,
+        kTrellis35ExpertIntermediate, 1U, kTrellis35ExpertIntermediate,
+        kTrellis35DownInput);
+  } else {
+    const dim3 down_input_blocks(
+        static_cast<unsigned>((kTrellis35DownInput + kThreads - 1U) /
+                              kThreads),
+        kTrellis35M1TopK);
+    SelectedInputTransformKernel<<<down_input_blocks, kThreads, 0, stream>>>(
+        workspace.product, layer.down.suh_f16, selected_experts,
+        workspace.down_input_transformed, kTrellis35ExpertIntermediate,
+        kTrellis35ExpertIntermediate, kTrellis35DownInput);
+  }
   status = CheckLaunch("launch Trellis35 selected Down input transform");
   if (!status.ok()) return status;
 
@@ -570,13 +614,21 @@ Status LaunchTrellis35SelectedExpertsM1(
       kTrellis35DownInput, kTrellis35DownOutput, stream);
   if (!status.ok()) return status;
 
-  const dim3 down_output_blocks(
-      static_cast<unsigned>((kTrellis35DownOutput + kThreads - 1U) /
-                            kThreads),
-      kTrellis35M1TopK);
-  SelectedOutputTransformKernel<<<down_output_blocks, kThreads, 0, stream>>>(
-      workspace.down_transformed_output, layer.down.svh_f16,
-      selected_experts, workspace.down_output, kTrellis35DownOutput);
+  if (warp_output) {
+    SelectedOutputTransformWarpKernel<<<
+        dim3(kTrellis35DownOutput / 128U, 1U), kThreads, 0, stream>>>(
+        workspace.down_transformed_output, layer.down.svh_f16,
+        selected_experts, workspace.down_output, kTrellis35M1TopK,
+        kTrellis35DownOutput);
+  } else {
+    const dim3 down_output_blocks(
+        static_cast<unsigned>((kTrellis35DownOutput + kThreads - 1U) /
+                              kThreads),
+        kTrellis35M1TopK);
+    SelectedOutputTransformKernel<<<down_output_blocks, kThreads, 0, stream>>>(
+        workspace.down_transformed_output, layer.down.svh_f16,
+        selected_experts, workspace.down_output, kTrellis35DownOutput);
+  }
   status = CheckLaunch("launch Trellis35 selected Down output transform");
   if (!status.ok()) return status;
 
@@ -591,7 +643,8 @@ Status LaunchTrellis35SelectedExpertsT3(
     const float* input_rows, const std::uint32_t* selected_experts,
     const float* route_weights, const Trellis35DeviceLayerBinding& layer,
     const Trellis35T3Workspace& workspace, float* output_rows,
-    cudaStream_t stream) {
+    cudaStream_t stream, Trellis35SmallTransformMode transform_mode,
+    Trellis35T3ProjectionMode projection_mode) {
   if (input_rows == nullptr || selected_experts == nullptr ||
       route_weights == nullptr || output_rows == nullptr ||
       layer.gate_up.k3_payload_pool == nullptr ||
@@ -611,18 +664,42 @@ Status LaunchTrellis35SelectedExpertsT3(
       workspace.down_input_e4m3 == nullptr ||
       workspace.down_input_scales == nullptr ||
       workspace.down_transformed_output == nullptr ||
-      workspace.down_output == nullptr) {
+      workspace.down_output == nullptr ||
+      (transform_mode != Trellis35SmallTransformMode::kDirectH128 &&
+       transform_mode != Trellis35SmallTransformMode::kWarpInputH128 &&
+       transform_mode != Trellis35SmallTransformMode::kWarpOutputH128 &&
+       transform_mode != Trellis35SmallTransformMode::kWarpH128) ||
+      (projection_mode != Trellis35T3ProjectionMode::kIndependentRows &&
+       projection_mode != Trellis35T3ProjectionMode::kM16)) {
     return Invalid("Trellis35 selected-expert T3 requires complete bindings");
   }
 
-  const dim3 gate_input_blocks(
-      static_cast<unsigned>((kTrellis35GateUpInput + kThreads - 1U) /
-                            kThreads),
-      kTrellis35T3Assignments);
-  T3InputTransformKernel<<<gate_input_blocks, kThreads, 0, stream>>>(
-      input_rows, layer.gate_up.suh_f16, selected_experts,
-      workspace.gate_up_input_transformed, kTrellis35GateUpInput,
-      kTrellis35M1TopK, kTrellis35GateUpInput, kTrellis35GateUpInput);
+  const bool warp_input =
+      transform_mode == Trellis35SmallTransformMode::kWarpInputH128 ||
+      transform_mode == Trellis35SmallTransformMode::kWarpH128;
+  const bool warp_output =
+      transform_mode == Trellis35SmallTransformMode::kWarpOutputH128 ||
+      transform_mode == Trellis35SmallTransformMode::kWarpH128;
+  constexpr unsigned kT3AssignmentBlocks =
+      (kTrellis35T3Assignments + 7U) / 8U;
+  if (warp_input) {
+    SelectedInputTransformWarpKernel<<<
+        dim3(kTrellis35GateUpInput / 128U, kT3AssignmentBlocks), kThreads, 0,
+        stream>>>(input_rows, layer.gate_up.suh_f16, selected_experts,
+                  workspace.gate_up_input_transformed,
+                  kTrellis35T3Assignments, kTrellis35GateUpInput,
+                  kTrellis35M1TopK, kTrellis35GateUpInput,
+                  kTrellis35GateUpInput);
+  } else {
+    const dim3 gate_input_blocks(
+        static_cast<unsigned>((kTrellis35GateUpInput + kThreads - 1U) /
+                              kThreads),
+        kTrellis35T3Assignments);
+    T3InputTransformKernel<<<gate_input_blocks, kThreads, 0, stream>>>(
+        input_rows, layer.gate_up.suh_f16, selected_experts,
+        workspace.gate_up_input_transformed, kTrellis35GateUpInput,
+        kTrellis35M1TopK, kTrellis35GateUpInput, kTrellis35GateUpInput);
+  }
   Status status =
       CheckLaunch("launch Trellis35 T3 Gate+Up input transform");
   if (!status.ok()) return status;
@@ -635,16 +712,25 @@ Status LaunchTrellis35SelectedExpertsT3(
       workspace.gate_up_input_e4m3, workspace.gate_up_input_scales,
       layer.gate_up, selected_experts,
       workspace.gate_up_transformed_output, kTrellis35GateUpInput,
-      kTrellis35GateUpOutput, stream);
+      kTrellis35GateUpOutput, projection_mode, stream);
   if (!status.ok()) return status;
 
-  const dim3 gate_output_blocks(
-      static_cast<unsigned>((kTrellis35GateUpOutput + kThreads - 1U) /
-                            kThreads),
-      kTrellis35T3Assignments);
-  SelectedOutputTransformKernel<<<gate_output_blocks, kThreads, 0, stream>>>(
-      workspace.gate_up_transformed_output, layer.gate_up.svh_f16,
-      selected_experts, workspace.gate_up_output, kTrellis35GateUpOutput);
+  if (warp_output) {
+    SelectedOutputTransformWarpKernel<<<
+        dim3(kTrellis35GateUpOutput / 128U, kT3AssignmentBlocks), kThreads, 0,
+        stream>>>(workspace.gate_up_transformed_output,
+                  layer.gate_up.svh_f16, selected_experts,
+                  workspace.gate_up_output, kTrellis35T3Assignments,
+                  kTrellis35GateUpOutput);
+  } else {
+    const dim3 gate_output_blocks(
+        static_cast<unsigned>((kTrellis35GateUpOutput + kThreads - 1U) /
+                              kThreads),
+        kTrellis35T3Assignments);
+    SelectedOutputTransformKernel<<<gate_output_blocks, kThreads, 0, stream>>>(
+        workspace.gate_up_transformed_output, layer.gate_up.svh_f16,
+        selected_experts, workspace.gate_up_output, kTrellis35GateUpOutput);
+  }
   status = CheckLaunch("launch Trellis35 T3 Gate+Up output transform");
   if (!status.ok()) return status;
 
@@ -657,13 +743,23 @@ Status LaunchTrellis35SelectedExpertsT3(
   status = CheckLaunch("launch Trellis35 T3 gated GELU");
   if (!status.ok()) return status;
 
-  const dim3 down_input_blocks(
-      static_cast<unsigned>((kTrellis35DownInput + kThreads - 1U) / kThreads),
-      kTrellis35T3Assignments);
-  T3InputTransformKernel<<<down_input_blocks, kThreads, 0, stream>>>(
-      workspace.product, layer.down.suh_f16, selected_experts,
-      workspace.down_input_transformed, kTrellis35ExpertIntermediate, 1U,
-      kTrellis35ExpertIntermediate, kTrellis35DownInput);
+  if (warp_input) {
+    SelectedInputTransformWarpKernel<<<
+        dim3(kTrellis35DownInput / 128U, kT3AssignmentBlocks), kThreads, 0,
+        stream>>>(workspace.product, layer.down.suh_f16, selected_experts,
+                  workspace.down_input_transformed,
+                  kTrellis35T3Assignments, kTrellis35ExpertIntermediate, 1U,
+                  kTrellis35ExpertIntermediate, kTrellis35DownInput);
+  } else {
+    const dim3 down_input_blocks(
+        static_cast<unsigned>((kTrellis35DownInput + kThreads - 1U) /
+                              kThreads),
+        kTrellis35T3Assignments);
+    T3InputTransformKernel<<<down_input_blocks, kThreads, 0, stream>>>(
+        workspace.product, layer.down.suh_f16, selected_experts,
+        workspace.down_input_transformed, kTrellis35ExpertIntermediate, 1U,
+        kTrellis35ExpertIntermediate, kTrellis35DownInput);
+  }
   status = CheckLaunch("launch Trellis35 T3 Down input transform");
   if (!status.ok()) return status;
   status = LaunchFp8ReferenceTokenQuantizationBatch(
@@ -674,16 +770,24 @@ Status LaunchTrellis35SelectedExpertsT3(
   status = LaunchGroupedT3Projection(
       workspace.down_input_e4m3, workspace.down_input_scales, layer.down,
       selected_experts, workspace.down_transformed_output,
-      kTrellis35DownInput, kTrellis35DownOutput, stream);
+      kTrellis35DownInput, kTrellis35DownOutput, projection_mode, stream);
   if (!status.ok()) return status;
 
-  const dim3 down_output_blocks(
-      static_cast<unsigned>((kTrellis35DownOutput + kThreads - 1U) /
-                            kThreads),
-      kTrellis35T3Assignments);
-  SelectedOutputTransformKernel<<<down_output_blocks, kThreads, 0, stream>>>(
-      workspace.down_transformed_output, layer.down.svh_f16,
-      selected_experts, workspace.down_output, kTrellis35DownOutput);
+  if (warp_output) {
+    SelectedOutputTransformWarpKernel<<<
+        dim3(kTrellis35DownOutput / 128U, kT3AssignmentBlocks), kThreads, 0,
+        stream>>>(workspace.down_transformed_output, layer.down.svh_f16,
+                  selected_experts, workspace.down_output,
+                  kTrellis35T3Assignments, kTrellis35DownOutput);
+  } else {
+    const dim3 down_output_blocks(
+        static_cast<unsigned>((kTrellis35DownOutput + kThreads - 1U) /
+                              kThreads),
+        kTrellis35T3Assignments);
+    SelectedOutputTransformKernel<<<down_output_blocks, kThreads, 0, stream>>>(
+        workspace.down_transformed_output, layer.down.svh_f16,
+        selected_experts, workspace.down_output, kTrellis35DownOutput);
+  }
   status = CheckLaunch("launch Trellis35 T3 Down output transform");
   if (!status.ok()) return status;
 

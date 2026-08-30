@@ -21,6 +21,23 @@ inline constexpr std::uint64_t kTrellis35ExpertIntermediate = 704U;
 inline constexpr std::uint64_t kTrellis35DownInput = 768U;
 inline constexpr std::uint64_t kTrellis35DownOutput = 2816U;
 
+enum class Trellis35SmallTransformMode {
+  // WP11/WP14 numerical and performance rollback.
+  kDirectH128,
+  // WP15 bounded isolation candidates.
+  kWarpInputH128,
+  kWarpOutputH128,
+  // WP15 warp FWHT for Ordinary M1 and Fixed-D2 T3.
+  kWarpH128,
+};
+
+enum class Trellis35T3ProjectionMode {
+  // WP11 rollback: one broadcast-row MMA accumulator per matching row.
+  kIndependentRows,
+  // WP15: one physical M16 activation tile, with at most three live rows.
+  kM16,
+};
+
 // Diagnostic-only bounded materialization used to decide whether a transient
 // decoded-weight cache can beat inline Trellis decode. The slab is row-major
 // E4M3 with unit BF16 row scales and is never an engine/runtime fallback.
@@ -103,7 +120,9 @@ struct Trellis35T3Workspace {
     const float* input, const std::uint32_t* selected_experts,
     const float* route_weights, const Trellis35DeviceLayerBinding& layer,
     const Trellis35M1Workspace& workspace, float* output,
-    cudaStream_t stream);
+    cudaStream_t stream,
+    Trellis35SmallTransformMode transform_mode =
+        Trellis35SmallTransformMode::kWarpH128);
 
 // Dedicated Fixed-D2 T=3 path. This is one 24-assignment pipeline, not three
 // M1 calls. Each first-occurrence expert group decodes a weight fragment once
@@ -112,7 +131,11 @@ struct Trellis35T3Workspace {
     const float* input_rows, const std::uint32_t* selected_experts,
     const float* route_weights, const Trellis35DeviceLayerBinding& layer,
     const Trellis35T3Workspace& workspace, float* output_rows,
-    cudaStream_t stream);
+    cudaStream_t stream,
+    Trellis35SmallTransformMode transform_mode =
+        Trellis35SmallTransformMode::kWarpH128,
+    Trellis35T3ProjectionMode projection_mode =
+        Trellis35T3ProjectionMode::kM16);
 
 // Routed-expert-only prefill replacement. normalized_hidden contains T
 // recurrent BF16 values in FP32 containers. The launcher consumes the existing

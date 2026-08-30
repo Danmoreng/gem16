@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "work_packet": "WP15",
+  "panel": "fixed_d2_t3",
+  "status": "accepted_experimental",
+  "implementation_parent_revision": "68dc1789d049d254106aa717aa26551ec480a032",
+  "workload": {
+    "prompt": "benchmarks/prompts/wikipedia-summary-16k.json",
+    "prompt_tokens": 16384,
+    "output_tokens": 64,
+    "draft_length": 2,
+    "context_tokens": 32768,
+    "verifier_backend": "exact-shared-batched-moe",
+    "fixed_chain": false
+  },
+  "implementation": {
+    "transform": "H128Warp for M1 and T3 input/output",
+    "projection": "one real M16 E4M3 activation tile per unique expert with at most three live rows and zero-filled remaining rows",
+    "activation_delivery": "direct register loads; the rejected shared-memory staging prototype measured 0.174106 ms for typical overlap",
+    "weight_reuse": "one Trellis fragment decode per unique expert feeds every matching T3 row",
+    "production_mode": "Trellis35T3ProjectionMode::kM16",
+    "rollback_mode": "Trellis35T3ProjectionMode::kIndependentRows",
+    "persistent_weight_bytes_delta": 0,
+    "workspace_bytes_delta": 0,
+    "context_capacity_bytes_delta": 0,
+    "recurring_allocation_count_delta": 0
+  },
+  "direct_h128_parent_median": {
+    "groups": 25,
+    "proposed_drafts": 50,
+    "accepted_drafts": 38,
+    "rejected_drafts": 12,
+    "complete_request_tokens_per_second": 116.442713669,
+    "initial_selection_seconds": 0.18997113,
+    "post_first_group_tokens_per_second": 175.242100369,
+    "group_seconds": 0.359502653
+  },
+  "warp_m16_median": {
+    "warmup_runs": 1,
+    "retained_runs": 3,
+    "groups": 26,
+    "proposed_drafts": 52,
+    "accepted_drafts": 37,
+    "rejected_drafts": 15,
+    "complete_request_tokens_per_second": 109.436561299,
+    "complete_request_change_percent": -6.01682,
+    "initial_selection_seconds": 0.244078514,
+    "post_first_group_tokens_per_second": 184.844055535,
+    "post_first_group_improvement_percent": 5.47925,
+    "group_seconds": 0.340827839,
+    "pure_t3_verifier_rows_per_second": 228.855
+  },
+  "owner_decision_2026_08_30": {
+    "supersedes": "WP15 fixed-trajectory gate requiring identical accepted and rejected draft counts",
+    "new_gate": "A deterministic accept/reject change is allowed when final target output remains identical and the path is otherwise correct; report its end-to-end cost.",
+    "result": "The final 64 target tokens remain identical in every run. One fewer draft is accepted, causing one additional verifier group; the pure verifier is faster but complete D2 remains below the Direct-H128 parent."
+  },
+  "correctness": {
+    "target_output_token_identity": true,
+    "stable_output_across_retained_runs": true,
+    "stable_accept_reject_counts_across_retained_runs": true,
+    "m16_output_bit_identical_to_independent_rows": true,
+    "three_m1_oracle_maximum_absolute_difference": 0.0,
+    "slot_order_bit_mismatches": 0,
+    "kv_backup_tentative_restore_commit": "exercised by all canonical Trellis35 runs with 15 rejected drafts and exact ordinary-target output identity",
+    "all_finite": true,
+    "fallback_count": 0,
+    "cuda_graph_replay": "passed"
+  },
+  "verification": {
+    "build": "gem16-26b-reference, gem16-server, gem16-chat, gem16-unit-tests and gem16-cuda-trellis35-tests passed",
+    "ctest": "13 of 13 passed after rerunning the three real-model tests with absolute environment paths",
+    "real_26b_m17": "passed",
+    "real_26b_m22": "passed",
+    "protected_real_12b_m22": "passed",
+    "memcheck": "0 errors",
+    "initcheck": "0 errors",
+    "racecheck": "0 errors, 0 warnings"
+  },
+  "raw_evidence": [
+    {
+      "path": "artifacts/raw/trellis35/wp15/m16-warp-canonical-16k64-run2.json",
+      "sha256": "25d9e547c1f354e10b7495d12923a6e2a5a369dfb27a139bf02124718df35b0c"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp15/m16-warp-canonical-16k64-run3.json",
+      "sha256": "379b9ae63377bc95ebdee1532cbe2abe172714c52a053e5c6a0c06bd63dc57f0"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp15/m16-warp-canonical-16k64-run4.json",
+      "sha256": "91076d3a55bb5fb82d09437db49837c17d181c2846523aa9c1b018ad3d2b736c"
+    }
+  ],
+  "limitations": [
+    "The accepted Warp path changes the fixed draft trajectory and currently loses complete-request D2 throughput despite accelerating Ordinary post-first and pure T3.",
+    "This bounded packet does not run the deferred long quality suite and does not product-qualify Trellis35."
+  ]
+}

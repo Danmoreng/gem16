@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "work_packet": "WP15",
+  "panel": "ordinary_decode",
+  "status": "accepted_experimental",
+  "implementation_parent_revision": "68dc1789d049d254106aa717aa26551ec480a032",
+  "workload": {
+    "prompt": "benchmarks/prompts/wikipedia-summary-16k.json",
+    "prompt_tokens": 16384,
+    "output_tokens": 64,
+    "sampling": "greedy with token IDs 258883 and 258882 suppressed",
+    "context_tokens": 32768,
+    "timing": "initial selection, post-first steady state, and complete request are reported separately"
+  },
+  "implementation": {
+    "transform": "H128Warp for input and complete pre-split output transform",
+    "physical_input_boundary": "WP11 physical BF16 expert input; no routed FP4 write",
+    "projection": "direct Trellis35 mixed-K3/K4 W4A8 M1",
+    "production_mode": "Trellis35SmallTransformMode::kWarpH128",
+    "rollback_mode": "Trellis35SmallTransformMode::kDirectH128",
+    "persistent_weight_bytes_delta": 0,
+    "workspace_bytes_delta": 0,
+    "context_capacity_bytes_delta": 0,
+    "recurring_allocation_count_delta": 0
+  },
+  "direct_h128_parent_median": {
+    "retained_runs": 3,
+    "complete_request_tokens_per_second": 88.4159793227,
+    "initial_selection_seconds": 0.190073562,
+    "post_first_tokens_per_second": 118.027726564
+  },
+  "warp_h128_median": {
+    "warmup_runs": 1,
+    "retained_runs": 3,
+    "complete_request_tokens_per_second": 84.6213141387,
+    "initial_selection_seconds": 0.244280583,
+    "post_first_tokens_per_second": 123.040530963,
+    "post_first_improvement_over_direct_percent": 4.24714
+  },
+  "correctness": {
+    "ordinary_output_token_identity": true,
+    "stable_output_across_retained_runs": true,
+    "output_token_count": 64,
+    "all_finite": true,
+    "fallback_count": 0,
+    "cuda_graph_replay": "passed",
+    "slot_order_bit_mismatches": 0
+  },
+  "raw_evidence": [
+    {
+      "path": "artifacts/raw/trellis35/wp15/m16-warp-canonical-16k64-run2.json",
+      "sha256": "25d9e547c1f354e10b7495d12923a6e2a5a369dfb27a139bf02124718df35b0c"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp15/m16-warp-canonical-16k64-run3.json",
+      "sha256": "379b9ae63377bc95ebdee1532cbe2abe172714c52a053e5c6a0c06bd63dc57f0"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp15/m16-warp-canonical-16k64-run4.json",
+      "sha256": "91076d3a55bb5fb82d09437db49837c17d181c2846523aa9c1b018ad3d2b736c"
+    }
+  ],
+  "interpretation": "Warp H128 improves ordinary post-first throughput. The complete-request median is lower because the retained Warp panel measured a higher initial-selection time; both boundaries are disclosed and no short-context number is substituted."
+}

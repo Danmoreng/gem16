@@ -26,6 +26,39 @@ __global__ void SelectedInputTransformKernel(
   output[index] = accumulator * kHadamardScale;
 }
 
+__global__ void SelectedInputTransformWarpKernel(
+    const float* input, const std::uint16_t* all_suh,
+    const std::uint32_t* selected_experts, float* output,
+    unsigned assignment_count, std::uint64_t input_stride,
+    unsigned assignments_per_input, std::uint64_t logical_elements,
+    std::uint64_t physical_elements) {
+  const unsigned warp = threadIdx.x >> 5U;
+  const unsigned lane = threadIdx.x & 31U;
+  const unsigned assignment = blockIdx.y * 8U + warp;
+  if (assignment >= assignment_count) return;
+  const std::uint32_t expert = selected_experts[assignment];
+  if (expert >= kTrellis35ExpertCount) return;
+  const std::uint64_t base =
+      static_cast<std::uint64_t>(blockIdx.x) * 128U + lane * 4U;
+  input += static_cast<std::uint64_t>(assignment / assignments_per_input) *
+           input_stride;
+  const std::uint16_t* suh =
+      all_suh + static_cast<std::uint64_t>(expert) * physical_elements;
+  output += static_cast<std::uint64_t>(assignment) * physical_elements;
+  float values[4];
+#pragma unroll
+  for (unsigned element = 0U; element < 4U; ++element) {
+    const std::uint64_t index = base + element;
+    values[element] =
+        index < logical_elements ? input[index] * F16(suh + index) : 0.0F;
+  }
+  H128Warp(values);
+#pragma unroll
+  for (unsigned element = 0U; element < 4U; ++element) {
+    output[base + element] = values[element];
+  }
+}
+
 __global__ void SelectedOutputTransformKernel(
     const float* input, const std::uint16_t* all_svh,
     const std::uint32_t* selected_experts, float* output,
@@ -49,6 +82,35 @@ __global__ void SelectedOutputTransformKernel(
     accumulator = fmaf(input[block + row], sign, accumulator);
   }
   output[index] = accumulator * kHadamardScale * F16(svh + index);
+}
+
+__global__ void SelectedOutputTransformWarpKernel(
+    const float* input, const std::uint16_t* all_svh,
+    const std::uint32_t* selected_experts, float* output,
+    unsigned assignment_count, std::uint64_t elements) {
+  const unsigned warp = threadIdx.x >> 5U;
+  const unsigned lane = threadIdx.x & 31U;
+  const unsigned assignment = blockIdx.y * 8U + warp;
+  if (assignment >= assignment_count) return;
+  const std::uint32_t expert = selected_experts[assignment];
+  if (expert >= kTrellis35ExpertCount) return;
+  const std::uint64_t base =
+      static_cast<std::uint64_t>(blockIdx.x) * 128U + lane * 4U;
+  input += static_cast<std::uint64_t>(assignment) * elements;
+  output += static_cast<std::uint64_t>(assignment) * elements;
+  const std::uint16_t* svh =
+      all_svh + static_cast<std::uint64_t>(expert) * elements;
+  float values[4];
+#pragma unroll
+  for (unsigned element = 0U; element < 4U; ++element) {
+    values[element] = input[base + element];
+  }
+  H128Warp(values);
+#pragma unroll
+  for (unsigned element = 0U; element < 4U; ++element) {
+    output[base + element] =
+        values[element] * F16(svh + base + element);
+  }
 }
 
 __global__ void GatedGeluKernel(const float* gate_up, float* product) {

@@ -484,7 +484,9 @@ float RunFullM1(const gem16::internal::Trellis35DeviceLayerBinding& layer,
                 DeviceBuffer<float>& input, DeviceBuffer<std::uint32_t>& ids,
                 DeviceBuffer<float>& weights, M1Storage& storage,
                 DeviceBuffer<float>& output, unsigned iterations,
-                bool capture) {
+                bool capture,
+                gem16::internal::Trellis35SmallTransformMode transform_mode =
+                    gem16::internal::Trellis35SmallTransformMode::kWarpH128) {
   const auto workspace = storage.Bind();
   if (capture) {
     cudaStream_t stream = nullptr;
@@ -495,7 +497,7 @@ float RunFullM1(const gem16::internal::Trellis35DeviceLayerBinding& layer,
                  "begin Trellis35 capture"));
     const auto status = gem16::internal::LaunchTrellis35SelectedExpertsM1(
         input.get(), ids.get(), weights.get(), layer, workspace, output.get(),
-        stream);
+        stream, transform_mode);
     CHECK(status.ok());
     CHECK(CudaOk(cudaStreamEndCapture(stream, &graph),
                  "end Trellis35 capture"));
@@ -520,7 +522,7 @@ float RunFullM1(const gem16::internal::Trellis35DeviceLayerBinding& layer,
   for (unsigned iteration = 0U; iteration < iterations; ++iteration) {
     const auto status = gem16::internal::LaunchTrellis35SelectedExpertsM1(
         input.get(), ids.get(), weights.get(), layer, workspace, output.get(),
-        nullptr);
+        nullptr, transform_mode);
     CHECK(status.ok());
   }
   CHECK(CudaOk(cudaEventRecord(end), "record end event"));
@@ -537,7 +539,11 @@ float RunFullT3(const gem16::internal::Trellis35DeviceLayerBinding& layer,
                 DeviceBuffer<float>& input, DeviceBuffer<std::uint32_t>& ids,
                 DeviceBuffer<float>& weights, T3Storage& storage,
                 DeviceBuffer<float>& output, unsigned iterations,
-                bool capture) {
+                bool capture,
+                gem16::internal::Trellis35SmallTransformMode transform_mode =
+                    gem16::internal::Trellis35SmallTransformMode::kWarpH128,
+                gem16::internal::Trellis35T3ProjectionMode projection_mode =
+                    gem16::internal::Trellis35T3ProjectionMode::kM16) {
   const auto workspace = storage.Bind();
   if (capture) {
     cudaStream_t stream = nullptr;
@@ -548,7 +554,7 @@ float RunFullT3(const gem16::internal::Trellis35DeviceLayerBinding& layer,
                  "begin Trellis35 T3 capture"));
     const auto status = gem16::internal::LaunchTrellis35SelectedExpertsT3(
         input.get(), ids.get(), weights.get(), layer, workspace, output.get(),
-        stream);
+        stream, transform_mode, projection_mode);
     CHECK(status.ok());
     CHECK(CudaOk(cudaStreamEndCapture(stream, &graph),
                  "end Trellis35 T3 capture"));
@@ -573,7 +579,7 @@ float RunFullT3(const gem16::internal::Trellis35DeviceLayerBinding& layer,
   for (unsigned iteration = 0U; iteration < iterations; ++iteration) {
     const auto status = gem16::internal::LaunchTrellis35SelectedExpertsT3(
         input.get(), ids.get(), weights.get(), layer, workspace, output.get(),
-        nullptr);
+        nullptr, transform_mode, projection_mode);
     CHECK(status.ok());
   }
   CHECK(CudaOk(cudaEventRecord(end), "record T3 end event"));
@@ -698,7 +704,10 @@ float RunT3Scenario(
                              gem16::internal::kTrellis35DownOutput);
   DeviceBuffer<float> reference(gem16::internal::kTrellis35T3Rows *
                                 gem16::internal::kTrellis35DownOutput);
+  DeviceBuffer<float> rollback(gem16::internal::kTrellis35T3Rows *
+                               gem16::internal::kTrellis35DownOutput);
   T3Storage storage;
+  T3Storage rollback_storage;
   M1Storage reference_storage;
   if (!Upload(ids, host_ids, "upload T3 IDs") ||
       !Upload(weights, host_weights, "upload T3 weights")) {
@@ -706,6 +715,10 @@ float RunT3Scenario(
   }
   const float latency = RunFullT3(layer, input, ids, weights, storage, output,
                                   5U, capture);
+  (void)RunFullT3(
+      layer, input, ids, weights, rollback_storage, rollback, 1U, false,
+      gem16::internal::Trellis35SmallTransformMode::kWarpH128,
+      gem16::internal::Trellis35T3ProjectionMode::kIndependentRows);
   const auto m1_workspace = reference_storage.Bind();
   for (unsigned row = 0U; row < gem16::internal::kTrellis35T3Rows; ++row) {
     const auto status = gem16::internal::LaunchTrellis35SelectedExpertsM1(
@@ -722,6 +735,7 @@ float RunT3Scenario(
   CHECK(CudaOk(cudaDeviceSynchronize(), "synchronize T3 versus M1"));
   std::vector<float> host_output(output.elements());
   std::vector<float> host_reference(reference.elements());
+  std::vector<float> host_rollback(rollback.elements());
   std::array<std::uint32_t, gem16::internal::kTrellis35T3Assignments>
       unchanged_ids{};
   CHECK(CudaOk(cudaMemcpy(host_output.data(), output.get(), output.bytes(),
@@ -730,6 +744,9 @@ float RunT3Scenario(
   CHECK(CudaOk(cudaMemcpy(host_reference.data(), reference.get(),
                           reference.bytes(), cudaMemcpyDeviceToHost),
                "download three-M1 oracle"));
+  CHECK(CudaOk(cudaMemcpy(host_rollback.data(), rollback.get(),
+                          rollback.bytes(), cudaMemcpyDeviceToHost),
+               "download T3 independent-row rollback"));
   CHECK(CudaOk(cudaMemcpy(unchanged_ids.data(), ids.get(), ids.bytes(),
                           cudaMemcpyDeviceToHost),
                "download unchanged T3 IDs"));
@@ -737,6 +754,8 @@ float RunT3Scenario(
   CHECK(std::all_of(host_output.begin(), host_output.end(),
                     [](float value) { return std::isfinite(value); }));
   Compare(host_reference, host_output, 4.0e-6F, 2.0e-6F, description);
+  Compare(host_rollback, host_output, 0.0F, 0.0F,
+          "WP15 T3 M16 versus independent-row rollback");
   CheckT3SlotOrderedReduction(storage.down_output, host_weights, output,
                               description);
   std::cout << description << " unique_experts=" << UniqueExperts(host_ids)
