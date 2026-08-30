@@ -129,6 +129,86 @@ __global__ void GatedGeluKernel(const float* gate_up, float* product) {
   product[index] = gelu * up;
 }
 
+__global__ void GatedGeluDownTransformQuantizeWarpKernel(
+    const float* gate_up, const std::uint16_t* all_suh,
+    const std::uint32_t* selected_experts, float* scales,
+    std::uint8_t* output, unsigned assignment_count) {
+  const unsigned assignment = blockIdx.x;
+  if (assignment >= assignment_count) return;
+  const std::uint32_t expert = selected_experts[assignment];
+  const bool valid = expert < kTrellis35ExpertCount;
+  const float* assignment_gate_up =
+      gate_up + static_cast<std::uint64_t>(assignment) *
+                    kTrellis35GateUpOutput;
+  const std::uint16_t* suh =
+      valid ? all_suh + static_cast<std::uint64_t>(expert) *
+                            kTrellis35DownInput
+            : nullptr;
+
+  __shared__ float transformed[kTrellis35DownInput];
+  __shared__ float warp_maxima[8];
+  const unsigned warp = threadIdx.x >> 5U;
+  const unsigned lane = threadIdx.x & 31U;
+  constexpr unsigned kH128Blocks = kTrellis35DownInput / 128U;
+  float local_maximum = 0.0F;
+  for (unsigned block = warp; block < kH128Blocks; block += 8U) {
+    const std::uint64_t base =
+        static_cast<std::uint64_t>(block) * 128U + lane * 4U;
+    float values[4];
+#pragma unroll
+    for (unsigned element = 0U; element < 4U; ++element) {
+      const std::uint64_t index = base + element;
+      float transformed_source = 0.0F;
+      if (valid && index < kTrellis35ExpertIntermediate) {
+        const float gate = assignment_gate_up[index];
+        const float up = assignment_gate_up[
+            index + kTrellis35ExpertIntermediate];
+        const float gelu =
+            0.5F * gate *
+            (1.0F +
+             tanhf(kGeluScale *
+                   (gate + kGeluCubic * gate * gate * gate)));
+        const float product = gelu * up;
+        transformed_source = product * F16(suh + index);
+      }
+      values[element] = transformed_source;
+    }
+    H128Warp(values);
+#pragma unroll
+    for (unsigned element = 0U; element < 4U; ++element) {
+      transformed[base + element] = values[element];
+      local_maximum = fmaxf(local_maximum, fabsf(values[element]));
+    }
+  }
+  for (unsigned offset = 16U; offset != 0U; offset >>= 1U) {
+    local_maximum = fmaxf(
+        local_maximum,
+        __shfl_down_sync(0xffffffffU, local_maximum, offset));
+  }
+  if (lane == 0U) warp_maxima[warp] = local_maximum;
+  __syncthreads();
+  if (warp == 0U) {
+    float block_maximum = lane < 8U ? warp_maxima[lane] : 0.0F;
+    for (unsigned offset = 16U; offset != 0U; offset >>= 1U) {
+      block_maximum = fmaxf(
+          block_maximum,
+          __shfl_down_sync(0xffffffffU, block_maximum, offset));
+    }
+    if (lane == 0U) {
+      scales[assignment] =
+          block_maximum == 0.0F ? 1.0F
+                                : block_maximum / kE4M3Maximum;
+    }
+  }
+  __syncthreads();
+  for (std::uint64_t index = threadIdx.x; index < kTrellis35DownInput;
+       index += blockDim.x) {
+    output[static_cast<std::uint64_t>(assignment) * kTrellis35DownInput +
+           index] =
+        __nv_fp8_e4m3(transformed[index] / scales[assignment]).__x;
+  }
+}
+
 __global__ void GatedGeluBf16Kernel(const std::uint16_t* gate_up,
                                     std::uint16_t* product) {
   const std::uint64_t index =

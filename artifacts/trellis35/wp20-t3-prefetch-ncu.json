@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "work_packet": "WP20-B",
+  "status": "rejected_rolled_back",
+  "implementation_parent_revision": "fb3fbb49017ad4a4ac9edf6527b32409d3e5a735",
+  "profile_scope": "T3 M16 projection, compact tasklist plus four-stage prefetch candidate",
+  "parent": {
+    "duration_microseconds": 140.70,
+    "registers_per_thread": 39,
+    "instructions": 32518464,
+    "long_scoreboard_percent": 4.87,
+    "l1_hit_percent": 62.21,
+    "l2_hit_percent": 85.74,
+    "achieved_occupancy_percent": 77.67,
+    "theoretical_occupancy_percent": 100.0,
+    "waves_per_sm": 1.47,
+    "issue_active_percent": 64.89
+  },
+  "candidate": {
+    "duration_microseconds": 158.24,
+    "duration_regression_percent": 12.47,
+    "registers_per_thread": 47,
+    "register_delta": 8,
+    "instructions": 37181056,
+    "instruction_increase_percent": 14.34,
+    "long_scoreboard_percent": 2.10,
+    "l1_hit_percent": 61.95,
+    "l2_hit_percent": 88.03,
+    "achieved_occupancy_percent": 60.63,
+    "theoretical_occupancy_percent": 83.33,
+    "waves_per_sm": 1.76,
+    "issue_active_percent": 65.91
+  },
+  "interpretation": "Prefetch reduced long-scoreboard stalls, but the added instructions and register pressure lowered occupancy and dominated the saved wait time.",
+  "decision": "Reject and roll back. The candidate does not meet the 15 percent T3 projection speed gate.",
+  "raw_evidence": [
+    {
+      "path": "artifacts/raw/trellis35/wp20/tasklist-parent.ncu-rep",
+      "sha256": "23f8b1513516fafc3c3cc4272523f46d6789e8440167246906f86e0063c5755e"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp20/tasklist-parent-details.txt",
+      "sha256": "3b42d5a69a34d8419c2564056df3025b64d3146b64dc3057915e3082547c4084"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp20/tasklist-prefetch-candidate.ncu-rep",
+      "sha256": "1d07d85671736e92c6a4f9a4a7055ca93ce5a05dee2f8d421a2a61ef3c902e15"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp20/tasklist-prefetch-candidate-details.txt",
+      "sha256": "119f0b4171932313207a44a218310bfbacf86e72d4c0025911c345da5887e0ae"
+    }
+  ]
+}

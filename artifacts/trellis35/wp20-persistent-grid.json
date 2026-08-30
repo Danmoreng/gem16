@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "work_packet": "WP20-C/D",
+  "status": "skipped_not_indicated_by_ncu",
+  "implementation_parent_revision": "fb3fbb49017ad4a4ac9edf6527b32409d3e5a735",
+  "persistent_grid": {
+    "implemented": false,
+    "reason": "The required A+B precondition regressed duration by 12.47 percent. NCU attributed the regression to instruction and register pressure rather than a dominant partial-wave or load-imbalance limit; adding a persistent grid would preserve or increase that overhead."
+  },
+  "pair_shared_payload_or_n_geometry": {
+    "implemented": false,
+    "reason": "The prefetch candidate already improved L2 hit rate and long-scoreboard time while total duration worsened. Load duplication was therefore not the remaining dominant limiter needed to justify another geometry candidate."
+  },
+  "decision": "Follow the plan's conditional gates and do not add unmotivated runtime complexity after the NCU rejection.",
+  "source_changes": false,
+  "runtime_behavior_change": false
+}

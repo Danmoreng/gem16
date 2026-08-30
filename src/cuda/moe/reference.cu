@@ -1169,7 +1169,8 @@ Status LaunchGemma4MoeLayerImpl(
         trellis_workspace->gate_up_output, x.top_ids, x.top_weights,
         *trellis_layer,
         *trellis_workspace, x.routed_sum, stream,
-        Trellis35SmallTransformMode::kWarpH128);
+        Trellis35SmallTransformMode::kWarpH128,
+        Trellis35SmallGeluDownMode::kFusedTransformQuantize);
     if (!status.ok()) return status;
   } else if (native_sm120) {
     status = LaunchNvfp4Sm120SelectedSplitGateUpBatch(
@@ -1459,7 +1460,8 @@ Status LaunchGemma4MoeSm120MtpSharedBatchLayerImpl(
           batch.reduced_output, *trellis_layer, *trellis_workspace,
           batch.token_hidden, stream,
           Trellis35SmallTransformMode::kWarpH128,
-          Trellis35T3ProjectionMode::kM16);
+          Trellis35T3ProjectionMode::kM16,
+          Trellis35SmallGeluDownMode::kFusedTransformQuantize);
       if (!status.ok()) return status;
     } else {
       // The physical-BF16 prefill W2 region is dead after routing and has

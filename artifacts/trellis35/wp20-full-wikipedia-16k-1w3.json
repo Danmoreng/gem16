@@ -1,0 +1,161 @@
+{
+  "schema_version": 1,
+  "work_packet": "WP20",
+  "status": "closed_partial_target_unmet",
+  "implementation_parent_revision": "fb3fbb49017ad4a4ac9edf6527b32409d3e5a735",
+  "accepted_change": {
+    "kernel": "GatedGeluDownTransformQuantizeWarpKernel",
+    "scope": ["ordinary M1", "Fixed-D2 T3"],
+    "eliminated_hot_path_operations": [
+      "separate gated-GELU launch",
+      "FP32 product workspace write and read",
+      "separate Down H128 transform launch",
+      "separate amax/E4M3 quantization launch"
+    ],
+    "preserved_roundpoint": "FP32 GELU(gate) times up before Down SUH",
+    "rollback_environment": "GEM16_TRELLIS35_SMALL_GELU_DOWN_FUSION=0",
+    "workspace_growth_bytes": 0,
+    "product_workspace_retained_for_rollback": true
+  },
+  "operator_matrix": {
+    "t3_cases": 51,
+    "t3_rate_families": ["K3", "K4", "mixed K3/K4"],
+    "t3_unique_expert_union_range": [8, 24],
+    "output_mismatches": 0,
+    "graph_capture_and_replay": true,
+    "mixed_union16": {
+      "separate_latency_ms": 0.133037,
+      "fused_latency_ms": 0.130941,
+      "latency_reduction_percent": 1.5755015521997544
+    },
+    "m1_mixed": {
+      "separate_latency_ms": 0.076664,
+      "fused_latency_ms": 0.07192,
+      "latency_reduction_percent": 6.188041323176456
+    }
+  },
+  "kernel_resources": {
+    "registers_per_thread": 38,
+    "static_shared_bytes": 4128,
+    "stack_bytes": 0,
+    "local_bytes": 0,
+    "spills": false,
+    "evidence_command": "cuobjdump --dump-resource-usage build/blackwell-release/bin/gem16-cuda-trellis35-tests"
+  },
+  "same_binary_screen": {
+    "workload": "benchmarks/prompts/wikipedia-summary-16k.json",
+    "warmup_pairs": 1,
+    "measured_pairs": 1,
+    "fused": {
+      "ordinary_prefill_tokens_per_second": 5149.464592716449,
+      "fixed_d2_prefill_tokens_per_second": 5151.796242433771,
+      "ordinary_decode_tokens_per_second": 126.8211171618508,
+      "fixed_d2_decode_tokens_per_second": 170.9399329882054
+    },
+    "rollback": {
+      "ordinary_prefill_tokens_per_second": 5149.1247367924825,
+      "fixed_d2_prefill_tokens_per_second": 5151.601857645494,
+      "ordinary_decode_tokens_per_second": 126.0628856697912,
+      "fixed_d2_decode_tokens_per_second": 169.9578703780594
+    },
+    "ordinary_decode_gain_percent": 0.6014708357904031,
+    "fixed_d2_decode_gain_percent": 0.5778270861840565,
+    "output_identical": true,
+    "draft_trajectory_identical": true,
+    "vram_delta_mib": 0
+  },
+  "full_wikipedia_16k": {
+    "sampling": true,
+    "seed": 0,
+    "prompt_tokens": 16384,
+    "generated_tokens": 1229,
+    "warmup_pairs": 1,
+    "measured_pairs": 3,
+    "ordinary_prefill_tokens_per_second": {
+      "median": 5149.367486446138,
+      "samples": [5148.170143503986, 5150.306333833149, 5149.367486446138]
+    },
+    "fixed_d2_prefill_tokens_per_second": {
+      "median": 5148.493694792115,
+      "samples": [5148.331914064587, 5152.881827159562, 5148.493694792115]
+    },
+    "ordinary_decode_tokens_per_second": {
+      "median": 126.84941383794883,
+      "samples": [126.84941383794883, 126.85793151324569, 126.76966529917847]
+    },
+    "fixed_d2_decode_tokens_per_second": {
+      "median": 170.93136715862792,
+      "samples": [170.94374029915156, 170.85597731566892, 170.93136715862792]
+    },
+    "gain_vs_wp19_ordinary_decode_percent": 0.6308382494367626,
+    "gain_vs_wp19_fixed_d2_decode_percent": 0.6073074551409618,
+    "ordinary_peak_vram_mib": 12380,
+    "fixed_d2_peak_vram_mib": 12656,
+    "output_token_sha256": "12235104322e01e0d53875e11c980312f8f42fe763d04b0762697f54eb922c48",
+    "accepted_tokens": 690,
+    "proposed_tokens": 1076,
+    "rejected_tokens": 386,
+    "d2_groups": 538,
+    "ordinary_fallback_tokens": 0,
+    "deterministic_outputs": true
+  },
+  "sanitizers": {
+    "memcheck_errors": 0,
+    "initcheck_errors": 0,
+    "racecheck_errors": 0,
+    "racecheck_warnings": 0
+  },
+  "tests": [
+    {
+      "command": "build/blackwell-release/bin/gem16-cuda-trellis35-tests --wp20-small-gelu-down-matrix",
+      "result": "passed; 51 T3 cases plus K3/K4/mixed M1, bit-exact"
+    },
+    {
+      "command": "build/blackwell-release/bin/gem16-cuda-trellis35-tests",
+      "result": "passed"
+    },
+    {
+      "command": "ctest --test-dir build/blackwell-release --output-on-failure -R '^gem16-(unit|cuda|cuda-trellis35|trellis35-compiler-contract|cuda-nvfp4-consumption)$'",
+      "result": "5/5 passed"
+    },
+    {
+      "command": "ctest --test-dir build/blackwell-release --output-on-failure -R '^gem16-12b-m22-product$'",
+      "result": "skipped: no configured 12B model path"
+    }
+  ],
+  "gate": {
+    "identical_1229_tokens_and_hash": true,
+    "identical_690_386_draft_trajectory": true,
+    "no_fallback_or_workspace_growth": true,
+    "ordinary_not_below_wp16": true,
+    "t3_projection_at_least_15_percent_faster": false,
+    "fixed_d2_at_least_175_tokens_per_second": false,
+    "fixed_d2_stretch_at_least_180_tokens_per_second": false,
+    "packet_target_met": false,
+    "incremental_fusion_accepted": true
+  },
+  "raw_evidence": [
+    {
+      "path": "artifacts/raw/trellis35/wp20/gelu-down-matrix.log",
+      "sha256": "fd4a30ddc27d4dc849405e7b1e852b25019dd56d70b101edc2822711634ea3d7"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp20/fused-screen-wikipedia-16k.json",
+      "sha256": "4ed46a9b9d863c8a4745994df87eed04537910f335339b0ca55d49cb9ed68af9"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp20/rollback-screen-wikipedia-16k.json",
+      "sha256": "bc5f9a008c674ac2b50ebed415e919ab5ead142c26b0af96382c04292319f4e5"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp20/fused-full-wikipedia-16k-sampled-1w3.json",
+      "sha256": "82da9c44040b930c3de3c10becb177e6638273b721f7debefab9b36491cad79c"
+    }
+  ],
+  "limitations": [
+    "WP20 did not achieve its >=175 tok/s Fixed-D2 target or >=180 tok/s stretch target.",
+    "The A+B tasklist/prefetch candidate was slower and was fully rolled back; C/D were correctly skipped after NCU did not indicate them.",
+    "The protected real 12B product test was skipped because no 12B model path is configured in this workspace.",
+    "This packet does not product-qualify Trellis35."
+  ]
+}

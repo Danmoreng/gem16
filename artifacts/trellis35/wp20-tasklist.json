@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "work_packet": "WP20-A",
+  "status": "rejected_rolled_back",
+  "implementation_parent_revision": "fb3fbb49017ad4a4ac9edf6527b32409d3e5a735",
+  "candidate": {
+    "description": "Graph-resident compact unique-expert tasklist shared by Gate+Up and Down, consumed by the T3 M16 projection together with the WP20-B four-stage prefetch port.",
+    "maximum_tasks": 24,
+    "host_synchronization": false,
+    "runtime_allocation": false,
+    "source_retained": false
+  },
+  "numerical_matrix": {
+    "rate_families": ["K3", "K4", "mixed K3/K4"],
+    "unique_expert_union_sizes": [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24],
+    "cases": 51,
+    "output_mismatches": 0,
+    "cuda_graph_capture_and_replay": true
+  },
+  "performance": {
+    "metric": "complete synthetic T3 pipeline latency",
+    "warm_outlier_union8_excluded_from_medians": true,
+    "median_slowdown_percent": {
+      "K3": 10.1133,
+      "K4": 7.4508,
+      "mixed": 10.1317
+    },
+    "mixed_union16": {
+      "parent_latency_ms": 0.143037,
+      "candidate_latency_ms": 0.160675,
+      "slowdown_percent": 12.3305
+    }
+  },
+  "decision": "Reject A+B and restore the parent source. Exactness alone does not justify the instruction and register overhead.",
+  "raw_evidence": [
+    {
+      "path": "artifacts/raw/trellis35/wp20/tasklist-prefetch-matrix.log",
+      "sha256": "1db820ac853c71f05e274ed421d41ba7627b498ed322d194eb534ec901df7d22"
+    }
+  ]
+}

@@ -39,6 +39,13 @@ enum class Trellis35T3ProjectionMode {
   kM16,
 };
 
+enum class Trellis35SmallGeluDownMode {
+  // WP20 numerical and performance rollback.
+  kSeparate,
+  // GELU, Down H128 transform, amax and E4M3 in one assignment CTA.
+  kFusedTransformQuantize,
+};
+
 // Diagnostic-only bounded materialization used to decide whether a transient
 // decoded-weight cache can beat inline Trellis decode. The slab is row-major
 // E4M3 with unit BF16 row scales and is never an engine/runtime fallback.
@@ -123,7 +130,9 @@ struct Trellis35T3Workspace {
     const Trellis35M1Workspace& workspace, float* output,
     cudaStream_t stream,
     Trellis35SmallTransformMode transform_mode =
-        Trellis35SmallTransformMode::kWarpH128);
+        Trellis35SmallTransformMode::kWarpH128,
+    Trellis35SmallGeluDownMode gelu_down_mode =
+        Trellis35SmallGeluDownMode::kSeparate);
 
 // Dedicated Fixed-D2 T=3 path. This is one 24-assignment pipeline, not three
 // M1 calls. Each first-occurrence expert group decodes a weight fragment once
@@ -136,7 +145,9 @@ struct Trellis35T3Workspace {
     Trellis35SmallTransformMode transform_mode =
         Trellis35SmallTransformMode::kWarpH128,
     Trellis35T3ProjectionMode projection_mode =
-        Trellis35T3ProjectionMode::kM16);
+        Trellis35T3ProjectionMode::kM16,
+    Trellis35SmallGeluDownMode gelu_down_mode =
+        Trellis35SmallGeluDownMode::kSeparate);
 
 // Routed-expert-only prefill replacement. normalized_hidden contains T
 // recurrent BF16 values in FP32 containers. The launcher consumes the existing

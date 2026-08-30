@@ -489,6 +489,9 @@ int main(int argc, char** argv) {
   if (argc == 2 && std::string(argv[1]) == "--wp19-gelu-down-oracle") {
     return RunTrellis35Wp19GeluDownOracle() == 0 ? 0 : 1;
   }
+  if (argc == 2 && std::string(argv[1]) == "--wp20-small-gelu-down-matrix") {
+    return RunTrellis35Wp20SmallGeluDownMatrix() == 0 ? 0 : 1;
+  }
   int suite_failures = 0;
   suite_failures += RunTrellis35CodecTests();
   suite_failures += RunTrellis35TransformTests();
@@ -507,7 +510,8 @@ int main(int argc, char** argv) {
                  "--profile-slab-checkpoint PATH | "
                  "--wp12-numerical-matrix | --wp14-output-matrix | "
                  "--wp17-m64-matrix | --wp17-m64-smoke | "
-                 "--wp19-gelu-down-oracle]\n";
+                 "--wp19-gelu-down-oracle | "
+                 "--wp20-small-gelu-down-matrix]\n";
     return 2;
   }
   suite_failures += failures;
