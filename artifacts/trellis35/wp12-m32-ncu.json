@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "work_packet": "WP12",
+  "status": "accepted",
+  "kernel": "MmaW4A8ProjectionGroupedPrefillM32Kernel",
+  "workload": {
+    "artifact_content_sha256": "39183e2c7a1bd04c87a8f5bb5887453f8e92a3980bb507fd06d6252a6439c9f0",
+    "layer": 0,
+    "tokens": 512,
+    "assignments": 4096,
+    "active_experts": 128,
+    "actual_schedule_count": 128,
+    "safe_launched_schedule_blocks": 252,
+    "grid": [4, 252, 1],
+    "block": [128, 1, 1]
+  },
+  "launch_resources": {
+    "duration_ms": 0.171008,
+    "wp11_duration_ms": 1.058112,
+    "speedup": 6.1875,
+    "registers_per_thread": 56,
+    "wp11_registers_per_thread": 79,
+    "stack_bytes": 1024,
+    "driver_shared_bytes_per_block": 1024,
+    "static_shared_bytes_per_block": 2176,
+    "dynamic_shared_bytes_per_block": 0,
+    "local_load_instructions": 0,
+    "local_store_instructions": 0,
+    "local_spilling_requests": 0,
+    "shared_spilling_requests": 0,
+    "theoretical_occupancy_percent": 75.0,
+    "achieved_occupancy_percent": 59.14,
+    "theoretical_active_warps_per_sm": 36,
+    "waves_per_sm": 1.87
+  },
+  "instruction_and_traffic": {
+    "executed_instructions": 31570496,
+    "wp11_executed_instructions": 236366336,
+    "issue_slots_busy_percent": 58.75,
+    "dram_read_bytes": 31830784,
+    "dram_write_bytes": 211968,
+    "l1_hit_percent": 29.01,
+    "l2_hit_percent": 53.0
+  },
+  "raw_evidence": {
+    "report": "artifacts/raw/trellis35/wp12-m32-prefill-512.ncu-rep",
+    "report_sha256": "5444952876a5814b5366e74e013efb77b8999c6dc0b2209fc0320010ef305502",
+    "details": "artifacts/raw/trellis35/wp12-m32-prefill-512-details.txt",
+    "details_sha256": "d3e5f6afb893e7db4d94ce235fe0a5e68046d192f33377584ed4d60ed9e84ed8",
+    "raw_csv": "artifacts/raw/trellis35/wp12-m32-prefill-512-raw.csv",
+    "raw_csv_sha256": "df79a9f434fc9a3759180fa0acffa7af5d82773f7cd72172c4d53d61bd0b30d8"
+  }
+}

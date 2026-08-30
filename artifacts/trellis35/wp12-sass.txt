@@ -1,0 +1,27 @@
+WP12 M32 SASS evidence
+======================
+
+Object:
+build/blackwell-release/CMakeFiles/gem16_core.dir/src/cuda/trellis35/reference.cu.o
+
+Kernel:
+MmaW4A8ProjectionGroupedPrefillM32Kernel
+
+Static instruction counts across the uniform K3 and K4 branches:
+QMMA.16832.F32.E4M3.E4M3: 4
+LDGSTS.E.128.ZFILL: 24
+LDL: 0
+STL: 0
+
+Representative instructions:
+/*09d0*/ LDGSTS.E.128.ZFILL [R9], desc[UR12][R10.64], P1 ;
+/*2ec0*/ QMMA.16832.F32.E4M3.E4M3 R12, R20, R34.reuse, R12 ;
+/*2ed0*/ QMMA.16832.F32.E4M3.E4M3 R16, R24, R34, R16 ;
+/*3450*/ LDGSTS.E.128.ZFILL [R9], desc[UR12][R10.64], P1 ;
+/*5860*/ QMMA.16832.F32.E4M3.E4M3 R12, R8, R36.reuse, R12 ;
+/*5870*/ QMMA.16832.F32.E4M3.E4M3 R16, R20, R36, R16 ;
+
+The two adjacent QMMA instructions in each rate branch consume the same decoded B fragment and distinct full M16 A fragments. NCU independently reports zero local loads, stores, and spilling requests.
+
+The qualified NVFP4 kernel source is unchanged from WP11, and its object SHA-256 remains:
+45b82607e7986bcb467afe668eb6ff074f86868bb67c13dee2fc526e99ebec3c

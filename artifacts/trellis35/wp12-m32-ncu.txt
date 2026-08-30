@@ -1,0 +1,23 @@
+WP12 M32 NCU summary
+====================
+
+Kernel: MmaW4A8ProjectionGroupedPrefillM32Kernel
+Workload: real Trellis35 layer 0, T=512, A=4096, 128 active experts
+Launch: grid=(4,252,1), block=(128,1,1), actual device schedule count=128
+
+Duration: 171.008 us (WP11 M4: 1058.112 us; 6.1875x faster)
+Registers/thread: 56 (WP11: 79)
+Static shared memory/block: 2176 bytes
+Local loads/stores: 0 / 0
+Local/shared spilling requests: 0 / 0
+Theoretical/achieved occupancy: 75.0% / 59.14%
+Waves/SM: 1.87
+Executed instructions: 31,570,496 (WP11: 236,366,336)
+DRAM read/write: 31,830,784 / 211,968 bytes
+
+Command:
+ncu --set full --kernel-name regex:.*MmaW4A8ProjectionGroupedPrefillM32Kernel.* --launch-count 1 --force-overwrite -o artifacts/raw/trellis35/wp12-m32-prefill-512 build/blackwell-release/bin/gem16-cuda-trellis35-tests --profile-prefill-checkpoint models/checkpoints/google-gemma-4-26b-a4b-it-trellis35-w4a8-wp2 512
+
+Raw report SHA-256: 5444952876a5814b5366e74e013efb77b8999c6dc0b2209fc0320010ef305502
+Details SHA-256: d3e5f6afb893e7db4d94ce235fe0a5e68046d192f33377584ed4d60ed9e84ed8
+Raw CSV SHA-256: df79a9f434fc9a3759180fa0acffa7af5d82773f7cd72172c4d53d61bd0b30d8

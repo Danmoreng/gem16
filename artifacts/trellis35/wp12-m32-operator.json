@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "work_packet": "WP12",
+  "status": "accepted",
+  "kernel": "MmaW4A8ProjectionGroupedPrefillM32Kernel",
+  "geometry": {
+    "threads_per_cta": 128,
+    "warps_per_cta": 4,
+    "output_columns_per_cta": 32,
+    "assignment_rows_per_tile": 32,
+    "assignment_tiles_per_cta": 2,
+    "rows_per_assignment_tile": 16,
+    "contracting_elements_per_stage": 32,
+    "activation_stage_buffers": 2
+  },
+  "implementation": {
+    "activation_staging": "two row-major 32xK32 E4M3 shared-memory buffers populated with cp.async and zero-filled tails",
+    "mma_a_registers": ["a0", "a1", "a2", "a3"],
+    "weight_reuse": "one inline Trellis K3/K4 B-fragment decode per warp and K32 feeds both M16 MMAs",
+    "rate_dispatch": "uniform per CTA and outside the K loop",
+    "production_schedule": "consumes the existing BuildExpertTileScheduleKernel M32 descriptors",
+    "standalone_schedule": "explicit test-only builder uses matching M32 descriptors",
+    "complete_decoded_matrix_in_global_memory": false,
+    "new_recurring_allocations": 0,
+    "legacy_rollback_retained": "Trellis35PrefillKernelMode::kLegacyM4"
+  },
+  "numerical_matrix": {
+    "tokens": [1, 2, 3, 4, 8, 15, 16, 17, 31, 32, 33, 128, 512, 1024],
+    "rates": ["K3", "K4", "mixed"],
+    "routing": ["uniform", "real_fixture", "one_hot", "long_tail"],
+    "cases": 168,
+    "expert_output_nonzero_mismatch_cases": 0,
+    "reduced_output_nonzero_mismatch_cases": 0,
+    "maximum_absolute_difference": 0.0,
+    "maximum_relative_difference": 0.0,
+    "oracle": "WP11 legacy M4 kernel with unchanged transforms and epilogues",
+    "raw_path": "artifacts/raw/trellis35/wp12-m32-numerical-matrix.txt",
+    "raw_sha256": "980a18b963bd35ea4602a41ec0bf4b2d5b16e34fd842fd3794e7bbd5be558615"
+  },
+  "operator_performance": {
+    "real_layer0_tokens": 512,
+    "wp11_full_routed_expert_ms": 19.9244,
+    "wp12_full_routed_expert_ms": 10.4055,
+    "full_routed_expert_speedup": 1.914795,
+    "ncu_projection_kernel_wp11_ms": 1.058112,
+    "ncu_projection_kernel_wp12_ms": 0.171008,
+    "projection_kernel_speedup": 6.1875,
+    "minimum_synthetic_t512_speedup_across_rate_and_routing": 1.943525,
+    "maximum_observed_t_le_17_slowdown_ratio": 1.293239
+  },
+  "sanitizers": {
+    "memcheck": "0 errors",
+    "racecheck": "0 errors, 0 warnings"
+  },
+  "regressions": {
+    "full_ctest": "13 of 13 passed; three model-dependent tests skipped without environment",
+    "real_26b_m17": "passed",
+    "real_26b_m22": "passed",
+    "protected_real_12b_m22": "passed",
+    "nvfp4_source_diff_lines": 0,
+    "nvfp4_sm120_object_sha256": "45b82607e7986bcb467afe668eb6ff074f86868bb67c13dee2fc526e99ebec3c"
+  },
+  "decision": "Default-enable grouped M32 for Trellis35 prefill; retain legacy M4 only as an explicit experimental A/B rollback."
+}

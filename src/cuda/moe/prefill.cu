@@ -744,7 +744,9 @@ Status LaunchGemma4MoeSm120PrefillLayerImpl(
                               stream);
     if (!status.ok()) return status;
     status = LaunchTrellis35PrefillExpertsW4A8(
-        x.token_hidden, tokens, *trellis_layer, x, stream);
+        x.token_hidden, tokens, *trellis_layer, x,
+        Trellis35PrefillScheduleMode::kConsumeM32,
+        Trellis35PrefillKernelMode::kGroupedM32, stream);
     if (!status.ok()) return status;
   } else {
     status = LaunchRmsNormNvfp4ActivationQuantizationBatch(

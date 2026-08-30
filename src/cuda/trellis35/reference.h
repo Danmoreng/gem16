@@ -119,9 +119,25 @@ struct Trellis35T3Workspace {
 // token-major assignments plus stable expert permutation/prefix and aliases
 // only dead regions of Gemma4MoePrefillWorkspace; no second prefill arena is
 // required. The reduced routed result is written to workspace.token_hidden.
+enum class Trellis35PrefillScheduleMode {
+  // Standalone operator tests do not run the enclosing MoE scheduler.
+  kBuildStandalone,
+  // Production consumes BuildExpertTileScheduleKernel's existing M32 result.
+  kConsumeM32,
+};
+
+enum class Trellis35PrefillKernelMode {
+  // WP11 rollback and numerical A/B reference.
+  kLegacyM4,
+  // WP12 true two-M16 grouped candidate.
+  kGroupedM32,
+};
+
 [[nodiscard]] Status LaunchTrellis35PrefillExpertsW4A8(
     const float* normalized_hidden, std::uint64_t tokens,
     const Trellis35DeviceLayerBinding& layer,
-    const Gemma4MoePrefillWorkspace& workspace, cudaStream_t stream);
+    const Gemma4MoePrefillWorkspace& workspace,
+    Trellis35PrefillScheduleMode schedule_mode,
+    Trellis35PrefillKernelMode kernel_mode, cudaStream_t stream);
 
 }  // namespace gem16::internal

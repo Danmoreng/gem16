@@ -199,6 +199,233 @@ __global__ void PrefillTransformQuantizeBf16Kernel(
          index] = encoded.__x;
 }
 
+__device__ __forceinline__ unsigned PrefillSharedAddress(
+    const void* pointer) {
+  return static_cast<unsigned>(__cvta_generic_to_shared(pointer));
+}
+
+__device__ __forceinline__ void PrefillCopyAsync16(
+    void* shared_destination, const void* global_source, int source_bytes) {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 890
+  asm volatile("cp.async.ca.shared.global [%0], [%1], 16, %2;\n"
+               :
+               : "r"(PrefillSharedAddress(shared_destination)),
+                 "l"(global_source), "r"(source_bytes));
+#else
+  (void)shared_destination;
+  (void)global_source;
+  (void)source_bytes;
+#endif
+}
+
+__device__ __forceinline__ void PrefillCommitAsyncCopies() {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 890
+  asm volatile("cp.async.commit_group;\n");
+#endif
+}
+
+__device__ __forceinline__ void PrefillWaitForAsyncCopies() {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 890
+  asm volatile("cp.async.wait_group 0;\n");
+#endif
+}
+
+__device__ __forceinline__ void StageGroupedPrefillActivationAsync(
+    std::uint32_t* staged_activation, unsigned stage,
+    const std::uint8_t* activation, const std::uint32_t* activation_rows,
+    std::uint64_t input_elements, std::uint64_t input_offset) {
+  constexpr unsigned kWordsPerK32 = 32U / sizeof(std::uint32_t);
+  constexpr unsigned kCopiesPerRow = 32U / 16U;
+  constexpr unsigned kCopies =
+      kPrefillGroupedRowsPerTile * kCopiesPerRow;
+  for (unsigned copy = threadIdx.x; copy < kCopies; copy += blockDim.x) {
+    const unsigned row = copy / kCopiesPerRow;
+    const unsigned chunk = copy % kCopiesPerRow;
+    const std::uint32_t activation_row = activation_rows[row];
+    const bool valid = activation_row != 0xffffffffU;
+    const std::uint8_t* source =
+        valid ? activation +
+                    static_cast<std::uint64_t>(activation_row) *
+                        input_elements +
+                    input_offset + chunk * 16U
+              : activation;
+    PrefillCopyAsync16(
+        staged_activation +
+            (stage * kPrefillGroupedRowsPerTile + row) * kWordsPerK32 +
+            chunk * (16U / sizeof(std::uint32_t)),
+        source, valid ? 16 : 0);
+  }
+}
+
+template <int Rate>
+__device__ __forceinline__ void AccumulateGroupedPrefillM32(
+    const std::uint8_t* activation, const std::uint32_t* activation_rows,
+    const std::byte* pool, std::uint32_t pool_offset,
+    std::uint64_t input_elements, std::uint64_t output_elements,
+    std::uint64_t source_output, std::uint32_t* staged_activation,
+    Fp8Accumulator (&accumulators)[2]) {
+  constexpr unsigned kWordsPerK32 = 32U / sizeof(std::uint32_t);
+  constexpr unsigned kPayloadWords = Rate * 256U / 32U;
+  const unsigned lane = threadIdx.x & 31U;
+  const unsigned group = lane >> 2U;
+  const unsigned thread_in_group = lane & 3U;
+  const std::uint64_t tile_columns = output_elements / 16U;
+  const std::uint64_t output_tile = source_output / 16U;
+  const auto* payload = reinterpret_cast<const std::uint32_t*>(
+      pool + pool_offset);
+  const unsigned iterations = static_cast<unsigned>(input_elements / 32U);
+  const unsigned position = TensorCoreIndex(
+      thread_in_group * 4U, static_cast<unsigned>(source_output & 15U));
+
+  auto load_word = [&](unsigned input_tile) {
+    if (lane >= kPayloadWords) return std::uint32_t{0U};
+    const std::uint64_t tile =
+        static_cast<std::uint64_t>(input_tile) * tile_columns + output_tile;
+    return payload[tile * kPayloadWords + lane];
+  };
+
+  StageGroupedPrefillActivationAsync(staged_activation, 0U, activation,
+                                     activation_rows, input_elements, 0U);
+  PrefillCommitAsyncCopies();
+  PrefillWaitForAsyncCopies();
+  __syncthreads();
+  for (unsigned iteration = 0U; iteration < iterations; ++iteration) {
+    const unsigned stage = iteration & 1U;
+    const bool has_next = iteration + 1U < iterations;
+    if (has_next) {
+      StageGroupedPrefillActivationAsync(
+          staged_activation, stage ^ 1U, activation, activation_rows,
+          input_elements,
+          static_cast<std::uint64_t>(iteration + 1U) * 32U);
+      PrefillCommitAsyncCopies();
+    }
+    const std::uint32_t lane_word0 = load_word(iteration * 2U);
+    const std::uint32_t lane_word1 = load_word(iteration * 2U + 1U);
+    const std::uint32_t b0 =
+        DecodeLanePayloadE4M3x4<Rate>(lane_word0, position);
+    const std::uint32_t b1 =
+        DecodeLanePayloadE4M3x4<Rate>(lane_word1, position);
+    const std::uint32_t* current =
+        staged_activation + stage * kPrefillGroupedRowsPerTile * kWordsPerK32;
+#pragma unroll
+    for (unsigned tile = 0U; tile < 2U; ++tile) {
+      const unsigned low_row = tile * 16U + group;
+      const unsigned high_row = low_row + 8U;
+      const std::uint32_t a0 =
+          current[low_row * kWordsPerK32 + thread_in_group];
+      const std::uint32_t a1 =
+          current[high_row * kWordsPerK32 + thread_in_group];
+      const std::uint32_t a2 =
+          current[low_row * kWordsPerK32 + thread_in_group + 4U];
+      const std::uint32_t a3 =
+          current[high_row * kWordsPerK32 + thread_in_group + 4U];
+      AccumulateFp8M16(a0, a1, a2, a3, b0, b1, accumulators[tile]);
+    }
+    if (has_next) {
+      PrefillWaitForAsyncCopies();
+      __syncthreads();
+    }
+  }
+}
+
+__global__ void MmaW4A8ProjectionGroupedPrefillM32Kernel(
+    const std::uint8_t* activation, const float* activation_scales,
+    Trellis35DeviceFamilyBinding family,
+    const Gemma4MoePrefillAssignment* assignments,
+    const std::uint32_t* expert_prefix, const std::uint32_t* schedule_count,
+    const std::uint32_t* schedule, const std::uint32_t* permutation,
+    float* output_tile, std::uint64_t assignment_count,
+    std::uint64_t input_elements, std::uint64_t output_elements,
+    std::uint64_t output_offset) {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 890
+  const unsigned schedule_index = blockIdx.y;
+  if (schedule_index >= schedule_count[0]) return;
+  const std::uint32_t packed_tile = schedule[schedule_index];
+  const unsigned expert = packed_tile >> 16U;
+  const std::uint32_t grouped_begin = packed_tile & 0xffffU;
+  if (expert >= kTrellis35ExpertCount) return;
+  const std::uint32_t grouped_end = expert_prefix[expert + 1U];
+  if (grouped_begin >= grouped_end) return;
+
+  __shared__ std::uint32_t activation_rows[kPrefillGroupedRowsPerTile];
+  __shared__ alignas(16) std::uint32_t staged_activation
+      [2U * kPrefillGroupedRowsPerTile * (32U / sizeof(std::uint32_t))];
+  if (threadIdx.x < kPrefillGroupedRowsPerTile) {
+    const std::uint32_t grouped = grouped_begin + threadIdx.x;
+    std::uint32_t original = 0xffffffffU;
+    if (grouped < grouped_end) {
+      const std::uint32_t candidate = permutation[grouped];
+      if (candidate < assignment_count &&
+          assignments[candidate].expert_id == expert) {
+        original = candidate;
+      }
+    }
+    activation_rows[threadIdx.x] = original;
+  }
+  __syncthreads();
+
+  const unsigned warp = threadIdx.x >> 5U;
+  const unsigned lane = threadIdx.x & 31U;
+  const unsigned group = lane >> 2U;
+  const unsigned thread_in_group = lane & 3U;
+  const std::uint64_t output_column_base =
+      output_offset + static_cast<std::uint64_t>(blockIdx.x) * 32U +
+      warp * 8U;
+  const std::uint64_t source_output = output_column_base + group;
+  const Trellis35ExpertDescriptor descriptor = family.descriptors[expert];
+  const std::byte* pool = descriptor.rate_bits == 3U
+                              ? family.k3_payload_pool
+                              : family.k4_payload_pool;
+  Fp8Accumulator accumulators[2]{};
+  if (descriptor.rate_bits == 3U) {
+    AccumulateGroupedPrefillM32<3>(
+        activation, activation_rows, pool, descriptor.pool_offset,
+        input_elements, output_elements, source_output, staged_activation,
+        accumulators);
+  } else if (descriptor.rate_bits == 4U) {
+    AccumulateGroupedPrefillM32<4>(
+        activation, activation_rows, pool, descriptor.pool_offset,
+        input_elements, output_elements, source_output, staged_activation,
+        accumulators);
+  } else {
+    return;
+  }
+
+#pragma unroll
+  for (unsigned tile = 0U; tile < 2U; ++tile) {
+    const float values[4] = {accumulators[tile].x0, accumulators[tile].x1,
+                             accumulators[tile].x2, accumulators[tile].x3};
+#pragma unroll
+    for (unsigned pair = 0U; pair < 4U; ++pair) {
+      const unsigned row = tile * 16U +
+                           ((pair & 2U) == 0U ? group : group + 8U);
+      const std::uint32_t original = activation_rows[row];
+      const std::uint64_t column =
+          output_column_base + thread_in_group * 2U + (pair & 1U);
+      if (original == 0xffffffffU || column >= output_elements) continue;
+      output_tile[static_cast<std::uint64_t>(original) *
+                      kPrefillOutputBlock +
+                  (column - output_offset)] =
+          values[pair] * activation_scales[original];
+    }
+  }
+#else
+  (void)activation;
+  (void)activation_scales;
+  (void)family;
+  (void)assignments;
+  (void)expert_prefix;
+  (void)schedule_count;
+  (void)schedule;
+  (void)permutation;
+  (void)output_tile;
+  (void)assignment_count;
+  (void)input_elements;
+  (void)output_elements;
+  (void)output_offset;
+#endif
+}
+
 __global__ void MmaW4A8ProjectionGroupedPrefillTileKernel(
     const std::uint8_t* activation, const float* activation_scales,
     Trellis35DeviceFamilyBinding family,
@@ -216,10 +443,10 @@ __global__ void MmaW4A8ProjectionGroupedPrefillTileKernel(
   const std::uint32_t grouped_end = expert_prefix[expert + 1U];
   if (grouped_begin >= grouped_end) return;
   const unsigned assignment_count = static_cast<unsigned>(
-      min(grouped_end - grouped_begin, kPrefillRowsPerTile));
-  unsigned assignments[kPrefillRowsPerTile]{};
+      min(grouped_end - grouped_begin, kPrefillLegacyRowsPerTile));
+  unsigned assignments[kPrefillLegacyRowsPerTile]{};
 #pragma unroll
-  for (unsigned index = 0U; index < kPrefillRowsPerTile; ++index) {
+  for (unsigned index = 0U; index < kPrefillLegacyRowsPerTile; ++index) {
     if (index < assignment_count) {
       assignments[index] = permutation[grouped_begin + index];
     }
@@ -239,14 +466,14 @@ __global__ void MmaW4A8ProjectionGroupedPrefillTileKernel(
   const std::byte* pool = descriptor.rate_bits == 3U
                               ? family.k3_payload_pool
                               : family.k4_payload_pool;
-  Fp8Accumulator accumulators[kPrefillRowsPerTile]{};
+  Fp8Accumulator accumulators[kPrefillLegacyRowsPerTile]{};
   if (descriptor.rate_bits == 3U) {
-    AccumulateGroupedProjection<3, kPrefillRowsPerTile>(
+    AccumulateGroupedProjection<3, kPrefillLegacyRowsPerTile>(
         activation, assignments, assignment_count, pool,
         descriptor.pool_offset, input_elements, output_elements, source_output,
         accumulators);
   } else {
-    AccumulateGroupedProjection<4, kPrefillRowsPerTile>(
+    AccumulateGroupedProjection<4, kPrefillLegacyRowsPerTile>(
         activation, assignments, assignment_count, pool,
         descriptor.pool_offset, input_elements, output_elements, source_output,
         accumulators);
@@ -256,7 +483,7 @@ __global__ void MmaW4A8ProjectionGroupedPrefillTileKernel(
         (static_cast<std::uint64_t>(blockIdx.x) * kMmaWarps + warp) * 8U +
         lane * 2U;
 #pragma unroll
-    for (unsigned index = 0U; index < kPrefillRowsPerTile; ++index) {
+    for (unsigned index = 0U; index < kPrefillLegacyRowsPerTile; ++index) {
       if (index < assignment_count) {
         const unsigned assignment = assignments[index];
         float* assignment_output =
@@ -288,6 +515,7 @@ __global__ void MmaW4A8ProjectionGroupedPrefillTileKernel(
 #endif
 }
 
+template <unsigned RowsPerTile>
 __global__ void BuildTrellis35PrefillTileScheduleKernel(
     const std::uint32_t* prefix, std::uint32_t* tile_count,
     std::uint32_t* schedule) {
@@ -295,7 +523,8 @@ __global__ void BuildTrellis35PrefillTileScheduleKernel(
   std::uint32_t count = 0U;
   for (std::uint32_t expert = 0U; expert < kTrellis35ExpertCount; ++expert) {
     for (std::uint32_t grouped = prefix[expert];
-         grouped < prefix[expert + 1U]; grouped += kPrefillRowsPerTile) {
+         grouped < prefix[expert + 1U];
+         grouped += RowsPerTile) {
       schedule[count++] = (expert << 16U) | grouped;
     }
   }

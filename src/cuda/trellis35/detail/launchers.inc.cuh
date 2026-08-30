@@ -115,7 +115,8 @@ Status LaunchPrefillProjectionBlocks(
     const std::uint32_t* schedule, const std::uint32_t* permutation,
     float* projection_tile, float* output, std::uint64_t tokens,
     std::uint64_t assignment_count, std::uint64_t input_elements,
-    std::uint64_t output_elements, cudaStream_t stream) {
+    std::uint64_t output_elements, Trellis35PrefillKernelMode kernel_mode,
+    cudaStream_t stream) {
   if (activation == nullptr || activation_scales == nullptr ||
       family.k3_payload_pool == nullptr || family.k4_payload_pool == nullptr ||
       family.descriptors == nullptr || family.svh_f16 == nullptr ||
@@ -131,19 +132,30 @@ Status LaunchPrefillProjectionBlocks(
   }
   const std::uint64_t active_expert_upper_bound =
       std::min<std::uint64_t>(assignment_count, kTrellis35ExpertCount);
+  const unsigned rows_per_tile =
+      kernel_mode == Trellis35PrefillKernelMode::kGroupedM32
+          ? kPrefillGroupedRowsPerTile
+          : kPrefillLegacyRowsPerTile;
   const unsigned schedule_blocks = static_cast<unsigned>(
-      (assignment_count + (kPrefillRowsPerTile - 1U) *
-                              active_expert_upper_bound) /
-      kPrefillRowsPerTile);
+      (assignment_count + (rows_per_tile - 1U) * active_expert_upper_bound) /
+      rows_per_tile);
   const unsigned output_blocks =
       kPrefillOutputBlock / (kMmaWarps * 8U);
   for (std::uint64_t output_offset = 0U; output_offset < output_elements;
        output_offset += kPrefillOutputBlock) {
-    MmaW4A8ProjectionGroupedPrefillTileKernel<<<
-        dim3(output_blocks, schedule_blocks), kMmaThreads, 0, stream>>>(
-        activation, activation_scales, family, expert_prefix, schedule_count,
-        schedule, permutation, projection_tile, input_elements,
-        output_elements, output_offset);
+    if (kernel_mode == Trellis35PrefillKernelMode::kGroupedM32) {
+      MmaW4A8ProjectionGroupedPrefillM32Kernel<<<
+          dim3(output_blocks, schedule_blocks), kMmaThreads, 0, stream>>>(
+          activation, activation_scales, family, assignments, expert_prefix,
+          schedule_count, schedule, permutation, projection_tile,
+          assignment_count, input_elements, output_elements, output_offset);
+    } else {
+      MmaW4A8ProjectionGroupedPrefillTileKernel<<<
+          dim3(output_blocks, schedule_blocks), kMmaThreads, 0, stream>>>(
+          activation, activation_scales, family, expert_prefix,
+          schedule_count, schedule, permutation, projection_tile,
+          input_elements, output_elements, output_offset);
+    }
     Status status =
         CheckLaunch("launch grouped Trellis35 prefill W4A8 output tile");
     if (!status.ok()) return status;
@@ -168,7 +180,8 @@ Status LaunchPrefillProjectionBlocksBf16Reverse(
     const std::uint32_t* schedule, const std::uint32_t* permutation,
     float* projection_tile, std::uint16_t* output, std::uint64_t tokens,
     std::uint64_t assignment_count, std::uint64_t input_elements,
-    std::uint64_t output_elements, cudaStream_t stream) {
+    std::uint64_t output_elements, Trellis35PrefillKernelMode kernel_mode,
+    cudaStream_t stream) {
   if (activation == nullptr || activation_scales == nullptr ||
       family.k3_payload_pool == nullptr || family.k4_payload_pool == nullptr ||
       family.descriptors == nullptr || family.svh_f16 == nullptr ||
@@ -184,19 +197,30 @@ Status LaunchPrefillProjectionBlocksBf16Reverse(
   }
   const std::uint64_t active_expert_upper_bound =
       std::min<std::uint64_t>(assignment_count, kTrellis35ExpertCount);
+  const unsigned rows_per_tile =
+      kernel_mode == Trellis35PrefillKernelMode::kGroupedM32
+          ? kPrefillGroupedRowsPerTile
+          : kPrefillLegacyRowsPerTile;
   const unsigned schedule_blocks = static_cast<unsigned>(
-      (assignment_count + (kPrefillRowsPerTile - 1U) *
-                              active_expert_upper_bound) /
-      kPrefillRowsPerTile);
+      (assignment_count + (rows_per_tile - 1U) * active_expert_upper_bound) /
+      rows_per_tile);
   const unsigned output_blocks = kPrefillOutputBlock / (kMmaWarps * 8U);
   for (std::uint64_t output_end = output_elements; output_end != 0U;
        output_end -= kPrefillOutputBlock) {
     const std::uint64_t output_offset = output_end - kPrefillOutputBlock;
-    MmaW4A8ProjectionGroupedPrefillTileKernel<<<
-        dim3(output_blocks, schedule_blocks), kMmaThreads, 0, stream>>>(
-        activation, activation_scales, family, expert_prefix, schedule_count,
-        schedule, permutation, projection_tile, input_elements,
-        output_elements, output_offset);
+    if (kernel_mode == Trellis35PrefillKernelMode::kGroupedM32) {
+      MmaW4A8ProjectionGroupedPrefillM32Kernel<<<
+          dim3(output_blocks, schedule_blocks), kMmaThreads, 0, stream>>>(
+          activation, activation_scales, family, assignments, expert_prefix,
+          schedule_count, schedule, permutation, projection_tile,
+          assignment_count, input_elements, output_elements, output_offset);
+    } else {
+      MmaW4A8ProjectionGroupedPrefillTileKernel<<<
+          dim3(output_blocks, schedule_blocks), kMmaThreads, 0, stream>>>(
+          activation, activation_scales, family, expert_prefix,
+          schedule_count, schedule, permutation, projection_tile,
+          input_elements, output_elements, output_offset);
+    }
     Status status =
         CheckLaunch("launch grouped Trellis35 BF16 prefill W4A8 output tile");
     if (!status.ok()) return status;
@@ -565,7 +589,9 @@ Status LaunchTrellis35SelectedExpertsT3(
 Status LaunchTrellis35PrefillExpertsW4A8(
     const float* normalized_hidden, std::uint64_t tokens,
     const Trellis35DeviceLayerBinding& layer,
-    const Gemma4MoePrefillWorkspace& workspace, cudaStream_t stream) {
+    const Gemma4MoePrefillWorkspace& workspace,
+    Trellis35PrefillScheduleMode schedule_mode,
+    Trellis35PrefillKernelMode kernel_mode, cudaStream_t stream) {
   const std::uint64_t assignment_count = tokens * kTrellis35M1TopK;
   const bool float_boundaries = workspace.expert_product != nullptr &&
                                 workspace.expert_down != nullptr &&
@@ -586,15 +612,29 @@ Status LaunchTrellis35PrefillExpertsW4A8(
       workspace.router_logits == nullptr || workspace.histogram == nullptr) {
     return Invalid("Trellis35 prefill expert workspace is incomplete");
   }
+  if (schedule_mode == Trellis35PrefillScheduleMode::kConsumeM32 &&
+      kernel_mode != Trellis35PrefillKernelMode::kGroupedM32) {
+    return Invalid("Trellis35 prebuilt prefill schedule requires M32 kernel");
+  }
   auto* activation_scales =
       reinterpret_cast<float*>(workspace.token_scales);
   auto* projection_tile = workspace.shared_product;
   auto* schedule = reinterpret_cast<std::uint32_t*>(workspace.router_logits);
 
-  BuildTrellis35PrefillTileScheduleKernel<<<1, 1, 0, stream>>>(
-      workspace.prefix, workspace.histogram, schedule);
-  Status status = CheckLaunch("build Trellis35 prefill expert tile schedule");
-  if (!status.ok()) return status;
+  Status status = Status::Ok();
+  if (schedule_mode == Trellis35PrefillScheduleMode::kBuildStandalone) {
+    if (kernel_mode == Trellis35PrefillKernelMode::kGroupedM32) {
+      BuildTrellis35PrefillTileScheduleKernel<
+          kPrefillGroupedRowsPerTile><<<1, 1, 0, stream>>>(
+          workspace.prefix, workspace.histogram, schedule);
+    } else {
+      BuildTrellis35PrefillTileScheduleKernel<
+          kPrefillLegacyRowsPerTile><<<1, 1, 0, stream>>>(
+          workspace.prefix, workspace.histogram, schedule);
+    }
+    status = CheckLaunch("build standalone Trellis35 prefill schedule");
+    if (!status.ok()) return status;
+  }
 
   const dim3 product_blocks(
       static_cast<unsigned>((kTrellis35ExpertIntermediate + kThreads - 1U) /
@@ -613,7 +653,7 @@ Status LaunchTrellis35PrefillExpertsW4A8(
         workspace.assignments, workspace.prefix, workspace.histogram,
         schedule, workspace.permutation, projection_tile,
         workspace.expert_down_bf16, tokens, assignment_count,
-        kTrellis35GateUpInput, kTrellis35GateUpOutput, stream);
+        kTrellis35GateUpInput, kTrellis35GateUpOutput, kernel_mode, stream);
     if (!status.ok()) return status;
     GatedGeluBf16Kernel<<<product_blocks, kThreads, 0, stream>>>(
         workspace.expert_down_bf16, workspace.expert_product_bf16);
@@ -630,7 +670,7 @@ Status LaunchTrellis35PrefillExpertsW4A8(
         workspace.assignments, workspace.prefix, workspace.histogram,
         schedule, workspace.permutation, projection_tile,
         workspace.expert_down_bf16, tokens, assignment_count,
-        kTrellis35DownInput, kTrellis35DownOutput, stream);
+        kTrellis35DownInput, kTrellis35DownOutput, kernel_mode, stream);
     if (!status.ok()) return status;
     status = LaunchGemma4MoeReduceAssignmentsBf16(
         workspace.expert_down_bf16, workspace.assignments,
@@ -652,7 +692,7 @@ Status LaunchTrellis35PrefillExpertsW4A8(
         workspace.assignments, workspace.prefix, workspace.histogram,
         schedule, workspace.permutation, projection_tile,
         workspace.expert_down, tokens, assignment_count,
-        kTrellis35GateUpInput, kTrellis35GateUpOutput, stream);
+        kTrellis35GateUpInput, kTrellis35GateUpOutput, kernel_mode, stream);
     if (!status.ok()) return status;
     GatedGeluKernel<<<product_blocks, kThreads, 0, stream>>>(
         workspace.expert_down, workspace.expert_product);
@@ -668,7 +708,8 @@ Status LaunchTrellis35PrefillExpertsW4A8(
         down_activation, activation_scales, layer.down, workspace.assignments,
         workspace.prefix, workspace.histogram, schedule,
         workspace.permutation, projection_tile, workspace.expert_down, tokens,
-        assignment_count, kTrellis35DownInput, kTrellis35DownOutput, stream);
+        assignment_count, kTrellis35DownInput, kTrellis35DownOutput,
+        kernel_mode, stream);
     if (!status.ok()) return status;
     status = LaunchGemma4MoeReduceAssignments(
         workspace.expert_down, workspace.assignments, workspace.token_hidden,

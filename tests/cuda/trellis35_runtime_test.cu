@@ -5,7 +5,7 @@
 namespace {
 
 void PrintPrefillScheduleTelemetry(const PrefillHostRouting& routing) {
-  constexpr std::uint32_t kRowsPerTile = 4U;
+  constexpr std::uint32_t kRowsPerTile = 32U;
   std::uint64_t active_experts = 0U;
   std::uint64_t schedule_count = 0U;
   std::array<std::uint64_t, kRowsPerTile + 1U> tile_row_histogram{};
@@ -449,6 +449,9 @@ int main(int argc, char** argv) {
     ProfileTransientE4M3Slab(argv[2]);
     return failures == 0 ? 0 : 1;
   }
+  if (argc == 2 && std::string(argv[1]) == "--wp12-numerical-matrix") {
+    return RunTrellis35Wp12NumericalMatrix() == 0 ? 0 : 1;
+  }
   int suite_failures = 0;
   suite_failures += RunTrellis35CodecTests();
   suite_failures += RunTrellis35TransformTests();
@@ -462,7 +465,8 @@ int main(int argc, char** argv) {
                  "[--checkpoint PATH | --profile-t3 UNIQUE | "
                  "--profile-prefill TOKENS | "
                  "--profile-prefill-checkpoint PATH TOKENS | "
-                 "--profile-slab-checkpoint PATH]\n";
+                 "--profile-slab-checkpoint PATH | "
+                 "--wp12-numerical-matrix]\n";
     return 2;
   }
   suite_failures += failures;

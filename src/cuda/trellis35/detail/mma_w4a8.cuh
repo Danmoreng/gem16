@@ -27,6 +27,31 @@ __device__ __forceinline__ void AccumulateFp8(
 #endif
 }
 
+__device__ __forceinline__ void AccumulateFp8M16(
+    std::uint32_t a0, std::uint32_t a1, std::uint32_t a2,
+    std::uint32_t a3, std::uint32_t b0, std::uint32_t b1,
+    Fp8Accumulator& accumulator) {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 890
+  asm volatile(
+      "mma.sync.aligned.m16n8k32.row.col.f32.e4m3.e4m3.f32 "
+      "{%0, %1, %2, %3}, "
+      "{%4, %5, %6, %7}, "
+      "{%8, %9}, "
+      "{%0, %1, %2, %3};\n"
+      : "+f"(accumulator.x0), "+f"(accumulator.x1),
+        "+f"(accumulator.x2), "+f"(accumulator.x3)
+      : "r"(a0), "r"(a1), "r"(a2), "r"(a3), "r"(b0), "r"(b1));
+#else
+  (void)a0;
+  (void)a1;
+  (void)a2;
+  (void)a3;
+  (void)b0;
+  (void)b1;
+  (void)accumulator;
+#endif
+}
+
 template <int Rate>
 __device__ __forceinline__ void AccumulateSelectedProjectionM1(
     const std::uint8_t* activation, const std::byte* pool,

@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "work_packet": "WP12",
+  "status": "accepted",
+  "workload": {
+    "prompt_tokens": 512,
+    "output_forwards": 16,
+    "sampling": "greedy",
+    "job_sha256": "2bba6a3d49eb42875fe4356f42b40fb20efc4b0d515240e00a04830acfdf4e1e",
+    "artifact_content_sha256": "39183e2c7a1bd04c87a8f5bb5887453f8e92a3980bb507fd06d6252a6439c9f0"
+  },
+  "wp11_baseline": {
+    "prompt_ms": 502.275349,
+    "prompt_tokens_per_second": 1019.361195
+  },
+  "wp12_samples": [
+    {
+      "prompt_ms": 246.186247,
+      "decode_tokens_per_second": 126.94882527,
+      "raw_sha256": "4e493792f63e652e1351aa1cc10cfaf864e9880afc34611dd9800697d4f14c65"
+    },
+    {
+      "prompt_ms": 245.969641,
+      "decode_tokens_per_second": 126.728252317,
+      "raw_sha256": "4444f07567bab0c0f479c4e0ff95d9c9f7f2bfbcd0d7cad61cdd7cff1e3ccd66"
+    },
+    {
+      "prompt_ms": 246.227314,
+      "decode_tokens_per_second": 126.676463768,
+      "raw_sha256": "6315b50417400cf7f25d87629be0a82eb2ca4032217d8fe4f3f5a10978337443"
+    }
+  ],
+  "median": {
+    "prompt_ms": 246.186247,
+    "prompt_tokens_per_second": 2079.726249,
+    "speedup": 2.040225,
+    "prompt_time_reduction_percent": 50.985799425
+  },
+  "correctness_and_runtime": {
+    "output_token_sha256": "f19c52bcd74b968b1ad99162e6c854060978249c8b5b143eade6380ef3c22169",
+    "matches_wp11": true,
+    "fallback_count": 0,
+    "recurring_allocation_count": 0,
+    "sampled_device_used_bytes": 12733710336,
+    "memory_matches_wp11": true
+  },
+  "raw_paths": [
+    "artifacts/raw/trellis35/wp12-m32-512x16-run2.json",
+    "artifacts/raw/trellis35/wp12-m32-512x16-run3.json",
+    "artifacts/raw/trellis35/wp12-m32-512x16-run4.json"
+  ],
+  "engineering_gate": {
+    "required_full_prefill_improvement_percent": 10.0,
+    "observed_full_prefill_improvement_percent": 50.985799425,
+    "passed": true
+  }
+}
