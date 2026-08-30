@@ -1,0 +1,139 @@
+{
+  "schema_version": 1,
+  "work_packet": "WP10",
+  "status": "accepted",
+  "base_commit": "fbc0121ad6c699d85d9d9e7792083e11744b2eba",
+  "branch": "codex/gemma4-26b-trellis35-perf2",
+  "hardware": {
+    "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "compute_capability": "12.0",
+    "vram_mib": 16303,
+    "driver": "610.43.03",
+    "cuda_compiler": "13.3.73"
+  },
+  "artifact": {
+    "path": "models/checkpoints/google-gemma-4-26b-a4b-it-trellis35-w4a8-wp2",
+    "content_sha256": "39183e2c7a1bd04c87a8f5bb5887453f8e92a3980bb507fd06d6252a6439c9f0",
+    "weight_arena_bytes": 12204692480,
+    "device_allocations": 1,
+    "nvfp4_routed_expert_bytes": 0,
+    "persistent_payload_bpw": 3.5
+  },
+  "implementation": {
+    "format_contract": [
+      "introduced Gemma4Moe26BRoutedExpertFormat with explicit kNvfp4 and kTrellis35 values",
+      "resolve and validate exactly one artifact family before cudaSetDevice or any CUDA allocation",
+      "reject missing, mixed, symlinked, and non-regular format markers",
+      "compare the resolved format against the engine caller's expected format",
+      "bind exactly one routed-expert bank; no dual-format load or diagnostic fallback"
+    ],
+    "source_structure": {
+      "trellis_aggregator": "src/cuda/trellis35/reference.cu",
+      "trellis_detail_shards": 8,
+      "engine_aggregator": "src/cuda/engine/gemma4_26b_reference.cu",
+      "engine_detail_shards": 9,
+      "cuda_test_sources": 6,
+      "cuda_test_support": "tests/cuda/trellis35_test_support.h",
+      "cuda_translation_unit_policy": "production Trellis and engine remain one CUDA TU each"
+    },
+    "arithmetic_changes": false,
+    "launch_geometry_changes": false
+  },
+  "code_generation_identity": {
+    "method": "compile the exact WP9 source and the mechanically split WP10 aggregator with the same nvcc command; normalize disassembly by removing symbol/path-bearing labels before hashing",
+    "trellis35": {
+      "normalized_sass_sha256_before": "7b813eb8d63a5685547fec625d48d6b55de8b68fe985caaf7c2b98c4172c0bf9",
+      "normalized_sass_sha256_after": "7b813eb8d63a5685547fec625d48d6b55de8b68fe985caaf7c2b98c4172c0bf9",
+      "normalized_resources_sha256_before": "51667cdca098abe2d8da105b81b0cac3e8bb9f91c8f53f25f409f4ac14b39837",
+      "normalized_resources_sha256_after": "51667cdca098abe2d8da105b81b0cac3e8bb9f91c8f53f25f409f4ac14b39837"
+    },
+    "engine": {
+      "normalized_sass_sha256_before": "60ac85658b2fafd3a4501e8c35fb30a44e04dd6b0914c0ad2c447b136674f919",
+      "normalized_sass_sha256_after": "60ac85658b2fafd3a4501e8c35fb30a44e04dd6b0914c0ad2c447b136674f919",
+      "normalized_resources_sha256_before": "a4e28447f46c8a307498cf016d027078636c334cd72e5bfe71bf49f985986691",
+      "normalized_resources_sha256_after": "a4e28447f46c8a307498cf016d027078636c334cd72e5bfe71bf49f985986691"
+    },
+    "hot_kernel_resources": {
+      "prefill_projection": {
+        "registers_per_thread": 79,
+        "stack_bytes": 0,
+        "shared_bytes": 0,
+        "local_bytes": 0
+      },
+      "m1_selected_projection_registers_per_thread": 48,
+      "grouped_t3_projection_registers_per_thread": 70,
+      "transform_registers_per_thread": 40,
+      "transform_scale_shared_bytes": 1024
+    }
+  },
+  "correctness": {
+    "bounded_512_output_token_sha256": "f19c52bcd74b968b1ad99162e6c854060978249c8b5b143eade6380ef3c22169",
+    "bounded_512_hash_matches_wp9": true,
+    "real_16384_output_token_sha256": "c322ca1301550d194f4b5f2d6e54e0c17a998ef68e3052c039729aba1865068b",
+    "real_16384_hash_matches_wp9": true,
+    "randomized_mixed_k3_k4_mismatches": 0,
+    "independent_cpu_oracle_mismatches": 0,
+    "m1_slot_order_bit_mismatches": 0,
+    "t3_zero_typical_maximal_overlap_mismatches": 0,
+    "prefill_assignment_and_reduction_mismatches": 0,
+    "fallback_count": 0,
+    "recurring_allocation_count": 0
+  },
+  "performance": {
+    "bounded_512x16": {
+      "wp9_reference_prompt_ms": 506.73902,
+      "wp10_prompt_ms_samples": [501.565657, 501.584943, 501.273049],
+      "wp10_prompt_ms_median": 501.565657,
+      "prompt_delta_percent": -1.020913,
+      "wp9_reference_decode_tokens_per_second": 123.438704067,
+      "wp10_decode_tokens_per_second_samples": [124.02026984, 123.864068433, 124.302504464],
+      "wp10_decode_tokens_per_second_median": 124.02026984,
+      "decode_delta_percent": 0.471137,
+      "interpretation": "no regression; the 1.021 percent favorable prompt delta versus one retained WP9 sample is recorded as run noise"
+    },
+    "real_16384x64": {
+      "wp9_prompt_ms": 17226.804888,
+      "wp10_prompt_ms": 17098.860345,
+      "prompt_delta_percent": -0.742706,
+      "wp10_prefill_tokens_per_second": 958.192515,
+      "wp9_decode_tokens_per_second": 119.435704968,
+      "wp10_decode_tokens_per_second": 119.722675762,
+      "decode_delta_percent": 0.240272,
+      "peak_device_used_bytes": 12897288192
+    }
+  },
+  "coexistence_regression": {
+    "mixed_artifact_rejected_before_cuda_initialization": true,
+    "profile_metadata_disagreement_rejected": true,
+    "trellis_real_checkpoint_load": "passed",
+    "nvfp4_m17_real_checkpoint_relaunch": "passed",
+    "nvfp4_m22_product": "passed",
+    "protected_12b_m22_product": "passed using the catalog-generated .gem16 runtime view"
+  },
+  "verification": {
+    "build": "cmake --build build/blackwell-release -j2: passed",
+    "ctest": "13/13 passed; fixture-dependent product tests skip without environment variables",
+    "real_nvfp4_m17": "passed in 25.72 seconds",
+    "real_nvfp4_m22": "passed in 33.53 seconds",
+    "real_12b_m22": "passed in 9.18 seconds",
+    "python_unittest": "33/33 Trellis35 tests passed",
+    "trellis_real_checkpoint_cuda": "passed",
+    "compute_sanitizer_memcheck": "0 errors",
+    "compute_sanitizer_racecheck": "0 hazards, 0 errors, 0 warnings",
+    "git_diff_check": "passed"
+  },
+  "raw_evidence": {
+    "wp10_512x16_run1_sha256": "13485f38fa0465af482df2439218405eaf09b60cf66e28f4f1c9539eb7ed5c81",
+    "wp10_512x16_run2_sha256": "9357bb9e39abd9d2845c688e6bdad58f4b933d6309eefc10b9d5c4738e619604",
+    "wp10_512x16_run3_sha256": "a83cb4a67d2f53c93e6ff3c5534e5fc7bff1002289b24ade448c109900bc125a",
+    "wp10_16k64_sha256": "fbd35dae4c96878d69bef98cd56e13ac58e2a868b78483d00ba2b4225e452ec2",
+    "wp9_reference_512x16_sha256": "02f45b930ba9f4f088ccca49c8b18a10c5ff806fffdffbe0ff1e62ed69882afb",
+    "wp9_reference_16k64_sha256": "4482416b506d18836e960af49d1b0340c6c06c89d26301b2f3d64a68f1ba5dc5"
+  },
+  "limitations": [
+    "WP10 intentionally provides no direct speedup and changes no Trellis or NVFP4 arithmetic.",
+    "The performance values are diagnostic runs, not publication medians.",
+    "The Trellis35 profile remains experimental and is not product-qualified.",
+    "Long WP8B quality evaluation remains deferred until performance is materially better."
+  ]
+}

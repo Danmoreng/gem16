@@ -6,6 +6,7 @@
 #include <fstream>
 #include <string>
 
+#include "cuda/engine/gemma4_26b_routed_expert_format.h"
 #include "model/gemma4_26b_trellis35.h"
 
 namespace {
@@ -72,9 +73,42 @@ void WriteDescriptors(std::fstream* output, std::uint64_t rows,
 }  // namespace
 
 void RunGemma426BTrellis35Tests() {
+  using gem16::internal::DetectGemma4Moe26BRoutedExpertFormat;
+  using gem16::internal::Gemma4Moe26BRoutedExpertFormat;
   using gem16::internal::Gemma4Moe26BTrellis35EngineDispatchStatus;
   using gem16::internal::Trellis35LayerPlan;
   using gem16::internal::ValidateGemma4Moe26BTrellis35LayerPayload;
+
+  const auto format_root = std::filesystem::temp_directory_path() /
+                           "gem16-trellis35-format-contract-test";
+  std::filesystem::remove_all(format_root);
+  std::filesystem::create_directories(format_root);
+  GEM16_CHECK(!DetectGemma4Moe26BRoutedExpertFormat(format_root).ok());
+  {
+    std::ofstream output(format_root / "gem16_compilation.json");
+    output << "{}\n";
+  }
+  auto format = DetectGemma4Moe26BRoutedExpertFormat(format_root);
+  GEM16_CHECK(format.ok());
+  GEM16_CHECK(format.value() == Gemma4Moe26BRoutedExpertFormat::kNvfp4);
+  GEM16_CHECK(!gem16::internal::ValidateGemma4Moe26BRoutedExpertFormat(
+                   format.value(),
+                   Gemma4Moe26BRoutedExpertFormat::kTrellis35)
+                   .ok());
+  {
+    std::ofstream output(format_root / "trellis35-checkpoint.json");
+    output << "{}\n";
+  }
+  GEM16_CHECK(!DetectGemma4Moe26BRoutedExpertFormat(format_root).ok());
+  std::filesystem::remove(format_root / "gem16_compilation.json");
+  format = DetectGemma4Moe26BRoutedExpertFormat(format_root);
+  GEM16_CHECK(format.ok());
+  GEM16_CHECK(format.value() ==
+              Gemma4Moe26BRoutedExpertFormat::kTrellis35);
+  std::filesystem::remove(format_root / "trellis35-checkpoint.json");
+  std::filesystem::create_directory(format_root / "trellis35-checkpoint.json");
+  GEM16_CHECK(!DetectGemma4Moe26BRoutedExpertFormat(format_root).ok());
+  std::filesystem::remove_all(format_root);
 
   const auto dispatch = Gemma4Moe26BTrellis35EngineDispatchStatus();
   GEM16_CHECK(dispatch.ok());

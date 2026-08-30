@@ -319,6 +319,7 @@ if(GEM16_ENABLE_CUDA)
     src/cuda/audio/projection.cu
     src/cuda/dispatch.cu
     src/cuda/engine/gemma4_26b_artifact.cpp
+    src/cuda/engine/gemma4_26b_routed_expert_format.cpp
     src/cuda/engine/gemma4_26b_trellis35_artifact.cpp
     src/cuda/engine/gemma4_26b_reference.cu
     src/cuda/engine/target_model.cu
@@ -738,7 +739,12 @@ if(BUILD_TESTING AND GEM16_BUILD_TESTS)
     )
 
     add_executable(gem16-cuda-trellis35-tests
+      tests/cuda/trellis35_codec_test.cu
+      tests/cuda/trellis35_transform_test.cu
       tests/cuda/trellis35_m1_test.cu
+      tests/cuda/trellis35_t3_test.cu
+      tests/cuda/trellis35_prefill_test.cu
+      tests/cuda/trellis35_runtime_test.cu
     )
     target_include_directories(gem16-cuda-trellis35-tests PRIVATE
       "${CMAKE_CURRENT_SOURCE_DIR}/src"

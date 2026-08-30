@@ -3,12 +3,14 @@
 #include <cstdint>
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <span>
 
 #include "gem16/status.h"
 #include "gem16/sampling.h"
 #include "cuda/moe/reference.h"
 #include "cuda/mtp/verify.h"
+#include "cuda/engine/gemma4_26b_routed_expert_format.h"
 
 namespace gem16::internal {
 
@@ -73,7 +75,9 @@ class Gemma4Moe26BReferenceEngine {
       std::uint64_t context_tokens = 32768U, int device = 0,
       Gemma4Moe26BBackend backend = Gemma4Moe26BBackend::kReference,
       bool verify_device_image_sha256 = true,
-      bool quality_capture_all_layers = false);
+      bool quality_capture_all_layers = false,
+      std::optional<Gemma4Moe26BRoutedExpertFormat>
+          expected_routed_expert_format = std::nullopt);
 
   [[nodiscard]] Status Reset();
   [[nodiscard]] Status ForwardToken(std::uint32_t token);

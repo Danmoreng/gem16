@@ -43,7 +43,9 @@ Result<Gemma4MoeNvfp4Matrix> Matrix(
 
 template <typename Artifact>
 Result<Gemma4MoeReferenceWeights> BindWeights(
-    const Artifact& artifact, std::uint32_t layer, bool trellis35) {
+    const Artifact& artifact, std::uint32_t layer) {
+  constexpr bool kTrellis35 =
+      std::is_same_v<Artifact, Gemma4Moe26BTrellis35DeviceArtifact>;
   constexpr std::uint64_t kLayers = 30U;
   constexpr std::uint64_t kWidth = 2816U;
   constexpr std::uint64_t kShared = 2112U;
@@ -92,7 +94,7 @@ Result<Gemma4MoeReferenceWeights> BindWeights(
   result.shared_gate = shared_gate.value();
   result.shared_up = shared_up.value();
   result.shared_down = shared_down.value();
-  if (!trellis35) {
+  if constexpr (!kTrellis35) {
     auto expert_gate_up =
         Matrix(artifact, prefix + ".experts.gate_up_proj",
                kExperts * 2U * kExpert, kWidth);
@@ -113,13 +115,13 @@ Result<Gemma4MoeReferenceWeights> BindWeights(
 
 Result<Gemma4MoeReferenceWeights> BindGemma4Moe26BReferenceWeights(
     const Gemma4Moe26BDeviceArtifact& artifact, std::uint32_t layer) {
-  return BindWeights(artifact, layer, false);
+  return BindWeights(artifact, layer);
 }
 
 Result<Gemma4MoeReferenceWeights> BindGemma4Moe26BReferenceWeights(
     const Gemma4Moe26BTrellis35DeviceArtifact& artifact,
     std::uint32_t layer) {
-  return BindWeights(artifact, layer, true);
+  return BindWeights(artifact, layer);
 }
 
 }  // namespace gem16::internal
