@@ -12,6 +12,15 @@ Status TransformArguments(const float* input, const std::uint16_t* sidecar,
   return Status::Ok();
 }
 
+bool Trellis35PrefillGeluDownFusionEnabled() {
+  static const bool enabled = [] {
+    const char* value =
+        std::getenv("GEM16_TRELLIS35_PREFILL_GELU_DOWN_FUSION");
+    return value == nullptr || std::string_view(value) != "0";
+  }();
+  return enabled;
+}
+
 Status LaunchGroupedT3Projection(
     const std::uint8_t* activation_e4m3, const float* activation_scales,
     const Trellis35DeviceFamilyBinding& family,
@@ -403,6 +412,50 @@ Status LaunchPrefillProjectionBlocksBf16Reverse(
 }
 
 }  // namespace
+
+Status LaunchTrellis35GatedGeluDownTransformQuantizeBf16(
+    const std::uint16_t* gate_up_bf16, std::uint16_t* product_bf16,
+    const Trellis35DeviceFamilyBinding& down,
+    const Gemma4MoePrefillAssignment* assignments,
+    std::uint8_t* down_activation_e4m3, float* down_activation_scales,
+    std::uint64_t assignment_count, Trellis35PrefillGeluDownMode mode,
+    cudaStream_t stream) {
+  if (gate_up_bf16 == nullptr || product_bf16 == nullptr ||
+      down.suh_f16 == nullptr || assignments == nullptr ||
+      down_activation_e4m3 == nullptr || down_activation_scales == nullptr ||
+      assignment_count == 0U ||
+      assignment_count >
+          static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max()) ||
+      (mode != Trellis35PrefillGeluDownMode::kTwoKernel &&
+       mode !=
+           Trellis35PrefillGeluDownMode::kFusedTransformQuantize)) {
+    return Invalid(
+        "Trellis35 BF16 gated-GELU/Down transform contract is invalid");
+  }
+  if (mode == Trellis35PrefillGeluDownMode::kFusedTransformQuantize) {
+    GatedGeluDownTransformQuantizeBf16WarpKernel<<<
+        static_cast<unsigned>(assignment_count), kThreads, 0, stream>>>(
+        gate_up_bf16, down.suh_f16, assignments, down_activation_scales,
+        down_activation_e4m3, assignment_count);
+    return CheckLaunch(
+        "launch fused Trellis35 BF16 gated-GELU/Down E4M3 transform");
+  }
+
+  const dim3 product_blocks(
+      static_cast<unsigned>((kTrellis35ExpertIntermediate + kThreads - 1U) /
+                            kThreads),
+      static_cast<unsigned>(assignment_count));
+  GatedGeluBf16Kernel<<<product_blocks, kThreads, 0, stream>>>(
+      gate_up_bf16, product_bf16);
+  Status status =
+      CheckLaunch("launch rollback Trellis35 physical-BF16 prefill gated GELU");
+  if (!status.ok()) return status;
+  return LaunchPrefillTransformQuantizeBf16(
+      product_bf16, down, assignments, down_activation_e4m3,
+      down_activation_scales, assignment_count,
+      kTrellis35ExpertIntermediate, kTrellis35ExpertIntermediate,
+      kTrellis35DownInput, Trellis35PrefillTransformMode::kWarpH128, stream);
+}
 
 Status LaunchTrellis35H128WarpDiagnostic(const float* input, float* output,
                                          std::uint64_t vectors,
@@ -948,15 +1001,14 @@ Status LaunchTrellis35PrefillExpertsW4A8(
         kTrellis35GateUpInput, kTrellis35GateUpOutput, kernel_mode,
         transform_mode, output_mode, stream);
     if (!status.ok()) return status;
-    GatedGeluBf16Kernel<<<product_blocks, kThreads, 0, stream>>>(
-        workspace.expert_down_bf16, workspace.expert_product_bf16);
-    status = CheckLaunch("launch Trellis35 physical-BF16 prefill gated GELU");
-    if (!status.ok()) return status;
-    status = LaunchPrefillTransformQuantizeBf16(
-        workspace.expert_product_bf16, layer.down, workspace.assignments,
-        aliased_activation, activation_scales, assignment_count,
-        kTrellis35ExpertIntermediate, kTrellis35ExpertIntermediate,
-        kTrellis35DownInput, transform_mode, stream);
+    status = LaunchTrellis35GatedGeluDownTransformQuantizeBf16(
+        workspace.expert_down_bf16, workspace.expert_product_bf16,
+        layer.down, workspace.assignments, aliased_activation,
+        activation_scales, assignment_count,
+        Trellis35PrefillGeluDownFusionEnabled()
+            ? Trellis35PrefillGeluDownMode::kFusedTransformQuantize
+            : Trellis35PrefillGeluDownMode::kTwoKernel,
+        stream);
     if (!status.ok()) return status;
     status = LaunchPrefillProjectionBlocksBf16Reverse(
         aliased_activation, activation_scales, layer.down,

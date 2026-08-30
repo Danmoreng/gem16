@@ -1,0 +1,164 @@
+{
+  "schema_version": 1,
+  "work_packet": "WP19",
+  "status": "accepted_experimental",
+  "implementation_parent_revision": "4e16f74631692a1b74d9af5e349d3ae9a448a0e8",
+  "change": {
+    "kernel": "GatedGeluDownTransformQuantizeBf16WarpKernel",
+    "scope": "Trellis35 physical-BF16 prefill only",
+    "eliminated_hot_path_operations": [
+      "GatedGeluBf16Kernel launch",
+      "expert_product_bf16 write",
+      "expert_product_bf16 read",
+      "separate Down transform/scale/E4M3 launch"
+    ],
+    "preserved_roundpoint": "Bf16Bits(GELU(Bf16(gate)) * Bf16(up))",
+    "rollback_environment": "GEM16_TRELLIS35_PREFILL_GELU_DOWN_FUSION=0",
+    "workspace_growth_bytes": 0,
+    "product_workspace_retained_for_rollback": true
+  },
+  "operator_oracle": {
+    "assignments": 128,
+    "iterations": 50,
+    "rollback_latency_ms": 0.00393856,
+    "fused_latency_ms": 0.00290112,
+    "latency_reduction_percent": 26.34059148521286,
+    "e4m3_byte_exact": true,
+    "scale_bit_exact": true,
+    "fused_product_buffer_untouched": true,
+    "cuda_graph_capture_and_replay": true
+  },
+  "kernel_resources": {
+    "registers_per_thread": 38,
+    "static_shared_bytes": 4128,
+    "stack_bytes": 0,
+    "local_bytes": 0,
+    "spills": false,
+    "evidence_command": "cuobjdump --dump-resource-usage build/blackwell-release/bin/gem16-cuda-trellis35-tests"
+  },
+  "same_binary_screen": {
+    "workload": "benchmarks/prompts/wikipedia-summary-16k.json",
+    "warmup_pairs": 1,
+    "measured_pairs": 1,
+    "fused": {
+      "ordinary_prefill_tokens_per_second": 5152.86562103919,
+      "fixed_d2_prefill_tokens_per_second": 5150.840658442424,
+      "ordinary_decode_tokens_per_second": 126.11039794608472,
+      "fixed_d2_decode_tokens_per_second": 169.93834891332176
+    },
+    "rollback": {
+      "ordinary_prefill_tokens_per_second": 5125.317516923808,
+      "fixed_d2_prefill_tokens_per_second": 5125.012903245987,
+      "ordinary_decode_tokens_per_second": 126.05123962361182,
+      "fixed_d2_decode_tokens_per_second": 169.9705734984318
+    },
+    "ordinary_prefill_gain_percent": 0.537490682760966,
+    "fixed_d2_prefill_gain_percent": 0.5039549301442348,
+    "output_identical": true,
+    "vram_delta_mib": 0
+  },
+  "full_wikipedia_16k": {
+    "sampling": true,
+    "seed": 0,
+    "prompt_tokens": 16384,
+    "generated_tokens": 1229,
+    "warmup_pairs": 1,
+    "measured_pairs": 3,
+    "ordinary_prefill_tokens_per_second": {
+      "median": 5149.157102090588,
+      "samples": [
+        5146.520664298211,
+        5149.157102090588,
+        5149.691188257296
+      ]
+    },
+    "fixed_d2_prefill_tokens_per_second": {
+      "median": 5147.296758120407,
+      "samples": [
+        5147.296758120407,
+        5148.865829054135,
+        5147.1997335922015
+      ]
+    },
+    "ordinary_decode_tokens_per_second": {
+      "median": 126.05421563072274,
+      "samples": [
+        126.05421563072274,
+        126.05421563072274,
+        126.01864213886884
+      ]
+    },
+    "fixed_d2_decode_tokens_per_second": {
+      "median": 169.89955449791083,
+      "samples": [
+        169.88897727665756,
+        169.89955449791083,
+        170.01057720529192
+      ]
+    },
+    "gain_vs_wp17_ordinary_prefill_percent": 0.7137289904082023,
+    "gain_vs_wp17_fixed_d2_prefill_percent": 1.2060835116225688,
+    "ordinary_peak_vram_mib": 12380,
+    "fixed_d2_peak_vram_mib": 12656,
+    "output_token_sha256": "12235104322e01e0d53875e11c980312f8f42fe763d04b0762697f54eb922c48",
+    "accepted_tokens": 690,
+    "proposed_tokens": 1076,
+    "rejected_tokens": 386,
+    "d2_groups": 538,
+    "ordinary_fallback_tokens": 0,
+    "deterministic_outputs": true
+  },
+  "sanitizers": {
+    "memcheck_errors": 0,
+    "initcheck_errors": 0,
+    "racecheck_errors": 0,
+    "racecheck_warnings": 0
+  },
+  "tests": [
+    {
+      "command": "build/blackwell-release/bin/gem16-cuda-trellis35-tests --wp19-gelu-down-oracle",
+      "result": "passed"
+    },
+    {
+      "command": "ctest --test-dir build/blackwell-release --output-on-failure -R '^gem16-(unit|cuda|cuda-trellis35|trellis35-compiler-contract|cuda-nvfp4-consumption)$'",
+      "result": "5/5 passed"
+    },
+    {
+      "command": "ctest --test-dir build/blackwell-release --output-on-failure -R '^gem16-12b-m22-product$'",
+      "result": "skipped: no configured 12B model path"
+    }
+  ],
+  "toolchain": {
+    "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "gpu_memory_mib": 16303,
+    "driver": "610.43.03",
+    "cuda_compiler": "13.3.73"
+  },
+  "gate": {
+    "e4m3_and_scales_exact": true,
+    "full_model_output_identical": true,
+    "no_workspace_growth": true,
+    "minimum_full_16k_gain_or_clear_stage_gain_without_regression": true,
+    "sanitizer_and_graph_replay": true,
+    "accepted": true
+  },
+  "raw_evidence": [
+    {
+      "path": "artifacts/raw/trellis35/wp19/fused-full-wikipedia-16k-sampled-1w3.json",
+      "sha256": "d2d0cd4183508efef88dc759810af0ff6d96757859e0819d715d0bddbed16db6"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp19/fused-screen-wikipedia-16k.json",
+      "sha256": "1448875a556268c61e2a79016b08aef2efadf05e8a6141b4ec93f12165671ff0"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp19/rollback-screen-wikipedia-16k.json",
+      "sha256": "aca65c31dc33eae8ef23fd96844c9520b5fff471070a2dbb4d59d01598949116"
+    }
+  ],
+  "limitations": [
+    "This packet does not product-qualify Trellis35.",
+    "The protected real 12B product test was skipped because no 12B model path is configured in this workspace.",
+    "The retained product workspace is still reserved so the process-start rollback path remains graph-safe."
+  ]
+}

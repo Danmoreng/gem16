@@ -486,6 +486,9 @@ int main(int argc, char** argv) {
   if (argc == 2 && std::string(argv[1]) == "--wp17-m64-smoke") {
     return RunTrellis35Wp17M64Smoke() == 0 ? 0 : 1;
   }
+  if (argc == 2 && std::string(argv[1]) == "--wp19-gelu-down-oracle") {
+    return RunTrellis35Wp19GeluDownOracle() == 0 ? 0 : 1;
+  }
   int suite_failures = 0;
   suite_failures += RunTrellis35CodecTests();
   suite_failures += RunTrellis35TransformTests();
@@ -503,7 +506,8 @@ int main(int argc, char** argv) {
                  "--profile-prefill-checkpoint-loop PATH TOKENS | "
                  "--profile-slab-checkpoint PATH | "
                  "--wp12-numerical-matrix | --wp14-output-matrix | "
-                 "--wp17-m64-matrix | --wp17-m64-smoke]\n";
+                 "--wp17-m64-matrix | --wp17-m64-smoke | "
+                 "--wp19-gelu-down-oracle]\n";
     return 2;
   }
   suite_failures += failures;

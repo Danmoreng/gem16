@@ -176,6 +176,88 @@ __global__ void PrefillTransformQuantizeWarpKernel(
   }
 }
 
+__global__ void GatedGeluDownTransformQuantizeBf16WarpKernel(
+    const std::uint16_t* gate_up, const std::uint16_t* all_suh,
+    const Gemma4MoePrefillAssignment* assignments, float* scales,
+    std::uint8_t* output, std::uint64_t assignment_count) {
+  const unsigned assignment_index = blockIdx.x;
+  if (assignment_index >= assignment_count) return;
+  const auto assignment = assignments[assignment_index];
+  const bool valid = assignment.expert_id < kTrellis35ExpertCount;
+  const std::uint16_t* assignment_gate_up =
+      gate_up + static_cast<std::uint64_t>(assignment_index) *
+                    kTrellis35GateUpOutput;
+  const std::uint16_t* suh =
+      valid ? all_suh + static_cast<std::uint64_t>(assignment.expert_id) *
+                            kTrellis35DownInput
+            : nullptr;
+
+  __shared__ float transformed[kTrellis35DownInput];
+  __shared__ float warp_maxima[8];
+  const unsigned warp = threadIdx.x >> 5U;
+  const unsigned lane = threadIdx.x & 31U;
+  constexpr unsigned kH128Blocks = kTrellis35DownInput / 128U;
+  float local_maximum = 0.0F;
+  for (unsigned block = warp; block < kH128Blocks; block += 8U) {
+    const std::uint64_t base =
+        static_cast<std::uint64_t>(block) * 128U + lane * 4U;
+    float values[4];
+#pragma unroll
+    for (unsigned element = 0U; element < 4U; ++element) {
+      const std::uint64_t index = base + element;
+      float transformed_source = 0.0F;
+      if (valid && index < kTrellis35ExpertIntermediate) {
+        const float gate = Bf16(assignment_gate_up[index]);
+        const float up = Bf16(
+            assignment_gate_up[index + kTrellis35ExpertIntermediate]);
+        const float gelu =
+            0.5F * gate *
+            (1.0F +
+             tanhf(kGeluScale *
+                   (gate + kGeluCubic * gate * gate * gate)));
+        const std::uint16_t product_bits = Bf16Bits(gelu * up);
+        const float product = Bf16(product_bits);
+        transformed_source = product * F16(suh + index);
+      }
+      values[element] = transformed_source;
+    }
+    H128Warp(values);
+#pragma unroll
+    for (unsigned element = 0U; element < 4U; ++element) {
+      transformed[base + element] = values[element];
+      local_maximum = fmaxf(local_maximum, fabsf(values[element]));
+    }
+  }
+  for (unsigned offset = 16U; offset != 0U; offset >>= 1U) {
+    local_maximum = fmaxf(
+        local_maximum,
+        __shfl_down_sync(0xffffffffU, local_maximum, offset));
+  }
+  if (lane == 0U) warp_maxima[warp] = local_maximum;
+  __syncthreads();
+  if (warp == 0U) {
+    float block_maximum = lane < 8U ? warp_maxima[lane] : 0.0F;
+    for (unsigned offset = 16U; offset != 0U; offset >>= 1U) {
+      block_maximum = fmaxf(
+          block_maximum,
+          __shfl_down_sync(0xffffffffU, block_maximum, offset));
+    }
+    if (lane == 0U) {
+      scales[assignment_index] =
+          block_maximum == 0.0F ? 1.0F
+                                : block_maximum / kE4M3Maximum;
+    }
+  }
+  __syncthreads();
+  for (std::uint64_t index = threadIdx.x; index < kTrellis35DownInput;
+       index += blockDim.x) {
+    output[static_cast<std::uint64_t>(assignment_index) *
+               kTrellis35DownInput +
+           index] =
+        __nv_fp8_e4m3(transformed[index] / scales[assignment_index]).__x;
+  }
+}
+
 __global__ void PrefillTransformScaleKernel(
     const float* input, const std::uint16_t* all_suh,
     const Gemma4MoePrefillAssignment* assignments, float* scales,

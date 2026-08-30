@@ -1131,3 +1131,4 @@ int RunTrellis35Wp12NumericalMatrix();
 int RunTrellis35Wp14OutputMatrix();
 int RunTrellis35Wp17M64Matrix();
 int RunTrellis35Wp17M64Smoke();
+int RunTrellis35Wp19GeluDownOracle();

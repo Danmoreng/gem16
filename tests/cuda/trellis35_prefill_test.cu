@@ -465,6 +465,172 @@ void TestWp17M64Smoke() {
                PrefillRoutingPattern::kLongTail);
 }
 
+std::uint16_t HostBf16Bits(float value) {
+  std::uint32_t bits = std::bit_cast<std::uint32_t>(value);
+  bits += 0x7fffU + ((bits >> 16U) & 1U);
+  return static_cast<std::uint16_t>(bits >> 16U);
+}
+
+float TimeWp19GeluDown(
+    const DeviceBuffer<std::uint16_t>& gate_up,
+    DeviceBuffer<std::uint16_t>& product,
+    const gem16::internal::Trellis35DeviceFamilyBinding& down,
+    const DeviceBuffer<gem16::internal::Gemma4MoePrefillAssignment>&
+        assignments,
+    DeviceBuffer<std::uint8_t>& output, DeviceBuffer<float>& scales,
+    gem16::internal::Trellis35PrefillGeluDownMode mode,
+    unsigned iterations) {
+  cudaEvent_t begin = nullptr;
+  cudaEvent_t end = nullptr;
+  CHECK(CudaOk(cudaEventCreate(&begin), "create WP19 begin event"));
+  CHECK(CudaOk(cudaEventCreate(&end), "create WP19 end event"));
+  auto launch = [&]() {
+    return gem16::internal::
+        LaunchTrellis35GatedGeluDownTransformQuantizeBf16(
+            gate_up.get(), product.get(), down, assignments.get(),
+            output.get(), scales.get(), assignments.elements(), mode,
+            nullptr);
+  };
+  CHECK(launch().ok());
+  CHECK(CudaOk(cudaDeviceSynchronize(), "warm WP19 operator"));
+  CHECK(CudaOk(cudaEventRecord(begin), "record WP19 begin event"));
+  for (unsigned iteration = 0U; iteration < iterations; ++iteration) {
+    CHECK(launch().ok());
+  }
+  CHECK(CudaOk(cudaEventRecord(end), "record WP19 end event"));
+  CHECK(CudaOk(cudaEventSynchronize(end), "synchronize WP19 operator"));
+  float milliseconds = 0.0F;
+  CHECK(CudaOk(cudaEventElapsedTime(&milliseconds, begin, end),
+               "measure WP19 operator"));
+  if (begin != nullptr) (void)cudaEventDestroy(begin);
+  if (end != nullptr) (void)cudaEventDestroy(end);
+  return milliseconds / static_cast<float>(iterations);
+}
+
+void TestWp19GeluDownOracle() {
+  constexpr std::uint64_t kAssignments = 128U;
+  constexpr unsigned kIterations = 50U;
+  FamilyStorage down(gem16::internal::kTrellis35DownInput,
+                     gem16::internal::kTrellis35DownOutput, 1901U);
+  DeviceBuffer<std::uint16_t> gate_up(
+      kAssignments * gem16::internal::kTrellis35GateUpOutput);
+  DeviceBuffer<std::uint16_t> rollback_product(
+      kAssignments * gem16::internal::kTrellis35ExpertIntermediate);
+  DeviceBuffer<std::uint16_t> fused_product(
+      kAssignments * gem16::internal::kTrellis35ExpertIntermediate);
+  DeviceBuffer<gem16::internal::Gemma4MoePrefillAssignment> assignments(
+      kAssignments);
+  DeviceBuffer<std::uint8_t> rollback_output(
+      kAssignments * gem16::internal::kTrellis35DownInput);
+  DeviceBuffer<std::uint8_t> fused_output(
+      kAssignments * gem16::internal::kTrellis35DownInput);
+  DeviceBuffer<float> rollback_scales(kAssignments);
+  DeviceBuffer<float> fused_scales(kAssignments);
+
+  std::vector<std::uint16_t> host_gate_up(gate_up.elements());
+  for (std::uint64_t assignment = 0U; assignment < kAssignments;
+       ++assignment) {
+    for (std::uint64_t index = 0U;
+         index < gem16::internal::kTrellis35ExpertIntermediate; ++index) {
+      const float phase = static_cast<float>(assignment * 704U + index);
+      host_gate_up[assignment * gem16::internal::kTrellis35GateUpOutput +
+                   index] = HostBf16Bits(std::sin(phase * 0.0078125F) * 3.0F);
+      host_gate_up[assignment * gem16::internal::kTrellis35GateUpOutput +
+                   gem16::internal::kTrellis35ExpertIntermediate + index] =
+          HostBf16Bits(std::cos((phase + 17.0F) * 0.005859375F) * 2.0F);
+    }
+  }
+  std::vector<gem16::internal::Gemma4MoePrefillAssignment>
+      host_assignments(kAssignments);
+  for (std::uint64_t index = 0U; index < kAssignments; ++index) {
+    host_assignments[index] = {
+        static_cast<std::uint16_t>(
+            (index * 17U + 3U) % gem16::internal::kTrellis35ExpertCount),
+        static_cast<std::uint16_t>(index % gem16::internal::kTrellis35M1TopK),
+        static_cast<std::uint32_t>(index /
+                                   gem16::internal::kTrellis35M1TopK),
+        0.125F};
+  }
+  CHECK(Upload(gate_up, host_gate_up, "upload WP19 Gate+Up BF16"));
+  CHECK(Upload(assignments, host_assignments, "upload WP19 assignments"));
+  CHECK(CudaOk(cudaMemset(fused_product.get(), 0xa5, fused_product.bytes()),
+               "initialize WP19 unused product sentinel"));
+
+  const float rollback_ms = TimeWp19GeluDown(
+      gate_up, rollback_product, down.binding, assignments, rollback_output,
+      rollback_scales, gem16::internal::Trellis35PrefillGeluDownMode::kTwoKernel,
+      kIterations);
+  const float fused_ms = TimeWp19GeluDown(
+      gate_up, fused_product, down.binding, assignments, fused_output,
+      fused_scales,
+      gem16::internal::Trellis35PrefillGeluDownMode::kFusedTransformQuantize,
+      kIterations);
+
+  cudaStream_t stream = nullptr;
+  cudaGraph_t graph = nullptr;
+  cudaGraphExec_t executable = nullptr;
+  CHECK(CudaOk(cudaStreamCreate(&stream), "create WP19 graph stream"));
+  CHECK(CudaOk(cudaStreamBeginCapture(stream, cudaStreamCaptureModeGlobal),
+               "begin WP19 graph capture"));
+  CHECK(gem16::internal::LaunchTrellis35GatedGeluDownTransformQuantizeBf16(
+            gate_up.get(), fused_product.get(), down.binding,
+            assignments.get(), fused_output.get(), fused_scales.get(),
+            kAssignments,
+            gem16::internal::Trellis35PrefillGeluDownMode::
+                kFusedTransformQuantize,
+            stream)
+            .ok());
+  CHECK(CudaOk(cudaStreamEndCapture(stream, &graph),
+               "end WP19 graph capture"));
+  CHECK(CudaOk(cudaGraphInstantiate(&executable, graph, 0U),
+               "instantiate WP19 graph"));
+  CHECK(CudaOk(cudaGraphLaunch(executable, stream),
+               "launch WP19 graph first"));
+  CHECK(CudaOk(cudaGraphLaunch(executable, stream),
+               "launch WP19 graph replay"));
+  CHECK(CudaOk(cudaStreamSynchronize(stream), "synchronize WP19 graph"));
+  if (executable != nullptr) (void)cudaGraphExecDestroy(executable);
+  if (graph != nullptr) (void)cudaGraphDestroy(graph);
+  if (stream != nullptr) (void)cudaStreamDestroy(stream);
+
+  std::vector<std::uint8_t> host_rollback_output(rollback_output.elements());
+  std::vector<std::uint8_t> host_fused_output(fused_output.elements());
+  std::vector<float> host_rollback_scales(rollback_scales.elements());
+  std::vector<float> host_fused_scales(fused_scales.elements());
+  std::vector<std::uint16_t> host_fused_product(fused_product.elements());
+  CHECK(CudaOk(cudaMemcpy(host_rollback_output.data(), rollback_output.get(),
+                          rollback_output.bytes(), cudaMemcpyDeviceToHost),
+               "download WP19 rollback output"));
+  CHECK(CudaOk(cudaMemcpy(host_fused_output.data(), fused_output.get(),
+                          fused_output.bytes(), cudaMemcpyDeviceToHost),
+               "download WP19 fused output"));
+  CHECK(CudaOk(cudaMemcpy(host_rollback_scales.data(), rollback_scales.get(),
+                          rollback_scales.bytes(), cudaMemcpyDeviceToHost),
+               "download WP19 rollback scales"));
+  CHECK(CudaOk(cudaMemcpy(host_fused_scales.data(), fused_scales.get(),
+                          fused_scales.bytes(), cudaMemcpyDeviceToHost),
+               "download WP19 fused scales"));
+  CHECK(CudaOk(cudaMemcpy(host_fused_product.data(), fused_product.get(),
+                          fused_product.bytes(), cudaMemcpyDeviceToHost),
+               "download WP19 unused product sentinel"));
+  const auto scale_bits = [](const std::vector<float>& values) {
+    std::vector<std::uint32_t> bits(values.size());
+    std::transform(values.begin(), values.end(), bits.begin(),
+                   [](float value) {
+                     return std::bit_cast<std::uint32_t>(value);
+                   });
+    return bits;
+  };
+  CHECK(host_rollback_output == host_fused_output);
+  CHECK(scale_bits(host_rollback_scales) == scale_bits(host_fused_scales));
+  CHECK(std::all_of(host_fused_product.begin(), host_fused_product.end(),
+                    [](std::uint16_t value) { return value == 0xa5a5U; }));
+  std::cout << "WP19 Gate+Up->Down byte_exact=true scale_exact=true "
+               "product_buffer_untouched=true assignments="
+            << kAssignments << " rollback_ms=" << rollback_ms
+            << " fused_ms=" << fused_ms << '\n';
+}
+
 }  // namespace
 
 int RunTrellis35PrefillTests() {
@@ -494,5 +660,10 @@ int RunTrellis35Wp17M64Matrix() {
 
 int RunTrellis35Wp17M64Smoke() {
   TestWp17M64Smoke();
+  return failures;
+}
+
+int RunTrellis35Wp19GeluDownOracle() {
+  TestWp19GeluDownOracle();
   return failures;
 }

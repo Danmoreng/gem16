@@ -10,6 +10,7 @@
 namespace gem16::internal {
 
 struct Gemma4MoePrefillWorkspace;
+struct Gemma4MoePrefillAssignment;
 
 inline constexpr std::uint32_t kTrellis35M1TopK = 8U;
 inline constexpr std::uint32_t kTrellis35T3Rows = 3U;
@@ -174,6 +175,24 @@ enum class Trellis35PrefillOutputMode {
   // WP14 candidate C: one N128 CTA with a shared projection/inverse epilogue.
   kFusedN128,
 };
+
+enum class Trellis35PrefillGeluDownMode {
+  // WP19 numerical and performance rollback.
+  kTwoKernel,
+  // Preserves the physical BF16 product roundpoint without materializing it.
+  kFusedTransformQuantize,
+};
+
+// Bounded WP19 operator entry used by production and the byte-exact oracle.
+// product_bf16 remains mandatory as rollback storage but is not accessed by
+// kFusedTransformQuantize.
+[[nodiscard]] Status LaunchTrellis35GatedGeluDownTransformQuantizeBf16(
+    const std::uint16_t* gate_up_bf16, std::uint16_t* product_bf16,
+    const Trellis35DeviceFamilyBinding& down,
+    const Gemma4MoePrefillAssignment* assignments,
+    std::uint8_t* down_activation_e4m3, float* down_activation_scales,
+    std::uint64_t assignment_count, Trellis35PrefillGeluDownMode mode,
+    cudaStream_t stream);
 
 // Bounded diagnostic entry used by the exhaustive transform oracle. It does
 // not participate in model execution or allocate storage.

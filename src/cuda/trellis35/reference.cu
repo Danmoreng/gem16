@@ -7,6 +7,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <limits>
 #include <string>
 #include <string_view>
@@ -33,7 +34,6 @@ constexpr unsigned kPrefillLegacyRowsPerTile = 4U;
 constexpr unsigned kPrefillGroupedRowsPerTile = 32U;
 constexpr unsigned kPrefillM64RowsPerTile = 64U;
 constexpr unsigned kPrefillOutputBlock = 128U;
-
 
 #include "cuda/trellis35/detail/codec.cuh"
 #include "cuda/trellis35/detail/mma_w4a8.cuh"
