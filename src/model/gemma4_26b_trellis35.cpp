@@ -528,7 +528,7 @@ Result<Trellis35LayerPlan> ParseLayer(
                        {"codebook_id", 2U},
                        {"hadamard_block", 128U},
                        {"gate_up_boundary", 704U}}};
-  for (const auto [name, expected] : fixed_fields) {
+  for (const auto& [name, expected] : fixed_fields) {
     auto actual = Unsigned(Field(manifest.value(), name), name);
     if (!actual.ok() || actual.value() != expected) {
       return Status(StatusCode::kDataLoss,
@@ -654,7 +654,7 @@ Status ParseNonRouted(const std::filesystem::path& root,
     return Status(StatusCode::kDataLoss,
                   "Trellis35 non-routed manifest contract is invalid");
   }
-  for (const auto [name, expected] :
+  for (const auto& [name, expected] :
        std::array<std::pair<std::string_view, std::uint64_t>, 4>{{
            {"schema_version", 1U},
            {"tensor_count", 1045U},
@@ -739,7 +739,7 @@ Status ValidateGemma4Moe26BTrellis35LayerPayload(
         {&family->suh, kTrellis35ExpertCount * geometry.suh_elements * 2U},
         {&family->svh, kTrellis35ExpertCount * geometry.svh_elements * 2U},
     }};
-    for (const auto [region, expected_bytes] : regions) {
+    for (const auto& [region, expected_bytes] : regions) {
       cursor = Align(cursor);
       if (region->offset != cursor || region->bytes != expected_bytes) {
         return Status(StatusCode::kDataLoss,
@@ -834,7 +834,7 @@ LoadGemma4Moe26BTrellis35CheckpointPlan(
     return Status(StatusCode::kDataLoss,
                   "Trellis35 checkpoint profile is invalid");
   }
-  for (const auto [name, expected] :
+  for (const auto& [name, expected] :
        std::array<std::pair<std::string_view, std::uint64_t>, 2>{{
            {"schema_version", 1U}, {"format_version", 1U}}}) {
     auto actual = Unsigned(Field(checkpoint.value(), name), name);
@@ -865,7 +865,7 @@ LoadGemma4Moe26BTrellis35CheckpointPlan(
                        {"total_bytes", kTrellis35CheckpointBytes},
                        {"trellis35_routed_expert_bytes",
                         kTrellis35RoutedExpertBytes}}};
-  for (const auto [name, expected] : arena_fields) {
+  for (const auto& [name, expected] : arena_fields) {
     auto actual = Unsigned(Field(*arena, name), name);
     if (!actual.ok() || actual.value() != expected) {
       return Status(StatusCode::kDataLoss,
@@ -903,7 +903,7 @@ LoadGemma4Moe26BTrellis35CheckpointPlan(
     return Status(StatusCode::kDataLoss,
                   "Trellis35 routed-expert index is invalid");
   }
-  for (const auto [name, expected] :
+  for (const auto& [name, expected] :
        std::array<std::pair<std::string_view, std::uint64_t>, 4>{{
            {"schema_version", 1U},
            {"format_version", 1U},
@@ -917,7 +917,7 @@ LoadGemma4Moe26BTrellis35CheckpointPlan(
                         std::string(name));
     }
   }
-  for (const auto [name, expected] :
+  for (const auto& [name, expected] :
        std::array<std::pair<std::string_view, std::uint64_t>, 2>{{
            {"layer_count", kTrellis35LayerCount},
            {"bytes", kTrellis35RoutedExpertBytes},

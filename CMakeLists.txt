@@ -81,6 +81,7 @@ add_library(gem16_core STATIC
   src/runtime/memory_plan.cpp
   src/runtime/sampling.cpp
   src/runtime/result_json.cpp
+  src/cuda/engine/gemma4_26b_routed_expert_format.cpp
   src/cuda/engine/state_capture.cpp
   src/compiler/sha256.cpp
 )
@@ -319,7 +320,6 @@ if(GEM16_ENABLE_CUDA)
     src/cuda/audio/projection.cu
     src/cuda/dispatch.cu
     src/cuda/engine/gemma4_26b_artifact.cpp
-    src/cuda/engine/gemma4_26b_routed_expert_format.cpp
     src/cuda/engine/gemma4_26b_trellis35_artifact.cpp
     src/cuda/engine/gemma4_26b_reference.cu
     src/cuda/engine/target_model.cu
