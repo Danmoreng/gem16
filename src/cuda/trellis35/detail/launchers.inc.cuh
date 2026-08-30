@@ -29,6 +29,24 @@ bool Trellis35SmallGeluDownFusionEnabled() {
   return enabled;
 }
 
+Trellis35M1ProjectionOutputMode Trellis35M1ProjectionOutputEnvironmentMode() {
+  static const Trellis35M1ProjectionOutputMode mode = [] {
+    const char* value = std::getenv("GEM16_TRELLIS35_M1_N128_INVERSE");
+    if (value == nullptr || std::string_view(value) == "1" ||
+        std::string_view(value) == "both") {
+      return Trellis35M1ProjectionOutputMode::kFusedN128;
+    }
+    if (std::string_view(value) == "gate") {
+      return Trellis35M1ProjectionOutputMode::kGateUpFusedN128;
+    }
+    if (std::string_view(value) == "down") {
+      return Trellis35M1ProjectionOutputMode::kDownFusedN128;
+    }
+    return Trellis35M1ProjectionOutputMode::kSeparateN32;
+  }();
+  return mode;
+}
+
 bool Trellis35PrefillScheduleTrimEnabled() {
   static const bool enabled = [] {
     const char* value =
@@ -618,6 +636,35 @@ Status LaunchTrellis35MmaW4A8ProjectionM1(
   return CheckLaunch("launch Trellis35 SM120 MMA W4A8 projection");
 }
 
+Status LaunchTrellis35MmaW4A8ProjectionM1N128Inverse(
+    const std::uint8_t* activation_e4m3, const float* activation_scales,
+    const Trellis35DeviceFamilyBinding& family,
+    const std::uint32_t* selected_experts, float* output,
+    std::uint64_t input_elements, std::uint64_t output_elements,
+    cudaStream_t stream) {
+  if (activation_e4m3 == nullptr || activation_scales == nullptr ||
+      family.k3_payload_pool == nullptr || family.k4_payload_pool == nullptr ||
+      family.descriptors == nullptr || family.svh_f16 == nullptr ||
+      selected_experts == nullptr || output == nullptr) {
+    return Invalid(
+        "Trellis35 M1 N128 inverse projection requires non-null pointers");
+  }
+  if (input_elements == 0U || input_elements % 32U != 0U ||
+      output_elements == 0U || output_elements % 128U != 0U ||
+      output_elements >
+          static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max()) *
+              128U) {
+    return Invalid("Trellis35 M1 N128 inverse projection geometry is invalid");
+  }
+  MmaW4A8ProjectionSelectedN128InverseKernel<<<
+      dim3(static_cast<unsigned>(output_elements / 128U),
+           kTrellis35M1TopK),
+      kMmaN128Threads, 0, stream>>>(
+      activation_e4m3, activation_scales, family, selected_experts, output,
+      input_elements, output_elements);
+  return CheckLaunch("launch Trellis35 M1 N128 projection and inverse");
+}
+
 Status LaunchTrellis35OutputTransformM1(
     const float* transformed_input, const std::uint16_t* svh_f16,
     float* output, std::uint64_t elements, cudaStream_t stream) {
@@ -640,7 +687,8 @@ Status LaunchTrellis35SelectedExpertsM1(
     const float* route_weights, const Trellis35DeviceLayerBinding& layer,
     const Trellis35M1Workspace& workspace, float* output,
     cudaStream_t stream, Trellis35SmallTransformMode transform_mode,
-    Trellis35SmallGeluDownMode gelu_down_mode) {
+    Trellis35SmallGeluDownMode gelu_down_mode,
+    Trellis35M1ProjectionOutputMode projection_output_mode) {
   if (input == nullptr || selected_experts == nullptr ||
       route_weights == nullptr || output == nullptr ||
       layer.gate_up.k3_payload_pool == nullptr ||
@@ -667,7 +715,17 @@ Status LaunchTrellis35SelectedExpertsM1(
        transform_mode != Trellis35SmallTransformMode::kWarpH128) ||
       (gelu_down_mode != Trellis35SmallGeluDownMode::kSeparate &&
        gelu_down_mode !=
-           Trellis35SmallGeluDownMode::kFusedTransformQuantize)) {
+           Trellis35SmallGeluDownMode::kFusedTransformQuantize) ||
+      (projection_output_mode !=
+           Trellis35M1ProjectionOutputMode::kEnvironment &&
+       projection_output_mode !=
+           Trellis35M1ProjectionOutputMode::kSeparateN32 &&
+       projection_output_mode !=
+           Trellis35M1ProjectionOutputMode::kFusedN128 &&
+       projection_output_mode !=
+           Trellis35M1ProjectionOutputMode::kGateUpFusedN128 &&
+       projection_output_mode !=
+           Trellis35M1ProjectionOutputMode::kDownFusedN128)) {
     return Invalid("Trellis35 selected-expert M1 requires complete bindings");
   }
 
@@ -681,6 +739,20 @@ Status LaunchTrellis35SelectedExpertsM1(
       gelu_down_mode ==
           Trellis35SmallGeluDownMode::kFusedTransformQuantize &&
       Trellis35SmallGeluDownFusionEnabled();
+  if (projection_output_mode ==
+      Trellis35M1ProjectionOutputMode::kEnvironment) {
+    projection_output_mode = Trellis35M1ProjectionOutputEnvironmentMode();
+  }
+  const bool fused_gate_n128_inverse =
+      warp_output &&
+      (projection_output_mode == Trellis35M1ProjectionOutputMode::kFusedN128 ||
+       projection_output_mode ==
+           Trellis35M1ProjectionOutputMode::kGateUpFusedN128);
+  const bool fused_down_n128_inverse =
+      warp_output &&
+      (projection_output_mode == Trellis35M1ProjectionOutputMode::kFusedN128 ||
+       projection_output_mode ==
+           Trellis35M1ProjectionOutputMode::kDownFusedN128);
   if (fused_gelu_down && !warp_input) {
     return Invalid("Trellis35 fused small GELU/Down requires warp H128 input");
   }
@@ -708,27 +780,36 @@ Status LaunchTrellis35SelectedExpertsM1(
       workspace.gate_up_input_scales, kTrellis35M1TopK,
       kTrellis35GateUpInput, stream);
   if (!status.ok()) return status;
-  status = LaunchTrellis35MmaW4A8ProjectionM1(
-      workspace.gate_up_input_e4m3, workspace.gate_up_input_scales,
-      layer.gate_up, selected_experts,
-      workspace.gate_up_transformed_output, kTrellis35GateUpInput,
-      kTrellis35GateUpOutput, stream);
+  status = fused_gate_n128_inverse
+               ? LaunchTrellis35MmaW4A8ProjectionM1N128Inverse(
+                     workspace.gate_up_input_e4m3,
+                     workspace.gate_up_input_scales, layer.gate_up,
+                     selected_experts, workspace.gate_up_output,
+                     kTrellis35GateUpInput, kTrellis35GateUpOutput, stream)
+               : LaunchTrellis35MmaW4A8ProjectionM1(
+                     workspace.gate_up_input_e4m3,
+                     workspace.gate_up_input_scales, layer.gate_up,
+                     selected_experts, workspace.gate_up_transformed_output,
+                     kTrellis35GateUpInput, kTrellis35GateUpOutput, stream);
   if (!status.ok()) return status;
 
-  if (warp_output) {
-    SelectedOutputTransformWarpKernel<<<
-        dim3(kTrellis35GateUpOutput / 128U, 1U), kThreads, 0, stream>>>(
-        workspace.gate_up_transformed_output, layer.gate_up.svh_f16,
-        selected_experts, workspace.gate_up_output, kTrellis35M1TopK,
-        kTrellis35GateUpOutput);
-  } else {
-    const dim3 gate_output_blocks(
-        static_cast<unsigned>((kTrellis35GateUpOutput + kThreads - 1U) /
-                              kThreads),
-        kTrellis35M1TopK);
-    SelectedOutputTransformKernel<<<gate_output_blocks, kThreads, 0, stream>>>(
-        workspace.gate_up_transformed_output, layer.gate_up.svh_f16,
-        selected_experts, workspace.gate_up_output, kTrellis35GateUpOutput);
+  if (!fused_gate_n128_inverse) {
+    if (warp_output) {
+      SelectedOutputTransformWarpKernel<<<
+          dim3(kTrellis35GateUpOutput / 128U, 1U), kThreads, 0, stream>>>(
+          workspace.gate_up_transformed_output, layer.gate_up.svh_f16,
+          selected_experts, workspace.gate_up_output, kTrellis35M1TopK,
+          kTrellis35GateUpOutput);
+    } else {
+      const dim3 gate_output_blocks(
+          static_cast<unsigned>((kTrellis35GateUpOutput + kThreads - 1U) /
+                                kThreads),
+          kTrellis35M1TopK);
+      SelectedOutputTransformKernel<<<gate_output_blocks, kThreads, 0,
+                                      stream>>>(
+          workspace.gate_up_transformed_output, layer.gate_up.svh_f16,
+          selected_experts, workspace.gate_up_output, kTrellis35GateUpOutput);
+    }
   }
   status = CheckLaunch("launch Trellis35 selected Gate+Up output transform");
   if (!status.ok()) return status;
@@ -777,26 +858,35 @@ Status LaunchTrellis35SelectedExpertsM1(
         stream);
     if (!status.ok()) return status;
   }
-  status = LaunchTrellis35MmaW4A8ProjectionM1(
-      workspace.down_input_e4m3, workspace.down_input_scales, layer.down,
-      selected_experts, workspace.down_transformed_output,
-      kTrellis35DownInput, kTrellis35DownOutput, stream);
+  status = fused_down_n128_inverse
+               ? LaunchTrellis35MmaW4A8ProjectionM1N128Inverse(
+                     workspace.down_input_e4m3, workspace.down_input_scales,
+                     layer.down, selected_experts, workspace.down_output,
+                     kTrellis35DownInput, kTrellis35DownOutput, stream)
+               : LaunchTrellis35MmaW4A8ProjectionM1(
+                     workspace.down_input_e4m3, workspace.down_input_scales,
+                     layer.down, selected_experts,
+                     workspace.down_transformed_output, kTrellis35DownInput,
+                     kTrellis35DownOutput, stream);
   if (!status.ok()) return status;
 
-  if (warp_output) {
-    SelectedOutputTransformWarpKernel<<<
-        dim3(kTrellis35DownOutput / 128U, 1U), kThreads, 0, stream>>>(
-        workspace.down_transformed_output, layer.down.svh_f16,
-        selected_experts, workspace.down_output, kTrellis35M1TopK,
-        kTrellis35DownOutput);
-  } else {
-    const dim3 down_output_blocks(
-        static_cast<unsigned>((kTrellis35DownOutput + kThreads - 1U) /
-                              kThreads),
-        kTrellis35M1TopK);
-    SelectedOutputTransformKernel<<<down_output_blocks, kThreads, 0, stream>>>(
-        workspace.down_transformed_output, layer.down.svh_f16,
-        selected_experts, workspace.down_output, kTrellis35DownOutput);
+  if (!fused_down_n128_inverse) {
+    if (warp_output) {
+      SelectedOutputTransformWarpKernel<<<
+          dim3(kTrellis35DownOutput / 128U, 1U), kThreads, 0, stream>>>(
+          workspace.down_transformed_output, layer.down.svh_f16,
+          selected_experts, workspace.down_output, kTrellis35M1TopK,
+          kTrellis35DownOutput);
+    } else {
+      const dim3 down_output_blocks(
+          static_cast<unsigned>((kTrellis35DownOutput + kThreads - 1U) /
+                                kThreads),
+          kTrellis35M1TopK);
+      SelectedOutputTransformKernel<<<down_output_blocks, kThreads, 0,
+                                      stream>>>(
+          workspace.down_transformed_output, layer.down.svh_f16,
+          selected_experts, workspace.down_output, kTrellis35DownOutput);
+    }
   }
   status = CheckLaunch("launch Trellis35 selected Down output transform");
   if (!status.ok()) return status;

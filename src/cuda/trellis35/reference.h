@@ -46,6 +46,18 @@ enum class Trellis35SmallGeluDownMode {
   kFusedTransformQuantize,
 };
 
+enum class Trellis35M1ProjectionOutputMode {
+  // Production selection, including the packet-local environment rollback.
+  kEnvironment,
+  // WP25 numerical and performance rollback.
+  kSeparateN32,
+  // Fuse the N128 inverse transform for both routed projection families.
+  kFusedN128,
+  // WP25 family-isolation modes used by qualification and A/B measurement.
+  kGateUpFusedN128,
+  kDownFusedN128,
+};
+
 // Diagnostic-only bounded materialization used to decide whether a transient
 // decoded-weight cache can beat inline Trellis decode. The slab is row-major
 // E4M3 with unit BF16 row scales and is never an engine/runtime fallback.
@@ -132,7 +144,9 @@ struct Trellis35T3Workspace {
     Trellis35SmallTransformMode transform_mode =
         Trellis35SmallTransformMode::kWarpH128,
     Trellis35SmallGeluDownMode gelu_down_mode =
-        Trellis35SmallGeluDownMode::kSeparate);
+        Trellis35SmallGeluDownMode::kSeparate,
+    Trellis35M1ProjectionOutputMode projection_output_mode =
+        Trellis35M1ProjectionOutputMode::kEnvironment);
 
 // Dedicated Fixed-D2 T=3 path. This is one 24-assignment pipeline, not three
 // M1 calls. Each first-occurrence expert group decodes a weight fragment once

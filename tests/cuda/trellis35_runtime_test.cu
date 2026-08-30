@@ -306,7 +306,9 @@ void TestRealCheckpoint(const std::string& checkpoint) {
   DeviceBuffer<std::uint32_t> ids(gem16::internal::kTrellis35M1TopK);
   DeviceBuffer<float> weights(gem16::internal::kTrellis35M1TopK);
   DeviceBuffer<float> output(gem16::internal::kTrellis35DownOutput);
+  DeviceBuffer<float> rollback_output(gem16::internal::kTrellis35DownOutput);
   M1Storage storage;
+  M1Storage rollback_storage;
   std::vector<float> host_input(input.elements());
   for (std::uint64_t index = 0U; index < host_input.size(); ++index) {
     host_input[index] =
@@ -320,19 +322,66 @@ void TestRealCheckpoint(const std::string& checkpoint) {
       !Upload(weights, host_weights, "upload real M1 weights")) {
     return;
   }
-  const float latency =
-      RunFullM1(layer, input, ids, weights, storage, output, 5U, false);
+  const float latency = RunFullM1(
+      layer, input, ids, weights, storage, output, 5U, true,
+      gem16::internal::Trellis35SmallTransformMode::kWarpH128,
+      gem16::internal::Trellis35SmallGeluDownMode::kSeparate,
+      gem16::internal::Trellis35M1ProjectionOutputMode::kFusedN128);
+  (void)RunFullM1(
+      layer, input, ids, weights, rollback_storage, rollback_output, 1U, false,
+      gem16::internal::Trellis35SmallTransformMode::kWarpH128,
+      gem16::internal::Trellis35SmallGeluDownMode::kSeparate,
+      gem16::internal::Trellis35M1ProjectionOutputMode::kSeparateN32);
   CheckFiniteAndIds(output, ids, host_ids, "real layer-0 full M1");
   CheckSlotOrderedReduction(storage.down_output, host_weights, output,
                             "real layer-0 full M1");
+  const auto compare_buffers = [](const DeviceBuffer<float>& expected,
+                                  const DeviceBuffer<float>& actual,
+                                  const char* description) {
+    CHECK(expected.elements() == actual.elements());
+    std::vector<float> host_expected(expected.elements());
+    std::vector<float> host_actual(actual.elements());
+    CHECK(CudaOk(cudaMemcpy(host_expected.data(), expected.get(),
+                            expected.bytes(), cudaMemcpyDeviceToHost),
+                 "download N128 rollback boundary"));
+    CHECK(CudaOk(cudaMemcpy(host_actual.data(), actual.get(), actual.bytes(),
+                            cudaMemcpyDeviceToHost),
+                 "download N128 candidate boundary"));
+    Compare(host_expected, host_actual, 0.0F, 0.0F, description);
+  };
+  compare_buffers(rollback_storage.gate_output, storage.gate_output,
+                  "WP25 N128 Gate+Up physical output parity");
+  compare_buffers(rollback_storage.down_scales, storage.down_scales,
+                  "WP25 N128 Down scale parity");
+  compare_buffers(rollback_storage.down_output, storage.down_output,
+                  "WP25 N128 Down physical output parity");
+  compare_buffers(rollback_output, output,
+                  "WP25 N128 reduced output parity");
+  std::vector<std::uint8_t> host_down_input(storage.down_input_fp8.elements());
+  std::vector<std::uint8_t> host_rollback_down_input(
+      rollback_storage.down_input_fp8.elements());
+  CHECK(CudaOk(cudaMemcpy(host_down_input.data(), storage.down_input_fp8.get(),
+                          storage.down_input_fp8.bytes(),
+                          cudaMemcpyDeviceToHost),
+               "download N128 Down E4M3 input"));
+  CHECK(CudaOk(cudaMemcpy(host_rollback_down_input.data(),
+                          rollback_storage.down_input_fp8.get(),
+                          rollback_storage.down_input_fp8.bytes(),
+                          cudaMemcpyDeviceToHost),
+               "download rollback Down E4M3 input"));
+  CHECK(host_down_input == host_rollback_down_input);
   CompareRealProjection(layer.gate_up, gem16::internal::kTrellis35GateUpInput,
                         gem16::internal::kTrellis35GateUpOutput, host_ids,
-                        storage.gate_input_fp8, storage.gate_scales,
-                        storage.gate_transformed, "real Gate+Up parity");
+                        rollback_storage.gate_input_fp8,
+                        rollback_storage.gate_scales,
+                        rollback_storage.gate_transformed,
+                        "real Gate+Up rollback parity");
   CompareRealProjection(layer.down, gem16::internal::kTrellis35DownInput,
                         gem16::internal::kTrellis35DownOutput, host_ids,
-                        storage.down_input_fp8, storage.down_scales,
-                        storage.down_transformed, "real Down parity");
+                        rollback_storage.down_input_fp8,
+                        rollback_storage.down_scales,
+                        rollback_storage.down_transformed,
+                        "real Down rollback parity");
 
   std::uint64_t payload_bytes = 0U;
   for (const std::uint32_t expert : host_ids) {

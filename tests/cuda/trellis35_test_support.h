@@ -488,7 +488,10 @@ float RunFullM1(const gem16::internal::Trellis35DeviceLayerBinding& layer,
                 gem16::internal::Trellis35SmallTransformMode transform_mode =
                     gem16::internal::Trellis35SmallTransformMode::kWarpH128,
                 gem16::internal::Trellis35SmallGeluDownMode gelu_down_mode =
-                    gem16::internal::Trellis35SmallGeluDownMode::kSeparate) {
+                    gem16::internal::Trellis35SmallGeluDownMode::kSeparate,
+                gem16::internal::Trellis35M1ProjectionOutputMode
+                    projection_output_mode = gem16::internal::
+                        Trellis35M1ProjectionOutputMode::kEnvironment) {
   const auto workspace = storage.Bind();
   if (capture) {
     cudaStream_t stream = nullptr;
@@ -499,7 +502,7 @@ float RunFullM1(const gem16::internal::Trellis35DeviceLayerBinding& layer,
                  "begin Trellis35 capture"));
     const auto status = gem16::internal::LaunchTrellis35SelectedExpertsM1(
         input.get(), ids.get(), weights.get(), layer, workspace, output.get(),
-        stream, transform_mode, gelu_down_mode);
+        stream, transform_mode, gelu_down_mode, projection_output_mode);
     CHECK(status.ok());
     CHECK(CudaOk(cudaStreamEndCapture(stream, &graph),
                  "end Trellis35 capture"));
@@ -524,7 +527,7 @@ float RunFullM1(const gem16::internal::Trellis35DeviceLayerBinding& layer,
   for (unsigned iteration = 0U; iteration < iterations; ++iteration) {
     const auto status = gem16::internal::LaunchTrellis35SelectedExpertsM1(
         input.get(), ids.get(), weights.get(), layer, workspace, output.get(),
-        nullptr, transform_mode, gelu_down_mode);
+        nullptr, transform_mode, gelu_down_mode, projection_output_mode);
     CHECK(status.ok());
   }
   CHECK(CudaOk(cudaEventRecord(end), "record end event"));

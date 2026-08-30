@@ -1,0 +1,164 @@
+{
+  "schema_version": 1,
+  "work_packet": "WP25",
+  "status": "accepted",
+  "implementation_parent_revision": "09e45a09bb3bc57b7ed22d70bd50ef4d641478b4",
+  "candidate": {
+    "name": "Ordinary M1 N128 projection plus inverse-H128 fusion",
+    "scope": "experimental Trellis35 W4A8 Ordinary decode",
+    "default_enabled": true,
+    "rollback_environment": "GEM16_TRELLIS35_M1_N128_INVERSE=0",
+    "family_isolation_values": ["gate", "down", "both"],
+    "precision_changed": false,
+    "rounding_boundary_changed": false,
+    "workspace_delta_bytes": 0,
+    "persistent_device_representation_changed": false,
+    "t3_projection_changed": false,
+    "prefill_changed": false
+  },
+  "implementation": {
+    "cta_threads": 512,
+    "warps_per_cta": 16,
+    "outputs_per_warp": 8,
+    "outputs_per_cta": 128,
+    "gate_up_grid": [11, 8, 1],
+    "down_grid": [22, 8, 1],
+    "epilogue": "FP32 activation scale, FP32 shared roundpoint, exact H128Warp, FP16 SVH converted to FP32, FP32 output",
+    "removed_graph_nodes_per_layer": 2,
+    "gate_up_crossing_block_preserved": "H128 block 640..767 is inverted before the 704/704 split"
+  },
+  "fresh_parent_profile": {
+    "scope": "three real Ordinary decode intervals, 90 layer instances",
+    "projection_kernel_share_of_gpu_kernel_time_percent": 29.3,
+    "projection_total_ms": 6.281999,
+    "separate_inverse_total_ms": 0.270270,
+    "gate_up_projection_us_per_layer": 46.587,
+    "down_projection_us_per_layer": 23.213,
+    "gate_up_ncu": {
+      "duration_us": 84.90,
+      "registers_per_thread": 48,
+      "achieved_occupancy_percent": 42.20,
+      "waves_per_sm": 0.59
+    },
+    "down_ncu": {
+      "duration_us": 47.87,
+      "registers_per_thread": 48,
+      "achieved_occupancy_percent": 61.94,
+      "waves_per_sm": 1.17
+    }
+  },
+  "operator_correctness": {
+    "checkpoint_layer": 0,
+    "rates": [3, 4],
+    "cuda_graph_capture_and_replays": 2,
+    "gate_up_physical_output_bit_mismatches": 0,
+    "down_e4m3_input_bit_mismatches": 0,
+    "down_scale_bit_mismatches": 0,
+    "down_physical_output_bit_mismatches": 0,
+    "reduced_output_bit_mismatches": 0,
+    "candidate_latency_ms": 0.0762496,
+    "rollback_latency_ms": 0.0845504,
+    "latency_reduction_percent": 9.817576262
+  },
+  "same_binary_512_ab": {
+    "workload": "Wikipedia 16K prompt, greedy fixed 512 generated tokens",
+    "warmups": 1,
+    "measured_runs": 3,
+    "rollback_decode_tokens_per_second": {
+      "median": 123.51378592716314,
+      "samples": [122.80436135724052, 123.51378592716314, 123.67910234627244]
+    },
+    "gate_only_decode_tokens_per_second": 123.10345990585357,
+    "down_only_decode_tokens_per_second": 123.65456094161377,
+    "both_decode_tokens_per_second": {
+      "median": 124.45444626295689,
+      "samples": [124.54939199910305, 124.45444626295689, 124.43292919011452]
+    },
+    "both_gain_percent": 0.7615832749,
+    "output_token_sha256": "1c665647cdeeb592cf490419c957ad8c0e7e05aa40e273d4db33f7b8ad6426ec",
+    "trajectory_identical": true
+  },
+  "full_wikipedia_16k_sampled": {
+    "sampling": true,
+    "seed": 0,
+    "prompt_tokens": 16384,
+    "generated_tokens": 1229,
+    "warmup_pairs": 1,
+    "measured_pairs": 3,
+    "ordinary_prefill_tokens_per_second": {
+      "median": 5710.421938281158,
+      "samples": [5711.676096649479, 5710.421938281158, 5708.313009546373]
+    },
+    "fixed_d2_prefill_tokens_per_second": {
+      "median": 5712.373089367399,
+      "samples": [5712.373089367399, 5714.9235405737245, 5707.617007193743]
+    },
+    "ordinary_decode_tokens_per_second": {
+      "median": 127.39659660199663,
+      "samples": [127.48547361164894, 127.25968852465813, 127.39659660199663]
+    },
+    "fixed_d2_decode_tokens_per_second": {
+      "median": 174.19403342879963,
+      "samples": [174.1977399687352, 174.19403342879963, 174.11080139175215]
+    },
+    "ordinary_gain_vs_wp24_percent": 0.7251646663,
+    "fixed_d2_change_vs_wp24_percent": 0.0192918474,
+    "ordinary_peak_vram_mib": 12522,
+    "fixed_d2_peak_vram_mib": 12796,
+    "ordinary_workspace_bytes": 333881888,
+    "fixed_d2_workspace_bytes": 340973600,
+    "output_token_sha256": "12235104322e01e0d53875e11c980312f8f42fe763d04b0762697f54eb922c48",
+    "accepted_tokens": 690,
+    "proposed_tokens": 1076,
+    "rejected_tokens": 386,
+    "d2_groups": 538,
+    "ordinary_fallback_tokens": 0,
+    "deterministic_outputs": true
+  },
+  "dispatch_and_resources": {
+    "registers_per_thread": 56,
+    "static_shared_bytes_including_driver_reserve": 1536,
+    "stack_bytes": 0,
+    "local_bytes": 0,
+    "qmmas_in_static_sass": 16,
+    "local_load_instructions": 0,
+    "local_store_instructions": 0,
+    "executable_sha256": "ae72001920038cd33ab192705c12c22016060a67b0b0a2cb08fa12ead9f77145"
+  },
+  "sanitizers": {
+    "scope": "real-shape mixed-K3/K4 synthetic M1/T3/prefill suite",
+    "memcheck_errors": 0,
+    "initcheck_errors": 0,
+    "racecheck_errors": 0,
+    "racecheck_warnings": 0
+  },
+  "tests": [
+    {
+      "command": "gem16-cuda-trellis35-tests --checkpoint models/checkpoints/google-gemma-4-26b-a4b-it-trellis35-w4a8-wp2",
+      "result": "passed with exact candidate-versus-rollback boundaries"
+    },
+    {
+      "command": "ctest --test-dir build/blackwell-release --output-on-failure -R '^gem16-(unit|cuda|cuda-moe-reference|cuda-trellis35|trellis35-compiler-contract|cuda-nvfp4-consumption)$'",
+      "result": "6/6 passed"
+    }
+  ],
+  "raw_evidence": [
+    {
+      "path": "artifacts/raw/trellis35/wp25/ordinary-n32-512-1w3.json",
+      "sha256": "708845cb4542321b319573a12c553edeb90e5180167eb15ba885eb42aef3ecbb"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp25/ordinary-n128-both-512-1w3.json",
+      "sha256": "ae68d4e416a2e43da68062c4f1ac514752bc3bbd6ff95086a0c3e41fa08"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp25/n128-both-full-wikipedia-16k-sampled-1w3.json",
+      "sha256": "7c0cbf885d191f0da9358fd26685a3710ca98a3fbfaed84ec17408439b6abf4b"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp25/n128-sass.txt",
+      "sha256": "716eca0ee7ecf79b1d732b51c0965b88cb5ee7b94b9ea3447e86a1a8d16e9c6f"
+    }
+  ],
+  "decision": "retain both-family N128 fusion; the bounded gain is reproducible, exact, allocation-neutral and does not regress Fixed-D2"
+}
