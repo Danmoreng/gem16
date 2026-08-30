@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "work_packet": "WP11",
+  "status": "accepted",
+  "implementation": {
+    "m1_and_t3": "MoeInputNormsRouterTransformTrellis35Kernel",
+    "operations_once": [
+      "256-thread RMS reduction",
+      "shared-MLP NVFP4 activation",
+      "router normalized/transformed values",
+      "physical BF16 Trellis expert input"
+    ],
+    "routed_expert_fp4_bytes_written": 0,
+    "routed_expert_fp4_scales_written": 0,
+    "separate_trellis_rms_launches_removed": 2,
+    "workspace_alias": "preallocated Trellis35 gate_up_output region before its later output lifetime",
+    "new_device_allocations": 0
+  },
+  "numerics": {
+    "reduction_threads": 256,
+    "reduction_tree": "same MoeBlockSum binary tree as the previous fused native boundary and the accepted 256-thread BF16 RMS kernel",
+    "expert_rounding": "RoundBf16(hidden[index] * inverse_rms * Bf16(pre_expert_norm[index]))",
+    "bounded_engine_output_token_sha256": "f19c52bcd74b968b1ad99162e6c854060978249c8b5b143eade6380ef3c22169",
+    "wp10_output_token_sha256": "f19c52bcd74b968b1ad99162e6c854060978249c8b5b143eade6380ef3c22169",
+    "bit_identical": true,
+    "real_m1_slot_order_bit_mismatches": 0,
+    "real_t3_slot_order_bit_mismatches": 0
+  },
+  "coexistence": {
+    "nvfp4_source_diff_from_wp10_lines": 0,
+    "nvfp4_sm120_object_sha256": "45b82607e7986bcb467afe668eb6ff074f86868bb67c13dee2fc526e99ebec3c",
+    "nvfp4_26b_m17": "passed",
+    "nvfp4_26b_m22": "passed",
+    "protected_12b_m22": "passed",
+    "recurring_allocation_count": 0
+  },
+  "raw_engine_sample": {
+    "path": "artifacts/raw/trellis35/wp11/post-cleanup-512x16.json",
+    "sha256": "8c1db2c60e5c7397cd7a5539f18b3d66a04713c4fa265eb9a36f006933f9fcbe"
+  }
+}

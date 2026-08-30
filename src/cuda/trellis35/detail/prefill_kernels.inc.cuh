@@ -14,6 +14,28 @@ __device__ __forceinline__ float PrefillTransformedValue(
   return accumulator * kHadamardScale;
 }
 
+template <int Rate>
+__global__ void DecodeTrellis35E4M3SlabDiagnosticKernel(
+    Trellis35DeviceFamilyBinding family, std::uint32_t expert,
+    std::uint64_t input_elements, std::uint64_t output_elements,
+    std::uint64_t output_offset, std::uint64_t slab_rows,
+    std::uint8_t* weight_e4m3, std::uint16_t* weight_scales_bf16) {
+  const std::uint64_t index =
+      static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+  const std::uint64_t slab_elements = slab_rows * input_elements;
+  if (index >= slab_elements) return;
+  const std::uint64_t row = index / input_elements;
+  const std::uint64_t input = index - row * input_elements;
+  const Trellis35ExpertDescriptor descriptor = family.descriptors[expert];
+  const std::byte* pool =
+      Rate == 3 ? family.k3_payload_pool : family.k4_payload_pool;
+  const half decoded = DecodeWeight<Rate>(
+      pool, descriptor.pool_offset, input_elements, output_elements, input,
+      output_offset + row);
+  weight_e4m3[index] = __nv_fp8_e4m3(__half2float(decoded)).__x;
+  if (input == 0U) weight_scales_bf16[row] = Bf16Bits(1.0F);
+}
+
 __device__ __forceinline__ const float* PrefillAssignmentInput(
     const float* input, const Gemma4MoePrefillAssignment& assignment,
     unsigned assignment_index, std::uint64_t input_stride,

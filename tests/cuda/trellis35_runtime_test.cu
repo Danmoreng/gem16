@@ -1,6 +1,49 @@
 #include "trellis35_test_support.h"
 
+#include "cuda/fp8/sm120.h"
+
 namespace {
+
+void PrintPrefillScheduleTelemetry(const PrefillHostRouting& routing) {
+  constexpr std::uint32_t kRowsPerTile = 4U;
+  std::uint64_t active_experts = 0U;
+  std::uint64_t schedule_count = 0U;
+  std::array<std::uint64_t, kRowsPerTile + 1U> tile_row_histogram{};
+  std::cout << "profile prefill expert_rows=[";
+  bool first = true;
+  for (std::uint32_t expert = 0U; expert < routing.histogram.size();
+       ++expert) {
+    const std::uint32_t rows = routing.histogram[expert];
+    if (rows == 0U) continue;
+    if (!first) std::cout << ',';
+    std::cout << expert << ':' << rows;
+    first = false;
+    ++active_experts;
+    schedule_count += (rows + kRowsPerTile - 1U) / kRowsPerTile;
+    tile_row_histogram[kRowsPerTile] += rows / kRowsPerTile;
+    if (rows % kRowsPerTile != 0U) {
+      ++tile_row_histogram[rows % kRowsPerTile];
+    }
+  }
+  const std::uint64_t assignment_count = routing.assignments.size();
+  const std::uint64_t active_expert_upper_bound =
+      std::min<std::uint64_t>(assignment_count,
+                              gem16::internal::kTrellis35ExpertCount);
+  const std::uint64_t launched_blocks =
+      (assignment_count + (kRowsPerTile - 1U) *
+                              active_expert_upper_bound) /
+      kRowsPerTile;
+  std::cout << "] assignment_count=" << assignment_count
+            << " active_experts=" << active_experts
+            << " actual_schedule_count=" << schedule_count
+            << " launched_blocks=" << launched_blocks
+            << " tile_rows_histogram=[";
+  for (std::uint32_t rows = 1U; rows <= kRowsPerTile; ++rows) {
+    if (rows != 1U) std::cout << ',';
+    std::cout << rows << ':' << tile_row_histogram[rows];
+  }
+  std::cout << "]\n";
+}
 
 void ProfileRealPrefill(const std::string& checkpoint, std::uint64_t tokens) {
   auto artifact =
@@ -20,6 +63,7 @@ void ProfileRealPrefill(const std::string& checkpoint, std::uint64_t tokens) {
   CHECK(Upload(input, host_input, "upload real profile prefill input"));
   PrefillStorage storage(tokens);
   const auto routing = MakePrefillRouting(tokens, SequentialExpertOrder());
+  PrintPrefillScheduleTelemetry(routing);
   CHECK(UploadPrefillRouting(storage, routing));
   const float latency = RunFullPrefill(artifact.value().layers()[0], input,
                                        storage, 1U, false);
@@ -28,6 +72,151 @@ void ProfileRealPrefill(const std::string& checkpoint, std::uint64_t tokens) {
             << " latency_ms=" << latency
             << " checkpoint_sha256="
             << artifact.value().stats().checkpoint_content_sha256 << '\n';
+}
+
+template <typename Operation>
+float TimeDiagnostic(Operation&& operation, unsigned iterations,
+                     const char* description) {
+  cudaEvent_t begin = nullptr;
+  cudaEvent_t end = nullptr;
+  CHECK(CudaOk(cudaEventCreate(&begin), "create diagnostic begin event"));
+  CHECK(CudaOk(cudaEventCreate(&end), "create diagnostic end event"));
+  CHECK(operation().ok());
+  CHECK(CudaOk(cudaDeviceSynchronize(), "warm transient slab diagnostic"));
+  CHECK(CudaOk(cudaEventRecord(begin), "record diagnostic begin event"));
+  for (unsigned iteration = 0U; iteration < iterations; ++iteration) {
+    const auto status = operation();
+    CHECK(status.ok());
+  }
+  CHECK(CudaOk(cudaEventRecord(end), "record diagnostic end event"));
+  CHECK(CudaOk(cudaEventSynchronize(end), description));
+  float milliseconds = 0.0F;
+  CHECK(CudaOk(cudaEventElapsedTime(&milliseconds, begin, end),
+               "measure transient slab diagnostic"));
+  if (begin != nullptr) (void)cudaEventDestroy(begin);
+  if (end != nullptr) (void)cudaEventDestroy(end);
+  return milliseconds / static_cast<float>(iterations);
+}
+
+void ProfileTransientE4M3Slab(const std::string& checkpoint) {
+  auto artifact =
+      gem16::internal::Gemma4Moe26BTrellis35DeviceArtifact::Load(checkpoint);
+  CHECK(artifact.ok());
+  if (!artifact.ok()) {
+    std::cerr << artifact.status().message() << '\n';
+    return;
+  }
+  const auto& layer = artifact.value().layers()[0];
+  constexpr std::uint64_t kSlabRows = 128U;
+  constexpr std::uint64_t kMaximumM = 64U;
+  constexpr unsigned kIterations = 20U;
+  DeviceBuffer<std::uint8_t> slab(
+      kSlabRows * gem16::internal::kTrellis35GateUpInput);
+  DeviceBuffer<std::uint16_t> slab_scales(kSlabRows);
+  DeviceBuffer<float> activation(
+      kMaximumM * gem16::internal::kTrellis35GateUpInput);
+  DeviceBuffer<std::uint8_t> activation_e4m3(
+      kMaximumM * gem16::internal::kTrellis35GateUpInput);
+  DeviceBuffer<float> activation_scales(kMaximumM);
+  DeviceBuffer<float> output(kMaximumM * kSlabRows);
+  DeviceBuffer<float> reference(
+      gem16::internal::kTrellis35DownOutput);
+
+  std::vector<float> host_activation(activation.elements());
+  for (std::uint64_t index = 0U; index < host_activation.size(); ++index) {
+    host_activation[index] =
+        std::sin(static_cast<float>(index * 29U + 3U) * 0.001953125F) *
+        0.03125F;
+  }
+  CHECK(Upload(activation, host_activation,
+               "upload transient slab activations"));
+
+  const auto profile_family = [&](
+                                  const char* family_name,
+                                  const gem16::internal::
+                                      Trellis35DeviceFamilyBinding& family,
+                                  std::uint64_t input_elements,
+                                  std::uint64_t output_elements) {
+    std::array<std::uint32_t, 2U> representative{};
+    for (std::uint32_t expert = 0U;
+         expert < gem16::internal::kTrellis35ExpertCount; ++expert) {
+      const std::uint16_t rate = family.rate_map[expert];
+      if (rate == 3U && family.rate_map[representative[0]] != 3U) {
+        representative[0] = expert;
+      }
+      if (rate == 4U && family.rate_map[representative[1]] != 4U) {
+        representative[1] = expert;
+      }
+    }
+    CHECK(family.rate_map[representative[0]] == 3U);
+    CHECK(family.rate_map[representative[1]] == 4U);
+    for (const std::uint32_t expert : representative) {
+      const auto decode = [&]() {
+        return gem16::internal::LaunchTrellis35DecodeE4M3SlabDiagnostic(
+            family, expert, input_elements, output_elements, 0U, kSlabRows,
+            slab.get(), slab_scales.get(), nullptr);
+      };
+      const float decode_ms =
+          TimeDiagnostic(decode, kIterations, "synchronize slab decode");
+      for (const std::uint64_t rows : {4U, 16U, 32U, 64U}) {
+        auto status = gem16::internal::LaunchFp8ReferenceTokenQuantizationBatch(
+            activation.get(), activation_e4m3.get(), activation_scales.get(),
+            rows, input_elements, nullptr);
+        CHECK(status.ok());
+        const auto project = [&]() {
+          return gem16::internal::LaunchFp8Sm120DirectProjectionBatch(
+              activation_e4m3.get(), activation_scales.get(), slab.get(),
+              slab_scales.get(), output.get(), rows, kSlabRows,
+              input_elements, nullptr);
+        };
+        const float projection_ms = TimeDiagnostic(
+            project, kIterations, "synchronize decoder-free projection");
+
+        status = gem16::internal::LaunchTrellis35ReferenceW4A8ProjectionM1(
+            activation_e4m3.get(), activation_scales.get(), family, expert,
+            reference.get(), input_elements, output_elements, nullptr);
+        CHECK(status.ok());
+        CHECK(CudaOk(cudaDeviceSynchronize(),
+                     "synchronize slab correctness reference"));
+        std::vector<float> host_slab_output(kSlabRows);
+        std::vector<float> host_reference(output_elements);
+        CHECK(CudaOk(cudaMemcpy(host_slab_output.data(), output.get(),
+                                kSlabRows * sizeof(float),
+                                cudaMemcpyDeviceToHost),
+                     "download transient slab output"));
+        CHECK(CudaOk(cudaMemcpy(host_reference.data(), reference.get(),
+                                output_elements * sizeof(float),
+                                cudaMemcpyDeviceToHost),
+                     "download inline reference output"));
+        host_reference.resize(kSlabRows);
+        Compare(host_reference, host_slab_output, 4.0e-3F, 8.0e-5F,
+                "transient E4M3 slab parity");
+
+        const std::uint64_t slab_bytes = kSlabRows * input_elements;
+        const std::uint64_t workspace_bytes =
+            slab_bytes + kSlabRows * sizeof(std::uint16_t) +
+            rows * input_elements + rows * sizeof(float) +
+            rows * kSlabRows * sizeof(float);
+        std::cout << "transient_e4m3_slab family=" << family_name
+                  << " rate=" << family.rate_map[expert]
+                  << " expert=" << expert << " M=" << rows
+                  << " N=" << kSlabRows << " K=" << input_elements
+                  << " decode_ms=" << decode_ms
+                  << " projection_ms=" << projection_ms
+                  << " slab_bytes_written="
+                  << slab_bytes + kSlabRows * sizeof(std::uint16_t)
+                  << " slab_bytes_read="
+                  << slab_bytes + kSlabRows * sizeof(std::uint16_t)
+                  << " bounded_workspace_bytes=" << workspace_bytes
+                  << '\n';
+      }
+    }
+  };
+  profile_family("gate_up", layer.gate_up,
+                 gem16::internal::kTrellis35GateUpInput,
+                 gem16::internal::kTrellis35GateUpOutput);
+  profile_family("down", layer.down, gem16::internal::kTrellis35DownInput,
+                 gem16::internal::kTrellis35DownOutput);
 }
 
 void CompareRealProjection(
@@ -256,6 +445,10 @@ int main(int argc, char** argv) {
     ProfileRealPrefill(argv[2], tokens);
     return failures == 0 ? 0 : 1;
   }
+  if (argc == 3 && std::string(argv[1]) == "--profile-slab-checkpoint") {
+    ProfileTransientE4M3Slab(argv[2]);
+    return failures == 0 ? 0 : 1;
+  }
   int suite_failures = 0;
   suite_failures += RunTrellis35CodecTests();
   suite_failures += RunTrellis35TransformTests();
@@ -268,7 +461,8 @@ int main(int argc, char** argv) {
     std::cerr << "usage: gem16-cuda-trellis35-tests "
                  "[--checkpoint PATH | --profile-t3 UNIQUE | "
                  "--profile-prefill TOKENS | "
-                 "--profile-prefill-checkpoint PATH TOKENS]\n";
+                 "--profile-prefill-checkpoint PATH TOKENS | "
+                 "--profile-slab-checkpoint PATH]\n";
     return 2;
   }
   suite_failures += failures;

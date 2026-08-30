@@ -4,6 +4,7 @@
 #include <cuda_fp4.h>
 #include <cuda_fp8.h>
 #include <cuda_runtime.h>
+#include <nvtx3/nvToolsExt.h>
 
 #include <algorithm>
 #include <array>

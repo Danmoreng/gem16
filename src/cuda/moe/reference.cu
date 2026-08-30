@@ -4,6 +4,7 @@
 #include <cuda_fp4.h>
 #include <cuda_fp8.h>
 #include <cuda_runtime.h>
+#include <nvtx3/nvToolsExt.h>
 
 #include <cmath>
 #include <cstdint>
@@ -30,6 +31,14 @@ constexpr std::uint64_t kSm120KBlock = 64;
 constexpr std::uint64_t kRowsPerTile = 8;
 constexpr float kSqrtTwoOverPi = 0.7978845608028654F;
 constexpr float kGeluCubic = 0.044715F;
+
+class NvtxRange {
+ public:
+  explicit NvtxRange(const char* name) { nvtxRangePushA(name); }
+  NvtxRange(const NvtxRange&) = delete;
+  NvtxRange& operator=(const NvtxRange&) = delete;
+  ~NvtxRange() { nvtxRangePop(); }
+};
 
 Status Invalid(std::string message) {
   return Status(StatusCode::kInvalidArgument, std::move(message));
@@ -336,6 +345,81 @@ __global__ void MoeInputNormsRouterTransformNvfp4Kernel(
           (shared_low.__x & 0x0FU) | ((shared_high.__x & 0x0FU) << 4U));
       expert_packed[begin / 2U + pair] = static_cast<std::uint8_t>(
           (expert_low.__x & 0x0FU) | ((expert_high.__x & 0x0FU) << 4U));
+    }
+  }
+}
+
+// Trellis35 keeps the shared MLP in NVFP4 but consumes the routed input at an
+// exact physical BF16 boundary. This sibling preserves the reduction and
+// rounding order of MoeInputNormsRouterTransformNvfp4Kernel while omitting the
+// routed FP4 bytes/scales that have no Trellis consumer.
+template <bool kMaterializeRouterNormalized>
+__global__ void MoeInputNormsRouterTransformTrellis35Kernel(
+    const float* hidden, const std::uint16_t* pre_shared_norm,
+    const std::uint16_t* pre_expert_norm,
+    const std::uint16_t* router_scale, std::uint8_t* shared_packed,
+    std::uint8_t* shared_scales, float* expert_input,
+    float* router_normalized, float* router_transformed, std::uint64_t width,
+    float epsilon, float shared_global_divisor) {
+  const std::uint64_t row = blockIdx.x;
+  hidden += row * width;
+  shared_packed += row * width / 2U;
+  shared_scales += row * width / kNvfp4Block;
+  expert_input += row * width;
+  router_normalized += row * width;
+  router_transformed += row * width;
+  float squared_sum = 0.0F;
+  for (std::uint64_t index = threadIdx.x; index < width;
+       index += blockDim.x) {
+    const float value = hidden[index];
+    squared_sum = fmaf(value, value, squared_sum);
+  }
+  const float inverse_rms = rsqrtf(
+      MoeBlockSum(squared_sum) / static_cast<float>(width) + epsilon);
+  const float router_divisor = rsqrtf(static_cast<float>(width));
+  const std::uint64_t blocks = width / kNvfp4Block;
+  for (std::uint64_t block = threadIdx.x; block < blocks;
+       block += blockDim.x) {
+    const std::uint64_t begin = block * kNvfp4Block;
+    float shared_values[kNvfp4Block];
+    float shared_amax = 0.0F;
+#pragma unroll
+    for (std::uint64_t local = 0U; local < kNvfp4Block; ++local) {
+      const std::uint64_t index = begin + local;
+      const float normalized = RoundBf16(hidden[index] * inverse_rms);
+      const float shared_value = RoundBf16(
+          hidden[index] * inverse_rms * Bf16(pre_shared_norm[index]));
+      const float expert_value = RoundBf16(
+          hidden[index] * inverse_rms * Bf16(pre_expert_norm[index]));
+      shared_values[local] = shared_value;
+      shared_amax = fmaxf(shared_amax, fabsf(shared_value));
+      expert_input[index] = expert_value;
+      if constexpr (kMaterializeRouterNormalized) {
+        router_normalized[index] = normalized;
+      }
+      router_transformed[index] = RoundBf16(
+          normalized * Bf16(router_scale[index]) * router_divisor);
+    }
+    const __nv_fp8_e4m3 shared_scale(
+        (shared_amax * ReciprocalApproximateFtz(6.0F)) *
+        shared_global_divisor);
+    shared_scales[block] = shared_scale.__x;
+    const float decoded_shared_scale = static_cast<float>(shared_scale);
+    const float shared_output_scale =
+        decoded_shared_scale == 0.0F
+            ? 0.0F
+            : ReciprocalApproximateFtz(
+                  decoded_shared_scale *
+                  ReciprocalApproximateFtz(shared_global_divisor));
+#pragma unroll
+    for (std::uint64_t pair = 0U; pair < kNvfp4Block / 2U; ++pair) {
+      const std::uint64_t low = pair * 2U;
+      const __nv_fp4_e2m1 shared_low(
+          shared_values[low] * shared_output_scale);
+      const __nv_fp4_e2m1 shared_high(
+          shared_values[low + 1U] * shared_output_scale);
+      shared_packed[begin / 2U + pair] = static_cast<std::uint8_t>(
+          (shared_low.__x & 0x0FU) | ((shared_high.__x & 0x0FU) << 4U));
     }
   }
 }
@@ -956,7 +1040,23 @@ Status LaunchGemma4MoeLayerImpl(
 
   Status status;
   if (native_sm120) {
-    if (c.materialize_native_router_normalized) {
+    if (trellis35 && c.materialize_native_router_normalized) {
+      MoeInputNormsRouterTransformTrellis35Kernel<true><<<
+          1, kNormThreads, 0, stream>>>(
+          hidden, w.pre_shared_norm_bf16, w.pre_expert_norm_bf16,
+          w.router_scale_bf16, x.shared_input_packed, x.shared_input_scales,
+          trellis_workspace->gate_up_output, x.router_normalized,
+          x.router_transformed, c.width, c.epsilon,
+          w.shared_gate.activation_global_divisor);
+    } else if (trellis35) {
+      MoeInputNormsRouterTransformTrellis35Kernel<false><<<
+          1, kNormThreads, 0, stream>>>(
+          hidden, w.pre_shared_norm_bf16, w.pre_expert_norm_bf16,
+          w.router_scale_bf16, x.shared_input_packed, x.shared_input_scales,
+          trellis_workspace->gate_up_output, x.router_normalized,
+          x.router_transformed, c.width, c.epsilon,
+          w.shared_gate.activation_global_divisor);
+    } else if (c.materialize_native_router_normalized) {
       MoeInputNormsRouterTransformNvfp4Kernel<true><<<
           1, kNormThreads, 0, stream>>>(
           hidden, w.pre_shared_norm_bf16, w.pre_expert_norm_bf16,
@@ -975,15 +1075,10 @@ Status LaunchGemma4MoeLayerImpl(
           w.shared_gate.activation_global_divisor,
           w.expert_gate_up.activation_global_divisor);
     }
-    status = CheckLaunch(
-        "launch fused M14 input norms, router transform, and NVFP4 quantization");
+    status = CheckLaunch(trellis35
+                             ? "launch Trellis35 M1 input boundary"
+                             : "launch fused M14 input norms, router transform, and NVFP4 quantization");
     if (!status.ok()) return status;
-    if (trellis35) {
-      status = LaunchRmsNormBf16(hidden, w.pre_expert_norm_bf16,
-                                 x.expert_input, 1U, c.width, c.epsilon,
-                                 stream);
-      if (!status.ok()) return status;
-    }
   } else {
     MoeInputNormsRouterTransformKernel<<<1, kNormThreads, 0, stream>>>(
         hidden, w.pre_shared_norm_bf16, w.pre_expert_norm_bf16,
@@ -1071,7 +1166,8 @@ Status LaunchGemma4MoeLayerImpl(
   }
   if (trellis35) {
     status = LaunchTrellis35SelectedExpertsM1(
-        x.expert_input, x.top_ids, x.top_weights, *trellis_layer,
+        trellis_workspace->gate_up_output, x.top_ids, x.top_weights,
+        *trellis_layer,
         *trellis_workspace, x.routed_sum, stream);
     if (!status.ok()) return status;
   } else if (native_sm120) {
@@ -1281,37 +1377,52 @@ Status LaunchGemma4MoeSm120MtpSharedBatchLayerImpl(
     return Invalid("M25 exact shared-batch MoE contract is invalid");
   }
   (void)decode;
-  MoeInputNormsRouterTransformNvfp4Kernel<false><<<
-      static_cast<unsigned>(tokens), kNormThreads, 0, stream>>>(
-      hidden, w.pre_shared_norm_bf16, w.pre_expert_norm_bf16,
-      w.router_scale_bf16, batch.token_packed, batch.token_scales,
-      batch.expert_product_packed, batch.expert_product_scales,
-      batch.shared_output, batch.token_hidden, c.width, c.epsilon,
-      w.shared_gate.activation_global_divisor,
-      w.expert_gate_up.activation_global_divisor);
-  Status status = CheckLaunch("launch M25 exact batched MoE input boundary");
+  if (trellis35) {
+    MoeInputNormsRouterTransformTrellis35Kernel<false><<<
+        static_cast<unsigned>(tokens), kNormThreads, 0, stream>>>(
+        hidden, w.pre_shared_norm_bf16, w.pre_expert_norm_bf16,
+        w.router_scale_bf16, batch.token_packed, batch.token_scales,
+        trellis_workspace->gate_up_output, batch.shared_output,
+        batch.token_hidden, c.width, c.epsilon,
+        w.shared_gate.activation_global_divisor);
+  } else {
+    MoeInputNormsRouterTransformNvfp4Kernel<false><<<
+        static_cast<unsigned>(tokens), kNormThreads, 0, stream>>>(
+        hidden, w.pre_shared_norm_bf16, w.pre_expert_norm_bf16,
+        w.router_scale_bf16, batch.token_packed, batch.token_scales,
+        batch.expert_product_packed, batch.expert_product_scales,
+        batch.shared_output, batch.token_hidden, c.width, c.epsilon,
+        w.shared_gate.activation_global_divisor,
+        w.expert_gate_up.activation_global_divisor);
+  }
+  Status status = CheckLaunch(trellis35
+                                  ? "launch Trellis35 T3 input boundary"
+                                  : "launch M25 exact batched MoE input boundary");
   if (!status.ok()) return status;
-  status = LaunchNvfp4Sm120FusedGateUpExactBatch(
-      batch.token_packed, batch.token_scales, w.shared_gate.packed_e2m1,
-      w.shared_gate.scales_e4m3fn, w.shared_up.packed_e2m1,
-      w.shared_up.scales_e4m3fn, batch.shared_product, tokens,
-      c.shared_intermediate, c.width,
-      w.shared_gate.activation_global_divisor,
-      w.shared_gate.weight_global_divisor,
-      w.shared_up.activation_global_divisor,
-      w.shared_up.weight_global_divisor, stream);
-  if (!status.ok()) return status;
-  status = LaunchNvfp4ReferenceActivationQuantization(
-      batch.shared_product, batch.shared_product_packed,
-      batch.shared_product_scales, tokens * c.shared_intermediate,
-      w.shared_down.activation_global_divisor, stream);
-  if (!status.ok()) return status;
-  status = LaunchNvfp4Sm120DirectProjectionBf16FloatExactBatch(
-      batch.shared_product_packed, batch.shared_product_scales,
-      w.shared_down.packed_e2m1, w.shared_down.scales_e4m3fn,
-      batch.shared_output, tokens, c.width, c.shared_intermediate,
-      w.shared_down.activation_global_divisor,
-      w.shared_down.weight_global_divisor, stream);
+  {
+    const NvtxRange range("gem16.mtp.target_shared_moe");
+    status = LaunchNvfp4Sm120FusedGateUpExactBatch(
+        batch.token_packed, batch.token_scales, w.shared_gate.packed_e2m1,
+        w.shared_gate.scales_e4m3fn, w.shared_up.packed_e2m1,
+        w.shared_up.scales_e4m3fn, batch.shared_product, tokens,
+        c.shared_intermediate, c.width,
+        w.shared_gate.activation_global_divisor,
+        w.shared_gate.weight_global_divisor,
+        w.shared_up.activation_global_divisor,
+        w.shared_up.weight_global_divisor, stream);
+    if (!status.ok()) return status;
+    status = LaunchNvfp4ReferenceActivationQuantization(
+        batch.shared_product, batch.shared_product_packed,
+        batch.shared_product_scales, tokens * c.shared_intermediate,
+        w.shared_down.activation_global_divisor, stream);
+    if (!status.ok()) return status;
+    status = LaunchNvfp4Sm120DirectProjectionBf16FloatExactBatch(
+        batch.shared_product_packed, batch.shared_product_scales,
+        w.shared_down.packed_e2m1, w.shared_down.scales_e4m3fn,
+        batch.shared_output, tokens, c.width, c.shared_intermediate,
+        w.shared_down.activation_global_divisor,
+        w.shared_down.weight_global_divisor, stream);
+  }
   if (!status.ok()) return status;
 
   const unsigned router_blocks =
@@ -1339,47 +1450,48 @@ Status LaunchGemma4MoeSm120MtpSharedBatchLayerImpl(
     if (!status.ok()) return status;
   }
 
-  if (trellis35) {
-    status = LaunchRmsNormBf16(hidden, w.pre_expert_norm_bf16,
-                              batch.token_hidden, tokens, c.width, c.epsilon,
-                              stream);
-    if (!status.ok()) return status;
-    status = LaunchTrellis35SelectedExpertsT3(
-        batch.token_hidden, batch.permutation, batch.reduced_output,
-        *trellis_layer, *trellis_workspace, batch.token_hidden, stream);
-    if (!status.ok()) return status;
-  } else {
-  // The physical-BF16 prefill W2 region is dead after routing and has exactly
-  // enough bytes for assignment-major FP32 Gate/Up. The shared-product region
-  // is likewise dead after shared W2 and holds the smaller routed GELU product.
-  // These lifetime aliases stay inside the fixed M17 arena and add no M25
-  // allocation or persistent representation.
-  float* expert_gate_up =
-      reinterpret_cast<float*>(batch.expert_down_bf16);
-  float* expert_product = batch.shared_product;
-  status = LaunchNvfp4Sm120SelectedSplitGateUpMtpBatch(
-      batch.expert_product_packed, batch.expert_product_scales,
-      w.expert_gate_up.packed_e2m1, w.expert_gate_up.scales_e4m3fn,
-      batch.permutation, tokens, c.top_k, expert_gate_up,
-      expert_gate_up + c.expert_intermediate, c.expert_intermediate, c.width,
-      c.experts, w.expert_gate_up.activation_global_divisor,
-      w.expert_gate_up.weight_global_divisor, stream);
-  if (!status.ok()) return status;
-  status = LaunchStridedGatedGeluNvfp4ActivationQuantization(
-      expert_gate_up, expert_gate_up + c.expert_intermediate,
-      expert_product, batch.expert_product_packed,
-      batch.expert_product_scales, tokens * c.top_k,
-      c.expert_intermediate, w.expert_down.activation_global_divisor, stream);
-  if (!status.ok()) return status;
-  status =
-      LaunchNvfp4Sm120SelectedDirectProjectionReduceBf16FloatMtpBatch(
+  {
+    const NvtxRange range("gem16.mtp.target_routed_moe");
+    if (trellis35) {
+      status = LaunchTrellis35SelectedExpertsT3(
+          trellis_workspace->gate_up_output, batch.permutation,
+          batch.reduced_output, *trellis_layer, *trellis_workspace,
+          batch.token_hidden, stream);
+      if (!status.ok()) return status;
+    } else {
+      // The physical-BF16 prefill W2 region is dead after routing and has
+      // exactly enough bytes for assignment-major FP32 Gate/Up. The
+      // shared-product region is likewise dead after shared W2 and holds the
+      // smaller routed GELU product. These lifetime aliases stay inside the
+      // fixed M17 arena and add no M25 allocation or persistent representation.
+      float* expert_gate_up =
+          reinterpret_cast<float*>(batch.expert_down_bf16);
+      float* expert_product = batch.shared_product;
+      status = LaunchNvfp4Sm120SelectedSplitGateUpMtpBatch(
           batch.expert_product_packed, batch.expert_product_scales,
-          w.expert_down.packed_e2m1, w.expert_down.scales_e4m3fn,
-          batch.permutation, batch.reduced_output, tokens, c.top_k,
-          batch.token_hidden, c.width, c.expert_intermediate, c.experts,
-          w.expert_down.activation_global_divisor,
-          w.expert_down.weight_global_divisor, stream);
-  if (!status.ok()) return status;
+          w.expert_gate_up.packed_e2m1, w.expert_gate_up.scales_e4m3fn,
+          batch.permutation, tokens, c.top_k, expert_gate_up,
+          expert_gate_up + c.expert_intermediate, c.expert_intermediate,
+          c.width, c.experts, w.expert_gate_up.activation_global_divisor,
+          w.expert_gate_up.weight_global_divisor, stream);
+      if (!status.ok()) return status;
+      status = LaunchStridedGatedGeluNvfp4ActivationQuantization(
+          expert_gate_up, expert_gate_up + c.expert_intermediate,
+          expert_product, batch.expert_product_packed,
+          batch.expert_product_scales, tokens * c.top_k,
+          c.expert_intermediate, w.expert_down.activation_global_divisor,
+          stream);
+      if (!status.ok()) return status;
+      status =
+          LaunchNvfp4Sm120SelectedDirectProjectionReduceBf16FloatMtpBatch(
+              batch.expert_product_packed, batch.expert_product_scales,
+              w.expert_down.packed_e2m1, w.expert_down.scales_e4m3fn,
+              batch.permutation, batch.reduced_output, tokens, c.top_k,
+              batch.token_hidden, c.width, c.expert_intermediate, c.experts,
+              w.expert_down.activation_global_divisor,
+              w.expert_down.weight_global_divisor, stream);
+      if (!status.ok()) return status;
+    }
   }
 
   const std::size_t post_norm_shared_bytes =

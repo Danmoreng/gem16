@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "work_packet": "WP11",
+  "status": "accepted",
+  "kernel": "MmaW4A8ProjectionGroupedPrefillTileKernel",
+  "workload": {
+    "artifact_content_sha256": "39183e2c7a1bd04c87a8f5bb5887453f8e92a3980bb507fd06d6252a6439c9f0",
+    "layer": 0,
+    "tokens": 512,
+    "assignments": 4096,
+    "grid": [4, 1120, 1],
+    "block": [128, 1, 1]
+  },
+  "launch_resources": {
+    "duration_ms": 1.058112,
+    "registers_per_thread": 79,
+    "stack_bytes": 1024,
+    "driver_shared_bytes_per_block": 1024,
+    "static_shared_bytes_per_block": 0,
+    "dynamic_shared_bytes_per_block": 0,
+    "local_load_instructions": 0,
+    "local_store_instructions": 0,
+    "spilling_requests": 0,
+    "theoretical_occupancy_percent": 50.0,
+    "achieved_occupancy_percent": 48.192280,
+    "theoretical_active_warps_per_sm": 24,
+    "waves_per_sm": 12.44
+  },
+  "instruction_mix": {
+    "executed_instructions": 236366336,
+    "alu": 129541632,
+    "fma": 58736640,
+    "control": 116224,
+    "tensor": 5767168,
+    "tensor_active_cycles_percent": 57.43,
+    "issue_active_percent": 64.11,
+    "issue_slots_busy_percent": 62.33
+  },
+  "traffic": {
+    "dram_read_bytes": 31788544,
+    "dram_write_bytes": 241920,
+    "l1_requested_bytes": 703120000,
+    "l1_hit_bytes": 499020000,
+    "l1_miss_bytes": 204100000,
+    "l1_hit_percent": 71.13,
+    "l2_bytes": 206240000,
+    "l2_hit_percent": 84.28
+  },
+  "warp_stalls_percent": {
+    "long_scoreboard": 40.26,
+    "math_pipe_throttle": 14.99,
+    "wait": 13.47,
+    "not_selected": 12.38,
+    "short_scoreboard": 1.89,
+    "mio_throttle": 1.94,
+    "barrier": 0.0
+  },
+  "interpretation": [
+    "The current rows=4 kernel remains limited primarily by long-scoreboard latency and register-limited occupancy.",
+    "The safe schedule bound removes empty CTAs and reduces waves/SM from 45.51 to 12.44, but useful work and the approximately 1.06 ms hot-kernel duration remain essentially unchanged.",
+    "WP12 must replace independent broadcast-row accumulation with a true M16/M32 A operand rather than only tuning this rows=4 kernel."
+  ],
+  "raw_evidence": {
+    "full_report": "artifacts/raw/trellis35/wp11/post-cleanup-prefill-512.ncu-rep",
+    "full_report_sha256": "43f3068b484a84d72110f36969ef9120045eb965eb6cfdaab2727b74fe279d38",
+    "metric_report": "artifacts/raw/trellis35/wp11/post-cleanup-prefill-512-metrics.ncu-rep",
+    "metric_report_sha256": "25190b279a0f2d22406cc458e365b5ece8b22bca3772c98087e939cd397b59e4"
+  }
+}

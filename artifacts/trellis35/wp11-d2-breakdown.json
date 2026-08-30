@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "work_packet": "WP11",
+  "status": "accepted_diagnostic",
+  "workload": {
+    "prompt_tokens": 1,
+    "output_tokens": 16,
+    "draft_length": 2,
+    "groups": 9,
+    "target_verifier_rows": 27,
+    "accepted_drafts": 5,
+    "ordinary_target_identity": true
+  },
+  "timing": {
+    "complete_request_tokens_per_second": 116.595349906,
+    "post_first_tokens_per_second": 121.808584631,
+    "group_output_tokens_per_second": 121.471374780,
+    "pure_t3_group_mean_ms": 12.805943444,
+    "pure_t3_verifier_rows_per_second": 234.266222791,
+    "initial_target_selection_ms": 14.080689
+  },
+  "single_group_nsys": {
+    "nvtx_pure_t3_verifier_group_ms": 13.263768,
+    "gpu_kernel_time_ms": 12.718,
+    "trellis_grouped_t3_projection_ms": 4.920942,
+    "trellis_grouped_t3_projection_gpu_percent": 38.7,
+    "trellis_t3_input_transform_ms": 0.510164,
+    "shared_moe_fused_gate_up_ms": 0.337689,
+    "router_projection_ms": 0.146622,
+    "router_topk_ms": 0.141087,
+    "kv_backup_tentative_append_ms": 0.047199,
+    "restore_ms": 0.044287,
+    "commit_kv_ms": 0.002784
+  },
+  "nvtx_ranges_added": [
+    "initial Target selection",
+    "Assistant proposal",
+    "Target attention",
+    "Target shared MoE",
+    "Target routed MoE",
+    "Target head",
+    "selection/sampling",
+    "fused KV backup plus tentative append",
+    "restore",
+    "commit",
+    "pure T3 verifier group"
+  ],
+  "graph_annotation_note": "The replay-visible outer pure-T3 range is measured directly. Inner ranges execute while the fixed CUDA graph is captured; Nsight Systems does not replay those host push/pop events, so inner replay costs are reported from graph-node kernel classification. Backup and tentative append are one physical fused kernel and are intentionally reported together.",
+  "interpretation": "The existing grouped Trellis T3 projection is the dominant D2 GPU kernel family at 38.7 percent, validating the WP12/WP13 ordering.",
+  "raw_evidence": {
+    "bounded_result": "artifacts/raw/trellis35/wp11/d2-short-16.json",
+    "bounded_result_sha256": "bd45eb11e91017a6f41f391a9de449869d5ef1dc05758177eb4fda0168fe7f8b",
+    "nsys_report": "artifacts/raw/trellis35/wp11/d2-profile-one-group-graphnodes.nsys-rep",
+    "nsys_report_sha256": "086adba4b782b45e16ebf1dab242f4af4259ec7d1a505ec18466b5e3da866dde",
+    "nsys_stats": "artifacts/raw/trellis35/wp11/d2-profile-one-group-graphnodes-stats.csv",
+    "nsys_stats_sha256": "a98355ccc84b1f0809eb50aa9059e24a12f88ce2fabc3bfe250298a0191b8784"
+  }
+}

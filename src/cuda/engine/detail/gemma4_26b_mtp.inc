@@ -149,6 +149,9 @@ Status Gemma4Moe26BReferenceEngine::CopyMtpRouterOverlapDiagnostic(
 Result<std::uint32_t> Gemma4Moe26BReferenceEngine::SelectToken() {
   if (!implementation_) return Invalid("M22 engine is not initialized");
   auto& x = *implementation_;
+  const NvtxRange range(x.token_selections == 0U
+                            ? "gem16.mtp.initial_target_selection"
+                            : "gem16.mtp.selection_sampling");
   ++x.token_selections;
   if (x.sampling.enabled) {
     Status selected = LaunchSampleToken(
@@ -508,6 +511,7 @@ Status Gemma4Moe26BReferenceEngine::RunMtpAssistantGroup(
       Status prepared = x.PrepareFixedMtpGraph(proposal_count);
       if (!prepared.ok()) return prepared;
     }
+    const NvtxRange range("gem16.mtp.pure_t3_verifier_group");
     return x.ExecuteFixedMtpGraphGroup(pending_token, proposal_count,
                                        host_result);
   }

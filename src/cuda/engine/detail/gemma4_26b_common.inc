@@ -29,6 +29,14 @@ constexpr std::uint32_t kRepetitionMaskWords =
 constexpr std::uint64_t kM25MaximumVerifyTokens = 5U;
 constexpr std::uint32_t kM25FixedD2Rows = 3U;
 
+class NvtxRange {
+ public:
+  explicit NvtxRange(const char* name) { nvtxRangePushA(name); }
+  NvtxRange(const NvtxRange&) = delete;
+  NvtxRange& operator=(const NvtxRange&) = delete;
+  ~NvtxRange() { nvtxRangePop(); }
+};
+
 Status Invalid(std::string message) {
   return Status(StatusCode::kInvalidArgument, std::move(message));
 }

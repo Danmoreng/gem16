@@ -21,6 +21,16 @@ inline constexpr std::uint64_t kTrellis35ExpertIntermediate = 704U;
 inline constexpr std::uint64_t kTrellis35DownInput = 768U;
 inline constexpr std::uint64_t kTrellis35DownOutput = 2816U;
 
+// Diagnostic-only bounded materialization used to decide whether a transient
+// decoded-weight cache can beat inline Trellis decode. The slab is row-major
+// E4M3 with unit BF16 row scales and is never an engine/runtime fallback.
+[[nodiscard]] Status LaunchTrellis35DecodeE4M3SlabDiagnostic(
+    const Trellis35DeviceFamilyBinding& family, std::uint32_t expert,
+    std::uint64_t input_elements, std::uint64_t output_elements,
+    std::uint64_t output_offset, std::uint64_t slab_rows,
+    std::uint8_t* weight_e4m3, std::uint16_t* weight_scales_bf16,
+    cudaStream_t stream);
+
 // Fixed caller-owned storage for one ordinary-decode routed-expert operation.
 // All fields are allocated and bound before graph capture; the launcher itself
 // performs no allocation, synchronization, filesystem access, or repacking.

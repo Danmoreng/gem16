@@ -98,8 +98,12 @@ Status Gemma4Moe26BReferenceEngine::Impl::LaunchFixedMtpGraphBody(
   proposal.target_hidden = final_hidden;
   proposal.sliding_kv = make_view(kSlidingLayer);
   proposal.full_kv = make_view(kFullLayer);
-  Status status = assistant.GenerateDraftsDevice(
-      proposal, draft_count, stream, control);
+  Status status;
+  {
+    const NvtxRange range("gem16.mtp.assistant_proposal");
+    status = assistant.GenerateDraftsDevice(
+        proposal, draft_count, stream, control);
+  }
   if (!status.ok()) return status;
   const std::uint32_t* drafts = assistant.device_draft_tokens();
   if (drafts == nullptr) {
@@ -146,12 +150,15 @@ Status Gemma4Moe26BReferenceEngine::Impl::LaunchFixedMtpGraphBody(
     // established parent until those non-selected depths are qualified
     // independently.
     const bool shared_fixed_attention = tokens == 3U;
-    status = LaunchGemma4Moe26BAttentionSm120MtpFixedLayer(
-        prefill_hidden_a, prefill_hidden_b, 0U, trait,
-        attention_weights[layer], caches[layer], prefill_attention_workspace,
-        prefill_moe_workspace.shared_product, row_controls, tokens,
-        shared_fixed_attention, true, true, 1.0e-6F, stream, backup_key,
-        backup_value);
+    {
+      const NvtxRange range("gem16.mtp.target_attention");
+      status = LaunchGemma4Moe26BAttentionSm120MtpFixedLayer(
+          prefill_hidden_a, prefill_hidden_b, 0U, trait,
+          attention_weights[layer], caches[layer],
+          prefill_attention_workspace, prefill_moe_workspace.shared_product,
+          row_controls, tokens, shared_fixed_attention, true, true, 1.0e-6F,
+          stream, backup_key, backup_value);
+    }
     if (!status.ok()) return status;
     auto* overlap = tokens != 3U || mtp_router_overlap.bytes() == 0U
                         ? nullptr
@@ -161,21 +168,29 @@ Status Gemma4Moe26BReferenceEngine::Impl::LaunchFixedMtpGraphBody(
       return Status(StatusCode::kUnsupported,
                     "Trellis35 fixed verifier supports only D2/T3");
     }
-    status = IsTrellis35RoutedExpertFormat(routed_expert_format)
-                 ? LaunchGemma4MoeSm120Trellis35T3Layer(
-                       prefill_hidden_b, prefill_hidden_a, tokens, moe_config,
-                       moe_weights[layer], trellis35_artifact.layers()[layer],
-                       trellis35_t3_workspace, prefill_moe_workspace, stream,
-                       overlap)
-                 : LaunchGemma4MoeSm120MtpSharedBatchLayer(
-                       prefill_hidden_b, prefill_hidden_a, tokens, moe_config,
-                       moe_weights[layer], prefill_moe_workspace,
-                       moe_workspace, stream, overlap);
+    {
+      const NvtxRange range("gem16.mtp.target_moe");
+      status = IsTrellis35RoutedExpertFormat(routed_expert_format)
+                   ? LaunchGemma4MoeSm120Trellis35T3Layer(
+                         prefill_hidden_b, prefill_hidden_a, tokens,
+                         moe_config, moe_weights[layer],
+                         trellis35_artifact.layers()[layer],
+                         trellis35_t3_workspace, prefill_moe_workspace, stream,
+                         overlap)
+                   : LaunchGemma4MoeSm120MtpSharedBatchLayer(
+                         prefill_hidden_b, prefill_hidden_a, tokens,
+                         moe_config, moe_weights[layer],
+                         prefill_moe_workspace, moe_workspace, stream,
+                         overlap);
+    }
     if (!status.ok()) return status;
-    status = LaunchCompactRestoreCircularMtpKvFp8Controlled(
-        caches[layer].key, caches[layer].value, compact_key, compact_value,
-        backup_key, backup_value, tokens, kv_elements,
-        caches[layer].capacity, control, stream);
+    {
+      const NvtxRange range("gem16.mtp.restore");
+      status = LaunchCompactRestoreCircularMtpKvFp8Controlled(
+          caches[layer].key, caches[layer].value, compact_key, compact_value,
+          backup_key, backup_value, tokens, kv_elements,
+          caches[layer].capacity, control, stream);
+    }
     if (!status.ok()) return status;
   }
 
@@ -192,50 +207,57 @@ Status Gemma4Moe26BReferenceEngine::Impl::LaunchFixedMtpGraphBody(
   float* top_values = mtp_verifier.As<float>(mtp_top_values_offset);
   float* second_values = mtp_verifier.As<float>(mtp_second_values_offset);
   int* logits_finite = mtp_verifier.As<int>(mtp_finite_offset);
-  status = LaunchRmsNormBf16Nvfp4ActivationQuantizationBatch(
-      prefill_hidden_a, final_norm, normalized, head_activation, head_scales,
-      tokens, kWidth, 1.0e-6F, head.activation_global_divisor, stream);
+  {
+    const NvtxRange range("gem16.mtp.target_head");
+    status = LaunchRmsNormBf16Nvfp4ActivationQuantizationBatch(
+        prefill_hidden_a, final_norm, normalized, head_activation, head_scales,
+        tokens, kWidth, 1.0e-6F, head.activation_global_divisor, stream);
+    if (!status.ok()) return status;
+    status = LaunchNvfp4Sm120DirectProjectionBf16FloatExactBatch(
+        head_activation, head_scales, head.packed_e2m1, head.scales_e4m3fn,
+        batch_logits, tokens, head.rows, head.columns,
+        head.activation_global_divisor, head.weight_global_divisor, stream);
+  }
   if (!status.ok()) return status;
-  status = LaunchNvfp4Sm120DirectProjectionBf16FloatExactBatch(
-      head_activation, head_scales, head.packed_e2m1, head.scales_e4m3fn,
-      batch_logits, tokens, head.rows, head.columns,
-      head.activation_global_divisor, head.weight_global_divisor, stream);
-  if (!status.ok()) return status;
-  if (!sampling.enabled || copy_transaction) {
-    for (std::uint64_t row = 0U; row < tokens; ++row) {
-      status = LaunchSoftcapArgmax(
-          batch_logits + row * kVocabulary, softcap, logits_finite + row,
-          output_candidates, selected + row, top_values + row, stream, nullptr,
-          suppressed_token_ids, suppressed_token_count);
-      if (!status.ok()) return status;
-      if (copy_transaction) {
+  {
+    const NvtxRange selection_range("gem16.mtp.selection_sampling");
+    if (!sampling.enabled || copy_transaction) {
+      for (std::uint64_t row = 0U; row < tokens; ++row) {
         status = LaunchSoftcapArgmax(
             batch_logits + row * kVocabulary, softcap, logits_finite + row,
-            output_candidates, second_selected + row, second_values + row,
-            stream, nullptr, suppressed_token_ids, suppressed_token_count,
-            selected + row, false);
+            output_candidates, selected + row, top_values + row, stream,
+            nullptr, suppressed_token_ids, suppressed_token_count);
         if (!status.ok()) return status;
+        if (copy_transaction) {
+          status = LaunchSoftcapArgmax(
+              batch_logits + row * kVocabulary, softcap,
+              logits_finite + row, output_candidates,
+              second_selected + row, second_values + row, stream, nullptr,
+              suppressed_token_ids, suppressed_token_count, selected + row,
+              false);
+          if (!status.ok()) return status;
+        }
       }
     }
-  }
-  status = SelectMtpVerificationTokens(
-      batch_logits, prefill_tokens, row_controls, tokens, selected,
-      sampling.enabled && !copy_transaction, logits_finite);
-  if (!status.ok()) return status;
-  status = LaunchAcceptMtpGroup(
-      drafts, selected, draft_count,
-      mtp_verifier.As<std::uint32_t>(mtp_stop_tokens_offset),
-      mtp_stop_token_count,
-      &transaction->result, control, stream);
-  if (!status.ok()) return status;
-  if (sampling.enabled && sampling.repetition_penalty != 1.0F) {
-    status = LaunchCommitSpeculativeRepetitionMask(
-        mtp_verifier.As<std::uint32_t>(
-            mtp_sampling_repetition_masks_offset),
-        kRepetitionMaskWords, &transaction->result.output_count,
-        repetition_mask, stream);
+    status = SelectMtpVerificationTokens(
+        batch_logits, prefill_tokens, row_controls, tokens, selected,
+        sampling.enabled && !copy_transaction, logits_finite);
     if (!status.ok()) return status;
+    status = LaunchAcceptMtpGroup(
+        drafts, selected, draft_count,
+        mtp_verifier.As<std::uint32_t>(mtp_stop_tokens_offset),
+        mtp_stop_token_count, &transaction->result, control, stream);
+    if (!status.ok()) return status;
+    if (sampling.enabled && sampling.repetition_penalty != 1.0F) {
+      status = LaunchCommitSpeculativeRepetitionMask(
+          mtp_verifier.As<std::uint32_t>(
+              mtp_sampling_repetition_masks_offset),
+          kRepetitionMaskWords, &transaction->result.output_count,
+          repetition_mask, stream);
+      if (!status.ok()) return status;
+    }
   }
+  const NvtxRange commit_range("gem16.mtp.commit");
   std::array<MtpKvCommitLayer, kLayers> commit_layers{};
   for (std::uint32_t layer = 0U; layer < kLayers; ++layer) {
     const auto& trait = traits[layer];

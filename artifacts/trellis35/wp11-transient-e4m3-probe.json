@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "work_packet": "WP11",
+  "status": "diagnostic_complete",
+  "operator": "Trellis -> row-major E4M3 N128 slab with unit BF16 row scales -> decoder-free SM120 full-M W4A8",
+  "default_runtime_path": false,
+  "layer": 0,
+  "output_offset": 0,
+  "slab_rows": 128,
+  "maximum_parity_mismatches": 0,
+  "measurements": [
+    {"family":"gate_up","rate":3,"expert":0,"M":4,"K":2816,"decode_ms":0.0038288,"projection_ms":0.0074672,"workspace_bytes":374032},
+    {"family":"gate_up","rate":3,"expert":0,"M":16,"K":2816,"decode_ms":0.0038288,"projection_ms":0.086832,"workspace_bytes":414016},
+    {"family":"gate_up","rate":3,"expert":0,"M":32,"K":2816,"decode_ms":0.0038288,"projection_ms":0.0873952,"workspace_bytes":467328},
+    {"family":"gate_up","rate":3,"expert":0,"M":64,"K":2816,"decode_ms":0.0038288,"projection_ms":0.0877328,"workspace_bytes":573952},
+    {"family":"gate_up","rate":4,"expert":3,"M":4,"K":2816,"decode_ms":0.0034128,"projection_ms":0.0075392,"workspace_bytes":374032},
+    {"family":"gate_up","rate":4,"expert":3,"M":16,"K":2816,"decode_ms":0.0034128,"projection_ms":0.0866192,"workspace_bytes":414016},
+    {"family":"gate_up","rate":4,"expert":3,"M":32,"K":2816,"decode_ms":0.0034128,"projection_ms":0.0871296,"workspace_bytes":467328},
+    {"family":"gate_up","rate":4,"expert":3,"M":64,"K":2816,"decode_ms":0.0034128,"projection_ms":0.087784,"workspace_bytes":573952},
+    {"family":"down","rate":3,"expert":0,"M":4,"K":768,"decode_ms":0.0019184,"projection_ms":0.0029184,"workspace_bytes":103696},
+    {"family":"down","rate":3,"expert":0,"M":16,"K":768,"decode_ms":0.0019184,"projection_ms":0.0252864,"workspace_bytes":119104},
+    {"family":"down","rate":3,"expert":0,"M":32,"K":768,"decode_ms":0.0019184,"projection_ms":0.0256128,"workspace_bytes":139648},
+    {"family":"down","rate":3,"expert":0,"M":64,"K":768,"decode_ms":0.0019184,"projection_ms":0.026248,"workspace_bytes":180736},
+    {"family":"down","rate":4,"expert":1,"M":4,"K":768,"decode_ms":0.001904,"projection_ms":0.0028528,"workspace_bytes":103696},
+    {"family":"down","rate":4,"expert":1,"M":16,"K":768,"decode_ms":0.001904,"projection_ms":0.025296,"workspace_bytes":119104},
+    {"family":"down","rate":4,"expert":1,"M":32,"K":768,"decode_ms":0.001904,"projection_ms":0.0256112,"workspace_bytes":139648},
+    {"family":"down","rate":4,"expert":1,"M":64,"K":768,"decode_ms":0.001904,"projection_ms":0.0261968,"workspace_bytes":180736}
+  ],
+  "traffic": {
+    "gate_up_slab_bytes_written_and_read_each": 360704,
+    "down_slab_bytes_written_and_read_each": 98560
+  },
+  "decision": "Retain as a bounded diagnostic only. The probe proves exact E4M3 decoder equivalence, but the current decoder-free full-M backend has an M>=16 latency cliff and does not justify a runtime cache before WP12 inline M16/M32 is measured.",
+  "raw_evidence": {
+    "path": "artifacts/raw/trellis35/wp11/transient-e4m3-slab.txt",
+    "sha256": "20bf9da6089389d237563db3a3a18478f3518f6356b366b57bf97076cfcc2468"
+  }
+}

@@ -129,7 +129,12 @@ Status LaunchPrefillProjectionBlocks(
       assignment_count > 65535U) {
     return Invalid("Trellis35 grouped prefill projection contract is invalid");
   }
-  const unsigned schedule_blocks = static_cast<unsigned>(assignment_count);
+  const std::uint64_t active_expert_upper_bound =
+      std::min<std::uint64_t>(assignment_count, kTrellis35ExpertCount);
+  const unsigned schedule_blocks = static_cast<unsigned>(
+      (assignment_count + (kPrefillRowsPerTile - 1U) *
+                              active_expert_upper_bound) /
+      kPrefillRowsPerTile);
   const unsigned output_blocks =
       kPrefillOutputBlock / (kMmaWarps * 8U);
   for (std::uint64_t output_offset = 0U; output_offset < output_elements;
@@ -177,7 +182,12 @@ Status LaunchPrefillProjectionBlocksBf16Reverse(
       assignment_count > 65535U) {
     return Invalid("Trellis35 grouped BF16 prefill projection contract is invalid");
   }
-  const unsigned schedule_blocks = static_cast<unsigned>(assignment_count);
+  const std::uint64_t active_expert_upper_bound =
+      std::min<std::uint64_t>(assignment_count, kTrellis35ExpertCount);
+  const unsigned schedule_blocks = static_cast<unsigned>(
+      (assignment_count + (kPrefillRowsPerTile - 1U) *
+                              active_expert_upper_bound) /
+      kPrefillRowsPerTile);
   const unsigned output_blocks = kPrefillOutputBlock / (kMmaWarps * 8U);
   for (std::uint64_t output_end = output_elements; output_end != 0U;
        output_end -= kPrefillOutputBlock) {
@@ -201,6 +211,44 @@ Status LaunchPrefillProjectionBlocksBf16Reverse(
 }
 
 }  // namespace
+
+Status LaunchTrellis35DecodeE4M3SlabDiagnostic(
+    const Trellis35DeviceFamilyBinding& family, std::uint32_t expert,
+    std::uint64_t input_elements, std::uint64_t output_elements,
+    std::uint64_t output_offset, std::uint64_t slab_rows,
+    std::uint8_t* weight_e4m3, std::uint16_t* weight_scales_bf16,
+    cudaStream_t stream) {
+  if (family.k3_payload_pool == nullptr || family.k4_payload_pool == nullptr ||
+      family.descriptors == nullptr || weight_e4m3 == nullptr ||
+      weight_scales_bf16 == nullptr || expert >= kTrellis35ExpertCount ||
+      input_elements == 0U || input_elements % 32U != 0U ||
+      output_elements == 0U || output_elements % 16U != 0U ||
+      slab_rows == 0U || slab_rows > 128U || slab_rows % 16U != 0U ||
+      output_offset % 16U != 0U || output_offset > output_elements ||
+      slab_rows > output_elements - output_offset) {
+    return Invalid("Trellis35 transient E4M3 slab contract is invalid");
+  }
+  const std::uint64_t elements = slab_rows * input_elements;
+  if (elements > static_cast<std::uint64_t>(
+                     std::numeric_limits<unsigned>::max()) * kThreads) {
+    return Invalid("Trellis35 transient E4M3 slab exceeds CUDA grid limits");
+  }
+  const unsigned blocks =
+      static_cast<unsigned>((elements + kThreads - 1U) / kThreads);
+  const std::uint16_t rate = family.rate_map[expert];
+  if (rate == 3U) {
+    DecodeTrellis35E4M3SlabDiagnosticKernel<3><<<blocks, kThreads, 0, stream>>>(
+        family, expert, input_elements, output_elements, output_offset,
+        slab_rows, weight_e4m3, weight_scales_bf16);
+  } else if (rate == 4U) {
+    DecodeTrellis35E4M3SlabDiagnosticKernel<4><<<blocks, kThreads, 0, stream>>>(
+        family, expert, input_elements, output_elements, output_offset,
+        slab_rows, weight_e4m3, weight_scales_bf16);
+  } else {
+    return Invalid("Trellis35 transient E4M3 slab rate is unsupported");
+  }
+  return CheckLaunch("launch Trellis35 transient E4M3 slab diagnostic");
+}
 
 Status LaunchTrellis35InputTransformM1(
     const float* input, const std::uint16_t* suh_f16,

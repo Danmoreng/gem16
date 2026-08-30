@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "work_packet": "WP11",
+  "status": "accepted",
+  "geometry": {
+    "tokens": 512,
+    "assignment_count": 4096,
+    "active_experts": 128,
+    "rows_per_expert": {
+      "minimum": 32,
+      "maximum": 32,
+      "histogram": {"32": 128}
+    },
+    "actual_schedule_count": 1024,
+    "tile_tail_histogram": {"1": 0, "2": 0, "3": 0, "4": 1024},
+    "previous_launched_schedule_blocks": 4096,
+    "safe_launched_schedule_blocks": 1120,
+    "device_schedule_count_guard_retained": true
+  },
+  "bound": {
+    "implemented": "ceil((assignment_count + 3 * min(maximum_active_experts, assignment_count)) / 4)",
+    "maximum_active_experts": 128,
+    "reason": "The asynchronous host launcher cannot read the device-built active-expert count without a forbidden recurring synchronization; 128 is the checked model-contract upper bound and is safe for every routing distribution.",
+    "proof": "For q actual nonempty experts, sum ceil(rows_e/4) <= floor((assignment_count + 3*q)/4), and q <= min(128, assignment_count)."
+  },
+  "correctness": {
+    "synthetic_assignment_mismatches": 0,
+    "synthetic_slot_reduction_mismatches": 0,
+    "bounded_engine_output_token_sha256": "f19c52bcd74b968b1ad99162e6c854060978249c8b5b143eade6380ef3c22169",
+    "matches_wp10": true
+  },
+  "performance": {
+    "layer0_operator_latency_ms": 19.9244,
+    "full_engine_512_prompt_ms": 502.275349,
+    "wp10_prompt_median_ms": 501.565657,
+    "full_engine_delta_percent": 0.141497,
+    "result": "no regression outside measured noise"
+  }
+}
