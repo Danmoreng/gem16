@@ -39,6 +39,18 @@ enum class Trellis35T3ProjectionMode {
   kM16,
 };
 
+enum class Trellis35T3ProjectionOutputMode {
+  // Production selection, including the packet-local environment rollback.
+  kEnvironment,
+  // WP27 numerical and performance rollback.
+  kSeparateN32,
+  // Fuse the N128 inverse transform for both routed projection families.
+  kFusedN128,
+  // WP27 family-isolation modes used by qualification and A/B measurement.
+  kGateUpFusedN128,
+  kDownFusedN128,
+};
+
 enum class Trellis35SmallGeluDownMode {
   // WP20 numerical and performance rollback.
   kSeparate,
@@ -161,7 +173,9 @@ struct Trellis35T3Workspace {
     Trellis35T3ProjectionMode projection_mode =
         Trellis35T3ProjectionMode::kM16,
     Trellis35SmallGeluDownMode gelu_down_mode =
-        Trellis35SmallGeluDownMode::kSeparate);
+        Trellis35SmallGeluDownMode::kSeparate,
+    Trellis35T3ProjectionOutputMode projection_output_mode =
+        Trellis35T3ProjectionOutputMode::kEnvironment);
 
 // Routed-expert-only prefill replacement. normalized_hidden contains T
 // recurrent BF16 values in FP32 containers. The launcher consumes the existing

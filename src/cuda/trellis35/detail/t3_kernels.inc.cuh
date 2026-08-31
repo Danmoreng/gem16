@@ -210,6 +210,106 @@ __global__ void MmaW4A8ProjectionGroupedT3M16Kernel(
 #endif
 }
 
+template <bool NativeFp8x4>
+__global__ void MmaW4A8ProjectionGroupedT3M16N128InverseKernel(
+    const std::uint8_t* activation, const float* activation_scales,
+    Trellis35DeviceFamilyBinding family,
+    const std::uint32_t* selected_experts, float* output,
+    std::uint64_t input_elements, std::uint64_t output_elements) {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 890
+  const unsigned group_candidate = blockIdx.y;
+  const std::uint32_t expert = selected_experts[group_candidate];
+  if (expert >= kTrellis35ExpertCount) return;
+  for (unsigned prior = 0U; prior < group_candidate; ++prior) {
+    if (selected_experts[prior] == expert) return;
+  }
+
+  unsigned assignments[kTrellis35T3Rows]{};
+  unsigned assignment_count = 0U;
+#pragma unroll
+  for (unsigned row = 0U; row < kTrellis35T3Rows; ++row) {
+#pragma unroll
+    for (unsigned slot = 0U; slot < kTrellis35M1TopK; ++slot) {
+      const unsigned assignment = row * kTrellis35M1TopK + slot;
+      if (selected_experts[assignment] == expert) {
+        assignments[assignment_count++] = assignment;
+        break;
+      }
+    }
+  }
+  if (assignment_count == 0U) return;
+
+  const unsigned warp = threadIdx.x >> 5U;
+  const unsigned lane = threadIdx.x & 31U;
+  const unsigned group = lane >> 2U;
+  const unsigned thread_in_group = lane & 3U;
+  const std::uint64_t output_block =
+      static_cast<std::uint64_t>(blockIdx.x) * 128U;
+  const std::uint64_t output_column_base = output_block + warp * 8U;
+  const std::uint64_t source_output = output_column_base + group;
+  const Trellis35ExpertDescriptor descriptor = family.descriptors[expert];
+  const std::byte* pool = descriptor.rate_bits == 3U
+                              ? family.k3_payload_pool
+                              : family.k4_payload_pool;
+  Fp8Accumulator accumulator{};
+  if (descriptor.rate_bits == 3U) {
+    AccumulateGroupedT3M16Direct<3, NativeFp8x4>(
+        activation, assignments, assignment_count, pool,
+        descriptor.pool_offset, input_elements, output_elements,
+        source_output, accumulator);
+  } else if (descriptor.rate_bits == 4U) {
+    AccumulateGroupedT3M16Direct<4, NativeFp8x4>(
+        activation, assignments, assignment_count, pool,
+        descriptor.pool_offset, input_elements, output_elements,
+        source_output, accumulator);
+  } else {
+    return;
+  }
+
+  __shared__ float transformed[kTrellis35T3Rows][128U];
+  const float values[4] = {accumulator.x0, accumulator.x1, accumulator.x2,
+                           accumulator.x3};
+#pragma unroll
+  for (unsigned pair = 0U; pair < 4U; ++pair) {
+    const unsigned row = (pair & 2U) == 0U ? group : group + 8U;
+    const unsigned column = warp * 8U + thread_in_group * 2U + (pair & 1U);
+    if (row < assignment_count) {
+      transformed[row][column] =
+          values[pair] * activation_scales[assignments[row]];
+    }
+  }
+  __syncthreads();
+
+  if (warp < assignment_count) {
+    const unsigned index = lane * 4U;
+    float inverse[4] = {transformed[warp][index],
+                        transformed[warp][index + 1U],
+                        transformed[warp][index + 2U],
+                        transformed[warp][index + 3U]};
+    H128Warp(inverse);
+    const std::uint32_t assignment = assignments[warp];
+    const std::uint16_t* svh =
+        family.svh_f16 + static_cast<std::uint64_t>(expert) * output_elements +
+        output_block + index;
+    float* assignment_output =
+        output + static_cast<std::uint64_t>(assignment) * output_elements +
+        output_block + index;
+#pragma unroll
+    for (unsigned element = 0U; element < 4U; ++element) {
+      assignment_output[element] = inverse[element] * F16(svh + element);
+    }
+  }
+#else
+  (void)activation;
+  (void)activation_scales;
+  (void)family;
+  (void)selected_experts;
+  (void)output;
+  (void)input_elements;
+  (void)output_elements;
+#endif
+}
+
 __global__ void T3InputTransformKernel(
     const float* input, const std::uint16_t* all_suh,
     const std::uint32_t* selected_experts, float* output,

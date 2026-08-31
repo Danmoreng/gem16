@@ -1,0 +1,284 @@
+{
+  "schema_version": 1,
+  "work_packet": "WP27",
+  "status": "accepted",
+  "implementation_parent_revision": "2b7ed7d3ab0988588e03dfdbc821915aefb46cee",
+  "candidate": {
+    "name": "T3 M16 N128 projection plus inverse-H128 fusion",
+    "scope": "experimental Trellis35 Fixed-D2 T3 Gate+Up and Down routed projections",
+    "default_enabled": true,
+    "rollback_environment": "GEM16_TRELLIS35_T3_N128_INVERSE=off|gate|down|both",
+    "default_environment_value": "both",
+    "threads_per_cta": 512,
+    "warps_per_cta": 16,
+    "output_columns_per_cta": 128,
+    "shared_fp32_values": 384,
+    "gate_up_crossing_block": "physical columns 640..767 are inverse-transformed together before the logical 704/704 split",
+    "precision_changed": false,
+    "rounding_boundary_changed": false,
+    "workspace_delta_bytes": 0,
+    "persistent_device_representation_changed": false,
+    "ordinary_decode_changed": false,
+    "prefill_changed": false
+  },
+  "fresh_wp26_baseline": {
+    "workload": "synthetic T3 with 16 unique experts; one complete Gate+Up and Down operator",
+    "nsys_gpu_time_microseconds": {
+      "projection_nodes": 114.685,
+      "output_transform_nodes": 3.168,
+      "complete_operator": 128.253
+    },
+    "ncu_first_gate_up_projection": {
+      "kernel": "MmaW4A8ProjectionGroupedT3M16Kernel<true>",
+      "grid": [44, 24, 1],
+      "block": [128, 1, 1],
+      "duration_microseconds": 168.48,
+      "issue_slots_busy_percent": 39.79,
+      "executed_instructions": 23931072,
+      "registers_per_thread": 42,
+      "static_shared_bytes_per_block": 0,
+      "waves_per_sm": 1.76,
+      "theoretical_occupancy_percent": 83.33,
+      "achieved_occupancy_percent": 55.13,
+      "l1_tex_hit_percent": 62.53,
+      "l2_hit_percent": 86.54,
+      "average_l1tex_scoreboard_stall_cycles": 8.7,
+      "local_or_shared_spills": 0
+    }
+  },
+  "operator_correctness": {
+    "rates": ["K3", "K4", "mixed"],
+    "rollback_modes": ["off", "gate", "down", "both"],
+    "boundaries_per_combination": ["Gate+Up physical output", "Down physical output", "slot-ordered reduced output"],
+    "comparisons": 36,
+    "bit_mismatches": 0,
+    "full_gate_up_1408_before_split": true,
+    "cuda_graph_capture_and_replay": "passed",
+    "real_layer_0_m16_vs_independent_rows_bit_mismatches": 0,
+    "route_or_slot_order_bit_mismatches": 0,
+    "non_finite_values": 0
+  },
+  "candidate_dispatch_and_resources": {
+    "kernel": "MmaW4A8ProjectionGroupedT3M16N128InverseKernel<true>",
+    "gate_up_grid": [11, 24, 1],
+    "gate_up_block": [512, 1, 1],
+    "nsys_projection_and_inverse_nodes": 2,
+    "nsys_separate_output_transform_nodes": 0,
+    "nsys_projection_and_inverse_gpu_time_microseconds": 110.525,
+    "nsys_complete_operator_gpu_time_microseconds": 121.309,
+    "nsys_complete_operator_reduction_percent": 5.414298301,
+    "ncu_first_gate_up_projection_and_inverse": {
+      "duration_microseconds": 117.79,
+      "duration_reduction_vs_instrumented_baseline_percent": 30.08665717,
+      "issue_slots_busy_percent": 57.22,
+      "executed_instructions": 23884784,
+      "instruction_reduction_percent": 0.1934221752,
+      "registers_per_thread": 40,
+      "static_shared_bytes_per_block": 1536,
+      "driver_shared_bytes_per_block": 1024,
+      "stack_bytes": 16,
+      "local_bytes": 0,
+      "waves_per_sm": 1.47,
+      "theoretical_occupancy_percent": 100.0,
+      "achieved_occupancy_percent": 83.10,
+      "l1_tex_hit_percent": 64.82,
+      "l2_hit_percent": 84.49,
+      "average_l1tex_scoreboard_stall_cycles": 4.7,
+      "local_or_shared_spills": 0
+    },
+    "sass": {
+      "static_instructions": 808,
+      "qmmas": 4,
+      "f2fp_e4m3_f16": 16,
+      "f2fp_e4m3_f32": 0,
+      "executable_sha256": "a0386649d44234c88187a8a3a2a2c5872dc71ba380b8e2a56e92eebd6c2a6992"
+    }
+  },
+  "same_binary_t3_512_ab": {
+    "workload": "Wikipedia 16K prompt, Fixed-D2, greedy fixed 512 generated tokens",
+    "warmups": 1,
+    "measured_runs": 3,
+    "off_decode_tokens_per_second": {
+      "median": 177.7403668895088,
+      "samples": [177.7403668895088, 177.76200763228658, 177.72800311632665]
+    },
+    "gate_decode_tokens_per_second": {
+      "median": 182.34045210440866,
+      "samples": [182.34630811173437, 182.34045210440866, 182.31703183590753],
+      "gain_vs_off_percent": 2.5880925619
+    },
+    "down_decode_tokens_per_second": {
+      "median": 179.05887217439144,
+      "samples": [179.07142181307185, 179.05887217439144, 178.92908665630208],
+      "gain_vs_off_percent": 0.7418153276
+    },
+    "both_decode_tokens_per_second": {
+      "median": 184.40663286479852,
+      "samples": [184.50917310282324, 184.40663286479852, 184.39199356251828],
+      "gain_vs_off_tokens_per_second": 6.6662659753,
+      "gain_vs_off_percent": 3.7505638657
+    },
+    "off_prefill_tokens_per_second": 5710.242817759468,
+    "both_prefill_tokens_per_second": 5710.163212245623,
+    "workspace_bytes": 338850080,
+    "kv_cache_bytes": 277872640,
+    "output_token_sha256": "1c665647cdeeb592cf490419c957ad8c0e7e05aa40e273d4db33f7b8ad6426ec",
+    "accepted_tokens": 285,
+    "proposed_tokens": 448,
+    "rejected_tokens": 163,
+    "ordinary_fallback_tokens": 2,
+    "trajectory_identical": true,
+    "deterministic_outputs": true,
+    "executable_sha256": "e23b1ad1d32abb968cc0b276c532d8e7e32c8775a7f252e339b482c20217f63e"
+  },
+  "final_rebuild_smoke": {
+    "purpose": "confirm the final relinked binary after the last source-format rebuild without replacing the primary 1w3 attribution panel",
+    "executable_sha256": "fb94938b24becbf94ce77f6b1f41c6430a86c12fc18997cbd6aa456a40069f6e",
+    "off_decode_tokens_per_second": 177.79293212206824,
+    "both_decode_tokens_per_second": 184.61983127698394,
+    "both_gain_percent": 3.8398035,
+    "output_token_sha256": "1c665647cdeeb592cf490419c957ad8c0e7e05aa40e273d4db33f7b8ad6426ec",
+    "accepted_tokens": 285,
+    "proposed_tokens": 448,
+    "rejected_tokens": 163,
+    "workspace_bytes": 338850080,
+    "kv_cache_bytes": 277872640,
+    "deterministic_outputs": true
+  },
+  "full_wikipedia_16k_sampled": {
+    "sampling": true,
+    "seed": 0,
+    "prompt_tokens": 16384,
+    "generated_tokens": 1229,
+    "warmup_pairs": 1,
+    "measured_pairs": 3,
+    "ordinary_prefill_tokens_per_second": {
+      "median": 5692.229120560329,
+      "samples": [5693.277456928604, 5692.229120560329, 5685.789344003442]
+    },
+    "fixed_d2_prefill_tokens_per_second": {
+      "median": 5689.204955830879,
+      "samples": [5689.204955830879, 5690.627691794715, 5684.842386495723]
+    },
+    "ordinary_decode_tokens_per_second": {
+      "median": 130.45205674452006,
+      "samples": [130.5616276399391, 130.45205674452006, 130.44831516652874]
+    },
+    "fixed_d2_decode_tokens_per_second": {
+      "median": 182.6331898641554,
+      "samples": [182.6331898641554, 182.71226537915027, 182.6063034863231]
+    },
+    "ordinary_change_vs_wp26_percent": -0.2424198644,
+    "fixed_d2_gain_vs_wp26_percent": 3.0845377506,
+    "prefill_attribution": "unchanged dispatch; same-binary off/both prefill medians differ by 0.0014 percent, while the roughly one-percent shift from the earlier WP26 panel is system variation",
+    "ordinary_peak_vram_mib": 12522,
+    "fixed_d2_peak_vram_mib": 12794,
+    "ordinary_workspace_bytes": 333881888,
+    "fixed_d2_workspace_bytes": 340973600,
+    "kv_cache_bytes": 356515840,
+    "output_token_sha256": "12235104322e01e0d53875e11c980312f8f42fe763d04b0762697f54eb922c48",
+    "ordinary_equals_fixed_d2": true,
+    "accepted_tokens": 690,
+    "proposed_tokens": 1076,
+    "rejected_tokens": 386,
+    "acceptance_rate": 0.6412639405204461,
+    "mean_accepted_length": 1.28253,
+    "d2_groups": 538,
+    "target_batches": 538,
+    "target_forwards": 538,
+    "verification_groups": 538,
+    "ordinary_fallback_tokens": 0,
+    "deterministic_outputs": true,
+    "assistant_compilation_sha256": "d2a722ccad675807ff73a1a645a0f1fbcc0fc200c402a14e823a5927618a116d"
+  },
+  "environment": {
+    "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "gpu_memory_mib": 16303,
+    "driver": "610.43.03",
+    "cuda_compiler": "CUDA 13.3",
+    "nsight_systems": "2026.1.3",
+    "nsight_compute": "2026.2.1"
+  },
+  "sanitizers": {
+    "scope": "synthetic K3/K4/mixed off/gate/down/both matrix plus existing M1, T3 and prefill suite",
+    "memcheck_errors": 0,
+    "initcheck_errors": 0,
+    "racecheck_errors": 0,
+    "racecheck_warnings": 0
+  },
+  "tests": [
+    {
+      "command": "GEM16_TRELLIS35_T3_N128_INVERSE=both gem16-cuda-trellis35-tests --checkpoint <Trellis35 checkpoint>",
+      "result": "passed; exhaustive FP8 conversion, exact WP27 K3/K4/mixed rollback matrix, real layer-0 M1/T3 and prefill"
+    },
+    {
+      "command": "ctest --test-dir build/blackwell-release --output-on-failure -R '^gem16-(unit|cuda|cuda-moe-reference|cuda-trellis35|trellis35-compiler-contract|cuda-nvfp4-consumption)$'",
+      "result": "6/6 passed"
+    },
+    {
+      "command": "GEM16_12B_MODEL=<qualified snapshot> ctest --test-dir build/blackwell-release -R '^gem16-12b-m22-product$' --output-on-failure",
+      "result": "1/1 passed"
+    },
+    {
+      "command": "compute-sanitizer --tool memcheck|initcheck|racecheck --error-exitcode=99 gem16-cuda-trellis35-tests",
+      "result": "zero errors; racecheck zero hazards and warnings"
+    }
+  ],
+  "raw_evidence": [
+    {
+      "path": "artifacts/raw/trellis35/wp27/wp26-t3-union16-baseline.nsys-rep",
+      "sha256": "4de1dcccc9f704e566e9a3d714c1315d978a74750ee72d6dab2f52808d475d21"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp27/wp26-t3-m16-union16-baseline.ncu-rep",
+      "sha256": "b186aa20887f13987d7b8d6eb31394f816f81dc50f7fabb792ce18613d55a317"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp27/wp27-t3-n128-union16-candidate.nsys-rep",
+      "sha256": "7d0a4884bd6a2ff6b504850ddc4909ee9877aefd3caee05e8ca473cee6bc9d27"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp27/wp27-t3-m16-n128-union16-candidate.ncu-rep",
+      "sha256": "007fee591c841ad3b5726ade33fc0146a2504e0239fee7d8747a7ffe2d24f57e"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp27/wp27-t3-m16-n128-native-sass.txt",
+      "sha256": "c6cc3ff0c0b4b90ad84578ccb37e7fee40ab0237bded3feb0960e1af28d228dd"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp27/t3-n128-off-d2-512-1w3.json",
+      "sha256": "7dfaebf3476da28579441717f878109f612e010a34469478d819fc2b6a45212b"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp27/t3-n128-gate-d2-512-1w3.json",
+      "sha256": "649d246d3f176c7bcb6ba6204822f6bb2e176b72b176f4ae56d74ba285da00ee"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp27/t3-n128-down-d2-512-1w3.json",
+      "sha256": "48694da3b2b2bce758474583ae4a2f6e5e91768ebd65ca62124028b38d702d31"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp27/t3-n128-both-d2-512-1w3.json",
+      "sha256": "794f483faea75ef25426d1c1c3a5051ea4e827e1d1d1a212855628530fc51d66"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp27/t3-n128-full-wikipedia-16k-sampled-1w3.json",
+      "sha256": "283351a1316fd5cd88fe95edde189acd731c9b1714d5fa0f5536a25cfc9be37c"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp27/final-binary-off-d2-512-0w1.json",
+      "sha256": "30a97a54e6f02946bb03627eed118e22fe58b4ee62b5fb14dd25a6b74f1df44a"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp27/final-binary-both-d2-512-0w1.json",
+      "sha256": "6645a89179f7e5684fc2f03d114d26d7807cae29a578855ed43e5872ca4e78fd"
+    }
+  ],
+  "limitations": [
+    "Trellis35 remains experimental; WP27 does not change either qualified 12B or 26B path.",
+    "Raw characterization records bind the dirty candidate worktree through executable hashes; no publication or qualified-product claim is made.",
+    "The 512-token same-binary panel is the primary attribution evidence; the full sampled comparison against WP26 is contextual across separate runs.",
+    "The legacy transformed-output workspace remains allocated for byte-identical capacity and independent rollback even when the default fused mode does not write it."
+  ],
+  "decision": "retain T3 M16 N128 inverse-H128 fusion for Gate+Up and Down by default; retain off, gate, down and both same-binary modes"
+}

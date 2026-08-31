@@ -57,6 +57,112 @@ void TestSyntheticT3() {
                       "synthetic T3 maximal-overlap", true);
 }
 
+void TestWp27T3N128InverseMatrix() {
+  struct RateCase {
+    std::uint16_t forced_rate;
+    const char* name;
+  };
+  constexpr std::array<RateCase, 3> kRates{{{3U, "K3"},
+                                            {4U, "K4"},
+                                            {0U, "mixed"}}};
+  struct ModeCase {
+    gem16::internal::Trellis35T3ProjectionOutputMode mode;
+    const char* name;
+  };
+  constexpr std::array<ModeCase, 4> kModes{{
+      {gem16::internal::Trellis35T3ProjectionOutputMode::kSeparateN32,
+       "off"},
+      {gem16::internal::Trellis35T3ProjectionOutputMode::kGateUpFusedN128,
+       "gate"},
+      {gem16::internal::Trellis35T3ProjectionOutputMode::kDownFusedN128,
+       "down"},
+      {gem16::internal::Trellis35T3ProjectionOutputMode::kFusedN128, "both"},
+  }};
+
+  DeviceBuffer<float> input(gem16::internal::kTrellis35T3Rows *
+                            gem16::internal::kTrellis35GateUpInput);
+  std::vector<float> host_input(input.elements());
+  for (std::uint64_t index = 0U; index < host_input.size(); ++index) {
+    host_input[index] =
+        std::sin(static_cast<float>(index * 29U + 17U) * 0.00390625F) *
+        1.0e-4F;
+  }
+  CHECK(Upload(input, host_input, "upload WP27 T3 input"));
+  const auto host_ids = MakeT3RoutesWithUnionSize(16U);
+  std::array<float, gem16::internal::kTrellis35T3Assignments> host_weights{};
+  host_weights.fill(0.125F);
+  DeviceBuffer<std::uint32_t> ids(gem16::internal::kTrellis35T3Assignments);
+  DeviceBuffer<float> weights(gem16::internal::kTrellis35T3Assignments);
+  CHECK(Upload(ids, host_ids, "upload WP27 T3 IDs"));
+  CHECK(Upload(weights, host_weights, "upload WP27 T3 weights"));
+
+  auto compare_bits = [](const DeviceBuffer<float>& expected,
+                         const DeviceBuffer<float>& actual,
+                         const std::string& description) {
+    CHECK(expected.elements() == actual.elements());
+    std::vector<float> host_expected(expected.elements());
+    std::vector<float> host_actual(actual.elements());
+    CHECK(CudaOk(cudaMemcpy(host_expected.data(), expected.get(),
+                            expected.bytes(), cudaMemcpyDeviceToHost),
+                 "download WP27 expected values"));
+    CHECK(CudaOk(cudaMemcpy(host_actual.data(), actual.get(), actual.bytes(),
+                            cudaMemcpyDeviceToHost),
+                 "download WP27 actual values"));
+    std::uint64_t mismatches = 0U;
+    for (std::size_t index = 0U; index < host_expected.size(); ++index) {
+      if (std::bit_cast<std::uint32_t>(host_expected[index]) !=
+          std::bit_cast<std::uint32_t>(host_actual[index])) {
+        ++mismatches;
+      }
+    }
+    std::cout << description << " bit_mismatches=" << mismatches << '\n';
+    CHECK(mismatches == 0U);
+  };
+
+  for (const auto& rate : kRates) {
+    FamilyStorage gate(gem16::internal::kTrellis35GateUpInput,
+                       gem16::internal::kTrellis35GateUpOutput, 2701U,
+                       rate.forced_rate);
+    FamilyStorage down(gem16::internal::kTrellis35DownInput,
+                       gem16::internal::kTrellis35DownOutput, 2711U,
+                       rate.forced_rate);
+    const gem16::internal::Trellis35DeviceLayerBinding layer{gate.binding,
+                                                             down.binding};
+    T3Storage baseline_storage;
+    DeviceBuffer<float> baseline_output(
+        gem16::internal::kTrellis35T3Rows *
+        gem16::internal::kTrellis35DownOutput);
+    (void)RunFullT3(
+        layer, input, ids, weights, baseline_storage, baseline_output, 1U,
+        false, gem16::internal::Trellis35SmallTransformMode::kWarpH128,
+        gem16::internal::Trellis35T3ProjectionMode::kM16,
+        gem16::internal::Trellis35SmallGeluDownMode::kFusedTransformQuantize,
+        gem16::internal::Trellis35T3ProjectionOutputMode::kSeparateN32);
+    for (const auto& mode : kModes) {
+      T3Storage candidate_storage;
+      DeviceBuffer<float> candidate_output(
+          gem16::internal::kTrellis35T3Rows *
+          gem16::internal::kTrellis35DownOutput);
+      (void)RunFullT3(
+          layer, input, ids, weights, candidate_storage, candidate_output, 1U,
+          mode.mode ==
+              gem16::internal::Trellis35T3ProjectionOutputMode::kFusedN128,
+          gem16::internal::Trellis35SmallTransformMode::kWarpH128,
+          gem16::internal::Trellis35T3ProjectionMode::kM16,
+          gem16::internal::Trellis35SmallGeluDownMode::
+              kFusedTransformQuantize,
+          mode.mode);
+      const std::string prefix = std::string("WP27 T3 N128 ") + rate.name +
+                                 " mode=" + mode.name;
+      compare_bits(baseline_storage.gate_output,
+                   candidate_storage.gate_output, prefix + " Gate+Up");
+      compare_bits(baseline_storage.down_output,
+                   candidate_storage.down_output, prefix + " Down");
+      compare_bits(baseline_output, candidate_output, prefix + " reduced");
+    }
+  }
+}
+
 void ProfileSyntheticT3(unsigned unique_experts) {
   FamilyStorage gate(gem16::internal::kTrellis35GateUpInput,
                      gem16::internal::kTrellis35GateUpOutput, 503U);
@@ -218,6 +324,7 @@ void TestWp20SmallGeluDownMatrix() {
 
 int RunTrellis35T3Tests() {
   TestSyntheticT3();
+  TestWp27T3N128InverseMatrix();
   return failures;
 }
 
