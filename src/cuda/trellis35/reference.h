@@ -70,6 +70,13 @@ enum class Trellis35M1ProjectionOutputMode {
   kDownFusedN128,
 };
 
+enum class Trellis35VectorStoreMode {
+  // Production selection with an explicit scalar-store rollback.
+  kEnvironment,
+  kDisabled,
+  kEnabled,
+};
+
 // Diagnostic-only bounded materialization used to decide whether a transient
 // decoded-weight cache can beat inline Trellis decode. The slab is row-major
 // E4M3 with unit BF16 row scales and is never an engine/runtime fallback.
@@ -158,7 +165,9 @@ struct Trellis35T3Workspace {
     Trellis35SmallGeluDownMode gelu_down_mode =
         Trellis35SmallGeluDownMode::kSeparate,
     Trellis35M1ProjectionOutputMode projection_output_mode =
-        Trellis35M1ProjectionOutputMode::kEnvironment);
+        Trellis35M1ProjectionOutputMode::kEnvironment,
+    Trellis35VectorStoreMode vector_store_mode =
+        Trellis35VectorStoreMode::kEnvironment);
 
 // Dedicated Fixed-D2 T=3 path. This is one 24-assignment pipeline, not three
 // M1 calls. Each first-occurrence expert group decodes a weight fragment once
@@ -175,7 +184,9 @@ struct Trellis35T3Workspace {
     Trellis35SmallGeluDownMode gelu_down_mode =
         Trellis35SmallGeluDownMode::kSeparate,
     Trellis35T3ProjectionOutputMode projection_output_mode =
-        Trellis35T3ProjectionOutputMode::kEnvironment);
+        Trellis35T3ProjectionOutputMode::kEnvironment,
+    Trellis35VectorStoreMode vector_store_mode =
+        Trellis35VectorStoreMode::kEnvironment);
 
 // Routed-expert-only prefill replacement. normalized_hidden contains T
 // recurrent BF16 values in FP32 containers. The launcher consumes the existing

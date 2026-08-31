@@ -1,0 +1,174 @@
+{
+  "schema_version": 1,
+  "work_packet": "PFX28-D",
+  "status": "accepted_and_closeout_qualified",
+  "implementation_parent_revision": "540dd005f8ac6fcf729aec66d1d224af9098a301",
+  "candidate": {
+    "name": "T3/M1 aligned 128-bit inverse-H128 output stores",
+    "source_retained": true,
+    "default_enabled": true,
+    "t3_rollback_environment": "GEM16_TRELLIS35_T3_VECTOR_STORE=0|1",
+    "m1_rollback_environment": "GEM16_TRELLIS35_M1_VECTOR_STORE=0|1",
+    "alignment_contract": {
+      "output_base_bytes": 16,
+      "output_stride_floats_multiple": 4,
+      "output_block_floats_multiple": 4,
+      "lane_offset_floats_multiple": 4,
+      "runtime_output_pointer_validation": true
+    },
+    "precision_changed": false,
+    "rounding_boundary_changed": false,
+    "workspace_delta_bytes": 0
+  },
+  "correctness": {
+    "rates": ["K3", "K4", "mixed"],
+    "t3_n128_modes": ["off", "gate", "down", "both"],
+    "gate_up_bit_mismatches": 0,
+    "down_bit_mismatches": 0,
+    "reduced_output_bit_mismatches": 0,
+    "m1_cuda_graph_replay": "passed",
+    "t3_cuda_graph_replay": "passed",
+    "same_binary_output_token_sha256": "1c665647cdeeb592cf490419c957ad8c0e7e05aa40e273d4db33f7b8ad6426ec",
+    "generated_tokens": 512,
+    "d2_trajectory": {
+      "accepted_tokens": 285,
+      "proposed_tokens": 448,
+      "rejected_tokens": 163,
+      "ordinary_fallback_tokens": 2,
+      "identical": true
+    }
+  },
+  "sass": {
+    "t3_scalar": {"static_instructions": 808, "stg": 4},
+    "t3_vector": {"static_instructions": 800, "stg_e_128": 1},
+    "m1_scalar": {"static_instructions": 1240, "stg": 4},
+    "m1_vector": {"static_instructions": 1232, "stg_e_128": 1},
+    "measured_executable_sha256": "0de3efc826022cdf87068a5bc3590f12077fe329f6cde8a2dfacd26a29505d23"
+  },
+  "resources": {
+    "t3_scalar_and_vector": {
+      "registers_per_thread": 40,
+      "stack_bytes": 16,
+      "static_shared_bytes_per_block": 1536,
+      "driver_shared_bytes_per_block": 1024,
+      "local_bytes": 0,
+      "local_or_shared_spills": 0
+    },
+    "m1_scalar_and_vector": {
+      "registers_per_thread": 55,
+      "stack_bytes": 0,
+      "static_shared_bytes_per_block": 512,
+      "driver_shared_bytes_per_block": 1024,
+      "local_bytes": 0,
+      "local_or_shared_spills": 0
+    }
+  },
+  "ncu": {
+    "t3_union16_gate_up": {
+      "scalar_duration_microseconds": 126.30,
+      "vector_duration_microseconds": 116.83,
+      "gain_percent": 7.49802,
+      "scalar_issue_slots_busy_percent": 56.46,
+      "vector_issue_slots_busy_percent": 57.61,
+      "scalar_achieved_occupancy_percent": 82.30,
+      "vector_achieved_occupancy_percent": 83.43
+    },
+    "m1_gate_up": {
+      "scalar_duration_microseconds": 70.82,
+      "vector_duration_microseconds": 69.76,
+      "gain_percent": 1.49675,
+      "scalar_issue_slots_busy_percent": 49.40,
+      "vector_issue_slots_busy_percent": 49.75,
+      "scalar_achieved_occupancy_percent": 46.20,
+      "vector_achieved_occupancy_percent": 47.31
+    }
+  },
+  "same_binary_t3_d2_512_ab": {
+    "rollback_decode_tokens_per_second": {
+      "median": 184.08842008184908,
+      "samples": [184.21318259816292, 184.01814973531634, 184.08842008184908]
+    },
+    "candidate_decode_tokens_per_second": {
+      "median": 184.36538260326807,
+      "samples": [184.47453637686232, 184.30088291303596, 184.36538260326807],
+      "gain_percent": 0.150450811
+    },
+    "workspace_bytes": 338850080,
+    "kv_cache_bytes": 277872640,
+    "classification": "neutral positive with independent combinability"
+  },
+  "same_binary_m1_ordinary_512_ab": {
+    "rollback_decode_tokens_per_second": {
+      "median": 127.52078139544169,
+      "samples": [127.52078139544169, 127.40282729561943, 127.52237256497153]
+    },
+    "candidate_decode_tokens_per_second": {
+      "median": 127.95825205521987,
+      "samples": [127.95664998973342, 127.98773722188966, 127.95825205521987],
+      "gain_percent": 0.343058327
+    },
+    "workspace_bytes": 331911968,
+    "kv_cache_bytes": 277872640
+  },
+  "full_wikipedia_16k_sampled_3w10_same_binary_ab": {
+    "generated_tokens": 1229,
+    "output_token_sha256": "12235104322e01e0d53875e11c980312f8f42fe763d04b0762697f54eb922c48",
+    "d2_trajectory": {
+      "accepted_tokens": 690,
+      "proposed_tokens": 1076,
+      "rejected_tokens": 386,
+      "verification_groups": 538,
+      "ordinary_fallback_tokens": 0,
+      "identical_across_all_runs": true
+    },
+    "rollback": {
+      "ordinary_decode_tokens_per_second_median": 130.50002359229802,
+      "d2_decode_tokens_per_second_median": 182.37944311126543,
+      "ordinary_prompt_tokens_per_second_median": 5679.344518643687,
+      "d2_prompt_tokens_per_second_median": 5677.868323935645,
+      "ordinary_peak_memory_used_mib": 12522.0,
+      "d2_peak_memory_used_mib": 12794.0
+    },
+    "candidate": {
+      "ordinary_decode_tokens_per_second_median": 130.90603124415907,
+      "ordinary_decode_gain_percent": 0.3111169184,
+      "d2_decode_tokens_per_second_median": 182.5260994741202,
+      "d2_decode_gain_percent": 0.0804127704,
+      "ordinary_prompt_tokens_per_second_median": 5666.567208535003,
+      "d2_prompt_tokens_per_second_median": 5666.392119480362,
+      "ordinary_peak_memory_used_mib": 12522.0,
+      "d2_peak_memory_used_mib": 12794.0
+    },
+    "prefill_interpretation": "The vector-store switches are decode-only and the same executable was used. The sequential prefill medians moved by about -0.2 percent with overlapping confidence intervals; no prefill-path change or speed claim is attributed to PFX28-D.",
+    "executable_sha256": "1444894fb18aa535005b14dd7a971ba2c6b560639c67dc57e290566c8ed161d4"
+  },
+  "closeout_validation": {
+    "trellis35_synthetic_suite": "passed",
+    "trellis35_real_checkpoint_layer0": "passed",
+    "ctest": "13 of 13 passed or explicitly skipped before model-qualified reruns",
+    "compute_sanitizer": ["memcheck passed", "initcheck passed", "racecheck passed"],
+    "qualified_26b_nvfp4_product_tests": "passed",
+    "qualified_12b_product_test": "passed"
+  },
+  "decision": {
+    "kernel_gate_percent": 1.0,
+    "t3_kernel_gate_met": true,
+    "m1_kernel_gate_met": true,
+    "full_path_gate_percent": 0.2,
+    "t3_full_path_classification": "neutral positive and independently combinable",
+    "m1_full_path_gate_met": true,
+    "reason": "Both paths replace four scalar stores with one aligned STG.E.128, reduce static instructions by eight, preserve resources and exact outputs, and are non-regressing at their complete decode boundaries."
+  },
+  "raw_evidence": [
+    {"path": "artifacts/raw/trellis35/pfx28d/t3-scalar.ncu-rep", "sha256": "3e67b9ce95e10b34bfae7982e12a15d2171ba7117292c2ad0d91b6f418bdd454"},
+    {"path": "artifacts/raw/trellis35/pfx28d/t3-vector.ncu-rep", "sha256": "75274a829bb2ce45eedb591fadfb8d26410d74eb9201a7313dc3a077a0c113bb"},
+    {"path": "artifacts/raw/trellis35/pfx28d/m1-scalar.ncu-rep", "sha256": "608ec0ef79ecf46b536b4dfa04d3c00d3da6450b49886a8ec1b5600cd54d2c20"},
+    {"path": "artifacts/raw/trellis35/pfx28d/m1-vector.ncu-rep", "sha256": "5695010e7640929c99261354a8bec8906622ddec8beb7c56654e6df5a7258061"},
+    {"path": "artifacts/raw/trellis35/pfx28d/t3-vector-off-d2-512-1w3.json", "sha256": "806d85ab6c019bdc8a171b37425b2a22e9a45c54b18a67ddf955d61faf55dce8"},
+    {"path": "artifacts/raw/trellis35/pfx28d/t3-vector-on-d2-512-1w3.json", "sha256": "8b2bff91af74f1b87e3dc2689b74fb694792bd8de3a95d99da610f004c119200"},
+    {"path": "artifacts/raw/trellis35/pfx28d/m1-vector-off-ordinary-512-1w3.json", "sha256": "afb25a4f4b2ee74540dcb0e80b2c05e6e00d48f045133e6d7b1ab2aadcb5d556"},
+    {"path": "artifacts/raw/trellis35/pfx28d/m1-vector-on-ordinary-512-1w3.json", "sha256": "ae4cffad3d278bebd1a606a3b9229c8e8e1cdd3caa4b9d9ca19152cafb664836"},
+    {"path": "artifacts/raw/trellis35/pfx31/vector-stores-off-full-wikipedia-16k-sampled-3w10.json", "sha256": "b052c3daf3cc770f5a48889441dbccf47db312c51437c07faba38dbfcfadc1e4"},
+    {"path": "artifacts/raw/trellis35/pfx31/vector-stores-on-full-wikipedia-16k-sampled-3w10.json", "sha256": "6940704af7914f76d4322d0e10b9c707dac367f18cddb23413caecc7456aee3b"}
+  ]
+}

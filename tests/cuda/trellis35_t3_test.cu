@@ -139,10 +139,21 @@ void TestWp27T3N128InverseMatrix() {
         gem16::internal::Trellis35SmallGeluDownMode::kFusedTransformQuantize,
         gem16::internal::Trellis35T3ProjectionOutputMode::kSeparateN32);
     for (const auto& mode : kModes) {
+      T3Storage rollback_storage;
       T3Storage candidate_storage;
+      DeviceBuffer<float> rollback_output(
+          gem16::internal::kTrellis35T3Rows *
+          gem16::internal::kTrellis35DownOutput);
       DeviceBuffer<float> candidate_output(
           gem16::internal::kTrellis35T3Rows *
           gem16::internal::kTrellis35DownOutput);
+      (void)RunFullT3(
+          layer, input, ids, weights, rollback_storage, rollback_output, 1U,
+          false, gem16::internal::Trellis35SmallTransformMode::kWarpH128,
+          gem16::internal::Trellis35T3ProjectionMode::kM16,
+          gem16::internal::Trellis35SmallGeluDownMode::
+              kFusedTransformQuantize,
+          mode.mode, gem16::internal::Trellis35VectorStoreMode::kDisabled);
       (void)RunFullT3(
           layer, input, ids, weights, candidate_storage, candidate_output, 1U,
           mode.mode ==
@@ -151,9 +162,17 @@ void TestWp27T3N128InverseMatrix() {
           gem16::internal::Trellis35T3ProjectionMode::kM16,
           gem16::internal::Trellis35SmallGeluDownMode::
               kFusedTransformQuantize,
-          mode.mode);
+          mode.mode, gem16::internal::Trellis35VectorStoreMode::kEnabled);
       const std::string prefix = std::string("WP27 T3 N128 ") + rate.name +
                                  " mode=" + mode.name;
+      compare_bits(rollback_storage.gate_output,
+                   candidate_storage.gate_output,
+                   prefix + " PFX28-D vector Gate+Up");
+      compare_bits(rollback_storage.down_output,
+                   candidate_storage.down_output,
+                   prefix + " PFX28-D vector Down");
+      compare_bits(rollback_output, candidate_output,
+                   prefix + " PFX28-D vector reduced");
       compare_bits(baseline_storage.gate_output,
                    candidate_storage.gate_output, prefix + " Gate+Up");
       compare_bits(baseline_storage.down_output,

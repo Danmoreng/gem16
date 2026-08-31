@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "work_packet": "PFX31",
+  "status": "performance_frozen_vision_not_started",
+  "implementation_parent_revision": "540dd005f8ac6fcf729aec66d1d224af9098a301",
+  "retained_candidate": "PFX28-D aligned 128-bit T3/M1 inverse-H128 output stores",
+  "candidate_outcomes": [
+    {
+      "work_packet": "PFX28-A",
+      "outcome": "rejected_rolled_back",
+      "reason": "prefill kernel gain below the 3 percent gate"
+    },
+    {
+      "work_packet": "PFX28-B",
+      "outcome": "rejected_rolled_back",
+      "reason": "D2 512-token same-binary gain was 0.0875 percent, below the 0.4 percent gate"
+    },
+    {
+      "work_packet": "PFX28-C",
+      "outcome": "not_opened",
+      "reason": "PFX28-B did not pass"
+    },
+    {
+      "work_packet": "PFX28-D",
+      "outcome": "accepted",
+      "reason": "exact outputs, reduced store instruction count, faster kernels, +0.3111 percent full Ordinary and neutral-positive +0.0804 percent full D2"
+    },
+    {
+      "work_packet": "PFX29 scalar",
+      "outcome": "rejected_rolled_back",
+      "reason": "isolated T3 kernel regressed 12.3312 percent"
+    },
+    {
+      "work_packet": "PFX29 ballot",
+      "outcome": "rejected_rolled_back",
+      "reason": "isolated T3 kernel regressed 10.9545 percent"
+    },
+    {
+      "work_packet": "PFX29 shared",
+      "outcome": "not_opened",
+      "reason": "owner directed closeout after ballot rejection"
+    },
+    {
+      "work_packet": "PFX30",
+      "outcome": "remains_locked",
+      "reason": "no qualifying new NSYS/NCU evidence and closeout stop condition reached"
+    }
+  ],
+  "same_binary_full_wikipedia_16k_sampled_3w10": {
+    "executable_sha256": "1444894fb18aa535005b14dd7a971ba2c6b560639c67dc57e290566c8ed161d4",
+    "rollback": {
+      "ordinary_decode_tokens_per_second_median": 130.50002359229802,
+      "d2_decode_tokens_per_second_median": 182.37944311126543,
+      "ordinary_prompt_tokens_per_second_median": 5679.344518643687,
+      "d2_prompt_tokens_per_second_median": 5677.868323935645
+    },
+    "candidate": {
+      "ordinary_decode_tokens_per_second_median": 130.90603124415907,
+      "ordinary_gain_percent": 0.3111169184,
+      "d2_decode_tokens_per_second_median": 182.5260994741202,
+      "d2_gain_percent": 0.0804127704,
+      "ordinary_prompt_tokens_per_second_median": 5666.567208535003,
+      "d2_prompt_tokens_per_second_median": 5666.392119480362
+    },
+    "identity": {
+      "generated_tokens": 1229,
+      "output_token_sha256": "12235104322e01e0d53875e11c980312f8f42fe763d04b0762697f54eb922c48",
+      "accepted_tokens": 690,
+      "proposed_tokens": 1076,
+      "rejected_tokens": 386,
+      "d2_groups": 538,
+      "ordinary_fallback_tokens": 0,
+      "identical_in_all_26_runs_per_side": true
+    },
+    "memory": {
+      "ordinary_peak_memory_used_mib_rollback_and_candidate": 12522.0,
+      "d2_peak_memory_used_mib_rollback_and_candidate": 12794.0,
+      "workspace_delta_bytes": 0
+    }
+  },
+  "validation": {
+    "build": "passed",
+    "trellis35_synthetic_and_exact_matrix": "passed",
+    "trellis35_real_checkpoint_layer0": "passed",
+    "compute_sanitizer_memcheck": "passed",
+    "compute_sanitizer_initcheck": "passed",
+    "compute_sanitizer_racecheck": "passed",
+    "qualified_26b_nvfp4_engine_and_product": "passed",
+    "qualified_12b_product": "passed"
+  },
+  "freeze_decision": {
+    "closeout_gain_below_one_percent": true,
+    "prefill_5750_target_met_in_final_panel": false,
+    "d2_185_target_met_in_final_panel": false,
+    "targets_are_mandatory": false,
+    "trellis_micro_optimization_status": "stopped",
+    "vision_status": "awaiting_owner_approval_after_commit_and_push"
+  },
+  "raw_evidence": [
+    {
+      "path": "artifacts/raw/trellis35/pfx31/vector-stores-off-full-wikipedia-16k-sampled-3w10.json",
+      "sha256": "b052c3daf3cc770f5a48889441dbccf47db312c51437c07faba38dbfcfadc1e4"
+    },
+    {
+      "path": "artifacts/raw/trellis35/pfx31/vector-stores-on-full-wikipedia-16k-sampled-3w10.json",
+      "sha256": "6940704af7914f76d4322d0e10b9c707dac367f18cddb23413caecc7456aee3b"
+    }
+  ]
+}

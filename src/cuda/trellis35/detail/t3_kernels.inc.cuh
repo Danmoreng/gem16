@@ -210,7 +210,7 @@ __global__ void MmaW4A8ProjectionGroupedT3M16Kernel(
 #endif
 }
 
-template <bool NativeFp8x4>
+template <bool NativeFp8x4, bool VectorStore>
 __global__ void MmaW4A8ProjectionGroupedT3M16N128InverseKernel(
     const std::uint8_t* activation, const float* activation_scales,
     Trellis35DeviceFamilyBinding family,
@@ -294,9 +294,17 @@ __global__ void MmaW4A8ProjectionGroupedT3M16N128InverseKernel(
     float* assignment_output =
         output + static_cast<std::uint64_t>(assignment) * output_elements +
         output_block + index;
+    if constexpr (VectorStore) {
+      const float4 packed{inverse[0] * F16(svh),
+                          inverse[1] * F16(svh + 1U),
+                          inverse[2] * F16(svh + 2U),
+                          inverse[3] * F16(svh + 3U)};
+      *reinterpret_cast<float4*>(assignment_output) = packed;
+    } else {
 #pragma unroll
-    for (unsigned element = 0U; element < 4U; ++element) {
-      assignment_output[element] = inverse[element] * F16(svh + element);
+      for (unsigned element = 0U; element < 4U; ++element) {
+        assignment_output[element] = inverse[element] * F16(svh + element);
+      }
     }
   }
 #else

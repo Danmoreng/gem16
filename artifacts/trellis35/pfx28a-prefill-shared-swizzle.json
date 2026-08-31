@@ -1,0 +1,118 @@
+{
+  "schema_version": 1,
+  "work_packet": "PFX28-A",
+  "status": "rejected_rolled_back",
+  "implementation_parent_revision": "540dd005f8ac6fcf729aec66d1d224af9098a301",
+  "candidate": {
+    "name": "Prefill M32/M64 N128 shared-projection XOR swizzle",
+    "rollback_environment": "GEM16_TRELLIS35_PREFILL_SHARED_SWIZZLE=0|1",
+    "default_during_measurement": "0",
+    "source_retained": false,
+    "precision_changed": false,
+    "rounding_boundary_changed": false,
+    "workspace_delta_bytes": 0
+  },
+  "host_layout_proof": {
+    "rows": [0, 63],
+    "columns": [0, 127],
+    "every_row_is_a_permutation": true,
+    "h128_load_conflicts": 0,
+    "m32_store_conflicts": 0,
+    "m64_store_conflicts": 0
+  },
+  "same_binary_correctness": {
+    "rates": ["K3", "K4", "mixed"],
+    "kernels": ["M32", "M64"],
+    "row_boundaries": [1, 15, 16, 17, 31, 32, 33, 63, 64],
+    "comparisons": 54,
+    "gate_up_bit_mismatches": 0,
+    "down_bit_mismatches": 0,
+    "reduced_output_bit_mismatches": 0,
+    "cuda_graph_replay": "passed",
+    "real_shaped_2048_tokens": "bit-identical"
+  },
+  "resources": {
+    "rollback_m64_bf16": {
+      "registers_per_thread": 64,
+      "static_shared_bytes_per_block": 38144,
+      "stack_bytes": 0,
+      "local_bytes": 0
+    },
+    "candidate_m64_bf16": {
+      "registers_per_thread": 64,
+      "static_shared_bytes_per_block": 38144,
+      "stack_bytes": 0,
+      "local_bytes": 0
+    }
+  },
+  "sass_m64_bf16": {
+    "rollback": {
+      "static_instructions": 1936,
+      "lds": 141,
+      "sts": 17,
+      "lop3": 129,
+      "shf": 61,
+      "iadd3": 7
+    },
+    "candidate": {
+      "static_instructions": 2016,
+      "lds": 141,
+      "sts": 17,
+      "lop3": 171,
+      "shf": 77,
+      "iadd3": 7
+    },
+    "measured_executable_sha256": "87108200a6f864ae5ec4fca1642aefbb132ee77fa4a5943cffcd63e015ab6202"
+  },
+  "ncu_production_bf16_m64": {
+    "workload": "Wikipedia 16K production prefill, first layer M64 BF16 projection",
+    "rollback": {
+      "duration_milliseconds": 3.80,
+      "issue_slots_busy_percent": 55.69,
+      "excessive_shared_wavefronts": 78862960,
+      "total_shared_wavefronts": 146506448,
+      "registers_per_thread": 64,
+      "static_shared_kib": 37.12,
+      "theoretical_occupancy_percent": 66.67,
+      "achieved_occupancy_percent": 65.92,
+      "local_or_shared_spills": 0
+    },
+    "candidate": {
+      "duration_milliseconds": 3.77,
+      "duration_gain_percent_rounded": 0.79,
+      "issue_slots_busy_percent": 56.67,
+      "excessive_shared_wavefronts": 72082120,
+      "total_shared_wavefronts": 139725608,
+      "excessive_shared_wavefront_reduction_percent": 8.60,
+      "registers_per_thread": 64,
+      "static_shared_kib": 37.12,
+      "theoretical_occupancy_percent": 66.67,
+      "achieved_occupancy_percent": 65.88,
+      "local_or_shared_spills": 0
+    }
+  },
+  "decision": {
+    "required_addressed_kernel_gain_percent": 3.0,
+    "observed_addressed_kernel_gain_percent_rounded": 0.79,
+    "full_16k_ab_run": "not_run_after_hard_kernel_gate_failed",
+    "reason": "Shared conflicts fell materially without resource growth, but the production BF16 kernel missed the mandatory 3 percent speed gate. The additional address instructions outweighed most of the saved shared-memory work."
+  },
+  "raw_evidence": [
+    {
+      "path": "artifacts/raw/trellis35/pfx28a/prefill-m64-bf16-parent.ncu-rep",
+      "sha256": "e1e345c8844099fa8e024d397232ff2073f39ca1b63b45f156025d4e9f2d254a"
+    },
+    {
+      "path": "artifacts/raw/trellis35/pfx28a/prefill-m64-bf16-candidate.ncu-rep",
+      "sha256": "9e8f1e4f80170eac0317ca09034f5f7aa4f4d03e6cde694f32cfe514595d3db5"
+    },
+    {
+      "path": "artifacts/raw/trellis35/pfx28a/prefill-m64-parent.ncu-rep",
+      "sha256": "4b38109ea741486ddaab3172ef6144c81cf4d4eb40e68105305f2f0bda9dd902"
+    },
+    {
+      "path": "artifacts/raw/trellis35/pfx28a/prefill-m64-candidate.ncu-rep",
+      "sha256": "5591c52ccd34ba87733b2ebe21178c07af43c59fd40edf54635b2783d6a8526c"
+    }
+  ]
+}

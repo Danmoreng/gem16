@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "work_packet": "PFX29",
+  "status": "rejected_rolled_back",
+  "implementation_parent_revision": "540dd005f8ac6fcf729aec66d1d224af9098a301",
+  "scope": "T3 M16/N128 route construction without assignments[3] local storage",
+  "variants": {
+    "scalar": {
+      "source_retained": false,
+      "correctness": "bit-exact in K3/K4/mixed and off/gate/down/both matrix",
+      "registers_per_thread": 40,
+      "stack_bytes": 0,
+      "local_bytes": 0,
+      "static_shared_bytes_per_block": 1536,
+      "ncu_union16_duration_microseconds": 138.464,
+      "ncu_executed_instructions": 31718808,
+      "duration_change_percent": -12.3312
+    },
+    "ballot": {
+      "source_retained": false,
+      "correctness": "bit-exact in K3/K4/mixed and off/gate/down/both matrix",
+      "registers_per_thread": 40,
+      "stack_bytes": 0,
+      "local_bytes": 0,
+      "static_shared_bytes_per_block": 1536,
+      "ncu_union16_duration_microseconds": 136.768,
+      "ncu_executed_instructions": 31248536,
+      "duration_change_percent": -10.9545
+    },
+    "shared": {
+      "status": "not_opened_by_owner_direction_after_scalar_and_ballot_rejection"
+    }
+  },
+  "same_binary_parent": {
+    "registers_per_thread": 40,
+    "stack_bytes": 16,
+    "local_bytes": 0,
+    "static_shared_bytes_per_block": 1536,
+    "ncu_union16_duration_microseconds": 123.264,
+    "ncu_executed_instructions": 23885224
+  },
+  "decision": {
+    "kernel_gate_percent": 2.0,
+    "scalar_gate_met": false,
+    "ballot_gate_met": false,
+    "full_path_run": "not_run_after_hard_kernel_gate_failed",
+    "reason": "Both candidates removed compiler stack storage but materially increased executed instructions and regressed the isolated T3 N128 kernel. The owner directed rejection after the ballot result, so no shared-descriptor variant was opened."
+  },
+  "raw_evidence": [
+    {
+      "path": "artifacts/raw/trellis35/pfx29/route-legacy.ncu-rep",
+      "sha256": "0f6b9852604bd49ed439a5e87f6a99dff3173a4ee1225600ce1035914496fd4c"
+    },
+    {
+      "path": "artifacts/raw/trellis35/pfx29/route-scalar.ncu-rep",
+      "sha256": "3cb5ed947b57ec7a60a038509ba6e301fc1f2998a69c0243516a07418ebd87a0"
+    },
+    {
+      "path": "artifacts/raw/trellis35/pfx29/route-ballot.ncu-rep",
+      "sha256": "ec34466b3125956bacdc959ff50cb2a8beac1ec58d37fb33001644a4a7b9f1c3"
+    }
+  ]
+}

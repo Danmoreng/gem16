@@ -50,7 +50,7 @@ __global__ void MmaW4A8ProjectionSelectedKernel(
 #endif
 }
 
-template <bool NativeFp8x4>
+template <bool NativeFp8x4, bool VectorStore>
 __global__ void MmaW4A8ProjectionSelectedN128InverseKernel(
     const std::uint8_t* activation, const float* activation_scales,
     Trellis35DeviceFamilyBinding family,
@@ -101,10 +101,19 @@ __global__ void MmaW4A8ProjectionSelectedN128InverseKernel(
     float values[4] = {transformed[index], transformed[index + 1U],
                        transformed[index + 2U], transformed[index + 3U]};
     H128Warp(values);
+    if constexpr (VectorStore) {
+      const float4 packed{
+          values[0] * F16(svh + index),
+          values[1] * F16(svh + index + 1U),
+          values[2] * F16(svh + index + 2U),
+          values[3] * F16(svh + index + 3U)};
+      *reinterpret_cast<float4*>(output + output_block + index) = packed;
+    } else {
 #pragma unroll
-    for (unsigned element = 0U; element < 4U; ++element) {
-      output[output_block + index + element] =
-          values[element] * F16(svh + index + element);
+      for (unsigned element = 0U; element < 4U; ++element) {
+        output[output_block + index + element] =
+            values[element] * F16(svh + index + element);
+      }
     }
   }
 #else

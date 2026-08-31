@@ -1,0 +1,134 @@
+{
+  "schema_version": 1,
+  "work_packet": "PFX28-B",
+  "status": "rejected_rolled_back",
+  "implementation_parent_revision": "540dd005f8ac6fcf729aec66d1d224af9098a301",
+  "candidate": {
+    "name": "T3 M16 N128 inverse shared-projection XOR swizzle",
+    "rollback_environment": "GEM16_TRELLIS35_T3_SHARED_SWIZZLE=0|1",
+    "default_during_measurement": "0",
+    "source_retained": false,
+    "precision_changed": false,
+    "rounding_boundary_changed": false,
+    "workspace_delta_bytes": 0
+  },
+  "correctness": {
+    "rates": ["K3", "K4", "mixed"],
+    "n128_modes": ["off", "gate", "down", "both"],
+    "gate_up_bit_mismatches": 0,
+    "down_bit_mismatches": 0,
+    "reduced_output_bit_mismatches": 0,
+    "cuda_graph_replay": "passed",
+    "same_binary_output_token_sha256": "1c665647cdeeb592cf490419c957ad8c0e7e05aa40e273d4db33f7b8ad6426ec",
+    "generated_tokens": 512,
+    "accepted_tokens": 285,
+    "proposed_tokens": 448,
+    "rejected_tokens": 163,
+    "ordinary_fallback_tokens": 2,
+    "trajectory_identical": true
+  },
+  "resources": {
+    "rollback": {
+      "registers_per_thread": 40,
+      "stack_bytes": 16,
+      "static_shared_bytes_per_block": 1536,
+      "driver_shared_bytes_per_block": 1024,
+      "local_bytes": 0,
+      "local_or_shared_spills": 0
+    },
+    "candidate": {
+      "registers_per_thread": 40,
+      "stack_bytes": 16,
+      "static_shared_bytes_per_block": 1536,
+      "driver_shared_bytes_per_block": 1024,
+      "local_bytes": 0,
+      "local_or_shared_spills": 0
+    }
+  },
+  "sass_native_fp8x4": {
+    "rollback": {
+      "static_instructions": 808,
+      "lds": 4,
+      "sts": 2,
+      "lop3": 56,
+      "shf": 55,
+      "stg": 4
+    },
+    "candidate": {
+      "static_instructions": 824,
+      "lds": 4,
+      "sts": 2,
+      "lop3": 67,
+      "shf": 58,
+      "stg": 4
+    },
+    "measured_executable_sha256": "5ec1ba6632930a2faea9b2cb74d1dc2c232580d208edcdc133aa47bc31a0ffbc"
+  },
+  "ncu_union16_gate_up": {
+    "rollback": {
+      "duration_microseconds": 125.09,
+      "issue_slots_busy_percent": 53.90,
+      "excessive_shared_wavefronts": 5984,
+      "shared_load_bank_conflicts": 3193,
+      "shared_store_bank_conflicts": 2873,
+      "achieved_occupancy_percent": 82.97,
+      "long_scoreboard_stall_instructions": 4.623721
+    },
+    "candidate": {
+      "duration_microseconds": 118.66,
+      "duration_gain_percent": 5.140299,
+      "issue_slots_busy_percent": 56.96,
+      "excessive_shared_wavefronts": 0,
+      "shared_load_bank_conflicts": 3,
+      "shared_store_bank_conflicts": 35,
+      "achieved_occupancy_percent": 83.17,
+      "long_scoreboard_stall_instructions": 4.732769
+    }
+  },
+  "same_binary_d2_512_ab": {
+    "workload": "Wikipedia 16K prompt, Fixed-D2, greedy fixed 512 generated tokens",
+    "warmups": 1,
+    "measured_runs": 3,
+    "rollback_decode_tokens_per_second": {
+      "median": 183.84006274306643,
+      "samples": [183.80766021121696, 183.84006274306643, 183.89034233832226]
+    },
+    "candidate_decode_tokens_per_second": {
+      "median": 184.00092180500945,
+      "samples": [184.18197611761695, 184.00092180500945, 183.93402851517365],
+      "gain_percent": 0.0875005
+    },
+    "rollback_prompt_tokens_per_second": 5690.884650519801,
+    "candidate_prompt_tokens_per_second": 5690.963719411591,
+    "workspace_bytes": 338850080,
+    "kv_cache_bytes": 277872640,
+    "deterministic_outputs": true
+  },
+  "decision": {
+    "kernel_gate_percent": 3.0,
+    "kernel_gate_met": true,
+    "same_binary_d2_gate_percent": 0.4,
+    "same_binary_d2_gate_met": false,
+    "full_16k_ab_run": "not_run_after_hard_same_binary_gate_failed",
+    "pfx28_c_unlocked": false,
+    "reason": "The swizzle removed essentially all shared conflicts and won at kernel scope, but only delivered 0.0875 percent at the Fixed-D2 path boundary."
+  },
+  "raw_evidence": [
+    {
+      "path": "artifacts/raw/trellis35/pfx28b/t3-n128-parent.ncu-rep",
+      "sha256": "fc98c9b0c97516f1cb1dd661d1963160d81a2e19cbd14784d185a8a0e0d29af0"
+    },
+    {
+      "path": "artifacts/raw/trellis35/pfx28b/t3-n128-candidate.ncu-rep",
+      "sha256": "5370a30b5ce441277aebdd0a12505d71d72661454c55b661bfee34e588a20351"
+    },
+    {
+      "path": "artifacts/raw/trellis35/pfx28b/t3-swizzle-off-d2-512-1w3.json",
+      "sha256": "65a22da221419c2a619ef53c6927015b4ba898e049b6b384be9216752447f2b1"
+    },
+    {
+      "path": "artifacts/raw/trellis35/pfx28b/t3-swizzle-on-d2-512-1w3.json",
+      "sha256": "d98c8e3f91e91a8228b9e2da5cd6a8086e5fa1ed7df78ee99a9b71cae44dbc93"
+    }
+  ]
+}

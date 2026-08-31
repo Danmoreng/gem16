@@ -47,6 +47,22 @@ bool Trellis35T3NativeFp8x4Enabled() {
   return enabled;
 }
 
+bool Trellis35T3VectorStoreEnvironmentEnabled() {
+  static const bool enabled = [] {
+    const char* value = std::getenv("GEM16_TRELLIS35_T3_VECTOR_STORE");
+    return value == nullptr || std::string_view(value) != "0";
+  }();
+  return enabled;
+}
+
+bool Trellis35M1VectorStoreEnvironmentEnabled() {
+  static const bool enabled = [] {
+    const char* value = std::getenv("GEM16_TRELLIS35_M1_VECTOR_STORE");
+    return value == nullptr || std::string_view(value) != "0";
+  }();
+  return enabled;
+}
+
 Trellis35M1ProjectionOutputMode Trellis35M1ProjectionOutputEnvironmentMode() {
   static const Trellis35M1ProjectionOutputMode mode = [] {
     const char* value = std::getenv("GEM16_TRELLIS35_M1_N128_INVERSE");
@@ -92,13 +108,27 @@ bool Trellis35PrefillScheduleTrimEnabled() {
   return enabled;
 }
 
+template <bool NativeFp8x4, bool VectorStore>
+void LaunchGroupedT3N128(
+    unsigned blocks, const std::uint8_t* activation_e4m3,
+    const float* activation_scales,
+    const Trellis35DeviceFamilyBinding& family,
+    const std::uint32_t* selected_experts, float* output,
+    std::uint64_t input_elements, std::uint64_t output_elements,
+    cudaStream_t stream) {
+  MmaW4A8ProjectionGroupedT3M16N128InverseKernel<NativeFp8x4, VectorStore>
+      <<<dim3(blocks, kTrellis35T3Assignments), kMmaN128Threads, 0, stream>>>(
+          activation_e4m3, activation_scales, family, selected_experts, output,
+          input_elements, output_elements);
+}
+
 Status LaunchGroupedT3Projection(
     const std::uint8_t* activation_e4m3, const float* activation_scales,
     const Trellis35DeviceFamilyBinding& family,
     const std::uint32_t* selected_experts, float* output,
     std::uint64_t input_elements, std::uint64_t output_elements,
     Trellis35T3ProjectionMode projection_mode, bool fused_inverse,
-    cudaStream_t stream) {
+    bool vector_store, cudaStream_t stream) {
   if (activation_e4m3 == nullptr || activation_scales == nullptr ||
       family.k3_payload_pool == nullptr || family.k4_payload_pool == nullptr ||
       family.descriptors == nullptr || selected_experts == nullptr ||
@@ -111,6 +141,8 @@ Status LaunchGroupedT3Projection(
   if (input_elements == 0U || output_elements == 0U ||
       input_elements % 32U != 0U || output_elements % 8U != 0U ||
       (fused_inverse && output_elements % 128U != 0U) ||
+      (fused_inverse && vector_store &&
+       reinterpret_cast<std::uintptr_t>(output) % alignof(float4) != 0U) ||
       output_elements >
           static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max()) *
               kMmaWarps * 8U) {
@@ -122,15 +154,25 @@ Status LaunchGroupedT3Projection(
     }
     const unsigned blocks = static_cast<unsigned>(output_elements / 128U);
     if (Trellis35T3NativeFp8x4Enabled()) {
-      MmaW4A8ProjectionGroupedT3M16N128InverseKernel<true><<<
-          dim3(blocks, kTrellis35T3Assignments), kMmaN128Threads, 0, stream>>>(
-          activation_e4m3, activation_scales, family, selected_experts, output,
-          input_elements, output_elements);
+      if (vector_store) {
+        LaunchGroupedT3N128<true, true>(
+            blocks, activation_e4m3, activation_scales, family,
+            selected_experts, output, input_elements, output_elements, stream);
+      } else {
+        LaunchGroupedT3N128<true, false>(
+            blocks, activation_e4m3, activation_scales, family,
+            selected_experts, output, input_elements, output_elements, stream);
+      }
     } else {
-      MmaW4A8ProjectionGroupedT3M16N128InverseKernel<false><<<
-          dim3(blocks, kTrellis35T3Assignments), kMmaN128Threads, 0, stream>>>(
-          activation_e4m3, activation_scales, family, selected_experts, output,
-          input_elements, output_elements);
+      if (vector_store) {
+        LaunchGroupedT3N128<false, true>(
+            blocks, activation_e4m3, activation_scales, family,
+            selected_experts, output, input_elements, output_elements, stream);
+      } else {
+        LaunchGroupedT3N128<false, false>(
+            blocks, activation_e4m3, activation_scales, family,
+            selected_experts, output, input_elements, output_elements, stream);
+      }
     }
     return CheckLaunch(
         "launch Trellis35 grouped T3 M16 N128 projection and inverse");
@@ -141,13 +183,13 @@ Status LaunchGroupedT3Projection(
     if (Trellis35T3NativeFp8x4Enabled()) {
       MmaW4A8ProjectionGroupedT3M16Kernel<true><<<
           dim3(blocks, kTrellis35T3Assignments), kMmaThreads, 0, stream>>>(
-          activation_e4m3, activation_scales, family, selected_experts,
-          output, input_elements, output_elements);
+          activation_e4m3, activation_scales, family, selected_experts, output,
+          input_elements, output_elements);
     } else {
       MmaW4A8ProjectionGroupedT3M16Kernel<false><<<
           dim3(blocks, kTrellis35T3Assignments), kMmaThreads, 0, stream>>>(
-          activation_e4m3, activation_scales, family, selected_experts,
-          output, input_elements, output_elements);
+          activation_e4m3, activation_scales, family, selected_experts, output,
+          input_elements, output_elements);
     }
   } else {
     MmaW4A8ProjectionGroupedT3Kernel<<<
@@ -706,7 +748,7 @@ Status LaunchTrellis35MmaW4A8ProjectionM1N128Inverse(
     const Trellis35DeviceFamilyBinding& family,
     const std::uint32_t* selected_experts, float* output,
     std::uint64_t input_elements, std::uint64_t output_elements,
-    cudaStream_t stream) {
+    bool vector_store, cudaStream_t stream) {
   if (activation_e4m3 == nullptr || activation_scales == nullptr ||
       family.k3_payload_pool == nullptr || family.k4_payload_pool == nullptr ||
       family.descriptors == nullptr || family.svh_f16 == nullptr ||
@@ -716,25 +758,45 @@ Status LaunchTrellis35MmaW4A8ProjectionM1N128Inverse(
   }
   if (input_elements == 0U || input_elements % 32U != 0U ||
       output_elements == 0U || output_elements % 128U != 0U ||
+      (vector_store &&
+       reinterpret_cast<std::uintptr_t>(output) % alignof(float4) != 0U) ||
       output_elements >
           static_cast<std::uint64_t>(std::numeric_limits<unsigned>::max()) *
               128U) {
     return Invalid("Trellis35 M1 N128 inverse projection geometry is invalid");
   }
   if (Trellis35M1NativeFp8x4Enabled()) {
-    MmaW4A8ProjectionSelectedN128InverseKernel<true><<<
-        dim3(static_cast<unsigned>(output_elements / 128U),
-             kTrellis35M1TopK),
-        kMmaN128Threads, 0, stream>>>(
-        activation_e4m3, activation_scales, family, selected_experts, output,
-        input_elements, output_elements);
+    if (vector_store) {
+      MmaW4A8ProjectionSelectedN128InverseKernel<true, true><<<
+          dim3(static_cast<unsigned>(output_elements / 128U),
+               kTrellis35M1TopK),
+          kMmaN128Threads, 0, stream>>>(
+          activation_e4m3, activation_scales, family, selected_experts, output,
+          input_elements, output_elements);
+    } else {
+      MmaW4A8ProjectionSelectedN128InverseKernel<true, false><<<
+          dim3(static_cast<unsigned>(output_elements / 128U),
+               kTrellis35M1TopK),
+          kMmaN128Threads, 0, stream>>>(
+          activation_e4m3, activation_scales, family, selected_experts, output,
+          input_elements, output_elements);
+    }
   } else {
-    MmaW4A8ProjectionSelectedN128InverseKernel<false><<<
-        dim3(static_cast<unsigned>(output_elements / 128U),
-             kTrellis35M1TopK),
-        kMmaN128Threads, 0, stream>>>(
-        activation_e4m3, activation_scales, family, selected_experts, output,
-        input_elements, output_elements);
+    if (vector_store) {
+      MmaW4A8ProjectionSelectedN128InverseKernel<false, true><<<
+          dim3(static_cast<unsigned>(output_elements / 128U),
+               kTrellis35M1TopK),
+          kMmaN128Threads, 0, stream>>>(
+          activation_e4m3, activation_scales, family, selected_experts, output,
+          input_elements, output_elements);
+    } else {
+      MmaW4A8ProjectionSelectedN128InverseKernel<false, false><<<
+          dim3(static_cast<unsigned>(output_elements / 128U),
+               kTrellis35M1TopK),
+          kMmaN128Threads, 0, stream>>>(
+          activation_e4m3, activation_scales, family, selected_experts, output,
+          input_elements, output_elements);
+    }
   }
   return CheckLaunch("launch Trellis35 M1 N128 projection and inverse");
 }
@@ -762,7 +824,8 @@ Status LaunchTrellis35SelectedExpertsM1(
     const Trellis35M1Workspace& workspace, float* output,
     cudaStream_t stream, Trellis35SmallTransformMode transform_mode,
     Trellis35SmallGeluDownMode gelu_down_mode,
-    Trellis35M1ProjectionOutputMode projection_output_mode) {
+    Trellis35M1ProjectionOutputMode projection_output_mode,
+    Trellis35VectorStoreMode vector_store_mode) {
   if (input == nullptr || selected_experts == nullptr ||
       route_weights == nullptr || output == nullptr ||
       layer.gate_up.k3_payload_pool == nullptr ||
@@ -799,9 +862,17 @@ Status LaunchTrellis35SelectedExpertsM1(
        projection_output_mode !=
            Trellis35M1ProjectionOutputMode::kGateUpFusedN128 &&
        projection_output_mode !=
-           Trellis35M1ProjectionOutputMode::kDownFusedN128)) {
+           Trellis35M1ProjectionOutputMode::kDownFusedN128) ||
+      (vector_store_mode != Trellis35VectorStoreMode::kEnvironment &&
+       vector_store_mode != Trellis35VectorStoreMode::kDisabled &&
+       vector_store_mode != Trellis35VectorStoreMode::kEnabled)) {
     return Invalid("Trellis35 selected-expert M1 requires complete bindings");
   }
+
+  const bool vector_store =
+      vector_store_mode == Trellis35VectorStoreMode::kEnabled ||
+      (vector_store_mode == Trellis35VectorStoreMode::kEnvironment &&
+       Trellis35M1VectorStoreEnvironmentEnabled());
 
   const bool warp_input =
       transform_mode == Trellis35SmallTransformMode::kWarpInputH128 ||
@@ -859,7 +930,8 @@ Status LaunchTrellis35SelectedExpertsM1(
                      workspace.gate_up_input_e4m3,
                      workspace.gate_up_input_scales, layer.gate_up,
                      selected_experts, workspace.gate_up_output,
-                     kTrellis35GateUpInput, kTrellis35GateUpOutput, stream)
+                     kTrellis35GateUpInput, kTrellis35GateUpOutput,
+                     vector_store, stream)
                : LaunchTrellis35MmaW4A8ProjectionM1(
                      workspace.gate_up_input_e4m3,
                      workspace.gate_up_input_scales, layer.gate_up,
@@ -936,7 +1008,8 @@ Status LaunchTrellis35SelectedExpertsM1(
                ? LaunchTrellis35MmaW4A8ProjectionM1N128Inverse(
                      workspace.down_input_e4m3, workspace.down_input_scales,
                      layer.down, selected_experts, workspace.down_output,
-                     kTrellis35DownInput, kTrellis35DownOutput, stream)
+                     kTrellis35DownInput, kTrellis35DownOutput, vector_store,
+                     stream)
                : LaunchTrellis35MmaW4A8ProjectionM1(
                      workspace.down_input_e4m3, workspace.down_input_scales,
                      layer.down, selected_experts,
@@ -979,7 +1052,8 @@ Status LaunchTrellis35SelectedExpertsT3(
     cudaStream_t stream, Trellis35SmallTransformMode transform_mode,
     Trellis35T3ProjectionMode projection_mode,
     Trellis35SmallGeluDownMode gelu_down_mode,
-    Trellis35T3ProjectionOutputMode projection_output_mode) {
+    Trellis35T3ProjectionOutputMode projection_output_mode,
+    Trellis35VectorStoreMode vector_store_mode) {
   if (input_rows == nullptr || selected_experts == nullptr ||
       route_weights == nullptr || output_rows == nullptr ||
       layer.gate_up.k3_payload_pool == nullptr ||
@@ -1018,9 +1092,17 @@ Status LaunchTrellis35SelectedExpertsT3(
        projection_output_mode !=
            Trellis35T3ProjectionOutputMode::kGateUpFusedN128 &&
        projection_output_mode !=
-           Trellis35T3ProjectionOutputMode::kDownFusedN128)) {
+           Trellis35T3ProjectionOutputMode::kDownFusedN128) ||
+      (vector_store_mode != Trellis35VectorStoreMode::kEnvironment &&
+       vector_store_mode != Trellis35VectorStoreMode::kDisabled &&
+       vector_store_mode != Trellis35VectorStoreMode::kEnabled)) {
     return Invalid("Trellis35 selected-expert T3 requires complete bindings");
   }
+
+  const bool vector_store =
+      vector_store_mode == Trellis35VectorStoreMode::kEnabled ||
+      (vector_store_mode == Trellis35VectorStoreMode::kEnvironment &&
+       Trellis35T3VectorStoreEnvironmentEnabled());
 
   const bool warp_input =
       transform_mode == Trellis35SmallTransformMode::kWarpInputH128 ||
@@ -1095,7 +1177,7 @@ Status LaunchTrellis35SelectedExpertsT3(
       fuse_gate_output ? workspace.gate_up_output
                        : workspace.gate_up_transformed_output,
       kTrellis35GateUpInput, kTrellis35GateUpOutput, projection_mode,
-      fuse_gate_output, stream);
+      fuse_gate_output, vector_store, stream);
   if (!status.ok()) return status;
 
   if (!fuse_gate_output) {
@@ -1170,7 +1252,7 @@ Status LaunchTrellis35SelectedExpertsT3(
       fuse_down_output ? workspace.down_output
                        : workspace.down_transformed_output,
       kTrellis35DownInput, kTrellis35DownOutput, projection_mode,
-      fuse_down_output, stream);
+      fuse_down_output, vector_store, stream);
   if (!status.ok()) return status;
 
   if (!fuse_down_output) {

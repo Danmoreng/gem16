@@ -42,16 +42,16 @@ Read it only for a concrete historical or evidence question.
 6. **One version source.** Repository, CMake builds, packaged server, native
    Studio, and release automation consume the root `VERSION` file. Release tags
    and manually supplied release versions must match it.
-7. **Productization remains primary; experimental Trellis35 tuning is narrowly
-   reopened.** The owner's 2026-08-30 direction supersedes only this item's
-   prior blanket prohibition on new 26B decode tuning: bounded performance
-   work may resume on the separate, unqualified Gemma 4 26B Trellis35/W4A8
-   feature profile. The qualified 26B NVFP4 decode checkpoint and its accepted
-   evidence remain frozen, its 220/250 token/s targets remain closed, and the
-   protected 12B path, product claims, release sequencing, and productization
-   priority remain unchanged. Trellis35 work stays experimental and requires
-   packet-local correctness, dispatch, memory, performance, and rollback
-   evidence without modifying or silently falling back to a qualified path.
+7. **Productization remains primary; experimental Trellis35 tuning is frozen
+   after PFX31.** The owner's 2026-08-31 direction closes the bounded 26B
+   Trellis35/W4A8 performance pass reopened on 2026-08-30. PFX28-D is the only
+   retained closeout candidate; further Trellis micro-optimization is stopped.
+   The separate 26B Vision vertical slice has not started and requires fresh
+   owner approval after the performance commit and push. The qualified 26B
+   NVFP4 checkpoint and evidence remain frozen, its 220/250 token/s targets
+   remain closed, and the protected 12B path, product claims, release
+   sequencing, and productization priority remain unchanged. Trellis35 stays
+   experimental and may not modify or silently fall back to a qualified path.
 
 ## Current qualified model facts
 
