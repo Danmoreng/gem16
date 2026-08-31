@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
 import tempfile
 import struct
@@ -76,11 +75,8 @@ class Trellis35CompilerOracleTest(unittest.TestCase):
                 expert_bytes = shape[1] * shape[2] * 2
                 with path.open("wb") as stream:
                     stream.truncate(expert_bytes)
-                descriptor = os.open(path, os.O_WRONLY)
-                try:
-                    os.pwrite(descriptor, bytes.fromhex("803f0040"), 0)
-                finally:
-                    os.close(descriptor)
+                with path.open("r+b") as stream:
+                    stream.write(bytes.fromhex("803f0040"))
                 tensor = TensorDescriptor(
                     name=family,
                     dtype="BF16",

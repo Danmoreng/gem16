@@ -164,9 +164,11 @@ def read_source_expert(
     if offset < tensor.absolute_offset or offset + byte_count > tensor.absolute_offset + tensor.byte_length:
         raise InvalidPlanError("Trellis35 expert slice exceeds the verified tensor range")
     try:
-        descriptor = os.open(tensor.path, os.O_RDONLY | getattr(os, "O_CLOEXEC", 0))
+        flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_BINARY", 0)
+        descriptor = os.open(tensor.path, flags)
         try:
-            raw = os.pread(descriptor, byte_count, offset)
+            os.lseek(descriptor, offset, os.SEEK_SET)
+            raw = os.read(descriptor, byte_count)
         finally:
             os.close(descriptor)
     except OSError as error:
