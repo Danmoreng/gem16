@@ -114,6 +114,39 @@ void RunImageTests() {
   GEM16_CHECK(!gem16::LoadVisionImage(
                    path, gem16::VisionImageOptions{281U, false})
                    .ok());
+  auto moe26b = gem16::LoadGemma4Moe26BVisionImage(path);
+  GEM16_CHECK(moe26b.ok());
+  if (moe26b.ok()) {
+    const auto& value = moe26b.value();
+    GEM16_CHECK(value.source_width == 768U);
+    GEM16_CHECK(value.source_height == 768U);
+    GEM16_CHECK(value.processed_width == 768U);
+    GEM16_CHECK(value.processed_height == 768U);
+    GEM16_CHECK(value.raw_patch_count == 2304U);
+    GEM16_CHECK(value.soft_token_count == 256U);
+    GEM16_CHECK(value.positions.size() == 4608U);
+    GEM16_CHECK(value.positions[0] == 0);
+    GEM16_CHECK(value.positions[1] == 0);
+    GEM16_CHECK(value.positions[4606] == 47);
+    GEM16_CHECK(value.positions[4607] == 47);
+    GEM16_CHECK(value.patches.size() == 2304U * 16U * 16U * 3U);
+    GEM16_CHECK(std::abs(value.patches[0] - 64.0F / 255.0F) < 1.0e-6F);
+    GEM16_CHECK(std::abs(value.patches[1] - 128.0F / 255.0F) < 1.0e-6F);
+    GEM16_CHECK(value.patches[2] == 1.0F);
+    GEM16_CHECK(value.patches.back() == 1.0F);
+  }
+  auto moe26b_compact = gem16::LoadGemma4Moe26BVisionImage(
+      path, gem16::Gemma4Moe26BVisionImageOptions{70U});
+  GEM16_CHECK(moe26b_compact.ok());
+  if (moe26b_compact.ok()) {
+    GEM16_CHECK(moe26b_compact.value().processed_width == 384U);
+    GEM16_CHECK(moe26b_compact.value().processed_height == 384U);
+    GEM16_CHECK(moe26b_compact.value().raw_patch_count == 576U);
+    GEM16_CHECK(moe26b_compact.value().soft_token_count == 64U);
+  }
+  GEM16_CHECK(!gem16::LoadGemma4Moe26BVisionImage(
+                   path, gem16::Gemma4Moe26BVisionImageOptions{71U})
+                   .ok());
   std::error_code ignored;
   std::filesystem::remove(path, ignored);
 }

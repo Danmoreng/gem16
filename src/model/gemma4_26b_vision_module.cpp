@@ -1,4 +1,4 @@
-#include "model/gemma4_26b_vision_sidecar.h"
+#include "model/gemma4_26b_vision_module.h"
 
 #include <algorithm>
 #include <array>
@@ -45,7 +45,7 @@ Result<std::uint64_t> Unsigned(const json::Value* value,
                                std::string_view description) {
   if (value == nullptr || !value->is_integer() || value->as_integer() < 0) {
     return Status(StatusCode::kDataLoss,
-                  "invalid Vision sidecar integer: " +
+                  "invalid Vision module integer: " +
                       std::string(description));
   }
   return static_cast<std::uint64_t>(value->as_integer());
@@ -60,7 +60,7 @@ Result<json::Value> LoadJson(const std::filesystem::path& path) {
       bytes > kMaximumMetadataBytes ||
       bytes > std::numeric_limits<std::size_t>::max()) {
     return Status(StatusCode::kDataLoss,
-                  "Vision sidecar metadata is missing, unsafe or oversized: " +
+                  "Vision module metadata is missing, unsafe or oversized: " +
                       path.string());
   }
   std::string payload(static_cast<std::size_t>(bytes), '\0');
@@ -69,14 +69,14 @@ Result<json::Value> LoadJson(const std::filesystem::path& path) {
       (bytes != 0U &&
        !input.read(payload.data(), static_cast<std::streamsize>(bytes)))) {
     return Status(StatusCode::kIoError,
-                  "cannot read Vision sidecar metadata: " + path.string());
+                  "cannot read Vision module metadata: " + path.string());
   }
   auto parsed = json::Parse(
       payload, {.max_depth = 64, .max_values = 2'000'000,
                 .max_string_bytes = kMaximumMetadataBytes});
   if (!parsed.ok() || !parsed.value().is_object()) {
     return Status(StatusCode::kDataLoss,
-                  "invalid Vision sidecar JSON object: " + path.string());
+                  "invalid Vision module JSON object: " + path.string());
   }
   return std::move(parsed).value();
 }
@@ -85,7 +85,7 @@ Result<std::string> Sha256File(const std::filesystem::path& path) {
   std::ifstream input(path, std::ios::binary);
   if (!input) {
     return Status(StatusCode::kIoError,
-                  "cannot hash Vision sidecar file: " + path.string());
+                  "cannot hash Vision module file: " + path.string());
   }
   std::vector<std::byte> buffer(8U * 1024U * 1024U);
   compiler::Sha256 digest;
@@ -97,7 +97,7 @@ Result<std::string> Sha256File(const std::filesystem::path& path) {
   }
   if (!input.eof()) {
     return Status(StatusCode::kIoError,
-                  "failed while hashing Vision sidecar file: " +
+                  "failed while hashing Vision module file: " +
                       path.string());
   }
   return digest.HexDigest();
@@ -163,27 +163,27 @@ Status ValidateFileSet(const std::filesystem::path& root) {
   }
   if (error || actual != expected) {
     return Status(StatusCode::kDataLoss,
-                  "Vision sidecar directory file set is invalid");
+                  "Vision module directory file set is invalid");
   }
   return Status::Ok();
 }
 
 }  // namespace
 
-Result<Gemma4Moe26BVisionSidecarPlan>
-LoadGemma4Moe26BVisionSidecarPlan(
-    const std::filesystem::path& sidecar_root) {
+Result<Gemma4Moe26BVisionModulePlan>
+LoadGemma4Moe26BVisionModulePlan(
+    const std::filesystem::path& module_root) {
   std::error_code error;
-  const auto root_status = std::filesystem::symlink_status(sidecar_root, error);
+  const auto root_status = std::filesystem::symlink_status(module_root, error);
   if (error || std::filesystem::is_symlink(root_status) ||
       !std::filesystem::is_directory(root_status)) {
     return Status(StatusCode::kDataLoss,
-                  "Vision sidecar root must be a real directory");
+                  "Vision module root must be a real directory");
   }
-  const auto root = std::filesystem::canonical(sidecar_root, error);
+  const auto root = std::filesystem::canonical(module_root, error);
   if (error) {
     return Status(StatusCode::kIoError,
-                  "cannot resolve Vision sidecar root");
+                  "cannot resolve Vision module root");
   }
   Status status = ValidateFileSet(root);
   if (!status.ok()) return status;
@@ -233,7 +233,7 @@ LoadGemma4Moe26BVisionSidecarPlan(
                 kSourceRepository) ||
       !StringIs(Field(lock.value(), "source_revision"), kSourceRevision)) {
     return Status(StatusCode::kDataLoss,
-                  "Vision sidecar descriptor or lock identity is invalid");
+                  "Vision module descriptor or lock identity is invalid");
   }
   for (const auto& [object, field, expected] :
        std::array<std::tuple<const json::Value*, std::string_view,
@@ -245,7 +245,7 @@ LoadGemma4Moe26BVisionSidecarPlan(
     auto value = Unsigned(Field(*object, field), field);
     if (!value.ok() || value.value() != expected) {
       return Status(StatusCode::kDataLoss,
-                    "Vision sidecar descriptor extent is invalid");
+                    "Vision module descriptor extent is invalid");
     }
   }
 
@@ -283,9 +283,9 @@ LoadGemma4Moe26BVisionSidecarPlan(
   if (stored.value().size() != expected.size() ||
       expected.size() != kGemma4Moe26BVisionTensorCount) {
     return Status(StatusCode::kDataLoss,
-                  "Vision sidecar tensor count is invalid");
+                  "Vision module tensor count is invalid");
   }
-  Gemma4Moe26BVisionSidecarPlan plan;
+  Gemma4Moe26BVisionModulePlan plan;
   plan.root = root;
   plan.artifact = artifact_path;
   plan.artifact_sha256 = artifact_hash.value();
@@ -301,7 +301,7 @@ LoadGemma4Moe26BVisionSidecarPlan(
         tensor.shape != spec->second.shape ||
         tensor.absolute_offset < plan.payload_file_offset) {
       return Status(StatusCode::kDataLoss,
-                    "Vision sidecar tensor contract mismatch: " + tensor.name);
+                    "Vision module tensor contract mismatch: " + tensor.name);
     }
     const std::uint64_t relative =
         tensor.absolute_offset - plan.payload_file_offset;
@@ -311,13 +311,13 @@ LoadGemma4Moe26BVisionSidecarPlan(
     if (relative != aligned || relative % kGemma4Moe26BVisionAlignment != 0U ||
         relative > kGemma4Moe26BVisionPayloadBytes - tensor.length) {
       return Status(StatusCode::kDataLoss,
-                    "Vision sidecar tensor alignment mismatch: " + tensor.name);
+                    "Vision module tensor alignment mismatch: " + tensor.name);
     }
     for (std::uint64_t gap = cursor; gap < relative; ++gap) {
       if (mapped.value().data()[plan.payload_file_offset + gap] !=
           std::byte{0}) {
         return Status(StatusCode::kDataLoss,
-                      "Vision sidecar contains nonzero alignment padding");
+                      "Vision module contains nonzero alignment padding");
       }
     }
     if (!plan.tensors
@@ -326,7 +326,7 @@ LoadGemma4Moe26BVisionSidecarPlan(
                           relative, tensor.length, tensor.dtype, tensor.shape})
              .second) {
       return Status(StatusCode::kDataLoss,
-                    "Vision sidecar contains duplicate tensor bindings");
+                    "Vision module contains duplicate tensor bindings");
     }
     cursor = relative + tensor.length;
     tensor_bytes += tensor.length;
@@ -335,7 +335,7 @@ LoadGemma4Moe26BVisionSidecarPlan(
       tensor_bytes != kGemma4Moe26BVisionTensorBytes ||
       cursor - tensor_bytes != kGemma4Moe26BVisionPaddingBytes) {
     return Status(StatusCode::kDataLoss,
-                  "Vision sidecar byte or padding balance is invalid");
+                  "Vision module byte or padding balance is invalid");
   }
   return plan;
 }

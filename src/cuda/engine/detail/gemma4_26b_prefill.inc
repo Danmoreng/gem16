@@ -1,3 +1,34 @@
+Status Gemma4Moe26BReferenceEngine::PrefillTokensWithVision(
+    std::span<const std::uint32_t> tokens,
+    const Gemma4Moe26BVisionInputSegment& vision_segment) {
+  if (!implementation_ || !vision_module_loaded() ||
+      implementation_->vision_prefill_active ||
+      vision_segment.soft_token_count == 0U ||
+      vision_segment.prompt_offset >= tokens.size() ||
+      vision_segment.soft_token_count >
+          tokens.size() - vision_segment.prompt_offset) {
+    return Invalid("Gemma 4 26B Vision prefill segment is invalid");
+  }
+  for (std::uint32_t token = 0U; token < vision_segment.soft_token_count;
+       ++token) {
+    if (tokens[vision_segment.prompt_offset + token] != 258880U) {
+      return Invalid(
+          "Gemma 4 26B Vision prefill is not aligned to image placeholders");
+    }
+  }
+  Status status = implementation_->vision_runtime.Encode(
+      vision_segment, implementation_->stream);
+  if (!status.ok()) return status;
+  implementation_->vision_prefill_active = true;
+  implementation_->vision_prefill_offset = vision_segment.prompt_offset;
+  implementation_->vision_prefill_tokens = vision_segment.soft_token_count;
+  status = PrefillTokens(tokens);
+  implementation_->vision_prefill_active = false;
+  implementation_->vision_prefill_offset = 0U;
+  implementation_->vision_prefill_tokens = 0U;
+  return status;
+}
+
 Status Gemma4Moe26BReferenceEngine::PrefillTokens(
     std::span<const std::uint32_t> tokens) {
   if (!implementation_ || tokens.empty() ||
@@ -89,6 +120,24 @@ Status Gemma4Moe26BReferenceEngine::PrefillTokens(
     error = cudaGetLastError();
     if (error != cudaSuccess) {
       return CudaFailure("launch M17 prefill embedding", error);
+    }
+    if (x.vision_prefill_active) {
+      const std::uint64_t image_begin = x.vision_prefill_offset;
+      const std::uint64_t image_end = image_begin + x.vision_prefill_tokens;
+      const std::uint64_t chunk_begin = consumed;
+      const std::uint64_t chunk_end = chunk_begin + chunk;
+      const std::uint64_t overlap_begin = std::max(image_begin, chunk_begin);
+      const std::uint64_t overlap_end = std::min(image_end, chunk_end);
+      if (overlap_begin < overlap_end) {
+        const std::uint64_t rows = overlap_end - overlap_begin;
+        error = cudaMemcpyAsync(
+            x.prefill_hidden_a + (overlap_begin - chunk_begin) * kWidth,
+            x.vision_runtime.output() + (overlap_begin - image_begin) * kWidth,
+            rows * kWidth * sizeof(float), cudaMemcpyDeviceToDevice, x.stream);
+        if (error != cudaSuccess) {
+          return CudaFailure("insert Gemma 4 26B Vision embeddings", error);
+        }
+      }
     }
     auto prepare_rotary = [&](const Gemma4Moe26BAttentionLayerTraits& trait,
                               float* cosine, float* sine) {

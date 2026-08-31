@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compile the pinned Google QAT BF16 Vision tower into a GEM16 FP8 sidecar."""
+"""Compile the pinned Google QAT BF16 Vision tower into a GEM16 FP8 module."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from tools.gem16_compile.common import CompilerError
-from tools.gem16_compile.vision_sidecar import SOURCE_LOCK_PATH, compile_vision_sidecar
+from tools.gem16_compile.vision_module import SOURCE_LOCK_PATH, compile_vision_module
 
 
 def arguments() -> argparse.Namespace:
@@ -32,7 +32,7 @@ def arguments() -> argparse.Namespace:
 def main() -> int:
     args = arguments()
     try:
-        result = compile_vision_sidecar(
+        result = compile_vision_module(
             source_directory=args.source,
             output_directory=args.output,
             native_encoder=args.native_fp8_encoder,
@@ -43,9 +43,9 @@ def main() -> int:
             native_timeout_seconds=args.native_timeout_seconds,
         )
     except CompilerError as error:
-        print(f"vision_sidecar_error: {error}", file=sys.stderr)
+        print(f"vision_module_error: {error}", file=sys.stderr)
         return error.exit_code
-    print("vision_sidecar_ok " + json.dumps(result, sort_keys=True))
+    print("vision_module_ok " + json.dumps(result, sort_keys=True))
     return 0
 
 

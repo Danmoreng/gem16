@@ -184,8 +184,22 @@ void RunOpenAiChatTests() {
       one_image_request, {512U});
   auto two_images = gem16::server::ParseChatCompletionsRequest(
       two_turn_image_request, {512U});
+  auto moe26b_image = gem16::server::ParseChatCompletionsRequest(
+      one_image_request, {512U, true});
   GEM16_CHECK(one_image.ok());
   GEM16_CHECK(two_images.ok());
+  GEM16_CHECK(moe26b_image.ok());
+  if (moe26b_image.ok()) {
+    const auto& content =
+        moe26b_image.value().generation.messages.front().content.front();
+    GEM16_CHECK(content.kind ==
+                gem16::GenerationContentKind::kGemma4Moe26BImage);
+    GEM16_CHECK(content.moe26b_image.raw_patch_count ==
+                content.moe26b_image.soft_token_count * 9U);
+    GEM16_CHECK(content.moe26b_image.patches.size() ==
+                static_cast<std::size_t>(
+                    content.moe26b_image.raw_patch_count) * 768U);
+  }
   if (one_image.ok() && two_images.ok()) {
     const auto& original = one_image.value().generation.messages.front();
     const auto& reprocessed = two_images.value().generation.messages.front();

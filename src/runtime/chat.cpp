@@ -64,11 +64,14 @@ struct MaterializedMessages {
   std::vector<ChatMessage> messages;
   std::vector<std::vector<float>> audio_frames;
   std::vector<VisionImage> images;
+  std::vector<Gemma4Moe26BVisionImage> moe26b_images;
 };
 
 Result<std::string> MaterializeContent(const GenerationMessage& message, ChatMessage& chat_message,
                                        std::vector<std::vector<float>>& audio_frames,
-                                       std::vector<VisionImage>& images) {
+                                       std::vector<VisionImage>& images,
+                                       std::vector<Gemma4Moe26BVisionImage>&
+                                           moe26b_images) {
   if (message.content.empty()) {
     return Status(StatusCode::kInvalidArgument, "generation message content must not be empty");
   }
@@ -105,6 +108,29 @@ Result<std::string> MaterializeContent(const GenerationMessage& message, ChatMes
       images.push_back(part.image);
       text.append("<|image>");
       for (std::uint32_t patch = 0U; patch < part.image.patch_count; ++patch) {
+        text.append("<|image|>");
+      }
+      text.append("<image|>");
+      continue;
+    }
+    if (part.kind == GenerationContentKind::kGemma4Moe26BImage) {
+      if (message.role != "user") {
+        return Status(StatusCode::kInvalidArgument,
+                      "image content is supported only in user messages");
+      }
+      const auto& image = part.moe26b_image;
+      if (image.soft_token_count == 0U || image.soft_token_count > 280U ||
+          image.raw_patch_count != image.soft_token_count * 9U ||
+          image.patches.size() !=
+              static_cast<std::size_t>(image.raw_patch_count) * 768U ||
+          image.positions.size() !=
+              static_cast<std::size_t>(image.raw_patch_count) * 2U) {
+        return Status(StatusCode::kInvalidArgument,
+                      "Gemma 4 26B image has invalid processed patch geometry");
+      }
+      moe26b_images.push_back(image);
+      text.append("<|image>");
+      for (std::uint32_t token = 0U; token < image.soft_token_count; ++token) {
         text.append("<|image|>");
       }
       text.append("<image|>");
@@ -153,7 +179,9 @@ Result<MaterializedMessages> MaterializeMessages(
                                         : messages[index];
     ChatMessage chat_message;
     chat_message.role = message.role;
-    auto content = MaterializeContent(message, chat_message, materialized.audio_frames, materialized.images);
+    auto content = MaterializeContent(
+        message, chat_message, materialized.audio_frames,
+        materialized.images, materialized.moe26b_images);
     if (!content.ok()) return content.status();
     chat_message.content = std::move(content).value();
     materialized.messages.push_back(std::move(chat_message));
@@ -218,6 +246,45 @@ Result<std::vector<VisionEmbeddingSegment>> LocateVisionSegments(std::span<const
   return segments;
 }
 
+Result<std::vector<Gemma4Moe26BVisionInputSegment>>
+LocateGemma4Moe26BVisionSegments(
+    std::span<const std::uint32_t> prompt_ids,
+    const std::vector<Gemma4Moe26BVisionImage>& images) {
+  std::vector<Gemma4Moe26BVisionInputSegment> segments;
+  segments.reserve(images.size());
+  std::size_t search = 0U;
+  for (const auto& image : images) {
+    const auto begin =
+        std::find(prompt_ids.begin() + search, prompt_ids.end(), 255999U);
+    if (begin == prompt_ids.end()) {
+      return Status(StatusCode::kDataLoss,
+                    "rendered prompt is missing the image boundary token");
+    }
+    const std::size_t first =
+        static_cast<std::size_t>(begin - prompt_ids.begin()) + 1U;
+    if (image.soft_token_count > prompt_ids.size() - first) {
+      return Status(StatusCode::kDataLoss,
+                    "rendered image placeholder extent is truncated");
+    }
+    for (std::uint32_t token = 0U; token < image.soft_token_count; ++token) {
+      if (prompt_ids[first + token] != 258880U) {
+        return Status(StatusCode::kDataLoss,
+                      "rendered image placeholder count is inconsistent");
+      }
+    }
+    if (first + image.soft_token_count >= prompt_ids.size() ||
+        prompt_ids[first + image.soft_token_count] != 258882U) {
+      return Status(StatusCode::kDataLoss,
+                    "rendered prompt is missing the image end token");
+    }
+    segments.push_back(Gemma4Moe26BVisionInputSegment{
+        first, image.soft_token_count, image.raw_patch_count, image.patches,
+        image.positions});
+    search = first + image.soft_token_count + 1U;
+  }
+  return segments;
+}
+
 struct EventBridge {
   GenerationEventCallback callback = nullptr;
   void* context = nullptr;
@@ -252,6 +319,15 @@ bool ResidentMessageEquivalent(const GenerationMessage& cached,
         left.image.source_fingerprint != 0U &&
         right.image.source_fingerprint != 0U) {
       if (left.image.source_fingerprint != right.image.source_fingerprint) {
+        return false;
+      }
+      continue;
+    }
+    if (left.kind == GenerationContentKind::kGemma4Moe26BImage &&
+        left.moe26b_image.source_fingerprint != 0U &&
+        right.moe26b_image.source_fingerprint != 0U) {
+      if (left.moe26b_image.source_fingerprint !=
+          right.moe26b_image.source_fingerprint) {
         return false;
       }
       continue;
@@ -346,7 +422,8 @@ Result<ChatSession> ChatSession::Create(const ChatSessionOptions& options) {
 Result<ChatSession> ChatSession::Create(const ChatSessionOptions& options, GemmaChatProcessor processor) {
   auto runtime = ModelRuntime::Load(
       {options.model_directory, options.assistant_model_directory,
-       options.max_context_tokens, 0});
+       options.max_context_tokens, 0, true,
+       options.vision_model_directory});
   if (!runtime.ok()) return runtime.status();
   return Create(std::move(runtime).value(), options, std::move(processor));
 }
@@ -357,6 +434,7 @@ Result<ChatSession> ChatSession::Create(
   ConversationSessionOptions session_options;
   session_options.model_directory = options.model_directory;
   session_options.assistant_model_directory = options.assistant_model_directory;
+  session_options.vision_model_directory = options.vision_model_directory;
   session_options.stop_token_ids = processor.generation_controls().stop_token_ids;
   session_options.suppressed_token_ids = processor.generation_controls().suppressed_token_ids;
   session_options.max_context_tokens = options.max_context_tokens;
@@ -512,6 +590,9 @@ Result<ChatGenerationResponse> ChatSession::Generate(const ChatGenerationRequest
   if (!audio_segments.ok()) return audio_segments.status();
   auto vision_segments = LocateVisionSegments(prompt_ids.value(), messages.value().images);
   if (!vision_segments.ok()) return vision_segments.status();
+  auto moe26b_vision_segments = LocateGemma4Moe26BVisionSegments(
+      prompt_ids.value(), messages.value().moe26b_images);
+  if (!moe26b_vision_segments.ok()) return moe26b_vision_segments.status();
   if (prompt_ids.value().size() > impl_->max_context_tokens) {
     return Status(StatusCode::kInvalidArgument, "conversation prompt exceeds the session context capacity");
   }
@@ -541,7 +622,8 @@ Result<ChatGenerationResponse> ChatSession::Generate(const ChatGenerationRequest
   EventBridge bridge{callback, callback_context};
   auto inference = impl_->session.Generate(
       prompt_ids.value(), max_generated_tokens, reasoning, callback == nullptr ? nullptr : ForwardTokenEvent,
-      callback == nullptr ? nullptr : &bridge, audio_segments.value(), vision_segments.value());
+      callback == nullptr ? nullptr : &bridge, audio_segments.value(),
+      vision_segments.value(), moe26b_vision_segments.value());
   if (!inference.ok()) {
     impl_->poisoned = impl_->session.is_poisoned();
     return inference.status();

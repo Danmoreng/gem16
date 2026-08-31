@@ -26,6 +26,7 @@ struct OpenAiResponseIdentity {
 
 struct OpenAiChatAdapterOptions {
   std::uint64_t context_tokens = 8192U;
+  bool gemma4_moe26b_vision = false;
 };
 
 struct OpenAiResponsesRequest {

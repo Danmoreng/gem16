@@ -1,9 +1,10 @@
-"""Deterministic Gemma 4 26B Vision FP8 sidecar compiler.
+"""Deterministic Gemma 4 26B Vision FP8 module compiler.
 
-The sidecar is a Safetensors-compatible immutable file named ``vision.gem16``.
-It is deliberately separate from both the Trellis35 text checkpoint and the
-qualified NVFP4 checkpoint.  Runtime capability selection must consume the
-explicit descriptor; file existence alone is never a capability signal.
+The module is an immutable GEM16-aligned file named ``vision.gem16``. It is a
+mandatory component of the explicit Trellis35 Vision profile while remaining
+physically separate from both the text artifact and the qualified NVFP4
+checkpoint. Runtime capability selection must consume the explicit descriptor;
+file existence alone is never a capability signal.
 """
 
 from __future__ import annotations
@@ -332,22 +333,22 @@ def _copy_artifact(
     workspace: BoundedWorkspace,
 ) -> tuple[list[dict[str, Any]], int]:
     header, offsets = _artifact_header(outputs)
-    workspace.record_header(len(header) - 8, "building Vision sidecar header")
+    workspace.record_header(len(header) - 8, "building Vision module header")
     records: list[dict[str, Any]] = []
     try:
         with path.open("xb", buffering=0) as stream:
             os.chmod(path, 0o600)
-            write_all(stream, header, "Vision sidecar header")
+            write_all(stream, header, "Vision module header")
             payload_cursor = 0
             for item in outputs:
                 begin, end = offsets[item.name]
                 if begin < payload_cursor:
-                    raise DataError(f"Vision sidecar output order overlaps: {item.name}")
+                    raise DataError(f"Vision module output order overlaps: {item.name}")
                 if begin != payload_cursor:
                     write_all(
                         stream,
                         bytes(begin - payload_cursor),
-                        "Vision sidecar alignment padding",
+                        "Vision module alignment padding",
                     )
                     payload_cursor = begin
                 source = selected[item.source_name]
@@ -400,14 +401,14 @@ def _copy_artifact(
             stream.flush()
             os.fsync(stream.fileno())
     except (OSError, ValueError) as error:
-        raise OutputError(f"cannot write Vision sidecar: {error}") from error
+        raise OutputError(f"cannot write Vision module: {error}") from error
     expected_size = len(header) + OUTPUT_PAYLOAD_BYTES
     if path.stat().st_size != expected_size:
-        raise DataError(f"Vision sidecar size mismatch: expected {expected_size}, got {path.stat().st_size}")
+        raise DataError(f"Vision module size mismatch: expected {expected_size}, got {path.stat().st_size}")
     return records, len(header)
 
 
-def compile_vision_sidecar(
+def compile_vision_module(
     *,
     source_directory: Path,
     output_directory: Path,
@@ -479,7 +480,7 @@ def compile_vision_sidecar(
                 "commit": commit,
                 "dirty": dirty,
                 "environment": environment_identity(),
-                "implementation": "gem16_vision_sidecar_compiler_v1",
+                "implementation": "gem16_vision_module_compiler_v1",
                 "native_build": bundle.native_build,
                 "native_encoder_sha256": bundle.binary_sha256,
                 "native_threads": threads,
@@ -561,7 +562,7 @@ def compile_vision_sidecar(
         }
         write_file_atomic(staging / LOCK_FILENAME, canonical_json_bytes(lock))
         # The native bundle is compiler scratch, never part of the immutable
-        # runtime sidecar.  Remove it while the staging path still exists;
+        # runtime module. Remove it while the staging path still exists;
         # after publication its remembered paths would no longer resolve.
         bundle.cleanup()
         bundle = None
@@ -599,7 +600,7 @@ __all__ = [
     "TEXT_ARTIFACT_PROFILE",
     "TENSOR_ALIGNMENT",
     "VISION_FILENAME",
-    "compile_vision_sidecar",
+    "compile_vision_module",
     "expected_vision_specs",
     "fp8_plan",
     "is_linear_source",

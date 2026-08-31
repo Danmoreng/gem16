@@ -78,6 +78,7 @@ void PrintUsage() {
       << "Usage:\n"
       << "  gem16-chat --model <checkpoint> [--max-tokens N] [--max-context N]\n"
       << "                [--assistant-model <official-mtp-checkpoint>]\n"
+      << "                [--vision-model <compiled-vision-module>]\n"
       << "                [--mtp-draft-tokens 1|2|4] [--mtp-adaptive]\n"
       << "                [--stats]\n"
       << "                [--thinking-budget off|small|medium|high] [--thinking|--no-thinking]\n"
@@ -104,6 +105,7 @@ struct MediaFile {
 struct Options {
   std::filesystem::path model_directory;
   std::filesystem::path assistant_model_directory;
+  std::filesystem::path vision_model_directory;
   std::string system_message;
   std::string one_shot_message;
   std::vector<MediaFile> media_files;
@@ -182,12 +184,17 @@ gem16::Result<std::string> ReadOneShotMessage(
 
 gem16::Result<std::vector<gem16::GenerationContentPart>> LoadMediaParts(
     std::span<const MediaFile> files, std::uint64_t context_tokens,
-    std::optional<std::uint64_t> max_tokens, bool stats) {
+    std::optional<std::uint64_t> max_tokens, bool stats,
+    bool moe26b_vision) {
   std::vector<gem16::GenerationContentPart> parts(files.size());
   std::uint64_t audio_tokens = 0U;
   std::size_t image_count = 0U;
   for (std::size_t index = 0U; index < files.size(); ++index) {
     if (files[index].kind == MediaFileKind::kAudio) {
+      if (moe26b_vision) {
+        return gem16::Status(gem16::StatusCode::kUnsupported,
+                             "Gemma 4 26B Vision v1 does not support audio");
+      }
       auto audio = gem16::LoadAudioFile(files[index].path);
       if (!audio.ok()) return audio.status();
       audio_tokens += (audio.value().samples.size() + 639U) / 640U;
@@ -206,6 +213,31 @@ gem16::Result<std::vector<gem16::GenerationContentPart>> LoadMediaParts(
           context_tokens, fixed_reserve, image_count);
   for (std::size_t index = 0U; index < files.size(); ++index) {
     if (files[index].kind != MediaFileKind::kImage) continue;
+    if (moe26b_vision) {
+      if (image_budget < 70U) {
+        return gem16::Status(
+            gem16::StatusCode::kInvalidArgument,
+            "remaining context cannot fit the minimum 70-token 26B image budget");
+      }
+      const std::uint32_t supported_budget =
+          image_budget >= 280U ? 280U : image_budget >= 140U ? 140U : 70U;
+      auto image = gem16::LoadGemma4Moe26BVisionImage(
+          files[index].path,
+          gem16::Gemma4Moe26BVisionImageOptions{supported_budget});
+      if (!image.ok()) return image.status();
+      if (stats) {
+        std::cerr << "[media] 26B image " << image.value().source_width
+                  << 'x' << image.value().source_height << " -> "
+                  << image.value().processed_width << 'x'
+                  << image.value().processed_height << ", "
+                  << image.value().raw_patch_count << " raw patches -> "
+                  << image.value().soft_token_count << '/' << supported_budget
+                  << " soft tokens\n";
+      }
+      parts[index] = gem16::GenerationContentPart::Gemma4Moe26BImage(
+          std::move(image).value());
+      continue;
+    }
     auto image = gem16::LoadVisionImage(
         files[index].path, gem16::VisionImageOptions{image_budget, false});
     if (!image.ok()) return image.status();
@@ -231,6 +263,8 @@ gem16::Result<Options> ParseOptions(int argc, char** argv) {
       options.model_directory = argv[++index];
     } else if (argument == "--assistant-model" && index + 1 < argc) {
       options.assistant_model_directory = argv[++index];
+    } else if (argument == "--vision-model" && index + 1 < argc) {
+      options.vision_model_directory = argv[++index];
     } else if (argument == "--mtp-draft-tokens" && index + 1 < argc) {
       std::uint64_t value = 0U;
       if (!ParseUnsigned(argv[++index], value) ||
@@ -453,6 +487,7 @@ gem16::ChatSessionOptions MakeChatSessionOptions(const Options& options) {
   gem16::ChatSessionOptions session_options;
   session_options.model_directory = options.model_directory;
   session_options.assistant_model_directory = options.assistant_model_directory;
+  session_options.vision_model_directory = options.vision_model_directory;
   session_options.max_context_tokens = options.max_context;
   session_options.kv_cache_mode = options.kv_cache_mode;
   session_options.sampling = options.sampling;
@@ -803,14 +838,28 @@ int ChatMain(int argc, char** argv) {
     std::cerr << "error: active MTP requires --assistant-model\n";
     return 2;
   }
-  if (moe26b && !options.media_files.empty()) {
-    std::cerr << "error: Gemma 4 26B is a text-only profile; audio and vision input are unsupported\n";
+  if (moe26b && std::any_of(
+                     options.media_files.begin(), options.media_files.end(),
+                     [](const MediaFile& file) {
+                       return file.kind == MediaFileKind::kAudio;
+                     })) {
+    std::cerr << "error: Gemma 4 26B Vision v1 does not support audio input\n";
+    return 2;
+  }
+  if (moe26b && !options.media_files.empty() &&
+      options.vision_model_directory.empty()) {
+    std::cerr << "error: Gemma 4 26B image input requires --vision-model\n";
+    return 2;
+  }
+  if (moe26b && !options.media_files.empty() &&
+      options.mtp_draft_tokens != 0U) {
+    std::cerr << "error: Gemma 4 26B Vision v1 requires Ordinary decoding\n";
     return 2;
   }
   if (options.print_model_report) {
     auto runtime = gem16::ModelRuntime::Load(
         {options.model_directory, options.assistant_model_directory,
-         options.max_context, 0});
+         options.max_context, 0, true, options.vision_model_directory});
     if (!runtime.ok()) {
       std::cerr << "error: " << runtime.status().message() << '\n';
       return 2;
@@ -848,6 +897,10 @@ int ChatMain(int argc, char** argv) {
         << (runtime.value()->supports_mtp() ? "true" : "false")
         << ",\"resident_weight_bytes\":"
         << runtime.value()->weight_bytes()
+        << ",\"vision_module_loaded\":"
+        << (runtime.value()->vision_module_loaded() ? "true" : "false")
+        << ",\"vision_weight_bytes\":"
+        << runtime.value()->vision_weight_bytes()
         << ",\"kv_cache_bytes\":";
     if (moe26b) {
       std::cout << runtime.value()->kv_cache_bytes();
@@ -897,7 +950,7 @@ int ChatMain(int argc, char** argv) {
   }
   auto initial_media = LoadMediaParts(
       options.media_files, options.max_context, options.max_tokens,
-      options.stats);
+      options.stats, !options.vision_model_directory.empty());
   if (!initial_media.ok()) {
     std::cerr << "error: " << initial_media.status().message() << '\n';
     return 2;
@@ -1041,7 +1094,8 @@ int ChatMain(int argc, char** argv) {
             ? options.max_context - cached_tokens
             : 0U;
     auto turn_media = LoadMediaParts(
-        pending_media, remaining_context, options.max_tokens, options.stats);
+        pending_media, remaining_context, options.max_tokens, options.stats,
+        !options.vision_model_directory.empty());
     if (!turn_media.ok()) {
       std::cerr << "error: " << turn_media.status().message() << '\n';
       continue;

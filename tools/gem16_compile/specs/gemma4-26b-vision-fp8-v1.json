@@ -2,7 +2,7 @@
   "artifact": {
     "data_alignment": 256,
     "filename": "vision.gem16",
-    "format": "safetensors-compatible-gem16-vision-sidecar-v1",
+    "format": "gem16-aligned-vision-module-v1",
     "manifest": "vision_compilation.json",
     "runtime_descriptor": "gem16_vision.json"
   },

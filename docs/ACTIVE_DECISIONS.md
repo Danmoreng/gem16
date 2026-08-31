@@ -49,7 +49,7 @@ Read it only for a concrete historical or evidence question.
    The owner subsequently approved the separate 26B Vision vertical slice on a
    branch based directly on frozen PFX31 commit `7649a84`. Vision v1 is bound
    exclusively to the compact `gem16-trellis35-w4a8-v1` text artifact and its
-   independently locked FP8 Vision sidecar compiled from Google's pinned
+   independently locked FP8 Vision module compiled from Google's pinned
    unquantized BF16 QAT checkpoint. It is not a Vision extension for `main`,
    NVFP4, or a generic 26B profile, and file existence never enables the
    capability. The qualified 26B

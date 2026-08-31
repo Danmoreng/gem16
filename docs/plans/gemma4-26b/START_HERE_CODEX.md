@@ -1,6 +1,6 @@
 # Start here — current coding-agent task
 
-Status: M00–M17, M20–M23 and M25 accepted. The qualified text-only 26B fixed-D2 checkpoint is selectable alongside 12B, supports 86,016 MTP context tokens with a 200 MiB reserve, and keeps a 98,304-token Target-only maximum. The broad historical M19 suite is waived for this checkpoint; claims remain bounded to the recorded GSM8K/AIME and product evidence. M18 remains conditional. The owner-approved post-program Vision vertical slice is now active only for the frozen Trellis35 branch; begin with [`V00_VISION_PROFILE_AND_SIDECAR_CONTRACT.md`](V00_VISION_PROFILE_AND_SIDECAR_CONTRACT.md) and do not infer NVFP4 or generic 26B Vision support.
+Status: M00–M17, M20–M23 and M25 accepted. The qualified text-only 26B fixed-D2 checkpoint is selectable alongside 12B, supports 86,016 MTP context tokens with a 200 MiB reserve, and keeps a 98,304-token Target-only maximum. The broad historical M19 suite is waived for this checkpoint; claims remain bounded to the recorded GSM8K/AIME and product evidence. M18 remains conditional. The owner-approved post-program Vision vertical slice is now active only for the frozen Trellis35 branch; begin with [`V00_VISION_PROFILE_AND_MODULE_CONTRACT.md`](V00_VISION_PROFILE_AND_MODULE_CONTRACT.md) and do not infer NVFP4 or generic 26B Vision support.
 Plan revision: Fast Track R4.
 
 ## Read now

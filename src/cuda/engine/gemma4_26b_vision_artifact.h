@@ -8,7 +8,7 @@
 #include <string_view>
 
 #include "gem16/status.h"
-#include "model/gemma4_26b_vision_sidecar.h"
+#include "model/gemma4_26b_vision_module.h"
 
 namespace gem16::internal {
 
@@ -40,7 +40,7 @@ class Gemma4Moe26BVisionDeviceArtifact {
       Gemma4Moe26BVisionDeviceArtifact&& other) noexcept;
 
   [[nodiscard]] static Result<Gemma4Moe26BVisionDeviceArtifact> Load(
-      const std::filesystem::path& sidecar_root);
+      const std::filesystem::path& module_root);
   [[nodiscard]] Result<const std::byte*> Pointer(
       std::string_view name) const;
   [[nodiscard]] const Gemma4Moe26BVisionDeviceArtifactStats& stats() const {

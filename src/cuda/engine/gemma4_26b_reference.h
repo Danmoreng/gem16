@@ -8,6 +8,7 @@
 
 #include "gem16/status.h"
 #include "gem16/sampling.h"
+#include "gem16/engine.h"
 #include "cuda/moe/reference.h"
 #include "cuda/mtp/verify.h"
 #include "cuda/engine/gemma4_26b_routed_expert_format.h"
@@ -77,11 +78,18 @@ class Gemma4Moe26BReferenceEngine {
       bool verify_device_image_sha256 = true,
       bool quality_capture_all_layers = false,
       std::optional<Gemma4Moe26BRoutedExpertFormat>
-          expected_routed_expert_format = std::nullopt);
+          expected_routed_expert_format = std::nullopt,
+      const std::filesystem::path& vision_model_directory = {});
 
   [[nodiscard]] Status Reset();
   [[nodiscard]] Status ForwardToken(std::uint32_t token);
   [[nodiscard]] Status PrefillTokens(std::span<const std::uint32_t> tokens);
+  // Experimental Vision v1 path. The segment offset is relative to `tokens`;
+  // its generated 2816-wide rows replace the matching image placeholders
+  // before the ordinary text prefill layers execute.
+  [[nodiscard]] Status PrefillTokensWithVision(
+      std::span<const std::uint32_t> tokens,
+      const Gemma4Moe26BVisionInputSegment& vision_segment);
   [[nodiscard]] Result<Gemma4Moe26BReferencePrediction> Prediction();
   // Product token selection is configured once per resident session. All
   // device buffers are reserved by Create; recurring selection performs no
@@ -140,6 +148,8 @@ class Gemma4Moe26BReferenceEngine {
   [[nodiscard]] bool mtp_assistant_loaded() const;
   [[nodiscard]] std::uint64_t mtp_assistant_weight_bytes() const;
   [[nodiscard]] std::uint64_t mtp_assistant_workspace_bytes() const;
+  [[nodiscard]] bool vision_module_loaded() const;
+  [[nodiscard]] std::uint64_t vision_weight_bytes() const;
   [[nodiscard]] bool mtp_group_graph_prepared(
       std::uint32_t draft_count) const;
   [[nodiscard]] std::uint64_t mtp_group_graph_device_bytes() const;

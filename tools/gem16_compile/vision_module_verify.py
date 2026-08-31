@@ -1,4 +1,4 @@
-"""Strict offline verifier for the Gemma 4 26B Vision FP8 sidecar."""
+"""Strict offline verifier for the Gemma 4 26B Vision FP8 module."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from typing import Any
 
 from .common import DataError, MAX_HEADER_BYTES, reject_duplicate_keys
 from .reader import TensorDescriptor
-from .vision_sidecar import (
+from .vision_module import (
     COMPILATION_FILENAME,
     DESCRIPTOR_FILENAME,
     LOCK_FILENAME,
@@ -76,21 +76,21 @@ def _verify_header(path: Path) -> tuple[int, dict[str, tuple[int, int]]]:
         with path.open("rb", buffering=0) as stream:
             prefix = stream.read(8)
             if len(prefix) != 8:
-                raise DataError("Vision sidecar has a short header prefix")
+                raise DataError("Vision module has a short header prefix")
             (header_length,) = struct.unpack("<Q", prefix)
             if header_length < 2 or header_length > MAX_HEADER_BYTES or 8 + header_length > size:
-                raise DataError("Vision sidecar header length is invalid")
+                raise DataError("Vision module header length is invalid")
             raw = stream.read(header_length)
             if len(raw) != header_length:
-                raise DataError("Vision sidecar header is truncated")
+                raise DataError("Vision module header is truncated")
     except OSError as error:
-        raise DataError(f"cannot read Vision sidecar header: {error}") from error
+        raise DataError(f"cannot read Vision module header: {error}") from error
     try:
         header = json.loads(raw, object_pairs_hook=reject_duplicate_keys)
     except (UnicodeError, json.JSONDecodeError) as error:
-        raise DataError(f"Vision sidecar header JSON is invalid: {error}") from error
+        raise DataError(f"Vision module header JSON is invalid: {error}") from error
     if not isinstance(header, dict):
-        raise DataError("Vision sidecar header root must be an object")
+        raise DataError("Vision module header root must be an object")
     metadata = header.pop("__metadata__", None)
     if metadata != {
         "format": "pt",
@@ -99,10 +99,10 @@ def _verify_header(path: Path) -> tuple[int, dict[str, tuple[int, int]]]:
         "gem16_required_text_profile": TEXT_ARTIFACT_PROFILE,
         "gem16_schema_version": "1",
     }:
-        raise DataError("Vision sidecar metadata contract mismatch")
+        raise DataError("Vision module metadata contract mismatch")
     expected = {item.name: item for item in _expected_outputs()}
     if set(header) != set(expected) or len(header) != OUTPUT_TENSOR_COUNT:
-        raise DataError("Vision sidecar tensor-name inventory mismatch")
+        raise DataError("Vision module tensor-name inventory mismatch")
     cursor = 0
     padding = 0
     offsets: dict[str, tuple[int, int]] = {}
@@ -112,7 +112,7 @@ def _verify_header(path: Path) -> tuple[int, dict[str, tuple[int, int]]]:
         cursor = aligned
         record = header[name]
         if not isinstance(record, dict) or set(record) != {"dtype", "shape", "data_offsets"}:
-            raise DataError(f"Vision sidecar tensor header schema mismatch: {name}")
+            raise DataError(f"Vision module tensor header schema mismatch: {name}")
         positions = record["data_offsets"]
         if (
             record["dtype"] != item.dtype
@@ -120,7 +120,7 @@ def _verify_header(path: Path) -> tuple[int, dict[str, tuple[int, int]]]:
             or not isinstance(positions, list)
             or positions != [cursor, cursor + item.byte_length]
         ):
-            raise DataError(f"Vision sidecar tensor extent mismatch: {name}")
+            raise DataError(f"Vision module tensor extent mismatch: {name}")
         cursor += item.byte_length
         offsets[name] = (positions[0], positions[1])
     if (
@@ -129,23 +129,23 @@ def _verify_header(path: Path) -> tuple[int, dict[str, tuple[int, int]]]:
         or sum(item.byte_length for item in expected.values()) != OUTPUT_TENSOR_BYTES
         or size != 8 + header_length + cursor
     ):
-        raise DataError("Vision sidecar total extent mismatch")
+        raise DataError("Vision module total extent mismatch")
     return 8 + header_length, offsets
 
 
-def verify_vision_sidecar(directory: Path) -> dict[str, Any]:
+def verify_vision_module(directory: Path) -> dict[str, Any]:
     try:
         original = directory.absolute()
         if original.is_symlink():
-            raise DataError("Vision sidecar directory must not be a symlink")
+            raise DataError("Vision module directory must not be a symlink")
         root = original.resolve(strict=True)
     except OSError as error:
-        raise DataError(f"cannot resolve Vision sidecar directory: {error}") from error
+        raise DataError(f"cannot resolve Vision module directory: {error}") from error
     if not root.is_dir():
-        raise DataError("Vision sidecar path is not a directory")
+        raise DataError("Vision module path is not a directory")
     entries = {item.name for item in root.iterdir()}
     if entries != REQUIRED_FILES:
-        raise DataError(f"Vision sidecar file set mismatch: {sorted(entries)}")
+        raise DataError(f"Vision module file set mismatch: {sorted(entries)}")
 
     artifact = root / VISION_FILENAME
     descriptor_path = root / DESCRIPTOR_FILENAME
@@ -190,7 +190,7 @@ def verify_vision_sidecar(directory: Path) -> dict[str, Any]:
     artifact_record = compilation.get("artifact")
     if artifact_record != {
         "filename": VISION_FILENAME,
-        "format": "safetensors-compatible-gem16-vision-sidecar-v1",
+        "format": "gem16-aligned-vision-module-v1",
         "payload_bytes": OUTPUT_PAYLOAD_BYTES,
         "payload_offset": payload_offset,
         "sha256": artifact_hash,
@@ -245,4 +245,4 @@ def verify_vision_sidecar(directory: Path) -> dict[str, Any]:
     }
 
 
-__all__ = ["verify_vision_sidecar"]
+__all__ = ["verify_vision_module"]

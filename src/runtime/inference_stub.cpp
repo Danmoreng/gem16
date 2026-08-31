@@ -19,6 +19,8 @@ Result<std::shared_ptr<ModelRuntime>> ModelRuntime::Load(
 std::uint64_t ModelRuntime::weight_bytes() const { return 0U; }
 std::uint64_t ModelRuntime::assistant_weight_bytes() const { return 0U; }
 bool ModelRuntime::assistant_loaded() const { return false; }
+std::uint64_t ModelRuntime::vision_weight_bytes() const { return 0U; }
+bool ModelRuntime::vision_module_loaded() const { return false; }
 double ModelRuntime::load_milliseconds() const { return 0.0; }
 const char* ModelRuntime::weight_load_path() const { return "none"; }
 const char* ModelRuntime::model_variant_name() const { return "unsupported"; }
@@ -65,7 +67,8 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
     std::span<const std::uint32_t>, std::uint64_t,
     const ReasoningTokenOptions&, GeneratedTokenCallback, void*,
     std::span<const AudioEmbeddingSegment>,
-    std::span<const VisionEmbeddingSegment>) {
+    std::span<const VisionEmbeddingSegment>,
+    std::span<const Gemma4Moe26BVisionInputSegment>) {
   return Status(StatusCode::kUnsupported,
                 "conversation sessions require a CUDA build compiled for SM120a");
 }

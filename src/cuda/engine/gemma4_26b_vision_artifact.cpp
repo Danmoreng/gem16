@@ -25,7 +25,7 @@ Status CudaFailure(std::string_view operation, cudaError_t error) {
                     ": " + cudaGetErrorString(error));
 }
 
-Status Upload(const Gemma4Moe26BVisionSidecarPlan& plan,
+Status Upload(const Gemma4Moe26BVisionModulePlan& plan,
               std::byte* destination) {
   if (destination == nullptr ||
       plan.artifact_bytes >
@@ -35,7 +35,7 @@ Status Upload(const Gemma4Moe26BVisionSidecarPlan& plan,
       plan.artifact_bytes - plan.payload_file_offset !=
           kGemma4Moe26BVisionPayloadBytes) {
     return Status(StatusCode::kInvalidArgument,
-                  "invalid Vision sidecar upload plan");
+                  "invalid Vision module upload plan");
   }
   cudaStream_t stream = nullptr;
   std::byte* staging = nullptr;
@@ -57,7 +57,7 @@ Status Upload(const Gemma4Moe26BVisionSidecarPlan& plan,
   if (!input) {
     cleanup();
     return Status(StatusCode::kIoError,
-                  "cannot open Vision sidecar payload");
+                  "cannot open Vision module payload");
   }
   compiler::Sha256 sha256;
   std::uint64_t file_offset = 0U;
@@ -69,7 +69,7 @@ Status Upload(const Gemma4Moe26BVisionSidecarPlan& plan,
     if (input.gcount() != static_cast<std::streamsize>(count)) {
       cleanup();
       return Status(StatusCode::kDataLoss,
-                    "short read from Vision sidecar payload");
+                    "short read from Vision module payload");
     }
     sha256.Update(staging, static_cast<std::size_t>(count));
     const std::uint64_t begin =
@@ -85,7 +85,7 @@ Status Upload(const Gemma4Moe26BVisionSidecarPlan& plan,
       if (error == cudaSuccess) error = cudaStreamSynchronize(stream);
       if (error != cudaSuccess) {
         cleanup();
-        return CudaFailure("upload Vision sidecar payload", error);
+        return CudaFailure("upload Vision module payload", error);
       }
     }
     file_offset += count;
@@ -93,7 +93,7 @@ Status Upload(const Gemma4Moe26BVisionSidecarPlan& plan,
   cleanup();
   if (sha256.HexDigest() != plan.artifact_sha256) {
     return Status(StatusCode::kDataLoss,
-                  "Vision sidecar changed between validation and upload");
+                  "Vision module changed between validation and upload");
   }
   return Status::Ok();
 }
@@ -123,8 +123,8 @@ Gemma4Moe26BVisionDeviceArtifact::operator=(
 
 Result<Gemma4Moe26BVisionDeviceArtifact>
 Gemma4Moe26BVisionDeviceArtifact::Load(
-    const std::filesystem::path& sidecar_root) {
-  auto plan = LoadGemma4Moe26BVisionSidecarPlan(sidecar_root);
+    const std::filesystem::path& module_root) {
+  auto plan = LoadGemma4Moe26BVisionModulePlan(module_root);
   if (!plan.ok()) return plan.status();
   Gemma4Moe26BVisionDeviceArtifact artifact;
   artifact.arena_bytes_ = kGemma4Moe26BVisionPayloadBytes;

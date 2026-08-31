@@ -194,6 +194,8 @@ Result<GreedyInferenceResult> RunGreedyInference(const GreedyInferenceOptions& o
     session_options.model_directory = options.model_directory;
     session_options.assistant_model_directory =
         options.assistant_model_directory;
+    session_options.vision_model_directory =
+        options.vision_model_directory;
     session_options.stop_token_ids = options.stop_token_ids;
     session_options.suppressed_token_ids = options.suppressed_token_ids;
     session_options.max_context_tokens = options.max_context_tokens;

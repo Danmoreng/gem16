@@ -54,6 +54,7 @@ void PrintUsage() {
       << "  gem16-run --print-kernel-capabilities\n"
       << "  gem16-run --model <checkpoint> --input-token-ids <id,id,...>\n"
       << "              [--assistant-model <official-mtp-checkpoint>]\n"
+      << "              [--vision-model <compiled-vision-module>]\n"
       << "              [--mtp-draft-tokens 1|2|4] [--mtp-adaptive]\n"
       << "              [--mtp-router-overlap-diagnostic]\n"
       << "              [--cuda-profile-phase prefill|decode]\n"
@@ -94,6 +95,8 @@ int main(int argc, char** argv) {
       options.model_directory = argv[++index];
     } else if (argument == "--assistant-model" && index + 1 < argc) {
       options.assistant_model_directory = argv[++index];
+    } else if (argument == "--vision-model" && index + 1 < argc) {
+      options.vision_model_directory = argv[++index];
     } else if (argument == "--mtp-draft-tokens" && index + 1 < argc) {
       std::uint64_t value = 0U;
       if (!ParseUnsigned(argv[++index], value) ||

@@ -95,6 +95,7 @@ struct SlotMemoryPlan {
 struct Options {
   std::filesystem::path model_directory;
   std::filesystem::path assistant_model_directory;
+  std::filesystem::path vision_model_directory;
   std::string model_name = "gem16";
   std::string host = "127.0.0.1";
   int port = 8080;
@@ -128,7 +129,8 @@ void PrintUsage() {
       << "  --model-integrity structural|sha256 (default: structural)\n"
       << "  --greedy                Disable checkpoint-recommended sampling\n"
       << "  --seed <integer>        Sampling seed (default: 0)\n"
-      << "  --assistant-model <checkpoint> --mtp-draft-tokens 1|2|4 [--mtp-adaptive]\n";
+      << "  --assistant-model <checkpoint> --mtp-draft-tokens 1|2|4 [--mtp-adaptive]\n"
+      << "  --vision-model <compiled-vision-module>\n";
 }
 
 bool ParseUnsigned(std::string_view text, std::uint64_t& value) {
@@ -145,6 +147,8 @@ gem16::Result<Options> ParseOptions(int argc, char** argv) {
       options.model_directory = argv[++index];
     } else if (argument == "--assistant-model" && index + 1 < argc) {
       options.assistant_model_directory = argv[++index];
+    } else if (argument == "--vision-model" && index + 1 < argc) {
+      options.vision_model_directory = argv[++index];
     } else if (argument == "--model-name" && index + 1 < argc) {
       options.model_name = argv[++index];
     } else if (argument == "--host" && index + 1 < argc) {
@@ -380,7 +384,8 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
                       httplib::Response& response) {
   state.metrics.requests_total.fetch_add(1U);
   auto parsed = gem16::server::ParseChatCompletionsRequest(
-      request.body, {state.max_context});
+      request.body,
+      {state.max_context, state.runtime->vision_module_loaded()});
   if (!parsed.ok()) {
     state.metrics.requests_failed.fetch_add(1U);
     SetError(state, parsed.status(), response);
@@ -554,7 +559,8 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
                      httplib::Response& response) {
   state.metrics.requests_total.fetch_add(1U);
   auto parsed = gem16::server::ParseResponsesRequest(
-      request.body, {state.max_context});
+      request.body,
+      {state.max_context, state.runtime->vision_module_loaded()});
   if (!parsed.ok()) {
     state.metrics.requests_failed.fetch_add(1U);
     SetError(state, parsed.status(), response);
@@ -903,6 +909,8 @@ int ServerMain(int argc, char** argv) {
   session_options.model_directory = options.value().model_directory;
   session_options.assistant_model_directory =
       options.value().assistant_model_directory;
+  session_options.vision_model_directory =
+      options.value().vision_model_directory;
   session_options.max_context_tokens = options.value().max_context;
   session_options.kv_cache_mode = options.value().kv_cache_mode;
   session_options.sampling =
@@ -915,7 +923,8 @@ int ServerMain(int argc, char** argv) {
       {options.value().model_directory,
        options.value().assistant_model_directory,
        options.value().max_context, 0,
-       options.value().verify_device_image_sha256});
+       options.value().verify_device_image_sha256,
+       options.value().vision_model_directory});
   if (!runtime.ok()) {
     logger.Log(LogLevel::kError, "model_load_failed",
                {{"error", runtime.status().message()}});

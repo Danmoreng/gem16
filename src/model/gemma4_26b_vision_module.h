@@ -32,7 +32,7 @@ struct Gemma4Moe26BVisionTensorPlan {
   std::vector<std::uint64_t> shape;
 };
 
-struct Gemma4Moe26BVisionSidecarPlan {
+struct Gemma4Moe26BVisionModulePlan {
   std::filesystem::path root;
   std::filesystem::path artifact;
   std::string artifact_sha256;
@@ -45,7 +45,7 @@ struct Gemma4Moe26BVisionSidecarPlan {
 // allocation; callers must still explicitly select the Trellis35 Vision
 // profile. Every file, hash, tensor name, shape, range and zero padding gap is
 // checked before the plan can be consumed by the CUDA residency loader.
-[[nodiscard]] Result<Gemma4Moe26BVisionSidecarPlan>
-LoadGemma4Moe26BVisionSidecarPlan(const std::filesystem::path& sidecar_root);
+[[nodiscard]] Result<Gemma4Moe26BVisionModulePlan>
+LoadGemma4Moe26BVisionModulePlan(const std::filesystem::path& module_root);
 
 }  // namespace gem16::internal

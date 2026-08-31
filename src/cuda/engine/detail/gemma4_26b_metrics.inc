@@ -121,6 +121,13 @@ std::uint64_t Gemma4Moe26BReferenceEngine::position() const {
 std::uint64_t Gemma4Moe26BReferenceEngine::context_capacity() const {
   return implementation_ ? implementation_->context : 0U;
 }
+bool Gemma4Moe26BReferenceEngine::vision_module_loaded() const {
+  return implementation_ != nullptr &&
+         implementation_->vision_artifact.arena() != nullptr;
+}
+std::uint64_t Gemma4Moe26BReferenceEngine::vision_weight_bytes() const {
+  return implementation_ ? implementation_->vision_artifact.arena_bytes() : 0U;
+}
 std::uint64_t Gemma4Moe26BReferenceEngine::weight_arena_bytes() const {
   return implementation_
              ? (IsTrellis35RoutedExpertFormat(
@@ -145,7 +152,8 @@ std::uint64_t Gemma4Moe26BReferenceEngine::workspace_bytes() const {
   return implementation_ ? implementation_->workspace.bytes() +
                                implementation_->prefill_workspace.bytes() +
                                implementation_->mtp_verifier.bytes() +
-                               implementation_->trellis35_workspace.bytes()
+                               implementation_->trellis35_workspace.bytes() +
+                               implementation_->vision_runtime.workspace_bytes()
                          : 0U;
 }
 std::uint64_t Gemma4Moe26BReferenceEngine::sliding_cache_capacity() const {

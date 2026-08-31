@@ -1,4 +1,4 @@
-# V00 — Gemma 4 26B Trellis35 Vision profile and sidecar contract
+# V00 — Gemma 4 26B Trellis35 Vision profile and module contract
 
 Status: owner-approved and implemented as the fail-closed input contract for V01.
 
@@ -13,12 +13,14 @@ checkpoint. The presence of `vision.gem16` never changes a runtime capability.
 The future loader must require explicit profile selection and validate all four
 files before it reports image support:
 
-- `vision.gem16` — immutable Safetensors-compatible FP8/BF16 payload;
+- `vision.gem16` — immutable GEM16-aligned FP8/BF16 Vision-module payload;
 - `gem16_vision.json` — explicit runtime descriptor and text-profile binding;
 - `vision_compilation.json` — complete source/compiler/tensor provenance;
 - `vision.lock.json` — immutable hashes for the three files above and source.
 
 Target, optional Assistant, and Vision remain independently pinned artifacts.
+The Vision module is a mandatory component of this explicit Vision profile;
+its separate file boundary does not make it an optional architectural add-on.
 Text-only Trellis35 and qualified NVFP4 behavior remain unchanged.
 
 ## Immutable source and oracle
@@ -101,3 +103,8 @@ bytes are reported separately by each compilation and are not uploaded.
 
 The file layout is final row-major NK FP8 plus row-major BF16 scale, or source
 BF16 for copied tensors. Future CUDA kernels consume these layouts directly.
+The container is GEM16-owned and Safetensors-derived, but not advertised as a
+strict Safetensors file: the 256-byte alignment gaps are deliberate and the
+official Safetensors format forbids unindexed holes. Kernel-specific matrix
+swizzles or fused QKV/Gate+Up layouts require a measured format revision after
+the owning V04/V05 operator exists; the loader never creates them implicitly.

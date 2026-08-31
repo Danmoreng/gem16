@@ -35,6 +35,32 @@ struct VisionImageOptions {
   bool allow_upscale = false;
 };
 
+// Processed input for the Gemma 4 26B Vision tower. Unlike VisionImage, this
+// keeps the teacher's individual 16x16 RGB patches. Nine adjacent raw patches
+// become one text-side soft token only after the 26B Vision encoder.
+struct Gemma4Moe26BVisionImage {
+  // Row-major [raw_patch, 16, 16, RGB], rescaled to [0, 1]. Padding to the
+  // model's fixed 2,520-row input is an execution detail, not host payload.
+  std::vector<float> patches;
+  // Row-major [raw_patch, xy].
+  std::vector<std::int32_t> positions;
+  std::uint32_t raw_patch_count = 0U;
+  std::uint32_t soft_token_count = 0U;
+  std::uint32_t source_width = 0U;
+  std::uint32_t source_height = 0U;
+  std::uint32_t processed_width = 0U;
+  std::uint32_t processed_height = 0U;
+  std::uint32_t soft_token_budget = 280U;
+  std::uint64_t source_fingerprint = 0U;
+
+  bool operator==(const Gemma4Moe26BVisionImage&) const = default;
+};
+
+struct Gemma4Moe26BVisionImageOptions {
+  // The pinned processor accepts 70, 140, or 280 for this v1 profile.
+  std::uint32_t maximum_soft_tokens = 280U;
+};
+
 [[nodiscard]] std::uint32_t AutomaticVisionSoftTokenBudget(
     std::uint64_t context_tokens, std::uint64_t reserved_non_image_tokens,
     std::size_t image_count);
@@ -48,5 +74,18 @@ struct VisionImageOptions {
 [[nodiscard]] Result<VisionImage> LoadVisionImageBytes(
     std::span<const std::uint8_t> encoded, std::string_view source_name,
     const VisionImageOptions& options = {});
+
+// Pinned Gemma 4 26B preprocessing: RGB, aspect-preserving antialiased
+// bicubic resize (including reference upscaling), /255 rescale, and row-major
+// 16x16 teacher patches. The returned host payload contains only real rows;
+// the CUDA tower supplies the specified zero/-1 padding to 2,520 rows.
+[[nodiscard]] Result<Gemma4Moe26BVisionImage>
+LoadGemma4Moe26BVisionImage(
+    const std::filesystem::path& path,
+    const Gemma4Moe26BVisionImageOptions& options = {});
+[[nodiscard]] Result<Gemma4Moe26BVisionImage>
+LoadGemma4Moe26BVisionImageBytes(
+    std::span<const std::uint8_t> encoded, std::string_view source_name,
+    const Gemma4Moe26BVisionImageOptions& options = {});
 
 }  // namespace gem16

@@ -8,13 +8,13 @@
 
 namespace {
 
-int LoadVision(const std::filesystem::path& sidecar,
+int LoadVision(const std::filesystem::path& module,
                std::uint64_t text_arena_bytes) {
   std::size_t free_before = 0U;
   std::size_t total = 0U;
   if (cudaMemGetInfo(&free_before, &total) != cudaSuccess) return 3;
   auto artifact = gem16::internal::Gemma4Moe26BVisionDeviceArtifact::Load(
-      sidecar);
+      module);
   if (!artifact.ok()) {
     std::cerr << "vision_load_probe_error: " << artifact.status().message()
               << '\n';
@@ -38,7 +38,7 @@ int LoadVision(const std::filesystem::path& sidecar,
 
 int main(int argc, char** argv) {
   if (argc != 2 && argc != 3) {
-    std::cerr << "usage: gem16-26b-vision-load-probe SIDECAR [TRELLIS_CHECKPOINT]\n";
+    std::cerr << "usage: gem16-26b-vision-load-probe MODULE [TRELLIS_CHECKPOINT]\n";
     return 2;
   }
   if (argc == 2) return LoadVision(std::filesystem::path(argv[1]), 0U);

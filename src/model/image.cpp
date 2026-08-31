@@ -117,6 +117,10 @@ std::pair<std::uint32_t, std::uint32_t> TargetSize(
   return {target_height, target_width};
 }
 
+bool IsGemma4Moe26BSoftTokenBudget(std::uint32_t value) {
+  return value == 70U || value == 140U || value == 280U;
+}
+
 double Cubic(double value) {
   constexpr double a = -0.75;
   value = std::abs(value);
@@ -310,6 +314,101 @@ Result<VisionImage> LoadVisionImage(const std::filesystem::path& path,
                  "cannot read image " + path.string());
   }
   return LoadVisionImageBytes(encoded, path.string(), options);
+}
+
+Result<Gemma4Moe26BVisionImage> LoadGemma4Moe26BVisionImageBytes(
+    std::span<const std::uint8_t> encoded, std::string_view source_name,
+    const Gemma4Moe26BVisionImageOptions& options) {
+  if (!IsGemma4Moe26BSoftTokenBudget(options.maximum_soft_tokens)) {
+    return Error(StatusCode::kInvalidArgument,
+                 "Gemma 4 26B image soft-token budget must be 70, 140, or 280");
+  }
+  auto decoded = DecodeImage(encoded, source_name);
+  if (!decoded.ok()) return decoded.status();
+  // Google's processor always scales toward the selected budget. In
+  // particular, small images are intentionally upscaled here.
+  const auto [target_height, target_width] =
+      TargetSize(decoded.value().height, decoded.value().width,
+                 options.maximum_soft_tokens, true);
+  if (target_height == 0U || target_width == 0U ||
+      target_height % kModelPatch != 0U ||
+      target_width % kModelPatch != 0U) {
+    return Error(StatusCode::kDataLoss,
+                 "image aspect ratio cannot produce a valid Gemma 4 26B patch grid");
+  }
+  const std::uint32_t raw_grid_height = target_height / kTeacherPatch;
+  const std::uint32_t raw_grid_width = target_width / kTeacherPatch;
+  const std::uint32_t raw_patch_count = raw_grid_height * raw_grid_width;
+  const std::uint32_t soft_token_count = raw_patch_count / (kPool * kPool);
+  if (raw_patch_count == 0U ||
+      raw_patch_count > options.maximum_soft_tokens * kPool * kPool ||
+      raw_grid_height % kPool != 0U || raw_grid_width % kPool != 0U ||
+      soft_token_count == 0U ||
+      soft_token_count > options.maximum_soft_tokens) {
+    return Error(StatusCode::kDataLoss,
+                 "Gemma 4 26B image patch count exceeds the selected budget");
+  }
+
+  auto resized = Resize(decoded.value(), target_width, target_height);
+  Gemma4Moe26BVisionImage result;
+  result.raw_patch_count = raw_patch_count;
+  result.soft_token_count = soft_token_count;
+  result.source_width = decoded.value().width;
+  result.source_height = decoded.value().height;
+  result.processed_width = target_width;
+  result.processed_height = target_height;
+  result.soft_token_budget = options.maximum_soft_tokens;
+  result.source_fingerprint = SourceFingerprint(encoded);
+  result.patches.resize(static_cast<std::size_t>(raw_patch_count) * 16U * 16U * 3U);
+  result.positions.resize(static_cast<std::size_t>(raw_patch_count) * 2U);
+  std::size_t destination = 0U;
+  for (std::uint32_t patch_y = 0U; patch_y < raw_grid_height; ++patch_y) {
+    for (std::uint32_t patch_x = 0U; patch_x < raw_grid_width; ++patch_x) {
+      const std::uint32_t patch = patch_y * raw_grid_width + patch_x;
+      result.positions[patch * 2U] = static_cast<std::int32_t>(patch_x);
+      result.positions[patch * 2U + 1U] = static_cast<std::int32_t>(patch_y);
+      for (std::uint32_t y = 0U; y < kTeacherPatch; ++y) {
+        for (std::uint32_t x = 0U; x < kTeacherPatch; ++x) {
+          const std::size_t source =
+              ((static_cast<std::size_t>(patch_y) * kTeacherPatch + y) *
+                   target_width +
+               static_cast<std::size_t>(patch_x) * kTeacherPatch + x) *
+              3U;
+          for (std::uint32_t channel = 0U; channel < 3U; ++channel) {
+            result.patches[destination++] =
+                static_cast<float>(resized[source + channel]) / 255.0F;
+          }
+        }
+      }
+    }
+  }
+  return result;
+}
+
+Result<Gemma4Moe26BVisionImage> LoadGemma4Moe26BVisionImage(
+    const std::filesystem::path& path,
+    const Gemma4Moe26BVisionImageOptions& options) {
+  std::error_code file_error;
+  const std::uint64_t file_size = std::filesystem::file_size(path, file_error);
+  if (file_error) {
+    return Error(StatusCode::kIoError,
+                 "cannot stat image " + path.string() + ": " +
+                     file_error.message());
+  }
+  if (file_size == 0U || file_size > kMaximumEncodedBytes ||
+      file_size > std::numeric_limits<std::size_t>::max()) {
+    return Error(StatusCode::kUnsupported,
+                 "encoded image size is empty or exceeds the safety limit");
+  }
+  std::vector<std::uint8_t> encoded(static_cast<std::size_t>(file_size));
+  std::ifstream input(path, std::ios::binary);
+  if (!input ||
+      !input.read(reinterpret_cast<char*>(encoded.data()),
+                  static_cast<std::streamsize>(encoded.size()))) {
+    return Error(StatusCode::kIoError,
+                 "cannot read image " + path.string());
+  }
+  return LoadGemma4Moe26BVisionImageBytes(encoded, path.string(), options);
 }
 
 }  // namespace gem16

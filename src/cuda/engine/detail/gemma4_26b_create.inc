@@ -13,7 +13,8 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
     std::uint64_t context_tokens, int device, Gemma4Moe26BBackend backend,
     bool verify_device_image_sha256, bool quality_capture_all_layers,
     std::optional<Gemma4Moe26BRoutedExpertFormat>
-        expected_routed_expert_format) {
+        expected_routed_expert_format,
+    const std::filesystem::path& vision_model_directory) {
   if (context_tokens == 0U || context_tokens > kMaximumContextTokens ||
       device < 0) {
     return Invalid("Gemma 4 26B context must be in [1, 262144]");
@@ -56,7 +57,17 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
         Gemma4Moe26BTrellis35DeviceArtifact::Load(model_directory);
     if (!artifact.ok()) return artifact.status();
     impl->trellis35_artifact = std::move(artifact).value();
+    if (!vision_model_directory.empty()) {
+      auto vision =
+          Gemma4Moe26BVisionDeviceArtifact::Load(vision_model_directory);
+      if (!vision.ok()) return vision.status();
+      impl->vision_artifact = std::move(vision).value();
+    }
   } else {
+    if (!vision_model_directory.empty()) {
+      return Status(StatusCode::kUnsupported,
+                    "the Vision module requires the Trellis35 text artifact");
+    }
     auto manifest = InspectCheckpoint({model_directory, true});
     if (!manifest.ok()) return manifest.status();
     valid = ValidateGemma4Moe26BAttentionBindings(manifest.value().tensors,
@@ -93,6 +104,12 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
   }
   error = cudaStreamCreateWithFlags(&impl->stream, cudaStreamNonBlocking);
   if (error != cudaSuccess) return CudaFailure("create M13 stream", error);
+  if (impl->vision_artifact.arena() != nullptr) {
+    auto vision_runtime =
+        Gemma4Moe26BVisionRuntime::Create(impl->vision_artifact);
+    if (!vision_runtime.ok()) return vision_runtime.status();
+    impl->vision_runtime = std::move(vision_runtime).value();
+  }
   if (backend == Gemma4Moe26BBackend::kSm120Integrated) {
     error = cudaStreamCreateWithFlags(&impl->shared_moe_stream,
                                       cudaStreamNonBlocking);

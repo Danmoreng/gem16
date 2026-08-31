@@ -26,6 +26,7 @@ struct ModelRuntime::Impl {
   std::uint64_t max_context_tokens = 0U;
   double load_milliseconds = 0.0;
   bool assistant_loaded = false;
+  bool vision_module_loaded = false;
   bool moe26b_slot_leased = false;
 };
 
@@ -86,13 +87,15 @@ Result<std::shared_ptr<ModelRuntime>> ModelRuntime::Load(
         options.model_directory, options.max_context_tokens, options.device,
         internal::Gemma4Moe26BBackend::kSm120Integrated,
         options.verify_device_image_sha256, false,
-        routed_expert_format.value());
+        routed_expert_format.value(), options.vision_model_directory);
     if (!engine.ok()) return engine.status();
     impl->max_context_tokens = options.max_context_tokens;
     impl->moe26b_engine =
         std::make_unique<internal::Gemma4Moe26BReferenceEngine>(
             std::move(engine).value());
     impl->weight_load_path = impl->moe26b_engine->weight_load_path();
+    impl->vision_module_loaded =
+        impl->moe26b_engine->vision_module_loaded();
     if (!options.assistant_model_directory.empty()) {
       Status status = impl->moe26b_engine->LoadMtpAssistant(
           options.assistant_model_directory);
@@ -100,6 +103,10 @@ Result<std::shared_ptr<ModelRuntime>> ModelRuntime::Load(
       impl->assistant_loaded = true;
     }
   } else {
+    if (!options.vision_model_directory.empty()) {
+      return Error(StatusCode::kUnsupported,
+                   "the external Vision module is supported only by the explicit Gemma 4 26B Trellis35 profile");
+    }
     Status status = impl->model.Load(options.model_directory);
     if (!status.ok()) return status;
     impl->max_context_tokens = kMaximumContext;
@@ -129,6 +136,13 @@ std::uint64_t ModelRuntime::assistant_weight_bytes() const {
 }
 bool ModelRuntime::assistant_loaded() const {
   return impl_ != nullptr && impl_->assistant_loaded;
+}
+std::uint64_t ModelRuntime::vision_weight_bytes() const {
+  if (impl_ == nullptr || impl_->moe26b_engine == nullptr) return 0U;
+  return impl_->moe26b_engine->vision_weight_bytes();
+}
+bool ModelRuntime::vision_module_loaded() const {
+  return impl_ != nullptr && impl_->vision_module_loaded;
 }
 double ModelRuntime::load_milliseconds() const {
   return impl_ == nullptr ? 0.0 : impl_->load_milliseconds;
@@ -200,8 +214,12 @@ bool ModelRuntime::supports_audio() const {
          internal::TraitsForModelVariant(impl_->variant).supports_audio;
 }
 bool ModelRuntime::supports_vision() const {
-  return impl_ != nullptr &&
-         internal::TraitsForModelVariant(impl_->variant).supports_vision;
+  if (impl_ == nullptr) return false;
+  if (impl_->variant == internal::ModelVariant::kGemma4Moe26BA4B) {
+    return impl_->moe26b_engine != nullptr &&
+           impl_->moe26b_engine->vision_module_loaded();
+  }
+  return internal::TraitsForModelVariant(impl_->variant).supports_vision;
 }
 bool ModelRuntime::supports_mtp() const {
   if (impl_ == nullptr) return false;
@@ -304,7 +322,8 @@ Result<ConversationSession> ConversationSession::Create(
   }
   auto runtime = ModelRuntime::Load(
       {options.model_directory, options.assistant_model_directory,
-       options.max_context_tokens, 0});
+       options.max_context_tokens, 0, true,
+       options.vision_model_directory});
   if (!runtime.ok()) return runtime.status();
   return Create(std::move(runtime).value(), options);
 }
@@ -448,7 +467,9 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
     GeneratedTokenCallback generated_token_callback,
     void* generated_token_callback_context,
     std::span<const AudioEmbeddingSegment> audio_segments,
-    std::span<const VisionEmbeddingSegment> vision_segments) {
+    std::span<const VisionEmbeddingSegment> vision_segments,
+    std::span<const Gemma4Moe26BVisionInputSegment>
+        moe26b_vision_segments) {
   if (impl_ == nullptr) {
     return Error(StatusCode::kInternal,
                  "conversation session was moved from");
@@ -492,7 +513,21 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
   if (moe26b && (!audio_segments.empty() || !vision_segments.empty())) {
     return Error(
         StatusCode::kUnsupported,
-        "Gemma 4 26B is a text-only profile; audio and vision input are unsupported");
+        "Gemma 4 26B does not accept 12B audio or merged-patch Vision input");
+  }
+  if (!moe26b && !moe26b_vision_segments.empty()) {
+    return Error(StatusCode::kUnsupported,
+                 "Gemma 4 26B raw-patch Vision input requires the 26B profile");
+  }
+  if (moe26b && !moe26b_vision_segments.empty() &&
+      (impl_->runtime == nullptr ||
+       !impl_->runtime->impl_->moe26b_engine->vision_module_loaded())) {
+    return Error(StatusCode::kUnsupported,
+                 "Gemma 4 26B Vision input requires an explicitly loaded Vision module");
+  }
+  if (moe26b_vision_segments.size() > 1U) {
+    return Error(StatusCode::kUnsupported,
+                 "Gemma 4 26B Vision v1 supports one image per conversation");
   }
   for (const AudioEmbeddingSegment& segment : audio_segments) {
     if (segment.frames.empty() || segment.frames.size() % 640U != 0U) {
@@ -533,6 +568,27 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
           segment.positions[patch * 2U + 1U] >= 1120) {
         return Error(StatusCode::kInvalidArgument,
                      "vision segment token or position alignment is invalid");
+      }
+    }
+  }
+  for (const Gemma4Moe26BVisionInputSegment& segment :
+       moe26b_vision_segments) {
+    if (segment.soft_token_count == 0U || segment.soft_token_count > 280U ||
+        segment.raw_patch_count != segment.soft_token_count * 9U ||
+        segment.patches.size() !=
+            static_cast<std::size_t>(segment.raw_patch_count) * 768U ||
+        segment.positions.size() !=
+            static_cast<std::size_t>(segment.raw_patch_count) * 2U ||
+        segment.prompt_offset >= full_prompt_token_ids.size() ||
+        segment.soft_token_count >
+            full_prompt_token_ids.size() - segment.prompt_offset) {
+      return Error(StatusCode::kInvalidArgument,
+                   "Gemma 4 26B Vision segment does not fit in the rendered prompt");
+    }
+    for (std::uint32_t token = 0U; token < segment.soft_token_count; ++token) {
+      if (full_prompt_token_ids[segment.prompt_offset + token] != 258880U) {
+        return Error(StatusCode::kInvalidArgument,
+                     "Gemma 4 26B Vision segment is not aligned with image placeholders");
       }
     }
   }
@@ -603,10 +659,32 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
       }
     }
     const auto prompt_start = std::chrono::steady_clock::now();
+    std::optional<Gemma4Moe26BVisionInputSegment> uncached_vision;
+    if (!moe26b_vision_segments.empty()) {
+      const auto& segment = moe26b_vision_segments.front();
+      const std::uint64_t segment_end =
+          segment.prompt_offset + segment.soft_token_count;
+      if (segment.prompt_offset < prefix_tokens && segment_end > prefix_tokens) {
+        return Error(StatusCode::kInvalidArgument,
+                     "resident cache splits a Gemma 4 26B Vision span");
+      }
+      if (segment.prompt_offset >= prefix_tokens) {
+        if (impl_->mtp_draft_tokens != 0U) {
+          return Error(StatusCode::kUnsupported,
+                       "Gemma 4 26B Vision v1 requires Ordinary decoding");
+        }
+        uncached_vision = segment;
+        uncached_vision->prompt_offset -= prefix_tokens;
+      }
+    }
     auto selected = [&]() -> Result<std::uint32_t> {
       const NvtxRange range("gem16.26b.prefill");
-      Status prefill =
-          impl_->runtime->impl_->moe26b_engine->PrefillTokens(suffix);
+      Status prefill = uncached_vision.has_value()
+                           ? impl_->runtime->impl_->moe26b_engine
+                                 ->PrefillTokensWithVision(
+                                     suffix, *uncached_vision)
+                           : impl_->runtime->impl_->moe26b_engine
+                                 ->PrefillTokens(suffix);
       if (!prefill.ok()) return prefill;
       return impl_->runtime->impl_->moe26b_engine->SelectToken();
     }();

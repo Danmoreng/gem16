@@ -38,7 +38,7 @@ constexpr std::uint16_t kBf16One = 0x3F80U;
 constexpr std::uint16_t kBf16Min = 0x0001U;
 constexpr std::size_t kMaxJobBytes = 16U * 1024U * 1024U;
 // The text-attention contract contains 115 matrices.  The independent Gemma 4
-// 26B Vision sidecar contains 191 linear matrices.  Keep comparison jobs at
+// The 26B Vision module contains 191 linear matrices. Keep comparison jobs at
 // the narrower text boundary while allowing the same bounded row-wise encoder
 // to service the explicitly larger offline Vision job.
 constexpr std::uint64_t kMaxEncodeMatrices = 191U;

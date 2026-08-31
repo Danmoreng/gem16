@@ -50,6 +50,18 @@ struct VisionEmbeddingSegment {
   std::span<const std::int32_t> positions;
 };
 
+struct Gemma4Moe26BVisionInputSegment {
+  // Absolute prompt position of the first repeated <|image|> token.
+  std::uint64_t prompt_offset = 0U;
+  // Text-side image span after 3x3 spatial pooling.
+  std::uint32_t soft_token_count = 0U;
+  // Unpadded teacher-patch rows consumed by the Vision tower.
+  std::uint32_t raw_patch_count = 0U;
+  // Row-major [raw_patch, 768] and [raw_patch, xy].
+  std::span<const float> patches;
+  std::span<const std::int32_t> positions;
+};
+
 struct ReasoningTokenOptions {
   std::vector<std::uint32_t> channel_open_token_ids;
   std::uint32_t channel_close_token_id = 0U;
@@ -65,6 +77,9 @@ struct GreedyInferenceOptions {
   // Optional official BF16 MTP assistant, loaded and bound into an
   // independent fixed-address arena.
   std::filesystem::path assistant_model_directory;
+  // Explicitly selects the Trellis35 Vision profile. File discovery never
+  // enables Vision implicitly.
+  std::filesystem::path vision_model_directory;
   // Zero keeps the residency-only gate. Active correctness generation
   // supports exactly 1, 2, or 4 assistant drafts per verification group.
   std::uint32_t mtp_draft_tokens = 0;
@@ -176,6 +191,7 @@ struct GreedyInferenceResult {
 struct ConversationSessionOptions {
   std::filesystem::path model_directory;
   std::filesystem::path assistant_model_directory;
+  std::filesystem::path vision_model_directory;
   std::vector<std::uint32_t> stop_token_ids;
   std::vector<std::uint32_t> suppressed_token_ids;
   std::uint64_t max_context_tokens = 1024;
@@ -200,6 +216,7 @@ struct ModelRuntimeOptions {
   // llama.cpp-like fast server start; the default preserves full identity
   // verification for direct library callers.
   bool verify_device_image_sha256 = true;
+  std::filesystem::path vision_model_directory;
 };
 
 // Process-wide immutable model residency. A runtime owns exactly one target
@@ -216,6 +233,8 @@ class ModelRuntime {
   [[nodiscard]] std::uint64_t weight_bytes() const;
   [[nodiscard]] std::uint64_t assistant_weight_bytes() const;
   [[nodiscard]] bool assistant_loaded() const;
+  [[nodiscard]] std::uint64_t vision_weight_bytes() const;
+  [[nodiscard]] bool vision_module_loaded() const;
   [[nodiscard]] double load_milliseconds() const;
   [[nodiscard]] const char* weight_load_path() const;
   [[nodiscard]] const char* model_variant_name() const;
@@ -268,7 +287,9 @@ class ConversationSession {
       GeneratedTokenCallback generated_token_callback = nullptr,
       void* generated_token_callback_context = nullptr,
       std::span<const AudioEmbeddingSegment> audio_segments = {},
-      std::span<const VisionEmbeddingSegment> vision_segments = {});
+      std::span<const VisionEmbeddingSegment> vision_segments = {},
+      std::span<const Gemma4Moe26BVisionInputSegment>
+          moe26b_vision_segments = {});
   [[nodiscard]] std::uint64_t cached_token_count() const;
   [[nodiscard]] std::uint64_t reserved_device_bytes() const;
   [[nodiscard]] bool is_poisoned() const;

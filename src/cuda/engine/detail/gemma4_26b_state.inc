@@ -28,6 +28,11 @@ struct Gemma4Moe26BReferenceEngine::Impl {
   cudaEvent_t shared_moe_join = nullptr;
   Gemma4Moe26BDeviceArtifact artifact;
   Gemma4Moe26BTrellis35DeviceArtifact trellis35_artifact;
+  Gemma4Moe26BVisionDeviceArtifact vision_artifact;
+  Gemma4Moe26BVisionRuntime vision_runtime;
+  bool vision_prefill_active = false;
+  std::uint64_t vision_prefill_offset = 0U;
+  std::uint32_t vision_prefill_tokens = 0U;
   Gemma4Moe26BRoutedExpertFormat routed_expert_format =
       Gemma4Moe26BRoutedExpertFormat::kNvfp4;
   Gemma4Moe26BAssistantModel assistant;

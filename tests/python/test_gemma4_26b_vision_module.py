@@ -6,7 +6,7 @@ import tempfile
 import unittest
 
 from tools.gem16_compile.reader import TensorDescriptor
-from tools.gem16_compile.vision_sidecar import (
+from tools.gem16_compile.vision_module import (
     BF16_COPY_COUNT,
     LINEAR_COUNT,
     LINEAR_PARAMETERS,
@@ -26,7 +26,7 @@ from tools.gem16_compile.vision_sidecar import (
     validate_vision_sources,
 )
 from tools.gem16_compile.common import DataError
-from tools.gem16_compile.vision_sidecar_verify import verify_vision_sidecar
+from tools.gem16_compile.vision_module_verify import verify_vision_module
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -53,7 +53,7 @@ def _descriptors() -> dict[str, TensorDescriptor]:
     return result
 
 
-class Gemma426BVisionSidecarTest(unittest.TestCase):
+class Gemma426BVisionModuleTest(unittest.TestCase):
     def test_frozen_google_inventory_is_exactly_the_vision_source(self) -> None:
         inventory = json.loads(INVENTORY.read_text(encoding="utf-8"))
         tensors = {
@@ -137,7 +137,7 @@ class Gemma426BVisionSidecarTest(unittest.TestCase):
                          "vision_compilation.json", "vision.lock.json", "extra"):
                 (root / name).touch()
             with self.assertRaises(DataError):
-                verify_vision_sidecar(root)
+                verify_vision_module(root)
 
 
 if __name__ == "__main__":

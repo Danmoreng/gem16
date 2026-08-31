@@ -710,6 +710,23 @@ Result<OpenAiChatRequest> ParseChatCompletionsRequest(
   const std::uint32_t image_budget = AutomaticVisionSoftTokenBudget(
       options.context_tokens, fixed_reserve, images.size());
   for (LocatedImage& located : images) {
+    if (options.gemma4_moe26b_vision) {
+      if (image_budget < 70U) {
+        return Invalid(
+            "remaining context cannot fit the minimum 70-token 26B image budget");
+      }
+      const std::uint32_t supported_budget =
+          image_budget >= 280U ? 280U : image_budget >= 140U ? 140U : 70U;
+      auto image = LoadGemma4Moe26BVisionImageBytes(
+          located.image.encoded, located.image.source_name,
+          Gemma4Moe26BVisionImageOptions{supported_budget});
+      if (!image.ok()) return image.status();
+      request.generation.messages[located.message_index]
+          .content[located.image.part_index] =
+          GenerationContentPart::Gemma4Moe26BImage(
+              std::move(image).value());
+      continue;
+    }
     auto image = LoadVisionImageBytes(
         located.image.encoded, located.image.source_name,
         VisionImageOptions{image_budget, false});
@@ -948,6 +965,23 @@ Result<OpenAiResponsesRequest> ParseResponsesRequest(
   const std::uint32_t image_budget = AutomaticVisionSoftTokenBudget(
       options.context_tokens, fixed_reserve, images.size());
   for (LocatedImage& located : images) {
+    if (options.gemma4_moe26b_vision) {
+      if (image_budget < 70U) {
+        return Invalid(
+            "remaining context cannot fit the minimum 70-token 26B image budget");
+      }
+      const std::uint32_t supported_budget =
+          image_budget >= 280U ? 280U : image_budget >= 140U ? 140U : 70U;
+      auto image = LoadGemma4Moe26BVisionImageBytes(
+          located.image.encoded, located.image.source_name,
+          Gemma4Moe26BVisionImageOptions{supported_budget});
+      if (!image.ok()) return image.status();
+      request.generation.messages[located.message_index]
+          .content[located.image.part_index] =
+          GenerationContentPart::Gemma4Moe26BImage(
+              std::move(image).value());
+      continue;
+    }
     auto image = LoadVisionImageBytes(
         located.image.encoded, located.image.source_name,
         VisionImageOptions{image_budget, false});

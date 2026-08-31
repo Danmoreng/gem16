@@ -24,6 +24,7 @@ enum class GenerationContentKind {
   kText,
   kAudio,
   kImage,
+  kGemma4Moe26BImage,
   kToolCall,
   kToolResult,
 };
@@ -51,6 +52,7 @@ struct GenerationContentPart {
   std::string text;
   AudioWaveform audio;
   VisionImage image;
+  Gemma4Moe26BVisionImage moe26b_image;
   GenerationToolCall tool_call;
   GenerationToolResult tool_result;
 
@@ -74,6 +76,14 @@ struct GenerationContentPart {
     GenerationContentPart part;
     part.kind = GenerationContentKind::kImage;
     part.image = std::move(value);
+    return part;
+  }
+
+  [[nodiscard]] static GenerationContentPart Gemma4Moe26BImage(
+      gem16::Gemma4Moe26BVisionImage value) {
+    GenerationContentPart part;
+    part.kind = GenerationContentKind::kGemma4Moe26BImage;
+    part.moe26b_image = std::move(value);
     return part;
   }
 
@@ -199,6 +209,7 @@ struct ChatGenerationResponse {
 struct ChatSessionOptions {
   std::filesystem::path model_directory;
   std::filesystem::path assistant_model_directory;
+  std::filesystem::path vision_model_directory;
   std::uint64_t max_context_tokens = 1024U;
   KvCacheMode kv_cache_mode = KvCacheMode::kCheckpointFp8;
   SamplingOptions sampling;
