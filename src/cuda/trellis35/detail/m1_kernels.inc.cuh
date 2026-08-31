@@ -22,11 +22,11 @@ __global__ void MmaW4A8ProjectionSelectedKernel(
   output += static_cast<std::uint64_t>(slot) * output_elements;
   Fp8Accumulator accumulator;
   if (descriptor.rate_bits == 3U) {
-    AccumulateSelectedProjectionM1<3>(
+    AccumulateSelectedProjectionM1<3, false>(
         activation, pool, descriptor.pool_offset, input_elements,
         output_elements, source_output, accumulator);
   } else {
-    AccumulateSelectedProjectionM1<4>(
+    AccumulateSelectedProjectionM1<4, false>(
         activation, pool, descriptor.pool_offset, input_elements,
         output_elements, source_output, accumulator);
   }
@@ -50,6 +50,7 @@ __global__ void MmaW4A8ProjectionSelectedKernel(
 #endif
 }
 
+template <bool NativeFp8x4>
 __global__ void MmaW4A8ProjectionSelectedN128InverseKernel(
     const std::uint8_t* activation, const float* activation_scales,
     Trellis35DeviceFamilyBinding family,
@@ -77,11 +78,11 @@ __global__ void MmaW4A8ProjectionSelectedN128InverseKernel(
       static_cast<std::uint64_t>(expert) * output_elements + output_block;
   Fp8Accumulator accumulator;
   if (descriptor.rate_bits == 3U) {
-    AccumulateSelectedProjectionM1<3>(
+    AccumulateSelectedProjectionM1<3, NativeFp8x4>(
         activation, pool, descriptor.pool_offset, input_elements,
         output_elements, source_output, accumulator);
   } else {
-    AccumulateSelectedProjectionM1<4>(
+    AccumulateSelectedProjectionM1<4, NativeFp8x4>(
         activation, pool, descriptor.pool_offset, input_elements,
         output_elements, source_output, accumulator);
   }

@@ -29,6 +29,24 @@ bool Trellis35SmallGeluDownFusionEnabled() {
   return enabled;
 }
 
+bool Trellis35M1NativeFp8x4Enabled() {
+  static const bool enabled = [] {
+    const char* value =
+        std::getenv("GEM16_TRELLIS35_M1_NATIVE_FP8X4");
+    return value == nullptr || std::string_view(value) != "0";
+  }();
+  return enabled;
+}
+
+bool Trellis35T3NativeFp8x4Enabled() {
+  static const bool enabled = [] {
+    const char* value =
+        std::getenv("GEM16_TRELLIS35_T3_NATIVE_FP8X4");
+    return value == nullptr || std::string_view(value) != "0";
+  }();
+  return enabled;
+}
+
 Trellis35M1ProjectionOutputMode Trellis35M1ProjectionOutputEnvironmentMode() {
   static const Trellis35M1ProjectionOutputMode mode = [] {
     const char* value = std::getenv("GEM16_TRELLIS35_M1_N128_INVERSE");
@@ -80,10 +98,17 @@ Status LaunchGroupedT3Projection(
   const unsigned blocks = static_cast<unsigned>(
       (output_elements + kMmaWarps * 8U - 1U) / (kMmaWarps * 8U));
   if (projection_mode == Trellis35T3ProjectionMode::kM16) {
-    MmaW4A8ProjectionGroupedT3M16Kernel<<<
-        dim3(blocks, kTrellis35T3Assignments), kMmaThreads, 0, stream>>>(
-        activation_e4m3, activation_scales, family, selected_experts,
-        transformed_output, input_elements, output_elements);
+    if (Trellis35T3NativeFp8x4Enabled()) {
+      MmaW4A8ProjectionGroupedT3M16Kernel<true><<<
+          dim3(blocks, kTrellis35T3Assignments), kMmaThreads, 0, stream>>>(
+          activation_e4m3, activation_scales, family, selected_experts,
+          transformed_output, input_elements, output_elements);
+    } else {
+      MmaW4A8ProjectionGroupedT3M16Kernel<false><<<
+          dim3(blocks, kTrellis35T3Assignments), kMmaThreads, 0, stream>>>(
+          activation_e4m3, activation_scales, family, selected_experts,
+          transformed_output, input_elements, output_elements);
+    }
   } else {
     MmaW4A8ProjectionGroupedT3Kernel<<<
         dim3(blocks, kTrellis35T3Assignments), kMmaThreads, 0, stream>>>(
@@ -656,12 +681,21 @@ Status LaunchTrellis35MmaW4A8ProjectionM1N128Inverse(
               128U) {
     return Invalid("Trellis35 M1 N128 inverse projection geometry is invalid");
   }
-  MmaW4A8ProjectionSelectedN128InverseKernel<<<
-      dim3(static_cast<unsigned>(output_elements / 128U),
-           kTrellis35M1TopK),
-      kMmaN128Threads, 0, stream>>>(
-      activation_e4m3, activation_scales, family, selected_experts, output,
-      input_elements, output_elements);
+  if (Trellis35M1NativeFp8x4Enabled()) {
+    MmaW4A8ProjectionSelectedN128InverseKernel<true><<<
+        dim3(static_cast<unsigned>(output_elements / 128U),
+             kTrellis35M1TopK),
+        kMmaN128Threads, 0, stream>>>(
+        activation_e4m3, activation_scales, family, selected_experts, output,
+        input_elements, output_elements);
+  } else {
+    MmaW4A8ProjectionSelectedN128InverseKernel<false><<<
+        dim3(static_cast<unsigned>(output_elements / 128U),
+             kTrellis35M1TopK),
+        kMmaN128Threads, 0, stream>>>(
+        activation_e4m3, activation_scales, family, selected_experts, output,
+        input_elements, output_elements);
+  }
   return CheckLaunch("launch Trellis35 M1 N128 projection and inverse");
 }
 

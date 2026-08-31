@@ -78,7 +78,7 @@ __global__ void MmaW4A8ProjectionGroupedT3Kernel(
 #endif
 }
 
-template <int Rate>
+template <int Rate, bool NativeFp8x4>
 __device__ __forceinline__ void AccumulateGroupedT3M16Direct(
     const std::uint8_t* activation, const unsigned* assignments,
     unsigned assignment_count, const std::byte* pool,
@@ -108,9 +108,11 @@ __device__ __forceinline__ void AccumulateGroupedT3M16Direct(
     const std::uint32_t lane_word0 = load_word(iteration * 2U);
     const std::uint32_t lane_word1 = load_word(iteration * 2U + 1U);
     const std::uint32_t b0 =
-        DecodeLanePayloadE4M3x4<Rate>(lane_word0, position);
+        DecodeLanePayloadSelectedE4M3x4<Rate, NativeFp8x4>(lane_word0,
+                                                           position);
     const std::uint32_t b1 =
-        DecodeLanePayloadE4M3x4<Rate>(lane_word1, position);
+        DecodeLanePayloadSelectedE4M3x4<Rate, NativeFp8x4>(lane_word1,
+                                                           position);
     const std::uint64_t first =
         static_cast<std::uint64_t>(iteration) * 32U + thread_in_group * 4U;
     std::uint32_t a0 = 0U;
@@ -128,6 +130,7 @@ __device__ __forceinline__ void AccumulateGroupedT3M16Direct(
   }
 }
 
+template <bool NativeFp8x4>
 __global__ void MmaW4A8ProjectionGroupedT3M16Kernel(
     const std::uint8_t* activation, const float* activation_scales,
     Trellis35DeviceFamilyBinding family,
@@ -170,12 +173,12 @@ __global__ void MmaW4A8ProjectionGroupedT3M16Kernel(
                               : family.k4_payload_pool;
   Fp8Accumulator accumulator{};
   if (descriptor.rate_bits == 3U) {
-    AccumulateGroupedT3M16Direct<3>(
+    AccumulateGroupedT3M16Direct<3, NativeFp8x4>(
         activation, assignments, assignment_count, pool,
         descriptor.pool_offset, input_elements, output_elements,
         source_output, accumulator);
   } else if (descriptor.rate_bits == 4U) {
-    AccumulateGroupedT3M16Direct<4>(
+    AccumulateGroupedT3M16Direct<4, NativeFp8x4>(
         activation, assignments, assignment_count, pool,
         descriptor.pool_offset, input_elements, output_elements,
         source_output, accumulator);

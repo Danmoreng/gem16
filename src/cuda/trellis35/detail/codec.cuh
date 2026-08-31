@@ -108,6 +108,25 @@ __device__ __forceinline__ std::uint32_t DecodeLanePayloadE4M3x4(
 }
 
 template <int Rate>
+__device__ __forceinline__ std::uint32_t DecodeLanePayloadNativeE4M3x4(
+    std::uint32_t lane_payload_word, unsigned position) {
+  const half2 first_pair =
+      DecodeAdjacentStates<Rate>(lane_payload_word, position);
+  const half2 second_pair =
+      DecodeAdjacentStates<Rate>(lane_payload_word, position + 8U);
+  return __nv_fp8x4_e4m3(first_pair, second_pair).__x;
+}
+
+template <int Rate, bool NativeFp8x4>
+__device__ __forceinline__ std::uint32_t DecodeLanePayloadSelectedE4M3x4(
+    std::uint32_t lane_payload_word, unsigned position) {
+  if constexpr (NativeFp8x4) {
+    return DecodeLanePayloadNativeE4M3x4<Rate>(lane_payload_word, position);
+  }
+  return DecodeLanePayloadE4M3x4<Rate>(lane_payload_word, position);
+}
+
+template <int Rate>
 __device__ __forceinline__ std::uint32_t LoadLanePayloadWord(
     const std::byte* pool, std::uint32_t pool_offset,
     std::uint64_t output_elements, std::uint64_t input,

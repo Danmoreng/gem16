@@ -52,7 +52,7 @@ __device__ __forceinline__ void AccumulateFp8M16(
 #endif
 }
 
-template <int Rate>
+template <int Rate, bool NativeFp8x4>
 __device__ __forceinline__ void AccumulateSelectedProjectionM1(
     const std::uint8_t* activation, const std::byte* pool,
     std::uint32_t pool_offset, std::uint64_t input_elements,
@@ -106,9 +106,11 @@ __device__ __forceinline__ void AccumulateSelectedProjectionM1(
       const std::uint32_t a1 =
           *reinterpret_cast<const std::uint32_t*>(activation + first + 16U);
       const std::uint32_t b0 =
-          DecodeLanePayloadE4M3x4<Rate>(lane_word0, position);
+          DecodeLanePayloadSelectedE4M3x4<Rate, NativeFp8x4>(lane_word0,
+                                                             position);
       const std::uint32_t b1 =
-          DecodeLanePayloadE4M3x4<Rate>(lane_word1, position);
+          DecodeLanePayloadSelectedE4M3x4<Rate, NativeFp8x4>(lane_word1,
+                                                             position);
       AccumulateFp8(a0, a1, b0, b1, accumulator);
     }
   }

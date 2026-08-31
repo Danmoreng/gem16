@@ -1,0 +1,263 @@
+{
+  "schema_version": 1,
+  "work_packet": "WP26",
+  "status": "accepted",
+  "implementation_parent_revision": "9bca0d6eb23edc04b46ef6ed6d8d1a470c4f5238",
+  "candidate": {
+    "name": "Native packed Half2 to FP8x4 Trellis decode",
+    "scope": "experimental Trellis35 W4A8 M1 N128 and Fixed-D2 T3 M16 decode projections",
+    "default_enabled": true,
+    "m1_rollback_environment": "GEM16_TRELLIS35_M1_NATIVE_FP8X4=0",
+    "t3_rollback_environment": "GEM16_TRELLIS35_T3_NATIVE_FP8X4=0",
+    "m1_requires_n128_dispatch": "GEM16_TRELLIS35_M1_N128_INVERSE=both or its default",
+    "precision_changed": false,
+    "rounding_boundary_changed": false,
+    "workspace_delta_bytes": 0,
+    "persistent_device_representation_changed": false,
+    "prefill_changed": false
+  },
+  "conversion_contract": {
+    "legacy": "four scalar Half-to-FP32-to-__nv_fp8_e4m3 conversions followed by byte packing",
+    "native": "__nv_fp8x4_e4m3(first_half2, second_half2).__x",
+    "format": "E4M3 round-to-nearest-even SATFINITE",
+    "byte_order": "value0 | value1<<8 | value2<<16 | value3<<24",
+    "exhaustive_half_patterns_per_byte_lane": 65536,
+    "bit_mismatches": 0,
+    "m1_scalar_oracle": "N32 projection remains on the legacy conversion",
+    "t3_scalar_oracle": "independent-row projection remains on the legacy conversion",
+    "prefill_conversion": "legacy conversion retained after the WP18 packed-prefill rejection"
+  },
+  "operator_correctness_and_latency": {
+    "checkpoint_layer": 0,
+    "rates": [3, 4],
+    "m1": {
+      "n128_versus_n32_gate_up_physical_output_bit_mismatches": 0,
+      "n128_versus_n32_down_scale_bit_mismatches": 0,
+      "n128_versus_n32_down_physical_output_bit_mismatches": 0,
+      "n128_versus_n32_reduced_output_bit_mismatches": 0,
+      "native_latency_ms": 0.064416,
+      "scalar_rollback_latency_ms": 0.0744832,
+      "latency_reduction_percent": 13.5160680529
+    },
+    "t3": {
+      "m16_versus_independent_rows_bit_mismatches": 0,
+      "route_or_slot_order_bit_mismatches": 0,
+      "native_real_typical_overlap_latency_ms": 0.131302,
+      "scalar_real_typical_overlap_latency_ms": 0.140627,
+      "real_typical_overlap_latency_reduction_percent": 6.6310168033,
+      "native_wikipedia_histogram_weighted_latency_ms": 0.120394,
+      "scalar_wikipedia_histogram_weighted_latency_ms": 0.134669,
+      "histogram_weighted_latency_reduction_percent": 10.6000638603
+    },
+    "prefill_assignment_output_bit_mismatches": 0,
+    "prefill_slot_reduction_bit_mismatches": 0
+  },
+  "same_binary_m1_512_ab": {
+    "workload": "Wikipedia 16K prompt, greedy fixed 512 generated tokens",
+    "warmups": 1,
+    "measured_runs": 3,
+    "scalar_decode_tokens_per_second": {
+      "median": 124.64600291247217,
+      "samples": [124.64448271320062, 124.64600291247217, 124.69223467517794]
+    },
+    "native_decode_tokens_per_second": {
+      "median": 127.83884799935956,
+      "samples": [127.83884799935956, 127.90380432470045, 127.82062089304341]
+    },
+    "native_gain_tokens_per_second": 3.192845086887388,
+    "native_gain_percent": 2.5615302635,
+    "prefill_change_percent": 0.0882397957,
+    "workspace_bytes": 331911968,
+    "kv_cache_bytes": 277872640,
+    "output_token_sha256": "1c665647cdeeb592cf490419c957ad8c0e7e05aa40e273d4db33f7b8ad6426ec",
+    "trajectory_identical": true,
+    "deterministic_outputs": true
+  },
+  "same_binary_t3_512_ab": {
+    "workload": "Wikipedia 16K prompt, Fixed-D2, greedy fixed 512 generated tokens",
+    "warmups": 1,
+    "measured_runs": 3,
+    "scalar_decode_tokens_per_second": {
+      "median": 176.36258214147662,
+      "samples": [176.11216035511933, 176.36258214147662, 176.36379951819205]
+    },
+    "native_decode_tokens_per_second": {
+      "median": 178.2033890030026,
+      "samples": [178.2033890030026, 178.31345481446328, 178.18536857521443]
+    },
+    "native_gain_tokens_per_second": 1.8408068615259765,
+    "native_gain_percent": 1.043762707,
+    "prefill_change_percent": -0.0042182938,
+    "workspace_bytes": 338850080,
+    "kv_cache_bytes": 277872640,
+    "output_token_sha256": "1c665647cdeeb592cf490419c957ad8c0e7e05aa40e273d4db33f7b8ad6426ec",
+    "accepted_tokens": 285,
+    "proposed_tokens": 448,
+    "rejected_tokens": 163,
+    "d2_groups": 224,
+    "ordinary_fallback_tokens": 2,
+    "trajectory_identical": true,
+    "deterministic_outputs": true
+  },
+  "full_wikipedia_16k_sampled": {
+    "sampling": true,
+    "seed": 0,
+    "prompt_tokens": 16384,
+    "generated_tokens": 1229,
+    "warmup_pairs": 1,
+    "measured_pairs": 3,
+    "ordinary_prefill_tokens_per_second": {
+      "median": 5749.982452446129,
+      "samples": [5751.476132637802, 5749.982452446129, 5749.76048513604]
+    },
+    "fixed_d2_prefill_tokens_per_second": {
+      "median": 5746.39272161,
+      "samples": [5746.39272161, 5749.195554760176, 5744.901680271536]
+    },
+    "ordinary_decode_tokens_per_second": {
+      "median": 130.7690669392797,
+      "samples": [130.7690669392797, 130.86606050530497, 130.7590413275237]
+    },
+    "fixed_d2_decode_tokens_per_second": {
+      "median": 177.1683647706189,
+      "samples": [177.17449956860605, 177.1683647706189, 177.11623613575065]
+    },
+    "ordinary_gain_vs_wp25_percent": 2.6472216898,
+    "fixed_d2_gain_vs_wp25_percent": 1.7074817566,
+    "prefill_attribution": "neutral system variation; WP26 does not change prefill dispatch",
+    "ordinary_peak_vram_mib": 12522,
+    "fixed_d2_peak_vram_mib": 12796,
+    "ordinary_workspace_bytes": 333881888,
+    "fixed_d2_workspace_bytes": 340973600,
+    "kv_cache_bytes": 356515840,
+    "output_token_sha256": "12235104322e01e0d53875e11c980312f8f42fe763d04b0762697f54eb922c48",
+    "ordinary_equals_fixed_d2": true,
+    "accepted_tokens": 690,
+    "proposed_tokens": 1076,
+    "rejected_tokens": 386,
+    "acceptance_rate": 0.6412639405204461,
+    "mean_accepted_length": 1.28253,
+    "d2_groups": 538,
+    "target_batches": 538,
+    "target_forwards": 538,
+    "verification_groups": 538,
+    "ordinary_fallback_tokens": 0,
+    "deterministic_outputs": true,
+    "assistant_compilation_sha256": "d2a722ccad675807ff73a1a645a0f1fbcc0fc200c402a14e823a5927618a116d"
+  },
+  "dispatch_and_resources": {
+    "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "driver": "610.43.03",
+    "cuda_compiler": "CUDA 13.3 V13.3.73",
+    "sass_command": "/opt/cuda/bin/cuobjdump --dump-sass build/blackwell-release/bin/gem16-cuda-trellis35-tests",
+    "resource_command": "/opt/cuda/bin/cuobjdump --dump-resource-usage build/blackwell-release/bin/gem16-cuda-trellis35-tests",
+    "m1_n128_scalar": {
+      "static_instructions": 1464,
+      "f2fp_e4m3_f32": 64,
+      "f2fp_e4m3_f16": 0,
+      "hadd2": 68,
+      "qmmas": 8,
+      "registers_per_thread": 56,
+      "stack_bytes": 0,
+      "local_bytes": 0,
+      "static_shared_bytes_including_driver_reserve": 1536
+    },
+    "m1_n128_native": {
+      "static_instructions": 1240,
+      "f2fp_e4m3_f32": 0,
+      "f2fp_e4m3_f16": 32,
+      "hadd2": 4,
+      "qmmas": 8,
+      "registers_per_thread": 55,
+      "stack_bytes": 0,
+      "local_bytes": 0,
+      "static_shared_bytes_including_driver_reserve": 1536
+    },
+    "t3_m16_scalar": {
+      "static_instructions": 560,
+      "f2fp_e4m3_f32": 16,
+      "f2fp_e4m3_f16": 0,
+      "hadd2": 16,
+      "qmmas": 2,
+      "registers_per_thread": 39,
+      "stack_bytes": 16,
+      "local_bytes": 0,
+      "static_shared_bytes_including_driver_reserve": 1024
+    },
+    "t3_m16_native": {
+      "static_instructions": 696,
+      "f2fp_e4m3_f32": 0,
+      "f2fp_e4m3_f16": 16,
+      "hadd2": 0,
+      "qmmas": 4,
+      "registers_per_thread": 42,
+      "stack_bytes": 16,
+      "local_bytes": 0,
+      "static_shared_bytes_including_driver_reserve": 1024,
+      "static_code_note": "compiler-cloned loop bodies increase static QMMA sites without increasing source-level dynamic QMMA work"
+    },
+    "executable_sha256": "608233dc3e6d0979fdd596f6c49a9f40290d8ca69e95cec2a49565c1a85b8e7d"
+  },
+  "sanitizers": {
+    "scope": "real-shape mixed-K3/K4 synthetic M1, T3, and prefill suite",
+    "memcheck_errors": 0,
+    "initcheck_errors": 0,
+    "racecheck_errors": 0,
+    "racecheck_warnings": 0
+  },
+  "tests": [
+    {
+      "command": "GEM16_TRELLIS35_M1_NATIVE_FP8X4=1 GEM16_TRELLIS35_T3_NATIVE_FP8X4=1 gem16-cuda-trellis35-tests --checkpoint <Trellis35 checkpoint>",
+      "result": "passed; exhaustive conversion and exact M1/T3 candidate-versus-scalar boundaries"
+    },
+    {
+      "command": "GEM16_TRELLIS35_M1_NATIVE_FP8X4=0 GEM16_TRELLIS35_T3_NATIVE_FP8X4=0 gem16-cuda-trellis35-tests --checkpoint <Trellis35 checkpoint>",
+      "result": "passed; final same-binary rollback"
+    },
+    {
+      "command": "ctest --test-dir build/blackwell-release --output-on-failure -R '^gem16-(unit|cuda|cuda-moe-reference|cuda-trellis35|trellis35-compiler-contract|cuda-nvfp4-consumption)$'",
+      "result": "6/6 passed"
+    },
+    {
+      "command": "GEM16_12B_MODEL=<qualified snapshot> ctest --test-dir build/blackwell-release -R '^gem16-12b-m22-product$' --output-on-failure",
+      "result": "1/1 passed"
+    },
+    {
+      "command": "compute-sanitizer --tool memcheck|initcheck|racecheck --error-exitcode=99 gem16-cuda-trellis35-tests",
+      "result": "zero errors; racecheck zero hazards and warnings"
+    }
+  ],
+  "raw_evidence": [
+    {
+      "path": "artifacts/raw/trellis35/wp26/parent-ordinary-512-1w3.json",
+      "sha256": "afb3daef0fb44edf88ee8569d6b0c002045c86942174613d8523b52787706947"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp26/m1-scalar-ordinary-512-1w3.json",
+      "sha256": "cd49023b5492c222a39f04c03f2a1e68d7783c6096d8cdc8ea9f531e5b008986"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp26/m1-native-ordinary-512-1w3.json",
+      "sha256": "235135e5ac546c039365639cb4abaff80b2ecdae5775f6875767cf65b8e1caae"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp26/t3-scalar-d2-512-1w3.json",
+      "sha256": "f538f2343be9249355df4a4583d1959ecda7d67d60b0b427af2de28d6db9d36e"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp26/t3-native-d2-512-1w3.json",
+      "sha256": "da2d8f432662ecbd48a934e142cf262ca27dbbe6ba378c77b328364d41f48601"
+    },
+    {
+      "path": "artifacts/raw/trellis35/wp26/native-fp8x4-full-wikipedia-16k-sampled-1w3.json",
+      "sha256": "24e19063e3bb9432acb704d38df0ee1a4ff0bf17878fa2f249885d4e1010f943"
+    }
+  ],
+  "limitations": [
+    "Trellis35 remains experimental and the deferred long quality suite is not reopened by this packet.",
+    "The sampled raw files record the implementation parent plus a dirty worktree; the executable hash binds all candidate measurements to the tested binary.",
+    "T3 native conversion grows static code and uses three more registers, but measured operator and end-to-end throughput both improve without spills.",
+    "The full sampled comparison against WP25 is contextual; the same-binary 512-token A/B panels are the primary attribution evidence."
+  ],
+  "decision": "retain native packed FP8x4 conversion by default for M1 N128 and T3 M16; retain independent environment rollbacks and leave prefill scalar"
+}
