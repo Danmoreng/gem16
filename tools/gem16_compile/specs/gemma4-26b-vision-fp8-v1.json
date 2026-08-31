@@ -1,0 +1,56 @@
+{
+  "artifact": {
+    "data_alignment": 256,
+    "filename": "vision.gem16",
+    "format": "safetensors-compatible-gem16-vision-sidecar-v1",
+    "manifest": "vision_compilation.json",
+    "runtime_descriptor": "gem16_vision.json"
+  },
+  "capability_profile": "gemma4_26b_trellis35_vision_fp8",
+  "contract_id": "gem16.gemma4_26b_vision_fp8",
+  "contract_version": 1,
+  "physical_shapes": {
+    "attention_head_72": "logical 72; explicit kernel tail; no stored padding",
+    "mlp_down_k_4304": "logical and physical 4304; explicit kernel tail; no loader padding"
+  },
+  "quantization": {
+    "bf16_copy_roles": [
+      "position_embedding",
+      "rms_norm",
+      "standardization"
+    ],
+    "linear_scale": "BF16 per output row",
+    "linear_weight": "E4M3FN per output row",
+    "linear_weight_layout": "source NK row-major",
+    "quantizer_contract": "gem16.fp8_attention_rowwise@1"
+  },
+  "required_text_artifact_profile": "gem16-trellis35-w4a8-v1",
+  "scope": {
+    "audio": false,
+    "batch_size": 1,
+    "image_count": 1,
+    "max_soft_tokens": 280,
+    "mtp_initially_enabled": false,
+    "output": "text",
+    "video": false
+  },
+  "source": {
+    "config_sha256": "ece3392c07744553f4e8bb2b5905bc68b0a7d7ab2927133bb621875b8e4a3289",
+    "index_sha256": "907826a6e46ff454272bd6db1fee629d5531a2303be22986d825a0871d7dc7a7",
+    "lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230",
+    "processor_config_sha256": "32bdf45d2ad4cc29a0822ddd157a182de76644f0419a6228d151495256e9813c",
+    "repository": "google/gemma-4-26B-A4B-it-qat-q4_0-unquantized",
+    "revision": "f1e06dc520982d9b9edd76859fdb7ab209449949",
+    "tensor_count": 356,
+    "tensor_payload_bytes": 1145588832
+  },
+  "transformers_reference": {
+    "configuration_gemma4_sha256": "1c5c4ae484625f93f4d754b62b0c4e359b30978f5b85245526393f65a2bbc54e",
+    "image_processing_gemma4_sha256": "5d280d5448b1c219183a27e95b6aa7178b350275772d07881c91c65f13fa815e",
+    "modeling_gemma4_sha256": "ccab8e2dd80b71e9ca34e2c87291e17c40a27c755006e554da2ebf70d6616916",
+    "processing_gemma4_sha256": "b39a9ca831029332010ca0f47c9077a1745c92469f389ffbdd342e8a27903ce9",
+    "repository": "https://github.com/huggingface/transformers.git",
+    "revision": "a08ace4bbd97e721c98751deec37d87b026acadc",
+    "version": "5.14.1"
+  }
+}

@@ -153,6 +153,24 @@ Result<std::map<std::string, std::string, std::less<>>> LoadIndex(const std::fil
 
 }  // namespace
 
+Result<std::vector<StoredTensor>> LoadSafetensorsFile(
+    const std::filesystem::path& path) {
+  std::error_code error;
+  const auto status = std::filesystem::symlink_status(path, error);
+  if (error || std::filesystem::is_symlink(status) ||
+      !std::filesystem::is_regular_file(status)) {
+    return Status(StatusCode::kDataLoss,
+                  "Safetensors path must be a regular non-symlink file: " +
+                      path.string());
+  }
+  const auto canonical = std::filesystem::canonical(path, error);
+  if (error) {
+    return Status(StatusCode::kIoError,
+                  "cannot resolve Safetensors file: " + path.string());
+  }
+  return LoadFile(canonical);
+}
+
 Result<std::vector<StoredTensor>> LoadSafetensorsDirectory(const std::filesystem::path& model_directory) {
   std::error_code canonical_error;
   const auto canonical_root = std::filesystem::canonical(model_directory, canonical_error);

@@ -50,6 +50,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   set_property(SOURCE src/util/json.cpp APPEND PROPERTY COMPILE_OPTIONS -Wno-maybe-uninitialized)
   set_property(SOURCE src/model/gemma4_26b_compiled_loader.cpp APPEND PROPERTY COMPILE_OPTIONS -Wno-maybe-uninitialized)
   set_property(SOURCE src/model/gemma4_26b_trellis35.cpp APPEND PROPERTY COMPILE_OPTIONS -Wno-maybe-uninitialized)
+  set_property(SOURCE src/model/gemma4_26b_vision_sidecar.cpp APPEND PROPERTY COMPILE_OPTIONS -Wno-maybe-uninitialized)
 endif()
 
 add_library(gem16_core STATIC
@@ -65,6 +66,7 @@ add_library(gem16_core STATIC
   src/model/gemma4_26b_device_image.cpp
   src/model/gemma4_26b_residency.cpp
   src/model/gemma4_26b_trellis35.cpp
+  src/model/gemma4_26b_vision_sidecar.cpp
   src/model/audio.cpp
   src/model/image.cpp
   src/model/config.cpp
@@ -153,6 +155,16 @@ target_include_directories(gem16-fp8-compiler PRIVATE "${CMAKE_CURRENT_SOURCE_DI
 target_link_libraries(gem16-fp8-compiler PRIVATE gem16_fp8_compiler_support)
 gem16_set_project_warnings(gem16-fp8-compiler)
 gem16_enable_sanitizers(gem16-fp8-compiler)
+
+add_executable(gem16-26b-vision-sidecar-probe
+  src/cli/gemma4_26b_vision_sidecar_probe_main.cpp
+)
+target_include_directories(gem16-26b-vision-sidecar-probe PRIVATE
+  "${CMAKE_CURRENT_SOURCE_DIR}/src"
+)
+target_link_libraries(gem16-26b-vision-sidecar-probe PRIVATE gem16_core)
+gem16_set_project_warnings(gem16-26b-vision-sidecar-probe)
+gem16_enable_sanitizers(gem16-26b-vision-sidecar-probe)
 
 add_library(gem16_nvfp4_compiler_support STATIC
   src/compiler/nvfp4_batch_encoder.cpp
@@ -321,6 +333,7 @@ if(GEM16_ENABLE_CUDA)
     src/cuda/dispatch.cu
     src/cuda/engine/gemma4_26b_artifact.cpp
     src/cuda/engine/gemma4_26b_trellis35_artifact.cpp
+    src/cuda/engine/gemma4_26b_vision_artifact.cpp
     src/cuda/engine/gemma4_26b_reference.cu
     src/cuda/engine/target_model.cu
     src/cuda/engine/inference_engine.cu
@@ -355,6 +368,19 @@ if(GEM16_ENABLE_CUDA)
   set_property(SOURCE src/cuda/trellis35/reference.cu APPEND PROPERTY
     INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/third_party"
   )
+  add_executable(gem16-26b-vision-load-probe
+    src/cli/gemma4_26b_vision_load_probe.cpp
+  )
+  target_include_directories(gem16-26b-vision-load-probe PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/src"
+  )
+  target_link_libraries(gem16-26b-vision-load-probe PRIVATE
+    gem16_core CUDA::cudart
+  )
+  set_target_properties(gem16-26b-vision-load-probe PROPERTIES
+    CUDA_ARCHITECTURES "${GEM16_CUDA_ARCHITECTURE}"
+  )
+  gem16_set_project_warnings(gem16-26b-vision-load-probe)
   if(NOT EXISTS "${GEM16_CUTLASS_DIR}/include/cutlass/cutlass.h")
     message(FATAL_ERROR
       "SM120 CUDA builds require CUTLASS headers at GEM16_CUTLASS_DIR=${GEM16_CUTLASS_DIR}")
@@ -699,6 +725,13 @@ if(BUILD_TESTING AND GEM16_BUILD_TESTS)
         tests.python.test_benchmark_gemma4_26b_wp8_text
     )
     set_tests_properties(gem16-trellis35-compiler-contract PROPERTIES
+      WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    )
+    add_test(NAME gem16-26b-vision-sidecar-contract
+      COMMAND "${Python3_EXECUTABLE}" -m unittest
+        tests.python.test_gemma4_26b_vision_sidecar
+    )
+    set_tests_properties(gem16-26b-vision-sidecar-contract PROPERTIES
       WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
     )
   endif()

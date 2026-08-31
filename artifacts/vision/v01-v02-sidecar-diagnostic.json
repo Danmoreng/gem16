@@ -1,0 +1,55 @@
+{
+  "artifact": {
+    "container_bytes": 597390648,
+    "payload_bytes": 597313024,
+    "sha256": "805e1fee4ad80dbb76a846c0009d6f57dbb50192e7009ef1633cdc3b5252a536",
+    "tensor_alignment": 256,
+    "tensor_bytes": 597301792,
+    "tensor_count": 547,
+    "zero_padding_bytes": 11232
+  },
+  "branch": "codex/gemma4-26b-vision-fp8",
+  "capability_profile": "gemma4_26b_trellis35_vision_fp8",
+  "cuda_residency": {
+    "combined_text_and_vision": {
+      "free_after_bytes": 3622633472,
+      "text_arena_bytes": 12204692480,
+      "vision_cuda_free_memory_delta_bytes": 597688320
+    },
+    "device_allocations": 1,
+    "standalone": {
+      "free_after_bytes": 15828058112,
+      "vision_cuda_free_memory_delta_bytes": 597688320
+    },
+    "uploaded_bytes": 597313024
+  },
+  "implementation_base": "7649a84e993f064283bfb20249117c9145cd0936",
+  "limitations": [
+    "Diagnostic dirty-tree evidence; regenerate after the implementation commit for formal acceptance.",
+    "V02 context and Assistant capacity matrix is not yet complete.",
+    "Vision CUDA operators and image-to-text integration are not implemented yet.",
+    "The runtime capability remains fail-closed and reports 26B Vision as unsupported."
+  ],
+  "reproducibility": {
+    "builds": 2,
+    "byte_identical_files": [
+      "vision.gem16",
+      "gem16_vision.json",
+      "vision_compilation.json",
+      "vision.lock.json"
+    ],
+    "descriptor_sha256": "1de073a0074cebcea26a267376314fe6ecee7c151c3dda1a50fe0a6a0d382b55",
+    "lock_sha256": "d2bc0fd2105af48dea36a9cbe757e688a8b10ba94bee355047e1f163df01bbc8",
+    "manifest_sha256": "5a13706d89bb3da3d6022207d7741a6754ce6fcedc3d0bb532a72621d4aec94f"
+  },
+  "required_text_artifact_profile": "gem16-trellis35-w4a8-v1",
+  "schema_version": 1,
+  "source": {
+    "bf16_bytes": 1145588832,
+    "lock_sha256": "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230",
+    "repository": "google/gemma-4-26B-A4B-it-qat-q4_0-unquantized",
+    "revision": "f1e06dc520982d9b9edd76859fdb7ab209449949",
+    "tensor_count": 356
+  },
+  "status": "diagnostic_pass_v01_complete_v02_residency_partial"
+}

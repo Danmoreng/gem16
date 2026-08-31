@@ -19,7 +19,12 @@ struct StoredTensor {
   std::string shard;
 };
 
+// Parse one explicitly selected Safetensors-compatible file.  The caller owns
+// profile/metadata validation; this function owns bounded header, dtype, shape,
+// range and overlap validation.
+[[nodiscard]] Result<std::vector<StoredTensor>> LoadSafetensorsFile(
+    const std::filesystem::path& path);
+
 [[nodiscard]] Result<std::vector<StoredTensor>> LoadSafetensorsDirectory(const std::filesystem::path& model_directory);
 
 }  // namespace gem16::internal
-

@@ -37,7 +37,12 @@ constexpr float kE4M3Max = 448.0F;
 constexpr std::uint16_t kBf16One = 0x3F80U;
 constexpr std::uint16_t kBf16Min = 0x0001U;
 constexpr std::size_t kMaxJobBytes = 16U * 1024U * 1024U;
-constexpr std::uint64_t kMaxMatrices = 115U;
+// The text-attention contract contains 115 matrices.  The independent Gemma 4
+// 26B Vision sidecar contains 191 linear matrices.  Keep comparison jobs at
+// the narrower text boundary while allowing the same bounded row-wise encoder
+// to service the explicitly larger offline Vision job.
+constexpr std::uint64_t kMaxEncodeMatrices = 191U;
+constexpr std::uint64_t kMaxCompareMatrices = 115U;
 constexpr std::uint64_t kMaxDimension = 8192U;
 constexpr std::uint64_t kMaxSourceRowBytes = 16384U;
 constexpr std::uint64_t kMaxScaleBytes = 16384U;
@@ -307,7 +312,7 @@ Result<Job> ParseJob(const std::filesystem::path& path) {
   if (!payload_size.ok()) return payload_size.status();
   if (thread_count.value() == 0U || thread_count.value() > 64U) return Invalid("job.threads must be between 1 and 64");
   if (payload_size.value() > kMaxPayloadBytes) return Invalid("job.payload_bytes exceeds 2 GiB limit");
-  if (!matrices->is_array() || matrices->as_array().empty() || matrices->as_array().size() > kMaxMatrices) return Invalid("job.matrices must contain 1..115 matrices");
+  if (!matrices->is_array() || matrices->as_array().empty() || matrices->as_array().size() > kMaxEncodeMatrices) return Invalid("job.matrices must contain 1..191 matrices");
   Job job;
   job.threads = thread_count.value();
   job.payload_bytes = payload_size.value();
@@ -840,7 +845,7 @@ Result<CompareJob> ParseCompareJob(const std::filesystem::path& path) {
   auto thread_count = UInt(*threads, "compare job.threads");
   if (!thread_count.ok()) return thread_count.status();
   if (thread_count.value() == 0U || thread_count.value() > 64U) return Invalid("compare job.threads must be between 1 and 64");
-  if (!matrices->is_array() || matrices->as_array().empty() || matrices->as_array().size() > kMaxMatrices) {
+  if (!matrices->is_array() || matrices->as_array().empty() || matrices->as_array().size() > kMaxCompareMatrices) {
     return Invalid("compare job.matrices must contain 1..115 matrices");
   }
   CompareJob job;
