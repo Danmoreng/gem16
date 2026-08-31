@@ -16,8 +16,10 @@
 #ifdef _WIN32
 #include "imgui_impl_dx11.h"
 #include "imgui_impl_win32.h"
+#include <windows.h>
 #include <d3d11.h>
 #include <dwmapi.h>
+#include <shellapi.h>
 #include <tchar.h>
 #include <wrl/client.h>
 

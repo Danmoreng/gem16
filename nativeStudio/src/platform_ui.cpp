@@ -5,10 +5,10 @@
 #include <string>
 
 #ifdef _WIN32
+#include <windows.h>
 #include <commdlg.h>
 #include <shellapi.h>
 #include <shlobj.h>
-#include <windows.h>
 #else
 #include <array>
 #include <gtk/gtk.h>
