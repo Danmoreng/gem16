@@ -890,6 +890,16 @@ int ChatMain(int argc, char** argv) {
     std::cout
         << "{\"schema_version\":1,\"model_variant\":"
         << JsonEscape(runtime.value()->model_variant_name())
+        << ",\"profile_id\":"
+        << JsonEscape(runtime.value()->profile_id())
+        << ",\"text_artifact_profile\":"
+        << JsonEscape(runtime.value()->text_artifact_profile())
+        << ",\"vision_artifact_profile\":"
+        << JsonEscape(runtime.value()->vision_artifact_profile())
+        << ",\"experimental\":"
+        << (runtime.value()->experimental() ? "true" : "false")
+        << ",\"qualification_state\":"
+        << JsonEscape(runtime.value()->qualification_state())
         << ",\"artifact_profile\":"
         << JsonEscape(runtime.value()->artifact_profile())
         << ",\"head_format\":"
@@ -921,6 +931,19 @@ int ChatMain(int argc, char** argv) {
         << (runtime.value()->vision_module_loaded() ? "true" : "false")
         << ",\"vision_weight_bytes\":"
         << runtime.value()->vision_weight_bytes()
+        << ",\"vision_workspace_bytes\":"
+        << runtime.value()->vision_workspace_bytes()
+        << ",\"maximum_images\":" << runtime.value()->maximum_images()
+        << ",\"vision_soft_token_budgets\":"
+        << (runtime.value()->vision_module_loaded() ? "[70,140,280]" : "[]")
+        << ",\"selected_vision_soft_token_budget\":null"
+        << ",\"vision_max_context_tokens\":";
+    if (runtime.value()->vision_module_loaded()) {
+      std::cout << runtime.value()->vision_max_context_tokens();
+    } else {
+      std::cout << "null";
+    }
+    std::cout
         << ",\"kv_cache_bytes\":";
     if (moe26b) {
       std::cout << runtime.value()->kv_cache_bytes();
@@ -941,13 +964,13 @@ int ChatMain(int argc, char** argv) {
         << ",\"default_context_tokens\":"
         << runtime.value()->default_context_tokens()
         << ",\"qualified_64k\":";
-    if (moe26b) {
+    if (moe26b && !runtime.value()->vision_module_loaded()) {
       std::cout << (runtime.value()->qualified_64k() ? "true" : "false");
     } else {
       std::cout << "null";
     }
     std::cout << ",\"base_max_context\":";
-    if (moe26b) {
+    if (moe26b && !runtime.value()->vision_module_loaded()) {
       std::cout << runtime.value()->base_max_context_tokens();
     } else {
       std::cout << "null";

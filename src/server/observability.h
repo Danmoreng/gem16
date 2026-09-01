@@ -26,6 +26,8 @@ struct LogField {
 
 [[nodiscard]] Result<LogLevel> ParseLogLevel(std::string_view value);
 [[nodiscard]] Result<LogFormat> ParseLogFormat(std::string_view value);
+// Empty means the status is not one of the bounded Vision API failures.
+[[nodiscard]] std::string_view VisionErrorCode(const Status& status);
 
 class StructuredLogger {
  public:

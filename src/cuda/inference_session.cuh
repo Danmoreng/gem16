@@ -156,6 +156,10 @@ std::uint64_t ModelRuntime::vision_weight_bytes() const {
   if (impl_ == nullptr || impl_->moe26b_engine == nullptr) return 0U;
   return impl_->moe26b_engine->vision_weight_bytes();
 }
+std::uint64_t ModelRuntime::vision_workspace_bytes() const {
+  if (impl_ == nullptr || impl_->moe26b_engine == nullptr) return 0U;
+  return impl_->moe26b_engine->vision_workspace_bytes();
+}
 bool ModelRuntime::vision_module_loaded() const {
   return impl_ != nullptr && impl_->vision_module_loaded;
 }
@@ -193,6 +197,38 @@ const char* ModelRuntime::source_lock_sha256() const {
 }
 const char* ModelRuntime::compiler_commit() const {
   return impl_ == nullptr ? "" : impl_->compiler_commit.c_str();
+}
+const char* ModelRuntime::profile_id() const {
+  if (impl_ == nullptr) return "unsupported";
+  if (impl_->variant != internal::ModelVariant::kGemma4Moe26BA4B) {
+    return "gemma4-12b-unified";
+  }
+  if (impl_->artifact_profile != internal::kGemma4Moe26BTrellis35Profile) {
+    return "gemma4-26b-a4b-nvfp4";
+  }
+  if (!impl_->vision_module_loaded) return "gemma4-26b-a4b-trellis35-text";
+  return impl_->vision_mtp_supported
+             ? "gemma4-26b-a4b-trellis35-vision-fp8-d2"
+             : "gemma4-26b-a4b-trellis35-vision-fp8";
+}
+const char* ModelRuntime::text_artifact_profile() const {
+  return artifact_profile();
+}
+const char* ModelRuntime::vision_artifact_profile() const {
+  return impl_ != nullptr && impl_->vision_module_loaded
+             ? internal::kGemma4Moe26BVisionProfile.data()
+             : "";
+}
+const char* ModelRuntime::qualification_state() const {
+  if (impl_ == nullptr) return "unsupported";
+  return impl_->artifact_profile == internal::kGemma4Moe26BTrellis35Profile
+             ? (impl_->vision_mtp_supported ? "experimental_v14_accepted"
+                                            : "experimental")
+             : "qualified";
+}
+bool ModelRuntime::experimental() const {
+  return impl_ != nullptr &&
+         impl_->artifact_profile == internal::kGemma4Moe26BTrellis35Profile;
 }
 std::uint64_t ModelRuntime::max_context_tokens() const {
   return impl_ == nullptr ? 0U : impl_->max_context_tokens;
@@ -246,6 +282,25 @@ bool ModelRuntime::supports_mtp() const {
 }
 bool ModelRuntime::vision_mtp_supported() const {
   return impl_ != nullptr && impl_->vision_mtp_supported;
+}
+std::uint32_t ModelRuntime::maximum_images() const {
+  return supports_vision() ? 1U : 0U;
+}
+std::span<const std::uint32_t>
+ModelRuntime::vision_soft_token_budgets() const {
+  static constexpr std::array<std::uint32_t, 3U> kBudgets{70U, 140U, 280U};
+  return impl_ != nullptr && impl_->vision_module_loaded
+             ? std::span<const std::uint32_t>(kBudgets)
+             : std::span<const std::uint32_t>();
+}
+std::uint32_t ModelRuntime::selected_vision_soft_token_budget() const {
+  return 0U;
+}
+std::uint64_t ModelRuntime::vision_max_context_tokens() const {
+  // V10 established the physical admission boundary. The qualification state
+  // remains explicitly experimental; this must not be confused with the
+  // qualified text-only 98,304-token product claim.
+  return impl_ != nullptr && impl_->vision_module_loaded ? 229376U : 0U;
 }
 std::uint32_t ModelRuntime::maximum_execution_slots() const {
   if (impl_ == nullptr) return 0U;
@@ -736,6 +791,22 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
       impl_->poisoned = true;
       return selected.status();
     }
+    if (uncached_vision.has_value()) {
+      auto phase_timings = impl_->runtime->impl_->moe26b_engine
+                               ->ResolveVisionPhaseTimings();
+      if (!phase_timings.ok()) {
+        impl_->poisoned = true;
+        return phase_timings.status();
+      }
+      result.vision_upload_milliseconds =
+          phase_timings.value().upload_milliseconds;
+      result.vision_tower_milliseconds =
+          phase_timings.value().tower_milliseconds;
+      result.vision_pool_project_milliseconds =
+          phase_timings.value().pool_project_milliseconds;
+      result.text_prefill_milliseconds =
+          phase_timings.value().text_prefill_milliseconds;
+    }
     result.prompt_milliseconds = Milliseconds(
         std::chrono::steady_clock::now() - prompt_start);
     if (impl_->cuda_profile_phase == CudaProfilePhase::kPrefill) {
@@ -827,7 +898,13 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
       ++result.reasoning_ordinary_target_tokens;
       if (result.mtp_enabled) ++result.mtp_ordinary_fallback_tokens;
     }
-    if (result.mtp_enabled) {
+    if (result.mtp_enabled &&
+        (result.output_token_ids.size() >= max_generated_tokens ||
+         result.stopped)) {
+      // The Ordinary reasoning prefix or a stop token already completed the
+      // bounded request. Do not launch a fixed-D2 chain with an empty output
+      // span.
+    } else if (result.mtp_enabled) {
       const std::size_t output_begin = result.output_token_ids.size();
       const std::size_t requested = static_cast<std::size_t>(
           max_generated_tokens - output_begin);

@@ -705,6 +705,10 @@ Result<OpenAiChatRequest> ParseChatCompletionsRequest(
   // check separately for every turn.
   const std::uint64_t output_reserve =
       std::min<std::uint64_t>(128U, options.context_tokens / 4U);
+  if (options.gemma4_moe26b_vision && images.size() > 1U) {
+    return Status(StatusCode::kUnsupported,
+                  "the Gemma 4 26B Vision profile supports exactly one image");
+  }
   const std::uint64_t fixed_reserve =
       output_reserve + audio_tokens + 64U + images.size() * 2U;
   const std::uint32_t image_budget = AutomaticVisionSoftTokenBudget(
@@ -960,6 +964,10 @@ Result<OpenAiResponsesRequest> ParseResponsesRequest(
   }
   const std::uint64_t output_reserve =
       std::min<std::uint64_t>(128U, options.context_tokens / 4U);
+  if (options.gemma4_moe26b_vision && images.size() > 1U) {
+    return Status(StatusCode::kUnsupported,
+                  "the Gemma 4 26B Vision profile supports exactly one image");
+  }
   const std::uint64_t fixed_reserve =
       output_reserve + audio_tokens + 64U + images.size() * 2U;
   const std::uint32_t image_budget = AutomaticVisionSoftTokenBudget(

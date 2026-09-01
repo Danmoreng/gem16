@@ -53,6 +53,8 @@ struct Gemma4Moe26BVisionImage {
   std::uint32_t processed_height = 0U;
   std::uint32_t soft_token_budget = 280U;
   std::uint64_t source_fingerprint = 0U;
+  double decode_milliseconds = 0.0;
+  double resize_patchify_milliseconds = 0.0;
 
   bool operator==(const Gemma4Moe26BVisionImage&) const = default;
 };

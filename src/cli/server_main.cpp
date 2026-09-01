@@ -269,7 +269,30 @@ int HttpStatus(const gem16::Status& status) {
   }
 }
 
-void RecordStatusMetric(ServerState& state, const gem16::Status& status) {
+bool HasVisionInput(const gem16::ChatGenerationRequest& request) {
+  for (const auto& message : request.messages) {
+    for (const auto& part : message.content) {
+      if (part.kind == gem16::GenerationContentKind::kImage ||
+          part.kind == gem16::GenerationContentKind::kGemma4Moe26BImage) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+void RecordStatusMetric(ServerState& state, const gem16::Status& status,
+                        bool vision_request = false) {
+  const bool vision_failure =
+      vision_request || status.message().find("Vision") != std::string::npos ||
+      status.message().find("vision") != std::string::npos ||
+      status.message().find("image") != std::string::npos;
+  if (vision_failure) state.metrics.vision_failures.fetch_add(1U);
+  if (status.code() == gem16::StatusCode::kDataLoss &&
+      (status.message().find("Vision artifact") != std::string::npos ||
+       status.message().find("Vision module") != std::string::npos)) {
+    state.metrics.vision_artifact_validation_failures.fetch_add(1U);
+  }
   switch (status.code()) {
     case gem16::StatusCode::kResourceExhausted:
       state.metrics.resource_exhaustion_count.fetch_add(1U);
@@ -286,17 +309,19 @@ void RecordStatusMetric(ServerState& state, const gem16::Status& status) {
 }
 
 void SetError(ServerState& state, const gem16::Status& status,
-              httplib::Response& response) {
-  RecordStatusMetric(state, status);
+              httplib::Response& response, bool vision_request = false) {
+  RecordStatusMetric(state, status, vision_request);
   response.status = HttpStatus(status);
   std::string_view type = response.status >= 500 ? "server_error"
                                                   : "invalid_request_error";
-  std::string_view code;
+  std::string_view code = gem16::server::VisionErrorCode(status);
   if (status.code() == gem16::StatusCode::kUnsupported) {
     type = "unsupported_feature";
-    code = status.message().find("Gemma 4 26B") != std::string::npos
-               ? "gemma4_26b_text_only"
-               : "unsupported_feature";
+    if (code.empty()) {
+      code = status.message().find("Gemma 4 26B") != std::string::npos
+                 ? "gemma4_26b_text_only"
+                 : "unsupported_feature";
+    }
   } else if (status.code() == gem16::StatusCode::kResourceExhausted) {
     type = "resource_exhausted";
     if (status.message() == "request queue is full") {
@@ -326,7 +351,8 @@ gem16::Result<RequestAdmission> AcquireRequestAdmission(ServerState& state) {
 }
 
 gem16::Status ValidateRequestCapabilities(
-    const ServerState& state, const gem16::ChatGenerationRequest& request) {
+    ServerState& state, const gem16::ChatGenerationRequest& request) {
+  std::uint32_t image_count = 0U;
   for (const auto& message : request.messages) {
     for (const auto& part : message.content) {
       if (part.kind == gem16::GenerationContentKind::kAudio &&
@@ -337,11 +363,52 @@ gem16::Status ValidateRequestCapabilities(
       }
       if (part.kind == gem16::GenerationContentKind::kImage &&
           !state.runtime->supports_vision()) {
-        return gem16::Status(
-            gem16::StatusCode::kUnsupported,
-            "Gemma 4 26B is a text-only profile; image input is unsupported");
+        return gem16::Status(gem16::StatusCode::kUnsupported,
+                             state.runtime->experimental()
+                                 ? "Vision module is not loaded"
+                                 : "a Vision profile is required for image input");
+      }
+      if (part.kind == gem16::GenerationContentKind::kImage ||
+          part.kind == gem16::GenerationContentKind::kGemma4Moe26BImage) {
+        ++image_count;
+      }
+      if (part.kind == gem16::GenerationContentKind::kGemma4Moe26BImage) {
+        if (!state.runtime->supports_vision()) {
+          return gem16::Status(gem16::StatusCode::kUnsupported,
+                               "a Vision profile is required for 26B image input");
+        }
+        const std::uint32_t budget = part.moe26b_image.soft_token_budget;
+        if (budget != 70U && budget != 140U && budget != 280U) {
+          return gem16::Status(gem16::StatusCode::kUnsupported,
+                               "Vision soft-token budget is unsupported");
+        }
+        state.metrics.selected_vision_soft_token_budget.store(budget);
+        if (budget == 70U) {
+          state.metrics.vision_budget_70.fetch_add(1U);
+        } else if (budget == 140U) {
+          state.metrics.vision_budget_140.fetch_add(1U);
+        } else {
+          state.metrics.vision_budget_280.fetch_add(1U);
+        }
       }
     }
+  }
+  if (image_count == 0U) return gem16::Status::Ok();
+  state.metrics.vision_requests.fetch_add(1U);
+  if (image_count > state.runtime->maximum_images()) {
+    return gem16::Status(gem16::StatusCode::kUnsupported,
+                         "the active Vision profile supports exactly one image");
+  }
+  if (state.max_context > state.runtime->vision_max_context_tokens()) {
+    return gem16::Status(gem16::StatusCode::kUnsupported,
+                         "Vision context is outside the measured profile limit");
+  }
+  if (state.session_options.mtp_draft_tokens != 0U &&
+      !state.runtime->vision_mtp_supported()) {
+    state.metrics.vision_d2_rejections.fetch_add(1U);
+    return gem16::Status(
+        gem16::StatusCode::kUnsupported,
+        "Vision with fixed-D2 is not qualified for this component set");
   }
   return gem16::Status::Ok();
 }
@@ -462,7 +529,8 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
         parsed.value().generation, CheckCancellation, &cancellation);
     if (!generated.ok()) {
       state.metrics.requests_failed.fetch_add(1U);
-      SetError(state, generated.status(), response);
+      SetError(state, generated.status(), response,
+               HasVisionInput(parsed.value().generation));
       if (entry->session.is_poisoned()) DiscardSession(state, entry);
       ReleaseSession(state, entry);
       return;
@@ -521,7 +589,8 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
         const bool generation_completed = generated.ok();
         if (!generated.ok()) {
           provider->server->metrics.requests_failed.fetch_add(1U);
-          RecordStatusMetric(*provider->server, generated.status());
+          RecordStatusMetric(*provider->server, generated.status(),
+                             HasVisionInput(provider->generation));
           (void)WriteSse(
               sink, gem16::server::OpenAiErrorJson(
                         generated.status().message(), "server_error"));
@@ -626,7 +695,8 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
         parsed.value().generation, CheckCancellation, &cancellation);
     if (!generated.ok()) {
       state.metrics.requests_failed.fetch_add(1U);
-      SetError(state, generated.status(), response);
+      SetError(state, generated.status(), response,
+               HasVisionInput(parsed.value().generation));
       if (entry->session.is_poisoned()) DiscardSession(state, entry);
       ReleaseSession(state, entry);
       return;
@@ -681,7 +751,8 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
             *provider->entry, provider->request);
         if (!status.ok()) {
           provider->server->metrics.requests_failed.fetch_add(1U);
-          RecordStatusMetric(*provider->server, status);
+          RecordStatusMetric(*provider->server, status,
+                             HasVisionInput(provider->request.generation));
           (void)WriteSse(
               sink, "{\"type\":\"error\",\"code\":null,\"message\":" +
                         gem16::json::Quote(status.message()) +
@@ -732,7 +803,8 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
                             provider->identity.id);
         if (!generated.ok()) {
           provider->server->metrics.requests_failed.fetch_add(1U);
-          RecordStatusMetric(*provider->server, generated.status());
+          RecordStatusMetric(*provider->server, generated.status(),
+                             HasVisionInput(provider->request.generation));
           (void)WriteSse(
               sink, "{\"type\":\"error\",\"code\":null,\"message\":" +
                         gem16::json::Quote(generated.status().message()) +
@@ -1000,6 +1072,7 @@ int ServerMain(int argc, char** argv) {
                const bool is_moe26b =
                    std::string_view(state.runtime->model_variant_name()) ==
                    "gemma4_moe_26b_a4b";
+               const bool vision_profile = state.runtime->vision_module_loaded();
                const auto queue = state.request_queue.Snapshot();
                if (queue.draining) response.status = 503;
                response.set_content(
@@ -1026,12 +1099,12 @@ int ServerMain(int argc, char** argv) {
                        std::to_string(
                            state.runtime->default_context_tokens()) +
                        ",\"qualified_64k\":" +
-                       (is_moe26b
+                       (is_moe26b && !vision_profile
                             ? (state.runtime->qualified_64k() ? "true"
                                                              : "false")
                             : "null") +
                        ",\"base_max_context\":" +
-                       (is_moe26b
+                       (is_moe26b && !vision_profile
                             ? std::to_string(
                                   state.runtime->base_max_context_tokens())
                             : "null") +
@@ -1042,6 +1115,19 @@ int ServerMain(int argc, char** argv) {
                        ",\"model_variant\":" +
                        gem16::json::Quote(
                            state.runtime->model_variant_name()) +
+                       ",\"profile_id\":" +
+                       gem16::json::Quote(state.runtime->profile_id()) +
+                       ",\"text_artifact_profile\":" +
+                       gem16::json::Quote(
+                           state.runtime->text_artifact_profile()) +
+                       ",\"vision_artifact_profile\":" +
+                       gem16::json::Quote(
+                           state.runtime->vision_artifact_profile()) +
+                       ",\"experimental\":" +
+                       (state.runtime->experimental() ? "true" : "false") +
+                       ",\"qualification_state\":" +
+                       gem16::json::Quote(
+                           state.runtime->qualification_state()) +
                        ",\"native_path\":" +
                        gem16::json::Quote(
                            state.runtime->selected_native_path()) +
@@ -1065,6 +1151,30 @@ int ServerMain(int argc, char** argv) {
                        ",\"assistant_workspace_bytes\":" +
                        std::to_string(
                            state.runtime->assistant_workspace_bytes()) +
+                       ",\"vision_module_loaded\":" +
+                       (state.runtime->vision_module_loaded() ? "true"
+                                                              : "false") +
+                       ",\"vision_weight_bytes\":" +
+                       std::to_string(state.runtime->vision_weight_bytes()) +
+                       ",\"vision_workspace_bytes\":" +
+                       std::to_string(
+                           state.runtime->vision_workspace_bytes()) +
+                       ",\"maximum_images\":" +
+                       std::to_string(state.runtime->maximum_images()) +
+                       ",\"vision_soft_token_budgets\":" +
+                       (vision_profile ? "[70,140,280]" : "[]") +
+                       ",\"selected_vision_soft_token_budget\":" +
+                       (state.metrics.selected_vision_soft_token_budget.load() ==
+                                0U
+                            ? "null"
+                            : std::to_string(state.metrics
+                                                 .selected_vision_soft_token_budget
+                                                 .load())) +
+                       ",\"vision_max_context_tokens\":" +
+                       (vision_profile
+                            ? std::to_string(
+                                  state.runtime->vision_max_context_tokens())
+                            : "null") +
                        ",\"kv_cache_bytes\":" +
                        (is_moe26b
                             ? std::to_string(state.runtime->kv_cache_bytes())
@@ -1097,6 +1207,9 @@ int ServerMain(int argc, char** argv) {
                        (state.runtime->supports_vision() ? "true" : "false") +
                        ",\"mtp\":" +
                        (state.runtime->supports_mtp() ? "true" : "false") +
+                       ",\"vision_mtp\":" +
+                       (state.runtime->vision_mtp_supported() ? "true"
+                                                              : "false") +
                        "}" +
                        ",\"mtp_draft_tokens\":" +
                        std::to_string(state.session_options.mtp_draft_tokens) +

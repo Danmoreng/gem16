@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "server/observability.h"
+#include "server/session_pool.h"
 #include "test.h"
 #include "util/json.h"
 
@@ -60,10 +61,59 @@ void TestConcurrentRecordsStayAtomic() {
   GEM16_CHECK(records == 80U);
 }
 
+void TestVisionPrometheusMetrics() {
+  gem16::server::ServerMetrics metrics;
+  metrics.vision_requests.store(3U);
+  metrics.vision_failures.store(1U);
+  metrics.vision_budget_140.store(2U);
+  metrics.selected_vision_soft_token_budget.store(140U);
+  metrics.vision_tower_microseconds.store(252000U);
+  const std::string output = gem16::server::VisionMetricsText(metrics);
+  GEM16_CHECK(output.find("# TYPE gem16_vision_requests_total counter\n") !=
+              std::string::npos);
+  GEM16_CHECK(output.find("gem16_vision_requests_total 3\n") !=
+              std::string::npos);
+  GEM16_CHECK(output.find("gem16_vision_failures_total 1\n") !=
+              std::string::npos);
+  GEM16_CHECK(output.find("gem16_vision_budget_140_total 2\n") !=
+              std::string::npos);
+  GEM16_CHECK(output.find(
+                  "# TYPE gem16_selected_vision_soft_token_budget gauge\n") !=
+              std::string::npos);
+  GEM16_CHECK(output.find("gem16_selected_vision_soft_token_budget 140\n") !=
+              std::string::npos);
+  GEM16_CHECK(output.find("gem16_vision_tower_microseconds_total 252000\n") !=
+              std::string::npos);
+}
+
+void TestVisionErrorCodes() {
+  const auto code = [](std::string message) {
+    return gem16::server::VisionErrorCode(gem16::Status(
+        gem16::StatusCode::kUnsupported, std::move(message)));
+  };
+  GEM16_CHECK(code("Vision module is not loaded") ==
+              "vision_module_not_loaded");
+  GEM16_CHECK(code("a Vision profile is required for image input") ==
+              "vision_profile_required");
+  GEM16_CHECK(code("the active Vision profile supports exactly one image") ==
+              "vision_multiple_images_unsupported");
+  GEM16_CHECK(code("Vision with fixed-D2 is not qualified") ==
+              "vision_mtp_unqualified");
+  GEM16_CHECK(code("Vision soft-token budget is unsupported") ==
+              "vision_budget_unsupported");
+  GEM16_CHECK(code("Vision context is outside the measured profile limit") ==
+              "vision_context_unqualified");
+  GEM16_CHECK(code("Vision artifact identity mismatch") ==
+              "vision_artifact_mismatch");
+  GEM16_CHECK(code("unrelated failure").empty());
+}
+
 }  // namespace
 
 void RunObservabilityTests() {
   TestLogParsing();
   TestJsonLogRecord();
   TestConcurrentRecordsStayAtomic();
+  TestVisionPrometheusMetrics();
+  TestVisionErrorCodes();
 }

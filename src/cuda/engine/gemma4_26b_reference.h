@@ -15,6 +15,13 @@
 
 namespace gem16::internal {
 
+struct Gemma4Moe26BVisionPhaseTimings {
+  double upload_milliseconds = 0.0;
+  double tower_milliseconds = 0.0;
+  double pool_project_milliseconds = 0.0;
+  double text_prefill_milliseconds = 0.0;
+};
+
 enum class Gemma4Moe26BBackend {
   kReference,
   kSm120MoeHead,
@@ -108,6 +115,8 @@ class Gemma4Moe26BReferenceEngine {
   [[nodiscard]] Status PrefillTokensWithVision(
       std::span<const std::uint32_t> tokens,
       const Gemma4Moe26BVisionInputSegment& vision_segment);
+  [[nodiscard]] Result<Gemma4Moe26BVisionPhaseTimings>
+  ResolveVisionPhaseTimings();
   [[nodiscard]] Result<Gemma4Moe26BReferencePrediction> Prediction();
   // Product token selection is configured once per resident session. All
   // device buffers are reserved by Create; recurring selection performs no
@@ -185,6 +194,7 @@ class Gemma4Moe26BReferenceEngine {
   [[nodiscard]] std::uint64_t mtp_assistant_workspace_bytes() const;
   [[nodiscard]] bool vision_module_loaded() const;
   [[nodiscard]] std::uint64_t vision_weight_bytes() const;
+  [[nodiscard]] std::uint64_t vision_workspace_bytes() const;
   [[nodiscard]] bool mtp_group_graph_prepared(
       std::uint32_t draft_count) const;
   [[nodiscard]] std::uint64_t mtp_group_graph_device_bytes() const;

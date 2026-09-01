@@ -109,6 +109,12 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
         Gemma4Moe26BVisionRuntime::Create(impl->vision_artifact);
     if (!vision_runtime.ok()) return vision_runtime.status();
     impl->vision_runtime = std::move(vision_runtime).value();
+    for (cudaEvent_t& event : impl->vision_phase_events) {
+      error = cudaEventCreate(&event);
+      if (error != cudaSuccess) {
+        return CudaFailure("create Vision phase timing event", error);
+      }
+    }
   }
   if (backend == Gemma4Moe26BBackend::kSm120Integrated) {
     error = cudaStreamCreateWithFlags(&impl->shared_moe_stream,

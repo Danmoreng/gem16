@@ -58,6 +58,33 @@ Result<LogFormat> ParseLogFormat(std::string_view value) {
                 "--log-format must be text or json");
 }
 
+std::string_view VisionErrorCode(const Status& status) {
+  const std::string& message = status.message();
+  if (message.find("supports exactly one image") != std::string::npos) {
+    return "vision_multiple_images_unsupported";
+  }
+  if (message.find("Vision module is not loaded") != std::string::npos) {
+    return "vision_module_not_loaded";
+  }
+  if (message.find("Vision profile is required") != std::string::npos) {
+    return "vision_profile_required";
+  }
+  if (message.find("Vision with fixed-D2 is not qualified") !=
+      std::string::npos) {
+    return "vision_mtp_unqualified";
+  }
+  if (message.find("Vision soft-token budget") != std::string::npos) {
+    return "vision_budget_unsupported";
+  }
+  if (message.find("Vision context is outside") != std::string::npos) {
+    return "vision_context_unqualified";
+  }
+  if (message.find("Vision artifact") != std::string::npos) {
+    return "vision_artifact_mismatch";
+  }
+  return {};
+}
+
 StructuredLogger::StructuredLogger(LogLevel level, LogFormat format,
                                    std::ostream& output)
     : level_(level), format_(format), output_(&output) {}

@@ -20,7 +20,8 @@ Status Gemma4Moe26BReferenceEngine::PrefillTokensWithVision(
   {
     const NvtxRange range("gem16.vision.encode");
     status = implementation_->vision_runtime.Encode(
-        vision_segment, implementation_->stream);
+        vision_segment, implementation_->stream, nullptr,
+        std::span<cudaEvent_t>(implementation_->vision_phase_events).first(4U));
   }
   if (!status.ok()) return status;
   ++implementation_->vision_encode_calls;
@@ -30,6 +31,15 @@ Status Gemma4Moe26BReferenceEngine::PrefillTokensWithVision(
   {
     const NvtxRange range("gem16.vision.text_prefill");
     status = PrefillTokens(tokens);
+  }
+  if (status.ok()) {
+    const cudaError_t error = cudaEventRecord(
+        implementation_->vision_phase_events[4], implementation_->stream);
+    if (error != cudaSuccess) {
+      status = CudaFailure("record Vision text-prefill phase", error);
+    } else {
+      implementation_->vision_phase_pending = true;
+    }
   }
   implementation_->vision_prefill_active = false;
   implementation_->vision_prefill_offset = 0U;

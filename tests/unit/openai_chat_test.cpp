@@ -186,9 +186,16 @@ void RunOpenAiChatTests() {
       two_turn_image_request, {512U});
   auto moe26b_image = gem16::server::ParseChatCompletionsRequest(
       one_image_request, {512U, true});
+  auto moe26b_multiple_images = gem16::server::ParseChatCompletionsRequest(
+      two_turn_image_request, {512U, true});
   GEM16_CHECK(one_image.ok());
   GEM16_CHECK(two_images.ok());
   GEM16_CHECK(moe26b_image.ok());
+  GEM16_CHECK(!moe26b_multiple_images.ok());
+  if (!moe26b_multiple_images.ok()) {
+    GEM16_CHECK(moe26b_multiple_images.status().message() ==
+                "the Gemma 4 26B Vision profile supports exactly one image");
+  }
   if (moe26b_image.ok()) {
     const auto& content =
         moe26b_image.value().generation.messages.front().content.front();
@@ -315,6 +322,21 @@ void RunOpenAiChatTests() {
     GEM16_CHECK(responses.value().generation.tools[0].name == "get_weather");
     GEM16_CHECK(responses.value().generation.thinking.effort ==
                 gem16::ThinkingEffort::kSmall);
+  }
+
+  const std::string responses_two_images =
+      "{\"model\":\"gem16\",\"input\":[{\"type\":\"message\","
+      "\"role\":\"user\",\"content\":["
+      "{\"type\":\"input_image\",\"image_url\":\"data:image/bmp;base64," +
+      encoded_image +
+      "\"},{\"type\":\"input_image\",\"image_url\":\"data:image/bmp;base64," +
+      encoded_image + "\"}]}]}";
+  auto responses_multiple_images = gem16::server::ParseResponsesRequest(
+      responses_two_images, {512U, true});
+  GEM16_CHECK(!responses_multiple_images.ok());
+  if (!responses_multiple_images.ok()) {
+    GEM16_CHECK(responses_multiple_images.status().message() ==
+                "the Gemma 4 26B Vision profile supports exactly one image");
   }
 
   auto response_continuation = gem16::server::ParseResponsesRequest(R"({

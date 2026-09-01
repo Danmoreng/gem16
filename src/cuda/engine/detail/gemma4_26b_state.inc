@@ -30,6 +30,8 @@ struct Gemma4Moe26BReferenceEngine::Impl {
   Gemma4Moe26BTrellis35DeviceArtifact trellis35_artifact;
   Gemma4Moe26BVisionDeviceArtifact vision_artifact;
   Gemma4Moe26BVisionRuntime vision_runtime;
+  std::array<cudaEvent_t, 5U> vision_phase_events{};
+  bool vision_phase_pending = false;
   bool vision_prefill_active = false;
   std::uint64_t vision_prefill_offset = 0U;
   std::uint32_t vision_prefill_tokens = 0U;
@@ -172,6 +174,9 @@ struct Gemma4Moe26BReferenceEngine::Impl {
     }
     for (cudaGraphExec_t graph : mtp_chain_graphs) {
       if (graph != nullptr) (void)cudaGraphExecDestroy(graph);
+    }
+    for (cudaEvent_t event : vision_phase_events) {
+      if (event != nullptr) (void)cudaEventDestroy(event);
     }
     if (prefill_host_tokens != nullptr) {
       (void)cudaFreeHost(prefill_host_tokens);

@@ -128,6 +128,48 @@ bool Gemma4Moe26BReferenceEngine::vision_module_loaded() const {
 std::uint64_t Gemma4Moe26BReferenceEngine::vision_weight_bytes() const {
   return implementation_ ? implementation_->vision_artifact.arena_bytes() : 0U;
 }
+std::uint64_t Gemma4Moe26BReferenceEngine::vision_workspace_bytes() const {
+  return implementation_ ? implementation_->vision_runtime.workspace_bytes()
+                         : 0U;
+}
+
+Result<Gemma4Moe26BVisionPhaseTimings>
+Gemma4Moe26BReferenceEngine::ResolveVisionPhaseTimings() {
+  if (!implementation_ || !implementation_->vision_phase_pending) {
+    return Invalid("Vision phase timings are not pending");
+  }
+  const cudaError_t sync =
+      cudaEventSynchronize(implementation_->vision_phase_events[4]);
+  if (sync != cudaSuccess) {
+    return CudaFailure("synchronize Vision phase timing", sync);
+  }
+  const auto elapsed = [this](std::size_t begin,
+                              std::size_t end) -> Result<double> {
+    float milliseconds = 0.0F;
+    const cudaError_t error = cudaEventElapsedTime(
+        &milliseconds, implementation_->vision_phase_events[begin],
+        implementation_->vision_phase_events[end]);
+    if (error != cudaSuccess) {
+      return CudaFailure("resolve Vision phase timing", error);
+    }
+    return static_cast<double>(milliseconds);
+  };
+  Gemma4Moe26BVisionPhaseTimings result;
+  auto upload = elapsed(0U, 1U);
+  if (!upload.ok()) return upload.status();
+  auto tower = elapsed(1U, 2U);
+  if (!tower.ok()) return tower.status();
+  auto pool_project = elapsed(2U, 3U);
+  if (!pool_project.ok()) return pool_project.status();
+  auto text_prefill = elapsed(3U, 4U);
+  if (!text_prefill.ok()) return text_prefill.status();
+  result.upload_milliseconds = upload.value();
+  result.tower_milliseconds = tower.value();
+  result.pool_project_milliseconds = pool_project.value();
+  result.text_prefill_milliseconds = text_prefill.value();
+  implementation_->vision_phase_pending = false;
+  return result;
+}
 std::uint64_t Gemma4Moe26BReferenceEngine::weight_arena_bytes() const {
   return implementation_
              ? (IsTrellis35RoutedExpertFormat(

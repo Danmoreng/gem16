@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "milestone": "V15",
+  "status": "accepted",
+  "parent_commit": "b465def",
+  "scope": "experimental Gemma 4 26B Trellis35 Target plus FP8 Vision module, with optional exact V14 fixed-D2 Assistant",
+  "runtime_contract": {
+    "composite_profile_identity": true,
+    "capability_matrix": true,
+    "text_only_context_claims_hidden_for_vision": true,
+    "maximum_images": 1,
+    "vision_soft_token_budgets": [70, 140, 280],
+    "vision_max_context_tokens": 229376,
+    "qualification_state": "experimental_v14_accepted",
+    "vision_mtp_supported": true
+  },
+  "server_contract": {
+    "chat_completions_image": "passed",
+    "responses_image": "passed",
+    "short_fixed_d2_output_limit": "passed at 4 output tokens",
+    "multiple_images": {
+      "http_status": 400,
+      "error_code": "vision_multiple_images_unsupported",
+      "rejected_before_preprocessing": true
+    },
+    "explicit_error_code_unit_matrix": [
+      "vision_module_not_loaded",
+      "vision_profile_required",
+      "vision_multiple_images_unsupported",
+      "vision_mtp_unqualified",
+      "vision_budget_unsupported",
+      "vision_context_unqualified",
+      "vision_artifact_mismatch"
+    ],
+    "stream_disconnect": {
+      "client_disconnect_observed": true,
+      "vision_failure_observed": true
+    }
+  },
+  "observability": {
+    "health_json_validated_live": true,
+    "prometheus_semantics_unit_tested": true,
+    "phase_timings_nonzero_live": [
+      "image_decode_ms",
+      "image_resize_patchify_ms",
+      "vision_upload_ms",
+      "vision_tower_ms",
+      "vision_pool_project_ms",
+      "text_prefill_ms",
+      "ttft_ms",
+      "decode_ms"
+    ],
+    "phase_events_created_at_plan_time": 5,
+    "recurring_timing_allocation": false,
+    "additional_event_residency_bytes": 65536,
+    "kv_cache_bytes": 440401920,
+    "workspace_bytes": 463232288
+  },
+  "correctness": {
+    "v14_same_binary_pairs": 10,
+    "ordinary_d2_streams_identical": true,
+    "runtime_fallback_count": 0,
+    "token_loop_allocations": false,
+    "note": "The V14 regression used tests/test_image_vision.png and is a correctness/non-regression run, not a replacement for the accepted canonical V14 performance panel."
+  },
+  "tests": {
+    "blackwell_release_build": "passed",
+    "host_unit": "passed",
+    "host_sanitizer_ctest": "5/5 passed",
+    "cuda_aggregate": "passed",
+    "cuda_trellis35": "passed",
+    "cuda_vision26b": "passed",
+    "protected_12b_product": "passed with explicit GEM16_12B_MODEL",
+    "live_server_health_metrics_chat_responses_errors_cancellation": "passed"
+  }
+}

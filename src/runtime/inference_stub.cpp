@@ -21,6 +21,7 @@ std::uint64_t ModelRuntime::assistant_weight_bytes() const { return 0U; }
 std::uint64_t ModelRuntime::assistant_workspace_bytes() const { return 0U; }
 bool ModelRuntime::assistant_loaded() const { return false; }
 std::uint64_t ModelRuntime::vision_weight_bytes() const { return 0U; }
+std::uint64_t ModelRuntime::vision_workspace_bytes() const { return 0U; }
 bool ModelRuntime::vision_module_loaded() const { return false; }
 double ModelRuntime::load_milliseconds() const { return 0.0; }
 const char* ModelRuntime::weight_load_path() const { return "none"; }
@@ -31,6 +32,11 @@ const char* ModelRuntime::head_format() const { return "unsupported"; }
 const char* ModelRuntime::artifact_content_sha256() const { return ""; }
 const char* ModelRuntime::source_lock_sha256() const { return ""; }
 const char* ModelRuntime::compiler_commit() const { return ""; }
+const char* ModelRuntime::profile_id() const { return "unsupported"; }
+const char* ModelRuntime::text_artifact_profile() const { return "unsupported"; }
+const char* ModelRuntime::vision_artifact_profile() const { return ""; }
+const char* ModelRuntime::qualification_state() const { return "unsupported"; }
+bool ModelRuntime::experimental() const { return false; }
 std::uint64_t ModelRuntime::max_context_tokens() const { return 0U; }
 std::uint64_t ModelRuntime::default_context_tokens() const { return 0U; }
 std::uint64_t ModelRuntime::base_max_context_tokens() const { return 0U; }
@@ -41,6 +47,14 @@ bool ModelRuntime::supports_audio() const { return false; }
 bool ModelRuntime::supports_vision() const { return false; }
 bool ModelRuntime::supports_mtp() const { return false; }
 bool ModelRuntime::vision_mtp_supported() const { return false; }
+std::uint32_t ModelRuntime::maximum_images() const { return 0U; }
+std::span<const std::uint32_t> ModelRuntime::vision_soft_token_budgets() const {
+  return {};
+}
+std::uint32_t ModelRuntime::selected_vision_soft_token_budget() const {
+  return 0U;
+}
+std::uint64_t ModelRuntime::vision_max_context_tokens() const { return 0U; }
 std::uint32_t ModelRuntime::maximum_execution_slots() const { return 0U; }
 
 struct ConversationSession::Impl {};

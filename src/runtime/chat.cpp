@@ -628,6 +628,12 @@ Result<ChatGenerationResponse> ChatSession::Generate(const ChatGenerationRequest
     impl_->poisoned = impl_->session.is_poisoned();
     return inference.status();
   }
+  if (!messages.value().moe26b_images.empty()) {
+    const auto& image = messages.value().moe26b_images.front();
+    inference.value().image_decode_milliseconds = image.decode_milliseconds;
+    inference.value().image_resize_patchify_milliseconds =
+        image.resize_patchify_milliseconds;
+  }
   const auto poison = [this](Status status) {
     impl_->poisoned = true;
     return status;

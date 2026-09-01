@@ -139,6 +139,12 @@ struct GreedyInferenceResult {
   double prompt_milliseconds = 0.0;
   double decode_milliseconds = 0.0;
   double decode_tokens_per_second = 0.0;
+  double image_decode_milliseconds = 0.0;
+  double image_resize_patchify_milliseconds = 0.0;
+  double vision_upload_milliseconds = 0.0;
+  double vision_tower_milliseconds = 0.0;
+  double vision_pool_project_milliseconds = 0.0;
+  double text_prefill_milliseconds = 0.0;
   std::uint64_t weight_arena_bytes = 0;
   std::uint64_t assistant_source_bytes = 0;
   std::uint64_t assistant_weight_arena_bytes = 0;
@@ -237,6 +243,7 @@ class ModelRuntime {
   [[nodiscard]] std::uint64_t assistant_workspace_bytes() const;
   [[nodiscard]] bool assistant_loaded() const;
   [[nodiscard]] std::uint64_t vision_weight_bytes() const;
+  [[nodiscard]] std::uint64_t vision_workspace_bytes() const;
   [[nodiscard]] bool vision_module_loaded() const;
   [[nodiscard]] double load_milliseconds() const;
   [[nodiscard]] const char* weight_load_path() const;
@@ -247,6 +254,11 @@ class ModelRuntime {
   [[nodiscard]] const char* artifact_content_sha256() const;
   [[nodiscard]] const char* source_lock_sha256() const;
   [[nodiscard]] const char* compiler_commit() const;
+  [[nodiscard]] const char* profile_id() const;
+  [[nodiscard]] const char* text_artifact_profile() const;
+  [[nodiscard]] const char* vision_artifact_profile() const;
+  [[nodiscard]] const char* qualification_state() const;
+  [[nodiscard]] bool experimental() const;
   [[nodiscard]] std::uint64_t max_context_tokens() const;
   [[nodiscard]] std::uint64_t default_context_tokens() const;
   [[nodiscard]] std::uint64_t base_max_context_tokens() const;
@@ -260,6 +272,12 @@ class ModelRuntime {
   // fixed-D2 Assistant combination. Generic Vision and MTP support must not
   // be combined to infer this capability.
   [[nodiscard]] bool vision_mtp_supported() const;
+  [[nodiscard]] std::uint32_t maximum_images() const;
+  [[nodiscard]] std::span<const std::uint32_t>
+  vision_soft_token_budgets() const;
+  // Zero means request-specific and not selected yet.
+  [[nodiscard]] std::uint32_t selected_vision_soft_token_budget() const;
+  [[nodiscard]] std::uint64_t vision_max_context_tokens() const;
   [[nodiscard]] std::uint32_t maximum_execution_slots() const;
 
  private:

@@ -412,6 +412,23 @@ void RecordGeneration(ServerState& state,
       std::max(0.0, response.inference.prompt_milliseconds) * 1000.0));
   state.metrics.decode_microseconds.fetch_add(static_cast<std::uint64_t>(
       std::max(0.0, response.inference.decode_milliseconds) * 1000.0));
+  const auto add_milliseconds = [](std::atomic<std::uint64_t>& metric,
+                                   double milliseconds) {
+    metric.fetch_add(static_cast<std::uint64_t>(
+        std::max(0.0, milliseconds) * 1000.0));
+  };
+  add_milliseconds(state.metrics.image_decode_microseconds,
+                   response.inference.image_decode_milliseconds);
+  add_milliseconds(state.metrics.image_resize_patchify_microseconds,
+                   response.inference.image_resize_patchify_milliseconds);
+  add_milliseconds(state.metrics.vision_upload_microseconds,
+                   response.inference.vision_upload_milliseconds);
+  add_milliseconds(state.metrics.vision_tower_microseconds,
+                   response.inference.vision_tower_milliseconds);
+  add_milliseconds(state.metrics.vision_pool_project_microseconds,
+                   response.inference.vision_pool_project_milliseconds);
+  add_milliseconds(state.metrics.text_prefill_microseconds,
+                   response.inference.text_prefill_milliseconds);
   state.metrics.decode_measured_tokens.fetch_add(
       response.inference.output_token_ids.empty()
           ? 0U
@@ -455,6 +472,57 @@ void RecordQueueAdmission(ServerState& state, std::uint64_t microseconds) {
   state.metrics.queue_wait_microseconds.fetch_add(microseconds);
   if (microseconds != 0U) state.metrics.queue_waits.fetch_add(1U);
   ObserveLatency(state.metrics.queue_latency, microseconds);
+}
+
+std::string VisionMetricsText(const ServerMetrics& metrics) {
+  const auto metric = [](std::string_view name, std::uint64_t value) {
+    return std::string(name) + " " + std::to_string(value) + "\n";
+  };
+  std::string output;
+  output.reserve(1600U);
+  output.append("# TYPE gem16_image_decode_microseconds_total counter\n");
+  output.append(metric("gem16_image_decode_microseconds_total",
+                       metrics.image_decode_microseconds.load()));
+  output.append("# TYPE gem16_image_resize_patchify_microseconds_total counter\n");
+  output.append(metric("gem16_image_resize_patchify_microseconds_total",
+                       metrics.image_resize_patchify_microseconds.load()));
+  output.append("# TYPE gem16_vision_upload_microseconds_total counter\n");
+  output.append(metric("gem16_vision_upload_microseconds_total",
+                       metrics.vision_upload_microseconds.load()));
+  output.append("# TYPE gem16_vision_tower_microseconds_total counter\n");
+  output.append(metric("gem16_vision_tower_microseconds_total",
+                       metrics.vision_tower_microseconds.load()));
+  output.append("# TYPE gem16_vision_pool_project_microseconds_total counter\n");
+  output.append(metric("gem16_vision_pool_project_microseconds_total",
+                       metrics.vision_pool_project_microseconds.load()));
+  output.append("# TYPE gem16_text_prefill_microseconds_total counter\n");
+  output.append(metric("gem16_text_prefill_microseconds_total",
+                       metrics.text_prefill_microseconds.load()));
+  output.append("# TYPE gem16_vision_requests_total counter\n");
+  output.append(metric("gem16_vision_requests_total",
+                       metrics.vision_requests.load()));
+  output.append("# TYPE gem16_vision_failures_total counter\n");
+  output.append(metric("gem16_vision_failures_total",
+                       metrics.vision_failures.load()));
+  output.append("# TYPE gem16_vision_d2_rejections_total counter\n");
+  output.append(metric("gem16_vision_d2_rejections_total",
+                       metrics.vision_d2_rejections.load()));
+  output.append("# TYPE gem16_vision_budget_70_total counter\n");
+  output.append(metric("gem16_vision_budget_70_total",
+                       metrics.vision_budget_70.load()));
+  output.append("# TYPE gem16_vision_budget_140_total counter\n");
+  output.append(metric("gem16_vision_budget_140_total",
+                       metrics.vision_budget_140.load()));
+  output.append("# TYPE gem16_vision_budget_280_total counter\n");
+  output.append(metric("gem16_vision_budget_280_total",
+                       metrics.vision_budget_280.load()));
+  output.append("# TYPE gem16_vision_artifact_validation_failures_total counter\n");
+  output.append(metric("gem16_vision_artifact_validation_failures_total",
+                       metrics.vision_artifact_validation_failures.load()));
+  output.append("# TYPE gem16_selected_vision_soft_token_budget gauge\n");
+  output.append(metric("gem16_selected_vision_soft_token_budget",
+                       metrics.selected_vision_soft_token_budget.load()));
+  return output;
 }
 
 std::string MetricsText(ServerState& state) {
@@ -522,8 +590,11 @@ std::string MetricsText(ServerState& state) {
                        state.metrics.generation_microseconds.load()));
   output.append(metric("gem16_prompt_microseconds_total",
                        state.metrics.prompt_microseconds.load()));
+  output.append(metric("gem16_ttft_microseconds_total",
+                       state.metrics.prompt_microseconds.load()));
   output.append(metric("gem16_decode_microseconds_total",
                        state.metrics.decode_microseconds.load()));
+  output.append(VisionMetricsText(state.metrics));
   output.append(metric("gem16_decode_measured_tokens_total",
                        state.metrics.decode_measured_tokens.load()));
   output.append(metric("gem16_mtp_proposed_tokens_total",
@@ -561,6 +632,10 @@ std::string MetricsText(ServerState& state) {
                        state.runtime->weight_bytes()));
   output.append(metric("gem16_assistant_weight_bytes",
                        state.runtime->assistant_weight_bytes()));
+  output.append(metric("gem16_vision_weight_bytes",
+                       state.runtime->vision_weight_bytes()));
+  output.append(metric("gem16_vision_workspace_bytes",
+                       state.runtime->vision_workspace_bytes()));
   output.append(metric("gem16_execution_slot_planned_bytes",
                        state.planned_slot_device_bytes));
   output.append(metric("gem16_configured_execution_slot_bytes",

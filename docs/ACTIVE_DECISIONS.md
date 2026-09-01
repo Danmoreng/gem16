@@ -90,7 +90,10 @@ Read it only for a concrete historical or evidence question.
   composite. That exact composite reports `vision_mtp_supported=true`; all
   other combinations continue to fail closed. This narrow enablement does not
   promote Trellis35 or 26B Vision to the released product profile before the
-  remaining V15--V18 runtime, publication, and Native Studio gates pass.
+  remaining V16--V18 publication and Native Studio gates pass. V15 has closed
+  the experimental runtime/server profile, validation, error-code, timing,
+  metrics, and cancellation contract; its accepted evidence is
+  `artifacts/vision/v15-runtime-server-closure.json`.
 
 Accepted numerical, performance, context, product, and publication evidence
 continues to live in `artifacts/`, `benchmarks/`, and the archived fast-track

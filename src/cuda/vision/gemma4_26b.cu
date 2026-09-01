@@ -663,8 +663,10 @@ Result<Gemma4Moe26BVisionRuntime> Gemma4Moe26BVisionRuntime::Create(
 
 Status Gemma4Moe26BVisionRuntime::Encode(
     const Gemma4Moe26BVisionInputSegment& segment, cudaStream_t stream,
-    Gemma4Moe26BVisionTimingRecorder* timing) {
+    Gemma4Moe26BVisionTimingRecorder* timing,
+    std::span<cudaEvent_t> phase_events) {
   if (!impl_ || stream == nullptr || segment.raw_patch_count == 0U ||
+      (!phase_events.empty() && phase_events.size() != 4U) ||
       segment.raw_patch_count > kMaximumRawPatches ||
       segment.soft_token_count == 0U || segment.soft_token_count > kMaximumSoftTokens ||
       (segment.soft_token_budget != 70U &&
@@ -699,6 +701,10 @@ Status Gemma4Moe26BVisionRuntime::Encode(
   Status status = timing == nullptr ? Status::Ok()
                                     : timing->Begin(stream, segment);
   if (!status.ok()) return status;
+  if (!phase_events.empty()) {
+    error = cudaEventRecord(phase_events[0], stream);
+    if (error != cudaSuccess) return CudaFailure("record Vision phase begin", error);
+  }
   {
     const NvtxRange range("gem16.vision.upload");
     error = cudaMemcpyAsync(
@@ -712,6 +718,10 @@ Status Gemma4Moe26BVisionRuntime::Encode(
     }
   }
   if (error != cudaSuccess) return CudaFailure("upload Gemma 4 26B Vision input", error);
+  if (!phase_events.empty()) {
+    error = cudaEventRecord(phase_events[1], stream);
+    if (error != cudaSuccess) return CudaFailure("record Vision upload phase", error);
+  }
   if (timing != nullptr) {
     status = timing->Boundary(stream);
     if (!status.ok()) return status;
@@ -891,6 +901,10 @@ Status Gemma4Moe26BVisionRuntime::Encode(
     if (!status.ok()) return status;
   }
 
+  if (!phase_events.empty()) {
+    error = cudaEventRecord(phase_events[2], stream);
+    if (error != cudaSuccess) return CudaFailure("record Vision tower phase", error);
+  }
   const std::uint64_t pooled_elements = static_cast<std::uint64_t>(segment.soft_token_count) * kHidden;
   {
     const NvtxRange range("gem16.vision.pool_standardize");
@@ -926,6 +940,10 @@ Status Gemma4Moe26BVisionRuntime::Encode(
   status = mark_timing_boundary();
   if (!status.ok()) return status;
   impl_->output_tokens = segment.soft_token_count;
+  if (!phase_events.empty()) {
+    error = cudaEventRecord(phase_events[3], stream);
+    if (error != cudaSuccess) return CudaFailure("record Vision pool/project phase", error);
+  }
   return Status::Ok();
 }
 

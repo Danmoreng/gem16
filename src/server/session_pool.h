@@ -57,6 +57,12 @@ struct ServerMetrics {
   std::atomic<std::uint64_t> generation_microseconds{0U};
   std::atomic<std::uint64_t> prompt_microseconds{0U};
   std::atomic<std::uint64_t> decode_microseconds{0U};
+  std::atomic<std::uint64_t> image_decode_microseconds{0U};
+  std::atomic<std::uint64_t> image_resize_patchify_microseconds{0U};
+  std::atomic<std::uint64_t> vision_upload_microseconds{0U};
+  std::atomic<std::uint64_t> vision_tower_microseconds{0U};
+  std::atomic<std::uint64_t> vision_pool_project_microseconds{0U};
+  std::atomic<std::uint64_t> text_prefill_microseconds{0U};
   std::atomic<std::uint64_t> decode_measured_tokens{0U};
   std::atomic<std::uint64_t> mtp_proposed_tokens{0U};
   std::atomic<std::uint64_t> mtp_accepted_tokens{0U};
@@ -67,6 +73,14 @@ struct ServerMetrics {
   std::atomic<std::uint64_t> mtp_d4_groups{0U};
   std::atomic<std::uint64_t> mtp_ordinary_fallback_tokens{0U};
   std::atomic<std::uint64_t> fallback_count{0U};
+  std::atomic<std::uint64_t> vision_requests{0U};
+  std::atomic<std::uint64_t> vision_failures{0U};
+  std::atomic<std::uint64_t> vision_d2_rejections{0U};
+  std::atomic<std::uint64_t> vision_budget_70{0U};
+  std::atomic<std::uint64_t> vision_budget_140{0U};
+  std::atomic<std::uint64_t> vision_budget_280{0U};
+  std::atomic<std::uint64_t> vision_artifact_validation_failures{0U};
+  std::atomic<std::uint32_t> selected_vision_soft_token_budget{0U};
   std::atomic<std::uint64_t> resource_exhaustion_count{0U};
   std::atomic<std::uint64_t> unsupported_feature_count{0U};
   std::atomic<std::uint64_t> model_validation_failure_count{0U};
@@ -180,6 +194,7 @@ void RecordGeneration(ServerState& state,
                       std::chrono::steady_clock::duration elapsed);
 void RecordRequestLatency(ServerState& state, std::uint64_t microseconds);
 void RecordQueueAdmission(ServerState& state, std::uint64_t microseconds);
+[[nodiscard]] std::string VisionMetricsText(const ServerMetrics& metrics);
 [[nodiscard]] std::string MetricsText(ServerState& state);
 
 }  // namespace gem16::server

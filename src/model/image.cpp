@@ -406,6 +406,10 @@ Result<Gemma4Moe26BVisionImage> LoadGemma4Moe26BVisionImageBytes(
     }
   }
   const auto patchify_end = std::chrono::steady_clock::now();
+  result.decode_milliseconds = Milliseconds(decode_begin, decode_end);
+  result.resize_patchify_milliseconds =
+      Milliseconds(resize_begin, resize_end) +
+      Milliseconds(patchify_begin, patchify_end);
   if (options.timings != nullptr) {
     options.timings->patchify_milliseconds =
         Milliseconds(patchify_begin, patchify_end);

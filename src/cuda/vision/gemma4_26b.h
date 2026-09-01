@@ -3,6 +3,7 @@
 #include <array>
 #include <cstdint>
 #include <memory>
+#include <span>
 
 #include <cuda_runtime_api.h>
 
@@ -86,7 +87,8 @@ class Gemma4Moe26BVisionRuntime {
       const Gemma4Moe26BVisionDeviceArtifact& artifact);
   [[nodiscard]] Status Encode(
       const Gemma4Moe26BVisionInputSegment& segment, cudaStream_t stream,
-      Gemma4Moe26BVisionTimingRecorder* timing = nullptr);
+      Gemma4Moe26BVisionTimingRecorder* timing = nullptr,
+      std::span<cudaEvent_t> phase_events = {});
 
   // Physical BF16-rounded values expanded into float slots, row-major
   // [soft_token_count, 2816]. Stable until the next Encode call.
