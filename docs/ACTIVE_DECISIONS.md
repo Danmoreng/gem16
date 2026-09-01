@@ -115,9 +115,15 @@ Read it only for a concrete historical or evidence question.
   generated catalog also corrects the V16 Vision runtime view to the four
   strict module files while retaining the canonical publication and its legal
   files; old auxiliary view hardlinks are pruned without deleting Hub blobs.
-  Its evidence is `artifacts/vision/v18-native-studio-image-d2.json`. The profile
-  remains experimental pending V19 capacity, quality, cross-platform, and
-  lifecycle qualification.
+  Its evidence is `artifacts/vision/v18-native-studio-image-d2.json`. V19 has
+  accepted fresh-process capacity, bounded deterministic quality, cross-platform
+  host/product CI, and the lifecycle matrix. Target+Vision remains qualified at
+  229,376 context tokens; the default Target+Vision+Assistant fixed-D2 composite
+  is now the twice-admitted 229,120-token configuration. The objective 70/140/280
+  suite passed all required description, OCR, chart, document, counting, spatial,
+  color, small-detail, and geometry checks with zero fallback or recurring
+  allocation. Its evidence is `artifacts/vision/v19-acceptance.json`. The profile
+  remains experimental pending the V20 experimental product freeze.
 
 Accepted numerical, performance, context, product, and publication evidence
 continues to live in `artifacts/`, `benchmarks/`, and the archived fast-track

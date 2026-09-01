@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "milestone": "V19",
+  "status": "accepted",
+  "candidate_commit": "b14277ae24381042a89209b830fb620386af7606",
+  "capacity": {
+    "evidence": "artifacts/vision/v19-capacity.json",
+    "sha256": "10c677fb25870ba061d8f094c79fa354b45d9b2dbc456adcd6ccd7adda70a161",
+    "target_vision_context_tokens": 229376,
+    "target_vision_assistant_d2_context_tokens": 229120,
+    "fresh_processes_per_point": 2,
+    "accepted": true
+  },
+  "quality": {
+    "evidence": "artifacts/vision/v19-bounded-quality.json",
+    "sha256": "644db239fed7288c8b622dac7ed1081e2bf7e70d5de170ea932f249b3bcaaece",
+    "objective_cases": 9,
+    "requests": 18,
+    "all_required_checks_pass": true,
+    "all_duplicate_outputs_byte_identical": true,
+    "fallbacks": 0,
+    "token_loop_allocations": 0,
+    "accepted": true
+  },
+  "lifecycle": {
+    "clean_anonymous_install_download_resume": {
+      "status": "passed",
+      "evidence": "artifacts/vision/v16-consolidated-publication.json",
+      "sha256": "899b28d92d012ed5db106df8ec90453a1709baf74ed62d5411947ed3d64a86d0"
+    },
+    "server_start_stop_and_repeated_images": {
+      "status": "passed",
+      "evidence": "artifacts/vision/v19-bounded-quality.json",
+      "starts": 1,
+      "clean_stops": 1,
+      "image_requests": 18
+    },
+    "cached_conversation_continuation": {
+      "status": "passed",
+      "evidence": [
+        "artifacts/vision/v11-d2-exactness.json",
+        "artifacts/vision/v11-d2-exactness-budget140.json",
+        "artifacts/vision/v11-d2-exactness-budget280.json"
+      ],
+      "exact": true
+    },
+    "cancellation_during_vision_and_text": {
+      "status": "passed",
+      "evidence": [
+        "artifacts/vision/v11-d2-exactness.json",
+        "artifacts/vision/v15-runtime-server-closure.json"
+      ],
+      "exact_state_recovery": true,
+      "live_stream_disconnect": true
+    },
+    "bounded_queueing": {
+      "status": "passed",
+      "evidence": "tests/unit/request_queue_test.cpp plus current Linux/Windows host CI"
+    },
+    "no_allocation_growth": {
+      "status": "passed",
+      "quality_request_delta": 18,
+      "token_loop_allocation_delta": 0,
+      "tower_recurring_free_delta_bytes": 0,
+      "evidence": [
+        "artifacts/vision/v19-bounded-quality.json",
+        "artifacts/vision/v14-tower-baseline.json"
+      ]
+    },
+    "vision_artifact_corruption_and_mismatch": {
+      "status": "passed",
+      "error_code": "vision_artifact_mismatch",
+      "evidence": [
+        "artifacts/vision/v15-runtime-server-closure.json",
+        "artifacts/vision/v16-consolidated-publication.json"
+      ]
+    },
+    "protected_regressions": {
+      "status": "passed",
+      "profiles": ["12B", "26B NVFP4", "26B Trellis35 text"],
+      "evidence": "artifacts/vision/v15-runtime-server-closure.json"
+    }
+  },
+  "cross_platform": {
+    "status": "passed",
+    "ci_run_id": 33552828667,
+    "url": "https://github.com/Danmoreng/gem16/actions/runs/33552828667",
+    "linux_host_build_tests_studio_python": "passed",
+    "windows_host_build_tests_studio_python": "passed",
+    "linux_sm120_live_vision_d2": "passed"
+  },
+  "decision": {
+    "v19_gate": "accepted",
+    "next_milestone": "V20 experimental product freeze",
+    "profile_remains_experimental": true
+  },
+  "limitations": [
+    "The ephemeral Windows gate builds and tests host, product, Studio, catalog, and qualification code but has no SM120 GPU for live CUDA inference; live Vision+D2 execution evidence is from the qualified Linux SM120 host.",
+    "V19 provides bounded synthetic quality evidence and the unchanged V09 embedding comparison, not a general multimodal-quality or BF16 text-logit parity claim."
+  ]
+}
