@@ -391,7 +391,8 @@ Status LaunchGemma4Moe26BAttentionSm120PrefillLayer(
     const Gemma4Moe26BAttentionReferenceWeights& w,
     const Gemma4Moe26BKvCacheView& cache,
     const Gemma4Moe26BAttentionReferenceWorkspace& x, float epsilon,
-    cudaStream_t stream, bool rotary_prepared) {
+    cudaStream_t stream, bool rotary_prepared, std::uint64_t vision_begin,
+    std::uint64_t vision_end) {
   constexpr std::uint64_t kMaximumChunkTokens = 2048U;
   constexpr std::uint64_t kMaximumRotaryPairs = 256U;
   const bool sliding =
@@ -433,6 +434,10 @@ Status LaunchGemma4Moe26BAttentionSm120PrefillLayer(
       x.cutlass_workspace == nullptr ||
       x.cutlass_workspace_bytes <
           kGemma4Moe26BAttentionCutlassWorkspaceBytes ||
+      vision_begin > vision_end ||
+      (vision_begin < vision_end &&
+       (!sliding || vision_begin < start_position ||
+        vision_end > start_position + tokens)) ||
       !std::isfinite(epsilon) || epsilon <= 0.0F) {
     return Invalid("native SM120 Gemma 4 26B attention prefill contract is invalid");
   }
@@ -517,7 +522,8 @@ Status LaunchGemma4Moe26BAttentionSm120PrefillLayer(
                      x.staged_value_fp8, cache.key, cache.value,
                      w.key_cache_scale_bf16, w.value_cache_scale_bf16,
                      attention_bf16, start_position, tokens, t.query_heads,
-                     t.kv_heads, t.head_dimension, cache.capacity, stream)
+                     t.kv_heads, t.head_dimension, cache.capacity, stream,
+                     vision_begin, vision_end)
                : (prepared_global
                       ? LaunchOnlineCausalAttentionPrefillFp8GlobalPreparedSm120(
                             x.query_normalized,

@@ -17,6 +17,7 @@
 #include "cuda/fp8/cutlass_sm120.h"
 #include "cuda/fp8/reference.h"
 #include "cuda/layer/reference.h"
+#include "model/gemma4_26b_vision_contract.h"
 
 namespace gem16::internal {
 namespace {
@@ -139,11 +140,17 @@ __global__ void AddPositionEmbeddingKernel(
   if (index >= elements) return;
   const std::uint64_t patch = index / kHidden;
   const std::uint64_t channel = index % kHidden;
-  const std::uint64_t x = static_cast<std::uint32_t>(positions[patch * 2U]);
-  const std::uint64_t y = static_cast<std::uint32_t>(positions[patch * 2U + 1U]);
-  const float position = static_cast<float>(__float2bfloat16_rn(
-      Bf16(table, x * kHidden + channel) +
-      Bf16(table, (10240U + y) * kHidden + channel)));
+  const std::int32_t x = positions[patch * 2U];
+  const std::int32_t y = positions[patch * 2U + 1U];
+  const float position =
+      x < 0 || y < 0
+          ? 0.0F
+          : static_cast<float>(__float2bfloat16_rn(
+                Bf16(table, static_cast<std::uint64_t>(x) * kHidden +
+                                channel) +
+                Bf16(table, (10240U + static_cast<std::uint64_t>(y)) *
+                                    kHidden +
+                                channel)));
   output[index] = static_cast<float>(__float2bfloat16_rn(
       Bf16(projected, index) + position));
 }
@@ -232,7 +239,7 @@ __global__ void HeadNormRopeKernel(
 __global__ void FullAttentionKernel(
     const std::uint16_t* query, const std::uint16_t* key,
     const std::uint16_t* value, std::uint16_t* output,
-    std::uint32_t tokens) {
+    std::uint32_t tokens, std::uint32_t valid_tokens) {
   const unsigned warp_in_block = threadIdx.x / 32U;
   const unsigned lane = threadIdx.x % 32U;
   const std::uint64_t row =
@@ -245,7 +252,7 @@ __global__ void FullAttentionKernel(
   const std::uint64_t q_base = token * kHidden + head * kHeadDimension;
   float running_max = -__int_as_float(0x7f800000);
   float denominator = 0.0F;
-  for (std::uint32_t source = 0U; source < tokens; ++source) {
+  for (std::uint32_t source = 0U; source < valid_tokens; ++source) {
     const std::uint64_t kv_base =
         static_cast<std::uint64_t>(source) * kHidden +
         head * kHeadDimension;
@@ -271,7 +278,7 @@ __global__ void FullAttentionKernel(
   // scores so this correctness-first kernel preserves that boundary without
   // allocating a quadratic attention-score slab.
   float accumulator[3] = {};
-  for (std::uint32_t source = 0U; source < tokens; ++source) {
+  for (std::uint32_t source = 0U; source < valid_tokens; ++source) {
     const std::uint64_t kv_base =
         static_cast<std::uint64_t>(source) * kHidden +
         head * kHeadDimension;
@@ -334,9 +341,12 @@ __global__ void PoolStandardizeKernel(
   const std::uint32_t channel = static_cast<std::uint32_t>(index % kHidden);
   float sum = 0.0F;
   for (std::uint32_t raw = 0U; raw < raw_tokens; ++raw) {
-    const std::uint32_t x = static_cast<std::uint32_t>(positions[raw * 2U]);
-    const std::uint32_t y = static_cast<std::uint32_t>(positions[raw * 2U + 1U]);
-    if (x / 3U + pooled_width * (y / 3U) == pooled) {
+    const std::int32_t x = positions[raw * 2U];
+    const std::int32_t y = positions[raw * 2U + 1U];
+    if (x >= 0 && y >= 0 &&
+        static_cast<std::uint32_t>(x) / 3U +
+                pooled_width * (static_cast<std::uint32_t>(y) / 3U) ==
+            pooled) {
       sum += hidden[static_cast<std::uint64_t>(raw) * kHidden + channel];
     }
   }
@@ -519,36 +529,41 @@ Status Gemma4Moe26BVisionRuntime::Encode(
   if (!impl_ || stream == nullptr || segment.raw_patch_count == 0U ||
       segment.raw_patch_count > kMaximumRawPatches ||
       segment.soft_token_count == 0U || segment.soft_token_count > kMaximumSoftTokens ||
+      (segment.soft_token_budget != 70U &&
+       segment.soft_token_budget != 140U &&
+       segment.soft_token_budget != 280U) ||
+      segment.soft_token_count > segment.soft_token_budget ||
       segment.raw_patch_count != segment.soft_token_count * 9U ||
       segment.patches.size() != static_cast<std::size_t>(segment.raw_patch_count) * kPatchElements ||
       segment.positions.size() != static_cast<std::size_t>(segment.raw_patch_count) * 2U) {
     return Invalid("invalid Gemma 4 26B Vision input segment");
   }
-  std::int32_t maximum_x = -1;
-  std::int32_t maximum_y = -1;
-  for (std::uint32_t patch = 0U; patch < segment.raw_patch_count; ++patch) {
-    const std::int32_t x = segment.positions[patch * 2U];
-    const std::int32_t y = segment.positions[patch * 2U + 1U];
-    if (x < 0 || y < 0 || x >= 10240 || y >= 10240) return Invalid("Gemma 4 26B Vision patch position is out of range");
-    maximum_x = std::max(maximum_x, x);
-    maximum_y = std::max(maximum_y, y);
-  }
-  const std::uint32_t grid_width = static_cast<std::uint32_t>(maximum_x + 1);
-  const std::uint32_t grid_height = static_cast<std::uint32_t>(maximum_y + 1);
-  if (grid_width % 3U != 0U || grid_height % 3U != 0U ||
-      static_cast<std::uint64_t>(grid_width) * grid_height != segment.raw_patch_count) {
-    return Invalid("Gemma 4 26B Vision positions do not form a divisible grid");
-  }
+  auto grid = ValidateGemma4Moe26BVisionGrid(
+      segment.raw_patch_count, segment.soft_token_count, segment.positions);
+  if (!grid.ok()) return grid.status();
+  const std::uint32_t grid_width = grid.value().width;
+  const std::uint32_t tower_tokens = segment.soft_token_budget * 9U;
   cudaError_t error = cudaStreamSynchronize(stream);
   if (error != cudaSuccess) return CudaFailure("synchronize Gemma 4 26B Vision input staging", error);
   std::copy(segment.patches.begin(), segment.patches.end(), impl_->host_patches);
+  std::fill_n(
+      impl_->host_patches + segment.patches.size(),
+      static_cast<std::size_t>(tower_tokens - segment.raw_patch_count) *
+          kPatchElements,
+      0.0F);
   std::copy(segment.positions.begin(), segment.positions.end(), impl_->host_positions);
-  const std::uint64_t patch_elements = static_cast<std::uint64_t>(segment.raw_patch_count) * kPatchElements;
+  std::fill_n(
+      impl_->host_positions + segment.positions.size(),
+      static_cast<std::size_t>(tower_tokens - segment.raw_patch_count) * 2U,
+      -1);
+  const std::uint64_t patch_elements =
+      static_cast<std::uint64_t>(tower_tokens) * kPatchElements;
   error = cudaMemcpyAsync(impl_->device_patches, impl_->host_patches,
                           patch_elements * sizeof(float), cudaMemcpyHostToDevice, stream);
   if (error == cudaSuccess) {
     error = cudaMemcpyAsync(impl_->positions, impl_->host_positions,
-                            static_cast<std::size_t>(segment.raw_patch_count) * 2U * sizeof(std::int32_t),
+                            static_cast<std::size_t>(tower_tokens) * 2U *
+                                sizeof(std::int32_t),
                             cudaMemcpyHostToDevice, stream);
   }
   if (error != cudaSuccess) return CudaFailure("upload Gemma 4 26B Vision input", error);
@@ -558,27 +573,29 @@ Status Gemma4Moe26BVisionRuntime::Encode(
   if (error != cudaSuccess) return CudaFailure("prepare Vision patches", error);
   Status status = LaunchFp8ReferenceTokenQuantizationBatch(
       impl_->state_a, impl_->activation, impl_->activation_scales,
-      segment.raw_patch_count, kPatchElements, stream);
+      tower_tokens, kPatchElements, stream);
   if (!status.ok()) return status;
   status = LaunchFp8CutlassProjectionBatch(
       impl_->activation, impl_->activation_scales, impl_->patch.weight,
-      impl_->patch.scale, impl_->q, segment.raw_patch_count, kHidden,
+      impl_->patch.scale, impl_->q, tower_tokens, kHidden,
       kPatchElements, impl_->cutlass, kCutlassWorkspaceBytes, stream);
   if (!status.ok()) return status;
-  const std::uint64_t hidden_elements = static_cast<std::uint64_t>(segment.raw_patch_count) * kHidden;
+  const std::uint64_t hidden_elements =
+      static_cast<std::uint64_t>(tower_tokens) * kHidden;
   AddPositionEmbeddingKernel<<<static_cast<unsigned>(Blocks(hidden_elements)), 256U, 0, stream>>>(
       impl_->q, impl_->positions, impl_->position_table, impl_->state_a, hidden_elements);
   error = cudaGetLastError();
   if (error != cudaSuccess) return CudaFailure("add Vision position embeddings", error);
 
   constexpr unsigned kWarpThreads = 256U;
-  const std::uint64_t head_rows = static_cast<std::uint64_t>(segment.raw_patch_count) * kHeads;
+  const std::uint64_t head_rows =
+      static_cast<std::uint64_t>(tower_tokens) * kHeads;
   const unsigned head_blocks = static_cast<unsigned>((head_rows + kWarpThreads / 32U - 1U) / (kWarpThreads / 32U));
   for (std::uint32_t layer_index = 0U; layer_index < kLayers; ++layer_index) {
     const Layer& layer = impl_->layers[layer_index];
     status = LaunchRmsNormFp8TokenQuantizationBatch(
         impl_->state_a, layer.input_norm, impl_->activation,
-        impl_->activation_scales, segment.raw_patch_count, kHidden, kEpsilon, stream);
+        impl_->activation_scales, tower_tokens, kHidden, kEpsilon, stream);
     if (!status.ok()) return status;
     for (const auto& [linear, output] :
          std::array<std::pair<const Linear*, std::uint16_t*>, 3>{
@@ -586,7 +603,7 @@ Status Gemma4Moe26BVisionRuntime::Encode(
              std::pair{&layer.v, impl_->v}}) {
       status = LaunchFp8CutlassProjectionBatch(
           impl_->activation, impl_->activation_scales, linear->weight,
-          linear->scale, output, segment.raw_patch_count, linear->rows,
+          linear->scale, output, tower_tokens, linear->rows,
           linear->columns, impl_->cutlass, kCutlassWorkspaceBytes, stream);
       if (!status.ok()) return status;
     }
@@ -595,60 +612,63 @@ Status Gemma4Moe26BVisionRuntime::Encode(
     HeadNormRopeKernel<<<head_blocks, kWarpThreads, 0, stream>>>(impl_->v, nullptr, impl_->positions, impl_->v, head_rows, false);
     error = cudaGetLastError();
     if (error != cudaSuccess) return CudaFailure("launch Vision QKV norm/RoPE", error);
-    FullAttentionKernel<<<head_blocks, kWarpThreads, 0, stream>>>(impl_->q, impl_->k, impl_->v, impl_->attention, segment.raw_patch_count);
+    FullAttentionKernel<<<head_blocks, kWarpThreads, 0, stream>>>(
+        impl_->q, impl_->k, impl_->v, impl_->attention, tower_tokens,
+        segment.raw_patch_count);
     error = cudaGetLastError();
     if (error != cudaSuccess) return CudaFailure("launch Vision full attention", error);
     status = LaunchFp8ReferenceTokenQuantizationBf16Batch(
         impl_->attention, impl_->activation, impl_->activation_scales,
-        segment.raw_patch_count, kHidden, stream);
+        tower_tokens, kHidden, stream);
     if (!status.ok()) return status;
     status = LaunchFp8CutlassProjectionBatch(
         impl_->activation, impl_->activation_scales, layer.o.weight,
-        layer.o.scale, impl_->q, segment.raw_patch_count, kHidden, kHidden,
+        layer.o.scale, impl_->q, tower_tokens, kHidden, kHidden,
         impl_->cutlass, kCutlassWorkspaceBytes, stream);
     if (!status.ok()) return status;
     status = LaunchRmsNormResidualBf16Input(
         impl_->q, layer.post_attention_norm, impl_->state_a, nullptr,
-        impl_->state_b, segment.raw_patch_count, kHidden, kEpsilon, nullptr, stream);
+        impl_->state_b, tower_tokens, kHidden, kEpsilon, nullptr, stream);
     if (!status.ok()) return status;
     status = LaunchRmsNormFp8TokenQuantizationBatch(
         impl_->state_b, layer.pre_feedforward_norm, impl_->activation,
-        impl_->activation_scales, segment.raw_patch_count, kHidden, kEpsilon, stream);
+        impl_->activation_scales, tower_tokens, kHidden, kEpsilon, stream);
     if (!status.ok()) return status;
     status = LaunchFp8CutlassProjectionBatch(
         impl_->activation, impl_->activation_scales, layer.gate.weight,
-        layer.gate.scale, impl_->linear_a, segment.raw_patch_count,
+        layer.gate.scale, impl_->linear_a, tower_tokens,
         kIntermediate, kHidden, impl_->cutlass, kCutlassWorkspaceBytes, stream);
     if (!status.ok()) return status;
     status = LaunchFp8CutlassProjectionBatch(
         impl_->activation, impl_->activation_scales, layer.up.weight,
-        layer.up.scale, impl_->linear_b, segment.raw_patch_count,
+        layer.up.scale, impl_->linear_b, tower_tokens,
         kIntermediate, kHidden, impl_->cutlass, kCutlassWorkspaceBytes, stream);
     if (!status.ok()) return status;
-    const std::uint64_t intermediate_elements = static_cast<std::uint64_t>(segment.raw_patch_count) * kIntermediate;
+    const std::uint64_t intermediate_elements =
+        static_cast<std::uint64_t>(tower_tokens) * kIntermediate;
     GeluProductKernel<<<static_cast<unsigned>(Blocks(intermediate_elements)), 256U, 0, stream>>>(
         impl_->linear_a, impl_->linear_b, impl_->linear_a, intermediate_elements);
     error = cudaGetLastError();
     if (error != cudaSuccess) return CudaFailure("launch Vision GELU product", error);
     status = LaunchFp8ReferenceTokenQuantizationBf16Batch(
         impl_->linear_a, impl_->activation, impl_->activation_scales,
-        segment.raw_patch_count, kIntermediate, stream);
+        tower_tokens, kIntermediate, stream);
     if (!status.ok()) return status;
     status = LaunchFp8CutlassProjectionBatch(
         impl_->activation, impl_->activation_scales, layer.down.weight,
-        layer.down.scale, impl_->q, segment.raw_patch_count, kHidden,
+        layer.down.scale, impl_->q, tower_tokens, kHidden,
         kIntermediate, impl_->cutlass, kCutlassWorkspaceBytes, stream);
     if (!status.ok()) return status;
     status = LaunchRmsNormResidualBf16Input(
         impl_->q, layer.post_feedforward_norm, impl_->state_b, nullptr,
-        impl_->state_a, segment.raw_patch_count, kHidden, kEpsilon, nullptr, stream);
+        impl_->state_a, tower_tokens, kHidden, kEpsilon, nullptr, stream);
     if (!status.ok()) return status;
   }
 
   const std::uint64_t pooled_elements = static_cast<std::uint64_t>(segment.soft_token_count) * kHidden;
   PoolStandardizeKernel<<<static_cast<unsigned>(Blocks(pooled_elements)), 256U, 0, stream>>>(
       impl_->state_a, impl_->positions, impl_->std_bias, impl_->std_scale,
-      impl_->state_b, segment.raw_patch_count, segment.soft_token_count,
+      impl_->state_b, tower_tokens, segment.soft_token_count,
       grid_width / 3U);
   error = cudaGetLastError();
   if (error != cudaSuccess) return CudaFailure("launch Vision pooling and standardization", error);

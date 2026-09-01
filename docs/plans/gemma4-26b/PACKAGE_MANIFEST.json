@@ -1,5 +1,5 @@
 {
-  "authored_file_count": 134,
+  "authored_file_count": 148,
   "external_reference_anchor": "kekzl/imp@a392904d4216388828d0d56317de046f4ca49627",
   "files": [
     {
@@ -78,9 +78,34 @@
       "sha256": "a13f9cf8a6295765b2a8c962c9ae96755937ea98e343631b3351a18b0360fae7"
     },
     {
+      "bytes": 5579,
+      "path": "CHATGPT_PRO_TRELLIS35_PERFORMANCE_REVIEW_2026-08-30.md",
+      "sha256": "90281de2f474366e378e86d38ffd99909424fe2f985105bbd83cf1a8f91fbbb8"
+    },
+    {
       "bytes": 1487,
       "path": "CHECKPOINT_2026-08-22_M19_M22.md",
       "sha256": "07c6b0006a379e54737b192082ba93a5fd6a975f9d786c70f182ad93a6f273ad"
+    },
+    {
+      "bytes": 21530,
+      "path": "CODEX_GEM16_26B_VISION_PRODUCTIZATION_MASTER_INSTRUCTION.md",
+      "sha256": "95380ed087c47c8a5b00a223b6db10643e7332203735b288ece70a2f1abc3567"
+    },
+    {
+      "bytes": 16310,
+      "path": "CODEX_TRELLIS35_PFX_CLOSEOUT_AND_VISION_MASTER_INSTRUCTION.md",
+      "sha256": "a754de36454ad334c30bce2d53b2d4c96f4aa641d953f6f0ef75a5cc04781c83"
+    },
+    {
+      "bytes": 17760,
+      "path": "CODEX_TRELLIS35_WP10_WP16_MASTER_INSTRUCTION.md",
+      "sha256": "3cbe163f011226a5fac73b830ead1f672079eb8e82476771d81d51db54624be3"
+    },
+    {
+      "bytes": 12558,
+      "path": "CODEX_TRELLIS35_WP17_WP22_MASTER_INSTRUCTION.md",
+      "sha256": "386d6586b56cce839f8125fe5d12c7b04f6ca85f228cedf17dcb8d33c8f175bb"
     },
     {
       "bytes": 5954,
@@ -96,6 +121,31 @@
       "bytes": 11092,
       "path": "FAST_TRACK_STATUS.json",
       "sha256": "4991cc00ba5010932ec60cd03bb219cb90aea984d241f8adf65d09dafea79c40"
+    },
+    {
+      "bytes": 35973,
+      "path": "GEM16_26B_VISION_POST_109A4BE4_PRODUCTIZATION_REVIEW.md",
+      "sha256": "a6786909734a0ed1ee237d592aee83b9ff8e0d3712c7fa09b401be3e527e15cc"
+    },
+    {
+      "bytes": 21002,
+      "path": "GEM16_TRELLIS35_POST_WP16_PERFORMANCE_REVIEW.md",
+      "sha256": "0eb4a60d39b4986ffb6b0b232c363a905b9178bdac1b33b27eca174ff09bdc34"
+    },
+    {
+      "bytes": 25034,
+      "path": "GEM16_TRELLIS35_POST_WP27_PERFORMANCE_AND_VISION_REVIEW.md",
+      "sha256": "5050338d6d2170f56eb8cdd01867644e345762f4846ec544cebfbf4906b9dcb4"
+    },
+    {
+      "bytes": 34731,
+      "path": "GEM16_TRELLIS35_POST_WP9_PERFORMANCE_ARCHITECTURE_REVIEW.md",
+      "sha256": "64956a4e3abeb5c96ccfc0be7ff9db621bdfbfa36d3ad373920bbdaccdbd01c4"
+    },
+    {
+      "bytes": 24062,
+      "path": "GEM16_TRELLIS35_W4A8_DISCOVERY_PLAN_v2.md",
+      "sha256": "df2637b8a19fe1fdefcac16b3d1d07e6ffcbd4c90eb1dba71d6f1ca2ebec38ca"
     },
     {
       "bytes": 2817,
@@ -133,9 +183,29 @@
       "sha256": "8147f469578cb0cd209e5b8bbde8f3e1b1f4726b5c44a3de3e452f33aa17101f"
     },
     {
-      "bytes": 11299,
+      "bytes": 12680,
       "path": "START_HERE_CODEX.md",
-      "sha256": "643310f27d4450484f2eeed9a6c9b2472035a5987f3375e1f160776e4f33ce38"
+      "sha256": "82b4217e864e590b9d23c678853bcbe7466e8e6845245ac08a4cafc694ebcc66"
+    },
+    {
+      "bytes": 2829,
+      "path": "TRELLIS35_DEFERRED_ADAPTIVE_HADAMARD_QX1.md",
+      "sha256": "bd76628ef0e2768f71493526f948b7ad461f9f4b87b18a10c68558b6ba6161fd"
+    },
+    {
+      "bytes": 8167,
+      "path": "TRELLIS35_POST_WP21_W4A8_W4A4_DECISION.md",
+      "sha256": "0d2f4132ee23d4ec6d594fe530d938c4c725300fb844331fee6bb15dce289255"
+    },
+    {
+      "bytes": 7426,
+      "path": "TRELLIS35_W4A8_OR_W4A4_DECISION.md",
+      "sha256": "27d24c88b4ef344885776e9aef94aa54eca5fb16268248e6dcdb019747ba663e"
+    },
+    {
+      "bytes": 5620,
+      "path": "V00_VISION_PROFILE_AND_MODULE_CONTRACT.md",
+      "sha256": "29663135964ebe4b92209a02f6fc59accaba9ec2f6e60c2a1e954070e1143506"
     },
     {
       "bytes": 3317,

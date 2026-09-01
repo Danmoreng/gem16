@@ -7,8 +7,43 @@
 #include <vector>
 
 #include "test.h"
+#include "model/gemma4_26b_vision_contract.h"
 
 namespace {
+
+void TestGemma4Moe26BVisionGridContract() {
+  constexpr std::uint32_t kWidth = 6U;
+  constexpr std::uint32_t kHeight = 3U;
+  std::vector<std::int32_t> positions(kWidth * kHeight * 2U);
+  for (std::uint32_t patch = 0U; patch < kWidth * kHeight; ++patch) {
+    positions[patch * 2U] = static_cast<std::int32_t>(patch % kWidth);
+    positions[patch * 2U + 1U] = static_cast<std::int32_t>(patch / kWidth);
+  }
+  auto valid = gem16::internal::ValidateGemma4Moe26BVisionGrid(
+      kWidth * kHeight, 2U, positions);
+  GEM16_CHECK(valid.ok());
+  if (valid.ok()) {
+    GEM16_CHECK(valid.value().width == kWidth);
+    GEM16_CHECK(valid.value().height == kHeight);
+  }
+
+  auto swapped = positions;
+  std::swap(swapped[2U], swapped[4U]);
+  std::swap(swapped[3U], swapped[5U]);
+  GEM16_CHECK(!gem16::internal::ValidateGemma4Moe26BVisionGrid(
+                   kWidth * kHeight, 2U, swapped)
+                   .ok());
+
+  auto duplicate = positions;
+  duplicate[2U] = duplicate[0U];
+  duplicate[3U] = duplicate[1U];
+  GEM16_CHECK(!gem16::internal::ValidateGemma4Moe26BVisionGrid(
+                   kWidth * kHeight, 2U, duplicate)
+                   .ok());
+  GEM16_CHECK(!gem16::internal::ValidateGemma4Moe26BVisionGrid(
+                   kWidth * kHeight, 1U, positions)
+                   .ok());
+}
 
 void Put16(std::vector<std::uint8_t>& bytes, std::uint16_t value) {
   bytes.push_back(static_cast<std::uint8_t>(value));
@@ -61,6 +96,7 @@ std::filesystem::path WriteSolidBmp() {
 }  // namespace
 
 void RunImageTests() {
+  TestGemma4Moe26BVisionGridContract();
   GEM16_CHECK(gem16::AutomaticVisionSoftTokenBudget(1024U, 200U, 2U) ==
               280U);
   GEM16_CHECK(gem16::AutomaticVisionSoftTokenBudget(512U, 200U, 2U) ==

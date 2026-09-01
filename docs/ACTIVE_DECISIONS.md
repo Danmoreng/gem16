@@ -1,6 +1,6 @@
 # Active decisions
 
-**Updated:** 2026-08-30
+**Updated:** 2026-09-01
 **Track:** Productization baseline
 **Status:** owner-approved product contract; implementation and release gates in progress
 
@@ -70,6 +70,18 @@ Read it only for a concrete historical or evidence question.
 - The qualified 26B Target and Assistant are separate immutable model
   repositories. Studio must download and verify both when MTP is selected and
   may never silently substitute either component.
+- **Current 26B NVFP4 regression artifact.** Runtime and non-regression work
+  uses the published `danmoreng/gemma-4-26B-A4B-it-GEM16` Target at revision
+  `63508b5826527484e707b4b46e2eacf077cf2b35`, format
+  `sm120-device-image-v1`, `model.gem16` SHA-256
+  `1ed73cf105b68db937ac0992283d31fdb2225474204341440721f41fe871bb72`,
+  and artifact-content identity
+  `471805f7dad8abb84300be78b2822a63dcb1d35bff5aa98426a162cc8532ee17`.
+  The original 16-shard M08 working artifact and its former local output
+  directory are deprecated runtime-test inputs and may be absent. Preserve
+  M08 records as historical compiler/provenance evidence, but do not search
+  for, reconstruct, or recompile that old layout for routine NVFP4 regression
+  testing. Test the current device image with the current engine instead.
 - The final retained sampled-D2 characterization reaches 203.842 token/s
   median; the prior 220 and 250 token/s targets remain unmet and closed for the
   frozen decode phase. This does not block the accepted product checkpoint.

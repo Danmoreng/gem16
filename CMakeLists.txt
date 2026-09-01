@@ -66,6 +66,7 @@ add_library(gem16_core STATIC
   src/model/gemma4_26b_device_image.cpp
   src/model/gemma4_26b_residency.cpp
   src/model/gemma4_26b_trellis35.cpp
+  src/model/gemma4_26b_vision_contract.cpp
   src/model/gemma4_26b_vision_module.cpp
   src/model/audio.cpp
   src/model/image.cpp

@@ -1,0 +1,197 @@
+{
+  "accepted": true,
+  "artifacts": {
+    "current_binary_sha256": "3f080cff3aa1b853d0e9eb4e6bb0efd5b9a3c7ace191e0f6f3ce674fdcf4f906",
+    "padding_oracle": {
+      "path": "artifacts/vision/v09-padding-oracle.json",
+      "sha256": "a30c39ffe7684ee5b00674fe6ec1fea42728e2cd23a5d3d1137f62a5fb78092d"
+    },
+    "pre_v09_binary_sha256": "39c8cc9c2cec08dc8482de58df1f648906e8024726fc53ea13a718c2935d45b6",
+    "qualified_nvfp4_target": {
+      "artifact_content_sha256": "471805f7dad8abb84300be78b2822a63dcb1d35bff5aa98426a162cc8532ee17",
+      "format": "sm120-device-image-v1",
+      "model_file_sha256": "1ed73cf105b68db937ac0992283d31fdb2225474204341440721f41fe871bb72",
+      "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+      "revision": "63508b5826527484e707b4b46e2eacf077cf2b35"
+    },
+    "runtime_oracle": {
+      "path": "artifacts/vision/v09-runtime-oracle.json",
+      "sha256": "a224c2b6db5fb98051eeb2dfb3ffdd46f63359c118ea1af1690743dd10b034e4"
+    },
+    "text_artifact_content_sha256": "39183e2c7a1bd04c87a8f5bb5887453f8e92a3980bb507fd06d6252a6439c9f0",
+    "vision_module_sha256": "805e1fee4ad80dbb76a846c0009d6f57dbb50192e7009ef1633cdc3b5252a536"
+  },
+  "environment": {
+    "cuda_compiler": "Build cuda_13.3.r13.3/compiler.38244171_0",
+    "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU, GPU-93070293-2184-eb69-555b-1d856a4fdbb8, 610.43.03, 16303 MiB"
+  },
+  "limitations": [
+    "FP8 Vision versus BF16 remains a diagnostic quality comparison; V09 closes padding and text-side mask semantics, not quantization quality.",
+    "Vision TTFT, peak-VRAM profiling, NSYS, and NCU intentionally remain deferred to V10.",
+    "The implementation is uncommitted because this task did not authorize commit or push."
+  ],
+  "memory": {
+    "admission_headroom_bytes": 2305622016,
+    "kv_cache_bytes_at_2048": 125829120,
+    "recurring_device_free_delta_bytes": 0,
+    "repeat_encode_output_mismatches": 0,
+    "resident_text_weight_bytes": 12204692480,
+    "vision_weight_bytes": 597313024,
+    "workspace_bytes_at_2048": 448097056
+  },
+  "next_gate": "V09 is accepted; stop and obtain owner approval before V10.",
+  "non_regression": {
+    "d2": {
+      "exit_code": 2,
+      "message": "Gemma 4 26B Vision v1 requires Ordinary decoding",
+      "status": "fail_closed"
+    },
+    "nvfp4": {
+      "cuda_consumption_test": "passed",
+      "mtp_enabled": false,
+      "native_path": "sm120_integrated_nvfp4_moe_bf16_tensor_router_fp8_kv",
+      "output_token_ids_sha256": "5fc3c08c56ba3417e280ced964847dd8f388e77377b51d85b1bc418851c7c94f",
+      "pre_v09_and_current_output_token_ids_identical": true,
+      "qualified_12b_product_golden": "passed",
+      "qualified_26b_current_device_image": "passed",
+      "tokens": 16,
+      "trellis35_dispatched": false,
+      "vision_module_loaded": false
+    },
+    "trellis35_text": {
+      "output_token_ids_sha256": "e9fde40e3c0e633746aa1835dbcc28871e6b30f6c5e8219aa3c74c1a899c7a7a",
+      "pre_v09_and_current_output_token_ids_identical": true,
+      "tokens": 16
+    }
+  },
+  "numerics": {
+    "boundary": "diagnostic only; no post-hoc acceptance tolerance",
+    "padded_fp8_runtime_vs_padded_bf16_oracle": {
+      "cosine": 0.94295179763741,
+      "elements": 366080,
+      "max_absolute_error": 7.140625,
+      "relative_l2": 0.3373184847889573
+    },
+    "runtime_output_sha256": "46ec387b80401f5bd65880910ba8a8a11b9f90ee8ac6151cb795aff3c06b4207"
+  },
+  "ordinary_frozen_image": {
+    "budget": 280,
+    "decode_tokens_per_second": [
+      133.942,
+      134.475
+    ],
+    "greedy_output": "A diagram of a graph with five nodes and six edges on a white background. The nodes are circles, and the edges are thick gray lines. There are four",
+    "image_sha256": "1508bda48445c23ab882f801f1c0dd0472f97ae414245c3ab1094005fda4455a",
+    "mtp_enabled": false,
+    "output_utf8_sha256": "d258ce128caf3ebeb7bc38ca896c5aaf1fd9b714298ebcc1aabb447591e48691",
+    "outputs_identical": true,
+    "prompt": "Describe the image precisely.",
+    "raw_patches": 2394,
+    "repetitions": 2,
+    "soft_tokens": 266
+  },
+  "package": "V09 Ordinary multimodal semantic closure",
+  "profiling": {
+    "fallback_count": 0,
+    "ncu": "deferred_to_V10_by_plan",
+    "nsys": "deferred_to_V10_by_plan",
+    "same_binary_ab": "not_applicable_no_performance_candidate",
+    "sass": "not_applicable_semantic_package"
+  },
+  "schema_version": 1,
+  "semantics": {
+    "chunk_offsets_tested": [
+      0,
+      1,
+      1023,
+      1024,
+      1940,
+      2047,
+      2048,
+      4095,
+      16105,
+      16383,
+      16384
+    ],
+    "chunk_plan_allocation": "fixed 257-entry array",
+    "global_attention": "causal; empty Vision range",
+    "local_attention": "sliding AND (causal OR same Vision block)",
+    "padding_cases": 12,
+    "padding_decision": "padding_required",
+    "padding_equivalence_failures": 5,
+    "positions": "exact canonical row-major and 3x3 pooled geometry",
+    "selected_budget_execution": "630/1260/2520 tower rows with masked padded keys",
+    "split_cached_span": "rejected before prefill"
+  },
+  "source": {
+    "base_commit": "109a4be444322a3921a520f6f911ac00ddfcb92f",
+    "branch": "codex/gemma4-26b-vision-fp8",
+    "implementation_files": [
+      "CMakeLists.txt",
+      "docs/ACTIVE_DECISIONS.md",
+      "docs/plans/gemma4-26b/START_HERE_CODEX.md",
+      "docs/plans/gemma4-26b/CODEX_GEM16_26B_VISION_PRODUCTIZATION_MASTER_INSTRUCTION.md",
+      "include/gem16/engine.h",
+      "include/gem16/image.h",
+      "src/cli/gemma4_26b_vision_oracle_dump.cu",
+      "src/cuda/attention/gemma4_26b_reference.cu",
+      "src/cuda/attention/gemma4_26b_reference.h",
+      "src/cuda/engine/detail/gemma4_26b_prefill.inc",
+      "src/cuda/engine/gemma4_26b_reference.cu",
+      "src/cuda/inference.cu",
+      "src/cuda/inference_session.cuh",
+      "src/cuda/moe/prefill_plan.cpp",
+      "src/cuda/moe/prefill_plan.h",
+      "src/cuda/vision/gemma4_26b.cu",
+      "src/model/gemma4_26b_vision_contract.cpp",
+      "src/model/gemma4_26b_vision_contract.h",
+      "src/runtime/chat.cpp",
+      "tests/unit/gemma4_26b_moe_prefill_plan_test.cpp",
+      "tests/unit/image_test.cpp",
+      "tools/compare_gemma4_26b_vision_output.py",
+      "tools/compare_gemma4_26b_vision_padding.py",
+      "tools/write_gemma4_26b_v09_evidence.py"
+    ],
+    "implementation_source_sha256": "3e7d6e223943fb1af3f4c812b5ab4bfad5cc6bd3880136f20420b9278ddd039b",
+    "worktree_dirty": true
+  },
+  "status": "acceptance_pass",
+  "tests": [
+    {
+      "name": "blackwell release build",
+      "result": "passed"
+    },
+    {
+      "name": "host unit",
+      "result": "passed"
+    },
+    {
+      "name": "host ASAN/UBSAN unit",
+      "result": "passed"
+    },
+    {
+      "name": "26B Vision module contract",
+      "result": "passed"
+    },
+    {
+      "name": "CUDA aggregate",
+      "result": "passed"
+    },
+    {
+      "name": "CUDA Trellis35",
+      "result": "passed"
+    },
+    {
+      "name": "CUDA attention reference",
+      "result": "passed"
+    },
+    {
+      "name": "CUDA NVFP4 consumption",
+      "result": "passed"
+    },
+    {
+      "name": "12B product golden",
+      "result": "passed"
+    }
+  ]
+}

@@ -27,6 +27,7 @@
 #include "cuda/engine/gemma4_26b_trellis35_artifact.h"
 #include "cuda/engine/gemma4_26b_vision_artifact.h"
 #include "cuda/layer/reference.h"
+#include "cuda/moe/prefill_plan.h"
 #include "cuda/moe/prefill.h"
 #include "cuda/moe/reference.h"
 #include "cuda/mtp/gemma4_26b_assistant.h"

@@ -12,6 +12,7 @@
 #include "cuda/mtp/assistant.h"
 #include "cuda/mtp/scheduler.h"
 #include "cuda/mtp/verify.h"
+#include "cuda/moe/prefill_plan.h"
 #include "cuda/nvfp4/mlp.h"
 #include "cuda/nvfp4/reference.h"
 #include "cuda/nvfp4/cutlass_sm120.h"

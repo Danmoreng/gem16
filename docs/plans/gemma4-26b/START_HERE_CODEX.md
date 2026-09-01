@@ -49,6 +49,16 @@ M08 is accepted at implementation commit `f433358b8e2c1250b95801fc898faee4fcedcb
 builds are byte-identical, the external lock and direct C++ loader validate, the 12B inspect regression passes and
 the exact single-arena reference-GPU admission succeeds. See `artifacts/m08/acceptance.json`.
 
+M08 is historical compiler and provenance evidence, not the current runtime
+artifact-selection rule. The old 16-shard M08 working directory is deprecated
+and may have been deleted; do not recreate it for a regression test. Current
+26B NVFP4 runtime checks use the qualified published
+`danmoreng/gemma-4-26B-A4B-it-GEM16` revision
+`63508b5826527484e707b4b46e2eacf077cf2b35` and its
+`sm120-device-image-v1` `model.gem16` payload. The binding hashes and policy
+are recorded in `docs/ACTIVE_DECISIONS.md` and
+`docs/GEMMA4_26B_HUGGING_FACE.md`.
+
 ## Full-run rule
 
 For expensive conversions or publication claims, use reviewed, targeted-tested code, a clean worktree and source/output preflight. Small fixtures and bounded diagnostic probes do not need the full release workflow, but their diagnostic status must be recorded.

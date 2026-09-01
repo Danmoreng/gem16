@@ -40,7 +40,8 @@ struct VisionImageOptions {
 // become one text-side soft token only after the 26B Vision encoder.
 struct Gemma4Moe26BVisionImage {
   // Row-major [raw_patch, 16, 16, RGB], rescaled to [0, 1]. Padding to the
-  // model's fixed 2,520-row input is an execution detail, not host payload.
+  // selected 630/1,260/2,520-row capacity is an execution detail, not host
+  // payload.
   std::vector<float> patches;
   // Row-major [raw_patch, xy].
   std::vector<std::int32_t> positions;

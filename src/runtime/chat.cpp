@@ -278,8 +278,8 @@ LocateGemma4Moe26BVisionSegments(
                     "rendered prompt is missing the image end token");
     }
     segments.push_back(Gemma4Moe26BVisionInputSegment{
-        first, image.soft_token_count, image.raw_patch_count, image.patches,
-        image.positions});
+        first, image.soft_token_count, image.soft_token_budget,
+        image.raw_patch_count, image.patches, image.positions});
     search = first + image.soft_token_count + 1U;
   }
   return segments;

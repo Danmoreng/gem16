@@ -55,6 +55,8 @@ struct Gemma4Moe26BVisionInputSegment {
   std::uint64_t prompt_offset = 0U;
   // Text-side image span after 3x3 spatial pooling.
   std::uint32_t soft_token_count = 0U;
+  // Selected fixed padded capacity: 70, 140, or 280 soft tokens.
+  std::uint32_t soft_token_budget = 0U;
   // Unpadded teacher-patch rows consumed by the Vision tower.
   std::uint32_t raw_patch_count = 0U;
   // Row-major [raw_patch, 768] and [raw_patch, xy].

@@ -664,11 +664,16 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
       const auto& segment = moe26b_vision_segments.front();
       const std::uint64_t segment_end =
           segment.prompt_offset + segment.soft_token_count;
-      if (segment.prompt_offset < prefix_tokens && segment_end > prefix_tokens) {
+      auto cache_relation = internal::ClassifyGemma4Moe26BVisionCacheSpan(
+          prefix_tokens, segment.prompt_offset, segment_end);
+      if (!cache_relation.ok()) return cache_relation.status();
+      if (cache_relation.value() ==
+          internal::Gemma4Moe26BVisionCacheRelation::kSplit) {
         return Error(StatusCode::kInvalidArgument,
                      "resident cache splits a Gemma 4 26B Vision span");
       }
-      if (segment.prompt_offset >= prefix_tokens) {
+      if (cache_relation.value() ==
+          internal::Gemma4Moe26BVisionCacheRelation::kFullyUncached) {
         if (impl_->mtp_draft_tokens != 0U) {
           return Error(StatusCode::kUnsupported,
                        "Gemma 4 26B Vision v1 requires Ordinary decoding");

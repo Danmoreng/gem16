@@ -1,0 +1,17 @@
+{
+  "budget": 140,
+  "diagnostic_only": true,
+  "gem16_output_sha256": "46ec387b80401f5bd65880910ba8a8a11b9f90ee8ac6151cb795aff3c06b4207",
+  "image_sha256": "1508bda48445c23ab882f801f1c0dd0472f97ae414245c3ab1094005fda4455a",
+  "metrics": {
+    "cosine": 0.94295179763741,
+    "elements": 366080,
+    "max_absolute_error": 7.140625,
+    "relative_l2": 0.3373184847889573
+  },
+  "padded_raw_tokens": 1260,
+  "purpose": "padded GEM16 FP8 Vision versus pinned padded BF16 oracle",
+  "raw_tokens": 1170,
+  "schema_version": 1,
+  "soft_tokens": 130
+}

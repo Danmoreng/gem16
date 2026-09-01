@@ -14,6 +14,9 @@ constexpr std::uint64_t kExpert = 704U;
 constexpr std::uint64_t kExperts = 128U;
 constexpr std::uint64_t kTopK = 8U;
 constexpr std::array<std::uint32_t, 4> kCandidates{128U, 256U, 512U, 1024U};
+constexpr std::uint64_t kMaximumContextTokens = 262144U;
+constexpr std::uint64_t kPreparedGlobalPrefillTokens = 16384U;
+constexpr std::uint64_t kLongContextChunkTokens = 1024U;
 
 Status Invalid(std::string message) {
   return Status(StatusCode::kInvalidArgument, std::move(message));
@@ -89,6 +92,74 @@ Result<Gemma4MoePrefillPlan> BuildCandidate(std::uint32_t tokens) {
 }
 
 }  // namespace
+
+Result<Gemma4Moe26BVisionCacheRelation>
+ClassifyGemma4Moe26BVisionCacheSpan(
+    std::uint64_t prefix_tokens, std::uint64_t vision_begin,
+    std::uint64_t vision_end) {
+  if (vision_begin >= vision_end) {
+    return Invalid("Gemma 4 26B Vision cache span is invalid");
+  }
+  if (vision_begin < prefix_tokens && vision_end > prefix_tokens) {
+    return Gemma4Moe26BVisionCacheRelation::kSplit;
+  }
+  return vision_end <= prefix_tokens
+             ? Gemma4Moe26BVisionCacheRelation::kFullyCached
+             : Gemma4Moe26BVisionCacheRelation::kFullyUncached;
+}
+
+Result<Gemma4Moe26BPrefillChunkPlan> BuildGemma4Moe26BPrefillChunkPlan(
+    std::uint64_t start_position, std::uint64_t tokens,
+    std::uint32_t prepared_chunk_tokens, std::uint64_t vision_begin,
+    std::uint64_t vision_end) {
+  const bool has_vision = vision_begin < vision_end;
+  if (tokens == 0U || prepared_chunk_tokens == 0U ||
+      prepared_chunk_tokens > 2048U || start_position > kMaximumContextTokens ||
+      tokens > kMaximumContextTokens - start_position ||
+      vision_begin > vision_end ||
+      (has_vision &&
+       (vision_begin < start_position ||
+        vision_end > start_position + tokens ||
+        vision_end - vision_begin > prepared_chunk_tokens))) {
+    return Invalid("Gemma 4 26B prefill chunk request is invalid");
+  }
+
+  Gemma4Moe26BPrefillChunkPlan plan;
+  std::uint64_t cursor = start_position;
+  const std::uint64_t end = start_position + tokens;
+  while (cursor < end) {
+    const std::uint64_t prepared_remaining =
+        cursor < kPreparedGlobalPrefillTokens
+            ? kPreparedGlobalPrefillTokens - cursor
+            : 0U;
+    std::uint64_t limit =
+        prepared_remaining == 0U
+            ? kLongContextChunkTokens
+            : std::min<std::uint64_t>(prepared_chunk_tokens,
+                                      prepared_remaining);
+    std::uint64_t chunk = std::min(limit, end - cursor);
+
+    // End the preceding chunk exactly at the image. The next iteration can
+    // then admit the whole image block, including when it crosses the 16K
+    // prepared-global boundary.
+    if (has_vision && cursor < vision_begin &&
+        cursor + chunk > vision_begin) {
+      chunk = vision_begin - cursor;
+    } else if (has_vision && cursor >= vision_begin &&
+               cursor < vision_end && cursor + chunk < vision_end) {
+      chunk = vision_end - cursor;
+    }
+
+    if (chunk == 0U || chunk > prepared_chunk_tokens ||
+        plan.count == plan.chunks.size()) {
+      return Status(StatusCode::kResourceExhausted,
+                    "Gemma 4 26B prefill chunk plan exceeds its fixed bounds");
+    }
+    plan.chunks[plan.count++] = static_cast<std::uint32_t>(chunk);
+    cursor += chunk;
+  }
+  return plan;
+}
 
 Result<Gemma4MoePrefillPlan> BuildGemma4MoePrefillPlan(
     std::uint32_t requested_chunk_tokens,

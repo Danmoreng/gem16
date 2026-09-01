@@ -48,6 +48,20 @@ Status Gemma4Moe26BReferenceEngine::PrefillTokens(
   x.pending_decode_self_feed = false;
   x.decode_self_feed_valid = false;
   constexpr unsigned threads = 256U;
+  const std::uint64_t prefill_begin = x.position;
+  const std::uint64_t absolute_vision_begin =
+      x.vision_prefill_active
+          ? prefill_begin + x.vision_prefill_offset
+          : 0U;
+  const std::uint64_t absolute_vision_end =
+      x.vision_prefill_active
+          ? absolute_vision_begin + x.vision_prefill_tokens
+          : 0U;
+  auto chunk_plan = BuildGemma4Moe26BPrefillChunkPlan(
+      prefill_begin, tokens.size(),
+      static_cast<std::uint32_t>(x.prefill_chunk_tokens),
+      absolute_vision_begin, absolute_vision_end);
+  if (!chunk_plan.ok()) return chunk_plan.status();
   std::size_t consumed = 0U;
   std::uint64_t chunk_index = 0U;
   cudaError_t error =
@@ -78,20 +92,12 @@ Status Gemma4Moe26BReferenceEngine::PrefillTokens(
   }
   while (consumed < tokens.size()) {
     const std::uint64_t absolute_chunk_begin = x.position;
-    // The 2048-token WP21 candidate is qualified for the prepared global
-    // attention extent used by the complete Wikipedia-16K workload. Preserve
-    // the established 1024-token long-context path once that fixed prepared
-    // extent is exhausted.
-    const std::uint64_t prepared_remaining =
-        absolute_chunk_begin < kPreparedGlobalPrefillTokens
-            ? kPreparedGlobalPrefillTokens - absolute_chunk_begin
-            : 0U;
-    const std::uint64_t chunk_limit =
-        prepared_remaining == 0U
-            ? kDefaultPrefillChunkTokens
-            : std::min(x.prefill_chunk_tokens, prepared_remaining);
-    const std::uint64_t chunk = std::min<std::uint64_t>(
-        chunk_limit, tokens.size() - consumed);
+    if (chunk_index >= chunk_plan.value().count) {
+      return Status(StatusCode::kInternal,
+                    "Gemma 4 26B prefill chunk plan ended early");
+    }
+    const std::uint64_t chunk =
+        chunk_plan.value().chunks[static_cast<std::size_t>(chunk_index)];
     const bool is_last_chunk =
         consumed + static_cast<std::size_t>(chunk) == tokens.size();
     error = cudaStreamSynchronize(x.stream);
@@ -129,6 +135,10 @@ Status Gemma4Moe26BReferenceEngine::PrefillTokens(
       const std::uint64_t overlap_begin = std::max(image_begin, chunk_begin);
       const std::uint64_t overlap_end = std::min(image_end, chunk_end);
       if (overlap_begin < overlap_end) {
+        if (overlap_begin != image_begin || overlap_end != image_end) {
+          return Status(StatusCode::kInternal,
+                        "Gemma 4 26B Vision span was split across prefill chunks");
+        }
         const std::uint64_t rows = overlap_end - overlap_begin;
         error = cudaMemcpyAsync(
             x.prefill_hidden_a + (overlap_begin - chunk_begin) * kWidth,
@@ -162,10 +172,21 @@ Status Gemma4Moe26BReferenceEngine::PrefillTokens(
         layer_workspace.rotary_cosine = x.prefill_local_rotary_cosine;
         layer_workspace.rotary_sine = x.prefill_local_rotary_sine;
       }
+      std::uint64_t layer_vision_begin = 0U;
+      std::uint64_t layer_vision_end = 0U;
+      if (x.traits[layer].attention ==
+              Gemma4Moe26BAttentionType::kSliding &&
+          absolute_vision_begin < absolute_vision_end &&
+          absolute_chunk_begin <= absolute_vision_begin &&
+          absolute_vision_end <= absolute_chunk_begin + chunk) {
+        layer_vision_begin = absolute_vision_begin;
+        layer_vision_end = absolute_vision_end;
+      }
       status = LaunchGemma4Moe26BAttentionSm120PrefillLayer(
           x.prefill_hidden_a, x.prefill_hidden_b, x.position, chunk,
           x.traits[layer], x.attention_weights[layer], x.caches[layer],
-          layer_workspace, 1.0e-6F, x.stream, true);
+          layer_workspace, 1.0e-6F, x.stream, true, layer_vision_begin,
+          layer_vision_end);
       if (!status.ok()) return status;
       status = IsTrellis35RoutedExpertFormat(x.routed_expert_format)
                    ? LaunchGemma4MoeSm120Trellis35PrefillLayer(
@@ -315,6 +336,10 @@ Status Gemma4Moe26BReferenceEngine::PrefillTokens(
             : std::min(x.minimum_prefill_chunk, chunk);
     consumed += static_cast<std::size_t>(chunk);
     ++chunk_index;
+  }
+  if (chunk_index != chunk_plan.value().count) {
+    return Status(StatusCode::kInternal,
+                  "Gemma 4 26B prefill chunk plan was not fully consumed");
   }
   ++x.prefill_calls;
   x.has_last_input_token = true;
