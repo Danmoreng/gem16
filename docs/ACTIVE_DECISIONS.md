@@ -67,12 +67,19 @@ Read it only for a concrete historical or evidence question.
 - 26B fixed-D2 MTP supports up to 86,016 context tokens with the accepted
   200 MiB reserve. Target-only execution supports up to 98,304 with its
   separate reserve contract.
-- The qualified 26B Target and Assistant are separate immutable model
-  repositories. Studio must download and verify both when MTP is selected and
-  may never silently substitute either component.
+- **Consolidated 26B publication.** The owner's 2026-09-01 decision supersedes
+  the earlier requirement for separate 26B Target and Assistant repositories.
+  The canonical public repository is now
+  `danmoreng/gemma-4-26B-A4B-it-GEM16` at immutable revision
+  `31842e12882d09bab7109c0ad52a4ee2e945069c`: qualified NVFP4 remains in the
+  root, with Trellis35 under `trellis35/`, fixed-D2 Assistant under
+  `assistant/`, and FP8 Vision under `vision/`. They remain independently
+  locked components and may never be silently substituted. The historical
+  Assistant repository remains immutable only for old locks; new catalog
+  entries use the consolidated repository.
 - **Current 26B NVFP4 regression artifact.** Runtime and non-regression work
   uses the published `danmoreng/gemma-4-26B-A4B-it-GEM16` Target at revision
-  `63508b5826527484e707b4b46e2eacf077cf2b35`, format
+  `31842e12882d09bab7109c0ad52a4ee2e945069c`, format
   `sm120-device-image-v1`, `model.gem16` SHA-256
   `1ed73cf105b68db937ac0992283d31fdb2225474204341440721f41fe871bb72`,
   and artifact-content identity
@@ -90,10 +97,13 @@ Read it only for a concrete historical or evidence question.
   composite. That exact composite reports `vision_mtp_supported=true`; all
   other combinations continue to fail closed. This narrow enablement does not
   promote Trellis35 or 26B Vision to the released product profile before the
-  remaining V16--V18 publication and Native Studio gates pass. V15 has closed
+  remaining V17--V18 Native Studio gates pass. V15 has closed
   the experimental runtime/server profile, validation, error-code, timing,
   metrics, and cancellation contract; its accepted evidence is
-  `artifacts/vision/v15-runtime-server-closure.json`.
+  `artifacts/vision/v15-runtime-server-closure.json`. V16 has closed immutable
+  consolidated publication, per-component locks, generated catalog entries,
+  anonymous resume/hash verification, and collision-free hardlink views; its
+  evidence is `artifacts/vision/v16-consolidated-publication.json`.
 
 Accepted numerical, performance, context, product, and publication evidence
 continues to live in `artifacts/`, `benchmarks/`, and the archived fast-track
@@ -101,8 +111,10 @@ record. This summary does not replace that evidence.
 
 ## Current product gaps
 
-- Native Studio now consumes one generated catalog for the pinned 12B Target,
-  12B Assistant, 26B Target, and 26B Assistant. A fresh installation presents
+- Native Studio's generated catalog now contains the pinned 12B Target,
+  12B Assistant, consolidated 26B NVFP4 Target and Assistant, and the new
+  Trellis35 Target and FP8 Vision components. V17 still has to expose the
+  Trellis35 Vision combination as a third bounded profile. A fresh installation presents
   a neutral profile choice, checks available storage, and can install either
   or both profiles. Payloads remain in their source repositories' canonical
   Hub blobs and snapshots. Because the 12B Target lock includes one file from

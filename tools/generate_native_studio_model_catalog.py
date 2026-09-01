@@ -38,6 +38,18 @@ COMPONENTS = (
         "26B Assistant",
         ROOT / "models/gemma4-26b-gem16-assistant.lock.json",
     ),
+    (
+        "Gemma4Moe26BTrellis35Target",
+        "gemma4-26b-trellis35-target",
+        "26B Trellis35 Target",
+        ROOT / "models/gemma4-26b-trellis35-target.lock.json",
+    ),
+    (
+        "Gemma4Moe26BVisionFp8",
+        "gemma4-26b-vision-fp8",
+        "26B FP8 Vision",
+        ROOT / "models/gemma4-26b-vision-fp8.lock.json",
+    ),
 )
 HEX_40 = re.compile(r"[0-9a-f]{40}\Z")
 HEX_64 = re.compile(r"[0-9a-f]{64}\Z")
@@ -140,12 +152,18 @@ def render_component(symbol: str, component_id: str, label: str, lock: dict[str,
             "},"
         )
     files = "\n".join(rows)
+    view_suffix = lock.get("component", "")
+    if not isinstance(view_suffix, str) or (
+        view_suffix and PATH_SEGMENT.fullmatch(view_suffix) is None
+    ):
+        raise ValueError(f"{component_id}: invalid composed-view suffix")
     return f"""inline constexpr std::array k{symbol}Files{{
 {files}
 }};
 inline constexpr ModelComponentCatalog k{symbol}{{
     {quoted(component_id)}, {quoted(label)}, {quoted(repository)},
-    {quoted(revision)}, k{symbol}Files, {str(external).lower()}}};
+    {quoted(revision)}, k{symbol}Files, {str(external).lower()},
+    {quoted(view_suffix)}}};
 """
 
 

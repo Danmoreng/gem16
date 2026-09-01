@@ -61,6 +61,17 @@ def locked_snapshot_path(lock_path: Path, cache_root: Path | None = None) -> Pat
         return snapshot_path(repository, revision, cache_root)
     root = cache_root or hub_cache_root()
     name = f"{repository.replace('/', '--')}--{revision}"
+    component = lock.get("component")
+    if component is not None:
+        allowed = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-")
+        if (
+            not isinstance(component, str)
+            or not component
+            or component in {".", ".."}
+            or any(character not in allowed for character in component)
+        ):
+            raise ValueError(f"invalid component identifier: {component!r}")
+        name += f"--{component}"
     return root / ".gem16" / "snapshots" / name
 
 

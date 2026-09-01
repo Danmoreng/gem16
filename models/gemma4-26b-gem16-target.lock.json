@@ -1,16 +1,18 @@
 {
   "schema_version": 2,
   "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-  "revision": "63508b5826527484e707b4b46e2eacf077cf2b35",
-  "resolved_at_utc": "2026-08-29T09:24:57Z",
-  "source_url": "https://huggingface.co/danmoreng/gemma-4-26B-A4B-it-GEM16/tree/63508b5826527484e707b4b46e2eacf077cf2b35",
+  "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
+  "resolved_at_utc": "2026-09-01T17:57:00Z",
+  "source_url": "https://huggingface.co/danmoreng/gemma-4-26B-A4B-it-GEM16/tree/31842e12882d09bab7109c0ad52a4ee2e945069c",
   "terms_url": "https://ai.google.dev/gemma/terms",
+  "component": "target",
+  "component_path": ".",
   "files": [
     {
       "path": ".gitattributes",
-      "size": 95,
-      "sha256": "f15b349b90d515d0af07dc0d7da57e1a3ef9f00a723c70e8bdb8ff7fcb943b83",
-      "git_oid": "c1ad41cbcce50cb9c28dbc5c41f4b17d8ce29f00"
+      "size": 187,
+      "sha256": "2d502a6b780657021f7120758914e3ee67a36c538f02fe2040f29fe70569b9c9",
+      "git_oid": "2d64a1552d229652d54397359f91c516b5ea089a"
     },
     {
       "path": "LICENSE",
@@ -20,15 +22,15 @@
     },
     {
       "path": "NOTICE",
-      "size": 778,
-      "sha256": "e26e0f5e20bc05d54543aae77d45686b614f948e1af7346597e1b4ef533d990b",
-      "git_oid": "a365f24b0c9e70ebfff6128d45fb9f0c62bba3d5"
+      "size": 995,
+      "sha256": "db1f7267dfe16a3887a73a47e5f04e222b39ba5415bce05900bd1d0fe34211a6",
+      "git_oid": "d7d19d4435c2cf745e3465609e06c9b1327f518b"
     },
     {
       "path": "README.md",
-      "size": 31418,
-      "sha256": "7349b325178b75830da550d010c313b2756beb1ebabec5923ba71f108e359a28",
-      "git_oid": "1535491512e42a3ceab0eba250b0810368901ba4"
+      "size": 32548,
+      "sha256": "1f72b10109d89d5f3c893aca915ef8a0c30612df0b8a263c932f0e40e11cea9a",
+      "git_oid": "f8c40dce335198f993a3da07b33b8c1102d223a2"
     },
     {
       "path": "chat_template.jinja",
@@ -53,6 +55,12 @@
       "size": 3061406,
       "sha256": "7e5e78b9c6f61fbe8829866395634085261e1261a8c783f69affc5a16bd1847a",
       "git_oid": "fe671accce31db603d8d139bcef8523ee3baac34"
+    },
+    {
+      "path": "gem16_components.json",
+      "size": 2262,
+      "sha256": "6d704561433c984315e3bd7aefef192df3d7f4d75f11272f381549ed1c525bdc",
+      "git_oid": "b192800e6d5f369cdd486dce305357428c30d1a7"
     },
     {
       "path": "gem16_model.json",

@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "milestone": "V16",
+  "status": "accepted",
+  "parent_commit": "17b0e6d",
+  "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+  "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
+  "commit_url": "https://huggingface.co/danmoreng/gemma-4-26B-A4B-it-GEM16/commit/31842e12882d09bab7109c0ad52a4ee2e945069c",
+  "publication": {
+    "private": false,
+    "gated": false,
+    "repository_files": 138,
+    "repository_bytes": 27859663928,
+    "layout": {
+      "nvfp4_target": ".",
+      "trellis35_target": "trellis35",
+      "fixed_d2_assistant": "assistant",
+      "fp8_vision": "vision"
+    },
+    "compatibility_manifest_sha256": "6d704561433c984315e3bd7aefef192df3d7f4d75f11272f381549ed1c525bdc",
+    "compatibility_content_sha256": "a2f9f42592e89cf5a9c8195bb72b4d30095c42d1c5c6d5226f0f4c261a4258eb",
+    "additive_upload": true,
+    "historical_assistant_repository_deleted": false
+  },
+  "components": {
+    "nvfp4_target": {
+      "lock": "models/gemma4-26b-gem16-target.lock.json",
+      "files": 14,
+      "bytes": 14731967487,
+      "model_sha256": "1ed73cf105b68db937ac0992283d31fdb2225474204341440721f41fe871bb72",
+      "artifact_content_sha256": "471805f7dad8abb84300be78b2822a63dcb1d35bff5aa98426a162cc8532ee17"
+    },
+    "trellis35_target": {
+      "lock": "models/gemma4-26b-trellis35-target.lock.json",
+      "files": 103,
+      "bytes": 12239074309,
+      "checkpoint_content_sha256": "39183e2c7a1bd04c87a8f5bb5887453f8e92a3980bb507fd06d6252a6439c9f0",
+      "checkpoint_descriptor_sha256": "0b239cac8d2c49a60a33066c7c7b57d201c0e51df45590248137588563dc78a7"
+    },
+    "fixed_d2_assistant": {
+      "lock": "models/gemma4-26b-gem16-assistant.lock.json",
+      "files": 14,
+      "bytes": 290772313,
+      "artifact_content_sha256": "978f5e3804dd08b8ea5551883811e0bf6737a23ae5ae3dcfa0ef71dc4ffe532b"
+    },
+    "fp8_vision": {
+      "lock": "models/gemma4-26b-vision-fp8.lock.json",
+      "files": 7,
+      "bytes": 597849819,
+      "artifact_sha256": "805e1fee4ad80dbb76a846c0009d6f57dbb50192e7009ef1633cdc3b5252a536"
+    }
+  },
+  "verification": {
+    "package_all_hashes": "passed",
+    "anonymous_download": "passed",
+    "resume_offset_bytes": 58720256,
+    "resume_range_observed": true,
+    "downloaded_vision_sha256": "passed",
+    "second_preflight_missing_bytes": 0,
+    "vision_blob_snapshot_view_same_inode": true,
+    "trellis_full_lock_files_verified": 103,
+    "trellis_blob_snapshot_view_same_inode": true,
+    "private_blob_store": false,
+    "generated_catalog": "current"
+  }
+}

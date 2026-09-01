@@ -33,6 +33,32 @@ MODEL_LOCKS = {
 
 
 class Gemma426BLocksTest(unittest.TestCase):
+    def test_product_components_share_one_immutable_repository_revision(self) -> None:
+        repository = "danmoreng/gemma-4-26B-A4B-it-GEM16"
+        revision = "31842e12882d09bab7109c0ad52a4ee2e945069c"
+        components = {
+            "gemma4-26b-gem16-target.lock.json": ("target", ""),
+            "gemma4-26b-trellis35-target.lock.json": ("trellis35", "trellis35/"),
+            "gemma4-26b-gem16-assistant.lock.json": ("assistant", "assistant/"),
+            "gemma4-26b-vision-fp8.lock.json": ("vision", "vision/"),
+        }
+        for filename, (component, prefix) in components.items():
+            with self.subTest(filename=filename):
+                lock = json.loads((ROOT / "models" / filename).read_text())
+                validate_lock(lock)
+                self.assertEqual(lock["repository"], repository)
+                self.assertEqual(lock["revision"], revision)
+                self.assertEqual(lock["component"], component)
+                for entry in lock["files"]:
+                    if not prefix:
+                        self.assertNotIn("source", entry)
+                        continue
+                    self.assertEqual(entry["source"]["repository"], repository)
+                    self.assertEqual(entry["source"]["revision"], revision)
+                    self.assertEqual(
+                        entry["source"]["path"], prefix + entry["path"]
+                    )
+
     def test_model_locks_pin_complete_expected_snapshots(self) -> None:
         for filename, (repository, revision, total_bytes) in MODEL_LOCKS.items():
             with self.subTest(filename=filename):

@@ -25,6 +25,7 @@ struct ModelComponentCatalog {
   const char* revision;
   std::span<const ModelCatalogFile> files;
   bool composed_view;
+  const char* composed_view_suffix;
 };
 
 struct ModelProfileCatalog {

@@ -18,13 +18,15 @@ class NativeStudioModelCatalogTest(unittest.TestCase):
     def test_generated_catalog_is_current(self):
         self.assertEqual(GENERATOR.render(), GENERATED_PATH.read_text(encoding="utf-8"))
 
-    def test_generated_catalog_contains_all_four_locked_components(self):
+    def test_generated_catalog_contains_all_six_locked_components(self):
         generated = GENERATED_PATH.read_text(encoding="utf-8")
         locks = (
             "gemma4-12b-nvfp4.lock.json",
             "gemma4-12b-mtp-assistant.lock.json",
             "gemma4-26b-gem16-target.lock.json",
             "gemma4-26b-gem16-assistant.lock.json",
+            "gemma4-26b-trellis35-target.lock.json",
+            "gemma4-26b-vision-fp8.lock.json",
         )
         for lock_name in locks:
             lock = json.loads((ROOT / "models" / lock_name).read_text())

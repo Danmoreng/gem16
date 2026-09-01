@@ -91,7 +91,9 @@ bool TestModelCatalog() {
       std::string_view(twelve.assistant->repository) !=
           "google/gemma-4-12B-it-assistant" ||
       !twelve.target->composed_view || twelve.assistant->composed_view ||
-      twenty_six.target->composed_view || twenty_six.assistant->composed_view) {
+      twenty_six.target->composed_view || !twenty_six.assistant->composed_view ||
+      std::string_view(twenty_six.assistant->repository) !=
+          "danmoreng/gemma-4-26B-A4B-it-GEM16") {
     return false;
   }
   bool external_tokenizer = false;
@@ -109,7 +111,11 @@ bool TestModelCatalog() {
                     "b1f649734b34aa5575b03d186abd1b9be3d0d5c4" &&
          gem16::studio::ComponentDirectory(*twenty_six.target, root) ==
              root / "models--danmoreng--gemma-4-26B-A4B-it-GEM16/snapshots/"
-                    "63508b5826527484e707b4b46e2eacf077cf2b35" &&
+                    "31842e12882d09bab7109c0ad52a4ee2e945069c" &&
+         gem16::studio::ComponentDirectory(*twenty_six.assistant, root) ==
+             root / ".gem16/snapshots/"
+                    "danmoreng--gemma-4-26B-A4B-it-GEM16--"
+                    "31842e12882d09bab7109c0ad52a4ee2e945069c--assistant" &&
          gem16::studio::VerificationMarkerPath(first_target_file, root) ==
              root / "models--unsloth--gemma-4-12b-it-NVFP4/.gem16-verified" /
                     (std::string(first_target_file.blob_id) + ".sha256");

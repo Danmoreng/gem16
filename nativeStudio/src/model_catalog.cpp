@@ -45,8 +45,12 @@ std::filesystem::path ComponentDirectory(
     std::string repository = component.repository;
     const auto separator = repository.find('/');
     if (separator != std::string::npos) repository.replace(separator, 1, "--");
-    return hub_root / ".gem16/snapshots" /
-           (repository + "--" + component.revision);
+    std::string view = repository + "--" + component.revision;
+    if (component.composed_view_suffix[0] != '\0') {
+      view += "--";
+      view += component.composed_view_suffix;
+    }
+    return hub_root / ".gem16/snapshots" / view;
   }
   return RepositoryDirectory(component.repository, hub_root) / "snapshots" /
          component.revision;

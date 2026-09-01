@@ -10,6 +10,8 @@ import tempfile
 import unittest
 from unittest import mock
 
+from tools.hf_cache import locked_snapshot_path
+
 
 ROOT = Path(__file__).resolve().parents[2]
 SPEC = importlib.util.spec_from_file_location(
@@ -27,6 +29,35 @@ class FakeResponse(io.BytesIO):
 
 
 class FetchModelTest(unittest.TestCase):
+    def test_component_lock_has_a_collision_free_composed_view(self) -> None:
+        lock = {
+            "schema_version": 2,
+            "repository": "owner/model",
+            "revision": "1" * 40,
+            "component": "vision",
+            "files": [
+                {
+                    "path": "vision.gem16",
+                    "size": 4,
+                    "sha256": "2" * 64,
+                    "git_oid": "3" * 40,
+                    "source": {
+                        "repository": "owner/model",
+                        "revision": "1" * 40,
+                        "path": "vision/vision.gem16",
+                    },
+                }
+            ],
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "vision.lock.json"
+            path.write_text(json.dumps(lock), encoding="utf-8")
+            self.assertEqual(
+                locked_snapshot_path(path, Path(temporary) / "hub"),
+                Path(temporary) / "hub/.gem16/snapshots" /
+                ("owner--model--" + "1" * 40 + "--vision"),
+            )
+
     def test_file_source_can_override_repository_and_revision(self) -> None:
         lock = {
             "repository": "unsloth/model",
