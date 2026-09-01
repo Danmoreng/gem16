@@ -57,6 +57,10 @@
     "published_component_runtime_load": "passed",
     "vision_fixed_d2_request": "passed",
     "sanitizer": "passed",
-    "linux_windows_ci": "pending"
+    "linux_windows_ci": {
+      "status": "passed",
+      "run_id": 33550091993,
+      "url": "https://github.com/Danmoreng/gem16/actions/runs/33550091993"
+    }
   }
 }
