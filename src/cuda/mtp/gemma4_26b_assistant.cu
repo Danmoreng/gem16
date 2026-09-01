@@ -35,6 +35,7 @@ constexpr std::uint64_t kIntermediate = 8192U;
 constexpr std::uint64_t kVocabulary = 262144U;
 constexpr std::uint64_t kQueryHeads = 16U;
 constexpr std::uint64_t kQualifiedMtpMaximumContext = 86016U;
+constexpr std::uint64_t kModelMaximumContext = 262144U;
 constexpr std::uint64_t kRowsPerTile = 8U;
 constexpr std::uint64_t kKBlock = 64U;
 constexpr std::uint64_t kNvfp4Group = 16U;
@@ -386,9 +387,16 @@ Status Gemma4Moe26BAssistantModel::Load(
   return Status::Ok();
 }
 
-Status Gemma4Moe26BAssistantModel::Prepare(std::uint64_t max_context) {
+Status Gemma4Moe26BAssistantModel::Prepare(
+    std::uint64_t max_context,
+    Gemma4Moe26BAssistantContextPolicy context_policy) {
+  const std::uint64_t context_limit =
+      context_policy ==
+              Gemma4Moe26BAssistantContextPolicy::kTrellis35PhysicalCapacity
+          ? kModelMaximumContext
+          : kQualifiedMtpMaximumContext;
   if (!loaded() || prepared() || max_context == 0U ||
-      max_context > kQualifiedMtpMaximumContext) {
+      max_context > context_limit) {
     return Invalid("M25 Assistant workspace context is invalid");
   }
   LayoutBuilder layout;

@@ -1,6 +1,7 @@
 #include "gem16/image.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <fstream>
 #include <limits>
@@ -26,6 +27,11 @@ constexpr std::uint32_t kModelPatch = kTeacherPatch * kPool;
 constexpr std::uint32_t kMaximumSoftTokens = 280U;
 constexpr std::uint64_t kMaximumPixels = 100'000'000ULL;
 constexpr std::uint64_t kMaximumEncodedBytes = 256ULL * 1024ULL * 1024ULL;
+
+double Milliseconds(std::chrono::steady_clock::time_point begin,
+                    std::chrono::steady_clock::time_point end) {
+  return std::chrono::duration<double, std::milli>(end - begin).count();
+}
 
 struct RgbImage {
   std::uint32_t width = 0U;
@@ -319,11 +325,21 @@ Result<VisionImage> LoadVisionImage(const std::filesystem::path& path,
 Result<Gemma4Moe26BVisionImage> LoadGemma4Moe26BVisionImageBytes(
     std::span<const std::uint8_t> encoded, std::string_view source_name,
     const Gemma4Moe26BVisionImageOptions& options) {
+  const auto total_begin = std::chrono::steady_clock::now();
+  if (options.timings != nullptr) {
+    *options.timings = Gemma4Moe26BVisionPreprocessTimings{};
+  }
   if (!IsGemma4Moe26BSoftTokenBudget(options.maximum_soft_tokens)) {
     return Error(StatusCode::kInvalidArgument,
                  "Gemma 4 26B image soft-token budget must be 70, 140, or 280");
   }
+  const auto decode_begin = std::chrono::steady_clock::now();
   auto decoded = DecodeImage(encoded, source_name);
+  const auto decode_end = std::chrono::steady_clock::now();
+  if (options.timings != nullptr) {
+    options.timings->decode_milliseconds =
+        Milliseconds(decode_begin, decode_end);
+  }
   if (!decoded.ok()) return decoded.status();
   // Google's processor always scales toward the selected budget. In
   // particular, small images are intentionally upscaled here.
@@ -349,7 +365,14 @@ Result<Gemma4Moe26BVisionImage> LoadGemma4Moe26BVisionImageBytes(
                  "Gemma 4 26B image patch count exceeds the selected budget");
   }
 
+  const auto resize_begin = std::chrono::steady_clock::now();
   auto resized = Resize(decoded.value(), target_width, target_height);
+  const auto resize_end = std::chrono::steady_clock::now();
+  if (options.timings != nullptr) {
+    options.timings->resize_milliseconds =
+        Milliseconds(resize_begin, resize_end);
+  }
+  const auto patchify_begin = std::chrono::steady_clock::now();
   Gemma4Moe26BVisionImage result;
   result.raw_patch_count = raw_patch_count;
   result.soft_token_count = soft_token_count;
@@ -381,6 +404,13 @@ Result<Gemma4Moe26BVisionImage> LoadGemma4Moe26BVisionImageBytes(
         }
       }
     }
+  }
+  const auto patchify_end = std::chrono::steady_clock::now();
+  if (options.timings != nullptr) {
+    options.timings->patchify_milliseconds =
+        Milliseconds(patchify_begin, patchify_end);
+    options.timings->total_milliseconds =
+        Milliseconds(total_begin, patchify_end);
   }
   return result;
 }

@@ -225,7 +225,11 @@ Status Gemma4Moe26BReferenceEngine::LoadMtpAssistant(
   Gemma4Moe26BAssistantModel candidate;
   Status status = candidate.Load(assistant_directory);
   if (!status.ok()) return status;
-  status = candidate.Prepare(x.context);
+  const auto assistant_context_policy =
+      IsTrellis35RoutedExpertFormat(x.routed_expert_format)
+          ? Gemma4Moe26BAssistantContextPolicy::kTrellis35PhysicalCapacity
+          : Gemma4Moe26BAssistantContextPolicy::kQualifiedM25;
+  status = candidate.Prepare(x.context, assistant_context_policy);
   if (!status.ok()) return status;
 
   // The verifier is a separately named fixed region. It holds five Target

@@ -1059,6 +1059,12 @@ int ServerMain(int argc, char** argv) {
                        gem16::json::Quote(state.runtime->compiler_commit()) +
                        ",\"resident_weight_bytes\":" +
                        std::to_string(state.runtime->weight_bytes()) +
+                       ",\"assistant_weight_bytes\":" +
+                       std::to_string(
+                           state.runtime->assistant_weight_bytes()) +
+                       ",\"assistant_workspace_bytes\":" +
+                       std::to_string(
+                           state.runtime->assistant_workspace_bytes()) +
                        ",\"kv_cache_bytes\":" +
                        (is_moe26b
                             ? std::to_string(state.runtime->kv_cache_bytes())

@@ -234,6 +234,7 @@ class ModelRuntime {
       const ModelRuntimeOptions& options);
   [[nodiscard]] std::uint64_t weight_bytes() const;
   [[nodiscard]] std::uint64_t assistant_weight_bytes() const;
+  [[nodiscard]] std::uint64_t assistant_workspace_bytes() const;
   [[nodiscard]] bool assistant_loaded() const;
   [[nodiscard]] std::uint64_t vision_weight_bytes() const;
   [[nodiscard]] bool vision_module_loaded() const;

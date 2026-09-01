@@ -22,6 +22,13 @@ struct Gemma4Moe26BAssistantProposalContext {
   std::uint64_t position = 0;
 };
 
+enum class Gemma4Moe26BAssistantContextPolicy {
+  // Preserve the accepted M25/NVFP4 qualification boundary.
+  kQualifiedM25,
+  // Let the Trellis35 profile use the model's physical 262144-token limit.
+  kTrellis35PhysicalCapacity,
+};
+
 // Dedicated M25 Assistant path. It is deliberately separate from the qualified
 // 12B BF16 AssistantModel: the 26B variant has a 2816-wide backbone interface,
 // two global KV heads and the fixed NVFP4/FP8 compiled storage contract.
@@ -37,7 +44,9 @@ class Gemma4Moe26BAssistantModel {
       Gemma4Moe26BAssistantModel&&) noexcept;
 
   [[nodiscard]] Status Load(const std::filesystem::path& directory);
-  [[nodiscard]] Status Prepare(std::uint64_t max_context);
+  [[nodiscard]] Status Prepare(
+      std::uint64_t max_context,
+      Gemma4Moe26BAssistantContextPolicy context_policy);
   [[nodiscard]] Status GenerateDrafts(
       const Gemma4Moe26BAssistantProposalContext& context,
       std::span<std::uint32_t> draft_token_ids, cudaStream_t stream);

@@ -57,9 +57,23 @@ struct Gemma4Moe26BVisionImage {
   bool operator==(const Gemma4Moe26BVisionImage&) const = default;
 };
 
+// Optional diagnostic wall-clock boundaries for the host image processor.
+// Filesystem I/O is excluded. Resize includes target-size selection and the
+// bicubic transform; patchify includes allocation, /255 conversion, positions,
+// and row-major 16x16 extraction.
+struct Gemma4Moe26BVisionPreprocessTimings {
+  double decode_milliseconds = 0.0;
+  double resize_milliseconds = 0.0;
+  double patchify_milliseconds = 0.0;
+  double total_milliseconds = 0.0;
+};
+
 struct Gemma4Moe26BVisionImageOptions {
   // The pinned processor accepts 70, 140, or 280 for this v1 profile.
   std::uint32_t maximum_soft_tokens = 280U;
+  // Caller-owned optional V10 diagnostic sink. Normal product calls leave it
+  // null and retain the existing preprocessing path.
+  Gemma4Moe26BVisionPreprocessTimings* timings = nullptr;
 };
 
 [[nodiscard]] std::uint32_t AutomaticVisionSoftTokenBudget(

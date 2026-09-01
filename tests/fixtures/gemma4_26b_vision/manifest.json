@@ -1,0 +1,115 @@
+{
+  "cases": [
+    {
+      "budget": 70,
+      "path": "budget-70-square.bmp",
+      "processed_height": 384,
+      "processed_width": 384,
+      "raw_patch_count": 576,
+      "shape": "square",
+      "soft_token_count": 64,
+      "source_height": 96,
+      "source_sha256": "b8f31063eb46e8e337ec4fc5f4a6504a7185b50293020736a93e751390c44c98",
+      "source_width": 96
+    },
+    {
+      "budget": 70,
+      "path": "budget-70-wide.bmp",
+      "processed_height": 336,
+      "processed_width": 480,
+      "raw_patch_count": 630,
+      "shape": "wide",
+      "soft_token_count": 70,
+      "source_height": 70,
+      "source_sha256": "79b8eae5b6353d2384b7add9b4caeace8a1482c9e41057b1d2fc1b18db296370",
+      "source_width": 100
+    },
+    {
+      "budget": 70,
+      "path": "budget-70-tall.bmp",
+      "processed_height": 480,
+      "processed_width": 336,
+      "raw_patch_count": 630,
+      "shape": "tall",
+      "soft_token_count": 70,
+      "source_height": 100,
+      "source_sha256": "3ce72f3f0afe1e62b85ff3203e377634aed473a6325d569c60252c80449db0d1",
+      "source_width": 70
+    },
+    {
+      "budget": 140,
+      "path": "budget-140-square.bmp",
+      "processed_height": 528,
+      "processed_width": 528,
+      "raw_patch_count": 1089,
+      "shape": "square",
+      "soft_token_count": 121,
+      "source_height": 96,
+      "source_sha256": "8c7b58b3ffef2d692b6ac792c0b541fc5397fc81f674f7289c511f182addb611",
+      "source_width": 96
+    },
+    {
+      "budget": 140,
+      "path": "budget-140-wide.bmp",
+      "processed_height": 480,
+      "processed_width": 672,
+      "raw_patch_count": 1260,
+      "shape": "wide",
+      "soft_token_count": 140,
+      "source_height": 50,
+      "source_sha256": "ef04ff3a6f57aad48969854a38a6f2eefc079d0bf10bdc5ac29ba4b66e928904",
+      "source_width": 70
+    },
+    {
+      "budget": 140,
+      "path": "budget-140-tall.bmp",
+      "processed_height": 672,
+      "processed_width": 480,
+      "raw_patch_count": 1260,
+      "shape": "tall",
+      "soft_token_count": 140,
+      "source_height": 70,
+      "source_sha256": "61cbc12e3b022e80be62137535c8d28baa8bc0143c915090e9a09581aa34bb14",
+      "source_width": 50
+    },
+    {
+      "budget": 280,
+      "path": "budget-280-square.bmp",
+      "processed_height": 768,
+      "processed_width": 768,
+      "raw_patch_count": 2304,
+      "shape": "square",
+      "soft_token_count": 256,
+      "source_height": 96,
+      "source_sha256": "3cc23c4ff6cb8beea18314159dae79a4f24a49d87f1e3e8a02c90ad9bc95dd4a",
+      "source_width": 96
+    },
+    {
+      "budget": 280,
+      "path": "budget-280-wide.bmp",
+      "processed_height": 672,
+      "processed_width": 960,
+      "raw_patch_count": 2520,
+      "shape": "wide",
+      "soft_token_count": 280,
+      "source_height": 70,
+      "source_sha256": "5cb6246f81e13d80636c852d2b14aa45db1822ad04c7f7f7d4d56cdb8a8cd9d0",
+      "source_width": 100
+    },
+    {
+      "budget": 280,
+      "path": "budget-280-tall.bmp",
+      "processed_height": 960,
+      "processed_width": 672,
+      "raw_patch_count": 2520,
+      "shape": "tall",
+      "soft_token_count": 280,
+      "source_height": 100,
+      "source_sha256": "756498470296c7c1e743ffef0bcbc7b0fdfd738c68c96a89edfc4166f1e0e39d",
+      "source_width": 70
+    }
+  ],
+  "generator": "tools/generate_gemma4_26b_vision_fixtures.py",
+  "license": "repository-owned generated test fixture",
+  "schema_version": 1
+}

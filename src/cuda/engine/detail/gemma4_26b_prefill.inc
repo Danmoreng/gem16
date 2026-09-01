@@ -16,13 +16,20 @@ Status Gemma4Moe26BReferenceEngine::PrefillTokensWithVision(
           "Gemma 4 26B Vision prefill is not aligned to image placeholders");
     }
   }
-  Status status = implementation_->vision_runtime.Encode(
-      vision_segment, implementation_->stream);
+  Status status;
+  {
+    const NvtxRange range("gem16.vision.encode");
+    status = implementation_->vision_runtime.Encode(
+        vision_segment, implementation_->stream);
+  }
   if (!status.ok()) return status;
   implementation_->vision_prefill_active = true;
   implementation_->vision_prefill_offset = vision_segment.prompt_offset;
   implementation_->vision_prefill_tokens = vision_segment.soft_token_count;
-  status = PrefillTokens(tokens);
+  {
+    const NvtxRange range("gem16.vision.text_prefill");
+    status = PrefillTokens(tokens);
+  }
   implementation_->vision_prefill_active = false;
   implementation_->vision_prefill_offset = 0U;
   implementation_->vision_prefill_tokens = 0U;
@@ -140,6 +147,7 @@ Status Gemma4Moe26BReferenceEngine::PrefillTokens(
                         "Gemma 4 26B Vision span was split across prefill chunks");
         }
         const std::uint64_t rows = overlap_end - overlap_begin;
+        const NvtxRange range("gem16.vision.text_embedding_insertion");
         error = cudaMemcpyAsync(
             x.prefill_hidden_a + (overlap_begin - chunk_begin) * kWidth,
             x.vision_runtime.output() + (overlap_begin - image_begin) * kWidth,

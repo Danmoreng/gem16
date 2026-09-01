@@ -19,6 +19,7 @@
 #include "gem16/chat.h"
 #include "gem16/engine.h"
 #include "gem16/tokenizer.h"
+#include "cuda/engine/gemma4_26b_routed_expert_format.h"
 #include "model/config.h"
 #include "model/model_variant.h"
 
@@ -848,6 +849,20 @@ int ChatMain(int argc, char** argv) {
   }
   if (moe26b && !options.media_files.empty() &&
       options.vision_model_directory.empty()) {
+    auto routed_expert_format =
+        gem16::internal::DetectGemma4Moe26BRoutedExpertFormat(
+            options.model_directory);
+    if (!routed_expert_format.ok()) {
+      std::cerr << "error: " << routed_expert_format.status().message()
+                << '\n';
+      return 2;
+    }
+    if (!gem16::internal::IsTrellis35RoutedExpertFormat(
+            routed_expert_format.value())) {
+      std::cerr
+          << "error: Gemma 4 26B text-only profile does not support image input\n";
+      return 2;
+    }
     std::cerr << "error: Gemma 4 26B image input requires --vision-model\n";
     return 2;
   }
@@ -869,10 +884,14 @@ int ChatMain(int argc, char** argv) {
       std::cerr << "error: " << memory.status().message() << '\n';
       return 2;
     }
+    const bool long_mtp =
+        moe26b && runtime.value()->supports_mtp() &&
+        options.max_context >= 64000U;
     const std::uint64_t admission_margin =
-        moe26b && options.max_context >= 65536U
-            ? 400U * 1024U * 1024U
-            : 700U * 1024U * 1024U;
+        long_mtp ? 200U * 1024U * 1024U
+                 : moe26b && options.max_context >= 65536U
+                       ? 400U * 1024U * 1024U
+                       : 700U * 1024U * 1024U;
     std::cout
         << "{\"schema_version\":1,\"model_variant\":"
         << JsonEscape(runtime.value()->model_variant_name())
@@ -897,6 +916,10 @@ int ChatMain(int argc, char** argv) {
         << (runtime.value()->supports_mtp() ? "true" : "false")
         << ",\"resident_weight_bytes\":"
         << runtime.value()->weight_bytes()
+        << ",\"assistant_weight_bytes\":"
+        << runtime.value()->assistant_weight_bytes()
+        << ",\"assistant_workspace_bytes\":"
+        << runtime.value()->assistant_workspace_bytes()
         << ",\"vision_module_loaded\":"
         << (runtime.value()->vision_module_loaded() ? "true" : "false")
         << ",\"vision_weight_bytes\":"

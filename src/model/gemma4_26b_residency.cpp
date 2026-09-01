@@ -174,13 +174,14 @@ BuildGemma4Moe26BAssistantResidencyPlan(const ModelManifest& manifest) {
 
   Gemma4Moe26BResidencyPlan plan;
   plan.artifact_payload_bytes = manifest.total_tensor_bytes;
-  // The split-reduction online-attention workspace remains below 13 MiB at the
-  // qualified 84 Ki-token MTP maximum. Reserve 24 MiB for it and the remaining
-  // fixed activations, plus explicit graph and allocator regions. Unlike the
-  // target profile, no Assistant KV cache is present: all four layers consume
-  // the target model's existing views.
+  // The split-reduction online-attention workspace plus fixed activations is
+  // 65.35 MiB at the model's 256 Ki-token maximum. Reserve 68 MiB so the
+  // Trellis35 profile can measure its physical VRAM boundary without weakening
+  // the separately retained 84 Ki-token M25/NVFP4 qualification policy.
+  // Unlike the target profile, no Assistant KV cache is present: all four
+  // layers consume the target model's existing views.
   plan.fixed_regions = {
-      {"mtp_assistant_workspace_84k", 24U * kMiB},
+      {"mtp_assistant_workspace_256k", 68U * kMiB},
       {"mtp_assistant_graph_reserve", 16U * kMiB},
       {"mtp_assistant_allocator_metadata_guard", 4U * kMiB},
   };
@@ -228,8 +229,8 @@ BuildGemma4Moe26BAssistantResidencyPlan(const ModelManifest& manifest) {
   if (!arena_bytes.ok()) return arena_bytes.status();
   plan.immutable_weight_arena_bytes = arena_bytes.value();
 
-  constexpr std::array<std::uint64_t, 3> kContexts = {
-      32768U, 65536U, 86016U};
+  constexpr std::array<std::uint64_t, 4> kContexts = {
+      32768U, 65536U, 86016U, 262144U};
   for (const auto context : kContexts) {
     auto total = CheckedAdd(plan.immutable_weight_arena_bytes,
                             plan.fixed_region_bytes,

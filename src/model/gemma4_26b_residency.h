@@ -49,9 +49,9 @@ BuildGemma4Moe26BResidencyPlan(const ModelManifest& manifest,
 
 // Builds the immutable M25 Assistant arena. Its attention reads the target's
 // existing FP8 KV cache, so these profiles add no second context-sized KV
-// allocation. The fixed region is sized for the qualified 84 Ki-token MTP
-// maximum and is deliberately accounted separately from the target profile
-// safety reserve.
+// allocation. The fixed region covers the model's 256 Ki-token maximum so the
+// Trellis35 profile can measure its physical boundary; the M25/NVFP4 runtime
+// policy separately retains its qualified 84 Ki-token limit.
 [[nodiscard]] Result<Gemma4Moe26BResidencyPlan>
 BuildGemma4Moe26BAssistantResidencyPlan(const ModelManifest& manifest);
 

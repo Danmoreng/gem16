@@ -134,6 +134,12 @@ std::uint64_t ModelRuntime::assistant_weight_bytes() const {
              ? impl_->assistant.arena_bytes()
              : impl_->moe26b_engine->mtp_assistant_weight_bytes();
 }
+std::uint64_t ModelRuntime::assistant_workspace_bytes() const {
+  if (impl_ == nullptr) return 0U;
+  return impl_->moe26b_engine == nullptr
+             ? 0U
+             : impl_->moe26b_engine->mtp_assistant_workspace_bytes();
+}
 bool ModelRuntime::assistant_loaded() const {
   return impl_ != nullptr && impl_->assistant_loaded;
 }

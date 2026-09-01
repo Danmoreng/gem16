@@ -732,8 +732,11 @@ void RunGemma426BManifestTests() {
     GEM16_CHECK(assistant_residency.value().immutable_weight_arena_bytes ==
                 258'330'880ULL);
     GEM16_CHECK(assistant_residency.value().fixed_region_bytes ==
-                46'137'344ULL);
-    GEM16_CHECK(assistant_residency.value().context_profiles.size() == 3U);
+                92'274'688ULL);
+    GEM16_CHECK(assistant_residency.value().context_profiles.size() == 4U);
+    GEM16_CHECK(
+        assistant_residency.value().context_profiles.back().context_tokens ==
+        262'144U);
     for (const auto& profile :
          assistant_residency.value().context_profiles) {
       GEM16_CHECK(profile.fp8_kv_bytes == 0U);

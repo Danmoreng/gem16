@@ -396,6 +396,30 @@ if(GEM16_ENABLE_CUDA)
     CUDA_ARCHITECTURES "${GEM16_CUDA_ARCHITECTURE}"
   )
   gem16_set_project_warnings(gem16-26b-vision-oracle-dump)
+  add_executable(gem16-26b-vision-benchmark
+    src/cli/gemma4_26b_vision_benchmark.cu
+  )
+  target_include_directories(gem16-26b-vision-benchmark PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/src"
+  )
+  target_link_libraries(gem16-26b-vision-benchmark PRIVATE
+    gem16_core gem16_json CUDA::cudart
+  )
+  set_target_properties(gem16-26b-vision-benchmark PROPERTIES
+    CUDA_ARCHITECTURES "${GEM16_CUDA_ARCHITECTURE}"
+  )
+  gem16_set_project_warnings(gem16-26b-vision-benchmark)
+  add_executable(gem16-26b-vision-e2e-benchmark
+    src/cli/gemma4_26b_vision_e2e_benchmark.cpp
+  )
+  target_include_directories(gem16-26b-vision-e2e-benchmark PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/src"
+  )
+  target_link_libraries(gem16-26b-vision-e2e-benchmark PRIVATE
+    gem16_core gem16_json CUDA::cudart
+  )
+  gem16_set_project_warnings(gem16-26b-vision-e2e-benchmark)
+  gem16_enable_sanitizers(gem16-26b-vision-e2e-benchmark)
   if(NOT EXISTS "${GEM16_CUTLASS_DIR}/include/cutlass/cutlass.h")
     message(FATAL_ERROR
       "SM120 CUDA builds require CUTLASS headers at GEM16_CUTLASS_DIR=${GEM16_CUTLASS_DIR}")
@@ -808,6 +832,27 @@ if(BUILD_TESTING AND GEM16_BUILD_TESTS)
       COMMAND gem16-cuda-trellis35-tests
     )
     set_tests_properties(gem16-cuda-trellis35 PROPERTIES
+      RESOURCE_LOCK gem16_gpu0
+    )
+
+    add_executable(gem16-cuda-vision26b-tests
+      tests/cuda/gemma4_26b_vision_test.cu
+    )
+    target_include_directories(gem16-cuda-vision26b-tests PRIVATE
+      "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    )
+    target_link_libraries(gem16-cuda-vision26b-tests PRIVATE
+      gem16_core CUDA::cudart
+    )
+    set_target_properties(gem16-cuda-vision26b-tests PROPERTIES
+      CUDA_ARCHITECTURES "${GEM16_CUDA_ARCHITECTURE}"
+    )
+    gem16_set_project_warnings(gem16-cuda-vision26b-tests)
+    add_test(NAME gem16-cuda-vision26b
+      COMMAND gem16-cuda-vision26b-tests
+        --fixtures "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/gemma4_26b_vision"
+    )
+    set_tests_properties(gem16-cuda-vision26b PROPERTIES
       RESOURCE_LOCK gem16_gpu0
     )
 
