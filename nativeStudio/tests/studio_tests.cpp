@@ -147,7 +147,7 @@ bool TestLiveServerCompatibility() {
   HealthSnapshot health;
   health.available = true;
   health.profile_id = "gemma4-26b-a4b-trellis35-vision-fp8-d2";
-  health.qualification_state = "experimental_v20_frozen";
+  health.qualification_state = "experimental_v14_accepted";
   health.supports_vision = true;
   health.vision_module_loaded = true;
   health.supports_mtp = true;
@@ -155,9 +155,9 @@ bool TestLiveServerCompatibility() {
   health.mtp_draft_tokens = 2;
   if (!HealthCompatibilityError(config, health).empty()) return false;
 
-  health.qualification_state = "experimental_v14_accepted";
-  if (HealthCompatibilityError(config, health).empty()) return false;
   health.qualification_state = "experimental_v20_frozen";
+  if (HealthCompatibilityError(config, health).empty()) return false;
+  health.qualification_state = "experimental_v14_accepted";
 
   health.vision_mtp_supported = false;
   if (HealthCompatibilityError(config, health).empty()) return false;
@@ -173,7 +173,7 @@ bool TestLiveServerCompatibility() {
   health.mtp_draft_tokens = 0;
   health.supports_mtp = false;
   health.vision_mtp_supported = false;
-  health.qualification_state = "experimental_v20_frozen";
+  health.qualification_state = "experimental";
   return HealthCompatibilityError(config, health).empty();
 }
 

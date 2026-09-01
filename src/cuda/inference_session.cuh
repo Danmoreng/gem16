@@ -221,11 +221,10 @@ const char* ModelRuntime::vision_artifact_profile() const {
 }
 const char* ModelRuntime::qualification_state() const {
   if (impl_ == nullptr) return "unsupported";
-  if (impl_->artifact_profile != internal::kGemma4Moe26BTrellis35Profile) {
-    return "qualified";
-  }
-  return impl_->vision_module_loaded ? "experimental_v20_frozen"
-                                     : "experimental";
+  return impl_->artifact_profile == internal::kGemma4Moe26BTrellis35Profile
+             ? (impl_->vision_mtp_supported ? "experimental_v14_accepted"
+                                            : "experimental")
+             : "qualified";
 }
 bool ModelRuntime::experimental() const {
   return impl_ != nullptr &&

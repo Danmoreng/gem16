@@ -87,7 +87,7 @@ std::string HealthCompatibilityError(const ServerConfig& config,
       }
       if (config.mtp_draft_tokens == 2 &&
           (!health.supports_mtp || !health.vision_mtp_supported ||
-           health.qualification_state != "experimental_v20_frozen")) {
+           health.qualification_state != "experimental_v14_accepted")) {
         return "The live server does not qualify Vision with fixed-D2 for this component set";
       }
       if (config.mtp_draft_tokens == 0 && health.vision_mtp_supported) {
