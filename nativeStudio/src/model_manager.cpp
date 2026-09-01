@@ -11,6 +11,7 @@
 #include <filesystem>
 #include <fstream>
 #include <optional>
+#include <set>
 #include <string_view>
 #include <system_error>
 #include <vector>
@@ -81,9 +82,10 @@ std::uint64_t ComponentBytes(const ModelComponentCatalog& component) {
 
 std::uint64_t ReadyBytes(const ModelProfileCatalog& profile) {
   std::uint64_t result = 0;
-  for (const ModelComponentCatalog* component : {profile.target, profile.assistant}) {
-    for (const auto& file : component->files) {
-      if (FileReady(*component, file)) result += file.size;
+  for (const auto& profile_component : profile.components) {
+    const auto& component = *profile_component.catalog;
+    for (const auto& file : component.files) {
+      if (FileReady(component, file)) result += file.size;
     }
   }
   return result;
@@ -91,9 +93,12 @@ std::uint64_t ReadyBytes(const ModelProfileCatalog& profile) {
 
 std::uint64_t RequiredDownloadBytes(const ModelProfileCatalog& profile) {
   std::uint64_t result = 0;
-  for (const ModelComponentCatalog* component : {profile.target, profile.assistant}) {
-    for (const auto& file : component->files) {
-      if (!HasSize(BlobPath(file), file.size)) result += file.size;
+  std::set<std::filesystem::path> missing_blobs;
+  for (const auto& profile_component : profile.components) {
+    for (const auto& file : profile_component.catalog->files) {
+      const auto blob = BlobPath(file);
+      if (!HasSize(blob, file.size) && missing_blobs.insert(blob).second)
+        result += file.size;
     }
   }
   return result;
@@ -116,9 +121,14 @@ std::optional<std::uint64_t> AvailableDiskBytes() {
 
 ProfileInstallState InspectProfile(const ModelProfileCatalog& profile) {
   ProfileInstallState state;
-  state.target_ready = ComponentReady(*profile.target);
-  state.assistant_ready = ComponentReady(*profile.assistant);
-  state.total_bytes = ComponentBytes(*profile.target) + ComponentBytes(*profile.assistant);
+  state.required_ready = true;
+  for (const auto& profile_component : profile.components) {
+    const bool ready = ComponentReady(*profile_component.catalog);
+    state.component_ready[ModelComponentKindIndex(profile_component.kind)] =
+        ready;
+    if (profile_component.required && !ready) state.required_ready = false;
+    state.total_bytes += ComponentBytes(*profile_component.catalog);
+  }
   state.completed_bytes = ReadyBytes(profile);
   state.required_download_bytes = RequiredDownloadBytes(profile);
   if (const auto available = AvailableDiskBytes()) {
@@ -208,8 +218,7 @@ void ModelManager::Refresh() {
   std::scoped_lock lock(mutex_);
   if (state_.downloading) return;
   for (const auto& profile : ModelCatalog()) {
-    state_.profiles[profile.profile == ModelProfile::kGemma4Moe26BA4B ? 1U : 0U] =
-        InspectProfile(profile);
+    state_.profiles[ModelProfileIndex(profile.profile)] = InspectProfile(profile);
   }
 }
 
@@ -218,7 +227,7 @@ void ModelManager::DownloadProfile(ModelProfile profile) {
     std::scoped_lock lock(mutex_);
     if (state_.downloading) return;
     const auto inspected = InspectProfile(CatalogForProfile(profile));
-    state_.profiles[profile == ModelProfile::kGemma4Moe26BA4B ? 1U : 0U] = inspected;
+    state_.profiles[ModelProfileIndex(profile)] = inspected;
     state_.error.clear();
     if (!inspected.storage_available) {
       state_.error = "Could not determine free space for the Hugging Face cache";
@@ -238,6 +247,30 @@ void ModelManager::DownloadProfile(ModelProfile profile) {
   worker_ = std::jthread([this, profile] { DownloadWorker(profile); });
 }
 
+void ModelManager::RemoveComponent(ModelProfile profile,
+                                   ModelComponentKind kind) {
+  std::scoped_lock lock(mutex_);
+  if (state_.downloading) return;
+  const auto* profile_component =
+      ComponentForProfile(CatalogForProfile(profile), kind);
+  if (!profile_component) return;
+  const auto root = ComponentDirectory(*profile_component->catalog,
+                                       HuggingFaceHubRoot());
+  std::error_code error;
+  for (const auto& file : profile_component->catalog->files) {
+    std::filesystem::remove(root / file.path, error);
+    if (error) {
+      state_.error = "Could not remove component view: " + error.message();
+      return;
+    }
+  }
+  for (const auto& catalog : ModelCatalog()) {
+    state_.profiles[ModelProfileIndex(catalog.profile)] =
+        InspectProfile(catalog);
+  }
+  state_.error.clear();
+}
+
 void ModelManager::Cancel() {
   cancel_.store(true);
   std::shared_ptr<PlatformProcess> process;
@@ -251,12 +284,11 @@ void ModelManager::Cancel() {
 
 void ModelManager::DownloadWorker(ModelProfile selected_profile) {
   const ModelProfileCatalog& profile = CatalogForProfile(selected_profile);
-  const auto profile_index = selected_profile == ModelProfile::kGemma4Moe26BA4B ? 1U : 0U;
+  const auto profile_index = ModelProfileIndex(selected_profile);
   const auto finish = [this](std::string error) {
-    std::array<ProfileInstallState, 2> inspected{};
+    std::array<ProfileInstallState, kModelProfileCount> inspected{};
     for (const auto& catalog : ModelCatalog()) {
-      inspected[catalog.profile == ModelProfile::kGemma4Moe26BA4B ? 1U : 0U] =
-          InspectProfile(catalog);
+      inspected[ModelProfileIndex(catalog.profile)] = InspectProfile(catalog);
     }
     std::scoped_lock lock(mutex_);
     state_.downloading = false;
@@ -273,7 +305,8 @@ void ModelManager::DownloadWorker(ModelProfile selected_profile) {
   }
 
   std::uint64_t completed = ReadyBytes(profile);
-  for (const ModelComponentCatalog* component : {profile.target, profile.assistant}) {
+  for (const auto& profile_component : profile.components) {
+    const ModelComponentCatalog* component = profile_component.catalog;
     const auto component_directory =
         ComponentDirectory(*component, HuggingFaceHubRoot());
     for (const auto& file : component->files) {

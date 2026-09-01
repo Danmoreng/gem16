@@ -10,6 +10,7 @@ namespace gem16::studio {
 [[nodiscard]] std::filesystem::path HuggingFaceHubRoot();
 [[nodiscard]] std::filesystem::path ProfileTargetDirectory(ModelProfile profile);
 [[nodiscard]] std::filesystem::path ProfileAssistantDirectory(ModelProfile profile);
+[[nodiscard]] std::filesystem::path ProfileVisionDirectory(ModelProfile profile);
 [[nodiscard]] std::filesystem::path SettingsPath();
 [[nodiscard]] StudioSettings DefaultSettings();
 [[nodiscard]] StudioSettings LoadSettings();

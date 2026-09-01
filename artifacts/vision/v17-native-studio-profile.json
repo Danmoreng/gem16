@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "milestone": "V17",
+  "status": "accepted",
+  "parent_commit": "19a5b27",
+  "profile": {
+    "enum": "kGemma4Moe26BTrellis35VisionFp8",
+    "wire_name": "gemma4_26b_trellis35_vision_fp8",
+    "label": "Gemma 4 26B Vision (Trellis35 FP8)",
+    "components": [
+      {"kind": "target", "catalog": "gemma4-26b-trellis35-target", "required": true},
+      {"kind": "vision", "catalog": "gemma4-26b-vision-fp8", "required": true},
+      {"kind": "assistant", "catalog": "gemma4-26b-assistant", "required": true}
+    ],
+    "maximum_context_tokens": 229376,
+    "default_mtp_draft_tokens": 2,
+    "default_vision_soft_token_budget": 280,
+    "experimental": true
+  },
+  "integration": {
+    "bounded_component_span": true,
+    "fixed_target_assistant_profile_fields_removed": true,
+    "explicit_profile_index_helper": true,
+    "settings_persist_vision_directory": true,
+    "settings_persist_vision_soft_token_budget": true,
+    "legacy_settings_migration_preserved": true,
+    "server_command_vision_model_only_for_vision_profile": true,
+    "health_parses_vision_capabilities": true,
+    "component_states_independent": true,
+    "required_ready_state": true,
+    "missing_blob_capacity_deduplicated": true,
+    "component_remove_keeps_shared_blob": true,
+    "shared_active_component_remove_disabled": true,
+    "image_attachment_remains_fail_closed_until_v18": true
+  },
+  "verification": {
+    "published_component_cache": "passed",
+    "target_ready": true,
+    "vision_ready": true,
+    "assistant_ready": true,
+    "required_download_bytes": 0,
+    "native_studio_build": "passed",
+    "native_studio_host_tests": "passed",
+    "component_remove_shared_blob_test": "passed"
+  }
+}

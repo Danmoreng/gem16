@@ -28,16 +28,40 @@ struct ModelComponentCatalog {
   const char* composed_view_suffix;
 };
 
+enum class ModelComponentKind { kTarget, kAssistant, kVision };
+inline constexpr std::size_t kModelComponentKindCount = 3U;
+
+[[nodiscard]] constexpr std::size_t ModelComponentKindIndex(
+    ModelComponentKind kind) {
+  switch (kind) {
+    case ModelComponentKind::kTarget:
+      return 0U;
+    case ModelComponentKind::kAssistant:
+      return 1U;
+    case ModelComponentKind::kVision:
+      return 2U;
+  }
+  return 0U;
+}
+
+struct ModelProfileComponent {
+  ModelComponentKind kind;
+  const ModelComponentCatalog* catalog;
+  bool required;
+};
+
 struct ModelProfileCatalog {
   ModelProfile profile;
   const char* description;
   const char* capabilities;
-  const ModelComponentCatalog* target;
-  const ModelComponentCatalog* assistant;
+  std::span<const ModelProfileComponent> components;
 };
 
 [[nodiscard]] const ModelProfileCatalog& CatalogForProfile(ModelProfile profile);
 [[nodiscard]] std::span<const ModelProfileCatalog> ModelCatalog();
+[[nodiscard]] const ModelProfileComponent* ComponentForProfile(
+    const ModelProfileCatalog& profile, ModelComponentKind kind);
+[[nodiscard]] const char* ComponentKindLabel(ModelComponentKind kind);
 [[nodiscard]] std::filesystem::path ComponentDirectory(
     const ModelComponentCatalog& component,
     const std::filesystem::path& hub_root);

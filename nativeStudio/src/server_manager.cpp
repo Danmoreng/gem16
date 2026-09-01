@@ -28,6 +28,21 @@ std::int64_t IntegerValue(const json::Value* value) {
   return value && value->is_integer() ? value->as_integer() : 0;
 }
 
+bool IsMoe26B(ModelProfile profile) {
+  switch (profile) {
+    case ModelProfile::kGemma4Unified12B:
+      return false;
+    case ModelProfile::kGemma4Moe26BA4B:
+    case ModelProfile::kGemma4Moe26BTrellis35VisionFp8:
+      return true;
+  }
+  return false;
+}
+
+bool IsVision26B(ModelProfile profile) {
+  return profile == ModelProfile::kGemma4Moe26BTrellis35VisionFp8;
+}
+
 std::string Timestamp() {
   const auto now = std::chrono::system_clock::now();
   const std::time_t time = std::chrono::system_clock::to_time_t(now);
@@ -185,12 +200,24 @@ HealthSnapshot ServerManager::FetchHealth(const ServerConfig& config) const {
   snapshot.available = true;
   snapshot.status = StringValue(Member(&root, "status"));
   snapshot.model_variant = StringValue(Member(&root, "model_variant"));
+  snapshot.profile_id = StringValue(Member(&root, "profile_id"));
+  snapshot.qualification_state =
+      StringValue(Member(&root, "qualification_state"));
   snapshot.text_only = BoolValue(Member(&root, "text_only"));
   snapshot.supports_mtp = BoolValue(Member(capabilities, "mtp"));
+  snapshot.supports_vision = BoolValue(Member(capabilities, "vision"));
+  snapshot.vision_mtp_supported =
+      BoolValue(Member(capabilities, "vision_mtp"));
+  snapshot.vision_module_loaded =
+      BoolValue(Member(&root, "vision_module_loaded"));
   snapshot.resident_sessions = static_cast<int>(IntegerValue(Member(&root, "resident_sessions")));
   snapshot.session_limit = static_cast<int>(IntegerValue(Member(&root, "session_limit")));
   snapshot.max_context_tokens = IntegerValue(Member(&root, "max_context_tokens"));
   snapshot.mtp_draft_tokens = static_cast<int>(IntegerValue(Member(&root, "mtp_draft_tokens")));
+  snapshot.selected_vision_soft_token_budget = static_cast<int>(
+      IntegerValue(Member(&root, "selected_vision_soft_token_budget")));
+  snapshot.vision_max_context_tokens =
+      IntegerValue(Member(&root, "vision_max_context_tokens"));
   snapshot.sampling_enabled = BoolValue(Member(sampling, "enabled"));
   return snapshot;
 }
@@ -201,10 +228,14 @@ std::string ServerManager::Validate(const ServerConfig& config) const {
   if (config.mtp_draft_tokens != 0 && !std::filesystem::is_directory(config.assistant_directory)) {
     return "MTP is enabled, but the assistant directory does not exist";
   }
-  if (config.profile == ModelProfile::kGemma4Moe26BA4B && config.max_sessions != 1) {
+  if (IsVision26B(config.profile) &&
+      !std::filesystem::is_directory(config.vision_directory)) {
+    return "Vision profile is selected, but the Vision directory does not exist";
+  }
+  if (IsMoe26B(config.profile) && config.max_sessions != 1) {
     return "Gemma 4 26B supports exactly one resident session";
   }
-  if (config.profile == ModelProfile::kGemma4Moe26BA4B && config.mtp_adaptive) {
+  if (IsMoe26B(config.profile) && config.mtp_adaptive) {
     return "Gemma 4 26B supports fixed-depth MTP only";
   }
   if (config.profile == ModelProfile::kGemma4Moe26BA4B &&
@@ -214,6 +245,14 @@ std::string ServerManager::Validate(const ServerConfig& config) const {
   if (config.profile == ModelProfile::kGemma4Moe26BA4B &&
       config.mtp_draft_tokens == 0 && config.max_context_tokens > 98304) {
     return "Gemma 4 26B Target-only supports at most 98,304 context tokens";
+  }
+  if (IsVision26B(config.profile) && config.max_context_tokens > 229376) {
+    return "Gemma 4 26B Vision supports at most 229,376 context tokens";
+  }
+  if (IsVision26B(config.profile) && config.vision_soft_token_budget != 70 &&
+      config.vision_soft_token_budget != 140 &&
+      config.vision_soft_token_budget != 280) {
+    return "Vision soft-token budget must be 70, 140, or 280";
   }
   if (config.port < 1 || config.port > 65535) return "Port must be in [1, 65535]";
   if (config.max_context_tokens < 1 || config.max_context_tokens > 262144) return "Context is outside the supported range";
@@ -234,6 +273,9 @@ std::vector<std::string> BuildServerCommand(const ServerConfig& config) {
       std::to_string(config.max_context_tokens), "--max-sessions",
       std::to_string(config.max_sessions)};
   if (config.greedy) result.push_back("--greedy");
+  if (IsVision26B(config.profile)) {
+    result.insert(result.end(), {"--vision-model", config.vision_directory});
+  }
   if (config.mtp_draft_tokens != 0) {
     result.insert(result.end(), {"--assistant-model", config.assistant_directory,
                                  "--mtp-draft-tokens", std::to_string(config.mtp_draft_tokens)});

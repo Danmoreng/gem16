@@ -100,19 +100,48 @@ float ResolveUiScale(float configured_scale, float platform_scale,
 }
 
 std::filesystem::path ProfileTargetDirectory(ModelProfile profile) {
-  return ComponentDirectory(*CatalogForProfile(profile).target, ResolveHubRoot());
+  const auto* component = ComponentForProfile(
+      CatalogForProfile(profile), ModelComponentKind::kTarget);
+  return component ? ComponentDirectory(*component->catalog, ResolveHubRoot())
+                   : std::filesystem::path{};
 }
 
 std::filesystem::path ProfileAssistantDirectory(ModelProfile profile) {
-  return ComponentDirectory(*CatalogForProfile(profile).assistant, ResolveHubRoot());
+  const auto* component = ComponentForProfile(
+      CatalogForProfile(profile), ModelComponentKind::kAssistant);
+  return component ? ComponentDirectory(*component->catalog, ResolveHubRoot())
+                   : std::filesystem::path{};
+}
+
+std::filesystem::path ProfileVisionDirectory(ModelProfile profile) {
+  const auto* component = ComponentForProfile(
+      CatalogForProfile(profile), ModelComponentKind::kVision);
+  return component ? ComponentDirectory(*component->catalog, ResolveHubRoot())
+                   : std::filesystem::path{};
 }
 
 const char* ProfileLabel(ModelProfile profile) {
-  return profile == ModelProfile::kGemma4Moe26BA4B ? "Gemma 4 26B A4B" : "Gemma 4 12B Unified";
+  switch (profile) {
+    case ModelProfile::kGemma4Unified12B:
+      return "Gemma 4 12B Unified";
+    case ModelProfile::kGemma4Moe26BA4B:
+      return "Gemma 4 26B A4B";
+    case ModelProfile::kGemma4Moe26BTrellis35VisionFp8:
+      return "Gemma 4 26B Vision (Trellis35 FP8)";
+  }
+  return "Unknown profile";
 }
 
 const char* ProfileWireName(ModelProfile profile) {
-  return profile == ModelProfile::kGemma4Moe26BA4B ? "gemma4_26b_a4b" : "gemma4_12b";
+  switch (profile) {
+    case ModelProfile::kGemma4Unified12B:
+      return "gemma4_12b";
+    case ModelProfile::kGemma4Moe26BA4B:
+      return "gemma4_26b_a4b";
+    case ModelProfile::kGemma4Moe26BTrellis35VisionFp8:
+      return "gemma4_26b_trellis35_vision_fp8";
+  }
+  return "unknown";
 }
 
 std::filesystem::path RepositoryRoot() {
@@ -146,11 +175,19 @@ void ApplyProfileDefaults(ServerConfig& config, ModelProfile profile) {
   config.max_context_tokens = 32768;
   config.mtp_draft_tokens = 2;
   config.mtp_adaptive = false;
+  config.vision_soft_token_budget = 280;
+  config.vision_directory.clear();
   if (profile == ModelProfile::kGemma4Moe26BA4B) {
     config.model_name = "gemma4-26b-a4b";
     config.model_directory = ProfileTargetDirectory(profile).string();
     config.assistant_directory = ProfileAssistantDirectory(profile).string();
     config.max_context_tokens = 86016;
+  } else if (profile == ModelProfile::kGemma4Moe26BTrellis35VisionFp8) {
+    config.model_name = "gemma4-26b-a4b-trellis35-vision-fp8";
+    config.model_directory = ProfileTargetDirectory(profile).string();
+    config.assistant_directory = ProfileAssistantDirectory(profile).string();
+    config.vision_directory = ProfileVisionDirectory(profile).string();
+    config.max_context_tokens = 229376;
   } else {
     config.model_name = "gem16-12b";
     config.model_directory = ProfileTargetDirectory(profile).string();
@@ -194,7 +231,15 @@ StudioSettings LoadSettings() {
     const std::string key = line.substr(0, delimiter);
     const std::string value = UnescapeLine(std::string_view(line).substr(delimiter + 1));
     try {
-      if (key == "profile") result.server.profile = value == "gemma4_26b_a4b" ? ModelProfile::kGemma4Moe26BA4B : ModelProfile::kGemma4Unified12B;
+      if (key == "profile") {
+        if (value == "gemma4_26b_a4b")
+          result.server.profile = ModelProfile::kGemma4Moe26BA4B;
+        else if (value == "gemma4_26b_trellis35_vision_fp8")
+          result.server.profile =
+              ModelProfile::kGemma4Moe26BTrellis35VisionFp8;
+        else
+          result.server.profile = ModelProfile::kGemma4Unified12B;
+      }
       else if (key == "onboarding_complete") {
         result.onboarding_complete = ParseBool(value, result.onboarding_complete);
         saw_onboarding = true;
@@ -202,11 +247,17 @@ StudioSettings LoadSettings() {
       else if (key == "executable") result.server.executable = value;
       else if (key == "model_directory") result.server.model_directory = value;
       else if (key == "assistant_directory") result.server.assistant_directory = value;
+      else if (key == "vision_directory") result.server.vision_directory = value;
       else if (key == "model_name") result.server.model_name = value;
       else if (key == "host") result.server.host = value;
       else if (key == "port") result.server.port = std::stoi(value);
       else if (key == "max_context") result.server.max_context_tokens = std::stoll(value);
       else if (key == "mtp_draft_tokens") result.server.mtp_draft_tokens = std::stoi(value);
+      else if (key == "vision_soft_token_budget") {
+        const int budget = std::stoi(value);
+        if (budget == 70 || budget == 140 || budget == 280)
+          result.server.vision_soft_token_budget = budget;
+      }
       else if (key == "greedy") result.server.greedy = ParseBool(value, result.server.greedy);
       else if (key == "reasoning_effort") result.generation.reasoning_effort = value;
       else if (key == "max_output_tokens") result.generation.max_output_tokens = std::stoll(value);
@@ -239,11 +290,13 @@ bool SaveSettings(const StudioSettings& settings) {
          << "executable=" << EscapeLine(server.executable) << '\n'
          << "model_directory=" << EscapeLine(server.model_directory) << '\n'
          << "assistant_directory=" << EscapeLine(server.assistant_directory) << '\n'
+         << "vision_directory=" << EscapeLine(server.vision_directory) << '\n'
          << "model_name=" << EscapeLine(server.model_name) << '\n'
          << "host=" << EscapeLine(server.host) << '\n'
          << "port=" << server.port << '\n'
          << "max_context=" << server.max_context_tokens << '\n'
          << "mtp_draft_tokens=" << server.mtp_draft_tokens << '\n'
+         << "vision_soft_token_budget=" << server.vision_soft_token_budget << '\n'
          << "greedy=" << (server.greedy ? 1 : 0) << '\n'
          << "reasoning_effort=" << EscapeLine(settings.generation.reasoning_effort) << '\n'
          << "max_output_tokens=" << settings.generation.max_output_tokens << '\n'

@@ -22,6 +22,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <set>
 #include <string_view>
 #include <thread>
 
@@ -62,7 +63,8 @@ bool TestServerCommand() {
   const auto command = gem16::studio::BuildServerCommand(config);
   return command.front() == config.executable && Contains(command, "--assistant-model") &&
          Contains(command, config.assistant_directory) && Contains(command, "--mtp-draft-tokens") &&
-         Contains(command, "2") && !Contains(command, "--mtp-adaptive");
+         Contains(command, "2") && !Contains(command, "--mtp-adaptive") &&
+         !Contains(command, "--vision-model");
 }
 
 bool TestQualified26BDefaults() {
@@ -79,40 +81,94 @@ bool TestQualified26BDefaults() {
                  gem16::studio::ModelProfile::kGemma4Moe26BA4B).string();
 }
 
+bool TestVision26BDefaultsAndCommand() {
+  gem16::studio::ServerConfig config;
+  config.executable = "/tmp/gem16-server";
+  gem16::studio::ApplyProfileDefaults(
+      config,
+      gem16::studio::ModelProfile::kGemma4Moe26BTrellis35VisionFp8);
+  const auto command = gem16::studio::BuildServerCommand(config);
+  return config.max_context_tokens == 229376 && config.max_sessions == 1 &&
+         config.mtp_draft_tokens == 2 && !config.mtp_adaptive &&
+         config.vision_soft_token_budget == 280 &&
+         config.model_directory ==
+             gem16::studio::ProfileTargetDirectory(config.profile).string() &&
+         config.assistant_directory ==
+             gem16::studio::ProfileAssistantDirectory(config.profile).string() &&
+         config.vision_directory ==
+             gem16::studio::ProfileVisionDirectory(config.profile).string() &&
+         Contains(command, "--vision-model") &&
+         Contains(command, config.vision_directory) &&
+         Contains(command, "--assistant-model");
+}
+
 bool TestModelCatalog() {
   const auto catalog = gem16::studio::ModelCatalog();
-  if (catalog.size() != 2) return false;
+  if (catalog.size() != gem16::studio::kModelProfileCount) return false;
   const auto& twelve = gem16::studio::CatalogForProfile(
       gem16::studio::ModelProfile::kGemma4Unified12B);
   const auto& twenty_six = gem16::studio::CatalogForProfile(
       gem16::studio::ModelProfile::kGemma4Moe26BA4B);
-  if (std::string_view(twelve.target->repository) !=
+  const auto& vision = gem16::studio::CatalogForProfile(
+      gem16::studio::ModelProfile::kGemma4Moe26BTrellis35VisionFp8);
+  const auto* twelve_target = gem16::studio::ComponentForProfile(
+      twelve, gem16::studio::ModelComponentKind::kTarget);
+  const auto* twelve_assistant = gem16::studio::ComponentForProfile(
+      twelve, gem16::studio::ModelComponentKind::kAssistant);
+  const auto* twenty_six_target = gem16::studio::ComponentForProfile(
+      twenty_six, gem16::studio::ModelComponentKind::kTarget);
+  const auto* twenty_six_assistant = gem16::studio::ComponentForProfile(
+      twenty_six, gem16::studio::ModelComponentKind::kAssistant);
+  const auto* vision_target = gem16::studio::ComponentForProfile(
+      vision, gem16::studio::ModelComponentKind::kTarget);
+  const auto* vision_module = gem16::studio::ComponentForProfile(
+      vision, gem16::studio::ModelComponentKind::kVision);
+  const auto* vision_assistant = gem16::studio::ComponentForProfile(
+      vision, gem16::studio::ModelComponentKind::kAssistant);
+  if (!twelve_target || !twelve_assistant || !twenty_six_target ||
+      !twenty_six_assistant || !vision_target || !vision_module ||
+      !vision_assistant || vision.components.size() != 3U ||
+      std::ranges::any_of(vision.components,
+                          [](const auto& component) {
+                            return !component.required;
+                          })) {
+    return false;
+  }
+  if (std::string_view(twelve_target->catalog->repository) !=
           "unsloth/gemma-4-12b-it-NVFP4" ||
-      std::string_view(twelve.assistant->repository) !=
+      std::string_view(twelve_assistant->catalog->repository) !=
           "google/gemma-4-12B-it-assistant" ||
-      !twelve.target->composed_view || twelve.assistant->composed_view ||
-      twenty_six.target->composed_view || !twenty_six.assistant->composed_view ||
-      std::string_view(twenty_six.assistant->repository) !=
-          "danmoreng/gemma-4-26B-A4B-it-GEM16") {
+      !twelve_target->catalog->composed_view ||
+      twelve_assistant->catalog->composed_view ||
+      twenty_six_target->catalog->composed_view ||
+      !twenty_six_assistant->catalog->composed_view ||
+      std::string_view(twenty_six_assistant->catalog->repository) !=
+          "danmoreng/gemma-4-26B-A4B-it-GEM16" ||
+      !vision_target->catalog->composed_view ||
+      !vision_module->catalog->composed_view ||
+      std::string_view(vision_target->catalog->composed_view_suffix) !=
+          "trellis35" ||
+      std::string_view(vision_module->catalog->composed_view_suffix) !=
+          "vision") {
     return false;
   }
   bool external_tokenizer = false;
-  for (const auto& file : twelve.target->files) {
+  for (const auto& file : twelve_target->catalog->files) {
     external_tokenizer |=
         std::string_view(file.path) == "tokenizer_config.json" &&
         std::string_view(file.source_repository) == "google/gemma-4-12B-it";
   }
   const auto root = std::filesystem::path("/hub");
-  const auto& first_target_file = twelve.target->files.front();
+  const auto& first_target_file = twelve_target->catalog->files.front();
   return external_tokenizer &&
-         gem16::studio::ComponentDirectory(*twelve.target, root) ==
+         gem16::studio::ComponentDirectory(*twelve_target->catalog, root) ==
              root / ".gem16/snapshots/"
                     "unsloth--gemma-4-12b-it-NVFP4--"
                     "b1f649734b34aa5575b03d186abd1b9be3d0d5c4" &&
-         gem16::studio::ComponentDirectory(*twenty_six.target, root) ==
+         gem16::studio::ComponentDirectory(*twenty_six_target->catalog, root) ==
              root / "models--danmoreng--gemma-4-26B-A4B-it-GEM16/snapshots/"
                     "31842e12882d09bab7109c0ad52a4ee2e945069c" &&
-         gem16::studio::ComponentDirectory(*twenty_six.assistant, root) ==
+         gem16::studio::ComponentDirectory(*twenty_six_assistant->catalog, root) ==
              root / ".gem16/snapshots/"
                     "danmoreng--gemma-4-26B-A4B-it-GEM16--"
                     "31842e12882d09bab7109c0ad52a4ee2e945069c--assistant" &&
@@ -159,12 +215,16 @@ bool TestOnboardingPersistence() {
   settings.onboarding_complete = true;
   settings.ui_scale = 1.25f;
   gem16::studio::ApplyProfileDefaults(
-      settings.server, gem16::studio::ModelProfile::kGemma4Moe26BA4B);
+      settings.server,
+      gem16::studio::ModelProfile::kGemma4Moe26BTrellis35VisionFp8);
+  settings.server.vision_soft_token_budget = 140;
   valid = valid && gem16::studio::SaveSettings(settings);
   const auto loaded = gem16::studio::LoadSettings();
   valid = valid && loaded.onboarding_complete && loaded.ui_scale == 1.25f &&
           loaded.server.profile ==
-              gem16::studio::ModelProfile::kGemma4Moe26BA4B;
+              gem16::studio::ModelProfile::kGemma4Moe26BTrellis35VisionFp8 &&
+          loaded.server.vision_soft_token_budget == 140 &&
+          loaded.server.vision_directory == settings.server.vision_directory;
 
   if (previous == nullptr)
     ClearEnvironment(environment_name);
@@ -272,14 +332,17 @@ bool TestEmptyCacheInstallState() {
   std::filesystem::create_directories(cache);
   SetEnvironment("HF_HUB_CACHE", cache.string());
 
-  std::array<std::uint64_t, 2> expected{};
+  std::array<std::uint64_t, gem16::studio::kModelProfileCount> expected{};
   for (const auto& profile : gem16::studio::ModelCatalog()) {
-    const auto index = profile.profile ==
-                               gem16::studio::ModelProfile::kGemma4Moe26BA4B
-                           ? 1U
-                           : 0U;
-    for (const auto& file : profile.target->files) expected[index] += file.size;
-    for (const auto& file : profile.assistant->files) expected[index] += file.size;
+    const auto index = gem16::studio::ModelProfileIndex(profile.profile);
+    std::set<std::string> blobs;
+    for (const auto& component : profile.components) {
+      for (const auto& file : component.catalog->files) {
+        const std::string identity = std::string(file.source_repository) + "/" +
+                                     file.blob_id;
+        if (blobs.insert(identity).second) expected[index] += file.size;
+      }
+    }
   }
   gem16::studio::ModelManager manager;
   const auto state = manager.State();
@@ -288,8 +351,12 @@ bool TestEmptyCacheInstallState() {
                                 .required_download_bytes == expected[0] &&
       state.For(gem16::studio::ModelProfile::kGemma4Moe26BA4B)
               .required_download_bytes == expected[1] &&
+      state.For(gem16::studio::ModelProfile::kGemma4Moe26BTrellis35VisionFp8)
+              .required_download_bytes == expected[2] &&
       state.For(gem16::studio::ModelProfile::kGemma4Unified12B).storage_available &&
-      state.For(gem16::studio::ModelProfile::kGemma4Moe26BA4B).storage_available;
+      state.For(gem16::studio::ModelProfile::kGemma4Moe26BA4B).storage_available &&
+      state.For(gem16::studio::ModelProfile::kGemma4Moe26BTrellis35VisionFp8)
+          .storage_available;
 
   if (previous == nullptr)
     ClearEnvironment("HF_HUB_CACHE");
@@ -298,6 +365,74 @@ bool TestEmptyCacheInstallState() {
   std::error_code error;
   std::filesystem::remove_all(cache, error);
   return valid && !error;
+}
+
+bool TestComponentRemovalKeepsSharedBlob() {
+  const char* previous = std::getenv("HF_HUB_CACHE");
+  const std::string previous_value = previous == nullptr ? "" : previous;
+  const auto suffix = std::chrono::steady_clock::now().time_since_epoch().count();
+  const auto cache = std::filesystem::temp_directory_path() /
+                     ("gem16-studio-remove-test-" + std::to_string(suffix));
+  std::filesystem::create_directories(cache);
+  SetEnvironment("HF_HUB_CACHE", cache.string());
+
+  const auto profile =
+      gem16::studio::ModelProfile::kGemma4Moe26BTrellis35VisionFp8;
+  const auto* component = gem16::studio::ComponentForProfile(
+      gem16::studio::CatalogForProfile(profile),
+      gem16::studio::ModelComponentKind::kVision);
+  bool valid = component != nullptr;
+  if (component) {
+    const auto& file = component->catalog->files.front();
+    const auto view = gem16::studio::ComponentDirectory(*component->catalog,
+                                                        cache) /
+                      file.path;
+    const auto blob = gem16::studio::RepositoryDirectory(
+                          file.source_repository, cache) /
+                      "blobs" / file.blob_id;
+    std::filesystem::create_directories(view.parent_path());
+    std::filesystem::create_directories(blob.parent_path());
+    {
+      std::ofstream(view) << "view";
+      std::ofstream(blob) << "shared";
+    }
+    gem16::studio::ModelManager manager;
+    manager.RemoveComponent(profile, gem16::studio::ModelComponentKind::kVision);
+    valid = !std::filesystem::exists(view) &&
+            std::filesystem::is_regular_file(blob);
+  }
+
+  if (previous == nullptr)
+    ClearEnvironment("HF_HUB_CACHE");
+  else
+    SetEnvironment("HF_HUB_CACHE", previous_value);
+  std::error_code error;
+  std::filesystem::remove_all(cache, error);
+  return valid && !error;
+}
+
+bool TestQualifiedVisionCacheIfProvided() {
+  const char* cache = std::getenv("GEM16_STUDIO_TEST_VISION_CACHE");
+  if (cache == nullptr || *cache == '\0') return true;
+  const char* previous = std::getenv("HF_HUB_CACHE");
+  const std::string previous_value = previous == nullptr ? "" : previous;
+  SetEnvironment("HF_HUB_CACHE", cache);
+  gem16::studio::ModelManager manager;
+  const auto& state = manager.State().For(
+      gem16::studio::ModelProfile::kGemma4Moe26BTrellis35VisionFp8);
+  const bool valid = state.Ready() &&
+                     state.ComponentReady(
+                         gem16::studio::ModelComponentKind::kTarget) &&
+                     state.ComponentReady(
+                         gem16::studio::ModelComponentKind::kVision) &&
+                     state.ComponentReady(
+                         gem16::studio::ModelComponentKind::kAssistant) &&
+                     state.required_download_bytes == 0U;
+  if (previous == nullptr)
+    ClearEnvironment("HF_HUB_CACHE");
+  else
+    SetEnvironment("HF_HUB_CACHE", previous_value);
+  return valid;
 }
 
 bool TestTextSelection() {
@@ -640,6 +775,10 @@ int main() {
     std::fprintf(stderr, "qualified 26B defaults test failed\n");
     return 1;
   }
+  if (!TestVision26BDefaultsAndCommand()) {
+    std::fprintf(stderr, "Vision 26B defaults/command test failed\n");
+    return 1;
+  }
   if (!TestModelCatalog()) {
     std::fprintf(stderr, "model catalog test failed\n");
     return 1;
@@ -674,6 +813,14 @@ int main() {
   }
   if (!TestEmptyCacheInstallState()) {
     std::fprintf(stderr, "empty-cache install state test failed\n");
+    return 1;
+  }
+  if (!TestComponentRemovalKeepsSharedBlob()) {
+    std::fprintf(stderr, "component removal/shared blob test failed\n");
+    return 1;
+  }
+  if (!TestQualifiedVisionCacheIfProvided()) {
+    std::fprintf(stderr, "qualified Vision cache test failed\n");
     return 1;
   }
   if (!TestStreamingClient()) {

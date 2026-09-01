@@ -1,5 +1,6 @@
 #pragma once
 
+#include "model_catalog.h"
 #include "platform_process.h"
 #include "types.h"
 
@@ -14,8 +15,8 @@
 namespace gem16::studio {
 
 struct ProfileInstallState {
-  bool target_ready = false;
-  bool assistant_ready = false;
+  std::array<bool, kModelComponentKindCount> component_ready{};
+  bool required_ready = false;
   bool storage_available = false;
   bool sufficient_space = false;
   std::uint64_t completed_bytes = 0;
@@ -23,11 +24,14 @@ struct ProfileInstallState {
   std::uint64_t required_download_bytes = 0;
   std::uint64_t available_disk_bytes = 0;
 
-  [[nodiscard]] bool Ready() const { return target_ready && assistant_ready; }
+  [[nodiscard]] bool ComponentReady(ModelComponentKind kind) const {
+    return component_ready[ModelComponentKindIndex(kind)];
+  }
+  [[nodiscard]] bool Ready() const { return required_ready; }
 };
 
 struct ModelInstallState {
-  std::array<ProfileInstallState, 2> profiles{};
+  std::array<ProfileInstallState, kModelProfileCount> profiles{};
   bool downloading = false;
   bool cancel_requested = false;
   ModelProfile downloading_profile = ModelProfile::kGemma4Unified12B;
@@ -35,7 +39,7 @@ struct ModelInstallState {
   std::string error;
 
   [[nodiscard]] const ProfileInstallState& For(ModelProfile profile) const {
-    return profiles[profile == ModelProfile::kGemma4Moe26BA4B ? 1U : 0U];
+    return profiles[ModelProfileIndex(profile)];
   }
 };
 
@@ -49,6 +53,7 @@ class ModelManager final {
   [[nodiscard]] ModelInstallState State() const;
   void Refresh();
   void DownloadProfile(ModelProfile profile);
+  void RemoveComponent(ModelProfile profile, ModelComponentKind kind);
   void Cancel();
 
  private:

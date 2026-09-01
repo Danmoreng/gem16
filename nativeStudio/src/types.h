@@ -1,13 +1,31 @@
 #pragma once
 
 #include <cstdint>
+#include <cstddef>
 #include <string>
 #include <utility>
 #include <vector>
 
 namespace gem16::studio {
 
-enum class ModelProfile { kGemma4Unified12B, kGemma4Moe26BA4B };
+enum class ModelProfile {
+  kGemma4Unified12B,
+  kGemma4Moe26BA4B,
+  kGemma4Moe26BTrellis35VisionFp8,
+};
+inline constexpr std::size_t kModelProfileCount = 3U;
+
+[[nodiscard]] constexpr std::size_t ModelProfileIndex(ModelProfile profile) {
+  switch (profile) {
+    case ModelProfile::kGemma4Unified12B:
+      return 0U;
+    case ModelProfile::kGemma4Moe26BA4B:
+      return 1U;
+    case ModelProfile::kGemma4Moe26BTrellis35VisionFp8:
+      return 2U;
+  }
+  return 0U;
+}
 enum class ServerPhase { kStopped, kStarting, kRunning, kExternal, kStopping, kError };
 enum class Screen { kChat, kModels, kServer, kSettings };
 enum class MediaKind { kImage, kAudio, kDocument };
@@ -17,12 +35,14 @@ struct ServerConfig {
   std::string executable;
   std::string model_directory;
   std::string assistant_directory;
+  std::string vision_directory;
   std::string model_name = "gem16-12b";
   std::string host = "127.0.0.1";
   int port = 8080;
   std::int64_t max_context_tokens = 32768;
   int max_sessions = 1;
   int mtp_draft_tokens = 2;
+  int vision_soft_token_budget = 280;
   bool mtp_adaptive = false;
   bool greedy = false;
 };
@@ -46,12 +66,19 @@ struct HealthSnapshot {
   bool available = false;
   std::string status;
   std::string model_variant;
+  std::string profile_id;
+  std::string qualification_state;
   bool text_only = false;
   bool supports_mtp = false;
+  bool supports_vision = false;
+  bool vision_module_loaded = false;
+  bool vision_mtp_supported = false;
   int resident_sessions = 0;
   int session_limit = 0;
   std::int64_t max_context_tokens = 0;
   int mtp_draft_tokens = 0;
+  int selected_vision_soft_token_budget = 0;
+  std::int64_t vision_max_context_tokens = 0;
   bool sampling_enabled = false;
 };
 

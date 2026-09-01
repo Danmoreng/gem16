@@ -7,28 +7,70 @@
 namespace gem16::studio {
 namespace {
 
+constexpr std::array kUnified12BComponents{
+    ModelProfileComponent{ModelComponentKind::kTarget,
+                          &generated::kGemma4Unified12BTarget, true},
+    ModelProfileComponent{ModelComponentKind::kAssistant,
+                          &generated::kGemma4Unified12BAssistant, true},
+};
+constexpr std::array kMoe26BA4BComponents{
+    ModelProfileComponent{ModelComponentKind::kTarget,
+                          &generated::kGemma4Moe26BA4BTarget, true},
+    ModelProfileComponent{ModelComponentKind::kAssistant,
+                          &generated::kGemma4Moe26BA4BAssistant, true},
+};
+constexpr std::array kMoe26BVisionComponents{
+    ModelProfileComponent{ModelComponentKind::kTarget,
+                          &generated::kGemma4Moe26BTrellis35Target, true},
+    ModelProfileComponent{ModelComponentKind::kVision,
+                          &generated::kGemma4Moe26BVisionFp8, true},
+    ModelProfileComponent{ModelComponentKind::kAssistant,
+                          &generated::kGemma4Moe26BA4BAssistant, true},
+};
+
 constexpr std::array kProfiles{
     ModelProfileCatalog{
         ModelProfile::kGemma4Unified12B,
         "Unified multimodal checkpoint for approximately 16 GB Blackwell GPUs.",
-        "Text · Vision · Audio · MTP",
-        &generated::kGemma4Unified12BTarget,
-        &generated::kGemma4Unified12BAssistant},
+        "Text · Vision · Audio · MTP", kUnified12BComponents},
     ModelProfileCatalog{
         ModelProfile::kGemma4Moe26BA4B,
         "Text-only A4B mixture-of-experts checkpoint for approximately 16 GB Blackwell GPUs.",
-        "Text · Fixed MTP D2 · 86,016 tokens",
-        &generated::kGemma4Moe26BA4BTarget,
-        &generated::kGemma4Moe26BA4BAssistant},
+        "Text · Fixed MTP D2 · 86,016 tokens", kMoe26BA4BComponents},
+    ModelProfileCatalog{
+        ModelProfile::kGemma4Moe26BTrellis35VisionFp8,
+        "Experimental Trellis35 text checkpoint with the pinned FP8 Vision module.",
+        "Text · Vision · Fixed MTP D2 · Experimental",
+        kMoe26BVisionComponents},
 };
 
 }  // namespace
 
 const ModelProfileCatalog& CatalogForProfile(ModelProfile profile) {
-  return profile == ModelProfile::kGemma4Moe26BA4B ? kProfiles[1] : kProfiles[0];
+  return kProfiles[ModelProfileIndex(profile)];
 }
 
 std::span<const ModelProfileCatalog> ModelCatalog() { return kProfiles; }
+
+const ModelProfileComponent* ComponentForProfile(
+    const ModelProfileCatalog& profile, ModelComponentKind kind) {
+  for (const auto& component : profile.components) {
+    if (component.kind == kind) return &component;
+  }
+  return nullptr;
+}
+
+const char* ComponentKindLabel(ModelComponentKind kind) {
+  switch (kind) {
+    case ModelComponentKind::kTarget:
+      return "Target";
+    case ModelComponentKind::kAssistant:
+      return "Assistant";
+    case ModelComponentKind::kVision:
+      return "Vision";
+  }
+  return "Unknown";
+}
 
 std::filesystem::path RepositoryDirectory(
     const char* repository_name, const std::filesystem::path& hub_root) {

@@ -97,13 +97,19 @@ Read it only for a concrete historical or evidence question.
   composite. That exact composite reports `vision_mtp_supported=true`; all
   other combinations continue to fail closed. This narrow enablement does not
   promote Trellis35 or 26B Vision to the released product profile before the
-  remaining V17--V18 Native Studio gates pass. V15 has closed
+  the remaining V18 Native Studio chat-UX gate passes. V15 has closed
   the experimental runtime/server profile, validation, error-code, timing,
   metrics, and cancellation contract; its accepted evidence is
   `artifacts/vision/v15-runtime-server-closure.json`. V16 has closed immutable
   consolidated publication, per-component locks, generated catalog entries,
   anonymous resume/hash verification, and collision-free hardlink views; its
   evidence is `artifacts/vision/v16-consolidated-publication.json`.
+  V17 has added the explicit third Native Studio profile, generalized bounded
+  component model, persisted Vision settings, exact `--vision-model` launch,
+  independent Target/Vision/Assistant state, deduplicated capacity preflight,
+  and shared-blob-safe removal. Its evidence is
+  `artifacts/vision/v17-native-studio-profile.json`. Image attachment remains
+  deliberately fail-closed until V18 consumes the live server capabilities.
 
 Accepted numerical, performance, context, product, and publication evidence
 continues to live in `artifacts/`, `benchmarks/`, and the archived fast-track
@@ -111,10 +117,10 @@ record. This summary does not replace that evidence.
 
 ## Current product gaps
 
-- Native Studio's generated catalog now contains the pinned 12B Target,
+- Native Studio now exposes three explicit profiles and its generated catalog
+  contains the pinned 12B Target,
   12B Assistant, consolidated 26B NVFP4 Target and Assistant, and the new
-  Trellis35 Target and FP8 Vision components. V17 still has to expose the
-  Trellis35 Vision combination as a third bounded profile. A fresh installation presents
+  Trellis35 Target and FP8 Vision components. A fresh installation presents
   a neutral profile choice, checks available storage, and can install either
   or both profiles. Payloads remain in their source repositories' canonical
   Hub blobs and snapshots. Because the 12B Target lock includes one file from

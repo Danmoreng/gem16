@@ -68,6 +68,7 @@ class StudioApp final {
   std::array<char, 4096> executable_{};
   std::array<char, 4096> model_directory_{};
   std::array<char, 4096> assistant_directory_{};
+  std::array<char, 4096> vision_directory_{};
   std::array<char, 256> model_name_{};
   std::array<char, 256> host_{};
   std::array<char, 16384> system_prompt_{};

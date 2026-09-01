@@ -1200,7 +1200,8 @@ void StudioApp::DrawModels() {
                                                      : ImGui::GetStyleColorVec4(ImGuiCol_ChildBg));
     ImGui::PushStyleColor(ImGuiCol_Border, selected ? kAccent : ImGui::GetStyleColorVec4(ImGuiCol_Border));
     const std::string id = std::string("##profile-") + ProfileWireName(profile);
-    ImGui::BeginChild(id.c_str(), {0, Ui(190)}, ImGuiChildFlags_Borders,
+    const float card_height = catalog.components.size() > 2U ? 220.0f : 190.0f;
+    ImGui::BeginChild(id.c_str(), {0, Ui(card_height)}, ImGuiChildFlags_Borders,
                       ImGuiWindowFlags_NoScrollbar);
     const ImVec2 gem_origin = ImGui::GetCursorScreenPos();
     DrawGemstone(ImGui::GetWindowDrawList(),
@@ -1213,9 +1214,30 @@ void StudioApp::DrawModels() {
     ImGui::TextWrapped("%s", catalog.description);
     ImGui::Dummy({0, Ui(4)});
     ImGui::TextColored(kAccent, "%s", catalog.capabilities);
-    ImGui::Text("Target: %s", profile_state.target_ready ? "Verified" : "Missing");
-    ImGui::SameLine(Ui(180.0f));
-    ImGui::Text("Assistant: %s", profile_state.assistant_ready ? "Verified" : "Missing");
+    for (const auto& component : catalog.components) {
+      const bool ready = profile_state.ComponentReady(component.kind);
+      ImGui::Text("%s: %s%s", ComponentKindLabel(component.kind),
+                  ready ? "Verified" : "Missing",
+                  component.required ? "" : " (optional)");
+      if (ready) {
+        bool component_in_use = false;
+        if (settings_.onboarding_complete) {
+          for (const auto& active_component :
+               CatalogForProfile(settings_.server.profile).components) {
+            component_in_use |=
+                active_component.catalog == component.catalog;
+          }
+        }
+        ImGui::SameLine(Ui(235.0f));
+        ImGui::BeginDisabled(component_in_use || install.downloading);
+        const std::string remove_id =
+            "Remove##" + std::string(ProfileWireName(profile)) + "-" +
+            std::to_string(ModelComponentKindIndex(component.kind));
+        if (ImGui::SmallButton(remove_id.c_str()))
+          models_.RemoveComponent(profile, component.kind);
+        ImGui::EndDisabled();
+      }
+    }
     if (downloading) {
       const float progress = profile_state.total_bytes == 0 ? 0.0f :
           static_cast<float>(static_cast<double>(profile_state.completed_bytes) /
@@ -1306,6 +1328,12 @@ void StudioApp::DrawServer() {
   PathField("Server executable", "##server-executable", "Browse##server", executable_, false);
   PathField("Compiled target model", "##target-model", "Browse##target", model_directory_, true);
   PathField("Compiled MTP assistant", "##mtp-assistant", "Browse##assistant", assistant_directory_, true);
+  const bool vision_profile = settings_.server.profile ==
+      ModelProfile::kGemma4Moe26BTrellis35VisionFp8;
+  if (vision_profile) {
+    PathField("Compiled Vision module", "##vision-model", "Browse##vision",
+              vision_directory_, true);
+  }
   TextField("Served model name", "##served-name", model_name_);
 
   if (ImGui::BeginTable("##network-fields", 2,
@@ -1340,6 +1368,19 @@ void StudioApp::DrawServer() {
   if (ImGui::Combo("##mtp-profile", &mtp_index, mtp_labels, 4)) {
     settings_.server.mtp_draft_tokens = mtp_values[mtp_index];
   }
+  if (vision_profile) {
+    const int budget_values[] = {70, 140, 280};
+    const char* budget_labels[] = {"70 soft tokens", "140 soft tokens",
+                                   "280 soft tokens"};
+    int budget_index = settings_.server.vision_soft_token_budget == 70
+                           ? 0
+                           : settings_.server.vision_soft_token_budget == 140
+                                 ? 1
+                                 : 2;
+    FieldLabel("Vision processing budget");
+    if (ImGui::Combo("##vision-budget", &budget_index, budget_labels, 3))
+      settings_.server.vision_soft_token_budget = budget_values[budget_index];
+  }
   ImGui::Checkbox("Greedy sampling", &settings_.server.greedy);
   ImGui::SameLine(0, Ui(18));
   CapabilityChip(settings_.server.mtp_draft_tokens == 0 ? "MTP disabled" : "GPU MTP enabled",
@@ -1351,7 +1392,10 @@ void StudioApp::DrawServer() {
   const bool target_ready = std::filesystem::is_directory(settings_.server.model_directory);
   const bool assistant_ready = settings_.server.mtp_draft_tokens == 0 ||
       std::filesystem::is_directory(settings_.server.assistant_directory);
+  const bool vision_ready = !vision_profile ||
+      std::filesystem::is_directory(settings_.server.vision_directory);
   const bool preflight_ready = executable_ready && target_ready && assistant_ready &&
+      vision_ready &&
       settings_.server.port > 0 && settings_.server.port <= 65535;
   const bool can_start = settings_.onboarding_complete && preflight_ready;
   ImGui::TextColored(preflight_ready ? kAccent : ImVec4(1.0f, 0.48f, 0.36f, 1.0f),
@@ -1359,6 +1403,10 @@ void StudioApp::DrawServer() {
                      executable_ready ? "Ready" : "Missing",
                      target_ready ? "Ready" : "Missing",
                      assistant_ready ? "Ready" : "Missing");
+  if (vision_profile) {
+    ImGui::SameLine();
+    ImGui::Text(" · %s Vision", vision_ready ? "Ready" : "Missing");
+  }
   const ServerPhase phase = server_.Phase();
   if (phase == ServerPhase::kRunning || phase == ServerPhase::kStarting || phase == ServerPhase::kStopping) {
     ImGui::BeginDisabled(phase == ServerPhase::kStopping);
@@ -1387,6 +1435,13 @@ void StudioApp::DrawServer() {
     ImGui::Text("Sessions: %d / %d", health.resident_sessions, health.session_limit);
     ImGui::Text("Context: %lld", static_cast<long long>(health.max_context_tokens));
     ImGui::Text("MTP: %s · D%d", health.supports_mtp ? "available" : "off", health.mtp_draft_tokens);
+    if (health.supports_vision || health.vision_module_loaded) {
+      ImGui::Text("Vision: %s · Vision+D2: %s",
+                  health.vision_module_loaded ? "loaded" : "unavailable",
+                  health.vision_mtp_supported ? "qualified" : "disabled");
+      ImGui::TextDisabled("Profile: %s · %s", health.profile_id.c_str(),
+                          health.qualification_state.c_str());
+    }
     ImGui::Separator();
   }
   const auto logs = server_.Logs();
@@ -1502,9 +1557,13 @@ void StudioApp::AddAttachments(
       attachment_error_ = std::move(error);
       continue;
     }
-    if (settings_.server.profile == ModelProfile::kGemma4Moe26BA4B &&
+    if (settings_.server.profile != ModelProfile::kGemma4Unified12B &&
         attachment.kind != MediaKind::kDocument) {
-      attachment_error_ = "Gemma 4 26B A4B is text-only. Select 12B Unified for images and audio.";
+      attachment_error_ =
+          settings_.server.profile ==
+                  ModelProfile::kGemma4Moe26BTrellis35VisionFp8
+              ? "Vision attachments remain disabled until the V18 capability and UX gate is complete."
+              : "Gemma 4 26B A4B is text-only. Select 12B Unified for images and audio.";
       continue;
     }
     pending_attachments_.push_back(std::move(attachment));
@@ -1560,6 +1619,7 @@ void StudioApp::SyncBuffersFromSettings() {
   CopyTo(executable_, settings_.server.executable);
   CopyTo(model_directory_, settings_.server.model_directory);
   CopyTo(assistant_directory_, settings_.server.assistant_directory);
+  CopyTo(vision_directory_, settings_.server.vision_directory);
   CopyTo(model_name_, settings_.server.model_name);
   CopyTo(host_, settings_.server.host);
   CopyTo(system_prompt_, settings_.generation.system_prompt);
@@ -1569,6 +1629,7 @@ void StudioApp::SyncSettingsFromBuffers() {
   settings_.server.executable = executable_.data();
   settings_.server.model_directory = model_directory_.data();
   settings_.server.assistant_directory = assistant_directory_.data();
+  settings_.server.vision_directory = vision_directory_.data();
   settings_.server.model_name = model_name_.data();
   settings_.server.host = host_.data();
   settings_.generation.system_prompt = system_prompt_.data();
