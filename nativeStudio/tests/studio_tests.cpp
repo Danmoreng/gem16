@@ -88,7 +88,7 @@ bool TestVision26BDefaultsAndCommand() {
       config,
       gem16::studio::ModelProfile::kGemma4Moe26BTrellis35VisionFp8);
   const auto command = gem16::studio::BuildServerCommand(config);
-  return config.max_context_tokens == 229376 && config.max_sessions == 1 &&
+  return config.max_context_tokens == 229120 && config.max_sessions == 1 &&
          config.mtp_draft_tokens == 2 && !config.mtp_adaptive &&
          config.vision_soft_token_budget == 280 &&
          config.model_directory ==

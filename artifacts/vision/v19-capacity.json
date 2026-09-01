@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "milestone": "V19",
+  "gate": "fresh_process_capacity",
+  "status": "accepted",
+  "runtime_implementation_commit": "94fa899f5134eb8d77251e06c13f295c9451cdda",
+  "binary_sha256": "ba7d0cad45ee02502c36ff12cff2e242af513c8ab6f1c03bf7721f163a735a5c",
+  "raw_evidence": {
+    "path": "artifacts/raw/vision/v19/capacity-177f2f0-v2.json",
+    "sha256": "6bbde1d2d408a7609e25d28310ce647fb6dcb38b7e2dca99b4c97f34f4cd392c"
+  },
+  "environment": {
+    "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "gpu_uuid": "GPU-93070293-2184-eb69-555b-1d856a4fdbb8",
+    "driver": "610.57.04",
+    "device_memory_bytes": 17094934528,
+    "initial_free_bytes": 16636706816
+  },
+  "protocol": {
+    "fresh_processes_per_point": 2,
+    "required_target_vision_reserve_bytes": 419430400,
+    "required_target_vision_assistant_reserve_bytes": 209715200,
+    "soft_token_budgets": [70, 140, 280],
+    "budget_memory_behavior": "one fixed resident workspace sized for the maximum budget; request budget changes active image tokens, not admission bytes"
+  },
+  "target_vision": {
+    "qualified_context_tokens": 229376,
+    "passes_32k_twice": true,
+    "passes_64k_twice": true,
+    "passes_qualified_max_twice": true,
+    "first_bounded_physical_rejection_tokens": 245760,
+    "configured_229377_plan_admission": "physically accepted but outside the functional Vision context contract",
+    "resident_target_weight_bytes": 12204692480,
+    "resident_vision_weight_bytes": 597313024,
+    "kv_cache_bytes_at_max": 2453667840,
+    "workspace_bytes_at_max": 616710688,
+    "vision_workspace_bytes": 119993600,
+    "decode_graph_device_bytes": 0,
+    "maximum_observed_process_vram_bytes_at_max": 13128171520,
+    "admission_headroom_after_required_reserve_bytes": 123404288
+  },
+  "target_vision_assistant_d2": {
+    "selected_context_tokens": 229120,
+    "passes_32k_twice": true,
+    "passes_64k_twice": true,
+    "passes_selected_max_twice": true,
+    "first_bounded_rejected_probe_tokens": 229376,
+    "resident_target_weight_bytes": 12204692480,
+    "resident_vision_weight_bytes": 597313024,
+    "resident_assistant_weight_bytes": 258313728,
+    "kv_cache_bytes_at_selected_max": 2451046400,
+    "workspace_bytes_at_selected_max": 627630752,
+    "vision_workspace_bytes": 119993600,
+    "assistant_workspace_bytes": 60049680,
+    "decode_graph_device_bytes": 0,
+    "maximum_observed_process_vram_bytes_at_selected_max": 16343105536,
+    "admission_headroom_after_required_reserve_bytes": 1769472,
+    "studio_default_context_tokens": 229120
+  },
+  "checks": {
+    "no_inherited_86016_or_98304_limit": true,
+    "weights_reported": true,
+    "workspace_reported": true,
+    "graphs_reported": true,
+    "kv_reported": true,
+    "peak_reported": true,
+    "free_reserve_reported": true
+  },
+  "limitations": [
+    "nvidia-smi process sampling can miss short-lived peaks; fixed engine region accounting and admission headroom are the authoritative capacity boundary.",
+    "The bounded rejected D2 probe is 229,376; owner direction selected the already repeatable 229,120 result instead of spending more time locating a token-exact intermediate cutoff."
+  ]
+}

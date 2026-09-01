@@ -187,7 +187,9 @@ void ApplyProfileDefaults(ServerConfig& config, ModelProfile profile) {
     config.model_directory = ProfileTargetDirectory(profile).string();
     config.assistant_directory = ProfileAssistantDirectory(profile).string();
     config.vision_directory = ProfileVisionDirectory(profile).string();
-    config.max_context_tokens = 229376;
+    // V19 repeatedly admitted the full Target+Vision profile at 229,376,
+    // while the default fixed-D2 composite is bounded to 229,120.
+    config.max_context_tokens = 229120;
   } else {
     config.model_name = "gem16-12b";
     config.model_directory = ProfileTargetDirectory(profile).string();

@@ -318,7 +318,12 @@ std::string ServerManager::Validate(const ServerConfig& config) const {
       config.mtp_draft_tokens == 0 && config.max_context_tokens > 98304) {
     return "Gemma 4 26B Target-only supports at most 98,304 context tokens";
   }
-  if (IsVision26B(config.profile) && config.max_context_tokens > 229376) {
+  if (IsVision26B(config.profile) && config.mtp_draft_tokens == 2 &&
+      config.max_context_tokens > 229120) {
+    return "Gemma 4 26B Vision fixed-D2 supports at most 229,120 context tokens";
+  }
+  if (IsVision26B(config.profile) && config.mtp_draft_tokens == 0 &&
+      config.max_context_tokens > 229376) {
     return "Gemma 4 26B Vision supports at most 229,376 context tokens";
   }
   if (IsVision26B(config.profile) && config.vision_soft_token_budget != 70 &&
