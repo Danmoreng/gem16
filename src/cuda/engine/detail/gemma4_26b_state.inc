@@ -65,6 +65,8 @@ struct Gemma4Moe26BReferenceEngine::Impl {
   std::uint64_t mtp_chain_result_offset = 0U;
   std::uint64_t mtp_chain_outputs_offset = 0U;
   std::uint64_t mtp_chain_proposals_offset = 0U;
+  std::uint64_t mtp_v11_layer_outputs_offset = 0U;
+  bool mtp_v11_layer_outputs_enabled = false;
   std::byte* mtp_chain_host = nullptr;
   MtpStreamingRing* mtp_streaming_ring_host = nullptr;
   MtpStreamingRing* mtp_streaming_ring_device = nullptr;
@@ -124,6 +126,7 @@ struct Gemma4Moe26BReferenceEngine::Impl {
   std::size_t sampling_algorithm_workspace_bytes = 0U;
   SamplingOptions sampling{};
   std::uint64_t sampling_step = 0U;
+  std::uint64_t vision_encode_calls = 0U;
   std::uint32_t suppressed_token_count = 0U;
   std::array<float*, kLayers> layer_captures{};
   std::array<float*, kLayers> router_probability_captures{};
@@ -139,7 +142,8 @@ struct Gemma4Moe26BReferenceEngine::Impl {
   Status LaunchControlledDecodeBody();
   Status PrepareDecodeGraph();
   Status LaunchFixedMtpGraphBody(std::uint32_t draft_count,
-                                 bool copy_transaction);
+                                 bool copy_transaction,
+                                 const std::uint32_t* forced_drafts = nullptr);
   Status SelectMtpVerificationTokens(
       float* batch_logits, const std::uint32_t* verification_inputs,
       DecodeControl* row_controls, std::uint32_t tokens,
@@ -151,6 +155,9 @@ struct Gemma4Moe26BReferenceEngine::Impl {
   Status ExecuteFixedMtpGraphGroup(std::uint32_t pending_token,
                                    std::uint32_t draft_count,
                                    MtpGroupResult* host_result);
+  Status CompleteFixedMtpGroup(std::uint32_t pending_token,
+                               std::uint32_t draft_count,
+                               MtpGroupResult* host_result);
 
   ~Impl() {
     if (stream != nullptr) {

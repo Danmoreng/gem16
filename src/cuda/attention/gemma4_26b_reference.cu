@@ -23,6 +23,10 @@ namespace {
 
 constexpr std::uint64_t kHidden = 2816U;
 constexpr std::uint64_t kQueryHeads = 16U;
+// The KVH2 fixed-row global kernel shares the ordinary scalar reduction order
+// only on the 16K-and-larger dispatch family. Shorter global-cache tiers use
+// the ordinary row-wise kernel so fixed-D verification remains bit exact.
+constexpr std::uint64_t kExactFixedGlobalMinimumCapacity = 16384U;
 
 class NvtxRange {
  public:
@@ -678,7 +682,10 @@ Status LaunchGemma4Moe26BAttentionSm120MtpFixedLayer(
       w.value_cache_scale_bf16, tokens, kv_elements, stream);
   if (!status.ok()) return status;
 
-  if (!shared_fixed_attention) {
+  const bool exact_shared_fixed_attention =
+      shared_fixed_attention &&
+      (sliding || cache.capacity >= kExactFixedGlobalMinimumCapacity);
+  if (!exact_shared_fixed_attention) {
     for (std::uint64_t row = 0U; row < tokens; ++row) {
       status = controlled_positions
                    ? (backup_key != nullptr

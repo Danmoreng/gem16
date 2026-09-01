@@ -29,6 +29,24 @@ enum class Gemma4Moe26BMtpVerifierBackend {
   kFullyBatched,
 };
 
+struct Gemma4Moe26BVisionD2DiagnosticState {
+  std::uint64_t position = 0U;
+  std::uint64_t kv_bytes = 0U;
+  std::uint64_t sliding_ring_position = 0U;
+  std::uint64_t sampling_step = 0U;
+  std::uint32_t prediction_token = 0U;
+  std::uint32_t prediction_logit_bits = 0U;
+  std::uint32_t decode_control_token = 0U;
+  std::uint32_t decode_control_suppressed_token_count = 0U;
+  std::uint64_t decode_control_position = 0U;
+  std::uint64_t decode_control_sampling_step = 0U;
+  std::uint64_t vision_encode_calls = 0U;
+  std::uint32_t prediction_finite = 0U;
+  std::uint32_t routing_finite = 0U;
+  std::uint32_t pending_decode_self_feed = 0U;
+  std::uint32_t decode_self_feed_valid = 0U;
+};
+
 struct Gemma4Moe26BReferencePrediction {
   std::uint32_t token = 0;
   float logit = 0.0F;
@@ -127,6 +145,23 @@ class Gemma4Moe26BReferenceEngine {
   [[nodiscard]] Status RunMtpAssistantGroup(
       std::uint32_t pending_token, std::uint32_t proposal_count,
       MtpGroupResult* host_result);
+  // V11 exactness-laboratory primitive. It bypasses Assistant proposal
+  // generation but executes the same fixed-D2/T3 Target verifier and commit
+  // transaction. The process-local diagnostic gate is mandatory; this is not
+  // exposed by the product inference API.
+  [[nodiscard]] Status RunForcedMtpProposalDiagnostic(
+      std::uint32_t pending_token,
+      std::span<const std::uint32_t> forced_proposals,
+      MtpGroupResult* host_result);
+  [[nodiscard]] Result<std::uint64_t>
+  VisionD2PostPrefillDiagnosticKvBytes() const;
+  [[nodiscard]] Status CopyVisionD2PostPrefillDiagnostic(
+      std::span<float> final_hidden,
+      std::span<std::uint8_t> visible_kv,
+      Gemma4Moe26BVisionD2DiagnosticState* state);
+  [[nodiscard]] Status CopyVisionD2T3LayerOutputDiagnostic(
+      std::uint32_t layer, std::span<float> three_rows);
+  [[nodiscard]] Status RefreshVisionD2FinalHiddenDiagnostic();
   // Fixed-D graph-chain execution. The caller has already emitted
   // pending_token; output_token_ids receives exactly the requested number of
   // subsequent Target-verified tokens in one device-controlled graph replay.

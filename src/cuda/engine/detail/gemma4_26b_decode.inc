@@ -49,6 +49,7 @@ Status Gemma4Moe26BReferenceEngine::Reset() {
   implementation_->mtp_chain_graph_launches.fill(0U);
   implementation_->last_mtp_verification_min_margin = 0.0F;
   implementation_->sampling_step = 0U;
+  implementation_->vision_encode_calls = 0U;
   // Graph executables remain instantiated across Reset(), so their observed
   // cudaMemGetInfo deltas and captured stop-token count intentionally remain
   // part of the configured runtime. ConversationSession recaptures the graphs

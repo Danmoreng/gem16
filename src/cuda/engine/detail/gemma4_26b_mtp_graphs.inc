@@ -53,7 +53,8 @@ Status Gemma4Moe26BReferenceEngine::Impl::SelectMtpVerificationTokens(
 }
 
 Status Gemma4Moe26BReferenceEngine::Impl::LaunchFixedMtpGraphBody(
-    std::uint32_t draft_count, bool copy_transaction) {
+    std::uint32_t draft_count, bool copy_transaction,
+    const std::uint32_t* forced_drafts) {
   const std::uint32_t tokens = draft_count + 1U;
   if ((draft_count != 1U && draft_count != 2U && draft_count != 4U) ||
       mtp_verifier_backend !=
@@ -93,19 +94,22 @@ Status Gemma4Moe26BReferenceEngine::Impl::LaunchFixedMtpGraphBody(
     return Status(StatusCode::kInternal,
                   "M25 fixed graph shared-KV layer mapping is invalid");
   }
-  Gemma4Moe26BAssistantProposalContext proposal;
-  proposal.target_embedding = head;
-  proposal.target_hidden = final_hidden;
-  proposal.sliding_kv = make_view(kSlidingLayer);
-  proposal.full_kv = make_view(kFullLayer);
   Status status;
-  {
-    const NvtxRange range("gem16.mtp.assistant_proposal");
-    status = assistant.GenerateDraftsDevice(
-        proposal, draft_count, stream, control);
+  const std::uint32_t* drafts = forced_drafts;
+  if (drafts == nullptr) {
+    Gemma4Moe26BAssistantProposalContext proposal;
+    proposal.target_embedding = head;
+    proposal.target_hidden = final_hidden;
+    proposal.sliding_kv = make_view(kSlidingLayer);
+    proposal.full_kv = make_view(kFullLayer);
+    {
+      const NvtxRange range("gem16.mtp.assistant_proposal");
+      status = assistant.GenerateDraftsDevice(
+          proposal, draft_count, stream, control);
+    }
+    if (!status.ok()) return status;
+    drafts = assistant.device_draft_tokens();
   }
-  if (!status.ok()) return status;
-  const std::uint32_t* drafts = assistant.device_draft_tokens();
   if (drafts == nullptr) {
     return Status(StatusCode::kInternal,
                   "M25 fixed graph Assistant drafts are unavailable");
@@ -185,6 +189,18 @@ Status Gemma4Moe26BReferenceEngine::Impl::LaunchFixedMtpGraphBody(
                          overlap);
     }
     if (!status.ok()) return status;
+    if (mtp_v11_layer_outputs_enabled && tokens == kM25FixedD2Rows) {
+      const std::uint64_t capture_offset =
+          static_cast<std::uint64_t>(layer) * tokens * kWidth;
+      error = cudaMemcpyAsync(
+          mtp_verifier.As<float>(mtp_v11_layer_outputs_offset) +
+              capture_offset,
+          prefill_hidden_a, tokens * kWidth * sizeof(float),
+          cudaMemcpyDeviceToDevice, stream);
+      if (error != cudaSuccess) {
+        return CudaFailure("capture V11 T3 layer output", error);
+      }
+    }
     {
       const NvtxRange range("gem16.mtp.restore");
       status = LaunchCompactRestoreCircularMtpKvFp8Controlled(
@@ -401,7 +417,6 @@ Status Gemma4Moe26BReferenceEngine::Impl::ExecuteFixedMtpGraphGroup(
       host_result == nullptr || mtp_group_graphs[draft_count] == nullptr) {
     return Invalid("M25 fixed graph execution state is invalid");
   }
-  const std::uint64_t tokens = draft_count + 1U;
   *mtp_verifier_host = {};
   auto& host_control = mtp_verifier_host->transaction.control;
   host_control.current.input_token = pending_token;
@@ -426,6 +441,18 @@ Status Gemma4Moe26BReferenceEngine::Impl::ExecuteFixedMtpGraphGroup(
     return CudaFailure("execute M25 fixed graph group", error);
   }
   ++mtp_group_graph_launches;
+
+  return CompleteFixedMtpGroup(pending_token, draft_count, host_result);
+}
+
+Status Gemma4Moe26BReferenceEngine::Impl::CompleteFixedMtpGroup(
+    std::uint32_t pending_token, std::uint32_t draft_count,
+    MtpGroupResult* host_result) {
+  if (host_result == nullptr || draft_count == 0U ||
+      draft_count > kMaximumMtpDraftTokens) {
+    return Invalid("M25 fixed group completion state is invalid");
+  }
+  const std::uint64_t tokens = draft_count + 1U;
 
   const auto& completed = mtp_verifier_host->transaction;
   if (completed.control.current.input_token != pending_token ||

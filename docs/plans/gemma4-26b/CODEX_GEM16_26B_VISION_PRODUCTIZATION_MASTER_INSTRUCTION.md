@@ -546,6 +546,16 @@ real Assistant final stream exact
 per-group KV/position exact
 ```
 
+Implementation status (2026-09-01): V11 is accepted on the frozen Trellis35
+Vision branch. The complete 70/140/280 matrix is recorded in
+`artifacts/vision/v11-d2-exactness.json` and the two budget-suffixed companion
+artifacts. Forced proposals, the real Assistant streams, per-group visible KV,
+positions, fixed-seed sampling, continuation, ring/boundary cases and
+cancellation are exact. All three artifacts identify the same diagnostic
+binary. The normal request path remains fail-closed as
+`vision_mtp_unqualified`; this acceptance permits V14 to begin only after a
+separate owner instruction and does not itself promote Vision+D2.
+
 ---
 
 # V12 — low-risk Vision performance wave

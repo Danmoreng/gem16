@@ -1,0 +1,589 @@
+{
+  "cached_continuation": {
+    "exact": true,
+    "first_turn_tokens": [
+      236776,
+      2708,
+      236772,
+      35396,
+      236764,
+      22308,
+      774
+    ],
+    "trajectory": {
+      "exact": true,
+      "first_group_layer_mismatches": [],
+      "groups": [
+        {
+          "group": {
+            "accepted_count": 2,
+            "initial": 0,
+            "output_count": 3,
+            "position_after_group": 0,
+            "position_before_first_proposal": 0,
+            "proposal_count": 2,
+            "proposals": [
+              82858,
+              82858
+            ],
+            "stopped": 0,
+            "verified": [
+              82858,
+              82858,
+              82858
+            ]
+          },
+          "index": 0,
+          "processed_tokens": 3,
+          "state_exact": true
+        }
+      ],
+      "tokens": [
+        82858,
+        82858,
+        82858,
+        82858
+      ]
+    }
+  },
+  "command": [
+    "/home/sebastian/Development/gem16gb/build/blackwell-release/bin/gem16-26b-vision-d2-diagnostic",
+    "/home/sebastian/Development/gem16gb/models/checkpoints/google-gemma-4-26b-a4b-it-trellis35-w4a8-wp2",
+    "/home/sebastian/Development/gem16gb/artifacts/raw/m25/qat-q4_0-assistant-hybrid-diagnostic-v2",
+    "/home/sebastian/Development/gem16gb/models/checkpoints/google-gemma-4-26b-a4b-it-qat-vision-fp8-v1",
+    "/home/sebastian/Development/gem16gb/tests/fixtures/gemma4_26b_vision/budget-280-wide.bmp",
+    "280"
+  ],
+  "default_gate_exit_code": 64,
+  "default_gate_fail_closed": true,
+  "diagnostic_gate": true,
+  "driver_exit_code": 0,
+  "forced_exact": {
+    "accepted_count": 2,
+    "initial": 236776,
+    "output_count": 3,
+    "position_after_group": 303,
+    "position_before_first_proposal": 300,
+    "proposal_count": 2,
+    "proposals": [
+      2708,
+      236772
+    ],
+    "stopped": 0,
+    "verified": [
+      2708,
+      236772,
+      35396
+    ]
+  },
+  "forced_post_group_state": {
+    "decode_control_position": 0,
+    "decode_control_sampling_step": 0,
+    "decode_control_suppressed_token_count": 0,
+    "decode_control_token": 0,
+    "decode_self_feed_valid": 0,
+    "final_hidden_sha256": "73d4018deba8f63ea96a34930601e20fbc2c2043bfb580726a4b9d618c02f073",
+    "pending_decode_self_feed": 0,
+    "position": 303,
+    "prediction_finite": 16843009,
+    "prediction_logit_bits": 1103710150,
+    "prediction_token": 35396,
+    "routing_finite": 16843009,
+    "sampling_step": 0,
+    "sliding_ring_position": 303,
+    "visible_kv_bytes": 34129920,
+    "visible_kv_sha256": "94283c35378e59fa26c9e901fc315b4fc552d0414a4865eed1ba8bf105702406",
+    "vision_encode_calls": 1
+  },
+  "forced_pre_proposal_state": {
+    "decode_control_position": 0,
+    "decode_control_sampling_step": 0,
+    "decode_control_suppressed_token_count": 0,
+    "decode_control_token": 0,
+    "decode_self_feed_valid": 0,
+    "final_hidden_sha256": "3abd9b12f1162d093e172fe7942c484f5f079b84473cafa7fe9bb6878265cf9e",
+    "pending_decode_self_feed": 0,
+    "position": 300,
+    "prediction_finite": 16843009,
+    "prediction_logit_bits": 1105248011,
+    "prediction_token": 236776,
+    "routing_finite": 16843009,
+    "sampling_step": 0,
+    "sliding_ring_position": 300,
+    "visible_kv_bytes": 33792000,
+    "visible_kv_sha256": "b529f1d737f1b06153bf7159e45b93f782a9587f1df3fbd1af68b7a67ba0efa0",
+    "vision_encode_calls": 1
+  },
+  "full_greedy_trajectory": {
+    "exact": true,
+    "first_group_layer_mismatches": [],
+    "groups": [
+      {
+        "group": {
+          "accepted_count": 2,
+          "initial": 0,
+          "output_count": 3,
+          "position_after_group": 0,
+          "position_before_first_proposal": 0,
+          "proposal_count": 2,
+          "proposals": [
+            2708,
+            236772
+          ],
+          "stopped": 0,
+          "verified": [
+            2708,
+            236772,
+            35396
+          ]
+        },
+        "index": 0,
+        "processed_tokens": 3,
+        "state_exact": true
+      },
+      {
+        "group": {
+          "accepted_count": 2,
+          "initial": 0,
+          "output_count": 3,
+          "position_after_group": 0,
+          "position_before_first_proposal": 0,
+          "proposal_count": 2,
+          "proposals": [
+            236764,
+            22308
+          ],
+          "stopped": 0,
+          "verified": [
+            236764,
+            22308,
+            774
+          ]
+        },
+        "index": 1,
+        "processed_tokens": 6,
+        "state_exact": true
+      },
+      {
+        "group": {
+          "accepted_count": 1,
+          "initial": 0,
+          "output_count": 2,
+          "position_after_group": 0,
+          "position_before_first_proposal": 0,
+          "proposal_count": 2,
+          "proposals": [
+            2471,
+            6807
+          ],
+          "stopped": 0,
+          "verified": [
+            2471,
+            18482
+          ]
+        },
+        "index": 2,
+        "processed_tokens": 8,
+        "state_exact": true
+      },
+      {
+        "group": {
+          "accepted_count": 2,
+          "initial": 0,
+          "output_count": 3,
+          "position_after_group": 0,
+          "position_before_first_proposal": 0,
+          "proposal_count": 2,
+          "proposals": [
+            496,
+            8411
+          ],
+          "stopped": 0,
+          "verified": [
+            496,
+            8411,
+            529
+          ]
+        },
+        "index": 3,
+        "processed_tokens": 11,
+        "state_exact": true
+      },
+      {
+        "group": {
+          "accepted_count": 0,
+          "initial": 0,
+          "output_count": 1,
+          "position_after_group": 0,
+          "position_before_first_proposal": 0,
+          "proposal_count": 2,
+          "proposals": [
+            1944,
+            236764
+          ],
+          "stopped": 0,
+          "verified": [
+            12815
+          ]
+        },
+        "index": 4,
+        "processed_tokens": 12,
+        "state_exact": true
+      },
+      {
+        "group": {
+          "accepted_count": 1,
+          "initial": 0,
+          "output_count": 2,
+          "position_after_group": 0,
+          "position_before_first_proposal": 0,
+          "proposal_count": 2,
+          "proposals": [
+            236764,
+            6281
+          ],
+          "stopped": 0,
+          "verified": [
+            236764,
+            7628
+          ]
+        },
+        "index": 5,
+        "processed_tokens": 14,
+        "state_exact": true
+      },
+      {
+        "group": {
+          "accepted_count": 2,
+          "initial": 0,
+          "output_count": 3,
+          "position_after_group": 0,
+          "position_before_first_proposal": 0,
+          "proposal_count": 2,
+          "proposals": [
+            9935,
+            236761
+          ],
+          "stopped": 0,
+          "verified": [
+            9935,
+            236761,
+            669
+          ]
+        },
+        "index": 6,
+        "processed_tokens": 17,
+        "state_exact": true
+      },
+      {
+        "group": {
+          "accepted_count": 0,
+          "initial": 0,
+          "output_count": 1,
+          "position_after_group": 0,
+          "position_before_first_proposal": 0,
+          "proposal_count": 2,
+          "proposals": [
+            6082,
+            2433
+          ],
+          "stopped": 0,
+          "verified": [
+            2471
+          ]
+        },
+        "index": 7,
+        "processed_tokens": 18,
+        "state_exact": true
+      }
+    ],
+    "tokens": [
+      236776,
+      2708,
+      236772,
+      35396,
+      236764,
+      22308,
+      774,
+      2471,
+      18482,
+      496,
+      8411,
+      529,
+      12815,
+      236764,
+      7628,
+      9935,
+      236761,
+      669,
+      2471
+    ]
+  },
+  "layer_output_differential": {
+    "all_exact": true,
+    "rows": [
+      {
+        "mismatch_layers": [],
+        "row": 0
+      },
+      {
+        "mismatch_layers": [],
+        "row": 1
+      },
+      {
+        "mismatch_layers": [],
+        "row": 2
+      }
+    ]
+  },
+  "manifest": {
+    "assistant_identity_file": "gem16_compilation.json",
+    "assistant_sha256": "d2a722ccad675807ff73a1a645a0f1fbcc0fc200c402a14e823a5927618a116d",
+    "binary_sha256": "c4476f1ee1e7c54c0a6563646b6a0994e8050728b348066d79748c828e9e37ef",
+    "budget": 280,
+    "image_begin_offset": 4,
+    "image_begin_token": 255999,
+    "image_end_offset": 285,
+    "image_end_token": 258882,
+    "image_sha256": "5cb6246f81e13d80636c852d2b14aa45db1822ad04c7f7f7d4d56cdb8a8cd9d0",
+    "processed_height": 672,
+    "processed_width": 960,
+    "prompt_token_count": 300,
+    "prompt_token_sha256": "abc8b539d72d0bab0516a917c29609f22221b5b7acf4492ef798d6cebdf1a0d3",
+    "raw_patch_count": 2520,
+    "sampling": "greedy",
+    "soft_token_count": 280,
+    "target_identity_file": "FINAL_SHA256SUMS",
+    "target_sha256": "68637bab107ec6fcf7c54b4405370b2956b87f7465f00836aa731b484a5eb396",
+    "vision_identity_file": "vision.lock.json",
+    "vision_sha256": "d2bc0fd2105af48dea36a9cbe757e688a8b10ba94bee355047e1f163df01bbc8"
+  },
+  "matrix_cases": [
+    {
+      "context": 32768,
+      "name": "near_chunk_boundary",
+      "prompt_tokens": 2400,
+      "sampling": "greedy",
+      "trajectory": {
+        "exact": true,
+        "first_group_layer_mismatches": [],
+        "groups": [
+          {
+            "group": {
+              "accepted_count": 2,
+              "initial": 0,
+              "output_count": 3,
+              "position_after_group": 0,
+              "position_before_first_proposal": 0,
+              "proposal_count": 2,
+              "proposals": [
+                2708,
+                236772
+              ],
+              "stopped": 0,
+              "verified": [
+                2708,
+                236772,
+                35396
+              ]
+            },
+            "index": 0,
+            "processed_tokens": 3,
+            "state_exact": true
+          },
+          {
+            "group": {
+              "accepted_count": 2,
+              "initial": 0,
+              "output_count": 3,
+              "position_after_group": 0,
+              "position_before_first_proposal": 0,
+              "proposal_count": 2,
+              "proposals": [
+                236764,
+                22308
+              ],
+              "stopped": 0,
+              "verified": [
+                236764,
+                22308,
+                774
+              ]
+            },
+            "index": 1,
+            "processed_tokens": 6,
+            "state_exact": true
+          }
+        ],
+        "tokens": [
+          236776,
+          2708,
+          236772,
+          35396,
+          236764,
+          22308,
+          774
+        ]
+      },
+      "vision_end": 2264,
+      "vision_offset": 1984
+    }
+  ],
+  "ordinary": {
+    "position_before_first_proposal": 300,
+    "post_forward_states": [
+      {
+        "decode_control_position": 301,
+        "decode_control_sampling_step": 300,
+        "decode_control_suppressed_token_count": 0,
+        "decode_control_token": 2708,
+        "decode_self_feed_valid": 1,
+        "final_hidden_sha256": "138ee02706e6f1191712e47bbddf429713585abde2a81da38e02980f54fd4d1e",
+        "pending_decode_self_feed": 0,
+        "position": 301,
+        "prediction_finite": 16843009,
+        "prediction_logit_bits": 1105198466,
+        "prediction_token": 2708,
+        "routing_finite": 16843009,
+        "sampling_step": 0,
+        "sliding_ring_position": 301,
+        "visible_kv_bytes": 33904640,
+        "visible_kv_sha256": "974c432d8e02f119893b405313a50a028427661e3a17d3e1371a4402491baf86",
+        "vision_encode_calls": 1
+      },
+      {
+        "decode_control_position": 302,
+        "decode_control_sampling_step": 300,
+        "decode_control_suppressed_token_count": 0,
+        "decode_control_token": 236772,
+        "decode_self_feed_valid": 1,
+        "final_hidden_sha256": "6e4116de7ecbc99727b8a851f5b994953c6c838aecb5b4b52bbf8d799d1429e3",
+        "pending_decode_self_feed": 0,
+        "position": 302,
+        "prediction_finite": 16843009,
+        "prediction_logit_bits": 1105279775,
+        "prediction_token": 236772,
+        "routing_finite": 16843009,
+        "sampling_step": 0,
+        "sliding_ring_position": 302,
+        "visible_kv_bytes": 34017280,
+        "visible_kv_sha256": "2ada39a3f8d56054234d4bdbb64ae1d291940d14094c52d84a06145a2c4e198f",
+        "vision_encode_calls": 1
+      },
+      {
+        "decode_control_position": 303,
+        "decode_control_sampling_step": 300,
+        "decode_control_suppressed_token_count": 0,
+        "decode_control_token": 35396,
+        "decode_self_feed_valid": 1,
+        "final_hidden_sha256": "73d4018deba8f63ea96a34930601e20fbc2c2043bfb580726a4b9d618c02f073",
+        "pending_decode_self_feed": 0,
+        "position": 303,
+        "prediction_finite": 16843009,
+        "prediction_logit_bits": 1103710150,
+        "prediction_token": 35396,
+        "routing_finite": 16843009,
+        "sampling_step": 0,
+        "sliding_ring_position": 303,
+        "visible_kv_bytes": 34129920,
+        "visible_kv_sha256": "94283c35378e59fa26c9e901fc315b4fc552d0414a4865eed1ba8bf105702406",
+        "vision_encode_calls": 1
+      }
+    ],
+    "pre_proposal_state": {
+      "decode_control_position": 0,
+      "decode_control_sampling_step": 0,
+      "decode_control_suppressed_token_count": 0,
+      "decode_control_token": 0,
+      "decode_self_feed_valid": 0,
+      "final_hidden_sha256": "3abd9b12f1162d093e172fe7942c484f5f079b84473cafa7fe9bb6878265cf9e",
+      "pending_decode_self_feed": 0,
+      "position": 300,
+      "prediction_finite": 16843009,
+      "prediction_logit_bits": 1105248011,
+      "prediction_token": 236776,
+      "routing_finite": 16843009,
+      "sampling_step": 0,
+      "sliding_ring_position": 300,
+      "visible_kv_bytes": 33792000,
+      "visible_kv_sha256": "b529f1d737f1b06153bf7159e45b93f782a9587f1df3fbd1af68b7a67ba0efa0",
+      "vision_encode_calls": 1
+    },
+    "tokens": [
+      236776,
+      2708,
+      236772,
+      35396
+    ]
+  },
+  "qualification": "vision_mtp_unqualified",
+  "real_assistant": {
+    "accepted_count": 2,
+    "initial": 236776,
+    "output_count": 3,
+    "position_after_group": 303,
+    "position_before_first_proposal": 300,
+    "proposal_count": 2,
+    "proposals": [
+      2708,
+      236772
+    ],
+    "stopped": 0,
+    "verified": [
+      2708,
+      236772,
+      35396
+    ]
+  },
+  "real_post_group_state": {
+    "decode_control_position": 0,
+    "decode_control_sampling_step": 0,
+    "decode_control_suppressed_token_count": 0,
+    "decode_control_token": 0,
+    "decode_self_feed_valid": 0,
+    "final_hidden_sha256": "73d4018deba8f63ea96a34930601e20fbc2c2043bfb580726a4b9d618c02f073",
+    "pending_decode_self_feed": 0,
+    "position": 303,
+    "prediction_finite": 16843009,
+    "prediction_logit_bits": 1103710150,
+    "prediction_token": 35396,
+    "routing_finite": 16843009,
+    "sampling_step": 0,
+    "sliding_ring_position": 303,
+    "visible_kv_bytes": 34129920,
+    "visible_kv_sha256": "94283c35378e59fa26c9e901fc315b4fc552d0414a4865eed1ba8bf105702406",
+    "vision_encode_calls": 1
+  },
+  "real_pre_proposal_state": {
+    "decode_control_position": 0,
+    "decode_control_sampling_step": 0,
+    "decode_control_suppressed_token_count": 0,
+    "decode_control_token": 0,
+    "decode_self_feed_valid": 0,
+    "final_hidden_sha256": "3abd9b12f1162d093e172fe7942c484f5f079b84473cafa7fe9bb6878265cf9e",
+    "pending_decode_self_feed": 0,
+    "position": 300,
+    "prediction_finite": 16843009,
+    "prediction_logit_bits": 1105248011,
+    "prediction_token": 236776,
+    "routing_finite": 16843009,
+    "sampling_step": 0,
+    "sliding_ring_position": 300,
+    "visible_kv_bytes": 33792000,
+    "visible_kv_sha256": "b529f1d737f1b06153bf7159e45b93f782a9587f1df3fbd1af68b7a67ba0efa0",
+    "vision_encode_calls": 1
+  },
+  "schema_version": 1,
+  "verdict": {
+    "cached_continuation_exact": true,
+    "cancellation_exact": true,
+    "forced_exact": true,
+    "forced_transaction_exact": true,
+    "full_trajectory_exact": true,
+    "initial_exact": true,
+    "matrix_exact": true,
+    "pre_proposal_state_exact": true,
+    "real_assistant_exact": true,
+    "real_transaction_exact": true
+  }
+}

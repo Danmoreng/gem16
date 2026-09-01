@@ -267,6 +267,12 @@ Status Gemma4Moe26BReferenceEngine::LoadMtpAssistant(
       layout.Add<std::uint32_t>(x.context);
   const std::uint64_t chain_proposals = layout.Add<std::uint32_t>(
       kMaximumMtpDraftTokens * x.context);
+  const bool v11_layer_outputs_enabled =
+      Gemma4Moe26BVisionD2DiagnosticEnabled();
+  const std::uint64_t v11_layer_outputs =
+      v11_layer_outputs_enabled
+          ? layout.Add<float>(kLayers * kM25FixedD2Rows * kWidth)
+          : 0U;
   std::array<MtpVerifierLayerOffsets, kLayers> layer_offsets{};
   for (std::uint32_t layer = 0U; layer < kLayers; ++layer) {
     const std::uint64_t elements = kM25MaximumVerifyTokens *
@@ -356,6 +362,8 @@ Status Gemma4Moe26BReferenceEngine::LoadMtpAssistant(
   x.mtp_chain_result_offset = chain_result;
   x.mtp_chain_outputs_offset = chain_outputs;
   x.mtp_chain_proposals_offset = chain_proposals;
+  x.mtp_v11_layer_outputs_offset = v11_layer_outputs;
+  x.mtp_v11_layer_outputs_enabled = v11_layer_outputs_enabled;
   x.mtp_layer_offsets = layer_offsets;
   return Status::Ok();
 }
@@ -889,6 +897,216 @@ Status Gemma4Moe26BReferenceEngine::RunMtpAssistantGroup(
   return Status::Ok();
 }
 
+Status Gemma4Moe26BReferenceEngine::RunForcedMtpProposalDiagnostic(
+    std::uint32_t pending_token,
+    std::span<const std::uint32_t> forced_proposals,
+    MtpGroupResult* host_result) {
+  if (!Gemma4Moe26BVisionD2DiagnosticEnabled()) {
+    return Status(
+        StatusCode::kUnsupported,
+        "vision_mtp_unqualified: forced MTP proposals require "
+        "GEM16_VISION_D2_DIAGNOSTIC=1");
+  }
+  if (!implementation_ || host_result == nullptr ||
+      forced_proposals.size() != 2U ||
+      std::any_of(forced_proposals.begin(), forced_proposals.end(),
+                  [](std::uint32_t token) { return token >= kVocabulary; })) {
+    return Invalid("V11 forced fixed-D2 proposal request is invalid");
+  }
+  auto& x = *implementation_;
+  constexpr std::uint32_t kDraftCount = 2U;
+  constexpr std::uint32_t kTokens = kDraftCount + 1U;
+  if (!IsTrellis35RoutedExpertFormat(x.routed_expert_format) ||
+      x.mtp_verifier_backend !=
+          Gemma4Moe26BMtpVerifierBackend::kExactSharedBatchedMoe ||
+      !x.assistant.prepared() || x.mtp_verifier.bytes() == 0U ||
+      x.mtp_verifier_host == nullptr || x.position == 0U ||
+      pending_token >= kVocabulary || x.position >= x.context ||
+      kTokens > x.context - x.position) {
+    return Invalid("V11 forced fixed-D2 verifier state is unavailable");
+  }
+
+  *x.mtp_verifier_host = {};
+  auto& host_control = x.mtp_verifier_host->transaction.control;
+  host_control.current.input_token = pending_token;
+  host_control.current.processed_position = x.position - 1U;
+  host_control.current.remaining_output_capacity = x.context - x.position;
+  host_control.current.output_write_position = 0U;
+  host_control.current.sampling_step = x.sampling_step;
+  host_control.next = host_control.current;
+  host_control.fixed_draft_tokens = kDraftCount;
+  host_control.sampling_enabled = x.sampling.enabled ? 1U : 0U;
+  auto* transaction = x.mtp_verifier.As<MtpGroupTransaction>(
+      x.mtp_transaction_offset);
+  auto* device_forced = x.mtp_verifier.As<std::uint32_t>(
+      x.mtp_chain_proposals_offset);
+  cudaError_t error = cudaMemcpyAsync(
+      transaction, &x.mtp_verifier_host->transaction,
+      sizeof(MtpGroupTransaction), cudaMemcpyHostToDevice, x.stream);
+  if (error == cudaSuccess) {
+    error = cudaMemcpyAsync(device_forced, forced_proposals.data(),
+                            forced_proposals.size_bytes(),
+                            cudaMemcpyHostToDevice, x.stream);
+  }
+  if (error != cudaSuccess) {
+    return CudaFailure("initialize V11 forced fixed-D2 transaction", error);
+  }
+  {
+    const NvtxRange range("gem16.v11.forced_exact_d2");
+    Status status =
+        x.LaunchFixedMtpGraphBody(kDraftCount, true, device_forced);
+    if (!status.ok()) return status;
+  }
+  error = cudaStreamSynchronize(x.stream);
+  if (error != cudaSuccess) {
+    return CudaFailure("execute V11 forced fixed-D2 verifier", error);
+  }
+  return x.CompleteFixedMtpGroup(pending_token, kDraftCount, host_result);
+}
+
+Result<std::uint64_t>
+Gemma4Moe26BReferenceEngine::VisionD2PostPrefillDiagnosticKvBytes() const {
+  if (!Gemma4Moe26BVisionD2DiagnosticEnabled()) {
+    return Status(StatusCode::kUnsupported,
+                  "vision_mtp_unqualified: V11 state capture requires "
+                  "GEM16_VISION_D2_DIAGNOSTIC=1");
+  }
+  if (!implementation_ || implementation_->position == 0U) {
+    return Invalid("V11 post-prefill state is unavailable");
+  }
+  const auto& x = *implementation_;
+  std::uint64_t bytes = 0U;
+  for (std::uint32_t layer = 0U; layer < kLayers; ++layer) {
+    const bool global = x.traits[layer].attention ==
+                        Gemma4Moe26BAttentionType::kFull;
+    const std::uint64_t tokens =
+        global ? x.position : std::min(x.position, x.caches[layer].capacity);
+    const std::uint64_t elements =
+        tokens * x.traits[layer].kv_heads *
+        x.traits[layer].head_dimension;
+    if (elements > (std::numeric_limits<std::uint64_t>::max() - bytes) / 2U) {
+      return Invalid("V11 visible-KV size overflow");
+    }
+    bytes += elements * 2U;
+  }
+  return bytes;
+}
+
+Status Gemma4Moe26BReferenceEngine::CopyVisionD2PostPrefillDiagnostic(
+    std::span<float> final_hidden_output,
+    std::span<std::uint8_t> visible_kv,
+    Gemma4Moe26BVisionD2DiagnosticState* state) {
+  if (!implementation_ || state == nullptr ||
+      final_hidden_output.size() != kWidth) {
+    return Invalid("V11 post-prefill capture buffers are invalid");
+  }
+  auto expected = VisionD2PostPrefillDiagnosticKvBytes();
+  if (!expected.ok()) return expected.status();
+  if (visible_kv.size() != expected.value()) {
+    return Invalid("V11 visible-KV capture has the wrong extent");
+  }
+  auto& x = *implementation_;
+  DecodeControl host_control{};
+  PredictionStatus host_prediction{};
+  cudaError_t error = cudaMemcpyAsync(
+      final_hidden_output.data(), x.final_hidden,
+      final_hidden_output.size_bytes(), cudaMemcpyDeviceToHost, x.stream);
+  std::size_t offset = 0U;
+  for (std::uint32_t layer = 0U; layer < kLayers && error == cudaSuccess;
+       ++layer) {
+    const bool global = x.traits[layer].attention ==
+                        Gemma4Moe26BAttentionType::kFull;
+    const std::uint64_t tokens =
+        global ? x.position : std::min(x.position, x.caches[layer].capacity);
+    const std::size_t bytes = static_cast<std::size_t>(
+        tokens * x.traits[layer].kv_heads *
+        x.traits[layer].head_dimension);
+    error = cudaMemcpyAsync(visible_kv.data() + offset, x.caches[layer].key,
+                            bytes, cudaMemcpyDeviceToHost, x.stream);
+    offset += bytes;
+    if (error == cudaSuccess) {
+      error = cudaMemcpyAsync(visible_kv.data() + offset,
+                              x.caches[layer].value, bytes,
+                              cudaMemcpyDeviceToHost, x.stream);
+    }
+    offset += bytes;
+  }
+  if (error == cudaSuccess) {
+    error = cudaMemcpyAsync(&host_control, x.decode_control,
+                            sizeof(host_control), cudaMemcpyDeviceToHost,
+                            x.stream);
+  }
+  if (error == cudaSuccess) {
+    error = cudaMemcpyAsync(&host_prediction, x.prediction_device_status,
+                            sizeof(host_prediction), cudaMemcpyDeviceToHost,
+                            x.stream);
+  }
+  if (error == cudaSuccess) error = cudaStreamSynchronize(x.stream);
+  if (error != cudaSuccess) {
+    return CudaFailure("copy V11 post-prefill state", error);
+  }
+  *state = {};
+  state->position = x.position;
+  state->kv_bytes = expected.value();
+  state->sliding_ring_position =
+      x.sliding_capacity == 0U ? 0U : x.position % x.sliding_capacity;
+  state->sampling_step = x.sampling_step;
+  state->prediction_token = host_prediction.token;
+  state->prediction_logit_bits =
+      std::bit_cast<std::uint32_t>(host_prediction.logit);
+  state->prediction_finite =
+      static_cast<std::uint32_t>(host_prediction.finite);
+  state->routing_finite =
+      static_cast<std::uint32_t>(host_prediction.routing_finite);
+  state->decode_control_token = host_control.token;
+  state->decode_control_suppressed_token_count =
+      host_control.suppressed_token_count;
+  state->decode_control_position = host_control.position;
+  state->decode_control_sampling_step = host_control.sampling_step;
+  state->vision_encode_calls = x.vision_encode_calls;
+  state->pending_decode_self_feed = x.pending_decode_self_feed ? 1U : 0U;
+  state->decode_self_feed_valid = x.decode_self_feed_valid ? 1U : 0U;
+  return Status::Ok();
+}
+
+Status Gemma4Moe26BReferenceEngine::CopyVisionD2T3LayerOutputDiagnostic(
+    std::uint32_t layer, std::span<float> three_rows) {
+  if (!Gemma4Moe26BVisionD2DiagnosticEnabled() || !implementation_ ||
+      !implementation_->mtp_v11_layer_outputs_enabled || layer >= kLayers ||
+      three_rows.size() != kM25FixedD2Rows * kWidth) {
+    return Invalid("V11 T3 layer-output capture request is invalid");
+  }
+  auto& x = *implementation_;
+  const std::uint64_t row_offset =
+      static_cast<std::uint64_t>(layer) * kM25FixedD2Rows * kWidth;
+  cudaError_t error = cudaStreamSynchronize(x.stream);
+  if (error == cudaSuccess) {
+    error = cudaMemcpy(
+        three_rows.data(),
+        x.mtp_verifier.As<float>(x.mtp_v11_layer_outputs_offset) +
+            row_offset,
+        three_rows.size_bytes(), cudaMemcpyDeviceToHost);
+  }
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("copy V11 T3 layer output", error);
+}
+
+Status Gemma4Moe26BReferenceEngine::RefreshVisionD2FinalHiddenDiagnostic() {
+  if (!Gemma4Moe26BVisionD2DiagnosticEnabled() || !implementation_ ||
+      implementation_->position == 0U) {
+    return Invalid("V11 final-hidden refresh is unavailable");
+  }
+  auto& x = *implementation_;
+  Status status = LaunchRmsNormBf16(x.hidden_a, x.final_norm, x.final_hidden,
+                                    1U, kWidth, 1.0e-6F, x.stream);
+  if (!status.ok()) return status;
+  const cudaError_t error = cudaStreamSynchronize(x.stream);
+  return error == cudaSuccess
+             ? Status::Ok()
+             : CudaFailure("refresh V11 Ordinary final hidden", error);
+}
+
 Status Gemma4Moe26BReferenceEngine::RunFixedMtpGraphChain(
     std::uint32_t pending_token, std::uint32_t draft_count,
     std::span<std::uint32_t> output_token_ids,
@@ -999,9 +1217,10 @@ Status Gemma4Moe26BReferenceEngine::RunFixedMtpGraphChain(
     return CudaFailure("copy M25 fixed graph chain result", error);
   }
   const auto& final_control = x.mtp_verifier_host->transaction.control;
+  const bool callback_stopped_chain = !callback_status.ok();
   if (pinned_result->output_count == 0U ||
       pinned_result->output_count > output_token_ids.size() ||
-      (pinned_result->stopped == 0U &&
+      (pinned_result->stopped == 0U && !callback_stopped_chain &&
        pinned_result->output_count != output_token_ids.size()) ||
       pinned_result->proposed_count !=
           draft_count * pinned_result->group_count ||
@@ -1018,8 +1237,25 @@ Status Gemma4Moe26BReferenceEngine::RunFixedMtpGraphChain(
           output_token_ids.size() - pinned_result->output_count ||
       final_control.current.output_write_position !=
           pinned_result->output_count) {
-    return Status(StatusCode::kInternal,
-                  "M25 fixed graph chain result is inconsistent");
+    return Status(
+        StatusCode::kInternal,
+        "M25 fixed graph chain result is inconsistent: output=" +
+            std::to_string(pinned_result->output_count) +
+            " proposed=" + std::to_string(pinned_result->proposed_count) +
+            " accepted=" + std::to_string(pinned_result->accepted_count) +
+            " rejected=" + std::to_string(pinned_result->rejected_count) +
+            " groups=" + std::to_string(pinned_result->group_count) +
+            " tail=" +
+            std::to_string(pinned_result->ordinary_tail_count) +
+            " consumed=" + std::to_string(consumed) +
+            " current_position=" +
+            std::to_string(final_control.current.processed_position) +
+            " expected_position=" +
+            std::to_string(x.position - 1U + pinned_result->output_count) +
+            " remaining=" +
+            std::to_string(final_control.current.remaining_output_capacity) +
+            " write=" +
+            std::to_string(final_control.current.output_write_position));
   }
   std::copy_n(pinned_outputs, pinned_result->output_count,
               output_token_ids.begin());

@@ -420,6 +420,17 @@ if(GEM16_ENABLE_CUDA)
   )
   gem16_set_project_warnings(gem16-26b-vision-e2e-benchmark)
   gem16_enable_sanitizers(gem16-26b-vision-e2e-benchmark)
+  add_executable(gem16-26b-vision-d2-diagnostic
+    src/cli/gemma4_26b_vision_d2_diagnostic.cpp
+  )
+  target_include_directories(gem16-26b-vision-d2-diagnostic PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/src"
+  )
+  target_link_libraries(gem16-26b-vision-d2-diagnostic PRIVATE
+    gem16_core gem16_json CUDA::cudart
+  )
+  gem16_set_project_warnings(gem16-26b-vision-d2-diagnostic)
+  gem16_enable_sanitizers(gem16-26b-vision-d2-diagnostic)
   if(NOT EXISTS "${GEM16_CUTLASS_DIR}/include/cutlass/cutlass.h")
     message(FATAL_ERROR
       "SM120 CUDA builds require CUTLASS headers at GEM16_CUTLASS_DIR=${GEM16_CUTLASS_DIR}")

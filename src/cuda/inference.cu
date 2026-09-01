@@ -25,6 +25,7 @@
 #include "model/config.h"
 #include "model/gemma4_26b_compiled_loader.h"
 #include "model/gemma4_26b_trellis35.h"
+#include "model/gemma4_26b_vision_d2_diagnostic.h"
 #include "model/model_variant.h"
 #include "platform/mapped_file.h"
 
@@ -46,6 +47,7 @@
 #include <fstream>
 #include <functional>
 #include <iomanip>
+#include <iostream>
 #include <limits>
 #include <mutex>
 #include <numeric>

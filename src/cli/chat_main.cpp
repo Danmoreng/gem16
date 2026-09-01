@@ -21,6 +21,7 @@
 #include "gem16/tokenizer.h"
 #include "cuda/engine/gemma4_26b_routed_expert_format.h"
 #include "model/config.h"
+#include "model/gemma4_26b_vision_d2_diagnostic.h"
 #include "model/model_variant.h"
 
 namespace {
@@ -867,8 +868,10 @@ int ChatMain(int argc, char** argv) {
     return 2;
   }
   if (moe26b && !options.media_files.empty() &&
-      options.mtp_draft_tokens != 0U) {
-    std::cerr << "error: Gemma 4 26B Vision v1 requires Ordinary decoding\n";
+      options.mtp_draft_tokens != 0U &&
+      !gem16::internal::Gemma4Moe26BVisionD2DiagnosticEnabled()) {
+    std::cerr << "error: vision_mtp_unqualified: Gemma 4 26B Vision requires "
+                 "Ordinary decoding\n";
     return 2;
   }
   if (options.print_model_report) {

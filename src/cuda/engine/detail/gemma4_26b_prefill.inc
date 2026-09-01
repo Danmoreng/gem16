@@ -23,6 +23,7 @@ Status Gemma4Moe26BReferenceEngine::PrefillTokensWithVision(
         vision_segment, implementation_->stream);
   }
   if (!status.ok()) return status;
+  ++implementation_->vision_encode_calls;
   implementation_->vision_prefill_active = true;
   implementation_->vision_prefill_offset = vision_segment.prompt_offset;
   implementation_->vision_prefill_tokens = vision_segment.soft_token_count;

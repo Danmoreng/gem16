@@ -254,6 +254,8 @@ struct SessionState {
   std::uint32_t mtp_draft_tokens = 0U;
   bool mtp_adaptive = false;
   bool mtp_router_overlap_diagnostic = false;
+  bool vision_d2_diagnostic = false;
+  bool vision_d2_diagnostic_warning_emitted = false;
   CudaProfilePhase cuda_profile_phase = CudaProfilePhase::kNone;
   bool poisoned = false;
 };
@@ -415,6 +417,10 @@ Result<ConversationSession> ConversationSession::Create(
   impl->mtp_adaptive = options.mtp_adaptive;
   impl->mtp_router_overlap_diagnostic =
       options.mtp_router_overlap_diagnostic;
+  impl->vision_d2_diagnostic =
+      moe26b && mtp_enabled && options.mtp_draft_tokens == 2U &&
+      impl->runtime->impl_->vision_module_loaded &&
+      internal::Gemma4Moe26BVisionD2DiagnosticEnabled();
   impl->cuda_profile_phase = options.cuda_profile_phase;
   impl->cached_token_ids.reserve(
       static_cast<std::size_t>(options.max_context_tokens));
@@ -680,9 +686,19 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
       }
       if (cache_relation.value() ==
           internal::Gemma4Moe26BVisionCacheRelation::kFullyUncached) {
-        if (impl_->mtp_draft_tokens != 0U) {
+        if (impl_->mtp_draft_tokens != 0U &&
+            !impl_->vision_d2_diagnostic) {
           return Error(StatusCode::kUnsupported,
-                       "Gemma 4 26B Vision v1 requires Ordinary decoding");
+                       std::string(internal::kGemma4Moe26BVisionMtpUnqualified) +
+                           ": Gemma 4 26B Vision requires Ordinary decoding");
+        }
+        if (impl_->mtp_draft_tokens != 0U &&
+            !impl_->vision_d2_diagnostic_warning_emitted) {
+          std::cerr
+              << "warning: vision_mtp_unqualified: V11 diagnostic Vision + "
+                 "fixed-D2 execution is enabled; exclude this run from "
+                 "product and performance claims\n";
+          impl_->vision_d2_diagnostic_warning_emitted = true;
         }
         uncached_vision = segment;
         uncached_vision->prompt_offset -= prefix_tokens;

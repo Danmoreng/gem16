@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <bit>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -42,6 +43,7 @@
 #include "model/config.h"
 #include "model/gemma4_26b_attention.h"
 #include "model/gemma4_26b_residency.h"
+#include "model/gemma4_26b_vision_d2_diagnostic.h"
 
 namespace gem16::internal {
 namespace {
