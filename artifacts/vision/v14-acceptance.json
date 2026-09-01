@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "milestone": "V14",
+  "status": "accepted",
+  "scope": "exact Gemma 4 26B Trellis35 Target + FP8 Vision module + fixed-D2 Assistant only",
+  "parent_commit": "7cdd1f1",
+  "capability": {
+    "name": "vision_mtp_supported",
+    "value": true,
+    "generic_capability_inference_forbidden": true,
+    "other_combinations_fail_closed": true,
+    "diagnostic_override_remains_non_product": true
+  },
+  "correctness": {
+    "retained_pair_streams_identical": true,
+    "output_tokens_per_run": 128,
+    "output_sha256": "c2235018ac82a19e277ab98a22d299ce2ad1d3bf6bb2f14948e242c265e1f4d1",
+    "kv_transaction_exact_evidence": "artifacts/vision/v11-d2-exactness.json",
+    "budget_140_exactness_evidence": "artifacts/vision/v11-d2-exactness-budget140.json",
+    "budget_280_exactness_evidence": "artifacts/vision/v11-d2-exactness-budget280.json",
+    "vision_tower_once_evidence": "V11 vision_encode_calls=1 continuation and matrix checks",
+    "runtime_fallback_count": 0,
+    "terminal_ordinary_tail_tokens": 2,
+    "terminal_tail_semantics": "bounded output-cap completion; at most fixed draft depth, not a runtime fallback",
+    "token_loop_allocations": false
+  },
+  "performance": {
+    "protocol": "3 warm-ups, 10 retained same-binary Ordinary/fixed-D2 pairs, greedy, identical prompt and 128-token cap",
+    "image_budget": 140,
+    "prompt_tokens": 186,
+    "image_preprocess_total_ms": 4.27487,
+    "tower_gpu_ms": {
+      "median": 252.944,
+      "minimum": 234.36,
+      "maximum": 270.214
+    },
+    "ordinary_ttft_ms": {
+      "median": 313.2465,
+      "minimum": 312.364,
+      "maximum": 313.946
+    },
+    "fixed_d2_ttft_ms": {
+      "median": 313.52,
+      "minimum": 312.412,
+      "maximum": 314.467
+    },
+    "text_prefill_and_first_selection_residual_ms": 60.3025,
+    "text_prefill_boundary_note": "Ordinary TTFT median minus the separately measured tower median; V15 adds direct phase observability.",
+    "ordinary_post_first_tokens_per_second": {
+      "median": 139.6375,
+      "minimum": 139.606,
+      "maximum": 139.692
+    },
+    "fixed_d2_post_first_tokens_per_second": {
+      "median": 203.432,
+      "minimum": 203.244,
+      "maximum": 203.634
+    },
+    "fixed_d2_speedup_percent": 45.6858,
+    "fixed_d2_trajectory_per_run": {
+      "proposed": 108,
+      "accepted": 71,
+      "rejected": 37,
+      "groups": 54
+    },
+    "device_used_bytes": 14222688256,
+    "recurring_device_memory_delta_bytes": 0,
+    "kv_cache_bytes": 440401920,
+    "workspace_bytes": 463232288
+  },
+  "evidence": {
+    "same_binary_panel": "artifacts/vision/v14-fixed-d2-performance.json",
+    "same_binary_panel_sha256": "a167646c2cce59e51571b341eb967ef788661f07d96c719dbdf2c33d2250f1af",
+    "tower_panel": "artifacts/vision/v14-tower-baseline.json",
+    "tower_panel_sha256": "55ef759ae98b965d7d45a69d535ad0a50ebbd0fa50ff223ec701f1580bb1004c",
+    "benchmark_binary_sha256": "05bfe3bc3f4a1fe6ac84be0f32e05f1b9a6d25ef9a93db1a284df3eab4f0d3ab"
+  }
+}

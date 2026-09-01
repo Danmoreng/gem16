@@ -85,6 +85,12 @@ Read it only for a concrete historical or evidence question.
 - The final retained sampled-D2 characterization reaches 203.842 token/s
   median; the prior 220 and 250 token/s targets remain unmet and closed for the
   frozen decode phase. This does not block the accepted product checkpoint.
+- Within the separately experimental Trellis35 Vision slice, V14 qualifies
+  Vision plus fixed-D2 only for the exact validated Target+Vision+Assistant
+  composite. That exact composite reports `vision_mtp_supported=true`; all
+  other combinations continue to fail closed. This narrow enablement does not
+  promote Trellis35 or 26B Vision to the released product profile before the
+  remaining V15--V18 runtime, publication, and Native Studio gates pass.
 
 Accepted numerical, performance, context, product, and publication evidence
 continues to live in `artifacts/`, `benchmarks/`, and the archived fast-track

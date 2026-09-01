@@ -27,6 +27,7 @@ struct ModelRuntime::Impl {
   double load_milliseconds = 0.0;
   bool assistant_loaded = false;
   bool vision_module_loaded = false;
+  bool vision_mtp_supported = false;
   bool moe26b_slot_leased = false;
 };
 
@@ -102,6 +103,14 @@ Result<std::shared_ptr<ModelRuntime>> ModelRuntime::Load(
       if (!status.ok()) return status;
       impl->assistant_loaded = true;
     }
+    // Both component loaders have already validated their exact schemas,
+    // source locks and artifact identities. Do not synthesize this composite
+    // capability from the generic supports_vision()/supports_mtp() surface.
+    impl->vision_mtp_supported =
+        impl->artifact_profile ==
+            internal::kGemma4Moe26BTrellis35Profile &&
+        impl->vision_module_loaded && impl->assistant_loaded &&
+        impl->moe26b_engine->mtp_assistant_loaded();
   } else {
     if (!options.vision_model_directory.empty()) {
       return Error(StatusCode::kUnsupported,
@@ -235,6 +244,9 @@ bool ModelRuntime::supports_mtp() const {
   }
   return internal::TraitsForModelVariant(impl_->variant).supports_mtp;
 }
+bool ModelRuntime::vision_mtp_supported() const {
+  return impl_ != nullptr && impl_->vision_mtp_supported;
+}
 std::uint32_t ModelRuntime::maximum_execution_slots() const {
   if (impl_ == nullptr) return 0U;
   return impl_->variant == internal::ModelVariant::kGemma4Moe26BA4B ? 1U
@@ -254,6 +266,7 @@ struct SessionState {
   std::uint32_t mtp_draft_tokens = 0U;
   bool mtp_adaptive = false;
   bool mtp_router_overlap_diagnostic = false;
+  bool vision_d2_supported = false;
   bool vision_d2_diagnostic = false;
   bool vision_d2_diagnostic_warning_emitted = false;
   CudaProfilePhase cuda_profile_phase = CudaProfilePhase::kNone;
@@ -417,9 +430,13 @@ Result<ConversationSession> ConversationSession::Create(
   impl->mtp_adaptive = options.mtp_adaptive;
   impl->mtp_router_overlap_diagnostic =
       options.mtp_router_overlap_diagnostic;
+  impl->vision_d2_supported =
+      moe26b && mtp_enabled && options.mtp_draft_tokens == 2U &&
+      impl->runtime->impl_->vision_mtp_supported;
   impl->vision_d2_diagnostic =
       moe26b && mtp_enabled && options.mtp_draft_tokens == 2U &&
       impl->runtime->impl_->vision_module_loaded &&
+      !impl->vision_d2_supported &&
       internal::Gemma4Moe26BVisionD2DiagnosticEnabled();
   impl->cuda_profile_phase = options.cuda_profile_phase;
   impl->cached_token_ids.reserve(
@@ -687,12 +704,12 @@ Result<GreedyInferenceResult> ConversationSession::Generate(
       if (cache_relation.value() ==
           internal::Gemma4Moe26BVisionCacheRelation::kFullyUncached) {
         if (impl_->mtp_draft_tokens != 0U &&
-            !impl_->vision_d2_diagnostic) {
+            !impl_->vision_d2_supported && !impl_->vision_d2_diagnostic) {
           return Error(StatusCode::kUnsupported,
                        std::string(internal::kGemma4Moe26BVisionMtpUnqualified) +
                            ": Gemma 4 26B Vision requires Ordinary decoding");
         }
-        if (impl_->mtp_draft_tokens != 0U &&
+        if (impl_->vision_d2_diagnostic &&
             !impl_->vision_d2_diagnostic_warning_emitted) {
           std::cerr
               << "warning: vision_mtp_unqualified: V11 diagnostic Vision + "

@@ -628,6 +628,8 @@ Status ValidateM25ExternalLock(const std::filesystem::path& root,
       "m25_mtp_assistant_runtime_candidate";
   constexpr std::string_view kM25SourceLock =
       "83e509316eab22749fade9c0968333b0a29f0daf99832314b333702bf45bdda5";
+  constexpr std::string_view kAcceptedM25ArtifactContentSha256 =
+      "978f5e3804dd08b8ea5551883811e0bf6737a23ae5ae3dcfa0ef71dc4ffe532b";
   const auto lock_path = ExternalLockPath(root);
   auto lock_payload = ReadRegularFile(lock_path, kMaximumMetadataBytes);
   if (!lock_payload.ok()) return lock_payload.status();
@@ -727,9 +729,11 @@ Status ValidateM25ExternalLock(const std::filesystem::path& root,
   auto content_object = lock.value().as_object();
   const auto* recorded_content_hash =
       Field(lock.value(), "artifact_content_sha256");
-  if (recorded_content_hash == nullptr || !recorded_content_hash->is_string()) {
+  if (recorded_content_hash == nullptr || !recorded_content_hash->is_string() ||
+      recorded_content_hash->as_string() !=
+          kAcceptedM25ArtifactContentSha256) {
     return Status(StatusCode::kDataLoss,
-                  "M25 external lock content hash is invalid");
+                  "M25 external lock does not match the accepted Assistant artifact");
   }
   content_object.erase("artifact_content_sha256");
   content_object.erase("schema_version");

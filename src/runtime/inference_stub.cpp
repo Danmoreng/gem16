@@ -40,6 +40,7 @@ std::uint64_t ModelRuntime::workspace_bytes() const { return 0U; }
 bool ModelRuntime::supports_audio() const { return false; }
 bool ModelRuntime::supports_vision() const { return false; }
 bool ModelRuntime::supports_mtp() const { return false; }
+bool ModelRuntime::vision_mtp_supported() const { return false; }
 std::uint32_t ModelRuntime::maximum_execution_slots() const { return 0U; }
 
 struct ConversationSession::Impl {};

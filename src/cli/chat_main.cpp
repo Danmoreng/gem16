@@ -21,27 +21,9 @@
 #include "gem16/tokenizer.h"
 #include "cuda/engine/gemma4_26b_routed_expert_format.h"
 #include "model/config.h"
-#if GEM16_HAS_CUDA
-#if defined(_MSC_VER)
-#pragma warning(push)
-#pragma warning(disable : 4996)
-#endif
-#include "model/gemma4_26b_vision_d2_diagnostic.h"
-#if defined(_MSC_VER)
-#pragma warning(pop)
-#endif
-#endif
 #include "model/model_variant.h"
 
 namespace {
-
-bool VisionD2DiagnosticEnabled() noexcept {
-#if GEM16_HAS_CUDA
-  return gem16::internal::Gemma4Moe26BVisionD2DiagnosticEnabled();
-#else
-  return false;
-#endif
-}
 
 bool ParseUnsigned(std::string_view text, std::uint64_t& value) {
   const auto result =
@@ -884,13 +866,6 @@ int ChatMain(int argc, char** argv) {
     std::cerr << "error: Gemma 4 26B image input requires --vision-model\n";
     return 2;
   }
-  if (moe26b && !options.media_files.empty() &&
-      options.mtp_draft_tokens != 0U &&
-      !VisionD2DiagnosticEnabled()) {
-    std::cerr << "error: vision_mtp_unqualified: Gemma 4 26B Vision requires "
-                 "Ordinary decoding\n";
-    return 2;
-  }
   if (options.print_model_report) {
     auto runtime = gem16::ModelRuntime::Load(
         {options.model_directory, options.assistant_model_directory,
@@ -934,6 +909,8 @@ int ChatMain(int argc, char** argv) {
                 : "false")
         << ",\"supports_mtp\":"
         << (runtime.value()->supports_mtp() ? "true" : "false")
+        << ",\"vision_mtp_supported\":"
+        << (runtime.value()->vision_mtp_supported() ? "true" : "false")
         << ",\"resident_weight_bytes\":"
         << runtime.value()->weight_bytes()
         << ",\"assistant_weight_bytes\":"

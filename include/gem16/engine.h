@@ -256,6 +256,10 @@ class ModelRuntime {
   [[nodiscard]] bool supports_audio() const;
   [[nodiscard]] bool supports_vision() const;
   [[nodiscard]] bool supports_mtp() const;
+  // True only for the exact validated 26B Trellis35 Target + FP8 Vision +
+  // fixed-D2 Assistant combination. Generic Vision and MTP support must not
+  // be combined to infer this capability.
+  [[nodiscard]] bool vision_mtp_supported() const;
   [[nodiscard]] std::uint32_t maximum_execution_slots() const;
 
  private:
