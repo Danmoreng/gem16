@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "milestone": "V18",
+  "status": "accepted",
+  "parent_commit": "1445065",
+  "scope": {
+    "profile": "gemma4_26b_trellis35_vision_fp8",
+    "experimental": true,
+    "maximum_images_per_chat": 1,
+    "audio": "rejected_locally",
+    "documents": "unchanged",
+    "vision_soft_token_budgets": [70, 140, 280],
+    "fixed_d2_requires_live_vision_mtp_supported": true,
+    "silent_d2_downgrade": false
+  },
+  "native_studio": {
+    "image_preview": true,
+    "estimated_soft_tokens": true,
+    "selected_budget_visible": true,
+    "experimental_badge": true,
+    "remove_attachment": true,
+    "retry_failed_request": true,
+    "second_image_rejected_before_request": true,
+    "external_profile_and_capability_match_required": true
+  },
+  "server_adapter": {
+    "request_extension": "vision_soft_token_budget",
+    "chat_completions": true,
+    "responses": true,
+    "unsupported_budget_rejected": true,
+    "insufficient_context_rejected": true,
+    "automatic_budget_behavior_preserved_when_omitted": true
+  },
+  "v16_runtime_view_correction": {
+    "issue": "legacy Studio Vision view materialized component-local LICENSE, NOTICE, and README beside the four strict runtime files",
+    "canonical_hub_blobs_changed": false,
+    "generated_catalog_runtime_files": 4,
+    "legacy_auxiliary_hardlinks_pruned": true,
+    "published_view_runtime_load": "passed"
+  },
+  "live_smoke": {
+    "target": "published Trellis35 component view",
+    "vision": "published FP8 Vision component view",
+    "assistant": "published fixed-D2 component view",
+    "profile_id": "gemma4-26b-a4b-trellis35-vision-fp8-d2",
+    "vision_mtp_supported": true,
+    "requested_budgets": [70, 140],
+    "selected_budget_observed_in_health": true,
+    "http_status": 200,
+    "image_output": "Bäckerei Huber"
+  },
+  "verification": {
+    "native_studio_build": "passed",
+    "native_studio_host_tests": "passed",
+    "host_unit_tests": "passed",
+    "published_component_cache": "passed",
+    "published_component_runtime_load": "passed",
+    "vision_fixed_d2_request": "passed",
+    "sanitizer": "passed",
+    "linux_windows_ci": "pending"
+  }
+}

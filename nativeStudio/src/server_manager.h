@@ -44,6 +44,7 @@ class ServerManager final {
 };
 
 [[nodiscard]] std::vector<std::string> BuildServerCommand(const ServerConfig& config);
+[[nodiscard]] std::string HealthCompatibilityError(
+    const ServerConfig& config, const HealthSnapshot& health);
 
 }  // namespace gem16::studio
-

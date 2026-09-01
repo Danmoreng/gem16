@@ -26,21 +26,33 @@ ID3D11Device* g_device = nullptr;
 
 }  // namespace
 
-DecodedImage DecodePreviewImage(const std::uint8_t* encoded, std::size_t size) {
-  DecodedImage result;
+ImageDimensions ProbePreviewImage(const std::uint8_t* encoded,
+                                  std::size_t size) {
+  ImageDimensions result;
   if (encoded == nullptr || size == 0 ||
       size > static_cast<std::size_t>(INT_MAX))
     return result;
-  int width = 0;
-  int height = 0;
   int channels = 0;
-  if (stbi_info_from_memory(encoded, static_cast<int>(size), &width, &height,
-                            &channels) == 0 ||
-      width <= 0 || height <= 0 || width > kMaximumPreviewDimension ||
-      height > kMaximumPreviewDimension ||
-      static_cast<std::uint64_t>(width) * static_cast<std::uint64_t>(height) >
-          kMaximumPreviewPixels)
-    return result;
+  if (stbi_info_from_memory(encoded, static_cast<int>(size), &result.width,
+                            &result.height, &channels) == 0 ||
+      result.width <= 0 || result.height <= 0 ||
+      result.width > kMaximumPreviewDimension ||
+      result.height > kMaximumPreviewDimension ||
+      static_cast<std::uint64_t>(result.width) *
+              static_cast<std::uint64_t>(result.height) >
+          kMaximumPreviewPixels) {
+    return {};
+  }
+  return result;
+}
+
+DecodedImage DecodePreviewImage(const std::uint8_t* encoded, std::size_t size) {
+  DecodedImage result;
+  const ImageDimensions dimensions = ProbePreviewImage(encoded, size);
+  if (!dimensions.Valid()) return result;
+  int width = dimensions.width;
+  int height = dimensions.height;
+  int channels = 0;
   stbi_uc* pixels = stbi_load_from_memory(
       encoded, static_cast<int>(size), &width, &height, &channels, STBI_rgb_alpha);
   if (pixels == nullptr) return result;

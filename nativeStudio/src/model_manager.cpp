@@ -5,6 +5,7 @@
 #include "settings.h"
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <condition_variable>
 #include <cstdlib>
@@ -178,6 +179,27 @@ std::string FileSha256(const std::filesystem::path& path) {
   return input.eof() ? digest.HexDigest() : std::string{};
 }
 
+void PruneLegacyVisionViewAuxiliaryLinks() {
+  const auto& profile = CatalogForProfile(
+      ModelProfile::kGemma4Moe26BTrellis35VisionFp8);
+  const auto* vision =
+      ComponentForProfile(profile, ModelComponentKind::kVision);
+  if (vision == nullptr) return;
+  const auto root = ComponentDirectory(*vision->catalog,
+                                       HuggingFaceHubRoot());
+  constexpr std::array<std::string_view, 3> legacy_files{
+      "LICENSE", "NOTICE", "README.md"};
+  for (const std::string_view name : legacy_files) {
+    const auto path = root / name;
+    std::error_code error;
+    const auto status = std::filesystem::symlink_status(path, error);
+    if (!error && (std::filesystem::is_regular_file(status) ||
+                   std::filesystem::is_symlink(status))) {
+      std::filesystem::remove(path, error);
+    }
+  }
+}
+
 bool LinkVerifiedFile(const std::filesystem::path& blob,
                       const std::filesystem::path& destination,
                       std::string& error_message) {
@@ -202,7 +224,10 @@ bool LinkVerifiedFile(const std::filesystem::path& blob,
 
 }  // namespace
 
-ModelManager::ModelManager() { Refresh(); }
+ModelManager::ModelManager() {
+  PruneLegacyVisionViewAuxiliaryLinks();
+  Refresh();
+}
 
 ModelManager::~ModelManager() {
   Cancel();

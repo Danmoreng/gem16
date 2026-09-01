@@ -33,6 +33,22 @@ void CopyTo(std::array<char, Size>& destination, const std::string& source) {
   destination[count] = '\0';
 }
 
+std::size_t CountImages(const std::vector<ChatMessage>& messages,
+                        const std::vector<MediaAttachment>& pending = {}) {
+  std::size_t count = std::count_if(
+      pending.begin(), pending.end(), [](const MediaAttachment& attachment) {
+        return attachment.kind == MediaKind::kImage;
+      });
+  for (const ChatMessage& message : messages) {
+    count += std::count_if(
+        message.attachments.begin(), message.attachments.end(),
+        [](const MediaAttachment& attachment) {
+          return attachment.kind == MediaKind::kImage;
+        });
+  }
+  return count;
+}
+
 const char* PhaseLabel(ServerPhase phase) {
   switch (phase) {
     case ServerPhase::kStopped: return "Stopped";
@@ -638,7 +654,12 @@ void StudioApp::DrawChat() {
           "Open Models and select either qualified profile. You can return here at any time.");
     }
   }
-  for (std::size_t index = 0; index < messages_.size(); ++index) DrawMessage(messages_[index], index);
+  for (std::size_t index = 0; index < messages_.size(); ++index)
+    DrawMessage(messages_[index], index);
+  if (retry_requested_) {
+    retry_requested_ = false;
+    RetryLastRequest();
+  }
   const bool at_bottom = ImGui::GetScrollY() >= ImGui::GetScrollMaxY() - Ui(18.0f);
   if (ImGui::IsWindowHovered() && ImGui::GetIO().MouseWheel != 0.0f && !at_bottom)
     auto_follow_ = false;
@@ -665,8 +686,17 @@ void StudioApp::DrawChat() {
   const HealthSnapshot health = server_.Health();
   const bool busy = api_.Busy();
   const bool has_draft = composer_[0] != '\0' || !pending_attachments_.empty();
+  const std::string live_mismatch =
+      health.available ? HealthCompatibilityError(settings_.server, health)
+                       : std::string{};
+  const ServerPhase server_phase = server_.Phase();
+  const bool live_compatible =
+      live_mismatch.empty() &&
+      (server_phase == ServerPhase::kRunning ||
+       server_phase == ServerPhase::kExternal);
   const bool can_send = settings_.onboarding_complete && !busy &&
-                        !recorder_.Active() && has_draft && health.available;
+                        !recorder_.Active() && has_draft && health.available &&
+                        live_compatible;
 
   if (recorder_.Active()) {
     const ImVec2 recording_origin = ImGui::GetCursorScreenPos();
@@ -751,7 +781,7 @@ void StudioApp::DrawChat() {
   const ImU32 disabled_text = ImGui::GetColorU32(ImGuiCol_TextDisabled);
   composer_draw->AddText({toolbar_x, toolbar_text_y}, disabled_text, maximum_label);
   toolbar_x += ImGui::CalcTextSize(maximum_label).x + Ui(18.0f);
-  char status_label[160]{};
+  char status_label[192]{};
   if (generation_started_.time_since_epoch().count() != 0) {
     const auto end = busy ? std::chrono::steady_clock::now() : generation_finished_;
     const double seconds = std::chrono::duration<double>(end - generation_started_).count();
@@ -781,8 +811,15 @@ void StudioApp::DrawChat() {
     std::snprintf(status_label, sizeof(status_label),
                   "Select a model profile in Models to begin");
   } else {
-    std::snprintf(status_label, sizeof(status_label),
-                  "Drop files anywhere · media require 12B Unified");
+    if (settings_.server.profile ==
+        ModelProfile::kGemma4Moe26BTrellis35VisionFp8) {
+      std::snprintf(status_label, sizeof(status_label),
+                    "EXPERIMENTAL Vision · one image · %d-token budget",
+                    settings_.server.vision_soft_token_budget);
+    } else {
+      std::snprintf(status_label, sizeof(status_label),
+                    "Drop files anywhere · media follow the selected profile");
+    }
   }
   const float toolbar_right = ImGui::GetWindowPos().x +
                               ImGui::GetWindowContentRegionMax().x;
@@ -843,6 +880,11 @@ void StudioApp::DrawChat() {
 
   if (!pending_attachments_.empty())
     DrawAttachmentGallery(pending_attachments_, &pending_attachments_);
+  if (!live_mismatch.empty() && health.available) {
+    ImGui::TextColored({1.0f, 0.47f, 0.42f, 1.0f}, "%s",
+                       live_mismatch.c_str());
+    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + Ui(6.0f));
+  }
   if (!attachment_error_.empty()) {
     ImGui::TextColored({1.0f, 0.47f, 0.42f, 1.0f}, "%s", attachment_error_.c_str());
     ImGui::SetCursorPosY(ImGui::GetCursorPosY() + Ui(6.0f));
@@ -888,8 +930,11 @@ void StudioApp::DrawChat() {
     ImGui::BeginDisabled(!can_send);
     const char* send_hint = !settings_.onboarding_complete
                                 ? "Select a model profile first"
-                                : (health.available ? "Send message"
-                                                    : "Server is offline");
+                            : !health.available
+                                ? "Server is offline"
+                            : !live_mismatch.empty()
+                                ? "Live server profile or capabilities do not match"
+                                : "Send message";
     const bool send_clicked = ComposerButton(
         "##send", ComposerIcon::kSend, Ui(44.0f), send_hint, !can_send);
     ImGui::EndDisabled();
@@ -1019,8 +1064,17 @@ void StudioApp::DrawAttachmentGallery(
     draw->PushClipRect(text_min, text_max, true);
     draw->AddText(text_min, ImGui::GetColorU32(ImGuiCol_Text),
                   attachment.file_name.c_str());
-    const std::string detail = std::string(kind) + " · " +
-                               FormatBytes(attachment.byte_size);
+    std::string detail = std::string(kind) + " · " +
+                         FormatBytes(attachment.byte_size);
+    if (attachment.kind == MediaKind::kImage &&
+        settings_.server.profile ==
+            ModelProfile::kGemma4Moe26BTrellis35VisionFp8) {
+      const std::uint32_t estimate = EstimateVisionSoftTokens(
+          attachment,
+          static_cast<std::uint32_t>(settings_.server.vision_soft_token_budget));
+      detail = std::to_string(settings_.server.vision_soft_token_budget) +
+               " budget · ~" + std::to_string(estimate) + " tokens";
+    }
     draw->AddText({text_min.x, y + Ui(92.0f)},
                   ImGui::GetColorU32(ImGuiCol_TextDisabled), detail.c_str());
     draw->PopClipRect();
@@ -1086,7 +1140,8 @@ void StudioApp::DrawMessage(const ChatMessage& message, std::size_t index) {
         copied_message_index_ == index &&
         ImGui::GetTime() - copied_message_at_ < 1.6;
     ImGui::SameLine();
-    ImGui::SetCursorPosX(ImGui::GetWindowWidth() - Ui(64.0f));
+    ImGui::SetCursorPosX(
+        ImGui::GetWindowWidth() - Ui(message.error ? 120.0f : 64.0f));
     ImGui::PushStyleColor(ImGuiCol_Button, {0, 0, 0, 0});
     if (ImGui::SmallButton(
             (std::string(recently_copied ? "Copied##" : "Copy##") +
@@ -1097,6 +1152,13 @@ void StudioApp::DrawMessage(const ChatMessage& message, std::size_t index) {
       copied_message_at_ = ImGui::GetTime();
     }
     ImGui::PopStyleColor();
+  }
+  if (!user && message.error && index + 1U == messages_.size()) {
+    ImGui::SameLine();
+    if (ImGui::SmallButton(
+            (std::string("Retry##") + std::to_string(index)).c_str())) {
+      retry_requested_ = true;
+    }
   }
   if (!message.attachments.empty()) {
     ImGui::Spacing();
@@ -1358,14 +1420,24 @@ void StudioApp::DrawServer() {
   FieldLabel("Context tokens");
   if (ImGui::InputInt("##context-tokens", &context))
     settings_.server.max_context_tokens = std::max(context, 1);
-  const int mtp_values[] = {0, 1, 2, 4};
-  const char* mtp_labels[] = {"Off", "D1", "D2", "D4"};
-  int mtp_index = 2;
-  for (int index = 0; index < 4; ++index) {
-    if (settings_.server.mtp_draft_tokens == mtp_values[index]) mtp_index = index;
+  const int generic_mtp_values[] = {0, 1, 2, 4};
+  const char* generic_mtp_labels[] = {"Off", "D1", "D2", "D4"};
+  const int moe_mtp_values[] = {0, 2};
+  const char* moe_mtp_labels[] = {"Off", "D2 (fixed)"};
+  const bool moe_profile = settings_.server.profile !=
+                           ModelProfile::kGemma4Unified12B;
+  const int* mtp_values = moe_profile ? moe_mtp_values : generic_mtp_values;
+  const char* const* mtp_labels =
+      moe_profile ? moe_mtp_labels : generic_mtp_labels;
+  const int mtp_count = moe_profile ? 2 : 4;
+  int mtp_index = settings_.server.mtp_draft_tokens == 0 ? 0
+                                                        : (moe_profile ? 1 : 2);
+  for (int index = 0; index < mtp_count; ++index) {
+    if (settings_.server.mtp_draft_tokens == mtp_values[index])
+      mtp_index = index;
   }
   FieldLabel("MTP draft profile");
-  if (ImGui::Combo("##mtp-profile", &mtp_index, mtp_labels, 4)) {
+  if (ImGui::Combo("##mtp-profile", &mtp_index, mtp_labels, mtp_count)) {
     settings_.server.mtp_draft_tokens = mtp_values[mtp_index];
   }
   if (vision_profile) {
@@ -1385,6 +1457,16 @@ void StudioApp::DrawServer() {
   ImGui::SameLine(0, Ui(18));
   CapabilityChip(settings_.server.mtp_draft_tokens == 0 ? "MTP disabled" : "GPU MTP enabled",
                  settings_.server.mtp_draft_tokens != 0);
+  if (vision_profile) {
+    const HealthSnapshot health = server_.Health();
+    ImGui::SameLine(0, Ui(10));
+    const bool ordinary = settings_.server.mtp_draft_tokens == 0;
+    const bool d2_live = health.available && health.vision_mtp_supported;
+    CapabilityChip(ordinary ? "Vision Ordinary selected"
+                            : d2_live ? "Vision+D2 live-qualified"
+                                      : "Vision+D2 awaiting live capability",
+                   ordinary || d2_live);
+  }
   SyncSettingsFromBuffers();
   server_.Configure(settings_.server);
   ImGui::Dummy({0, Ui(6)});
@@ -1441,6 +1523,10 @@ void StudioApp::DrawServer() {
                   health.vision_mtp_supported ? "qualified" : "disabled");
       ImGui::TextDisabled("Profile: %s · %s", health.profile_id.c_str(),
                           health.qualification_state.c_str());
+      if (health.selected_vision_soft_token_budget > 0) {
+        ImGui::Text("Last image processing budget: %d soft tokens",
+                    health.selected_vision_soft_token_budget);
+      }
     }
     ImGui::Separator();
   }
@@ -1527,6 +1613,13 @@ void StudioApp::DrawSettings() {
 void StudioApp::SendMessage() {
   std::string text = composer_.data();
   if ((text.empty() && pending_attachments_.empty()) || api_.Busy()) return;
+  const HealthSnapshot health = server_.Health();
+  const std::string mismatch =
+      HealthCompatibilityError(settings_.server, health);
+  if (!mismatch.empty()) {
+    attachment_error_ = mismatch;
+    return;
+  }
   ChatMessage user{"user", std::move(text), {}, false, false, {}};
   user.attachments = std::move(pending_attachments_);
   messages_.push_back(std::move(user));
@@ -1547,6 +1640,36 @@ void StudioApp::SendMessage() {
   scroll_to_bottom_ = true;
 }
 
+void StudioApp::RetryLastRequest() {
+  if (api_.Busy() || messages_.size() < 2U ||
+      messages_.back().role != "assistant" || !messages_.back().error ||
+      messages_[messages_.size() - 2U].role != "user") {
+    return;
+  }
+  const HealthSnapshot health = server_.Health();
+  const std::string mismatch =
+      HealthCompatibilityError(settings_.server, health);
+  if (!mismatch.empty()) {
+    attachment_error_ = mismatch;
+    return;
+  }
+  messages_.pop_back();
+  const auto request_messages = messages_;
+  messages_.push_back({"assistant", {}, {}, true, false, {}});
+  session_id_.clear();
+  generation_started_ = std::chrono::steady_clock::now();
+  first_token_at_ = {};
+  generation_finished_ = {};
+  prompt_tokens_ = 0;
+  completion_tokens_ = 0;
+  streamed_chunks_ = 0;
+  performance_.reset();
+  api_.StreamChat(settings_.server, settings_.generation, request_messages,
+                  session_id_);
+  auto_follow_ = true;
+  scroll_to_bottom_ = true;
+}
+
 void StudioApp::AddAttachments(
     const std::vector<std::filesystem::path>& paths) {
   attachment_error_.clear();
@@ -1557,13 +1680,11 @@ void StudioApp::AddAttachments(
       attachment_error_ = std::move(error);
       continue;
     }
-    if (settings_.server.profile != ModelProfile::kGemma4Unified12B &&
-        attachment.kind != MediaKind::kDocument) {
-      attachment_error_ =
-          settings_.server.profile ==
-                  ModelProfile::kGemma4Moe26BTrellis35VisionFp8
-              ? "Vision attachments remain disabled until the V18 capability and UX gate is complete."
-              : "Gemma 4 26B A4B is text-only. Select 12B Unified for images and audio.";
+    const std::string policy_error = AttachmentPolicyError(
+        settings_.server.profile, attachment.kind,
+        CountImages(messages_, pending_attachments_));
+    if (!policy_error.empty()) {
+      attachment_error_ = policy_error;
       continue;
     }
     pending_attachments_.push_back(std::move(attachment));

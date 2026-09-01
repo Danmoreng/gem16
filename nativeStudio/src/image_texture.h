@@ -14,6 +14,15 @@ struct DecodedImage {
   int height = 0;
 };
 
+struct ImageDimensions {
+  int width = 0;
+  int height = 0;
+  [[nodiscard]] bool Valid() const { return width > 0 && height > 0; }
+};
+
+[[nodiscard]] ImageDimensions ProbePreviewImage(const std::uint8_t* encoded,
+                                                std::size_t size);
+
 [[nodiscard]] DecodedImage DecodePreviewImage(const std::uint8_t* encoded,
                                               std::size_t size);
 

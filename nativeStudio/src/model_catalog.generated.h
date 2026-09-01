@@ -191,9 +191,6 @@ inline constexpr ModelComponentCatalog kGemma4Moe26BTrellis35Target{
     "trellis35"};
 
 inline constexpr std::array kGemma4Moe26BVisionFp8Files{
-    ModelCatalogFile{"LICENSE", 634ULL, "e32c5cdb30142b7c670d61be0f2de18ab0007f72ef131e2869ef51687539c86d", "506ff98349a36c9b78904645c9ae492a9b62e826", "danmoreng/gemma-4-26B-A4B-it-GEM16", "31842e12882d09bab7109c0ad52a4ee2e945069c", "vision/LICENSE"},
-    ModelCatalogFile{"NOTICE", 255ULL, "5d45db1b48e19805cc8bfd1b0dd17a83ff460be030ee2daf9a190ec9e0420d66", "baea312a0654666a86a1f85a067dcc1dde4ccda1", "danmoreng/gemma-4-26B-A4B-it-GEM16", "31842e12882d09bab7109c0ad52a4ee2e945069c", "vision/NOTICE"},
-    ModelCatalogFile{"README.md", 323ULL, "106402ea1203f876867a4ce9fb23794974ade83a3bdfeed9d99f66768ec3106b", "56e3037b1ad1c95e73c1a6cbdd85348ca91e0461", "danmoreng/gemma-4-26B-A4B-it-GEM16", "31842e12882d09bab7109c0ad52a4ee2e945069c", "vision/README.md"},
     ModelCatalogFile{"gem16_vision.json", 599ULL, "1de073a0074cebcea26a267376314fe6ecee7c151c3dda1a50fe0a6a0d382b55", "e22264c1aba8cae8af3b75f6059f74ebebb04662", "danmoreng/gemma-4-26B-A4B-it-GEM16", "31842e12882d09bab7109c0ad52a4ee2e945069c", "vision/gem16_vision.json"},
     ModelCatalogFile{"vision.gem16", 597390648ULL, "805e1fee4ad80dbb76a846c0009d6f57dbb50192e7009ef1633cdc3b5252a536", "805e1fee4ad80dbb76a846c0009d6f57dbb50192e7009ef1633cdc3b5252a536", "danmoreng/gemma-4-26B-A4B-it-GEM16", "31842e12882d09bab7109c0ad52a4ee2e945069c", "vision/vision.gem16"},
     ModelCatalogFile{"vision.lock.json", 689ULL, "d2bc0fd2105af48dea36a9cbe757e688a8b10ba94bee355047e1f163df01bbc8", "0608adf65eaf6a2f9dffdf8c2adaef68c7a78f41", "danmoreng/gemma-4-26B-A4B-it-GEM16", "31842e12882d09bab7109c0ad52a4ee2e945069c", "vision/vision.lock.json"},

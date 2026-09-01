@@ -58,6 +58,12 @@ REPOSITORY = re.compile(
     r"[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?\Z"
 )
 PATH_SEGMENT = re.compile(r"[A-Za-z0-9._-]+\Z")
+VISION_RUNTIME_FILES = {
+    "gem16_vision.json",
+    "vision.gem16",
+    "vision.lock.json",
+    "vision_compilation.json",
+}
 
 
 def quoted(value: str) -> str:
@@ -132,7 +138,17 @@ def render_component(symbol: str, component_id: str, label: str, lock: dict[str,
     revision = lock["revision"]
     external = False
     rows: list[str] = []
-    for entry in lock["files"]:
+    entries = lock["files"]
+    if component_id == "gemma4-26b-vision-fp8":
+        locked_paths = {entry["path"] for entry in entries}
+        if not VISION_RUNTIME_FILES.issubset(locked_paths):
+            missing = sorted(VISION_RUNTIME_FILES - locked_paths)
+            raise ValueError(f"{component_id}: missing runtime files: {missing}")
+        # The immutable publication lock also records component-local notices.
+        # They stay in the Hub repository, but the strict runtime module view
+        # must contain exactly the four V00 contract files.
+        entries = [entry for entry in entries if entry["path"] in VISION_RUNTIME_FILES]
+    for entry in entries:
         path = entry["path"]
         source = entry.get("source") or {}
         source_repository = source.get("repository", repository)

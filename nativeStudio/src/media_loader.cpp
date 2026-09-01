@@ -1,5 +1,7 @@
 #include "media_loader.h"
 
+#include "image_texture.h"
+
 #include "platform_process.h"
 
 #include <algorithm>
@@ -7,6 +9,7 @@
 #include <cctype>
 #include <chrono>
 #include <condition_variable>
+#include <cmath>
 #include <cstdlib>
 #include <fstream>
 #include <iterator>
@@ -305,7 +308,74 @@ bool LoadMediaAttachment(const std::filesystem::path& path,
   attachment.mime_type = type->second.mime;
   attachment.format = type->second.format;
   attachment.bytes = std::move(bytes);
+  if (attachment.kind == MediaKind::kImage) {
+    const ImageDimensions dimensions = ProbePreviewImage(
+        attachment.bytes.data(), attachment.bytes.size());
+    if (!dimensions.Valid()) {
+      error = "Image is malformed, unsupported, or exceeds the 16 megapixel preview limit: " +
+              attachment.file_name;
+      return false;
+    }
+    attachment.image_width = dimensions.width;
+    attachment.image_height = dimensions.height;
+  }
   return true;
+}
+
+std::string AttachmentPolicyError(ModelProfile profile, MediaKind kind,
+                                  std::size_t existing_images) {
+  if (kind == MediaKind::kDocument ||
+      profile == ModelProfile::kGemma4Unified12B) {
+    return {};
+  }
+  if (profile == ModelProfile::kGemma4Moe26BA4B) {
+    return "Gemma 4 26B A4B is text-only. Select a multimodal profile for media.";
+  }
+  if (kind == MediaKind::kAudio) {
+    return "Gemma 4 26B Vision supports image input, but not audio input.";
+  }
+  if (existing_images != 0U) {
+    return "Gemma 4 26B Vision supports exactly one image per chat. Remove the existing image or start a new chat.";
+  }
+  return {};
+}
+
+std::uint32_t EstimateVisionSoftTokens(const MediaAttachment& attachment,
+                                       std::uint32_t budget) {
+  if (attachment.kind != MediaKind::kImage || attachment.image_width <= 0 ||
+      attachment.image_height <= 0 ||
+      (budget != 70U && budget != 140U && budget != 280U)) {
+    return 0U;
+  }
+  constexpr std::uint32_t model_patch = 48U;
+  constexpr std::uint32_t pixels_per_soft_token = model_patch * model_patch;
+  const auto width = static_cast<std::uint64_t>(attachment.image_width);
+  const auto height = static_cast<std::uint64_t>(attachment.image_height);
+  const double factor = std::sqrt(
+      static_cast<double>(budget * pixels_per_soft_token) /
+      static_cast<double>(width * height));
+  std::uint32_t processed_height = static_cast<std::uint32_t>(
+      std::floor(factor * static_cast<double>(height) / model_patch)) *
+      model_patch;
+  std::uint32_t processed_width = static_cast<std::uint32_t>(
+      std::floor(factor * static_cast<double>(width) / model_patch)) *
+      model_patch;
+  const std::uint32_t maximum_side = budget * model_patch;
+  if (processed_height == 0U) {
+    processed_height = model_patch;
+    processed_width = std::min(
+        std::max(model_patch,
+                 static_cast<std::uint32_t>(width / height) * model_patch),
+        maximum_side);
+  } else if (processed_width == 0U) {
+    processed_width = model_patch;
+    processed_height = std::min(
+        std::max(model_patch,
+                 static_cast<std::uint32_t>(height / width) * model_patch),
+        maximum_side);
+  }
+  return (processed_height / model_patch) *
+         (processed_width / model_patch);
 }
 
 }  // namespace gem16::studio

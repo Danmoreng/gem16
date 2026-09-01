@@ -40,6 +40,25 @@ Result<std::string> RequiredString(const json::Value::Object& object,
   return iterator->second.as_string();
 }
 
+Result<std::uint32_t> RequestedVisionSoftTokenBudget(
+    const json::Value::Object& object,
+    const OpenAiChatAdapterOptions& options) {
+  const auto iterator = object.find("vision_soft_token_budget");
+  if (iterator == object.end()) return 0U;
+  if (!options.gemma4_moe26b_vision) {
+    return Status(StatusCode::kUnsupported,
+                  "vision_soft_token_budget requires the Gemma 4 26B Vision profile");
+  }
+  if (!iterator->second.is_integer()) {
+    return Invalid("vision_soft_token_budget must be an integer");
+  }
+  const std::int64_t value = iterator->second.as_integer();
+  if (value != 70 && value != 140 && value != 280) {
+    return Invalid("vision_soft_token_budget must be 70, 140, or 280");
+  }
+  return static_cast<std::uint32_t>(value);
+}
+
 Result<std::vector<std::uint8_t>> DecodeBase64(std::string_view encoded) {
   if (encoded.empty() || encoded.size() > 16U * 1024U * 1024U ||
       encoded.size() % 4U != 0U) {
@@ -597,9 +616,11 @@ Result<OpenAiChatRequest> ParseChatCompletionsRequest(
       object,
       {"model", "messages", "max_completion_tokens", "max_tokens", "stream",
        "stream_options", "reasoning_effort", "tools", "tool_choice",
-       "parallel_tool_calls", "n"},
+       "parallel_tool_calls", "n", "vision_soft_token_budget"},
       "Chat Completions request");
   if (!request_fields.ok()) return request_fields;
+  auto requested_vision_budget = RequestedVisionSoftTokenBudget(object, options);
+  if (!requested_vision_budget.ok()) return requested_vision_budget.status();
   OpenAiChatRequest request;
   auto model = RequiredString(object, "model");
   if (!model.ok()) return model.status();
@@ -720,7 +741,14 @@ Result<OpenAiChatRequest> ParseChatCompletionsRequest(
             "remaining context cannot fit the minimum 70-token 26B image budget");
       }
       const std::uint32_t supported_budget =
-          image_budget >= 280U ? 280U : image_budget >= 140U ? 140U : 70U;
+          requested_vision_budget.value() != 0U
+              ? requested_vision_budget.value()
+              : image_budget >= 280U ? 280U : image_budget >= 140U ? 140U
+                                                                    : 70U;
+      if (supported_budget > image_budget) {
+        return Invalid(
+            "remaining context cannot fit the requested 26B image budget");
+      }
       auto image = LoadGemma4Moe26BVisionImageBytes(
           located.image.encoded, located.image.source_name,
           Gemma4Moe26BVisionImageOptions{supported_budget});
@@ -756,9 +784,11 @@ Result<OpenAiResponsesRequest> ParseResponsesRequest(
       object,
       {"model", "input", "instructions", "max_output_tokens", "stream",
        "store", "reasoning", "tools", "tool_choice", "parallel_tool_calls",
-       "previous_response_id"},
+       "previous_response_id", "vision_soft_token_budget"},
       "Responses request");
   if (!request_fields.ok()) return request_fields;
+  auto requested_vision_budget = RequestedVisionSoftTokenBudget(object, options);
+  if (!requested_vision_budget.ok()) return requested_vision_budget.status();
   OpenAiResponsesRequest request;
   auto model = RequiredString(object, "model");
   if (!model.ok()) return model.status();
@@ -979,7 +1009,14 @@ Result<OpenAiResponsesRequest> ParseResponsesRequest(
             "remaining context cannot fit the minimum 70-token 26B image budget");
       }
       const std::uint32_t supported_budget =
-          image_budget >= 280U ? 280U : image_budget >= 140U ? 140U : 70U;
+          requested_vision_budget.value() != 0U
+              ? requested_vision_budget.value()
+              : image_budget >= 280U ? 280U : image_budget >= 140U ? 140U
+                                                                    : 70U;
+      if (supported_budget > image_budget) {
+        return Invalid(
+            "remaining context cannot fit the requested 26B image budget");
+      }
       auto image = LoadGemma4Moe26BVisionImageBytes(
           located.image.encoded, located.image.source_name,
           Gemma4Moe26BVisionImageOptions{supported_budget});

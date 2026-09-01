@@ -96,8 +96,7 @@ Read it only for a concrete historical or evidence question.
   Vision plus fixed-D2 only for the exact validated Target+Vision+Assistant
   composite. That exact composite reports `vision_mtp_supported=true`; all
   other combinations continue to fail closed. This narrow enablement does not
-  promote Trellis35 or 26B Vision to the released product profile before the
-  the remaining V18 Native Studio chat-UX gate passes. V15 has closed
+  promote Trellis35 or 26B Vision to the released product profile. V15 has closed
   the experimental runtime/server profile, validation, error-code, timing,
   metrics, and cancellation contract; its accepted evidence is
   `artifacts/vision/v15-runtime-server-closure.json`. V16 has closed immutable
@@ -108,8 +107,17 @@ Read it only for a concrete historical or evidence question.
   component model, persisted Vision settings, exact `--vision-model` launch,
   independent Target/Vision/Assistant state, deduplicated capacity preflight,
   and shared-blob-safe removal. Its evidence is
-  `artifacts/vision/v17-native-studio-profile.json`. Image attachment remains
-  deliberately fail-closed until V18 consumes the live server capabilities.
+  `artifacts/vision/v17-native-studio-profile.json`. V18 has closed the native
+  chat-UX gate: the explicit Vision profile accepts one image, rejects audio
+  and a second image locally, sends the selected 70/140/280 processing budget,
+  exposes preview/estimate/remove/retry affordances, gates fixed-D2 on live
+  `vision_mtp_supported`, and rejects mismatched external-server profiles. Its
+  generated catalog also corrects the V16 Vision runtime view to the four
+  strict module files while retaining the canonical publication and its legal
+  files; old auxiliary view hardlinks are pruned without deleting Hub blobs.
+  Its evidence is `artifacts/vision/v18-native-studio-image-d2.json`. The profile
+  remains experimental pending V19 capacity, quality, cross-platform, and
+  lifecycle qualification.
 
 Accepted numerical, performance, context, product, and publication evidence
 continues to live in `artifacts/`, `benchmarks/`, and the archived fast-track

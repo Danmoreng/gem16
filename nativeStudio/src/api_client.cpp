@@ -106,8 +106,12 @@ std::string BuildChatPayload(const ServerConfig& server,
   output << "{\"model\":" << json::Quote(server.model_name)
          << ",\"stream\":true,\"stream_options\":{\"include_usage\":true}"
          << ",\"max_completion_tokens\":" << generation.max_output_tokens
-         << ",\"reasoning_effort\":" << json::Quote(generation.reasoning_effort)
-         << ",\"messages\":[";
+         << ",\"reasoning_effort\":" << json::Quote(generation.reasoning_effort);
+  if (server.profile == ModelProfile::kGemma4Moe26BTrellis35VisionFp8) {
+    output << ",\"vision_soft_token_budget\":"
+           << server.vision_soft_token_budget;
+  }
+  output << ",\"messages\":[";
   bool first = true;
   if (!generation.system_prompt.empty()) {
     output << "{\"role\":\"system\",\"content\":"

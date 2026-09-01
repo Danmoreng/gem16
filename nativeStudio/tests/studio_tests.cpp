@@ -102,6 +102,77 @@ bool TestVision26BDefaultsAndCommand() {
          Contains(command, "--assistant-model");
 }
 
+bool TestVisionAttachmentPolicyAndEstimate() {
+  using gem16::studio::AttachmentPolicyError;
+  using gem16::studio::MediaKind;
+  using gem16::studio::ModelProfile;
+  if (!AttachmentPolicyError(ModelProfile::kGemma4Unified12B,
+                             MediaKind::kAudio, 0U)
+           .empty() ||
+      !AttachmentPolicyError(ModelProfile::kGemma4Moe26BTrellis35VisionFp8,
+                             MediaKind::kDocument, 1U)
+           .empty() ||
+      !AttachmentPolicyError(ModelProfile::kGemma4Moe26BTrellis35VisionFp8,
+                             MediaKind::kImage, 0U)
+           .empty() ||
+      AttachmentPolicyError(ModelProfile::kGemma4Moe26BTrellis35VisionFp8,
+                            MediaKind::kImage, 1U)
+          .empty() ||
+      AttachmentPolicyError(ModelProfile::kGemma4Moe26BTrellis35VisionFp8,
+                            MediaKind::kAudio, 0U)
+          .empty() ||
+      AttachmentPolicyError(ModelProfile::kGemma4Moe26BA4B,
+                            MediaKind::kImage, 0U)
+          .empty()) {
+    return false;
+  }
+  gem16::studio::MediaAttachment image;
+  image.kind = MediaKind::kImage;
+  image.image_width = 256;
+  image.image_height = 256;
+  return gem16::studio::EstimateVisionSoftTokens(image, 70U) == 64U &&
+         gem16::studio::EstimateVisionSoftTokens(image, 140U) == 121U &&
+         gem16::studio::EstimateVisionSoftTokens(image, 280U) == 256U &&
+         gem16::studio::EstimateVisionSoftTokens(image, 71U) == 0U;
+}
+
+bool TestLiveServerCompatibility() {
+  using gem16::studio::HealthCompatibilityError;
+  using gem16::studio::HealthSnapshot;
+  using gem16::studio::ModelProfile;
+  using gem16::studio::ServerConfig;
+  ServerConfig config;
+  config.profile = ModelProfile::kGemma4Moe26BTrellis35VisionFp8;
+  config.mtp_draft_tokens = 2;
+  HealthSnapshot health;
+  health.available = true;
+  health.profile_id = "gemma4-26b-a4b-trellis35-vision-fp8-d2";
+  health.qualification_state = "experimental_v14_accepted";
+  health.supports_vision = true;
+  health.vision_module_loaded = true;
+  health.supports_mtp = true;
+  health.vision_mtp_supported = true;
+  health.mtp_draft_tokens = 2;
+  if (!HealthCompatibilityError(config, health).empty()) return false;
+
+  health.vision_mtp_supported = false;
+  if (HealthCompatibilityError(config, health).empty()) return false;
+  health.vision_mtp_supported = true;
+  health.vision_module_loaded = false;
+  if (HealthCompatibilityError(config, health).empty()) return false;
+  health.vision_module_loaded = true;
+  health.profile_id = "gemma4-26b-a4b-nvfp4";
+  if (HealthCompatibilityError(config, health).empty()) return false;
+
+  config.mtp_draft_tokens = 0;
+  health.profile_id = "gemma4-26b-a4b-trellis35-vision-fp8";
+  health.mtp_draft_tokens = 0;
+  health.supports_mtp = false;
+  health.vision_mtp_supported = false;
+  health.qualification_state = "experimental";
+  return HealthCompatibilityError(config, health).empty();
+}
+
 bool TestModelCatalog() {
   const auto catalog = gem16::studio::ModelCatalog();
   if (catalog.size() != gem16::studio::kModelProfileCount) return false;
@@ -146,10 +217,19 @@ bool TestModelCatalog() {
           "danmoreng/gemma-4-26B-A4B-it-GEM16" ||
       !vision_target->catalog->composed_view ||
       !vision_module->catalog->composed_view ||
+      vision_module->catalog->files.size() != 4U ||
       std::string_view(vision_target->catalog->composed_view_suffix) !=
           "trellis35" ||
       std::string_view(vision_module->catalog->composed_view_suffix) !=
           "vision") {
+    return false;
+  }
+  if (std::ranges::any_of(
+          vision_module->catalog->files, [](const auto& file) {
+            const std::string_view path = file.path;
+            return path == "LICENSE" || path == "NOTICE" ||
+                   path == "README.md";
+          })) {
     return false;
   }
   bool external_tokenizer = false;
@@ -259,10 +339,18 @@ bool TestMediaPayload() {
   const std::string payload = gem16::studio::BuildChatPayload(
       server, generation, {message});
   const auto parsed = gem16::json::Parse(payload);
+  server.profile =
+      gem16::studio::ModelProfile::kGemma4Moe26BTrellis35VisionFp8;
+  server.vision_soft_token_budget = 140;
+  const std::string vision_payload = gem16::studio::BuildChatPayload(
+      server, generation, {message});
   return parsed.ok() && payload.find("image_url") != std::string::npos &&
          payload.find("input_audio") != std::string::npos &&
          payload.find("native studio") != std::string::npos &&
-         payload.find("AQID") != std::string::npos;
+         payload.find("AQID") != std::string::npos &&
+         payload.find("vision_soft_token_budget") == std::string::npos &&
+         vision_payload.find("\"vision_soft_token_budget\":140") !=
+             std::string::npos;
 }
 
 bool TestPerformanceMetrics() {
@@ -402,6 +490,40 @@ bool TestComponentRemovalKeepsSharedBlob() {
             std::filesystem::is_regular_file(blob);
   }
 
+  if (previous == nullptr)
+    ClearEnvironment("HF_HUB_CACHE");
+  else
+    SetEnvironment("HF_HUB_CACHE", previous_value);
+  std::error_code error;
+  std::filesystem::remove_all(cache, error);
+  return valid && !error;
+}
+
+bool TestLegacyVisionViewMigration() {
+  const char* previous = std::getenv("HF_HUB_CACHE");
+  const std::string previous_value = previous == nullptr ? "" : previous;
+  const auto suffix = std::chrono::steady_clock::now().time_since_epoch().count();
+  const auto cache = std::filesystem::temp_directory_path() /
+                     ("gem16-studio-vision-migration-" +
+                      std::to_string(suffix));
+  std::filesystem::create_directories(cache);
+  SetEnvironment("HF_HUB_CACHE", cache.string());
+  const auto& profile = gem16::studio::CatalogForProfile(
+      gem16::studio::ModelProfile::kGemma4Moe26BTrellis35VisionFp8);
+  const auto* vision = gem16::studio::ComponentForProfile(
+      profile, gem16::studio::ModelComponentKind::kVision);
+  bool valid = vision != nullptr;
+  if (vision) {
+    const auto root = gem16::studio::ComponentDirectory(*vision->catalog, cache);
+    std::filesystem::create_directories(root);
+    std::ofstream(root / "LICENSE") << "legacy hardlink view";
+    std::ofstream(root / "NOTICE") << "legacy hardlink view";
+    std::ofstream(root / "README.md") << "legacy hardlink view";
+    gem16::studio::ModelManager manager;
+    valid = !std::filesystem::exists(root / "LICENSE") &&
+            !std::filesystem::exists(root / "NOTICE") &&
+            !std::filesystem::exists(root / "README.md");
+  }
   if (previous == nullptr)
     ClearEnvironment("HF_HUB_CACHE");
   else
@@ -779,6 +901,14 @@ int main() {
     std::fprintf(stderr, "Vision 26B defaults/command test failed\n");
     return 1;
   }
+  if (!TestVisionAttachmentPolicyAndEstimate()) {
+    std::fprintf(stderr, "Vision attachment policy/estimate test failed\n");
+    return 1;
+  }
+  if (!TestLiveServerCompatibility()) {
+    std::fprintf(stderr, "live server compatibility test failed\n");
+    return 1;
+  }
   if (!TestModelCatalog()) {
     std::fprintf(stderr, "model catalog test failed\n");
     return 1;
@@ -817,6 +947,10 @@ int main() {
   }
   if (!TestComponentRemovalKeepsSharedBlob()) {
     std::fprintf(stderr, "component removal/shared blob test failed\n");
+    return 1;
+  }
+  if (!TestLegacyVisionViewMigration()) {
+    std::fprintf(stderr, "legacy Vision view migration test failed\n");
     return 1;
   }
   if (!TestQualifiedVisionCacheIfProvided()) {

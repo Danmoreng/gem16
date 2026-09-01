@@ -91,6 +91,8 @@ struct MediaAttachment {
   std::vector<std::uint8_t> bytes;
   std::string document_text;
   std::uint64_t byte_size = 0;
+  int image_width = 0;
+  int image_height = 0;
 };
 
 struct PerformanceStats {

@@ -47,12 +47,18 @@ Supported top-level fields:
 - function `tools`;
 - `tool_choice`: `none`, `auto`, `required`, or a named function;
 - `parallel_tool_calls`;
+- `vision_soft_token_budget`: GEM16 extension, restricted to `70`, `140`, or
+  `280` on the explicit experimental 26B Vision profile;
 - `n=1`.
 
 Supported roles are `developer`, `system`, `user`, `assistant`, and `tool`.
 Assistant `tool_calls` and tool results linked by `tool_call_id` are required.
-Text input is required for both profiles. Inline image/audio content remains a
-12B capability extension and is not necessary for Agent Core conformance.
+Text input is required for every profile. Inline image/audio content remains a
+capability extension and is not necessary for Agent Core conformance. The
+qualified 12B profile supports its declared image/audio inputs. The separate
+experimental 26B Trellis35 Vision profile accepts exactly one image, rejects
+audio, and consumes `vision_soft_token_budget` without silently substituting a
+different processing budget.
 
 Successful streaming emits assistant-role, text or reasoning, indexed
 function-call, finish-reason, optional usage, and terminal `[DONE]` chunks in
@@ -72,6 +78,8 @@ Supported top-level fields:
 - function `tools`;
 - `tool_choice`;
 - `parallel_tool_calls`;
+- `vision_soft_token_budget`, with the same experimental 26B Vision restriction
+  as Chat Completions;
 - `previous_response_id`.
 
 Required input item types are `message`, `function_call`, and

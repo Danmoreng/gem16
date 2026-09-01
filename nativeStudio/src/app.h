@@ -42,6 +42,7 @@ class StudioApp final {
       const MediaAttachment& attachment);
   void PruneAttachmentTextures();
   void SendMessage();
+  void RetryLastRequest();
   void ClearChat();
   void RemoveLastExchange();
   void AddAttachments(const std::vector<std::filesystem::path>& paths);
@@ -88,6 +89,7 @@ class StudioApp final {
   std::int64_t completion_tokens_ = 0;
   std::int64_t streamed_chunks_ = 0;
   std::optional<PerformanceStats> performance_;
+  bool retry_requested_ = false;
 };
 
 }  // namespace gem16::studio

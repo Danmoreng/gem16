@@ -59,6 +59,59 @@ std::string Timestamp() {
 
 }  // namespace
 
+std::string HealthCompatibilityError(const ServerConfig& config,
+                                     const HealthSnapshot& health) {
+  if (!health.available) return "Server health is unavailable";
+  std::string_view expected_profile;
+  switch (config.profile) {
+    case ModelProfile::kGemma4Unified12B:
+      expected_profile = "gemma4-12b-unified";
+      if (!health.supports_vision || health.text_only) {
+        return "The live server does not expose the selected 12B multimodal capabilities";
+      }
+      break;
+    case ModelProfile::kGemma4Moe26BA4B:
+      expected_profile = "gemma4-26b-a4b-nvfp4";
+      if (!health.text_only || health.supports_vision ||
+          health.vision_module_loaded) {
+        return "The live server does not expose the selected qualified 26B text-only capabilities";
+      }
+      break;
+    case ModelProfile::kGemma4Moe26BTrellis35VisionFp8:
+      expected_profile = config.mtp_draft_tokens == 2
+                             ? "gemma4-26b-a4b-trellis35-vision-fp8-d2"
+                             : "gemma4-26b-a4b-trellis35-vision-fp8";
+      if (!health.supports_vision || !health.vision_module_loaded ||
+          health.text_only) {
+        return "The live server has not loaded the selected 26B Vision module";
+      }
+      if (config.mtp_draft_tokens == 2 &&
+          (!health.supports_mtp || !health.vision_mtp_supported ||
+           health.qualification_state != "experimental_v14_accepted")) {
+        return "The live server does not qualify Vision with fixed-D2 for this component set";
+      }
+      if (config.mtp_draft_tokens == 0 && health.vision_mtp_supported) {
+        return "The live Vision server has a different MTP configuration";
+      }
+      break;
+  }
+  if (health.profile_id != expected_profile) {
+    return "Live server profile mismatch: expected " +
+           std::string(expected_profile) + ", received " +
+           (health.profile_id.empty() ? std::string("<missing>")
+                                      : health.profile_id);
+  }
+  if (config.mtp_draft_tokens != 0 && !health.supports_mtp) {
+    return "The live server does not expose the selected MTP capability";
+  }
+  if (health.mtp_draft_tokens != config.mtp_draft_tokens) {
+    return "Live server MTP mismatch: expected D" +
+           std::to_string(config.mtp_draft_tokens) + ", received D" +
+           std::to_string(health.mtp_draft_tokens);
+  }
+  return {};
+}
+
 ServerManager::ServerManager() : poller_([this](std::stop_token token) { PollLoop(token); }) {}
 
 ServerManager::~ServerManager() {
@@ -80,11 +133,19 @@ void ServerManager::Start(const ServerConfig& config) {
     error_.clear();
   }
   AppendLog("Checking " + config.host + ":" + std::to_string(config.port) + " for an existing server");
-  if (FetchHealth(config).available) {
+  const HealthSnapshot existing = FetchHealth(config);
+  if (existing.available) {
     std::lock_guard lock(mutex_);
-    phase_ = ServerPhase::kExternal;
-    health_ = FetchHealth(config);
-    logs_.push_back(Timestamp() + "  Attached to existing server");
+    health_ = existing;
+    const std::string mismatch = HealthCompatibilityError(config, existing);
+    if (mismatch.empty()) {
+      phase_ = ServerPhase::kExternal;
+      logs_.push_back(Timestamp() + "  Attached to compatible existing server");
+    } else {
+      phase_ = ServerPhase::kError;
+      error_ = mismatch;
+      logs_.push_back(Timestamp() + "  Existing server rejected: " + mismatch);
+    }
     return;
   }
   if (const std::string validation = Validate(config); !validation.empty()) {
@@ -171,8 +232,15 @@ void ServerManager::PollLoop(std::stop_token stop_token) {
       std::lock_guard lock(mutex_);
       health_ = snapshot;
       if (snapshot.available) {
-        error_.clear();
-        phase_ = process_.IsRunning() ? ServerPhase::kRunning : ServerPhase::kExternal;
+        const std::string mismatch = HealthCompatibilityError(config, snapshot);
+        if (mismatch.empty()) {
+          error_.clear();
+          phase_ = process_.IsRunning() ? ServerPhase::kRunning
+                                        : ServerPhase::kExternal;
+        } else {
+          error_ = mismatch;
+          phase_ = ServerPhase::kError;
+        }
       } else if (!process_.IsRunning() && phase_ == ServerPhase::kExternal) {
         phase_ = ServerPhase::kStopped;
       }
@@ -237,6 +305,10 @@ std::string ServerManager::Validate(const ServerConfig& config) const {
   }
   if (IsMoe26B(config.profile) && config.mtp_adaptive) {
     return "Gemma 4 26B supports fixed-depth MTP only";
+  }
+  if (IsMoe26B(config.profile) && config.mtp_draft_tokens != 0 &&
+      config.mtp_draft_tokens != 2) {
+    return "Gemma 4 26B supports only Ordinary decode or fixed-D2 MTP";
   }
   if (config.profile == ModelProfile::kGemma4Moe26BA4B &&
       config.mtp_draft_tokens != 0 && config.max_context_tokens > 86016) {
