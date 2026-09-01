@@ -18,7 +18,7 @@ class NativeStudioModelCatalogTest(unittest.TestCase):
     def test_generated_catalog_is_current(self):
         self.assertEqual(GENERATOR.render(), GENERATED_PATH.read_text(encoding="utf-8"))
 
-    def test_generated_catalog_contains_all_six_locked_components(self):
+    def test_generated_catalog_contains_all_six_runtime_components(self):
         generated = GENERATED_PATH.read_text(encoding="utf-8")
         locks = (
             "gemma4-12b-nvfp4.lock.json",
@@ -32,10 +32,27 @@ class NativeStudioModelCatalogTest(unittest.TestCase):
             lock = json.loads((ROOT / "models" / lock_name).read_text())
             self.assertIn(lock["repository"], generated)
             self.assertIn(lock["revision"], generated)
-            for item in lock["files"]:
+            entries = lock["files"]
+            if lock_name == "gemma4-26b-vision-fp8.lock.json":
+                entries = [
+                    item
+                    for item in entries
+                    if item["path"] in GENERATOR.VISION_RUNTIME_FILES
+                ]
+            for item in entries:
                 self.assertIn(item["path"], generated)
                 self.assertIn(item["sha256"], generated)
                 self.assertIn(item.get("lfs_oid") or item["git_oid"], generated)
+
+    def test_vision_runtime_view_excludes_publication_documents(self):
+        generated = GENERATED_PATH.read_text(encoding="utf-8")
+        vision_block = generated.split(
+            "inline constexpr std::array kGemma4Moe26BVisionFp8Files{", 1
+        )[1].split("};", 1)[0]
+        for path in GENERATOR.VISION_RUNTIME_FILES:
+            self.assertIn(f'"{path}"', vision_block)
+        for path in ("LICENSE", "NOTICE", "README.md"):
+            self.assertNotIn(f'"{path}"', vision_block)
 
     def test_12b_external_tokenizer_stays_in_google_repository(self):
         generated = GENERATED_PATH.read_text(encoding="utf-8")
