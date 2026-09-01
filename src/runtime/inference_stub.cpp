@@ -18,6 +18,7 @@ Result<std::shared_ptr<ModelRuntime>> ModelRuntime::Load(
 }
 std::uint64_t ModelRuntime::weight_bytes() const { return 0U; }
 std::uint64_t ModelRuntime::assistant_weight_bytes() const { return 0U; }
+std::uint64_t ModelRuntime::assistant_workspace_bytes() const { return 0U; }
 bool ModelRuntime::assistant_loaded() const { return false; }
 std::uint64_t ModelRuntime::vision_weight_bytes() const { return 0U; }
 bool ModelRuntime::vision_module_loaded() const { return false; }
