@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "name": "gemma4-26b-vision-v19-bounded-quality",
+  "budgets": [70, 140, 280],
+  "assets": [
+    {
+      "id": "scene_square",
+      "path": "images/scene-square.png",
+      "sha256": "85c85333c371a3d6e562a3ab5077196328ab51fa3f806ed6f128a4d5dff5ab20",
+      "geometry": "square",
+      "categories": ["image_description", "counting", "spatial_relations", "colors"],
+      "prompt": "Inspect the image. Reply with exactly four labeled facts: ROBOT COLOR, CHAIR COLOR, BALL POSITION relative to the table, and STAR COUNT. Include every label.",
+      "checks": [
+        {"id": "robot_color", "terms": ["yellow"], "required_budgets": [70, 140, 280]},
+        {"id": "chair_color", "terms": ["green"], "required_budgets": [70, 140, 280]},
+        {"id": "ball_position", "terms": ["under", "table"], "required_budgets": [70, 140, 280]},
+        {"id": "star_count", "terms": ["5"], "alternatives": ["five"], "required_budgets": [70, 140, 280]}
+      ]
+    },
+    {
+      "id": "chart_wide",
+      "path": "images/chart-wide.png",
+      "sha256": "e0e0c7d574aef17cd693e53e9e9fce617a821f2638ddb8640b1537a0b71aa3c8",
+      "geometry": "wide",
+      "categories": ["chart", "ocr", "counting"],
+      "prompt": "Read the chart. Reply with exactly four labeled facts: TITLE, BIRCH, CEDAR, and MAPLE. Include every label and preserve the exact title and values.",
+      "checks": [
+        {"id": "title", "terms": ["q4", "harvest"], "required_budgets": [70, 140, 280]},
+        {"id": "birch", "terms": ["birch", "3"], "alternatives": [["birch", "three"]], "required_budgets": [70, 140, 280]},
+        {"id": "cedar", "terms": ["cedar", "7"], "alternatives": [["cedar", "seven"]], "required_budgets": [70, 140, 280]},
+        {"id": "maple", "terms": ["maple", "5"], "alternatives": [["maple", "five"]], "required_budgets": [70, 140, 280]}
+      ]
+    },
+    {
+      "id": "document_tall",
+      "path": "images/document-tall.png",
+      "sha256": "2a3ce9739a10a024b651b9da023bf8fea11ed14012084690793def47f66abfad",
+      "geometry": "tall",
+      "categories": ["document_page", "ocr", "small_details"],
+      "prompt": "Read the document. Reply with exactly four labeled facts: TITLE, DOCUMENT CODE, DATE, and SMALL DETAIL CODE. Include every label and preserve codes exactly.",
+      "checks": [
+        {"id": "title", "terms": ["northstar", "report"], "required_budgets": [70, 140, 280]},
+        {"id": "document_code", "terms": ["ns-731"], "required_budgets": [70, 140, 280]},
+        {"id": "date", "terms": ["18", "aug", "2026"], "required_budgets": [70, 140, 280]},
+        {"id": "small_detail", "terms": ["moss-27"], "required_budgets": [280]}
+      ]
+    }
+  ]
+}

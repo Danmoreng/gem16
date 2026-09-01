@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "milestone": "V19",
+  "gate": "bounded_vision_quality",
+  "status": "accepted",
+  "runtime_implementation_commit": "94fa899f5134eb8d77251e06c13f295c9451cdda",
+  "server_binary_sha256": "10d282727ec7bf0179c3c81cc099286e5e6c5e90992ec2e96c80e10cafc05a4b",
+  "suite": {
+    "path": "benchmarks/vision-v19/suite.json",
+    "sha256": "6560cd1dac497a0bd019e77b6c7591de8a251761935e24683b994f2aa6035082",
+    "project_owned_deterministic_images": 3,
+    "geometries": ["square", "wide", "tall"],
+    "categories": [
+      "image_description",
+      "ocr",
+      "chart",
+      "document_page",
+      "counting",
+      "spatial_relations",
+      "colors",
+      "small_details"
+    ],
+    "soft_token_budgets": [70, 140, 280]
+  },
+  "raw_evidence": {
+    "path": "artifacts/raw/vision/v19/quality-d086652-v2.json",
+    "sha256": "f8990940a115884be877db0d6bbd9a8e8d7c0a41dd4edb76faee02e1ebdb99cf"
+  },
+  "protocol": {
+    "profile_id": "gemma4-26b-a4b-trellis35-vision-fp8-d2",
+    "decode": "fixed-D2 greedy",
+    "context_tokens": 32768,
+    "runs_per_case": 2,
+    "cases": 9,
+    "requests": 18,
+    "maximum_output_tokens": 160
+  },
+  "results": {
+    "all_required_factual_checks_pass": true,
+    "all_duplicate_outputs_byte_identical": true,
+    "budget_70_requests": 6,
+    "budget_140_requests": 6,
+    "budget_280_requests": 6,
+    "vision_request_delta": 18,
+    "fallback_delta": 0,
+    "vision_failure_delta": 0,
+    "vision_d2_rejection_delta": 0,
+    "token_loop_allocation_delta": 0,
+    "scene_facts_at_all_budgets": {
+      "robot": "yellow",
+      "chair": "green",
+      "ball": "under the table",
+      "stars": 5
+    },
+    "chart_facts_at_all_budgets": {
+      "title": "Q4 HARVEST",
+      "birch": 3,
+      "cedar": 7,
+      "maple": 5
+    },
+    "document_facts_at_all_budgets": {
+      "title": "NORTHSTAR REPORT",
+      "document_code": "NS-731",
+      "date": "18 AUG 2026",
+      "small_detail_code": "moss-27"
+    }
+  },
+  "pinned_bf16_oracle": {
+    "source_evidence": "artifacts/vision/v09-runtime-oracle.json",
+    "scope": "unchanged FP8 Vision module final image embedding at budget 140",
+    "cosine": 0.94295179763741,
+    "relative_l2": 0.3373184847889573,
+    "max_absolute_error": 7.140625,
+    "diagnostic_only": true
+  },
+  "limitations": [
+    "A full 26B BF16 text-plus-Vision oracle is not executable within the qualified 16 GB device boundary, so V19 does not claim text-logit KL or BF16 top-1 parity.",
+    "The scene-square budget-280 answer contains all required facts and is deterministic, but reaches the bounded 160-token output cap after emitting an unnecessarily verbose analysis.",
+    "This objective synthetic suite is bounded evidence, not a general multimodal-quality claim."
+  ]
+}
