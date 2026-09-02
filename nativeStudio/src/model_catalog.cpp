@@ -39,8 +39,8 @@ constexpr std::array kProfiles{
         "Text · Fixed MTP D2 · 86,016 tokens", kMoe26BA4BComponents},
     ModelProfileCatalog{
         ModelProfile::kGemma4Moe26BTrellis35VisionFp8,
-        "Experimental Trellis35 text checkpoint with the pinned FP8 Vision module.",
-        "Text · Vision · Fixed MTP D2 · Experimental",
+        "Trellis35 text checkpoint with the pinned FP8 Vision module for approximately 16 GB Blackwell GPUs.",
+        "Text · Vision · Fixed MTP D2 · 229,120 tokens",
         kMoe26BVisionComponents},
 };
 

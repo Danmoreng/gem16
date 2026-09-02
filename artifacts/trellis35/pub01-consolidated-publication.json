@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "milestone": "PUB01",
+  "status": "accepted",
+  "parent_commit": "ee0cbc7",
+  "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+  "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+  "commit_url": "https://huggingface.co/danmoreng/gemma-4-26B-A4B-it-GEM16/commit/6de2a057f11332420819f8e6efd08e42d7a03bc7",
+  "publication": {
+    "private": false,
+    "gated": false,
+    "repository_files": 48,
+    "repository_bytes": 27857948150,
+    "trellis35_v1_deleted_files": 94,
+    "trellis35_v2_format": "gem16-sm120-trellis35-device-image-v2",
+    "layout": {
+      "nvfp4_target": ".",
+      "trellis35_target": "trellis35",
+      "fixed_d2_assistant": "assistant",
+      "fp8_vision": "vision"
+    },
+    "compatibility_manifest_sha256": "d9bc235243b6cce80eac3999a608570b9bff4e46b4ef6f93781b74a63df1ee0b",
+    "compatibility_content_sha256": "de83bf2b67ffe9ad6dbd14286bcbc25ff9aa293ceacdc3a57d5abbc214461617",
+    "additive_upload": false,
+    "historical_v1_revision_retained": true
+  },
+  "components": {
+    "nvfp4_target": {
+      "lock": "models/gemma4-26b-gem16-target.lock.json",
+      "files": 14,
+      "bytes": 14731967760,
+      "model_sha256": "1ed73cf105b68db937ac0992283d31fdb2225474204341440721f41fe871bb72",
+      "artifact_content_sha256": "471805f7dad8abb84300be78b2822a63dcb1d35bff5aa98426a162cc8532ee17"
+    },
+    "trellis35_target": {
+      "lock": "models/gemma4-26b-trellis35-target.lock.json",
+      "files": 13,
+      "bytes": 12237358258,
+      "model_sha256": "552ace4b3f2e8e20bbc03a9d4b30887bdb6297d6da9f48d54b4a2b4e9fc803c4",
+      "format": "gem16-sm120-trellis35-device-image-v2"
+    },
+    "fixed_d2_assistant": {
+      "lock": "models/gemma4-26b-gem16-assistant.lock.json",
+      "files": 14,
+      "bytes": 290772313,
+      "artifact_content_sha256": "978f5e3804dd08b8ea5551883811e0bf6737a23ae5ae3dcfa0ef71dc4ffe532b"
+    },
+    "fp8_vision": {
+      "lock": "models/gemma4-26b-vision-fp8.lock.json",
+      "files": 7,
+      "bytes": 597849819,
+      "artifact_sha256": "805e1fee4ad80dbb76a846c0009d6f57dbb50192e7009ef1633cdc3b5252a536"
+    }
+  },
+  "verification": {
+    "anonymous_download": "passed",
+    "resume_offsets_tested": [
+      0,
+      1073741824,
+      6442450944,
+      11811160064,
+      12204691456
+    ],
+    "resume_all_ranges_status_206": true,
+    "downloaded_model_gem16_sha256": "552ace4b3f2e8e20bbc03a9d4b30887bdb6297d6da9f48d54b4a2b4e9fc803c4",
+    "second_preflight_missing_bytes": 0,
+    "trellis_blob_snapshot_view_same_inode": true,
+    "assistant_blob_snapshot_view_same_inode": true,
+    "vision_blob_snapshot_view_same_inode": true,
+    "target_blob_snapshot_view_same_inode": true,
+    "historical_revision_31842e_accessible": true,
+    "private_blob_store": false,
+    "generated_catalog": "current"
+  }
+}

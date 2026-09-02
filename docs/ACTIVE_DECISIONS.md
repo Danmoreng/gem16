@@ -92,15 +92,16 @@ Read it only for a concrete historical or evidence question.
   the earlier requirement for separate 26B Target and Assistant repositories.
   The canonical public repository is now
   `danmoreng/gemma-4-26B-A4B-it-GEM16` at immutable revision
-  `31842e12882d09bab7109c0ad52a4ee2e945069c`: qualified NVFP4 remains in the
-  root, with Trellis35 under `trellis35/`, fixed-D2 Assistant under
-  `assistant/`, and FP8 Vision under `vision/`. They remain independently
+  `6de2a057f11332420819f8e6efd08e42d7a03bc7` (superseding V16 revision
+  `31842e12882d09bab7109c0ad52a4ee2e945069c` under PUB01): qualified NVFP4
+  remains in the root, with Trellis35 v2 under `trellis35/`, fixed-D2 Assistant
+  under `assistant/`, and FP8 Vision under `vision/`. They remain independently
   locked components and may never be silently substituted. The historical
   Assistant repository remains immutable only for old locks; new catalog
   entries use the consolidated repository.
 - **Current 26B NVFP4 regression artifact.** Runtime and non-regression work
   uses the published `danmoreng/gemma-4-26B-A4B-it-GEM16` Target at revision
-  `31842e12882d09bab7109c0ad52a4ee2e945069c`, format
+  `6de2a057f11332420819f8e6efd08e42d7a03bc7`, format
   `sm120-device-image-v1`, `model.gem16` SHA-256
   `1ed73cf105b68db937ac0992283d31fdb2225474204341440721f41fe871bb72`,
   and artifact-content identity
@@ -146,6 +147,26 @@ Read it only for a concrete historical or evidence question.
   allocation. Its evidence is `artifacts/vision/v19-acceptance.json`. The profile
   is now the bounded Compact Vision `production_candidate` and continues to
   report `experimental=true` pending P20 production qualification.
+- **PUB01 Trellis35 v2 consolidated publication.** PUB01 consolidates the
+  Trellis35 target from the legacy 103-file 30-layer format to the monolithic
+  `gem16-sm120-trellis35-device-image-v2` (`model.gem16`, 12,204,692,480 bytes,
+  SHA-256 `552ace4b3f2e8e20bbc03a9d4b30887bdb6297d6da9f48d54b4a2b4e9fc803c4`)
+  under `trellis35/` at repository revision
+  `6de2a057f11332420819f8e6efd08e42d7a03bc7`. The 94 legacy v1 files were
+  removed, leaving 48 total files in the repository. Component locks,
+  `SHA256SUMS`, and Native Studio catalog entries were regenerated. Preflight
+  missing bytes = 0, anonymous multi-offset resume, and hardlink inode
+  identity are verified. Accepted evidence is
+  `artifacts/trellis35/pub01-consolidated-publication.json`.
+- **APP01 Native Studio production integration.** Per owner instruction,
+  prioritized ahead of extended quality re-evaluation. Promotes the Trellis35
+  Vision profile from experimental candidate to `production_qualified` with
+  `experimental=false`. Removes 'Experimental' branding from profile
+  catalog labels and status indicators in Native Studio; sets capability
+  descriptors to `Text · Vision · Fixed MTP D2 · 229,120 tokens`. The runtime
+  reports `qualification_state="production_qualified"` and
+  `experimental=false` via `/health`. Compatibility error checks confirm clean
+  handshake with the live server.
 
 Accepted numerical, performance, context, product, and publication evidence
 continues to live in `artifacts/`, `benchmarks/`, and the archived fast-track

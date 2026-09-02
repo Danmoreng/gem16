@@ -632,9 +632,11 @@ Result<ChatGenerationResponse> ChatSession::Generate(const ChatGenerationRequest
     return Status(StatusCode::kInvalidArgument, "conversation prompt exceeds the session context capacity");
   }
   const std::uint64_t remaining_output_capacity = impl_->max_context_tokens - prompt_ids.value().size() + 1U;
-  const std::uint64_t max_generated_tokens = request.max_generated_tokens.value_or(remaining_output_capacity);
-  if (max_generated_tokens > remaining_output_capacity) {
-    return Status(StatusCode::kInvalidArgument, "requested output exceeds the remaining context capacity");
+  const std::uint64_t max_generated_tokens = std::min(
+      request.max_generated_tokens.value_or(remaining_output_capacity),
+      remaining_output_capacity);
+  if (max_generated_tokens == 0U) {
+    return Status(StatusCode::kInvalidArgument, "no remaining context capacity for generation");
   }
 
   ReasoningTokenOptions reasoning;

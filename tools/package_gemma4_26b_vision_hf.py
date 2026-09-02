@@ -111,6 +111,61 @@ def load_object(path: Path, allowed_root: Path) -> dict[str, Any]:
 
 
 def package_trellis(source: Path, output: Path) -> dict[str, Any]:
+    if (source / "gem16_model.json").is_file():
+        model = load_object(source / "gem16_model.json", source)
+        lock = load_object(source / "gem16.lock.json", source)
+        compilation = load_object(source / "gem16_compilation.json", source)
+        if model.get("artifact_profile") != TRELLIS_PROFILE:
+            raise PackageError("unexpected Trellis35 model profile")
+        if model.get("format") != "gem16-sm120-trellis35-device-image-v2":
+            raise PackageError("unexpected Trellis35 device image format")
+        records: list[tuple[str, int, str]] = []
+        for name, expected_hash in EXPECTED_TARGET_METADATA.items():
+            path = checked(source / name, source, expected_hash)
+            records.append((name, path.stat().st_size, expected_hash))
+        for metadata_name in ("gem16_model.json", "gem16_compilation.json", "gem16.lock.json"):
+            metadata_path = resolved_regular(source / metadata_name, source, metadata_name)
+            metadata_hash = sha256(metadata_path)
+            records.append((metadata_name, metadata_path.stat().st_size, metadata_hash))
+        model_name = model.get("model_file", "model.gem16")
+        expected_model_hash = model.get("model_sha256")
+        expected_model_size = model.get("model_bytes")
+        if not isinstance(model_name, str) or not isinstance(expected_model_hash, str) or not isinstance(expected_model_size, int):
+            raise PackageError("invalid Trellis35 model identity")
+        model_path = checked(source / model_name, source, expected_model_hash, expected_model_size)
+        records.append((model_name, model_path.stat().st_size, expected_model_hash))
+        for relative, _size, _digest in records:
+            link_or_copy(resolved_regular(source / relative, source, "Trellis35 file"),
+                         output / relative)
+        checksums = "".join(f"{digest}  {name}\n" for name, unused, digest in records)
+        write_text(output / "SHA256SUMS", checksums)
+        write_text(output / "README.md", """# GEM16 Trellis35 Target component
+
+This directory contains the experimental GEM16 Trellis35 W4A8 Target for
+Gemma 4 26B on NVIDIA Blackwell SM120. It is the required text component for
+the sibling `vision/` module. It is not interchangeable with the qualified
+NVFP4 Target in the repository root.
+""")
+        repository_root = Path(__file__).resolve().parents[1]
+        link_or_copy(resolved_regular(repository_root / "LICENSE", repository_root,
+                                      "license"), output / "LICENSE")
+        write_text(output / "NOTICE", """GEM16 Gemma 4 26B Trellis35 component
+
+Derived from the pinned Gemma 4 26B QAT source. The exact artifact identities,
+layout, compiler provenance, and source locks are recorded in
+gem16_model.json, gem16_compilation.json, and gem16.lock.json.
+""")
+        return {
+            "path": "trellis35",
+            "profile": TRELLIS_PROFILE,
+            "format": "gem16-sm120-trellis35-device-image-v2",
+            "format_version": 2,
+            "model_file": model_name,
+            "model_sha256": expected_model_hash,
+            "model_bytes": expected_model_size,
+            "source_checkpoint_content_sha256": model["source_checkpoint_content_sha256"],
+            "files": len(records) + 4,
+        }
     descriptor = load_object(source / "trellis35-checkpoint.json", source)
     if descriptor.get("checkpoint_profile") != TRELLIS_PROFILE:
         raise PackageError("unexpected Trellis35 checkpoint profile")
@@ -190,7 +245,10 @@ trellis35-checkpoint.json and its referenced manifests.
 def package_assistant(source: Path, lock_path: Path,
                       output: Path) -> dict[str, Any]:
     lock = load_object(lock_path, lock_path.parent)
-    if lock.get("repository") != "danmoreng/gemma-4-26B-A4B-it-assistant-GEM16":
+    if lock.get("repository") not in (
+        "danmoreng/gemma-4-26B-A4B-it-assistant-GEM16",
+        REPOSITORY,
+    ):
         raise PackageError("unexpected Assistant lock repository")
     files = lock.get("files")
     if not isinstance(files, list) or not files:
@@ -270,7 +328,7 @@ vision_compilation.json for the exact source and transformation provenance.
 def consolidated_readme(existing: str) -> str:
     marker = "## Consolidated GEM16 components"
     if marker in existing:
-        raise PackageError("existing Target README already has a component section")
+        return existing
     return existing.rstrip() + f"""
 
 {marker}
@@ -324,13 +382,15 @@ def preserve_root_metadata(source: Path, lock_path: Path, output: Path) -> None:
     write_text(output / "README.md",
                consolidated_readme(resolved["README.md"].read_text(encoding="utf-8")))
     link_or_copy(resolved["LICENSE"], output / "LICENSE")
-    write_text(output / "NOTICE",
-               resolved["NOTICE"].read_text(encoding="utf-8").rstrip() + """
-
-The same immutable repository revision also contains the Trellis35 Target,
-fixed-D2 Assistant, and FP8 Vision components under their named directories.
-See gem16_components.json for the exact compatibility contract.
-""")
+    notice_text = resolved["NOTICE"].read_text(encoding="utf-8").rstrip()
+    notice_suffix = (
+        "The same immutable repository revision also contains the Trellis35 Target,\n"
+        "fixed-D2 Assistant, and FP8 Vision components under their named directories.\n"
+        "See gem16_components.json for the exact compatibility contract."
+    )
+    if "The same immutable repository revision also contains" not in notice_text:
+        notice_text += "\n\n" + notice_suffix
+    write_text(output / "NOTICE", notice_text + "\n")
     attributes = resolved[".gitattributes"].read_text(encoding="utf-8").rstrip()
     additions = []
     for pattern in ("*.bin", "*.safetensors"):

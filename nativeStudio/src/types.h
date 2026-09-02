@@ -49,7 +49,7 @@ struct ServerConfig {
 
 struct GenerationConfig {
   std::string reasoning_effort = "medium";
-  std::int64_t max_output_tokens = 4096;
+  std::int64_t max_output_tokens = 32768;
   std::string system_prompt = "You are a helpful assistant.";
 };
 

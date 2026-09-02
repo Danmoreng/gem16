@@ -35,7 +35,7 @@ MODEL_LOCKS = {
 class Gemma426BLocksTest(unittest.TestCase):
     def test_product_components_share_one_immutable_repository_revision(self) -> None:
         repository = "danmoreng/gemma-4-26B-A4B-it-GEM16"
-        revision = "31842e12882d09bab7109c0ad52a4ee2e945069c"
+        revision = "6de2a057f11332420819f8e6efd08e42d7a03bc7"
         components = {
             "gemma4-26b-gem16-target.lock.json": ("target", ""),
             "gemma4-26b-trellis35-target.lock.json": ("trellis35", "trellis35/"),

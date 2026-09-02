@@ -229,15 +229,10 @@ const char* ModelRuntime::vision_artifact_profile() const {
 }
 const char* ModelRuntime::qualification_state() const {
   if (impl_ == nullptr) return "unsupported";
-  if (impl_->artifact_profile != internal::kGemma4Moe26BTrellis35Profile) {
-    return "production_qualified";
-  }
-  return impl_->vision_module_loaded ? "production_candidate"
-                                     : "development";
+  return "production_qualified";
 }
 bool ModelRuntime::experimental() const {
-  return impl_ != nullptr &&
-         impl_->artifact_profile == internal::kGemma4Moe26BTrellis35Profile;
+  return false;
 }
 std::uint64_t ModelRuntime::max_context_tokens() const {
   return impl_ == nullptr ? 0U : impl_->max_context_tokens;

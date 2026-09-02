@@ -1,9 +1,9 @@
 {
   "schema_version": 2,
   "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-  "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-  "resolved_at_utc": "2026-09-01T17:57:00Z",
-  "source_url": "https://huggingface.co/danmoreng/gemma-4-26B-A4B-it-GEM16/tree/31842e12882d09bab7109c0ad52a4ee2e945069c",
+  "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+  "resolved_at_utc": "2026-09-02T20:05:19Z",
+  "source_url": "https://huggingface.co/danmoreng/gemma-4-26B-A4B-it-GEM16/tree/6de2a057f11332420819f8e6efd08e42d7a03bc7",
   "terms_url": "https://ai.google.dev/gemma/terms",
   "component": "trellis35",
   "component_path": "trellis35",
@@ -15,18 +15,18 @@
       "git_oid": "506ff98349a36c9b78904645c9ae492a9b62e826",
       "source": {
         "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
+        "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
         "path": "trellis35/LICENSE"
       }
     },
     {
       "path": "NOTICE",
-      "size": 236,
-      "sha256": "db0308c0603a306bc973b0d658180cddfa89bcd4d1f48b25815fcb455bb6371c",
-      "git_oid": "c47ff7996eabd1cfeb06249187b44f4b4d3f8851",
+      "size": 243,
+      "sha256": "f48d72e964adc0c5c616d03a5f6ff2bd973504e8d9ca88559d05e071cff585e7",
+      "git_oid": "7f2511abaa0677ccadfd1a677e84569a2a588470",
       "source": {
         "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
+        "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
         "path": "trellis35/NOTICE"
       }
     },
@@ -37,18 +37,18 @@
       "git_oid": "53db2bf1ced47c056a83d528612b8b5c0d88cf27",
       "source": {
         "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
+        "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
         "path": "trellis35/README.md"
       }
     },
     {
       "path": "SHA256SUMS",
-      "size": 9468,
-      "sha256": "7a68732a0e3cef2a78840cd6ff98e3262e7f56f0fc8c7bb674998946b641b86a",
-      "git_oid": "a5555bb6d709bc5fa964a4d46c04d1e7b0b0c09a",
+      "size": 754,
+      "sha256": "958cb982b56f43f53acbd6200d0eb70e9963b3daab1d41d0489f206b6d6daa8e",
+      "git_oid": "93d1ccb225aed94b3f538c8bde9ef49b39d6e05f",
       "source": {
         "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
+        "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
         "path": "trellis35/SHA256SUMS"
       }
     },
@@ -59,7 +59,7 @@
       "git_oid": "4741bf6e4132ba23a5537f9d6e74e9a6d613d7cd",
       "source": {
         "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
+        "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
         "path": "trellis35/chat_template.jinja"
       }
     },
@@ -70,8 +70,41 @@
       "git_oid": "ef0ecec886c4ee7fb9151bbd2a4395973e96c061",
       "source": {
         "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
+        "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
         "path": "trellis35/config.json"
+      }
+    },
+    {
+      "path": "gem16.lock.json",
+      "size": 1012,
+      "sha256": "92ae384611b4b92e061b71a4048abf1f83f54251fd0df612f50751e635fbff08",
+      "git_oid": "26261591a64f018e350c824382beee3726410a46",
+      "source": {
+        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+        "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+        "path": "trellis35/gem16.lock.json"
+      }
+    },
+    {
+      "path": "gem16_compilation.json",
+      "size": 465448,
+      "sha256": "55181031e34c6214e23a3546a393c5f32acb7e01237133b104f9b02188583204",
+      "git_oid": "5857b4eed5ed4291823d19671bd5ce48008202f8",
+      "source": {
+        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+        "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+        "path": "trellis35/gem16_compilation.json"
+      }
+    },
+    {
+      "path": "gem16_model.json",
+      "size": 996,
+      "sha256": "0896c371e9458fee1ada61ed4ba9e174ac921d7f02f03969f9a2d38f3fb9840f",
+      "git_oid": "10b7a99cd17cd046524e60bad07f2ff7ddb82968",
+      "source": {
+        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+        "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+        "path": "trellis35/gem16_model.json"
       }
     },
     {
@@ -81,1082 +114,21 @@
       "git_oid": "5a376e9fca28bfac73fe81b623bd6e4d00bb0817",
       "source": {
         "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
+        "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
         "path": "trellis35/generation_config.json"
       }
     },
     {
-      "path": "layer-00/layer-00.trellis35.bin",
-      "size": 345147392,
-      "sha256": "60cb1b5bc667b9e2566eb4c4a0deb4040a265f6f9a2e1e68b126ddebee7e9783",
-      "git_oid": "b17b8bae9960cb8c06309d520203b6570066aa17",
-      "lfs_oid": "60cb1b5bc667b9e2566eb4c4a0deb4040a265f6f9a2e1e68b126ddebee7e9783",
-      "xet_hash": "e85c4d7f6e988e5c55de2097337f7969d5ec0732ffe3cc2efbc425f3975a316b",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-00/layer-00.trellis35.bin"
-      }
-    },
-    {
-      "path": "layer-00/layer-00.trellis35.json",
-      "size": 53184,
-      "sha256": "e3697f4b7496c3638cea3eeafa862efc734e763cba8a83c67e2c1b565e4ea646",
-      "git_oid": "3628c0c82d7ca85b6245aaa482037166e2fdc529",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-00/layer-00.trellis35.json"
-      }
-    },
-    {
-      "path": "layer-00/verification.json",
-      "size": 1459,
-      "sha256": "2c096b3b7b6c974af5c69687ae1e7372e85f843d51334013f601e3c797e0ef83",
-      "git_oid": "03da1bf6688e92818577cfd52183178c11e805fa",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-00/verification.json"
-      }
-    },
-    {
-      "path": "layer-01/layer-01.trellis35.bin",
-      "size": 345147392,
-      "sha256": "e3f7b216715e873dd82bd34666ea80b1e237466685f2827c504d727a6427b691",
-      "git_oid": "3e2dd9bb4efa7bb98376607a0704c05916669fdf",
-      "lfs_oid": "e3f7b216715e873dd82bd34666ea80b1e237466685f2827c504d727a6427b691",
-      "xet_hash": "3bc6fb3febc03603c5d6e6355e2800b3df584d25aded1a503df662e217d3100d",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-01/layer-01.trellis35.bin"
-      }
-    },
-    {
-      "path": "layer-01/layer-01.trellis35.json",
-      "size": 53177,
-      "sha256": "cafddf1dad39340b8fe765aaad1c2795c59be373ca9ace603dc3663545ba8aca",
-      "git_oid": "13fd35bc0af54ff984cf0e0438980021bda09ef4",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-01/layer-01.trellis35.json"
-      }
-    },
-    {
-      "path": "layer-01/verification.json",
-      "size": 1459,
-      "sha256": "afee32bbdf217c1f3df3bc03fab458c852f7b9e7752904eb488aa279d5458032",
-      "git_oid": "1bd635db7cfa2f3b3b57baabff305fd2857b89e1",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-01/verification.json"
-      }
-    },
-    {
-      "path": "layer-02/layer-02.trellis35.bin",
-      "size": 345147392,
-      "sha256": "233a47fc16f6d8bc498d6d0cc8bbd609650f362aeb82e96b140fe7c35fe62ac4",
-      "git_oid": "deee468aeb182462fc51722a9858fd1328893907",
-      "lfs_oid": "233a47fc16f6d8bc498d6d0cc8bbd609650f362aeb82e96b140fe7c35fe62ac4",
-      "xet_hash": "91e0480cf8e423c6f8ae816f5d753874311a81c0fabeca3744cae20c0f0eacd7",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-02/layer-02.trellis35.bin"
-      }
-    },
-    {
-      "path": "layer-02/layer-02.trellis35.json",
-      "size": 53172,
-      "sha256": "f60fd88b1a3a5d6f34581ccd621ebf211f4e94a0bf0b7f1c939865e1421e54ab",
-      "git_oid": "dfe40bc88a15068f320da28492b71433e46ea1c5",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-02/layer-02.trellis35.json"
-      }
-    },
-    {
-      "path": "layer-02/verification.json",
-      "size": 1459,
-      "sha256": "d09aaa612d34faba04f29fa1cbf192fdd48b98b59f81633d00530515598370aa",
-      "git_oid": "ddd61afee5d9290187ce0b6f34513316cd517160",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-02/verification.json"
-      }
-    },
-    {
-      "path": "layer-03/layer-03.trellis35.bin",
-      "size": 345147392,
-      "sha256": "7acb64310cc2d39e8d63be35f56f28d3d7de58c6982f051dd62f5cb86ffd785b",
-      "git_oid": "a4cff5ac4102ac388026d32ab15952fb659012c6",
-      "lfs_oid": "7acb64310cc2d39e8d63be35f56f28d3d7de58c6982f051dd62f5cb86ffd785b",
-      "xet_hash": "8ee0211f4351a4d0dbfc65eb98263e16dcb43b9485776b1970b1a573581038de",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-03/layer-03.trellis35.bin"
-      }
-    },
-    {
-      "path": "layer-03/layer-03.trellis35.json",
-      "size": 53145,
-      "sha256": "7b9149738f2a61a3f4e08cbe0c541542efc9e0813f9ce7d5f700bc215ecf7488",
-      "git_oid": "4cf83ce6698b88771c77aaa6e0981e3e259c21a2",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-03/layer-03.trellis35.json"
-      }
-    },
-    {
-      "path": "layer-03/verification.json",
-      "size": 1460,
-      "sha256": "d3bac91ce175e88336515e69c21449275cf187b89949e6cac14a370177c20cba",
-      "git_oid": "0d63a1effe45ad9219fa23b22d7a45b88a870e65",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-03/verification.json"
-      }
-    },
-    {
-      "path": "layer-04/layer-04.trellis35.bin",
-      "size": 345147392,
-      "sha256": "3214c881d8d44163d075f03191cb4a731263a0dfd724d7171b87e7d667c44241",
-      "git_oid": "b3e389af6b5f425a7e7e794e9ace95d23c990ad3",
-      "lfs_oid": "3214c881d8d44163d075f03191cb4a731263a0dfd724d7171b87e7d667c44241",
-      "xet_hash": "27e65b66c033ddc545bec137c9d3f0bdeb9683be167f5007d258cca3acc4e362",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-04/layer-04.trellis35.bin"
-      }
-    },
-    {
-      "path": "layer-04/layer-04.trellis35.json",
-      "size": 53176,
-      "sha256": "01fd54e874b855f2b57469f761fec1cec946076d74cacfca51f41b62f89fc825",
-      "git_oid": "eac667daca5612addf1e39a5d1814576abd8e85a",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-04/layer-04.trellis35.json"
-      }
-    },
-    {
-      "path": "layer-04/verification.json",
-      "size": 1459,
-      "sha256": "3a391ca1b4c9cfb85a3f0132fc5c244f0243dc3abf196d0ee0e055204dbd6195",
-      "git_oid": "f3f0f84dc574f73257de9934edd54588f2505098",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-04/verification.json"
-      }
-    },
-    {
-      "path": "layer-05/layer-05.trellis35.bin",
-      "size": 345147392,
-      "sha256": "5abc1ae0b880c09c6981f6ef2c9790a59c72611416fb9d815e7e0b805e4334f4",
-      "git_oid": "d20fc4f71adc2d5fd38916100f9b153e4f4b2e61",
-      "lfs_oid": "5abc1ae0b880c09c6981f6ef2c9790a59c72611416fb9d815e7e0b805e4334f4",
-      "xet_hash": "1882e5df21855d888a6539dd79972a596e106bc6b48defac3bd0690569a3882e",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-05/layer-05.trellis35.bin"
-      }
-    },
-    {
-      "path": "layer-05/layer-05.trellis35.json",
-      "size": 53142,
-      "sha256": "41a558ac9d61146fe5c80ad7cba19ba7f54a2efbc93ab22df543fff548a1d963",
-      "git_oid": "9789225adb25c8dc54c0b468c3fd6b94d50b9fc5",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-05/layer-05.trellis35.json"
-      }
-    },
-    {
-      "path": "layer-05/verification.json",
-      "size": 1459,
-      "sha256": "21888bd2aead9fa71d420e24e7940c910ed842620ba2834ad662142ee750411a",
-      "git_oid": "ed367c410dcb97ca8ca3ac0429e4e4842dc6e3bc",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-05/verification.json"
-      }
-    },
-    {
-      "path": "layer-06/layer-06.trellis35.bin",
-      "size": 345147392,
-      "sha256": "52744f5d8288a49996c4210afbb4328a86b50ccaaa72fa343f7d50201aead154",
-      "git_oid": "33378855152ae389bf0120ac13d1292976f90d0b",
-      "lfs_oid": "52744f5d8288a49996c4210afbb4328a86b50ccaaa72fa343f7d50201aead154",
-      "xet_hash": "7a044ef1e11bfd0dd0057046a5d54e955ce65a0ceecf9cc7bd78436d3e9e08e3",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-06/layer-06.trellis35.bin"
-      }
-    },
-    {
-      "path": "layer-06/layer-06.trellis35.json",
-      "size": 53178,
-      "sha256": "f35a8dfa0a693a535f70c1ec2aa0402a6dae2338aff9ef32f349713a4d13b014",
-      "git_oid": "1727c613ee1e461f8be7cf52d7002040a8e99922",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-06/layer-06.trellis35.json"
-      }
-    },
-    {
-      "path": "layer-06/verification.json",
-      "size": 1461,
-      "sha256": "fc42030c3b24ed9a30630416fa269f7405579e886058f75a07a40cc0ea132dd6",
-      "git_oid": "b0fccb17f9c9804a9f85dc397284460b7437ca45",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-06/verification.json"
-      }
-    },
-    {
-      "path": "layer-07/layer-07.trellis35.bin",
-      "size": 345147392,
-      "sha256": "ab9192c3e98dcee0a21e3acbd654f0dd2755b956842948ecc1047a1f7cf4437f",
-      "git_oid": "086fd80f91c2032e1530025d63f849f2c52ce125",
-      "lfs_oid": "ab9192c3e98dcee0a21e3acbd654f0dd2755b956842948ecc1047a1f7cf4437f",
-      "xet_hash": "6c2a66556b4dbd70780cccc5931eff4e2d6d6f3fe4abd7e77b2e1923d3b6012f",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-07/layer-07.trellis35.bin"
-      }
-    },
-    {
-      "path": "layer-07/layer-07.trellis35.json",
-      "size": 53133,
-      "sha256": "f46ab18a334c870488a9fa3290b3858beca333db451597eaa5029883d61451a3",
-      "git_oid": "6310ee922e05f6582c2886bd8c68d01f2bf8f979",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-07/layer-07.trellis35.json"
-      }
-    },
-    {
-      "path": "layer-07/verification.json",
-      "size": 1458,
-      "sha256": "270f7d0410af7a97a9b28c9c6dacec3868bf6fcc0529f86e4c5cafe6e59dd25b",
-      "git_oid": "ed0d1f9dec867daa7ec59bb972618b8fc4e985b9",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-07/verification.json"
-      }
-    },
-    {
-      "path": "layer-08/layer-08.trellis35.bin",
-      "size": 345147392,
-      "sha256": "7af2b40a15b29db35689dd4fecca5f5205a25721b14404f6881d85bb530f39fd",
-      "git_oid": "aadd9c02a5f8d0d575a0856e4ca196ad57e278d0",
-      "lfs_oid": "7af2b40a15b29db35689dd4fecca5f5205a25721b14404f6881d85bb530f39fd",
-      "xet_hash": "cb769709a7449bc6ac5db45cf2cfafc6c35e0929db4c981a152fdee2781a0b99",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-08/layer-08.trellis35.bin"
-      }
-    },
-    {
-      "path": "layer-08/layer-08.trellis35.json",
-      "size": 53001,
-      "sha256": "3b0f5be5be432631e326542247bd606505a638e52a2b32b96b2d19e157832bd4",
-      "git_oid": "a1b298a491cc8434d2c6a94a247e3335b956d94a",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-08/layer-08.trellis35.json"
-      }
-    },
-    {
-      "path": "layer-08/verification.json",
-      "size": 1457,
-      "sha256": "b1761eac9e4304cb186221d60f4922c968cbe05007e8754e3b68ec5a74f41bff",
-      "git_oid": "8de7c1d0205e6f8f059d851db6ef6725cb78e24d",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-08/verification.json"
-      }
-    },
-    {
-      "path": "layer-09/layer-09.trellis35.bin",
-      "size": 345147392,
-      "sha256": "1f762a2b2bf5a1ca9ba67d4fc7c9f6d563de381644f4f5add0b053cf36b35442",
-      "git_oid": "ec049e6c48373014d569ee921b193eb29f517936",
-      "lfs_oid": "1f762a2b2bf5a1ca9ba67d4fc7c9f6d563de381644f4f5add0b053cf36b35442",
-      "xet_hash": "d7c5e596b347552e04654fe3fef0980ebcbc761822f4fef425da15df51d6fb14",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-09/layer-09.trellis35.bin"
-      }
-    },
-    {
-      "path": "layer-09/layer-09.trellis35.json",
-      "size": 52923,
-      "sha256": "ebadda6bdb27c647eb9a3bcd546d058a95e911c0935513d1f56f4b0b55a5a6c7",
-      "git_oid": "7108e02c55adb300936743d6ad7bbd283a8c530d",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-09/layer-09.trellis35.json"
-      }
-    },
-    {
-      "path": "layer-09/verification.json",
-      "size": 1457,
-      "sha256": "a9579fd566a358cd34773188d294108021e0b114688be254b46b85a9e446383f",
-      "git_oid": "f4cfccfaf4a71ed69eff5ad979d92f9758cbca87",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-09/verification.json"
-      }
-    },
-    {
-      "path": "layer-10/layer-10.trellis35.bin",
-      "size": 345147392,
-      "sha256": "a1ca438ae59a8c66d270a98aff385397a589ddd41521fcc9345836eb92322868",
-      "git_oid": "91e21eeb76c770b7a79d51bd580949a61d1297e6",
-      "lfs_oid": "a1ca438ae59a8c66d270a98aff385397a589ddd41521fcc9345836eb92322868",
-      "xet_hash": "2872b5f41ed69b4246a773fe44768e3640cb3369d402a20a97ceb6ffff2d87c9",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-10/layer-10.trellis35.bin"
-      }
-    },
-    {
-      "path": "layer-10/layer-10.trellis35.json",
-      "size": 52914,
-      "sha256": "007974a270c30d50c099e8621d4bf83bdb642e2f239af08d6ccec1e424e0c55f",
-      "git_oid": "de141ae1e3668a35db70bcfde6d3a134ad26dad0",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-10/layer-10.trellis35.json"
-      }
-    },
-    {
-      "path": "layer-10/verification.json",
-      "size": 1460,
-      "sha256": "87c4ac65a5f4477ca2bd6ff535470b1a62dbf28c4ff488f935d342323f25be4e",
-      "git_oid": "b49f4ce19dce460ce8041a4182d7bd67b00adb22",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-10/verification.json"
-      }
-    },
-    {
-      "path": "layer-11/layer-11.trellis35.bin",
-      "size": 345147392,
-      "sha256": "2f6e64861204ccce7ecc072946f45deca656b470c507e39dfbeb008d43a40fbc",
-      "git_oid": "3f384fc080a29f6c00da9fc236043e86f54d411c",
-      "lfs_oid": "2f6e64861204ccce7ecc072946f45deca656b470c507e39dfbeb008d43a40fbc",
-      "xet_hash": "5240d2435b3ec8c5bc88262534fd1c21168f09f6a69eb03692862187abde4c79",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-11/layer-11.trellis35.bin"
-      }
-    },
-    {
-      "path": "layer-11/layer-11.trellis35.json",
-      "size": 52798,
-      "sha256": "3a644bd8f62d00801501b439c0ab0bec68a008e13cbfe85bb757db1f6f09ec8e",
-      "git_oid": "093e6b7f2d1adbd9db9426a20aa14089d360c937",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-11/layer-11.trellis35.json"
-      }
-    },
-    {
-      "path": "layer-11/verification.json",
-      "size": 1461,
-      "sha256": "143cb381037e3a4406cc32c2b358f487a3f2d375d418cd4238cca87a0f4b3d51",
-      "git_oid": "2df352319ccfaadbe18bd9003c1c7d36b23f571f",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-11/verification.json"
-      }
-    },
-    {
-      "path": "layer-12/layer-12.trellis35.bin",
-      "size": 345147392,
-      "sha256": "9df8d20a2db9d0202604cbe0f5b8eefa338005742983319c946f0cbd85bd3cf4",
-      "git_oid": "1c5e4ce2da8515959b7cc6913fd3172a92775a9f",
-      "lfs_oid": "9df8d20a2db9d0202604cbe0f5b8eefa338005742983319c946f0cbd85bd3cf4",
-      "xet_hash": "cd9cbb926ac16fd8c5be1804ac151c0fd22a6075e59151cd70b07e9b91bb8b5c",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-12/layer-12.trellis35.bin"
-      }
-    },
-    {
-      "path": "layer-12/layer-12.trellis35.json",
-      "size": 52772,
-      "sha256": "526801f91a74d6643c3d66238fa8f91bf31a89f07d952eacaade96631fdcb118",
-      "git_oid": "7f4e305324081c8e05029a7c0fac5bf553efb40b",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-12/layer-12.trellis35.json"
-      }
-    },
-    {
-      "path": "layer-12/verification.json",
-      "size": 1461,
-      "sha256": "5fd891f2633ae3ffba93b87377daaeef33bcb26aae3a87a47992adb3bb184ac7",
-      "git_oid": "0adb1057c7d97e5394c5e7018588a9cf2ecb483b",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-12/verification.json"
-      }
-    },
-    {
-      "path": "layer-13/layer-13.trellis35.bin",
-      "size": 345147392,
-      "sha256": "98709e11925e59fb747fd770ff2dd34afc49ed038b52ee7d6b7f5d3ca3caa939",
-      "git_oid": "d8c60491f72ef3e2bc1ad96d03772a383e2770de",
-      "lfs_oid": "98709e11925e59fb747fd770ff2dd34afc49ed038b52ee7d6b7f5d3ca3caa939",
-      "xet_hash": "793a91a906f870d3e39fa1b2830c0c0b2d44f329b2e854027da297c4b95c727b",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-13/layer-13.trellis35.bin"
-      }
-    },
-    {
-      "path": "layer-13/layer-13.trellis35.json",
-      "size": 52764,
-      "sha256": "af3b8cf66c2081e00f401ca4cee403b8683c6f518474c82374cd9a2c80f573c2",
-      "git_oid": "9fa00c796cfe1333a9399bd58703f6e03af0d8c6",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-13/layer-13.trellis35.json"
-      }
-    },
-    {
-      "path": "layer-13/verification.json",
-      "size": 1459,
-      "sha256": "14877c6f3b2c7a8f1c63d4b7e6e31e2b18eeb047a7e35fa4f3b5d11e3a8f159c",
-      "git_oid": "efebf723114ab8c3572b3dbe1b37610dfcfd3de2",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-13/verification.json"
-      }
-    },
-    {
-      "path": "layer-14/layer-14.trellis35.bin",
-      "size": 345147392,
-      "sha256": "9a12cbec69cb26c43c1edb1738c3079fa8da1067fa791ee1f34c4e01a387ea3c",
-      "git_oid": "08c960b2d594c516c0038426ef04a99abeecface",
-      "lfs_oid": "9a12cbec69cb26c43c1edb1738c3079fa8da1067fa791ee1f34c4e01a387ea3c",
-      "xet_hash": "ca2362654a8db457d61644be296dce14b2113985df3dedb239578c75885f872a",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-14/layer-14.trellis35.bin"
-      }
-    },
-    {
-      "path": "layer-14/layer-14.trellis35.json",
-      "size": 52759,
-      "sha256": "7d3e93b28f7be2a5dddaf680aba5d3b83fa7b6c4d980c1202f81a1b6808f0768",
-      "git_oid": "18d01b73a36867fc84090d972cd58124243ac2d8",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-14/layer-14.trellis35.json"
-      }
-    },
-    {
-      "path": "layer-14/verification.json",
-      "size": 1460,
-      "sha256": "1de70d8f364950a99ea9f5ab3da45bca0799f19bb1313047598bb2dfbc112042",
-      "git_oid": "0da3710347d6361da12312df1f220072c7ffd344",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-14/verification.json"
-      }
-    },
-    {
-      "path": "layer-15/layer-15.trellis35.bin",
-      "size": 345147392,
-      "sha256": "311643168ea92a333f5e98eaf3810a2848afad7225487cfe3e6791a777cba45c",
-      "git_oid": "43a112ed0f43acc5bb533bc9a4ec9ef5311be449",
-      "lfs_oid": "311643168ea92a333f5e98eaf3810a2848afad7225487cfe3e6791a777cba45c",
-      "xet_hash": "50e2bcce151f384d25f728758d10df656715d84fbcbd7f743087b334f01133f0",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-15/layer-15.trellis35.bin"
-      }
-    },
-    {
-      "path": "layer-15/layer-15.trellis35.json",
-      "size": 52775,
-      "sha256": "69ce1a79d48ae889a78f7bf62600d96c30f2fe6fdb9488659ef2b6ccdce1d0aa",
-      "git_oid": "7e4bd4617fc81164c965af171e7a62a60517efaf",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-15/layer-15.trellis35.json"
-      }
-    },
-    {
-      "path": "layer-15/verification.json",
-      "size": 1461,
-      "sha256": "6a7debb3078cf239446ca9bf51eb6c2fd1a5e19b67e2fe175287daf794f2a708",
-      "git_oid": "30841ce0d46da4f90f62c916f206c54e0d6c6ef3",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-15/verification.json"
-      }
-    },
-    {
-      "path": "layer-16/layer-16.trellis35.bin",
-      "size": 345147392,
-      "sha256": "d7ea7888bce04253a7898249ee2ff6063fbcebfae230eddefd19f52f75e5e0ce",
-      "git_oid": "c6dc0d83527d2f6f7a48ea0acad6fd4c020a0ddd",
-      "lfs_oid": "d7ea7888bce04253a7898249ee2ff6063fbcebfae230eddefd19f52f75e5e0ce",
-      "xet_hash": "0abc3314a932b407c6962cd8815df119542b889e75f9a03dce718e8fc003e9ac",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-16/layer-16.trellis35.bin"
-      }
-    },
-    {
-      "path": "layer-16/layer-16.trellis35.json",
-      "size": 52870,
-      "sha256": "697cab252a36da450c7189e6e4b6bd5745061f6e5d3d5070c81625323aec2021",
-      "git_oid": "a4bf0ba68ab79f5c48c37d4e3d65ed23c2835d94",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-16/layer-16.trellis35.json"
-      }
-    },
-    {
-      "path": "layer-16/verification.json",
-      "size": 1460,
-      "sha256": "bd0107c0db8eba7f652364b358f8a8c84a9aaf9cd36b9c4577fa057a8d2d8f36",
-      "git_oid": "029ed3ef2a97d8277d8938170396479359216351",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-16/verification.json"
-      }
-    },
-    {
-      "path": "layer-17/layer-17.trellis35.bin",
-      "size": 345147392,
-      "sha256": "51deddd84f064e6a029ef24eb7750d9813a5795526cc893915eb992ec59923bb",
-      "git_oid": "42ac1e0ab11e839fefe68818e1f8c2363d8a6c41",
-      "lfs_oid": "51deddd84f064e6a029ef24eb7750d9813a5795526cc893915eb992ec59923bb",
-      "xet_hash": "ac18b670a610a10cae6387854658bc125db219823f795ba3618d9f111731c051",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-17/layer-17.trellis35.bin"
-      }
-    },
-    {
-      "path": "layer-17/layer-17.trellis35.json",
-      "size": 52761,
-      "sha256": "0700b3ba904558a0a7410c818dd35d6ad0024b4df2b4aa106d036a3005c1a9c7",
-      "git_oid": "c94d5f84cbdc1a615a940e3b5bc1253858101048",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-17/layer-17.trellis35.json"
-      }
-    },
-    {
-      "path": "layer-17/verification.json",
-      "size": 1459,
-      "sha256": "07d363774575011b256c5eecbfbdc618c35e8dfd79e015fddfddbe044caec532",
-      "git_oid": "ac061862269cbb55ea7005e7cb487bcf450ddd2b",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-17/verification.json"
-      }
-    },
-    {
-      "path": "layer-18/layer-18.trellis35.bin",
-      "size": 345147392,
-      "sha256": "38a3455e55fc86db3b54711a02ca69e712a34df78b0c643549107d7b606443bb",
-      "git_oid": "1eddc143fe7c96f1126dbe6014206ef37032fdab",
-      "lfs_oid": "38a3455e55fc86db3b54711a02ca69e712a34df78b0c643549107d7b606443bb",
-      "xet_hash": "7ea759203486f191745f735dec5358da446cc8af4c08a458c201b5204258cf6e",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-18/layer-18.trellis35.bin"
-      }
-    },
-    {
-      "path": "layer-18/layer-18.trellis35.json",
-      "size": 52749,
-      "sha256": "8bc8dd4767aa20d94a17cfb9e70f8840a1f305825b29a90c2a947cb1e3ba6603",
-      "git_oid": "62a5063561e57b59f7e6a0d645e44eb2eec1c076",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-18/layer-18.trellis35.json"
-      }
-    },
-    {
-      "path": "layer-18/verification.json",
-      "size": 1460,
-      "sha256": "90d6027ffa4efe37cb9af10996c41a9e33e94c90cbffa518ad35dbf7e814d0c3",
-      "git_oid": "222b61bc51c74b8336f17134ae28a8459cc97ebd",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-18/verification.json"
-      }
-    },
-    {
-      "path": "layer-19/layer-19.trellis35.bin",
-      "size": 345147392,
-      "sha256": "37136960fec3f5dd5f4b8026f213f4f03c01df4baa4c2f13f996724107708ff2",
-      "git_oid": "f9163276e6fea0847a5f9ad5bc1d4176c25ddfe4",
-      "lfs_oid": "37136960fec3f5dd5f4b8026f213f4f03c01df4baa4c2f13f996724107708ff2",
-      "xet_hash": "6e7a10bc2543cb00ee3db9d52c357c453ef6c7f1a6827ab9630a2d3025a36d7f",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-19/layer-19.trellis35.bin"
-      }
-    },
-    {
-      "path": "layer-19/layer-19.trellis35.json",
-      "size": 52786,
-      "sha256": "a3eb14b8358bdf173875f11fb132c581ce92d36d280264fd00e6dd61c55c4583",
-      "git_oid": "275f62b1000242cabb8637df7428299461b34b5d",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-19/layer-19.trellis35.json"
-      }
-    },
-    {
-      "path": "layer-19/verification.json",
-      "size": 1460,
-      "sha256": "a5e8836a5cd5f1d550bf28d62b2bf0e9dfb5cd464f4c2eea184ac008adf506a6",
-      "git_oid": "d0a8bba68fa7520ae7a544a74f617794d5f4e27e",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-19/verification.json"
-      }
-    },
-    {
-      "path": "layer-20/layer-20.trellis35.bin",
-      "size": 345147392,
-      "sha256": "3fe0fd61663c533af8a8fffd2a8f1213d569b1a986120208207a71bc55307a4c",
-      "git_oid": "b56cab9117c73e0b0f3b934abcf5331f0ea96197",
-      "lfs_oid": "3fe0fd61663c533af8a8fffd2a8f1213d569b1a986120208207a71bc55307a4c",
-      "xet_hash": "d23308c8414b7f65149cad1fe27b210b6231167e60a5b5a8022c9ad5fd80918e",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-20/layer-20.trellis35.bin"
-      }
-    },
-    {
-      "path": "layer-20/layer-20.trellis35.json",
-      "size": 52761,
-      "sha256": "39d511d7965d8f6f9c01c9dfa1128ed5376d11543f5f0f052177c877a043840d",
-      "git_oid": "9683480713a740121b986b2ba97791fe68de674f",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-20/layer-20.trellis35.json"
-      }
-    },
-    {
-      "path": "layer-20/verification.json",
-      "size": 1460,
-      "sha256": "c09a6d7934fcc11b5413d446dd7877d79a25a0145a662ac6fee2d3dcf1629d1e",
-      "git_oid": "5b9076693b2f0799604a4418005c8b84b45ebebf",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-20/verification.json"
-      }
-    },
-    {
-      "path": "layer-21/layer-21.trellis35.bin",
-      "size": 345147392,
-      "sha256": "b6784f2b114d552862784c08ec90686324366242def9f3dc98763eddf4ff6c5c",
-      "git_oid": "02efe79240b1d6e1545af48c2a286e9b42645bbf",
-      "lfs_oid": "b6784f2b114d552862784c08ec90686324366242def9f3dc98763eddf4ff6c5c",
-      "xet_hash": "e6fe0569e22794682b03db7d220407741d29babaeed5bb06f0cc387739461e17",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-21/layer-21.trellis35.bin"
-      }
-    },
-    {
-      "path": "layer-21/layer-21.trellis35.json",
-      "size": 52741,
-      "sha256": "b8270d240f742b8d9e88720dba829f1384d5634423e09bbb4e83def0351efa2f",
-      "git_oid": "cb02e88fa04c20c18fb528ddd602776bc6bff3b8",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-21/layer-21.trellis35.json"
-      }
-    },
-    {
-      "path": "layer-21/verification.json",
-      "size": 1459,
-      "sha256": "d38d86279b7ac1851b7004390e8adf719c16278130300ae6a23513677ebc4d6a",
-      "git_oid": "90504791b11840c243838c91128e61f7ee7af876",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-21/verification.json"
-      }
-    },
-    {
-      "path": "layer-22/layer-22.trellis35.bin",
-      "size": 345147392,
-      "sha256": "5029be1487c6f1d88aed7851d6ddba4a6d69270e436bf73dab4fdb67c79468b8",
-      "git_oid": "9e4d7eff8b0d168823e186b30c68e4bf605e0130",
-      "lfs_oid": "5029be1487c6f1d88aed7851d6ddba4a6d69270e436bf73dab4fdb67c79468b8",
-      "xet_hash": "b6808621317f4f42615f8d68735e4443fa880ea7cbb6e32648673d78d3a60c18",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-22/layer-22.trellis35.bin"
-      }
-    },
-    {
-      "path": "layer-22/layer-22.trellis35.json",
-      "size": 52771,
-      "sha256": "47196075e0b697edc464206f9599cfc9f131301ab8c4f8e86a78e9d08f92ad9c",
-      "git_oid": "4bca051110084113d1570cc2f312a4c901de086a",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-22/layer-22.trellis35.json"
-      }
-    },
-    {
-      "path": "layer-22/verification.json",
-      "size": 1459,
-      "sha256": "911771efccccc6cb7d0dcdf10d93866fc70264baa67bacc5a9d584ba47a2781f",
-      "git_oid": "774c39a9e489e2c52e206909e247ca35594b6f16",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-22/verification.json"
-      }
-    },
-    {
-      "path": "layer-23/layer-23.trellis35.bin",
-      "size": 345147392,
-      "sha256": "103e29a1b51590df3e1e2076c90d07df973f3bab56ac9d90fc79e3579aad9b0d",
-      "git_oid": "b343bc43d6f340b3c12e926e34fab7ed5358bc96",
-      "lfs_oid": "103e29a1b51590df3e1e2076c90d07df973f3bab56ac9d90fc79e3579aad9b0d",
-      "xet_hash": "971b74cd08fbaca5aa44d1f9504c8ab00603010f33f9cbe8fb1261668e10defc",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-23/layer-23.trellis35.bin"
-      }
-    },
-    {
-      "path": "layer-23/layer-23.trellis35.json",
-      "size": 52754,
-      "sha256": "bf8710e8ce0cfd6dc87b27a40579c245b3a6189056ecf21134e5d1aaa2cb5edf",
-      "git_oid": "7c3cfeed53c94515dec4593eed874577e9472926",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-23/layer-23.trellis35.json"
-      }
-    },
-    {
-      "path": "layer-23/verification.json",
-      "size": 1460,
-      "sha256": "039e6e0baac68c54a8acabb05333cf1c76d6bacbea1fb8370307febb5e9f2a16",
-      "git_oid": "14b05ce6437ae6240518cee9de3533e33dfd521f",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-23/verification.json"
-      }
-    },
-    {
-      "path": "layer-24/layer-24.trellis35.bin",
-      "size": 345147392,
-      "sha256": "6a3c0ca6bb4bd9d3553d5383b0abc1fb4bcd6b63cac5e27b006947db882c10b3",
-      "git_oid": "30e6b615901bd24c6ff685517cbd03004b101ed2",
-      "lfs_oid": "6a3c0ca6bb4bd9d3553d5383b0abc1fb4bcd6b63cac5e27b006947db882c10b3",
-      "xet_hash": "39c0c18170d805ef8e7f1e6ba23018366d27214c4c0c48e29577b1d007ea4eb9",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-24/layer-24.trellis35.bin"
-      }
-    },
-    {
-      "path": "layer-24/layer-24.trellis35.json",
-      "size": 52703,
-      "sha256": "47b12b3d175b173bc557fcd636c7dddcde97b871c09704285c2dbae9b9836b78",
-      "git_oid": "aec2506df9e9e5bb9faf76bf8672141133886042",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-24/layer-24.trellis35.json"
-      }
-    },
-    {
-      "path": "layer-24/verification.json",
-      "size": 1458,
-      "sha256": "506cf42d28774a93d1231ba05b920d63956479f60b20d8bc03d5f9a7ebdd4f9c",
-      "git_oid": "93385744903a82801e5e6cae5fe29653a212894a",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-24/verification.json"
-      }
-    },
-    {
-      "path": "layer-25/layer-25.trellis35.bin",
-      "size": 345147392,
-      "sha256": "d857ada9a5996446eca45bd4d23aa2482ef994b638ec17f1930b1aa376f0aaf2",
-      "git_oid": "8b936183b7da509dc1f8e9bc74d3a94613233221",
-      "lfs_oid": "d857ada9a5996446eca45bd4d23aa2482ef994b638ec17f1930b1aa376f0aaf2",
-      "xet_hash": "197c4f8caa55407d9b6a55cc57d18c23a60c1de99979547153b3043c6d8cbe59",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-25/layer-25.trellis35.bin"
-      }
-    },
-    {
-      "path": "layer-25/layer-25.trellis35.json",
-      "size": 52653,
-      "sha256": "79047933d8d10704e5a4307c391d1fcd8cb2bbac39b45e0cdc102661293d9885",
-      "git_oid": "36a7c82b72b9b9cae356fa4d490547188685e6b4",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-25/layer-25.trellis35.json"
-      }
-    },
-    {
-      "path": "layer-25/verification.json",
-      "size": 1458,
-      "sha256": "bb0f0280bad6ccb60d54ae430ad95da41875e94bf994783418b8a1822a933fad",
-      "git_oid": "ae2445312af0a095b5b9fbd956096d59064aee73",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-25/verification.json"
-      }
-    },
-    {
-      "path": "layer-26/layer-26.trellis35.bin",
-      "size": 345147392,
-      "sha256": "05fd722733e743ed8294d186c0afd8f6da8588dd233f421cd6782e769165b425",
-      "git_oid": "939865ad344e0e3c9b95a812e87cb83d499a5a27",
-      "lfs_oid": "05fd722733e743ed8294d186c0afd8f6da8588dd233f421cd6782e769165b425",
-      "xet_hash": "b2e74a9014896300f6cccb8a1e48961ad17ff836865f93867dfafbfa9e051ab6",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-26/layer-26.trellis35.bin"
-      }
-    },
-    {
-      "path": "layer-26/layer-26.trellis35.json",
-      "size": 52661,
-      "sha256": "2f492e091f132b48d32915397943d136ceb77c6f90be108afbd90a55bb6e3cef",
-      "git_oid": "9d968f876b007230136c082189e84afeb7324947",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-26/layer-26.trellis35.json"
-      }
-    },
-    {
-      "path": "layer-26/verification.json",
-      "size": 1461,
-      "sha256": "933059012a4dcf0398f65fd477fdc66ddacaa11202fbe7fdd663c35f4c595035",
-      "git_oid": "54a9c241c623972d998ce121aba2b504a0a813d0",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-26/verification.json"
-      }
-    },
-    {
-      "path": "layer-27/layer-27.trellis35.bin",
-      "size": 345147392,
-      "sha256": "7ff89b17ffd297d1098ded80d9889f841a08b6723c12abd723f04676be25e148",
-      "git_oid": "fffef0e7065a14523204000762d63b97ae205d8a",
-      "lfs_oid": "7ff89b17ffd297d1098ded80d9889f841a08b6723c12abd723f04676be25e148",
-      "xet_hash": "e1b753e2f962ac85d65e8bcddc230ecc944d24f3012a174ecadd704530717432",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-27/layer-27.trellis35.bin"
-      }
-    },
-    {
-      "path": "layer-27/layer-27.trellis35.json",
-      "size": 52624,
-      "sha256": "9d2379013ed51b7daebcd2e3862705cdc5c6818b365340d591daf721c283e16a",
-      "git_oid": "d73e24a9841ba151040ffef8ffa30b74af33a987",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-27/layer-27.trellis35.json"
-      }
-    },
-    {
-      "path": "layer-27/verification.json",
-      "size": 1460,
-      "sha256": "554e00f732b1c72575001b863acfa9cf610f87969c586a606b192eb748e245c3",
-      "git_oid": "e3cf1a4e0407d3cb8ebee500836b4fb6cdcae8d8",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-27/verification.json"
-      }
-    },
-    {
-      "path": "layer-28/layer-28.trellis35.bin",
-      "size": 345147392,
-      "sha256": "336ad3c2932890efea675ed3a51b9d964f1bc59782a08a90575c7e296885cf87",
-      "git_oid": "296a4111ddc530cdbb7135035d76070d9eb65821",
-      "lfs_oid": "336ad3c2932890efea675ed3a51b9d964f1bc59782a08a90575c7e296885cf87",
-      "xet_hash": "e6f55ec3bb6c4bfe17d18bef890838522eb77eff132e58bd294008fe2bb91333",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-28/layer-28.trellis35.bin"
-      }
-    },
-    {
-      "path": "layer-28/layer-28.trellis35.json",
-      "size": 52728,
-      "sha256": "220d7d81a25ac580addda395414e8318dad862f6b9b9646449cb42fb7c38587c",
-      "git_oid": "965e4f11ade0dad07b87c9b5736254251f405b8c",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-28/layer-28.trellis35.json"
-      }
-    },
-    {
-      "path": "layer-28/verification.json",
-      "size": 1458,
-      "sha256": "824e88b0bcec5602c0b1e67250c67f81641cf9c67f3e1609ec62917838b1e72b",
-      "git_oid": "08857a07520900e199dfdc079d3ce8419ea11655",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-28/verification.json"
-      }
-    },
-    {
-      "path": "layer-29/layer-29.trellis35.bin",
-      "size": 345147392,
-      "sha256": "6ac544a839c9abcdba64c39c009f5f7ab45349d1841ad7777a61e85109a5cd52",
-      "git_oid": "2c760951a5be0eb521524b6be4cc17cad1034f8e",
-      "lfs_oid": "6ac544a839c9abcdba64c39c009f5f7ab45349d1841ad7777a61e85109a5cd52",
-      "xet_hash": "57063dbcb198b3fb7d27cbe8dbbb45aecfe7a733f9d6d2c0ebcb211a0e38bd5f",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-29/layer-29.trellis35.bin"
-      }
-    },
-    {
-      "path": "layer-29/layer-29.trellis35.json",
-      "size": 52803,
-      "sha256": "c3b97c889e3a0d5b12ee32494f6857373acfc482a05cbc213df3a09c584aa485",
-      "git_oid": "68451f6286012ceb2122b2617cd96e09b9caf180",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-29/layer-29.trellis35.json"
-      }
-    },
-    {
-      "path": "layer-29/verification.json",
-      "size": 1461,
-      "sha256": "54e76506e20263b2a4f249b0c59d2fde784c40bd7a637c08defd22ab37e98b1b",
-      "git_oid": "7b198832cbda5f082a67bc272976978617bba84f",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/layer-29/verification.json"
-      }
-    },
-    {
-      "path": "non-routed.gem16",
-      "size": 1850270720,
-      "sha256": "ee62705d1e680f0c3bc131be503b3d32367cf3aedb1efe4bdccf80ebac0ec2ef",
-      "git_oid": "3381244b5cb0715e06c435ea9112f75585674151",
-      "lfs_oid": "ee62705d1e680f0c3bc131be503b3d32367cf3aedb1efe4bdccf80ebac0ec2ef",
-      "xet_hash": "e43d85908ed819195e99a4abf7e45b0d2637adc1f81917253c19ea0a86051cba",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/non-routed.gem16"
-      }
-    },
-    {
-      "path": "non-routed.json",
-      "size": 511458,
-      "sha256": "b7f93c1a9b7c9680ff526c72dc6df65cc9e117d765c93ae5bc36e3b4b9b635a2",
-      "git_oid": "1c8d8d13e677116f419cd568feecf3b8457de0d1",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/non-routed.json"
+      "path": "model.gem16",
+      "size": 12204692480,
+      "sha256": "552ace4b3f2e8e20bbc03a9d4b30887bdb6297d6da9f48d54b4a2b4e9fc803c4",
+      "git_oid": "2c8e8321b1ddccf74497c122c19b57d404e505fd",
+      "lfs_oid": "552ace4b3f2e8e20bbc03a9d4b30887bdb6297d6da9f48d54b4a2b4e9fc803c4",
+      "xet_hash": "fc721339987dae85c2a8078408f9e0fa03b76b8109b2a071d69bb526413480ce",
+      "source": {
+        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
+        "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+        "path": "trellis35/model.gem16"
       }
     },
     {
@@ -1168,7 +140,7 @@
       "xet_hash": "c62336ad134cad6f154d84eb0e5a5fa9ca17cd665ef3ba5ac4fd02b1486760b4",
       "source": {
         "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
+        "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
         "path": "trellis35/tokenizer.json"
       }
     },
@@ -1179,30 +151,8 @@
       "git_oid": "bd297dce3d66737f7d6f9136691db3ad05991a2f",
       "source": {
         "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
+        "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
         "path": "trellis35/tokenizer_config.json"
-      }
-    },
-    {
-      "path": "trellis35-checkpoint.json",
-      "size": 17287,
-      "sha256": "0b239cac8d2c49a60a33066c7c7b57d201c0e51df45590248137588563dc78a7",
-      "git_oid": "4cda4e8d6a220291d296e14e0871a266620993c4",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/trellis35-checkpoint.json"
-      }
-    },
-    {
-      "path": "trellis35-experts.json",
-      "size": 15894,
-      "sha256": "5ffdfcbc85da7a09024da87d5090d0c6a7b2840f4ab2d3d70af58cb68815424d",
-      "git_oid": "6989f2282c7a4d9bdd1f28c566fa08ec2a7690ab",
-      "source": {
-        "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-        "path": "trellis35/trellis35-experts.json"
       }
     }
   ]

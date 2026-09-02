@@ -260,11 +260,11 @@ bool TestModelCatalog() {
                     "b1f649734b34aa5575b03d186abd1b9be3d0d5c4" &&
          gem16::studio::ComponentDirectory(*twenty_six_target->catalog, root) ==
              root / "models--danmoreng--gemma-4-26B-A4B-it-GEM16/snapshots/"
-                    "31842e12882d09bab7109c0ad52a4ee2e945069c" &&
+                    "6de2a057f11332420819f8e6efd08e42d7a03bc7" &&
          gem16::studio::ComponentDirectory(*twenty_six_assistant->catalog, root) ==
              root / ".gem16/snapshots/"
                     "danmoreng--gemma-4-26B-A4B-it-GEM16--"
-                    "31842e12882d09bab7109c0ad52a4ee2e945069c--assistant" &&
+                    "6de2a057f11332420819f8e6efd08e42d7a03bc7--assistant" &&
          gem16::studio::VerificationMarkerPath(first_target_file, root) ==
              root / "models--unsloth--gemma-4-12b-it-NVFP4/.gem16-verified" /
                     (std::string(first_target_file.blob_id) + ".sha256");

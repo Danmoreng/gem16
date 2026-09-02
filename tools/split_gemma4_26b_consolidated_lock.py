@@ -25,9 +25,10 @@ COMPONENTS = {
 REQUIRED_COMPONENT_FILES = {
     "target": {"model.gem16", "gem16_model.json", "gem16_components.json"},
     "trellis35": {
-        "non-routed.gem16",
-        "trellis35-checkpoint.json",
-        "trellis35-experts.json",
+        "model.gem16",
+        "gem16_model.json",
+        "gem16_compilation.json",
+        "gem16.lock.json",
         "SHA256SUMS",
     },
     "assistant": {
@@ -41,6 +42,12 @@ REQUIRED_COMPONENT_FILES = {
         "vision_compilation.json",
         "vision.lock.json",
     },
+}
+LEGACY_TRELLIS_REQUIRED_FILES = {
+    "non-routed.gem16",
+    "trellis35-checkpoint.json",
+    "trellis35-experts.json",
+    "SHA256SUMS",
 }
 
 
@@ -82,7 +89,10 @@ def selected_entries(lock: dict[str, Any], component: str,
         result.append(entry)
     result.sort(key=lambda entry: entry["path"])
     paths = {entry["path"] for entry in result}
-    missing = REQUIRED_COMPONENT_FILES[component] - paths
+    required = REQUIRED_COMPONENT_FILES[component]
+    if component == "trellis35" and "model.gem16" not in paths:
+        required = LEGACY_TRELLIS_REQUIRED_FILES
+    missing = required - paths
     if missing:
         raise SplitError(
             f"{component} component is missing required files: {sorted(missing)}"

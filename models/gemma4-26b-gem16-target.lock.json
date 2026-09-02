@@ -1,9 +1,9 @@
 {
   "schema_version": 2,
   "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-  "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-  "resolved_at_utc": "2026-09-01T17:57:00Z",
-  "source_url": "https://huggingface.co/danmoreng/gemma-4-26B-A4B-it-GEM16/tree/31842e12882d09bab7109c0ad52a4ee2e945069c",
+  "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+  "resolved_at_utc": "2026-09-02T20:05:19Z",
+  "source_url": "https://huggingface.co/danmoreng/gemma-4-26B-A4B-it-GEM16/tree/6de2a057f11332420819f8e6efd08e42d7a03bc7",
   "terms_url": "https://ai.google.dev/gemma/terms",
   "component": "target",
   "component_path": ".",
@@ -58,9 +58,9 @@
     },
     {
       "path": "gem16_components.json",
-      "size": 2262,
-      "sha256": "6d704561433c984315e3bd7aefef192df3d7f4d75f11272f381549ed1c525bdc",
-      "git_oid": "b192800e6d5f369cdd486dce305357428c30d1a7"
+      "size": 2535,
+      "sha256": "d9bc235243b6cce80eac3999a608570b9bff4e46b4ef6f93781b74a63df1ee0b",
+      "git_oid": "0108da968883cbee8221bcf05c0c8c91986cb43b"
     },
     {
       "path": "gem16_model.json",

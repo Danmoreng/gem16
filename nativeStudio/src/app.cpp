@@ -733,6 +733,10 @@ void StudioApp::DrawChat() {
   }
 
   const ImVec2 toolbar_origin = ImGui::GetCursorScreenPos();
+  ImDrawList* composer_draw = ImGui::GetWindowDrawList();
+  const ImU32 disabled_text = ImGui::GetColorU32(ImGuiCol_TextDisabled);
+  const float toolbar_text_y = toolbar_origin.y +
+                               (toolbar_height - ImGui::GetFontSize()) * 0.5f;
   float toolbar_x = toolbar_origin.x;
   ImGui::SetCursorScreenPos({toolbar_x, toolbar_origin.y});
   const bool attach_disabled = busy || recorder_.Active();
@@ -764,23 +768,57 @@ void StudioApp::DrawChat() {
   ImGui::EndDisabled();
   toolbar_x += toolbar_height + Ui(8.0f);
   ImGui::SetCursorScreenPos({toolbar_x, toolbar_origin.y});
-  ImGui::SetNextItemWidth(Ui(132.0f));
-  const char* efforts[] = {"none", "low", "medium", "high"};
+  ImGui::SetNextItemWidth(Ui(150.0f));
+  const char* effort_labels[] = {"Thinking: Off", "Thinking: Low (1K)",
+                                "Thinking: Med (4K)", "Thinking: High (8K)"};
+  const char* effort_keys[] = {"none", "low", "medium", "high"};
   int effort = 2;
   for (int index = 0; index < 4; ++index)
-    if (settings_.generation.reasoning_effort == efforts[index]) effort = index;
-  if (ImGui::Combo("##chat-effort", &effort, efforts, 4))
-    settings_.generation.reasoning_effort = efforts[effort];
-  toolbar_x += Ui(140.0f);
-  char maximum_label[48]{};
-  std::snprintf(maximum_label, sizeof(maximum_label), "%lld max",
-                static_cast<long long>(settings_.generation.max_output_tokens));
-  const float toolbar_text_y = toolbar_origin.y +
-                               (toolbar_height - ImGui::GetFontSize()) * 0.5f;
-  ImDrawList* composer_draw = ImGui::GetWindowDrawList();
-  const ImU32 disabled_text = ImGui::GetColorU32(ImGuiCol_TextDisabled);
-  composer_draw->AddText({toolbar_x, toolbar_text_y}, disabled_text, maximum_label);
-  toolbar_x += ImGui::CalcTextSize(maximum_label).x + Ui(18.0f);
+    if (settings_.generation.reasoning_effort == effort_keys[index]) effort = index;
+  if (ImGui::Combo("##chat-effort", &effort, effort_labels, 4)) {
+    settings_.generation.reasoning_effort = effort_keys[effort];
+    (void)SaveSettings(settings_);
+  }
+  toolbar_x += Ui(158.0f);
+  ImGui::SetCursorScreenPos({toolbar_x, toolbar_origin.y});
+  ImGui::SetNextItemWidth(Ui(120.0f));
+  constexpr std::array<std::pair<std::int64_t, const char*>, 6U> kOutputPresets{{
+      {4096, "4K max"},
+      {8192, "8K max"},
+      {16384, "16K max"},
+      {32768, "32K max"},
+      {65536, "64K max"},
+      {131072, "128K max"},
+  }};
+  int output_idx = 3;
+  bool custom_output = true;
+  for (std::size_t i = 0; i < kOutputPresets.size(); ++i) {
+    if (settings_.generation.max_output_tokens == kOutputPresets[i].first) {
+      output_idx = static_cast<int>(i);
+      custom_output = false;
+      break;
+    }
+  }
+  char output_preview[32]{};
+  if (custom_output) {
+    std::snprintf(output_preview, sizeof(output_preview), "%lld max",
+                  static_cast<long long>(settings_.generation.max_output_tokens));
+  } else {
+    std::snprintf(output_preview, sizeof(output_preview), "%s",
+                  kOutputPresets[output_idx].second);
+  }
+  if (ImGui::BeginCombo("##chat-max-tokens", output_preview)) {
+    for (std::size_t i = 0; i < kOutputPresets.size(); ++i) {
+      const bool is_selected = (!custom_output && output_idx == static_cast<int>(i));
+      if (ImGui::Selectable(kOutputPresets[i].second, is_selected)) {
+        settings_.generation.max_output_tokens = kOutputPresets[i].first;
+        (void)SaveSettings(settings_);
+      }
+      if (is_selected) ImGui::SetItemDefaultFocus();
+    }
+    ImGui::EndCombo();
+  }
+  toolbar_x += Ui(128.0f);
   char status_label[192]{};
   if (generation_started_.time_since_epoch().count() != 0) {
     const auto end = busy ? std::chrono::steady_clock::now() : generation_finished_;
@@ -814,7 +852,7 @@ void StudioApp::DrawChat() {
     if (settings_.server.profile ==
         ModelProfile::kGemma4Moe26BTrellis35VisionFp8) {
       std::snprintf(status_label, sizeof(status_label),
-                    "EXPERIMENTAL Vision · one image · %d-token budget",
+                    "Vision · one image · %d-token budget",
                     settings_.server.vision_soft_token_budget);
     } else {
       std::snprintf(status_label, sizeof(status_label),
@@ -1598,14 +1636,20 @@ void StudioApp::DrawSettings() {
   ImGui::BeginChild("##generation-card", {0, columns ? 0.0f : Ui(620.0f)},
                     ImGuiChildFlags_Borders, ImGuiWindowFlags_NoScrollbar);
   PanelHeading("Generation", "Defaults applied to new local chat requests.");
-  const char* efforts[] = {"none", "low", "medium", "high"};
+  const char* effort_labels[] = {"none (0 tokens)", "low (1,024 tokens)",
+                                 "medium (4,096 tokens)", "high (8,192 tokens)"};
+  const char* effort_keys[] = {"none", "low", "medium", "high"};
   int current = 2;
-  for (int index = 0; index < 4; ++index) if (settings_.generation.reasoning_effort == efforts[index]) current = index;
-  FieldLabel("Thinking effort");
-  if (ImGui::Combo("##thinking-effort", &current, efforts, 4)) settings_.generation.reasoning_effort = efforts[current];
+  for (int index = 0; index < 4; ++index)
+    if (settings_.generation.reasoning_effort == effort_keys[index]) current = index;
+  FieldLabel("Thinking effort (reasoning token budget)");
+  if (ImGui::Combo("##thinking-effort", &current, effort_labels, 4))
+    settings_.generation.reasoning_effort = effort_keys[current];
   int output_tokens = static_cast<int>(settings_.generation.max_output_tokens);
-  FieldLabel("Maximum output tokens");
-  if (ImGui::InputInt("##maximum-output-tokens", &output_tokens)) settings_.generation.max_output_tokens = std::max(output_tokens, 1);
+  FieldLabel("Maximum output tokens (e.g. 32768, bounded by context window)");
+  if (ImGui::InputInt("##maximum-output-tokens", &output_tokens, 1024, 4096))
+    settings_.generation.max_output_tokens =
+        std::clamp<std::int64_t>(output_tokens, 1, 262144);
   ImGui::Checkbox("Show reasoning", &show_reasoning_);
   FieldLabel("System prompt");
   ImGui::InputTextMultiline("##system-prompt", system_prompt_.data(), system_prompt_.size(), {0, Ui(70)});

@@ -1,9 +1,9 @@
 {
   "schema_version": 2,
   "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-  "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
-  "resolved_at_utc": "2026-09-01T17:57:00Z",
-  "source_url": "https://huggingface.co/danmoreng/gemma-4-26B-A4B-it-GEM16/tree/31842e12882d09bab7109c0ad52a4ee2e945069c",
+  "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
+  "resolved_at_utc": "2026-09-02T20:05:19Z",
+  "source_url": "https://huggingface.co/danmoreng/gemma-4-26B-A4B-it-GEM16/tree/6de2a057f11332420819f8e6efd08e42d7a03bc7",
   "terms_url": "https://ai.google.dev/gemma/terms",
   "component": "vision",
   "component_path": "vision",
@@ -15,7 +15,7 @@
       "git_oid": "506ff98349a36c9b78904645c9ae492a9b62e826",
       "source": {
         "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
+        "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
         "path": "vision/LICENSE"
       }
     },
@@ -26,7 +26,7 @@
       "git_oid": "baea312a0654666a86a1f85a067dcc1dde4ccda1",
       "source": {
         "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
+        "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
         "path": "vision/NOTICE"
       }
     },
@@ -37,7 +37,7 @@
       "git_oid": "56e3037b1ad1c95e73c1a6cbdd85348ca91e0461",
       "source": {
         "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
+        "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
         "path": "vision/README.md"
       }
     },
@@ -48,7 +48,7 @@
       "git_oid": "e22264c1aba8cae8af3b75f6059f74ebebb04662",
       "source": {
         "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
+        "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
         "path": "vision/gem16_vision.json"
       }
     },
@@ -61,7 +61,7 @@
       "xet_hash": "48efacde4ac21deb502e60966a1641e1465f1c1ea8a9456bc62652837fa09477",
       "source": {
         "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
+        "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
         "path": "vision/vision.gem16"
       }
     },
@@ -72,7 +72,7 @@
       "git_oid": "0608adf65eaf6a2f9dffdf8c2adaef68c7a78f41",
       "source": {
         "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
+        "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
         "path": "vision/vision.lock.json"
       }
     },
@@ -83,7 +83,7 @@
       "git_oid": "424db2568541fc44e8476aa6cdd3165ce852bc3d",
       "source": {
         "repository": "danmoreng/gemma-4-26B-A4B-it-GEM16",
-        "revision": "31842e12882d09bab7109c0ad52a4ee2e945069c",
+        "revision": "6de2a057f11332420819f8e6efd08e42d7a03bc7",
         "path": "vision/vision_compilation.json"
       }
     }
