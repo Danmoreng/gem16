@@ -1,0 +1,106 @@
+# Gemma 4 26B A4B Compact Vision production contract
+
+**Status:** production candidate; P20 not yet accepted
+
+**Owner direction:** 2026-09-02
+
+**Source baseline:** `26691d607f7945234a39aed8a98f0d1ed1d904c1`
+
+## Scope
+
+Compact Vision is the explicit Gemma 4 26B A4B profile composed of the locked
+Trellis35 text Target, the locked FP8 Vision module, and an optional separately
+locked fixed-D2 Assistant. It is not an extension of the NVFP4 profile and file
+presence never enables it.
+
+The candidate boundary is:
+
+- NVIDIA Blackwell SM120 in the measured approximately 16 GB class;
+- Windows x64 and Linux x86-64 as equal release platforms;
+- batch one and one resident execution slot;
+- one image and text output;
+- 70, 140, or 280 Vision soft tokens;
+- Ordinary or fixed-D2 decode;
+- no audio or video;
+- only the context limits accepted by final post-PERF12/PERF13 capacity gates.
+
+## Stable identity and components
+
+The profile ID is always:
+
+```text
+gemma4-26b-a4b-trellis35-vision-fp8
+```
+
+Execution reports `decode_mode=ordinary|fixed-d2` separately. Fixed-D2 is
+supported only when the exact validated Target, Vision, and Assistant locks are
+loaded. Qualification is bound to their immutable hashes; components and
+profiles are never inferred from filenames or substituted.
+
+Until P20 is accepted the runtime reports:
+
+```text
+qualification_state=production_candidate
+experimental=true
+```
+
+`production_qualified` and `experimental=false` are reserved for the exact P20
+candidate after every gate below passes.
+
+## Precision and runtime integrity
+
+- Trellis35 text weights retain their published W4A8/BF16/FP8 contract.
+- Vision linear weights retain E4M3FN plus BF16 scales; copied position, norm,
+  and control tensors retain BF16.
+- Vision Attention preserves the accepted BF16/FP32 boundaries unless a
+  separately gated numerical candidate is accepted.
+- No runtime JIT, quantization, repack, CPU weight offload, expert streaming,
+  recurring token/image-loop allocation, or silent precision/kernel/budget/
+  context/decode fallback is permitted.
+- After FMT01, the Trellis35 product payload is one GPU-ready device image with
+  one device allocation and no second persistent representation.
+
+## Image and cache boundary
+
+Encoded media is untrusted. The source identity used for resident conversation
+reuse is SHA-256 plus encoded byte length. Inputs without an authoritative
+encoded-source digest require a complete structural image comparison. The
+profile accepts exactly one supported image and rejects malformed, excessive,
+or mismatched input before execution.
+
+`vision_max_soft_token_budget` is a fixed startup capacity.
+`last_vision_soft_token_budget` is request telemetry. A request may never
+exceed the configured maximum, and changing that maximum requires controlled
+server restart and capacity replanning.
+
+## Quality claim
+
+The eventual claim is limited to the frozen production suite: one-image
+description, OCR, documents/tables, charts, spatial relations, counting,
+colors, small details, representative natural images and the tested geometry
+and budget matrix. It does not assert general multimodal benchmark parity.
+
+The underlying Trellis35 text Target must independently pass the frozen text,
+retrieval, tool, stop, repetition, sampling, Ordinary and fixed-D2 gates before
+the Vision profile can become productive.
+
+## Release gates
+
+P20 requires all of the following on immutable inputs and source:
+
+1. PRD00 security, fixtures, identity and stable reporting;
+2. accepted PERF13/PERF12 performance and numerical candidates;
+3. byte-exact FMT01 Trellis35 device image v2 and explicit legacy behavior;
+4. a verified immutable revision in the existing consolidated repository;
+5. final Trellis35 text and expanded Vision quality;
+6. fresh Target+Vision and Target+Vision+Assistant capacity at every maximum
+   Vision budget, including product default, advanced maximum and first reject;
+7. live SM120 Vision+D2 execution on Windows and Linux;
+8. Studio, server, OpenAI Agent Core, cancellation and lifecycle qualification;
+9. full download/resume/hash/corruption and clean-machine package smokes;
+10. protected 12B and qualified 26B NVFP4 non-regression.
+
+P21 then freezes the source revision, binaries, repository revision, component
+and catalog hashes, defaults and maxima, performance and quality panels, known
+limitations, and rollback procedure. Historical evidence is retained rather
+than rewritten.

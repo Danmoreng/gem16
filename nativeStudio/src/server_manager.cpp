@@ -78,16 +78,15 @@ std::string HealthCompatibilityError(const ServerConfig& config,
       }
       break;
     case ModelProfile::kGemma4Moe26BTrellis35VisionFp8:
-      expected_profile = config.mtp_draft_tokens == 2
-                             ? "gemma4-26b-a4b-trellis35-vision-fp8-d2"
-                             : "gemma4-26b-a4b-trellis35-vision-fp8";
+      expected_profile = "gemma4-26b-a4b-trellis35-vision-fp8";
       if (!health.supports_vision || !health.vision_module_loaded ||
           health.text_only) {
         return "The live server has not loaded the selected 26B Vision module";
       }
       if (config.mtp_draft_tokens == 2 &&
           (!health.supports_mtp || !health.vision_mtp_supported ||
-           health.qualification_state != "experimental_v14_accepted")) {
+           (health.qualification_state != "production_candidate" &&
+            health.qualification_state != "production_qualified"))) {
         return "The live server does not qualify Vision with fixed-D2 for this component set";
       }
       if (config.mtp_draft_tokens == 0 && health.vision_mtp_supported) {
@@ -100,6 +99,14 @@ std::string HealthCompatibilityError(const ServerConfig& config,
            std::string(expected_profile) + ", received " +
            (health.profile_id.empty() ? std::string("<missing>")
                                       : health.profile_id);
+  }
+  const std::string_view expected_decode_mode =
+      config.mtp_draft_tokens == 2 ? "fixed-d2" : "ordinary";
+  if (health.decode_mode != expected_decode_mode) {
+    return "Live server decode-mode mismatch: expected " +
+           std::string(expected_decode_mode) + ", received " +
+           (health.decode_mode.empty() ? std::string("<missing>")
+                                       : health.decode_mode);
   }
   if (config.mtp_draft_tokens != 0 && !health.supports_mtp) {
     return "The live server does not expose the selected MTP capability";
@@ -269,6 +276,7 @@ HealthSnapshot ServerManager::FetchHealth(const ServerConfig& config) const {
   snapshot.status = StringValue(Member(&root, "status"));
   snapshot.model_variant = StringValue(Member(&root, "model_variant"));
   snapshot.profile_id = StringValue(Member(&root, "profile_id"));
+  snapshot.decode_mode = StringValue(Member(&root, "decode_mode"));
   snapshot.qualification_state =
       StringValue(Member(&root, "qualification_state"));
   snapshot.text_only = BoolValue(Member(&root, "text_only"));
@@ -282,8 +290,10 @@ HealthSnapshot ServerManager::FetchHealth(const ServerConfig& config) const {
   snapshot.session_limit = static_cast<int>(IntegerValue(Member(&root, "session_limit")));
   snapshot.max_context_tokens = IntegerValue(Member(&root, "max_context_tokens"));
   snapshot.mtp_draft_tokens = static_cast<int>(IntegerValue(Member(&root, "mtp_draft_tokens")));
-  snapshot.selected_vision_soft_token_budget = static_cast<int>(
-      IntegerValue(Member(&root, "selected_vision_soft_token_budget")));
+  snapshot.vision_max_soft_token_budget = static_cast<int>(
+      IntegerValue(Member(&root, "vision_max_soft_token_budget")));
+  snapshot.last_vision_soft_token_budget = static_cast<int>(
+      IntegerValue(Member(&root, "last_vision_soft_token_budget")));
   snapshot.vision_max_context_tokens =
       IntegerValue(Member(&root, "vision_max_context_tokens"));
   snapshot.sampling_enabled = BoolValue(Member(sampling, "enabled"));

@@ -519,9 +519,9 @@ std::string VisionMetricsText(const ServerMetrics& metrics) {
   output.append("# TYPE gem16_vision_artifact_validation_failures_total counter\n");
   output.append(metric("gem16_vision_artifact_validation_failures_total",
                        metrics.vision_artifact_validation_failures.load()));
-  output.append("# TYPE gem16_selected_vision_soft_token_budget gauge\n");
-  output.append(metric("gem16_selected_vision_soft_token_budget",
-                       metrics.selected_vision_soft_token_budget.load()));
+  output.append("# TYPE gem16_last_vision_soft_token_budget gauge\n");
+  output.append(metric("gem16_last_vision_soft_token_budget",
+                       metrics.last_vision_soft_token_budget.load()));
   return output;
 }
 

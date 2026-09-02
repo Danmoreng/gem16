@@ -17,6 +17,8 @@ For multi-agent work also read [`PARALLEL_WORKSTREAMS.md`](PARALLEL_WORKSTREAMS.
 |---|---|
 | [`../../ACTIVE_DECISIONS.md`](../../ACTIVE_DECISIONS.md) | short owner-accepted project policy |
 | [`ACTIVE_CONTRACT.md`](ACTIVE_CONTRACT.md) | compact normative execution contract and gates |
+| [`PRODUCTION_26B_VISION_CONTRACT.md`](PRODUCTION_26B_VISION_CONTRACT.md) | bounded Compact Vision production-candidate scope and release gates |
+| [`CODEX_GEM16_V12_V13_CONSOLIDATION_PRODUCTION_MASTER_INSTRUCTION.md`](CODEX_GEM16_V12_V13_CONSOLIDATION_PRODUCTION_MASTER_INSTRUCTION.md) | active PRD00–P21 execution sequence for Compact Vision |
 | [`FAST_TRACK_EXECUTION_PLAN.md`](FAST_TRACK_EXECUTION_PLAN.md) | waves and vertical checkpoints |
 | [`FAST_TRACK_STATUS.json`](FAST_TRACK_STATUS.json) | single machine-readable status source |
 | [`MILESTONE_STATUS_BOARD.md`](MILESTONE_STATUS_BOARD.md) | human status view |

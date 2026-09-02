@@ -892,6 +892,9 @@ int ChatMain(int argc, char** argv) {
         << JsonEscape(runtime.value()->model_variant_name())
         << ",\"profile_id\":"
         << JsonEscape(runtime.value()->profile_id())
+        << ",\"decode_mode\":"
+        << JsonEscape(options.mtp_draft_tokens == 2U ? "fixed-d2"
+                                                     : "ordinary")
         << ",\"text_artifact_profile\":"
         << JsonEscape(runtime.value()->text_artifact_profile())
         << ",\"vision_artifact_profile\":"
@@ -936,7 +939,13 @@ int ChatMain(int argc, char** argv) {
         << ",\"maximum_images\":" << runtime.value()->maximum_images()
         << ",\"vision_soft_token_budgets\":"
         << (runtime.value()->vision_module_loaded() ? "[70,140,280]" : "[]")
-        << ",\"selected_vision_soft_token_budget\":null"
+        << ",\"vision_max_soft_token_budget\":";
+    if (runtime.value()->vision_module_loaded()) {
+      std::cout << runtime.value()->vision_max_soft_token_budget();
+    } else {
+      std::cout << "null";
+    }
+    std::cout << ",\"last_vision_soft_token_budget\":null"
         << ",\"vision_max_context_tokens\":";
     if (runtime.value()->vision_module_loaded()) {
       std::cout << runtime.value()->vision_max_context_tokens();

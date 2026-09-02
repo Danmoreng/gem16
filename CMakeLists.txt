@@ -791,6 +791,7 @@ if(BUILD_TESTING AND GEM16_BUILD_TESTS)
     add_test(NAME gem16-26b-vision-module-contract
       COMMAND "${Python3_EXECUTABLE}" -m unittest
         tests.python.test_gemma4_26b_vision_module
+        tests.python.test_package_gemma4_26b_vision_hf
     )
     set_tests_properties(gem16-26b-vision-module-contract PROPERTIES
       WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"

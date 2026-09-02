@@ -382,7 +382,7 @@ gem16::Status ValidateRequestCapabilities(
           return gem16::Status(gem16::StatusCode::kUnsupported,
                                "Vision soft-token budget is unsupported");
         }
-        state.metrics.selected_vision_soft_token_budget.store(budget);
+        state.metrics.last_vision_soft_token_budget.store(budget);
         if (budget == 70U) {
           state.metrics.vision_budget_70.fetch_add(1U);
         } else if (budget == 140U) {
@@ -1117,6 +1117,11 @@ int ServerMain(int argc, char** argv) {
                            state.runtime->model_variant_name()) +
                        ",\"profile_id\":" +
                        gem16::json::Quote(state.runtime->profile_id()) +
+                       ",\"decode_mode\":" +
+                       gem16::json::Quote(
+                           state.session_options.mtp_draft_tokens == 2U
+                               ? "fixed-d2"
+                               : "ordinary") +
                        ",\"text_artifact_profile\":" +
                        gem16::json::Quote(
                            state.runtime->text_artifact_profile()) +
@@ -1163,12 +1168,17 @@ int ServerMain(int argc, char** argv) {
                        std::to_string(state.runtime->maximum_images()) +
                        ",\"vision_soft_token_budgets\":" +
                        (vision_profile ? "[70,140,280]" : "[]") +
-                       ",\"selected_vision_soft_token_budget\":" +
-                       (state.metrics.selected_vision_soft_token_budget.load() ==
+                       ",\"vision_max_soft_token_budget\":" +
+                       (vision_profile
+                            ? std::to_string(state.runtime
+                                                 ->vision_max_soft_token_budget())
+                            : "null") +
+                       ",\"last_vision_soft_token_budget\":" +
+                       (state.metrics.last_vision_soft_token_budget.load() ==
                                 0U
                             ? "null"
                             : std::to_string(state.metrics
-                                                 .selected_vision_soft_token_budget
+                                                 .last_vision_soft_token_budget
                                                  .load())) +
                        ",\"vision_max_context_tokens\":" +
                        (vision_profile

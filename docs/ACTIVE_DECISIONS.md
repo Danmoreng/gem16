@@ -1,6 +1,6 @@
 # Active decisions
 
-**Updated:** 2026-09-01
+**Updated:** 2026-09-02
 **Track:** Productization baseline
 **Status:** owner-approved product contract; implementation and release gates in progress
 
@@ -57,6 +57,16 @@ Read it only for a concrete historical or evidence question.
    remain closed, and the protected 12B path, product claims, release
    sequencing, and productization priority remain unchanged. Trellis35 stays
    experimental and may not modify or silently fall back to a qualified path.
+8. **Compact Vision production qualification is authorized but not yet
+   accepted.** The owner's 2026-09-02 direction supersedes only the future
+   requirement in decision 7 that the completed Trellis35 Vision slice end in
+   an experimental V20 freeze. The exact Trellis35 Target + FP8 Vision +
+   optional fixed-D2 Assistant composite may proceed through the bounded
+   PRD00, PERF13, PERF12, FMT01, PUB01, QUAL01, APP01, REL01, P20 and P21
+   production gates. Until P20 is accepted it remains a
+   `production_candidate`, reports `experimental=true`, and creates no new
+   product claim. The qualified 12B and 26B NVFP4 profiles, their artifacts,
+   capabilities and rollback evidence remain unchanged and equally protected.
 
 ## Current qualified model facts
 
@@ -123,7 +133,8 @@ Read it only for a concrete historical or evidence question.
   suite passed all required description, OCR, chart, document, counting, spatial,
   color, small-detail, and geometry checks with zero fallback or recurring
   allocation. Its evidence is `artifacts/vision/v19-acceptance.json`. The profile
-  remains experimental pending the V20 experimental product freeze.
+  is now the bounded Compact Vision `production_candidate` and continues to
+  report `experimental=true` pending P20 production qualification.
 
 Accepted numerical, performance, context, product, and publication evidence
 continues to live in `artifacts/`, `benchmarks/`, and the archived fast-track

@@ -66,7 +66,7 @@ void TestVisionPrometheusMetrics() {
   metrics.vision_requests.store(3U);
   metrics.vision_failures.store(1U);
   metrics.vision_budget_140.store(2U);
-  metrics.selected_vision_soft_token_budget.store(140U);
+  metrics.last_vision_soft_token_budget.store(140U);
   metrics.vision_tower_microseconds.store(252000U);
   const std::string output = gem16::server::VisionMetricsText(metrics);
   GEM16_CHECK(output.find("# TYPE gem16_vision_requests_total counter\n") !=
@@ -78,9 +78,9 @@ void TestVisionPrometheusMetrics() {
   GEM16_CHECK(output.find("gem16_vision_budget_140_total 2\n") !=
               std::string::npos);
   GEM16_CHECK(output.find(
-                  "# TYPE gem16_selected_vision_soft_token_budget gauge\n") !=
+                  "# TYPE gem16_last_vision_soft_token_budget gauge\n") !=
               std::string::npos);
-  GEM16_CHECK(output.find("gem16_selected_vision_soft_token_budget 140\n") !=
+  GEM16_CHECK(output.find("gem16_last_vision_soft_token_budget 140\n") !=
               std::string::npos);
   GEM16_CHECK(output.find("gem16_vision_tower_microseconds_total 252000\n") !=
               std::string::npos);

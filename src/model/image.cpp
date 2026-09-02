@@ -11,6 +11,8 @@
 #include <utility>
 #include <vector>
 
+#include "compiler/sha256.h"
+
 #define STBI_ONLY_JPEG
 #define STBI_ONLY_PNG
 #define STBI_ONLY_BMP
@@ -43,15 +45,11 @@ Status Error(StatusCode code, std::string message) {
   return Status(code, std::move(message));
 }
 
-std::uint64_t SourceFingerprint(std::span<const std::uint8_t> encoded) {
-  std::uint64_t hash = 14695981039346656037ULL;
-  for (const std::uint8_t byte : encoded) {
-    hash ^= byte;
-    hash *= 1099511628211ULL;
-  }
-  // Zero denotes an image constructed by an older/in-process caller without
-  // source identity, so keep it unavailable as a real fingerprint.
-  return hash == 0U ? 1U : hash;
+ImageSourceIdentity SourceIdentity(std::span<const std::uint8_t> encoded) {
+  compiler::Sha256 hash;
+  hash.Update(encoded.data(), encoded.size());
+  return ImageSourceIdentity{hash.Final(),
+                             static_cast<std::uint64_t>(encoded.size())};
 }
 
 Result<RgbImage> DecodeImage(std::span<const std::uint8_t> encoded,
@@ -270,7 +268,7 @@ Result<VisionImage> LoadVisionImageBytes(
   result.processed_width = target_width;
   result.processed_height = target_height;
   result.soft_token_budget = options.maximum_soft_tokens;
-  result.source_fingerprint = SourceFingerprint(encoded);
+  result.source_identity = SourceIdentity(encoded);
   result.patches.resize(static_cast<std::size_t>(patch_count) * 48U * 48U * 3U);
   result.positions.resize(static_cast<std::size_t>(patch_count) * 2U);
   std::size_t destination = 0U;
@@ -381,7 +379,7 @@ Result<Gemma4Moe26BVisionImage> LoadGemma4Moe26BVisionImageBytes(
   result.processed_width = target_width;
   result.processed_height = target_height;
   result.soft_token_budget = options.maximum_soft_tokens;
-  result.source_fingerprint = SourceFingerprint(encoded);
+  result.source_identity = SourceIdentity(encoded);
   result.patches.resize(static_cast<std::size_t>(raw_patch_count) * 16U * 16U * 3U);
   result.positions.resize(static_cast<std::size_t>(raw_patch_count) * 2U);
   std::size_t destination = 0U;

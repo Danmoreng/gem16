@@ -275,8 +275,9 @@ class ModelRuntime {
   [[nodiscard]] std::uint32_t maximum_images() const;
   [[nodiscard]] std::span<const std::uint32_t>
   vision_soft_token_budgets() const;
-  // Zero means request-specific and not selected yet.
-  [[nodiscard]] std::uint32_t selected_vision_soft_token_budget() const;
+  // Fixed startup capacity. Request-specific use is reported by the server as
+  // last_vision_soft_token_budget and never changes this profile attribute.
+  [[nodiscard]] std::uint32_t vision_max_soft_token_budget() const;
   [[nodiscard]] std::uint64_t vision_max_context_tokens() const;
   [[nodiscard]] std::uint32_t maximum_execution_slots() const;
 

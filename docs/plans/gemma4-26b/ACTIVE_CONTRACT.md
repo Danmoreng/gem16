@@ -194,6 +194,11 @@ Do not repeat an expensive run solely to produce a second prose record. M08 comp
 
 ## Current unblocked work
 
+- The 2026-09-02 owner direction authorizes the exact Trellis35 Target + FP8
+  Vision + optional fixed-D2 Assistant composite to proceed through the
+  separate Compact Vision production gates. It remains a
+  `production_candidate` until P20 and does not alter this accepted text
+  Fast-Track evidence. See `PRODUCTION_26B_VISION_CONTRACT.md`.
 - M17, M20–M23 and M25 are accepted; M23 remains the frozen ordinary-decode rollback Target.
 - The hybrid Assistant, fixed D1/D2/D4 exact verifier and sampled D2 CLI/server/Studio product path are implemented
   at `c4ead1d`; compact bounded evidence is `artifacts/m25/sampled-mtp-product.json`.

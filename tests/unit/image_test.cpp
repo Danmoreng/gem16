@@ -132,7 +132,22 @@ void RunImageTests() {
   GEM16_CHECK(memory_image.ok());
   if (memory_image.ok()) {
     GEM16_CHECK(memory_image.value().patch_count == 256U);
-    GEM16_CHECK(memory_image.value().source_fingerprint != 0U);
+    GEM16_CHECK(memory_image.value().source_identity.available());
+    GEM16_CHECK(memory_image.value().source_identity.encoded_bytes ==
+                encoded.size());
+  }
+  std::vector<std::uint8_t> changed_encoded = encoded;
+  changed_encoded.back() ^= 1U;
+  auto changed_memory_image =
+      gem16::LoadVisionImageBytes(changed_encoded, "changed unit BMP");
+  GEM16_CHECK(changed_memory_image.ok());
+  if (memory_image.ok() && changed_memory_image.ok()) {
+    GEM16_CHECK(memory_image.value().source_width ==
+                changed_memory_image.value().source_width);
+    GEM16_CHECK(memory_image.value().source_height ==
+                changed_memory_image.value().source_height);
+    GEM16_CHECK(memory_image.value().source_identity !=
+                changed_memory_image.value().source_identity);
   }
   auto compact = gem16::LoadVisionImage(
       path, gem16::VisionImageOptions{70U, false});
@@ -143,8 +158,8 @@ void RunImageTests() {
     GEM16_CHECK(compact.value().processed_height == 384U);
     GEM16_CHECK(compact.value().soft_token_budget == 70U);
     if (memory_image.ok()) {
-      GEM16_CHECK(compact.value().source_fingerprint ==
-                  memory_image.value().source_fingerprint);
+      GEM16_CHECK(compact.value().source_identity ==
+                  memory_image.value().source_identity);
     }
   }
   GEM16_CHECK(!gem16::LoadVisionImage(

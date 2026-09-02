@@ -1523,9 +1523,12 @@ void StudioApp::DrawServer() {
                   health.vision_mtp_supported ? "qualified" : "disabled");
       ImGui::TextDisabled("Profile: %s · %s", health.profile_id.c_str(),
                           health.qualification_state.c_str());
-      if (health.selected_vision_soft_token_budget > 0) {
+      ImGui::TextDisabled("Decode: %s · Max image budget: %d soft tokens",
+                          health.decode_mode.c_str(),
+                          health.vision_max_soft_token_budget);
+      if (health.last_vision_soft_token_budget > 0) {
         ImGui::Text("Last image processing budget: %d soft tokens",
-                    health.selected_vision_soft_token_budget);
+                    health.last_vision_soft_token_budget);
       }
     }
     ImGui::Separator();

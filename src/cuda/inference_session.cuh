@@ -207,9 +207,7 @@ const char* ModelRuntime::profile_id() const {
     return "gemma4-26b-a4b-nvfp4";
   }
   if (!impl_->vision_module_loaded) return "gemma4-26b-a4b-trellis35-text";
-  return impl_->vision_mtp_supported
-             ? "gemma4-26b-a4b-trellis35-vision-fp8-d2"
-             : "gemma4-26b-a4b-trellis35-vision-fp8";
+  return "gemma4-26b-a4b-trellis35-vision-fp8";
 }
 const char* ModelRuntime::text_artifact_profile() const {
   return artifact_profile();
@@ -221,10 +219,11 @@ const char* ModelRuntime::vision_artifact_profile() const {
 }
 const char* ModelRuntime::qualification_state() const {
   if (impl_ == nullptr) return "unsupported";
-  return impl_->artifact_profile == internal::kGemma4Moe26BTrellis35Profile
-             ? (impl_->vision_mtp_supported ? "experimental_v14_accepted"
-                                            : "experimental")
-             : "qualified";
+  if (impl_->artifact_profile != internal::kGemma4Moe26BTrellis35Profile) {
+    return "production_qualified";
+  }
+  return impl_->vision_module_loaded ? "production_candidate"
+                                     : "development";
 }
 bool ModelRuntime::experimental() const {
   return impl_ != nullptr &&
@@ -293,8 +292,8 @@ ModelRuntime::vision_soft_token_budgets() const {
              ? std::span<const std::uint32_t>(kBudgets)
              : std::span<const std::uint32_t>();
 }
-std::uint32_t ModelRuntime::selected_vision_soft_token_budget() const {
-  return 0U;
+std::uint32_t ModelRuntime::vision_max_soft_token_budget() const {
+  return impl_ != nullptr && impl_->vision_module_loaded ? 280U : 0U;
 }
 std::uint64_t ModelRuntime::vision_max_context_tokens() const {
   // V10 established the physical admission boundary. The qualification state

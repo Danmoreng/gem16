@@ -340,6 +340,57 @@ See gem16_components.json for the exact compatibility contract.
                attributes + ("\n" + "\n".join(additions) if additions else "") + "\n")
 
 
+def compatibility_manifest(
+    trellis: dict[str, object],
+    assistant: dict[str, object],
+    vision: dict[str, object],
+) -> dict[str, object]:
+    compatibility: dict[str, object] = {
+        "schema_version": 2,
+        "repository": REPOSITORY,
+        "components": {
+            "nvfp4_target": {
+                "path": ".",
+                "artifact_content_sha256": NVFP4_ARTIFACT_CONTENT_SHA256,
+                "model_sha256": NVFP4_MODEL_SHA256,
+                "qualification": "qualified_text_only",
+            },
+            "trellis35_target": trellis,
+            "fixed_d2_assistant": assistant,
+            "fp8_vision": vision,
+        },
+        "compatible_profiles": [
+            {
+                "profile_id": "gemma4-26b-a4b-nvfp4",
+                "decode_mode": "ordinary",
+                "components": ["nvfp4_target"],
+                "qualification_state": "production_qualified",
+            },
+            {
+                "profile_id": "gemma4-26b-a4b-nvfp4",
+                "decode_mode": "fixed-d2",
+                "components": ["nvfp4_target", "fixed_d2_assistant"],
+                "qualification_state": "production_qualified",
+            },
+            {
+                "profile_id": "gemma4-26b-a4b-trellis35-vision-fp8",
+                "decode_mode": "ordinary",
+                "components": ["trellis35_target", "fp8_vision"],
+                "qualification_state": "production_candidate",
+            },
+            {
+                "profile_id": "gemma4-26b-a4b-trellis35-vision-fp8",
+                "decode_mode": "fixed-d2",
+                "components": ["trellis35_target", "fp8_vision",
+                               "fixed_d2_assistant"],
+                "qualification_state": "production_candidate",
+            },
+        ],
+    }
+    compatibility["content_sha256"] = canonical_json_sha256(compatibility)
+    return compatibility
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--target", type=Path, required=True)
@@ -360,45 +411,7 @@ def main() -> int:
                                   options.assistant_lock.resolve(),
                                   output / "assistant")
     vision = package_vision(options.vision.resolve(), output / "vision")
-    compatibility = {
-        "schema_version": 1,
-        "repository": REPOSITORY,
-        "components": {
-            "nvfp4_target": {
-                "path": ".",
-                "artifact_content_sha256": NVFP4_ARTIFACT_CONTENT_SHA256,
-                "model_sha256": NVFP4_MODEL_SHA256,
-                "qualification": "qualified_text_only",
-            },
-            "trellis35_target": trellis,
-            "fixed_d2_assistant": assistant,
-            "fp8_vision": vision,
-        },
-        "compatible_profiles": [
-            {
-                "profile_id": "gemma4-26b-a4b-nvfp4",
-                "components": ["nvfp4_target"],
-                "qualification": "qualified",
-            },
-            {
-                "profile_id": "gemma4-26b-a4b-nvfp4-d2",
-                "components": ["nvfp4_target", "fixed_d2_assistant"],
-                "qualification": "qualified",
-            },
-            {
-                "profile_id": "gemma4-26b-a4b-trellis35-vision-fp8",
-                "components": ["trellis35_target", "fp8_vision"],
-                "qualification": "experimental",
-            },
-            {
-                "profile_id": "gemma4-26b-a4b-trellis35-vision-fp8-d2",
-                "components": ["trellis35_target", "fp8_vision",
-                               "fixed_d2_assistant"],
-                "qualification": "experimental_v14_accepted",
-            },
-        ],
-    }
-    compatibility["content_sha256"] = canonical_json_sha256(compatibility)
+    compatibility = compatibility_manifest(trellis, assistant, vision)
     write_text(output / "gem16_components.json",
                json.dumps(compatibility, indent=2, sort_keys=True) + "\n")
     print(json.dumps({

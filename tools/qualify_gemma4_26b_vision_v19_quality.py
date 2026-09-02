@@ -317,7 +317,7 @@ def main() -> int:
         and all(value == 0.0 for value in counter_deltas.values())
         and all(value == expected_per_budget for value in budget_deltas.values())
         and vision_requests == len(assets) * len(EXPECTED_BUDGETS) * args.runs
-        and final_health.get("selected_vision_soft_token_budget") == 280
+        and final_health.get("last_vision_soft_token_budget") == 280
     )
     payload = {
         "schema_version": 1,

@@ -80,7 +80,7 @@ struct ServerMetrics {
   std::atomic<std::uint64_t> vision_budget_140{0U};
   std::atomic<std::uint64_t> vision_budget_280{0U};
   std::atomic<std::uint64_t> vision_artifact_validation_failures{0U};
-  std::atomic<std::uint32_t> selected_vision_soft_token_budget{0U};
+  std::atomic<std::uint32_t> last_vision_soft_token_budget{0U};
   std::atomic<std::uint64_t> resource_exhaustion_count{0U};
   std::atomic<std::uint64_t> unsupported_feature_count{0U};
   std::atomic<std::uint64_t> model_validation_failure_count{0U};

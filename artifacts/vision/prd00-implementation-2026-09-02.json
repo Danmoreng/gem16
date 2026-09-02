@@ -1,0 +1,124 @@
+{
+  "schema_version": 1,
+  "work_package": "PRD00",
+  "status": "implementation_complete_awaiting_clean_commit",
+  "date": "2026-09-02",
+  "baseline_commit": "26691d607f7945234a39aed8a98f0d1ed1d904c1",
+  "scope": {
+    "fixture_dependency_closed": true,
+    "sha256_image_source_identity": true,
+    "stable_profile_identity": true,
+    "decode_mode_separate": true,
+    "qualification_state": "production_candidate",
+    "production_claim_enabled": false,
+    "performance_change": false
+  },
+  "fixture": {
+    "decision": "replace the untracked image with the existing repository-owned generated fixture suite",
+    "removed_recoverably_to_desktop_trash": "tests/test_image_vision.png",
+    "removed_image_sha256": "b4fec18987b89952ebd819ce6cd04141c4cd2f1c20e882d3c94c11557a254efe",
+    "replacement": "tests/fixtures/gemma4_26b_vision/budget-140-wide.bmp",
+    "replacement_sha256": "ef04ff3a6f57aad48969854a38a6f2eefc079d0bf10bdc5ac29ba4b66e928904",
+    "manifest": "tests/fixtures/gemma4_26b_vision/manifest.json",
+    "manifest_sha256": "b6066094529e5c62742a740b95b96b3f66ca8719b3877ca0498a2aff4fd6f1f6",
+    "generator": "tools/generate_gemma4_26b_vision_fixtures.py",
+    "generator_sha256": "541f61895db5b7a39f4188f3f873f3e4aec81909136c99c32d7b1b49e8c8e67e",
+    "historical_evidence_rewritten": false
+  },
+  "image_identity": {
+    "algorithm": "SHA-256",
+    "additional_field": "encoded_bytes",
+    "digest_input": "original encoded image bytes",
+    "all_zero_digest_is_unavailable": true,
+    "missing_digest_behavior": "full relevant structural comparison",
+    "same_source_different_budget_reuse": true,
+    "covered_profiles": [
+      "gemma4-12b-unified",
+      "gemma4-26b-a4b-trellis35-vision-fp8"
+    ]
+  },
+  "reporting_contract": {
+    "profile_id": "gemma4-26b-a4b-trellis35-vision-fp8",
+    "decode_modes": [
+      "ordinary",
+      "fixed-d2"
+    ],
+    "vision_max_soft_token_budget": 280,
+    "request_telemetry": "last_vision_soft_token_budget",
+    "qualification_state": "production_candidate",
+    "experimental": true,
+    "fixed_d2_bound_to_exact_composite": true
+  },
+  "tracked_fixture_vision_d2_regression": {
+    "command": "build/Linux/blackwell-release/bin/gem16-26b-vision-v14-benchmark <locked-trellis-target> <locked-assistant> <locked-vision> tests/fixtures/gemma4_26b_vision/budget-140-wide.bmp 140 32",
+    "warmups": 3,
+    "retained_pairs": 10,
+    "ordinary_d2_streams_identical": true,
+    "output_tokens": 32,
+    "output_sha256": "18aa85fd9b83421807dcd07c344afc98daee9e2837cef5dd98ce4cb232ad091e",
+    "ordinary_post_first_tokens_per_second_median": 139.4275,
+    "fixed_d2_post_first_tokens_per_second_median": 232.8275,
+    "ordinary_ttft_milliseconds_median": 314.804,
+    "fixed_d2_ttft_milliseconds_median": 315.055,
+    "runtime_fallback_count": 0,
+    "token_loop_allocations": false,
+    "device_used_before_bytes": 14222688256,
+    "device_used_after_bytes": 14222688256,
+    "note": "Correctness and fixture-dependency regression only; this is not the PERF13 baseline or a new performance claim."
+  },
+  "tests": [
+    {
+      "command": "cmake --build --preset host-debug -j 4 && ctest --preset host-debug --output-on-failure",
+      "result": "passed 5/5"
+    },
+    {
+      "command": "cmake --build --preset host-sanitize -j 4 && ctest --preset host-sanitize --output-on-failure",
+      "result": "passed 5/5"
+    },
+    {
+      "command": "cmake --build build/native-studio -j 4 && ctest --test-dir build/native-studio --output-on-failure",
+      "result": "passed 1/1"
+    },
+    {
+      "command": "cmake --build --preset blackwell-release -j 4",
+      "result": "passed"
+    },
+    {
+      "command": "ctest --preset blackwell-release --output-on-failure -R '^(gem16-unit|gem16-cuda-vision26b|gem16-cuda-trellis35)$'",
+      "result": "passed 3/3"
+    },
+    {
+      "command": "GEM16_12B_MODEL=<locked-12b> ctest --preset blackwell-release --output-on-failure -R '^gem16-12b-m22-product$'",
+      "result": "passed 1/1"
+    },
+    {
+      "command": "GEM16_26B_COMPILED_MODEL=<qualified-nvfp4-target> ctest --preset blackwell-release --output-on-failure -R '^gem16-26b-m22-product$'",
+      "result": "passed 1/1"
+    },
+    {
+      "command": "python3 -m unittest tests.python.test_package_gemma4_26b_vision_hf tests.python.test_qualify_gemma4_26b_vision_v19_quality",
+      "result": "passed 3/3"
+    },
+    {
+      "command": "gem16-chat --model <locked-trellis-target> --vision-model <locked-vision> --max-context 32768 --print-model-report",
+      "result": "passed; stable profile, ordinary, production_candidate"
+    },
+    {
+      "command": "gem16-chat --model <locked-trellis-target> --assistant-model <locked-assistant> --vision-model <locked-vision> --max-context 32768 --mtp-draft-tokens 2 --print-model-report",
+      "result": "passed; same stable profile, fixed-d2, production_candidate"
+    },
+    {
+      "command": "live loopback gem16-server health and metrics probe with the locked Target/Vision/Assistant composite",
+      "result": "passed; health schema and gem16_last_vision_soft_token_budget gauge present"
+    },
+    {
+      "command": "git diff --check",
+      "result": "passed"
+    }
+  ],
+  "remaining_gate": {
+    "clean_git_status": false,
+    "reason": "Repository policy forbids committing without explicit owner authorization.",
+    "next_action": "Review and authorize the PRD00 commit; rerun the narrow final gates on the immutable commit before PERF13-0."
+  }
+}

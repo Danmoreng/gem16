@@ -1,6 +1,6 @@
 # gem16 product contract
 
-**Product baseline:** 2026-08-29 · **Version line:** 0.2.x development preview
+**Product baseline:** 2026-08-29 · **Amended:** 2026-09-02 · **Version line:** 0.2.x development preview
 
 This document is the owner-approved product contract. It defines what gem16 is
 being productized into. Current implementation gaps remain visible in the
@@ -40,10 +40,11 @@ must follow one coherent model-management experience.
 
 Equal product status does not imply identical model capabilities:
 
-| Profile | Qualified product capability |
-|---|---|
-| Gemma 4 12B Unified | Text, image, and audio input; up to two resident execution slots on the qualified profile |
-| Gemma 4 26B A4B | Text-only; one resident slot; optional separately pinned fixed-D2 Assistant |
+| Profile | Status | Product capability boundary |
+|---|---|---|
+| Gemma 4 12B Unified | Qualified | Text, image, and audio input; up to two resident execution slots on the qualified profile |
+| Gemma 4 26B A4B | Qualified | Text-only; one resident slot; optional separately pinned fixed-D2 Assistant |
+| Gemma 4 26B A4B — Compact Vision | Production candidate | Trellis35 text Target plus FP8 Vision; one image, text output, 70/140/280 image soft tokens, one resident slot, and optional separately pinned fixed-D2 Assistant on the exact validated composite |
 
 Studio and the server must report these differences before execution. They may
 not silently substitute a profile, Assistant, precision, context limit, or
@@ -64,6 +65,15 @@ Native Studio implements the shared four-component catalog and presents a
 neutral first-run choice. Either profile may be installed independently and
 both may coexist. Release qualification still requires complete large-download
 and clean-machine first-run evidence on Windows and Linux.
+
+The Compact Vision candidate is a distinct selectable product surface, not an
+implicit capability of the qualified NVFP4 profile. It remains experimental in
+runtime reporting until its production contract passes P20. Its stable profile
+identity does not change with decode mode: Ordinary and fixed-D2 are reported
+separately and fixed-D2 remains available only for the exact locked
+Target/Vision/Assistant combination. The bounded candidate and its release
+gates are defined in
+[`plans/gemma4-26b/PRODUCTION_26B_VISION_CONTRACT.md`](plans/gemma4-26b/PRODUCTION_26B_VISION_CONTRACT.md).
 
 ## Local-machine boundary
 

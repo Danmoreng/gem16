@@ -67,6 +67,7 @@ struct HealthSnapshot {
   std::string status;
   std::string model_variant;
   std::string profile_id;
+  std::string decode_mode;
   std::string qualification_state;
   bool text_only = false;
   bool supports_mtp = false;
@@ -77,7 +78,8 @@ struct HealthSnapshot {
   int session_limit = 0;
   std::int64_t max_context_tokens = 0;
   int mtp_draft_tokens = 0;
-  int selected_vision_soft_token_budget = 0;
+  int vision_max_soft_token_budget = 0;
+  int last_vision_soft_token_budget = 0;
   std::int64_t vision_max_context_tokens = 0;
   bool sampling_enabled = false;
 };

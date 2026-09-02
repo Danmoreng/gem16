@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
@@ -10,6 +11,23 @@
 #include "gem16/status.h"
 
 namespace gem16 {
+
+struct ImageSourceIdentity {
+  // SHA-256 of the original encoded bytes. An all-zero digest with zero bytes
+  // denotes an in-process image without an authoritative source identity.
+  std::array<std::uint8_t, 32> sha256{};
+  std::uint64_t encoded_bytes = 0U;
+
+  [[nodiscard]] bool available() const {
+    if (encoded_bytes == 0U) return false;
+    for (const std::uint8_t byte : sha256) {
+      if (byte != 0U) return true;
+    }
+    return false;
+  }
+
+  bool operator==(const ImageSourceIdentity&) const = default;
+};
 
 struct VisionImage {
   // Row-major [patch, 48, 48, RGB], already rescaled to [0, 1].
@@ -25,7 +43,7 @@ struct VisionImage {
   // Stable identity of the original encoded payload. Resident adapters use
   // this to retain the already-prefilled representation when a later request
   // recomputes a different aggregate image budget.
-  std::uint64_t source_fingerprint = 0U;
+  ImageSourceIdentity source_identity;
 
   bool operator==(const VisionImage&) const = default;
 };
@@ -52,7 +70,7 @@ struct Gemma4Moe26BVisionImage {
   std::uint32_t processed_width = 0U;
   std::uint32_t processed_height = 0U;
   std::uint32_t soft_token_budget = 280U;
-  std::uint64_t source_fingerprint = 0U;
+  ImageSourceIdentity source_identity;
   double decode_milliseconds = 0.0;
   double resize_patchify_milliseconds = 0.0;
 

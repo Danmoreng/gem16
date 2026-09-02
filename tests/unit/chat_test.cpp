@@ -195,7 +195,8 @@ void TestResidentImageIdentity() {
   gem16::VisionImage cached_image;
   cached_image.patch_count = 4U;
   cached_image.soft_token_budget = 280U;
-  cached_image.source_fingerprint = 1234U;
+  cached_image.source_identity.encoded_bytes = 1234U;
+  cached_image.source_identity.sha256[0] = 0x12U;
   cached_image.patches.resize(4U * 6912U, 0.25F);
   cached_image.positions.resize(8U);
   gem16::VisionImage reprocessed_image = cached_image;
@@ -214,8 +215,43 @@ void TestResidentImageIdentity() {
       gem16::GenerationContentPart::Image(std::move(reprocessed_image)));
   GEM16_CHECK(gem16::internal::ResidentMessageEquivalent(cached, supplied));
 
-  supplied.content.front().image.source_fingerprint = 5678U;
+  supplied.content.front().image.source_identity.sha256[0] = 0x56U;
   GEM16_CHECK(!gem16::internal::ResidentMessageEquivalent(cached, supplied));
+
+  gem16::VisionImage structural_image;
+  structural_image.patch_count = 1U;
+  structural_image.soft_token_budget = 70U;
+  structural_image.patches.resize(6912U, 0.5F);
+  structural_image.positions = {0, 0};
+  gem16::GenerationMessage structural_left;
+  structural_left.role = "user";
+  structural_left.content.push_back(
+      gem16::GenerationContentPart::Image(structural_image));
+  gem16::GenerationMessage structural_right = structural_left;
+  GEM16_CHECK(gem16::internal::ResidentMessageEquivalent(
+      structural_left, structural_right));
+  structural_left.content.front().image.source_identity.encoded_bytes = 12U;
+  structural_right.content.front().image.source_identity.encoded_bytes = 12U;
+  structural_right.content.front().image.patches.front() = 0.25F;
+  GEM16_CHECK(!gem16::internal::ResidentMessageEquivalent(
+      structural_left, structural_right));
+
+  gem16::Gemma4Moe26BVisionImage moe_left;
+  moe_left.raw_patch_count = 1U;
+  moe_left.soft_token_count = 1U;
+  moe_left.soft_token_budget = 70U;
+  moe_left.patches.resize(768U, 0.75F);
+  moe_left.positions = {0, 0};
+  gem16::GenerationMessage moe_cached;
+  moe_cached.role = "user";
+  moe_cached.content.push_back(
+      gem16::GenerationContentPart::Gemma4Moe26BImage(moe_left));
+  gem16::GenerationMessage moe_supplied = moe_cached;
+  GEM16_CHECK(gem16::internal::ResidentMessageEquivalent(
+      moe_cached, moe_supplied));
+  moe_supplied.content.front().moe26b_image.positions[0] = 1;
+  GEM16_CHECK(!gem16::internal::ResidentMessageEquivalent(
+      moe_cached, moe_supplied));
 }
 
 void TestResidentStreamedAssistantWhitespace() {

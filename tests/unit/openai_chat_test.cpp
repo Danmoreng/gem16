@@ -244,8 +244,8 @@ void RunOpenAiChatTests() {
     const auto& reprocessed = two_images.value().generation.messages.front();
     GEM16_CHECK(original.content.front().image.soft_token_budget !=
                 reprocessed.content.front().image.soft_token_budget);
-    GEM16_CHECK(original.content.front().image.source_fingerprint ==
-                reprocessed.content.front().image.source_fingerprint);
+    GEM16_CHECK(original.content.front().image.source_identity ==
+                reprocessed.content.front().image.source_identity);
     GEM16_CHECK(gem16::internal::ResidentMessageEquivalent(original,
                                                            reprocessed));
   }

@@ -1,6 +1,6 @@
 # Start here — current coding-agent task
 
-Status: M00–M17, M20–M23 and M25 accepted. The qualified text-only 26B fixed-D2 checkpoint is selectable alongside 12B, supports 86,016 MTP context tokens with a 200 MiB reserve, and keeps a 98,304-token Target-only maximum. The broad historical M19 suite is waived for this checkpoint; claims remain bounded to the recorded GSM8K/AIME and product evidence. M18 remains conditional. The owner-approved post-program Vision vertical slice is now active only for the frozen Trellis35 branch; begin with [`V00_VISION_PROFILE_AND_MODULE_CONTRACT.md`](V00_VISION_PROFILE_AND_MODULE_CONTRACT.md) and do not infer NVFP4 or generic 26B Vision support.
+Status: M00–M17, M20–M23 and M25 accepted. The qualified text-only 26B fixed-D2 checkpoint is selectable alongside 12B, supports 86,016 MTP context tokens with a 200 MiB reserve, and keeps a 98,304-token Target-only maximum. The broad historical M19 suite is waived for this checkpoint; claims remain bounded to the recorded GSM8K/AIME and product evidence. M18 remains conditional. The owner-approved Compact Vision production-qualification wave is active only for the exact Trellis35 Target + FP8 Vision + optional fixed-D2 Assistant composite. It remains a production candidate until P20; begin with [`PRODUCTION_26B_VISION_CONTRACT.md`](PRODUCTION_26B_VISION_CONTRACT.md) and do not infer NVFP4 or generic 26B Vision support.
 Plan revision: Fast Track R4.
 
 ## Read now
@@ -9,7 +9,11 @@ Plan revision: Fast Track R4.
 2. [`../../ACTIVE_DECISIONS.md`](../../ACTIVE_DECISIONS.md);
 3. [`ACTIVE_CONTRACT.md`](ACTIVE_CONTRACT.md);
 4. [`FAST_TRACK_STATUS.json`](FAST_TRACK_STATUS.json) and the current milestone;
-5. only the specs linked by that milestone.
+5. for Compact Vision production work,
+   [`PRODUCTION_26B_VISION_CONTRACT.md`](PRODUCTION_26B_VISION_CONTRACT.md)
+   and the current package in
+   [`CODEX_GEM16_V12_V13_CONSOLIDATION_PRODUCTION_MASTER_INSTRUCTION.md`](CODEX_GEM16_V12_V13_CONSOLIDATION_PRODUCTION_MASTER_INSTRUCTION.md);
+6. only the specs linked by that milestone or package.
 
 Do not preload the full decision, correctness, benchmark or performance ledgers. Read historical records only for a concrete question or evidence check.
 
@@ -33,7 +37,7 @@ The lead agent may assign disjoint sub-agents for:
 
 The 2026-08-26 owner decision froze the performance checkpoint before product work. Commit `c4ead1d` subsequently
 connected the M22 server runtime and M25 engine to the selectable Studio model catalog and completed bounded real
-sampled-D2 chat and continuation. Preserve the 12B default and its audio/vision behavior; 26B remains text-only,
+sampled-D2 chat and continuation. Preserve qualified 12B audio/vision behavior; the qualified 26B NVFP4 profile remains text-only,
 single-slot and fixed-depth, but is now a qualified selectable product checkpoint. Immutable Hugging Face publication
 and Studio download integration are complete; retained sampled timing is optional additional
 performance evidence, not an acceptance gate.

@@ -51,7 +51,7 @@ std::uint32_t ModelRuntime::maximum_images() const { return 0U; }
 std::span<const std::uint32_t> ModelRuntime::vision_soft_token_budgets() const {
   return {};
 }
-std::uint32_t ModelRuntime::selected_vision_soft_token_budget() const {
+std::uint32_t ModelRuntime::vision_max_soft_token_budget() const {
   return 0U;
 }
 std::uint64_t ModelRuntime::vision_max_context_tokens() const { return 0U; }

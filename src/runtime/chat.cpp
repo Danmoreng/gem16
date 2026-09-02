@@ -305,6 +305,44 @@ Status ForwardTokenEvent(void* opaque_context, std::uint32_t token_id) {
 
 namespace internal {
 
+namespace {
+
+bool StructurallyEquivalent(const VisionImage& left,
+                            const VisionImage& right) {
+  return left.patches == right.patches &&
+         left.positions == right.positions &&
+         left.patch_count == right.patch_count &&
+         left.source_width == right.source_width &&
+         left.source_height == right.source_height &&
+         left.processed_width == right.processed_width &&
+         left.processed_height == right.processed_height &&
+         left.soft_token_budget == right.soft_token_budget;
+}
+
+bool StructurallyEquivalent(const Gemma4Moe26BVisionImage& left,
+                            const Gemma4Moe26BVisionImage& right) {
+  return left.patches == right.patches &&
+         left.positions == right.positions &&
+         left.raw_patch_count == right.raw_patch_count &&
+         left.soft_token_count == right.soft_token_count &&
+         left.source_width == right.source_width &&
+         left.source_height == right.source_height &&
+         left.processed_width == right.processed_width &&
+         left.processed_height == right.processed_height &&
+         left.soft_token_budget == right.soft_token_budget;
+}
+
+template <typename Image>
+bool ResidentImageEquivalent(const Image& left, const Image& right) {
+  if (left.source_identity.available() &&
+      right.source_identity.available()) {
+    return left.source_identity == right.source_identity;
+  }
+  return StructurallyEquivalent(left, right);
+}
+
+}  // namespace
+
 bool ResidentMessageEquivalent(const GenerationMessage& cached,
                                const GenerationMessage& supplied) {
   if (cached.role != supplied.role ||
@@ -315,19 +353,13 @@ bool ResidentMessageEquivalent(const GenerationMessage& cached,
     const GenerationContentPart& left = cached.content[index];
     const GenerationContentPart& right = supplied.content[index];
     if (left.kind != right.kind) return false;
-    if (left.kind == GenerationContentKind::kImage &&
-        left.image.source_fingerprint != 0U &&
-        right.image.source_fingerprint != 0U) {
-      if (left.image.source_fingerprint != right.image.source_fingerprint) {
-        return false;
-      }
+    if (left.kind == GenerationContentKind::kImage) {
+      if (!ResidentImageEquivalent(left.image, right.image)) return false;
       continue;
     }
-    if (left.kind == GenerationContentKind::kGemma4Moe26BImage &&
-        left.moe26b_image.source_fingerprint != 0U &&
-        right.moe26b_image.source_fingerprint != 0U) {
-      if (left.moe26b_image.source_fingerprint !=
-          right.moe26b_image.source_fingerprint) {
+    if (left.kind == GenerationContentKind::kGemma4Moe26BImage) {
+      if (!ResidentImageEquivalent(left.moe26b_image,
+                                   right.moe26b_image)) {
         return false;
       }
       continue;
