@@ -13,6 +13,11 @@
 
 namespace gem16::internal {
 
+[[nodiscard]] Status LaunchGemma4Moe26BVisionFusedGeluProductQuantization(
+    const std::uint16_t* gate_bf16, const std::uint16_t* up_bf16,
+    std::uint8_t* output_e4m3, float* output_scales, std::uint64_t tokens,
+    cudaStream_t stream);
+
 struct Gemma4Moe26BVisionLayerTimings {
   float input_norm_quant_milliseconds = 0.0F;
   float qkv_projection_milliseconds = 0.0F;
@@ -84,7 +89,8 @@ class Gemma4Moe26BVisionRuntime {
       Gemma4Moe26BVisionRuntime&&) noexcept;
 
   [[nodiscard]] static Result<Gemma4Moe26BVisionRuntime> Create(
-      const Gemma4Moe26BVisionDeviceArtifact& artifact);
+      const Gemma4Moe26BVisionDeviceArtifact& artifact,
+      std::uint32_t maximum_soft_token_budget = 280U);
   [[nodiscard]] Status Encode(
       const Gemma4Moe26BVisionInputSegment& segment, cudaStream_t stream,
       Gemma4Moe26BVisionTimingRecorder* timing = nullptr,
@@ -96,6 +102,7 @@ class Gemma4Moe26BVisionRuntime {
   [[nodiscard]] std::uint32_t output_tokens() const;
   [[nodiscard]] std::uint64_t workspace_bytes() const;
   [[nodiscard]] std::uint64_t host_pinned_bytes() const;
+  [[nodiscard]] std::uint32_t maximum_soft_token_budget() const;
 
  private:
   struct Impl;

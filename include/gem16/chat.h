@@ -210,6 +210,7 @@ struct ChatSessionOptions {
   std::filesystem::path model_directory;
   std::filesystem::path assistant_model_directory;
   std::filesystem::path vision_model_directory;
+  std::uint32_t vision_max_soft_token_budget = 280U;
   std::uint64_t max_context_tokens = 1024U;
   KvCacheMode kv_cache_mode = KvCacheMode::kCheckpointFp8;
   SamplingOptions sampling;

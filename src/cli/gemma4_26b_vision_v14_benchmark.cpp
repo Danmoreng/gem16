@@ -46,6 +46,7 @@ struct Run {
   std::uint64_t device_used_before_bytes = 0U;
   std::uint64_t device_used_after_bytes = 0U;
   std::string output_sha256;
+  std::string draft_sha256;
 };
 
 gem16::Result<Run> Execute(
@@ -98,6 +99,9 @@ gem16::Result<Run> Execute(
   run.output_sha256 = gem16::compiler::Sha256Hex(
       run.inference.output_token_ids.data(),
       run.inference.output_token_ids.size() * sizeof(std::uint32_t));
+  run.draft_sha256 = gem16::compiler::Sha256Hex(
+      run.inference.mtp_proposed_token_ids.data(),
+      run.inference.mtp_proposed_token_ids.size() * sizeof(std::uint32_t));
   return run;
 }
 
@@ -107,7 +111,17 @@ void WriteRun(const Run& run) {
             << ",\"output_tokens\":" << value.output_token_ids.size()
             << ",\"output_sha256\":"
             << gem16::json::Quote(run.output_sha256)
+            << ",\"draft_sha256\":"
+            << gem16::json::Quote(run.draft_sha256)
             << ",\"ttft_ms\":" << value.prompt_milliseconds
+            << ",\"vision_upload_ms\":"
+            << value.vision_upload_milliseconds
+            << ",\"vision_tower_ms\":"
+            << value.vision_tower_milliseconds
+            << ",\"vision_pool_project_ms\":"
+            << value.vision_pool_project_milliseconds
+            << ",\"text_prefill_ms\":"
+            << value.text_prefill_milliseconds
             << ",\"post_first_decode_ms\":" << value.decode_milliseconds
             << ",\"post_first_tokens_per_second\":"
             << value.decode_tokens_per_second

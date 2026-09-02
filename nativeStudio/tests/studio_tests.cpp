@@ -99,6 +99,8 @@ bool TestVision26BDefaultsAndCommand() {
              gem16::studio::ProfileVisionDirectory(config.profile).string() &&
          Contains(command, "--vision-model") &&
          Contains(command, config.vision_directory) &&
+         Contains(command, "--vision-max-soft-token-budget") &&
+         Contains(command, "280") &&
          Contains(command, "--assistant-model");
 }
 
@@ -154,7 +156,12 @@ bool TestLiveServerCompatibility() {
   health.supports_mtp = true;
   health.vision_mtp_supported = true;
   health.mtp_draft_tokens = 2;
+  health.vision_max_soft_token_budget = config.vision_soft_token_budget;
   if (!HealthCompatibilityError(config, health).empty()) return false;
+
+  health.vision_max_soft_token_budget = 140;
+  if (HealthCompatibilityError(config, health).empty()) return false;
+  health.vision_max_soft_token_budget = config.vision_soft_token_budget;
 
   health.qualification_state = "development";
   if (HealthCompatibilityError(config, health).empty()) return false;

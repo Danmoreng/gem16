@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "work_package": "PERF12",
+  "status": "accepted",
+  "runtime_parent_commit": "11ce1be169bc44968c5965742da2fb3fd5d9de62",
+  "accepted_changes": [
+    {
+      "id": "PERF12-A",
+      "change": "direct exact 3x3 pooling",
+      "evidence": "artifacts/vision/perf12-direct-pool.json"
+    },
+    {
+      "id": "PERF12-B",
+      "change": "BF16 2D RoPE table with specialized Q/K/V kernels",
+      "evidence": "artifacts/vision/perf12-rope-table.json"
+    },
+    {
+      "id": "PERF12-C",
+      "change": "exact fused GELU product and E4M3 token quantization",
+      "evidence": "artifacts/vision/perf12-ffn-fused.json"
+    },
+    {
+      "id": "PERF12-D",
+      "change": "startup-bounded 70/140/280 Vision capacity and public admission",
+      "evidence": "artifacts/vision/perf12-capacity.json"
+    }
+  ],
+  "screened_out": [
+    {
+      "id": "PERF12-E",
+      "reason": "upload is not a relevant final-product latency component"
+    },
+    {
+      "id": "PERF12-F",
+      "reason": "measured launch-gap ceiling is not material and graph shape/capacity cost is not justified"
+    }
+  ],
+  "final_real_product_check": {
+    "fixture": "budget-140-wide",
+    "protocol": "3 warm-ups and 10 retained Ordinary/fixed-D2 pairs",
+    "ordinary_vision_tower_median_ms": 228.644,
+    "fixed_d2_vision_tower_median_ms": 228.8655,
+    "ordinary_upload_median_ms": 0.18232,
+    "fixed_d2_upload_median_ms": 0.176256,
+    "ordinary_pool_project_median_ms": 0.03328,
+    "fixed_d2_pool_project_median_ms": 0.031792,
+    "ordinary_and_fixed_d2_output_sha256": "18aa85fd9b83421807dcd07c344afc98daee9e2837cef5dd98ce4cb232ad091e",
+    "ordinary_and_fixed_d2_draft_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "streams_identical": true,
+    "no_runtime_fallback": true,
+    "no_token_loop_allocations": true,
+    "recurring_device_delta_bytes": 0,
+    "raw_evidence": "artifacts/raw/vision/perf12-final-v14-working/v14-budget-140-wide.json"
+  },
+  "regressions": {
+    "host_debug": "5/5 passed",
+    "native_studio": "1/1 passed",
+    "blackwell_unit_cuda": "3/3 passed",
+    "qualified_12b_product": "1/1 passed",
+    "qualified_26b_product": "1/1 passed"
+  },
+  "claim_boundary": "PERF12 closes low-risk Vision kernels and startup capacity; the rejected PERF13 attention candidates, model precision, tensor formats, context, token IDs, output length, Ordinary semantics, and fixed-D2 semantics remain unchanged."
+}

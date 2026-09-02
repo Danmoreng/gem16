@@ -56,6 +56,11 @@ Result<std::uint32_t> RequestedVisionSoftTokenBudget(
   if (value != 70 && value != 140 && value != 280) {
     return Invalid("vision_soft_token_budget must be 70, 140, or 280");
   }
+  if (static_cast<std::uint32_t>(value) >
+      options.vision_max_soft_token_budget) {
+    return Invalid(
+        "vision_soft_token_budget exceeds the configured startup maximum");
+  }
   return static_cast<std::uint32_t>(value);
 }
 
@@ -743,8 +748,10 @@ Result<OpenAiChatRequest> ParseChatCompletionsRequest(
       const std::uint32_t supported_budget =
           requested_vision_budget.value() != 0U
               ? requested_vision_budget.value()
-              : image_budget >= 280U ? 280U : image_budget >= 140U ? 140U
-                                                                    : 70U;
+              : std::min(options.vision_max_soft_token_budget,
+                         image_budget >= 280U ? 280U
+                         : image_budget >= 140U ? 140U
+                                                : 70U);
       if (supported_budget > image_budget) {
         return Invalid(
             "remaining context cannot fit the requested 26B image budget");
@@ -1011,8 +1018,10 @@ Result<OpenAiResponsesRequest> ParseResponsesRequest(
       const std::uint32_t supported_budget =
           requested_vision_budget.value() != 0U
               ? requested_vision_budget.value()
-              : image_budget >= 280U ? 280U : image_budget >= 140U ? 140U
-                                                                    : 70U;
+              : std::min(options.vision_max_soft_token_budget,
+                         image_budget >= 280U ? 280U
+                         : image_budget >= 140U ? 140U
+                                                : 70U);
       if (supported_budget > image_budget) {
         return Invalid(
             "remaining context cannot fit the requested 26B image budget");

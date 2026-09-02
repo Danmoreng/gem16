@@ -200,6 +200,7 @@ struct ConversationSessionOptions {
   std::filesystem::path model_directory;
   std::filesystem::path assistant_model_directory;
   std::filesystem::path vision_model_directory;
+  std::uint32_t vision_max_soft_token_budget = 280U;
   std::vector<std::uint32_t> stop_token_ids;
   std::vector<std::uint32_t> suppressed_token_ids;
   std::uint64_t max_context_tokens = 1024;
@@ -225,6 +226,9 @@ struct ModelRuntimeOptions {
   // verification for direct library callers.
   bool verify_device_image_sha256 = true;
   std::filesystem::path vision_model_directory;
+  // Startup-only Vision arena capacity. Requests may select any qualified
+  // budget at or below this value without changing the allocation.
+  std::uint32_t vision_max_soft_token_budget = 280U;
 };
 
 // Process-wide immutable model residency. A runtime owns exactly one target

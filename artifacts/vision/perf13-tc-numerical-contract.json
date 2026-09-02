@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "work_package": "PERF13-B",
+  "status": "frozen_before_candidate_measurement",
+  "date": "2026-09-02",
+  "reference": "GEM16_VISION_ATTENTION=reference on runtime commit 11ce1be169bc44968c5965742da2fb3fd5d9de62",
+  "candidate": "BF16 Tensor-Core QK with FP32 score accumulation, exact two-pass softmax structure, BF16 probability boundary, and scalar BF16-probability-by-BF16-V accumulation",
+  "numerical_limits": {
+    "isolated_attention": {
+      "relative_l2_max": 0.0005,
+      "cosine_min": 0.999999,
+      "max_absolute_error_max": 0.0625,
+      "token_counts": [9, 18, 63, 64, 65, 576, 630, 1260, 2394, 2520],
+      "all_heads": 16,
+      "full_and_partial_valid_source_ranges": true
+    },
+    "vision_layers": {
+      "layers": [0, 13, 26],
+      "relative_l2_max": 0.0005,
+      "cosine_min": 0.999999,
+      "max_absolute_error_max": 0.0625
+    },
+    "final_vision_embedding": {
+      "relative_l2_max": 0.001,
+      "cosine_min": 0.999999
+    },
+    "first_text_logits": {
+      "relative_l2_max": 0.01,
+      "cosine_min": 0.9999,
+      "max_absolute_error_max": 0.5,
+      "top1_must_match": true
+    },
+    "deterministic_generation": {
+      "ordinary_output_token_stream_must_match": true,
+      "fixed_d2_output_token_stream_must_match": true,
+      "minimum_output_tokens": 32,
+      "fixtures": "all nine tracked budget/geometry cases"
+    },
+    "fixed_d2": {
+      "forced_proposal_results_must_match": true,
+      "real_assistant_draft_stream_hash_must_match": true,
+      "final_output_stream_must_match": true,
+      "kv_commit_state_must_match": true,
+      "runtime_fallback_count": 0
+    }
+  },
+  "performance_admission": {
+    "minimum_full_tower_gain_pct_budget_140": 25.0,
+    "minimum_full_tower_gain_pct_budget_280": 35.0,
+    "budget_70_regression_allowed_pct": 3.0,
+    "requires_complete_v11_v14_requalification": true
+  },
+  "policy": "Limits are frozen before observing Tensor-Core candidate outputs and will not be relaxed after measurement."
+}

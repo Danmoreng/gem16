@@ -96,6 +96,7 @@ struct Options {
   std::filesystem::path model_directory;
   std::filesystem::path assistant_model_directory;
   std::filesystem::path vision_model_directory;
+  std::uint32_t vision_max_soft_token_budget = 280U;
   std::string model_name = "gem16";
   std::string host = "127.0.0.1";
   int port = 8080;
@@ -130,7 +131,8 @@ void PrintUsage() {
       << "  --greedy                Disable checkpoint-recommended sampling\n"
       << "  --seed <integer>        Sampling seed (default: 0)\n"
       << "  --assistant-model <checkpoint> --mtp-draft-tokens 1|2|4 [--mtp-adaptive]\n"
-      << "  --vision-model <compiled-vision-module>\n";
+      << "  --vision-model <compiled-vision-module>\n"
+      << "  --vision-max-soft-token-budget 70|140|280 (default: 280)\n";
 }
 
 bool ParseUnsigned(std::string_view text, std::uint64_t& value) {
@@ -149,6 +151,17 @@ gem16::Result<Options> ParseOptions(int argc, char** argv) {
       options.assistant_model_directory = argv[++index];
     } else if (argument == "--vision-model" && index + 1 < argc) {
       options.vision_model_directory = argv[++index];
+    } else if (argument == "--vision-max-soft-token-budget" &&
+               index + 1 < argc) {
+      std::uint64_t value = 0U;
+      if (!ParseUnsigned(argv[++index], value) ||
+          (value != 70U && value != 140U && value != 280U)) {
+        return gem16::Status(
+            gem16::StatusCode::kInvalidArgument,
+            "--vision-max-soft-token-budget must be 70, 140, or 280");
+      }
+      options.vision_max_soft_token_budget =
+          static_cast<std::uint32_t>(value);
     } else if (argument == "--model-name" && index + 1 < argc) {
       options.model_name = argv[++index];
     } else if (argument == "--host" && index + 1 < argc) {
@@ -452,7 +465,8 @@ void HandleCompletion(ServerState& state, const httplib::Request& request,
   state.metrics.requests_total.fetch_add(1U);
   auto parsed = gem16::server::ParseChatCompletionsRequest(
       request.body,
-      {state.max_context, state.runtime->vision_module_loaded()});
+      {state.max_context, state.runtime->vision_module_loaded(),
+       state.runtime->vision_max_soft_token_budget()});
   if (!parsed.ok()) {
     state.metrics.requests_failed.fetch_add(1U);
     SetError(state, parsed.status(), response);
@@ -629,7 +643,8 @@ void HandleResponses(ServerState& state, const httplib::Request& request,
   state.metrics.requests_total.fetch_add(1U);
   auto parsed = gem16::server::ParseResponsesRequest(
       request.body,
-      {state.max_context, state.runtime->vision_module_loaded()});
+      {state.max_context, state.runtime->vision_module_loaded(),
+       state.runtime->vision_max_soft_token_budget()});
   if (!parsed.ok()) {
     state.metrics.requests_failed.fetch_add(1U);
     SetError(state, parsed.status(), response);
@@ -996,7 +1011,8 @@ int ServerMain(int argc, char** argv) {
        options.value().assistant_model_directory,
        options.value().max_context, 0,
        options.value().verify_device_image_sha256,
-       options.value().vision_model_directory});
+       options.value().vision_model_directory,
+       options.value().vision_max_soft_token_budget});
   if (!runtime.ok()) {
     logger.Log(LogLevel::kError, "model_load_failed",
                {{"error", runtime.status().message()}});

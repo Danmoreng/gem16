@@ -27,6 +27,7 @@ struct ModelRuntime::Impl {
   double load_milliseconds = 0.0;
   bool assistant_loaded = false;
   bool vision_module_loaded = false;
+  std::uint32_t vision_max_soft_token_budget = 0U;
   bool vision_mtp_supported = false;
   bool moe26b_slot_leased = false;
 };
@@ -40,6 +41,12 @@ Result<std::shared_ptr<ModelRuntime>> ModelRuntime::Load(
   if (options.model_directory.empty()) {
     return Error(StatusCode::kInvalidArgument,
                  "model runtime requires --model");
+  }
+  if (options.vision_max_soft_token_budget != 70U &&
+      options.vision_max_soft_token_budget != 140U &&
+      options.vision_max_soft_token_budget != 280U) {
+    return Error(StatusCode::kInvalidArgument,
+                 "Vision maximum soft-token budget must be 70, 140, or 280");
   }
   const auto load_start = std::chrono::steady_clock::now();
   auto config =
@@ -88,7 +95,8 @@ Result<std::shared_ptr<ModelRuntime>> ModelRuntime::Load(
         options.model_directory, options.max_context_tokens, options.device,
         internal::Gemma4Moe26BBackend::kSm120Integrated,
         options.verify_device_image_sha256, false,
-        routed_expert_format.value(), options.vision_model_directory);
+        routed_expert_format.value(), options.vision_model_directory,
+        options.vision_max_soft_token_budget);
     if (!engine.ok()) return engine.status();
     impl->max_context_tokens = options.max_context_tokens;
     impl->moe26b_engine =
@@ -97,6 +105,8 @@ Result<std::shared_ptr<ModelRuntime>> ModelRuntime::Load(
     impl->weight_load_path = impl->moe26b_engine->weight_load_path();
     impl->vision_module_loaded =
         impl->moe26b_engine->vision_module_loaded();
+    impl->vision_max_soft_token_budget =
+        impl->vision_module_loaded ? options.vision_max_soft_token_budget : 0U;
     if (!options.assistant_model_directory.empty()) {
       Status status = impl->moe26b_engine->LoadMtpAssistant(
           options.assistant_model_directory);
@@ -293,7 +303,9 @@ ModelRuntime::vision_soft_token_budgets() const {
              : std::span<const std::uint32_t>();
 }
 std::uint32_t ModelRuntime::vision_max_soft_token_budget() const {
-  return impl_ != nullptr && impl_->vision_module_loaded ? 280U : 0U;
+  return impl_ != nullptr && impl_->vision_module_loaded
+             ? impl_->vision_max_soft_token_budget
+             : 0U;
 }
 std::uint64_t ModelRuntime::vision_max_context_tokens() const {
   // V10 established the physical admission boundary. The qualification state
@@ -398,7 +410,8 @@ Result<ConversationSession> ConversationSession::Create(
   auto runtime = ModelRuntime::Load(
       {options.model_directory, options.assistant_model_directory,
        options.max_context_tokens, 0, true,
-       options.vision_model_directory});
+       options.vision_model_directory,
+       options.vision_max_soft_token_budget});
   if (!runtime.ok()) return runtime.status();
   return Create(std::move(runtime).value(), options);
 }

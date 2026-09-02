@@ -1442,14 +1442,15 @@ void StudioApp::DrawServer() {
   }
   if (vision_profile) {
     const int budget_values[] = {70, 140, 280};
-    const char* budget_labels[] = {"70 soft tokens", "140 soft tokens",
-                                   "280 soft tokens"};
+    const char* budget_labels[] = {"Fast · 70 soft tokens",
+                                   "Balanced · 140 soft tokens",
+                                   "Maximum detail · 280 soft tokens"};
     int budget_index = settings_.server.vision_soft_token_budget == 70
                            ? 0
                            : settings_.server.vision_soft_token_budget == 140
                                  ? 1
                                  : 2;
-    FieldLabel("Vision processing budget");
+    FieldLabel("Vision startup capacity and processing budget");
     if (ImGui::Combo("##vision-budget", &budget_index, budget_labels, 3))
       settings_.server.vision_soft_token_budget = budget_values[budget_index];
   }

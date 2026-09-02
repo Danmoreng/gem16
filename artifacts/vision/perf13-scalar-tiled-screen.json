@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "work_package": "PERF13-A",
+  "status": "rejected_for_performance",
+  "runtime_parent_commit": "11ce1be169bc44968c5965742da2fb3fd5d9de62",
+  "protocol": "3 warm-ups and 10 retained tower runs; wide fixtures for all candidates and all nine fixtures for q8k32",
+  "correctness": {
+    "bitwise_differential_passed": true,
+    "token_counts": [9, 18, 63, 64, 65, 576, 630, 1260, 2394, 2520],
+    "all_heads": 16,
+    "channel_tail": 72,
+    "full_and_partial_valid_source_ranges": true,
+    "real_tower_repeat_mismatches": 0,
+    "recurring_device_free_delta_bytes": 0
+  },
+  "wide_fixture_screen": [
+    {
+      "mode": "q4k32",
+      "budget_70": {"tower_change_pct": -7.47, "attention_speedup": 0.913},
+      "budget_140": {"tower_change_pct": -3.72, "attention_speedup": 0.956},
+      "budget_280": {"tower_change_pct": -6.15, "attention_speedup": 0.935}
+    },
+    {
+      "mode": "q8k32",
+      "budget_70": {"tower_change_pct": -0.09, "attention_speedup": 0.995},
+      "budget_140": {"tower_change_pct": 1.48, "attention_speedup": 1.012},
+      "budget_280": {"tower_change_pct": 2.93, "attention_speedup": 1.028}
+    },
+    {
+      "mode": "q8k64",
+      "budget_70": {"tower_change_pct": -0.93, "attention_speedup": 0.988},
+      "budget_140": {"tower_change_pct": 1.22, "attention_speedup": 1.011},
+      "budget_280": {"tower_change_pct": 3.27, "attention_speedup": 1.032}
+    }
+  ],
+  "gate": {
+    "required_attention_speedup_140_and_280": 1.5,
+    "alternate_required_full_tower_gain_pct_140_and_280": 20.0,
+    "maximum_budget_70_regression_pct": 3.0,
+    "candidate_accepted": false,
+    "default_mode": "reference",
+    "next": "PERF13-B"
+  },
+  "raw_evidence": [
+    "artifacts/raw/vision/perf13-q4k32-working",
+    "artifacts/raw/vision/perf13-q8k32-working",
+    "artifacts/raw/vision/perf13-q8k64-working"
+  ],
+  "limitations": [
+    "Raw evidence is gitignored and identified by the local working-state directory names above.",
+    "Rejected scalar kernels are diagnostic candidates and are not selected by default.",
+    "This screen is not a production performance claim."
+  ]
+}

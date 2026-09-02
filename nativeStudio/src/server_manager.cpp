@@ -92,6 +92,10 @@ std::string HealthCompatibilityError(const ServerConfig& config,
       if (config.mtp_draft_tokens == 0 && health.vision_mtp_supported) {
         return "The live Vision server has a different MTP configuration";
       }
+      if (health.vision_max_soft_token_budget !=
+          config.vision_soft_token_budget) {
+        return "The live Vision server has a different startup image budget";
+      }
       break;
   }
   if (health.profile_id != expected_profile) {
@@ -361,7 +365,10 @@ std::vector<std::string> BuildServerCommand(const ServerConfig& config) {
       std::to_string(config.max_sessions)};
   if (config.greedy) result.push_back("--greedy");
   if (IsVision26B(config.profile)) {
-    result.insert(result.end(), {"--vision-model", config.vision_directory});
+    result.insert(result.end(),
+                  {"--vision-model", config.vision_directory,
+                   "--vision-max-soft-token-budget",
+                   std::to_string(config.vision_soft_token_budget)});
   }
   if (config.mtp_draft_tokens != 0) {
     result.insert(result.end(), {"--assistant-model", config.assistant_directory,

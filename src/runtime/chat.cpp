@@ -455,7 +455,8 @@ Result<ChatSession> ChatSession::Create(const ChatSessionOptions& options, Gemma
   auto runtime = ModelRuntime::Load(
       {options.model_directory, options.assistant_model_directory,
        options.max_context_tokens, 0, true,
-       options.vision_model_directory});
+       options.vision_model_directory,
+       options.vision_max_soft_token_budget});
   if (!runtime.ok()) return runtime.status();
   return Create(std::move(runtime).value(), options, std::move(processor));
 }
@@ -467,6 +468,8 @@ Result<ChatSession> ChatSession::Create(
   session_options.model_directory = options.model_directory;
   session_options.assistant_model_directory = options.assistant_model_directory;
   session_options.vision_model_directory = options.vision_model_directory;
+  session_options.vision_max_soft_token_budget =
+      options.vision_max_soft_token_budget;
   session_options.stop_token_ids = processor.generation_controls().stop_token_ids;
   session_options.suppressed_token_ids = processor.generation_controls().suppressed_token_ids;
   session_options.max_context_tokens = options.max_context_tokens;

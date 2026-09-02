@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "work_package": "PERF13-B",
+  "status": "rejected_for_numerical_propagation",
+  "runtime_parent_commit": "11ce1be169bc44968c5965742da2fb3fd5d9de62",
+  "frozen_contract": "artifacts/vision/perf13-tc-numerical-contract.json",
+  "design": {
+    "query_tile": 16,
+    "source_tile": 32,
+    "logical_head": 72,
+    "transient_padded_head": 80,
+    "qk": "BF16 Tensor Core with FP32 scores",
+    "softmax": "two pass",
+    "probability_boundary": "BF16",
+    "pv": "scalar BF16 probability by BF16 value into FP32"
+  },
+  "resources": {
+    "registers_per_thread": 60,
+    "stack_bytes": 0,
+    "shared_bytes_per_block": 11776,
+    "local_bytes": 0,
+    "persistent_arena_change_bytes": 0
+  },
+  "isolated_attention": {
+    "result": "passed and bitwise identical on the deterministic differential corpus",
+    "token_counts": [9, 18, 63, 64, 65, 576, 630, 1260, 2394, 2520],
+    "all_heads": 16,
+    "full_and_partial_valid_source_ranges": true
+  },
+  "real_wide_propagation": [
+    {
+      "budget": 70,
+      "layer_0": {"max_abs": 0.25, "relative_l2": 0.000350789, "cosine": 1.0},
+      "layer_13": {"max_abs": 28.0, "relative_l2": 0.007105, "cosine": 0.999975},
+      "layer_26": {"max_abs": 497.5, "relative_l2": 0.146851, "cosine": 0.989199},
+      "final_embedding": {"max_abs": 3.00781, "relative_l2": 0.118537, "cosine": 0.992967}
+    },
+    {
+      "budget": 140,
+      "layer_0": {"max_abs": 0.25, "relative_l2": 0.000266277, "cosine": 1.0},
+      "layer_13": {"max_abs": 24.0, "relative_l2": 0.00673289, "cosine": 0.999977},
+      "layer_26": {"max_abs": 1090.0, "relative_l2": 0.159407, "cosine": 0.987289},
+      "final_embedding": {"max_abs": 4.625, "relative_l2": 0.149392, "cosine": 0.988831}
+    },
+    {
+      "budget": 280,
+      "layer_0": {"max_abs": 0.25, "relative_l2": 0.000314846, "cosine": 1.0},
+      "layer_13": {"max_abs": 24.0, "relative_l2": 0.00683021, "cosine": 0.999977},
+      "layer_26": {"max_abs": 728.0, "relative_l2": 0.151184, "cosine": 0.988564},
+      "final_embedding": {"max_abs": 3.15625, "relative_l2": 0.131032, "cosine": 0.991417}
+    }
+  ],
+  "performance": [
+    {"budget": 70, "wide_tower_gain_pct": 56.42, "wide_attention_speedup": 2.90},
+    {"budget": 140, "wide_tower_gain_pct": 64.68, "wide_attention_speedup": 3.23},
+    {"budget": 280, "wide_tower_gain_pct": 66.81, "wide_attention_speedup": 3.22}
+  ],
+  "correctness": {
+    "real_tower_repeat_mismatches": 0,
+    "recurring_device_free_delta_bytes": 0,
+    "layer_gate_passed": false,
+    "final_embedding_gate_passed": false,
+    "first_logits_top1_generation_d2": "not run because the earlier frozen layer and final-embedding gates failed"
+  },
+  "decision": {
+    "accepted": false,
+    "reason": "Material speedup does not compensate for a large, accumulating numerical divergence from the Reference Vision tower.",
+    "rollback": "remove tc_qk and retain reference as the production and performance parent",
+    "perf13_c": "not authorized; Tensor-Core PV or one-pass online softmax requires separate owner approval"
+  },
+  "raw_evidence": "artifacts/raw/vision/perf13-tc-qk-working"
+}

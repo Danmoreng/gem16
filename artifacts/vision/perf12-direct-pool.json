@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "work_package": "PERF12-A",
+  "status": "accepted_candidate",
+  "runtime_parent_commit": "11ce1be169bc44968c5965742da2fb3fd5d9de62",
+  "design": {
+    "reference": "scan every raw token for each pooled output",
+    "candidate": "nine direct row-major loads in row0 col0..2, row1 col0..2, row2 col0..2 order",
+    "rounding": "sum/9, BF16, sqrt(1152) FP32, bias/scale, BF16 unchanged",
+    "default": "direct",
+    "rollback": "GEM16_VISION_POOL=scan"
+  },
+  "correctness": {
+    "tracked_fixtures": 9,
+    "scan_direct_output_sha256_identical": true,
+    "candidate_repeat_mismatches": 0,
+    "recurring_device_free_delta_bytes": 0,
+    "persistent_arena_change_bytes": 0
+  },
+  "retained_wide_20": [
+    {
+      "budget": 70,
+      "scan_pool_median_ms": 0.077984,
+      "direct_pool_median_ms": 0.004096,
+      "pool_speedup": 19.0390625,
+      "scan_tower_median_ms": 65.0387,
+      "direct_tower_median_ms": 64.1314,
+      "tower_gain_pct": 1.3950155830298017
+    },
+    {
+      "budget": 140,
+      "scan_pool_median_ms": 0.31136,
+      "direct_pool_median_ms": 0.006128,
+      "pool_speedup": 50.809399477806785,
+      "scan_tower_median_ms": 248.1075,
+      "direct_tower_median_ms": 245.66,
+      "tower_gain_pct": 0.9864675594248418
+    },
+    {
+      "budget": 280,
+      "scan_pool_median_ms": 1.09382,
+      "direct_pool_median_ms": 0.00816,
+      "pool_speedup": 134.04656862745097,
+      "scan_tower_median_ms": 953.983,
+      "direct_tower_median_ms": 948.9315,
+      "tower_gain_pct": 0.529516773359684
+    }
+  ],
+  "nine_fixture_screen": {
+    "protocol": "3 warm-ups and 10 retained runs per mode and fixture",
+    "all_output_sha256_identical": true,
+    "pool_speedup_min": 15.6,
+    "pool_speedup_max": 134.22,
+    "aggregate_mean_tower_delta_ms": 0.034844444444446135,
+    "note": "The wider 20-retained gate above resolves the earlier sub-millisecond run-order noise and is the promotion measurement."
+  },
+  "ordinary_fixed_d2_product_path": {
+    "fixture": "budget-140-wide",
+    "protocol": "3 warm-ups and 10 retained Ordinary/fixed-D2 pairs",
+    "baseline": "artifacts/raw/vision/perf13-11ce1be/v14-budget-140-wide.json",
+    "candidate": "artifacts/raw/vision/perf12-pool-direct-v14-working/v14-budget-140-wide.json",
+    "ordinary_output_and_draft_sha256_identical": true,
+    "fixed_d2_output_and_draft_sha256_identical": true,
+    "streams_identical": true,
+    "no_runtime_fallback": true,
+    "no_token_loop_allocations": true,
+    "recurring_device_free_delta_bytes": 0,
+    "baseline_pool_project_median_ms": {
+      "ordinary": 0.319536,
+      "fixed_d2": 0.33176
+    },
+    "direct_pool_project_median_ms": {
+      "ordinary": 0.034752,
+      "fixed_d2": 0.033088
+    }
+  },
+  "raw_evidence": [
+    "artifacts/raw/vision/perf12-pool-scan-working",
+    "artifacts/raw/vision/perf12-pool-direct-working",
+    "artifacts/raw/vision/perf12-pool-scan-wide20-working",
+    "artifacts/raw/vision/perf12-pool-direct-wide20-working",
+    "artifacts/raw/vision/perf12-pool-direct-v14-working"
+  ],
+  "claim_boundary": "Low-risk exact pooling optimization only; no broader Vision production-performance claim."
+}

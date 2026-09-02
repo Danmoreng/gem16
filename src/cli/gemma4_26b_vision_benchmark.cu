@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "compiler/sha256.h"
 #include "cuda/engine/gemma4_26b_vision_artifact.h"
 #include "cuda/vision/gemma4_26b.h"
 #include "gem16/image.h"
@@ -146,6 +147,7 @@ int main(int argc, char** argv) {
   std::vector<gem16::internal::Gemma4Moe26BVisionRuntimeTimings> timings;
   timings.reserve(repetitions);
   std::vector<float> reference;
+  std::string output_sha256;
   std::uint64_t repeat_mismatches = 0U;
   for (std::uint32_t repetition = 0U;
        status.ok() && repetition < repetitions; ++repetition) {
@@ -164,6 +166,8 @@ int main(int argc, char** argv) {
     }
     if (repetition == 0U) {
       reference = std::move(output);
+      output_sha256 = gem16::compiler::Sha256Hex(
+          reference.data(), reference.size() * sizeof(float));
     } else {
       for (std::size_t index = 0U; index < output.size(); ++index) {
         repeat_mismatches += output[index] != reference[index] ? 1U : 0U;
@@ -209,6 +213,8 @@ int main(int argc, char** argv) {
             << static_cast<std::int64_t>(free_after) -
                    static_cast<std::int64_t>(free_before)
             << "},\"repeat_mismatches\":" << repeat_mismatches
+            << ",\"output_sha256\":"
+            << gem16::json::Quote(output_sha256)
             << ",\"warmups\":" << warmups << ",\"runs\":[";
   for (std::size_t run = 0U; run < timings.size(); ++run) {
     if (run != 0U) std::cout << ',';

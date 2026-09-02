@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "work_packages": ["PERF12-E", "PERF12-F"],
+  "status": "screened_out",
+  "runtime_parent_commit": "11ce1be169bc44968c5965742da2fb3fd5d9de62",
+  "profile": {
+    "tool": "Nsight Systems 2026.1.3",
+    "fixture_shape": "wide",
+    "protocol": "one non-retained final-runtime launch per qualified budget",
+    "results": [
+      {
+        "budget": 70,
+        "kernel_launches": 468,
+        "first_to_last_kernel_ms": 62.664848,
+        "summed_kernel_ms": 61.644068,
+        "inter_kernel_gap_ms": 1.02078,
+        "gap_upper_bound_pct": 1.6289515295720498
+      },
+      {
+        "budget": 140,
+        "kernel_launches": 468,
+        "first_to_last_kernel_ms": 230.319925,
+        "summed_kernel_ms": 229.267978,
+        "inter_kernel_gap_ms": 1.051947,
+        "gap_upper_bound_pct": 0.45673295525777896
+      },
+      {
+        "budget": 280,
+        "kernel_launches": 468,
+        "first_to_last_kernel_ms": 926.138065,
+        "summed_kernel_ms": 925.136651,
+        "inter_kernel_gap_ms": 1.001414,
+        "gap_upper_bound_pct": 0.10812793878631907
+      }
+    ]
+  },
+  "input_staging": {
+    "promoted": false,
+    "reason": "Final real-product upload medians are 0.18232 ms Ordinary and 0.176256 ms fixed-D2 at budget 140 versus 228.644 ms and 228.8655 ms tower time. Two staging slots and cancellation state would target less than 0.08% of the measured tower boundary."
+  },
+  "cuda_graphs": {
+    "promoted": false,
+    "reason": "Even perfect removal of every measured inter-kernel gap has only a 1.63%, 0.46%, and 0.11% upper bound at budgets 70, 140, and 280. Actual replay gain must be smaller and would add graph-private capacity plus shape-specific update and recovery state.",
+    "shape_constraint": "The qualified square, wide, and tall grids change attention masking and pooling parameters within each budget; three budget-only captures cannot safely represent all admitted shapes without per-request graph-node parameter updates.",
+    "reopen_condition": "Reopen only if a future final-runtime Nsight Systems profile shows launch or host gaps are material after the attention kernel changes, with graph-private bytes admitted into capacity."
+  },
+  "raw_evidence": [
+    "artifacts/raw/vision/perf12-final-launch-profile/nsys-budget-70-wide.nsys-rep",
+    "artifacts/raw/vision/perf12-final-launch-profile/nsys-budget-70-wide.sqlite",
+    "artifacts/raw/vision/perf12-final-launch-profile/nsys-budget-140-wide.nsys-rep",
+    "artifacts/raw/vision/perf12-final-launch-profile/nsys-budget-140-wide.sqlite",
+    "artifacts/raw/vision/perf12-final-launch-profile/nsys-budget-280-wide.nsys-rep",
+    "artifacts/raw/vision/perf12-final-launch-profile/nsys-budget-280-wide.sqlite"
+  ],
+  "claim_boundary": "Screening decision only; no CUDA Graph or double-buffered staging performance claim is made."
+}

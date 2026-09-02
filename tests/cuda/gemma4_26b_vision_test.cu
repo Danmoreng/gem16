@@ -1,3 +1,4 @@
+#include <cuda_bf16.h>
 #include <cuda_runtime_api.h>
 
 #include <algorithm>
@@ -7,9 +8,11 @@
 #include <filesystem>
 #include <iostream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "cuda/engine/gemma4_26b_vision_artifact.h"
+#include "cuda/fp8/reference.h"
 #include "cuda/vision/gemma4_26b.h"
 #include "gem16/image.h"
 
@@ -39,6 +42,23 @@ constexpr std::array<Fixture, 9U> kFixtures{{
 }};
 
 int failures = 0;
+
+__global__ void ReferenceGeluProductKernel(const std::uint16_t* gate,
+                                           const std::uint16_t* up,
+                                           std::uint16_t* product,
+                                           std::uint64_t elements) {
+  const std::uint64_t index =
+      static_cast<std::uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+  if (index >= elements) return;
+  const float x =
+      static_cast<float>(__ushort_as_bfloat16(gate[index]));
+  constexpr float kAlpha = 0.7978845608028654F;
+  const float activated =
+      0.5F * x *
+      (1.0F + tanhf(kAlpha * (x + 0.044715F * x * x * x)));
+  product[index] = __bfloat16_as_ushort(__float2bfloat16_rn(
+      activated * static_cast<float>(__ushort_as_bfloat16(up[index]))));
+}
 
 void Check(bool condition, const std::string& message) {
   if (condition) return;
@@ -132,6 +152,40 @@ void TestRuntime(const std::filesystem::path& fixtures,
       gem16::internal::Gemma4Moe26BVisionDeviceArtifact::Load(module);
   Check(artifact.ok(), "real Vision artifact loads");
   if (!artifact.ok()) return;
+  constexpr std::array<std::pair<std::uint32_t, std::uint64_t>, 3U>
+      kWorkspaceCapacities{{
+          {70U, 36380768U},
+          {140U, 64372928U},
+          {280U, 120356480U},
+      }};
+  for (const auto& [budget, expected_bytes] : kWorkspaceCapacities) {
+    auto sized = gem16::internal::Gemma4Moe26BVisionRuntime::Create(
+        artifact.value(), budget);
+    Check(sized.ok(), "Vision runtime creates for maximum budget " +
+                          std::to_string(budget));
+    if (!sized.ok()) continue;
+    Check(sized.value().workspace_bytes() == expected_bytes,
+          "Vision workspace matches maximum budget " +
+              std::to_string(budget));
+    Check(sized.value().maximum_soft_token_budget() == budget,
+          "Vision maximum budget is reported as " + std::to_string(budget));
+    if (budget == 70U) {
+      auto image = LoadFixture(fixtures, kFixtures[4]);
+      Check(image.ok(), "budget-140 fixture loads for capacity rejection");
+      if (image.ok()) {
+        const auto& value = image.value();
+        const gem16::Gemma4Moe26BVisionInputSegment segment{
+            0U, value.soft_token_count, value.soft_token_budget,
+            value.raw_patch_count, value.patches, value.positions};
+        Check(!sized.value().Encode(segment, nullptr).ok(),
+              "budget-70 runtime rejects a budget-140 request");
+      }
+    }
+  }
+  Check(!gem16::internal::Gemma4Moe26BVisionRuntime::Create(artifact.value(),
+                                                            71U)
+             .ok(),
+        "unsupported Vision maximum budget is rejected");
   auto runtime =
       gem16::internal::Gemma4Moe26BVisionRuntime::Create(artifact.value());
   Check(runtime.ok(), "Vision runtime creates");
@@ -215,6 +269,105 @@ void TestRuntime(const std::filesystem::path& fixtures,
   (void)cudaStreamDestroy(stream);
 }
 
+void TestFusedGeluProductQuantization() {
+  constexpr std::uint64_t kTokens = 3U;
+  constexpr std::uint64_t kElements = 4304U;
+  constexpr std::uint64_t kTotal = kTokens * kElements;
+  std::vector<std::uint16_t> gate(kTotal);
+  std::vector<std::uint16_t> up(kTotal);
+  for (std::uint64_t index = 0U; index < kTotal; ++index) {
+    const float gate_value =
+        static_cast<float>(static_cast<int>(index % 257U) - 128) / 16.0F;
+    const float up_value =
+        static_cast<float>(static_cast<int>((index * 17U) % 199U) - 99) /
+        32.0F;
+    gate[index] =
+        __bfloat16_as_ushort(__float2bfloat16_rn(gate_value));
+    up[index] = __bfloat16_as_ushort(__float2bfloat16_rn(up_value));
+  }
+  std::uint16_t* device_gate = nullptr;
+  std::uint16_t* device_up = nullptr;
+  std::uint16_t* device_product = nullptr;
+  std::uint8_t* reference_output = nullptr;
+  std::uint8_t* fused_output = nullptr;
+  float* reference_scales = nullptr;
+  float* fused_scales = nullptr;
+  auto allocate = [](auto** pointer, std::size_t bytes) {
+    return CudaOk(cudaMalloc(reinterpret_cast<void**>(pointer), bytes),
+                  "allocate fused GELU quantization test buffer");
+  };
+  if (!allocate(&device_gate, kTotal * sizeof(std::uint16_t)) ||
+      !allocate(&device_up, kTotal * sizeof(std::uint16_t)) ||
+      !allocate(&device_product, kTotal * sizeof(std::uint16_t)) ||
+      !allocate(&reference_output, kTotal) ||
+      !allocate(&fused_output, kTotal) ||
+      !allocate(&reference_scales, kTokens * sizeof(float)) ||
+      !allocate(&fused_scales, kTokens * sizeof(float))) {
+    return;
+  }
+  bool ok = CudaOk(cudaMemcpy(device_gate, gate.data(),
+                              kTotal * sizeof(std::uint16_t),
+                              cudaMemcpyHostToDevice),
+                   "copy fused GELU test gate") &&
+            CudaOk(cudaMemcpy(device_up, up.data(),
+                              kTotal * sizeof(std::uint16_t),
+                              cudaMemcpyHostToDevice),
+                   "copy fused GELU test up");
+  if (ok) {
+    ReferenceGeluProductKernel<<<static_cast<unsigned>((kTotal + 255U) / 256U),
+                                 256U>>>(device_gate, device_up,
+                                         device_product, kTotal);
+    ok = CudaOk(cudaGetLastError(), "launch reference GELU product");
+  }
+  if (ok) {
+    gem16::Status status =
+        gem16::internal::LaunchFp8ReferenceTokenQuantizationBf16Batch(
+            device_product, reference_output, reference_scales, kTokens,
+            kElements, nullptr);
+    Check(status.ok(), "reference GELU product quantization launches");
+    ok = status.ok();
+  }
+  if (ok) {
+    gem16::Status status = gem16::internal::
+        LaunchGemma4Moe26BVisionFusedGeluProductQuantization(
+            device_gate, device_up, fused_output, fused_scales, kTokens,
+            nullptr);
+    Check(status.ok(), "fused GELU product quantization launches");
+    ok = status.ok();
+  }
+  std::vector<std::uint8_t> reference_bytes(kTotal);
+  std::vector<std::uint8_t> fused_bytes(kTotal);
+  std::vector<float> reference_scale_values(kTokens);
+  std::vector<float> fused_scale_values(kTokens);
+  if (ok) {
+    ok = CudaOk(cudaMemcpy(reference_bytes.data(), reference_output, kTotal,
+                           cudaMemcpyDeviceToHost),
+                "copy reference E4M3 bytes") &&
+         CudaOk(cudaMemcpy(fused_bytes.data(), fused_output, kTotal,
+                           cudaMemcpyDeviceToHost),
+                "copy fused E4M3 bytes") &&
+         CudaOk(cudaMemcpy(reference_scale_values.data(), reference_scales,
+                           kTokens * sizeof(float), cudaMemcpyDeviceToHost),
+                "copy reference E4M3 scales") &&
+         CudaOk(cudaMemcpy(fused_scale_values.data(), fused_scales,
+                           kTokens * sizeof(float), cudaMemcpyDeviceToHost),
+                "copy fused E4M3 scales");
+  }
+  if (ok) {
+    Check(fused_bytes == reference_bytes,
+          "fused GELU product E4M3 bytes are bit identical");
+    Check(fused_scale_values == reference_scale_values,
+          "fused GELU product scales are bit identical");
+  }
+  (void)cudaFree(device_gate);
+  (void)cudaFree(device_up);
+  (void)cudaFree(device_product);
+  (void)cudaFree(reference_output);
+  (void)cudaFree(fused_output);
+  (void)cudaFree(reference_scales);
+  (void)cudaFree(fused_scales);
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -228,6 +381,7 @@ int main(int argc, char** argv) {
   TestPreprocessing(fixtures);
   if (argc == 5) {
     if (std::string(argv[3]) != "--vision-module") return 64;
+    TestFusedGeluProductQuantization();
     TestRuntime(fixtures, argv[4]);
   }
   if (failures != 0) {

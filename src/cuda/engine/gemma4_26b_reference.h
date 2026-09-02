@@ -104,7 +104,8 @@ class Gemma4Moe26BReferenceEngine {
       bool quality_capture_all_layers = false,
       std::optional<Gemma4Moe26BRoutedExpertFormat>
           expected_routed_expert_format = std::nullopt,
-      const std::filesystem::path& vision_model_directory = {});
+      const std::filesystem::path& vision_model_directory = {},
+      std::uint32_t vision_max_soft_token_budget = 280U);
 
   [[nodiscard]] Status Reset();
   [[nodiscard]] Status ForwardToken(std::uint32_t token);

@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "work_package": "PERF12-D",
+  "status": "accepted_candidate",
+  "runtime_parent_commit": "11ce1be169bc44968c5965742da2fb3fd5d9de62",
+  "contract": {
+    "field": "vision_max_soft_token_budget",
+    "accepted_values": [70, 140, 280],
+    "request_budget_must_not_exceed_configured_maximum": true,
+    "request_time_allocations": false,
+    "configuration_change_requires_restart": true
+  },
+  "measured_capacity_bytes": [
+    {
+      "maximum_soft_token_budget": 70,
+      "device_workspace_bytes": 36380768,
+      "pinned_host_bytes": 1940400,
+      "device_savings_vs_280_bytes": 83975712,
+      "device_savings_vs_280_pct": 69.77248919210665
+    },
+    {
+      "maximum_soft_token_budget": 140,
+      "device_workspace_bytes": 64372928,
+      "pinned_host_bytes": 3880800,
+      "device_savings_vs_280_bytes": 55983552,
+      "device_savings_vs_280_pct": 46.51478009326959
+    },
+    {
+      "maximum_soft_token_budget": 280,
+      "device_workspace_bytes": 120356480,
+      "pinned_host_bytes": 7761600,
+      "device_savings_vs_280_bytes": 0,
+      "device_savings_vs_280_pct": 0.0
+    }
+  ],
+  "correctness": {
+    "invalid_startup_budget_rejected": true,
+    "request_over_configured_maximum_rejected_before_cuda_launch": true,
+    "capacity_specific_exact_workspace_assertions": true,
+    "configured_maximum_exposed_in_model_report": true,
+    "last_request_budget_exposed_separately": true,
+    "studio_restart_mismatch_detected": true,
+    "openai_default_budget_clamped_to_configured_maximum": true,
+    "openai_explicit_over_maximum_budget_rejected": true
+  },
+  "real_model_report": {
+    "configured_maximum_soft_token_budget": 70,
+    "vision_workspace_bytes": 36380768,
+    "last_vision_soft_token_budget": null,
+    "runtime_fallback": false
+  },
+  "validation": [
+    "cmake --build --preset blackwell-release -j4",
+    "ctest --preset blackwell-release --output-on-failure -R '^(gem16-unit|gem16-cuda-trellis35|gem16-cuda-vision26b)$'",
+    "cmake --build build/native-studio -j4 && ctest --test-dir build/native-studio --output-on-failure",
+    "cmake --build --preset host-debug -j4 && ctest --preset host-debug --output-on-failure",
+    "gem16-chat --vision-max-soft-token-budget 70 --print-model-report",
+    "GEM16_12B_MODEL=<qualified-12b> ctest --preset blackwell-release --output-on-failure -R '^gem16-12b-m22-product$'",
+    "GEM16_26B_COMPILED_MODEL=<qualified-26b> ctest --preset blackwell-release --output-on-failure -R '^gem16-26b-m22-product$'"
+  ],
+  "claim_boundary": "Startup-bounded Vision workspace and public admission/reporting only; no request semantics, precision, tensor format, or qualified budget choices changed."
+}

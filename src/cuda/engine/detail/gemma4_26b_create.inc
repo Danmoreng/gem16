@@ -14,7 +14,8 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
     bool verify_device_image_sha256, bool quality_capture_all_layers,
     std::optional<Gemma4Moe26BRoutedExpertFormat>
         expected_routed_expert_format,
-    const std::filesystem::path& vision_model_directory) {
+    const std::filesystem::path& vision_model_directory,
+    std::uint32_t vision_max_soft_token_budget) {
   if (context_tokens == 0U || context_tokens > kMaximumContextTokens ||
       device < 0) {
     return Invalid("Gemma 4 26B context must be in [1, 262144]");
@@ -105,8 +106,8 @@ Result<Gemma4Moe26BReferenceEngine> Gemma4Moe26BReferenceEngine::Create(
   error = cudaStreamCreateWithFlags(&impl->stream, cudaStreamNonBlocking);
   if (error != cudaSuccess) return CudaFailure("create M13 stream", error);
   if (impl->vision_artifact.arena() != nullptr) {
-    auto vision_runtime =
-        Gemma4Moe26BVisionRuntime::Create(impl->vision_artifact);
+    auto vision_runtime = Gemma4Moe26BVisionRuntime::Create(
+        impl->vision_artifact, vision_max_soft_token_budget);
     if (!vision_runtime.ok()) return vision_runtime.status();
     impl->vision_runtime = std::move(vision_runtime).value();
     for (cudaEvent_t& event : impl->vision_phase_events) {

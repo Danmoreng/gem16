@@ -194,11 +194,14 @@ void RunOpenAiChatTests() {
   auto moe26b_requested_budget =
       gem16::server::ParseChatCompletionsRequest(requested_budget_image,
                                                  {512U, true});
+  auto moe26b_configured_70 = gem16::server::ParseChatCompletionsRequest(
+      one_image_request, {512U, true, 70U});
   GEM16_CHECK(one_image.ok());
   GEM16_CHECK(two_images.ok());
   GEM16_CHECK(moe26b_image.ok());
   GEM16_CHECK(!moe26b_multiple_images.ok());
   GEM16_CHECK(moe26b_requested_budget.ok());
+  GEM16_CHECK(moe26b_configured_70.ok());
   GEM16_CHECK(!gem16::server::ParseChatCompletionsRequest(
                    requested_budget_image, {512U, false})
                    .ok());
@@ -211,6 +214,9 @@ void RunOpenAiChatTests() {
   const std::string excessive_budget_image =
       one_image_request.substr(0U, one_image_request.size() - 1U) +
       ",\"vision_soft_token_budget\":280}";
+  GEM16_CHECK(!gem16::server::ParseChatCompletionsRequest(
+                   excessive_budget_image, {512U, true, 140U})
+                   .ok());
   auto excessive_budget = gem16::server::ParseChatCompletionsRequest(
       excessive_budget_image, {400U, true});
   GEM16_CHECK(!excessive_budget.ok());
@@ -232,6 +238,12 @@ void RunOpenAiChatTests() {
     GEM16_CHECK(content.moe26b_image.patches.size() ==
                 static_cast<std::size_t>(
                     content.moe26b_image.raw_patch_count) * 768U);
+  }
+  if (moe26b_configured_70.ok()) {
+    GEM16_CHECK(moe26b_configured_70.value()
+                    .generation.messages.front()
+                    .content.front()
+                    .moe26b_image.soft_token_budget == 70U);
   }
   if (moe26b_requested_budget.ok()) {
     const auto& content = moe26b_requested_budget.value()
