@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "work_package": "PRD00",
+  "status": "accepted",
+  "date": "2026-09-02",
+  "baseline_commit": "26691d607f7945234a39aed8a98f0d1ed1d904c1",
+  "implementation_commit": "10b20c3185cfc2da03b94bfefe1c287cdb7f094d",
+  "implementation_evidence": "artifacts/vision/prd00-implementation-2026-09-02.json",
+  "acceptance": {
+    "clean_implementation_snapshot": true,
+    "fixture_dependency_closed": true,
+    "strong_image_source_identity": true,
+    "stable_profile_identity": true,
+    "decode_mode_separate": true,
+    "qualification_state": "production_candidate",
+    "production_claim_enabled": false,
+    "performance_change": false,
+    "next_work_package": "PERF13-0"
+  },
+  "immutable_commit_gates": [
+    {
+      "command": "cmake --build --preset host-debug -j 4 && ctest --preset host-debug --output-on-failure",
+      "result": "passed 5/5"
+    },
+    {
+      "command": "cmake --build --preset blackwell-release -j 4 && ctest --preset blackwell-release --output-on-failure -R '^(gem16-unit|gem16-cuda-vision26b|gem16-cuda-trellis35)$'",
+      "result": "passed 3/3"
+    },
+    {
+      "command": "cmake --build build/native-studio -j 4 && ctest --test-dir build/native-studio --output-on-failure",
+      "result": "passed 1/1"
+    },
+    {
+      "command": "python3 -m unittest tests.python.test_package_gemma4_26b_vision_hf tests.python.test_qualify_gemma4_26b_vision_v19_quality",
+      "result": "passed 3/3"
+    },
+    {
+      "command": "git diff --check",
+      "result": "passed"
+    }
+  ],
+  "limitations": [
+    "This gate does not qualify a production performance claim.",
+    "Compact Vision remains production_candidate and experimental until P20 is accepted.",
+    "PERF13 must establish a fresh baseline before changing the attention implementation."
+  ]
+}
