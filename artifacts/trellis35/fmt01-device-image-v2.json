@@ -1,0 +1,151 @@
+{
+  "schema_version": 1,
+  "work_package": "FMT01",
+  "status": "implemented_and_locally_verified",
+  "implementation_parent_revision": "034be9761ee1f1ecd88a77314e49d49489838f0c",
+  "candidate_revision": "working_tree_pending_commit",
+  "host": {
+    "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "gpu_memory_mib": 16303,
+    "driver": "610.57.04",
+    "platform": "Linux x86-64 SM120"
+  },
+  "format": {
+    "id": "gem16-sm120-trellis35-device-image-v2",
+    "profile": "gem16-trellis35-w4a8-v1",
+    "model_file": "model.gem16",
+    "model_bytes": 12204692480,
+    "model_sha256_from_offline_packager": "552ace4b3f2e8e20bbc03a9d4b30887bdb6297d6da9f48d54b4a2b4e9fc803c4",
+    "source_checkpoint_content_sha256": "39183e2c7a1bd04c87a8f5bb5887453f8e92a3980bb507fd06d6252a6439c9f0",
+    "non_routed_offset": 0,
+    "non_routed_bytes": 1850270720,
+    "layer_count": 30,
+    "layer_stride_bytes": 345147392,
+    "embedded_header": false,
+    "metadata": {
+      "gem16_model_json_bytes": 996,
+      "gem16_model_json_sha256": "0896c371e9458fee1ada61ed4ba9e174ac921d7f02f03969f9a2d38f3fb9840f",
+      "gem16_compilation_json_bytes": 465448,
+      "gem16_compilation_json_sha256": "55181031e34c6214e23a3546a393c5f32acb7e01237133b104f9b02188583204",
+      "gem16_lock_json_bytes": 1012,
+      "gem16_lock_json_sha256": "92ae384611b4b92e061b71a4048abf1f83f54251fd0df612f50751e635fbff08"
+    }
+  },
+  "offline_packager": {
+    "source_locked_files_verified": 99,
+    "source_inventory_exact": true,
+    "preallocated_partial_output": true,
+    "streaming_chunk_bytes": 67108864,
+    "first_pass_source_concatenation_sha256": "552ace4b3f2e8e20bbc03a9d4b30887bdb6297d6da9f48d54b4a2b4e9fc803c4",
+    "independent_second_pass_image_sha256": "552ace4b3f2e8e20bbc03a9d4b30887bdb6297d6da9f48d54b4a2b4e9fc803c4",
+    "fsync_before_publish": true,
+    "atomic_rename": true,
+    "partial_never_published_on_failure": true,
+    "build_wall_seconds": 26.2
+  },
+  "runtime_integrity_boundary": {
+    "policy": "verified_at_build_download_install_not_runtime_load",
+    "model_payload_sha256_at_runtime": false,
+    "small_metadata_and_lock_hashes_at_runtime": true,
+    "exact_file_extent_at_runtime": true,
+    "fixed_arena_layout_at_runtime": true,
+    "tensor_and_layer_tables_at_runtime": true,
+    "uploaded_descriptor_validation_at_runtime": true,
+    "same_size_payload_corruption_owner": "download_or_install_verifier",
+    "active_decision": 9
+  },
+  "loader": {
+    "device_allocations": 1,
+    "uploaded_bytes": 12204692480,
+    "files_uploaded": 1,
+    "persistent_source_order_copy": false,
+    "pinned_buffer_count": 4,
+    "pinned_buffer_bytes": 67108864,
+    "pinned_staging_peak_bytes": 268435456,
+    "cuda_events": true,
+    "asynchronous_h2d": true,
+    "binding_replay_iterations": 100000,
+    "binding_replay_device_allocation_delta_bytes": 0,
+    "k3_descriptors": 3840,
+    "k4_descriptors": 3840,
+    "warm_pinned": {
+      "upload_ms": 1188.66,
+      "load_ms": 1198.48,
+      "raw_evidence": "artifacts/raw/trellis35/fmt01-evidence/v2-load-warm.json",
+      "raw_sha256": "255f6980767845f56855469b61120894d85341553beffcd734e19f2c48d73c2d"
+    },
+    "cold_pinned_after_posix_fadvise_dontneed": {
+      "upload_ms": 2662.46,
+      "load_ms": 2671.0,
+      "raw_evidence": "artifacts/raw/trellis35/fmt01-evidence/v2-load-cold.json",
+      "raw_sha256": "ffb8f59f12e491f80a7e5f7beb8f790839f4077c48716a12db5acd833386adcb"
+    },
+    "explicit_cufile": {
+      "supported_by_build_and_host": true,
+      "load_succeeded": true,
+      "host_staging_peak_bytes": 0,
+      "upload_ms": 1826.88,
+      "load_ms": 1835.36,
+      "selection_policy": "optional; auto retains pinned path when GPUDirect RDMA capability is not reported"
+    },
+    "legacy_v1_explicit_only_load_ms": 1297.73
+  },
+  "exactness": {
+    "arena_identity": "offline source concatenation hash equals independently reread v2 image hash",
+    "vision_fixture": "tests/fixtures/gemma4_26b_vision/budget-140-wide.bmp",
+    "vision_budget": 140,
+    "prompt_tokens": 186,
+    "max_output_tokens": 32,
+    "protocol": "3 warm-ups and 10 retained Ordinary/fixed-D2 pairs",
+    "ordinary_and_fixed_d2_output_sha256": "18aa85fd9b83421807dcd07c344afc98daee9e2837cef5dd98ce4cb232ad091e",
+    "all_ten_v1_v2_output_hash_pairs_equal": true,
+    "ordinary_and_fixed_d2_streams_identical": true,
+    "no_runtime_fallback": true,
+    "no_token_loop_allocations": true,
+    "raw_evidence": "artifacts/raw/trellis35/fmt01-evidence/v2-v14-budget-140-wide.json",
+    "raw_sha256": "d17f239c370218500b26c2f70dbb5068ebd5ab038ee0bc81d8fa170797398eed"
+  },
+  "failure_matrix": {
+    "truncated_model": "rejected: file extent mismatch",
+    "symlinked_model": "rejected: unsafe path component",
+    "mixed_v1_v2": "rejected: mixed checkpoint forbidden",
+    "wrong_lock": "rejected: metadata content hash mismatch",
+    "v1_without_explicit_legacy_mode": "rejected: install v2 or request legacy-v1",
+    "v2_with_legacy_mode": "rejected: v2 files present",
+    "wrong_source_payload_hash": "rejected by offline packager test",
+    "extra_source_file": "rejected by offline packager test",
+    "existing_partial_output": "rejected by offline packager test",
+    "second_pass_hash_mismatch": "rejected by offline packager test"
+  },
+  "checks": [
+    {
+      "command": "cmake --build --preset host-debug -j4 && ctest --preset host-debug --output-on-failure",
+      "result": "build passed; 5/5 tests passed"
+    },
+    {
+      "command": "python3 -m unittest tests.python.test_build_gemma4_26b_trellis35_device_image tests.python.test_trellis35_checkpoint",
+      "result": "17/17 passed"
+    },
+    {
+      "command": "cmake --build --preset blackwell-release -j4",
+      "result": "passed"
+    },
+    {
+      "command": "ctest --preset blackwell-release --output-on-failure -R '^(gem16-unit|gem16-trellis35-compiler-contract)$'",
+      "result": "2/2 passed"
+    },
+    {
+      "command": "ctest --preset blackwell-release --output-on-failure -R '^(gem16-cuda-trellis35|gem16-cuda-vision26b|gem16-cuda-attention-reference)$'",
+      "result": "3/3 passed"
+    },
+    {
+      "command": "GEM16_12B_MODEL=<qualified-12b> ctest --preset blackwell-release --output-on-failure -R '^gem16-12b-m22-product$'",
+      "result": "1/1 passed in 6.35 seconds"
+    },
+    {
+      "command": "GEM16_26B_COMPILED_MODEL=<qualified-26b-nvfp4> ctest --preset blackwell-release --output-on-failure -R '^gem16-26b-m22-product$'",
+      "result": "1/1 passed in 37.73 seconds"
+    }
+  ],
+  "claim_boundary": "FMT01 changes only Trellis35 storage and startup upload. It does not change precision, weights, tensor semantics, token IDs, context, Vision processing, Ordinary decode, fixed-D2 decode, or the qualified 12B and 26B NVFP4 profiles. Runtime deliberately does not recompute the full model payload hash."
+}

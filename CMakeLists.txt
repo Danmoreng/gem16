@@ -334,6 +334,7 @@ if(GEM16_ENABLE_CUDA)
     src/cuda/dispatch.cu
     src/cuda/engine/gemma4_26b_artifact.cpp
     src/cuda/engine/gemma4_26b_trellis35_artifact.cpp
+    src/cuda/engine/gemma4_26b_trellis35_device_image.cpp
     src/cuda/engine/gemma4_26b_vision_artifact.cpp
     src/cuda/engine/gemma4_26b_reference.cu
     src/cuda/engine/target_model.cu
@@ -782,6 +783,7 @@ if(BUILD_TESTING AND GEM16_BUILD_TESTS)
       COMMAND "${Python3_EXECUTABLE}" -m unittest
         tests.python.test_trellis35_compiler
         tests.python.test_trellis35_checkpoint
+        tests.python.test_build_gemma4_26b_trellis35_device_image
         tests.python.test_compare_gemma4_26b_wp8
         tests.python.test_benchmark_gemma4_26b_wp8_text
     )

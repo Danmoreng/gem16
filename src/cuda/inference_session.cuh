@@ -66,7 +66,7 @@ Result<std::shared_ptr<ModelRuntime>> ModelRuntime::Load(
     if (internal::IsTrellis35RoutedExpertFormat(
             routed_expert_format.value())) {
       auto trellis_plan =
-          internal::LoadGemma4Moe26BTrellis35CheckpointPlan(
+          internal::LoadValidatedGemma4Moe26BTrellis35RuntimePlan(
               options.model_directory);
       if (!trellis_plan.ok()) return trellis_plan.status();
       Status dispatch = internal::Gemma4Moe26BTrellis35EngineDispatchStatus();

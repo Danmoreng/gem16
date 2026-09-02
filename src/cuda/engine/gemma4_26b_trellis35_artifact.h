@@ -34,6 +34,10 @@ struct Gemma4Moe26BTrellis35DeviceArtifactStats {
   std::uint64_t non_routed_tensors = 0;
   std::uint64_t device_allocations = 0;
   std::uint64_t host_staging_peak_bytes = 0;
+  std::uint32_t storage_format_version = 0U;
+  double upload_milliseconds = 0.0;
+  double load_milliseconds = 0.0;
+  bool runtime_payload_sha256 = false;
   std::string checkpoint_content_sha256;
   std::string load_path;
 };

@@ -14,6 +14,8 @@ namespace gem16::internal {
 
 inline constexpr std::string_view kGemma4Moe26BTrellis35Profile =
     "gem16-trellis35-w4a8-v1";
+inline constexpr std::string_view kGemma4Moe26BTrellis35DeviceImageFormat =
+    "gem16-sm120-trellis35-device-image-v2";
 inline constexpr std::string_view kGemma4Moe26BTrellis35SourceLock =
     "3d9441fdebef33785e33181c335338208b8bf868cb8c7da692fd9c765cca8230";
 inline constexpr std::uint32_t kTrellis35LayerCount = 30U;
@@ -82,10 +84,18 @@ struct Gemma4Moe26BTrellis35CheckpointPlan {
 };
 
 // This is initialization-only host work. It validates all metadata, safe paths,
-// artifact extents, K3/K4 maps and the on-disk little-endian descriptors. Large
-// payload SHA-256 validation is performed while the CUDA loader uploads files.
+// artifact extents, K3/K4 maps and the on-disk little-endian descriptors. The
+// explicit legacy loader uploads payloads without a second full-file hash.
 [[nodiscard]] Result<Gemma4Moe26BTrellis35CheckpointPlan>
 LoadGemma4Moe26BTrellis35CheckpointPlan(
+    const std::filesystem::path& checkpoint_root);
+
+// Loads only the small v2 structural metadata. The 12.2 GB model payload is
+// deliberately not hashed here; its SHA-256 is verified by the offline
+// packager and acquisition/install path. The CUDA loader consumes the returned
+// exact extent and fixed bindings directly.
+[[nodiscard]] Result<Gemma4Moe26BTrellis35CheckpointPlan>
+LoadGemma4Moe26BTrellis35DeviceImagePlan(
     const std::filesystem::path& checkpoint_root);
 
 // Public for bounded host corruption tests and future loader diagnostics. The

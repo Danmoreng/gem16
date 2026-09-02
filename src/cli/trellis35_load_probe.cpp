@@ -150,6 +150,14 @@ int main(int argc, char** argv) {
             << ",\"files\":" << stats.files
             << ",\"non_routed_tensors\":" << stats.non_routed_tensors
             << ",\"device_allocations\":" << stats.device_allocations
+            << ",\"storage_format_version\":"
+            << stats.storage_format_version
+            << ",\"runtime_payload_sha256\":"
+            << (stats.runtime_payload_sha256 ? "true" : "false")
+            << ",\"host_staging_peak_bytes\":"
+            << stats.host_staging_peak_bytes
+            << ",\"upload_ms\":" << stats.upload_milliseconds
+            << ",\"load_ms\":" << stats.load_milliseconds
             << ",\"nvfp4_routed_expert_bytes\":0"
             << ",\"free_before\":" << free_before
             << ",\"free_loaded\":" << free_loaded

@@ -5,6 +5,7 @@
 #include <string_view>
 
 #include "gem16/status.h"
+#include "model/gemma4_26b_trellis35.h"
 
 namespace gem16::internal {
 
@@ -40,6 +41,13 @@ DetectGemma4Moe26BRoutedExpertFormat(
 
 [[nodiscard]] Result<Gemma4Moe26BRoutedExpertFormat>
 ResolveValidatedGemma4Moe26BRoutedExpertFormat(
+    const std::filesystem::path& model_directory);
+
+// Loads the structurally validated Trellis35 plan selected by the product
+// storage policy: device-image v2 by default, legacy v1 only when explicitly
+// requested. The v2 path does not hash the model payload at runtime.
+[[nodiscard]] Result<Gemma4Moe26BTrellis35CheckpointPlan>
+LoadValidatedGemma4Moe26BTrellis35RuntimePlan(
     const std::filesystem::path& model_directory);
 
 }  // namespace gem16::internal

@@ -4,19 +4,24 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <fstream>
 #include <limits>
 #include <string>
+#include <tuple>
 #include <utility>
 
-#include "compiler/sha256.h"
+#include "cuda/engine/gemma4_26b_trellis35_device_image.h"
 
 namespace gem16::internal {
 namespace {
 
 constexpr std::uint64_t kStagingBytes = 64U * 1024U * 1024U;
+
+enum class Trellis35StorageFormat { kDeviceImageV2, kLegacyV1 };
 
 Status CudaFailure(std::string_view operation, cudaError_t error) {
   return Status(error == cudaErrorMemoryAllocation
@@ -24,6 +29,31 @@ Status CudaFailure(std::string_view operation, cudaError_t error) {
                     : StatusCode::kInternal,
                 std::string(operation) + ": " + cudaGetErrorName(error) +
                     ": " + cudaGetErrorString(error));
+}
+
+Result<Trellis35StorageFormat> RequestedStorageFormat() {
+  const char* value = std::getenv("GEM16_TRELLIS35_FORMAT");
+  if (value == nullptr || std::string_view(value) == "v2") {
+    return Trellis35StorageFormat::kDeviceImageV2;
+  }
+  if (std::string_view(value) == "legacy-v1") {
+    return Trellis35StorageFormat::kLegacyV1;
+  }
+  return Status(StatusCode::kInvalidArgument,
+                "GEM16_TRELLIS35_FORMAT must be v2 or legacy-v1");
+}
+
+bool PathExists(const std::filesystem::path& path) {
+  std::error_code error;
+  const auto status = std::filesystem::symlink_status(path, error);
+  return !error && status.type() != std::filesystem::file_type::not_found;
+}
+
+bool HasAnyV2Marker(const std::filesystem::path& root) {
+  return PathExists(root / "model.gem16") ||
+         PathExists(root / "gem16_model.json") ||
+         PathExists(root / "gem16_compilation.json") ||
+         PathExists(root / "gem16.lock.json");
 }
 
 class UploadContext {
@@ -64,7 +94,6 @@ class UploadContext {
       return Status(StatusCode::kIoError,
                     "cannot open Trellis35 payload: " + file.path.string());
     }
-    compiler::Sha256 sha256;
     std::uint64_t offset = 0U;
     while (offset != file.bytes) {
       const std::uint64_t count =
@@ -76,7 +105,6 @@ class UploadContext {
                       "short read from Trellis35 payload: " +
                           file.path.string());
       }
-      sha256.Update(staging_, static_cast<std::size_t>(count));
       const cudaError_t copied = cudaMemcpyAsync(
           destination + offset, staging_, static_cast<std::size_t>(count),
           cudaMemcpyHostToDevice, stream_);
@@ -89,11 +117,6 @@ class UploadContext {
                            synchronized);
       }
       offset += count;
-    }
-    if (sha256.HexDigest() != file.sha256) {
-      return Status(StatusCode::kDataLoss,
-                    "Trellis35 payload SHA-256 mismatch: " +
-                        file.path.string());
     }
     return Status::Ok();
   }
@@ -116,6 +139,51 @@ Trellis35DeviceFamilyBinding BindFamily(
       layer_base + plan.svh.offset);
   binding.rate_map = plan.rate_map;
   return binding;
+}
+
+Status ValidateUploadedDescriptors(
+    const std::array<Trellis35LayerPlan, kTrellis35LayerCount>& layers,
+    const std::byte* arena) {
+  if (arena == nullptr) {
+    return Status(StatusCode::kInvalidArgument,
+                  "missing uploaded Trellis35 descriptor arena");
+  }
+  for (const auto& layer : layers) {
+    for (const auto& [family, rows, columns, description] :
+         std::array<std::tuple<const Trellis35FamilyPlan*, std::uint64_t,
+                               std::uint64_t, std::string_view>,
+                    2>{std::tuple{&layer.gate_up, 2816U, 1408U, "gate_up"},
+                       std::tuple{&layer.down, 768U, 2816U, "down"}}) {
+      std::array<Trellis35ExpertDescriptor, kTrellis35ExpertCount> descriptors{};
+      const cudaError_t copied = cudaMemcpy(
+          descriptors.data(),
+          arena + layer.arena_offset + family->descriptor.offset,
+          sizeof(descriptors), cudaMemcpyDeviceToHost);
+      if (copied != cudaSuccess) {
+        return CudaFailure("read uploaded Trellis35 v2 descriptors", copied);
+      }
+      std::array<std::uint64_t, 5> next{};
+      for (std::size_t expert = 0U; expert < descriptors.size(); ++expert) {
+        const std::uint16_t rate = family->rate_map[expert];
+        const auto& descriptor = descriptors[expert];
+        if (descriptor.rate_bits != rate ||
+            descriptor.codebook_id != kTrellis35CodebookId ||
+            descriptor.pool_offset != next[rate]) {
+          return Status(StatusCode::kDataLoss,
+                        "uploaded Trellis35 v2 descriptor is invalid: " +
+                            std::string(description));
+        }
+        next[rate] += rows * columns * rate / 8U;
+      }
+      if (next[3] != family->k3_payload_pool.bytes ||
+          next[4] != family->k4_payload_pool.bytes) {
+        return Status(StatusCode::kDataLoss,
+                      "uploaded Trellis35 v2 descriptor coverage is invalid: " +
+                          std::string(description));
+      }
+    }
+  }
+  return Status::Ok();
 }
 
 }  // namespace
@@ -148,7 +216,26 @@ Gemma4Moe26BTrellis35DeviceArtifact::operator=(
 Result<Gemma4Moe26BTrellis35DeviceArtifact>
 Gemma4Moe26BTrellis35DeviceArtifact::Load(
     const std::filesystem::path& checkpoint_root) {
-  auto plan = LoadGemma4Moe26BTrellis35CheckpointPlan(checkpoint_root);
+  const auto load_started = std::chrono::steady_clock::now();
+  auto requested_format = RequestedStorageFormat();
+  if (!requested_format.ok()) return requested_format.status();
+  if (requested_format.value() == Trellis35StorageFormat::kLegacyV1 &&
+      HasAnyV2Marker(checkpoint_root)) {
+    return Status(StatusCode::kDataLoss,
+                  "legacy Trellis35 v1 was requested but v2 files are present");
+  }
+  if (requested_format.value() == Trellis35StorageFormat::kDeviceImageV2 &&
+      !HasAnyV2Marker(checkpoint_root) &&
+      PathExists(checkpoint_root / "trellis35-checkpoint.json")) {
+    return Status(
+        StatusCode::kUnsupported,
+        "Trellis35 v1 is legacy-only; set GEM16_TRELLIS35_FORMAT=legacy-v1 "
+        "explicitly or install the v2 device image");
+  }
+  auto plan =
+      requested_format.value() == Trellis35StorageFormat::kDeviceImageV2
+          ? LoadGemma4Moe26BTrellis35DeviceImagePlan(checkpoint_root)
+          : LoadGemma4Moe26BTrellis35CheckpointPlan(checkpoint_root);
   if (!plan.ok()) return plan.status();
   if (plan.value().arena_bytes != kTrellis35CheckpointBytes ||
       plan.value().nvfp4_routed_expert_bytes != 0U) {
@@ -164,20 +251,50 @@ Gemma4Moe26BTrellis35DeviceArtifact::Load(
     return CudaFailure("allocate Trellis35 immutable weight arena", allocated);
   }
   UploadContext upload;
-  Status status = upload.Initialize();
-  if (!status.ok()) return status;
-  status = upload.Upload(plan.value().non_routed, artifact.arena_);
-  if (!status.ok()) return status;
-  artifact.stats_.uploaded_bytes += plan.value().non_routed.bytes;
-  ++artifact.stats_.files;
-  for (const auto& layer : plan.value().layers) {
-    status = upload.Upload(layer.artifact, artifact.arena_ + layer.arena_offset);
+  Status status;
+  if (requested_format.value() == Trellis35StorageFormat::kDeviceImageV2) {
+    auto uploaded = UploadGemma4Moe26BTrellis35DeviceImage(
+        plan.value().non_routed.path, artifact.arena_, artifact.arena_bytes_);
+    if (!uploaded.ok()) return uploaded.status();
+    artifact.stats_.uploaded_bytes = uploaded.value().uploaded_bytes;
+    artifact.stats_.files = 1U;
+    artifact.stats_.host_staging_peak_bytes =
+        uploaded.value().host_staging_peak_bytes;
+    artifact.stats_.upload_milliseconds =
+        uploaded.value().upload_milliseconds;
+    artifact.stats_.load_path = uploaded.value().load_path;
+    artifact.stats_.storage_format_version = 2U;
+    status = ValidateUploadedDescriptors(plan.value().layers, artifact.arena_);
     if (!status.ok()) return status;
-    artifact.stats_.uploaded_bytes += layer.artifact.bytes;
+  } else {
+    const auto upload_started = std::chrono::steady_clock::now();
+    status = upload.Initialize();
+    if (!status.ok()) return status;
+    status = upload.Upload(plan.value().non_routed, artifact.arena_);
+    if (!status.ok()) return status;
+    artifact.stats_.uploaded_bytes += plan.value().non_routed.bytes;
     ++artifact.stats_.files;
+    for (const auto& layer : plan.value().layers) {
+      status =
+          upload.Upload(layer.artifact, artifact.arena_ + layer.arena_offset);
+      if (!status.ok()) return status;
+      artifact.stats_.uploaded_bytes += layer.artifact.bytes;
+      ++artifact.stats_.files;
+    }
+    artifact.stats_.upload_milliseconds =
+        std::chrono::duration<double, std::milli>(
+            std::chrono::steady_clock::now() - upload_started)
+            .count();
+    artifact.stats_.host_staging_peak_bytes = kStagingBytes;
+    artifact.stats_.storage_format_version = 1U;
+    artifact.stats_.load_path =
+        "trellis35_legacy_v1_explicit_single_staging_structural";
   }
   if (artifact.stats_.uploaded_bytes != artifact.arena_bytes_ ||
-      artifact.stats_.files != kTrellis35LayerCount + 1U) {
+      artifact.stats_.files !=
+          (requested_format.value() == Trellis35StorageFormat::kDeviceImageV2
+               ? 1U
+               : kTrellis35LayerCount + 1U)) {
     return Status(StatusCode::kDataLoss,
                   "Trellis35 upload did not consume the exact checkpoint");
   }
@@ -208,11 +325,13 @@ Gemma4Moe26BTrellis35DeviceArtifact::Load(
   artifact.stats_.arena_bytes = artifact.arena_bytes_;
   artifact.stats_.non_routed_tensors = artifact.non_routed_.size();
   artifact.stats_.device_allocations = 1U;
-  artifact.stats_.host_staging_peak_bytes = kStagingBytes;
   artifact.stats_.checkpoint_content_sha256 =
       plan.value().checkpoint_content_sha256;
-  artifact.stats_.load_path =
-      "trellis35_single_arena_pinned_sha256_no_nvfp4_experts";
+  artifact.stats_.runtime_payload_sha256 = false;
+  artifact.stats_.load_milliseconds =
+      std::chrono::duration<double, std::milli>(
+          std::chrono::steady_clock::now() - load_started)
+          .count();
   return artifact;
 }
 

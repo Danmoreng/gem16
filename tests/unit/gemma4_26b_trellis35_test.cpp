@@ -110,6 +110,28 @@ void RunGemma426BTrellis35Tests() {
   GEM16_CHECK(!DetectGemma4Moe26BRoutedExpertFormat(format_root).ok());
   std::filesystem::remove_all(format_root);
 
+  std::filesystem::create_directories(format_root);
+  {
+    std::ofstream output(format_root / "gem16_compilation.json");
+    output << "{}\n";
+  }
+  {
+    std::ofstream output(format_root / "gem16_model.json");
+    output << "{\"format\":\""
+           << gem16::internal::kGemma4Moe26BTrellis35DeviceImageFormat
+           << "\"}\n";
+  }
+  format = DetectGemma4Moe26BRoutedExpertFormat(format_root);
+  GEM16_CHECK(format.ok());
+  GEM16_CHECK(format.value() ==
+              Gemma4Moe26BRoutedExpertFormat::kTrellis35);
+  {
+    std::ofstream output(format_root / "trellis35-checkpoint.json");
+    output << "{}\n";
+  }
+  GEM16_CHECK(!DetectGemma4Moe26BRoutedExpertFormat(format_root).ok());
+  std::filesystem::remove_all(format_root);
+
   const auto dispatch = Gemma4Moe26BTrellis35EngineDispatchStatus();
   GEM16_CHECK(dispatch.ok());
 

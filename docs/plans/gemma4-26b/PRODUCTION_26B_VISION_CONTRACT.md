@@ -59,6 +59,10 @@ candidate after every gate below passes.
   context/decode fallback is permitted.
 - After FMT01, the Trellis35 product payload is one GPU-ready device image with
   one device allocation and no second persistent representation.
+- The offline packager and download/install path verify the complete payload
+  hash. Runtime startup does not hash or repack the 12.2 GB payload; it verifies
+  the small metadata/lock identity, exact file extent, fixed layout and uploaded
+  descriptors before execution, as fixed by active decision 9.
 
 ## Image and cache boundary
 

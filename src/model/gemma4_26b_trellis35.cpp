@@ -6,6 +6,7 @@
 #include <charconv>
 #include <cmath>
 #include <cstddef>
+#include <cstdio>
 #include <cstdint>
 #include <cstring>
 #include <fstream>
@@ -95,6 +96,78 @@ bool UnsignedArrayIs(const json::Value* value,
     if (!actual.ok() || actual.value() != extent) return false;
   }
   return true;
+}
+
+Result<std::vector<std::uint64_t>> BoundedShape(
+    const json::Value* value, std::string_view description) {
+  if (value == nullptr || !value->is_array() || value->as_array().empty() ||
+      value->as_array().size() > 2U) {
+    return Status(StatusCode::kDataLoss,
+                  "invalid Trellis35 v2 shape: " + std::string(description));
+  }
+  std::vector<std::uint64_t> shape;
+  shape.reserve(value->as_array().size());
+  std::uint64_t product = 1U;
+  for (const auto& item : value->as_array()) {
+    auto dimension = Unsigned(&item, description);
+    if (!dimension.ok() || dimension.value() == 0U ||
+        product > kTrellis35CheckpointBytes / dimension.value()) {
+      return Status(StatusCode::kDataLoss,
+                    "invalid Trellis35 v2 shape extent: " +
+                        std::string(description));
+    }
+    product *= dimension.value();
+    shape.push_back(dimension.value());
+  }
+  return shape;
+}
+
+Status ValidateDeviceImageTensorLayout(
+    std::string_view dtype, std::string_view layout,
+    const std::vector<std::uint64_t>& logical,
+    const std::vector<std::uint64_t>& physical, std::uint64_t bytes) {
+  std::uint64_t element_bytes = 0U;
+  if ((dtype == "U8" && layout == "sm120_row8_k64") ||
+      (dtype == "F8_E4M3" &&
+       (layout == "source_nk_fp8" ||
+        layout == "sm120_row8_group16_e4m3"))) {
+    element_bytes = 1U;
+  } else if (dtype == "BF16" &&
+             (layout == "source_bf16" || layout == "row_bf16" ||
+              layout == "scalar_bf16")) {
+    element_bytes = 2U;
+  } else if (dtype == "F32" && layout == "scalar_f32") {
+    element_bytes = 4U;
+  } else {
+    return Status(StatusCode::kDataLoss,
+                  "unsupported Trellis35 v2 tensor dtype/layout");
+  }
+  std::uint64_t physical_bytes = element_bytes;
+  for (const std::uint64_t dimension : physical) {
+    if (physical_bytes > kTrellis35CheckpointBytes / dimension) {
+      return Status(StatusCode::kDataLoss,
+                    "Trellis35 v2 physical shape overflows");
+    }
+    physical_bytes *= dimension;
+  }
+  bool shape_valid = false;
+  if (layout == "source_bf16" || layout == "row_bf16" ||
+      layout == "source_nk_fp8") {
+    shape_valid = physical == logical;
+  } else if (layout == "scalar_bf16" || layout == "scalar_f32") {
+    shape_valid = physical == std::vector<std::uint64_t>{1U};
+  } else if (logical.size() == 2U) {
+    const std::uint64_t divisor =
+        layout == "sm120_row8_group16_e4m3" ? 16U : 2U;
+    shape_valid = logical[1] % divisor == 0U && physical.size() == 2U &&
+                  physical[0] == logical[0] &&
+                  physical[1] == logical[1] / divisor;
+  }
+  if (!shape_valid || physical_bytes != bytes) {
+    return Status(StatusCode::kDataLoss,
+                  "Trellis35 v2 tensor shape disagrees with its layout");
+  }
+  return Status::Ok();
 }
 
 Result<std::string> ReadRegularFile(const std::filesystem::path& path,
@@ -187,13 +260,14 @@ Status AppendCanonicalJson(const json::Value& value, std::size_t depth,
   return Status::Ok();
 }
 
-Result<std::string> ContentSha256(const json::Value& document) {
+Result<std::string> DocumentContentSha256(const json::Value& document,
+                                          std::string_view field) {
   if (!document.is_object()) {
     return Status(StatusCode::kDataLoss,
                   "Trellis35 content hash requires an object");
   }
   auto object = document.as_object();
-  if (object.erase("checkpoint_content_sha256") != 1U) {
+  if (object.erase(std::string(field)) != 1U) {
     return Status(StatusCode::kDataLoss,
                   "Trellis35 content hash field is missing");
   }
@@ -203,6 +277,10 @@ Result<std::string> ContentSha256(const json::Value& document) {
   if (!status.ok()) return status;
   canonical.push_back('\n');
   return compiler::Sha256Hex(canonical.data(), canonical.size());
+}
+
+Result<std::string> ContentSha256(const json::Value& document) {
+  return DocumentContentSha256(document, "checkpoint_content_sha256");
 }
 
 Result<std::string> Sha256File(const std::filesystem::path& path) {
@@ -713,6 +791,179 @@ Status ParseNonRouted(const std::filesystem::path& root,
   return Status::Ok();
 }
 
+Status ParseDeviceImageFamily(const json::Value& value, bool gate_up,
+                              Trellis35FamilyPlan* plan,
+                              std::uint64_t* cursor) {
+  const std::string name = gate_up ? "gate_up" : "down";
+  const auto* regions = Field(value, "regions");
+  if (!ExactKeys(value, {"rate_map", "regions"}) ||
+      regions == nullptr ||
+      !ExactKeys(*regions,
+                 {"descriptor", "k3_payload_pool", "k4_payload_pool",
+                  "suh", "svh"}) ||
+      plan == nullptr || cursor == nullptr) {
+    return Status(StatusCode::kDataLoss,
+                  "Trellis35 v2 family metadata is invalid: " + name);
+  }
+  auto rates = ParseRateMap(Field(value, "rate_map"), name);
+  if (!rates.ok()) return rates.status();
+  plan->rate_map = rates.value();
+  const FamilyGeometry geometry = Geometry(gate_up);
+  const std::uint64_t coefficients = geometry.rows * geometry.columns;
+  const std::array<std::pair<std::string_view, std::uint64_t>, 5> expected = {{
+      {"k3_payload_pool", coefficients * 3U / 8U * 64U},
+      {"k4_payload_pool", coefficients * 4U / 8U * 64U},
+      {"descriptor", kTrellis35ExpertCount * 8U},
+      {"suh", kTrellis35ExpertCount * geometry.suh_elements * 2U},
+      {"svh", kTrellis35ExpertCount * geometry.svh_elements * 2U},
+  }};
+  std::array<Trellis35Region*, 5> destinations = {
+      &plan->k3_payload_pool, &plan->k4_payload_pool, &plan->descriptor,
+      &plan->suh, &plan->svh};
+  for (std::size_t index = 0U; index < expected.size(); ++index) {
+    *cursor = Align(*cursor);
+    auto region = ParseRegion(*regions, expected[index].first, *cursor,
+                              expected[index].second);
+    if (!region.ok()) return region.status();
+    *destinations[index] = region.value();
+    *cursor += region.value().bytes;
+  }
+  return Status::Ok();
+}
+
+Status ParseDeviceImageNonRouted(
+    const json::Value& compilation,
+    Gemma4Moe26BTrellis35CheckpointPlan* plan) {
+  const auto* tensors = Field(compilation, "non_routed_tensors");
+  if (plan == nullptr || tensors == nullptr || !tensors->is_array() ||
+      tensors->as_array().size() != 1045U) {
+    return Status(StatusCode::kDataLoss,
+                  "Trellis35 v2 non-routed tensor table is invalid");
+  }
+  std::uint64_t cursor = 0U;
+  std::string previous_name;
+  for (const auto& tensor : tensors->as_array()) {
+    if (!ExactKeys(tensor,
+                   {"bytes", "logical_shape", "name", "offset",
+                    "physical_shape", "runtime_layout", "storage_dtype"})) {
+      return Status(StatusCode::kDataLoss,
+                    "Trellis35 v2 non-routed tensor schema is invalid");
+    }
+    const auto* name = Field(tensor, "name");
+    const auto* storage_dtype = Field(tensor, "storage_dtype");
+    const auto* runtime_layout = Field(tensor, "runtime_layout");
+    auto logical_shape =
+        BoundedShape(Field(tensor, "logical_shape"), "logical shape");
+    auto physical_shape =
+        BoundedShape(Field(tensor, "physical_shape"), "physical shape");
+    auto offset = Unsigned(Field(tensor, "offset"), "v2 tensor offset");
+    auto bytes = Unsigned(Field(tensor, "bytes"), "v2 tensor bytes");
+    if (name == nullptr || !name->is_string() || name->as_string().empty() ||
+        (!previous_name.empty() && name->as_string() <= previous_name) ||
+        storage_dtype == nullptr || !storage_dtype->is_string() ||
+        runtime_layout == nullptr || !runtime_layout->is_string() ||
+        !logical_shape.ok() || !physical_shape.ok() ||
+        !offset.ok() || offset.value() != Align(cursor) || !bytes.ok() ||
+        bytes.value() == 0U || offset.value() > kTrellis35NonRoutedBytes ||
+        bytes.value() > kTrellis35NonRoutedBytes - offset.value() ||
+        !plan->non_routed_tensors
+             .emplace(name->as_string(),
+                      Trellis35NonRoutedTensor{offset.value(), bytes.value()})
+             .second) {
+      return Status(StatusCode::kDataLoss,
+                    "Trellis35 v2 non-routed tensor identity is invalid");
+    }
+    Status layout = ValidateDeviceImageTensorLayout(
+        storage_dtype->as_string(), runtime_layout->as_string(),
+        logical_shape.value(), physical_shape.value(), bytes.value());
+    if (!layout.ok()) return layout;
+    previous_name = name->as_string();
+    cursor = offset.value() + bytes.value();
+  }
+  if (Align(cursor) != kTrellis35NonRoutedBytes) {
+    return Status(StatusCode::kDataLoss,
+                  "Trellis35 v2 non-routed tensor extent is incomplete");
+  }
+  return Status::Ok();
+}
+
+Result<Trellis35LayerPlan> ParseDeviceImageLayer(
+    const json::Value& value, std::uint32_t expected_layer,
+    const std::filesystem::path& image) {
+  if (!ExactKeys(value, {"arena_offset", "down", "gate_up", "layer"})) {
+    return Status(StatusCode::kDataLoss,
+                  "Trellis35 v2 layer schema is invalid");
+  }
+  auto layer = Unsigned(Field(value, "layer"), "v2 layer");
+  auto arena_offset =
+      Unsigned(Field(value, "arena_offset"), "v2 layer arena offset");
+  const std::uint64_t expected_offset =
+      kTrellis35NonRoutedBytes +
+      static_cast<std::uint64_t>(expected_layer) *
+          kTrellis35LayerArtifactBytes;
+  if (!layer.ok() || layer.value() != expected_layer || !arena_offset.ok() ||
+      arena_offset.value() != expected_offset) {
+    return Status(StatusCode::kDataLoss,
+                  "Trellis35 v2 layer ordering is invalid");
+  }
+  Trellis35LayerPlan result;
+  result.layer = expected_layer;
+  result.arena_offset = expected_offset;
+  result.artifact = {image, kTrellis35LayerArtifactBytes, {}};
+  std::uint64_t cursor = 0U;
+  const auto* gate_up = Field(value, "gate_up");
+  const auto* down = Field(value, "down");
+  if (gate_up == nullptr || down == nullptr) {
+    return Status(StatusCode::kDataLoss,
+                  "Trellis35 v2 layer family is missing");
+  }
+  Status status =
+      ParseDeviceImageFamily(*gate_up, true, &result.gate_up, &cursor);
+  if (!status.ok()) return status;
+  status = ParseDeviceImageFamily(*down, false, &result.down, &cursor);
+  if (!status.ok()) return status;
+  if (Align(cursor) != kTrellis35LayerArtifactBytes) {
+    return Status(StatusCode::kDataLoss,
+                  "Trellis35 v2 layer extent is incomplete");
+  }
+  return result;
+}
+
+Result<std::filesystem::path> NamedSafeFile(
+    const std::filesystem::path& root, std::string_view name,
+    std::string_view description) {
+  const json::Value value{std::string(name)};
+  return SafeFile(root, &value, description);
+}
+
+Status RejectMixedDeviceImageLayout(const std::filesystem::path& root) {
+  for (const std::string_view name :
+       {"trellis35-checkpoint.json", "trellis35-experts.json",
+        "non-routed.gem16", "non-routed.json"}) {
+    std::error_code error;
+    const auto status =
+        std::filesystem::symlink_status(root / name, error);
+    if (!error &&
+        status.type() != std::filesystem::file_type::not_found) {
+      return Status(StatusCode::kDataLoss,
+                    "mixed Trellis35 v1/v2 checkpoint is forbidden");
+    }
+  }
+  for (std::uint32_t layer = 0U; layer < kTrellis35LayerCount; ++layer) {
+    std::array<char, 9> name{};
+    std::snprintf(name.data(), name.size(), "layer-%02u", layer);
+    std::error_code error;
+    const auto status =
+        std::filesystem::symlink_status(root / name.data(), error);
+    if (!error &&
+        status.type() != std::filesystem::file_type::not_found) {
+      return Status(StatusCode::kDataLoss,
+                    "mixed Trellis35 v1/v2 layer directory is forbidden");
+    }
+  }
+  return Status::Ok();
+}
+
 }  // namespace
 
 Status ValidateGemma4Moe26BTrellis35LayerPayload(
@@ -953,6 +1204,250 @@ LoadGemma4Moe26BTrellis35CheckpointPlan(
   if (!non_routed_status.ok()) return non_routed_status;
   for (std::uint32_t layer = 0; layer < kTrellis35LayerCount; ++layer) {
     auto parsed = ParseLayer(root, layers->as_array()[layer], layer);
+    if (!parsed.ok()) return parsed.status();
+    plan.layers[layer] = std::move(parsed).value();
+  }
+  return plan;
+}
+
+Result<Gemma4Moe26BTrellis35CheckpointPlan>
+LoadGemma4Moe26BTrellis35DeviceImagePlan(
+    const std::filesystem::path& checkpoint_root) {
+  std::error_code error;
+  const auto root_status =
+      std::filesystem::symlink_status(checkpoint_root, error);
+  if (error || std::filesystem::is_symlink(root_status) ||
+      !std::filesystem::is_directory(root_status)) {
+    return Status(StatusCode::kDataLoss,
+                  "Trellis35 v2 root must be a real directory");
+  }
+  const auto root = std::filesystem::canonical(checkpoint_root, error);
+  if (error) {
+    return Status(StatusCode::kIoError,
+                  "cannot resolve Trellis35 v2 root");
+  }
+  Status mixed = RejectMixedDeviceImageLayout(root);
+  if (!mixed.ok()) return mixed;
+  auto model_path =
+      NamedSafeFile(root, "gem16_model.json", "v2 model metadata");
+  auto compilation_path = NamedSafeFile(
+      root, "gem16_compilation.json", "v2 compilation metadata");
+  auto lock_path = NamedSafeFile(root, "gem16.lock.json", "v2 lock");
+  if (!model_path.ok()) return model_path.status();
+  if (!compilation_path.ok()) return compilation_path.status();
+  if (!lock_path.ok()) return lock_path.status();
+  auto model = LoadJson(model_path.value());
+  auto compilation = LoadJson(compilation_path.value());
+  auto lock = LoadJson(lock_path.value());
+  if (!model.ok()) return model.status();
+  if (!compilation.ok()) return compilation.status();
+  if (!lock.ok()) return lock.status();
+  auto model_content =
+      DocumentContentSha256(model.value(), "model_content_sha256");
+  auto compilation_content = DocumentContentSha256(
+      compilation.value(), "compilation_content_sha256");
+  auto lock_content =
+      DocumentContentSha256(lock.value(), "artifact_content_sha256");
+  if (!model_content.ok() || !compilation_content.ok() ||
+      !lock_content.ok() ||
+      !StringIs(Field(model.value(), "model_content_sha256"),
+                model_content.ok() ? model_content.value() : "") ||
+      !StringIs(Field(compilation.value(), "compilation_content_sha256"),
+                compilation_content.ok() ? compilation_content.value() : "") ||
+      !StringIs(Field(lock.value(), "artifact_content_sha256"),
+                lock_content.ok() ? lock_content.value() : "")) {
+    return Status(StatusCode::kDataLoss,
+                  "Trellis35 v2 metadata content hash mismatch");
+  }
+  constexpr std::string_view kPayloadPolicy =
+      "verified_at_build_download_install_not_runtime_load";
+  if (!ExactKeys(
+          model.value(),
+          {"arena", "artifact_profile", "format", "format_version",
+           "model_bytes", "model_content_sha256", "model_file",
+           "model_sha256", "qualification_state",
+           "runtime_payload_sha256_policy", "runtime_supported",
+           "schema_version", "source_checkpoint_content_sha256",
+           "source_lock_sha256"}) ||
+      !ExactKeys(
+          compilation.value(),
+          {"arena_bytes", "artifact_profile",
+           "compilation_content_sha256", "format", "format_version",
+           "layer_bytes", "layer_count", "layers", "non_routed_bytes",
+           "non_routed_tensors", "schema_version",
+           "source_checkpoint_content_sha256"}) ||
+      !ExactKeys(lock.value(),
+                 {"artifact_content_sha256", "artifact_profile", "files",
+                  "format", "format_version",
+                  "runtime_payload_sha256_policy", "schema_version",
+                  "source_checkpoint_content_sha256",
+                  "source_lock_sha256"})) {
+    return Status(StatusCode::kDataLoss,
+                  "Trellis35 v2 metadata schema is invalid");
+  }
+  const auto* source_identity =
+      Field(model.value(), "source_checkpoint_content_sha256");
+  if (!StringIs(Field(model.value(), "format"),
+                kGemma4Moe26BTrellis35DeviceImageFormat) ||
+      !StringIs(Field(compilation.value(), "format"),
+                kGemma4Moe26BTrellis35DeviceImageFormat) ||
+      !StringIs(Field(lock.value(), "format"),
+                kGemma4Moe26BTrellis35DeviceImageFormat) ||
+      !StringIs(Field(model.value(), "artifact_profile"),
+                kGemma4Moe26BTrellis35Profile) ||
+      !StringIs(Field(compilation.value(), "artifact_profile"),
+                kGemma4Moe26BTrellis35Profile) ||
+      !StringIs(Field(lock.value(), "artifact_profile"),
+                kGemma4Moe26BTrellis35Profile) ||
+      !StringIs(Field(model.value(), "source_lock_sha256"),
+                kGemma4Moe26BTrellis35SourceLock) ||
+      !StringIs(Field(lock.value(), "source_lock_sha256"),
+                kGemma4Moe26BTrellis35SourceLock) ||
+      !StringIs(Field(model.value(), "qualification_state"),
+                "production_candidate") ||
+      !StringIs(Field(model.value(), "runtime_payload_sha256_policy"),
+                kPayloadPolicy) ||
+      !StringIs(Field(lock.value(), "runtime_payload_sha256_policy"),
+                kPayloadPolicy) ||
+      !BoolIs(Field(model.value(), "runtime_supported"), true) ||
+      !IsSha256(source_identity) ||
+      !StringIs(Field(compilation.value(),
+                      "source_checkpoint_content_sha256"),
+                source_identity->as_string()) ||
+      !StringIs(Field(lock.value(), "source_checkpoint_content_sha256"),
+                source_identity->as_string()) ||
+      !IsSha256(Field(model.value(), "model_sha256")) ||
+      !StringIs(Field(model.value(), "model_file"), "model.gem16")) {
+    return Status(StatusCode::kDataLoss,
+                  "Trellis35 v2 component identity is invalid");
+  }
+  for (const json::Value* document :
+       {&model.value(), &compilation.value(), &lock.value()}) {
+    auto schema = Unsigned(Field(*document, "schema_version"), "v2 schema");
+    auto version = Unsigned(Field(*document, "format_version"), "v2 format");
+    if (!schema.ok() || schema.value() != 1U || !version.ok() ||
+        version.value() != 2U) {
+      return Status(StatusCode::kDataLoss,
+                    "Trellis35 v2 schema version is invalid");
+    }
+  }
+  for (const auto& [name, expected] :
+       std::array<std::pair<std::string_view, std::uint64_t>, 5>{
+           {{"arena_bytes", kTrellis35CheckpointBytes},
+            {"non_routed_bytes", kTrellis35NonRoutedBytes},
+            {"layer_count", kTrellis35LayerCount},
+            {"layer_bytes", kTrellis35LayerArtifactBytes},
+            {"model_bytes", kTrellis35CheckpointBytes}}}) {
+    const json::Value& document =
+        name == "model_bytes" ? model.value() : compilation.value();
+    auto value = Unsigned(Field(document, name), name);
+    if (!value.ok() || value.value() != expected) {
+      return Status(StatusCode::kDataLoss,
+                    "Trellis35 v2 fixed extent is invalid: " +
+                        std::string(name));
+    }
+  }
+  const auto* arena = Field(model.value(), "arena");
+  if (arena == nullptr ||
+      !ExactKeys(*arena,
+                 {"alignment_bytes", "layer_base_offset", "layer_count",
+                  "layer_stride_bytes", "non_routed_bytes",
+                  "non_routed_offset", "total_bytes"})) {
+    return Status(StatusCode::kDataLoss,
+                  "Trellis35 v2 arena schema is invalid");
+  }
+  for (const auto& [name, expected] :
+       std::array<std::pair<std::string_view, std::uint64_t>, 7>{
+           {{"alignment_bytes", kTrellis35Alignment},
+            {"layer_base_offset", kTrellis35NonRoutedBytes},
+            {"layer_count", kTrellis35LayerCount},
+            {"layer_stride_bytes", kTrellis35LayerArtifactBytes},
+            {"non_routed_bytes", kTrellis35NonRoutedBytes},
+            {"non_routed_offset", 0U},
+            {"total_bytes", kTrellis35CheckpointBytes}}}) {
+    auto value = Unsigned(Field(*arena, name), name);
+    if (!value.ok() || value.value() != expected) {
+      return Status(StatusCode::kDataLoss,
+                    "Trellis35 v2 arena extent is invalid: " +
+                        std::string(name));
+    }
+  }
+  auto image =
+      NamedSafeFile(root, "model.gem16", "Trellis35 v2 model payload");
+  if (!image.ok()) return image.status();
+  Status image_extent =
+      ValidateFileExtent(image.value(), kTrellis35CheckpointBytes);
+  if (!image_extent.ok()) return image_extent;
+
+  const auto* files = Field(lock.value(), "files");
+  if (files == nullptr || !files->is_array() ||
+      files->as_array().size() != 3U) {
+    return Status(StatusCode::kDataLoss,
+                  "Trellis35 v2 lock file table is invalid");
+  }
+  std::map<std::string, std::pair<std::uint64_t, std::string>, std::less<>>
+      locked_files;
+  for (const auto& file : files->as_array()) {
+    if (!ExactKeys(file, {"path", "sha256", "size"}) ||
+        !IsSha256(Field(file, "sha256"))) {
+      return Status(StatusCode::kDataLoss,
+                    "Trellis35 v2 lock record is invalid");
+    }
+    const auto* path = Field(file, "path");
+    auto size = Unsigned(Field(file, "size"), "v2 locked file size");
+    if (path == nullptr || !path->is_string() || !size.ok() ||
+        !locked_files
+             .emplace(path->as_string(),
+                      std::make_pair(size.value(),
+                                     Field(file, "sha256")->as_string()))
+             .second) {
+      return Status(StatusCode::kDataLoss,
+                    "Trellis35 v2 lock file identity is invalid");
+    }
+  }
+  const auto locked_model = locked_files.find("model.gem16");
+  const auto locked_model_metadata = locked_files.find("gem16_model.json");
+  const auto locked_compilation =
+      locked_files.find("gem16_compilation.json");
+  auto model_metadata_sha = Sha256File(model_path.value());
+  auto compilation_sha = Sha256File(compilation_path.value());
+  if (locked_model == locked_files.end() ||
+      locked_model_metadata == locked_files.end() ||
+      locked_compilation == locked_files.end() ||
+      locked_model->second.first != kTrellis35CheckpointBytes ||
+      locked_model->second.second !=
+          Field(model.value(), "model_sha256")->as_string() ||
+      locked_model_metadata->second.first !=
+          std::filesystem::file_size(model_path.value(), error) || error ||
+      !model_metadata_sha.ok() ||
+      model_metadata_sha.value() != locked_model_metadata->second.second ||
+      locked_compilation->second.first !=
+          std::filesystem::file_size(compilation_path.value(), error) ||
+      error || !compilation_sha.ok() ||
+      compilation_sha.value() != locked_compilation->second.second) {
+    return Status(StatusCode::kDataLoss,
+                  "Trellis35 v2 lock metadata mismatch");
+  }
+
+  Gemma4Moe26BTrellis35CheckpointPlan plan;
+  plan.checkpoint_root = root;
+  plan.checkpoint_content_sha256 = source_identity->as_string();
+  plan.non_routed =
+      {image.value(), kTrellis35CheckpointBytes,
+       Field(model.value(), "model_sha256")->as_string()};
+  plan.arena_bytes = kTrellis35CheckpointBytes;
+  plan.nvfp4_routed_expert_bytes = 0U;
+  Status non_routed = ParseDeviceImageNonRouted(compilation.value(), &plan);
+  if (!non_routed.ok()) return non_routed;
+  const auto* layers = Field(compilation.value(), "layers");
+  if (layers == nullptr || !layers->is_array() ||
+      layers->as_array().size() != kTrellis35LayerCount) {
+    return Status(StatusCode::kDataLoss,
+                  "Trellis35 v2 layer table is invalid");
+  }
+  for (std::uint32_t layer = 0U; layer < kTrellis35LayerCount; ++layer) {
+    auto parsed =
+        ParseDeviceImageLayer(layers->as_array()[layer], layer, image.value());
     if (!parsed.ok()) return parsed.status();
     plan.layers[layer] = std::move(parsed).value();
   }

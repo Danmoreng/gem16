@@ -67,6 +67,17 @@ Read it only for a concrete historical or evidence question.
    `production_candidate`, reports `experimental=true`, and creates no new
    product claim. The qualified 12B and 26B NVFP4 profiles, their artifacts,
    capabilities and rollback evidence remain unchanged and equally protected.
+9. **Trellis35 device-image integrity is split between acquisition and
+   runtime.** The owner's 2026-09-02 direction for FMT01 supersedes any future
+   requirement to recompute the 12.2 GB `model.gem16` SHA-256 while loading the
+   model. The offline packager fully verifies the immutable v1 inputs and the
+   resulting v2 payload; download/install verification checks the published
+   payload hash. Runtime startup hashes only the small self-describing metadata
+   and lock files, validates the exact payload size, fixed arena layout, tensor
+   table, layer regions, rate maps and uploaded expert descriptors, then
+   uploads the payload directly. It neither hashes nor repacks model weights.
+   Same-size payload corruption is therefore an acquisition/install failure,
+   not a second full-file runtime check.
 
 ## Current qualified model facts
 
