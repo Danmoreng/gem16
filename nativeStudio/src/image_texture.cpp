@@ -76,9 +76,15 @@ void ImageTexture::InitializeRenderer(void* device) {
 }
 
 bool ImageTexture::Load(const std::uint8_t* encoded, std::size_t size) {
+  return LoadRgba(DecodePreviewImage(encoded, size));
+}
+
+bool ImageTexture::LoadRgba(const DecodedImage& decoded) {
   Reset();
-  DecodedImage decoded = DecodePreviewImage(encoded, size);
-  if (decoded.rgba.empty()) return false;
+  if (decoded.width <= 0 || decoded.height <= 0 ||
+      decoded.width > kMaximumPreviewDimension || decoded.height > kMaximumPreviewDimension ||
+      static_cast<std::uint64_t>(decoded.width) * decoded.height > kMaximumPreviewPixels ||
+      decoded.rgba.size() != static_cast<std::size_t>(decoded.width) * decoded.height * 4) return false;
 #ifdef _WIN32
   if (g_device == nullptr) return false;
   D3D11_TEXTURE2D_DESC description{};

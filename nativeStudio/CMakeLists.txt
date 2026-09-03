@@ -22,6 +22,7 @@ set(IMGUI_DIR "${CMAKE_CURRENT_LIST_DIR}/third_party/imgui")
 
 find_package(Threads REQUIRED)
 include(cmake/markdown-dependencies.cmake)
+include(cmake/svg-dependencies.cmake)
 
 set(STUDIO_SOURCES
   src/app.cpp
@@ -34,6 +35,7 @@ set(STUDIO_SOURCES
   src/markdown.cpp
   src/markdown_parser.cpp
   src/math_renderer.cpp
+  src/svg_preview.cpp
   src/media_loader.cpp
   src/model_catalog.cpp
   src/model_manager.cpp
@@ -83,6 +85,7 @@ endif()
 
 add_executable(gem16-studio ${STUDIO_SOURCES})
 studio_markdown_dependencies(gem16-studio)
+studio_svg_dependencies(gem16-studio)
 target_include_directories(gem16-studio PRIVATE
   src
   "${GEM16_ROOT}/include"
@@ -138,6 +141,7 @@ if(BUILD_TESTING)
     src/markdown.cpp
     src/markdown_parser.cpp
     src/math_renderer.cpp
+    src/svg_preview.cpp
     src/media_loader.cpp
     src/model_catalog.cpp
     src/model_manager.cpp
@@ -163,6 +167,7 @@ if(BUILD_TESTING)
     "${IMGUI_DIR}"
   )
   studio_markdown_dependencies(gem16-studio-tests)
+  studio_svg_dependencies(gem16-studio-tests)
   target_compile_definitions(gem16-studio-tests PRIVATE
     IMGUI_USE_WCHAR32
     CPPHTTPLIB_TCP_NODELAY=1

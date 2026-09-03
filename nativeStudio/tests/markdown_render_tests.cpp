@@ -3,6 +3,7 @@
 #include "math_renderer.h"
 #include "platform_ui.h"
 #include "selectable_text.h"
+#include "svg_preview.h"
 #include "imgui.h"
 #include "imgui_internal.h"
 #include <algorithm>
@@ -10,6 +11,10 @@
 #include <cstdio>
 #include <fstream>
 #include <vector>
+#ifdef _WIN32
+#include <d3d11.h>
+#include <wrl/client.h>
+#endif
 
 namespace {
 bool Check(bool value, const char* name) {
@@ -23,7 +28,8 @@ void CaptureClipboard(ImGuiContext*, const char* text) { clipboard = text; }
 
 // Small deterministic software screenshot of the real ImGui draw output.
 // Test-only: samples the font atlas and blends the emitted triangles.
-void Screenshot(const char* path) {
+void Screenshot(const char* path, const gem16::studio::DecodedImage* svg = nullptr,
+                ImTextureID svg_id = ImTextureID_Invalid) {
   constexpr int w=900,h=1050;
   std::vector<unsigned char> image(w*h*4,20);
   unsigned char* atlas=nullptr;int aw=0,ah=0;
@@ -31,6 +37,9 @@ void Screenshot(const char* path) {
   auto cross=[](ImVec2 a,ImVec2 b,ImVec2 p) { return (b.x-a.x)*(p.y-a.y)-(b.y-a.y)*(p.x-a.x); };
   for (const auto* list : ImGui::GetDrawData()->CmdLists) for (const auto& cmd : list->CmdBuffer) {
     if(cmd.UserCallback)continue;
+    const bool is_svg = svg && cmd.GetTexID() == svg_id;
+    const auto* texture = is_svg ? svg->rgba.data() : atlas;
+    const int tw = is_svg ? svg->width : aw, th = is_svg ? svg->height : ah;
     for(unsigned i=0;i+2<cmd.ElemCount;i+=3) {
       const auto& a=list->VtxBuffer[cmd.VtxOffset+list->IdxBuffer[cmd.IdxOffset+i]];
       const auto& b=list->VtxBuffer[cmd.VtxOffset+list->IdxBuffer[cmd.IdxOffset+i+1]];
@@ -44,9 +53,9 @@ void Screenshot(const char* path) {
       for(int y=y0;y<y1;++y)for(int x=x0;x<x1;++x) {
         ImVec2 p(x+0.5f,y+0.5f);const float u=cross(b.pos,c.pos,p)/area,v=cross(c.pos,a.pos,p)/area,t=1-u-v;
         if(u<0||v<0||t<0)continue;
-        const int ax=std::clamp(static_cast<int>((a.uv.x*u+b.uv.x*v+c.uv.x*t)*aw),0,aw-1);
-        const int ay=std::clamp(static_cast<int>((a.uv.y*u+b.uv.y*v+c.uv.y*t)*ah),0,ah-1);
-        const auto* tex=atlas+(ay*aw+ax)*4;
+        const int ax=std::clamp(static_cast<int>((a.uv.x*u+b.uv.x*v+c.uv.x*t)*tw),0,tw-1);
+        const int ay=std::clamp(static_cast<int>((a.uv.y*u+b.uv.y*v+c.uv.y*t)*th),0,th-1);
+        const auto* tex=texture+(ay*tw+ax)*4;
         const float alpha=(ca.w*u+cb.w*v+cc.w*t)*tex[3]/255;
         const float colors[]={ca.z*u+cb.z*v+cc.z*t,ca.y*u+cb.y*v+cc.y*t,ca.x*u+cb.x*v+cc.x*t};
         for(int k=0;k<3;++k)image[(y*w+x)*4+k]=static_cast<unsigned char>(colors[k]*tex[2-k]*alpha+image[(y*w+x)*4+k]*(1-alpha));
@@ -66,6 +75,38 @@ bool TestExtendedMarkdown() {
   using namespace gem16::studio;
   using namespace gem16::studio::markdown;
   bool ok=true;
+  const std::string svg = R"SVG(<svg xmlns="http://www.w3.org/2000/svg" width="800" height="400" viewBox="0 0 800 400">
+    <rect width="800" height="400" rx="15" fill="#f8f9fa"/>
+    <text x="400" y="45" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#333">SVG diagrams in chat</text>
+    <defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#15805d"/></marker></defs>
+    <rect x="50" y="100" width="280" height="230" rx="10" fill="white" stroke="#d33" stroke-dasharray="5,5"/>
+    <rect x="470" y="100" width="280" height="230" rx="10" fill="#ddf5e9" stroke="#15805d"/>
+    <text x="190" y="145" text-anchor="middle" font-family="sans-serif" font-size="20">Separate items</text>
+    <text x="610" y="145" text-anchor="middle" font-family="sans-serif" font-size="20">Connected diagram</text>
+    <circle cx="150" cy="230" r="25" fill="#e88"/><circle cx="230" cy="260" r="25" fill="#e88"/>
+    <path d="M560 230 L650 270 L650 205 Z" fill="none" stroke="#15805d" stroke-width="3"/>
+    <circle cx="560" cy="230" r="15" fill="#15805d"/><circle cx="650" cy="270" r="15" fill="#15805d"/>
+    <path d="M350 210 L450 210" stroke="#15805d" stroke-width="3" marker-end="url(#arrow)"/>
+    </svg>)SVG";
+  ok &= Check(IsSvgCode("svg", "<svg") && IsSvgCode("xml", svg) && IsSvgCode("", svg) &&
+      !IsSvgCode("python", svg) && !IsSvgCode("xml", "<document/>"), "SVG fence detection");
+  const auto raster = RasterizeSvg(svg);
+  ok &= Check(raster.error.empty() && raster.image.width == 800 && raster.image.height == 400,
+      "SVG diagram with text and arrows renders");
+  const auto text_only = RasterizeSvg("<svg width='200' height='80'><text x='10' y='45' font-size='30'>Hello</text></svg>");
+  unsigned ink = 0;
+  for (std::size_t i = 3; i < text_only.image.rgba.size(); i += 4) ink += text_only.image.rgba[i] > 0;
+  ok &= Check(ink > 100, "SVG text emits visible pixels");
+  for (const auto& unsafe : {"<svg><script>alert(1)</script></svg>", "<svg onload='alert(1)'/>",
+      "<svg><image href='file:///secret'/></svg>", "<svg><use href='#x'/></svg>",
+      "<svg><style>@import 'https://example.com';</style></svg>",
+      "<svg><rect fill='url(https://example.com)'/></svg>",
+      "<!DOCTYPE svg SYSTEM 'file:///secret'><svg/>", "<svg><foreignObject/></svg>",
+      "<svg><defs><marker id='x'><path marker-end='url(#x)'/></marker></defs></svg>", "<svg><rect"})
+    ok &= Check(!RasterizeSvg(unsafe).error.empty(), "unsafe/incomplete SVG fails visibly");
+  ok &= Check(!RasterizeSvg(std::string(256*1024+1, 'x')).error.empty(), "SVG source size limit");
+  const auto bounded = RasterizeSvg("<svg width='8000' height='4000'><rect width='8000' height='4000'/></svg>");
+  ok &= Check(bounded.image.width == 1024 && bounded.image.height == 512, "SVG raster size is bounded");
   const auto nested=Parse("- Parent\n    - Child\n        - Deep\n- Sibling\n\n    real code\n");
   ok &= Check(nested.size()>=4&&nested[0].kind==BlockKind::kBulletItem&&nested[1].kind==BlockKind::kBulletItem&&nested[1].indent==1&&nested[2].indent==2,"nested lists");
   const auto styles=Parse("***both*** ~~***all***~~ and &amp; &#x1f60a; `**literal**`");
@@ -182,5 +223,49 @@ bool TestExtendedMarkdown() {
       ok &= Check(clipboard == "iiii WWWW", "code copy button remains clickable");
     }
   }
+#ifdef _WIN32
+  Microsoft::WRL::ComPtr<ID3D11Device> device;
+  ok &= Check(SUCCEEDED(D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_WARP, nullptr, 0, nullptr, 0,
+      D3D11_SDK_VERSION, &device, nullptr, nullptr)), "SVG software D3D device");
+  if (device) {
+    ImageTexture::InitializeRenderer(device.Get());
+    SvgPreviewCache cache;
+    ImGuiWindow* child = nullptr;
+    auto svg_frame = [&] {
+      ImGui::NewFrame(); ImGui::SetNextWindowPos({0,0}); ImGui::SetNextWindowSize({900,1050});
+      ImGui::Begin("SVG preview", nullptr, ImGuiWindowFlags_NoDecoration);
+      Render("svg", "```xml\n" + svg + "\n```", 850, &cache);
+      for (auto* window : GImGui->Windows)
+        if (window->ParentWindow == ImGui::GetCurrentWindow() && window->Active) child = window;
+      ImGui::End(); ImGui::Render();
+    };
+    svg_frame(); svg_frame();
+    auto* entry = cache.Get(svg);
+    ok &= Check(entry && entry->texture.Valid(), "SVG uploads through real preview texture path");
+    if (entry && entry->texture.Valid()) Screenshot("svg-preview.bmp", &raster.image, entry->texture.Id());
+    const auto mode = child ? ImHashStr("##svg-code-view", 0, child->IDStack.back()) : 0;
+    ok &= Check(child && !child->StateStorage.GetBool(mode), "SVG defaults to preview");
+    if (child) {
+      // The toggle is the first control under the header separator.
+      io.AddMousePosEvent(child->Pos.x + child->WindowPadding.x + 15,
+          child->Pos.y + child->WindowPadding.y + 29);
+      io.AddMouseButtonEvent(0,true);svg_frame();io.AddMouseButtonEvent(0,false);svg_frame();
+      ok &= Check(child->StateStorage.GetBool(mode), "SVG toggle opens code view");
+      io.AddMouseButtonEvent(0,true);svg_frame();io.AddMouseButtonEvent(0,false);svg_frame();
+      ok &= Check(!child->StateStorage.GetBool(mode), "SVG toggle restores preview");
+      clipboard.clear();
+      io.AddMousePosEvent(child->InnerRect.Max.x-child->WindowPadding.x-15,
+          child->InnerRect.Min.y+child->WindowPadding.y+7);
+      io.AddMouseButtonEvent(0,true);svg_frame();io.AddMouseButtonEvent(0,false);svg_frame();
+      ok &= Check(clipboard == svg, "copy in SVG preview retains exact source");
+    }
+    auto* reused = cache.Get(svg);
+    ok &= Check(reused == entry, "unchanged SVG reuses texture");
+    for (int i=0; i<7; ++i)
+      ok &= Check(cache.Get(svg + "<!--" + std::to_string(i) + "-->") != nullptr, "bounded SVG cache fill");
+    ok &= Check(cache.Get(svg + "<!--overflow-->") == nullptr, "SVG cache protects current-frame textures");
+    cache.Clear(); ImageTexture::InitializeRenderer(nullptr);
+  }
+#endif
   ImGui::DestroyContext();return ok;
 }

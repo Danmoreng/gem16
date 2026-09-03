@@ -3,6 +3,7 @@
 #include "api_client.h"
 #include "audio_recorder.h"
 #include "image_texture.h"
+#include "svg_preview.h"
 #include "model_manager.h"
 #include "server_manager.h"
 #include "types.h"
@@ -61,6 +62,7 @@ class StudioApp final {
   std::vector<ChatMessage> messages_;
   std::vector<MediaAttachment> pending_attachments_;
   ImageTexture logo_texture_;
+  SvgPreviewCache svg_previews_;
   std::unordered_map<std::uint64_t, std::unique_ptr<ImageTexture>>
       attachment_textures_;
   std::string attachment_error_;

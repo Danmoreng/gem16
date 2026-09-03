@@ -46,6 +46,17 @@ license remains beside the vendored source.
   DejaVu Sans Mono/Liberation Mono on Linux, embedded ProggyClean if unavailable). Wrapping and selection use the
   same font metrics as drawing. Code glyphs are optically reduced to 80% at rasterization to match body-text height;
   the normal DPI scaling still applies once. Code-header copy actions account for actual padding, label width and DPI.
+- SVG code blocks default to an in-chat graphic with a `Code` / `Preview` toggle and unchanged source `Copy`.
+  `svg` fences and SVG-root content in `xml`, `html` or unlabeled fences are recognized. The native LunaSVG renderer
+  supports static shapes, text, paths, gradients, clipping and markers. Preview uses a white backing for legibility.
+  Incomplete/invalid/unsupported XML stays visible as code with a reason, and updates as streaming completes.
+  Scripts, events, external links, images, `foreignObject`, `use`, masks, patterns and filters are outside this
+  initial bounded subset. DTDs, CSS imports/escapes and recursive resource references are rejected before rendering.
+  Limits: 256 KiB source, 2,048 XML nodes, 32 levels, 16 KiB per attribute, declared dimensions <=16,384,
+  raster dimensions <=1,024 per edge. An app-owned eight-entry cache retains at most 32 MiB of GPU preview pixels
+  plus at most 2 MiB of source; one <=4 MiB CPU output raster and bounded renderer scratch are transient.
+  Cache eviction never releases textures used in the current frame; app destruction releases the cache before
+  graphics shutdown. No model/server behavior is changed. Fonts are resolved from the local system.
 - CommonMark/GFM parsing uses pinned md4c: nested lists, task checkboxes, strikethrough,
   combined bold/italic/strike spans, entity decoding and aligned tables are supported.
   Web links show their destination and open on click (dragging still selects); only
@@ -142,6 +153,8 @@ URLs and formulas, and actual MicroTeX layout/drawing. The test also produces
 `markdown-preview.bmp` from real ImGui draw data for visual review without a server.
 Regressions include multiline matrix multiplication through the full Markdown parser, literal formulas in code,
 equal-width code glyphs and code-copy bounds/clicks at 100/125/150% scaling in narrow and wide blocks.
+SVG tests cover text pixels, shapes/markers, raster bounds, unsafe/incomplete inputs and fence detection.
+Windows additionally exercises real D3D11 WARP texture upload and both toggle directions, producing `svg-preview.bmp`.
 
 ## Packaging
 

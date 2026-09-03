@@ -3,6 +3,7 @@
 #include "math_renderer.h"
 #include "platform_ui.h"
 #include "fonts.h"
+#include "svg_preview.h"
 #include <algorithm>
 
 namespace gem16::studio::markdown {
@@ -59,7 +60,7 @@ void DrawInline(const char* id, const Block& block, float width,
 
 }  // namespace
 
-void Render(const char* id, const std::string& source, float width) {
+void Render(const char* id, const std::string& source, float width, SvgPreviewCache* svg_cache) {
   const std::vector<Block> blocks = Parse(source);
   std::string selection_text;
   std::vector<std::size_t> selection_offsets(blocks.size(), 0U);
@@ -125,18 +126,48 @@ void Render(const char* id, const std::string& source, float width) {
         if (ImGui::SmallButton("Copy##code"))
           ImGui::SetClipboardText(block.text.c_str());
         ImGui::Separator();
-        ImGui::PushFont(StudioCodeFont(), 0.0f);
-        selectable_text::Wrapped(
-            "##code-text", block.text,
-            {.width = ImGui::GetContentRegionAvail().x,
-             .text_color = ImGui::ColorConvertFloat4ToU32(
-                 {0.82f, 0.89f, 0.86f, 1.0f}),
-             .selection_color = IM_COL32(38, 144, 102, 205),
-             .line_spacing = 4.0f,
-             .selection_group = selection_group,
-             .selection_text = selection_text,
-             .selection_offset = selection_offsets[index]});
-        ImGui::PopFont();
+        bool draw_code = true;
+        if (svg_cache && IsSvgCode(block.info, block.text)) {
+          const ImGuiID mode_id = ImGui::GetID("##svg-code-view");
+          bool code_view = ImGui::GetStateStorage()->GetBool(mode_id, false);
+          if (ImGui::SmallButton(code_view ? "Preview##svg-toggle" : "Code##svg-toggle")) {
+            code_view = !code_view;
+            ImGui::GetStateStorage()->SetBool(mode_id, code_view);
+          }
+          ImGui::SameLine();
+          ImGui::TextDisabled("SVG %s", code_view ? "source" : "preview");
+          if (!code_view) {
+            auto* preview = svg_cache->Get(block.text);
+            if (preview && preview->texture.Valid()) {
+              const float w = static_cast<float>(preview->texture.Width());
+              const float h = static_cast<float>(preview->texture.Height());
+              const float fit = std::min({1.0f, ImGui::GetContentRegionAvail().x / w, 480 * scale / h});
+              const auto origin = ImGui::GetCursorScreenPos();
+              ImGui::GetWindowDrawList()->AddRectFilled(origin, {origin.x + w*fit, origin.y + h*fit}, IM_COL32_WHITE);
+              ImGui::Image(ImTextureRef(preview->texture.Id()), {w*fit, h*fit});
+              draw_code = false;
+            } else {
+              ImGui::PushTextWrapPos();
+              ImGui::TextColored({0.95f,0.73f,0.35f,1}, "%s", preview ? preview->error.c_str() :
+                  "SVG preview limit reached (256 KiB per SVG, eight cached previews).");
+              ImGui::PopTextWrapPos();
+            }
+          }
+        }
+        if (draw_code) {
+          ImGui::PushFont(StudioCodeFont(), 0.0f);
+          selectable_text::Wrapped(
+              "##code-text", block.text,
+              {.width = ImGui::GetContentRegionAvail().x,
+               .text_color = ImGui::ColorConvertFloat4ToU32(
+                   {0.82f, 0.89f, 0.86f, 1.0f}),
+               .selection_color = IM_COL32(38, 144, 102, 205),
+               .line_spacing = 4.0f,
+               .selection_group = selection_group,
+               .selection_text = selection_text,
+               .selection_offset = selection_offsets[index]});
+          ImGui::PopFont();
+        }
         ImGui::EndChild();
         ImGui::PopStyleColor(2);
         break;

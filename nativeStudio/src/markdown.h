@@ -5,6 +5,8 @@
 #include <string_view>
 #include <vector>
 
+namespace gem16::studio { class SvgPreviewCache; }
+
 namespace gem16::studio::markdown {
 
 enum class BlockKind {
@@ -51,6 +53,6 @@ struct Block {
 // md4c CommonMark/GFM parsing with native selectable blocks, nested lists,
 // tables, tasks, combined inline styles, safe web links, and bounded MicroTeX
 // math. HTML and remote image loading are deliberately disabled.
-void Render(const char* id, const std::string& source, float width);
+void Render(const char* id, const std::string& source, float width, SvgPreviewCache* svg_cache = nullptr);
 
 }  // namespace gem16::studio::markdown

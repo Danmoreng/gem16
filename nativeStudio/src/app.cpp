@@ -1250,7 +1250,7 @@ void StudioApp::DrawMessage(const ChatMessage& message, std::size_t index) {
   } else {
     ImGui::Spacing();
     markdown::Render((std::string("content##") + std::to_string(index)).c_str(),
-                     message.content, ImGui::GetContentRegionAvail().x);
+                     message.content, ImGui::GetContentRegionAvail().x, &svg_previews_);
   }
   ImGui::EndChild();
   const ImVec2 bubble_min = ImGui::GetItemRectMin();

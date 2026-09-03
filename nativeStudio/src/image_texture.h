@@ -35,6 +35,7 @@ class ImageTexture final {
 
   static void InitializeRenderer(void* device);
   [[nodiscard]] bool Load(const std::uint8_t* encoded, std::size_t size);
+  [[nodiscard]] bool LoadRgba(const DecodedImage& decoded);
   [[nodiscard]] bool Valid() const { return texture_id_ != ImTextureID_Invalid; }
   [[nodiscard]] ImTextureID Id() const { return texture_id_; }
   [[nodiscard]] int Width() const { return width_; }

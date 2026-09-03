@@ -88,3 +88,18 @@ HF-to-GGUF converter. The upstream baseline build remains unmodified. A separate
 is applied only to an ignored worktree by `prepare-patched-source.sh`; its purpose, exact mapping, and SHA-256 are
 recorded under `benchmarks/baselines/llama_cpp/`. Update the commit or patch only with fresh conversion,
 correctness, instruction-path, residency, and benchmark evidence.
+# Native Studio SVG preview
+
+LunaSVG 3.5.0 is fetched from https://github.com/sammycage/lunasvg at immutable commit
+`83c58df8103dc7dca423dfd824992af94d49bed6` (MIT). Its vendored PlutoVG 1.3.1 tree is
+`6f46696db1da131749d7f97d9c19d697ff8aeb6b` (MIT, with embedded stb MIT/public-domain components and
+FreeType-derived raster/stroker files under FTL). Native Studio uses it only to rasterize prevalidated, bounded,
+in-memory static SVG chat code; no browser, scripting engine, remote image loader, or SVG file loader is used.
+System font lookup supports diagram labels. Upstream sources are unchanged.
+
+`nativeStudio/cmake/svg-dependencies.cmake` pins/builds the dependencies and copies MIT/FTL licenses and
+mechanically extracted embedded stb notices beside Studio; the existing packaging scripts copy those notices.
+Portions of this software are copyright (C) 1996-2014 The FreeType Project (www.freetype.org).
+All rights reserved. See the retained per-source copyright dates in the pinned PlutoVG source and FTL notice.
+To update, review both dependency trees and licenses, change the immutable pin, rerun the host SVG validation,
+pixel, bounds and toggle tests, and visually inspect `svg-preview.bmp` on both platforms before promotion.
