@@ -1,5 +1,36 @@
 # Third-party dependencies
 
+## Native Studio Markdown and mathematics
+
+Studio (not the CUDA runtime) fetches the following static dependencies from
+immutable commits in `nativeStudio/cmake/markdown-dependencies.cmake`:
+
+- `mity/md4c` `729e6b8b320caa96328968ab27d7db2235e4fb47` (release-0.5.2), MIT:
+  CommonMark/GFM parsing and the upstream HTML entity lookup table.
+- `NanoMichael/MicroTeX` `0e3707f6dafebb121d98b53c64364d16fefe481d`, MIT:
+  native formula layout, with an ImGui-specific graphics adapter. CMake creates
+  a derived `latex.cpp` fixing upstream's Linux `asprintf`/`delete` mismatch;
+  the fetched source is retained unchanged.
+- `leethomason/tinyxml2` `1dee28e51f9175a31955b9791c74c430fe13dc82` (9.0.0),
+  zlib: MicroTeX's bundled resource metadata reader.
+
+Dependency selection and the formula builder/graphics-adapter approach were
+inspected in local `simple-markdown-viewer` at
+`1c018b0b3994322bc8af59603808577bf8e8e068` (MIT, Simple Markdown Viewer
+contributors). Its Skia renderer is not linked or copied. Studio uses new
+md4c callbacks and a new ImGui drawing implementation.
+
+The original dependency licenses are copied beside the binary in `licenses/`.
+Unmodified MicroTeX resources are copied into `math-res/`, retaining all font
+licenses, including `fonts/licences/{OFL,Knuth_License,License_for_dsrom}.txt`
+and the Greek/Cyrillic notices. Fonts are not renamed or modified. Packaging
+scripts and CMake install rules include both directories. No browser engine,
+JavaScript runtime, TeX executable, or runtime network fetching is required.
+
+Updates require explicit pin changes, license/resource review, both platform
+builds, parser/host tests, hostile-input and streaming tests, and inspection
+of the generated Markdown/formula rendering preview.
+
 The CUDA runtime uses NVIDIA CUTLASS v4.5.2 at commit
 `db1c288993354c88e551c40c19a8fb93a774a241`, pinned as the `third_party/cutlass` Git submodule. CUTLASS is
 BSD-3-Clause licensed and provides the SM120 block-scaled NVFP4 Gate/Up prefill GEMM templates. Initialize it with

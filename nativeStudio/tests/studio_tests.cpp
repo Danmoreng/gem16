@@ -28,6 +28,7 @@
 #include <string_view>
 #include <thread>
 
+bool TestExtendedMarkdown();
 namespace {
 
 void CaptureClipboard(void* user_data, const char* text) {
@@ -1039,6 +1040,7 @@ int main() {
     std::fprintf(stderr, "markdown parser test failed\n");
     return 1;
   }
+  if (!TestExtendedMarkdown()) return 1;
   if (!TestChatFontsAndSpacing()) {
     std::fprintf(stderr, "chat font/emoji and Markdown spacing test failed\n");
     return 1;

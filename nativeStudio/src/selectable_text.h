@@ -1,6 +1,7 @@
 #pragma once
 
 #include "imgui.h"
+#include "math_renderer.h"
 
 #include <cstddef>
 #include <string>
@@ -18,6 +19,9 @@ struct StyleSpan {
   bool strong = false;
   bool emphasis = false;
   bool underline = false;
+  bool strike = false;
+  std::string link;
+  std::shared_ptr<MathLayout> math;
 };
 
 struct Options {
@@ -31,6 +35,7 @@ struct Options {
   ImGuiID selection_group = 0;
   std::string_view selection_text{};
   std::size_t selection_offset = 0;
+  void (*open_link)(std::string_view) = nullptr;
 };
 
 // Draws wrapped text with native desktop-style character selection. Selection

@@ -1,4 +1,5 @@
 #include "selectable_text.h"
+#include "platform_ui.h"
 
 #include "imgui_internal.h"
 
@@ -29,13 +30,21 @@ struct ResolvedStyle {
   bool strong = false;
   bool emphasis = false;
   bool underline = false;
+  bool strike = false;
+  std::string link;
+  std::shared_ptr<MathLayout> math;
 
   bool operator==(const ResolvedStyle&) const = default;
 };
 
 SelectionState g_selection;
+// Scoped to one widget; measurements, wrapping and hit testing must use the
+// same atomic math spans. Restored on return, including nested rendering.
+thread_local const std::vector<StyleSpan>* layout_spans = nullptr;
 
 std::size_t NextCodepoint(std::string_view text, std::size_t position) {
+  if (layout_spans) for (const auto& span : *layout_spans)
+    if (span.math && span.begin <= position && position < span.end && span.end <= text.size()) return span.end;
   if (position >= text.size()) return text.size();
   const unsigned char first = static_cast<unsigned char>(text[position]);
   std::size_t count = 1;
@@ -73,6 +82,17 @@ bool IsWordByte(unsigned char value) {
 float Measure(ImFont* font, float size, std::string_view text,
               std::size_t begin, std::size_t end) {
   if (end <= begin) return 0.0f;
+  if (layout_spans) {
+    float width = 0;
+    std::size_t cursor = begin;
+    for (const auto& span : *layout_spans) {
+      if (!span.math || span.end <= cursor || span.begin >= end) continue;
+      if (span.begin > cursor) width += font->CalcTextSizeA(size, FLT_MAX, 0, text.data()+cursor, text.data()+span.begin).x;
+      width += span.math->width;
+      cursor = std::min(end, span.end);
+    }
+    if (cursor != begin) return width + (cursor < end ? font->CalcTextSizeA(size, FLT_MAX, 0, text.data()+cursor, text.data()+end).x : 0);
+  }
   return font->CalcTextSizeA(size, FLT_MAX, 0.0f, text.data() + begin,
                              text.data() + end).x;
 }
@@ -188,6 +208,9 @@ ResolvedStyle ResolveStyle(const std::vector<StyleSpan>* spans,
     result.strong = result.strong || span.strong;
     result.emphasis = result.emphasis || span.emphasis;
     result.underline = result.underline || span.underline;
+    result.strike |= span.strike;
+    if (!span.link.empty()) result.link = span.link;
+    if (span.math) result.math = span.math;
   }
   return result;
 }
@@ -257,13 +280,17 @@ std::string SelectedText(std::string_view text, std::size_t anchor,
 }
 
 void Wrapped(const char* id, const std::string& text, const Options& options) {
+  struct RestoreSpans { const std::vector<StyleSpan>* old; ~RestoreSpans() { layout_spans = old; } } restore{layout_spans};
+  layout_spans = options.spans;
   ImGuiWindow* window = ImGui::GetCurrentWindow();
   if (window->SkipItems) return;
   ImFont* font = ImGui::GetFont();
   const float font_size = ImGui::GetFontSize();
   const float width = options.width > 0.0f ? options.width
                                            : ImGui::GetContentRegionAvail().x;
-  const float line_height = font_size + options.line_spacing;
+  float line_height = font_size + options.line_spacing;
+  if (options.spans) for (const auto& span : *options.spans)
+    if (span.math) line_height = std::max(line_height, span.math->height + options.line_spacing);
   const std::vector<WrappedLine> lines =
       BuildLines(text, font, font_size, width);
   const float height = std::max(line_height, line_height * lines.size());
@@ -282,6 +309,7 @@ void Wrapped(const char* id, const std::string& text, const Options& options) {
   const std::size_t selection_offset = grouped ? options.selection_offset : 0U;
   const bool hovered = ImGui::IsItemHovered(
       ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
+  bool link_hovered = false;
 
   if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
     const std::size_t byte = selection_offset +
@@ -380,6 +408,11 @@ void Wrapped(const char* id, const std::string& text, const Options& options) {
                       XAtByte(text, line, font, font_size, run.begin);
       const ImVec2 text_position(
           x, position.y + (run.style.emphasis ? -0.35f : 0.0f));
+      if (run.style.math) {
+        DrawMath(*run.style.math, {x, position.y}, run.style.text_color);
+        continue;
+      }
+      const int vertex_start = draw->VtxBuffer.Size;
       if (run.style.strong) {
         draw->AddText(font, font_size,
                       {text_position.x + 0.55f, text_position.y},
@@ -388,6 +421,22 @@ void Wrapped(const char* id, const std::string& text, const Options& options) {
       }
       draw->AddText(font, font_size, text_position, run.style.text_color,
                     text.data() + run.begin, text.data() + run.end);
+      if (run.style.emphasis) for (int v = vertex_start; v < draw->VtxBuffer.Size; ++v)
+        draw->VtxBuffer[v].pos.x += (text_position.y + font_size - draw->VtxBuffer[v].pos.y) * 0.18f;
+      const float run_end_x = position.x + XAtByte(text, line, font, font_size, run.end);
+      if (run.style.strike) draw->AddLine({x, position.y + font_size * 0.52f},
+          {run_end_x, position.y + font_size * 0.52f}, run.style.text_color, 1.0f);
+      if (!run.style.link.empty() && hovered && ImGui::IsMouseHoveringRect(
+            {x, position.y}, {run_end_x, position.y + font_size})) {
+        link_hovered = true;
+        ImGui::SetTooltip("%s", run.style.link.c_str());
+        if (ImGui::IsMouseReleased(ImGuiMouseButton_Left) &&
+            ImGui::GetIO().MouseDragMaxDistanceSqr[0] < 16.0f && selection_begin == selection_end)
+          { if (IsSafeWebLink(run.style.link)) {
+              if (options.open_link) options.open_link(run.style.link);
+              else OpenWebLink(run.style.link);
+            } }
+      }
       if (run.style.underline) {
         const float x2 = position.x +
                          XAtByte(text, line, font, font_size, run.end);
@@ -414,7 +463,7 @@ void Wrapped(const char* id, const std::string& text, const Options& options) {
     }
     ImGui::EndPopup();
   }
-  if (hovered) ImGui::SetMouseCursor(ImGuiMouseCursor_TextInput);
+  if (hovered) ImGui::SetMouseCursor(link_hovered ? ImGuiMouseCursor_Hand : ImGuiMouseCursor_TextInput);
 }
 
 }  // namespace gem16::studio::selectable_text

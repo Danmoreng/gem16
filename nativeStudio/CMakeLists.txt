@@ -9,7 +9,7 @@ endif()
 set(GEM16_CMAKE_VERSION
     "${CMAKE_MATCH_1}.${CMAKE_MATCH_2}.${CMAKE_MATCH_3}")
 
-project(gem16-studio VERSION "${GEM16_CMAKE_VERSION}" LANGUAGES CXX)
+project(gem16-studio VERSION "${GEM16_CMAKE_VERSION}" LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -21,6 +21,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/bin")
 set(IMGUI_DIR "${CMAKE_CURRENT_LIST_DIR}/third_party/imgui")
 
 find_package(Threads REQUIRED)
+include(cmake/markdown-dependencies.cmake)
 
 set(STUDIO_SOURCES
   src/app.cpp
@@ -31,6 +32,8 @@ set(STUDIO_SOURCES
   src/image_texture.cpp
   src/main.cpp
   src/markdown.cpp
+  src/markdown_parser.cpp
+  src/math_renderer.cpp
   src/media_loader.cpp
   src/model_catalog.cpp
   src/model_manager.cpp
@@ -79,6 +82,7 @@ else()
 endif()
 
 add_executable(gem16-studio ${STUDIO_SOURCES})
+studio_markdown_dependencies(gem16-studio)
 target_include_directories(gem16-studio PRIVATE
   src
   "${GEM16_ROOT}/include"
@@ -126,11 +130,14 @@ include(CTest)
 if(BUILD_TESTING)
   add_executable(gem16-studio-tests
     tests/studio_tests.cpp
+    tests/markdown_render_tests.cpp
     src/api_client.cpp
     src/chat_history.cpp
     src/fonts.cpp
     src/image_texture.cpp
     src/markdown.cpp
+    src/markdown_parser.cpp
+    src/math_renderer.cpp
     src/media_loader.cpp
     src/model_catalog.cpp
     src/model_manager.cpp
@@ -155,6 +162,7 @@ if(BUILD_TESTING)
     "${GEM16_ROOT}/third_party/stb"
     "${IMGUI_DIR}"
   )
+  studio_markdown_dependencies(gem16-studio-tests)
   target_compile_definitions(gem16-studio-tests PRIVATE
     IMGUI_USE_WCHAR32
     CPPHTTPLIB_TCP_NODELAY=1
@@ -162,6 +170,7 @@ if(BUILD_TESTING)
   )
   target_link_libraries(gem16-studio-tests PRIVATE Threads::Threads)
   if(WIN32)
+    target_compile_options(gem16-studio-tests PRIVATE /utf-8)
     target_link_libraries(gem16-studio-tests PRIVATE d3d11 ws2_32 comdlg32 shell32 ole32)
     target_compile_definitions(gem16-studio-tests PRIVATE
       UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX)

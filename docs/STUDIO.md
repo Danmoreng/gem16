@@ -42,6 +42,18 @@ license remains beside the vendored source.
   reset. Starting a new chat omits the old session ID; the one-slot 26B server then evicts the inactive root.
 - Selectable Markdown rendering for headings, emphasis, strong text, inline and fenced code, ordered/unordered lists,
   quotes, rules, links, and image labels. Fenced code blocks expose their own copy action.
+- CommonMark/GFM parsing uses pinned md4c: nested lists, task checkboxes, strikethrough,
+  combined bold/italic/strike spans, entity decoding and aligned tables are supported.
+  Web links show their destination and open on click (dragging still selects); only
+  `http://` and `https://` links are launchable. HTML remains inert and remote images
+  are never fetched automatically.
+- `$...$` and `$$...$$` formulas use native MicroTeX layout, including fractions,
+  roots, scripts, sums and matrices. Formula source remains copyable. The bounded
+  supported command set rejects custom macros, file access, and expansion commands;
+  incomplete/unsupported formulas remain visible as amber-backed source. Limits:
+  4 KiB per formula, 32 brace levels, 8 environments, 128 cached formula layouts.
+  Markdown input is bounded to 2 MiB, 64 block/span levels, 32 table columns and
+  1,000 table rows. This is math rendering, not an arbitrary TeX document engine.
 - Chat blocks use dedicated DPI-scaled spacing instead of the larger application-control spacing. Consecutive
   list items stay compact even when the model inserts blank lines; paragraphs retain a separate readable gap.
 - Supplementary Unicode characters use 32-bit ImGui glyphs. Windows merges the installed Segoe UI Emoji font;
@@ -118,6 +130,10 @@ It does not download a full model, open a microphone, or load a GPU.
 The chat-format regression checks actual Windows smile/thumb/rocket glyphs and UTF-8 widths, surrogate-pair SSE
 decoding, and wrapped/ordered/unordered list spacing at 100/125/150% scale. Run with
 `ctest --test-dir build/Windows/native-studio-ui --output-on-failure` for the isolated Windows UI build.
+Extended tests cover nested lists, GFM tables/tasks, combined emphasis/strike,
+HTML entities, incomplete streaming input, link click-vs-drag behavior, unsafe
+URLs and formulas, and actual MicroTeX layout/drawing. The test also produces
+`markdown-preview.bmp` from real ImGui draw data for visual review without a server.
 
 ## Packaging
 

@@ -15,6 +15,7 @@ enum class BlockKind {
   kOrderedItem,
   kQuote,
   kRule,
+  kTable,
 };
 
 struct InlineSpan {
@@ -24,6 +25,9 @@ struct InlineSpan {
   bool emphasis = false;
   bool code = false;
   bool link = false;
+  bool strike = false;
+  bool math = false;
+  bool display_math = false;
   std::string destination;
 };
 
@@ -34,14 +38,19 @@ struct Block {
   int level = 0;
   int ordinal = 0;
   std::vector<InlineSpan> spans;
+  int indent = 0;
+  int quote_depth = 0;
+  bool task = false;
+  bool checked = false;
+  std::vector<std::vector<Block>> rows;
+  std::vector<int> alignments;
 };
 
 [[nodiscard]] std::vector<Block> Parse(std::string_view source);
 
-// Renders a compact CommonMark-compatible subset while retaining the native
-// selectable-text interactions. Supported blocks are headings, paragraphs,
-// fenced/indented code, ordered and unordered lists, quotes, and rules;
-// supported inline styles are emphasis, strong emphasis, code, and links.
+// md4c CommonMark/GFM parsing with native selectable blocks, nested lists,
+// tables, tasks, combined inline styles, safe web links, and bounded MicroTeX
+// math. HTML and remote image loading are deliberately disabled.
 void Render(const char* id, const std::string& source, float width);
 
 }  // namespace gem16::studio::markdown

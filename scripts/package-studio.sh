@@ -18,6 +18,8 @@ cmake -S "$repo_root/nativeStudio" -B "$build_dir" -DCMAKE_BUILD_TYPE=Release -D
 cmake --build "$build_dir" --target gem16-studio --parallel
 mkdir -p "$stage_dir/bin" "$stage_dir/licenses"
 cp "$build_dir/bin/gem16-studio" "$stage_dir/bin/"
+cp -R "$build_dir/bin/math-res" "$stage_dir/bin/"
+cp "$build_dir/bin/licenses/"* "$stage_dir/licenses/"
 cp "$server" "$stage_dir/bin/"
 cp "$repo_root/VERSION" "$stage_dir/"
 cp "$repo_root/LICENSE" "$stage_dir/"

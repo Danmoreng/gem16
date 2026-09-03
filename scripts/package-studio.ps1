@@ -27,6 +27,8 @@ if ($LASTEXITCODE -ne 0) { throw "Native Studio build failed" }
 New-Item -ItemType Directory -Path (Join-Path $Stage "bin") -Force | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $Stage "licenses") -Force | Out-Null
 Copy-Item (Join-Path $Build "bin\gem16-studio.exe") (Join-Path $Stage "bin") -Force
+Copy-Item (Join-Path $Build "bin\math-res") (Join-Path $Stage "bin") -Recurse -Force
+Copy-Item (Join-Path $Build "bin\licenses\*") (Join-Path $Stage "licenses") -Force
 Copy-Item $Server (Join-Path $Stage "bin") -Force
 Copy-Item (Join-Path $RepoRoot "VERSION") $Stage -Force
 Copy-Item (Join-Path $RepoRoot "LICENSE") $Stage -Force

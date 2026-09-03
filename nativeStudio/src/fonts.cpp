@@ -1,4 +1,5 @@
 #include "fonts.h"
+#include "math_renderer.h"
 
 #include <filesystem>
 #include "imgui.h"
@@ -20,9 +21,10 @@ ImFont* InitializeStudioFonts() {
       "/usr/share/fonts/truetype/ancient-scripts/Symbola_hint.ttf"};
 #endif
   ImFont* font = nullptr;
+  static constexpr ImWchar text_ranges[] = {0x20, 0x024f, 0x2000, 0x206f, 0};
   for (const char* path : text_paths) {
     if (std::filesystem::is_regular_file(path)) {
-      font = atlas->AddFontFromFileTTF(path, 17.0f);
+      font = atlas->AddFontFromFileTTF(path, 17.0f, nullptr, text_ranges);
       if (font) break;
     }
   }
@@ -37,6 +39,7 @@ ImFont* InitializeStudioFonts() {
     config.MergeMode = true;
     if (atlas->AddFontFromFileTTF(path, 17.0f, &config, emoji_ranges)) break;
   }
+  InitializeMathFonts();
   return font;
 }
 

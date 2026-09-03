@@ -191,4 +191,30 @@ void OpenInFileManager(const std::filesystem::path& path) {
 #endif
 }
 
+bool IsSafeWebLink(std::string_view url) {
+  if (url.size() > 8192 || (!url.starts_with("https://") && !url.starts_with("http://"))) return false;
+  const auto host_start = url.find("://") + 3;
+  const auto host_end = url.find_first_of("/?#", host_start);
+  const auto host = url.substr(host_start, host_end - host_start);
+  if (host.empty() || host.find('@') != host.npos) return false;
+  for (unsigned char c : url) if (c <= 0x20 || c == 0x7f || c == '\\') return false;
+  return true;
+}
+bool OpenWebLink(std::string_view url) {
+  if (!IsSafeWebLink(url)) return false;
+  const std::string copy(url);
+#ifdef _WIN32
+  const int count = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, copy.c_str(), -1, nullptr, 0);
+  if (count <= 0) return false;
+  std::wstring wide(static_cast<std::size_t>(count), L'\0');
+  MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, copy.c_str(), -1, wide.data(), count);
+  return reinterpret_cast<INT_PTR>(ShellExecuteW(nullptr, L"open", wide.c_str(), nullptr, nullptr, SW_SHOWNORMAL)) > 32;
+#else
+  GError* error = nullptr;
+  const bool opened = g_app_info_launch_default_for_uri(copy.c_str(), nullptr, &error);
+  if (error) g_error_free(error);
+  return opened;
+#endif
+}
+
 }  // namespace gem16::studio
