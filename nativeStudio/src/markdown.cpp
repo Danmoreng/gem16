@@ -10,6 +10,96 @@ namespace gem16::studio::markdown {
 namespace {
 constexpr ImVec4 kAccent{0.20f, 0.83f, 0.60f, 1.0f};
 
+void SvgCanvas(const ImageTexture& texture, ImVec2 size, float scale) {
+  const ImVec2 origin = ImGui::GetCursorScreenPos();
+  auto* draw = ImGui::GetWindowDrawList();
+  const float inset = std::min(20 * scale, size.x * 0.05f);
+  const float fit = std::min((size.x - 2*inset) / texture.Width(),
+                              (size.y - 2*inset) / texture.Height());
+  const ImVec2 image_size(texture.Width()*fit, texture.Height()*fit);
+  const ImVec2 image_pos(origin.x + (size.x-image_size.x)*0.5f,
+                         origin.y + (size.y-image_size.y)*0.5f);
+  draw->AddRectFilled(origin, {origin.x+size.x, origin.y+size.y}, IM_COL32(19,25,24,255), 8*scale);
+  draw->AddRectFilled({image_pos.x+2*scale,image_pos.y+3*scale},
+      {image_pos.x+image_size.x+2*scale,image_pos.y+image_size.y+3*scale}, IM_COL32(0,0,0,60), 3*scale);
+  draw->AddRectFilled(image_pos, {image_pos.x+image_size.x,image_pos.y+image_size.y}, IM_COL32_WHITE);
+  draw->AddImage(ImTextureRef(texture.Id()), image_pos, {image_pos.x+image_size.x,image_pos.y+image_size.y});
+  ImGui::Dummy(size);
+}
+
+// Returns true when the caller should draw the selectable source below us.
+bool SvgArtifact(const Block& block, SvgPreviewCache& cache, float scale) {
+  auto* storage = ImGui::GetStateStorage();
+  const ImGuiID mode_id = ImGui::GetID("##svg-code-view");
+  const ImGuiID copied_id = ImGui::GetID("##svg-copied-until");
+  bool code = storage->GetBool(mode_id, false);
+  const float x = ImGui::GetCursorPosX(), y = ImGui::GetCursorPosY();
+  const float width = ImGui::GetContentRegionAvail().x;
+  const float button_h = 32*scale, tab_w = 72*scale, gap = 6*scale;
+  const float copy_w = 116*scale, expand_w = 80*scale;
+  const bool stacked = width < 48*scale + 2*tab_w + copy_w + expand_w + 3*gap;
+  ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 8*scale);
+  ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, {8*scale,6*scale});
+  ImGui::PushStyleColor(ImGuiCol_Button, {0,0,0,0});
+  ImGui::PushStyleColor(ImGuiCol_ButtonHovered, {0.13f,0.25f,0.21f,1});
+  ImGui::PushStyleColor(ImGuiCol_ButtonActive, {0.17f,0.34f,0.27f,1});
+  const auto badge = ImGui::GetCursorScreenPos();
+  ImGui::GetWindowDrawList()->AddRectFilled({badge.x,badge.y+6*scale},
+      {badge.x+38*scale,badge.y+27*scale}, IM_COL32(39,48,45,255), 5*scale);
+  ImGui::GetWindowDrawList()->AddText({badge.x+6*scale,badge.y+8*scale}, IM_COL32(177,190,184,255), "SVG");
+  ImGui::SetCursorPos({x+48*scale,y});
+  ImGui::PushStyleColor(ImGuiCol_Button, code ? ImVec4(0.12f,0.24f,0.19f,1) : ImVec4(0,0,0,0));
+  if (ImGui::Button("Code##svg-tab", {tab_w,button_h})) code = true;
+  ImGui::PopStyleColor();
+  ImGui::SameLine(0,0);
+  ImGui::PushStyleColor(ImGuiCol_Button, !code ? ImVec4(0.12f,0.24f,0.19f,1) : ImVec4(0,0,0,0));
+  if (ImGui::Button("Preview##svg-tab", {tab_w,button_h})) code = false;
+  ImGui::PopStyleColor();
+  storage->SetBool(mode_id, code);
+  ImGui::SetCursorPos({x+std::max(0.0f,width-copy_w-expand_w-gap), y+(stacked ? 38*scale : 0)});
+  const bool copied = storage->GetFloat(copied_id, -1) > ImGui::GetTime();
+  if (ImGui::Button(copied ? "Copied##svg-copy" : "Copy code##svg-copy", {copy_w,button_h})) {
+    ImGui::SetClipboardText(block.text.c_str());
+    storage->SetFloat(copied_id, static_cast<float>(ImGui::GetTime()+1.8));
+  }
+  if (ImGui::IsItemHovered()) ImGui::SetTooltip("Copy the original SVG source");
+  ImGui::SameLine(0,gap);
+  if (ImGui::Button("Expand##svg-expand", {expand_w,button_h})) ImGui::OpenPopup("SVG preview##expanded");
+  if (ImGui::IsItemHovered()) ImGui::SetTooltip("Open a larger preview");
+  ImGui::PopStyleColor(3);
+  ImGui::PopStyleVar(2);
+  ImGui::SetCursorPos({x,y+(stacked ? 82 : 44)*scale});
+  ImGui::Separator();
+  bool draw_code = code;
+  if (!code) {
+    auto* preview = cache.Get(block.text);
+    if (preview && preview->texture.Valid()) {
+      SvgCanvas(preview->texture, {width,std::clamp(width*0.60f,280*scale,620*scale)}, scale);
+    } else {
+      ImGui::PushTextWrapPos();
+      ImGui::TextColored({0.95f,0.73f,0.35f,1}, "%s", preview ? preview->error.c_str() :
+          "SVG preview limit reached (256 KiB per SVG, eight cached previews).");
+      ImGui::PopTextWrapPos();
+      draw_code = true;
+    }
+  }
+  const auto* viewport = ImGui::GetMainViewport();
+  ImGui::SetNextWindowSize({viewport->WorkSize.x*0.9f,viewport->WorkSize.y*0.9f}, ImGuiCond_Appearing);
+  ImGui::SetNextWindowPos(viewport->GetWorkCenter(), ImGuiCond_Appearing, {0.5f,0.5f});
+  bool open = true;
+  if (ImGui::BeginPopupModal("SVG preview##expanded", &open, ImGuiWindowFlags_NoSavedSettings)) {
+    if (ImGui::Button("Close")) ImGui::CloseCurrentPopup();
+    if (ImGui::IsKeyPressed(ImGuiKey_Escape)) ImGui::CloseCurrentPopup();
+    auto* preview = cache.Get(block.text);
+    if (preview && preview->texture.Valid()) {
+      const auto available = ImGui::GetContentRegionAvail();
+      if (available.x > 40*scale && available.y > 40*scale) SvgCanvas(preview->texture, available, scale);
+    } else ImGui::TextWrapped("%s", preview ? preview->error.c_str() : "SVG preview limit reached.");
+    ImGui::EndPopup();
+  }
+  return draw_code;
+}
+
 std::vector<selectable_text::StyleSpan> DrawSpans(const Block& block, float width) {
   std::vector<selectable_text::StyleSpan> result;
   result.reserve(block.spans.size());
@@ -106,6 +196,8 @@ void Render(const char* id, const std::string& source, float width, SvgPreviewCa
         break;
       }
       case BlockKind::kCode: {
+        const bool svg = svg_cache && IsSvgCode(block.info, block.text);
+        if (svg) ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 13*scale);
         ImGui::PushStyleColor(ImGuiCol_ChildBg,
                               {0.025f, 0.045f, 0.041f, 0.96f});
         ImGui::PushStyleColor(ImGuiCol_Border,
@@ -113,6 +205,9 @@ void Render(const char* id, const std::string& source, float width, SvgPreviewCa
         ImGui::BeginChild("##code-block", {available, 0},
                           ImGuiChildFlags_AutoResizeY |
                               ImGuiChildFlags_Borders);
+        bool draw_code = true;
+        if (svg) draw_code = SvgArtifact(block, *svg_cache, scale);
+        else {
         const float header_x = ImGui::GetCursorPosX();
         const float header_width = ImGui::GetContentRegionAvail().x;
         const float button_width = ImGui::CalcTextSize("Copy").x + 2 * ImGui::GetStyle().FramePadding.x;
@@ -126,33 +221,6 @@ void Render(const char* id, const std::string& source, float width, SvgPreviewCa
         if (ImGui::SmallButton("Copy##code"))
           ImGui::SetClipboardText(block.text.c_str());
         ImGui::Separator();
-        bool draw_code = true;
-        if (svg_cache && IsSvgCode(block.info, block.text)) {
-          const ImGuiID mode_id = ImGui::GetID("##svg-code-view");
-          bool code_view = ImGui::GetStateStorage()->GetBool(mode_id, false);
-          if (ImGui::SmallButton(code_view ? "Preview##svg-toggle" : "Code##svg-toggle")) {
-            code_view = !code_view;
-            ImGui::GetStateStorage()->SetBool(mode_id, code_view);
-          }
-          ImGui::SameLine();
-          ImGui::TextDisabled("SVG %s", code_view ? "source" : "preview");
-          if (!code_view) {
-            auto* preview = svg_cache->Get(block.text);
-            if (preview && preview->texture.Valid()) {
-              const float w = static_cast<float>(preview->texture.Width());
-              const float h = static_cast<float>(preview->texture.Height());
-              const float fit = std::min({1.0f, ImGui::GetContentRegionAvail().x / w, 480 * scale / h});
-              const auto origin = ImGui::GetCursorScreenPos();
-              ImGui::GetWindowDrawList()->AddRectFilled(origin, {origin.x + w*fit, origin.y + h*fit}, IM_COL32_WHITE);
-              ImGui::Image(ImTextureRef(preview->texture.Id()), {w*fit, h*fit});
-              draw_code = false;
-            } else {
-              ImGui::PushTextWrapPos();
-              ImGui::TextColored({0.95f,0.73f,0.35f,1}, "%s", preview ? preview->error.c_str() :
-                  "SVG preview limit reached (256 KiB per SVG, eight cached previews).");
-              ImGui::PopTextWrapPos();
-            }
-          }
         }
         if (draw_code) {
           ImGui::PushFont(StudioCodeFont(), 0.0f);
@@ -170,6 +238,7 @@ void Render(const char* id, const std::string& source, float width, SvgPreviewCa
         }
         ImGui::EndChild();
         ImGui::PopStyleColor(2);
+        if (svg) ImGui::PopStyleVar();
         break;
       }
       case BlockKind::kBulletItem:

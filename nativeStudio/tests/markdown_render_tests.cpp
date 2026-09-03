@@ -25,6 +25,11 @@ std::string opened;
 void CaptureLink(std::string_view url) { opened = url; }
 std::string clipboard;
 void CaptureClipboard(ImGuiContext*, const char* text) { clipboard = text; }
+void StartFrame() {
+  unsigned char* pixels; int width, height;
+  ImGui::GetIO().Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
+  ImGui::NewFrame();
+}
 
 // Small deterministic software screenshot of the real ImGui draw output.
 // Test-only: samples the font atlas and blends the emitted triangles.
@@ -91,7 +96,7 @@ bool TestExtendedMarkdown() {
   ok &= Check(IsSvgCode("svg", "<svg") && IsSvgCode("xml", svg) && IsSvgCode("", svg) &&
       !IsSvgCode("python", svg) && !IsSvgCode("xml", "<document/>"), "SVG fence detection");
   const auto raster = RasterizeSvg(svg);
-  ok &= Check(raster.error.empty() && raster.image.width == 800 && raster.image.height == 400,
+  ok &= Check(raster.error.empty() && raster.image.width == 1024 && raster.image.height == 512,
       "SVG diagram with text and arrows renders");
   const auto text_only = RasterizeSvg("<svg width='200' height='80'><text x='10' y='45' font-size='30'>Hello</text></svg>");
   unsigned ink = 0;
@@ -107,6 +112,9 @@ bool TestExtendedMarkdown() {
   ok &= Check(!RasterizeSvg(std::string(256*1024+1, 'x')).error.empty(), "SVG source size limit");
   const auto bounded = RasterizeSvg("<svg width='8000' height='4000'><rect width='8000' height='4000'/></svg>");
   ok &= Check(bounded.image.width == 1024 && bounded.image.height == 512, "SVG raster size is bounded");
+  const auto small_svg = RasterizeSvg("<svg width='100' height='100'><circle cx='50' cy='50' r='40'/></svg>");
+  ok &= Check(small_svg.image.width == 1024 && small_svg.image.height == 1024,
+      "small SVG is rasterized for sharp enlargement");
   const auto nested=Parse("- Parent\n    - Child\n        - Deep\n- Sibling\n\n    real code\n");
   ok &= Check(nested.size()>=4&&nested[0].kind==BlockKind::kBulletItem&&nested[1].kind==BlockKind::kBulletItem&&nested[1].indent==1&&nested[2].indent==2,"nested lists");
   const auto styles=Parse("***both*** ~~***all***~~ and &amp; &#x1f60a; `**literal**`");
@@ -166,7 +174,7 @@ bool TestExtendedMarkdown() {
     "$$\n" + matrix + "\n$$\n\n"
     "> A quote with **bold** text.\n\n```cpp\nint answer = 42;\n// iiii WWWW\n```";
   for(int frame=0;frame<2;++frame) {
-    ImGui::NewFrame();ImGui::SetNextWindowPos({0,0});ImGui::SetNextWindowSize({900,1050});
+    StartFrame();ImGui::SetNextWindowPos({0,0});ImGui::SetNextWindowSize({900,1050});
     ImGui::Begin("Preview",nullptr,ImGuiWindowFlags_NoDecoration);Render("sample",sample,860);ImGui::End();ImGui::Render();
   }
   Screenshot("markdown-preview.bmp");
@@ -189,7 +197,7 @@ bool TestExtendedMarkdown() {
   selectable_text::StyleSpan link;link.end=9;link.link="https://example.com";link.underline=true;
   std::vector<selectable_text::StyleSpan> spans{link};
   auto frame=[&] {
-    ImGui::NewFrame();ImGui::SetNextWindowPos({0,0});ImGui::SetNextWindowSize({900,1050});ImGui::Begin("link-test",nullptr,ImGuiWindowFlags_NoDecoration);
+    StartFrame();ImGui::SetNextWindowPos({0,0});ImGui::SetNextWindowSize({900,1050});ImGui::Begin("link-test",nullptr,ImGuiWindowFlags_NoDecoration);
     ImGui::SetCursorPos({30,30});selectable_text::Wrapped("link","Click me!",{.width=300,.spans=&spans,.open_link=CaptureLink});ImGui::End();ImGui::Render();
   };
   frame();frame();io.AddMousePosEvent(45,38);io.AddMouseButtonEvent(0,true);frame();io.AddMouseButtonEvent(0,false);frame();
@@ -201,7 +209,7 @@ bool TestExtendedMarkdown() {
   for (float scale : {1.0f, 1.25f, 1.5f}) for (float width : {240.0f, 650.0f}) {
     ImGuiWindow* child = nullptr;
     auto code_frame = [&] {
-      ImGui::NewFrame(); ImGui::SetNextWindowPos({0,0}); ImGui::SetNextWindowSize({900,1050});
+      StartFrame(); ImGui::SetNextWindowPos({0,0}); ImGui::SetNextWindowSize({900,1050});
       ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {24*scale,24*scale});
       ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, {17*scale,8*scale});
       ImGui::Begin("code-bounds", nullptr, ImGuiWindowFlags_NoDecoration);
@@ -231,33 +239,64 @@ bool TestExtendedMarkdown() {
     ImageTexture::InitializeRenderer(device.Get());
     SvgPreviewCache cache;
     ImGuiWindow* child = nullptr;
+    float svg_scale = 1, svg_width = 850, ui_scale = 1;
     auto svg_frame = [&] {
-      ImGui::NewFrame(); ImGui::SetNextWindowPos({0,0}); ImGui::SetNextWindowSize({900,1050});
+      StartFrame(); ImGui::SetNextWindowPos({0,0}); ImGui::SetNextWindowSize({900,1050});
       ImGui::Begin("SVG preview", nullptr, ImGuiWindowFlags_NoDecoration);
-      Render("svg", "```xml\n" + svg + "\n```", 850, &cache);
+      ImGui::SetWindowFontScale(ui_scale);
+      svg_scale = ImGui::GetFontSize()/17;
+      Render("svg", "```xml\n" + svg + "\n```", svg_width, &cache);
       for (auto* window : GImGui->Windows)
-        if (window->ParentWindow == ImGui::GetCurrentWindow() && window->Active) child = window;
+        if (window->ParentWindow == ImGui::GetCurrentWindow() && window->Active &&
+            (window->Flags & ImGuiWindowFlags_ChildWindow)) child = window;
       ImGui::End(); ImGui::Render();
     };
     svg_frame(); svg_frame();
     auto* entry = cache.Get(svg);
     ok &= Check(entry && entry->texture.Valid(), "SVG uploads through real preview texture path");
+    if (entry && child) {
+      float left=1e6f, right=-1e6f;
+      for (const auto* list : ImGui::GetDrawData()->CmdLists) for (const auto& cmd : list->CmdBuffer) {
+        if (cmd.GetTexID() != entry->texture.Id()) continue;
+        for (unsigned i=0; i<cmd.ElemCount; ++i) {
+          const float x = list->VtxBuffer[cmd.VtxOffset + list->IdxBuffer[cmd.IdxOffset+i]].pos.x;
+          left=std::min(left,x);right=std::max(right,x);
+        }
+      }
+      ok &= Check(right-left > 700 && std::abs((left+right)*0.5f-child->InnerRect.GetCenter().x)<1,
+          "SVG fills and centers in canvas");
+    }
     if (entry && entry->texture.Valid()) Screenshot("svg-preview.bmp", &raster.image, entry->texture.Id());
     const auto mode = child ? ImHashStr("##svg-code-view", 0, child->IDStack.back()) : 0;
     ok &= Check(child && !child->StateStorage.GetBool(mode), "SVG defaults to preview");
     if (child) {
-      // The toggle is the first control under the header separator.
-      io.AddMousePosEvent(child->Pos.x + child->WindowPadding.x + 15,
-          child->Pos.y + child->WindowPadding.y + 29);
+      io.AddMousePosEvent(child->Pos.x + child->WindowPadding.x + 84*svg_scale,
+          child->Pos.y + child->WindowPadding.y + 16*svg_scale);
       io.AddMouseButtonEvent(0,true);svg_frame();io.AddMouseButtonEvent(0,false);svg_frame();
       ok &= Check(child->StateStorage.GetBool(mode), "SVG toggle opens code view");
+      io.AddMousePosEvent(child->Pos.x + child->WindowPadding.x + 156*svg_scale,
+          child->Pos.y + child->WindowPadding.y + 16*svg_scale);
       io.AddMouseButtonEvent(0,true);svg_frame();io.AddMouseButtonEvent(0,false);svg_frame();
       ok &= Check(!child->StateStorage.GetBool(mode), "SVG toggle restores preview");
       clipboard.clear();
-      io.AddMousePosEvent(child->InnerRect.Max.x-child->WindowPadding.x-15,
-          child->InnerRect.Min.y+child->WindowPadding.y+7);
+      io.AddMousePosEvent(child->InnerRect.Max.x-child->WindowPadding.x-144*svg_scale,
+          child->InnerRect.Min.y+child->WindowPadding.y+16*svg_scale);
       io.AddMouseButtonEvent(0,true);svg_frame();io.AddMouseButtonEvent(0,false);svg_frame();
       ok &= Check(clipboard == svg, "copy in SVG preview retains exact source");
+      const auto copied = ImHashStr("##svg-copied-until", 0, child->IDStack.back());
+      ok &= Check(child->StateStorage.GetFloat(copied) > ImGui::GetTime(), "SVG copied feedback");
+      io.AddMousePosEvent(child->InnerRect.Max.x-child->WindowPadding.x-40*svg_scale,
+          child->InnerRect.Min.y+child->WindowPadding.y+16*svg_scale);
+      io.AddMouseButtonEvent(0,true);svg_frame();io.AddMouseButtonEvent(0,false);svg_frame();
+      ok &= Check(GImGui->OpenPopupStack.Size > 0, "SVG expand opens modal");
+      io.AddKeyEvent(ImGuiKey_Escape,true);svg_frame();io.AddKeyEvent(ImGuiKey_Escape,false);svg_frame();
+      ok &= Check(GImGui->OpenPopupStack.Size == 0, "SVG expanded preview closes with Escape");
+      for (float dpi : {1.0f,1.25f,1.5f}) for (float width : {350.0f,850.0f}) {
+        ui_scale=dpi;svg_width=width;svg_frame();svg_frame();
+        ok &= Check(child->ContentSize.x <= child->InnerRect.GetWidth()-2*child->WindowPadding.x+1,
+            "SVG toolbar fits narrow and wide layouts at each DPI");
+      }
+      ui_scale=1;svg_width=850;svg_frame();svg_frame();
     }
     auto* reused = cache.Get(svg);
     ok &= Check(reused == entry, "unchanged SVG reuses texture");

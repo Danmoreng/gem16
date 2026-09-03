@@ -89,7 +89,9 @@ SvgRaster RasterizeSvg(std::string_view source) {
     if (!std::isfinite(w) || !std::isfinite(h) || w <= 0 || h <= 0 || w > 16384 || h > 16384) {
       result.error = "SVG dimensions must be between 0 and 16384 pixels."; return result;
     }
-    const double scale = std::min(1.0, 1024.0 / std::max(w, h));
+    // Rasterize small vectors at preview resolution too: enlarging the canvas
+    // should not merely stretch their low-resolution intrinsic-size bitmap.
+    const double scale = 1024.0 / std::max(w, h);
     const int width = std::max(1, static_cast<int>(std::ceil(w * scale)));
     const int height = std::max(1, static_cast<int>(std::ceil(h * scale)));
     auto bitmap = document->renderToBitmap(width, height);

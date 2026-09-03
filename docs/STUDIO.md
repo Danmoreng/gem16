@@ -46,7 +46,11 @@ license remains beside the vendored source.
   DejaVu Sans Mono/Liberation Mono on Linux, embedded ProggyClean if unavailable). Wrapping and selection use the
   same font metrics as drawing. Code glyphs are optically reduced to 80% at rasterization to match body-text height;
   the normal DPI scaling still applies once. Code-header copy actions account for actual padding, label width and DPI.
-- SVG code blocks default to an in-chat graphic with a `Code` / `Preview` toggle and unchanged source `Copy`.
+- SVG code blocks default to an in-chat graphic in an artifact card: neutral `SVG` badge, equal `Code` / `Preview`
+  tabs with a subdued active tint, ghost `Copy code` action with 1.8-second `Copied` feedback, and `Expand` modal
+  (Close/Escape). The 44-pixel toolbar wraps its actions on narrow cards; controls and corners scale with DPI.
+  The canvas centers and fits the graphic, including enlargement of small SVGs. Small vectors are rasterized at
+  preview resolution instead of stretching an intrinsic-size bitmap. Zoom, split view and saving are not included.
   `svg` fences and SVG-root content in `xml`, `html` or unlabeled fences are recognized. The native LunaSVG renderer
   supports static shapes, text, paths, gradients, clipping and markers. Preview uses a white backing for legibility.
   Incomplete/invalid/unsupported XML stays visible as code with a reason, and updates as streaming completes.
