@@ -19,6 +19,7 @@
 #include "cuda/trellis35/reference.h"
 #include "cuda/nvfp4/reference.h"
 #include "cuda/nvfp4/sm120.h"
+#include "util/environment.h"
 
 namespace gem16::internal {
 namespace {
@@ -56,7 +57,8 @@ bool PositiveFinite(float value) { return std::isfinite(value) && value > 0.0F; 
 
 bool Trellis35T3SharedOverlapEnabled() {
   static const bool enabled = [] {
-    const char* value = std::getenv("GEM16_TRELLIS35_T3_SHARED_OVERLAP");
+    const char* value =
+        GetEnvironmentVariable("GEM16_TRELLIS35_T3_SHARED_OVERLAP");
     return value == nullptr || std::string_view(value) != "0";
   }();
   return enabled;

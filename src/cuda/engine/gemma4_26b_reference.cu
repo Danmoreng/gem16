@@ -44,6 +44,7 @@
 #include "model/gemma4_26b_attention.h"
 #include "model/gemma4_26b_residency.h"
 #include "model/gemma4_26b_vision_d2_diagnostic.h"
+#include "util/environment.h"
 
 namespace gem16::internal {
 namespace {

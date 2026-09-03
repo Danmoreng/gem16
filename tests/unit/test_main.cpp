@@ -5,6 +5,8 @@
 void RunChatTests();
 void RunAudioTests();
 void RunConfigTests();
+void RunEnvironmentTests();
+void RunFileSha256Tests();
 void RunJsonTests();
 void RunLayerTests();
 void RunFp8Tests();
@@ -32,6 +34,8 @@ int main() {
   RunAudioTests();
   RunChatTests();
   RunConfigTests();
+  RunEnvironmentTests();
+  RunFileSha256Tests();
   RunJsonTests();
   RunLayerTests();
   RunFp8Tests();

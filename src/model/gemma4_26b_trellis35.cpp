@@ -20,6 +20,7 @@
 
 #include "compiler/sha256.h"
 #include "platform/mapped_file.h"
+#include "util/file_sha256.h"
 #include "util/json.h"
 
 namespace gem16::internal {
@@ -281,27 +282,6 @@ Result<std::string> DocumentContentSha256(const json::Value& document,
 
 Result<std::string> ContentSha256(const json::Value& document) {
   return DocumentContentSha256(document, "checkpoint_content_sha256");
-}
-
-Result<std::string> Sha256File(const std::filesystem::path& path) {
-  std::ifstream input(path, std::ios::binary);
-  if (!input) {
-    return Status(StatusCode::kIoError,
-                  "cannot hash Trellis35 file: " + path.string());
-  }
-  compiler::Sha256 digest;
-  std::array<char, 1024U * 1024U> buffer{};
-  while (input) {
-    input.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
-    if (input.gcount() > 0) {
-      digest.Update(buffer.data(), static_cast<std::size_t>(input.gcount()));
-    }
-  }
-  if (!input.eof()) {
-    return Status(StatusCode::kIoError,
-                  "failed while hashing Trellis35 file: " + path.string());
-  }
-  return digest.HexDigest();
 }
 
 Result<std::filesystem::path> SafeFile(const std::filesystem::path& root,

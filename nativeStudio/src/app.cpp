@@ -5,6 +5,7 @@
 #include "markdown.h"
 #include "media_loader.h"
 #include "model_catalog.h"
+#include "model_widgets.h"
 #include "selectable_text.h"
 #include "settings.h"
 #include "platform_ui.h"
@@ -1300,25 +1301,37 @@ void StudioApp::DrawModels() {
                                                      : ImGui::GetStyleColorVec4(ImGuiCol_ChildBg));
     ImGui::PushStyleColor(ImGuiCol_Border, selected ? kAccent : ImGui::GetStyleColorVec4(ImGuiCol_Border));
     const std::string id = std::string("##profile-") + ProfileWireName(profile);
-    const float card_height = catalog.components.size() > 2U ? 220.0f : 190.0f;
-    ImGui::BeginChild(id.c_str(), {0, Ui(card_height)}, ImGuiChildFlags_Borders,
-                      ImGuiWindowFlags_NoScrollbar);
+    BeginModelCard(id.c_str(), g_ui_scale);
     const ImVec2 gem_origin = ImGui::GetCursorScreenPos();
     DrawGemstone(ImGui::GetWindowDrawList(),
-                 {gem_origin.x + Ui(27.0f), gem_origin.y + Ui(29.0f)}, Ui(22.0f));
-    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + Ui(64.0f));
-    ImGui::SetWindowFontScale(1.18f);
-    ImGui::TextUnformatted(ProfileLabel(profile));
+                 {gem_origin.x + Ui(19.0f), gem_origin.y + Ui(21.0f)}, Ui(17.0f));
+    ImGui::Dummy({Ui(42.0f), Ui(42.0f)});
+    ImGui::SameLine();
+    ImGui::BeginGroup();
+    ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x);
+    ImGui::SetWindowFontScale(1.08f);
+    ImGui::TextWrapped("%s", ProfileLabel(profile));
     ImGui::SetWindowFontScale(1.0f);
-    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + Ui(64.0f));
-    ImGui::TextWrapped("%s", catalog.description);
-    ImGui::Dummy({0, Ui(4)});
-    ImGui::TextColored(kAccent, "%s", catalog.capabilities);
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", catalog.description);
+    ImGui::PushStyleColor(ImGuiCol_Text, kAccent);
+    ImGui::TextWrapped("%s", catalog.capabilities);
+    ImGui::PopStyleColor();
+    ImGui::PopTextWrapPos();
+    ImGui::EndGroup();
+    bool first_component = true;
     for (const auto& component : catalog.components) {
       const bool ready = profile_state.ComponentReady(component.kind);
-      ImGui::Text("%s: %s%s", ComponentKindLabel(component.kind),
-                  ready ? "Verified" : "Missing",
-                  component.required ? "" : " (optional)");
+      const std::string status = std::string(ComponentKindLabel(component.kind)) +
+          ": " + (ready ? "Verified" : "Missing") +
+          (component.required ? "" : " (optional)");
+      const float component_width = ImGui::CalcTextSize(status.c_str()).x +
+          (ready ? ImGui::GetStyle().ItemSpacing.x +
+                       ImGui::CalcTextSize("Remove").x +
+                       ImGui::GetStyle().FramePadding.x * 2.0f : 0.0f);
+      if (!first_component) ModelComponentSameLine(component_width, Ui(22.0f));
+      first_component = false;
+      ImGui::BeginGroup();
+      ImGui::TextUnformatted(status.c_str());
       if (ready) {
         bool component_in_use = false;
         if (settings_.onboarding_complete) {
@@ -1328,7 +1341,7 @@ void StudioApp::DrawModels() {
                 active_component.catalog == component.catalog;
           }
         }
-        ImGui::SameLine(Ui(235.0f));
+        ImGui::SameLine();
         ImGui::BeginDisabled(component_in_use || install.downloading);
         const std::string remove_id =
             "Remove##" + std::string(ProfileWireName(profile)) + "-" +
@@ -1337,18 +1350,29 @@ void StudioApp::DrawModels() {
           models_.RemoveComponent(profile, component.kind);
         ImGui::EndDisabled();
       }
+      ImGui::EndGroup();
     }
     if (downloading) {
       const float progress = profile_state.total_bytes == 0 ? 0.0f :
           static_cast<float>(static_cast<double>(profile_state.completed_bytes) /
                              static_cast<double>(profile_state.total_bytes));
-      ImGui::ProgressBar(std::clamp(progress, 0.0f, 1.0f), {-Ui(110.0f), 0.0f},
-                         FormatBytes(profile_state.completed_bytes).c_str());
+      const float pause_width = ImGui::CalcTextSize("Pause").x +
+                                ImGui::GetStyle().FramePadding.x * 2.0f;
+      const std::string progress_label = FormatBytes(profile_state.completed_bytes) +
+                                         " / " + FormatBytes(profile_state.total_bytes);
+      ModelDownloadProgress(progress,
+          {std::max(Ui(40.0f), ImGui::GetContentRegionAvail().x - pause_width -
+                                   ImGui::GetStyle().ItemSpacing.x), ImGui::GetFrameHeight()},
+          progress_label.c_str(), ImGui::GetTime());
       ImGui::SameLine();
       if (ImGui::Button((std::string("Pause##") + ProfileWireName(profile)).c_str())) {
         models_.Cancel();
       }
-      if (!install.current_file.empty()) ImGui::TextDisabled("%s", install.current_file.c_str());
+      if (!install.current_file.empty()) {
+        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+        ImGui::TextWrapped("%s", install.current_file.c_str());
+        ImGui::PopStyleColor();
+      }
     } else if (!profile_state.Ready()) {
       const bool blocked = install.downloading || !profile_state.storage_available ||
                            !profile_state.sufficient_space;
@@ -1357,7 +1381,8 @@ void StudioApp::DrawModels() {
                                  "##" + ProfileWireName(profile);
       if (ImGui::Button(button.c_str())) models_.DownloadProfile(profile);
       ImGui::EndDisabled();
-      ImGui::SameLine();
+      ModelComponentSameLine(Ui(310.0f), ImGui::GetStyle().ItemSpacing.x);
+      ImGui::PushTextWrapPos(0.0f);
       if (!profile_state.storage_available) {
         ImGui::TextDisabled("Free space unavailable");
       } else if (!profile_state.sufficient_space) {
@@ -1368,24 +1393,25 @@ void StudioApp::DrawModels() {
         ImGui::TextDisabled("%s free · resumable · SHA-256 verified",
                             FormatBytes(profile_state.available_disk_bytes).c_str());
       }
+      ImGui::PopTextWrapPos();
     } else if (selected) {
       ImGui::TextColored(kAccent, "Installed and selected");
     } else {
       const std::string button = "Use this profile##" +
                                  std::string(ProfileWireName(profile));
       if (ImGui::Button(button.c_str())) SelectProfile(profile);
-      ImGui::SameLine();
+      ModelComponentSameLine(ImGui::CalcTextSize("Installed in the shared Hub cache").x,
+                             ImGui::GetStyle().ItemSpacing.x);
       ImGui::TextDisabled("Installed in the shared Hub cache");
     }
-    ImGui::EndChild();
+    EndModelCard();
     ImGui::PopStyleColor(2);
-    ImGui::Dummy({0, Ui(10)});
+    ImGui::Dummy({0, Ui(3)});
   };
   for (const auto& catalog : ModelCatalog()) draw_profile(catalog);
   if (!install.error.empty()) {
     ImGui::TextColored({1.0f, 0.45f, 0.45f, 1.0f}, "%s", install.error.c_str());
   }
-  ImGui::TextDisabled("Profiles may coexist. Changing the active profile updates launch paths; restart a running server to apply it.");
 }
 
 void StudioApp::DrawServer() {

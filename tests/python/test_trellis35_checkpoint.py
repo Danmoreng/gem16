@@ -52,7 +52,12 @@ class Trellis35CheckpointTest(unittest.TestCase):
             root = Path(directory).resolve()
             (root / "payload.bin").write_bytes(b"payload")
             self.assertEqual(_safe_file(root, "payload.bin", "fixture"), root / "payload.bin")
-            (root / "link.bin").symlink_to(root / "payload.bin")
+            try:
+                (root / "link.bin").symlink_to(root / "payload.bin")
+            except OSError as error:
+                if getattr(error, "winerror", None) == 1314:
+                    self.skipTest("Windows symlink privilege is unavailable")
+                raise
             with self.assertRaises(InvalidPlanError):
                 _safe_file(root, "link.bin", "fixture")
             with self.assertRaises(InvalidPlanError):

@@ -63,6 +63,9 @@ license remains beside the vendored source.
   streamed progress, terminal usage statistics, and quick thinking-effort controls.
 - Model cache open/reverify actions, automatic managed-server restart after a profile switch, server preflight
   status, path pickers, auto-sized errors, and responsive configuration/log panels.
+- Compact content-sized model cards with no internal scrolling, wrapping component/status rows, and retained
+  gemstone icons. Profile descriptions are available on title hover; capabilities remain visible. Downloads use
+  an emerald progress fill with a gentle animated shimmer clipped to the completed extent and a byte-count label.
 
 This native slice covers text and 12B multimodal chat plus two-profile onboarding but does not yet satisfy the full product contract.
 Complete real-model downloads and clean-machine installation still require equal Windows and Linux qualification.

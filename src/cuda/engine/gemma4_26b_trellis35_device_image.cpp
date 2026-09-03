@@ -22,6 +22,8 @@
 #include <string>
 #include <string_view>
 
+#include "util/environment.h"
+
 namespace gem16::internal {
 namespace {
 
@@ -40,7 +42,7 @@ Status CudaFailure(std::string_view operation, cudaError_t error) {
 }
 
 Result<DeviceImageIo> RequestedDeviceImageIo() {
-  const char* value = std::getenv("GEM16_DEVICE_IMAGE_IO");
+  const char* value = GetEnvironmentVariable("GEM16_DEVICE_IMAGE_IO");
   if (value == nullptr || std::string_view(value) == "auto") {
     return DeviceImageIo::kAuto;
   }

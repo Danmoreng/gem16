@@ -736,9 +736,11 @@ if(BUILD_TESTING)
 endif()
 if(BUILD_TESTING AND GEM16_BUILD_TESTS)
   add_executable(gem16-unit-tests
+    tests/unit/file_sha256_test.cpp
     tests/unit/audio_test.cpp
     tests/unit/chat_test.cpp
     tests/unit/config_test.cpp
+    tests/unit/environment_test.cpp
     tests/unit/fp8_test.cpp
     tests/unit/fp8_batch_encoder_test.cpp
     tests/unit/gemma4_26b_manifest_test.cpp

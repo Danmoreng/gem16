@@ -6,6 +6,7 @@
 #include "media_loader.h"
 #include "model_catalog.h"
 #include "model_manager.h"
+#include "model_widgets.h"
 #include "server_manager.h"
 #include "settings.h"
 #include "selectable_text.h"
@@ -583,6 +584,88 @@ bool TestTextSelection() {
   return true;
 }
 
+bool TestModelCardLayoutAndProgress() {
+  ImGui::CreateContext();
+  ImGuiIO& io = ImGui::GetIO();
+  io.IniFilename = nullptr;
+  io.DisplaySize = {1600.0f, 1200.0f};
+  io.DeltaTime = 1.0f / 60.0f;
+  unsigned char* pixels = nullptr;
+  int width = 0;
+  int height = 0;
+  io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
+  bool passed = true;
+  for (float scale : {1.0f, 1.25f, 1.5f}) {
+    for (float card_width : {340.0f, 900.0f}) {
+      for (bool ready : {false, true}) {
+        std::vector<ImU32> frame_colors[2];
+        for (int frame = 0; frame < 5; ++frame) {
+          ImGui::NewFrame();
+          ImGui::SetNextWindowPos({0, 0});
+          ImGui::SetNextWindowSize({card_width * scale, 900.0f});
+          ImGui::Begin("##model-layout", nullptr, ImGuiWindowFlags_NoDecoration |
+                                                    ImGuiWindowFlags_NoSavedSettings);
+          ImGui::SetWindowFontScale(scale);
+          gem16::studio::BeginModelCard("##card", scale);
+          ImGui::TextWrapped("Gemma 4 26B Vision (Trellis35 FP8)");
+          ImGui::TextWrapped("Text / Vision / Fixed MTP D2 / 229,120 tokens");
+          bool first = true;
+          for (const char* component : {"Target", "Vision", "Assistant"}) {
+            const std::string status = std::string(component) +
+                                      (ready ? ": Verified" : ": Missing");
+            const float extent = ImGui::CalcTextSize(status.c_str()).x +
+                (ready ? ImGui::CalcTextSize("Remove").x +
+                             ImGui::GetStyle().ItemSpacing.x +
+                             ImGui::GetStyle().FramePadding.x * 2.0f : 0.0f);
+            if (!first) gem16::studio::ModelComponentSameLine(extent, 22.0f * scale);
+            first = false;
+            ImGui::BeginGroup();
+            ImGui::TextUnformatted(status.c_str());
+            if (ready) {
+              ImGui::SameLine();
+              ImGui::PushID(component);
+              ImGui::SmallButton("Remove");
+              ImGui::PopID();
+            }
+            ImGui::EndGroup();
+          }
+          const int vertex_begin = ImGui::GetWindowDrawList()->VtxBuffer.Size;
+          gem16::studio::ModelDownloadProgress(0.65f,
+              {ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight()},
+              "7.9 / 12.2 GiB", frame == 4 ? 1.0 : 0.0);
+          if (frame >= 3) {
+            auto& colors = frame_colors[frame - 3];
+            const auto& vertices = ImGui::GetWindowDrawList()->VtxBuffer;
+            for (int index = vertex_begin; index < vertices.Size; ++index)
+              colors.push_back(vertices[index].col);
+          }
+          ImGui::TextWrapped("26B Trellis35 Target / model.gem16");
+          if (frame >= 3) {
+            if (ImGui::GetScrollMaxY() != 0.0f || ImGui::GetScrollMaxX() != 0.0f ||
+                ImGui::GetWindowHeight() >= 260.0f * scale) {
+              std::fprintf(stderr, "card scale=%.2f width=%.0f ready=%d frame=%d height=%.1f scroll=(%.1f,%.1f)\n",
+                  scale, card_width, ready, frame, ImGui::GetWindowHeight(),
+                  ImGui::GetScrollMaxX(), ImGui::GetScrollMaxY());
+            }
+            passed &= ImGui::GetScrollMaxY() == 0.0f && ImGui::GetScrollY() == 0.0f;
+            passed &= ImGui::GetScrollMaxX() == 0.0f;
+            passed &= ImGui::GetWindowHeight() < 260.0f * scale;
+          }
+          gem16::studio::EndModelCard();
+          ImGui::End();
+          ImGui::Render();
+        }
+        if (frame_colors[0] == frame_colors[1])
+          std::fprintf(stderr, "shimmer unchanged scale=%.2f width=%.0f ready=%d\n",
+                       scale, card_width, ready);
+        passed &= frame_colors[0] != frame_colors[1];
+      }
+    }
+  }
+  ImGui::DestroyContext();
+  return passed;
+}
+
 bool TestSelectableTextWidgetClipboard() {
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
@@ -878,6 +961,10 @@ bool TestStreamingClient() {
 }  // namespace
 
 int main() {
+  if (!TestModelCardLayoutAndProgress()) {
+    std::fprintf(stderr, "compact model-card layout/progress animation test failed\n");
+    return 1;
+  }
   if (!TestTextSelection()) {
     std::fprintf(stderr, "selectable text test failed\n");
     return 1;

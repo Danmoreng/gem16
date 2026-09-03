@@ -15,6 +15,7 @@
 #include <utility>
 
 #include "cuda/engine/gemma4_26b_trellis35_device_image.h"
+#include "util/environment.h"
 
 namespace gem16::internal {
 namespace {
@@ -32,7 +33,7 @@ Status CudaFailure(std::string_view operation, cudaError_t error) {
 }
 
 Result<Trellis35StorageFormat> RequestedStorageFormat() {
-  const char* value = std::getenv("GEM16_TRELLIS35_FORMAT");
+  const char* value = GetEnvironmentVariable("GEM16_TRELLIS35_FORMAT");
   if (value == nullptr || std::string_view(value) == "v2") {
     return Trellis35StorageFormat::kDeviceImageV2;
   }

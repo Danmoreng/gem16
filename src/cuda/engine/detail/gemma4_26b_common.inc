@@ -59,7 +59,8 @@ Status CudaAllocationFailure(const char* operation, cudaError_t error) {
 
 Result<std::uint64_t> ResolvePrefillChunkTokens(bool trellis35) {
   if (!trellis35) return kDefaultPrefillChunkTokens;
-  const char* value = std::getenv("GEM16_TRELLIS35_PREFILL_CHUNK_TOKENS");
+  const char* value =
+      GetEnvironmentVariable("GEM16_TRELLIS35_PREFILL_CHUNK_TOKENS");
   if (value != nullptr && std::string_view(value) == "1024") {
     return kDefaultPrefillChunkTokens;
   }

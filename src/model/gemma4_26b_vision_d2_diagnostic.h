@@ -1,7 +1,8 @@
 #pragma once
 
-#include <cstdlib>
 #include <string_view>
+
+#include "util/environment.h"
 
 namespace gem16::internal {
 
@@ -9,7 +10,7 @@ namespace gem16::internal {
 // process-local so model metadata and inference requests cannot enable an
 // unqualified Vision + fixed-D2 path.
 inline bool Gemma4Moe26BVisionD2DiagnosticEnabled() noexcept {
-  const char* value = std::getenv("GEM16_VISION_D2_DIAGNOSTIC");
+  const char* value = GetEnvironmentVariable("GEM16_VISION_D2_DIAGNOSTIC");
   return value != nullptr && std::string_view(value) == "1";
 }
 

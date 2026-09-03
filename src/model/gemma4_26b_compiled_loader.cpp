@@ -13,6 +13,7 @@
 #include "compiler/sha256.h"
 #include "model/gemma4_26b_device_image.h"
 #include "model/gemma4_26b_manifest.h"
+#include "util/file_sha256.h"
 #include "util/json.h"
 
 namespace gem16::internal {
@@ -190,34 +191,6 @@ Result<std::string> CanonicalJsonDocument(const json::Value& value) {
   }
   output.push_back('\n');
   return output;
-}
-
-Result<std::string> Sha256Range(const std::filesystem::path& path,
-                                std::uint64_t offset, std::uint64_t length) {
-  std::ifstream input(path, std::ios::binary);
-  if (!input || offset > static_cast<std::uint64_t>(
-                             std::numeric_limits<std::streamoff>::max())) {
-    return Status(StatusCode::kIoError, "cannot open artifact file: " + path.string());
-  }
-  input.seekg(static_cast<std::streamoff>(offset));
-  if (!input) {
-    return Status(StatusCode::kIoError, "cannot seek artifact file: " + path.string());
-  }
-  compiler::Sha256 digest;
-  std::array<char, 1024U * 1024U> buffer{};
-  std::uint64_t remaining = length;
-  while (remaining != 0) {
-    const auto count = static_cast<std::streamsize>(
-        std::min<std::uint64_t>(remaining, buffer.size()));
-    input.read(buffer.data(), count);
-    if (input.gcount() != count) {
-      return Status(StatusCode::kDataLoss,
-                    "short read while hashing artifact file: " + path.string());
-    }
-    digest.Update(buffer.data(), static_cast<std::size_t>(count));
-    remaining -= static_cast<std::uint64_t>(count);
-  }
-  return digest.HexDigest();
 }
 
 Result<std::uint64_t> Unsigned(const json::Value* value,

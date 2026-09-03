@@ -150,7 +150,12 @@ class Trellis35DeviceImageTest(unittest.TestCase):
             root = Path(directory)
             target = root / "target.bin"
             target.write_bytes(b"payload")
-            (root / "link.bin").symlink_to(target)
+            try:
+                (root / "link.bin").symlink_to(target)
+            except OSError as error:
+                if getattr(error, "winerror", None) == 1314:
+                    self.skipTest("Windows symlink privilege is unavailable")
+                raise
             with self.assertRaises(InvalidPlanError):
                 from tools.build_gemma4_26b_trellis35_device_image import safe_file
 

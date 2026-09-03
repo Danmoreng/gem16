@@ -20,6 +20,7 @@
 #include "gem16/image.h"
 #include "gem16/tokenizer.h"
 #include "model/gemma4_26b_vision_d2_diagnostic.h"
+#include "util/environment.h"
 #include "util/json.h"
 
 namespace {
@@ -1080,7 +1081,8 @@ int main(int argc, char** argv) {
     return gem16::Status::Ok();
   };
   if (budget == 70U) {
-    const char* matrix_filter = std::getenv("GEM16_V11_MATRIX_FILTER");
+    const char* matrix_filter =
+        gem16::internal::GetEnvironmentVariable("GEM16_V11_MATRIX_FILTER");
     const bool short_only = matrix_filter != nullptr &&
                             std::string_view(matrix_filter) == "short";
     const bool cancel_only = matrix_filter != nullptr &&

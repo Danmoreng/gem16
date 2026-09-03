@@ -17,6 +17,7 @@
 #include "cuda/moe/prefill.h"
 #include "exllamav3_quant/util.cuh"
 #include "exllamav3_quant/quant/codebook.cuh"
+#include "util/environment.h"
 
 namespace gem16::internal {
 namespace {

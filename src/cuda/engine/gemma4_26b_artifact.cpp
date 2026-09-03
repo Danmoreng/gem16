@@ -36,6 +36,7 @@
 #include "cuda/nvfp4/sm120_layout.h"
 #include "model/gemma4_26b_device_image.h"
 #include "platform/mapped_file.h"
+#include "util/environment.h"
 
 namespace gem16::internal {
 namespace {
@@ -127,7 +128,7 @@ class DeviceImageSha256 {
 };
 
 Result<DeviceImageIo> RequestedDeviceImageIo() {
-  const char* value = std::getenv("GEM16_DEVICE_IMAGE_IO");
+  const char* value = GetEnvironmentVariable("GEM16_DEVICE_IMAGE_IO");
   if (value == nullptr || std::string_view(value) == "auto") {
     return DeviceImageIo::kAuto;
   }

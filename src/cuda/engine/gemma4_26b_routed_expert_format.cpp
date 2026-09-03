@@ -8,6 +8,7 @@
 
 #include "model/gemma4_26b_compiled_loader.h"
 #include "model/gemma4_26b_trellis35.h"
+#include "util/environment.h"
 #include "util/json.h"
 
 namespace gem16::internal {
@@ -132,7 +133,7 @@ LoadValidatedGemma4Moe26BTrellis35RuntimePlan(
   auto v2 = IsTrellis35V2Marker(model_directory);
   if (!v2.ok()) return v2.status();
   if (v2.value()) {
-    const char* requested = std::getenv("GEM16_TRELLIS35_FORMAT");
+    const char* requested = GetEnvironmentVariable("GEM16_TRELLIS35_FORMAT");
     if (requested != nullptr && std::string_view(requested) == "legacy-v1") {
       return Status(StatusCode::kDataLoss,
                     "legacy Trellis35 v1 was requested but v2 files are "
@@ -140,7 +141,7 @@ LoadValidatedGemma4Moe26BTrellis35RuntimePlan(
     }
     return LoadGemma4Moe26BTrellis35DeviceImagePlan(model_directory);
   }
-  const char* requested = std::getenv("GEM16_TRELLIS35_FORMAT");
+  const char* requested = GetEnvironmentVariable("GEM16_TRELLIS35_FORMAT");
   if (requested == nullptr || std::string_view(requested) != "legacy-v1") {
     return Status(StatusCode::kUnsupported,
                   "Trellis35 v1 requires explicit "

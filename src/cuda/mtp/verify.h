@@ -25,6 +25,7 @@ struct alignas(64) MtpStreamingRing {
   unsigned long long cancelled = 0U;
   unsigned long long backpressure_events = 0U;
   std::array<std::uint32_t, kMtpStreamingRingCapacity> tokens{};
+  std::array<std::byte, 32U> alignment_padding{};
 };
 
 struct MtpGroupResult {
@@ -71,6 +72,7 @@ struct alignas(16) MtpDeviceControl {
   std::uint32_t proposal_count = 0U;
   std::uint32_t transition_valid = 0U;
   std::uint32_t sampling_enabled = 0U;
+  std::array<std::byte, 8U> alignment_padding{};
 };
 
 struct alignas(16) MtpGroupTransaction {
@@ -95,6 +97,7 @@ struct alignas(16) MtpChainResult {
   std::uint32_t stop_token = 0U;
   std::uint32_t reasoning_complete = 0U;
   std::uint32_t reasoning_budget_forced = 0U;
+  std::array<std::byte, 8U> alignment_padding{};
 };
 
 struct MtpKvCommitLayer {
@@ -107,6 +110,9 @@ struct MtpKvCommitLayer {
 };
 
 static_assert(std::is_trivially_copyable_v<MtpGroupTransaction>);
+static_assert(sizeof(MtpStreamingRing) == 1088U);
+static_assert(sizeof(MtpDeviceControl) == 208U);
+static_assert(sizeof(MtpChainResult) == 96U);
 static_assert(offsetof(MtpGroupTransaction, control) % 16U == 0U);
 
 [[nodiscard]] Status LaunchBuildMtpVerificationInputs(

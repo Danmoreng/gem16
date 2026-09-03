@@ -60,7 +60,8 @@ Status Gemma4Moe26BReferenceEngine::PrefillTokens(
   }
   auto& x = *implementation_;
   static const bool trellis35_routing_diagnostic = [] {
-    const char* value = std::getenv("GEM16_TRELLIS35_ROUTING_TELEMETRY");
+    const char* value =
+        GetEnvironmentVariable("GEM16_TRELLIS35_ROUTING_TELEMETRY");
     return value != nullptr && std::string_view(value) == "1";
   }();
   x.pending_decode_self_feed = false;

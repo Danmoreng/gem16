@@ -1,5 +1,7 @@
 #include "trellis35_test_support.h"
 
+#include <bit>
+
 namespace {
 
 // Frozen before executing the WP13 oracle. The warp FWHT changes FP32
@@ -39,7 +41,7 @@ void TestH128WarpExhaustiveOracle() {
     for (unsigned column = 0U; column < 128U; ++column) {
       float accumulator = 0.0F;
       for (unsigned row = 0U; row < 128U; ++row) {
-        const float sign = (__builtin_popcount(row & column) & 1U) == 0U
+        const float sign = (std::popcount(row & column) & 1U) == 0U
                                ? 1.0F
                                : -1.0F;
         accumulator = std::fma(host_input[vector * 128U + row], sign,

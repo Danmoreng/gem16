@@ -15,7 +15,7 @@ Status TransformArguments(const float* input, const std::uint16_t* sidecar,
 bool Trellis35PrefillGeluDownFusionEnabled() {
   static const bool enabled = [] {
     const char* value =
-        std::getenv("GEM16_TRELLIS35_PREFILL_GELU_DOWN_FUSION");
+        GetEnvironmentVariable("GEM16_TRELLIS35_PREFILL_GELU_DOWN_FUSION");
     return value == nullptr || std::string_view(value) != "0";
   }();
   return enabled;
@@ -23,7 +23,8 @@ bool Trellis35PrefillGeluDownFusionEnabled() {
 
 bool Trellis35SmallGeluDownFusionEnabled() {
   static const bool enabled = [] {
-    const char* value = std::getenv("GEM16_TRELLIS35_SMALL_GELU_DOWN_FUSION");
+    const char* value =
+        GetEnvironmentVariable("GEM16_TRELLIS35_SMALL_GELU_DOWN_FUSION");
     return value == nullptr || std::string_view(value) != "0";
   }();
   return enabled;
@@ -32,7 +33,7 @@ bool Trellis35SmallGeluDownFusionEnabled() {
 bool Trellis35M1NativeFp8x4Enabled() {
   static const bool enabled = [] {
     const char* value =
-        std::getenv("GEM16_TRELLIS35_M1_NATIVE_FP8X4");
+        GetEnvironmentVariable("GEM16_TRELLIS35_M1_NATIVE_FP8X4");
     return value == nullptr || std::string_view(value) != "0";
   }();
   return enabled;
@@ -41,7 +42,7 @@ bool Trellis35M1NativeFp8x4Enabled() {
 bool Trellis35T3NativeFp8x4Enabled() {
   static const bool enabled = [] {
     const char* value =
-        std::getenv("GEM16_TRELLIS35_T3_NATIVE_FP8X4");
+        GetEnvironmentVariable("GEM16_TRELLIS35_T3_NATIVE_FP8X4");
     return value == nullptr || std::string_view(value) != "0";
   }();
   return enabled;
@@ -49,7 +50,8 @@ bool Trellis35T3NativeFp8x4Enabled() {
 
 bool Trellis35T3VectorStoreEnvironmentEnabled() {
   static const bool enabled = [] {
-    const char* value = std::getenv("GEM16_TRELLIS35_T3_VECTOR_STORE");
+    const char* value =
+        GetEnvironmentVariable("GEM16_TRELLIS35_T3_VECTOR_STORE");
     return value == nullptr || std::string_view(value) != "0";
   }();
   return enabled;
@@ -57,7 +59,8 @@ bool Trellis35T3VectorStoreEnvironmentEnabled() {
 
 bool Trellis35M1VectorStoreEnvironmentEnabled() {
   static const bool enabled = [] {
-    const char* value = std::getenv("GEM16_TRELLIS35_M1_VECTOR_STORE");
+    const char* value =
+        GetEnvironmentVariable("GEM16_TRELLIS35_M1_VECTOR_STORE");
     return value == nullptr || std::string_view(value) != "0";
   }();
   return enabled;
@@ -65,7 +68,8 @@ bool Trellis35M1VectorStoreEnvironmentEnabled() {
 
 Trellis35M1ProjectionOutputMode Trellis35M1ProjectionOutputEnvironmentMode() {
   static const Trellis35M1ProjectionOutputMode mode = [] {
-    const char* value = std::getenv("GEM16_TRELLIS35_M1_N128_INVERSE");
+    const char* value =
+        GetEnvironmentVariable("GEM16_TRELLIS35_M1_N128_INVERSE");
     if (value == nullptr || std::string_view(value) == "1" ||
         std::string_view(value) == "both") {
       return Trellis35M1ProjectionOutputMode::kFusedN128;
@@ -83,7 +87,8 @@ Trellis35M1ProjectionOutputMode Trellis35M1ProjectionOutputEnvironmentMode() {
 
 Trellis35T3ProjectionOutputMode Trellis35T3ProjectionOutputEnvironmentMode() {
   static const Trellis35T3ProjectionOutputMode mode = [] {
-    const char* value = std::getenv("GEM16_TRELLIS35_T3_N128_INVERSE");
+    const char* value =
+        GetEnvironmentVariable("GEM16_TRELLIS35_T3_N128_INVERSE");
     if (value == nullptr || std::string_view(value) == "1" ||
         std::string_view(value) == "both") {
       return Trellis35T3ProjectionOutputMode::kFusedN128;
@@ -102,7 +107,7 @@ Trellis35T3ProjectionOutputMode Trellis35T3ProjectionOutputEnvironmentMode() {
 bool Trellis35PrefillScheduleTrimEnabled() {
   static const bool enabled = [] {
     const char* value =
-        std::getenv("GEM16_TRELLIS35_PREFILL_SCHEDULE_TRIM");
+        GetEnvironmentVariable("GEM16_TRELLIS35_PREFILL_SCHEDULE_TRIM");
     return value == nullptr || std::string_view(value) != "0";
   }();
   return enabled;

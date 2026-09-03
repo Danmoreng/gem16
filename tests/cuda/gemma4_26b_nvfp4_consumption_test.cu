@@ -521,6 +521,11 @@ bool SelectSm120Device() {
 }  // namespace
 
 int main() {
+#if defined(_WIN32)
+  std::cerr << "SKIP: native NVFP4 fixture compilation requires the "
+               "canonical POSIX direct-range I/O backend\n";
+  return kCTestSkip;
+#endif
   TestMalformedHostInputs();
   if (failures != 0) {
     std::cerr << failures << " NVFP4 host assertion(s) failed\n";

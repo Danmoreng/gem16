@@ -1,5 +1,16 @@
 # Memory
 
+## Windows checkpoint-hash staging
+
+Trellis35 metadata hashing and compiled 26B Target/Assistant range hashing use
+one bounded 1 MiB heap buffer per active hash call (`util/file_sha256.h`). The
+buffer is freed on return and is never part of recurring inference or device
+residency. This replaces 1 MiB automatic arrays that exhausted the default
+1 MiB Windows thread stack during startup (`0xC00000FD`). Hash coverage and
+chunk size are unchanged; persistent host/device bytes and KV limits do not
+change. Host tests cover empty files, full chunks, partial chunks, nonzero
+ranges, short reads, missing files, and invalid offsets on the default stack.
+
 ## Gemma 4 26B Fast-Track policy
 
 The 26B base profile supports one slot. M09 must pass real 32K execution with at least 700 MiB directly measured free-device memory. M21 then attempts 64K and finds the largest base context that still leaves at least 500 MiB. M25 repeats the exercise with assistant weights and verifier workspace and publishes a separate MTP maximum. Positive 26B multi-slot tests are not required; slot two must be rejected.

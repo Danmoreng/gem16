@@ -21,6 +21,7 @@
 #include "cuda/fp8/reference.h"
 #include "cuda/layer/reference.h"
 #include "model/gemma4_26b_vision_contract.h"
+#include "util/environment.h"
 
 namespace gem16::internal {
 namespace {
@@ -499,7 +500,7 @@ std::uint64_t Blocks(std::uint64_t elements, unsigned threads = 256U) {
 }
 
 Result<bool> DirectPoolFromEnvironment() {
-  const char* selected = std::getenv("GEM16_VISION_POOL");
+  const char* selected = GetEnvironmentVariable("GEM16_VISION_POOL");
   if (selected == nullptr || selected[0] == '\0' ||
       std::string_view(selected) == "direct") {
     return true;
@@ -509,7 +510,7 @@ Result<bool> DirectPoolFromEnvironment() {
 }
 
 Result<bool> RopeTableFromEnvironment() {
-  const char* selected = std::getenv("GEM16_VISION_ROPE");
+  const char* selected = GetEnvironmentVariable("GEM16_VISION_ROPE");
   if (selected == nullptr || selected[0] == '\0' ||
       std::string_view(selected) == "table") {
     return true;
@@ -519,7 +520,7 @@ Result<bool> RopeTableFromEnvironment() {
 }
 
 Result<bool> FusedFfnQuantFromEnvironment() {
-  const char* selected = std::getenv("GEM16_VISION_FFN_QUANT");
+  const char* selected = GetEnvironmentVariable("GEM16_VISION_FFN_QUANT");
   if (selected == nullptr || selected[0] == '\0' ||
       std::string_view(selected) == "fused") {
     return true;

@@ -16,6 +16,7 @@
 #include "cuda/nvfp4/reference.h"
 #include "cuda/nvfp4/sm120.h"
 #include "cuda/trellis35/reference.h"
+#include "util/environment.h"
 
 namespace gem16::internal {
 namespace {
@@ -43,7 +44,8 @@ Status Invalid(std::string message) {
 
 bool Trellis35M64PrefillEnabled() {
   static const bool enabled = [] {
-    const char* value = std::getenv("GEM16_TRELLIS35_PREFILL_M64");
+    const char* value =
+        GetEnvironmentVariable("GEM16_TRELLIS35_PREFILL_M64");
     return value == nullptr || std::string_view(value) != "0";
   }();
   return enabled;
