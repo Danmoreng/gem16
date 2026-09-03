@@ -1,5 +1,6 @@
 #include "api_client.h"
 #include "chat_history.h"
+#include "fonts.h"
 #include "gem16_logo.generated.h"
 #include "image_texture.h"
 #include "markdown.h"
@@ -846,6 +847,62 @@ bool TestChatHistoryUndo() {
   return !gem16::studio::RemoveLastExchange(messages) && messages.size() == 1;
 }
 
+bool TestChatFontsAndSpacing() {
+  IMGUI_CHECKVERSION();
+  ImGui::CreateContext();
+  ImGuiIO& io = ImGui::GetIO();
+  io.IniFilename = nullptr;
+  io.DisplaySize = {900, 700};
+  io.DeltaTime = 1.0f / 60.0f;
+  ImFont* font = gem16::studio::InitializeStudioFonts();
+  unsigned char* pixels = nullptr;
+  int atlas_width = 0, atlas_height = 0;
+  io.Fonts->GetTexDataAsRGBA32(&pixels, &atlas_width, &atlas_height);
+  bool passed = sizeof(ImWchar) == 4 && pixels && atlas_width > 0;
+#ifdef _WIN32
+  // Actual Windows fallback glyphs, not the replacement character. Verify
+  // supplementary UTF-8 measures as ONE glyph as well as baking visibly.
+  const std::pair<ImWchar, const char*> emojis[] = {
+      {0x1f60a, "\xf0\x9f\x98\x8a"}, {0x1f44d, "\xf0\x9f\x91\x8d"},
+      {0x1f680, "\xf0\x9f\x9a\x80"}};
+  for (const auto& [codepoint, utf8] : emojis) {
+    const ImFontGlyph* glyph = font->GetFontBaked(17.0f)->FindGlyphNoFallback(codepoint);
+    passed &= glyph && glyph->Visible && glyph->Codepoint == codepoint;
+    if (glyph) {
+      const float width = font->CalcTextSizeA(17.0f, 1000, 0, utf8).x;
+      passed &= std::abs(width - glyph->AdvanceX) < 0.01f;
+    }
+  }
+#endif
+  for (const float scale : {1.0f, 1.25f, 1.5f}) {
+    ImGui::NewFrame();
+    ImGui::SetNextWindowSize({900, 700});
+    ImGui::Begin("##chat-format-test");
+    ImGui::SetWindowFontScale(scale);
+    ImGui::GetStyle().ItemSpacing = {11 * scale, 11 * scale};
+    const float unit = ImGui::GetFontSize() / 17.0f;
+    const float line = ImGui::GetFontSize() + 3 * unit;
+    const auto height = [](const char* id, const std::string& source, float width) {
+      const float before = ImGui::GetCursorPosY();
+      gem16::studio::markdown::Render(id, source, width);
+      return ImGui::GetCursorPosY() - before;
+    };
+    const float bullets = height("bullets", "- First\n\n- Second", 600);
+    const float ordered = height("ordered", "1. First\n2. Second", 600);
+    const float paragraphs = height("paragraphs", "First\n\nSecond", 600);
+    passed &= std::abs(bullets - (2 * line + 2 * unit)) < 2.0f;
+    passed &= std::abs(ordered - bullets) < 1.0f;
+    passed &= paragraphs > bullets + 6 * unit;
+    const float wrapped = height("wrapped", "- A longer item that wraps to more than one line\n- Second", 140);
+    passed &= wrapped > bullets + line;
+    passed &= ImGui::GetStyle().ItemSpacing.y == 11 * scale;
+    ImGui::End();
+    ImGui::Render();
+  }
+  ImGui::DestroyContext();
+  return passed;
+}
+
 bool TestComposerEnterBehavior() {
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
@@ -915,7 +972,7 @@ bool TestStreamingClient() {
     response.set_header("X-Gem16-Session-Id", "session_returned");
     const std::string stream =
         "data: {\"choices\":[{\"delta\":{\"reasoning_content\":\"Think\"}}]}\n\n"
-        "data: {\"choices\":[{\"delta\":{\"content\":\"Hello\"}}]}\n\n"
+        "data: {\"choices\":[{\"delta\":{\"content\":\"Hello \\ud83d\\ude0a\"}}]}\n\n"
         "data: {\"choices\":[],\"usage\":{\"prompt_tokens\":7,\"completion_tokens\":2,\"total_tokens\":9}}\n\n"
         "data: [DONE]\n\n";
     response.set_content(stream, "text/event-stream");
@@ -947,7 +1004,8 @@ bool TestStreamingClient() {
   bool usage = false;
   bool error = false;
   for (const auto& event : events) {
-    text |= event.kind == gem16::studio::ChatEvent::Kind::kText && event.value == "Hello";
+    text |= event.kind == gem16::studio::ChatEvent::Kind::kText &&
+            event.value == "Hello \xf0\x9f\x98\x8a";
     reasoning |= event.kind == gem16::studio::ChatEvent::Kind::kReasoning && event.value == "Think";
     finished |= event.kind == gem16::studio::ChatEvent::Kind::kFinished;
     session |= event.kind == gem16::studio::ChatEvent::Kind::kSession && event.value == "session_returned";
@@ -979,6 +1037,10 @@ int main() {
   }
   if (!TestMarkdownParser()) {
     std::fprintf(stderr, "markdown parser test failed\n");
+    return 1;
+  }
+  if (!TestChatFontsAndSpacing()) {
+    std::fprintf(stderr, "chat font/emoji and Markdown spacing test failed\n");
     return 1;
   }
   if (!TestChatHistoryUndo()) {

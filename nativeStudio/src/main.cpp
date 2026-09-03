@@ -1,4 +1,5 @@
 #include "app.h"
+#include "fonts.h"
 #include "gem16_logo.generated.h"
 #include "image_texture.h"
 #include "platform_ui.h"
@@ -37,17 +38,7 @@ void InitializeImGuiStyle() {
   ImGuiIO& io = ImGui::GetIO();
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
   io.IniFilename = nullptr;
-#ifdef _WIN32
-  const char* font_path = "C:\\Windows\\Fonts\\segoeui.ttf";
-#else
-  const char* noto = "/usr/share/fonts/noto/NotoSans-Regular.ttf";
-  const char* dejavu = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf";
-  const char* font_path = std::filesystem::is_regular_file(noto) ? noto : dejavu;
-#endif
-  ImFont* font = std::filesystem::is_regular_file(font_path)
-                     ? io.Fonts->AddFontFromFileTTF(font_path, 17.0f)
-                     : nullptr;
-  if (!font) io.Fonts->AddFontDefault();
+  gem16::studio::InitializeStudioFonts();
   ImGui::GetStyle().CircleTessellationMaxError = 0.12f;
 }
 

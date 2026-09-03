@@ -27,6 +27,7 @@ set(STUDIO_SOURCES
   src/audio_recorder.cpp
   src/api_client.cpp
   src/chat_history.cpp
+  src/fonts.cpp
   src/image_texture.cpp
   src/main.cpp
   src/markdown.cpp
@@ -90,6 +91,7 @@ target_include_directories(gem16-studio PRIVATE
 )
 target_compile_definitions(gem16-studio PRIVATE
   IMGUI_DEFINE_MATH_OPERATORS
+  IMGUI_USE_WCHAR32
   CPPHTTPLIB_TCP_NODELAY=1
   GEM16_REPOSITORY_ROOT="${GEM16_ROOT}"
   GEM16_VERSION_STRING="${GEM16_VERSION}"
@@ -126,6 +128,7 @@ if(BUILD_TESTING)
     tests/studio_tests.cpp
     src/api_client.cpp
     src/chat_history.cpp
+    src/fonts.cpp
     src/image_texture.cpp
     src/markdown.cpp
     src/media_loader.cpp
@@ -153,6 +156,7 @@ if(BUILD_TESTING)
     "${IMGUI_DIR}"
   )
   target_compile_definitions(gem16-studio-tests PRIVATE
+    IMGUI_USE_WCHAR32
     CPPHTTPLIB_TCP_NODELAY=1
     GEM16_REPOSITORY_ROOT="${GEM16_ROOT}"
   )

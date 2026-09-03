@@ -42,6 +42,12 @@ license remains beside the vendored source.
   reset. Starting a new chat omits the old session ID; the one-slot 26B server then evicts the inactive root.
 - Selectable Markdown rendering for headings, emphasis, strong text, inline and fenced code, ordered/unordered lists,
   quotes, rules, links, and image labels. Fenced code blocks expose their own copy action.
+- Chat blocks use dedicated DPI-scaled spacing instead of the larger application-control spacing. Consecutive
+  list items stay compact even when the model inserts blank lines; paragraphs retain a separate readable gap.
+- Supplementary Unicode characters use 32-bit ImGui glyphs. Windows merges the installed Segoe UI Emoji font;
+  Linux looks for outline Noto Emoji or Symbola fonts when installed. The existing stb renderer draws emoji
+  outlines in the text color, not full-color emoji. Complex ZWJ/flag/skin-tone sequence shaping is not provided.
+  Fonts remain system dependencies and are not copied into packages.
 - Reasoning is available per assistant response, collapsed by default, and expandable without affecting the answer.
 - Desktop-style wrapped response selection with mouse drag, double-click word selection, Shift extension,
   `Ctrl+A`/`Ctrl+C`, a context menu, per-message copy feedback, and equivalent selectable/copyable server logs.
@@ -109,6 +115,9 @@ verifies that click plus `Ctrl+A`/`Ctrl+C` reaches the platform clipboard callba
 It also covers Markdown parsing and streaming fences, undo-turn history behavior, the multimodal OpenAI request
 shape and usage events, UI-scale policy/persistence, and the real ImGui `Enter`/`Shift+Enter` composer interaction.
 It does not download a full model, open a microphone, or load a GPU.
+The chat-format regression checks actual Windows smile/thumb/rocket glyphs and UTF-8 widths, surrogate-pair SSE
+decoding, and wrapped/ordered/unordered list spacing at 100/125/150% scale. Run with
+`ctest --test-dir build/Windows/native-studio-ui --output-on-failure` for the isolated Windows UI build.
 
 ## Packaging
 

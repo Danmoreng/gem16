@@ -278,7 +278,7 @@ void DrawInline(const char* id, const Block& block, float width,
       {.width = width,
        .text_color = text_color,
        .selection_color = IM_COL32(38, 144, 102, 205),
-       .line_spacing = 3.0f,
+       .line_spacing = 3.0f * ImGui::GetFontSize() / 17.0f,
        .spans = &spans,
        .selection_group = selection_group,
        .selection_text = selection_text,
@@ -441,6 +441,17 @@ void Render(const char* id, const std::string& source, float width) {
   for (std::size_t index = 0; index < blocks.size(); ++index) {
     const Block& block = blocks[index];
     ImGui::PushID(static_cast<int>(index));
+    const float scale = ImGui::GetFontSize() / 17.0f;
+    const bool next_same_list = index + 1 < blocks.size() &&
+        (block.kind == BlockKind::kBulletItem ||
+         block.kind == BlockKind::kOrderedItem) &&
+        blocks[index + 1].kind == block.kind;
+    // Exactly one block gap, independent of the large application-control
+    // spacing. Blank lines between list items must not create paragraph gaps.
+    const float gap = index + 1 == blocks.size() ? 0.0f :
+                      (next_same_list ? 2.0f : 10.0f) * scale;
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,
+                        {ImGui::GetStyle().ItemSpacing.x, gap});
     const float available = std::max(60.0f, width);
     switch (block.kind) {
       case BlockKind::kHeading: {
@@ -515,7 +526,7 @@ void Render(const char* id, const std::string& source, float width) {
                    selection_text, selection_offsets[index]);
         break;
     }
-    if (block.kind != BlockKind::kRule) ImGui::Dummy({0, 5.0f});
+    ImGui::PopStyleVar();
     ImGui::PopID();
   }
   ImGui::PopID();
