@@ -2,6 +2,7 @@
 #include "selectable_text.h"
 #include "math_renderer.h"
 #include "platform_ui.h"
+#include "fonts.h"
 #include <algorithm>
 
 namespace gem16::studio::markdown {
@@ -30,8 +31,10 @@ std::vector<selectable_text::StyleSpan> DrawSpans(const Block& block, float widt
     else if (span.emphasis)
       draw.text_color = ImGui::ColorConvertFloat4ToU32(
           {0.73f, 0.80f, 0.77f, 1.0f});
-    if (span.code)
+    if (span.code) {
       draw.background_color = IM_COL32(27, 48, 42, 235);
+      draw.font = StudioCodeFont();
+    }
     result.push_back(draw);
   }
   return result;
@@ -109,13 +112,20 @@ void Render(const char* id, const std::string& source, float width) {
         ImGui::BeginChild("##code-block", {available, 0},
                           ImGuiChildFlags_AutoResizeY |
                               ImGuiChildFlags_Borders);
-        ImGui::TextColored(kAccent, "%s",
-                           block.info.empty() ? "Code" : block.info.c_str());
-        ImGui::SameLine();
-        ImGui::SetCursorPosX(ImGui::GetWindowWidth() - 66.0f);
+        const float header_x = ImGui::GetCursorPosX();
+        const float header_width = ImGui::GetContentRegionAvail().x;
+        const float button_width = ImGui::CalcTextSize("Copy").x + 2 * ImGui::GetStyle().FramePadding.x;
+        const float label_width = std::max(0.0f, header_width - button_width - 8 * scale);
+        const ImVec2 label_pos = ImGui::GetCursorScreenPos();
+        ImGui::PushClipRect(label_pos, {label_pos.x + label_width, label_pos.y + ImGui::GetTextLineHeight()}, true);
+        ImGui::GetWindowDrawList()->AddText(label_pos, ImGui::ColorConvertFloat4ToU32(kAccent),
+            block.info.empty() ? "Code" : block.info.c_str());
+        ImGui::PopClipRect();
+        ImGui::SetCursorPosX(header_x + std::max(0.0f, header_width - button_width));
         if (ImGui::SmallButton("Copy##code"))
           ImGui::SetClipboardText(block.text.c_str());
         ImGui::Separator();
+        ImGui::PushFont(StudioCodeFont(), 0.0f);
         selectable_text::Wrapped(
             "##code-text", block.text,
             {.width = ImGui::GetContentRegionAvail().x,
@@ -126,6 +136,7 @@ void Render(const char* id, const std::string& source, float width) {
              .selection_group = selection_group,
              .selection_text = selection_text,
              .selection_offset = selection_offsets[index]});
+        ImGui::PopFont();
         ImGui::EndChild();
         ImGui::PopStyleColor(2);
         break;

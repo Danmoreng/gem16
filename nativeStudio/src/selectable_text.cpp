@@ -33,6 +33,7 @@ struct ResolvedStyle {
   bool strike = false;
   std::string link;
   std::shared_ptr<MathLayout> math;
+  ImFont* font = nullptr;
 
   bool operator==(const ResolvedStyle&) const = default;
 };
@@ -85,13 +86,22 @@ float Measure(ImFont* font, float size, std::string_view text,
   if (layout_spans) {
     float width = 0;
     std::size_t cursor = begin;
-    for (const auto& span : *layout_spans) {
-      if (!span.math || span.end <= cursor || span.begin >= end) continue;
-      if (span.begin > cursor) width += font->CalcTextSizeA(size, FLT_MAX, 0, text.data()+cursor, text.data()+span.begin).x;
-      width += span.math->width;
-      cursor = std::min(end, span.end);
+    while (cursor < end) {
+      std::size_t next = end;
+      ImFont* run_font = font;
+      const StyleSpan* math = nullptr;
+      for (const auto& span : *layout_spans) {
+        if ((!span.math && !span.font) || span.end <= cursor || span.begin >= end) continue;
+        if (span.begin > cursor) { next = std::min(next, span.begin); continue; }
+        next = std::min(next, span.end);
+        if (span.font) run_font = span.font;
+        if (span.math) math = &span;
+      }
+      if (math) { width += math->math->width; next = std::min(end, math->end); }
+      else width += run_font->CalcTextSizeA(size, FLT_MAX, 0, text.data()+cursor, text.data()+next).x;
+      cursor = next;
     }
-    if (cursor != begin) return width + (cursor < end ? font->CalcTextSizeA(size, FLT_MAX, 0, text.data()+cursor, text.data()+end).x : 0);
+    return width;
   }
   return font->CalcTextSizeA(size, FLT_MAX, 0.0f, text.data() + begin,
                              text.data() + end).x;
@@ -211,6 +221,7 @@ ResolvedStyle ResolveStyle(const std::vector<StyleSpan>* spans,
     result.strike |= span.strike;
     if (!span.link.empty()) result.link = span.link;
     if (span.math) result.math = span.math;
+    if (span.font) result.font = span.font;
   }
   return result;
 }
@@ -413,13 +424,14 @@ void Wrapped(const char* id, const std::string& text, const Options& options) {
         continue;
       }
       const int vertex_start = draw->VtxBuffer.Size;
+      ImFont* run_font = run.style.font ? run.style.font : font;
       if (run.style.strong) {
-        draw->AddText(font, font_size,
+        draw->AddText(run_font, font_size,
                       {text_position.x + 0.55f, text_position.y},
                       run.style.text_color, text.data() + run.begin,
                       text.data() + run.end);
       }
-      draw->AddText(font, font_size, text_position, run.style.text_color,
+      draw->AddText(run_font, font_size, text_position, run.style.text_color,
                     text.data() + run.begin, text.data() + run.end);
       if (run.style.emphasis) for (int v = vertex_start; v < draw->VtxBuffer.Size; ++v)
         draw->VtxBuffer[v].pos.x += (text_position.y + font_size - draw->VtxBuffer[v].pos.y) * 0.18f;

@@ -4,7 +4,9 @@ extern "C" {
 #include "entity.h"
 }
 #include <charconv>
+#include <algorithm>
 #include <limits>
+#include <map>
 #include <stdexcept>
 
 namespace gem16::studio::markdown {
@@ -40,6 +42,63 @@ std::string Attribute(const MD_ATTRIBUTE& attr) {
   }
   return out;
 }
+
+// md4c's math extension is inline-only: block parsing can interpret an '='
+// inside $$ ... $$ as a Setext heading before math spans are recognized.
+// Shield complete, line-leading display formulas as opaque fences, retaining
+// their original TeX out of band. Never alter actual fenced/indented code.
+std::string ProtectDisplayMath(std::string_view source, std::map<std::string, std::string>& formulas) {
+  std::string prefix = "gem16-display-math-";
+  while (source.find(prefix) != source.npos) prefix += 'x';
+  std::string out;
+  char fence = 0;
+  std::size_t fence_length = 0;
+  for (std::size_t pos = 0; pos < source.size();) {
+    const auto newline = source.find('\n', pos);
+    const auto end = newline == source.npos ? source.size() : newline + 1;
+    auto line = source.substr(pos, end - pos);
+    const auto indent = line.find_first_not_of(' ');
+    auto trimmed = indent != line.npos && indent <= 3 ? line.substr(indent) : std::string_view{};
+    if (!trimmed.empty() && (trimmed[0] == '`' || trimmed[0] == '~')) {
+      const char ch = trimmed[0];
+      const auto count = trimmed.find_first_not_of(ch);
+      const auto run = count == trimmed.npos ? trimmed.size() : count;
+      const auto tail = trimmed.substr(run);
+      if (!fence && run >= 3 && (ch != '`' || tail.find('`') == tail.npos)) { fence = ch; fence_length = run; }
+      else if (fence == ch && run >= fence_length && tail.find_first_not_of(" \t\r\n") == tail.npos) fence = 0;
+    } else if (!fence && trimmed.starts_with("$$") && !trimmed.starts_with("$$$")) {
+      const auto start = pos + indent + 2;
+      const auto candidate = source.substr(start, std::min<std::size_t>(4098, source.size() - start));
+      std::size_t close = 0;
+      while ((close = candidate.find("$$", close)) != candidate.npos) {
+        std::size_t escapes = 0;
+        for (std::size_t i = close; i > 0 && candidate[i - 1] == '\\'; --i) ++escapes;
+        if (escapes % 2 == 0) break;
+        close += 2;
+      }
+      if (close != candidate.npos) {
+        const auto after = start + close + 2;
+        const auto last_newline = source.find('\n', after);
+        const auto last_end = last_newline == source.npos ? source.size() : last_newline + 1;
+        if (source.substr(after, last_end - after).find_first_not_of(" \t\r\n") == source.npos) {
+          auto formula = source.substr(start, close);
+          const auto first = formula.find_first_not_of(" \t\r\n");
+          if (first != formula.npos) {
+            formula = formula.substr(first, formula.find_last_not_of(" \t\r\n") - first + 1);
+            const auto key = prefix + std::to_string(formulas.size());
+            formulas.emplace(key, formula);
+            out += "\n```" + key + "\n.\n```\n\n";
+            pos = last_end;
+            continue;
+          }
+        }
+      }
+    }
+    out += line;
+    pos = end;
+  }
+  return out;
+}
 struct Parser {
   struct List { bool ordered; unsigned ordinal; };
   struct Item { bool pending = true; bool task = false; bool checked = false; };
@@ -52,6 +111,7 @@ struct Parser {
   int quotes = 0;
   std::size_t table = 0;
   unsigned depth = 0;
+  std::map<std::string, std::string> display_formulas;
   void Start(BlockKind kind = BlockKind::kParagraph) {
     current = {}; current.kind = kind; active = true;
     current.indent = static_cast<int>(lists.size()); current.quote_depth = quotes;
@@ -66,6 +126,15 @@ struct Parser {
   }
   void Flush() {
     if (!active) return;
+    if (current.kind == BlockKind::kCode) {
+      if (auto it = display_formulas.find(current.info); it != display_formulas.end()) {
+        current.kind = BlockKind::kParagraph;
+        current.info.clear();
+        current.text = it->second;
+        InlineSpan math; math.end = current.text.size(); math.math = math.display_math = true;
+        current.spans = {math};
+      }
+    }
     if (current.kind == BlockKind::kCode && current.text.ends_with('\n')) current.text.pop_back();
     if (cell) blocks[table].rows.back().push_back(std::move(current));
     else if (!current.text.empty() || current.kind == BlockKind::kRule) blocks.push_back(std::move(current));
@@ -82,7 +151,13 @@ struct Parser {
     else if (type == MD_TEXT_SOFTBR) current.text += ' ';
     else current.text += text;
     style.end = current.text.size();
-    if (style.end > style.begin) current.spans.push_back(std::move(style));
+    if (style.end > style.begin) {
+      if (style.math && !current.spans.empty() && current.spans.back().math &&
+          current.spans.back().begin >= styles.back().begin && current.spans.back().end == style.begin &&
+          current.spans.back().display_math == style.display_math)
+        current.spans.back().end = style.end;
+      else current.spans.push_back(std::move(style));
+    }
   }
   int Enter(MD_BLOCKTYPE type, void* detail) {
     if (++depth > 64) return 1;
@@ -145,7 +220,9 @@ struct Parser {
       case MD_SPAN_CODE: s.code = true; break;
       case MD_SPAN_DEL: s.strike = true; break;
       case MD_SPAN_A: s.link = true; s.destination = Attribute(static_cast<MD_SPAN_A_DETAIL*>(detail)->href); break;
-      case MD_SPAN_LATEXMATH: case MD_SPAN_LATEXMATH_DISPLAY: s.math = true; s.display_math = type == MD_SPAN_LATEXMATH_DISPLAY; break;
+      case MD_SPAN_LATEXMATH: case MD_SPAN_LATEXMATH_DISPLAY:
+        s.math = true; s.display_math = type == MD_SPAN_LATEXMATH_DISPLAY;
+        s.begin = current.text.size(); break;
       case MD_SPAN_IMG: Text(MD_TEXT_NORMAL, "Image: "); break;
       default: break;
     }
@@ -157,6 +234,7 @@ template<class F> int Guard(F&& fn) noexcept { try { return fn(); } catch (...) 
 std::vector<Block> Parse(std::string_view source) {
   if (source.size() > 2U * 1024U * 1024U) return {{BlockKind::kParagraph, "Markdown exceeds the 2 MiB rendering limit."}};
   Parser context;
+  const std::string protected_source = ProtectDisplayMath(source, context.display_formulas);
   MD_PARSER parser{};
   parser.flags = MD_DIALECT_GITHUB | MD_FLAG_LATEXMATHSPANS | MD_FLAG_NOHTML;
   parser.enter_block = [](MD_BLOCKTYPE t, void* d, void* p) { return Guard([&] { return static_cast<Parser*>(p)->Enter(t,d); }); };
@@ -164,7 +242,7 @@ std::vector<Block> Parse(std::string_view source) {
   parser.enter_span = [](MD_SPANTYPE t, void* d, void* p) { return Guard([&] { return static_cast<Parser*>(p)->Span(t,d); }); };
   parser.leave_span = [](MD_SPANTYPE, void*, void* p) { static_cast<Parser*>(p)->styles.pop_back(); return 0; };
   parser.text = [](MD_TEXTTYPE t, const MD_CHAR* s, MD_SIZE n, void* p) { return Guard([&] { static_cast<Parser*>(p)->Text(t, {s,n}); return 0; }); };
-  if (md_parse(source.data(), static_cast<MD_SIZE>(source.size()), &parser, &context) != 0)
+  if (md_parse(protected_source.data(), static_cast<MD_SIZE>(protected_source.size()), &parser, &context) != 0)
     return {{BlockKind::kCode, std::string(source), "Markdown rendering limit reached"}};
   context.Flush();
   return std::move(context.blocks);

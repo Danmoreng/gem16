@@ -22,6 +22,7 @@ struct StyleSpan {
   bool strike = false;
   std::string link;
   std::shared_ptr<MathLayout> math;
+  ImFont* font = nullptr;
 };
 
 struct Options {

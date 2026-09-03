@@ -42,6 +42,10 @@ license remains beside the vendored source.
   reset. Starting a new chat omits the old session ID; the one-slot 26B server then evicts the inactive root.
 - Selectable Markdown rendering for headings, emphasis, strong text, inline and fenced code, ordered/unordered lists,
   quotes, rules, links, and image labels. Fenced code blocks expose their own copy action.
+- Inline code and code blocks use an atlas-owned system monospace font (Consolas/Courier New on Windows,
+  DejaVu Sans Mono/Liberation Mono on Linux, embedded ProggyClean if unavailable). Wrapping and selection use the
+  same font metrics as drawing. Code glyphs are optically reduced to 80% at rasterization to match body-text height;
+  the normal DPI scaling still applies once. Code-header copy actions account for actual padding, label width and DPI.
 - CommonMark/GFM parsing uses pinned md4c: nested lists, task checkboxes, strikethrough,
   combined bold/italic/strike spans, entity decoding and aligned tables are supported.
   Web links show their destination and open on click (dragging still selects); only
@@ -54,6 +58,8 @@ license remains beside the vendored source.
   4 KiB per formula, 32 brace levels, 8 environments, 128 cached formula layouts.
   Markdown input is bounded to 2 MiB, 64 block/span levels, 32 table columns and
   1,000 table rows. This is math rendering, not an arbitrary TeX document engine.
+  Complete line-leading `$$...$$` display blocks are shielded from Markdown block parsing so multiline matrices,
+  row separators and standalone `=` lines reach MicroTeX intact. Formula text inside code stays literal.
 - Chat blocks use dedicated DPI-scaled spacing instead of the larger application-control spacing. Consecutive
   list items stay compact even when the model inserts blank lines; paragraphs retain a separate readable gap.
 - Supplementary Unicode characters use 32-bit ImGui glyphs. Windows merges the installed Segoe UI Emoji font;
@@ -134,6 +140,8 @@ Extended tests cover nested lists, GFM tables/tasks, combined emphasis/strike,
 HTML entities, incomplete streaming input, link click-vs-drag behavior, unsafe
 URLs and formulas, and actual MicroTeX layout/drawing. The test also produces
 `markdown-preview.bmp` from real ImGui draw data for visual review without a server.
+Regressions include multiline matrix multiplication through the full Markdown parser, literal formulas in code,
+equal-width code glyphs and code-copy bounds/clicks at 100/125/150% scaling in narrow and wide blocks.
 
 ## Packaging
 

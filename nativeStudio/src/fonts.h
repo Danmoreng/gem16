@@ -6,4 +6,6 @@ namespace gem16::studio {
 // System fonts only; no font files are copied into the application package.
 // Emoji outlines are rendered monochromatically by the existing stb backend.
 ImFont* InitializeStudioFonts();
+// Atlas-owned font, resolved in the current context (also safe in headless tests).
+ImFont* StudioCodeFont();
 }
